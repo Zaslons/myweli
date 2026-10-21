@@ -19,7 +19,7 @@ void main() {
     int? throttle = 3,
     int? windows = 40,
     int? keys = 7,
-    bool demo = false,
+    String demo = 'not_due',
     bool demoThrows = false,
   }) => MaintenanceTick(
     pruneThrottle: () async {
@@ -44,13 +44,13 @@ void main() {
 
   test('the four tasks, in order, each once — and their four counts', () async {
     final now = DateTime.utc(2026, 10, 22, 3, 30);
-    final body = await tick(demo: true).run(now);
+    final body = await tick(demo: 'ran').run(now);
     expect(calls, ['throttle', 'windows', 'keys', 'demo']);
     expect(body, {
       'throttleRowsPruned': 3,
       'rateLimitWindowsPruned': 40,
       'idempotencyKeysPruned': 7,
-      'demoReset': true,
+      'demoReset': 'ran',
     });
     expect(resetAt, now, reason: 'the reset is judged at the tick’s instant');
   });
@@ -62,6 +62,15 @@ void main() {
     expect(body['idempotencyKeysPruned'], isNull);
     expect(body.containsKey('rateLimitWindowsPruned'), isTrue);
     expect(body['throttleRowsPruned'], 3);
+  });
+
+  // docs/design/backend-integrity-batch6.md §2.9 (B6.9): `false` said both
+  // « not the day » and « refused » — the second is the demo identity lost.
+  test('the demo reset says why it did not run', () async {
+    for (final why in ['not_due', 'no_snapshot', 'refused:not_demo_owned']) {
+      final body = await tick(demo: why).run(DateTime.utc(2026));
+      expect(body['demoReset'], why);
+    }
   });
 
   test('a demo reset that throws makes the tick throw (the alert sees it)', () {

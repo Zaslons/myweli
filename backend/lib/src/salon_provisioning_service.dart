@@ -18,8 +18,10 @@ class SalonProvisioningService {
     this._members, {
     SalonSubscriptionService? subscriptions,
     SiteRebuildNotifier? rebuild,
+    void Function(String)? log,
   }) : _subscriptions = subscriptions,
-       _rebuild = rebuild ?? NoopSiteRebuildNotifier();
+       _rebuild = rebuild ?? NoopSiteRebuildNotifier(),
+       _log = log ?? print;
 
   final ProvidersRepository _providers;
   final ProviderAuthRepository _accounts;
@@ -33,6 +35,9 @@ class SalonProvisioningService {
   /// A new salon joins the set the web prebuilds (`dynamicParams = false`);
   /// without a rebuild its public page 404s until the next deploy.
   final SiteRebuildNotifier _rebuild;
+
+  /// Structured stdout (Cloud Logging reads it) — a refusal is said.
+  final void Function(String) _log;
 
   /// Upper bound on a salon's display name — the same two call sites as
   /// [businessTypes], and for the same reason: one source of truth.
@@ -82,9 +87,27 @@ class SalonProvisioningService {
     SalonMarket? market,
   }) async {
     if (account.providerId != null) {
+      final salonId = account.providerId!;
+      // T72 in depth (docs/design/backend-integrity-batch6.md §2.8, B6.8b):
+      // never an owner row on a salon ANOTHER account owns. The route no
+      // longer lets a client choose the link, so nothing reaches this today;
+      // if anything ever does, it is refused and said.
+      final members = await _members.listForProvider(salonId);
+      if (members.any(
+        (m) =>
+            m.role == MemberRoleNames.owner &&
+            m.status == 'active' &&
+            m.accountId != account.id,
+      )) {
+        _log(
+          'ensure_salon REFUSED provider=$salonId account=${account.id} '
+          'cause=owned_by_another',
+        );
+        return account;
+      }
       // Module `access` R1: keep the membership table authoritative — the
       // linked owner gets its row even on the already-linked path.
-      await _ensureOwnerRow(account, account.providerId!);
+      await _ensureOwnerRow(account, salonId);
       return account;
     }
     final salon = await _providers.createSalon(

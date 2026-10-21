@@ -91,17 +91,24 @@ class DemoResetService {
   /// Rides the daily subscriptions cron — a no-op on six days out of seven —
   /// so the cadence needs no Scheduler job of its own and nothing new that
   /// can stop silently.
-  Future<({bool ran, String? error})> tickIfDue(DateTime now) async {
+  ///
+  /// [outcome] is what the maintenance cron answers — `ran`, `not_due`,
+  /// `no_snapshot` or `refused:not_demo_owned`: a bare `false` said both « not
+  /// the day » and « the demo identity is lost »
+  /// (docs/design/backend-integrity-batch6.md §2.9, B6.9).
+  Future<({bool ran, String? error, String outcome})> tickIfDue(
+    DateTime now,
+  ) async {
     final snap = await _snapshots.read();
     if (snap == null) {
       // Nothing captured yet (pre-provisioning, or the seam was never used).
       // Quiet on purpose: this line would otherwise recur daily forever on
       // any deployment that never sets the demo up.
-      return (ran: false, error: null);
+      return (ran: false, error: null, outcome: 'no_snapshot');
     }
     final last = snap.lastResetAt ?? snap.capturedAt;
     if (now.difference(last) < kDemoResetInterval) {
-      return (ran: false, error: null);
+      return (ran: false, error: null, outcome: 'not_due');
     }
 
     // **The safety condition lives here, not in the operator's head**: even
@@ -114,7 +121,11 @@ class DemoResetService {
         'demo_reset REFUSED provider=${snap.providerId} '
         'cause=not_demo_owned',
       );
-      return (ran: false, error: 'not_demo_owned');
+      return (
+        ran: false,
+        error: 'not_demo_owned',
+        outcome: 'refused:not_demo_owned',
+      );
     }
 
     // 1. Restore the curated document (defacement undone). `updateProfile`
@@ -144,7 +155,7 @@ class DemoResetService {
       'demo_reset ran provider=${snap.providerId} wiped=${wipedA + wipedC} '
       'regenerated=$regenerated',
     );
-    return (ran: true, error: null);
+    return (ran: true, error: null, outcome: 'ran');
   }
 
   /// Whether [providerId]'s OWNER membership is the demo identity — the one

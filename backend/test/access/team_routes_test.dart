@@ -6,6 +6,7 @@ import 'package:mocktail/mocktail.dart';
 import 'package:myweli_backend/src/access/membership_repository.dart';
 import 'package:myweli_backend/src/access/membership_service.dart';
 import 'package:myweli_backend/src/access/team_service.dart';
+import 'package:myweli_backend/src/appointments/appointment_repository.dart';
 import 'package:myweli_backend/src/auth/auth_methods.dart';
 import 'package:myweli_backend/src/auth/demo_seam.dart';
 import 'package:myweli_backend/src/auth/id_token_verifier.dart';
@@ -15,7 +16,9 @@ import 'package:myweli_backend/src/clients/provider_audit_log.dart';
 import 'package:myweli_backend/src/email/email_provider.dart';
 import 'package:myweli_backend/src/email/send_budget.dart';
 import 'package:myweli_backend/src/idempotency/idempotency_store.dart';
+import 'package:myweli_backend/src/provider_account_service.dart';
 import 'package:myweli_backend/src/providers_repository.dart';
+import 'package:myweli_backend/src/storage/storage_service.dart';
 import 'package:myweli_backend/src/subscription/salon_subscription_repository.dart';
 import 'package:myweli_backend/src/subscription/salon_subscription_service.dart';
 import 'package:test/test.dart';
@@ -82,6 +85,27 @@ class _NullEmail implements EmailProvider {
     sentTo.add(to);
     return (ok: true, providerMessageId: 'm', error: null);
   }
+}
+
+/// The race of docs/design/backend-integrity-batch6.md §2.2: the invitation
+/// was alive when checked, and dead when accepted (revoked in between).
+class _RacingTeam extends TeamService {
+  _RacingTeam(
+    super.members,
+    super.resolver,
+    super.providers,
+    super.subscriptions,
+    super.email,
+    super.audit, {
+    super.clock,
+  });
+
+  @override
+  Future<TeamResult> accept(
+    String invitationId, {
+    required String accountId,
+    required String accountEmail,
+  }) async => (ok: false, error: 'not_found', data: null);
 }
 
 /// R2b handlers end to end (team-access-r2b-invitations.md §5/§9): the
@@ -173,6 +197,15 @@ void main() {
     when(() => c.read<ProviderAuthRepository>()).thenReturn(auth);
     when(() => c.read<MembershipService>()).thenReturn(resolver);
     when(() => c.read<TeamService>()).thenReturn(team);
+    when(() => c.read<ProviderAccountService>()).thenReturn(
+      ProviderAccountService(
+        auth,
+        providers,
+        InMemoryAppointmentRepository(),
+        FakeStorageService(),
+        memberships,
+      ),
+    );
     when(() => c.read<IdempotencyStore>()).thenReturn(idem);
     return c;
   }
@@ -470,6 +503,30 @@ void main() {
       expect(wrongVerb.statusCode, HttpStatus.methodNotAllowed);
     });
 
+    // docs/design/backend-integrity-batch6.md §2.8 (B6.8c): a revoked
+    // member's role is not changed — next to B7.5 on the app.
+    test(
+      'a revoked member’s role → 409 member_revoked, the role kept',
+      () async {
+        final id = await invited('gone@b.com');
+        expect((await team.revoke(ownerId, 'p1', id)).ok, isTrue);
+        final patched = await member_item.onRequest(
+          ctx(
+            req(
+              'PATCH',
+              '/me/provider/members/$id',
+              token: tok(ownerId),
+              body: {'role': 'reception'},
+            ),
+          ),
+          id,
+        );
+        expect(patched.statusCode, HttpStatus.conflict);
+        expect((await patched.json() as Map)['error'], 'member_revoked');
+        expect((await memberships.byId(id))!.role, 'manager');
+      },
+    );
+
     test('T38 at the surface: revoke → the member 403s on their very next '
         'request', () async {
       final mgrId = await activeMember('mgr@b.com');
@@ -733,6 +790,91 @@ void main() {
       );
       expect(wrongVerb.statusCode, HttpStatus.methodNotAllowed);
     });
+  });
+
+  // docs/design/backend-integrity-batch6.md §2.2 (B6.2): a dead invitation
+  // used to create the Pro account FIRST, then refuse — and the account
+  // stayed; its next sign-in self-healed it into an empty salon.
+  group('B6.2 — a dead invitation creates no account', () {
+    Future<Response> acceptWithGoogle(String invId, String sub, String mail) {
+      google.claims(sub: sub, email: mail);
+      return public_accept.onRequest(
+        ctx(
+          req(
+            'POST',
+            '/auth/provider/invitations/accept',
+            body: {'invitationId': invId, 'idToken': 't'},
+          ),
+        ),
+      );
+    }
+
+    Future<void> expectNoAccount(String sub) async {
+      final login = await auth.loginWithSocial(provider: 'google', sub: sub);
+      expect(login.error, 'provider_not_found', reason: 'an account was left');
+    }
+
+    test('addressed to another e-mail → 403, no account', () async {
+      final invId = await invited('ama@b.com');
+      final res = await acceptWithGoogle(invId, 'sub-evil', 'evil@b.com');
+      expect(res.statusCode, HttpStatus.forbidden);
+      await expectNoAccount('sub-evil');
+    });
+
+    test('expired → 409, no account', () async {
+      now = DateTime.now().toUtc().subtract(const Duration(days: 8));
+      final staleId = await invited('late@b.com');
+      now = DateTime.now().toUtc();
+      final res = await acceptWithGoogle(staleId, 'sub-late', 'late@b.com');
+      expect(res.statusCode, HttpStatus.conflict);
+      await expectNoAccount('sub-late');
+    });
+
+    test('withdrawn → 404, no account', () async {
+      final invId = await invited('gone@b.com');
+      final revoked = await team.revoke(ownerId, 'p1', invId);
+      expect(revoked.ok, isTrue);
+      final res = await acceptWithGoogle(invId, 'sub-gone', 'gone@b.com');
+      expect(res.statusCode, HttpStatus.notFound);
+      await expectNoAccount('sub-gone');
+    });
+
+    test('unknown → 404, no account', () async {
+      final res = await acceptWithGoogle('mem_ghost', 'sub-x', 'x@b.com');
+      expect(res.statusCode, HttpStatus.notFound);
+      await expectNoAccount('sub-x');
+    });
+
+    test('alive when checked, dead when accepted (the race) → the refusal, '
+        'and the account just created is removed', () async {
+      final invId = await invited('race@b.com');
+      team = _RacingTeam(
+        memberships,
+        resolver,
+        providers,
+        subscriptions,
+        email,
+        InMemoryProviderAuditLogRepository(),
+        clock: () => now,
+      );
+      final res = await acceptWithGoogle(invId, 'sub-race', 'race@b.com');
+      expect(res.statusCode, HttpStatus.notFound);
+      await expectNoAccount('sub-race');
+    });
+
+    test(
+      'CONTROL — a live invitation still creates the account → 201',
+      () async {
+        final invId = await invited('ok@b.com');
+        final res = await acceptWithGoogle(invId, 'sub-ok', 'ok@b.com');
+        expect(res.statusCode, HttpStatus.created);
+        final login = await auth.loginWithSocial(
+          provider: 'google',
+          sub: 'sub-ok',
+        );
+        expect(login.ok, isTrue);
+      },
+    );
   });
 
   group('POST /auth/provider/invitations/decline', () {

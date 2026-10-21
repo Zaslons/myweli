@@ -237,6 +237,12 @@ class TeamService {
   }) async {
     final guard = await _guardMember(accountId, providerId, memberId);
     if (guard.error != null) return (ok: false, error: guard.error, data: null);
+    // A revoked member's role is not changed: the row is a former member's,
+    // and a re-invitation states its own role (docs/design/
+    // backend-integrity-batch6.md §2.8, B6.8c).
+    if (guard.member!.status == 'revoked') {
+      return (ok: false, error: 'member_revoked', data: null);
+    }
     if (role is! String || !_invitableRoles.contains(role)) {
       return (ok: false, error: 'invalid_role', data: null);
     }
@@ -344,11 +350,13 @@ class TeamService {
     return cards;
   }
 
-  /// Accept for a resolved ACCOUNT (the caller has proven the identity —
-  /// session or login-grade proof). The account's verified email must match.
-  Future<TeamResult> accept(
+  /// Whether [accountEmail] may accept [invitationId] — READ-ONLY, the four
+  /// checks of [accept]. The public accept asks it BEFORE creating an
+  /// account: a dead invitation used to create the account first and refuse
+  /// after, and the account stayed — its next sign-in self-healed it into an
+  /// empty salon (docs/design/backend-integrity-batch6.md §2.2, B6.2).
+  Future<TeamResult> checkAcceptable(
     String invitationId, {
-    required String accountId,
     required String accountEmail,
   }) async {
     final member = await _members.byId(invitationId);
@@ -366,6 +374,22 @@ class TeamService {
     if (member.isExpiredInvitation) {
       return (ok: false, error: 'invitation_expired', data: null);
     }
+    return (ok: true, error: null, data: null);
+  }
+
+  /// Accept for a resolved ACCOUNT (the caller has proven the identity —
+  /// session or login-grade proof). The account's verified email must match.
+  Future<TeamResult> accept(
+    String invitationId, {
+    required String accountId,
+    required String accountEmail,
+  }) async {
+    final check = await checkAcceptable(
+      invitationId,
+      accountEmail: accountEmail,
+    );
+    if (!check.ok) return check;
+    final member = (await _members.byId(invitationId))!;
     final activated = await _members.activate(invitationId, accountId);
     if (activated == null) {
       // The row stopped being a valid invitation between the read above and

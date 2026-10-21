@@ -462,6 +462,24 @@ void main() {
       expect(res.statusCode, HttpStatus.unauthorized);
     });
 
+    // docs/design/backend-integrity-batch6.md §2.1 (B6.1): booking is a
+    // client's act. A salon or admin token used to book through this route —
+    // written under its own id (`user_id` has no foreign key): a booking no
+    // client ever sees, which still notified the salon.
+    for (final role in ['provider', 'admin']) {
+      test('POST with a $role token → 403 forbidden, nothing booked', () async {
+        final token = tokens
+            .issueAccessToken(subject: '${role}_X', role: role)
+            .token;
+        final res = await list.onRequest(
+          ctx(bookReq(token, bookBody(_slotAt(9)))),
+        );
+        expect(res.statusCode, HttpStatus.forbidden);
+        expect((await jsonOf(res))['error'], 'forbidden');
+        expect(await appts.listForProvider('provider1'), isEmpty);
+      });
+    }
+
     test('POST books a pending, server-priced appointment → 201', () async {
       final res = await list.onRequest(
         ctx(

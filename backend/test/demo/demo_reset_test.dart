@@ -144,12 +144,16 @@ void main() {
 
     final early = await service.tickIfDue(t0.add(const Duration(days: 6)));
     expect(early.ran, isFalse);
+    // The cron says WHY (docs/design/backend-integrity-batch6.md §2.9, B6.9).
+    expect(early.outcome, 'not_due');
 
     final due = await service.tickIfDue(t0.add(const Duration(days: 7)));
     expect(due.ran, isTrue);
+    expect(due.outcome, 'ran');
 
     final tooSoon = await service.tickIfDue(t0.add(const Duration(days: 8)));
     expect(tooSoon.ran, isFalse, reason: 'the clock restarted at day 7');
+    expect(tooSoon.outcome, 'not_due');
   });
 
   test('no snapshot → quiet no-op (a deployment that never set the demo up '
@@ -157,6 +161,7 @@ void main() {
     final r = await service.tickIfDue(t0);
     expect(r.ran, isFalse);
     expect(r.error, isNull);
+    expect(r.outcome, 'no_snapshot');
     expect(logs, isEmpty);
   });
 
@@ -273,6 +278,7 @@ void main() {
     final r = await service.tickIfDue(t0.add(const Duration(days: 7)));
     expect(r.ran, isFalse);
     expect(r.error, 'not_demo_owned');
+    expect(r.outcome, 'refused:not_demo_owned');
     expect(logs.single, contains('REFUSED'));
     expect((await providers.byId(realId))!['name'], 'Vrai Salon');
     expect(await appointments.listForProvider(realId), hasLength(1));

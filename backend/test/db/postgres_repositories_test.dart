@@ -6,12 +6,14 @@ import 'dart:io';
 
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
+import 'package:myweli_backend/src/access/membership_service.dart';
 import 'package:myweli_backend/src/auth/auth_repository.dart'
     show RefreshOutcome, RefreshResult, TokenPair, kRefreshReuseGrace;
 import 'package:myweli_backend/src/auth/tokens.dart';
 import 'package:myweli_backend/src/boot_config.dart';
 import 'package:myweli_backend/src/clients/clients_repository.dart'
     show GuestPhoneChange, GuestPhoneOutcome;
+import 'package:myweli_backend/src/clients/clients_service.dart';
 import 'package:myweli_backend/src/db/database.dart';
 import 'package:myweli_backend/src/db/migrations.dart';
 import 'package:myweli_backend/src/db/postgres_appointment_repository.dart';
@@ -29,12 +31,14 @@ import 'package:myweli_backend/src/db/postgres_provider_auth_repository.dart';
 import 'package:myweli_backend/src/db/postgres_providers_repository.dart';
 import 'package:myweli_backend/src/db/postgres_reviews_repository.dart';
 import 'package:myweli_backend/src/db/postgres_salon_subscription_repository.dart';
+import 'package:myweli_backend/src/privacy/user_erasure_service.dart';
 import 'package:myweli_backend/src/provider_account_service.dart';
 import 'package:myweli_backend/src/salon_time.dart';
 import 'package:myweli_backend/src/storage/storage_service.dart';
 import 'package:postgres/postgres.dart';
 import 'package:test/test.dart';
 
+import '../access/ensure_owner_contract.dart';
 import '../access/invite_contract.dart';
 import '../idempotency/idempotency_contract.dart';
 
@@ -1899,6 +1903,35 @@ void main() {
     );
   });
 
+  // The owner row on the REAL schema — `ON CONFLICT … DO UPDATE SET
+  // account_id` re-pointed a manager's, an invited or a revoked row at the
+  // caller, keeping its role (docs/design/backend-integrity-batch6.md §2.8).
+  group('PostgresMembershipRepository — ensureOwner, the twin contract', () {
+    var n = 0;
+    ensureOwnerContract(
+      repo: () => PostgresMembershipRepository(pool),
+      providerId: 'provider1', // seeded
+      account: (email) async {
+        n++;
+        final reg =
+            await PostgresProviderAuthRepository(
+              pool,
+              tokens: tokens,
+              echoDevCode: true,
+            ).register(
+              email: email,
+              authProvider: 'google',
+              googleSub:
+                  'sub-owner-contract-$n-${DateTime.now().microsecondsSinceEpoch}',
+              phoneNumber: '+22505000030${n.toString().padLeft(2, '0')}',
+              businessName: 'Contract',
+              businessType: 'salon',
+            );
+        return reg.provider!.id;
+      },
+    );
+  });
+
   // docs/design/write-idempotency.md §3 — the same contract as the in-memory
   // twin, on the real table (migration 0040).
   group('PostgresIdempotencyStore — the twin contract', () {
@@ -2080,6 +2113,204 @@ void main() {
       expect(chosen.tier, 'business');
       expect(chosen.trialEndsAt.toUtc(), t1);
     });
+  });
+
+  // ---- Client account deletion on the REAL schema (B6.10) -----------------
+  // The Pro deletion has run here since the 2026-10-14 production 500; the
+  // client's ran only on the in-memory twins, which have no foreign keys and
+  // none of the real statements. A victim and a bystander with the same
+  // footprint, erased through the production service over the real schema:
+  // the victim keeps nothing personal, the bystander keeps everything.
+  // docs/design/backend-integrity-batch6.md §2.10
+  group('client account deletion — on the real schema (B6.10)', () {
+    final stamp = DateTime.now().microsecondsSinceEpoch;
+
+    Future<int> count(String sql, Map<String, Object?> parameters) async {
+      final r = await pool.execute(Sql.named(sql), parameters: parameters);
+      return r.first.first! as int;
+    }
+
+    Future<String> user(String phone) async {
+      final auth = PostgresAuthRepository(
+        pool,
+        tokens: tokens,
+        echoDevCode: true,
+      );
+      final v = await auth.verifyOtp(
+        phone,
+        (await auth.requestOtp(phone)).devCode!,
+      );
+      return v.user!.id;
+    }
+
+    test(
+      'the victim keeps nothing personal; the bystander keeps everything',
+      () async {
+        final devices = PostgresDeviceTokenRepository(pool);
+        final notifications = PostgresNotificationsRepository(pool);
+        final prefs = PostgresNotificationPrefsRepository(pool);
+        final favorites = PostgresFavoritesRepository(pool);
+        final reviews = PostgresReviewsRepository(pool);
+        final appointments = PostgresAppointmentRepository(pool);
+        final idem = PostgresIdempotencyStore(pool);
+
+        final victim = await user(
+          '+2250700${(stamp % 10000).toString().padLeft(4, '0')}91',
+        );
+        final bystander = await user(
+          '+2250700${(stamp % 10000).toString().padLeft(4, '0')}92',
+        );
+
+        // A review both report — so the bystander's report must survive.
+        await reviews.upsertByAppointment({
+          'id': 'b610-target-$stamp',
+          'appointmentId': 'b610-appt-target-$stamp',
+          'userId': 'someone-else',
+          'userName': 'Kouassi',
+          'providerId': 'provider1',
+          'rating': 1,
+          'text': 'Bof',
+          'createdAt': '2026-03-10T10:00:00.000Z',
+        });
+
+        var hour = 8;
+        for (final uid in [victim, bystander]) {
+          hour += 1;
+          await devices.upsert(
+            token: 'b610-tok-$uid',
+            userId: uid,
+            role: 'user',
+            platform: 'android',
+          );
+          await notifications.add(
+            userId: uid,
+            type: 'booking_confirmed',
+            title: 'Rendez-vous confirmé',
+            body: 'Salon Excellence',
+          );
+          await prefs.update(uid, reminders: false, marketing: false);
+          await favorites.add(uid, 'provider1');
+          await appointments.create({
+            'id': 'b610-appt-$uid',
+            'userId': uid,
+            'providerId': 'provider1',
+            'serviceIds': ['service1'],
+            'clientName': 'Awa',
+            'clientPhone': '+2250700000001',
+            'notes': 'Allergique',
+            'appointmentDate':
+                '2026-03-${(stamp % 20 + 1).toString().padLeft(2, '0')}T${hour.toString().padLeft(2, '0')}:00:00.000Z',
+            'status': 'completed',
+            'totalPrice': 15000,
+            'createdAt': '2026-03-01T10:00:00.000Z',
+          });
+          await reviews.upsertByAppointment({
+            'id': 'b610-review-$uid',
+            'appointmentId': 'b610-appt-$uid',
+            'userId': uid,
+            'userName': 'Awa',
+            'providerId': 'provider1',
+            'rating': 5,
+            'text': 'Très bien',
+            'createdAt': '2026-03-11T10:00:00.000Z',
+          });
+          await reviews.addReport('b610-target-$stamp', uid, 'spam');
+          await idem.claim(
+            accountId: uid,
+            route: '/appointments',
+            key: 'k-b610-0001',
+            fingerprint: 'f',
+          );
+          await idem.complete(
+            accountId: uid,
+            route: '/appointments',
+            key: 'k-b610-0001',
+            status: 201,
+            body: '{}',
+          );
+        }
+
+        final providerAuth = PostgresProviderAuthRepository(
+          pool,
+          tokens: tokens,
+          echoDevCode: true,
+        );
+        final service = UserErasureService(
+          PostgresAuthRepository(pool, tokens: tokens, echoDevCode: true),
+          devices,
+          notifications,
+          prefs,
+          favorites,
+          reviews,
+          appointments,
+          ClientsService(
+            providerAuth,
+            MembershipService(PostgresMembershipRepository(pool), providerAuth),
+            PostgresAuthRepository(pool, tokens: tokens, echoDevCode: true),
+            PostgresClientsRepository(pool),
+            appointments,
+            PostgresProviderAuditLogRepository(pool),
+          ),
+          FakeStorageService(),
+          idempotency: idem,
+          client: MockClient((_) async => http.Response('', 204)),
+        );
+
+        final r = await service.eraseUser(victim);
+        expect(r.ok, isTrue, reason: '${r.error}');
+
+        // Per table: the victim's rows, then the bystander's.
+        final perUser = {
+          'users': 'SELECT count(*)::int FROM users WHERE id = @u',
+          'device_tokens':
+              'SELECT count(*)::int FROM device_tokens WHERE user_id = @u',
+          'notifications':
+              'SELECT count(*)::int FROM notifications WHERE user_id = @u',
+          'notification_preferences':
+              'SELECT count(*)::int FROM notification_preferences '
+              'WHERE user_id = @u',
+          'favorites': 'SELECT count(*)::int FROM favorites WHERE user_id = @u',
+          'reviews (authored)':
+              'SELECT count(*)::int FROM reviews WHERE user_id = @u',
+          'review_reports':
+              'SELECT count(*)::int FROM review_reports '
+              'WHERE reporter_user_id = @u',
+          'idempotency_keys':
+              'SELECT count(*)::int FROM idempotency_keys WHERE account_id = @u',
+        };
+        for (final e in perUser.entries) {
+          expect(await count(e.value, {'u': victim}), 0, reason: e.key);
+          expect(
+            await count(e.value, {'u': bystander}),
+            greaterThan(0),
+            reason: e.key,
+          );
+        }
+
+        // The content survives, the person does not: the booking is stripped
+        // (the salon keeps its book), the review is tombstoned.
+        final appt = (await pool.execute(
+          Sql.named(
+            'SELECT client_name, client_phone, notes FROM appointments '
+            'WHERE id = @id',
+          ),
+          parameters: {'id': 'b610-appt-$victim'},
+        )).single;
+        expect(appt, [null, null, null]);
+        final keptAppt = (await pool.execute(
+          Sql.named('SELECT client_name FROM appointments WHERE id = @id'),
+          parameters: {'id': 'b610-appt-$bystander'},
+        )).single;
+        expect(keptAppt, ['Awa']);
+        expect(
+          await count('SELECT count(*)::int FROM reviews WHERE id = @id', {
+            'id': 'b610-review-$victim',
+          }),
+          1,
+          reason: 'the review text stays for the salon',
+        );
+      },
+    );
   });
 
   // ---- Provider account deletion on the REAL schema (T53) -----------------
