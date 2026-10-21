@@ -144,7 +144,7 @@ const MODULES: Module[] = [
             serviceIds: ['s1'],
             appointmentDateTime: '2030-01-15T09:00:00.000Z',
             artistId: null,
-          }),
+          }, 'test-key-00000001'),
       },
       {
         name: 'fetchSlots',
@@ -331,7 +331,7 @@ describe('an answer is still read as before', () => {
       serviceIds: ['s1'],
       appointmentDateTime: '2030-01-15T09:00:00.000Z',
       artistId: null,
-    })).toEqual({ ok: false, error: 'slot_unavailable' });
+    }, 'test-key-00000001')).toEqual({ ok: false, error: 'slot_unavailable' });
     stubFetch(() => new Response('{"error":"otp_invalid"}', { status: 400 }));
     expect(await auth.verifyEmailOtp('a@b.ci', '000000')).toEqual({
       ok: false,

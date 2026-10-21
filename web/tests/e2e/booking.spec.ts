@@ -165,6 +165,54 @@ test('acompte: la preuve de paiement se joint dans le flux', async ({
   ).toBeVisible();
 });
 
+// docs/design/write-idempotency.md §4 — the answer is lost AFTER the server
+// booked (the connection drops on the way back). The page asks again at once
+// with the same Idempotency-Key, without a word; the server replays: ONE
+// booking, and the deposit sheet — not « Ce créneau vient d'être pris » on
+// the client's own slot, nor a second booking.
+test('une réponse perdue : redemandée avec la même clé — une seule réservation, et l’acompte', async ({
+  page,
+  request,
+}) => {
+  const keys: string[] = [];
+  let lose = true;
+  await page.route('**/api/bookings', async (route) => {
+    keys.push(route.request().headers()['idempotency-key']);
+    if (lose) {
+      lose = false;
+      await route.fetch(); // the server books…
+      return route.abort('connectionreset'); // …and its answer never arrives
+    }
+    return route.continue();
+  });
+  await page.goto('/institut-acompte/reserver');
+
+  await page.getByRole('checkbox').first().click();
+  await page.getByRole('radio', { name: /Pas de préférence/ }).click();
+  await page.getByRole('button', { name: /^\d{2}:\d{2}$/ }).first().click();
+  await page.getByRole('button', { name: 'Confirmer', exact: true }).click();
+  await submitOtpLogin(page, 'awa@example.com');
+  await page.getByRole('button', { name: 'Confirmer la réservation' }).click();
+
+  await expect(page.getByText('Réservation envoyée ✓')).toBeVisible();
+  await expect(page.getByText(/Acompte à régler/)).toBeVisible();
+  // No error said — Next's empty route announcer is an `alert` on every
+  // page, so only an alert with words counts (axe.spec.ts, B11).
+  expect(
+    (await page.getByRole('alert').allTextContents())
+      .map((t) => t.trim())
+      .filter(Boolean),
+  ).toEqual([]);
+  await expect(page.getByText(/vient d’être pris/)).toHaveCount(0);
+  expect(keys).toHaveLength(2);
+  expect(keys[0]).toMatch(/^[A-Za-z0-9_-]{8,128}$/);
+  expect(keys[1]).toBe(keys[0]);
+  const stub = await request.get(
+    `http://127.0.0.1:8787/__stub/bookings?key=${keys[0]}`,
+  );
+  expect(await stub.json()).toEqual({ created: 1 });
+});
+
 test('rebook prefill: ?services=s1&artist=a1 arrive sur Date et heure', async ({
   page,
 }) => {

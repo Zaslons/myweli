@@ -74,16 +74,22 @@ export async function callApiPro(
   const rt = req.cookies.get(PRO_RT_COOKIE)?.value;
   if (!at && !rt) return { status: 401, body: { error: 'not_authenticated' } };
 
-  let res = at
-    ? await call(path, init, at)
-    : new Response(null, { status: 401 });
+  let res: Response;
   let tokens: { at: string; rt: string } | undefined;
-
-  if (res.status === 401 && rt) {
-    const refreshed = await refresh(rt);
-    if (!refreshed) return { status: 401, body: { error: 'session_expired' } };
-    tokens = refreshed;
-    res = await call(path, init, refreshed.at);
+  try {
+    res = at ? await call(path, init, at) : new Response(null, { status: 401 });
+    if (res.status === 401 && rt) {
+      const refreshed = await refresh(rt);
+      if (!refreshed) return { status: 401, body: { error: 'session_expired' } };
+      tokens = refreshed;
+      res = await call(path, init, refreshed.at);
+    }
+  } catch {
+    // The API never answered (the connection to it broke — possibly after
+    // it acted): a 502, the « lost answer » the browser's creating writes
+    // ask again with the same Idempotency-Key (lib/api/network.ts). It used
+    // to escape the route as an unhandled throw.
+    return badGateway(tokens);
   }
   let body: unknown;
   try {

@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { SubmissionKey } from "../../lib/api/network";
 import {
   type ProProfile,
   createManualBooking,
@@ -83,6 +84,8 @@ export function ManualBookingDialog({
   const [withoutNumber, setWithoutNumber] = useState(false);
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
+  // One Idempotency-Key per submission (docs/design/write-idempotency.md §4).
+  const submission = useRef(new SubmissionKey());
 
   // Grid-cell entry: the tapped cell IS the date/time choice.
   const fixed = Boolean(dateTimeIso);
@@ -159,7 +162,7 @@ export function ManualBookingDialog({
     setError(null);
     setBusy(true);
     const name = picked?.name ?? query.trim();
-    const r = await createManualBooking(providerId, {
+    const booking = {
       serviceIds: selected,
       appointmentDateTime: dt,
       artistId: artistId || undefined,
@@ -171,9 +174,17 @@ export function ManualBookingDialog({
       // anything today, so the dialog offers no control for one
       // (docs/design/web-manual-booking.md §2).
       sendSmsInvite: false,
-    });
+    };
+    const r = await createManualBooking(
+      providerId,
+      booking,
+      submission.current.for(booking),
+    );
     setBusy(false);
-    if (r.ok) onCreated();
+    if (r.ok) {
+      submission.current.settle();
+      onCreated();
+    }
     else if (r.error === "invalid_phone" && picked?.phone)
       // docs/design/phone-leftovers.md §7: the refused number is the one on
       // the client's card, and this dialog has no field for it — the generic

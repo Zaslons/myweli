@@ -1,4 +1,4 @@
-import { readJson, send } from './network';
+import { readJson, send, sendIdempotent } from './network';
 import type { Review } from './providers';
 import type { KycStatus } from '../pro/kyc';
 import type { Availability } from '../pro/availability';
@@ -802,18 +802,28 @@ async function memberResult(res: Response): Promise<MemberResult> {
   return { ok: true, status: res.status, member: await readJson<TeamMember>(res) };
 }
 
-export async function inviteMember(input: {
-  email: string;
-  role: TeamRoleInput;
-  artistId?: string;
-}): Promise<MemberResult> {
-  return memberResult(
-    await send('/api/pro/members', {
+/// Under [key], one per submission (docs/design/write-idempotency.md §4): a
+/// lost answer is asked again once with it — the invitation and its e-mail
+/// went once, and the replay is never `member_exists`.
+export async function inviteMember(
+  input: { email: string; role: TeamRoleInput; artistId?: string },
+  key: string,
+  opts: { wait?: (ms: number) => Promise<void> } = {},
+): Promise<MemberResult> {
+  const r = await sendIdempotent<TeamMember>(
+    '/api/pro/members',
+    {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify(input),
-    }),
+    },
+    key,
+    { complete: (b) => Boolean(b?.id), ...opts },
   );
+  if (r.status < 200 || r.status >= 300) {
+    return { ok: false, status: r.status, error: r.error };
+  }
+  return { ok: true, status: r.status, member: r.body };
 }
 
 export async function changeMemberRole(
@@ -1014,18 +1024,28 @@ export async function updateClientPhone(
   return { ok: false, status: res.status, error: b.error, clientId: b.clientId };
 }
 
+/// Under [key], one per submission (docs/design/write-idempotency.md §4): a
+/// lost answer — or a 2xx without the note — is asked again once with it,
+/// so the note is added once and shows once.
 export async function addClientNote(
   providerId: string,
   clientId: string,
   body: string,
+  key: string,
+  opts: { wait?: (ms: number) => Promise<void> } = {},
 ): Promise<{ ok: boolean; status: number; note?: SalonClientNote }> {
-  const res = await send(`/api/pro/clients/${clientId}/notes`, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ providerId, body }),
-  });
-  if (!res.ok) return { ok: false, status: res.status };
-  return { ok: true, status: res.status, note: await readJson<SalonClientNote>(res) };
+  const r = await sendIdempotent<SalonClientNote>(
+    `/api/pro/clients/${clientId}/notes`,
+    {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ providerId, body }),
+    },
+    key,
+    { complete: (b) => Boolean(b?.id), ...opts },
+  );
+  if (r.status < 200 || r.status >= 300) return { ok: false, status: r.status };
+  return { ok: true, status: r.status, note: r.body };
 }
 
 export async function deleteClientNote(
@@ -1088,17 +1108,26 @@ export async function createManualBooking(
     notes?: string;
     sendSmsInvite?: boolean;
   },
+  key: string,
+  opts: { wait?: (ms: number) => Promise<void> } = {},
 ): Promise<{ ok: boolean; status: number; appt?: ProAppointment; error?: string }> {
-  const res = await send('/api/pro/appointments', {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ providerId, ...input }),
-  });
-  if (res.ok) {
-    return { ok: true, status: res.status, appt: await readJson<ProAppointment>(res) };
+  // Under [key], one per submission (docs/design/write-idempotency.md §4): a
+  // lost answer is asked again once with it — one booking, never a 409 on
+  // the slot the salon just took.
+  const r = await sendIdempotent<ProAppointment>(
+    '/api/pro/appointments',
+    {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ providerId, ...input }),
+    },
+    key,
+    { complete: (b) => Boolean(b?.id), ...opts },
+  );
+  if (r.status >= 200 && r.status < 300) {
+    return { ok: true, status: r.status, appt: r.body };
   }
-  const b = (await res.json().catch(() => ({}))) as { error?: string };
-  return { ok: false, status: res.status, error: b.error };
+  return { ok: false, status: r.status, error: r.error };
 }
 
 

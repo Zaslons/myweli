@@ -777,8 +777,19 @@ function readJsonObject(req) {
   });
 }
 
+// docs/design/write-idempotency.md §3, in miniature: a booking POSTed again
+// under the same `Idempotency-Key` is REPLAYED, never booked twice — and how
+// many times each key really booked is readable, so the lost-answer e2e
+// (booking.spec.ts) can say « one booking » instead of hoping.
+const keptBookings = new Map(); // key → the 201 body
+const bookingsByKey = new Map(); // key → how many bookings it created
+
 createServer(async (req, res) => {
   const url = new URL(req.url, `http://localhost:${port}`);
+  if (url.pathname === '/__stub/bookings') {
+    const key = url.searchParams.get('key') ?? '';
+    return json(res, 200, { created: bookingsByKey.get(key) ?? 0 });
+  }
   if (url.pathname === '/sitemap/providers') {
     return json(res, 200, { items: [{ slug: 'beaute-divine' }] });
   }
@@ -1940,14 +1951,27 @@ createServer(async (req, res) => {
     if (!id) {
       if (req.method === 'POST') {
         const b = await readBody(req);
+        const key = req.headers['idempotency-key'];
+        if (key && keptBookings.has(key)) {
+          res.writeHead(201, {
+            'content-type': 'application/json',
+            'idempotent-replayed': 'true',
+          });
+          return res.end(JSON.stringify(keptBookings.get(key)));
+        }
         const deposit = b.providerId === 'p2' ? 7500 : 0;
-        return json(res, 201, {
+        const booked = {
           id: 'appt1',
           status: 'pending',
           totalPrice: 15000,
           depositAmount: deposit,
           balanceDue: 15000 - deposit,
-        });
+        };
+        if (key) {
+          keptBookings.set(key, booked);
+          bookingsByKey.set(key, (bookingsByKey.get(key) ?? 0) + 1);
+        }
+        return json(res, 201, booked);
       }
       // Provider list (M7) vs consumer list (M6), split by token. Team
       // access R5b: staff (own-scope) sees only THEIR artist's rows —

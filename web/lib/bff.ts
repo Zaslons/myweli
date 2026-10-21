@@ -60,6 +60,16 @@ export function lostBodyIsBadGateway(res: Response, init: RequestInit): boolean 
   return read && res.ok && res.status !== 204;
 }
 
+/// The browser's `Idempotency-Key`, for the four creating POSTs to hand to
+/// the API — `/api/bookings`, `/api/pro/appointments`, the client notes,
+/// `/api/pro/members` — and nothing else: each of those routes passes it
+/// explicitly; the cores never forward a header on their own
+/// (docs/design/write-idempotency.md §4).
+export function idempotencyKeyHeader(req: NextRequest): Record<string, string> {
+  const key = req.headers.get('idempotency-key');
+  return key ? { 'Idempotency-Key': key } : {};
+}
+
 export async function callApi(
   req: NextRequest,
   path: string,
@@ -69,16 +79,22 @@ export async function callApi(
   const rt = req.cookies.get(RT_COOKIE)?.value;
   if (!at && !rt) return { status: 401, body: { error: 'not_authenticated' } };
 
-  let res = at
-    ? await call(path, init, at)
-    : new Response(null, { status: 401 });
+  let res: Response;
   let tokens: { at: string; rt: string } | undefined;
-
-  if (res.status === 401 && rt) {
-    const refreshed = await refresh(rt);
-    if (!refreshed) return { status: 401, body: { error: 'session_expired' } };
-    tokens = refreshed;
-    res = await call(path, init, refreshed.at);
+  try {
+    res = at ? await call(path, init, at) : new Response(null, { status: 401 });
+    if (res.status === 401 && rt) {
+      const refreshed = await refresh(rt);
+      if (!refreshed) return { status: 401, body: { error: 'session_expired' } };
+      tokens = refreshed;
+      res = await call(path, init, refreshed.at);
+    }
+  } catch {
+    // The API never answered (the connection to it broke — possibly after
+    // it acted): a 502, the « lost answer » the browser's creating writes
+    // ask again with the same Idempotency-Key (lib/api/network.ts). It used
+    // to escape the route as an unhandled throw.
+    return badGateway(tokens);
   }
   let body: unknown;
   try {
