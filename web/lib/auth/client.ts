@@ -37,6 +37,8 @@ export const loginWithApple = (payload: {
   identityToken: string;
   nonce?: string;
   fullName?: string;
+  /// Apple's one-time code (B6.7).
+  authorizationCode?: string;
 }): Promise<LoginResult> => postLogin('/api/auth/apple', payload);
 
 export async function requestEmailOtp(

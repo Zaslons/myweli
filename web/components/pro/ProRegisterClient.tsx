@@ -87,6 +87,7 @@ export function ProRegisterClient() {
     identityToken?: string;
     nonce?: string;
     fullName?: string;
+    authorizationCode?: string;
     email?: string;
     code?: string;
   }) {
