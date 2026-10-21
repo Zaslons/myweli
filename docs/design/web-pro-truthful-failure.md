@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Statut** | **Validé le 2026-10-21** — Q1 : **le dire, « Inviter » reste utilisable** ; Q2 (décision 14) : **retenir le salon** ; Q3 (décision 15) : **une ligne « indisponible » + « Réessayer »**, « — » pour les tuiles ; Q4 : **les mots tels qu'écrits** · la décision 13 n'a plus d'objet (§1.1) |
+| **Statut** | **PR A construite le 2026-10-21** sur `fix/web-pro-truthful-failure` (B4.1, B4.3, B4.5 — §10) ; **PR B** (B4.2, B4.4) à suivre. Validé le même jour — Q1 : **le dire, « Inviter » reste utilisable** ; Q2 (décision 14) : **retenir le salon** ; Q3 (décision 15) : **une ligne « indisponible » + « Réessayer »**, « — » pour les tuiles ; Q4 : **les mots tels qu'écrits** · la décision 13 n'a plus d'objet (§1.1) |
 | **Owner** | Sadreddine |
 | **Last updated** | 2026-10-21 |
 | **PRD ref / phase** | Espace Pro web (V1) — parité avec l'app Pro · WEB-SYSTEM §4–§8 (états, ARIA) · SYSTEM.md §17 (les deux phrases) |
@@ -174,3 +174,29 @@ les mêmes fichiers.
 - **Q4** — les mots (§8), tels qu'écrits ?
 
 **Décisions (2026-10-21).** Q1, Q2, Q3 et Q4 : les recommandations, telles qu'écrites.
+
+## 10. PR A construite (B4.1, B4.3, B4.5) — ce qui a été vu
+
+**Comme écrit**, avec ces précisions :
+- **Équipe** : `applyOffer` range une réponse dans l'un des trois états ;
+  « Réessayer » ne relit **que** l'offre (pas toute la page). La section
+  d'erreur est le `ErrorState` partagé (`role="alert"`, « Réessayer »).
+- **Fiche client** : l'historique a son propre « Réessayer » (`retryVisits`),
+  et « Charger plus » disparaît tant que l'historique lui-même n'a pas pu être
+  lu.
+- **Les refus** : une seule fonction, `salonRefusalMessage(status, error,
+  fallback)` dans `lib/pro/team.ts` — la démonstration, le salon suspendu, « Pas
+  de connexion » — pour « Mettre en ligne » et le changement d'offre.
+- **Les suggestions** : la phrase est reliée au champ (`aria-describedby`) ; une
+  réponse arrivée après une nouvelle saisie est ignorée (`active`), ce que la
+  version d'avant ne faisait pas non plus.
+
+**Vérifié** : types et lint propres ; 2 030 tests unitaires ; e2e entier (267)
+sur deux workers, comme la CI. **Mutations vues rouges (12)** : l'offre
+inconnue prise pour absente, le « Réessayer » de l'offre qui ne relit rien,
+l'échec de l'historique ignoré, la page qui avance sur un échec, la
+démonstration, le salon suspendu et « Pas de connexion » non nommés, le code
+du refus jeté par `publishSalon`, la fiche du panneau muette, son
+« Réessayer » sans effet, les suggestions muettes, leur « Réessayer » sans
+effet.
+
