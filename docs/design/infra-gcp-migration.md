@@ -270,6 +270,12 @@ Two Cloud Scheduler jobs:
 |---|---|---|
 | `myweli-reminders` | every 15 min | `POST /internal/cron/reminders` |
 | `myweli-subscriptions` | daily 03:00 UTC | `POST /internal/cron/subscriptions` |
+| `myweli-maintenance` (since 2026-10-21) | daily 03:30 UTC | `POST /internal/cron/maintenance` |
+
+> **Declared since 2026-10-21**: `infra/gcp/99-scheduler-jobs.sh` reads the
+> three jobs back and creates a missing one (`APPLY=1`); a test holds that
+> every route under `routes/internal/cron/` has its job there
+> ([infra-cron-maintenance.md](infra-cron-maintenance.md)).
 
 Both send `X-Cron-Secret` from Secret Manager. **A follow-up should make an
 unset `CRON_SECRET` fail fast in prod too** — a 404 that means "silently

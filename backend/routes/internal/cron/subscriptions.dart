@@ -1,18 +1,8 @@
 import 'dart:io';
 
 import 'package:dart_frog/dart_frog.dart';
-import 'package:myweli_backend/src/demo/demo_reset_service.dart';
-import 'package:myweli_backend/src/dependencies.dart'
-    show
-        cronAuth,
-        pruneAdminLoginThrottle,
-        pruneIdempotencyKeys,
-        pruneRateLimitWindows;
-import 'package:myweli_backend/src/idempotency/idempotency_store.dart'
-    show kIdempotencyWindow;
+import 'package:myweli_backend/src/dependencies.dart' show cronAuth;
 import 'package:myweli_backend/src/responses.dart';
-import 'package:myweli_backend/src/security/identity_limits.dart'
-    show kRateLimitRetention;
 import 'package:myweli_backend/src/subscription/subscription_scheduler.dart';
 
 /// `POST /internal/cron/subscriptions` — the daily offer walk: trial warnings
@@ -36,74 +26,12 @@ Future<Response> onRequest(RequestContext context) async {
     DateTime.now().toUtc(),
   );
 
-  // **The admin-throttle prune rides here rather than on a job of its own.**
-  // This one already runs daily, is already OIDC-authenticated, and is already
-  // covered by the missed-cron alert — so it costs no new Scheduler job, no new
-  // audience to keep in sync, and nothing new that can stop silently. ~~A third
-  // maintenance task is when to extract `/internal/cron/maintenance`.~~
-  //
-  // The third task arrived (2026-08-26, the demo reset below) and the
-  // extraction deliberately did NOT happen: the reset is DUE-GATED internally
-  // (a no-op six days out of seven), so it would need its own cadence logic
-  // even on a dedicated job — riding is strictly cheaper. A FOURTH rider is
-  // when to extract, and it should take all three.
-  //
-  // **And the window is a security parameter, not housekeeping.** A `fail_count`
-  // whose `locked_until` is NULL never decays on its own, so without this four
-  // failures spread over a year would still be four. The prune is what gives
-  // the counter a decay, which is why 24h sits beside maxAttempts and lockout
-  // in the design rather than in a maintenance note.
-  //
-  // The count is returned so the operation is observable rather than silent —
-  // a prune nobody can see is the shape this repo keeps finding.
-  final pruned = await pruneAdminLoginThrottle(const Duration(hours: 24));
-
-  // **The rate-limit window prune rides here too, and it is the throttle
-  // prune's twin rather than a fourth rider.** Same table family (a windowed
-  // counter, migration `0034`), same 24 h, same reason it is here and not on
-  // a job of its own — and the same rule that the count is in the response.
-  // It became necessary the day the per-IP auth buckets landed
-  // (`ip:auth:<digest>`, docs/design/infra-cloudflare-front-door.md §4): the
-  // identity buckets were bounded by the user set, but every new client
-  // address writes a row, so without this the table only grows. Unlike the
-  // throttle's window this one is housekeeping — no bucket reads a window
-  // older than its own length. **Load-bearing since the daily invite buckets**
-  // (docs/design/backend-team-invite-caps.md): a one-day window survives a
-  // one-day retention exactly, so the number is a named constant and a test
-  // holds every window at or under it.
-  // `null` here means the prune failed and logged `rate_limit_prune_failed`;
-  // the cron still runs the rest and reports it, rather than 500ing every
-  // day on a table that only grows (found in review).
-  final windowsPruned = await pruneRateLimitWindows(kRateLimitRetention);
-
-  // **The kept answers of the creating POSTs** (migration `0040`,
-  // docs/design/write-idempotency.md §3): replayed for 24 h, then dead
-  // weight — and they may hold what a booking answered, so « 24 h » is a
-  // promise of the spec's §6, not housekeeping. Same shape as the prune
-  // above: one batched delete, the count in the response, `null` on failure.
-  //
-  // **This is the fourth rider the note above names, and it rides anyway**:
-  // the spec places it here, and extracting `/internal/cron/maintenance`
-  // needs a new Cloud Scheduler job (an infrastructure change of its own).
-  // That extraction is now due, and is recorded as the follow-up in the
-  // spec's « Ce qui reste » — not forgotten by this line.
-  final keysPruned = await pruneIdempotencyKeys(kIdempotencyWindow);
-
-  // The demo-salon reset (T69): due-gated to every 7 days inside the
-  // service, so this is a no-op six days out of seven. Same observability
-  // rule as the prune — the outcome is in the response, not just a log.
-  final demo = await context.read<DemoResetService>().tickIfDue(
-    DateTime.now().toUtc(),
-  );
-
+  // The offers walk, and nothing else. The housekeeping that rode here — the
+  // admin-throttle and rate-limit prunes, the demo reset, then the kept
+  // answers' prune, the fourth rider this file's own rule said to extract at —
+  // is `/internal/cron/maintenance` since docs/design/infra-cron-maintenance.md:
+  // a walk that throws no longer skips it.
   return Response.json(
-    body: {
-      'notices': r.notices,
-      'unpublished': r.unpublished,
-      'throttleRowsPruned': pruned,
-      'rateLimitWindowsPruned': windowsPruned,
-      'idempotencyKeysPruned': keysPruned,
-      'demoReset': demo.ran,
-    },
+    body: {'notices': r.notices, 'unpublished': r.unpublished},
   );
 }

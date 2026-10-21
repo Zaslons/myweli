@@ -35,6 +35,7 @@ import 'package:myweli_backend/src/favorites_service.dart';
 import 'package:myweli_backend/src/idempotency/idempotency_store.dart';
 import 'package:myweli_backend/src/kyc_service.dart';
 import 'package:myweli_backend/src/localities/localities_service.dart';
+import 'package:myweli_backend/src/maintenance/maintenance_tick.dart';
 import 'package:myweli_backend/src/messaging/booking_notifier.dart';
 import 'package:myweli_backend/src/messaging/messaging_service.dart';
 import 'package:myweli_backend/src/messaging/reminder_scheduler.dart';
@@ -69,6 +70,7 @@ Handler middleware(Handler handler) {
       .use(provider<SmokeSeam>((_) => smokeSeam))
       .use(provider<DemoSeam>((_) => demoSeam))
       .use(provider<DemoResetService>((_) => demoResetService))
+      .use(provider<MaintenanceTick>((_) => maintenanceTick))
       .use(provider<GoogleIdTokenVerifier>((_) => googleIdTokenVerifier))
       .use(provider<AppleIdTokenVerifier>((_) => appleIdTokenVerifier))
       .use(provider<EmailProvider>((_) => emailProvider))

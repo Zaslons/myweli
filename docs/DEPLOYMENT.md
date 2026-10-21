@@ -348,8 +348,13 @@ which is how the reminder cron came to be switched off without anyone noticing.
    well** — without it there is no URL to reconstruct and the webhook 404s
    (BACKEND.md §7 T19).
 6. **Crons are Cloud Scheduler jobs**, not dashboard entries: `myweli-reminders`
-   every 15 min and `myweli-subscriptions` daily at 03:00 UTC, both authenticated
-   with a Google-signed OIDC token (`myweli-scheduler@`). A transitional
+   every 15 min, `myweli-subscriptions` daily at 03:00 UTC (the offers walk) and
+   `myweli-maintenance` daily at 03:30 UTC (the prunes and the demo reset —
+   [design/infra-cron-maintenance.md](design/infra-cron-maintenance.md)), all
+   authenticated with a Google-signed OIDC token (`myweli-scheduler@`), **all
+   three declared in `infra/gcp/99-scheduler-jobs.sh`** — read-only by default
+   (it reads each job back and reports drift), `APPLY=1` to create a missing
+   one; force a run after a create and read its 200 in the service's log. A transitional
    `X-Cron-Secret` header is still accepted and was to be retired once real runs
    were seen on the OIDC path. **That condition is now met, twice over
    (2026-08-17)** — see

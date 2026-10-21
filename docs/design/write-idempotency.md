@@ -227,7 +227,8 @@ types, lint, 2 000 unitaires, les e2e de la réservation, du Pro et de l'équipe
 (50, dont la réponse perdue) ; app — analyse, la suite entière (2 566).
 
 **Ce qui reste** (hors de cette tranche) :
-- extraire `/internal/cron/maintenance` (quatre tâches sur le cron des
-  abonnements) — un job Cloud Scheduler de plus, à décider ;
+- ~~extraire `/internal/cron/maintenance` (quatre tâches sur le cron des
+  abonnements) — un job Cloud Scheduler de plus, à décider~~ — fait :
+  [infra-cron-maintenance.md](infra-cron-maintenance.md) ;
 - les deux phrases « rien n'a répondu » de l'app (B3.1).
 
