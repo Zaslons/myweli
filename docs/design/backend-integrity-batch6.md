@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Statut** | **Validé le 2026-10-21** — Q1 (décision 17) : **effacer les numéros et l'adresse, garder le nom et l'historique** ; Q2 (décision 18) : **effacer le KYC de la démo à la remise** ; Q3 (décision 19) : **5–80 %** ; Q4 (décision 20) : **Propriétaire et Gérant, la même file marquée** ; Q5 : **Apple construit maintenant, inactif sans clé** ; Q6 : **le reste tel qu'écrit** (décision 22 : l'alerte, pas de recréation) |
+| **Statut** | **PR A construite le 2026-10-21** sur `fix/backend-batch-6` (#676 — B6.1, B6.2, B6.8, B6.9, B6.10 — §10), **pas déployée** ; PR B, C, D à suivre, puis un déploiement (demandé avant). Validé le même jour — Q1 (décision 17) : **effacer les numéros et l'adresse, garder le nom et l'historique** ; Q2 (décision 18) : **effacer le KYC de la démo à la remise** ; Q3 (décision 19) : **5–80 %** ; Q4 (décision 20) : **Propriétaire et Gérant, la même file marquée** ; Q5 : **Apple construit maintenant, inactif sans clé** ; Q6 : **le reste tel qu'écrit** (décision 22 : l'alerte, pas de recréation) |
 | **Owner** | Sadreddine |
 | **Last updated** | 2026-10-21 |
 | **PRD ref / phase** | Serveur (V1) — BACKEND.md §3 (authz, refus par défaut, validation), §7 (modèle de menaces) · App Store 1.2 (signaler un contenu), 5.1.1(v) (suppression de compte) |
@@ -225,3 +225,43 @@ Les changements d'app partent avec la prochaine version des stores.
   recréation), les quatre PR, les mots ?
 
 **Décisions (2026-10-21).** Q1 à Q6 : les recommandations, telles qu'écrites.
+
+## 10. PR A construite (B6.1, B6.2, B6.8, B6.9, B6.10) — ce qui a été vu
+
+**Comme écrit**, avec ces précisions :
+- **B6.2, la course** : le compte créé pour une invitation morte entre le
+  contrôle et l'acceptation est supprimé **par `ProviderAccountService`**, le
+  seul chemin d'effacement qui porte le verrou de la démo. Un premier jet
+  appelait le dépôt directement : le test d'inventaire des verrous de la démo
+  l'a refusé (« une nouvelle porte vers `deleteAccount` »). La route est
+  inscrite dans l'inventaire comme appelante **du service**.
+- **B6.2, ce que le contrôle préalable garde** : sans lui, la course
+  supprimerait quand même le compte — mais le **code e-mail** serait consommé
+  par `createMemberAccount`. Un test le montre : une invitation morte laisse
+  le code vivant pour une invitation valide d'un autre salon.
+- **B6.8a** : en Postgres, deux moitiés, chacune nécessaire — le compte déjà
+  membre du salon sous **une autre adresse** est vérifié avant ; toute ligne
+  pour **cette** adresse (et une insertion concurrente) est le
+  `ON CONFLICT DO NOTHING` de l'insertion, qui ne rend alors rien : refus. Le
+  premier jet vérifiait tout avant, et la clause d'insertion ne servait
+  jamais — une mutation l'a montré. Le contrat des jumeaux a six cas
+  (création, rendu, invitée, révoquée, autre rôle, autre adresse).
+- **B6.8b** : `SalonProvisioningService` prend un `log` (comme la remise de la
+  démo) pour sa ligne `ensure_salon REFUSED`.
+- **B6.9** : `tickIfDue` rend aussi `outcome` ; le script
+  `infra/gcp/84-demo-reset-alert.sh` est écrit et vérifié par les tests
+  d'infrastructure (JSON valide, le texte filtré existe dans le code), **pas
+  créé sur GCP** : c'est une mutation, demandée après le déploiement.
+- **Modèle de menaces** : T75 (B6.1), T76 (B6.2), T77 (B6.8).
+
+**Vérifié** : `dart analyze` à zéro ; la suite serveur entière **avec
+Postgres** (2 071 tests, 2 ignorés) ; contrat (3 tests). **Mutations vues rouges
+(18)** : la réservation à tout rôle ; le contrôle préalable retiré, la course
+qui garde le compte, l'adresse et l'expiration non vérifiées ; le jumeau
+mémoire qui ajoute, ou qui accepte une autre adresse ; Postgres qui
+re-rattache, ou sans contrôle préalable ; `ensureSalon` sur le salon d'un
+autre ; le rôle d'un révoqué qui change, `member_revoked` en 400 ; la remise
+qui dit « ran » pour « pas le jour », « pas le jour » pour un refus ou pour
+une absence d'instantané ; l'effacement client qui garde les favoris, les
+réponses gardées, ou ne dépouille pas les rendez-vous. **Deux avaient d'abord
+survécu** et ont corrigé l'ouvrage (ci-dessus).
