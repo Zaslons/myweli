@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | Living list, **snapshot of 2026-10-18** (main at `a91edc66`). Tick or strike an item in the PR that closes it, with the PR number. |
+| **Status** | Living list, **snapshot of 2026-10-18** (main at `a91edc66`). Tick or strike an item in the PR that closes it, with the PR number. **Ticked through 2026-10-21:** batch 1 (#665) and batch 2 (#666). |
 | **How it was built** | Every item recorded as left to do since 2026-10-13 was collected: the out-of-scope sections of 76 specs and roadmap entries, the follow-up sections of PRs #598–#631, and the six suggested tasks still waiting. That gave 116 raw items. Then **each one was checked against the code on main** (file and line, in the linked sources), not taken from the docs. Duplicates were merged. Five items turned out to be fixed or not defects (§4). Four can only be checked by the owner (batch 10). |
 | **Related** | [LAUNCH.md](LAUNCH.md) (the launch gates; not repeated here) · [ROADMAP.md](ROADMAP.md) · [design/README.md](design/README.md) |
 
@@ -27,8 +27,8 @@
 | # | Batch | What it fixes | Priority | Surfaces | Needs you for |
 |---|---|---|---|---|---|
 | 0 | **Release track** | 0.0.1 through review, device checks, 0.0.2, the store and policy items around them | P1 | release | 5 decisions + the device checks |
-| 1 | **Pro home and journal stay fresh** | « Ma journée » and « Accueil » showing stale statuses and figures, and an error screen with no way out | P1 | app | 3 small decisions |
-| 2 | **Lost answers to writes** | A booking saved but reported as failed, then a retry into « slot taken » or a double booking | P2 | web, app, backend | 1 decision |
+| 1 | ✅ **Pro home and journal stay fresh** | « Ma journée » and « Accueil » showing stale statuses and figures, and an error screen with no way out | P1 | app | **Done — #665** (2026-10-21) |
+| 2 | ✅ **Lost answers to writes** | A booking saved but reported as failed, then a retry into « slot taken » or a double booking | P2 | web, app, backend | **Done — #666** (2026-10-21) |
 | 3 | **The app says the right thing when something fails** | Raw English exception text, a bare « Erreur », two offline sentences, notification read state | P2 | app (+ web wording) | 1 decision |
 | 4 | **Web Pro is truthful on failure** | False « choose your offer », « no visits », silent reads, stale Calendrier/Liste, demo refusals | P2 | web | 3 decisions |
 | 5 | **Client web polish** | Sign-in blaming the code, ♥ edge cases, export edge cases, a toast for favourites | P2–P3 | web | 1 decision |
@@ -39,8 +39,8 @@
 | 10 | **Only you can check** | App Store Connect state, support inbox, App Preview, production walk-throughs | — | owner | your time |
 
 **Proposed order.**
-- **Now:** batch 0 runs on Apple's clock. Batch 1 is the next code slice.
-- **Then:** batches 2 → 3 → 4 → 5, while batch 6 accumulates and goes out in one or two backend deploys.
+- **Now:** batch 0 runs on Apple's clock. Batches 1 (#665) and 2 (#666) are done; **batch 3 is the next code slice.**
+- **Then:** batches 4 → 5, while batch 6 accumulates and goes out in one or two backend deploys.
 - **When touching an area:** batches 7 and 9.
 - **Whenever you answer:** batch 8.
 
@@ -61,13 +61,13 @@ Each question has a recommendation. Answers unblock the item named in brackets.
 
 **Pro home and journal (batch 1)**
 
-8. **After « Accepter », « Rejeter », « Terminé » or « Absent » on the booking detail:** show the new status in « Ma journée » immediately, then reload quietly? *Recommended: yes, since the server has already confirmed.* [B1.1]
-9. **Pull-to-refresh on « Accueil » fails while figures are on screen:** keep the figures and say « Pas de connexion. Réessayez. »? *Recommended: yes.* Or replace them with the error state? [B1.2]
-10. Ship the salon-switch race fix **in the same PR** as the « Accueil » refresh fix? *Recommended: yes, they touch the same function.* [B1.3]
+8. **After « Accepter », « Rejeter », « Terminé » or « Absent » on the booking detail:** show the new status in « Ma journée » immediately, then reload quietly? *Recommended: yes, since the server has already confirmed.* [B1.1] — ✅ **Answered: as recommended** (#665).
+9. **Pull-to-refresh on « Accueil » fails while figures are on screen:** keep the figures and say « Pas de connexion. Réessayez. »? *Recommended: yes.* Or replace them with the error state? [B1.2] — ✅ **Answered: as recommended** (#665).
+10. Ship the salon-switch race fix **in the same PR** as the « Accueil » refresh fix? *Recommended: yes, they touch the same function.* [B1.3] — ✅ **Answered: as recommended** (#665).
 
 **Lost answers (batch 2)**
 
-11. Fix the lost booking answer **on the web only**, by checking « Mes rendez-vous » before saying it failed? Or add an **idempotency key** on the server, so web and app both get it (backend change and deploy)? *Recommended: idempotency key. It covers bookings, manual bookings, notes and invitations on both surfaces.* [B2.1]
+11. Fix the lost booking answer **on the web only**, by checking « Mes rendez-vous » before saying it failed? Or add an **idempotency key** on the server, so web and app both get it (backend change and deploy)? *Recommended: idempotency key. It covers bookings, manual bookings, notes and invitations on both surfaces.* [B2.1] — ✅ **Answered: the idempotency key** (#666).
 
 **App failure messages (batch 3)**
 
@@ -162,26 +162,26 @@ Each question has a recommendation. Answers unblock the item named in brackets.
   - **How:** you type play-store-forms §1–§5 with the amended App access text. I check them against the policy and the iOS answers, make the 1024×500 banner, and add a length test for the access text.
   - **Order:** Android is last (LAUNCH §3).
 
-### Batch 1 — Pro « Accueil » and « Ma journée » stay fresh (P1, app, one slice)
+### Batch 1 — Pro « Accueil » and « Ma journée » stay fresh (P1, app, one slice) — ✅ done (#665, 2026-10-21)
 
 This batch takes up three of the six suggested tasks that were never started. It extends #587's `ProSalonScope.bookingCreated` pattern instead of patching screens one by one.
 
-- **B1.1 Status changes from the booking detail reach « Ma journée » and « Accueil » (P1 · M · decision 8).**
+- ✅ **B1.1 Status changes from the booking detail reach « Ma journée » and « Accueil » (P1 · M · decision 8).** **Done in #665** — [app-pro-home-journal-fresh.md](design/app-pro-home-journal-fresh.md).
   - **What:** tap a booking, press « Accepter », go back: the card still says « En attente », and so do the home counts, until a pull. The detail writes one store and the journal reads another. Opening the detail is a plain push (`pro_journal_screen.dart:290`), and nothing announces a status change.
   - **How:**
     1. Red widget test: journal → « Accepter » → back, expecting « Confirmé » and the pending count down by one. Same for Rejeter, Terminé and Absent.
     2. Add `ProSalonScope.bookingChanged(appointment)`, called by the four status writes and by the journal's swipe actions.
     3. The journal updates the row at once, then reloads quietly. The home store re-fetches quietly; the client card reloads.
-- **B1.2 « Accueil » error is a dead end, and pull-to-refresh asks nothing (P1 · M · decision 9).**
+- ✅ **B1.2 « Accueil » error is a dead end, and pull-to-refresh asks nothing (P1 · M · decision 9).** **Done in #665** — [app-pro-home-journal-fresh.md](design/app-pro-home-journal-fresh.md).
   - **What:** a failed home load shows a bare sentence with no retry (`dashboard_screen.dart:180-189`). Once figures are loaded, pulling down returns early (`pro_dashboard_provider.dart:36-44`).
   - **How:** the house `EmptyState` with « Réessayer » inside `BrandRefresh`, as « Ma journée » does. Plus `refresh(salonId)`, which always asks the server: quietly when figures are on screen (kept on failure, with a message), as a normal load when there are none. The existing KNOWN-DEFECT test should turn red first.
-- **B1.3 « Accueil » can show the previous salon's figures after a switch during loading (P2 · S · decision 10).**
+- ✅ **B1.3 « Accueil » can show the previous salon's figures after a switch during loading (P2 · S · decision 10).** **Done in #665** — [app-pro-home-journal-fresh.md](design/app-pro-home-journal-fresh.md).
   - **What:** a late answer for salon A overwrites salon B's figures, revenue included, and later loads skip the server.
   - **How:** a sequence number on the main load (the journal store's pattern), bumped by the salon-switch reset. Outdated answers are dropped. A red unit test with a held answer comes first.
 
-### Batch 2 — Lost answers to writes (P2, decision 11)
+### Batch 2 — Lost answers to writes (P2, decision 11) — ✅ done (#666, 2026-10-21)
 
-- **B2.1 A write the server saved but whose answer was lost (P2 · L).**
+- ✅ **B2.1 A write the server saved but whose answer was lost (P2 · L).** **Done in #666** — [write-idempotency.md](design/write-idempotency.md); backend deployed 2026-10-21 (migration 0040), web live; the app's part ships with its next store build. Its keys are pruned by the daily maintenance cron (#667).
   - **What:**
     - Web booking: the server creates it, the answer is lost, and the client reads « La réservation a échoué ». A retry gets « Ce créneau vient d'être pris » for their own slot. With several free chairs and « Sans préférence », it can create a second booking.
     - The same class affects the Pro manual booking, client notes and invitations, where a retry adds a note twice or gets a 409.
