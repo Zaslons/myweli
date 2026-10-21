@@ -1133,6 +1133,28 @@ CREATE TABLE IF NOT EXISTS momo_operators (
           "ADD COLUMN IF NOT EXISTS reporter_kind text NOT NULL DEFAULT 'user'",
     ],
   ),
+  (
+    id: '0042_apple_tokens',
+    statements: [
+      // Sign in with Apple's refresh tokens (B6.7, App Store 5.1.1(v)): kept
+      // at sign-in, revoked when the account is deleted, so MyWeli leaves the
+      // person's « Apps using Apple ID ». One per (kind, account, client) —
+      // the app's bundle id and the web's Services ID each get theirs.
+      // `account_kind` says which identity table the id is in (`users` or
+      // `provider_users`, separate id spaces) — hence no foreign key: the two
+      // deletion paths erase these rows explicitly. A token alone is useless
+      // without the `.p8` key that signs the client secret.
+      // docs/design/backend-integrity-batch6.md §13.
+      'CREATE TABLE IF NOT EXISTS apple_tokens ('
+          'account_kind text NOT NULL '
+          "CHECK (account_kind IN ('user', 'provider')), "
+          'account_id text NOT NULL, '
+          'client_id text NOT NULL, '
+          'refresh_token text NOT NULL, '
+          'created_at timestamptz NOT NULL DEFAULT now(), '
+          'PRIMARY KEY (account_kind, account_id, client_id))',
+    ],
+  ),
 ];
 
 /// How long a schema-setup statement may **wait for a lock** before giving up.

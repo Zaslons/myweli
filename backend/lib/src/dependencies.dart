@@ -22,6 +22,7 @@ import 'appointments/booking_service.dart';
 import 'appointments/journal_service.dart';
 import 'appointments/pro_appointment_service.dart';
 import 'appointments/slot_service.dart';
+import 'auth/apple_tokens.dart';
 import 'auth/auth_methods.dart';
 import 'auth/auth_repository.dart';
 import 'auth/demo_seam.dart';
@@ -40,6 +41,7 @@ import 'cron_auth.dart';
 import 'db/database.dart';
 import 'db/migrations.dart';
 import 'db/postgres_admin_auth_repository.dart';
+import 'db/postgres_apple_token_repository.dart';
 import 'db/postgres_appointment_repository.dart';
 import 'db/postgres_audit_log_repository.dart';
 import 'db/postgres_auth_repository.dart';
@@ -280,6 +282,23 @@ final AppleIdTokenVerifier appleIdTokenVerifier = () {
   );
   return AppleIdTokenVerifier(clientIds: ids);
 }();
+
+/// The Sign in with Apple key that signs the `client_secret` (B6.7,
+/// docs/design/backend-integrity-batch6.md §13). All three of
+/// `APPLE_TEAM_ID`, `APPLE_KEY_ID`, `APPLE_PRIVATE_KEY`, or none: none is
+/// **inactive** (Q5 — nothing exchanged nor revoked, a log line says so);
+/// some, or a key that does not read, refuses to boot.
+final AppleSignInKey? appleSignInKey = AppleSignInKey.fromEnv(_envOrNull);
+
+final AppleTokenRepository appleTokenRepository = _pool == null
+    ? InMemoryAppleTokenRepository()
+    : PostgresAppleTokenRepository(_pool!);
+
+/// Kept at sign-in, revoked at deletion (App Store 5.1.1(v)).
+final AppleTokenService appleTokenService = AppleTokenService(
+  appleTokenRepository,
+  appleSignInKey,
+);
 
 /// Outbound email (the OTP channel). Configured → Resend; else a no-network
 /// log provider for dev/CI (devCode is echoed inline off-prod). Production
@@ -672,6 +691,8 @@ final ProviderAccountService providerAccountService = ProviderAccountService(
   devices: deviceTokenRepository,
   notifications: notificationsRepository,
   idempotency: idempotencyStore,
+  // B6.7 — the Apple authorization is revoked with the account.
+  apple: appleTokenService,
   // Erasure unpublishes every owned salon — the prebuilt slug set shrank.
   rebuild: siteRebuildNotifier,
 );
@@ -1152,6 +1173,8 @@ final UserErasureService userErasureService = UserErasureService(
   clientsService,
   storageService,
   idempotency: idempotencyStore,
+  // B6.7 — the Apple authorization is revoked with the account.
+  apple: appleTokenService,
 );
 
 /// The provider-directed sibling: turns client-driven booking events into
@@ -1253,6 +1276,8 @@ void _assertConfiguredDependenciesResolve() {
     'originAuth': () => originAuth,
     'googleIdTokenVerifier': () => googleIdTokenVerifier,
     'appleIdTokenVerifier': () => appleIdTokenVerifier,
+    // Half an Apple key dies here, at boot — never on the first deletion.
+    'appleSignInKey': () => appleSignInKey,
     'emailProvider': () => emailProvider,
     'messagingProvider': () => messagingProvider,
     'pushProvider': () => pushProvider,
@@ -1298,6 +1323,16 @@ Future<void> initializeDatabase() async {
       'WARNING: DEMO_PROVIDER_CODE is set — the store-review demo sign-in is '
       'ACTIVE in production for $kDemoProviderEmail '
       '(docs/design/backend-demo-review-account.md).',
+    );
+  }
+  if (_isProd && !appleTokenService.isActive) {
+    // B6.7 is built inactive until the owner creates the key (Q5): say so
+    // once per boot, where an operator reads — never silently "done".
+    // ignore: avoid_print — boot diagnostics go to the container log.
+    print(
+      'NOTICE: no APPLE_TEAM_ID / APPLE_KEY_ID / APPLE_PRIVATE_KEY — Sign in '
+      'with Apple tokens are neither kept nor revoked at account deletion '
+      '(docs/design/backend-integrity-batch6.md §13).',
     );
   }
   assertProductionBootConfig(

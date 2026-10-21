@@ -2,6 +2,7 @@ import 'package:http/http.dart' as http;
 
 import 'access/membership_repository.dart';
 import 'appointments/appointment_repository.dart';
+import 'auth/apple_tokens.dart';
 import 'auth/demo_seam.dart';
 import 'auth/provider_auth_repository.dart';
 import 'idempotency/idempotency_store.dart';
@@ -27,11 +28,13 @@ class ProviderAccountService {
     DeviceTokenRepository? devices,
     NotificationsRepository? notifications,
     IdempotencyStore? idempotency,
+    AppleTokenService? apple,
     http.Client? client,
     SiteRebuildNotifier? rebuild,
   }) : _devices = devices,
        _notifications = notifications,
        _idempotency = idempotency,
+       _apple = apple,
        _client = client ?? http.Client(),
        _rebuild = rebuild ?? NoopSiteRebuildNotifier();
 
@@ -51,6 +54,10 @@ class ProviderAccountService {
   final IdempotencyStore? _idempotency;
   final http.Client _client;
   final SiteRebuildNotifier _rebuild;
+
+  /// Sign in with Apple (B6.7) — optional for the same reason; wired in
+  /// `dependencies.dart`.
+  final AppleTokenService? _apple;
 
   /// Delete the account behind [accountId]. Error codes: `forbidden`
   /// (unknown account), `demo_account_locked` (the store-review demo
@@ -158,6 +165,12 @@ class ProviderAccountService {
     await _devices?.deleteForUser(accountId);
     await _notifications?.deleteForUser(accountId);
     await _idempotency?.deleteForAccount(accountId);
+
+    // B6.7 (App Store 5.1.1(v)): revoke the Sign in with Apple authorization
+    // and forget the token — never blocking, and before the identity, so a
+    // failed delete retries into an empty list. The demo identity never gets
+    // here (locked above). docs/design/backend-integrity-batch6.md §13.
+    await _apple?.revokeAll(kind: 'provider', accountId: accountId);
 
     final ok = await _auth.deleteAccount(accountId);
     if (!ok) return (ok: false, error: 'forbidden');

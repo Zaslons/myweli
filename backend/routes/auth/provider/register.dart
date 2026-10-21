@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:dart_frog/dart_frog.dart';
+import 'package:myweli_backend/src/auth/apple_tokens.dart';
 import 'package:myweli_backend/src/auth/auth_methods.dart';
 import 'package:myweli_backend/src/auth/demo_seam.dart';
 import 'package:myweli_backend/src/auth/id_token_verifier.dart';
@@ -46,6 +47,9 @@ Future<Response> onRequest(RequestContext context) async {
   final nonce = optionalString(body, 'nonce')?.trim();
   final email = optionalString(body, 'email')?.trim() ?? '';
   final code = optionalString(body, 'code')?.trim() ?? '';
+  // B6.7 — the Apple branch's code (docs/design/backend-integrity-batch6.md
+  // §13), read by type with the rest.
+  final appleCode = appleCodeOf(body);
 
   if (businessName.isEmpty ||
       businessName.runes.length >
@@ -112,7 +116,8 @@ Future<Response> onRequest(RequestContext context) async {
     if (!methods.contains('apple')) {
       return jsonError(HttpStatus.notFound, 'auth_method_disabled');
     }
-    final claims = await context.read<AppleIdTokenVerifier>().verify(
+    final verifier = context.read<AppleIdTokenVerifier>();
+    final claims = await verifier.verify(
       identityToken,
       nonce: (nonce != null && nonce.isNotEmpty) ? nonce : null,
     );
@@ -120,22 +125,32 @@ Future<Response> onRequest(RequestContext context) async {
     if (claims.email == null) {
       return jsonError(HttpStatus.unauthorized, 'token_rejected');
     }
-    return providerSessionResponse(
-      await _provisioned(
-        context,
-        market,
-        await repo.register(
-          businessName: businessName,
-          businessType: businessType,
-          phoneNumber: phone,
-          email: claims.email!,
-          authProvider: 'apple',
-          appleSub: claims.sub,
-          address: address,
-        ),
+    final result = await _provisioned(
+      context,
+      market,
+      await repo.register(
+        businessName: businessName,
+        businessType: businessType,
+        phoneNumber: phone,
+        email: claims.email!,
+        authProvider: 'apple',
+        appleSub: claims.sub,
+        address: address,
       ),
-      successStatus: HttpStatus.created,
     );
+    // B6.7 — kept under the NEW account, which its deletion revokes.
+    if (result.ok) {
+      await keepAppleSignInCode(
+        apple: appleCode,
+        identityToken: identityToken,
+        verifier: verifier,
+        sub: claims.sub!,
+        kind: 'provider',
+        accountId: result.provider!.id,
+        tokens: context.read<AppleTokenService>,
+      );
+    }
+    return providerSessionResponse(result, successStatus: HttpStatus.created);
   }
 
   // --- Identity: email + code ------------------------------------------------

@@ -290,6 +290,26 @@ void main() {
       ),
     );
 
+    test('audienceOf: the client a verified token was issued to — the one '
+        'its code is exchanged with (B6.7)', () async {
+      final v = apple(
+        jwksClient([
+          {'k1': keyA.publicKey},
+        ]),
+      );
+      final token = sign(appleClaims(nonce: 'raw-nonce'), key: keyA.privateKey);
+      expect((await v.verify(token, nonce: 'raw-nonce')).ok, isTrue);
+      expect(v.audienceOf(token), 'com.myweli.app');
+      // An audience outside the allowlist, or garbage, names no client.
+      expect(
+        v.audienceOf(
+          sign({...appleClaims(), 'aud': 'com.evil.app'}, key: keyA.privateKey),
+        ),
+        isNull,
+      );
+      expect(v.audienceOf('not.a.token'), isNull);
+    });
+
     test('raw nonce match → ok (apple email counts verified)', () async {
       final v = apple(
         jwksClient([

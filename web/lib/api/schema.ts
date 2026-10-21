@@ -427,6 +427,10 @@ export interface paths {
                         nonce?: string;
                         /** @description First-auth display-name hint. */
                         fullName?: string;
+                        /** @description Optional (B6.7). Apple's one-time authorization code from the same sign-in. After a SUCCESSFUL sign-in the server exchanges it for a refresh token, kept to revoke the authorization when the account is deleted (App Store 5.1.1(v)) — only if Apple's answer names the same `sub`. Never a reason for the sign-in to fail: unusable → ignored; a wrong JSON type → 400 `invalid_body` like every field. Inactive (ignored) while no Apple key is configured. */
+                        authorizationCode?: string;
+                        /** @description Optional — sent by the web's BFF only, never the browser: the redirect URI of the authorization, which Apple requires to exchange a web code. Must be https; else ignored. */
+                        redirectUri?: string;
                     };
                 };
             };
@@ -1949,6 +1953,10 @@ export interface paths {
                         /** @description Apple identity token. */
                         identityToken?: string;
                         nonce?: string;
+                        /** @description Optional (B6.7). Apple's one-time authorization code from the same sign-in (with `identityToken`). After a SUCCESSFUL sign-in the server exchanges it for a refresh token, kept to revoke the authorization when the account is deleted (App Store 5.1.1(v)) — only if Apple's answer names the same `sub`. Never a reason for the sign-in to fail: unusable → ignored; a wrong JSON type → 400 `invalid_body` like every field. Inactive (ignored) while no Apple key is configured. */
+                        authorizationCode?: string;
+                        /** @description Optional — sent by the web's BFF only, never the browser: the redirect URI of the authorization, which Apple requires to exchange a web code. Must be https; else ignored. */
+                        redirectUri?: string;
                         /** Format: email */
                         email?: string;
                         /** @description Email OTP (identity proof with `email`). */
@@ -2075,6 +2083,10 @@ export interface paths {
                     "application/json": {
                         identityToken: string;
                         nonce?: string;
+                        /** @description Optional (B6.7). Apple's one-time authorization code from the same sign-in. After a SUCCESSFUL sign-in the server exchanges it for a refresh token, kept to revoke the authorization when the account is deleted (App Store 5.1.1(v)) — only if Apple's answer names the same `sub`. Never a reason for the sign-in to fail: unusable → ignored; a wrong JSON type → 400 `invalid_body` like every field. Inactive (ignored) while no Apple key is configured. */
+                        authorizationCode?: string;
+                        /** @description Optional — sent by the web's BFF only, never the browser: the redirect URI of the authorization, which Apple requires to exchange a web code. Must be https; else ignored. */
+                        redirectUri?: string;
                     };
                 };
             };

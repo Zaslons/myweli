@@ -1,6 +1,7 @@
 import 'package:http/http.dart' as http;
 
 import '../appointments/appointment_repository.dart';
+import '../auth/apple_tokens.dart';
 import '../auth/auth_repository.dart';
 import '../clients/clients_service.dart';
 import '../favorites_repository.dart';
@@ -36,8 +37,10 @@ class UserErasureService {
     this._clients,
     this._storage, {
     IdempotencyStore? idempotency,
+    AppleTokenService? apple,
     http.Client? client,
   }) : _idempotency = idempotency,
+       _apple = apple,
        _client = client ?? http.Client();
 
   final AuthRepository _auth;
@@ -50,6 +53,10 @@ class UserErasureService {
   final ClientsService _clients;
   final StorageService _storage;
   final IdempotencyStore? _idempotency;
+
+  /// Sign in with Apple (B6.7): optional so the existing constructions in
+  /// tests keep compiling — wired in `dependencies.dart`.
+  final AppleTokenService? _apple;
   final http.Client _client;
 
   /// Erase everything [userId] left behind, then the identity itself.
@@ -174,6 +181,13 @@ class UserErasureService {
       'avatar/$userId/',
       StorageBucket.public,
     );
+
+    // 7b. Sign in with Apple (B6.7, App Store 5.1.1(v)): revoke the
+    //     authorization so MyWeli leaves the person's « Apps using Apple ID »,
+    //     and forget the token. Never blocks (Apple's answer is logged), and
+    //     before the identity: a failed delete retries into an empty list.
+    //     docs/design/backend-integrity-batch6.md §13.
+    await _apple?.revokeAll(kind: 'user', accountId: userId);
 
     // 8. And only now the identity.
     final ok = await _auth.deleteUser(userId);

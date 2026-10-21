@@ -7,6 +7,7 @@ import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:myweli_backend/src/access/membership_service.dart';
+import 'package:myweli_backend/src/auth/apple_tokens.dart';
 import 'package:myweli_backend/src/auth/auth_repository.dart'
     show RefreshOutcome, RefreshResult, TokenPair, kRefreshReuseGrace;
 import 'package:myweli_backend/src/auth/tokens.dart';
@@ -16,6 +17,7 @@ import 'package:myweli_backend/src/clients/clients_repository.dart'
 import 'package:myweli_backend/src/clients/clients_service.dart';
 import 'package:myweli_backend/src/db/database.dart';
 import 'package:myweli_backend/src/db/migrations.dart';
+import 'package:myweli_backend/src/db/postgres_apple_token_repository.dart';
 import 'package:myweli_backend/src/db/postgres_appointment_repository.dart';
 import 'package:myweli_backend/src/db/postgres_auth_repository.dart';
 import 'package:myweli_backend/src/db/postgres_client_version_repository.dart';
@@ -40,6 +42,7 @@ import 'package:test/test.dart';
 
 import '../access/ensure_owner_contract.dart';
 import '../access/invite_contract.dart';
+import '../auth/apple_token_repository_contract.dart';
 import '../idempotency/idempotency_contract.dart';
 
 void main() {
@@ -1972,6 +1975,28 @@ void main() {
     );
   });
 
+  // B6.7 (migration 0042) — the Sign in with Apple refresh tokens: the same
+  // contract as the in-memory twin, and the table refuses an unknown kind.
+  group('PostgresAppleTokenRepository — the twin contract (0042)', () {
+    final stamp = DateTime.now().microsecondsSinceEpoch;
+    appleTokenRepositoryContract(
+      repo: () => PostgresAppleTokenRepository(pool),
+      id: (name) => 'apple-$name-$stamp',
+    );
+
+    test('a kind other than user / provider is refused by the table', () async {
+      await expectLater(
+        PostgresAppleTokenRepository(pool).keep(
+          kind: 'admin',
+          accountId: 'apple-admin-$stamp',
+          clientId: 'ci.myweli.app',
+          refreshToken: 'rt',
+        ),
+        throwsA(anything),
+      );
+    });
+  });
+
   // docs/design/write-idempotency.md §3 — the same contract as the in-memory
   // twin, on the real table (migration 0040).
   group('PostgresIdempotencyStore — the twin contract', () {
@@ -2193,6 +2218,7 @@ void main() {
         final reviews = PostgresReviewsRepository(pool);
         final appointments = PostgresAppointmentRepository(pool);
         final idem = PostgresIdempotencyStore(pool);
+        final appleTokens = PostgresAppleTokenRepository(pool);
 
         final victim = await user(
           '+2250700${(stamp % 10000).toString().padLeft(4, '0')}91',
@@ -2268,6 +2294,13 @@ void main() {
             status: 201,
             body: '{}',
           );
+          // B6.7 — a Sign in with Apple token (0042).
+          await appleTokens.keep(
+            kind: 'user',
+            accountId: uid,
+            clientId: 'ci.myweli.app',
+            refreshToken: 'rt-b610-$uid',
+          );
         }
 
         final providerAuth = PostgresProviderAuthRepository(
@@ -2293,6 +2326,8 @@ void main() {
           ),
           FakeStorageService(),
           idempotency: idem,
+          // No key: nothing is revoked at Apple, the rows go all the same.
+          apple: AppleTokenService(appleTokens, null, log: (_) {}),
           client: MockClient((_) async => http.Response('', 204)),
         );
 
@@ -2317,6 +2352,9 @@ void main() {
               'WHERE reporter_user_id = @u',
           'idempotency_keys':
               'SELECT count(*)::int FROM idempotency_keys WHERE account_id = @u',
+          'apple_tokens':
+              "SELECT count(*)::int FROM apple_tokens WHERE account_kind = 'user' "
+              'AND account_id = @u',
         };
         for (final e in perUser.entries) {
           expect(await count(e.value, {'u': victim}), 0, reason: e.key);

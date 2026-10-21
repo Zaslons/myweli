@@ -55,6 +55,28 @@ class IdTokenVerifier {
   /// legitimately arrive with a nonce we never asked for.
   final bool rejectUnsolicitedNonce;
 
+  /// The audience of a token [verify] has ALREADY accepted — the client it
+  /// was issued to (an app's bundle id, the web's Services ID). Sign in with
+  /// Apple exchanges a sign-in's code with that same client (B6.7,
+  /// docs/design/backend-integrity-batch6.md §13). Read here, not verified:
+  /// call it only after [verify] said yes. Null unless it is one of
+  /// [audiences].
+  String? audienceOf(String verifiedToken) {
+    try {
+      final payload = JWT.decode(verifiedToken).payload;
+      final aud = payload is Map ? payload['aud'] : null;
+      if (aud is String) return audiences.contains(aud) ? aud : null;
+      if (aud is List) {
+        for (final a in aud) {
+          if (a is String && audiences.contains(a)) return a;
+        }
+      }
+    } catch (_) {
+      // Not a token: no client.
+    }
+    return null;
+  }
+
   Future<IdTokenResult> verify(String token, {String? nonce}) async {
     if (audiences.isEmpty) return _fail('verifier_not_configured');
 
