@@ -1870,6 +1870,15 @@ createServer(async (req, res) => {
   // one, sending the salon id from the browser to a route that checks nothing.
   // The PUBLIC list closes with Decision C — hidden AND unknown, because a 404
   // that only covered the hidden case would mean « exists but hidden ».
+  // The salon reports a review of its own salon (B6.6): stateless — the
+  // owner may, a member without profile.manage may not.
+  const salonReport = url.pathname.match(/^\/me\/provider\/reviews\/([^/]+)\/report$/);
+  if (salonReport && req.method === 'POST') {
+    if (!['owner', 'manager'].includes(roleOf(req))) {
+      return json(res, 403, { error: 'forbidden' });
+    }
+    return json(res, 200, { status: 'reported' });
+  }
   const pubReviews = url.pathname.match(/^\/providers\/([^/]+)\/reviews$/);
   if (pubReviews && !['p1', 'p2'].includes(pubReviews[1])) {
     return json(res, 404, { error: 'not_found' });

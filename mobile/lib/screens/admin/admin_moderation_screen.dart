@@ -137,15 +137,27 @@ class _AdminModerationScreenState extends State<AdminModerationScreen> {
               ),
               Align(
                 alignment: Alignment.centerLeft,
-                child: StatusChip(
-                  label: Formatters.count(
-                    (r['reportCount'] as int?) ?? 1,
-                    'signalement',
-                    'signalements',
-                  ),
-                  kind: ((r['reportCount'] as num?) ?? 1) >= 2
-                      ? AdminChipKind.danger
-                      : AdminChipKind.pending,
+                child: Wrap(
+                  spacing: AppTheme.spacingXS,
+                  runSpacing: AppTheme.spacingXS,
+                  children: [
+                    StatusChip(
+                      label: Formatters.count(
+                        (r['reportCount'] as int?) ?? 1,
+                        'signalement',
+                        'signalements',
+                      ),
+                      kind: ((r['reportCount'] as num?) ?? 1) >= 2
+                          ? AdminChipKind.danger
+                          : AdminChipKind.pending,
+                    ),
+                    // The salon itself asked (B6.6, decision 20).
+                    if (r['reportedBySalon'] == true)
+                      const StatusChip(
+                        label: 'Signalé par le salon',
+                        kind: AdminChipKind.neutral,
+                      ),
+                  ],
                 ),
               ),
               _actions([

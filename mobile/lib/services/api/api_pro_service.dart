@@ -175,6 +175,34 @@ class ApiProService implements ProServiceInterface {
   }
 
   @override
+  Future<ApiResponse<void>> reportSalonReview(
+    String reviewId, {
+    String? reason,
+  }) async {
+    if (await _authed.accessToken() == null) {
+      return ApiResponse.error('Non connecté');
+    }
+    final selected = await _selectedSalonId();
+    final text = reason?.trim() ?? '';
+    final res = await _authed.send(
+      (t) => _client.post(
+        _uri(
+          '/me/provider/reviews/${Uri.encodeComponent(reviewId)}/report',
+        ).replace(
+          queryParameters: {
+            if (selected != null && selected.isNotEmpty) 'salonId': selected,
+          },
+        ),
+        headers: {..._bearer(t), 'Content-Type': 'application/json'},
+        body: jsonEncode(text.isEmpty ? <String, dynamic>{} : {'reason': text}),
+      ),
+    );
+    if (res == null) return networkError();
+    if (res.statusCode != 200) return _refused(res);
+    return ApiResponse.success(null);
+  }
+
+  @override
   Future<ApiResponse<MyReviews>> getMyReviews({
     int page = 1,
     int pageSize = 50,

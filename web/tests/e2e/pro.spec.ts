@@ -879,6 +879,16 @@ test('« Avis » shows the summary + review cards (web-pro-reviews.md)', async (
   await expect(page.getByText(/avec Awa/)).toBeVisible();
   await expect(page.getByText('Mariam')).toBeVisible();
   await expect(page.getByAltText('Photo de l’avis')).toBeVisible();
+
+  // B6.6 (App Store 1.2): the owner reports a review, through the real BFF
+  // (docs/design/backend-integrity-batch6.md §2.6).
+  // Scoped to one card: every review has its own « Signaler ».
+  const review = page.getByRole('listitem').filter({ hasText: 'Service impeccable.' });
+  await review.getByRole('button', { name: 'Signaler' }).click();
+  await review.getByLabel('Raison du signalement').fill('Insultes');
+  // The toggle gave way to the form: the one « Signaler » left sends it.
+  await review.getByRole('button', { name: 'Signaler' }).click();
+  await expect(review.getByText('Merci. Notre équipe va examiner cet avis.')).toBeVisible();
 });
 
 test('« Vérification » : upload des documents KYC → soumission (web-pro-kyc.md)', async ({

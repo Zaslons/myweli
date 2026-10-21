@@ -11,6 +11,8 @@ import '../../../core/utils/review_card.dart';
 import '../../../models/review.dart';
 import '../../../providers/pro_auth_provider.dart';
 import '../../../providers/pro_reviews_provider.dart';
+import '../../../widgets/common/app_snack_bar.dart';
+import '../../../widgets/common/confirm_dialog.dart';
 
 class ReviewsScreen extends StatefulWidget {
   const ReviewsScreen({super.key});
@@ -38,6 +40,34 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
         reviewsProvider.loadReviews(_resolvedProviderId(context));
       }
     });
+  }
+
+  /// « Signaler » (B6.6 — App Store 1.2, decision 20): the client's dialog
+  /// and words; the review goes to the moderators' queue, marked « Signalé
+  /// par le salon ». Docs: docs/design/backend-integrity-batch6.md §2.6.
+  Future<void> _report(String reviewId) async {
+    final reason = await showInputDialog(
+      context,
+      title: 'Signaler cet avis ?',
+      confirmLabel: 'Signaler',
+      field: const ConfirmField(
+        hint: 'Raison (optionnel)',
+        isRequired: false,
+        maxLength: 500,
+      ),
+    );
+    if (reason == null || !mounted) return;
+    final messenger = ScaffoldMessenger.of(context);
+    final ok = await context.read<ProReviewsProvider>().reportReview(
+      reviewId,
+      reason: reason,
+    );
+    AppSnackBar.outcomeOn(
+      messenger,
+      ok: ok,
+      success: 'Merci. Notre équipe va examiner cet avis.',
+      error: 'Le signalement a échoué. Réessayez.',
+    );
   }
 
   @override
@@ -224,7 +254,13 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
                     itemCount: reviews.length,
                     itemBuilder: (context, index) {
                       final review = reviews[index];
-                      return _ReviewCard(review: review);
+                      return _ReviewCard(
+                        review: review,
+                        // The Propriétaire and the Gérant (`profile.manage`).
+                        onReport: authProvider.can('profile.manage')
+                            ? () => _report(review.id)
+                            : null,
+                      );
                     },
                   ),
                 ),
@@ -240,7 +276,10 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
 class _ReviewCard extends StatelessWidget {
   final Review review;
 
-  const _ReviewCard({required this.review});
+  /// « Signaler », for a member who may (null: not offered).
+  final VoidCallback? onReport;
+
+  const _ReviewCard({required this.review, this.onReport});
 
   @override
   Widget build(BuildContext context) {
@@ -305,6 +344,26 @@ class _ReviewCard extends StatelessWidget {
                       color: AppColors.textSecondary,
                     ),
                   ),
+                  // The client's « Signaler » (review_tile.dart): compact and
+                  // quiet — the action is rare, the review is the subject.
+                  if (onReport != null)
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: TextButton(
+                        onPressed: onReport,
+                        style: TextButton.styleFrom(
+                          padding: EdgeInsets.zero,
+                          // §13.2: the padded tap target keeps ≥48 of hit area.
+                          minimumSize: const Size(0, 32),
+                        ),
+                        child: Text(
+                          'Signaler',
+                          style: AppTextStyles.labelSmall.copyWith(
+                            color: AppColors.textTertiary,
+                          ),
+                        ),
+                      ),
+                    ),
                 ],
               ),
             ),

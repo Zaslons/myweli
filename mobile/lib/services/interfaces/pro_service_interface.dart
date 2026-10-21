@@ -124,6 +124,16 @@ abstract class ProServiceInterface {
   /// (docs/design/salon-reviews-summary.md).
   Future<ApiResponse<MyReviews>> getMyReviews({int page, int pageSize});
 
+  /// The salon reports a review of its own salon (B6.6 — App Store 1.2,
+  /// docs/design/backend-integrity-batch6.md §2.6): the same moderation
+  /// queue as a client's report, marked « Signalé par le salon ». The salon
+  /// is the session's (R6 selection honoured); the server refuses a member
+  /// without `profile.manage` and a review of another salon.
+  Future<ApiResponse<void>> reportSalonReview(
+    String reviewId, {
+    String? reason,
+  });
+
   /// « Mes salons » (module `access` R6 — GET /me/salons): every salon the
   /// account belongs to (owned first) + the server-computed add gate.
   Future<ApiResponse<MySalonsResult>> getMySalons();

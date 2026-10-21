@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Statut** | **PR A fusionnée** (#676 — §10) ; **PR B construite le 2026-10-21** sur `fix/backend-batch-6-data` (#677 — B6.3, B6.4, B6.5 — §11) ; **rien n'est déployé** ; PR C, D à suivre, puis un déploiement (demandé avant). Validé le même jour — Q1 (décision 17) : **effacer les numéros et l'adresse, garder le nom et l'historique** ; Q2 (décision 18) : **effacer le KYC de la démo à la remise** ; Q3 (décision 19) : **5–80 %** ; Q4 (décision 20) : **Propriétaire et Gérant, la même file marquée** ; Q5 : **Apple construit maintenant, inactif sans clé** ; Q6 : **le reste tel qu'écrit** (décision 22 : l'alerte, pas de recréation) |
+| **Statut** | **PR A fusionnée** (#676 — §10) ; **PR B fusionnée** (#677 — §11) ; **PR C construite le 2026-10-21** sur `feat/salon-review-reports` (#678 — B6.6 — §12) ; **rien n'est déployé** ; PR D à suivre, puis un déploiement (demandé avant). Validé le même jour — Q1 (décision 17) : **effacer les numéros et l'adresse, garder le nom et l'historique** ; Q2 (décision 18) : **effacer le KYC de la démo à la remise** ; Q3 (décision 19) : **5–80 %** ; Q4 (décision 20) : **Propriétaire et Gérant, la même file marquée** ; Q5 : **Apple construit maintenant, inactif sans clé** ; Q6 : **le reste tel qu'écrit** (décision 22 : l'alerte, pas de recréation) |
 | **Owner** | Sadreddine |
 | **Last updated** | 2026-10-21 |
 | **PRD ref / phase** | Serveur (V1) — BACKEND.md §3 (authz, refus par défaut, validation), §7 (modèle de menaces) · App Store 1.2 (signaler un contenu), 5.1.1(v) (suppression de compte) |
@@ -154,6 +154,7 @@ Tests seulement.
 
 - `review_reports.reporter_kind text NOT NULL DEFAULT 'user'` (B6.6) ;
   l'unicité devient `(review_id, reporter_kind, reporter_user_id)`.
+  *Construit autrement — l'unicité reste à deux colonnes, voir §12.*
 - B6.7 : `apple_refresh_tokens (account_kind, account_id, token, created_at)`,
   supprimé en cascade avec le compte.
 - Toutes **additives**, réversibles, sous les délais de verrouillage du dépôt
@@ -304,3 +305,75 @@ inconnu gardé, `operator_unavailable` en `invalid_input` ; côté web, les deux
 fautes en barre, le curseur qui garde sa faute, une valeur ancienne refusée,
 l'ancienne plage 1–100, la page de suppression muette ; côté app, les deux
 fautes en barre, le curseur qui garde sa faute.
+
+## 12. PR C construite (B6.6) — ce qui a été vu
+
+**Comme écrit**, avec ces précisions et **deux écarts** :
+- **L'unicité reste `(review_id, reporter_user_id)`** (écart au §5). Le
+  rapporteur d'un salon est l'identifiant du salon (`provider_…`), celui d'un
+  client est `user_…` : ils ne se rencontrent jamais, donc une colonne de plus
+  dans la clé n'ajoute rien. Et l'image en service garde son
+  `ON CONFLICT (review_id, reporter_user_id)` valide entre la migration et le
+  déploiement. La migration `0041_review_reports_reporter_kind` n'ajoute donc
+  que la colonne (`text NOT NULL DEFAULT 'user'`) : additive, sans index
+  nouveau.
+- **`ModerationService.reportBySalon`, à côté de `report`** (écart au §2.6,
+  qui disait « réutilise »). Même limite (500 caractères → `invalid_input`),
+  même dépôt (`addReport(…, reporterKind: 'salon')`). La différence, c'est le
+  contrôle « un avis de ce salon » (sinon `not_found`), qui n'a pas sa place
+  dans le signalement d'un client.
+- **La route** : `routes/me/provider/reviews.dart` devient
+  `reviews/index.dart`, pour que `reviews/[id]/report.dart` existe à côté.
+  L'ordre de la route : 405 → 401 → rôle `provider` (403) → le salon résolu
+  comme la lecture (`?salonId=` contre une appartenance active) → la capacité
+  `profile.manage` (Propriétaire et Gérant) → le corps, facultatif.
+- **La file** : chaque élément porte `reportedBySalon` (Postgres :
+  `bool_or(reporter_kind = 'salon')`). La console d'administration le dit
+  par une puce neutre, « Signalé par le salon », à côté du nombre de
+  signalements.
+- **Le web** : le BFF `POST /api/pro/reviews/{id}/report` ne transmet **que
+  la raison**. Le salon est celui de la session, jamais un champ envoyé par
+  le navigateur. Sur « Avis », « Signaler » n'apparaît qu'avec
+  `profile.manage`. Le formulaire et les mots sont ceux du client. Un 401
+  renvoie à la connexion, et une absence de réponse dit « Pas de connexion.
+  Réessayez. ».
+- **L'app** : `showInputDialog` (« Signaler cet avis ? », « Raison
+  (optionnel) », 500 caractères), puis le message de réussite ou d'échec.
+  **La photo de l'écran a parlé** : la première version donnait trois
+  boutons noirs, plus forts que l'avis lui-même. « Signaler » a pris le
+  style du client (`review_tile.dart` : compact, `labelSmall`,
+  `textTertiary`). La photo `pro_reviews_w360.png` montre cette version
+  discrète.
+
+**Vérifié** : `dart analyze` et `flutter analyze` à zéro ; serveur avec
+Postgres (2 097 tests, 2 ignorés) ; web (2 164) ; app (2 558) ; e2e entier
+sur deux workers (269) ; types web régénérés du contrat. **Mutations vues
+rouges (21)** :
+- **côté serveur** :
+  - la capacité ignorée ;
+  - n'importe quel rôle ;
+  - GET accepté ;
+  - l'avis d'un autre salon ;
+  - pas de limite de raison ;
+  - le salon enregistré comme un client ;
+  - la marque absente, puis la marque perdue quand un client signale après
+    (mémoire) ;
+  - le genre non stocké, et la file jamais marquée (Postgres) ;
+- **côté web** :
+  - tout le monde signale ;
+  - un 401 qui ne renvoie pas à la connexion ;
+  - une absence de réponse dite comme un échec ;
+  - la raison perdue ;
+  - le BFF qui transmet tout le corps ;
+- **côté app** :
+  - tout le monde signale ;
+  - la raison perdue ;
+  - l'issue toujours une réussite ;
+  - un refus pris pour une réussite ;
+  - le salon choisi non envoyé ;
+  - la puce d'administration jamais montrée.
+
+**Trois ont d'abord survécu**, et chacune a demandé un test :
+- un jeton client dont l'identifiant est celui d'un membre ;
+- le salon qui signale avant un client ;
+- `?salonId=` dans l'app.

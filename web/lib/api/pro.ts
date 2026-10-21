@@ -408,6 +408,22 @@ export async function proAction(
   return { ok: false, status: res.status, error: b.error };
 }
 
+/// The salon reports a review of its own salon (B6.6 —
+/// docs/design/backend-integrity-batch6.md §2.6): the same moderation queue
+/// as a client's report, marked « Signalé par le salon ». Status 0 = no
+/// answer (the wrapper never throws).
+export async function reportSalonReview(
+  reviewId: string,
+  reason: string,
+): Promise<{ ok: boolean; status: number }> {
+  const res = await send(`/api/pro/reviews/${encodeURIComponent(reviewId)}/report`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(reason.trim() ? { reason: reason.trim() } : {}),
+  });
+  return { ok: res.ok, status: res.status };
+}
+
 /// The short-lived signed URL of a booking's deposit screenshot. A read like
 /// the others (docs/design/web-pro-journal-panel-deposit.md §5): status 0 when
 /// nothing usable came back — a 200 without a URL included — so the screen can

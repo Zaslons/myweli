@@ -1117,6 +1117,22 @@ CREATE TABLE IF NOT EXISTS momo_operators (
           'ON idempotency_keys (created_at)',
     ],
   ),
+  (
+    id: '0041_review_reports_reporter_kind',
+    statements: [
+      // A salon reports reviews of its own salon (B6.6, App Store 1.2):
+      // `reporter_kind` says who — `user` (every row so far, the default) or
+      // `salon`, whose `reporter_user_id` is then the salon's id. The UNIQUE
+      // (review_id, reporter_user_id) stays as it is: user and salon ids
+      // never collide (`user_…` / `provider_…`), so it already means one
+      // report per review and reporter — and an older image's
+      // `ON CONFLICT (review_id, reporter_user_id)` keeps its index.
+      // Additive: an older image never reads it, its inserts take the
+      // default. docs/design/backend-integrity-batch6.md §2.6, §5.
+      'ALTER TABLE review_reports '
+          "ADD COLUMN IF NOT EXISTS reporter_kind text NOT NULL DEFAULT 'user'",
+    ],
+  ),
 ];
 
 /// How long a schema-setup statement may **wait for a lock** before giving up.

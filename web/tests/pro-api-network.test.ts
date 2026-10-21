@@ -162,6 +162,8 @@ const ROWS: Row[] = [
   { name: 'resendInvitation', kind: 'write', payload: ['member'], call: () => pro.resendInvitation('m1') },
   { name: 'acceptMyInvitation', kind: 'write', call: () => pro.acceptMyInvitation('i1') },
   { name: 'declineMyInvitation', kind: 'write', call: () => pro.declineMyInvitation('i1') },
+  // B6.6: the salon reports a review of its own salon.
+  { name: 'reportSalonReview', kind: 'write', call: () => pro.reportSalonReview('r1', 'Insultes') },
   {
     name: 'addClient',
     kind: 'write',
