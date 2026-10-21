@@ -353,8 +353,15 @@ test('Médias — the delete question, then the undo toast — axe-clean (web-pr
   const undo = page.getByRole('status').getByRole('button', { name: 'Annuler' });
   await expect(undo).toBeVisible();
   await expectNoViolations(page, '/pro/medias + undo toast');
-  // Put it back: the stub's gallery is shared by every test.
+  // Put it back: the stub's gallery is shared by every test — and WAIT for
+  // the restore to be saved. « Annuler » fires the PUT without awaiting it,
+  // so ending the test on the click could close the page first and leave the
+  // gallery a photo short for `pro.spec.ts`'s « médias » count (CI, #666).
+  const restored = page.waitForResponse(
+    (r) => r.url().endsWith('/api/pro/medias/gallery') && r.request().method() === 'PUT',
+  );
   await undo.click();
+  expect((await restored).ok()).toBe(true);
 });
 
 test('a VISIBLE toast is axe-clean', async ({ page }) => {

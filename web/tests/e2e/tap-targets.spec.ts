@@ -158,7 +158,13 @@ test('pro: Médias — the undo toast’s « Annuler » (web-pro-medias-like-app
   const undo = page.getByRole('status').getByRole('button', { name: 'Annuler' });
   await expect(undo).toBeVisible();
   await assertBox(undo, 'undo toast « Annuler »', { minW: 0 });
-  await undo.click(); // the stub's gallery is shared
+  // The stub's gallery is shared: wait for the restore to be SAVED — the
+  // click fires the PUT without awaiting it (see axe.spec.ts's twin).
+  const restored = page.waitForResponse(
+    (r) => r.url().endsWith('/api/pro/medias/gallery') && r.request().method() === 'PUT',
+  );
+  await undo.click();
+  expect((await restored).ok()).toBe(true);
 });
 
 test('pro: the glyph buttons that grew invisibly', async ({ page }) => {
