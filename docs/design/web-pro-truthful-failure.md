@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Statut** | **PR A construite le 2026-10-21** sur `fix/web-pro-truthful-failure` (B4.1, B4.3, B4.5 — §10) ; **PR B** (B4.2, B4.4) à suivre. Validé le même jour — Q1 : **le dire, « Inviter » reste utilisable** ; Q2 (décision 14) : **retenir le salon** ; Q3 (décision 15) : **une ligne « indisponible » + « Réessayer »**, « — » pour les tuiles ; Q4 : **les mots tels qu'écrits** · la décision 13 n'a plus d'objet (§1.1) |
+| **Statut** | **PR A construite le 2026-10-21** (#672 — B4.1, B4.3, B4.5, §10) ; **PR B construite le même jour** sur `fix/web-pro-fresh-lists-gate` (#673 — B4.2, B4.4, §11, avec un écart sur le salon retenu). Validé le même jour — Q1 : **le dire, « Inviter » reste utilisable** ; Q2 (décision 14) : **retenir le salon** ; Q3 (décision 15) : **une ligne « indisponible » + « Réessayer »**, « — » pour les tuiles ; Q4 : **les mots tels qu'écrits** · la décision 13 n'a plus d'objet (§1.1) |
 | **Owner** | Sadreddine |
 | **Last updated** | 2026-10-21 |
 | **PRD ref / phase** | Espace Pro web (V1) — parité avec l'app Pro · WEB-SYSTEM §4–§8 (états, ARIA) · SYSTEM.md §17 (les deux phrases) |
@@ -97,7 +97,8 @@ celle de la Semaine et au `onCreated` du dialogue : il relit la vue ouverte
   `localStorage` à chaque profil reçu, **effacé à la déconnexion** ; après un
   rechargement, « Votre accès à {salon} a été retiré. », comme l'app. Un salon
   retenu qui n'est pas celui révoqué n'est pas nommé (l'identifiant doit
-  correspondre).
+  correspondre). *Construit autrement — §11 : le navigateur ne peut pas
+  comparer l'identifiant ; le salon retenu est effacé à chaque connexion aussi.*
 
 ## 3. Les états
 
@@ -200,3 +201,58 @@ du refus jeté par `publishSalon`, la fiche du panneau muette, son
 « Réessayer » sans effet, les suggestions muettes, leur « Réessayer » sans
 effet.
 
+## 11. PR B construite (B4.2, B4.4) — ce qui a été vu
+
+**Comme écrit**, avec ces précisions et **un écart** :
+- **Calendrier et Liste** : `loadItems()` porte son numéro de demande, que le
+  chargement de la page prend aussi (une relecture partie avant un
+  « Réessayer » ne retombe pas après lui). `refreshAfterChange()` relit la vue
+  ouverte (la Journée ou la Semaine) **et** la liste. **Trouvé en passant** :
+  « + Nouveau rendez-vous » ouvert depuis la Semaine relisait la Journée, pas
+  la semaine — le rendez-vous créé n'apparaissait pas dans la grille ouverte ;
+  il y apparaît. Une relecture de la liste qui échoue garde la liste d'avant,
+  sans le dire : la grille qui a fait le geste le montre déjà, et le geste ou
+  le chargement suivant relit la liste.
+- **La barrière** : les deux cartes d'« Aujourd'hui » mènent à la connexion
+  (`router.replace('/pro/connexion')`, comme les lectures de la page).
+  `awaitingProfile` part à `true` ; un `/me` qui échoue sans profil encore
+  reçu lance `healProfile`, désormais à vol unique (une jonction et une
+  navigation peuvent la lancer toutes deux). Le cas « 401 » de
+  `pro-membership-context.test.tsx` épinglait l'ancien comportement (le menu du
+  propriétaire) : il dit maintenant que la barre attend.
+- **Le salon retenu** : `lib/pro/remembered-salon.ts`, clé
+  `myweli_pro_last_salon`, `{id, nom}` seulement, chaque accès protégé
+  (fenêtre privée, données bloquées). Écrit à chaque profil reçu ; le salon de
+  la page, en mémoire, passe avant (un autre onglet a pu en retenir un autre) ;
+  un salon sans nom **efface** le précédent plutôt que de laisser nommer le
+  mauvais.
+- **L'écart (§2.4, « l'identifiant doit correspondre »)** : impossible côté
+  navigateur. Le refus `not_a_member` ne nomme aucun salon — il dit que le
+  compte n'a plus aucune appartenance — et la sélection du salon vit dans un
+  cookie httpOnly. À la place, le salon retenu est **effacé à chaque
+  déconnexion qui aboutit et à chaque connexion** (les quatre chemins de
+  `ProLoginOptions`, et l'inscription) : il ne peut avoir été écrit que par le
+  compte connecté. Une déconnexion qui n'a pas abouti le garde — la session
+  vit toujours, et un rechargement le nomme encore. Ce qui reste : un compte
+  retiré de **deux** salons à la fois lit le nom du dernier où il agissait,
+  comme avant le rechargement.
+- **e2e** : le bouchon n'a aucun rendez-vous à la fois dans la Journée (pj1,
+  pj2) et dans la liste (pappt1), et les deux workers partagent son état ; un
+  identifiant à lui (`listes.fraiches@salon.test`) a un seul rendez-vous,
+  « Mariam », dans les deux, remis « En attente » à chaque connexion.
+
+**Vérifié** : types et lint propres ; 2 060 tests unitaires ; e2e entier
+(268) sur deux workers, comme la CI ; le nouvel e2e vu rouge sans la
+relecture de la liste. **Mutations vues rouges (20)** : la liste non relue, le
+numéro de demande ignoré, la Journée, la Semaine et « Nouveau rendez-vous » sur
+leur ancien rappel (3), chaque carte d'« Aujourd'hui » sans
+`onUnauthenticated` (2), `awaitingProfile` à `false`, le premier `/me` jamais
+guéri, la barrière qui ne lit pas le salon retenu, le salon retenu qui passe
+avant celui de la page, le profil jamais retenu, jamais effacé à la
+déconnexion, effacé même quand elle n'a pas abouti, jamais effacé à la
+connexion, ni à l'inscription, n'importe quoi lu comme un salon, plus que
+`{id, nom}` gardé, un salon sans nom qui garde le précédent, un salon sans nom
+écrit tel quel. **Deux avaient d'abord survécu**, et ont corrigé l'ouvrage : le
+cas « propriétaire » dessinait la page du Collaborateur (son profil de test
+n'avait que `finances.view`), et un salon sans nom laissait le précédent
+retenu.

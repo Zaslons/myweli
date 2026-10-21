@@ -39,7 +39,7 @@
 | 10 | **Only you can check** | App Store Connect state, support inbox, App Preview, production walk-throughs | — | owner | your time |
 
 **Proposed order.**
-- **Now:** batch 0 runs on Apple's clock. Batches 1 (#665), 2 (#666) and 3 (#670, #671) are done; **batch 4 is the next code slice.**
+- **Now:** batch 0 runs on Apple's clock. Batches 1 (#665), 2 (#666), 3 (#670, #671) and 4 (#672, #673) are done; **batch 5 is the next code slice.**
 - **Then:** batch 5, while batch 6 accumulates and goes out in one or two backend deploys.
 - **When touching an area:** batches 7 and 9.
 - **Whenever you answer:** batch 8.
@@ -76,7 +76,7 @@ Each question has a recommendation. Answers unblock the item named in brackets.
 **Web Pro (batch 4)**
 
 13. **When the salon's offer can't be read:** leave « Mettre en ligne » clickable and let the server decide? *Recommended: yes, the server re-checks.* Or block it until the offer is read? [B4.1] — ✅ **No longer anything to decide**: « Mettre en ligne » stopped reading the offer on 2026-10-19, so the server already decides; Équipe's case was asked instead (#672: say it, keep « Inviter »).
-14. **The rejoin gate after a reload:** remember the last salon's name in the browser, so it can say « Votre accès à {salon} a été retiré », like the app? Or keep the generic line? *Recommended: remember it.* [B4.4] — ✅ **Answered: remember it** (built in batch 4's PR B).
+14. **The rejoin gate after a reload:** remember the last salon's name in the browser, so it can say « Votre accès à {salon} a été retiré », like the app? Or keep the generic line? *Recommended: remember it.* [B4.4] — ✅ **Answered: remember it** (built in #673).
 15. **Four minor Pro sections that vanish silently on a failed read** (seats bar, stats tiles, panel client card, client suggestions): give them a one-line « indisponible » note with « Réessayer », or accept the silence? *Recommended: the note, for the three that drive an action; the stats tiles can stay « — ».* [B4.5] — ✅ **Answered: as recommended** (#672).
 
 **Client web (batch 5)**
@@ -213,7 +213,7 @@ This batch takes up three of the six suggested tasks that were never started. It
     - after a successful retry, the failure snackbar stays up for its 6 s.
   - **How:** keep the ids with a write in flight, re-apply them after `load()` and again on success. On a lost answer, retry once (decision 12) or re-read the list instead of reverting blindly. Hide the failure snackbar when a new attempt starts (`AppSnackBar.showOn` returns its controller).
 
-### Batch 4 — Web Pro is truthful on failure (P2, web)
+### Batch 4 — Web Pro is truthful on failure (P2, web) — ✅ done (#672, #673, 2026-10-21)
 
 - ✅ **B4.1 Three failed reads show something false, and « Voir le justificatif » does nothing (P2 · M · decision 13).** **Done in #672** — [web-pro-truthful-failure.md](design/web-pro-truthful-failure.md) §1.1, §10: « Mettre en ligne » and « Voir le justificatif » were already fixed on main; the false « Choisissez votre offre » had moved to Équipe, now three-state.
   - **What:**
@@ -226,13 +226,13 @@ This batch takes up three of the six suggested tasks that were never started. It
     - A `visitsFailed` state, and a « Charger plus » that retries the same page.
     - A visible failure on the receipt link.
     - Reuse `loadFailureMessage` and the section-level `ErrorState`.
-- **B4.2 « Calendrier » and « Liste » stay stale after a day-grid action (P2 · M)** *(suggested task)*.
+- ✅ **B4.2 « Calendrier » and « Liste » stay stale after a day-grid action (P2 · M)** *(suggested task)*. **Done in #673** — [web-pro-truthful-failure.md](design/web-pro-truthful-failure.md) §11 (also: « + Nouveau rendez-vous » from the Semaine now reloads the week).
   - **What:** after creating, moving, accepting or cancelling in the day view, the other two tabs keep the old data until a reload. `items` is set once at mount.
   - **How:** in `RendezVousClient.tsx`, a `loadItems()` with its own request id (the journal's dedupe), and one `refreshAfterChange()` passed to the grid and to the dialog's `onCreated`.
 - ✅ **B4.3 Demo account and suspended salon get a generic error (P2 · S)** *(suggested task)*. **Done in #672** — [web-pro-truthful-failure.md](design/web-pro-truthful-failure.md) §10.
   - **What:** « Mettre en ligne » and the offer page say « …a échoué. Réessayez. » for `demo_account_locked`, so the reviewer retries forever.
   - **How:** `publishSalon` returns `error`. `GoLiveCard` and `AbonnementClient` map `demo_account_locked` to `DEMO_ACCOUNT_LOCKED_MESSAGE`, `provider_suspended` to the existing salon sentence, and status 0 to the offline sentence.
-- **B4.4 Rejoin gate gaps (P2 · S · decision 14).**
+- ✅ **B4.4 Rejoin gate gaps (P2 · S · decision 14).** **Done in #673** — [web-pro-truthful-failure.md](design/web-pro-truthful-failure.md) §11 (the remembered salon is also forgotten at every sign-in: the browser cannot match its id).
   - **What:**
     - Accepting or declining on « Aujourd'hui » with a dead session shows a failure instead of going to sign-in.
     - A failed first `/me` shows the owner's full menu to any role. Nothing leaks, since the server refuses the pages, but the menu is wrong.
