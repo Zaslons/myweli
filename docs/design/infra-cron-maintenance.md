@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Statut** | **Validé le 2026-10-21** — Q1 : **03:30 UTC** ; Q2 : **un script pour les trois jobs** ; Q3 : **déployer, puis créer le job et le forcer le même jour** ; Q4 : **les deux crons dans le contrat** (§9) |
+| **Statut** | **Construit le 2026-10-21** sur `chore/cron-maintenance` (empilé sur #666) ; ce qui a été vu : §10. Validé le même jour — Q1 : **03:30 UTC** ; Q2 : **un script pour les trois jobs** ; Q3 : **déployer, puis créer le job et le forcer le même jour** ; Q4 : **les deux crons dans le contrat** (§9) |
 | **Owner** | Sadreddine |
 | **Last updated** | 2026-10-21 |
 | **PRD ref / phase** | Exploitation (V1) — aucune fonctionnalité visible |
@@ -167,3 +167,38 @@ Aucun : rien de visible par une personne.
 **Décisions (2026-10-21).** Q1, Q2, Q3 et Q4 : les recommandations. La
 création du job (§3, étape 2) reste une mutation du cloud : elle est demandée
 au moment de la faire.
+
+## 10. Construit — ce qui a été vu
+
+**Comme écrit.** `MaintenanceTick` (`lib/src/maintenance/maintenance_tick.dart`),
+la route `routes/internal/cron/maintenance.dart`, le cron des abonnements
+ramené à `{ notices, unpublished }`, `infra/gcp/99-scheduler-jobs.sh`, le job
+de staging, les deux crons dans `openapi.yaml`, T21, DEPLOYMENT.md §6,
+`infra-gcp-migration.md` §5.
+
+**Vérifié contre la production, sans rien y changer** : le script, lancé sans
+`APPLY`, relit les deux jobs faits à la main et les trouve **identiques** à ce
+qu'il déclare (horaire, UTC, adresse, POST, audience, compte de service,
+180 s) ; `myweli-maintenance` y est « MISSING — would create ». La forme
+déclarée est donc celle qui tourne, pas une supposition.
+
+**Trouvé en construisant** :
+- `cron_auth_test` listait les routes à la main (deux) : il lit maintenant le
+  dossier, et en exige trois.
+- Plusieurs commentaires et deux specs (`backend-admin-login-throttle.md`,
+  `infra-cloudflare-front-door.md`) disaient que les purges montaient sur le
+  cron des abonnements : ils pointent vers le nouveau.
+
+**Mutations vues rouges (15)** : une tâche oubliée, l'ordre changé, un `null`
+deviné en 0, l'échec de la remise à zéro avalé, un compte manquant, la remise
+à zéro jugée à un autre instant, une mauvaise fenêtre pour le verrou admin, la
+purge des clés non branchée, la route qui ne lit pas le tick, le tick non
+fourni, une tâche restée sur `/subscriptions`, le job non déclaré, la mauvaise
+heure, le job de staging oublié, la route absente du contrat.
+
+**Reste à faire, dans l'ordre (§3)** : fusionner après #666 ; déployer le
+backend ; `APPLY=1 bash infra/gcp/99-scheduler-jobs.sh` (une mutation du
+cloud — demandée au moment de la faire) ; `gcloud scheduler jobs run
+myweli-maintenance --location=europe-west9`, puis lire le 200 et ses quatre
+comptes dans le journal du service.
+
