@@ -115,9 +115,13 @@ export function legalRoute(slug: string): LegalRoute {
 /// change — the accepted cost of one date. The alternative is worse: a privacy
 /// policy whose substance moved while its date stood still is the version a
 /// regulator reads as concealment.
+///
+/// **Bumped 2026-10-21**: a deleted salon owner's salon loses its numbers and
+/// its address (docs/design/backend-integrity-batch6.md §2.3, decision 17) —
+/// said in the privacy policy and on « Supprimer votre compte ».
 export const LEGAL_UPDATED_AT = {
-  iso: '2026-08-22',
-  label: '22 août 2026',
+  iso: '2026-10-21',
+  label: '21 octobre 2026',
 } as const;
 
 export const COMPANY = {

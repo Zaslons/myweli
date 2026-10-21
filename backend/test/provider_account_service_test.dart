@@ -49,6 +49,9 @@ void main() {
     when(
       () => providers.setStatus(any(), any()),
     ).thenAnswer((_) async => {'id': 'p1', 'status': 'draft'});
+    when(
+      () => providers.updateProfile(any(), any()),
+    ).thenAnswer((_) async => <String, dynamic>{});
     // The erasure fire is GUARDED on the prior status, so the service now
     // reads each salon before unpublishing it. Live by default in this file;
     // the all-draft negative overrides per test.
@@ -360,6 +363,40 @@ void main() {
       verify(() => providers.setStatus('p1', 'draft')).called(1);
       verify(() => providers.setStatus('p2', 'draft')).called(1);
       verifyNever(() => providers.setStatus('p_managed', any()));
+    });
+
+    // docs/design/backend-integrity-batch6.md §2.3 (B6.3, decision 17): the
+    // salon outlives its owner for the clients' history, and kept the
+    // person's phone, WhatsApp, Mobile Money number and address.
+    test('each OWNED salon loses its numbers and its address — the name and '
+        'the history stay; a member-only salon is untouched', () async {
+      final id = await registerWithKyc(keys: []);
+      await memberships.ensureOwner(
+        providerId: 'p2',
+        accountId: id,
+        email: 'del@test.pro',
+      );
+      final inv = await memberships.invite(
+        providerId: 'p_managed',
+        email: 'del@test.pro',
+        role: 'manager',
+        expiresAt: DateTime.now().add(const Duration(days: 7)),
+      );
+      await memberships.activate(inv!.id, id);
+
+      final r = await service.deleteAccount(id);
+      expect(r.ok, isTrue);
+      const erased = <String, dynamic>{
+        'phoneNumber': '',
+        'address': '',
+        'whatsapp': null,
+        'depositMobileMoneyNumber': null,
+        'depositMobileMoneyOperator': null,
+        'depositRequired': false,
+      };
+      verify(() => providers.updateProfile('p1', erased)).called(1);
+      verify(() => providers.updateProfile('p2', erased)).called(1);
+      verifyNever(() => providers.updateProfile('p_managed', any()));
     });
   });
 

@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Statut** | **PR A construite le 2026-10-21** sur `fix/backend-batch-6` (#676 — B6.1, B6.2, B6.8, B6.9, B6.10 — §10), **pas déployée** ; PR B, C, D à suivre, puis un déploiement (demandé avant). Validé le même jour — Q1 (décision 17) : **effacer les numéros et l'adresse, garder le nom et l'historique** ; Q2 (décision 18) : **effacer le KYC de la démo à la remise** ; Q3 (décision 19) : **5–80 %** ; Q4 (décision 20) : **Propriétaire et Gérant, la même file marquée** ; Q5 : **Apple construit maintenant, inactif sans clé** ; Q6 : **le reste tel qu'écrit** (décision 22 : l'alerte, pas de recréation) |
+| **Statut** | **PR A fusionnée** (#676 — §10) ; **PR B construite le 2026-10-21** sur `fix/backend-batch-6-data` (#677 — B6.3, B6.4, B6.5 — §11) ; **rien n'est déployé** ; PR C, D à suivre, puis un déploiement (demandé avant). Validé le même jour — Q1 (décision 17) : **effacer les numéros et l'adresse, garder le nom et l'historique** ; Q2 (décision 18) : **effacer le KYC de la démo à la remise** ; Q3 (décision 19) : **5–80 %** ; Q4 (décision 20) : **Propriétaire et Gérant, la même file marquée** ; Q5 : **Apple construit maintenant, inactif sans clé** ; Q6 : **le reste tel qu'écrit** (décision 22 : l'alerte, pas de recréation) |
 | **Owner** | Sadreddine |
 | **Last updated** | 2026-10-21 |
 | **PRD ref / phase** | Serveur (V1) — BACKEND.md §3 (authz, refus par défaut, validation), §7 (modèle de menaces) · App Store 1.2 (signaler un contenu), 5.1.1(v) (suppression de compte) |
@@ -265,3 +265,42 @@ qui dit « ran » pour « pas le jour », « pas le jour » pour un refus ou pou
 une absence d'instantané ; l'effacement client qui garde les favoris, les
 réponses gardées, ou ne dépouille pas les rendez-vous. **Deux avaient d'abord
 survécu** et ont corrigé l'ouvrage (ci-dessus).
+
+## 11. PR B construite (B6.3, B6.4, B6.5) — ce qui a été vu
+
+**Comme écrit**, avec ces précisions et **un ajustement** :
+- **B6.3** : l'effacement passe par `updateProfile` (les deux jumeaux fusionnent
+  le document, et Postgres tient aussi la colonne `address`) — aucune méthode
+  de dépôt nouvelle. Les tests de la route `DELETE /me/provider` simulaient le
+  dépôt sans cette réponse : ils l'ont, et vérifient l'effacement. Le texte est
+  sur **la politique de confidentialité** et sur **« Supprimer votre
+  compte »** ; la date des documents passe au 21 octobre 2026, avec
+  l'instantané du manifeste (`legalUpdatedAtWhenPending`) que sa garde exige.
+  **À savoir** : ces pages partent avec le web (à la fusion), le serveur avec
+  le déploiement — entre les deux, le texte décrit ce que le serveur ne fait
+  pas encore. Aucune personne réelle n'est concernée aujourd'hui.
+- **B6.4** : `submitKyc(compte, [])` remet déjà l'état (aucune pièce,
+  `pending`, pas de motif) dans les deux jumeaux ; seule la suppression des
+  objets est nouvelle, dans la même boucle que l'effacement d'un compte (clé
+  préfixée, une erreur de stockage ne bloque pas).
+- **B6.5, l'ajustement (T57)** : une garde existante l'a rappelé — **aucun
+  opérateur hors du catalogue du pays n'est jamais enregistré**. Acompte
+  désactivé, un opérateur retiré n'est plus *jugé* (l'enregistrement passe),
+  mais il n'est pas *gardé* non plus : stocké `null`. Le contrat le dit.
+- **B6.5, les clients** : le web perd « Pourcentage invalide (1–100 %) » ; sa
+  règle devient celle de l'app et du serveur (5–80 %, jugée quand la valeur a
+  changé), dite sous le curseur ; `operator_unavailable` sous la liste des
+  opérateurs (après le `label`, pour ne pas devenir une partie de son nom).
+  L'app : les deux fautes sous leurs contrôles (`InlineFeedback`, rien quand
+  il n'y en a pas — la photo de l'écran ne bouge pas).
+
+**Vérifié** : `dart analyze` et `flutter analyze` à zéro ; serveur avec
+Postgres (2 079 tests, 2 ignorés) ; web (2 152) ; app (2 549) ; e2e entier sur
+deux workers (269) ; types web régénérés du contrat. **Mutations vues rouges
+(20)** : l'effacement absent, le WhatsApp gardé, l'acompte laissé actif ; le
+KYC gardé, n'importe quel préfixe supprimé, l'état gardé ; pas de plage, une
+valeur ancienne jugée, l'opérateur jugé acompte désactivé, un opérateur
+inconnu gardé, `operator_unavailable` en `invalid_input` ; côté web, les deux
+fautes en barre, le curseur qui garde sa faute, une valeur ancienne refusée,
+l'ancienne plage 1–100, la page de suppression muette ; côté app, les deux
+fautes en barre, le curseur qui garde sa faute.

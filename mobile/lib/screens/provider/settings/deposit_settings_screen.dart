@@ -23,6 +23,15 @@ import '../../../widgets/common/label_value_row.dart';
 import '../../../widgets/common/loading_indicator.dart';
 import '../../../widgets/common/phone_number_field.dart';
 
+/// The server's `operator_unavailable` (B6.5): an operator the country's
+/// catalogue no longer offers, with a deposit asked — under the chips.
+const String kDepositOperatorUnavailableMessage =
+    'Cet opérateur n’est plus proposé. Choisissez-en un autre.';
+
+/// The server's `invalid_percentage` (B6.5, decision 19) — under the slider.
+const String kDepositPercentRangeMessage =
+    'Choisissez un pourcentage entre 5 et 80 %.';
+
 class DepositSettingsScreen extends StatefulWidget {
   final String providerId;
 
@@ -37,6 +46,10 @@ class _DepositSettingsScreenState extends State<DepositSettingsScreen> {
   static const double _sampleTotal = 20000;
 
   final _numberFocus = FocusNode();
+
+  /// The server's range refusal (`invalid_percentage`, B6.5 — one range for
+  /// app, web and server, decision 19): under the slider, gone when it moves.
+  String? _percentageError;
 
   /// The operator chips' — so a refused press can take the salon to them
   /// (§14's focus amendment, [focusFirstError]).
@@ -149,6 +162,22 @@ class _DepositSettingsScreenState extends State<DepositSettingsScreen> {
     // salon read « Informations invalides. » in a bar. It is `invalid_phone`
     // now (phone-leftovers.md §2): the field's fault, under the field — and,
     // deposits off, the hidden card shows so the message has somewhere to sit.
+    // The server's catalogue and range (docs/design/backend-integrity-
+    // batch6.md §2.5): each under its own control, never a bar.
+    if (!ok && provider.errorCode == 'operator_unavailable') {
+      setState(
+        () => _errors.set('operator', kDepositOperatorUnavailableMessage),
+      );
+      focusFirstError(_errors, {
+        'operator': _operatorFocus,
+        'number': _numberFocus,
+      });
+      return;
+    }
+    if (!ok && provider.errorCode == 'invalid_percentage') {
+      setState(() => _percentageError = kDepositPercentRangeMessage);
+      return;
+    }
     if (!ok && provider.errorCode == 'invalid_phone') {
       setState(() {
         _errors.set('number', 'Saisissez un numéro de téléphone valide.');
@@ -303,8 +332,14 @@ class _DepositSettingsScreenState extends State<DepositSettingsScreen> {
                   max: 0.80,
                   divisions: 15,
                   label: '$pct %',
-                  onChanged: provider.setDepositPercentage,
+                  onChanged: (v) {
+                    provider.setDepositPercentage(v);
+                    if (_percentageError != null) {
+                      setState(() => _percentageError = null);
+                    }
+                  },
                 ),
+                InlineFeedback(_percentageError),
               ],
             ),
           ),

@@ -180,7 +180,9 @@ export default function Page() {
         les réservations de vos clients. Vos salons sont ensuite{' '}
         <strong>dépubliés</strong> plutôt que détruits, pour que les
         réservations, avis et fiches passés continuent de se résoudre, et vos
-        pièces d’identité sont effacées.
+        pièces d’identité sont effacées. Chaque salon garde son nom et son
+        historique&nbsp;; ses numéros de téléphone, WhatsApp et Mobile Money et
+        son adresse sont effacés, et l’acompte est désactivé.
       </P>
 
       {/* Each question IS an h2 — no « Questions fréquentes » wrapper heading

@@ -1,3 +1,5 @@
+import 'package:http/http.dart' as http;
+
 import '../access/membership_repository.dart';
 import '../appointments/appointment_repository.dart';
 import '../appointments/booking_service.dart';
@@ -5,6 +7,7 @@ import '../auth/demo_seam.dart';
 import '../auth/provider_auth_repository.dart';
 import '../clients/clients_repository.dart';
 import '../providers_repository.dart';
+import '../storage/storage_service.dart';
 import '../subscription/salon_subscription_repository.dart';
 import '../subscription/subscription.dart';
 import 'demo_snapshot_repository.dart';
@@ -29,7 +32,11 @@ class DemoResetService {
     this._booking,
     this._snapshots, {
     void Function(String)? log,
-  }) : _log = log ?? print;
+    StorageService? storage,
+    http.Client? client,
+  }) : _log = log ?? print,
+       _storage = storage,
+       _client = client ?? http.Client();
 
   final ProviderAuthRepository _auth;
   final ProvidersRepository _providers;
@@ -40,6 +47,11 @@ class DemoResetService {
   final BookingService _booking;
   final DemoSnapshotRepository _snapshots;
   final void Function(String) _log;
+
+  /// Where a reviewer's KYC pieces live (`kyc/<account>/`) — erased at each
+  /// reset (B6.4). Null only in legacy unit tests; production passes it.
+  final StorageService? _storage;
+  final http.Client _client;
 
   /// Keys that must never be written back on a restore: identity, the
   /// public-set membership (the demo salon is draft forever), and the slug
@@ -150,12 +162,48 @@ class DemoResetService {
     //    special case inside real billing logic.
     await _pinDemoOffer(snap.providerId, now);
 
+    // 5. A reviewer may try the KYC flow on the demo account: its pieces and
+    //    its state go with the rest of the week's junk (decision 18,
+    //    docs/design/backend-integrity-batch6.md §2.4).
+    await _forgetKyc(snap.providerId);
+
     await _snapshots.markReset(now);
     _log(
       'demo_reset ran provider=${snap.providerId} wiped=${wipedA + wipedC} '
       'regenerated=$regenerated',
     );
     return (ran: true, error: null, outcome: 'ran');
+  }
+
+  /// The demo OWNER account's KYC, erased: each piece under its own prefix
+  /// (`kyc/<account>/` — defence in depth, as the account erasure does), then
+  /// the record — no pieces, `pending`, no rejection reason. A storage
+  /// hiccup never blocks the reset: the record no longer points at the piece.
+  Future<void> _forgetKyc(String providerId) async {
+    final owner = (await _members.listForProvider(
+      providerId,
+    )).where((m) => m.role == 'owner' && isDemoIdentity(m.email));
+    final accountId = owner.isEmpty ? null : owner.first.accountId;
+    if (accountId == null) return;
+    final account = await _auth.accountById(accountId);
+    if (account == null || account.kycDocs.isEmpty) return;
+    final storage = _storage;
+    if (storage != null) {
+      for (final doc in account.kycDocs) {
+        final key = doc['key'] as String?;
+        if (key == null || !key.startsWith('kyc/$accountId/')) continue;
+        try {
+          final url = storage.presignDelete(
+            key: key,
+            bucket: StorageBucket.kyc,
+          );
+          await _client.delete(Uri.parse(url));
+        } catch (_) {
+          // Tolerated: private, uuid-named, and no longer on the record.
+        }
+      }
+    }
+    await _auth.submitKyc(accountId, const []);
   }
 
   /// Whether [providerId]'s OWNER membership is the demo identity — the one

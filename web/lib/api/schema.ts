@@ -3422,7 +3422,7 @@ export interface paths {
         };
         /**
          * Replace a salon's deposit policy wholesale (B-deposit)
-         * @description Server-authoritative (booking derives each deposit from this). **Enabling deposits requires a KYC-VERIFIED account** (T52) → 403 `verification_required` otherwise. Validated: `depositPercentage` 0..1 (and > 0 when required); `cancellationWindowHours` 0..720; `mobileMoneyOperator` in the enum; `mobileMoneyNumber` E.164 (a +225 number has exactly 10 digits after the code; checked whenever present, deposits on or off) — a bad one is 400 `invalid_phone`, its own code so a client can put the fault under that field (docs/design/phone-leftovers.md §2). **When `depositRequired` is true, the Mobile Money operator + number are required** (400 `invalid_input` when either is absent). Every other fault: 400 `invalid_input`. **The policy is replaced whole**: every field is overwritten by what is sent (the operator and number trimmed, the hours as an integer), and a nullable field (`mobileMoneyOperator`, `mobileMoneyNumber`) left out or sent as null is erased. A client that hides the operator or the percentage while deposits are off must still send them as held — a null operator or a 0 percentage erases them — and the appointment read serves the salon's CURRENT operator to a client still owing a deposit. A new salon starts at `depositPercentage` 0, which clients read as not chosen yet and answer by proposing 30% (docs/design/acompte-off-parity.md).
+         * @description Server-authoritative (booking derives each deposit from this). **Enabling deposits requires a KYC-VERIFIED account** (T52) → 403 `verification_required` otherwise. Validated: `depositPercentage` 0..1; **a required deposit is 0.05–0.80 when the percentage changes** — a value stored before the range is kept while it is sent back unchanged — else 400 `invalid_percentage` (one range for app, web and server, decision 19 — docs/design/backend-integrity-batch6.md §2.5); `cancellationWindowHours` 0..720; `mobileMoneyOperator`: with a required deposit, one of the salon country's catalog, else 400 `operator_unavailable` (it may have been removed from the catalog); with deposits off it is not judged, and **one outside the catalog is not kept** (stored null — T57); `mobileMoneyNumber` E.164 (a +225 number has exactly 10 digits after the code; checked whenever present, deposits on or off) — a bad one is 400 `invalid_phone`, its own code so a client can put the fault under that field (docs/design/phone-leftovers.md §2). **When `depositRequired` is true, the Mobile Money operator + number are required** (400 `invalid_input` when either is absent). Every other fault: 400 `invalid_input`. **The policy is replaced whole**: every field is overwritten by what is sent (the operator and number trimmed, the hours as an integer), and a nullable field (`mobileMoneyOperator`, `mobileMoneyNumber`) left out or sent as null is erased. A client that hides the operator or the percentage while deposits are off must still send them as held — a null operator or a 0 percentage erases them — and the appointment read serves the salon's CURRENT operator to a client still owing a deposit. A new salon starts at `depositPercentage` 0, which clients read as not chosen yet and answer by proposing 30% (docs/design/acompte-off-parity.md).
          */
         put: {
             parameters: {
@@ -3448,7 +3448,15 @@ export interface paths {
                         "application/json": components["schemas"]["DepositPolicy"];
                     };
                 };
-                400: components["responses"]["BadRequest"];
+                /** @description `invalid_percentage` (under the slider) · `operator_unavailable` (under the operator) · `invalid_phone` (under the number) · `invalid_input` (every other fault) · `invalid_body`. */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
                 401: components["responses"]["Unauthorized"];
                 403: components["responses"]["Forbidden"];
                 404: components["responses"]["NotFound"];

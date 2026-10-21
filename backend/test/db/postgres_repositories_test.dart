@@ -2372,6 +2372,45 @@ void main() {
       return (id: id, salonId: salonId);
     }
 
+    // docs/design/backend-integrity-batch6.md §2.3 (B6.3): on the real
+    // schema the address is a column AND a document key; both go.
+    test('the erased owner’s salon keeps its name, loses its numbers and '
+        'its address', () async {
+      final providers = PostgresProvidersRepository(pool);
+      final o = await owner('b63-owner@test.pro', '+2250500006301');
+      await providers.updateProfile(o.salonId, {
+        'name': 'Chez Awa B63',
+        'address': 'Rue des Jardins, Cocody',
+        'whatsapp': '+2250500006302',
+      });
+      await providers.updateDepositPolicy(o.salonId, {
+        'depositRequired': true,
+        'depositPercentage': 0.3,
+        'depositMobileMoneyOperator': 'orange',
+        'depositMobileMoneyNumber': '+2250500006303',
+      });
+
+      final r = await service().deleteAccount(o.id);
+      expect(r.ok, isTrue, reason: '${r.error}');
+
+      // The address column (search) by SQL; the document through the
+      // repository's own reader (`data` is stored as an encoded string).
+      final column = (await pool.execute(
+        Sql.named('SELECT name, address FROM providers WHERE id = @id'),
+        parameters: {'id': o.salonId},
+      )).single;
+      expect(column[0], 'Chez Awa B63', reason: 'the name stays');
+      expect(column[1], '', reason: 'the address column');
+      final doc = (await providers.byId(o.salonId))!;
+      expect(doc['name'], 'Chez Awa B63');
+      expect(doc['phoneNumber'], '', reason: 'the phone');
+      expect(doc['address'], '', reason: 'the address in the document');
+      expect(doc['whatsapp'], isNull, reason: 'WhatsApp');
+      expect(doc['depositMobileMoneyNumber'], isNull, reason: 'the number');
+      expect(doc['depositMobileMoneyOperator'], isNull, reason: 'the operator');
+      expect(doc['depositRequired'], isFalse, reason: 'no deposit, no number');
+    });
+
     test('a salon owner with a team is erased — the production path, end to '
         'end', () async {
       final members = PostgresMembershipRepository(pool);

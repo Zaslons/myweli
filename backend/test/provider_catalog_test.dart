@@ -387,12 +387,15 @@ void main() {
 
       Future<String?> err(Map<String, dynamic> b) async =>
           (await catalog.updateDepositPolicy(accountId, 'provider1', b)).error;
-      // Out-of-range percentage, required-with-0%, bad window, bad operator
-      // → invalid_input.
+      // Not a fraction, or a bad window → invalid_input.
       expect(await err(validBody(pct: 1.5)), 'invalid_input');
-      expect(await err(validBody(pct: 0)), 'invalid_input');
       expect(await err(validBody(hours: 1000)), 'invalid_input');
-      expect(await err(validBody(op: 'paypal')), 'invalid_input');
+      // A required deposit outside the app's 5–80 % → invalid_percentage,
+      // under the slider (B6.5, decision 19); 0 % is outside it too.
+      expect(await err(validBody(pct: 0)), 'invalid_percentage');
+      // An operator the catalogue no longer offers, deposit ON →
+      // operator_unavailable, under the operator field (B6.5).
+      expect(await err(validBody(op: 'paypal')), 'operator_unavailable');
       // A bad Mobile Money number → invalid_phone, so a client can put the
       // fault under that field (docs/design/phone-leftovers.md §2).
       expect(await err(validBody(number: '0700')), 'invalid_phone');
@@ -438,6 +441,54 @@ void main() {
         )).error,
         'forbidden',
       );
+    });
+
+    // docs/design/backend-integrity-batch6.md §2.5 (B6.5, decision 19): one
+    // range — the app's slider, the web's since 2026-10-20 — and an operator
+    // removed from the catalogue no longer blocks a save with deposits off.
+    test('deposit policy: one range (5–80 %), a value saved before kept, a '
+        'removed operator blocking only a required deposit', () async {
+      await providerAuth.setVerification(accountId, status: 'verified');
+      Map<String, dynamic> body({
+        bool required = true,
+        num pct = 0.3,
+        num hours = 24,
+        String? op = 'wave',
+      }) => {
+        'depositRequired': required,
+        'depositPercentage': pct,
+        'cancellationWindowHours': hours,
+        'mobileMoneyOperator': op,
+        'mobileMoneyNumber': '+2250700000000',
+      };
+      Future<String?> err(Map<String, dynamic> b) async =>
+          (await catalog.updateDepositPolicy(accountId, 'provider1', b)).error;
+
+      // The range, both ends.
+      expect(await err(body(pct: 0.04)), 'invalid_percentage');
+      expect(await err(body(pct: 0.85)), 'invalid_percentage');
+      expect(await err(body(pct: 0.05)), isNull);
+      expect(await err(body(pct: 0.8)), isNull);
+
+      // A value saved before the rule (90 %) is shown and kept as it is:
+      // changing the cancellation window alone still saves…
+      await providers.updateDepositPolicy('provider1', {
+        'depositRequired': true,
+        'depositPercentage': 0.9,
+        'depositMobileMoneyOperator': 'wave',
+        'depositMobileMoneyNumber': '+2250700000000',
+      });
+      expect(await err(body(pct: 0.9, hours: 48)), isNull);
+      // …and moving it means moving it INTO the range.
+      expect(await err(body(pct: 0.85)), 'invalid_percentage');
+
+      // Deposits off: the percentage and the operator are not judged — and an
+      // operator outside the catalogue is not kept (T57).
+      expect(await err(body(required: false, pct: 0.95, op: 'paypal')), isNull);
+      final off = await catalog.depositPolicy(accountId, 'provider1');
+      expect((off.data! as Map)['mobileMoneyOperator'], isNull);
+      // Deposit on with a removed operator: said where it belongs.
+      expect(await err(body(op: 'paypal')), 'operator_unavailable');
     });
 
     test(

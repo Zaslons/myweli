@@ -270,9 +270,9 @@ This batch takes up three of the six suggested tasks that were never started. It
 - ✅ **B6.2 A dead invitation still creates an account (P2 · S).** **Done in #676** — §10 (not yet deployed).
   - **What:** opening an expired, revoked or misaddressed invitation creates the Pro account, then refuses. At the next sign-in, the server creates an empty salon for that account.
   - **How:** a read-only `TeamService.checkAcceptable` runs the four checks before `createMemberAccount`. If `accept` still fails in the race, remove the new account.
-- **B6.3 A deleted owner's salon keeps their personal numbers (P2 · S · decision 17).** After the unpublish loop, blank the phone and address, and null the WhatsApp and Mobile Money fields. Keep the name and the history, and state it in the privacy policy.
-- **B6.4 The demo reset leaves a reviewer's KYC behind (P2 · M · decision 18).** At the weekly reset, delete the demo account's `kyc/<accountId>/` objects (the deletion loop) and reset its status, via a new `resetKyc`.
-- **B6.5 One deposit range, and a removed operator must not block a save (P2 · M · decision 19).**
+- ✅ **B6.3 A deleted owner's salon keeps their personal numbers (P2 · S · decision 17).** **Done in #677** — [backend-integrity-batch6.md](design/backend-integrity-batch6.md) §11 (not yet deployed). After the unpublish loop, blank the phone and address, and null the WhatsApp and Mobile Money fields. Keep the name and the history, and state it in the privacy policy.
+- ✅ **B6.4 The demo reset leaves a reviewer's KYC behind (P2 · M · decision 18).** **Done in #677** — §11 (not yet deployed). At the weekly reset, delete the demo account's `kyc/<accountId>/` objects (the deletion loop) and reset its status, via a new `resetKyc`.
+- ✅ **B6.5 One deposit range, and a removed operator must not block a save (P2 · M · decision 19).** **Done in #677** — §11 (an operator outside the catalogue is not judged with deposits off — and not kept, T57; not yet deployed).
   - **What:** app 5–80 %, web 1–100 %, server 0–100 %. A value saved on one surface can't be shown on another. An operator removed from the catalogue blocks every save, even with deposits off.
   - **How:** the server enforces the chosen range, and both forms use the same bounds. With deposits off, skip the catalogue check. With deposits on, answer `operator_unavailable` so the fault shows under the operator field.
 - **B6.6 Salons can't report reviews of their own salon (P2 · M · decision 20).**

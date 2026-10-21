@@ -148,7 +148,11 @@ export default function Page() {
         outre des pièces d’identité et d’immatriculation. Elles sont stockées dans
         un espace privé et séparé, ne sont jamais publiées, et ne sont
         consultables que par un administrateur MyWeli au moyen d’un lien signé
-        valable cinq minutes. Chaque consultation est journalisée.
+        valable cinq minutes. Chaque consultation est journalisée. Si vous
+        supprimez votre compte, votre salon est retiré de MyWeli. Son nom et son
+        historique — rendez-vous et avis — restent, pour vos clients&nbsp;; ses
+        numéros de téléphone, WhatsApp et Mobile Money et son adresse sont
+        effacés.
       </P>
 
       <P>

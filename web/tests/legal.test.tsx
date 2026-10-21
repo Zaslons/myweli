@@ -189,6 +189,24 @@ describe('the privacy policy does not deny what we actually ship', () => {
   });
 });
 
+// docs/design/backend-integrity-batch6.md §2.3 (B6.3, decision 17): what
+// happens to a deleted owner's salon is said where a person looks for it.
+describe('a deleted salon owner: the salon keeps its name, loses its numbers', () => {
+  for (const [name, Page] of [
+    ['the privacy policy', ConfidentialitePage],
+    ['« Supprimer votre compte »', SuppressionPage],
+  ] as const) {
+    it(`${name} says so`, () => {
+      const { container } = render(<Page />);
+      const text = (container.textContent ?? '').replace(/\s+/g, ' ');
+      expect(text).toMatch(/nom et son historique/);
+      expect(text).toMatch(
+        /numéros de téléphone, WhatsApp et Mobile Money et son adresse sont effacés/,
+      );
+    });
+  }
+});
+
 describe('lib/legal.ts is the single source of truth', () => {
   it('declares exactly the four routes, each with a leading slash', () => {
     expect(LEGAL_ROUTES).toHaveLength(4);

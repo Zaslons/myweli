@@ -79,7 +79,7 @@
     "half the second is worthless: a date already moved for other reasons would",
     "satisfy a later-than test while the registration PR changed nothing."
   ],
-  "legalUpdatedAtWhenPending": "2026-08-22",
+  "legalUpdatedAtWhenPending": "2026-10-21",
 
   "surfaces": [
     {
