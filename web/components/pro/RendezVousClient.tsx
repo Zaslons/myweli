@@ -103,6 +103,10 @@ export function RendezVousClient() {
     setListTab(shown.listTab);
   }, []);
 
+  /// The list « Calendrier » and « Liste » draw — numbered like the Journée's
+  /// reads: only the latest request may land.
+  const itemsReq = useRef(0);
+
   useEffect(() => {
     let active = true;
     (async () => {
@@ -111,6 +115,7 @@ export function RendezVousClient() {
         router.replace('/pro/connexion');
         return;
       }
+      const req = ++itemsReq.current;
       const appts = await listProAppointments();
       if (!active) return;
       if (me.status !== 200 || appts.status !== 200) {
@@ -119,7 +124,7 @@ export function RendezVousClient() {
         return;
       }
       setProfile(me.profile ?? null);
-      setItems(appts.items);
+      if (req === itemsReq.current) setItems(appts.items);
       // « Aujourd'hui » is the ACTIVE salon's day (multi-pays MP3) — the
       // pre-profile defaults assumed Abidjan; realign before first paint.
       // And the address says what the salon was looking at — the view, its
@@ -287,6 +292,28 @@ export function RendezVousClient() {
     if (view === 'week') void loadWeek();
   }, [view, loadWeek]);
 
+  /// The appointments again, after a change. The newest request wins: an
+  /// « Accepter » then a « Terminé » must not end on the first one's answer
+  /// if it comes back last. A failure keeps the list it had — the grid that
+  /// made the change already shows it, and the next change or load reads
+  /// the list again.
+  const loadItems = useCallback(async () => {
+    const req = ++itemsReq.current;
+    const r = await listProAppointments();
+    if (req !== itemsReq.current) return;
+    if (r.status === 200) setItems(r.items);
+  }, []);
+
+  /// Every change made here — in the Journée, in the Semaine, or with
+  /// « + Nouveau rendez-vous » — reads the open view again AND the list:
+  /// « Calendrier » and « Liste » used to keep the old state until a reload
+  /// (B4.2, docs/design/web-pro-truthful-failure.md §2.2).
+  const refreshAfterChange = useCallback(() => {
+    if (view === 'week') void loadWeek();
+    else if (view === 'journal') void loadJournal();
+    void loadItems();
+  }, [view, loadWeek, loadJournal, loadItems]);
+
   if (loading) return <SkeletonRows count={5} className="mt-l" />;
   if (error) {
     return <ErrorState title="Rendez-vous" message={loadFailureMessage(error)} onRetry={() => { setError(false); setLoading(true); setReloadKey((k) => k + 1); }} />;
@@ -434,7 +461,7 @@ export function RendezVousClient() {
                 }}
                 profile={profile}
                 readOnly={!canManageAll}
-                onChanged={loadJournal}
+                onChanged={refreshAfterChange}
                 onToast={show}
                 bookingQuery={bookingQuery}
               />
@@ -469,7 +496,7 @@ export function RendezVousClient() {
               readOnly={!canManageAll}
               artistFilter={artistFilter}
               showCancelled={showCancelled}
-              onChanged={() => void loadWeek()}
+              onChanged={refreshAfterChange}
               onToast={show}
               bookingQuery={bookingQuery}
             />
@@ -539,12 +566,10 @@ export function RendezVousClient() {
           profile={profile}
           initialDate={view === 'journal' ? journalDate : undefined}
           onClose={() => setCreating(false)}
-          onCreated={async () => {
+          onCreated={() => {
             setCreating(false);
             show('Rendez-vous créé', 'success');
-            loadJournal();
-            const appts = await listProAppointments();
-            if (appts.status === 200) setItems(appts.items);
+            refreshAfterChange();
           }}
         />
       ) : null}

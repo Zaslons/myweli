@@ -19,6 +19,7 @@ import {
   logoutPro,
   selectSalon,
 } from '../../lib/api/pro';
+import { rememberSalon, rememberedSalon } from '../../lib/pro/remembered-salon';
 import { signOutPro } from '../../lib/pro/sign-out';
 import {
   type GateExitReason,
@@ -163,13 +164,17 @@ export function ProMembershipProvider({ children }: { children: ReactNode }) {
   const gated = useRef(false);
   /// Single-flight: concurrent not_a_member answers share ONE check.
   const revokedCheck = useRef<Promise<ProbeOutcome> | null>(null);
-  /// The last salon this session acted in — the gate names it.
+  /// The last salon this page acted in — the gate names it. After a reload
+  /// it is empty, and the salon the BROWSER remembers names it instead
+  /// (decision 14, docs/design/web-pro-truthful-failure.md §2.4).
   const lastSalon = useRef('');
-  /// The gate wiped the membership and no profile has committed since: the
-  /// sidebar keeps its skeleton rather than draw a nav from an ABSENT
-  /// membership (hasCap's owner-shaped fallback would hand a new
-  /// Collaborateur the owner's entries).
-  const awaitingProfile = useRef(false);
+  /// No profile has committed — none yet (the page just loaded), or none
+  /// since the gate wiped the membership: the sidebar keeps its skeleton
+  /// rather than draw a nav from an ABSENT membership (hasCap's owner-shaped
+  /// fallback would hand a Collaborateur the owner's entries). It used to
+  /// start false, so a FIRST /me that failed drew the owner's menu for any
+  /// role (B4.4).
+  const awaitingProfile = useRef(true);
   /// The cookies were cleared (a sign-out landed): a late « Rejoindre »
   /// answer is dropped, never walked into a salon.
   const signedOut = useRef(false);
@@ -181,6 +186,7 @@ export function ProMembershipProvider({ children }: { children: ReactNode }) {
     setProviderId(profile.provider.id);
     setEmail(profile.account.email ?? null);
     lastSalon.current = profile.provider.name || '';
+    rememberSalon({ id: profile.provider.id, name: profile.provider.name || '' });
   }, []);
 
   const refreshSalons = useCallback(async () => {
@@ -195,7 +201,7 @@ export function ProMembershipProvider({ children }: { children: ReactNode }) {
   /// memory): the gate and the locked page both stand on this.
   const dropSalon = useCallback(() => {
     awaitingProfile.current = true;
-    setLostSalon(lastSalon.current);
+    setLostSalon(lastSalon.current || rememberedSalon()?.name || '');
     setMembership(null);
     setSalonName('');
     setProviderId(null);
@@ -343,16 +349,13 @@ export function ProMembershipProvider({ children }: { children: ReactNode }) {
       // 401 → the page-level guards own the plain redirect (avoid racing two
       // router.replace calls); other errors keep the last known state so a
       // transient failure never locks the UI — except when there IS no known
-      // state since the gate wiped it: then the sidebar keeps waiting.
+      // state (none yet, or the gate wiped it): then the sidebar keeps
+      // waiting, and `probe` keeps asking.
       if (!awaitingProfile.current) setLoading(false);
       return 'other';
     },
     [commitProfile, refreshSalons, checkRevoked],
   );
-
-  const probe = useCallback(async () => {
-    await runProbe();
-  }, [runProbe]);
 
   /// The provider outlives nothing it schedules: a heal loop stops with it.
   const alive = useRef(true);
@@ -369,17 +372,33 @@ export function ProMembershipProvider({ children }: { children: ReactNode }) {
   /// not enough: if it failed too, the sidebar stayed a skeleton with no
   /// retry anywhere unless the page's own /me failed (found by the review of
   /// the fixes). Stops on a commit, a sign-out, the gate reopening, or unmount.
+  /// Single-flight: a join and a page's own probe may both start it.
+  const healing = useRef(false);
   const healProfile = useCallback(async () => {
-    const pauses = [1000, 2000, 4000, 8000, 16000];
-    for (let i = 0; ; i += 1) {
-      if (!alive.current || signedOut.current || !awaitingProfile.current) return;
-      const outcome = await runProbe();
-      if (outcome === 'member' || outcome === 'entered' || outcome === 'revoked') return;
-      if (!awaitingProfile.current) return;
-      const pause = i < pauses.length ? pauses[i] : 30000;
-      await new Promise((resolve) => setTimeout(resolve, pause));
+    if (healing.current) return;
+    healing.current = true;
+    try {
+      const pauses = [1000, 2000, 4000, 8000, 16000];
+      for (let i = 0; ; i += 1) {
+        if (!alive.current || signedOut.current || !awaitingProfile.current) return;
+        const outcome = await runProbe();
+        if (outcome === 'member' || outcome === 'entered' || outcome === 'revoked') return;
+        if (!awaitingProfile.current) return;
+        const pause = i < pauses.length ? pauses[i] : 30000;
+        await new Promise((resolve) => setTimeout(resolve, pause));
+      }
+    } finally {
+      healing.current = false;
     }
   }, [runProbe]);
+
+  /// A navigation's probe (and a page's « Réessayer »). One that fails with
+  /// no profile committed yet — the page's FIRST /me — keeps asking rather
+  /// than leave the sidebar waiting with nothing to wake it (B4.4).
+  const probe = useCallback(async () => {
+    const outcome = await runProbe();
+    if (outcome === 'other' && awaitingProfile.current) void healProfile();
+  }, [runProbe, healProfile]);
 
   useEffect(() => {
     probe();

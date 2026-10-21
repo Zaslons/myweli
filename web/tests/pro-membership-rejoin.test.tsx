@@ -114,6 +114,8 @@ afterEach(() => {
   vi.unstubAllGlobals();
   replace.mockReset();
   pathname = '/pro';
+  // The salon a page life remembers (decision 14) must not reach the next test.
+  window.localStorage.clear();
 });
 
 describe('ProMembershipProvider — the rejoin gate', () => {
@@ -456,9 +458,8 @@ describe('ProMembershipProvider — the rejoin gate', () => {
     expect(replace).not.toHaveBeenCalled();
   });
 
-  it('a fresh login OR a page load (no salon known: the web keeps no '
-    + 'membership cache) shows no « accès retiré » line above another '
-    + 'salon’s card', async () => {
+  it('nothing remembered (a fresh sign-in forgets the last salon) → no '
+    + '« accès retiré » line above another salon’s card', async () => {
     mockFetch({
       '/api/pro/me': notAMember,
       '/api/pro/invitations': () =>
@@ -831,4 +832,155 @@ describe('« Aujourd’hui » — accepting while already a member', () => {
     await waitFor(() => expect(count('GET /api/pro/salons')).toBe(2));
     expect(replace).not.toHaveBeenCalled();
   });
+});
+
+/// docs/design/web-pro-truthful-failure.md §2.4 (B4.4) — what was left open
+/// around the gate: « Aujourd’hui »'s cards did not know a dead session, a
+/// first /me that failed drew the OWNER's menu for any role, and a reload
+/// lost the name of the salon whose access was withdrawn.
+describe('B4.4 — the rejoin gate, closed', () => {
+  for (const [who, me] of [
+    ['a Collaborateur', STAFF_P1],
+    ['the owner', OWNER_P1],
+  ] as const) {
+    for (const [action, path] of [
+      ['Rejoindre', 'accept'],
+      ['Refuser', 'decline'],
+    ] as const) {
+      it(`« Aujourd’hui », ${who}: « ${action} » answers 401 (the session is `
+        + 'gone) → the login, never « … impossible »', async () => {
+        mockFetch({
+          '/api/pro/me': () => json(200, me),
+          '/api/pro/appointments': () => json(200, { items: [] }),
+          '/api/pro/invitations': () =>
+            json(200, { invitations: [INV_OTHER] }),
+          [`/api/pro/invitations/inv-2/${path}`]: () =>
+            json(401, { error: 'unauthorized' }),
+          '/api/pro/salons': () => json(200, { items: [], canAddSalon: false }),
+        });
+
+        render(
+          <ProMembershipProvider>
+            <AujourdhuiClient />
+          </ProMembershipProvider>,
+        );
+        await screen.findByText(/invite comme Réception/);
+        fireEvent.click(screen.getByRole('button', { name: action }));
+
+        await waitFor(() =>
+          expect(replace).toHaveBeenCalledWith('/pro/connexion'),
+        );
+        expect(screen.queryByText(/impossible/)).toBeNull();
+      });
+    }
+  }
+
+  for (const [how, down] of [
+    ['answers 503', () => json(503, { error: 'unavailable' })],
+    ['gets no answer', () => {
+      throw new TypeError('Failed to fetch');
+    }],
+  ] as const) {
+    it(`the FIRST /me ${how}: the sidebar keeps its skeleton — never the `
+      + 'owner’s menu — and heals into the member’s own', async () => {
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      try {
+        const { count } = mockFetch({
+          '/api/pro/me': (n) => (n <= 2 ? down() : json(200, STAFF_P1)),
+          '/api/pro/salons': () => json(200, { items: [], canAddSalon: false }),
+        });
+
+        render(
+          <ProMembershipProvider>
+            <ProSidebar />
+          </ProMembershipProvider>,
+        );
+        await waitFor(() => expect(count('GET /api/pro/me')).toBeGreaterThanOrEqual(1));
+        for (let i = 0; i < 5; i += 1) await new Promise((r) => setTimeout(r, 0));
+
+        expect(screen.queryByRole('link', { name: 'Équipe' })).toBeNull();
+        expect(screen.queryByRole('link', { name: 'Revenus' })).toBeNull();
+        expect(screen.queryByRole('link', { name: 'Aujourd’hui' })).toBeNull();
+
+        // Nobody has to reload: the provider keeps asking.
+        await vi.advanceTimersByTimeAsync(5000);
+        expect(await screen.findByText('ancien@equipe.test')).toBeTruthy();
+        expect(screen.getByRole('link', { name: 'Rendez-vous' })).toBeTruthy();
+        expect(screen.queryByRole('link', { name: 'Équipe' })).toBeNull();
+        expect(count('GET /api/pro/me')).toBe(3);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+  }
+
+  it('after a RELOAD, the gate still names the salon that was lost (as the '
+    + 'app)', async () => {
+    // The page life before: the salon was acted in.
+    mockFetch({ '/api/pro/me': () => json(200, OWNER_P1) });
+    renderProvider();
+    expect(await screen.findByText(/role:owner/)).toBeTruthy();
+    cleanup();
+    vi.unstubAllGlobals();
+
+    // The reload: the access was withdrawn meanwhile; another salon invites.
+    mockFetch({
+      '/api/pro/me': notAMember,
+      '/api/pro/invitations': () => json(200, { invitations: [INV_OTHER] }),
+    });
+    renderProvider();
+    await screen.findByRole('heading', { name: 'Invitations' });
+
+    expect(
+      screen.getByText('Votre accès à Beauté Divine a été retiré.'),
+    ).toBeTruthy();
+  });
+
+  it('…and on the locked page, when the sign-out could not land', async () => {
+    mockFetch({ '/api/pro/me': () => json(200, OWNER_P1) });
+    renderProvider();
+    expect(await screen.findByText(/role:owner/)).toBeTruthy();
+    cleanup();
+    vi.unstubAllGlobals();
+
+    mockFetch({
+      '/api/pro/me': notAMember,
+      '/api/pro/invitations': () => json(200, { invitations: [] }),
+      '/api/pro/auth/logout': () => {
+        throw new TypeError('Failed to fetch');
+      },
+    });
+    renderProvider();
+
+    expect(await screen.findByText('Pas de connexion. Réessayez.')).toBeTruthy();
+    expect(
+      screen.getByText('Votre accès à Beauté Divine a été retiré.'),
+    ).toBeTruthy();
+  });
+
+  it('the salon THIS page acted in wins over one another tab remembered',
+    async () => {
+      mockFetch({
+        '/api/pro/me': (n) => (n === 1 ? json(200, OWNER_P1) : notAMember()),
+        '/api/pro/invitations': () =>
+          json(200, { invitations: [INV_OTHER] }),
+      });
+      const { rerender } = renderProvider();
+      expect(await screen.findByText(/role:owner/)).toBeTruthy();
+      window.localStorage.setItem(
+        'myweli_pro_last_salon',
+        JSON.stringify({ id: 'p9', name: 'Autre Salon' }),
+      );
+
+      pathname = '/pro/clients';
+      rerender(
+        <ProMembershipProvider>
+          <Dashboard />
+        </ProMembershipProvider>,
+      );
+
+      expect(
+        await screen.findByText('Votre accès à Beauté Divine a été retiré.'),
+      ).toBeTruthy();
+    });
 });

@@ -23,6 +23,7 @@ import { GoogleSignInButton } from '../auth/GoogleSignInButton';
 import { LegalConsentText } from '../LegalConsentText';
 import { AppleSignInButton } from '../auth/AppleSignInButton';
 import { appleIdentity } from '../../lib/auth/apple';
+import { forgetSalon } from '../../lib/pro/remembered-salon';
 
 /// The identity proof retained IN MEMORY across the 202 invitation bridge
 /// (team access R5a): the Google credential or the still-unconsumed
@@ -46,6 +47,13 @@ export function ProLoginOptions({ onSuccess }: { onSuccess: () => void }) {
   );
   const [invitations, setInvitations] = useState<TeamInvitation[]>([]);
   const proofRef = useRef<InviteProof | null>(null);
+  /// Every way in ends here: an account is signed in, so the salon a previous
+  /// session remembered is not this one's to name (decision 14,
+  /// docs/design/web-pro-truthful-failure.md §2.4).
+  const signedIn = () => {
+    forgetSalon();
+    onSuccess();
+  };
   // Resend cooldown (module 11): 60 s, restarted on each send.
   const [cooldown, setCooldown] = useState(0);
   useEffect(() => {
@@ -106,7 +114,7 @@ export function ProLoginOptions({ onSuccess }: { onSuccess: () => void }) {
       if (r.error === 'provider_not_found') return setError(notFoundMessage);
       return fields.set('code', 'Code incorrect ou expiré.');
     }
-    onSuccess();
+    signedIn();
   }
 
   async function acceptInvitation(inv: TeamInvitation) {
@@ -119,7 +127,7 @@ export function ProLoginOptions({ onSuccess }: { onSuccess: () => void }) {
     });
     setBusy(false);
     if (!r.ok) return setError(teamErrorMessage(r.error));
-    onSuccess();
+    signedIn();
   }
 
   async function declineInvitation(inv: TeamInvitation) {
@@ -262,7 +270,7 @@ export function ProLoginOptions({ onSuccess }: { onSuccess: () => void }) {
                   : 'Connexion Google impossible.',
               );
             }
-            onSuccess();
+            signedIn();
           }}
         />
       ) : null}
@@ -288,7 +296,7 @@ export function ProLoginOptions({ onSuccess }: { onSuccess: () => void }) {
                   : 'Connexion Apple impossible.',
               );
             }
-            onSuccess();
+            signedIn();
           }}
         />
       ) : null}

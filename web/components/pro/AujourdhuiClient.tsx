@@ -86,6 +86,12 @@ export function AujourdhuiClient() {
     membershipCtx?.notify(joinedSalonMessage(inv.salonName), 'success');
   }
 
+  // The session died under an invitation card (signed out in another tab, the
+  // refresh token expired): the login, as this page's reads do — the card
+  // would otherwise say the accept failed, and « Réessayer » could only fail
+  // again.
+  const toLogin = () => router.replace('/pro/connexion');
+
   if (loading) return <SkeletonRows count={4} className="mt-l" />;
   if (error) {
     // The retry re-probes the membership too: after a join whose /me
@@ -131,8 +137,13 @@ export function AujourdhuiClient() {
             band (docs/design/web-pro-browser-push.md §2). */}
         <BrowserPushBand />
 
-        {/* Pending invitations for THIS account (if any). */}
-        <ProInvitationsCard onAccepted={onInvitationAccepted} />
+        {/* Pending invitations for THIS account (if any). A dead session
+            on « Rejoindre »/« Refuser » goes to the login, as this page's
+            reads do (docs/design/web-pro-truthful-failure.md §2.4). */}
+        <ProInvitationsCard
+          onAccepted={onInvitationAccepted}
+          onUnauthenticated={toLogin}
+        />
 
         <h2 className="mt-l text-titleLarge font-semibold text-textPrimary">
           Rendez-vous du jour
@@ -173,7 +184,10 @@ export function AujourdhuiClient() {
       <div className="xl:grid xl:grid-cols-desk xl:items-start xl:gap-xl">
         <div className="xl:col-start-2 xl:row-start-1">
           {/* Team access R5a: pending invitations for THIS account (if any). */}
-          <ProInvitationsCard onAccepted={onInvitationAccepted} />
+          <ProInvitationsCard
+            onAccepted={onInvitationAccepted}
+            onUnauthenticated={toLogin}
+          />
 
           {/* Draft salons: the go-live checklist (pro-salon-lifecycle.md B2) —
               publishing is the owner's act (salon.publish). */}

@@ -529,6 +529,21 @@ const MEMBER_LOGINS = {
   'sonia.staff@equipe.test': 'staff',
   'revoked.staff@equipe.test': 'revoked',
 };
+// docs/design/web-pro-truthful-failure.md §2.2 (B4.2): an owner whose ONE
+// booking (pfresh, « Mariam ») is in BOTH its Journée and its list — the
+// owner's own are not (pj1/pj2 vs pappt1). pro.spec accepts it in the
+// Journée and reads « Liste ». Its own login and token, so no other spec sees
+// it move while workers share this stub; each login re-arms it « En attente ».
+const FRESH_LISTS_EMAIL = 'listes.fraiches@salon.test';
+const isFreshLists = (req) =>
+  (req.headers.authorization || '').includes('pro-fresh-lists');
+const freshAppt = (date) => ({
+  ...proAppt('pfresh'),
+  clientName: 'Mariam',
+  salonClientId: null,
+  clientNoShowCount: 0,
+  ...(date ? { appointmentDate: `${date}T10:00:00.000Z` } : {}),
+});
 const MEMBER_EMAILS = {
   owner: 'salon@example.com',
   manager: 'awa.manager@equipe.test',
@@ -1034,6 +1049,15 @@ createServer(async (req, res) => {
         expiresAt: '2099-01-01T00:00:00.000Z',
       });
     }
+    if (b.email === FRESH_LISTS_EMAIL) {
+      proStatus.pfresh = 'pending';
+      return json(res, 200, {
+        provider: { id: 'acc-fresh', businessName: 'Beauté Divine', providerId: 'p1' },
+        accessToken: 'pro-fresh-lists-access',
+        refreshToken: 'pro-fresh-lists-refresh',
+        expiresAt: '2099-01-01T00:00:00.000Z',
+      });
+    }
     // Team access R5b: member logins carry ROLE tokens.
     const memberRole = MEMBER_LOGINS[b.email];
     if (memberRole) {
@@ -1088,6 +1112,14 @@ createServer(async (req, res) => {
   const journalM = url.pathname.match(/^\/providers\/([^/]+)\/journal$/);
   if (journalM) {
     const date = url.searchParams.get('date') || stubDayKey();
+    if (isFreshLists(req)) {
+      return json(res, 200, {
+        date,
+        hours: { open: '09:00', close: '18:00', breaks: [] },
+        artists: [{ id: 'artist-a', name: 'Awa', imageUrl: null }],
+        appointments: [freshAppt(date)],
+      });
+    }
     // Team access R5b: own-scope (staff) gets ONLY their artist's column +
     // their own rows — mirrors journal_service.dart's journalScope filter.
     if (roleOf(req) === 'staff') {
@@ -1982,9 +2014,11 @@ createServer(async (req, res) => {
         return json(res, 200, { items: [], page: 1, pageSize: 0, total: 0 });
       }
       const items = isPro(req)
-        ? roleOf(req) === 'staff'
-          ? [proAppt('pstaff1')]
-          : [proAppt('pappt1')]
+        ? isFreshLists(req)
+          ? [freshAppt()]
+          : roleOf(req) === 'staff'
+            ? [proAppt('pstaff1')]
+            : [proAppt('pappt1')]
         : [
             consumerAppt('appt1'),
             consumerAppt('appt2'),

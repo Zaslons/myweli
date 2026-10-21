@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from 'react';
 import { registerPro, requestEmailOtpPro } from '../../lib/api/pro';
 import { useFieldErrors } from '../../lib/forms/useFieldErrors';
 import { PHONE_INVALID, normalizePhone, phoneFieldError } from '../../lib/phone';
+import { forgetSalon } from '../../lib/pro/remembered-salon';
 import { Button } from '../Button';
 import { PhoneField } from '../PhoneField';
 import { TextField } from '../TextField';
@@ -99,6 +100,9 @@ export function ProRegisterClient() {
     });
     setBusy(false);
     if (r.ok) {
+      // A new account: nothing a previous session remembered is its to name
+      // (decision 14, docs/design/web-pro-truthful-failure.md §2.4).
+      forgetSalon();
       router.replace('/pro');
       return;
     }

@@ -1245,3 +1245,29 @@ test('manual booking: a walk-in with no name and no number (web-manual-booking-w
   await dialog.getByRole('button', { name: 'Créer', exact: true }).click();
   await expect(page.getByText('Rendez-vous créé')).toBeVisible();
 });
+
+test('a booking accepted in the Journée reads « Confirmé » in « Liste » — no reload (web-pro-truthful-failure.md §2.2)', async ({
+  page,
+}) => {
+  // B4.2: « Calendrier » and « Liste » drew the list read at load, so a
+  // change made in the Journée stayed invisible there until a reload. This
+  // identity's one booking (« Mariam ») is in both its Journée and its list
+  // (stub-api.mjs, FRESH_LISTS_EMAIL); each login re-arms it « En attente ».
+  await signInPro(page, 'listes.fraiches@salon.test');
+  await page.goto('/pro/rendez-vous?vue=liste&filtre=en-attente');
+  await expect(page.getByRole('link', { name: /Mariam/ })).toContainText('En attente');
+
+  await page.getByRole('button', { name: 'Journée' }).click();
+  await page.getByRole('button', { name: /^Mariam/ }).click();
+  const panel = page.getByRole('dialog', { name: 'Détails du rendez-vous' });
+  await panel.getByRole('button', { name: 'Accepter' }).click();
+  await expect(panel).toBeHidden();
+  await expect(page.getByRole('button', { name: /^Mariam, Confirmé/ })).toBeVisible();
+
+  // The same page life — no reload: « En attente » is empty now, and « Tous »
+  // says what the Journée did.
+  await page.getByRole('button', { name: 'Liste' }).click();
+  await expect(page.getByText('Aucun rendez-vous', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Tous' }).click();
+  await expect(page.getByRole('link', { name: /Mariam/ })).toContainText('Confirmé');
+});
