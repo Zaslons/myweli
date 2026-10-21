@@ -436,6 +436,23 @@ void main() {
     });
 
     test(
+      'a reload asked BEFORE the touch, answering AFTER its write was taken: '
+      'its list is older than the write — the row stays read',
+      () async {
+        final provider = await loaded([note('a')]);
+        final list = Completer<ApiResponse<List<AppNotification>>>();
+        when(() => service.getNotifications()).thenAnswer((_) => list.future);
+        markReadAnswers('a', [accepted()]);
+
+        final reload = provider.load(); // the server's list is taken now…
+        expect(await provider.markRead('a'), isNull); // …the write lands after
+        list.complete(ApiResponse.success([note('a')])); // the older list
+        await reload;
+        expect(readOf(provider, 'a'), isTrue);
+      },
+    );
+
+    test(
       'once the write answered, a reload shows what the server says',
       () async {
         final provider = await loaded([note('a')]);

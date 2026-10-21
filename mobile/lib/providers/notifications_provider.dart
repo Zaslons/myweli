@@ -25,6 +25,13 @@ class NotificationsProvider extends ChangeNotifier {
   /// the row the person just opened back to unread; so they stay read until
   /// their write answers.
   final Set<String> _writing = {};
+
+  /// The notifications whose « lu » the server confirmed WHILE a reload was
+  /// out. That reload's list was taken before the write landed, so it is the
+  /// older of the two: it must not turn them back to unread. Emptied once no
+  /// reload is out — from then on the server's list rules.
+  final Set<String> _confirmedDuringLoad = {};
+  int _loadsOut = 0;
   bool _isLoading = false;
   bool _loadFailed = false;
   String? _error;
@@ -38,6 +45,7 @@ class NotificationsProvider extends ChangeNotifier {
   Future<void> load() async {
     _isLoading = true;
     _error = null;
+    _loadsOut++;
     notifyListeners();
 
     try {
@@ -45,7 +53,9 @@ class NotificationsProvider extends ChangeNotifier {
       if (response.success && response.data != null) {
         _items = [
           for (final n in response.data!)
-            _writing.contains(n.id) ? n.copyWith(read: true) : n,
+            _writing.contains(n.id) || _confirmedDuringLoad.contains(n.id)
+                ? n.copyWith(read: true)
+                : n,
         ];
         _loadFailed = false;
         _error = null;
@@ -59,6 +69,8 @@ class NotificationsProvider extends ChangeNotifier {
       _error = kGenericErrorMessage;
       _items = [];
     } finally {
+      _loadsOut--;
+      if (_loadsOut == 0) _confirmedDuringLoad.clear();
       _isLoading = false;
       notifyListeners();
     }
@@ -107,8 +119,13 @@ class NotificationsProvider extends ChangeNotifier {
     _writing.addAll(marked);
     final failure = await _persist(write);
     _writing.removeAll(marked);
-    // A reload may have landed meanwhile: the answer is applied again.
-    _setRead(marked, failure == null);
+    if (failure != null) {
+      _setRead(marked, false);
+    } else if (_loadsOut > 0) {
+      // A reload still out took its list before this write: keep them read
+      // when it answers.
+      _confirmedDuringLoad.addAll(marked);
+    }
     return failure;
   }
 
