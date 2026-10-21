@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Statut** | **Brouillon** — questions au propriétaire : §9 |
+| **Statut** | **Validé le 2026-10-21** — Q1 (décision 11) : **la clé d'idempotence** ; Q2 : **redemander une fois, sans rien dire** ; Q3 : **les quatre écritures** ; Q4 : **les mots tels qu'écrits** (§8) |
 | **Owner** | Sadreddine |
 | **Last updated** | 2026-10-21 |
 | **PRD ref / phase** | Réservation, journal Pro, clients, équipe (V1) · règle BACKEND.md : « les mutations argent/réservation prennent une clé d'idempotence » |
@@ -153,3 +153,5 @@ La suite décrit **(a)**.
   réservations d'abord ?
 - **Q4** — les mots (§8) : « Pas de connexion. Réessayez. » quand rien n'a
   répondu, à la place de « La réservation a échoué. Réessayez. » ?
+
+**Décisions (2026-10-21).** Q1, Q2, Q3 et Q4 : les recommandations, telles qu'écrites.
