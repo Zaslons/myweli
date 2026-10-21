@@ -119,18 +119,25 @@ describe('Mon compte — « Se déconnecter » (the session is httpOnly cookies 
 });
 
 describe('Mon compte — the other saves', () => {
-  it('the contact phone: « L’enregistrement a échoué. Réessayez. », the button comes back', async () => {
-    mockFetch({ ...ACCOUNT_READS, 'PATCH /api/me': 'throw' });
-    render(<AccountClient />);
-    fireEvent.click(await screen.findByRole('button', { name: 'Modifier' }));
-    const field = screen.getByLabelText('Numéro de téléphone');
-    fireEvent.change(field, { target: { value: '+225 07 07 12 34 99' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Enregistrer' }));
+  // docs/design/app-failure-messages.md §2.2: no answer is « Pas de
+  // connexion » — like the name beside it; a refusal keeps its sentence.
+  for (const [label, answer, said] of [
+    ['no network', 'throw', NO_CONNECTION],
+    ['a 500', { status: 500 }, 'L’enregistrement a échoué. Réessayez.'],
+  ] as const) {
+    it(`the contact phone (${label}): « ${said} », the button comes back`, async () => {
+      mockFetch({ ...ACCOUNT_READS, 'PATCH /api/me': answer });
+      render(<AccountClient />);
+      fireEvent.click(await screen.findByRole('button', { name: 'Modifier' }));
+      const field = screen.getByLabelText('Numéro de téléphone');
+      fireEvent.change(field, { target: { value: '+225 07 07 12 34 99' } });
+      fireEvent.click(screen.getByRole('button', { name: 'Enregistrer' }));
 
-    expect(await screen.findByRole('alert')).toHaveTextContent('L’enregistrement a échoué. Réessayez.');
-    expect(screen.getByRole('button', { name: 'Enregistrer' })).toBeEnabled();
-    expectFieldNotAccused(field);
-  });
+      expect(await screen.findByRole('alert')).toHaveTextContent(said);
+      expect(screen.getByRole('button', { name: 'Enregistrer' })).toBeEnabled();
+      expectFieldNotAccused(field);
+    });
+  }
 
   it('the name: « OK » comes back', async () => {
     const f = mockFetch({ ...ACCOUNT_READS, 'PATCH /api/me': 'throw' });
@@ -283,6 +290,36 @@ describe('Connexion — e-mail', () => {
     expectFieldNotAccused(code);
     expect(screen.getByRole('button', { name: 'Se connecter' })).toBeEnabled();
   });
+
+  // The contact-phone step that follows a sign-in without a number.
+  for (const [label, answer, said] of [
+    ['no network', 'throw', NO_CONNECTION],
+    ['a 500', { status: 500 }, 'L’enregistrement a échoué. Réessayez.'],
+  ] as const) {
+    it(`« Votre numéro » after the sign-in (${label}): « ${said} » — the number is not accused`, async () => {
+      mockFetch({
+        'POST /api/auth/email/request': { status: 202, body: { expiresInSeconds: 300 } },
+        'POST /api/auth/email/verify': {
+          status: 200,
+          body: { user: { id: 'u1', name: 'Awa', email: 'awa@x.ci', phoneNumber: null } },
+        },
+        'PATCH /api/me': answer,
+      });
+      render(<LoginOptions onSuccess={vi.fn()} />);
+      fireEvent.change(screen.getByLabelText('Votre e-mail'), { target: { value: 'awa@x.ci' } });
+      fireEvent.click(screen.getByRole('button', { name: 'Continuer avec e-mail' }));
+      fireEvent.change(await screen.findByLabelText('Code à 6 chiffres'), {
+        target: { value: '123456' },
+      });
+      fireEvent.click(screen.getByRole('button', { name: 'Se connecter' }));
+      const phone = await screen.findByLabelText('Votre numéro de téléphone');
+      fireEvent.change(phone, { target: { value: '+225 07 07 12 34 99' } });
+      fireEvent.click(screen.getByRole('button', { name: /Continuer|Enregistrer/ }));
+
+      expect(await screen.findByRole('alert')).toHaveTextContent(said);
+      expectFieldNotAccused(phone);
+    });
+  }
 
   it('a wrong code is still the field’s fault (unchanged)', async () => {
     mockFetch({

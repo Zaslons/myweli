@@ -53,7 +53,7 @@ function mockFetch({
   refusals = [],
   policy = POLICY_ON,
 }: {
-  refusals?: ({ status: number; error: string } | null)[];
+  refusals?: ({ status: number; error: string } | 'throw' | null)[];
   policy?: Record<string, unknown>;
 } = {}) {
   sent.length = 0;
@@ -65,6 +65,7 @@ function mockFetch({
       if (method !== 'GET') {
         sent.push({ url, method, body: JSON.parse(String(init?.body ?? '{}')) });
         const refusal = answers.shift();
+        if (refusal === 'throw') throw new TypeError('Failed to fetch');
         return refusal
           ? new Response(JSON.stringify({ error: refusal.error }), {
               status: refusal.status,
@@ -210,6 +211,24 @@ describe('AcompteClient — Numéro Mobile Money', () => {
 /// a échoué. Réessayez. » — a retry that cannot succeed, nowhere near the field.
 const INVALID = 'Saisissez un numéro de téléphone valide.';
 const FAILED = 'L’enregistrement a échoué. Réessayez.';
+
+// docs/design/app-failure-messages.md §2.2: the save that got no answer says so.
+describe('Profil — a save that failed', () => {
+  for (const [label, refusal, said] of [
+    ['no network', 'throw', 'Pas de connexion. Réessayez.'],
+    ['a 500', { status: 500, error: 'internal' }, FAILED],
+  ] as const) {
+    it(`${label}: « ${said} », and no field is accused`, async () => {
+      mockFetch({ refusals: [refusal] });
+      render(<ProfilClient />);
+      const phone = await screen.findByLabelText('Téléphone');
+      fireEvent.click(screen.getByRole('button', { name: 'Enregistrer' }));
+
+      expect(await screen.findByRole('alert')).toHaveTextContent(said);
+      expect(phone).not.toHaveAttribute('aria-invalid');
+    });
+  }
+});
 
 describe('the server’s phone codes land under their fields', () => {
   it('Profil — invalid_phone sits under « Téléphone », WhatsApp untouched', async () => {

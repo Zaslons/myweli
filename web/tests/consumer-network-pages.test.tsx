@@ -76,6 +76,9 @@ function expectNotLoading(container: HTMLElement) {
   expect(screen.queryByText('Chargement…')).toBeNull();
 }
 
+/// docs/design/app-failure-messages.md §2.2 (owner Q4): a read that got NO
+/// answer says so — the page's own sentence is for a server that answered.
+const NO_CONNECTION = 'Pas de connexion. Réessayez.';
 const GENERIC = 'Une erreur est survenue. Réessayez.';
 
 const ME = { id: 'u1', name: 'Awa', email: 'awa@x.ci', phoneNumber: '+2250707123456' };
@@ -117,9 +120,9 @@ describe('Mon compte (/mon-compte)', () => {
     expect(screen.queryByRole('alert')).toBeNull();
   });
 
-  for (const [label, answer] of [
-    ['no network', 'throw'],
-    ['a 500', { status: 500 }],
+  for (const [label, answer, said] of [
+    ['no network', 'throw', NO_CONNECTION],
+    ['a 500', { status: 500 }, 'Favoris indisponibles.'],
   ] as const) {
     it(`favorites fail (${label}): the section says so — never « Aucun favori »; the bookings stay`, async () => {
       mockFetch({
@@ -129,7 +132,7 @@ describe('Mon compte (/mon-compte)', () => {
       });
       render(<AccountClient />);
 
-      expect(await screen.findByText('Favoris indisponibles.')).toBeInTheDocument();
+      expect(await screen.findByText(said)).toBeInTheDocument();
       expect(screen.getByRole('heading', { level: 2, name: 'Favoris' })).toBeInTheDocument();
       expect(screen.queryByText('Aucun favori')).toBeNull();
       // The rest of the page is there: the booking and the way out.
@@ -161,9 +164,9 @@ describe('Mon compte (/mon-compte)', () => {
 });
 
 describe('Le détail d’un rendez-vous (/mon-compte/[id])', () => {
-  for (const [label, answer] of [
-    ['no network', 'throw'],
-    ['a 500', { status: 500 }],
+  for (const [label, answer, said] of [
+    ['no network', 'throw', NO_CONNECTION],
+    ['a 500', { status: 500 }, GENERIC],
   ] as const) {
     it(`${label}: the error under « Rendez-vous », « Réessayer » and the way back — never « introuvable »`, async () => {
       mockFetch({
@@ -173,7 +176,7 @@ describe('Le détail d’un rendez-vous (/mon-compte/[id])', () => {
       const { container } = render(<AppointmentDetailClient id="a1" />);
 
       expect(await screen.findByRole('heading', { level: 1, name: 'Rendez-vous' })).toBeInTheDocument();
-      expect(screen.getByRole('alert')).toHaveTextContent(GENERIC);
+      expect(screen.getByRole('alert')).toHaveTextContent(said);
       expect(screen.getByRole('button', { name: 'Réessayer' })).toBeInTheDocument();
       expect(screen.getByRole('link', { name: '← Mes rendez-vous' })).toHaveAttribute(
         'href',
@@ -217,25 +220,36 @@ describe('Le détail d’un rendez-vous (/mon-compte/[id])', () => {
 });
 
 describe('Notifications (/mon-compte/notifications)', () => {
-  it('no network: the error under « Notifications » and « Réessayer »', async () => {
+  it('no network: « Pas de connexion. Réessayez. » under « Notifications », and « Réessayer »', async () => {
     mockFetch({ '*': 'throw' });
     const { container } = render(<NotificationsClient />);
 
     expect(await screen.findByRole('heading', { level: 1, name: 'Notifications' })).toBeInTheDocument();
-    expect(screen.getByRole('alert')).toHaveTextContent('Chargement impossible.');
+    expect(screen.getByRole('alert')).toHaveTextContent(NO_CONNECTION);
     expect(screen.getByRole('button', { name: 'Réessayer' })).toBeInTheDocument();
     expectNotLoading(container);
   });
 
-  it('the feed answers, the preferences do not: « Préférences indisponibles. »', async () => {
-    mockFetch({
-      '/api/me/notifications': { status: 200, body: { items: [] } },
-      '/api/me/notification-preferences': 'throw',
-    });
+  it('a 500: the page’s own « Chargement impossible. »', async () => {
+    mockFetch({ '/api/me/notifications': { status: 500 } });
     render(<NotificationsClient />);
-    expect(await screen.findByText('Préférences indisponibles.')).toBeInTheDocument();
-    expect(screen.getByText('Aucune notification')).toBeInTheDocument();
+    expect(await screen.findByRole('alert')).toHaveTextContent('Chargement impossible.');
   });
+
+  for (const [label, answer, said] of [
+    ['no network', 'throw', NO_CONNECTION],
+    ['a 500', { status: 500 }, 'Préférences indisponibles.'],
+  ] as const) {
+    it(`the feed answers, the preferences do not (${label}): « ${said} »`, async () => {
+      mockFetch({
+        '/api/me/notifications': { status: 200, body: { items: [] } },
+        '/api/me/notification-preferences': answer,
+      });
+      render(<NotificationsClient />);
+      expect(await screen.findByText(said)).toBeInTheDocument();
+      expect(screen.getByText('Aucune notification')).toBeInTheDocument();
+    });
+  }
 });
 
 describe('Mes données (/mon-compte/donnees)', () => {
@@ -298,14 +312,14 @@ describe('Réserver — l’étape « Confirmation » (the session probe)', () =
     return view;
   }
 
-  for (const [label, answer] of [
-    ['no network', 'throw'],
-    ['a 500', { status: 500 }],
+  for (const [label, answer, said] of [
+    ['no network', 'throw', NO_CONNECTION],
+    ['a 500', { status: 500 }, GENERIC],
   ] as const) {
     it(`${label}: an error and « Réessayer » — never the login form to someone signed in, never « Chargement… » for ever`, async () => {
       const { container } = await openConfirm(answer);
 
-      expect(await screen.findByRole('alert')).toHaveTextContent(GENERIC);
+      expect(await screen.findByRole('alert')).toHaveTextContent(said);
       expect(screen.getByRole('heading', { level: 2, name: 'Confirmation' })).toBeInTheDocument();
       expect(screen.queryByText('Connectez-vous pour confirmer votre réservation.')).toBeNull();
       expectNotLoading(container);
