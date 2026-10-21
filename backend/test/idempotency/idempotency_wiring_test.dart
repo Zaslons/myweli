@@ -30,14 +30,17 @@ void main() {
   });
 
   test('the daily cron prunes it after the window, and says how many', () {
-    final cron = File(
-      'routes/internal/cron/subscriptions.dart',
-    ).readAsStringSync();
-    expect(cron, contains('await pruneIdempotencyKeys(kIdempotencyWindow)'));
+    // The maintenance tick (docs/design/infra-cron-maintenance.md).
+    expect(
+      deps,
+      contains(
+        'pruneIdempotency: () => pruneIdempotencyKeys(kIdempotencyWindow)',
+      ),
+    );
     expect(kIdempotencyWindow, const Duration(hours: 24));
     expect(
-      cron,
-      contains("'idempotencyKeysPruned':"),
+      File('lib/src/maintenance/maintenance_tick.dart').readAsStringSync(),
+      contains("'idempotencyKeysPruned'"),
       reason: 'a prune nobody can see is the shape this repo keeps finding',
     );
   });

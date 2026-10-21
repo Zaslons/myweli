@@ -196,6 +196,104 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/internal/cron/subscriptions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * The daily offers walk — trial warnings, grace notice, enforcement (internal)
+         * @description Hit by Cloud Scheduler (`myweli-subscriptions`, daily 03:00 UTC). The same door as the reminders cron: the Google-signed OIDC token only; 404 when the OIDC pair is unconfigured, 403 otherwise. Idempotent per tick. The trial warnings (J-14/J-7/J-1), the grace notice and — only with `SUBSCRIPTION_ENFORCEMENT` on — the past-grace unpublish. Nothing else since docs/design/infra-cron-maintenance.md: the housekeeping that rode here is `/internal/cron/maintenance`.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: {
+                    Authorization?: string;
+                };
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description What the walk did this tick */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            notices: number;
+                            unpublished: number;
+                        };
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/internal/cron/maintenance": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * The daily housekeeping — security prunes, kept answers, demo reset (internal)
+         * @description Hit by Cloud Scheduler (`myweli-maintenance`, daily 03:30 UTC). The same door as the other crons: the Google-signed OIDC token only; 404 when the OIDC pair is unconfigured, 403 otherwise. Idempotent per tick: every prune is, and the demo reset is due-gated (every 7 days). A prune that failed is `null` in the answer (and one `*_prune_failed` log line), never a guess; a demo reset that fails is a 500. Design: docs/design/infra-cron-maintenance.md.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: {
+                    Authorization?: string;
+                };
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Each task's outcome this tick */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @description admin_login_throttle rows older than 24 h */
+                            throttleRowsPruned: number | null;
+                            /** @description identity_rate_limits windows past kRateLimitRetention (1 day) */
+                            rateLimitWindowsPruned: number | null;
+                            /** @description idempotency_keys rows older than 24 h */
+                            idempotencyKeysPruned: number | null;
+                            /** @description whether the demo salon was reset this tick */
+                            demoReset: boolean;
+                        };
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/auth/otp/verify": {
         parameters: {
             query?: never;

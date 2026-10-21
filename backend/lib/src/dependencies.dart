@@ -76,6 +76,7 @@ import 'idempotency/idempotency_store.dart';
 import 'kyc_service.dart';
 import 'localities/localities_repository.dart';
 import 'localities/localities_service.dart';
+import 'maintenance/maintenance_tick.dart';
 import 'messaging/booking_notifier.dart';
 import 'messaging/messaging_outbox_repository.dart';
 import 'messaging/messaging_prefs_repository.dart';
@@ -698,6 +699,16 @@ final SalonSubscriptionService salonSubscriptionService =
 final DemoSnapshotRepository demoSnapshotRepository = _pool == null
     ? InMemoryDemoSnapshotRepository()
     : PostgresDemoSnapshotRepository(_pool!);
+
+/// The daily housekeeping (`/internal/cron/maintenance`,
+/// docs/design/infra-cron-maintenance.md), built with each real task and its
+/// own window — the source test reads these four lines.
+final MaintenanceTick maintenanceTick = MaintenanceTick(
+  pruneThrottle: () => pruneAdminLoginThrottle(const Duration(hours: 24)),
+  pruneRateLimits: () => pruneRateLimitWindows(kRateLimitRetention),
+  pruneIdempotency: () => pruneIdempotencyKeys(kIdempotencyWindow),
+  demoReset: (now) async => (await demoResetService.tickIfDue(now)).ran,
+);
 
 final DemoResetService demoResetService = DemoResetService(
   providerAuthRepository,

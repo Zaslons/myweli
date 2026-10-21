@@ -412,13 +412,17 @@ void main() {
       // green, because the DB suite exercises `prune()` directly and nothing
       // asserted that anything CALLS it. A counter with no decay is the defect
       // the prune exists to prevent, so its absence must not be silent.
-      final cron = File(
-        'routes/internal/cron/subscriptions.dart',
-      ).readAsStringSync();
-      expect(cron, contains('pruneAdminLoginThrottle('));
+      // Since the maintenance cron (docs/design/infra-cron-maintenance.md):
+      // the tick is built with the prune, and says its count.
       expect(
-        cron,
-        contains('throttleRowsPruned'),
+        src,
+        contains(
+          'pruneThrottle: () => pruneAdminLoginThrottle(const Duration(hours: 24))',
+        ),
+      );
+      expect(
+        File('lib/src/maintenance/maintenance_tick.dart').readAsStringSync(),
+        contains("'throttleRowsPruned'"),
         reason:
             'the count is returned so the operation is observable — a prune '
             'nobody can see is the shape this repo keeps finding',
