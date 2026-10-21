@@ -70,6 +70,26 @@ class MockProService implements ProServiceInterface {
   }
 
   @override
+  Future<ApiResponse<void>> reportSalonReview(
+    String reviewId, {
+    String? reason,
+  }) async {
+    await Future.delayed(AppConstants.mockDelay);
+    // The server's rules: a review of the acting salon only.
+    final me = await getMyProvider();
+    final salon = me.data?.salon;
+    if (salon == null) {
+      return ApiResponse.error(me.error ?? 'Non connecté', code: me.code);
+    }
+    final mine = MockData.reviews.any(
+      (r) => r.id == reviewId && r.providerId == salon.id,
+    );
+    return mine
+        ? ApiResponse.success(null)
+        : ApiResponse.error('Avis introuvable.', code: 'not_found');
+  }
+
+  @override
   Future<ApiResponse<MyReviews>> getMyReviews({
     int page = 1,
     int pageSize = 50,

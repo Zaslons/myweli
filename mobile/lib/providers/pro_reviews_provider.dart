@@ -34,6 +34,16 @@ class ProReviewsProvider extends ChangeNotifier implements SalonScoped {
   bool get isLoading => _isLoading;
   String? get error => _error;
 
+  /// « Signaler » (B6.6): true once the server took the report.
+  Future<bool> reportReview(String reviewId, {String? reason}) async {
+    try {
+      final res = await _proService.reportSalonReview(reviewId, reason: reason);
+      return res.success;
+    } catch (_) {
+      return false;
+    }
+  }
+
   Future<void> loadReviews(String providerId) async {
     if (_currentProviderId == providerId &&
         _reviews.isNotEmpty &&
