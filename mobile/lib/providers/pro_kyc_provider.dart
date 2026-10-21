@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 
+import '../core/constants/failure_messages.dart';
 import '../core/di/dependency_injection.dart';
 import '../core/utils/app_clock.dart';
 import '../models/kyc_document.dart';
@@ -65,7 +66,7 @@ class ProKycProvider extends ChangeNotifier {
       }
     } catch (e) {
       _loadFailed = true;
-      _error = e.toString();
+      _error = kGenericErrorMessage;
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -99,7 +100,7 @@ class ProKycProvider extends ChangeNotifier {
       _error = res.error ?? 'Échec de l’envoi du document';
       return false;
     } catch (e) {
-      _error = e.toString();
+      _error = kGenericErrorMessage;
       return false;
     } finally {
       _uploadingType = null;
@@ -131,7 +132,7 @@ class ProKycProvider extends ChangeNotifier {
       _error = res.error ?? 'Erreur lors de l’envoi';
       return false;
     } catch (e) {
-      _error = e.toString();
+      _error = kGenericErrorMessage;
       return false;
     } finally {
       _isSubmitting = false;

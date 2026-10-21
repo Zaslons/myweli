@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
+import '../../../core/constants/failure_messages.dart';
 import '../../../core/forms/field_errors.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/colors.dart';
@@ -161,7 +162,7 @@ class _DepositSettingsScreenState extends State<DepositSettingsScreen> {
       context,
       ok: ok,
       success: 'Paramètres enregistrés',
-      error: provider.error ?? 'Erreur',
+      error: provider.error ?? kGenericErrorMessage,
     );
   }
 

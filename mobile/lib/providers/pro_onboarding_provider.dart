@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 
 import '../core/access/pro_salon_scope.dart';
+import '../core/constants/failure_messages.dart';
 import '../core/di/dependency_injection.dart';
 import '../core/utils/onboarding.dart';
 import '../models/availability.dart';
@@ -131,7 +132,7 @@ class ProOnboardingProvider extends ChangeNotifier implements SalonScoped {
       _loadFailed = false;
     } catch (e) {
       _loadFailed = true;
-      _error = e.toString();
+      _error = kGenericErrorMessage;
     } finally {
       _isLoading = false;
       notifyListeners();

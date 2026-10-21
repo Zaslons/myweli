@@ -466,7 +466,8 @@ class ApiAuthService implements AuthServiceInterface {
   }) async {
     if (res == null) {
       return const ProviderLoginResult.failure(
-        'Connexion au serveur impossible',
+        kNoConnectionMessage,
+        code: 'network',
       );
     }
     if (res.statusCode == 200) {

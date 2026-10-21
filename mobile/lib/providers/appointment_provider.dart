@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 
+import '../core/constants/failure_messages.dart';
 import '../core/di/dependency_injection.dart';
 import '../core/utils/app_clock.dart';
 import '../core/utils/submission_key.dart';
@@ -112,7 +113,7 @@ class AppointmentProvider extends ChangeNotifier {
         _appointments = [];
       }
     } catch (e) {
-      _error = e.toString();
+      _error = kGenericErrorMessage;
       _appointments = [];
     } finally {
       _isLoading = false;
@@ -165,7 +166,7 @@ class AppointmentProvider extends ChangeNotifier {
         return false;
       }
     } catch (e) {
-      _error = e.toString();
+      _error = kGenericErrorMessage;
       _errorCode = null;
       return false;
     } finally {
@@ -197,7 +198,7 @@ class AppointmentProvider extends ChangeNotifier {
       _error = response.error ?? 'Erreur lors de l’envoi de l’acompte';
       return false;
     } catch (e) {
-      _error = e.toString();
+      _error = kGenericErrorMessage;
       return false;
     } finally {
       _isLoading = false;
@@ -220,7 +221,7 @@ class AppointmentProvider extends ChangeNotifier {
         _selectedAppointment = null;
       }
     } catch (e) {
-      _error = e.toString();
+      _error = kGenericErrorMessage;
       _selectedAppointment = null;
     } finally {
       _isLoading = false;
@@ -249,7 +250,7 @@ class AppointmentProvider extends ChangeNotifier {
         return false;
       }
     } catch (e) {
-      _error = e.toString();
+      _error = kGenericErrorMessage;
       return false;
     } finally {
       _isLoading = false;
@@ -286,7 +287,7 @@ class AppointmentProvider extends ChangeNotifier {
         return false;
       }
     } catch (e) {
-      _error = e.toString();
+      _error = kGenericErrorMessage;
       return false;
     } finally {
       _isLoading = false;

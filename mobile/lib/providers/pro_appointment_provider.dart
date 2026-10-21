@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 
 import '../core/access/pro_access_guard.dart';
 import '../core/access/pro_salon_scope.dart';
+import '../core/constants/failure_messages.dart';
 import '../core/di/dependency_injection.dart';
 import '../core/utils/submission_key.dart';
 import '../models/appointment.dart';
@@ -85,7 +86,7 @@ class ProAppointmentProvider extends ChangeNotifier
         _appointments = [];
       }
     } catch (e) {
-      _error = e.toString();
+      _error = kGenericErrorMessage;
       _appointments = [];
     } finally {
       _isLoading = false;
@@ -117,7 +118,7 @@ class ProAppointmentProvider extends ChangeNotifier
         return false;
       }
     } catch (e) {
-      _error = e.toString();
+      _error = kGenericErrorMessage;
       notifyListeners();
       return false;
     } finally {
@@ -152,7 +153,7 @@ class ProAppointmentProvider extends ChangeNotifier
         return false;
       }
     } catch (e) {
-      _error = e.toString();
+      _error = kGenericErrorMessage;
       notifyListeners();
       return false;
     } finally {
@@ -184,7 +185,7 @@ class ProAppointmentProvider extends ChangeNotifier
         return false;
       }
     } catch (e) {
-      _error = e.toString();
+      _error = kGenericErrorMessage;
       notifyListeners();
       return false;
     } finally {
@@ -216,7 +217,7 @@ class ProAppointmentProvider extends ChangeNotifier
         return false;
       }
     } catch (e) {
-      _error = e.toString();
+      _error = kGenericErrorMessage;
       notifyListeners();
       return false;
     } finally {
@@ -250,7 +251,7 @@ class ProAppointmentProvider extends ChangeNotifier
         return false;
       }
     } catch (e) {
-      _error = e.toString();
+      _error = kGenericErrorMessage;
       notifyListeners();
       return false;
     } finally {
@@ -318,7 +319,7 @@ class ProAppointmentProvider extends ChangeNotifier
       _errorCode = response.code;
       return false;
     } catch (e) {
-      _error = e.toString();
+      _error = kGenericErrorMessage;
       return false;
     } finally {
       _isLoading = false;

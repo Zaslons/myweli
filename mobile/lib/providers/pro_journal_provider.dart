@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 
 import '../core/access/pro_access_guard.dart';
 import '../core/access/pro_salon_scope.dart';
+import '../core/constants/failure_messages.dart';
 import '../core/di/dependency_injection.dart';
 import '../core/utils/app_clock.dart';
 import '../core/utils/salon_time.dart';
@@ -149,7 +150,7 @@ class ProJournalProvider extends ChangeNotifier implements ShowsSalonBookings {
       }
     } catch (e) {
       if (request != _request) return;
-      _error = e.toString();
+      _error = kGenericErrorMessage;
       _day = null;
     }
     _isLoading = false;
@@ -246,7 +247,7 @@ class ProJournalProvider extends ChangeNotifier implements ShowsSalonBookings {
       ProSalonScope.bookingChanged(change, except: this);
       return true;
     } catch (e) {
-      _error = e.toString();
+      _error = kGenericErrorMessage;
       notifyListeners();
       return false;
     }

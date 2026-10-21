@@ -46,7 +46,7 @@ class NotificationsProvider extends ChangeNotifier {
       }
     } catch (e) {
       _loadFailed = true;
-      _error = e.toString();
+      _error = kGenericErrorMessage;
       _items = [];
     } finally {
       _isLoading = false;

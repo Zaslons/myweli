@@ -1,5 +1,7 @@
 import 'package:flutter/foundation.dart';
+
 import '../core/access/pro_salon_scope.dart';
+import '../core/constants/failure_messages.dart';
 import '../core/di/dependency_injection.dart';
 import '../services/interfaces/pro_service_interface.dart';
 
@@ -37,7 +39,7 @@ class ProEarningsProvider extends ChangeNotifier implements SalonScoped {
         _earnings = null;
       }
     } catch (e) {
-      _error = e.toString();
+      _error = kGenericErrorMessage;
       _earnings = null;
     } finally {
       _isLoading = false;

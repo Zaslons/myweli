@@ -50,7 +50,7 @@ class _ThrowingTeam extends MockProTeamService {
 
 /// The REAL Pro service, over [client] — the availability save that gets a
 /// captive portal's page, and the dashboard that gets nothing at all.
-late MockClient _proClient;
+late Future<http.Response> Function(http.Request) _answer;
 
 Future<InMemorySessionStore> _proSession() async {
   final store = InMemorySessionStore();
@@ -65,10 +65,7 @@ void main() {
     serviceLocator.appointmentService = _ThrowingAppointments();
     serviceLocator.proTeamService = _ThrowingTeam();
     serviceLocator.proService = ApiProService(
-      client: MockClient((req) async {
-        final streamed = await _proClient.send(req);
-        return http.Response.fromStream(streamed);
-      }),
+      client: MockClient((req) => _answer(req)),
       baseUrl: 'http://x',
       providerSessionStore: await _proSession(),
     );
@@ -96,11 +93,9 @@ void main() {
     test(
       'the availability save that gets a captive portal’s HTML in a 200 → the generic sentence',
       () async {
-        _proClient = MockClient(
-          (_) async => http.Response(
-            '<html><body>Connectez-vous au Wi-Fi</body></html>',
-            200,
-          ),
+        _answer = (_) async => http.Response(
+          '<html><body>Connectez-vous au Wi-Fi</body></html>',
+          200,
         );
         final p = ProAvailabilityProvider();
         final ok = await p.updateAvailability(
@@ -121,9 +116,7 @@ void main() {
   test(
     '« Accueil » with nothing answering, through the REAL service: « Pas de connexion. Réessayez. »',
     () async {
-      _proClient = MockClient(
-        (_) async => throw http.ClientException('offline'),
-      );
+      _answer = (_) async => throw http.ClientException('offline');
       final p = ProDashboardProvider();
       await p.loadDashboardStats('provider1');
       expect(p.errorIsOffline, isTrue);
@@ -155,7 +148,7 @@ void main() {
     });
 
     test('the salon (getMyProvider), an HTML 200 → unreadable', () async {
-      _proClient = MockClient((_) async => http.Response('<html>', 200));
+      _answer = (_) async => http.Response('<html>', 200);
       final r = await serviceLocator.proService.getMyProvider();
       expect(r.code, 'unreadable');
       expect(r.error, kGenericErrorMessage);

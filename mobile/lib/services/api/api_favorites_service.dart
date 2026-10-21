@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 import '../../core/config/app_config.dart';
+import '../../core/constants/failure_messages.dart';
 import '../../models/api_response.dart';
 import '../../models/provider.dart';
 import '../interfaces/favorites_service_interface.dart';
@@ -110,7 +111,10 @@ class ApiFavoritesService implements FavoritesServiceInterface {
   Future<ApiResponse<bool>> isFavorite(String userId, String providerId) async {
     final res = await getFavoriteProviderIds(userId);
     if (!res.success) {
-      return ApiResponse.error(res.error ?? 'Erreur', code: res.code);
+      return ApiResponse.error(
+        res.error ?? kGenericErrorMessage,
+        code: res.code,
+      );
     }
     return ApiResponse.success(res.data!.contains(providerId));
   }

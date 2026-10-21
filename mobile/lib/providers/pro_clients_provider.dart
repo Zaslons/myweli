@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 
 import '../core/access/pro_access_guard.dart';
 import '../core/access/pro_salon_scope.dart';
+import '../core/constants/failure_messages.dart';
 import '../core/di/dependency_injection.dart';
 import '../core/utils/submission_key.dart';
 import '../models/appointment.dart';
@@ -70,7 +71,7 @@ class ProClientsProvider extends ChangeNotifier implements ShowsSalonBookings {
         ProAccessGuard.report(r.code);
       }
     } catch (e) {
-      _error = e.toString();
+      _error = kGenericErrorMessage;
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -187,7 +188,7 @@ class ProClientsProvider extends ChangeNotifier implements ShowsSalonBookings {
         _cardErrorCode = r.code;
       }
     } catch (e) {
-      _cardError = e.toString();
+      _cardError = kGenericErrorMessage;
     } finally {
       _cardLoading = false;
       notifyListeners();

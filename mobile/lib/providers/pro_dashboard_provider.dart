@@ -128,7 +128,7 @@ class ProDashboardProvider extends ChangeNotifier
       }
     } catch (e) {
       if (request != _loadRequest) return;
-      _error = e.toString();
+      _error = kGenericErrorMessage;
       _stats = null;
     }
     _isLoading = false;

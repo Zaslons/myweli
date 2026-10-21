@@ -336,7 +336,11 @@ class ApiProService implements ProServiceInterface {
     );
     if (res == null) return networkError();
     if (res.statusCode != 200) return _refused(res);
-    return ApiResponse.success(_decode(res.body)['url'] as String);
+    // Read by the booking detail directly: unreadable, never a throw.
+    return readOrUnreadable(
+      res,
+      (json) => (json! as Map<String, dynamic>)['url']! as String,
+    );
   }
 
   // ---- Not yet backed by an endpoint → delegate to the mock ----------------
@@ -360,20 +364,23 @@ class ApiProService implements ProServiceInterface {
     // other calls' callers read their codes, and none expects this one.
     if (res == null) return networkError();
     if (res.statusCode != 200) return _refused(res);
-    final body = jsonDecode(res.body) as Map<String, dynamic>;
-    final salonMap = body['provider'] as Map<String, dynamic>;
-    final membership = ProMembership.fromJson({
-      ...body['membership'] as Map<String, dynamic>,
-      // Folded in so ONE persisted blob shapes the app offline.
-      'salonId': salonMap['id'],
-      'salonName': salonMap['name'],
-    });
-    return ApiResponse.success(
-      MyProviderInfo(
+    // Read by a screen directly (the salon preview) as well as by the
+    // session: an unreadable answer is `unreadable`, never a throw
+    // (docs/design/app-failure-messages.md §2.1).
+    return readOrUnreadable(res, (json) {
+      final body = json! as Map<String, dynamic>;
+      final salonMap = body['provider'] as Map<String, dynamic>;
+      final membership = ProMembership.fromJson({
+        ...body['membership'] as Map<String, dynamic>,
+        // Folded in so ONE persisted blob shapes the app offline.
+        'salonId': salonMap['id'],
+        'salonName': salonMap['name'],
+      });
+      return MyProviderInfo(
         salon: Provider.fromJson(salonMap),
         membership: membership,
-      ),
-    );
+      );
+    });
   }
 
   @override

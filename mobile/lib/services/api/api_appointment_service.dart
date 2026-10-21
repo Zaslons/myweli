@@ -127,7 +127,14 @@ class ApiAppointmentService implements AppointmentServiceInterface {
     );
     if (signRes == null) return networkError();
     if (signRes.statusCode != 200) return _refused(signRes);
-    final ticket = _decode(signRes.body);
+    // The deposit sheet calls this directly: an unreadable ticket is
+    // `unreadable`, never a throw (docs/design/app-failure-messages.md §2.1).
+    final read = readOrUnreadable(
+      signRes,
+      (json) => json! as Map<String, dynamic>,
+    );
+    if (!read.success) return unreadable();
+    final ticket = read.data!;
 
     // 2. PUT the bytes straight to storage (the presign is the auth — no
     //    bearer here). Cloudflare R2 does not implement presigned POST and
@@ -190,7 +197,11 @@ class ApiAppointmentService implements AppointmentServiceInterface {
     );
     if (res == null) return networkError();
     if (res.statusCode != 200) return _refused(res);
-    return ApiResponse.success(_decode(res.body)['url'] as String);
+    // Read by the booking detail directly: unreadable, never a throw.
+    return readOrUnreadable(
+      res,
+      (json) => (json! as Map<String, dynamic>)['url']! as String,
+    );
   }
 
   @override

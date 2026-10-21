@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 
 import '../core/access/pro_salon_scope.dart';
+import '../core/constants/failure_messages.dart';
 import '../core/di/dependency_injection.dart';
 import '../core/utils/submission_key.dart';
 import '../models/api_response.dart';
@@ -57,7 +58,7 @@ class ProTeamProvider extends ChangeNotifier implements SalonScoped {
         _error = res.error ?? 'Erreur lors du chargement';
       }
     } catch (e) {
-      _error = e.toString();
+      _error = kGenericErrorMessage;
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -101,7 +102,7 @@ class ProTeamProvider extends ChangeNotifier implements SalonScoped {
       _inviteErrorCode = res.code;
       return null;
     } catch (e) {
-      _inviteError = e.toString();
+      _inviteError = kGenericErrorMessage;
       return null;
     } finally {
       _isInviting = false;
@@ -151,7 +152,7 @@ class ProTeamProvider extends ChangeNotifier implements SalonScoped {
       notifyListeners();
       return false;
     } catch (e) {
-      _actionError = e.toString();
+      _actionError = kGenericErrorMessage;
       notifyListeners();
       return false;
     }
@@ -218,7 +219,7 @@ class ProTeamProvider extends ChangeNotifier implements SalonScoped {
       notifyListeners();
       return null;
     } catch (e) {
-      _actionError = e.toString();
+      _actionError = kGenericErrorMessage;
       notifyListeners();
       return null;
     }
@@ -241,7 +242,7 @@ class ProTeamProvider extends ChangeNotifier implements SalonScoped {
       notifyListeners();
       return false;
     } catch (e) {
-      _actionError = e.toString();
+      _actionError = kGenericErrorMessage;
       notifyListeners();
       return false;
     }

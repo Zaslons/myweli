@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 
 import '../core/access/pro_salon_scope.dart';
+import '../core/constants/failure_messages.dart';
 import '../core/di/dependency_injection.dart';
 import '../models/salon_subscription.dart';
 import '../services/interfaces/subscription_service_interface.dart';
@@ -49,7 +50,7 @@ class ProSubscriptionProvider extends ChangeNotifier implements SalonScoped {
       }
     } catch (e) {
       _loadFailed = true;
-      _error = e.toString();
+      _error = kGenericErrorMessage;
     } finally {
       _isLoading = false;
       notifyListeners();

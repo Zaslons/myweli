@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../core/constants/failure_messages.dart';
 import '../../core/di/dependency_injection.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/colors.dart';
@@ -209,7 +210,7 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
       context,
       ok: success,
       success: 'Rendez-vous reporté',
-      error: provider.error ?? 'Erreur',
+      error: provider.error ?? kGenericErrorMessage,
     );
   }
 
