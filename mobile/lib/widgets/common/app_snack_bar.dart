@@ -83,7 +83,10 @@ abstract final class AppSnackBar {
 
   /// The primitive. [messenger] is a `ScaffoldMessengerState` captured BEFORE
   /// an await — the idiom 38 call sites already had right.
-  static void showOn(
+  ///
+  /// Returns the snackbar's controller, so a caller can take ITS message down
+  /// when a new attempt starts (the notifications' read failure, B3.3).
+  static ScaffoldFeatureController<SnackBar, SnackBarClosedReason> showOn(
     ScaffoldMessengerState messenger,
     String message, {
     SnackKind kind = SnackKind.info,
@@ -92,7 +95,7 @@ abstract final class AppSnackBar {
     // The newest message wins instead of queueing behind a 6s error — the
     // mirror of the web's `useToast`, where a re-show resets the timer.
     messenger.removeCurrentSnackBar(reason: SnackBarClosedReason.remove);
-    messenger.showSnackBar(
+    return messenger.showSnackBar(
       SnackBar(
         // Everything else — float, radius, elevation, text style, action
         // colour — comes from `snackBarTheme` (app_theme.dart). This adds the

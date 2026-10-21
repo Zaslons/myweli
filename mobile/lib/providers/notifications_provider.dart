@@ -18,6 +18,13 @@ class NotificationsProvider extends ChangeNotifier {
   final NotificationServiceInterface _service;
 
   List<AppNotification> _items = [];
+
+  /// The notifications with a « lu » write still out
+  /// (docs/design/app-failure-messages.md §2.3). A reload while one is out
+  /// would bring the server's list — which has not written it yet — and turn
+  /// the row the person just opened back to unread; so they stay read until
+  /// their write answers.
+  final Set<String> _writing = {};
   bool _isLoading = false;
   bool _loadFailed = false;
   String? _error;
@@ -36,7 +43,10 @@ class NotificationsProvider extends ChangeNotifier {
     try {
       final response = await _service.getNotifications();
       if (response.success && response.data != null) {
-        _items = response.data!;
+        _items = [
+          for (final n in response.data!)
+            _writing.contains(n.id) ? n.copyWith(read: true) : n,
+        ];
         _loadFailed = false;
         _error = null;
       } else {
@@ -69,10 +79,7 @@ class NotificationsProvider extends ChangeNotifier {
     final index = _items.indexWhere((n) => n.id == id);
     if (index == -1 || _items[index].read) return null;
     final marked = {id};
-    _setRead(marked, true);
-    final failure = await _persist(() => _service.markRead(id));
-    if (failure != null) _setRead(marked, false);
-    return failure;
+    return _markAndPersist(marked, () => _service.markRead(id));
   }
 
   /// Mark everything read at once, then persist.
@@ -87,9 +94,21 @@ class NotificationsProvider extends ChangeNotifier {
         if (!n.read) n.id,
     };
     if (marked.isEmpty) return null;
+    return _markAndPersist(marked, _service.markAllRead);
+  }
+
+  /// Read at once; kept read across a reload while [write] is out; then the
+  /// server's answer decides — only for [marked], never a snapshot.
+  Future<String?> _markAndPersist(
+    Set<String> marked,
+    Future<ApiResponse<bool>> Function() write,
+  ) async {
     _setRead(marked, true);
-    final failure = await _persist(_service.markAllRead);
-    if (failure != null) _setRead(marked, false);
+    _writing.addAll(marked);
+    final failure = await _persist(write);
+    _writing.removeAll(marked);
+    // A reload may have landed meanwhile: the answer is applied again.
+    _setRead(marked, failure == null);
     return failure;
   }
 
@@ -105,7 +124,13 @@ class NotificationsProvider extends ChangeNotifier {
   /// one for anything else — a refusal, no session, an exception.
   Future<String?> _persist(Future<ApiResponse<bool>> Function() write) async {
     try {
-      final response = await write();
+      var response = await write();
+      // A lost answer is asked again ONCE, at once, without a word (owner
+      // decision 12): the write is safe to repeat — the server sets
+      // `read = true` and answers 200 every time.
+      if (!response.success && response.code == 'network') {
+        response = await write();
+      }
       if (response.success) return null;
       if (response.code == 'network') {
         return response.error ?? writeFailedMessage;

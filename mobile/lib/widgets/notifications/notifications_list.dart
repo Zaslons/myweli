@@ -7,11 +7,11 @@ import 'package:provider/provider.dart';
 import '../../core/theme/app_theme.dart';
 import '../../models/app_notification.dart';
 import '../../providers/notifications_provider.dart';
-import '../common/app_snack_bar.dart';
 import '../common/brand_refresh.dart';
 import '../common/empty_state.dart';
 import '../common/loading_indicator.dart';
 import 'notification_tile.dart';
+import 'read_failure_snack.dart';
 
 /// The notification feed — the SHARED body of both notification centres (the
 /// consumer's `/notifications` and the pro's `/pro/notifications`). Each app
@@ -59,6 +59,7 @@ class _NotificationsListState extends State<NotificationsList> {
   /// Design: docs/design/app-notifications-read-revert.md §3.2 ①.
   Future<void> _open(NotificationsProvider provider, AppNotification n) async {
     final messenger = ScaffoldMessenger.of(context);
+    ReadFailureSnack.hide(); // a new attempt: the last failure is not the news
     final marking = provider.markRead(n.id);
     final route = n.route;
     if (route != null && route.isNotEmpty) {
@@ -73,7 +74,7 @@ class _NotificationsListState extends State<NotificationsList> {
     final failure = await marking;
     if (failure == null || !mounted) return;
     if (ModalRoute.isCurrentOf(context) ?? true) {
-      AppSnackBar.showOn(messenger, failure, kind: SnackKind.error);
+      ReadFailureSnack.show(messenger, failure);
     }
   }
 
