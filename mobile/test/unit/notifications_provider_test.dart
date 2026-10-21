@@ -449,6 +449,14 @@ void main() {
         list.complete(ApiResponse.success([note('a')])); // the older list
         await reload;
         expect(readOf(provider, 'a'), isTrue);
+
+        // Nothing kept for ever: the NEXT reload, with no write out, is the
+        // server's word again.
+        when(
+          () => service.getNotifications(),
+        ).thenAnswer((_) async => ApiResponse.success([note('a')]));
+        await provider.load();
+        expect(readOf(provider, 'a'), isFalse);
       },
     );
 
