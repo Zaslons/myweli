@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Statut** | **Brouillon** — quatre questions au propriétaire (§9), dont les décisions 14 et 15 ; la décision 13 n'a plus d'objet (§1.1) |
+| **Statut** | **Validé le 2026-10-21** — Q1 : **le dire, « Inviter » reste utilisable** ; Q2 (décision 14) : **retenir le salon** ; Q3 (décision 15) : **une ligne « indisponible » + « Réessayer »**, « — » pour les tuiles ; Q4 : **les mots tels qu'écrits** · la décision 13 n'a plus d'objet (§1.1) |
 | **Owner** | Sadreddine |
 | **Last updated** | 2026-10-21 |
 | **PRD ref / phase** | Espace Pro web (V1) — parité avec l'app Pro · WEB-SYSTEM §4–§8 (états, ARIA) · SYSTEM.md §17 (les deux phrases) |
@@ -172,3 +172,5 @@ les mêmes fichiers.
   pour la fiche du panneau et les suggestions (l'offre d'Équipe est Q1), et
   « — » pour les tuiles de chiffres (recommandé) ; ou le silence ?
 - **Q4** — les mots (§8), tels qu'écrits ?
+
+**Décisions (2026-10-21).** Q1, Q2, Q3 et Q4 : les recommandations, telles qu'écrites.
