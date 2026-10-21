@@ -40,6 +40,15 @@ import 'refreshing_http_client.dart';
 /// `authenticate()` does.
 typedef GoogleIdTokenProvider = Future<String?> Function();
 
+/// Opens Apple's sheet for [hashedNonce] (the SHA-256 of the raw nonce the
+/// backend later checks) and returns the credential. A `typedef` for the same
+/// reason as [GoogleIdTokenProvider]: the three Apple entry points can then be
+/// tested — what they send, the authorization code included (B6.7,
+/// docs/design/backend-integrity-batch6.md §13). Throws
+/// [SignInWithAppleAuthorizationException] on a cancel, like the SDK.
+typedef AppleCredentialProvider =
+    Future<AuthorizationCredentialAppleID> Function(String hashedNonce);
+
 class ApiAuthService implements AuthServiceInterface {
   ApiAuthService({
     http.Client? client,
@@ -47,11 +56,13 @@ class ApiAuthService implements AuthServiceInterface {
     SessionStore? sessionStore,
     SessionStore? providerSessionStore,
     GoogleIdTokenProvider? googleIdToken,
+    AppleCredentialProvider? appleCredential,
   }) : _client = client ?? http.Client(),
        _baseUrl = baseUrl ?? AppConfig.apiBaseUrl,
        _sessionStore = sessionStore ?? InMemorySessionStore(),
        _providerSessionStore = providerSessionStore ?? InMemorySessionStore(),
-       _googleIdToken = googleIdToken ?? _nativeGoogleIdToken;
+       _googleIdToken = googleIdToken ?? _nativeGoogleIdToken,
+       _appleCredential = appleCredential ?? _nativeAppleCredential;
 
   final http.Client _client;
   final String _baseUrl;
@@ -63,6 +74,30 @@ class ApiAuthService implements AuthServiceInterface {
   /// `api_auth_service_test.dart` contained not one occurrence of "google".
   /// Same shape as `ImageCompressor` in `ApiImageUploadService`.
   final GoogleIdTokenProvider _googleIdToken;
+
+  /// The Apple credential seam — same shape, same reason.
+  final AppleCredentialProvider _appleCredential;
+
+  /// Native Sign in with Apple: the one sheet all three entry points open,
+  /// asking for the e-mail and the name.
+  static Future<AuthorizationCredentialAppleID> _nativeAppleCredential(
+    String hashedNonce,
+  ) => SignInWithApple.getAppleIDCredential(
+    scopes: [
+      AppleIDAuthorizationScopes.email,
+      AppleIDAuthorizationScopes.fullName,
+    ],
+    nonce: hashedNonce,
+  );
+
+  /// Apple's one-time code, sent with the identity token so the server can
+  /// keep the refresh token it revokes when the account is deleted (B6.7 —
+  /// App Store 5.1.1(v)). Absent when Apple gave none.
+  static Map<String, String> _appleCode(
+    AuthorizationCredentialAppleID credential,
+  ) => credential.authorizationCode.isEmpty
+      ? const {}
+      : {'authorizationCode': credential.authorizationCode};
 
   /// **`initialize()` must run exactly once, and finish, before anything else.**
   /// v7 replaced per-call construction with a process-wide singleton
@@ -239,12 +274,8 @@ class ApiAuthService implements AuthServiceInterface {
       // iOS convention: Apple receives sha256(rawNonce); the backend gets the
       // raw nonce and checks the token's claim (replay defence — T31).
       final rawNonce = _randomNonce();
-      final credential = await SignInWithApple.getAppleIDCredential(
-        scopes: [
-          AppleIDAuthorizationScopes.email,
-          AppleIDAuthorizationScopes.fullName,
-        ],
-        nonce: sha256.convert(utf8.encode(rawNonce)).toString(),
+      final credential = await _appleCredential(
+        sha256.convert(utf8.encode(rawNonce)).toString(),
       );
       final identityToken = credential.identityToken;
       if (identityToken == null) {
@@ -261,6 +292,7 @@ class ApiAuthService implements AuthServiceInterface {
         'identityToken': identityToken,
         'nonce': rawNonce,
         if (fullName.isNotEmpty) 'fullName': fullName,
+        ..._appleCode(credential),
       });
       return _loginFrom(res);
     } on SignInWithAppleAuthorizationException catch (e) {
@@ -539,12 +571,8 @@ class ApiAuthService implements AuthServiceInterface {
   Future<ProviderLoginResult> signInProviderWithApple() async {
     try {
       final rawNonce = _randomNonce();
-      final credential = await SignInWithApple.getAppleIDCredential(
-        scopes: [
-          AppleIDAuthorizationScopes.email,
-          AppleIDAuthorizationScopes.fullName,
-        ],
-        nonce: sha256.convert(utf8.encode(rawNonce)).toString(),
+      final credential = await _appleCredential(
+        sha256.convert(utf8.encode(rawNonce)).toString(),
       );
       final identityToken = credential.identityToken;
       if (identityToken == null) {
@@ -556,6 +584,7 @@ class ApiAuthService implements AuthServiceInterface {
       final res = await _post('/auth/provider/apple', {
         'identityToken': identityToken,
         'nonce': rawNonce,
+        ..._appleCode(credential),
       });
       // No 202 bridge on the Apple route (contract) — never `.invited`.
       return _providerLoginResultFrom(res);
@@ -707,12 +736,8 @@ class ApiAuthService implements AuthServiceInterface {
       // Same nonce discipline as signInProviderWithApple: the RAW nonce goes to
       // our backend, its SHA-256 to Apple, and the verifier compares them.
       final rawNonce = _randomNonce();
-      final credential = await SignInWithApple.getAppleIDCredential(
-        scopes: [
-          AppleIDAuthorizationScopes.email,
-          AppleIDAuthorizationScopes.fullName,
-        ],
-        nonce: sha256.convert(utf8.encode(rawNonce)).toString(),
+      final credential = await _appleCredential(
+        sha256.convert(utf8.encode(rawNonce)).toString(),
       );
       final identityToken = credential.identityToken;
       if (identityToken == null) {
@@ -724,6 +749,7 @@ class ApiAuthService implements AuthServiceInterface {
       final res = await _post('/auth/provider/register', {
         'identityToken': identityToken,
         'nonce': rawNonce,
+        ..._appleCode(credential),
         'phoneNumber': phoneNumber,
         'businessName': businessName,
         'businessType': businessType.name,
