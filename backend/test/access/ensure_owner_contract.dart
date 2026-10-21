@@ -128,4 +128,22 @@ void ensureOwnerContract({
     final rows = await rowsFor(r, 'manager@owner.pro');
     expect(rows.single.role, 'manager');
   });
+
+  test('the account is already a member under ANOTHER address: refused — '
+      'one account, one row per salon', () async {
+    final r = repo();
+    final invited = await r.invite(
+      providerId: p,
+      email: 'old@owner.pro',
+      role: 'reception',
+      expiresAt: inDays(7),
+    );
+    final id = await account('old@owner.pro');
+    await r.activate(invited!.id, id);
+    await expectLater(
+      r.ensureOwner(providerId: p, accountId: id, email: 'new@owner.pro'),
+      throwsStateError,
+    );
+    expect(await rowsFor(r, 'new@owner.pro'), isEmpty);
+  });
 }
