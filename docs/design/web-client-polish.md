@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Statut** | **Validé le 2026-10-21** — Q1 : **la phrase de l'app pour chaque code** ; Q2 (décision 16) : **le message et « Annuler »** ; Q3 : **l'app corrigée dans la PR A** ; Q4 : **« Mon compte » aussi, les mots tels qu'écrits** |
+| **Statut** | **PR A construite le 2026-10-21** sur `fix/web-client-polish` (#674 — B5.1, B5.3, et l'app selon Q3 — §10) ; **PR B** (B5.2, B5.4) à suivre. Validé le même jour — Q1 : **la phrase de l'app pour chaque code** ; Q2 (décision 16) : **le message et « Annuler »** ; Q3 : **l'app corrigée dans la PR A** ; Q4 : **« Mon compte » aussi, les mots tels qu'écrits** |
 | **Owner** | Sadreddine |
 | **Last updated** | 2026-10-21 |
 | **PRD ref / phase** | Web client (V1) — parité avec l'app client · WEB-SYSTEM §6 (formulaires), §7 (zones annoncées) · SYSTEM.md §14 (une faute, un endroit), §15 (retours), §17 (les deux phrases) |
@@ -34,13 +34,15 @@ plus, et deux défauts voisins ont été trouvés en relisant.
 | B5.1 | *Trouvé en relisant* — l'inscription Pro ne nomme que `otp_invalid` (un code expiré, bloqué ou absent dit la phrase générique), **et hors ligne elle dit « Une erreur est survenue »** au lieu de « Pas de connexion » ; « Recevoir un code » dit « Envoi du code impossible. Réessayez. » à tout, hors ligne compris | `ProRegisterClient.tsx:116-122`, `:142` |
 | B5.2 | La recherche : si la lecture des favoris **échoue** (réseau, 500), `favIds` reste `null` — comme pour un visiteur anonyme — et un ♥ envoie **une personne connectée à la page de connexion** | `RechercheClient.tsx:97-108`, `:124` |
 | B5.2 | Un double clic sur un ♥ envoie **deux** requêtes (le ♥ n'est désactivé que pendant la lecture initiale). Le serveur est idempotent, donc rien ne casse — mais avec B5.4 ce seraient deux annonces | `RechercheClient.tsx:121-145`, `:274` |
-| B5.3 | Export du salon : une erreur **en assemblant** le fichier dit « Impossible de charger vos rendez-vous, vos clients et vos revenus… vérifiez votre connexion » — trois lectures qui ont réussi | `CompteDangerSection.tsx:124` |
+| B5.3 | Export du salon : une erreur **en assemblant** le fichier dit « Export interrompu : impossible de charger les rendez-vous, le fichier clients et les revenus… » — trois lectures qui ont réussi | `CompteDangerSection.tsx:124` |
 | B5.3 | « Mes données » : `getFavorites` ne vérifie que le tableau ; un favori `null` fait **planter `load()`** (`f.favorites.map((p) => p.name)`, rejet non rattrapé) — la page reste sur son chargement pour toujours. Un rendez-vous `null` fait planter le **rendu** (`buildUserDataExport` appelé pendant le rendu) | `DataExportClient.tsx:67`, `:94` ; `lib/api/account.ts:113` |
 | B5.4 | Un ♥ réussi (recherche, page salon) **ne dit rien** ; l'app dit « Ajouté aux favoris » / « Retiré des favoris », avec « Annuler » | `RechercheClient.tsx:139`, `FavoriteButton.tsx:58` ; app : `provider_card.dart:234`, `provider_detail_screen.dart:308` |
 
 *Trouvé aussi, hors du web* : l'app fait la même erreur que B5.3 —
 `data_export_screen.dart:105` et `pro_data_export_screen.dart:220` nomment
-toutes les lectures quand l'assemblage échoue (Q3).
+toutes les lectures quand l'assemblage échoue (Q3). *Corrigé en construisant
+(§10) : la ligne 220 de l'écran Pro est le `catch` d'une lecture, qui est
+juste ; son vrai défaut était ailleurs.*
 
 ### 1.3 Ce que disent le serveur et l'app
 
@@ -147,7 +149,7 @@ L'inscription Pro passe par la même table : son code a déjà un champ
 | Inscription Pro hors ligne | « Une erreur est survenue. Réessayez. » | « Pas de connexion. Réessayez. » |
 | Recherche, lecture des ♥ échouée, ♥ | la page de connexion | l'écriture ; son 401 seul mène à la connexion |
 | Double clic sur un ♥ | deux requêtes | une |
-| Export du salon, assemblage raté | « Impossible de charger vos rendez-vous, vos clients et vos revenus… » | « Le fichier n'a pas pu être préparé. Réessayez. » |
+| Export du salon, assemblage raté | « Export interrompu : impossible de charger les rendez-vous, le fichier clients et les revenus… » | « Le fichier n'a pas pu être préparé. Réessayez. » |
 | « Mes données », favori cassé | chargement sans fin | « Impossible de charger vos favoris… » + « Réessayer » |
 | « Mes données », rendez-vous cassé | page cassée | « Le fichier n'a pas pu être préparé. Réessayez. » + « Réessayer » |
 | ♥ réussi | rien | « Ajouté aux favoris » / « Retiré des favoris » (+ « Annuler » selon Q2) |
@@ -226,3 +228,47 @@ Nouveaux sur le web (tous déjà dans l'app, sauf un) :
   qu'écrits ?
 
 **Décisions (2026-10-21).** Q1, Q2, Q3 et Q4 : les recommandations, telles qu'écrites.
+
+## 10. PR A construite (B5.1, B5.3, et l'app) — ce qui a été vu
+
+**Comme écrit**, avec ces précisions :
+- **La table** : `web/lib/auth/otp-failure.ts`, `codeRefusal` et
+  `sendRefusal`, pour les trois écrans. Le **code** est lu avant le statut :
+  le bouchon e2e répond `401 otp_invalid` là où le serveur répond 400, et la
+  phrase est la même. Un code inconnu n'accuse jamais un champ.
+- **« Renvoyer le code »** est sur l'étape du code, où le champ e-mail n'est
+  pas affiché : une faute de l'e-mail y est dite sous le formulaire. Aucun
+  test ne le couvrait — ajouté (la limite d'envois en tête).
+- **L'inscription Pro** : « compte existant » et le téléphone gardent leur
+  place ; le reste passe par la table (elle disait « Une erreur est survenue »
+  hors ligne).
+- **Trois anciens tests** épinglaient « Code incorrect ou expiré. »
+  (`login-options`, `consumer-network-saves`, `pro-remembered-salon`) : ils
+  disent maintenant les mots de l'app.
+- **Les exports** : `EXPORT_BUILD_FAILED` (`lib/account/export.ts`) sert
+  l'export du salon et « Mes données ». « Mes données » construit son document
+  dans `load()` ; sa date `generatedAt` est celle de la lecture (elle était
+  recalculée à chaque rendu). `getFavorites` refuse un élément qui n'est pas un
+  objet avec un `id` et un `name` en texte (statut 0) — pour « Mes données »,
+  la recherche, la page salon et « Mon compte ».
+- **L'app (Q3) — une correction de §1.2** : la ligne 220 de
+  `pro_data_export_screen.dart` est le `catch` d'une **lecture**, qui est
+  juste. Le vrai défaut de l'écran Pro était ailleurs : le document était
+  construit **dans `setState`**, et un throw y laissait le chargement pour
+  toujours. Il est construit avant, dans un `try`. L'écran client nommait les
+  deux lectures dans son `catch`. Les deux disent « Le fichier n’a pas pu être
+  préparé. Réessayez. », avec l'icône `error_outline` (ce n'est pas le
+  réseau) ; le titre « Chargement impossible » ne change pas.
+
+**Vérifié** : types et lint propres (web), `flutter analyze` à zéro ;
+2 128 tests web ; APP_COUNT tests de l'app ; e2e entier (E2E_COUNT) sur deux
+workers. **Mutations vues rouges (27)** : chaque phrase de code remise à
+l'ancienne ou dite ailleurs (`otp_invalid`, `otp_expired`, `otp_none`,
+`otp_locked`, `invalid_input`), la limite de débit et l'absence de réponse
+rendues génériques, `invalid_email` sous le formulaire, la limite d'envois
+oubliée, la limite de débit à l'envoi générique ; chaque écran remis à son
+ancien code (validation, envoi, champ caché accusé — client, salon, et
+l'inscription ×3) ; les favoris non vérifiés, un nom non exigé ; « Mes
+données » sans `catch`, puis sans son état ; l'export du salon qui nomme les
+lectures ; l'app qui les nomme, l'écran Pro qui construit dans `setState`,
+puis qui dit « Vérifiez votre connexion ».
