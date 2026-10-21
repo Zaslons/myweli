@@ -116,6 +116,7 @@ class _Salon extends MockProService {
     String? notes,
     String? artistId,
     bool sendSmsInvite = false,
+    String? idempotencyKey,
   }) async {
     createCalls++;
     final gate = createGate;

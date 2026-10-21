@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Statut** | **Validé le 2026-10-21** — Q1 (décision 11) : **la clé d'idempotence** ; Q2 : **redemander une fois, sans rien dire** ; Q3 : **les quatre écritures** ; Q4 : **les mots tels qu'écrits** (§8) |
+| **Statut** | **Construit le 2026-10-21** sur `fix/lost-write-answers` ; ce qui a été vu : §10. Validé le même jour — Q1 (décision 11) : **la clé d'idempotence** ; Q2 : **redemander une fois, sans rien dire** ; Q3 : **les quatre écritures** ; Q4 : **les mots tels qu'écrits** (§8) |
 | **Owner** | Sadreddine |
 | **Last updated** | 2026-10-21 |
 | **PRD ref / phase** | Réservation, journal Pro, clients, équipe (V1) · règle BACKEND.md : « les mutations argent/réservation prennent une clé d'idempotence » |
@@ -155,3 +155,72 @@ La suite décrit **(a)**.
   répondu, à la place de « La réservation a échoué. Réessayez. » ?
 
 **Décisions (2026-10-21).** Q1, Q2, Q3 et Q4 : les recommandations, telles qu'écrites.
+
+## 10. Construit — ce qui a été vu
+
+**Comme écrit**, avec ces précisions :
+- **Le serveur** : `lib/src/idempotency/` (le magasin et `idempotent()`), le
+  jumeau Postgres `lib/src/db/postgres_idempotency_store.dart`, la migration
+  `0040_idempotency_keys`. La portée garde la **requête** de l'adresse avec le
+  chemin : `?salonId=` choisit le salon d'une invitation, deux salons ne se
+  rejouent donc pas l'un l'autre.
+- **Une demande morte en route** : une clé restée « en cours » plus de
+  **5 minutes** (au-delà du plafond de 300 s de Cloud Run, aucune demande ne
+  tourne encore) est reprise — sinon chaque nouvel essai aurait entendu
+  `request_in_progress` pendant 24 h.
+- **Le magasin en panne n'empêche rien** : une erreur du magasin est une
+  ligne `idempotency_unavailable` et l'écriture passe comme avant les clés
+  (les quatre écritures ont besoin de la même base quelques lignes plus loin).
+- **Le BFF du web** : une API qui ne répond pas du tout (la connexion vers
+  elle coupée) est un **502** — elle sortait de la route en exception. C'est
+  la « réponse perdue » que le navigateur redemande.
+- **L'app** : comme le web, une réponse 2xx sans son corps est redemandée ;
+  sans corps une seconde fois, l'app dit « Pas de connexion. Réessayez. » —
+  elle a besoin du rendez-vous pour l'afficher, et « Réessayer » le rejoue.
+  Le web, lui, garde « Réservation envoyée » sans le bloc d'acompte, comme
+  avant.
+- **La clé vit dans le fournisseur de l'app** (pas dans l'écran) : fermer et
+  rouvrir la feuille de la même réservation garde la même clé.
+- **Le cron** : la purge des clés monte sur `/internal/cron/subscriptions`,
+  comme la spec le prévoit. C'est la **quatrième** tâche de ce cron, et son
+  commentaire disait qu'une quatrième imposerait d'extraire
+  `/internal/cron/maintenance` (un nouveau job Cloud Scheduler) : cette
+  extraction est **due**, et laissée à une tranche à part (ci-dessous).
+
+**Trouvé en construisant** :
+- **§8 se trompait sur l'app** : il disait que l'app dit déjà « Pas de
+  connexion. Réessayez. » quand rien ne répond. Le service des réservations
+  (et celui du Pro) disait « Connexion au serveur impossible ». La décision Q4
+  est appliquée là où elle porte — **la réservation du client, perdue deux
+  fois** — ; la réservation Pro garde sa phrase (« aucune autre phrase
+  nouvelle »). Aligner les deux phrases de l'app est le lot 3 (B3.1).
+- **Une note revenue sans son texte**, même redemandée : relâcher la clé
+  aurait fait d'un nouvel appui sur « Ajouter » une **seconde note**. La clé
+  n'est relâchée qu'une fois la note affichée (web et app).
+- **Deux trous vus par mutation** (serveur) : la lecture Postgres sans le
+  compte — deux comptes ayant fini la même clé pouvaient recevoir la réponse
+  l'un de l'autre ; et la réponse gardée dont le flux était déjà lu (le test
+  lisait la copie mise en cache par dart_frog, pas ce que le serveur envoie).
+  Deux tests de plus, les deux mutations rouges.
+- **Le stub de l'e2e** répondait 201 à chaque POST : il rejoue maintenant par
+  clé et dit combien de réservations chaque clé a créées
+  (`GET /__stub/bookings?key=`).
+
+**Mutations vues rouges** : serveur 23 (le rejeu qui recrée, la clé gardée
+après un refus ou une exception, un refus gardé, la portée sans le compte ou
+sans la requête, l'empreinte non vérifiée, ni expiration ni reprise, une
+réponse finie relâchée, l'effacement de tout le monde, les deux effacements
+oubliés, le cron qui ne purge pas, chacune des quatre routes sans la clé, le
+flux de la réponse épuisé) ; web 20 (pas de second essai, un second essai
+sous une **autre** clé, le corps perdu non redemandé, « en cours » non
+attendu, un 502 pris pour un refus, un 500 redemandé, une clé neuve à chaque
+fois, `settle` sans effet, chacune des quatre routes du BFF sans la clé, le
+cœur du BFF qui transmet tout, l'API morte qui sort en exception des deux
+côtés, la vieille phrase, la clé de note relâchée trop tôt, une clé faite du
+seul créneau, une clé par appel) ; app : ci-dessous.
+
+**Ce qui reste** (hors de cette tranche) :
+- extraire `/internal/cron/maintenance` (quatre tâches sur le cron des
+  abonnements) — un job Cloud Scheduler de plus, à décider ;
+- les deux phrases « rien n'a répondu » de l'app (B3.1).
+

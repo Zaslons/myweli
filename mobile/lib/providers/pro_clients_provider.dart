@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import '../core/access/pro_access_guard.dart';
 import '../core/access/pro_salon_scope.dart';
 import '../core/di/dependency_injection.dart';
+import '../core/utils/submission_key.dart';
 import '../models/appointment.dart';
 import '../models/salon_client.dart';
 import '../services/interfaces/pro_clients_service_interface.dart';
@@ -17,6 +18,9 @@ import '../services/interfaces/pro_clients_service_interface.dart';
 /// ([bookingCreated], docs/design/pro-journal-shows-new-booking.md §2.5).
 class ProClientsProvider extends ChangeNotifier implements ShowsSalonBookings {
   final ProClientsServiceInterface _service = serviceLocator.proClientsService;
+
+  /// One Idempotency-Key per note sent (docs/design/write-idempotency.md §4).
+  final SubmissionKey _noteKey = SubmissionKey();
 
   // ---- List ------------------------------------------------------------
 
@@ -349,7 +353,17 @@ class ProClientsProvider extends ChangeNotifier implements ShowsSalonBookings {
   }
 
   Future<bool> addNote(String providerId, String clientId, String body) async {
-    final r = await _service.addNote(providerId, clientId, body);
+    final r = await _service.addNote(
+      providerId,
+      clientId,
+      body,
+      idempotencyKey: _noteKey.forForm({
+        'providerId': providerId,
+        'clientId': clientId,
+        'body': body,
+      }),
+    );
+    if (r.success && r.data != null) _noteKey.settle();
     if (r.success && r.data != null && _card != null) {
       _card = _card!.copyWith(notes: [r.data!, ..._card!.notes]);
       notifyListeners();

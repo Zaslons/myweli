@@ -21,6 +21,7 @@ import '../../models/salon_membership_info.dart';
 import '../../models/service.dart';
 import '../interfaces/pro_service_interface.dart';
 import '../interfaces/session_store.dart';
+import 'idempotent_write.dart';
 import 'refreshing_http_client.dart';
 
 /// Real HTTP implementation of [ProServiceInterface] for the slices the backend
@@ -478,14 +479,18 @@ class ApiProService implements ProServiceInterface {
     String? notes,
     String? artistId,
     bool sendSmsInvite = false,
+    String? idempotencyKey,
   }) async {
     if (await _authed.accessToken() == null) {
       return ApiResponse.error('Non connecté');
     }
-    final res = await _authed.send(
-      (t) => _client.post(
+    // Under its key, a lost answer is asked again once — one booking, never
+    // a 409 on the slot the salon just took (docs/design/write-idempotency.md).
+    final res = await sendIdempotent(
+      _authed,
+      (t, key) => _client.post(
         _uri('/providers/$providerId/appointments'),
-        headers: _bearer(t),
+        headers: {..._bearer(t), ...key},
         body: jsonEncode({
           'serviceIds': serviceIds,
           'appointmentDateTime': appointmentDateTime.toUtc().toIso8601String(),
@@ -497,6 +502,7 @@ class ApiProService implements ProServiceInterface {
           'sendSmsInvite': sendSmsInvite,
         }),
       ),
+      key: idempotencyKey,
     );
     if (res == null) return _networkError();
     if (res.statusCode != 201) return _errorFrom(res);

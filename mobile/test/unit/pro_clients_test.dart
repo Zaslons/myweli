@@ -973,8 +973,10 @@ class _CountingClients implements ProClientsServiceInterface {
   Future<ApiResponse<SalonClientNote>> addNote(
     String providerId,
     String clientId,
-    String body,
-  ) => _base.addNote(providerId, clientId, body);
+    String body, {
+    String? idempotencyKey,
+  }) =>
+      _base.addNote(providerId, clientId, body, idempotencyKey: idempotencyKey);
 
   @override
   Future<ApiResponse<bool>> deleteNote(

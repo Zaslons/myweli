@@ -10,6 +10,7 @@ import '../../models/team_invitation.dart';
 import '../../models/team_member.dart';
 import '../interfaces/pro_team_service_interface.dart';
 import '../interfaces/session_store.dart';
+import 'idempotent_write.dart';
 import 'refreshing_http_client.dart';
 
 /// REST impl of the salon team surface (module `access` R3, consuming the
@@ -64,20 +65,25 @@ class ApiProTeamService implements ProTeamServiceInterface {
     required String email,
     required TeamRole role,
     String? artistId,
+    String? idempotencyKey,
   }) async {
     if (await _authed.accessToken() == null) {
       return _signedOut();
     }
-    final res = await _authed.send(
-      (t) async => _client.post(
+    // Under its key, a lost answer is asked again once — one invitation, one
+    // e-mail, never `member_exists` (docs/design/write-idempotency.md §4).
+    final res = await sendIdempotent(
+      _authed,
+      (t, key) async => _client.post(
         await _membersUri('/me/provider/members'),
-        headers: _json(t),
+        headers: {..._json(t), ...key},
         body: jsonEncode({
           'email': email.trim().toLowerCase(),
           'role': role.name,
           if (artistId != null && artistId.isNotEmpty) 'artistId': artistId,
         }),
       ),
+      key: idempotencyKey,
     );
     return _memberFrom(res, expected: 201);
   }

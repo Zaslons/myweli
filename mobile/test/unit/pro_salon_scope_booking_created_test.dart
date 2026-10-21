@@ -36,6 +36,7 @@ class _Service extends MockProService {
     String? notes,
     String? artistId,
     bool sendSmsInvite = false,
+    String? idempotencyKey,
   }) async {
     calls++;
     if (outcome == 'throw') throw Exception('SocketException');

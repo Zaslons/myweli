@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 
 import '../core/di/dependency_injection.dart';
 import '../core/utils/app_clock.dart';
+import '../core/utils/submission_key.dart';
 import '../core/utils/visit_history.dart' as vh;
 import '../models/appointment.dart';
 import '../services/interfaces/appointment_service_interface.dart';
@@ -15,6 +16,12 @@ const String kSlotsError =
 class AppointmentProvider extends ChangeNotifier {
   final AppointmentServiceInterface _appointmentService =
       serviceLocator.appointmentService;
+
+  /// One Idempotency-Key per booking submission — the same on « Réessayer »,
+  /// a new one once the booking changed or after it succeeded
+  /// (docs/design/write-idempotency.md §4). Held here, not by the screen, so
+  /// it survives the sheet closing and opening again on the same booking.
+  final SubmissionKey _bookingKey = SubmissionKey();
 
   List<Appointment> _appointments = [];
   Appointment? _selectedAppointment;
@@ -128,6 +135,14 @@ class AppointmentProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
+      final key = _bookingKey.forForm({
+        'providerId': providerId,
+        'serviceIds': serviceIds,
+        'appointmentDateTime': appointmentDateTime.toUtc().toIso8601String(),
+        'artistId': artistId,
+        'notes': notes,
+        'depositScreenshotUrl': depositScreenshotUrl,
+      });
       final response = await _appointmentService.bookAppointment(
         providerId: providerId,
         serviceIds: serviceIds,
@@ -136,8 +151,10 @@ class AppointmentProvider extends ChangeNotifier {
         notes: notes,
         depositAmount: depositAmount,
         depositScreenshotUrl: depositScreenshotUrl,
+        idempotencyKey: key,
       );
       if (response.success && response.data != null) {
+        _bookingKey.settle();
         _appointments.add(response.data!);
         _error = null;
         _errorCode = null;

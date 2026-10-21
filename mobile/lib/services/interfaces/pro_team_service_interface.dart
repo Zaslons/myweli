@@ -14,10 +14,14 @@ abstract class ProTeamServiceInterface {
   /// Invite by email. Errors: `member_exists`, `invalid_role`,
   /// `artist_required`/`artist_not_found` (Collaborateur ⇒ fiche),
   /// `offer_required`, `seat_limit`, `invite_rate_limited`.
+  /// [idempotencyKey]: one per submission — the invitation and its e-mail go
+  /// once, and a replay is never `member_exists`
+  /// (docs/design/write-idempotency.md §4).
   Future<ApiResponse<TeamMember>> inviteMember({
     required String email,
     required TeamRole role,
     String? artistId,
+    String? idempotencyKey,
   });
 
   /// Change a member's role. The owner row → `owner_protected`.

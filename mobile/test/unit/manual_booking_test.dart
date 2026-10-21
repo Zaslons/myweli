@@ -62,6 +62,7 @@ void main() {
           clientPhone: any(named: 'clientPhone'),
           notes: any(named: 'notes'),
           sendSmsInvite: any(named: 'sendSmsInvite'),
+          idempotencyKey: any(named: 'idempotencyKey'),
         ),
       ).thenAnswer((_) async => response);
     }
@@ -148,6 +149,7 @@ void main() {
           notes: any(named: 'notes'),
           artistId: any(named: 'artistId'),
           sendSmsInvite: any(named: 'sendSmsInvite'),
+          idempotencyKey: any(named: 'idempotencyKey'),
         ),
       ).thenAnswer((_) async => ApiResponse.success(created()));
 

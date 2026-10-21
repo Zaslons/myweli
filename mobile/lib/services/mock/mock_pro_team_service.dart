@@ -89,7 +89,10 @@ class MockProTeamService implements ProTeamServiceInterface {
     required String email,
     required TeamRole role,
     String? artistId,
+    String? idempotencyKey,
   }) async {
+    // The mock never loses an answer, so it never sees a retry under the
+    // same key: the key is accepted and has nothing to do here.
     await Future.delayed(AppConstants.mockDelay);
     final key = email.trim().toLowerCase();
     if (key.isEmpty || !key.contains('@')) {

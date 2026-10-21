@@ -655,7 +655,10 @@ class MockProService implements ProServiceInterface {
     String? notes,
     String? artistId,
     bool sendSmsInvite = false,
+    String? idempotencyKey,
   }) async {
+    // The mock never loses an answer, so it never sees a retry under the
+    // same key: the key is accepted and has nothing to do here.
     await Future.delayed(AppConstants.mockDelay);
 
     if (serviceIds.isEmpty) {

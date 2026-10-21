@@ -61,11 +61,13 @@ abstract class ProClientsServiceInterface {
     String phone,
   );
 
+  /// [idempotencyKey]: one per note sent (docs/design/write-idempotency.md §4).
   Future<ApiResponse<SalonClientNote>> addNote(
     String providerId,
     String clientId,
-    String body,
-  );
+    String body, {
+    String? idempotencyKey,
+  });
 
   Future<ApiResponse<bool>> deleteNote(
     String providerId,

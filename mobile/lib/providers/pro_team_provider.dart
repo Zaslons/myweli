@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 
 import '../core/access/pro_salon_scope.dart';
 import '../core/di/dependency_injection.dart';
+import '../core/utils/submission_key.dart';
 import '../models/api_response.dart';
 import '../models/team_invitation.dart';
 import '../models/team_member.dart';
@@ -12,6 +13,10 @@ import '../services/interfaces/pro_team_service_interface.dart';
 /// Mutations update the row in place from the returned member.
 class ProTeamProvider extends ChangeNotifier implements SalonScoped {
   ProTeamServiceInterface get _service => serviceLocator.proTeamService;
+
+  /// One Idempotency-Key per invitation submission
+  /// (docs/design/write-idempotency.md §4).
+  final SubmissionKey _inviteKey = SubmissionKey();
 
   // ---- Owner roster ---------------------------------------------------------
 
@@ -73,8 +78,14 @@ class ProTeamProvider extends ChangeNotifier implements SalonScoped {
         email: email,
         role: role,
         artistId: artistId,
+        idempotencyKey: _inviteKey.forForm({
+          'email': email,
+          'role': role.name,
+          'artistId': artistId,
+        }),
       );
       if (res.success && res.data != null) {
+        _inviteKey.settle();
         // Replace by id: inviting a revoked or expired address again returns
         // the SAME row (docs/design/backend-team-reinvite.md), which an
         // append would show twice until the next reload.
