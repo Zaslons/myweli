@@ -17,15 +17,18 @@ import { operatorsFor } from '../../lib/localities';
 import { PHONE_INVALID } from '../../lib/phone';
 import { formatFcfa } from '../../lib/format';
 import {
+  DEPOSIT_PERCENT_MESSAGE,
   DEPOSIT_PERCENT_RANGE,
   DEPOSIT_SAMPLE_TOTAL,
   type DepositForm,
+  OPERATOR_UNAVAILABLE_MESSAGE,
   buildDepositPayload,
   depositExample,
   depositToForm,
   sliderPosition,
   validateDeposit,
   validateDepositNumber,
+  validateDepositPercent,
   windowChoices,
 } from '../../lib/pro/deposit';
 import { useLocalities } from '../../lib/use-localities';
@@ -66,6 +69,10 @@ export function AcompteClient() {
   const [loadError, setLoadError] = useState<LoadFailure | false>(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // The slider's and the operator's own faults — under them, tied to them
+  // (B6.5: the server's range and catalogue).
+  const [percentError, setPercentError] = useState<string | null>(null);
+  const [operatorError, setOperatorError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
   const [verified, setVerified] = useState(false);
   // « Numéro Mobile Money » answers UNDER its field (§14 rules 1/2 —
@@ -135,6 +142,9 @@ export function AcompteClient() {
   function set<K extends keyof DepositForm>(k: K, v: DepositForm[K]) {
     setForm((f) => (f ? { ...f, [k]: v } : f));
     setSaved(false);
+    // A fault belongs to its control: changing it takes the fault away.
+    if (k === 'percent') setPercentError(null);
+    if (k === 'operator') setOperatorError(null);
   }
 
   async function save() {
@@ -146,7 +156,10 @@ export function AcompteClient() {
     if (!numberOk && !f.required) setShowNumberWhileOff(true);
     const v = validateDeposit(f);
     setError(v);
-    if (v || !numberOk) return;
+    const pv = validateDepositPercent(f, lastPercentage);
+    setPercentError(pv);
+    setOperatorError(null);
+    if (v || pv || !numberOk) return;
     setBusy(true);
     setError(null);
     // A new answer replaces the last one: « Acompte enregistré. » must not
@@ -165,6 +178,15 @@ export function AcompteClient() {
       if (r.error === 'invalid_phone') {
         fields.set('number', PHONE_INVALID);
         if (!f.required) setShowNumberWhileOff(true);
+        return;
+      }
+      // The server's range and catalogue (B6.5): under their controls.
+      if (r.error === 'invalid_percentage') {
+        setPercentError(DEPOSIT_PERCENT_MESSAGE);
+        return;
+      }
+      if (r.error === 'operator_unavailable') {
+        setOperatorError(OPERATOR_UNAVAILABLE_MESSAGE);
         return;
       }
       setError(
@@ -250,8 +272,15 @@ export function AcompteClient() {
                 step={DEPOSIT_PERCENT_RANGE.step}
                 value={sliderPosition(form.percent)}
                 aria-valuetext={percentLabel}
+                aria-invalid={percentError ? true : undefined}
+                aria-describedby={percentError ? 'deposit-percent-error' : undefined}
                 onChange={(e) => set('percent', e.target.value)}
               />
+              {percentError ? (
+                <p id="deposit-percent-error" role="alert" className="mt-xs text-bodyMedium text-error">
+                  {percentError}
+                </p>
+              ) : null}
             </div>
             <div
               data-testid="deposit-example"
@@ -302,6 +331,8 @@ export function AcompteClient() {
                   <select
                     className={input}
                     value={form.operator}
+                    aria-invalid={operatorError ? true : undefined}
+                    aria-describedby={operatorError ? 'deposit-operator-error' : undefined}
                     onChange={(e) => set('operator', e.target.value)}
                   >
                     <option value="">— Choisir —</option>
@@ -313,6 +344,13 @@ export function AcompteClient() {
                   </select>
                 )}
               </label>
+            ) : null}
+            {/* After the label, not inside it: inside, it would become part of
+                the select's accessible name. */}
+            {form.required && operatorError ? (
+              <p id="deposit-operator-error" role="alert" className="text-bodyMedium text-error">
+                {operatorError}
+              </p>
             ) : null}
             {/* The shared PhoneField (+225 on screen — parity with the app).
                 It mounts with the switch — or with a refusal while deposits

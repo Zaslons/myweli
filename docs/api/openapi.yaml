@@ -2233,8 +2233,16 @@ paths:
         Server-authoritative (booking derives each deposit from this).
         **Enabling deposits requires a KYC-VERIFIED account** (T52) →
         403 `verification_required` otherwise.
-        Validated: `depositPercentage` 0..1 (and > 0 when required);
-        `cancellationWindowHours` 0..720; `mobileMoneyOperator` in the enum;
+        Validated: `depositPercentage` 0..1; **a required deposit is 0.05–0.80
+        when the percentage changes** — a value stored before the range is
+        kept while it is sent back unchanged — else 400 `invalid_percentage`
+        (one range for app, web and server, decision 19 —
+        docs/design/backend-integrity-batch6.md §2.5);
+        `cancellationWindowHours` 0..720; `mobileMoneyOperator`: with a
+        required deposit, one of the salon country's catalog, else 400
+        `operator_unavailable` (it may have been removed from the catalog);
+        with deposits off it is not judged, and **one outside the catalog is
+        not kept** (stored null — T57);
         `mobileMoneyNumber` E.164 (a +225 number has exactly 10 digits after
         the code; checked whenever present, deposits on or off) — a bad one
         is 400 `invalid_phone`, its own code so a client can put the fault
@@ -2264,7 +2272,14 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/DepositPolicy' }
-        '400': { $ref: '#/components/responses/BadRequest' }
+        '400':
+          description: >
+            `invalid_percentage` (under the slider) · `operator_unavailable`
+            (under the operator) · `invalid_phone` (under the number) ·
+            `invalid_input` (every other fault) · `invalid_body`.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }

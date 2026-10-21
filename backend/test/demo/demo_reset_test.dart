@@ -41,6 +41,7 @@ void main() {
   late InMemoryDemoSnapshotRepository snapshots;
   late DemoResetService service;
   late List<String> logs;
+
   /// The storage objects the reset asked to delete (their paths).
   late List<String> deleted;
 
