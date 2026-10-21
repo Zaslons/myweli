@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Statut** | **Proposé le 2026-10-21** — en attente des réponses du propriétaire (§9) |
+| **Statut** | **Validé le 2026-10-21** — Q1 (décision 17) : **effacer les numéros et l'adresse, garder le nom et l'historique** ; Q2 (décision 18) : **effacer le KYC de la démo à la remise** ; Q3 (décision 19) : **5–80 %** ; Q4 (décision 20) : **Propriétaire et Gérant, la même file marquée** ; Q5 : **Apple construit maintenant, inactif sans clé** ; Q6 : **le reste tel qu'écrit** (décision 22 : l'alerte, pas de recréation) |
 | **Owner** | Sadreddine |
 | **Last updated** | 2026-10-21 |
 | **PRD ref / phase** | Serveur (V1) — BACKEND.md §3 (authz, refus par défaut, validation), §7 (modèle de menaces) · App Store 1.2 (signaler un contenu), 5.1.1(v) (suppression de compte) |
@@ -223,3 +223,5 @@ Les changements d'app partent avec la prochaine version des stores.
   n'existe pas** (recommandé — tu crées la clé ensuite), ou attendre la clé ?
 - **Q6** — Le reste tel qu'écrit : la décision 22 (l'alerte, pas de
   recréation), les quatre PR, les mots ?
+
+**Décisions (2026-10-21).** Q1 à Q6 : les recommandations, telles qu'écrites.

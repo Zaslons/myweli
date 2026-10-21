@@ -85,12 +85,12 @@ Each question has a recommendation. Answers unblock the item named in brackets.
 
 **Backend (batch 6)**
 
-17. **When an owner deletes their account:** erase the salon's phone, WhatsApp, Mobile Money number and address, and keep only the name and the history? *Recommended: yes.* [B6.3]
-18. **A reviewer's KYC on the demo account:** erase it at the weekly reset (*recommended*), or refuse KYC submission on the demo account like publish and invite? [B6.4]
-19. **One deposit percentage range for app, web and server:** 5–80 % (today's app slider), 1–100 % (today's web field), or another range? [B6.5]
-20. **Salons reporting reviews:** the same admin queue as client reports, marked « signalé par le salon »? And may every team member report, or only Propriétaire and Gérant? [B6.6]
+17. **When an owner deletes their account:** erase the salon's phone, WhatsApp, Mobile Money number and address, and keep only the name and the history? *Recommended: yes.* [B6.3] — ✅ **Answered: yes** — erase the numbers and the address, keep the name and the history ([backend-integrity-batch6.md](design/backend-integrity-batch6.md) Q1).
+18. **A reviewer's KYC on the demo account:** erase it at the weekly reset (*recommended*), or refuse KYC submission on the demo account like publish and invite? [B6.4] — ✅ **Answered: erase it at the weekly reset** (Q2).
+19. **One deposit percentage range for app, web and server:** 5–80 % (today's app slider), 1–100 % (today's web field), or another range? [B6.5] — ✅ **Answered: 5–80 %**, server-enforced when the deposit is on and the % changes (Q3).
+20. **Salons reporting reviews:** the same admin queue as client reports, marked « signalé par le salon »? And may every team member report, or only Propriétaire and Gérant? [B6.6] — ✅ **Answered: the same queue, marked « Signalé par le salon »; Propriétaire and Gérant only** (Q4).
 21. **Exercising the T72 fix in production:** create and delete one throwaway Pro account, or accept the CI test plus the database check? [B10]
-22. **Demo identity lost outside the product:** should the weekly reset re-create it, or is an alert plus manual recovery enough? *Recommended: the alert now; re-creation only if it ever happens.* [B6.9]
+22. **Demo identity lost outside the product:** should the weekly reset re-create it, or is an alert plus manual recovery enough? *Recommended: the alert now; re-creation only if it ever happens.* [B6.9] — ✅ **Answered: the alert now, no re-creation** (Q6).
 
 **Pro app (batch 7)**
 
