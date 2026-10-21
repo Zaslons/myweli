@@ -298,7 +298,7 @@ puis qui dit « Vérifiez votre connexion ».
   échec — s'il est tombé ; il ne revenait qu'après un échec.
 
 **Vérifié** : types et lint propres ; 2 146 tests web ; e2e entier
-(E2E_COUNT) sur deux workers, dont le nouvel e2e « téléphone », vu rouge sans
+(269) sur deux workers, dont le nouvel e2e « téléphone », vu rouge sans
 le placement. **Mutations vues rouges (18)** : la lecture échouée prise pour
 anonyme, celle qui jette prise pour anonyme, puis laissée en attente ; les
 trois gardes retirées ; le ♥ qui ne dit pas qu'il est occupé ; la recherche
