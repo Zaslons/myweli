@@ -261,7 +261,7 @@ Nouveaux sur le web (tous déjà dans l'app, sauf un) :
   réseau) ; le titre « Chargement impossible » ne change pas.
 
 **Vérifié** : types et lint propres (web), `flutter analyze` à zéro ;
-2 128 tests web ; APP_COUNT tests de l'app ; e2e entier (E2E_COUNT) sur deux
+2 128 tests web ; 2 547 tests de l'app ; e2e entier (268) sur deux
 workers. **Mutations vues rouges (27)** : chaque phrase de code remise à
 l'ancienne ou dite ailleurs (`otp_invalid`, `otp_expired`, `otp_none`,
 `otp_locked`, `invalid_input`), la limite de débit et l'absence de réponse
