@@ -18,7 +18,9 @@ export function rememberSalon(
   salon: RememberedSalon,
   store: KeyStore = safeLocalStore(),
 ): void {
-  if (!salon.id || !salon.name) return;
+  // A salon with nothing to call it: the one kept before is not this one,
+  // so it goes — never a name for the wrong salon.
+  if (!salon.id || !salon.name) return forgetSalon(store);
   try {
     store.set(
       REMEMBERED_SALON_KEY,

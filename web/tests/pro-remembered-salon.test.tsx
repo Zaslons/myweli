@@ -46,9 +46,12 @@ describe('the remembered salon', () => {
     expect(JSON.parse(window.localStorage.getItem('myweli_pro_last_salon')!)).toEqual(SALON);
   });
 
-  it('a salon without a name is not kept (there would be nothing to say)', () => {
-    rememberSalon({ id: 'p1', name: '' });
+  it('a salon without a name replaces the one kept before — never a name for '
+    + 'the wrong salon', () => {
+    rememberSalon(SALON);
+    rememberSalon({ id: 'p2', name: '' });
     expect(rememberedSalon()).toBeNull();
+    expect(window.localStorage.getItem('myweli_pro_last_salon')).toBeNull();
   });
 
   it('what is not a salon reads as nothing — never a name made of it', () => {

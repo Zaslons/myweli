@@ -839,9 +839,18 @@ describe('« Aujourd’hui » — accepting while already a member', () => {
 /// first /me that failed drew the OWNER's menu for any role, and a reload
 /// lost the name of the salon whose access was withdrawn.
 describe('B4.4 — the rejoin gate, closed', () => {
+  // The owner's « Aujourd’hui » (the agenda's whole view) — OWNER_P1 above
+  // carries finances only, and draws the Collaborateur's page.
+  const OWNER_FULL = {
+    ...OWNER_P1,
+    membership: {
+      role: 'owner',
+      capabilities: ['journal.view.all', 'journal.manage.all', 'finances.view'],
+    },
+  };
   for (const [who, me] of [
     ['a Collaborateur', STAFF_P1],
-    ['the owner', OWNER_P1],
+    ['the owner', OWNER_FULL],
   ] as const) {
     for (const [action, path] of [
       ['Rejoindre', 'accept'],
@@ -865,6 +874,11 @@ describe('B4.4 — the rejoin gate, closed', () => {
           </ProMembershipProvider>,
         );
         await screen.findByText(/invite comme Réception/);
+        // The page each role gets: its planning, or the salon's day.
+        screen.getByRole('heading', {
+          level: 1,
+          name: me === STAFF_P1 ? /votre planning/ : 'Aujourd’hui',
+        });
         fireEvent.click(screen.getByRole('button', { name: action }));
 
         await waitFor(() =>
