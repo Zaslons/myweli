@@ -75,9 +75,9 @@ Each question has a recommendation. Answers unblock the item named in brackets.
 
 **Web Pro (batch 4)**
 
-13. **When the salon's offer can't be read:** leave « Mettre en ligne » clickable and let the server decide? *Recommended: yes, the server re-checks.* Or block it until the offer is read? [B4.1]
-14. **The rejoin gate after a reload:** remember the last salon's name in the browser, so it can say « Votre accès à {salon} a été retiré », like the app? Or keep the generic line? *Recommended: remember it.* [B4.4]
-15. **Four minor Pro sections that vanish silently on a failed read** (seats bar, stats tiles, panel client card, client suggestions): give them a one-line « indisponible » note with « Réessayer », or accept the silence? *Recommended: the note, for the three that drive an action; the stats tiles can stay « — ».* [B4.5]
+13. **When the salon's offer can't be read:** leave « Mettre en ligne » clickable and let the server decide? *Recommended: yes, the server re-checks.* Or block it until the offer is read? [B4.1] — ✅ **No longer anything to decide**: « Mettre en ligne » stopped reading the offer on 2026-10-19, so the server already decides; Équipe's case was asked instead (#672: say it, keep « Inviter »).
+14. **The rejoin gate after a reload:** remember the last salon's name in the browser, so it can say « Votre accès à {salon} a été retiré », like the app? Or keep the generic line? *Recommended: remember it.* [B4.4] — ✅ **Answered: remember it** (built in batch 4's PR B).
+15. **Four minor Pro sections that vanish silently on a failed read** (seats bar, stats tiles, panel client card, client suggestions): give them a one-line « indisponible » note with « Réessayer », or accept the silence? *Recommended: the note, for the three that drive an action; the stats tiles can stay « — ».* [B4.5] — ✅ **Answered: as recommended** (#672).
 
 **Client web (batch 5)**
 
@@ -215,7 +215,7 @@ This batch takes up three of the six suggested tasks that were never started. It
 
 ### Batch 4 — Web Pro is truthful on failure (P2, web)
 
-- **B4.1 Three failed reads show something false, and « Voir le justificatif » does nothing (P2 · M · decision 13).**
+- ✅ **B4.1 Three failed reads show something false, and « Voir le justificatif » does nothing (P2 · M · decision 13).** **Done in #672** — [web-pro-truthful-failure.md](design/web-pro-truthful-failure.md) §1.1, §10: « Mettre en ligne » and « Voir le justificatif » were already fixed on main; the false « Choisissez votre offre » had moved to Équipe, now three-state.
   - **What:**
     - A draft salon whose offer couldn't be read is told « Choisissez votre offre » and can't go live.
     - A client card says « Aucune visite » beside a visit count of 5.
@@ -229,7 +229,7 @@ This batch takes up three of the six suggested tasks that were never started. It
 - **B4.2 « Calendrier » and « Liste » stay stale after a day-grid action (P2 · M)** *(suggested task)*.
   - **What:** after creating, moving, accepting or cancelling in the day view, the other two tabs keep the old data until a reload. `items` is set once at mount.
   - **How:** in `RendezVousClient.tsx`, a `loadItems()` with its own request id (the journal's dedupe), and one `refreshAfterChange()` passed to the grid and to the dialog's `onCreated`.
-- **B4.3 Demo account and suspended salon get a generic error (P2 · S)** *(suggested task)*.
+- ✅ **B4.3 Demo account and suspended salon get a generic error (P2 · S)** *(suggested task)*. **Done in #672** — [web-pro-truthful-failure.md](design/web-pro-truthful-failure.md) §10.
   - **What:** « Mettre en ligne » and the offer page say « …a échoué. Réessayez. » for `demo_account_locked`, so the reviewer retries forever.
   - **How:** `publishSalon` returns `error`. `GoLiveCard` and `AbonnementClient` map `demo_account_locked` to `DEMO_ACCOUNT_LOCKED_MESSAGE`, `provider_suspended` to the existing salon sentence, and status 0 to the offline sentence.
 - **B4.4 Rejoin gate gaps (P2 · S · decision 14).**
@@ -241,7 +241,7 @@ This batch takes up three of the six suggested tasks that were never started. It
     - `onUnauthenticated` on both cards.
     - Start `awaitingProfile` true and use the existing `healProfile` loop on a failed first probe.
     - If you choose to: remember the acting salon `{id, name}` in `localStorage`, cleared at sign-out.
-- **B4.5 Minor sections that vanish silently (P3 · S · decision 15).** The seats bar, the stats tiles, the panel's client card and the « Nouveau rendez-vous » suggestions get a one-line « indisponible » note with « Réessayer », worded by `loadFailureMessage`.
+- ✅ **B4.5 Minor sections that vanish silently (P3 · S · decision 15).** **Done in #672** — [web-pro-truthful-failure.md](design/web-pro-truthful-failure.md) §10 (the seats bar is Équipe's offer, in B4.1). The seats bar, the stats tiles, the panel's client card and the « Nouveau rendez-vous » suggestions get a one-line « indisponible » note with « Réessayer », worded by `loadFailureMessage`.
 
 ### Batch 5 — Client web polish (P2–P3, web)
 

@@ -309,6 +309,9 @@ export async function publishSalon(providerId: string): Promise<{
   ok: boolean;
   status: number;
   missing?: string[];
+  /// The refusal's code — `demo_account_locked`, `provider_suspended` — so the
+  /// card can name it (docs/design/web-pro-truthful-failure.md §2.3).
+  error?: string;
 }> {
   const res = await send('/api/pro/publish', {
     method: 'POST',
@@ -316,8 +319,11 @@ export async function publishSalon(providerId: string): Promise<{
     body: JSON.stringify({ providerId }),
   });
   if (res.ok) return { ok: true, status: res.status };
-  const body = (await res.json().catch(() => ({}))) as { missing?: string[] };
-  return { ok: false, status: res.status, missing: body.missing };
+  const body = (await res.json().catch(() => ({}))) as {
+    missing?: string[];
+    error?: string;
+  };
+  return { ok: false, status: res.status, missing: body.missing, error: body.error };
 }
 
 /// The signed-in provider's KYC (docs/design/web-pro-kyc.md).

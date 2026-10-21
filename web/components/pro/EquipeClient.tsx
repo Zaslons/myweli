@@ -51,6 +51,10 @@ export function EquipeClient() {
   const [artists, setArtists] = useState<Artist[]>([]);
   const [members, setMembers] = useState<TeamMember[]>([]);
   const [offer, setOffer] = useState<SalonOffer | null>(null);
+  // The offer has THREE states (docs/design/web-pro-truthful-failure.md §2.1):
+  // present, absent (404 — « Choisissez votre offre »), and unknown — the read
+  // failed, and saying « choose one » to a salon that has one was false.
+  const [offerFailed, setOfferFailed] = useState<LoadFailure | false>(false);
   const [loading, setLoading] = useState(true);
   const [reloadKey, setReloadKey] = useState(0);
   const [error, setError] = useState<LoadFailure | false>(false);
@@ -97,11 +101,30 @@ export function EquipeClient() {
         return;
       }
       setMembers(roster.items);
-      if (sub.status === 200 && sub.offer) setOffer(sub.offer);
+      applyOffer(sub);
       setLoading(false);
     })();
   }, [router, reloadKey]);
 
+
+  function applyOffer(sub: { status: number; offer?: SalonOffer }) {
+    if (sub.status === 200 && sub.offer) {
+      setOffer(sub.offer);
+      setOfferFailed(false);
+    } else if (sub.status === 404) {
+      setOffer(null);
+      setOfferFailed(false);
+    } else {
+      setOfferFailed(loadFailure(sub.status));
+    }
+  }
+
+  /// « Réessayer » under an unreadable offer: that read only.
+  async function retryOffer() {
+    if (!providerId) return;
+    setOfferFailed(false);
+    applyOffer(await getSalonSubscription(providerId));
+  }
 
   function upsert(member: TeamMember) {
     setMembers((prev) => {
@@ -188,6 +211,14 @@ export function EquipeClient() {
             />
           </div>
         </div>
+      ) : offerFailed ? (
+        // « Inviter » stays usable (owner Q1): the server re-checks the offer,
+        // and its `offer_required` already has words.
+        <ErrorState
+          className="mt-m max-w-sm"
+          message={loadFailureMessage(offerFailed, 'Impossible de vérifier votre offre.')}
+          onRetry={() => void retryOffer()}
+        />
       ) : (
         <p className="mt-m text-bodyLarge text-textSecondary">
           Choisissez votre offre pour inviter votre équipe.{' '}

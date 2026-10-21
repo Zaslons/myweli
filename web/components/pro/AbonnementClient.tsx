@@ -20,7 +20,7 @@ import {
   contactWhatsAppUrl,
   offerBanner,
 } from '../../lib/pro/subscription-plans';
-import { seatsLabel } from '../../lib/pro/team';
+import { salonRefusalMessage, seatsLabel } from '../../lib/pro/team';
 import { Button } from '../Button';
 import { Loading } from '../Loading';
 
@@ -79,7 +79,7 @@ export function AbonnementClient() {
       setNotice(
         r.error === 'trial_used'
           ? 'Votre essai gratuit a déjà été utilisé. Contactez-nous pour activer votre offre.'
-          : 'Le changement d’offre a échoué. Réessayez.',
+          : salonRefusalMessage(r.status, r.error, 'Le changement d’offre a échoué. Réessayez.'),
       );
       return;
     }

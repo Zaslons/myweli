@@ -71,6 +71,11 @@ export function ClientCardClient({ clientId }: { clientId: string }) {
   const [visits, setVisits] = useState<ProAppointment[]>([]);
   const [visitsTotal, setVisitsTotal] = useState(0);
   const [visitsPage, setVisitsPage] = useState(1);
+  // The history read failed: it says so — never « Aucune visite » beside a
+  // visit count (docs/design/web-pro-truthful-failure.md §2.1).
+  const [visitsFailed, setVisitsFailed] = useState<LoadFailure | false>(false);
+  // A « Charger plus » that failed: its line, and the SAME page asked again.
+  const [moreFailed, setMoreFailed] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
   const [error, setError] = useState<LoadFailure | false>(false);
@@ -115,6 +120,8 @@ export function ClientCardClient({ clientId }: { clientId: string }) {
     setVisits(v.items);
     setVisitsTotal(v.total);
     setVisitsPage(1);
+    setVisitsFailed(v.status === 200 ? false : loadFailure(v.status));
+    setMoreFailed(null);
     setLoading(false);
   }, [router, clientId]);
 
@@ -181,8 +188,24 @@ export function ClientCardClient({ clientId }: { clientId: string }) {
     }
   }
 
+  /// The history alone, again — « Réessayer » under a failed read.
+  async function retryVisits() {
+    const v = await getClientVisits(providerId!, clientId, 1);
+    setVisits(v.items);
+    setVisitsTotal(v.total);
+    setVisitsPage(1);
+    setVisitsFailed(v.status === 200 ? false : loadFailure(v.status));
+  }
+
   async function moreVisits() {
+    setMoreFailed(null);
     const v = await getClientVisits(providerId!, clientId, visitsPage + 1);
+    // Only a page that came moves the counter: a failed one was skipped
+    // before, and its visits were never shown.
+    if (v.status !== 200) {
+      setMoreFailed(writeFailureMessage(v.status, 'Le chargement a échoué. Réessayez.'));
+      return;
+    }
     setVisits((prev) => [...prev, ...v.items]);
     setVisitsPage(visitsPage + 1);
   }
@@ -473,7 +496,13 @@ export function ClientCardClient({ clientId }: { clientId: string }) {
             <h2 className="text-titleLarge font-semibold text-textPrimary">
               Historique des visites
             </h2>
-            {visits.length === 0 ? (
+            {visitsFailed ? (
+              <ErrorState
+                className="mt-m"
+                message={loadFailureMessage(visitsFailed, 'Historique indisponible.')}
+                onRetry={() => void retryVisits()}
+              />
+            ) : visits.length === 0 ? (
               <p className="mt-m text-bodyMedium text-textSecondary">
                 Aucune visite enregistrée.
               </p>
@@ -499,11 +528,16 @@ export function ClientCardClient({ clientId }: { clientId: string }) {
                 ))}
               </ul>
             )}
-            {visits.length < visitsTotal ? (
+            {!visitsFailed && visits.length < visitsTotal ? (
               <div className="mt-m text-center">
                 <Button variant="secondary" onClick={moreVisits}>
                   Charger plus
                 </Button>
+                {moreFailed ? (
+                  <p role="alert" className="mt-s text-bodyMedium text-error">
+                    {moreFailed}
+                  </p>
+                ) : null}
               </div>
             ) : null}
           </Card>

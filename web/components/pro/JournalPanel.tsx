@@ -18,6 +18,7 @@ import { combineDateTime } from "../../lib/pro/manual-booking";
 import { salonDayKey, salonToday } from "../../lib/time";
 import { type Membership, hasCap } from "../../lib/pro/team";
 import type { ProAppointment } from "../../lib/pro/today";
+import { loadFailure, loadFailureMessage, type LoadFailure } from "../../lib/api/load-failure";
 import { Button } from "../Button";
 import { conflictMessage } from "../../lib/booking/window";
 import { hasStarted } from "../../lib/pro/lifecycle";
@@ -77,17 +78,27 @@ export function JournalPanel({
 
   // C2: the client mini-card (this GET is audited server-side, by design).
   // Skipped without clients.view — the fetch would be a guaranteed 403.
+  // Its read failed: one line and « Réessayer » — the card used to vanish in
+  // silence (docs/design/web-pro-truthful-failure.md §2.1, owner Q3).
+  const [cardFailed, setCardFailed] = useState<LoadFailure | false>(false);
+  const [cardKey, setCardKey] = useState(0);
   useEffect(() => {
     let active = true;
     if (appt.salonClientId && canViewClients) {
       getClientCard(providerId, appt.salonClientId).then((r) => {
-        if (active && r.status === 200) setCard(r.card ?? null);
+        if (!active) return;
+        if (r.status === 200 && r.card) {
+          setCard(r.card);
+          setCardFailed(false);
+        } else {
+          setCardFailed(loadFailure(r.status));
+        }
       });
     }
     return () => {
       active = false;
     };
-  }, [providerId, appt.salonClientId, canViewClients]);
+  }, [providerId, appt.salonClientId, canViewClients, cardKey]);
 
   async function act(fn: () => Promise<{ ok: boolean; error?: string }>) {
     setBusy(true);
@@ -165,6 +176,16 @@ export function JournalPanel({
             </p>
           ) : null}
 
+          {!card && cardFailed ? (
+            <div className="mt-s flex flex-wrap items-center gap-s">
+              <p role="alert" className="text-bodySmall text-error">
+                {loadFailureMessage(cardFailed, "Fiche client indisponible.")}
+              </p>
+              <Button variant="secondary" onClick={() => setCardKey((k) => k + 1)}>
+                Réessayer
+              </Button>
+            </div>
+          ) : null}
           {card ? (
             <div className="mt-s rounded-lg bg-surface p-s text-bodySmall text-textSecondary">
               <div className="flex justify-between">

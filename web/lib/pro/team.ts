@@ -4,7 +4,7 @@
 /// team_error_messages.dart so copy can never drift between surfaces),
 /// invite validation and roster presentation helpers.
 
-import { NO_CONNECTION_MESSAGE } from '../api/network';
+import { NO_CONNECTION_MESSAGE, writeFailureMessage } from '../api/network';
 import type { components } from '../api/schema';
 
 export type Membership = components['schemas']['Membership'];
@@ -40,6 +40,23 @@ export const ROLE_SUMMARIES: Record<TeamRoleInput, string> = {
 /// notes quote word for word; tests/pro-team.test.ts compares the two.
 export const DEMO_ACCOUNT_LOCKED_MESSAGE =
   'Compte de démonstration — cette action est désactivée.';
+
+/// A refusal of « Mettre en ligne » or of an offer change, worded
+/// (docs/design/web-pro-truthful-failure.md §2.3): the demo account and a
+/// suspended salon say why — a « réessayez » they cannot act on had the
+/// reviewer retry for ever — and nothing answered says so. Anything else is
+/// the surface's own [fallback].
+export function salonRefusalMessage(
+  status: number,
+  error: string | undefined,
+  fallback: string,
+): string {
+  if (error === 'demo_account_locked') return DEMO_ACCOUNT_LOCKED_MESSAGE;
+  if (error === 'provider_suspended') {
+    return 'Votre salon est suspendu. Contactez MyWeli pour le réactiver — vos rendez-vous sont intacts.';
+  }
+  return writeFailureMessage(status, fallback);
+}
 
 /// The shared table's sentence for an unknown or absent code — the app's
 /// `teamErrorMessage` fallback (team_error_messages.dart) and the web's
