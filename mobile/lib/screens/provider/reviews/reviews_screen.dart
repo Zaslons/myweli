@@ -344,12 +344,24 @@ class _ReviewCard extends StatelessWidget {
                       color: AppColors.textSecondary,
                     ),
                   ),
+                  // The client's « Signaler » (review_tile.dart): compact and
+                  // quiet — the action is rare, the review is the subject.
                   if (onReport != null)
                     Align(
                       alignment: Alignment.centerRight,
                       child: TextButton(
                         onPressed: onReport,
-                        child: const Text('Signaler'),
+                        style: TextButton.styleFrom(
+                          padding: EdgeInsets.zero,
+                          // §13.2: the padded tap target keeps ≥48 of hit area.
+                          minimumSize: const Size(0, 32),
+                        ),
+                        child: Text(
+                          'Signaler',
+                          style: AppTextStyles.labelSmall.copyWith(
+                            color: AppColors.textTertiary,
+                          ),
+                        ),
                       ),
                     ),
                 ],
