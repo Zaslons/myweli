@@ -66,4 +66,38 @@ void main() {
     expect(r.success, isFalse);
     expect(r.error, 'Pas de connexion. Réessayez.');
   });
+
+  test('the selected salon crosses as ?salonId= — the report is that '
+      'salon’s', () async {
+    final store = InMemorySessionStore();
+    await store.save(
+      jsonEncode({
+        'token': 't',
+        'refreshToken': 'r',
+        // A real session: `ProviderSession.fromJson` needs its account.
+        'provider': {
+          'id': 'acc1',
+          'phoneNumber': '+2250500000000',
+          'businessName': 'Salon',
+          'businessType': 'salon',
+          'verificationStatus': 'pending',
+          'kycDocs': <Map<String, dynamic>>[],
+          'createdAt': '2026-01-01T00:00:00.000Z',
+          'providerId': 'provider1',
+        },
+        'selectedSalonId': 'provider2',
+      }),
+    );
+    late http.Request sent;
+    final svc = ApiProService(
+      client: MockClient((req) async {
+        sent = req;
+        return http.Response(jsonEncode({'status': 'reported'}), 200);
+      }),
+      baseUrl: 'http://x',
+      providerSessionStore: store,
+    );
+    expect((await svc.reportSalonReview('r1')).success, isTrue);
+    expect(sent.url.queryParameters['salonId'], 'provider2');
+  });
 }

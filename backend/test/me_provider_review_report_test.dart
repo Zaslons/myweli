@@ -180,6 +180,17 @@ void main() {
     expect(q.single['reportedBySalon'], isTrue);
   });
 
+  test('the salon first, a client after: still marked', () async {
+    await report('r1', as: 'owner');
+    // The queue reads the newest report first — here the client's, so the
+    // mark has to survive a report that is not the salon's.
+    await Future<void>.delayed(const Duration(milliseconds: 5));
+    await reviews.addReport('r1', 'user_1', 'spam');
+    final q = await queue();
+    expect(q.single['reportCount'], 2);
+    expect(q.single['reportedBySalon'], isTrue);
+  });
+
   test('CONTROL — a client’s report alone is not marked', () async {
     await reviews.addReport('r1', 'user_1', 'spam');
     expect((await queue()).single['reportedBySalon'], isFalse);
@@ -203,6 +214,17 @@ void main() {
     );
     expect(await queue(), isEmpty);
   });
+
+  test(
+    'a client token naming a salon member → 403, nothing recorded',
+    () async {
+      // The role is read first: a `user` token is a client's, whatever its
+      // subject — even the id of the salon's Propriétaire.
+      final res = await report('r1', as: 'owner', role: 'user');
+      expect(res.statusCode, HttpStatus.forbidden);
+      expect(await queue(), isEmpty);
+    },
+  );
 
   test('not a member of any salon → 403', () async {
     final res = await report('r1', as: 'stranger');
