@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Statut** | **Brouillon** — quatre questions au propriétaire (§9) |
+| **Statut** | **Validé le 2026-10-21** — Q1 : **03:30 UTC** ; Q2 : **un script pour les trois jobs** ; Q3 : **déployer, puis créer le job et le forcer le même jour** ; Q4 : **les deux crons dans le contrat** (§9) |
 | **Owner** | Sadreddine |
 | **Last updated** | 2026-10-21 |
 | **PRD ref / phase** | Exploitation (V1) — aucune fonctionnalité visible |
@@ -163,3 +163,7 @@ Aucun : rien de visible par une personne.
 - **Q4 — le contrat** : **documenter les deux crons internes** dans
   `openapi.yaml` (recommandé — `/subscriptions` n'y a jamais été), ou seulement
   le nouveau ?
+
+**Décisions (2026-10-21).** Q1, Q2, Q3 et Q4 : les recommandations. La
+création du job (§3, étape 2) reste une mutation du cloud : elle est demandée
+au moment de la faire.
