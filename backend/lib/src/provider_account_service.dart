@@ -56,6 +56,17 @@ class ProviderAccountService {
   /// (unknown account), `demo_account_locked` (the store-review demo
   /// identity, T69 — answered first, nothing is written), `future_bookings`
   /// (settle the agenda first).
+  /// What an erased owner's salons lose (B6.3): the contact numbers, the
+  /// address, and the deposit that needed the Mobile Money number.
+  static const Map<String, dynamic> _erasedContact = {
+    'phoneNumber': '',
+    'address': '',
+    'whatsapp': null,
+    'depositMobileMoneyNumber': null,
+    'depositMobileMoneyOperator': null,
+    'depositRequired': false,
+  };
+
   Future<({bool ok, String? error})> deleteAccount(String accountId) async {
     final account = await _auth.accountById(accountId);
     if (account == null) return (ok: false, error: 'forbidden');
@@ -114,6 +125,11 @@ class ProviderAccountService {
       final before = await _providers.byId(providerId);
       if (before?['status'] == 'active') anyWasActive = true;
       await _providers.setStatus(providerId, 'draft');
+      // The salon outlives its owner — its name and history stay for the
+      // clients — but the PERSON's numbers and address do not (decision 17,
+      // docs/design/backend-integrity-batch6.md §2.3). A deposit without a
+      // number is no deposit: off.
+      await _providers.updateProfile(providerId, _erasedContact);
     }
     // Once for the whole account, after the loop — one erasure, one build.
     if (anyWasActive) {
