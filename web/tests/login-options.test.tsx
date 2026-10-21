@@ -180,7 +180,8 @@ describe('LoginOptions', () => {
     mockFetch({ verifyUserPhone: '+2250700000000', verifyOk: false });
     render(<LoginOptions onSuccess={vi.fn()} />);
     await loginByEmail();
-    await screen.findByText('Code incorrect ou expiré.');
+    // The app's words (docs/design/web-client-polish.md §2.1, Q1).
+    await screen.findByText('Code incorrect.');
   });
 
   it('invalid email: the button stays ENABLED and submit answers with a field error (§14 rule 5)', () => {

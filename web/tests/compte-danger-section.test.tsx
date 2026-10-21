@@ -160,6 +160,10 @@ const ALL_FAILED =
   "Export interrompu : impossible de charger les rendez-vous, le fichier clients et les revenus. Aucun fichier n'a été créé. Réessayez.";
 const COPY_FAILED =
   'La copie a échoué. Téléchargez le fichier avec « Exporter (JSON) ».';
+/// A file that cannot be assembled: its own sentence — the reads answered,
+/// so naming them would blame what worked (docs/design/web-client-polish.md
+/// §2.3, B5.3).
+const BUILD_FAILED = 'Le fichier n’a pas pu être préparé. Réessayez.';
 
 type Answer = { status: number; body?: unknown } | 'throw';
 
@@ -480,10 +484,11 @@ describe('CompteDangerSection — the export refuses instead of shipping holes',
     expect(out.createObjectURL).not.toHaveBeenCalled();
   });
 
-  // §2.3: whatever still breaks while the file is assembled is a refusal
-  // with the export's message — it cannot say which data was wrong, so it
-  // names them all — never a silent no-file.
-  it('a file that cannot be assembled is refused with the message, and the buttons come back', async () => {
+  // export-unreadable-200.md §2.3: whatever still breaks while the file is
+  // assembled is a refusal, never a silent no-file — and since
+  // web-client-polish.md §2.3 it says so in its own words, without naming
+  // three reads that answered.
+  it('a file that cannot be assembled is refused with its own sentence, and the buttons come back', async () => {
     exportReads();
     const out = watchOutputs();
     const broken = {
@@ -494,7 +499,7 @@ describe('CompteDangerSection — the export refuses instead of shipping holes',
 
     fireEvent.click(exportButton());
 
-    expect((await screen.findByRole('alert')).textContent).toBe(ALL_FAILED);
+    expect((await screen.findByRole('alert')).textContent).toBe(BUILD_FAILED);
     expect(out.createObjectURL).not.toHaveBeenCalled();
     expect(out.anchorClick).not.toHaveBeenCalled();
     expect(exportButton().textContent).toBe('Exporter (JSON)');
@@ -508,7 +513,7 @@ describe('CompteDangerSection — the export refuses instead of shipping holes',
 
     fireEvent.click(screen.getByRole('button', { name: 'Copier' }));
 
-    expect((await screen.findByRole('alert')).textContent).toBe(ALL_FAILED);
+    expect((await screen.findByRole('alert')).textContent).toBe(BUILD_FAILED);
     expect(out.writeText).not.toHaveBeenCalled();
     expect(screen.queryByText('Copié ✓')).toBeNull();
   });

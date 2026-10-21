@@ -142,7 +142,7 @@ describe('the remembered salon goes at every sign-out and every sign-in', () => 
           return new Response(JSON.stringify({ expiresInSeconds: 300 }), { status: 202 });
         }
         if (url === '/api/pro/auth/email/verify') {
-          return new Response(JSON.stringify({ error: 'invalid_code' }), { status: 401 });
+          return new Response(JSON.stringify({ error: 'otp_invalid' }), { status: 400 });
         }
         return new Response('{}', { status: 404 });
       }),
@@ -157,7 +157,7 @@ describe('the remembered salon goes at every sign-out and every sign-in', () => 
     });
     fireEvent.click(screen.getByRole('button', { name: 'Se connecter' }));
 
-    await screen.findByText('Code incorrect ou expiré.');
+    await screen.findByText('Code incorrect.');
     expect(rememberedSalon()).toEqual(SALON);
   });
 

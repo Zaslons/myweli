@@ -321,7 +321,7 @@ describe('Connexion — e-mail', () => {
     });
   }
 
-  it('a wrong code is still the field’s fault (unchanged)', async () => {
+  it('a wrong code is still the field’s fault (in the app’s words since web-client-polish.md §2.1)', async () => {
     mockFetch({
       'POST /api/auth/email/request': { status: 202, body: { expiresInSeconds: 300 } },
       'POST /api/auth/email/verify': { status: 400, body: { error: 'otp_invalid' } },
@@ -333,7 +333,7 @@ describe('Connexion — e-mail', () => {
     fireEvent.change(code, { target: { value: '000000' } });
     fireEvent.click(screen.getByRole('button', { name: 'Se connecter' }));
 
-    expect(await screen.findByText('Code incorrect ou expiré.')).toBeInTheDocument();
+    expect(await screen.findByText('Code incorrect.')).toBeInTheDocument();
     expect(code).toHaveAttribute('aria-invalid', 'true');
   });
 });

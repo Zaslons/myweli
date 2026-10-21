@@ -7,6 +7,7 @@ import { registerPro, requestEmailOtpPro } from '../../lib/api/pro';
 import { useFieldErrors } from '../../lib/forms/useFieldErrors';
 import { PHONE_INVALID, normalizePhone, phoneFieldError } from '../../lib/phone';
 import { forgetSalon } from '../../lib/pro/remembered-salon';
+import { type SignInRefusal, codeRefusal, sendRefusal } from '../../lib/auth/otp-failure';
 import { Button } from '../Button';
 import { PhoneField } from '../PhoneField';
 import { TextField } from '../TextField';
@@ -113,13 +114,21 @@ export function ProRegisterClient() {
       fields.set('phone', PHONE_INVALID);
       return;
     }
-    setError(
-      r.error === 'provider_exists'
-        ? 'Un compte existe déjà pour cette identité. Connectez-vous.'
-        : r.error === 'otp_invalid'
-          ? 'Code incorrect ou expiré.'
-          : 'Une erreur est survenue. Réessayez.',
-    );
+    if (r.error === 'provider_exists') {
+      setError('Un compte existe déjà pour cette identité. Connectez-vous.');
+      return;
+    }
+    // The code's own verdicts under its field, in the app's words; no answer,
+    // a rate limit or an outage under the form (it used to say « Une erreur
+    // est survenue » with no network, and named only `otp_invalid`).
+    refuse(codeRefusal(r));
+  }
+
+  /// A refused step, said where the table puts it (one page: every field is
+  /// on screen) — docs/design/web-client-polish.md §2.1.
+  function refuse(f: SignInRefusal) {
+    if (f.field) fields.set(f.field, f.message);
+    else setError(f.message);
   }
 
 
@@ -139,7 +148,7 @@ export function ProRegisterClient() {
     const r = await requestEmailOtpPro(email.trim());
     setBusy(false);
     if (!r.ok) {
-      setError('Envoi du code impossible. Réessayez.');
+      refuse(sendRefusal(r));
       return;
     }
     setDevCode(r.devCode);

@@ -37,6 +37,10 @@ class _DataExportScreenState extends State<DataExportScreen> {
   /// nothing to copy: a section emptied by its failure reads as « you have
   /// none » (docs/design/consumer-export-completeness.md §3).
   List<DataExportSection> _failed = const [];
+
+  /// Every read answered and the file could not be made from them — its own
+  /// sentence, not the reads (docs/design/web-client-polish.md §2.3).
+  bool _buildFailed = false;
   Map<String, dynamic>? _export;
   int _appointmentCount = 0;
   int _favoriteCount = 0;
@@ -51,6 +55,7 @@ class _DataExportScreenState extends State<DataExportScreen> {
     setState(() {
       _loading = true;
       _failed = const [];
+      _buildFailed = false;
     });
 
     try {
@@ -103,13 +108,12 @@ class _DataExportScreenState extends State<DataExportScreen> {
         _loading = false;
       });
     } catch (_) {
+      // Neither load throws (see above): what throws here is the file being
+      // made from answers that came. It used to name both reads.
       if (!mounted) return;
       setState(() {
         _loading = false;
-        _failed = const [
-          DataExportSection.appointments,
-          DataExportSection.favorites,
-        ];
+        _buildFailed = true;
       });
     }
   }
@@ -145,6 +149,15 @@ class _DataExportScreenState extends State<DataExportScreen> {
   Widget _buildBody() {
     if (_loading) {
       return const LoadingIndicator();
+    }
+    if (_buildFailed) {
+      return EmptyState(
+        icon: Icons.error_outline,
+        title: 'Chargement impossible',
+        description: kDataExportBuildFailed,
+        actionText: 'Réessayer',
+        onAction: _load,
+      );
     }
     if (_failed.isNotEmpty || _export == null) {
       return EmptyState(
