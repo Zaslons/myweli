@@ -1025,6 +1025,16 @@ not read as the brand. §21 row 89 is what happens without this line.
 - **The error formula: what happened → why → what to do.** "Paiement non confirmé
   — le justificatif n'a pas été reçu. Renvoyez la capture d'écran."
 - **Never blame the user**, never show them an error code alone.
+- **Two sentences for « it failed », and only two** (docs/design/app-failure-messages.md §8):
+  **« Pas de connexion. Réessayez. »** when *nothing answered* — app
+  `kNoConnectionMessage`, web `NO_CONNECTION_MESSAGE`, the code `network`;
+  **« Une erreur est survenue. Réessayez. »** for an answer that cannot be read,
+  a refusal whose code has no words of its own, or an exception — app
+  `kGenericErrorMessage`, web `GENERIC_ERROR_MESSAGE`. A refusal whose code has
+  its own sentence keeps it. **Never** an exception's text (« FormatException… »),
+  **never** « Erreur » alone, **never** the server's own `message`, and no third
+  offline sentence (« Connexion au serveur impossible » is retired). The app's
+  pins (`test/unit/failure_messages_pin_test.dart`) read the whole tree.
 - **French is ~20% longer than English** — every label must survive expansion *and*
   200% text scale (§13.3). Design for the long string, not the demo one.
 
