@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Statut** | **Construit le 2026-10-21** sur `fix/lost-write-answers` ; ce qui a été vu : §10. Validé le même jour — Q1 (décision 11) : **la clé d'idempotence** ; Q2 : **redemander une fois, sans rien dire** ; Q3 : **les quatre écritures** ; Q4 : **les mots tels qu'écrits** (§8) |
+| **Statut** | **Déployé le 2026-10-21** (#666, `deadda7`, révision `myweli-api-00043-gqr`) — §11. Construit le même jour ; ce qui a été vu : §10. Validé le même jour — Q1 (décision 11) : **la clé d'idempotence** ; Q2 : **redemander une fois, sans rien dire** ; Q3 : **les quatre écritures** ; Q4 : **les mots tels qu'écrits** (§8) |
 | **Owner** | Sadreddine |
 | **Last updated** | 2026-10-21 |
 | **PRD ref / phase** | Réservation, journal Pro, clients, équipe (V1) · règle BACKEND.md : « les mutations argent/réservation prennent une clé d'idempotence » |
@@ -231,4 +231,24 @@ types, lint, 2 000 unitaires, les e2e de la réservation, du Pro et de l'équipe
   abonnements) — un job Cloud Scheduler de plus, à décider~~ — fait :
   [infra-cron-maintenance.md](infra-cron-maintenance.md) ;
 - les deux phrases « rien n'a répondu » de l'app (B3.1).
+
+## 11. En production — 2026-10-21
+
+- **Fusionné** (`deadda7`, arbre identique à la tête de la PR) après un e2e
+  rouge sur CI que la PR n'avait pas causé : deux workers laissaient
+  `pro.spec.ts` compter la galerie partagée du stub pendant le
+  « supprimer puis Annuler » d'`axe.spec.ts` (Expected 3, Received 2). Les deux
+  tests qui ne regardent que les écrans répondent maintenant eux-mêmes à leurs
+  enregistrements (`tests/e2e/_gallery.ts`) ; attendre la restauration ne
+  suffisait pas — la fenêtre restait.
+- **Déployé** juste après la fusion (le web part sur Vercel à la fusion, et sa
+  redemande automatique n'est sûre qu'avec un serveur qui connaît la clé) :
+  révision `myweli-api-00043-gqr`, l'empreinte de l'image égale à celle du tag
+  `deadda7`, `/health` et `/providers` à 200. Retour arrière possible :
+  `myweli-api-00042-468`.
+- **La migration `0040`** : aucune ligne ne la nomme (les migrations tournent
+  avant `serve()` et ne disent rien quand elles réussissent) ; la preuve est
+  venue du cron d'entretien forcé (§11 d'[infra-cron-maintenance.md](infra-cron-maintenance.md)) :
+  200 sans `idempotency_prune_failed`, donc la table existe.
+- **L'app** atteint les personnes par les stores, plus tard : rien à faire ici.
 
