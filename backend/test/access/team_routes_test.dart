@@ -862,6 +862,55 @@ void main() {
       await expectNoAccount('sub-race');
     });
 
+    // The check runs BEFORE the account exists — not merely the account
+    // removed after: an e-mail code is consumed by `createMemberAccount`, so
+    // a dead invitation must leave the code alive for a live one.
+    test(
+      'a dead invitation leaves the e-mail code usable for a live one',
+      () async {
+        now = DateTime.now().toUtc().subtract(const Duration(days: 8));
+        final staleId = await invited('two@b.com');
+        now = DateTime.now().toUtc();
+        // The live one from ANOTHER salon: a second invite in the same salon
+        // would revive the dead row itself (one row per salon and address).
+        final reg2 = await auth.register(
+          businessName: 'Studio Belle',
+          businessType: 'salon',
+          phoneNumber: '+2250500000073',
+          email: 'owner3@x.pro',
+          authProvider: 'google',
+          googleSub: 'sub-owner3',
+          providerId: 'p2',
+        );
+        await memberships.ensureOwner(
+          providerId: 'p2',
+          accountId: reg2.provider!.id,
+          email: 'owner3@x.pro',
+        );
+        await subscriptions.chooseOffer(reg2.provider!.id, 'p2', 'pro');
+        final live = await team.invite(
+          reg2.provider!.id,
+          'p2',
+          email: 'two@b.com',
+          role: 'reception',
+        );
+        final liveId = ((live.data! as Map)['id']) as String;
+        final code = (await auth.requestEmailOtp('two@b.com')).devCode!;
+        Future<Response> accept(String id) => public_accept.onRequest(
+          ctx(
+            req(
+              'POST',
+              '/auth/provider/invitations/accept',
+              body: {'invitationId': id, 'email': 'two@b.com', 'code': code},
+            ),
+          ),
+        );
+
+        expect((await accept(staleId)).statusCode, HttpStatus.conflict);
+        expect((await accept(liveId)).statusCode, HttpStatus.created);
+      },
+    );
+
     test(
       'CONTROL — a live invitation still creates the account → 201',
       () async {

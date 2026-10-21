@@ -70,14 +70,16 @@ class PostgresMembershipRepository implements MembershipRepository {
     // Refuse by default, like the in-memory twin (docs/design/
     // backend-integrity-batch6.md §2.8, B6.8a): `ON CONFLICT … DO UPDATE SET
     // account_id` re-pointed a manager's, an invited or a revoked row at the
-    // caller, KEEPING its role. Any other row for this address or this
-    // account in the salon is a refusal; `DO NOTHING` covers the race.
+    // caller, KEEPING its role. Two halves, each needed: the account already
+    // holding a row in the salon under ANOTHER address is checked here; any
+    // row for THIS address (and a concurrent insert) is the INSERT's
+    // `DO NOTHING` — no row back is a refusal.
     final clash = await _pool.execute(
       Sql.named(
         'SELECT 1 FROM provider_members WHERE provider_id = @p '
-        'AND (email = lower(@e) OR account_id = @a) LIMIT 1',
+        'AND account_id = @a LIMIT 1',
       ),
-      parameters: {'a': accountId, 'p': providerId, 'e': email},
+      parameters: {'a': accountId, 'p': providerId},
     );
     final r = clash.isNotEmpty
         ? null
