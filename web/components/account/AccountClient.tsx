@@ -14,6 +14,7 @@ import {
 } from '../../lib/account/appointments';
 import {
   type Me,
+  addFavorite,
   getFavorites,
   getMe,
   listAppointments,
@@ -37,6 +38,9 @@ import { PhoneField } from '../PhoneField';
 import { ProviderCard } from '../provider/ProviderCard';
 import { AppointmentCard } from './AppointmentCard';
 import { Tabs } from '../Tabs';
+import { Toast } from '../Toast';
+import { useToast } from '../../lib/useToast';
+import { announceFavorite } from '../../lib/account/favorite-toast';
 
 const PROVIDER_LABELS: Record<string, string> = {
   google: 'Connecté via Google',
@@ -67,6 +71,7 @@ export function AccountClient() {
   // A failed removal's sentence, under its card.
   const [favErrors, setFavErrors] = useState<Record<string, string | undefined>>({});
   const [favRefocus, setFavRefocus] = useState<{ id: string } | null>(null);
+  const { toast, show, dismiss } = useToast();
   const removeButtons = useRef(new Map<string, HTMLButtonElement>());
   const [tab, setTab] = useState<Tab>('upcoming');
   const [loading, setLoading] = useState(true);
@@ -130,6 +135,9 @@ export function AccountClient() {
   /// its own place — never a snapshot laid over another removal that worked
   /// (SYSTEM §15).
   async function removeFav(id: string) {
+    // Where it stood, for « Annuler » (B5.4): back at its place.
+    const index = favorites.findIndex((x) => x.id === id);
+    const removed = favorites[index];
     setRemoving((cur) => new Set(cur).add(id));
     const r = await removeFavorite(id);
     setRemoving((cur) => {
@@ -139,10 +147,30 @@ export function AccountClient() {
     });
     if (r.ok) {
       setFavorites((f) => f.filter((x) => x.id !== id));
+      // The card went in silence; the app's favourites row says it, with
+      // « Annuler » (Q4, docs/design/web-client-polish.md §2.4).
+      if (removed) {
+        announceFavorite(show, dismiss, false, () => void restoreFav(removed, index));
+      }
       return;
     }
     setFavErrors((e) => ({ ...e, [id]: writeFailureMessage(r.status) }));
     setFavRefocus({ id });
+  }
+
+  /// « Annuler »: written again, then the card comes back where it stood. A
+  /// failure has no card to stand under — the toast says it.
+  async function restoreFav(p: Provider, index: number) {
+    const r = await addFavorite(p.id);
+    if (!r.ok) {
+      show(writeFailureMessage(r.status), 'error');
+      return;
+    }
+    setFavorites((cur) =>
+      cur.some((x) => x.id === p.id)
+        ? cur
+        : [...cur.slice(0, index), p, ...cur.slice(index)],
+    );
   }
 
   // The card was unmounted while its removal was out, and focus went with
@@ -587,6 +615,7 @@ export function AccountClient() {
       <div className="mt-l">
         <OpenInAppButton />
       </div>
+      <Toast toast={toast} />
     </div>
   );
 }

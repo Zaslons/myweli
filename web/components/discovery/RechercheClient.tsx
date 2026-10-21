@@ -18,6 +18,9 @@ import {
 import { HomeSearch } from '../home/HomeSearch';
 import { writeFailureMessage } from '../../lib/api/network';
 import { ProviderCard } from '../provider/ProviderCard';
+import { Toast } from '../Toast';
+import { useToast } from '../../lib/useToast';
+import { announceFavorite } from '../../lib/account/favorite-toast';
 
 // Leaflet is browser-only → client-side dynamic import; the chunk loads only
 // on /recherche (public-page CWV budgets untouched).
@@ -67,15 +70,26 @@ export function RechercheClient({
   tree: LocalityTree;
 }) {
   const [hoveredId, setHoveredId] = useState<string | null>(null);
-  // Parity 2.15: hearts on the result cards — ONE session probe (anonymous
-  // 401 → null keeps the hearts as login CTAs).
-  const [favIds, setFavIds] = useState<Set<string> | null>(null);
-  // `favIds === null` meant BOTH "still asking" and "anonymous", and
-  // `toggleFavorite` read it as the second — so a signed-in visitor who clicked
-  // a heart before `/api/me/favorites` answered was sent to the login page.
-  // The window is small locally and real on a slow connection; it is also what
-  // made `account.spec.ts`'s heart assertion flaky in CI.
-  const [favLoaded, setFavLoaded] = useState(false);
+  // Parity 2.15: hearts on the result cards — ONE session probe. What it
+  // ended in decides what a heart does:
+  // - `loading`: nothing yet — the hearts wait (a signed-in visitor who
+  //   clicked before `/api/me/favorites` answered used to be sent to the
+  //   login page; it also made `account.spec.ts`'s heart assertion flaky);
+  // - `known`: the hearts are the visitor's;
+  // - `anonymous` (401): a heart is the way to the login page;
+  // - `failed` (no usable answer): the hearts show empty and WRITE, and the
+  //   write's own 401 decides — like the salon page's button. It used to be
+  //   taken for anonymous: a signed-in visitor sent to log in again (B5.2,
+  //   docs/design/web-client-polish.md §2.2).
+  const [favIds, setFavIds] = useState<Set<string>>(() => new Set());
+  const [favRead, setFavRead] = useState<'loading' | 'known' | 'anonymous' | 'failed'>(
+    'loading',
+  );
+  // One write per card at a time (B5.2): a double click wrote twice. The ref
+  // guards; the state draws the heart as busy.
+  const pendingRef = useRef<Set<string>>(new Set());
+  const [pending, setPending] = useState<Set<string>>(() => new Set());
+  const { toast, show, dismiss } = useToast();
   // A heart the server refused: the sentence under that card only
   // (docs/design/web-consumer-optimistic-revert.md §3.2 ⑤).
   const [favErrors, setFavErrors] = useState<Record<string, string | undefined>>({});
@@ -97,13 +111,15 @@ export function RechercheClient({
     getFavorites()
       .then((r) => {
         if (!active) return;
-        if (r.status === 200) setFavIds(new Set(r.favorites.map((f) => f.id)));
+        if (r.status === 200) {
+          setFavIds(new Set(r.favorites.map((f) => f.id)));
+          setFavRead('known');
+        } else {
+          setFavRead(r.status === 401 ? 'anonymous' : 'failed');
+        }
       })
-      // Loaded means "we have an answer", including 401 and a failed probe —
-      // otherwise an anonymous visitor's heart would stay disabled forever
-      // instead of becoming the login CTA it is meant to be.
-      .finally(() => {
-        if (active) setFavLoaded(true);
+      .catch(() => {
+        if (active) setFavRead('failed');
       });
     return () => {
       active = false;
@@ -115,33 +131,47 @@ export function RechercheClient({
     window.location.assign(`/connexion?returnTo=${encodeURIComponent(back)}`);
   }
 
-  /// Like the app's heart, it waits for the server. A refusal keeps the heart
-  /// and says why under the card; a 401 (the session ended after the probe)
-  /// is the anonymous visitor's way out.
+  /// Like the app's heart, it waits for the server, then says what it did —
+  /// with « Annuler » (B5.4, decision 16).
   async function toggleFavorite(id: string) {
     // Unknown is not the same as anonymous.
-    if (!favLoaded) return;
-    if (favIds === null) {
+    if (favRead === 'loading' || pendingRef.current.has(id)) return;
+    if (favRead === 'anonymous') {
       toLogin();
       return;
     }
-    const isFav = favIds.has(id);
+    const adding = !favIds.has(id);
+    if (await writeFavorite(id, adding)) {
+      announceFavorite(show, dismiss, adding, () => void writeFavorite(id, !adding));
+    }
+  }
+
+  /// One card's write. A refusal keeps the heart and says why under the
+  /// card; a 401 (no session: never signed in, or ended since) is the way to
+  /// the login page.
+  async function writeFavorite(id: string, add: boolean): Promise<boolean> {
+    if (pendingRef.current.has(id)) return false;
+    pendingRef.current.add(id);
+    setPending(new Set(pendingRef.current));
     setFavErrors((e) => ({ ...e, [id]: undefined }));
-    const r = isFav ? await removeFavorite(id) : await addFavorite(id);
+    const r = add ? await addFavorite(id) : await removeFavorite(id);
+    pendingRef.current.delete(id);
+    setPending(new Set(pendingRef.current));
     if (r.status === 401) {
       toLogin();
-      return;
+      return false;
     }
     if (!r.ok) {
       setFavErrors((e) => ({ ...e, [id]: writeFailureMessage(r.status) }));
-      return;
+      return false;
     }
     setFavIds((cur) => {
       const next = new Set(cur);
-      if (isFav) next.delete(id);
-      else next.add(id);
+      if (add) next.add(id);
+      else next.delete(id);
       return next;
     });
+    return true;
   }
 
   // A marker click brings the matching card into view (desktop sync).
@@ -269,9 +299,10 @@ export function RechercheClient({
               >
                 <ProviderCard
                   provider={p}
-                  favorite={favIds?.has(p.id) ?? false}
+                  favorite={favIds.has(p.id)}
                   onToggleFavorite={() => toggleFavorite(p.id)}
-                  favoriteBusy={!favLoaded}
+                  favoriteBusy={favRead === 'loading'}
+                  favoritePending={pending.has(p.id)}
                 />
                 {favErrors[p.id] ? (
                   <p role="alert" className="mt-xs text-bodyMedium text-error">
@@ -316,6 +347,9 @@ export function RechercheClient({
       >
         {mobileView === 'list' ? 'Carte' : 'Liste'}
       </button>
+      {/* The ♥'s announcement (B5.4) — lifted above the « Carte » toggle,
+          which holds the same bottom-centre spot under lg. */}
+      <Toast toast={toast} aboveFloatingControl />
     </div>
   );
 }

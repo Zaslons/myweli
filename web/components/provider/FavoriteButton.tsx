@@ -4,6 +4,9 @@ import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 import { addFavorite, getFavorites, removeFavorite } from '../../lib/api/account';
 import { writeFailureMessage } from '../../lib/api/network';
+import { announceFavorite } from '../../lib/account/favorite-toast';
+import { useToast } from '../../lib/useToast';
+import { Toast } from '../Toast';
 
 /// Favorite toggle on the public provider page (client island). Reads the user's
 /// favorites for initial state; not signed in → /connexion. Like the app's
@@ -21,6 +24,7 @@ export function FavoriteButton({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
+  const { toast, show, dismiss } = useToast();
 
   useEffect(() => {
     let active = true;
@@ -36,27 +40,37 @@ export function FavoriteButton({
   }, [providerId]);
 
   // The button was disabled while the call was out, which can drop focus to
-  // <body>: back on it with the failure, never stolen from elsewhere.
+  // <body>: back on it once the answer is in — the failure, or the toast's
+  // success — never stolen from elsewhere.
   useEffect(() => {
-    if (!error) return;
+    if (busy) return;
     const active = document.activeElement;
     if (!active || active === document.body) buttonRef.current?.focus();
-  }, [error]);
+  }, [busy]);
 
+  /// Says what it did, with « Annuler » (B5.4, decision 16 —
+  /// docs/design/web-client-polish.md §2.4).
   async function toggle() {
+    const next = !fav;
+    if (await write(next)) {
+      announceFavorite(show, dismiss, next, () => void write(!next));
+    }
+  }
+
+  async function write(next: boolean): Promise<boolean> {
     setError(null);
     setBusy(true);
-    const next = !fav;
     const r = next
       ? await addFavorite(providerId)
       : await removeFavorite(providerId);
     setBusy(false);
     if (r.status === 401) {
       router.push(`/connexion?returnTo=${encodeURIComponent(`/${slug}`)}`);
-      return;
+      return false;
     }
     if (r.ok) setFav(next);
     else setError(writeFailureMessage(r.status));
+    return r.ok;
   }
 
   return (
@@ -77,6 +91,7 @@ export function FavoriteButton({
           {error}
         </p>
       ) : null}
+      <Toast toast={toast} />
     </>
   );
 }

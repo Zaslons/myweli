@@ -9,6 +9,7 @@ export function ProviderCard({
   favorite,
   onToggleFavorite,
   favoriteBusy = false,
+  favoritePending = false,
 }: {
   provider: Provider;
   favorite?: boolean;
@@ -19,6 +20,11 @@ export function ProviderCard({
   /// clicking during that window used to send a SIGNED-IN visitor to the login
   /// page, since `null` meant both "loading" and "anonymous".
   favoriteBusy?: boolean;
+  /// True while THIS heart's write is out (B5.2,
+  /// docs/design/web-client-polish.md §2.2): a second click is not another
+  /// write. `aria-disabled`, not `disabled` — the heart keeps the keyboard's
+  /// focus, which a disabled button drops to <body>.
+  favoritePending?: boolean;
 }) {
   const active = (provider.services ?? []).filter((s) => s.active !== false);
   const min = active.length ? Math.min(...active.map((s) => s.price)) : null;
@@ -70,10 +76,11 @@ export function ProviderCard({
             ? `Retirer ${provider.name} des favoris`
             : `Ajouter ${provider.name} aux favoris`
         }
-        onClick={onToggleFavorite}
+        onClick={favoritePending ? undefined : onToggleFavorite}
         disabled={favoriteBusy}
-        aria-busy={favoriteBusy || undefined}
-        className={`absolute bottom-0 right-0 flex h-12 w-12 items-center justify-center rounded-pill text-iconM leading-none disabled:opacity-50 ${
+        aria-disabled={favoritePending || undefined}
+        aria-busy={favoriteBusy || favoritePending || undefined}
+        className={`absolute bottom-0 right-0 flex h-12 w-12 items-center justify-center rounded-pill text-iconM leading-none disabled:opacity-50 aria-disabled:opacity-50 ${
           favorite ? 'text-error' : 'text-textTertiary'
         } hover:bg-surfaceVariant`}
       >
