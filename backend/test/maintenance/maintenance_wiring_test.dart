@@ -36,7 +36,7 @@ void main() {
       'pruneThrottle: () => pruneAdminLoginThrottle(const Duration(hours: 24))',
       'pruneRateLimits: () => pruneRateLimitWindows(kRateLimitRetention)',
       'pruneIdempotency: () => pruneIdempotencyKeys(kIdempotencyWindow)',
-      'demoReset: (now) async => (await demoResetService.tickIfDue(now)).ran',
+      'demoReset: (now) async => (await demoResetService.tickIfDue(now)).outcome',
     ]) {
       expect(deps, contains(wiring));
     }

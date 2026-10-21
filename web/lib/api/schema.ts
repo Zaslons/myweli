@@ -279,8 +279,11 @@ export interface paths {
                             rateLimitWindowsPruned: number | null;
                             /** @description idempotency_keys rows older than 24 h */
                             idempotencyKeysPruned: number | null;
-                            /** @description whether the demo salon was reset this tick */
-                            demoReset: boolean;
+                            /**
+                             * @description What the demo-salon reset did this tick, and why when it did not run. `refused:not_demo_owned` is the demo identity LOST — the salon's owner row is no longer it; an alert watches the matching log line (`infra/gcp/84-demo-reset-alert.sh`). It was a boolean that said `false` for both « not the day » and « refused » (docs/design/backend-integrity-batch6.md §2.9, B6.9).
+                             * @enum {string}
+                             */
+                            demoReset: "ran" | "not_due" | "no_snapshot" | "refused:not_demo_owned";
                         };
                     };
                 };
@@ -1031,6 +1034,15 @@ export interface paths {
                 401: components["responses"]["Unauthorized"];
                 403: components["responses"]["Forbidden"];
                 404: components["responses"]["NotFound"];
+                /** @description `member_revoked` — the member was revoked: a former member's role is not changed, a re-invitation states its own (docs/design/backend-integrity-batch6.md §2.8, B6.8c). */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
             };
         };
         trace?: never;
@@ -4328,6 +4340,15 @@ export interface paths {
                     };
                 };
                 401: components["responses"]["Unauthorized"];
+                /** @description `forbidden` — the token is not a client's (a salon's or an admin's): booking is a client's act, refused before the body is read (docs/design/backend-integrity-batch6.md §2.1, B6.1). */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
                 404: components["responses"]["NotFound"];
                 /** @description `slot_unavailable` — the requested time isn't a free slot (closed/past/break/already-booked/non-aligned). `beyond_horizon` — the date is further ahead than the salon's `bookingHorizonDays` (A14d). `too_soon` — the start is inside the salon's `minimumNoticeMinutes`. The last two are distinct from `slot_unavailable` on purpose: that code makes every client say some version of "someone else just took your slot", which is false for a window breach and leaves the user retrying a time that can never be offered. `provider_not_published` — the salon has never gone live, so it is absent from discovery and reachable only by a stale link or a favourite. `provider_suspended` — the salon was stopped. These two are split for the same reason as the pair above, and the split matters more here: a client cannot tell them apart for itself (the mobile `Provider` model has no `status` field), and the never-published case is the state EVERY salon starts in while the suspended one takes a deliberate admin act. `request_in_progress` — the same `Idempotency-Key` is still being answered: ask again with it. */
                 409: {

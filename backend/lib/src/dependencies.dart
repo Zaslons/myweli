@@ -707,7 +707,7 @@ final MaintenanceTick maintenanceTick = MaintenanceTick(
   pruneThrottle: () => pruneAdminLoginThrottle(const Duration(hours: 24)),
   pruneRateLimits: () => pruneRateLimitWindows(kRateLimitRetention),
   pruneIdempotency: () => pruneIdempotencyKeys(kIdempotencyWindow),
-  demoReset: (now) async => (await demoResetService.tickIfDue(now)).ran,
+  demoReset: (now) async => (await demoResetService.tickIfDue(now)).outcome,
 );
 
 final DemoResetService demoResetService = DemoResetService(

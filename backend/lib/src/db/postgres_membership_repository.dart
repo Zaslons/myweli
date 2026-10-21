@@ -67,18 +67,39 @@ class PostgresMembershipRepository implements MembershipRepository {
   }) async {
     final existing = await activeMember(accountId, providerId);
     if (existing != null && existing.role == 'owner') return existing;
-    final r = await _pool.execute(
+    // Refuse by default, like the in-memory twin (docs/design/
+    // backend-integrity-batch6.md §2.8, B6.8a): `ON CONFLICT … DO UPDATE SET
+    // account_id` re-pointed a manager's, an invited or a revoked row at the
+    // caller, KEEPING its role. Two halves, each needed: the account already
+    // holding a row in the salon under ANOTHER address is checked here; any
+    // row for THIS address (and a concurrent insert) is the INSERT's
+    // `DO NOTHING` — no row back is a refusal.
+    final clash = await _pool.execute(
       Sql.named(
-        'INSERT INTO provider_members '
-        '(id, provider_id, account_id, email, role, status, invited_at, '
-        'accepted_at) '
-        "VALUES ('mem_' || @a || '_' || @p, @p, @a, lower(@e), 'owner', "
-        "'active', now(), now()) "
-        'ON CONFLICT (provider_id, email) DO UPDATE SET '
-        'account_id = excluded.account_id RETURNING *',
+        'SELECT 1 FROM provider_members WHERE provider_id = @p '
+        'AND account_id = @a LIMIT 1',
       ),
-      parameters: {'a': accountId, 'p': providerId, 'e': email},
+      parameters: {'a': accountId, 'p': providerId},
     );
+    final r = clash.isNotEmpty
+        ? null
+        : await _pool.execute(
+            Sql.named(
+              'INSERT INTO provider_members '
+              '(id, provider_id, account_id, email, role, status, invited_at, '
+              'accepted_at) '
+              "VALUES ('mem_' || @a || '_' || @p, @p, @a, lower(@e), 'owner', "
+              "'active', now(), now()) "
+              'ON CONFLICT DO NOTHING RETURNING *',
+            ),
+            parameters: {'a': accountId, 'p': providerId, 'e': email},
+          );
+    if (r == null || r.isEmpty) {
+      throw StateError(
+        'ensureOwner refused: salon $providerId already holds a row for '
+        'this address or account',
+      );
+    }
     return _fromRow(r.first.toColumnMap());
   }
 

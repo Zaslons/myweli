@@ -85,12 +85,12 @@ Each question has a recommendation. Answers unblock the item named in brackets.
 
 **Backend (batch 6)**
 
-17. **When an owner deletes their account:** erase the salon's phone, WhatsApp, Mobile Money number and address, and keep only the name and the history? *Recommended: yes.* [B6.3]
-18. **A reviewer's KYC on the demo account:** erase it at the weekly reset (*recommended*), or refuse KYC submission on the demo account like publish and invite? [B6.4]
-19. **One deposit percentage range for app, web and server:** 5–80 % (today's app slider), 1–100 % (today's web field), or another range? [B6.5]
-20. **Salons reporting reviews:** the same admin queue as client reports, marked « signalé par le salon »? And may every team member report, or only Propriétaire and Gérant? [B6.6]
+17. **When an owner deletes their account:** erase the salon's phone, WhatsApp, Mobile Money number and address, and keep only the name and the history? *Recommended: yes.* [B6.3] — ✅ **Answered: yes** — erase the numbers and the address, keep the name and the history ([backend-integrity-batch6.md](design/backend-integrity-batch6.md) Q1).
+18. **A reviewer's KYC on the demo account:** erase it at the weekly reset (*recommended*), or refuse KYC submission on the demo account like publish and invite? [B6.4] — ✅ **Answered: erase it at the weekly reset** (Q2).
+19. **One deposit percentage range for app, web and server:** 5–80 % (today's app slider), 1–100 % (today's web field), or another range? [B6.5] — ✅ **Answered: 5–80 %**, server-enforced when the deposit is on and the % changes (Q3).
+20. **Salons reporting reviews:** the same admin queue as client reports, marked « signalé par le salon »? And may every team member report, or only Propriétaire and Gérant? [B6.6] — ✅ **Answered: the same queue, marked « Signalé par le salon »; Propriétaire and Gérant only** (Q4).
 21. **Exercising the T72 fix in production:** create and delete one throwaway Pro account, or accept the CI test plus the database check? [B10]
-22. **Demo identity lost outside the product:** should the weekly reset re-create it, or is an alert plus manual recovery enough? *Recommended: the alert now; re-creation only if it ever happens.* [B6.9]
+22. **Demo identity lost outside the product:** should the weekly reset re-create it, or is an alert plus manual recovery enough? *Recommended: the alert now; re-creation only if it ever happens.* [B6.9] — ✅ **Answered: the alert now, no re-creation** (Q6).
 
 **Pro app (batch 7)**
 
@@ -264,10 +264,10 @@ This batch takes up three of the six suggested tasks that were never started. It
 
 ### Batch 6 — Backend integrity (P2–P3, one or two deploys)
 
-- **B6.1 `POST /appointments` accepts any role (P2 · S).**
+- ✅ **B6.1 `POST /appointments` accepts any role (P2 · S).** **Done in #676** — [backend-integrity-batch6.md](design/backend-integrity-batch6.md) §10 (not yet deployed).
   - **What:** a Pro or admin token can book through the client route. It is written as the client: an invisible, unreviewable booking that still notifies the salon. (Verified: `routes/appointments/index.dart` checks only that someone is signed in.)
   - **How:** POST answers 403 unless the role is `user`, copying `review.dart`. Add a route test, and the 403 in openapi.
-- **B6.2 A dead invitation still creates an account (P2 · S).**
+- ✅ **B6.2 A dead invitation still creates an account (P2 · S).** **Done in #676** — §10 (not yet deployed).
   - **What:** opening an expired, revoked or misaddressed invitation creates the Pro account, then refuses. At the next sign-in, the server creates an empty salon for that account.
   - **How:** a read-only `TeamService.checkAcceptable` runs the four checks before `createMemberAccount`. If `accept` still fails in the race, remove the new account.
 - **B6.3 A deleted owner's salon keeps their personal numbers (P2 · S · decision 17).** After the unpublish loop, blank the phone and address, and null the WhatsApp and Mobile Money fields. Keep the name and the history, and state it in the privacy policy.
@@ -286,12 +286,12 @@ This batch takes up three of the six suggested tasks that were never started. It
     1. You create a Sign in with Apple `.p8` key and store it in Secret Manager.
     2. The clients send `authorizationCode` at sign-in.
     3. The server exchanges it for a refresh token, stored per account (migration), and revokes it on deletion.
-- **B6.8 Guards with no live trigger (P3 · S each).**
+- ✅ **B6.8 Guards with no live trigger (P3 · S each).** **Done in #676** — §10 (not yet deployed).
   - `ensureOwner` should behave the same in Postgres and in memory (deny by default).
   - `ensureSalon` should refuse to write an owner row on a salon owned by someone else (T72).
   - The team API should refuse to change the role of a revoked member (409), next to B7.5.
-- **B6.9 Know when the demo identity is lost (P3 · S · decision 22).** Put the refusal reason in the cron response, and add a log alert on `demo_reset REFUSED`, copying `96-rebuild-hook-alert.sh`.
-- **B6.10 A Postgres end-to-end test for client account deletion (P3 · M).** A victim plus a bystander, all their rows, run through the real repositories, like the Pro one. Tests only.
+- ✅ **B6.9 Know when the demo identity is lost (P3 · S · decision 22).** **Done in #676** — §10; the alert script is written, **not yet created on GCP** (asked after the deploy). Put the refusal reason in the cron response, and add a log alert on `demo_reset REFUSED`, copying `96-rebuild-hook-alert.sh`.
+- ✅ **B6.10 A Postgres end-to-end test for client account deletion (P3 · M).** **Done in #676** — §10. A victim plus a bystander, all their rows, run through the real repositories, like the Pro one. Tests only.
 
 ### Batch 7 — Pro app UI, accessibility and parity (P2–P3, app)
 

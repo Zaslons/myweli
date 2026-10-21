@@ -32,9 +32,11 @@ class MaintenanceTick {
   final Future<int?> Function() pruneIdempotency;
 
   /// The demo-salon reset (T69), due-gated to every 7 days inside its service:
-  /// a no-op six days out of seven. A throw is left to escape — a 500 the
-  /// cron alert sees, exactly as when it rode the subscriptions cron.
-  final Future<bool> Function(DateTime now) demoReset;
+  /// a no-op six days out of seven. Answers WHY it did not run — `not_due`,
+  /// `no_snapshot`, `refused:not_demo_owned` — or `ran` (B6.9). A throw is
+  /// left to escape — a 500 the cron alert sees, exactly as when it rode the
+  /// subscriptions cron.
+  final Future<String> Function(DateTime now) demoReset;
 
   /// Runs the four, in the order they ran before the move, and answers each
   /// count as it came: **a prune nobody can see is the shape this repo keeps

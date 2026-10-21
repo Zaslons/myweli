@@ -28,6 +28,14 @@ Future<Response> onRequest(RequestContext context) async {
 
   switch (context.request.method) {
     case HttpMethod.post:
+      // Booking is a client's act (docs/design/backend-integrity-batch6.md
+      // §2.1, B6.1): a salon or admin token booked here, under its own id —
+      // `user_id` has no foreign key — a booking no client ever sees, which
+      // still notified the salon. Refused before the body is read, like
+      // `review.dart`.
+      if (principal.role != 'user') {
+        return jsonError(HttpStatus.forbidden, 'forbidden');
+      }
       // A lost answer is asked again with the same `Idempotency-Key`: the
       // booking made is replayed, never a 409 on the person's own slot nor
       // a second booking (docs/design/write-idempotency.md). The rate limit

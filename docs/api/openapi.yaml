@@ -207,8 +207,17 @@ paths:
                     nullable: true
                     description: idempotency_keys rows older than 24 h
                   demoReset:
-                    type: boolean
-                    description: whether the demo salon was reset this tick
+                    type: string
+                    enum: [ran, not_due, no_snapshot, 'refused:not_demo_owned']
+                    description: >
+                      What the demo-salon reset did this tick, and why when it
+                      did not run. `refused:not_demo_owned` is the demo
+                      identity LOST — the salon's owner row is no longer it;
+                      an alert watches the matching log line
+                      (`infra/gcp/84-demo-reset-alert.sh`). It was a boolean
+                      that said `false` for both « not the day » and
+                      « refused » (docs/design/backend-integrity-batch6.md
+                      §2.9, B6.9).
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
 
@@ -755,6 +764,14 @@ paths:
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: >
+            `member_revoked` — the member was revoked: a former member's role
+            is not changed, a re-invitation states its own
+            (docs/design/backend-integrity-batch6.md §2.8, B6.8c).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
 
   /me/provider/members/{memberId}/revoke:
     post:
@@ -2894,6 +2911,14 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/Error' }
         '401': { $ref: '#/components/responses/Unauthorized' }
+        '403':
+          description: >
+            `forbidden` — the token is not a client's (a salon's or an
+            admin's): booking is a client's act, refused before the body is
+            read (docs/design/backend-integrity-batch6.md §2.1, B6.1).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
         '404': { $ref: '#/components/responses/NotFound' }
         '409':
           description: >
