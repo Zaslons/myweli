@@ -8,7 +8,7 @@ import { type ReactNode, useCallback, useEffect, useRef, useState } from 'react'
 import { Toast } from '../Toast';
 import { useToast } from '../../lib/useToast';
 import { type ProProfile, getMyProvider, listProAppointments } from '../../lib/api/pro';
-import { loadFailure, loadFailureMessage, type LoadFailure } from '../../lib/pro/load-failure';
+import { loadFailure, loadFailureMessage, type LoadFailure } from '../../lib/api/load-failure';
 import {
   type ListTab,
   LIST_TABS,

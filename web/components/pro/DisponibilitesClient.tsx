@@ -5,7 +5,7 @@ import { Card } from '../Card';
 import { ErrorState } from '../ErrorState';
 import { useEffect, useState } from 'react';
 import { getMyProvider, saveAvailability } from '../../lib/api/pro';
-import { loadFailure, loadFailureMessage, type LoadFailure } from '../../lib/pro/load-failure';
+import { loadFailure, loadFailureMessage, type LoadFailure } from '../../lib/api/load-failure';
 import { DayHoursEditor } from './DayHoursEditor';
 import { BlockedDatesDialog, dayLabel } from './BlockedDatesDialog';
 import { WeekRangesEditor } from './WeekRangesEditor';
@@ -173,7 +173,7 @@ export function DisponibilitesClient() {
     const r = await saveAvailability(providerId, obj);
     setBusy(false);
     if (!r.ok) {
-      setError('L’enregistrement a échoué. Réessayez.');
+      setError(writeFailureMessage(r.status, 'L’enregistrement a échoué. Réessayez.'));
       return;
     }
     setBase(obj);

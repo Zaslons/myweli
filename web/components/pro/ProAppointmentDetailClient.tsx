@@ -27,7 +27,7 @@ import {
   loadFailure,
   loadFailureMessage,
   type LoadFailure,
-} from "../../lib/pro/load-failure";
+} from "../../lib/api/load-failure";
 import { rescheduleAppointment } from "../../lib/api/pro";
 import { hhmm, minutesOfDay } from "../../lib/pro/journal";
 import { combineDateTime } from "../../lib/pro/manual-booking";

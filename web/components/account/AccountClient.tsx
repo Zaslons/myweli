@@ -22,6 +22,7 @@ import {
   updateName,
   removeFavorite,
 } from '../../lib/api/account';
+import { loadFailure, loadFailureMessage, type LoadFailure } from '../../lib/api/load-failure';
 import { NO_CONNECTION_MESSAGE, writeFailureMessage } from '../../lib/api/network';
 import type { Provider } from '../../lib/api/providers';
 import { updateContactPhone } from '../../lib/auth/client';
@@ -58,7 +59,7 @@ export function AccountClient() {
   const [favorites, setFavorites] = useState<Provider[]>([]);
   // The favorites read failed: the section says so — never « Aucun favori »
   // to someone who has some (docs/design/web-consumer-network-failure.md §3.2).
-  const [favoritesFailed, setFavoritesFailed] = useState(false);
+  const [favoritesFailed, setFavoritesFailed] = useState<LoadFailure | false>(false);
   // « Retirer des favoris » in flight: those cards are HIDDEN, not dropped —
   // `favorites` loses one only on a success, so a failure brings back that
   // card at its place (docs/design/web-consumer-optimistic-revert.md §3.2 ①).
@@ -87,7 +88,9 @@ export function AccountClient() {
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [phoneDraft, setPhoneDraft] = useState('');
   const [phoneBusy, setPhoneBusy] = useState(false);
-  const [phoneError, setPhoneError] = useState(false);
+  // The number's failure line: « Pas de connexion » when nothing answered,
+  // like the name beside it (docs/design/app-failure-messages.md §2.2).
+  const [phoneError, setPhoneError] = useState<string | null>(null);
   // The draft's fault answers UNDER the field, on submit (§14 rules 1/2/5 —
   // docs/design/phone-leftovers.md §4); « Enregistrer » used to grey out on
   // bare `isPossiblePhoneNumber`, with no word.
@@ -112,7 +115,9 @@ export function AccountClient() {
       setMe(m.user ?? null);
       setItems(a.items);
       setFavorites(f.favorites);
-      setFavoritesFailed(f.status !== 200);
+      // Why, when it failed: no answer is « Pas de connexion »
+      // (docs/design/app-failure-messages.md §2.2).
+      setFavoritesFailed(f.status === 200 ? false : loadFailure(f.status));
       setLoading(false);
     })();
     return () => {
@@ -191,7 +196,7 @@ export function AccountClient() {
   async function savePhone() {
     // The last save's failure line goes first: a save stopped at the field
     // below must not keep it under the new fault.
-    setPhoneError(false);
+    setPhoneError(null);
     if (!phoneFields.validate({ phone: phoneDraft })) return;
     // What is checked is what crosses.
     const phone = normalizePhone(phoneDraft);
@@ -201,7 +206,7 @@ export function AccountClient() {
     if (!r.ok) {
       // The server's own verdict on the number belongs to the field too.
       if (r.error === 'invalid_phone') phoneFields.set('phone', PHONE_INVALID);
-      else setPhoneError(true);
+      else setPhoneError(writeFailureMessage(r.status, 'L’enregistrement a échoué. Réessayez.'));
       return;
     }
     setMe((m) => (m ? { ...m, phoneNumber: phone, phoneVerified: false } : m));
@@ -365,7 +370,7 @@ export function AccountClient() {
               </div>
               {phoneError ? (
                 <p role="alert" className="text-bodyMedium text-error">
-                  L’enregistrement a échoué. Réessayez.
+                  {phoneError}
                 </p>
               ) : null}
             </div>
@@ -385,7 +390,7 @@ export function AccountClient() {
                   setPhoneDraft(me?.phoneNumber ?? '');
                   // A fault from an abandoned edit is about a draft that is gone.
                   phoneFields.clear();
-                  setPhoneError(false);
+                  setPhoneError(null);
                   setEditingPhone(true);
                 }}
                 className="text-bodyMedium text-textPrimary underline"
@@ -427,7 +432,7 @@ export function AccountClient() {
         {favoritesFailed ? (
           <ErrorState
             className="mt-s"
-            message="Favoris indisponibles."
+            message={loadFailureMessage(favoritesFailed, 'Favoris indisponibles.')}
             onRetry={() => { setLoading(true); setReloadKey((k) => k + 1); }}
           />
         ) : shownFavorites.length === 0 ? (

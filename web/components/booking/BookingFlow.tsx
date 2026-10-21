@@ -7,6 +7,7 @@ import { ErrorState } from "../ErrorState";
 import { Loading } from "../Loading";
 import { SkeletonRows } from "../Skeleton";
 import { type Me, getMe } from "../../lib/api/account";
+import { loadFailure, loadFailureMessage, type LoadFailure } from "../../lib/api/load-failure";
 import { NO_CONNECTION_MESSAGE, SubmissionKey } from "../../lib/api/network";
 import type { Provider } from "../../lib/api/providers";
 import { updateContactPhone } from "../../lib/auth/client";
@@ -165,7 +166,8 @@ export function BookingFlow({
   const [me, setMe] = useState<Me | null | undefined>(undefined);
   // The probe got no usable answer (no network, a 5xx) — which is not « signed
   // out »: only a 401 is. `probeKey` re-runs it from « Réessayer ».
-  const [probeFailed, setProbeFailed] = useState(false);
+  // Why the session probe failed (docs/design/app-failure-messages.md §2.2).
+  const [probeFailed, setProbeFailed] = useState<LoadFailure | false>(false);
   const [probeKey, setProbeKey] = useState(0);
   const [phone, setPhone] = useState("");
   // Its fault answers UNDER the field, on submit (§14 rules 1/2/5 —
@@ -207,7 +209,7 @@ export function BookingFlow({
       // form to someone signed in (docs/design/web-consumer-network-failure.md
       // §3.2).
       if (r.status !== 200 && r.status !== 401) {
-        setProbeFailed(true);
+        setProbeFailed(loadFailure(r.status));
         return;
       }
       setMe(r.status === 200 ? (r.user ?? null) : null);
@@ -512,6 +514,7 @@ export function BookingFlow({
         {me === undefined && probeFailed ? (
           <ErrorState
             className="mt-m"
+            message={loadFailureMessage(probeFailed)}
             onRetry={() => setProbeKey((k) => k + 1)}
           />
         ) : me === undefined ? (

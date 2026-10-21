@@ -9,7 +9,7 @@ import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
 import type { Review } from '../../lib/api/providers';
 import { getMyProvider, listProviderReviews } from '../../lib/api/pro';
-import { loadFailure, loadFailureMessage, type LoadFailure } from '../../lib/pro/load-failure';
+import { loadFailure, loadFailureMessage, type LoadFailure } from '../../lib/api/load-failure';
 import { formatDateFr } from '../../lib/format';
 import { type ReviewSummary, reviewStats, statsFromSummary } from '../../lib/pro/reviews';
 import { Button } from '../Button';

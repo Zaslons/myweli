@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 import { navForMembership } from '../../lib/pro/nav';
 import { unreadLabel } from '../../lib/pro/notifications';
-import { loadFailureMessage, type LoadFailure } from '../../lib/pro/load-failure';
+import { loadFailureMessage, type LoadFailure } from '../../lib/api/load-failure';
 import { ROLE_LABELS, type TeamRole } from '../../lib/pro/team';
 import { useIsDesktop } from '../../lib/pro/use-is-desktop';
 import { Skeleton } from '../Skeleton';

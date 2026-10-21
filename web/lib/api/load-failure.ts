@@ -1,7 +1,8 @@
-import { NO_CONNECTION_MESSAGE } from '../api/network';
+import { NO_CONNECTION_MESSAGE } from './network';
 
-/// Why a Pro page's read failed, as its error state needs it — design:
-/// docs/design/web-pro-no-connection-copy.md §2.
+/// Why a page's read failed, as its error state needs it — design:
+/// docs/design/web-pro-no-connection-copy.md §2. In `lib/api` since
+/// docs/design/app-failure-messages.md §2.2: the client pages say it too.
 ///
 /// `'offline'`: no usable answer reached the browser — status 0 from the
 /// lib/api/pro.ts wrappers (no network, a body cut on the way, an unreadable

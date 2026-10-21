@@ -13,7 +13,7 @@ import {
   resendInvitation,
   revokeMember,
 } from '../../lib/api/pro';
-import { loadFailure, loadFailureMessage, type LoadFailure } from '../../lib/pro/load-failure';
+import { loadFailure, loadFailureMessage, type LoadFailure } from '../../lib/api/load-failure';
 import { Modal } from '../Modal';
 import { Toast } from '../Toast';
 import { useToast } from '../../lib/useToast';

@@ -7,7 +7,7 @@ import { StatusChip } from '../StatusChip';
 import { ErrorState } from '../ErrorState';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { SubmissionKey } from '../../lib/api/network';
+import { SubmissionKey, writeFailureMessage } from '../../lib/api/network';
 import { Toast } from '../Toast';
 import { useToast } from '../../lib/useToast';
 import { statusLabelFr } from '../../lib/account/appointments';
@@ -21,7 +21,7 @@ import {
   updateClientPhone,
   updateClientTags,
 } from '../../lib/api/pro';
-import { loadFailure, loadFailureMessage, type LoadFailure } from '../../lib/pro/load-failure';
+import { loadFailure, loadFailureMessage, type LoadFailure } from '../../lib/api/load-failure';
 import { useFieldErrors } from '../../lib/forms/useFieldErrors';
 import {
   PHONE_INVALID,
@@ -649,7 +649,7 @@ function EditPhoneModal({
       return;
     }
     setBusy(false);
-    setOutcome({ text: 'L’enregistrement a échoué. Réessayez.' });
+    setOutcome({ text: writeFailureMessage(r.status, 'L’enregistrement a échoué. Réessayez.') });
   }
 
   return (

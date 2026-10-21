@@ -7,7 +7,7 @@ import {
   setProEmailAlerts,
 } from '../../lib/api/pro';
 import { writeFailureMessage } from '../../lib/api/network';
-import { loadFailure, loadFailureMessage, type LoadFailure } from '../../lib/pro/load-failure';
+import { loadFailure, loadFailureMessage, type LoadFailure } from '../../lib/api/load-failure';
 import { ErrorState } from '../ErrorState';
 import { PrefSwitch } from '../PrefSwitch';
 import { SkeletonRows } from '../Skeleton';

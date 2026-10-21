@@ -15,7 +15,7 @@ import {
   getSalonSubscription,
   listProAppointments,
 } from '../../lib/api/pro';
-import { loadFailure, loadFailureMessage, type LoadFailure } from '../../lib/pro/load-failure';
+import { loadFailure, loadFailureMessage, type LoadFailure } from '../../lib/api/load-failure';
 import { formatFcfa } from '../../lib/format';
 import {
   type TeamInvitation,
