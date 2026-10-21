@@ -227,6 +227,27 @@ which is how the reminder cron came to be switched off without anyone noticing.
    old. On `JWT_SECRET` that is some instances signing with a key the others
    reject, with nothing in the logs saying why.
 
+   **Sign in with Apple's key — owed, and the server waits for it (B6.7).**
+   Account deletion revokes the person's Apple authorization (App Store
+   5.1.1(v)) only once a key exists; until then the server keeps and revokes
+   nothing and says so at each boot (`NOTICE: no APPLE_TEAM_ID …`). To turn it
+   on — **the owner's steps**, a cloud mutation each, asked for before:
+   1. Apple Developer → *Certificates, Identifiers & Profiles* → *Keys* → **+**:
+      enable **Sign in with Apple**, configure it on the app's primary App ID
+      (every id in `APPLE_CLIENT_IDS` — the two apps and the web's Services ID
+      — must be grouped under it). Download `AuthKey_<KEY_ID>.p8` (Apple
+      offers it **once**); note the Key ID and the Team ID.
+   2. `gcloud secrets create APPLE_PRIVATE_KEY --data-file=AuthKey_<KEY_ID>.p8`,
+      and grant the runtime service account `secretAccessor` on it.
+   3. A PR adds to `infra/gcp/service.yaml`: `APPLE_TEAM_ID` and
+      `APPLE_KEY_ID` as plain values (identifiers, not secrets) and
+      `APPLE_PRIVATE_KEY` by `secretKeyRef`, **pinned** to version `'1'` (the
+      pins test refuses `latest`). All three or none — half a key refuses to
+      boot.
+   4. Deploy; the boot `NOTICE` is gone. Sign-ins from then on keep a token;
+      accounts that signed in before have none to revoke until their next
+      sign-in. Design: docs/design/backend-integrity-batch6.md §13.
+
    **Changing a secret, in order:**
 
    1. `printf '%s' "$NEW" | gcloud secrets versions add <NAME> --data-file=-`
