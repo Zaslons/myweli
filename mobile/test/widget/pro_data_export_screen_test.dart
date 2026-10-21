@@ -110,8 +110,20 @@ class _Pro extends MockProService {
   }
 }
 
+/// An artist the export cannot hold: the team read answered, and the file
+/// still cannot be made (docs/design/web-client-polish.md §2.3, Q3).
+class _UnbuildableArtist extends Artist {
+  const _UnbuildableArtist() : super(id: 'x', name: 'x', providerId: 'p');
+
+  @override
+  String get name => throw StateError('an artist the file cannot hold');
+}
+
 class _Artists extends MockProArtistService {
   bool fail = false;
+
+  /// The team answers with an artist the file cannot hold.
+  bool unbuildable = false;
 
   /// The 200 body the team read answers, through the REAL
   /// `ApiProArtistService` parse; null = the canned team.
@@ -120,6 +132,7 @@ class _Artists extends MockProArtistService {
 
   void reset() {
     fail = false;
+    unbuildable = false;
     wire = null;
     asked.clear();
   }
@@ -128,6 +141,7 @@ class _Artists extends MockProArtistService {
   Future<ApiResponse<List<Artist>>> getArtists(String providerId) async {
     asked.add(providerId);
     if (fail) return ApiResponse.error('Erreur');
+    if (unbuildable) return ApiResponse.success([const _UnbuildableArtist()]);
     if (wire case final body?) {
       return ApiProArtistService(
         client: _answering(body),
@@ -428,6 +442,23 @@ void main() {
         ..throwOnFail = true,
     );
     expectRefused('le fichier clients');
+  });
+
+  // docs/design/web-client-polish.md §2.3 (Q3): every read answered and the
+  // file could not be made. It used to throw inside `setState` — the loader
+  // for ever.
+  testWidgets('a file that cannot be built → its own sentence, not a loader '
+      'for ever', (tester) async {
+    await pumpExport(tester, arrange: () => artists.unbuildable = true);
+
+    expect(find.text('Chargement impossible'), findsOneWidget);
+    expect(
+      find.text('Le fichier n’a pas pu être préparé. Réessayez.'),
+      findsOneWidget,
+    );
+    expect(find.textContaining('impossible de charger'), findsNothing);
+    expect(find.text('Réessayer'), findsOneWidget);
+    expect(find.text(_copyButton), findsNothing);
   });
 
   testWidgets('two failed reads are named in the file’s order', (tester) async {

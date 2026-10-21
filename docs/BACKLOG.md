@@ -81,7 +81,7 @@ Each question has a recommendation. Answers unblock the item named in brackets.
 
 **Client web (batch 5)**
 
-16. **The web ♥:** show only « Ajouté aux favoris » / « Retiré des favoris », or also « Annuler » like the app? « Annuler » would be the web's first toast with an action. *Recommended: message only for now.* [B5.4]
+16. **The web ♥:** show only « Ajouté aux favoris » / « Retiré des favoris », or also « Annuler » like the app? « Annuler » would be the web's first toast with an action. *Recommended: message only for now.* [B5.4] — ✅ **Answered: message + « Annuler »**, like the app (Médias already has an action toast); « Mon compte » announces too ([web-client-polish.md](design/web-client-polish.md) Q2, Q4).
 
 **Backend (batch 6)**
 
@@ -245,7 +245,7 @@ This batch takes up three of the six suggested tasks that were never started. It
 
 ### Batch 5 — Client web polish (P2–P3, web)
 
-- **B5.1 Sign-in blames the code for every failure (P2 · S).**
+- ✅ **B5.1 Sign-in blames the code for every failure (P2 · S).** **Done in #674** — [web-client-polish.md](design/web-client-polish.md) §10 (the send step and the salon sign-up too).
   - **What:** a server error, a rate limit or a broken answer says « Code incorrect ou expiré. » under the code field (`LoginOptions.tsx:159-174`). The Pro web sign-in has the same branch.
   - **How:** map by error code, as the app does.
     - `otp_invalid`, `otp_expired`, `otp_none` and `otp_locked` go under the field.
@@ -254,7 +254,7 @@ This batch takes up three of the six suggested tasks that were never started. It
 - **B5.2 The search ♥ (P2 · S).**
   - **What:** a failed session check sends a signed-in user to the login page, and a double click sends two requests.
   - **How:** track the probe as ok / anonymous / failed, and treat failed like the salon page's button, where the write's own 401 decides. Add a per-card in-flight set.
-- **B5.3 Export edge cases (P3 · S).**
+- ✅ **B5.3 Export edge cases (P3 · S).** **Done in #674** — [web-client-polish.md](design/web-client-polish.md) §10 (the app's two export screens too, Q3).
   - **What:** after an assembly error, the salon export blames three reads that succeeded. « Mes données » builds its document during render, so one broken favourite entry (`[null]`) hangs or crashes the page instead of refusing.
   - **How:**
     - A dedicated « Le fichier n'a pas pu être préparé. Réessayez. ».

@@ -68,6 +68,13 @@ String dataExportFailureMessage(Iterable<DataExportSection> failed) {
       'complètes : vérifiez votre connexion et réessayez.';
 }
 
+/// Every read answered, and the file still could not be made from them: its
+/// own sentence — naming the reads would blame what worked
+/// (docs/design/web-client-polish.md §2.3). The web's two exports say the
+/// same (`EXPORT_BUILD_FAILED`).
+const String kDataExportBuildFailed =
+    'Le fichier n’a pas pu être préparé. Réessayez.';
+
 /// The clipboard refused the copy. The app has no download, and a
 /// `PlatformException` from the clipboard is not a lasting state: the button
 /// stays, and it is the retry.

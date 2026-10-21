@@ -42,6 +42,10 @@ class _ProDataExportScreenState extends State<ProDataExportScreen> {
   /// The sections whose read failed on the last attempt, named in the
   /// refusal. Empty while [_failed] = no session to read with.
   Set<ProExportSection> _failedSections = const {};
+
+  /// Every read answered and the file could not be made from them — its own
+  /// sentence, not the reads (docs/design/web-client-polish.md §2.3).
+  bool _buildFailed = false;
   Map<String, dynamic>? _export;
 
   @override
@@ -55,6 +59,7 @@ class _ProDataExportScreenState extends State<ProDataExportScreen> {
       _loading = true;
       _failed = false;
       _failedSections = const {};
+      _buildFailed = false;
     });
     final auth = context.read<ProAuthProvider>();
     final account = auth.provider;
@@ -105,8 +110,11 @@ class _ProDataExportScreenState extends State<ProDataExportScreen> {
       return;
     }
 
-    setState(() {
-      _export = buildProviderDataExport(
+    // Made OUTSIDE `setState`: a throw in its callback left the loader up
+    // for ever. The reads answered; the file could not be made from them.
+    final Map<String, dynamic> export;
+    try {
+      export = buildProviderDataExport(
         account: account,
         salon: salon,
         services: services,
@@ -114,6 +122,16 @@ class _ProDataExportScreenState extends State<ProDataExportScreen> {
         appointments: appointments,
         clients: clients,
       );
+    } catch (_) {
+      setState(() {
+        _loading = false;
+        _failed = true;
+        _buildFailed = true;
+      });
+      return;
+    }
+    setState(() {
+      _export = export;
       _loading = false;
     });
   }
@@ -140,9 +158,11 @@ class _ProDataExportScreenState extends State<ProDataExportScreen> {
           ? const LoadingIndicator()
           : _failed || _export == null
           ? EmptyState(
-              icon: Icons.wifi_off,
+              icon: _buildFailed ? Icons.error_outline : Icons.wifi_off,
               title: 'Chargement impossible',
-              description: _failedSections.isEmpty
+              description: _buildFailed
+                  ? kDataExportBuildFailed
+                  : _failedSections.isEmpty
                   ? 'Vérifiez votre connexion et réessayez.'
                   : proExportFailureMessage(_failedSections),
               actionText: 'Réessayer',

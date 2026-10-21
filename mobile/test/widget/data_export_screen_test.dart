@@ -37,6 +37,15 @@ class _Discovery extends Mock implements ProviderServiceInterface {}
 
 /// The signed-in client, fixed: the screen reads the profile from the
 /// session, not from a request.
+/// The favourites read answered, and the file still cannot be made from
+/// them — a list the export cannot hold (docs/design/web-client-polish.md
+/// §2.3, Q3).
+class _Unbuildable extends FavoritesProvider {
+  @override
+  List<models.Provider> get favoriteProviders =>
+      throw StateError('a favourite the file cannot hold');
+}
+
 class _SignedIn extends AuthProvider {
   _SignedIn(this._signedIn);
 
@@ -393,5 +402,22 @@ void main() {
       ['a1', 'a2'],
     );
     expect(doc['favorites'], [salonA.name, salonB.name]);
+  });
+
+  // docs/design/web-client-polish.md §2.3 (Q3): the reads answered and the
+  // file could not be made — its own sentence. It used to name both reads,
+  // which had worked.
+  testWidgets('a file that cannot be built → its own sentence, never the '
+      'reads that answered', (tester) async {
+    await pump(tester, favoritesState: _Unbuildable());
+
+    expect(find.text('Chargement impossible'), findsOneWidget);
+    expect(
+      find.text('Le fichier n’a pas pu être préparé. Réessayez.'),
+      findsOneWidget,
+    );
+    expect(find.textContaining('Impossible de charger'), findsNothing);
+    expect(find.text('Réessayer'), findsOneWidget);
+    expect(find.text(copyButton), findsNothing);
   });
 }

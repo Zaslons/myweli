@@ -12,10 +12,10 @@ import {
 import {
   EXPORT_COPY_FAILED,
   type ExportSection,
-  SECTION_ORDER,
   buildProviderDataExport,
   exportFailureMessage,
 } from '../../lib/pro/export';
+import { EXPORT_BUILD_FAILED } from '../../lib/account/export';
 import { DEMO_ACCOUNT_LOCKED_MESSAGE } from '../../lib/pro/team';
 import { Button } from '../Button';
 import { TextField } from '../TextField';
@@ -114,14 +114,15 @@ export function CompteDangerSection({
   /// no-file (docs/design/export-unreadable-200.md §2.3): the reads are
   /// checked for their lists, but the file is still built from what crossed
   /// the network, and the button used to just come back with nothing said.
-  /// The throw does not say which data was wrong, so every section is named.
+  /// It says so in its own words: it used to name all three reads, which had
+  /// answered (docs/design/web-client-polish.md §2.3).
   async function prepare(): Promise<string | null> {
     setExporting(true);
     setExportError(null);
     try {
       return await assembleJson();
     } catch {
-      setExportError(exportFailureMessage(SECTION_ORDER));
+      setExportError(EXPORT_BUILD_FAILED);
       return null;
     } finally {
       setExporting(false);

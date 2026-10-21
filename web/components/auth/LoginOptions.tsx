@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import type { Me } from '../../lib/api/account';
-import { NO_CONNECTION_MESSAGE, writeFailureMessage } from '../../lib/api/network';
+import { writeFailureMessage } from '../../lib/api/network';
 import {
   loginWithApple,
   loginWithGoogle,
@@ -20,6 +20,7 @@ import { Button } from '../Button';
 import { PhoneField } from '../PhoneField';
 import { TextField } from '../TextField';
 import { appleIdentity } from '../../lib/auth/apple';
+import { type SignInRefusal, codeRefusal, sendRefusal } from '../../lib/auth/otp-failure';
 import { AppleSignInButton } from './AppleSignInButton';
 import { GoogleSignInButton } from './GoogleSignInButton';
 import { LegalConsentText } from '../LegalConsentText';
@@ -97,16 +98,25 @@ export function LoginOptions({ onSuccess }: { onSuccess: () => void }) {
     afterLogin(r.user);
   }
 
+  /// A refused step, said where the table puts it — under a field only while
+  /// that field is on screen (« Renvoyer le code » has no e-mail field to
+  /// point at), under the form otherwise (docs/design/web-client-polish.md
+  /// §2.1).
+  function refuse(f: SignInRefusal) {
+    const shown = f.field === 'code' ? step === 'code' : step !== 'code';
+    if (f.field && shown) return fields.set(f.field, f.message);
+    setError(f.message);
+  }
+
   async function sendCode() {
     if (!fields.validate({ email: email.trim() })) return;
     setBusy(true);
     setError(null);
     const r = await requestEmailOtp(email.trim());
     setBusy(false);
-    // Status 0 = no answer: the e-mail was never judged — not its fault
-    // (docs/design/web-consumer-network-failure.md §3.2).
-    if (r.status === 0) return setError(NO_CONNECTION_MESSAGE);
-    if (!r.ok) return setError('E-mail invalide ou envoi impossible.');
+    // No answer, a rate limit or an outage is not the e-mail's fault: only
+    // the server's `invalid_email` goes under the field.
+    if (!r.ok) return refuse(sendRefusal(r));
     setDevCode(r.devCode);
     setStep('code');
     setCooldown(60);
@@ -118,15 +128,10 @@ export function LoginOptions({ onSuccess }: { onSuccess: () => void }) {
     setError(null);
     const r = await verifyEmailOtp(email.trim(), code.trim());
     setBusy(false);
-    if (!r.ok) {
-      // No answer is nobody's fault but the network's → form-level, and the
-      // code is not accused of a verdict no server gave.
-      if (r.status === 0) return setError(NO_CONNECTION_MESSAGE);
-      // « Compte suspendu » is an ACCOUNT state → form-level. A bad code is the
-      // code field's fault → under the field (§14 rule 1).
-      if (r.error === 'account_suspended') return setError('Compte suspendu.');
-      return fields.set('code', 'Code incorrect ou expiré.');
-    }
+    // The code's own verdicts under the field, in the app's words; no
+    // answer, a rate limit, an outage or « Compte suspendu » under the form —
+    // the code is not accused of what no server said about it.
+    if (!r.ok) return refuse(codeRefusal(r));
     afterLogin(r.user);
   }
 
