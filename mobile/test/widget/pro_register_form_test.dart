@@ -520,6 +520,24 @@ void main() {
     expect(find.text('DASHBOARD'), findsNothing);
   });
 
+  testWidgets('a new code: the last one\'s fault is gone', (tester) async {
+    refusedBy('otp_invalid', 'Code incorrect.');
+    await reachCodeStep(tester);
+    await type(tester, 'Code à 6 chiffres', '123456');
+    await tester.tap(find.text('S’inscrire'));
+    await settle(tester);
+    expect(
+      find.text('Code incorrect.'),
+      findsOneWidget,
+      reason: 'the scenario',
+    );
+
+    await tester.tap(find.text('Renvoyer le code'));
+    await settle(tester);
+
+    expect(find.text('Code incorrect.'), findsNothing);
+  });
+
   testWidgets('an address the server refuses is said under the e-mail', (
     tester,
   ) async {

@@ -1258,10 +1258,9 @@ void main() {
     });
 
     testWidgets('ten tags, the limit fault and the keyboard: the sheet '
-        'scrolls — nothing overflows, « Enregistrer » is reachable', (
-      tester,
-    ) async {
-      tester.view.physicalSize = const Size(360, 640);
+        'grows past 9/16 of the screen — its title and « Enregistrer » both '
+        'in view above the keyboard, nothing overflowing', (tester) async {
+      tester.view.physicalSize = const Size(360, 800);
       tester.view.devicePixelRatio = 1;
       addTearDown(tester.view.reset);
 
@@ -1275,16 +1274,14 @@ void main() {
       expect(
         tester.takeException(),
         isNull,
-        reason:
-            'at the default 9/16 of the screen, ten chips overflowed the '
-            'sheet before any keyboard',
+        reason: 'at the default 9/16, ten chips overflowed the sheet',
       );
       expect(underTheTag(limit), findsOneWidget);
-      await tester.ensureVisible(find.text('Enregistrer'));
-      await tester.pump();
+      // No scrolling: the whole sheet is in view, not a 170dp window of it.
+      expect(tester.getRect(find.text('Tags')).top, greaterThanOrEqualTo(0));
       expect(
         tester.getRect(find.text('Enregistrer')).bottom,
-        lessThanOrEqualTo(640 - 280 + 0.5),
+        lessThanOrEqualTo(800 - 280 + 0.5),
         reason: 'above the keyboard',
       );
     });

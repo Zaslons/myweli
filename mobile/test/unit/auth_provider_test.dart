@@ -52,4 +52,37 @@ void main() {
     expect(ok, isTrue);
     expect(provider.otpErrorCode, isNull);
   });
+
+  // hygiene-batch9.md §2.6 (B9.7) — the sign-in places its sentence by this
+  // code (sign_in_refusal.dart): a send that throws after a refused code must
+  // not keep « otp_invalid », or the screen hides the new failure as the
+  // code's.
+  test('a new attempt starts without the last one\'s code', () async {
+    when(() => service.verifyEmailOtp(any(), any())).thenAnswer(
+      (_) async =>
+          ApiResponse<User>.error('Code incorrect.', code: 'otp_invalid'),
+    );
+    when(() => service.requestEmailOtp(any())).thenThrow(StateError('boom'));
+
+    final provider = AuthProvider();
+    await provider.verifyEmailOtp('a@b.ci', '000000');
+    expect(provider.otpErrorCode, 'otp_invalid', reason: 'the scenario');
+
+    await provider.requestEmailOtp('a@b.ci');
+    expect(provider.otpErrorCode, isNull);
+    expect(provider.error, isNotNull);
+  });
+
+  test('…and a sign-in that throws likewise', () async {
+    when(() => service.verifyEmailOtp(any(), any())).thenAnswer(
+      (_) async =>
+          ApiResponse<User>.error('Code incorrect.', code: 'otp_invalid'),
+    );
+    final provider = AuthProvider();
+    await provider.verifyEmailOtp('a@b.ci', '000000');
+
+    when(() => service.verifyEmailOtp(any(), any())).thenThrow(StateError('x'));
+    await provider.verifyEmailOtp('a@b.ci', '111111');
+    expect(provider.otpErrorCode, isNull);
+  });
 }
