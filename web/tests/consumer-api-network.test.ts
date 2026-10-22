@@ -357,12 +357,12 @@ describe('an answer is still read as before', () => {
     expect(await account.getMe()).toEqual({ status: 200, user: { id: 'u1', name: 'Awa' } });
   });
 
-  it('the notifications feed still reads a 200 without `items` as empty — it feeds no export', async () => {
-    // Left as it was on purpose (docs/design/export-unreadable-200.md §5):
-    // the BFFs no longer turn a lost body into a 200 `{}`, so only a server
-    // that changed its contract could still reach this.
+  it('the notifications feed reads a 200 without `items` as a failed read', async () => {
+    // Left lenient by export-unreadable-200.md §5; made strict with the other
+    // list reads (hygiene-batch9.md §2.10, B9.11): « no notifications » is
+    // the server's to say, with `items: []`.
     stubFetch(() => new Response('{}', { status: 200 }));
-    expect(await account.getNotifications()).toEqual({ status: 200, items: [] });
+    expect(await account.getNotifications()).toEqual({ status: 0, items: [] });
   });
 
   it('a refused presign is still reported (storage, not the network)', async () => {
