@@ -94,10 +94,10 @@ Each question has a recommendation. Answers unblock the item named in brackets.
 
 **Pro app (batch 7)**
 
-23. **Team invitations on the app's « Accueil »:** the web's full card with « Rejoindre » / « Refuser » (*recommended*), or only a badge on Profil? [B7.6]
-24. **The « Acompte & annulation » onboarding step:** required, or « facultatif » until the salon saves a choice? *Recommended: facultatif, since deposits are not a go-live condition.* [B7.7]
-25. **An empty « Ma journée »:** keep the floating « Nouveau » button (*recommended*) or the in-page « + Nouvelle réservation »? [B7.4]
-26. **Orientation:** portrait only for both apps on Android and iPhone, the client app included? *Recommended: yes.* Or a landscape design pass for the client app? [B7.9]
+23. **Team invitations on the app's « Accueil »:** the web's full card with « Rejoindre » / « Refuser » (*recommended*), or only a badge on Profil? [B7.6] — ✅ **Answered: the web's card on « Accueil » and the staff « Journée »** (Q1).
+24. **The « Acompte & annulation » onboarding step:** required, or « facultatif » until the salon saves a choice? *Recommended: facultatif, since deposits are not a go-live condition.* [B7.7] — ✅ **Answered: « facultatif » until a choice is saved** (Q2).
+25. **An empty « Ma journée »:** keep the floating « Nouveau » button (*recommended*) or the in-page « + Nouvelle réservation »? [B7.4] — ✅ **Answered: keep the floating « Nouveau »** (Q4).
+26. **Orientation:** portrait only for both apps on Android and iPhone, the client app included? *Recommended: yes.* Or a landscape design pass for the client app? [B7.9] — ✅ **Answered: portrait on Android and iPhone for both apps; the iPad unchanged** (Q3).
 
 **Product questions (batch 8)**
 

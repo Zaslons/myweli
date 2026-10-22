@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Statut** | **Brouillon, le 2026-10-22** — relu sur main (`fa8910ed`), questions au §8 |
+| **Statut** | **Validé le 2026-10-22** — relu sur main (`fa8910ed`). Q1 (décision 23) : **la carte sur « Accueil » et la « Journée »** ; Q2 (décision 24) : **facultatif tant qu'aucun choix n'est enregistré** ; Q3 (décision 26) : **portrait sur Android et iPhone, l'iPad inchangé** ; Q4 (décision 25) : **le bouton flottant « Nouveau »** ; Q5 : **selon « le compte possède un salon »** ; Q6 : **le reste tel qu'écrit** |
 | **Owner** | Sadreddine |
 | **Last updated** | 2026-10-22 |
 | **PRD ref / phase** | App Pro (V1) — parité avec le web Pro · SYSTEM.md §13 (contraste, 200 %, sémantique), §12 (les quatre états), §15 (retours), §17 (les mots), §21 (le registre) |
@@ -433,3 +433,5 @@ prochaine version des stores (0.0.2, lot 0).
   le salon affiché, comme le web aujourd'hui ?
 - **Q6** — Le reste, tel qu'écrit : les trois PR, les mots du §7, les
   corrections au BACKLOG (B7.2, B7.11, B7.14), les montants à 7 chiffres ?
+
+**Décisions (2026-10-22).** Q1 à Q6 : les recommandations, telles qu'écrites.
