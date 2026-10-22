@@ -121,44 +121,43 @@ class WeeklyHoursEditor extends StatelessWidget {
             border: Border(bottom: BorderSide(color: AppColors.divider)),
           ),
           // One line when the day, the hours and the switch fit; else the
-          // day on its own line, the controls under it at the end. Measured
-          // by the bar itself, never by a text-size constant: at 200 % on
-          // 360 dp about 60 dp were left for the day, and « Mard/i »,
-          // « Mercred/i » broke inside the word (B7.2 —
-          // docs/design/pro-app-batch7.md §2.2).
+          // day on its own line and the controls under it. Measured by the
+          // bar itself, never by a text-size constant: at 200 % on 360 dp
+          // about 60 dp were left for the day, and « Mard/i », « Mercred/i »
+          // broke inside the word (B7.2 — docs/design/pro-app-batch7.md
+          // §2.2). No `Align` around the controls: the bar measures each
+          // child at full width, and an Align takes all of it — every row
+          // stacked, at the default size too (seen in the golden).
           child: OverflowBar(
             alignment: MainAxisAlignment.spaceBetween,
             overflowAlignment: OverflowBarAlignment.start,
             children: [
               Text(_dayNames[day], style: AppTextStyles.bodyMedium),
-              Align(
-                alignment: AlignmentDirectional.centerEnd,
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    if (works)
-                      TextButton(
-                        onPressed: () => _editRange(context, day, slot),
-                        child: Text(
-                          '${_fmt(slot.startTime)} – ${_fmt(slot.endTime)}',
-                        ),
-                      )
-                    else
-                      Text(
-                        offLabel,
-                        style: AppTextStyles.bodySmall.copyWith(
-                          color: AppColors.textTertiary,
-                        ),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (works)
+                    TextButton(
+                      onPressed: () => _editRange(context, day, slot),
+                      child: Text(
+                        '${_fmt(slot.startTime)} – ${_fmt(slot.endTime)}',
                       ),
-                    Switch(
-                      value: works,
-                      onChanged: (on) => _setDay(
-                        day,
-                        on ? _slot(defaultStart, defaultEnd) : null,
+                    )
+                  else
+                    Text(
+                      offLabel,
+                      style: AppTextStyles.bodySmall.copyWith(
+                        color: AppColors.textTertiary,
                       ),
                     ),
-                  ],
-                ),
+                  Switch(
+                    value: works,
+                    onChanged: (on) => _setDay(
+                      day,
+                      on ? _slot(defaultStart, defaultEnd) : null,
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
