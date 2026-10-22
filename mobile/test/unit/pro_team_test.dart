@@ -171,14 +171,20 @@ void main() {
       );
     });
 
+    // The server's caps, not a knob: one address 3 times a UTC day per
+    // salon (the salon's 20 are in mock_fidelity_test.dart).
     test('per-day cap → invite_rate_limited (T37)', () async {
-      final svc = MockProTeamService(
-        subscriptions: liveOffer(),
-        maxInvitesPerDay: 1,
-      );
-      await svc.inviteMember(email: 'a@b.com', role: TeamRole.manager);
+      final svc = MockProTeamService(subscriptions: liveOffer());
+      for (var i = 0; i < 3; i++) {
+        final res = await svc.inviteMember(
+          email: 'a@b.com',
+          role: TeamRole.manager,
+        );
+        expect(res.success, isTrue, reason: '${res.code}');
+        await svc.revokeMember(res.data!.id);
+      }
       expect(
-        (await svc.inviteMember(email: 'b@b.com', role: TeamRole.manager)).code,
+        (await svc.inviteMember(email: 'a@b.com', role: TeamRole.manager)).code,
         'invite_rate_limited',
       );
     });

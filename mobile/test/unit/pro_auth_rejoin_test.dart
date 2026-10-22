@@ -593,9 +593,6 @@ void main() {
 /// The invitations the gate check asks for — the mock's own answer unless a
 /// test scripts another, counted.
 class _ScriptedTeam extends MockProTeamService {
-  // Most tests here re-invite once; the daily cap is not what they test.
-  _ScriptedTeam() : super(maxInvitesPerDay: 1000);
-
   int listCalls = 0;
   ApiResponse<List<TeamInvitation>>? answer;
   bool throws = false;

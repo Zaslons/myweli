@@ -673,9 +673,6 @@ void main() {
 /// The mock, with an accept and a decline a test can script (offline,
 /// refused, a dead session) — and an accept a test can hold.
 class _GateTeam extends MockProTeamService {
-  // Every test here re-invites once; the daily cap is not what they test.
-  _GateTeam() : super(maxInvitesPerDay: 1000);
-
   ApiResponse<TeamMember>? acceptAnswer;
   ApiResponse<bool>? declineAnswer;
 
