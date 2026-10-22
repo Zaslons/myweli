@@ -311,4 +311,99 @@ void main() {
       expect(p.publishErrorCode, 'offer_required');
     });
   });
+
+  group(
+    '« Acompte & annulation » follows a SAVED choice (B7.7, decision 24)',
+    () {
+      // The server answers 200 with defaults for a salon that never chose
+      // (`depositRequired: false`, `depositPercentage: 0`): an answer is not a
+      // choice. docs/design/pro-app-batch7.md §2.7.
+      Future<OnboardingStepStatus> depositStepFor(DepositPolicy policy) async {
+        final salon = MockData.providers.first.copyWith(
+          imageUrls: const ['a.jpg', 'b.jpg', 'c.jpg'],
+        );
+        when(() => pro.getProviderServices('p1')).thenAnswer(
+          (_) async =>
+              ApiResponse.success(MockData.getServicesForProvider('provider1')),
+        );
+        when(() => artists.getArtists('p1')).thenAnswer(
+          (_) async =>
+              ApiResponse.success(MockData.getArtistsForProvider('provider1')),
+        );
+        when(
+          () => pro.getProviderAvailability('p1'),
+        ).thenAnswer((_) async => ApiResponse.success(salon.availability));
+        when(
+          () => pro.getDepositPolicy('p1'),
+        ).thenAnswer((_) async => ApiResponse.success(policy));
+        when(() => pro.getMyProvider()).thenAnswer(
+          (_) async => ApiResponse.success(
+            MyProviderInfo(
+              salon: salon,
+              membership: ProMembership(
+                role: TeamRole.owner,
+                capabilities: presetCapabilitiesFor(TeamRole.owner),
+                salonId: 'p1',
+                salonName: salon.name,
+              ),
+            ),
+          ),
+        );
+        when(() => kyc.getKycStatus(any())).thenAnswer(
+          (_) async => ApiResponse.success(
+            const KycStatus(status: VerificationStatus.verified),
+          ),
+        );
+        final p = ProOnboardingProvider();
+        await p.load(
+          ProviderUser(
+            id: 'pu1',
+            phoneNumber: '+2250700000000',
+            businessName: 'Salon X',
+            businessType: BusinessType.salon,
+            createdAt: DateTime(2026),
+            providerId: 'p1',
+          ),
+          salonId: 'p1',
+        );
+        return statusOf(p, OnboardingStepKey.deposit);
+      }
+
+      test(
+        'never chosen (the server\'s defaults) → optional, not done',
+        () async {
+          expect(
+            await depositStepFor(
+              const DepositPolicy(depositRequired: false, depositPercentage: 0),
+            ),
+            OnboardingStepStatus.optional,
+          );
+        },
+      );
+
+      test(
+        'saved with deposits OFF (the form sends its 30 %) → done',
+        () async {
+          expect(
+            await depositStepFor(
+              const DepositPolicy(
+                depositRequired: false,
+                depositPercentage: 0.3,
+              ),
+            ),
+            OnboardingStepStatus.done,
+          );
+        },
+      );
+
+      test('deposits ON → done', () async {
+        expect(
+          await depositStepFor(
+            const DepositPolicy(depositRequired: true, depositPercentage: 0.3),
+          ),
+          OnboardingStepStatus.done,
+        );
+      });
+    },
+  );
 }

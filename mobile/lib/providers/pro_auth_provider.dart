@@ -145,6 +145,16 @@ class ProAuthProvider extends ChangeNotifier {
   List<SalonMembershipInfo> get salons => _salons;
   bool get hasMultipleSalons => _salons.length > 1;
 
+  /// Whether deleting this account removes a salon. The server removes every
+  /// salon the account OWNS — its linked salon and each active owner
+  /// membership (`provider_account_service.dart` deleteAccount) — and nothing
+  /// of a salon where it is only a member. Not the role in the salon on
+  /// screen: an owner looking at a salon they only manage still owns theirs.
+  /// docs/design/pro-app-batch7.md §2.3 (B7.3).
+  bool get ownsASalon =>
+      (_provider?.providerId?.isNotEmpty ?? false) ||
+      _salons.any((s) => s.isOwner);
+
   /// Server-computed « Ajouter un salon » gate (≥1 owned live Réseau).
   bool _canAddSalon = false;
   bool get canAddSalon => _canAddSalon;
@@ -325,6 +335,11 @@ class ProAuthProvider extends ChangeNotifier {
       var res = await serviceLocator.proService.getMyProvider();
       if (!res.success && res.code == 'forbidden' && _selectedSalonId != null) {
         await _clearSalonSelection();
+        // The lost salon's stores go with it, whatever the refetch answers
+        // (B7.14 — docs/design/pro-app-batch7.md §2.14). Here, not inside
+        // `_clearSalonSelection`: the rejoin gate calls that after its
+        // awaits, and a reset there would empty the cards it seeded (S9).
+        ProSalonScope.resetAll();
         res = await serviceLocator.proService.getMyProvider();
       }
       if (res.success && res.data != null) {
@@ -358,9 +373,11 @@ class ProAuthProvider extends ChangeNotifier {
         // default salon and reshape; the session survives.
         await _clearSalonSelection();
         fellBack = true;
+        // Whatever the refetch answers (B7.14): a failed one used to keep
+        // the lost salon's stores, shown under the default salon's name.
+        ProSalonScope.resetAll();
         res = await serviceLocator.proService.getMyProvider();
         if (res.success && res.data != null) {
-          ProSalonScope.resetAll();
           await loadMySalons();
         }
       }

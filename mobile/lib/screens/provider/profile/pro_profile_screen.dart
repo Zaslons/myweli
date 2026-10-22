@@ -373,9 +373,13 @@ class _ProProfileScreenState extends State<ProProfileScreen> {
     final confirmed = await showConfirmDialog(
       context,
       title: 'Supprimer votre compte ?',
-      message:
-          'Cette action est définitive. Votre salon sera retiré de '
-          'MyWeli. Pensez à exporter vos données avant.',
+      // What the server will do (B7.3): an owner's salons go, a member's
+      // account only — docs/design/pro-app-batch7.md §2.3.
+      message: authProvider.ownsASalon
+          ? 'Cette action est définitive. Votre salon sera retiré de '
+                'MyWeli. Pensez à exporter vos données avant.'
+          : 'Cette action est définitive. Votre compte MyWeli Pro sera '
+                'supprimé.',
       confirmLabel: 'Supprimer définitivement',
       icon: Icons.warning_amber_rounded,
       // A6 closes the ladder's asymmetry: the CONSUMER account delete has

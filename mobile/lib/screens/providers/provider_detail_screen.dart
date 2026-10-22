@@ -9,6 +9,7 @@ import '../../core/theme/colors.dart';
 import '../../core/theme/motion.dart';
 import '../../core/theme/text_styles.dart';
 import '../../core/utils/app_clock.dart';
+import '../../core/utils/external_link.dart';
 import '../../core/utils/formatters.dart';
 import '../../core/utils/helpers.dart';
 import '../../models/appointment.dart';
@@ -783,14 +784,7 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
                                 minHeight: 48,
                               ), // §13.2 touch target
                               child: InkWell(
-                                onTap: () async {
-                                  final uri = Uri.parse(
-                                    'tel:${p.phoneNumber.replaceAll(RegExp(r'\s'), '')}',
-                                  );
-                                  if (await canLaunchUrl(uri)) {
-                                    await launchUrl(uri);
-                                  }
-                                },
+                                onTap: () => callPhone(context, p.phoneNumber),
                                 borderRadius: BorderRadius.circular(
                                   AppTheme.radiusLarge,
                                 ),
@@ -1218,14 +1212,7 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
                   : Builder(
                       builder: (context) {
                         final call = OutlinedButton.icon(
-                          onPressed: () async {
-                            final uri = Uri.parse(
-                              'tel:${p.phoneNumber.replaceAll(RegExp(r'\s'), '')}',
-                            );
-                            if (await canLaunchUrl(uri)) {
-                              await launchUrl(uri);
-                            }
-                          },
+                          onPressed: () => callPhone(context, p.phoneNumber),
                           icon: const Icon(
                             Icons.phone_outlined,
                             size: AppTheme.iconS,

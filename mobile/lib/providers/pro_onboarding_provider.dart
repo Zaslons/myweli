@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import '../core/access/pro_salon_scope.dart';
 import '../core/constants/failure_messages.dart';
 import '../core/di/dependency_injection.dart';
+import '../core/utils/deposit.dart';
 import '../core/utils/onboarding.dart';
 import '../models/availability.dart';
 import '../models/provider_user.dart';
@@ -89,8 +90,16 @@ class ProOnboardingProvider extends ChangeNotifier implements SalonScoped {
         final avail = await pro.getProviderAvailability(providerId);
         availabilitySet = avail.data != null && _hasAvailableSlot(avail.data!);
 
+        // Configured = a choice SAVED, not an answer: the server answers
+        // every salon with defaults (B7.7).
         final deposit = await pro.getDepositPolicy(providerId);
-        depositConfigured = deposit.success && deposit.data != null;
+        final policy = deposit.success ? deposit.data : null;
+        depositConfigured =
+            policy != null &&
+            depositChosen(
+              depositRequired: policy.depositRequired,
+              percentage: policy.depositPercentage,
+            );
 
         // By account, not by public id — and note this stays INSIDE the
         // `providerId != null` guard: a brand-new pro with no salon must not

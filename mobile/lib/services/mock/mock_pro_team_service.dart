@@ -188,6 +188,10 @@ class MockProTeamService implements ProTeamServiceInterface {
     if (i == -1) return _fail('not_found');
     final member = MockData.teamMembers[i];
     if (member.isOwner) return _fail('owner_protected');
+    // The server refuses a revoked member's role (409 member_revoked, B6.8c).
+    if (member.status == TeamMemberStatus.revoked) {
+      return _fail('member_revoked');
+    }
     if (role == TeamRole.owner) return _fail('invalid_role');
 
     String? linkedArtist = member.artistId;

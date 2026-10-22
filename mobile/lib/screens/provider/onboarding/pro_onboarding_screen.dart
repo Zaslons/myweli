@@ -237,6 +237,11 @@ class _StepRow extends StatelessWidget {
     if (step.key == OnboardingStepKey.photos) {
       return 'Ajouter des photos du salon';
     }
+    // B7.7 — until a choice is saved (docs/design/pro-app-batch7.md §2.7).
+    if (step.key == OnboardingStepKey.deposit &&
+        step.status == OnboardingStepStatus.optional) {
+      return 'Facultatif';
+    }
     if (step.status == OnboardingStepStatus.inProgress) {
       return 'En cours';
     }

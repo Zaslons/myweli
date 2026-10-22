@@ -177,7 +177,12 @@ class _TeamScreenState extends State<TeamScreen> {
           final member = team.members[index - 1];
           return _MemberRow(
             member: member,
-            onTap: member.isOwner ? null : () => _openActionsSheet(member),
+            // The owner and a revoked member are inert, as on the web: a
+            // revoked member's only action would be « Changer le rôle »,
+            // which the server refuses (409 member_revoked — B7.5).
+            onTap: member.isOwner || member.status == TeamMemberStatus.revoked
+                ? null
+                : () => _openActionsSheet(member),
           );
         },
       ),

@@ -27,6 +27,15 @@ export type DepositForm = {
 /// (tests/deposit-default-parity.test.ts).
 export const DEFAULT_DEPOSIT_PERCENT = 30;
 
+/// Whether the salon has CHOSEN its deposit policy (B7.7, decision 24 —
+/// docs/design/pro-app-batch7.md §2.7): the server answers every salon with
+/// defaults (off, a stored 0), so an answer is not a choice. A saved form
+/// always sends its percentage, so a choice is deposits on, or a stored
+/// percentage above 0. The app's `depositChosen` (core/utils/deposit.dart).
+export function depositChosen(p: Pick<DepositPolicy, 'depositRequired' | 'depositPercentage'>): boolean {
+  return p.depositRequired || p.depositPercentage > 0;
+}
+
 /// The app's rules (`deposit_settings_screen.dart`), on the web since
 /// docs/design/web-pro-deposit-app-rules.md (owner decision 2026-10-20): a
 /// slider 5–80 % by steps of 5, three cancellation delays, and the example
