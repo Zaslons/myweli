@@ -115,6 +115,7 @@ sys.exit(0 if ch and all(isinstance(c,str) and c.strip() for c in ch) else 1)' "
 }
 
 add infra/gcp/80-uptime-checks.sh
+add infra/gcp/84-demo-reset-alert.sh
 add infra/gcp/85-db-capacity-alert.sh
 add infra/gcp/86-cron-auth-alert.sh
 add infra/gcp/88-email-budget-alert.sh
