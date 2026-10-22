@@ -16,11 +16,13 @@ import '../../../models/pro_membership.dart';
 import '../../../providers/notifications_provider.dart';
 import '../../../providers/pro_auth_provider.dart';
 import '../../../providers/pro_dashboard_provider.dart';
+import '../../../providers/pro_team_provider.dart';
 import '../../../widgets/common/app_snack_bar.dart';
 import '../../../widgets/common/empty_state.dart';
 import '../../../widgets/common/update_nudge_slot.dart';
 import '../../../widgets/provider/salon_picker_sheet.dart';
 import '../../../widgets/push/push_permission_sheet.dart';
+import '../../../widgets/team/pro_invitations_card.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -35,6 +37,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Future<void> _pull(ProDashboardProvider dashboard) async {
     final authProvider = context.read<ProAuthProvider>();
     if (authProvider.provider == null) return;
+    // The invitations card reads its list again too (B7.6), beside the
+    // figures — its failure stays silent, as on mount.
+    unawaited(context.read<ProTeamProvider>().loadMyInvitations());
     await dashboard.refresh(_resolvedProviderId(context));
     if (!mounted) return;
     final failure = dashboard.takeRefreshFailure();
@@ -277,6 +282,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     ),
                   ),
                   const SizedBox(height: AppTheme.spacingM),
+                  // The account's own invitations, under the salon they are
+                  // read in and above its content — nothing at all when there
+                  // is none (pro-app-batch7.md §2.6, B7.6).
+                  const ProInvitationsCard(),
                   // Go-live is owner-only (salon.publish, sign-off) — the
                   // card hides for members; the server 403s regardless.
                   if (authProvider.can(ProCap.salonPublish)) ...[

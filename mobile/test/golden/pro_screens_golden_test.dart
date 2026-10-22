@@ -220,6 +220,8 @@ void main() {
         tester,
         const DashboardScreen(),
         extra: [
+          // The invitations card (B7.6): nothing to draw — no invitation.
+          ChangeNotifierProvider(create: (_) => ProTeamProvider()),
           ChangeNotifierProvider(create: (_) => ProDashboardProvider()),
           ChangeNotifierProvider(
             create: (_) => NotificationsProvider(
@@ -239,6 +241,8 @@ void main() {
         tester,
         const DashboardScreen(),
         extra: [
+          // The invitations card (B7.6): nothing to draw — no invitation.
+          ChangeNotifierProvider(create: (_) => ProTeamProvider()),
           ChangeNotifierProvider<ProDashboardProvider>(
             create: (_) => _OfflineHome(),
           ),
@@ -505,6 +509,8 @@ void main() {
         tester,
         const DashboardScreen(),
         extra: [
+          // The invitations card (B7.6): nothing to draw — no invitation.
+          ChangeNotifierProvider(create: (_) => ProTeamProvider()),
           ChangeNotifierProvider(create: (_) => ProDashboardProvider()),
           // The service is passed EXPLICITLY, as the 1× dashboard golden does
           // twelve tests above: this file hand-assigns the locator rather than

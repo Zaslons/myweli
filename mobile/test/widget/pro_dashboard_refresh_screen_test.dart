@@ -7,6 +7,7 @@ import 'package:myweli/models/api_response.dart';
 import 'package:myweli/providers/notifications_provider.dart';
 import 'package:myweli/providers/pro_auth_provider.dart';
 import 'package:myweli/providers/pro_dashboard_provider.dart';
+import 'package:myweli/providers/pro_team_provider.dart';
 import 'package:myweli/screens/provider/dashboard/dashboard_screen.dart';
 import 'package:myweli/services/interfaces/pro_service_interface.dart';
 import 'package:myweli/services/mock/mock_auth_service.dart';
@@ -90,6 +91,7 @@ void main() {
             create: (_) =>
                 NotificationsProvider(service: MockNotificationService()),
           ),
+          ChangeNotifierProvider(create: (_) => ProTeamProvider()),
         ],
         routerConfig: GoRouter(
           initialLocation: '/pro/dashboard',

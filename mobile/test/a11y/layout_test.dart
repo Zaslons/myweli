@@ -5,6 +5,8 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'package:myweli/core/di/dependency_injection.dart';
 import 'package:myweli/core/theme/app_theme.dart';
 import 'package:myweli/core/utils/app_clock.dart';
+import 'package:myweli/models/team_invitation.dart';
+import 'package:myweli/models/team_member.dart';
 import 'package:myweli/providers/appointment_provider.dart';
 import 'package:myweli/providers/favorites_provider.dart';
 import 'package:myweli/providers/locality_provider.dart';
@@ -16,6 +18,7 @@ import 'package:myweli/providers/pro_dashboard_provider.dart';
 import 'package:myweli/providers/pro_earnings_provider.dart';
 import 'package:myweli/providers/pro_reviews_provider.dart';
 import 'package:myweli/providers/pro_service_provider.dart';
+import 'package:myweli/providers/pro_team_provider.dart';
 import 'package:myweli/providers/provider_provider.dart';
 import 'package:myweli/screens/appointments/my_bookings_screen.dart';
 import 'package:myweli/screens/auth/otp_verify_screen.dart';
@@ -1089,6 +1092,20 @@ void main() {
       // `childAspectRatio` pin proves the ratio is gone, and this proves the
       // tile actually grows.
       testWidgets('the pro dashboard fits $at', (tester) async {
+        // With a pending invitation, from a long salon name: the card sits at
+        // the top of « Accueil » (pro-app-batch7.md §2.6, B7.6), so it is
+        // measured here with the rest.
+        MockData.teamInvitations['jean@salon-excellence.test'] = [
+          TeamInvitation(
+            id: 'mem_layout',
+            providerId: 'provider2',
+            salonName: 'Institut de Beauté Cocody Riviera',
+            role: TeamRole.reception,
+            roleLabel: 'Réception',
+            expiresAt: AppClock.now().add(const Duration(days: 6)),
+          ),
+        ];
+        addTearDown(MockData.resetTeam);
         final auth = await signInPro(tester);
         await pumpAtWidth(
           tester,
@@ -1098,6 +1115,7 @@ void main() {
             ChangeNotifierProvider<ProAuthProvider>.value(value: auth),
             ChangeNotifierProvider(create: (_) => ProDashboardProvider()),
             ChangeNotifierProvider(create: (_) => NotificationsProvider()),
+            ChangeNotifierProvider(create: (_) => ProTeamProvider()),
           ],
           home: const DashboardScreen(),
           rounds: 5,
@@ -1124,6 +1142,12 @@ void main() {
         // card's subtitle, so `find.text` matches twice and the helper takes a
         // single render object.
         expectNoMidWordBreak(tester, 'Disponibilité', 'the action grid at $at');
+        expect(
+          find.text('Invitations d’équipe'),
+          findsOneWidget,
+          reason: 'the invitations card is part of the subject (B7.6)',
+        );
+        expectNoMidWordBreak(tester, 'Rejoindre', 'the invitation at $at');
         expectNoUndeclaredTruncation(tester, context: 'pro dashboard at $at');
         expectNoLegibilityCrush(tester, context: 'pro dashboard at $at');
         expectNoVerticalClip(tester, context: 'pro dashboard at $at');
