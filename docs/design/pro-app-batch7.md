@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Statut** | **Validé le 2026-10-22** — relu sur main (`fa8910ed`). Q1 (décision 23) : **la carte sur « Accueil » et la « Journée »** ; Q2 (décision 24) : **facultatif tant qu'aucun choix n'est enregistré** ; Q3 (décision 26) : **portrait sur Android et iPhone, l'iPad inchangé** ; Q4 (décision 25) : **le bouton flottant « Nouveau »** ; Q5 : **selon « le compte possède un salon »** ; Q6 : **le reste tel qu'écrit** |
+| **Statut** | **PR A construite le 2026-10-22** sur `fix/pro-app-batch7-truth` (#682 — B7.3, B7.5, B7.7, B7.9, B7.11, B7.14 — §9) ; PR B et C à suivre. **Validé le 2026-10-22** — relu sur main (`fa8910ed`). Q1 (décision 23) : **la carte sur « Accueil » et la « Journée »** ; Q2 (décision 24) : **facultatif tant qu'aucun choix n'est enregistré** ; Q3 (décision 26) : **portrait sur Android et iPhone, l'iPad inchangé** ; Q4 (décision 25) : **le bouton flottant « Nouveau »** ; Q5 : **selon « le compte possède un salon »** ; Q6 : **le reste tel qu'écrit** |
 | **Owner** | Sadreddine |
 | **Last updated** | 2026-10-22 |
 | **PRD ref / phase** | App Pro (V1) — parité avec le web Pro · SYSTEM.md §13 (contraste, 200 %, sémantique), §12 (les quatre états), §15 (retours), §17 (les mots), §21 (le registre) |
@@ -435,3 +435,78 @@ prochaine version des stores (0.0.2, lot 0).
   corrections au BACKLOG (B7.2, B7.11, B7.14), les montants à 7 chiffres ?
 
 **Décisions (2026-10-22).** Q1 à Q6 : les recommandations, telles qu'écrites.
+
+## 9. PR A construite (B7.3, B7.5, B7.7, B7.9, B7.11, B7.14) — ce qui a été vu
+
+**Comme écrit**, avec ces précisions :
+- **B7.3** :
+  - **L'app** : la règle vit dans `ProAuthProvider.ownsASalon` (le salon
+    lié du compte, ou un salon dont il est Propriétaire dans « Mes
+    salons »).
+  - **Le web** : la même règle, `ownsASalon(profil, salons)` dans
+    `lib/pro/team.ts`, que la section lit avec « Mes salons » du contexte du
+    tableau de bord.
+  - **Les mots** : la phrase du propriétaire reste entière (« Pensez à
+    exporter… »), même quand il regarde un salon qu'il ne fait que gérer. Il
+    peut exporter depuis le sien, et l'app dit la même chose.
+  - **Un garde-fou existant l'a vu** : le balayage des lectures de
+    `.providerId` (`multi_salon_test`) exige que chaque lecture soit
+    justifiée. Celle-ci l'est : elle dit si le compte *possède* un salon,
+    jamais dans quel salon agir.
+- **B7.5** :
+  - Le menu d'un révoqué n'existe plus.
+  - `member_revoked` a sa phrase.
+  - Le mock refuse comme le serveur.
+- **B7.7** :
+  - `depositChosen` existe des deux côtés : `core/utils/deposit.dart` dans
+    l'app, `lib/pro/deposit.ts` sur le web.
+  - Le libellé secondaire est « Facultatif » : une majuscule, comme les
+    autres libellés secondaires de la liste.
+  - **Le test du web en place figeait le défaut lui-même**. La carte « En
+    ligne » était testée avec les valeurs par défaut du serveur et attendait
+    « 6 étapes sur 8 ». Il est corrigé.
+- **B7.9** :
+  - `android:screenOrientation="portrait"` sur `MainActivity`, et un test
+    d'infrastructure le fixe.
+  - Un second test vérifie qu'aucune autre activité n'existe, donc qu'un
+    seul verrou couvre les deux apps.
+- **B7.11** :
+  - `callPhone` est construit sur `openExternalUrl`.
+  - Les quatre boutons « Appeler » passent par lui.
+  - `tel` est déclaré dans les `<queries>`.
+  - Un test de source interdit tout `tel:` ailleurs.
+  - **Seul un vrai appareil peut confirmer** que les deux boutons de la page
+    d'un salon étaient morts. C'est ajouté à la liste des essais sur
+    appareil (B0.2).
+- **B7.14** : la remise à zéro a lieu aux deux endroits du repli,
+  **avant** la relecture, quelle que soit sa réponse. Le test de la porte
+  de « rejoindre » (`expect(scoped.resets, 1)`) reste vert.
+
+**Vérifié** : `dart analyze` et `flutter analyze` à zéro (un import inutile, vu par
+l'analyse complète, retiré) ; format propre ; serveur avec Postgres
+(2 161 tests, 2 ignorés — rien n'y a changé) ; web (2 181) ; app (2 583) ;
+e2e entier sur deux workers (269).
+- **Mutations vues rouges : 26.**
+  - **Une a d'abord survécu** : `ownsASalon` qui ignorait « Mes salons ».
+    Elle a demandé un test, un compte sans salon lié mais Propriétaire d'un
+    salon par une adhésion.
+  - **Ce test a d'abord échoué pour une raison à lui** : la liste
+    « Mes salons » du mock lit aussi les offres, qui n'étaient pas branchées
+    dans le test ; et la connexion lance son propre chargement, qu'il faut
+    attendre en temps réel.
+- **Sur un émulateur Android 16** (API 36) :
+  - **Le manifeste construit** porte `screenOrientation=1` et la
+    déclaration `tel` (`aapt2`).
+  - **En téléphone** (360 × 800 dp), le paysage demandé ne tourne pas
+    l'écran : l'app reste en portrait (`ROTATION_0`, `MainActivity` au
+    premier plan).
+  - **En dimensions de tablette** (`wm size` 1600 × 2560 à 320 dpi, soit
+    800 dp de plus petite largeur), Android 16 dit
+    `ignoreOrientationRequest=true`. Quand on tourne l'appareil, l'écran
+    passe en paysage (`ROTATION_270`, 2560 × 1600). L'app y reste
+    utilisable : une colonne centrée, rien ne déborde, aucune erreur dans le
+    journal.
+  - **Pourquoi pas une vraie tablette émulée** : le disque de la machine
+    n'avait que 4,7 Go libres, et l'émulateur tablette en demandait 7,2. Le
+    téléphone réglé en dimensions de tablette passe par la même règle
+    d'Android (la plus petite largeur de l'écran).

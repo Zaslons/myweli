@@ -1,0 +1,17 @@
+- 🟡 **L'app Pro dit vrai : la suppression d'un membre, le révoqué sans menu, l'acompte facultatif, « Appeler » qui marche, le portrait sur Android, le repli de salon (app + web, 2026-10-22 — construit ; le web part à la fusion, l'app avec la prochaine version).** ([pro-app-batch7.md](../../design/pro-app-batch7.md) §9) Le lot 7 du [BACKLOG](../../BACKLOG.md), PR A (B7.3, B7.5, B7.7, B7.9, B7.11, B7.14 ; décisions 24, 26 ; Q5).
+  - **Avant** :
+    - le dialogue de suppression disait « Votre salon sera retiré » à un simple membre ;
+    - le menu d'un membre révoqué ne contenait qu'une action, que le serveur refuse ;
+    - « Acompte & annulation » était coché pour tous les salons ;
+    - les deux apps tournaient sur Android ;
+    - deux boutons « Appeler » de l'app client ne faisaient probablement rien sur la plupart des téléphones (`canLaunchUrl(tel:)`, et `tel` non déclaré) ;
+    - après un repli sur le salon par défaut, les données de l'ancien salon s'affichaient sous le nom du nouveau.
+  - **Ce qui change** :
+    - la phrase de suppression suit « le compte possède un salon », comme le serveur l'entend, dans l'app et sur le web ;
+    - la ligne d'un révoqué ne s'ouvre plus ;
+    - l'étape d'acompte est « Facultatif » tant qu'aucun choix n'est enregistré, dans l'app et sur le web ;
+    - les deux apps sont en portrait sur Android ;
+    - un seul `callPhone` ouvre le numéroteur sans demander d'abord, et dit quand il ne peut pas ;
+    - le repli vide les magasins aux deux endroits où il a lieu (pas dans `_clearSalonSelection`, que la porte de « rejoindre » appelle trop tard).
+  - **Gardes** : les tests rouges d'abord ; 26 mutations vues rouges, dont une qui a d'abord survécu et a demandé un test ; les suites entières ; un essai sur une tablette émulée.
+  - **À suivre** : PR B (lire à 200 %, les bords), PR C (les invitations, l'export).
