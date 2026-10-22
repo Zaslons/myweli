@@ -174,6 +174,41 @@ void main() {
     expect(find.text('Analyses'), findsNothing);
   });
 
+  // hygiene-batch9.md §2.9 (B9.10) — the session's salon with no name: the
+  // greeting has nothing to address, so it does not say « votre salon ».
+  testWidgets('a salon with no name: « Bienvenue » alone, and the session '
+      'knows no name', (tester) async {
+    const email = 'nameless@dash.test';
+    await tester.runAsync(() async {
+      await auth.requestProviderEmailOtp(email);
+      await auth.registerProviderWithEmail(
+        email: email,
+        code: MockAuthService.demoOtp,
+        phoneNumber: '+2250700000096',
+        businessName: 'Provisoire',
+        businessType: BusinessType.salon,
+      );
+      await auth.logoutProvider();
+    });
+    final u = MockData.providerUsers.indexWhere((p) => p.email == email);
+    final s = MockData.providers.indexWhere(
+      (p) => p.id == MockData.providerUsers[u].providerId,
+    );
+    MockData.providerUsers[u] = MockData.providerUsers[u].copyWith(
+      businessName: '',
+    );
+    MockData.providers[s] = MockData.providers[s].copyWith(name: '');
+    await loginAs(tester, email);
+    final authProvider = await readyAuth(tester);
+    expect(authProvider.knownSalonName, isNull);
+    expect(authProvider.salonName, 'votre salon', reason: 'in a sentence');
+
+    await tester.pumpWidget(app(authProvider));
+    await settle(tester);
+    expect(find.text('Bienvenue'), findsOneWidget);
+    expect(find.textContaining('votre salon'), findsNothing);
+  });
+
   testWidgets('OWNER keeps the full dashboard incl. money', (tester) async {
     await tester.runAsync(() async {
       await auth.requestProviderEmailOtp('own@dash.test');

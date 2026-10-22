@@ -164,4 +164,10 @@ describe('on a Vercel preview (staging sleeps), the reads still degrade', () => 
     GET.mockResolvedValue(refused(500));
     expect(await localities.getLocalityTree()).toEqual({ countries: [] });
   });
+
+  it('getLocalityTree: a 200 without its countries is the empty tree — it '
+    + 'crashed on `undefined.length`', async () => {
+    GET.mockResolvedValue(ok({}));
+    expect(await localities.getLocalityTree()).toEqual({ countries: [] });
+  });
 });
