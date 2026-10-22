@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Statut** | **PR A fusionnée** (#682 — §9) ; **PR B construite le 2026-10-22** sur `fix/pro-app-batch7-readable` (#683 — B7.1, B7.2, B7.4, B7.10, B7.12, B7.13 — §10) ; PR C à suivre. **Validé le 2026-10-22** — relu sur main (`fa8910ed`). Q1 (décision 23) : **la carte sur « Accueil » et la « Journée »** ; Q2 (décision 24) : **facultatif tant qu'aucun choix n'est enregistré** ; Q3 (décision 26) : **portrait sur Android et iPhone, l'iPad inchangé** ; Q4 (décision 25) : **le bouton flottant « Nouveau »** ; Q5 : **selon « le compte possède un salon »** ; Q6 : **le reste tel qu'écrit** |
+| **Statut** | **PR A fusionnée** (#682 — §9) ; **PR B fusionnée** (#683 — §10) ; **PR C construite le 2026-10-22** sur `fix/pro-app-batch7-parity` (#684 — B7.6, B7.8 — §11). **Validé le 2026-10-22** — relu sur main (`fa8910ed`). Q1 (décision 23) : **la carte sur « Accueil » et la « Journée »** ; Q2 (décision 24) : **facultatif tant qu'aucun choix n'est enregistré** ; Q3 (décision 26) : **portrait sur Android et iPhone, l'iPad inchangé** ; Q4 (décision 25) : **le bouton flottant « Nouveau »** ; Q5 : **selon « le compte possède un salon »** ; Q6 : **le reste tel qu'écrit** |
 | **Owner** | Sadreddine |
 | **Last updated** | 2026-10-22 |
 | **PRD ref / phase** | App Pro (V1) — parité avec le web Pro · SYSTEM.md §13 (contraste, 200 %, sémantique), §12 (les quatre états), §15 (retours), §17 (les mots), §21 (le registre) |
@@ -597,3 +597,66 @@ serveur avec Postgres 2 161 (2 sautés, rien ne change ici), le web 2 181,
 l'app 2 621, l'e2e entier 269 sur deux workers. Les tests rouges d'abord ;
 **16 mutations sur 16 vues rouges**. Les photos refaites sur Linux,
 regardées une à une.
+
+## 11. PR C construite (B7.6, B7.8) — ce qui a été vu
+
+**Comme écrit**, avec ces écarts, chacun vu en route :
+- **B7.6** :
+  - **La place de la carte** (`ProInvitationsCard`) :
+    - sur « Accueil », sous « Bienvenue, {salon} » et au-dessus de
+      « Configurer mon profil », comme le web la met sous son titre ;
+    - sur la « Journée » du collaborateur, en tête de la journée, et elle
+      défile avec elle ;
+    - **pas** sur « Ma journée » du salon : on l'ouvre depuis « Accueil »,
+      qui l'a déjà.
+  - **La lecture suit la remise à zéro, pas le salon.** La carte lit la
+    liste à son montage, puis chaque fois que la liste a été vidée sans être
+    relue (`ProTeamProvider.invitationsAsked`). Un changement de salon la
+    vide : la carte la relit. La première version suivait l'identifiant du
+    salon. Elle pouvait lire **avant** la remise à zéro si un dessin tombait
+    entre le choix du salon et la remise, et la carte restait vide.
+  - **La carte vit dans le contenu** : pendant le chargement de la journée
+    ou des chiffres, ou s'ils échouent, elle attend avec eux.
+  - **Les réponses** s'affichent en bandeau, comme sur l'écran
+    « Invitations » de l'app. Le web les écrit dans la carte.
+  - **Vu en route, et corrigé : hors connexion, l'app ne disait pas « Pas
+    de connexion ».** Tous les services API répondent avec le code
+    `network`. L'écran « Invitations » et la porte de « rejoindre »
+    changeaient tout code en leur phrase d'échec : un téléphone hors ligne
+    lisait « Invitation impossible à accepter. ». Le test S4 de la porte
+    passait parce qu'il donnait la phrase sans le code. Une seule fonction
+    dit les mots maintenant (`invitationActionError`), pour les trois
+    endroits, et le test donne la vraie réponse.
+  - **Vu en route, et corrigé : un « Rejoindre » pendant un chargement de
+    « Mes salons » était perdu.** Le chargement déjà parti pouvait avoir été
+    répondu avant l'adhésion, et le nouveau salon manquait au sélecteur. Un
+    second chargement passe maintenant derrière le premier
+    (`ProAuthProvider.acceptInvitation`).
+  - **« Une action à la fois » se voit** : les boutons des autres cartes
+    attendent aussi, sur la carte comme sur l'écran « Invitations »
+    (`InvitationCard.locked`). Avant, l'écran ignorait le toucher sans le
+    montrer.
+  - **Le test de mise en page à 200 %** dessine « Accueil » avec une
+    invitation au nom long (« Institut de Beauté Cocody Riviera »), aux
+    trois largeurs.
+  - **Laissé, comme sur le web** : un « Refuser » sur une invitation déjà
+    disparue (`not_found`) garde sa carte jusqu'au prochain chargement.
+- **B7.8** :
+  - « Revenus » dit le **total**, dans la devise du salon. Les autres lignes
+    sont des comptes ; le fichier tient le montant et le nombre de
+    transactions derrière lui.
+  - Le total s'écrit `1250000.0` dans le fichier de l'app et `1250000`
+    dans celui du web : Dart écrit ainsi les nombres décimaux, comme les
+    autres prix du fichier.
+- **Les photos** ne changent pas. Les comptes de démo photographiés n'ont
+  pas d'invitation, donc la carte ne dessine rien ; les écrans qui la
+  portent reçoivent son fournisseur.
+
+**Vérifié** : `flutter analyze` à 0, le formatage propre. Les suites
+entières passent : le serveur avec Postgres 2 161 (2 sautés) et le web
+2 181, rien ne change ici ; l'app 2 649 ; l'e2e entier 269 sur deux
+workers. Les tests rouges d'abord ; **29 mutations vues rouges**, dont
+trois qui ont d'abord survécu et ont reçu leur test (l'écran
+« Invitations » qui rejoint hors de la session, le tirage d'« Accueil »,
+la lecture au montage). La relecture de mon propre code a trouvé la
+course de la remise à zéro : un test vide la liste sans changer de salon.
