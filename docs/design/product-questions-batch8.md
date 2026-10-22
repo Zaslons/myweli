@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Statut** | **Validé le 2026-10-22** — relu sur main (`0a92503d`). Les six recommandations : Q1 **garder la confirmation** ; Q2 **rien maintenant** ; Q3 **une petite copie hors ligne** ; Q4 **« Total réalisé »** ; Q5 **retirer la connexion Pro par téléphone** ; Q6 **accepter, et le test de la relance**. Deux PR (§3) ; la première demande un déploiement du serveur. **PR A construite le 2026-10-22** sur `feat/batch8-product-questions` (#685 — B8.5, B8.6 — §9) ; **PR B construite le 2026-10-22** sur `feat/batch8-offline-card`, empilée sur la A (#686 — B8.3, B8.4 — §10). |
+| **Statut** | **Validé le 2026-10-22** — relu sur main (`0a92503d`). Les six recommandations : Q1 **garder la confirmation** ; Q2 **rien maintenant** ; Q3 **une petite copie hors ligne** ; Q4 **« Total réalisé »** ; Q5 **retirer la connexion Pro par téléphone** ; Q6 **accepter, et le test de la relance**. **PR A fusionnée** (#685 — §9) et **déployée le 2026-10-22** (image `eca4db6`, révision `myweli-api-00046-bzg`) ; **PR B fusionnée** (#686 — §10). **Le lot 8 est fusionné** ; l'app part avec la prochaine version des stores. |
 | **Owner** | Sadreddine |
 | **Last updated** | 2026-10-22 |
 | **PRD ref / phase** | V1 — comptes et accès (Pro), retours d'action (SYSTEM.md §15), hors ligne (§12), V2 (analyses) |
@@ -237,4 +237,23 @@ sur chaque surface ; la relance cassée dans chaque magasin).
 entières passent : le serveur avec Postgres 2 162 et le web 2 180, rien ne
 change ici ; l'app 2 661 ; l'e2e entier 269 sur deux workers. Les tests
 rouges d'abord ; **9 mutations sur 9 vues rouges**.
+
+## 11. Le déploiement (2026-10-22)
+
+- **Expédié** : `api:eca4db6`, par `deploy-backend.yml` (production,
+  `image_tag=eca4db6`). Seul #685 change le serveur depuis l'image de lot 6
+  (`1e3bd81`) ; #681 n'y touchait que des tests. Aucune migration.
+- **Vérifié** :
+  - la révision `myweli-api-00046-bzg` sert **100 %** du trafic, avec
+    l'empreinte exacte de `api:eca4db6` ;
+  - `POST /auth/provider/otp/request` et `/verify` répondent le 404 du
+    routeur (« Route not found ») — **avant** : `404 auth_method_disabled` ;
+  - `POST /auth/otp/request` (les clients) répond toujours
+    `auth_method_disabled` : rien n'a changé pour eux ;
+  - `/health` : `ok`, `env` `prod` ; aucune erreur dans les journaux de la
+    révision ; au démarrage, les deux avis attendus (le mot de passe admin
+    déjà posé, et la clé Apple absente — l'étape du propriétaire).
+- **Le retour arrière reste sûr** : la table `provider_otp_codes` est
+  gardée ; l'image de lot 6 continue d'y effacer à chaque suppression. Sa
+  suppression est B9.12.
 
