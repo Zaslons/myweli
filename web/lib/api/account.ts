@@ -172,14 +172,19 @@ export async function deleteAccount(): Promise<{
 
 // --- notifications (parity 5.1/5.2) -----------------------------------------
 
+/// A 200 without its list is a failed read (status 0), as for the export's
+/// reads (#630): the server always sends it, so « no notifications » is its
+/// `items: []` to say, never ours (hygiene-batch9.md §2.10, B9.11).
 export async function getNotifications(): Promise<{
   status: number;
   items: AppNotification[];
 }> {
   const res = await send('/api/me/notifications');
   if (!res.ok) return { status: res.status, items: [] };
-  const body = await readJson<{ items?: AppNotification[] }>(res);
-  return body ? { status: 200, items: body.items ?? [] } : { status: 0, items: [] };
+  const items = (await readJson<{ items?: unknown }>(res))?.items;
+  return Array.isArray(items)
+    ? { status: 200, items: items as AppNotification[] }
+    : { status: 0, items: [] };
 }
 
 /// Both carry their status: the caller puts the notification back to unread

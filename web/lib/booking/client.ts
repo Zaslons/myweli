@@ -119,10 +119,11 @@ export async function fetchSlots(params: {
   // The BFF preserves the upstream status, so the information was always
   // here — only this function threw it away.
   if (!res.ok) return { ok: false, slots: [], gone: res.status === 404 };
-  // A lost body is « we could not ask », not « no opening that day ».
-  const body = await readJson<{ slots?: string[] }>(res);
-  if (!body) return { ok: false, slots: [] };
-  return { ok: true, slots: body.slots ?? [] };
+  // A lost body is « we could not ask », not « no opening that day » — and so
+  // is a 200 without its list (hygiene-batch9.md §2.10).
+  const slots = (await readJson<{ slots?: unknown }>(res))?.slots;
+  if (!Array.isArray(slots)) return { ok: false, slots: [] };
+  return { ok: true, slots: slots as string[] };
 }
 
 

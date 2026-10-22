@@ -6,7 +6,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 /// **What this is really guarding.** The old expression ended
 /// `?? 'http://localhost:8080'`, which looks harmless because a wrong API URL
 /// fails loudly with connection errors. But `lib/api/localities.ts` and
-/// `lib/api/providers.ts` catch and degrade to EMPTY results, and the ISR pages
+/// `lib/api/providers.ts` caught and degraded to EMPTY results (on a preview
+/// they still do — `lib/api/public-read.ts`), and the ISR pages
 /// call them during `next build`. So a production deploy missing the variable
 /// does not error — it publishes a marketplace with no salons in it, looking
 /// merely new rather than broken. That is the failure these tests pin.
