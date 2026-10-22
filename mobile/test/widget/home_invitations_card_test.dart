@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/date_symbol_data_local.dart';
+import 'package:myweli/core/access/pro_salon_scope.dart';
 import 'package:myweli/core/di/dependency_injection.dart';
 import 'package:myweli/core/push/push_registration.dart';
 import 'package:myweli/core/utils/team_error_messages.dart';
@@ -19,6 +20,7 @@ import 'package:myweli/providers/pro_journal_provider.dart';
 import 'package:myweli/providers/pro_team_provider.dart';
 import 'package:myweli/screens/provider/dashboard/dashboard_screen.dart';
 import 'package:myweli/screens/provider/journal/pro_journal_screen.dart';
+import 'package:myweli/screens/provider/team/pro_invitations_screen.dart';
 import 'package:myweli/services/api/api_errors.dart';
 import 'package:myweli/services/mock/mock_auth_service.dart';
 import 'package:myweli/services/mock/mock_data.dart';
@@ -159,6 +161,9 @@ void main() {
     MockData.resetTeam();
     team.reset();
     pro.holdSalons = null;
+    // Each test registers its own team store, as main_pro does for the app:
+    // a salon switch reaches the stores through this registry.
+    ProSalonScope.clear();
   });
 
   Future<ProAuthProvider> pumpAccueil(WidgetTester tester) async {
@@ -181,7 +186,9 @@ void main() {
             create: (_) =>
                 NotificationsProvider(service: MockNotificationService()),
           ),
-          ChangeNotifierProvider(create: (_) => ProTeamProvider()),
+          ChangeNotifierProvider(
+            create: (_) => ProSalonScope.track(ProTeamProvider()),
+          ),
         ],
         routerConfig: router,
       ),
@@ -206,7 +213,9 @@ void main() {
         providers: [
           ChangeNotifierProvider<ProAuthProvider>.value(value: auth),
           ChangeNotifierProvider(create: (_) => ProJournalProvider()),
-          ChangeNotifierProvider(create: (_) => ProTeamProvider()),
+          ChangeNotifierProvider(
+            create: (_) => ProSalonScope.track(ProTeamProvider()),
+          ),
         ],
         routerConfig: router,
       ),
@@ -346,6 +355,36 @@ void main() {
       expect(find.textContaining('Institut Riviera'), findsOneWidget);
     });
 
+    testWidgets('a pull on « Accueil » reads the list again', (tester) async {
+      team.cards = [_invitation('i1', 'Beauté Divine')];
+      await pumpAccueil(tester);
+      final before = team.reads;
+
+      await tester.fling(find.text(_title), const Offset(0, 400), 1000);
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 1));
+      await settleMocks(tester, rounds: 2);
+
+      expect(team.reads, greaterThan(before), reason: 'the pull did not read');
+    });
+
+    // The reset itself, not the salon id: the id changes before the reset,
+    // and a read that fell between the two was wiped by it.
+    testWidgets('a reset with no salon change still reads the list again', (
+      tester,
+    ) async {
+      team.cards = [_invitation('i1', 'Institut Riviera')];
+      await pumpAccueil(tester);
+      expect(find.text(_title), findsOneWidget);
+      final before = team.reads;
+
+      ProSalonScope.resetAll();
+      await settleMocks(tester, rounds: 2);
+
+      expect(team.reads, greaterThan(before), reason: 'emptied, not read');
+      expect(find.text(_title), findsOneWidget);
+    });
+
     testWidgets('a salon switch reads the list again — the switch empties it', (
       tester,
     ) async {
@@ -361,6 +400,32 @@ void main() {
       expect(team.reads, greaterThan(before), reason: 'not read again');
       expect(find.text(_title), findsOneWidget);
     });
+  });
+
+  // The « Invitations » screen (Profil) joins through the session too, so
+  // « Mes salons » reloads from there as well.
+  testWidgets('Profil → Invitations: a join reloads « Mes salons »', (
+    tester,
+  ) async {
+    team.cards = [_invitation('i1', 'Beauté Divine')];
+    final auth = await signInPro(tester);
+    await tester.pumpWidget(
+      wrapApp(
+        providers: [
+          ChangeNotifierProvider<ProAuthProvider>.value(value: auth),
+          ChangeNotifierProvider(create: (_) => ProTeamProvider()),
+        ],
+        home: const ProInvitationsScreen(),
+      ),
+    );
+    await settleMocks(tester, rounds: 2);
+    final before = pro.salonReads;
+
+    await tester.tap(find.text('Rejoindre'));
+    await settleMocks(tester, rounds: 2);
+
+    expect(find.text('Vous avez rejoint Beauté Divine'), findsOneWidget);
+    expect(pro.salonReads, greaterThan(before), reason: 'no reload');
   });
 
   group('« Journée »', () {

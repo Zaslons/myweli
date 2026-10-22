@@ -19,10 +19,12 @@ import 'invitation_card.dart';
 ///
 /// - **Nothing at all** when there is none — no title, no room kept — and
 ///   when the list could not be read: silent, as on the web.
-/// - **Read** on mount and whenever the acting salon changes: a switch
-///   empties the list ([ProTeamProvider.resetForSalonSwitch] — the rejoin
-///   gate leans on that reset, so it stays), and a switch does not remount
-///   the host. The host's pull reads it again too.
+/// - **Read** on mount, and whenever the list was emptied and not read since
+///   ([ProTeamProvider.invitationsAsked]): a salon switch empties it
+///   ([ProTeamProvider.resetForSalonSwitch] — the rejoin gate leans on that
+///   reset, so it stays) and does not remount the host. Following the reset
+///   rather than the salon id: the id changes BEFORE the reset, and a read
+///   in between would be wiped by it. The host's pull reads it again too.
 /// - **One answer at a time**: every button waits while one is out.
 /// - « Profil » keeps its row and its count; both read the same list.
 class ProInvitationsCard extends StatefulWidget {
@@ -33,19 +35,24 @@ class ProInvitationsCard extends StatefulWidget {
 }
 
 class _ProInvitationsCardState extends State<ProInvitationsCard> {
-  static const Object _never = Object();
-
-  /// The salon the list was last read for; a different one reads it again.
-  /// [_never] at first, so the first build reads whatever the salon is.
-  Object? _readFor = _never;
+  /// A read is scheduled for after this frame — one at a time.
+  bool _readScheduled = false;
 
   /// The card whose answer is out — null when none is.
   String? _busyId;
 
-  void _readIfSalonChanged(String? salonId) {
-    if (salonId == _readFor) return;
-    _readFor = salonId;
+  @override
+  void initState() {
+    super.initState();
+    _read();
+  }
+
+  /// Reads the list after this frame: a read notifies, and a build may not.
+  void _read() {
+    if (_readScheduled) return;
+    _readScheduled = true;
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      _readScheduled = false;
       if (mounted) context.read<ProTeamProvider>().loadMyInvitations();
     });
   }
@@ -96,9 +103,9 @@ class _ProInvitationsCardState extends State<ProInvitationsCard> {
 
   @override
   Widget build(BuildContext context) {
-    _readIfSalonChanged(
-      context.select<ProAuthProvider, String?>((a) => a.activeSalonId),
-    );
+    if (!context.select<ProTeamProvider, bool>((t) => t.invitationsAsked)) {
+      _read();
+    }
     final cards = context.select<ProTeamProvider, List<TeamInvitation>>(
       (t) => t.myInvitations,
     );

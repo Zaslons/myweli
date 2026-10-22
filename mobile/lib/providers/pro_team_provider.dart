@@ -162,12 +162,21 @@ class ProTeamProvider extends ChangeNotifier implements SalonScoped {
 
   List<TeamInvitation> _myInvitations = const [];
   bool _invitationsLoading = false;
+  bool _invitationsAsked = false;
 
   List<TeamInvitation> get myInvitations => _myInvitations;
   int get invitationCount => _myInvitations.length;
   bool get invitationsLoading => _invitationsLoading;
 
+  /// Whether the list was asked for since the last salon reset. A switch
+  /// empties it ([resetForSalonSwitch]) without anything reading it again —
+  /// the « Accueil » / « Journée » card reads it whenever this is false, so
+  /// it follows the reset itself, not a salon id that changes before it
+  /// (pro-app-batch7.md §2.6, B7.6).
+  bool get invitationsAsked => _invitationsAsked;
+
   Future<void> loadMyInvitations() async {
+    _invitationsAsked = true;
     _invitationsLoading = true;
     notifyListeners();
     try {
@@ -191,6 +200,7 @@ class ProTeamProvider extends ChangeNotifier implements SalonScoped {
   /// follows reads the list anyway.
   void seedMyInvitations(List<TeamInvitation> cards) {
     _myInvitations = List.unmodifiable(cards);
+    _invitationsAsked = true;
     _invitationsLoading = false;
     _actionError = null;
     _actionErrorCode = null;
@@ -270,6 +280,7 @@ class ProTeamProvider extends ChangeNotifier implements SalonScoped {
     _actionErrorCode = null;
     _myInvitations = const [];
     _invitationsLoading = false;
+    _invitationsAsked = false;
     notifyListeners();
   }
 }
