@@ -161,6 +161,26 @@ void main() {
     await drain(tester);
   });
 
+  // hygiene-batch9.md §2.9 (B9.10) — a row is a title: « Salon », not an
+  // empty line under an initial « ? ».
+  testWidgets('a salon with no name reads « Salon » in the list', (
+    tester,
+  ) async {
+    final i = MockData.providers.indexWhere((p) => p.id == 'provider2');
+    final named = MockData.providers[i];
+    MockData.providers[i] = named.copyWith(name: '');
+    addTearDown(() => MockData.providers[i] = named);
+    final auth = await signInOwner(tester);
+    await pumpPicker(tester, auth);
+
+    expect(
+      find.descendant(of: find.byType(ListTile), matching: find.text('Salon')),
+      findsOneWidget,
+    );
+    expect(find.text('?'), findsNothing);
+    await drain(tester);
+  });
+
   testWidgets('tapping the other salon switches and pops with its id', (
     tester,
   ) async {

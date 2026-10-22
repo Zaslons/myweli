@@ -4,6 +4,7 @@ import 'package:myweli/widgets/common/brand_refresh.dart';
 import 'package:myweli/widgets/common/loading_indicator.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/constants/unnamed_salon.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/colors.dart';
 import '../../core/theme/text_styles.dart';
@@ -311,7 +312,10 @@ class _HomeScreenState extends State<HomeScreen> {
                                           width: (w * 0.86).clamp(280.0, 360.0),
                                           child: CompactAppointmentTile(
                                             appointment: a,
-                                            providerName: p?.name ?? 'Salon',
+                                            providerName: salonNameOr(
+                                              p?.name,
+                                              kUnnamedSalon,
+                                            ),
                                             providerImageUrl:
                                                 (p != null &&
                                                     p.imageUrls.isNotEmpty)

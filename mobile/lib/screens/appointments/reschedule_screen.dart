@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/constants/booking_horizons.dart';
+import '../../core/constants/unnamed_salon.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/colors.dart';
 import '../../core/theme/text_styles.dart';
@@ -116,7 +117,11 @@ class _RescheduleScreenState extends State<RescheduleScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            widget.appointment.providerName ?? 'le salon',
+                            // A title: « Salon », never « le salon ».
+                            salonNameOr(
+                              widget.appointment.providerName,
+                              kUnnamedSalon,
+                            ),
                             style: AppTextStyles.titleMedium,
                           ),
                           if (services.isNotEmpty) ...[

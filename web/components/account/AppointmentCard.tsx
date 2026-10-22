@@ -6,6 +6,7 @@ import {
   statusLabelFr,
 } from '../../lib/account/appointments';
 import { formatDateTimeFr, formatFcfa } from '../../lib/format';
+import { UNNAMED_SALON, salonNameOr } from '../../lib/salon-name';
 
 /// One booking in the account list. Links to the detail page.
 export function AppointmentCard({ appt }: { appt: Appointment }) {
@@ -17,7 +18,7 @@ export function AppointmentCard({ appt }: { appt: Appointment }) {
       <div className="flex items-start justify-between gap-m">
         <div>
           <p className="font-medium text-textPrimary">
-            {appt.providerName ?? 'Salon'}
+            {salonNameOr(appt.providerName, UNNAMED_SALON)}
           </p>
           <p className="mt-xs text-bodyMedium text-textSecondary">
             {formatDateTimeFr(

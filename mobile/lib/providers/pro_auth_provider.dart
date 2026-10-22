@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import '../core/access/pro_access_guard.dart';
 import '../core/access/pro_salon_scope.dart';
 import '../core/constants/failure_messages.dart';
+import '../core/constants/unnamed_salon.dart';
 import '../core/di/dependency_injection.dart';
 import '../core/router/pro_router.dart';
 import '../models/api_response.dart';
@@ -322,14 +323,20 @@ class ProAuthProvider extends ChangeNotifier {
   /// `businessName` is a sign-up copy of its DEFAULT salon, so it answers
   /// only while that salon is the acting one — never after a switch
   /// (docs/design/r6-salon-fact-reads.md §2.3).
-  String get salonName {
+  ///
+  /// [salonName] is for a sentence (« … l'accès à votre salon »); a title
+  /// reads [knownSalonName] and writes « Salon » itself (unnamed_salon.dart).
+  String get salonName => salonNameOr(knownSalonName, kUnnamedOwnSalon);
+
+  /// The acting salon's name, or null when none is known.
+  String? get knownSalonName {
     final fromMembership = _membership?.salonName;
     if (fromMembership != null && fromMembership.isNotEmpty) {
       return fromMembership;
     }
     final actingInDefault = _selectedSalonId == null && activeSalonId != null;
     final business = actingInDefault ? _provider?.businessName : null;
-    return (business == null || business.isEmpty) ? 'votre salon' : business;
+    return (business == null || business.isEmpty) ? null : business;
   }
 
   /// Capability gate. Fallback without a membership (legacy session /

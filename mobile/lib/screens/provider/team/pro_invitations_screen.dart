@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/constants/failure_messages.dart';
+import '../../../core/constants/unnamed_salon.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/colors.dart';
 import '../../../core/theme/text_styles.dart';
@@ -96,7 +97,8 @@ class _ProInvitationsScreenState extends State<ProInvitationsScreen> {
     AppSnackBar.outcomeOn(
       messenger,
       ok: member != null,
-      success: 'Vous avez rejoint ${invitation.salonName}',
+      success:
+          'Vous avez rejoint ${salonNameOr(invitation.salonName, kUnnamedSalonInSentence)}',
       error: _actionError(team, invitationAcceptFailedMessage),
     );
   }
@@ -121,7 +123,7 @@ class _ProInvitationsScreenState extends State<ProInvitationsScreen> {
       if (auth.isAuthenticated && !auth.rejoinPending) {
         AppSnackBar.showOn(
           messenger,
-          'Vous avez rejoint ${invitation.salonName}',
+          'Vous avez rejoint ${salonNameOr(invitation.salonName, kUnnamedSalonInSentence)}',
           kind: SnackKind.success,
         );
       }

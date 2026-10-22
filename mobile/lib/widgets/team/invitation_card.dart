@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../core/constants/unnamed_salon.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/colors.dart';
 import '../../core/theme/text_styles.dart';
@@ -94,7 +95,10 @@ class InvitationCard extends StatelessWidget {
                           style: AppTextStyles.bodyLarge,
                           children: [
                             TextSpan(
-                              text: invitation.salonName,
+                              text: salonNameOr(
+                                invitation.salonName,
+                                kUnnamedSalonAtSentenceStart,
+                              ),
                               style: AppTextStyles.titleMedium,
                             ),
                             const TextSpan(text: ' vous invite comme '),

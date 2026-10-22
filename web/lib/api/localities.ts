@@ -1,5 +1,6 @@
 import { api } from './client';
 import { emptyTree } from '../localities';
+import { unreadable } from './public-read';
 
 /// Fetching the locality tree (multi-pays MP3 —
 /// docs/design/multi-pays-end-version.md §6). **Server-side only** — it imports
@@ -30,27 +31,38 @@ export {
   operatorsFor,
 } from '../localities';
 
-/// Fetch the tree; empty tree on any failure so SSG/ISR builds never crash
-/// (the getLandingSlugs idiom). Module-cached per server process — the
-/// endpoint is public, parameterless and CDN-cacheable (T56).
+/// Fetch the tree. A failure is [unreadable]: it throws where the build fails
+/// closed — the ISR page keeps its last good copy, a build fails — and is the
+/// empty tree on a preview, whose staging sleeps (taxonomyParams.ts then
+/// builds no landing page). It was the empty tree everywhere.
+/// Module-cached per server process — the endpoint is public, parameterless
+/// and CDN-cacheable (T56).
 let cached: Promise<import('../localities').LocalityTree> | null = null;
 
 export async function getLocalityTree(): Promise<
   import('../localities').LocalityTree
 > {
   cached ??= (async () => {
+    let cause: unknown;
     try {
       const { data, error } = await api.GET('/localities', {});
-      if (error || !data) return emptyTree;
-      return data;
-    } catch {
-      return emptyTree;
+      if (!error && Array.isArray(data?.countries)) return data;
+      cause = error ?? 'no countries';
+    } catch (e) {
+      cause = e;
     }
-  })().then((tree) => {
-    // Never pin a failed fetch for the process lifetime.
-    if (tree.countries.length === 0) cached = null;
-    return tree;
-  });
+    return unreadable('GET /localities', emptyTree, cause);
+  })().then(
+    (tree) => {
+      // Never pin a failed fetch for the process lifetime.
+      if (tree.countries.length === 0) cached = null;
+      return tree;
+    },
+    (e: unknown) => {
+      cached = null;
+      throw e;
+    },
+  );
   return cached;
 }
 

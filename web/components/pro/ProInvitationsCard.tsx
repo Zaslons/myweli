@@ -15,6 +15,7 @@ import {
   invitationActionError,
 } from '../../lib/pro/team';
 import { Button } from '../Button';
+import { UNNAMED_SALON_AT_SENTENCE_START, salonNameOr } from '../../lib/salon-name';
 
 type Busy = { id: string; action: 'accept' | 'decline' } | null;
 
@@ -183,7 +184,10 @@ export function ProInvitationsCard({
               >
                 <div>
                   <p id={sentenceId} className="text-bodyLarge text-textPrimary">
-                    <span className="font-semibold">{inv.salonName}</span> vous
+                    <span className="font-semibold">
+                  {salonNameOr(inv.salonName, UNNAMED_SALON_AT_SENTENCE_START)}
+                </span>{' '}
+                vous
                     invite comme {inv.roleLabel}
                   </p>
                   <p className="text-bodySmall text-textTertiary">
