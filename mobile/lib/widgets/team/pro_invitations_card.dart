@@ -28,7 +28,12 @@ import 'invitation_card.dart';
 /// - **One answer at a time**: every button waits while one is out.
 /// - « Profil » keeps its row and its count; both read the same list.
 class ProInvitationsCard extends StatefulWidget {
-  const ProInvitationsCard({super.key});
+  const ProInvitationsCard({super.key, this.padding = EdgeInsets.zero});
+
+  /// Around the card when it shows — and only then: an empty card takes no
+  /// room at all, its padding included (the host's own padding would keep a
+  /// strip of it on every day without an invitation).
+  final EdgeInsetsGeometry padding;
 
   @override
   State<ProInvitationsCard> createState() => _ProInvitationsCardState();
@@ -111,7 +116,9 @@ class _ProInvitationsCardState extends State<ProInvitationsCard> {
     );
     if (cards.isEmpty) return const SizedBox.shrink();
     return Padding(
-      padding: const EdgeInsets.only(bottom: AppTheme.spacingL),
+      padding: widget.padding.add(
+        const EdgeInsets.only(bottom: AppTheme.spacingL),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [

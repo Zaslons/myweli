@@ -30,6 +30,7 @@ import 'package:myweli/services/mock/mock_pro_service.dart';
 import 'package:myweli/services/mock/mock_pro_team_service.dart';
 import 'package:myweli/services/mock/mock_push_notification_service.dart';
 import 'package:myweli/services/mock/mock_subscription_service.dart';
+import 'package:myweli/widgets/team/pro_invitations_card.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -463,6 +464,22 @@ void main() {
       await tester.pump(const Duration(seconds: 1));
       await settleMocks(tester, rounds: 2);
       expect(team.reads, greaterThan(before), reason: 'the pull did not read');
+    });
+
+    // The own-mode golden caught it: a wrapper's padding kept an 8 dp strip
+    // above the empty day when there was no invitation.
+    testWidgets('no invitation → the card takes no room, its padding '
+        'included', (tester) async {
+      await pumpJournee(tester, as: 'sonia.staff@myweli.test');
+      expect(find.text(_title), findsNothing);
+      // `skipOffstage: false`: a list counts a zero-height child as offstage.
+      final card = find.byType(ProInvitationsCard, skipOffstage: false);
+      expect(card, findsOneWidget, reason: 'the card is on the day');
+      expect(
+        tester.getSize(card).height,
+        0,
+        reason: 'an empty card keeps a strip above the day',
+      );
     });
 
     testWidgets('the salon’s own « Ma journée » does not repeat it — '

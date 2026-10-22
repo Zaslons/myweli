@@ -189,14 +189,15 @@ class _ProJournalScreenState extends State<ProJournalScreen> {
               padding: const EdgeInsets.only(bottom: AppTheme.fabClearance),
               children: [
                 if (invitations)
-                  const Padding(
+                  // Its own padding, not a wrapper's: a day with no
+                  // invitation keeps no strip of it.
+                  const ProInvitationsCard(
                     padding: EdgeInsets.fromLTRB(
                       AppTheme.spacingM,
                       AppTheme.spacingS,
                       AppTheme.spacingM,
                       0,
                     ),
-                    child: ProInvitationsCard(),
                   ),
                 const SizedBox(height: AppTheme.spacingXXXL),
                 const EmptyState(
