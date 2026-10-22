@@ -76,8 +76,8 @@ void main() {
         tokens: ts(),
         echoDevCode: true,
       );
-      expect((await off.requestOtp('+2250700000001')).devCode, isNull);
-      expect((await on.requestOtp('+2250700000001')).devCode, isNotNull);
+      expect((await off.requestEmailOtp('someone@salon.ci')).devCode, isNull);
+      expect((await on.requestEmailOtp('someone@salon.ci')).devCode, isNotNull);
     });
 
     test(

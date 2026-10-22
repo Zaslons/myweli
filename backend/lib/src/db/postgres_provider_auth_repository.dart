@@ -45,10 +45,6 @@ class PostgresProviderAuthRepository implements ProviderAuthRepository {
   final Random _random = Random.secure();
 
   @override
-  Future<OtpRequestResult> requestOtp(String phoneNumber) =>
-      _requestOtpIn('provider_otp_codes', 'phone_number', phoneNumber);
-
-  @override
   Future<OtpRequestResult> requestEmailOtp(String email) => _requestOtpIn(
     'provider_email_otp_codes',
     'email',
@@ -388,72 +384,6 @@ class PostgresProviderAuthRepository implements ProviderAuthRepository {
     return null;
   }
 
-  @override
-  Future<ProviderVerifyResult> verifyOtp(
-    String phoneNumber,
-    String code,
-  ) async {
-    final rows = await _pool.execute(
-      Sql.named(
-        'SELECT code_hash, expires_at, attempts_left '
-        'FROM provider_otp_codes WHERE phone_number = @p',
-      ),
-      parameters: {'p': phoneNumber},
-    );
-    if (rows.isEmpty) {
-      return (ok: false, error: 'otp_none', provider: null, tokens: null);
-    }
-    final row = rows.first.toColumnMap();
-    if (DateTime.now().toUtc().isAfter(
-      (row['expires_at'] as DateTime).toUtc(),
-    )) {
-      await _deleteOtp(phoneNumber);
-      return (ok: false, error: 'otp_expired', provider: null, tokens: null);
-    }
-    final attemptsLeft = row['attempts_left'] as int;
-    if (attemptsLeft <= 0) {
-      return (ok: false, error: 'otp_locked', provider: null, tokens: null);
-    }
-    if ((row['code_hash'] as String) != _tokens.hashToken(code)) {
-      final left = attemptsLeft - 1;
-      await _pool.execute(
-        Sql.named(
-          'UPDATE provider_otp_codes SET attempts_left = @a '
-          'WHERE phone_number = @p',
-        ),
-        parameters: {'a': left, 'p': phoneNumber},
-      );
-      return (
-        ok: false,
-        error: left <= 0 ? 'otp_locked' : 'otp_invalid',
-        provider: null,
-        tokens: null,
-      );
-    }
-    final accountRows = await _pool.execute(
-      Sql.named('SELECT * FROM provider_users WHERE phone_number = @p'),
-      parameters: {'p': phoneNumber},
-    );
-    if (accountRows.isEmpty) {
-      // Must register before logging in.
-      return (
-        ok: false,
-        error: 'provider_not_found',
-        provider: null,
-        tokens: null,
-      );
-    }
-    final account = _toAccount(accountRows.first.toColumnMap());
-    return _pool.runTx((tx) async {
-      await tx.execute(
-        Sql.named('DELETE FROM provider_otp_codes WHERE phone_number = @p'),
-        parameters: {'p': phoneNumber},
-      );
-      final tokens = await _issueInFamily(tx, account.id, _newId('fam'));
-      return (ok: true, error: null, provider: account, tokens: tokens);
-    });
-  }
-
   /// One transaction: atomic claim, 30 s grace on the database clock, family
   /// revoke past it. Design: docs/design/backend-refresh-rotation-atomic.md.
   @override
@@ -583,11 +513,6 @@ class PostgresProviderAuthRepository implements ProviderAuthRepository {
     return _toAccount(rows.first.toColumnMap());
   }
 
-  Future<void> _deleteOtp(String phoneNumber) => _pool.execute(
-    Sql.named('DELETE FROM provider_otp_codes WHERE phone_number = @p'),
-    parameters: {'p': phoneNumber},
-  );
-
   ProviderAccount _toAccount(Map<String, dynamic> r) => ProviderAccount(
     id: r['id'] as String,
     phoneNumber: r['phone_number'] as String,
@@ -633,12 +558,6 @@ class PostgresProviderAuthRepository implements ProviderAuthRepository {
         await tx.execute(
           Sql.named('DELETE FROM provider_email_otp_codes WHERE email = @e'),
           parameters: {'e': email},
-        );
-      }
-      if (account.phoneNumber.isNotEmpty) {
-        await tx.execute(
-          Sql.named('DELETE FROM provider_otp_codes WHERE phone_number = @p'),
-          parameters: {'p': account.phoneNumber},
         );
       }
       // The row carries the KYC docs (kyc_docs jsonb) — they go with it, and
