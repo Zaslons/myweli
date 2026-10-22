@@ -147,6 +147,9 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
     final clients = context.read<ProClientsProvider>();
     await showModalBottomSheet<void>(
       context: context,
+      // Ten tags, a fault and the keyboard are taller than the default 9/16
+      // of the screen — the sheet overflowed (B9.7). It scrolls instead.
+      isScrollControlled: true,
       builder: (_) => _TagSheet(
         initial: client.tags,
         onSave: (tags) =>
@@ -1103,8 +1106,29 @@ class _TagSheet extends StatefulWidget {
 }
 
 class _TagSheetState extends State<_TagSheet> {
-  /// A7/§14: the custom-tag field's fault. Its three rules were silent no-ops.
-  String? _tagError;
+  /// The most a client carries, the server's cap.
+  static const _maxTags = 10;
+  static const _limitFault =
+      'Vous avez atteint 10 tags — retirez-en un pour en ajouter.';
+
+  /// A7/§14, on `FieldErrors` since B9.7: the custom-tag field's fault is
+  /// asked again as the value changes, where any keystroke used to clear it.
+  late final _errors = FieldErrors({'tag': _tagRule});
+
+  /// Read against the tags already chosen: already there, then the limit —
+  /// at ten, the limit is what to fix whatever is typed — then empty.
+  String? _tagRule(String value) {
+    final t = value.trim();
+    if (t.isNotEmpty && _tags.contains(t)) return 'Ce tag est déjà ajouté.';
+    if (_tags.length >= _maxTags) return _limitFault;
+    if (t.isEmpty) return 'Saisissez un tag.';
+    return null;
+  }
+
+  /// A save that failed — the sheet's outcome, not the field's (SYSTEM §14,
+  /// the three slots: in a sheet, `InlineFeedback`). It used to leave the
+  /// sheet open and say nothing.
+  String? _failure;
 
   late final List<String> _tags = List.of(widget.initial);
   final _customController = TextEditingController();
@@ -1120,19 +1144,50 @@ class _TagSheetState extends State<_TagSheet> {
     setState(() {
       if (_tags.contains(tag)) {
         _tags.remove(tag);
-      } else if (_tags.length < 10) {
+      } else if (_tags.length < _maxTags) {
         _tags.add(tag);
+      } else {
+        // The eleventh chip did nothing at all (§14 rule 5): it says why.
+        _errors.set('tag', _limitFault);
+        return;
       }
+      _recheck();
+    });
+  }
+
+  /// A chip changes the set the rule reads, so a fault on show is asked
+  /// again (§14 rule 2). The limit raised with the box empty is answered by
+  /// the count alone: « Saisissez un tag. » is for « + ».
+  void _recheck() {
+    final text = _customController.text;
+    if (_errors['tag'] == _limitFault && text.trim().isEmpty) {
+      if (_tags.length < _maxTags) _errors.set('tag', null);
+    } else {
+      _errors.revalidate('tag', text);
+    }
+  }
+
+  void _addCustom() {
+    final text = _customController.text;
+    setState(() {
+      if (!_errors.validate({'tag': text})) return;
+      _tags.add(text.trim());
+      _customController.clear();
     });
   }
 
   Future<void> _save() async {
-    setState(() => _busy = true);
+    setState(() {
+      _busy = true;
+      _failure = null;
+    });
     final ok = await widget.onSave(_tags);
-    if (mounted) {
-      setState(() => _busy = false);
-      if (ok) Navigator.of(context).pop();
-    }
+    if (!mounted) return;
+    setState(() {
+      _busy = false;
+      if (!ok) _failure = 'Enregistrement impossible. Réessayez.';
+    });
+    if (ok) Navigator.of(context).pop();
   }
 
   @override
@@ -1149,76 +1204,53 @@ class _TagSheetState extends State<_TagSheet> {
         top: AppTheme.spacingL,
         bottom: MediaQuery.of(context).viewInsets.bottom + AppTheme.spacingL,
       ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Text(
-            'Tags',
-            style: AppTextStyles.titleLarge.copyWith(
-              color: AppColors.textPrimary,
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              'Tags',
+              style: AppTextStyles.titleLarge.copyWith(
+                color: AppColors.textPrimary,
+              ),
             ),
-          ),
-          const SizedBox(height: AppTheme.spacingM),
-          Wrap(
-            spacing: AppTheme.spacingXS,
-            runSpacing: AppTheme.spacingXS,
-            children: [
-              for (final t in choices)
-                FilterChip(
-                  label: Text(t),
-                  selected: _tags.contains(t),
-                  onSelected: (_) => _toggle(t),
-                ),
-            ],
-          ),
-          const SizedBox(height: AppTheme.spacingM),
-          AppTextField(
-            controller: _customController,
-            label: 'Tag personnalisé',
-            hint: 'Ex : Mariée juin',
-            maxLength: 24,
-            errorText: _tagError,
-            onChanged: (_) {
-              if (_tagError != null) setState(() => _tagError = null);
-            },
-            suffixIcon: IconButton(
-              tooltip: 'Ajouter le tag',
-              icon: const Icon(Icons.add),
-              onPressed: () {
-                final t = _customController.text.trim();
-                // Three rules used to fail in complete silence — the button was
-                // ENABLED, the user tapped, and nothing happened at all. A7
-                // wrote this block once and the edit silently did not apply;
-                // the review caught the resulting dead `errorText`, which is
-                // the very bug this slice exists to kill.
-                final fault = t.isEmpty
-                    ? 'Saisissez un tag.'
-                    : _tags.contains(t)
-                    ? 'Ce tag est déjà ajouté.'
-                    : _tags.length >= 10
-                    ? 'Vous avez atteint 10 tags — retirez-en un '
-                          'pour en ajouter.'
-                    : null;
-                if (fault != null) {
-                  setState(() => _tagError = fault);
-                  return;
-                }
-                setState(() {
-                  _tagError = null;
-                  _tags.add(t);
-                  _customController.clear();
-                });
-              },
+            const SizedBox(height: AppTheme.spacingM),
+            Wrap(
+              spacing: AppTheme.spacingXS,
+              runSpacing: AppTheme.spacingXS,
+              children: [
+                for (final t in choices)
+                  FilterChip(
+                    label: Text(t),
+                    selected: _tags.contains(t),
+                    onSelected: (_) => _toggle(t),
+                  ),
+              ],
             ),
-          ),
-          const SizedBox(height: AppTheme.spacingM),
-          AppButton(
-            text: 'Enregistrer',
-            isLoading: _busy,
-            onPressed: _busy ? null : _save,
-          ),
-        ],
+            const SizedBox(height: AppTheme.spacingM),
+            AppTextField(
+              controller: _customController,
+              label: 'Tag personnalisé',
+              hint: 'Ex : Mariée juin',
+              maxLength: 24,
+              errorText: _errors['tag'],
+              onChanged: (v) => setState(() => _errors.revalidate('tag', v)),
+              suffixIcon: IconButton(
+                tooltip: 'Ajouter le tag',
+                icon: const Icon(Icons.add),
+                onPressed: _addCustom,
+              ),
+            ),
+            InlineFeedback(_failure),
+            const SizedBox(height: AppTheme.spacingM),
+            AppButton(
+              text: 'Enregistrer',
+              isLoading: _busy,
+              onPressed: _busy ? null : _save,
+            ),
+          ],
+        ),
       ),
     );
   }

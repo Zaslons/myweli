@@ -9,8 +9,10 @@ import 'package:myweli/providers/auth_provider.dart';
 import 'package:myweli/screens/auth/login_screen.dart';
 import 'package:myweli/services/mock/mock_auth_service.dart';
 import 'package:myweli/widgets/common/app_button.dart';
+import 'package:myweli/widgets/common/app_text_field.dart';
 import 'package:myweli/widgets/common/apple_logo.dart';
 import 'package:myweli/widgets/common/google_g_logo.dart';
+import 'package:myweli/widgets/common/inline_feedback.dart';
 import 'package:myweli/widgets/common/phone_number_field.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -292,6 +294,172 @@ void main() {
       expect(find.text('HOME'), findsNothing);
     });
   });
+
+  // docs/design/hygiene-batch9.md §2.6 (B9.7) — a refusal that is the code's
+  // or the e-mail's is said under that field, as on the web
+  // (web-client-polish.md §2.1, Q1; sign_in_refusal.dart). Everything else
+  // stays under the form.
+  group('where a refused e-mail sign-in is said', () {
+    tearDown(() {
+      spy.sendRefusal = null;
+      spy.codeRefusal = null;
+    });
+
+    Finder field(String label) =>
+        find.byWidgetPredicate((w) => w is AppTextField && w.label == label);
+    Finder under(String label, String message) =>
+        find.descendant(of: field(label), matching: find.text(message));
+    Finder underTheForm(String message) => find.descendant(
+      of: find.byType(InlineFeedback),
+      matching: find.text(message),
+    );
+
+    // The mock keeps the server's resend limit per address: one each.
+    var sent = 0;
+    String nextAddress() => 'awa${++sent}@salon.ci';
+
+    Future<void> toCodeStep(WidgetTester tester) async {
+      await tester.pumpWidget(app());
+      await settle(tester);
+      await tester.enterText(
+        find.descendant(
+          of: field('Votre e-mail'),
+          matching: find.byType(TextField),
+        ),
+        nextAddress(),
+      );
+      await tester.pump();
+      await tester.tap(find.text('Continuer avec e-mail'));
+      await settle(tester);
+      expect(
+        field('Code à 6 chiffres'),
+        findsOneWidget,
+        reason: 'the scenario',
+      );
+    }
+
+    Future<void> submitCode(WidgetTester tester, String code) async {
+      await tester.enterText(
+        find.descendant(
+          of: field('Code à 6 chiffres'),
+          matching: find.byType(TextField),
+        ),
+        code,
+      );
+      await tester.pump();
+      // The keyboard dismissed before the press, as a user does.
+      FocusManager.instance.primaryFocus?.unfocus();
+      await tester.pump();
+      await tester.tap(find.text('Se connecter'));
+      await settle(tester);
+    }
+
+    testWidgets('a wrong code is said under the code, not under the form; a '
+        'new code typed clears it', (tester) async {
+      spy.codeRefusal = (code: 'otp_invalid', message: 'Code incorrect.');
+      await toCodeStep(tester);
+      await submitCode(tester, '123456');
+
+      expect(under('Code à 6 chiffres', 'Code incorrect.'), findsOneWidget);
+      expect(underTheForm('Code incorrect.'), findsNothing);
+      expect(find.text('HOME'), findsNothing);
+      expect(
+        tester
+            .widget<EditableText>(
+              find.descendant(
+                of: field('Code à 6 chiffres'),
+                matching: find.byType(EditableText),
+              ),
+            )
+            .focusNode
+            .hasFocus,
+        isTrue,
+        reason: 'the refused field takes the focus back (§14)',
+      );
+
+      await tester.enterText(
+        find.descendant(
+          of: field('Code à 6 chiffres'),
+          matching: find.byType(TextField),
+        ),
+        '654321',
+      );
+      await tester.pump();
+      expect(find.text('Code incorrect.'), findsNothing);
+    });
+
+    for (final (code, sentence) in const [
+      ('otp_expired', 'Code expiré. Demandez un nouveau code.'),
+      ('otp_none', 'Aucun code actif. Demandez un nouveau code.'),
+      ('otp_locked', 'Trop de tentatives. Demandez un nouveau code.'),
+      ('invalid_input', 'Code incorrect.'),
+    ]) {
+      testWidgets('`$code`: « $sentence » under the code', (tester) async {
+        // The service's own words for `invalid_input` — « Numéro ou code
+        // invalide. » — are not said: there is no number on this step.
+        spy.codeRefusal = (code: code, message: 'Numéro ou code invalide.');
+        await toCodeStep(tester);
+        await submitCode(tester, '123456');
+
+        expect(under('Code à 6 chiffres', sentence), findsOneWidget);
+        expect(find.text('Numéro ou code invalide.'), findsNothing);
+      });
+    }
+
+    testWidgets('a refusal that is no field\'s stays under the form', (
+      tester,
+    ) async {
+      spy.codeRefusal = (
+        code: 'account_suspended',
+        message: 'Compte suspendu.',
+      );
+      await toCodeStep(tester);
+      await submitCode(tester, '123456');
+
+      expect(underTheForm('Compte suspendu.'), findsOneWidget);
+      expect(under('Code à 6 chiffres', 'Compte suspendu.'), findsNothing);
+    });
+
+    testWidgets('an address the server refuses is said under the e-mail', (
+      tester,
+    ) async {
+      spy.sendRefusal = (code: 'invalid_email', message: 'E-mail invalide.');
+      await tester.pumpWidget(app());
+      await settle(tester);
+      await tester.enterText(
+        find.descendant(
+          of: field('Votre e-mail'),
+          matching: find.byType(TextField),
+        ),
+        nextAddress(),
+      );
+      await tester.pump();
+      await tester.tap(find.text('Continuer avec e-mail'));
+      await settle(tester);
+
+      expect(
+        under('Votre e-mail', 'Saisissez une adresse e-mail valide.'),
+        findsOneWidget,
+        reason: 'the local check\'s own sentence — the server agreeing',
+      );
+      expect(find.text('E-mail invalide.'), findsNothing);
+    });
+
+    testWidgets('a new code: the last one\'s fault is gone', (tester) async {
+      spy.codeRefusal = (code: 'otp_invalid', message: 'Code incorrect.');
+      await toCodeStep(tester);
+      await submitCode(tester, '123456');
+      expect(under('Code à 6 chiffres', 'Code incorrect.'), findsOneWidget);
+
+      await tester.tap(find.text('Changer d’e-mail'));
+      await settle(tester);
+      await tester.tap(find.text('Continuer avec e-mail'));
+      await settle(tester);
+
+      expect(field('Code à 6 chiffres'), findsOneWidget);
+      expect(find.text('Code incorrect.'), findsNothing);
+    });
+  });
 }
 
 /// The mock, recording every `updateUser` phone — and optionally refusing it
@@ -299,6 +467,29 @@ void main() {
 class _SpyAuthService extends MockAuthService {
   String? rejectPhoneWith;
   final phonesSent = <String?>[];
+
+  /// When set, « Continuer avec e-mail » / « Se connecter » are refused by the
+  /// server under that code.
+  ({String code, String message})? sendRefusal;
+  ({String code, String message})? codeRefusal;
+
+  @override
+  Future<ApiResponse<String>> requestEmailOtp(String email) async {
+    final refusing = sendRefusal;
+    if (refusing != null) {
+      return ApiResponse.error(refusing.message, code: refusing.code);
+    }
+    return super.requestEmailOtp(email);
+  }
+
+  @override
+  Future<ApiResponse<User>> verifyEmailOtp(String email, String code) async {
+    final refusing = codeRefusal;
+    if (refusing != null) {
+      return ApiResponse.error(refusing.message, code: refusing.code);
+    }
+    return super.verifyEmailOtp(email, code);
+  }
 
   @override
   Future<ApiResponse<User>> updateUser({

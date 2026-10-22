@@ -134,6 +134,7 @@ class AuthProvider extends ChangeNotifier {
   Future<bool> _login(Future<ApiResponse<User>> Function() run) async {
     _isLoading = true;
     _error = null;
+    _otpErrorCode = null;
     notifyListeners();
     try {
       final response = await run();
@@ -165,6 +166,9 @@ class AuthProvider extends ChangeNotifier {
   Future<bool> requestEmailOtp(String email) async {
     _isLoading = true;
     _error = null;
+    // A new attempt: the last one's code would place this one's sentence
+    // (sign_in_refusal.dart), so it goes with it, as on ProAuthProvider.
+    _otpErrorCode = null;
     notifyListeners();
     try {
       final response = await _authService.requestEmailOtp(email);

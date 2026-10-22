@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:myweli/core/constants/app_constants.dart';
+import 'package:myweli/core/constants/failure_messages.dart';
 import 'package:myweli/core/di/dependency_injection.dart';
 import 'package:myweli/core/theme/app_theme.dart';
 import 'package:myweli/core/theme/text_styles.dart';
@@ -18,6 +19,8 @@ import 'package:myweli/screens/provider/clients/client_list_screen.dart';
 import 'package:myweli/services/interfaces/pro_clients_service_interface.dart';
 import 'package:myweli/services/mock/mock_auth_service.dart';
 import 'package:myweli/services/mock/mock_pro_clients_service.dart';
+import 'package:myweli/widgets/common/app_text_field.dart';
+import 'package:myweli/widgets/common/inline_feedback.dart';
 import 'package:myweli/widgets/common/phone_number_field.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -47,7 +50,20 @@ class _SwitchableClients implements ProClientsServiceInterface {
     visitReads = 0;
     serverFields = null;
     visitPrice = null;
+    failTags = false;
+    failNotes = false;
+    tagsSent.clear();
+    notesSent.clear();
   }
+
+  /// When set, a tag or note save is refused — what the sheet and the notes
+  /// say when the network or the server says no (hygiene-batch9.md §2.6).
+  bool failTags = false;
+  bool failNotes = false;
+
+  /// What reached the service: an empty or refused form sends nothing.
+  final tagsSent = <List<String>>[];
+  final notesSent = <String>[];
 
   /// When set, every visit's price — the mock draws 15 000 (B7.10's
   /// seven-digit row needs more).
@@ -179,7 +195,11 @@ class _SwitchableClients implements ProClientsServiceInterface {
     String providerId,
     String clientId,
     List<String> tags,
-  ) => _base.updateTags(providerId, clientId, tags);
+  ) async {
+    tagsSent.add(List.of(tags));
+    if (failTags) return ApiResponse.error(kGenericErrorMessage);
+    return _base.updateTags(providerId, clientId, tags);
+  }
 
   @override
   Future<ApiResponse<SalonClientNote>> addNote(
@@ -187,8 +207,16 @@ class _SwitchableClients implements ProClientsServiceInterface {
     String clientId,
     String body, {
     String? idempotencyKey,
-  }) =>
-      _base.addNote(providerId, clientId, body, idempotencyKey: idempotencyKey);
+  }) async {
+    notesSent.add(body);
+    if (failNotes) return ApiResponse.error(kGenericErrorMessage);
+    return _base.addNote(
+      providerId,
+      clientId,
+      body,
+      idempotencyKey: idempotencyKey,
+    );
+  }
 
   @override
   Future<ApiResponse<bool>> deleteNote(
@@ -1095,6 +1123,223 @@ void main() {
       );
       await tester.pump();
       expect(find.text('Ce tag est déjà ajouté.'), findsNothing);
+    });
+
+    // docs/design/hygiene-batch9.md §2.6 (B9.7) — the sheet's field on
+    // `FieldErrors`, its 10-tag limit, and its save.
+    Finder tagField() => find.byWidgetPredicate(
+      (w) => w is AppTextField && w.label == 'Tag personnalisé',
+    );
+    Finder underTheTag(String message) =>
+        find.descendant(of: tagField(), matching: find.text(message));
+    Finder chip(String tag) => find.widgetWithText(FilterChip, tag);
+    bool selected(WidgetTester tester, String tag) =>
+        tester.widget<FilterChip>(chip(tag)).selected;
+    Future<void> typeTag(WidgetTester tester, String value) async {
+      await tester.enterText(
+        find.descendant(of: tagField(), matching: find.byType(TextField)),
+        value,
+      );
+      await tester.pump();
+    }
+
+    Future<void> plus(WidgetTester tester) async {
+      await tester.tap(find.byTooltip('Ajouter le tag'));
+      await tester.pump();
+    }
+
+    /// VIP (Aïcha's) and nine of one's own: the limit.
+    Future<void> fillToTen(WidgetTester tester) async {
+      for (var i = 1; i <= 9; i++) {
+        await typeTag(tester, 'T$i');
+        await plus(tester);
+      }
+      expect(
+        [for (var i = 1; i <= 9; i++) selected(tester, 'T$i')],
+        everyElement(isTrue),
+        reason: 'the scenario: ten tags',
+      );
+    }
+
+    const limit = 'Vous avez atteint 10 tags — retirez-en un pour en ajouter.';
+
+    testWidgets('a tag fault stays until the value is right: the field '
+        're-checks the rule as it changes, it does not just clear (§14 '
+        'rule 2)', (tester) async {
+      await openTagSheet(tester);
+
+      await typeTag(tester, 'VIP');
+      await plus(tester);
+      expect(underTheTag('Ce tag est déjà ajouté.'), findsOneWidget);
+
+      // Still « VIP » once trimmed — still already there.
+      await typeTag(tester, 'VIP ');
+      expect(
+        underTheTag('Ce tag est déjà ajouté.'),
+        findsOneWidget,
+        reason: 'a keystroke is not a fix: the rule is asked again',
+      );
+
+      await typeTag(tester, 'VIPs');
+      expect(underTheTag('Ce tag est déjà ajouté.'), findsNothing);
+    });
+
+    testWidgets('the 10-tag limit at « + »: said under the field, nothing '
+        'added', (tester) async {
+      await openTagSheet(tester);
+      await fillToTen(tester);
+
+      await typeTag(tester, 'T10');
+      await plus(tester);
+
+      expect(underTheTag(limit), findsOneWidget);
+      expect(chip('T10'), findsNothing, reason: 'an eleventh was not added');
+      expect(find.byType(SnackBar), findsNothing);
+    });
+
+    testWidgets('a chip at the limit says so under the field instead of '
+        'doing nothing; taking one off clears it', (tester) async {
+      await openTagSheet(tester);
+      await fillToTen(tester);
+
+      await tester.tap(chip('Fidèle'));
+      await tester.pump();
+      expect(
+        underTheTag(limit),
+        findsOneWidget,
+        reason: 'the eleventh chip was a silent no-op (§14 rule 5)',
+      );
+      expect(selected(tester, 'Fidèle'), isFalse);
+
+      // « VIP » is Aïcha's own: its chip stays when it is taken off.
+      await tester.tap(chip('VIP'));
+      await tester.pump();
+      expect(selected(tester, 'VIP'), isFalse);
+      expect(underTheTag(limit), findsNothing, reason: 'fixed: nine now');
+
+      await tester.tap(chip('Fidèle'));
+      await tester.pump();
+      expect(selected(tester, 'Fidèle'), isTrue);
+    });
+
+    testWidgets('a refused save is said in the sheet, which stays open; '
+        'saving again closes it', (tester) async {
+      clients.failTags = true;
+      await openTagSheet(tester);
+      await tester.tap(chip('Fidèle'));
+      await tester.pump();
+
+      await tester.tap(find.text('Enregistrer'));
+      await settle(tester);
+
+      expect(clients.tagsSent, [
+        ['VIP', 'Fidèle'],
+      ]);
+      expect(
+        find.descendant(
+          of: find.byType(InlineFeedback),
+          matching: find.text('Enregistrement impossible. Réessayez.'),
+        ),
+        findsOneWidget,
+        reason:
+            'an in-modal outcome (SYSTEM §14, the three slots) — the sheet '
+            'used to stay open and say nothing',
+      );
+      expect(find.text('Tag personnalisé'), findsOneWidget, reason: 'open');
+      expect(find.byType(SnackBar), findsNothing);
+      expect(selected(tester, 'Fidèle'), isTrue, reason: 'nothing lost');
+
+      clients.failTags = false;
+      await tester.tap(find.text('Enregistrer'));
+      await settle(tester);
+      expect(find.text('Tag personnalisé'), findsNothing, reason: 'closed');
+      expect(find.text('Enregistrement impossible. Réessayez.'), findsNothing);
+      expect(find.text('Fidèle'), findsOneWidget, reason: 'on the card');
+    });
+
+    testWidgets('ten tags, the limit fault and the keyboard: the sheet '
+        'grows past 9/16 of the screen — its title and « Enregistrer » both '
+        'in view above the keyboard, nothing overflowing', (tester) async {
+      tester.view.physicalSize = const Size(360, 800);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+
+      await openTagSheet(tester);
+      await fillToTen(tester);
+      await tester.tap(chip('Fidèle'));
+      await tester.pump();
+      tester.view.viewInsets = const FakeViewPadding(bottom: 280);
+      await tester.pump();
+
+      expect(
+        tester.takeException(),
+        isNull,
+        reason: 'at the default 9/16, ten chips overflowed the sheet',
+      );
+      expect(underTheTag(limit), findsOneWidget);
+      // No scrolling: the whole sheet is in view, not a 170dp window of it.
+      expect(tester.getRect(find.text('Tags')).top, greaterThanOrEqualTo(0));
+      expect(
+        tester.getRect(find.text('Enregistrer')).bottom,
+        lessThanOrEqualTo(800 - 280 + 0.5),
+        reason: 'above the keyboard',
+      );
+    });
+
+    Finder noteField() => find.byWidgetPredicate(
+      (w) => w is AppTextField && w.hint == 'Ajouter une note…',
+    );
+    Finder underTheNote(String message) =>
+        find.descendant(of: noteField(), matching: find.text(message));
+
+    testWidgets('an empty note is said under the field and nothing is sent; '
+        'typing clears it', (tester) async {
+      await tester.pumpWidget(app(initial: '/pro/clients/sc1'));
+      await settle(tester);
+
+      await tester.tap(find.widgetWithText(ElevatedButton, 'Ajouter'));
+      await settle(tester);
+
+      expect(underTheNote('Indiquez une note.'), findsOneWidget);
+      expect(clients.notesSent, isEmpty);
+      expect(find.byType(SnackBar), findsNothing);
+
+      await tester.enterText(
+        find.descendant(of: noteField(), matching: find.byType(TextField)),
+        'À rappeler',
+      );
+      await tester.pump();
+      expect(underTheNote('Indiquez une note.'), findsNothing);
+    });
+
+    testWidgets('a refused note is said under the field, and stays in the '
+        'box', (tester) async {
+      clients.failNotes = true;
+      await tester.pumpWidget(app(initial: '/pro/clients/sc1'));
+      await settle(tester);
+
+      await tester.enterText(
+        find.descendant(of: noteField(), matching: find.byType(TextField)),
+        'RDV souvent en retard',
+      );
+      await tester.pump();
+      await tester.tap(find.widgetWithText(ElevatedButton, 'Ajouter'));
+      await settle(tester);
+
+      expect(clients.notesSent, ['RDV souvent en retard']);
+      expect(
+        underTheNote('Enregistrement impossible. Réessayez.'),
+        findsOneWidget,
+      );
+      expect(find.byType(SnackBar), findsNothing);
+      expect(
+        find.descendant(
+          of: noteField(),
+          matching: find.text('RDV souvent en retard'),
+        ),
+        findsOneWidget,
+        reason: 'what was typed is not lost',
+      );
     });
   });
 
