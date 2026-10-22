@@ -101,12 +101,12 @@ Each question has a recommendation. Answers unblock the item named in brackets.
 
 **Product questions (batch 8)**
 
-27. **Undo** for cancelling a booking, revoking a member and deleting an account? It needs server « pending » states, and a grace period stated in the privacy policy. Or keep confirm-only? [B8.1]
-28. **The Pro account phone:** still a sign-in identity, so changing it needs an SMS code and waits for real SMS? Or only a contact number pros can edit now? [B8.2]
-29. **The « Profil » salon card offline:** keep a small offline copy (name, category, address, phone), or accept « could not load / Réessayer »? [B8.3]
-30. **V2 analytics chart:** count « Revenus prévus » or « Total réalisé »? Needed only when V2 is built. [B8.4]
-31. **Dormant phone sign-in:** repair and route it when SMS returns, or delete it now and rebuild it later on today's sign-in path? [B8.5]
-32. **Atomic Pro account deletion:** accept today's repeatable order, where a retry completes the deletion, or build full atomicity at real cost? *Recommended: accept, and add the retry test.* [B8.6]
+27. **Undo** for cancelling a booking, revoking a member and deleting an account? It needs server « pending » states, and a grace period stated in the privacy policy. Or keep confirm-only? [B8.1] — ✅ **Answered: keep confirm-only** (SYSTEM §15's ladder; [product-questions-batch8.md](design/product-questions-batch8.md) Q1).
+28. **The Pro account phone:** still a sign-in identity, so changing it needs an SMS code and waits for real SMS? Or only a contact number pros can edit now? [B8.2] — ✅ **Answered: nothing now** — it stopped being an identity in migration 0023 (no longer unique); decide with phone sign-in's return (Q2).
+29. **The « Profil » salon card offline:** keep a small offline copy (name, category, address, phone), or accept « could not load / Réessayer »? [B8.3] — ✅ **Answered: a small offline copy** (Q3).
+30. **V2 analytics chart:** count « Revenus prévus » or « Total réalisé »? Needed only when V2 is built. [B8.4] — ✅ **Answered: « Total réalisé »** (Q4).
+31. **Dormant phone sign-in:** repair and route it when SMS returns, or delete it now and rebuild it later on today's sign-in path? [B8.5] — ✅ **Answered: remove it now** — it opens with the clients' `AUTH_METHODS` switch and signs into the first account carrying a number that is no longer unique (Q5).
+32. **Atomic Pro account deletion:** accept today's repeatable order, where a retry completes the deletion, or build full atomicity at real cost? *Recommended: accept, and add the retry test.* [B8.6] — ✅ **Answered: accept, and add the retry test** (Q6).
 
 **Hygiene (batch 9)**
 
