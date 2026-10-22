@@ -351,6 +351,13 @@ void main() {
           reason: 'C: the selected date must be IN the field at $at',
         );
 
+        // B7.10 — the date is one token with no glued space, so the glued
+        // sweep cannot see it (SYSTEM §21 row 96): it is named.
+        expectNoMidWordBreak(
+          tester,
+          '15/01/2026',
+          'the pro manual booking date row at $at',
+        );
         expectNoUndeclaredTruncation(
           tester,
           context: 'the pro manual booking date row at $at',
