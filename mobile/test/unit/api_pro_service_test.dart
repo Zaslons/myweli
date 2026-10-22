@@ -313,6 +313,42 @@ void main() {
     expect(res.data!.currency, isNull);
   });
 
+  // docs/design/pro-app-batch7.md §2.8 (B7.8), #630's rule: the server always
+  // sends `totalEarnings` and the `transactions` list. A 200 without them is
+  // a failed read — `transactions` read as « none » would export as a salon
+  // that earned nothing.
+  group('getEarnings: a 200 without its parts is unreadable', () {
+    final bodies = <String, Object>{
+      'no transactions': {'totalEarnings': 5000},
+      'transactions not a list': {'totalEarnings': 5000, 'transactions': 'x'},
+      'no total': {'transactions': <Object>[]},
+      'a total that is not a number': {
+        'totalEarnings': '5000',
+        'transactions': <Object>[],
+      },
+      'an empty object': <String, Object>{},
+    };
+    for (final MapEntry(key: name, value: body) in bodies.entries) {
+      test(name, () async {
+        final client = MockClient(
+          (req) async => http.Response(jsonEncode(body), 200),
+        );
+        final res = await _linked(client).getEarnings('provider1');
+        expect(res.success, isFalse);
+        expect(res.code, 'unreadable');
+      });
+    }
+
+    test('not JSON at all (a portal’s page)', () async {
+      final client = MockClient(
+        (req) async => http.Response('<html>portail</html>', 200),
+      );
+      final res = await _linked(client).getEarnings('provider1');
+      expect(res.success, isFalse);
+      expect(res.code, 'unreadable');
+    });
+  });
+
   test('getDashboardStats GETs /providers/{id}/dashboard + parses', () async {
     final client = MockClient((req) async {
       expect(req.url.path, '/providers/provider1/dashboard');

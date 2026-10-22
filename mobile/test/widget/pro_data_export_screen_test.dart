@@ -8,6 +8,7 @@ import 'package:http/testing.dart';
 import 'package:myweli/core/di/dependency_injection.dart';
 import 'package:myweli/core/push/push_registration.dart';
 import 'package:myweli/core/theme/app_theme.dart';
+import 'package:myweli/core/utils/formatters.dart';
 import 'package:myweli/models/api_response.dart';
 import 'package:myweli/models/appointment.dart';
 import 'package:myweli/models/artist.dart';
@@ -17,6 +18,7 @@ import 'package:myweli/providers/pro_auth_provider.dart';
 import 'package:myweli/screens/provider/profile/pro_data_export_screen.dart';
 import 'package:myweli/services/api/api_pro_artist_service.dart';
 import 'package:myweli/services/api/api_pro_clients_service.dart';
+import 'package:myweli/services/api/api_pro_service.dart';
 import 'package:myweli/services/interfaces/pro_service_interface.dart';
 import 'package:myweli/services/interfaces/session_store.dart';
 import 'package:myweli/services/mock/mock_auth_service.dart';
@@ -54,13 +56,56 @@ class _Pro extends MockProService {
   bool failSalon = false;
   bool failServices = false;
   bool failAppointments = false;
+  bool failEarnings = false;
+
+  /// The 200 body the earnings read answers, through the REAL
+  /// `ApiProService` parse; null = the canned earnings.
+  Map<String, dynamic>? earningsWire;
   final servicesAsked = <String>[];
+
+  /// The earnings reads, with their range — the export asks for all of it.
+  final earningsAsked = <({String salon, DateTime? from, DateTime? to})>[];
 
   void reset() {
     failSalon = false;
     failServices = false;
     failAppointments = false;
+    failEarnings = false;
+    earningsWire = null;
     servicesAsked.clear();
+    earningsAsked.clear();
+  }
+
+  @override
+  Future<ApiResponse<EarningsData>> getEarnings(
+    String providerId, {
+    DateTime? startDate,
+    DateTime? endDate,
+  }) async {
+    earningsAsked.add((salon: providerId, from: startDate, to: endDate));
+    if (failEarnings) return ApiResponse.error('Erreur');
+    if (earningsWire case final body?) {
+      return ApiProService(
+        client: _answering(body),
+        baseUrl: 'http://x',
+        providerSessionStore: _proSession(),
+      ).getEarnings(providerId);
+    }
+    return ApiResponse.success(
+      EarningsData(
+        totalEarnings: 1250000,
+        transactions: [
+          for (final id in ['t1', 't2'])
+            EarningsTransaction(
+              id: id,
+              appointmentId: 'rdv-$id',
+              amount: 625000,
+              date: DateTime.utc(2026, 10, 1),
+              status: 'completed',
+            ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -352,6 +397,19 @@ void main() {
       expect(export['artists'], hasLength(1));
       expect(export['appointments'], hasLength(1));
       expect(export['clients'], hasLength(3));
+      // B7.8: the sixth read, in the web's shape — a total and a COUNT.
+      expect(export['earnings'], {'totalEarnings': 1250000, 'transactions': 2});
+      expect(pro.earningsAsked.single, (
+        salon: 'provider1',
+        from: null,
+        to: null,
+      ), reason: 'the whole period, as the web asks');
+      expect(find.text('Revenus'), findsOneWidget);
+      expect(
+        find.text(Formatters.formatCurrency(1250000)),
+        findsOneWidget,
+        reason: 'the summary says what the file holds',
+      );
     },
     variant: bothPlatforms,
   );
@@ -363,6 +421,7 @@ void main() {
       'l’équipe': () => artists.fail = true,
       'les rendez-vous': () => pro.failAppointments = true,
       'le fichier clients': () => clients.failPage = 1,
+      'les revenus': () => pro.failEarnings = true,
     };
     for (final MapEntry(key: section, value: fail) in cases.entries) {
       testWidgets(section, (tester) async {
@@ -398,6 +457,20 @@ void main() {
       });
     }
 
+    // B7.8: the earnings read is strict too — `transactions` missing was
+    // read as « none », a salon that earned nothing.
+    final earningsBodies = <String, Map<String, dynamic>>{
+      'no transactions': {'totalEarnings': 5000},
+      'no total': {'transactions': <Object>[]},
+    };
+    for (final MapEntry(key: name, value: body) in earningsBodies.entries) {
+      testWidgets('the earnings have $name → « les revenus »', (tester) async {
+        await pumpExport(tester, arrange: () => pro.earningsWire = body);
+        expectRefused('les revenus');
+        expect(copied, isNull);
+      });
+    }
+
     testWidgets('CONTROL: the same reads WITH their lists → the copy', (
       tester,
     ) async {
@@ -422,6 +495,7 @@ void main() {
             'pageSize': 50,
             'total': 0,
           };
+          pro.earningsWire = {'totalEarnings': 0, 'transactions': <Object>[]};
         },
       );
 
@@ -429,6 +503,7 @@ void main() {
       final export = await copyExport(tester);
       expect(export['artists'], hasLength(1));
       expect(export['clients'], isEmpty);
+      expect(export['earnings'], {'totalEarnings': 0, 'transactions': 0});
     });
   });
 
@@ -558,7 +633,7 @@ void main() {
     });
   });
 
-  // SYSTEM.md §13.3: the longest refusal (all five sections) at 200 % on a
+  // SYSTEM.md §13.3: the longest refusal (all six sections) at 200 % on a
   // 360dp phone — it wraps and scrolls, and « Réessayer » stays reachable.
   testWidgets('the longest refusal survives 200 % text on 360dp', (
     tester,
@@ -570,7 +645,8 @@ void main() {
         pro
           ..failSalon = true
           ..failServices = true
-          ..failAppointments = true;
+          ..failAppointments = true
+          ..failEarnings = true;
         artists.fail = true;
         clients.failPage = 1;
       },
@@ -582,8 +658,8 @@ void main() {
       20,
     );
     expectRefused(
-      'la fiche du salon, les services, l’équipe, les rendez-vous et le '
-      'fichier clients',
+      'la fiche du salon, les services, l’équipe, les rendez-vous, le '
+      'fichier clients et les revenus',
     );
     await tester.ensureVisible(find.text('Réessayer'));
     await tester.pump();
@@ -601,5 +677,6 @@ void main() {
     expect(pro.servicesAsked, ['provider2']);
     expect(artists.asked, ['provider2']);
     expect(clients.asked.map((a) => a.salon).toSet(), {'provider2'});
+    expect(pro.earningsAsked.map((a) => a.salon), ['provider2']);
   });
 }

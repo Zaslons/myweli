@@ -10,6 +10,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/colors.dart';
 import '../../../core/theme/text_styles.dart';
 import '../../../core/utils/data_export.dart';
+import '../../../core/utils/formatters.dart';
 import '../../../models/api_response.dart';
 import '../../../models/salon_client.dart';
 import '../../../providers/pro_auth_provider.dart';
@@ -48,6 +49,9 @@ class _ProDataExportScreenState extends State<ProDataExportScreen> {
   bool _buildFailed = false;
   Map<String, dynamic>? _export;
 
+  /// The earnings total as the summary says it, in the salon's currency.
+  String? _revenue;
+
   @override
   void initState() {
     super.initState();
@@ -81,12 +85,14 @@ class _ProDataExportScreenState extends State<ProDataExportScreen> {
     // salon is read by account, not by public id (T51), so a draft salon
     // exports like a published one.
     final pro = serviceLocator.proService;
-    final (info, services, artists, appointments, clients) = await (
+    final (info, services, artists, appointments, clients, earnings) = await (
       _read(() => pro.getMyProvider()),
       _read(() => pro.getProviderServices(salonId)),
       _read(() => serviceLocator.proArtistService.getArtists(salonId)),
       _read(() => pro.getProviderAppointments(salonId)),
       _walkClientBase(salonId),
+      // The whole period, as the web's export (pro-app-batch7.md §2.8).
+      _read(() => pro.getEarnings(salonId)),
     ).wait;
     if (!mounted) return;
 
@@ -95,7 +101,8 @@ class _ProDataExportScreenState extends State<ProDataExportScreen> {
         services == null ||
         artists == null ||
         appointments == null ||
-        clients == null) {
+        clients == null ||
+        earnings == null) {
       setState(() {
         _loading = false;
         _failed = true;
@@ -105,6 +112,7 @@ class _ProDataExportScreenState extends State<ProDataExportScreen> {
           if (artists == null) ProExportSection.artists,
           if (appointments == null) ProExportSection.appointments,
           if (clients == null) ProExportSection.clients,
+          if (earnings == null) ProExportSection.earnings,
         };
       });
       return;
@@ -121,6 +129,7 @@ class _ProDataExportScreenState extends State<ProDataExportScreen> {
         artists: artists,
         appointments: appointments,
         clients: clients,
+        earnings: earnings,
       );
     } catch (_) {
       setState(() {
@@ -132,6 +141,10 @@ class _ProDataExportScreenState extends State<ProDataExportScreen> {
     }
     setState(() {
       _export = export;
+      _revenue = Formatters.formatCurrency(
+        earnings.totalEarnings,
+        currency: earnings.currency ?? auth.salonCurrency,
+      );
       _loading = false;
     });
   }
@@ -173,7 +186,7 @@ class _ProDataExportScreenState extends State<ProDataExportScreen> {
               children: [
                 Text(
                   'Une copie des données de votre salon : compte, fiche, '
-                  'catalogue, rendez-vous et fichier clients.',
+                  'catalogue, rendez-vous, fichier clients et revenus.',
                   style: AppTextStyles.bodySmall.copyWith(
                     color: AppColors.textTertiary,
                   ),
@@ -195,6 +208,9 @@ class _ProDataExportScreenState extends State<ProDataExportScreen> {
                   label: 'Clients',
                   count: (_export!['clients'] as List).length,
                 ),
+                // A total, not a count: the file holds the amount and the
+                // number of transactions behind it (B7.8).
+                _SummaryRow(label: 'Revenus', value: _revenue!),
                 const SizedBox(height: AppTheme.spacingL),
                 AppButton(
                   text: 'Copier mes données (JSON)',
@@ -214,12 +230,24 @@ class _CountRow extends StatelessWidget {
   const _CountRow({required this.label, required this.count});
 
   @override
+  Widget build(BuildContext context) =>
+      _SummaryRow(label: label, value: '$count');
+}
+
+/// One line of the summary: what the file holds, and how much of it.
+class _SummaryRow extends StatelessWidget {
+  final String label;
+  final String value;
+
+  const _SummaryRow({required this.label, required this.value});
+
+  @override
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: AppTheme.spacingXS),
       child: LabelValueRow(
         label: label,
-        value: '$count',
+        value: value,
         valueStyle: AppTextStyles.bodyMedium.copyWith(
           color: AppColors.textSecondary,
         ),
