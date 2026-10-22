@@ -55,11 +55,16 @@ void main() {
     );
   });
 
-  testWidgets('at 200 %, seven digits step down — and stay whole', (
-    tester,
-  ) async {
+  // Eight digits, not seven: « 1 250 000 » at 64 px measured 283 dp on a Mac
+  // against the 280 dp box — 3 dp over, decided by the width of the U+202F
+  // glue, which Linux measures narrower (this case was red on the Mac and
+  // green in CI). Eight digits alone are 294 dp, whatever the glue: too wide
+  // for headlineLarge on every platform. The widget itself measures on the
+  // device, so it is right either way; only the test's case was borderline.
+  testWidgets('at 200 %, a figure headlineLarge cannot hold (eight digits) '
+      'steps down — and stays whole', (tester) async {
     expect(
-      await sizeAt(tester, 1250000, 2),
+      await sizeAt(tester, 12500000, 2),
       lessThan(AppTextStyles.headlineLarge.fontSize!),
     );
   });

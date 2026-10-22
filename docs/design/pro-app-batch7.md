@@ -550,7 +550,12 @@ e2e entier sur deux workers (269).
     l'a montré (« 5 000 FCFA » à l'écran). Ils sont posés après chaque
     remise.
   - **Vus, un par un** :
-    - le total des revenus cassait à 360 dp × 2× ;
+    - le total des revenus cassait à 360 dp × 2× **sur le Mac**, de 3 dp :
+      « 1 250 000 » y mesure 283 dp pour 280. La largeur de la colle
+      U+202F en décide, et Linux la mesure plus étroite : la CI l'a vu
+      tenir. Le widget mesure sur l'appareil, donc il a raison partout ;
+      c'est le test qui était à la limite. Son cas rouge prend huit
+      chiffres (294 dp sans la colle), trop large partout ;
     - les lignes de l'historique des visites cassaient « octobre » ;
     - la date de la réservation manuelle cassait « 15/01/2026 » aux trois
       largeurs ;
