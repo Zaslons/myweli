@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Statut** | **PR A fusionnée** (#676 — §10) ; **PR B fusionnée** (#677 — §11) ; **PR C fusionnée** (#678 — §12) ; **PR D construite le 2026-10-21** sur `feat/apple-token-revocation` (#679 — B6.7 — §13, §14 ; **inactive tant que la clé Apple n'existe pas**) ; **rien n'est déployé** ; ensuite un déploiement du serveur (demandé avant). Validé le même jour — Q1 (décision 17) : **effacer les numéros et l'adresse, garder le nom et l'historique** ; Q2 (décision 18) : **effacer le KYC de la démo à la remise** ; Q3 (décision 19) : **5–80 %** ; Q4 (décision 20) : **Propriétaire et Gérant, la même file marquée** ; Q5 : **Apple construit maintenant, inactif sans clé** ; Q6 : **le reste tel qu'écrit** (décision 22 : l'alerte, pas de recréation) |
+| **Statut** | **PR A fusionnée** (#676 — §10) ; **PR B fusionnée** (#677 — §11) ; **PR C fusionnée** (#678 — §12) ; **PR D fusionnée** (#679 — §13, §14 ; **inactive tant que la clé Apple n'existe pas**) ; **déployé en production le 2026-10-22** (image `1e3bd81`, révision `myweli-api-00045-8hs` — §15) ; reste l'alerte de la démo (84, demandée ensuite) et ta clé Apple. Validé le même jour — Q1 (décision 17) : **effacer les numéros et l'adresse, garder le nom et l'historique** ; Q2 (décision 18) : **effacer le KYC de la démo à la remise** ; Q3 (décision 19) : **5–80 %** ; Q4 (décision 20) : **Propriétaire et Gérant, la même file marquée** ; Q5 : **Apple construit maintenant, inactif sans clé** ; Q6 : **le reste tel qu'écrit** (décision 22 : l'alerte, pas de recréation) |
 | **Owner** | Sadreddine |
 | **Last updated** | 2026-10-21 |
 | **PRD ref / phase** | Serveur (V1) — BACKEND.md §3 (authz, refus par défaut, validation), §7 (modèle de menaces) · App Store 1.2 (signaler un contenu), 5.1.1(v) (suppression de compte) |
@@ -522,3 +522,41 @@ workers (269) ; types web régénérés du contrat. **Mutations vues rouges
   une identité Google ;
 - **l'app** : jamais de code envoyé ; un code vide envoyé ; le code perdu
   par chacune des trois entrées.
+
+## 15. Le déploiement (2026-10-22) — ce qui a été vu
+
+Un seul déploiement du serveur pour les quatre PR (#676 à #679). La
+production servait `46126a3`, et depuis rien d'autre n'avait changé côté
+serveur. L'image `1e3bd81` (la fusion de #679) a été construite et vérifiée
+par l'exécution liée à la fusion sur main (staging absent : construire,
+publier, vérifier, ne rien déployer), puis **promue** par un lancement manuel
+(`production`, `deploy`, `image_tag: 1e3bd81`).
+
+**Vu par l'exécution** : la révision `myweli-api-00045-8hs` sert le digest
+`sha256:2c078148…` construit depuis `1e3bd81` ; `/health`, `ENV=prod` ; la
+base répond.
+
+**Vu d'ici** : 100 % du trafic sur `00045-8hs` ; aucune erreur depuis la
+mise en service. Trois requêtes que seule la nouvelle image peut répondre
+ainsi :
+- `GET /me/provider/reviews/x/report` → **405** (la route n'existait pas :
+  404) ;
+- le même en `POST` sans session → **401** ;
+- `POST /auth/apple` avec un `authorizationCode` numérique → **400
+  `invalid_body`** (l'ancienne image ignorait le champ : `invalid_token`).
+
+**Les migrations 0041 et 0042** ne laissent pas de ligne dans le journal.
+Elles s'exécutent avant que le port ne s'ouvre (`main.dart` :
+`initializeDatabase()` avant `serve()`) : la ligne « Running on :8080 »
+prouve qu'elles sont passées.
+
+**La clé Apple** : le journal de démarrage dit
+`NOTICE: no APPLE_TEAM_ID / APPLE_KEY_ID / APPLE_PRIVATE_KEY` — inactif,
+comme prévu (Q5).
+
+**Ce qui n'est pas vérifié en production**, et pourquoi :
+- les écritures (un signalement, une suppression, un enregistrement
+  d'acompte) : elles demandent de vrais comptes, et la production n'en a pas
+  à abîmer ;
+- la remise de la démo (B6.4) : elle tourne au prochain créneau de la
+  semaine — c'est l'alerte (84) qui dira si elle est refusée.
