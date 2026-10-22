@@ -233,5 +233,8 @@ sur chaque surface ; la relance cassée dans chaque magasin).
   pas. Elle naît en LAUNCH §1.5, avec ce premier point ; l'écran V2 porte le
   même mot en commentaire.
 
-**Vérifié** : __VERIFIED__
+**Vérifié** : `flutter analyze` à 0, le formatage propre. Les suites
+entières passent : le serveur avec Postgres 2 162 et le web 2 180, rien ne
+change ici ; l'app 2 661 ; l'e2e entier 269 sur deux workers. Les tests
+rouges d'abord ; **9 mutations sur 9 vues rouges**.
 
