@@ -1373,16 +1373,6 @@ createServer(async (req, res) => {
     return res.end();
   }
 
-  if (url.pathname === '/auth/provider/otp/request') {
-    return json(res, 200, { devCode: '123456' });
-  }
-  if (url.pathname === '/auth/provider/otp/verify') {
-    return json(res, 200, {
-      provider: { id: 'acc1', businessName: 'Beauté Divine', providerId: 'p1' },
-      accessToken: 'pro-access',
-      refreshToken: 'pro-refresh',
-    });
-  }
   if (url.pathname === '/auth/provider/refresh') {
     return json(res, 200, {
       accessToken: 'pro-access-2',
