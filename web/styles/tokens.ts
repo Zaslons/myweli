@@ -90,6 +90,9 @@ export const spacing = {
   xl: '32px',
   xxl: '48px',
   xxxl: '64px', // mirrors `AppTheme.spacingXXXL` — the second mirror drift (see §15 row 19)
+  // `AppTheme.fabClearance` (B7.4): the end padding a view that scrolls under a
+  // floating button owes it — `pb-fab` (SYSTEM.md §5, §13.3).
+  fab: '96px',
 } as const;
 
 // Type (SYSTEM.md §4) — the web mirror of `AppTextStyles`

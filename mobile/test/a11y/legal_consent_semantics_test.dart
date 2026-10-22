@@ -1,4 +1,3 @@
-import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:myweli/widgets/common/legal_consent_text.dart';
@@ -26,7 +25,7 @@ void main() {
       (privacy, 'Politique de confidentialité'),
     ]) {
       final data = node.getSemanticsData();
-      expect(data.hasFlag(SemanticsFlag.isLink), isTrue, reason: name);
+      expect(data.flagsCollection.isLink, isTrue, reason: name);
       expect(data.hasAction(SemanticsAction.tap), isTrue, reason: name);
       expect(data.label, name, reason: 'the link says only its own name');
     }

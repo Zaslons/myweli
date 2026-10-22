@@ -211,6 +211,9 @@ export const SPACING_KEYS = {
   spacingXL: 'xl',
   spacingXXL: 'xxl',
   spacingXXXL: 'xxxl',
+  // B7.4: what a view scrolling under a floating button owes it at its end
+  // (SYSTEM.md §5, §13.3) — the end padding of a scroll view, so rhythm.
+  fabClearance: 'fab',
 };
 
 export const RADIUS_KEYS = {
