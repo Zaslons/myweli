@@ -49,6 +49,7 @@ import '../support/settle.dart';
 import '../support/sign_in.dart';
 import '../support/tab_flows.dart';
 import '_a11y.dart';
+import '_fixtures.dart' show useLargeAmounts;
 
 /// **A width is not all widths** (docs/design/mobile-a11-width.md, SYSTEM.md §10).
 ///
@@ -124,6 +125,9 @@ void main() {
     // this file used that fallback and reported three tab labels as clipped
     // that fit with room to spare. See test/support/fonts.dart.
     await loadRealFonts();
+    // B7.10 — the amounts that can break: seven digits a booking, eight in
+    // a total (SYSTEM §21 row 96).
+    useLargeAmounts();
     _seedPrefs();
     stubSecureStorage(); // else the session read throws, ON SCREEN
     setupDependencyInjection();
@@ -178,7 +182,7 @@ void main() {
         );
         expectNoLegibilityCrush(tester, context: 'the consumer OTP at $at');
         expectNoVerticalClip(tester, context: 'the consumer OTP at $at');
-        reportGluedTokenBreaks(tester, context: 'the consumer OTP at $at');
+        expectNoGluedTokenBreaks(tester, context: 'the consumer OTP at $at');
         // **Unpushed, but not ungated.** A root bar draws no leading, so it is
         // 48dp WIDER than a pushed one — and then spends it on actions. The
         // device run found « Tableau de b… » here while the corpus run, which
@@ -203,7 +207,7 @@ void main() {
         expectNoUndeclaredTruncation(tester, context: 'the pro OTP at $at');
         expectNoLegibilityCrush(tester, context: 'the pro OTP at $at');
         expectNoVerticalClip(tester, context: 'the pro OTP at $at');
-        reportGluedTokenBreaks(tester, context: 'the pro OTP at $at');
+        expectNoGluedTokenBreaks(tester, context: 'the pro OTP at $at');
         // **Unpushed, but not ungated.** A root bar draws no leading, so it is
         // 48dp WIDER than a pushed one — and then spends it on actions. The
         // device run found « Tableau de b… » here while the corpus run, which
@@ -246,7 +250,7 @@ void main() {
         expectNoUndeclaredTruncation(tester, context: 'pro earnings at $at');
         expectNoLegibilityCrush(tester, context: 'pro earnings at $at');
         expectNoVerticalClip(tester, context: 'pro earnings at $at');
-        reportGluedTokenBreaks(tester, context: 'pro earnings at $at');
+        expectNoGluedTokenBreaks(tester, context: 'pro earnings at $at');
         expectAppBarTitleWhole(tester, at: 'pro earnings at $at');
         expect(tester.takeException(), isNull, reason: 'A: $at');
       });
@@ -283,7 +287,7 @@ void main() {
           tester,
           context: 'the pro appointment list at $at',
         );
-        reportGluedTokenBreaks(
+        expectNoGluedTokenBreaks(
           tester,
           context: 'the pro appointment list at $at',
         );
@@ -358,7 +362,7 @@ void main() {
           tester,
           context: 'the pro manual booking date row at $at',
         );
-        reportGluedTokenBreaks(
+        expectNoGluedTokenBreaks(
           tester,
           context: 'the pro manual booking date row at $at',
         );
@@ -435,7 +439,7 @@ void main() {
           tester,
           context: 'the pro availability screen at $at',
         );
-        reportGluedTokenBreaks(
+        expectNoGluedTokenBreaks(
           tester,
           context: 'the pro availability screen at $at',
         );
@@ -501,7 +505,7 @@ void main() {
           tester,
           context: 'the pro appointment calendar at $at',
         );
-        reportGluedTokenBreaks(
+        expectNoGluedTokenBreaks(
           tester,
           context: 'the pro appointment calendar at $at',
         );
@@ -553,7 +557,7 @@ void main() {
         );
         expectNoLegibilityCrush(tester, context: 'consumer bookings at $at');
         expectNoVerticalClip(tester, context: 'consumer bookings at $at');
-        reportGluedTokenBreaks(tester, context: 'consumer bookings at $at');
+        expectNoGluedTokenBreaks(tester, context: 'consumer bookings at $at');
         expectAppBarTitleWhole(tester, at: 'consumer bookings at $at');
         expect(tester.takeException(), isNull, reason: 'A: $at');
       });
@@ -623,7 +627,7 @@ void main() {
         expectNoUndeclaredTruncation(tester, context: 'consumer home at $at');
         expectNoLegibilityCrush(tester, context: 'consumer home at $at');
         expectNoVerticalClip(tester, context: 'consumer home at $at');
-        reportGluedTokenBreaks(tester, context: 'consumer home at $at');
+        expectNoGluedTokenBreaks(tester, context: 'consumer home at $at');
         expect(tester.takeException(), isNull, reason: 'A: $at');
       });
 
@@ -697,7 +701,7 @@ void main() {
         expectNoUndeclaredTruncation(tester, context: 'the salon page at $at');
         expectNoLegibilityCrush(tester, context: 'the salon page at $at');
         expectNoVerticalClip(tester, context: 'the salon page at $at');
-        reportGluedTokenBreaks(tester, context: 'the salon page at $at');
+        expectNoGluedTokenBreaks(tester, context: 'the salon page at $at');
         // No `expectAppBarTitleWhole` here, deliberately: the cover's bar
         // carries no text at all (back, heart, photo), so this screen is not
         // a caller — the helper says so itself. The name moved to the sliver
@@ -753,7 +757,7 @@ void main() {
           tester,
           context: 'the salon page without photos at $at',
         );
-        reportGluedTokenBreaks(
+        expectNoGluedTokenBreaks(
           tester,
           context: 'the salon page without photos at $at',
         );
@@ -809,7 +813,7 @@ void main() {
         expectNoUndeclaredTruncation(tester, context: 'pro reviews at $at');
         expectNoLegibilityCrush(tester, context: 'pro reviews at $at');
         expectNoVerticalClip(tester, context: 'pro reviews at $at');
-        reportGluedTokenBreaks(tester, context: 'pro reviews at $at');
+        expectNoGluedTokenBreaks(tester, context: 'pro reviews at $at');
         expectAppBarTitleWhole(tester, at: 'pro reviews at $at');
         expect(tester.takeException(), isNull, reason: 'A: $at');
       });
@@ -867,7 +871,7 @@ void main() {
         expectNoUndeclaredTruncation(tester, context: 'salon list at $at');
         expectNoLegibilityCrush(tester, context: 'salon list at $at');
         expectNoVerticalClip(tester, context: 'salon list at $at');
-        reportGluedTokenBreaks(tester, context: 'salon list at $at');
+        expectNoGluedTokenBreaks(tester, context: 'salon list at $at');
         expectAppBarTitleWhole(tester, at: 'salon list at $at');
         expect(tester.takeException(), isNull, reason: 'A: $at');
       });
@@ -922,7 +926,7 @@ void main() {
         expectNoUndeclaredTruncation(tester, context: 'salon grid at $at');
         expectNoLegibilityCrush(tester, context: 'salon grid at $at');
         expectNoVerticalClip(tester, context: 'salon grid at $at');
-        reportGluedTokenBreaks(tester, context: 'salon grid at $at');
+        expectNoGluedTokenBreaks(tester, context: 'salon grid at $at');
         expectAppBarTitleWhole(tester, at: 'salon grid at $at');
         expect(tester.takeException(), isNull, reason: 'A: $at');
       });
@@ -973,7 +977,7 @@ void main() {
         expectNoUndeclaredTruncation(tester, context: 'booking hub at $at');
         expectNoLegibilityCrush(tester, context: 'booking hub at $at');
         expectNoVerticalClip(tester, context: 'booking hub at $at');
-        reportGluedTokenBreaks(tester, context: 'booking hub at $at');
+        expectNoGluedTokenBreaks(tester, context: 'booking hub at $at');
         expectAppBarTitleWhole(tester, at: 'booking hub at $at');
         expect(tester.takeException(), isNull, reason: 'A: $at');
       });
@@ -1012,7 +1016,10 @@ void main() {
         );
         expectNoLegibilityCrush(tester, context: 'booking confirmation at $at');
         expectNoVerticalClip(tester, context: 'booking confirmation at $at');
-        reportGluedTokenBreaks(tester, context: 'booking confirmation at $at');
+        expectNoGluedTokenBreaks(
+          tester,
+          context: 'booking confirmation at $at',
+        );
         expectAppBarTitleWhole(tester, at: 'booking confirmation at $at');
         expect(tester.takeException(), isNull, reason: 'A: $at');
       });
@@ -1055,7 +1062,7 @@ void main() {
         expectNoUndeclaredTruncation(tester, context: 'notifications at $at');
         expectNoLegibilityCrush(tester, context: 'notifications at $at');
         expectNoVerticalClip(tester, context: 'notifications at $at');
-        reportGluedTokenBreaks(tester, context: 'notifications at $at');
+        expectNoGluedTokenBreaks(tester, context: 'notifications at $at');
         expectAppBarTitleWhole(tester, at: 'notifications at $at');
         expect(tester.takeException(), isNull, reason: 'A: $at');
       });
@@ -1112,7 +1119,7 @@ void main() {
         expectNoUndeclaredTruncation(tester, context: 'pro dashboard at $at');
         expectNoLegibilityCrush(tester, context: 'pro dashboard at $at');
         expectNoVerticalClip(tester, context: 'pro dashboard at $at');
-        reportGluedTokenBreaks(tester, context: 'pro dashboard at $at');
+        expectNoGluedTokenBreaks(tester, context: 'pro dashboard at $at');
         // **Unpushed, but not ungated.** A root bar draws no leading, so it is
         // 48dp WIDER than a pushed one — and then spends it on actions. The
         // device run found « Tableau de b… » here while the corpus run, which
@@ -1147,7 +1154,7 @@ void main() {
         expectNoUndeclaredTruncation(tester, context: 'legal consent at $at');
         expectNoLegibilityCrush(tester, context: 'legal consent at $at');
         expectNoVerticalClip(tester, context: 'legal consent at $at');
-        reportGluedTokenBreaks(tester, context: 'legal consent at $at');
+        expectNoGluedTokenBreaks(tester, context: 'legal consent at $at');
         expect(tester.takeException(), isNull, reason: 'A: $at');
       });
     }

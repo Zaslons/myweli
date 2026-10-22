@@ -5,6 +5,7 @@ import 'package:myweli/models/appointment.dart';
 import 'package:myweli/models/review.dart';
 import 'package:myweli/providers/auth_provider.dart';
 import 'package:myweli/providers/favorites_provider.dart';
+import 'package:myweli/services/mock/mock_data.dart';
 import 'package:myweli/widgets/common/otp_code_row.dart';
 import 'package:provider/provider.dart';
 import 'package:provider/single_child_widget.dart';
@@ -42,6 +43,23 @@ Review review() => Review(
   createdAt: DateTime(2025, 2, 4),
 );
 
+/// The seven-digit amount the gate draws (B7.10 — docs/design/pro-app-batch7.md
+/// §2.10). The mocks top out at 25 000, and row 96's five sites need larger
+/// amounts than that to show whether they break: « 1 250 000 FCFA » is a
+/// bridal package, and a salon's earnings over many of them run to eight
+/// digits.
+const double kLargeAmount = 1250000;
+
+/// Every seeded booking at [kLargeAmount], for the layout gate only: the mock
+/// data itself stays realistic for the demo app and the other tests.
+void useLargeAmounts() {
+  for (var i = 0; i < MockData.appointments.length; i++) {
+    MockData.appointments[i] = MockData.appointments[i].copyWith(
+      totalPrice: kLargeAmount,
+    );
+  }
+}
+
 Appointment appt() => Appointment(
   id: 'a1',
   userId: 'u1',
@@ -49,7 +67,7 @@ Appointment appt() => Appointment(
   serviceIds: const ['s1'],
   appointmentDate: DateTime(2026, 6, 30, 10),
   status: AppointmentStatus.confirmed,
-  totalPrice: 20000,
+  totalPrice: kLargeAmount,
   createdAt: DateTime(2026),
 );
 
