@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Statut** | **PR A fusionnée** (#682 — §9) ; **PR B fusionnée** (#683 — §10) ; **PR C construite le 2026-10-22** sur `fix/pro-app-batch7-parity` (#684 — B7.6, B7.8 — §11). **Validé le 2026-10-22** — relu sur main (`fa8910ed`). Q1 (décision 23) : **la carte sur « Accueil » et la « Journée »** ; Q2 (décision 24) : **facultatif tant qu'aucun choix n'est enregistré** ; Q3 (décision 26) : **portrait sur Android et iPhone, l'iPad inchangé** ; Q4 (décision 25) : **le bouton flottant « Nouveau »** ; Q5 : **selon « le compte possède un salon »** ; Q6 : **le reste tel qu'écrit** |
+| **Statut** | **PR A fusionnée** (#682 — §9) ; **PR B fusionnée** (#683 — §10) ; **PR C fusionnée** (#684 — §11). **Le lot 7 est fusionné** ; l'app part avec la prochaine version des stores. **Validé le 2026-10-22** — relu sur main (`fa8910ed`). Q1 (décision 23) : **la carte sur « Accueil » et la « Journée »** ; Q2 (décision 24) : **facultatif tant qu'aucun choix n'est enregistré** ; Q3 (décision 26) : **portrait sur Android et iPhone, l'iPad inchangé** ; Q4 (décision 25) : **le bouton flottant « Nouveau »** ; Q5 : **selon « le compte possède un salon »** ; Q6 : **le reste tel qu'écrit** |
 | **Owner** | Sadreddine |
 | **Last updated** | 2026-10-22 |
 | **PRD ref / phase** | App Pro (V1) — parité avec le web Pro · SYSTEM.md §13 (contraste, 200 %, sémantique), §12 (les quatre états), §15 (retours), §17 (les mots), §21 (le registre) |
