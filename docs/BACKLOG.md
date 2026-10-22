@@ -290,7 +290,7 @@ This batch takes up three of the six suggested tasks that were never started. It
   - `ensureOwner` should behave the same in Postgres and in memory (deny by default).
   - `ensureSalon` should refuse to write an owner row on a salon owned by someone else (T72).
   - The team API should refuse to change the role of a revoked member (409), next to B7.5.
-- ✅ **B6.9 Know when the demo identity is lost (P3 · S · decision 22).** **Done in #676** — §10; the alert script is written, **not yet created on GCP** (the server half was deployed 2026-10-22; the alert is asked next). Put the refusal reason in the cron response, and add a log alert on `demo_reset REFUSED`, copying `96-rebuild-hook-alert.sh`.
+- ✅ **B6.9 Know when the demo identity is lost (P3 · S · decision 22).** **Done in #676** — §10; the server half deployed 2026-10-22; the alert **created on GCP 2026-10-22** (`alertPolicies/10667515608135534511`, to « Owner email »), and added to the list 93/95 read in #681. Put the refusal reason in the cron response, and add a log alert on `demo_reset REFUSED`, copying `96-rebuild-hook-alert.sh`.
 - ✅ **B6.10 A Postgres end-to-end test for client account deletion (P3 · M).** **Done in #676** — §10. A victim plus a bystander, all their rows, run through the real repositories, like the Pro one. Tests only.
 
 ### Batch 7 — Pro app UI, accessibility and parity (P2–P3, app)
