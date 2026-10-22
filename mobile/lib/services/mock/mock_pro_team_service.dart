@@ -3,12 +3,38 @@ import '../../core/di/dependency_injection.dart';
 import '../../core/utils/app_clock.dart';
 import '../../core/utils/team_error_messages.dart';
 import '../../models/api_response.dart';
-import '../../models/provider_session.dart';
 import '../../models/team_invitation.dart';
 import '../../models/team_member.dart';
 import '../interfaces/pro_team_service_interface.dart';
 import '../interfaces/subscription_service_interface.dart';
 import 'mock_data.dart';
+import 'mock_ids.dart';
+import 'mock_session.dart';
+
+/// The server's daily invitation caps (T37, `kDefaultInviteLimits` in
+/// backend/lib/src/security/identity_limits.dart): per salon, then per salon
+/// and address.
+const ({int perSalon, int perAddress}) kMockInviteLimits = (
+  perSalon: 20,
+  perAddress: 3,
+);
+
+/// The mailbox behind an address, the server's way
+/// (`canonicalInviteAddress`): a `+tag` dropped, and Gmail's dots and
+/// `googlemail.com` folded — so the aliases of one person share a bucket.
+String _canonicalAddress(String emailKey) {
+  final at = emailKey.lastIndexOf('@');
+  if (at <= 0) return emailKey;
+  var local = emailKey.substring(0, at);
+  var domain = emailKey.substring(at + 1);
+  final plus = local.indexOf('+');
+  if (plus > 0) local = local.substring(0, plus);
+  if (domain == 'gmail.com' || domain == 'googlemail.com') {
+    local = local.replaceAll('.', '');
+    domain = 'gmail.com';
+  }
+  return '$local@$domain';
+}
 
 /// Demo team service over `MockData.teamMembers`/`teamInvitations`. The
 /// acting salon derives from the session — the R6 selection first, then the
@@ -22,7 +48,6 @@ class MockProTeamService implements ProTeamServiceInterface {
   MockProTeamService({
     this._subscriptions,
     this.invitationEmail = 'invitee@myweli.test',
-    this.maxInvitesPerDay = 20,
   });
 
   /// When provided, invite gates on the mock offer state (offer_required /
@@ -47,25 +72,33 @@ class MockProTeamService implements ProTeamServiceInterface {
     return (email: invitationEmail.toLowerCase(), accountId: null);
   }
 
-  final int maxInvitesPerDay;
-  int _invitesToday = 0;
-
   /// The acting salon — the same rule as ProAuthProvider.activeSalonId
   /// (selection → the account's own salon → the membership's), else the
   /// seeded salon (docs/design/services-acting-salon.md).
-  Future<String> _providerId() async {
-    try {
-      final auth = serviceLocator.authService;
-      final acting = resolveActingSalonId(
-        selected: await auth.getSelectedProviderSalon(),
-        linked: (await auth.getCurrentProvider())?.providerId,
-        membership: (await auth.getCachedProviderMembership())?.salonId,
-      );
-      if (acting != null) return acting;
-    } catch (_) {
-      /* locator not wired (isolated tests) → the seeded salon */
-    }
-    return 'provider1';
+  Future<String> _providerId() => mockActingSalonId();
+
+  /// One attempt into a daily bucket, counted the server's way
+  /// (`InMemoryRateLimiter.hit`): every attempt that reaches the bucket
+  /// counts, a refused one included; the window is the UTC day on
+  /// [AppClock].
+  bool _hit(String bucket, int limit) {
+    final day =
+        AppClock.now().toUtc().millisecondsSinceEpoch ~/
+        Duration.millisecondsPerDay;
+    final key = '$day|$bucket';
+    final count = (MockData.inviteBuckets[key] ?? 0) + 1;
+    MockData.inviteBuckets[key] = count;
+    return count <= limit;
+  }
+
+  /// The member's row in the acting salon, or -1: the server guards every
+  /// member write to the path salon (`_guardMember`, → `not_found`). It
+  /// searched every salon's roster.
+  Future<int> _rowAt(String memberId) async {
+    final providerId = await _providerId();
+    return MockData.teamMembers.indexWhere(
+      (m) => m.id == memberId && m.providerId == providerId,
+    );
   }
 
   ApiResponse<T> _fail<T>(String code) =>
@@ -139,14 +172,23 @@ class MockProTeamService implements ProTeamServiceInterface {
       if (seats.used >= seats.cap) return _fail('seat_limit');
     }
 
-    if (_invitesToday >= maxInvitesPerDay) return _fail('invite_rate_limited');
-    _invitesToday++;
+    // T37, after every gate above (an honest refusal costs nothing): the
+    // salon's bucket, then the (salon, address) one — a salon refused at its
+    // own writes nothing to the address's. It was one counter per instance,
+    // for every salon and address, that never started a new day.
+    if (!_hit('salon:$providerId', kMockInviteLimits.perSalon) ||
+        !_hit(
+          'addr:$providerId:${_canonicalAddress(key)}',
+          kMockInviteLimits.perAddress,
+        )) {
+      return _fail('invite_rate_limited');
+    }
 
     final salonName =
         MockData.providers.where((p) => p.id == providerId).firstOrNull?.name ??
         'Salon Excellence';
     final member = TeamMember(
-      id: current?.id ?? 'mem_${AppClock.now().millisecondsSinceEpoch}',
+      id: current?.id ?? MockIds.next('mem'),
       providerId: providerId,
       email: key,
       role: role,
@@ -184,7 +226,7 @@ class MockProTeamService implements ProTeamServiceInterface {
     String? artistId,
   }) async {
     await Future.delayed(AppConstants.mockDelay);
-    final i = MockData.teamMembers.indexWhere((m) => m.id == memberId);
+    final i = await _rowAt(memberId);
     if (i == -1) return _fail('not_found');
     final member = MockData.teamMembers[i];
     if (member.isOwner) return _fail('owner_protected');
@@ -220,7 +262,7 @@ class MockProTeamService implements ProTeamServiceInterface {
   @override
   Future<ApiResponse<TeamMember>> revokeMember(String memberId) async {
     await Future.delayed(AppConstants.mockDelay);
-    final i = MockData.teamMembers.indexWhere((m) => m.id == memberId);
+    final i = await _rowAt(memberId);
     if (i == -1) return _fail('not_found');
     final member = MockData.teamMembers[i];
     if (member.isOwner) return _fail('owner_protected');
@@ -236,7 +278,7 @@ class MockProTeamService implements ProTeamServiceInterface {
   @override
   Future<ApiResponse<TeamMember>> resendInvitation(String memberId) async {
     await Future.delayed(AppConstants.mockDelay);
-    final i = MockData.teamMembers.indexWhere((m) => m.id == memberId);
+    final i = await _rowAt(memberId);
     if (i == -1) return _fail('not_found');
     final member = MockData.teamMembers[i];
     if (member.isOwner) return _fail('owner_protected');

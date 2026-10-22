@@ -19,6 +19,8 @@ import '../../models/service.dart';
 import '../../models/team_member.dart';
 import '../interfaces/pro_service_interface.dart';
 import 'mock_data.dart';
+import 'mock_ids.dart';
+import 'mock_session.dart';
 import 'mock_subscription_service.dart';
 
 class MockProService implements ProServiceInterface {
@@ -296,13 +298,16 @@ class MockProService implements ProServiceInterface {
         code: 'reseau_required',
       );
     }
-    // The new DRAFT salon in its own free SETUP state (no offer row).
-    final id = 'provider_add_${AppClock.now().millisecondsSinceEpoch}';
+    // The new DRAFT salon in its own free SETUP state (no offer row), made
+    // the server's way: empty, and at a 0 % deposit.
+    final id = MockIds.next('provider_add');
     MockData.providers.add(
-      MockData.providers.first.copyWith(
+      MockData.newSalon(
         id: id,
         name: name,
-        artists: const [],
+        businessType: businessType,
+        phoneNumber: phoneNumber ?? '',
+        address: address,
         verified: account.verificationStatus == VerificationStatus.verified,
       ),
     );
@@ -705,7 +710,7 @@ class MockProService implements ProServiceInterface {
     if (durationMinutes <= 0) durationMinutes = 30;
 
     final appointment = Appointment(
-      id: 'manual_${AppClock.now().millisecondsSinceEpoch}',
+      id: MockIds.next('manual'),
       userId: 'manual',
       providerId: providerId,
       serviceIds: serviceIds,
@@ -741,13 +746,56 @@ class MockProService implements ProServiceInterface {
     return ApiResponse.success(true);
   }
 
+  /// The server's refusal in the words `ApiProService._messageFor` gives it.
+  ApiResponse<T> _refused<T>(String code) => ApiResponse.error(
+    code == 'forbidden'
+        ? 'Action non autorisée pour ce salon.'
+        : 'Introuvable.',
+    code: code,
+  );
+
+  // The catalogue lives in `MockData.providers` — one store, so what a Pro
+  // writes is what the Pro screens read back and what a client books, as on
+  // the server. Every write was a no-op answering success, and the reads
+  // were the seed (docs/design/hygiene-batch9.md §2.5).
+
+  int _salonAt(String providerId) =>
+      MockData.providers.indexWhere((p) => p.id == providerId);
+
+  void _writeServices(int at, List<Service> services) =>
+      MockData.providers[at] = MockData.providers[at].copyWith(
+        services: services,
+      );
+
+  /// A write by service id acts in the salon the session acts in — the path
+  /// salon `ApiProService` sends — and finds the service THERE, or answers
+  /// `not_found` (the server's repository looks in the path salon only).
+  Future<({int at, int index, String? refusal})> _ownService(
+    String serviceId,
+  ) async {
+    final salonId = await mockActingSalonId();
+    if (!await mockCan(salonId, ProCap.catalogueManage)) {
+      return (at: -1, index: -1, refusal: 'forbidden');
+    }
+    final at = _salonAt(salonId);
+    final index = at == -1
+        ? -1
+        : MockData.providers[at].services.indexWhere((s) => s.id == serviceId);
+    if (index == -1) {
+      return (at: -1, index: -1, refusal: 'not_found');
+    }
+    return (at: at, index: index, refusal: null);
+  }
+
   @override
   Future<ApiResponse<List<Service>>> getProviderServices(
     String providerId,
   ) async {
     await Future.delayed(AppConstants.mockDelay);
-    final services = MockData.getServicesForProvider(providerId);
-    return ApiResponse.success(services);
+    final at = _salonAt(providerId);
+    return ApiResponse.success(
+      at == -1 ? <Service>[] : List.of(MockData.providers[at].services),
+    );
   }
 
   @override
@@ -756,19 +804,28 @@ class MockProService implements ProServiceInterface {
     Map<String, dynamic> serviceData,
   ) async {
     await Future.delayed(AppConstants.mockDelay);
-    // In real implementation, create service
+    if (!await mockCan(providerId, ProCap.catalogueManage)) {
+      return _refused('forbidden');
+    }
+    final at = _salonAt(providerId);
+    if (at == -1) return _refused('not_found');
     final service = Service(
-      id: 'service_${AppClock.now().millisecondsSinceEpoch}',
-      name: serviceData['name'] as String,
-      description: serviceData['description'] as String? ?? '',
+      id: MockIds.next('service'),
+      name: (serviceData['name'] as String).trim(),
+      description: (serviceData['description'] as String?)?.trim() ?? '',
       price: (serviceData['price'] as num).toDouble(),
       priceMax: (serviceData['priceMax'] as num?)?.toDouble(),
-      durationMinutes: serviceData['durationMinutes'] as int,
+      durationMinutes: (serviceData['durationMinutes'] as num).toInt(),
       durationVariants: DurationVariants.fromJson(
         serviceData['durationVariants'] as Map<String, dynamic>?,
       ),
       providerId: providerId,
+      artistIds: List<String>.from(
+        serviceData['artistIds'] as List? ?? const <String>[],
+      ),
+      active: serviceData['active'] as bool? ?? true,
     );
+    _writeServices(at, [...MockData.providers[at].services, service]);
     return ApiResponse.success(service);
   }
 
@@ -778,25 +835,42 @@ class MockProService implements ProServiceInterface {
     Map<String, dynamic> serviceData,
   ) async {
     await Future.delayed(AppConstants.mockDelay);
-    // In real implementation, update service
-    final service = Service(
-      id: serviceId,
-      name: serviceData['name'] as String,
-      description: serviceData['description'] as String? ?? '',
-      price: (serviceData['price'] as num).toDouble(),
-      priceMax: (serviceData['priceMax'] as num?)?.toDouble(),
-      durationMinutes: serviceData['durationMinutes'] as int,
-      durationVariants: DurationVariants.fromJson(
-        serviceData['durationVariants'] as Map<String, dynamic>?,
-      ),
-      providerId: serviceData['providerId'] as String,
-    );
-    return ApiResponse.success(service);
+    final own = await _ownService(serviceId);
+    if (own.refusal != null) return _refused(own.refusal!);
+    final services = [...MockData.providers[own.at].services];
+    // The server's PATCH: the editable keys the body carries change, the
+    // rest stays (`ProviderCatalogService.updateService`).
+    const editable = [
+      'name',
+      'description',
+      'price',
+      'priceMax',
+      'durationMinutes',
+      'durationVariants',
+      'artistIds',
+      'active',
+    ];
+    final merged = {
+      ...services[own.index].toJson(),
+      for (final k in editable)
+        if (serviceData.containsKey(k)) k: serviceData[k],
+    };
+    merged['description'] ??= '';
+    final updated = Service.fromJson(merged);
+    services[own.index] = updated;
+    _writeServices(own.at, services);
+    return ApiResponse.success(updated);
   }
 
   @override
   Future<ApiResponse<bool>> deleteService(String serviceId) async {
     await Future.delayed(AppConstants.mockDelay);
+    final own = await _ownService(serviceId);
+    if (own.refusal != null) return _refused(own.refusal!);
+    _writeServices(
+      own.at,
+      [...MockData.providers[own.at].services]..removeAt(own.index),
+    );
     return ApiResponse.success(true);
   }
 
@@ -806,6 +880,11 @@ class MockProService implements ProServiceInterface {
     bool active,
   ) async {
     await Future.delayed(AppConstants.mockDelay);
+    final own = await _ownService(serviceId);
+    if (own.refusal != null) return _refused(own.refusal!);
+    final services = [...MockData.providers[own.at].services];
+    services[own.index] = services[own.index].copyWith(active: active);
+    _writeServices(own.at, services);
     return ApiResponse.success(true);
   }
 
