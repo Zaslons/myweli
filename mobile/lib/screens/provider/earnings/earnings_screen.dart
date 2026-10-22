@@ -8,6 +8,7 @@ import '../../../core/theme/colors.dart';
 import '../../../core/theme/text_styles.dart';
 import '../../../core/utils/formatters.dart';
 import '../../../core/utils/salon_time.dart';
+import '../../../core/utils/text_fit.dart';
 import '../../../providers/pro_auth_provider.dart';
 import '../../../providers/pro_earnings_provider.dart';
 
@@ -193,14 +194,11 @@ class _EarningsScreenState extends State<EarningsScreen>
                       ),
                     ),
                     const SizedBox(height: AppTheme.spacingS),
-                    Text(
+                    EarningsTotal(
                       Formatters.formatCurrency(
                         earnings.totalEarnings,
                         currency:
                             earnings.currency ?? authProvider.salonCurrency,
-                      ),
-                      style: AppTextStyles.headlineLarge.copyWith(
-                        color: AppColors.primary,
                       ),
                     ),
                     Text(
@@ -269,6 +267,43 @@ class _EarningsScreenState extends State<EarningsScreen>
           );
         },
       ),
+    );
+  }
+}
+
+/// The headline figure, at the largest headline size in which every part of
+/// it stays whole (B7.10 — docs/design/pro-app-batch7.md §10, SYSTEM §21 row
+/// 96). At 200 % on 360 dp a seven-digit total broke inside the number in
+/// `headlineLarge`, and a lone full-width figure has no column to give up:
+/// it steps down — Large, Medium, Small — and is still scaled by the user's
+/// text setting. At the default size nothing changes. The owner's decision
+/// (2026-10-22), an exception to amounts-that-fit's « nothing shrinks ».
+class EarningsTotal extends StatelessWidget {
+  const EarningsTotal(this.figure, {super.key});
+
+  final String figure;
+
+  static const List<TextStyle> _sizes = [
+    AppTextStyles.headlineLarge,
+    AppTextStyles.headlineMedium,
+    AppTextStyles.headlineSmall,
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, box) {
+        final fit = TextFit.of(context);
+        final size = _sizes.firstWhere(
+          (style) => fit.holds(box.maxWidth, [(text: figure, style: style)]),
+          orElse: () => _sizes.last,
+        );
+        return Text(
+          figure,
+          textAlign: TextAlign.center,
+          style: size.copyWith(color: AppColors.primary),
+        );
+      },
     );
   }
 }
