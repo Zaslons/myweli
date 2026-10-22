@@ -33,13 +33,19 @@ import '../support/surface.dart';
 
 /// A salon with nothing booked, any day.
 class _EmptyPro extends MockProService {
+  /// How many times the appointments were read — a pull-to-refresh reads.
+  int appointmentReads = 0;
+
   @override
   Future<ApiResponse<List<Appointment>>> getProviderAppointments(
     String providerId, {
     AppointmentStatus? status,
     DateTime? startDate,
     DateTime? endDate,
-  }) async => ApiResponse.success(const <Appointment>[]);
+  }) async {
+    appointmentReads++;
+    return ApiResponse.success(const <Appointment>[]);
+  }
 
   @override
   Future<ApiResponse<JournalDay>> getJournalDay(
@@ -58,6 +64,8 @@ class _EmptyPro extends MockProService {
 /// - the last line of each empty day can scroll clear of the button
 ///   (`AppTheme.fabClearance`) — SYSTEM §21 rows 80–81.
 void main() {
+  final pro = _EmptyPro();
+
   setUpAll(() async {
     AppClock.freeze(kFixedNow);
     await initializeDateFormatting('fr_FR', null);
@@ -67,7 +75,7 @@ void main() {
     // By hand, not `setupDependencyInjection()`: its services are `late
     // final`, and this world's pro service is the empty one.
     serviceLocator.authService = MockAuthService();
-    serviceLocator.proService = _EmptyPro();
+    serviceLocator.proService = pro;
     serviceLocator.proTeamService = MockProTeamService();
     serviceLocator.subscriptionService = MockSubscriptionService();
     serviceLocator.proPushRegistration = PushRegistration(
@@ -143,11 +151,14 @@ void main() {
 
     final empty = find.byType(EmptyState);
     expect(empty, findsOneWidget);
-    // Pull-to-refresh needs something to pull: a scroll view under it.
-    expect(
-      find.ancestor(of: empty, matching: find.byType(Scrollable)),
-      findsWidgets,
-    );
+    // Pull-to-refresh needs something to pull: pulling the empty day reads
+    // the appointments again (a bare Column under the indicator could not).
+    final before = pro.appointmentReads;
+    await tester.fling(empty, const Offset(0, 400), 1000);
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
+    await settleMocks(tester, rounds: 3);
+    expect(pro.appointmentReads, greaterThan(before), reason: 'no refresh');
     await expectClearsTheFab(
       tester,
       find.descendant(of: empty, matching: find.text('Aucun rendez-vous')),
