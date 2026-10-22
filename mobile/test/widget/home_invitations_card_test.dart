@@ -166,7 +166,11 @@ void main() {
     ProSalonScope.clear();
   });
 
-  Future<ProAuthProvider> pumpAccueil(WidgetTester tester) async {
+  /// [teamStore]: a store the test already used — by default a fresh one.
+  Future<ProAuthProvider> pumpAccueil(
+    WidgetTester tester, {
+    ProTeamProvider? teamStore,
+  }) async {
     final auth = await signInPro(tester);
     final router = GoRouter(
       initialLocation: '/pro/dashboard',
@@ -186,9 +190,12 @@ void main() {
             create: (_) =>
                 NotificationsProvider(service: MockNotificationService()),
           ),
-          ChangeNotifierProvider(
-            create: (_) => ProSalonScope.track(ProTeamProvider()),
-          ),
+          if (teamStore != null)
+            ChangeNotifierProvider<ProTeamProvider>.value(value: teamStore)
+          else
+            ChangeNotifierProvider(
+              create: (_) => ProSalonScope.track(ProTeamProvider()),
+            ),
         ],
         routerConfig: router,
       ),
@@ -353,6 +360,21 @@ void main() {
       await settleMocks(tester, rounds: 2);
       expect(enabled(tester, find.text('Rejoindre')), isTrue);
       expect(find.textContaining('Institut Riviera'), findsOneWidget);
+    });
+
+    testWidgets('mounting reads the list, even one another screen read', (
+      tester,
+    ) async {
+      // Profil read it first (the staff shell mounts its three tabs at once):
+      // « Accueil » still asks, for a list as fresh as the screen.
+      final store = ProTeamProvider();
+      addTearDown(store.dispose);
+      await tester.runAsync(store.loadMyInvitations);
+      final before = team.reads;
+
+      await pumpAccueil(tester, teamStore: store);
+
+      expect(team.reads, greaterThan(before), reason: 'not read on mount');
     });
 
     testWidgets('a pull on « Accueil » reads the list again', (tester) async {
