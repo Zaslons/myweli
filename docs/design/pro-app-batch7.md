@@ -2,11 +2,11 @@
 
 | | |
 |---|---|
-| **Statut** | **PR A construite le 2026-10-22** sur `fix/pro-app-batch7-truth` (#682 — B7.3, B7.5, B7.7, B7.9, B7.11, B7.14 — §9) ; PR B et C à suivre. **Validé le 2026-10-22** — relu sur main (`fa8910ed`). Q1 (décision 23) : **la carte sur « Accueil » et la « Journée »** ; Q2 (décision 24) : **facultatif tant qu'aucun choix n'est enregistré** ; Q3 (décision 26) : **portrait sur Android et iPhone, l'iPad inchangé** ; Q4 (décision 25) : **le bouton flottant « Nouveau »** ; Q5 : **selon « le compte possède un salon »** ; Q6 : **le reste tel qu'écrit** |
+| **Statut** | **PR A fusionnée** (#682 — §9) ; **PR B construite le 2026-10-22** sur `fix/pro-app-batch7-readable` (#683 — B7.1, B7.2, B7.4, B7.10, B7.12, B7.13 — §10) ; PR C à suivre. **Validé le 2026-10-22** — relu sur main (`fa8910ed`). Q1 (décision 23) : **la carte sur « Accueil » et la « Journée »** ; Q2 (décision 24) : **facultatif tant qu'aucun choix n'est enregistré** ; Q3 (décision 26) : **portrait sur Android et iPhone, l'iPad inchangé** ; Q4 (décision 25) : **le bouton flottant « Nouveau »** ; Q5 : **selon « le compte possède un salon »** ; Q6 : **le reste tel qu'écrit** |
 | **Owner** | Sadreddine |
 | **Last updated** | 2026-10-22 |
 | **PRD ref / phase** | App Pro (V1) — parité avec le web Pro · SYSTEM.md §13 (contraste, 200 %, sémantique), §12 (les quatre états), §15 (retours), §17 (les mots), §21 (le registre) |
-| **Module** | `mobile/` (app Pro, app client pour B7.11, console admin pour B7.13) ; `web/` pour B7.3 et B7.7 — **aucun changement serveur ni de contrat** |
+| **Module** | `mobile/` (app Pro, app client pour B7.11, console admin pour B7.13) ; `web/` pour B7.3 et B7.7, et le miroir du jeton de B7.4 — **aucun changement serveur ni de contrat** |
 | **Origine** | [BACKLOG.md](../BACKLOG.md) lot 7 : B7.1–B7.14 (décisions 23–26) |
 | **Skills checked** | myweli-dev-guardrails ✓ · myweli-web-guardrails ✓ |
 
@@ -510,3 +510,85 @@ e2e entier sur deux workers (269).
     n'avait que 4,7 Go libres, et l'émulateur tablette en demandait 7,2. Le
     téléphone réglé en dimensions de tablette passe par la même règle
     d'Android (la plus petite largeur de l'écran).
+
+## 10. PR B construite (B7.1, B7.2, B7.4, B7.10, B7.12, B7.13) — ce qui a été vu
+
+**Comme écrit**, avec ces écarts, chacun vu en route :
+- **B7.1** : la puce est entrée dans le test de contraste rendu. Il a mesuré
+  2,79:1 sur le fond et 2,97:1 sur la carte, puis l'encre est passée.
+- **B7.2** :
+  - **Les horaires** : un `OverflowBar` plutôt qu'un calcul `TextFit` à la
+    main. La barre mesure elle-même ce qu'elle porte (le jour, le bouton
+    d'horaire, l'interrupteur), sans constante pour la largeur de
+    l'interrupteur. **La photo a montré une régression** : un `Align` autour
+    des contrôles prenait toute la largeur que la barre lui offrait, et
+    *chaque* ligne s'empilait, même à la taille par défaut. Il est retiré, et
+    un test fixe les deux cas (une ligne à 1×, empilé à 2×).
+  - **Les titres** : `AlertDialog` mesure son contenu avec `IntrinsicWidth`,
+    donc un `LayoutBuilder` ne peut pas y demander sa place. La place est
+    calculée sur le plus étroit des dialogues que Flutter dessine : 280 dp,
+    avec la marge du titre réduite comme le fait Flutter.
+  - **Le balayage** lit chaque titre littéral de `lib/` (dix-sept). Il en a
+    trouvé trois cassés : « Abandonner les modifications ? »,
+    « Déconnexion » et « Annuler le rendez-vous ? ». Pour le dernier, la
+    coupure se fait après « rendez- », ce qui est permis (`_a11y.dart`) ; le
+    balayage le juge sur les morceaux de `TextFit`.
+- **B7.4** :
+  - Le jour vide du Calendrier ne peut pas aller dans
+    `SliverFillRemaining(hasScrollBody: false)`, qui demande une hauteur
+    intrinsèque. Il passe dans un `SliverToBoxAdapter`.
+  - **Vu au passage** : l'état vide de la Liste n'était pas défilable, donc
+    « tirer pour actualiser » ne marchait pas un jour sans rendez-vous. Il
+    est dans une liste maintenant, et un test tire dessus.
+  - Le `96` écrit à la main dans l'équipe devient lui aussi
+    `fabClearance`.
+- **B7.10** :
+  - **Les montants à 7 chiffres sont dans les données du test de mise en
+    page, pas dans `mock_data.dart`** : l'app de démonstration garde des prix
+    réalistes. Première tentative ratée : posés une seule fois, ils étaient
+    effacés avant chaque sujet par la remise à zéro de l'horloge. Une sonde
+    l'a montré (« 5 000 FCFA » à l'écran). Ils sont posés après chaque
+    remise.
+  - **Vus, un par un** :
+    - le total des revenus cassait à 360 dp × 2× ;
+    - les lignes de l'historique des visites cassaient « octobre » ;
+    - la date de la réservation manuelle cassait « 15/01/2026 » aux trois
+      largeurs ;
+    - le tableau de la console cassait à 600 dp × 2× ;
+    - les lignes de prix de la Liste et du Calendrier **tenaient**, leur
+      coupure tombant avant « FCFA », ce qui est permis.
+  - **Les corrections** :
+    - la ligne de visite met la date sur sa propre ligne quand il le faut ;
+    - la date et l'heure passent l'une sous l'autre ;
+    - la ligne de la console passe sur deux lignes ;
+    - le total change de taille (ta décision).
+  - **Le total** : un chiffre seul, sur toute la largeur, n'a pas de
+    colonne à céder. **Ta décision (2026-10-22)** : il descend d'une taille
+    de titre (Large, Medium, Small) seulement s'il casserait. C'est
+    l'exception écrite en SYSTEM §13.3. Un test fixe les deux sens : la
+    grande taille par défaut, et plus petite seulement quand il le faut.
+  - `reportGluedTokenBreaks` devient `expectNoGluedTokenBreaks` (une
+    assertion).
+- **B7.12** : le test passe tel quel. Les deux liens sont deux nœuds,
+  chacun avec son nom et son action. Rien n'est changé dans le widget. La
+  ligne 49 passe de 2 à 1 : `AboutScreen` reste.
+- **B7.13** : le segment choisi prend lui aussi un bord, noir de marque.
+  Sans cela, les deux auraient eu le même bord, et le choix n'aurait tenu
+  qu'au fond (blanc sur #F5F5F5).
+- **SYSTEM.md** :
+  - le jeton `fabClearance` (§5) ;
+  - deux règles (§13.3 : le bouton flottant, et le chiffre seul) ;
+  - la règle de l'icône des dialogues (§15) ;
+  - la note sur `EmptyState` (§11.1) ;
+  - les lignes 26, 28, 80, 81 et 96 fermées, la 49 à 1.
+- **Le web** : la porte du miroir des jetons refuse toute constante
+  d'`AppTheme` qu'aucune famille ne réclame. `fabClearance` entre donc dans
+  la famille des espacements, et le web le reçoit comme `pb-fab` (96 px,
+  WEB-SYSTEM §2). Rien ne l'utilise encore sur le web.
+
+**Vérifié** : `dart analyze` et `flutter analyze` à 0, le formatage propre,
+le typage et le lint du web propres. Les suites entières passent : le
+serveur avec Postgres 2 161 (2 sautés, rien ne change ici), le web 2 181,
+l'app 2 621, l'e2e entier 269 sur deux workers. Les tests rouges d'abord ;
+**16 mutations sur 16 vues rouges**. Les photos refaites sur Linux,
+regardées une à une.
