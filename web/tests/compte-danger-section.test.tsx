@@ -17,7 +17,11 @@ vi.mock('next/navigation', () => ({
 import { DELETE } from '../app/api/pro/account/route';
 import { CompteDangerSection } from '../components/pro/CompteDangerSection';
 import type { ProProfile } from '../lib/api/pro';
-import { DEMO_ACCOUNT_LOCKED_MESSAGE } from '../lib/pro/team';
+import {
+  DEMO_ACCOUNT_LOCKED_MESSAGE,
+  ownsASalon,
+  type SalonMembership,
+} from '../lib/pro/team';
 
 /// « Compte » on /pro/profil when the server REFUSES the deletion — the
 /// shared store-review demo account cannot delete itself (403
@@ -63,6 +67,67 @@ afterEach(() => {
   cleanup();
   vi.unstubAllGlobals();
   replace.mockReset();
+});
+
+/// docs/design/pro-app-batch7.md §2.3 (B7.3, Q5) — the sentence says what the
+/// SERVER removes: every salon the account owns, nothing of a salon where it
+/// is only a member. So it follows « owns a salon », not the salon on screen.
+describe('CompteDangerSection — the sentence follows « owns a salon »', () => {
+  const OWNER = /Votre salon sera retiré de MyWeli/;
+  const MEMBER = /Votre compte MyWeli Pro sera supprimé/;
+  const open = () => fireEvent.click(screen.getByText('Supprimer mon compte'));
+
+  it('an owner (the account’s linked salon) reads that the salon goes', () => {
+    serverAnswers(204);
+    const owner = {
+      ...profile,
+      account: { ...profile.account, providerId: 'p1' },
+    } as ProProfile;
+    render(<CompteDangerSection profile={owner} />);
+    open();
+    expect(screen.getByText(OWNER)).toBeTruthy();
+    expect(screen.queryByText(MEMBER)).toBeNull();
+  });
+
+  it('a member reads that their account goes', () => {
+    serverAnswers(204);
+    const member = {
+      ...profile,
+      membership: { role: 'manager', capabilities: ['profile.manage'] },
+    } as unknown as ProProfile;
+    render(<CompteDangerSection profile={member} exportEnabled={false} />);
+    open();
+    expect(screen.getByText(MEMBER)).toBeTruthy();
+    expect(screen.queryByText(OWNER)).toBeNull();
+  });
+
+  it('an owner looking at a salon they only manage (no export here) still reads that their salon goes', () => {
+    serverAnswers(204);
+    const ownerElsewhere = {
+      account: { id: 'acc-1', email: 'owner@salon.test', providerId: 'p1' },
+      provider: { id: 'p2', name: 'Autre Salon', status: 'active' },
+      membership: { role: 'manager', capabilities: ['profile.manage'] },
+    } as unknown as ProProfile;
+    render(<CompteDangerSection profile={ownerElsewhere} exportEnabled={false} />);
+    open();
+    expect(screen.getByText(OWNER)).toBeTruthy();
+  });
+});
+
+describe('ownsASalon — what the server will remove', () => {
+  const base = { account: { id: 'a' } } as unknown as ProProfile;
+  const salon = (role: string) => ({ role }) as unknown as SalonMembership;
+
+  it('the linked salon, or an owner row in « Mes salons »', () => {
+    expect(ownsASalon({ ...base, account: { id: 'a', providerId: 'p1' } } as ProProfile, [])).toBe(true);
+    expect(ownsASalon(base, [salon('manager'), salon('owner')])).toBe(true);
+  });
+
+  it('a member everywhere, or nothing known → false', () => {
+    expect(ownsASalon(base, [salon('manager'), salon('staff')])).toBe(false);
+    expect(ownsASalon(base, [])).toBe(false);
+    expect(ownsASalon({ ...base, account: { id: 'a', providerId: '' } } as ProProfile, [])).toBe(false);
+  });
 });
 
 describe('CompteDangerSection — a refused deletion', () => {

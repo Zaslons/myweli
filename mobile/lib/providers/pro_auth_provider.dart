@@ -145,6 +145,16 @@ class ProAuthProvider extends ChangeNotifier {
   List<SalonMembershipInfo> get salons => _salons;
   bool get hasMultipleSalons => _salons.length > 1;
 
+  /// Whether deleting this account removes a salon. The server removes every
+  /// salon the account OWNS — its linked salon and each active owner
+  /// membership (`provider_account_service.dart` deleteAccount) — and nothing
+  /// of a salon where it is only a member. Not the role in the salon on
+  /// screen: an owner looking at a salon they only manage still owns theirs.
+  /// docs/design/pro-app-batch7.md §2.3 (B7.3).
+  bool get ownsASalon =>
+      (_provider?.providerId?.isNotEmpty ?? false) ||
+      _salons.any((s) => s.isOwner);
+
   /// Server-computed « Ajouter un salon » gate (≥1 owned live Réseau).
   bool _canAddSalon = false;
   bool get canAddSalon => _canAddSalon;

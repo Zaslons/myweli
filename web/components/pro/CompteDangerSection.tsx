@@ -16,9 +16,10 @@ import {
   exportFailureMessage,
 } from '../../lib/pro/export';
 import { EXPORT_BUILD_FAILED } from '../../lib/account/export';
-import { DEMO_ACCOUNT_LOCKED_MESSAGE } from '../../lib/pro/team';
+import { DEMO_ACCOUNT_LOCKED_MESSAGE, ownsASalon } from '../../lib/pro/team';
 import { Button } from '../Button';
 import { TextField } from '../TextField';
+import { useOptionalProMembership } from './ProMembershipContext';
 
 /// A refused deletion, by machine code. The two refusals a user can be told
 /// about each get their sentence; anything else is the generic failure.
@@ -61,6 +62,11 @@ export function CompteDangerSection({
   exportEnabled?: boolean;
 }) {
   const router = useRouter();
+  // The sentence says what the server removes (B7.3): the salons the account
+  // owns. « Mes salons » comes from the dashboard's context (none when the
+  // section is mounted bare, as in its unit tests).
+  const salons = useOptionalProMembership()?.salons ?? [];
+  const removesASalon = ownsASalon(profile, salons);
   const [exporting, setExporting] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
@@ -219,7 +225,7 @@ export function CompteDangerSection({
         ) : (
           <div className="rounded-lg bg-surface p-m">
             <p className="text-bodyLarge text-textSecondary">
-              {exportEnabled
+              {removesASalon
                 ? 'Cette action est définitive. Votre salon sera retiré de MyWeli. Pensez à exporter vos données avant. Tapez SUPPRIMER pour confirmer.'
                 : 'Cette action est définitive. Votre compte MyWeli Pro sera supprimé. Tapez SUPPRIMER pour confirmer.'}
             </p>

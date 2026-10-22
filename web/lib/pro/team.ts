@@ -13,6 +13,18 @@ export type TeamInvitation = components['schemas']['TeamInvitation'];
 /// One « Mes salons » entry (module `access` R6 — GET /me/salons).
 export type SalonMembership = components['schemas']['SalonMembership'];
 
+/// Whether deleting this account removes a salon (B7.3 —
+/// docs/design/pro-app-batch7.md §2.3). The server removes every salon the
+/// account OWNS — its linked salon and each owner membership — and nothing of
+/// a salon where it is only a member. Not the role in the salon on screen: an
+/// owner looking at a salon they only manage still owns theirs.
+export function ownsASalon(
+  profile: { account: { providerId?: string | null } },
+  salons: readonly Pick<SalonMembership, 'role'>[],
+): boolean {
+  return Boolean(profile.account.providerId) || salons.some((s) => s.role === 'owner');
+}
+
 export type TeamRole = 'owner' | 'manager' | 'reception' | 'staff';
 export type TeamRoleInput = 'manager' | 'reception' | 'staff';
 
