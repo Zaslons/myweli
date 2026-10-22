@@ -7,6 +7,7 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'package:myweli/core/access/pro_salon_scope.dart';
 import 'package:myweli/core/di/dependency_injection.dart';
 import 'package:myweli/core/push/push_registration.dart';
+import 'package:myweli/core/theme/app_theme.dart';
 import 'package:myweli/core/utils/team_error_messages.dart';
 import 'package:myweli/models/api_response.dart';
 import 'package:myweli/models/journal_day.dart';
@@ -30,7 +31,7 @@ import 'package:myweli/services/mock/mock_pro_service.dart';
 import 'package:myweli/services/mock/mock_pro_team_service.dart';
 import 'package:myweli/services/mock/mock_push_notification_service.dart';
 import 'package:myweli/services/mock/mock_subscription_service.dart';
-import 'package:myweli/widgets/team/pro_invitations_card.dart';
+import 'package:myweli/widgets/common/empty_state.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -472,12 +473,13 @@ void main() {
         'included', (tester) async {
       await pumpJournee(tester, as: 'sonia.staff@myweli.test');
       expect(find.text(_title), findsNothing);
-      // `skipOffstage: false`: a list counts a zero-height child as offstage.
-      final card = find.byType(ProInvitationsCard, skipOffstage: false);
-      expect(card, findsOneWidget, reason: 'the card is on the day');
+      // What sits between the top of the day and the empty state is the
+      // day's own gap (`spacingXXXL`) — nothing of a card that is not there.
+      final list = tester.getTopLeft(find.byType(ListView)).dy;
+      final empty = tester.getTopLeft(find.byType(EmptyState)).dy;
       expect(
-        tester.getSize(card).height,
-        0,
+        empty - list,
+        AppTheme.spacingXXXL,
         reason: 'an empty card keeps a strip above the day',
       );
     });
