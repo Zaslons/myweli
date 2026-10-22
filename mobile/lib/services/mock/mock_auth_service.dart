@@ -17,6 +17,7 @@ import '../../models/user.dart';
 import '../interfaces/auth_service_interface.dart';
 import '../interfaces/session_store.dart';
 import 'mock_data.dart';
+import 'mock_ids.dart';
 
 /// Per-phone OTP state the mock uses to emulate real SMS-OTP behaviour: a code
 /// with an expiry, a wrong-attempt budget, and a resend budget.
@@ -50,10 +51,7 @@ class MockAuthService implements AuthServiceInterface {
   final Map<String, _OtpState> _emailOtpStates = {}; // lowercased email
 
   Future<void> _persistSession(User user) async {
-    final session = Session(
-      token: 'mock_${user.id}_${AppClock.now().millisecondsSinceEpoch}',
-      user: user,
-    );
+    final session = Session(token: MockIds.next('mock_${user.id}'), user: user);
     await _sessionStore.save(jsonEncode(session.toJson()));
   }
 
@@ -132,7 +130,7 @@ class MockAuthService implements AuthServiceInterface {
         // deletion leaves the account intact — it could not, because the
         // account was never there.
         final created = User(
-          id: 'user_${AppClock.now().millisecondsSinceEpoch}',
+          id: MockIds.next('user'),
           phoneNumber: phoneNumber,
           createdAt: AppClock.now(),
         );
@@ -171,7 +169,7 @@ class MockAuthService implements AuthServiceInterface {
       (u) => u.email?.toLowerCase() == email,
       orElse: () {
         final created = User(
-          id: 'user_${AppClock.now().millisecondsSinceEpoch}',
+          id: MockIds.next('user'),
           email: email,
           authProvider: provider,
           createdAt: AppClock.now(),
@@ -245,7 +243,7 @@ class MockAuthService implements AuthServiceInterface {
       (u) => u.email?.toLowerCase() == key,
       orElse: () {
         final created = User(
-          id: 'user_${AppClock.now().millisecondsSinceEpoch}',
+          id: MockIds.next('user'),
           email: key,
           authProvider: 'email',
           createdAt: AppClock.now(),
@@ -505,7 +503,7 @@ class MockAuthService implements AuthServiceInterface {
     var account = _providerByEmail(email);
     if (account == null) {
       account = ProviderUser(
-        id: 'member_${AppClock.now().millisecondsSinceEpoch}',
+        id: MockIds.next('member'),
         phoneNumber: '',
         businessName: '',
         businessType: BusinessType.other,
@@ -561,17 +559,20 @@ class MockAuthService implements AuthServiceInterface {
     // Mirror salon provisioning (pro-salon-lifecycle/R1): registration links
     // a DRAFT salon so the account is a real OWNER (providerId set) — the
     // R4b role plumbing depends on it.
-    final ts = AppClock.now().millisecondsSinceEpoch;
-    final salonId = 'provider_reg_$ts';
+    // Made the server's way: empty, and at a 0 % deposit
+    // (docs/design/hygiene-batch9.md §2.5).
+    final salonId = MockIds.next('provider_reg');
     MockData.providers.add(
-      MockData.providers.first.copyWith(
+      MockData.newSalon(
         id: salonId,
         name: businessName,
-        artists: const [],
+        businessType: businessType,
+        phoneNumber: phoneNumber,
+        address: address,
       ),
     );
     final providerUser = ProviderUser(
-      id: 'provider_$ts',
+      id: MockIds.next('provider'),
       phoneNumber: phoneNumber,
       businessName: businessName,
       businessType: businessType,

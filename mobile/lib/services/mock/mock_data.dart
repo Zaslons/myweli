@@ -191,7 +191,7 @@ class MockData {
           reviewCount: 38,
         ),
       ];
-    } else {
+    } else if (providerId == 'provider4') {
       return [
         const Artist(
           id: 'artist8',
@@ -203,6 +203,9 @@ class MockData {
         ),
       ];
     }
+    // A salon made at run time starts with no team, as on the server (it
+    // used to get provider4's barber — docs/design/hygiene-batch9.md §2.5).
+    return const [];
   }
 
   // Sample Services
@@ -270,7 +273,7 @@ class MockData {
           artistIds: ['artist3'], // Only artist3 can do this
         ),
       ];
-    } else {
+    } else if (providerId == 'provider3') {
       return [
         const Service(
           id: 'service7',
@@ -291,7 +294,31 @@ class MockData {
           artistIds: ['artist7'], // Only artist7 can do this
         ),
       ];
+    } else if (providerId == 'provider4') {
+      return [
+        const Service(
+          id: 'service9',
+          name: 'Coupe Classique',
+          description: 'Coupe traditionnelle',
+          price: 4000,
+          durationMinutes: 25,
+          providerId: 'provider4',
+          artistIds: ['artist8'], // Only artist8 can do this
+        ),
+        const Service(
+          id: 'service10',
+          name: 'Rasage à l’ancienne',
+          description: 'Rasage avec rasoir',
+          price: 3500,
+          durationMinutes: 15,
+          providerId: 'provider4',
+          artistIds: ['artist8'], // Only artist8 can do this
+        ),
+      ];
     }
+    // A salon made at run time starts with an empty catalogue, as on the
+    // server (it used to get provider3's — docs/design/hygiene-batch9.md §2.5).
+    return const [];
   }
 
   // Sample Providers
@@ -454,26 +481,7 @@ class MockData {
       ],
       rating: 4.6,
       reviewCount: 203,
-      services: const [
-        Service(
-          id: 'service9',
-          name: 'Coupe Classique',
-          description: 'Coupe traditionnelle',
-          price: 4000,
-          durationMinutes: 25,
-          providerId: 'provider4',
-          artistIds: ['artist8'], // Only artist8 can do this
-        ),
-        Service(
-          id: 'service10',
-          name: 'Rasage à l’ancienne',
-          description: 'Rasage avec rasoir',
-          price: 3500,
-          durationMinutes: 15,
-          providerId: 'provider4',
-          artistIds: ['artist8'], // Only artist8 can do this
-        ),
-      ],
+      services: getServicesForProvider('provider4'),
       artists: getArtistsForProvider('provider4'),
       availability: Availability(
         providerId: 'provider4',
@@ -844,6 +852,79 @@ class MockData {
   /// in « Mes salons » (the Provider model carries no status client-side).
   static final Set<String> draftSalonIds = {};
 
+  /// A salon made at run time (registration, « Ajouter un salon »), the way
+  /// the server makes one (`draftSalonDocument`, backend
+  /// providers_repository.dart): an empty listing, no catalogue, no team, no
+  /// hours, and **no deposit** (0 %, off). Both used to copy
+  /// `providers.first`, so a new salon opened with Salon Excellence's
+  /// services, photos, 4,5 rating and 30 % deposit — and the « Acompte &
+  /// annulation » step looked already chosen (docs/design/hygiene-batch9.md
+  /// §2.5).
+  static Provider newSalon({
+    required String id,
+    required String name,
+    required BusinessType businessType,
+    String phoneNumber = '',
+    String? address,
+    bool verified = false,
+  }) => Provider(
+    id: id,
+    name: name,
+    description: '',
+    address: address ?? '',
+    city: 'Abidjan',
+    countryCode: 'CI',
+    timezone: kSalonTz,
+    currency: 'XOF',
+    imageUrls: const [],
+    rating: 0,
+    reviewCount: 0,
+    services: const [],
+    availability: Availability(
+      providerId: id,
+      weeklySchedule: const {},
+      blockedDates: const [],
+    ),
+    phoneNumber: phoneNumber,
+    whatsapp: phoneNumber,
+    category: switch (businessType) {
+      // The server's `SalonProvisioningService.categoryFor`.
+      BusinessType.barber => 'barber',
+      BusinessType.spa => 'spa',
+      BusinessType.nailSalon => 'nails',
+      BusinessType.massage => 'massage',
+      BusinessType.salon || BusinessType.other => 'salon',
+    },
+    verified: verified,
+    depositRequired: false,
+    depositPercentage: 0,
+  );
+
+  /// The daily invitation counters (server T37), keyed `<UTC day>|<bucket>`.
+  /// Written by `MockProTeamService.inviteMember`; cleared with the roster.
+  static final Map<String, int> inviteBuckets = {};
+
+  /// The seeded salons' services and artists, as seeded. The catalogue fakes
+  /// write into [providers] — one store, read by the Pro screens and the
+  /// client's alike, as on the server — so [resetTeam] restores it too.
+  static void resetCatalogue() {
+    for (var i = 0; i < providers.length; i++) {
+      final id = providers[i].id;
+      if (!const {
+        'provider1',
+        'provider2',
+        'provider3',
+        'provider4',
+      }.contains(id)) {
+        continue;
+      }
+      providers[i] = providers[i].copyWith(
+        services: getServicesForProvider(id),
+        artists: getArtistsForProvider(id),
+      );
+    }
+  }
+
   /// Seats in use — owner + active + unexpired pending, PER SALON (R6
   /// multi-salons). NOT quite the backend's rule: the server counts expired
   /// invitations too (they hold their seat until revoked or invited again —
@@ -857,11 +938,14 @@ class MockData {
       )
       .length;
 
-  /// Restore the seeded roster/cards (tests: call in setUp). Also re-seeds
-  /// the member ACCOUNTS (the R4b role demos and the former member) if a
-  /// test stripped them.
+  /// Restore the seeded roster/cards (tests: call in setUp), the day's
+  /// invitation counters and the seeded catalogues ([resetCatalogue]). Also
+  /// re-seeds the member ACCOUNTS (the R4b role demos and the former member)
+  /// if a test stripped them.
   static void resetTeam() {
     draftSalonIds.clear();
+    inviteBuckets.clear();
+    resetCatalogue();
     teamMembers
       ..clear()
       ..addAll(_seedTeamMembers());
