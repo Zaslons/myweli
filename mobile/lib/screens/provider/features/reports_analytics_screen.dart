@@ -41,6 +41,10 @@ class ReportsAnalyticsScreen extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // When V2 is built, this chart counts « Total réalisé »
+                  // (completed bookings, the « Revenus » screen's word) —
+                  // decision 30, docs/design/product-questions-batch8.md
+                  // §2.4; on LAUNCH §1.5's list for turning V2 on.
                   Text(
                     'Revenus ce mois',
                     style: AppTextStyles.titleMedium.copyWith(

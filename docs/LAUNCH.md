@@ -149,6 +149,13 @@ behind a flag, off; enable for ourselves; then everyone. It also gives a kill
 switch that does not need a store release — which, per §1.4, is the only kind of
 switch that works quickly on mobile.
 
+**Before turning `futureProviderFeatures` on** (the V2/V3 Pro screens), settle
+what was decided while they slept:
+- **The « Rapports » chart counts « Total réalisé »** — completed bookings, the
+  « Revenus » screen's word — not « Revenus prévus » (decision 30,
+  [product-questions-batch8.md](design/product-questions-batch8.md) §2.4). Its
+  figures are written by hand today.
+
 ---
 
 ## 2. What we already have, honestly assessed
