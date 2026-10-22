@@ -347,7 +347,7 @@ This batch takes up three of the six suggested tasks that were never started. It
 - **B9.8 Shared components (L).** `AppCard`, `AppChip` and `AppAsyncView` as SYSTEM §11.3 specifies. `AppAsyncView` makes a forgotten state or a raw error impossible, and pairs with B3.1.
 - **B9.9 The R6 salon-id pin's blind spot (L · decision 33).** A positional account id isn't seen by the pin. The real fix is a `SalonId` extension type. Nothing on main triggers it.
 - **B9.10 One home for fallback copy (S).** Three spellings of a missing salon name: one constant per surface, and a rule in SYSTEM §12 and WEB-SYSTEM.
-- **B9.12 Drop the orphaned `provider_otp_codes` table (S, after B8.5 is deployed).** B8.5 (#685) stopped every read and write of it, but an older image still deletes from it on each Pro account deletion — dropping it in the same deploy would turn every deletion into a 500 on a rollback. Drop it once no deployed image reads it, with a `// rollback-unsafe:` line (LAUNCH §1.4's contract step).
+- **B9.12 Drop the orphaned `provider_otp_codes` table (S — B8.5 deployed 2026-10-22, image `eca4db6`).** B8.5 (#685) stopped every read and write of it, but an older image still deletes from it on each Pro account deletion — dropping it in the same deploy would turn every deletion into a 500 on a rollback. Drop it once no deployed image reads it, with a `// rollback-unsafe:` line (LAUNCH §1.4's contract step).
 - **B9.11 Web list reads that still turn a missing list into `[]` (S, when touched).** Notifications, invitations, team, reviews, visits and public pages. Since #630 only a server contract change can trigger it. Make each read require its array, as #630 did for the exports.
 
 ### Batch 10 — Only you can check
