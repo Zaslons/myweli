@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Statut** | **Validé le 2026-10-22** — relu sur main (`d1e886e1`). Q1 (décision 33) : **le type `SalonId`** (« ce qui vaut le mieux à long terme ») ; Q2 (décision 34) : **e-mail et poussée Sentry** ; Q3 (décision 34) : **pas de suivi des performances pour l'instant** ; Q4 (décision 35) : **pas d'interrupteur** ; Q5 : **construire les trois composants et migrer tous les écrans maintenant** ; Q6 : **les pages publiques lèvent** ; Q7 : **supprimer la table avec ce lot** ; Q8 : **le reste tel qu'écrit**. Huit PR (§3). **PR A construite le 2026-10-22** sur `feat/batch9-hygiene` (#688 — B9.1, B9.5 — §9). |
+| **Statut** | **Validé le 2026-10-22** — relu sur main (`d1e886e1`). Q1 (décision 33) : **le type `SalonId`** (« ce qui vaut le mieux à long terme ») ; Q2 (décision 34) : **e-mail et poussée Sentry** ; Q3 (décision 34) : **pas de suivi des performances pour l'instant** ; Q4 (décision 35) : **pas d'interrupteur** ; Q5 : **construire les trois composants et migrer tous les écrans maintenant** ; Q6 : **les pages publiques lèvent** ; Q7 : **supprimer la table avec ce lot** ; Q8 : **le reste tel qu'écrit**. Huit PR (§3). **PR A fusionnée le 2026-10-22** (#688 — B9.1, B9.5 — §9). **PR B construite le 2026-10-22** sur `feat/batch9-mocks` (B9.6 — §10). |
 | **Owner** | Sadreddine |
 | **Last updated** | 2026-10-22 |
 | **PRD ref / phase** | V1 — rien de visible n'est ajouté ; ce lot rend vrais les documents, les doublures de test, les lectures et les outils |
@@ -268,3 +268,72 @@ Q5 : la recommandation — tout migrer maintenant (§2.7).
 d'infrastructure du serveur passent ; `tool/roadmap-log.sh` rend le journal
 entier.
 
+
+## 10. PR B construite (B9.6) — ce qui a été vu
+
+**Comme écrit**, et plus large que le constat, chaque écart lu sur le vrai
+chemin du serveur :
+- **Les invitations** : les deux seaux du serveur, par jour UTC sur
+  `AppClock` (`MockData.inviteBuckets`, vidés avec l'équipe) — 20 par salon,
+  puis 3 par salon **et** adresse. Comme le serveur : le seau du salon
+  d'abord (une invitation que l'adresse refuse compte déjà dans celui du
+  salon), chaque tentative comptée, et **les alias d'une personne partagent
+  un seau** (`+étiquette`, les points de Gmail, `googlemail.com` —
+  `canonicalInviteAddress`). Le réglage `maxInvitesPerDay` disparaît : les
+  trois tests qui s'en servaient (dont les deux à 1 000) n'en ont plus
+  besoin.
+- **Le salon neuf** : pas seulement l'acompte. Un salon né dans le faux
+  (inscription, « Ajouter un salon ») **copiait Salon Excellence entier** :
+  ses prestations, ses photos, sa note de 4,5, ses horaires, son acompte de
+  30 %. `MockData.newSalon` le fait comme le serveur
+  (`draftSalonDocument`) : vide, 0 %, acompte désactivé, la catégorie
+  du serveur (`categoryFor`). **Vu au passage** : les graines donnaient à
+  tout salon inconnu le barbier de provider4 et les prestations de
+  provider3 ; elles n'en donnent plus.
+- **Le catalogue** : les écritures répondaient « succès » sans rien garder,
+  et la lecture rendait la graine. Il vit maintenant dans `MockData.providers`
+  — **un seul magasin**, que l'écran Pro relit et où le client réserve, comme
+  sur le serveur — et `resetTeam` le remet à la graine
+  (`resetCatalogue`). La mise à jour est le `PATCH` du serveur : les clés
+  modifiables que porte la requête changent, le reste demeure (le faux
+  plantait sans `providerId` dans la requête).
+- **Le salon où l'on agit** : un seul résolveur (`mock_session.dart`) pour
+  l'équipe, le catalogue et les employés — la sélection, le salon du
+  compte, l'adhésion en cache, puis **la première adhésion active**, comme
+  `GET /me/provider` (le faux de l'équipe tombait sur `provider1`). Une
+  écriture par identifiant cherche **dans ce salon seulement** et répond
+  `not_found` ailleurs ; sans la capacité `catalogue.manage` là, `forbidden`
+  — les mots que l'app donne au serveur (« Introuvable. », « Action non
+  autorisée pour ce salon. » ; la phrase générique pour les employés).
+- **Corrigé au constat** : le §1 disait que l'équipe traitait déjà le gérant
+  sans salon. **Pas les écritures de membres** : changer le rôle, retirer,
+  renvoyer cherchaient dans toutes les équipes ; elles agissent maintenant
+  dans le salon courant, comme `_guardMember`.
+- **Les employés** : un employé supprimé restait réservable côté client
+  (la suppression ne recopiait pas la liste dans le salon) ; c'est corrigé.
+- **Les identifiants** : `MockIds.next` — un compteur, plus l'horloge — aux
+  12 endroits (dont le jeton de session et les trois comptes clients).
+- **Pas fait, exprès** : les lectures du catalogue et des employés ne sont
+  toujours pas gardées par la capacité (le serveur répond `forbidden` à qui
+  n'a pas `catalogue.manage`) ; le décompte des places reste celui du faux,
+  déjà écrit (`backend-team-reinvite.md` §11).
+
+**Vérifié** :
+- Les 20 tests de `mock_fidelity_test.dart` et celui de `pro_team_test`
+  d'abord : sur le commit des tests seuls, 20 des 21 sont rouges. Le seul vert est
+  « la 21e invitation du salon » : l'ancien compteur le faisait déjà. Le
+  garde « aucun faux ne bâtit un id sur l'horloge » s'ajoute ensuite.
+- **22 mutations, toutes vues rouges** (les 21 du faux, et l'id d'horloge
+  remis pour le garde) : le seau d'adresse sans le salon, pas d'adresse
+  canonique, pas de seau de salon, l'adresse avant le salon, pas de jour
+  nouveau, des compteurs gardés au `resetTeam` ; le salon neuf à 30 %, la
+  copie du premier salon (« Ajouter un salon » et l'inscription), le barbier
+  de provider4 rendu aux salons inconnus ; le salon courant sans
+  l'adhésion, sans la sélection ; aucune capacité ; une écriture qui
+  cherche partout (prestation, employé, membre), une mise à jour qui
+  remplace, une écriture qui ne garde rien, un employé supprimé encore
+  dans le salon, le catalogue gardé au `resetTeam` ; des ids sans
+  compteur.
+- `flutter analyze` à zéro ; les suites entières passent : l'app 2 682 (55 golden Linux sautés), le
+  serveur sur Postgres 2 162 (2 sautés), le web 2 180, les 269 de bout en bout sur deux workers.
+- **SYSTEM §21, ligne 43** fermée (douze endroits, pas six).
