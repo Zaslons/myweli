@@ -264,33 +264,33 @@ This batch takes up three of the six suggested tasks that were never started. It
 
 ### Batch 6 — Backend integrity (P2–P3, one or two deploys)
 
-- ✅ **B6.1 `POST /appointments` accepts any role (P2 · S).** **Done in #676** — [backend-integrity-batch6.md](design/backend-integrity-batch6.md) §10 (not yet deployed).
+- ✅ **B6.1 `POST /appointments` accepts any role (P2 · S).** **Done in #676** — [backend-integrity-batch6.md](design/backend-integrity-batch6.md) §10 (deployed 2026-10-22).
   - **What:** a Pro or admin token can book through the client route. It is written as the client: an invisible, unreviewable booking that still notifies the salon. (Verified: `routes/appointments/index.dart` checks only that someone is signed in.)
   - **How:** POST answers 403 unless the role is `user`, copying `review.dart`. Add a route test, and the 403 in openapi.
-- ✅ **B6.2 A dead invitation still creates an account (P2 · S).** **Done in #676** — §10 (not yet deployed).
+- ✅ **B6.2 A dead invitation still creates an account (P2 · S).** **Done in #676** — §10 (deployed 2026-10-22).
   - **What:** opening an expired, revoked or misaddressed invitation creates the Pro account, then refuses. At the next sign-in, the server creates an empty salon for that account.
   - **How:** a read-only `TeamService.checkAcceptable` runs the four checks before `createMemberAccount`. If `accept` still fails in the race, remove the new account.
-- ✅ **B6.3 A deleted owner's salon keeps their personal numbers (P2 · S · decision 17).** **Done in #677** — [backend-integrity-batch6.md](design/backend-integrity-batch6.md) §11 (not yet deployed). After the unpublish loop, blank the phone and address, and null the WhatsApp and Mobile Money fields. Keep the name and the history, and state it in the privacy policy.
-- ✅ **B6.4 The demo reset leaves a reviewer's KYC behind (P2 · M · decision 18).** **Done in #677** — §11 (not yet deployed). At the weekly reset, delete the demo account's `kyc/<accountId>/` objects (the deletion loop) and reset its status, via a new `resetKyc`.
-- ✅ **B6.5 One deposit range, and a removed operator must not block a save (P2 · M · decision 19).** **Done in #677** — §11 (an operator outside the catalogue is not judged with deposits off — and not kept, T57; not yet deployed).
+- ✅ **B6.3 A deleted owner's salon keeps their personal numbers (P2 · S · decision 17).** **Done in #677** — [backend-integrity-batch6.md](design/backend-integrity-batch6.md) §11 (deployed 2026-10-22). After the unpublish loop, blank the phone and address, and null the WhatsApp and Mobile Money fields. Keep the name and the history, and state it in the privacy policy.
+- ✅ **B6.4 The demo reset leaves a reviewer's KYC behind (P2 · M · decision 18).** **Done in #677** — §11 (deployed 2026-10-22). At the weekly reset, delete the demo account's `kyc/<accountId>/` objects (the deletion loop) and reset its status, via a new `resetKyc`.
+- ✅ **B6.5 One deposit range, and a removed operator must not block a save (P2 · M · decision 19).** **Done in #677** — §11 (an operator outside the catalogue is not judged with deposits off — and not kept, T57; deployed 2026-10-22).
   - **What:** app 5–80 %, web 1–100 %, server 0–100 %. A value saved on one surface can't be shown on another. An operator removed from the catalogue blocks every save, even with deposits off.
   - **How:** the server enforces the chosen range, and both forms use the same bounds. With deposits off, skip the catalogue check. With deposits on, answer `operator_unavailable` so the fault shows under the operator field.
-- ✅ **B6.6 Salons can't report reviews of their own salon (P2 · M · decision 20).** **Done in #678** — [backend-integrity-batch6.md](design/backend-integrity-batch6.md) §12 (the key stays `(review_id, reporter_user_id)`, since salon and client ids never collide; a sibling `reportBySalon` holds the « a review of this salon » check; not yet deployed).
+- ✅ **B6.6 Salons can't report reviews of their own salon (P2 · M · decision 20).** **Done in #678** — [backend-integrity-batch6.md](design/backend-integrity-batch6.md) §12 (the key stays `(review_id, reporter_user_id)`, since salon and client ids never collide; a sibling `reportBySalon` holds the « a review of this salon » check; deployed 2026-10-22).
   - **What:** App Store 1.2 expects reporting on user content, and the Pro « Avis » screen has none.
   - **How:**
     - Server: `POST /me/provider/reviews/{id}/report`, behind the same membership gate. It reuses `ModerationService.report` with the reporter recorded as the salon, and a migration adds `reporter_kind`.
     - Clients: a « Signaler » button in the Pro « Avis » on app and web.
-- ✅ **B6.7 Revoke the Apple token when an account is deleted (P2 · L).** **Done in #679** — [backend-integrity-batch6.md](design/backend-integrity-batch6.md) §13, §14 (built inactive until the `.p8` key exists — the owner's steps are in DEPLOYMENT.md, Phase C; a token is kept only if Apple's answer names the same `sub`; not yet deployed).
+- ✅ **B6.7 Revoke the Apple token when an account is deleted (P2 · L).** **Done in #679** — [backend-integrity-batch6.md](design/backend-integrity-batch6.md) §13, §14 (built inactive until the `.p8` key exists — the owner's steps are in DEPLOYMENT.md, Phase C; a token is kept only if Apple's answer names the same `sub`; deployed 2026-10-22).
   - **What:** under 5.1.1(v), MyWeli stays under « Apps using Apple ID » after deletion.
   - **How:**
     1. You create a Sign in with Apple `.p8` key and store it in Secret Manager.
     2. The clients send `authorizationCode` at sign-in.
     3. The server exchanges it for a refresh token, stored per account (migration), and revokes it on deletion.
-- ✅ **B6.8 Guards with no live trigger (P3 · S each).** **Done in #676** — §10 (not yet deployed).
+- ✅ **B6.8 Guards with no live trigger (P3 · S each).** **Done in #676** — §10 (deployed 2026-10-22).
   - `ensureOwner` should behave the same in Postgres and in memory (deny by default).
   - `ensureSalon` should refuse to write an owner row on a salon owned by someone else (T72).
   - The team API should refuse to change the role of a revoked member (409), next to B7.5.
-- ✅ **B6.9 Know when the demo identity is lost (P3 · S · decision 22).** **Done in #676** — §10; the alert script is written, **not yet created on GCP** (asked after the deploy). Put the refusal reason in the cron response, and add a log alert on `demo_reset REFUSED`, copying `96-rebuild-hook-alert.sh`.
+- ✅ **B6.9 Know when the demo identity is lost (P3 · S · decision 22).** **Done in #676** — §10; the server half deployed 2026-10-22; the alert **created on GCP 2026-10-22** (`alertPolicies/10667515608135534511`, to « Owner email »), and added to the list 93/95 read in #681. Put the refusal reason in the cron response, and add a log alert on `demo_reset REFUSED`, copying `96-rebuild-hook-alert.sh`.
 - ✅ **B6.10 A Postgres end-to-end test for client account deletion (P3 · M).** **Done in #676** — §10. A victim plus a bystander, all their rows, run through the real repositories, like the Pro one. Tests only.
 
 ### Batch 7 — Pro app UI, accessibility and parity (P2–P3, app)
