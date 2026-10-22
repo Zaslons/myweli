@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/constants/failure_messages.dart';
+import '../../core/constants/unnamed_salon.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/colors.dart';
 import '../../core/theme/text_styles.dart';
@@ -200,9 +201,10 @@ class _SalonTile extends StatelessWidget {
                   ? AppColors.secondary
                   : AppColors.textPrimary,
               child: Text(
-                salon.salonName.isEmpty
-                    ? '?'
-                    : salon.salonName.characters.first.toUpperCase(),
+                salonNameOr(
+                  salon.salonName,
+                  kUnnamedSalon,
+                ).characters.first.toUpperCase(),
                 style: AppTextStyles.titleSmall.copyWith(
                   color: isActive ? AppColors.secondary : AppColors.textPrimary,
                 ),
@@ -212,7 +214,7 @@ class _SalonTile extends StatelessWidget {
         children: [
           Flexible(
             child: Text(
-              salon.salonName,
+              salonNameOr(salon.salonName, kUnnamedSalon),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),

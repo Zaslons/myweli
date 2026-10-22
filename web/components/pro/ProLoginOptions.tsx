@@ -24,6 +24,7 @@ import { AppleSignInButton } from '../auth/AppleSignInButton';
 import { appleIdentity } from '../../lib/auth/apple';
 import { forgetSalon } from '../../lib/pro/remembered-salon';
 import { type SignInRefusal, codeRefusal, sendRefusal } from '../../lib/auth/otp-failure';
+import { UNNAMED_SALON_AT_SENTENCE_START, salonNameOr } from '../../lib/salon-name';
 
 /// The identity proof retained IN MEMORY across the 202 invitation bridge
 /// (team access R5a): the Google credential or the still-unconsumed
@@ -173,7 +174,10 @@ export function ProLoginOptions({ onSuccess }: { onSuccess: () => void }) {
               className="flex flex-col gap-s rounded-lg border border-border bg-surface p-m"
             >
               <p className="text-bodyLarge text-textPrimary">
-                <span className="font-semibold">{inv.salonName}</span> vous
+                <span className="font-semibold">
+                  {salonNameOr(inv.salonName, UNNAMED_SALON_AT_SENTENCE_START)}
+                </span>{' '}
+                vous
                 invite comme {inv.roleLabel}
               </p>
               <p className="text-bodySmall text-textTertiary">

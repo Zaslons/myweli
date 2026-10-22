@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 
 import '../../../core/config/app_config.dart';
 import '../../../core/constants/salon_categories.dart';
+import '../../../core/constants/unnamed_salon.dart';
 import '../../../core/di/dependency_injection.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/colors.dart';
@@ -116,7 +117,10 @@ class _ProProfileScreenState extends State<ProProfileScreen> {
                           ),
                           const SizedBox(height: AppTheme.spacingS),
                           Text(
-                            authProvider.salonName,
+                            salonNameOr(
+                              authProvider.knownSalonName,
+                              kUnnamedSalon,
+                            ),
                             style: AppTextStyles.bodyLarge.copyWith(
                               color: AppColors.textSecondary,
                             ),
@@ -137,8 +141,11 @@ class _ProProfileScreenState extends State<ProProfileScreen> {
                     subtitle: Text(
                       authProvider.hasMultipleSalons
                           ? '${authProvider.salons.length} salons — '
-                                'actif : ${authProvider.salonName}'
-                          : authProvider.salonName,
+                                'actif : ${salonNameOr(authProvider.knownSalonName, kUnnamedSalon)}'
+                          : salonNameOr(
+                              authProvider.knownSalonName,
+                              kUnnamedSalon,
+                            ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -472,7 +479,10 @@ class _SalonCardState extends State<_SalonCard> {
       // salon payload lands, and offline.
       _fact(
         'Nom du salon',
-        salon != null && salon.name.isNotEmpty ? salon.name : auth.salonName,
+        salonNameOr(
+          salon?.name,
+          salonNameOr(auth.knownSalonName, kUnnamedSalon),
+        ),
       ),
       if (salon != null) ...[
         if (category != null) _fact('Catégorie', category),

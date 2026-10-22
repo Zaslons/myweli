@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:myweli/widgets/common/loading_indicator.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/constants/unnamed_salon.dart';
 import '../../core/di/dependency_injection.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/colors.dart';
@@ -113,7 +114,7 @@ class _BookingConfirmationScreenState extends State<BookingConfirmationScreen> {
     unawaited(
       context.read<MessagingProvider>().sendBookingConfirmation(
         recipientPhone: phone,
-        providerName: salon?.name ?? 'le salon',
+        providerName: salonNameOr(salon?.name, kUnnamedSalonInSentence),
         dateTime: widget.appointmentDateTime,
         depositAmount: depositAmount,
         tz: salon?.timezone,
@@ -143,7 +144,8 @@ class _BookingConfirmationScreenState extends State<BookingConfirmationScreen> {
         depositAmount: depositAmount,
         balanceDue: balanceDue,
         providerId: widget.providerId,
-        providerName: p?.name ?? 'le salon',
+        // « Wave · Salon »: a label, so the title form.
+        providerName: salonNameOr(p?.name, kUnnamedSalon),
         serviceIds: widget.serviceIds,
         appointmentDateTime: widget.appointmentDateTime,
         depositOperator: p?.depositMobileMoneyOperator,

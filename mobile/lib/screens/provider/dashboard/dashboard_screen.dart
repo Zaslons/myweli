@@ -264,7 +264,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       children: [
                         Flexible(
                           child: Text(
-                            'Bienvenue, ${authProvider.salonName}',
+                            // No name, no vocative: « Bienvenue, votre
+                            // salon » is not French.
+                            authProvider.knownSalonName == null
+                                ? 'Bienvenue'
+                                : 'Bienvenue, ${authProvider.knownSalonName}',
                             style: AppTextStyles.headlineMedium.copyWith(
                               color: AppColors.textPrimary,
                             ),

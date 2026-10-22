@@ -33,6 +33,7 @@ import { SkeletonRows } from '../Skeleton';
 import { ChangeRoleDialog } from './ChangeRoleDialog';
 import { InviteMemberDialog } from './InviteMemberDialog';
 import { TeamRoleChip } from './TeamRoleChip';
+import { UNNAMED_OWN_SALON, salonNameOr } from '../../lib/salon-name';
 
 function initials(email: string): string {
   const base = email.split('@')[0] ?? email;
@@ -47,7 +48,7 @@ function initials(email: string): string {
 export function EquipeClient() {
   const router = useRouter();
   const [providerId, setProviderId] = useState<string | null>(null);
-  const [salonName, setSalonName] = useState('ce salon');
+  const [salonName, setSalonName] = useState(UNNAMED_OWN_SALON);
   const [artists, setArtists] = useState<Artist[]>([]);
   const [members, setMembers] = useState<TeamMember[]>([]);
   const [offer, setOffer] = useState<SalonOffer | null>(null);
@@ -85,7 +86,8 @@ export function EquipeClient() {
       }
       const pid = me.profile.provider.id;
       setProviderId(pid);
-      setSalonName(me.profile.provider.name || 'ce salon');
+      // In a sentence: « … l'accès à votre salon », as in the app.
+      setSalonName(salonNameOr(me.profile.provider.name, UNNAMED_OWN_SALON));
       setArtists(me.profile.provider.artists ?? []);
       const [roster, sub] = await Promise.all([
         getTeamMembers(),

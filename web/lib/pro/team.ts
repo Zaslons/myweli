@@ -6,6 +6,7 @@
 
 import { NO_CONNECTION_MESSAGE, writeFailureMessage } from '../api/network';
 import type { components } from '../api/schema';
+import { UNNAMED_SALON_IN_SENTENCE, salonNameOr } from '../salon-name';
 
 export type Membership = components['schemas']['Membership'];
 export type TeamMember = components['schemas']['TeamMember'];
@@ -176,14 +177,20 @@ export function gateExitMessage(raison: string | null): string | null {
 
 /// The app's accept success line.
 export function joinedSalonMessage(salonName: string): string {
-  return `Vous avez rejoint ${salonName}`;
+  return `Vous avez rejoint ${salonNameOr(salonName, UNNAMED_SALON_IN_SENTENCE)}`;
 }
 
 /// The app's login banner when it knows which salon was lost. The web's
 /// `?motif=acces-retire` banner stays generic (`not_a_member`): a salon name
 /// never travels in a URL.
+///
+/// With no name to give, the one sentence for a withdrawn access — the
+/// `not_a_member` refusal's — as in the app; it printed « Votre accès à  a été
+/// retiré. ».
 export function revokedAccessMessage(salonName: string): string {
-  return `Votre accès à ${salonName} a été retiré.`;
+  return salonName.trim()
+    ? `Votre accès à ${salonName} a été retiré.`
+    : teamErrorMessage('not_a_member');
 }
 
 /// An invitee's refused accept/decline → copy. `forbidden` is the roster's
