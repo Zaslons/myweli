@@ -14,6 +14,7 @@ import '../models/provider.dart';
 import '../models/provider_login_result.dart';
 import '../models/provider_session.dart';
 import '../models/provider_user.dart';
+import '../models/salon_facts.dart';
 import '../models/salon_market.dart';
 import '../models/salon_membership_info.dart';
 import '../models/team_invitation.dart';
@@ -120,6 +121,22 @@ class ProAuthProvider extends ChangeNotifier {
   Future<void> _cacheShape() async {
     await _authService.cacheProviderMembership(_membership);
     await _authService.cacheProviderSalonMarket(_market);
+    _keptFacts = _activeSalon == null ? null : SalonFacts.of(_activeSalon!);
+    await _authService.cacheProviderSalonFacts(_keptFacts);
+  }
+
+  /// The copy of the acting salon's « Profil » facts the session keeps
+  /// (B8.3) — restored at cold start, replaced by every live read.
+  SalonFacts? _keptFacts;
+
+  /// What « Profil » shows of the acting salon: the live salon, else the copy
+  /// kept from the last read — for THAT salon only, never one the session has
+  /// since moved away from (docs/design/product-questions-batch8.md §2.3).
+  SalonFacts? get salonFacts {
+    final live = _activeSalon;
+    if (live != null) return SalonFacts.of(live);
+    final kept = _keptFacts;
+    return kept != null && kept.salonId == activeSalonId ? kept : null;
   }
 
   /// « Réessayer » on the gate: one more GET /me/provider. Notifies at the
@@ -423,6 +440,7 @@ class ProAuthProvider extends ChangeNotifier {
     _revokedNotice = notice;
     _membership = null;
     _activeSalon = null;
+    _keptFacts = null;
     await logout();
     _router.go('/pro/login');
   }
@@ -537,6 +555,7 @@ class ProAuthProvider extends ChangeNotifier {
     _membership = null;
     _activeSalon = null;
     _market = null;
+    _keptFacts = null;
     _salons = const [];
     _canAddSalon = false;
     _salonsAgain = false;
@@ -546,6 +565,7 @@ class ProAuthProvider extends ChangeNotifier {
     try {
       await _authService.cacheProviderMembership(null);
       await _authService.cacheProviderSalonMarket(null);
+      await _authService.cacheProviderSalonFacts(null);
     } catch (_) {
       /* best-effort — the next refresh overwrites it */
     }
@@ -755,6 +775,8 @@ class ProAuthProvider extends ChangeNotifier {
         // The salon's clock with it — so a refresh that fails below still
         // leaves the salon known (pro-app-salon-not-loaded.md §3.1).
         _market = await _authService.getCachedProviderSalonMarket();
+        // And what « Profil » shows of it, for an offline card (B8.3).
+        _keptFacts = await _authService.getCachedProviderSalonFacts();
         _selectedSalonId = await _authService.getSelectedProviderSalon();
         _markRestored();
         // The stored shape is read: the first frame may take it now, before
@@ -1065,6 +1087,7 @@ class ProAuthProvider extends ChangeNotifier {
       _membership = null;
       _activeSalon = null;
       _market = null;
+      _keptFacts = null;
       _selectedSalonId = null;
       _salons = const [];
       _canAddSalon = false;
