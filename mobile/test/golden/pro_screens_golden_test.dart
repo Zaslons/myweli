@@ -330,7 +330,12 @@ void main() {
       await _pumpPro(
         tester,
         const ProJournalScreen(),
-        extra: [ChangeNotifierProvider(create: (_) => ProJournalProvider())],
+        extra: [
+          ChangeNotifierProvider(create: (_) => ProJournalProvider()),
+          // The invitations card (B7.6) heads a Collaborateur's day — it
+          // draws nothing here: the staff account has no invitation.
+          ChangeNotifierProvider(create: (_) => ProTeamProvider()),
+        ],
         size: const Size(390, 1200),
         rounds: 10,
         email: kStaffEmail,
