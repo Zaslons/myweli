@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:myweli/core/access/pro_salon_scope.dart';
 import 'package:myweli/core/di/dependency_injection.dart';
 import 'package:myweli/core/push/push_registration.dart';
 import 'package:myweli/core/router/pro_router.dart';
@@ -29,6 +30,13 @@ import '../support/rejoin.dart';
 /// `provider1` moved to Gabon for the file so a wrong fallback is visible.
 const _owner = 'jean@salon-excellence.test';
 const _libreville = 'Africa/Libreville';
+
+/// Counts the per-salon resets a fallback owes (B7.14).
+class _ResetSpy implements SalonScoped {
+  int resets = 0;
+  @override
+  void resetForSalonSwitch() => resets++;
+}
 
 /// GET /me/provider, steerable: [script] answers the next calls in order, then
 /// the mock world answers again.
@@ -256,6 +264,53 @@ void main() {
       expect(p.needsSalon, isTrue);
       expect(notified, greaterThan(0), reason: 'the screen must learn it');
     });
+
+    // docs/design/pro-app-batch7.md §2.14 (B7.14) — a fallback to the
+    // default salon empties the per-salon stores, whatever the refetch
+    // answers: otherwise provider2's agenda, clients, journal and team show
+    // under provider1's name until each screen reloads. Not inside
+    // `_clearSalonSelection`: the rejoin gate calls it AFTER its awaits, and
+    // a reset there would empty the cards it just seeded (S9).
+    test('fallback mid-session whose refetch FAILS: the per-salon stores are '
+        'emptied all the same', () async {
+      final p = await signIn();
+      expect(await p.switchSalon('provider2'), isTrue);
+      final spy = ProSalonScope.track(_ResetSpy());
+
+      pro.script.addAll([_Pro.forbidden(), _Pro.serverError()]);
+      await p.checkMembershipAlive();
+
+      expect(p.activeSalonId, 'provider1');
+      expect(spy.resets, 1);
+    });
+
+    test('a refresh that falls back (« Réessayer », a refresh): the per-salon '
+        'stores are emptied', () async {
+      final p = await signIn();
+      expect(await p.switchSalon('provider2'), isTrue);
+      final spy = ProSalonScope.track(_ResetSpy());
+
+      // Revoked from provider2; the default salon then answers.
+      pro.script.add(_Pro.forbidden());
+      await p.refreshMembership();
+
+      expect(p.activeSalonId, 'provider1');
+      expect(spy.resets, 1);
+    });
+
+    test(
+      'CONTROL — a refresh that does not fall back resets nothing',
+      () async {
+        final p = await signIn();
+        expect(await p.switchSalon('provider2'), isTrue);
+        final spy = ProSalonScope.track(_ResetSpy());
+
+        await p.refreshMembership();
+
+        expect(p.activeSalonId, 'provider2');
+        expect(spy.resets, 0);
+      },
+    );
 
     test('R6 fallback at cold start whose refetch fails: the cached facts '
         'are the lost selection\'s, so they do not answer', () async {
