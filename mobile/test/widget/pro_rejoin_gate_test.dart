@@ -16,6 +16,7 @@ import 'package:myweli/providers/pro_auth_provider.dart';
 import 'package:myweli/providers/pro_team_provider.dart';
 import 'package:myweli/screens/provider/auth/pro_login_screen.dart';
 import 'package:myweli/screens/provider/team/pro_invitations_screen.dart';
+import 'package:myweli/services/api/api_errors.dart';
 import 'package:myweli/services/mock/mock_auth_service.dart';
 import 'package:myweli/services/mock/mock_data.dart';
 import 'package:myweli/services/mock/mock_device_registration_service.dart';
@@ -257,7 +258,10 @@ void main() {
   testWidgets('S4 — « Rejoindre » offline: « Pas de connexion. Réessayez. », '
       'the card stays and answers again', (tester) async {
     await reachGate(tester);
-    team.acceptAnswer = ApiResponse.error('Pas de connexion. Réessayez.');
+    // What every API service answers offline — WITH its code. Scripted as
+    // the bare sentence, this test passed while a phone said « Invitation
+    // impossible à accepter. » (pro-app-batch7.md §11).
+    team.acceptAnswer = networkError();
 
     await tester.tap(find.text('Rejoindre'));
     await settle(tester, steps: 2);

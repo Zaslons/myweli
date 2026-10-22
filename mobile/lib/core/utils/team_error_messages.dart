@@ -76,3 +76,34 @@ const String demoAccountLockedMessage =
 /// per-day invite cap that shares the machine code.
 const String resendBudgetExhaustedMessage =
     'Budget de renvois épuisé pour cette invitation.';
+
+/// « Rejoindre » refused, when no code says more.
+const String invitationAcceptFailedMessage =
+    'Invitation impossible à accepter.';
+
+/// « Refuser » refused, when no code says more.
+const String invitationDeclineFailedMessage = 'Refus impossible.';
+
+/// A refused accept or decline, in the INVITEE's words — the web's
+/// `invitationActionError`, code for code (pro-rejoin-gate.md S5, S7), shared
+/// by the « Invitations » screen, the rejoin gate and the « Accueil » /
+/// « Journée » card (pro-app-batch7.md §2.6).
+///
+/// - `network` — no answer at all — is the offline sentence (S4). It used to
+///   fall to [failed]: every API service sends that code, and only the tests
+///   scripted the sentence without it.
+/// - `forbidden` here is the server's address check (T37), where
+///   [teamErrorMessage] would tell an invitee the action is the owner's
+///   (G12) — so [failed].
+/// - A code the table does not know (a 5xx's `internal_error`) is [failed],
+///   never the generic sentence; with no code, the service's own [message].
+String invitationActionError({
+  required String? code,
+  required String? message,
+  required String failed,
+}) => switch (code) {
+  null => message ?? failed,
+  'network' => kNoConnectionMessage,
+  'forbidden' => failed,
+  _ => teamErrorMessage(code, fallback: failed),
+};
