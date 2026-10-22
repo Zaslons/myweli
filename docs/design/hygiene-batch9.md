@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Statut** | **Validé le 2026-10-22** — relu sur main (`d1e886e1`). Q1 (décision 33) : **le type `SalonId`** (« ce qui vaut le mieux à long terme ») ; Q2 (décision 34) : **e-mail et poussée Sentry** ; Q3 (décision 34) : **pas de suivi des performances pour l'instant** ; Q4 (décision 35) : **pas d'interrupteur** ; Q5 : **construire les trois composants et migrer tous les écrans maintenant** ; Q6 : **les pages publiques lèvent** ; Q7 : **supprimer la table avec ce lot** ; Q8 : **le reste tel qu'écrit**. Huit PR (§3). |
+| **Statut** | **Validé le 2026-10-22** — relu sur main (`d1e886e1`). Q1 (décision 33) : **le type `SalonId`** (« ce qui vaut le mieux à long terme ») ; Q2 (décision 34) : **e-mail et poussée Sentry** ; Q3 (décision 34) : **pas de suivi des performances pour l'instant** ; Q4 (décision 35) : **pas d'interrupteur** ; Q5 : **construire les trois composants et migrer tous les écrans maintenant** ; Q6 : **les pages publiques lèvent** ; Q7 : **supprimer la table avec ce lot** ; Q8 : **le reste tel qu'écrit**. Huit PR (§3). **PR A construite le 2026-10-22** sur `feat/batch9-hygiene` (#688 — B9.1, B9.5 — §9). |
 | **Owner** | Sadreddine |
 | **Last updated** | 2026-10-22 |
 | **PRD ref / phase** | V1 — rien de visible n'est ajouté ; ce lot rend vrais les documents, les doublures de test, les lectures et les outils |
@@ -237,3 +237,34 @@ correction par rapport au BACKLOG :
 **Décisions (2026-10-22).** Q2, Q3, Q4, Q6, Q7, Q8 : les recommandations.
 Q1 : « ce qui vaut le mieux à long terme » — le type `SalonId` (§2.8, PR H).
 Q5 : la recommandation — tout migrer maintenant (§2.7).
+
+## 9. PR A construite (B9.1, B9.5) — ce qui a été vu
+
+**Comme écrit**, avec ces écarts, chacun vu en route :
+- **Le journal** : **33** entrées 🟡, pas quatorze. Chacune est lue depuis
+  git : la PR qui l'a ajoutée, si sa fusion est dans le build 587 (`main`
+  à `e105aabd`), si sa part serveur est dans une image déployée.
+  - **20 passent à 🟢** : fusionnées, et en ligne ou dans le 587.
+  - **13 restent 🟡**, avec la vraie raison : leur part app part avec 0.0.2.
+  - Les vérifications sur appareil renvoient à B0.2 ; la clé de carte du
+    web reste hors de Vercel, exprès (map-basemap-key.md §7) — l'entrée ne
+    le dit plus « à faire ».
+  - **Vu au passage** : l'entrée du déploiement du lot 8 portait ✅ ; la
+    règle du dossier est 🟢.
+- **Les specs** : huit lignes de statut et cinq lignes de l'index disent
+  « fusionnée », chaque PR vérifiée fusionnée — et sur quelles surfaces,
+  pour dire juste « le web en ligne, l'app avec 0.0.2 ».
+- **LAUNCH.md et app-store-forms.md** : des notes datées du 2026-10-22 plutôt
+  qu'une histoire réécrite.
+  - **Le déploiement de la voie compagnon avant la soumission** est lu dans
+    l'historique des déploiements : celui de production du 2026-10-07 part
+    d'un `main` qui contient #551.
+  - **Ce qu'App Store Connect seul peut dire** (l'issue de la DSA, ce que dit
+    l'étiquette de confidentialité, les essais du jour de la soumission)
+    reste marqué « à relire au lot 10 », pas deviné.
+- **B9.5** : rien à construire ; la case « à voir » est dans le BACKLOG.
+
+**Vérifié** : le test du document de lancement et les tests
+d'infrastructure du serveur passent ; `tool/roadmap-log.sh` rend le journal
+entier.
+
