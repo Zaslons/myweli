@@ -330,5 +330,20 @@ void main() {
       expect(member, isNotNull);
       expect(p.invitationCount, 0);
     });
+
+    // pro-app-batch7.md §2.6 (B7.6): the card reads the list whenever it was
+    // emptied and not read since — a salon switch empties it.
+    test('invitationsAsked: false at first and after a reset, true once '
+        'asked or seeded', () async {
+      final p = ProTeamProvider();
+      expect(p.invitationsAsked, isFalse);
+      final load = p.loadMyInvitations();
+      expect(p.invitationsAsked, isTrue, reason: 'asked as the read starts');
+      await load;
+      p.resetForSalonSwitch();
+      expect(p.invitationsAsked, isFalse);
+      p.seedMyInvitations(const []);
+      expect(p.invitationsAsked, isTrue);
+    });
   });
 }

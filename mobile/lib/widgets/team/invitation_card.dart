@@ -48,12 +48,19 @@ class InvitationCard extends StatelessWidget {
     required this.onAccept,
     required this.onDecline,
     this.busy = false,
+    this.locked = false,
   });
 
   final TeamInvitation invitation;
   final VoidCallback onAccept;
   final VoidCallback onDecline;
+
+  /// This card's answer is out: « Rejoindre » spins, both buttons wait.
   final bool busy;
+
+  /// Another card's answer is out: both buttons wait, without a spinner — one
+  /// answer at a time (pro-app-batch7.md §2.6, as the web's card).
+  final bool locked;
 
   @override
   Widget build(BuildContext context) {
@@ -119,7 +126,7 @@ class InvitationCard extends StatelessWidget {
               final join = AppButton(
                 text: 'Rejoindre',
                 isLoading: busy,
-                onPressed: busy ? null : onAccept,
+                onPressed: busy || locked ? null : onAccept,
               );
               // Side by side while « Rejoindre » can sit WHOLE beside
               // « Refuser »; otherwise stacked, each full width. §13.3: a
@@ -148,7 +155,7 @@ class InvitationCard extends StatelessWidget {
                       text: 'Refuser',
                       type: AppButtonType.text,
                       isFullWidth: false,
-                      onPressed: busy ? null : onDecline,
+                      onPressed: busy || locked ? null : onDecline,
                     ),
                   ],
                 );
@@ -161,7 +168,7 @@ class InvitationCard extends StatelessWidget {
                   AppButton(
                     text: 'Refuser',
                     type: AppButtonType.text,
-                    onPressed: busy ? null : onDecline,
+                    onPressed: busy || locked ? null : onDecline,
                   ),
                 ],
               );

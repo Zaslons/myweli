@@ -789,7 +789,12 @@ class ApiProService implements ProServiceInterface {
     );
     if (res == null) return networkError();
     if (res.statusCode != 200) return _refused(res);
-    return ApiResponse.success(EarningsData.fromJson(_decode(res.body)));
+    // Read by the « Revenus » screen and the export: a body without its
+    // parts is `unreadable`, never a throw nor « nothing earned » (B7.8).
+    return readOrUnreadable(
+      res,
+      (json) => EarningsData.fromJson(json! as Map<String, dynamic>),
+    );
   }
 
   @override

@@ -1,0 +1,13 @@
+- 🟡 **L'app Pro rattrape le web : les invitations sur « Accueil » et la « Journée », les revenus dans « Mes données » (app, 2026-10-22 — construit ; part avec la prochaine version).** ([pro-app-batch7.md](../../design/pro-app-batch7.md) §11) Le lot 7 du [BACKLOG](../../BACKLOG.md), PR C (B7.6, B7.8 ; décision 23). Le lot 7 est complet.
+  - **Avant** :
+    - une invitation en attente n'apparaissait que dans Profil, sur une ligne ;
+    - hors connexion, les écrans d'invitation disaient « Invitation impossible à accepter. » ;
+    - un « Rejoindre » ne rechargeait « Mes salons » qu'à la sortie de la porte ;
+    - l'export de l'app n'avait pas les revenus, et lisait une réponse sans transactions comme « rien gagné ».
+  - **Ce qui change** :
+    - la carte « Invitations d'équipe » du web, avec « Rejoindre » et « Refuser », en haut d'« Accueil » et de la « Journée » du collaborateur ;
+    - « Pas de connexion. Réessayez. » hors connexion, sur les trois écrans d'invitation ;
+    - « Mes salons » rechargé après chaque adhésion, même pendant un chargement ;
+    - les autres cartes attendent pendant une réponse ;
+    - les revenus dans l'export, à la forme du web, et « Revenus » dans le récapitulatif ; une réponse sans transactions refuse l'export.
+  - **Gardes** : les tests rouges d'abord ; 29 mutations vues rouges, dont trois qui ont d'abord survécu et ont reçu leur test ; une relecture du code qui a trouvé une course (la carte lisait avant la remise à zéro) ; « Accueil » mesuré à 200 % avec une invitation ; les suites entières.

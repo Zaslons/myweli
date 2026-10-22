@@ -7,6 +7,7 @@ import '../../../core/theme/colors.dart';
 import '../../../core/theme/text_styles.dart';
 import '../../../core/utils/team_error_messages.dart';
 import '../../../models/team_invitation.dart';
+import '../../../models/team_member.dart';
 import '../../../providers/pro_auth_provider.dart';
 import '../../../providers/pro_team_provider.dart';
 import '../../../widgets/common/app_snack_bar.dart';
@@ -68,38 +69,35 @@ class _ProInvitationsScreenState extends State<ProInvitationsScreen> {
     }
   }
 
-  static const _acceptFailed = 'Invitation impossible à accepter.';
-  static const _declineFailed = 'Refus impossible.';
-
-  /// A refused accept or decline, in the INVITEE's words — the web's
-  /// `invitationActionError`, code for code (S5, S7). `forbidden` here is
-  /// the server's address check (T37), where `teamErrorMessage` would tell an
-  /// invitee the action is reserved to the salon's owner (G12); a code the
-  /// table does not know (a 5xx's `internal_error`) is the action's own line,
-  /// not the generic sentence. With no code the service's own sentence
-  /// stands — « Pas de connexion. Réessayez. » offline (S4).
-  String _actionError(ProTeamProvider team, String failed) {
-    final code = team.actionErrorCode;
-    if (code == null) return team.actionError ?? failed;
-    if (code == 'forbidden') return failed;
-    return teamErrorMessage(code, fallback: failed);
-  }
+  /// A refused accept or decline, in the invitee's words
+  /// ([invitationActionError]).
+  String _actionError(ProTeamProvider team, String failed) =>
+      invitationActionError(
+        code: team.actionErrorCode,
+        message: team.actionError,
+        failed: failed,
+      );
 
   Future<void> _accept(TeamInvitation invitation) async {
-    // One answer at a time: only the tapped card shows it is busy.
+    // One answer at a time: the tapped card shows it is busy, the others
+    // wait ([InvitationCard.locked]).
     if (_busyId != null) return;
     final team = context.read<ProTeamProvider>();
     final messenger = ScaffoldMessenger.of(context);
     setState(() => _busyId = invitation.id);
     if (_gate) return _acceptOnGate(invitation, team, messenger);
-    final member = await team.acceptMyInvitation(invitation.id);
+    // Nullable: this screen's own tests mount it without a session.
+    final auth = context.read<ProAuthProvider?>();
+    Future<TeamMember?> accept() => team.acceptMyInvitation(invitation.id);
+    // Through the session, which reloads « Mes salons » on a join (B7.6).
+    final member = await (auth?.acceptInvitation(accept) ?? accept());
     if (!mounted) return;
     setState(() => _busyId = null);
     AppSnackBar.outcomeOn(
       messenger,
       ok: member != null,
       success: 'Vous avez rejoint ${invitation.salonName}',
-      error: _actionError(team, _acceptFailed),
+      error: _actionError(team, invitationAcceptFailedMessage),
     );
   }
 
@@ -131,7 +129,7 @@ class _ProInvitationsScreenState extends State<ProInvitationsScreen> {
     }
     if (!mounted) return;
     if (await _leaveIfSignedOut(team, auth, messenger)) return;
-    final error = _actionError(team, _acceptFailed);
+    final error = _actionError(team, invitationAcceptFailedMessage);
     if (team.myInvitations.isNotEmpty) {
       setState(() => _busyId = null);
       AppSnackBar.showOn(messenger, error, kind: SnackKind.error);
@@ -161,7 +159,7 @@ class _ProInvitationsScreenState extends State<ProInvitationsScreen> {
       setState(() => _busyId = null);
       AppSnackBar.showOn(
         messenger,
-        _actionError(team, _declineFailed),
+        _actionError(team, invitationDeclineFailedMessage),
         kind: SnackKind.error,
       );
     } else if (_gate && team.myInvitations.isEmpty) {
@@ -297,6 +295,8 @@ class _ProInvitationsScreenState extends State<ProInvitationsScreen> {
   Widget _card(TeamInvitation invitation) => InvitationCard(
     invitation: invitation,
     busy: _busyId == invitation.id,
+    // One answer at a time: the other cards wait too, visibly.
+    locked: _busyId != null,
     onAccept: () => _accept(invitation),
     onDecline: () => _decline(invitation.id),
   );

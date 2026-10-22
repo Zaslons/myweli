@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -15,12 +16,14 @@ import '../../../core/utils/status_labels.dart';
 import '../../../models/appointment.dart';
 import '../../../providers/pro_auth_provider.dart';
 import '../../../providers/pro_journal_provider.dart';
+import '../../../providers/pro_team_provider.dart';
 import '../../../widgets/common/app_snack_bar.dart';
 import '../../../widgets/common/brand_refresh.dart';
 import '../../../widgets/common/empty_state.dart';
 import '../../../widgets/common/loading_indicator.dart';
 import '../../../widgets/common/myweli_date_picker.dart';
 import '../../../widgets/common/myweli_date_time_picker.dart';
+import '../../../widgets/team/pro_invitations_card.dart';
 
 /// « Ma journée » — the pro-app day timeline (module `journal` J1b,
 /// docs/design/journal-j1b-app.md). Mobile-first equivalent of the web grid:
@@ -166,17 +169,38 @@ class _ProJournalScreenState extends State<ProJournalScreen> {
       );
     }
     final items = journal.visibleAppointments;
+    // The Collaborateur's « Journée » is their landing screen: their own
+    // invitations sit at the top of the day, as on « Accueil » — and only
+    // there, the salon's « Ma journée » is opened from « Accueil », which
+    // has them (pro-app-batch7.md §2.6, B7.6).
+    final invitations = _ownMode;
     return BrandRefresh(
-      onRefresh: journal.refresh,
+      onRefresh: () async {
+        if (invitations) {
+          unawaited(context.read<ProTeamProvider>().loadMyInvitations());
+        }
+        await journal.refresh();
+      },
       // One control for a new booking: the floating « Nouveau » (decision
       // 25). The empty state's own « + Nouvelle réservation » pushed the same
       // route, and at 200 % the two touched (B7.4, SYSTEM §21 row 81).
       child: items.isEmpty
           ? ListView(
               padding: const EdgeInsets.only(bottom: AppTheme.fabClearance),
-              children: const [
-                SizedBox(height: AppTheme.spacingXXXL),
-                EmptyState(
+              children: [
+                if (invitations)
+                  // Its own padding, not a wrapper's: a day with no
+                  // invitation keeps no strip of it.
+                  const ProInvitationsCard(
+                    padding: EdgeInsets.fromLTRB(
+                      AppTheme.spacingM,
+                      AppTheme.spacingS,
+                      AppTheme.spacingM,
+                      0,
+                    ),
+                  ),
+                const SizedBox(height: AppTheme.spacingXXXL),
+                const EmptyState(
                   icon: Icons.event_available,
                   title: 'Aucun rendez-vous ce jour',
                 ),
@@ -189,7 +213,10 @@ class _ProJournalScreenState extends State<ProJournalScreen> {
                 AppTheme.spacingM,
                 AppTheme.fabClearance,
               ),
-              children: _rows(journal, items),
+              children: [
+                if (invitations) const ProInvitationsCard(),
+                ..._rows(journal, items),
+              ],
             ),
     );
   }

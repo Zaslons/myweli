@@ -68,10 +68,14 @@ class EarningsData {
     this.currency,
   });
 
+  /// Strict, as #630's rule asks: the server always sends `totalEarnings`
+  /// and the `transactions` list, so a body without them throws — read as
+  /// `unreadable` by the service — rather than standing for a salon that
+  /// earned nothing (docs/design/pro-app-batch7.md §2.8, B7.8).
   factory EarningsData.fromJson(Map<String, dynamic> json) => EarningsData(
     totalEarnings: (json['totalEarnings'] as num).toDouble(),
     currency: json['currency'] as String?,
-    transactions: ((json['transactions'] as List?) ?? const [])
+    transactions: (json['transactions'] as List)
         .map((e) => EarningsTransaction.fromJson(e as Map<String, dynamic>))
         .toList(),
   );

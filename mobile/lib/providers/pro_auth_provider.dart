@@ -161,6 +161,10 @@ class ProAuthProvider extends ChangeNotifier {
 
   bool _loadingSalons = false;
 
+  /// A join landed while a load was out ([acceptInvitation]): that load may
+  /// have been answered before the join, so one more runs after it.
+  bool _salonsAgain = false;
+
   /// Refresh « Mes salons » (best-effort — the switcher opens on cached
   /// data and refreshes in place).
   Future<void> loadMySalons() async {
@@ -177,6 +181,10 @@ class ProAuthProvider extends ChangeNotifier {
       /* keep the cached list */
     } finally {
       _loadingSalons = false;
+      if (_salonsAgain) {
+        _salonsAgain = false;
+        unawaited(loadMySalons());
+      }
     }
   }
 
@@ -531,6 +539,7 @@ class ProAuthProvider extends ChangeNotifier {
     _market = null;
     _salons = const [];
     _canAddSalon = false;
+    _salonsAgain = false;
     // No store's reset reloads anything, so the selection cleared just
     // below (after an await) is not read in between.
     ProSalonScope.resetAll();
@@ -620,6 +629,26 @@ class ProAuthProvider extends ChangeNotifier {
     } finally {
       _accepting = false;
     }
+  }
+
+  /// An invitation accepted from inside a salon — Profil → Invitations, the
+  /// « Accueil » and « Journée » card: the account belongs to one more salon,
+  /// so « Mes salons » reloads. Before, only the rejoin gate's way out did,
+  /// and the switcher missed the joined salon until its next load
+  /// (docs/design/pro-app-batch7.md §2.6, B7.6).
+  Future<TeamMember?> acceptInvitation(
+    Future<TeamMember?> Function() accept,
+  ) async {
+    final joined = await accept();
+    if (joined != null) {
+      // A load already out keeps its place; this one runs after it.
+      if (_loadingSalons) {
+        _salonsAgain = true;
+      } else {
+        unawaited(loadMySalons());
+      }
+    }
+    return joined;
   }
 
   /// Leaves the gate into the joined salon: a refresh started before the
@@ -1090,6 +1119,7 @@ class ProAuthProvider extends ChangeNotifier {
       _selectedSalonId = null;
       _salons = const [];
       _canAddSalon = false;
+      _salonsAgain = false;
       _clearRejoin();
       _error = null;
     } catch (e) {
