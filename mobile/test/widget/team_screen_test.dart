@@ -135,6 +135,24 @@ void main() {
     await settle(tester);
     await settle(tester);
     expect(find.text('Accès révoqué'), findsOneWidget);
+
+    // B7.5 — a revoked row is inert, as on the web: no chevron, no sheet
+    // (its only action, « Changer le rôle », the server refuses with 409).
+    final revokedRow = find.ancestor(
+      of: find.text('awa.manager@myweli.test'),
+      matching: find.byType(ListTile),
+    );
+    expect(tester.widget<ListTile>(revokedRow).onTap, isNull);
+    expect(
+      find.descendant(
+        of: revokedRow,
+        matching: find.byIcon(Icons.chevron_right),
+      ),
+      findsNothing,
+    );
+    await tester.tap(find.text('awa.manager@myweli.test'));
+    await settle(tester);
+    expect(find.text('Changer le rôle'), findsNothing);
   });
 
   testWidgets('a pending row offers « Renvoyer l’invitation » with the '

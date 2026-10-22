@@ -23,6 +23,8 @@ String teamErrorMessage(String? code, {String? fallback}) => switch (code) {
   'invite_rate_limited' =>
     'Trop d’invitations envoyées aujourd’hui. Réessayez demain.',
   'owner_protected' => 'Le propriétaire ne peut pas être modifié.',
+  // A revoked member's role (409 — docs/design/pro-app-batch7.md §2.5).
+  'member_revoked' => 'Ce membre n’a plus accès au salon.',
   'invitation_expired' =>
     'Cette invitation a expiré. Demandez au salon de la renvoyer.',
   'invalid_role' => 'Rôle invalide.',

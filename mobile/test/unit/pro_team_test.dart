@@ -196,6 +196,18 @@ void main() {
       );
     });
 
+    test('a revoked member\'s role cannot change → member_revoked, as the '
+        'server answers 409 (B7.5)', () async {
+      final svc = MockProTeamService();
+      expect((await svc.revokeMember('mem_manager1')).success, isTrue);
+      final res = await svc.changeRole(
+        'mem_manager1',
+        role: TeamRole.reception,
+      );
+      expect(res.code, 'member_revoked');
+      expect(res.error, 'Ce membre n’a plus accès au salon.');
+    });
+
     test('changeRole to staff requires a valid fiche; updates land', () async {
       final svc = MockProTeamService();
       expect(
