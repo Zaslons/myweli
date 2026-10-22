@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 
 import '../../../core/config/feature_flags.dart';
 import '../../../core/forms/field_errors.dart';
+import '../../../core/forms/sign_in_refusal.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/colors.dart';
 import '../../../core/theme/text_styles.dart';
@@ -17,6 +18,7 @@ import '../../../widgets/common/apple_logo.dart';
 import '../../../widgets/common/auth_switch_prompt.dart';
 import '../../../widgets/common/commune_picker_sheet.dart';
 import '../../../widgets/common/google_g_logo.dart';
+import '../../../widgets/common/inline_feedback.dart';
 import '../../../widgets/common/legal_consent_text.dart';
 import '../../../widgets/common/phone_number_field.dart';
 
@@ -152,7 +154,10 @@ class _ProRegisterScreenState extends State<ProRegisterScreen> {
   /// `invalid_input`, shared with the name and the type, and read « Numéro ou
   /// code invalide. » under the buttons. It is `invalid_phone` now
   /// (phone-leftovers.md §2).
-  void _afterRegister(bool ok, ProAuthProvider auth) {
+  ///
+  /// [withCode] is the e-mail path: its code's refusals go under the code
+  /// (sign_in_refusal.dart). Google and Apple have no code field.
+  void _afterRegister(bool ok, ProAuthProvider auth, {bool withCode = false}) {
     if (!mounted) return;
     if (ok) {
       _finish();
@@ -163,7 +168,23 @@ class _ProRegisterScreenState extends State<ProRegisterScreen> {
         () => _errors.set('phone', 'Saisissez un numéro de téléphone valide.'),
       );
       focusFirstError(_errors, _focusNodes);
+      return;
     }
+    final fault = withCode ? codeFieldFault(auth.errorCode) : null;
+    if (fault != null) {
+      setState(() => _errors.set('code', fault));
+      focusFirstError(_errors, _focusNodes);
+    }
+  }
+
+  /// What the form says under itself: the refusal, unless it belongs to a
+  /// field on screen — the number, the code once sent, the e-mail.
+  String? _formFault(ProAuthProvider auth) {
+    final code = auth.errorCode;
+    if (code == 'invalid_phone') return null;
+    if (_codeSent && codeFieldFault(code) != null) return null;
+    if (emailFieldFault(code) != null) return null;
+    return auth.error;
   }
 
   Future<void> _handleGoogle() async {
@@ -204,8 +225,17 @@ class _ProRegisterScreenState extends State<ProRegisterScreen> {
     if (ok) {
       setState(() {
         _codeController.clear();
+        // A new code: the last one's fault is not this one's.
+        _errors.set('code', null);
         _codeSent = true;
       });
+      return;
+    }
+    // The e-mail field stays on screen on the code step: its fault is its.
+    final fault = emailFieldFault(auth.errorCode);
+    if (fault != null) {
+      setState(() => _errors.set('email', fault));
+      focusFirstError(_errors, _focusNodes);
     }
   }
 
@@ -221,7 +251,7 @@ class _ProRegisterScreenState extends State<ProRegisterScreen> {
       address: _addressController.text.trim(),
       areaId: _areaId,
     );
-    _afterRegister(ok, auth);
+    _afterRegister(ok, auth, withCode: true);
   }
 
   @override
@@ -492,18 +522,10 @@ class _ProRegisterScreenState extends State<ProRegisterScreen> {
                   onPressed: auth.isLoading ? null : _sendCodeChecked,
                 ),
               ],
-              // A refused NUMBER is under its field (`_afterRegister`), not
-              // here as well.
-              if (auth.error != null && auth.errorCode != 'invalid_phone') ...[
-                const SizedBox(height: AppTheme.spacingSM),
-                Text(
-                  auth.error!,
-                  style: AppTextStyles.bodySmall.copyWith(
-                    color: AppColors.error,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-              ],
+              // A refused number, code or e-mail is under its field, not here
+              // as well. §14 + §15: the form's outcome is `InlineFeedback`, a
+              // live region — the red Text it replaces was not.
+              InlineFeedback(_formFault(auth)),
               const SizedBox(height: AppTheme.spacingM),
               AuthSwitchPrompt(
                 question: 'Déjà un compte ?',

@@ -9,6 +9,7 @@ import 'package:provider/provider.dart';
 import '../../../core/config/feature_flags.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../core/forms/field_errors.dart';
+import '../../../core/forms/sign_in_refusal.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/colors.dart';
 import '../../../core/theme/text_styles.dart';
@@ -201,10 +202,29 @@ class _ProLoginScreenState extends State<ProLoginScreen> {
     if (ok) {
       setState(() {
         _codeController.clear();
+        // A new code: the last one's fault is not this one's.
+        _errors.set('code', null);
         _step = _Step.code;
       });
       _startCooldown();
+      return;
     }
+    // The e-mail's fault under the e-mail — when it is on screen; « Renvoyer
+    // le code » is on the code step, where it is the form's.
+    final fault = emailFieldFault(auth.errorCode);
+    if (fault != null && _step == _Step.options) {
+      setState(() => _errors.set('email', fault));
+      focusFirstError(_errors, _focusNodes);
+    }
+  }
+
+  /// What the form says under itself: the refusal, unless it belongs to a
+  /// field on screen (sign_in_refusal.dart — the web's table).
+  String? _formFault(ProAuthProvider auth) {
+    final code = auth.errorCode;
+    if (_step == _Step.code && codeFieldFault(code) != null) return null;
+    if (_step == _Step.options && emailFieldFault(code) != null) return null;
+    return auth.error;
   }
 
   Future<void> _verifyCode() async {
@@ -218,7 +238,14 @@ class _ProLoginScreenState extends State<ProLoginScreen> {
       _emailController.text.trim(),
       _codeController.text.trim(),
     );
-    if (mounted) _land(ok);
+    if (!mounted) return;
+    // « Code incorrect. » is the code's: under the code (SYSTEM §14 rule 1).
+    final fault = ok ? null : codeFieldFault(auth.errorCode);
+    if (fault != null) {
+      setState(() => _errors.set('code', fault));
+      focusFirstError(_errors, _focusNodes);
+    }
+    _land(ok);
   }
 
   @override
@@ -406,7 +433,7 @@ class _ProLoginScreenState extends State<ProLoginScreen> {
               ],
               // §14 rule 3 + §15: a server OUTCOME is form-level, and
               // `InlineFeedback` is a live region — a red Text never was.
-              InlineFeedback(auth.error),
+              InlineFeedback(_formFault(auth)),
               if (notFound) ...[
                 const SizedBox(height: AppTheme.spacingS),
                 AppButton(
