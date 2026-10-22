@@ -109,6 +109,10 @@ void main() {
   Future<void> submitCode(WidgetTester tester, String code) async {
     await tester.enterText(input('Code à 6 chiffres'), code);
     await tester.pump();
+    // The keyboard dismissed before the press, as a user does: the field
+    // keeps no focus of its own, so a fault that takes it is seen taking it.
+    FocusManager.instance.primaryFocus?.unfocus();
+    await tester.pump();
     await tester.tap(find.text('Se connecter'));
     await settle(tester);
   }

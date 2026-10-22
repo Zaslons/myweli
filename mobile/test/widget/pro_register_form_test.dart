@@ -505,10 +505,26 @@ void main() {
     refusedBy('otp_invalid', 'Code incorrect.');
     await reachCodeStep(tester);
     await type(tester, 'Code à 6 chiffres', '123456');
+    // The keyboard dismissed before the press, as a user does.
+    FocusManager.instance.primaryFocus?.unfocus();
+    await tester.pump();
     await tester.tap(find.text('S’inscrire'));
     await settle(tester);
 
     expect(auth.refused, 1);
+    expect(
+      tester
+          .widget<EditableText>(
+            find.descendant(
+              of: fieldLabelled('Code à 6 chiffres'),
+              matching: find.byType(EditableText),
+            ),
+          )
+          .focusNode
+          .hasFocus,
+      isTrue,
+      reason: 'the refused field takes the focus back (§14)',
+    );
     expect(
       find.descendant(
         of: fieldLabelled('Code à 6 chiffres'),

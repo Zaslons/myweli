@@ -347,6 +347,9 @@ void main() {
         code,
       );
       await tester.pump();
+      // The keyboard dismissed before the press, as a user does.
+      FocusManager.instance.primaryFocus?.unfocus();
+      await tester.pump();
       await tester.tap(find.text('Se connecter'));
       await settle(tester);
     }
@@ -360,6 +363,19 @@ void main() {
       expect(under('Code à 6 chiffres', 'Code incorrect.'), findsOneWidget);
       expect(underTheForm('Code incorrect.'), findsNothing);
       expect(find.text('HOME'), findsNothing);
+      expect(
+        tester
+            .widget<EditableText>(
+              find.descendant(
+                of: field('Code à 6 chiffres'),
+                matching: find.byType(EditableText),
+              ),
+            )
+            .focusNode
+            .hasFocus,
+        isTrue,
+        reason: 'the refused field takes the focus back (§14)',
+      );
 
       await tester.enterText(
         find.descendant(
