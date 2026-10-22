@@ -591,8 +591,11 @@ const _reviewedProviderIdReads = <String, ({int reads, String why})>{
   // account's default → the membership's salon), and `can`'s fallback for a
   // linked owner before any membership has loaded.
   'lib/providers/pro_auth_provider.dart · _provider': (
-    reads: 2,
-    why: 'the activeSalonId resolver and the pre-membership owner fallback',
+    reads: 3,
+    why:
+        'the activeSalonId resolver, the pre-membership owner fallback, and '
+        'ownsASalon — whether the account OWNS a salon (its linked one), '
+        'which the deletion removes; never which salon to act in (B7.3)',
   ),
   // A booking's salon (Appointment.providerId).
   'lib/screens/home/home_screen.dart · a': (
