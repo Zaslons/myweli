@@ -9,6 +9,7 @@ import 'package:myweli/screens/provider/auth/pro_register_screen.dart';
 import 'package:myweli/services/mock/mock_auth_service.dart';
 import 'package:myweli/services/mock/mock_data.dart';
 import 'package:myweli/services/mock/mock_pro_service.dart';
+import 'package:myweli/widgets/common/inline_feedback.dart';
 import 'package:myweli/widgets/common/phone_number_field.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -57,6 +58,7 @@ void main() {
 
   setUp(() async {
     auth.refusal = null;
+    auth.sendRefusal = null;
     // `_createProvider` appends to the shared mock list; a leftover account
     // would answer the next register with `provider_exists`.
     MockData.providerUsers.removeWhere((p) => p.email == _email);
@@ -487,12 +489,90 @@ void main() {
       reason: 'only `invalid_phone` is the phone field\'s fault',
     );
   });
+
+  // docs/design/hygiene-batch9.md §2.6 (B9.7) — the sign-up shares the
+  // sign-in's table (sign_in_refusal.dart; the web's, web-client-polish.md
+  // §2.1): the code's refusal under the code, the e-mail's under the e-mail,
+  // the rest under the form — in `InlineFeedback`, a live region, where a red
+  // Text used to be.
+  Finder underTheForm(String message) => find.descendant(
+    of: find.byType(InlineFeedback),
+    matching: find.text(message),
+  );
+
+  testWidgets('a wrong code is said under « Code à 6 chiffres », not under '
+      'the form', (tester) async {
+    refusedBy('otp_invalid', 'Code incorrect.');
+    await reachCodeStep(tester);
+    await type(tester, 'Code à 6 chiffres', '123456');
+    await tester.tap(find.text('S’inscrire'));
+    await settle(tester);
+
+    expect(auth.refused, 1);
+    expect(
+      find.descendant(
+        of: fieldLabelled('Code à 6 chiffres'),
+        matching: find.text('Code incorrect.'),
+      ),
+      findsOneWidget,
+    );
+    expect(underTheForm('Code incorrect.'), findsNothing);
+    expect(find.text('DASHBOARD'), findsNothing);
+  });
+
+  testWidgets('an address the server refuses is said under the e-mail', (
+    tester,
+  ) async {
+    auth.sendRefusal = (code: 'invalid_email', message: 'E-mail invalide.');
+    await openForm(tester);
+    await fillBusinessBlock(tester);
+    await type(tester, 'Votre e-mail', _email);
+    await tester.tap(find.text('Recevoir un code'));
+    await settle(tester);
+
+    expect(
+      find.descendant(
+        of: fieldLabelled('Votre e-mail'),
+        matching: find.text('Saisissez une adresse e-mail valide.'),
+      ),
+      findsOneWidget,
+    );
+    expect(find.text('E-mail invalide.'), findsNothing);
+  });
+
+  testWidgets('a refusal that is no field\'s is said in the live region', (
+    tester,
+  ) async {
+    refusedBy('provider_exists', 'Un compte existe déjà pour ce numéro.');
+    await openForm(tester);
+    await fillBusinessBlock(tester);
+    await tester.tap(find.text('S’inscrire avec Google'));
+    await settle(tester);
+
+    expect(
+      underTheForm('Un compte existe déjà pour ce numéro.'),
+      findsOneWidget,
+      reason: 'SYSTEM §14: the form\'s outcome is `InlineFeedback`',
+    );
+  });
 }
 
 /// The mock — and, while [refusal] is set, every registration refused by the
 /// server under its code.
 class _RefusableRegistration extends MockAuthService {
   ({String code, String message})? refusal;
+
+  /// When set, « Recevoir un code » is refused by the server under that code.
+  ({String code, String message})? sendRefusal;
+
+  @override
+  Future<ApiResponse<String>> requestProviderEmailOtp(String email) async {
+    final refusing = sendRefusal;
+    if (refusing != null) {
+      return ApiResponse.error(refusing.message, code: refusing.code);
+    }
+    return super.requestProviderEmailOtp(email);
+  }
 
   /// How many registrations it refused — proof the press reached it.
   int refused = 0;
