@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:myweli/screens/admin/widgets/admin_segmented_control.dart';
 import 'package:go_router/go_router.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
@@ -91,5 +92,14 @@ void main() {
     await open(t, bySalon: false);
     expect(find.text('Injurieux'), findsOneWidget);
     expect(find.text('Signalé par le salon'), findsNothing);
+  });
+
+  testWidgets('the segments are the shared AdminSegmentedControl — one '
+      'label per segment, as the shared control reads it (B7.13)', (t) async {
+    await open(t, bySalon: false);
+    expect(find.byType(AdminSegmentedControl), findsOneWidget);
+    // The hand-rolled copy set `label:` AND drew the Text: TalkBack read
+    // « Signalés » twice.
+    expect(t.getSemantics(find.text('Signalés')).label, 'Signalés');
   });
 }

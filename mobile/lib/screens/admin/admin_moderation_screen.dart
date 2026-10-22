@@ -10,6 +10,7 @@ import '../../widgets/common/app_button.dart';
 import '../../widgets/common/app_snack_bar.dart';
 import 'widgets/admin_data_table.dart';
 import 'widgets/admin_scaffold.dart';
+import 'widgets/admin_segmented_control.dart';
 import 'widgets/reason_dialog.dart';
 import 'widgets/status_chip.dart';
 
@@ -97,11 +98,12 @@ class _AdminModerationScreenState extends State<AdminModerationScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _Segments(
+            // The shared control (B7.13): its copy here had no boundary
+            // either, and read each label twice (`label:` on top of the Text).
+            AdminSegmentedControl(
+              labels: const ['Signalés', 'Masqués'],
               selected: _segment,
               onSelect: _select,
-              reportedCount: p.reported.length,
-              hiddenCount: p.hidden.length,
             ),
             const SizedBox(height: AppTheme.spacingM),
             if (_segment == 0) _reportedTable(p) else _hiddenTable(p),
@@ -284,77 +286,4 @@ class _AdminModerationScreenState extends State<AdminModerationScreen> {
       onPressed: acting ? null : onTap,
     ),
   );
-}
-
-class _Segments extends StatelessWidget {
-  const _Segments({
-    required this.selected,
-    required this.onSelect,
-    required this.reportedCount,
-    required this.hiddenCount,
-  });
-  final int selected;
-  final ValueChanged<int> onSelect;
-  final int reportedCount;
-  final int hiddenCount;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: AppColors.surfaceVariant,
-        borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-      ),
-      padding: const EdgeInsets.all(AppTheme.spacingXS),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [_seg('Signalés', 0), _seg('Masqués', 1)],
-      ),
-    );
-  }
-
-  Widget _seg(String label, int index) {
-    final active = selected == index;
-    return Builder(
-      builder: (context) => ConstrainedBox(
-        constraints: const BoxConstraints(minHeight: 48), // §13.2 touch target
-        child: Semantics(
-          button: true,
-          selected: active,
-          inMutuallyExclusiveGroup: true,
-          label: label,
-          child: InkWell(
-            onTap: () => onSelect(index),
-            borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
-            child: Container(
-              alignment: Alignment.center,
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppTheme.spacingM,
-                vertical: AppTheme.spacingS,
-              ),
-              decoration: BoxDecoration(
-                color: active ? AppColors.secondary : Colors.transparent,
-                borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
-                border: active
-                    ? Border.all(color: AppColors.borderStrong)
-                    : null,
-              ),
-              child: Text(
-                label,
-                style:
-                    (active
-                            ? AppTextStyles.titleSmall
-                            : AppTextStyles.bodyMedium)
-                        .copyWith(
-                          color: active
-                              ? AppColors.textPrimary
-                              : AppColors.textSecondary,
-                        ),
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
 }
