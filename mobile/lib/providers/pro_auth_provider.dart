@@ -775,57 +775,6 @@ class ProAuthProvider extends ChangeNotifier {
     }
   }
 
-  Future<bool> sendOtp(String phoneNumber) async {
-    _isLoading = true;
-    _error = null;
-    notifyListeners();
-
-    try {
-      final response = await _authService.sendOtpToProvider(phoneNumber);
-      if (response.success) {
-        _error = null;
-        return true;
-      } else {
-        _error = response.error ?? 'Erreur lors de l’envoi du code';
-        return false;
-      }
-    } catch (e) {
-      _error = kGenericErrorMessage;
-      return false;
-    } finally {
-      _isLoading = false;
-      notifyListeners();
-    }
-  }
-
-  Future<bool> verifyOtp(String phoneNumber, String otp) async {
-    _isLoading = true;
-    _error = null;
-    notifyListeners();
-
-    try {
-      final response = await _authService.verifyOtpForProvider(
-        phoneNumber,
-        otp,
-      );
-      if (response.success && response.data != null) {
-        _provider = response.data;
-        _error = null;
-        _syncPush();
-        return true;
-      } else {
-        _error = response.error ?? 'Code OTP invalide';
-        return false;
-      }
-    } catch (e) {
-      _error = kGenericErrorMessage;
-      return false;
-    } finally {
-      _isLoading = false;
-      notifyListeners();
-    }
-  }
-
   // ---- Pro auth overhaul (docs/design/pro-auth-social.md) -------------------
 
   /// devCode from the last email-OTP request (dev backends only).

@@ -415,50 +415,6 @@ class ApiAuthService implements AuthServiceInterface {
     return ApiResponse.success(null, message: 'Compte supprimé');
   }
 
-  // ---- Provider auth (real backend) ----------------------------------------
-
-  @override
-  Future<ApiResponse<String>> sendOtpToProvider(String phoneNumber) async {
-    final res = await _post('/auth/provider/otp/request', {
-      'phoneNumber': phoneNumber,
-    });
-    if (res == null) return networkError();
-    if (res.statusCode == 202) {
-      final body = _decode(res.body);
-      return ApiResponse.success(
-        body['devCode'] as String? ?? '',
-        message: 'Code OTP envoyé',
-      );
-    }
-    return _refused(res);
-  }
-
-  @override
-  Future<ApiResponse<ProviderUser>> verifyOtpForProvider(
-    String phoneNumber,
-    String otp,
-  ) async {
-    final res = await _post('/auth/provider/otp/verify', {
-      'phoneNumber': phoneNumber,
-      'code': otp,
-    });
-    if (res == null) return networkError();
-    if (res.statusCode != 200) return _refused(res);
-
-    final body = _decode(res.body);
-    final provider = ProviderUser.fromJson(
-      body['provider'] as Map<String, dynamic>,
-    );
-    _currentProvider = provider;
-    _providerToken = body['accessToken'] as String;
-    await _persistProviderSession(
-      provider,
-      _providerToken!,
-      body['refreshToken'] as String?,
-    );
-    return ApiResponse.success(provider, message: 'Connexion réussie');
-  }
-
   // ---- Pro auth overhaul (docs/design/pro-auth-social.md) -------------------
 
   /// Adopt + persist a FLAT ProviderSession body ({provider, accessToken,
