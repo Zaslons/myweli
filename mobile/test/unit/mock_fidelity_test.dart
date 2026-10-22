@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:myweli/core/di/dependency_injection.dart';
 import 'package:myweli/core/utils/app_clock.dart';
@@ -456,6 +458,27 @@ void main() {
       final n1 = await jeanAddsASalon(name: 'Un');
       final n2 = await jeanAddsASalon(name: 'Deux');
       expect(n1, isNot(n2));
+    });
+
+    // The behaviour above covers the sites it calls; this covers the next
+    // one written. SYSTEM.md §21 row 43 counted six and there were twelve.
+    test('no fake builds an id from the clock', () {
+      final files = Directory('lib/services/mock')
+          .listSync()
+          .whereType<File>()
+          .where((f) => f.path.endsWith('.dart'))
+          .toList();
+      expect(files, isNotEmpty, reason: 'run from mobile/');
+      final clockId = RegExp(
+        r'\$\{AppClock\.now\(\)\.(milli|micro)secondsSinceEpoch\}',
+      );
+      final hits = [
+        for (final f in files)
+          for (final (i, line) in f.readAsLinesSync().indexed)
+            if (!line.trimLeft().startsWith('//') && clockId.hasMatch(line))
+              '${f.path}:${i + 1}',
+      ];
+      expect(hits, isEmpty, reason: 'use MockIds.next(prefix)');
     });
 
     test('two invitations: accepting the second accepts THAT one', () async {
