@@ -271,7 +271,10 @@ class _MyweliMultiDatePickerScreenState
     // taps. `isDestructive: false` — abandoning an edit is not destroying data.
     final leave = await showConfirmDialog(
       context,
-      title: 'Abandonner les modifications ?',
+      // « Abandonner les modifications ? » broke at 200 % on 360 dp even
+      // with the icon above: « modifications » alone needs 272 dp (B7.2).
+      // The message says what is abandoned.
+      title: 'Abandonner ?',
       message:
           'Les dates que vous venez de choisir ne seront pas enregistrées.',
       confirmLabel: 'Abandonner',

@@ -120,29 +120,45 @@ class WeeklyHoursEditor extends StatelessWidget {
           decoration: const BoxDecoration(
             border: Border(bottom: BorderSide(color: AppColors.divider)),
           ),
-          child: Row(
+          // One line when the day, the hours and the switch fit; else the
+          // day on its own line, the controls under it at the end. Measured
+          // by the bar itself, never by a text-size constant: at 200 % on
+          // 360 dp about 60 dp were left for the day, and « Mard/i »,
+          // « Mercred/i » broke inside the word (B7.2 —
+          // docs/design/pro-app-batch7.md §2.2).
+          child: OverflowBar(
+            alignment: MainAxisAlignment.spaceBetween,
+            overflowAlignment: OverflowBarAlignment.start,
             children: [
-              Expanded(
-                child: Text(_dayNames[day], style: AppTextStyles.bodyMedium),
-              ),
-              if (works)
-                TextButton(
-                  onPressed: () => _editRange(context, day, slot),
-                  child: Text(
-                    '${_fmt(slot.startTime)} – ${_fmt(slot.endTime)}',
-                  ),
-                )
-              else
-                Text(
-                  offLabel,
-                  style: AppTextStyles.bodySmall.copyWith(
-                    color: AppColors.textTertiary,
-                  ),
+              Text(_dayNames[day], style: AppTextStyles.bodyMedium),
+              Align(
+                alignment: AlignmentDirectional.centerEnd,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (works)
+                      TextButton(
+                        onPressed: () => _editRange(context, day, slot),
+                        child: Text(
+                          '${_fmt(slot.startTime)} – ${_fmt(slot.endTime)}',
+                        ),
+                      )
+                    else
+                      Text(
+                        offLabel,
+                        style: AppTextStyles.bodySmall.copyWith(
+                          color: AppColors.textTertiary,
+                        ),
+                      ),
+                    Switch(
+                      value: works,
+                      onChanged: (on) => _setDay(
+                        day,
+                        on ? _slot(defaultStart, defaultEnd) : null,
+                      ),
+                    ),
+                  ],
                 ),
-              Switch(
-                value: works,
-                onChanged: (on) =>
-                    _setDay(day, on ? _slot(defaultStart, defaultEnd) : null),
               ),
             ],
           ),

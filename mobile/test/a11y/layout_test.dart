@@ -405,6 +405,24 @@ void main() {
           reason: 'C: A14d\'s window card must be on screen at $at',
         );
 
+        // B7.2 — « Mard/i » broke in the pause rows at 2× on 360 dp: about
+        // 60 dp left for a day beside an hours button and a switch.
+        for (final day in const [
+          'Lundi',
+          'Mardi',
+          'Mercredi',
+          'Jeudi',
+          'Vendredi',
+          'Samedi',
+          'Dimanche',
+        ]) {
+          expectNoMidWordBreak(
+            tester,
+            day,
+            'the pro availability screen at $at',
+          );
+        }
+
         expectNoUndeclaredTruncation(
           tester,
           context: 'the pro availability screen at $at',
