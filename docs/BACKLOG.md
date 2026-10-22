@@ -110,9 +110,9 @@ Each question has a recommendation. Answers unblock the item named in brackets.
 
 **Hygiene (batch 9)**
 
-33. **Type-level `SalonId`** across about 34 salon-scoped signatures, to close a test blind spot? Or accept the documented limit? *Recommended: accept for now.* [B9.9]
-34. **Alerts:** stay with e-mail plus Sentry push, or build a WhatsApp webhook? And do you want Sentry performance monitoring (paid)? [B9.4]
-35. **Mock mode:** add a « mark read fails » switch so the revert can be shown by hand? It's already pinned by 32 tests. *Recommended: no.* [B9.6]
+33. **Type-level `SalonId`** across about 34 salon-scoped signatures, to close a test blind spot? Or accept the documented limit? *Recommended: accept for now.* [B9.9] — ✅ **Answered: build the type** (« what is better for the long term »; [hygiene-batch9.md](design/hygiene-batch9.md) Q1).
+34. **Alerts:** stay with e-mail plus Sentry push, or build a WhatsApp webhook? And do you want Sentry performance monitoring (paid)? [B9.4] — ✅ **Answered: e-mail plus Sentry push; no performance monitoring for now** (Q2, Q3).
+35. **Mock mode:** add a « mark read fails » switch so the revert can be shown by hand? It's already pinned by 32 tests. *Recommended: no.* [B9.6] — ✅ **Answered: no** (Q4).
 
 **Demo salon (batch 10)**
 
