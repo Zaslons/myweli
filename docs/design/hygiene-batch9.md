@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Statut** | **Validé le 2026-10-22** — relu sur main (`d1e886e1`). Q1 (décision 33) : **le type `SalonId`** (« ce qui vaut le mieux à long terme ») ; Q2 (décision 34) : **e-mail et poussée Sentry** ; Q3 (décision 34) : **pas de suivi des performances pour l'instant** ; Q4 (décision 35) : **pas d'interrupteur** ; Q5 : **construire les trois composants et migrer tous les écrans maintenant** ; Q6 : **les pages publiques lèvent** ; Q7 : **supprimer la table avec ce lot** ; Q8 : **le reste tel qu'écrit**. Huit PR (§3). **PR A fusionnée le 2026-10-22** (#688 — B9.1, B9.5 — §9). **PR B construite le 2026-10-22** sur `feat/batch9-mocks` (B9.6 — §10). |
+| **Statut** | **Validé le 2026-10-22** — relu sur main (`d1e886e1`). Q1 (décision 33) : **le type `SalonId`** (« ce qui vaut le mieux à long terme ») ; Q2 (décision 34) : **e-mail et poussée Sentry** ; Q3 (décision 34) : **pas de suivi des performances pour l'instant** ; Q4 (décision 35) : **pas d'interrupteur** ; Q5 : **construire les trois composants et migrer tous les écrans maintenant** ; Q6 : **les pages publiques lèvent** ; Q7 : **supprimer la table avec ce lot** ; Q8 : **le reste tel qu'écrit**. Huit PR (§3). **PR A fusionnée le 2026-10-22** (#688 — B9.1, B9.5 — §9). **PR B fusionnée le 2026-10-22** (#689 — B9.6 — §10). **PR C construite le 2026-10-22** sur `feat/batch9-forms` (B9.7 — §11). |
 | **Owner** | Sadreddine |
 | **Last updated** | 2026-10-22 |
 | **PRD ref / phase** | V1 — rien de visible n'est ajouté ; ce lot rend vrais les documents, les doublures de test, les lectures et les outils |
@@ -337,3 +337,73 @@ chemin du serveur :
 - `flutter analyze` à zéro ; les suites entières passent : l'app 2 682 (55 golden Linux sautés), le
   serveur sur Postgres 2 162 (2 sautés), le web 2 180, les 269 de bout en bout sur deux workers.
 - **SYSTEM §21, ligne 43** fermée (douze endroits, pas six).
+
+## 11. PR C construite (B9.7) — ce qui a été vu
+
+**Comme écrit**, avec un écart et trois trouvailles :
+- **`_TagSheet` sur `FieldErrors`** : la faute du champ est redemandée à
+  chaque frappe (« VIP␣ » reste « déjà ajouté »), au lieu de s'effacer.
+  La règle lit les tags déjà choisis : déjà là, puis la limite — à dix,
+  c'est elle qu'il faut corriger, quoi qu'on tape —, puis vide.
+- **La limite des 10 tags**, avec sa phrase (Q de §8) : dite sous le champ
+  à « + » — c'était déjà vrai, sans test —, et **pour une puce aussi** : la
+  onzième puce ne faisait rien du tout, en silence (§14 règle 5). Retirer un
+  tag l'efface.
+- **L'écart** : le §2.6 disait que l'échec d'enregistrement deviendrait
+  « une erreur du champ ». SYSTEM §14 dit le contraire pour une feuille : un
+  échec d'enregistrement est l'issue de la feuille, pas la faute d'un champ,
+  et sa place est `InlineFeedback` — c'est ce que fait déjà la feuille du
+  numéro, dans le même fichier. C'est là qu'il est dit : « Enregistrement
+  impossible. Réessayez. », la feuille reste ouverte, rien n'est perdu. Il
+  laissait la feuille ouverte sans un mot.
+- **Trouvé par les tests : la feuille débordait à dix tags.** Elle n'était
+  pas `isScrollControlled` : plafonnée à 9/16 de l'écran, le clavier
+  compté dedans. Elle défile et grandit maintenant, comme celle du numéro.
+- **Trouvé en écrivant la connexion Pro : les trois connexions par e-mail
+  disaient un code refusé sous le formulaire**, là où le web le dit sous le
+  code depuis la décision Q1 (web-client-polish.md §2.1) et où SYSTEM §14
+  règle 1 le veut. Une table, `core/forms/sign_in_refusal.dart`, copie de
+  `otp-failure.ts` : les refus du code (`otp_invalid`, `invalid_input`,
+  `otp_expired`, `otp_none`, `otp_locked`) sous le code, `invalid_email`
+  sous l'e-mail — quand ce champ est à l'écran —, le reste au formulaire.
+  Pour la connexion client, la connexion Pro et l'inscription Pro.
+  - `invalid_input` disait « Numéro ou code invalide. » sur une étape sans
+    numéro ; c'est « Code incorrect. », comme sur le web. `invalid_email`
+    dit la phrase du contrôle local.
+  - Un nouveau code envoyé efface la faute de l'ancien.
+  - L'inscription Pro disait ses refus dans un `Text` rouge : c'est
+    `InlineFeedback`, une région annoncée, comme ailleurs.
+  - `AuthProvider` oubliait le code du dernier refus au début d'un nouvel
+    essai seulement en cas de succès ou d'échec propre ; il l'oublie au
+    départ, comme `ProAuthProvider`.
+- **Les tests « sous le champ »** : `_NotesSection` (vide, refusée), la
+  connexion admin, la connexion Pro (règles locales et refus du serveur),
+  la fiche employé, la fiche prestation (dont le plafond redemandé quand le
+  prix de départ change). **15 des 17 écrans** sur `FieldErrors` ont le leur ;
+  les deux qui restent attendent le SMS (non routés). SYSTEM §21 ligne 32
+  fermée, §14 et §20 à jour.
+
+**Vérifié** :
+- **Rouges d'abord** : sur le commit des tests seuls, 19 des 32 nouveaux
+  tests sont rouges. Les 13 verts épinglent ce qui était déjà juste (les
+  notes, l'admin, les fiches employé et prestation, les règles locales de la
+  connexion) ; leur rouge vient des mutations.
+- **36 mutations, toutes vues rouges** : la feuille des tags (une frappe qui
+  efface, la limite à « + », la onzième puce muette, retirer qui garde la
+  limite, l'échec muet, la feuille plafonnée à 9/16) ; les notes (pas de
+  règle, l'échec avalé) ; les trois connexions (la faute du code ni placée,
+  ni reprise par le focus, répétée sous le formulaire, gardée après un
+  nouveau code ; la faute de l'e-mail non placée ; le `Text` rouge) ; la
+  table (`invalid_input`, la phrase de `otp_expired`) ; `AuthProvider` (le
+  code gardé, à l'envoi et à la connexion) ; la connexion Pro (pas de règle
+  d'e-mail, pas de règle de code) ; l'admin (pas de règle, pas de focus,
+  le refus tu) ; la fiche employé enregistrée sans nom ; la fiche
+  prestation (le plafond non redemandé, pas de focus). **Une a d'abord
+  survécu** : le focus après un code refusé — le champ le gardait de la
+  frappe. Les tests ferment maintenant le clavier avant d'appuyer, comme
+  un utilisateur, et le focus est vérifié sur les trois connexions.
+- `flutter analyze` à zéro, le format propre ; les suites entières passent :
+  l'app 2 717 (55 golden Linux sautés), le serveur sur Postgres 2 162
+  (2 sautés), le web 2 180, les 269 de bout en bout sur deux workers.
+- Aucun golden ne change : ceux des connexions montrent la première étape,
+  sans refus, où `InlineFeedback(null)` ne rend rien, comme avant.
