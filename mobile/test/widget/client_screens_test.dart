@@ -23,6 +23,7 @@ import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../a11y/_a11y.dart';
+import '../a11y/_fixtures.dart' show kLargeAmount;
 import '../support/fonts.dart';
 import '../support/pump_app.dart';
 
@@ -45,7 +46,12 @@ class _SwitchableClients implements ProClientsServiceInterface {
     phoneAnswer = null;
     visitReads = 0;
     serverFields = null;
+    visitPrice = null;
   }
+
+  /// When set, every visit's price — the mock draws 15 000 (B7.10's
+  /// seven-digit row needs more).
+  num? visitPrice;
 
   bool empty = false;
 
@@ -150,9 +156,14 @@ class _SwitchableClients implements ProClientsServiceInterface {
     String providerId,
     String clientId, {
     int page = 1,
-  }) {
+  }) async {
     visitReads++;
-    return _base.getVisits(providerId, clientId, page: page);
+    final price = visitPrice;
+    final res = await _base.getVisits(providerId, clientId, page: page);
+    if (price == null || res.data == null) return res;
+    return ApiResponse.success([
+      for (final a in res.data!) a.copyWith(totalPrice: price.toDouble()),
+    ]);
   }
 
   @override
@@ -910,6 +921,36 @@ void main() {
           greaterThanOrEqualTo(AppTheme.spacingS - 0.5),
           reason: 'the date column ends where the amount begins',
         );
+      }
+    });
+
+    // B7.10 (SYSTEM §21 row 96) — the visit history at 200 % on 360 dp with
+    // a seven-digit visit: the amount and the status are unflexed beside an
+    // Expanded date, and a long amount left the date no room.
+    testWidgets('in the visit history at 360dp × 2× with seven digits, every '
+        'value stays whole', (tester) async {
+      clients.visitPrice = kLargeAmount;
+      tester.view.physicalSize = const Size(360, 3200);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      await tester.pumpWidget(
+        app(initial: '/pro/clients/sc1', realFonts: true, scale: 2),
+      );
+      await settle(tester);
+      expect(find.text('Historique des visites'), findsOneWidget);
+      expect(find.textContaining('250'), findsWidgets, reason: 'C: the amount');
+      expect(tester.takeException(), isNull, reason: 'no overflow');
+      expectNoGluedTokenBreaks(
+        tester,
+        context: 'the visit history at 360dp × 2×',
+      );
+      for (final e in tester.renderObjectList<RenderParagraph>(
+        find.byType(RichText),
+      )) {
+        final t = e.text.toPlainText();
+        if (RegExp(r'\d{4} à \d').hasMatch(t)) {
+          expectNoMidWordBreak(tester, t, 'the visit history at 360dp × 2×');
+        }
       }
     });
 

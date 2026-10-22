@@ -1018,50 +1018,75 @@ class _VisitsSection extends StatelessWidget {
               ),
             )
           else
-            for (final v in visits)
-              Padding(
-                padding: const EdgeInsets.symmetric(
-                  vertical: AppTheme.spacingXS,
-                ),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        Formatters.formatDateTime(
-                          toSalonTime(
-                            v.appointmentDate,
-                            tz: context.read<ProAuthProvider>().salonTimezone,
-                          ),
-                        ),
-                        style: AppTextStyles.bodyMedium.copyWith(
-                          color: AppColors.textPrimary,
-                        ),
-                      ),
-                    ),
-                    // The date takes all the width that is left; without
-                    // this, a date that fits its line exactly ends ON the
-                    // amount (« 08:007 000 FCFA », seen on the simulator).
-                    const SizedBox(width: AppTheme.spacingS),
-                    Text(
-                      Formatters.formatCurrency(
-                        v.totalPrice,
-                        currency: context.read<ProAuthProvider>().salonCurrency,
-                      ),
-                      style: AppTextStyles.bodySmall.copyWith(
-                        color: AppColors.textSecondary,
-                      ),
-                    ),
-                    const SizedBox(width: AppTheme.spacingS),
-                    Text(
-                      StatusLabels.of(v.status),
-                      style: AppTextStyles.bodySmall.copyWith(
-                        color: _statusColor(v.status),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+            for (final v in visits) _visitRow(context, v),
         ],
+      ),
+    );
+  }
+
+  /// One visit: the date, its amount, its status. Beside each other while the
+  /// date's longest word fits next to the two; else the date on its own line
+  /// and the two under it (B7.10 — SYSTEM §21 row 96). At 200 % on 360 dp a
+  /// seven-digit amount left the date less than « octobre » needs (97 dp),
+  /// and it broke inside the word. Measured with [TextFit], never a size
+  /// constant; at the default size nothing changes.
+  Widget _visitRow(BuildContext context, Appointment v) {
+    final date = Formatters.formatDateTime(
+      toSalonTime(
+        v.appointmentDate,
+        tz: context.read<ProAuthProvider>().salonTimezone,
+      ),
+    );
+    final amount = Formatters.formatCurrency(
+      v.totalPrice,
+      currency: context.read<ProAuthProvider>().salonCurrency,
+    );
+    final status = StatusLabels.of(v.status);
+    final dateStyle = AppTextStyles.bodyMedium.copyWith(
+      color: AppColors.textPrimary,
+    );
+    final amountStyle = AppTextStyles.bodySmall.copyWith(
+      color: AppColors.textSecondary,
+    );
+    final statusStyle = AppTextStyles.bodySmall.copyWith(
+      color: _statusColor(v.status),
+    );
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: AppTheme.spacingXS),
+      child: LayoutBuilder(
+        builder: (context, box) {
+          final fit = TextFit.of(context);
+          final beside =
+              box.maxWidth -
+              fit.lineWidth(amount, amountStyle) -
+              fit.lineWidth(status, statusStyle) -
+              2 * AppTheme.spacingS;
+          final figures = [
+            Text(amount, style: amountStyle),
+            const SizedBox(width: AppTheme.spacingS),
+            Text(status, style: statusStyle),
+          ];
+          if (!fit.holds(beside, [(text: date, style: dateStyle)])) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(date, style: dateStyle),
+                const SizedBox(height: AppTheme.spacingXS),
+                Row(children: figures),
+              ],
+            );
+          }
+          return Row(
+            children: [
+              // The date takes all the width that is left; without this, a
+              // date that fits its line exactly ends ON the amount
+              // (« 08:007 000 FCFA », seen on the simulator).
+              Expanded(child: Text(date, style: dateStyle)),
+              const SizedBox(width: AppTheme.spacingS),
+              ...figures,
+            ],
+          );
+        },
       ),
     );
   }
