@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Statut** | **Validé le 2026-10-22** — relu sur main (`0a92503d`). Les six recommandations : Q1 **garder la confirmation** ; Q2 **rien maintenant** ; Q3 **une petite copie hors ligne** ; Q4 **« Total réalisé »** ; Q5 **retirer la connexion Pro par téléphone** ; Q6 **accepter, et le test de la relance**. Deux PR (§3) ; la première demande un déploiement du serveur. |
+| **Statut** | **Validé le 2026-10-22** — relu sur main (`0a92503d`). Les six recommandations : Q1 **garder la confirmation** ; Q2 **rien maintenant** ; Q3 **une petite copie hors ligne** ; Q4 **« Total réalisé »** ; Q5 **retirer la connexion Pro par téléphone** ; Q6 **accepter, et le test de la relance**. Deux PR (§3) ; la première demande un déploiement du serveur. **PR A construite le 2026-10-22** sur `feat/batch8-product-questions` (#685 — B8.5, B8.6 — §9) ; PR B à suivre. |
 | **Owner** | Sadreddine |
 | **Last updated** | 2026-10-22 |
 | **PRD ref / phase** | V1 — comptes et accès (Pro), retours d'action (SYSTEM.md §15), hors ligne (§12), V2 (analyses) |
@@ -181,3 +181,26 @@ approuves.
 
 **Décisions (2026-10-22).** Q1 à Q6 : les recommandations, telles
 qu'écrites.
+
+## 9. PR A construite (B8.5, B8.6) — ce qui a été vu
+
+**Comme écrit**, avec ces écarts, chacun vu en route :
+- **B8.5** :
+  - **La table `provider_otp_codes` reste.** La supprimer dans le même
+    déploiement serait dangereux au retour arrière : une image plus
+    ancienne l'efface à chaque suppression de compte Pro, et chaque
+    suppression répondrait 500. Elle n'est plus lue ni écrite ; sa
+    suppression est l'étape « contract » d'un déploiement suivant
+    (BACKLOG B9.12).
+  - **Le test des 429** comptait vingt chemins d'authentification. Il en
+    compte dix-huit : le limiteur se règle par préfixe, sa portée ne bouge
+    pas.
+  - **Les tests de session de l'app** passaient par la connexion par
+    téléphone pour obtenir une session. Ils passent maintenant par
+    l'e-mail, le chemin réel.
+  - **Le modèle de menaces** gagne la ligne T80.
+- **B8.6** : le test de la relance passe dès qu'il est écrit. C'est
+  attendu : il fixe un comportement déjà juste (décision 32). Son rouge
+  vient des mutations.
+
+**Vérifié** : __VERIFIED__
