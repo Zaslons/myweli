@@ -168,7 +168,7 @@ class _TeamScreenState extends State<TeamScreen> {
           AppTheme.spacingM,
           AppTheme.spacingM,
           AppTheme.spacingM,
-          96, // clear the FAB
+          AppTheme.fabClearance,
         ),
         itemCount: team.members.length + 1,
         separatorBuilder: (_, _) => const SizedBox(height: AppTheme.spacingS),

@@ -12,6 +12,7 @@ import '../../../core/utils/status_colors.dart';
 import '../../../core/utils/status_labels.dart';
 import '../../../models/appointment.dart';
 import '../../../providers/pro_auth_provider.dart';
+import '../../../widgets/common/empty_state.dart';
 import '../../../widgets/common/myweli_month_grid.dart';
 
 class AppointmentCalendarView extends StatefulWidget {
@@ -126,12 +127,29 @@ class _AppointmentCalendarViewState extends State<AppointmentCalendarView> {
       builder: (context, appointments, _) => CustomScrollView(
         slivers: [
           SliverToBoxAdapter(child: _calendarCard()),
+          // The house EmptyState, in a box sliver (B7.4): a
+          // `SliverFillRemaining(hasScrollBody: false)` asks its child for an
+          // intrinsic height, which EmptyState's LayoutBuilder cannot give.
+          // Both branches end `fabClearance` short of the bottom, so the last
+          // line scrolls clear of the floating « Nouveau ».
           if (appointments.isEmpty)
-            SliverFillRemaining(hasScrollBody: false, child: _emptyDay())
+            SliverPadding(
+              padding: const EdgeInsets.only(bottom: AppTheme.fabClearance),
+              sliver: SliverToBoxAdapter(
+                child: EmptyState(
+                  icon: Icons.event_busy,
+                  title: 'Aucun rendez-vous',
+                  description: 'pour ${Formatters.formatDate(_selectedDay)}',
+                ),
+              ),
+            )
           else
             SliverPadding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppTheme.spacingM,
+              padding: const EdgeInsets.fromLTRB(
+                AppTheme.spacingM,
+                0,
+                AppTheme.spacingM,
+                AppTheme.fabClearance,
               ),
               sliver: SliverList.builder(
                 itemCount: appointments.length,
@@ -149,33 +167,6 @@ class _AppointmentCalendarViewState extends State<AppointmentCalendarView> {
       ),
     );
   }
-
-  Widget _emptyDay() => Center(
-    child: Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        const Icon(
-          Icons.event_busy,
-          size: AppTheme.iconXL,
-          color: AppColors.textSecondary,
-        ),
-        const SizedBox(height: AppTheme.spacingM),
-        Text(
-          'Aucun rendez-vous',
-          style: AppTextStyles.titleLarge.copyWith(
-            color: AppColors.textSecondary,
-          ),
-        ),
-        const SizedBox(height: AppTheme.spacingS),
-        Text(
-          'pour ${Formatters.formatDate(_selectedDay)}',
-          style: AppTextStyles.bodyMedium.copyWith(
-            color: AppColors.textTertiary,
-          ),
-        ),
-      ],
-    ),
-  );
 
   Widget _calendarCard() {
     return Container(
