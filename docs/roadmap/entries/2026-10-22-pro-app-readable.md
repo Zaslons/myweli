@@ -1,0 +1,18 @@
+- 🟡 **L'app Pro se lit à 200 % et montre ses bords : « Propriétaire » lisible, plus de mot coupé, les jours vides, les grands montants, les segments de la console (app + console, 2026-10-22 — construit ; part avec la prochaine version).** ([pro-app-batch7.md](../../design/pro-app-batch7.md) §10) Le lot 7 du [BACKLOG](../../BACKLOG.md), PR B (B7.1, B7.2, B7.4, B7.10, B7.12, B7.13 ; décision 25).
+  - **Avant** :
+    - « Propriétaire » à 2,79:1 ;
+    - « Mard/i » et « Abandonne/r » coupés à 200 % ;
+    - un jour vide fait à la main, caché sous le bouton flottant ;
+    - deux boutons pour une seule action dans « Ma journée » ;
+    - des montants à 7 chiffres jamais essayés, et quatre endroits qui cassaient ;
+    - des segments sans bord dans la console.
+  - **Ce qui change** :
+    - l'encre sur la teinte or ;
+    - les lignes d'horaires et les icônes de dialogue qui s'empilent quand il le faut, et chaque titre de dialogue balayé ;
+    - `EmptyState` et le nouveau jeton `fabClearance`, miroité au web en `pb-fab` (la Liste se rafraîchit aussi quand elle est vide) ;
+    - un seul « Nouveau » ;
+    - les montants à 7 chiffres dans le test de mise en page, qui affirme désormais ;
+    - les visites, la date de réservation et la console qui passent à la ligne quand il le faut, et le total qui descend d'une taille (ta décision) ;
+    - un bord sur chaque segment.
+  - **Gardes** : les tests rouges d'abord ; 16 mutations vues rouges, dont une qui a d'abord survécu et a demandé un vrai geste de rafraîchissement ; les photos refaites sur Linux, dont une régression vue et corrigée ; les suites entières.
+  - **À suivre** : PR C (les invitations sur « Accueil », l'export avec les revenus).

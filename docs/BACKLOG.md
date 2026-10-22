@@ -295,12 +295,12 @@ This batch takes up three of the six suggested tasks that were never started. It
 
 ### Batch 7 — Pro app UI, accessibility and parity (P2–P3, app)
 
-- **B7.1 The « Propriétaire » chip is about 3:1 (P2 · S).** Draw the label in `textPrimary` on the gold tint, as the web does. Add the chip to the contrast test, regenerate the team goldens on Linux, and close SYSTEM §21 row 28.
-- **B7.2 Mid-word breaks at 200 % text (P2 · S).**
+- ✅ **B7.1 The « Propriétaire » chip is about 3:1 (P2 · S).** **Done in #683** — [pro-app-batch7.md](design/pro-app-batch7.md) §10 (measured 2.79:1; ink now). Draw the label in `textPrimary` on the gold tint, as the web does. Add the chip to the contrast test, regenerate the team goldens on Linux, and close SYSTEM §21 row 28.
+- ✅ **B7.2 Mid-word breaks at 200 % text (P2 · S).** **Done in #683** — §10 (an `OverflowBar` for the hours; a dialog's icon goes above a title it would break; every dialog title swept).
   - **What:** « Mard/i » in the pause rows; « Abandonne/r les modifi/cations ? » in a dialog title.
   - **How:** use the measured-fit idiom in `WeeklyHoursEditor`, shorten the title to « Abandonner ? », and add weekday names and dialog titles to `expectNoMidWordBreak`.
 - ✅ **B7.3 The deletion dialog tells members « Votre salon sera retiré » (P2 · S).** **Done in #682** — [pro-app-batch7.md](design/pro-app-batch7.md) §9 (the sentence follows « the account owns a salon », as the server removes — app and web, Q5). Only owners see that sentence. Members get « Cette action est définitive. Votre compte MyWeli Pro sera supprimé. », with the web picking the same way.
-- **B7.4 Empty-day layout (P2 · S · decision 25).**
+- ✅ **B7.4 Empty-day layout (P2 · S · decision 25).** **Done in #683** — §10 (`fabClearance`; the Liste's empty day is now pull-to-refresh too).
   - **What:** the empty « Calendrier » day is hand-rolled and hides under the FAB at large text. « Ma journée » offers the same action twice.
   - **How:** the shared `EmptyState`, a 96 dp bottom inset, one control in « Ma journée », layout tests at 200 % on a 360 dp screen, and close SYSTEM §21 rows 80–81.
 - ✅ **B7.5 « Changer le rôle » on a revoked member (P3 · S).** **Done in #682** — §9. Revoked rows become non-tappable, like the web, with a widget test.
@@ -308,10 +308,10 @@ This batch takes up three of the six suggested tasks that were never started. It
 - ✅ **B7.7 The « Acompte & annulation » step is ticked for every salon (P2 · S · decision 24).** **Done in #682** — §9 (app and web; « Facultatif »). It counts as done only once a choice is saved: a stored percentage above 0, or deposits on. Otherwise « facultatif ».
 - **B7.8 The app's salon export has no earnings (P2 · S).** A sixth read through `_read`, `ProExportSection.earnings`, the web's exact shape, and a strict `transactions` list per #630's rule.
 - ✅ **B7.9 Orientation (P2 · S · decision 26).** **Done in #682** — §9 (checked on an Android 16 emulator: portrait holds on a phone; tablet metrics rotate, as Android 16 decides, and stay usable). Add `android:screenOrientation="portrait"` on `MainActivity`, plus one tablet-emulator smoke run. On Android 16+, orientation locks are ignored on large screens.
-- **B7.10 Long values at large text and large amounts (P3 · M).** Add 7-digit amounts to the fixtures, fix the five sites with the measured-fit idiom, and turn `reportGluedTokenBreaks` into an assertion.
+- ✅ **B7.10 Long values at large text and large amounts (P3 · M).** **Done in #683** — §10 (four sites broke and were fixed; the total steps down a size, the owner's decision). Add 7-digit amounts to the fixtures, fix the five sites with the measured-fit idiom, and turn `reportGluedTokenBreaks` into an assertion.
 - ✅ **B7.11 Call buttons do nothing without a dialer (P3 · S).** **Done in #682** — §9. **Worse than listed:** two buttons asked `canLaunchUrl(tel:)`, which answers « no » on Android 11+ for an undeclared scheme — they most likely did nothing on most phones (device check added to B0.2). `callPhone(context, number)` with a snackbar, plus a pin test against raw `launchUrl`.
-- **B7.12 Two separate links in the consent sentence for screen readers (P3 · S).** A test, and `explicitChildNodes` if it fails.
-- **B7.13 Admin console segments have no visible boundary (P3 · S).** Use one `AdminSegmentedControl`, with a token border on inactive segments.
+- ✅ **B7.12 Two separate links in the consent sentence for screen readers (P3 · S).** **Done in #683** — §10 (proved as is; nothing to change). A test, and `explicitChildNodes` if it fails.
+- ✅ **B7.13 Admin console segments have no visible boundary (P3 · S).** **Done in #683** — §10. Use one `AdminSegmentedControl`, with a token border on inactive segments.
 - ✅ **B7.14 After a failed fallback to the default salon, per-salon stores keep the old salon's data (P3 · S).** **Done in #682** — §9 (the reset is at the two fallback sites: inside `_clearSalonSelection` it would have emptied the rejoin gate's cards). Call `ProSalonScope.resetAll()` inside `_clearSalonSelection()`.
 
 ### Batch 8 — Product questions (P3, need your answers first)

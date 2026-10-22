@@ -168,17 +168,17 @@ class _ProJournalScreenState extends State<ProJournalScreen> {
     final items = journal.visibleAppointments;
     return BrandRefresh(
       onRefresh: journal.refresh,
+      // One control for a new booking: the floating « Nouveau » (decision
+      // 25). The empty state's own « + Nouvelle réservation » pushed the same
+      // route, and at 200 % the two touched (B7.4, SYSTEM §21 row 81).
       child: items.isEmpty
           ? ListView(
-              children: [
-                const SizedBox(height: AppTheme.spacingXXXL),
+              padding: const EdgeInsets.only(bottom: AppTheme.fabClearance),
+              children: const [
+                SizedBox(height: AppTheme.spacingXXXL),
                 EmptyState(
                   icon: Icons.event_available,
                   title: 'Aucun rendez-vous ce jour',
-                  actionText: _ownMode ? null : '+ Nouvelle réservation',
-                  onAction: _ownMode
-                      ? null
-                      : () => context.push('/pro/appointment/new'),
                 ),
               ],
             )
@@ -187,7 +187,7 @@ class _ProJournalScreenState extends State<ProJournalScreen> {
                 AppTheme.spacingM,
                 AppTheme.spacingS,
                 AppTheme.spacingM,
-                96,
+                AppTheme.fabClearance,
               ),
               children: _rows(journal, items),
             ),

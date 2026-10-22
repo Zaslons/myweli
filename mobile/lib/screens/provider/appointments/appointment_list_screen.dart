@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:myweli/widgets/common/brand_refresh.dart';
+import 'package:myweli/widgets/common/empty_state.dart';
 import 'package:myweli/widgets/common/loading_indicator.dart';
 import 'package:provider/provider.dart';
 
@@ -145,7 +146,8 @@ class _AppointmentListScreenState extends State<AppointmentListScreen>
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => context.push('/pro/appointment/new'),
         icon: const Icon(Icons.add),
-        label: const Text('Ajouter'),
+        // « Nouveau », as in « Ma journée » (B7.4): one action, one word.
+        label: const Text('Nouveau'),
       ),
       body: Consumer2<ProAuthProvider, ProAppointmentProvider>(
         builder: (context, authProvider, appointmentProvider, _) {
@@ -216,28 +218,28 @@ class _AppointmentListScreenState extends State<AppointmentListScreen>
                       onRefresh: () async {
                         _loadAppointmentsForListTab(_listTabController.index);
                       },
+                      // The house EmptyState, in a list (B7.4): something
+                      // to pull, so « tirer pour actualiser » works on an
+                      // empty day too, and `fabClearance` at the end of both.
                       child: appointments.isEmpty
-                          ? Center(
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  const Icon(
-                                    Icons.event_busy,
-                                    size: AppTheme.iconXL,
-                                    color: AppColors.textSecondary,
-                                  ),
-                                  const SizedBox(height: AppTheme.spacingM),
-                                  Text(
-                                    'Aucun rendez-vous',
-                                    style: AppTextStyles.titleLarge.copyWith(
-                                      color: AppColors.textSecondary,
-                                    ),
-                                  ),
-                                ],
+                          ? ListView(
+                              padding: const EdgeInsets.only(
+                                bottom: AppTheme.fabClearance,
                               ),
+                              children: const [
+                                EmptyState(
+                                  icon: Icons.event_busy,
+                                  title: 'Aucun rendez-vous',
+                                ),
+                              ],
                             )
                           : ListView.builder(
-                              padding: const EdgeInsets.all(AppTheme.spacingM),
+                              padding: const EdgeInsets.fromLTRB(
+                                AppTheme.spacingM,
+                                AppTheme.spacingM,
+                                AppTheme.spacingM,
+                                AppTheme.fabClearance,
+                              ),
                               itemCount: appointments.length,
                               itemBuilder: (context, index) {
                                 final appointment = appointments[index];

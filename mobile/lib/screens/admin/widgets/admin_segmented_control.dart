@@ -57,7 +57,14 @@ class AdminSegmentedControl extends StatelessWidget {
             decoration: BoxDecoration(
               color: active ? AppColors.secondary : Colors.transparent,
               borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
-              border: active ? Border.all(color: AppColors.borderStrong) : null,
+              // Every segment has an edge (B7.13, SYSTEM §21 row 26): an
+              // inactive one was transparent on a #F5F5F5 track over the
+              // #F6F7F9 console — nothing showed it could be pressed.
+              // `borderStrong` is the token for the sole boundary of an
+              // interactive control; the selected one is brand black.
+              border: Border.all(
+                color: active ? AppColors.primary : AppColors.borderStrong,
+              ),
             ),
             child: Text(
               label,

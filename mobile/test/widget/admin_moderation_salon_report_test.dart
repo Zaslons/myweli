@@ -8,6 +8,7 @@ import 'package:http/testing.dart';
 import 'package:myweli/providers/admin/admin_auth_provider.dart';
 import 'package:myweli/providers/admin/admin_moderation_provider.dart';
 import 'package:myweli/screens/admin/admin_moderation_screen.dart';
+import 'package:myweli/screens/admin/widgets/admin_segmented_control.dart';
 import 'package:myweli/services/admin/admin_service.dart';
 import 'package:myweli/services/interfaces/session_store.dart';
 import 'package:provider/provider.dart';
@@ -91,5 +92,14 @@ void main() {
     await open(t, bySalon: false);
     expect(find.text('Injurieux'), findsOneWidget);
     expect(find.text('Signalé par le salon'), findsNothing);
+  });
+
+  testWidgets('the segments are the shared AdminSegmentedControl — one '
+      'label per segment, as the shared control reads it (B7.13)', (t) async {
+    await open(t, bySalon: false);
+    expect(find.byType(AdminSegmentedControl), findsOneWidget);
+    // The hand-rolled copy set `label:` AND drew the Text: TalkBack read
+    // « Signalés » twice.
+    expect(t.getSemantics(find.text('Signalés')).label, 'Signalés');
   });
 }

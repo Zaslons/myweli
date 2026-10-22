@@ -21,6 +21,12 @@ class AppTheme {
   static const double spacingXXL = 48.0;
   static const double spacingXXXL = 64.0;
 
+  /// What a view that scrolls under a floating action button owes it at its
+  /// end (SYSTEM.md §5, §13.3 — B7.4): the extended button's 56, its 16 dp
+  /// margin, and spacingL of air. Without it the last line of an empty day
+  /// could not scroll clear of the button (§21 row 80).
+  static const double fabClearance = 96.0;
+
   // Border Radius (SYSTEM.md §6)
   static const double radiusSmall = 4.0;
   static const double radiusMedium = 8.0;

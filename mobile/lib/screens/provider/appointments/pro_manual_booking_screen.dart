@@ -12,6 +12,7 @@ import '../../../core/utils/app_clock.dart';
 import '../../../core/utils/formatters.dart';
 import '../../../core/utils/phone_numbering.dart';
 import '../../../core/utils/salon_time.dart';
+import '../../../core/utils/text_fit.dart';
 import '../../../core/utils/validators.dart';
 import '../../../providers/pro_appointment_provider.dart';
 import '../../../providers/pro_auth_provider.dart';
@@ -321,27 +322,7 @@ class _ProManualBookingScreenState extends State<ProManualBookingScreen> {
                 ),
               const SizedBox(height: AppTheme.spacingM),
               _label('DATE & HEURE'),
-              Row(
-                children: [
-                  Expanded(
-                    child: _PickerField(
-                      icon: Icons.calendar_today,
-                      label: _date == null
-                          ? 'Date'
-                          : Formatters.formatDateShort(_date!),
-                      onTap: _pickDate,
-                    ),
-                  ),
-                  const SizedBox(width: AppTheme.spacingM),
-                  Expanded(
-                    child: _PickerField(
-                      icon: Icons.access_time,
-                      label: _time == null ? 'Heure' : _time!.format(context),
-                      onTap: _pickTime,
-                    ),
-                  ),
-                ],
-              ),
+              _dateTimeRow(context),
               const SizedBox(height: AppTheme.spacingM),
               _label('CLIENT'),
               PhoneNumberField(
@@ -416,6 +397,53 @@ class _ProManualBookingScreenState extends State<ProManualBookingScreen> {
     );
   }
 
+  /// The date and the time, side by side while both labels fit their half;
+  /// one field per line when they do not (B7.10 — SYSTEM §21 row 96). At
+  /// 200 % « 15/01/2026 » needs 151 dp and its half had less, at 360, 375 and
+  /// 390 dp: it broke inside the date. Measured with [TextFit] — the room is
+  /// the field's own: its side padding, its border, its icon and the gap.
+  Widget _dateTimeRow(BuildContext context) {
+    final date = _date == null ? 'Date' : Formatters.formatDateShort(_date!);
+    final time = _time == null ? 'Heure' : _time!.format(context);
+    final dateField = _PickerField(
+      icon: Icons.calendar_today,
+      label: date,
+      onTap: _pickDate,
+    );
+    final timeField = _PickerField(
+      icon: Icons.access_time,
+      label: time,
+      onTap: _pickTime,
+    );
+    return LayoutBuilder(
+      builder: (context, box) {
+        final half = (box.maxWidth - AppTheme.spacingM) / 2;
+        final room = half - _PickerField.chrome;
+        final fits = TextFit.of(context).holds(room, [
+          (text: date, style: AppTextStyles.bodyMedium),
+          (text: time, style: AppTextStyles.bodyMedium),
+        ]);
+        if (!fits) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              dateField,
+              const SizedBox(height: AppTheme.spacingS),
+              timeField,
+            ],
+          );
+        }
+        return Row(
+          children: [
+            Expanded(child: dateField),
+            const SizedBox(width: AppTheme.spacingM),
+            Expanded(child: timeField),
+          ],
+        );
+      },
+    );
+  }
+
   Widget _label(String text) => Padding(
     padding: const EdgeInsets.only(bottom: AppTheme.spacingS),
     child: Text(
@@ -438,6 +466,11 @@ class _PickerField extends StatelessWidget {
     required this.label,
     required this.onTap,
   });
+
+  /// What the field takes from its width before its label: the side
+  /// padding, the 1 dp border each side, the icon and the gap after it.
+  static const double chrome =
+      2 * AppTheme.spacingSM + 2 + AppTheme.iconS + AppTheme.spacingS;
 
   @override
   Widget build(BuildContext context) {

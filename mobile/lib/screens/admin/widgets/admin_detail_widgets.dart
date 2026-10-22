@@ -4,6 +4,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/colors.dart';
 import '../../../core/theme/text_styles.dart';
 import '../../../core/utils/formatters.dart';
+import '../../../core/utils/text_fit.dart';
 import '../../../widgets/common/app_button.dart';
 import '../../../widgets/common/timed_cached_image.dart';
 import 'status_chip.dart';
@@ -111,6 +112,36 @@ class AdminBookingsCard extends StatelessWidget {
   Widget _row(Map<String, dynamic> a, {required bool last}) {
     final date = DateTime.tryParse('${a['appointmentDate'] ?? ''}');
     final price = a['totalPrice'] as num?;
+    final dateText = date == null ? '—' : Formatters.formatDateShort(date);
+    // Platform console — platform currency by design (multi-pays).
+    final priceText = price == null
+        ? '—'
+        : Formatters.formatCurrency(price.toDouble());
+    final muted = AppTextStyles.bodyMedium.copyWith(
+      color: AppColors.textSecondary,
+    );
+    final dateCell = Text(dateText, style: AppTextStyles.bodyMedium);
+    final statusCell = Align(
+      alignment: Alignment.centerLeft,
+      child: StatusChip.forStatus('${a['status'] ?? ''}'),
+    );
+    final priceCell = Text(priceText, style: muted);
+    final clientCell = Text(
+      '${a['clientName'] ?? '—'}',
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      style: muted,
+    );
+    final dispute = onOpenDispute == null
+        ? null
+        : SizedBox(
+            width: _disputeWidth,
+            child: IconButton(
+              tooltip: 'Ouvrir un litige',
+              icon: const Icon(Icons.gavel_outlined, size: AppTheme.iconS),
+              onPressed: () => onOpenDispute!('${a['id']}'),
+            ),
+          );
     return Container(
       padding: const EdgeInsets.symmetric(
         horizontal: AppTheme.spacingM,
@@ -121,60 +152,66 @@ class AdminBookingsCard extends StatelessWidget {
             ? null
             : const Border(bottom: BorderSide(color: AppColors.divider)),
       ),
-      child: Row(
-        children: [
-          Expanded(
-            flex: 3,
-            child: Text(
-              date == null ? '—' : Formatters.formatDateShort(date),
-              style: AppTextStyles.bodyMedium,
-            ),
-          ),
-          Expanded(
-            flex: 2,
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: StatusChip.forStatus('${a['status'] ?? ''}'),
-            ),
-          ),
-          Expanded(
-            flex: 2,
-            child: Text(
-              // Platform console — platform currency by design (multi-pays).
-              price == null ? '—' : Formatters.formatCurrency(price.toDouble()),
-              style: AppTextStyles.bodyMedium.copyWith(
-                color: AppColors.textSecondary,
+      // One line, in fixed shares (date 3 · status 2 · price 2 · client 3),
+      // while the date and the price fit theirs; else two lines — date and
+      // status, then price and client — each line in halves (B7.10, SYSTEM
+      // §21 row 96). A seven-digit price broke inside its 2-in-10 share at
+      // 600 dp and 200 % text. Measured with [TextFit], never a constant.
+      child: LayoutBuilder(
+        builder: (context, box) {
+          final fit = TextFit.of(context);
+          final share =
+              (box.maxWidth - (dispute == null ? 0 : _disputeWidth)) / 10;
+          final oneLine =
+              fit.holds(share * 3, [
+                (text: dateText, style: AppTextStyles.bodyMedium),
+              ]) &&
+              fit.holds(share * 2, [(text: priceText, style: muted)]);
+          if (oneLine) {
+            return Row(
+              children: [
+                Expanded(flex: 3, child: dateCell),
+                Expanded(flex: 2, child: statusCell),
+                Expanded(flex: 2, child: priceCell),
+                Expanded(flex: 3, child: clientCell),
+                ?dispute,
+              ],
+            );
+          }
+          return Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(child: dateCell),
+                        Expanded(child: statusCell),
+                      ],
+                    ),
+                    const SizedBox(height: AppTheme.spacingXS),
+                    Row(
+                      children: [
+                        Expanded(child: priceCell),
+                        Expanded(child: clientCell),
+                      ],
+                    ),
+                  ],
+                ),
               ),
-            ),
-          ),
-          Expanded(
-            flex: 3,
-            child: Text(
-              '${a['clientName'] ?? '—'}',
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: AppTextStyles.bodyMedium.copyWith(
-                color: AppColors.textSecondary,
-              ),
-            ),
-          ),
-          if (onOpenDispute != null)
-            SizedBox(
-              width: 40,
-              child: IconButton(
-                tooltip: 'Ouvrir un litige',
-                icon: const Icon(Icons.gavel_outlined, size: AppTheme.iconS),
-                onPressed: () => onOpenDispute!('${a['id']}'),
-              ),
-            ),
-        ],
+              ?dispute,
+            ],
+          );
+        },
       ),
     );
   }
+
+  /// The « Ouvrir un litige » action's slot.
+  static const double _disputeWidth = 40;
 }
 
-/// A signed-URL evidence image (deposit screenshot), tap to zoom. Used by the
-/// dispute detail. Shows a neutral placeholder when there's no URL.
 class AdminEvidenceImage extends StatelessWidget {
   const AdminEvidenceImage({super.key, required this.url, this.caption});
 
