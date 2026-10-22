@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Statut** | **Approuvé par le propriétaire le 2026-10-14** (« yes » aux trois choix du §9) — **construit le 2026-10-15** sur `feat/pro-rejoin-gate` (app Pro + web Pro), non fusionné. Côté app : part avec le prochain build (0.0.2), pas avec le 587 en revue. Côté web : au prochain déploiement Vercel après fusion. Ce qui a été construit, et où cela s'écarte du texte ci-dessus : §10. |
+| **Statut** | **Approuvé par le propriétaire le 2026-10-14** (« yes » aux trois choix du §9) — **construit le 2026-10-15, fusionné** (#600 ; app Pro + web Pro). Côté app : part avec le prochain build (0.0.2), pas avec le 587 en revue. Côté web : en ligne. Ce qui a été construit, et où cela s'écarte du texte ci-dessus : §10. |
 | **Module** | `access` (équipe) — app Pro et web Pro |
 | **Origine** | [backend-team-reinvite.md](backend-team-reinvite.md) §11.1 ; le propriétaire, le 2026-10-14 : « do as you think is better ». |
 | **Backend** | **Aucun changement.** `GET /me/provider/invitations` et `POST /me/provider/invitations/{id}/accept|decline` marchent déjà pour une session sans adhésion active. |

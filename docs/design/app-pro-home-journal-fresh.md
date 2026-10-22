@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Statut** | **Construit le 2026-10-20** sur `fix/app-pro-home-journal-fresh` ; ce qui a été vu : §10. Validé le même jour — Q1 (décision 8) : **partout, tout de suite** (la fiche, « Ma journée », « Accueil », la fiche client, la liste ; arrivée et reprogrammation comprises, dans les deux sens) ; Q2 (décision 9) : **garder les chiffres + le message** ; Q3 (décision 10) : **la même PR** ; Q4 : **les mots tels qu'écrits** (§9) |
+| **Statut** | **Construit le 2026-10-20, fusionné** (#665) ; part avec 0.0.2 ; ce qui a été vu : §10. Validé le même jour — Q1 (décision 8) : **partout, tout de suite** (la fiche, « Ma journée », « Accueil », la fiche client, la liste ; arrivée et reprogrammation comprises, dans les deux sens) ; Q2 (décision 9) : **garder les chiffres + le message** ; Q3 (décision 10) : **la même PR** ; Q4 : **les mots tels qu'écrits** (§9) |
 | **Owner** | Sadreddine |
 | **Last updated** | 2026-10-20 |
 | **PRD ref / phase** | Journal + tableau de bord Pro (V1) |

@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Statut** | **Construit le 2026-10-21** — PR A (#670, B3.1 + B3.2, §10) et PR B (`fix/notification-read-state`, B3.3, §11). Validé le même jour — Q1 (décision 12) : **redemander une fois** ; Q2 : **les mots tels qu'écrits** (§8) ; Q3 : **deux PR** ; Q4 : **les pages client aussi** |
+| **Statut** | **Fusionné** — PR A (#670, B3.1 + B3.2, §10) et PR B (#671, B3.3, §11) ; le web en ligne, l'app part avec 0.0.2. Validé le même jour — Q1 (décision 12) : **redemander une fois** ; Q2 : **les mots tels qu'écrits** (§8) ; Q3 : **deux PR** ; Q4 : **les pages client aussi** |
 | **Owner** | Sadreddine |
 | **Last updated** | 2026-10-21 |
 | **PRD ref / phase** | Toutes les surfaces de l'app (client et Pro) et du web — les états d'erreur (V1) · SYSTEM.md §14 (formulaires), §15 (retours), §16 (microcopie) |

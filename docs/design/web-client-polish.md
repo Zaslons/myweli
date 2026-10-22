@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Statut** | **Construite le 2026-10-21** : PR A #674 (B5.1, B5.3, et l'app selon Q3 — §10), PR B #675 sur `fix/web-client-hearts` (B5.2, B5.4 — §11). Validé le même jour — Q1 : **la phrase de l'app pour chaque code** ; Q2 (décision 16) : **le message et « Annuler »** ; Q3 : **l'app corrigée dans la PR A** ; Q4 : **« Mon compte » aussi, les mots tels qu'écrits** |
+| **Statut** | **Fusionnée** (2026-10-21) : PR A #674 (B5.1, B5.3, et l'app selon Q3 — §10), PR B #675 (B5.2, B5.4 — §11). Validé le même jour — Q1 : **la phrase de l'app pour chaque code** ; Q2 (décision 16) : **le message et « Annuler »** ; Q3 : **l'app corrigée dans la PR A** ; Q4 : **« Mon compte » aussi, les mots tels qu'écrits** |
 | **Owner** | Sadreddine |
 | **Last updated** | 2026-10-21 |
 | **PRD ref / phase** | Web client (V1) — parité avec l'app client · WEB-SYSTEM §6 (formulaires), §7 (zones annoncées) · SYSTEM.md §14 (une faute, un endroit), §15 (retours), §17 (les deux phrases) |
