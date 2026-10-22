@@ -188,25 +188,6 @@ void main() {
     expect(res.error, isNotNull);
   });
 
-  test(
-    'sendOtpToProvider hits the provider OTP route, returns the dev code',
-    () async {
-      final client = MockClient((req) async {
-        expect(req.url.path, '/auth/provider/otp/request');
-        return http.Response(
-          jsonEncode({'expiresInSeconds': 300, 'devCode': '654321'}),
-          202,
-        );
-      });
-      final service = ApiAuthService(client: client, baseUrl: 'http://x');
-
-      final res = await service.sendOtpToProvider(_phone);
-
-      expect(res.success, isTrue);
-      expect(res.data, '654321');
-    },
-  );
-
   test('registerProviderWithEmail POSTs identity + business fields and '
       'signs in immediately (auth overhaul P4)', () async {
     final store = InMemorySessionStore();
@@ -247,12 +228,14 @@ void main() {
     expect((await service.getCurrentProvider())!.id, 'provider_1');
   });
 
+  // The session tests sign in by e-mail: the Pro phone sign-in they used to
+  // go through is gone (B8.5, docs/design/product-questions-batch8.md §2.5).
   test(
-    'verifyOtpForProvider persists the provider session and restores it',
+    'verifyProviderEmailOtp persists the provider session and restores it',
     () async {
       final store = InMemorySessionStore();
       final client = MockClient((req) async {
-        expect(req.url.path, '/auth/provider/otp/verify');
+        expect(req.url.path, '/auth/provider/email/otp/verify');
         return http.Response(
           jsonEncode({
             'provider': _providerJson(),
@@ -269,10 +252,10 @@ void main() {
         providerSessionStore: store,
       );
 
-      final res = await service.verifyOtpForProvider(_phone, '123456');
+      final res = await service.verifyProviderEmailOtp('salon@x.com', '123456');
 
-      expect(res.success, isTrue);
-      expect(res.data!.id, 'provider_1');
+      expect(res.signedIn, isTrue);
+      expect(res.provider!.id, 'provider_1');
       // Persisted under the provider store (incl. the refresh token for silent
       // refresh), and restorable after a cold start.
       final stored = jsonDecode((await store.read())!) as Map<String, dynamic>;
@@ -286,16 +269,16 @@ void main() {
     },
   );
 
-  test('verifyOtpForProvider surfaces provider_not_found', () async {
+  test('verifyProviderEmailOtp surfaces provider_not_found', () async {
     final client = MockClient(
       (req) async =>
           http.Response(jsonEncode({'error': 'provider_not_found'}), 404),
     );
     final service = ApiAuthService(client: client, baseUrl: 'http://x');
 
-    final res = await service.verifyOtpForProvider(_phone, '000000');
+    final res = await service.verifyProviderEmailOtp('salon@x.com', '000000');
 
-    expect(res.success, isFalse);
+    expect(res.signedIn, isFalse);
     expect(res.code, 'provider_not_found');
   });
 
@@ -312,7 +295,7 @@ void main() {
       baseUrl: 'http://x',
       providerSessionStore: store,
     );
-    await service.verifyOtpForProvider(_phone, '123456');
+    await service.verifyProviderEmailOtp('salon@x.com', '123456');
 
     await service.logoutProvider();
 
@@ -339,7 +322,7 @@ void main() {
       baseUrl: 'http://x',
       providerSessionStore: store,
     );
-    await service.verifyOtpForProvider(_phone, '123456');
+    await service.verifyProviderEmailOtp('salon@x.com', '123456');
     await service.cacheProviderMembership(
       const ProMembership(
         role: TeamRole.reception,
@@ -384,7 +367,7 @@ void main() {
     test('survive a restart, and the membership written after them', () async {
       final store = InMemorySessionStore();
       final service = serviceOn(store);
-      await service.verifyOtpForProvider(_phone, '123456');
+      await service.verifyProviderEmailOtp('salon@x.com', '123456');
       await service.cacheProviderSalonMarket(lbv);
       await service.cacheProviderMembership(
         const ProMembership(
@@ -407,7 +390,7 @@ void main() {
     test('null CLEARS them — the membership kept', () async {
       final store = InMemorySessionStore();
       final service = serviceOn(store);
-      await service.verifyOtpForProvider(_phone, '123456');
+      await service.verifyProviderEmailOtp('salon@x.com', '123456');
       await service.cacheProviderMembership(
         const ProMembership(
           role: TeamRole.owner,

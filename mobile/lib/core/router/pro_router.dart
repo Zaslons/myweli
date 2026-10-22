@@ -68,9 +68,10 @@ class ProRouter {
         name: 'pro-register',
         builder: (context, state) => const ProRegisterScreen(),
       ),
-      // /pro/verify-otp unrouted — phone-OTP login is dormant at launch
-      // (AUTH_METHODS gates the backend; ProOtpVerifyScreen kept for the
-      // Termii-era phone VERIFICATION reuse). docs/design/pro-auth-social.md.
+      // No phone sign-in for Pros: it was removed (B8.5) — it opened with
+      // the clients' AUTH_METHODS switch and took the first account carrying
+      // a number that is no longer unique. Rebuilt on purpose when SMS
+      // returns (docs/design/product-questions-batch8.md §2.5).
       // The Collaborateur shell (access R4b): Journée · Calendrier · Profil.
       GoRoute(
         path: '/pro/staff',

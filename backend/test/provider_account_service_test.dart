@@ -25,6 +25,23 @@ class _MockAppointments extends Mock implements AppointmentRepository {}
 /// to be handed to the service directly.
 class _MockAuth extends Mock implements ProviderAuthRepository {}
 
+/// The in-memory store, whose identity delete fails ONCE — the step the
+/// Postgres twin fails with a foreign key (B8.6).
+class _IdentityFailsOnce extends InMemoryProviderAuthRepository {
+  _IdentityFailsOnce({required super.tokens}) : super(echoDevCode: true);
+
+  bool _failed = false;
+
+  @override
+  Future<bool> deleteAccount(String accountId) async {
+    if (!_failed) {
+      _failed = true;
+      throw StateError('the identity delete failed');
+    }
+    return super.deleteAccount(accountId);
+  }
+}
+
 /// Records what it was asked to do, so a call site can be observed.
 class _RecordingNotifier implements SiteRebuildNotifier {
   final reasons = <String>[];
@@ -123,6 +140,53 @@ void main() {
     // identity (docs/design/backend-provider-deletion-member-fk.md).
     expect(await memberships.listForAccount(id), isEmpty);
     expect(await memberships.listForProvider('p1'), isEmpty);
+  });
+
+  // docs/design/product-questions-batch8.md §2.6 (B8.6, decision 32): the
+  // in-memory twin of the Postgres test — a failure at the identity, then
+  // « Réessayez »: the retry finishes the deletion.
+  test('a failure at the identity, then a retry: the account and its team '
+      'rows are gone', () async {
+    final failing = _IdentityFailsOnce(tokens: tokens);
+    final memberships = InMemoryMembershipRepository();
+    final service = ProviderAccountService(
+      failing,
+      providers,
+      appointments,
+      FakeStorageService(),
+      memberships,
+      client: MockClient((_) async => http.Response('', 204)),
+    );
+    final reg = await failing.register(
+      businessName: 'X',
+      businessType: 'salon',
+      phoneNumber: '+2250700000071',
+      email: 'retry@test.pro',
+      authProvider: 'google',
+      googleSub: 'retry-sub',
+      providerId: 'p1',
+    );
+    final id = reg.provider!.id;
+    await memberships.ensureOwner(
+      providerId: 'p1',
+      accountId: id,
+      email: 'retry@test.pro',
+    );
+
+    await expectLater(service.deleteAccount(id), throwsStateError);
+    expect(await failing.accountById(id), isNotNull);
+    expect(
+      await memberships.listForAccount(id),
+      isNotEmpty,
+      reason: 'the team row went before the identity',
+    );
+
+    final retry = await service.deleteAccount(id);
+
+    expect(retry.ok, isTrue);
+    expect(await failing.accountById(id), isNull);
+    expect(await memberships.listForAccount(id), isEmpty);
+    verify(() => providers.setStatus('p1', 'draft')).called(2);
   });
 
   test('a deleted SALON stops receiving push too', () async {

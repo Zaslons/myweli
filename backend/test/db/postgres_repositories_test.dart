@@ -87,7 +87,7 @@ void main() {
     // Isolate state between tests; the seeded providers stay.
     await pool.execute(
       'TRUNCATE appointments, refresh_tokens, otp_codes, users, '
-      'provider_users, provider_otp_codes, provider_refresh_tokens, '
+      'provider_users, provider_refresh_tokens, '
       'favorites, reviews, salon_clients, salon_client_notes, '
       'provider_audit_log CASCADE',
     );
@@ -367,7 +367,7 @@ void main() {
         );
 
     test(
-      'register creates the account (+ link) then verify returns a token',
+      'register creates the account (+ link) and a provider session',
       () async {
         final r = repo();
         final reg = await r.register(
@@ -396,15 +396,16 @@ void main() {
           'provider_exists',
         );
 
-        // The dormant phone-OTP path still logs the salon in.
-        final code = (await r.requestOtp(provPhone)).devCode!;
-        final ok = await r.verifyOtp(provPhone, code);
-        expect(ok.ok, isTrue);
+        // The session registration hands back is a provider's
+        // (the phone sign-in that used to be checked here is gone — B8.5).
         expect(
-          tokens.verifyAccessToken(ok.tokens!.accessToken)!.payload,
+          tokens.verifyAccessToken(reg.tokens!.accessToken)!.payload,
           containsPair('role', 'provider'),
         );
-        expect((await r.accountById(ok.provider!.id))!.providerId, 'provider1');
+        expect(
+          (await r.accountById(reg.provider!.id))!.providerId,
+          'provider1',
+        );
       },
     );
 
@@ -440,32 +441,6 @@ void main() {
         );
       },
     );
-
-    test('verify requires registration; wrong codes lock out', () async {
-      final r = repo(maxAttempts: 2);
-      // Unregistered phone: a code can be requested, but verify → not found.
-      final code = (await r.requestOtp('+2250500000000')).devCode!;
-      expect(
-        (await r.verifyOtp('+2250500000000', code)).error,
-        'provider_not_found',
-      );
-
-      final reg = await r.register(
-        email: 'reg30@test.pro',
-
-        authProvider: 'google',
-
-        googleSub: 'reg-sub-30',
-        phoneNumber: provPhone,
-        businessName: 'X',
-        businessType: 'salon',
-      );
-      expect(reg.ok, isTrue);
-      final sent = await r.requestOtp(provPhone);
-      final wrong = sent.devCode == '111111' ? '222222' : '111111';
-      expect((await r.verifyOtp(provPhone, wrong)).error, 'otp_invalid');
-      expect((await r.verifyOtp(provPhone, wrong)).error, 'otp_locked');
-    });
 
     test('submitKyc persists kyc_docs + pending; survives re-read', () async {
       final r = repo();
@@ -2693,6 +2668,54 @@ WHERE c.contype = 'f'
       } finally {
         await pool.execute('DROP TABLE IF EXISTS deletion_blocker_probe');
       }
+    });
+
+    // docs/design/product-questions-batch8.md §2.6 (B8.6, decision 32): the
+    // deletion is a sequence of replayable steps, not one transaction — and
+    // the answer to a failure in the middle is « Réessayez ». So the retry
+    // must FINISH it: everything the first attempt erased stays erased, and
+    // what it could not reach goes now.
+    test('a deletion that fails at the identity, then a retry: everything '
+        'is erased', () async {
+      final o = await owner('del-retry@test.pro', '+2250500001006');
+      Future<int> teamRows() => count(
+        'SELECT count(*)::int FROM provider_members WHERE account_id = @a',
+        {'a': o.id},
+      );
+
+      await pool.execute(
+        'CREATE TABLE deletion_blocker_probe '
+        '(account_id text REFERENCES provider_users(id))',
+      );
+      try {
+        await pool.execute(
+          Sql.named('INSERT INTO deletion_blocker_probe VALUES (@a)'),
+          parameters: {'a': o.id},
+        );
+        await expectLater(
+          service().deleteAccount(o.id),
+          throwsA(isA<ServerException>()),
+        );
+        // Halfway: the salon is already unpublished and its contact erased;
+        // the identity and its team row are still there.
+        final halfway = await PostgresProvidersRepository(pool).byId(o.salonId);
+        expect(halfway?['status'], 'draft');
+        expect(halfway?['phoneNumber'], '');
+        expect(await authRepo().accountById(o.id), isNotNull);
+        expect(await teamRows(), 1);
+      } finally {
+        await pool.execute('DROP TABLE IF EXISTS deletion_blocker_probe');
+      }
+
+      // The retry, as « Réessayez » asks.
+      final retry = await service().deleteAccount(o.id);
+
+      expect(retry.ok, isTrue, reason: 'the retry did not finish: $retry');
+      expect(await authRepo().accountById(o.id), isNull);
+      expect(await teamRows(), 0);
+      final salon = await PostgresProvidersRepository(pool).byId(o.salonId);
+      expect(salon?['status'], 'draft', reason: 'the salon stays unpublished');
+      expect(salon?['phoneNumber'], '', reason: 'and its contact erased');
     });
   });
 }

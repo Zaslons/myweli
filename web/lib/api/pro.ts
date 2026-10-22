@@ -88,31 +88,6 @@ export type ProProfile = {
   membership?: Membership;
 };
 
-export async function requestOtpPro(
-  phoneNumber: string,
-): Promise<{ ok: boolean; devCode?: string; error?: string }> {
-  const res = await send('/api/pro/auth/request-otp', {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ phoneNumber }),
-  });
-  const body = await res.json().catch(() => ({}));
-  return res.ok ? { ok: true, devCode: body.devCode } : { ok: false, error: body.error };
-}
-
-export async function verifyOtpPro(
-  phoneNumber: string,
-  code: string,
-): Promise<{ ok: boolean; error?: string }> {
-  const res = await send('/api/pro/auth/verify', {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ phoneNumber, code }),
-  });
-  const body = await res.json().catch(() => ({}));
-  return res.ok ? { ok: true } : { ok: false, error: body.error };
-}
-
 export async function getMyProvider(): Promise<{
   status: number;
   profile?: ProProfile;

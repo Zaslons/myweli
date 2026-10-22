@@ -29,7 +29,6 @@ import 'package:myweli/screens/notifications/notifications_screen.dart';
 import 'package:myweli/screens/provider/appointments/appointment_calendar_view.dart';
 import 'package:myweli/screens/provider/appointments/appointment_list_screen.dart';
 import 'package:myweli/screens/provider/appointments/pro_manual_booking_screen.dart';
-import 'package:myweli/screens/provider/auth/pro_otp_verify_screen.dart';
 import 'package:myweli/screens/provider/availability/availability_screen.dart';
 import 'package:myweli/screens/provider/dashboard/dashboard_screen.dart';
 import 'package:myweli/screens/provider/earnings/earnings_screen.dart';
@@ -192,31 +191,6 @@ void main() {
         // device run found « Tableau de b… » here while the corpus run, which
         // pumps an action-less pushed bar, read it green.
         expectAppBarTitleWhole(tester, at: 'the consumer OTP at $at');
-        expect(tester.takeException(), isNull, reason: 'A: $at');
-
-        await _disposeTimers(tester);
-      });
-
-      testWidgets('the pro OTP screen fits $at', (tester) async {
-        await pumpAtWidth(
-          tester,
-          width: width,
-          scale: scale,
-          home: const ProOtpVerifyScreen(phoneNumber: kConsumerPhone),
-          rounds: 1,
-        );
-
-        expect(find.byType(TextField), findsNWidgets(6), reason: 'C');
-        _expectOtpRowFitsTheFloor(tester, width: width, at: at);
-        expectNoUndeclaredTruncation(tester, context: 'the pro OTP at $at');
-        expectNoLegibilityCrush(tester, context: 'the pro OTP at $at');
-        expectNoVerticalClip(tester, context: 'the pro OTP at $at');
-        expectNoGluedTokenBreaks(tester, context: 'the pro OTP at $at');
-        // **Unpushed, but not ungated.** A root bar draws no leading, so it is
-        // 48dp WIDER than a pushed one — and then spends it on actions. The
-        // device run found « Tableau de b… » here while the corpus run, which
-        // pumps an action-less pushed bar, read it green.
-        expectAppBarTitleWhole(tester, at: 'the pro OTP at $at');
         expect(tester.takeException(), isNull, reason: 'A: $at');
 
         await _disposeTimers(tester);

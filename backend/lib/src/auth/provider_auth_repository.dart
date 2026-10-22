@@ -93,10 +93,6 @@ abstract interface class ProviderAuthRepository {
   /// docs/design/pro-salon-lifecycle.md §2). Idempotent.
   Future<void> linkProvider(String accountId, String providerId);
 
-  // Phone OTP — dormant at launch (AUTH_METHODS gates the routes).
-  Future<OtpRequestResult> requestOtp(String phoneNumber);
-  Future<ProviderVerifyResult> verifyOtp(String phoneNumber, String code);
-
   // --- Auth overhaul (docs/design/pro-auth-social.md) ------------------------
 
   /// LOGIN-ONLY with verified identity-provider claims: match by [sub] → else
@@ -260,11 +256,9 @@ class InMemoryProviderAuthRepository implements ProviderAuthRepository {
   final DateTime Function() _clock;
 
   final Map<String, _Refresh> _refreshByHash = {};
-  final Map<String, ProviderAccount> _byPhone = {};
   final Map<String, ProviderAccount> _byId = {};
   final Map<String, ProviderAccount> _byEmail = {}; // lowercased email
   final Map<String, ProviderAccount> _bySocial = {}; // '<provider>:<sub>'
-  final Map<String, _Otp> _otps = {};
   final Map<String, _Otp> _emailOtps = {}; // lowercased email
 
   @override
@@ -316,27 +310,6 @@ class InMemoryProviderAuthRepository implements ProviderAuthRepository {
       ..verificationStatus = status
       ..rejectionReason = rejectionReason;
     return account;
-  }
-
-  @override
-  Future<OtpRequestResult> requestOtp(String phoneNumber) async {
-    final issued = _issueOtp(phoneNumber);
-    if (issued == null) {
-      return (
-        ok: false,
-        error: 'otp_resend_limit',
-        code: null,
-        devCode: null,
-        expiresInSeconds: 0,
-      );
-    }
-    return (
-      ok: true,
-      error: null,
-      code: issued.code,
-      devCode: issued.devCode,
-      expiresInSeconds: issued.expiresInSeconds,
-    );
   }
 
   @override
@@ -480,7 +453,6 @@ class InMemoryProviderAuthRepository implements ProviderAuthRepository {
       providerId: providerId,
       createdAt: DateTime.now().toUtc(),
     );
-    _byPhone[phoneNumber] = account;
     _byId[account.id] = account;
     _byEmail[emailKey] = account;
     if (googleSub != null) _bySocial['google:$googleSub'] = account;
@@ -567,50 +539,6 @@ class InMemoryProviderAuthRepository implements ProviderAuthRepository {
     return null;
   }
 
-  @override
-  Future<ProviderVerifyResult> verifyOtp(
-    String phoneNumber,
-    String code,
-  ) async {
-    final otp = _otps[phoneNumber];
-    if (otp == null) {
-      return (ok: false, error: 'otp_none', provider: null, tokens: null);
-    }
-    if (DateTime.now().toUtc().isAfter(otp.expiresAt)) {
-      _otps.remove(phoneNumber);
-      return (ok: false, error: 'otp_expired', provider: null, tokens: null);
-    }
-    if (otp.attemptsLeft <= 0) {
-      return (ok: false, error: 'otp_locked', provider: null, tokens: null);
-    }
-    if (otp.codeHash != _tokens.hashToken(code)) {
-      otp.attemptsLeft -= 1;
-      return (
-        ok: false,
-        error: otp.attemptsLeft <= 0 ? 'otp_locked' : 'otp_invalid',
-        provider: null,
-        tokens: null,
-      );
-    }
-    final account = _byPhone[phoneNumber];
-    if (account == null) {
-      // Must register before logging in (unlike the lax mock).
-      return (
-        ok: false,
-        error: 'provider_not_found',
-        provider: null,
-        tokens: null,
-      );
-    }
-    _otps.remove(phoneNumber);
-    return (
-      ok: true,
-      error: null,
-      provider: account,
-      tokens: _issueInFamily(account.id, _newId('fam')),
-    );
-  }
-
   /// Same semantics as the Postgres twin (design §5); no `await` between the
   /// read and the write, so the claim is atomic on the one isolate.
   @override
@@ -655,10 +583,6 @@ class InMemoryProviderAuthRepository implements ProviderAuthRepository {
   Future<bool> deleteAccount(String accountId) async {
     final account = _byId.remove(accountId);
     if (account == null) return false;
-    if (account.phoneNumber.isNotEmpty) {
-      _byPhone.remove(account.phoneNumber);
-      _otps.remove(account.phoneNumber);
-    }
     final email = account.email?.toLowerCase();
     if (email != null) {
       _byEmail.remove(email);
@@ -668,10 +592,6 @@ class InMemoryProviderAuthRepository implements ProviderAuthRepository {
     _refreshByHash.removeWhere((_, r) => r.accountId == accountId);
     return true;
   }
-
-  ({String? code, String? devCode, int expiresInSeconds})? _issueOtp(
-    String phoneNumber,
-  ) => _issueOtpIn(_otps, phoneNumber);
 
   ({String? code, String? devCode, int expiresInSeconds})? _issueOtpIn(
     Map<String, _Otp> store,

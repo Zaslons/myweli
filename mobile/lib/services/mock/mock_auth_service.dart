@@ -47,7 +47,6 @@ class MockAuthService implements AuthServiceInterface {
   ProviderUser? _currentProvider;
   final Map<String, _OtpState> _otpStates = {};
   final Map<String, _OtpState> _emailOtpStates = {}; // lowercased email
-  final Map<String, String> _providerOtpStore = {}; // phone -> otp
 
   Future<void> _persistSession(User user) async {
     final session = Session(
@@ -367,43 +366,6 @@ class MockAuthService implements AuthServiceInterface {
     await _sessionStore.clear();
 
     return ApiResponse.success(null, message: 'Compte supprimé');
-  }
-
-  // Provider methods
-  @override
-  Future<ApiResponse<String>> sendOtpToProvider(String phoneNumber) async {
-    await Future.delayed(AppConstants.mockDelay);
-    const otp = '123456';
-    _providerOtpStore[phoneNumber] = otp;
-    return ApiResponse.success(otp, message: 'Code OTP envoyé avec succès');
-  }
-
-  @override
-  Future<ApiResponse<ProviderUser>> verifyOtpForProvider(
-    String phoneNumber,
-    String otp,
-  ) async {
-    await Future.delayed(AppConstants.mockDelay);
-    final storedOtp = _providerOtpStore[phoneNumber];
-    if (storedOtp == null || storedOtp != otp) {
-      return ApiResponse.error('Code OTP invalide');
-    }
-
-    // Find or create provider user
-    var providerUser = MockData.providerUsers.firstWhere(
-      (p) => p.phoneNumber == phoneNumber,
-      orElse: () => ProviderUser(
-        id: 'provider_${AppClock.now().millisecondsSinceEpoch}',
-        phoneNumber: phoneNumber,
-        businessName: 'Business',
-        businessType: BusinessType.other,
-        createdAt: AppClock.now(),
-      ),
-    );
-
-    _currentProvider = providerUser;
-    _providerOtpStore.remove(phoneNumber);
-    return ApiResponse.success(providerUser, message: 'Connexion réussie');
   }
 
   // ---- Pro auth overhaul (docs/design/pro-auth-social.md) -------------------

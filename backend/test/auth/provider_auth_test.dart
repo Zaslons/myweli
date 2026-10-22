@@ -25,8 +25,6 @@ import 'package:test/test.dart';
 import '../../routes/auth/provider/email/otp/request.dart' as pe_request;
 import '../../routes/auth/provider/email/otp/verify.dart' as pe_verify;
 import '../../routes/auth/provider/google.dart' as p_google;
-import '../../routes/auth/provider/otp/request.dart' as p_request;
-import '../../routes/auth/provider/otp/verify.dart' as p_verify;
 import '../../routes/auth/provider/refresh.dart' as p_refresh;
 import '../../routes/auth/provider/register.dart' as p_register;
 import '../http/observed.dart';
@@ -212,18 +210,6 @@ void main() {
         expect((await tryReg()).error, 'otp_locked');
       },
     );
-
-    test('phone OTP still works at the repo level (dormant path)', () async {
-      final repo = InMemoryProviderAuthRepository(
-        tokens: ts(),
-        echoDevCode: true,
-      );
-      await registerGoogle(repo);
-      final otp = await repo.requestOtp(_phone);
-      final ok = await repo.verifyOtp(_phone, otp.devCode!);
-      expect(ok.ok, isTrue);
-      expect(ok.provider!.phoneNumber, _phone);
-    });
 
     test('refresh rotates; replay revokes the family', () async {
       var now = DateTime.utc(2026, 10, 12, 9);
@@ -650,27 +636,6 @@ void main() {
       expect((await jsonOf(blankName))['error'], 'invalid_input');
     });
 
-    test('provider otp/verify: a bad phone → 400 invalid_phone, a bad code → '
-        '400 invalid_input (dormant route, same rule)', () async {
-      Future<String?> verify(Map<String, Object?> body) async {
-        final res = await p_verify.onRequest(
-          ctx(post('/auth/provider/otp/verify', body)),
-        );
-        expect(res.statusCode, HttpStatus.badRequest, reason: '$body');
-        return (await jsonOf(res))['error'] as String?;
-      }
-
-      expect(
-        await verify({'phoneNumber': '+2250700000', 'code': '123456'}),
-        'invalid_phone',
-      );
-      expect(await verify({'code': '123456'}), 'invalid_phone');
-      expect(
-        await verify({'phoneNumber': _phone, 'code': 'abc'}),
-        'invalid_input',
-      );
-    });
-
     group('a body field of the wrong JSON type → 400 invalid_body, '
         'not 500', () {
       // docs/design/phone-leftovers.md §3 — through the middleware, the edge
@@ -706,7 +671,7 @@ void main() {
         expect(ok.statusCode, HttpStatus.created);
       });
 
-      test('the email OTP routes, otp/verify, google and refresh', () async {
+      test('the email OTP routes, google and refresh', () async {
         await expectInvalidBody(
           pe_request.onRequest,
           '/auth/provider/email/otp/request',
@@ -716,11 +681,6 @@ void main() {
           pe_verify.onRequest,
           '/auth/provider/email/otp/verify',
           {'email': 'a@salon.ci', 'code': 123456},
-        );
-        await expectInvalidBody(
-          p_verify.onRequest,
-          '/auth/provider/otp/verify',
-          {'phoneNumber': _phone, 'code': 123456},
         );
         await expectInvalidBody(p_google.onRequest, '/auth/provider/google', {
           'idToken': true,
@@ -798,15 +758,9 @@ void main() {
       expect((await jsonOf(login))['refreshToken'], isNotEmpty);
     });
 
-    test('AUTH_METHODS gate: no phone → provider otp/request 404; '
-        'no google → provider google 404', () async {
-      methods = AuthMethods.parse('google,apple,email');
-      final gated = await p_request.onRequest(
-        ctx(post('/auth/provider/otp/request', {'phoneNumber': _phone})),
-      );
-      expect(gated.statusCode, HttpStatus.notFound);
-      expect((await jsonOf(gated))['error'], 'auth_method_disabled');
-
+    // The phone half of this gate is gone with the routes (B8.5,
+    // test/contract/batch8_phone_signin_contract_test.dart).
+    test('AUTH_METHODS gate: no google → provider google 404', () async {
       methods = AuthMethods.parse('email');
       final gatedGoogle = await p_google.onRequest(
         ctx(post('/auth/provider/google', {'idToken': 'tok'})),
@@ -855,9 +809,11 @@ void main() {
     );
 
     test('non-POST request → 405', () async {
-      final res = await p_request.onRequest(
+      final res = await pe_request.onRequest(
         ctx(
-          Request.get(Uri.parse('http://localhost/auth/provider/otp/request')),
+          Request.get(
+            Uri.parse('http://localhost/auth/provider/email/otp/request'),
+          ),
         ),
       );
       expect(res.statusCode, HttpStatus.methodNotAllowed);

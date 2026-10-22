@@ -64,8 +64,6 @@ const ROWS: Row[] = [
   // The member's « Alertes par e-mail » (salon-email-alerts.md §4).
   { name: 'getProNotificationPrefs', kind: 'read', call: () => pro.getProNotificationPrefs() },
   // --- writes --------------------------------------------------------------
-  { name: 'requestOtpPro', kind: 'write', noStatus: true, call: () => pro.requestOtpPro('+2250700000000') },
-  { name: 'verifyOtpPro', kind: 'write', noStatus: true, call: () => pro.verifyOtpPro('+2250700000000', '1234') },
   {
     name: 'addSalon',
     kind: 'write',

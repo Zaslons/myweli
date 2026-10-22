@@ -1,0 +1,11 @@
+- 🟡 **La connexion Pro par téléphone est retirée, et une suppression de compte Pro interrompue se termine à la relance (serveur + web + app, 2026-10-22 — construit ; le serveur attend son déploiement).** ([product-questions-batch8.md](../../design/product-questions-batch8.md) §9) Le lot 8 du [BACKLOG](../../BACKLOG.md), PR A (B8.5, B8.6 ; décisions 31 et 32). Les décisions 27 à 30 sont prises : garder la confirmation, rien pour le téléphone du compte, une copie hors ligne pour Profil (PR B), « Total réalisé » pour la V2.
+  - **Avant** :
+    - la connexion Pro par téléphone, en sommeil, s'ouvrait avec l'interrupteur des **clients** : rendre le SMS aux clients l'aurait rouverte ;
+    - elle prenait le premier compte portant le numéro, qui n'est plus unique depuis 0023 ;
+    - rien ne prouvait qu'une suppression de compte Pro interrompue se termine à la relance.
+  - **Ce qui change** :
+    - les deux routes Pro, leurs méthodes et le contrat, les routes BFF et les fonctions du web, l'écran et les méthodes de l'app : retirés ; les routes clients restent ;
+    - un test, sur Postgres et en mémoire : un échec à l'identité, puis une relance qui efface tout ;
+    - la ligne T80 du modèle de menaces.
+  - **Gardes** : les tests rouges d'abord ; 9 mutations vues rouges (chaque pièce remise en place, sur chaque surface ; la relance cassée dans chaque magasin) ; les suites entières.
+  - **À suivre** : le déploiement du serveur (à ta demande) ; PR B (Profil hors ligne, le mot de la V2) ; B9.12 (supprimer la table orpheline après le déploiement).

@@ -32,13 +32,6 @@ abstract class AuthServiceInterface {
   /// Permanently delete the signed-in user's account. Irreversible.
   Future<ApiResponse<void>> deleteAccount();
 
-  // Provider methods — phone OTP dormant at launch (AUTH_METHODS-gated).
-  Future<ApiResponse<String>> sendOtpToProvider(String phoneNumber);
-  Future<ApiResponse<ProviderUser>> verifyOtpForProvider(
-    String phoneNumber,
-    String otp,
-  );
-
   // Pro auth overhaul (docs/design/pro-auth-social.md) — LOGIN-ONLY (a salon
   // is never auto-created; `provider_not_found` → offer registration).
   // Team access R3: a verified identity with PENDING invitations comes back

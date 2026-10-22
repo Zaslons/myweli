@@ -1274,27 +1274,6 @@ paths:
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
 
-  /auth/provider/otp/request:
-    post:
-      tags: [auth]
-      summary: Request a login code for an existing provider (B-prov)
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema: { $ref: '#/components/schemas/OtpRequest' }
-      responses:
-        '202':
-          description: Code dispatched (dev builds return it inline)
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  expiresInSeconds: { type: integer }
-                  devCode: { type: string, description: dev only }
-        '429': { $ref: '#/components/responses/RateLimited' }
-
   /auth/provider/register:
     post:
       tags: [auth]
@@ -1624,50 +1603,6 @@ paths:
         '400': { $ref: '#/components/responses/BadRequest' }
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
-        '404': { $ref: '#/components/responses/NotFound' }
-        '429': { $ref: '#/components/responses/RateLimited' }
-
-  /auth/provider/otp/verify:
-    post:
-      tags: [auth]
-      summary: Verify a provider code; returns the account + a token pair (B-prov)
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema: { $ref: '#/components/schemas/OtpVerify' }
-      responses:
-        '200':
-          description: Verified
-          content:
-            application/json:
-              schema:
-                type: object
-                required: [provider, accessToken, refreshToken, expiresAt]
-                properties:
-                  provider: { $ref: '#/components/schemas/ProviderUser' }
-                  accessToken:
-                    type: string
-                    description: Signed JWT, role `provider`.
-                  refreshToken:
-                    type: string
-                    description: >
-                      Rotating opaque refresh token (hashed at rest); exchange
-                      at POST /auth/provider/refresh.
-                  expiresAt:
-                    type: string
-                    format: date-time
-                    description: Access-token expiry.
-        '400':
-          description: >
-            `invalid_phone` — `phoneNumber` missing or not a valid number.
-            `invalid_input` — `code` missing or not a 6-digit code (the two
-            used to share `invalid_input` — docs/design/phone-leftovers.md
-            §2). `invalid_body` — not a JSON object, or a field of the wrong
-            JSON type. `otp_*` — the code itself was refused.
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/Error' }
         '404': { $ref: '#/components/responses/NotFound' }
         '429': { $ref: '#/components/responses/RateLimited' }
 

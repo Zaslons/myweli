@@ -101,12 +101,12 @@ Each question has a recommendation. Answers unblock the item named in brackets.
 
 **Product questions (batch 8)**
 
-27. **Undo** for cancelling a booking, revoking a member and deleting an account? It needs server « pending » states, and a grace period stated in the privacy policy. Or keep confirm-only? [B8.1]
-28. **The Pro account phone:** still a sign-in identity, so changing it needs an SMS code and waits for real SMS? Or only a contact number pros can edit now? [B8.2]
-29. **The « Profil » salon card offline:** keep a small offline copy (name, category, address, phone), or accept « could not load / Réessayer »? [B8.3]
-30. **V2 analytics chart:** count « Revenus prévus » or « Total réalisé »? Needed only when V2 is built. [B8.4]
-31. **Dormant phone sign-in:** repair and route it when SMS returns, or delete it now and rebuild it later on today's sign-in path? [B8.5]
-32. **Atomic Pro account deletion:** accept today's repeatable order, where a retry completes the deletion, or build full atomicity at real cost? *Recommended: accept, and add the retry test.* [B8.6]
+27. **Undo** for cancelling a booking, revoking a member and deleting an account? It needs server « pending » states, and a grace period stated in the privacy policy. Or keep confirm-only? [B8.1] — ✅ **Answered: keep confirm-only** (SYSTEM §15's ladder; [product-questions-batch8.md](design/product-questions-batch8.md) Q1).
+28. **The Pro account phone:** still a sign-in identity, so changing it needs an SMS code and waits for real SMS? Or only a contact number pros can edit now? [B8.2] — ✅ **Answered: nothing now** — it stopped being an identity in migration 0023 (no longer unique); decide with phone sign-in's return (Q2).
+29. **The « Profil » salon card offline:** keep a small offline copy (name, category, address, phone), or accept « could not load / Réessayer »? [B8.3] — ✅ **Answered: a small offline copy** (Q3).
+30. **V2 analytics chart:** count « Revenus prévus » or « Total réalisé »? Needed only when V2 is built. [B8.4] — ✅ **Answered: « Total réalisé »** (Q4).
+31. **Dormant phone sign-in:** repair and route it when SMS returns, or delete it now and rebuild it later on today's sign-in path? [B8.5] — ✅ **Answered: remove it now** — it opens with the clients' `AUTH_METHODS` switch and signs into the first account carrying a number that is no longer unique (Q5).
+32. **Atomic Pro account deletion:** accept today's repeatable order, where a retry completes the deletion, or build full atomicity at real cost? *Recommended: accept, and add the retry test.* [B8.6] — ✅ **Answered: accept, and add the retry test** (Q6).
 
 **Hygiene (batch 9)**
 
@@ -316,14 +316,14 @@ This batch takes up three of the six suggested tasks that were never started. It
 
 ### Batch 8 — Product questions (P3, need your answers first)
 
-- **B8.1 Undo for destructive server actions (L · decision 27).** If wanted: about 10 s « pending » states on the server for cancel and revoke, and a grace period for deletion, stated in the policy.
-- **B8.2 An editable Pro account phone (M · decision 28).** `PATCH /me/provider/account/phone`, with 409 on a number taken by another account and an audit with ids only. Plus an SMS code if it is still a sign-in identity.
+- ✅ **B8.1 Undo for destructive server actions (L · decision 27).** **Decided: keep confirm-only** — [product-questions-batch8.md](design/product-questions-batch8.md) Q1; nothing to build. If wanted: about 10 s « pending » states on the server for cancel and revoke, and a grace period for deletion, stated in the policy.
+- ✅ **B8.2 An editable Pro account phone (M · decision 28).** **Decided: nothing now** (Q2) — the number stopped being an identity in migration 0023 and is no longer unique, so there is no 409 to give; it waits for phone sign-in's return. `PATCH /me/provider/account/phone`, with 409 on a number taken by another account and an audit with ids only. Plus an SMS code if it is still a sign-in identity.
 - **B8.3 The « Profil » salon card offline (S · decision 29).** Persist a slim copy of the acting salon, cleared at logout.
-- **B8.4 V2 analytics wording (S · decision 30).** Nothing now. Add the label to the checklist for turning V2 on.
-- **B8.5 Dormant phone sign-in (S · decision 31).**
+- **B8.4 V2 analytics wording (S · decision 30).** **Decided: « Total réalisé »** (Q4). Nothing now. Add the label to the checklist for turning V2 on.
+- ✅ **B8.5 Dormant phone sign-in (S · decision 31).** **Done in #685** — removed (Q5) — [product-questions-batch8.md](design/product-questions-batch8.md) §9. **Worse than listed:** the server route opened with the CLIENTS' `AUTH_METHODS` switch, and took the first account carrying a number that is no longer unique (T80). Server, contract, web and app. Rebuilt on purpose when SMS returns, with B8.2.
   - **What:** an unrouted screen, and a sign-in that skips the membership load.
   - **How:** decide together with the return of SMS and WhatsApp (company registration).
-- **B8.6 Pro account deletion is only partly atomic (L · decision 32).** *Recommended:* accept, add a test that a failed identity delete followed by a retry ends fully deleted, and say « réessayez » after a 5xx.
+- ✅ **B8.6 Pro account deletion is only partly atomic (L · decision 32).** **Done in #685** — §9 (the retry test, Postgres and in memory; the « réessayez » half already held on both clients). *Recommended:* accept, add a test that a failed identity delete followed by a retry ends fully deleted, and say « réessayez » after a 5xx.
 
 ### Batch 9 — Hygiene, tooling and tests (P3, do when touching the area)
 
@@ -347,6 +347,7 @@ This batch takes up three of the six suggested tasks that were never started. It
 - **B9.8 Shared components (L).** `AppCard`, `AppChip` and `AppAsyncView` as SYSTEM §11.3 specifies. `AppAsyncView` makes a forgotten state or a raw error impossible, and pairs with B3.1.
 - **B9.9 The R6 salon-id pin's blind spot (L · decision 33).** A positional account id isn't seen by the pin. The real fix is a `SalonId` extension type. Nothing on main triggers it.
 - **B9.10 One home for fallback copy (S).** Three spellings of a missing salon name: one constant per surface, and a rule in SYSTEM §12 and WEB-SYSTEM.
+- **B9.12 Drop the orphaned `provider_otp_codes` table (S, after B8.5 is deployed).** B8.5 (#685) stopped every read and write of it, but an older image still deletes from it on each Pro account deletion — dropping it in the same deploy would turn every deletion into a 500 on a rollback. Drop it once no deployed image reads it, with a `// rollback-unsafe:` line (LAUNCH §1.4's contract step).
 - **B9.11 Web list reads that still turn a missing list into `[]` (S, when touched).** Notifications, invitations, team, reviews, visits and public pages. Since #630 only a server contract change can trigger it. Make each read require its array, as #630 did for the exports.
 
 ### Batch 10 — Only you can check

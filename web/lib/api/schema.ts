@@ -1872,51 +1872,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/auth/provider/otp/request": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Request a login code for an existing provider (B-prov) */
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody: {
-                content: {
-                    "application/json": components["schemas"]["OtpRequest"];
-                };
-            };
-            responses: {
-                /** @description Code dispatched (dev builds return it inline) */
-                202: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": {
-                            expiresInSeconds?: number;
-                            /** @description dev only */
-                            devCode?: string;
-                        };
-                    };
-                };
-                429: components["responses"]["RateLimited"];
-            };
-        };
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/auth/provider/register": {
         parameters: {
             query?: never;
@@ -2348,68 +2303,6 @@ export interface paths {
                 400: components["responses"]["BadRequest"];
                 401: components["responses"]["Unauthorized"];
                 403: components["responses"]["Forbidden"];
-                404: components["responses"]["NotFound"];
-                429: components["responses"]["RateLimited"];
-            };
-        };
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/auth/provider/otp/verify": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Verify a provider code; returns the account + a token pair (B-prov) */
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody: {
-                content: {
-                    "application/json": components["schemas"]["OtpVerify"];
-                };
-            };
-            responses: {
-                /** @description Verified */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": {
-                            provider: components["schemas"]["ProviderUser"];
-                            /** @description Signed JWT, role `provider`. */
-                            accessToken: string;
-                            /** @description Rotating opaque refresh token (hashed at rest); exchange at POST /auth/provider/refresh. */
-                            refreshToken: string;
-                            /**
-                             * Format: date-time
-                             * @description Access-token expiry.
-                             */
-                            expiresAt: string;
-                        };
-                    };
-                };
-                /** @description `invalid_phone` — `phoneNumber` missing or not a valid number. `invalid_input` — `code` missing or not a 6-digit code (the two used to share `invalid_input` — docs/design/phone-leftovers.md §2). `invalid_body` — not a JSON object, or a field of the wrong JSON type. `otp_*` — the code itself was refused. */
-                400: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
-                    };
-                };
                 404: components["responses"]["NotFound"];
                 429: components["responses"]["RateLimited"];
             };
