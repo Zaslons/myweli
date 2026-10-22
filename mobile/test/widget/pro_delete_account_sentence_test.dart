@@ -13,6 +13,7 @@ import 'package:myweli/services/mock/mock_device_registration_service.dart';
 import 'package:myweli/services/mock/mock_pro_service.dart';
 import 'package:myweli/services/mock/mock_pro_team_service.dart';
 import 'package:myweli/services/mock/mock_push_notification_service.dart';
+import 'package:myweli/services/mock/mock_subscription_service.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -38,6 +39,8 @@ void main() {
     serviceLocator.authService = MockAuthService();
     serviceLocator.proService = MockProService();
     serviceLocator.proTeamService = MockProTeamService();
+    // « Mes salons » reads the offers too (the « Ajouter un salon » gate).
+    serviceLocator.subscriptionService = MockSubscriptionService();
     serviceLocator.proPushRegistration = PushRegistration(
       push: MockPushNotificationService(),
       devices: MockDeviceRegistrationService(),
@@ -110,6 +113,41 @@ void main() {
       expect(await auth.switchSalon('provider2'), isTrue);
     });
     expect(auth.role, TeamRole.manager, reason: 'the salon on screen');
+
+    await openDialog(tester, auth);
+    expect(find.text(_ownerSentence), findsOneWidget);
+    expect(find.text(_memberSentence), findsNothing);
+  });
+
+  testWidgets('an account with no linked salon that OWNS one in « Mes '
+      'salons » reads that its salon goes', (tester) async {
+    // Awa is a Gérant of provider1 with no salon of her own linked — and the
+    // Propriétaire of provider2 through an owner membership, which the server
+    // removes with her account.
+    MockData.teamMembers.add(
+      TeamMember(
+        id: 'mem_awa_owner2',
+        providerId: 'provider2',
+        email: 'awa.manager@myweli.test',
+        role: TeamRole.owner,
+        status: TeamMemberStatus.active,
+        invitedAt: DateTime(2026, 6, 1),
+        accountId: 'member_awa',
+        acceptedAt: DateTime(2026, 6, 2),
+      ),
+    );
+    final auth = await signInPro(tester, email: 'awa.manager@myweli.test');
+    // Sign-in starts its own « Mes salons » load (a second call returns
+    // early while it runs), and it advances only in real async: poll, as
+    // `signInPro` does for the membership.
+    await tester.runAsync(() async {
+      for (var i = 0; i < 60 && !auth.salons.any((s) => s.isOwner); i++) {
+        await auth.loadMySalons();
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+      }
+    });
+    expect(auth.provider?.providerId, isNull, reason: 'no linked salon');
+    expect(auth.salons.any((s) => s.isOwner), isTrue);
 
     await openDialog(tester, auth);
     expect(find.text(_ownerSentence), findsOneWidget);
