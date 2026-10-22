@@ -7,6 +7,7 @@ import '../../../core/forms/field_errors.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/colors.dart';
 import '../../../core/theme/text_styles.dart';
+import '../../../core/utils/external_link.dart';
 import '../../../core/utils/formatters.dart';
 import '../../../core/utils/phone_numbering.dart';
 import '../../../core/utils/salon_time.dart';
@@ -303,8 +304,7 @@ class _Header extends StatelessWidget {
                   IconButton(
                     icon: const Icon(Icons.phone),
                     tooltip: 'Appeler',
-                    onPressed: () =>
-                        launchUrl(Uri.parse('tel:${client.phone}')),
+                    onPressed: () => callPhone(context, client.phone!),
                   ),
                   IconButton(
                     icon: const Icon(Icons.chat),

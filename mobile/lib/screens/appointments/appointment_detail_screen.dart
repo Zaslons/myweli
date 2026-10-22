@@ -12,6 +12,7 @@ import '../../core/utils/app_clock.dart';
 import '../../core/utils/booking_error_cta.dart';
 import '../../core/utils/calendar_event.dart';
 import '../../core/utils/cancellation_policy.dart';
+import '../../core/utils/external_link.dart';
 import '../../core/utils/formatters.dart';
 import '../../core/utils/salon_time.dart';
 import '../../models/appointment.dart';
@@ -77,9 +78,10 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
       );
       return;
     }
-    final uri = whatsapp
-        ? Uri.parse('https://wa.me/${raw.replaceAll(RegExp(r'[^0-9]'), '')}')
-        : Uri.parse('tel:${raw.replaceAll(RegExp(r'\s'), '')}');
+    if (!whatsapp) return callPhone(context, raw);
+    final uri = Uri.parse(
+      'https://wa.me/${raw.replaceAll(RegExp(r'[^0-9]'), '')}',
+    );
     if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
       AppSnackBar.showOn(
         messenger,
