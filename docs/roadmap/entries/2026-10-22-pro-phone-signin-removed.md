@@ -7,5 +7,5 @@
     - les deux routes Pro, leurs méthodes et le contrat, les routes BFF et les fonctions du web, l'écran et les méthodes de l'app : retirés ; les routes clients restent ;
     - un test, sur Postgres et en mémoire : un échec à l'identité, puis une relance qui efface tout ;
     - la ligne T80 du modèle de menaces.
-  - **Gardes** : les tests rouges d'abord ; __MUTATIONS__ ; les suites entières.
+  - **Gardes** : les tests rouges d'abord ; 9 mutations vues rouges (chaque pièce remise en place, sur chaque surface ; la relance cassée dans chaque magasin) ; les suites entières.
   - **À suivre** : le déploiement du serveur (à ta demande) ; PR B (Profil hors ligne, le mot de la V2) ; B9.12 (supprimer la table orpheline après le déploiement).

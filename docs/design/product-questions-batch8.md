@@ -203,4 +203,9 @@ qu'écrites.
   attendu : il fixe un comportement déjà juste (décision 32). Son rouge
   vient des mutations.
 
-**Vérifié** : __VERIFIED__
+**Vérifié** : `dart analyze --fatal-infos --fatal-warnings` et `flutter
+analyze` à 0, le formatage propre, le typage et le lint du web propres. Les
+suites entières passent : le serveur avec Postgres 2 162 (2 sautés), le web
+2 180, l'app 2 645, l'e2e entier 269 sur deux workers. Les tests rouges
+d'abord ; **9 mutations sur 9 vues rouges** (chaque pièce remise en place,
+sur chaque surface ; la relance cassée dans chaque magasin).
