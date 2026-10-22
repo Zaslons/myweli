@@ -125,9 +125,6 @@ void main() {
     // this file used that fallback and reported three tab labels as clipped
     // that fit with room to spare. See test/support/fonts.dart.
     await loadRealFonts();
-    // B7.10 — the amounts that can break: seven digits a booking, eight in
-    // a total (SYSTEM §21 row 96).
-    useLargeAmounts();
     _seedPrefs();
     stubSecureStorage(); // else the session read throws, ON SCREEN
     setupDependencyInjection();
@@ -137,6 +134,10 @@ void main() {
 
   setUp(() {
     freezeClock(kFixedNow);
+    // B7.10 — the amounts that can break: seven digits a booking, eight in a
+    // total (SYSTEM §21 row 96). After `freezeClock`, which re-seeds the
+    // bookings — applied once in setUpAll, it was wiped before every subject.
+    useLargeAmounts();
     // Re-seeded per test as well: `HomeScreen` writes its selected commune
     // back through `SharedPreferences`, and the favourites below are read from
     // the same store — one screen's write is the next test's fixture otherwise.
