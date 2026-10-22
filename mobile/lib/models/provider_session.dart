@@ -1,5 +1,6 @@
 import 'pro_membership.dart';
 import 'provider_user.dart';
+import 'salon_facts.dart';
 import 'salon_market.dart';
 
 /// The salon a provider session ACTS IN (team access R6) — the one rule:
@@ -49,6 +50,11 @@ class ProviderSession {
   /// shaping only; they count for [SalonMarket.salonId] alone.
   final SalonMarket? salonMarket;
 
+  /// What « Profil » shows of the acting salon, from the last GET
+  /// /me/provider — its card when a cold start is offline (B8.3). Like
+  /// [salonMarket], they count for [SalonFacts.salonId] alone.
+  final SalonFacts? salonFacts;
+
   const ProviderSession({
     required this.token,
     required this.provider,
@@ -56,6 +62,7 @@ class ProviderSession {
     this.membership,
     this.selectedSalonId,
     this.salonMarket,
+    this.salonFacts,
   });
 
   /// The salon this session acts in — [resolveActingSalonId] over the
@@ -74,6 +81,8 @@ class ProviderSession {
     bool clearSelectedSalon = false,
     SalonMarket? salonMarket,
     bool clearSalonMarket = false,
+    SalonFacts? salonFacts,
+    bool clearSalonFacts = false,
   }) => ProviderSession(
     token: token,
     refreshToken: refreshToken,
@@ -83,6 +92,7 @@ class ProviderSession {
         ? null
         : (selectedSalonId ?? this.selectedSalonId),
     salonMarket: clearSalonMarket ? null : (salonMarket ?? this.salonMarket),
+    salonFacts: clearSalonFacts ? null : (salonFacts ?? this.salonFacts),
   );
 
   Map<String, dynamic> toJson() => {
@@ -92,6 +102,7 @@ class ProviderSession {
     if (membership != null) 'membership': membership!.toJson(),
     if (selectedSalonId != null) 'selectedSalonId': selectedSalonId,
     if (salonMarket != null) 'salonMarket': salonMarket!.toJson(),
+    if (salonFacts != null) 'salonFacts': salonFacts!.toJson(),
   };
 
   factory ProviderSession.fromJson(
@@ -111,5 +122,9 @@ class ProviderSession {
     salonMarket: json['salonMarket'] == null
         ? null
         : SalonMarket.fromJson(json['salonMarket'] as Map<String, dynamic>),
+    // Sessions stored before B8.3 have none: offline, the card says so.
+    salonFacts: json['salonFacts'] == null
+        ? null
+        : SalonFacts.fromJson(json['salonFacts'] as Map<String, dynamic>),
   );
 }

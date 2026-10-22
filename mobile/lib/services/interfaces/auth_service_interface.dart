@@ -2,6 +2,7 @@ import '../../models/api_response.dart';
 import '../../models/pro_membership.dart';
 import '../../models/provider_login_result.dart';
 import '../../models/provider_user.dart';
+import '../../models/salon_facts.dart';
 import '../../models/salon_market.dart';
 import '../../models/user.dart';
 
@@ -103,6 +104,13 @@ abstract class AuthServiceInterface {
   /// No-op when signed out.
   Future<void> cacheProviderSalonMarket(SalonMarket? market);
   Future<SalonMarket?> getCachedProviderSalonMarket();
+
+  /// What « Profil » shows of the acting salon (name, category, address,
+  /// phone), cached INSIDE the persisted provider session like the market —
+  /// an offline cold start still shows them (product-questions-batch8.md
+  /// §2.3, B8.3). `null` CLEARS them. No-op when signed out.
+  Future<void> cacheProviderSalonFacts(SalonFacts? facts);
+  Future<SalonFacts?> getCachedProviderSalonFacts();
 
   /// R6 multi-salons: persist/restore the switched-to salon INSIDE the
   /// provider session (cold-start continuity; `null` = the default salon).

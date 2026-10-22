@@ -434,9 +434,11 @@ class _ProProfileScreenState extends State<ProProfileScreen> {
   }
 }
 
-/// The owner's card — the ACTING salon (R6), read from `activeSalon`, the
-/// `GET /me/provider` salon payload. Never the account's `businessName` & co.:
-/// those are a copy made at sign-up, of the default salon, and never updated
+/// The owner's card — the ACTING salon (R6), read from `salonFacts`: the
+/// `GET /me/provider` salon payload, else the copy the session kept of it, so
+/// an offline cold start still shows the salon (product-questions-batch8.md
+/// §2.3, B8.3). Never the account's `businessName` & co.: those are a copy
+/// made at sign-up, of the default salon, and never updated
 /// (docs/design/r6-salon-fact-reads.md §2.1).
 class _SalonCard extends StatefulWidget {
   const _SalonCard();
@@ -462,7 +464,8 @@ class _SalonCardState extends State<_SalonCard> {
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<ProAuthProvider>();
-    final salon = auth.activeSalon;
+    // Live, or the kept copy — for the acting salon only (B8.3).
+    final salon = auth.salonFacts;
     final category = salon == null ? null : salonCategoryLabel(salon.category);
     final rows = <Widget>[
       // The membership's name is cached in the session: known before the
@@ -544,8 +547,9 @@ class _SalonCardState extends State<_SalonCard> {
     ),
   );
 
-  /// Offline cold start, or the probe failed: say so, and offer the retry —
-  /// one that can succeed once the network is back (§12).
+  /// Offline cold start with no copy kept (a session from before B8.3, or
+  /// one that never loaded this salon), or the probe failed: say so, and
+  /// offer the retry — one that can succeed once the network is back (§12).
   Widget _unavailable() => Column(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [

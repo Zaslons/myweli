@@ -1,0 +1,6 @@
+- 🟡 **La carte du salon dans « Profil » se lit hors ligne, et le graphique V2 a son mot (app, 2026-10-22 — construit ; part avec la prochaine version).** ([product-questions-batch8.md](../../design/product-questions-batch8.md) §10) Le lot 8 du [BACKLOG](../../BACKLOG.md), PR B (B8.3, B8.4 ; décisions 29 et 30). Avec la PR A (#685), le lot 8 est complet.
+  - **Avant** : hors ligne au démarrage, la carte du salon disait « n'ont pas pu être chargées » et « Réessayer » ; le mot du graphique V2 n'était décidé nulle part.
+  - **Ce qui change** :
+    - une petite copie du salon (nom, catégorie, adresse, téléphone) gardée dans la session : hors ligne, la carte montre le salon ; elle ne vaut que pour le salon de la session et part à la déconnexion ;
+    - « Total réalisé » pour le graphique V2, sur une nouvelle liste « avant d'activer la V2 » en LAUNCH §1.5.
+  - **Gardes** : les tests rouges d'abord ; 9 mutations vues rouges ; les suites entières.
