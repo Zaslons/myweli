@@ -110,9 +110,9 @@ Each question has a recommendation. Answers unblock the item named in brackets.
 
 **Hygiene (batch 9)**
 
-33. **Type-level `SalonId`** across about 34 salon-scoped signatures, to close a test blind spot? Or accept the documented limit? *Recommended: accept for now.* [B9.9]
-34. **Alerts:** stay with e-mail plus Sentry push, or build a WhatsApp webhook? And do you want Sentry performance monitoring (paid)? [B9.4]
-35. **Mock mode:** add a « mark read fails » switch so the revert can be shown by hand? It's already pinned by 32 tests. *Recommended: no.* [B9.6]
+33. **Type-level `SalonId`** across about 34 salon-scoped signatures, to close a test blind spot? Or accept the documented limit? *Recommended: accept for now.* [B9.9] — ✅ **Answered: build the type** (« what is better for the long term »; [hygiene-batch9.md](design/hygiene-batch9.md) Q1).
+34. **Alerts:** stay with e-mail plus Sentry push, or build a WhatsApp webhook? And do you want Sentry performance monitoring (paid)? [B9.4] — ✅ **Answered: e-mail plus Sentry push; no performance monitoring for now** (Q2, Q3).
+35. **Mock mode:** add a « mark read fails » switch so the revert can be shown by hand? It's already pinned by 32 tests. *Recommended: no.* [B9.6] — ✅ **Answered: no** (Q4).
 
 **Demo salon (batch 10)**
 
@@ -327,7 +327,7 @@ This batch takes up three of the six suggested tasks that were never started. It
 
 ### Batch 9 — Hygiene, tooling and tests (P3, do when touching the area)
 
-- **B9.1 Stale release docs and statuses (M).**
+- ✅ **B9.1 Stale release docs and statuses (M).** **Done in #688** — [hygiene-batch9.md](design/hygiene-batch9.md) §9: 33 roadmap entries (20 turn 🟢, 13 wait for 0.0.2), 8 specs and 5 index rows, LAUNCH and app-store-forms. What only App Store Connect can confirm waits for batch 10.
   - **What:** `LAUNCH.md` and `app-store-forms.md` describe states that have passed. Five specs and several 2026-10-13…16 roadmap entries still read 🟡 or « non fusionné ».
   - **How:** one docs PR, after the App Store Connect read-back (batch 10).
 - **B9.2 iOS release tooling (S).**
@@ -341,7 +341,7 @@ This batch takes up three of the six suggested tasks that were never started. It
   - `--validate-ssl` on the uptime checks, plus alerts on certificate expiry under 14 days and latency above about 3 s for 15 min.
   - Commit tracking for mobile releases (suspect commits).
   - Error-rate thresholds once there is real traffic.
-- **B9.5 FlutterFire Dependabot group (S).** Merge or close the five open Dependabot PRs (#632–#636; equatable 3.0.0 is a major bump). Then check that the next run opens ONE Firebase PR.
+- ✅ **B9.5 FlutterFire Dependabot group (S).** **Already done** — #632–#636 merged on 2026-10-20 and the `firebase` group is in `dependabot.yml`. **To watch:** the next weekly run opens ONE Firebase PR. Merge or close the five open Dependabot PRs (#632–#636; equatable 3.0.0 is a major bump). Then check that the next run opens ONE Firebase PR.
 - **B9.6 Mock and stub fidelity (M · decision 35).** Invite limits keyed on `AppClock`, a default 0 % deposit, the bare-manager salon case, and ids that don't collide under a frozen clock. A failing mark-read mock only if you want it.
 - **B9.7 Form-validation tests (M).** 11 of 17 form screens have no « error under the field » test. Start with `_NotesSection`, and move `_TagSheet` onto `FieldErrors`.
 - **B9.8 Shared components (L).** `AppCard`, `AppChip` and `AppAsyncView` as SYSTEM §11.3 specifies. `AppAsyncView` makes a forgotten state or a raw error impossible, and pairs with B3.1.

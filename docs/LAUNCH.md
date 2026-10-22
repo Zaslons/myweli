@@ -48,6 +48,10 @@ questions none of our gates can answer:
      signed 2026-08-29 — but it is superseded by the App Store audit and was
      never uploaded as far as this repo records; the next one is a rebuild,
      §6.2.)*
+     *(2026-10-22: Pro builds 551 to 587 have been signed and uploaded since;
+     587 (0.0.1) is in App Review. `release_build.sh` built every one, so they
+     carry the DSN; whether an event from a store build has reached Sentry is
+     not recorded here.)*
    Uptime checks on `/health` and a database-backed route are live and alerting
    to a human, verified against real probe data
    (§5.2, [design/observability-error-reporting.md](design/observability-error-reporting.md)).
@@ -119,6 +123,9 @@ We already have the machinery for this: `--dart-define=API_BASE_URL=…` and the
 is missing is a build actually pointed at it — no TestFlight or internal-track
 build has been produced at all (§6.2, §6.3). *(2026-09-24: a signed Pro IPA
 exists but was never uploaded; nothing is in TestFlight yet.)*
+*(2026-10-22: Pro builds have gone through TestFlight since 555, on
+2026-10-10 — every one pointed at production. A staging-pointed build still
+does not exist.)*
 
 ### 1.4 The constraint that makes mobile different from web
 
@@ -139,6 +146,8 @@ consequences, all of which change how we work:
   than serve it something it will mishandle. **This is built** (§5.3); what is
   still owed is the iOS `updateUrl`, which stays NULL until the App Store listing
   exists.
+  *(2026-10-22: the listing exists — Apple ID 6805272779; setting the URL is
+  BACKLOG B0.5.)*
 
 ### 1.5 Feature flags — deploying without exposing
 
@@ -205,7 +214,8 @@ absent:
   live costs nothing. *This line used to say "Sign in with Apple working"; it is
   not *proven*, because no signed build exists (2026-09-24: one exists, with
   the entitlement baked in, but Sign in with Apple has never been exercised on
-  a device — §6.2). The entitlement itself is
+  a device — §6.2). *(2026-10-22: signed builds 551–587 exist; Sign in
+  with Apple has still not been exercised on a device — BACKLOG B0.2.)* The entitlement itself is
   in **both** files — `Runner.entitlements` and `RunnerRelease.entitlements`,
   pinned by `mobile/test/infra/ios_entitlements_test.dart` — since 2026-08-18.
   This line said « the entitlement is absent » for four days after it landed.*
@@ -230,6 +240,9 @@ starts. Concretely:
   with the demo account against `api.myweli.com` (guideline 2.1), so the
   outage (billing disabled by 2026-09-16, both databases suspended on
   2026-09-23) blocks the submission itself; only the upload and internal TestFlight can precede it.
+  *(2026-10-22: billing reopened on 2026-10-06 and production was restored;
+  build 587 was submitted and is in App Review, its release set to manual —
+  BACKLOG B0.1.)*
 - The consumer app and Android keep their places in the order.
 
 The form-by-form packet, the rebuild commands and the owner's ordered
@@ -291,7 +304,9 @@ These block everything. None is surface-specific.
       half cannot be proven where it has to be. *(2026-09-24: a signed Pro IPA
       exists but has never run in anyone's hands, so no mobile event has been
       seen from a store build; and while the billing account is closed the
-      script cannot read the DSN at all.)* Whether the *web* trigger was
+      script cannot read the DSN at all.)* *(2026-10-22: billing is restored and
+      signed builds exist; the app half now waits on BACKLOG B0.7 — sessions
+      are off, so a crash-free rate has nothing to measure.)* Whether the *web* trigger was
       seen in the Sentry dashboard is recorded twice in this document with
       opposite answers (§5.2 names an issue id; §8 says it never happened):
       **UNVERIFIED from this repo** — only the Sentry UI settles it.
@@ -780,7 +795,9 @@ boxes below.
       channel that could not have shown it.
 - [ ] Alert thresholds agreed — what crash rate halts a staged rollout. The
       number must land **in this document**, not only in a design doc, and the crash-free-sessions alert waits on a **signed build** — the mobile
-      DSN itself has existed since 2026-08-18.
+      DSN itself has existed since 2026-08-18. *(2026-10-22: signed builds exist;
+      the alert is replaced by three issue alerts instead — sessions are off to
+      keep the privacy promise — BACKLOG B0.7.)*
 
 ### 5.3 No forced-upgrade path — **built 2026-08-18**
 
@@ -1183,6 +1200,17 @@ checking rather than assuming:
 > (#588), a rehearsal was cut, the day of 14 October is staged on the demo
 > salon, and the take itself can only be shot in daytime; the owner's steps
 > on the App Store Connect site; the device checks on 581.
+>
+> **2026-10-22 — catching up (BACKLOG B9.1).** Build 587 (0.0.1) was
+> submitted and is **in App Review**, its release set to manual (BACKLOG
+> B0.1). Since 2026-10-14: production restored (billing reopened 2026-10-06);
+> the backend deployed twice — batch 6 (`1e3bd81`) and batch 8 (`eca4db6`,
+> revision `myweli-api-00046-bzg`); the app changes merged after #592 (#596
+> onwards) reach users only through 0.0.2 (BACKLOG B0.3). **Still owed**: the
+> device checks on 587 (B0.2); the iOS `updateUrl` (B0.5); the crash alerts
+> that replace the crash-free rate (B0.7); and what App Store Connect itself
+> says — the privacy label, the DSA status, the review's progress — read
+> back in batch 10.
 
 - [ ] Everything in [mobile-store-submission.md](design/mobile-store-submission.md) §5.
       Two of its claims are **stale as of 2026-08-18** and must be corrected
@@ -1214,12 +1242,19 @@ checking rather than assuming:
       but is superseded; nothing has been uploaded, as far as this repo
       records. The device checks this box asks for are listed in
       app-store-forms.md §11.6.*
+      *2026-10-22: builds 555–587 went through internal TestFlight; the owner
+      is invited. Someone other than the developer exercising one is still
+      owed — the device checks are BACKLOG B0.2.*
 - [ ] Screenshots, description, keywords, age rating, privacy questionnaire.
       *2026-09-24: for the Pro app every answer is pre-derived —
       app-store-forms.md §4 (texts, counted in characters and bytes), §6 (age
       rating), §7 (App Privacy), §10 (6.9-inch iPhone screenshots only: Pro is
       iPhone-only since `68fc33c`). Unticked until typed into App Store Connect
       and the screenshots exist.*
+      *2026-10-22: the texts and 16 screenshots were entered on 2026-10-13, and
+      the version was submitted — App Store Connect takes no submission
+      without its privacy answers. Ticking waits for the read-back of what
+      they say (BACKLOG batch 10).*
 - [ ] Sign in with Apple working in the signed build (rule 4.8). **Both halves
       are in place** as of 2026-08-18: `com.apple.developer.applesignin` is in
       both entitlements files (pinned by `test/infra/ios_entitlements_test.dart`,
@@ -1234,7 +1269,9 @@ checking rather than assuming:
       §11.6).*
 - [ ] Phased release enabled. *(2026-09-24: Apple's phased release applies to
       updates, so there is nothing to phase on 1.0.0; the first version is set
-      to manual release instead — app-store-forms.md §9.)*
+      to manual release instead — app-store-forms.md §9.)* *(2026-10-22: the first
+      version is 0.0.1, not 1.0.0 — still manual release; phased release
+      applies from 0.0.2, after B0.7.)*
 
 ### 6.3 Android (last)
 

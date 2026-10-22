@@ -1,4 +1,4 @@
-- 🟡 **L'app Pro rattrape le web : les invitations sur « Accueil » et la « Journée », les revenus dans « Mes données » (app, 2026-10-22 — construit ; part avec la prochaine version).** ([pro-app-batch7.md](../../design/pro-app-batch7.md) §11) Le lot 7 du [BACKLOG](../../BACKLOG.md), PR C (B7.6, B7.8 ; décision 23). Le lot 7 est complet.
+- 🟡 **L'app Pro rattrape le web : les invitations sur « Accueil » et la « Journée », les revenus dans « Mes données » (app, 2026-10-22 — fusionné, #684 ; part avec 0.0.2).** ([pro-app-batch7.md](../../design/pro-app-batch7.md) §11) Le lot 7 du [BACKLOG](../../BACKLOG.md), PR C (B7.6, B7.8 ; décision 23). Le lot 7 est complet.
   - **Avant** :
     - une invitation en attente n'apparaissait que dans Profil, sur une ligne ;
     - hors connexion, les écrans d'invitation disaient « Invitation impossible à accepter. » ;

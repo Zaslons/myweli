@@ -1,4 +1,4 @@
-- 🟡 **L'app Pro se lit à 200 % et montre ses bords : « Propriétaire » lisible, plus de mot coupé, les jours vides, les grands montants, les segments de la console (app + console, 2026-10-22 — construit ; part avec la prochaine version).** ([pro-app-batch7.md](../../design/pro-app-batch7.md) §10) Le lot 7 du [BACKLOG](../../BACKLOG.md), PR B (B7.1, B7.2, B7.4, B7.10, B7.12, B7.13 ; décision 25).
+- 🟡 **L'app Pro se lit à 200 % et montre ses bords : « Propriétaire » lisible, plus de mot coupé, les jours vides, les grands montants, les segments de la console (app + console, 2026-10-22 — fusionné, #683 ; part avec 0.0.2).** ([pro-app-batch7.md](../../design/pro-app-batch7.md) §10) Le lot 7 du [BACKLOG](../../BACKLOG.md), PR B (B7.1, B7.2, B7.4, B7.10, B7.12, B7.13 ; décision 25).
   - **Avant** :
     - « Propriétaire » à 2,79:1 ;
     - « Mard/i » et « Abandonne/r » coupés à 200 % ;

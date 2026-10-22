@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | **Built 2026-10-11** (`fix/carto-basemaps-key`) — **both keys created and verified** with the real values (§10 A, B): the app key is in Secret Manager (`CARTO_BASEMAPS_KEY`), so the next store build carries it; the web key is recorded (`CARTO_BASEMAPS_WEB_KEY`) and **deliberately not in Vercel yet** — the web stays keyless until CARTO requires keys on vector (§7), a day `production-checks.yml` (`basemap`) detects (§9 step 3). Left: §10 C on devices. |
+| **Status** | **Merged** (#563, 2026-10-11) — **both keys created and verified** with the real values (§10 A, B): the app key is in Secret Manager (`CARTO_BASEMAPS_KEY`), so the next store build carries it; the web key is recorded (`CARTO_BASEMAPS_WEB_KEY`) and **deliberately not in Vercel yet** — the web stays keyless until CARTO requires keys on vector (§7), a day `production-checks.yml` (`basemap`) detects (§9 step 3). Left: §10 C on devices. |
 | **Owner** | Sadreddine Daher |
 | **Last updated** | 2026-10-12 |
 | **PRD ref / phase** | Consumer « Carte » · pro salon pin map · web discovery maps · V1 |

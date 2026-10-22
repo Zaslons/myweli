@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | **Prêt à remplir, en attente de** : la facturation GCP (production arrêtée), l'état du salon démo en production, et **la voie compagnon** ([pro-companion-path.md](pro-companion-path.md), construite le 2026-10-05) — sa fusion, et son backend déployé en production **avant** la soumission. Rédigé 2026-09-24 ; **mis à jour 2026-10-05** : fiche App Store Connect vérifiée (Apple ID 6805272779, §0 #3, §3), décision 3.1.1 prise — voie (a), sur les deux apps (§2), Xcode 27 prêt (§0 #2), deux avis App Store Connect à traiter (§0 #6). |
+| **Status** | **Prêt à remplir, en attente de** : la facturation GCP (production arrêtée), l'état du salon démo en production, et **la voie compagnon** ([pro-companion-path.md](pro-companion-path.md), construite le 2026-10-05) — sa fusion, et son backend déployé en production **avant** la soumission. Rédigé 2026-09-24 ; **mis à jour 2026-10-05** : fiche App Store Connect vérifiée (Apple ID 6805272779, §0 #3, §3), décision 3.1.1 prise — voie (a), sur les deux apps (§2), Xcode 27 prêt (§0 #2), deux avis App Store Connect à traiter (§0 #6). **Mis à jour le 2026-10-22** (BACKLOG B9.1) : la facturation est rouverte (2026-10-06) et la production rétablie ; le salon démo vit en production (2026-10-11) ; la voie compagnon est fusionnée (#551) et en production ; le **build 587 (0.0.1) est soumis et en revue**, publication manuelle (BACKLOG B0.1). Ce qu'App Store Connect seul peut confirmer — l'issue de la déclaration DSA, ce que dit l'étiquette de confidentialité, l'avancement de la revue — se relit au lot 10. |
 | **Portée** | L'app **MyWeli Pro** seule — `com.myweli.pro`, nom affiché « MyWeli Pro », iPhone uniquement. Le consommateur (`com.myweli.app`) aura son propre dossier. |
 | **Source** | L'audit App Store du 2026-09-24 (cinq lentilles, chaque constat bloquant/majeur revu par un vérificateur indépendant) et le commit `68fc33c` qui en corrige la partie code. |
 | **Pendant Android** | [play-store-forms.md](play-store-forms.md) — même règle, même ton. |
@@ -27,12 +27,12 @@ code est corrigé (§1) ; **il faut reconstruire** (§11). Ce qui reste bloquant
 
 | # | Bloquant | Nature | Ce qui le lève |
 |---|---|---|---|
-| 1 | **Production arrêtée.** Compte de facturation fermé (facturation coupée au plus tard le 2026-09-16 10:30 UTC — le dernier contrôle vert date du 15) ; les deux bases Cloud SQL suspendues le 2026-09-23 06:23 UTC, motif `BILLING_ISSUE` — Google supprime une instance suspendue au bout de **90 jours** ; le workflow « Production checks » est rouge chaque jour du 2026-09-16 au 2026-09-24 ; `api.myweli.com/health` injoignable le 2026-09-24. Le binaire ne parle qu'à `https://api.myweli.com` (c'est voulu), donc le relecteur ne passe pas l'écran de connexion — rejet 2.1 assuré (« turn on your back-end service! »). Secret Manager refuse aussi (`BILLING_DISABLED`) : pas de nouveau build (`tool/release_build.sh` lit `MOBILE_SENTRY_DSN`) et pas de code démo lisible. | owner | Rétablir la facturation ; `/health` 200 ; « Production checks » vert. L'envoi à TestFlight **interne** peut précéder (il ne contacte pas l'API), la soumission non. |
+| 1 | ~~**Production arrêtée.** Compte de facturation fermé (facturation coupée au plus tard le 2026-09-16 10:30 UTC — le dernier contrôle vert date du 15) ; les deux bases Cloud SQL suspendues le 2026-09-23 06:23 UTC, motif `BILLING_ISSUE` — Google supprime une instance suspendue au bout de **90 jours** ; le workflow « Production checks » est rouge chaque jour du 2026-09-16 au 2026-09-24 ; `api.myweli.com/health` injoignable le 2026-09-24. Le binaire ne parle qu'à `https://api.myweli.com` (c'est voulu), donc le relecteur ne passe pas l'écran de connexion — rejet 2.1 assuré (« turn on your back-end service! »). Secret Manager refuse aussi (`BILLING_DISABLED`) : pas de nouveau build (`tool/release_build.sh` lit `MOBILE_SENTRY_DSN`) et pas de code démo lisible.~~ **Levé le 2026-10-06** : facturation rouverte, production rétablie ([LAUNCH.md](../LAUNCH.md) §6.2). | owner | Rétablir la facturation ; `/health` 200 ; « Production checks » vert. L'envoi à TestFlight **interne** peut précéder (il ne contacte pas l'API), la soumission non. |
 | 2 | ~~**Machine de build.**~~ **Levé le 2026-10-05** : licence Xcode 27 acceptée, premier lancement fait (`xcodebuild -checkFirstLaunchStatus` → 0), build iOS non signé de Pro réussi sous Xcode 27 depuis le correctif du Podfile (§11.1). Une liste de comptes existe dans les réglages d'Xcode ; que ce soit l'équipe **5VWKJD956A** ne se voit que dans Xcode. | owner | Vérifier l'équipe dans Xcode → Réglages → Comptes avant le §11.2. |
 | 3 | ~~**Fiche App Store Connect non vérifiée.** Le profil « iOS Team Store Provisioning Profile: com.myweli.pro » prouve que l'App ID existe dans le portail développeur, pas que la fiche App Store Connect existe. Rien dans le dépôt ne l'atteste ; sans fiche, l'envoi est refusé.~~ **Levé le 2026-10-05** : la fiche « MyWeli Pro » existe, relue en lecture seule dans App Store Connect (navigateur du propriétaire) — Apple ID **6805272779**, SKU `myweli-pro`, bundle `com.myweli.pro`, langue principale français, version iOS 1.0 « Prepare for Submission », aucun build dans TestFlight. Encore vides : catégorie, sous-titre, droits sur le contenu (§3). | owner | Fait. Reste à remplir les champs (§3, §4, §5, §9). |
 | 4 | ~~**Salon démo en production non vérifié.** Le propriétaire a curé « Salon Démo MyWeli » vers le 2026-08-26/27, sans que l'environnement (staging ou prod) ni la capture du snapshot en prod soient consignés ; le logo réel doit encore être téléversé **puis le snapshot recapturé** (sinon la remise à zéro de 7 jours l'annule). | owner | Une fois la prod revenue, **avant que quoi que ce soit ne touche la base staging** : se connecter en démo, vérifier, logo, `POST /admin/demo/snapshot`, consigner date + environnement dans [backend-demo-review-account.md](backend-demo-review-account.md) §9.~~ **Levé le 2026-10-11** : le salon démo vit en **production** ; renommé **« Maison Nala »**, logo réel téléversé et snapshot recapturé par le propriétaire (journal prod : connexion démo depuis l'iPhone 10:29 UTC, téléversement + deux `PATCH /providers/provider_1787778426683705` 10:29–10:30, `POST /admin/demo/snapshot` **200** à 10:37) ; la connexion démo marche sur le build TestFlight 555. Détail : [backend-demo-review-account.md](backend-demo-review-account.md) §9. |
-| 5 | ~~**Décision 3.1.1 ouverte** : le sélecteur d'offre et les incitations à choisir une offre sont encore dans l'app iOS (§2).~~ **Décidé le 2026-10-05** : voie (a) — app compagnon gratuite (3.1.3(f)) — sur **les deux** apps, iOS et Android, sans branche de plateforme (§2.4). Construite selon [pro-companion-path.md](pro-companion-path.md) le 2026-10-05 sur `feat/pro-companion-path` (backend, mobile, docs). La ligne SUBSCRIPTION des notes est en place (§8). | code + déploiement | La PR fusionnée ; le backend qui démarre l'essai à la première mise en ligne **déployé en production avant la soumission** : depuis « Accueil », le relecteur peut ouvrir « Configurer mon profil » et mettre son compte neuf en ligne. Sans ce backend, il lirait « …l’offre de votre salon n’est plus active. » pour une offre qui n'a jamais existé (spec §9.4). Feu vert du propriétaire pour la production. |
-| 6 | **Deux avis dans App Store Connect** (relevés le 2026-10-05). **Classification : faite le 2026-10-06** (4+, nouvelles questions répondues, §6). **Statut de professionnel UE : déclaré le 2026-10-06** (option 1, coordonnées vérifiées par code, certificat de résidence téléversé — « In Review » chez Apple, §9.1). Prix (gratuit), disponibilité (Côte d'Ivoire seule) et exclusion Mac / Vision Pro faits le même jour (§9). | Apple | Attendre la décision d'Apple sur la déclaration DSA (Business → Compliance) ; répondre à toute demande de pièce. |
+| 5 | ~~**Décision 3.1.1 ouverte** : le sélecteur d'offre et les incitations à choisir une offre sont encore dans l'app iOS (§2).~~ **Décidé le 2026-10-05** : voie (a) — app compagnon gratuite (3.1.3(f)) — sur **les deux** apps, iOS et Android, sans branche de plateforme (§2.4). Construite selon [pro-companion-path.md](pro-companion-path.md) le 2026-10-05 sur `feat/pro-companion-path` (backend, mobile, docs). La ligne SUBSCRIPTION des notes est en place (§8). **Fusionnée** (#551) **et en production** ; le build 587 la porte. | code + déploiement | La PR fusionnée ; le backend qui démarre l'essai à la première mise en ligne **déployé en production avant la soumission** : depuis « Accueil », le relecteur peut ouvrir « Configurer mon profil » et mettre son compte neuf en ligne. Sans ce backend, il lirait « …l’offre de votre salon n’est plus active. » pour une offre qui n'a jamais existé (spec §9.4). Feu vert du propriétaire pour la production. |
+| 6 | **Deux avis dans App Store Connect** (relevés le 2026-10-05). **Classification : faite le 2026-10-06** (4+, nouvelles questions répondues, §6). **Statut de professionnel UE : déclaré le 2026-10-06** (option 1, coordonnées vérifiées par code, certificat de résidence téléversé — « In Review » chez Apple, §9.1). Prix (gratuit), disponibilité (Côte d'Ivoire seule) et exclusion Mac / Vision Pro faits le même jour (§9). | Apple | Attendre la décision d'Apple sur la déclaration DSA (Business → Compliance) ; répondre à toute demande de pièce. *(2026-10-22 : l'issue ne se lit que dans App Store Connect — relue au lot 10.)* |
 
 **Décision du propriétaire, 2026-09-24** : l'app Pro part **d'abord sur l'App
 Store d'Apple** — TestFlight et la revue maintenant ; la **publication
@@ -283,7 +283,7 @@ dossier proposait :
 | Catégorie | non renseignée | Business + Productivity (§5) | à remplir |
 | Sous-titre | vide | `Agenda, clients, réservations` (§4) | à remplir |
 | Droits sur le contenu | non renseignés | « Oui … et j'ai les droits nécessaires » (§9) | à remplir |
-| Version | iOS **0.0.1**, « Prepare for Submission » (renommée de « 1.0 » le 2026-10-13, relue par l'API) | **0.0.1** (le binaire, §11.3 — la version de l'app passe de 1.0.0 à 0.0.1, décision du propriétaire le 2026-10-13, à partir du build 569) | la page s'appelait « 1.0 » : App Store Connect ne propose pour une version que les builds de même numéro, et 0.0.1 ≠ 1.0 quelle que soit sa normalisation. **Renommée « 0.0.1 » le 2026-10-13** avec l'accord du propriétaire ; reste à y choisir le build 569 (§13). Les builds 1.0.0 (≤ 565) restent dans TestFlight sous leur version |
+| Version | iOS **0.0.1**, « Prepare for Submission » (renommée de « 1.0 » le 2026-10-13, relue par l'API) | **0.0.1** (le binaire, §11.3 — la version de l'app passe de 1.0.0 à 0.0.1, décision du propriétaire le 2026-10-13, à partir du build 569) | la page s'appelait « 1.0 » : App Store Connect ne propose pour une version que les builds de même numéro, et 0.0.1 ≠ 1.0 quelle que soit sa normalisation. **Renommée « 0.0.1 » le 2026-10-13** avec l'accord du propriétaire ; reste à y choisir le build 569 (§13). Les builds 1.0.0 (≤ 565) restent dans TestFlight sous leur version. *2026-10-22 : le build **587** y est rattaché (2026-10-14, soir) et la version est **soumise, en revue**, publication manuelle (BACKLOG B0.1).* |
 | TestFlight | aucun build | — | §11.5 — *2026-10-14, soir : build **587** (0.0.1) envoyé, traité `VALID`, lu comme français ; le groupe interne ne reçoit que le **587** ; ajouté à « Testeurs externes » ; **rattaché à la version 0.0.1 à la place du 581***. *2026-10-14, nuit : build **581** (0.0.1) envoyé, traité `VALID`, lu comme français ; le groupe interne ne reçoit que le **581** ; ajouté à « Testeurs externes » (disponible aussitôt ; les 569, 577 et 579 y restent) ; **rattaché à la version 0.0.1 à la place du 579***. *2026-10-13, soir : build **579** (0.0.1) envoyé, traité `VALID`, lu comme **français** par App Store Connect ; le groupe interne ne reçoit que le **579** ; ajouté à « Testeurs externes » (disponible aussitôt ; le 569 et le 577 y restent) ; **rattaché à la version 0.0.1***. *2026-10-13, après-midi : build **577** (0.0.1) envoyé, traité `VALID` ; le groupe interne ne reçoit que le **577** (il remplace le 569) ; ajouté à « Testeurs externes », où il est disponible aussitôt (la revue bêta de la 0.0.1 avait approuvé le 569 dans la journée ; le 569 y reste)*. *2026-10-13 : build **569** (**0.0.1**) envoyé, traité `VALID` ; le groupe interne ne reçoit que le **569** (il remplace le 565) ; ajouté au groupe externe « Testeurs externes » et **soumis à la revue bêta** (`WAITING_FOR_REVIEW`) — le 565, encore en attente de revue, y reste*. *2026-10-12, soir : build **565** envoyé, traité `VALID` ; le groupe interne ne reçoit que le **565** (il remplace le 560)*. *2026-10-12 : builds 551, 555 et **560** envoyés, traités `VALID` ; le groupe interne ne reçoit que le **560** (il remplace le 555)*. *2026-10-10 : builds 551 et 555 envoyés, traités `VALID` ; le groupe interne ne reçoit que le 555 (§11.6)* |
 
 L'app consommateur « MyWeli » a aussi sa fiche (iOS 1.0, « Prepare for
@@ -855,6 +855,9 @@ ouvrir « Configurer mon profil » et mettre son compte neuf en ligne. Sans ce
 backend, la publication serait refusée (409 `missing: ['offer']`) et il
 lirait « …l’offre de votre salon n’est plus active. » pour une offre qui n'a
 jamais existé (spec §9.4).*
+*2026-10-22 : ces pré-requis sont remplis — facturation rouverte le
+2026-10-06, voie compagnon fusionnée (#551) et en production. Le build 587
+a été construit puis soumis (§11.5).*
 
 ### 11.1 La machine
 
@@ -1197,6 +1200,8 @@ a validé lui-même et le traitement a rendu **`VALID`** (build
 sur le serveur Sentry ; archive `Runner-pro-587.xcarchive`. **Rattaché à la
 version 0.0.1 à la place du 581** (relu par l'API). **C'est le candidat à la
 soumission**, sous réserve des vérifications sur l'iPhone (§11.6).
+*2026-10-22 : **soumis**, en revue, publication manuelle (BACKLOG B0.1) ;
+les vérifications sur l'iPhone restent dues (BACKLOG B0.2).*
 
 Syntaxe relue dans l'aide de l'`altool` local (version 27.0.5) :
 `--upload-package` est la forme de ses exemples ; `--upload-app -f` existe
@@ -1394,10 +1399,12 @@ numéros).*
        le 2026-10-05** — backend, mobile et docs, tests sur les deux
        plateformes ([pro-companion-path.md](pro-companion-path.md)) ; sa
        fusion est le point 5, son déploiement le point 6.
-2. [ ] **Rétablir la facturation GCP.** Puis : Cloud SQL et Cloud Run servent
+2. [x] **Rétablir la facturation GCP.** Puis : Cloud SQL et Cloud Run servent
        (`/health` 200), « Production checks » vert, `DEMO_PROVIDER_CODE`
-       lisible et monté sur la révision servie.
-3. [ ] **Avant que quoi que ce soit ne touche la base staging** : établir où
+       lisible et monté sur la révision servie. *Fait : facturation rouverte
+       le 2026-10-06, production rétablie ; la connexion démo a marché sur le
+       build 555 le 2026-10-11 (§0 #4).*
+3. [x] **Avant que quoi que ce soit ne touche la base staging** : établir où
        vit le salon démo curé (prod ? staging ?) — se connecter en démo contre
        la prod ; s'il n'existe qu'en staging, le recréer en prod par l'app.
        *2026-10-05 : le recréer ne demande plus aucun choix d'offre dans
@@ -1407,24 +1414,28 @@ numéros).*
        chaque remise à zéro hebdomadaire ensuite. « Mon abonnement » affiche
        donc « Offre Pro active » dès la capture
        ([backend-demo-review-account.md](backend-demo-review-account.md) §6.2,
-       §9).*
-4. [ ] **Salon démo** : prestations, photos, horaires, agenda ; « Publier » et
+       §9).* *Fait le 2026-10-11 : il vit en production (§0 #4).*
+4. [x] **Salon démo** : prestations, photos, horaires, agenda ; « Publier » et
        « Inviter » répondent 403 `demo_account_locked` ; téléverser le **vrai
        logo** ; **recapturer le snapshot** (`POST /admin/demo/snapshot`) ;
        consigner date + environnement dans
        [backend-demo-review-account.md](backend-demo-review-account.md) §9.
        *2026-10-05 : et « Mon abonnement » affiche « Offre Pro active »
-       (§11.6).*
-5. [ ] Fusionner la PR de l'audit (et celle du point 1) ; CI vert sur `main`.
+       (§11.6).* *Fait le 2026-10-11 : « Maison Nala », logo réel, snapshot
+       recapturé (§0 #4).*
+5. [x] Fusionner la PR de l'audit (et celle du point 1) ; CI vert sur `main`.
        *2026-10-05 : la PR de l'audit (#550) est fusionnée — squash
-       `f6ffb585` ; reste celle du point 1.*
-6. [ ] **Déployer en production le backend de la voie compagnon** (feu vert
+       `f6ffb585` ; reste celle du point 1.* *Celle du point 1 (#551) est
+       fusionnée le 2026-10-06.*
+6. [x] **Déployer en production le backend de la voie compagnon** (feu vert
        du propriétaire, après le point 2) **avant la soumission** : l'essai qui
        démarre à la première mise en ligne et les verrous démo doivent tourner
        quand le relecteur crée son compte neuf. Depuis « Accueil », il peut
        ouvrir « Configurer mon profil » et mettre ce salon en ligne ; sans ce
        backend, il lirait « …l’offre de votre salon n’est plus active. » pour
-       une offre qui n'a jamais existé (spec §9.3–9.4).
+       une offre qui n'a jamais existé (spec §9.3–9.4). *Fait avant la
+       soumission : le déploiement de production du 2026-10-07 part d'un
+       `main` qui contient #551.*
 7. [ ] **Licence Xcode**, `runFirstLaunch`, `xcodebuild -version`,
        `flutter doctor -v`, compte Xcode connecté (§11.1). *2026-10-05 :
        licence et premier lancement faits, build iOS non signé de Pro réussi
@@ -1449,7 +1460,7 @@ numéros).*
        restent au propriétaire.*
 14. [x] **Symboles Sentry** (§12.2). *Dart et natifs, builds 555, 560, 565, 569, 577, 579, 581 et 587.*
 15. [x] **Captures** sur le salon démo — *8 captures légendées, 1206 × 2622 (obligatoire) et 1320 × 2868, faites le 2026-10-13 ([pro-app-store-screenshots.md](pro-app-store-screenshots.md)) ; **validées par le propriétaire et téléversées le 2026-10-13** — 16 images, traitées, dans l'ordre (§13.1).*
-16. [ ] **Remplir App Store Connect** : informations sur l'app (§3, §5, §6,
+16. [x] **Remplir App Store Connect** : informations sur l'app (§3, §5, §6,
        §9), tarifs et disponibilité — Côte d'Ivoire seule, Mac et Vision Pro
        décochés (§9), confidentialité (§7), page 0.0.1 — captures, texte
        promotionnel, description, mots-clés, URL, copyright, **build**,
@@ -1468,17 +1479,25 @@ numéros).*
        le build 579 est rattaché. **Restent au propriétaire, dans le site** :
        l'étiquette de confidentialité (§7), la déclaration des droits sur le
        contenu (§9), le mot de passe démo et ses coordonnées dans les
-       informations pour la revue (§8).*
+       informations pour la revue (§8).* *2026-10-22 : la version est
+       **soumise** — App Store Connect n'en accepte pas sans ces champs ; ce
+       qu'ils disent se relit au lot 10.*
 17. [ ] **`updateUrl` iOS** dans la console admin (§12.1).
-18. [ ] **Porte d'entrée Cloudflare** : ne pas lancer la phase A pendant une
+18. [x] **Porte d'entrée Cloudflare** : ne pas lancer la phase A pendant une
        revue ; si elle a été déployée avant, vérifier qu'un client non
        navigateur (l'app) n'est pas mis au défi par Browser Integrity Check /
        Bot Fight Mode sur `api.myweli.com`
        ([infra-cloudflare-front-door.md](infra-cloudflare-front-door.md)).
+       *2026-10-22 : la porte est en ligne depuis le 2026-10-07, avant la
+       soumission ; la connexion démo du build 555 l'a traversée le
+       2026-10-11 (§0 #4) — l'app n'est pas mise au défi.*
 19. [ ] **Le jour même** : connexion démo sur le build TestFlight contre la
-       prod, « Production checks » vert.
-20. [ ] **Soumettre pour la revue.** Ne plus toucher au code démo tant que la
-       version est en revue.
+       prod, « Production checks » vert. *2026-10-22 : le jour de la
+       soumission et ces deux essais ne sont pas consignés ici — à relire au
+       lot 10.*
+20. [x] **Soumettre pour la revue.** Ne plus toucher au code démo tant que la
+       version est en revue. *Soumis : le build 587 est en revue, publication
+       manuelle (BACKLOG B0.1).*
 21. [ ] Après approbation : **ne pas publier** avant que [LAUNCH.md](../LAUNCH.md)
        §3 le permette (production rétablie et stable) — la publication est
        manuelle (§9).
@@ -1512,7 +1531,7 @@ fait ; « site » : seulement dans le site App Store Connect.
 | Informations pour la revue | n'existaient pas | créées : connexion requise, identifiant `revue@myweli.test`, **les notes en vigueur du §8** (3 476 octets) | **propriétaire** : le mot de passe démo et les coordonnées de contact — vides, et l'assistant ne les écrit pas — *2026-10-14 : le verrou du compte démo est vérifié en production ; ce sont **les notes amendées** du §8 qui doivent remplacer celles-ci, et l'API refuse de le faire sans les coordonnées de contact (§8)* |
 | Build rattaché | aucun | **587** (0.0.1), lu comme français (§11.5) — il remplace le 581 depuis le 2026-10-14 au soir | les vérifications sur l'iPhone (§11.6) |
 | Aperçu vidéo (facultatif) | aucun | **le film choisi par le propriétaire** (version 2, coupe 1, 28,7 s — [pro-app-preview.md](pro-app-preview.md) §0), **téléversé le 2026-10-14** dans les deux emplacements iPhone, traité par Apple, placé avant les captures (`APP_PREVIEW`, `ACTIVE`, lu par la nouvelle API) ; l'image d'affiche demandée à 25 s (`00:00:25:00`) — Apple avait d'abord ignoré le temps envoyé au téléversement et pris son défaut de 5 s ; corrigé, l'image était encore en cours de génération au dernier relevé | regarder l'affiche dans le site ; sinon « Edit Poster Frame » à 25 s |
-| « Soumettre pour la revue » | — | — | propriétaire |
+| « Soumettre pour la revue » | — | — | propriétaire — **fait** (587 en revue) |
 
 **Les captures, vues par les deux API.** Elles ont été envoyées par les
 ressources `appScreenshotSets` / `appScreenshots`, qu'Apple déclare
@@ -1567,20 +1586,20 @@ vérifications sur l'iPhone du §11.6 sur le build retenu.
 
 | Point | Nature | Risque / suite |
 |---|---|---|
-| **1.2 — pas de « Signaler » dans « Avis » côté Pro.** `POST /reviews/{id}/report` répond 403 à tout rôle autre que `user` (`backend/routes/reviews/[id]/report.dart`). | code | Faible (le salon démo n'a probablement pas d'avis) ; atténué par la rubrique USER CONTENT des notes. Suite : autoriser le salon à signaler les avis de son propre salon + « Signaler » sur la tuile. |
-| **5.1.1(v) — Sign in with Apple : jetons non révoqués** à la suppression (Apple : « should » appeler `/auth/revoke`). | code + clé owner | Rarement testé en revue. Suite : capter l'`authorizationCode`, l'échanger côté serveur (clé privée Sign in with Apple, portail), révoquer à la suppression. Peut suivre le lancement. |
-| **Suppression du propriétaire : le salon garde ses coordonnées** (téléphone, WhatsApp, numéro Mobile Money, adresse) en brouillon (`provider_account_service.dart`). | décision | Divulgué par la politique et `/suppression-compte`. Suite : effacer ces champs à la suppression, garder l'historique. |
+| **1.2 — pas de « Signaler » dans « Avis » côté Pro.** `POST /reviews/{id}/report` répond 403 à tout rôle autre que `user` (`backend/routes/reviews/[id]/report.dart`). | code | Faible (le salon démo n'a probablement pas d'avis) ; atténué par la rubrique USER CONTENT des notes. Suite : autoriser le salon à signaler les avis de son propre salon + « Signaler » sur la tuile. **Corrigé** (#678, lot 6) : Propriétaire et Gérant signalent, la file admin marque « Signalé par le salon » ; en production, l'app avec 0.0.2. |
+| **5.1.1(v) — Sign in with Apple : jetons non révoqués** à la suppression (Apple : « should » appeler `/auth/revoke`). | code + clé owner | Rarement testé en revue. Suite : capter l'`authorizationCode`, l'échanger côté serveur (clé privée Sign in with Apple, portail), révoquer à la suppression. Peut suivre le lancement. **Construit** (#679, lot 6) et en production — **inactif** tant que la clé `.p8` n'existe pas (étape du propriétaire, DEPLOYMENT.md phase C). |
+| **Suppression du propriétaire : le salon garde ses coordonnées** (téléphone, WhatsApp, numéro Mobile Money, adresse) en brouillon (`provider_account_service.dart`). | décision | Divulgué par la politique et `/suppression-compte`. Suite : effacer ces champs à la suppression, garder l'historique. **Corrigé** (#677, lot 6) : effacés à la suppression, le nom et l'historique gardés ; en production. |
 | **Politique de confidentialité** : pas la phrase « nos sous-traitants offrent une protection équivalente » (5.1.1(i)) ; dit « Profil → Exporter mes données » là où l'app Pro dit « Mes données ». | web (texte légal) | Une phrase + aligner le libellé (`web/app/politique-confidentialite/page.tsx`). |
 | **Mode d'arrière-plan `remote-notification` inutilisé** (`UIBackgroundModes`) : le backend n'envoie jamais `content-available`. | code, optionnel | Rarement rejeté. Le retirer puis revérifier sur appareil qu'une notification arrive app tuée/en arrière-plan et que le tap route. |
-| ~~**Paysage non verrouillé sur iPhone** (`UISupportedInterfaceOrientations`, aucun `setPreferredOrientations`).~~ | ~~décision~~ | **Tranché et construit le 2026-10-13** : portrait seul sur iPhone, pour les deux apps (un seul `Info.plist`) ; l'iPad garde ses quatre orientations ([ios-language-and-orientation.md](ios-language-and-orientation.md)). Reste ouvert : **Android**, dont le manifeste ne fixe aucune orientation. |
-| **Identité démo non recréée si elle est perdue.** ~~La suppression n'est pas verrouillée ; les rendez-vous à venir de la remise à zéro n'existent qu'à J+1/J+2.~~ **Suppression verrouillée côté serveur, construit le 2026-10-13** — 403 `demo_account_locked` sur `DELETE /me/provider` ([demo-account-deletion-lock.md](demo-account-deletion-lock.md)) — **pas encore déployé en production** : tant qu'il ne l'est pas, un relecteur peut encore détruire le compte, et ce sont les notes en vigueur du §8 qui se collent, pas les notes amendées (la ligne datée du §8 en décide). | code + déploiement (accord du propriétaire) | Une fois déployé et vérifié (spec §10.1), il ne reste que la perte hors produit — une opération en base, une restauration. Dans ce cas : recréer par l'app + recapturer. Faire recréer l'identité par la remise à zéro n'est pas construit ; observé le 2026-10-13 sur les dépôts en mémoire : elle continue de restaurer le salon orphelin et ne recrée rien. **Déployé en production et vu répondre dans l'app le 2026-10-14** (§8). |
-| **`tool/release_build.sh` exige Secret Manager** (`MOBILE_SENTRY_DSN`). | owner | Aucun build tant que la facturation est fermée. Prendre le DSN dans la console Sentry et construire à la main enfreindrait la règle « personne ne manipule le DSN » : décision, pas défaut. |
+| ~~**Paysage non verrouillé sur iPhone** (`UISupportedInterfaceOrientations`, aucun `setPreferredOrientations`).~~ | ~~décision~~ | **Tranché et construit le 2026-10-13** : portrait seul sur iPhone, pour les deux apps (un seul `Info.plist`) ; l'iPad garde ses quatre orientations ([ios-language-and-orientation.md](ios-language-and-orientation.md)). ~~Reste ouvert : **Android**, dont le manifeste ne fixe aucune orientation.~~ **Android : portrait** depuis #682 (lot 7, B7.9) ; part avec 0.0.2. |
+| **Identité démo non recréée si elle est perdue.** ~~La suppression n'est pas verrouillée ; les rendez-vous à venir de la remise à zéro n'existent qu'à J+1/J+2.~~ **Suppression verrouillée côté serveur, construit le 2026-10-13** — 403 `demo_account_locked` sur `DELETE /me/provider` ([demo-account-deletion-lock.md](demo-account-deletion-lock.md)) — ~~**pas encore déployé en production**~~ (déployé le 2026-10-14, voir la fin de la ligne) : tant qu'il ne l'était pas, un relecteur peut encore détruire le compte, et ce sont les notes en vigueur du §8 qui se collent, pas les notes amendées (la ligne datée du §8 en décide). | code + déploiement (accord du propriétaire) | Une fois déployé et vérifié (spec §10.1), il ne reste que la perte hors produit — une opération en base, une restauration. Dans ce cas : recréer par l'app + recapturer. Faire recréer l'identité par la remise à zéro n'est pas construit ; observé le 2026-10-13 sur les dépôts en mémoire : elle continue de restaurer le salon orphelin et ne recrée rien. **Déployé en production et vu répondre dans l'app le 2026-10-14** (§8). |
+| **`tool/release_build.sh` exige Secret Manager** (`MOBILE_SENTRY_DSN`). | owner | ~~Aucun build tant que la facturation est fermée.~~ *(2026-10-22 : facturation rouverte le 2026-10-06 ; le script construit.)* Prendre le DSN dans la console Sentry et construire à la main enfreindrait la règle « personne ne manipule le DSN » : décision, pas défaut. |
 | **L'archive Xcode n'est pas rangée par saveur** : `build/ios/archive/Runner.xcarchive` est écrasée par le build suivant (celle du 2026-08-29 est aujourd'hui l'archive **consommateur**). | code | Contourné à la main au §11.2. Suite : que le script la renomme en `Runner-$FLAVOUR.xcarchive` et imprime les dSYM dans la commande Sentry. |
 | **5.1.1(ix) — KYC et compte développeur individuel.** Pièce d'identité + photo du visage, vendeur = personne physique, société non immatriculée (`infra/legal/registration-manifest.json`). | décision | Majeur maintenu par l'audit, appliqué de façon inégale par Apple. Atténué par la rubrique IDENTITY DOCUMENTS. Si rejet : masquer le KYC et les acomptes sur iOS jusqu'au compte Organisation. Type d'adhésion à confirmer (developer.apple.com → Membership). |
 | Numéro de build = nombre de commits de **n'importe quelle** `HEAD` : un build de branche peut griller un numéro. | code, optionnel | Construire depuis `main` (§11.2). |
 | ~~`CFBundleDevelopmentRegion` reste `en`.~~ | ~~code, optionnel~~ | **L'attente était fausse** : App Store Connect lisait les builds 569 et 577 comme anglais (`buildBundles.locales = ["en"]`). **Corrigé le 2026-10-13** — langue de développement `fr` et un `fr.lproj` dans le paquet ([ios-language-and-orientation.md](ios-language-and-orientation.md)) ; l'effet se lit sur le prochain build envoyé (§11.5). |
-| Le dialogue de suppression dit « Votre salon sera retiré de MyWeli » même à un membre d'équipe. | code | Texte à ajuster pour le personnel. |
-| Taux de sessions sans plantage perdu (sessions Sentry coupées). | assumé | L'alerte « crash-free sessions » de l'observabilité doit être revue (plantages et blocages restent signalés). |
+| ~~Le dialogue de suppression dit « Votre salon sera retiré de MyWeli » même à un membre d'équipe.~~ | ~~code~~ | **Corrigé** (#682, lot 7, B7.3) : la phrase suit « le compte possède un salon » ; le web en ligne, l'app avec 0.0.2. |
+| Taux de sessions sans plantage perdu (sessions Sentry coupées). | assumé | L'alerte « crash-free sessions » de l'observabilité doit être revue (plantages et blocages restent signalés). *Suivi : BACKLOG B0.7 (trois alertes d'incident).* |
 
 ---
 

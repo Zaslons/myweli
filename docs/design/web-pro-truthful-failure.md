@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Statut** | **PR A construite le 2026-10-21** (#672 — B4.1, B4.3, B4.5, §10) ; **PR B construite le même jour** sur `fix/web-pro-fresh-lists-gate` (#673 — B4.2, B4.4, §11, avec un écart sur le salon retenu). Validé le même jour — Q1 : **le dire, « Inviter » reste utilisable** ; Q2 (décision 14) : **retenir le salon** ; Q3 (décision 15) : **une ligne « indisponible » + « Réessayer »**, « — » pour les tuiles ; Q4 : **les mots tels qu'écrits** · la décision 13 n'a plus d'objet (§1.1) |
+| **Statut** | **PR A fusionnée** (#672 — B4.1, B4.3, B4.5, §10) ; **PR B fusionnée** (#673 — B4.2, B4.4, §11, avec un écart sur le salon retenu). Validé le même jour — Q1 : **le dire, « Inviter » reste utilisable** ; Q2 (décision 14) : **retenir le salon** ; Q3 (décision 15) : **une ligne « indisponible » + « Réessayer »**, « — » pour les tuiles ; Q4 : **les mots tels qu'écrits** · la décision 13 n'a plus d'objet (§1.1) |
 | **Owner** | Sadreddine |
 | **Last updated** | 2026-10-21 |
 | **PRD ref / phase** | Espace Pro web (V1) — parité avec l'app Pro · WEB-SYSTEM §4–§8 (états, ARIA) · SYSTEM.md §17 (les deux phrases) |

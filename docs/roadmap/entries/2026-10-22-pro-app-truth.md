@@ -1,4 +1,4 @@
-- 🟡 **L'app Pro dit vrai : la suppression d'un membre, le révoqué sans menu, l'acompte facultatif, « Appeler » qui marche, le portrait sur Android, le repli de salon (app + web, 2026-10-22 — construit ; le web part à la fusion, l'app avec la prochaine version).** ([pro-app-batch7.md](../../design/pro-app-batch7.md) §9) Le lot 7 du [BACKLOG](../../BACKLOG.md), PR A (B7.3, B7.5, B7.7, B7.9, B7.11, B7.14 ; décisions 24, 26 ; Q5).
+- 🟡 **L'app Pro dit vrai : la suppression d'un membre, le révoqué sans menu, l'acompte facultatif, « Appeler » qui marche, le portrait sur Android, le repli de salon (app + web, 2026-10-22 — fusionné, #682 ; le web en ligne, l'app part avec 0.0.2).** ([pro-app-batch7.md](../../design/pro-app-batch7.md) §9) Le lot 7 du [BACKLOG](../../BACKLOG.md), PR A (B7.3, B7.5, B7.7, B7.9, B7.11, B7.14 ; décisions 24, 26 ; Q5).
   - **Avant** :
     - le dialogue de suppression disait « Votre salon sera retiré » à un simple membre ;
     - le menu d'un membre révoqué ne contenait qu'une action, que le serveur refuse ;
