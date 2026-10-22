@@ -140,6 +140,27 @@ void main() {
     expect(enabled, isNotNull);
   }, variant: bothPlatforms);
 
+  testWidgets('a salon that never chose its deposit reads « Facultatif » on '
+      '« Acompte & annulation » (B7.7, decision 24)', (tester) async {
+    // The server's defaults for a salon that never saved: off, 0 %.
+    final i = MockData.providers.indexWhere((p) => p.id == 'provider1');
+    final original = MockData.providers[i];
+    MockData.providers[i] = original.copyWith(depositPercentage: 0);
+    addTearDown(() => MockData.providers[i] = original);
+    await pumpScreen(tester);
+
+    final step = find.text('Acompte & annulation');
+    await tester.scrollUntilVisible(step, 200);
+    expect(find.text('Facultatif'), findsOneWidget);
+  });
+
+  testWidgets('CONTROL — a saved choice (off, at the form\'s 30 %) reads no '
+      '« Facultatif »', (tester) async {
+    await pumpScreen(tester);
+    await tester.scrollUntilVisible(find.text('Acompte & annulation'), 200);
+    expect(find.text('Facultatif'), findsNothing);
+  });
+
   testWidgets('the first publish goes live and the mock starts the trial — '
       'the server rule mirrored (§3.1)', (tester) async {
     await pumpScreen(tester);

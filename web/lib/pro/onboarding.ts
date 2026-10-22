@@ -116,7 +116,16 @@ export function publishChecklist(
       staff === 'optional' ? 'Optionnel pour les indépendants' : undefined,
     ),
     step('availability', 'Disponibilités', '/pro/disponibilites', doneIf(open), true),
-    step('deposit', 'Acompte & annulation', '/pro/acompte', doneIf(extras.depositConfigured), false),
+    // Never a todo (B7.7, decision 24): done once a choice is saved, else
+    // optional — a deposit is not a go-live condition.
+    step(
+      'deposit',
+      'Acompte & annulation',
+      '/pro/acompte',
+      extras.depositConfigured ? 'done' : 'optional',
+      false,
+      extras.depositConfigured ? undefined : 'Facultatif',
+    ),
     step(
       'verification',
       'Vérification (KYC)',

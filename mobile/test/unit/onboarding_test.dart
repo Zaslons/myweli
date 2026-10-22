@@ -102,6 +102,18 @@ void main() {
     );
   });
 
+  test('« Acompte & annulation »: done once a choice is saved, else '
+      'optional — never a todo, and not in the progress (B7.7)', () {
+    expect(
+      statusOf(build(depositConfigured: true), OnboardingStepKey.deposit),
+      OnboardingStepStatus.done,
+    );
+    expect(
+      statusOf(build(depositConfigured: false), OnboardingStepKey.deposit),
+      OnboardingStepStatus.optional,
+    );
+  });
+
   test('verification and deposit do not block go-live (server mirror)', () {
     final steps = build(
       verificationStatus: VerificationStatus.pending,

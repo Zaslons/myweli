@@ -68,7 +68,14 @@ List<OnboardingStep> buildOnboardingChecklist({
     ),
     OnboardingStep(OnboardingStepKey.staff, staffStatus),
     OnboardingStep(OnboardingStepKey.availability, doneIf(availabilitySet)),
-    OnboardingStep(OnboardingStepKey.deposit, doneIf(depositConfigured)),
+    // Never a todo (B7.7, decision 24): done once a choice is saved, else
+    // optional — a deposit is not a go-live condition.
+    OnboardingStep(
+      OnboardingStepKey.deposit,
+      depositConfigured
+          ? OnboardingStepStatus.done
+          : OnboardingStepStatus.optional,
+    ),
     OnboardingStep(OnboardingStepKey.verification, verificationStep()),
     // The upload pipeline shipped — photos gate go-live like the server does.
     OnboardingStep(OnboardingStepKey.photos, doneIf(photoCount >= kMinPhotos)),
