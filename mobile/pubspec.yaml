@@ -119,7 +119,7 @@ dependencies:
   # channel. iOS uses setForegroundNotificationPresentationOptions instead.
   # v22: v19/v20 pin `timezone ^0.10`, which collides with the ^0.11 the
   # salon-time seam runs on (core/utils/salon_time.dart).
-  flutter_local_notifications: ^22.2.0
+  flutter_local_notifications: ^22.3.2
   # The re-enable path when notifications are denied at the OS level.
   app_settings: ^8.0.3
   sentry_flutter: ^9.0.0
