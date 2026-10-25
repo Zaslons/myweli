@@ -102,7 +102,7 @@ void main() {
         final ok = await p.updateAvailability(
           SalonId('provider1'),
           const Availability(
-            providerId: 'provider1',
+            providerId: SalonId('provider1'),
             weeklySchedule: {},
             blockedDates: [],
           ),

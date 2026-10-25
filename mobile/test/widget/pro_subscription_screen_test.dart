@@ -104,7 +104,7 @@ void main() {
 
   /// The seat cap the mock derives from the tier, against the seeded team.
   String seatsLine(int cap) =>
-      '${MockData.teamSeatsUsed(providerId: 'provider1')} / $cap places';
+      '${MockData.teamSeatsUsed(providerId: SalonId('provider1'))} / $cap places';
 
   /// Everything the read-only screen may never show, in any state, on any
   /// platform — the spec's §2.1 rule as finders. « Pro » / « Business » /

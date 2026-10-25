@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
+import 'package:myweli/core/utils/salon_id.dart';
 import 'package:myweli/providers/admin/admin_provider_detail_provider.dart';
 import 'package:myweli/providers/admin/admin_user_detail_provider.dart';
 import 'package:myweli/services/admin/admin_service.dart';
@@ -48,12 +49,12 @@ void main() {
         ),
       );
 
-      await p.load('p1');
+      await p.load(SalonId('p1'));
       expect(p.provider?['name'], 'Beauté Divine');
       expect(p.provider!.containsKey('recentAppointments'), isFalse);
       expect(p.appointments, hasLength(1));
 
-      expect(await p.suspend('p1', 'abus'), isTrue);
+      expect(await p.suspend(SalonId('p1'), 'abus'), isTrue);
       expect(p.provider?['status'], 'suspended');
       // The featured flag from the original load is preserved across the merge.
       expect(p.provider?['featured'], true);
@@ -98,7 +99,7 @@ void main() {
         ),
       ),
     );
-    await p.load('nope');
+    await p.load(SalonId('nope'));
     expect(p.provider, isNull);
     expect(p.error, isNotNull);
   });
@@ -128,11 +129,11 @@ void main() {
       ),
     );
 
-    await p.load('a');
+    await p.load(SalonId('a'));
     expect(p.provider?['name'], 'Salon A');
 
-    unawaited(p.load('a'));
-    unawaited(p.load('b'));
+    unawaited(p.load(SalonId('a')));
+    unawaited(p.load(SalonId('b')));
     expect(p.id, 'b');
     expect(p.provider, isNull, reason: 'A, on B\'s screen');
 

@@ -130,7 +130,7 @@ void main() {
       ApiAppointmentService a, {
       String? key = 'k-000001',
     }) => a.bookAppointment(
-      providerId: 'provider1',
+      providerId: SalonId('provider1'),
       serviceIds: ['service1'],
       appointmentDateTime: DateTime.utc(2026, 10, 22, 10),
       idempotencyKey: key,

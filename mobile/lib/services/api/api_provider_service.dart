@@ -2,6 +2,7 @@ import 'package:http/http.dart' as http;
 
 import '../../core/config/app_config.dart';
 import '../../core/constants/failure_messages.dart';
+import '../../core/utils/salon_id.dart';
 import '../../models/api_response.dart';
 import '../../models/provider.dart';
 import '../interfaces/provider_service_interface.dart';
@@ -74,7 +75,7 @@ class ApiProviderService implements ProviderServiceInterface {
   /// difference between « this salon is gone » and « your connection dropped »
   /// something the UI has to say out loud.
   @override
-  Future<ApiResponse<Provider>> getProviderById(String id) async {
+  Future<ApiResponse<Provider>> getProviderById(SalonId id) async {
     final http.Response res;
     try {
       res = await _client.get(Uri.parse('$_baseUrl/providers/$id'));

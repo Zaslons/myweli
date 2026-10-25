@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 
+import '../../core/utils/salon_id.dart';
 import '../../models/api_response.dart';
 import '../../services/admin/admin_service.dart';
 
@@ -32,7 +33,7 @@ class AdminProviderDetailProvider extends ChangeNotifier {
   String? _id;
   String? get id => _id;
 
-  Future<void> load(String id) async {
+  Future<void> load(SalonId id) async {
     if (id != _id) {
       _id = id;
       _provider = null;
@@ -57,15 +58,15 @@ class AdminProviderDetailProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<bool> suspend(String id, String reason) =>
+  Future<bool> suspend(SalonId id, String reason) =>
       _act(_service.suspendProvider(id, reason));
 
-  Future<bool> restore(String id) => _act(_service.restoreProvider(id));
+  Future<bool> restore(SalonId id) => _act(_service.restoreProvider(id));
 
-  Future<bool> feature(String id, bool featured) =>
+  Future<bool> feature(SalonId id, bool featured) =>
       _act(_service.featureProvider(id, featured));
 
-  Future<bool> markPaid(String id, int months) =>
+  Future<bool> markPaid(SalonId id, int months) =>
       _act(_service.markSubscriptionPaid(id, months));
 
   Future<bool> _act(Future<ApiResponse<Map<String, dynamic>>> call) async {

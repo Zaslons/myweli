@@ -192,7 +192,7 @@ class MockProService implements ProServiceInterface {
           capabilities: presetCapabilitiesFor(role),
           artistId: artistId,
           artistName: artistName,
-          salonId: SalonId(salon.id),
+          salonId: salon.id,
           salonName: salon.name,
         ),
       ),
@@ -201,7 +201,7 @@ class MockProService implements ProServiceInterface {
 
   /// Salons the account OWNS in the mock world: the scalar link ∪ active
   /// owner rows (the R6 mirror of the backend's owned set).
-  Set<String> _ownedSalonIds(ProviderUser account) => {
+  Set<SalonId> _ownedSalonIds(ProviderUser account) => {
     if (account.providerId != null) account.providerId!,
     for (final m in MockData.teamMembers)
       if (m.role == TeamRole.owner &&
@@ -233,8 +233,8 @@ class MockProService implements ProServiceInterface {
     }
     final owned = _ownedSalonIds(account);
     // Owned + member ACTIVE rows, joined against the salon list.
-    final ids = <String>{...owned};
-    final roleById = <String, TeamRole>{
+    final ids = <SalonId>{...owned};
+    final roleById = <SalonId, TeamRole>{
       for (final id in owned) id: TeamRole.owner,
     };
     for (final m in MockData.teamMembers) {
@@ -251,7 +251,7 @@ class MockProService implements ProServiceInterface {
       if (salon == null) continue;
       items.add(
         SalonMembershipInfo(
-          salonId: SalonId(id),
+          salonId: id,
           salonName: salon.name,
           role: roleById[id] ?? TeamRole.staff,
           salonStatus: MockData.draftSalonIds.contains(id) ? 'draft' : 'active',

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/date_symbol_data_local.dart';
+import 'package:myweli/core/utils/salon_id.dart';
 import 'package:myweli/models/appointment.dart';
 import 'package:myweli/widgets/booking/compact_appointment_tile.dart';
 
@@ -14,7 +15,7 @@ void main() {
   Appointment appointment() => Appointment(
     id: 'a1',
     userId: 'u1',
-    providerId: 'p1',
+    providerId: SalonId('p1'),
     serviceIds: const ['s1'],
     appointmentDate: DateTime(2025, 5, 12, 10),
     status: AppointmentStatus.completed,

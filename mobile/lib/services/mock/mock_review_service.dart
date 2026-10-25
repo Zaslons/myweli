@@ -1,5 +1,6 @@
 import '../../core/constants/app_constants.dart';
 import '../../core/utils/salon_figures.dart';
+import '../../core/utils/salon_id.dart';
 import '../../models/api_response.dart';
 import '../../models/review.dart';
 import '../interfaces/review_service_interface.dart';
@@ -59,7 +60,7 @@ class MockReviewService implements ReviewServiceInterface {
 
   @override
   Future<ApiResponse<List<Review>>> getProviderReviews(
-    String providerId, {
+    SalonId providerId, {
     int page = 1,
     int pageSize = 20,
   }) async {

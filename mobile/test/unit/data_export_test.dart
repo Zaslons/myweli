@@ -21,7 +21,7 @@ void main() {
   Appointment appointment(String id) => Appointment(
     id: id,
     userId: 'u1',
-    providerId: 'p1',
+    providerId: SalonId('p1'),
     serviceIds: const ['s1', 's2'],
     appointmentDate: DateTime(2026, 6, 21, 10),
     status: AppointmentStatus.completed,
@@ -77,7 +77,7 @@ void main() {
         providerId: SalonId('p1'),
       ),
       salon: const models.Provider(
-        id: 'p1',
+        id: SalonId('p1'),
         name: 'Salon X',
         description: 'desc',
         address: 'Cocody',
@@ -86,7 +86,7 @@ void main() {
         reviewCount: 3,
         services: [],
         availability: Availability(
-          providerId: 'p1',
+          providerId: SalonId('p1'),
           weeklySchedule: {},
           blockedDates: [],
         ),

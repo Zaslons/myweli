@@ -50,7 +50,7 @@ class _Service extends MockProClientsService {
 
   @override
   Future<ApiResponse<SalonClientCard>> getCard(
-    String providerId,
+    SalonId providerId,
     String clientId,
   ) async {
     cardCalls.add(clientId);
@@ -69,7 +69,7 @@ class _Service extends MockProClientsService {
 
   @override
   Future<ApiResponse<List<Appointment>>> getVisits(
-    String providerId,
+    SalonId providerId,
     String clientId, {
     int page = 1,
   }) async {
@@ -101,7 +101,7 @@ void main() {
 
   Appointment booking({
     String? phone = _Service.phone,
-    String providerId = 'p1',
+    SalonId providerId = const SalonId('p1'),
   }) => Appointment(
     id: 'm1',
     userId: 'manual',
@@ -173,7 +173,7 @@ void main() {
     p.bookingCreated(booking(phone: '+2250700000999'));
     p.bookingCreated(booking(phone: null)); // « Client sans numéro »
     p.bookingCreated(booking(phone: ''));
-    p.bookingCreated(booking(providerId: 'p2')); // another salon
+    p.bookingCreated(booking(providerId: SalonId('p2'))); // another salon
     await pumpEventQueue();
 
     expect(service.cardCalls, ['sc1']);

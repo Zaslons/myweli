@@ -138,8 +138,10 @@ void main() {
   });
 
   /// The sheet's salon with a given lifecycle (`draft` · `active`).
-  models.Provider salonIn(String status, {String id = 'provider1'}) => MockData
-      .providers
+  models.Provider salonIn(
+    String status, {
+    SalonId id = const SalonId('provider1'),
+  }) => MockData.providers
       .firstWhere((p) => p.id == 'provider1')
       .copyWith(id: id, status: status);
 
@@ -476,7 +478,7 @@ void main() {
       'sentence', (tester) async {
     useOffer(MockSubscriptionService());
     subs.inner = _FailingSubs();
-    sessionSalon = salonIn('active', id: 'another-salon');
+    sessionSalon = salonIn('active', id: SalonId('another-salon'));
     await submitManager(tester);
     expect(find.text(setupSentence), findsOneWidget);
     expect(find.text(expiredSentence), findsNothing);

@@ -126,7 +126,7 @@ void main() {
       Appointment(
         id: id,
         userId: 'u-$id',
-        providerId: 'provider1',
+        providerId: SalonId('provider1'),
         serviceIds: const ['service1'],
         appointmentDate: DateTime.parse('2026-03-11T$time:00.000Z'),
         status: AppointmentStatus.values.byName(status),

@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:myweli/core/di/dependency_injection.dart';
 import 'package:myweli/core/utils/app_clock.dart';
+import 'package:myweli/core/utils/salon_id.dart';
 import 'package:myweli/models/api_response.dart';
 import 'package:myweli/models/appointment.dart';
 import 'package:myweli/providers/auth_provider.dart';
@@ -93,7 +94,7 @@ void main() {
         Appointment(
           id: 'appt-future',
           userId: me!.id,
-          providerId: 'provider1',
+          providerId: SalonId('provider1'),
           serviceIds: const ['s1'],
           appointmentDate: AppClock.now().add(const Duration(days: 1)),
           status: AppointmentStatus.confirmed,

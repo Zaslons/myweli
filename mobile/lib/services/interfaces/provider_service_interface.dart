@@ -1,3 +1,4 @@
+import '../../core/utils/salon_id.dart';
 import '../../models/api_response.dart';
 import '../../models/provider.dart';
 
@@ -23,7 +24,7 @@ abstract class ProviderServiceInterface {
     int page = 1,
     int limit = 20,
   });
-  Future<ApiResponse<Provider>> getProviderById(String id);
+  Future<ApiResponse<Provider>> getProviderById(SalonId id);
   Future<ApiResponse<List<Provider>>> getFeaturedProviders();
   Future<ApiResponse<List<Provider>>> getNearbyProviders({
     double? latitude,

@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:myweli/core/di/dependency_injection.dart';
 import 'package:myweli/core/utils/app_clock.dart';
+import 'package:myweli/core/utils/salon_id.dart';
 import 'package:myweli/providers/appointment_provider.dart';
 import 'package:myweli/providers/auth_provider.dart';
 import 'package:myweli/providers/favorites_provider.dart';
@@ -17,6 +18,7 @@ import 'package:myweli/screens/providers/provider_detail_screen.dart';
 import 'package:myweli/services/mock/mock_data.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
 import '../support/frozen_clock.dart';
 import '../support/golden.dart';
 import '../support/sign_in.dart';
@@ -82,7 +84,7 @@ void main() {
     testWidgets('the provider detail', (tester) async {
       await _pumpScreen(
         tester,
-        const ProviderDetailScreen(providerId: 'provider1'),
+        const ProviderDetailScreen(providerId: SalonId('provider1')),
         // The salon page is long; capture enough of it to be worth diffing.
         size: const Size(390, 1200),
       );
@@ -92,7 +94,7 @@ void main() {
     testWidgets('the booking hub', (tester) async {
       await _pumpScreen(
         tester,
-        const BookingHubScreen(providerId: 'provider1'),
+        const BookingHubScreen(providerId: SalonId('provider1')),
       );
       await expectGolden(tester, 'consumer_booking_hub');
     });
@@ -133,7 +135,7 @@ void main() {
     testWidgets('the salon page at the floor, at 200% text', (tester) async {
       await _pumpScreen(
         tester,
-        const ProviderDetailScreen(providerId: 'provider1'),
+        const ProviderDetailScreen(providerId: SalonId('provider1')),
         signedIn: true,
         // Taller still: « Avis » is the 6th of 7 cards, and `review_tile`'s
         // wrapped verified badge lives inside it.
@@ -201,7 +203,7 @@ void main() {
 
       await _pumpScreen(
         tester,
-        const ProviderDetailScreen(providerId: 'provider1'),
+        const ProviderDetailScreen(providerId: SalonId('provider1')),
         size: const Size(390, 1200),
       );
       expect(find.text('Aucune photo pour le moment.'), findsOneWidget);

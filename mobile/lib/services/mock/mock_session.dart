@@ -24,7 +24,7 @@ Future<ProviderUser?> _account() async {
 }
 
 /// The account's ACTIVE row in [salonId] (owner rows included), or null.
-TeamMember? mockActiveRow(ProviderUser account, String salonId) {
+TeamMember? mockActiveRow(ProviderUser account, SalonId salonId) {
   final email = account.email?.toLowerCase();
   for (final m in MockData.teamMembers) {
     if (m.providerId != salonId || m.status != TeamMemberStatus.active) {
@@ -66,7 +66,7 @@ Future<SalonId> mockActingSalonId() async {
 /// Whether the session holds [capability] in [salonId] — the server's tenant
 /// check (`_members.can`, → `forbidden`): the account's own salon, or an
 /// ACTIVE row there through its role's preset.
-Future<bool> mockCan(String salonId, String capability) async {
+Future<bool> mockCan(SalonId salonId, String capability) async {
   final account = await _account();
   if (account == null) return true;
   if (account.providerId == salonId) return true;

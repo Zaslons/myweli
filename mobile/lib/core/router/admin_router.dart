@@ -14,6 +14,7 @@ import '../../screens/admin/admin_provider_detail_screen.dart';
 import '../../screens/admin/admin_providers_screen.dart';
 import '../../screens/admin/admin_user_detail_screen.dart';
 import '../../screens/admin/admin_users_screen.dart';
+import '../utils/salon_id.dart';
 
 /// Admin console routes. Redirects on [AdminAuthProvider] (login when signed
 /// out; dashboard when signed in and on the login screen). Each authed screen
@@ -49,7 +50,7 @@ GoRouter createAdminRouter(AdminAuthProvider auth) => GoRouter(
     GoRoute(
       path: '/admin/providers/:id',
       builder: (_, state) =>
-          AdminProviderDetailScreen(id: state.pathParameters['id']!),
+          AdminProviderDetailScreen(id: SalonId(state.pathParameters['id']!)),
     ),
     GoRoute(path: '/admin/users', builder: (_, _) => const AdminUsersScreen()),
     GoRoute(

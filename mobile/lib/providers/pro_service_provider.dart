@@ -13,7 +13,7 @@ class ProServiceProvider extends ChangeNotifier implements SalonScoped {
   List<Service> _services = [];
   bool _isLoading = false;
   String? _error;
-  String? _currentProviderId;
+  SalonId? _currentProviderId;
 
   List<Service> get services => _services;
   bool get isLoading => _isLoading;

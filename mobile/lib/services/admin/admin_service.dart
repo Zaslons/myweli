@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 
 import '../../core/config/app_config.dart';
 import '../../core/constants/failure_messages.dart';
+import '../../core/utils/salon_id.dart';
 import '../../models/api_response.dart';
 import '../../services/secure_session_store.dart';
 import '../api/refreshing_http_client.dart';
@@ -128,25 +129,25 @@ class AdminService {
     return _get('/admin/providers?${_query(params)}');
   }
 
-  Future<ApiResponse<Map<String, dynamic>>> providerDetail(String id) =>
+  Future<ApiResponse<Map<String, dynamic>>> providerDetail(SalonId id) =>
       _get('/admin/providers/$id');
 
   Future<ApiResponse<Map<String, dynamic>>> suspendProvider(
-    String id,
+    SalonId id,
     String reason,
   ) => _post('/admin/providers/$id/suspend', body: {'reason': reason});
 
-  Future<ApiResponse<Map<String, dynamic>>> restoreProvider(String id) =>
+  Future<ApiResponse<Map<String, dynamic>>> restoreProvider(SalonId id) =>
       _post('/admin/providers/$id/restore');
 
   Future<ApiResponse<Map<String, dynamic>>> featureProvider(
-    String id,
+    SalonId id,
     bool featured,
   ) => _post('/admin/providers/$id/feature', body: {'featured': featured});
 
   /// Manual billing (T54): record a payment of [months] months.
   Future<ApiResponse<Map<String, dynamic>>> markSubscriptionPaid(
-    String id,
+    SalonId id,
     int months,
   ) =>
       _post('/admin/providers/$id/subscription/paid', body: {'months': months});

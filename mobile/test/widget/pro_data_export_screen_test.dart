@@ -159,7 +159,8 @@ class _Pro extends MockProService {
 /// An artist the export cannot hold: the team read answered, and the file
 /// still cannot be made (docs/design/web-client-polish.md §2.3, Q3).
 class _UnbuildableArtist extends Artist {
-  const _UnbuildableArtist() : super(id: 'x', name: 'x', providerId: 'p');
+  const _UnbuildableArtist()
+    : super(id: 'x', name: 'x', providerId: const SalonId('p'));
 
   @override
   String get name => throw StateError('an artist the file cannot hold');

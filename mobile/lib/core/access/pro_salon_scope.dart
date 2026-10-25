@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 
 import '../../models/appointment.dart';
 import '../utils/logger.dart';
+import '../utils/salon_id.dart';
 
 /// Per-salon state contract (R6 multi-salons): every ChangeNotifier that
 /// caches data for ONE salon implements this so a « Mes salons » switch can
@@ -49,7 +50,7 @@ class BookingChange {
   });
 
   final String appointmentId;
-  final String providerId;
+  final SalonId providerId;
   final BookingChangeKind kind;
 
   /// [BookingChangeKind.rescheduled] only: the booking's new time.

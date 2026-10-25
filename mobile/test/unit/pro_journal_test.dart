@@ -77,7 +77,7 @@ void main() {
     }) => Appointment(
       id: id,
       userId: 'u1',
-      providerId: 'p1',
+      providerId: SalonId('p1'),
       serviceIds: const ['s1'],
       artistId: artistId,
       appointmentDate: DateTime.parse(date),

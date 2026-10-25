@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import '../core/constants/failure_messages.dart';
 import '../core/di/dependency_injection.dart';
 import '../core/utils/app_clock.dart';
+import '../core/utils/salon_id.dart';
 import '../core/utils/submission_key.dart';
 import '../core/utils/visit_history.dart' as vh;
 import '../models/appointment.dart';
@@ -79,7 +80,7 @@ class AppointmentProvider extends ChangeNotifier {
   List<Appointment> get visitHistory =>
       vh.visitHistory(_appointments, AppClock.now());
 
-  bool hasCompletedBookingAt(String providerId, String userId) =>
+  bool hasCompletedBookingAt(SalonId providerId, String userId) =>
       latestCompletedAppointmentId(providerId, userId) != null;
 
   /// The most recent completed appointment the user had at [providerId] — the
@@ -88,7 +89,7 @@ class AppointmentProvider extends ChangeNotifier {
   /// Returns the whole booking, not just its id, because the review sheet
   /// shows WHO served that visit and the answer rides the appointment now
   /// (Decision C) rather than being looked up in the salon's roster.
-  Appointment? latestCompletedAppointment(String providerId, String userId) {
+  Appointment? latestCompletedAppointment(SalonId providerId, String userId) {
     final completed =
         _appointments
             .where(
@@ -102,7 +103,7 @@ class AppointmentProvider extends ChangeNotifier {
     return completed.isEmpty ? null : completed.first;
   }
 
-  String? latestCompletedAppointmentId(String providerId, String userId) =>
+  String? latestCompletedAppointmentId(SalonId providerId, String userId) =>
       latestCompletedAppointment(providerId, userId)?.id;
 
   Future<void> loadAppointments({AppointmentStatus? status}) async {
@@ -134,7 +135,7 @@ class AppointmentProvider extends ChangeNotifier {
   }
 
   Future<bool> bookAppointment({
-    required String providerId,
+    required SalonId providerId,
     required List<String> serviceIds,
     required DateTime appointmentDateTime,
     String? artistId,
@@ -328,7 +329,7 @@ class AppointmentProvider extends ChangeNotifier {
   /// are none"* and never the envelope's other fields.
   Future<({List<DateTime> slots, String? error, String? code})>
   getAvailableTimeSlots({
-    required String providerId,
+    required SalonId providerId,
     required DateTime date,
     List<String>? serviceIds,
     String? artistId,

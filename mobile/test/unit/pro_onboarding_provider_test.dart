@@ -114,12 +114,14 @@ void main() {
       imageUrls: const ['a.jpg', 'b.jpg', 'c.jpg'],
     );
     when(() => pro.getProviderServices(SalonId('p1'))).thenAnswer(
-      (_) async =>
-          ApiResponse.success(MockData.getServicesForProvider('provider1')),
+      (_) async => ApiResponse.success(
+        MockData.getServicesForProvider(SalonId('provider1')),
+      ),
     );
     when(() => artists.getArtists(SalonId('p1'))).thenAnswer(
-      (_) async =>
-          ApiResponse.success(MockData.getArtistsForProvider('provider1')),
+      (_) async => ApiResponse.success(
+        MockData.getArtistsForProvider(SalonId('provider1')),
+      ),
     );
     when(
       () => pro.getProviderAvailability(SalonId('p1')),
@@ -182,8 +184,9 @@ void main() {
       (_) async => ApiResponse<List<Service>>.error(kNoConnectionMessage),
     );
     when(() => artists.getArtists(SalonId('p1'))).thenAnswer(
-      (_) async =>
-          ApiResponse.success(MockData.getArtistsForProvider('provider1')),
+      (_) async => ApiResponse.success(
+        MockData.getArtistsForProvider(SalonId('provider1')),
+      ),
     );
     when(
       () => pro.getProviderAvailability(SalonId('p1')),
@@ -239,8 +242,9 @@ void main() {
         () => pro.getProviderServices(SalonId('p1')),
       ).thenAnswer((_) async => ApiResponse.success(services));
       when(() => artists.getArtists(SalonId('p1'))).thenAnswer(
-        (_) async =>
-            ApiResponse.success(MockData.getArtistsForProvider('provider1')),
+        (_) async => ApiResponse.success(
+          MockData.getArtistsForProvider(SalonId('provider1')),
+        ),
       );
       when(
         () => pro.getProviderAvailability(SalonId('p1')),
@@ -285,7 +289,7 @@ void main() {
 
     test('an inactive service does not count toward the three', () async {
       final three = MockData.getServicesForProvider(
-        'provider1',
+        SalonId('provider1'),
       ).take(3).toList();
       final p = await load(
         services: [three[0], three[1], three[2].copyWith(active: false)],
@@ -302,7 +306,7 @@ void main() {
       'a day with hours counts, whatever its slots’ flags — as the server',
       () async {
         final p = await load(
-          services: MockData.getServicesForProvider('provider1'),
+          services: MockData.getServicesForProvider(SalonId('provider1')),
           availability: salon.availability.copyWith(
             weeklySchedule: {
               0: [
@@ -374,12 +378,14 @@ void main() {
           imageUrls: const ['a.jpg', 'b.jpg', 'c.jpg'],
         );
         when(() => pro.getProviderServices(SalonId('p1'))).thenAnswer(
-          (_) async =>
-              ApiResponse.success(MockData.getServicesForProvider('provider1')),
+          (_) async => ApiResponse.success(
+            MockData.getServicesForProvider(SalonId('provider1')),
+          ),
         );
         when(() => artists.getArtists(SalonId('p1'))).thenAnswer(
-          (_) async =>
-              ApiResponse.success(MockData.getArtistsForProvider('provider1')),
+          (_) async => ApiResponse.success(
+            MockData.getArtistsForProvider(SalonId('provider1')),
+          ),
         );
         when(
           () => pro.getProviderAvailability(SalonId('p1')),

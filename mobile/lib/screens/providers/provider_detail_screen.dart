@@ -12,6 +12,7 @@ import '../../core/utils/app_clock.dart';
 import '../../core/utils/external_link.dart';
 import '../../core/utils/formatters.dart';
 import '../../core/utils/helpers.dart';
+import '../../core/utils/salon_id.dart';
 import '../../models/appointment.dart';
 import '../../models/availability.dart';
 import '../../models/provider.dart' as models;
@@ -41,7 +42,7 @@ import '../../widgets/review/submit_review_sheet.dart';
 /// (`imageUrls[0]`): see docs/design/salon-cover-photo.md. Its « Contact »
 /// card opens on a map of the salon: docs/design/salon-location-map.md.
 class ProviderDetailScreen extends StatefulWidget {
-  final String providerId;
+  final SalonId providerId;
 
   /// Owner preview (docs/design/pro-salon-lifecycle.md B5): renders the
   /// LOGGED-OUT client view of the salon — no consumer session providers are

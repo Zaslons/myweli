@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/constants/app_constants.dart';
+import '../../core/utils/salon_id.dart';
 import '../../models/api_response.dart';
 import '../../models/provider.dart';
 import '../interfaces/favorites_service_interface.dart';
@@ -30,7 +31,7 @@ class MockFavoritesService implements FavoritesServiceInterface {
   }
 
   @override
-  Future<ApiResponse<List<String>>> getFavoriteProviderIds(
+  Future<ApiResponse<List<SalonId>>> getFavoriteProviderIds(
     String userId,
   ) async {
     await Future.delayed(AppConstants.mockDelay);
@@ -45,8 +46,8 @@ class MockFavoritesService implements FavoritesServiceInterface {
       }
 
       final List<dynamic> favoritesList = json.decode(favoritesJson);
-      final List<String> providerIds = favoritesList
-          .map((id) => id.toString())
+      final List<SalonId> providerIds = favoritesList
+          .map((id) => SalonId(id.toString()))
           .toList();
 
       return ApiResponse.success(providerIds);
@@ -60,7 +61,7 @@ class MockFavoritesService implements FavoritesServiceInterface {
   @override
   Future<ApiResponse<bool>> addFavorite(
     String userId,
-    String providerId,
+    SalonId providerId,
   ) async {
     await Future.delayed(AppConstants.mockDelay);
 
@@ -95,7 +96,7 @@ class MockFavoritesService implements FavoritesServiceInterface {
   @override
   Future<ApiResponse<bool>> removeFavorite(
     String userId,
-    String providerId,
+    SalonId providerId,
   ) async {
     await Future.delayed(AppConstants.mockDelay);
 
@@ -110,7 +111,7 @@ class MockFavoritesService implements FavoritesServiceInterface {
 
       final List<dynamic> favoritesList = json.decode(favoritesJson);
       final List<String> favorites = favoritesList
-          .map((id) => id.toString())
+          .map((id) => SalonId(id.toString()))
           .toList();
 
       if (favorites.remove(providerId)) {
@@ -127,7 +128,10 @@ class MockFavoritesService implements FavoritesServiceInterface {
   }
 
   @override
-  Future<ApiResponse<bool>> isFavorite(String userId, String providerId) async {
+  Future<ApiResponse<bool>> isFavorite(
+    String userId,
+    SalonId providerId,
+  ) async {
     await Future.delayed(const Duration(milliseconds: 50));
 
     try {
@@ -141,7 +145,7 @@ class MockFavoritesService implements FavoritesServiceInterface {
 
       final List<dynamic> favoritesList = json.decode(favoritesJson);
       final List<String> favorites = favoritesList
-          .map((id) => id.toString())
+          .map((id) => SalonId(id.toString()))
           .toList();
 
       return ApiResponse.success(favorites.contains(providerId));

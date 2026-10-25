@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:myweli/core/utils/salon_id.dart';
 import 'package:myweli/core/utils/staff_hours.dart';
 import 'package:myweli/models/artist.dart';
 import 'package:myweli/models/availability.dart';
@@ -12,7 +13,7 @@ TimeSlot _ts(int startHour, int endHour) => TimeSlot(
 );
 
 Artist _artist(Map<int, List<TimeSlot>> hours) =>
-    Artist(id: 'a', name: 'a', providerId: 'p', workingHours: hours);
+    Artist(id: 'a', name: 'a', providerId: SalonId('p'), workingHours: hours);
 
 void main() {
   group('Artist.workingHours model', () {
@@ -27,7 +28,7 @@ void main() {
     });
 
     test('defaults to empty (follows salon)', () {
-      const artist = Artist(id: 'a', name: 'a', providerId: 'p');
+      const artist = Artist(id: 'a', name: 'a', providerId: SalonId('p'));
       expect(artist.workingHours, isEmpty);
       final json = artist.toJson()..remove('workingHours');
       expect(Artist.fromJson(json).workingHours, isEmpty);
@@ -98,7 +99,7 @@ void main() {
   group('slot engine respects per-staff hours', () {
     // artist5 (provider2) is seeded part-time Tue–Sat 10:00–17:00; artist3 has
     // no custom hours (follows salon).
-    const providerId = 'provider2';
+    const providerId = SalonId('provider2');
     const serviceIds = ['service4']; // Tissage — artist3 & artist5 can do it
 
     test('a part-time member only offers slots within their hours', () async {

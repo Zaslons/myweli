@@ -21,7 +21,7 @@ class _Service extends MockProService {
 
   @override
   Future<ApiResponse<List<Appointment>>> getProviderAppointments(
-    String providerId, {
+    SalonId providerId, {
     AppointmentStatus? status,
     DateTime? startDate,
     DateTime? endDate,
@@ -29,7 +29,7 @@ class _Service extends MockProService {
 
   @override
   Future<ApiResponse<Appointment>> createManualBooking({
-    required String providerId,
+    required SalonId providerId,
     required List<String> serviceIds,
     required DateTime appointmentDateTime,
     String? clientName,
@@ -142,7 +142,7 @@ void main() {
   final booking = Appointment(
     id: 'm1',
     userId: 'manual',
-    providerId: 'p1',
+    providerId: SalonId('p1'),
     serviceIds: const ['s1'],
     appointmentDate: DateTime.utc(2026, 7, 13, 10),
     status: AppointmentStatus.confirmed,

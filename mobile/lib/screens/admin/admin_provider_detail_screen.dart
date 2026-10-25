@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/formatters.dart';
+import '../../core/utils/salon_id.dart';
 import '../../providers/admin/admin_disputes_provider.dart';
 import '../../providers/admin/admin_provider_detail_provider.dart';
 import '../../providers/admin/admin_providers_provider.dart';
@@ -21,7 +22,7 @@ import 'widgets/reason_dialog.dart';
 class AdminProviderDetailScreen extends StatefulWidget {
   const AdminProviderDetailScreen({super.key, required this.id});
 
-  final String id;
+  final SalonId id;
 
   @override
   State<AdminProviderDetailScreen> createState() =>

@@ -50,7 +50,7 @@ class ProAppointmentProvider extends ChangeNotifier
   /// The same test `getProviderAppointments` applies: both bounds inclusive.
   /// The salon of the loaded list — the announcement of a change names it
   /// when the row is not in the list.
-  String? _loadedProviderId;
+  SalonId? _loadedProviderId;
 
   bool _belongsToLoadedList(Appointment a) {
     final status = _loadedStatus;

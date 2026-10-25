@@ -24,8 +24,7 @@ class SalonMarket extends Equatable {
   });
 
   factory SalonMarket.of(Provider salon) => SalonMarket(
-    // A Provider's id stays a String until H2 types `Provider.id`.
-    salonId: SalonId(salon.id),
+    salonId: salon.id,
     timezone: salon.timezone,
     currency: salon.currency,
     countryCode: salon.countryCode,

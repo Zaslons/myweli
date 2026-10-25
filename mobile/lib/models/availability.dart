@@ -1,6 +1,7 @@
 import 'package:equatable/equatable.dart';
 
 import '../core/constants/booking_horizons.dart';
+import '../core/utils/salon_id.dart';
 
 class TimeSlot extends Equatable {
   final DateTime startTime;
@@ -34,7 +35,7 @@ class TimeSlot extends Equatable {
 }
 
 class Availability extends Equatable {
-  final String providerId;
+  final SalonId providerId;
   final Map<int, List<TimeSlot>> weeklySchedule; // 0=Monday, 6=Sunday
   final List<DateTime> blockedDates;
 
@@ -81,7 +82,7 @@ class Availability extends Equatable {
   ];
 
   Availability copyWith({
-    String? providerId,
+    SalonId? providerId,
     Map<int, List<TimeSlot>>? weeklySchedule,
     List<DateTime>? blockedDates,
     int? bufferMinutes,
@@ -138,7 +139,7 @@ class Availability extends Equatable {
 
   factory Availability.fromJson(Map<String, dynamic> json) {
     return Availability(
-      providerId: json['providerId'] as String,
+      providerId: SalonId(json['providerId'] as String),
       weeklySchedule: _scheduleFromJson(json['weeklySchedule'] as Map),
       blockedDates: (json['blockedDates'] as List)
           .map((d) => DateTime.parse(d as String))

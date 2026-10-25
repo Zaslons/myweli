@@ -38,7 +38,7 @@ void main() {
   Appointment appt({DateTime? date, DateTime? arrivedAt}) => Appointment(
     id: 'a1',
     userId: 'u1',
-    providerId: 'p1',
+    providerId: SalonId('p1'),
     serviceIds: const ['s1'],
     // Same-day-safe: a fixed +2h crossed midnight on late-UTC CI runs
     // (a 22h-24h flake window) — "now" is inside today by definition.

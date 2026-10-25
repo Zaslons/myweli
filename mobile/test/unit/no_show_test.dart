@@ -20,7 +20,7 @@ void main() {
   }) => Appointment(
     id: id,
     userId: 'u1',
-    providerId: 'p1',
+    providerId: SalonId('p1'),
     serviceIds: const ['s1'],
     appointmentDate: date ?? DateTime(2026, 6, 1),
     status: status,

@@ -13,7 +13,7 @@ class ProAvailabilityProvider extends ChangeNotifier implements SalonScoped {
   Availability? _availability;
   bool _isLoading = false;
   String? _error;
-  String? _currentProviderId;
+  SalonId? _currentProviderId;
 
   Availability? get availability => _availability;
   bool get isLoading => _isLoading;

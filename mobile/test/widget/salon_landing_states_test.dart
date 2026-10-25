@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:myweli/core/di/dependency_injection.dart';
+import 'package:myweli/core/utils/salon_id.dart';
 import 'package:myweli/models/api_response.dart';
 import 'package:myweli/models/provider.dart' as models;
 import 'package:myweli/providers/appointment_provider.dart';
@@ -107,10 +108,14 @@ void main() {
   }
 
   final screens = <String, Widget>{
-    'la fiche du salon': const ProviderDetailScreen(providerId: 'gone'),
-    'le tunnel de réservation': const BookingHubScreen(providerId: 'gone'),
+    'la fiche du salon': const ProviderDetailScreen(
+      providerId: SalonId('gone'),
+    ),
+    'le tunnel de réservation': const BookingHubScreen(
+      providerId: SalonId('gone'),
+    ),
     'la confirmation': BookingConfirmationScreen(
-      providerId: 'gone',
+      providerId: SalonId('gone'),
       serviceIds: const ['service1'],
       appointmentDateTime: DateTime.now().add(const Duration(days: 3)),
     ),

@@ -7,6 +7,7 @@ import '../core/constants/app_constants.dart';
 import '../core/constants/failure_messages.dart';
 import '../core/di/dependency_injection.dart';
 import '../core/utils/salon_figures.dart';
+import '../core/utils/salon_id.dart';
 import '../models/provider.dart';
 import '../models/review.dart';
 import '../services/interfaces/image_upload_service_interface.dart';
@@ -23,7 +24,7 @@ import '../services/interfaces/review_service_interface.dart';
 /// `FavoritesProvider.patchSalonFigures` here.
 typedef SalonFiguresSink =
     void Function(
-      String providerId, {
+      SalonId providerId, {
       required double rating,
       required int reviewCount,
     });
@@ -45,7 +46,7 @@ class ProviderProvider extends ChangeNotifier {
   /// by every salon page in the stack; [selectedProvider] alone cannot say
   /// whose it is: during a read it still holds the previous salon, and after
   /// a failed one it is `null` for everybody.
-  String? _selectedProviderId;
+  SalonId? _selectedProviderId;
   bool _isLoading = false;
   bool _isSubmittingReview = false;
   String? _error;
@@ -219,7 +220,7 @@ class ProviderProvider extends ChangeNotifier {
   /// stale silently.
   void beginProviderLoad() => _isLoading = true;
 
-  Future<void> loadProviderById(String id) async {
+  Future<void> loadProviderById(SalonId id) async {
     _selectedProviderId = id;
     _isLoading = true;
     _error = null;
@@ -295,7 +296,7 @@ class ProviderProvider extends ChangeNotifier {
   /// reads [selectedProvider], [isLoading] and [error]; a lookup that set any
   /// of them would repaint that page behind the user's back. `null` = not
   /// found, gone, or unreachable — the caller says so.
-  Future<Provider?> providerForMap(String id) async {
+  Future<Provider?> providerForMap(SalonId id) async {
     for (final p in _providers) {
       if (p.id == id) return p;
     }
@@ -387,7 +388,7 @@ class ProviderProvider extends ChangeNotifier {
   /// slot: the list (the map's markers and [providerForMap] read it first),
   /// the featured list, and whatever [alsoPatch] holds.
   void _patchFigures(
-    String id,
+    SalonId id,
     double rating,
     int reviewCount,
     SalonFiguresSink? alsoPatch,
@@ -440,7 +441,7 @@ class ProviderProvider extends ChangeNotifier {
   /// while it was covered —, so it can disagree with the lists until its
   /// next read.
   Future<void> rereadSalonAfterReview(
-    String providerId, {
+    SalonId providerId, {
     SalonFiguresSink? alsoPatch,
   }) async {
     final applied = _reviewsApplied[providerId];

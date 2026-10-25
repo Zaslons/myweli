@@ -120,13 +120,13 @@ class MockData {
   }
 
   // Sample Artists
-  static List<Artist> getArtistsForProvider(String providerId) {
+  static List<Artist> getArtistsForProvider(SalonId providerId) {
     if (providerId == 'provider1') {
       return [
         const Artist(
           id: 'artist1',
           name: 'Kouassi Jean',
-          providerId: 'provider1',
+          providerId: SalonId('provider1'),
           specialization: 'Barbier',
           rating: 4.8,
           reviewCount: 45,
@@ -134,7 +134,7 @@ class MockData {
         const Artist(
           id: 'artist2',
           name: 'Diallo Amadou',
-          providerId: 'provider1',
+          providerId: SalonId('provider1'),
           specialization: 'Coiffeur',
           rating: 4.6,
           reviewCount: 32,
@@ -145,7 +145,7 @@ class MockData {
         const Artist(
           id: 'artist3',
           name: 'Marie Kouassi',
-          providerId: 'provider2',
+          providerId: SalonId('provider2'),
           specialization: 'Coiffeuse',
           rating: 4.9,
           reviewCount: 67,
@@ -153,7 +153,7 @@ class MockData {
         const Artist(
           id: 'artist4',
           name: 'Fatou Diallo',
-          providerId: 'provider2',
+          providerId: SalonId('provider2'),
           specialization: 'Esthéticienne',
           rating: 4.7,
           reviewCount: 28,
@@ -161,7 +161,7 @@ class MockData {
         Artist(
           id: 'artist5',
           name: 'Aminata Traoré',
-          providerId: 'provider2',
+          providerId: SalonId('provider2'),
           specialization: 'Coiffeuse',
           rating: 4.5,
           reviewCount: 19,
@@ -178,7 +178,7 @@ class MockData {
         const Artist(
           id: 'artist6',
           name: 'Sophie Martin',
-          providerId: 'provider3',
+          providerId: SalonId('provider3'),
           specialization: 'Massothérapeute',
           rating: 4.8,
           reviewCount: 52,
@@ -186,7 +186,7 @@ class MockData {
         const Artist(
           id: 'artist7',
           name: 'Claire Dubois',
-          providerId: 'provider3',
+          providerId: SalonId('provider3'),
           specialization: 'Esthéticienne',
           rating: 4.6,
           reviewCount: 38,
@@ -197,7 +197,7 @@ class MockData {
         const Artist(
           id: 'artist8',
           name: 'Yves Kouassi',
-          providerId: 'provider4',
+          providerId: SalonId('provider4'),
           specialization: 'Barbier',
           rating: 4.7,
           reviewCount: 41,
@@ -210,7 +210,7 @@ class MockData {
   }
 
   // Sample Services
-  static List<Service> getServicesForProvider(String providerId) {
+  static List<Service> getServicesForProvider(SalonId providerId) {
     if (providerId == 'provider1') {
       return [
         const Service(
@@ -219,7 +219,7 @@ class MockData {
           description: 'Coupe de cheveux pour homme',
           price: 5000,
           durationMinutes: 30,
-          providerId: 'provider1',
+          providerId: SalonId('provider1'),
           artistIds: ['artist1', 'artist2'], // Both artists can do this
         ),
         const Service(
@@ -228,7 +228,7 @@ class MockData {
           description: 'Rasage complet avec tondeuse',
           price: 3000,
           durationMinutes: 20,
-          providerId: 'provider1',
+          providerId: SalonId('provider1'),
           artistIds: ['artist1'], // Only artist1 can do this
         ),
         const Service(
@@ -237,7 +237,7 @@ class MockData {
           description: 'Coupe et rasage complet',
           price: 7000,
           durationMinutes: 45,
-          providerId: 'provider1',
+          providerId: SalonId('provider1'),
           artistIds: ['artist1'], // Only artist1 can do this
         ),
       ];
@@ -251,7 +251,7 @@ class MockData {
           priceMax: 25000,
           durationMinutes: 120,
           durationVariants: DurationVariants(court: 120, moyen: 180, long: 240),
-          providerId: 'provider2',
+          providerId: SalonId('provider2'),
           artistIds: ['artist3', 'artist5'], // Only these two can do this
         ),
         const Service(
@@ -261,7 +261,7 @@ class MockData {
           price: 12000,
           priceMax: 18000,
           durationMinutes: 90,
-          providerId: 'provider2',
+          providerId: SalonId('provider2'),
           artistIds: ['artist3', 'artist4'], // These two can do this
         ),
         const Service(
@@ -270,7 +270,7 @@ class MockData {
           description: 'Lissage brésilien',
           price: 20000,
           durationMinutes: 150,
-          providerId: 'provider2',
+          providerId: SalonId('provider2'),
           artistIds: ['artist3'], // Only artist3 can do this
         ),
       ];
@@ -282,7 +282,7 @@ class MockData {
           description: 'Massage complet du corps',
           price: 10000,
           durationMinutes: 60,
-          providerId: 'provider3',
+          providerId: SalonId('provider3'),
           artistIds: ['artist6'], // Only artist6 can do this
         ),
         const Service(
@@ -291,7 +291,7 @@ class MockData {
           description: 'Soin des ongles',
           price: 5000,
           durationMinutes: 45,
-          providerId: 'provider3',
+          providerId: SalonId('provider3'),
           artistIds: ['artist7'], // Only artist7 can do this
         ),
       ];
@@ -303,7 +303,7 @@ class MockData {
           description: 'Coupe traditionnelle',
           price: 4000,
           durationMinutes: 25,
-          providerId: 'provider4',
+          providerId: SalonId('provider4'),
           artistIds: ['artist8'], // Only artist8 can do this
         ),
         const Service(
@@ -312,7 +312,7 @@ class MockData {
           description: 'Rasage avec rasoir',
           price: 3500,
           durationMinutes: 15,
-          providerId: 'provider4',
+          providerId: SalonId('provider4'),
           artistIds: ['artist8'], // Only artist8 can do this
         ),
       ];
@@ -325,7 +325,7 @@ class MockData {
   // Sample Providers
   static final List<Provider> providers = [
     Provider(
-      id: 'provider1',
+      id: SalonId('provider1'),
       name: 'Salon Excellence',
       description: 'Salon de coiffure moderne au cœur d’Abidjan',
       address: 'Cocody, Angré 7ème Tranche',
@@ -356,17 +356,17 @@ class MockData {
       ],
       rating: 4.5,
       reviewCount: 120,
-      services: getServicesForProvider('provider1'),
-      artists: getArtistsForProvider('provider1'),
+      services: getServicesForProvider(SalonId('provider1')),
+      artists: getArtistsForProvider(SalonId('provider1')),
       availability: Availability(
-        providerId: 'provider1',
+        providerId: SalonId('provider1'),
         weeklySchedule: {
           0: const [], // Monday closed
-          1: _generateTimeSlots('provider1', 9, 18), // Tuesday
-          2: _generateTimeSlots('provider1', 9, 18), // Wednesday
-          3: _generateTimeSlots('provider1', 9, 18), // Thursday
-          4: _generateTimeSlots('provider1', 9, 18), // Friday
-          5: _generateTimeSlots('provider1', 9, 16), // Saturday
+          1: _generateTimeSlots(SalonId('provider1'), 9, 18), // Tuesday
+          2: _generateTimeSlots(SalonId('provider1'), 9, 18), // Wednesday
+          3: _generateTimeSlots(SalonId('provider1'), 9, 18), // Thursday
+          4: _generateTimeSlots(SalonId('provider1'), 9, 18), // Friday
+          5: _generateTimeSlots(SalonId('provider1'), 9, 16), // Saturday
           6: const [], // Sunday closed
         },
         blockedDates: const [],
@@ -382,7 +382,7 @@ class MockData {
       category: 'barber',
     ),
     Provider(
-      id: 'provider2',
+      id: SalonId('provider2'),
       name: 'Beauté Divine',
       description: 'Institut de beauté pour femmes',
       address: 'Marcory, Zone 4',
@@ -405,17 +405,17 @@ class MockData {
       ],
       rating: 4.8,
       reviewCount: 89,
-      services: getServicesForProvider('provider2'),
-      artists: getArtistsForProvider('provider2'),
+      services: getServicesForProvider(SalonId('provider2')),
+      artists: getArtistsForProvider(SalonId('provider2')),
       availability: Availability(
-        providerId: 'provider2',
+        providerId: SalonId('provider2'),
         weeklySchedule: {
-          0: _generateTimeSlots('provider2', 8, 17),
-          1: _generateTimeSlots('provider2', 8, 17),
-          2: _generateTimeSlots('provider2', 8, 17),
-          3: _generateTimeSlots('provider2', 8, 17),
-          4: _generateTimeSlots('provider2', 8, 17),
-          5: _generateTimeSlots('provider2', 9, 15),
+          0: _generateTimeSlots(SalonId('provider2'), 8, 17),
+          1: _generateTimeSlots(SalonId('provider2'), 8, 17),
+          2: _generateTimeSlots(SalonId('provider2'), 8, 17),
+          3: _generateTimeSlots(SalonId('provider2'), 8, 17),
+          4: _generateTimeSlots(SalonId('provider2'), 8, 17),
+          5: _generateTimeSlots(SalonId('provider2'), 9, 15),
           6: const [],
         },
         blockedDates: const [],
@@ -425,7 +425,7 @@ class MockData {
       category: 'salon',
     ),
     Provider(
-      id: 'provider3',
+      id: SalonId('provider3'),
       name: 'Spa Relax',
       description: 'Centre de bien-être et relaxation',
       address: 'Yopougon, Sicogi',
@@ -443,18 +443,18 @@ class MockData {
       imageUrls: const ['asset:assets/images/providers/spa_relax_photo.png'],
       rating: 4.7,
       reviewCount: 156,
-      services: getServicesForProvider('provider3'),
-      artists: getArtistsForProvider('provider3'),
+      services: getServicesForProvider(SalonId('provider3')),
+      artists: getArtistsForProvider(SalonId('provider3')),
       availability: Availability(
-        providerId: 'provider3',
+        providerId: SalonId('provider3'),
         weeklySchedule: {
-          0: _generateTimeSlots('provider3', 10, 19),
-          1: _generateTimeSlots('provider3', 10, 19),
-          2: _generateTimeSlots('provider3', 10, 19),
-          3: _generateTimeSlots('provider3', 10, 19),
-          4: _generateTimeSlots('provider3', 10, 19),
-          5: _generateTimeSlots('provider3', 10, 18),
-          6: _generateTimeSlots('provider3', 12, 17),
+          0: _generateTimeSlots(SalonId('provider3'), 10, 19),
+          1: _generateTimeSlots(SalonId('provider3'), 10, 19),
+          2: _generateTimeSlots(SalonId('provider3'), 10, 19),
+          3: _generateTimeSlots(SalonId('provider3'), 10, 19),
+          4: _generateTimeSlots(SalonId('provider3'), 10, 19),
+          5: _generateTimeSlots(SalonId('provider3'), 10, 18),
+          6: _generateTimeSlots(SalonId('provider3'), 12, 17),
         },
         blockedDates: const [],
       ),
@@ -463,7 +463,7 @@ class MockData {
       category: 'spa',
     ),
     Provider(
-      id: 'provider4',
+      id: SalonId('provider4'),
       name: 'Barber Shop Pro',
       description: 'Salon de coiffure pour hommes',
       address: 'Plateau, Avenue Franchet d’Esperey',
@@ -482,17 +482,17 @@ class MockData {
       ],
       rating: 4.6,
       reviewCount: 203,
-      services: getServicesForProvider('provider4'),
-      artists: getArtistsForProvider('provider4'),
+      services: getServicesForProvider(SalonId('provider4')),
+      artists: getArtistsForProvider(SalonId('provider4')),
       availability: Availability(
-        providerId: 'provider4',
+        providerId: SalonId('provider4'),
         weeklySchedule: {
           0: const [],
-          1: _generateTimeSlots('provider4', 8, 19),
-          2: _generateTimeSlots('provider4', 8, 19),
-          3: _generateTimeSlots('provider4', 8, 19),
-          4: _generateTimeSlots('provider4', 8, 19),
-          5: _generateTimeSlots('provider4', 8, 18),
+          1: _generateTimeSlots(SalonId('provider4'), 8, 19),
+          2: _generateTimeSlots(SalonId('provider4'), 8, 19),
+          3: _generateTimeSlots(SalonId('provider4'), 8, 19),
+          4: _generateTimeSlots(SalonId('provider4'), 8, 19),
+          5: _generateTimeSlots(SalonId('provider4'), 8, 18),
           6: const [],
         },
         blockedDates: const [],
@@ -506,7 +506,7 @@ class MockData {
   static final List<Review> reviews = [
     Review(
       id: 'review1',
-      providerId: 'provider1',
+      providerId: SalonId('provider1'),
       userId: 'user2',
       userName: 'Marie Diallo',
       rating: 5,
@@ -521,7 +521,7 @@ class MockData {
     ),
     Review(
       id: 'review2',
-      providerId: 'provider1',
+      providerId: SalonId('provider1'),
       userId: 'user2',
       userName: 'Marie Diallo',
       rating: 4,
@@ -532,7 +532,7 @@ class MockData {
     ),
     Review(
       id: 'review3',
-      providerId: 'provider1',
+      providerId: SalonId('provider1'),
       userId: 'user2',
       userName: 'Marie Diallo',
       rating: 5,
@@ -541,7 +541,7 @@ class MockData {
     ),
     Review(
       id: 'review4',
-      providerId: 'provider2',
+      providerId: SalonId('provider2'),
       userId: 'user1',
       userName: 'Jean Kouassi',
       rating: 5,
@@ -551,7 +551,7 @@ class MockData {
     ),
     Review(
       id: 'review5',
-      providerId: 'provider2',
+      providerId: SalonId('provider2'),
       userId: 'user2',
       userName: 'Marie Diallo',
       rating: 4,
@@ -560,7 +560,7 @@ class MockData {
     ),
     Review(
       id: 'review6',
-      providerId: 'provider3',
+      providerId: SalonId('provider3'),
       userId: 'user1',
       userName: 'Jean Kouassi',
       rating: 5,
@@ -569,7 +569,7 @@ class MockData {
     ),
     Review(
       id: 'review7',
-      providerId: 'provider4',
+      providerId: SalonId('provider4'),
       userId: 'user2',
       userName: 'Marie Diallo',
       rating: 4,
@@ -603,7 +603,7 @@ class MockData {
     Appointment(
       id: 'appointment1',
       userId: 'user1',
-      providerId: 'provider1',
+      providerId: SalonId('provider1'),
       serviceIds: const ['service1'],
       appointmentDate: AppClock.now().add(const Duration(days: 2)),
       status: AppointmentStatus.confirmed,
@@ -614,7 +614,7 @@ class MockData {
     Appointment(
       id: 'appointment2',
       userId: 'user1',
-      providerId: 'provider2',
+      providerId: SalonId('provider2'),
       serviceIds: const ['service4'],
       appointmentDate: AppClock.now().add(const Duration(days: 5)),
       status: AppointmentStatus.pending,
@@ -626,7 +626,7 @@ class MockData {
     Appointment(
       id: 'appointment_completed1',
       userId: 'user1',
-      providerId: 'provider1',
+      providerId: SalonId('provider1'),
       serviceIds: const ['service1'],
       appointmentDate: AppClock.now().subtract(const Duration(days: 10)),
       status: AppointmentStatus.completed,
@@ -638,7 +638,7 @@ class MockData {
     Appointment(
       id: 'appointment_completed2',
       userId: 'user2',
-      providerId: 'provider2',
+      providerId: SalonId('provider2'),
       serviceIds: const ['service4'],
       appointmentDate: AppClock.now().subtract(const Duration(days: 7)),
       status: AppointmentStatus.completed,
@@ -664,7 +664,7 @@ class MockData {
   // Note: These slots use today's date as a template, but the actual date
   // will be applied when checking availability for a specific date
   static List<TimeSlot> _generateTimeSlots(
-    String providerId,
+    SalonId providerId,
     int startHour,
     int endHour,
   ) {
@@ -851,7 +851,7 @@ class MockData {
 
   /// R6: mock salons created via « Ajouter un salon » — rendered as DRAFT
   /// in « Mes salons » (the Provider model carries no status client-side).
-  static final Set<String> draftSalonIds = {};
+  static final Set<SalonId> draftSalonIds = {};
 
   /// A salon made at run time (registration, « Ajouter un salon »), the way
   /// the server makes one (`draftSalonDocument`, backend
@@ -862,7 +862,7 @@ class MockData {
   /// annulation » step looked already chosen (docs/design/hygiene-batch9.md
   /// §2.5).
   static Provider newSalon({
-    required String id,
+    required SalonId id,
     required String name,
     required BusinessType businessType,
     String phoneNumber = '',
@@ -930,14 +930,15 @@ class MockData {
   /// multi-salons). NOT quite the backend's rule: the server counts expired
   /// invitations too (they hold their seat until revoked or invited again —
   /// docs/design/backend-team-reinvite.md §11).
-  static int teamSeatsUsed({String providerId = 'provider1'}) => teamMembers
-      .where(
-        (m) =>
-            m.providerId == providerId &&
-            (m.status == TeamMemberStatus.active ||
-                (m.isPending && !m.expired)),
-      )
-      .length;
+  static int teamSeatsUsed({SalonId providerId = const SalonId('provider1')}) =>
+      teamMembers
+          .where(
+            (m) =>
+                m.providerId == providerId &&
+                (m.status == TeamMemberStatus.active ||
+                    (m.isPending && !m.expired)),
+          )
+          .length;
 
   /// Restore the seeded roster/cards (tests: call in setUp), the day's
   /// invitation counters and the seeded catalogues ([resetCatalogue]). Also

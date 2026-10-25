@@ -4,6 +4,7 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:myweli/core/constants/booking_horizons.dart';
 import 'package:myweli/core/di/dependency_injection.dart';
+import 'package:myweli/core/utils/salon_id.dart';
 import 'package:myweli/models/api_response.dart';
 import 'package:myweli/providers/appointment_provider.dart';
 import 'package:myweli/providers/locality_provider.dart';
@@ -75,7 +76,7 @@ void main() {
         home: Scaffold(
           body: SingleChildScrollView(
             child: SlotPicker(
-              providerId: 'provider1',
+              providerId: SalonId('provider1'),
               selectedDate: date ?? DateTime(2026, 3, 11),
               refreshSignal: refreshSignal,
               horizon: horizon ?? kBookingHorizon,
@@ -278,7 +279,7 @@ void main() {
         home: Scaffold(
           body: SingleChildScrollView(
             child: SlotPicker(
-              providerId: 'provider1',
+              providerId: SalonId('provider1'),
               selectedDate: date,
               onDateChanged: (_) {},
               onSlotSelected: (_) {},

@@ -64,8 +64,9 @@ void main() {
               f.path,
         'lib/core/router/pro_router.dart',
       ];
-      // A booking's salon — `Appointment.providerId`, a String until H2.
-      const h2 = {'lib/providers/pro_dashboard_provider.dart': 1};
+      // H1 left one: a booking's salon (`Appointment.providerId`), typed
+      // since H2.
+      const h2 = <String, int>{};
       final found = <String, int>{
         for (final f in files)
           if (bareSalon.allMatches(code(f)).length case final n when n > 0)
@@ -113,6 +114,68 @@ void main() {
     );
   });
 
+  group('H2 — the public salon too: no salon id is a bare String', () {
+    // Any declaration NAMED as a salon id — `providerId`, `salonId`,
+    // `focusProviderId`, `draftSalonIds`, a list of them — anywhere in
+    // `lib/` but the V2/V3 screens. A salon's CLIENT (`salonClientId`) is
+    // not a salon and is not matched.
+    final named = RegExp(
+      r'\b(?:String\??|List<String>\??|Set<String>\??)\s+'
+      r'(?:\w*[pP]roviderIds?|\w*[sS]alonIds?)\b',
+    );
+
+    test('lib/: every salon-named slot is a SalonId', () {
+      final found = <String>[
+        for (final f in Directory('lib').listSync(recursive: true))
+          if (f is File &&
+              f.path.endsWith('.dart') &&
+              !f.path.contains('/screens/provider/features/'))
+            for (final m in named.allMatches(code(f.path)))
+              '${f.path}: ${m.group(0)}',
+      ];
+      expect(found, isEmpty);
+    });
+
+    test('the public models hold a SalonId', () {
+      for (final (file, decl) in [
+        ('lib/models/provider.dart', 'final SalonId id;'),
+        ('lib/models/appointment.dart', 'final SalonId providerId;'),
+        ('lib/models/review.dart', 'final SalonId providerId;'),
+        ('lib/models/service.dart', 'final SalonId providerId;'),
+        ('lib/models/artist.dart', 'final SalonId providerId;'),
+        ('lib/models/availability.dart', 'final SalonId providerId;'),
+        ('lib/core/access/pro_salon_scope.dart', 'final SalonId providerId;'),
+      ]) {
+        expect(code(file), contains(decl), reason: file);
+      }
+    });
+
+    test('a salon is looked up, listed and administered by its SalonId', () {
+      expect(
+        code('lib/services/interfaces/provider_service_interface.dart'),
+        contains('getProviderById(SalonId id)'),
+      );
+      expect(
+        code('lib/services/interfaces/favorites_service_interface.dart'),
+        contains('Future<ApiResponse<List<SalonId>>> getFavoriteProviderIds('),
+      );
+      final admin = code('lib/services/admin/admin_service.dart');
+      for (final m in [
+        'providerDetail(SalonId id)',
+        'suspendProvider(\n    SalonId id,',
+        'restoreProvider(SalonId id)',
+        'featureProvider(\n    SalonId id,',
+        'markSubscriptionPaid(\n    SalonId id,',
+      ]) {
+        expect(admin, contains(m), reason: m);
+      }
+      expect(
+        code('lib/screens/admin/admin_provider_detail_screen.dart'),
+        contains('final SalonId id;'),
+      );
+    });
+  });
+
   group('the birth pin', () {
     // Where a salon id may be MADE from a string. Everywhere else receives
     // one. A `SalonId(account.id)` written tomorrow is visible in review AND
@@ -120,27 +183,39 @@ void main() {
     const born = <String, String>{
       'lib/core/utils/salon_id.dart': 'the type, and `SalonId.none`',
       // The server's JSON — each model's `fromJson`.
+      'lib/models/provider.dart': 'fromJson: a salon',
+      'lib/models/appointment.dart': "fromJson: a booking's salon",
+      'lib/models/review.dart': "fromJson: a review's salon",
+      'lib/models/service.dart': "fromJson: a service's salon",
+      'lib/models/artist.dart': "fromJson: an artist's salon",
+      'lib/models/availability.dart': "fromJson: a salon's hours",
       'lib/models/provider_user.dart': 'fromJson: the account default salon',
       'lib/models/salon_membership_info.dart': 'fromJson: « Mes salons »',
       'lib/models/pro_membership.dart': 'fromJson: the membership salon',
       'lib/models/team_member.dart': 'fromJson: a roster row salon',
       'lib/models/team_invitation.dart': 'fromJson: an invitation salon',
-      'lib/models/salon_market.dart':
-          'fromJson, and `of(Provider)` until H2 types `Provider.id`',
-      'lib/models/salon_facts.dart':
-          'fromJson, and `of(Provider)` until H2 types `Provider.id`',
+      'lib/models/salon_market.dart': "fromJson: the acting salon's market",
+      'lib/models/salon_facts.dart': "fromJson: the acting salon's card",
       'lib/models/provider_session.dart':
           'fromJson: the persisted R6 selection',
+      'lib/services/api/api_favorites_service.dart':
+          "the favourites list, the server's JSON (no model)",
+      'lib/screens/admin/admin_providers_screen.dart':
+          "a row of the console's JSON list (no model)",
       // A salon id carried by a link or a notification.
+      'lib/core/router/app_router.dart':
+          'a salon page, a booking, the map focus',
+      'lib/core/router/admin_router.dart': "the console's salon page",
       'lib/core/router/pro_router.dart': 'the `?salon=` of a pushed booking',
       'lib/core/push/push_message_handler.dart':
           "the push payload's `providerId` or its route's `?salon=`",
       // The doubles mint and seed salon ids, as the server does.
       'lib/services/mock/mock_data.dart': 'the seed salons',
       'lib/services/mock/mock_auth_service.dart': 'a registered salon',
-      'lib/services/mock/mock_pro_service.dart':
-          'an added salon, and `Provider.id` until H2',
+      'lib/services/mock/mock_pro_service.dart': 'an added salon',
       'lib/services/mock/mock_session.dart': "the mock's default salon",
+      'lib/services/mock/mock_favorites_service.dart':
+          'the favourites kept on the device',
     };
 
     test('`SalonId(` is written only where a salon id is born', () {

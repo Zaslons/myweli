@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:myweli/core/utils/salon_id.dart';
 import 'package:myweli/models/app_notification.dart';
 import 'package:myweli/models/appointment.dart';
 import 'package:myweli/models/review.dart';
@@ -35,7 +36,7 @@ List<SingleChildWidget> favProviders() => [
 
 Review review() => Review(
   id: 'r1',
-  providerId: 'p1',
+  providerId: SalonId('p1'),
   userId: 'u1',
   userName: 'Marie Diallo',
   rating: 5,
@@ -63,7 +64,7 @@ void useLargeAmounts() {
 Appointment appt() => Appointment(
   id: 'a1',
   userId: 'u1',
-  providerId: 'p1',
+  providerId: SalonId('p1'),
   serviceIds: const ['s1'],
   appointmentDate: DateTime(2026, 6, 30, 10),
   status: AppointmentStatus.confirmed,

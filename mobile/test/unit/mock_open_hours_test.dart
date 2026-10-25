@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:myweli/core/utils/salon_id.dart';
 import 'package:myweli/models/availability.dart';
 import 'package:myweli/services/mock/mock_appointment_service.dart';
 import 'package:myweli/services/mock/mock_data.dart';
@@ -21,7 +22,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 /// left this half standing, which would have made « closed » true of one
 /// surface and false of the product.
 void main() {
-  const providerId = 'provider1';
+  const providerId = SalonId('provider1');
 
   /// Replaces [providerId]'s weekly template for [weekday] and restores the
   /// SHARED fixture afterwards — `MockData.providers` is a `static final`

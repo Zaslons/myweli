@@ -26,7 +26,7 @@ class _Service extends MockProService {
 
   @override
   Future<ApiResponse<DashboardStats>> getDashboardStats(
-    String providerId,
+    SalonId providerId,
   ) async {
     calls++;
     // Decided on arrival, like a server.
@@ -63,16 +63,17 @@ void main() {
       ..gate = null;
   });
 
-  Appointment booking({String providerId = 'p1'}) => Appointment(
-    id: 'm1',
-    userId: 'manual',
-    providerId: providerId,
-    serviceIds: const ['s1'],
-    appointmentDate: DateTime.utc(2026, 7, 13, 10),
-    status: AppointmentStatus.confirmed,
-    totalPrice: 5000,
-    createdAt: DateTime.utc(2026, 7, 1),
-  );
+  Appointment booking({SalonId providerId = const SalonId('p1')}) =>
+      Appointment(
+        id: 'm1',
+        userId: 'manual',
+        providerId: providerId,
+        serviceIds: const ['s1'],
+        appointmentDate: DateTime.utc(2026, 7, 13, 10),
+        status: AppointmentStatus.confirmed,
+        totalPrice: 5000,
+        createdAt: DateTime.utc(2026, 7, 1),
+      );
 
   Future<ProDashboardProvider> loaded() async {
     final p = ProDashboardProvider();
@@ -211,7 +212,7 @@ void main() {
 
   test('another salon’s booking is ignored', () async {
     final p = await loaded();
-    p.bookingCreated(booking(providerId: 'p2'));
+    p.bookingCreated(booking(providerId: SalonId('p2')));
     await pumpEventQueue();
     expect(service.calls, 1);
   });

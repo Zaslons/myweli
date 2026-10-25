@@ -6,6 +6,7 @@ import '../../core/theme/app_theme.dart';
 import '../../core/theme/colors.dart';
 import '../../core/theme/text_styles.dart';
 import '../../core/utils/formatters.dart';
+import '../../core/utils/salon_id.dart';
 import '../../providers/admin/admin_providers_provider.dart';
 import '../../widgets/common/app_button.dart';
 import '../../widgets/common/app_snack_bar.dart';
@@ -34,7 +35,7 @@ class _AdminProvidersScreenState extends State<AdminProvidersScreen> {
     );
   }
 
-  Future<void> _suspend(String id) async {
+  Future<void> _suspend(SalonId id) async {
     final reason = await showReasonDialog(
       context,
       title: 'Suspendre ce salon ?',
@@ -50,12 +51,12 @@ class _AdminProvidersScreenState extends State<AdminProvidersScreen> {
     );
   }
 
-  Future<void> _restore(String id) => _run(
+  Future<void> _restore(SalonId id) => _run(
     () => context.read<AdminProvidersProvider>().restore(id),
     'Salon réactivé',
   );
 
-  Future<void> _feature(String id, bool featured) => _run(
+  Future<void> _feature(SalonId id, bool featured) => _run(
     () => context.read<AdminProvidersProvider>().feature(id, featured),
     featured ? 'Mis en avant' : 'Retiré de la mise en avant',
   );
@@ -153,7 +154,8 @@ class _AdminProvidersScreenState extends State<AdminProvidersScreen> {
   }
 
   Widget _actions(Map<String, dynamic> r, bool acting) {
-    final id = '${r['id']}';
+    // A row of the console's JSON list: the salon's id, from the server.
+    final id = SalonId('${r['id']}');
     final featured = r['featured'] == true;
     final suspended = r['status'] == 'suspended';
     return Wrap(

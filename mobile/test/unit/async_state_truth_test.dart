@@ -82,7 +82,7 @@ void main() {
   Appointment booking(String id) => Appointment(
     id: id,
     userId: 'u1',
-    providerId: 'p1',
+    providerId: SalonId('p1'),
     serviceIds: const ['s1'],
     appointmentDate: DateTime(2030, 6, 24, 10),
     status: AppointmentStatus.confirmed,
@@ -199,7 +199,7 @@ void main() {
       );
 
       final p = ProviderProvider();
-      await p.loadProviderById('p1');
+      await p.loadProviderById(SalonId('p1'));
 
       expect(p.error, kNoConnectionMessage);
       expect(p.listError, isNull);

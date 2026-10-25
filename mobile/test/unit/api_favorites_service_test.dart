@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
+import 'package:myweli/core/utils/salon_id.dart';
 import 'package:myweli/services/api/api_favorites_service.dart';
 import 'package:myweli/services/interfaces/session_store.dart';
 
@@ -125,9 +126,12 @@ void main() {
         calls.add('${req.method} ${req.url.path}');
         return http.Response('', 204);
       });
-      expect((await _service(client).addFavorite('u1', 'p1')).success, isTrue);
       expect(
-        (await _service(client).removeFavorite('u1', 'p1')).success,
+        (await _service(client).addFavorite('u1', SalonId('p1'))).success,
+        isTrue,
+      );
+      expect(
+        (await _service(client).removeFavorite('u1', SalonId('p1'))).success,
         isTrue,
       );
       expect(calls, ['POST /me/favorites/p1', 'DELETE /me/favorites/p1']);
@@ -144,8 +148,14 @@ void main() {
         200,
       );
     });
-    expect((await _service(client).isFavorite('u1', 'p1')).data, isTrue);
-    expect((await _service(client).isFavorite('u1', 'p2')).data, isFalse);
+    expect(
+      (await _service(client).isFavorite('u1', SalonId('p1'))).data,
+      isTrue,
+    );
+    expect(
+      (await _service(client).isFavorite('u1', SalonId('p2'))).data,
+      isFalse,
+    );
   });
 
   test('no session → fails fast without HTTP', () async {
