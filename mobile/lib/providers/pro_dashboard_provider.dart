@@ -151,9 +151,7 @@ class ProDashboardProvider extends ChangeNotifier
   @override
   void bookingChanged(BookingChange change) => _figuresMoved(change.providerId);
 
-  // A booking's salon — `Appointment.providerId`, a String until H2 types it
-  // (hygiene-batch9.md §2.8); compared, never sent.
-  void _figuresMoved(String providerId) {
+  void _figuresMoved(SalonId providerId) {
     if (providerId != _currentProviderId) return;
     if (_stats == null && !_isLoading) return; // nothing shown, nothing stale
     _stale = true;

@@ -1,9 +1,10 @@
+import '../../core/utils/salon_id.dart';
 import '../../models/api_response.dart';
 import '../../models/provider.dart';
 
 abstract class FavoritesServiceInterface {
   /// Get list of favorite provider IDs for a user
-  Future<ApiResponse<List<String>>> getFavoriteProviderIds(String userId);
+  Future<ApiResponse<List<SalonId>>> getFavoriteProviderIds(String userId);
 
   /// The favourite SALONS, hydrated server-side (`GET /me/favorites`).
   ///
@@ -17,11 +18,11 @@ abstract class FavoritesServiceInterface {
   Future<ApiResponse<List<Provider>>> getFavoriteProviders(String userId);
 
   /// Add a provider to favorites
-  Future<ApiResponse<bool>> addFavorite(String userId, String providerId);
+  Future<ApiResponse<bool>> addFavorite(String userId, SalonId providerId);
 
   /// Remove a provider from favorites
-  Future<ApiResponse<bool>> removeFavorite(String userId, String providerId);
+  Future<ApiResponse<bool>> removeFavorite(String userId, SalonId providerId);
 
   /// Check if a provider is favorited
-  Future<ApiResponse<bool>> isFavorite(String userId, String providerId);
+  Future<ApiResponse<bool>> isFavorite(String userId, SalonId providerId);
 }

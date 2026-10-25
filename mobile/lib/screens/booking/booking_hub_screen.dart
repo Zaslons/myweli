@@ -10,6 +10,7 @@ import '../../core/theme/text_styles.dart';
 import '../../core/utils/booking_duration.dart';
 import '../../core/utils/formatters.dart';
 import '../../core/utils/rebook.dart';
+import '../../core/utils/salon_id.dart';
 import '../../core/utils/salon_time.dart';
 import '../../models/provider.dart' as models;
 import '../../models/service.dart';
@@ -25,7 +26,7 @@ import '../../widgets/common/label_value_row.dart';
 import '../../widgets/common/salon_unavailable_view.dart';
 
 class BookingDraft {
-  final String providerId;
+  final SalonId providerId;
   final List<String> serviceIds;
   final String? artistId;
   final DateTime? dateTime;
@@ -68,7 +69,7 @@ enum _HubEntryPoint { services, artist, dateTime }
 enum _HubSection { services, artist, dateTime }
 
 class BookingHubScreen extends StatefulWidget {
-  final String providerId;
+  final SalonId providerId;
 
   /// Pre-fill (used by rebook): the services + stylist to start from.
   final List<String> initialServiceIds;

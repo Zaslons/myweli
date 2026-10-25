@@ -1,4 +1,5 @@
 import 'package:equatable/equatable.dart';
+import '../core/utils/salon_id.dart';
 
 /// Optional duration (in minutes) by hair length/type. A service that takes
 /// longer for longer hair declares these; an empty set means the service uses
@@ -40,7 +41,7 @@ class Service extends Equatable {
   final double? priceMax; // optional upper bound for a price range
   final int durationMinutes; // default duration
   final DurationVariants durationVariants; // optional per-length durations
-  final String providerId;
+  final SalonId providerId;
   final List<String> artistIds; // Artists who can perform this service
   final bool active; // false = hidden from booking (server enforces)
 
@@ -79,7 +80,7 @@ class Service extends Equatable {
     double? priceMax,
     int? durationMinutes,
     DurationVariants? durationVariants,
-    String? providerId,
+    SalonId? providerId,
     List<String>? artistIds,
     bool? active,
   }) {
@@ -123,7 +124,7 @@ class Service extends Equatable {
       durationVariants: DurationVariants.fromJson(
         json['durationVariants'] as Map<String, dynamic>?,
       ),
-      providerId: json['providerId'] as String,
+      providerId: SalonId(json['providerId'] as String),
       artistIds: json['artistIds'] != null
           ? List<String>.from(json['artistIds'] as List)
           : [],

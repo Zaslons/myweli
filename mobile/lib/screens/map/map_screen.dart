@@ -12,6 +12,7 @@ import '../../core/theme/app_theme.dart';
 import '../../core/theme/colors.dart';
 import '../../core/theme/text_styles.dart';
 import '../../core/utils/helpers.dart';
+import '../../core/utils/salon_id.dart';
 import '../../models/provider.dart' as models;
 import '../../providers/auth_provider.dart';
 import '../../providers/favorites_provider.dart';
@@ -26,7 +27,7 @@ import '../../widgets/common/timed_cached_image.dart';
 class MapScreen extends StatefulWidget {
   /// `/carte?providerId=` — open centred on this salon with its sheet up
   /// (docs/design/salon-location-map.md §2.3).
-  final String? focusProviderId;
+  final SalonId? focusProviderId;
 
   const MapScreen({super.key, this.focusProviderId});
 
@@ -92,7 +93,7 @@ class _MapScreenState extends State<MapScreen> {
   /// ([ProviderProvider.providerForMap]). The list alone missed every salon
   /// outside the commune filter or past page 1, and the map then opened on
   /// Abidjan with no sheet.
-  Future<void> _focusOn(ProviderProvider providers, String id) async {
+  Future<void> _focusOn(ProviderProvider providers, SalonId id) async {
     final p = await providers.providerForMap(id);
     if (!mounted) return;
     final lat = p?.latitude;

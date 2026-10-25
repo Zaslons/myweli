@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import '../core/constants/failure_messages.dart';
 import '../core/di/dependency_injection.dart';
 import '../core/utils/salon_figures.dart';
+import '../core/utils/salon_id.dart';
 import '../models/api_response.dart';
 import '../models/provider.dart';
 import '../services/interfaces/favorites_service_interface.dart';
@@ -11,7 +12,7 @@ class FavoritesProvider extends ChangeNotifier {
   final FavoritesServiceInterface _favoritesService =
       serviceLocator.favoritesService;
 
-  List<String> _favoriteProviderIds = [];
+  List<SalonId> _favoriteProviderIds = [];
   List<Provider> _favoriteProviders = [];
   bool _isLoading = false;
   String? _error;
@@ -64,7 +65,7 @@ class FavoritesProvider extends ChangeNotifier {
   }
 
   /// Toggle favorite status for a provider
-  Future<bool> toggleFavorite(String userId, String providerId) async {
+  Future<bool> toggleFavorite(String userId, SalonId providerId) async {
     if (userId.isEmpty) {
       _error = 'Utilisateur non connecté';
       notifyListeners();
@@ -117,7 +118,7 @@ class FavoritesProvider extends ChangeNotifier {
   }
 
   /// Check if a provider is favorited
-  bool isFavorite(String providerId) {
+  bool isFavorite(SalonId providerId) {
     return _favoriteProviderIds.contains(providerId);
   }
 
@@ -148,7 +149,7 @@ class FavoritesProvider extends ChangeNotifier {
   /// The signature is `SalonFiguresSink`'s (provider_provider.dart): the
   /// review sheet hands this method to `ProviderProvider.submitReview`.
   void patchSalonFigures(
-    String providerId, {
+    SalonId providerId, {
     required double rating,
     required int reviewCount,
   }) {

@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 import '../../core/config/app_config.dart';
+import '../../core/utils/salon_id.dart';
 import '../../models/api_response.dart';
 import '../../models/review.dart';
 import '../interfaces/review_service_interface.dart';
@@ -67,7 +68,7 @@ class ApiReviewService implements ReviewServiceInterface {
 
   @override
   Future<ApiResponse<List<Review>>> getProviderReviews(
-    String providerId, {
+    SalonId providerId, {
     int page = 1,
     int pageSize = 20,
   }) async {

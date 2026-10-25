@@ -13,6 +13,7 @@ import '../../core/utils/booking_duration.dart';
 import '../../core/utils/booking_error_cta.dart';
 import '../../core/utils/deposit.dart';
 import '../../core/utils/formatters.dart';
+import '../../core/utils/salon_id.dart';
 import '../../core/utils/salon_time.dart';
 import '../../providers/appointment_provider.dart';
 import '../../providers/auth_provider.dart';
@@ -32,7 +33,7 @@ import '../../widgets/common/salon_unavailable_view.dart';
 import '../../widgets/push/push_permission_sheet.dart';
 
 class BookingConfirmationScreen extends StatefulWidget {
-  final String providerId;
+  final SalonId providerId;
   final List<String> serviceIds;
   final DateTime appointmentDateTime;
   final String? artistId;

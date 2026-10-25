@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 
 import '../../core/config/app_config.dart';
 import '../../core/constants/failure_messages.dart';
+import '../../core/utils/salon_id.dart';
 import '../../models/api_response.dart';
 import '../../models/provider.dart';
 import '../interfaces/favorites_service_interface.dart';
@@ -39,7 +40,7 @@ class ApiFavoritesService implements FavoritesServiceInterface {
   );
 
   @override
-  Future<ApiResponse<List<String>>> getFavoriteProviderIds(
+  Future<ApiResponse<List<SalonId>>> getFavoriteProviderIds(
     String userId,
   ) async {
     if (await _authed.accessToken() == null) {
@@ -52,7 +53,7 @@ class ApiFavoritesService implements FavoritesServiceInterface {
     if (res.statusCode != 200) return errorFromResponse(res);
     final body = jsonDecode(res.body) as Map<String, dynamic>;
     final ids = ((body['providerIds'] as List?) ?? const [])
-        .map((e) => e as String)
+        .map((e) => SalonId(e as String))
         .toList();
     return ApiResponse.success(ids);
   }
@@ -83,14 +84,14 @@ class ApiFavoritesService implements FavoritesServiceInterface {
   }
 
   @override
-  Future<ApiResponse<bool>> addFavorite(String userId, String providerId) =>
+  Future<ApiResponse<bool>> addFavorite(String userId, SalonId providerId) =>
       _toggle('POST', providerId);
 
   @override
-  Future<ApiResponse<bool>> removeFavorite(String userId, String providerId) =>
+  Future<ApiResponse<bool>> removeFavorite(String userId, SalonId providerId) =>
       _toggle('DELETE', providerId);
 
-  Future<ApiResponse<bool>> _toggle(String method, String providerId) async {
+  Future<ApiResponse<bool>> _toggle(String method, SalonId providerId) async {
     if (await _authed.accessToken() == null) {
       return ApiResponse.error('Non connecté');
     }
@@ -108,7 +109,10 @@ class ApiFavoritesService implements FavoritesServiceInterface {
   }
 
   @override
-  Future<ApiResponse<bool>> isFavorite(String userId, String providerId) async {
+  Future<ApiResponse<bool>> isFavorite(
+    String userId,
+    SalonId providerId,
+  ) async {
     final res = await getFavoriteProviderIds(userId);
     if (!res.success) {
       return ApiResponse.error(

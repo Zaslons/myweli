@@ -90,7 +90,7 @@ class _ProAppointmentDetailScreenState
             orElse: () => Appointment(
               id: widget.appointmentId,
               userId: '',
-              providerId: '',
+              providerId: SalonId.none,
               serviceIds: const [],
               appointmentDate: AppClock.now(),
               status: AppointmentStatus.pending,

@@ -23,8 +23,7 @@ class SalonFacts extends Equatable {
   });
 
   factory SalonFacts.of(Provider salon) => SalonFacts(
-    // A Provider's id stays a String until H2 types `Provider.id`.
-    salonId: SalonId(salon.id),
+    salonId: salon.id,
     name: salon.name,
     category: salon.category,
     address: salon.address,

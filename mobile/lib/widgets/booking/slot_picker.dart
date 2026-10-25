@@ -10,6 +10,7 @@ import '../../core/theme/text_styles.dart';
 import '../../core/utils/app_clock.dart';
 import '../../core/utils/booking_error_cta.dart';
 import '../../core/utils/formatters.dart';
+import '../../core/utils/salon_id.dart';
 import '../../core/utils/salon_time.dart';
 import '../../providers/appointment_provider.dart';
 import '../../providers/locality_provider.dart';
@@ -62,7 +63,7 @@ class SlotPicker extends StatefulWidget {
     this.refreshSignal,
   });
 
-  final String providerId;
+  final SalonId providerId;
 
   /// The day whose slots are shown. **Controlled**: the host owns it, because
   /// the hub also sets it from outside (picking a service auto-jumps to the

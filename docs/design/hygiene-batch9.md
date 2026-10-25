@@ -394,9 +394,10 @@ PR**, et **`implements String`**.
   services API, les fournisseurs, écrans et widgets qui les appellent (la
   page d'un salon, le hub de réservation, sa confirmation, le sélecteur de
   créneaux, la feuille d'acompte, la feuille d'avis, la carte).
-- **La console** : les quatre écritures d'un salon d'`AdminService`
+- **La console** : les cinq appels d'`AdminService` sur un salon
   (`providerDetail`, `suspendProvider`, `restoreProvider`,
-  `featureProvider`), ses deux fournisseurs et l'écran du détail — Q19 dit
+  `featureProvider`, `markSubscriptionPaid`), ses deux fournisseurs, la
+  liste et l'écran du détail — Q19 dit
   « aucun identifiant de salon n'est un `String` nu », la console comprise.
 - **Où il naît en plus** : les routes (`/provider/:id`, `?providerId=`,
   `/admin/providers/:id`) et la ligne JSON de la liste de la console.

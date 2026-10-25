@@ -6,6 +6,7 @@ import 'package:http/http.dart' as http;
 
 import '../../core/config/app_config.dart';
 import '../../core/utils/booking_error_cta.dart';
+import '../../core/utils/salon_id.dart';
 import '../../models/api_response.dart';
 import '../../models/appointment.dart';
 import '../../models/session.dart';
@@ -62,7 +63,7 @@ class ApiAppointmentService implements AppointmentServiceInterface {
 
   @override
   Future<ApiResponse<Appointment>> bookAppointment({
-    required String providerId,
+    required SalonId providerId,
     required List<String> serviceIds,
     required DateTime appointmentDateTime,
     String? artistId,
@@ -279,7 +280,7 @@ class ApiAppointmentService implements AppointmentServiceInterface {
 
   @override
   Future<ApiResponse<List<DateTime>>> getAvailableTimeSlots({
-    required String providerId,
+    required SalonId providerId,
     required DateTime date,
     List<String>? serviceIds,
     String? artistId,

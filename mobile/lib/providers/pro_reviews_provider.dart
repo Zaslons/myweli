@@ -28,7 +28,7 @@ class ProReviewsProvider extends ChangeNotifier implements SalonScoped {
   ReviewSummary? _summary;
   bool _isLoading = false;
   String? _error;
-  String? _currentProviderId;
+  SalonId? _currentProviderId;
 
   List<Review> get reviews => _reviews;
   ReviewSummary? get summary => _summary;

@@ -1,11 +1,12 @@
 import 'package:equatable/equatable.dart';
+import '../core/utils/salon_id.dart';
 
 enum AppointmentStatus { pending, confirmed, cancelled, completed, noShow }
 
 class Appointment extends Equatable {
   final String id;
   final String userId;
-  final String providerId;
+  final SalonId providerId;
   final List<String> serviceIds;
   final String? artistId; // The artist assigned to this appointment
   final DateTime appointmentDate;
@@ -188,7 +189,7 @@ class Appointment extends Equatable {
   Appointment copyWith({
     String? id,
     String? userId,
-    String? providerId,
+    SalonId? providerId,
     List<String>? serviceIds,
     String? artistId,
     DateTime? appointmentDate,
@@ -321,7 +322,7 @@ class Appointment extends Equatable {
     return Appointment(
       id: json['id'] as String,
       userId: json['userId'] as String,
-      providerId: json['providerId'] as String,
+      providerId: SalonId(json['providerId'] as String),
       serviceIds: List<String>.from(json['serviceIds'] as List),
       artistId: json['artistId'] as String?,
       appointmentDate: DateTime.parse(json['appointmentDate'] as String),

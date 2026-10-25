@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../../core/constants/failure_messages.dart';
 import '../../core/di/dependency_injection.dart';
+import '../../core/utils/salon_id.dart';
 import '../../providers/provider_provider.dart';
 import '../../widgets/common/app_async_view.dart';
 import '../../widgets/common/app_skeleton.dart';
@@ -49,7 +50,7 @@ class _SalonPreviewScreenState extends State<SalonPreviewScreen> {
   /// The read's own sentence — « Vérifiez votre connexion » used to stand
   /// for every failure (B9.8).
   String? _error;
-  String _providerId = '';
+  SalonId _providerId = SalonId.none;
 
   @override
   void initState() {
