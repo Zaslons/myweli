@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Statut** | **Validé le 2026-10-22** — relu sur main (`d1e886e1`). Q1 (décision 33) : **le type `SalonId`** (« ce qui vaut le mieux à long terme ») ; Q2 (décision 34) : **e-mail et poussée Sentry** ; Q3 (décision 34) : **pas de suivi des performances pour l'instant** ; Q4 (décision 35) : **pas d'interrupteur** ; Q5 : **construire les trois composants et migrer tous les écrans maintenant** ; Q6 : **les pages publiques lèvent** ; Q7 : **supprimer la table avec ce lot** ; Q8 : **le reste tel qu'écrit**. Huit PR (§3). **PR A fusionnée le 2026-10-22** (#688 — B9.1, B9.5 — §9). **PR B fusionnée le 2026-10-22** (#689 — B9.6 — §10). **PR C fusionnée le 2026-10-22** (#690 — B9.7 — §11). **PR D fusionnée le 2026-10-25** (#691 — B9.11, B9.10 — §12 ; déploiement Vercel de production réussi, le plan du site liste 228 adresses). **PR E fusionnée le 2026-10-25** (#697 — B9.2–B9.4 — §13 ; 81 appliqué et relu le même jour, #698). **PR F1 fusionnée le 2026-10-25** (#699) (B9.8 : les trois briques et tous les écrans asynchrones — §14 ; Q9–Q12 en §8). **PR F2 construite le 2026-10-25** (#700, `feat/batch9-cards`) (B9.8 : toutes les cartes sur `AppCard` — §2.7.3, §15 ; Q13–Q15 en §8). |
+| **Statut** | **Validé le 2026-10-22** — relu sur main (`d1e886e1`). Q1 (décision 33) : **le type `SalonId`** (« ce qui vaut le mieux à long terme ») ; Q2 (décision 34) : **e-mail et poussée Sentry** ; Q3 (décision 34) : **pas de suivi des performances pour l'instant** ; Q4 (décision 35) : **pas d'interrupteur** ; Q5 : **construire les trois composants et migrer tous les écrans maintenant** ; Q6 : **les pages publiques lèvent** ; Q7 : **supprimer la table avec ce lot** ; Q8 : **le reste tel qu'écrit**. Huit PR (§3). **PR A fusionnée le 2026-10-22** (#688 — B9.1, B9.5 — §9). **PR B fusionnée le 2026-10-22** (#689 — B9.6 — §10). **PR C fusionnée le 2026-10-22** (#690 — B9.7 — §11). **PR D fusionnée le 2026-10-25** (#691 — B9.11, B9.10 — §12 ; déploiement Vercel de production réussi, le plan du site liste 228 adresses). **PR E fusionnée le 2026-10-25** (#697 — B9.2–B9.4 — §13 ; 81 appliqué et relu le même jour, #698). **PR F1 fusionnée le 2026-10-25** (#699) (B9.8 : les trois briques et tous les écrans asynchrones — §14 ; Q9–Q12 en §8). **PR F2 fusionnée le 2026-10-25** (#700) (B9.8 : toutes les cartes sur `AppCard` — §2.7.3, §15 ; Q13–Q15 en §8). **PR F3 construite le 2026-10-25** (#NNN, `feat/batch9-chips`) (B9.8 : toutes les puces sur `AppChip` — §2.7.4, §16 ; Q16–Q18 en §8). |
 | **Owner** | Sadreddine |
 | **Last updated** | 2026-10-25 |
 | **PRD ref / phase** | V1 — rien de visible n'est ajouté ; ce lot rend vrais les documents, les doublures de test, les lectures et les outils |
@@ -1036,3 +1036,108 @@ liste de ce qui flotte.
   `surface`, et c'est lui qui a trouvé les six pages.
 - **Le serveur et le web** ne sont pas touchés depuis #699 (2 177 et 2 255
   essais verts sur ce même code).
+
+## 16. PR F3 construite (B9.8, la dernière des trois) — ce qui a été vu
+
+**`AppChip`** (`widgets/common/app_chip.dart`), quatre façons, `radiusPill` :
+- **`.choice`** — la `ChoiceChip` de Material sous `chipTheme`, sans rien
+  surcharger : pleine (`primary`, étiquette blanche) quand elle est choisie,
+  soulignée (`borderStrong`) sinon ; « sélectionné » dit ; une cible de 48 ;
+  **la coche** sur une puce choisie (Q16), qui prend la place de l'icône ;
+- **`.tag`** et **`.action`** — soulignées, la seconde touchable ;
+- **`.status`** — la teinte du ton à 12 % et l'étiquette dans la couleur du
+  ton. **Mesuré** sur `background`, le pire des deux fonds : succès 7,1:1,
+  attention 5,3:1, erreur 7,4:1, info 12,5:1, neutre 6,8:1 ; « fort » et
+  « or » à l'encre — l'or n'est pas un texte (B7.1) — et chacun avec son
+  trait (plus bas).
+  Les tons vivent dans `core/theme/chip_tone.dart`, et
+  `appointmentStatusTone` à côté d'`appointmentStatusColor`, pour qu'un
+  statut ait une seule couleur et un seul ton — **ceux de la décision B7 du
+  propriétaire** (« des statuts teintés par genre, partout » :
+  web-b7-desktop.md) : confirmé = ok (vert), en attente = attente, annulé et
+  absent = danger, terminé = neutre, comme `AdminChipKind` et le
+  `statusChipKind` du web. La table de l'app disait confirmé = info, terminé
+  = succès, absent = attention ; la carte d'un rendez-vous côté client,
+  confirmé = vert ; la tuile compacte, une troisième chose. **La journée
+  garde sa langue à elle** (une arrivée est la verte, confirmé est info),
+  dans l'app comme sur le web (`STATUS_STYLE`).
+
+**Les puces migrées** : 12 `FilterChip`/`ChoiceChip` (la journée, les tags
+d'un client et le filtre de la liste, l'acompte, la disponibilité, la durée
+d'un service, la longueur, **les créneaux** — pleins maintenant, Q17), les
+catégories de l'accueil, et les deux filtres de la recherche ; les tags et
+l'action d'une fiche client ; **tous les statuts et badges** — le calendrier,
+la liste et le détail Pro, la carte d'un rendez-vous et « Réservé par votre
+salon », la tuile compacte, la journée, les absences (le détail, la journée,
+la liste des clients), « MyWeli » et les tags d'une ligne de client,
+« Réservation vérifiée », « Nouveau », les créneaux de la disponibilité, et
+les rôles d'équipe (Q18).
+
+**Ce que la migration a trouvé** :
+- **Le statut du détail d'un rendez-vous Pro était illisible.** Une `Chip`
+  pleine de la couleur du statut, sans couleur d'étiquette : le thème lui
+  donnait l'encre. **Mesuré sur le rendu** (l'étiquette peinte, pas la
+  couleur supposée) : « Confirmé » **1,02:1**, « Annulé » 1,74:1,
+  « Terminé » 1,88:1, « En attente » 2,59:1 — aucun statut ne passait.
+- **La tuile compacte** de l'accueil (« Derniers rendez-vous ») avait sa
+  propre table de statuts, en teintes « claires » : « En attente » en
+  `warningLight` sur sa teinte, **1,6:1** (jaune sur jaune pâle, la photo de
+  l'accueil le montrait), « Confirmé » 4,17:1, « Annulé » 3,95:1 ; et elle
+  disait un rendez-vous confirmé en vert et un rendez-vous terminé en bleu,
+  l'inverse de la table commune.
+- **La coche ne se voyait pas sous une icône** : Material la peint *par-dessus*
+  l'avatar, et l'icône restait visible — la puce choisie montrait « ∞ Tous »
+  sans coche. Choisie, elle n'a plus d'icône : la coche prend sa place, comme
+  Q16 le disait. Et l'icône d'une puce est `iconXS` (16, « chips » dans le
+  jeton même) : à `iconS` (20), le glyphe était coupé dans sa boîte de 16 —
+  l'essai de mise en page l'a vu, pas l'œil.
+- **Un Manager se lisait comme un Collaborateur.** Le ton « fort » était le
+  noir à 12 % : à **1,09:1** du gris neutre, le même gris — la photo de
+  l'équipe le montrait, la hiérarchie que l'app et le web dessinaient
+  (Propriétaire or, Manager plein, les autres soulignés) avait disparu. Le
+  ton fort porte maintenant **le trait noir de la marque**, comme l'or porte
+  le sien — pas `borderStrong`, le trait d'un contrôle. Trois marches
+  restent trois, et chaque rôle est épinglé à son ton
+  (`team_role_chip_test.dart`). Le créneau libre de la disponibilité, l'autre
+  ton fort, retrouve le trait qu'il avait.
+- **Les filtres de la recherche** (« Trier », « Disponible aujourd'hui »),
+  dessinés à la main, ne disaient pas lequel était actif ; ils sont des
+  puces « sélectionnées ».
+- **Les statuts avaient trois dessins** — une boîte au `radiusSmall`, une
+  pastille, une puce pleine à l'étiquette `Colors.white` littérale — et les
+  rôles d'équipe un quatrième. Ils n'en ont plus qu'un.
+
+**Ce que F3 laisse** : le champ de début/fin du sélecteur d'heures (une case
+à deux lignes, A14b) ; les étiquettes posées sur une photo ; le sélecteur de
+commune (un bouton) ; les bandeaux (vérification, abonnement) ; la console
+(`StatusChip`) ; les écrans V2/V3.
+
+**Les épingles** (`chips_pin_test.dart`, sur `lib/` hors V2/V3) : aucune puce
+Material hors d'`app_chip.dart` ; aucun badge teinté dessiné à la main (une
+teinte au rayon d'une pastille ou d'un badge).
+
+**Vérifié** :
+- **La suite de l'app** : 2 808 essais verts, 58 sautés (les photos), sur
+  `405a6955` ; puis le trait du ton fort et ses cinq essais (le trait, et
+  chaque rôle à son ton) — les 39 fichiers qui touchent une puce, la
+  disponibilité ou l'équipe, 469 essais verts. `flutter analyze` à 0, le
+  format propre. Deux essais cherchaient une puce par son type (la
+  `FilterChip` des tags, le `Container` de « Nouveau ») : ils cherchent la
+  `ChoiceChip` et `AppChip`.
+- **Les mutations : 15, toutes rouges**, sur le travail commis — pas de
+  coche, le fond surchargé, l'icône gardée sous la coche, l'icône trop
+  grande pour sa boîte (vue par l'essai de mise en page), la teinte à 30 %,
+  une étiquette à l'encre, l'or en texte, une pastille carrée, une pastille
+  qu'on touche, un tag qui agit, le ton fort sans son trait, un Manager au
+  ton neutre, confirmé hors du genre « ok », une puce Material revenue, une
+  pastille dessinée à la main revenue.
+- **Les photos**, refaites deux fois sur Linux et **regardées une à une** :
+  10 bougent — la coche sur la puce choisie (l'accueil, l'acompte), les
+  catégories à la taille du thème, les statuts en pastille (mes rendez-vous,
+  le salon, la liste et la journée Pro — « Terminé » neutre et « Confirmé »
+  vert, sur B7), la tuile de l'accueil lisible, les créneaux de la
+  disponibilité en pastilles (deux par ligne, plus la cible de 48 d'une puce
+  qu'on ne touche pas), l'équipe sur trois marches, et la planche des
+  composants avec les quatre façons et les tons. Le premier passage a
+  montré le Manager gris parmi les gris.
+- **Le serveur et le web** ne sont pas touchés depuis #699.
