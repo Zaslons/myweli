@@ -18,6 +18,7 @@ import '../../../providers/pro_deposit_settings_provider.dart';
 import '../../../widgets/common/app_async_view.dart';
 import '../../../widgets/common/app_button.dart';
 import '../../../widgets/common/app_card.dart';
+import '../../../widgets/common/app_chip.dart';
 import '../../../widgets/common/app_skeleton.dart';
 import '../../../widgets/common/app_snack_bar.dart';
 import '../../../widgets/common/inline_feedback.dart';
@@ -429,12 +430,9 @@ class _DepositSettingsScreenState extends State<DepositSettingsScreen> {
                         spacing: AppTheme.spacingS,
                         runSpacing: AppTheme.spacingS,
                         children: operators.map((op) {
-                          return ChoiceChip(
-                            label: Text(op.label),
+                          return AppChip.choice(
+                            label: op.label,
                             selected: provider.mobileMoneyOperator == op.id,
-                            showCheckmark: false,
-                            selectedColor: AppColors.primary,
-                            backgroundColor: AppColors.surface,
                             onSelected: (_) {
                               provider.setMobileMoneyOperator(op.id);
                               setState(
@@ -495,19 +493,9 @@ class _DepositSettingsScreenState extends State<DepositSettingsScreen> {
                 spacing: AppTheme.spacingS,
                 children: [12, 24, 48].map((h) {
                   final selected = provider.cancellationWindowHours == h;
-                  return ChoiceChip(
-                    label: Text(
-                      '$h h',
-                      style: TextStyle(
-                        color: selected
-                            ? AppColors.secondary
-                            : AppColors.textPrimary,
-                      ),
-                    ),
+                  return AppChip.choice(
+                    label: '$h h',
                     selected: selected,
-                    showCheckmark: false,
-                    selectedColor: AppColors.primary,
-                    backgroundColor: AppColors.surface,
                     onSelected: (_) => provider.setCancellationWindowHours(h),
                   );
                 }).toList(),

@@ -10,6 +10,7 @@ import '../../models/provider.dart' as models;
 import '../../providers/provider_provider.dart';
 import '../../services/interfaces/provider_service_interface.dart';
 import '../../widgets/common/app_async_view.dart';
+import '../../widgets/common/app_chip.dart';
 import '../../widgets/common/app_skeleton.dart';
 import '../../widgets/common/commune_picker_sheet.dart';
 import '../../widgets/common/commune_pill.dart';
@@ -173,49 +174,20 @@ class _ProviderListScreenState extends State<ProviderListScreen> {
     );
   }
 
+  /// « Trier » (lit while a sort other than relevance is on) and
+  /// « Disponible aujourd'hui »: chips that say which is on — they were drawn
+  /// by hand and said nothing of it to a screen reader (B9.8 F3).
   Widget _filterPill({
     required IconData icon,
     required String label,
     required bool active,
     required VoidCallback onTap,
-  }) {
-    final fg = active ? AppColors.secondary : AppColors.textPrimary;
-    return ConstrainedBox(
-      constraints: const BoxConstraints(minHeight: 48), // §13.2 touch target
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(AppTheme.radiusPill),
-        child: Container(
-          alignment: Alignment.center,
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppTheme.spacingM,
-            vertical: AppTheme.spacingS,
-          ),
-          decoration: BoxDecoration(
-            color: active ? AppColors.primary : AppColors.surface,
-            borderRadius: BorderRadius.circular(AppTheme.radiusPill),
-            border: Border.all(
-              color: active ? AppColors.primary : AppColors.borderStrong,
-            ),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(icon, size: AppTheme.iconXS, color: fg),
-              const SizedBox(width: AppTheme.spacingS),
-              Text(
-                label,
-                style: AppTextStyles.bodyMedium.copyWith(
-                  color: fg,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
+  }) => AppChip.choice(
+    label: label,
+    icon: icon,
+    selected: active,
+    onSelected: (_) => onTap(),
+  );
 
   Future<void> _openSortSheet(ProviderProvider provider) async {
     final chosen = await showModalBottomSheet<ProviderSort>(

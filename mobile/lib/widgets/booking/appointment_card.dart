@@ -9,6 +9,7 @@ import '../../core/theme/text_styles.dart';
 import '../../core/utils/formatters.dart';
 import '../../core/utils/helpers.dart';
 import '../../core/utils/salon_time.dart';
+import '../../core/utils/status_colors.dart';
 import '../../core/utils/status_labels.dart';
 import '../../models/appointment.dart';
 import '../../models/artist.dart';
@@ -17,6 +18,7 @@ import '../../models/service.dart';
 import '../../providers/provider_provider.dart';
 import '../../widgets/common/app_snack_bar.dart';
 import '../common/app_card.dart';
+import '../common/app_chip.dart';
 import '../common/label_value_row.dart';
 import '../common/timed_cached_image.dart';
 
@@ -29,21 +31,6 @@ class AppointmentCard extends StatelessWidget {
     required this.appointment,
     required this.onTap,
   });
-
-  Color _getStatusColor(AppointmentStatus status) {
-    switch (status) {
-      case AppointmentStatus.pending:
-        return AppColors.warning;
-      case AppointmentStatus.confirmed:
-        return AppColors.success;
-      case AppointmentStatus.completed:
-        return AppColors.info;
-      case AppointmentStatus.cancelled:
-        return AppColors.error;
-      case AppointmentStatus.noShow:
-        return AppColors.warning;
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -134,25 +121,9 @@ class AppointmentCard extends StatelessWidget {
                                   color: AppColors.textPrimary,
                                 ),
                               ),
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: AppTheme.spacingS,
-                                  vertical: AppTheme.spacingXS,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: _getStatusColor(
-                                    appointment.status,
-                                  ).withValues(alpha: 0.1),
-                                  borderRadius: BorderRadius.circular(
-                                    AppTheme.radiusSmall,
-                                  ),
-                                ),
-                                child: Text(
-                                  StatusLabels.of(appointment.status),
-                                  style: AppTextStyles.labelSmall.copyWith(
-                                    color: _getStatusColor(appointment.status),
-                                  ),
-                                ),
+                              AppChip.status(
+                                label: StatusLabels.of(appointment.status),
+                                tone: appointmentStatusTone(appointment.status),
                               ),
                             ],
                           ),
@@ -272,32 +243,10 @@ class AppointmentCard extends StatelessWidget {
               // Auto-synced from the salon's manual booking (FR-APPT-008):
               // surfaced because it was made to this account's verified phone.
               if (appointment.clientName != null) ...[
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: AppTheme.spacingS,
-                    vertical: AppTheme.spacingXS,
-                  ),
-                  decoration: BoxDecoration(
-                    color: AppColors.info.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(
-                        Icons.store_mall_directory_outlined,
-                        size: AppTheme.iconXS,
-                        color: AppColors.info,
-                      ),
-                      const SizedBox(width: AppTheme.spacingXS),
-                      Text(
-                        'Réservé par votre salon',
-                        style: AppTextStyles.labelSmall.copyWith(
-                          color: AppColors.info,
-                        ),
-                      ),
-                    ],
-                  ),
+                const AppChip.status(
+                  label: 'Réservé par votre salon',
+                  icon: Icons.store_mall_directory_outlined,
+                  tone: AppChipTone.info,
                 ),
                 const SizedBox(height: AppTheme.spacingSM),
               ],

@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:myweli/core/di/dependency_injection.dart';
+import 'package:myweli/core/theme/colors.dart';
 import 'package:myweli/models/api_response.dart';
 import 'package:myweli/models/appointment.dart';
 import 'package:myweli/providers/pro_appointment_provider.dart';
@@ -11,9 +13,11 @@ import 'package:myweli/providers/pro_journal_provider.dart';
 import 'package:myweli/screens/provider/appointments/pro_appointment_detail_screen.dart';
 import 'package:myweli/services/interfaces/pro_service_interface.dart';
 import 'package:myweli/services/mock/mock_auth_service.dart';
+import 'package:myweli/widgets/common/app_chip.dart';
 import 'package:provider/provider.dart';
 
 import '../support/pump_app.dart';
+import '../support/wcag.dart';
 
 class _MockProService extends Mock implements ProServiceInterface {}
 
@@ -62,6 +66,31 @@ void main() {
       home: const ProAppointmentDetailScreen(appointmentId: 'a1'),
     );
   }
+
+  // B9.8 F3 (hygiene-batch9.md §2.7.4): the status was a Material `Chip`
+  // filled with the status colour and no label colour — the theme's ink,
+  // #1A1A1A on `info` #1A1A2E for « Confirmé »: 1.02:1, black on black.
+  testWidgets('the status reads: « Confirmé » at ≥ 4.5:1 on its chip', (
+    tester,
+  ) async {
+    await tester.pumpWidget(await host(appt()));
+    await tester.pump();
+
+    final label = find.text('Confirmé');
+    final chip = tester.widget<AppChip>(
+      find.ancestor(of: label, matching: find.byType(AppChip)),
+    );
+    expect(chip.tone, AppChipTone.info);
+    final painted = tester.renderObject<RenderParagraph>(label).text.style!;
+    final pill = tester.widget<DecoratedBox>(
+      find.ancestor(of: label, matching: find.byType(DecoratedBox)).first,
+    );
+    final tint = (pill.decoration as BoxDecoration).color!;
+    // On the white card the detail sits in.
+    final ground = Color.alphaBlend(tint, AppColors.secondary);
+    expect(contrastRatio(painted.color!, ground), greaterThanOrEqualTo(4.5));
+    await tester.pump(const Duration(seconds: 5));
+  });
 
   testWidgets('same-day confirmed → « Client arrivé » marks the arrival', (
     tester,

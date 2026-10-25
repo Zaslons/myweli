@@ -2,8 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/theme/app_theme.dart';
-import '../../core/theme/colors.dart';
-import '../../core/theme/text_styles.dart';
+import '../common/app_chip.dart';
 
 class CategoryChips extends StatelessWidget {
   final String? selectedCategory;
@@ -40,19 +39,9 @@ class CategoryChips extends StatelessWidget {
 
     return Padding(
       padding: const EdgeInsets.only(right: AppTheme.spacingS),
-      child: FilterChip(
-        label: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              category['icon'] as IconData,
-              size: AppTheme.iconS,
-              color: isSelected ? AppColors.secondary : AppColors.textPrimary,
-            ),
-            const SizedBox(width: AppTheme.spacingS),
-            Text(category['name'] as String),
-          ],
-        ),
+      child: AppChip.choice(
+        label: category['name'] as String,
+        icon: category['icon'] as IconData,
         selected: isSelected,
         onSelected: (selected) {
           if (category['id'] == 'all') {
@@ -61,15 +50,6 @@ class CategoryChips extends StatelessWidget {
             context.push('/providers?category=${category['id']}');
           }
         },
-        selectedColor: AppColors.primary,
-        checkmarkColor: AppColors.secondary,
-        labelStyle: AppTextStyles.bodyMedium.copyWith(
-          color: isSelected ? AppColors.secondary : AppColors.textPrimary,
-        ),
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppTheme.spacingM,
-          vertical: AppTheme.spacingS,
-        ),
       ),
     );
   }

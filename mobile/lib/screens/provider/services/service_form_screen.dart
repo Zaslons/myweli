@@ -12,6 +12,7 @@ import '../../../providers/pro_artist_provider.dart';
 import '../../../providers/pro_auth_provider.dart';
 import '../../../providers/pro_service_provider.dart';
 import '../../../widgets/common/app_button.dart';
+import '../../../widgets/common/app_chip.dart';
 import '../../../widgets/common/app_snack_bar.dart';
 import '../../../widgets/common/app_text_field.dart';
 import '../../../widgets/common/confirm_dialog.dart';
@@ -331,8 +332,8 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
                   children: _durationPresets.map((minutes) {
                     final isSelected =
                         _durationController.text == minutes.toString();
-                    return ChoiceChip(
-                      label: Text('$minutes min'),
+                    return AppChip.choice(
+                      label: '$minutes min',
                       selected: isSelected,
                       onSelected: (selected) {
                         if (selected) {

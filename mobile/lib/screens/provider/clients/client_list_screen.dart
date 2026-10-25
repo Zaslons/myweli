@@ -15,6 +15,7 @@ import '../../../providers/pro_auth_provider.dart';
 import '../../../providers/pro_clients_provider.dart';
 import '../../../widgets/common/app_async_view.dart';
 import '../../../widgets/common/app_button.dart';
+import '../../../widgets/common/app_chip.dart';
 import '../../../widgets/common/app_skeleton.dart';
 import '../../../widgets/common/app_text_field.dart';
 import '../../../widgets/common/brand_loader.dart';
@@ -145,8 +146,8 @@ class _ClientListScreenState extends State<ClientListScreen> {
                 for (final t in clients.availableTags)
                   Padding(
                     padding: const EdgeInsets.only(right: AppTheme.spacingS),
-                    child: FilterChip(
-                      label: Text(t),
+                    child: AppChip.choice(
+                      label: t,
                       selected: clients.tag == t,
                       onSelected: (_) => context
                           .read<ProClientsProvider>()
@@ -268,17 +269,17 @@ class _ClientRow extends StatelessWidget {
           ),
           if (client.linked) ...[
             const SizedBox(width: AppTheme.spacingXS),
-            _MiniBadge(label: 'MyWeli', color: AppColors.textTertiary),
+            const AppChip.status(label: 'MyWeli', tone: AppChipTone.neutral),
           ],
           if (client.noShows >= 1) ...[
             const SizedBox(width: AppTheme.spacingXS),
-            _MiniBadge(
+            AppChip.status(
               label: client.noShows == 1
                   ? '1 absence'
                   : '${client.noShows} absences',
-              color: client.noShows >= 2
-                  ? AppColors.error
-                  : AppColors.textSecondary,
+              tone: client.noShows >= 2
+                  ? AppChipTone.error
+                  : AppChipTone.neutral,
             ),
           ],
         ],
@@ -293,34 +294,9 @@ class _ClientRow extends StatelessWidget {
               spacing: AppTheme.spacingXS,
               children: [
                 for (final t in client.tags.take(2))
-                  _MiniBadge(label: t, color: AppColors.textSecondary),
+                  AppChip.status(label: t, tone: AppChipTone.neutral),
               ],
             ),
-    );
-  }
-}
-
-class _MiniBadge extends StatelessWidget {
-  const _MiniBadge({required this.label, required this.color});
-
-  final String label;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppTheme.spacingS,
-        vertical: AppTheme.spacingXS,
-      ),
-      decoration: BoxDecoration(
-        border: Border.all(color: color.withValues(alpha: 0.4)),
-        borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
-      ),
-      child: Text(
-        label,
-        style: AppTextStyles.labelSmall.copyWith(color: color),
-      ),
     );
   }
 }

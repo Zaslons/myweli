@@ -247,6 +247,55 @@ bordure sont l'idiome du bureau, SYSTEM §11.2) :
 `primary` de 2 px sans fond ; la barre « Total » garde son ombre ;
 `spacingM` partout.
 
+#### 2.7.4 F3 — les puces (mesuré le 2026-10-25, sur F2)
+
+**Ce qui est une puce**, relu site par site (hors V2/V3, hors console) :
+- **14 puces qu'on choisit** — 13 `FilterChip`/`ChoiceChip` (la journée, les
+  clients et leurs tags, l'acompte, la disponibilité, le service, les
+  catégories de l'accueil, la longueur, les créneaux) et les filtres de la
+  recherche, dessinés à la main **sans rien dire** à un lecteur d'écran de
+  celui qui est actif ;
+- **des tags** sur la fiche d'un client, et **une action** (« + Tags » /
+  « Modifier ») ;
+- **les statuts**, dessinés de **trois façons** pour la même chose : une boîte
+  teintée au `radiusSmall` (la carte d'un rendez-vous, la journée, « Réservé
+  par votre salon »), une pastille teintée (la tuile compacte), et une `Chip`
+  Material **pleine** de la couleur du statut, l'étiquette en blanc littéral
+  (le calendrier et la liste Pro) — ou sans couleur d'étiquette du tout ;
+  plus les badges : « Réservation vérifiée », « Nouveau », ceux d'une ligne
+  de client, et le rôle d'un membre (`TeamRoleChip`).
+
+**Un défaut, mesuré** : le statut du détail d'un rendez-vous Pro est une
+`Chip` pleine de la couleur du statut **sans couleur d'étiquette** ; le thème
+lui donne l'encre `textPrimary`. « Confirmé », le plus courant, est donc
+#1A1A1A sur `info` #1A1A2E : **1,02:1** — noir sur noir ; « Annulé » 1,7:1.
+
+**Ce que F3 construit** — `AppChip` (`widgets/common/app_chip.dart`), comme
+SYSTEM §11.3 le décrit, `radiusPill` :
+- **à choisir** (`AppChip.choice`) : sur la `ChoiceChip` de Material, donc
+  « sélectionné » annoncé, le focus et la cible de 48 ; **pleine** (`primary`,
+  étiquette blanche) quand elle est choisie, **soulignée** (`borderStrong`)
+  sinon — ce que `chipTheme` dessine déjà, sans les surcharges qui s'en
+  écartaient ;
+- **un tag** (`AppChip.tag`) : soulignée, sans action ; **une action**
+  (`AppChip.action`) : soulignée, une icône en tête ;
+- **un statut** (`AppChip.status`) : la teinte du ton à 12 %, l'étiquette dans
+  la couleur du ton — mesuré : succès 7,1:1, attention 5,3:1, erreur 7,4:1,
+  info 12,5:1 sur `background` (le pire des deux fonds) ; un ton « or » garde
+  l'étiquette à l'encre (l'or n'est pas un texte, B7.1). Sans action, une
+  étiquette pour un lecteur d'écran.
+- **Une épingle** : plus de `FilterChip`/`ChoiceChip`/`ActionChip`/`Chip(` en
+  dehors d'`app_chip.dart`, plus de pastille de statut dessinée à la main.
+
+**Ce qui reste** : le champ de début/fin du sélecteur d'heures (une case à
+deux lignes, pas une puce, A14b) ; les étiquettes posées sur une photo
+(« Couverture », « Avant ») ; le sélecteur de commune (`CommunePill`, un
+bouton) ; la console (`StatusChip`, idiome du bureau, comme en F2) ; les écrans
+V2/V3.
+
+**Questions (Q16–Q18)** — posées le 2026-10-25, réponses en §8 : la coche
+partout ; les créneaux pleins ; une seule pastille teintée, rôles compris.
+
 ### 2.8 Le type `SalonId` (B9.9, décision 33)
 - **Ta décision** : ce qui vaut le mieux à long terme, donc **le type**.
   L'épingle ne voit pas un identifiant de compte passé en position ; le
@@ -379,6 +428,18 @@ recommandation) ; Q12 : **trois PR**. La forme retenue : §2.7.2.
 
 **Décisions (2026-10-25, F2).** Q13, Q14, Q15 : les recommandations. La
 forme retenue : §2.7.3.
+- **Q16** (2026-10-25, F3) — Une puce choisie : **la coche partout**
+  (recommandé — elle prend la place de l'icône ; la sélection ne tient pas
+  qu'à la couleur), ou le seul fond ?
+- **Q17** — Les créneaux, seule puce choisie dessinée en teinte claire :
+  **pleins comme les autres** (recommandé), ou garder la teinte ?
+- **Q18** — Les statuts et badges : **une seule pastille teintée partout**
+  (recommandé — les puces pleines du calendrier et de la liste Pro, les
+  badges à coins carrés et les rôles d'équipe compris), ou garder les puces
+  pleines de la liste Pro ?
+
+**Décisions (2026-10-25, F3).** Q16, Q17, Q18 : les recommandations. La
+forme retenue : §2.7.4.
 
 ## 9. PR A construite (B9.1, B9.5) — ce qui a été vu
 

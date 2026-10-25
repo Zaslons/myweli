@@ -13,6 +13,7 @@ import '../../../core/utils/status_labels.dart';
 import '../../../models/appointment.dart';
 import '../../../providers/pro_auth_provider.dart';
 import '../../../widgets/common/app_card.dart';
+import '../../../widgets/common/app_chip.dart';
 import '../../../widgets/common/empty_state.dart';
 import '../../../widgets/common/myweli_month_grid.dart';
 
@@ -270,12 +271,9 @@ class _AppointmentCard extends StatelessWidget {
               ),
             ],
           ),
-          trailing: Chip(
-            label: Text(
-              StatusLabels.of(appointment.status),
-              style: AppTextStyles.bodySmall.copyWith(color: Colors.white),
-            ),
-            backgroundColor: _getStatusColor(appointment.status),
+          trailing: AppChip.status(
+            label: StatusLabels.of(appointment.status),
+            tone: appointmentStatusTone(appointment.status),
           ),
         ),
       ),

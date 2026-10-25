@@ -19,6 +19,7 @@ import '../../../providers/pro_auth_provider.dart';
 import '../../../providers/pro_journal_provider.dart';
 import '../../../providers/pro_team_provider.dart';
 import '../../../widgets/common/app_async_view.dart';
+import '../../../widgets/common/app_chip.dart';
 import '../../../widgets/common/app_skeleton.dart';
 import '../../../widgets/common/app_snack_bar.dart';
 import '../../../widgets/common/brand_refresh.dart';
@@ -780,8 +781,8 @@ class _ArtistChips extends StatelessWidget {
   Widget _chip(BuildContext context, String label, bool selected, String? id) {
     return Padding(
       padding: const EdgeInsets.only(right: AppTheme.spacingS),
-      child: FilterChip(
-        label: Text(label),
+      child: AppChip.choice(
+        label: label,
         selected: selected,
         onSelected: (_) => journal.setArtistFilter(selected ? null : id),
       ),
@@ -808,6 +809,19 @@ class _TimelineCard extends StatelessWidget {
       AppointmentStatus.cancelled => AppColors.textTertiary,
       AppointmentStatus.pending => AppColors.warning,
       AppointmentStatus.confirmed => AppColors.info,
+    };
+  }
+
+  /// [_statusColor]'s mapping, as the badge's tone: the journal's own —
+  /// past is grey, a no-show red, an arrival green.
+  AppChipTone get _statusTone {
+    if (arrived) return AppChipTone.success;
+    return switch (appt.status) {
+      AppointmentStatus.completed => AppChipTone.neutral,
+      AppointmentStatus.noShow => AppChipTone.error,
+      AppointmentStatus.cancelled => AppChipTone.neutral,
+      AppointmentStatus.pending => AppChipTone.warning,
+      AppointmentStatus.confirmed => AppChipTone.info,
     };
   }
 
@@ -868,13 +882,13 @@ class _TimelineCard extends StatelessWidget {
                     ),
                     if ((appt.clientNoShowCount ?? 0) >= 1) ...[
                       const SizedBox(width: AppTheme.spacingXS),
-                      _badge(
-                        appt.clientNoShowCount == 1
+                      AppChip.status(
+                        label: appt.clientNoShowCount == 1
                             ? '1 absence'
                             : '${appt.clientNoShowCount} absences',
-                        (appt.clientNoShowCount ?? 0) >= 2
-                            ? AppColors.error
-                            : AppColors.textSecondary,
+                        tone: (appt.clientNoShowCount ?? 0) >= 2
+                            ? AppChipTone.error
+                            : AppChipTone.neutral,
                       ),
                     ],
                     if (appt.depositAmount > 0) ...[
@@ -900,25 +914,8 @@ class _TimelineCard extends StatelessWidget {
               ],
             ),
           ),
-          _badge(statusLabel, _statusColor),
+          AppChip.status(label: statusLabel, tone: _statusTone),
         ],
-      ),
-    );
-  }
-
-  Widget _badge(String label, Color color) {
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppTheme.spacingS,
-        vertical: AppTheme.spacingXS,
-      ),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
-      ),
-      child: Text(
-        label,
-        style: AppTextStyles.labelSmall.copyWith(color: color),
       ),
     );
   }
