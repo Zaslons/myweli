@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Statut** | **Construit le 2026-10-25** sur `feat/consumer-signout-reset` (empilée sur F1, #699). Validé le même jour — Q1 = **(a)** la personne reste où elle est, seul un écran du compte part vers la connexion ; Q2 = **(a)** le jumeau Pro dans une PR à lui (§8). Ce qui a été vu : §11 |
+| **Statut** | **Construit le 2026-10-25** sur `feat/consumer-signout-reset` — empilée sur F1 (#699) puis, F1 et F2 fusionnés, rebasée sur `main` (`dfdc4178`) le même jour. Validé le même jour — Q1 = **(a)** la personne reste où elle est, seul un écran du compte part vers la connexion ; Q2 = **(a)** le jumeau Pro dans une PR à lui (§8). Ce qui a été vu : §11 |
 | **Owner** | Sadreddine |
 | **Last updated** | 2026-10-25 |
 | **PRD ref / phase** | FR-AUTH-003 (session, « explicit logout ») · FR-AUTH-005 (suppression du compte) · V1 |
@@ -327,7 +327,7 @@ revérification de la photo, chaque `track` retiré de `main.dart`.
 
 ## 11. Construite (2026-10-25) — ce qui a été vu
 
-Sur `feat/consumer-signout-reset`, empilée sur F1 (#699, `ed65106b`). Le
+Sur `feat/consumer-signout-reset`, empilée sur F1 (#699, `ed65106b`), puis rebasée sur `main` une fois F1 et F2 (#700) fusionnés — la suite y est verte (2 850 essais). Le
 mécanisme est celui du §2, avec quatre écarts, chacun trouvé en chemin :
 
 1. **Un refus entendu pendant une suppression qui échoue sort quand même
