@@ -894,23 +894,28 @@ dans le trousseau).
 
 ```bash
 cd "/Users/sadreddinedaher/beauty app"
-git checkout main && git pull --ff-only && git status --short    # doit être vide
+git checkout main && git pull --ff-only
+export ASC_KEY_ID=<KEY_ID> ASC_ISSUER_ID=<ISSUER_ID>    # la clé d'API du §11.4
 ./tool/release_build.sh ios pro
 # → mobile/build/ios/ipa/MyWeli-pro.ipa (et DistributionSummary-pro.plist)
+# → mobile/build/ios/archive/Runner-pro-<N>.xcarchive
 ```
+
+*Depuis B9.2 (2026-10-25) :* le script **refuse** un arbre qui n'est pas
+propre ou un HEAD qui n'est pas `origin/main` (il le récupère d'abord), et,
+pour iOS, l'absence d'`ASC_KEY_ID` / `ASC_ISSUER_ID` — avant de lire le moindre
+secret. Après le build, il **range l'archive** par saveur et par build,
+**valide l'IPA** auprès d'App Store Connect (`altool --validate-app`) — un
+refus arrête tout — puis imprime l'envoi des symboles (Dart **et** dSYM de
+l'archive), l'association des commits de la version (`set-commits`) et la
+commande d'envoi.
 
 Le script choisit `lib/main_pro.dart` (`--target`), injecte le DSN sans
 l'afficher, numérote le build au nombre de commits, obfusque et écrit les
 symboles Dart dans `mobile/build/symbols/pro/`.
 
-**Tout de suite après** — l'archive n'est pas rangée par saveur, le prochain
-build consommateur l'écraserait (§14) :
-
-```bash
-cd "/Users/sadreddinedaher/beauty app/mobile"
-N=$(unzip -p build/ios/ipa/MyWeli-pro.ipa Payload/Runner.app/Info.plist | plutil -extract CFBundleVersion raw -)
-cp -R build/ios/archive/Runner.xcarchive "build/ios/archive/Runner-pro-$N.xcarchive"
-```
+~~**Tout de suite après** — copier l'archive sous `Runner-pro-$N.xcarchive`~~ :
+le script le fait depuis B9.2.
 
 **Jamais** Produit → Archiver dans Xcode sur le schéma `pro` :
 `Flutter/Generated.xcconfig` contient les entrées du **dernier** `flutter
@@ -1013,6 +1018,9 @@ vraisemblance, la **clé APNs** créée pour Firebase, pas une clé d'API App St
 Connect (INFERRED) : ne pas l'utiliser ici ; le ranger ailleurs en `chmod 600`.
 
 ### 11.5 Valider, envoyer, suivre
+
+*Depuis B9.2, la validation est faite par `release_build.sh`, et la commande
+d'envoi n'est imprimée qu'après elle.* À la main, pour mémoire :
 
 ```bash
 cd "/Users/sadreddinedaher/beauty app/mobile"

@@ -330,17 +330,12 @@ This batch takes up three of the six suggested tasks that were never started. It
 - ✅ **B9.1 Stale release docs and statuses (M).** **Done in #688** — [hygiene-batch9.md](design/hygiene-batch9.md) §9: 33 roadmap entries (20 turn 🟢, 13 wait for 0.0.2), 8 specs and 5 index rows, LAUNCH and app-store-forms. What only App Store Connect can confirm waits for batch 10.
   - **What:** `LAUNCH.md` and `app-store-forms.md` describe states that have passed. Five specs and several 2026-10-13…16 roadmap entries still read 🟡 or « non fusionné ».
   - **How:** one docs PR, after the App Store Connect read-back (batch 10).
-- **B9.2 iOS release tooling (S).**
-  - `release_build.sh`:
-    - park the archive per flavour and build;
-    - include dSYMs in the printed Sentry command;
-    - refuse to build unless HEAD equals `origin/main`;
-    - validate before upload.
-  - **B9.3** *(suggested task)*: the flavour setup script should update its build phase and schemes in place, and stop dropping Flutter's pre-action.
-- **B9.4 Observability follow-ups (M · decision 34).**
-  - `--validate-ssl` on the uptime checks, plus alerts on certificate expiry under 14 days and latency above about 3 s for 15 min.
-  - Commit tracking for mobile releases (suspect commits).
-  - Error-rate thresholds once there is real traffic.
+- ✅ **B9.2 iOS release tooling (S).** **Done in #692** — [hygiene-batch9.md](design/hygiene-batch9.md) §13. `release_build.sh` refuses a dirty tree, or a HEAD that is not a freshly fetched `origin/main`, before reading any secret; for iOS it also needs `ASC_KEY_ID` and `ASC_ISSUER_ID`. It parks the archive as `Runner-<flavour>-<build>.xcarchive` and validates the IPA (a refusal stops everything). It then prints the symbols command (with the dSYMs), `set-commits` and the upload command. Tested by running the real script in a throwaway repository.
+  - ✅ **B9.3** **Done in #692**: `setup_flavours.rb` updates its phase and schemes in place, so a run on the committed project changes nothing. Proven on a copy, run by the macOS iOS workflow.
+- ✅ **B9.4 Observability follow-ups (M · decision 34).** **Built in #692**; the cloud part is **not applied yet** (a cloud change, asked for separately).
+  - `infra/gcp/81-uptime-tls-latency.sh` switches both checks to `--validate-ssl=true` in place and adds two alerts: a certificate with less than 14 days left, and a mean probe latency above 3 s for 15 min. `80-uptime-checks.sh` creates the checks with validation now.
+  - Mobile suspect commits: `release_build.sh` prints `set-commits` for each store build (needs Sentry's GitHub integration — batch 10).
+  - Error-rate thresholds stay deferred until there is real traffic (decision 34, observability §8.2).
 - ✅ **B9.5 FlutterFire Dependabot group (S).** **Already done** — #632–#636 merged on 2026-10-20 and the `firebase` group is in `dependabot.yml`. **To watch:** the next weekly run opens ONE Firebase PR. Merge or close the five open Dependabot PRs (#632–#636; equatable 3.0.0 is a major bump). Then check that the next run opens ONE Firebase PR.
 - ✅ **B9.6 Mock and stub fidelity (M · decision 35).** **Done in #689** — [hygiene-batch9.md](design/hygiene-batch9.md) §10. The invitation caps are the server's two buckets per UTC day, aliases included. A new mock salon is the server's: empty, at 0 %. The catalogue is one store, scoped to the acting salon with the server's `forbidden` and `not_found`; so are the artist and member writes. A counter replaces the 12 clock-built ids (SYSTEM §21 row 43). No mark-read switch (decision 35).
 - ✅ **B9.7 Form-validation tests (M).** **Done in #690** — [hygiene-batch9.md](design/hygiene-batch9.md) §11. `_TagSheet` is on `FieldErrors`. Its limit is said for a chip too, a failed save is shown, and the sheet scrolls (it overflowed at ten tags). The notes, admin and Pro sign-ins, staff form and service form have their « under the field » tests: 15 of 17 screens, the last two unrouted until SMS. Also: the three e-mail sign-ins now say a refused code or e-mail under its field, as the web does (SYSTEM §14, §21 row 32).
@@ -358,6 +353,7 @@ This batch takes up three of the six suggested tasks that were never started. It
 
   A read-back unblocks B9.1.
 - **`support@myweli.com` reaches a person.** It is the only contact on `/support`, which both store listings use.
+- **Sentry's GitHub integration knows `Zaslons/myweli`** (B9.4). Without it, the `set-commits` command that `release_build.sh` prints is refused, and mobile issues get no suspect commits. In Sentry: Settings, then Integrations, then GitHub.
 - **App Preview:** whether Apple applied the 25 s poster frame, and how review and the store page treat the preview.
 - **Walk the clients list in production** with a Pro session (`pageSize=1`, pages 1…N): all ids distinct and N equal to `total`. This observes #618's tie-breaker, which the deploy check could not.
 - **Exercise the T72 fix** (decision 21): register a throwaway Pro account with a foreign `providerId`, check it gets a new draft salon, then delete the account.

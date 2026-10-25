@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Statut** | **Validé le 2026-10-22** — relu sur main (`d1e886e1`). Q1 (décision 33) : **le type `SalonId`** (« ce qui vaut le mieux à long terme ») ; Q2 (décision 34) : **e-mail et poussée Sentry** ; Q3 (décision 34) : **pas de suivi des performances pour l'instant** ; Q4 (décision 35) : **pas d'interrupteur** ; Q5 : **construire les trois composants et migrer tous les écrans maintenant** ; Q6 : **les pages publiques lèvent** ; Q7 : **supprimer la table avec ce lot** ; Q8 : **le reste tel qu'écrit**. Huit PR (§3). **PR A fusionnée le 2026-10-22** (#688 — B9.1, B9.5 — §9). **PR B fusionnée le 2026-10-22** (#689 — B9.6 — §10). **PR C fusionnée le 2026-10-22** (#690 — B9.7 — §11). **PR D construite le 2026-10-22** sur `feat/batch9-web-reads` (B9.11, B9.10 — §12). |
+| **Statut** | **Validé le 2026-10-22** — relu sur main (`d1e886e1`). Q1 (décision 33) : **le type `SalonId`** (« ce qui vaut le mieux à long terme ») ; Q2 (décision 34) : **e-mail et poussée Sentry** ; Q3 (décision 34) : **pas de suivi des performances pour l'instant** ; Q4 (décision 35) : **pas d'interrupteur** ; Q5 : **construire les trois composants et migrer tous les écrans maintenant** ; Q6 : **les pages publiques lèvent** ; Q7 : **supprimer la table avec ce lot** ; Q8 : **le reste tel qu'écrit**. Huit PR (§3). **PR A fusionnée le 2026-10-22** (#688 — B9.1, B9.5 — §9). **PR B fusionnée le 2026-10-22** (#689 — B9.6 — §10). **PR C fusionnée le 2026-10-22** (#690 — B9.7 — §11). **PR D fusionnée le 2026-10-25** (#691 — B9.11, B9.10 — §12 ; déploiement Vercel de production réussi, le plan du site liste 228 adresses). **PR E construite le 2026-10-25** sur `feat/batch9-tooling` (B9.2–B9.4 — §13). |
 | **Owner** | Sadreddine |
 | **Last updated** | 2026-10-22 |
 | **PRD ref / phase** | V1 — rien de visible n'est ajouté ; ce lot rend vrais les documents, les doublures de test, les lectures et les outils |
@@ -489,3 +489,87 @@ chemin du serveur :
   le web 2 255, les 269 de bout en bout sur deux workers — **leur build
   tourne en posture fermée contre le bouchon**, donc les lectures publiques
   strictes construisent le site.
+
+## 13. PR E construite (B9.2, B9.3, B9.4) — ce qui a été vu
+
+**B9.2 — `release_build.sh`, comme écrit**, avec l'ordre et les essais :
+- **Les refus d'abord**, avant de lire le moindre secret : un arbre qui n'est
+  pas propre (un fichier non suivi aussi), puis un HEAD qui n'est pas
+  `origin/main` — **récupéré d'abord** (`git fetch`) : un `main` avancé
+  depuis la dernière récupération n'est pas celui de ce HEAD. Pour iOS, la
+  clé d'API App Store Connect (`ASC_KEY_ID`, `ASC_ISSUER_ID`) est demandée
+  là aussi, plutôt qu'après dix minutes de build.
+- **L'archive** est rangée en `Runner-<saveur>-<build>.xcarchive` ; un build
+  qui n'en laisse pas est refusé par le script, pas par `mv`.
+- **La validation** (`xcrun altool --validate-app`) passe avant toute
+  commande d'envoi ; un refus arrête tout — ni envoi, ni symboles.
+- **Ce qui reste à faire est imprimé pour CE build** : les symboles Dart
+  **et les dSYM de l'archive** (un plantage natif restait illisible), la
+  version de l'app (`com.myweli.<app>@<version>+<build>`) et ses commits
+  (`set-commits --commit "Zaslons/myweli@<sha>"`), puis l'envoi. Imprimés,
+  pas lancés : il faut le jeton Sentry, que le script ne tient jamais.
+- **Les essais tournent le vrai script** dans un dépôt jetable, à son
+  `origin/main`, avec `gcloud`, `node`, `flutter` et `xcrun` simulés ; les
+  essais existants de la clé CARTO y passent aussi (le nouveau refus les
+  aurait arrêtés dans une branche).
+- Le guide App Store (§11.2, §11.5) dit le nouveau chemin : la copie de
+  l'archive et la validation à la main disparaissent.
+
+**B9.3 — `setup_flavours.rb`, comme écrit** : la phase est trouvée par son
+nom et mise à jour sur place (même UUID, même place ; des doublons d'anciens
+passages seraient retirés) ; un schéma existant est chargé et seules ses
+configurations sont corrigées, et il n'est réécrit que si l'une était
+fausse. **Mesuré avant** : un passage sur le projet commis donnait une
+nouvelle UUID et retirait aux deux schémas le pre-action de Flutter et
+`customLLDBInitFile` ; **après** : aucun changement. L'essai copie `ios/`
+et lance le vrai script (locale non UTF-8 comprise) ; il lui faut la gemme
+`xcodeproj`, que seul macOS porte (CocoaPods) — sur Linux il saute, et le
+flux iOS (macOS) le lance avec `REQUIRE_XCODEPROJ=1`, pour qu'une gemme
+absente échoue au lieu de sauter.
+
+**B9.4 — l'observabilité** :
+- **`81-uptime-tls-latency.sh`** : `--validate-ssl=true` sur les deux
+  vérifications, **sur place** (leurs ids relus) ; une alerte quand le
+  certificat a moins de 14 jours (le minimum sur les deux vérifications et
+  les régions) ; une alerte quand la latence moyenne des sondes, par
+  vérification, dépasse 3 s pendant 15 min (la moyenne : une région lente
+  n'appelle personne). Même canal (l'e-mail du propriétaire). Les deux
+  runbooks passent les règles des autres (Markdown, JSON valide).
+- `80-uptime-checks.sh` crée les vérifications avec la validation.
+- **`policy-bodies.sh`** ne liste le nouveau script **qu'une fois appliqué**
+  (le même garde que pour 91) : `93-sync-runbooks.sh` refuse une politique
+  rendue sans jumelle vivante, et une ligne fixe aurait fait échouer l'étape
+  d'après chaque déploiement jusque-là. Les mises à jour des vérifications
+  sont dans une fonction, pas une boucle : le rendu des politiques rejoue
+  une boucle `for` qui précède un corps, et ne doit jamais les rejouer.
+- **Pas encore appliqué** : lancer le script modifie le cloud — je le
+  demande à part.
+- **À vérifier dans Sentry** (lot 10) : l'intégration GitHub doit connaître
+  `Zaslons/myweli`, sinon `set-commits` est refusé.
+- **Les seuils de taux d'erreur** restent reportés (pas de trafic).
+
+**Vérifié** :
+- **Rouges d'abord** : les 9 essais de B9.2, les 4 de B9.3 et ceux de
+  B9.4 étaient rouges avant le code.
+- **21 mutations, toutes vues rouges** : un arbre sale qui construit, pas
+  de récupération avant de comparer, n'importe quel HEAD, pas de clé App
+  Store Connect, pas de contrôle de l'archive, l'archive sans son build, ou
+  copiée et laissée, pas de validation, la version Pro nommée comme celle du
+  client, la version sans son build, pas de dSYM, `set-commits` sans le
+  commit ; la phase recréée, un schéma existant refait à neuf, une
+  configuration fausse laissée ; une vérification créée sans validation TLS,
+  la mise à jour sans elle, le certificat à 30 jours, une région lente qui
+  appelle, cinq minutes lentes qui appellent, le nouveau script hors du
+  registre. **Deux essais renforcés** pour y arriver : `main` avancé depuis
+  la dernière récupération, et le refus d'une archive absente par le script
+  plutôt que par `mv`.
+- **Trouvé en route — une bombe à retardement** : trois essais du web
+  (`pro-agenda-url-pages.test.tsx`) prenaient une date fixe pour « un autre
+  jour » : `2026-10-25`, aujourd'hui. Corrigé (dix jours plus tard, et le
+  libellé calculé) ; il aurait mis au rouge chaque PR d'aujourd'hui, `main`
+  compris.
+- Les analyses à zéro et le format propre (app et serveur) ; les suites
+  entières passent : l'app 2 741 (55 golden Linux sautés), le serveur sur
+  Postgres 2 177 (2 sautés), le web 2 255, les 269 de bout en bout sur deux
+  workers (le premier passage affichait « 268 passed », son autre ligne non
+  relue ; le second, 269).
