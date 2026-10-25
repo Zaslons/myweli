@@ -379,6 +379,32 @@ PR**, et **`implements String`**.
   en position) : la mutation qui survivait à l'épingle — **le compilateur la
   refuse** (`flutter analyze`, `argument_type_not_assignable`).
 
+**H2 — la moitié client** (le salon public), relue sur H1 (`771a63ee`) :
+- **Les modèles** : `Provider.id`, `Appointment.providerId`,
+  `Review.providerId`, `Service.providerId`, `Artist.providerId`,
+  `Availability.providerId`, et `BookingChange.providerId` (le salon d'un
+  rendez-vous qui change) — nés dans leur `fromJson`. Avec eux, les deux
+  naissances provisoires de H1 tombent (`SalonMarket.of`, `SalonFacts.of`,
+  et le `SalonId(salon.id)` des doublures Pro), et `_figuresMoved` prend un
+  `SalonId`.
+- **Les interfaces** : la réservation (`bookAppointment`,
+  `getAvailableTimeSlots`), les avis (`getProviderReviews`), les favoris
+  (`addFavorite`, `removeFavorite`, `isFavorite`, et la liste de
+  `getFavoriteProviderIds`), `getProviderById` — et leurs doublures, leurs
+  services API, les fournisseurs, écrans et widgets qui les appellent (la
+  page d'un salon, le hub de réservation, sa confirmation, le sélecteur de
+  créneaux, la feuille d'acompte, la feuille d'avis, la carte).
+- **La console** : les quatre écritures d'un salon d'`AdminService`
+  (`providerDetail`, `suspendProvider`, `restoreProvider`,
+  `featureProvider`), ses deux fournisseurs et l'écran du détail — Q19 dit
+  « aucun identifiant de salon n'est un `String` nu », la console comprise.
+- **Où il naît en plus** : les routes (`/provider/:id`, `?providerId=`,
+  `/admin/providers/:id`) et la ligne JSON de la liste de la console.
+- **Les essais** : la portée de H1 étendue à toute l'app — **aucune place
+  nommée comme un salon** (`providerId`, `salonId`, leurs listes) **n'est un
+  `String` dans `lib/`**, hors V2/V3 ; les sept champs ; l'épingle de
+  naissance à jour.
+
 ### 2.9 Un seul mot pour un salon sans nom (B9.10)
 - **La règle** (SYSTEM §17, WEB-SYSTEM) : un salon sans nom s'écrit
   « **Salon** » comme titre ; dans une phrase, « **le salon** » côté client

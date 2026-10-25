@@ -64,8 +64,9 @@ void main() {
               f.path,
         'lib/core/router/pro_router.dart',
       ];
-      // A booking's salon — `Appointment.providerId`, a String until H2.
-      const h2 = {'lib/providers/pro_dashboard_provider.dart': 1};
+      // H1 left one: a booking's salon (`Appointment.providerId`), typed
+      // since H2.
+      const h2 = <String, int>{};
       final found = <String, int>{
         for (final f in files)
           if (bareSalon.allMatches(code(f)).length case final n when n > 0)
@@ -111,6 +112,67 @@ void main() {
         );
       },
     );
+  });
+
+  group('H2 — the public salon too: no salon id is a bare String', () {
+    // Any declaration NAMED as a salon id — `providerId`, `salonId`,
+    // `focusProviderId`, `draftSalonIds`, a list of them — anywhere in
+    // `lib/` but the V2/V3 screens. A salon's CLIENT (`salonClientId`) is
+    // not a salon and is not matched.
+    final named = RegExp(
+      r'\b(?:String\??|List<String>\??|Set<String>\??)\s+'
+      r'(?:\w*[pP]roviderIds?|\w*[sS]alonIds?)\b',
+    );
+
+    test('lib/: every salon-named slot is a SalonId', () {
+      final found = <String>[
+        for (final f in Directory('lib').listSync(recursive: true))
+          if (f is File &&
+              f.path.endsWith('.dart') &&
+              !f.path.contains('/screens/provider/features/'))
+            for (final m in named.allMatches(code(f.path)))
+              '${f.path}: ${m.group(0)}',
+      ];
+      expect(found, isEmpty);
+    });
+
+    test('the public models hold a SalonId', () {
+      for (final (file, decl) in [
+        ('lib/models/provider.dart', 'final SalonId id;'),
+        ('lib/models/appointment.dart', 'final SalonId providerId;'),
+        ('lib/models/review.dart', 'final SalonId providerId;'),
+        ('lib/models/service.dart', 'final SalonId providerId;'),
+        ('lib/models/artist.dart', 'final SalonId providerId;'),
+        ('lib/models/availability.dart', 'final SalonId providerId;'),
+        ('lib/core/access/pro_salon_scope.dart', 'final SalonId providerId;'),
+      ]) {
+        expect(code(file), contains(decl), reason: file);
+      }
+    });
+
+    test('a salon is looked up, listed and administered by its SalonId', () {
+      expect(
+        code('lib/services/interfaces/provider_service_interface.dart'),
+        contains('getProviderById(SalonId id)'),
+      );
+      expect(
+        code('lib/services/interfaces/favorites_service_interface.dart'),
+        contains('Future<ApiResponse<List<SalonId>>> getFavoriteProviderIds('),
+      );
+      final admin = code('lib/services/admin/admin_service.dart');
+      for (final m in [
+        'providerDetail(SalonId id)',
+        'suspendProvider(\n    SalonId id,',
+        'restoreProvider(SalonId id)',
+        'featureProvider(\n    SalonId id,',
+      ]) {
+        expect(admin, contains(m), reason: m);
+      }
+      expect(
+        code('lib/screens/admin/admin_provider_detail_screen.dart'),
+        contains('final SalonId id;'),
+      );
+    });
   });
 
   group('the birth pin', () {
