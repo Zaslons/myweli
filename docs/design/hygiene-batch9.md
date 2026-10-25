@@ -692,7 +692,8 @@ absente échoue au lieu de sauter.
 - **`AppCard`** est construite (avec `outlined` et `onTap`) ; les squelettes
   l'utilisent ; les cartes des écrans passent à F2.
 
-**Tous les écrans asynchrones y sont passés** — 40 sites : l'app cliente
+**Tous les écrans asynchrones y sont passés** — 44 des 48
+`LoadingIndicator(` hors de son propre fichier, dans 39 fichiers : l'app cliente
 (rendez-vous et leur détail, Accueil, recherche, réservation, confirmation,
 fiche du salon, notifications, préférences, mes données, créneaux), l'app
 Pro (rendez-vous, détail, réservation manuelle, employés, disponibilité,
@@ -780,3 +781,27 @@ spinner aux quatre endroits nommés et nulle part ailleurs ; pas
 d'`actionText: 'Réessayer'` écrit à la main (la porte de session à part) ;
 ni « Une erreur est survenue » ni « Connexion impossible » en titre, ni
 « Vérifiez votre connexion et réessayez. » en description.
+
+**Vérifié** :
+- **La suite de l'app** : 2 781 essais verts, 58 sautés (les photos, Linux
+  seulement) ; `flutter analyze` à 0, le format propre.
+- **28 mutations, toutes vues rouges**, sur le travail commis : les données
+  qui ne restent pas pendant un rechargement, le vide pour « pas encore
+  demandé », pas de tirer sur l'erreur, le Wi-Fi pour toute panne,
+  « Réessayer » sans `onRetry`, la carte qui n'est pas un bouton, les formes
+  entendues, l'écran qui croit la sélection, la sélection gardée vers B, la
+  réponse tardive de A, chaque `listError`/`loadError` lu sur l'erreur
+  partagée (rendez-vous, salons, clients, catalogue), le carrousel qui
+  éteint la liste, les préférences par défaut, les invitations muettes, la
+  configuration qui compte une panne pour « à faire », la console qui garde
+  A et qui écrit A sous B, le 500 mis sur la connexion, « Réessayer » pour un
+  salon disparu, les trois listes Pro sans erreur, et les trois épingles (un
+  spinner, un « Réessayer » à la main, un titre retiré). **Une a survécu
+  d'abord** : retirer `ExcludeSemantics` du squelette — les formes n'ont pas
+  d'étiquette, et l'essai ne regardait que les étiquettes. Ce que la balise
+  cache, c'est un nœud : la liste du squelette est un défilement à elle.
+  L'essai demande maintenant que « Chargement… » soit une feuille, et la
+  mutation est rouge.
+- **Les rouges d'abord** : chaque correction de fournisseur a été retirée
+  une à une par ces mutations, et son essai était rouge sans elle.
+

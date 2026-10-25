@@ -271,6 +271,12 @@ void main() {
       }
       walk(root);
       expect(labels, ['Chargement…']);
+      // And it is ONE node: the shapes' list is a scrollable of its own, a
+      // node a screen reader would stop on, with nothing to say.
+      expect(
+        tester.getSemantics(find.bySemanticsLabel('Chargement…')).childrenCount,
+        0,
+      );
       handle.dispose();
     });
 
