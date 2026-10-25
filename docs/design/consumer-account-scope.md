@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Statut** | **Validé le 2026-10-25** — Q1 = **(a)** la personne reste où elle est, seul un écran du compte part vers la connexion ; Q2 = **(a)** le jumeau Pro dans une PR à lui (§8). |
+| **Statut** | **Construit le 2026-10-25** sur `feat/consumer-signout-reset` (empilée sur F1, #699). Validé le même jour — Q1 = **(a)** la personne reste où elle est, seul un écran du compte part vers la connexion ; Q2 = **(a)** le jumeau Pro dans une PR à lui (§8). Ce qui a été vu : §11 |
 | **Owner** | Sadreddine |
 | **Last updated** | 2026-10-25 |
 | **PRD ref / phase** | FR-AUTH-003 (session, « explicit logout ») · FR-AUTH-005 (suppression du compte) · V1 |
@@ -318,9 +318,100 @@ revérification de la photo, chaque `track` retiré de `main.dart`.
 
 ## 10. Definition of done
 
-- [ ] `flutter analyze` = 0 · format propre · la suite verte.
-- [ ] Chaque garde vue rouge par mutation sur le travail commis (§6).
-- [ ] Ce spec « construit » (§11), le BACKLOG (B9.13), une entrée dans
+- [x] `flutter analyze` = 0 · format propre · la suite verte.
+- [x] Chaque garde vue rouge par mutation sur le travail commis (§6, §11).
+- [x] Ce spec « construit » (§11), le BACKLOG (B9.13), une entrée dans
   `docs/roadmap/entries/`, l'index `docs/design/README.md`.
-- [ ] Branche de fonctionnalité, PR ouverte pour revue ; aucune attribution
+- [x] Branche de fonctionnalité, PR ouverte pour revue ; aucune attribution
   à Claude.
+
+## 11. Construite (2026-10-25) — ce qui a été vu
+
+Sur `feat/consumer-signout-reset`, empilée sur F1 (#699, `ed65106b`). Le
+mécanisme est celui du §2, avec quatre écarts, chacun trouvé en chemin :
+
+1. **Un refus entendu pendant une suppression qui échoue sort quand même
+   du compte.** Le §3 disait « une sortie, pas de barre » pour une annonce
+   entendue pendant une « Déconnexion ». C'est vrai de la déconnexion, qui
+   finit toujours ; pas d'une suppression dont la PROPRE requête est celle
+   que le serveur refuse : elle échoue (« Veuillez vous reconnecter. »), et
+   l'app restait connectée sans session — le défaut même de cette PR, trouvé
+   par la relecture du correctif. L'annonce est gardée pendant la sortie et
+   réglée à sa fin (`_doneLeaving`) : connecté encore, le compte prend fin,
+   avec la barre.
+2. **`updateUser` est gardé, pas seulement la photo.** Une modification du
+   profil partie sous A et revenue après la déconnexion remettait A dans
+   `AuthProvider` — connecté, sans session. Même garde que la photo : le
+   compte au départ, le compte à l'arrivée.
+3. **Une session illisible n'est pas annoncée.** Le §2.4 le promettait ;
+   `send` lit le jeton avant de demander un échange, et un stockage illisible
+   n'a pas de jeton — la branche est inatteignable. Annoncés : le
+   renouvellement refusé, l'absence de jeton de renouvellement, une réponse
+   illisible ou sans la nouvelle paire.
+4. **`ProviderProvider` oublie sans notifier** (rien à l'écran ne lit ces
+   étoiles ; reconstruire chaque liste de salons pour rien coûte sur un
+   téléphone modeste).
+
+**Ce qui a dû changer dans deux essais existants**, et pourquoi ce n'est
+pas un affaiblissement :
+- `consumer_avatar_test.dart` envoyait la photo AVANT que la session soit
+  relue (le constructeur lance la lecture sans l'attendre) : une photo de
+  personne. La garde du §2.3 la refuse — comme elle doit. Les deux essais
+  attendent maintenant la session, ce que fait le seul écran qui l'envoie.
+- Les quatre doublures mocktail d'`AuthServiceInterface` répondent
+  `sessionEnded` (un flux vide).
+
+**Les essais** — `account_scope_test.dart` (le contrat ; chaque sortie,
+chaque connexion, jamais une déconnexion échouée, une suppression refusée ni
+le même compte ; la remise à zéro AVANT la notification ; la session
+refusée, pendant une déconnexion, pendant une suppression qui échoue ; la
+photo et la modification revenues trop tard), `account_scope_stores_test.dart`
+(chaque champ du tableau §2.1 dans un scénario où il n'est pas déjà à sa
+valeur de repos, chaque lecture et écriture gardée, la clé d'envoi neuve),
+`session_ended_test.dart` (chaque chemin d'effacement annonce, ni le succès
+ni la panne de transport ; `ApiAuthService` relaie la sienne et oublie son
+compte, pas celle du Pro ; la doublure), `account_switch_test.dart` (le
+widget demandé : A, « Déconnexion » par le bouton, B dont les lectures sont
+TENUES — à chaque image, rien de A sur l'Accueil, « Mes rendez-vous » ni le
+détail de son id ; puis les lectures de B échouent, puis répondent ; la
+session refusée sur l'Accueil et sur « Mes rendez-vous » ; « Déconnexion »
+ne parle pas de session ; le câblage lu sur la vraie liste de `main.dart` ;
+chaque préfixe des écrans du compte est une route de l'app).
+
+**Une vérification qui ne voyait rien, d'abord** : la vérification de
+l'Accueil passait AVANT le correctif — la bande « Derniers rendez-vous » est
+sous « À la une », hors de la zone construite d'un écran de 600 px. L'essai
+pose maintenant un écran de 3 000 px et, d'abord, montre la bande de A **à
+A** : le témoin sans lequel « rien de A » ne prouve rien. Il est alors
+devenu rouge pour la bonne raison (« Accueil, frame 1: account B is shown
+A's booking »).
+
+**Ce qu'aucune mutation ne peut voir, dit plutôt que caché** :
+`_writing` et `_confirmedDuringLoad` vidés (des ids de notifications de A,
+qu'aucune liste de B ne contient), `_selectedId` remis à null (la garde du
+compte le couvre déjà), `_currentUserId` des favoris (la liste vide
+relit de toute façon). Hygiène, gardée, non épinglée.
+
+**Vérifié** :
+- La suite de l'app : **2 840 essais verts**, 58 sautés (les photos, Linux
+  seulement) ; `flutter analyze` à 0, le format propre.
+- **83 mutations, toutes vues rouges** sur le travail commis, aucune par une
+  erreur de compilation, chaque restauration vérifiée octet par octet : la
+  portée (une qui lève, une qui s'arrête au premier), chaque déclencheur
+  (déconnexion, suppression, chaque connexion, la session refusée, sa barre,
+  le report pendant une sortie et son règlement), la remise à zéro APRÈS la
+  notification, le même compte qui remettrait à zéro, chaque champ de chaque
+  remise à zéro, chaque garde de numéro de compte (14), la photo et la
+  modification, chaque chemin d'annonce du client HTTP, le filtre et l'oubli
+  d'`ApiAuthService`, la doublure, la barre (jamais partie, restée, action
+  morte, dite à chaque notification), chaque préfixe des écrans du compte,
+  chaque `track` de `main.dart`. **Une ne se voyait que dans l'essai
+  unitaire** — la sélection gardée : dans le widget, A n'avait jamais ouvert
+  son détail. A l'ouvre maintenant avant de se déconnecter, et elle est
+  rouge dans les deux.
+- Les photos : aucun écran photographié ne change (la barre n'apparaît que
+  sur une session refusée, la remise à zéro n'a pas de pixel) ; le travail
+  `goldens.yml` de la CI les redessine sur Linux.
+
+**Non vérifié** : sur un téléphone, une session réellement refusée par le
+serveur de production (il faudrait révoquer un jeton de renouvellement réel).
