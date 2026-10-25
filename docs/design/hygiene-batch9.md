@@ -126,6 +126,70 @@ correction par rapport au BACKLOG :
   avant d'être enregistrée. Une différence qui n'est pas voulue est un
   défaut à corriger, pas une photo à refaire.
 
+#### 2.7.1 Mesuré avant de construire (2026-10-25, `main` à `de4f241a`)
+
+- **55 fichiers** : 27 `Card(` ; **111** boîtes en forme de carte (couleur +
+  rayon) dont **30** sont déjà exactement la carte du système (`secondary`,
+  `radiusXL`, sans bordure), 5 la même avec bordure, **17** en
+  `secondary` + `radiusLarge` (9 avec bordure), et le reste des tuiles
+  `surface` posées dans une carte, des poignées et pastilles, des bandeaux
+  teintés — **pas des cartes** ; 19 puces (4 `FilterChip`, 9 `ChoiceChip`,
+  5 `Chip`, 1 `ActionChip`) dans 12 fichiers ; 49 `LoadingIndicator(`,
+  48 `EmptyState(`, 30 « Réessayer ».
+- **Le trio écrit à la main** suit partout l'ordre d'`AdminDataTable`
+  (la référence de §12) : chargement **sans rien** → l'attente ; erreur
+  **sans rien** → l'erreur et « Réessayer » ; vide → `EmptyState` ;
+  sinon le contenu — les données restent pendant un rechargement et après
+  un rafraîchissement échoué. `AppAsyncView` reprend cet ordre.
+- **L'erreur n'a pas de forme commune** : « Chargement impossible » ×11,
+  « Une erreur est survenue » ×6, d'autres ; l'icône `wifi_off` ou
+  `error_outline` selon l'écran, pas selon la panne.
+- **Les photos** : 55 golden ; ceux des écrans touchés changent si une
+  forme change (Q10, Q11). Elles se refont par le flux « Goldens —
+  regenerate » (Linux), et chacune est regardée avant d'être enregistrée.
+
+**Questions (Q9–Q12)** — posées le 2026-10-25, réponses en §8.
+
+#### 2.7.2 La forme retenue (après Q9–Q12)
+
+**Trois PR** (Q12) : **F1** construit les trois briques — `AppAsyncView<T>`,
+`AppCard` (sans encore migrer les cartes) et le jeu de squelettes — et migre
+**tous les écrans asynchrones** ; **F2** migre les cartes ; **F3** les puces.
+
+- **`AppAsyncView<T>`** (`widgets/common/app_async_view.dart`) — l'ordre
+  d'`AdminDataTable` : chargement **sans rien** → `loading` ; erreur
+  **sans rien** → l'erreur commune ; vide → `empty` ; sinon `builder`. Les
+  données restent pendant un rechargement et après un rafraîchissement
+  échoué. **`loading`, `empty` et `builder` sont obligatoires** : un écran
+  ne peut pas en oublier un. `onRetry` est facultatif : nul, l'erreur n'offre
+  pas de « Réessayer » (§12 : une sortie qui ne peut pas aboutir n'en est pas
+  une).
+- **L'erreur commune** (Q9, `AppErrorView`) : « **Chargement impossible** »
+  en titre ; en dessous, la phrase de la panne (« Pas de connexion.
+  Réessayez. » ou « Une erreur est survenue. Réessayez. », ou celle d'un code
+  qui en a une) ; l'icône **`wifi_off` seulement sans connexion**, sinon
+  `error_outline` ; « Réessayer » quand l'écran peut réessayer.
+- **Les squelettes** (Q11, `widgets/common/app_skeleton.dart`) —
+  **immobiles** : une pulsation est une boucle `repeat()`, qui devrait lire
+  la réduction des mouvements (§9.1) et demanderait une durée qu'aucun des
+  cinq jetons ne nomme ; ajoutée plus tard si voulue, ce sera une décision
+  de jeton (doc, Dart, web). Les barres en `surfaceVariant`, `radiusSmall`,
+  **toujours sur une carte** (`secondary`) — sur le fond de page,
+  `surfaceVariant` est presque invisible. Une étiquette pour les lecteurs
+  d'écran (« Chargement… »), le reste exclu, comme le squelette du Profil
+  déjà en place. Un jeu de formes : la liste de cartes, la liste de lignes,
+  la fiche (détail), le formulaire, la grille de photos ; chaque écran
+  prend la forme de son contenu.
+- **Le spinner reste** là où la forme n'est pas connue (§12) : la boîte de
+  dialogue bloquante, les transitions « on quitte » et les portes de
+  session — dit dans le code à chaque fois.
+- **`AppCard`** (`widgets/common/app_card.dart`) — `secondary`,
+  `radiusXL`, élévation 0, `spacingM` ; `onTap` avec l'ondulation coupée au
+  rayon ; une variante `outlined` (`borderStrong`) pour F2.
+- **Les épingles** : plus de `LoadingIndicator(` dans `lib/screens` hors
+  d'une liste nommée (les cas « forme inconnue »), et plus d'erreur de
+  chargement écrite à la main (`actionText: 'Réessayer'` hors des briques).
+
 ### 2.8 Le type `SalonId` (B9.9, décision 33)
 - **Ta décision** : ce qui vaut le mieux à long terme, donc **le type**.
   L'épingle ne voit pas un identifiant de compte passé en position ; le
@@ -233,10 +297,21 @@ correction par rapport au BACKLOG :
   lot** (recommandé), ou attendre plus longtemps ?
 - **Q8** — Le reste, tel qu'écrit : les sept PR, la règle du salon sans nom,
   B9.1 sans ce qui dépend d'App Store Connect ?
+- **Q9** (2026-10-25) — L'erreur d'`AppAsyncView` : **une seule forme**
+  (recommandé), ou le titre et l'icône de chaque écran ?
+- **Q10** — Les cartes qui s'écartent du système : **les normaliser**
+  (recommandé), ou ne migrer que ce qui y est déjà ?
+- **Q11** — Le chargement : garder celui de chaque écran (recommandé), ou
+  **ajouter les squelettes maintenant** là où la forme est connue ?
+- **Q12** — La livraison : **trois PR** (recommandé), ou une ?
 
 **Décisions (2026-10-22).** Q2, Q3, Q4, Q6, Q7, Q8 : les recommandations.
 Q1 : « ce qui vaut le mieux à long terme » — le type `SalonId` (§2.8, PR H).
 Q5 : la recommandation — tout migrer maintenant (§2.7).
+
+**Décisions (2026-10-25).** Q9 : **une seule erreur** ; Q10 : **normaliser
+les vraies cartes** ; Q11 : **les squelettes maintenant** (pas la
+recommandation) ; Q12 : **trois PR**. La forme retenue : §2.7.2.
 
 ## 9. PR A construite (B9.1, B9.5) — ce qui a été vu
 
