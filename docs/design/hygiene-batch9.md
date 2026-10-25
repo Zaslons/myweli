@@ -311,6 +311,74 @@ partout ; les créneaux pleins ; une seule pastille teintée, rôles compris.
   test.
 - L'épingle R6 actuelle reste : elle couvre les lectures `.providerId`.
 
+**Relu le 2026-10-25, avant de construire (PR H)**, sur main (`4249d87c`).
+« ~32 signatures » comptait les interfaces Pro. L'espace réel est plus
+grand, et il a deux moitiés :
+- **Les déclarations** (`String providerId` / `salonId`, hors V2/V3) :
+  36 dans les interfaces (8 fichiers), 57 dans les doublures, 37 dans les
+  services API, 57 dans les fournisseurs (19 fichiers), 23 dans les écrans,
+  4 dans les widgets, 3 dans `core/` — **217**, sans compter les appels — et
+  **13 champs de modèle** : `Provider.id`, `Appointment.providerId`,
+  `Review.providerId`, `Service.providerId`, `Artist.providerId`,
+  `Availability.providerId`, `TeamMember.providerId`,
+  `TeamInvitation.providerId`, `ProviderUser.providerId`, et les `salonId`
+  de `SalonMembershipInfo`, `ProMembership`, `SalonMarket`, `SalonFacts`.
+  Environ **120 fichiers d'essai** passent un identifiant de salon.
+- **La moitié Pro** — le salon *qui agit* (`pro_*` services, le résolveur
+  `activeSalonId`, l'équipe, les adhésions) : c'est **là que vit l'angle
+  mort R6** (un identifiant de *compte* en position).
+- **La moitié client** — un salon *public* (les favoris, la réservation, les
+  avis, `getProviderById`). L'angle mort R6 n'y est pas ; un autre l'est :
+  **deux `String` côte à côte**, `addFavorite(String userId, String
+  providerId)` — deux arguments inversés compilent.
+
+**La forme**, quelle que soit la portée : `extension type const
+SalonId(String value)`, sans coût à l'exécution (un `String` à
+l'exécution : le JSON, l'égalité d'`Equatable` et les clés de `Map` ne
+changent pas). **Où il naît** : le `fromJson` des modèles, le résolveur
+(`ProAuthProvider`), les paramètres des routes, les données des doublures ;
+les essais librement. Ailleurs, `SalonId(` fait rougir l'épingle.
+
+**Hors portée** : le web (TypeScript, sa propre couche BFF) ; un type
+`AccountId` pour l'autre sens (un salon passé là où un compte est attendu :
+aucun cas connu).
+
+**Questions (Q19–Q20)** — en §8 : **chaque identifiant de salon, en deux
+PR**, et **`implements String`**.
+
+**H1 — la moitié Pro** (le salon qui agit) :
+- **Le type** : `core/utils/salon_id.dart`, `extension type const
+  SalonId(String value) implements String` — hors de `core/theme/`, que la
+  porte du miroir des jetons du web lit (leçon de F3).
+- **Le résolveur** : `ProAuthProvider.activeSalonId` rend un `SalonId?`, et
+  `resolveActingSalonId` avec lui ; le salon choisi (`_selectedSalonId`,
+  `setSelectedProviderSalon`) en est un.
+- **Les interfaces** : `ProServiceInterface` (ses 18 places de salon,
+  `getMyProvider({salonId})` compris), `ProClientsServiceInterface` (8),
+  `ProArtistServiceInterface` (2), `SubscriptionServiceInterface` (1),
+  `AuthServiceInterface.setSelectedProviderSalon` — et leurs doublures et
+  services API, les fournisseurs Pro et les écrans Pro qui les appellent.
+- **Les modèles Pro** : `ProviderUser.providerId` (le salon par défaut : un
+  vrai salon, le mauvais après un changement — l'épingle R6 garde ce
+  cas-là), `SalonMembershipInfo.salonId`, `ProMembership.salonId`,
+  `TeamMember.providerId`, `TeamInvitation.providerId`,
+  `SalonMarket.salonId`, `SalonFacts.salonId` — nés dans leur `fromJson`.
+- **H2 ensuite** : la réservation et ses créneaux, les avis, les favoris,
+  `getProviderById`, et `Provider.id`, `Appointment.providerId`,
+  `Review.providerId`, `Service.providerId`, `Artist.providerId`,
+  `Availability.providerId`. Entre les deux, un `SalonId` passe dans leurs
+  `String` (Q20) : rien ne casse au milieu.
+
+**Les essais de H1, rouges d'abord** (`test/unit/salon_id_type_test.dart`) :
+- aucune place de salon n'est un `String` dans les interfaces de H1, ni dans
+  les champs de ses modèles ; le résolveur rend un `SalonId?` ;
+- **l'épingle de naissance** : sous `lib/`, `SalonId(` n'apparaît que dans
+  les fichiers permis (les `fromJson`, le résolveur, les routes, les
+  données des doublures) ;
+- **la mutation M10 de R6** (`createService(authProvider.provider!.id, …)`,
+  en position) : la mutation qui survivait à l'épingle — **le compilateur la
+  refuse** (`flutter analyze`, `argument_type_not_assignable`).
+
 ### 2.9 Un seul mot pour un salon sans nom (B9.10)
 - **La règle** (SYSTEM §17, WEB-SYSTEM) : un salon sans nom s'écrit
   « **Salon** » comme titre ; dans une phrase, « **le salon** » côté client
@@ -392,7 +460,8 @@ empêche le démarrage.
   exécution sur GCP est demandée à part).
 - **(F) Les composants partagés** : B9.8 (app ; nouvelles photos).
 - **(G) La table orpheline** : B9.12 (serveur, **déploiement**).
-- **(H) Le type `SalonId`** : B9.9 (app).
+- **(H) Le type `SalonId`** : B9.9 (app) — **en deux PR** (Q19) : **H1** la
+  moitié Pro, **H2** la moitié client.
 - **B9.5** : la case « à voir », dans le BACKLOG.
 
 ## 4. Le contrat
@@ -478,6 +547,21 @@ forme retenue : §2.7.3.
 
 **Décisions (2026-10-25, F3).** Q16, Q17, Q18 : les recommandations. La
 forme retenue : §2.7.4.
+- **Q19** (2026-10-25, H) — Jusqu'où va `SalonId` (~217 déclarations,
+  13 champs de modèle, ~120 fichiers d'essai) : **chaque identifiant de
+  salon, en deux PR** (recommandé — H1 la moitié Pro, qui ferme l'angle mort
+  R6 ; H2 la moitié client, qui attrape aussi deux arguments inversés ; à la
+  fin, aucun identifiant de salon n'est un `String` nu), tout en une PR, ou
+  la moitié Pro seule ?
+- **Q20** — Un `SalonId` passe-t-il encore là où un `String` est attendu :
+  **oui, `implements String`** (recommandé — les adresses, le JSON, les clés
+  de `Map` ne changent pas ; seul un `String` nu ne remplit plus une place de
+  salon, le sens de R6), ou opaque (`.value` partout, pour un sens sans
+  défaut connu) ?
+
+**Décisions (2026-10-25, H).** Q19, Q20 : les recommandations. Deux PR,
+**H1** puis **H2** ; `extension type const SalonId(String value) implements
+String`.
 
 ## 9. PR A construite (B9.1, B9.5) — ce qui a été vu
 
