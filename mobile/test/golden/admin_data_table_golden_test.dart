@@ -35,10 +35,14 @@ void main() {
     });
 
     testWidgets('four states: error (+ retry)', (tester) async {
+      // Taller than the others: the shared error (B9.8) — icon, title, the
+      // sentence and « Réessayer » — is taller than the bare sentence it
+      // replaced, and overflowed 420 by 5px. On the console the table sits
+      // in a scroll view; this canvas is only the photo's.
       await pumpGolden(
         tester,
         _table(error: kNoConnectionMessage),
-        size: _size,
+        size: const Size(720, 480),
       );
       await expectGolden(tester, 'admin_table_error');
     });

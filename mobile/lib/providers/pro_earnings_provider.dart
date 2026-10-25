@@ -16,8 +16,9 @@ class ProEarningsProvider extends ChangeNotifier implements SalonScoped {
   bool get isLoading => _isLoading;
   String? get error => _error;
 
-  /// The load's own failure: [error] is also every write's here, so a failed
-  /// save would read as the list's load error (B9.8).
+  /// The load's own failure — today the only one [error] holds here, kept
+  /// apart as on the other Pro lists, so a write added later cannot become
+  /// the list's load error (B9.8).
   String? get loadError => _loadError;
   String? _loadError;
 
