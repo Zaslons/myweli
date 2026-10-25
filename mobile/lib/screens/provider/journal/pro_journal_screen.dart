@@ -14,13 +14,15 @@ import '../../../core/utils/formatters.dart';
 import '../../../core/utils/salon_time.dart';
 import '../../../core/utils/status_labels.dart';
 import '../../../models/appointment.dart';
+import '../../../models/journal_day.dart';
 import '../../../providers/pro_auth_provider.dart';
 import '../../../providers/pro_journal_provider.dart';
 import '../../../providers/pro_team_provider.dart';
+import '../../../widgets/common/app_async_view.dart';
+import '../../../widgets/common/app_skeleton.dart';
 import '../../../widgets/common/app_snack_bar.dart';
 import '../../../widgets/common/brand_refresh.dart';
 import '../../../widgets/common/empty_state.dart';
-import '../../../widgets/common/loading_indicator.dart';
 import '../../../widgets/common/myweli_date_picker.dart';
 import '../../../widgets/common/myweli_date_time_picker.dart';
 import '../../../widgets/team/pro_invitations_card.dart';
@@ -154,22 +156,26 @@ class _ProJournalScreenState extends State<ProJournalScreen> {
     }
   }
 
-  Widget _body(ProJournalProvider journal) {
-    if (journal.isLoading && journal.day == null) {
-      return const LoadingIndicator();
-    }
-    if (journal.error != null && journal.day == null) {
-      return EmptyState(
-        icon: Icons.wifi_off,
-        title: 'Une erreur est survenue',
-        description: journal.error,
-        actionText: 'Réessayer',
-        onAction: () => journal.load(
-          _providerId,
-          tz: context.read<ProAuthProvider>().salonTimezone,
-        ),
-      );
-    }
+  Widget _body(ProJournalProvider journal) => AppAsyncView<JournalDay>(
+    isLoading: journal.isLoading,
+    error: journal.error,
+    // A day CHANGE keeps the last day's rows until its answer — by design
+    // (`ProJournalProvider._dayKey`).
+    data: journal.day,
+    // A day with nothing booked is still the day: its own empty state, with
+    // the invitations above it.
+    isEmpty: (_) => false,
+    loading: const SkeletonCardList(),
+    empty: const SizedBox.shrink(),
+    onRetry: () => journal.load(
+      _providerId,
+      tz: context.read<ProAuthProvider>().salonTimezone,
+    ),
+    onRefresh: journal.refresh,
+    builder: (context, _) => _day(journal),
+  );
+
+  Widget _day(ProJournalProvider journal) {
     final items = journal.visibleAppointments;
     // The Collaborateur's « Journée » is their landing screen: their own
     // invitations sit at the top of the day, as on « Accueil » — and only

@@ -2,12 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
-import '../../core/constants/failure_messages.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/text_styles.dart';
 import '../../providers/admin/admin_dashboard_provider.dart';
-import '../../widgets/common/app_button.dart';
-import '../../widgets/common/loading_indicator.dart';
+import '../../widgets/common/app_async_view.dart';
+import '../../widgets/common/app_skeleton.dart';
 import 'widgets/admin_scaffold.dart';
 import 'widgets/stat_card.dart';
 
@@ -44,28 +43,19 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     );
   }
 
-  Widget _body(BuildContext context, AdminDashboardProvider p) {
-    if (p.isLoading && p.overview == null) return const LoadingIndicator();
-    if (p.overview == null) {
-      return Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              p.error ?? kGenericErrorMessage,
-              style: AppTextStyles.bodyMedium,
-            ),
-            const SizedBox(height: AppTheme.spacingM),
-            AppButton(
-              text: 'Réessayer',
-              type: AppButtonType.secondary,
-              onPressed: () => context.read<AdminDashboardProvider>().load(),
-            ),
-          ],
-        ),
+  Widget _body(BuildContext context, AdminDashboardProvider p) =>
+      AppAsyncView<Map<String, dynamic>>(
+        isLoading: p.isLoading,
+        error: p.error,
+        data: p.overview,
+        isEmpty: (_) => false,
+        loading: const SkeletonDetail(sections: 3),
+        empty: const SizedBox.shrink(),
+        onRetry: () => context.read<AdminDashboardProvider>().load(),
+        builder: _overview,
       );
-    }
-    final o = p.overview!;
+
+  Widget _overview(BuildContext context, Map<String, dynamic> o) {
     Map<String, dynamic> m(String k) =>
         (o[k] as Map?)?.cast<String, dynamic>() ?? const {};
     final users = m('users');

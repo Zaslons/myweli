@@ -11,6 +11,8 @@ import '../../../models/team_invitation.dart';
 import '../../../models/team_member.dart';
 import '../../../providers/pro_auth_provider.dart';
 import '../../../providers/pro_team_provider.dart';
+import '../../../widgets/common/app_async_view.dart';
+import '../../../widgets/common/app_skeleton.dart';
 import '../../../widgets/common/app_snack_bar.dart';
 import '../../../widgets/common/empty_state.dart';
 import '../../../widgets/common/loading_indicator.dart';
@@ -276,23 +278,26 @@ class _ProInvitationsScreenState extends State<ProInvitationsScreen> {
     );
   }
 
-  Widget _profileBody(ProTeamProvider team) {
-    if (team.invitationsLoading && team.myInvitations.isEmpty) {
-      return const LoadingIndicator();
-    }
-    if (team.myInvitations.isEmpty) {
-      return const EmptyState(
-        icon: Icons.mail_outline,
-        title: 'Aucune invitation en attente',
+  Widget _profileBody(ProTeamProvider team) =>
+      AppAsyncView<List<TeamInvitation>>(
+        isLoading: team.invitationsLoading,
+        error: team.invitationsError,
+        // Null until asked: the read starts after the first frame.
+        data: team.invitationsAsked ? team.myInvitations : null,
+        isEmpty: (d) => d.isEmpty,
+        loading: const SkeletonCardList(count: 2),
+        empty: const EmptyState(
+          icon: Icons.mail_outline,
+          title: 'Aucune invitation en attente',
+        ),
+        onRetry: team.loadMyInvitations,
+        builder: (context, cards) => ListView.separated(
+          padding: const EdgeInsets.all(AppTheme.spacingM),
+          itemCount: cards.length,
+          separatorBuilder: (_, _) => const SizedBox(height: AppTheme.spacingM),
+          itemBuilder: (context, index) => _card(cards[index]),
+        ),
       );
-    }
-    return ListView.separated(
-      padding: const EdgeInsets.all(AppTheme.spacingM),
-      itemCount: team.myInvitations.length,
-      separatorBuilder: (_, _) => const SizedBox(height: AppTheme.spacingM),
-      itemBuilder: (context, index) => _card(team.myInvitations[index]),
-    );
-  }
 
   Widget _card(TeamInvitation invitation) => InvitationCard(
     invitation: invitation,

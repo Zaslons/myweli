@@ -25,11 +25,26 @@ class AdminUserDetailProvider extends ChangeNotifier {
   bool get acting => _acting;
   String? get actionError => _actionError;
 
+  /// Whose entity this is. The provider is app-wide and outlives the screen,
+  /// so without it the way to B showed A — A's name, A's status, and an
+  /// action bar acting on B's id — until B answered, and for good when B's
+  /// read failed (B9.8, docs/design/hygiene-batch9.md §14).
+  String? _id;
+  String? get id => _id;
+
   Future<void> load(String id) async {
+    if (id != _id) {
+      _id = id;
+      _user = null;
+      _appointments = [];
+    }
     _isLoading = true;
     _error = null;
     notifyListeners();
     final res = await _service.userDetail(id);
+    // Another entity was asked for while this read was out: the answer is
+    // no longer anybody's.
+    if (id != _id) return;
     if (res.success && res.data != null) {
       final d = res.data!;
       _appointments = (d['recentAppointments'] as List? ?? const [])

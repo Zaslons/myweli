@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:myweli/widgets/common/loading_indicator.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/constants/unnamed_salon.dart';
@@ -22,6 +21,7 @@ import '../../providers/messaging_provider.dart';
 import '../../providers/provider_provider.dart';
 import '../../widgets/booking/deposit_payment_sheet.dart';
 import '../../widgets/common/app_button.dart';
+import '../../widgets/common/app_skeleton.dart';
 import '../../widgets/common/app_snack_bar.dart';
 import '../../widgets/common/app_text_field.dart';
 import '../../widgets/common/label_value_row.dart';
@@ -224,7 +224,7 @@ class _BookingConfirmationScreenState extends State<BookingConfirmationScreen> {
         builder: (context, provider, _) {
           final p = provider.selectedProvider;
           if (p == null && provider.isLoading) {
-            return const Center(child: LoadingIndicator());
+            return const SkeletonDetail(sections: 3);
           }
           if (p == null) {
             // **There was no error branch here at all.** `p == null` mapped
@@ -233,6 +233,7 @@ class _BookingConfirmationScreenState extends State<BookingConfirmationScreen> {
             // `provider.errorCode` both populated and both ignored.
             return SalonUnavailableView(
               errorCode: provider.errorCode,
+              message: provider.error,
               onRetry: () => provider.loadProviderById(widget.providerId),
             );
           }

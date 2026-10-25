@@ -122,15 +122,26 @@ class _Lines extends StatelessWidget {
   );
 }
 
+/// What a card of a [SkeletonCardList] leads with, as the real card does.
+enum SkeletonLead {
+  none,
+
+  /// A person: the team, a client.
+  avatar,
+
+  /// A photo beside the text: a salon in a list, a booking.
+  thumbnail,
+}
+
 /// A list of cards — bookings, the team, services, reviews, salons. Each card
-/// holds [lines] (widths as fractions), with a [leading] circle when the real
-/// card has an avatar, or an image [block] above when it has a photo.
+/// holds [lines] (widths as fractions) after its [lead], or under an image
+/// [block] when the real card opens on a photo.
 class SkeletonCardList extends StatelessWidget {
   const SkeletonCardList({
     super.key,
     this.count = 4,
     this.lines = const [0.55, 0.85, 0.35],
-    this.leading = false,
+    this.lead = SkeletonLead.none,
     this.block = false,
     this.padding = const EdgeInsets.all(AppTheme.spacingM),
     this.label,
@@ -138,10 +149,12 @@ class SkeletonCardList extends StatelessWidget {
 
   final int count;
   final List<double> lines;
-  final bool leading;
+  final SkeletonLead lead;
   final bool block;
   final EdgeInsetsGeometry padding;
   final String? label;
+
+  static const _thumbnail = 64.0;
 
   @override
   Widget build(BuildContext context) => AppSkeleton(
@@ -161,15 +174,22 @@ class SkeletonCardList extends StatelessWidget {
               const SkeletonBlock(height: 120),
               const SizedBox(height: AppTheme.spacingM),
             ],
-            leading
-                ? Row(
-                    children: [
-                      const SkeletonCircle(),
-                      const SizedBox(width: AppTheme.spacingM),
-                      Expanded(child: _Lines(lines)),
-                    ],
-                  )
-                : _Lines(lines),
+            switch (lead) {
+              SkeletonLead.none => _Lines(lines),
+              SkeletonLead.avatar || SkeletonLead.thumbnail => Row(
+                children: [
+                  if (lead == SkeletonLead.avatar)
+                    const SkeletonCircle()
+                  else
+                    const SizedBox.square(
+                      dimension: _thumbnail,
+                      child: SkeletonBlock(aspectRatio: 1),
+                    ),
+                  const SizedBox(width: AppTheme.spacingM),
+                  Expanded(child: _Lines(lines)),
+                ],
+              ),
+            },
           ],
         ),
       ),
@@ -299,6 +319,44 @@ class SkeletonGrid extends StatelessWidget {
           ],
         ),
       ),
+    ),
+  );
+}
+
+/// A row of choices that is not there yet — the day's slots, the operators.
+///
+/// These sit where the chips sit, on the page rather than on a card, so each
+/// is the chip's own silhouette — `secondary` with the `border` hairline —
+/// not a `surfaceVariant` bar, which the page's `background` would swallow.
+class SkeletonPills extends StatelessWidget {
+  const SkeletonPills({super.key, this.count = 6, this.label});
+
+  final int count;
+  final String? label;
+
+  static const _width = 72.0;
+  static const _height = 40.0;
+
+  @override
+  Widget build(BuildContext context) => AppSkeleton(
+    label: label,
+    child: Wrap(
+      spacing: AppTheme.spacingS,
+      runSpacing: AppTheme.spacingS,
+      children: [
+        for (var i = 0; i < count; i++)
+          SizedBox(
+            width: _width,
+            height: _height,
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                color: AppColors.secondary,
+                border: Border.all(color: AppColors.border),
+                borderRadius: BorderRadius.circular(AppTheme.radiusPill),
+              ),
+            ),
+          ),
+      ],
     ),
   );
 }

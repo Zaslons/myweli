@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
+import '../../../core/constants/failure_messages.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/colors.dart';
 import '../../../core/theme/text_styles.dart';
@@ -10,10 +11,10 @@ import '../../../core/utils/onboarding.dart';
 import '../../../core/utils/team_error_messages.dart';
 import '../../../providers/pro_auth_provider.dart';
 import '../../../providers/pro_onboarding_provider.dart';
+import '../../../widgets/common/app_async_view.dart';
 import '../../../widgets/common/app_button.dart';
+import '../../../widgets/common/app_skeleton.dart';
 import '../../../widgets/common/app_snack_bar.dart';
-import '../../../widgets/common/empty_state.dart';
-import '../../../widgets/common/loading_indicator.dart';
 
 class ProOnboardingScreen extends StatefulWidget {
   const ProOnboardingScreen({super.key});
@@ -78,19 +79,24 @@ class _ProOnboardingScreenState extends State<ProOnboardingScreen> {
           if (pro == null) {
             return const Center(child: Text('Veuillez vous connecter'));
           }
-          if (onboarding.isLoading) {
-            return const LoadingIndicator();
-          }
-          if (onboarding.loadFailed) {
-            return EmptyState(
-              icon: Icons.wifi_off,
-              title: 'Chargement impossible',
-              description: 'Vérifiez votre connexion et réessayez.',
-              actionText: 'Réessayer',
-              onAction: () => onboarding.load(pro, salonId: auth.activeSalonId),
-            );
-          }
-          return _buildList(onboarding);
+          return AppAsyncView<ProOnboardingProvider>(
+            isLoading: onboarding.isLoading,
+            error: onboarding.loadFailed
+                ? onboarding.error ?? kGenericErrorMessage
+                : null,
+            // Only a settled read: its actions change what it shows.
+            data:
+                onboarding.loaded &&
+                    !onboarding.isLoading &&
+                    !onboarding.loadFailed
+                ? onboarding
+                : null,
+            isEmpty: (_) => false,
+            loading: const SkeletonTileList(count: 7),
+            empty: const SizedBox.shrink(),
+            onRetry: () => onboarding.load(pro, salonId: auth.activeSalonId),
+            builder: (context, o) => _buildList(o),
+          );
         },
       ),
     );

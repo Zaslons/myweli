@@ -27,8 +27,8 @@ import 'package:myweli/services/mock/mock_data.dart';
 import 'package:myweli/services/mock/mock_favorites_service.dart';
 import 'package:myweli/services/mock/mock_provider_service.dart';
 import 'package:myweli/widgets/booking/appointment_card.dart';
+import 'package:myweli/widgets/common/app_skeleton.dart';
 import 'package:myweli/widgets/common/carto_basemap_layer.dart';
-import 'package:myweli/widgets/common/loading_indicator.dart';
 import 'package:myweli/widgets/common/salon_map_marker.dart';
 import 'package:myweli/widgets/common/salon_unavailable_view.dart';
 import 'package:myweli/widgets/providers/salon_location_preview.dart';
@@ -888,7 +888,7 @@ void main() {
       await tester.pump();
 
       expect(service.byIdCalls, 1, reason: 'its read is out');
-      expect(find.byType(LoadingIndicator), findsOneWidget);
+      expect(find.byType(AppSkeleton), findsOneWidget);
       expect(find.text(divine.name), findsNothing);
       expect(find.text(divine.address), findsNothing);
       expect(find.text('Réserver'), findsNothing);
@@ -903,7 +903,7 @@ void main() {
         ..gate = Completer<void>();
       final (router, providers) = await pumpStack(tester);
       await tester.pump();
-      expect(find.byType(LoadingIndicator), findsOneWidget);
+      expect(find.byType(AppSkeleton), findsOneWidget);
 
       // Salon B above it before A's read answered; then both answer — A's to
       // nobody (the slot is B's by then).

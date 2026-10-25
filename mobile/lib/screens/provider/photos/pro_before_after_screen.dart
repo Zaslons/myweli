@@ -3,16 +3,18 @@ import 'package:provider/provider.dart';
 
 import '../../../core/a11y/reduce_motion.dart';
 import '../../../core/config/app_config.dart';
+import '../../../core/constants/failure_messages.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/colors.dart';
 import '../../../core/theme/text_styles.dart';
 import '../../../providers/pro_auth_provider.dart';
 import '../../../providers/pro_before_after_provider.dart';
+import '../../../widgets/common/app_async_view.dart';
 import '../../../widgets/common/app_button.dart';
+import '../../../widgets/common/app_skeleton.dart';
 import '../../../widgets/common/app_snack_bar.dart';
 import '../../../widgets/common/confirm_dialog.dart';
 import '../../../widgets/common/empty_state.dart';
-import '../../../widgets/common/loading_indicator.dart';
 import '../../../widgets/common/timed_cached_image.dart';
 import '../../../widgets/provider/image_picker_sheet.dart';
 import '../../../widgets/provider/mock_image_picker_sheet.dart';
@@ -141,96 +143,96 @@ class _ProBeforeAfterScreenState extends State<ProBeforeAfterScreen> {
                   'Configurez votre profil pour gérer vos réalisations.',
             );
           }
-          if (p.isLoading) return const LoadingIndicator();
-          if (p.loadFailed) {
-            return EmptyState(
-              icon: Icons.wifi_off,
-              title: 'Chargement impossible',
-              description: 'Vérifiez votre connexion et réessayez.',
-              actionText: 'Réessayer',
-              onAction: () => p.load(providerId),
-            );
-          }
-
-          return ListView(
-            padding: const EdgeInsets.all(AppTheme.spacingM),
-            children: [
-              Text(
-                'Montrez vos plus belles transformations. Choisissez la photo '
-                'avant puis la photo après ; les images sont optimisées '
-                'automatiquement.',
-                style: AppTextStyles.bodySmall.copyWith(
-                  color: AppColors.textTertiary,
-                ),
-              ),
-              const SizedBox(height: AppTheme.spacingM),
-              if (p.pairs.isEmpty && !p.isUploading)
-                Padding(
-                  padding: const EdgeInsets.symmetric(
-                    vertical: AppTheme.spacingXL,
-                  ),
-                  child: Text(
-                    'Aucune réalisation pour le moment.',
-                    textAlign: TextAlign.center,
-                    style: AppTextStyles.bodyMedium.copyWith(
-                      color: AppColors.textTertiary,
-                    ),
-                  ),
-                ),
-              for (var i = 0; i < p.pairs.length; i++)
-                _PairCard(
-                  before: p.pairs[i].before,
-                  after: p.pairs[i].after,
-                  caption: p.pairs[i].caption,
-                  onRemove: () => _removePair(providerId, p, i),
-                ),
-              if (p.isUploading)
-                Padding(
-                  padding: const EdgeInsets.all(AppTheme.spacingM),
-                  child: Row(
-                    children: [
-                      SizedBox(
-                        width: 22,
-                        height: 22,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 3,
-                          // A track, because the arc at 0 % draws NOTHING:
-                          // `progress_indicator.dart:673` sweeps `value * _sweep`
-                          // and `:1130` leaves `trackColor` null unless one is
-                          // given. Under reduced motion this box holds still at 0,
-                          // so "a still arc" had to become true rather than stay
-                          // a comment about an empty rectangle.
-                          backgroundColor: AppColors.border,
-                          // §9/A8: the null fallback is an INDETERMINATE
-                          // spinner, and `repeat()` is exactly what the
-                          // framework scale cannot reach. Under the flag it
-                          // holds a still 0 % arc — and the « Envoi… 0 % »
-                          // beside it already carries what the spin was saying.
-                          value:
-                              p.uploadProgress == 0 && !reduceMotionOf(context)
-                              ? null
-                              : p.uploadProgress,
-                        ),
-                      ),
-                      const SizedBox(width: AppTheme.spacingM),
-                      Text(
-                        'Envoi… ${(p.uploadProgress * 100).round()}%',
-                        style: AppTextStyles.bodySmall.copyWith(
-                          color: AppColors.textTertiary,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              const SizedBox(height: AppTheme.spacingM),
-              AppButton(
-                text: 'Ajouter une paire',
-                onPressed: p.isUploading ? null : () => _addPair(providerId, p),
-              ),
-            ],
+          return AppAsyncView<ProBeforeAfterProvider>(
+            isLoading: p.isLoading,
+            error: p.loadFailed ? p.error ?? kGenericErrorMessage : null,
+            // Only a settled read: its actions change what it shows.
+            data: p.loaded && !p.isLoading && !p.loadFailed ? p : null,
+            isEmpty: (_) => false,
+            loading: const SkeletonGrid(crossAxisCount: 2, count: 4),
+            empty: const SizedBox.shrink(),
+            onRetry: () => p.load(providerId),
+            builder: (context, pairs) => _pairs(pairs, providerId),
           );
         },
       ),
+    );
+  }
+
+  Widget _pairs(ProBeforeAfterProvider p, String providerId) {
+    return ListView(
+      padding: const EdgeInsets.all(AppTheme.spacingM),
+      children: [
+        Text(
+          'Montrez vos plus belles transformations. Choisissez la photo '
+          'avant puis la photo après ; les images sont optimisées '
+          'automatiquement.',
+          style: AppTextStyles.bodySmall.copyWith(
+            color: AppColors.textTertiary,
+          ),
+        ),
+        const SizedBox(height: AppTheme.spacingM),
+        if (p.pairs.isEmpty && !p.isUploading)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: AppTheme.spacingXL),
+            child: Text(
+              'Aucune réalisation pour le moment.',
+              textAlign: TextAlign.center,
+              style: AppTextStyles.bodyMedium.copyWith(
+                color: AppColors.textTertiary,
+              ),
+            ),
+          ),
+        for (var i = 0; i < p.pairs.length; i++)
+          _PairCard(
+            before: p.pairs[i].before,
+            after: p.pairs[i].after,
+            caption: p.pairs[i].caption,
+            onRemove: () => _removePair(providerId, p, i),
+          ),
+        if (p.isUploading)
+          Padding(
+            padding: const EdgeInsets.all(AppTheme.spacingM),
+            child: Row(
+              children: [
+                SizedBox(
+                  width: 22,
+                  height: 22,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 3,
+                    // A track, because the arc at 0 % draws NOTHING:
+                    // `progress_indicator.dart:673` sweeps `value * _sweep`
+                    // and `:1130` leaves `trackColor` null unless one is
+                    // given. Under reduced motion this box holds still at 0,
+                    // so "a still arc" had to become true rather than stay
+                    // a comment about an empty rectangle.
+                    backgroundColor: AppColors.border,
+                    // §9/A8: the null fallback is an INDETERMINATE
+                    // spinner, and `repeat()` is exactly what the
+                    // framework scale cannot reach. Under the flag it
+                    // holds a still 0 % arc — and the « Envoi… 0 % »
+                    // beside it already carries what the spin was saying.
+                    value: p.uploadProgress == 0 && !reduceMotionOf(context)
+                        ? null
+                        : p.uploadProgress,
+                  ),
+                ),
+                const SizedBox(width: AppTheme.spacingM),
+                Text(
+                  'Envoi… ${(p.uploadProgress * 100).round()}%',
+                  style: AppTextStyles.bodySmall.copyWith(
+                    color: AppColors.textTertiary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        const SizedBox(height: AppTheme.spacingM),
+        AppButton(
+          text: 'Ajouter une paire',
+          onPressed: p.isUploading ? null : () => _addPair(providerId, p),
+        ),
+      ],
     );
   }
 }

@@ -13,8 +13,8 @@ import '../../core/utils/formatters.dart';
 import '../../core/utils/salon_time.dart';
 import '../../providers/appointment_provider.dart';
 import '../../providers/locality_provider.dart';
+import '../common/app_skeleton.dart';
 import '../common/empty_state.dart';
-import '../common/loading_indicator.dart';
 import '../common/myweli_date_picker.dart';
 import '../common/salon_time_hint.dart';
 
@@ -300,9 +300,10 @@ class _SlotPickerState extends State<SlotPicker> {
         // request too — telling a user the salon was full when the truth was
         // that we never reached it.
         if (_loading)
+          // The day's slots on their way, where they will sit (B9.8).
           const Padding(
             padding: EdgeInsets.symmetric(vertical: AppTheme.spacingSM),
-            child: Center(child: LoadingIndicator()),
+            child: SkeletonPills(count: 8, label: 'Chargement des créneaux…'),
           )
         else if (_error != null)
           Padding(

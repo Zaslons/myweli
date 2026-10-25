@@ -17,13 +17,14 @@ import '../../../core/utils/validators.dart';
 import '../../../models/provider.dart' as models;
 import '../../../providers/pro_auth_provider.dart';
 import '../../../providers/pro_salon_profile_provider.dart';
+import '../../../widgets/common/app_async_view.dart';
 import '../../../widgets/common/app_button.dart';
+import '../../../widgets/common/app_skeleton.dart';
 import '../../../widgets/common/app_snack_bar.dart';
 import '../../../widgets/common/app_text_field.dart';
 import '../../../widgets/common/carto_basemap_layer.dart';
 import '../../../widgets/common/commune_picker_sheet.dart';
 import '../../../widgets/common/empty_state.dart';
-import '../../../widgets/common/loading_indicator.dart';
 import '../../../widgets/common/phone_number_field.dart';
 import '../../../widgets/common/timed_cached_image.dart';
 import '../../../widgets/provider/image_picker_sheet.dart';
@@ -282,206 +283,201 @@ class _ProSalonProfileScreenState extends State<ProSalonProfileScreen> {
               description: 'Reconnectez-vous et réessayez.',
             );
           }
-          if (profile.isLoading && profile.provider == null) {
-            return const Center(child: LoadingIndicator());
-          }
-          final p = profile.provider;
-          if (p == null) {
-            return EmptyState(
-              icon: Icons.wifi_off,
-              title: 'Chargement impossible',
-              description: 'Vérifiez votre connexion et réessayez.',
-              actionText: 'Réessayer',
-              onAction: () => profile.load(_providerId!),
-            );
-          }
-          _fillOnce(p);
-
-          return ListView(
-            padding: const EdgeInsets.all(AppTheme.spacingM),
-            children: [
-              // The salon's brand mark — settable at last (salon-logo.md).
-              // Uploads and saves IMMEDIATELY (the avatar pattern): the
-              // PATCH carries only `logoUrl`, so it cannot fight the staged
-              // form below.
-              _LogoField(
-                logoUrl: p.logoUrl,
-                isUploading: profile.isUploadingLogo,
-                error: profile.logoError,
-                onPick: () => _pickLogo(profile),
-                onRemove: p.logoUrl == null
-                    ? null
-                    : () => profile.removeLogo(_providerId!),
-              ),
-              const SizedBox(height: AppTheme.spacingM),
-              AppTextField(
-                label: 'Nom du salon',
-                controller: _name,
-                focusNode: _nameFocus,
-                errorText: _errors['name'],
-                onChanged: (v) => setState(() => _errors.revalidate('name', v)),
-              ),
-              const SizedBox(height: AppTheme.spacingS),
-              AppTextField(
-                label: 'Description',
-                controller: _description,
-                maxLines: 3,
-              ),
-              const SizedBox(height: AppTheme.spacingS),
-              AppTextField(label: 'Adresse', controller: _address),
-              const SizedBox(height: AppTheme.spacingXS),
-              // Input-side hygiene (fix/address-commune-dedupe): owners typed
-              // the commune here, echoing the picker just below — the web
-              // renders dedupe it, this stops the data being stored twice.
-              // Same French as the web's hint, verbatim.
-              Text(
-                'Rue et numéro — la commune est choisie ci-dessous.',
-                style: AppTextStyles.bodySmall.copyWith(
-                  color: AppColors.textTertiary,
-                ),
-              ),
-              const SizedBox(height: AppTheme.spacingS),
-              InkWell(
-                onTap: _pickCommune,
-                borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-                child: InputDecorator(
-                  decoration: const InputDecoration(labelText: 'Commune'),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          _communeName.isEmpty
-                              ? 'Choisir une commune'
-                              : _communeName,
-                          style: AppTextStyles.bodyMedium.copyWith(
-                            color: _communeName.isEmpty
-                                ? AppColors.textTertiary
-                                : AppColors.textPrimary,
-                          ),
-                        ),
-                      ),
-                      const Icon(
-                        Icons.expand_more,
-                        color: AppColors.textTertiary,
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(height: AppTheme.spacingS),
-              PhoneNumberField(
-                label: 'Téléphone',
-                initialValue: _phone,
-                focusNode: _phoneFocus,
-                errorText: _errors['phone'],
-                onChanged: (v) => setState(() {
-                  _phone = v;
-                  _errors.revalidate('phone', v);
-                }),
-              ),
-              const SizedBox(height: AppTheme.spacingS),
-              PhoneNumberField(
-                label: 'WhatsApp (optionnel)',
-                initialValue: _whatsapp,
-                focusNode: _whatsappFocus,
-                errorText: _errors['whatsapp'],
-                onChanged: (v) => setState(() {
-                  _whatsapp = v;
-                  _errors.revalidate('whatsapp', v);
-                }),
-              ),
-              const SizedBox(height: AppTheme.spacingM),
-              Text(
-                'CATÉGORIE',
-                style: AppTextStyles.labelSmall.copyWith(
-                  color: AppColors.textTertiary,
-                  letterSpacing: 0.5,
-                ),
-              ),
-              const SizedBox(height: AppTheme.spacingS),
-              DropdownButtonFormField<String>(
-                // A11 C8 — see pro_register_screen.dart: without this the
-                // button takes its WIDEST item's intrinsic width and overflows
-                // the field at 200% text.
-                isExpanded: true,
-                // A12: `itemHeight` defaults to `kMinInteractiveDimension`
-                // (48), a FIXED height around text — so at 200% « Salon de
-                // beauté » wraps to two lines, needs 96dp and is clipped to 48
-                // the moment the menu opens. A11 C8 fixed the BUTTON with
-                // `isExpanded`; the items it lists were still frozen one level
-                // down, and nothing could see it until `expectNoVerticalClip`.
-                // `null` lets each item take its intrinsic height (§13.3).
-                itemHeight: null,
-                initialValue: _category,
-                items: [
-                  for (final c in salonCategories)
-                    DropdownMenuItem(value: c.$1, child: Text(c.$2)),
-                ],
-                onChanged: (v) => setState(() => _category = v ?? _category),
-                // Borders come from the theme (borderStrong + the focus ring).
-                // It used to set only `border:` — which InputDecorator uses as a
-                // FALLBACK, so the theme's `enabledBorder` won at rest anyway and
-                // the custom radius silently applied to nothing. Inheriting makes
-                // it match every other field on this screen.
-                decoration: const InputDecoration(
-                  filled: true,
-                  fillColor: AppColors.secondary,
-                ),
-              ),
-              const SizedBox(height: AppTheme.spacingM),
-              Text(
-                'POSITION SUR LA CARTE',
-                style: AppTextStyles.labelSmall.copyWith(
-                  color: AppColors.textTertiary,
-                  letterSpacing: 0.5,
-                ),
-              ),
-              const SizedBox(height: AppTheme.spacingS),
-              _LocationField(
-                pin: _pin,
-                defaultCenter: _defaultCenter,
-                onPick: (latLng) => setState(() => _pin = latLng),
-              ),
-              const SizedBox(height: AppTheme.spacingS),
-              // A Wrap, not a Row: from 1.5× text the button and its hint do
-              // not fit side by side on a phone (the Row overflowed by 134px
-              // at 1.5×, 272 at 2×, measured at 390dp) — the hint drops below.
-              Wrap(
-                spacing: AppTheme.spacingSM,
-                runSpacing: AppTheme.spacingXS,
-                crossAxisAlignment: WrapCrossAlignment.center,
-                children: [
-                  OutlinedButton.icon(
-                    onPressed: _locating ? null : _useMyPosition,
-                    icon: const Icon(Icons.my_location, size: AppTheme.iconS),
-                    label: Text(
-                      _locating ? 'Recherche…' : 'Utiliser ma position',
-                    ),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: AppColors.textPrimary,
-                      side: const BorderSide(color: AppColors.borderStrong),
-                    ),
-                  ),
-                  Text(
-                    _pin == null
-                        ? 'Touchez la carte pour placer votre salon.'
-                        : 'Touchez la carte pour ajuster.',
-                    style: AppTextStyles.bodySmall.copyWith(
-                      color: AppColors.textTertiary,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: AppTheme.spacingL),
-              AppButton(
-                text: 'Enregistrer',
-                isLoading: profile.isSaving,
-                onPressed: profile.isSaving ? null : _save,
-              ),
-            ],
+          return AppAsyncView<models.Provider>(
+            isLoading: profile.isLoading,
+            // [ProSalonProfileProvider.error] is a save's too; with a salon
+            // on hand it is never the load's.
+            error: profile.provider == null ? profile.error : null,
+            data: profile.provider,
+            isEmpty: (_) => false,
+            loading: const SkeletonDetail(block: true, sections: 3),
+            empty: const SizedBox.shrink(),
+            onRetry: () => profile.load(_providerId!),
+            builder: (context, p) => _form(profile, p),
           );
         },
       ),
+    );
+  }
+
+  Widget _form(ProSalonProfileProvider profile, models.Provider p) {
+    _fillOnce(p);
+
+    return ListView(
+      padding: const EdgeInsets.all(AppTheme.spacingM),
+      children: [
+        // The salon's brand mark — settable at last (salon-logo.md).
+        // Uploads and saves IMMEDIATELY (the avatar pattern): the
+        // PATCH carries only `logoUrl`, so it cannot fight the staged
+        // form below.
+        _LogoField(
+          logoUrl: p.logoUrl,
+          isUploading: profile.isUploadingLogo,
+          error: profile.logoError,
+          onPick: () => _pickLogo(profile),
+          onRemove: p.logoUrl == null
+              ? null
+              : () => profile.removeLogo(_providerId!),
+        ),
+        const SizedBox(height: AppTheme.spacingM),
+        AppTextField(
+          label: 'Nom du salon',
+          controller: _name,
+          focusNode: _nameFocus,
+          errorText: _errors['name'],
+          onChanged: (v) => setState(() => _errors.revalidate('name', v)),
+        ),
+        const SizedBox(height: AppTheme.spacingS),
+        AppTextField(
+          label: 'Description',
+          controller: _description,
+          maxLines: 3,
+        ),
+        const SizedBox(height: AppTheme.spacingS),
+        AppTextField(label: 'Adresse', controller: _address),
+        const SizedBox(height: AppTheme.spacingXS),
+        // Input-side hygiene (fix/address-commune-dedupe): owners typed
+        // the commune here, echoing the picker just below — the web
+        // renders dedupe it, this stops the data being stored twice.
+        // Same French as the web's hint, verbatim.
+        Text(
+          'Rue et numéro — la commune est choisie ci-dessous.',
+          style: AppTextStyles.bodySmall.copyWith(
+            color: AppColors.textTertiary,
+          ),
+        ),
+        const SizedBox(height: AppTheme.spacingS),
+        InkWell(
+          onTap: _pickCommune,
+          borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+          child: InputDecorator(
+            decoration: const InputDecoration(labelText: 'Commune'),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    _communeName.isEmpty ? 'Choisir une commune' : _communeName,
+                    style: AppTextStyles.bodyMedium.copyWith(
+                      color: _communeName.isEmpty
+                          ? AppColors.textTertiary
+                          : AppColors.textPrimary,
+                    ),
+                  ),
+                ),
+                const Icon(Icons.expand_more, color: AppColors.textTertiary),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: AppTheme.spacingS),
+        PhoneNumberField(
+          label: 'Téléphone',
+          initialValue: _phone,
+          focusNode: _phoneFocus,
+          errorText: _errors['phone'],
+          onChanged: (v) => setState(() {
+            _phone = v;
+            _errors.revalidate('phone', v);
+          }),
+        ),
+        const SizedBox(height: AppTheme.spacingS),
+        PhoneNumberField(
+          label: 'WhatsApp (optionnel)',
+          initialValue: _whatsapp,
+          focusNode: _whatsappFocus,
+          errorText: _errors['whatsapp'],
+          onChanged: (v) => setState(() {
+            _whatsapp = v;
+            _errors.revalidate('whatsapp', v);
+          }),
+        ),
+        const SizedBox(height: AppTheme.spacingM),
+        Text(
+          'CATÉGORIE',
+          style: AppTextStyles.labelSmall.copyWith(
+            color: AppColors.textTertiary,
+            letterSpacing: 0.5,
+          ),
+        ),
+        const SizedBox(height: AppTheme.spacingS),
+        DropdownButtonFormField<String>(
+          // A11 C8 — see pro_register_screen.dart: without this the
+          // button takes its WIDEST item's intrinsic width and overflows
+          // the field at 200% text.
+          isExpanded: true,
+          // A12: `itemHeight` defaults to `kMinInteractiveDimension`
+          // (48), a FIXED height around text — so at 200% « Salon de
+          // beauté » wraps to two lines, needs 96dp and is clipped to 48
+          // the moment the menu opens. A11 C8 fixed the BUTTON with
+          // `isExpanded`; the items it lists were still frozen one level
+          // down, and nothing could see it until `expectNoVerticalClip`.
+          // `null` lets each item take its intrinsic height (§13.3).
+          itemHeight: null,
+          initialValue: _category,
+          items: [
+            for (final c in salonCategories)
+              DropdownMenuItem(value: c.$1, child: Text(c.$2)),
+          ],
+          onChanged: (v) => setState(() => _category = v ?? _category),
+          // Borders come from the theme (borderStrong + the focus ring).
+          // It used to set only `border:` — which InputDecorator uses as a
+          // FALLBACK, so the theme's `enabledBorder` won at rest anyway and
+          // the custom radius silently applied to nothing. Inheriting makes
+          // it match every other field on this screen.
+          decoration: const InputDecoration(
+            filled: true,
+            fillColor: AppColors.secondary,
+          ),
+        ),
+        const SizedBox(height: AppTheme.spacingM),
+        Text(
+          'POSITION SUR LA CARTE',
+          style: AppTextStyles.labelSmall.copyWith(
+            color: AppColors.textTertiary,
+            letterSpacing: 0.5,
+          ),
+        ),
+        const SizedBox(height: AppTheme.spacingS),
+        _LocationField(
+          pin: _pin,
+          defaultCenter: _defaultCenter,
+          onPick: (latLng) => setState(() => _pin = latLng),
+        ),
+        const SizedBox(height: AppTheme.spacingS),
+        // A Wrap, not a Row: from 1.5× text the button and its hint do
+        // not fit side by side on a phone (the Row overflowed by 134px
+        // at 1.5×, 272 at 2×, measured at 390dp) — the hint drops below.
+        Wrap(
+          spacing: AppTheme.spacingSM,
+          runSpacing: AppTheme.spacingXS,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: [
+            OutlinedButton.icon(
+              onPressed: _locating ? null : _useMyPosition,
+              icon: const Icon(Icons.my_location, size: AppTheme.iconS),
+              label: Text(_locating ? 'Recherche…' : 'Utiliser ma position'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: AppColors.textPrimary,
+                side: const BorderSide(color: AppColors.borderStrong),
+              ),
+            ),
+            Text(
+              _pin == null
+                  ? 'Touchez la carte pour placer votre salon.'
+                  : 'Touchez la carte pour ajuster.',
+              style: AppTextStyles.bodySmall.copyWith(
+                color: AppColors.textTertiary,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: AppTheme.spacingL),
+        AppButton(
+          text: 'Enregistrer',
+          isLoading: profile.isSaving,
+          onPressed: profile.isSaving ? null : _save,
+        ),
+      ],
     );
   }
 }

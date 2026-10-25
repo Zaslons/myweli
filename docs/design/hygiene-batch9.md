@@ -2,9 +2,9 @@
 
 | | |
 |---|---|
-| **Statut** | **Validé le 2026-10-22** — relu sur main (`d1e886e1`). Q1 (décision 33) : **le type `SalonId`** (« ce qui vaut le mieux à long terme ») ; Q2 (décision 34) : **e-mail et poussée Sentry** ; Q3 (décision 34) : **pas de suivi des performances pour l'instant** ; Q4 (décision 35) : **pas d'interrupteur** ; Q5 : **construire les trois composants et migrer tous les écrans maintenant** ; Q6 : **les pages publiques lèvent** ; Q7 : **supprimer la table avec ce lot** ; Q8 : **le reste tel qu'écrit**. Huit PR (§3). **PR A fusionnée le 2026-10-22** (#688 — B9.1, B9.5 — §9). **PR B fusionnée le 2026-10-22** (#689 — B9.6 — §10). **PR C fusionnée le 2026-10-22** (#690 — B9.7 — §11). **PR D fusionnée le 2026-10-25** (#691 — B9.11, B9.10 — §12 ; déploiement Vercel de production réussi, le plan du site liste 228 adresses). **PR E construite le 2026-10-25** sur `feat/batch9-tooling` (B9.2–B9.4 — §13). |
+| **Statut** | **Validé le 2026-10-22** — relu sur main (`d1e886e1`). Q1 (décision 33) : **le type `SalonId`** (« ce qui vaut le mieux à long terme ») ; Q2 (décision 34) : **e-mail et poussée Sentry** ; Q3 (décision 34) : **pas de suivi des performances pour l'instant** ; Q4 (décision 35) : **pas d'interrupteur** ; Q5 : **construire les trois composants et migrer tous les écrans maintenant** ; Q6 : **les pages publiques lèvent** ; Q7 : **supprimer la table avec ce lot** ; Q8 : **le reste tel qu'écrit**. Huit PR (§3). **PR A fusionnée le 2026-10-22** (#688 — B9.1, B9.5 — §9). **PR B fusionnée le 2026-10-22** (#689 — B9.6 — §10). **PR C fusionnée le 2026-10-22** (#690 — B9.7 — §11). **PR D fusionnée le 2026-10-25** (#691 — B9.11, B9.10 — §12 ; déploiement Vercel de production réussi, le plan du site liste 228 adresses). **PR E fusionnée le 2026-10-25** (#697 — B9.2–B9.4 — §13 ; 81 appliqué et relu le même jour, #698). **PR F1 construite le 2026-10-25** sur `feat/batch9-components` (B9.8 : les trois briques et tous les écrans asynchrones — §14 ; Q9–Q12 en §8). |
 | **Owner** | Sadreddine |
-| **Last updated** | 2026-10-22 |
+| **Last updated** | 2026-10-25 |
 | **PRD ref / phase** | V1 — rien de visible n'est ajouté ; ce lot rend vrais les documents, les doublures de test, les lectures et les outils |
 | **Module** | `docs/`, `mobile/` (doublures, formulaires, composants, mot du salon), `web/` (lectures, mot du salon), `backend/` (B9.12), `tool/` et `mobile/ios/tool/` (B9.2–B9.3), `infra/gcp/` (B9.4) |
 | **Origine** | [BACKLOG.md](../BACKLOG.md) lot 9 : B9.1–B9.12 (décisions 33–35) |
@@ -665,3 +665,118 @@ absente échoue au lieu de sauter.
   Postgres 2 177 (2 sautés), le web 2 255, les 269 de bout en bout sur deux
   workers (le premier passage affichait « 268 passed », son autre ligne non
   relue ; le second, 269).
+
+## 14. PR F1 construite (B9.8, première des trois) — ce qui a été vu
+
+**Les trois briques**, comme §2.7.2 les décrit :
+- **`AppAsyncView<T>`** (`widgets/common/app_async_view.dart`) — l'ordre
+  d'`AdminDataTable`, plus deux choses que la migration a demandées :
+  **`onRefresh`** met l'erreur et le vide dans le tirer-pour-actualiser (le
+  tableau de bord l'avait déjà fait à la main ; une liste vide ou échouée
+  était le seul endroit où tirer ne faisait rien) ; **`sliver`** en fait une
+  section d'une `CustomScrollView` (« Près de vous », sur l'Accueil, est une
+  liste paresseuse).
+- **`AppErrorView`** — « Chargement impossible », la phrase de la panne,
+  `wifi_off` seulement pour « Pas de connexion. Réessayez. ». Elle remplace
+  `AdminDetailError` (supprimé), l'erreur nue d'`AdminDataTable` et le bras
+  « réessayer » de `SalonUnavailableView`, qui disait « Vérifiez votre
+  connexion » pour un 500 aussi (`kSalonLoadError`, retiré). Le salon
+  disparu (`not_found`) garde ses mots : c'est un état, pas une panne.
+- **Les squelettes** (`app_skeleton.dart`) — immobiles, sur carte, une
+  étiquette : la liste de cartes (en tête : rien, un avatar, une vignette ;
+  ou une photo au-dessus), la liste de lignes, la fiche, la grille de photos,
+  et **les pastilles** (créneaux, opérateurs) — posées sur la page, elles
+  sont la silhouette de la puce (`secondary` + `border`), pas une barre que le
+  fond avalerait. Le squelette de la carte « Profil » est passé aux barres
+  communes, au pixel près.
+- **`AppCard`** est construite (avec `outlined` et `onTap`) ; les squelettes
+  l'utilisent ; les cartes des écrans passent à F2.
+
+**Tous les écrans asynchrones y sont passés** — 40 sites : l'app cliente
+(rendez-vous et leur détail, Accueil, recherche, réservation, confirmation,
+fiche du salon, notifications, préférences, mes données, créneaux), l'app
+Pro (rendez-vous, détail, réservation manuelle, employés, disponibilité,
+clients et fiche, accueil, revenus, journée, vérification, configuration,
+photos, avant/après, mes données, profil du salon, avis, services, acompte,
+abonnement, invitations, équipe, aperçu) et la console (vue d'ensemble, les
+quatre fiches, le tableau).
+
+**Ce que la migration a trouvé** — une vue ne dit que ce que son fournisseur
+tient, et ce qu'il tenait n'était pas toujours vrai. Chaque défaut a été lu
+sur le vrai chemin de code avant d'être corrigé :
+1. **Le détail d'un rendez-vous montrait le précédent.** La sélection est à
+   toute l'app et survit à l'écran : en allant de A à B, l'écran de B
+   montrait A — ses détails, et « Envoyer l'acompte » et « Reporter » sur
+   l'id de A, quand « Annuler » agissait sur celui de B — jusqu'à la réponse
+   de B ; une
+   réponse tardive de A s'écrivait sous B. Le fournisseur oublie A dès qu'on
+   demande B et jette une réponse qui n'est plus la sienne (la garde de
+   `loadProviderById`) ; l'écran compare l'id pour sa première image.
+2. **La console avait le même défaut, en plus grave** : la fiche du salon B
+   montrait le nom et le statut de A, et « Suspendre » agissait sur B ; si la
+   lecture de B échouait, A restait, sans erreur. Corrigé dans les trois
+   fournisseurs de fiche et dans celui de la vérification ; la fiche de
+   vérification n'avait pas de « Réessayer ».
+3. **Mes rendez-vous n'avait pas d'état d'erreur** : un chargement échoué
+   disait « Aucun rendez-vous ». Et `error` était aussi celui d'une
+   annulation ou d'un acompte : la liste a maintenant le sien (`listError`).
+4. **L'Accueil disait « Aucun salon trouvé » pendant que la liste
+   arrivait** : le carrousel et la liste partageaient `isLoading`, et le
+   premier arrivé l'éteignait. Chacun a le sien (`listLoading`,
+   `featuredLoading`), la liste a son erreur (`listError`) — qu'elle
+   n'avait pas ; la recherche prenait l'erreur d'une fiche de salon pour la
+   sienne.
+5. **Les préférences montraient les valeurs par défaut** une image avant la
+   réponse du serveur (`loadedPrefs`).
+6. **La configuration ne pouvait pas échouer** : chaque service répond une
+   panne au lieu de lever, et chaque lecture la comptait pour « à faire » —
+   hors ligne, un salon voyait toute sa liste à faire. La première panne est
+   celle du chargement, dans ses mots.
+7. **Les listes Pro sans erreur** disaient leur vide pour une lecture
+   échouée : « Aucun avis », « Aucun service pour le moment », « Aucun
+   employé », « Aucune invitation en attente », « Ajoutez des services… »
+   (réservation manuelle), et le calendrier « Aucun rendez-vous pour
+   <jour> » — un jour jamais lu. Revenus et disponibilité montraient une
+   phrase grise nue (et l'erreur de la disponibilité était aussi celle d'un
+   enregistrement). Chaque fournisseur a l'erreur de sa lecture
+   (`loadError`).
+8. **Les clients** : un « Ajouter » refusé remplaçait toute la liste par une
+   page d'erreur ; chaque recherche vidait la liste derrière un spinner ; la
+   fiche montrait le client précédent à sa première image.
+9. **Les formulaires et les listes gérées** (acompte, vérification,
+   configuration, photos, avant/après) n'apparaissent que sur une lecture
+   **terminée** : gardé à l'écran pendant un rechargement, un formulaire
+   reprendrait au propriétaire ce qu'il vient de changer ; et ils ne
+   montrent plus leurs valeurs par défaut à la première image (`loaded`,
+   remis à zéro au changement de salon).
+10. **Le tableau de la console** : ses lignes de chargement ne disaient rien
+    à un lecteur d'écran ; son erreur était une phrase et un bouton.
+
+**Ce que F1 laisse, et pourquoi** :
+- **Les erreurs en ligne d'une section** (les créneaux, la feuille des
+  communes, les opérateurs, la carte « Profil », une image) gardent leur
+  forme : une `Column` dessinée pour tenir à 200 %, et des sorties propres à
+  chacune (un autre salon, un autre jour). Ce n'est pas la page qui a échoué.
+- **La porte de session Pro** garde ses mots (« Impossible de charger votre
+  salon » — pourquoi chaque page attend, pro-app-salon-not-loaded.md §4) ;
+  avec la boîte de dialogue bloquante et les deux transitions de sortie, elle
+  est l'un des quatre spinners nommés.
+- **La première image d'une liste** dont le fournisseur ne sait pas s'il a
+  déjà demandé (les avis, les services…) montre le vide une image avant la
+  demande, comme avant ; les écrans dont la donnée est nulle avant la réponse
+  (les fiches, le tableau de bord, l'abonnement, les invitations, les
+  formulaires) montrent le squelette.
+- **Les fournisseurs de l'app cliente ne sont pas vidés à la
+  déconnexion** (rendez-vous, notifications, favoris) : un autre compte sur
+  le même téléphone voit ceux du précédent jusqu'à sa propre réponse. Hors
+  de B9.8 ; proposé à part. F1 garde donc la liste vidée sur un échec, pour
+  ne pas l'aggraver.
+- **Deux essais** comptaient sur le spinner pour faire avancer le temps
+  simulé jusqu'à la fin d'une lecture fictive ; le squelette, immobile, ne le
+  fait pas : ils vident cette lecture eux-mêmes, comme leurs voisins.
+
+**Les épingles** (`async_states_pin_test.dart`, sur tout `lib/`) : le
+spinner aux quatre endroits nommés et nulle part ailleurs ; pas
+d'`actionText: 'Réessayer'` écrit à la main (la porte de session à part) ;
+ni « Une erreur est survenue » ni « Connexion impossible » en titre, ni
+« Vérifiez votre connexion et réessayez. » en description.

@@ -188,6 +188,12 @@ simule déjà latence et échec ; il doit pouvoir répondre « pas de réponse �
   phrase « Pas de connexion. Réessayez. » quand rien n'a répondu, aucune
   phrase sinon ; bouton « Réessayer » — comme « Ma journée », et comme le web
   (`ErrorState`, `loadFailureMessage`).
+  **Depuis le 2026-10-25** (lot 9, B9.8, décision Q9 —
+  [hygiene-batch9.md](hygiene-batch9.md) §2.7.2) : l'erreur commune de
+  l'app, `AppErrorView` — titre « Chargement impossible », la phrase de la
+  panne toujours (« Pas de connexion. Réessayez. » ou « Une erreur est
+  survenue. Réessayez. »), le Wi-Fi barré seulement sans connexion. Toujours
+  dans le tirer-pour-actualiser.
 
 **Décisions (2026-10-20).** Q1, Q2, Q3 et Q4 : les recommandations, telles qu'écrites.
 

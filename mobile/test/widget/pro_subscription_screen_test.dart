@@ -365,7 +365,8 @@ void main() {
     subs.inner = _FailingSubs();
     await pumpScreen(tester);
 
-    expect(find.text('Une erreur est survenue'), findsOneWidget);
+    // The shared load error (B9.8, Q9).
+    expect(find.text('Chargement impossible'), findsOneWidget);
     expect(find.text('Réessayer'), findsOneWidget);
   });
 

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/constants/failure_messages.dart';
+import 'brand_refresh.dart';
 import 'empty_state.dart';
 
 /// An async section's four states, so a screen cannot forget one (SYSTEM.md
@@ -20,6 +21,17 @@ import 'empty_state.dart';
 ///
 /// [loading], [empty] and [builder] are required: each is a decision a screen
 /// makes, not a default it inherits.
+///
+/// [sliver]: the view is one section of a `CustomScrollView` — [builder]
+/// returns a sliver, and the other states are placed as slivers for it
+/// (loading at its natural height, the error and the empty state filling
+/// what is left).
+///
+/// [onRefresh], on a screen whose content is pulled to refresh: the error and
+/// the empty state are pulled too. Content has a scroll view to pull; an
+/// `EmptyState` alone does not, and a list that came back empty — or did not
+/// come back — was the one place the pull did nothing. The pull is then the
+/// scroll view: an [empty] that is a list of its own nests a second one.
 class AppAsyncView<T> extends StatelessWidget {
   const AppAsyncView({
     super.key,
@@ -31,7 +43,12 @@ class AppAsyncView<T> extends StatelessWidget {
     required this.empty,
     required this.builder,
     this.onRetry,
-  });
+    this.onRefresh,
+    this.sliver = false,
+  }) : assert(
+         !sliver || onRefresh == null,
+         'a sliver is pulled by the CustomScrollView that holds it',
+       );
 
   final bool isLoading;
 
@@ -49,16 +66,43 @@ class AppAsyncView<T> extends StatelessWidget {
   /// Null: the error offers no « Réessayer » — a retry that cannot succeed
   /// is not a way out (SYSTEM §12).
   final VoidCallback? onRetry;
+  final Future<void> Function()? onRefresh;
+  final bool sliver;
 
   @override
   Widget build(BuildContext context) {
     final d = data;
     if (d != null && !isEmpty(d)) return builder(context, d);
-    if (isLoading) return loading;
+    if (isLoading) return _placed(loading);
     final e = error;
-    if (e != null) return AppErrorView(message: e, onRetry: onRetry);
-    if (d == null) return loading;
-    return empty;
+    if (e != null) {
+      return _filling(_pullable(AppErrorView(message: e, onRetry: onRetry)));
+    }
+    if (d == null) return _placed(loading);
+    return _filling(_pullable(empty));
+  }
+
+  Widget _placed(Widget child) =>
+      sliver ? SliverToBoxAdapter(child: child) : child;
+
+  Widget _filling(Widget child) =>
+      sliver ? SliverFillRemaining(hasScrollBody: false, child: child) : child;
+
+  Widget _pullable(Widget child) {
+    final refresh = onRefresh;
+    if (refresh == null) return child;
+    return BrandRefresh(
+      onRefresh: refresh,
+      child: LayoutBuilder(
+        builder: (context, constraints) => SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(minHeight: constraints.maxHeight),
+            child: child,
+          ),
+        ),
+      ),
+    );
   }
 }
 

@@ -18,6 +18,12 @@ class NotificationPreferencesProvider extends ChangeNotifier {
   String? _error;
 
   NotificationPreferences get prefs => _prefs;
+
+  /// The preferences once the server said them — null before: [prefs] holds
+  /// defaults until then, and a screen showing them would set switches the
+  /// person never set (B9.8).
+  NotificationPreferences? get loadedPrefs => _loaded ? _prefs : null;
+  bool _loaded = false;
   bool get isLoading => _isLoading;
   bool get loadFailed => _loadFailed;
   bool get saving => _saving;
@@ -31,10 +37,11 @@ class NotificationPreferencesProvider extends ChangeNotifier {
       final res = await _service.getPreferences();
       if (res.success && res.data != null) {
         _prefs = res.data!;
+        _loaded = true;
         _loadFailed = false;
       } else {
         _loadFailed = true;
-        _error = res.error ?? 'Erreur lors du chargement';
+        _error = res.error ?? kGenericErrorMessage;
       }
     } catch (e) {
       _loadFailed = true;

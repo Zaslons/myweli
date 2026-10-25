@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:myweli/widgets/common/brand_refresh.dart';
-import 'package:myweli/widgets/common/loading_indicator.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/constants/unnamed_salon.dart';
@@ -9,11 +8,15 @@ import '../../core/theme/app_theme.dart';
 import '../../core/theme/colors.dart';
 import '../../core/theme/text_styles.dart';
 import '../../models/appointment.dart';
+import '../../models/provider.dart' as models;
 import '../../providers/appointment_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/favorites_provider.dart';
 import '../../providers/provider_provider.dart';
 import '../../widgets/booking/compact_appointment_tile.dart';
+import '../../widgets/common/app_async_view.dart';
+import '../../widgets/common/app_card.dart';
+import '../../widgets/common/app_skeleton.dart';
 import '../../widgets/common/commune_picker_sheet.dart';
 import '../../widgets/common/commune_pill.dart';
 import '../../widgets/common/consumer_bottom_nav.dart';
@@ -176,12 +179,13 @@ class _HomeScreenState extends State<HomeScreen> {
               // Featured Section
               Consumer<ProviderProvider>(
                 builder: (context, provider, _) {
-                  if (provider.isLoading &&
+                  // Two states, not four: the carousel fails in silence —
+                  // « Près de vous » below carries the error.
+                  if (provider.featuredLoading &&
                       provider.featuredProviders.isEmpty) {
-                    return const SliverToBoxAdapter(
-                      child: Padding(
-                        padding: EdgeInsets.all(AppTheme.spacingL),
-                        child: Center(child: LoadingIndicator()),
+                    return SliverToBoxAdapter(
+                      child: _FeaturedSkeleton(
+                        height: ProviderCard.carouselHeight(context),
                       ),
                     );
                   }
@@ -414,55 +418,26 @@ class _HomeScreenState extends State<HomeScreen> {
               // Nearby Section
               Consumer<ProviderProvider>(
                 builder: (context, provider, _) {
-                  if (provider.isLoading && provider.providers.isEmpty) {
-                    return const SliverFillRemaining(
-                      child: Center(child: LoadingIndicator()),
-                    );
-                  }
-
-                  if (provider.providers.isEmpty) {
-                    return SliverFillRemaining(
-                      child: Center(
-                        child: Text(
-                          'Aucun salon trouvé',
-                          style: AppTextStyles.bodyMedium.copyWith(
-                            color: AppColors.textTertiary,
-                          ),
+                  return AppAsyncView<List<models.Provider>>(
+                    sliver: true,
+                    isLoading: provider.listLoading,
+                    // A failed list said « Aucun salon trouvé » (B9.8).
+                    error: provider.listError,
+                    data: provider.providers,
+                    isEmpty: (d) => d.isEmpty,
+                    loading: const SkeletonCardList(
+                      lead: SkeletonLead.thumbnail,
+                    ),
+                    empty: Center(
+                      child: Text(
+                        'Aucun salon trouvé',
+                        style: AppTextStyles.bodyMedium.copyWith(
+                          color: AppColors.textTertiary,
                         ),
                       ),
-                    );
-                  }
-
-                  return SliverPadding(
-                    padding: const EdgeInsets.all(AppTheme.spacingM),
-                    sliver: SliverList(
-                      delegate: SliverChildBuilderDelegate((context, index) {
-                        if (index == 0) {
-                          return Padding(
-                            padding: const EdgeInsets.only(
-                              bottom: AppTheme.spacingM,
-                            ),
-                            child: Text(
-                              'Près de vous',
-                              style: AppTextStyles.titleLarge.copyWith(
-                                color: AppColors.textPrimary,
-                              ),
-                            ),
-                          );
-                        }
-                        final p = provider.providers[index - 1];
-                        return Padding(
-                          padding: const EdgeInsets.only(
-                            bottom: AppTheme.spacingM,
-                          ),
-                          child: ProviderCard(
-                            provider: p,
-                            isGrid: false,
-                            onTap: () => context.push('/provider/${p.id}'),
-                          ),
-                        );
-                      }, childCount: provider.providers.length + 1),
                     ),
+                    onRetry: provider.loadProviders,
+                    builder: (context, providers) => _nearby(providers),
                   );
                 },
               ),
@@ -475,4 +450,77 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
     );
   }
+
+  Widget _nearby(List<models.Provider> providers) {
+    return SliverPadding(
+      padding: const EdgeInsets.all(AppTheme.spacingM),
+      sliver: SliverList(
+        delegate: SliverChildBuilderDelegate((context, index) {
+          if (index == 0) {
+            return Padding(
+              padding: const EdgeInsets.only(bottom: AppTheme.spacingM),
+              child: Text(
+                'Près de vous',
+                style: AppTextStyles.titleLarge.copyWith(
+                  color: AppColors.textPrimary,
+                ),
+              ),
+            );
+          }
+          final p = providers[index - 1];
+          return Padding(
+            padding: const EdgeInsets.only(bottom: AppTheme.spacingM),
+            child: ProviderCard(
+              provider: p,
+              isGrid: false,
+              onTap: () => context.push('/provider/${p.id}'),
+            ),
+          );
+        }, childCount: providers.length + 1),
+      ),
+    );
+  }
+}
+
+/// The featured carousel on its way: two of its cards, photo over text.
+class _FeaturedSkeleton extends StatelessWidget {
+  const _FeaturedSkeleton({required this.height});
+
+  final double height;
+
+  // A carousel card's width when its row is unbounded (`ProviderCard`).
+  static const _cardWidth = 280.0;
+
+  @override
+  Widget build(BuildContext context) => AppSkeleton(
+    child: SizedBox(
+      height: height,
+      child: ListView(
+        scrollDirection: Axis.horizontal,
+        physics: const NeverScrollableScrollPhysics(),
+        padding: const EdgeInsets.symmetric(horizontal: AppTheme.spacingM),
+        children: [
+          for (var i = 0; i < 2; i++)
+            Padding(
+              padding: const EdgeInsets.only(right: AppTheme.spacingM),
+              child: SizedBox(
+                width: _cardWidth,
+                child: const AppCard(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(child: SkeletonBlock(height: double.infinity)),
+                      SizedBox(height: AppTheme.spacingM),
+                      SkeletonBar(widthFactor: 0.6),
+                      SizedBox(height: AppTheme.spacingS),
+                      SkeletonBar(widthFactor: 0.4),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    ),
+  );
 }

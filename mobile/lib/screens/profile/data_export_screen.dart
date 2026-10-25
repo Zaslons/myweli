@@ -12,10 +12,10 @@ import '../../core/utils/formatters.dart';
 import '../../providers/appointment_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/favorites_provider.dart';
+import '../../widgets/common/app_async_view.dart';
 import '../../widgets/common/app_button.dart';
+import '../../widgets/common/app_skeleton.dart';
 import '../../widgets/common/app_snack_bar.dart';
-import '../../widgets/common/empty_state.dart';
-import '../../widgets/common/loading_indicator.dart';
 
 /// « Mes données » (FR-AUTH-005): the profile, the appointments and the
 /// favourites, assembled on the device into one JSON the client can copy.
@@ -146,37 +146,30 @@ class _DataExportScreenState extends State<DataExportScreen> {
     );
   }
 
-  Widget _buildBody() {
-    if (_loading) {
-      return const LoadingIndicator();
-    }
-    if (_buildFailed) {
-      return EmptyState(
-        icon: Icons.error_outline,
-        title: 'Chargement impossible',
-        description: kDataExportBuildFailed,
-        actionText: 'Réessayer',
-        onAction: _load,
-      );
-    }
-    if (_failed.isNotEmpty || _export == null) {
-      return EmptyState(
-        icon: Icons.wifi_off,
-        title: 'Chargement impossible',
-        description: dataExportFailureMessage(_failed),
-        actionText: 'Réessayer',
-        onAction: _load,
-      );
-    }
+  Widget _buildBody() => AppAsyncView<Map<String, dynamic>>(
+    isLoading: _loading,
+    error: _buildFailed
+        ? kDataExportBuildFailed
+        : _failed.isNotEmpty
+        ? dataExportFailureMessage(_failed)
+        : null,
+    data: _export,
+    isEmpty: (_) => false,
+    loading: const SkeletonDetail(sections: 2),
+    empty: const SizedBox.shrink(),
+    onRetry: _load,
+    builder: (context, export) => _ready(export),
+  );
 
-    final profile = _export!['profile'] as Map<String, dynamic>;
+  Widget _ready(Map<String, dynamic> export) {
+    final profile = export['profile'] as Map<String, dynamic>;
     final user = context.read<AuthProvider>().user;
 
     return ListView(
       padding: const EdgeInsets.all(AppTheme.spacingM),
       children: [
         Text(
-          'Généré le ${Formatters.formatDate(DateTime.parse(_export!['generatedAt'] as String))}',
+          'Généré le ${Formatters.formatDate(DateTime.parse(export['generatedAt'] as String))}',
           style: AppTextStyles.bodySmall.copyWith(
             color: AppColors.textTertiary,
           ),

@@ -82,6 +82,39 @@ void main() {
       await pumpApp(tester, home: view(data: ['a', 'b']));
       expect(find.text('DATA a,b'), findsOneWidget);
     });
+
+    for (final (state, error) in [
+      ('the error', 'x'),
+      ('the empty state', null),
+    ]) {
+      testWidgets('onRefresh: $state is pulled like the content', (
+        tester,
+      ) async {
+        var pulls = 0;
+        await pumpApp(
+          tester,
+          home: Scaffold(
+            body: AppAsyncView<List<String>>(
+              isLoading: false,
+              error: error,
+              data: const [],
+              isEmpty: (d) => d.isEmpty,
+              loading: const Text('LOADING'),
+              empty: const Text('EMPTY'),
+              onRefresh: () async => pulls++,
+              builder: (context, d) => const Text('DATA'),
+            ),
+          ),
+        );
+        await tester.fling(
+          find.byType(SingleChildScrollView).first,
+          const Offset(0, 400),
+          1000,
+        );
+        await tester.pumpAndSettle();
+        expect(pulls, 1);
+      });
+    }
   });
 
   group('AppErrorView — one error everywhere (Q9)', () {
@@ -232,7 +265,11 @@ void main() {
         });
       }
 
-      walk(tester.binding.pipelineOwner.semanticsOwner!.rootSemanticsNode!);
+      var root = tester.getSemantics(find.byType(SkeletonCardList));
+      while (root.parent != null) {
+        root = root.parent!;
+      }
+      walk(root);
       expect(labels, ['Chargement…']);
       handle.dispose();
     });

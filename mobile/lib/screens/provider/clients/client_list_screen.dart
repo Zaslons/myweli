@@ -13,13 +13,14 @@ import '../../../core/utils/validators.dart';
 import '../../../models/salon_client.dart';
 import '../../../providers/pro_auth_provider.dart';
 import '../../../providers/pro_clients_provider.dart';
+import '../../../widgets/common/app_async_view.dart';
 import '../../../widgets/common/app_button.dart';
+import '../../../widgets/common/app_skeleton.dart';
 import '../../../widgets/common/app_text_field.dart';
 import '../../../widgets/common/brand_loader.dart';
 import '../../../widgets/common/brand_refresh.dart';
 import '../../../widgets/common/empty_state.dart';
 import '../../../widgets/common/inline_feedback.dart';
-import '../../../widgets/common/loading_indicator.dart';
 import '../../../widgets/common/phone_number_field.dart';
 
 /// The salon client base — « Clients » (module `clients` C1c,
@@ -162,36 +163,40 @@ class _ClientListScreenState extends State<ClientListScreen> {
   }
 
   Widget _body(ProClientsProvider clients) {
-    if (clients.isLoading) {
-      return const LoadingIndicator();
-    }
-    if (clients.error != null) {
-      return EmptyState(
-        icon: Icons.wifi_off,
-        title: 'Une erreur est survenue',
-        description: clients.error,
-        actionText: 'Réessayer',
-        onAction: () => clients.load(_providerId),
-      );
-    }
-    if (clients.isBaseEmpty) {
-      return EmptyState(
-        icon: Icons.people_outline,
-        title: 'Vos clients apparaîtront ici',
-        description:
-            'Automatiquement, après leur première réservation. Vous pouvez '
-            'aussi les ajouter vous-même.',
-        actionText: '+ Ajouter un client',
-        onAction: _openAddSheet,
-      );
-    }
-    if (clients.clients.isEmpty) {
-      return EmptyState(
-        icon: Icons.search_off,
-        title: 'Aucun client trouvé',
-        description: 'Essayez un autre nom ou numéro.',
-      );
-    }
+    // No clients at all is one empty state, none matching the search
+    // another; both are « empty » to the view.
+    final empty = clients.isBaseEmpty
+        ? EmptyState(
+            icon: Icons.people_outline,
+            title: 'Vos clients apparaîtront ici',
+            description:
+                'Automatiquement, après leur première réservation. Vous pouvez '
+                'aussi les ajouter vous-même.',
+            actionText: '+ Ajouter un client',
+            onAction: _openAddSheet,
+          )
+        : const EmptyState(
+            icon: Icons.search_off,
+            title: 'Aucun client trouvé',
+            description: 'Essayez un autre nom ou numéro.',
+          );
+    // The list stays while a search is out — it was a full-screen spinner
+    // on every query — and [error] is not the list's: a refused « Ajouter »
+    // replaced it with an error page (B9.8).
+    return AppAsyncView<List<SalonClient>>(
+      isLoading: clients.isLoading,
+      error: clients.loadError,
+      data: clients.clients,
+      isEmpty: (d) => d.isEmpty,
+      loading: const SkeletonTileList(),
+      empty: empty,
+      onRetry: () => clients.load(_providerId),
+      onRefresh: () => clients.load(_providerId),
+      builder: (context, items) => _list(clients, items),
+    );
+  }
+
+  Widget _list(ProClientsProvider clients, List<SalonClient> items) {
     return BrandRefresh(
       onRefresh: () => clients.load(_providerId),
       child: ListView.separated(

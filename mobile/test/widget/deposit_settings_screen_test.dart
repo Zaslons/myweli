@@ -67,6 +67,9 @@ void main() {
 
     await tester.pumpWidget(host());
     await tester.pumpAndSettle();
+    // Drain the mock locality fetch: the operators' skeleton is still
+    // (B9.8), so `pumpAndSettle` no longer waits it out as the spinner did.
+    await tester.pump(const Duration(milliseconds: 400));
 
     expect(find.text('Exiger un acompte'), findsOneWidget);
     expect(find.text('30 %'), findsOneWidget);

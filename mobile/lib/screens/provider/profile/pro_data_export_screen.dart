@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
+import '../../../core/constants/failure_messages.dart';
 import '../../../core/di/dependency_injection.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/colors.dart';
@@ -14,11 +15,11 @@ import '../../../core/utils/formatters.dart';
 import '../../../models/api_response.dart';
 import '../../../models/salon_client.dart';
 import '../../../providers/pro_auth_provider.dart';
+import '../../../widgets/common/app_async_view.dart';
 import '../../../widgets/common/app_button.dart';
+import '../../../widgets/common/app_skeleton.dart';
 import '../../../widgets/common/app_snack_bar.dart';
-import '../../../widgets/common/empty_state.dart';
 import '../../../widgets/common/label_value_row.dart';
-import '../../../widgets/common/loading_indicator.dart';
 
 /// « Mes données » for salons (audit 11.5 — AUTH-005 for pros): assembles the
 /// account, the listing, the catalogue and the salon's own records into one
@@ -167,58 +168,61 @@ class _ProDataExportScreenState extends State<ProDataExportScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(title: const Text('Mes données')),
-      body: _loading
-          ? const LoadingIndicator()
-          : _failed || _export == null
-          ? EmptyState(
-              icon: _buildFailed ? Icons.error_outline : Icons.wifi_off,
-              title: 'Chargement impossible',
-              description: _buildFailed
-                  ? kDataExportBuildFailed
-                  : _failedSections.isEmpty
-                  ? 'Vérifiez votre connexion et réessayez.'
-                  : proExportFailureMessage(_failedSections),
-              actionText: 'Réessayer',
-              onAction: _load,
-            )
-          : ListView(
-              padding: const EdgeInsets.all(AppTheme.spacingM),
-              children: [
-                Text(
-                  'Une copie des données de votre salon : compte, fiche, '
-                  'catalogue, rendez-vous, fichier clients et revenus.',
-                  style: AppTextStyles.bodySmall.copyWith(
-                    color: AppColors.textTertiary,
-                  ),
-                ),
-                const SizedBox(height: AppTheme.spacingM),
-                _CountRow(
-                  label: 'Services',
-                  count: (_export!['services'] as List).length,
-                ),
-                _CountRow(
-                  label: 'Équipe',
-                  count: (_export!['artists'] as List).length,
-                ),
-                _CountRow(
-                  label: 'Rendez-vous',
-                  count: (_export!['appointments'] as List).length,
-                ),
-                _CountRow(
-                  label: 'Clients',
-                  count: (_export!['clients'] as List).length,
-                ),
-                // A total, not a count: the file holds the amount and the
-                // number of transactions behind it (B7.8).
-                _SummaryRow(label: 'Revenus', value: _revenue!),
-                const SizedBox(height: AppTheme.spacingL),
-                AppButton(
-                  text: 'Copier mes données (JSON)',
-                  icon: Icons.copy_outlined,
-                  onPressed: _copy,
-                ),
-              ],
+      body: AppAsyncView<Map<String, dynamic>>(
+        isLoading: _loading,
+        // No session to read with is not a connection: the generic sentence,
+        // where « Vérifiez votre connexion » used to be (B9.8).
+        error: !_failed
+            ? null
+            : _buildFailed
+            ? kDataExportBuildFailed
+            : _failedSections.isEmpty
+            ? kGenericErrorMessage
+            : proExportFailureMessage(_failedSections),
+        data: _failed ? null : _export,
+        isEmpty: (_) => false,
+        loading: const SkeletonDetail(sections: 2),
+        empty: const SizedBox.shrink(),
+        onRetry: _load,
+        builder: (context, export) => ListView(
+          padding: const EdgeInsets.all(AppTheme.spacingM),
+          children: [
+            Text(
+              'Une copie des données de votre salon : compte, fiche, '
+              'catalogue, rendez-vous, fichier clients et revenus.',
+              style: AppTextStyles.bodySmall.copyWith(
+                color: AppColors.textTertiary,
+              ),
             ),
+            const SizedBox(height: AppTheme.spacingM),
+            _CountRow(
+              label: 'Services',
+              count: (export['services'] as List).length,
+            ),
+            _CountRow(
+              label: 'Équipe',
+              count: (export['artists'] as List).length,
+            ),
+            _CountRow(
+              label: 'Rendez-vous',
+              count: (export['appointments'] as List).length,
+            ),
+            _CountRow(
+              label: 'Clients',
+              count: (export['clients'] as List).length,
+            ),
+            // A total, not a count: the file holds the amount and the
+            // number of transactions behind it (B7.8).
+            _SummaryRow(label: 'Revenus', value: _revenue!),
+            const SizedBox(height: AppTheme.spacingL),
+            AppButton(
+              text: 'Copier mes données (JSON)',
+              icon: Icons.copy_outlined,
+              onPressed: _copy,
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

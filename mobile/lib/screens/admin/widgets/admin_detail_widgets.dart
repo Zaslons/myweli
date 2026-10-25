@@ -5,7 +5,6 @@ import '../../../core/theme/colors.dart';
 import '../../../core/theme/text_styles.dart';
 import '../../../core/utils/formatters.dart';
 import '../../../core/utils/text_fit.dart';
-import '../../../widgets/common/app_button.dart';
 import '../../../widgets/common/timed_cached_image.dart';
 import 'status_chip.dart';
 
@@ -279,39 +278,6 @@ class AdminActionBar extends StatelessWidget {
         border: Border(top: BorderSide(color: AppColors.divider)),
       ),
       child: Row(mainAxisAlignment: MainAxisAlignment.end, children: children),
-    );
-  }
-}
-
-/// Centered error + retry for a detail screen that failed to load.
-class AdminDetailError extends StatelessWidget {
-  const AdminDetailError({
-    super.key,
-    required this.message,
-    required this.onRetry,
-  });
-
-  final String message;
-  final VoidCallback onRetry;
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(message, style: AppTextStyles.bodyMedium),
-          const SizedBox(height: AppTheme.spacingM),
-          SizedBox(
-            width: 160,
-            child: AppButton(
-              text: 'Réessayer',
-              type: AppButtonType.secondary,
-              onPressed: onRetry,
-            ),
-          ),
-        ],
-      ),
     );
   }
 }

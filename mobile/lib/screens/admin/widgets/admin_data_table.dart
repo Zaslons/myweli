@@ -3,7 +3,8 @@ import 'package:flutter/material.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/colors.dart';
 import '../../../core/theme/text_styles.dart';
-import '../../../widgets/common/app_button.dart';
+import '../../../widgets/common/app_async_view.dart';
+import '../../../widgets/common/app_skeleton.dart';
 import '../../../widgets/common/empty_state.dart';
 
 class AdminColumn {
@@ -88,23 +89,17 @@ class AdminDataTable extends StatelessWidget {
 
   Widget _body() {
     if (isLoading && rows.isEmpty) {
-      return Column(children: List.generate(4, (_) => _skeletonRow()));
+      // One « Chargement… » for the rows: they said nothing to a screen
+      // reader before (B9.8).
+      return AppSkeleton(
+        child: Column(children: List.generate(4, (_) => _skeletonRow())),
+      );
     }
     if (error != null && rows.isEmpty) {
+      // The shared error (B9.8, Q9): it was the bare sentence and a button.
       return Padding(
-        padding: const EdgeInsets.all(AppTheme.spacingL),
-        child: Column(
-          children: [
-            Text(error!, style: AppTextStyles.bodyMedium),
-            const SizedBox(height: AppTheme.spacingM),
-            if (onRetry != null)
-              AppButton(
-                text: 'Réessayer',
-                type: AppButtonType.secondary,
-                onPressed: onRetry,
-              ),
-          ],
-        ),
+        padding: const EdgeInsets.symmetric(vertical: AppTheme.spacingXL),
+        child: AppErrorView(message: error!, onRetry: onRetry),
       );
     }
     if (rows.isEmpty) {

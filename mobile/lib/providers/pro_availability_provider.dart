@@ -18,6 +18,11 @@ class ProAvailabilityProvider extends ChangeNotifier implements SalonScoped {
   bool get isLoading => _isLoading;
   String? get error => _error;
 
+  /// The load's own failure: [error] is also every write's here, so a failed
+  /// save would read as the list's load error (B9.8).
+  String? get loadError => _loadError;
+  String? _loadError;
+
   Future<void> loadAvailability(String providerId) async {
     if (_currentProviderId == providerId &&
         _availability != null &&
@@ -27,6 +32,7 @@ class ProAvailabilityProvider extends ChangeNotifier implements SalonScoped {
 
     _isLoading = true;
     _error = null;
+    _loadError = null;
     _currentProviderId = providerId;
     notifyListeners();
 
@@ -38,10 +44,12 @@ class ProAvailabilityProvider extends ChangeNotifier implements SalonScoped {
       } else {
         _error =
             response.error ?? 'Erreur lors du chargement de la disponibilité';
+        _loadError = _error;
         _availability = null;
       }
     } catch (e) {
       _error = kGenericErrorMessage;
+      _loadError = _error;
       _availability = null;
     } finally {
       _isLoading = false;
@@ -84,6 +92,7 @@ class ProAvailabilityProvider extends ChangeNotifier implements SalonScoped {
   /// R6 multi-salons: drop the previous salon's data on a switch.
   @override
   void resetForSalonSwitch() {
+    _loadError = null;
     _availability = null;
     _isLoading = false;
     _error = null;

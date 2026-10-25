@@ -25,6 +25,12 @@ class ProDepositSettingsProvider extends ChangeNotifier implements SalonScoped {
   bool get isLoading => _isLoading;
   bool get isSaving => _isSaving;
   bool get loadFailed => _loadFailed;
+
+  /// The policy is the salon's, not the defaults these fields start with:
+  /// a read has answered since the last salon switch (B9.8). The form waits
+  /// for it — on the first frame it showed the defaults.
+  bool get loaded => _loaded;
+  bool _loaded = false;
   String? get error => _error;
 
   /// Machine code of the last failed [save] (`invalid_phone`), so the form
@@ -79,11 +85,12 @@ class ProDepositSettingsProvider extends ChangeNotifier implements SalonScoped {
         _cancellationWindowHours = response.data!.cancellationWindowHours;
         _mobileMoneyOperator = response.data!.mobileMoneyOperator;
         _mobileMoneyNumber = response.data!.mobileMoneyNumber ?? '';
+        _loaded = true;
         _loadFailed = false;
         _error = null;
       } else {
         _loadFailed = true;
-        _error = response.error ?? 'Erreur lors du chargement';
+        _error = response.error ?? kGenericErrorMessage;
       }
     } catch (e) {
       _loadFailed = true;
@@ -132,6 +139,7 @@ class ProDepositSettingsProvider extends ChangeNotifier implements SalonScoped {
   /// R6 multi-salons: drop the previous salon's data on a switch.
   @override
   void resetForSalonSwitch() {
+    _loaded = false;
     _isLoading = false;
     _isSaving = false;
     _loadFailed = false;

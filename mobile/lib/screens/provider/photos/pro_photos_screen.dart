@@ -3,15 +3,17 @@ import 'package:provider/provider.dart';
 
 import '../../../core/a11y/reduce_motion.dart';
 import '../../../core/config/app_config.dart';
+import '../../../core/constants/failure_messages.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/colors.dart';
 import '../../../core/theme/text_styles.dart';
 import '../../../providers/pro_auth_provider.dart';
 import '../../../providers/pro_gallery_provider.dart';
+import '../../../widgets/common/app_async_view.dart';
+import '../../../widgets/common/app_skeleton.dart';
 import '../../../widgets/common/app_snack_bar.dart';
 import '../../../widgets/common/confirm_dialog.dart';
 import '../../../widgets/common/empty_state.dart';
-import '../../../widgets/common/loading_indicator.dart';
 import '../../../widgets/common/timed_cached_image.dart';
 import '../../../widgets/provider/image_picker_sheet.dart';
 import '../../../widgets/provider/mock_image_picker_sheet.dart';
@@ -143,69 +145,74 @@ class _ProPhotosScreenState extends State<ProPhotosScreen> {
               description: 'Configurez votre profil pour gérer vos photos.',
             );
           }
-          if (gallery.isLoading) {
-            return const LoadingIndicator();
-          }
-          if (gallery.loadFailed) {
-            return EmptyState(
-              icon: Icons.wifi_off,
-              title: 'Chargement impossible',
-              description: 'Vérifiez votre connexion et réessayez.',
-              actionText: 'Réessayer',
-              onAction: () => gallery.load(providerId),
-            );
-          }
-
-          return ListView(
-            padding: const EdgeInsets.all(AppTheme.spacingM),
-            children: [
-              Text(
-                'Ajoutez au moins 3 photos de qualité. La première sert de '
-                'couverture. Les images sont optimisées automatiquement.',
-                style: AppTextStyles.bodySmall.copyWith(
-                  color: AppColors.textTertiary,
-                ),
-              ),
-              const SizedBox(height: AppTheme.spacingM),
-              GridView.count(
-                crossAxisCount: 3,
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                mainAxisSpacing: AppTheme.spacingSM,
-                crossAxisSpacing: AppTheme.spacingSM,
-                children: [
-                  for (var i = 0; i < gallery.photos.length; i++)
-                    _PhotoTile(
-                      url: gallery.photos[i],
-                      isCover: i == 0,
-                      onRemove: () => _removePhoto(providerId, gallery, i),
-                      // gallery-set-cover.md: one gesture instead of i arrow
-                      // taps. No success snackbar — the « Couverture » badge
-                      // jumps onto this very tile.
-                      onSetCover: i > 0
-                          ? () => _setCover(providerId, gallery, i)
-                          : null,
-                      // Audit 3.6: reorder — the first photo is the cover.
-                      onMoveLeft: i > 0
-                          ? () => gallery.movePhoto(providerId, i, -1)
-                          : null,
-                      onMoveRight: i < gallery.photos.length - 1
-                          ? () => gallery.movePhoto(providerId, i, 1)
-                          : null,
-                    ),
-                  if (gallery.isUploading)
-                    _UploadingTile(progress: gallery.uploadProgress),
-                  _AddTile(
-                    onTap: gallery.isUploading
-                        ? null
-                        : () => _addPhoto(providerId, gallery),
-                  ),
-                ],
-              ),
-            ],
+          return AppAsyncView<ProGalleryProvider>(
+            isLoading: gallery.isLoading,
+            error: gallery.loadFailed
+                ? gallery.error ?? kGenericErrorMessage
+                : null,
+            // Only a settled read: its actions change what it shows.
+            data: gallery.loaded && !gallery.isLoading && !gallery.loadFailed
+                ? gallery
+                : null,
+            isEmpty: (_) => false,
+            loading: const SkeletonGrid(),
+            empty: const SizedBox.shrink(),
+            onRetry: () => gallery.load(providerId),
+            builder: (context, g) => _gallery(g, providerId),
           );
         },
       ),
+    );
+  }
+
+  Widget _gallery(ProGalleryProvider gallery, String providerId) {
+    return ListView(
+      padding: const EdgeInsets.all(AppTheme.spacingM),
+      children: [
+        Text(
+          'Ajoutez au moins 3 photos de qualité. La première sert de '
+          'couverture. Les images sont optimisées automatiquement.',
+          style: AppTextStyles.bodySmall.copyWith(
+            color: AppColors.textTertiary,
+          ),
+        ),
+        const SizedBox(height: AppTheme.spacingM),
+        GridView.count(
+          crossAxisCount: 3,
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          mainAxisSpacing: AppTheme.spacingSM,
+          crossAxisSpacing: AppTheme.spacingSM,
+          children: [
+            for (var i = 0; i < gallery.photos.length; i++)
+              _PhotoTile(
+                url: gallery.photos[i],
+                isCover: i == 0,
+                onRemove: () => _removePhoto(providerId, gallery, i),
+                // gallery-set-cover.md: one gesture instead of i arrow
+                // taps. No success snackbar — the « Couverture » badge
+                // jumps onto this very tile.
+                onSetCover: i > 0
+                    ? () => _setCover(providerId, gallery, i)
+                    : null,
+                // Audit 3.6: reorder — the first photo is the cover.
+                onMoveLeft: i > 0
+                    ? () => gallery.movePhoto(providerId, i, -1)
+                    : null,
+                onMoveRight: i < gallery.photos.length - 1
+                    ? () => gallery.movePhoto(providerId, i, 1)
+                    : null,
+              ),
+            if (gallery.isUploading)
+              _UploadingTile(progress: gallery.uploadProgress),
+            _AddTile(
+              onTap: gallery.isUploading
+                  ? null
+                  : () => _addPhoto(providerId, gallery),
+            ),
+          ],
+        ),
+      ],
     );
   }
 }

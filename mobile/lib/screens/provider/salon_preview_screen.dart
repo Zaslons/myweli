@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/constants/failure_messages.dart';
 import '../../core/di/dependency_injection.dart';
 import '../../providers/provider_provider.dart';
-import '../../widgets/common/empty_state.dart';
-import '../../widgets/common/loading_indicator.dart';
+import '../../widgets/common/app_async_view.dart';
+import '../../widgets/common/app_skeleton.dart';
 import '../providers/provider_detail_screen.dart';
 
 /// « Aperçu de ma page » — the owner sees their salon as a client will.
@@ -44,7 +45,10 @@ class SalonPreviewScreen extends StatefulWidget {
 
 class _SalonPreviewScreenState extends State<SalonPreviewScreen> {
   bool _loading = true;
-  bool _failed = false;
+
+  /// The read's own sentence — « Vérifiez votre connexion » used to stand
+  /// for every failure (B9.8).
+  String? _error;
   String _providerId = '';
 
   @override
@@ -56,7 +60,7 @@ class _SalonPreviewScreenState extends State<SalonPreviewScreen> {
   Future<void> _load() async {
     setState(() {
       _loading = true;
-      _failed = false;
+      _error = null;
     });
     // No `providerId` argument: `getMyProvider` resolves the acting salon from
     // the token, honouring the R6 persisted multi-salon selection on the way.
@@ -67,7 +71,7 @@ class _SalonPreviewScreenState extends State<SalonPreviewScreen> {
     if (salon == null) {
       setState(() {
         _loading = false;
-        _failed = true;
+        _error = res.error ?? kGenericErrorMessage;
       });
       return;
     }
@@ -81,20 +85,16 @@ class _SalonPreviewScreenState extends State<SalonPreviewScreen> {
   @override
   Widget build(BuildContext context) {
     if (_loading) {
-      return const Scaffold(body: Center(child: LoadingIndicator()));
+      // The salon page's own loading shape (`ProviderDetailScreen`).
+      return const Scaffold(body: SafeArea(child: SkeletonDetail(block: true)));
     }
-    if (_failed) {
+    final error = _error;
+    if (error != null) {
       // §12's way out, and here a retry CAN succeed — the read is authenticated
       // and the usual cause is the network, not the salon's state.
       return Scaffold(
         appBar: AppBar(title: const Text('Aperçu')),
-        body: EmptyState(
-          icon: Icons.wifi_off,
-          title: 'Chargement impossible',
-          description: 'Vérifiez votre connexion et réessayez.',
-          actionText: 'Réessayer',
-          onAction: _load,
-        ),
+        body: AppErrorView(message: error, onRetry: _load),
       );
     }
     return ProviderDetailScreen(providerId: _providerId, preview: true);

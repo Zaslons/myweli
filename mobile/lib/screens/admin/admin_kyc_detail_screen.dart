@@ -8,9 +8,10 @@ import '../../core/theme/app_theme.dart';
 import '../../core/theme/colors.dart';
 import '../../core/theme/text_styles.dart';
 import '../../providers/admin/admin_kyc_provider.dart';
+import '../../widgets/common/app_async_view.dart';
 import '../../widgets/common/app_button.dart';
+import '../../widgets/common/app_skeleton.dart';
 import '../../widgets/common/app_snack_bar.dart';
-import '../../widgets/common/loading_indicator.dart';
 import '../../widgets/common/timed_cached_image.dart';
 import 'widgets/admin_scaffold.dart';
 import 'widgets/reason_dialog.dart';
@@ -87,12 +88,24 @@ class _AdminKycDetailScreenState extends State<AdminKycDetailScreen> {
     return AdminScaffold(title: 'Vérification KYC', child: _body(context, p));
   }
 
-  Widget _body(BuildContext context, AdminKycProvider p) {
-    if (p.detailLoading && p.detail == null) return const LoadingIndicator();
-    if (p.detail == null) {
-      return Center(child: Text(p.detailError ?? 'Introuvable'));
-    }
-    final d = p.detail!;
+  // « Réessayer » was missing here: a failed file was a bare sentence.
+  Widget _body(
+    BuildContext context,
+    AdminKycProvider p,
+  ) => AppAsyncView<Map<String, dynamic>>(
+    isLoading: p.detailLoading,
+    error: p.detailError,
+    // Another file's, on this screen's first frame (the provider outlives it).
+    data: p.detailId == widget.accountId ? p.detail : null,
+    isEmpty: (_) => false,
+    loading: const SkeletonDetail(sections: 2),
+    empty: const SizedBox.shrink(),
+    onRetry: () =>
+        context.read<AdminKycProvider>().loadDetail(widget.accountId),
+    builder: (context, d) => _detail(p, d),
+  );
+
+  Widget _detail(AdminKycProvider p, Map<String, dynamic> d) {
     final docs = (d['docs'] as List? ?? const []).cast<Map<String, dynamic>>();
     return Column(
       children: [

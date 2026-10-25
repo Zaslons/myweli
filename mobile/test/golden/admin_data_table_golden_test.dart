@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:myweli/core/constants/failure_messages.dart';
 import 'package:myweli/core/theme/app_theme.dart';
 import 'package:myweli/core/theme/text_styles.dart';
 import 'package:myweli/screens/admin/widgets/admin_data_table.dart';
@@ -36,7 +37,7 @@ void main() {
     testWidgets('four states: error (+ retry)', (tester) async {
       await pumpGolden(
         tester,
-        _table(error: 'Chargement impossible. Vérifiez votre connexion.'),
+        _table(error: kNoConnectionMessage),
         size: _size,
       );
       await expectGolden(tester, 'admin_table_error');

@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:myweli/widgets/common/brand_refresh.dart';
-import 'package:myweli/widgets/common/loading_indicator.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/theme/app_theme.dart';
@@ -16,7 +15,9 @@ import '../../providers/auth_provider.dart';
 import '../../providers/provider_provider.dart';
 import '../../widgets/booking/appointment_card.dart';
 import '../../widgets/booking/visit_summary.dart';
+import '../../widgets/common/app_async_view.dart';
 import '../../widgets/common/app_button.dart';
+import '../../widgets/common/app_skeleton.dart';
 import '../../widgets/common/app_snack_bar.dart';
 import '../../widgets/common/consumer_bottom_nav.dart';
 import '../../widgets/common/empty_state.dart';
@@ -102,14 +103,37 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
           return TabBarView(
             controller: _tabController,
             children: [
-              _buildAppointmentsList(
+              _tab(
+                provider,
                 provider.upcomingAppointments,
-                provider.isLoading,
+                const EmptyState(
+                  icon: Icons.calendar_today,
+                  title: 'Aucun rendez-vous',
+                  description:
+                      'Vous n’avez pas de rendez-vous dans cette catégorie',
+                ),
+                _buildAppointmentsList,
               ),
-              _buildHistory(provider.visitHistory, provider.isLoading),
-              _buildAppointmentsList(
+              _tab(
+                provider,
+                provider.visitHistory,
+                const EmptyState(
+                  icon: Icons.history,
+                  title: 'Aucune visite',
+                  description: 'Vos rendez-vous passés apparaîtront ici.',
+                ),
+                _buildHistory,
+              ),
+              _tab(
+                provider,
                 provider.cancelledAppointments,
-                provider.isLoading,
+                const EmptyState(
+                  icon: Icons.calendar_today,
+                  title: 'Aucun rendez-vous',
+                  description:
+                      'Vous n’avez pas de rendez-vous dans cette catégorie',
+                ),
+                _buildAppointmentsList,
               ),
             ],
           );
@@ -121,22 +145,25 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
     );
   }
 
-  Widget _buildAppointmentsList(
-    List<Appointment> appointments,
-    bool isLoading,
-  ) {
-    if (isLoading && appointments.isEmpty) {
-      return const Center(child: LoadingIndicator());
-    }
+  /// One tab's four states. The three read one list, so they fail together.
+  Widget _tab(
+    AppointmentProvider provider,
+    List<Appointment> items,
+    Widget empty,
+    Widget Function(List<Appointment> items) builder,
+  ) => AppAsyncView<List<Appointment>>(
+    isLoading: provider.isLoading,
+    error: provider.listError,
+    data: items,
+    isEmpty: (d) => d.isEmpty,
+    loading: const SkeletonCardList(lead: SkeletonLead.thumbnail),
+    empty: empty,
+    onRetry: provider.loadAppointments,
+    onRefresh: provider.loadAppointments,
+    builder: (_, d) => builder(d),
+  );
 
-    if (appointments.isEmpty) {
-      return const EmptyState(
-        icon: Icons.calendar_today,
-        title: 'Aucun rendez-vous',
-        description: 'Vous n’avez pas de rendez-vous dans cette catégorie',
-      );
-    }
-
+  Widget _buildAppointmentsList(List<Appointment> appointments) {
     return BrandRefresh(
       onRefresh: () async {
         final provider = Provider.of<AppointmentProvider>(
@@ -162,19 +189,7 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
     );
   }
 
-  Widget _buildHistory(List<Appointment> visits, bool isLoading) {
-    if (isLoading && visits.isEmpty) {
-      return const Center(child: LoadingIndicator());
-    }
-
-    if (visits.isEmpty) {
-      return const EmptyState(
-        icon: Icons.history,
-        title: 'Aucune visite',
-        description: 'Vos rendez-vous passés apparaîtront ici.',
-      );
-    }
-
+  Widget _buildHistory(List<Appointment> visits) {
     final groups = groupVisitsByMonth(visits);
     final spent = totalSpent(visits);
 

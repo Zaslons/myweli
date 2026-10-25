@@ -44,12 +44,19 @@ class ProClientsProvider extends ChangeNotifier implements ShowsSalonBookings {
   String? _error;
   String? get error => _error;
 
+  /// The list read's own failure. [error] is also « Ajouter un client »'s:
+  /// a refused add replaced the whole list with « Une erreur est survenue »
+  /// once its sheet closed (B9.8).
+  String? get loadError => _loadError;
+  String? _loadError;
+
   /// True when the salon simply has no clients yet (vs an empty search).
   bool get isBaseEmpty => _total == 0 && _query.isEmpty && _tag.isEmpty;
 
   Future<void> load(String providerId) async {
     _isLoading = true;
     _error = null;
+    _loadError = null;
     notifyListeners();
     try {
       final r = await _service.listClients(
@@ -67,11 +74,13 @@ class ProClientsProvider extends ChangeNotifier implements ShowsSalonBookings {
           _availableTags = r.data!.availableTags;
         }
       } else {
-        _error = r.error ?? 'Une erreur est survenue.';
+        _error = r.error ?? kGenericErrorMessage;
+        _loadError = _error;
         ProAccessGuard.report(r.code);
       }
     } catch (e) {
       _error = kGenericErrorMessage;
+      _loadError = _error;
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -166,6 +175,10 @@ class ProClientsProvider extends ChangeNotifier implements ShowsSalonBookings {
   /// if another card was opened meanwhile.
   String? _cardProviderId;
   String? _cardClientId;
+
+  /// Whose card [card] is — the provider outlives the card's screen, and the
+  /// next client's first frame still holds the last one (B9.8).
+  String? get cardClientId => _cardClientId;
   int _cardRequest = 0;
 
   Future<void> loadCard(String providerId, String clientId) async {
@@ -402,6 +415,7 @@ class ProClientsProvider extends ChangeNotifier implements ShowsSalonBookings {
     _isLoading = false;
     _isLoadingMore = false;
     _error = null;
+    _loadError = null;
     notifyListeners();
   }
 }

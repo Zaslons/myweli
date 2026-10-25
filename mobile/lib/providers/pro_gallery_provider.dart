@@ -22,6 +22,12 @@ class ProGalleryProvider extends ChangeNotifier implements SalonScoped {
 
   bool get isLoading => _isLoading;
   bool get loadFailed => _loadFailed;
+
+  /// What these fields hold is the server's, not the defaults they start
+  /// with: a read has answered since the last reset (B9.8). The screen
+  /// waits for it — on the first frame it showed the defaults.
+  bool get loaded => _loaded;
+  bool _loaded = false;
   bool get isUploading => _isUploading;
   double get uploadProgress => _uploadProgress;
   String? get error => _error;
@@ -36,9 +42,10 @@ class ProGalleryProvider extends ChangeNotifier implements SalonScoped {
       final res = await _proService.getGalleryPhotos(providerId);
       if (res.success && res.data != null) {
         _photos = res.data!;
+        _loaded = true;
       } else {
         _loadFailed = true;
-        _error = res.error ?? 'Erreur lors du chargement';
+        _error = res.error ?? kGenericErrorMessage;
       }
     } catch (e) {
       _loadFailed = true;
@@ -171,6 +178,7 @@ class ProGalleryProvider extends ChangeNotifier implements SalonScoped {
   /// R6 multi-salons: drop the previous salon's data on a switch.
   @override
   void resetForSalonSwitch() {
+    _loaded = false;
     _isLoading = false;
     _loadFailed = false;
     _isUploading = false;

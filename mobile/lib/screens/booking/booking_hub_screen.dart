@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:myweli/widgets/common/loading_indicator.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/a11y/reduce_motion.dart';
@@ -18,6 +17,7 @@ import '../../providers/appointment_provider.dart';
 import '../../providers/provider_provider.dart';
 import '../../widgets/booking/length_variant_selector.dart';
 import '../../widgets/booking/slot_picker.dart';
+import '../../widgets/common/app_skeleton.dart';
 import '../../widgets/common/app_snack_bar.dart';
 import '../../widgets/common/inline_feedback.dart';
 import '../../widgets/common/label_value_row.dart';
@@ -419,7 +419,7 @@ class _BookingHubScreenState extends State<BookingHubScreen> {
         builder: (context, providerProvider, appointmentProvider, _) {
           if (providerProvider.isLoading &&
               providerProvider.selectedProvider == null) {
-            return const Center(child: LoadingIndicator());
+            return const SkeletonDetail(sections: 3);
           }
 
           final p = providerProvider.selectedProvider;
@@ -428,6 +428,7 @@ class _BookingHubScreenState extends State<BookingHubScreen> {
             // AppBar still titled « Réserver ».
             return SalonUnavailableView(
               errorCode: providerProvider.errorCode,
+              message: providerProvider.error,
               onRetry: () =>
                   providerProvider.loadProviderById(widget.providerId),
             );

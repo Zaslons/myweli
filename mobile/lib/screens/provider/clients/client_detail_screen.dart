@@ -18,12 +18,13 @@ import '../../../models/appointment.dart';
 import '../../../models/salon_client.dart';
 import '../../../providers/pro_auth_provider.dart';
 import '../../../providers/pro_clients_provider.dart';
+import '../../../widgets/common/app_async_view.dart';
 import '../../../widgets/common/app_button.dart';
+import '../../../widgets/common/app_skeleton.dart';
 import '../../../widgets/common/app_snack_bar.dart';
 import '../../../widgets/common/app_text_field.dart';
 import '../../../widgets/common/empty_state.dart';
 import '../../../widgets/common/inline_feedback.dart';
-import '../../../widgets/common/loading_indicator.dart';
 import '../../../widgets/common/phone_number_field.dart';
 
 /// The client card (module `clients` C1c, docs/design/clients-c1.md §5):
@@ -79,23 +80,28 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
   }
 
   Widget _body(ProClientsProvider clients) {
-    if (clients.cardLoading) return const LoadingIndicator();
+    // A card that is not there is the client's state, not a failed read.
     if (clients.cardNotFound) {
       return const EmptyState(
         icon: Icons.person_off_outlined,
         title: 'Client introuvable',
       );
     }
-    if (clients.cardError != null || clients.card == null) {
-      return EmptyState(
-        icon: Icons.wifi_off,
-        title: 'Une erreur est survenue',
-        description: clients.cardError,
-        actionText: 'Réessayer',
-        onAction: () => clients.loadCard(_providerId, widget.clientId),
-      );
-    }
-    final card = clients.card!;
+    return AppAsyncView<SalonClientCard>(
+      isLoading: clients.cardLoading,
+      error: clients.cardError,
+      // Another client's, on this screen's first frame: the provider
+      // outlives it (B9.8).
+      data: clients.cardClientId == widget.clientId ? clients.card : null,
+      isEmpty: (_) => false,
+      loading: const SkeletonDetail(sections: 3),
+      empty: const SizedBox.shrink(),
+      onRetry: () => clients.loadCard(_providerId, widget.clientId),
+      builder: (context, card) => _card(clients, card),
+    );
+  }
+
+  Widget _card(ProClientsProvider clients, SalonClientCard card) {
     final client = card.client;
     return ListView(
       padding: const EdgeInsets.all(AppTheme.spacingM),

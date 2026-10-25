@@ -19,7 +19,7 @@ import 'package:myweli/services/mock/mock_auth_service.dart';
 import 'package:myweli/services/mock/mock_favorites_service.dart';
 import 'package:myweli/services/mock/mock_locality_service.dart';
 import 'package:myweli/services/mock/mock_provider_service.dart';
-import 'package:myweli/widgets/common/loading_indicator.dart';
+import 'package:myweli/widgets/common/app_skeleton.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -138,7 +138,7 @@ void main() {
         expect(find.text('Réessayer'), findsNothing);
         // And the spinner is gone — the confirmation screen used to sit here
         // forever, on the screen immediately before payment.
-        expect(find.byType(LoadingIndicator), findsNothing);
+        expect(find.byType(AppSkeleton), findsNothing);
         await tester.pump(const Duration(seconds: 5));
       });
 
@@ -173,7 +173,7 @@ void main() {
         service.hang = true;
         await tester.pumpWidget(host(entry.value, await signedIn(tester)));
 
-        expect(find.byType(LoadingIndicator), findsOneWidget);
+        expect(find.byType(AppSkeleton), findsOneWidget);
         expect(find.text('Découvrir des salons'), findsNothing);
         expect(find.text('Réessayer'), findsNothing);
         await tester.pump(const Duration(seconds: 5));

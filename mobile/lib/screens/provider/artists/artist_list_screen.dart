@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:myweli/widgets/common/brand_refresh.dart';
-import 'package:myweli/widgets/common/loading_indicator.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/theme/app_theme.dart';
@@ -10,7 +9,9 @@ import '../../../core/theme/text_styles.dart';
 import '../../../models/artist.dart';
 import '../../../providers/pro_artist_provider.dart';
 import '../../../providers/pro_auth_provider.dart';
-import '../../../widgets/common/app_button.dart';
+import '../../../widgets/common/app_async_view.dart';
+import '../../../widgets/common/app_skeleton.dart';
+import '../../../widgets/common/empty_state.dart';
 
 class ArtistListScreen extends StatefulWidget {
   const ArtistListScreen({super.key});
@@ -56,71 +57,48 @@ class _ArtistListScreenState extends State<ArtistListScreen> {
             return const Center(child: Text('Veuillez vous connecter'));
           }
 
-          if (artistProvider.isLoading && artistProvider.artists.isEmpty) {
-            return const Center(child: LoadingIndicator());
+          Future<void> reload() async {
+            if (authProvider.provider != null) {
+              await artistProvider.loadArtists(_resolvedProviderId(context));
+            }
           }
 
-          final artists = artistProvider.artists;
-          if (artists.isEmpty) {
-            return Center(
-              child: Padding(
+          // A failed list said « Aucun employé » (B9.8).
+          return AppAsyncView<List<Artist>>(
+            isLoading: artistProvider.isLoading,
+            error: artistProvider.loadError,
+            data: artistProvider.artists,
+            isEmpty: (d) => d.isEmpty,
+            loading: const SkeletonCardList(lead: SkeletonLead.avatar),
+            empty: EmptyState(
+              icon: Icons.people_outline,
+              title: 'Aucun employé',
+              description:
+                  'Ajoutez vos employés pour qu’ils apparaissent dans le flux '
+                  'de réservation.',
+              actionText: 'Ajouter un employé',
+              onAction: () => context.push('/pro/artist/new'),
+            ),
+            onRetry: reload,
+            onRefresh: reload,
+            builder: (context, artists) => BrandRefresh(
+              onRefresh: reload,
+              child: ListView.builder(
+                physics: const AlwaysScrollableScrollPhysics(),
                 padding: const EdgeInsets.all(AppTheme.spacingL),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Icon(
-                      Icons.people_outline,
-                      size: AppTheme.iconXL,
-                      color: AppColors.textSecondary,
+                itemCount: artists.length,
+                itemBuilder: (context, index) {
+                  final artist = artists[index];
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: AppTheme.spacingM),
+                    child: _ArtistCard(
+                      artist: artist,
+                      onTap: () =>
+                          context.push('/pro/artist/${artist.id}/edit'),
                     ),
-                    const SizedBox(height: AppTheme.spacingM),
-                    Text(
-                      'Aucun employé',
-                      style: AppTextStyles.titleLarge.copyWith(
-                        color: AppColors.textSecondary,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: AppTheme.spacingS),
-                    Text(
-                      'Ajoutez vos employés pour qu’ils apparaissent dans le flux de réservation.',
-                      style: AppTextStyles.bodyMedium.copyWith(
-                        color: AppColors.textTertiary,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: AppTheme.spacingL),
-                    AppButton(
-                      text: 'Ajouter un employé',
-                      onPressed: () => context.push('/pro/artist/new'),
-                      isFullWidth: false,
-                    ),
-                  ],
-                ),
+                  );
+                },
               ),
-            );
-          }
-
-          return BrandRefresh(
-            onRefresh: () async {
-              if (authProvider.provider != null) {
-                await artistProvider.loadArtists(_resolvedProviderId(context));
-              }
-            },
-            child: ListView.builder(
-              physics: const AlwaysScrollableScrollPhysics(),
-              padding: const EdgeInsets.all(AppTheme.spacingL),
-              itemCount: artists.length,
-              itemBuilder: (context, index) {
-                final artist = artists[index];
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: AppTheme.spacingM),
-                  child: _ArtistCard(
-                    artist: artist,
-                    onTap: () => context.push('/pro/artist/${artist.id}/edit'),
-                  ),
-                );
-              },
             ),
           );
         },

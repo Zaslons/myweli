@@ -552,9 +552,9 @@ when the burn-down reaches them, there is nothing left to decide.
 `FieldErrors` + `Validators` joined §11.1's roster in **A7**.)*
 
 - **`AppRating`** — `★ 4,8 (32 avis)`. Glyph + numeral, always (§3.5). **Built 2026-10-13** (`widgets/common/app_rating.dart`; sizes compact / regular / large); a salon with **no review reads « Nouveau »**, never « ★ 0.0 · 0 avis » — same rule as the web's `SalonRating` ([salon-rating-new-and-visits-card.md](salon-rating-new-and-visits-card.md)). The numeral goes through `Formatters.formatRating` (« 4,8 »); `rating_format_pin_test.dart` forbids formatting a rating by hand.
-- **`AppCard`** — `secondary` on `background`, `radiusXL`, elevation 0, `spacingM` padding.
-- **`AppChip`** — filled (selected) / outlined (`borderStrong`) / tinted (status). `radiusPill`.
-- **`AppAsyncView<T>`** — takes `isLoading`/`error`/`data` and renders the four states, so a screen cannot forget one.
+- **`AppCard`** — `secondary` on `background`, `radiusXL`, elevation 0, `spacingM` padding. **Built 2026-10-25** (B9.8 F1, `widgets/common/app_card.dart`): `onTap` makes the whole card the target — the ripple clipped to the corner, one node announced as a button — and `outlined` adds the `borderStrong` hairline for a card that is a control. The skeletons use it; the screens' own cards move to it in **F2** ([hygiene-batch9.md](hygiene-batch9.md) §2.7.2).
+- **`AppChip`** — filled (selected) / outlined (`borderStrong`) / tinted (status). `radiusPill`. *(B9.8 F3.)*
+- **`AppAsyncView<T>`** — takes `isLoading`/`error`/`data` and renders the four states, so a screen cannot forget one. **Built 2026-10-25** (B9.8 F1, `widgets/common/app_async_view.dart`) **and every async screen moved onto it** — §12 has its rules, and the one load error, `AppErrorView`, that goes with it. The loading shapes are `widgets/common/app_skeleton.dart`.
 
 ---
 
@@ -573,6 +573,47 @@ the most commonly half-kept.
 
 Plus the states that aren't about data: **offline**, **permission-denied**
 (e.g. `PushBlockedBanner`), and **auth-gated** (preserve `returnTo`).
+
+### 12.1 The shared pieces (B9.8, 2026-10-25)
+
+- **`AppAsyncView<T>`** renders the four states in `AdminDataTable`'s order:
+  content when there is some — **it stays** through a reload and after a failed
+  refresh; else the loading shape while loading; else the error; else, with
+  nothing asked yet (`data` null, no error, not loading), the loading shape —
+  never a flash of « empty »; else the empty state. `loading`, `empty` and
+  `builder` are required. `onRefresh` puts the error and the empty state in the
+  pull too (the pull is then the scroll view: an `empty` that is a list nests a
+  second one); `sliver` places it as one section of a `CustomScrollView`.
+- **`AppErrorView`** is the one load error: **« Chargement impossible »**, the
+  failure's own sentence under it (`failure_messages.dart`, or a code's own),
+  the **`wifi_off` icon only for `kNoConnectionMessage`** — `error_outline`
+  otherwise — and « Réessayer » only when the screen passes `onRetry`. A state
+  of the subject is not a failed load and keeps its own words: a salon gone
+  (`SalonUnavailableView`'s `not_found` arm), a client not found.
+- **The skeletons** (`app_skeleton.dart`) are **still** — a pulse is a
+  `repeat()` loop that would have to read §9.1 and run on a duration no motion
+  token names — and drawn **on a card**: `surfaceVariant` bars all but vanish
+  on `background`. One label for screen readers, « Chargement… » or what is
+  loading, the shapes excluded. The set: `SkeletonCardList` (lead `none` /
+  `avatar` / `thumbnail`, an image `block`), `SkeletonTileList`,
+  `SkeletonDetail` (a page of facts, a form), `SkeletonGrid` (photos),
+  `SkeletonPills` (slots, operators — on the page, so the chip's silhouette,
+  `secondary` + `border`, not a bar). A screen takes the shape of its content.
+- **The spinner stays where the shape is not known** — the blocking dialog,
+  « Déconnexion » under way, the rejoin gate's way out, the session gate.
+  `async_states_pin_test.dart` holds that list, and forbids a hand-written
+  « Réessayer » state and the retired titles (« Une erreur est survenue »,
+  « Connexion impossible ») and description (« Vérifiez votre connexion et
+  réessayez. »).
+- **A view says only what its provider holds.** Moving the screens found
+  where that was not the truth (hygiene-batch9.md §14): a selection that
+  outlived its screen (the next one's first frame showed the last one's
+  entity, and its actions), an `error` shared by a load and the writes, an
+  `isLoading` shared by two reads, defaults shown as an answer. The rules that
+  came out: **a detail's data is keyed to its id**; **a list's error is its
+  load's** (`loadError`, `listError`); **a form or a managed list shows only a
+  settled read** (`loaded && !isLoading && !loadFailed`) — kept on screen
+  through a reload, a form would take the owner's edits back.
 
 ---
 
@@ -1301,8 +1342,9 @@ rest**:
   because it is a still brand mark by design — and taking that picture is what
   found the bug: the first version froze the Lottie with `animate: false`, which
   stops the ticker and renders **frame 0**, an empty canvas. The property
-  assertion passed; the pixels were blank. The other static loading state we pin
-  is `AdminDataTable`'s skeleton.
+  assertion passed; the pixels were blank. The other static loading states we
+  pin are `AdminDataTable`'s skeleton and, since B9.8, the whole skeleton set
+  (`components_async_skeletons`) — still, so a picture is exact.
 ~~**Anything that reads the wall clock.**~~ **Closed by A10.**
 `core/utils/app_clock.dart` is a function pointer every render-path clock read
 goes through, so a test can freeze it and the picture stops being "a photograph
