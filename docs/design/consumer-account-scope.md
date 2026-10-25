@@ -409,9 +409,11 @@ relit de toute façon). Hygiène, gardée, non épinglée.
   unitaire** — la sélection gardée : dans le widget, A n'avait jamais ouvert
   son détail. A l'ouvre maintenant avant de se déconnecter, et elle est
   rouge dans les deux.
-- Les photos : aucun écran photographié ne change (la barre n'apparaît que
-  sur une session refusée, la remise à zéro n'a pas de pixel) ; le travail
-  `goldens.yml` de la CI les redessine sur Linux.
+- Les photos : aucune ne bouge — `goldens.yml` lancé sur la branche (run
+  40230156717) a redessiné les 58 sur Linux et `git status` n'a rien
+  listé. Attendu : la barre n'apparaît que sur une session refusée, la
+  remise à zéro n'a pas de pixel. (Une PR empilée n'a pas la CI de `main` ;
+  elle tournera au reciblage.)
 
 **Non vérifié** : sur un téléphone, une session réellement refusée par le
 serveur de production (il faudrait révoquer un jeton de renouvellement réel).
