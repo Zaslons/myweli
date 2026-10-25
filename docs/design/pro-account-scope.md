@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Statut** | **Validé le 2026-10-25** — Q1 = **(a)** les gardes des treize magasins dans cette PR ; Q2 = **(a)** la connexion, avec « Votre session a expiré. Reconnectez-vous. » (§8). |
+| **Statut** | **Construit le 2026-10-25** sur `feat/pro-signout-reset` (empilée sur #701). Validé le même jour — Q1 = **(a)** les gardes dans cette PR ; Q2 = **(a)** la connexion, avec « Votre session a expiré. Reconnectez-vous. » (§8). Ce qui a été vu : §11 |
 | **Owner** | Sadreddine |
 | **Last updated** | 2026-10-25 |
 | **PRD ref / phase** | FR-AUTH-003 (session, déconnexion) · FR-AUTH-005 (suppression) · accès d'équipe R3/R4 (rôles) · V1 |
@@ -193,9 +193,110 @@ Aucun changement serveur ni d'`openapi.yaml`.
 
 ## 10. Definition of done
 
-- [ ] `flutter analyze` = 0 · format propre · la suite verte.
-- [ ] Chaque garde vue rouge par mutation sur le travail commis (§6).
-- [ ] Ce spec « construit » (§11), le BACKLOG (B9.14), une entrée dans
+- [x] `flutter analyze` = 0 · format propre · la suite verte.
+- [x] Chaque garde vue rouge par mutation sur le travail commis (§6).
+- [x] Ce spec « construit » (§11), le BACKLOG (B9.14), une entrée dans
   `docs/roadmap/entries/`, l'index `docs/design/README.md`.
-- [ ] Branche de fonctionnalité, PR ouverte pour revue ; aucune attribution
+- [x] Branche de fonctionnalité, PR ouverte pour revue ; aucune attribution
   à Claude.
+
+## 11. Construite (2026-10-25) — ce qui a été vu
+
+Sur `feat/pro-signout-reset`, empilée sur #701 (`feat/consumer-signout-reset`,
+rebasée sur `main`). Le mécanisme est celui du §2 ; voici ce que la
+construction a trouvé en plus, chaque point lu sur le vrai chemin de code.
+
+1. **Le constat du §1 était juste mais incomplet sur les gardes.** Seul
+   l'accueil était entièrement gardé. Les clients ne l'étaient que pour les
+   relectures de la fiche (`_cardRequest`) : la liste, « Voir plus »,
+   l'ajout, la fiche elle-même et ses écritures ne l'étaient pas. La journée
+   ne l'était que pour ses lectures : ses gestes (`_act`) ne l'étaient pas.
+   Les gardes vont donc dans **quinze** magasins, plus la vérification.
+2. **La journée a son propre numéro.** Son `_request` avance à chaque
+   lecture : s'en servir pour les gestes aurait jeté le succès d'un
+   « Accepter » dès qu'une relecture partait dans le même salon. Un essai le
+   tient : l'acceptation reste annoncée aux autres magasins malgré une
+   relecture lancée pendant qu'elle était en route.
+3. **Deux écritures destructrices arrêtées.** `addPhoto` et `addPair`
+   construisent la liste qu'ils enregistrent APRÈS l'envoi du fichier, depuis
+   `_photos` / `_pairs`. Un changement de compte pendant l'envoi : la liste
+   aurait été celle du compte suivant — vide — plus une photo, et elle
+   aurait **remplacé sur le serveur toute la galerie (ou les avant/après) du
+   salon précédent**. La garde après l'envoi l'empêche ; deux essais
+   vérifient que rien n'est enregistré.
+4. **La pièce d'identité de A n'entre plus dans le dossier de B.**
+   `addDocument` répondu après la connexion de B l'ajoutait au jeu de B, qui
+   l'aurait envoyé avec son « Envoyer ».
+5. **La remise à zéro des clients oubliait la fiche ouverte** (`_card`,
+   `_visits`, leurs ids, l'état de chargement) : elle l'oublie.
+6. **`ProSalonScope.resetAll` consigne et passe un magasin qui lève**, comme
+   `bookingCreated` et `bookingChanged` à côté de lui. Trouvé par un essai :
+   un magasin d'un essai précédent, déjà éliminé, levait dans la remise à
+   zéro d'une connexion — et la connexion échouait. Dans l'app les magasins
+   vivent autant qu'elle ; mais une connexion ne doit pas dépendre de ce
+   qu'un magasin fait de sa remise à zéro.
+7. **La progression d'un envoi se tait** après la remise à zéro (photo
+   d'employé, galerie, avant/après).
+8. **Une sortie qui échoue pendant un refus sort quand même** — le jumeau du
+   défaut trouvé par la relecture de #701 : le refus entendu pendant une
+   « Déconnexion » est gardé, et réglé à sa fin.
+
+**Les essais** — `pro_account_switch_test.dart` (le widget, sur
+`proAppProviders` : la propriétaire voit ses deux « Revenus prévus » et le
+badge de sa cloche ; elle sort ; la réceptionniste du même salon entre,
+l'accueil et la cloche TENUS : à chaque image, ni carte d'argent ni badge ;
+puis ses propres chiffres, sans argent ; la session refusée : la connexion,
+la phrase, plus rien du salon ; « Déconnexion » ne parle pas de session ;
+le câblage lu sur la vraie liste). **Rouge d'abord pour la bonne raison** :
+« frame 1: the receptionist is shown the owner's revenue », le constat de la
+sonde. `pro_account_scope_test.dart` (chaque entrée — reprise, e-mail,
+inscription, invitation acceptée depuis la connexion — et chaque sortie
+remet les deux portées à zéro ; un changement de salon seulement la sienne ;
+le même compte rien ; avant la notification ; un magasin qui lève n'arrête
+ni les autres ni la sortie ; la session refusée, pendant une sortie, pendant
+une sortie qui échoue). `pro_late_answers_test.dart` (**chaque** lecture et
+écriture gardée, chaque point d'attente des méthodes qui en ont plusieurs,
+**deux fois** : une réponse, puis une exception — les `catch` écrivent une
+erreur aussi ; chaque ligne des remises à zéro de la vérification et des
+clients, dans un état où son champ n'est pas déjà au repos).
+`session_ended_test.dart` (la session Pro annoncée par
+`ApiAuthService.providerSessionEnded`, pas celle du client, et l'inverse ;
+la doublure).
+
+**Ce que la passe de mutations a trouvé dans mes essais** : le premier
+critère comptait les notifications. Une garde retirée APRÈS l'attente
+laissait la réponse de A s'écrire — données, erreur — pendant que le
+`finally` gardé, lui, se taisait : rien n'était dit, tout était écrit, et la
+prochaine reconstruction l'aurait montré. L'essai compare maintenant
+l'**empreinte** de chaque magasin (tout ce qu'il montre) juste après la
+remise à zéro et après la réponse ; la mutation qui avait survécu est rouge.
+
+**Ce qu'aucune mutation ne peut voir, dit plutôt que caché** :
+`_cardProviderId` remis à null (la fiche est nulle, `bookingCreated` sort
+avant de le lire) et `_cardErrorCode` remis à null (`cardNotFound` demande
+aussi `cardError`, que la remise à zéro vide) — de l'hygiène, gardée, non
+épinglée. Et une garde a été **retirée** : celle du `catch` extérieur de
+`updatePhone`, qui ne fait que répondre — elle n'écrivait rien à protéger. `ProviderProvider` n'est pas inscrit : l'aperçu attend sa
+propre lecture derrière un squelette.
+
+**Vérifié** :
+- La suite de l'app : **3 024 essais verts**, 58 sautés (les photos, Linux seulement) ; `flutter analyze` à 0, le format propre.
+- **Les mutations, sur le travail commis** : chaque garde générée depuis les
+  sources (chaque `if (scope != _scope) return`, chaque `finally` gardé,
+  chaque avance du numéro), chaque ligne des remises à zéro de la
+  vérification et des clients, chaque entrée et sortie de
+  `ProAuthProvider`, la remise à zéro après la notification, le même compte,
+  le report pendant une sortie et son règlement, la phrase, le retour à la
+  connexion, `resetAll` qui lève, chaque `track` de `main_pro.dart`, le
+  filtre et l'oubli d'`ApiAuthService`, la doublure. **205 au premier
+  passage, 199 rouges.** Les six survivantes, chacune lue : quatre essais
+  trop faibles (la progression de la seconde photo d'une paire ; « Voir
+  plus » et les visites de la fiche répondus par ce que la remise à zéro
+  laisse déjà ; un changement de numéro qui redemandait les visites du
+  client de A), renforcés ; la garde inutile du `catch` d'`updatePhone`,
+  retirée ; `_cardErrorCode`, inobservable (ci-dessus). Repassées : **203
+  rouges sur 204**, la survivante étant celle-là.
+- GOLDENS_LINE
+
+**Non vérifié** : sur un téléphone, une vraie session Pro refusée par la
+production.
