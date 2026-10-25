@@ -56,7 +56,7 @@ Each question has a recommendation. Answers unblock the item named in brackets.
 4. **Pro iOS update link.** OK to write the App Store link into production now, with both floors left at 0 so nobody is affected? Or wait for the 0.0.1 release? *Recommended: now.* [B0.5] — ✅ **Answered: wait for the release** (with 0.0.1 rejected, the link leads nowhere yet).
 5. **KYC under an individual Apple account (5.1.1(ix)).** Is the developer account Individual or Organization? If Apple rejects for this, do we hide KYC and deposits on iOS until an Organization account exists, or appeal first? [B0.6] — ✅ **Answered: Individual; hide them on iOS if Apple cites 5.1.1(ix).**
 6. **0.0.2 store media.** Reshoot screenshots 3 and 8 and re-cut the preview with the new revenue wording, or keep the current media? *Recommended: re-cut only if 0.0.2 needs new screenshots anyway.* [B0.8] — ✅ **Answered: only if needed** (as recommended — if the rejection or the new build makes a shot wrong).
-7. **The unused iOS « remote-notification » mode.** Remove it in the next build, which adds one device check, or leave it? *Recommended: remove it in 0.0.2.* [B0.9] — ✅ **Answered: remove it** (as recommended) — done in #NNN, for the resubmitted build.
+7. **The unused iOS « remote-notification » mode.** Remove it in the next build, which adds one device check, or leave it? *Recommended: remove it in 0.0.2.* [B0.9] — ✅ **Answered: remove it** (as recommended) — done in #708, for the resubmitted build.
 
 **Pro home and journal (batch 1)**
 
@@ -144,7 +144,7 @@ Each question has a recommendation. Answers unblock the item named in brackets.
     5. French « What to Test »;
     6. version 0.0.2 in App Store Connect with **phased release on** (needs B0.7 first);
     7. submit after B0.2.
-- **B0.4 Privacy policy: Cloudflare, equivalent protection, each app's export path (P1 · S · decision 3).** **Drafted in #NNN2 — waiting for your approval of the wording** before it merges (merging deploys it).
+- **B0.4 Privacy policy: Cloudflare, equivalent protection, each app's export path (P1 · S · decision 3).** **Being drafted (its own PR) — you approve the wording before it merges** (merging deploys it).
   - **What:** the policy names Cloudflare only for files, but every API request has gone through Cloudflare since 2026-10-07. It also lacks the « equivalent protection » sentence Apple asks for under 5.1.1(i). And it gives the Pro export path as « Exporter mes données », while the Pro app says « Mes données ».
   - **How:** edit `web/app/politique-confidentialite/page.tsx` and bump `LEGAL_UPDATED_AT`. Re-check the « Journaux de requêtes » sentence against Cloud Logging, since the visitor IP may now be Cloudflare's. After the deploy, read the live page.
 - **B0.5 Set the Pro iOS `updateUrl` in production (P2 · S · decision 4).** **Waits for the release** (decision 4). In the admin console, set `com.myweli.pro / ios` to `https://apps.apple.com/app/id6805272779` with both floors at 0. Read it back through `GET /client-version`.
@@ -155,7 +155,7 @@ Each question has a recommendation. Answers unblock the item named in brackets.
   - **What:** sessions are off to keep the privacy promise, so the planned crash-free-rate alert has nothing to measure.
   - **How:** in Sentry `myweli-app`, three issue alerts on production: a new fatal issue in the latest release; any issue seen by more than 3 users in 1 h; app hangs seen by more than 3 users in 1 h. Send a test event for each, and update observability §8.3 and LAUNCH §1.4.
 - **B0.8 0.0.2 store media (P3 · M · decision 6).** **Only if needed** (decision 6). If yes: reshoot screenshots 3 and 8 with `tool/app_store_screenshots`, and re-cut the Revenus scene and poster with `tool/app_store_preview`.
-- ✅ **B0.9 Remove the unused « remote-notification » background mode (P3 · S · decision 7).** **Done in #NNN** — removed for the resubmitted build; verified first that the server never sends a silent push and the background handler is empty, and pinned both sides. The killed-app push check is in app-store-forms §11.6 (B0.2). Delete it from `Info.plist`, which both apps share, and check a real push with the app killed in the next TestFlight run.
+- ✅ **B0.9 Remove the unused « remote-notification » background mode (P3 · S · decision 7).** **Done in #708** — removed for the resubmitted build; verified first that the server never sends a silent push and the background handler is empty, and pinned both sides. The killed-app push check is in app-store-forms §11.6 (B0.2). Delete it from `Info.plist`, which both apps share, and check a real push with the app killed in the next TestFlight run.
 - **B0.10 Google Play forms for both apps (P2 · M).**
   - **What:** nothing has been typed into Play Console yet.
   - **How:** you type play-store-forms §1–§5 with the amended App access text. I check them against the policy and the iOS answers, make the 1024×500 banner, and add a length test for the access text.
