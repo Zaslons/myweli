@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Statut** | **Validé le 2026-10-22** — relu sur main (`d1e886e1`). Q1 (décision 33) : **le type `SalonId`** (« ce qui vaut le mieux à long terme ») ; Q2 (décision 34) : **e-mail et poussée Sentry** ; Q3 (décision 34) : **pas de suivi des performances pour l'instant** ; Q4 (décision 35) : **pas d'interrupteur** ; Q5 : **construire les trois composants et migrer tous les écrans maintenant** ; Q6 : **les pages publiques lèvent** ; Q7 : **supprimer la table avec ce lot** ; Q8 : **le reste tel qu'écrit**. Huit PR (§3). **PR A fusionnée le 2026-10-22** (#688 — B9.1, B9.5 — §9). **PR B fusionnée le 2026-10-22** (#689 — B9.6 — §10). **PR C fusionnée le 2026-10-22** (#690 — B9.7 — §11). **PR D fusionnée le 2026-10-25** (#691 — B9.11, B9.10 — §12 ; déploiement Vercel de production réussi, le plan du site liste 228 adresses). **PR E fusionnée le 2026-10-25** (#697 — B9.2–B9.4 — §13 ; 81 appliqué et relu le même jour, #698). **PR F1 fusionnée le 2026-10-25** (#699) (B9.8 : les trois briques et tous les écrans asynchrones — §14 ; Q9–Q12 en §8). **PR F2 fusionnée le 2026-10-25** (#700) (B9.8 : toutes les cartes sur `AppCard` — §2.7.3, §15 ; Q13–Q15 en §8). **PR F3 construite le 2026-10-25** (#702, `feat/batch9-chips`) (B9.8 : toutes les puces sur `AppChip` — §2.7.4, §16 ; Q16–Q18 en §8). |
+| **Statut** | **Validé le 2026-10-22** — relu sur main (`d1e886e1`). Q1 (décision 33) : **le type `SalonId`** (« ce qui vaut le mieux à long terme ») ; Q2 (décision 34) : **e-mail et poussée Sentry** ; Q3 (décision 34) : **pas de suivi des performances pour l'instant** ; Q4 (décision 35) : **pas d'interrupteur** ; Q5 : **construire les trois composants et migrer tous les écrans maintenant** ; Q6 : **les pages publiques lèvent** ; Q7 : **supprimer la table avec ce lot** ; Q8 : **le reste tel qu'écrit**. Huit PR (§3). **PR A fusionnée le 2026-10-22** (#688 — B9.1, B9.5 — §9). **PR B fusionnée le 2026-10-22** (#689 — B9.6 — §10). **PR C fusionnée le 2026-10-22** (#690 — B9.7 — §11). **PR D fusionnée le 2026-10-25** (#691 — B9.11, B9.10 — §12 ; déploiement Vercel de production réussi, le plan du site liste 228 adresses). **PR E fusionnée le 2026-10-25** (#697 — B9.2–B9.4 — §13 ; 81 appliqué et relu le même jour, #698). **PR F1 fusionnée le 2026-10-25** (#699) (B9.8 : les trois briques et tous les écrans asynchrones — §14 ; Q9–Q12 en §8). **PR F2 fusionnée le 2026-10-25** (#700) (B9.8 : toutes les cartes sur `AppCard` — §2.7.3, §15 ; Q13–Q15 en §8). **PR F3 fusionnée le 2026-10-25** (#702) (B9.8 : toutes les puces sur `AppChip` — §2.7.4, §16 ; Q16–Q18 en §8). **PR G construite le 2026-10-25** (#703, `feat/batch9-orphan-table`) (B9.12 : la migration `0043` — §2.11, §17 ; déploiement de production approuvé, à faire après la fusion). |
 | **Owner** | Sadreddine |
 | **Last updated** | 2026-10-25 |
 | **PRD ref / phase** | V1 — rien de visible n'est ajouté ; ce lot rend vrais les documents, les doublures de test, les lectures et les outils |
@@ -1185,3 +1185,42 @@ teinte au rayon d'une pastille ou d'un badge).
   un nom, pas une valeur : il est passé à côté de `status_colors.dart`, et
   la porte reste ce qu'elle était. La suite du web : 2 255 essais verts.
   Le serveur n'est pas touché depuis #699.
+
+## 17. PR G construite (B9.12) — ce qui a été vu
+
+**Comme écrit en §2.11**, relu sur le code et sur la production le jour même
+(lu, rien changé) : la révision servie est `myweli-api-00046-bzg`
+(`commit: eca4db6`), qui ne nomme la table que par sa création ; celle
+d'avant, `00045-8hs`, l'efface à chaque suppression de compte Pro.
+
+**`0043_drop_provider_otp_codes`** : `DROP TABLE IF EXISTS
+provider_otp_codes`, **le premier `DROP TABLE` de la liste**, et son
+`// rollback-unsafe:` dit le seul retour qui casse — deux crans, vers
+`00045-8hs` ou plus ancien. Un cran, vers `00046-bzg`, reste sûr.
+
+**Ce que la construction a trouvé** :
+- **La porte de réversibilité n'avait jamais vu un `DROP TABLE`.** Elle
+  le cherchait depuis le début ; la mutation qui retire la déclaration le
+  montre : elle seule la fait rougir.
+- **Les textes comptaient « cinq »** migrations dangereuses
+  (`infra-rollback.md` §5.2, l'en-tête de l'essai) — cinq contraintes dans
+  quatre migrations, qui toutes *rétrécissent* ce que la base accepte. La
+  sixième *retire* quelque chose : les textes disent maintenant « les
+  quelques-unes qui ne le sont pas le disent », et §5.2 nomme celle-ci et
+  son retour sûr.
+
+**Vérifié** :
+- **La suite du serveur**, contre un vrai Postgres (une base jetable, à
+  côté de la base locale) : 2 183 essais verts, 2 sautés (les jetons R2) ;
+  `dart format` propre, `dart analyze --fatal-infos --fatal-warnings` à 0.
+- **Les mutations : 7, toutes rouges**, chacune sur une base neuve — la
+  déclaration retirée (la porte existante seule la voit), la suppression
+  rendue sans effet (seule la moitié Postgres la voit), sans `IF EXISTS`,
+  la déclaration au-dessus de l'`id:`, le retour qui casse non nommé, un
+  fichier du serveur qui nomme la table de nouveau.
+- **L'app et le web** ne sont pas touchés.
+
+**Ce qui reste** : le déploiement de production, sur ton accord — l'image
+que la fusion aura construite (`image_tag`), puis relu : la révision
+nouvelle prête, à 100 %, son étiquette `commit` celle de la fusion, et
+`00046-bzg` la cible d'un retour.
