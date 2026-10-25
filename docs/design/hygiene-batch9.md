@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Statut** | **Validé le 2026-10-22** — relu sur main (`d1e886e1`). Q1 (décision 33) : **le type `SalonId`** (« ce qui vaut le mieux à long terme ») ; Q2 (décision 34) : **e-mail et poussée Sentry** ; Q3 (décision 34) : **pas de suivi des performances pour l'instant** ; Q4 (décision 35) : **pas d'interrupteur** ; Q5 : **construire les trois composants et migrer tous les écrans maintenant** ; Q6 : **les pages publiques lèvent** ; Q7 : **supprimer la table avec ce lot** ; Q8 : **le reste tel qu'écrit**. Huit PR (§3). **PR A fusionnée le 2026-10-22** (#688 — B9.1, B9.5 — §9). **PR B fusionnée le 2026-10-22** (#689 — B9.6 — §10). **PR C fusionnée le 2026-10-22** (#690 — B9.7 — §11). **PR D fusionnée le 2026-10-25** (#691 — B9.11, B9.10 — §12 ; déploiement Vercel de production réussi, le plan du site liste 228 adresses). **PR E fusionnée le 2026-10-25** (#697 — B9.2–B9.4 — §13 ; 81 appliqué et relu le même jour, #698). **PR F1 fusionnée le 2026-10-25** (#699) (B9.8 : les trois briques et tous les écrans asynchrones — §14 ; Q9–Q12 en §8). **PR F2 fusionnée le 2026-10-25** (#700) (B9.8 : toutes les cartes sur `AppCard` — §2.7.3, §15 ; Q13–Q15 en §8). **PR F3 fusionnée le 2026-10-25** (#702) (B9.8 : toutes les puces sur `AppChip` — §2.7.4, §16 ; Q16–Q18 en §8). **PR G construite le 2026-10-25** (#703, `feat/batch9-orphan-table`) (B9.12 : la migration `0043` — §2.11, §17 ; déploiement de production approuvé, à faire après la fusion). |
+| **Statut** | **Validé le 2026-10-22** — relu sur main (`d1e886e1`). Q1 (décision 33) : **le type `SalonId`** (« ce qui vaut le mieux à long terme ») ; Q2 (décision 34) : **e-mail et poussée Sentry** ; Q3 (décision 34) : **pas de suivi des performances pour l'instant** ; Q4 (décision 35) : **pas d'interrupteur** ; Q5 : **construire les trois composants et migrer tous les écrans maintenant** ; Q6 : **les pages publiques lèvent** ; Q7 : **supprimer la table avec ce lot** ; Q8 : **le reste tel qu'écrit**. Huit PR (§3). **PR A fusionnée le 2026-10-22** (#688 — B9.1, B9.5 — §9). **PR B fusionnée le 2026-10-22** (#689 — B9.6 — §10). **PR C fusionnée le 2026-10-22** (#690 — B9.7 — §11). **PR D fusionnée le 2026-10-25** (#691 — B9.11, B9.10 — §12 ; déploiement Vercel de production réussi, le plan du site liste 228 adresses). **PR E fusionnée le 2026-10-25** (#697 — B9.2–B9.4 — §13 ; 81 appliqué et relu le même jour, #698). **PR F1 fusionnée le 2026-10-25** (#699) (B9.8 : les trois briques et tous les écrans asynchrones — §14 ; Q9–Q12 en §8). **PR F2 fusionnée le 2026-10-25** (#700) (B9.8 : toutes les cartes sur `AppCard` — §2.7.3, §15 ; Q13–Q15 en §8). **PR F3 fusionnée le 2026-10-25** (#702) (B9.8 : toutes les puces sur `AppChip` — §2.7.4, §16 ; Q16–Q18 en §8). **PR G fusionnée et déployée le 2026-10-25** (#703 — B9.12 — §2.11, §17 ; révision `myweli-api-00047-55v`). |
 | **Owner** | Sadreddine |
 | **Last updated** | 2026-10-25 |
 | **PRD ref / phase** | V1 — rien de visible n'est ajouté ; ce lot rend vrais les documents, les doublures de test, les lectures et les outils |
@@ -1220,7 +1220,13 @@ provider_otp_codes`, **le premier `DROP TABLE` de la liste**, et son
   fichier du serveur qui nomme la table de nouveau.
 - **L'app et le web** ne sont pas touchés.
 
-**Ce qui reste** : le déploiement de production, sur ton accord — l'image
-que la fusion aura construite (`image_tag`), puis relu : la révision
-nouvelle prête, à 100 %, son étiquette `commit` celle de la fusion, et
-`00046-bzg` la cible d'un retour.
+**Déployé le 2026-10-25**, sur ton accord : la production, avec l'image que
+la fusion a construite (`image_tag=a0ee1cd`, run 40241432887). **Relu** :
+- la révision `myweli-api-00047-55v` est prête, à 100 % du trafic, son
+  étiquette `commit: a0ee1cd`, son empreinte (`sha256:000de335…`) celle de
+  l'image `api:a0ee1cd` — **prête veut dire `0043` écrite**, puisqu'une
+  migration qui échoue empêche le démarrage ;
+- la révision d'avant est `00046-bzg` (`eca4db6`) : la cible d'un retour
+  d'un cran, sûr ;
+- `api.myweli.com/health` répond 200, et la révision nouvelle n'a écrit
+  aucune erreur.
