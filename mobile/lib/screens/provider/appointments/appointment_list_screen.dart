@@ -290,7 +290,6 @@ class _AppointmentCard extends StatelessWidget {
 
   const _AppointmentCard({required this.appointment, required this.onTap});
 
-
   @override
   Widget build(BuildContext context) {
     return Padding(

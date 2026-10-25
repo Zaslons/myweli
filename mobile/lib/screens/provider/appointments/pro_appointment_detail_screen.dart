@@ -368,7 +368,6 @@ class _ProAppointmentDetailScreenState
       ),
     );
   }
-
 }
 
 /// Salon-side view of the consumer's deposit screenshot. The image is private;
