@@ -1366,7 +1366,8 @@ vieillit). Dans les essais, 457 littéraux de salon sont devenus des
 **Vérifié** :
 - **La suite de l'app** : 2 823 essais verts, 58 sautés (les photos) —
   ceux de F3 et les dix nouveaux ; `flutter analyze` à 0, le format propre.
-  Aucune photo ne bouge : H1 ne change aucun rendu.
+  **Aucune photo ne bouge** : les 58, refaites sur Linux (run
+  40244008806), sont identiques à l'octet près.
 - **Les mutations : 10, toutes rouges**, sur le travail commis. Trois sont
   **refusées par le compilateur** (`argument_type_not_assignable`) — c'est
   ce que le type est venu faire : **la M10 de R6** (un identifiant de compte
