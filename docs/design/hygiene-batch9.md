@@ -1363,4 +1363,22 @@ naissance (dans les deux sens : une naissance de trop, ou une liste qui
 vieillit). Dans les essais, 457 littéraux de salon sont devenus des
 `SalonId`, et les doublures d'essai prennent leurs salons typés.
 
-VERIFIED_H1
+**Vérifié** :
+- **La suite de l'app** : 2 823 essais verts, 58 sautés (les photos) —
+  ceux de F3 et les dix nouveaux ; `flutter analyze` à 0, le format propre.
+  Aucune photo ne bouge : H1 ne change aucun rendu.
+- **Les mutations : 10, toutes rouges**, sur le travail commis. Trois sont
+  **refusées par le compilateur** (`argument_type_not_assignable`) — c'est
+  ce que le type est venu faire : **la M10 de R6** (un identifiant de compte
+  en position, `createService(authProvider.provider!.id, …)`), qui
+  survivait à l'épingle ; **la M9 de R6** (le routeur qui donne l'identifiant
+  du compte à l'écran de l'acompte) ; un identifiant de compte donné à
+  `switchSalon`. Sept font rougir l'essai : une place de salon redevenue
+  `String` dans une interface, dans un fournisseur Pro, dans un modèle ; le
+  résolveur qui rend un `String` ; le type qui n'implémente plus `String` ;
+  un `SalonId` né de l'identifiant du compte dans un écran ; une naissance
+  disparue (la liste relue qui vieillit).
+- **Le web et le serveur** : rien de leur code n'est touché ; mais la porte
+  du miroir du web lit des fichiers de l'app (leçon de F3) — ceux de H1 n'en
+  sont pas, et sa suite passe (2 255) ; l'essai du serveur qui lit
+  `api_auth_service.dart` passe.
