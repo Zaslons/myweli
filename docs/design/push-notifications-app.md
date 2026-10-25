@@ -223,6 +223,9 @@ So the repo carries **no Firebase config**, and everything still works:
 
 Shipped: Podfile floor `15.0` (the Firebase iOS SDK's), `Runner.entitlements`
 (`aps-environment`), `UIBackgroundModes: remote-notification` in every plist.
+*2026-10-25 (B0.9): the background mode is removed — the server never sends a
+silent push and the background handler is empty; `notification` pushes still
+arrive with the app killed, and the tap reaches `getInitialMessage`.*
 
 **Deliberately untouched:** `project.pbxproj`, the xcconfigs, `AppDelegate.swift`
 — iOS cannot be compiled in this slice, and corrupting the project file is

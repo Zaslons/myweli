@@ -1296,6 +1296,10 @@ reprennent ce qui est propre au 565.
 - [ ] **Push** : un vrai événement Pro (réservation sur un salon de test publié)
       arrive sur l'install TestFlight — preuve à la fois de l'`aps-environment`
       de production et de la clé APNs dans Firebase, jamais attestée.
+- [ ] **Push, l'app tuée** (B0.9, décision 7 — le mode d'arrière-plan
+      `remote-notification` est retiré) : l'app fermée du sélecteur d'apps,
+      une réservation arrive en notification, et **le tap ouvre le rendez-vous**
+      (pas seulement l'app). Puis l'app en arrière-plan : même chose.
 - [ ] **« Mon abonnement »** : aucune mention de myweli.com, ni ligne de ROI,
       ni « Tarif personnalisé » ; et selon la voie choisie au §2.4, pas de
       sélecteur. *2026-10-05, voie (a) — sur le compte démo* : « Offre Pro
@@ -1505,7 +1509,10 @@ numéros).*
        lot 10.*
 20. [x] **Soumettre pour la revue.** Ne plus toucher au code démo tant que la
        version est en revue. *Soumis : le build 587 est en revue, publication
-       manuelle (BACKLOG B0.1).*
+       manuelle (BACKLOG B0.1).* **2026-10-25 : Apple a refusé le 0.0.1
+       (build 587)** ; le motif suit. Le prochain envoi est **un nouveau build
+       de la 0.0.1**, avec toutes les corrections depuis le 587 (BACKLOG,
+       décision 1) — pas de 0.0.2 avant.
 21. [ ] Après approbation : **ne pas publier** avant que [LAUNCH.md](../LAUNCH.md)
        §3 le permette (production rétablie et stable) — la publication est
        manuelle (§9).
@@ -1598,7 +1605,7 @@ vérifications sur l'iPhone du §11.6 sur le build retenu.
 | **5.1.1(v) — Sign in with Apple : jetons non révoqués** à la suppression (Apple : « should » appeler `/auth/revoke`). | code + clé owner | Rarement testé en revue. Suite : capter l'`authorizationCode`, l'échanger côté serveur (clé privée Sign in with Apple, portail), révoquer à la suppression. Peut suivre le lancement. **Construit** (#679, lot 6) et en production — **inactif** tant que la clé `.p8` n'existe pas (étape du propriétaire, DEPLOYMENT.md phase C). |
 | **Suppression du propriétaire : le salon garde ses coordonnées** (téléphone, WhatsApp, numéro Mobile Money, adresse) en brouillon (`provider_account_service.dart`). | décision | Divulgué par la politique et `/suppression-compte`. Suite : effacer ces champs à la suppression, garder l'historique. **Corrigé** (#677, lot 6) : effacés à la suppression, le nom et l'historique gardés ; en production. |
 | **Politique de confidentialité** : pas la phrase « nos sous-traitants offrent une protection équivalente » (5.1.1(i)) ; dit « Profil → Exporter mes données » là où l'app Pro dit « Mes données ». | web (texte légal) | Une phrase + aligner le libellé (`web/app/politique-confidentialite/page.tsx`). |
-| **Mode d'arrière-plan `remote-notification` inutilisé** (`UIBackgroundModes`) : le backend n'envoie jamais `content-available`. | code, optionnel | Rarement rejeté. Le retirer puis revérifier sur appareil qu'une notification arrive app tuée/en arrière-plan et que le tap route. |
+| **Mode d'arrière-plan `remote-notification` inutilisé** (`UIBackgroundModes`) : le backend n'envoie jamais `content-available`. | code, optionnel | Rarement rejeté. Le retirer puis revérifier sur appareil qu'une notification arrive app tuée/en arrière-plan et que le tap route. **Retiré** (B0.9, décision 7, 2026-10-25 — #NNN) pour le build renvoyé : le serveur n'envoie jamais de poussée silencieuse et le gestionnaire d'arrière-plan est vide (relu, et épinglé des deux côtés) ; la vérification sur l'appareil est au §11.6. |
 | ~~**Paysage non verrouillé sur iPhone** (`UISupportedInterfaceOrientations`, aucun `setPreferredOrientations`).~~ | ~~décision~~ | **Tranché et construit le 2026-10-13** : portrait seul sur iPhone, pour les deux apps (un seul `Info.plist`) ; l'iPad garde ses quatre orientations ([ios-language-and-orientation.md](ios-language-and-orientation.md)). ~~Reste ouvert : **Android**, dont le manifeste ne fixe aucune orientation.~~ **Android : portrait** depuis #682 (lot 7, B7.9) ; part avec 0.0.2. |
 | **Identité démo non recréée si elle est perdue.** ~~La suppression n'est pas verrouillée ; les rendez-vous à venir de la remise à zéro n'existent qu'à J+1/J+2.~~ **Suppression verrouillée côté serveur, construit le 2026-10-13** — 403 `demo_account_locked` sur `DELETE /me/provider` ([demo-account-deletion-lock.md](demo-account-deletion-lock.md)) — ~~**pas encore déployé en production**~~ (déployé le 2026-10-14, voir la fin de la ligne) : tant qu'il ne l'était pas, un relecteur peut encore détruire le compte, et ce sont les notes en vigueur du §8 qui se collent, pas les notes amendées (la ligne datée du §8 en décide). | code + déploiement (accord du propriétaire) | Une fois déployé et vérifié (spec §10.1), il ne reste que la perte hors produit — une opération en base, une restauration. Dans ce cas : recréer par l'app + recapturer. Faire recréer l'identité par la remise à zéro n'est pas construit ; observé le 2026-10-13 sur les dépôts en mémoire : elle continue de restaurer le salon orphelin et ne recrée rien. **Déployé en production et vu répondre dans l'app le 2026-10-14** (§8). |
 | **`tool/release_build.sh` exige Secret Manager** (`MOBILE_SENTRY_DSN`). | owner | ~~Aucun build tant que la facturation est fermée.~~ *(2026-10-22 : facturation rouverte le 2026-10-06 ; le script construit.)* Prendre le DSN dans la console Sentry et construire à la main enfreindrait la règle « personne ne manipule le DSN » : décision, pas défaut. |
