@@ -88,7 +88,7 @@ notification) :
 | `NotificationPreferencesProvider` | les préférences (valeurs par défaut), `loaded`, `loadFailed`, `saving`, `error`, `isLoading` | — |
 | `FavoritesProvider` | ce que fait `clearFavorites()` aujourd'hui, plus `isLoading` | — (`clearFavorites` disparaît : la remise à zéro le remplace) |
 | `MessagingProvider` | `outbox` | — |
-| `ProviderProvider` | `_starsByVisit` seulement | **tout le reste** : les salons, le salon ouvert, la commune choisie, le tri — publics, et les vider blanchirait l'Accueil sous la personne |
+| `ProviderProvider` | `_starsByVisit` seulement — **sans notification** (rien à l'écran ne les lit) | **tout le reste** : les salons, le salon ouvert, la commune choisie, le tri — publics, et les vider blanchirait l'Accueil sous la personne |
 | `AuthProvider` (le sien) | `updateErrorCode`, `emailDevCode` | `error`/`otpErrorCode` : ce sont ceux de la connexion en cours |
 
 **Ce qui n'est pas du compte et reste** : les histoires vues
@@ -138,7 +138,8 @@ enregistrée sur personne.
 ### 2.4 La session refusée devient une sortie
 
 - `RefreshingHttpClient` **annonce** chaque session qu'il efface (le
-  renouvellement refusé, une session illisible), par un flux statique qui
+  renouvellement refusé, une session sans jeton de renouvellement, une
+  réponse illisible ou sans la nouvelle paire), par un flux statique qui
   porte l'identité de la session — la clé même de son vol unique
   (`_inflight`). Une panne de transport garde la session et n'annonce rien,
   comme aujourd'hui.

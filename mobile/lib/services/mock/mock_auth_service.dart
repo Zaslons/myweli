@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
+
 import '../../core/constants/app_constants.dart';
 import '../../core/constants/failure_messages.dart';
 import '../../core/utils/app_clock.dart';
@@ -264,6 +266,23 @@ class MockAuthService implements AuthServiceInterface {
     await Future.delayed(const Duration(milliseconds: 100));
     _currentUser = null;
     await _sessionStore.clear();
+  }
+
+  final _sessionEnded = StreamController<void>.broadcast();
+
+  @override
+  Stream<void> get sessionEnded => _sessionEnded.stream;
+
+  /// What a refused refresh does to the real service (`RefreshingHttpClient`
+  /// clears the stored session and says so): the session ends without a
+  /// sign-out. The doubles fail the way the server does (B9.6) — the demo has
+  /// no server to refuse anything, so only a test calls this.
+  /// docs/design/consumer-account-scope.md §2.4.
+  @visibleForTesting
+  Future<void> expireSession() async {
+    _currentUser = null;
+    await _sessionStore.clear();
+    _sessionEnded.add(null);
   }
 
   @override

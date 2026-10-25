@@ -22,6 +22,13 @@ abstract class AuthServiceInterface {
   Future<void> logout();
   Future<User?> getCurrentUser();
 
+  /// The client session ended WITHOUT a sign-out: the server refused to renew
+  /// it (a refresh token revoked, expired or reused, an account deleted
+  /// elsewhere). `AuthProvider` ends the account on it — the stored session
+  /// is already gone. Never fired by [logout] or [deleteAccount], nor for the
+  /// provider session. docs/design/consumer-account-scope.md §2.4.
+  Stream<void> get sessionEnded;
+
   /// [phone] sets the CONTACT phone (unverified until proven via SMS later);
   /// empty string clears it.
   Future<ApiResponse<User>> updateUser({

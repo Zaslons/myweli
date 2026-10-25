@@ -52,6 +52,7 @@ void main() {
     setUp(() {
       reset(auth);
       when(() => auth.getCurrentUser()).thenAnswer((_) async => baseUser);
+      when(() => auth.sessionEnded).thenAnswer((_) => const Stream.empty());
       when(
         () => auth.updateUser(
           name: any(named: 'name'),
@@ -69,6 +70,10 @@ void main() {
 
     test('uploads then saves the URL on the user', () async {
       final provider = AuthProvider();
+      // Signed in first: a photo started before the session is restored
+      // belongs to no account, and is saved on none
+      // (consumer-account-scope.md §2.3).
+      await pumpEventQueue();
       const source = 'asset:assets/images/providers/spa_relax_photo.png';
 
       final ok = await provider.uploadAvatar(source);
@@ -89,6 +94,7 @@ void main() {
       // Against the old wiring (`serviceLocator.imageUploadService`) this test
       // fails with the fake's own message, naming the bug.
       final provider = AuthProvider();
+      await pumpEventQueue();
       await expectLater(
         provider.uploadAvatar('asset:x.png'),
         completion(isTrue),
