@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Statut** | **Validé le 2026-10-22** — relu sur main (`d1e886e1`). Q1 (décision 33) : **le type `SalonId`** (« ce qui vaut le mieux à long terme ») ; Q2 (décision 34) : **e-mail et poussée Sentry** ; Q3 (décision 34) : **pas de suivi des performances pour l'instant** ; Q4 (décision 35) : **pas d'interrupteur** ; Q5 : **construire les trois composants et migrer tous les écrans maintenant** ; Q6 : **les pages publiques lèvent** ; Q7 : **supprimer la table avec ce lot** ; Q8 : **le reste tel qu'écrit**. Huit PR (§3). **PR A fusionnée le 2026-10-22** (#688 — B9.1, B9.5 — §9). **PR B fusionnée le 2026-10-22** (#689 — B9.6 — §10). **PR C fusionnée le 2026-10-22** (#690 — B9.7 — §11). **PR D fusionnée le 2026-10-25** (#691 — B9.11, B9.10 — §12 ; déploiement Vercel de production réussi, le plan du site liste 228 adresses). **PR E fusionnée le 2026-10-25** (#697 — B9.2–B9.4 — §13 ; 81 appliqué et relu le même jour, #698). **PR F1 fusionnée le 2026-10-25** (#699) (B9.8 : les trois briques et tous les écrans asynchrones — §14 ; Q9–Q12 en §8). **PR F2 fusionnée le 2026-10-25** (#700) (B9.8 : toutes les cartes sur `AppCard` — §2.7.3, §15 ; Q13–Q15 en §8). **PR F3 fusionnée le 2026-10-25** (#702) (B9.8 : toutes les puces sur `AppChip` — §2.7.4, §16 ; Q16–Q18 en §8). **PR G fusionnée et déployée le 2026-10-25** (#703 — B9.12 — §2.11, §17 ; révision `myweli-api-00047-55v`). |
+| **Statut** | **Validé le 2026-10-22** — relu sur main (`d1e886e1`). Q1 (décision 33) : **le type `SalonId`** (« ce qui vaut le mieux à long terme ») ; Q2 (décision 34) : **e-mail et poussée Sentry** ; Q3 (décision 34) : **pas de suivi des performances pour l'instant** ; Q4 (décision 35) : **pas d'interrupteur** ; Q5 : **construire les trois composants et migrer tous les écrans maintenant** ; Q6 : **les pages publiques lèvent** ; Q7 : **supprimer la table avec ce lot** ; Q8 : **le reste tel qu'écrit**. Huit PR (§3). **PR A fusionnée le 2026-10-22** (#688 — B9.1, B9.5 — §9). **PR B fusionnée le 2026-10-22** (#689 — B9.6 — §10). **PR C fusionnée le 2026-10-22** (#690 — B9.7 — §11). **PR D fusionnée le 2026-10-25** (#691 — B9.11, B9.10 — §12 ; déploiement Vercel de production réussi, le plan du site liste 228 adresses). **PR E fusionnée le 2026-10-25** (#697 — B9.2–B9.4 — §13 ; 81 appliqué et relu le même jour, #698). **PR F1 fusionnée le 2026-10-25** (#699) (B9.8 : les trois briques et tous les écrans asynchrones — §14 ; Q9–Q12 en §8). **PR F2 fusionnée le 2026-10-25** (#700) (B9.8 : toutes les cartes sur `AppCard` — §2.7.3, §15 ; Q13–Q15 en §8). **PR F3 fusionnée le 2026-10-25** (#702) (B9.8 : toutes les puces sur `AppChip` — §2.7.4, §16 ; Q16–Q18 en §8). **PR G fusionnée et déployée le 2026-10-25** (#703 — B9.12 — §2.11, §17 ; révision `myweli-api-00047-55v`). **PR H1 construite le 2026-10-25** (#NNN, `feat/batch9-salon-id-pro`) (B9.9, la moitié Pro de `SalonId` — §2.8, §18 ; Q19–Q20 en §8) ; H2 ensuite. |
 | **Owner** | Sadreddine |
 | **Last updated** | 2026-10-25 |
 | **PRD ref / phase** | V1 — rien de visible n'est ajouté ; ce lot rend vrais les documents, les doublures de test, les lectures et les outils |
@@ -1314,3 +1314,53 @@ la fusion a construite (`image_tag=a0ee1cd`, run 40241432887). **Relu** :
   d'un cran, sûr ;
 - `api.myweli.com/health` répond 200, et la révision nouvelle n'a écrit
   aucune erreur.
+
+## 18. PR H1 construite (B9.9, la moitié Pro) — ce qui a été vu
+
+**`SalonId`** (`core/utils/salon_id.dart`) : `extension type const
+SalonId(String value) implements String` (Q20). Un `String` à l'exécution ;
+dans une place de salon, un `String` nu est refusé par le compilateur.
+
+**Ce que H1 type** — le salon qui agit : le résolveur
+(`resolveActingSalonId`, `ProAuthProvider.activeSalonId`,
+`ProviderSession.actingSalonId` et la sélection R6), les cinq interfaces Pro
+(30 places), leurs doublures et services API, les 15 fournisseurs Pro, les
+écrans Pro, le routeur Pro, la poussée (`providerIdFromPushData`,
+`ensureSalon`), et sept modèles (`ProviderUser.providerId`, les adhésions,
+l'équipe, les invitations, `SalonMarket`, `SalonFacts`). 66 fichiers de
+`lib/`.
+
+**Où il naît** — 15 fichiers, chacun nommé dans l'épingle avec sa raison :
+le type ; le `fromJson` de huit modèles (dont la sélection persistée de la
+session) ; le `?salon=` d'un rendez-vous poussé et la charge d'une
+notification ; les données des doublures. Deux ne sont là que jusqu'à H2 :
+`SalonMarket.of` et `SalonFacts.of` font un `SalonId` de l'`id` d'un
+`Provider`, qui reste un `String` jusque-là.
+
+**Ce que le type a trouvé** :
+- **« Pas de salon » s'écrivait `''`, vingt fois** (`activeSalonId ?? ''`,
+  14 fichiers) : une requête partait avec un identifiant vide. Le type le
+  refuse ; le comportement ne change pas dans H1 — **il a un nom**,
+  `SalonId.none` (la chaîne vide, que le résolveur saute comme avant). Que
+  ces écrans n'envoient rien du tout sans salon serait un changement de
+  comportement : il n'est pas fait ici.
+- **Les implémentations restaient ouvertes** : une doublure qui prend un
+  `String` est une redéfinition valide d'une interface qui prend un
+  `SalonId` (le paramètre s'élargit), et le compilateur ne dit rien. Un
+  appel direct à la doublure aurait encore pris un identifiant de compte.
+  Elles sont typées aussi, et un essai tient toutes les couches Pro, avec
+  une seule exception relue : `_figuresMoved` compare le salon d'un
+  rendez-vous (`Appointment.providerId`, H2) et n'envoie rien.
+- **L'épingle de naissance voyait des appels** : `resolveActingSalonId(`
+  contient `SalonId(`. Elle cherche le mot entier.
+
+**Les essais** : `salon_id_type_test.dart` — neuf rouges d'abord, un dixième
+ajouté ensuite pour les couches au-dessus des interfaces (il ne peut pas
+passer à vide : il doit trouver la seule exception relue) —
+aucune place de salon nue dans les interfaces de H1 ni dans les couches Pro
+au-dessus, les sept champs, le résolveur, la forme du type, l'épingle de
+naissance (dans les deux sens : une naissance de trop, ou une liste qui
+vieillit). Dans les essais, 457 littéraux de salon sont devenus des
+`SalonId`, et les doublures d'essai prennent leurs salons typés.
+
+VERIFIED_H1
