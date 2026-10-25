@@ -1452,4 +1452,18 @@ console par `SalonId`, et l'exception de H1 qui se ferme) ; l'épingle de
 naissance à jour. Dans les essais, 232 littéraux de plus deviennent des
 `SalonId` (703 en tout, dans 112 fichiers).
 
-VERIFIED_H2
+**Vérifié** :
+- **La suite de l'app** : 2 826 essais verts, 58 sautés (les photos) ;
+  `flutter analyze` à 0. **Aucune photo ne bouge** : les 58, refaites sur
+  Linux (run 40245492809), sont identiques à l'octet près.
+- **Les mutations : 11, toutes rouges**, sur le travail commis. Trois sont
+  **refusées par le compilateur** : **les deux arguments inversés**
+  (`addFavorite(providerId, userId)` — le défaut que H2 venait fermer), la
+  page d'un salon et une réservation ouvertes sur la chaîne brute d'une
+  route. Huit font rougir l'essai : `Provider.id`,
+  `Appointment.providerId`, `getProviderById`, la suspension de la console,
+  le champ d'un écran client, la liste des favoris redevenus `String` ; un
+  identifiant d'utilisateur né comme un salon ; une naissance disparue.
+- **Le web** (2 255) et **les deux essais du serveur** qui lisent des
+  fichiers touchés de l'app passent ; le code du serveur et du web n'est pas
+  touché.
