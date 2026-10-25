@@ -219,7 +219,9 @@ class _ProInvitationsScreenState extends State<ProInvitationsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.surface,
+      // Cards are `secondary` on `background` (SYSTEM §3.1): the step that
+      // lifts them, now they have no shadow (B9.8 F2).
+      backgroundColor: AppColors.background,
       appBar: AppBar(
         title: const Text('Invitations'),
         // The gate has nowhere to go back to (§3) — only out.

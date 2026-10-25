@@ -64,7 +64,9 @@ class _ProSubscriptionScreenState extends State<ProSubscriptionScreen> {
     final providerId = auth.activeSalonId;
     WidgetsBinding.instance.addPostFrameCallback((_) => _maybeLoad());
     return Scaffold(
-      backgroundColor: AppColors.surface,
+      // Cards are `secondary` on `background` (SYSTEM §3.1): the step that
+      // lifts them, now they have no shadow (B9.8 F2).
+      backgroundColor: AppColors.background,
       appBar: AppBar(title: const Text('Mon abonnement')),
       body: providerId == null || !auth.can(ProCap.subscriptionManage)
           ? const EmptyState(

@@ -202,8 +202,6 @@ class ProviderCard extends StatelessWidget {
                           top: 8,
                           right: 8,
                           child: Semantics(
-                            // Its own node: the card around it is a button too (B9.8).
-                            container: true,
                             button: true,
                             toggled: isFavorite,
                             label: isFavorite
@@ -389,8 +387,6 @@ class ProviderCard extends StatelessWidget {
                     top: 4,
                     right: 4,
                     child: Semantics(
-                      // Its own node: the card around it is a button too (B9.8).
-                      container: true,
                       button: true,
                       toggled: isFavorite,
                       label: isFavorite

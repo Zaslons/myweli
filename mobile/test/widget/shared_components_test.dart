@@ -298,6 +298,39 @@ void main() {
       handle.dispose();
     });
 
+    testWidgets('a card is read together: one node, as Material\'s Card was', (
+      tester,
+    ) async {
+      // 27 `Card`s became `AppCard`s; `Card` is a semantics container, and
+      // without one the lines of a card are each a stop of their own.
+      final handle = tester.ensureSemantics();
+      await pumpApp(
+        tester,
+        home: const Scaffold(
+          body: Column(
+            children: [
+              AppCard(
+                child: Column(children: [Text('Date'), Text('mardi 27')]),
+              ),
+              AppCard(child: Text('Heure')),
+            ],
+          ),
+        ),
+      );
+      final date = tester.getSemantics(find.text('Date'));
+      expect(
+        identical(date, tester.getSemantics(find.text('mardi 27'))),
+        isTrue,
+      );
+      expect(date.label, allOf(contains('Date'), contains('mardi 27')));
+      expect(
+        identical(date, tester.getSemantics(find.text('Heure'))),
+        isFalse,
+        reason: 'two cards are two stops',
+      );
+      handle.dispose();
+    });
+
     Border? borderOf(WidgetTester tester) {
       final m = tester.widget<Material>(
         find

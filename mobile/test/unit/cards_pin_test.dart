@@ -72,6 +72,31 @@ void main() {
     );
   });
 
+  test(
+    'a page that holds cards is `background`, not `surface` (SYSTEM §3.1)',
+    () {
+      // White on #FAFAFA is half the surface step: six pages had leaned on the
+      // shadows and borders F2 removed to keep their cards visible.
+      final surfacePage = RegExp(
+        r'Scaffold\(\s*(key: [^,]+,\s*)?backgroundColor: AppColors\.surface,',
+      );
+      expect(
+        {
+          for (final MapEntry(key: path, value: s) in sources().entries)
+            if (path.startsWith('lib/screens/') && surfacePage.hasMatch(s))
+              path,
+        },
+        {
+          // No card on these: a sign-in form, a form, the two splashes.
+          'lib/screens/admin/admin_login_screen.dart',
+          'lib/screens/provider/salons/add_salon_screen.dart',
+          'lib/screens/splash/splash_screen.dart',
+          'lib/screens/provider/auth/pro_splash_screen.dart',
+        },
+      );
+    },
+  );
+
   test('a shadow only on what floats (SYSTEM §8)', () {
     final shadow = RegExp(r'AppTheme\.elevation\d');
     expect(

@@ -401,7 +401,9 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.surface,
+      // Cards are `secondary` on `background` (SYSTEM §3.1): the step that
+      // lifts them, now they have no shadow (B9.8 F2).
+      backgroundColor: AppColors.background,
       appBar: AppBar(title: const Text('Détails')),
       body: Consumer<AppointmentProvider>(
         builder: (context, provider, _) {

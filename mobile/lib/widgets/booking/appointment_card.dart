@@ -164,8 +164,6 @@ class AppointmentCard extends StatelessWidget {
                               minHeight: 48,
                             ), // §13.2 touch target
                             child: Semantics(
-                              // Its own node: the card around it is a button too (B9.8).
-                              container: true,
                               button: true,
                               label: 'Voir sur la carte',
                               child: GestureDetector(
@@ -227,8 +225,6 @@ class AppointmentCard extends StatelessWidget {
                                 minHeight: 48,
                               ), // §13.2 touch target
                               child: Semantics(
-                                // Its own node, as « Voir sur la carte ».
-                                container: true,
                                 button: true,
                                 label: 'Itinéraire',
                                 child: GestureDetector(
