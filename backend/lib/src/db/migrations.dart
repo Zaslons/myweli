@@ -1155,6 +1155,18 @@ CREATE TABLE IF NOT EXISTS momo_operators (
           'PRIMARY KEY (account_kind, account_id, client_id))',
     ],
   ),
+  (
+    id: '0043_drop_provider_otp_codes',
+    // rollback-unsafe: provider_otp_codes is gone. The Pro phone codes have
+    // been unread and unwritten since B8.5 (#685, image eca4db6, revision
+    // myweli-api-00046-bzg), and a rollback ONE step — to that revision — is
+    // safe: it never names the table. Two steps back, to 00045-8hs (batch 6)
+    // or older, every Pro account deletion would fail on its
+    // `DELETE FROM provider_otp_codes` and answer 500. The contract step of
+    // LAUNCH §1.4, once no deployed image reads it.
+    // docs/design/hygiene-batch9.md §2.11 (B9.12).
+    statements: ['DROP TABLE IF EXISTS provider_otp_codes'],
+  ),
 ];
 
 /// How long a schema-setup statement may **wait for a lock** before giving up.

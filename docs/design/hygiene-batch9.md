@@ -342,6 +342,44 @@ partout ; les créneaux pleins ; une seule pastille teintée, rôles compris.
 - **Quand** : avec le déploiement de ce lot. Après lui, la cible d'un
   retour arrière est `eca4db6`, qui ne lit plus la table (Q7).
 
+**Relu le 2026-10-25, avant de construire (PR G)** :
+- **Sur main** (`dfdc4178`) : la table n'est plus nommée que par sa création
+  (`0003`, `migrations.dart:117`) et par l'épingle de B8.5 qui interdit son
+  nom aux deux magasins Pro (`batch8_phone_signin_contract_test.dart:38`).
+- **En production** (lu, rien changé) : la révision servie est
+  `myweli-api-00046-bzg`, 100 % du trafic, étiquette `commit: eca4db6` —
+  B8.5. **Dans `eca4db6`, seule la création la nomme** : ni lecture, ni
+  écriture, ni effacement. La révision d'avant, `00045-8hs` (lot 6), l'efface
+  à chaque suppression de compte Pro.
+- **La chaîne** : `staging.state` dit `absent`, donc une fusion **construit**
+  l'image et ne déploie rien ; la migration ne tourne qu'au déploiement de
+  production, sur ton accord. Elle tourne au démarrage, sous le verrou du
+  schéma et **avant** que le port s'ouvre : si elle échoue (le verrou
+  attendu plus de 3 s), la révision n'est jamais prête et le trafic reste
+  sur `eca4db6`.
+
+**Ce que G construit** :
+- **`0043_drop_provider_otp_codes`** : `DROP TABLE IF EXISTS
+  provider_otp_codes`. Son `// rollback-unsafe:` dit le seul retour qui
+  casse : vers `00045-8hs` ou plus ancien, où supprimer un compte Pro
+  rendrait 500. Vers `eca4db6`, la cible d'un retour d'un cran, rien ne
+  casse. **Le premier `DROP TABLE`** de la liste.
+- **Les essais, rouges d'abord** :
+  - contre un vrai Postgres : après les migrations, `to_regclass` ne trouve
+    plus la table, et les rejouer ne change rien (`IF EXISTS`) ;
+  - sur la source : hors de `migrations.dart`, aucun fichier de `lib/`,
+    `routes/` ou `bin/` ne nomme la table, et la dernière migration qui la
+    nomme la supprime, déclarée.
+- **Le modèle de menace** (BACKEND.md §7) : la ligne T80 dit la table
+  « gardée » ; elle dit maintenant qu'elle est partie avec `0043`.
+
+**Le déploiement** — demandé à part, après la fusion : la production, avec
+l'image que la fusion aura construite (`image_tag`), comme toujours. **Vu
+après** : la révision nouvelle prête, à 100 %, son étiquette `commit` celle
+de la fusion — prête veut dire que chaque migration de sa liste est écrite
+dans `schema_migrations`, `0043` comprise, puisqu'une migration qui échoue
+empêche le démarrage.
+
 ## 3. La livraison
 
 **Huit PR**, dans cet ordre ; seule (G) demande un déploiement du serveur
