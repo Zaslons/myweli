@@ -6,6 +6,7 @@ import '../../core/theme/colors.dart';
 import '../../core/theme/text_styles.dart';
 import '../../core/utils/formatters.dart';
 import '../../models/review.dart';
+import '../common/app_chip.dart';
 import '../common/timed_cached_image.dart';
 
 /// A single review, with a verified-booking badge, optional stylist
@@ -224,41 +225,15 @@ class ReviewTile extends StatelessWidget {
 class _VerifiedBadge extends StatelessWidget {
   const _VerifiedBadge();
 
+  // A11 C5: « Réservation vérifiée » is 20 characters inside a pill, and at
+  // 200% it wants 225dp in the 212dp the tile can offer: the label WRAPS
+  // inside the pill (`AppChip.status`'s `Flexible`) rather than run out of
+  // it — deliberately not an ellipsis, because « Réservation véri… » on a
+  // trust badge is worse than a two-line badge.
   @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppTheme.spacingS,
-        vertical: AppTheme.spacingXS,
-      ),
-      decoration: BoxDecoration(
-        color: AppColors.success.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(AppTheme.radiusPill),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Icon(
-            Icons.verified,
-            size: AppTheme.iconXS,
-            color: AppColors.success,
-          ),
-          const SizedBox(width: AppTheme.spacingXS),
-          // A11 C5: « Réservation vérifiée » is 20 characters inside a pill, and
-          // at 200% it wants 225dp in the 212dp the tile can offer. `Flexible`
-          // lets the label WRAP inside the pill rather than run out of it —
-          // deliberately not an ellipsis, because « Réservation véri… » on a
-          // trust badge is worse than a two-line badge.
-          Flexible(
-            child: Text(
-              'Réservation vérifiée',
-              style: AppTextStyles.labelSmall.copyWith(
-                color: AppColors.success,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+  Widget build(BuildContext context) => const AppChip.status(
+    label: 'Réservation vérifiée',
+    icon: Icons.verified,
+    tone: AppChipTone.success,
+  );
 }

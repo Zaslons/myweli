@@ -5,9 +5,11 @@ import '../../core/theme/colors.dart';
 import '../../core/theme/text_styles.dart';
 import '../../core/utils/formatters.dart';
 import '../../core/utils/salon_time.dart';
+import '../../core/utils/status_colors.dart';
 import '../../core/utils/status_labels.dart';
 import '../../models/appointment.dart';
 import '../common/app_card.dart';
+import '../common/app_chip.dart';
 import '../common/timed_cached_image.dart';
 
 class CompactAppointmentTile extends StatelessWidget {
@@ -29,25 +31,8 @@ class CompactAppointmentTile extends StatelessWidget {
     this.hint,
   });
 
-  Color _statusColor(AppointmentStatus status) {
-    switch (status) {
-      case AppointmentStatus.pending:
-        return AppColors.warningLight;
-      case AppointmentStatus.confirmed:
-        return AppColors.successLight;
-      case AppointmentStatus.completed:
-        return AppColors.infoLight;
-      case AppointmentStatus.cancelled:
-        return AppColors.errorLight;
-      case AppointmentStatus.noShow:
-        return AppColors.warningLight;
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
-    final statusColor = _statusColor(appointment.status);
-
     return AppCard(
       onTap: onTap,
       child: Row(
@@ -114,23 +99,9 @@ class CompactAppointmentTile extends StatelessWidget {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: AppTheme.spacingS,
-                          vertical: AppTheme.spacingXS,
-                        ),
-                        decoration: BoxDecoration(
-                          color: statusColor.withValues(alpha: 0.14),
-                          borderRadius: BorderRadius.circular(
-                            AppTheme.radiusPill,
-                          ),
-                        ),
-                        child: Text(
-                          StatusLabels.of(appointment.status),
-                          style: AppTextStyles.labelSmall.copyWith(
-                            color: statusColor,
-                          ),
-                        ),
+                      AppChip.status(
+                        label: StatusLabels.of(appointment.status),
+                        tone: appointmentStatusTone(appointment.status),
                       ),
                     ],
                   ),

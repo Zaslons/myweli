@@ -5,6 +5,7 @@ import '../../core/theme/colors.dart';
 import '../../core/theme/text_styles.dart';
 import '../../core/utils/booking_duration.dart';
 import '../../core/utils/formatters.dart';
+import '../common/app_chip.dart';
 
 /// Hair-length chooser shown when a selected service prices/times by length.
 /// Each chip shows the resulting total duration for that length.
@@ -38,11 +39,10 @@ class LengthVariantSelector extends StatelessWidget {
           spacing: AppTheme.spacingS,
           runSpacing: AppTheme.spacingS,
           children: available.map((length) {
-            return ChoiceChip(
-              label: Text(
-                '${lengthVariantLabel(length)} · '
-                '${Formatters.formatDuration(durationFor(length))}',
-              ),
+            return AppChip.choice(
+              label:
+                  '${lengthVariantLabel(length)} · '
+                  '${Formatters.formatDuration(durationFor(length))}',
               selected: selected == length,
               onSelected: (_) => onChanged(length),
             );

@@ -18,6 +18,7 @@ import '../../../providers/pro_auth_provider.dart';
 import '../../../providers/pro_journal_provider.dart';
 import '../../../widgets/common/app_button.dart';
 import '../../../widgets/common/app_card.dart';
+import '../../../widgets/common/app_chip.dart';
 import '../../../widgets/common/app_skeleton.dart';
 import '../../../widgets/common/app_snack_bar.dart';
 import '../../../widgets/common/confirm_dialog.dart';
@@ -122,32 +123,13 @@ class _ProAppointmentDetailScreenState
                             ),
                           ),
                           if ((appointment.clientNoShowCount ?? 0) >= 1)
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: AppTheme.spacingS,
-                                vertical: AppTheme.spacingXS,
-                              ),
-                              decoration: BoxDecoration(
-                                color:
-                                    ((appointment.clientNoShowCount ?? 0) >= 2)
-                                    ? AppColors.error.withValues(alpha: 0.1)
-                                    : AppColors.surfaceVariant,
-                                borderRadius: BorderRadius.circular(
-                                  AppTheme.radiusSmall,
-                                ),
-                              ),
-                              child: Text(
-                                appointment.clientNoShowCount == 1
-                                    ? '1 absence'
-                                    : '${appointment.clientNoShowCount} absences',
-                                style: AppTextStyles.bodySmall.copyWith(
-                                  color:
-                                      ((appointment.clientNoShowCount ?? 0) >=
-                                          2)
-                                      ? AppColors.error
-                                      : AppColors.textSecondary,
-                                ),
-                              ),
+                            AppChip.status(
+                              label: appointment.clientNoShowCount == 1
+                                  ? '1 absence'
+                                  : '${appointment.clientNoShowCount} absences',
+                              tone: (appointment.clientNoShowCount ?? 0) >= 2
+                                  ? AppChipTone.error
+                                  : AppChipTone.neutral,
                             ),
                         ],
                       ),
@@ -203,9 +185,9 @@ class _ProAppointmentDetailScreenState
                         ),
                       ),
                       const SizedBox(height: AppTheme.spacingS),
-                      Chip(
-                        label: Text(StatusLabels.of(appointment.status)),
-                        backgroundColor: _getStatusColor(appointment.status),
+                      AppChip.status(
+                        label: StatusLabels.of(appointment.status),
+                        tone: appointmentStatusTone(appointment.status),
                       ),
                       const SizedBox(height: AppTheme.spacingM),
                       Text(
@@ -386,9 +368,6 @@ class _ProAppointmentDetailScreenState
       ),
     );
   }
-
-  Color _getStatusColor(AppointmentStatus status) =>
-      appointmentStatusColor(status);
 }
 
 /// Salon-side view of the consumer's deposit screenshot. The image is private;

@@ -15,6 +15,7 @@ import '../../../providers/pro_auth_provider.dart';
 import '../../../providers/pro_availability_provider.dart';
 import '../../../widgets/common/app_async_view.dart';
 import '../../../widgets/common/app_card.dart';
+import '../../../widgets/common/app_chip.dart';
 import '../../../widgets/common/app_skeleton.dart';
 import '../../../widgets/common/app_snack_bar.dart';
 import '../../../widgets/common/confirm_dialog.dart';
@@ -190,8 +191,8 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
               spacing: AppTheme.spacingS,
               runSpacing: AppTheme.spacingS,
               children: WeeklySchedulePresets.all.map((preset) {
-                return ChoiceChip(
-                  label: Text(preset.label),
+                return AppChip.choice(
+                  label: preset.label,
                   // Honest selection: lit only while the schedule IS
                   // the model — any manual edit unlights every chip.
                   selected: weeklyScheduleMatchesPreset(
@@ -772,8 +773,8 @@ class _BookingWindowSection extends StatelessWidget {
             spacing: AppTheme.spacingS,
             runSpacing: AppTheme.spacingS,
             children: BookingWindowPresets.horizons.map((days) {
-              return ChoiceChip(
-                label: Text(horizonLabel(days)),
+              return AppChip.choice(
+                label: horizonLabel(days),
                 selected: bookingHorizonDays == days,
                 onSelected: (_) => onHorizonChanged(days),
               );
@@ -791,8 +792,8 @@ class _BookingWindowSection extends StatelessWidget {
             spacing: AppTheme.spacingS,
             runSpacing: AppTheme.spacingS,
             children: BookingWindowPresets.notices.map((minutes) {
-              return ChoiceChip(
-                label: Text(noticeLabel(minutes)),
+              return AppChip.choice(
+                label: noticeLabel(minutes),
                 selected: minimumNoticeMinutes == minutes,
                 onSelected: (_) => onNoticeChanged(minutes),
               );
@@ -859,8 +860,8 @@ class _BufferSection extends StatelessWidget {
             spacing: AppTheme.spacingS,
             runSpacing: AppTheme.spacingS,
             children: _presets.map((minutes) {
-              return ChoiceChip(
-                label: Text(minutes == 0 ? 'Aucun' : '$minutes min'),
+              return AppChip.choice(
+                label: minutes == 0 ? 'Aucun' : '$minutes min',
                 selected: bufferMinutes == minutes,
                 onSelected: (_) => onChanged(minutes),
               );
@@ -911,11 +912,11 @@ class _DayScheduleCard extends StatelessWidget {
                   children: timeSlots.map((slot) {
                     final start = Formatters.formatTime(slot.startTime);
                     final end = Formatters.formatTime(slot.endTime);
-                    return Chip(
-                      label: Text('$start - $end'),
-                      backgroundColor: slot.isAvailable
-                          ? AppColors.primary.withValues(alpha: 0.1)
-                          : AppColors.error.withValues(alpha: 0.1),
+                    return AppChip.status(
+                      label: '$start - $end',
+                      tone: slot.isAvailable
+                          ? AppChipTone.strong
+                          : AppChipTone.error,
                     );
                   }).toList(),
                 ),

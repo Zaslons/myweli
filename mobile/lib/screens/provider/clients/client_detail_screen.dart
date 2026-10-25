@@ -20,6 +20,7 @@ import '../../../providers/pro_auth_provider.dart';
 import '../../../providers/pro_clients_provider.dart';
 import '../../../widgets/common/app_async_view.dart';
 import '../../../widgets/common/app_button.dart';
+import '../../../widgets/common/app_chip.dart';
 import '../../../widgets/common/app_skeleton.dart';
 import '../../../widgets/common/app_snack_bar.dart';
 import '../../../widgets/common/app_text_field.dart';
@@ -411,12 +412,9 @@ class _Header extends StatelessWidget {
             runSpacing: AppTheme.spacingXS,
             crossAxisAlignment: WrapCrossAlignment.center,
             children: [
-              for (final t in client.tags) Chip(label: Text(t)),
-              ActionChip(
-                label: Text(
-                  client.tags.isEmpty ? '+ Tags' : 'Modifier',
-                  style: AppTextStyles.bodySmall,
-                ),
+              for (final t in client.tags) AppChip.tag(label: t),
+              AppChip.action(
+                label: client.tags.isEmpty ? '+ Tags' : 'Modifier',
                 onPressed: onEditTags,
               ),
             ],
@@ -1227,8 +1225,8 @@ class _TagSheetState extends State<_TagSheet> {
               runSpacing: AppTheme.spacingXS,
               children: [
                 for (final t in choices)
-                  FilterChip(
-                    label: Text(t),
+                  AppChip.choice(
+                    label: t,
                     selected: _tags.contains(t),
                     onSelected: (_) => _toggle(t),
                   ),

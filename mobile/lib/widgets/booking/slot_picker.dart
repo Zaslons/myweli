@@ -13,6 +13,7 @@ import '../../core/utils/formatters.dart';
 import '../../core/utils/salon_time.dart';
 import '../../providers/appointment_provider.dart';
 import '../../providers/locality_provider.dart';
+import '../common/app_chip.dart';
 import '../common/app_skeleton.dart';
 import '../common/empty_state.dart';
 import '../common/myweli_date_picker.dart';
@@ -414,28 +415,13 @@ class _SlotPickerState extends State<SlotPicker> {
               final selected =
                   widget.selectedSlot != null &&
                   widget.selectedSlot!.isAtSameMomentAs(slot);
-              return ChoiceChip(
-                label: Text(
-                  Formatters.formatTime(toSalonTime(slot, tz: widget.tz)),
-                ),
+              return AppChip.choice(
+                label: Formatters.formatTime(toSalonTime(slot, tz: widget.tz)),
                 selected: selected,
                 onSelected: (_) {
                   widget.onInteraction?.call();
                   widget.onSlotSelected(slot);
                 },
-                selectedColor: AppColors.primary.withValues(alpha: 0.15),
-                labelStyle: AppTextStyles.bodySmall.copyWith(
-                  color: selected ? AppColors.primary : AppColors.textPrimary,
-                ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(AppTheme.radiusPill),
-                  side: BorderSide(
-                    color: selected
-                        ? AppColors.primary
-                        : AppColors.borderStrong,
-                  ),
-                ),
-                backgroundColor: AppColors.secondary,
               );
             }).toList(),
           ),

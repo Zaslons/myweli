@@ -4,6 +4,7 @@ import 'package:myweli/core/theme/app_theme.dart';
 import 'package:myweli/core/theme/colors.dart';
 import 'package:myweli/core/theme/text_styles.dart';
 import 'package:myweli/screens/admin/widgets/status_chip.dart';
+import 'package:myweli/widgets/common/app_chip.dart';
 import 'package:myweli/widgets/common/empty_state.dart';
 
 import '../support/golden.dart';
@@ -101,17 +102,42 @@ class _FeedbackSheet extends StatelessWidget {
               ),
             ),
           ),
-          const GoldenSection(
+          // `AppChip` since B9.8 F3: its four kinds, as the screens use them.
+          GoldenSection(
             title: 'Chips',
             child: Wrap(
               spacing: AppTheme.spacingS,
+              runSpacing: AppTheme.spacingS,
               children: [
-                Chip(label: Text('Coiffure')),
-                Chip(label: Text('Spa')),
-                FilterChip(
-                  label: Text('À domicile'),
+                AppChip.choice(
+                  label: 'À domicile',
                   selected: true,
                   onSelected: _noopBool,
+                ),
+                AppChip.choice(
+                  label: 'Barbier',
+                  icon: Icons.content_cut,
+                  selected: false,
+                  onSelected: _noopBool,
+                ),
+                const AppChip.tag(label: 'VIP'),
+                AppChip.action(label: '+ Tags', onPressed: _noop),
+                const AppChip.status(
+                  label: 'Confirmé',
+                  tone: AppChipTone.success,
+                ),
+                const AppChip.status(
+                  label: 'En attente',
+                  tone: AppChipTone.warning,
+                ),
+                const AppChip.status(label: 'Annulé', tone: AppChipTone.error),
+                const AppChip.status(
+                  label: 'Terminé',
+                  tone: AppChipTone.neutral,
+                ),
+                const AppChip.status(
+                  label: 'Propriétaire',
+                  tone: AppChipTone.gold,
                 ),
               ],
             ),

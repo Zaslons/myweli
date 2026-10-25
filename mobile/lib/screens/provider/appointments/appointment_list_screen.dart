@@ -17,6 +17,7 @@ import '../../../providers/pro_appointment_provider.dart';
 import '../../../providers/pro_auth_provider.dart';
 import '../../../widgets/common/app_async_view.dart';
 import '../../../widgets/common/app_card.dart';
+import '../../../widgets/common/app_chip.dart';
 import '../../../widgets/common/app_skeleton.dart';
 import 'appointment_calendar_view.dart';
 
@@ -289,9 +290,6 @@ class _AppointmentCard extends StatelessWidget {
 
   const _AppointmentCard({required this.appointment, required this.onTap});
 
-  Color _getStatusColor(AppointmentStatus status) =>
-      appointmentStatusColor(status);
-
   @override
   Widget build(BuildContext context) {
     return Padding(
@@ -355,12 +353,9 @@ class _AppointmentCard extends StatelessWidget {
               ),
             ],
           ),
-          trailing: Chip(
-            label: Text(
-              StatusLabels.of(appointment.status),
-              style: AppTextStyles.bodySmall.copyWith(color: Colors.white),
-            ),
-            backgroundColor: _getStatusColor(appointment.status),
+          trailing: AppChip.status(
+            label: StatusLabels.of(appointment.status),
+            tone: appointmentStatusTone(appointment.status),
           ),
         ),
       ),
