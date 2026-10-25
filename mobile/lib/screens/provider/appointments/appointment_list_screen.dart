@@ -9,6 +9,7 @@ import '../../../core/theme/colors.dart';
 import '../../../core/theme/text_styles.dart';
 import '../../../core/utils/app_clock.dart';
 import '../../../core/utils/formatters.dart';
+import '../../../core/utils/salon_id.dart';
 import '../../../core/utils/salon_time.dart';
 import '../../../core/utils/status_colors.dart';
 import '../../../core/utils/status_labels.dart';
@@ -49,7 +50,9 @@ class _AppointmentListScreenState extends State<AppointmentListScreen>
           listen: false,
         );
         // Load all appointments for calendar view
-        appointmentProvider.loadAppointments(authProvider.activeSalonId ?? '');
+        appointmentProvider.loadAppointments(
+          authProvider.activeSalonId ?? SalonId.none,
+        );
       }
     });
   }
@@ -68,7 +71,9 @@ class _AppointmentListScreenState extends State<AppointmentListScreen>
 
       if (_mainTabController.index == 0) {
         // Calendar view - load all appointments
-        appointmentProvider.loadAppointments(authProvider.activeSalonId ?? '');
+        appointmentProvider.loadAppointments(
+          authProvider.activeSalonId ?? SalonId.none,
+        );
       } else {
         // List view - load based on selected list tab
         _loadAppointmentsForListTab(_listTabController.index);
@@ -97,14 +102,14 @@ class _AppointmentListScreenState extends State<AppointmentListScreen>
       case 0: // Today — the ACTIVE SALON's day bounds (salon_time.dart).
         final bounds = salonDayBoundsUtc(tz: authProvider.salonTimezone);
         appointmentProvider.loadAppointments(
-          authProvider.activeSalonId ?? '',
+          authProvider.activeSalonId ?? SalonId.none,
           startDate: bounds.startUtc,
           endDate: bounds.endUtc,
         );
         return;
       case 1: // Upcoming
         appointmentProvider.loadAppointments(
-          authProvider.activeSalonId ?? '',
+          authProvider.activeSalonId ?? SalonId.none,
           startDate: AppClock.now(),
         );
         return;
@@ -116,7 +121,7 @@ class _AppointmentListScreenState extends State<AppointmentListScreen>
     }
 
     appointmentProvider.loadAppointments(
-      authProvider.activeSalonId ?? '',
+      authProvider.activeSalonId ?? SalonId.none,
       status: status,
     );
   }
@@ -161,7 +166,7 @@ class _AppointmentListScreenState extends State<AppointmentListScreen>
           Future<void> reload() async {
             if (authProvider.provider != null) {
               await appointmentProvider.loadAppointments(
-                authProvider.activeSalonId ?? '',
+                authProvider.activeSalonId ?? SalonId.none,
               );
             }
           }

@@ -3,6 +3,7 @@ import 'dart:convert';
 
 import '../../core/constants/app_constants.dart';
 import '../../core/utils/app_clock.dart';
+import '../../core/utils/salon_id.dart';
 import '../../models/api_response.dart';
 import '../../models/appointment.dart';
 import '../../models/pro_membership.dart';
@@ -561,7 +562,7 @@ class MockAuthService implements AuthServiceInterface {
     // R4b role plumbing depends on it.
     // Made the server's way: empty, and at a 0 % deposit
     // (docs/design/hygiene-batch9.md §2.5).
-    final salonId = MockIds.next('provider_reg');
+    final salonId = SalonId(MockIds.next('provider_reg'));
     MockData.providers.add(
       MockData.newSalon(
         id: salonId,
@@ -711,16 +712,16 @@ class MockAuthService implements AuthServiceInterface {
 
   /// R6: the mock's in-memory salon selection (persistence-parity with the
   /// API session store for the life of the process).
-  String? _selectedSalonId;
+  SalonId? _selectedSalonId;
 
   @override
-  Future<void> setSelectedProviderSalon(String? salonId) async {
+  Future<void> setSelectedProviderSalon(SalonId? salonId) async {
     if (_currentProvider == null) return;
     _selectedSalonId = salonId;
   }
 
   @override
-  Future<String?> getSelectedProviderSalon() async => _selectedSalonId;
+  Future<SalonId?> getSelectedProviderSalon() async => _selectedSalonId;
 
   @override
   Future<ProviderUser?> getCurrentProvider() async {

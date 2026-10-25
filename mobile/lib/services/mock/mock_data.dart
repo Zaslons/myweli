@@ -1,4 +1,5 @@
 import '../../core/utils/app_clock.dart';
+import '../../core/utils/salon_id.dart';
 import '../../core/utils/salon_time.dart';
 import '../../models/appointment.dart';
 import '../../models/artist.dart';
@@ -43,7 +44,7 @@ class MockData {
       address: 'Cocody, Angré 7ème Tranche',
       verificationStatus: VerificationStatus.verified,
       createdAt: DateTime(2024, 1, 1),
-      providerId: 'provider1',
+      providerId: SalonId('provider1'),
     ),
     ProviderUser(
       id: 'provider_user2',
@@ -54,7 +55,7 @@ class MockData {
       address: 'Marcory, Zone 4',
       verificationStatus: VerificationStatus.verified,
       createdAt: DateTime(2024, 1, 15),
-      providerId: 'provider2',
+      providerId: SalonId('provider2'),
     ),
     // Team-member accounts (access R4b): BARE — no providerId (that field
     // means salon OWNERSHIP); their salon resolves via the roster rows.
@@ -700,7 +701,7 @@ class MockData {
   static List<TeamMember> _seedTeamMembers() => [
     TeamMember(
       id: 'mem_owner1',
-      providerId: 'provider1',
+      providerId: SalonId('provider1'),
       email: 'jean@salon-excellence.test',
       role: TeamRole.owner,
       status: TeamMemberStatus.active,
@@ -710,7 +711,7 @@ class MockData {
     ),
     TeamMember(
       id: 'mem_manager1',
-      providerId: 'provider1',
+      providerId: SalonId('provider1'),
       email: 'awa.manager@myweli.test',
       role: TeamRole.manager,
       status: TeamMemberStatus.active,
@@ -720,7 +721,7 @@ class MockData {
     ),
     TeamMember(
       id: 'mem_staff1',
-      providerId: 'provider1',
+      providerId: SalonId('provider1'),
       email: 'invitee@myweli.test',
       role: TeamRole.staff,
       status: TeamMemberStatus.invited,
@@ -733,7 +734,7 @@ class MockData {
     // ACTIVE members backing the R4b role demos (accounts seeded above).
     TeamMember(
       id: 'mem_reception2',
-      providerId: 'provider1',
+      providerId: SalonId('provider1'),
       email: 'fatou.reception@myweli.test',
       role: TeamRole.reception,
       status: TeamMemberStatus.active,
@@ -743,7 +744,7 @@ class MockData {
     ),
     TeamMember(
       id: 'mem_staff2',
-      providerId: 'provider1',
+      providerId: SalonId('provider1'),
       email: 'sonia.staff@myweli.test',
       role: TeamRole.staff,
       status: TeamMemberStatus.active,
@@ -755,7 +756,7 @@ class MockData {
     ),
     TeamMember(
       id: 'mem_reception1',
-      providerId: 'provider1',
+      providerId: SalonId('provider1'),
       email: 'retard@myweli.test',
       role: TeamRole.reception,
       status: TeamMemberStatus.invited,
@@ -770,7 +771,7 @@ class MockData {
     // counts are untouched.
     TeamMember(
       id: 'mem_owner2',
-      providerId: 'provider2',
+      providerId: SalonId('provider2'),
       email: 'jean@salon-excellence.test',
       role: TeamRole.owner,
       status: TeamMemberStatus.active,
@@ -785,7 +786,7 @@ class MockData {
     // (and their goldens) are untouched.
     TeamMember(
       id: 'mem_ancien',
-      providerId: 'provider2',
+      providerId: SalonId('provider2'),
       email: 'ancien.membre@myweli.test',
       role: TeamRole.reception,
       status: TeamMemberStatus.invited,
@@ -801,7 +802,7 @@ class MockData {
     'invitee@myweli.test': [
       TeamInvitation(
         id: 'mem_staff1',
-        providerId: 'provider1',
+        providerId: SalonId('provider1'),
         salonName: 'Salon Excellence',
         role: TeamRole.staff,
         roleLabel: 'Collaborateur',
@@ -811,7 +812,7 @@ class MockData {
     'mock.google@salon.test': [
       TeamInvitation(
         id: 'mem_google1',
-        providerId: 'provider2',
+        providerId: SalonId('provider2'),
         salonName: 'Beauté Divine',
         role: TeamRole.manager,
         roleLabel: 'Manager',
@@ -822,7 +823,7 @@ class MockData {
     'ancien.membre@myweli.test': [
       TeamInvitation(
         id: 'mem_ancien',
-        providerId: 'provider2',
+        providerId: SalonId('provider2'),
         salonName: 'Beauté Divine',
         role: TeamRole.reception,
         roleLabel: 'Réception',
@@ -833,7 +834,7 @@ class MockData {
     'retard@myweli.test': [
       TeamInvitation(
         id: 'mem_reception1',
-        providerId: 'provider1',
+        providerId: SalonId('provider1'),
         salonName: 'Salon Excellence',
         role: TeamRole.reception,
         roleLabel: 'Réception',

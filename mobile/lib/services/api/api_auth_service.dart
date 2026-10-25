@@ -9,6 +9,7 @@ import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import '../../core/config/app_config.dart';
 import '../../core/constants/failure_messages.dart';
 import '../../core/utils/logger.dart';
+import '../../core/utils/salon_id.dart';
 import '../../models/api_response.dart';
 import '../../models/pro_membership.dart';
 import '../../models/provider_login_result.dart';
@@ -808,7 +809,7 @@ class ApiAuthService implements AuthServiceInterface {
   }
 
   @override
-  Future<void> setSelectedProviderSalon(String? salonId) async {
+  Future<void> setSelectedProviderSalon(SalonId? salonId) async {
     final raw = await _providerSessionStore.read();
     if (raw == null) return;
     try {
@@ -831,7 +832,7 @@ class ApiAuthService implements AuthServiceInterface {
   }
 
   @override
-  Future<String?> getSelectedProviderSalon() async {
+  Future<SalonId?> getSelectedProviderSalon() async {
     final raw = await _providerSessionStore.read();
     if (raw == null) return null;
     try {

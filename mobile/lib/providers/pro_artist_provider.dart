@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import '../core/access/pro_salon_scope.dart';
 import '../core/constants/failure_messages.dart';
 import '../core/di/dependency_injection.dart';
+import '../core/utils/salon_id.dart';
 import '../models/artist.dart';
 import '../services/interfaces/image_upload_service_interface.dart';
 import '../services/interfaces/pro_artist_service_interface.dart';
@@ -55,7 +56,7 @@ class ProArtistProvider extends ChangeNotifier implements SalonScoped {
     }
   }
 
-  Future<void> loadArtists(String providerId) async {
+  Future<void> loadArtists(SalonId providerId) async {
     _isLoading = true;
     _error = null;
     _loadError = null;
@@ -82,7 +83,7 @@ class ProArtistProvider extends ChangeNotifier implements SalonScoped {
   }
 
   Future<bool> createArtist(
-    String providerId,
+    SalonId providerId,
     Map<String, dynamic> data,
   ) async {
     _isLoading = true;

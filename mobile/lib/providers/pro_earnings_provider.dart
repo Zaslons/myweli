@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import '../core/access/pro_salon_scope.dart';
 import '../core/constants/failure_messages.dart';
 import '../core/di/dependency_injection.dart';
+import '../core/utils/salon_id.dart';
 import '../services/interfaces/pro_service_interface.dart';
 
 class ProEarningsProvider extends ChangeNotifier implements SalonScoped {
@@ -23,7 +24,7 @@ class ProEarningsProvider extends ChangeNotifier implements SalonScoped {
   String? _loadError;
 
   Future<void> loadEarnings(
-    String providerId, {
+    SalonId providerId, {
     DateTime? startDate,
     DateTime? endDate,
   }) async {

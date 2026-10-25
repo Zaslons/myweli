@@ -1,5 +1,6 @@
 import '../../core/constants/app_constants.dart';
 import '../../core/constants/failure_messages.dart';
+import '../../core/utils/salon_id.dart';
 import '../../models/api_response.dart';
 import '../../models/artist.dart';
 import '../../models/availability.dart';
@@ -12,7 +13,7 @@ import 'mock_session.dart';
 class MockProArtistService implements ProArtistServiceInterface {
   final Map<String, List<Artist>> _store = {};
 
-  List<Artist> _getOrInit(String providerId) {
+  List<Artist> _getOrInit(SalonId providerId) {
     if (!_store.containsKey(providerId)) {
       _store[providerId] = List.from(
         MockData.getArtistsForProvider(providerId),
@@ -23,7 +24,7 @@ class MockProArtistService implements ProArtistServiceInterface {
 
   /// Mirror the edited roster into MockData.providers so consumer slot
   /// computation (which reads provider.artists) sees per-staff hours.
-  void _syncProvider(String providerId) {
+  void _syncProvider(SalonId providerId) {
     final i = MockData.providers.indexWhere((p) => p.id == providerId);
     if (i != -1 && _store.containsKey(providerId)) {
       MockData.providers[i] = MockData.providers[i].copyWith(
@@ -38,7 +39,7 @@ class MockProArtistService implements ProArtistServiceInterface {
       ApiResponse.error(kGenericErrorMessage, code: code);
 
   @override
-  Future<ApiResponse<List<Artist>>> getArtists(String providerId) async {
+  Future<ApiResponse<List<Artist>>> getArtists(SalonId providerId) async {
     await Future.delayed(AppConstants.mockDelay);
     final artists = _getOrInit(providerId);
     return ApiResponse.success(artists);
@@ -46,7 +47,7 @@ class MockProArtistService implements ProArtistServiceInterface {
 
   @override
   Future<ApiResponse<Artist>> createArtist(
-    String providerId,
+    SalonId providerId,
     Map<String, dynamic> data,
   ) async {
     await Future.delayed(AppConstants.mockDelay);

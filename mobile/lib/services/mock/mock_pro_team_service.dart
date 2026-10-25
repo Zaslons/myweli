@@ -1,6 +1,7 @@
 import '../../core/constants/app_constants.dart';
 import '../../core/di/dependency_injection.dart';
 import '../../core/utils/app_clock.dart';
+import '../../core/utils/salon_id.dart';
 import '../../core/utils/team_error_messages.dart';
 import '../../models/api_response.dart';
 import '../../models/team_invitation.dart';
@@ -75,7 +76,7 @@ class MockProTeamService implements ProTeamServiceInterface {
   /// The acting salon — the same rule as ProAuthProvider.activeSalonId
   /// (selection → the account's own salon → the membership's), else the
   /// seeded salon (docs/design/services-acting-salon.md).
-  Future<String> _providerId() => mockActingSalonId();
+  Future<SalonId> _providerId() => mockActingSalonId();
 
   /// One attempt into a daily bucket, counted the server's way
   /// (`InMemoryRateLimiter.hit`): every attempt that reaches the bucket

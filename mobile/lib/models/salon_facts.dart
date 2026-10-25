@@ -1,5 +1,7 @@
 import 'package:equatable/equatable.dart';
 
+import '../core/utils/salon_id.dart';
+
 import 'provider.dart';
 
 /// What « Profil » shows of the acting salon — its name, category, address and
@@ -21,14 +23,15 @@ class SalonFacts extends Equatable {
   });
 
   factory SalonFacts.of(Provider salon) => SalonFacts(
-    salonId: salon.id,
+    // A Provider's id stays a String until H2 types `Provider.id`.
+    salonId: SalonId(salon.id),
     name: salon.name,
     category: salon.category,
     address: salon.address,
     phoneNumber: salon.phoneNumber,
   );
 
-  final String salonId;
+  final SalonId salonId;
   final String name;
 
   /// The machine value (`salon`, `barber`…) — `salonCategoryLabel` words it.
@@ -37,7 +40,7 @@ class SalonFacts extends Equatable {
   final String phoneNumber;
 
   factory SalonFacts.fromJson(Map<String, dynamic> json) => SalonFacts(
-    salonId: json['salonId'] as String,
+    salonId: SalonId(json['salonId'] as String),
     name: json['name'] as String? ?? '',
     category: json['category'] as String? ?? '',
     address: json['address'] as String? ?? '',

@@ -1,3 +1,4 @@
+import '../../core/utils/salon_id.dart';
 import '../../models/api_response.dart';
 import '../../models/appointment.dart';
 import '../../models/availability.dart';
@@ -112,7 +113,7 @@ abstract class ProServiceInterface {
   /// machine code `not_a_member`. R6: [salonId] selects among the caller's
   /// ACTIVE memberships — an invalid selection surfaces `forbidden` (a
   /// per-salon denial, NEVER the sign-out signal).
-  Future<ApiResponse<MyProviderInfo>> getMyProvider({String? salonId});
+  Future<ApiResponse<MyProviderInfo>> getMyProvider({SalonId? salonId});
 
   /// The salon's OWN « Avis », resolved by account (`GET /me/provider/reviews`).
   ///
@@ -155,11 +156,11 @@ abstract class ProServiceInterface {
   });
 
   // Dashboard
-  Future<ApiResponse<DashboardStats>> getDashboardStats(String providerId);
+  Future<ApiResponse<DashboardStats>> getDashboardStats(SalonId providerId);
 
   // Appointments
   Future<ApiResponse<List<Appointment>>> getProviderAppointments(
-    String providerId, {
+    SalonId providerId, {
     AppointmentStatus? status,
     DateTime? startDate,
     DateTime? endDate,
@@ -187,21 +188,21 @@ abstract class ProServiceInterface {
   /// Take the salon live (docs/design/pro-salon-lifecycle.md): flips the
   /// DRAFT listing to active once the server-side go-live gate passes.
   /// Incomplete → error code `incomplete`.
-  Future<ApiResponse<bool>> publishSalon(String providerId);
+  Future<ApiResponse<bool>> publishSalon(SalonId providerId);
 
   /// Update the salon's editable public profile (pro-salon-lifecycle L2 —
   /// the app twin of web 7.3e-i): name/description/address/city/commune/
   /// phone/whatsapp/category + the PAIRED map pin (latitude+longitude).
   /// Returns the updated listing.
   Future<ApiResponse<Provider>> updateSalonProfile(
-    String providerId,
+    SalonId providerId,
     Map<String, dynamic> changes,
   );
 
   /// The salon's whole day as one payload (module journal J1) — hours,
   /// artists, and every booking (all statuses) for [date].
   Future<ApiResponse<JournalDay>> getJournalDay(
-    String providerId,
+    SalonId providerId,
     DateTime date,
   );
   Future<ApiResponse<bool>> rescheduleAppointment(
@@ -213,7 +214,7 @@ abstract class ProServiceInterface {
   /// Confirmed immediately, no online deposit. [sendSmsInvite] requests a
   /// confirmation SMS with an app link (handled by the notifications backend).
   Future<ApiResponse<Appointment>> createManualBooking({
-    required String providerId,
+    required SalonId providerId,
     required List<String> serviceIds,
     required DateTime appointmentDateTime,
     String? clientName,
@@ -227,9 +228,9 @@ abstract class ProServiceInterface {
   });
 
   // Services
-  Future<ApiResponse<List<Service>>> getProviderServices(String providerId);
+  Future<ApiResponse<List<Service>>> getProviderServices(SalonId providerId);
   Future<ApiResponse<Service>> createService(
-    String providerId,
+    SalonId providerId,
     Map<String, dynamic> serviceData,
   );
   Future<ApiResponse<Service>> updateService(
@@ -243,37 +244,39 @@ abstract class ProServiceInterface {
   Future<ApiResponse<bool>> setServiceActive(String serviceId, bool active);
 
   // Gallery photos
-  Future<ApiResponse<List<String>>> getGalleryPhotos(String providerId);
+  Future<ApiResponse<List<String>>> getGalleryPhotos(SalonId providerId);
   Future<ApiResponse<List<String>>> updateGalleryPhotos(
-    String providerId,
+    SalonId providerId,
     List<String> imageUrls,
   );
 
   // Before/after showcase (FR-DISC-006)
-  Future<ApiResponse<List<BeforeAfterPair>>> getBeforeAfters(String providerId);
+  Future<ApiResponse<List<BeforeAfterPair>>> getBeforeAfters(
+    SalonId providerId,
+  );
   Future<ApiResponse<List<BeforeAfterPair>>> updateBeforeAfters(
-    String providerId,
+    SalonId providerId,
     List<BeforeAfterPair> pairs,
   );
 
   // Availability
-  Future<ApiResponse<Availability>> getProviderAvailability(String providerId);
+  Future<ApiResponse<Availability>> getProviderAvailability(SalonId providerId);
   Future<ApiResponse<Availability>> updateAvailability(
-    String providerId,
+    SalonId providerId,
     Availability availability,
   );
 
   // Earnings
   Future<ApiResponse<EarningsData>> getEarnings(
-    String providerId, {
+    SalonId providerId, {
     DateTime? startDate,
     DateTime? endDate,
   });
 
   // Deposit policy
-  Future<ApiResponse<DepositPolicy>> getDepositPolicy(String providerId);
+  Future<ApiResponse<DepositPolicy>> getDepositPolicy(SalonId providerId);
   Future<ApiResponse<DepositPolicy>> updateDepositPolicy(
-    String providerId, {
+    SalonId providerId, {
     required bool depositRequired,
     required double depositPercentage,
     required int cancellationWindowHours,

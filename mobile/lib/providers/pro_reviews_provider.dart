@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import '../core/access/pro_salon_scope.dart';
 import '../core/constants/failure_messages.dart';
 import '../core/di/dependency_injection.dart';
+import '../core/utils/salon_id.dart';
 import '../models/review.dart';
 import '../models/review_summary.dart';
 import '../services/interfaces/pro_service_interface.dart';
@@ -50,7 +51,7 @@ class ProReviewsProvider extends ChangeNotifier implements SalonScoped {
     }
   }
 
-  Future<void> loadReviews(String providerId) async {
+  Future<void> loadReviews(SalonId providerId) async {
     if (_currentProviderId == providerId &&
         _reviews.isNotEmpty &&
         !_isLoading) {

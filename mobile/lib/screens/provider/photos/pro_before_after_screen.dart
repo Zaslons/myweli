@@ -7,6 +7,7 @@ import '../../../core/constants/failure_messages.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/colors.dart';
 import '../../../core/theme/text_styles.dart';
+import '../../../core/utils/salon_id.dart';
 import '../../../providers/pro_auth_provider.dart';
 import '../../../providers/pro_before_after_provider.dart';
 import '../../../widgets/common/app_async_view.dart';
@@ -44,7 +45,7 @@ class _ProBeforeAfterScreenState extends State<ProBeforeAfterScreen> {
       ? showImagePicker(context)
       : showMockImagePicker(context);
 
-  Future<void> _addPair(String providerId, ProBeforeAfterProvider p) async {
+  Future<void> _addPair(SalonId providerId, ProBeforeAfterProvider p) async {
     final messenger = ScaffoldMessenger.of(context);
     final before = await _pick();
     if (before == null || !mounted) return;
@@ -85,7 +86,7 @@ class _ProBeforeAfterScreenState extends State<ProBeforeAfterScreen> {
   }
 
   Future<void> _removePair(
-    String providerId,
+    SalonId providerId,
     ProBeforeAfterProvider p,
     int index,
   ) async {
@@ -159,7 +160,7 @@ class _ProBeforeAfterScreenState extends State<ProBeforeAfterScreen> {
     );
   }
 
-  Widget _pairs(ProBeforeAfterProvider p, String providerId) {
+  Widget _pairs(ProBeforeAfterProvider p, SalonId providerId) {
     return ListView(
       padding: const EdgeInsets.all(AppTheme.spacingM),
       children: [

@@ -4,6 +4,7 @@ import '../core/access/pro_access_guard.dart';
 import '../core/access/pro_salon_scope.dart';
 import '../core/constants/failure_messages.dart';
 import '../core/di/dependency_injection.dart';
+import '../core/utils/salon_id.dart';
 import '../core/utils/submission_key.dart';
 import '../models/appointment.dart';
 import '../services/interfaces/pro_service_interface.dart';
@@ -62,7 +63,7 @@ class ProAppointmentProvider extends ChangeNotifier
   }
 
   Future<void> loadAppointments(
-    String providerId, {
+    SalonId providerId, {
     AppointmentStatus? status,
     DateTime? startDate,
     DateTime? endDate,
@@ -269,7 +270,7 @@ class ProAppointmentProvider extends ChangeNotifier
   }
 
   Future<bool> createManualBooking({
-    required String providerId,
+    required SalonId providerId,
     required List<String> serviceIds,
     required DateTime appointmentDateTime,
     String? clientName,

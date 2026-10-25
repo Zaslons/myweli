@@ -6,6 +6,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/colors.dart';
 import '../../../core/theme/text_styles.dart';
 import '../../../core/utils/formatters.dart';
+import '../../../core/utils/salon_id.dart';
 import '../../../core/utils/salon_time.dart';
 import '../../../core/utils/text_fit.dart';
 import '../../../providers/pro_auth_provider.dart';
@@ -100,7 +101,7 @@ class _EarningsScreenState extends State<EarningsScreen>
     }
 
     earningsProvider.loadEarnings(
-      authProvider.activeSalonId ?? '',
+      authProvider.activeSalonId ?? SalonId.none,
       startDate: startDate,
       endDate: endDate,
     );

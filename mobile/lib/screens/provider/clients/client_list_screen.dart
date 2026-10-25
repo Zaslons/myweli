@@ -9,6 +9,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/colors.dart';
 import '../../../core/theme/text_styles.dart';
 import '../../../core/utils/formatters.dart';
+import '../../../core/utils/salon_id.dart';
 import '../../../core/utils/validators.dart';
 import '../../../models/salon_client.dart';
 import '../../../providers/pro_auth_provider.dart';
@@ -40,9 +41,9 @@ class _ClientListScreenState extends State<ClientListScreen> {
   final _scrollController = ScrollController();
   Timer? _debounce;
 
-  String get _providerId {
+  SalonId get _providerId {
     final auth = context.read<ProAuthProvider>();
-    return auth.activeSalonId ?? '';
+    return auth.activeSalonId ?? SalonId.none;
   }
 
   @override

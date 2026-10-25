@@ -11,6 +11,7 @@ import '../../../core/theme/text_styles.dart';
 import '../../../core/utils/app_clock.dart';
 import '../../../core/utils/formatters.dart';
 import '../../../core/utils/phone_numbering.dart';
+import '../../../core/utils/salon_id.dart';
 import '../../../core/utils/salon_time.dart';
 import '../../../core/utils/text_fit.dart';
 import '../../../core/utils/validators.dart';
@@ -70,7 +71,7 @@ class _ProManualBookingScreenState extends State<ProManualBookingScreen> {
   bool _anonymous = false;
   bool _sendSms = true;
   bool _submitting = false;
-  String? _providerId;
+  SalonId? _providerId;
 
   String? get _tz => context.read<ProAuthProvider>().salonTimezone;
 

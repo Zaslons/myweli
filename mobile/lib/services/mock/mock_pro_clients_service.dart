@@ -1,6 +1,7 @@
 import '../../core/constants/app_constants.dart';
 import '../../core/utils/app_clock.dart';
 import '../../core/utils/phone_numbering.dart';
+import '../../core/utils/salon_id.dart';
 import '../../core/utils/validators.dart';
 import '../../models/api_response.dart';
 import '../../models/appointment.dart';
@@ -21,7 +22,7 @@ class MockProClientsService implements ProClientsServiceInterface {
   /// the others: their walk-ins stayed under the old number.)
   final Map<String, List<SalonClient>> _clientsBy = {};
 
-  List<SalonClient> _clientsOf(String providerId) =>
+  List<SalonClient> _clientsOf(SalonId providerId) =>
       _clientsBy.putIfAbsent(providerId, _seedClients);
 
   static List<SalonClient> _seedClients() => [
@@ -68,7 +69,7 @@ class MockProClientsService implements ProClientsServiceInterface {
   /// (T45).
   final Map<String, List<Appointment>> _walkIns = {};
 
-  List<Appointment> _walkInsOf(String providerId) =>
+  List<Appointment> _walkInsOf(SalonId providerId) =>
       _walkIns.putIfAbsent(providerId, () {
         final at = AppClock.now().subtract(const Duration(days: 30));
         return [
@@ -89,7 +90,7 @@ class MockProClientsService implements ProClientsServiceInterface {
 
   /// A guest card's history at [providerId]: the salon's walk-ins under its
   /// number, newest first.
-  List<Appointment> _historyOf(String providerId, SalonClient client) =>
+  List<Appointment> _historyOf(SalonId providerId, SalonClient client) =>
       _walkInsOf(providerId)
           .where((a) => a.userId == 'manual' && a.clientPhone == client.phone)
           .toList()
@@ -103,7 +104,7 @@ class MockProClientsService implements ProClientsServiceInterface {
 
   /// The card as `GET …/clients/{id}` (and the number change) answers it. A
   /// guest's stats are counted from its history, so they follow the number.
-  SalonClientCard _cardOf(String providerId, SalonClient client) {
+  SalonClientCard _cardOf(SalonId providerId, SalonClient client) {
     final SalonClientStats stats;
     if (client.linked) {
       stats = SalonClientStats(
@@ -151,7 +152,7 @@ class MockProClientsService implements ProClientsServiceInterface {
 
   @override
   Future<ApiResponse<SalonClientsPage>> listClients(
-    String providerId, {
+    SalonId providerId, {
     String? query,
     String? tag,
     int page = 1,
@@ -202,7 +203,7 @@ class MockProClientsService implements ProClientsServiceInterface {
 
   @override
   Future<ApiResponse<SalonClientCard>> getCard(
-    String providerId,
+    SalonId providerId,
     String clientId,
   ) async {
     await Future.delayed(AppConstants.mockDelay);
@@ -215,7 +216,7 @@ class MockProClientsService implements ProClientsServiceInterface {
 
   @override
   Future<ApiResponse<List<Appointment>>> getVisits(
-    String providerId,
+    SalonId providerId,
     String clientId, {
     int page = 1,
   }) async {
@@ -247,7 +248,7 @@ class MockProClientsService implements ProClientsServiceInterface {
 
   @override
   Future<ApiResponse<String>> addClient(
-    String providerId, {
+    SalonId providerId, {
     required String name,
     required String phone,
     String? note,
@@ -288,7 +289,7 @@ class MockProClientsService implements ProClientsServiceInterface {
 
   @override
   Future<ApiResponse<SalonClient>> updateTags(
-    String providerId,
+    SalonId providerId,
     String clientId,
     List<String> tags,
   ) async {
@@ -305,7 +306,7 @@ class MockProClientsService implements ProClientsServiceInterface {
 
   @override
   Future<ApiResponse<SalonClientPhoneChange>> updatePhone(
-    String providerId,
+    SalonId providerId,
     String clientId,
     String phone,
   ) async {
@@ -364,7 +365,7 @@ class MockProClientsService implements ProClientsServiceInterface {
 
   @override
   Future<ApiResponse<SalonClientNote>> addNote(
-    String providerId,
+    SalonId providerId,
     String clientId,
     String body, {
     String? idempotencyKey,
@@ -388,7 +389,7 @@ class MockProClientsService implements ProClientsServiceInterface {
 
   @override
   Future<ApiResponse<bool>> deleteNote(
-    String providerId,
+    SalonId providerId,
     String clientId,
     String noteId,
   ) async {
@@ -397,7 +398,7 @@ class MockProClientsService implements ProClientsServiceInterface {
     return ApiResponse.success(true);
   }
 
-  SalonClient? _byId(String providerId, String id) {
+  SalonClient? _byId(SalonId providerId, String id) {
     for (final c in _clientsOf(providerId)) {
       if (c.id == id) return c;
     }

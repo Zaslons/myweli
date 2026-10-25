@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/colors.dart';
 import '../../../core/theme/text_styles.dart';
+import '../../../core/utils/salon_id.dart';
 import '../../../models/artist.dart';
 import '../../../providers/pro_artist_provider.dart';
 import '../../../providers/pro_auth_provider.dart';
@@ -22,9 +23,9 @@ class ArtistListScreen extends StatefulWidget {
 }
 
 class _ArtistListScreenState extends State<ArtistListScreen> {
-  String _resolvedProviderId(BuildContext context) {
+  SalonId _resolvedProviderId(BuildContext context) {
     final authProvider = Provider.of<ProAuthProvider>(context, listen: false);
-    return authProvider.activeSalonId ?? '';
+    return authProvider.activeSalonId ?? SalonId.none;
   }
 
   @override

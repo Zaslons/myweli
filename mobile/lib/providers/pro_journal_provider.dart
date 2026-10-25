@@ -7,6 +7,7 @@ import '../core/access/pro_salon_scope.dart';
 import '../core/constants/failure_messages.dart';
 import '../core/di/dependency_injection.dart';
 import '../core/utils/app_clock.dart';
+import '../core/utils/salon_id.dart';
 import '../core/utils/salon_time.dart';
 import '../models/api_response.dart';
 import '../models/appointment.dart';
@@ -23,7 +24,7 @@ import '../services/interfaces/pro_service_interface.dart';
 class ProJournalProvider extends ChangeNotifier implements ShowsSalonBookings {
   final ProServiceInterface _service = serviceLocator.proService;
 
-  String _providerId = '';
+  SalonId _providerId = SalonId.none;
 
   /// The ACTIVE salon's IANA timezone (multi-pays MP2) — set by [load] from
   /// `ProAuthProvider.salonTimezone`; null = Africa/Abidjan (Wave 0).
@@ -121,7 +122,7 @@ class ProJournalProvider extends ChangeNotifier implements ShowsSalonBookings {
   bool get hasUnassigned =>
       (_day?.appointments ?? const []).any((a) => a.artistId == null);
 
-  Future<void> load(String providerId, {DateTime? date, String? tz}) async {
+  Future<void> load(SalonId providerId, {DateTime? date, String? tz}) async {
     _providerId = providerId;
     if (tz != null) _tz = tz;
     if (date != null) {
@@ -435,7 +436,7 @@ class ProJournalProvider extends ChangeNotifier implements ShowsSalonBookings {
   @override
   void resetForSalonSwitch() {
     _request++; // whatever is in flight was asked for the previous salon
-    _providerId = '';
+    _providerId = SalonId.none;
     _tz = null; // the next salon's tz arrives with its first load
     _loadedOnce = false;
     _day = null;

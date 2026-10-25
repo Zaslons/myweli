@@ -39,6 +39,41 @@ void main() {
       });
     }
 
+    test('the Pro layers above them: no bare String salon slot either', () {
+      // The doubles and API services of H1's interfaces, the Pro providers
+      // and screens, the Pro router and the push handler. A `String` here
+      // would still accept an account id from anything that calls it
+      // directly rather than through the interface.
+      final files = <String>[
+        for (final dir in [
+          'lib/services/mock',
+          'lib/services/api',
+          'lib/providers',
+          'lib/screens/provider',
+          'lib/core/push',
+        ])
+          for (final f in Directory(dir).listSync(recursive: true))
+            if (f is File &&
+                f.path.endsWith('.dart') &&
+                !f.path.contains('/features/') &&
+                (dir != 'lib/services/mock' && dir != 'lib/services/api' ||
+                    RegExp(
+                      r'_(pro_\w+|subscription|auth)_service\.dart$',
+                    ).hasMatch(f.path)) &&
+                (dir != 'lib/providers' || f.path.contains('/pro_')))
+              f.path,
+        'lib/core/router/pro_router.dart',
+      ];
+      // A booking's salon — `Appointment.providerId`, a String until H2.
+      const h2 = {'lib/providers/pro_dashboard_provider.dart': 1};
+      final found = <String, int>{
+        for (final f in files)
+          if (bareSalon.allMatches(code(f)).length case final n when n > 0)
+            f: n,
+      };
+      expect(found, h2);
+    });
+
     test('the Pro models hold a SalonId', () {
       for (final (file, field) in [
         ('lib/models/provider_user.dart', 'providerId'),
@@ -83,7 +118,29 @@ void main() {
     // one. A `SalonId(account.id)` written tomorrow is visible in review AND
     // fails here — the type makes the mistake loud; this keeps it rare.
     const born = <String, String>{
-      'lib/core/utils/salon_id.dart': 'the type, and `SalonId.of` for JSON',
+      'lib/core/utils/salon_id.dart': 'the type, and `SalonId.none`',
+      // The server's JSON — each model's `fromJson`.
+      'lib/models/provider_user.dart': 'fromJson: the account default salon',
+      'lib/models/salon_membership_info.dart': 'fromJson: « Mes salons »',
+      'lib/models/pro_membership.dart': 'fromJson: the membership salon',
+      'lib/models/team_member.dart': 'fromJson: a roster row salon',
+      'lib/models/team_invitation.dart': 'fromJson: an invitation salon',
+      'lib/models/salon_market.dart':
+          'fromJson, and `of(Provider)` until H2 types `Provider.id`',
+      'lib/models/salon_facts.dart':
+          'fromJson, and `of(Provider)` until H2 types `Provider.id`',
+      'lib/models/provider_session.dart':
+          'fromJson: the persisted R6 selection',
+      // A salon id carried by a link or a notification.
+      'lib/core/router/pro_router.dart': 'the `?salon=` of a pushed booking',
+      'lib/core/push/push_message_handler.dart':
+          "the push payload's `providerId` or its route's `?salon=`",
+      // The doubles mint and seed salon ids, as the server does.
+      'lib/services/mock/mock_data.dart': 'the seed salons',
+      'lib/services/mock/mock_auth_service.dart': 'a registered salon',
+      'lib/services/mock/mock_pro_service.dart':
+          'an added salon, and `Provider.id` until H2',
+      'lib/services/mock/mock_session.dart': "the mock's default salon",
     };
 
     test('`SalonId(` is written only where a salon id is born', () {
@@ -92,7 +149,8 @@ void main() {
           if (f is File &&
               f.path.endsWith('.dart') &&
               !f.path.contains('/screens/provider/features/') &&
-              code(f.path).contains('SalonId('))
+              // `\b`: `resolveActingSalonId(` is a call, not a birth.
+              RegExp(r'\bSalonId\(').hasMatch(code(f.path)))
             f.path,
       };
       expect(

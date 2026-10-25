@@ -7,6 +7,7 @@ import '../../../core/constants/failure_messages.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/colors.dart';
 import '../../../core/theme/text_styles.dart';
+import '../../../core/utils/salon_id.dart';
 import '../../../providers/pro_auth_provider.dart';
 import '../../../providers/pro_gallery_provider.dart';
 import '../../../widgets/common/app_async_view.dart';
@@ -37,7 +38,7 @@ class _ProPhotosScreenState extends State<ProPhotosScreen> {
     });
   }
 
-  Future<void> _addPhoto(String providerId, ProGalleryProvider gallery) async {
+  Future<void> _addPhoto(SalonId providerId, ProGalleryProvider gallery) async {
     final messenger = ScaffoldMessenger.of(context);
     // Real camera/gallery picker against the backend; the sample-image sheet
     // in demo (mock) mode so previews still render without a device file.
@@ -59,7 +60,7 @@ class _ProPhotosScreenState extends State<ProPhotosScreen> {
   }
 
   Future<void> _removePhoto(
-    String providerId,
+    SalonId providerId,
     ProGalleryProvider gallery,
     int index,
   ) async {
@@ -113,7 +114,7 @@ class _ProPhotosScreenState extends State<ProPhotosScreen> {
   }
 
   Future<void> _setCover(
-    String providerId,
+    SalonId providerId,
     ProGalleryProvider gallery,
     int index,
   ) async {
@@ -165,7 +166,7 @@ class _ProPhotosScreenState extends State<ProPhotosScreen> {
     );
   }
 
-  Widget _gallery(ProGalleryProvider gallery, String providerId) {
+  Widget _gallery(ProGalleryProvider gallery, SalonId providerId) {
     return ListView(
       padding: const EdgeInsets.all(AppTheme.spacingM),
       children: [

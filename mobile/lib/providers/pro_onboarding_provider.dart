@@ -5,6 +5,7 @@ import '../core/constants/failure_messages.dart';
 import '../core/di/dependency_injection.dart';
 import '../core/utils/deposit.dart';
 import '../core/utils/onboarding.dart';
+import '../core/utils/salon_id.dart';
 import '../models/api_response.dart';
 import '../models/availability.dart';
 import '../models/provider_user.dart';
@@ -41,7 +42,7 @@ class ProOnboardingProvider extends ChangeNotifier implements SalonScoped {
 
   /// Take the salon live (docs/design/pro-salon-lifecycle.md B3). The server
   /// re-checks the gate; `incomplete` surfaces its message. True on success.
-  Future<bool> publish(String providerId) async {
+  Future<bool> publish(SalonId providerId) async {
     _isPublishing = true;
     _error = null;
     _publishErrorCode = null;
@@ -62,7 +63,7 @@ class ProOnboardingProvider extends ChangeNotifier implements SalonScoped {
   /// salon's services, team, hours and deposit under the new salon's name
   /// (docs/design/r6-salon-id-pin.md). [proUser] stays for what is the
   /// account's own: its KYC and its business type.
-  Future<void> load(ProviderUser proUser, {required String? salonId}) async {
+  Future<void> load(ProviderUser proUser, {required SalonId? salonId}) async {
     _isLoading = true;
     _loadFailed = false;
     _error = null;

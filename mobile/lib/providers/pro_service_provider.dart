@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import '../core/access/pro_salon_scope.dart';
 import '../core/constants/failure_messages.dart';
 import '../core/di/dependency_injection.dart';
+import '../core/utils/salon_id.dart';
 import '../models/service.dart';
 import '../services/interfaces/pro_service_interface.dart';
 
@@ -23,7 +24,7 @@ class ProServiceProvider extends ChangeNotifier implements SalonScoped {
   String? get loadError => _loadError;
   String? _loadError;
 
-  Future<void> loadServices(String providerId) async {
+  Future<void> loadServices(SalonId providerId) async {
     if (_currentProviderId == providerId &&
         _services.isNotEmpty &&
         !_isLoading) {
@@ -57,7 +58,7 @@ class ProServiceProvider extends ChangeNotifier implements SalonScoped {
   }
 
   Future<bool> createService(
-    String providerId,
+    SalonId providerId,
     Map<String, dynamic> serviceData,
   ) async {
     _isLoading = true;

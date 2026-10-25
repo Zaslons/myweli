@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 import '../../core/config/app_config.dart';
+import '../../core/utils/salon_id.dart';
 import '../../models/api_response.dart';
 import '../../models/appointment.dart';
 import '../../models/salon_client.dart';
@@ -38,7 +39,7 @@ class ApiProClientsService implements ProClientsServiceInterface {
 
   @override
   Future<ApiResponse<SalonClientsPage>> listClients(
-    String providerId, {
+    SalonId providerId, {
     String? query,
     String? tag,
     int page = 1,
@@ -75,7 +76,7 @@ class ApiProClientsService implements ProClientsServiceInterface {
 
   @override
   Future<ApiResponse<SalonClientCard>> getCard(
-    String providerId,
+    SalonId providerId,
     String clientId,
   ) async {
     final res = await _authed.send(
@@ -91,7 +92,7 @@ class ApiProClientsService implements ProClientsServiceInterface {
 
   @override
   Future<ApiResponse<List<Appointment>>> getVisits(
-    String providerId,
+    SalonId providerId,
     String clientId, {
     int page = 1,
   }) async {
@@ -113,7 +114,7 @@ class ApiProClientsService implements ProClientsServiceInterface {
 
   @override
   Future<ApiResponse<String>> addClient(
-    String providerId, {
+    SalonId providerId, {
     required String name,
     required String phone,
     String? note,
@@ -150,7 +151,7 @@ class ApiProClientsService implements ProClientsServiceInterface {
 
   @override
   Future<ApiResponse<SalonClient>> updateTags(
-    String providerId,
+    SalonId providerId,
     String clientId,
     List<String> tags,
   ) async {
@@ -168,7 +169,7 @@ class ApiProClientsService implements ProClientsServiceInterface {
 
   @override
   Future<ApiResponse<SalonClientPhoneChange>> updatePhone(
-    String providerId,
+    SalonId providerId,
     String clientId,
     String phone,
   ) async {
@@ -212,7 +213,7 @@ class ApiProClientsService implements ProClientsServiceInterface {
 
   @override
   Future<ApiResponse<SalonClientNote>> addNote(
-    String providerId,
+    SalonId providerId,
     String clientId,
     String body, {
     String? idempotencyKey,
@@ -235,7 +236,7 @@ class ApiProClientsService implements ProClientsServiceInterface {
 
   @override
   Future<ApiResponse<bool>> deleteNote(
-    String providerId,
+    SalonId providerId,
     String clientId,
     String noteId,
   ) async {

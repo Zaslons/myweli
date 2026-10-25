@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import '../core/access/pro_salon_scope.dart';
 import '../core/constants/failure_messages.dart';
 import '../core/di/dependency_injection.dart';
+import '../core/utils/salon_id.dart';
 import '../models/before_after_pair.dart';
 import '../services/interfaces/image_upload_service_interface.dart';
 import '../services/interfaces/pro_service_interface.dart';
@@ -35,7 +36,7 @@ class ProBeforeAfterProvider extends ChangeNotifier implements SalonScoped {
   String? get error => _error;
   List<BeforeAfterPair> get pairs => _pairs;
 
-  Future<void> load(String providerId) async {
+  Future<void> load(SalonId providerId) async {
     _isLoading = true;
     _loadFailed = false;
     _error = null;
@@ -61,7 +62,7 @@ class ProBeforeAfterProvider extends ChangeNotifier implements SalonScoped {
   /// Uploads the [beforeSource] + [afterSource] images, appends the pair, and
   /// persists. Returns false (with [error] set) on any failure.
   Future<bool> addPair(
-    String providerId, {
+    SalonId providerId, {
     required String beforeSource,
     required String afterSource,
     String? caption,
@@ -122,7 +123,7 @@ class ProBeforeAfterProvider extends ChangeNotifier implements SalonScoped {
   /// for why this re-inserts into the CURRENT list instead of restoring a
   /// pre-delete snapshot.
   Future<bool> restorePairAt(
-    String providerId,
+    SalonId providerId,
     int index,
     BeforeAfterPair pair,
   ) async {
@@ -140,7 +141,7 @@ class ProBeforeAfterProvider extends ChangeNotifier implements SalonScoped {
     return false;
   }
 
-  Future<bool> removePair(String providerId, int index) async {
+  Future<bool> removePair(SalonId providerId, int index) async {
     if (index < 0 || index >= _pairs.length) return false;
     final next = [..._pairs]..removeAt(index);
     final saved = await _proService.updateBeforeAfters(providerId, next);

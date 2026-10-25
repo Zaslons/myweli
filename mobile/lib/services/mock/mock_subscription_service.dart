@@ -1,6 +1,7 @@
 import '../../core/config/subscription_plans.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/utils/app_clock.dart';
+import '../../core/utils/salon_id.dart';
 import '../../models/api_response.dart';
 import '../../models/salon_subscription.dart';
 import '../interfaces/subscription_service_interface.dart';
@@ -35,7 +36,7 @@ class MockSubscriptionService implements SubscriptionServiceInterface {
     _seedApplied = false;
   }
 
-  void _applySeed(String providerId) {
+  void _applySeed(SalonId providerId) {
     if (_seedApplied) return;
     _seedApplied = true;
     final seed = _seed;
@@ -52,7 +53,10 @@ class MockSubscriptionService implements SubscriptionServiceInterface {
   /// The caller picks the default tier the way the server does: `reseau`
   /// when the owner already owns another salon on a live Réseau offer, else
   /// `pro` (`MockProService.publishSalon`).
-  bool startTrialIfAbsent(String providerId, {SalonTier tier = SalonTier.pro}) {
+  bool startTrialIfAbsent(
+    SalonId providerId, {
+    SalonTier tier = SalonTier.pro,
+  }) {
     _applySeed(providerId);
     if (_byId.containsKey(providerId)) return false;
     final trialEnd = AppClock.now().add(const Duration(days: 90));
@@ -82,7 +86,7 @@ class MockSubscriptionService implements SubscriptionServiceInterface {
 
   @override
   Future<ApiResponse<SalonSubscription>> getSalonSubscription(
-    String providerId,
+    SalonId providerId,
   ) async {
     await Future.delayed(AppConstants.mockDelay);
     _applySeed(providerId);
@@ -95,7 +99,7 @@ class MockSubscriptionService implements SubscriptionServiceInterface {
 
   /// Seats derive live from the mock team (owner + active + invited),
   /// PER SALON (R6).
-  SalonSubscription _withSeats(SalonSubscription salon, String providerId) =>
+  SalonSubscription _withSeats(SalonSubscription salon, SalonId providerId) =>
       SalonSubscription(
         tier: salon.tier,
         status: salon.status,

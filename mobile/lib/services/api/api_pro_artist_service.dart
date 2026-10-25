@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 import '../../core/config/app_config.dart';
+import '../../core/utils/salon_id.dart';
 import '../../models/api_response.dart';
 import '../../models/artist.dart';
 import '../../models/availability.dart' show TimeSlot;
@@ -41,7 +42,7 @@ class ApiProArtistService implements ProArtistServiceInterface {
   late final RefreshingHttpClient _authed;
 
   @override
-  Future<ApiResponse<List<Artist>>> getArtists(String providerId) async {
+  Future<ApiResponse<List<Artist>>> getArtists(SalonId providerId) async {
     if (await _authed.accessToken() == null) {
       return ApiResponse.error('Non connecté');
     }
@@ -67,7 +68,7 @@ class ApiProArtistService implements ProArtistServiceInterface {
 
   @override
   Future<ApiResponse<Artist>> createArtist(
-    String providerId,
+    SalonId providerId,
     Map<String, dynamic> data,
   ) async {
     if (await _authed.accessToken() == null) {

@@ -1,3 +1,4 @@
+import '../../core/utils/salon_id.dart';
 import '../../models/api_response.dart';
 import '../../models/appointment.dart';
 import '../../models/salon_client.dart';
@@ -11,7 +12,7 @@ abstract class ProClientsServiceInterface {
   /// size it used in [SalonClientsPage.pageSize] — the data export walks the
   /// whole base with it (docs/design/app-pro-export-completeness.md §4).
   Future<ApiResponse<SalonClientsPage>> listClients(
-    String providerId, {
+    SalonId providerId, {
     String? query,
     String? tag,
     int page = 1,
@@ -19,13 +20,13 @@ abstract class ProClientsServiceInterface {
   });
 
   Future<ApiResponse<SalonClientCard>> getCard(
-    String providerId,
+    SalonId providerId,
     String clientId,
   );
 
   /// The client's visits AT THIS SALON, newest first (paginated).
   Future<ApiResponse<List<Appointment>>> getVisits(
-    String providerId,
+    SalonId providerId,
     String clientId, {
     int page = 1,
   });
@@ -34,14 +35,14 @@ abstract class ProClientsServiceInterface {
   /// Returns the client id; a duplicate phone succeeds-by-redirect: the
   /// response carries code `client_exists` + the EXISTING card's id.
   Future<ApiResponse<String>> addClient(
-    String providerId, {
+    SalonId providerId, {
     required String name,
     required String phone,
     String? note,
   });
 
   Future<ApiResponse<SalonClient>> updateTags(
-    String providerId,
+    SalonId providerId,
     String clientId,
     List<String> tags,
   );
@@ -56,21 +57,21 @@ abstract class ProClientsServiceInterface {
   /// the card that already has the number — [SalonClientPhoneChange.taken]),
   /// `not_found`, `forbidden`.
   Future<ApiResponse<SalonClientPhoneChange>> updatePhone(
-    String providerId,
+    SalonId providerId,
     String clientId,
     String phone,
   );
 
   /// [idempotencyKey]: one per note sent (docs/design/write-idempotency.md §4).
   Future<ApiResponse<SalonClientNote>> addNote(
-    String providerId,
+    SalonId providerId,
     String clientId,
     String body, {
     String? idempotencyKey,
   });
 
   Future<ApiResponse<bool>> deleteNote(
-    String providerId,
+    SalonId providerId,
     String clientId,
     String noteId,
   );
