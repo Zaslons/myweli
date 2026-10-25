@@ -1,4 +1,4 @@
-- 🟢 **Aucun identifiant de salon n'est plus un `String` nu dans l'app : la moitié client, et la console (app cliente, console, 2026-10-25).** ([hygiene-batch9.md](../../design/hygiene-batch9.md) §2.8, §19) Le lot 9 du [BACKLOG](../../BACKLOG.md), PR H2 (B9.9, décision 33, Q19) — la seconde des deux.
+- 🟢 **Aucun identifiant de salon n'est plus un `String` nu dans l'app : la moitié client, et la console (app cliente, console, 2026-10-25).** ([hygiene-batch9.md](../../design/hygiene-batch9.md) §2.8, §19) Le lot 9 du [BACKLOG](../../BACKLOG.md), PR H2 (B9.9, décision 33, Q19, #707) — la seconde des deux.
   - **Avant** : côté client, un salon était un `String` comme un autre — `addFavorite(String userId, String providerId)` : deux arguments inversés compilaient.
   - **Ce qui change** : `Provider.id`, `Appointment.providerId` et cinq autres champs, la réservation, les avis, les favoris, `getProviderById` et les cinq appels de la console sur un salon prennent un `SalonId`. Un essai tient tout `lib/` : aucune place nommée comme un salon n'est un `String`. Il naît dans 26 endroits relus.
   - **À suivre** : la fin du lot 9.
