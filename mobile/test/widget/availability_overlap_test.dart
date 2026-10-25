@@ -33,7 +33,11 @@ void main() {
     service = _MockProService();
     serviceLocator.proService = service;
     registerFallbackValue(
-      const Availability(providerId: 'p', weeklySchedule: {}, blockedDates: []),
+      const Availability(
+        providerId: SalonId('p'),
+        weeklySchedule: {},
+        blockedDates: [],
+      ),
     );
   });
 
@@ -57,7 +61,7 @@ void main() {
     when(() => service.getProviderAvailability(any())).thenAnswer(
       (_) async => ApiResponse.success(
         Availability(
-          providerId: 'provider1',
+          providerId: SalonId('provider1'),
           weeklySchedule: schedule,
           blockedDates: const [],
         ),

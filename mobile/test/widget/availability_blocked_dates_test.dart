@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:myweli/core/di/dependency_injection.dart';
+import 'package:myweli/core/utils/salon_id.dart';
 import 'package:myweli/core/utils/salon_time.dart';
 import 'package:myweli/models/api_response.dart';
 import 'package:myweli/models/availability.dart';
@@ -34,7 +35,11 @@ void main() {
     service = _MockProService();
     serviceLocator.proService = service;
     registerFallbackValue(
-      const Availability(providerId: 'p', weeklySchedule: {}, blockedDates: []),
+      const Availability(
+        providerId: SalonId('p'),
+        weeklySchedule: {},
+        blockedDates: [],
+      ),
     );
   });
 
@@ -63,7 +68,7 @@ void main() {
     when(() => service.getProviderAvailability(any())).thenAnswer(
       (_) async => ApiResponse.success(
         Availability(
-          providerId: 'provider1',
+          providerId: SalonId('provider1'),
           weeklySchedule: const {},
           blockedDates: blocked,
         ),

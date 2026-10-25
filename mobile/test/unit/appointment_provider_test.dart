@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:myweli/core/di/dependency_injection.dart';
+import 'package:myweli/core/utils/salon_id.dart';
 import 'package:myweli/models/api_response.dart';
 import 'package:myweli/models/appointment.dart';
 import 'package:myweli/providers/appointment_provider.dart';
@@ -24,7 +25,7 @@ void main() {
   Appointment confirmed() => Appointment(
     id: 'a1',
     userId: 'u1',
-    providerId: 'p1',
+    providerId: SalonId('p1'),
     serviceIds: const ['s1'],
     appointmentDate: DateTime(2024, 6, 24, 10),
     status: AppointmentStatus.confirmed,
@@ -58,7 +59,7 @@ void main() {
       );
 
       final res = await AppointmentProvider().getAvailableTimeSlots(
-        providerId: 'p1',
+        providerId: SalonId('p1'),
         date: DateTime(2026, 3, 11),
       );
 
@@ -84,7 +85,7 @@ void main() {
       ).thenAnswer((_) async => ApiResponse<List<DateTime>>.success(const []));
 
       final res = await AppointmentProvider().getAvailableTimeSlots(
-        providerId: 'p1',
+        providerId: SalonId('p1'),
         date: DateTime(2026, 3, 11),
       );
 
@@ -117,7 +118,7 @@ void main() {
 
       final provider = AppointmentProvider();
       final ok = await provider.bookAppointment(
-        providerId: 'p1',
+        providerId: SalonId('p1'),
         serviceIds: const ['s1'],
         appointmentDateTime: DateTime(2024, 6, 24, 10),
         depositAmount: 6000,
@@ -128,7 +129,7 @@ void main() {
       expect(provider.appointments, hasLength(1));
       verify(
         () => appointments.bookAppointment(
-          providerId: 'p1',
+          providerId: SalonId('p1'),
           serviceIds: const ['s1'],
           appointmentDateTime: DateTime(2024, 6, 24, 10),
           artistId: null,

@@ -42,12 +42,12 @@ class _Server extends MockProService {
     failure = null;
   }
 
-  List<Appointment> of(String providerId) =>
+  List<Appointment> of(SalonId providerId) =>
       salons.putIfAbsent(providerId, () => []);
 
   @override
   Future<ApiResponse<JournalDay>> getJournalDay(
-    String providerId,
+    SalonId providerId,
     DateTime date,
   ) {
     final key = salonDayKey(date);
@@ -79,7 +79,7 @@ class _Server extends MockProService {
 class _Request {
   _Request(this.providerId, this.day, this._answer);
 
-  final String providerId;
+  final SalonId providerId;
   final String day;
   final ApiResponse<JournalDay> Function() _answer;
   final done = Completer<ApiResponse<JournalDay>>();
@@ -110,7 +110,7 @@ void main() {
     String time = '10:00',
     int day = 13,
     String? artistId,
-    String providerId = 'p1',
+    SalonId providerId = const SalonId('p1'),
     String? displayName,
     String status = 'confirmed',
   }) => Appointment(
@@ -145,7 +145,7 @@ void main() {
   group('bookingCreated — the displayed day', () {
     test('the booking is in the day AT ONCE, in time order, with no loader '
         'and one quiet request', () async {
-      server.of('p1').addAll([
+      server.of(SalonId('p1')).addAll([
         appt(id: 'a1', time: '09:00'),
         appt(id: 'a2', time: '14:00'),
       ]);
@@ -160,7 +160,7 @@ void main() {
 
       server.hold = true; // the reload cannot answer
       final created = appt(id: 'm1', time: '11:00');
-      server.of('p1').add(created);
+      server.of(SalonId('p1')).add(created);
       p.bookingCreated(created);
 
       // Synchronously — before any answer could have arrived.
@@ -183,12 +183,12 @@ void main() {
     });
 
     test('the server answers, and what it says wins', () async {
-      server.of('p1').add(appt(id: 'a1', time: '09:00'));
+      server.of(SalonId('p1')).add(appt(id: 'a1', time: '09:00'));
       final p = await opened();
 
       // The server holds its own version of the booking — the client's name
       // from the salon's records — and one more, taken on another device.
-      server.of('p1').addAll([
+      server.of(SalonId('p1')).addAll([
         appt(id: 'm1', time: '11:00', displayName: 'Yao Kouamé'),
         appt(id: 'a9', time: '16:00'),
       ]);
@@ -213,10 +213,10 @@ void main() {
 
     test('the server’s day reaches the screen when IT lands — not after the '
         'six requests of the week prefetch behind it', () async {
-      server.of('p1').add(appt(id: 'a1', time: '09:00'));
+      server.of(SalonId('p1')).add(appt(id: 'a1', time: '09:00'));
       final p = await opened();
       server
-          .of('p1')
+          .of(SalonId('p1'))
           .add(appt(id: 'm1', time: '11:00', displayName: 'Yao Kouamé'));
       server.hold = true;
       p.bookingCreated(appt(id: 'm1', time: '11:00')); // the `201` body
@@ -246,7 +246,7 @@ void main() {
 
     test('a reload that comes back WITHOUT the booking removes it — it was '
         'asked after the booking existed, so the server means it', () async {
-      server.of('p1').add(appt(id: 'a1', time: '09:00'));
+      server.of(SalonId('p1')).add(appt(id: 'a1', time: '09:00'));
       final p = await opened();
 
       // The server does not hold m1 (cancelled meanwhile, say).
@@ -260,7 +260,7 @@ void main() {
     for (final failure in ['error', 'throw']) {
       test('the reload fails ($failure): the booking stays, no error, no '
           'loader, the day is not dropped', () async {
-        server.of('p1').add(appt(id: 'a1', time: '09:00'));
+        server.of(SalonId('p1')).add(appt(id: 'a1', time: '09:00'));
         final p = await opened();
         final loadingSeen = <bool>[];
         p.addListener(() => loadingSeen.add(p.isLoading));
@@ -321,7 +321,9 @@ void main() {
   group('bookingCreated — filters', () {
     test('the artist filter applies to it like to any row', () async {
       server.artists = const [JournalArtist(id: 'ar1', name: 'Awa')];
-      server.of('p1').add(appt(id: 'a1', time: '09:00', artistId: 'ar1'));
+      server
+          .of(SalonId('p1'))
+          .add(appt(id: 'a1', time: '09:00', artistId: 'ar1'));
       final p = await opened();
       p.setArtistFilter('ar1');
       expect(p.hasUnassigned, isFalse);
@@ -340,7 +342,9 @@ void main() {
     });
 
     test('« Voir les annulés » is left as it was', () async {
-      server.of('p1').add(appt(id: 'c1', time: '09:00', status: 'cancelled'));
+      server
+          .of(SalonId('p1'))
+          .add(appt(id: 'c1', time: '09:00', status: 'cancelled'));
       final p = await opened();
       expect(p.showCancelled, isFalse);
       server.hold = true;
@@ -354,7 +358,7 @@ void main() {
   group('bookingCreated — another day', () {
     test('the displayed day and date do not change; the other day gets its '
         'dot at once; the day is still reloaded', () async {
-      server.of('p1').add(appt(id: 'a1', time: '09:00'));
+      server.of(SalonId('p1')).add(appt(id: 'a1', time: '09:00'));
       final p = await opened();
       expect(p.weekCounts['2026-07-15'], 0);
       final requestsBefore = server.requests.length;
@@ -398,7 +402,7 @@ void main() {
 
         // The booking lands on exactly the day that request is asking about.
         final created = appt(id: 'm1', time: '11:00', day: dayOfMonth);
-        server.of('p1').add(created);
+        server.of(SalonId('p1')).add(created);
         p.bookingCreated(created);
         expect(p.weekCounts[prefetch.day], 1);
 
@@ -437,7 +441,9 @@ void main() {
     test('another salon’s booking is ignored', () async {
       final p = await opened();
       final requestsBefore = server.requests.length;
-      p.bookingCreated(appt(id: 'm1', time: '11:00', providerId: 'p2'));
+      p.bookingCreated(
+        appt(id: 'm1', time: '11:00', providerId: SalonId('p2')),
+      );
       await settled();
       expect(shown(p), isEmpty);
       expect(server.requests.length, requestsBefore);
@@ -468,7 +474,7 @@ void main() {
       final first = server.requests.single; // decided: an empty day
 
       final created = appt(id: 'm1', time: '11:00');
-      server.of('p1').add(created);
+      server.of(SalonId('p1')).add(created);
       p.bookingCreated(created);
       expect(server.requests, hasLength(2));
       expect(p.isLoading, isTrue);
@@ -490,7 +496,7 @@ void main() {
     test('a day CHANGE is in flight — the rows on screen are another date’s: '
         'no row is added to them, even for a booking on the date being '
         'loaded; that date is asked for again the ordinary way', () async {
-      server.of('p1').add(appt(id: 'mon', time: '09:00'));
+      server.of(SalonId('p1')).add(appt(id: 'mon', time: '09:00'));
       final p = await opened(); // Monday the 13th
       server.hold = true;
       final tuesday = DateTime.utc(2026, 7, 14);
@@ -503,7 +509,7 @@ void main() {
 
       // The booking is for Tuesday — the SELECTED date, not the rows’ date.
       final created = appt(id: 'm1', time: '11:00', day: 14);
-      server.of('p1').add(created);
+      server.of(SalonId('p1')).add(created);
       p.bookingCreated(created);
 
       expect(shown(p), ['mon'], reason: 'not put among Monday’s rows');
@@ -540,7 +546,7 @@ void main() {
 
       server.failure = null;
       final created = appt(id: 'm1', time: '11:00');
-      server.of('p1').add(created);
+      server.of(SalonId('p1')).add(created);
       p.bookingCreated(created);
       expect(p.isLoading, isTrue);
       await settled();
@@ -585,7 +591,7 @@ void main() {
       'the booking joins the rows at once; the flag the refresh raised is '
       'lowered; its answer, decided before the booking, is dropped',
       () async {
-        server.of('p1').add(appt(id: 'a1', time: '09:00'));
+        server.of(SalonId('p1')).add(appt(id: 'a1', time: '09:00'));
         final p = await opened();
         server.hold = true;
         unawaited(p.refresh()); // decided: a1 only
@@ -597,7 +603,7 @@ void main() {
         p.addListener(() => loadingSeen.add(p.isLoading));
 
         final created = appt(id: 'm1', time: '11:00');
-        server.of('p1').add(created);
+        server.of(SalonId('p1')).add(created);
         p.bookingCreated(created);
 
         // Synchronously — nothing has answered.
@@ -632,7 +638,7 @@ void main() {
       test('…and both fail ($failure) — the refresh in flight and the reload '
           'behind the booking: the day and the booking stay, nothing is '
           'said', () async {
-        server.of('p1').add(appt(id: 'a1', time: '09:00'));
+        server.of(SalonId('p1')).add(appt(id: 'a1', time: '09:00'));
         final p = await opened();
         server.hold = true;
         server.failure = failure; // the network is going
@@ -659,7 +665,7 @@ void main() {
     }
 
     test('« Ma journée » reopened (a load with no date): the same', () async {
-      server.of('p1').add(appt(id: 'a1', time: '09:00'));
+      server.of(SalonId('p1')).add(appt(id: 'a1', time: '09:00'));
       final p = await opened();
       server.hold = true;
       unawaited(p.load(SalonId('p1'))); // the screen's own `initState` load
@@ -682,14 +688,16 @@ void main() {
     test(
       'a pull-to-refresh after the booking outdates the quiet reload',
       () async {
-        server.of('p1').add(appt(id: 'a1', time: '09:00'));
+        server.of(SalonId('p1')).add(appt(id: 'a1', time: '09:00'));
         final p = await opened();
         server.hold = true;
 
         p.bookingCreated(appt(id: 'm1', time: '11:00'));
         final quiet = server.requests.last; // decided: a1 only — no m1
         // The server now holds it, and the salon pulls the list down.
-        server.of('p1').add(appt(id: 'm1', time: '11:00', displayName: 'Yao'));
+        server
+            .of(SalonId('p1'))
+            .add(appt(id: 'm1', time: '11:00', displayName: 'Yao'));
         unawaited(p.refresh());
         final loud = server.requests.last;
         expect(loud, isNot(same(quiet)));
@@ -713,7 +721,7 @@ void main() {
 
     test('two quick day changes: the slower, older day does not land under '
         'the newer date', () async {
-      server.of('p1').addAll([
+      server.of(SalonId('p1')).addAll([
         appt(id: 'mon', time: '09:00', day: 13),
         appt(id: 'tue', time: '09:00', day: 14),
       ]);
@@ -744,14 +752,14 @@ void main() {
 
     test('an older load that THROWS late — a socket that gives up after the '
         'newer answer is on screen — does not drop the day', () async {
-      server.of('p1').add(appt(id: 'a1', time: '09:00'));
+      server.of(SalonId('p1')).add(appt(id: 'a1', time: '09:00'));
       final p = await opened();
       server.hold = true;
       server.failure = 'throw';
       unawaited(p.refresh()); // decided: it will throw
       final older = server.requests.last;
       server.failure = null;
-      server.of('p1').add(appt(id: 'a2', time: '14:00'));
+      server.of(SalonId('p1')).add(appt(id: 'a2', time: '14:00'));
       unawaited(p.refresh()); // decided: a1, a2
       final newer = server.requests.last;
       expect(newer, isNot(same(older)));
@@ -776,7 +784,7 @@ void main() {
     });
 
     test('a salon switch drops the quiet reload in flight', () async {
-      server.of('p1').add(appt(id: 'a1', time: '09:00'));
+      server.of(SalonId('p1')).add(appt(id: 'a1', time: '09:00'));
       final p = await opened();
       server.hold = true;
       p.bookingCreated(appt(id: 'm1', time: '11:00'));
@@ -796,7 +804,7 @@ void main() {
   // day whose only booking was cancelled used to keep its dot and open empty.
   group('the week dots — cancelled bookings do not count', () {
     test('another day whose only booking was cancelled has no dot', () async {
-      server.of('p1').addAll([
+      server.of(SalonId('p1')).addAll([
         appt(id: 'a1', time: '09:00'),
         appt(id: 'c1', day: 16, status: 'cancelled'),
         appt(id: 'f1', day: 17, status: 'pending'),
@@ -808,7 +816,7 @@ void main() {
     });
 
     test('the displayed day counts its non-cancelled bookings', () async {
-      server.of('p1').addAll([
+      server.of(SalonId('p1')).addAll([
         appt(id: 'a1', time: '09:00'),
         appt(id: 'a2', time: '11:00', status: 'cancelled'),
         appt(id: 'a3', time: '14:00', status: 'completed'),

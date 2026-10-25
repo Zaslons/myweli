@@ -31,7 +31,7 @@ void main() {
       'Provider round-trips the deposit handle (default off when absent)',
       () {
         const p = models.Provider(
-          id: 'p1',
+          id: SalonId('p1'),
           name: 'Salon',
           description: '',
           address: 'x',
@@ -40,7 +40,7 @@ void main() {
           reviewCount: 1,
           services: [],
           availability: Availability(
-            providerId: 'p1',
+            providerId: SalonId('p1'),
             weeklySchedule: {},
             blockedDates: [],
           ),
@@ -67,7 +67,7 @@ void main() {
       final a = Appointment(
         id: 'a1',
         userId: 'u1',
-        providerId: 'p1',
+        providerId: SalonId('p1'),
         serviceIds: const ['s1'],
         appointmentDate: DateTime(2026, 6, 23, 10),
         status: AppointmentStatus.pending,
@@ -91,7 +91,7 @@ void main() {
       final service = MockAppointmentService();
 
       final res = await service.bookAppointment(
-        providerId: 'provider2',
+        providerId: SalonId('provider2'),
         serviceIds: const ['service4'],
         appointmentDateTime: DateTime.now().add(const Duration(days: 3)),
         depositAmount: 6000,

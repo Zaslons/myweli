@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:myweli/core/di/dependency_injection.dart';
+import 'package:myweli/core/utils/salon_id.dart';
 import 'package:myweli/models/appointment.dart';
 import 'package:myweli/providers/provider_provider.dart';
 import 'package:myweli/widgets/booking/appointment_card.dart';
@@ -23,7 +24,7 @@ void main() {
   Appointment appt({String? clientName}) => Appointment(
     id: 'a1',
     userId: clientName == null ? 'u1' : 'manual',
-    providerId: 'p1',
+    providerId: SalonId('p1'),
     serviceIds: const ['s1'],
     appointmentDate: DateTime(2026, 6, 30, 10),
     status: AppointmentStatus.confirmed,

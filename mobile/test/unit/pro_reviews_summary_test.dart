@@ -15,7 +15,7 @@ import 'package:myweli/services/mock/mock_pro_service.dart';
 Review _review(int i, int rating) => Review(
   id: 'r$i',
   appointmentId: 'a$i',
-  providerId: 'p1',
+  providerId: SalonId('p1'),
   userId: 'u$i',
   userName: 'Awa',
   rating: rating,

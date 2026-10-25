@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/date_symbol_data_local.dart';
+import 'package:myweli/core/utils/salon_id.dart';
 import 'package:myweli/models/review.dart';
 import 'package:myweli/widgets/review/review_tile.dart';
 
@@ -13,7 +14,7 @@ void main() {
 
   Review review({bool verified = false, String? artistName}) => Review(
     id: 'r1',
-    providerId: 'p1',
+    providerId: SalonId('p1'),
     userId: 'u1',
     userName: 'Marie Diallo',
     rating: 5,

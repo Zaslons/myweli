@@ -42,7 +42,7 @@ class _Server extends MockProService {
 
   @override
   Future<ApiResponse<JournalDay>> getJournalDay(
-    String providerId,
+    SalonId providerId,
     DateTime date,
   ) async {
     journalCalls++;
@@ -64,7 +64,7 @@ class _Server extends MockProService {
 
   @override
   Future<ApiResponse<List<Appointment>>> getProviderAppointments(
-    String providerId, {
+    SalonId providerId, {
     AppointmentStatus? status,
     DateTime? startDate,
     DateTime? endDate,
@@ -167,7 +167,7 @@ void main() {
     String time = '10:00',
     int day = 13,
     String status = 'pending',
-    String providerId = 'p1',
+    SalonId providerId = const SalonId('p1'),
     String? phone,
   }) => Appointment(
     id: id,
@@ -184,7 +184,7 @@ void main() {
   BookingChange change(
     String id,
     BookingChangeKind kind, {
-    String providerId = 'p1',
+    SalonId providerId = const SalonId('p1'),
     DateTime? newDate,
     DateTime? arrivedAt,
   }) => BookingChange(
@@ -348,7 +348,7 @@ void main() {
         final p = await openDay([appt(id: 'a1')]);
         final before = server.journalCalls;
         p.bookingChanged(
-          change('a1', BookingChangeKind.accepted, providerId: 'p2'),
+          change('a1', BookingChangeKind.accepted, providerId: SalonId('p2')),
         );
         expect(row(p, 'a1').status, AppointmentStatus.pending);
         expect(server.journalCalls, before);

@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
+import 'package:myweli/core/utils/salon_id.dart';
 import 'package:myweli/services/api/api_provider_service.dart';
 
 Map<String, dynamic> _providerJson(
@@ -62,7 +63,7 @@ void main() {
     );
     final service = ApiProviderService(client: client, baseUrl: 'http://x');
 
-    final res = await service.getProviderById('p1');
+    final res = await service.getProviderById(SalonId('p1'));
 
     expect(res.success, isTrue);
     expect(res.data!.id, 'p1');
@@ -81,7 +82,7 @@ void main() {
     );
     final service = ApiProviderService(client: client, baseUrl: 'http://x');
 
-    final res = await service.getProviderById('nope');
+    final res = await service.getProviderById(SalonId('nope'));
 
     expect(res.success, isFalse);
     expect(res.code, 'not_found');
@@ -95,7 +96,7 @@ void main() {
     final client = MockClient((req) async => throw Exception('down'));
     final service = ApiProviderService(client: client, baseUrl: 'http://x');
 
-    final res = await service.getProviderById('p1');
+    final res = await service.getProviderById(SalonId('p1'));
 
     expect(res.success, isFalse);
     expect(res.code, 'network');

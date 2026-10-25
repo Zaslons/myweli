@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:myweli/core/di/dependency_injection.dart';
 import 'package:myweli/core/theme/app_theme.dart';
 import 'package:myweli/core/theme/text_styles.dart';
+import 'package:myweli/core/utils/salon_id.dart';
 import 'package:myweli/models/provider.dart' as models;
 import 'package:myweli/providers/provider_provider.dart';
 import 'package:myweli/screens/providers/provider_detail_screen.dart';
@@ -147,7 +148,10 @@ void main() {
         value: ProviderProvider()..showPreloaded(salon),
       ),
     ],
-    home: const ProviderDetailScreen(providerId: 'provider1', preview: true),
+    home: const ProviderDetailScreen(
+      providerId: SalonId('provider1'),
+      preview: true,
+    ),
   );
 
   // Branch B, inside the band `layout_test`'s `[1, 2]` cannot see: the same

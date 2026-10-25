@@ -53,7 +53,7 @@ class _Service extends MockProClientsService {
 
   @override
   Future<ApiResponse<SalonClientCard>> getCard(
-    String providerId,
+    SalonId providerId,
     String clientId,
   ) async {
     cardCalls.add(clientId);
@@ -72,7 +72,7 @@ class _Service extends MockProClientsService {
 
   @override
   Future<ApiResponse<List<Appointment>>> getVisits(
-    String providerId,
+    SalonId providerId,
     String clientId, {
     int page = 1,
   }) async {
@@ -112,7 +112,7 @@ void main() {
 
   BookingChange change({
     String id = 'a1',
-    String providerId = 'p1',
+    SalonId providerId = const SalonId('p1'),
     String? phone = _Service.phone,
     BookingChangeKind kind = BookingChangeKind.noShow,
   }) => BookingChange(
@@ -141,7 +141,7 @@ void main() {
         Appointment(
           id: 'v9',
           userId: 'u1',
-          providerId: 'p1',
+          providerId: SalonId('p1'),
           serviceIds: const ['s1'],
           appointmentDate: DateTime.utc(2026, 7, 1, 10),
           status: AppointmentStatus.confirmed,
@@ -161,7 +161,7 @@ void main() {
     () async {
       final p = await opened();
       p.bookingChanged(change(phone: '+2250700000999'));
-      p.bookingChanged(change(providerId: 'p2'));
+      p.bookingChanged(change(providerId: SalonId('p2')));
       await pumpEventQueue();
       expect(service.cardCalls, ['sc1']);
     },

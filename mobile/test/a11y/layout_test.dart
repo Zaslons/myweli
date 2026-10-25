@@ -640,7 +640,7 @@ void main() {
             ChangeNotifierProvider(create: (_) => FavoritesProvider()),
           ],
           // pushed the way the product enters it — home_screen.dart:228.
-          subject: const ProviderDetailScreen(providerId: 'provider1'),
+          subject: const ProviderDetailScreen(providerId: SalonId('provider1')),
           rounds: 5,
         );
 
@@ -717,7 +717,7 @@ void main() {
           scale: scale,
           providers: [ChangeNotifierProvider.value(value: salon)],
           subject: const ProviderDetailScreen(
-            providerId: 'provider1',
+            providerId: SalonId('provider1'),
             preview: true,
           ),
         );
@@ -951,7 +951,7 @@ void main() {
             ChangeNotifierProvider.value(value: auth),
           ],
           // pushed the way the product enters it — provider_detail_screen.dart:1169.
-          subject: const BookingHubScreen(providerId: 'provider2'),
+          subject: const BookingHubScreen(providerId: SalonId('provider2')),
           rounds: 5,
         );
 
@@ -982,7 +982,7 @@ void main() {
           ],
           // pushed the way the product enters it — booking_hub_screen.dart:400.
           subject: BookingConfirmationScreen(
-            providerId: 'provider2',
+            providerId: SalonId('provider2'),
             serviceIds: const ['service4'],
             appointmentDateTime: kFixedNow.add(const Duration(days: 3)),
           ),

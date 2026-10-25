@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:myweli/core/di/dependency_injection.dart';
 import 'package:myweli/core/utils/app_clock.dart';
+import 'package:myweli/core/utils/salon_id.dart';
 import 'package:myweli/models/appointment.dart';
 import 'package:myweli/providers/pro_auth_provider.dart';
 import 'package:myweli/screens/provider/appointments/appointment_calendar_view.dart';
@@ -149,7 +150,7 @@ void main() {
 Appointment _appt(String id, DateTime at) => Appointment(
   id: id,
   userId: 'user1',
-  providerId: 'provider1',
+  providerId: SalonId('provider1'),
   serviceIds: const ['s1'],
   appointmentDate: at,
   status: AppointmentStatus.confirmed,

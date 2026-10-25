@@ -14,7 +14,7 @@ void main() {
     final a = Appointment(
       id: 'm1',
       userId: 'manual',
-      providerId: 'p1',
+      providerId: SalonId('p1'),
       serviceIds: const ['s1'],
       appointmentDate: DateTime(2026, 7, 1, 10),
       status: AppointmentStatus.confirmed,
@@ -44,7 +44,7 @@ void main() {
     Appointment created() => Appointment(
       id: 'm1',
       userId: 'manual',
-      providerId: 'p1',
+      providerId: SalonId('p1'),
       serviceIds: const ['s1'],
       appointmentDate: DateTime(2026, 7, 1, 10),
       status: AppointmentStatus.confirmed,
@@ -118,7 +118,7 @@ void main() {
     Appointment created() => Appointment(
       id: 'm1',
       userId: 'manual',
-      providerId: 'p1',
+      providerId: SalonId('p1'),
       serviceIds: const ['s1'],
       appointmentDate: at,
       status: AppointmentStatus.confirmed,

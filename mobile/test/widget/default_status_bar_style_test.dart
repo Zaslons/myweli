@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:myweli/core/di/dependency_injection.dart';
 import 'package:myweli/core/theme/colors.dart';
+import 'package:myweli/core/utils/salon_id.dart';
 import 'package:myweli/providers/provider_provider.dart';
 import 'package:myweli/screens/providers/provider_detail_screen.dart';
 import 'package:myweli/services/mock/mock_data.dart';
@@ -80,7 +81,7 @@ void main() {
       Navigator.of(tester.element(find.byType(Scaffold))).push(
         MaterialPageRoute<void>(
           builder: (_) => const ProviderDetailScreen(
-            providerId: 'provider1',
+            providerId: SalonId('provider1'),
             preview: true,
           ),
         ),

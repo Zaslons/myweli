@@ -174,7 +174,7 @@ void main() {
       p.bookingChanged(
         const BookingChange(
           appointmentId: 'a1',
-          providerId: 'pA',
+          providerId: SalonId('pA'),
           kind: BookingChangeKind.accepted,
         ),
       );
@@ -189,7 +189,7 @@ void main() {
       p.bookingChanged(
         const BookingChange(
           appointmentId: 'a1',
-          providerId: 'pB',
+          providerId: SalonId('pB'),
           kind: BookingChangeKind.accepted,
         ),
       );

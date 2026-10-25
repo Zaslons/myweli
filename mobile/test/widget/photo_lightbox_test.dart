@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:myweli/core/di/dependency_injection.dart';
 import 'package:myweli/core/utils/app_clock.dart';
+import 'package:myweli/core/utils/salon_id.dart';
 import 'package:myweli/providers/appointment_provider.dart';
 import 'package:myweli/providers/favorites_provider.dart';
 import 'package:myweli/providers/provider_provider.dart';
@@ -67,7 +68,7 @@ void main() {
         ChangeNotifierProvider(create: (_) => FavoritesProvider()),
       ],
       // provider1 has two photos: the cover, and one in the strip.
-      subject: const ProviderDetailScreen(providerId: 'provider1'),
+      subject: const ProviderDetailScreen(providerId: SalonId('provider1')),
       rounds: 5,
     );
   }

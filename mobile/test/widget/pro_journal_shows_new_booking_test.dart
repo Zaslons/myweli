@@ -8,6 +8,7 @@ import 'package:myweli/core/access/pro_salon_scope.dart';
 import 'package:myweli/core/di/dependency_injection.dart';
 import 'package:myweli/core/router/pro_router.dart';
 import 'package:myweli/core/utils/app_clock.dart';
+import 'package:myweli/core/utils/salon_id.dart';
 import 'package:myweli/core/utils/salon_time.dart';
 import 'package:myweli/models/api_response.dart';
 import 'package:myweli/models/appointment.dart';
@@ -87,7 +88,7 @@ class _Salon extends MockProService {
 
   @override
   Future<ApiResponse<JournalDay>> getJournalDay(
-    String providerId,
+    SalonId providerId,
     DateTime date,
   ) async {
     journalCalls++;
@@ -108,7 +109,7 @@ class _Salon extends MockProService {
 
   @override
   Future<ApiResponse<Appointment>> createManualBooking({
-    required String providerId,
+    required SalonId providerId,
     required List<String> serviceIds,
     required DateTime appointmentDateTime,
     String? clientName,
@@ -168,7 +169,7 @@ void main() {
   }) => Appointment(
     id: id,
     userId: 'u-$id',
-    providerId: 'provider1',
+    providerId: SalonId('provider1'),
     serviceIds: const ['service1'],
     artistId: artistId,
     appointmentDate: DateTime.parse(

@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:myweli/core/constants/app_constants.dart';
 import 'package:myweli/core/di/dependency_injection.dart';
 import 'package:myweli/core/utils/salon_figures.dart';
+import 'package:myweli/core/utils/salon_id.dart';
 import 'package:myweli/models/api_response.dart';
 import 'package:myweli/models/provider.dart';
 import 'package:myweli/models/review.dart';
@@ -96,7 +97,7 @@ void main() {
       final p = ProviderProvider()
         ..showPreloaded(
           _salon(
-            'A',
+            SalonId('A'),
             rating: 4.0,
             reviewCount: 1,
             reviews: [_review(4, appointment: 'a1', id: 'stored')],
@@ -117,7 +118,7 @@ void main() {
       final p = ProviderProvider()
         ..showPreloaded(
           _salon(
-            'A',
+            SalonId('A'),
             rating: 4.0,
             reviewCount: 4,
             reviews: [
@@ -143,7 +144,7 @@ void main() {
       final p = ProviderProvider()
         ..showPreloaded(
           _salon(
-            'A',
+            SalonId('A'),
             rating: 5.0,
             reviewCount: 20,
             reviews: [_review(4, appointment: 'a1')],
@@ -161,7 +162,12 @@ void main() {
       // not a key, or every one of them would collapse into one review.
       final p = ProviderProvider()
         ..showPreloaded(
-          _salon('A', rating: 4.0, reviewCount: 1, reviews: [_review(4)]),
+          _salon(
+            SalonId('A'),
+            rating: 4.0,
+            reviewCount: 1,
+            reviews: [_review(4)],
+          ),
         );
 
       p.addReviewLocally(_review(2));
@@ -175,7 +181,7 @@ void main() {
       final p = ProviderProvider()
         ..showPreloaded(
           _salon(
-            'A',
+            SalonId('A'),
             rating: 4.0,
             reviewCount: 5,
             reviews: [
@@ -200,8 +206,8 @@ void main() {
   group('on every copy of the salon', () {
     test('the list, the featured list and the map’s lookup carry the same '
         'figures as the page', () async {
-      final a = _salon('A', rating: 4.5, reviewCount: 2);
-      final b = _salon('B', rating: 3.9, reviewCount: 7);
+      final a = _salon(SalonId('A'), rating: 4.5, reviewCount: 2);
+      final b = _salon(SalonId('B'), rating: 3.9, reviewCount: 7);
       salons
         ..list = [a, b]
         ..featured = [b, a];
@@ -216,7 +222,7 @@ void main() {
       expect(_figures(p.selectedProvider!), (4.7, 3));
       expect(_figures(p.providers.first), (4.7, 3));
       expect(_figures(p.featuredProviders.last), (4.7, 3));
-      expect(_figures((await p.providerForMap('A'))!), (4.7, 3));
+      expect(_figures((await p.providerForMap(SalonId('A')))!), (4.7, 3));
       // In place: the same rows, and the other salon untouched.
       expect(p.providers.map((s) => s.id), ['A', 'B']);
       expect(p.featuredProviders.map((s) => s.id), ['B', 'A']);
@@ -227,8 +233,8 @@ void main() {
 
     test('with ANOTHER salon’s page open, the lists still move — and that '
         'page does not', () async {
-      final a = _salon('A', rating: 4.5, reviewCount: 2);
-      final b = _salon('B', rating: 3.9, reviewCount: 7);
+      final a = _salon(SalonId('A'), rating: 4.5, reviewCount: 2);
+      final b = _salon(SalonId('B'), rating: 3.9, reviewCount: 7);
       salons
         ..list = [a, b]
         ..featured = [a];
@@ -247,7 +253,7 @@ void main() {
     });
 
     test('with NO salon page open, the lists still move', () async {
-      final a = _salon('A', rating: 4.5, reviewCount: 2);
+      final a = _salon(SalonId('A'), rating: 4.5, reviewCount: 2);
       salons
         ..list = [a]
         ..featured = [a];
@@ -268,7 +274,7 @@ void main() {
 
     test('sent again with no salon page open — the list rows carry no '
         'reviews to look in — it is still one review', () async {
-      salons.list = [_salon('A')];
+      salons.list = [_salon(SalonId('A'))];
       final p = ProviderProvider();
       await p.loadProviders();
 
@@ -287,7 +293,7 @@ void main() {
     test('sent again from the salon page while the salon is also in the '
         'list and the featured list: the earlier review is found on the '
         'page, and every copy still counts one', () async {
-      final row = _salon('A', rating: 4.0, reviewCount: 1);
+      final row = _salon(SalonId('A'), rating: 4.0, reviewCount: 1);
       salons
         ..list = [row]
         ..featured = [row];
@@ -313,10 +319,10 @@ void main() {
     // featured copy is the only one to count from.
     test('held in the featured list alone, the carousel card still '
         'moves', () async {
-      final b = _salon('B', rating: 3.9, reviewCount: 7);
+      final b = _salon(SalonId('B'), rating: 3.9, reviewCount: 7);
       salons
         ..list = [b]
-        ..featured = [_salon('A', rating: 4.5, reviewCount: 2), b];
+        ..featured = [_salon(SalonId('A'), rating: 4.5, reviewCount: 2), b];
       final p = ProviderProvider();
       await p.loadProviders();
       await p.loadFeaturedProviders();
@@ -333,7 +339,7 @@ void main() {
 
     test('a first review takes « Nouveau » off the carousel card and the '
         'favourite at once', () async {
-      final unrated = _salon('A');
+      final unrated = _salon(SalonId('A'));
       salons.featured = [unrated];
       hearts.salons = [unrated];
       final favorites = FavoritesProvider();
@@ -357,23 +363,23 @@ void main() {
     test(
       'patchSalonFigures moves the favourite in place and says so once',
       () async {
-        final a = _salon('A', rating: 4.5, reviewCount: 2);
-        final b = _salon('B', rating: 3.9, reviewCount: 7);
-        final c = _salon('C');
+        final a = _salon(SalonId('A'), rating: 4.5, reviewCount: 2);
+        final b = _salon(SalonId('B'), rating: 3.9, reviewCount: 7);
+        final c = _salon(SalonId('C'));
         hearts.salons = [b, a, c];
         final favorites = FavoritesProvider();
         await favorites.loadFavorites('user1');
         var notified = 0;
         favorites.addListener(() => notified++);
 
-        favorites.patchSalonFigures('A', rating: 4.7, reviewCount: 3);
+        favorites.patchSalonFigures(SalonId('A'), rating: 4.7, reviewCount: 3);
 
         expect(favorites.favoriteProviders.map((s) => s.id), ['B', 'A', 'C']);
         expect(_figures(favorites.favoriteProviders[1]), (4.7, 3));
         expect(favorites.favoriteProviders.first, same(b));
         expect(favorites.favoriteProviders.last, same(c));
         expect(favorites.favoriteProviderIds, ['B', 'A', 'C']);
-        expect(favorites.isFavorite('A'), isTrue);
+        expect(favorites.isFavorite(SalonId('A')), isTrue);
         expect(notified, 1);
         // What the home reads (`getFavoriteProviders`) is that same list.
         expect(_figures(favorites.getFavoriteProviders(const [])[1]), (4.7, 3));
@@ -382,7 +388,7 @@ void main() {
 
     test('a salon that is no favourite, or figures already shown: nothing '
         'moves, nobody is told', () async {
-      final a = _salon('A', rating: 4.5, reviewCount: 2);
+      final a = _salon(SalonId('A'), rating: 4.5, reviewCount: 2);
       hearts.salons = [a];
       final favorites = FavoritesProvider();
       await favorites.loadFavorites('user1');
@@ -390,8 +396,8 @@ void main() {
       var notified = 0;
       favorites.addListener(() => notified++);
 
-      favorites.patchSalonFigures('Z', rating: 4.7, reviewCount: 3);
-      favorites.patchSalonFigures('A', rating: 4.5, reviewCount: 2);
+      favorites.patchSalonFigures(SalonId('Z'), rating: 4.7, reviewCount: 3);
+      favorites.patchSalonFigures(SalonId('A'), rating: 4.5, reviewCount: 2);
 
       expect(favorites.favoriteProviders, same(held));
       expect(favorites.favoriteProviders.single, same(a));
@@ -399,7 +405,7 @@ void main() {
     });
 
     test('they carry the same figures as the page and the list', () async {
-      final a = _salon('A', rating: 4.5, reviewCount: 2);
+      final a = _salon(SalonId('A'), rating: 4.5, reviewCount: 2);
       salons.list = [a];
       hearts.salons = [a];
       final favorites = FavoritesProvider();
@@ -419,7 +425,7 @@ void main() {
     });
 
     test('with no salon page open, they move with the list', () async {
-      final a = _salon('A', rating: 4.5, reviewCount: 2);
+      final a = _salon(SalonId('A'), rating: 4.5, reviewCount: 2);
       salons.list = [a];
       hearts.salons = [a];
       final favorites = FavoritesProvider();
@@ -441,7 +447,7 @@ void main() {
     // server averages the stars — 17 / 4 = 4,25, « 4,3 » —, the app can only
     // start from the rounded « 4,3 »: (4,3 × 3 + 4) / 4 = 4,225, « 4,2 ».
     final before = _salon(
-      'A',
+      SalonId('A'),
       rating: 4.3,
       reviewCount: 3,
       reviews: [
@@ -452,7 +458,7 @@ void main() {
     );
     final mine = _review(4, appointment: 'a1', id: 'client-uuid');
     final server = _salon(
-      'A',
+      SalonId('A'),
       rating: 4.3,
       reviewCount: 4,
       reviews: [
@@ -532,7 +538,7 @@ void main() {
       final stored = Review(
         id: 'server-id',
         appointmentId: 'a1',
-        providerId: 'A',
+        providerId: SalonId('A'),
         userId: 'user1',
         userName: 'Awa Koné',
         rating: 4,
@@ -566,7 +572,7 @@ void main() {
       final p = ProviderProvider();
       await p.loadProviders();
       // The salon page's own read, offline (`onById` unset).
-      await p.loadProviderById('A');
+      await p.loadProviderById(SalonId('A'));
       expect(p.selectedProvider, isNull);
       expect(p.selectedProviderId, 'A');
       expect(p.errorCode, 'network');
@@ -643,7 +649,7 @@ void main() {
     test('the user moved to another salon: its page is not touched — the '
         'lists still take the answer', () async {
       final gate = Completer<ApiResponse<Provider>>();
-      final other = _salon('B', rating: 3.9, reviewCount: 7);
+      final other = _salon(SalonId('B'), rating: 3.9, reviewCount: 7);
       salons
         ..list = [before, other]
         ..onById = (_) => gate.future;
@@ -690,7 +696,7 @@ void main() {
     test('another salon was opened earlier in the session and still holds '
         'the slot: the lists and the favourites take the server’s '
         'figures', () async {
-      final other = _salon('B', rating: 3.9, reviewCount: 7);
+      final other = _salon(SalonId('B'), rating: 3.9, reviewCount: 7);
       salons
         ..list = [before, other]
         ..featured = [before]
@@ -723,10 +729,10 @@ void main() {
       // Another commune, past page 1 of the list: no copy to estimate from,
       // so the answer is the ONLY thing that can move this card — until the
       // app restarts, the favourites being loaded once per session.
-      final unrated = _salon('A');
+      final unrated = _salon(SalonId('A'));
       salons.onById = (_) async => ApiResponse.success(
         _salon(
-          'A',
+          SalonId('A'),
           rating: 5.0,
           reviewCount: 1,
           reviews: [_review(5, appointment: 'a1', id: 'stored-id')],
@@ -736,7 +742,7 @@ void main() {
       final favorites = FavoritesProvider();
       await favorites.loadFavorites('user1');
       final p = ProviderProvider()
-        ..showPreloaded(_salon('B', rating: 3.9, reviewCount: 7));
+        ..showPreloaded(_salon(SalonId('B'), rating: 3.9, reviewCount: 7));
 
       expect(
         await p.submitReview(
@@ -884,7 +890,7 @@ void main() {
 /// A salon as the API would send it — `provider1`’s document under another
 /// id, with the figures and the embedded reviews a case needs.
 Provider _salon(
-  String id, {
+  SalonId id, {
   double rating = 0,
   int reviewCount = 0,
   List<Review> reviews = const [],
@@ -901,7 +907,7 @@ Review _review(
   int stars, {
   String appointment = '',
   String id = 'r',
-  String salon = 'A',
+  SalonId salon = const SalonId('A'),
 }) => Review(
   id: id,
   appointmentId: appointment,
@@ -965,26 +971,26 @@ class _Favorites implements FavoritesServiceInterface {
   ) async => ApiResponse.success(List.of(salons));
 
   @override
-  Future<ApiResponse<List<String>>> getFavoriteProviderIds(
+  Future<ApiResponse<List<SalonId>>> getFavoriteProviderIds(
     String userId,
   ) async => ApiResponse.success([for (final s in salons) s.id]);
 
   @override
   Future<ApiResponse<bool>> addFavorite(
     String userId,
-    String providerId,
+    SalonId providerId,
   ) async => ApiResponse.success(true);
 
   @override
   Future<ApiResponse<bool>> removeFavorite(
     String userId,
-    String providerId,
+    SalonId providerId,
   ) async => ApiResponse.success(true);
 
   @override
   Future<ApiResponse<bool>> isFavorite(
     String userId,
-    String providerId,
+    SalonId providerId,
   ) async => ApiResponse.success(salons.any((s) => s.id == providerId));
 }
 
@@ -1004,7 +1010,7 @@ class _Reviews implements ReviewServiceInterface {
 
   @override
   Future<ApiResponse<List<Review>>> getProviderReviews(
-    String providerId, {
+    SalonId providerId, {
     int page = 1,
     int pageSize = 20,
   }) async => ApiResponse.success(const []);

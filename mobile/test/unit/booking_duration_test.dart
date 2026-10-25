@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:myweli/core/utils/booking_duration.dart';
+import 'package:myweli/core/utils/salon_id.dart';
 import 'package:myweli/models/service.dart';
 
 Service _svc(
@@ -13,7 +14,7 @@ Service _svc(
   price: 1000,
   durationMinutes: duration,
   durationVariants: variants,
-  providerId: 'p1',
+  providerId: SalonId('p1'),
 );
 
 void main() {

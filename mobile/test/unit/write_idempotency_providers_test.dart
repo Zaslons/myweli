@@ -32,7 +32,7 @@ ApiResponse<T> _answer<T>(T value) => fail
 Appointment _appt(String id) => Appointment(
   id: id,
   userId: 'u1',
-  providerId: 'provider1',
+  providerId: SalonId('provider1'),
   serviceIds: const ['service1'],
   appointmentDate: DateTime.utc(2026, 10, 22, 10),
   status: AppointmentStatus.pending,
@@ -158,7 +158,7 @@ void main() {
   test('the client’s booking', () async {
     final p = AppointmentProvider();
     Future<void> book(String? notes) => p.bookAppointment(
-      providerId: 'provider1',
+      providerId: SalonId('provider1'),
       serviceIds: const ['service1'],
       appointmentDateTime: DateTime.utc(2026, 10, 22, 10),
       notes: notes,

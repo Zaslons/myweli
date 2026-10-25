@@ -4,6 +4,7 @@ import 'package:intl_phone_field/intl_phone_field.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:myweli/core/config/feature_flags.dart';
 import 'package:myweli/core/di/dependency_injection.dart';
+import 'package:myweli/core/utils/salon_id.dart';
 import 'package:myweli/models/api_response.dart';
 import 'package:myweli/models/appointment.dart';
 import 'package:myweli/models/service.dart';
@@ -43,7 +44,7 @@ void main() {
   Appointment created() => Appointment(
     id: 'm1',
     userId: 'manual',
-    providerId: 'provider1',
+    providerId: SalonId('provider1'),
     serviceIds: const ['s1'],
     appointmentDate: DateTime(2027, 1, 15, 14, 30),
     status: AppointmentStatus.confirmed,

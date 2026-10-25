@@ -7,6 +7,7 @@ import 'package:http/testing.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:myweli/core/di/dependency_injection.dart';
+import 'package:myweli/core/utils/salon_id.dart';
 import 'package:myweli/models/api_response.dart';
 import 'package:myweli/models/appointment.dart';
 import 'package:myweli/models/provider.dart' as models;
@@ -95,7 +96,7 @@ void main() {
   Appointment appt(String id) => Appointment(
     id: id,
     userId: 'u1',
-    providerId: 'provider1',
+    providerId: SalonId('provider1'),
     serviceIds: const ['s1'],
     appointmentDate: DateTime(2026, 9, 1, 10),
     status: AppointmentStatus.completed,
@@ -108,7 +109,7 @@ void main() {
   // A salon that stopped: the favourites read still hydrates it (Decision C),
   // the discovery list does not carry it.
   final stopped = MockData.providers[2].copyWith(
-    id: 'stopped-salon',
+    id: SalonId('stopped-salon'),
     name: 'Salon Fermé',
     status: 'suspended',
   );

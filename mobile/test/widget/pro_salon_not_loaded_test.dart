@@ -72,7 +72,7 @@ class _Pro extends MockProService {
         Appointment(
           id: 'a1',
           userId: 'u1',
-          providerId: 'provider1',
+          providerId: SalonId('provider1'),
           serviceIds: const ['s1'],
           appointmentDate: _at,
           status: AppointmentStatus.confirmed,
