@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Statut** | **Validé le 2026-10-22** — relu sur main (`d1e886e1`). Q1 (décision 33) : **le type `SalonId`** (« ce qui vaut le mieux à long terme ») ; Q2 (décision 34) : **e-mail et poussée Sentry** ; Q3 (décision 34) : **pas de suivi des performances pour l'instant** ; Q4 (décision 35) : **pas d'interrupteur** ; Q5 : **construire les trois composants et migrer tous les écrans maintenant** ; Q6 : **les pages publiques lèvent** ; Q7 : **supprimer la table avec ce lot** ; Q8 : **le reste tel qu'écrit**. Huit PR (§3). **PR A fusionnée le 2026-10-22** (#688 — B9.1, B9.5 — §9). **PR B fusionnée le 2026-10-22** (#689 — B9.6 — §10). **PR C fusionnée le 2026-10-22** (#690 — B9.7 — §11). **PR D fusionnée le 2026-10-25** (#691 — B9.11, B9.10 — §12 ; déploiement Vercel de production réussi, le plan du site liste 228 adresses). **PR E fusionnée le 2026-10-25** (#697 — B9.2–B9.4 — §13 ; 81 appliqué et relu le même jour, #698). **PR F1 fusionnée le 2026-10-25** (#699) (B9.8 : les trois briques et tous les écrans asynchrones — §14 ; Q9–Q12 en §8). **PR F2 fusionnée le 2026-10-25** (#700) (B9.8 : toutes les cartes sur `AppCard` — §2.7.3, §15 ; Q13–Q15 en §8). **PR F3 construite le 2026-10-25** (#702, `feat/batch9-chips`) (B9.8 : toutes les puces sur `AppChip` — §2.7.4, §16 ; Q16–Q18 en §8). |
+| **Statut** | **Validé le 2026-10-22** — relu sur main (`d1e886e1`). Q1 (décision 33) : **le type `SalonId`** (« ce qui vaut le mieux à long terme ») ; Q2 (décision 34) : **e-mail et poussée Sentry** ; Q3 (décision 34) : **pas de suivi des performances pour l'instant** ; Q4 (décision 35) : **pas d'interrupteur** ; Q5 : **construire les trois composants et migrer tous les écrans maintenant** ; Q6 : **les pages publiques lèvent** ; Q7 : **supprimer la table avec ce lot** ; Q8 : **le reste tel qu'écrit**. Huit PR (§3). **PR A fusionnée le 2026-10-22** (#688 — B9.1, B9.5 — §9). **PR B fusionnée le 2026-10-22** (#689 — B9.6 — §10). **PR C fusionnée le 2026-10-22** (#690 — B9.7 — §11). **PR D fusionnée le 2026-10-25** (#691 — B9.11, B9.10 — §12 ; déploiement Vercel de production réussi, le plan du site liste 228 adresses). **PR E fusionnée le 2026-10-25** (#697 — B9.2–B9.4 — §13 ; 81 appliqué et relu le même jour, #698). **PR F1 fusionnée le 2026-10-25** (#699) (B9.8 : les trois briques et tous les écrans asynchrones — §14 ; Q9–Q12 en §8). **PR F2 fusionnée le 2026-10-25** (#700) (B9.8 : toutes les cartes sur `AppCard` — §2.7.3, §15 ; Q13–Q15 en §8). **PR F3 fusionnée le 2026-10-25** (#702) (B9.8 : toutes les puces sur `AppChip` — §2.7.4, §16 ; Q16–Q18 en §8). **PR G construite le 2026-10-25** (#703, `feat/batch9-orphan-table`) (B9.12 : la migration `0043` — §2.11, §17 ; déploiement de production approuvé, à faire après la fusion). |
 | **Owner** | Sadreddine |
 | **Last updated** | 2026-10-25 |
 | **PRD ref / phase** | V1 — rien de visible n'est ajouté ; ce lot rend vrais les documents, les doublures de test, les lectures et les outils |
@@ -341,6 +341,44 @@ partout ; les créneaux pleins ; une seule pastille teintée, rôles compris.
   `// rollback-unsafe:` après son `id:`.
 - **Quand** : avec le déploiement de ce lot. Après lui, la cible d'un
   retour arrière est `eca4db6`, qui ne lit plus la table (Q7).
+
+**Relu le 2026-10-25, avant de construire (PR G)** :
+- **Sur main** (`dfdc4178`) : la table n'est plus nommée que par sa création
+  (`0003`, `migrations.dart:117`) et par l'épingle de B8.5 qui interdit son
+  nom aux deux magasins Pro (`batch8_phone_signin_contract_test.dart:38`).
+- **En production** (lu, rien changé) : la révision servie est
+  `myweli-api-00046-bzg`, 100 % du trafic, étiquette `commit: eca4db6` —
+  B8.5. **Dans `eca4db6`, seule la création la nomme** : ni lecture, ni
+  écriture, ni effacement. La révision d'avant, `00045-8hs` (lot 6), l'efface
+  à chaque suppression de compte Pro.
+- **La chaîne** : `staging.state` dit `absent`, donc une fusion **construit**
+  l'image et ne déploie rien ; la migration ne tourne qu'au déploiement de
+  production, sur ton accord. Elle tourne au démarrage, sous le verrou du
+  schéma et **avant** que le port s'ouvre : si elle échoue (le verrou
+  attendu plus de 3 s), la révision n'est jamais prête et le trafic reste
+  sur `eca4db6`.
+
+**Ce que G construit** :
+- **`0043_drop_provider_otp_codes`** : `DROP TABLE IF EXISTS
+  provider_otp_codes`. Son `// rollback-unsafe:` dit le seul retour qui
+  casse : vers `00045-8hs` ou plus ancien, où supprimer un compte Pro
+  rendrait 500. Vers `eca4db6`, la cible d'un retour d'un cran, rien ne
+  casse. **Le premier `DROP TABLE`** de la liste.
+- **Les essais, rouges d'abord** :
+  - contre un vrai Postgres : après les migrations, `to_regclass` ne trouve
+    plus la table, et les rejouer ne change rien (`IF EXISTS`) ;
+  - sur la source : hors de `migrations.dart`, aucun fichier de `lib/`,
+    `routes/` ou `bin/` ne nomme la table, et la dernière migration qui la
+    nomme la supprime, déclarée.
+- **Le modèle de menace** (BACKEND.md §7) : la ligne T80 dit la table
+  « gardée » ; elle dit maintenant qu'elle est partie avec `0043`.
+
+**Le déploiement** — demandé à part, après la fusion : la production, avec
+l'image que la fusion aura construite (`image_tag`), comme toujours. **Vu
+après** : la révision nouvelle prête, à 100 %, son étiquette `commit` celle
+de la fusion — prête veut dire que chaque migration de sa liste est écrite
+dans `schema_migrations`, `0043` comprise, puisqu'une migration qui échoue
+empêche le démarrage.
 
 ## 3. La livraison
 
@@ -1147,3 +1185,42 @@ teinte au rayon d'une pastille ou d'un badge).
   un nom, pas une valeur : il est passé à côté de `status_colors.dart`, et
   la porte reste ce qu'elle était. La suite du web : 2 255 essais verts.
   Le serveur n'est pas touché depuis #699.
+
+## 17. PR G construite (B9.12) — ce qui a été vu
+
+**Comme écrit en §2.11**, relu sur le code et sur la production le jour même
+(lu, rien changé) : la révision servie est `myweli-api-00046-bzg`
+(`commit: eca4db6`), qui ne nomme la table que par sa création ; celle
+d'avant, `00045-8hs`, l'efface à chaque suppression de compte Pro.
+
+**`0043_drop_provider_otp_codes`** : `DROP TABLE IF EXISTS
+provider_otp_codes`, **le premier `DROP TABLE` de la liste**, et son
+`// rollback-unsafe:` dit le seul retour qui casse — deux crans, vers
+`00045-8hs` ou plus ancien. Un cran, vers `00046-bzg`, reste sûr.
+
+**Ce que la construction a trouvé** :
+- **La porte de réversibilité n'avait jamais vu un `DROP TABLE`.** Elle
+  le cherchait depuis le début ; la mutation qui retire la déclaration le
+  montre : elle seule la fait rougir.
+- **Les textes comptaient « cinq »** migrations dangereuses
+  (`infra-rollback.md` §5.2, l'en-tête de l'essai) — cinq contraintes dans
+  quatre migrations, qui toutes *rétrécissent* ce que la base accepte. La
+  sixième *retire* quelque chose : les textes disent maintenant « les
+  quelques-unes qui ne le sont pas le disent », et §5.2 nomme celle-ci et
+  son retour sûr.
+
+**Vérifié** :
+- **La suite du serveur**, contre un vrai Postgres (une base jetable, à
+  côté de la base locale) : 2 183 essais verts, 2 sautés (les jetons R2) ;
+  `dart format` propre, `dart analyze --fatal-infos --fatal-warnings` à 0.
+- **Les mutations : 7, toutes rouges**, chacune sur une base neuve — la
+  déclaration retirée (la porte existante seule la voit), la suppression
+  rendue sans effet (seule la moitié Postgres la voit), sans `IF EXISTS`,
+  la déclaration au-dessus de l'`id:`, le retour qui casse non nommé, un
+  fichier du serveur qui nomme la table de nouveau.
+- **L'app et le web** ne sont pas touchés.
+
+**Ce qui reste** : le déploiement de production, sur ton accord — l'image
+que la fusion aura construite (`image_tag`), puis relu : la révision
+nouvelle prête, à 100 %, son étiquette `commit` celle de la fusion, et
+`00046-bzg` la cible d'un retour.

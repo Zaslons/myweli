@@ -15,8 +15,9 @@ import 'package:test/test.dart';
 /// **What is safe.** Additive statements — `ADD COLUMN`, `CREATE TABLE`,
 /// `CREATE INDEX`, and also `DROP NOT NULL` or dropping a `UNIQUE` constraint,
 /// which WIDEN what the schema accepts. Old code ignores what it does not
-/// select. Most migrations are of this kind; the five that are not carry a
-/// `// rollback-unsafe:` line naming what an older image would fail to write.
+/// select. Most migrations are of this kind; the few that are not carry a
+/// `// rollback-unsafe:` line naming what an older image would fail to write
+/// — or, for `0043`'s `DROP TABLE`, what it would fail to find.
 ///
 /// **What is not.** `DROP COLUMN`, `DROP TABLE`, `RENAME`, `SET NOT NULL`, a
 /// narrowing type change: old code selects a column that is gone, or inserts a
