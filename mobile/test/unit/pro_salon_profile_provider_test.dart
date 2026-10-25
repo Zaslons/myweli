@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:myweli/core/di/dependency_injection.dart';
+import 'package:myweli/core/utils/salon_id.dart';
 import 'package:myweli/models/api_response.dart';
 import 'package:myweli/models/pro_membership.dart';
 import 'package:myweli/models/provider.dart';
@@ -22,7 +23,7 @@ void main() {
   final membership = ProMembership(
     role: TeamRole.owner,
     capabilities: presetCapabilitiesFor(TeamRole.owner),
-    salonId: 'p1',
+    salonId: SalonId('p1'),
     salonName: 'Salon Awa',
   );
 
@@ -70,13 +71,13 @@ void main() {
       ),
     );
     final p = ProSalonProfileProvider();
-    await p.load('p1');
+    await p.load(SalonId('p1'));
     expect(p.provider?.name, 'Salon Awa');
 
     when(
       () => pro.getMyProvider(),
     ).thenAnswer((_) async => ApiResponse.error('boom'));
-    await p.load('p1');
+    await p.load(SalonId('p1'));
     expect(p.provider, isNull);
     expect(p.error, 'boom');
   });
@@ -90,33 +91,38 @@ void main() {
         MyProviderInfo(salon: salon, membership: membership),
       ),
     );
-    await ProSalonProfileProvider().load('p1');
+    await ProSalonProfileProvider().load(SalonId('p1'));
     verifyNever(() => providers.getProviderById(any()));
   });
 
   test('save sends the changes and refreshes the listing', () async {
     final updated = salon.copyWith(latitude: 5.36, longitude: -3.99);
     when(
-      () => pro.updateSalonProfile('p1', any()),
+      () => pro.updateSalonProfile(SalonId('p1'), any()),
     ).thenAnswer((_) async => ApiResponse.success(updated));
 
     final p = ProSalonProfileProvider();
-    final ok = await p.save('p1', {'latitude': 5.36, 'longitude': -3.99});
+    final ok = await p.save(SalonId('p1'), {
+      'latitude': 5.36,
+      'longitude': -3.99,
+    });
     expect(ok, isTrue);
     expect(p.provider?.latitude, 5.36);
     expect(p.isSaving, isFalse);
     verify(
-      () =>
-          pro.updateSalonProfile('p1', {'latitude': 5.36, 'longitude': -3.99}),
+      () => pro.updateSalonProfile(SalonId('p1'), {
+        'latitude': 5.36,
+        'longitude': -3.99,
+      }),
     ).called(1);
   });
 
   test('a rejected save keeps the error visible', () async {
     when(
-      () => pro.updateSalonProfile('p1', any()),
+      () => pro.updateSalonProfile(SalonId('p1'), any()),
     ).thenAnswer((_) async => ApiResponse.error('Numéro invalide'));
     final p = ProSalonProfileProvider();
-    expect(await p.save('p1', {'phoneNumber': 'abc'}), isFalse);
+    expect(await p.save(SalonId('p1'), {'phoneNumber': 'abc'}), isFalse);
     expect(p.error, 'Numéro invalide');
   });
 }

@@ -9,6 +9,7 @@ import 'package:myweli/core/di/dependency_injection.dart';
 import 'package:myweli/core/push/push_registration.dart';
 import 'package:myweli/core/theme/app_theme.dart';
 import 'package:myweli/core/utils/formatters.dart';
+import 'package:myweli/core/utils/salon_id.dart';
 import 'package:myweli/models/api_response.dart';
 import 'package:myweli/models/appointment.dart';
 import 'package:myweli/models/artist.dart';
@@ -78,7 +79,7 @@ class _Pro extends MockProService {
 
   @override
   Future<ApiResponse<EarningsData>> getEarnings(
-    String providerId, {
+    SalonId providerId, {
     DateTime? startDate,
     DateTime? endDate,
   }) async {
@@ -109,14 +110,14 @@ class _Pro extends MockProService {
   }
 
   @override
-  Future<ApiResponse<MyProviderInfo>> getMyProvider({String? salonId}) async {
+  Future<ApiResponse<MyProviderInfo>> getMyProvider({SalonId? salonId}) async {
     if (failSalon) return ApiResponse.error('Erreur');
     return super.getMyProvider(salonId: salonId);
   }
 
   @override
   Future<ApiResponse<List<Service>>> getProviderServices(
-    String providerId,
+    SalonId providerId,
   ) async {
     servicesAsked.add(providerId);
     if (failServices) return ApiResponse.error('Erreur');
@@ -134,7 +135,7 @@ class _Pro extends MockProService {
 
   @override
   Future<ApiResponse<List<Appointment>>> getProviderAppointments(
-    String providerId, {
+    SalonId providerId, {
     AppointmentStatus? status,
     DateTime? startDate,
     DateTime? endDate,
@@ -183,7 +184,7 @@ class _Artists extends MockProArtistService {
   }
 
   @override
-  Future<ApiResponse<List<Artist>>> getArtists(String providerId) async {
+  Future<ApiResponse<List<Artist>>> getArtists(SalonId providerId) async {
     asked.add(providerId);
     if (fail) return ApiResponse.error('Erreur');
     if (unbuildable) return ApiResponse.success([const _UnbuildableArtist()]);
@@ -239,7 +240,7 @@ class _Clients extends MockProClientsService {
 
   @override
   Future<ApiResponse<SalonClientsPage>> listClients(
-    String providerId, {
+    SalonId providerId, {
     String? query,
     String? tag,
     int page = 1,
@@ -349,7 +350,7 @@ void main() {
   Future<ProAuthProvider> pumpExport(
     WidgetTester tester, {
     void Function()? arrange,
-    String? switchTo,
+    SalonId? switchTo,
   }) async {
     final auth = await signInPro(tester);
     if (switchTo != null) {
@@ -670,7 +671,7 @@ void main() {
   testWidgets('after a switch, every read is for the switched-to salon (R6)', (
     tester,
   ) async {
-    await pumpExport(tester, switchTo: 'provider2');
+    await pumpExport(tester, switchTo: SalonId('provider2'));
 
     final export = await copyExport(tester);
     expect((export['salon'] as Map)['id'], 'provider2');

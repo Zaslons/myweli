@@ -5,6 +5,7 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'package:myweli/core/di/dependency_injection.dart';
 import 'package:myweli/core/push/push_registration.dart';
 import 'package:myweli/core/utils/app_clock.dart';
+import 'package:myweli/core/utils/salon_id.dart';
 import 'package:myweli/core/utils/salon_time.dart';
 import 'package:myweli/models/api_response.dart';
 import 'package:myweli/models/salon_subscription.dart';
@@ -203,7 +204,7 @@ void main() {
     testWidgets('the deposit policy form', (tester) async {
       await _pumpPro(
         tester,
-        const DepositSettingsScreen(providerId: 'provider1'),
+        const DepositSettingsScreen(providerId: SalonId('provider1')),
         extra: [
           ChangeNotifierProvider(create: (_) => ProDepositSettingsProvider()),
           ChangeNotifierProvider(create: (_) => LocalityProvider()),

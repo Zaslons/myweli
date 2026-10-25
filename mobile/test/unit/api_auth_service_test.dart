@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
+import 'package:myweli/core/utils/salon_id.dart';
 import 'package:myweli/models/api_response.dart';
 import 'package:myweli/models/pro_membership.dart';
 import 'package:myweli/models/provider_login_result.dart';
@@ -327,11 +328,11 @@ void main() {
       const ProMembership(
         role: TeamRole.reception,
         capabilities: {},
-        salonId: 'salon_1',
+        salonId: SalonId('salon_1'),
         salonName: 'Salon Excellence',
       ),
     );
-    await service.setSelectedProviderSalon('salon_1');
+    await service.setSelectedProviderSalon(SalonId('salon_1'));
     expect((await service.getCachedProviderMembership())?.salonId, 'salon_1');
 
     await service.cacheProviderMembership(null);
@@ -346,7 +347,7 @@ void main() {
   // GET /me/provider fails still knows the salon's clock.
   group('the salon market facts', () {
     const lbv = SalonMarket(
-      salonId: 'salon_1',
+      salonId: SalonId('salon_1'),
       timezone: 'Africa/Libreville',
       currency: 'XAF',
       countryCode: 'GA',
@@ -373,7 +374,7 @@ void main() {
         const ProMembership(
           role: TeamRole.owner,
           capabilities: {},
-          salonId: 'salon_1',
+          salonId: SalonId('salon_1'),
           salonName: 'Salon Excellence',
         ),
       );
@@ -395,7 +396,7 @@ void main() {
         const ProMembership(
           role: TeamRole.owner,
           capabilities: {},
-          salonId: 'salon_1',
+          salonId: SalonId('salon_1'),
           salonName: 'Salon Excellence',
         ),
       );

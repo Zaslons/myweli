@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
+import 'package:myweli/core/utils/salon_id.dart';
 import 'package:myweli/core/utils/submission_key.dart';
 import 'package:myweli/models/api_response.dart';
 import 'package:myweli/models/appointment.dart';
@@ -250,7 +251,7 @@ void main() {
           providerSessionStore: await _pro(),
         );
         final r = await svc.createManualBooking(
-          providerId: 'provider1',
+          providerId: SalonId('provider1'),
           serviceIds: ['service1'],
           appointmentDateTime: DateTime.utc(2026, 10, 22, 10),
           idempotencyKey: 'm-000001',
@@ -276,7 +277,7 @@ void main() {
         providerSessionStore: await _pro(),
       );
       final r = await svc.addNote(
-        'provider1',
+        SalonId('provider1'),
         'c1',
         'Allergie',
         idempotencyKey: 'n-000001',
@@ -333,7 +334,7 @@ void main() {
         providerSessionStore: store,
       );
       final booked = await pro.createManualBooking(
-        providerId: 'provider1',
+        providerId: SalonId('provider1'),
         serviceIds: ['service1'],
         appointmentDateTime: DateTime.utc(2026, 10, 22, 10),
         idempotencyKey: 'm-000001',
@@ -343,7 +344,7 @@ void main() {
       expect(booked.error, 'Pas de connexion. Réessayez.');
       for (final r in [
         await clients.addNote(
-          'provider1',
+          SalonId('provider1'),
           'c1',
           'x',
           idempotencyKey: 'n-000001',

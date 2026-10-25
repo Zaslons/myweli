@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:myweli/core/di/dependency_injection.dart';
+import 'package:myweli/core/utils/salon_id.dart';
 import 'package:myweli/models/api_response.dart';
 import 'package:myweli/models/payment.dart';
 import 'package:myweli/providers/pro_deposit_settings_provider.dart';
@@ -30,7 +31,7 @@ void main() {
     );
 
     final provider = ProDepositSettingsProvider();
-    await provider.load('p1');
+    await provider.load(SalonId('p1'));
 
     expect(provider.depositRequired, isTrue);
     expect(provider.depositPercentage, 0.50);
@@ -62,7 +63,7 @@ void main() {
       stubLoad(
         const DepositPolicy(depositRequired: false, depositPercentage: 0),
       );
-      await provider.load('p1');
+      await provider.load(SalonId('p1'));
 
       expect(provider.depositPercentage, 0.30);
     },
@@ -77,7 +78,7 @@ void main() {
     );
 
     final provider = ProDepositSettingsProvider();
-    await provider.load('p1');
+    await provider.load(SalonId('p1'));
 
     expect(provider.depositPercentage, 0.01);
   });
@@ -88,7 +89,7 @@ void main() {
     );
 
     final provider = ProDepositSettingsProvider();
-    await provider.load('p1');
+    await provider.load(SalonId('p1'));
 
     expect(provider.depositPercentage, 0.5);
   });
@@ -101,7 +102,7 @@ void main() {
     stubLoad(
       const DepositPolicy(depositRequired: true, depositPercentage: 0.5),
     );
-    await provider.load('p1');
+    await provider.load(SalonId('p1'));
     provider.resetForSalonSwitch();
 
     expect(provider.depositPercentage, 0.30);
@@ -113,7 +114,7 @@ void main() {
     ).thenAnswer((_) async => ApiResponse.error('boom'));
 
     final provider = ProDepositSettingsProvider();
-    await provider.load('p1');
+    await provider.load(SalonId('p1'));
 
     expect(provider.loadFailed, isTrue);
     expect(provider.error, 'boom');
@@ -128,7 +129,7 @@ void main() {
     ).thenThrow(const FormatException('malformed body'));
 
     final provider = ProDepositSettingsProvider();
-    await provider.load('p1');
+    await provider.load(SalonId('p1'));
 
     expect(provider.loadFailed, isTrue);
     expect(provider.isLoading, isFalse);
@@ -150,12 +151,12 @@ void main() {
 
     final provider = ProDepositSettingsProvider();
     provider.setDepositRequired(false);
-    final ok = await provider.save('p1');
+    final ok = await provider.save(SalonId('p1'));
 
     expect(ok, isTrue);
     verify(
       () => service.updateDepositPolicy(
-        'p1',
+        SalonId('p1'),
         depositRequired: false,
         depositPercentage: any(named: 'depositPercentage'),
         cancellationWindowHours: any(named: 'cancellationWindowHours'),
@@ -199,14 +200,14 @@ void main() {
     stubSaveOk();
 
     final provider = ProDepositSettingsProvider();
-    await provider.load('p1');
+    await provider.load(SalonId('p1'));
     provider.setDepositRequired(false);
-    final ok = await provider.save('p1');
+    final ok = await provider.save(SalonId('p1'));
 
     expect(ok, isTrue);
     verify(
       () => service.updateDepositPolicy(
-        'p1',
+        SalonId('p1'),
         depositRequired: false,
         depositPercentage: 0.40,
         cancellationWindowHours: 24,
@@ -227,12 +228,12 @@ void main() {
       stubSaveOk();
 
       final provider = ProDepositSettingsProvider();
-      await provider.load('p1');
-      await provider.save('p1');
+      await provider.load(SalonId('p1'));
+      await provider.save(SalonId('p1'));
 
       verify(
         () => service.updateDepositPolicy(
-          'p1',
+          SalonId('p1'),
           depositRequired: false,
           depositPercentage: 0.30,
           cancellationWindowHours: 24,
@@ -252,7 +253,7 @@ void main() {
     ).thenAnswer((_) async => ApiResponse.error('nope'));
 
     final provider = ProDepositSettingsProvider();
-    final ok = await provider.save('p1');
+    final ok = await provider.save(SalonId('p1'));
 
     expect(ok, isFalse);
     expect(provider.error, 'nope');

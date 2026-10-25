@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:myweli/core/utils/salon_id.dart';
 import 'package:myweli/models/pro_membership.dart';
 import 'package:myweli/models/provider_session.dart';
 import 'package:myweli/models/provider_user.dart';
@@ -83,7 +84,7 @@ void main() {
         membership: const ProMembership(
           role: TeamRole.reception,
           capabilities: {ProCap.journalViewAll, ProCap.clientsView},
-          salonId: 'p1',
+          salonId: SalonId('p1'),
           salonName: 'Salon Excellence',
         ),
       );

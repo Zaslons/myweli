@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:myweli/core/di/dependency_injection.dart';
+import 'package:myweli/core/utils/salon_id.dart';
 import 'package:myweli/models/api_response.dart';
 import 'package:myweli/models/provider.dart';
 import 'package:myweli/providers/pro_salon_profile_provider.dart';
@@ -66,26 +67,30 @@ void main() {
     () async {
       const source = 'asset:assets/images/providers/spa_relax_photo.png';
       when(
-        () => pro.updateSalonProfile('p1', {'logoUrl': source}),
+        () => pro.updateSalonProfile(SalonId('p1'), {'logoUrl': source}),
       ).thenAnswer((_) async => ApiResponse.success(_salon(logoUrl: source)));
 
       final p = ProSalonProfileProvider();
-      final ok = await p.uploadLogo('p1', source);
+      final ok = await p.uploadLogo(SalonId('p1'), source);
 
       expect(ok, isTrue, reason: p.logoError ?? '');
       expect(p.provider?.logoUrl, source);
       expect(p.isUploadingLogo, isFalse);
-      verify(() => pro.updateSalonProfile('p1', {'logoUrl': source})).called(1);
+      verify(
+        () => pro.updateSalonProfile(SalonId('p1'), {'logoUrl': source}),
+      ).called(1);
     },
   );
 
   test("removeLogo sends the empty string — the contract's delete", () async {
     when(
-      () => pro.updateSalonProfile('p1', {'logoUrl': ''}),
+      () => pro.updateSalonProfile(SalonId('p1'), {'logoUrl': ''}),
     ).thenAnswer((_) async => ApiResponse.success(_salon()));
     final p = ProSalonProfileProvider();
-    expect(await p.removeLogo('p1'), isTrue);
-    verify(() => pro.updateSalonProfile('p1', {'logoUrl': ''})).called(1);
+    expect(await p.removeLogo(SalonId('p1')), isTrue);
+    verify(
+      () => pro.updateSalonProfile(SalonId('p1'), {'logoUrl': ''}),
+    ).called(1);
   });
 
   test('a failed upload surfaces the inline error and saves nothing', () async {
@@ -93,7 +98,7 @@ void main() {
     // is provoked through the mock's own contract (an empty source is
     // « Image invalide ») rather than by swapping the slot.
     final p = ProSalonProfileProvider();
-    expect(await p.uploadLogo('p1', ''), isFalse);
+    expect(await p.uploadLogo(SalonId('p1'), ''), isFalse);
     expect(p.logoError, isNotNull);
     verifyNever(() => pro.updateSalonProfile(any(), any()));
   });

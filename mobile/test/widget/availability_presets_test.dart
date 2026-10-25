@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:myweli/core/constants/booking_horizons.dart';
 import 'package:myweli/core/di/dependency_injection.dart';
+import 'package:myweli/core/utils/salon_id.dart';
 import 'package:myweli/core/utils/salon_time.dart';
 import 'package:myweli/models/api_response.dart';
 import 'package:myweli/models/availability.dart';
@@ -88,7 +89,8 @@ void main() {
 
   Availability capturedWrite() =>
       verify(
-            () => service.updateAvailability('provider1', captureAny()),
+            () =>
+                service.updateAvailability(SalonId('provider1'), captureAny()),
           ).captured.single
           as Availability;
 

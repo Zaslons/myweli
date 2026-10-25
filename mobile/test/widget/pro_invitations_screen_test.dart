@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:myweli/core/di/dependency_injection.dart';
+import 'package:myweli/core/utils/salon_id.dart';
 import 'package:myweli/models/api_response.dart';
 import 'package:myweli/models/team_invitation.dart';
 import 'package:myweli/models/team_member.dart';
@@ -87,7 +88,7 @@ void main() {
     MockData.teamInvitations['invitee@myweli.test']!.add(
       TeamInvitation(
         id: 'mem_other',
-        providerId: 'provider2',
+        providerId: SalonId('provider2'),
         salonName: 'Beauté Divine',
         role: TeamRole.staff,
         roleLabel: 'Collaborateur',

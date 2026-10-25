@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:myweli/core/di/dependency_injection.dart';
+import 'package:myweli/core/utils/salon_id.dart';
 import 'package:myweli/core/utils/team_error_messages.dart';
 import 'package:myweli/models/api_response.dart';
 import 'package:myweli/models/provider.dart' as models;
@@ -82,14 +83,14 @@ class _SwitchableSubs implements SubscriptionServiceInterface {
 
   @override
   Future<ApiResponse<SalonSubscription>> getSalonSubscription(
-    String providerId,
+    SalonId providerId,
   ) => inner.getSalonSubscription(providerId);
 }
 
 class _FailingSubs implements SubscriptionServiceInterface {
   @override
   Future<ApiResponse<SalonSubscription>> getSalonSubscription(
-    String providerId,
+    SalonId providerId,
   ) async => ApiResponse.error('Pas de connexion. Réessayez.');
 }
 
@@ -534,7 +535,7 @@ class _SheetHostState extends State<_SheetHost> {
     super.initState();
     // « Équipe » loads the salon's offer state before the sheet can open.
     WidgetsBinding.instance.addPostFrameCallback(
-      (_) => context.read<ProSubscriptionProvider>().load('provider1'),
+      (_) => context.read<ProSubscriptionProvider>().load(SalonId('provider1')),
     );
   }
 
@@ -546,7 +547,8 @@ class _SheetHostState extends State<_SheetHost> {
           onPressed: () => showModalBottomSheet<String>(
             context: context,
             isScrollControlled: true,
-            builder: (_) => const InviteMemberSheet(providerId: 'provider1'),
+            builder: (_) =>
+                const InviteMemberSheet(providerId: SalonId('provider1')),
           ),
           child: const Text('OUVRIR'),
         ),

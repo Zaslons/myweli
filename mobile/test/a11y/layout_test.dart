@@ -5,6 +5,7 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'package:myweli/core/di/dependency_injection.dart';
 import 'package:myweli/core/theme/app_theme.dart';
 import 'package:myweli/core/utils/app_clock.dart';
+import 'package:myweli/core/utils/salon_id.dart';
 import 'package:myweli/models/team_invitation.dart';
 import 'package:myweli/models/team_member.dart';
 import 'package:myweli/providers/appointment_provider.dart';
@@ -1072,7 +1073,7 @@ void main() {
         MockData.teamInvitations['jean@salon-excellence.test'] = [
           TeamInvitation(
             id: 'mem_layout',
-            providerId: 'provider2',
+            providerId: SalonId('provider2'),
             salonName: 'Institut de Beauté Cocody Riviera',
             role: TeamRole.reception,
             roleLabel: 'Réception',

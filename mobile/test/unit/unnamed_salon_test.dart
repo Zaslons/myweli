@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:myweli/core/constants/unnamed_salon.dart';
 import 'package:myweli/core/utils/calendar_event.dart';
+import 'package:myweli/core/utils/salon_id.dart';
 import 'package:myweli/models/team_invitation.dart';
 import 'package:myweli/models/team_member.dart';
 import 'package:myweli/widgets/team/invitation_card.dart';
@@ -55,7 +56,7 @@ void main() {
         body: InvitationCard(
           invitation: const TeamInvitation(
             id: 'i1',
-            providerId: 'p1',
+            providerId: SalonId('p1'),
             salonName: '',
             role: TeamRole.manager,
             roleLabel: 'Gérant',

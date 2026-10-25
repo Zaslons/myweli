@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:myweli/core/di/dependency_injection.dart';
 import 'package:myweli/core/push/push_registration.dart';
+import 'package:myweli/core/utils/salon_id.dart';
 import 'package:myweli/models/api_response.dart';
 import 'package:myweli/models/salon_subscription.dart';
 import 'package:myweli/providers/pro_auth_provider.dart';
@@ -31,7 +32,7 @@ class _ScenarioProService extends MockProService {
   ApiResponse<bool>? publishAnswer;
 
   @override
-  Future<ApiResponse<MyProviderInfo>> getMyProvider({String? salonId}) async {
+  Future<ApiResponse<MyProviderInfo>> getMyProvider({SalonId? salonId}) async {
     final res = await super.getMyProvider(salonId: salonId);
     final data = res.data;
     if (data == null) return res;
@@ -46,7 +47,7 @@ class _ScenarioProService extends MockProService {
   }
 
   @override
-  Future<ApiResponse<bool>> publishSalon(String providerId) async =>
+  Future<ApiResponse<bool>> publishSalon(SalonId providerId) async =>
       publishAnswer ?? super.publishSalon(providerId);
 }
 
@@ -169,7 +170,7 @@ void main() {
     expect(find.text('🎉 Votre profil est en ligne !'), findsOneWidget);
     late ApiResponse<SalonSubscription> offer;
     await tester.runAsync(() async {
-      offer = await subs.getSalonSubscription('provider1');
+      offer = await subs.getSalonSubscription(SalonId('provider1'));
     });
     expect(offer.data?.status, SalonOfferStatus.trial);
     expect(offer.data?.tier, SalonTier.pro);

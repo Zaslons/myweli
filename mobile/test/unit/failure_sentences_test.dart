@@ -5,6 +5,7 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:myweli/core/constants/failure_messages.dart';
 import 'package:myweli/core/di/dependency_injection.dart';
+import 'package:myweli/core/utils/salon_id.dart';
 import 'package:myweli/models/api_response.dart';
 import 'package:myweli/models/appointment.dart';
 import 'package:myweli/models/availability.dart';
@@ -99,7 +100,7 @@ void main() {
         );
         final p = ProAvailabilityProvider();
         final ok = await p.updateAvailability(
-          'provider1',
+          SalonId('provider1'),
           const Availability(
             providerId: 'provider1',
             weeklySchedule: {},
@@ -118,7 +119,7 @@ void main() {
     () async {
       _answer = (_) async => throw http.ClientException('offline');
       final p = ProDashboardProvider();
-      await p.loadDashboardStats('provider1');
+      await p.loadDashboardStats(SalonId('provider1'));
       expect(p.errorIsOffline, isTrue);
     },
   );

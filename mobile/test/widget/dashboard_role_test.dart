@@ -6,6 +6,7 @@ import 'package:myweli/core/di/dependency_injection.dart';
 import 'package:myweli/core/push/push_registration.dart';
 import 'package:myweli/core/theme/app_theme.dart';
 import 'package:myweli/core/utils/formatters.dart';
+import 'package:myweli/core/utils/salon_id.dart';
 import 'package:myweli/models/api_response.dart';
 import 'package:myweli/models/provider_user.dart';
 import 'package:myweli/providers/notifications_provider.dart';
@@ -362,7 +363,7 @@ class _ShootFigures extends MockProService {
 
   @override
   Future<ApiResponse<DashboardStats>> getDashboardStats(
-    String providerId,
+    SalonId providerId,
   ) async {
     final base = await super.getDashboardStats(providerId);
     final f = figures;

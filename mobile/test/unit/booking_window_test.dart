@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:myweli/core/constants/booking_horizons.dart';
+import 'package:myweli/core/utils/salon_id.dart';
 import 'package:myweli/core/utils/salon_time.dart';
 import 'package:myweli/services/mock/mock_appointment_service.dart';
 import 'package:myweli/services/mock/mock_data.dart';
@@ -31,7 +32,7 @@ String _stripDartComments(String src) => src
     .replaceAll(RegExp('//[^\n]*'), '');
 
 void main() {
-  const providerId = 'provider2';
+  const providerId = SalonId('provider2');
 
   /// The seeded salon's zone — every bound below is a SALON day, never the
   /// device's.

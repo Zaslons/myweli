@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:myweli/core/di/dependency_injection.dart';
+import 'package:myweli/core/utils/salon_id.dart';
 import 'package:myweli/models/api_response.dart';
 import 'package:myweli/models/artist.dart';
 import 'package:myweli/models/service.dart';
@@ -168,7 +169,7 @@ class _CountingProService extends MockProService {
 
   @override
   Future<ApiResponse<Service>> createService(
-    String providerId,
+    SalonId providerId,
     Map<String, dynamic> serviceData,
   ) {
     created++;
@@ -181,7 +182,7 @@ class _CountingArtistService extends MockProArtistService {
 
   @override
   Future<ApiResponse<Artist>> createArtist(
-    String providerId,
+    SalonId providerId,
     Map<String, dynamic> data,
   ) {
     created++;

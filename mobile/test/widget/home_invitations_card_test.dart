@@ -8,6 +8,7 @@ import 'package:myweli/core/access/pro_salon_scope.dart';
 import 'package:myweli/core/di/dependency_injection.dart';
 import 'package:myweli/core/push/push_registration.dart';
 import 'package:myweli/core/theme/app_theme.dart';
+import 'package:myweli/core/utils/salon_id.dart';
 import 'package:myweli/core/utils/team_error_messages.dart';
 import 'package:myweli/models/api_response.dart';
 import 'package:myweli/models/journal_day.dart';
@@ -41,7 +42,7 @@ import '../support/sign_in.dart';
 
 TeamInvitation _invitation(String id, String salon) => TeamInvitation(
   id: id,
-  providerId: 'p-$id',
+  providerId: SalonId('p-$id'),
   salonName: salon,
   role: TeamRole.staff,
   roleLabel: 'Collaborateur',
@@ -87,7 +88,7 @@ class _Team extends MockProTeamService {
         ApiResponse.success(
           TeamMember(
             id: invitationId,
-            providerId: 'p-$invitationId',
+            providerId: SalonId('p-$invitationId'),
             email: 'jean@salon-excellence.test',
             role: TeamRole.staff,
             status: TeamMemberStatus.active,
@@ -126,7 +127,7 @@ class _Pro extends MockProService {
 
   @override
   Future<ApiResponse<JournalDay>> getJournalDay(
-    String providerId,
+    SalonId providerId,
     DateTime date,
   ) async => ApiResponse.success(
     const JournalDay(date: '2026-10-22', artists: [], appointments: []),
@@ -417,7 +418,7 @@ void main() {
       final before = team.reads;
 
       await tester.runAsync(() async {
-        expect(await auth.switchSalon('provider2'), isTrue);
+        expect(await auth.switchSalon(SalonId('provider2')), isTrue);
       });
       await settleMocks(tester, rounds: 3);
 

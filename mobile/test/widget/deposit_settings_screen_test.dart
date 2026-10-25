@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:myweli/core/di/dependency_injection.dart';
+import 'package:myweli/core/utils/salon_id.dart';
 import 'package:myweli/models/api_response.dart';
 import 'package:myweli/models/payment.dart';
 import 'package:myweli/models/provider_user.dart';
@@ -43,7 +44,7 @@ void main() {
       // Multi-pays MP2: the operator-catalog chips.
       ChangeNotifierProvider(create: (_) => LocalityProvider()),
     ],
-    home: const DepositSettingsScreen(providerId: 'p1'),
+    home: const DepositSettingsScreen(providerId: SalonId('p1')),
   );
 
   /// Same host, on a settings provider the test already primed — the screen
@@ -55,7 +56,7 @@ void main() {
       ChangeNotifierProvider(create: (_) => ProAuthProvider()),
       ChangeNotifierProvider(create: (_) => LocalityProvider()),
     ],
-    home: const DepositSettingsScreen(providerId: 'p1'),
+    home: const DepositSettingsScreen(providerId: SalonId('p1')),
   );
 
   testWidgets('shows the loaded policy', (tester) async {
@@ -220,7 +221,7 @@ void main() {
     // prefilled from it — the app's own round trip: what the API returned goes
     // back to the API untouched. (The cold-start twin is the next test.)
     final settings = ProDepositSettingsProvider();
-    await settings.load('p1');
+    await settings.load(SalonId('p1'));
     await tester.pumpWidget(hostWith(settings));
     await settle(tester);
     await settle(tester);
@@ -636,7 +637,7 @@ void main() {
           ),
           ChangeNotifierProvider(create: (_) => LocalityProvider()),
         ],
-        home: const DepositSettingsScreen(providerId: 'p1'),
+        home: const DepositSettingsScreen(providerId: SalonId('p1')),
       ),
     );
     await settle(tester);
@@ -689,7 +690,7 @@ void main() {
           ),
           ChangeNotifierProvider(create: (_) => LocalityProvider()),
         ],
-        home: const DepositSettingsScreen(providerId: 'p1'),
+        home: const DepositSettingsScreen(providerId: SalonId('p1')),
       ),
     );
     await settle(tester);
@@ -710,7 +711,7 @@ void main() {
 
     final sent = verify(
       () => service.updateDepositPolicy(
-        'p1',
+        SalonId('p1'),
         depositRequired: true,
         depositPercentage: captureAny(named: 'depositPercentage'),
         cancellationWindowHours: any(named: 'cancellationWindowHours'),
@@ -762,7 +763,7 @@ void main() {
           ),
           ChangeNotifierProvider(create: (_) => LocalityProvider()),
         ],
-        home: const DepositSettingsScreen(providerId: 'p1'),
+        home: const DepositSettingsScreen(providerId: SalonId('p1')),
       ),
     );
     await settle(tester);
@@ -804,7 +805,7 @@ void main() {
     await pressSave(tester);
     verify(
       () => service.updateDepositPolicy(
-        'p1',
+        SalonId('p1'),
         depositRequired: true,
         depositPercentage: any(named: 'depositPercentage'),
         cancellationWindowHours: any(named: 'cancellationWindowHours'),
@@ -838,7 +839,7 @@ void main() {
           ),
           ChangeNotifierProvider(create: (_) => LocalityProvider()),
         ],
-        home: const DepositSettingsScreen(providerId: 'p1'),
+        home: const DepositSettingsScreen(providerId: SalonId('p1')),
       ),
     );
     await settle(tester);
@@ -876,7 +877,7 @@ void main() {
     await pressSave(tester);
     verify(
       () => service.updateDepositPolicy(
-        'p1',
+        SalonId('p1'),
         depositRequired: false,
         depositPercentage: any(named: 'depositPercentage'),
         cancellationWindowHours: any(named: 'cancellationWindowHours'),
@@ -907,7 +908,7 @@ void main() {
       ChangeNotifierProvider<ProAuthProvider>(create: (_) => _VerifiedPro()),
       ChangeNotifierProvider(create: (_) => LocalityProvider()),
     ],
-    home: const DepositSettingsScreen(providerId: 'p1'),
+    home: const DepositSettingsScreen(providerId: SalonId('p1')),
   );
 
   testWidgets('the server’s `operator_unavailable` lands under the operator '

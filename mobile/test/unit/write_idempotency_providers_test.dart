@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:myweli/core/access/pro_salon_scope.dart';
 import 'package:myweli/core/di/dependency_injection.dart';
+import 'package:myweli/core/utils/salon_id.dart';
 import 'package:myweli/models/api_response.dart';
 import 'package:myweli/models/appointment.dart';
 import 'package:myweli/models/salon_client.dart';
@@ -107,7 +108,7 @@ class _Team extends MockProTeamService {
     return _answer(
       TeamMember(
         id: 'mem${keys.length}',
-        providerId: 'provider1',
+        providerId: SalonId('provider1'),
         email: email,
         role: role,
         status: TeamMemberStatus.invited,
@@ -168,7 +169,7 @@ void main() {
   test('the salon’s booking for a client', () async {
     final p = ProAppointmentProvider();
     Future<void> create(String name) => p.createManualBooking(
-      providerId: 'provider1',
+      providerId: SalonId('provider1'),
       serviceIds: const ['service1'],
       appointmentDateTime: DateTime.utc(2026, 10, 22, 10),
       clientName: name,
@@ -179,8 +180,8 @@ void main() {
   test('a note', () async {
     final p = ProClientsProvider();
     await exercise(
-      same: () => p.addNote('provider1', 'c1', 'Allergie'),
-      changed: () => p.addNote('provider1', 'c1', 'Allergie au henné'),
+      same: () => p.addNote(SalonId('provider1'), 'c1', 'Allergie'),
+      changed: () => p.addNote(SalonId('provider1'), 'c1', 'Allergie au henné'),
     );
   });
 

@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:myweli/core/access/pro_salon_scope.dart';
 import 'package:myweli/core/di/dependency_injection.dart';
+import 'package:myweli/core/utils/salon_id.dart';
 import 'package:myweli/models/api_response.dart';
 import 'package:myweli/providers/pro_dashboard_provider.dart';
 import 'package:myweli/services/interfaces/pro_service_interface.dart';
@@ -27,7 +28,7 @@ class _Service extends MockProService {
 
   @override
   Future<ApiResponse<DashboardStats>> getDashboardStats(
-    String providerId,
+    SalonId providerId,
   ) async {
     calls++;
     final failure = this.failure;
@@ -67,7 +68,7 @@ void main() {
     ProSalonScope.clear();
   });
 
-  Future<ProDashboardProvider> loaded(String salon) async {
+  Future<ProDashboardProvider> loaded(SalonId salon) async {
     final p = ProDashboardProvider();
     addTearDown(p.dispose);
     await p.loadDashboardStats(salon);
@@ -78,11 +79,11 @@ void main() {
     test(
       'figures on screen: the server is asked, quietly, and its answer replaces them',
       () async {
-        final p = await loaded('pA');
+        final p = await loaded(SalonId('pA'));
         final loading = <bool>[];
         p.addListener(() => loading.add(p.isLoading));
         service.today['pA'] = 3;
-        await p.refresh('pA');
+        await p.refresh(SalonId('pA'));
         expect(service.calls, 2);
         expect(p.stats!.todayAppointments, 3);
         expect(loading, everyElement(isFalse), reason: 'no full-screen loader');
@@ -93,9 +94,9 @@ void main() {
     test(
       'nothing answered: the figures STAY, and « Pas de connexion. Réessayez. » is said once',
       () async {
-        final p = await loaded('pA');
+        final p = await loaded(SalonId('pA'));
         service.failure = 'network';
-        await p.refresh('pA');
+        await p.refresh(SalonId('pA'));
         expect(p.stats!.todayAppointments, 2);
         expect(p.error, isNull);
         expect(p.takeRefreshFailure(), 'Pas de connexion. Réessayez.');
@@ -106,10 +107,10 @@ void main() {
     test(
       'a refusal or an exception: the figures stay, the generic sentence — never the server’s text',
       () async {
-        final p = await loaded('pA');
+        final p = await loaded(SalonId('pA'));
         for (final f in ['error', 'throw']) {
           service.failure = f;
-          await p.refresh('pA');
+          await p.refresh(SalonId('pA'));
           expect(p.stats!.todayAppointments, 2, reason: f);
           expect(
             p.takeRefreshFailure(),
@@ -122,12 +123,12 @@ void main() {
 
     test('no figures yet: an ordinary load, with its loader', () async {
       service.failure = 'network';
-      final p = await loaded('pA');
+      final p = await loaded(SalonId('pA'));
       expect(p.stats, isNull);
       service.failure = null;
       final loading = <bool>[];
       p.addListener(() => loading.add(p.isLoading));
-      await p.refresh('pA');
+      await p.refresh(SalonId('pA'));
       expect(loading.first, isTrue);
       expect(p.stats!.todayAppointments, 2);
     });
@@ -135,10 +136,10 @@ void main() {
     test(
       'entering « Accueil » again still uses what is loaded — only the pull asks',
       () async {
-        final p = await loaded('pA');
-        await p.loadDashboardStats('pA');
+        final p = await loaded(SalonId('pA'));
+        await p.loadDashboardStats(SalonId('pA'));
         expect(service.calls, 1);
-        await p.refresh('pA');
+        await p.refresh(SalonId('pA'));
         expect(service.calls, 2);
       },
     );
@@ -149,7 +150,7 @@ void main() {
       'nothing answered → it knows (« Pas de connexion. Réessayez. » under its title)',
       () async {
         service.failure = 'network';
-        final p = await loaded('pA');
+        final p = await loaded(SalonId('pA'));
         expect(p.stats, isNull);
         expect(p.error, isNotNull);
         expect(p.errorIsOffline, isTrue);
@@ -160,7 +161,7 @@ void main() {
       'a refusal → not offline (the title alone, never the server’s text)',
       () async {
         service.failure = 'error';
-        final p = await loaded('pA');
+        final p = await loaded(SalonId('pA'));
         expect(p.errorIsOffline, isFalse);
       },
     );
@@ -168,7 +169,7 @@ void main() {
 
   group('a booking changed elsewhere', () {
     test('its salon’s figures are asked for again, quietly', () async {
-      final p = await loaded('pA');
+      final p = await loaded(SalonId('pA'));
       service.today['pA'] = 1;
       p.bookingChanged(
         const BookingChange(
@@ -184,7 +185,7 @@ void main() {
     });
 
     test('another salon’s: nothing is asked', () async {
-      final p = await loaded('pA');
+      final p = await loaded(SalonId('pA'));
       p.bookingChanged(
         const BookingChange(
           appointmentId: 'a1',
@@ -204,9 +205,9 @@ void main() {
         final p = ProDashboardProvider();
         addTearDown(p.dispose);
         service.gates['pA'] = Completer<void>();
-        final first = p.loadDashboardStats('pA'); // held
+        final first = p.loadDashboardStats(SalonId('pA')); // held
         p.resetForSalonSwitch();
-        await p.loadDashboardStats('pB');
+        await p.loadDashboardStats(SalonId('pB'));
         expect(p.stats!.todayAppointments, 7);
         service.gates['pA']!.complete(); // A answers last
         await first;
@@ -218,7 +219,7 @@ void main() {
         expect(p.stats!.todayRevenue, 7 * 5000);
         expect(p.isLoading, isFalse);
         // And entering again keeps B's — the cache never held A's.
-        await p.loadDashboardStats('pB');
+        await p.loadDashboardStats(SalonId('pB'));
         expect(p.stats!.todayAppointments, 7);
       },
     );
@@ -230,9 +231,9 @@ void main() {
         addTearDown(p.dispose);
         service.gates['pA'] = Completer<void>();
         service.gates['pB'] = Completer<void>();
-        final a = p.loadDashboardStats('pA');
+        final a = p.loadDashboardStats(SalonId('pA'));
         p.resetForSalonSwitch();
-        final b = p.loadDashboardStats('pB');
+        final b = p.loadDashboardStats(SalonId('pB'));
         service.gates['pA']!.complete();
         await a;
         expect(p.isLoading, isTrue, reason: 'B is still loading');

@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:myweli/core/di/dependency_injection.dart';
 import 'package:myweli/core/utils/formatters.dart';
+import 'package:myweli/core/utils/salon_id.dart';
 import 'package:myweli/models/api_response.dart';
 import 'package:myweli/models/provider_user.dart';
 import 'package:myweli/models/salon_subscription.dart';
@@ -35,7 +36,7 @@ class _SwitchableSubs implements SubscriptionServiceInterface {
 
   @override
   Future<ApiResponse<SalonSubscription>> getSalonSubscription(
-    String providerId,
+    SalonId providerId,
   ) => inner.getSalonSubscription(providerId);
 }
 
@@ -389,6 +390,6 @@ void main() {
 class _FailingSubs implements SubscriptionServiceInterface {
   @override
   Future<ApiResponse<SalonSubscription>> getSalonSubscription(
-    String providerId,
+    SalonId providerId,
   ) async => ApiResponse.error('Pas de connexion. Réessayez.');
 }

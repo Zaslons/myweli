@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:myweli/core/access/pro_access_guard.dart';
 import 'package:myweli/core/di/dependency_injection.dart';
+import 'package:myweli/core/utils/salon_id.dart';
 import 'package:myweli/models/api_response.dart';
 import 'package:myweli/models/appointment.dart';
 import 'package:myweli/providers/pro_dashboard_provider.dart';
@@ -76,7 +77,7 @@ void main() {
   Future<ProDashboardProvider> loaded() async {
     final p = ProDashboardProvider();
     addTearDown(p.dispose);
-    await p.loadDashboardStats('p1');
+    await p.loadDashboardStats(SalonId('p1'));
     expect(p.stats!.todayAppointments, 2);
     return p;
   }
@@ -91,10 +92,10 @@ void main() {
       // rewrite: the pull is `refresh`, and it always asks.
       final p = await loaded();
       service.today = 3;
-      await p.loadDashboardStats('p1');
+      await p.loadDashboardStats(SalonId('p1'));
       expect(service.calls, 1);
       expect(p.stats!.todayAppointments, 2);
-      await p.refresh('p1');
+      await p.refresh(SalonId('p1'));
       expect(service.calls, 2);
       expect(p.stats!.todayAppointments, 3);
     },
@@ -146,7 +147,7 @@ void main() {
       expect(p.isLoading, isFalse);
 
       // Still failing: the pull changes nothing and says nothing.
-      await p.loadDashboardStats('p1');
+      await p.loadDashboardStats(SalonId('p1'));
       expect(service.calls, 3);
       expect(p.stats!.todayAppointments, 2);
       expect(p.error, isNull);
@@ -154,13 +155,13 @@ void main() {
       // Back online.
       service.failure = null;
       service.today = 3;
-      await p.loadDashboardStats('p1');
+      await p.loadDashboardStats(SalonId('p1'));
       expect(service.calls, 4);
       expect(p.stats!.todayAppointments, 3);
 
       // Confirmed by the server: no longer stale — entering « Accueil »
       // again does not ask (only the pull does, app-pro-home-journal-fresh.md).
-      await p.loadDashboardStats('p1');
+      await p.loadDashboardStats(SalonId('p1'));
       expect(service.calls, 4);
       expect(loadingSeen, everyElement(isFalse));
     });
@@ -194,7 +195,7 @@ void main() {
     final p = ProDashboardProvider();
     addTearDown(p.dispose);
     service.failure = 'error';
-    await p.loadDashboardStats('p1');
+    await p.loadDashboardStats(SalonId('p1'));
     expect(p.stats, isNull);
     expect(p.error, isNotNull);
     expect(service.calls, 1);
@@ -231,7 +232,7 @@ void main() {
       final p = ProDashboardProvider();
       addTearDown(p.dispose);
       service.gate = Completer<void>();
-      final load = p.loadDashboardStats('p1'); // decided: 2
+      final load = p.loadDashboardStats(SalonId('p1')); // decided: 2
       await pumpEventQueue();
       expect(p.isLoading, isTrue);
 
@@ -275,7 +276,7 @@ void main() {
     addTearDown(p.dispose);
     service.gate = Completer<void>();
     service.failure = 'error';
-    final load = p.loadDashboardStats('p1'); // decided: a failure
+    final load = p.loadDashboardStats(SalonId('p1')); // decided: a failure
     await pumpEventQueue();
     p.bookingCreated(booking()); // remembered: the load may predate it
     service.gate!.complete();
@@ -287,7 +288,7 @@ void main() {
 
     service.failure = null;
     service.today = 3;
-    await p.loadDashboardStats('p1'); // « Accueil » reopened
+    await p.loadDashboardStats(SalonId('p1')); // « Accueil » reopened
     await pumpEventQueue();
     expect(p.stats!.todayAppointments, 3);
     expect(service.calls, 2, reason: 'one request, not one and its double');
@@ -304,7 +305,7 @@ void main() {
 
     service.today = 9;
     service.gate = null;
-    await p.loadDashboardStats('p2'); // decided: 9, answered at once
+    await p.loadDashboardStats(SalonId('p2')); // decided: 9, answered at once
     expect(p.stats!.todayAppointments, 9);
 
     held.complete(); // p1's answer lands last

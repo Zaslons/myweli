@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:myweli/core/utils/mobile_money.dart';
+import 'package:myweli/core/utils/salon_id.dart';
 import 'package:myweli/models/appointment.dart';
 import 'package:myweli/models/availability.dart';
 import 'package:myweli/models/provider.dart' as models;
@@ -108,14 +109,14 @@ void main() {
   test('MockProService persists the deposit handle via the policy', () async {
     final service = MockProService();
     await service.updateDepositPolicy(
-      'provider1',
+      SalonId('provider1'),
       depositRequired: true,
       depositPercentage: 0.3,
       cancellationWindowHours: 24,
       mobileMoneyOperator: 'orangeMoney',
       mobileMoneyNumber: '+2250500000000',
     );
-    final policy = (await service.getDepositPolicy('provider1')).data!;
+    final policy = (await service.getDepositPolicy(SalonId('provider1'))).data!;
     expect(policy.depositRequired, isTrue);
     expect(policy.mobileMoneyOperator, 'orangeMoney');
     expect(policy.mobileMoneyNumber, '+2250500000000');

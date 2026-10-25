@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:myweli/core/di/dependency_injection.dart';
+import 'package:myweli/core/utils/salon_id.dart';
 import 'package:myweli/models/api_response.dart';
 import 'package:myweli/models/appointment.dart';
 import 'package:myweli/models/journal_day.dart';
@@ -95,7 +96,7 @@ void main() {
         appointments: [appt(id: 'a1', artistId: 'ar1')],
       );
       final p = ProJournalProvider();
-      await p.load('p1');
+      await p.load(SalonId('p1'));
       expect(p.day, isNotNull);
       expect(p.visibleAppointments, hasLength(1));
 
@@ -116,7 +117,7 @@ void main() {
         ],
       );
       final p = ProJournalProvider();
-      await p.load('p1');
+      await p.load(SalonId('p1'));
 
       // Cancelled hidden by default.
       expect(p.visibleAppointments.map((a) => a.id), ['a1', 'a2']);
@@ -140,7 +141,7 @@ void main() {
         appointments: [appt(id: 'a1')],
       );
       final p = ProJournalProvider();
-      await p.load('p1');
+      await p.load(SalonId('p1'));
       final ok = await p.arrive('a1');
       expect(ok, isTrue);
       expect(fake.arrivedIds, contains('a1'));
@@ -153,7 +154,7 @@ void main() {
         appointments: [appt(id: 'a1', status: 'pending')],
       );
       final p = ProJournalProvider();
-      await p.load('p1');
+      await p.load(SalonId('p1'));
       fake.actionFails = true;
       final ok = await p.accept('a1');
       expect(ok, isFalse);
@@ -170,10 +171,10 @@ void main() {
       final p = ProJournalProvider();
       final lateNight = DateTime.utc(2026, 7, 13, 23, 30);
 
-      await p.load('p1'); // no tz → Abidjan (Wave 0)
+      await p.load(SalonId('p1')); // no tz → Abidjan (Wave 0)
       expect(p.keyOf(lateNight), '2026-07-13');
 
-      await p.load('p1', tz: 'Africa/Libreville'); // UTC+1
+      await p.load(SalonId('p1'), tz: 'Africa/Libreville'); // UTC+1
       expect(p.keyOf(lateNight), '2026-07-14');
 
       p.resetForSalonSwitch(); // the next salon's tz arrives with its load
@@ -188,10 +189,10 @@ void main() {
       );
       final p = ProJournalProvider();
       final past = DateTime.utc(2026, 1, 5);
-      await p.load('p1', date: past);
+      await p.load(SalonId('p1'), date: past);
       expect(p.selectedDate, past);
       fake.fail = true;
-      await p.load('p1'); // the screen's « Réessayer » path
+      await p.load(SalonId('p1')); // the screen's « Réessayer » path
       expect(p.selectedDate, past);
     });
   });
@@ -199,7 +200,7 @@ void main() {
   group('MockProService.getJournalDay', () {
     test('returns the seeded provider day', () async {
       final r = await MockProService().getJournalDay(
-        'provider_1',
+        SalonId('provider_1'),
         DateTime.now(),
       );
       expect(r.success, isTrue);
