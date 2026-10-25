@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:myweli/widgets/common/app_card.dart';
 
 import 'settle.dart';
 
@@ -99,7 +100,8 @@ Future<void> openProList(WidgetTester tester) async {
   await tester.tap(find.text('Tous'));
   await settleMocks(tester, rounds: 3);
   expect(
-    find.byType(Card),
+    // The rows are cards: `AppCard` since B9.8 F2.
+    find.byType(AppCard),
     findsWidgets,
     reason:
         '« Tous » is the tab that has rows; if this is empty the caller is '

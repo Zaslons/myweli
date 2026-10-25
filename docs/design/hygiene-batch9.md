@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Statut** | **Validé le 2026-10-22** — relu sur main (`d1e886e1`). Q1 (décision 33) : **le type `SalonId`** (« ce qui vaut le mieux à long terme ») ; Q2 (décision 34) : **e-mail et poussée Sentry** ; Q3 (décision 34) : **pas de suivi des performances pour l'instant** ; Q4 (décision 35) : **pas d'interrupteur** ; Q5 : **construire les trois composants et migrer tous les écrans maintenant** ; Q6 : **les pages publiques lèvent** ; Q7 : **supprimer la table avec ce lot** ; Q8 : **le reste tel qu'écrit**. Huit PR (§3). **PR A fusionnée le 2026-10-22** (#688 — B9.1, B9.5 — §9). **PR B fusionnée le 2026-10-22** (#689 — B9.6 — §10). **PR C fusionnée le 2026-10-22** (#690 — B9.7 — §11). **PR D fusionnée le 2026-10-25** (#691 — B9.11, B9.10 — §12 ; déploiement Vercel de production réussi, le plan du site liste 228 adresses). **PR E fusionnée le 2026-10-25** (#697 — B9.2–B9.4 — §13 ; 81 appliqué et relu le même jour, #698). **PR F1 construite le 2026-10-25** (#699, `feat/batch9-components`) (B9.8 : les trois briques et tous les écrans asynchrones — §14 ; Q9–Q12 en §8). |
+| **Statut** | **Validé le 2026-10-22** — relu sur main (`d1e886e1`). Q1 (décision 33) : **le type `SalonId`** (« ce qui vaut le mieux à long terme ») ; Q2 (décision 34) : **e-mail et poussée Sentry** ; Q3 (décision 34) : **pas de suivi des performances pour l'instant** ; Q4 (décision 35) : **pas d'interrupteur** ; Q5 : **construire les trois composants et migrer tous les écrans maintenant** ; Q6 : **les pages publiques lèvent** ; Q7 : **supprimer la table avec ce lot** ; Q8 : **le reste tel qu'écrit**. Huit PR (§3). **PR A fusionnée le 2026-10-22** (#688 — B9.1, B9.5 — §9). **PR B fusionnée le 2026-10-22** (#689 — B9.6 — §10). **PR C fusionnée le 2026-10-22** (#690 — B9.7 — §11). **PR D fusionnée le 2026-10-25** (#691 — B9.11, B9.10 — §12 ; déploiement Vercel de production réussi, le plan du site liste 228 adresses). **PR E fusionnée le 2026-10-25** (#697 — B9.2–B9.4 — §13 ; 81 appliqué et relu le même jour, #698). **PR F1 fusionnée le 2026-10-25** (#699) (B9.8 : les trois briques et tous les écrans asynchrones — §14 ; Q9–Q12 en §8). **PR F2 construite le 2026-10-25** (#700, `feat/batch9-cards`) (B9.8 : toutes les cartes sur `AppCard` — §2.7.3, §15 ; Q13–Q15 en §8). |
 | **Owner** | Sadreddine |
 | **Last updated** | 2026-10-25 |
 | **PRD ref / phase** | V1 — rien de visible n'est ajouté ; ce lot rend vrais les documents, les doublures de test, les lectures et les outils |
@@ -190,6 +190,63 @@ correction par rapport au BACKLOG :
   d'une liste nommée (les cas « forme inconnue »), et plus d'erreur de
   chargement écrite à la main (`actionText: 'Réessayer'` hors des briques).
 
+#### 2.7.3 F2 — les cartes (mesuré le 2026-10-25, sur F1)
+
+**Ce que §2.7.1 a mal compté.** Les « 30 cartes déjà exactement celles du
+système » ne l'étaient pas : l'inventaire ne regardait que la couleur, le
+rayon et la bordure, et **presque toutes portent une ombre**
+(`boxShadow: AppTheme.elevation1`) — que SYSTEM §8 réserve à ce qui flotte
+(menus, feuilles, la barre du bas) : « les cartes ont l'élévation 0 ».
+
+**Ce qui est une carte** — relu site par site, hors `screens/provider/features/`
+(V2/V3, masqués : on ne les polit pas, §Scope) et hors console (ses cartes à
+bordure sont l'idiome du bureau, SYSTEM §11.2) :
+- **27 `Card(` Material** dans 11 fichiers (dont 15 sur le Profil Pro),
+  presque toutes autour d'un `ListTile` ;
+- **31 cartes dessinées à la main** : 23 de contenu (le détail d'un
+  rendez-vous, le récapitulatif avant paiement, la tête du salon dans la
+  réservation, les quatre sections de l'acompte et les quatre de la
+  disponibilité, celle de mes
+  données, la fiche du salon, le total des revenus, le résumé des avis, les
+  places de l'équipe et de l'offre, un document de vérification, une
+  invitation, le calendrier Pro, les chiffres de l'accueil Pro, le
+  rendez-vous déplacé, les préférences) et 8 qu'on touche en entier (un
+  rendez-vous, sa version compacte, une notification, un salon en liste et
+  en grille, un employé, un service, un raccourci de l'accueil Pro) ;
+- **2 cartes qui sont des contrôles** : une étape de la réservation
+  (ouverte / fermée) et un rôle à choisir dans l'invitation.
+
+**Ce que F2 en fait** (Q10 : les normaliser) :
+- **Toutes deviennent `AppCard`** : `secondary`, `radiusXL`, **sans ombre**,
+  **sans bordure** (SYSTEM §3.1 : la marche de surface suffit), `spacingM`
+  dedans — `spacingL` sur six cartes passe à `spacingM`. Un
+  rembourrage autre n'est gardé que s'il a une raison écrite : zéro autour
+  d'une liste de lignes ou d'une photo bord à bord, l'arithmétique du
+  calendrier (`spacingS`, A14a §2.1), le rembourrage calculé des chiffres
+  de l'accueil Pro. La `margin` de 4 que `Card` ajoutait en silence
+  disparaît : l'écart entre deux cartes est celui de leur liste.
+- **Une carte qu'on touche** l'est en entier (`onTap`) : l'ondulation coupée
+  au rayon, **un bouton pour un lecteur d'écran** — sept d'entre elles
+  étaient un `GestureDetector` muet. Un contrôle à l'intérieur (le cœur des
+  favoris d'un salon) **reste à part** : `AppCard` fait de la carte un nœud
+  conteneur, pas une fusion — la fusion de F1 l'aurait avalé.
+- **Une carte-contrôle** est `outlined` (le trait `borderStrong`) et, choisie,
+  `selected` : le trait passe à `primary`, 2 px, la carte reste blanche (Q13).
+  Pas seulement une couleur : la
+  carte est annoncée « sélectionnée », et l'icône radio ou l'état ouvert le
+  disent aussi (SYSTEM §13).
+- **Ce qui reste** : les ombres de ce qui flotte (les repères de la carte, la
+  poignée de l'avant/après, le logo sur la couverture, les anneaux des
+  stories) ; la console ; les écrans V2/V3 ; et `HighlightStories`, que rien
+  n'affiche — supprimé plutôt qu'exempté.
+- **Une épingle** sur `lib/` : plus de `Card(` ; plus de boîte `secondary` à
+  `radiusXL`/`radiusLarge` dessinée à la main ; plus d'`elevation1`/`2` sur
+  une carte — hors liste nommée, avec sa raison.
+
+**Questions (Q13–Q15)** — posées le 2026-10-25, réponses en §8 : le trait
+`primary` de 2 px sans fond ; la barre « Total » garde son ombre ;
+`spacingM` partout.
+
 ### 2.8 Le type `SalonId` (B9.9, décision 33)
 - **Ta décision** : ce qui vaut le mieux à long terme, donc **le type**.
   L'épingle ne voit pas un identifiant de compte passé en position ; le
@@ -312,6 +369,16 @@ Q5 : la recommandation — tout migrer maintenant (§2.7).
 **Décisions (2026-10-25).** Q9 : **une seule erreur** ; Q10 : **normaliser
 les vraies cartes** ; Q11 : **les squelettes maintenant** (pas la
 recommandation) ; Q12 : **trois PR**. La forme retenue : §2.7.2.
+- **Q13** (2026-10-25, F2) — Une carte-contrôle choisie : **un trait
+  `primary` de 2 px sur la carte blanche** (recommandé), ou le trait et un
+  fond gris (`surfaceVariant`), comme la carte de rôle aujourd'hui ?
+- **Q14** — La barre « Total » épinglée de la réservation : **une barre
+  ancrée, qui garde son ombre** (recommandé), ou une carte, aplatie ?
+- **Q15** — Les six cartes à `spacingL` : **`spacingM`, comme §11.3**
+  (recommandé), ou les garder à `spacingL` ?
+
+**Décisions (2026-10-25, F2).** Q13, Q14, Q15 : les recommandations. La
+forme retenue : §2.7.3.
 
 ## 9. PR A construite (B9.1, B9.5) — ce qui a été vu
 
@@ -820,3 +887,91 @@ ni « Une erreur est survenue » ni « Connexion impossible » en titre, ni
 - **Les rouges d'abord** : chaque correction de fournisseur a été retirée
   une à une par ces mutations, et son essai était rouge sans elle.
 
+## 15. PR F2 construite (B9.8, deuxième des trois) — ce qui a été vu
+
+**`AppCard`, tel que les cartes l'ont demandé** :
+- **Un nœud conteneur pour un lecteur d'écran, toujours**, comme la `Card`
+  de Material (`semanticContainer`) : ce que dit la carte se lit ensemble.
+  **Pas une fusion** — celle de F1 aurait avalé le cœur des favoris d'un
+  salon, et un lecteur d'écran n'aurait plus pu l'atteindre. Un essai le
+  tient : la carte et le contrôle qu'elle porte sont deux nœuds, et chaque
+  toucher va au sien.
+- **`onTap`** en fait un bouton ; **`outlined`** le trait `borderStrong` ;
+  **`selected`** le trait `primary` de 2 px sur la carte blanche (Q13),
+  annoncé « sélectionné » quand la carte est la cible — l'étape ouverte de la
+  réservation, dont la cible est son en-tête, le dit par lui (« développé »).
+
+**Les cartes migrées** : 27 `Card` (dont 15 sur le Profil Pro) et 31
+dessinées à la main — les 23 de contenu, les 8 qu'on touche (dont le salon,
+en liste et en grille), et les deux cartes-contrôles (l'étape de la
+réservation, le rôle à choisir). Les ombres disparaissent (19 cartes
+portaient `elevation1`), les bordures aussi, `spacingL` passe à `spacingM`
+sur six cartes (Q15), et la `margin` de 4 que `Card` ajoutait : les cartes
+du Profil Pro s'alignent sur la gouttière de la page, comme toutes les
+autres ; leurs écarts restent ceux de la liste.
+
+**Ce que la migration a trouvé** :
+- **Six cartes qu'on touche étaient muettes** pour un lecteur d'écran (un
+  `GestureDetector` : rien à annoncer — un rendez-vous, un salon en liste et
+  en grille, un employé, un service, un raccourci de l'accueil Pro) ; deux
+  autres étaient un `InkWell` touchable mais pas annoncé comme bouton. Les
+  huit sont des boutons.
+- **Les contrôles d'une carte restent à eux** : le cœur des favoris,
+  « Voir sur la carte » et « Itinéraire » sont des `Semantics(button: true)`
+  sans `container`, dans une carte devenue un nœud et un bouton. Deux
+  touchers sur un nœud se séparent d'eux-mêmes (la règle de Flutter) : le
+  cœur reste à lui, et l'essai du salon le tient. Un `container: true` ajouté
+  sur eux d'abord n'y changeait rien — la mutation qui le retirait survivait —
+  et il est retiré.
+- **Le rôle choisi ne se disait pas** : une icône radio, et rien
+  d'annoncé ; la carte est maintenant « sélectionnée ».
+- **`HighlightStories`**, que rien n'affichait, est supprimé.
+- **La `Material` transparente** sous deux cartes à `ListTile` (les
+  préférences, l'acompte) n'existait que pour porter l'encre ; `AppCard` est
+  cette `Material`.
+- **Six pages portaient leurs cartes sur `surface`** (#FAFAFA), pas sur
+  `background`, le fond de page (SYSTEM §3.1) : le détail d'un rendez-vous,
+  la confirmation, les préférences, l'abonnement, les invitations, l'équipe.
+  Elles tenaient par l'ombre et la bordure que F2 retire — une carte blanche
+  sur #FAFAFA, c'est la moitié de la marche. Elles sont sur `background` ;
+  une épingle le tient (sauf les deux écrans de lancement, la connexion de
+  la console et l'ajout d'un salon, qui n'ont pas de carte).
+- **Le champ de date du sélecteur de créneaux** a la forme d'un champ, pas
+  d'une carte : il reste, nommé dans l'épingle, avec la barre « Total »
+  ancrée (Q14).
+
+**Ce que F2 laisse** : la console (ses cartes à bordure, idiome du bureau,
+SYSTEM §11.2) ; les écrans V2/V3 ; les ombres de ce qui flotte ; les
+bandeaux teintés et les tuiles `surface` posées dans une carte, qui ne sont
+pas des cartes ; les écarts du Profil Pro, mêlés de 8 et de 16 — un
+regroupement à repenser, pas une carte.
+
+**L'épingle** (`cards_pin_test.dart`, sur `lib/` hors V2/V3) : pas de
+`Card(` ; pas de boîte `secondary` au rayon des cartes dessinée à la main
+(la barre « Total » et le champ de date à part) ; une ombre seulement sur la
+liste de ce qui flotte.
+
+**Vérifié** :
+- **La suite de l'app** : 2 791 essais verts, 58 sautés (les photos) ;
+  `flutter analyze` à 0, le format propre. Deux essais cherchaient une carte
+  par son type (`Container`, `Card`) : ils cherchent `AppCard`.
+- **Les mutations, en deux passages.** Le premier a laissé survivre trois
+  choses, et chacune a appris quelque chose : retirer le `container` de la
+  carte ne changeait rien à aucun essai — **un essai dit maintenant qu'une
+  carte se lit d'un bloc et deux cartes en deux** ; retirer le `container`
+  ajouté au cœur des favoris ne changeait rien non plus — Flutter sépare déjà
+  deux touchers, l'ajout était inutile et il est retiré. **Second passage :
+  12 mutations, toutes rouges** — la fusion, le conteneur, le bouton,
+  « sélectionné » non dit, le trait de 1 px, le trait d'une autre couleur, le
+  contour passif, l'ombre, une `Card`, une carte dessinée à la main, une ombre
+  sur une carte, une page de cartes rendue à `surface`.
+- **Les photos**, refaites deux fois sur Linux (avant et après les fonds de
+  page) et **regardées une à une** : 17 bougent — l'ombre partie (l'accueil,
+  le salon, mes rendez-vous, la réservation, l'accueil Pro, le calendrier,
+  les revenus, les avis), la bordure partie (l'acompte, l'équipe), l'étape
+  ouverte de la réservation à 2 px, les cartes du Profil et de l'accueil Pro
+  à la gouttière, et l'équipe et les invitations sur `background` — le
+  premier passage montrait la carte d'invitation presque effacée sur
+  `surface`, et c'est lui qui a trouvé les six pages.
+- **Le serveur et le web** ne sont pas touchés depuis #699 (2 177 et 2 255
+  essais verts sur ce même code).

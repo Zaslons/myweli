@@ -14,6 +14,7 @@ import '../../../providers/pro_auth_provider.dart';
 import '../../../providers/pro_kyc_provider.dart';
 import '../../../widgets/common/app_async_view.dart';
 import '../../../widgets/common/app_button.dart';
+import '../../../widgets/common/app_card.dart';
 import '../../../widgets/common/app_skeleton.dart';
 import '../../../widgets/common/app_snack_bar.dart';
 
@@ -318,13 +319,7 @@ class _DocumentTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final provided = document != null;
-    return Container(
-      padding: const EdgeInsets.all(AppTheme.spacingM),
-      decoration: BoxDecoration(
-        color: AppColors.secondary,
-        borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
-        border: Border.all(color: AppColors.border),
-      ),
+    return AppCard(
       child: Row(
         children: [
           Icon(

@@ -12,6 +12,7 @@ import '../../../models/salon_subscription.dart';
 import '../../../providers/pro_auth_provider.dart';
 import '../../../providers/pro_subscription_provider.dart';
 import '../../../widgets/common/app_async_view.dart';
+import '../../../widgets/common/app_card.dart';
 import '../../../widgets/common/app_skeleton.dart';
 import '../../../widgets/common/empty_state.dart';
 
@@ -63,7 +64,9 @@ class _ProSubscriptionScreenState extends State<ProSubscriptionScreen> {
     final providerId = auth.activeSalonId;
     WidgetsBinding.instance.addPostFrameCallback((_) => _maybeLoad());
     return Scaffold(
-      backgroundColor: AppColors.surface,
+      // Cards are `secondary` on `background` (SYSTEM §3.1): the step that
+      // lifts them, now they have no shadow (B9.8 F2).
+      backgroundColor: AppColors.background,
       appBar: AppBar(title: const Text('Mon abonnement')),
       body: providerId == null || !auth.can(ProCap.subscriptionManage)
           ? const EmptyState(
@@ -124,7 +127,8 @@ class _Body extends StatelessWidget {
         // It states what the account can do with the offer it HAS — not
         // another offer, a trial or a price.
         if (salon.tier == SalonTier.reseau && salon.isLive) ...[
-          Card(
+          AppCard(
+            padding: EdgeInsets.zero,
             child: ListTile(
               leading: const Icon(
                 Icons.add_business_outlined,
@@ -259,13 +263,7 @@ class _SeatsBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final ratio = seats.cap == 0 ? 0.0 : seats.used / seats.cap;
-    return Container(
-      padding: const EdgeInsets.all(AppTheme.spacingM),
-      decoration: BoxDecoration(
-        color: AppColors.secondary,
-        borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
-        border: Border.all(color: AppColors.border),
-      ),
+    return AppCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

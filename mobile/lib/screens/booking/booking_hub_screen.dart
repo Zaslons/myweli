@@ -17,6 +17,7 @@ import '../../providers/appointment_provider.dart';
 import '../../providers/provider_provider.dart';
 import '../../widgets/booking/length_variant_selector.dart';
 import '../../widgets/booking/slot_picker.dart';
+import '../../widgets/common/app_card.dart';
 import '../../widgets/common/app_skeleton.dart';
 import '../../widgets/common/app_snack_bar.dart';
 import '../../widgets/common/inline_feedback.dart';
@@ -445,15 +446,7 @@ class _BookingHubScreenState extends State<BookingHubScreen> {
                   child: ListView(
                     controller: _scrollController,
                     children: [
-                      Container(
-                        padding: const EdgeInsets.all(AppTheme.spacingM),
-                        decoration: BoxDecoration(
-                          color: AppColors.secondary,
-                          borderRadius: BorderRadius.circular(
-                            AppTheme.radiusXL,
-                          ),
-                          boxShadow: AppTheme.elevation1,
-                        ),
+                      AppCard(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
@@ -923,16 +916,10 @@ class _HubSectionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(AppTheme.spacingM),
-      decoration: BoxDecoration(
-        color: AppColors.secondary,
-        borderRadius: BorderRadius.circular(AppTheme.radiusXL),
-        border: Border.all(
-          color: expanded ? AppColors.primary : AppColors.borderStrong,
-        ),
-        boxShadow: AppTheme.elevation1,
-      ),
+    return AppCard(
+      // A step is a control: its line says which one is open (Q13).
+      outlined: true,
+      selected: expanded,
       child: Column(
         children: [
           ConstrainedBox(

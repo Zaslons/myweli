@@ -20,6 +20,7 @@ import 'package:myweli/services/mock/mock_device_registration_service.dart';
 import 'package:myweli/services/mock/mock_notification_service.dart';
 import 'package:myweli/services/mock/mock_pro_service.dart';
 import 'package:myweli/services/mock/mock_push_notification_service.dart';
+import 'package:myweli/widgets/common/app_card.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -274,7 +275,7 @@ void main() {
 
       // The cards, by their subtitle — unique per card where titles repeat.
       Rect cardOf(Finder inside) => tester.getRect(
-        find.ancestor(of: inside, matching: find.byType(Container)).first,
+        find.ancestor(of: inside, matching: find.byType(AppCard)).first,
       );
       final revenus = find.text('Revenus prévus');
       final rects = [

@@ -14,6 +14,7 @@ import '../../../models/availability.dart';
 import '../../../providers/pro_auth_provider.dart';
 import '../../../providers/pro_availability_provider.dart';
 import '../../../widgets/common/app_async_view.dart';
+import '../../../widgets/common/app_card.dart';
 import '../../../widgets/common/app_skeleton.dart';
 import '../../../widgets/common/app_snack_bar.dart';
 import '../../../widgets/common/confirm_dialog.dart';
@@ -234,12 +235,7 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
             ),
             const SizedBox(height: AppTheme.spacingSM),
             if (availability.blockedDates.isEmpty)
-              Container(
-                padding: const EdgeInsets.all(AppTheme.spacingM),
-                decoration: BoxDecoration(
-                  color: AppColors.secondary,
-                  borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
-                ),
+              AppCard(
                 child: Row(
                   children: [
                     const Icon(
@@ -730,12 +726,7 @@ class _BookingWindowSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(AppTheme.spacingM),
-      decoration: BoxDecoration(
-        color: AppColors.secondary,
-        borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
-      ),
+    return AppCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -823,12 +814,7 @@ class _BufferSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(AppTheme.spacingM),
-      decoration: BoxDecoration(
-        color: AppColors.secondary,
-        borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
-      ),
+    return AppCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -901,40 +887,43 @@ class _DayScheduleCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: AppTheme.spacingS),
-      child: ListTile(
-        title: Text(
-          dayName,
-          style: AppTextStyles.titleMedium.copyWith(
-            color: AppColors.textPrimary,
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppTheme.spacingS),
+      child: AppCard(
+        padding: EdgeInsets.zero,
+        child: ListTile(
+          title: Text(
+            dayName,
+            style: AppTextStyles.titleMedium.copyWith(
+              color: AppColors.textPrimary,
+            ),
           ),
-        ),
-        subtitle: timeSlots.isEmpty
-            ? Text(
-                'Fermé',
-                style: AppTextStyles.bodyMedium.copyWith(
-                  color: AppColors.textSecondary,
+          subtitle: timeSlots.isEmpty
+              ? Text(
+                  'Fermé',
+                  style: AppTextStyles.bodyMedium.copyWith(
+                    color: AppColors.textSecondary,
+                  ),
+                )
+              : Wrap(
+                  spacing: AppTheme.spacingS,
+                  runSpacing: AppTheme.spacingXS,
+                  children: timeSlots.map((slot) {
+                    final start = Formatters.formatTime(slot.startTime);
+                    final end = Formatters.formatTime(slot.endTime);
+                    return Chip(
+                      label: Text('$start - $end'),
+                      backgroundColor: slot.isAvailable
+                          ? AppColors.primary.withValues(alpha: 0.1)
+                          : AppColors.error.withValues(alpha: 0.1),
+                    );
+                  }).toList(),
                 ),
-              )
-            : Wrap(
-                spacing: AppTheme.spacingS,
-                runSpacing: AppTheme.spacingXS,
-                children: timeSlots.map((slot) {
-                  final start = Formatters.formatTime(slot.startTime);
-                  final end = Formatters.formatTime(slot.endTime);
-                  return Chip(
-                    label: Text('$start - $end'),
-                    backgroundColor: slot.isAvailable
-                        ? AppColors.primary.withValues(alpha: 0.1)
-                        : AppColors.error.withValues(alpha: 0.1),
-                  );
-                }).toList(),
-              ),
-        trailing: IconButton(
-          tooltip: 'Modifier',
-          icon: const Icon(Icons.edit),
-          onPressed: onEdit,
+          trailing: IconButton(
+            tooltip: 'Modifier',
+            icon: const Icon(Icons.edit),
+            onPressed: onEdit,
+          ),
         ),
       ),
     );
@@ -954,26 +943,29 @@ class _BlockedDateCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: AppTheme.spacingS),
-      child: ListTile(
-        leading: const Icon(Icons.block, color: AppColors.error),
-        title: Text(
-          // The SALON's day, not the raw instant's. A blocked date is stored
-          // as salon midnight in UTC, so on any salon east or west of
-          // Greenwich `formatDate` on the raw value names the wrong day — the
-          // client-side mirror of the `blocked_date` bug fixed in the same PR.
-          // Every other reader already converts: mock_appointment_service and
-          // mock_provider_service both compare through `toSalonTime`.
-          Formatters.formatDate(toSalonTime(date, tz: tz)),
-          style: AppTextStyles.bodyMedium.copyWith(
-            color: AppColors.textPrimary,
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppTheme.spacingS),
+      child: AppCard(
+        padding: EdgeInsets.zero,
+        child: ListTile(
+          leading: const Icon(Icons.block, color: AppColors.error),
+          title: Text(
+            // The SALON's day, not the raw instant's. A blocked date is stored
+            // as salon midnight in UTC, so on any salon east or west of
+            // Greenwich `formatDate` on the raw value names the wrong day — the
+            // client-side mirror of the `blocked_date` bug fixed in the same PR.
+            // Every other reader already converts: mock_appointment_service and
+            // mock_provider_service both compare through `toSalonTime`.
+            Formatters.formatDate(toSalonTime(date, tz: tz)),
+            style: AppTextStyles.bodyMedium.copyWith(
+              color: AppColors.textPrimary,
+            ),
           ),
-        ),
-        trailing: IconButton(
-          tooltip: 'Supprimer',
-          icon: const Icon(Icons.delete, color: AppColors.error),
-          onPressed: onRemove,
+          trailing: IconButton(
+            tooltip: 'Supprimer',
+            icon: const Icon(Icons.delete, color: AppColors.error),
+            onPressed: onRemove,
+          ),
         ),
       ),
     );
@@ -1055,12 +1047,7 @@ class _DayScheduleEditScreenState extends State<_DayScheduleEditScreen> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 if (_slots.isEmpty)
-                  Container(
-                    padding: const EdgeInsets.all(AppTheme.spacingL),
-                    decoration: BoxDecoration(
-                      color: AppColors.secondary,
-                      borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
-                    ),
+                  AppCard(
                     child: Column(
                       children: [
                         const Icon(
@@ -1338,38 +1325,41 @@ class _TimeSlotCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: AppTheme.spacingS),
-      child: ListTile(
-        leading: CircleAvatar(
-          backgroundColor: slot.isAvailable
-              ? AppColors.primary.withValues(alpha: 0.2)
-              : AppColors.error.withValues(alpha: 0.2),
-          child: Icon(
-            slot.isAvailable ? Icons.check : Icons.close,
-            color: slot.isAvailable ? AppColors.primary : AppColors.error,
-          ),
-        ),
-        title: Text(
-          '${Formatters.formatTime(slot.startTime)} - ${Formatters.formatTime(slot.endTime)}',
-          style: AppTextStyles.titleMedium.copyWith(
-            color: AppColors.textPrimary,
-          ),
-        ),
-        trailing: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            IconButton(
-              tooltip: 'Modifier',
-              icon: const Icon(Icons.edit),
-              onPressed: onEdit,
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppTheme.spacingS),
+      child: AppCard(
+        padding: EdgeInsets.zero,
+        child: ListTile(
+          leading: CircleAvatar(
+            backgroundColor: slot.isAvailable
+                ? AppColors.primary.withValues(alpha: 0.2)
+                : AppColors.error.withValues(alpha: 0.2),
+            child: Icon(
+              slot.isAvailable ? Icons.check : Icons.close,
+              color: slot.isAvailable ? AppColors.primary : AppColors.error,
             ),
-            IconButton(
-              tooltip: 'Supprimer',
-              icon: const Icon(Icons.delete, color: AppColors.error),
-              onPressed: onRemove,
+          ),
+          title: Text(
+            '${Formatters.formatTime(slot.startTime)} - ${Formatters.formatTime(slot.endTime)}',
+            style: AppTextStyles.titleMedium.copyWith(
+              color: AppColors.textPrimary,
             ),
-          ],
+          ),
+          trailing: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              IconButton(
+                tooltip: 'Modifier',
+                icon: const Icon(Icons.edit),
+                onPressed: onEdit,
+              ),
+              IconButton(
+                tooltip: 'Supprimer',
+                icon: const Icon(Icons.delete, color: AppColors.error),
+                onPressed: onRemove,
+              ),
+            ],
+          ),
         ),
       ),
     );

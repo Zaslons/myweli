@@ -10,6 +10,7 @@ import '../../core/utils/salon_time.dart';
 import '../../models/appointment.dart';
 import '../../widgets/booking/slot_picker.dart';
 import '../../widgets/common/app_button.dart';
+import '../../widgets/common/app_card.dart';
 
 /// Move an existing appointment to another free slot (A14c §19.2).
 ///
@@ -105,56 +106,52 @@ class _RescheduleScreenState extends State<RescheduleScreen> {
                     // none of it — a bare picker with no answer to "which
                     // booking is this?". The enrichment that makes the duration
                     // correct carries the name and the services too.
-                    Container(
+                    SizedBox(
                       width: double.infinity,
-                      padding: const EdgeInsets.all(AppTheme.spacingM),
-                      decoration: BoxDecoration(
-                        color: AppColors.secondary,
-                        borderRadius: BorderRadius.circular(AppTheme.radiusXL),
-                        border: Border.all(color: AppColors.border),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            // A title: « Salon », never « le salon ».
-                            salonNameOr(
-                              widget.appointment.providerName,
-                              kUnnamedSalon,
-                            ),
-                            style: AppTextStyles.titleMedium,
-                          ),
-                          if (services.isNotEmpty) ...[
-                            const SizedBox(height: AppTheme.spacingXS),
+                      child: AppCard(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
                             Text(
-                              services.join(' · '),
-                              style: AppTextStyles.bodySmall.copyWith(
-                                color: AppColors.textSecondary,
+                              // A title: « Salon », never « le salon ».
+                              salonNameOr(
+                                widget.appointment.providerName,
+                                kUnnamedSalon,
                               ),
+                              style: AppTextStyles.titleMedium,
                             ),
-                          ],
-                          const SizedBox(height: AppTheme.spacingS),
-                          Row(
-                            children: [
-                              const Icon(
-                                Icons.event_busy,
-                                size: AppTheme.iconS,
-                                color: AppColors.textTertiary,
-                              ),
-                              const SizedBox(width: AppTheme.spacingS),
-                              Expanded(
-                                child: Text(
-                                  'Actuellement : '
-                                  '${Formatters.formatDate(wall)} à '
-                                  '${Formatters.formatTime(wall)}',
-                                  style: AppTextStyles.bodySmall.copyWith(
-                                    color: AppColors.textSecondary,
-                                  ),
+                            if (services.isNotEmpty) ...[
+                              const SizedBox(height: AppTheme.spacingXS),
+                              Text(
+                                services.join(' · '),
+                                style: AppTextStyles.bodySmall.copyWith(
+                                  color: AppColors.textSecondary,
                                 ),
                               ),
                             ],
-                          ),
-                        ],
+                            const SizedBox(height: AppTheme.spacingS),
+                            Row(
+                              children: [
+                                const Icon(
+                                  Icons.event_busy,
+                                  size: AppTheme.iconS,
+                                  color: AppColors.textTertiary,
+                                ),
+                                const SizedBox(width: AppTheme.spacingS),
+                                Expanded(
+                                  child: Text(
+                                    'Actuellement : '
+                                    '${Formatters.formatDate(wall)} à '
+                                    '${Formatters.formatTime(wall)}',
+                                    style: AppTextStyles.bodySmall.copyWith(
+                                      color: AppColors.textSecondary,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                     const SizedBox(height: AppTheme.spacingL),

@@ -13,6 +13,7 @@ import '../../../providers/pro_auth_provider.dart';
 import '../../../providers/pro_onboarding_provider.dart';
 import '../../../widgets/common/app_async_view.dart';
 import '../../../widgets/common/app_button.dart';
+import '../../../widgets/common/app_card.dart';
 import '../../../widgets/common/app_skeleton.dart';
 import '../../../widgets/common/app_snack_bar.dart';
 
@@ -171,24 +172,27 @@ class _StepRow extends StatelessWidget {
     final route = _route(step.key);
     final sublabel = _sublabel(step);
 
-    return Card(
-      margin: const EdgeInsets.only(bottom: AppTheme.spacingS),
-      child: ListTile(
-        leading: Icon(
-          _statusIcon(step.status),
-          color: _statusColor(step.status),
-        ),
-        title: Text(_label(step.key)),
-        subtitle: sublabel == null ? null : Text(sublabel),
-        trailing: route != null
-            ? const Icon(Icons.chevron_right, color: AppColors.textTertiary)
-            : Text(
-                _statusText(step.status),
-                style: AppTextStyles.bodySmall.copyWith(
-                  color: _statusColor(step.status),
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppTheme.spacingS),
+      child: AppCard(
+        padding: EdgeInsets.zero,
+        child: ListTile(
+          leading: Icon(
+            _statusIcon(step.status),
+            color: _statusColor(step.status),
+          ),
+          title: Text(_label(step.key)),
+          subtitle: sublabel == null ? null : Text(sublabel),
+          trailing: route != null
+              ? const Icon(Icons.chevron_right, color: AppColors.textTertiary)
+              : Text(
+                  _statusText(step.status),
+                  style: AppTextStyles.bodySmall.copyWith(
+                    color: _statusColor(step.status),
+                  ),
                 ),
-              ),
-        onTap: route == null ? null : () => context.push(route),
+          onTap: route == null ? null : () => context.push(route),
+        ),
       ),
     );
   }

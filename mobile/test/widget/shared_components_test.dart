@@ -247,6 +247,149 @@ void main() {
     });
   });
 
+  group('AppCard — what F2 needs (§2.7.3)', () {
+    testWidgets('a control inside a tappable card stays its own node', (
+      tester,
+    ) async {
+      // The salon card's favourite heart. Merged into the card, a screen
+      // reader would have no way to reach it.
+      final handle = tester.ensureSemantics();
+      var card = 0;
+      var heart = 0;
+      await pumpApp(
+        tester,
+        home: Scaffold(
+          body: AppCard(
+            onTap: () => card++,
+            child: Row(
+              children: [
+                const Expanded(child: Text('Salon')),
+                IconButton(
+                  tooltip: 'Ajouter aux favoris',
+                  onPressed: () => heart++,
+                  icon: const Icon(Icons.favorite_border),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+      final heartNode = tester.getSemantics(find.byType(IconButton));
+      final cardNode = tester.getSemantics(find.text('Salon'));
+      expect(identical(heartNode, cardNode), isFalse);
+      expect(cardNode.label, contains('Salon'));
+      expect(cardNode.label, isNot(contains('favoris')));
+      expect(
+        heartNode,
+        matchesSemantics(
+          isButton: true,
+          hasTapAction: true,
+          hasFocusAction: true,
+          isFocusable: true,
+          hasEnabledState: true,
+          isEnabled: true,
+          tooltip: 'Ajouter aux favoris',
+        ),
+      );
+      await tester.tap(find.byType(IconButton));
+      expect((card, heart), (0, 1));
+      await tester.tap(find.text('Salon'));
+      expect((card, heart), (1, 1));
+      handle.dispose();
+    });
+
+    testWidgets('a card is read together: one node, as Material\'s Card was', (
+      tester,
+    ) async {
+      // 27 `Card`s became `AppCard`s; `Card` is a semantics container, and
+      // without one the lines of a card are each a stop of their own.
+      final handle = tester.ensureSemantics();
+      await pumpApp(
+        tester,
+        home: const Scaffold(
+          body: Column(
+            children: [
+              AppCard(
+                child: Column(children: [Text('Date'), Text('mardi 27')]),
+              ),
+              AppCard(child: Text('Heure')),
+            ],
+          ),
+        ),
+      );
+      final date = tester.getSemantics(find.text('Date'));
+      expect(
+        identical(date, tester.getSemantics(find.text('mardi 27'))),
+        isTrue,
+      );
+      expect(date.label, allOf(contains('Date'), contains('mardi 27')));
+      expect(
+        identical(date, tester.getSemantics(find.text('Heure'))),
+        isFalse,
+        reason: 'two cards are two stops',
+      );
+      handle.dispose();
+    });
+
+    Border? borderOf(WidgetTester tester) {
+      final m = tester.widget<Material>(
+        find
+            .descendant(
+              of: find.byType(AppCard),
+              matching: find.byType(Material),
+            )
+            .first,
+      );
+      final side = (m.shape! as RoundedRectangleBorder).side;
+      return side == BorderSide.none ? null : Border.fromBorderSide(side);
+    }
+
+    testWidgets('a control card: the borderStrong hairline, 1px', (
+      tester,
+    ) async {
+      await pumpApp(
+        tester,
+        home: Scaffold(
+          body: AppCard(outlined: true, onTap: () {}, child: const Text('x')),
+        ),
+      );
+      expect(borderOf(tester)!.top.color, AppColors.borderStrong);
+      expect(borderOf(tester)!.top.width, 1);
+    });
+
+    testWidgets('chosen (Q13): a 2px primary line on the white card, and '
+        'said, not only drawn', (tester) async {
+      final handle = tester.ensureSemantics();
+      await pumpApp(
+        tester,
+        home: Scaffold(
+          body: AppCard(
+            outlined: true,
+            selected: true,
+            onTap: () {},
+            child: const Text('Gérant'),
+          ),
+        ),
+      );
+      expect(borderOf(tester)!.top.color, AppColors.primary);
+      expect(borderOf(tester)!.top.width, 2);
+      final m = tester.widget<Material>(
+        find
+            .descendant(
+              of: find.byType(AppCard),
+              matching: find.byType(Material),
+            )
+            .first,
+      );
+      expect(m.color, AppColors.secondary);
+      expect(
+        tester.getSemantics(find.text('Gérant')),
+        isSemantics(isSelected: true, hasSelectedState: true),
+      );
+      handle.dispose();
+    });
+  });
+
   group('AppSkeleton — still, on a card, one label (Q11)', () {
     testWidgets('screen readers hear « Chargement… » once, nothing of the '
         'shapes', (tester) async {

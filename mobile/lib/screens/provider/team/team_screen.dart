@@ -13,6 +13,7 @@ import '../../../providers/pro_auth_provider.dart';
 import '../../../providers/pro_subscription_provider.dart';
 import '../../../providers/pro_team_provider.dart';
 import '../../../widgets/common/app_async_view.dart';
+import '../../../widgets/common/app_card.dart';
 import '../../../widgets/common/app_skeleton.dart';
 import '../../../widgets/common/app_snack_bar.dart';
 import '../../../widgets/common/brand_refresh.dart';
@@ -116,7 +117,9 @@ class _TeamScreenState extends State<TeamScreen> {
       (_) => _maybeLoadSubscription(),
     );
     return Scaffold(
-      backgroundColor: AppColors.surface,
+      // Cards are `secondary` on `background` (SYSTEM §3.1): the step that
+      // lifts them, now they have no shadow (B9.8 F2).
+      backgroundColor: AppColors.background,
       appBar: AppBar(title: const Text('Équipe')),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _openInviteSheet,
@@ -200,13 +203,7 @@ class _SeatsHeader extends StatelessWidget {
     final seats = subs.salon?.seats;
     if (seats == null) return const SizedBox.shrink();
     final ratio = seats.cap == 0 ? 0.0 : seats.used / seats.cap;
-    return Container(
-      padding: const EdgeInsets.all(AppTheme.spacingM),
-      decoration: BoxDecoration(
-        color: AppColors.secondary,
-        borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
-        border: Border.all(color: AppColors.border),
-      ),
+    return AppCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -241,8 +238,8 @@ class _MemberRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final initial = member.email.isEmpty ? '?' : member.email[0].toUpperCase();
-    return Card(
-      margin: EdgeInsets.zero,
+    return AppCard(
+      padding: EdgeInsets.zero,
       child: ListTile(
         onTap: onTap,
         leading: CircleAvatar(

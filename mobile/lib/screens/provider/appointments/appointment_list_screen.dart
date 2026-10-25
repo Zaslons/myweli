@@ -16,6 +16,7 @@ import '../../../models/appointment.dart';
 import '../../../providers/pro_appointment_provider.dart';
 import '../../../providers/pro_auth_provider.dart';
 import '../../../widgets/common/app_async_view.dart';
+import '../../../widgets/common/app_card.dart';
 import '../../../widgets/common/app_skeleton.dart';
 import 'appointment_calendar_view.dart';
 
@@ -293,71 +294,74 @@ class _AppointmentCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: AppTheme.spacingM),
-      child: ListTile(
-        onTap: onTap,
-        title: Text(
-          Formatters.formatDateTime(
-            toSalonTime(
-              appointment.appointmentDate,
-              tz: context.read<ProAuthProvider>().salonTimezone,
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppTheme.spacingM),
+      child: AppCard(
+        padding: EdgeInsets.zero,
+        child: ListTile(
+          onTap: onTap,
+          title: Text(
+            Formatters.formatDateTime(
+              toSalonTime(
+                appointment.appointmentDate,
+                tz: context.read<ProAuthProvider>().salonTimezone,
+              ),
+            ),
+            style: AppTextStyles.titleMedium.copyWith(
+              color: AppColors.textPrimary,
             ),
           ),
-          style: AppTextStyles.titleMedium.copyWith(
-            color: AppColors.textPrimary,
-          ),
-        ),
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Module clients C1c: who booked + the no-show badge.
-            Row(
-              children: [
-                Flexible(
-                  child: Text(
-                    appointment.clientDisplayName ??
-                        appointment.clientName ??
-                        'Client',
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-                if ((appointment.clientNoShowCount ?? 0) >= 1) ...[
-                  const SizedBox(width: AppTheme.spacingXS),
-                  Text(
-                    appointment.clientNoShowCount == 1
-                        ? '· 1 absence'
-                        : '· ${appointment.clientNoShowCount} absences',
-                    style: AppTextStyles.bodySmall.copyWith(
-                      color: (appointment.clientNoShowCount ?? 0) >= 2
-                          ? AppColors.error
-                          : AppColors.textSecondary,
+          subtitle: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Module clients C1c: who booked + the no-show badge.
+              Row(
+                children: [
+                  Flexible(
+                    child: Text(
+                      appointment.clientDisplayName ??
+                          appointment.clientName ??
+                          'Client',
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
+                  if ((appointment.clientNoShowCount ?? 0) >= 1) ...[
+                    const SizedBox(width: AppTheme.spacingXS),
+                    Text(
+                      appointment.clientNoShowCount == 1
+                          ? '· 1 absence'
+                          : '· ${appointment.clientNoShowCount} absences',
+                      style: AppTextStyles.bodySmall.copyWith(
+                        color: (appointment.clientNoShowCount ?? 0) >= 2
+                            ? AppColors.error
+                            : AppColors.textSecondary,
+                      ),
+                    ),
+                  ],
                 ],
-              ],
-            ),
-            Text(
-              Formatters.count(
-                appointment.serviceIds.length,
-                'service',
-                'services',
               ),
-            ),
-            Text(
-              Formatters.formatCurrency(
-                appointment.totalPrice,
-                currency: context.read<ProAuthProvider>().salonCurrency,
+              Text(
+                Formatters.count(
+                  appointment.serviceIds.length,
+                  'service',
+                  'services',
+                ),
               ),
-            ),
-          ],
-        ),
-        trailing: Chip(
-          label: Text(
-            StatusLabels.of(appointment.status),
-            style: AppTextStyles.bodySmall.copyWith(color: Colors.white),
+              Text(
+                Formatters.formatCurrency(
+                  appointment.totalPrice,
+                  currency: context.read<ProAuthProvider>().salonCurrency,
+                ),
+              ),
+            ],
           ),
-          backgroundColor: _getStatusColor(appointment.status),
+          trailing: Chip(
+            label: Text(
+              StatusLabels.of(appointment.status),
+              style: AppTextStyles.bodySmall.copyWith(color: Colors.white),
+            ),
+            backgroundColor: _getStatusColor(appointment.status),
+          ),
         ),
       ),
     );
