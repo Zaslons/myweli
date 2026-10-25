@@ -34,6 +34,12 @@
 #   api-health--JDCry3em2M:              passed=104  failed=0
 #   api-providers-database-kxq3vEwoNZ4:  passed=102  failed=0
 #
+# The checks validate the certificate since B9.4 (`--validate-ssl=true` below):
+# without it a check passed against an expired or wrong certificate, and the
+# certificate's days-left metric was never written. The checks applied on
+# 2026-08-12 are switched over IN PLACE by 81-uptime-tls-latency.sh, which also
+# adds the certificate and latency alerts.
+#
 # Design: docs/design/observability-error-reporting.md §8.5
 set -euo pipefail
 
@@ -59,13 +65,13 @@ gcloud monitoring uptime create "api-health" \
   --project="${PROJECT}" \
   --resource-type=uptime-url \
   --resource-labels=host="${HOST}",project_id="${PROJECT}" \
-  --protocol=https --path=/health --period=5 --timeout=10
+  --protocol=https --path=/health --period=5 --timeout=10 --validate-ssl=true
 
 gcloud monitoring uptime create "api-providers-database" \
   --project="${PROJECT}" \
   --resource-type=uptime-url \
   --resource-labels=host="${HOST}",project_id="${PROJECT}" \
-  --protocol=https --path=/providers --period=5 --timeout=10
+  --protocol=https --path=/providers --period=5 --timeout=10 --validate-ssl=true
 
 # --- 3. Alert on each ---------------------------------------------------------
 # The check_id is generated at creation (display name + a random suffix), so it
