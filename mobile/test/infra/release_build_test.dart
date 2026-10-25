@@ -257,37 +257,16 @@ void main() {
       // fake. A refused key exits 1 before the Google sign-in check; an
       // accepted one reaches it (the stub `node` exits 42) — still before any
       // `flutter build`.
-      late Directory stubs;
+      // Run in a throwaway repository at its own `origin/main` (B9.2: the
+      // script builds nothing else), with the tools stubbed.
+      late _ReleaseRepo repo;
+      setUpAll(() => repo = _ReleaseRepo());
+      tearDownAll(() => repo.dispose());
 
-      setUpAll(() {
-        stubs = Directory.systemTemp.createTempSync('release-build-stubs-');
-        File('${stubs.path}/gcloud').writeAsStringSync(r'''#!/bin/sh
-case "$*" in
-  *--secret=MOBILE_SENTRY_DSN*) echo 'https://abc123@o1.ingest.de.sentry.io/2' ;;
-  *--secret=SENTRY_DSN*) echo 'https://def456@o1.ingest.de.sentry.io/3' ;;
-  *--secret=CARTO_BASEMAPS_KEY*) printf '%s\n' "$STUB_CARTO_KEY" ;;
-  *) exit 99 ;;
-esac
-''');
-        File(
-          '${stubs.path}/node',
-        ).writeAsStringSync('#!/bin/sh\necho STUB_NODE_REACHED\nexit 42\n');
-        Process.runSync('chmod', [
-          '+x',
-          '${stubs.path}/gcloud',
-          '${stubs.path}/node',
-        ]);
-      });
-
-      tearDownAll(() => stubs.deleteSync(recursive: true));
-
-      ProcessResult build(String key) => Process.runSync(
-        'bash',
-        ['../tool/release_build.sh', 'ios', 'consumer'],
-        environment: {
-          'PATH': '${stubs.path}:${Platform.environment['PATH']}',
-          'STUB_CARTO_KEY': key,
-        },
+      ProcessResult build(String key) => repo.run(
+        'ios',
+        'consumer',
+        env: {'STUB_CARTO_KEY': key, 'STUB_NODE_EXIT': '42'},
       );
 
       final bad = {
@@ -373,6 +352,133 @@ esac
     });
   });
 
+  // docs/design/hygiene-batch9.md §2.2 (B9.2) — run for real, in a
+  // throwaway repository with `gcloud`, `node`, `flutter` and `xcrun` stubbed.
+  group('a store build is a reviewed commit, archived, validated (B9.2)', () {
+    late _ReleaseRepo repo;
+    setUp(() => repo = _ReleaseRepo());
+    tearDown(() => repo.dispose());
+
+    String out(ProcessResult r) => '${r.stdout}${r.stderr}';
+
+    test('a commit that is not origin/main is refused before anything is '
+        'read', () {
+      repo.commit('a change nobody reviewed');
+      final r = repo.run('ios', 'consumer');
+      expect(r.exitCode, 1, reason: out(r));
+      expect(out(r), contains('origin/main'));
+      expect(repo.gcloudCalls, isEmpty, reason: 'no secret read for it');
+      expect(out(r), isNot(contains('STUB_FLUTTER_REACHED')));
+    });
+
+    test('origin/main is fetched first: a main that moved on since the last '
+        'fetch is not the one this HEAD is', () {
+      repo.advanceOrigin();
+      final r = repo.run('ios', 'consumer');
+      expect(r.exitCode, 1, reason: out(r));
+      expect(out(r), contains('origin/main'));
+      expect(repo.gcloudCalls, isEmpty);
+    });
+
+    test('a tree that is not clean is refused — an untracked file too', () {
+      File('${repo.work.path}/mobile/notes.txt').writeAsStringSync('x');
+      final r = repo.run('ios', 'consumer');
+      expect(r.exitCode, 1, reason: out(r));
+      expect(out(r), contains('not clean'));
+      expect(repo.gcloudCalls, isEmpty);
+    });
+
+    test('a modified tracked file is refused', () {
+      File(
+        '${repo.work.path}/mobile/pubspec.yaml',
+      ).writeAsStringSync('name: myweli\nversion: 0.0.2+1\n');
+      final r = repo.run('android', 'pro');
+      expect(r.exitCode, 1, reason: out(r));
+      expect(out(r), contains('not clean'));
+    });
+
+    test('an iOS build without the App Store Connect key is refused first', () {
+      final r = repo.run('ios', 'consumer', env: {'ASC_KEY_ID': ''});
+      expect(r.exitCode, 1, reason: out(r));
+      expect(out(r), contains('ASC_KEY_ID'));
+      expect(repo.gcloudCalls, isEmpty);
+    });
+
+    test('the archive is parked under its flavour AND build, the IPA is '
+        'validated, then — only then — the upload command is printed', () {
+      final r = repo.run('ios', 'pro');
+      final o = out(r);
+      expect(r.exitCode, 0, reason: o);
+      const n = 1; // one commit: build 1 in this repository
+      final archive = Directory(
+        '${repo.work.path}/mobile/build/ios/archive/Runner-pro-$n.xcarchive',
+      );
+      expect(archive.existsSync(), isTrue, reason: o);
+      expect(
+        Directory(
+          '${repo.work.path}/mobile/build/ios/archive/Runner.xcarchive',
+        ).existsSync(),
+        isFalse,
+        reason: 'the next build would overwrite it',
+      );
+      expect(repo.xcrunCalls.join('\n'), contains('--validate-app'));
+      expect(
+        repo.xcrunCalls.join('\n'),
+        contains('build/ios/ipa/MyWeli-pro.ipa'),
+      );
+      expect(o, contains('--upload-package'));
+      expect(o, contains('MyWeli-pro.ipa'));
+    });
+
+    test('a refused validation stops everything: no upload command', () {
+      final r = repo.run('ios', 'pro', env: {'STUB_VALIDATE_EXIT': '1'});
+      final o = out(r);
+      expect(r.exitCode, 1, reason: o);
+      expect(o, isNot(contains('--upload-package')));
+      expect(o, isNot(contains('debug-files upload')));
+    });
+
+    test('a build that wrote no archive is refused', () {
+      final r = repo.run('ios', 'pro', env: {'STUB_NO_ARCHIVE': '1'});
+      expect(r.exitCode, 1, reason: out(r));
+      expect(
+        out(r),
+        contains('left no build/ios/archive/Runner.xcarchive'),
+        reason: 'refused by the check, not by `mv` failing',
+      );
+    });
+
+    test('the Sentry command carries the archive\'s dSYMs and the Dart '
+        'symbols, and names the suspect commits of THIS release', () {
+      final r = repo.run('ios', 'pro');
+      final o = out(r);
+      expect(r.exitCode, 0, reason: o);
+      final upload = o
+          .split('\n')
+          .skipWhile((l) => !l.contains('debug-files upload'))
+          .take(3)
+          .join(' ');
+      expect(upload, contains('mobile/build/symbols/pro'));
+      expect(
+        upload,
+        contains('mobile/build/ios/archive/Runner-pro-1.xcarchive/dSYMs'),
+      );
+      expect(o, contains('set-commits'));
+      expect(o, contains('com.myweli.pro@0.0.1+1'), reason: 'the app release');
+      expect(o, contains('Zaslons/myweli@${repo.head}'));
+    });
+
+    test('Android: no validation step, the same release and commits', () {
+      final r = repo.run('android', 'consumer');
+      final o = out(r);
+      expect(r.exitCode, 0, reason: o);
+      expect(repo.xcrunCalls, isEmpty);
+      expect(o, contains('com.myweli.app@0.0.1+1'));
+      expect(o, contains('Zaslons/myweli@${repo.head}'));
+      expect(o, isNot(contains('dSYMs')));
+    });
+  });
+
   group('the premise: the two entry points are different apps', () {
     /// If these ever converged, `--target` would stop mattering and the test
     /// above would be pinning a flag with no consequence. Stating the reason
@@ -406,4 +512,169 @@ esac
       );
     });
   });
+}
+
+/// A throwaway repository holding `tool/release_build.sh` (the real file), at
+/// its own `origin/main` and clean — the only state the script builds from —
+/// with `gcloud`, `node`, `flutter` and `xcrun` stubbed on PATH. The stubs log
+/// what reached them; `flutter build ipa` leaves an IPA and an archive behind.
+class _ReleaseRepo {
+  _ReleaseRepo() {
+    root = Directory.systemTemp.createTempSync('release-repo-');
+    work = Directory('${root.path}/work')..createSync();
+    stubs = Directory('${root.path}/stubs')..createSync();
+    Directory('${work.path}/tool').createSync();
+    File(
+      '${work.path}/tool/release_build.sh',
+    ).writeAsStringSync(File('../tool/release_build.sh').readAsStringSync());
+    Directory('${work.path}/mobile').createSync();
+    File(
+      '${work.path}/mobile/pubspec.yaml',
+    ).writeAsStringSync('name: myweli\nversion: 0.0.1+1\n');
+    Directory('${work.path}/infra/mobile').createSync(recursive: true);
+    File(
+      '${work.path}/infra/mobile/96-verify-google-identity.mjs',
+    ).writeAsStringSync('// stub\n');
+    File('${work.path}/.gitignore').writeAsStringSync('mobile/build/\n');
+    _git(['init', '-q', '-b', 'main']);
+    commit('base');
+    // `-b main` on the bare repository too: its HEAD otherwise follows the
+    // machine's `init.defaultBranch` — `master` on the Linux runners — and a
+    // clone of it checks out nothing (found by CI, invisible on a Mac set to
+    // `main`).
+    Process.runSync('git', [
+      'init',
+      '-q',
+      '--bare',
+      '-b',
+      'main',
+      '${root.path}/origin.git',
+    ]);
+    _git(['remote', 'add', 'origin', '${root.path}/origin.git']);
+    _git(['push', '-q', 'origin', 'main']);
+    _git(['fetch', '-q', 'origin']);
+    _stub('gcloud', r'''
+echo "$*" >> "$STUB_LOG/gcloud"
+case "$*" in
+  *--secret=MOBILE_SENTRY_DSN*) echo 'https://abc123@o1.ingest.de.sentry.io/2' ;;
+  *--secret=SENTRY_DSN*) echo 'https://def456@o1.ingest.de.sentry.io/3' ;;
+  *--secret=CARTO_BASEMAPS_KEY*) printf '%s\n' "${STUB_CARTO_KEY:-aB3_-zZ9-q_Wk8yLmN0pQrStU}" ;;
+  *) exit 99 ;;
+esac
+''');
+    _stub('node', r'''
+echo STUB_NODE_REACHED
+exit "${STUB_NODE_EXIT:-0}"
+''');
+    _stub('flutter', r'''
+echo STUB_FLUTTER_REACHED
+case "$*" in
+  *"build ipa"*)
+    sleep 1
+    mkdir -p build/ios/ipa build/ios/archive
+    if [ -z "$STUB_NO_ARCHIVE" ]; then
+      mkdir -p build/ios/archive/Runner.xcarchive/dSYMs
+    fi
+    printf 'ipa' > build/ios/ipa/MyWeli.ipa
+    ;;
+esac
+''');
+    _stub('xcrun', r'''
+echo "$*" >> "$STUB_LOG/xcrun"
+exit "${STUB_VALIDATE_EXIT:-0}"
+''');
+    Directory('${root.path}/log').createSync();
+  }
+
+  late final Directory root;
+  late final Directory work;
+  late final Directory stubs;
+
+  String get head =>
+      (Process.runSync('git', [
+                'rev-parse',
+                'HEAD',
+              ], workingDirectory: work.path).stdout
+              as String)
+          .trim();
+
+  List<String> _log(String tool) {
+    final f = File('${root.path}/log/$tool');
+    return f.existsSync() ? f.readAsLinesSync() : const [];
+  }
+
+  List<String> get gcloudCalls => _log('gcloud');
+  List<String> get xcrunCalls => _log('xcrun');
+
+  void commit(String message) {
+    File(
+      '${work.path}/mobile/HISTORY',
+    ).writeAsStringSync('$message\n', mode: FileMode.append);
+    _git(['add', '-A']);
+    _git([
+      '-c',
+      'user.name=t',
+      '-c',
+      'user.email=t@t',
+      'commit',
+      '-q',
+      '-m',
+      message,
+    ]);
+  }
+
+  ProcessResult run(
+    String platform,
+    String flavour, {
+    Map<String, String> env = const {},
+  }) => Process.runSync(
+    'bash',
+    ['${work.path}/tool/release_build.sh', platform, flavour],
+    environment: {
+      'PATH': '${stubs.path}:${Platform.environment['PATH']}',
+      'STUB_LOG': '${root.path}/log',
+      'ASC_KEY_ID': 'KEY123',
+      'ASC_ISSUER_ID': 'issuer-uuid',
+      ...env,
+    },
+  );
+
+  /// Someone merges to main after this clone last fetched: the local
+  /// `origin/main` is stale, HEAD still equals it.
+  void advanceOrigin() {
+    final other = '${root.path}/other';
+    final cloned = Process.runSync('git', [
+      'clone',
+      '-q',
+      '--branch',
+      'main',
+      '${root.path}/origin.git',
+      other,
+    ]);
+    if (cloned.exitCode != 0) throw StateError('clone: ${cloned.stderr}');
+    File(
+      '$other/mobile/HISTORY',
+    ).writeAsStringSync('merged\n', mode: FileMode.append);
+    for (final a in [
+      ['add', '-A'],
+      ['-c', 'user.name=t', '-c', 'user.email=t@t', 'commit', '-q', '-m', 'm'],
+      ['push', '-q', 'origin', 'HEAD:main'],
+    ]) {
+      final r = Process.runSync('git', a, workingDirectory: other);
+      if (r.exitCode != 0) throw StateError('git $a: ${r.stderr}');
+    }
+  }
+
+  void _git(List<String> args) {
+    final r = Process.runSync('git', args, workingDirectory: work.path);
+    if (r.exitCode != 0) throw StateError('git $args: ${r.stderr}');
+  }
+
+  void _stub(String name, String body) {
+    final f = File('${stubs.path}/$name')
+      ..writeAsStringSync('#!/bin/sh\n$body');
+    Process.runSync('chmod', ['+x', f.path]);
+  }
+
+  void dispose() => root.deleteSync(recursive: true);
 }

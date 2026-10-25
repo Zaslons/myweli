@@ -39,6 +39,46 @@ case "$PLATFORM" in ios|android) ;; *)
 case "$FLAVOUR" in consumer|pro) ;; *)
   echo "usage: $0 <ios|android> <consumer|pro>" >&2; exit 1;; esac
 
+# **Only a reviewed commit becomes a store build** (docs/design/hygiene-batch9.md
+# §2.2, B9.2). Checked FIRST, before a secret is read: a binary sent to Apple
+# from a branch nobody reviewed, or from a tree with a stray edit in it, is the
+# one release no later step can tell apart from a real one — the build number
+# is a commit count, and an unreviewed commit counts the same. The runbook said
+# `git checkout main && git pull && git status` (app-store-forms.md §11.2); a
+# runbook line is a step that gets skipped, so the script refuses instead.
+REPO="$(cd "$(dirname "$0")/.." && pwd)"
+if [[ -n "$(git -C "$REPO" status --porcelain --untracked-files=normal)" ]]; then
+  echo "::error:: the working tree is not clean. A store build is a commit, not" >&2
+  echo "          a commit plus whatever is lying around:" >&2
+  git -C "$REPO" status --short >&2
+  exit 1
+fi
+if ! git -C "$REPO" fetch --quiet origin main; then
+  echo "::error:: could not fetch origin/main — refusing to guess what it is." >&2
+  exit 1
+fi
+HEAD_SHA="$(git -C "$REPO" rev-parse HEAD)"
+MAIN_SHA="$(git -C "$REPO" rev-parse origin/main)"
+if [[ "$HEAD_SHA" != "$MAIN_SHA" ]]; then
+  echo "::error:: HEAD is $HEAD_SHA, origin/main is $MAIN_SHA. A store build is" >&2
+  echo "          built from origin/main only:" >&2
+  echo "            git checkout main && git pull --ff-only" >&2
+  exit 1
+fi
+
+# **An iOS IPA is validated before anything prints how to upload it**, and the
+# validation needs the App Store Connect API key (app-store-forms.md §11.4).
+# Asked for now rather than after a ten-minute build: build 587's separate
+# validation step never ran (§11.5) — a broken command chain, unnoticed.
+if [[ "$PLATFORM" == ios ]]; then
+  if [[ -z "${ASC_KEY_ID:-}" || -z "${ASC_ISSUER_ID:-}" ]]; then
+    echo "::error:: set ASC_KEY_ID and ASC_ISSUER_ID (the App Store Connect API key," >&2
+    echo "          app-store-forms.md §11.4): the IPA is validated before the" >&2
+    echo "          upload command is printed." >&2
+    exit 1
+  fi
+fi
+
 echo "→ reading MOBILE_SENTRY_DSN from Secret Manager (never printed)…"
 DSN="$(gcloud secrets versions access latest --secret=MOBILE_SENTRY_DSN --project="$PROJECT")"
 if [[ -z "$DSN" ]]; then
@@ -202,29 +242,84 @@ if [[ "$PLATFORM" == ios ]]; then
   [[ -f "$IPA_DIR/DistributionSummary.plist" ]] && \
     mv "$IPA_DIR/DistributionSummary.plist" "$IPA_DIR/DistributionSummary-$FLAVOUR.plist"
   echo "→ IPA: mobile/$IPA_DIR/MyWeli-$FLAVOUR.ipa"
+
+  # **Park the archive under its flavour AND build** (B9.2), like the IPA.
+  # `flutter build ipa` writes build/ios/archive/Runner.xcarchive for every
+  # flavour, so the next build overwrote it — and the archive holds the dSYMs
+  # Sentry needs to read a native crash. It was copied by hand (§11.2).
+  ARCHIVE_DIR="build/ios/archive"
+  if [[ ! -d "$ARCHIVE_DIR/Runner.xcarchive" ]]; then
+    echo "::error:: this build left no $ARCHIVE_DIR/Runner.xcarchive — nothing to keep." >&2
+    exit 1
+  fi
+  ARCHIVE="$ARCHIVE_DIR/Runner-$FLAVOUR-$BUILD_NUMBER.xcarchive"
+  rm -rf "$ARCHIVE"
+  mv "$ARCHIVE_DIR/Runner.xcarchive" "$ARCHIVE"
+  echo "→ archive: mobile/$ARCHIVE"
+
+  # **Validate before anything says « upload »** (B9.2). A refusal here stops
+  # everything: no upload command, no symbol command — an IPA Apple will not
+  # take is not a release.
+  echo "→ xcrun altool --validate-app mobile/$IPA_DIR/MyWeli-$FLAVOUR.ipa"
+  if ! xcrun altool --validate-app "$IPA_DIR/MyWeli-$FLAVOUR.ipa" \
+      --api-key "$ASC_KEY_ID" --api-issuer "$ASC_ISSUER_ID"; then
+    echo "::error:: App Store Connect refused the IPA (above). Not printing the" >&2
+    echo "          upload command: fix the build, then run this again." >&2
+    exit 1
+  fi
 else
   echo "→ flutter build appbundle --flavor $FLAVOUR --target $ENTRY --build-number $BUILD_NUMBER (DSN + basemap key injected, not shown)"
   flutter build appbundle "${COMMON[@]}"
 fi
 
-cat <<'NOTE'
+# **What is left for the operator**, for THIS build — its symbols, its release,
+# its commits. Printed, not run: they need the Sentry token, which this script
+# deliberately never holds.
+BUNDLE="com.myweli.app"
+[[ "$FLAVOUR" == pro ]] && BUNDLE="com.myweli.pro"
+VERSION="$(sed -n 's/^version:[[:space:]]*\([^+[:space:]]*\).*/\1/p' pubspec.yaml)"
+# The release the app reports: SentryFlutter's `package@version+build`
+# (error_reporting.dart — `release` is deliberately not set by hand).
+RELEASE="$BUNDLE@$VERSION+$BUILD_NUMBER"
+SYMBOLS="mobile/build/symbols/$FLAVOUR"
+# The archive's dSYMs: without them a NATIVE crash (a plugin, the engine) stays
+# unreadable — the Dart symbols cover only Dart frames (B9.2).
+[[ "$PLATFORM" == ios ]] && SYMBOLS="$SYMBOLS mobile/$ARCHIVE/dSYMs"
 
-Symbols were written to mobile/build/symbols/<flavour>/.
+cat <<NOTE
+
+This build's symbols: $SYMBOLS.
 
 **Upload them to Sentry before releasing**, or every stack trace stays
 obfuscated. That step needs a Sentry auth token and is the one thing this
-script deliberately does not do for you. The working command, as first run
-for build 530 (2026-08-27) — token from Secret Manager, never pasted; both
-flavour dirs in ONE call; no --url needed (the org token embeds its own API
-address, measured — the CLI ignores a manual one with a warning):
+script deliberately does not do for you — token from Secret Manager, never
+pasted; no --url needed (the org token embeds its own API address, measured —
+the CLI ignores a manual one with a warning). From the repository root:
 
-  SENTRY_AUTH_TOKEN="$(gcloud secrets versions access latest \
-      --secret=SENTRY_AUTH_TOKEN --project=myweli)" \
-    sentry-cli debug-files upload --include-sources -o myweli -p myweli-app \
-      mobile/build/symbols/consumer mobile/build/symbols/pro
+  export SENTRY_AUTH_TOKEN="\$(gcloud secrets versions access latest \\
+      --secret=SENTRY_AUTH_TOKEN --project=myweli)"
+  sentry-cli debug-files upload --include-sources -o myweli -p myweli-app \\
+      $SYMBOLS
 
 Verify against the SERVER, not the upload log:
 GET /api/0/projects/myweli/myweli-app/files/dsyms/ must list the new debug
-IDs (12 entries per Android build pair). Uploads are debug-ID-matched and
-release-independent — no build number is named, and re-uploading is a no-op.
+IDs. Uploads are debug-ID-matched and release-independent — re-uploading is a
+no-op.
+
+**Name the commits this release carries**, so a new issue in it shows its
+suspect commits (B9.4) — the release is the app's own, $RELEASE:
+
+  sentry-cli releases -o myweli -p myweli-app new "$RELEASE"
+  sentry-cli releases -o myweli set-commits "$RELEASE" \\
+      --commit "Zaslons/myweli@$HEAD_SHA"
 NOTE
+
+if [[ "$PLATFORM" == ios ]]; then
+  cat <<UPLOAD
+
+**Validated by App Store Connect.** Upload it (app-store-forms.md §11.5):
+
+  xcrun altool --upload-package mobile/build/ios/ipa/MyWeli-$FLAVOUR.ipa \\
+      --api-key "\$ASC_KEY_ID" --api-issuer "\$ASC_ISSUER_ID" --wait --show-progress
+UPLOAD
+fi

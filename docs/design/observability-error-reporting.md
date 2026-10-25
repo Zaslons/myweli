@@ -336,11 +336,16 @@ production — and a deleted check leaves no trace of what it used to assert.
 
 - **Web and the app.** Vercel has its own availability, and an app cannot be
   probed. Uptime here means the API.
-- **Certificate expiry.** The managed cert renews automatically, but nothing
-  watches that it did.
-- **Latency.** These checks answer "does it answer", not "does it answer in
-  time". A budget for that belongs with performance monitoring, which is
-  deliberately off (§9.3).
+- ~~**Certificate expiry.**~~ **Covered since B9.4**
+  (`infra/gcp/81-uptime-tls-latency.sh`): both checks validate the certificate
+  (`--validate-ssl=true`), and an alert fires when the certificate has less
+  than 14 days left. Before, a check passed against an expired certificate
+  and its days-left metric was never written.
+- ~~**Latency.**~~ **Covered since B9.4**, coarsely: the mean probe latency
+  across regions above 3 s for 15 minutes alerts, per check. A real latency
+  budget still belongs with performance monitoring, which stays off (§9.3,
+  decision 34).
+- **Error-rate thresholds** — still not (§8.2): no traffic, no baseline.
 
 ## 9. What is NOT wired yet — the account-side step
 
@@ -420,9 +425,14 @@ uniform across the three:
 Mobile's release is deliberately the version + build, because that is what maps a
 crash-free rate to a specific TestFlight or Play build — the number §1.4's staged
 rollout is watched on. It is the right identifier; it simply is not a commit, so
-suspect commits there needs a release-to-commit association wired separately
-(`sentry-cli releases set-commits`, in a release workflow). Not worth doing until
-mobile is actually distributed.
+suspect commits there needs a release-to-commit association wired separately.
+**Since B9.4, `tool/release_build.sh` prints it** for each store build — the
+app's release (`com.myweli.<app>@<version>+<build>`) and the commit it was
+built from, which is always `origin/main` now (B9.2):
+`sentry-cli releases set-commits "<release>" --commit "Zaslons/myweli@<sha>"`.
+Printed, not run, like the symbols upload: it needs the Sentry token. It also
+needs Sentry's GitHub integration to know `Zaslons/myweli` — a console fact
+this repository cannot see (BACKLOG batch 10).
 
 **Do not block on any of this.** Errors flow without the integration; it is an
 enhancement, and a fiddly one can wait until events are arriving.
