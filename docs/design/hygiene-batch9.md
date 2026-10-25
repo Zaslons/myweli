@@ -1050,7 +1050,7 @@ liste de ce qui flotte.
   attention 5,3:1, erreur 7,4:1, info 12,5:1, neutre 6,8:1 ; « fort » et
   « or » à l'encre — l'or n'est pas un texte (B7.1) — et chacun avec son
   trait (plus bas).
-  Les tons vivent dans `core/theme/chip_tone.dart`, et
+  Les tons vivent dans `core/utils/chip_tone.dart`, et
   `appointmentStatusTone` à côté d'`appointmentStatusColor`, pour qu'un
   statut ait une seule couleur et un seul ton — **ceux de la décision B7 du
   propriétaire** (« des statuts teintés par genre, partout » :
@@ -1140,4 +1140,10 @@ teinte au rayon d'une pastille ou d'un badge).
   qu'on ne touche pas), l'équipe sur trois marches, et la planche des
   composants avec les quatre façons et les tons. Le premier passage a
   montré le Manager gris parmi les gris.
-- **Le serveur et le web** ne sont pas touchés depuis #699.
+- **Le web a vu ce que l'app ne voyait pas.** Les tons étaient d'abord
+  dans `core/theme/`, et la porte du miroir des jetons du web
+  (`tokens.mirror.test.ts`) tient la liste des fichiers de ce dossier : un
+  fichier de plus est une source de jetons qu'elle ne lit pas. Un ton est
+  un nom, pas une valeur : il est passé à côté de `status_colors.dart`, et
+  la porte reste ce qu'elle était. La suite du web : 2 255 essais verts.
+  Le serveur n'est pas touché depuis #699.

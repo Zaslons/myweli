@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 
 import '../../core/theme/app_theme.dart';
-import '../../core/theme/chip_tone.dart';
 import '../../core/theme/colors.dart';
 import '../../core/theme/text_styles.dart';
+import '../../core/utils/chip_tone.dart';
 
-export '../../core/theme/chip_tone.dart';
+export '../../core/utils/chip_tone.dart';
 
 /// The chip (SYSTEM.md §11.3): `radiusPill`; **filled** when chosen,
 /// **outlined** (`borderStrong`) otherwise, **tinted** for a status. Built in

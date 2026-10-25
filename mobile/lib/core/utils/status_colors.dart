@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../../models/appointment.dart';
-import '../theme/chip_tone.dart';
 import '../theme/colors.dart';
+import 'chip_tone.dart';
 
 /// The canonical appointment-status → colour mapping, by **kind** — the owner's
 /// B7 decision, « kind-tinted StatusChip everywhere » (web-b7-desktop.md;

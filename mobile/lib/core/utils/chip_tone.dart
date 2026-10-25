@@ -1,6 +1,8 @@
 /// The tones of a status chip (`AppChip.status`, SYSTEM.md §11.3) — here,
-/// beside the colours, so a status's tone is said where its colour is
-/// (`core/utils/status_colors.dart`) without the core importing a widget.
+/// beside `status_colors.dart`, so a status's tone is said where its colour
+/// is without the core importing a widget. Not in `core/theme/`: that folder
+/// holds the token sources the web's mirror gate parses, and a tone is a
+/// name, not a value (`web/tests/tokens.mirror.test.ts`).
 library;
 
 /// What a status chip says by its colour — always with its words too.
