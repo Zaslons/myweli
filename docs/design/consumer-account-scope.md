@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Statut** | **Brouillon — en attente de validation** (Q1, Q2 au §8). Rien n'est construit. |
+| **Statut** | **Validé le 2026-10-25** — Q1 = **(a)** la personne reste où elle est, seul un écran du compte part vers la connexion ; Q2 = **(a)** le jumeau Pro dans une PR à lui (§8). |
 | **Owner** | Sadreddine |
 | **Last updated** | 2026-10-25 |
 | **PRD ref / phase** | FR-AUTH-003 (session, « explicit logout ») · FR-AUTH-005 (suppression du compte) · V1 |
@@ -157,7 +157,7 @@ se connecte ici (`ON CONFLICT (token) DO UPDATE SET user_id`,
 `postgres_device_token_repository.dart:22`) ; d'ici là, une notification de A
 peut encore arriver sur ce téléphone — celui dont A se servait.
 
-### 2.5 Ce que la personne voit (Q1)
+### 2.5 Ce que la personne voit (Q1 = a)
 
 - **« Déconnexion » et « Supprimer mon compte »** : rien ne change à l'écran
   (la confirmation, puis la connexion ; « Compte supprimé » pour la
