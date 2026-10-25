@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:go_router/go_router.dart';
 
+import '../core/access/account_scope.dart';
 import '../core/access/pro_access_guard.dart';
 import '../core/access/pro_salon_scope.dart';
 import '../core/constants/failure_messages.dart';
@@ -394,6 +395,17 @@ class ProAuthProvider extends ChangeNotifier {
     return notice;
   }
 
+  bool _sessionEndedNotice = false;
+
+  /// True ONCE after the server ended the Pro session: the sign-in says
+  /// « Votre session a expiré. Reconnectez-vous. » (pro-account-scope.md
+  /// §2.3, Q2 = a), then it is spent.
+  bool consumeSessionEndedNotice() {
+    final notice = _sessionEndedNotice;
+    _sessionEndedNotice = false;
+    return notice;
+  }
+
   /// [notice] is the salon named by the login banner — taken by the caller
   /// BEFORE anything is nulled (C1: a second answer computing it afterwards
   /// renamed it « votre salon »).
@@ -675,7 +687,89 @@ class ProAuthProvider extends ChangeNotifier {
     // The global 403 seam (access §5.3): forbidden responses anywhere in the
     // pro surfaces trigger ONE membership probe — revoked members sign out.
     ProAccessGuard.onForbidden = checkMembershipAlive;
+    _sessionEnds = _authService.providerSessionEnded.listen(
+      (_) => _onSessionEnded(),
+    );
     ready = loadCurrentProvider();
+  }
+
+  late final StreamSubscription<void> _sessionEnds;
+
+  @override
+  void dispose() {
+    _sessionEnds.cancel();
+    super.dispose();
+  }
+
+  /// **Every change of WHO is signed in goes through here** (B9.14 —
+  /// docs/design/pro-account-scope.md §2.1). When the account's id changes
+  /// — the restore, each sign-in, each way out — every salon store and every
+  /// account store is reset in this same synchronous block, before the
+  /// caller notifies: no frame shows the receptionist the owner's figures.
+  /// Another account is another salon, or another role in the same one. The
+  /// same account (a membership refresh, a salon switch) resets nothing
+  /// here; a switch resets the salon stores itself.
+  void _setProvider(ProviderUser? next) {
+    final changed = next?.id != _provider?.id;
+    _provider = next;
+    if (!changed) return;
+    _sessionEndedNotice = false;
+    ProSalonScope.resetAll();
+    AccountScope.resetAll();
+  }
+
+  /// A « Déconnexion » is under way: it clears the session itself, so a
+  /// refusal heard meanwhile is that same way out — unless it fails, and
+  /// then [_doneLeaving] ends the account all the same (consumer twin:
+  /// `AuthProvider`, consumer-account-scope.md §11).
+  bool _leaving = false;
+  bool _endedWhileLeaving = false;
+
+  /// The server refused to renew the Pro session
+  /// (`AuthServiceInterface.providerSessionEnded`): out, to the sign-in,
+  /// with the sentence. `logout` tries to unregister the device too — that
+  /// needs the session that is gone, and is best-effort already.
+  void _onSessionEnded() {
+    if (_provider == null) return;
+    if (_leaving) {
+      _endedWhileLeaving = true;
+      return;
+    }
+    unawaited(_endSession());
+  }
+
+  Future<void> _endSession() async {
+    await logout();
+    if (_provider != null) return; // the sign-out failed: _doneLeaving ends it
+    _sessionEndedNotice = true;
+    _router.go('/pro/login');
+    notifyListeners();
+  }
+
+  /// The end of a « Déconnexion », whatever it answered. The caller
+  /// notifies.
+  void _doneLeaving() {
+    _leaving = false;
+    final ended = _endedWhileLeaving;
+    _endedWhileLeaving = false;
+    if (ended && _provider != null) {
+      _clearSession();
+      _sessionEndedNotice = true;
+      _router.go('/pro/login');
+    }
+  }
+
+  /// What a sign-out forgets of the session itself.
+  void _clearSession() {
+    _setProvider(null);
+    _membership = null;
+    _activeSalon = null;
+    _market = null;
+    _keptFacts = null;
+    _selectedSalonId = null;
+    _salons = const [];
+    _salonsAgain = false;
+    _clearRejoin();
   }
 
   final GoRouter? _routerOverride;
@@ -725,7 +819,7 @@ class ProAuthProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      _provider = await _authService.getCurrentProvider();
+      _setProvider(await _authService.getCurrentProvider());
       _error = null;
       if (_provider != null) {
         // Instant shaping from the cached membership + the R6 selection,
@@ -794,7 +888,7 @@ class ProAuthProvider extends ChangeNotifier {
     try {
       final result = await run();
       if (result.signedIn) {
-        _provider = result.provider;
+        _setProvider(result.provider);
         _syncPush();
         await refreshMembership();
         unawaited(loadMySalons());
@@ -836,7 +930,7 @@ class ProAuthProvider extends ChangeNotifier {
         proof,
       );
       if (response.success && response.data != null) {
-        _provider = response.data;
+        _setProvider(response.data);
         _pendingInvitations = const [];
         _invitationProof = null;
         _syncPush();
@@ -948,6 +1042,7 @@ class ProAuthProvider extends ChangeNotifier {
 
   Future<void> logout() async {
     _isLoading = true;
+    _leaving = true;
     notifyListeners();
 
     try {
@@ -958,19 +1053,13 @@ class ProAuthProvider extends ChangeNotifier {
         /* best-effort */
       }
       await _authService.logoutProvider();
-      _provider = null;
-      _membership = null;
-      _activeSalon = null;
-      _market = null;
-      _keptFacts = null;
-      _selectedSalonId = null;
-      _salons = const [];
-      _salonsAgain = false;
-      _clearRejoin();
+      _clearSession();
       _error = null;
     } catch (e) {
+      // Still signed in: the account keeps its salon too.
       _error = kGenericErrorMessage;
     } finally {
+      _doneLeaving();
       _isLoading = false;
       notifyListeners();
     }

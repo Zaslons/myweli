@@ -25,6 +25,7 @@ import '../../../widgets/common/apple_logo.dart';
 import '../../../widgets/common/auth_switch_prompt.dart';
 import '../../../widgets/common/google_g_logo.dart';
 import '../../../widgets/common/inline_feedback.dart';
+import '../../../widgets/common/session_ended_notice.dart';
 import '../../../widgets/team/invitation_card.dart';
 import '../../../widgets/team/revoked_access_banner.dart';
 
@@ -58,13 +59,22 @@ class _ProLoginScreenState extends State<ProLoginScreen> {
   /// auth provider after the global handler signed the member out.
   String? _revokedSalon;
 
+  /// The server ended the session (pro-account-scope.md §2.3, Q2 = a) —
+  /// consumed once, like the revoked notice.
+  bool _sessionEnded = false;
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      final notice = context.read<ProAuthProvider>().consumeRevokedNotice();
-      if (notice != null && mounted) {
-        setState(() => _revokedSalon = notice);
+      final auth = context.read<ProAuthProvider>();
+      final notice = auth.consumeRevokedNotice();
+      final ended = auth.consumeSessionEndedNotice();
+      if ((notice != null || ended) && mounted) {
+        setState(() {
+          _revokedSalon = notice;
+          _sessionEnded = ended;
+        });
       }
     });
   }
@@ -268,6 +278,13 @@ class _ProLoginScreenState extends State<ProLoginScreen> {
               if (_revokedSalon != null) ...[
                 const SizedBox(height: AppTheme.spacingM),
                 RevokedAccessBanner(salonName: _revokedSalon!),
+              ],
+              if (_sessionEnded) ...[
+                const SizedBox(height: AppTheme.spacingM),
+                const InlineFeedback(
+                  kSessionEndedMessage,
+                  kind: SnackKind.info,
+                ),
               ],
               const SizedBox(height: AppTheme.spacingL),
               SvgPicture.asset(

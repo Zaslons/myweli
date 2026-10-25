@@ -3,10 +3,12 @@ import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
+import 'package:myweli/models/provider_session.dart';
 import 'package:myweli/services/api/api_auth_service.dart';
 import 'package:myweli/services/api/refreshing_http_client.dart';
 import 'package:myweli/services/interfaces/session_store.dart';
 import 'package:myweli/services/mock/mock_auth_service.dart';
+import 'package:myweli/services/mock/mock_data.dart';
 
 /// A session the server stops renewing ENDS the account — today it only
 /// vanished from storage while the app went on showing the person signed in
@@ -198,6 +200,95 @@ void main() {
       expect(heard, isEmpty);
       expect(await auth.getCurrentUser(), isNotNull);
     });
+  });
+
+  // The Pro twin (pro-account-scope.md §2.3): the provider session's end is
+  // its own announcement, and the client's is not it.
+  group('ApiAuthService.providerSessionEnded', () {
+    Future<(ApiAuthService, InMemorySessionStore, InMemorySessionStore)>
+    proSignedIn() async {
+      final store = InMemorySessionStore();
+      final proStore = InMemorySessionStore();
+      await proStore.save(
+        jsonEncode(
+          ProviderSession(
+            token: 'pro-access',
+            refreshToken: 'pro-refresh',
+            provider: MockData.providerUsers.first,
+          ).toJson(),
+        ),
+      );
+      final auth = ApiAuthService(
+        client: MockClient((_) async => http.Response('', 500)),
+        baseUrl: 'http://x',
+        sessionStore: store,
+        providerSessionStore: proStore,
+      );
+      expect(await auth.getCurrentProvider(), isNotNull, reason: 'scenario');
+      return (auth, store, proStore);
+    }
+
+    test('fires when the PROVIDER session is refused, and the provider it '
+        'remembered goes with it', () async {
+      final (auth, _, proStore) = await proSignedIn();
+      final heard = <void>[];
+      final sub = auth.providerSessionEnded.listen(heard.add);
+      final c = _server(() async => http.Response('', 401));
+      final pro = RefreshingHttpClient(
+        client: c,
+        baseUrl: 'http://x',
+        store: proStore,
+        refreshPath: '/auth/provider/refresh',
+      );
+
+      await _read(pro, c);
+      await pumpEventQueue();
+      await sub.cancel();
+
+      expect(heard, hasLength(1));
+      expect(await auth.getCurrentProvider(), isNull);
+    });
+
+    test('the client session ending is not the Pro\'s', () async {
+      final (auth, store, _) = await proSignedIn();
+      await store.save(
+        jsonEncode({'token': 'access', 'refreshToken': 'refresh'}),
+      );
+      final heard = <void>[];
+      final sub = auth.providerSessionEnded.listen(heard.add);
+      final c = _server(() async => http.Response('', 401));
+      final client = RefreshingHttpClient(
+        client: c,
+        baseUrl: 'http://x',
+        store: store,
+      );
+
+      await _read(client, c);
+      await pumpEventQueue();
+      await sub.cancel();
+
+      expect(heard, isEmpty);
+      expect(await auth.getCurrentProvider(), isNotNull);
+    });
+  });
+
+  test('MockAuthService.expireProviderSession ends it and says so', () async {
+    final auth = MockAuthService();
+    await auth.requestProviderEmailOtp('jean@salon-excellence.test');
+    await auth.verifyProviderEmailOtp(
+      'jean@salon-excellence.test',
+      MockAuthService.demoOtp,
+    );
+    expect(await auth.getCurrentProvider(), isNotNull, reason: 'scenario');
+    final heard = <void>[];
+    final sub = auth.providerSessionEnded.listen(heard.add);
+
+    await auth.expireProviderSession();
+    await pumpEventQueue();
+    await sub.cancel();
+
+    expect(heard, hasLength(1));
+    expect(await auth.getCurrentProvider(), isNull);
   });
 
   // The doubles fail the way the server does (B9.6): the mock can end its

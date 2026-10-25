@@ -52,6 +52,7 @@ class ProReviewsProvider extends ChangeNotifier implements SalonScoped {
   }
 
   Future<void> loadReviews(SalonId providerId) async {
+    final scope = _scope;
     if (_currentProviderId == providerId &&
         _reviews.isNotEmpty &&
         !_isLoading) {
@@ -68,6 +69,7 @@ class ProReviewsProvider extends ChangeNotifier implements SalonScoped {
       // No providerId argument: `/me/provider/reviews` resolves the acting
       // salon from the token, honouring the R6 selection on the way.
       final res = await _proService.getMyReviews();
+      if (scope != _scope) return;
       if (res.success && res.data != null) {
         _reviews = res.data!.items;
         _summary = res.data!.summary;
@@ -79,19 +81,29 @@ class ProReviewsProvider extends ChangeNotifier implements SalonScoped {
         _loadError = _error;
       }
     } catch (e) {
+      if (scope != _scope) return;
       _error = kGenericErrorMessage;
       _loadError = _error;
       _reviews = [];
       _summary = null;
     } finally {
-      _isLoading = false;
-      notifyListeners();
+      if (scope == _scope) {
+        _isLoading = false;
+        notifyListeners();
+      }
     }
   }
 
   /// R6 multi-salons: drop the previous salon's data on a switch.
+  /// Which salon this state belongs to — moved by [resetForSalonSwitch]
+  /// only. A read or a write takes it before it awaits and writes nothing
+  /// when it moved meanwhile: its answer is the previous salon's, or the
+  /// previous account's (docs/design/pro-account-scope.md §2.2).
+  int _scope = 0;
+
   @override
   void resetForSalonSwitch() {
+    _scope++;
     _loadError = null;
     _reviews = [];
     _summary = null;

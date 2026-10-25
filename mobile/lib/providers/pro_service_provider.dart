@@ -25,6 +25,7 @@ class ProServiceProvider extends ChangeNotifier implements SalonScoped {
   String? _loadError;
 
   Future<void> loadServices(SalonId providerId) async {
+    final scope = _scope;
     if (_currentProviderId == providerId &&
         _services.isNotEmpty &&
         !_isLoading) {
@@ -39,6 +40,7 @@ class ProServiceProvider extends ChangeNotifier implements SalonScoped {
 
     try {
       final response = await _proService.getProviderServices(providerId);
+      if (scope != _scope) return;
       if (response.success && response.data != null) {
         _services = response.data!;
         _error = null;
@@ -48,12 +50,15 @@ class ProServiceProvider extends ChangeNotifier implements SalonScoped {
         _services = [];
       }
     } catch (e) {
+      if (scope != _scope) return;
       _error = kGenericErrorMessage;
       _loadError = _error;
       _services = [];
     } finally {
-      _isLoading = false;
-      notifyListeners();
+      if (scope == _scope) {
+        _isLoading = false;
+        notifyListeners();
+      }
     }
   }
 
@@ -61,11 +66,13 @@ class ProServiceProvider extends ChangeNotifier implements SalonScoped {
     SalonId providerId,
     Map<String, dynamic> serviceData,
   ) async {
+    final scope = _scope;
     _isLoading = true;
     notifyListeners();
 
     try {
       final response = await _proService.createService(providerId, serviceData);
+      if (scope != _scope) return response.success;
       if (response.success && response.data != null) {
         _services.add(response.data!);
         _error = null;
@@ -77,12 +84,15 @@ class ProServiceProvider extends ChangeNotifier implements SalonScoped {
         return false;
       }
     } catch (e) {
+      if (scope != _scope) return false;
       _error = kGenericErrorMessage;
       notifyListeners();
       return false;
     } finally {
-      _isLoading = false;
-      notifyListeners();
+      if (scope == _scope) {
+        _isLoading = false;
+        notifyListeners();
+      }
     }
   }
 
@@ -90,11 +100,13 @@ class ProServiceProvider extends ChangeNotifier implements SalonScoped {
     String serviceId,
     Map<String, dynamic> serviceData,
   ) async {
+    final scope = _scope;
     _isLoading = true;
     notifyListeners();
 
     try {
       final response = await _proService.updateService(serviceId, serviceData);
+      if (scope != _scope) return response.success;
       if (response.success && response.data != null) {
         final index = _services.indexWhere((s) => s.id == serviceId);
         if (index != -1) {
@@ -109,21 +121,26 @@ class ProServiceProvider extends ChangeNotifier implements SalonScoped {
         return false;
       }
     } catch (e) {
+      if (scope != _scope) return false;
       _error = kGenericErrorMessage;
       notifyListeners();
       return false;
     } finally {
-      _isLoading = false;
-      notifyListeners();
+      if (scope == _scope) {
+        _isLoading = false;
+        notifyListeners();
+      }
     }
   }
 
   Future<bool> deleteService(String serviceId) async {
+    final scope = _scope;
     _isLoading = true;
     notifyListeners();
 
     try {
       final response = await _proService.deleteService(serviceId);
+      if (scope != _scope) return response.success;
       if (response.success) {
         _services.removeWhere((s) => s.id == serviceId);
         _error = null;
@@ -135,18 +152,28 @@ class ProServiceProvider extends ChangeNotifier implements SalonScoped {
         return false;
       }
     } catch (e) {
+      if (scope != _scope) return false;
       _error = kGenericErrorMessage;
       notifyListeners();
       return false;
     } finally {
-      _isLoading = false;
-      notifyListeners();
+      if (scope == _scope) {
+        _isLoading = false;
+        notifyListeners();
+      }
     }
   }
 
   /// R6 multi-salons: drop the previous salon's data on a switch.
+  /// Which salon this state belongs to — moved by [resetForSalonSwitch]
+  /// only. A read or a write takes it before it awaits and writes nothing
+  /// when it moved meanwhile: its answer is the previous salon's, or the
+  /// previous account's (docs/design/pro-account-scope.md §2.2).
+  int _scope = 0;
+
   @override
   void resetForSalonSwitch() {
+    _scope++;
     _loadError = null;
     _services = [];
     _isLoading = false;

@@ -285,6 +285,22 @@ class MockAuthService implements AuthServiceInterface {
     _sessionEnded.add(null);
   }
 
+  final _providerSessionEnded = StreamController<void>.broadcast();
+
+  @override
+  Stream<void> get providerSessionEnded => _providerSessionEnded.stream;
+
+  /// [expireSession] for the provider session.
+  @visibleForTesting
+  Future<void> expireProviderSession() async {
+    _currentProvider = null;
+    _cachedMembership = null;
+    _cachedSalonMarket = null;
+    _cachedSalonFacts = null;
+    _selectedSalonId = null;
+    _providerSessionEnded.add(null);
+  }
+
   @override
   Future<User?> getCurrentUser() async {
     await Future.delayed(const Duration(milliseconds: 50));

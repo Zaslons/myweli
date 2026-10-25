@@ -28,6 +28,7 @@ class ProEarningsProvider extends ChangeNotifier implements SalonScoped {
     DateTime? startDate,
     DateTime? endDate,
   }) async {
+    final scope = _scope;
     _isLoading = true;
     _error = null;
     _loadError = null;
@@ -39,6 +40,7 @@ class ProEarningsProvider extends ChangeNotifier implements SalonScoped {
         startDate: startDate,
         endDate: endDate,
       );
+      if (scope != _scope) return;
       if (response.success && response.data != null) {
         _earnings = response.data;
         _error = null;
@@ -48,12 +50,15 @@ class ProEarningsProvider extends ChangeNotifier implements SalonScoped {
         _earnings = null;
       }
     } catch (e) {
+      if (scope != _scope) return;
       _error = kGenericErrorMessage;
       _loadError = _error;
       _earnings = null;
     } finally {
-      _isLoading = false;
-      notifyListeners();
+      if (scope == _scope) {
+        _isLoading = false;
+        notifyListeners();
+      }
     }
   }
 
@@ -64,8 +69,15 @@ class ProEarningsProvider extends ChangeNotifier implements SalonScoped {
   }
 
   /// R6 multi-salons: drop the previous salon's data on a switch.
+  /// Which salon this state belongs to — moved by [resetForSalonSwitch]
+  /// only. A read or a write takes it before it awaits and writes nothing
+  /// when it moved meanwhile: its answer is the previous salon's, or the
+  /// previous account's (docs/design/pro-account-scope.md §2.2).
+  int _scope = 0;
+
   @override
   void resetForSalonSwitch() {
+    _scope++;
     _loadError = null;
     _earnings = null;
     _isLoading = false;

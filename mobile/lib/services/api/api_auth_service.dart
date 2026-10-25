@@ -74,6 +74,14 @@ class ApiAuthService implements AuthServiceInterface {
           _currentUser = null;
           _sessionEnded.add(null);
         });
+    // And the provider session's, for the Pro app (pro-account-scope.md).
+    RefreshingHttpClient.sessionsEnded
+        .where((session) => session == _providerSessionStore.identity)
+        .listen((_) {
+          _currentProvider = null;
+          _providerToken = null;
+          _providerSessionEnded.add(null);
+        });
   }
 
   final http.Client _client;
@@ -368,6 +376,10 @@ class ApiAuthService implements AuthServiceInterface {
   }
 
   final _sessionEnded = StreamController<void>.broadcast();
+  final _providerSessionEnded = StreamController<void>.broadcast();
+
+  @override
+  Stream<void> get providerSessionEnded => _providerSessionEnded.stream;
 
   @override
   Stream<void> get sessionEnded => _sessionEnded.stream;

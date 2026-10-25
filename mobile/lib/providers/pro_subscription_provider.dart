@@ -32,11 +32,13 @@ class ProSubscriptionProvider extends ChangeNotifier implements SalonScoped {
   String? get error => _error;
 
   Future<void> load(SalonId providerId) async {
+    final scope = _scope;
     _isLoading = true;
     _error = null;
     notifyListeners();
     try {
       final res = await _service.getSalonSubscription(providerId);
+      if (scope != _scope) return;
       if (res.success && res.data != null) {
         _salon = res.data;
         _isSetup = false;
@@ -50,17 +52,27 @@ class ProSubscriptionProvider extends ChangeNotifier implements SalonScoped {
         _error = res.error ?? 'Erreur lors du chargement';
       }
     } catch (e) {
+      if (scope != _scope) return;
       _loadFailed = true;
       _error = kGenericErrorMessage;
     } finally {
-      _isLoading = false;
-      notifyListeners();
+      if (scope == _scope) {
+        _isLoading = false;
+        notifyListeners();
+      }
     }
   }
 
   /// R6 multi-salons: drop the previous salon's data on a switch.
+  /// Which salon this state belongs to — moved by [resetForSalonSwitch]
+  /// only. A read or a write takes it before it awaits and writes nothing
+  /// when it moved meanwhile: its answer is the previous salon's, or the
+  /// previous account's (docs/design/pro-account-scope.md §2.2).
+  int _scope = 0;
+
   @override
   void resetForSalonSwitch() {
+    _scope++;
     _salon = null;
     _isSetup = false;
     _isLoading = false;
