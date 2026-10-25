@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Statut** | **Validé le 2026-10-22** — relu sur main (`d1e886e1`). Q1 (décision 33) : **le type `SalonId`** (« ce qui vaut le mieux à long terme ») ; Q2 (décision 34) : **e-mail et poussée Sentry** ; Q3 (décision 34) : **pas de suivi des performances pour l'instant** ; Q4 (décision 35) : **pas d'interrupteur** ; Q5 : **construire les trois composants et migrer tous les écrans maintenant** ; Q6 : **les pages publiques lèvent** ; Q7 : **supprimer la table avec ce lot** ; Q8 : **le reste tel qu'écrit**. Huit PR (§3). **PR A fusionnée le 2026-10-22** (#688 — B9.1, B9.5 — §9). **PR B fusionnée le 2026-10-22** (#689 — B9.6 — §10). **PR C fusionnée le 2026-10-22** (#690 — B9.7 — §11). **PR D fusionnée le 2026-10-25** (#691 — B9.11, B9.10 — §12 ; déploiement Vercel de production réussi, le plan du site liste 228 adresses). **PR E fusionnée le 2026-10-25** (#697 — B9.2–B9.4 — §13 ; 81 appliqué et relu le même jour, #698). **PR F1 fusionnée le 2026-10-25** (#699) (B9.8 : les trois briques et tous les écrans asynchrones — §14 ; Q9–Q12 en §8). **PR F2 fusionnée le 2026-10-25** (#700) (B9.8 : toutes les cartes sur `AppCard` — §2.7.3, §15 ; Q13–Q15 en §8). **PR F3 fusionnée le 2026-10-25** (#702) (B9.8 : toutes les puces sur `AppChip` — §2.7.4, §16 ; Q16–Q18 en §8). **PR G fusionnée et déployée le 2026-10-25** (#703 — B9.12 — §2.11, §17 ; révision `myweli-api-00047-55v`). **PR H1 construite le 2026-10-25** (#706, `feat/batch9-salon-id-pro`) (B9.9, la moitié Pro de `SalonId` — §2.8, §18 ; Q19–Q20 en §8) ; H2 ensuite. |
+| **Statut** | **Validé le 2026-10-22** — relu sur main (`d1e886e1`). Q1 (décision 33) : **le type `SalonId`** (« ce qui vaut le mieux à long terme ») ; Q2 (décision 34) : **e-mail et poussée Sentry** ; Q3 (décision 34) : **pas de suivi des performances pour l'instant** ; Q4 (décision 35) : **pas d'interrupteur** ; Q5 : **construire les trois composants et migrer tous les écrans maintenant** ; Q6 : **les pages publiques lèvent** ; Q7 : **supprimer la table avec ce lot** ; Q8 : **le reste tel qu'écrit**. Huit PR (§3). **PR A fusionnée le 2026-10-22** (#688 — B9.1, B9.5 — §9). **PR B fusionnée le 2026-10-22** (#689 — B9.6 — §10). **PR C fusionnée le 2026-10-22** (#690 — B9.7 — §11). **PR D fusionnée le 2026-10-25** (#691 — B9.11, B9.10 — §12 ; déploiement Vercel de production réussi, le plan du site liste 228 adresses). **PR E fusionnée le 2026-10-25** (#697 — B9.2–B9.4 — §13 ; 81 appliqué et relu le même jour, #698). **PR F1 fusionnée le 2026-10-25** (#699) (B9.8 : les trois briques et tous les écrans asynchrones — §14 ; Q9–Q12 en §8). **PR F2 fusionnée le 2026-10-25** (#700) (B9.8 : toutes les cartes sur `AppCard` — §2.7.3, §15 ; Q13–Q15 en §8). **PR F3 fusionnée le 2026-10-25** (#702) (B9.8 : toutes les puces sur `AppChip` — §2.7.4, §16 ; Q16–Q18 en §8). **PR G fusionnée et déployée le 2026-10-25** (#703 — B9.12 — §2.11, §17 ; révision `myweli-api-00047-55v`). **PR H1 construite le 2026-10-25** (#706, `feat/batch9-salon-id-pro`) (B9.9, la moitié Pro de `SalonId` — §2.8, §18 ; Q19–Q20 en §8) . **PR H2 construite le 2026-10-25** (#NNN, `feat/batch9-salon-id-public`) (B9.9, la moitié client — §2.8, §19). |
 | **Owner** | Sadreddine |
 | **Last updated** | 2026-10-25 |
 | **PRD ref / phase** | V1 — rien de visible n'est ajouté ; ce lot rend vrais les documents, les doublures de test, les lectures et les outils |
@@ -1410,3 +1410,46 @@ vieillit). Dans les essais, 457 littéraux de salon sont devenus des
   du miroir du web lit des fichiers de l'app (leçon de F3) — ceux de H1 n'en
   sont pas, et sa suite passe (2 255) ; l'essai du serveur qui lit
   `api_auth_service.dart` passe.
+
+## 19. PR H2 construite (B9.9, la moitié client) — ce qui a été vu
+
+**Ce que H2 type** — le salon public : sept modèles (`Provider.id`,
+`Appointment.providerId`, `Review.providerId`, `Service.providerId`,
+`Artist.providerId`, `Availability.providerId`, et `BookingChange.providerId`,
+le salon d'un rendez-vous qui change), la réservation et ses créneaux, les
+avis, les favoris (et leur liste), `getProviderById`, et les cinq appels de la
+console sur un salon — avec leurs doublures, leurs services API, et tout ce
+qui les appelle (48 fichiers de `lib/`). **À la fin, aucune place nommée
+comme un salon n'est un `String` dans l'app** (hors V2/V3) : l'essai le tient
+sur tout `lib/`.
+
+**Où il naît** — 26 fichiers relus : le type ; le `fromJson` de quatorze
+modèles ; les routes (la page d'un salon, la réservation, la carte, la page
+d'un salon dans la console, le rendez-vous poussé) et la charge d'une
+notification ; deux listes JSON sans modèle (les favoris, la liste de la
+console) ; les données des doublures. **Les deux naissances provisoires de
+H1 tombent** : `SalonMarket.of` et `SalonFacts.of` prennent l'`id` d'un
+`Provider`, typé maintenant.
+
+**Ce que le type a trouvé** :
+- **H1 n'avait vu que les noms exacts** (`providerId`, `salonId`) : les
+  champs privés (`_providerId`, `_currentProviderId`, `_selectedProviderId`)
+  et les composés (`focusProviderId`, `draftSalonIds`) lui échappaient. L'un
+  d'eux était côté Pro — `SalonPreviewScreen._providerId = ''`, qui devient
+  `SalonId.none`. L'essai de H2 lit tout nom qui *finit* comme un salon.
+- **Un nom ne dit pas tout** : un identifiant de salon appelé seulement `id`
+  (`_patchFigures`, la carte `_focusOn`, `getProviderById`, les écritures de
+  la console) n'est vu par aucun nom ; c'est le compilateur qui le trouve, là
+  où il rencontre une place typée. Ceux qu'il a montrés sont typés.
+- **La console avait un cinquième appel** : `markSubscriptionPaid`, sur
+  `/admin/providers/$id/…`, que l'inventaire n'avait pas compté.
+- **Un identifiant vide de plus**, côté Pro : le rendez-vous de repli du
+  détail Pro (`providerId: ''`) — `SalonId.none` aussi.
+
+**Les essais** : `salon_id_type_test.dart` — quatre rouges d'abord (tout
+`lib/` sans place de salon nue, les sept champs, la recherche, la liste et la
+console par `SalonId`, et l'exception de H1 qui se ferme) ; l'épingle de
+naissance à jour. Dans les essais, 232 littéraux de plus deviennent des
+`SalonId` (703 en tout, dans 112 fichiers).
+
+VERIFIED_H2
