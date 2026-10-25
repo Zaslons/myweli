@@ -296,7 +296,9 @@ propre lecture derrière un squelette.
   client de A), renforcés ; la garde inutile du `catch` d'`updatePhone`,
   retirée ; `_cardErrorCode`, inobservable (ci-dessus). Repassées : **203
   rouges sur 204**, la survivante étant celle-là.
-- GOLDENS_LINE
+- Les photos : aucune ne bouge — `goldens.yml` lancé sur la branche (run
+  40240846353) a redessiné les 58 sur Linux et `git status` n'a rien listé.
+  (Une PR empilée n'a pas la CI de `main` ; elle tournera au reciblage.)
 
 **Non vérifié** : sur un téléphone, une vraie session Pro refusée par la
 production.
