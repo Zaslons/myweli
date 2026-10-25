@@ -538,7 +538,18 @@ class _ReleaseRepo {
     File('${work.path}/.gitignore').writeAsStringSync('mobile/build/\n');
     _git(['init', '-q', '-b', 'main']);
     commit('base');
-    Process.runSync('git', ['init', '-q', '--bare', '${root.path}/origin.git']);
+    // `-b main` on the bare repository too: its HEAD otherwise follows the
+    // machine's `init.defaultBranch` — `master` on the Linux runners — and a
+    // clone of it checks out nothing (found by CI, invisible on a Mac set to
+    // `main`).
+    Process.runSync('git', [
+      'init',
+      '-q',
+      '--bare',
+      '-b',
+      'main',
+      '${root.path}/origin.git',
+    ]);
     _git(['remote', 'add', 'origin', '${root.path}/origin.git']);
     _git(['push', '-q', 'origin', 'main']);
     _git(['fetch', '-q', 'origin']);
@@ -632,7 +643,15 @@ exit "${STUB_VALIDATE_EXIT:-0}"
   /// `origin/main` is stale, HEAD still equals it.
   void advanceOrigin() {
     final other = '${root.path}/other';
-    Process.runSync('git', ['clone', '-q', '${root.path}/origin.git', other]);
+    final cloned = Process.runSync('git', [
+      'clone',
+      '-q',
+      '--branch',
+      'main',
+      '${root.path}/origin.git',
+      other,
+    ]);
+    if (cloned.exitCode != 0) throw StateError('clone: ${cloned.stderr}');
     File(
       '$other/mobile/HISTORY',
     ).writeAsStringSync('merged\n', mode: FileMode.append);
