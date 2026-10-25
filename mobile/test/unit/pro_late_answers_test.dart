@@ -79,6 +79,145 @@ extension _Land<T> on Completer<T> {
       _throwing ? completeError(StateError('offline')) : complete(value);
 }
 
+/// Everything a store shows, as one value — compared before and after the
+/// late answer lands. Counting notifications is not enough: a guarded
+/// `finally` keeps quiet while the body above it has already written the
+/// previous salon's data, which the next rebuild would then show (the
+/// mutation pass found that exact gap).
+List<Object?> fingerprint(Object s) => switch (s) {
+  ProAppointmentProvider s => [
+    s.appointments.length,
+    s.isLoading,
+    s.error,
+    s.loadError,
+    s.errorCode,
+  ],
+  ProArtistProvider s => [
+    s.artists.length,
+    s.isLoading,
+    s.isUploadingAvatar,
+    s.avatarProgress,
+    s.error,
+    s.loadError,
+  ],
+  ProAvailabilityProvider s => [
+    s.availability,
+    s.isLoading,
+    s.error,
+    s.loadError,
+  ],
+  ProBeforeAfterProvider s => [
+    s.pairs.length,
+    s.isLoading,
+    s.loadFailed,
+    s.loaded,
+    s.isUploading,
+    s.uploadProgress,
+    s.error,
+  ],
+  ProDepositSettingsProvider s => [
+    s.isLoading,
+    s.isSaving,
+    s.loadFailed,
+    s.loaded,
+    s.error,
+    s.errorCode,
+    s.depositRequired,
+    s.depositPercentage,
+    s.cancellationWindowHours,
+    s.mobileMoneyOperator,
+    s.mobileMoneyNumber,
+  ],
+  ProEarningsProvider s => [s.earnings, s.isLoading, s.error, s.loadError],
+  ProGalleryProvider s => [
+    s.photos.length,
+    s.isLoading,
+    s.loadFailed,
+    s.loaded,
+    s.isUploading,
+    s.uploadProgress,
+    s.error,
+  ],
+  ProOnboardingProvider s => [
+    s.steps.length,
+    s.isLoading,
+    s.loadFailed,
+    s.loaded,
+    s.error,
+    s.isPublishing,
+    s.publishErrorCode,
+  ],
+  ProReviewsProvider s => [
+    s.reviews.length,
+    s.summary,
+    s.isLoading,
+    s.error,
+    s.loadError,
+  ],
+  ProSalonProfileProvider s => [
+    s.provider,
+    s.isLoading,
+    s.isSaving,
+    s.error,
+    s.errorCode,
+    s.isUploadingLogo,
+    s.logoError,
+  ],
+  ProServiceProvider s => [
+    s.services.length,
+    s.isLoading,
+    s.error,
+    s.loadError,
+  ],
+  ProSubscriptionProvider s => [
+    s.salon,
+    s.isSetup,
+    s.isLoading,
+    s.loadFailed,
+    s.error,
+  ],
+  ProTeamProvider s => [
+    s.members.length,
+    s.isLoading,
+    s.error,
+    s.isInviting,
+    s.inviteError,
+    s.inviteErrorCode,
+    s.actionError,
+    s.actionErrorCode,
+    s.myInvitations.length,
+    s.invitationsLoading,
+    s.invitationsAsked,
+    s.invitationsError,
+  ],
+  ProClientsProvider s => [
+    s.clients.length,
+    s.total,
+    s.isLoading,
+    s.isLoadingMore,
+    s.error,
+    s.loadError,
+    s.card,
+    s.visits.length,
+    s.cardLoading,
+    s.cardError,
+    s.lastAddWasDuplicate,
+  ],
+  ProJournalProvider s => [s.day, s.isLoading, s.error],
+  ProKycProvider s => [
+    s.documents.length,
+    s.status,
+    s.rejectionReason,
+    s.uploadingType,
+    s.loaded,
+    s.loadFailed,
+    s.isLoading,
+    s.isSubmitting,
+    s.error,
+  ],
+  _ => throw ArgumentError('no fingerprint for ${s.runtimeType}'),
+};
+
 /// What every refused call answers here — a code that triggers nothing else
 /// (`ProAccessGuard` acts on `forbidden` only).
 ApiResponse<T> refused<T>() =>
@@ -154,6 +293,7 @@ void main() {
     final pending = call(store);
     await pumpEventQueue();
     resetStore(store);
+    final before = fingerprint(store);
     var notified = 0;
     store.addListener(() => notified++);
     answer();
@@ -164,6 +304,11 @@ void main() {
       // is that it wrote nothing on its way out.
     }
     await pumpEventQueue();
+    expect(
+      fingerprint(store),
+      before,
+      reason: '$what: the previous salon\'s answer was written down',
+    );
     expect(
       notified,
       0,
