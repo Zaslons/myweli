@@ -887,3 +887,68 @@ ni « Une erreur est survenue » ni « Connexion impossible » en titre, ni
 - **Les rouges d'abord** : chaque correction de fournisseur a été retirée
   une à une par ces mutations, et son essai était rouge sans elle.
 
+## 15. PR F2 construite (B9.8, deuxième des trois) — ce qui a été vu
+
+**`AppCard`, tel que les cartes l'ont demandé** :
+- **Un nœud conteneur pour un lecteur d'écran, toujours**, comme la `Card`
+  de Material (`semanticContainer`) : ce que dit la carte se lit ensemble.
+  **Pas une fusion** — celle de F1 aurait avalé le cœur des favoris d'un
+  salon, et un lecteur d'écran n'aurait plus pu l'atteindre. Un essai le
+  tient : la carte et le contrôle qu'elle porte sont deux nœuds, et chaque
+  toucher va au sien.
+- **`onTap`** en fait un bouton ; **`outlined`** le trait `borderStrong` ;
+  **`selected`** le trait `primary` de 2 px sur la carte blanche (Q13),
+  annoncé « sélectionné » quand la carte est la cible — l'étape ouverte de la
+  réservation, dont la cible est son en-tête, le dit par lui (« développé »).
+
+**Les cartes migrées** : 27 `Card` (dont 15 sur le Profil Pro) et 31
+dessinées à la main — les 23 de contenu, les 8 qu'on touche (dont le salon,
+en liste et en grille), et les deux cartes-contrôles (l'étape de la
+réservation, le rôle à choisir). Les ombres disparaissent (19 cartes
+portaient `elevation1`), les bordures aussi, `spacingL` passe à `spacingM`
+sur six cartes (Q15), et la `margin` de 4 que `Card` ajoutait : les cartes
+du Profil Pro s'alignent sur la gouttière de la page, comme toutes les
+autres ; leurs écarts restent ceux de la liste.
+
+**Ce que la migration a trouvé** :
+- **Six cartes qu'on touche étaient muettes** pour un lecteur d'écran (un
+  `GestureDetector` : rien à annoncer — un rendez-vous, un salon en liste et
+  en grille, un employé, un service, un raccourci de l'accueil Pro) ; deux
+  autres étaient un `InkWell` touchable mais pas annoncé comme bouton. Les
+  huit sont des boutons.
+- **Les contrôles d'une carte restent à eux** : le cœur des favoris,
+  « Voir sur la carte » et « Itinéraire » sont des `Semantics(button: true)`
+  sans `container`, dans une carte devenue un nœud et un bouton. Deux
+  touchers sur un nœud se séparent d'eux-mêmes (la règle de Flutter) : le
+  cœur reste à lui, et l'essai du salon le tient. Un `container: true` ajouté
+  sur eux d'abord n'y changeait rien — la mutation qui le retirait survivait —
+  et il est retiré.
+- **Le rôle choisi ne se disait pas** : une icône radio, et rien
+  d'annoncé ; la carte est maintenant « sélectionnée ».
+- **`HighlightStories`**, que rien n'affichait, est supprimé.
+- **La `Material` transparente** sous deux cartes à `ListTile` (les
+  préférences, l'acompte) n'existait que pour porter l'encre ; `AppCard` est
+  cette `Material`.
+- **Six pages portaient leurs cartes sur `surface`** (#FAFAFA), pas sur
+  `background`, le fond de page (SYSTEM §3.1) : le détail d'un rendez-vous,
+  la confirmation, les préférences, l'abonnement, les invitations, l'équipe.
+  Elles tenaient par l'ombre et la bordure que F2 retire — une carte blanche
+  sur #FAFAFA, c'est la moitié de la marche. Elles sont sur `background` ;
+  une épingle le tient (sauf les deux écrans de lancement, la connexion de
+  la console et l'ajout d'un salon, qui n'ont pas de carte).
+- **Le champ de date du sélecteur de créneaux** a la forme d'un champ, pas
+  d'une carte : il reste, nommé dans l'épingle, avec la barre « Total »
+  ancrée (Q14).
+
+**Ce que F2 laisse** : la console (ses cartes à bordure, idiome du bureau,
+SYSTEM §11.2) ; les écrans V2/V3 ; les ombres de ce qui flotte ; les
+bandeaux teintés et les tuiles `surface` posées dans une carte, qui ne sont
+pas des cartes ; les écarts du Profil Pro, mêlés de 8 et de 16 — un
+regroupement à repenser, pas une carte.
+
+**L'épingle** (`cards_pin_test.dart`, sur `lib/` hors V2/V3) : pas de
+`Card(` ; pas de boîte `secondary` au rayon des cartes dessinée à la main
+(la barre « Total » et le champ de date à part) ; une ombre seulement sur la
+liste de ce qui flotte.
+
+VERIFIED_F2

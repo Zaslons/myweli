@@ -102,6 +102,9 @@ never a new hex.
 Cards are `secondary` on `background` — a deliberate, low-contrast lift that
 carries the whole layout without borders or shadows. Don't add a border to a card
 "to make it pop"; that's what the surface step is for.
+**A page that holds cards is therefore `background`, never `surface`:** white on
+`#FAFAFA` is half the step, and six pages had leaned on shadows and borders to
+hide it until B9.8 F2 removed both (`cards_pin_test.dart` holds it).
 
 ### 3.2 Text
 
