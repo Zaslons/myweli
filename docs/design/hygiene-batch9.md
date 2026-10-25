@@ -688,7 +688,8 @@ absente échoue au lieu de sauter.
   et **les pastilles** (créneaux, opérateurs) — posées sur la page, elles
   sont la silhouette de la puce (`secondary` + `border`), pas une barre que le
   fond avalerait. Le squelette de la carte « Profil » est passé aux barres
-  communes, au pixel près.
+  communes — les mêmes hauteur, couleur, rayon et largeurs, par le code ;
+  aucune photo ne montre cet état.
 - **`AppCard`** est construite (avec `outlined` et `onTap`) ; les squelettes
   l'utilisent ; les cartes des écrans passent à F2.
 
@@ -802,6 +803,20 @@ ni « Une erreur est survenue » ni « Connexion impossible » en titre, ni
   cache, c'est un nœud : la liste du squelette est un défilement à elle.
   L'essai demande maintenant que « Chargement… » soit une feuille, et la
   mutation est rouge.
+- **Les photos**, refaites sur Linux (« Goldens — regenerate ») et
+  regardées une à une : **cinq** bougent, rien d'autre. Deux changent —
+  l'erreur du tableau de la console (l'icône, le titre, la phrase et
+  « Réessayer » en bouton principal, là où il y avait une phrase et un
+  contour pleine largeur ; sa toile passe à 480 de haut : l'erreur commune
+  débordait 420 de 5 px, le tableau étant dans un défilement sur la console)
+  et l'accueil Pro hors ligne (le titre seul : « Chargement impossible ») ;
+  trois naissent — l'erreur (avec et sans « Réessayer »), la carte (simple,
+  choisie, à toucher) et les squelettes. Le premier passage avait échoué sur
+  le débordement : c'est lui qui l'a trouvé.
+- **Le serveur** (non touché) : 2 177 essais verts sur PostgreSQL 16. **Le
+  web** (non touché) : 2 255 essais unitaires verts ; **les e2e non lancés
+  ici** — le port 3000 est tenu par le serveur de développement d'un autre
+  projet sur cette machine, laissé tel quel ; le CI les passe.
 - **Les rouges d'abord** : chaque correction de fournisseur a été retirée
   une à une par ces mutations, et son essai était rouge sans elle.
 
