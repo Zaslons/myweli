@@ -1110,6 +1110,26 @@ inconsistent — 0 NBSP in 85 eligible sites, and guillemets in ~5 strings again
 convention across 85 invisible characters is a different decision, and should be
 taken as one.
 
+### 17.2 A salon with no name (B9.10)
+
+An erased salon, or one not loaded yet, has one set of words, the same on both
+surfaces (`core/constants/unnamed_salon.dart`, `web/lib/salon-name.ts`):
+
+| Where | Word |
+|---|---|
+| A title — a card's or a row's name, a heading, « Rendez-vous — Salon » | **« Salon »** |
+| A client's sentence, or an invitation's | **« le salon »** (« Le salon » to open one) |
+| A sentence about the Pro session's own salon | **« votre salon »** |
+| The Collaborateur's « Aujourd'hui » title | **« Votre planning »** (« {salon} — votre planning » when named) |
+
+Never an empty string — `?? 'Salon'` let `''` through as an empty title — and
+never « MyWeli ». A sentence that only addresses the salon by name drops it
+rather than say « Bienvenue, votre salon »; a lost salon with no name is the
+`not_a_member` sentence, « Votre accès à ce salon a été retiré. ». Pinned on both
+surfaces: a fallback literal outside the constants fails `unnamed_salon_test.dart`
+and `unnamed-salon.test.ts`. There were five forms: « Salon », « le salon »,
+« votre salon », « ce salon », « MyWeli », and the empty one.
+
 ---
 
 ## 18. Market data & salon time

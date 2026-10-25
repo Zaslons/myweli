@@ -32,7 +32,10 @@ class TeamInvitation extends Equatable {
     return TeamInvitation(
       id: json['id'] as String,
       providerId: json['providerId'] as String? ?? '',
-      salonName: json['salonName'] as String? ?? 'Salon',
+      // Kept as sent: the screen says an unnamed salon in the form its
+      // sentence needs (unnamed_salon.dart) — « Salon » here made « Vous avez
+      // rejoint Salon ».
+      salonName: json['salonName'] as String? ?? '',
       role: role,
       roleLabel: json['roleLabel'] as String? ?? teamRoleLabel(role),
       expiresAt: json['expiresAt'] == null

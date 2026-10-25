@@ -630,6 +630,7 @@ web converts, the app deepens:
 | **Truncation is declared (§9)** | **`tokens.theme-pin.test.ts`** (B11) — every `truncate` / `line-clamp-*` / `text-ellipsis` carries `// clip-ok: <why the clipped text is not the only copy>`. Reads the TypeScript AST's string literals, so prose *about* truncation is never flagged. The browser half proves nothing is being cut; this proves every class that could cut was thought about |
 | Type does not overflow (§3) | `tests/e2e/type-overflow.spec.ts` — the same file, and it predates the reflow work (B2b). **Listed here for the first time in B11**: it and the tap-target gate below have existed for several slices and appeared nowhere in this table, which is how an enforcement inventory quietly stops being one |
 | Tap targets ≥ 48 (SYSTEM.md §13.2) | `tests/e2e/tap-targets.spec.ts` — an explicit named list of controls, so it sees nothing it was not told about. Row 26 (`Faq.tsx`'s `<summary>` at ≈35px) is exactly what that costs |
+| A salon with no name (SYSTEM.md §17.2) | **`tests/unnamed-salon.test.ts`** (B9.10) — the words from `lib/salon-name.ts`, and a pin: no « ce salon » / « votre salon » / « le salon » literal, no `?? 'Salon'` or `?? 'MyWeli'` fallback, outside that file |
 | Everything | typecheck · lint · `vitest` · `next build` |
 
 Two of these are the point:

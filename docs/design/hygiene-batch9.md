@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Statut** | **Validé le 2026-10-22** — relu sur main (`d1e886e1`). Q1 (décision 33) : **le type `SalonId`** (« ce qui vaut le mieux à long terme ») ; Q2 (décision 34) : **e-mail et poussée Sentry** ; Q3 (décision 34) : **pas de suivi des performances pour l'instant** ; Q4 (décision 35) : **pas d'interrupteur** ; Q5 : **construire les trois composants et migrer tous les écrans maintenant** ; Q6 : **les pages publiques lèvent** ; Q7 : **supprimer la table avec ce lot** ; Q8 : **le reste tel qu'écrit**. Huit PR (§3). **PR A fusionnée le 2026-10-22** (#688 — B9.1, B9.5 — §9). **PR B fusionnée le 2026-10-22** (#689 — B9.6 — §10). **PR C construite le 2026-10-22** sur `feat/batch9-forms` (B9.7 — §11). |
+| **Statut** | **Validé le 2026-10-22** — relu sur main (`d1e886e1`). Q1 (décision 33) : **le type `SalonId`** (« ce qui vaut le mieux à long terme ») ; Q2 (décision 34) : **e-mail et poussée Sentry** ; Q3 (décision 34) : **pas de suivi des performances pour l'instant** ; Q4 (décision 35) : **pas d'interrupteur** ; Q5 : **construire les trois composants et migrer tous les écrans maintenant** ; Q6 : **les pages publiques lèvent** ; Q7 : **supprimer la table avec ce lot** ; Q8 : **le reste tel qu'écrit**. Huit PR (§3). **PR A fusionnée le 2026-10-22** (#688 — B9.1, B9.5 — §9). **PR B fusionnée le 2026-10-22** (#689 — B9.6 — §10). **PR C fusionnée le 2026-10-22** (#690 — B9.7 — §11). **PR D construite le 2026-10-22** sur `feat/batch9-web-reads` (B9.11, B9.10 — §12). |
 | **Owner** | Sadreddine |
 | **Last updated** | 2026-10-22 |
 | **PRD ref / phase** | V1 — rien de visible n'est ajouté ; ce lot rend vrais les documents, les doublures de test, les lectures et les outils |
@@ -407,3 +407,85 @@ chemin du serveur :
   (2 sautés), le web 2 180, les 269 de bout en bout sur deux workers.
 - Aucun golden ne change : ceux des connexions montrent la première étape,
   sans refus, où `InlineFeedback(null)` ne rend rien, comme avant.
+
+## 12. PR D construite (B9.11, B9.10) — ce qui a été vu
+
+**B9.11 — comme écrit**, avec une précision et deux de plus :
+- **Les huit lectures authentifiées** (notifications client et Pro, « Mes
+  salons », avis, équipe, invitations, visites, clients) et les créneaux
+  exigent leur liste : un 200 sans elle est une lecture échouée (statut 0,
+  l'état d'erreur de la page et son « Réessayer »). `listClients` ne
+  vérifiait rien. Les deux tests qui figeaient `[]` disent l'inverse.
+- **La précision — les pages publiques lèvent là où le build échoue fermé.**
+  `lib/build-posture.ts` laisse exprès un **aperçu Vercel** se construire
+  dégradé (le serveur de staging dort) : lever partout aurait remis au rouge
+  le contrôle Vercel de chaque PR, ce que ce fichier a été écrit pour
+  éviter. Donc `lib/api/public-read.ts` : en production, en local et en CI,
+  une réponse inutilisable **lève** — à la régénération ISR, Next garde la
+  dernière bonne page ; au build, le build échoue et le déploiement
+  précédent reste en ligne — et sur un aperçu, elle reste vide.
+- **En plus 1 — `getProviderBySlug`** : un 5xx ou une coupure donnait `null`,
+  donc un 404 pour un salon vivant pendant toute la fenêtre ISR (la page le
+  notait depuis PR1d sans le corriger). Seul un vrai 404 est `null`
+  maintenant ; un 200 sans salon (`id`) lève aussi.
+- **En plus 2 — l'arbre des localités** (`localities.ts`) avait le même
+  repli vide ; il passe par la même règle, et un échec ne reste plus en
+  cache (un 200 sans `countries` plantait sur `undefined.length`).
+- **Le contrat** : `items` requis pour `/me/notifications` et
+  `/sitemap/providers` ; les types régénérés.
+- Les commentaires qui décrivaient l'ancien repli (`client.ts`,
+  `api-base.ts`, `taxonomyParams.ts`, la page salon) et WEB.md §3 disent le
+  nouveau.
+
+**B9.10 — la règle, appliquée au-delà des sites cités** :
+- **Les mots** : `kUnnamedSalon*` (app) et `UNNAMED_SALON*` (web), avec
+  `salonNameOr`, qui attrape aussi le vide — `?? 'Salon'` laissait passer
+  `''` comme un titre vide. SYSTEM §17.2 les écrit ; une épingle par surface.
+- **Trouvé en plus, côté app** :
+  - le titre du report de rendez-vous disait « le salon » (une forme de
+    phrase en titre) → « Salon » ;
+  - l'événement d'agenda « Rendez-vous — le salon » → « Rendez-vous — Salon »,
+    comme le web, qui disait « Rendez-vous — MyWeli » ;
+  - « Wave · le salon » sur la feuille d'acompte → « Wave · Salon » ;
+  - la session Pro donnait « votre salon » même comme **titre** (la carte du
+    Profil, « Mes salons », le fait « Nom du salon ») : elle a maintenant
+    `knownSalonName` (le nom, ou rien), et `salonName` garde la forme de
+    phrase ;
+  - l'accueil Pro disait « Bienvenue, votre salon » → « Bienvenue » seul ;
+    la ligne du nom dans le journal du collaborateur se tait sans nom ;
+  - une invitation sans nom disait « Salon vous invite comme … » et « Vous
+    avez rejoint Salon » → « Le salon vous invite … », « Vous avez rejoint
+    le salon » (le modèle garde le nom tel qu'envoyé) ;
+  - « Mes salons » : une ligne sans titre sous un « ? » → « Salon ».
+- **Côté web** : la carte et le détail de rendez-vous, l'agenda, Équipe
+  (« ce salon » → « votre salon », comme l'app), « Votre planning » seul,
+  les lignes de « Mes salons », les deux phrases d'invitation, et les
+  messages « Vous avez rejoint » et « accès retiré » (« Votre accès à  a été
+  retiré. » avec un nom vide).
+- **« ce salon » reste dans une phrase**, celle de l'accès retiré
+  (`not_a_member`) : le bandeau d'un salon sans nom dit cette phrase-là, la
+  même que l'erreur, plutôt qu'une sixième.
+
+**Vérifié** :
+- **Rouges d'abord** : les lectures authentifiées (19 rouges) et publiques
+  (22 rouges) avant le code ; les tests du mot échouent au chargement tant
+  que les constantes n'existent pas — leur rouge par comportement vient des
+  mutations.
+- **31 mutations, toutes vues rouges** : chacune des neuf lectures redevenue
+  indulgente ; la règle publique qui dégrade toujours, ou à l'envers ; un
+  200 sans `items` rendu `[]` ; un vrai 404 qui lève ; tout 200 pris pour un
+  salon ; un arbre en échec gardé en cache ; un arbre 200 non vérifié ; le
+  vide pris pour un nom (web, app) ; « — votre planning » ; l'agenda à
+  « MyWeli » ; « Vous avez rejoint » et « accès retiré » sur un nom vide ;
+  les deux épingles (une carte qui retombe à la main, « ce salon » sur
+  Équipe) ; l'agenda de l'app sur le nom brut ; le modèle d'invitation à
+  « Salon » ; la carte d'invitation brute ; le bandeau qui rate le mot ;
+  « Bienvenue, votre salon » ; la session qui nomme un salon sans nom ; la
+  ligne brute de « Mes salons ». Deux mutations du web vérifiées à la main :
+  ce sont de vraies assertions, pas un filtre vide.
+- `flutter analyze`, `dart analyze --fatal-infos --fatal-warnings`, le
+  typecheck et le lint du web à zéro ; les suites entières passent : l'app
+  2 726 (55 golden Linux sautés), le serveur sur Postgres 2 162 (2 sautés),
+  le web 2 255, les 269 de bout en bout sur deux workers — **leur build
+  tourne en posture fermée contre le bouchon**, donc les lectures publiques
+  strictes construisent le site.

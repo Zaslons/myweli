@@ -1448,7 +1448,7 @@ export interface paths {
                     };
                     content: {
                         "application/json": {
-                            items?: components["schemas"]["Notification"][];
+                            items: components["schemas"]["Notification"][];
                         };
                     };
                 };
@@ -2609,7 +2609,7 @@ export interface paths {
                     };
                     content: {
                         "application/json": {
-                            items?: {
+                            items: {
                                 slug?: string;
                             }[];
                         };

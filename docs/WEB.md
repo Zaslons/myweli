@@ -56,12 +56,24 @@ web/
   and it **refuses to resolve in production** when neither `API_BASE_URL` nor
   `NEXT_PUBLIC_API_BASE_URL` is set. The localhost fallback it replaced looked
   harmless (a wrong URL fails loudly with connection errors) and was not: the
-  build-time fetches below use an **empty-result fallback**, and the ISR pages
+  build-time fetches below used an **empty-result fallback**, and the ISR pages
   call them during `next build`. A production deploy missing the variable
   therefore published **a marketplace with no salons in it and no error
   anywhere**. Set it per Vercel environment — Production → production API,
   Preview → staging ([LAUNCH.md](LAUNCH.md) §5.4). Design:
   [design/infra-staging.md](design/infra-staging.md) §1.3.
+- **A public page does not publish what it could not read** (B9.11, decision
+  Q6). `lib/api/providers.ts` and `lib/api/localities.ts` go through
+  `lib/api/public-read.ts`: where the build fails closed — production, local,
+  CI (`lib/build-posture.ts`) — a refusal, no answer, or a 200 without its list
+  **throws**. At ISR regeneration Next keeps the last good page and tries again;
+  at build time the build fails and the previous deployment stays up. They used
+  to return `[]` (or `null` → a 404 for a live salon). A **Vercel preview**,
+  whose staging API sleeps, still degrades to empty. A real empty list, and a
+  real 404, are still that.
+- **A list read requires its list** (B9.11). The authed wrappers in
+  `lib/api/*.ts` read a 200 without its array as a failed read (status 0 — the
+  page's error state with its retry), never as « nothing here ».
 - **Every environment variable an operator sets for the web is listed in
   `web/.env.example`** — the platform- and build-set ones (`VERCEL_ENV`,
   `VERCEL_GIT_COMMIT_SHA`, `SENTRY_AUTH_TOKEN`) appear there commented (copy

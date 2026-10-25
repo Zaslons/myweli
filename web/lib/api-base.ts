@@ -6,11 +6,12 @@
 /// face of it that is harmless — a misconfigured deployment would fail loudly
 /// with connection errors on every request.
 ///
-/// Except the build-time path does not fail loudly. `lib/api/localities.ts` and
-/// `lib/api/providers.ts` catch and degrade to empty results, and the ISR pages
-/// call them during `next build`. So a production deploy missing this variable
-/// does not error: it **publishes a marketplace with no salons in it**, looking
-/// merely new rather than broken.
+/// Except the build-time path did not fail loudly. `lib/api/localities.ts` and
+/// `lib/api/providers.ts` caught and degraded to empty results — they still do
+/// on a Vercel preview (`lib/api/public-read.ts`, hygiene-batch9.md §2.10) —
+/// and the ISR pages call them during `next build`. So a deploy missing this
+/// variable did not error: it **published a marketplace with no salons in
+/// it**, looking merely new rather than broken.
 ///
 /// So the default is now scoped to where it is actually correct — development
 /// and test — and production refuses to resolve without an explicit value.
@@ -46,9 +47,10 @@ function resolve(configured: string | undefined, names: string): string {
   if (process.env.NODE_ENV === "production") {
     throw new Error(
       `${names} must be set in production. Refusing to fall back to ` +
-        `${LOCALHOST}: the build-time fetches degrade to empty results rather ` +
-        `than failing, so this would publish a site with no salons in it and ` +
-        `no error anywhere. Set it per Vercel environment — Production to the ` +
+        `${LOCALHOST}: on a preview the build-time fetches degrade to empty ` +
+        `results rather than failing, so this would publish a site with no ` +
+        `salons in it and no error anywhere. Set it per Vercel environment — ` +
+        `Production to the ` +
         `production API, Preview to staging (docs/LAUNCH.md §5.4).`,
     );
   }

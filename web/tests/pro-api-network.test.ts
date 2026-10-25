@@ -355,9 +355,11 @@ describe('lib/api/pro.ts — an answer is still read as before', () => {
     });
   });
 
-  it('a 200 list without `items` is an empty list — the server said so', async () => {
+  it('a 200 list without `items` is a failed read — the server said nothing', async () => {
+    // It read « the server said so »; the server always sends `items`, so it
+    // had said nothing (hygiene-batch9.md §2.10, B9.11).
     stubFetch(() => new Response('{}', { status: 200 }));
-    expect(await pro.getTeamMembers()).toEqual({ status: 200, items: [] });
+    expect(await pro.getTeamMembers()).toEqual({ status: 0, items: [] });
   });
 });
 

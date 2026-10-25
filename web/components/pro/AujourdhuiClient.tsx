@@ -32,6 +32,7 @@ import { GoLiveCard } from './GoLiveCard';
 import { ProAppointmentRow } from './ProAppointmentRow';
 import { ProInvitationsCard } from './ProInvitationsCard';
 import { useOptionalProMembership } from './ProMembershipContext';
+import { staffPlanningTitle } from '../../lib/salon-name';
 
 export function AujourdhuiClient() {
   const router = useRouter();
@@ -130,7 +131,7 @@ export function AujourdhuiClient() {
     return (
       <div>
         <h1 className="text-headlineSmall font-semibold text-textPrimary">
-          {salonName} — votre planning
+          {staffPlanningTitle(salonName)}
         </h1>
 
         {/* A Collaborateur is told of their own artist's bookings: the same

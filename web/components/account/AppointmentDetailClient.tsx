@@ -42,6 +42,7 @@ import { SalonTimeHint } from "../SalonTimeHint";
 import { DepositProof } from "../booking/DepositProof";
 import { ReviewForm } from "./ReviewForm";
 import { loadFailure, loadFailureMessage, type LoadFailure } from "../../lib/api/load-failure";
+import { UNNAMED_SALON, salonNameOr } from '../../lib/salon-name';
 
 export function AppointmentDetailClient({ id }: { id: string }) {
   const router = useRouter();
@@ -229,7 +230,7 @@ export function AppointmentDetailClient({ id }: { id: string }) {
             clusters" rather than title toolbars. */}
         <div className="flex flex-wrap items-center justify-between gap-m">
           <h1 className="text-titleLarge font-semibold text-textPrimary">
-            {appt.providerName ?? "Salon"}
+            {salonNameOr(appt.providerName, UNNAMED_SALON)}
           </h1>
           <Chip>{statusLabelFr(appt.status)}</Chip>
         </div>

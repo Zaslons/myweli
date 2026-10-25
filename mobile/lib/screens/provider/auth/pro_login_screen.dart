@@ -8,6 +8,7 @@ import 'package:provider/provider.dart';
 
 import '../../../core/config/feature_flags.dart';
 import '../../../core/constants/app_constants.dart';
+import '../../../core/constants/unnamed_salon.dart';
 import '../../../core/forms/field_errors.dart';
 import '../../../core/forms/sign_in_refusal.dart';
 import '../../../core/theme/app_theme.dart';
@@ -358,8 +359,13 @@ class _ProLoginScreenState extends State<ProLoginScreen> {
                   InvitationCard(
                     invitation: invitation,
                     busy: auth.isLoading,
-                    onAccept: () =>
-                        _acceptInvitation(invitation.id, invitation.salonName),
+                    onAccept: () => _acceptInvitation(
+                      invitation.id,
+                      salonNameOr(
+                        invitation.salonName,
+                        kUnnamedSalonInSentence,
+                      ),
+                    ),
                     onDecline: () => _declineInvitation(invitation.id),
                   ),
                   const SizedBox(height: AppTheme.spacingM),

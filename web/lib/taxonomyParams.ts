@@ -24,7 +24,9 @@ import { taxonomyRootSlugs } from './taxonomy';
 /// 404 in the HTML rather than a 44-character `__next_error__` shell.
 /// **Refuses to return an empty set, and that is deliberate.**
 ///
-/// `getLocalityTree()` swallows a failed fetch and returns `emptyTree`. With
+/// On a preview, `getLocalityTree()` turns a failed fetch into `emptyTree`
+/// (elsewhere it throws — `lib/api/public-read.ts`), and a server can answer
+/// an empty tree anywhere. With
 /// `dynamicParams = false` downstream, an empty result does not degrade — it
 /// makes EVERY city and commune page 404, sitewide, from one transient API
 /// blip at build time. Failing the build instead turns a silent catastrophe

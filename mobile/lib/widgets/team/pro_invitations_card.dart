@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/constants/unnamed_salon.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/colors.dart';
 import '../../core/theme/text_styles.dart';
@@ -84,7 +85,9 @@ class _ProInvitationsCardState extends State<ProInvitationsCard> {
     AppSnackBar.outcomeOn(
       messenger,
       ok: joined != null,
-      success: 'Vous avez rejoint ${invitation.salonName}',
+      success:
+          'Vous avez rejoint '
+          '${salonNameOr(invitation.salonName, kUnnamedSalonInSentence)}',
       error: _error(team, invitationAcceptFailedMessage),
     );
   }

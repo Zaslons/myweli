@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/constants/failure_messages.dart';
+import '../../core/constants/unnamed_salon.dart';
 import '../../core/di/dependency_injection.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/colors.dart';
@@ -229,7 +230,8 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
       appointmentId: appointment.id,
       depositAmount: appointment.depositAmount,
       balanceDue: appointment.balanceDue,
-      providerName: appointment.providerName ?? 'le salon',
+      // « Wave · Salon »: a label, so the title form.
+      providerName: salonNameOr(appointment.providerName, kUnnamedSalon),
       depositOperator: appointment.depositMobileMoneyOperator,
       depositCountryCode: appointment.providerCountryCode,
       depositNumber: appointment.depositMobileMoneyNumber,
@@ -352,7 +354,7 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
     final messenger = ScaffoldMessenger.of(context);
     final ok = await addAppointmentToCalendar(
       buildAppointmentCalendarEvent(
-        providerName: appointment.providerName ?? 'le salon',
+        providerName: appointment.providerName,
         providerAddress: appointment.providerAddress,
         serviceNames: appointment.serviceNames,
         start: appointment.appointmentDate,

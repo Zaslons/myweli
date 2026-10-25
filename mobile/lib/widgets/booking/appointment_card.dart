@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart' as provider_package;
 
+import '../../core/constants/unnamed_salon.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/colors.dart';
 import '../../core/theme/text_styles.dart';
@@ -136,7 +137,7 @@ class AppointmentCard extends StatelessWidget {
                               runSpacing: AppTheme.spacingXS,
                               children: [
                                 Text(
-                                  provider?.name ?? 'Salon',
+                                  salonNameOr(provider?.name, kUnnamedSalon),
                                   style: AppTextStyles.titleMedium.copyWith(
                                     color: AppColors.textPrimary,
                                   ),

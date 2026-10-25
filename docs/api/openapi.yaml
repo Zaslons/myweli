@@ -1015,6 +1015,9 @@ paths:
             application/json:
               schema:
                 type: object
+                # Always sent; the web reads a 200 without it as a failed read
+                # (docs/design/hygiene-batch9.md §2.10).
+                required: [items]
                 properties:
                   items: { type: array, items: { $ref: '#/components/schemas/Notification' } }
         '401': { $ref: '#/components/responses/Unauthorized' }
@@ -1792,6 +1795,9 @@ paths:
             application/json:
               schema:
                 type: object
+                # Always sent; the web's build fails rather than publish a
+                # sitemap without it (docs/design/hygiene-batch9.md §2.10).
+                required: [items]
                 properties:
                   items:
                     type: array

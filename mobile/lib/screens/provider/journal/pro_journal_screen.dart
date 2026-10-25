@@ -127,7 +127,9 @@ class _ProJournalScreenState extends State<ProJournalScreen> {
             // Null in salon mode, and null is what renders nothing — a
             // `bool ownMode` would still have to decide what an empty name
             // draws, and the honest answer is « no line at all ».
-            salonName: ownMode ? auth.salonName : null,
+            // The line names the salon; with no name there is nothing to
+            // say (« votre salon » centred over the day was the fallback).
+            salonName: ownMode ? auth.knownSalonName : null,
           ),
           Expanded(child: _body(journal)),
         ],

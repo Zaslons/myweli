@@ -114,13 +114,16 @@ export async function getMySalons(): Promise<{
   const res = await send('/api/pro/salons');
   if (!res.ok) return { status: res.status, items: [], canAddSalon: false };
   const body = await readJson<{
-    items?: SalonMembership[];
+    items?: unknown;
     canAddSalon?: boolean;
   }>(res);
-  if (!body) return { status: 0, items: [], canAddSalon: false };
+  // A 200 without its list is a failed read — hygiene-batch9.md §2.10.
+  if (!Array.isArray(body?.items)) {
+    return { status: 0, items: [], canAddSalon: false };
+  }
   return {
     status: 200,
-    items: body.items ?? [],
+    items: body.items as SalonMembership[],
     canAddSalon: body.canAddSalon === true,
   };
 }
@@ -179,8 +182,11 @@ export async function getProNotifications(): Promise<{
 }> {
   const res = await send('/api/pro/notifications');
   if (!res.ok) return { status: res.status, items: [] };
-  const body = await readJson<{ items?: AppNotification[] }>(res);
-  return body ? { status: 200, items: body.items ?? [] } : { status: 0, items: [] };
+  // A 200 without its list is a failed read — hygiene-batch9.md §2.10.
+  const items = (await readJson<{ items?: unknown }>(res))?.items;
+  return Array.isArray(items)
+    ? { status: 200, items: items as AppNotification[] }
+    : { status: 0, items: [] };
 }
 
 /// Both carry their status: the caller puts the row back to unread and tells
@@ -345,15 +351,18 @@ export async function listProviderReviews(
   );
   if (!res.ok) return { status: res.status, items: [], total: 0, pageSize: 0 };
   const body = await readJson<{
-    items?: Review[];
+    items?: unknown;
     total?: number;
     pageSize?: number;
     summary?: ReviewSummary;
   }>(res);
-  if (!body) return { status: 0, items: [], total: 0, pageSize: 0 };
+  // A 200 without its list is a failed read — hygiene-batch9.md §2.10.
+  if (!body || !Array.isArray(body.items)) {
+    return { status: 0, items: [], total: 0, pageSize: 0 };
+  }
   return {
     status: 200,
-    items: body.items ?? [],
+    items: body.items as Review[],
     total: body.total ?? 0,
     pageSize: body.pageSize ?? 50,
     ...(body.summary ? { summary: body.summary } : {}),
@@ -790,8 +799,11 @@ export async function getTeamMembers(): Promise<{
 }> {
   const res = await send('/api/pro/members');
   if (!res.ok) return { status: res.status, items: [] };
-  const body = await readJson<{ items?: TeamMember[] }>(res);
-  return body ? { status: 200, items: body.items ?? [] } : { status: 0, items: [] };
+  // A 200 without its list is a failed read — hygiene-batch9.md §2.10.
+  const items = (await readJson<{ items?: unknown }>(res))?.items;
+  return Array.isArray(items)
+    ? { status: 200, items: items as TeamMember[] }
+    : { status: 0, items: [] };
 }
 
 type MemberResult = { ok: boolean; status: number; member?: TeamMember; error?: string };
@@ -864,9 +876,11 @@ export async function getMyInvitations(): Promise<{
 }> {
   const res = await send('/api/pro/invitations');
   if (!res.ok) return { status: res.status, invitations: [] };
-  const body = await readJson<{ invitations?: TeamInvitation[] }>(res);
-  return body
-    ? { status: 200, invitations: body.invitations ?? [] }
+  // A 200 without its list is a failed read — hygiene-batch9.md §2.10.
+  const invitations = (await readJson<{ invitations?: unknown }>(res))
+    ?.invitations;
+  return Array.isArray(invitations)
+    ? { status: 200, invitations: invitations as TeamInvitation[] }
     : { status: 0, invitations: [] };
 }
 
@@ -911,8 +925,13 @@ export async function listClients(
   if (opts.pageSize) qs.set('pageSize', String(opts.pageSize));
   const res = await send(`/api/pro/clients?${qs}`);
   if (!res.ok) return { status: res.status };
-  const list = await readJson<SalonClientList>(res);
-  return list ? { status: 200, list } : { status: 0 };
+  // A 200 without its list is a failed read — hygiene-batch9.md §2.10. It
+  // checked nothing: a 200 `{}` reached the manual booking's client search,
+  // which reads `list.items.map`.
+  const list = await readJson<{ items?: unknown }>(res);
+  return Array.isArray(list?.items)
+    ? { status: 200, list: list as SalonClientList }
+    : { status: 0 };
 }
 
 /// The server's largest page (`ClientsService.list` clamps to 50).
@@ -991,9 +1010,14 @@ export async function getClientVisits(
     `/api/pro/clients/${clientId}/visits?providerId=${encodeURIComponent(providerId)}&page=${page}`,
   );
   if (!res.ok) return { status: res.status, items: [], total: 0 };
-  const b = await readJson<{ items?: ProAppointment[]; total?: number }>(res);
-  if (!b) return { status: 0, items: [], total: 0 };
-  return { status: 200, items: b.items ?? [], total: b.total ?? 0 };
+  const b = await readJson<{ items?: unknown; total?: number }>(res);
+  // A 200 without its list is a failed read — hygiene-batch9.md §2.10.
+  if (!b || !Array.isArray(b.items)) return { status: 0, items: [], total: 0 };
+  return {
+    status: 200,
+    items: b.items as ProAppointment[],
+    total: b.total ?? 0,
+  };
 }
 
 export async function updateClientTags(
