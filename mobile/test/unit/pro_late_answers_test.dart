@@ -659,6 +659,39 @@ void main() {
           );
         });
 
+        // The pair's SECOND photo has a progress of its own.
+        test(
+          'the second photo\'s progress after the reset says nothing',
+          () async {
+            void Function(double)? progress;
+            final held = Completer<ApiResponse<String>>();
+            var made = 0;
+            when(
+              () => uploads.uploadImage(
+                source: any(named: 'source'),
+                onProgress: any(named: 'onProgress'),
+              ),
+            ).thenAnswer((call) {
+              if (++made == 1) {
+                return Future.value(ApiResponse.success('https://cdn/b.jpg'));
+              }
+              progress =
+                  call.namedArguments[#onProgress] as void Function(double)?;
+              return held.future;
+            });
+            await expectIgnored(
+              'addPair second progress',
+              ProBeforeAfterProvider(),
+              salonReset,
+              (s) => s.addPair('p1', beforeSource: 'b', afterSource: 'a'),
+              () {
+                progress!(0.5);
+                held.land(refused());
+              },
+            );
+          },
+        );
+
         for (final (name, run)
             in <(String, Future<bool> Function(ProBeforeAfterProvider))>[
               (
@@ -1275,7 +1308,8 @@ void main() {
             store,
             salonReset,
             (s) => s.loadMore('p1'),
-            () => held.land(refused()),
+            // A refusal writes nothing anyway: the next page would.
+            () => held.land(ApiResponse.success(page)),
           );
         });
 
@@ -1304,6 +1338,11 @@ void main() {
               'provider1',
               'sc1',
             )).data!;
+            // Real visits: an empty list is what the reset itself leaves.
+            final visits = (await MockProClientsService().getVisits(
+              'provider1',
+              'sc1',
+            )).data!;
             final gate = Completer<void>();
             when(() => clients.getCard(any(), any())).thenAnswer(
               (_) => point == 'the card'
@@ -1314,7 +1353,7 @@ void main() {
               () => clients.getVisits(any(), any(), page: any(named: 'page')),
             ).thenAnswer(
               (_) => gate.future.then(
-                (_) => ApiResponse<List<Appointment>>.success(const []),
+                (_) => ApiResponse<List<Appointment>>.success(visits),
               ),
             );
             await expectIgnored(
@@ -1467,6 +1506,12 @@ void main() {
               (s) => s.updatePhone('p1', 'sc1', '+2250700000002'),
               () => gate.land(null),
             );
+            if (point == 'the change') {
+              // Nor is anything more asked for the previous salon's client.
+              verifyNever(
+                () => clients.getVisits(any(), any(), page: any(named: 'page')),
+              );
+            }
           });
         }
 

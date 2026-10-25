@@ -369,7 +369,7 @@ class ProClientsProvider extends ChangeNotifier implements ShowsSalonBookings {
         message: r.error ?? 'Une erreur est survenue.',
       );
     } catch (_) {
-      if (scope != _scope) return null;
+      // It only answers — nothing written, so no guard (the mutation pass).
       return const ClientPhoneRefusal(
         code: null,
         message: 'Une erreur est survenue.',
