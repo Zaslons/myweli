@@ -339,8 +339,12 @@ production — and a deleted check leaves no trace of what it used to assert.
 - ~~**Certificate expiry.**~~ **Covered since B9.4**
   (`infra/gcp/81-uptime-tls-latency.sh`): both checks validate the certificate
   (`--validate-ssl=true`), and an alert fires when the certificate has less
-  than 14 days left. Before, a check passed against an expired certificate
-  and its days-left metric was never written.
+  than 14 days left. Before, a check passed against an expired certificate,
+  and nothing alerted on the days left — the metric itself was recorded all
+  along (990 points in the hour before the switch, read from the Monitoring API on 2026-10-25; a first draft of this line said otherwise).
+  **Applied 2026-10-25**: both checks validate, and with validation on they
+  still pass (53/0 and 60/0 in the first eight minutes); the certificate,
+  Google Trust Services via Cloudflare, ends 2027-01-23 (89.4 days).
 - ~~**Latency.**~~ **Covered since B9.4**, coarsely: the mean probe latency
   across regions above 3 s for 15 minutes alerts, per check. A real latency
   budget still belongs with performance monitoring, which stays off (§9.3,

@@ -2,8 +2,9 @@
 // hygiene-batch9.md §2.3, B9.4, decision 34): the certificate api.myweli.com
 // serves, and how long it takes to answer. Without `--validate-ssl` a check
 // passes against an expired or wrong certificate — the browsers and the apps
-// refuse it, the probe does not — and the certificate's days-left metric is
-// never written. And a service answering in nine seconds passes every check.
+// refuse it, the probe does not — and nothing alerted on the certificate's
+// days left (recorded all along: 990 points in the hour before the switch, read from the Monitoring API on 2026-10-25). And a service
+// answering in nine seconds passes every check.
 //
 // These read the scripts, the way the other infra guards here do: the scripts
 // are run by hand, against the cloud, after asking.
