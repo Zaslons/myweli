@@ -85,26 +85,24 @@ class AppChip extends StatelessWidget {
       selected: selected!,
       onSelected: onSelected,
       showCheckmark: true,
-      avatar: icon == null
+      // Chosen, the ✓ takes the icon's place (Q16): Material paints its
+      // check OVER an avatar, and the icon still showed through.
+      avatar: icon == null || selected!
           ? null
-          : Icon(
-              icon,
-              size: AppTheme.iconS,
-              color: selected! ? AppColors.secondary : AppColors.textPrimary,
-            ),
+          : Icon(icon, size: AppTheme.iconXS, color: AppColors.textPrimary),
     ),
     _Kind.tag => Chip(
       label: Text(label),
       avatar: icon == null
           ? null
-          : Icon(icon, size: AppTheme.iconS, color: AppColors.textPrimary),
+          : Icon(icon, size: AppTheme.iconXS, color: AppColors.textPrimary),
     ),
     _Kind.action => ActionChip(
       label: Text(label),
       onPressed: onPressed,
       avatar: icon == null
           ? null
-          : Icon(icon, size: AppTheme.iconS, color: AppColors.textPrimary),
+          : Icon(icon, size: AppTheme.iconXS, color: AppColors.textPrimary),
     ),
     _Kind.status => _status(),
   };

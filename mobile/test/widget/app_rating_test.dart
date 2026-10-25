@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:myweli/core/utils/formatters.dart';
+import 'package:myweli/widgets/common/app_chip.dart';
 import 'package:myweli/widgets/common/app_rating.dart';
 
 import '../support/pump_app.dart';
@@ -102,9 +103,10 @@ void main() {
     'is not stretched by a `stretch` parent',
     (tester) async {
       await pump(tester, const AppRating(rating: 0, reviewCount: 0));
+      // `AppChip.status(dense: true)` since B9.8 F3.
       final pill = find.ancestor(
         of: find.text('Nouveau'),
-        matching: find.byType(Container),
+        matching: find.byType(AppChip),
       );
       final size = tester.getSize(pill.first);
       // `ProviderCard._textBlockHeight` budgets the rating row at 16.

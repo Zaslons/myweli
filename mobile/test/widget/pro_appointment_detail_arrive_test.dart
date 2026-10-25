@@ -69,7 +69,8 @@ void main() {
 
   // B9.8 F3 (hygiene-batch9.md §2.7.4): the status was a Material `Chip`
   // filled with the status colour and no label colour — the theme's ink,
-  // #1A1A1A on `info` #1A1A2E for « Confirmé »: 1.02:1, black on black.
+  // #1A1A1A on `info` #1A1A2E for « Confirmé »: 1.02:1, black on black —
+  // measured on the painted label, before.
   testWidgets('the status reads: « Confirmé » at ≥ 4.5:1 on its chip', (
     tester,
   ) async {
@@ -80,7 +81,8 @@ void main() {
     final chip = tester.widget<AppChip>(
       find.ancestor(of: label, matching: find.byType(AppChip)),
     );
-    expect(chip.tone, AppChipTone.info);
+    // The B7 kind: confirmed is ok.
+    expect(chip.tone, AppChipTone.success);
     final painted = tester.renderObject<RenderParagraph>(label).text.style!;
     final pill = tester.widget<DecoratedBox>(
       find.ancestor(of: label, matching: find.byType(DecoratedBox)).first,

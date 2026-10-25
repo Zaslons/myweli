@@ -70,21 +70,29 @@ void main() {
       expect(tester.getSize(find.byType(ChoiceChip)).height, 48);
     });
 
-    testWidgets('an icon leads, and the ✓ takes its place when chosen', (
+    testWidgets('an icon leads; chosen, the ✓ takes its place (Q16)', (
       tester,
     ) async {
-      await pump(
-        tester,
-        AppChip.choice(
-          label: 'Barbier',
-          icon: Icons.content_cut,
-          selected: true,
-          onSelected: (_) {},
-        ),
-      );
-      final chip = tester.widget<ChoiceChip>(find.byType(ChoiceChip));
-      expect((chip.avatar! as Icon).icon, Icons.content_cut);
-      expect((chip.avatar! as Icon).color, AppColors.secondary);
+      Future<ChoiceChip> chip({required bool selected}) async {
+        await pump(
+          tester,
+          AppChip.choice(
+            label: 'Barbier',
+            icon: Icons.content_cut,
+            selected: selected,
+            onSelected: (_) {},
+          ),
+        );
+        return tester.widget<ChoiceChip>(find.byType(ChoiceChip));
+      }
+
+      final idle = await chip(selected: false);
+      expect((idle.avatar! as Icon).icon, Icons.content_cut);
+      // Material paints its check OVER an avatar: kept, the icon showed
+      // through and no ✓ could be seen.
+      final chosen = await chip(selected: true);
+      expect(chosen.avatar, isNull);
+      expect(chosen.showCheckmark, isTrue);
     });
   });
 

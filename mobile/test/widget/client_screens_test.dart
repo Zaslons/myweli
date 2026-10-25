@@ -1068,7 +1068,7 @@ void main() {
         reason: '§14 rule 3 — a field fault is never a bar',
       );
       expect(
-        find.byType(FilterChip),
+        find.byType(ChoiceChip),
         findsNWidgets(3),
         reason:
             'nothing was added: the three choices are the presets '
@@ -1111,7 +1111,7 @@ void main() {
         reason: '§14 rule 3 — a field fault is never a bar',
       );
       expect(
-        find.byType(FilterChip),
+        find.byType(ChoiceChip),
         findsNWidgets(3),
         reason: 'and no duplicate chip was appended',
       );
@@ -1132,9 +1132,9 @@ void main() {
     );
     Finder underTheTag(String message) =>
         find.descendant(of: tagField(), matching: find.text(message));
-    Finder chip(String tag) => find.widgetWithText(FilterChip, tag);
+    Finder chip(String tag) => find.widgetWithText(ChoiceChip, tag);
     bool selected(WidgetTester tester, String tag) =>
-        tester.widget<FilterChip>(chip(tag)).selected;
+        tester.widget<ChoiceChip>(chip(tag)).selected;
     Future<void> typeTag(WidgetTester tester, String value) async {
       await tester.enterText(
         find.descendant(of: tagField(), matching: find.byType(TextField)),
