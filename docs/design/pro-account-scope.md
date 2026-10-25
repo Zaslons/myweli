@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Statut** | **Brouillon — en attente de validation** (Q1, Q2 au §8). Rien n'est construit. |
+| **Statut** | **Validé le 2026-10-25** — Q1 = **(a)** les gardes des treize magasins dans cette PR ; Q2 = **(a)** la connexion, avec « Votre session a expiré. Reconnectez-vous. » (§8). |
 | **Owner** | Sadreddine |
 | **Last updated** | 2026-10-25 |
 | **PRD ref / phase** | FR-AUTH-003 (session, déconnexion) · FR-AUTH-005 (suppression) · accès d'équipe R3/R4 (rôles) · V1 |
