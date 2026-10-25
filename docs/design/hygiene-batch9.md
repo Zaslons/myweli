@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Statut** | **Validé le 2026-10-22** — relu sur main (`d1e886e1`). Q1 (décision 33) : **le type `SalonId`** (« ce qui vaut le mieux à long terme ») ; Q2 (décision 34) : **e-mail et poussée Sentry** ; Q3 (décision 34) : **pas de suivi des performances pour l'instant** ; Q4 (décision 35) : **pas d'interrupteur** ; Q5 : **construire les trois composants et migrer tous les écrans maintenant** ; Q6 : **les pages publiques lèvent** ; Q7 : **supprimer la table avec ce lot** ; Q8 : **le reste tel qu'écrit**. Huit PR (§3). **PR A fusionnée le 2026-10-22** (#688 — B9.1, B9.5 — §9). **PR B fusionnée le 2026-10-22** (#689 — B9.6 — §10). **PR C fusionnée le 2026-10-22** (#690 — B9.7 — §11). **PR D fusionnée le 2026-10-25** (#691 — B9.11, B9.10 — §12 ; déploiement Vercel de production réussi, le plan du site liste 228 adresses). **PR E fusionnée le 2026-10-25** (#697 — B9.2–B9.4 — §13 ; 81 appliqué et relu le même jour, #698). **PR F1 construite le 2026-10-25** (#699, `feat/batch9-components`) (B9.8 : les trois briques et tous les écrans asynchrones — §14 ; Q9–Q12 en §8). |
+| **Statut** | **Validé le 2026-10-22** — relu sur main (`d1e886e1`). Q1 (décision 33) : **le type `SalonId`** (« ce qui vaut le mieux à long terme ») ; Q2 (décision 34) : **e-mail et poussée Sentry** ; Q3 (décision 34) : **pas de suivi des performances pour l'instant** ; Q4 (décision 35) : **pas d'interrupteur** ; Q5 : **construire les trois composants et migrer tous les écrans maintenant** ; Q6 : **les pages publiques lèvent** ; Q7 : **supprimer la table avec ce lot** ; Q8 : **le reste tel qu'écrit**. Huit PR (§3). **PR A fusionnée le 2026-10-22** (#688 — B9.1, B9.5 — §9). **PR B fusionnée le 2026-10-22** (#689 — B9.6 — §10). **PR C fusionnée le 2026-10-22** (#690 — B9.7 — §11). **PR D fusionnée le 2026-10-25** (#691 — B9.11, B9.10 — §12 ; déploiement Vercel de production réussi, le plan du site liste 228 adresses). **PR E fusionnée le 2026-10-25** (#697 — B9.2–B9.4 — §13 ; 81 appliqué et relu le même jour, #698). **PR F1 fusionnée le 2026-10-25** (#699) (B9.8 : les trois briques et tous les écrans asynchrones — §14 ; Q9–Q12 en §8). **PR F2 construite le 2026-10-25** sur `feat/batch9-cards` (B9.8 : toutes les cartes sur `AppCard` — §2.7.3, §15 ; Q13–Q15 en §8). |
 | **Owner** | Sadreddine |
 | **Last updated** | 2026-10-25 |
 | **PRD ref / phase** | V1 — rien de visible n'est ajouté ; ce lot rend vrais les documents, les doublures de test, les lectures et les outils |
@@ -951,4 +951,27 @@ regroupement à repenser, pas une carte.
 (la barre « Total » et le champ de date à part) ; une ombre seulement sur la
 liste de ce qui flotte.
 
-VERIFIED_F2
+**Vérifié** :
+- **La suite de l'app** : 2 791 essais verts, 58 sautés (les photos) ;
+  `flutter analyze` à 0, le format propre. Deux essais cherchaient une carte
+  par son type (`Container`, `Card`) : ils cherchent `AppCard`.
+- **Les mutations, en deux passages.** Le premier a laissé survivre trois
+  choses, et chacune a appris quelque chose : retirer le `container` de la
+  carte ne changeait rien à aucun essai — **un essai dit maintenant qu'une
+  carte se lit d'un bloc et deux cartes en deux** ; retirer le `container`
+  ajouté au cœur des favoris ne changeait rien non plus — Flutter sépare déjà
+  deux touchers, l'ajout était inutile et il est retiré. **Second passage :
+  12 mutations, toutes rouges** — la fusion, le conteneur, le bouton,
+  « sélectionné » non dit, le trait de 1 px, le trait d'une autre couleur, le
+  contour passif, l'ombre, une `Card`, une carte dessinée à la main, une ombre
+  sur une carte, une page de cartes rendue à `surface`.
+- **Les photos**, refaites deux fois sur Linux (avant et après les fonds de
+  page) et **regardées une à une** : 17 bougent — l'ombre partie (l'accueil,
+  le salon, mes rendez-vous, la réservation, l'accueil Pro, le calendrier,
+  les revenus, les avis), la bordure partie (l'acompte, l'équipe), l'étape
+  ouverte de la réservation à 2 px, les cartes du Profil et de l'accueil Pro
+  à la gouttière, et l'équipe et les invitations sur `background` — le
+  premier passage montrait la carte d'invitation presque effacée sur
+  `surface`, et c'est lui qui a trouvé les six pages.
+- **Le serveur et le web** ne sont pas touchés depuis #699 (2 177 et 2 255
+  essais verts sur ce même code).
