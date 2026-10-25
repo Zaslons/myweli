@@ -371,6 +371,15 @@ void main() {
       expect(out(r), isNot(contains('STUB_FLUTTER_REACHED')));
     });
 
+    test('origin/main is fetched first: a main that moved on since the last '
+        'fetch is not the one this HEAD is', () {
+      repo.advanceOrigin();
+      final r = repo.run('ios', 'consumer');
+      expect(r.exitCode, 1, reason: out(r));
+      expect(out(r), contains('origin/main'));
+      expect(repo.gcloudCalls, isEmpty);
+    });
+
     test('a tree that is not clean is refused — an untracked file too', () {
       File('${repo.work.path}/mobile/notes.txt').writeAsStringSync('x');
       final r = repo.run('ios', 'consumer');
@@ -432,7 +441,11 @@ void main() {
     test('a build that wrote no archive is refused', () {
       final r = repo.run('ios', 'pro', env: {'STUB_NO_ARCHIVE': '1'});
       expect(r.exitCode, 1, reason: out(r));
-      expect(out(r), contains('Runner.xcarchive'));
+      expect(
+        out(r),
+        contains('left no build/ios/archive/Runner.xcarchive'),
+        reason: 'refused by the check, not by `mv` failing',
+      );
     });
 
     test('the Sentry command carries the archive\'s dSYMs and the Dart '
@@ -614,6 +627,24 @@ exit "${STUB_VALIDATE_EXIT:-0}"
       ...env,
     },
   );
+
+  /// Someone merges to main after this clone last fetched: the local
+  /// `origin/main` is stale, HEAD still equals it.
+  void advanceOrigin() {
+    final other = '${root.path}/other';
+    Process.runSync('git', ['clone', '-q', '${root.path}/origin.git', other]);
+    File(
+      '$other/mobile/HISTORY',
+    ).writeAsStringSync('merged\n', mode: FileMode.append);
+    for (final a in [
+      ['add', '-A'],
+      ['-c', 'user.name=t', '-c', 'user.email=t@t', 'commit', '-q', '-m', 'm'],
+      ['push', '-q', 'origin', 'HEAD:main'],
+    ]) {
+      final r = Process.runSync('git', a, workingDirectory: other);
+      if (r.exitCode != 0) throw StateError('git $a: ${r.stderr}');
+    }
+  }
 
   void _git(List<String> args) {
     final r = Process.runSync('git', args, workingDirectory: work.path);
