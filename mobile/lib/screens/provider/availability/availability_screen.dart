@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:myweli/widgets/common/brand_loader.dart';
 import 'package:myweli/widgets/common/brand_refresh.dart';
-import 'package:myweli/widgets/common/loading_indicator.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/constants/booking_horizons.dart';
@@ -14,6 +13,8 @@ import '../../../core/utils/salon_time.dart';
 import '../../../models/availability.dart';
 import '../../../providers/pro_auth_provider.dart';
 import '../../../providers/pro_availability_provider.dart';
+import '../../../widgets/common/app_async_view.dart';
+import '../../../widgets/common/app_skeleton.dart';
 import '../../../widgets/common/app_snack_bar.dart';
 import '../../../widgets/common/confirm_dialog.dart';
 import '../../../widgets/common/myweli_date_picker.dart';
@@ -60,227 +61,230 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
             return const Center(child: Text('Veuillez vous connecter'));
           }
 
-          if (availabilityProvider.isLoading &&
-              availabilityProvider.availability == null) {
-            return const Center(child: LoadingIndicator());
+          Future<void> reload() async {
+            if (authProvider.provider != null) {
+              await availabilityProvider.loadAvailability(
+                _resolvedProviderId(context),
+              );
+            }
           }
 
-          final availability = availabilityProvider.availability;
-          if (availability == null) {
-            return Center(
-              child: Text(
-                availabilityProvider.error ?? 'Aucune disponibilité configurée',
-                style: AppTextStyles.bodyLarge.copyWith(
-                  color: AppColors.textSecondary,
-                ),
-              ),
-            );
-          }
-
-          return BrandRefresh(
-            onRefresh: () async {
-              if (authProvider.provider != null) {
-                await availabilityProvider.loadAvailability(
-                  _resolvedProviderId(context),
-                );
-              }
-            },
-            child: SingleChildScrollView(
-              physics: const AlwaysScrollableScrollPhysics(),
-              padding: const EdgeInsets.all(AppTheme.spacingM),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _BookingWindowSection(
-                    bookingHorizonDays: availability.bookingHorizonDays,
-                    minimumNoticeMinutes: availability.minimumNoticeMinutes,
-                    onHorizonChanged: (days) => _setWindow(
-                      context,
-                      availability,
-                      availabilityProvider,
-                      _resolvedProviderId(context),
-                      horizonDays: days,
-                    ),
-                    onNoticeChanged: (minutes) => _setWindow(
-                      context,
-                      availability,
-                      availabilityProvider,
-                      _resolvedProviderId(context),
-                      noticeMinutes: minutes,
-                    ),
-                  ),
-                  const SizedBox(height: AppTheme.spacingL),
-                  _BufferSection(
-                    bufferMinutes: availability.bufferMinutes,
-                    onChanged: (minutes) => _setBuffer(
-                      context,
-                      minutes,
-                      availability,
-                      availabilityProvider,
-                      _resolvedProviderId(context),
-                    ),
-                  ),
-                  const SizedBox(height: AppTheme.spacingL),
-                  Text(
-                    'Pauses',
-                    style: AppTextStyles.titleLarge.copyWith(
-                      color: AppColors.textPrimary,
-                    ),
-                  ),
-                  const SizedBox(height: AppTheme.spacingXS),
-                  Text(
-                    'Une pause récurrente par jour (ex. déjeuner). '
-                    'Aucun créneau ne sera proposé pendant ces heures.',
-                    style: AppTextStyles.bodySmall.copyWith(
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
-                  const SizedBox(height: AppTheme.spacingS),
-                  WeeklyHoursEditor(
-                    hours: availability.breaks,
-                    offLabel: 'Aucune',
-                    defaultStart: const TimeOfDay(hour: 12, minute: 0),
-                    defaultEnd: const TimeOfDay(hour: 13, minute: 0),
-                    onChanged: (breaks) => _setBreaks(
-                      context,
-                      breaks,
-                      availability,
-                      availabilityProvider,
-                      _resolvedProviderId(context),
-                    ),
-                  ),
-                  const SizedBox(height: AppTheme.spacingL),
-                  Text(
-                    'Horaires de travail',
-                    style: AppTextStyles.titleLarge.copyWith(
-                      color: AppColors.textPrimary,
-                    ),
-                  ),
-                  const SizedBox(height: AppTheme.spacingXS),
-                  // The one section of four that had no explanatory sentence —
-                  // and the derived-créneaux question is the one the owner
-                  // actually fielded (availability-presets.md §2).
-                  Text(
-                    kCreneauxCopy,
-                    style: AppTextStyles.bodySmall.copyWith(
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
-                  const SizedBox(height: AppTheme.spacingS),
-                  // Sub-labelled like the window card's rows: an unlabelled
-                  // Wrap after an unrelated sentence would be a puzzle.
-                  Text(
-                    'Modèles',
-                    style: AppTextStyles.bodySmall.copyWith(
-                      color: AppColors.textPrimary,
-                    ),
-                  ),
-                  const SizedBox(height: AppTheme.spacingXS),
-                  Wrap(
-                    spacing: AppTheme.spacingS,
-                    runSpacing: AppTheme.spacingS,
-                    children: WeeklySchedulePresets.all.map((preset) {
-                      return ChoiceChip(
-                        label: Text(preset.label),
-                        // Honest selection: lit only while the schedule IS
-                        // the model — any manual edit unlights every chip.
-                        selected: weeklyScheduleMatchesPreset(
-                          availability.weeklySchedule,
-                          preset,
-                        ),
-                        onSelected: (_) => _applyPreset(
-                          context,
-                          preset,
-                          availability,
-                          availabilityProvider,
-                          _resolvedProviderId(context),
-                        ),
-                      );
-                    }).toList(),
-                  ),
-                  const SizedBox(height: AppTheme.spacingM),
-                  ...List.generate(7, (index) {
-                    final dayName = _getDayName(index);
-                    final daySlots = availability.weeklySchedule[index] ?? [];
-                    return _DayScheduleCard(
-                      dayIndex: index,
-                      dayName: dayName,
-                      timeSlots: daySlots,
-                      onEdit: () => _showEditDayDialog(
-                        context,
-                        index,
-                        dayName,
-                        daySlots,
-                        availabilityProvider,
-                        _resolvedProviderId(context),
-                      ),
-                    );
-                  }),
-                  const SizedBox(height: AppTheme.spacingL),
-                  Text(
-                    'Dates bloquées',
-                    style: AppTextStyles.titleLarge.copyWith(
-                      color: AppColors.textPrimary,
-                    ),
-                  ),
-                  const SizedBox(height: AppTheme.spacingSM),
-                  if (availability.blockedDates.isEmpty)
-                    Container(
-                      padding: const EdgeInsets.all(AppTheme.spacingM),
-                      decoration: BoxDecoration(
-                        color: AppColors.secondary,
-                        borderRadius: BorderRadius.circular(
-                          AppTheme.radiusLarge,
-                        ),
-                      ),
-                      child: Row(
-                        children: [
-                          const Icon(
-                            Icons.info_outline,
-                            color: AppColors.textSecondary,
-                          ),
-                          const SizedBox(width: AppTheme.spacingSM),
-                          Expanded(
-                            child: Text(
-                              'Aucune date bloquée',
-                              style: AppTextStyles.bodyMedium.copyWith(
-                                color: AppColors.textSecondary,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    )
-                  else
-                    ...availability.blockedDates.map(
-                      (date) => _BlockedDateCard(
-                        date: date,
-                        tz: context.read<ProAuthProvider>().salonTimezone,
-                        onRemove: () => _removeBlockedDate(
-                          context,
-                          date,
-                          availability,
-                          availabilityProvider,
-                          _resolvedProviderId(context),
-                        ),
-                      ),
-                    ),
-                  const SizedBox(height: AppTheme.spacingSM),
-                  OutlinedButton.icon(
-                    onPressed: () => _showBlockedDatesPicker(
-                      context,
-                      availability,
-                      availabilityProvider,
-                      _resolvedProviderId(context),
-                    ),
-                    icon: const Icon(Icons.edit_calendar),
-                    label: const Text('Gérer les dates bloquées'),
-                  ),
-                ],
-              ),
-            ),
+          // A bare grey sentence, before — the failure's text, or a save's,
+          // since [ProAvailabilityProvider.error] is both (B9.8).
+          return AppAsyncView<Availability>(
+            isLoading: availabilityProvider.isLoading,
+            error: availabilityProvider.loadError,
+            data: availabilityProvider.availability,
+            isEmpty: (_) => false,
+            loading: const SkeletonDetail(sections: 3),
+            empty: const SizedBox.shrink(),
+            onRetry: reload,
+            builder: (context, availability) =>
+                _availability(availabilityProvider, availability, reload),
           );
         },
+      ),
+    );
+  }
+
+  Widget _availability(
+    ProAvailabilityProvider availabilityProvider,
+    Availability availability,
+    Future<void> Function() reload,
+  ) {
+    return BrandRefresh(
+      onRefresh: reload,
+      child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.all(AppTheme.spacingM),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _BookingWindowSection(
+              bookingHorizonDays: availability.bookingHorizonDays,
+              minimumNoticeMinutes: availability.minimumNoticeMinutes,
+              onHorizonChanged: (days) => _setWindow(
+                context,
+                availability,
+                availabilityProvider,
+                _resolvedProviderId(context),
+                horizonDays: days,
+              ),
+              onNoticeChanged: (minutes) => _setWindow(
+                context,
+                availability,
+                availabilityProvider,
+                _resolvedProviderId(context),
+                noticeMinutes: minutes,
+              ),
+            ),
+            const SizedBox(height: AppTheme.spacingL),
+            _BufferSection(
+              bufferMinutes: availability.bufferMinutes,
+              onChanged: (minutes) => _setBuffer(
+                context,
+                minutes,
+                availability,
+                availabilityProvider,
+                _resolvedProviderId(context),
+              ),
+            ),
+            const SizedBox(height: AppTheme.spacingL),
+            Text(
+              'Pauses',
+              style: AppTextStyles.titleLarge.copyWith(
+                color: AppColors.textPrimary,
+              ),
+            ),
+            const SizedBox(height: AppTheme.spacingXS),
+            Text(
+              'Une pause récurrente par jour (ex. déjeuner). '
+              'Aucun créneau ne sera proposé pendant ces heures.',
+              style: AppTextStyles.bodySmall.copyWith(
+                color: AppColors.textSecondary,
+              ),
+            ),
+            const SizedBox(height: AppTheme.spacingS),
+            WeeklyHoursEditor(
+              hours: availability.breaks,
+              offLabel: 'Aucune',
+              defaultStart: const TimeOfDay(hour: 12, minute: 0),
+              defaultEnd: const TimeOfDay(hour: 13, minute: 0),
+              onChanged: (breaks) => _setBreaks(
+                context,
+                breaks,
+                availability,
+                availabilityProvider,
+                _resolvedProviderId(context),
+              ),
+            ),
+            const SizedBox(height: AppTheme.spacingL),
+            Text(
+              'Horaires de travail',
+              style: AppTextStyles.titleLarge.copyWith(
+                color: AppColors.textPrimary,
+              ),
+            ),
+            const SizedBox(height: AppTheme.spacingXS),
+            // The one section of four that had no explanatory sentence —
+            // and the derived-créneaux question is the one the owner
+            // actually fielded (availability-presets.md §2).
+            Text(
+              kCreneauxCopy,
+              style: AppTextStyles.bodySmall.copyWith(
+                color: AppColors.textSecondary,
+              ),
+            ),
+            const SizedBox(height: AppTheme.spacingS),
+            // Sub-labelled like the window card's rows: an unlabelled
+            // Wrap after an unrelated sentence would be a puzzle.
+            Text(
+              'Modèles',
+              style: AppTextStyles.bodySmall.copyWith(
+                color: AppColors.textPrimary,
+              ),
+            ),
+            const SizedBox(height: AppTheme.spacingXS),
+            Wrap(
+              spacing: AppTheme.spacingS,
+              runSpacing: AppTheme.spacingS,
+              children: WeeklySchedulePresets.all.map((preset) {
+                return ChoiceChip(
+                  label: Text(preset.label),
+                  // Honest selection: lit only while the schedule IS
+                  // the model — any manual edit unlights every chip.
+                  selected: weeklyScheduleMatchesPreset(
+                    availability.weeklySchedule,
+                    preset,
+                  ),
+                  onSelected: (_) => _applyPreset(
+                    context,
+                    preset,
+                    availability,
+                    availabilityProvider,
+                    _resolvedProviderId(context),
+                  ),
+                );
+              }).toList(),
+            ),
+            const SizedBox(height: AppTheme.spacingM),
+            ...List.generate(7, (index) {
+              final dayName = _getDayName(index);
+              final daySlots = availability.weeklySchedule[index] ?? [];
+              return _DayScheduleCard(
+                dayIndex: index,
+                dayName: dayName,
+                timeSlots: daySlots,
+                onEdit: () => _showEditDayDialog(
+                  context,
+                  index,
+                  dayName,
+                  daySlots,
+                  availabilityProvider,
+                  _resolvedProviderId(context),
+                ),
+              );
+            }),
+            const SizedBox(height: AppTheme.spacingL),
+            Text(
+              'Dates bloquées',
+              style: AppTextStyles.titleLarge.copyWith(
+                color: AppColors.textPrimary,
+              ),
+            ),
+            const SizedBox(height: AppTheme.spacingSM),
+            if (availability.blockedDates.isEmpty)
+              Container(
+                padding: const EdgeInsets.all(AppTheme.spacingM),
+                decoration: BoxDecoration(
+                  color: AppColors.secondary,
+                  borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(
+                      Icons.info_outline,
+                      color: AppColors.textSecondary,
+                    ),
+                    const SizedBox(width: AppTheme.spacingSM),
+                    Expanded(
+                      child: Text(
+                        'Aucune date bloquée',
+                        style: AppTextStyles.bodyMedium.copyWith(
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              )
+            else
+              ...availability.blockedDates.map(
+                (date) => _BlockedDateCard(
+                  date: date,
+                  tz: context.read<ProAuthProvider>().salonTimezone,
+                  onRemove: () => _removeBlockedDate(
+                    context,
+                    date,
+                    availability,
+                    availabilityProvider,
+                    _resolvedProviderId(context),
+                  ),
+                ),
+              ),
+            const SizedBox(height: AppTheme.spacingSM),
+            OutlinedButton.icon(
+              onPressed: () => _showBlockedDatesPicker(
+                context,
+                availability,
+                availabilityProvider,
+                _resolvedProviderId(context),
+              ),
+              icon: const Icon(Icons.edit_calendar),
+              label: const Text('Gérer les dates bloquées'),
+            ),
+          ],
+        ),
       ),
     );
   }

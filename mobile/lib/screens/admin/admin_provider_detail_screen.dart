@@ -8,9 +8,10 @@ import '../../core/utils/formatters.dart';
 import '../../providers/admin/admin_disputes_provider.dart';
 import '../../providers/admin/admin_provider_detail_provider.dart';
 import '../../providers/admin/admin_providers_provider.dart';
+import '../../widgets/common/app_async_view.dart';
 import '../../widgets/common/app_button.dart';
+import '../../widgets/common/app_skeleton.dart';
 import '../../widgets/common/app_snack_bar.dart';
-import '../../widgets/common/loading_indicator.dart';
 import 'widgets/admin_detail_widgets.dart';
 import 'widgets/admin_scaffold.dart';
 import 'widgets/reason_dialog.dart';
@@ -134,16 +135,21 @@ class _AdminProviderDetailScreenState extends State<AdminProviderDetailScreen> {
     return AdminScaffold(title: 'Salon', showBack: true, child: _body(p));
   }
 
-  Widget _body(AdminProviderDetailProvider p) {
-    if (p.isLoading && p.provider == null) return const LoadingIndicator();
-    if (p.provider == null) {
-      return AdminDetailError(
-        message: p.error ?? 'Introuvable',
-        onRetry: () =>
-            context.read<AdminProviderDetailProvider>().load(widget.id),
-      );
-    }
-    final s = p.provider!;
+  Widget _body(
+    AdminProviderDetailProvider p,
+  ) => AppAsyncView<Map<String, dynamic>>(
+    isLoading: p.isLoading,
+    error: p.error,
+    // Another salon's, on this screen's first frame (the provider outlives it).
+    data: p.id == widget.id ? p.provider : null,
+    isEmpty: (_) => false,
+    loading: const SkeletonDetail(sections: 2),
+    empty: const SizedBox.shrink(),
+    onRetry: () => context.read<AdminProviderDetailProvider>().load(widget.id),
+    builder: (context, s) => _detail(p, s),
+  );
+
+  Widget _detail(AdminProviderDetailProvider p, Map<String, dynamic> s) {
     return Column(
       children: [
         Expanded(

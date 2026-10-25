@@ -60,6 +60,17 @@ class ProviderProvider extends ChangeNotifier {
   /// sentences to tell them apart is how `'Salon introuvable'` became dead
   /// code that never rendered.
   String? _errorCode;
+
+  /// The salon LIST's own read (B9.8). [isLoading] and [error] belong to
+  /// every read here: the featured carousel finishing first turned
+  /// [isLoading] off while the list was still out — « Aucun salon trouvé »
+  /// under a list on its way — and a salon page's failed read gave a list
+  /// screen its error.
+  bool _listLoading = false;
+  String? _listError;
+
+  /// The featured carousel's own read, for the same reason.
+  bool _featuredLoading = false;
   String? _selectedCategory;
   String? _selectedCommune;
   ProviderSort _sort = ProviderSort.relevance;
@@ -88,6 +99,9 @@ class ProviderProvider extends ChangeNotifier {
   bool get isSubmittingReview => _isSubmittingReview;
   String? get error => _error;
   String? get errorCode => _errorCode;
+  bool get listLoading => _listLoading;
+  String? get listError => _listError;
+  bool get featuredLoading => _featuredLoading;
   String? get selectedCategory => _selectedCategory;
   String? get selectedCommune => _selectedCommune;
   ProviderSort get sort => _sort;
@@ -95,7 +109,9 @@ class ProviderProvider extends ChangeNotifier {
 
   Future<void> loadProviders({String? category, String? searchQuery}) async {
     _isLoading = true;
+    _listLoading = true;
     _error = null;
+    _listError = null;
     _selectedCategory = category;
     notifyListeners();
 
@@ -111,14 +127,17 @@ class ProviderProvider extends ChangeNotifier {
         _providers = response.data!;
         _error = null;
       } else {
-        _error = response.error ?? 'Erreur lors du chargement';
+        _error = response.error ?? kGenericErrorMessage;
+        _listError = _error;
         _providers = [];
       }
     } catch (e) {
       _error = kGenericErrorMessage;
+      _listError = _error;
       _providers = [];
     } finally {
       _isLoading = false;
+      _listLoading = false;
       notifyListeners();
     }
   }
@@ -167,6 +186,7 @@ class ProviderProvider extends ChangeNotifier {
 
   Future<void> loadFeaturedProviders() async {
     _isLoading = true;
+    _featuredLoading = true;
     notifyListeners();
 
     try {
@@ -178,6 +198,7 @@ class ProviderProvider extends ChangeNotifier {
       // Silent fail for featured providers
     } finally {
       _isLoading = false;
+      _featuredLoading = false;
       notifyListeners();
     }
   }

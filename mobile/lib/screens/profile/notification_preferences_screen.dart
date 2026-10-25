@@ -1,16 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/constants/failure_messages.dart';
 import '../../core/di/dependency_injection.dart';
 import '../../core/push/system_settings.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/colors.dart';
 import '../../core/theme/text_styles.dart';
+import '../../models/notification_preferences.dart';
 import '../../providers/notification_preferences_provider.dart';
 import '../../services/interfaces/push_notification_service_interface.dart';
-import '../../widgets/common/app_button.dart';
+import '../../widgets/common/app_async_view.dart';
+import '../../widgets/common/app_skeleton.dart';
 import '../../widgets/common/app_snack_bar.dart';
-import '../../widgets/common/loading_indicator.dart';
 import '../../widgets/push/push_blocked_banner.dart';
 
 /// Consumer notification preferences (FR-NOTIF-004): three opt-out toggles,
@@ -94,113 +96,93 @@ class _NotificationPreferencesScreenState
       appBar: AppBar(title: const Text('Préférences')),
       body: Consumer<NotificationPreferencesProvider>(
         builder: (context, provider, _) {
-          if (provider.isLoading) return const LoadingIndicator();
-
-          if (provider.loadFailed) {
-            return Center(
-              child: Padding(
-                padding: const EdgeInsets.all(AppTheme.spacingL),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Icon(
-                      Icons.error_outline,
-                      size: AppTheme.iconXL,
-                      color: AppColors.error,
-                    ),
-                    const SizedBox(height: AppTheme.spacingM),
-                    Text(
-                      provider.error ?? 'Erreur lors du chargement',
-                      textAlign: TextAlign.center,
-                      style: AppTextStyles.bodyMedium.copyWith(
-                        color: AppColors.textSecondary,
-                      ),
-                    ),
-                    const SizedBox(height: AppTheme.spacingM),
-                    AppButton(
-                      text: 'Réessayer',
-                      type: AppButtonType.secondary,
-                      onPressed: () => provider.load(),
-                    ),
-                  ],
-                ),
-              ),
-            );
-          }
-
-          final prefs = provider.prefs;
-          return ListView(
-            padding: const EdgeInsets.all(AppTheme.spacingM),
-            children: [
-              if (_osDenied)
-                PushBlockedBanner(onOpenSettings: widget.openSettings),
-              Container(
-                decoration: BoxDecoration(
-                  color: AppColors.secondary,
-                  borderRadius: BorderRadius.circular(AppTheme.radiusXL),
-                  boxShadow: AppTheme.elevation1,
-                ),
-                // Flutter 3.44 asserts on this (`list_tile.dart`, `_findIntermediateWidget`):
-                // a `ListTile` paints its ink on the nearest `Material` ANCESTOR, and the
-                // walk up stops at the first coloured box. This card was that box, so the
-                // ripple painted BEHIND it — no touch feedback, for as long as the card has
-                // existed. The assertion is new; the defect is not. `transparency` paints
-                // nothing, so no golden moves.
-                child: Material(
-                  type: MaterialType.transparency,
-                  child: Column(
-                    children: [
-                      _PrefSwitch(
-                        title: 'Rappels de rendez-vous',
-                        subtitle: 'Rappels 24 h et 2 h avant vos rendez-vous.',
-                        value: prefs.reminders,
-                        onChanged: (v) =>
-                            _toggle(() => provider.setReminders(v)),
-                      ),
-                      const Divider(height: 1),
-                      _PrefSwitch(
-                        title: 'Offres & promotions',
-                        subtitle: 'Offres, nouveautés et relances.',
-                        value: prefs.marketing,
-                        onChanged: (v) =>
-                            _toggle(() => provider.setMarketing(v)),
-                      ),
-                      const Divider(height: 1),
-                      _PrefSwitch(
-                        title: 'Notifications push',
-                        subtitle: 'Notifications sur cet appareil.',
-                        value: prefs.push,
-                        onChanged: (v) => _toggle(() => provider.setPush(v)),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(height: AppTheme.spacingM),
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Icon(
-                    Icons.info_outline,
-                    size: AppTheme.iconS,
-                    color: AppColors.textTertiary,
-                  ),
-                  const SizedBox(width: AppTheme.spacingS),
-                  Expanded(
-                    child: Text(
-                      'Les confirmations et changements de rendez-vous sont '
-                      'toujours envoyés.',
-                      style: AppTextStyles.bodySmall.copyWith(
-                        color: AppColors.textTertiary,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ],
+          return AppAsyncView<NotificationPreferences>(
+            isLoading: provider.isLoading,
+            error: provider.loadFailed
+                ? provider.error ?? kGenericErrorMessage
+                : null,
+            data: provider.loadedPrefs,
+            isEmpty: (_) => false,
+            loading: const SkeletonTileList(count: 3, leading: false),
+            empty: const SizedBox.shrink(),
+            onRetry: provider.load,
+            builder: (context, prefs) => _form(provider, prefs),
           );
         },
       ),
+    );
+  }
+
+  Widget _form(
+    NotificationPreferencesProvider provider,
+    NotificationPreferences prefs,
+  ) {
+    return ListView(
+      padding: const EdgeInsets.all(AppTheme.spacingM),
+      children: [
+        if (_osDenied) PushBlockedBanner(onOpenSettings: widget.openSettings),
+        Container(
+          decoration: BoxDecoration(
+            color: AppColors.secondary,
+            borderRadius: BorderRadius.circular(AppTheme.radiusXL),
+            boxShadow: AppTheme.elevation1,
+          ),
+          // Flutter 3.44 asserts on this (`list_tile.dart`, `_findIntermediateWidget`):
+          // a `ListTile` paints its ink on the nearest `Material` ANCESTOR, and the
+          // walk up stops at the first coloured box. This card was that box, so the
+          // ripple painted BEHIND it — no touch feedback, for as long as the card has
+          // existed. The assertion is new; the defect is not. `transparency` paints
+          // nothing, so no golden moves.
+          child: Material(
+            type: MaterialType.transparency,
+            child: Column(
+              children: [
+                _PrefSwitch(
+                  title: 'Rappels de rendez-vous',
+                  subtitle: 'Rappels 24 h et 2 h avant vos rendez-vous.',
+                  value: prefs.reminders,
+                  onChanged: (v) => _toggle(() => provider.setReminders(v)),
+                ),
+                const Divider(height: 1),
+                _PrefSwitch(
+                  title: 'Offres & promotions',
+                  subtitle: 'Offres, nouveautés et relances.',
+                  value: prefs.marketing,
+                  onChanged: (v) => _toggle(() => provider.setMarketing(v)),
+                ),
+                const Divider(height: 1),
+                _PrefSwitch(
+                  title: 'Notifications push',
+                  subtitle: 'Notifications sur cet appareil.',
+                  value: prefs.push,
+                  onChanged: (v) => _toggle(() => provider.setPush(v)),
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: AppTheme.spacingM),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Icon(
+              Icons.info_outline,
+              size: AppTheme.iconS,
+              color: AppColors.textTertiary,
+            ),
+            const SizedBox(width: AppTheme.spacingS),
+            Expanded(
+              child: Text(
+                'Les confirmations et changements de rendez-vous sont '
+                'toujours envoyés.',
+                style: AppTextStyles.bodySmall.copyWith(
+                  color: AppColors.textTertiary,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ],
     );
   }
 }

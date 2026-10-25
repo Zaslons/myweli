@@ -22,9 +22,9 @@ import '../../providers/favorites_provider.dart';
 import '../../providers/provider_provider.dart';
 import '../../widgets/booking/compact_appointment_tile.dart';
 import '../../widgets/common/app_rating.dart';
+import '../../widgets/common/app_skeleton.dart';
 import '../../widgets/common/app_snack_bar.dart';
 import '../../widgets/common/confirm_dialog.dart';
-import '../../widgets/common/loading_indicator.dart';
 import '../../widgets/common/salon_unavailable_view.dart';
 import '../../widgets/common/section_heading.dart';
 import '../../widgets/common/timed_cached_image.dart';
@@ -451,7 +451,8 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
           // has no copy yet — the loader; its own read failed — §12.
           final p = _salonOf(provider);
           if (p == null && (provider.isLoading || !_slotIsMine(provider))) {
-            return const LoadingIndicator();
+            // No AppBar on this branch: the page's header is a sliver.
+            return const SafeArea(child: SkeletonDetail(block: true));
           }
           if (p == null) {
             // §12, shared with the booking hub and the confirmation screen.
@@ -461,6 +462,7 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
             // way out now leads somewhere.
             return SalonUnavailableView(
               errorCode: provider.errorCode,
+              message: provider.error,
               onRetry: () => provider.loadProviderById(widget.providerId),
             );
           }

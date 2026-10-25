@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
+import '../../../core/constants/failure_messages.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/colors.dart';
 import '../../../core/theme/text_styles.dart';
@@ -10,8 +11,9 @@ import '../../../models/pro_membership.dart';
 import '../../../models/salon_subscription.dart';
 import '../../../providers/pro_auth_provider.dart';
 import '../../../providers/pro_subscription_provider.dart';
+import '../../../widgets/common/app_async_view.dart';
+import '../../../widgets/common/app_skeleton.dart';
 import '../../../widgets/common/empty_state.dart';
-import '../../../widgets/common/loading_indicator.dart';
 
 /// « Mon abonnement » — the salon's CURRENT offer, read-only: its status
 /// (trial / paid / grace / expired), its dates and its seats. Nothing else.
@@ -70,36 +72,35 @@ class _ProSubscriptionScreenState extends State<ProSubscriptionScreen> {
               description: 'L’offre du salon est gérée par son propriétaire.',
             )
           : Consumer<ProSubscriptionProvider>(
-              builder: (context, provider, _) {
-                if (provider.isLoading) return const LoadingIndicator();
-
-                if (provider.loadFailed) {
-                  return EmptyState(
-                    icon: Icons.wifi_off,
-                    title: 'Une erreur est survenue',
-                    description: provider.error,
-                    actionText: 'Réessayer',
-                    onAction: () => provider.load(providerId),
-                  );
-                }
-
-                // SETUP (no offer row — GET 404): a fact and when it changes,
-                // nothing else. The trial starts when the salon goes live.
-                if (provider.isSetup) {
-                  return const EmptyState(
-                    icon: Icons.workspace_premium_outlined,
-                    title: 'Pas encore d’offre active',
-                    description:
-                        'Votre offre démarre à la mise en ligne de votre '
-                        'salon.',
-                  );
-                }
-
-                final salon = provider.salon;
-                // The first frame, before the post-frame load has started.
-                if (salon == null) return const LoadingIndicator();
-                return _Body(salon: salon);
-              },
+              builder: (context, provider, _) =>
+                  AppAsyncView<({SalonSubscription? offer})>(
+                    isLoading: provider.isLoading,
+                    error: provider.loadFailed
+                        ? provider.error ?? kGenericErrorMessage
+                        : null,
+                    // Null until the read answers — the first frame, before
+                    // the post-frame load has started. SETUP answers too:
+                    // with no offer.
+                    data: provider.isSetup
+                        ? (offer: null)
+                        : provider.salon == null
+                        ? null
+                        : (offer: provider.salon),
+                    isEmpty: (d) => d.offer == null,
+                    loading: const SkeletonDetail(sections: 3),
+                    // SETUP (no offer row — GET 404): a fact and when it
+                    // changes, nothing else. The trial starts when the salon
+                    // goes live.
+                    empty: const EmptyState(
+                      icon: Icons.workspace_premium_outlined,
+                      title: 'Pas encore d’offre active',
+                      description:
+                          'Votre offre démarre à la mise en ligne de votre '
+                          'salon.',
+                    ),
+                    onRetry: () => provider.load(providerId),
+                    builder: (context, d) => _Body(salon: d.offer!),
+                  ),
             ),
     );
   }

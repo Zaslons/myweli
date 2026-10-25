@@ -5,6 +5,7 @@ import '../core/constants/failure_messages.dart';
 import '../core/di/dependency_injection.dart';
 import '../core/utils/deposit.dart';
 import '../core/utils/onboarding.dart';
+import '../models/api_response.dart';
 import '../models/availability.dart';
 import '../models/provider_user.dart';
 
@@ -19,6 +20,12 @@ class ProOnboardingProvider extends ChangeNotifier implements SalonScoped {
 
   bool get isLoading => _isLoading;
   bool get loadFailed => _loadFailed;
+
+  /// What these fields hold is the server's, not the defaults they start
+  /// with: a read has answered since the last reset (B9.8). The screen
+  /// waits for it — on the first frame it showed the defaults.
+  bool get loaded => _loaded;
+  bool _loaded = false;
   String? get error => _error;
   List<OnboardingStep> get steps => _steps;
   bool get readyToGoLive => canGoLive(_steps);
@@ -62,6 +69,17 @@ class ProOnboardingProvider extends ChangeNotifier implements SalonScoped {
     notifyListeners();
 
     try {
+      // A read that failed is not « nothing done ». Every service answers a
+      // failure instead of throwing, and each read below took one for ✗: a
+      // salon offline saw its whole checklist to do, and the error state
+      // under it could not be reached (B9.8). The first failure is the
+      // load's.
+      String? failure;
+      T? read<T>(ApiResponse<T> res) {
+        if (!res.success) failure ??= res.error ?? kGenericErrorMessage;
+        return res.data;
+      }
+
       final providerId = salonId;
       var serviceCount = 0;
       var staffCount = 0;
@@ -75,25 +93,23 @@ class ProOnboardingProvider extends ChangeNotifier implements SalonScoped {
       if (providerId != null && providerId.isNotEmpty) {
         final pro = serviceLocator.proService;
 
-        final services = await pro.getProviderServices(providerId);
+        final services = read(await pro.getProviderServices(providerId));
         // ACTIVE services, as the server's gate counts them
         // (docs/design/web-pro-golive-signup-like-app.md §1): counting the
         // hidden ones said ✓ to a salon the server would refuse.
-        serviceCount =
-            services.data?.where((service) => service.active).length ?? 0;
+        serviceCount = services?.where((service) => service.active).length ?? 0;
 
-        final staff = await serviceLocator.proArtistService.getArtists(
-          providerId,
+        final staff = read(
+          await serviceLocator.proArtistService.getArtists(providerId),
         );
-        staffCount = staff.data?.length ?? 0;
+        staffCount = staff?.length ?? 0;
 
-        final avail = await pro.getProviderAvailability(providerId);
-        availabilitySet = avail.data != null && _hasAvailableSlot(avail.data!);
+        final avail = read(await pro.getProviderAvailability(providerId));
+        availabilitySet = avail != null && _hasAvailableSlot(avail);
 
         // Configured = a choice SAVED, not an answer: the server answers
         // every salon with defaults (B7.7).
-        final deposit = await pro.getDepositPolicy(providerId);
-        final policy = deposit.success ? deposit.data : null;
+        final policy = read(await pro.getDepositPolicy(providerId));
         depositConfigured =
             policy != null &&
             depositChosen(
@@ -107,11 +123,11 @@ class ProOnboardingProvider extends ChangeNotifier implements SalonScoped {
         // salon is a draft, which is the state the public read is about to
         // stop serving, and a failed read here is NOT a throw — it would have
         // rendered a plausible all-todo checklist with no error at all.
-        final listing = await pro.getMyProvider();
-        photoCount = listing.data?.salon.imageUrls.length ?? 0;
+        final listing = read(await pro.getMyProvider());
+        photoCount = listing?.salon.imageUrls.length ?? 0;
         // Mirror the server's publish gate (pro-salon-lifecycle):
         // profile = description + address + commune; location = the map pin.
-        final l = listing.data?.salon;
+        final l = listing?.salon;
         profileComplete =
             l != null &&
             l.description.trim().isNotEmpty &&
@@ -122,9 +138,16 @@ class ProOnboardingProvider extends ChangeNotifier implements SalonScoped {
         // trial at the first publish (docs/design/pro-companion-path.md).
       }
 
-      final kyc = await serviceLocator.proKycService.getKycStatus(proUser.id);
-      final verificationStatus = kyc.data?.status ?? proUser.verificationStatus;
-      final hasSubmittedKyc = kyc.data?.documents.isNotEmpty ?? false;
+      final kyc = read(
+        await serviceLocator.proKycService.getKycStatus(proUser.id),
+      );
+      if (failure != null) {
+        _loadFailed = true;
+        _error = failure;
+        return;
+      }
+      final verificationStatus = kyc?.status ?? proUser.verificationStatus;
+      final hasSubmittedKyc = kyc?.documents.isNotEmpty ?? false;
 
       _steps = buildOnboardingChecklist(
         profileComplete: profileComplete,
@@ -138,6 +161,7 @@ class ProOnboardingProvider extends ChangeNotifier implements SalonScoped {
         hasSubmittedKyc: hasSubmittedKyc,
         businessType: proUser.businessType,
       );
+      _loaded = true;
       _loadFailed = false;
     } catch (e) {
       _loadFailed = true;
@@ -157,6 +181,7 @@ class ProOnboardingProvider extends ChangeNotifier implements SalonScoped {
   /// R6 multi-salons: drop the previous salon's data on a switch.
   @override
   void resetForSalonSwitch() {
+    _loaded = false;
     _isLoading = false;
     _loadFailed = false;
     _error = null;

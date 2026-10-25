@@ -34,6 +34,12 @@ class ProReviewsProvider extends ChangeNotifier implements SalonScoped {
   bool get isLoading => _isLoading;
   String? get error => _error;
 
+  /// The load's own failure — today the only one [error] holds here, kept
+  /// apart as on the other Pro lists, so a write added later cannot become
+  /// the list's load error (B9.8).
+  String? get loadError => _loadError;
+  String? _loadError;
+
   /// « Signaler » (B6.6): true once the server took the report.
   Future<bool> reportReview(String reviewId, {String? reason}) async {
     try {
@@ -53,6 +59,7 @@ class ProReviewsProvider extends ChangeNotifier implements SalonScoped {
 
     _isLoading = true;
     _error = null;
+    _loadError = null;
     _currentProviderId = providerId;
     notifyListeners();
 
@@ -68,9 +75,11 @@ class ProReviewsProvider extends ChangeNotifier implements SalonScoped {
         _reviews = [];
         _summary = null;
         _error = res.error ?? 'Erreur lors du chargement des avis';
+        _loadError = _error;
       }
     } catch (e) {
       _error = kGenericErrorMessage;
+      _loadError = _error;
       _reviews = [];
       _summary = null;
     } finally {
@@ -82,6 +91,7 @@ class ProReviewsProvider extends ChangeNotifier implements SalonScoped {
   /// R6 multi-salons: drop the previous salon's data on a switch.
   @override
   void resetForSalonSwitch() {
+    _loadError = null;
     _reviews = [];
     _summary = null;
     _isLoading = false;

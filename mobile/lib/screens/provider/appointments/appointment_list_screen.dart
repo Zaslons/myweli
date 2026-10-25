@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:myweli/widgets/common/brand_refresh.dart';
 import 'package:myweli/widgets/common/empty_state.dart';
-import 'package:myweli/widgets/common/loading_indicator.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/theme/app_theme.dart';
@@ -16,6 +15,8 @@ import '../../../core/utils/status_labels.dart';
 import '../../../models/appointment.dart';
 import '../../../providers/pro_appointment_provider.dart';
 import '../../../providers/pro_auth_provider.dart';
+import '../../../widgets/common/app_async_view.dart';
+import '../../../widgets/common/app_skeleton.dart';
 import 'appointment_calendar_view.dart';
 
 class AppointmentListScreen extends StatefulWidget {
@@ -155,110 +156,128 @@ class _AppointmentListScreenState extends State<AppointmentListScreen>
             return const Center(child: Text('Veuillez vous connecter'));
           }
 
-          if (appointmentProvider.isLoading &&
-              appointmentProvider.appointments.isEmpty) {
-            return const Center(child: LoadingIndicator());
+          Future<void> reload() async {
+            if (authProvider.provider != null) {
+              await appointmentProvider.loadAppointments(
+                authProvider.activeSalonId ?? '',
+              );
+            }
           }
 
-          final appointments = appointmentProvider.appointments;
-
-          return TabBarView(
-            controller: _mainTabController,
-            children: [
-              // Calendar View
-              BrandRefresh(
-                onRefresh: () async {
-                  if (authProvider.provider != null) {
-                    await appointmentProvider.loadAppointments(
-                      authProvider.activeSalonId ?? '',
-                    );
-                  }
-                },
-                // **No `isEmpty` branch here, and removing it is a fix** (A14c
-                // §18.1). This used to replace the whole calendar with a
-                // centred « Aucun rendez-vous », so a salon with nothing booked
-                // — a brand-new one, or any pro on a quiet week — **could not
-                // open its calendar at all**. It could not browse forward to
-                // plan, and the calendar's own empty state («Aucun rendez-vous
-                // pour mercredi 11 mars 2026 », which names the day) was
-                // unreachable, never photographed, and effectively dead code.
-                //
-                // A calendar with no appointments is not an error state. It is
-                // a calendar. The day list underneath already says so per day,
-                // which is the more useful sentence anyway.
-                child: AppointmentCalendarView(appointments: appointments),
-              ),
-              // List View
-              Column(
-                children: [
-                  TabBar(
-                    controller: _listTabController,
-                    onTap: _loadAppointmentsForListTab,
-                    // §13.3's width twin — the same bar as `earnings_screen`,
-                    // and the same silent fade: « Aujourd’hui » needs 72.2dp and
-                    // gets 58.0 at 360. See that file for the full argument for
-                    // `center` over the M3 default.
-                    //
-                    // **This one lives inside a `TabBarView` page**, so making it
-                    // scrollable is a gesture-arena change as well as a layout
-                    // one: a horizontal drag on the strip now scrolls the strip
-                    // instead of paging back to « Calendrier ». That is what
-                    // scrollable tabs are, and it is the standard trade.
-                    isScrollable: true,
-                    tabAlignment: TabAlignment.center,
-                    tabs: const [
-                      Tab(text: 'Aujourd’hui'),
-                      Tab(text: 'À venir'),
-                      Tab(text: 'En attente'),
-                      Tab(text: 'Tous'),
-                    ],
-                  ),
-                  Expanded(
-                    child: BrandRefresh(
-                      onRefresh: () async {
-                        _loadAppointmentsForListTab(_listTabController.index);
-                      },
-                      // The house EmptyState, in a list (B7.4): something
-                      // to pull, so « tirer pour actualiser » works on an
-                      // empty day too, and `fabClearance` at the end of both.
-                      child: appointments.isEmpty
-                          ? ListView(
-                              padding: const EdgeInsets.only(
-                                bottom: AppTheme.fabClearance,
-                              ),
-                              children: const [
-                                EmptyState(
-                                  icon: Icons.event_busy,
-                                  title: 'Aucun rendez-vous',
-                                ),
-                              ],
-                            )
-                          : ListView.builder(
-                              padding: const EdgeInsets.fromLTRB(
-                                AppTheme.spacingM,
-                                AppTheme.spacingM,
-                                AppTheme.spacingM,
-                                AppTheme.fabClearance,
-                              ),
-                              itemCount: appointments.length,
-                              itemBuilder: (context, index) {
-                                final appointment = appointments[index];
-                                return _AppointmentCard(
-                                  appointment: appointment,
-                                  onTap: () => context.push(
-                                    '/pro/appointment/${appointment.id}',
-                                  ),
-                                );
-                              },
-                            ),
-                    ),
-                  ),
-                ],
-              ),
-            ],
+          // The calendar IS the empty state (A14c §18.1, below) — so a load
+          // that failed with nothing to show is the only state that replaces
+          // it. It used to render the calendar too, saying « Aucun
+          // rendez-vous » for a day it never read (B9.8).
+          return AppAsyncView<List<Appointment>>(
+            isLoading: appointmentProvider.isLoading,
+            error: appointmentProvider.loadError,
+            data: appointmentProvider.appointments,
+            isEmpty: (d) => d.isEmpty,
+            loading: const SkeletonCardList(),
+            empty: _views(authProvider, appointmentProvider, const [], reload),
+            onRetry: reload,
+            builder: (context, appointments) =>
+                _views(authProvider, appointmentProvider, appointments, reload),
           );
         },
       ),
+    );
+  }
+
+  Widget _views(
+    ProAuthProvider authProvider,
+    ProAppointmentProvider appointmentProvider,
+    List<Appointment> appointments,
+    Future<void> Function() reload,
+  ) {
+    return TabBarView(
+      controller: _mainTabController,
+      children: [
+        // Calendar View
+        BrandRefresh(
+          onRefresh: reload,
+          // **No `isEmpty` branch here, and removing it is a fix** (A14c
+          // §18.1). This used to replace the whole calendar with a
+          // centred « Aucun rendez-vous », so a salon with nothing booked
+          // — a brand-new one, or any pro on a quiet week — **could not
+          // open its calendar at all**. It could not browse forward to
+          // plan, and the calendar's own empty state («Aucun rendez-vous
+          // pour mercredi 11 mars 2026 », which names the day) was
+          // unreachable, never photographed, and effectively dead code.
+          //
+          // A calendar with no appointments is not an error state. It is
+          // a calendar. The day list underneath already says so per day,
+          // which is the more useful sentence anyway.
+          child: AppointmentCalendarView(appointments: appointments),
+        ),
+        // List View
+        Column(
+          children: [
+            TabBar(
+              controller: _listTabController,
+              onTap: _loadAppointmentsForListTab,
+              // §13.3's width twin — the same bar as `earnings_screen`,
+              // and the same silent fade: « Aujourd’hui » needs 72.2dp and
+              // gets 58.0 at 360. See that file for the full argument for
+              // `center` over the M3 default.
+              //
+              // **This one lives inside a `TabBarView` page**, so making it
+              // scrollable is a gesture-arena change as well as a layout
+              // one: a horizontal drag on the strip now scrolls the strip
+              // instead of paging back to « Calendrier ». That is what
+              // scrollable tabs are, and it is the standard trade.
+              isScrollable: true,
+              tabAlignment: TabAlignment.center,
+              tabs: const [
+                Tab(text: 'Aujourd’hui'),
+                Tab(text: 'À venir'),
+                Tab(text: 'En attente'),
+                Tab(text: 'Tous'),
+              ],
+            ),
+            Expanded(
+              child: BrandRefresh(
+                onRefresh: () async {
+                  _loadAppointmentsForListTab(_listTabController.index);
+                },
+                // The house EmptyState, in a list (B7.4): something
+                // to pull, so « tirer pour actualiser » works on an
+                // empty day too, and `fabClearance` at the end of both.
+                child: appointments.isEmpty
+                    ? ListView(
+                        padding: const EdgeInsets.only(
+                          bottom: AppTheme.fabClearance,
+                        ),
+                        children: const [
+                          EmptyState(
+                            icon: Icons.event_busy,
+                            title: 'Aucun rendez-vous',
+                          ),
+                        ],
+                      )
+                    : ListView.builder(
+                        padding: const EdgeInsets.fromLTRB(
+                          AppTheme.spacingM,
+                          AppTheme.spacingM,
+                          AppTheme.spacingM,
+                          AppTheme.fabClearance,
+                        ),
+                        itemCount: appointments.length,
+                        itemBuilder: (context, index) {
+                          final appointment = appointments[index];
+                          return _AppointmentCard(
+                            appointment: appointment,
+                            onTap: () => context.push(
+                              '/pro/appointment/${appointment.id}',
+                            ),
+                          );
+                        },
+                      ),
+              ),
+            ),
+          ],
+        ),
+      ],
     );
   }
 }

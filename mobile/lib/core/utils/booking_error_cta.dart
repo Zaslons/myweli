@@ -89,12 +89,6 @@ String? salonStoppedMessage(String? status) => switch (status) {
 /// it reached three.
 const kSalonUnavailableMessage = 'Ce salon n’est plus disponible sur MyWeli.';
 
-/// The RETRYABLE sibling. Shaped after `kSlotsError` deliberately (§17, one
-/// voice): « Impossible de charger X. Vérifiez votre connexion. »
-const kSalonLoadError =
-    'Impossible de charger ce salon. Vérifiez votre '
-    'connexion.';
-
 /// The §12 error state for a screen whose whole subject is one salon.
 ///
 /// **The distinction §12 actually cares about.** `not_found` has no retry that
@@ -104,22 +98,29 @@ const kSalonLoadError =
 /// sentences is how `'Salon introuvable'` became dead code that never rendered;
 /// the code has been on the wire since PR1c and nothing read it.
 ///
-/// The default arm RETRIES on purpose: an unrecognised failure is not proof
-/// that retrying is futile, and §12's rule is « a retry only when retrying can
-/// succeed », not « a retry only when we are certain ».
+/// Only `not_found` is a state of its own. Every other code is a load that
+/// failed, which the shared error says (`AppErrorView`, B9.8): it RETRIES on
+/// purpose — an unrecognised failure is not proof that retrying is futile, and
+/// §12's rule is « a retry only when retrying can succeed », not « a retry
+/// only when we are certain ». It replaced the retryable arm's own sentence,
+/// « Impossible de charger ce salon. Vérifiez votre connexion. », which blamed
+/// the connection for a server's 500 too.
 class SalonLoadFailure {
-  const SalonLoadFailure({required this.message, required this.icon, this.cta});
+  const SalonLoadFailure({
+    required this.message,
+    required this.icon,
+    required this.cta,
+  });
 
   final String message;
   final IconData icon;
 
-  /// Non-null means there is somewhere else to go, and therefore no retry.
-  final BookingErrorCta? cta;
-
-  bool get canRetry => cta == null;
+  /// Somewhere else to go, and therefore no retry.
+  final BookingErrorCta cta;
 }
 
-SalonLoadFailure salonLoadFailure(String? errorCode) => switch (errorCode) {
+/// Null: not a state of the salon's — a load that failed.
+SalonLoadFailure? salonLoadFailure(String? errorCode) => switch (errorCode) {
   'not_found' => const SalonLoadFailure(
     message: kSalonUnavailableMessage,
     // Not `error_outline`: nothing broke. A salon left, which is a state, not
@@ -127,5 +128,5 @@ SalonLoadFailure salonLoadFailure(String? errorCode) => switch (errorCode) {
     icon: Icons.storefront_outlined,
     cta: kDiscoverSalonsCta,
   ),
-  _ => const SalonLoadFailure(message: kSalonLoadError, icon: Icons.wifi_off),
+  _ => null,
 };

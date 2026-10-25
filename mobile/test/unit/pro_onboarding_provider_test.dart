@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
+import 'package:myweli/core/constants/failure_messages.dart';
 import 'package:myweli/core/di/dependency_injection.dart';
 import 'package:myweli/core/utils/onboarding.dart';
 import 'package:myweli/models/api_response.dart';
@@ -168,6 +169,55 @@ void main() {
     );
     expect(p.steps.map((s) => s.key.name), isNot(contains('offer')));
     expect(p.readyToGoLive, isTrue);
+  });
+
+  // docs/design/hygiene-batch9.md §14 (B9.8) — every service answers a
+  // failure instead of throwing, and each read here took one for « nothing
+  // done »: offline, a salon saw its whole checklist to do, and the error
+  // state above it could not be reached.
+  test('a read that failed is the load\'s failure, not a step to do', () async {
+    final salon = MockData.providers.first;
+    when(() => pro.getProviderServices('p1')).thenAnswer(
+      (_) async => ApiResponse<List<Service>>.error(kNoConnectionMessage),
+    );
+    when(() => artists.getArtists('p1')).thenAnswer(
+      (_) async =>
+          ApiResponse.success(MockData.getArtistsForProvider('provider1')),
+    );
+    when(
+      () => pro.getProviderAvailability('p1'),
+    ).thenAnswer((_) async => ApiResponse.success(salon.availability));
+    when(() => pro.getDepositPolicy('p1')).thenAnswer(
+      (_) async => ApiResponse.success(
+        const DepositPolicy(depositRequired: false, depositPercentage: 0),
+      ),
+    );
+    when(() => pro.getMyProvider()).thenAnswer(
+      (_) async => ApiResponse<MyProviderInfo>.error(kGenericErrorMessage),
+    );
+    when(() => kyc.getKycStatus(any())).thenAnswer(
+      (_) async => ApiResponse.success(
+        const KycStatus(status: VerificationStatus.verified),
+      ),
+    );
+
+    final p = ProOnboardingProvider();
+    await p.load(
+      ProviderUser(
+        id: 'pu1',
+        phoneNumber: '+2250700000000',
+        businessName: 'Salon X',
+        businessType: BusinessType.salon,
+        createdAt: DateTime(2026),
+        providerId: 'p1',
+      ),
+      salonId: 'p1',
+    );
+
+    expect(p.loadFailed, isTrue);
+    expect(p.loaded, isFalse);
+    // The first failure, in its own words.
+    expect(p.error, kNoConnectionMessage);
   });
 
   // docs/design/web-pro-golive-signup-like-app.md §4 — the app judged two

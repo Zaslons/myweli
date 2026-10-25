@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:myweli/widgets/common/brand_refresh.dart';
-import 'package:myweli/widgets/common/loading_indicator.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/di/dependency_injection.dart';
@@ -17,8 +16,10 @@ import '../../../providers/notifications_provider.dart';
 import '../../../providers/pro_auth_provider.dart';
 import '../../../providers/pro_dashboard_provider.dart';
 import '../../../providers/pro_team_provider.dart';
+import '../../../services/interfaces/pro_service_interface.dart';
+import '../../../widgets/common/app_async_view.dart';
+import '../../../widgets/common/app_skeleton.dart';
 import '../../../widgets/common/app_snack_bar.dart';
-import '../../../widgets/common/empty_state.dart';
 import '../../../widgets/common/update_nudge_slot.dart';
 import '../../../widgets/provider/salon_picker_sheet.dart';
 import '../../../widgets/push/push_permission_sheet.dart';
@@ -198,226 +199,213 @@ class _DashboardScreenState extends State<DashboardScreen> {
             );
           }
 
-          if (dashboardProvider.isLoading) {
-            return const Center(child: LoadingIndicator());
-          }
-
-          final stats = dashboardProvider.stats;
-          if (stats == null) {
-            // Not asked yet (the first frame, or right after a salon switch):
-            // the load starts after this frame.
-            if (dashboardProvider.error == null) {
-              return const Center(child: LoadingIndicator());
-            }
-            // The house error state, inside the pull — never a dead end, and
-            // never the failure's own text
-            // (docs/design/app-pro-home-journal-fresh.md §2.3, §9).
-            return BrandRefresh(
-              onRefresh: () => _pull(dashboardProvider),
-              child: LayoutBuilder(
-                builder: (context, constraints) => SingleChildScrollView(
-                  physics: const AlwaysScrollableScrollPhysics(),
-                  child: ConstrainedBox(
-                    constraints: BoxConstraints(
-                      minHeight: constraints.maxHeight,
-                    ),
-                    child: EmptyState(
-                      icon: Icons.wifi_off,
-                      title: 'Une erreur est survenue',
-                      description: dashboardProvider.errorIsOffline
-                          ? ProDashboardProvider.noConnection
-                          : null,
-                      actionText: 'Réessayer',
-                      onAction: () => dashboardProvider.loadDashboardStats(
-                        _resolvedProviderId(context),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            );
-          }
-
-          return BrandRefresh(
+          // The house error state, inside the pull — never a dead end, and
+          // never the failure's own text
+          // (docs/design/app-pro-home-journal-fresh.md §2.3, §9); since B9.8
+          // the shared one.
+          return AppAsyncView<DashboardStats>(
+            isLoading: dashboardProvider.isLoading,
+            error: dashboardProvider.error == null
+                ? null
+                : dashboardProvider.errorIsOffline
+                ? ProDashboardProvider.noConnection
+                : ProDashboardProvider.failedRetry,
+            // A full load is a salon switch's: the stats on hand are the last
+            // salon's. A pull is quiet and keeps them (`_pull`). Null with no
+            // error is « not asked yet » — the first frame, or right after a
+            // switch: the load starts after this frame.
+            data: dashboardProvider.isLoading ? null : dashboardProvider.stats,
+            isEmpty: (_) => false,
+            loading: const SkeletonDetail(sections: 3),
+            empty: const SizedBox.shrink(),
+            onRetry: () => dashboardProvider.loadDashboardStats(
+              _resolvedProviderId(context),
+            ),
             onRefresh: () => _pull(dashboardProvider),
-            child: SingleChildScrollView(
-              physics: const AlwaysScrollableScrollPhysics(),
-              padding: const EdgeInsets.all(AppTheme.spacingM),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+            builder: (context, stats) =>
+                _home(authProvider, dashboardProvider, stats),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _home(
+    ProAuthProvider authProvider,
+    ProDashboardProvider dashboardProvider,
+    DashboardStats stats,
+  ) {
+    return BrandRefresh(
+      onRefresh: () => _pull(dashboardProvider),
+      child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.all(AppTheme.spacingM),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Advice about the app itself, above the salon's own content.
+            // Renders nothing in the normal case.
+            const UpdateNudgeSlot(),
+            // R6: the header IS the salon switcher (chevron when the
+            // account has several salons; « Mes salons » lives on the
+            // Profil screen too).
+            InkWell(
+              onTap: authProvider.hasMultipleSalons || authProvider.canAddSalon
+                  ? _openSalonPicker
+                  : null,
+              borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  // Advice about the app itself, above the salon's own content.
-                  // Renders nothing in the normal case.
-                  const UpdateNudgeSlot(),
-                  // R6: the header IS the salon switcher (chevron when the
-                  // account has several salons; « Mes salons » lives on the
-                  // Profil screen too).
-                  InkWell(
-                    onTap:
-                        authProvider.hasMultipleSalons ||
-                            authProvider.canAddSalon
-                        ? _openSalonPicker
-                        : null,
-                    borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Flexible(
-                          child: Text(
-                            // No name, no vocative: « Bienvenue, votre
-                            // salon » is not French.
-                            authProvider.knownSalonName == null
-                                ? 'Bienvenue'
-                                : 'Bienvenue, ${authProvider.knownSalonName}',
-                            style: AppTextStyles.headlineMedium.copyWith(
-                              color: AppColors.textPrimary,
-                            ),
-                          ),
-                        ),
-                        if (authProvider.hasMultipleSalons ||
-                            authProvider.canAddSalon) ...[
-                          const SizedBox(width: AppTheme.spacingXS),
-                          const Icon(
-                            Icons.expand_more,
-                            color: AppColors.textSecondary,
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: AppTheme.spacingM),
-                  // The account's own invitations, under the salon they are
-                  // read in and above its content — nothing at all when there
-                  // is none (pro-app-batch7.md §2.6, B7.6).
-                  const ProInvitationsCard(),
-                  // Go-live is owner-only (salon.publish, sign-off) — the
-                  // card hides for members; the server 403s regardless.
-                  if (authProvider.can(ProCap.salonPublish)) ...[
-                    Card(
-                      child: ListTile(
-                        leading: const Icon(Icons.checklist_rounded),
-                        title: const Text('Configurer mon profil'),
-                        subtitle: const Text(
-                          'Complétez les étapes pour aller en ligne',
-                        ),
-                        trailing: const Icon(Icons.chevron_right),
-                        onTap: () => context.push('/pro/onboarding'),
+                  Flexible(
+                    child: Text(
+                      // No name, no vocative: « Bienvenue, votre
+                      // salon » is not French.
+                      authProvider.knownSalonName == null
+                          ? 'Bienvenue'
+                          : 'Bienvenue, ${authProvider.knownSalonName}',
+                      style: AppTextStyles.headlineMedium.copyWith(
+                        color: AppColors.textPrimary,
                       ),
                     ),
-                    const SizedBox(height: AppTheme.spacingS),
+                  ),
+                  if (authProvider.hasMultipleSalons ||
+                      authProvider.canAddSalon) ...[
+                    const SizedBox(width: AppTheme.spacingXS),
+                    const Icon(
+                      Icons.expand_more,
+                      color: AppColors.textSecondary,
+                    ),
                   ],
-                  const SizedBox(height: AppTheme.spacingM),
-                  // Stats cards — two across, or all of them one per row
-                  // when a value would not fit a half-width card.
-                  // Money figures are field-gated server-side without
-                  // finances.view (R1/R4) — absence is a valid state, and
-                  // then the two counts decide alone.
-                  //
-                  // « Revenus prévus », not « Revenus »: these count
-                  // confirmed + completed bookings, while the « Revenus »
-                  // screen (« Analyses ») counts completed only — one word
-                  // over two numbers for the same day
-                  // (provider-dashboard-stats.md §12).
-                  _StatBlock(
-                    cards: [
-                      _StatCard(
-                        title: 'Aujourd’hui',
-                        value: stats.todayAppointments.toString(),
-                        subtitle: 'Rendez-vous',
-                        icon: Icons.calendar_today,
-                        color: AppColors.primary,
-                      ),
-                      _StatCard(
-                        title: 'En attente',
-                        value: stats.pendingRequests.toString(),
-                        subtitle: 'Demandes',
-                        icon: Icons.pending,
-                        color: AppColors.warning,
-                      ),
-                      if (stats.hasRevenue) ...[
-                        _StatCard(
-                          title: 'Aujourd’hui',
-                          value: Formatters.formatCurrency(
-                            stats.todayRevenue!,
-                            currency: context
-                                .read<ProAuthProvider>()
-                                .salonCurrency,
-                          ),
-                          subtitle: 'Revenus prévus',
-                          icon: Icons.attach_money,
-                          color: AppColors.success,
-                        ),
-                        _StatCard(
-                          title: 'Ce mois',
-                          value: Formatters.formatCurrency(
-                            stats.monthRevenue!,
-                            currency: context
-                                .read<ProAuthProvider>()
-                                .salonCurrency,
-                          ),
-                          subtitle: 'Revenus prévus',
-                          icon: Icons.trending_up,
-                          color: AppColors.info,
-                        ),
-                      ],
-                    ],
-                  ),
-                  const SizedBox(height: AppTheme.spacingL),
-                  // Role-gated sections (access R4b): UI hiding is
-                  // convenience — the routes 403 server-side regardless.
-                  ..._section(context, 'Opérations quotidiennes', [
-                    if (authProvider.can(ProCap.journalViewAll))
-                      _ActionCard(
-                        title: 'Rendez-vous',
-                        icon: Icons.calendar_today,
-                        onTap: () => context.push('/pro/journal'),
-                      ),
-                    if (authProvider.can(ProCap.clientsView))
-                      _ActionCard(
-                        title: 'Clients',
-                        icon: Icons.people,
-                        onTap: () => context.push('/pro/clients'),
-                      ),
-                    if (authProvider.can(ProCap.availabilityManage))
-                      _ActionCard(
-                        title: 'Disponibilité',
-                        icon: Icons.access_time,
-                        onTap: () => context.push('/pro/availability'),
-                      ),
-                  ]),
-                  ..._section(context, 'Configuration', [
-                    if (authProvider.can(ProCap.catalogueManage)) ...[
-                      _ActionCard(
-                        title: 'Services',
-                        icon: Icons.build,
-                        onTap: () => context.push('/pro/services'),
-                      ),
-                      _ActionCard(
-                        title: 'Employés',
-                        icon: Icons.people,
-                        onTap: () => context.push('/pro/artists'),
-                      ),
-                    ],
-                  ]),
-                  ..._section(context, 'Analyses', [
-                    if (authProvider.can(ProCap.financesView))
-                      _ActionCard(
-                        title: 'Revenus',
-                        icon: Icons.attach_money,
-                        onTap: () => context.push('/pro/earnings'),
-                      ),
-                    if (authProvider.can(ProCap.profileManage))
-                      _ActionCard(
-                        title: 'Avis',
-                        icon: Icons.star,
-                        onTap: () => context.push('/pro/reviews'),
-                      ),
-                  ]),
                 ],
               ),
             ),
-          );
-        },
+            const SizedBox(height: AppTheme.spacingM),
+            // The account's own invitations, under the salon they are
+            // read in and above its content — nothing at all when there
+            // is none (pro-app-batch7.md §2.6, B7.6).
+            const ProInvitationsCard(),
+            // Go-live is owner-only (salon.publish, sign-off) — the
+            // card hides for members; the server 403s regardless.
+            if (authProvider.can(ProCap.salonPublish)) ...[
+              Card(
+                child: ListTile(
+                  leading: const Icon(Icons.checklist_rounded),
+                  title: const Text('Configurer mon profil'),
+                  subtitle: const Text(
+                    'Complétez les étapes pour aller en ligne',
+                  ),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () => context.push('/pro/onboarding'),
+                ),
+              ),
+              const SizedBox(height: AppTheme.spacingS),
+            ],
+            const SizedBox(height: AppTheme.spacingM),
+            // Stats cards — two across, or all of them one per row
+            // when a value would not fit a half-width card.
+            // Money figures are field-gated server-side without
+            // finances.view (R1/R4) — absence is a valid state, and
+            // then the two counts decide alone.
+            //
+            // « Revenus prévus », not « Revenus »: these count
+            // confirmed + completed bookings, while the « Revenus »
+            // screen (« Analyses ») counts completed only — one word
+            // over two numbers for the same day
+            // (provider-dashboard-stats.md §12).
+            _StatBlock(
+              cards: [
+                _StatCard(
+                  title: 'Aujourd’hui',
+                  value: stats.todayAppointments.toString(),
+                  subtitle: 'Rendez-vous',
+                  icon: Icons.calendar_today,
+                  color: AppColors.primary,
+                ),
+                _StatCard(
+                  title: 'En attente',
+                  value: stats.pendingRequests.toString(),
+                  subtitle: 'Demandes',
+                  icon: Icons.pending,
+                  color: AppColors.warning,
+                ),
+                if (stats.hasRevenue) ...[
+                  _StatCard(
+                    title: 'Aujourd’hui',
+                    value: Formatters.formatCurrency(
+                      stats.todayRevenue!,
+                      currency: context.read<ProAuthProvider>().salonCurrency,
+                    ),
+                    subtitle: 'Revenus prévus',
+                    icon: Icons.attach_money,
+                    color: AppColors.success,
+                  ),
+                  _StatCard(
+                    title: 'Ce mois',
+                    value: Formatters.formatCurrency(
+                      stats.monthRevenue!,
+                      currency: context.read<ProAuthProvider>().salonCurrency,
+                    ),
+                    subtitle: 'Revenus prévus',
+                    icon: Icons.trending_up,
+                    color: AppColors.info,
+                  ),
+                ],
+              ],
+            ),
+            const SizedBox(height: AppTheme.spacingL),
+            // Role-gated sections (access R4b): UI hiding is
+            // convenience — the routes 403 server-side regardless.
+            ..._section(context, 'Opérations quotidiennes', [
+              if (authProvider.can(ProCap.journalViewAll))
+                _ActionCard(
+                  title: 'Rendez-vous',
+                  icon: Icons.calendar_today,
+                  onTap: () => context.push('/pro/journal'),
+                ),
+              if (authProvider.can(ProCap.clientsView))
+                _ActionCard(
+                  title: 'Clients',
+                  icon: Icons.people,
+                  onTap: () => context.push('/pro/clients'),
+                ),
+              if (authProvider.can(ProCap.availabilityManage))
+                _ActionCard(
+                  title: 'Disponibilité',
+                  icon: Icons.access_time,
+                  onTap: () => context.push('/pro/availability'),
+                ),
+            ]),
+            ..._section(context, 'Configuration', [
+              if (authProvider.can(ProCap.catalogueManage)) ...[
+                _ActionCard(
+                  title: 'Services',
+                  icon: Icons.build,
+                  onTap: () => context.push('/pro/services'),
+                ),
+                _ActionCard(
+                  title: 'Employés',
+                  icon: Icons.people,
+                  onTap: () => context.push('/pro/artists'),
+                ),
+              ],
+            ]),
+            ..._section(context, 'Analyses', [
+              if (authProvider.can(ProCap.financesView))
+                _ActionCard(
+                  title: 'Revenus',
+                  icon: Icons.attach_money,
+                  onTap: () => context.push('/pro/earnings'),
+                ),
+              if (authProvider.can(ProCap.profileManage))
+                _ActionCard(
+                  title: 'Avis',
+                  icon: Icons.star,
+                  onTap: () => context.push('/pro/reviews'),
+                ),
+            ]),
+          ],
+        ),
       ),
     );
   }

@@ -10,8 +10,8 @@ import 'package:myweli/providers/notifications_provider.dart';
 import 'package:myweli/screens/provider/notifications/pro_notifications_screen.dart';
 import 'package:myweli/services/interfaces/notification_service_interface.dart';
 import 'package:myweli/services/interfaces/push_notification_service_interface.dart';
+import 'package:myweli/widgets/common/app_skeleton.dart';
 import 'package:myweli/widgets/common/empty_state.dart';
-import 'package:myweli/widgets/common/loading_indicator.dart';
 import 'package:myweli/widgets/notifications/notification_tile.dart';
 import 'package:myweli/widgets/notifications/notifications_list.dart';
 import 'package:myweli/widgets/push/push_blocked_banner.dart';
@@ -72,7 +72,8 @@ void main() {
     await tester.pump(); // the post-frame load fires
     await tester.pump();
 
-    expect(find.byType(LoadingIndicator), findsOneWidget);
+    // The list's shape, still (B9.8) — the spinner it replaced.
+    expect(find.byType(AppSkeleton), findsOneWidget);
 
     pending.complete(ApiResponse.success([]));
     await tester.pumpAndSettle();

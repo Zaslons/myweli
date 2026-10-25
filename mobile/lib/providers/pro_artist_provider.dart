@@ -25,6 +25,11 @@ class ProArtistProvider extends ChangeNotifier implements SalonScoped {
   double get avatarProgress => _avatarProgress;
   String? get error => _error;
 
+  /// The load's own failure: [error] is also every write's here, so a failed
+  /// save would read as the list's load error (B9.8).
+  String? get loadError => _loadError;
+  String? _loadError;
+
   /// Uploads a staff photo through the image pipeline; returns the hosted URL.
   Future<String?> uploadAvatar(String source) async {
     _isUploadingAvatar = true;
@@ -53,6 +58,7 @@ class ProArtistProvider extends ChangeNotifier implements SalonScoped {
   Future<void> loadArtists(String providerId) async {
     _isLoading = true;
     _error = null;
+    _loadError = null;
     notifyListeners();
 
     try {
@@ -62,10 +68,12 @@ class ProArtistProvider extends ChangeNotifier implements SalonScoped {
         _error = null;
       } else {
         _error = response.error ?? 'Erreur lors du chargement des artistes';
+        _loadError = _error;
         _artists = [];
       }
     } catch (e) {
       _error = kGenericErrorMessage;
+      _loadError = _error;
       _artists = [];
     } finally {
       _isLoading = false;
@@ -160,6 +168,7 @@ class ProArtistProvider extends ChangeNotifier implements SalonScoped {
   /// R6 multi-salons: drop the previous salon's data on a switch.
   @override
   void resetForSalonSwitch() {
+    _loadError = null;
     _artists = [];
     _isLoading = false;
     _isUploadingAvatar = false;

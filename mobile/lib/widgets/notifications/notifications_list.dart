@@ -4,12 +4,14 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/constants/failure_messages.dart';
 import '../../core/theme/app_theme.dart';
 import '../../models/app_notification.dart';
 import '../../providers/notifications_provider.dart';
+import '../common/app_async_view.dart';
+import '../common/app_skeleton.dart';
 import '../common/brand_refresh.dart';
 import '../common/empty_state.dart';
-import '../common/loading_indicator.dart';
 import 'notification_tile.dart';
 import 'read_failure_snack.dart';
 
@@ -82,42 +84,42 @@ class _NotificationsListState extends State<NotificationsList> {
   Widget build(BuildContext context) {
     return Consumer<NotificationsProvider>(
       builder: (context, provider, _) {
-        if (provider.isLoading && provider.notifications.isEmpty) {
-          return const LoadingIndicator();
-        }
-        if (provider.loadFailed) {
-          return EmptyState(
-            icon: Icons.wifi_off,
-            title: 'Chargement impossible',
-            description: 'Vérifiez votre connexion et réessayez.',
-            actionText: 'Réessayer',
-            onAction: provider.load,
-          );
-        }
-        if (provider.notifications.isEmpty) {
-          return EmptyState(
+        return AppAsyncView<List<AppNotification>>(
+          isLoading: provider.isLoading,
+          error: provider.loadFailed
+              ? provider.error ?? kGenericErrorMessage
+              : null,
+          data: provider.notifications,
+          isEmpty: (d) => d.isEmpty,
+          loading: const SkeletonCardList(lead: SkeletonLead.avatar),
+          empty: EmptyState(
             icon: Icons.notifications_none,
             title: widget.emptyTitle,
             description: widget.emptyDescription,
-          );
-        }
-        return BrandRefresh(
-          onRefresh: provider.load,
-          child: ListView.separated(
-            padding: const EdgeInsets.all(AppTheme.spacingM),
-            itemCount: provider.notifications.length,
-            separatorBuilder: (_, _) =>
-                const SizedBox(height: AppTheme.spacingM),
-            itemBuilder: (context, index) {
-              final n = provider.notifications[index];
-              return NotificationTile(
-                notification: n,
-                onTap: () => _open(provider, n),
-              );
-            },
           ),
+          onRetry: provider.load,
+          onRefresh: provider.load,
+          builder: (context, items) => _list(provider, items),
         );
       },
+    );
+  }
+
+  Widget _list(NotificationsProvider provider, List<AppNotification> items) {
+    return BrandRefresh(
+      onRefresh: provider.load,
+      child: ListView.separated(
+        padding: const EdgeInsets.all(AppTheme.spacingM),
+        itemCount: items.length,
+        separatorBuilder: (_, _) => const SizedBox(height: AppTheme.spacingM),
+        itemBuilder: (context, index) {
+          final n = items[index];
+          return NotificationTile(
+            notification: n,
+            onTap: () => _open(provider, n),
+          );
+        },
+      ),
     );
   }
 }

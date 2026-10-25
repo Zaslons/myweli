@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:myweli/widgets/common/loading_indicator.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/di/dependency_injection.dart';
@@ -18,6 +17,7 @@ import '../../../providers/pro_appointment_provider.dart';
 import '../../../providers/pro_auth_provider.dart';
 import '../../../providers/pro_journal_provider.dart';
 import '../../../widgets/common/app_button.dart';
+import '../../../widgets/common/app_skeleton.dart';
 import '../../../widgets/common/app_snack_bar.dart';
 import '../../../widgets/common/confirm_dialog.dart';
 import '../../../widgets/common/timed_cached_image.dart';
@@ -432,9 +432,10 @@ class _DepositProofState extends State<_DepositProof> {
       future: _url,
       builder: (context, snapshot) {
         if (snapshot.connectionState != ConnectionState.done) {
-          return const SizedBox(
-            height: 140,
-            child: Center(child: LoadingIndicator()),
+          // The capture's own box, on its way (B9.8).
+          return const AppSkeleton(
+            label: 'Chargement de la capture…',
+            child: SkeletonBlock(height: 140),
           );
         }
         final res = snapshot.data;

@@ -552,9 +552,9 @@ when the burn-down reaches them, there is nothing left to decide.
 `FieldErrors` + `Validators` joined §11.1's roster in **A7**.)*
 
 - **`AppRating`** — `★ 4,8 (32 avis)`. Glyph + numeral, always (§3.5). **Built 2026-10-13** (`widgets/common/app_rating.dart`; sizes compact / regular / large); a salon with **no review reads « Nouveau »**, never « ★ 0.0 · 0 avis » — same rule as the web's `SalonRating` ([salon-rating-new-and-visits-card.md](salon-rating-new-and-visits-card.md)). The numeral goes through `Formatters.formatRating` (« 4,8 »); `rating_format_pin_test.dart` forbids formatting a rating by hand.
-- **`AppCard`** — `secondary` on `background`, `radiusXL`, elevation 0, `spacingM` padding.
-- **`AppChip`** — filled (selected) / outlined (`borderStrong`) / tinted (status). `radiusPill`.
-- **`AppAsyncView<T>`** — takes `isLoading`/`error`/`data` and renders the four states, so a screen cannot forget one.
+- **`AppCard`** — `secondary` on `background`, `radiusXL`, elevation 0, `spacingM` padding. **Built 2026-10-25** (B9.8 F1, `widgets/common/app_card.dart`): `onTap` makes the whole card the target — the ripple clipped to the corner, one node announced as a button — and `outlined` adds the `borderStrong` hairline for a card that is a control. The skeletons use it; the screens' own cards move to it in **F2** ([hygiene-batch9.md](hygiene-batch9.md) §2.7.2).
+- **`AppChip`** — filled (selected) / outlined (`borderStrong`) / tinted (status). `radiusPill`. *(B9.8 F3.)*
+- **`AppAsyncView<T>`** — takes `isLoading`/`error`/`data` and renders the four states, so a screen cannot forget one. **Built 2026-10-25** (B9.8 F1, `widgets/common/app_async_view.dart`) **and every async screen moved onto it** — §12 has its rules, and the one load error, `AppErrorView`, that goes with it. The loading shapes are `widgets/common/app_skeleton.dart`.
 
 ---
 
@@ -573,6 +573,47 @@ the most commonly half-kept.
 
 Plus the states that aren't about data: **offline**, **permission-denied**
 (e.g. `PushBlockedBanner`), and **auth-gated** (preserve `returnTo`).
+
+### 12.1 The shared pieces (B9.8, 2026-10-25)
+
+- **`AppAsyncView<T>`** renders the four states in `AdminDataTable`'s order:
+  content when there is some — **it stays** through a reload and after a failed
+  refresh; else the loading shape while loading; else the error; else, with
+  nothing asked yet (`data` null, no error, not loading), the loading shape —
+  never a flash of « empty »; else the empty state. `loading`, `empty` and
+  `builder` are required. `onRefresh` puts the error and the empty state in the
+  pull too (the pull is then the scroll view: an `empty` that is a list nests a
+  second one); `sliver` places it as one section of a `CustomScrollView`.
+- **`AppErrorView`** is the one load error: **« Chargement impossible »**, the
+  failure's own sentence under it (`failure_messages.dart`, or a code's own),
+  the **`wifi_off` icon only for `kNoConnectionMessage`** — `error_outline`
+  otherwise — and « Réessayer » only when the screen passes `onRetry`. A state
+  of the subject is not a failed load and keeps its own words: a salon gone
+  (`SalonUnavailableView`'s `not_found` arm), a client not found.
+- **The skeletons** (`app_skeleton.dart`) are **still** — a pulse is a
+  `repeat()` loop that would have to read §9.1 and run on a duration no motion
+  token names — and drawn **on a card**: `surfaceVariant` bars all but vanish
+  on `background`. One label for screen readers, « Chargement… » or what is
+  loading, the shapes excluded. The set: `SkeletonCardList` (lead `none` /
+  `avatar` / `thumbnail`, an image `block`), `SkeletonTileList`,
+  `SkeletonDetail` (a page of facts, a form), `SkeletonGrid` (photos),
+  `SkeletonPills` (slots, operators — on the page, so the chip's silhouette,
+  `secondary` + `border`, not a bar). A screen takes the shape of its content.
+- **The spinner stays where the shape is not known** — the blocking dialog,
+  « Déconnexion » under way, the rejoin gate's way out, the session gate.
+  `async_states_pin_test.dart` holds that list, and forbids a hand-written
+  « Réessayer » state and the retired titles (« Une erreur est survenue »,
+  « Connexion impossible ») and description (« Vérifiez votre connexion et
+  réessayez. »).
+- **A view says only what its provider holds.** Moving the screens found
+  where that was not the truth (hygiene-batch9.md §14): a selection that
+  outlived its screen (the next one's first frame showed the last one's
+  entity, and its actions), an `error` shared by a load and the writes, an
+  `isLoading` shared by two reads, defaults shown as an answer. The rules that
+  came out: **a detail's data is keyed to its id**; **a list's error is its
+  load's** (`loadError`, `listError`); **a form or a managed list shows only a
+  settled read** (`loaded && !isLoading && !loadFailed`) — kept on screen
+  through a reload, a form would take the owner's edits back.
 
 ---
 
@@ -1301,8 +1342,9 @@ rest**:
   because it is a still brand mark by design — and taking that picture is what
   found the bug: the first version froze the Lottie with `animate: false`, which
   stops the ticker and renders **frame 0**, an empty canvas. The property
-  assertion passed; the pixels were blank. The other static loading state we pin
-  is `AdminDataTable`'s skeleton.
+  assertion passed; the pixels were blank. The other static loading states we
+  pin are `AdminDataTable`'s skeleton and, since B9.8, the whole skeleton set
+  (`components_async_skeletons`) — still, so a picture is exact.
 ~~**Anything that reads the wall clock.**~~ **Closed by A10.**
 `core/utils/app_clock.dart` is a function pointer every render-path clock read
 goes through, so a test can freeze it and the picture stops being "a photograph
@@ -1452,6 +1494,7 @@ own design system?" — today, mostly not.
 | 94 | **Every price carried a doubled gap before « FCFA », and a range printed its unit twice** | **both apps · every price · 40 call sites** | found while mapping row 93, and **observed**: `formatCurrency(180000)` was `180` U+202F `000` U+00A0 U+0020 `FCFA`. `NumberFormat.currency(symbol: '')` keeps the French pattern's no-break space where the symbol would be, and the code added its own. Visible in every screenshot (« 10 000  FCFA »); the web prints one space. `formatPriceRange` printed « 15 000 FCFA – 25 000 FCFA » under a doc comment that said otherwise. The tests asserted starts/ends/contains « rather than exact whitespace » — exactly where the defect was | ✅ **[amounts-that-fit.md](amounts-that-fit.md) §1.3** — a plain grouped-number pattern and ONE U+0020, kept plain on purpose (the thousands separator is glue, so that space is the only legal break of an amount). Digits and rounding unchanged (two patterns compared on 21 values). The range prints its unit once. Exact strings pinned, red first (`'0 FCFA'` vs `'0  FCFA'`); 7 mutations red. **Six goldens re-baselined on Linux** (run 38388637917), each compared old against new: only the gap narrows |
 | 95 | **A client's phone number wrapped between its pairs; « dernière À l’instant »** | **1 header · from 1.1× on 360dp; 1 list row** | the review's sibling finding and one seen on the simulator while reshooting. The client card's header was a fixed row — avatar, name and number, « Appeler », « WhatsApp »: the number has 136dp there and needs 145 at 1.1× (« +225 07 00 00 » / « 00 01 »), against §13.3's own list. `formatRelative` returns « À l’instant » and « Hier » with a capital, and the clients list writes them after « dernière » | ✅ **[amounts-that-fit.md](amounts-that-fit.md) §11 Q3** (owner: yes) — three shapes by measured fit: actions beside the number, under it, then the number on the card's full width (one line up to 200 % on 360dp). Unchanged at the default size (132dp fits). 15 width × size cases, red first on the fixed row; a `midSentence` option for the two capitalised phrases. Part of row 93's 26 layout mutations |
 | 96 | *The same class, registered — an unbreakable value in a box that does not grow* | ~~5~~ → **0** | mapped with row 93 (computed from the font tables, not rendered): the client card's **visit-history rows** (amount and status unflexed beside the date — the one part that showed at the DEFAULT size, a date ending on the amount, « 08:007 000 FCFA », was seen on the simulator and fixed with row 93; the squeeze at large text remains); the **earnings total** (headlineLarge: eight digits break above ≈1.8× at 360dp) and its transaction rows; the **manual-booking date field** (« 15/01/2026 » in a half-width field); the **appointment list and calendar** price lines; the **admin console** tables (fixed flex fractions, desktop). The new report-only sweep (`gluedTokenBreaks`, 19 gate subjects) examined glued text on 8 of them and found **0 broken with the gate's fixtures** — the defect needs larger amounts than the mocks carry | ✅ **B7.10** (#683) — the gate draws seven-digit amounts and the glued sweep asserts; each site seen: visit rows and the date/time row stack when they must, the console row takes two lines, the total steps down a size (owner's decision), the list and calendar lines held |
+| 97 | **A view says what its provider holds — and ten screens' providers held the wrong thing** | **10 screens · the app, the Pro app, the console** | found by moving every async screen onto `AppAsyncView` (B9.8 F1, [hygiene-batch9.md](hygiene-batch9.md) §14), each read on main's code path before it was fixed. Four shapes. **An app-wide selection outliving its screen**: the way from booking A to B showed A — with « Envoyer l'acompte » and « Reporter » on A's id and « Annuler » on B's — until B answered; the console's salon page showed A's name and status with « Suspendre » acting on B, and a failed B left A on screen with no error at all. **One `error` for a load and the writes**: a refused « Ajouter un client » turned the whole client list into an error page. **One `isLoading` for two reads**: the carousel landing first left Home saying « Aucun salon trouvé » under a list on its way. **A failure taken for an answer**: lists that said their empty sentence (« Aucun avis », « Aucun rendez-vous pour <jour> »…) for a read that failed, an onboarding checklist that counted every failed read as « to do », preferences that showed their defaults as the server's. The rules that came out are §12.1's: a detail keyed to its id, a list's error its load's, a form only on a settled read. Held by 28 mutations, each watched red | ✅ **B9.8 F1** |
 
 **Bold** slices are committed (the a11y tranche). *Italic* ones are specified and
 scheduled for re-evaluation after it.

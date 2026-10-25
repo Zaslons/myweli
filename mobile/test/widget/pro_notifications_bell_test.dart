@@ -21,6 +21,7 @@ import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../support/pump_app.dart';
+import '../support/settle.dart';
 
 class _MockNotificationService extends Mock
     implements NotificationServiceInterface {}
@@ -118,6 +119,10 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
+    // The dashboard's skeleton is still (B9.8): `pumpAndSettle` returns with
+    // its read out, where the spinner it replaced kept frames — and fake
+    // time — going until the read landed.
+    await settleMocks(tester);
   }
 
   testWidgets('nothing unread → a bare bell, no badge', (tester) async {

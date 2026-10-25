@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:myweli/widgets/common/brand_refresh.dart';
-import 'package:myweli/widgets/common/loading_indicator.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/theme/app_theme.dart';
@@ -11,8 +10,11 @@ import '../../../core/utils/review_card.dart';
 import '../../../models/review.dart';
 import '../../../providers/pro_auth_provider.dart';
 import '../../../providers/pro_reviews_provider.dart';
+import '../../../widgets/common/app_async_view.dart';
+import '../../../widgets/common/app_skeleton.dart';
 import '../../../widgets/common/app_snack_bar.dart';
 import '../../../widgets/common/confirm_dialog.dart';
+import '../../../widgets/common/empty_state.dart';
 
 class ReviewsScreen extends StatefulWidget {
   const ReviewsScreen({super.key});
@@ -81,193 +83,185 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
             return const Center(child: Text('Veuillez vous connecter'));
           }
 
-          if (reviewsProvider.isLoading && reviewsProvider.reviews.isEmpty) {
-            return const Center(child: LoadingIndicator());
+          Future<void> reload() async {
+            if (authProvider.provider != null) {
+              await reviewsProvider.loadReviews(_resolvedProviderId(context));
+            }
           }
 
-          final reviews = reviewsProvider.reviews;
-          // The whole salon's card when the server sends it — the first page
-          // holds 50, and averaging it was wrong past 50
-          // (docs/design/salon-reviews-summary.md).
-          final card = reviewCard(reviews, reviewsProvider.summary);
+          // A failed list said « Aucun avis » (B9.8).
+          return AppAsyncView<List<Review>>(
+            isLoading: reviewsProvider.isLoading,
+            error: reviewsProvider.loadError,
+            data: reviewsProvider.reviews,
+            isEmpty: (d) => d.isEmpty,
+            loading: const SkeletonCardList(lead: SkeletonLead.avatar),
+            empty: const EmptyState(
+              icon: Icons.star_outline,
+              title: 'Aucun avis',
+              description: 'Les avis de vos clients apparaîtront ici',
+            ),
+            onRetry: reload,
+            onRefresh: reload,
+            builder: (context, reviews) =>
+                _content(authProvider, reviewsProvider, reviews, reload),
+          );
+        },
+      ),
+    );
+  }
 
-          if (reviews.isEmpty) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(
-                    Icons.star_outline,
-                    size: AppTheme.iconXL,
-                    color: AppColors.textSecondary,
-                  ),
-                  const SizedBox(height: AppTheme.spacingM),
-                  Text(
-                    'Aucun avis',
-                    style: AppTextStyles.titleLarge.copyWith(
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
-                  const SizedBox(height: AppTheme.spacingS),
-                  Text(
-                    'Les avis de vos clients apparaîtront ici',
-                    style: AppTextStyles.bodyMedium.copyWith(
-                      color: AppColors.textTertiary,
-                    ),
-                  ),
-                ],
-              ),
-            );
-          }
-
-          return BrandRefresh(
-            onRefresh: () async {
-              if (authProvider.provider != null) {
-                await reviewsProvider.loadReviews(_resolvedProviderId(context));
-              }
-            },
-            child: Column(
+  Widget _content(
+    ProAuthProvider authProvider,
+    ProReviewsProvider reviewsProvider,
+    List<Review> reviews,
+    Future<void> Function() reload,
+  ) {
+    // The whole salon's card when the server sends it — the first page
+    // holds 50, and averaging it was wrong past 50
+    // (docs/design/salon-reviews-summary.md).
+    final card = reviewCard(reviews, reviewsProvider.summary);
+    return BrandRefresh(
+      onRefresh: reload,
+      child: Column(
+        children: [
+          // Summary Card
+          Container(
+            padding: const EdgeInsets.all(AppTheme.spacingL),
+            margin: const EdgeInsets.all(AppTheme.spacingM),
+            decoration: BoxDecoration(
+              color: AppColors.secondary,
+              borderRadius: BorderRadius.circular(AppTheme.radiusXL),
+              boxShadow: AppTheme.elevation1,
+            ),
+            child: Row(
               children: [
-                // Summary Card
-                Container(
-                  padding: const EdgeInsets.all(AppTheme.spacingL),
-                  margin: const EdgeInsets.all(AppTheme.spacingM),
-                  decoration: BoxDecoration(
-                    color: AppColors.secondary,
-                    borderRadius: BorderRadius.circular(AppTheme.radiusXL),
-                    boxShadow: AppTheme.elevation1,
-                  ),
-                  child: Row(
-                    children: [
-                      Column(
-                        children: [
-                          Row(
-                            crossAxisAlignment: CrossAxisAlignment.center,
-                            children: [
-                              const Icon(
-                                Icons.star,
-                                size: AppTheme.iconL,
-                                color: AppColors.starRating,
+                Column(
+                  children: [
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        const Icon(
+                          Icons.star,
+                          size: AppTheme.iconL,
+                          color: AppColors.starRating,
+                        ),
+                        const SizedBox(width: AppTheme.spacingS),
+                        Text(
+                          Formatters.formatRating(card.average),
+                          style: AppTextStyles.headlineMedium.copyWith(
+                            color: AppColors.textPrimary,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: AppTheme.spacingXS),
+                    Text(
+                      '${card.count} avis',
+                      style: AppTextStyles.bodySmall.copyWith(
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(width: AppTheme.spacingM),
+                // Rating distribution. `Expanded`, not a `Spacer` before a
+                // hugging Column: the bars inside are flexed now, so this
+                // side needs a definite width to divide. With a `Spacer`
+                // the inner rows are `MainAxisSize.min` against unbounded
+                // width and an `Expanded` bar has nothing to expand into.
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: List.generate(5, (index) {
+                      final rating = 5 - index;
+                      final count = card.countFor(rating);
+                      final percentage = card.count == 0
+                          ? 0.0
+                          : count / card.count;
+                      return Padding(
+                        padding: const EdgeInsets.only(
+                          bottom: AppTheme.spacingXS,
+                        ),
+                        child: Row(
+                          children: [
+                            Text(
+                              '$rating',
+                              style: AppTextStyles.bodySmall.copyWith(
+                                color: AppColors.textSecondary,
                               ),
-                              const SizedBox(width: AppTheme.spacingS),
-                              Text(
-                                Formatters.formatRating(card.average),
-                                style: AppTextStyles.headlineMedium.copyWith(
-                                  color: AppColors.textPrimary,
+                            ),
+                            const SizedBox(width: AppTheme.spacingXS),
+                            const Icon(
+                              Icons.star,
+                              size: AppTheme.iconXS,
+                              color: AppColors.starRating,
+                            ),
+                            const SizedBox(width: AppTheme.spacingS),
+                            // A11 C5. `SizedBox(width: 100)` was the only
+                            // hard-coded width among the app's four
+                            // `LinearProgressIndicator`s — the other three
+                            // are `Expanded` or full width — and the text on
+                            // both sides of it grows with the scale while it
+                            // did not, which is the 4.3dp overflow at 360×2×.
+                            // `reports_analytics_screen.dart:233` is the
+                            // house answer to this exact shape: the bar
+                            // flexes, the numbers keep their intrinsic width.
+                            // The `ClipRRect` + `minHeight` come with it —
+                            // this bar alone shipped 4dp tall with square
+                            // ends while its three siblings did not.
+                            Expanded(
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(
+                                  AppTheme.radiusSmall,
+                                ),
+                                child: LinearProgressIndicator(
+                                  value: percentage,
+                                  minHeight: AppTheme.spacingS,
+                                  backgroundColor: AppColors.surface,
+                                  valueColor:
+                                      const AlwaysStoppedAnimation<Color>(
+                                        AppColors.gold,
+                                      ),
                                 ),
                               ),
-                            ],
-                          ),
-                          const SizedBox(height: AppTheme.spacingXS),
-                          Text(
-                            '${card.count} avis',
-                            style: AppTextStyles.bodySmall.copyWith(
-                              color: AppColors.textSecondary,
                             ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(width: AppTheme.spacingM),
-                      // Rating distribution. `Expanded`, not a `Spacer` before a
-                      // hugging Column: the bars inside are flexed now, so this
-                      // side needs a definite width to divide. With a `Spacer`
-                      // the inner rows are `MainAxisSize.min` against unbounded
-                      // width and an `Expanded` bar has nothing to expand into.
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.end,
-                          children: List.generate(5, (index) {
-                            final rating = 5 - index;
-                            final count = card.countFor(rating);
-                            final percentage = card.count == 0
-                                ? 0.0
-                                : count / card.count;
-                            return Padding(
-                              padding: const EdgeInsets.only(
-                                bottom: AppTheme.spacingXS,
+                            const SizedBox(width: AppTheme.spacingS),
+                            Text(
+                              '$count',
+                              style: AppTextStyles.bodySmall.copyWith(
+                                color: AppColors.textSecondary,
                               ),
-                              child: Row(
-                                children: [
-                                  Text(
-                                    '$rating',
-                                    style: AppTextStyles.bodySmall.copyWith(
-                                      color: AppColors.textSecondary,
-                                    ),
-                                  ),
-                                  const SizedBox(width: AppTheme.spacingXS),
-                                  const Icon(
-                                    Icons.star,
-                                    size: AppTheme.iconXS,
-                                    color: AppColors.starRating,
-                                  ),
-                                  const SizedBox(width: AppTheme.spacingS),
-                                  // A11 C5. `SizedBox(width: 100)` was the only
-                                  // hard-coded width among the app's four
-                                  // `LinearProgressIndicator`s — the other three
-                                  // are `Expanded` or full width — and the text on
-                                  // both sides of it grows with the scale while it
-                                  // did not, which is the 4.3dp overflow at 360×2×.
-                                  // `reports_analytics_screen.dart:233` is the
-                                  // house answer to this exact shape: the bar
-                                  // flexes, the numbers keep their intrinsic width.
-                                  // The `ClipRRect` + `minHeight` come with it —
-                                  // this bar alone shipped 4dp tall with square
-                                  // ends while its three siblings did not.
-                                  Expanded(
-                                    child: ClipRRect(
-                                      borderRadius: BorderRadius.circular(
-                                        AppTheme.radiusSmall,
-                                      ),
-                                      child: LinearProgressIndicator(
-                                        value: percentage,
-                                        minHeight: AppTheme.spacingS,
-                                        backgroundColor: AppColors.surface,
-                                        valueColor:
-                                            const AlwaysStoppedAnimation<Color>(
-                                              AppColors.gold,
-                                            ),
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(width: AppTheme.spacingS),
-                                  Text(
-                                    '$count',
-                                    style: AppTextStyles.bodySmall.copyWith(
-                                      color: AppColors.textSecondary,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            );
-                          }),
+                            ),
+                          ],
                         ),
-                      ),
-                    ],
-                  ),
-                ),
-                // Reviews List
-                Expanded(
-                  child: ListView.builder(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: AppTheme.spacingM,
-                    ),
-                    itemCount: reviews.length,
-                    itemBuilder: (context, index) {
-                      final review = reviews[index];
-                      return _ReviewCard(
-                        review: review,
-                        // The Propriétaire and the Gérant (`profile.manage`).
-                        onReport: authProvider.can('profile.manage')
-                            ? () => _report(review.id)
-                            : null,
                       );
-                    },
+                    }),
                   ),
                 ),
               ],
             ),
-          );
-        },
+          ),
+          // Reviews List
+          Expanded(
+            child: ListView.builder(
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppTheme.spacingM,
+              ),
+              itemCount: reviews.length,
+              itemBuilder: (context, index) {
+                final review = reviews[index];
+                return _ReviewCard(
+                  review: review,
+                  // The Propriétaire and the Gérant (`profile.manage`).
+                  onReport: authProvider.can('profile.manage')
+                      ? () => _report(review.id)
+                      : null,
+                );
+              },
+            ),
+          ),
+        ],
       ),
     );
   }

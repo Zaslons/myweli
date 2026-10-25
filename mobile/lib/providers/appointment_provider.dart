@@ -26,6 +26,7 @@ class AppointmentProvider extends ChangeNotifier {
 
   List<Appointment> _appointments = [];
   Appointment? _selectedAppointment;
+  String? _selectedId;
   bool _isLoading = false;
   String? _error;
 
@@ -35,11 +36,19 @@ class AppointmentProvider extends ChangeNotifier {
   /// pick its `offer_required` sentence.
   String? _errorCode;
 
+  /// The list's own failure. [error] belongs to every operation here — a
+  /// cancel, a deposit, a booking — so « Mes rendez-vous » reading it would
+  /// show « Erreur lors de l’annulation » as the reason its list is empty
+  /// (B9.8). It had no error state at all: a failed load said « Aucun
+  /// rendez-vous ».
+  String? _listError;
+
   List<Appointment> get appointments => _appointments;
   Appointment? get selectedAppointment => _selectedAppointment;
   bool get isLoading => _isLoading;
   String? get error => _error;
   String? get errorCode => _errorCode;
+  String? get listError => _listError;
 
   List<Appointment> get upcomingAppointments {
     final now = AppClock.now();
@@ -108,12 +117,15 @@ class AppointmentProvider extends ChangeNotifier {
       if (response.success && response.data != null) {
         _appointments = response.data!;
         _error = null;
+        _listError = null;
       } else {
-        _error = response.error ?? 'Erreur lors du chargement';
+        _error = response.error ?? kGenericErrorMessage;
+        _listError = _error;
         _appointments = [];
       }
     } catch (e) {
       _error = kGenericErrorMessage;
+      _listError = _error;
       _appointments = [];
     } finally {
       _isLoading = false;
@@ -207,26 +219,33 @@ class AppointmentProvider extends ChangeNotifier {
   }
 
   Future<void> loadAppointmentById(String id) async {
+    // The selection is app-wide and outlives the detail screen: kept, the way
+    // to B showed A's details — and A's actions — until B answered (B9.8).
+    if (_selectedAppointment?.id != id) _selectedAppointment = null;
+    _selectedId = id;
     _isLoading = true;
     _error = null;
     notifyListeners();
 
+    Appointment? found;
+    String? error;
     try {
       final response = await _appointmentService.getAppointmentById(id);
       if (response.success && response.data != null) {
-        _selectedAppointment = response.data;
-        _error = null;
+        found = response.data;
       } else {
-        _error = response.error ?? 'Rendez-vous non trouvé';
-        _selectedAppointment = null;
+        error = response.error ?? 'Rendez-vous non trouvé';
       }
     } catch (e) {
-      _error = kGenericErrorMessage;
-      _selectedAppointment = null;
-    } finally {
-      _isLoading = false;
-      notifyListeners();
+      error = kGenericErrorMessage;
     }
+    // Another booking was opened while this read was out: its answer is no
+    // longer anybody's (`ProviderProvider.loadProviderById`'s guard).
+    if (_selectedId != id) return;
+    _selectedAppointment = found;
+    _error = error;
+    _isLoading = false;
+    notifyListeners();
   }
 
   Future<bool> cancelAppointment(String id) async {

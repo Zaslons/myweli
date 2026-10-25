@@ -26,6 +26,11 @@ class AdminKycProvider extends ChangeNotifier {
   List<Map<String, dynamic>> get queue => _queue;
   bool get detailLoading => _detailLoading;
   String? get detailError => _detailError;
+
+  /// Whose file [detail] is: the provider outlives the screen, and the first
+  /// frame of the next file's screen still holds the last one (B9.8).
+  String? _detailId;
+  String? get detailId => _detailId;
   Map<String, dynamic>? get detail => _detail;
   bool get acting => _acting;
   String? get actionError => _actionError;
@@ -46,11 +51,14 @@ class AdminKycProvider extends ChangeNotifier {
   }
 
   Future<void> loadDetail(String accountId) async {
+    _detailId = accountId;
     _detailLoading = true;
     _detailError = null;
     _detail = null;
     notifyListeners();
     final res = await _service.kycDetail(accountId);
+    // Another file was opened while this read was out (B9.8).
+    if (accountId != _detailId) return;
     if (res.success && res.data != null) {
       _detail = res.data;
     } else {

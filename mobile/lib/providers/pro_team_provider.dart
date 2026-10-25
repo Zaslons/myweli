@@ -175,17 +175,27 @@ class ProTeamProvider extends ChangeNotifier implements SalonScoped {
   /// (pro-app-batch7.md §2.6, B7.6).
   bool get invitationsAsked => _invitationsAsked;
 
+  /// The list's failed read — silent for the cards and the badge, which
+  /// simply do not show; said on « Mes invitations », which said « Aucune
+  /// invitation en attente » for a list it never read (B9.8).
+  String? get invitationsError => _invitationsError;
+  String? _invitationsError;
+
   Future<void> loadMyInvitations() async {
     _invitationsAsked = true;
     _invitationsLoading = true;
+    _invitationsError = null;
     notifyListeners();
     try {
       final res = await _service.getMyInvitations();
       if (res.success && res.data != null) {
         _myInvitations = res.data!;
+      } else {
+        _invitationsError = res.error ?? kGenericErrorMessage;
       }
     } catch (_) {
-      // Silent — the profile badge simply doesn't show.
+      // Silent for the badge — it simply doesn't show.
+      _invitationsError = kGenericErrorMessage;
     } finally {
       _invitationsLoading = false;
       notifyListeners();
@@ -281,6 +291,7 @@ class ProTeamProvider extends ChangeNotifier implements SalonScoped {
     _myInvitations = const [];
     _invitationsLoading = false;
     _invitationsAsked = false;
+    _invitationsError = null;
     notifyListeners();
   }
 }

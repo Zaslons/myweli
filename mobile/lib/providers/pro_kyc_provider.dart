@@ -24,6 +24,12 @@ class ProKycProvider extends ChangeNotifier {
   bool get isLoading => _isLoading;
   bool get isSubmitting => _isSubmitting;
   bool get loadFailed => _loadFailed;
+
+  /// What these fields hold is the server's, not the defaults they start
+  /// with: a read has answered since the last reset (B9.8). The screen
+  /// waits for it — on the first frame it showed the defaults.
+  bool get loaded => _loaded;
+  bool _loaded = false;
   String? get error => _error;
   VerificationStatus get status => _status;
   String? get rejectionReason => _rejectionReason;
@@ -59,10 +65,11 @@ class ProKycProvider extends ChangeNotifier {
         _documents
           ..clear()
           ..addEntries(res.data!.documents.map((d) => MapEntry(d.type, d)));
+        _loaded = true;
         _loadFailed = false;
       } else {
         _loadFailed = true;
-        _error = res.error ?? 'Erreur lors du chargement';
+        _error = res.error ?? kGenericErrorMessage;
       }
     } catch (e) {
       _loadFailed = true;

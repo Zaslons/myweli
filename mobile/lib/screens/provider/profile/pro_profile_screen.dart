@@ -20,6 +20,7 @@ import '../../../models/team_member.dart';
 import '../../../providers/pro_auth_provider.dart';
 import '../../../providers/pro_team_provider.dart';
 import '../../../widgets/common/app_button.dart';
+import '../../../widgets/common/app_skeleton.dart';
 import '../../../widgets/common/app_snack_bar.dart';
 import '../../../widgets/common/confirm_dialog.dart';
 import '../../../widgets/provider/salon_picker_sheet.dart';
@@ -455,9 +456,6 @@ class _SalonCard extends StatefulWidget {
 }
 
 class _SalonCardState extends State<_SalonCard> {
-  /// A skeleton bar: one line of the card, no text in it.
-  static const double _skeletonBarHeight = 16;
-
   /// « Réessayer » in flight — `refreshMembership` raises no `isLoading`
   /// (only the cold start and a switch do), so the card keeps its own.
   bool _retrying = false;
@@ -526,34 +524,20 @@ class _SalonCardState extends State<_SalonCard> {
   );
 
   /// The rows' shape while the salon payload is on its way (§12: the shape is
-  /// known, so a skeleton, not a spinner). One label for screen readers.
-  Widget _skeleton() => Semantics(
-    container: true,
+  /// known, so a skeleton, not a spinner). One label for screen readers. The
+  /// idiom the shared skeletons were cut from (B9.8).
+  Widget _skeleton() => AppSkeleton(
     label: 'Chargement des informations du salon',
-    child: ExcludeSemantics(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          for (final (i, width) in const [0.45, 0.7, 0.5].indexed) ...[
-            if (i > 0) const SizedBox(height: AppTheme.spacingM),
-            _bar(0.3),
-            const SizedBox(height: AppTheme.spacingS),
-            _bar(width),
-          ],
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        for (final (i, width) in const [0.45, 0.7, 0.5].indexed) ...[
+          if (i > 0) const SizedBox(height: AppTheme.spacingM),
+          const SkeletonBar(widthFactor: 0.3),
+          const SizedBox(height: AppTheme.spacingS),
+          SkeletonBar(widthFactor: width),
         ],
-      ),
-    ),
-  );
-
-  Widget _bar(double widthFactor) => FractionallySizedBox(
-    widthFactor: widthFactor,
-    alignment: AlignmentDirectional.centerStart,
-    child: Container(
-      height: _skeletonBarHeight,
-      decoration: BoxDecoration(
-        color: AppColors.surfaceVariant,
-        borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
-      ),
+      ],
     ),
   );
 

@@ -15,12 +15,12 @@ import '../../../models/provider_user.dart';
 import '../../../providers/locality_provider.dart';
 import '../../../providers/pro_auth_provider.dart';
 import '../../../providers/pro_deposit_settings_provider.dart';
+import '../../../widgets/common/app_async_view.dart';
 import '../../../widgets/common/app_button.dart';
+import '../../../widgets/common/app_skeleton.dart';
 import '../../../widgets/common/app_snack_bar.dart';
-import '../../../widgets/common/empty_state.dart';
 import '../../../widgets/common/inline_feedback.dart';
 import '../../../widgets/common/label_value_row.dart';
-import '../../../widgets/common/loading_indicator.dart';
 import '../../../widgets/common/phone_number_field.dart';
 
 /// The server's `operator_unavailable` (B6.5): an operator the country's
@@ -202,19 +202,22 @@ class _DepositSettingsScreenState extends State<DepositSettingsScreen> {
       appBar: AppBar(title: const Text('Acompte')),
       body: Consumer<ProDepositSettingsProvider>(
         builder: (context, provider, _) {
-          if (provider.isLoading) {
-            return const LoadingIndicator();
-          }
-          if (provider.loadFailed) {
-            return EmptyState(
-              icon: Icons.wifi_off,
-              title: 'Chargement impossible',
-              description: 'Vérifiez votre connexion et réessayez.',
-              actionText: 'Réessayer',
-              onAction: () => provider.load(widget.providerId),
-            );
-          }
-          return _buildForm(provider);
+          return AppAsyncView<ProDepositSettingsProvider>(
+            isLoading: provider.isLoading,
+            error: provider.loadFailed
+                ? provider.error ?? kGenericErrorMessage
+                : null,
+            // A form, so only once its read has settled: kept on screen
+            // through a reload, it would take the owner's edits back.
+            data: provider.loaded && !provider.isLoading && !provider.loadFailed
+                ? provider
+                : null,
+            isEmpty: (_) => false,
+            loading: const SkeletonDetail(sections: 3),
+            empty: const SizedBox.shrink(),
+            onRetry: () => provider.load(widget.providerId),
+            builder: (context, p) => _buildForm(p),
+          );
         },
       ),
     );
@@ -439,12 +442,7 @@ class _DepositSettingsScreenState extends State<DepositSettingsScreen> {
                           ],
                         );
                       }
-                      return const Center(
-                        child: Padding(
-                          padding: EdgeInsets.all(AppTheme.spacingS),
-                          child: LoadingIndicator(),
-                        ),
-                      );
+                      return const SkeletonPills(count: 3);
                     }
                     return Focus(
                       focusNode: _operatorFocus,

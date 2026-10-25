@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:myweli/core/constants/failure_messages.dart';
 import 'package:myweli/core/theme/app_theme.dart';
 import 'package:myweli/core/theme/text_styles.dart';
 import 'package:myweli/screens/admin/widgets/admin_data_table.dart';
@@ -34,10 +35,14 @@ void main() {
     });
 
     testWidgets('four states: error (+ retry)', (tester) async {
+      // Taller than the others: the shared error (B9.8) — icon, title, the
+      // sentence and « Réessayer » — is taller than the bare sentence it
+      // replaced, and overflowed 420 by 5px. On the console the table sits
+      // in a scroll view; this canvas is only the photo's.
       await pumpGolden(
         tester,
-        _table(error: 'Chargement impossible. Vérifiez votre connexion.'),
-        size: _size,
+        _table(error: kNoConnectionMessage),
+        size: const Size(720, 480),
       );
       await expectGolden(tester, 'admin_table_error');
     });

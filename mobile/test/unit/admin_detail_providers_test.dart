@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -100,5 +101,48 @@ void main() {
     await p.load('nope');
     expect(p.provider, isNull);
     expect(p.error, isNotNull);
+  });
+
+  // docs/design/hygiene-batch9.md §14 (B9.8): the provider is app-wide and
+  // outlives the screen. The way to salon B showed salon A — its name, its
+  // status, and « Suspendre » acting on B's id — until B answered; when B's
+  // read failed, A stayed, with no error at all.
+  test('the way to B drops A; a late answer for A is nobody\'s', () async {
+    final a = Completer<http.Response>();
+    final b = Completer<http.Response>();
+    var firstA = true;
+    final p = AdminProviderDetailProvider(
+      service: svc(
+        MockClient((req) {
+          if (req.url.path == '/admin/providers/a') {
+            if (firstA) {
+              firstA = false;
+              return Future.value(
+                http.Response(jsonEncode({'id': 'a', 'name': 'Salon A'}), 200),
+              );
+            }
+            return a.future;
+          }
+          return b.future;
+        }),
+      ),
+    );
+
+    await p.load('a');
+    expect(p.provider?['name'], 'Salon A');
+
+    unawaited(p.load('a'));
+    unawaited(p.load('b'));
+    expect(p.id, 'b');
+    expect(p.provider, isNull, reason: 'A, on B\'s screen');
+
+    a.complete(http.Response(jsonEncode({'id': 'a', 'name': 'Salon A'}), 200));
+    await pumpEventQueue();
+    expect(p.provider, isNull, reason: 'A\'s late answer, written under B');
+
+    b.complete(http.Response('{}', 503));
+    await pumpEventQueue();
+    expect(p.provider, isNull);
+    expect(p.error, isNotNull, reason: 'a failed B is an error, not A');
   });
 }

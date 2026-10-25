@@ -28,6 +28,11 @@ class ProAppointmentProvider extends ChangeNotifier
   List<Appointment> get appointments => _appointments;
   bool get isLoading => _isLoading;
   String? get error => _error;
+
+  /// The load's own failure: [error] is also every write's here, so a failed
+  /// save would read as the list's load error (B9.8).
+  String? get loadError => _loadError;
+  String? _loadError;
   String? get errorCode => _errorCode;
 
   /// What [_appointments] was last asked for — « En attente » asks for one
@@ -68,6 +73,7 @@ class ProAppointmentProvider extends ChangeNotifier
     _loadedTo = endDate;
     _isLoading = true;
     _error = null;
+    _loadError = null;
     notifyListeners();
 
     try {
@@ -82,11 +88,13 @@ class ProAppointmentProvider extends ChangeNotifier
         _error = null;
       } else {
         _error = response.error ?? 'Erreur lors du chargement des rendez-vous';
+        _loadError = _error;
         ProAccessGuard.report(response.code);
         _appointments = [];
       }
     } catch (e) {
       _error = kGenericErrorMessage;
+      _loadError = _error;
       _appointments = [];
     } finally {
       _isLoading = false;
@@ -368,6 +376,7 @@ class ProAppointmentProvider extends ChangeNotifier
 
   @override
   void resetForSalonSwitch() {
+    _loadError = null;
     _appointments = [];
     _loadedProviderId = null;
     _loadedStatus = null;

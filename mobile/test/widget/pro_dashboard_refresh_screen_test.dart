@@ -122,12 +122,12 @@ void main() {
 
   group('the error state (no figures)', () {
     testWidgets(
-      'nothing answered: « Une erreur est survenue », « Pas de connexion. '
+      'nothing answered: « Chargement impossible », « Pas de connexion. '
       'Réessayez. », « Réessayer » — and « Réessayer » works',
       (tester) async {
         figures.failure = 'network';
         await openHome(tester);
-        expect(find.text('Une erreur est survenue'), findsOneWidget);
+        expect(find.text('Chargement impossible'), findsOneWidget);
         expect(find.text('Pas de connexion. Réessayez.'), findsOneWidget);
         expect(find.byType(EmptyState), findsOneWidget);
         figures.failure = null;
@@ -143,7 +143,7 @@ void main() {
       (tester) async {
         figures.failure = 'error';
         await openHome(tester);
-        expect(find.text('Une erreur est survenue'), findsOneWidget);
+        expect(find.text('Chargement impossible'), findsOneWidget);
         expect(find.text('Réessayer'), findsOneWidget);
         expect(find.textContaining('Server exploded'), findsNothing);
         expect(find.text('Pas de connexion. Réessayez.'), findsNothing);
@@ -191,7 +191,7 @@ void main() {
         figures.failure = 'network';
         await pull(tester);
         expect(pendingFigure(4), findsOneWidget);
-        expect(find.text('Une erreur est survenue'), findsNothing);
+        expect(find.text('Chargement impossible'), findsNothing);
         expect(find.text('Pas de connexion. Réessayez.'), findsOneWidget);
       },
     );

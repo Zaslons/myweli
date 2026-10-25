@@ -14,16 +14,18 @@ import '../../../core/utils/phone_numbering.dart';
 import '../../../core/utils/salon_time.dart';
 import '../../../core/utils/text_fit.dart';
 import '../../../core/utils/validators.dart';
+import '../../../models/service.dart';
 import '../../../providers/pro_appointment_provider.dart';
 import '../../../providers/pro_auth_provider.dart';
 import '../../../providers/pro_service_provider.dart';
+import '../../../widgets/common/app_async_view.dart';
 import '../../../widgets/common/app_button.dart';
+import '../../../widgets/common/app_skeleton.dart';
 import '../../../widgets/common/app_snack_bar.dart';
 import '../../../widgets/common/app_text_field.dart';
 import '../../../widgets/common/empty_state.dart';
 import '../../../widgets/common/inline_feedback.dart';
 import '../../../widgets/common/label_value_row.dart';
-import '../../../widgets/common/loading_indicator.dart';
 import '../../../widgets/common/myweli_date_picker.dart';
 import '../../../widgets/common/myweli_time_picker.dart';
 import '../../../widgets/common/phone_number_field.dart';
@@ -278,122 +280,126 @@ class _ProManualBookingScreenState extends State<ProManualBookingScreen> {
                   'un rendez-vous.',
             );
           }
-          if (serviceProvider.isLoading && serviceProvider.services.isEmpty) {
-            return const LoadingIndicator();
-          }
-
-          final services = serviceProvider.services;
-          final total = services
-              .where((s) => _selected.contains(s.id))
-              .fold<double>(0, (sum, s) => sum + s.price);
-
-          return ListView(
-            padding: const EdgeInsets.all(AppTheme.spacingM),
-            children: [
-              _label('SERVICES'),
-              if (services.isEmpty)
-                Text(
-                  'Ajoutez des services à votre profil pour pouvoir créer un '
-                  'rendez-vous.',
-                  style: AppTextStyles.bodySmall.copyWith(
-                    color: AppColors.textTertiary,
-                  ),
-                )
-              else
-                ...services.map(
-                  (s) => CheckboxListTile(
-                    value: _selected.contains(s.id),
-                    onChanged: (v) => setState(() {
-                      if (v == true) {
-                        _selected.add(s.id);
-                      } else {
-                        _selected.remove(s.id);
-                      }
-                    }),
-                    title: Text(s.name),
-                    subtitle: Text(
-                      '${Formatters.formatPriceRange(s.price, s.priceMax, currency: context.read<ProAuthProvider>().salonCurrency)} · '
-                      '${Formatters.formatDuration(s.durationMinutes)}',
-                    ),
-                    contentPadding: EdgeInsets.zero,
-                    controlAffinity: ListTileControlAffinity.leading,
-                    dense: true,
-                  ),
-                ),
-              const SizedBox(height: AppTheme.spacingM),
-              _label('DATE & HEURE'),
-              _dateTimeRow(context),
-              const SizedBox(height: AppTheme.spacingM),
-              _label('CLIENT'),
-              PhoneNumberField(
-                label: 'Téléphone du client',
-                // The current value, not the card's: the ListView culls this
-                // field off-screen, and it must come back as it was left.
-                initialValue: _phone,
-                enabled: !_anonymous,
-                errorText: _errors['phone'],
-                onChanged: (e164) => setState(() {
-                  _phone = e164;
-                  _errors.revalidate('phone', e164);
-                }),
-              ),
-              CheckboxListTile(
-                value: _anonymous,
-                onChanged: (v) => setState(() => _anonymous = v ?? false),
-                title: const Text('Client sans numéro'),
-                contentPadding: EdgeInsets.zero,
-                controlAffinity: ListTileControlAffinity.leading,
-                dense: true,
-              ),
-              const SizedBox(height: AppTheme.spacingS),
-              AppTextField(
-                label: 'Nom du client (optionnel)',
-                controller: _name,
-              ),
-              if (FeatureFlags.smsInvite) ...[
-                const SizedBox(height: AppTheme.spacingS),
-                SwitchListTile(
-                  value: _sendSms && !_anonymous && _phone.isNotEmpty,
-                  onChanged: (_anonymous || _phone.isEmpty)
-                      ? null
-                      : (v) => setState(() => _sendSms = v),
-                  title: const Text('Envoyer la confirmation par SMS'),
-                  subtitle: const Text('Le client reçoit un lien vers l’app'),
-                  contentPadding: EdgeInsets.zero,
-                  dense: true,
-                ),
-              ],
-              const SizedBox(height: AppTheme.spacingS),
-              AppTextField(
-                label: 'Note (optionnel)',
-                controller: _note,
-                maxLines: 2,
-              ),
-              const SizedBox(height: AppTheme.spacingM),
-              LabelValueRow(
-                label: 'Total',
-                value: Formatters.formatCurrency(
-                  total,
-                  currency: context.read<ProAuthProvider>().salonCurrency,
-                ),
-                labelStyle: AppTextStyles.bodyMedium.copyWith(
-                  color: AppColors.textSecondary,
-                ),
-                valueStyle: AppTextStyles.titleMedium.copyWith(
-                  color: AppColors.primary,
-                ),
-              ),
-              const SizedBox(height: AppTheme.spacingL),
-              InlineFeedback(_selectionError),
-              AppButton(
-                text: 'Créer le rendez-vous',
-                isLoading: _submitting,
-                onPressed: _canSubmit ? () => _submit(total) : null,
-              ),
-            ],
+          // No catalogue is a state the form says itself (« Ajoutez des
+          // services… »); a catalogue that did not load is not — it said the
+          // same sentence (B9.8).
+          return AppAsyncView<List<Service>>(
+            isLoading: serviceProvider.isLoading,
+            error: serviceProvider.loadError,
+            data: serviceProvider.services,
+            isEmpty: (d) => d.isEmpty,
+            loading: const SkeletonDetail(sections: 2),
+            empty: _form(const []),
+            onRetry: () => serviceProvider.loadServices(providerId),
+            builder: (context, services) => _form(services),
           );
         },
       ),
+    );
+  }
+
+  Widget _form(List<Service> services) {
+    final total = services
+        .where((s) => _selected.contains(s.id))
+        .fold<double>(0, (sum, s) => sum + s.price);
+
+    return ListView(
+      padding: const EdgeInsets.all(AppTheme.spacingM),
+      children: [
+        _label('SERVICES'),
+        if (services.isEmpty)
+          Text(
+            'Ajoutez des services à votre profil pour pouvoir créer un '
+            'rendez-vous.',
+            style: AppTextStyles.bodySmall.copyWith(
+              color: AppColors.textTertiary,
+            ),
+          )
+        else
+          ...services.map(
+            (s) => CheckboxListTile(
+              value: _selected.contains(s.id),
+              onChanged: (v) => setState(() {
+                if (v == true) {
+                  _selected.add(s.id);
+                } else {
+                  _selected.remove(s.id);
+                }
+              }),
+              title: Text(s.name),
+              subtitle: Text(
+                '${Formatters.formatPriceRange(s.price, s.priceMax, currency: context.read<ProAuthProvider>().salonCurrency)} · '
+                '${Formatters.formatDuration(s.durationMinutes)}',
+              ),
+              contentPadding: EdgeInsets.zero,
+              controlAffinity: ListTileControlAffinity.leading,
+              dense: true,
+            ),
+          ),
+        const SizedBox(height: AppTheme.spacingM),
+        _label('DATE & HEURE'),
+        _dateTimeRow(context),
+        const SizedBox(height: AppTheme.spacingM),
+        _label('CLIENT'),
+        PhoneNumberField(
+          label: 'Téléphone du client',
+          // The current value, not the card's: the ListView culls this
+          // field off-screen, and it must come back as it was left.
+          initialValue: _phone,
+          enabled: !_anonymous,
+          errorText: _errors['phone'],
+          onChanged: (e164) => setState(() {
+            _phone = e164;
+            _errors.revalidate('phone', e164);
+          }),
+        ),
+        CheckboxListTile(
+          value: _anonymous,
+          onChanged: (v) => setState(() => _anonymous = v ?? false),
+          title: const Text('Client sans numéro'),
+          contentPadding: EdgeInsets.zero,
+          controlAffinity: ListTileControlAffinity.leading,
+          dense: true,
+        ),
+        const SizedBox(height: AppTheme.spacingS),
+        AppTextField(label: 'Nom du client (optionnel)', controller: _name),
+        if (FeatureFlags.smsInvite) ...[
+          const SizedBox(height: AppTheme.spacingS),
+          SwitchListTile(
+            value: _sendSms && !_anonymous && _phone.isNotEmpty,
+            onChanged: (_anonymous || _phone.isEmpty)
+                ? null
+                : (v) => setState(() => _sendSms = v),
+            title: const Text('Envoyer la confirmation par SMS'),
+            subtitle: const Text('Le client reçoit un lien vers l’app'),
+            contentPadding: EdgeInsets.zero,
+            dense: true,
+          ),
+        ],
+        const SizedBox(height: AppTheme.spacingS),
+        AppTextField(label: 'Note (optionnel)', controller: _note, maxLines: 2),
+        const SizedBox(height: AppTheme.spacingM),
+        LabelValueRow(
+          label: 'Total',
+          value: Formatters.formatCurrency(
+            total,
+            currency: context.read<ProAuthProvider>().salonCurrency,
+          ),
+          labelStyle: AppTextStyles.bodyMedium.copyWith(
+            color: AppColors.textSecondary,
+          ),
+          valueStyle: AppTextStyles.titleMedium.copyWith(
+            color: AppColors.primary,
+          ),
+        ),
+        const SizedBox(height: AppTheme.spacingL),
+        InlineFeedback(_selectionError),
+        AppButton(
+          text: 'Créer le rendez-vous',
+          isLoading: _submitting,
+          onPressed: _canSubmit ? () => _submit(total) : null,
+        ),
+      ],
     );
   }
 

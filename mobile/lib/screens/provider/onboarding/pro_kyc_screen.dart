@@ -12,10 +12,10 @@ import '../../../models/kyc_document.dart';
 import '../../../models/provider_user.dart';
 import '../../../providers/pro_auth_provider.dart';
 import '../../../providers/pro_kyc_provider.dart';
+import '../../../widgets/common/app_async_view.dart';
 import '../../../widgets/common/app_button.dart';
+import '../../../widgets/common/app_skeleton.dart';
 import '../../../widgets/common/app_snack_bar.dart';
-import '../../../widgets/common/empty_state.dart';
-import '../../../widgets/common/loading_indicator.dart';
 
 class ProKycScreen extends StatefulWidget {
   const ProKycScreen({super.key});
@@ -58,19 +58,17 @@ class _ProKycScreenState extends State<ProKycScreen> {
           if (pro == null) {
             return const Center(child: Text('Veuillez vous connecter'));
           }
-          if (kyc.isLoading) {
-            return const LoadingIndicator();
-          }
-          if (kyc.loadFailed) {
-            return EmptyState(
-              icon: Icons.wifi_off,
-              title: 'Chargement impossible',
-              description: 'Vérifiez votre connexion et réessayez.',
-              actionText: 'Réessayer',
-              onAction: () => kyc.load(pro.id),
-            );
-          }
-          return _buildForm(pro, kyc);
+          return AppAsyncView<ProKycProvider>(
+            isLoading: kyc.isLoading,
+            error: kyc.loadFailed ? kyc.error ?? kGenericErrorMessage : null,
+            // Only a settled read: its actions change what it shows.
+            data: kyc.loaded && !kyc.isLoading && !kyc.loadFailed ? kyc : null,
+            isEmpty: (_) => false,
+            loading: const SkeletonDetail(sections: 3),
+            empty: const SizedBox.shrink(),
+            onRetry: () => kyc.load(pro.id),
+            builder: (context, k) => _buildForm(pro, k),
+          );
         },
       ),
     );
