@@ -5,22 +5,23 @@ library;
 
 /// What a status chip says by its colour — always with its words too.
 enum AppChipTone {
-  /// Done, verified.
+  /// Confirmed, verified, a client arrived (B7: confirmed is the ok kind).
   success,
 
-  /// Waiting, a no-show.
+  /// Waiting.
   warning,
 
-  /// Cancelled, refused, blocked.
+  /// Cancelled, a no-show, unavailable.
   error,
 
-  /// Confirmed, made by the salon.
+  /// Made by the salon; the journal's « confirmé » (its own language).
   info,
 
-  /// New, a plain role.
+  /// Done, new, a plain role.
   neutral,
 
-  /// A role above the others (Manager).
+  /// A role above the others (Manager), an open slot: the tint and a
+  /// brand-black line, since black's tint alone is neutral's grey.
   strong,
 
   /// The owner. Gold is a state, never a text: its label is ink (B7.1).

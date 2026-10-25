@@ -159,6 +159,37 @@ void main() {
       });
     }
 
+    testWidgets('strong stands apart from neutral: its brand-black line', (
+      tester,
+    ) async {
+      // Black and grey at 12% are 1.09:1 apart — the same grey: a Manager
+      // read as a Collaborateur. The line is what makes the tone strong.
+      BoxDecoration of(AppChipTone tone) =>
+          tester
+                  .widget<DecoratedBox>(
+                    find
+                        .descendant(
+                          of: find.byType(AppChip),
+                          matching: find.byType(DecoratedBox),
+                        )
+                        .first,
+                  )
+                  .decoration
+              as BoxDecoration;
+
+      await pump(
+        tester,
+        const AppChip.status(label: 'Manager', tone: AppChipTone.strong),
+      );
+      final strong = of(AppChipTone.strong);
+      expect(strong.border, Border.all(color: AppColors.primary));
+      await pump(
+        tester,
+        const AppChip.status(label: 'Réception', tone: AppChipTone.neutral),
+      );
+      expect(of(AppChipTone.neutral).border, isNull);
+    });
+
     testWidgets('a label for a screen reader, no action', (tester) async {
       final handle = tester.ensureSemantics();
       await pump(

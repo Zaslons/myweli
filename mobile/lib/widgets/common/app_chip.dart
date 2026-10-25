@@ -118,7 +118,13 @@ class AppChip extends StatelessWidget {
         AppColors.textSecondary,
         null,
       ),
-      AppChipTone.strong => (AppColors.primary, AppColors.textPrimary, null),
+      // Black at 12% is neutral's grey (1.09:1 apart): the brand line is what
+      // sets it above. Not `borderStrong` — that edge says « a control ».
+      AppChipTone.strong => (
+        AppColors.primary,
+        AppColors.textPrimary,
+        AppColors.primary,
+      ),
       // The tint alone is faint for a hue this light: the owner's line too,
       // as `TeamRoleChip` drew it.
       AppChipTone.gold => (
