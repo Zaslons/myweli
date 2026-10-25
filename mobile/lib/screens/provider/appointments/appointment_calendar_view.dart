@@ -12,6 +12,7 @@ import '../../../core/utils/status_colors.dart';
 import '../../../core/utils/status_labels.dart';
 import '../../../models/appointment.dart';
 import '../../../providers/pro_auth_provider.dart';
+import '../../../widgets/common/app_card.dart';
 import '../../../widgets/common/empty_state.dart';
 import '../../../widgets/common/myweli_month_grid.dart';
 
@@ -169,47 +170,44 @@ class _AppointmentCalendarViewState extends State<AppointmentCalendarView> {
   }
 
   Widget _calendarCard() {
-    return Container(
-      // `spacingS`, not `spacingM`, and it is arithmetic rather than taste: the
-      // day cell needs a 46.86dp column at 2× (A14a §2.1), which is
-      // 360 − 2×`spacingS` here − 2×`spacingS` inside the navigator, ÷ 7.
-      // At `spacingM` the column was 37.7 and the day number wrapped.
-      margin: const EdgeInsets.all(AppTheme.spacingS),
-      padding: const EdgeInsets.symmetric(vertical: AppTheme.spacingS),
-      decoration: BoxDecoration(
-        color: AppColors.secondary,
-        borderRadius: BorderRadius.circular(AppTheme.radiusXL),
-        boxShadow: AppTheme.elevation1,
-      ),
-      // **`shrinkWrap: true` is required, not preferred.** This card is a
-      // non-flex child of a `Column`, so it receives unbounded main-axis
-      // constraints — a navigator using `Expanded` throws there rather than
-      // merely looking wrong.
-      child: MyweliMonthNavigator(
-        shrinkWrap: true,
-        // **Read once, at mount.** `MyweliMonthNavigator` owns the viewed
-        // month and refuses to resync it from the parent — which is the fix
-        // for the defect `date_time_selection_screen` shipped, where every
-        // `setState` yanked a swiped-to month back. So there is no
-        // `_focusedDay` field here any more: the old one was mutated
-        // WITHOUT `setState` in `onPageChanged`, i.e. it was never state at
-        // all, and nothing read it back.
-        initialMonth: _salonTodayNaive(),
-        // Named constants, not the two inline `Duration(days: 365)`
-        // literals this file carried: A14a introduced them and did not
-        // sweep here.
-        firstDate: _salonTodayNaive().subtract(kJournalPastHorizon),
-        lastDate: _salonTodayNaive().add(kBookingHorizon),
-        today: _salonTodayNaive(),
-        selectedDays: {CalendarDay.of(_selectedDay)},
-        markers: _markers,
-        onDayTap: (day) {
-          if (isSameDay(day, _selectedDay)) return;
-          setState(() {
-            _selectedDay = day;
-            _selectedAppointments.value = _forDay(day);
-          });
-        },
+    // `spacingS`, not `spacingM`, and it is arithmetic rather than taste: the
+    // day cell needs a 46.86dp column at 2× (A14a §2.1), which is
+    // 360 − 2×`spacingS` here − 2×`spacingS` inside the navigator, ÷ 7.
+    // At `spacingM` the column was 37.7 and the day number wrapped.
+    return Padding(
+      padding: const EdgeInsets.all(AppTheme.spacingS),
+      child: AppCard(
+        padding: const EdgeInsets.symmetric(vertical: AppTheme.spacingS),
+        // **`shrinkWrap: true` is required, not preferred.** This card is a
+        // non-flex child of a `Column`, so it receives unbounded main-axis
+        // constraints — a navigator using `Expanded` throws there rather than
+        // merely looking wrong.
+        child: MyweliMonthNavigator(
+          shrinkWrap: true,
+          // **Read once, at mount.** `MyweliMonthNavigator` owns the viewed
+          // month and refuses to resync it from the parent — which is the fix
+          // for the defect `date_time_selection_screen` shipped, where every
+          // `setState` yanked a swiped-to month back. So there is no
+          // `_focusedDay` field here any more: the old one was mutated
+          // WITHOUT `setState` in `onPageChanged`, i.e. it was never state at
+          // all, and nothing read it back.
+          initialMonth: _salonTodayNaive(),
+          // Named constants, not the two inline `Duration(days: 365)`
+          // literals this file carried: A14a introduced them and did not
+          // sweep here.
+          firstDate: _salonTodayNaive().subtract(kJournalPastHorizon),
+          lastDate: _salonTodayNaive().add(kBookingHorizon),
+          today: _salonTodayNaive(),
+          selectedDays: {CalendarDay.of(_selectedDay)},
+          markers: _markers,
+          onDayTap: (day) {
+            if (isSameDay(day, _selectedDay)) return;
+            setState(() {
+              _selectedDay = day;
+              _selectedAppointments.value = _forDay(day);
+            });
+          },
+        ),
       ),
     );
   }
@@ -226,56 +224,59 @@ class _AppointmentCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: AppTheme.spacingM),
-      child: ListTile(
-        onTap: onTap,
-        leading: CircleAvatar(
-          backgroundColor: _getStatusColor(
-            appointment.status,
-          ).withValues(alpha: 0.2),
-          child: Icon(
-            Icons.calendar_today,
-            color: _getStatusColor(appointment.status),
-            size: AppTheme.iconS,
-          ),
-        ),
-        title: Text(
-          Formatters.formatTime(
-            toSalonTime(
-              appointment.appointmentDate,
-              tz: context.read<ProAuthProvider>().salonTimezone,
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppTheme.spacingM),
+      child: AppCard(
+        padding: EdgeInsets.zero,
+        child: ListTile(
+          onTap: onTap,
+          leading: CircleAvatar(
+            backgroundColor: _getStatusColor(
+              appointment.status,
+            ).withValues(alpha: 0.2),
+            child: Icon(
+              Icons.calendar_today,
+              color: _getStatusColor(appointment.status),
+              size: AppTheme.iconS,
             ),
           ),
-          style: AppTextStyles.titleMedium.copyWith(
-            color: AppColors.textPrimary,
-          ),
-        ),
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const SizedBox(height: AppTheme.spacingXS),
-            Text(
-              Formatters.count(
-                appointment.serviceIds.length,
-                'service',
-                'services',
+          title: Text(
+            Formatters.formatTime(
+              toSalonTime(
+                appointment.appointmentDate,
+                tz: context.read<ProAuthProvider>().salonTimezone,
               ),
             ),
-            Text(
-              Formatters.formatCurrency(
-                appointment.totalPrice,
-                currency: context.read<ProAuthProvider>().salonCurrency,
-              ),
+            style: AppTextStyles.titleMedium.copyWith(
+              color: AppColors.textPrimary,
             ),
-          ],
-        ),
-        trailing: Chip(
-          label: Text(
-            StatusLabels.of(appointment.status),
-            style: AppTextStyles.bodySmall.copyWith(color: Colors.white),
           ),
-          backgroundColor: _getStatusColor(appointment.status),
+          subtitle: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const SizedBox(height: AppTheme.spacingXS),
+              Text(
+                Formatters.count(
+                  appointment.serviceIds.length,
+                  'service',
+                  'services',
+                ),
+              ),
+              Text(
+                Formatters.formatCurrency(
+                  appointment.totalPrice,
+                  currency: context.read<ProAuthProvider>().salonCurrency,
+                ),
+              ),
+            ],
+          ),
+          trailing: Chip(
+            label: Text(
+              StatusLabels.of(appointment.status),
+              style: AppTextStyles.bodySmall.copyWith(color: Colors.white),
+            ),
+            backgroundColor: _getStatusColor(appointment.status),
+          ),
         ),
       ),
     );

@@ -12,6 +12,7 @@ import '../../../providers/pro_auth_provider.dart';
 import '../../../providers/pro_earnings_provider.dart';
 import '../../../services/interfaces/pro_service_interface.dart';
 import '../../../widgets/common/app_async_view.dart';
+import '../../../widgets/common/app_card.dart';
 import '../../../widgets/common/app_skeleton.dart';
 
 class EarningsScreen extends StatefulWidget {
@@ -178,42 +179,38 @@ class _EarningsScreenState extends State<EarningsScreen>
         // `Container(color: secondary)` — no radius, no elevation, no
         // margin — so the app's headline number read as an unstyled band
         // welded to the tab bar. It is a surface; it gets surface tokens.
-        Container(
-          margin: const EdgeInsets.all(AppTheme.spacingM),
-          padding: const EdgeInsets.all(AppTheme.spacingL),
-          decoration: BoxDecoration(
-            color: AppColors.secondary,
-            borderRadius: BorderRadius.circular(AppTheme.radiusXL),
-            boxShadow: AppTheme.elevation1,
-          ),
-          // The label says what the total counts — completed bookings
-          // only, where the Accueil's « Revenus prévus » cards also
-          // count confirmed ones (provider-earnings.md §12). Label,
-          // figure, then what it counts: the Accueil card's shape.
-          // Never « encaissé »: MyWeli does not see a payment.
-          child: Column(
-            children: [
-              Text(
-                'Total réalisé',
-                style: AppTextStyles.bodyMedium.copyWith(
-                  color: AppColors.textSecondary,
+        Padding(
+          padding: const EdgeInsets.all(AppTheme.spacingM),
+          child: AppCard(
+            // The label says what the total counts — completed bookings
+            // only, where the Accueil's « Revenus prévus » cards also
+            // count confirmed ones (provider-earnings.md §12). Label,
+            // figure, then what it counts: the Accueil card's shape.
+            // Never « encaissé »: MyWeli does not see a payment.
+            child: Column(
+              children: [
+                Text(
+                  'Total réalisé',
+                  style: AppTextStyles.bodyMedium.copyWith(
+                    color: AppColors.textSecondary,
+                  ),
                 ),
-              ),
-              const SizedBox(height: AppTheme.spacingS),
-              EarningsTotal(
-                Formatters.formatCurrency(
-                  earnings.totalEarnings,
-                  currency: earnings.currency ?? authProvider.salonCurrency,
+                const SizedBox(height: AppTheme.spacingS),
+                EarningsTotal(
+                  Formatters.formatCurrency(
+                    earnings.totalEarnings,
+                    currency: earnings.currency ?? authProvider.salonCurrency,
+                  ),
                 ),
-              ),
-              Text(
-                'Rendez-vous terminés',
-                textAlign: TextAlign.center,
-                style: AppTextStyles.bodySmall.copyWith(
-                  color: AppColors.textTertiary,
+                Text(
+                  'Rendez-vous terminés',
+                  textAlign: TextAlign.center,
+                  style: AppTextStyles.bodySmall.copyWith(
+                    color: AppColors.textTertiary,
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
         Expanded(
@@ -239,25 +236,29 @@ class _EarningsScreenState extends State<EarningsScreen>
                   itemCount: earnings.transactions.length,
                   itemBuilder: (context, index) {
                     final transaction = earnings.transactions[index];
-                    return Card(
-                      margin: const EdgeInsets.only(bottom: AppTheme.spacingM),
-                      child: ListTile(
-                        title: Text(
-                          Formatters.formatDateTime(
-                            toSalonTime(
-                              transaction.date,
-                              tz: authProvider.salonTimezone,
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: AppTheme.spacingM),
+                      child: AppCard(
+                        padding: EdgeInsets.zero,
+                        child: ListTile(
+                          title: Text(
+                            Formatters.formatDateTime(
+                              toSalonTime(
+                                transaction.date,
+                                tz: authProvider.salonTimezone,
+                              ),
                             ),
                           ),
-                        ),
-                        trailing: Text(
-                          Formatters.formatCurrency(
-                            transaction.amount,
-                            currency:
-                                earnings.currency ?? authProvider.salonCurrency,
-                          ),
-                          style: AppTextStyles.titleMedium.copyWith(
-                            color: AppColors.primary,
+                          trailing: Text(
+                            Formatters.formatCurrency(
+                              transaction.amount,
+                              currency:
+                                  earnings.currency ??
+                                  authProvider.salonCurrency,
+                            ),
+                            style: AppTextStyles.titleMedium.copyWith(
+                              color: AppColors.primary,
+                            ),
                           ),
                         ),
                       ),

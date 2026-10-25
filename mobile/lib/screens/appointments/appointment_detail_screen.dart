@@ -22,6 +22,7 @@ import '../../providers/locality_provider.dart';
 import '../../widgets/booking/deposit_payment_sheet.dart';
 import '../../widgets/common/app_async_view.dart';
 import '../../widgets/common/app_button.dart';
+import '../../widgets/common/app_card.dart';
 import '../../widgets/common/app_skeleton.dart';
 import '../../widgets/common/app_snack_bar.dart';
 import '../../widgets/common/confirm_dialog.dart';
@@ -435,13 +436,7 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Appointment Info Card
-          Container(
-            padding: const EdgeInsets.all(AppTheme.spacingL),
-            decoration: BoxDecoration(
-              color: AppColors.secondary,
-              borderRadius: BorderRadius.circular(AppTheme.radiusXL),
-              boxShadow: AppTheme.elevation1,
-            ),
+          AppCard(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [

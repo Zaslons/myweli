@@ -347,6 +347,12 @@ elevation 0 and rely on the surface step**; shadow is reserved for things that
 genuinely float above the page (menus, sheets, the bottom nav). If you reach for
 `elevation3` on a card, you're solving a contrast problem with a shadow.
 
+**Pinned since B9.8 F2** (`cards_pin_test.dart`): a shadow is allowed on a
+named list of things that float — the map's pins, the logo over the cover,
+the before/after handle, the stories' rings, the booking's docked « Total »
+(Q14) — and nowhere else. Before it, 19 cards carried `elevation1` (the
+dead highlight tiles among them), besides the docked bar's `elevation2`.
+
 ---
 
 ## 9. Motion
@@ -552,7 +558,7 @@ when the burn-down reaches them, there is nothing left to decide.
 `FieldErrors` + `Validators` joined §11.1's roster in **A7**.)*
 
 - **`AppRating`** — `★ 4,8 (32 avis)`. Glyph + numeral, always (§3.5). **Built 2026-10-13** (`widgets/common/app_rating.dart`; sizes compact / regular / large); a salon with **no review reads « Nouveau »**, never « ★ 0.0 · 0 avis » — same rule as the web's `SalonRating` ([salon-rating-new-and-visits-card.md](salon-rating-new-and-visits-card.md)). The numeral goes through `Formatters.formatRating` (« 4,8 »); `rating_format_pin_test.dart` forbids formatting a rating by hand.
-- **`AppCard`** — `secondary` on `background`, `radiusXL`, elevation 0, `spacingM` padding. **Built 2026-10-25** (B9.8 F1, `widgets/common/app_card.dart`): `onTap` makes the whole card the target — the ripple clipped to the corner, one node announced as a button — and `outlined` adds the `borderStrong` hairline for a card that is a control. The skeletons use it; the screens' own cards move to it in **F2** ([hygiene-batch9.md](hygiene-batch9.md) §2.7.2).
+- **`AppCard`** — `secondary` on `background`, `radiusXL`, elevation 0, `spacingM` padding. **Built 2026-10-25** (B9.8 F1, `widgets/common/app_card.dart`) **and every card moved onto it in F2** ([hygiene-batch9.md](hygiene-batch9.md) §2.7.3): 27 Material `Card`s and 31 drawn by hand — the shadows gone (§8), the borders gone (§3.1), `spacingL` to `spacingM` (Q15), the silent 4px `Card` margin gone. It is **one semantics container**, as `Card` is: read together, while a control inside — a salon card's heart — stays its own node (a merge would swallow it). `onTap` makes the whole card the target: the ripple clipped to the corner, announced as a button. `outlined` adds the `borderStrong` hairline for a card that is a control; `selected` is the chosen one, a **2px `primary` line on the white card** (Q13), announced when the card is the target. Padding other than `spacingM` carries its reason at the call site (zero around rows or an edge-to-edge photo, the calendar's arithmetic). `cards_pin_test.dart` forbids `Card(`, a hand-drawn `secondary` box at the card radius, and a shadow on anything that does not float.
 - **`AppChip`** — filled (selected) / outlined (`borderStrong`) / tinted (status). `radiusPill`. *(B9.8 F3.)*
 - **`AppAsyncView<T>`** — takes `isLoading`/`error`/`data` and renders the four states, so a screen cannot forget one. **Built 2026-10-25** (B9.8 F1, `widgets/common/app_async_view.dart`) **and every async screen moved onto it** — §12 has its rules, and the one load error, `AppErrorView`, that goes with it. The loading shapes are `widgets/common/app_skeleton.dart`.
 

@@ -18,6 +18,7 @@ import '../../../providers/pro_dashboard_provider.dart';
 import '../../../providers/pro_team_provider.dart';
 import '../../../services/interfaces/pro_service_interface.dart';
 import '../../../widgets/common/app_async_view.dart';
+import '../../../widgets/common/app_card.dart';
 import '../../../widgets/common/app_skeleton.dart';
 import '../../../widgets/common/app_snack_bar.dart';
 import '../../../widgets/common/update_nudge_slot.dart';
@@ -288,7 +289,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
             // Go-live is owner-only (salon.publish, sign-off) — the
             // card hides for members; the server 403s regardless.
             if (authProvider.can(ProCap.salonPublish)) ...[
-              Card(
+              AppCard(
+                padding: EdgeInsets.zero,
                 child: ListTile(
                   leading: const Icon(Icons.checklist_rounded),
                   title: const Text('Configurer mon profil'),
@@ -584,13 +586,9 @@ class _StatCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return AppCard(
+      // The same constant [_StatBlock]'s measure reads.
       padding: const EdgeInsets.all(padding),
-      decoration: BoxDecoration(
-        color: AppColors.secondary,
-        borderRadius: BorderRadius.circular(AppTheme.radiusXL),
-        boxShadow: AppTheme.elevation1,
-      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -665,17 +663,11 @@ class _ActionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        // `constraints`, not `height:` — see [_minHeight].
-        constraints: const BoxConstraints(minHeight: _minHeight),
-        padding: const EdgeInsets.all(AppTheme.spacingM),
-        decoration: BoxDecoration(
-          color: AppColors.secondary,
-          borderRadius: BorderRadius.circular(AppTheme.radiusXL),
-          boxShadow: AppTheme.elevation1,
-        ),
+    return ConstrainedBox(
+      // `constraints`, not `height:` — see [_minHeight]: the card grows past it.
+      constraints: const BoxConstraints(minHeight: _minHeight),
+      child: AppCard(
+        onTap: onTap,
         child: Column(
           children: [
             Icon(icon, size: AppTheme.iconL, color: AppColors.primary),

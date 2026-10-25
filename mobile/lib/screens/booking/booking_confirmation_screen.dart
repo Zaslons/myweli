@@ -21,6 +21,7 @@ import '../../providers/messaging_provider.dart';
 import '../../providers/provider_provider.dart';
 import '../../widgets/booking/deposit_payment_sheet.dart';
 import '../../widgets/common/app_button.dart';
+import '../../widgets/common/app_card.dart';
 import '../../widgets/common/app_skeleton.dart';
 import '../../widgets/common/app_snack_bar.dart';
 import '../../widgets/common/app_text_field.dart';
@@ -256,13 +257,7 @@ class _BookingConfirmationScreenState extends State<BookingConfirmationScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 // Summary Card
-                Container(
-                  padding: const EdgeInsets.all(AppTheme.spacingL),
-                  decoration: BoxDecoration(
-                    color: AppColors.secondary,
-                    borderRadius: BorderRadius.circular(AppTheme.radiusXL),
-                    boxShadow: AppTheme.elevation1,
-                  ),
+                AppCard(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [

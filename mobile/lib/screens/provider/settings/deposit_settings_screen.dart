@@ -17,6 +17,7 @@ import '../../../providers/pro_auth_provider.dart';
 import '../../../providers/pro_deposit_settings_provider.dart';
 import '../../../widgets/common/app_async_view.dart';
 import '../../../widgets/common/app_button.dart';
+import '../../../widgets/common/app_card.dart';
 import '../../../widgets/common/app_skeleton.dart';
 import '../../../widgets/common/app_snack_bar.dart';
 import '../../../widgets/common/inline_feedback.dart';
@@ -272,55 +273,39 @@ class _DepositSettingsScreenState extends State<DepositSettingsScreen> {
           ),
           const SizedBox(height: AppTheme.spacingM),
         ],
-        Container(
-          decoration: BoxDecoration(
-            color: AppColors.secondary,
-            borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
-            border: Border.all(color: AppColors.border),
-          ),
-          // Flutter 3.44 asserts on this (`list_tile.dart`,
-          // `_findIntermediateWidget`): the tile paints its ink on the nearest
-          // `Material` ANCESTOR, and the walk up stops at the first coloured box —
-          // this one. The switch row's ripple painted BEHIND its own card. The
-          // assertion is new; the defect is not. `transparency` paints nothing, so
-          // the bordered card and its golden are unchanged.
-          child: Material(
-            type: MaterialType.transparency,
-            child: SwitchListTile(
-              value: provider.depositRequired,
-              onChanged: verified
-                  ? (on) {
-                      provider.setDepositRequired(on);
-                      setState(() {
-                        _showNumberWhileOff = false;
-                        // The operator is required only while a deposit is
-                        // collected: a message left from « on » goes.
-                        _errors.revalidate(
-                          'operator',
-                          provider.mobileMoneyOperator ?? '',
-                        );
-                      });
-                    }
-                  : null,
-              title: const Text('Exiger un acompte'),
-              subtitle: Text(
-                'Limite les rendez-vous manqués',
-                style: AppTextStyles.bodySmall.copyWith(
-                  color: AppColors.textTertiary,
-                ),
+        AppCard(
+          // The card IS the `Material` the tile paints its ink on — what the
+          // transparent layer under a decorated box was there for (Flutter 3.44's
+          // `_findIntermediateWidget` assertion); a list of rows needs no padding.
+          padding: EdgeInsets.zero,
+          child: SwitchListTile(
+            value: provider.depositRequired,
+            onChanged: verified
+                ? (on) {
+                    provider.setDepositRequired(on);
+                    setState(() {
+                      _showNumberWhileOff = false;
+                      // The operator is required only while a deposit is
+                      // collected: a message left from « on » goes.
+                      _errors.revalidate(
+                        'operator',
+                        provider.mobileMoneyOperator ?? '',
+                      );
+                    });
+                  }
+                : null,
+            title: const Text('Exiger un acompte'),
+            subtitle: Text(
+              'Limite les rendez-vous manqués',
+              style: AppTextStyles.bodySmall.copyWith(
+                color: AppColors.textTertiary,
               ),
             ),
           ),
         ),
         if (provider.depositRequired) ...[
           const SizedBox(height: AppTheme.spacingM),
-          Container(
-            padding: const EdgeInsets.all(AppTheme.spacingM),
-            decoration: BoxDecoration(
-              color: AppColors.secondary,
-              borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
-              border: Border.all(color: AppColors.border),
-            ),
+          AppCard(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -393,13 +378,7 @@ class _DepositSettingsScreenState extends State<DepositSettingsScreen> {
         ],
         if (provider.depositRequired || _showNumberWhileOff) ...[
           const SizedBox(height: AppTheme.spacingM),
-          Container(
-            padding: const EdgeInsets.all(AppTheme.spacingM),
-            decoration: BoxDecoration(
-              color: AppColors.secondary,
-              borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
-              border: Border.all(color: AppColors.border),
-            ),
+          AppCard(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -494,13 +473,7 @@ class _DepositSettingsScreenState extends State<DepositSettingsScreen> {
           ),
         ],
         const SizedBox(height: AppTheme.spacingM),
-        Container(
-          padding: const EdgeInsets.all(AppTheme.spacingM),
-          decoration: BoxDecoration(
-            color: AppColors.secondary,
-            borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
-            border: Border.all(color: AppColors.border),
-          ),
+        AppCard(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [

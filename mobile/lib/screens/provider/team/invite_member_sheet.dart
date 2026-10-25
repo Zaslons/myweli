@@ -13,6 +13,7 @@ import '../../../providers/pro_auth_provider.dart';
 import '../../../providers/pro_subscription_provider.dart';
 import '../../../providers/pro_team_provider.dart';
 import '../../../widgets/common/app_button.dart';
+import '../../../widgets/common/app_card.dart';
 import '../../../widgets/common/app_snack_bar.dart';
 import '../../../widgets/common/app_text_field.dart';
 import '../../../widgets/common/brand_loader.dart';
@@ -430,45 +431,35 @@ class _RoleCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
+    return AppCard(
+      outlined: true,
+      selected: selected,
       onTap: onTap,
-      borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
-      child: Container(
-        padding: const EdgeInsets.all(AppTheme.spacingM),
-        decoration: BoxDecoration(
-          color: selected ? AppColors.surfaceVariant : AppColors.secondary,
-          borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
-          border: Border.all(
-            color: selected ? AppColors.primary : AppColors.borderStrong,
-            width: selected ? 2 : 1,
+      child: Row(
+        children: [
+          Icon(
+            selected
+                ? Icons.radio_button_checked
+                : Icons.radio_button_unchecked,
+            color: selected ? AppColors.primary : AppColors.textTertiary,
           ),
-        ),
-        child: Row(
-          children: [
-            Icon(
-              selected
-                  ? Icons.radio_button_checked
-                  : Icons.radio_button_unchecked,
-              color: selected ? AppColors.primary : AppColors.textTertiary,
-            ),
-            const SizedBox(width: AppTheme.spacingM),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(teamRoleLabel(role), style: AppTextStyles.titleSmall),
-                  const SizedBox(height: AppTheme.spacingXS),
-                  Text(
-                    roleSummary(role),
-                    style: AppTextStyles.bodySmall.copyWith(
-                      color: AppColors.textSecondary,
-                    ),
+          const SizedBox(width: AppTheme.spacingM),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(teamRoleLabel(role), style: AppTextStyles.titleSmall),
+                const SizedBox(height: AppTheme.spacingXS),
+                Text(
+                  roleSummary(role),
+                  style: AppTextStyles.bodySmall.copyWith(
+                    color: AppColors.textSecondary,
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

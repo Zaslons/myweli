@@ -10,6 +10,7 @@ import '../../providers/auth_provider.dart';
 import '../../providers/favorites_provider.dart';
 import '../../widgets/common/app_rating.dart';
 import '../../widgets/common/app_snack_bar.dart';
+import '../common/app_card.dart';
 import '../common/timed_cached_image.dart';
 
 class ProviderCard extends StatelessWidget {
@@ -125,63 +126,60 @@ class ProviderCard extends StatelessWidget {
             : false;
         final userId = authProvider.user?.id ?? '';
 
-        return GestureDetector(
-          onTap: onTap,
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              final hasBoundedHeight =
-                  constraints.hasBoundedHeight &&
-                  constraints.maxHeight != double.infinity;
-              // Unbounded → the card has all the room there is, so it is the
-              // roomy layout by definition. This was a bare `280.0`, which is
-              // that number only at 1×.
-              final maxH = hasBoundedHeight
-                  ? constraints.maxHeight
-                  : carouselHeight(context);
+        return LayoutBuilder(
+          builder: (context, constraints) {
+            final hasBoundedHeight =
+                constraints.hasBoundedHeight &&
+                constraints.maxHeight != double.infinity;
+            // Unbounded → the card has all the room there is, so it is the
+            // roomy layout by definition. This was a bare `280.0`, which is
+            // that number only at 1×.
+            final maxH = hasBoundedHeight
+                ? constraints.maxHeight
+                : carouselHeight(context);
 
-              final textBlock = _textBlock(context);
+            final textBlock = _textBlock(context);
 
-              // **A card is compact exactly when its box cannot hold the roomy
-              // layout** — and `carouselHeight` *is* the roomy layout's height,
-              // so the two can no longer disagree.
-              //
-              // A12 device-confirmed: this was `maxH < 260`, a raw dp
-              // threshold, and A12's own `gridHeight` (142 + 68 × scale)
-              // crosses 260 at ≈1.74×. Above that the card drew the 180dp
-              // ROOMY image inside a box measured for the 110dp compact one —
-              // « BOTTOM OVERFLOWED BY 55 PIXELS » on a 360×780pt iPhone at
-              // ≈1.95×, and 54 in the gate at 2×. A constant that gates a
-              // text-dependent branch has to move with the text (§13.3).
-              final compact = maxH < carouselHeight(context);
-              final contentPadding = compact
-                  ? AppTheme.spacingS
-                  : AppTheme.spacingM;
-              // Compact means the PICTURE absorbs the shorter box, because the
-              // text block is the part that cannot shrink — so the image takes
-              // what is LEFT, not a fraction of the total. `(maxH * 0.56)` was
-              // the same mistake one layer down: a height derived from
-              // something that does not track the font.
-              final imageHeight = compact
-                  ? (maxH - contentPadding * 2 - textBlock).clamp(
-                      _compactImageFloor,
-                      _imageHeight,
-                    )
-                  : _imageHeight;
+            // **A card is compact exactly when its box cannot hold the roomy
+            // layout** — and `carouselHeight` *is* the roomy layout's height,
+            // so the two can no longer disagree.
+            //
+            // A12 device-confirmed: this was `maxH < 260`, a raw dp
+            // threshold, and A12's own `gridHeight` (142 + 68 × scale)
+            // crosses 260 at ≈1.74×. Above that the card drew the 180dp
+            // ROOMY image inside a box measured for the 110dp compact one —
+            // « BOTTOM OVERFLOWED BY 55 PIXELS » on a 360×780pt iPhone at
+            // ≈1.95×, and 54 in the gate at 2×. A constant that gates a
+            // text-dependent branch has to move with the text (§13.3).
+            final compact = maxH < carouselHeight(context);
+            final contentPadding = compact
+                ? AppTheme.spacingS
+                : AppTheme.spacingM;
+            // Compact means the PICTURE absorbs the shorter box, because the
+            // text block is the part that cannot shrink — so the image takes
+            // what is LEFT, not a fraction of the total. `(maxH * 0.56)` was
+            // the same mistake one layer down: a height derived from
+            // something that does not track the font.
+            final imageHeight = compact
+                ? (maxH - contentPadding * 2 - textBlock).clamp(
+                    _compactImageFloor,
+                    _imageHeight,
+                  )
+                : _imageHeight;
 
-              final hasBoundedWidth =
-                  constraints.hasBoundedWidth &&
-                  constraints.maxWidth != double.infinity;
-              // Horizontal carousels often provide an unbounded width; in that case,
-              // keep a fixed width so layout constraints stay valid.
-              final cardWidth = hasBoundedWidth ? double.infinity : 280.0;
+            final hasBoundedWidth =
+                constraints.hasBoundedWidth &&
+                constraints.maxWidth != double.infinity;
+            // Horizontal carousels often provide an unbounded width; in that case,
+            // keep a fixed width so layout constraints stay valid.
+            final cardWidth = hasBoundedWidth ? double.infinity : 280.0;
 
-              return Container(
-                width: cardWidth,
-                decoration: BoxDecoration(
-                  color: AppColors.secondary,
-                  borderRadius: BorderRadius.circular(AppTheme.radiusXL),
-                  boxShadow: AppTheme.elevation1,
-                ),
+            return SizedBox(
+              width: cardWidth,
+              child: AppCard(
+                // The photo runs edge to edge; the card clips it to its corner.
+                padding: EdgeInsets.zero,
+                onTap: onTap,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -204,6 +202,8 @@ class ProviderCard extends StatelessWidget {
                           top: 8,
                           right: 8,
                           child: Semantics(
+                            // Its own node: the card around it is a button too (B9.8).
+                            container: true,
                             button: true,
                             toggled: isFavorite,
                             label: isFavorite
@@ -347,9 +347,9 @@ class ProviderCard extends StatelessWidget {
                     ),
                   ],
                 ),
-              );
-            },
-          ),
+              ),
+            );
+          },
         );
       },
     );
@@ -363,165 +363,160 @@ class ProviderCard extends StatelessWidget {
             : false;
         final userId = authProvider.user?.id ?? '';
 
-        return GestureDetector(
+        return AppCard(
+          // The photo runs edge to edge; the card clips it to its corner.
+          padding: EdgeInsets.zero,
           onTap: onTap,
-          child: Container(
-            decoration: BoxDecoration(
-              color: AppColors.secondary,
-              borderRadius: BorderRadius.circular(AppTheme.radiusXL),
-              boxShadow: AppTheme.elevation1,
-            ),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Stack(
-                  children: [
-                    ClipRRect(
-                      borderRadius: const BorderRadius.horizontal(
-                        left: Radius.circular(AppTheme.radiusXL),
-                      ),
-                      child: TimedCachedImage(
-                        imageUrl: provider.imageUrls.isNotEmpty
-                            ? provider.imageUrls.first
-                            : 'https://via.placeholder.com/400x300',
-                        width: 80,
-                        height: 80,
-                        fit: BoxFit.cover,
-                      ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Stack(
+                children: [
+                  ClipRRect(
+                    borderRadius: const BorderRadius.horizontal(
+                      left: Radius.circular(AppTheme.radiusXL),
                     ),
-                    Positioned(
-                      top: 4,
-                      right: 4,
-                      child: Semantics(
-                        button: true,
-                        toggled: isFavorite,
-                        label: isFavorite
-                            ? 'Retirer des favoris'
-                            : 'Ajouter aux favoris',
-                        child: GestureDetector(
-                          behavior: HitTestBehavior.opaque,
-                          onTap: () async {
-                            if (!authProvider.isAuthenticated) {
-                              AppSnackBar.show(
-                                context,
-                                'Connectez-vous pour ajouter aux favoris',
-                              );
-                              final currentPath = GoRouterState.of(
-                                context,
-                              ).uri.toString();
-                              context.go(
-                                '/login?returnTo=${Uri.encodeComponent(currentPath)}',
-                              );
-                              return;
-                            }
-
-                            final messenger = ScaffoldMessenger.of(context);
-                            // The toggle can fail — a green snackbar on a failed
-                            // toggle would also arm an « Annuler » that performs it.
-                            final ok = await favoritesProvider.toggleFavorite(
-                              userId,
-                              provider.id,
-                            );
-                            AppSnackBar.outcomeOn(
-                              messenger,
-                              ok: ok,
-                              success: isFavorite
-                                  ? 'Retiré des favoris'
-                                  : 'Ajouté aux favoris',
-                              error:
-                                  favoritesProvider.error ??
-                                  'Une erreur est survenue. Réessayez.',
-                              action: !ok
-                                  ? null
-                                  : SnackAction(
-                                      label: 'Annuler',
-                                      onPressed: () => favoritesProvider
-                                          .toggleFavorite(userId, provider.id),
-                                      isOnlyRouteBack: false,
-                                    ),
-                            );
-                          },
-                          child: SizedBox(
-                            // §13.2 48 hit area; Align keeps the 24px circle at the
-                            // original (4,4) corner on the 80px thumbnail.
-                            width: 48,
-                            height: 48,
-                            child: Align(
-                              alignment: Alignment.topRight,
-                              child: Container(
-                                padding: const EdgeInsets.all(
-                                  AppTheme.spacingXS,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: AppColors.secondary.withValues(
-                                    alpha: 0.9,
-                                  ),
-                                  shape: BoxShape.circle,
-                                ),
-                                child: Icon(
-                                  isFavorite
-                                      ? Icons.favorite
-                                      : Icons.favorite_border,
-                                  color: isFavorite
-                                      ? AppColors.favorite
-                                      : AppColors.textPrimary,
-                                  size: AppTheme.iconXS,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.all(AppTheme.spacingM),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          provider.name,
-                          style: AppTextStyles.titleMedium.copyWith(
-                            color: AppColors.textPrimary,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        const SizedBox(height: AppTheme.spacingXS),
-                        AppRating(
-                          rating: provider.rating,
-                          reviewCount: provider.reviewCount,
-                          size: AppRatingSize.compact,
-                        ),
-                        const SizedBox(height: AppTheme.spacingXS),
-                        Row(
-                          children: [
-                            const Icon(
-                              Icons.location_on,
-                              size: AppTheme.iconXS,
-                              color: AppColors.textTertiary,
-                            ),
-                            const SizedBox(width: AppTheme.spacingXS),
-                            Expanded(
-                              child: Text(
-                                provider.city ?? provider.address,
-                                style: AppTextStyles.bodySmall.copyWith(
-                                  color: AppColors.textTertiary,
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
+                    child: TimedCachedImage(
+                      imageUrl: provider.imageUrls.isNotEmpty
+                          ? provider.imageUrls.first
+                          : 'https://via.placeholder.com/400x300',
+                      width: 80,
+                      height: 80,
+                      fit: BoxFit.cover,
                     ),
                   ),
+                  Positioned(
+                    top: 4,
+                    right: 4,
+                    child: Semantics(
+                      // Its own node: the card around it is a button too (B9.8).
+                      container: true,
+                      button: true,
+                      toggled: isFavorite,
+                      label: isFavorite
+                          ? 'Retirer des favoris'
+                          : 'Ajouter aux favoris',
+                      child: GestureDetector(
+                        behavior: HitTestBehavior.opaque,
+                        onTap: () async {
+                          if (!authProvider.isAuthenticated) {
+                            AppSnackBar.show(
+                              context,
+                              'Connectez-vous pour ajouter aux favoris',
+                            );
+                            final currentPath = GoRouterState.of(
+                              context,
+                            ).uri.toString();
+                            context.go(
+                              '/login?returnTo=${Uri.encodeComponent(currentPath)}',
+                            );
+                            return;
+                          }
+
+                          final messenger = ScaffoldMessenger.of(context);
+                          // The toggle can fail — a green snackbar on a failed
+                          // toggle would also arm an « Annuler » that performs it.
+                          final ok = await favoritesProvider.toggleFavorite(
+                            userId,
+                            provider.id,
+                          );
+                          AppSnackBar.outcomeOn(
+                            messenger,
+                            ok: ok,
+                            success: isFavorite
+                                ? 'Retiré des favoris'
+                                : 'Ajouté aux favoris',
+                            error:
+                                favoritesProvider.error ??
+                                'Une erreur est survenue. Réessayez.',
+                            action: !ok
+                                ? null
+                                : SnackAction(
+                                    label: 'Annuler',
+                                    onPressed: () => favoritesProvider
+                                        .toggleFavorite(userId, provider.id),
+                                    isOnlyRouteBack: false,
+                                  ),
+                          );
+                        },
+                        child: SizedBox(
+                          // §13.2 48 hit area; Align keeps the 24px circle at the
+                          // original (4,4) corner on the 80px thumbnail.
+                          width: 48,
+                          height: 48,
+                          child: Align(
+                            alignment: Alignment.topRight,
+                            child: Container(
+                              padding: const EdgeInsets.all(AppTheme.spacingXS),
+                              decoration: BoxDecoration(
+                                color: AppColors.secondary.withValues(
+                                  alpha: 0.9,
+                                ),
+                                shape: BoxShape.circle,
+                              ),
+                              child: Icon(
+                                isFavorite
+                                    ? Icons.favorite
+                                    : Icons.favorite_border,
+                                color: isFavorite
+                                    ? AppColors.favorite
+                                    : AppColors.textPrimary,
+                                size: AppTheme.iconXS,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.all(AppTheme.spacingM),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        provider.name,
+                        style: AppTextStyles.titleMedium.copyWith(
+                          color: AppColors.textPrimary,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: AppTheme.spacingXS),
+                      AppRating(
+                        rating: provider.rating,
+                        reviewCount: provider.reviewCount,
+                        size: AppRatingSize.compact,
+                      ),
+                      const SizedBox(height: AppTheme.spacingXS),
+                      Row(
+                        children: [
+                          const Icon(
+                            Icons.location_on,
+                            size: AppTheme.iconXS,
+                            color: AppColors.textTertiary,
+                          ),
+                          const SizedBox(width: AppTheme.spacingXS),
+                          Expanded(
+                            child: Text(
+                              provider.city ?? provider.address,
+                              style: AppTextStyles.bodySmall.copyWith(
+                                color: AppColors.textTertiary,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         );
       },

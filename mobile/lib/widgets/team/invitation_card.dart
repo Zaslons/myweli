@@ -7,6 +7,7 @@ import '../../core/theme/text_styles.dart';
 import '../../core/utils/formatters.dart';
 import '../../models/team_invitation.dart';
 import '../common/app_button.dart';
+import '../common/app_card.dart';
 
 /// « {Salon} vous invite comme {Rôle} » — shared by the login
 /// « Invitations » step and the authed Profil → Invitations screen
@@ -65,13 +66,7 @@ class InvitationCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(AppTheme.spacingL),
-      decoration: BoxDecoration(
-        color: AppColors.secondary,
-        borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
-        border: Border.all(color: AppColors.border),
-      ),
+    return AppCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

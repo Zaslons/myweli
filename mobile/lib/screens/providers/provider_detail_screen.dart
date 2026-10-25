@@ -21,6 +21,7 @@ import '../../providers/auth_provider.dart';
 import '../../providers/favorites_provider.dart';
 import '../../providers/provider_provider.dart';
 import '../../widgets/booking/compact_appointment_tile.dart';
+import '../../widgets/common/app_card.dart';
 import '../../widgets/common/app_rating.dart';
 import '../../widgets/common/app_skeleton.dart';
 import '../../widgets/common/app_snack_bar.dart';
@@ -1557,32 +1558,28 @@ class _SectionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      margin: const EdgeInsets.only(top: AppTheme.spacingM),
-      decoration: BoxDecoration(
-        color: AppColors.secondary,
-        borderRadius: BorderRadius.circular(AppTheme.radiusXL),
-        boxShadow: AppTheme.elevation1,
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(AppTheme.spacingM),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // A11 C5: this was the third copy of the heading row, and the one
-            // outside every gate — `Spacer` instead of `spaceBetween`, and no
-            // `Expanded` on the title, so « Vos rendez-vous ici » + « Voir tout »
-            // overflowed by 112–142dp at 200% text and nothing measured it.
-            SectionHeading(
-              title: title,
-              style: AppTextStyles.titleMedium,
-              action: trailing,
-              onTap: onHeaderTap,
-            ),
-            const SizedBox(height: AppTheme.spacingS),
-            child,
-          ],
+    return Padding(
+      padding: const EdgeInsets.only(top: AppTheme.spacingM),
+      child: SizedBox(
+        width: double.infinity,
+        child: AppCard(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // A11 C5: this was the third copy of the heading row, and the one
+              // outside every gate — `Spacer` instead of `spaceBetween`, and no
+              // `Expanded` on the title, so « Vos rendez-vous ici » + « Voir tout »
+              // overflowed by 112–142dp at 200% text and nothing measured it.
+              SectionHeading(
+                title: title,
+                style: AppTextStyles.titleMedium,
+                action: trailing,
+                onTap: onHeaderTap,
+              ),
+              const SizedBox(height: AppTheme.spacingS),
+              child,
+            ],
+          ),
         ),
       ),
     );

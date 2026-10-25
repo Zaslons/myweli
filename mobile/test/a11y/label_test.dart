@@ -46,6 +46,31 @@ void main() {
     handle.dispose();
   });
 
+  // B9.8 F2 (hygiene-batch9.md §2.7.3): the card became a button — a
+  // `GestureDetector` before, silent — and its heart had to stay a node of
+  // its own: merged into the card, a screen reader could not reach it.
+  for (final grid in [false, true]) {
+    testWidgets('ProviderCard (${grid ? 'grid' : 'list'}) — the card is one '
+        'button, the heart another', (tester) async {
+      final salon = MockData.providers.first;
+      final handle = await pumpForA11y(
+        tester,
+        card(isGrid: grid),
+        providers: favProviders(),
+      );
+      final heart = tester.getSemantics(
+        find.bySemanticsLabel(RegExp('favoris')),
+      );
+      final cardNode = tester.getSemantics(find.text(salon.name));
+      expect(identical(heart, cardNode), isFalse);
+      expect(heart, isSemantics(isButton: true, hasTapAction: true));
+      expect(cardNode, isSemantics(isButton: true, hasTapAction: true));
+      expect(cardNode.label, contains(salon.name));
+      expect(cardNode.label, isNot(contains('favoris')));
+      handle.dispose();
+    });
+  }
+
   testWidgets('CommunePill — the location pill is labelled', (tester) async {
     final handle = await pumpForA11y(
       tester,

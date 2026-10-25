@@ -17,6 +17,7 @@ import '../../../providers/pro_appointment_provider.dart';
 import '../../../providers/pro_auth_provider.dart';
 import '../../../providers/pro_journal_provider.dart';
 import '../../../widgets/common/app_button.dart';
+import '../../../widgets/common/app_card.dart';
 import '../../../widgets/common/app_skeleton.dart';
 import '../../../widgets/common/app_snack_bar.dart';
 import '../../../widgets/common/confirm_dialog.dart';
@@ -101,165 +102,161 @@ class _ProAppointmentDetailScreenState
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(AppTheme.spacingM),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Module clients C1c: who's coming — with the no-show
-                        // badge at the accept moment (story #5) + card link.
-                        Row(
-                          children: [
-                            Expanded(
-                              child: Text(
-                                appointment.clientDisplayName ??
-                                    appointment.clientName ??
-                                    'Client',
-                                overflow: TextOverflow.ellipsis,
-                                style: AppTextStyles.titleMedium.copyWith(
-                                  color: AppColors.textPrimary,
-                                ),
+                AppCard(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Module clients C1c: who's coming — with the no-show
+                      // badge at the accept moment (story #5) + card link.
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              appointment.clientDisplayName ??
+                                  appointment.clientName ??
+                                  'Client',
+                              overflow: TextOverflow.ellipsis,
+                              style: AppTextStyles.titleMedium.copyWith(
+                                color: AppColors.textPrimary,
                               ),
                             ),
-                            if ((appointment.clientNoShowCount ?? 0) >= 1)
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: AppTheme.spacingS,
-                                  vertical: AppTheme.spacingXS,
+                          ),
+                          if ((appointment.clientNoShowCount ?? 0) >= 1)
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: AppTheme.spacingS,
+                                vertical: AppTheme.spacingXS,
+                              ),
+                              decoration: BoxDecoration(
+                                color:
+                                    ((appointment.clientNoShowCount ?? 0) >= 2)
+                                    ? AppColors.error.withValues(alpha: 0.1)
+                                    : AppColors.surfaceVariant,
+                                borderRadius: BorderRadius.circular(
+                                  AppTheme.radiusSmall,
                                 ),
-                                decoration: BoxDecoration(
+                              ),
+                              child: Text(
+                                appointment.clientNoShowCount == 1
+                                    ? '1 absence'
+                                    : '${appointment.clientNoShowCount} absences',
+                                style: AppTextStyles.bodySmall.copyWith(
                                   color:
                                       ((appointment.clientNoShowCount ?? 0) >=
                                           2)
-                                      ? AppColors.error.withValues(alpha: 0.1)
-                                      : AppColors.surfaceVariant,
-                                  borderRadius: BorderRadius.circular(
-                                    AppTheme.radiusSmall,
-                                  ),
-                                ),
-                                child: Text(
-                                  appointment.clientNoShowCount == 1
-                                      ? '1 absence'
-                                      : '${appointment.clientNoShowCount} absences',
-                                  style: AppTextStyles.bodySmall.copyWith(
-                                    color:
-                                        ((appointment.clientNoShowCount ?? 0) >=
-                                            2)
-                                        ? AppColors.error
-                                        : AppColors.textSecondary,
-                                  ),
+                                      ? AppColors.error
+                                      : AppColors.textSecondary,
                                 ),
                               ),
+                            ),
+                        ],
+                      ),
+                      if (appointment.salonClientId != null && !ownMode)
+                        ConstrainedBox(
+                          constraints: const BoxConstraints(
+                            minHeight: 48,
+                          ), // §13.2 touch target
+                          child: GestureDetector(
+                            behavior: HitTestBehavior.opaque,
+                            onTap: () => context.push(
+                              '/pro/clients/${appointment.salonClientId}',
+                            ),
+                            child: Container(
+                              alignment: Alignment.centerLeft,
+                              padding: const EdgeInsets.only(
+                                top: AppTheme.spacingXS,
+                              ),
+                              child: Text(
+                                'Voir la fiche client',
+                                style: AppTextStyles.bodySmall.copyWith(
+                                  color: AppColors.textTertiary,
+                                  decoration: TextDecoration.underline,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      const SizedBox(height: AppTheme.spacingM),
+                      Text(
+                        'Date et heure',
+                        style: AppTextStyles.titleMedium.copyWith(
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                      const SizedBox(height: AppTheme.spacingS),
+                      Text(
+                        Formatters.formatDateTime(
+                          toSalonTime(
+                            appointment.appointmentDate,
+                            tz: authProvider.salonTimezone,
+                          ),
+                        ),
+                        style: AppTextStyles.bodyLarge.copyWith(
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                      const SizedBox(height: AppTheme.spacingM),
+                      Text(
+                        'Statut',
+                        style: AppTextStyles.titleMedium.copyWith(
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                      const SizedBox(height: AppTheme.spacingS),
+                      Chip(
+                        label: Text(StatusLabels.of(appointment.status)),
+                        backgroundColor: _getStatusColor(appointment.status),
+                      ),
+                      const SizedBox(height: AppTheme.spacingM),
+                      Text(
+                        'Prix total',
+                        style: AppTextStyles.titleMedium.copyWith(
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                      const SizedBox(height: AppTheme.spacingS),
+                      Text(
+                        Formatters.formatCurrency(
+                          appointment.totalPrice,
+                          currency: authProvider.salonCurrency,
+                        ),
+                        style: AppTextStyles.headlineSmall.copyWith(
+                          color: AppColors.primary,
+                        ),
+                      ),
+                      if (appointment.depositAmount > 0) ...[
+                        const Divider(height: 24),
+                        Row(
+                          children: [
+                            const Icon(
+                              Icons.savings_outlined,
+                              size: AppTheme.iconS,
+                              color: AppColors.textSecondary,
+                            ),
+                            const SizedBox(width: AppTheme.spacingS),
+                            Expanded(
+                              child: Text(
+                                'Acompte annoncé : '
+                                '${Formatters.formatCurrency(appointment.depositAmount, currency: authProvider.salonCurrency)}',
+                                style: AppTextStyles.bodyMedium,
+                              ),
+                            ),
                           ],
                         ),
-                        if (appointment.salonClientId != null && !ownMode)
-                          ConstrainedBox(
-                            constraints: const BoxConstraints(
-                              minHeight: 48,
-                            ), // §13.2 touch target
-                            child: GestureDetector(
-                              behavior: HitTestBehavior.opaque,
-                              onTap: () => context.push(
-                                '/pro/clients/${appointment.salonClientId}',
-                              ),
-                              child: Container(
-                                alignment: Alignment.centerLeft,
-                                padding: const EdgeInsets.only(
-                                  top: AppTheme.spacingXS,
-                                ),
-                                child: Text(
-                                  'Voir la fiche client',
-                                  style: AppTextStyles.bodySmall.copyWith(
-                                    color: AppColors.textTertiary,
-                                    decoration: TextDecoration.underline,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                        const SizedBox(height: AppTheme.spacingM),
                         Text(
-                          'Date et heure',
-                          style: AppTextStyles.titleMedium.copyWith(
-                            color: AppColors.textPrimary,
+                          'Confirmez le rendez-vous une fois l’acompte reçu '
+                          'sur votre compte Mobile Money.',
+                          style: AppTextStyles.bodySmall.copyWith(
+                            color: AppColors.textTertiary,
                           ),
                         ),
                         const SizedBox(height: AppTheme.spacingS),
-                        Text(
-                          Formatters.formatDateTime(
-                            toSalonTime(
-                              appointment.appointmentDate,
-                              tz: authProvider.salonTimezone,
-                            ),
-                          ),
-                          style: AppTextStyles.bodyLarge.copyWith(
-                            color: AppColors.textSecondary,
-                          ),
+                        _DepositProof(
+                          appointmentId: appointment.id,
+                          hasProof: appointment.depositScreenshotUrl != null,
                         ),
-                        const SizedBox(height: AppTheme.spacingM),
-                        Text(
-                          'Statut',
-                          style: AppTextStyles.titleMedium.copyWith(
-                            color: AppColors.textPrimary,
-                          ),
-                        ),
-                        const SizedBox(height: AppTheme.spacingS),
-                        Chip(
-                          label: Text(StatusLabels.of(appointment.status)),
-                          backgroundColor: _getStatusColor(appointment.status),
-                        ),
-                        const SizedBox(height: AppTheme.spacingM),
-                        Text(
-                          'Prix total',
-                          style: AppTextStyles.titleMedium.copyWith(
-                            color: AppColors.textPrimary,
-                          ),
-                        ),
-                        const SizedBox(height: AppTheme.spacingS),
-                        Text(
-                          Formatters.formatCurrency(
-                            appointment.totalPrice,
-                            currency: authProvider.salonCurrency,
-                          ),
-                          style: AppTextStyles.headlineSmall.copyWith(
-                            color: AppColors.primary,
-                          ),
-                        ),
-                        if (appointment.depositAmount > 0) ...[
-                          const Divider(height: 24),
-                          Row(
-                            children: [
-                              const Icon(
-                                Icons.savings_outlined,
-                                size: AppTheme.iconS,
-                                color: AppColors.textSecondary,
-                              ),
-                              const SizedBox(width: AppTheme.spacingS),
-                              Expanded(
-                                child: Text(
-                                  'Acompte annoncé : '
-                                  '${Formatters.formatCurrency(appointment.depositAmount, currency: authProvider.salonCurrency)}',
-                                  style: AppTextStyles.bodyMedium,
-                                ),
-                              ),
-                            ],
-                          ),
-                          Text(
-                            'Confirmez le rendez-vous une fois l’acompte reçu '
-                            'sur votre compte Mobile Money.',
-                            style: AppTextStyles.bodySmall.copyWith(
-                              color: AppColors.textTertiary,
-                            ),
-                          ),
-                          const SizedBox(height: AppTheme.spacingS),
-                          _DepositProof(
-                            appointmentId: appointment.id,
-                            hasProof: appointment.depositScreenshotUrl != null,
-                          ),
-                        ],
                       ],
-                    ),
+                    ],
                   ),
                 ),
                 const SizedBox(height: AppTheme.spacingL),

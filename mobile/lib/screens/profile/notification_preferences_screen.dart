@@ -11,6 +11,7 @@ import '../../models/notification_preferences.dart';
 import '../../providers/notification_preferences_provider.dart';
 import '../../services/interfaces/push_notification_service_interface.dart';
 import '../../widgets/common/app_async_view.dart';
+import '../../widgets/common/app_card.dart';
 import '../../widgets/common/app_skeleton.dart';
 import '../../widgets/common/app_snack_bar.dart';
 import '../../widgets/push/push_blocked_banner.dart';
@@ -121,44 +122,34 @@ class _NotificationPreferencesScreenState
       padding: const EdgeInsets.all(AppTheme.spacingM),
       children: [
         if (_osDenied) PushBlockedBanner(onOpenSettings: widget.openSettings),
-        Container(
-          decoration: BoxDecoration(
-            color: AppColors.secondary,
-            borderRadius: BorderRadius.circular(AppTheme.radiusXL),
-            boxShadow: AppTheme.elevation1,
-          ),
-          // Flutter 3.44 asserts on this (`list_tile.dart`, `_findIntermediateWidget`):
-          // a `ListTile` paints its ink on the nearest `Material` ANCESTOR, and the
-          // walk up stops at the first coloured box. This card was that box, so the
-          // ripple painted BEHIND it — no touch feedback, for as long as the card has
-          // existed. The assertion is new; the defect is not. `transparency` paints
-          // nothing, so no golden moves.
-          child: Material(
-            type: MaterialType.transparency,
-            child: Column(
-              children: [
-                _PrefSwitch(
-                  title: 'Rappels de rendez-vous',
-                  subtitle: 'Rappels 24 h et 2 h avant vos rendez-vous.',
-                  value: prefs.reminders,
-                  onChanged: (v) => _toggle(() => provider.setReminders(v)),
-                ),
-                const Divider(height: 1),
-                _PrefSwitch(
-                  title: 'Offres & promotions',
-                  subtitle: 'Offres, nouveautés et relances.',
-                  value: prefs.marketing,
-                  onChanged: (v) => _toggle(() => provider.setMarketing(v)),
-                ),
-                const Divider(height: 1),
-                _PrefSwitch(
-                  title: 'Notifications push',
-                  subtitle: 'Notifications sur cet appareil.',
-                  value: prefs.push,
-                  onChanged: (v) => _toggle(() => provider.setPush(v)),
-                ),
-              ],
-            ),
+        AppCard(
+          // The card IS the `Material` the tile paints its ink on — what the
+          // transparent layer under a decorated box was there for (Flutter 3.44's
+          // `_findIntermediateWidget` assertion); a list of rows needs no padding.
+          padding: EdgeInsets.zero,
+          child: Column(
+            children: [
+              _PrefSwitch(
+                title: 'Rappels de rendez-vous',
+                subtitle: 'Rappels 24 h et 2 h avant vos rendez-vous.',
+                value: prefs.reminders,
+                onChanged: (v) => _toggle(() => provider.setReminders(v)),
+              ),
+              const Divider(height: 1),
+              _PrefSwitch(
+                title: 'Offres & promotions',
+                subtitle: 'Offres, nouveautés et relances.',
+                value: prefs.marketing,
+                onChanged: (v) => _toggle(() => provider.setMarketing(v)),
+              ),
+              const Divider(height: 1),
+              _PrefSwitch(
+                title: 'Notifications push',
+                subtitle: 'Notifications sur cet appareil.',
+                value: prefs.push,
+                onChanged: (v) => _toggle(() => provider.setPush(v)),
+              ),
+            ],
           ),
         ),
         const SizedBox(height: AppTheme.spacingM),

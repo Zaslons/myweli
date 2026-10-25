@@ -20,6 +20,7 @@ import '../../../models/team_member.dart';
 import '../../../providers/pro_auth_provider.dart';
 import '../../../providers/pro_team_provider.dart';
 import '../../../widgets/common/app_button.dart';
+import '../../../widgets/common/app_card.dart';
 import '../../../widgets/common/app_skeleton.dart';
 import '../../../widgets/common/app_snack_bar.dart';
 import '../../../widgets/common/confirm_dialog.dart';
@@ -78,56 +79,53 @@ class _ProProfileScreenState extends State<ProProfileScreen> {
                 if (authProvider.role != TeamRole.owner)
                   // Member header (access R4b): a personal card — the salon
                   // is not theirs to edit.
-                  Card(
-                    child: Padding(
-                      padding: const EdgeInsets.all(AppTheme.spacingM),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Expanded(
-                                child: Text(
-                                  (provider.name?.isNotEmpty ?? false)
-                                      ? provider.name!
-                                      : (provider.email ?? ''),
-                                  style: AppTextStyles.titleMedium.copyWith(
-                                    color: AppColors.textPrimary,
-                                  ),
-                                  overflow: TextOverflow.ellipsis,
+                  AppCard(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                (provider.name?.isNotEmpty ?? false)
+                                    ? provider.name!
+                                    : (provider.email ?? ''),
+                                style: AppTextStyles.titleMedium.copyWith(
+                                  color: AppColors.textPrimary,
                                 ),
-                              ),
-                              TeamRoleChip(role: authProvider.role),
-                            ],
-                          ),
-                          if (provider.email != null) ...[
-                            const SizedBox(height: AppTheme.spacingS),
-                            Text(
-                              provider.email!,
-                              style: AppTextStyles.bodyLarge.copyWith(
-                                color: AppColors.textSecondary,
+                                overflow: TextOverflow.ellipsis,
                               ),
                             ),
+                            TeamRoleChip(role: authProvider.role),
                           ],
-                          const SizedBox(height: AppTheme.spacingM),
-                          Text(
-                            'Salon',
-                            style: AppTextStyles.titleMedium.copyWith(
-                              color: AppColors.textPrimary,
-                            ),
-                          ),
+                        ),
+                        if (provider.email != null) ...[
                           const SizedBox(height: AppTheme.spacingS),
                           Text(
-                            salonNameOr(
-                              authProvider.knownSalonName,
-                              kUnnamedSalon,
-                            ),
+                            provider.email!,
                             style: AppTextStyles.bodyLarge.copyWith(
                               color: AppColors.textSecondary,
                             ),
                           ),
                         ],
-                      ),
+                        const SizedBox(height: AppTheme.spacingM),
+                        Text(
+                          'Salon',
+                          style: AppTextStyles.titleMedium.copyWith(
+                            color: AppColors.textPrimary,
+                          ),
+                        ),
+                        const SizedBox(height: AppTheme.spacingS),
+                        Text(
+                          salonNameOr(
+                            authProvider.knownSalonName,
+                            kUnnamedSalon,
+                          ),
+                          style: AppTextStyles.bodyLarge.copyWith(
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
+                      ],
                     ),
                   )
                 else
@@ -135,7 +133,8 @@ class _ProProfileScreenState extends State<ProProfileScreen> {
                 const SizedBox(height: AppTheme.spacingM),
                 // « Mes salons » (R6): every membership + the switcher — for
                 // ALL roles (a member can belong to several salons too).
-                Card(
+                AppCard(
+                  padding: EdgeInsets.zero,
                   child: ListTile(
                     leading: const Icon(Icons.storefront),
                     title: const Text('Mes salons'),
@@ -158,7 +157,8 @@ class _ProProfileScreenState extends State<ProProfileScreen> {
                 // Role-gated rows (access R4b) — UI hiding is convenience;
                 // the routes 403 server-side regardless.
                 if (authProvider.can(ProCap.salonPublish)) ...[
-                  Card(
+                  AppCard(
+                    padding: EdgeInsets.zero,
                     child: ListTile(
                       leading: const Icon(Icons.checklist_rounded),
                       title: const Text('Configurer mon profil'),
@@ -169,7 +169,8 @@ class _ProProfileScreenState extends State<ProProfileScreen> {
                   const SizedBox(height: AppTheme.spacingM),
                 ],
                 if (authProvider.can(ProCap.profileManage)) ...[
-                  Card(
+                  AppCard(
+                    padding: EdgeInsets.zero,
                     child: ListTile(
                       leading: const Icon(Icons.storefront_outlined),
                       title: const Text('Profil du salon'),
@@ -181,7 +182,8 @@ class _ProProfileScreenState extends State<ProProfileScreen> {
                   const SizedBox(height: AppTheme.spacingM),
                 ],
                 if (authProvider.can(ProCap.salonPublish)) ...[
-                  Card(
+                  AppCard(
+                    padding: EdgeInsets.zero,
                     child: ListTile(
                       leading: const Icon(Icons.verified_user_outlined),
                       title: const Text('Vérification'),
@@ -200,7 +202,8 @@ class _ProProfileScreenState extends State<ProProfileScreen> {
                   const SizedBox(height: AppTheme.spacingM),
                 ],
                 if (authProvider.can(ProCap.membersManage)) ...[
-                  Card(
+                  AppCard(
+                    padding: EdgeInsets.zero,
                     child: ListTile(
                       leading: const Icon(Icons.group_outlined),
                       title: const Text('Équipe'),
@@ -218,7 +221,8 @@ class _ProProfileScreenState extends State<ProProfileScreen> {
                           padding: const EdgeInsets.only(
                             bottom: AppTheme.spacingS,
                           ),
-                          child: Card(
+                          child: AppCard(
+                            padding: EdgeInsets.zero,
                             child: ListTile(
                               leading: const Icon(Icons.mail_outline),
                               title: const Text('Invitations'),
@@ -252,7 +256,8 @@ class _ProProfileScreenState extends State<ProProfileScreen> {
                         ),
                 ),
                 if (authProvider.can(ProCap.subscriptionManage)) ...[
-                  Card(
+                  AppCard(
+                    padding: EdgeInsets.zero,
                     child: ListTile(
                       leading: const Icon(Icons.workspace_premium_outlined),
                       title: const Text('Mon abonnement'),
@@ -263,7 +268,8 @@ class _ProProfileScreenState extends State<ProProfileScreen> {
                   const SizedBox(height: AppTheme.spacingS),
                 ],
                 if (authProvider.can(ProCap.depositManage)) ...[
-                  Card(
+                  AppCard(
+                    padding: EdgeInsets.zero,
                     child: ListTile(
                       leading: const Icon(Icons.payments_outlined),
                       title: const Text('Paramètres d’acompte'),
@@ -274,7 +280,8 @@ class _ProProfileScreenState extends State<ProProfileScreen> {
                   const SizedBox(height: AppTheme.spacingS),
                 ],
                 if (authProvider.can(ProCap.catalogueManage)) ...[
-                  Card(
+                  AppCard(
+                    padding: EdgeInsets.zero,
                     child: ListTile(
                       leading: const Icon(Icons.photo_library_outlined),
                       title: const Text('Photos du salon'),
@@ -283,7 +290,8 @@ class _ProProfileScreenState extends State<ProProfileScreen> {
                     ),
                   ),
                   const SizedBox(height: AppTheme.spacingS),
-                  Card(
+                  AppCard(
+                    padding: EdgeInsets.zero,
                     child: ListTile(
                       leading: const Icon(Icons.compare_outlined),
                       title: const Text('Avant / Après'),
@@ -294,7 +302,8 @@ class _ProProfileScreenState extends State<ProProfileScreen> {
                   const SizedBox(height: AppTheme.spacingS),
                 ],
                 if (authProvider.can(ProCap.salonPublish))
-                  Card(
+                  AppCard(
+                    padding: EdgeInsets.zero,
                     child: ListTile(
                       leading: const Icon(Icons.download_outlined),
                       title: const Text('Mes données'),
@@ -314,7 +323,8 @@ class _ProProfileScreenState extends State<ProProfileScreen> {
                 // contact control lived on the subscription screen, three taps
                 // in, and it opened a WhatsApp link that no build configures.
                 // A salon with a problem had nowhere to go.
-                Card(
+                AppCard(
+                  padding: EdgeInsets.zero,
                   child: ListTile(
                     leading: const Icon(Icons.help_outline),
                     title: const Text('Aide & Support'),
@@ -325,7 +335,8 @@ class _ProProfileScreenState extends State<ProProfileScreen> {
                 ),
                 const SizedBox(height: AppTheme.spacingM),
 
-                Card(
+                AppCard(
+                  padding: EdgeInsets.zero,
                   child: ListTile(
                     leading: const Icon(Icons.info_outline),
                     title: const Text('À propos'),
@@ -492,18 +503,15 @@ class _SalonCardState extends State<_SalonCard> {
       else
         _unavailable(),
     ];
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(AppTheme.spacingM),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            for (final (i, row) in rows.indexed) ...[
-              if (i > 0) const SizedBox(height: AppTheme.spacingM),
-              row,
-            ],
+    return AppCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          for (final (i, row) in rows.indexed) ...[
+            if (i > 0) const SizedBox(height: AppTheme.spacingM),
+            row,
           ],
-        ),
+        ],
       ),
     );
   }

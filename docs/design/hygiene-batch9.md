@@ -190,6 +190,63 @@ correction par rapport au BACKLOG :
   d'une liste nommée (les cas « forme inconnue »), et plus d'erreur de
   chargement écrite à la main (`actionText: 'Réessayer'` hors des briques).
 
+#### 2.7.3 F2 — les cartes (mesuré le 2026-10-25, sur F1)
+
+**Ce que §2.7.1 a mal compté.** Les « 30 cartes déjà exactement celles du
+système » ne l'étaient pas : l'inventaire ne regardait que la couleur, le
+rayon et la bordure, et **presque toutes portent une ombre**
+(`boxShadow: AppTheme.elevation1`) — que SYSTEM §8 réserve à ce qui flotte
+(menus, feuilles, la barre du bas) : « les cartes ont l'élévation 0 ».
+
+**Ce qui est une carte** — relu site par site, hors `screens/provider/features/`
+(V2/V3, masqués : on ne les polit pas, §Scope) et hors console (ses cartes à
+bordure sont l'idiome du bureau, SYSTEM §11.2) :
+- **27 `Card(` Material** dans 11 fichiers (dont 15 sur le Profil Pro),
+  presque toutes autour d'un `ListTile` ;
+- **31 cartes dessinées à la main** : 23 de contenu (le détail d'un
+  rendez-vous, le récapitulatif avant paiement, la tête du salon dans la
+  réservation, les quatre sections de l'acompte et les quatre de la
+  disponibilité, celle de mes
+  données, la fiche du salon, le total des revenus, le résumé des avis, les
+  places de l'équipe et de l'offre, un document de vérification, une
+  invitation, le calendrier Pro, les chiffres de l'accueil Pro, le
+  rendez-vous déplacé, les préférences) et 8 qu'on touche en entier (un
+  rendez-vous, sa version compacte, une notification, un salon en liste et
+  en grille, un employé, un service, un raccourci de l'accueil Pro) ;
+- **2 cartes qui sont des contrôles** : une étape de la réservation
+  (ouverte / fermée) et un rôle à choisir dans l'invitation.
+
+**Ce que F2 en fait** (Q10 : les normaliser) :
+- **Toutes deviennent `AppCard`** : `secondary`, `radiusXL`, **sans ombre**,
+  **sans bordure** (SYSTEM §3.1 : la marche de surface suffit), `spacingM`
+  dedans — `spacingL` sur six cartes passe à `spacingM`. Un
+  rembourrage autre n'est gardé que s'il a une raison écrite : zéro autour
+  d'une liste de lignes ou d'une photo bord à bord, l'arithmétique du
+  calendrier (`spacingS`, A14a §2.1), le rembourrage calculé des chiffres
+  de l'accueil Pro. La `margin` de 4 que `Card` ajoutait en silence
+  disparaît : l'écart entre deux cartes est celui de leur liste.
+- **Une carte qu'on touche** l'est en entier (`onTap`) : l'ondulation coupée
+  au rayon, **un bouton pour un lecteur d'écran** — sept d'entre elles
+  étaient un `GestureDetector` muet. Un contrôle à l'intérieur (le cœur des
+  favoris d'un salon) **reste à part** : `AppCard` fait de la carte un nœud
+  conteneur, pas une fusion — la fusion de F1 l'aurait avalé.
+- **Une carte-contrôle** est `outlined` (le trait `borderStrong`) et, choisie,
+  `selected` : le trait passe à `primary`, 2 px, la carte reste blanche (Q13).
+  Pas seulement une couleur : la
+  carte est annoncée « sélectionnée », et l'icône radio ou l'état ouvert le
+  disent aussi (SYSTEM §13).
+- **Ce qui reste** : les ombres de ce qui flotte (les repères de la carte, la
+  poignée de l'avant/après, le logo sur la couverture, les anneaux des
+  stories) ; la console ; les écrans V2/V3 ; et `HighlightStories`, que rien
+  n'affiche — supprimé plutôt qu'exempté.
+- **Une épingle** sur `lib/` : plus de `Card(` ; plus de boîte `secondary` à
+  `radiusXL`/`radiusLarge` dessinée à la main ; plus d'`elevation1`/`2` sur
+  une carte — hors liste nommée, avec sa raison.
+
+**Questions (Q13–Q15)** — posées le 2026-10-25, réponses en §8 : le trait
+`primary` de 2 px sans fond ; la barre « Total » garde son ombre ;
+`spacingM` partout.
+
 ### 2.8 Le type `SalonId` (B9.9, décision 33)
 - **Ta décision** : ce qui vaut le mieux à long terme, donc **le type**.
   L'épingle ne voit pas un identifiant de compte passé en position ; le
@@ -312,6 +369,16 @@ Q5 : la recommandation — tout migrer maintenant (§2.7).
 **Décisions (2026-10-25).** Q9 : **une seule erreur** ; Q10 : **normaliser
 les vraies cartes** ; Q11 : **les squelettes maintenant** (pas la
 recommandation) ; Q12 : **trois PR**. La forme retenue : §2.7.2.
+- **Q13** (2026-10-25, F2) — Une carte-contrôle choisie : **un trait
+  `primary` de 2 px sur la carte blanche** (recommandé), ou le trait et un
+  fond gris (`surfaceVariant`), comme la carte de rôle aujourd'hui ?
+- **Q14** — La barre « Total » épinglée de la réservation : **une barre
+  ancrée, qui garde son ombre** (recommandé), ou une carte, aplatie ?
+- **Q15** — Les six cartes à `spacingL` : **`spacingM`, comme §11.3**
+  (recommandé), ou les garder à `spacingL` ?
+
+**Décisions (2026-10-25, F2).** Q13, Q14, Q15 : les recommandations. La
+forme retenue : §2.7.3.
 
 ## 9. PR A construite (B9.1, B9.5) — ce qui a été vu
 
