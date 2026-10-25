@@ -33,7 +33,11 @@ const plusDays = (key: string, n: number) => {
   return d.toISOString().slice(0, 10);
 };
 const TOMORROW = plusDays(TODAY, 1);
-const DAY = '2026-10-25';
+// A day that is never today: `?jour=` for TODAY is the bare address, so a
+// fixed date here was a time bomb — on 2026-10-25 it WAS today, and three
+// tests failed for a day (hygiene-batch9.md §13). Ten days on is never today,
+// TOMORROW, or the +2 day the tests below walk to.
+const DAY = plusDays(TODAY, 10);
 
 const ME = {
   account: { id: 'acc1', businessName: 'Beauté Divine', phoneNumber: '+2250700000000' },
@@ -160,7 +164,15 @@ describe('the agenda reads its address', () => {
       'aria-pressed',
       'true',
     );
-    expect(screen.getByText('pour 25 octobre 2026')).toBeInTheDocument();
+    // The day in words, as a French reader sees it — computed, not typed:
+    // DAY moves with the calendar now.
+    const inWords = new Intl.DateTimeFormat('fr-FR', {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+      timeZone: 'Africa/Abidjan',
+    }).format(new Date(`${DAY}T12:00:00.000Z`));
+    expect(screen.getByText(`pour ${inWords}`)).toBeInTheDocument();
     // The Journée was never asked for: it is not the view on screen.
     expect(asked).toEqual([]);
   });
