@@ -8,6 +8,7 @@ import '../../../core/theme/colors.dart';
 import '../../../core/theme/text_styles.dart';
 import '../../../core/utils/formatters.dart';
 import '../../../core/utils/onboarding.dart';
+import '../../../core/utils/salon_id.dart';
 import '../../../core/utils/team_error_messages.dart';
 import '../../../providers/pro_auth_provider.dart';
 import '../../../providers/pro_onboarding_provider.dart';
@@ -42,7 +43,8 @@ class _ProOnboardingScreenState extends State<ProOnboardingScreen> {
 
   Future<void> _goLive() async {
     final messenger = ScaffoldMessenger.of(context);
-    final providerId = context.read<ProAuthProvider>().activeSalonId ?? '';
+    final providerId =
+        context.read<ProAuthProvider>().activeSalonId ?? SalonId.none;
     final onboarding = context.read<ProOnboardingProvider>();
     final ok = await onboarding.publish(providerId);
     if (!mounted) return;

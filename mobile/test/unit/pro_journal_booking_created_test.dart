@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:myweli/core/access/pro_access_guard.dart';
 import 'package:myweli/core/di/dependency_injection.dart';
+import 'package:myweli/core/utils/salon_id.dart';
 import 'package:myweli/core/utils/salon_time.dart';
 import 'package:myweli/models/api_response.dart';
 import 'package:myweli/models/appointment.dart';
@@ -130,7 +131,7 @@ void main() {
   Future<ProJournalProvider> opened({String? tz}) async {
     final p = ProJournalProvider();
     addTearDown(p.dispose);
-    await p.load('p1', date: monday, tz: tz);
+    await p.load(SalonId('p1'), date: monday, tz: tz);
     await pumpEventQueue();
     return p;
   }
@@ -383,7 +384,10 @@ void main() {
       () async {
         final p = ProJournalProvider();
         addTearDown(p.dispose);
-        await p.load('p1', date: monday); // the day; the week prefetch starts
+        await p.load(
+          SalonId('p1'),
+          date: monday,
+        ); // the day; the week prefetch starts
         // Hold the prefetch on whichever day it asks about next.
         server.hold = true;
         await pumpEventQueue();
@@ -459,7 +463,7 @@ void main() {
       final p = ProJournalProvider();
       addTearDown(p.dispose);
       server.hold = true;
-      unawaited(p.load('p1', date: monday));
+      unawaited(p.load(SalonId('p1'), date: monday));
       expect(p.isLoading, isTrue);
       final first = server.requests.single; // decided: an empty day
 
@@ -530,7 +534,7 @@ void main() {
       final p = ProJournalProvider();
       addTearDown(p.dispose);
       server.failure = 'error';
-      await p.load('p1', date: monday);
+      await p.load(SalonId('p1'), date: monday);
       expect(p.day, isNull);
       expect(p.error, isNotNull);
 
@@ -550,7 +554,7 @@ void main() {
       final p = ProJournalProvider();
       addTearDown(p.dispose);
       server.failure = 'throw';
-      await p.load('p1', date: monday);
+      await p.load(SalonId('p1'), date: monday);
       await settled(); // the week prefetch behind the failed load
       // The generic sentence — never the exception's own text
       // (docs/design/app-failure-messages.md §1.1).
@@ -658,7 +662,7 @@ void main() {
       server.of('p1').add(appt(id: 'a1', time: '09:00'));
       final p = await opened();
       server.hold = true;
-      unawaited(p.load('p1')); // the screen's own `initState` load
+      unawaited(p.load(SalonId('p1'))); // the screen's own `initState` load
       expect(p.selectedDate, monday);
       expect(p.isLoading, isTrue);
 
@@ -716,9 +720,9 @@ void main() {
       final p = ProJournalProvider();
       addTearDown(p.dispose);
       server.hold = true;
-      unawaited(p.load('p1', date: monday));
+      unawaited(p.load(SalonId('p1'), date: monday));
       final first = server.requests.last;
-      unawaited(p.load('p1', date: DateTime.utc(2026, 7, 14)));
+      unawaited(p.load(SalonId('p1'), date: DateTime.utc(2026, 7, 14)));
       final second = server.requests.last;
 
       second.release();

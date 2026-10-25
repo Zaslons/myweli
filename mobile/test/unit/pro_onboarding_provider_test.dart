@@ -3,6 +3,7 @@ import 'package:mocktail/mocktail.dart';
 import 'package:myweli/core/constants/failure_messages.dart';
 import 'package:myweli/core/di/dependency_injection.dart';
 import 'package:myweli/core/utils/onboarding.dart';
+import 'package:myweli/core/utils/salon_id.dart';
 import 'package:myweli/models/api_response.dart';
 import 'package:myweli/models/availability.dart';
 import 'package:myweli/models/kyc_document.dart';
@@ -112,18 +113,18 @@ void main() {
     final salon = MockData.providers.first.copyWith(
       imageUrls: const ['a.jpg', 'b.jpg', 'c.jpg'],
     );
-    when(() => pro.getProviderServices('p1')).thenAnswer(
+    when(() => pro.getProviderServices(SalonId('p1'))).thenAnswer(
       (_) async =>
           ApiResponse.success(MockData.getServicesForProvider('provider1')),
     );
-    when(() => artists.getArtists('p1')).thenAnswer(
+    when(() => artists.getArtists(SalonId('p1'))).thenAnswer(
       (_) async =>
           ApiResponse.success(MockData.getArtistsForProvider('provider1')),
     );
     when(
-      () => pro.getProviderAvailability('p1'),
+      () => pro.getProviderAvailability(SalonId('p1')),
     ).thenAnswer((_) async => ApiResponse.success(salon.availability));
-    when(() => pro.getDepositPolicy('p1')).thenAnswer(
+    when(() => pro.getDepositPolicy(SalonId('p1'))).thenAnswer(
       (_) async => ApiResponse.success(
         const DepositPolicy(depositRequired: false, depositPercentage: 0),
       ),
@@ -135,7 +136,7 @@ void main() {
           membership: ProMembership(
             role: TeamRole.owner,
             capabilities: presetCapabilitiesFor(TeamRole.owner),
-            salonId: 'p1',
+            salonId: SalonId('p1'),
             salonName: salon.name,
           ),
         ),
@@ -155,9 +156,9 @@ void main() {
         businessName: 'Salon X',
         businessType: BusinessType.salon,
         createdAt: DateTime(2026),
-        providerId: 'p1',
+        providerId: SalonId('p1'),
       ),
-      salonId: 'p1',
+      salonId: SalonId('p1'),
     );
 
     expect(
@@ -177,17 +178,17 @@ void main() {
   // state above it could not be reached.
   test('a read that failed is the load\'s failure, not a step to do', () async {
     final salon = MockData.providers.first;
-    when(() => pro.getProviderServices('p1')).thenAnswer(
+    when(() => pro.getProviderServices(SalonId('p1'))).thenAnswer(
       (_) async => ApiResponse<List<Service>>.error(kNoConnectionMessage),
     );
-    when(() => artists.getArtists('p1')).thenAnswer(
+    when(() => artists.getArtists(SalonId('p1'))).thenAnswer(
       (_) async =>
           ApiResponse.success(MockData.getArtistsForProvider('provider1')),
     );
     when(
-      () => pro.getProviderAvailability('p1'),
+      () => pro.getProviderAvailability(SalonId('p1')),
     ).thenAnswer((_) async => ApiResponse.success(salon.availability));
-    when(() => pro.getDepositPolicy('p1')).thenAnswer(
+    when(() => pro.getDepositPolicy(SalonId('p1'))).thenAnswer(
       (_) async => ApiResponse.success(
         const DepositPolicy(depositRequired: false, depositPercentage: 0),
       ),
@@ -209,9 +210,9 @@ void main() {
         businessName: 'Salon X',
         businessType: BusinessType.salon,
         createdAt: DateTime(2026),
-        providerId: 'p1',
+        providerId: SalonId('p1'),
       ),
-      salonId: 'p1',
+      salonId: SalonId('p1'),
     );
 
     expect(p.loadFailed, isTrue);
@@ -235,16 +236,16 @@ void main() {
       required Availability availability,
     }) async {
       when(
-        () => pro.getProviderServices('p1'),
+        () => pro.getProviderServices(SalonId('p1')),
       ).thenAnswer((_) async => ApiResponse.success(services));
-      when(() => artists.getArtists('p1')).thenAnswer(
+      when(() => artists.getArtists(SalonId('p1'))).thenAnswer(
         (_) async =>
             ApiResponse.success(MockData.getArtistsForProvider('provider1')),
       );
       when(
-        () => pro.getProviderAvailability('p1'),
+        () => pro.getProviderAvailability(SalonId('p1')),
       ).thenAnswer((_) async => ApiResponse.success(availability));
-      when(() => pro.getDepositPolicy('p1')).thenAnswer(
+      when(() => pro.getDepositPolicy(SalonId('p1'))).thenAnswer(
         (_) async => ApiResponse.success(
           const DepositPolicy(depositRequired: false, depositPercentage: 0),
         ),
@@ -256,7 +257,7 @@ void main() {
             membership: ProMembership(
               role: TeamRole.owner,
               capabilities: presetCapabilitiesFor(TeamRole.owner),
-              salonId: 'p1',
+              salonId: SalonId('p1'),
               salonName: salon.name,
             ),
           ),
@@ -275,9 +276,9 @@ void main() {
           businessName: 'Salon X',
           businessType: BusinessType.salon,
           createdAt: DateTime(2026),
-          providerId: 'p1',
+          providerId: SalonId('p1'),
         ),
-        salonId: 'p1',
+        salonId: SalonId('p1'),
       );
       return p;
     }
@@ -325,31 +326,31 @@ void main() {
   group('publish (pro-salon-lifecycle B3)', () {
     test('success → true, no error, loading toggles', () async {
       when(
-        () => pro.publishSalon('p1'),
+        () => pro.publishSalon(SalonId('p1')),
       ).thenAnswer((_) async => ApiResponse.success(true, message: 'ok'));
       final p = ProOnboardingProvider();
-      final ok = await p.publish('p1');
+      final ok = await p.publish(SalonId('p1'));
       expect(ok, isTrue);
       expect(p.error, isNull);
       expect(p.isPublishing, isFalse);
-      verify(() => pro.publishSalon('p1')).called(1);
+      verify(() => pro.publishSalon(SalonId('p1'))).called(1);
     });
 
     test('incomplete → false + the server message surfaces', () async {
-      when(() => pro.publishSalon('p1')).thenAnswer(
+      when(() => pro.publishSalon(SalonId('p1'))).thenAnswer(
         (_) async => ApiResponse.error(
           'Complétez les étapes requises avant la mise en ligne.',
           code: 'incomplete',
         ),
       );
       final p = ProOnboardingProvider();
-      expect(await p.publish('p1'), isFalse);
+      expect(await p.publish(SalonId('p1')), isFalse);
       expect(p.error, contains('Complétez les étapes'));
     });
 
     test('offer_required (an EXPIRED offer) exposes the machine code so the '
         'screen can show its neutral sentence', () async {
-      when(() => pro.publishSalon('p1')).thenAnswer(
+      when(() => pro.publishSalon(SalonId('p1'))).thenAnswer(
         (_) async => ApiResponse.error(
           'La mise en ligne est indisponible : l’offre de votre salon n’est '
           'plus active.',
@@ -357,7 +358,7 @@ void main() {
         ),
       );
       final p = ProOnboardingProvider();
-      expect(await p.publish('p1'), isFalse);
+      expect(await p.publish(SalonId('p1')), isFalse);
       expect(p.publishErrorCode, 'offer_required');
     });
   });
@@ -372,19 +373,19 @@ void main() {
         final salon = MockData.providers.first.copyWith(
           imageUrls: const ['a.jpg', 'b.jpg', 'c.jpg'],
         );
-        when(() => pro.getProviderServices('p1')).thenAnswer(
+        when(() => pro.getProviderServices(SalonId('p1'))).thenAnswer(
           (_) async =>
               ApiResponse.success(MockData.getServicesForProvider('provider1')),
         );
-        when(() => artists.getArtists('p1')).thenAnswer(
+        when(() => artists.getArtists(SalonId('p1'))).thenAnswer(
           (_) async =>
               ApiResponse.success(MockData.getArtistsForProvider('provider1')),
         );
         when(
-          () => pro.getProviderAvailability('p1'),
+          () => pro.getProviderAvailability(SalonId('p1')),
         ).thenAnswer((_) async => ApiResponse.success(salon.availability));
         when(
-          () => pro.getDepositPolicy('p1'),
+          () => pro.getDepositPolicy(SalonId('p1')),
         ).thenAnswer((_) async => ApiResponse.success(policy));
         when(() => pro.getMyProvider()).thenAnswer(
           (_) async => ApiResponse.success(
@@ -393,7 +394,7 @@ void main() {
               membership: ProMembership(
                 role: TeamRole.owner,
                 capabilities: presetCapabilitiesFor(TeamRole.owner),
-                salonId: 'p1',
+                salonId: SalonId('p1'),
                 salonName: salon.name,
               ),
             ),
@@ -412,9 +413,9 @@ void main() {
             businessName: 'Salon X',
             businessType: BusinessType.salon,
             createdAt: DateTime(2026),
-            providerId: 'p1',
+            providerId: SalonId('p1'),
           ),
-          salonId: 'p1',
+          salonId: SalonId('p1'),
         );
         return statusOf(p, OnboardingStepKey.deposit);
       }

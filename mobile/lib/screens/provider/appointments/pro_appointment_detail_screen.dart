@@ -8,6 +8,7 @@ import '../../../core/theme/colors.dart';
 import '../../../core/theme/text_styles.dart';
 import '../../../core/utils/app_clock.dart';
 import '../../../core/utils/formatters.dart';
+import '../../../core/utils/salon_id.dart';
 import '../../../core/utils/salon_time.dart';
 import '../../../core/utils/status_colors.dart';
 import '../../../core/utils/status_labels.dart';
@@ -29,7 +30,7 @@ class ProAppointmentDetailScreen extends StatefulWidget {
 
   /// The salon this booking belongs to (`?salon=` — a notification may point
   /// at another of the account's salons). Null → whatever is active.
-  final String? salonId;
+  final SalonId? salonId;
 
   const ProAppointmentDetailScreen({
     super.key,
@@ -69,7 +70,7 @@ class _ProAppointmentDetailScreenState
       listen: false,
     );
     await appointmentProvider.loadAppointments(
-      authProvider.activeSalonId ?? '',
+      authProvider.activeSalonId ?? SalonId.none,
     );
   }
 
@@ -304,7 +305,7 @@ class _ProAppointmentDetailScreenState
                         );
                         if (ok && authProvider.provider != null) {
                           await appointmentProvider.loadAppointments(
-                            authProvider.activeSalonId ?? '',
+                            authProvider.activeSalonId ?? SalonId.none,
                           );
                         }
                       },

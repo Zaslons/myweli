@@ -1,3 +1,4 @@
+import '../core/utils/salon_id.dart';
 import 'pro_membership.dart';
 import 'provider_user.dart';
 import 'salon_facts.dart';
@@ -11,10 +12,10 @@ import 'salon_market.dart';
 /// the salon from the persisted session ([ProviderSession.actingSalonId])
 /// both resolve through it, so a screen and the request it sends cannot
 /// pick different salons. Design: docs/design/services-acting-salon.md.
-String? resolveActingSalonId({
-  required String? selected,
-  required String? linked,
-  required String? membership,
+SalonId? resolveActingSalonId({
+  required SalonId? selected,
+  required SalonId? linked,
+  required SalonId? membership,
 }) {
   for (final id in [selected, linked, membership]) {
     if (id != null && id.isNotEmpty) return id;
@@ -42,7 +43,7 @@ class ProviderSession {
   /// R6 multi-salons: the salon the user last SWITCHED to (null = the
   /// default). Restored at cold start and revalidated by the first
   /// `GET /me/provider?salonId=` — a 403 silently falls back to default.
-  final String? selectedSalonId;
+  final SalonId? selectedSalonId;
 
   /// The acting salon's market facts from the last GET /me/provider — its
   /// clock and currency when a cold start's refresh fails
@@ -68,7 +69,7 @@ class ProviderSession {
   /// The salon this session acts in — [resolveActingSalonId] over the
   /// persisted selection, the account's own salon and the cached membership.
   /// Null = no salon anywhere (signed in, not linked).
-  String? get actingSalonId => resolveActingSalonId(
+  SalonId? get actingSalonId => resolveActingSalonId(
     selected: selectedSalonId,
     linked: provider.providerId,
     membership: membership?.salonId,
@@ -77,7 +78,7 @@ class ProviderSession {
   ProviderSession copyWith({
     ProMembership? membership,
     bool clearMembership = false,
-    String? selectedSalonId,
+    SalonId? selectedSalonId,
     bool clearSelectedSalon = false,
     SalonMarket? salonMarket,
     bool clearSalonMarket = false,
@@ -116,7 +117,10 @@ class ProviderSession {
         ? null
         : ProMembership.fromJson(json['membership'] as Map<String, dynamic>),
     // Legacy sessions (pre-R6) simply have no selection.
-    selectedSalonId: json['selectedSalonId'] as String?,
+    selectedSalonId: switch (json['selectedSalonId']) {
+      final String id => SalonId(id),
+      _ => null,
+    },
     // Sessions stored before the facts were kept have none: the salon is
     // unknown until GET /me/provider answers.
     salonMarket: json['salonMarket'] == null

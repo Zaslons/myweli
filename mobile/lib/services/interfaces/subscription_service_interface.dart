@@ -1,3 +1,4 @@
+import '../../core/utils/salon_id.dart';
 import '../../models/api_response.dart';
 import '../../models/salon_subscription.dart';
 
@@ -12,6 +13,6 @@ abstract class SubscriptionServiceInterface {
   /// The current offer state. The SETUP state (no offer row yet) is a 404
   /// server-side → `ApiResponse.error(code: 'no_offer')`.
   Future<ApiResponse<SalonSubscription>> getSalonSubscription(
-    String providerId,
+    SalonId providerId,
   );
 }

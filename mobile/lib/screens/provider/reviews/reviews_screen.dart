@@ -7,6 +7,7 @@ import '../../../core/theme/colors.dart';
 import '../../../core/theme/text_styles.dart';
 import '../../../core/utils/formatters.dart';
 import '../../../core/utils/review_card.dart';
+import '../../../core/utils/salon_id.dart';
 import '../../../models/review.dart';
 import '../../../providers/pro_auth_provider.dart';
 import '../../../providers/pro_reviews_provider.dart';
@@ -25,9 +26,9 @@ class ReviewsScreen extends StatefulWidget {
 }
 
 class _ReviewsScreenState extends State<ReviewsScreen> {
-  String _resolvedProviderId(BuildContext context) {
+  SalonId _resolvedProviderId(BuildContext context) {
     final authProvider = Provider.of<ProAuthProvider>(context, listen: false);
-    return authProvider.activeSalonId ?? '';
+    return authProvider.activeSalonId ?? SalonId.none;
   }
 
   @override

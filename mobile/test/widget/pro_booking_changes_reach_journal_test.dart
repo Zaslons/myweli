@@ -7,6 +7,7 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'package:myweli/core/access/pro_salon_scope.dart';
 import 'package:myweli/core/di/dependency_injection.dart';
 import 'package:myweli/core/router/pro_router.dart';
+import 'package:myweli/core/utils/salon_id.dart';
 import 'package:myweli/core/utils/salon_time.dart';
 import 'package:myweli/models/api_response.dart';
 import 'package:myweli/models/appointment.dart';
@@ -191,7 +192,7 @@ void main() {
       ),
     );
     // « Accueil » was visited before: its figures are in memory.
-    await home.loadDashboardStats('provider1');
+    await home.loadDashboardStats(SalonId('provider1'));
     await settleMocks(tester);
     expect(home.stats!.pendingRequests, 1);
   }

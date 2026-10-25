@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:myweli/core/access/pro_salon_scope.dart';
 import 'package:myweli/core/di/dependency_injection.dart';
+import 'package:myweli/core/utils/salon_id.dart';
 import 'package:myweli/models/api_response.dart';
 import 'package:myweli/models/appointment.dart';
 import 'package:myweli/models/salon_client.dart';
@@ -104,7 +105,7 @@ void main() {
   Future<ProClientsProvider> opened() async {
     final p = ProClientsProvider();
     addTearDown(p.dispose);
-    await p.loadCard('p1', 'sc1');
+    await p.loadCard(SalonId('p1'), 'sc1');
     expect(service.cardCalls, ['sc1']);
     return p;
   }

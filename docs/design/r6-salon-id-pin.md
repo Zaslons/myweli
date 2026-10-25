@@ -109,8 +109,9 @@ price is a reviewed list someone has to update.
 - An account id passed **positionally** to a salon-scoped call
   (`createService(account.id, …)`) fills no salon-shaped slot. Mutation M10
   below survives the pin; the behaviour test catches the one instance there
-  is. Closing it for real is the type-level fix (a `SalonId` extension type on
-  every salon-scoped service signature), not proposed here.
+  is. **Closed by the type on the Pro side** (B9.9 H1, 2026-10-25 —
+  [hygiene-batch9.md](hygiene-batch9.md) §2.8, §18): every Pro salon slot is
+  a `SalonId`, so M10 no longer compiles. The consumer side follows in H2.
 - A reviewed read re-pointed at a `ProviderUser` *without changing the count*
   (same file, same receiver name) — the reviewed list says what each line is.
 - `//` inside a string literal is blanked like a comment, so a read after a URL

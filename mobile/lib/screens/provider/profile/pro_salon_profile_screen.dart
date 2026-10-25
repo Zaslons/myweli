@@ -13,6 +13,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/colors.dart';
 import '../../../core/theme/text_styles.dart';
 import '../../../core/utils/phone_numbering.dart';
+import '../../../core/utils/salon_id.dart';
 import '../../../core/utils/validators.dart';
 import '../../../models/provider.dart' as models;
 import '../../../providers/pro_auth_provider.dart';
@@ -94,7 +95,7 @@ class _ProSalonProfileScreenState extends State<ProSalonProfileScreen> {
   bool _filled = false;
   bool _locating = false;
 
-  String? _providerId;
+  SalonId? _providerId;
 
   @override
   void initState() {

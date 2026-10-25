@@ -9,6 +9,7 @@ import '../core/constants/failure_messages.dart';
 import '../core/constants/unnamed_salon.dart';
 import '../core/di/dependency_injection.dart';
 import '../core/router/pro_router.dart';
+import '../core/utils/salon_id.dart';
 import '../models/api_response.dart';
 import '../models/pro_membership.dart';
 import '../models/provider.dart';
@@ -155,8 +156,8 @@ class ProAuthProvider extends ChangeNotifier {
   /// The salon the user SWITCHED to (« Mes salons »), null = the default.
   /// Persisted in the session (cold-start continuity) and revalidated by
   /// every `?salonId=` request server-side (T55).
-  String? _selectedSalonId;
-  String? get selectedSalonId => _selectedSalonId;
+  SalonId? _selectedSalonId;
+  SalonId? get selectedSalonId => _selectedSalonId;
 
   /// « Mes salons » — the switcher payload (loaded at start + on demand).
   List<SalonMembershipInfo> _salons = const [];
@@ -211,12 +212,12 @@ class ProAuthProvider extends ChangeNotifier {
   /// per-salon provider so no stale cross-salon data lingers. False = the
   /// switch did not happen — the caller stays on the current salon and the
   /// list refreshes; [switchSalonOutcome] says why.
-  Future<bool> switchSalon(String salonId) async =>
+  Future<bool> switchSalon(SalonId salonId) async =>
       await switchSalonOutcome(salonId) == SalonSwitchOutcome.switched;
 
   /// [switchSalon], saying why it did not happen — the picker names the
   /// network (docs/design/web-pro-no-connection-copy.md §5).
-  Future<SalonSwitchOutcome> switchSalonOutcome(String salonId) async {
+  Future<SalonSwitchOutcome> switchSalonOutcome(SalonId salonId) async {
     if (_provider == null) return SalonSwitchOutcome.refused;
     if (salonId == activeSalonId) return SalonSwitchOutcome.switched;
     _isLoading = true;
@@ -311,7 +312,7 @@ class ProAuthProvider extends ChangeNotifier {
   /// (never `provider.id` — an account id is not a salon id). The services
   /// that read the salon from the session resolve it by the same function
   /// (docs/design/services-acting-salon.md).
-  String? get activeSalonId => resolveActingSalonId(
+  SalonId? get activeSalonId => resolveActingSalonId(
     selected: _selectedSalonId,
     linked: _provider?.providerId,
     membership: _membership?.salonId,

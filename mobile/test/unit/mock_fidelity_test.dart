@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:myweli/core/di/dependency_injection.dart';
 import 'package:myweli/core/utils/app_clock.dart';
+import 'package:myweli/core/utils/salon_id.dart';
 import 'package:myweli/models/provider_user.dart';
 import 'package:myweli/models/salon_subscription.dart';
 import 'package:myweli/models/service.dart';
@@ -51,9 +52,9 @@ void main() {
 
   /// Jean, owner of provider1, with a Réseau trial — « Ajouter un salon »
   /// is gated on one — adds a second salon. Returns its id.
-  Future<String> jeanAddsASalon({String name = 'Salon Neuf'}) async {
+  Future<SalonId> jeanAddsASalon({String name = 'Salon Neuf'}) async {
     await signIn('jean@salon-excellence.test');
-    subs.startTrialIfAbsent('provider1', tier: SalonTier.reseau);
+    subs.startTrialIfAbsent(SalonId('provider1'), tier: SalonTier.reseau);
     final added = await MockProService().addSalon(
       businessName: name,
       businessType: BusinessType.salon,
@@ -62,7 +63,7 @@ void main() {
     return added.data!.salonId;
   }
 
-  Service firstServiceOf(String salonId) =>
+  Service firstServiceOf(SalonId salonId) =>
       MockData.providers.singleWhere((p) => p.id == salonId).services.first;
 
   group('the daily invitation caps (server T37)', () {
@@ -212,7 +213,7 @@ void main() {
     test('a service written is kept, and read back', () async {
       await signIn('awa.manager@myweli.test');
       final pro = MockProService();
-      final made = await pro.createService('provider1', {
+      final made = await pro.createService(SalonId('provider1'), {
         'name': 'Tresses',
         'price': 15000,
         'durationMinutes': 120,
@@ -233,7 +234,7 @@ void main() {
         isTrue,
       );
 
-      final read = (await pro.getProviderServices('provider1')).data!;
+      final read = (await pro.getProviderServices(SalonId('provider1'))).data!;
       final mine = read.singleWhere((s) => s.id == made.data!.id);
       expect(mine.name, 'Tresses longues');
       expect(mine.price, 20000);
@@ -241,7 +242,9 @@ void main() {
 
       expect((await pro.deleteService(made.data!.id)).success, isTrue);
       expect(
-        (await pro.getProviderServices('provider1')).data!.map((s) => s.id),
+        (await pro.getProviderServices(
+          SalonId('provider1'),
+        )).data!.map((s) => s.id),
         isNot(contains(made.data!.id)),
       );
     });
@@ -251,7 +254,7 @@ void main() {
       () async {
         await signIn('awa.manager@myweli.test');
         final pro = MockProService();
-        final before = firstServiceOf('provider2');
+        final before = firstServiceOf(SalonId('provider2'));
         expect(before.id, 'service4');
 
         final update = await pro.updateService('service4', {'name': 'Pris'});
@@ -263,7 +266,7 @@ void main() {
         );
         expect((await pro.deleteService('service4')).code, 'not_found');
 
-        expect(firstServiceOf('provider2'), before);
+        expect(firstServiceOf(SalonId('provider2')), before);
       },
     );
 
@@ -275,7 +278,7 @@ void main() {
         'not_found',
       );
       expect((await artists.deleteArtist('artist3')).code, 'not_found');
-      final provider2 = (await artists.getArtists('provider2')).data!;
+      final provider2 = (await artists.getArtists(SalonId('provider2'))).data!;
       expect(
         provider2.singleWhere((a) => a.id == 'artist3').name,
         isNot('Pris'),
@@ -298,7 +301,7 @@ void main() {
       final row = MockData.teamMembers[i];
       MockData.teamMembers[i] = TeamMember(
         id: row.id,
-        providerId: 'provider2',
+        providerId: SalonId('provider2'),
         email: row.email,
         role: TeamRole.manager,
         status: TeamMemberStatus.active,
@@ -339,7 +342,7 @@ void main() {
         'on the server', () async {
       await signIn('fatou.reception@myweli.test');
       final pro = MockProService();
-      final create = await pro.createService('provider1', {
+      final create = await pro.createService(SalonId('provider1'), {
         'name': 'X',
         'price': 1000,
         'durationMinutes': 30,
@@ -352,7 +355,7 @@ void main() {
       );
       final artists = MockProArtistService();
       expect(
-        (await artists.createArtist('provider1', {'name': 'X'})).code,
+        (await artists.createArtist(SalonId('provider1'), {'name': 'X'})).code,
         'forbidden',
       );
       expect(
@@ -360,7 +363,7 @@ void main() {
         'forbidden',
       );
       expect((await artists.deleteArtist('artist1')).code, 'forbidden');
-      expect(firstServiceOf('provider1').price, 5000);
+      expect(firstServiceOf(SalonId('provider1')).price, 5000);
     });
 
     test('a member write acts in the acting salon: another salon\'s row is '
@@ -386,7 +389,7 @@ void main() {
     test('a service written shows on the salon, and the reset restores the '
         'seed', () async {
       await signIn('jean@salon-excellence.test');
-      final made = await MockProService().createService('provider1', {
+      final made = await MockProService().createService(SalonId('provider1'), {
         'name': 'Locks',
         'price': 12000,
         'durationMinutes': 90,
@@ -423,12 +426,12 @@ void main() {
       freezeClock(kFixedNow);
       await signIn('jean@salon-excellence.test');
       final pro = MockProService();
-      final s1 = await pro.createService('provider1', {
+      final s1 = await pro.createService(SalonId('provider1'), {
         'name': 'A',
         'price': 1000,
         'durationMinutes': 30,
       });
-      final s2 = await pro.createService('provider1', {
+      final s2 = await pro.createService(SalonId('provider1'), {
         'name': 'B',
         'price': 1000,
         'durationMinutes': 30,
@@ -436,19 +439,23 @@ void main() {
       expect(s1.data!.id, isNot(s2.data!.id));
 
       final artists = MockProArtistService();
-      final a1 = await artists.createArtist('provider1', {'name': 'A'});
-      final a2 = await artists.createArtist('provider1', {'name': 'B'});
+      final a1 = await artists.createArtist(SalonId('provider1'), {
+        'name': 'A',
+      });
+      final a2 = await artists.createArtist(SalonId('provider1'), {
+        'name': 'B',
+      });
       expect(a1.data!.id, isNot(a2.data!.id));
 
       final at = kFixedNow.add(const Duration(days: 2));
       final b1 = await pro.createManualBooking(
-        providerId: 'provider1',
+        providerId: SalonId('provider1'),
         serviceIds: const ['service1'],
         appointmentDateTime: at,
         clientName: 'A',
       );
       final b2 = await pro.createManualBooking(
-        providerId: 'provider1',
+        providerId: SalonId('provider1'),
         serviceIds: const ['service1'],
         appointmentDateTime: at.add(const Duration(hours: 2)),
         clientName: 'B',

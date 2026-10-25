@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:myweli/core/constants/failure_messages.dart';
 import 'package:myweli/core/di/dependency_injection.dart';
+import 'package:myweli/core/utils/salon_id.dart';
 import 'package:myweli/models/api_response.dart';
 import 'package:myweli/models/appointment.dart';
 import 'package:myweli/models/notification_preferences.dart';
@@ -243,8 +244,8 @@ void main() {
       ).thenAnswer((_) async => ApiResponse.error(kGenericErrorMessage));
 
       final p = ProClientsProvider();
-      await p.load('p1');
-      await p.addClient('p1', name: 'Awa', phone: '+2250700000000');
+      await p.load(SalonId('p1'));
+      await p.addClient(SalonId('p1'), name: 'Awa', phone: '+2250700000000');
 
       expect(p.error, kGenericErrorMessage);
       expect(
@@ -256,7 +257,7 @@ void main() {
   );
 
   test('a refused delete is not the catalogue\'s load error', () async {
-    when(() => pro.getProviderServices('p1')).thenAnswer(
+    when(() => pro.getProviderServices(SalonId('p1'))).thenAnswer(
       (_) async => ApiResponse.success(<Service>[
         MockData.providers.first.services.first,
       ]),
@@ -266,7 +267,7 @@ void main() {
     ).thenAnswer((_) async => ApiResponse.error('Suppression refusée.'));
 
     final p = ProServiceProvider();
-    await p.loadServices('p1');
+    await p.loadServices(SalonId('p1'));
     await p.deleteService(MockData.providers.first.services.first.id);
 
     expect(p.error, 'Suppression refusée.');

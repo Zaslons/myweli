@@ -35,6 +35,7 @@ import '../../screens/provider/staff/staff_home_screen.dart';
 import '../../screens/provider/subscription/pro_subscription_screen.dart';
 import '../../screens/provider/team/pro_invitations_screen.dart';
 import '../../screens/provider/team/team_screen.dart';
+import '../utils/salon_id.dart';
 
 class ProRouter {
   /// The screens that hand over with a `go` — the splash, and sign-in /
@@ -136,7 +137,10 @@ class ProRouter {
           // `?salon=` — a salon notification (push OR feed row) may belong to
           // another of the account's salons; the screen switches to it before
           // loading (R6). See docs/design/push-notifications-fcm.md §10.
-          final salonId = state.uri.queryParameters['salon'];
+          final salonId = switch (state.uri.queryParameters['salon']) {
+            final String id when id.isNotEmpty => SalonId(id),
+            _ => null,
+          };
           return ProAppointmentDetailScreen(
             appointmentId: id,
             salonId: salonId,
@@ -199,7 +203,7 @@ class ProRouter {
         name: 'pro-deposit-settings',
         builder: (context, state) {
           final providerId =
-              context.read<ProAuthProvider>().activeSalonId ?? '';
+              context.read<ProAuthProvider>().activeSalonId ?? SalonId.none;
           return DepositSettingsScreen(providerId: providerId);
         },
       ),

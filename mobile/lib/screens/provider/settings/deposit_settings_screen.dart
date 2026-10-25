@@ -10,6 +10,7 @@ import '../../../core/theme/text_styles.dart';
 import '../../../core/utils/deposit.dart';
 import '../../../core/utils/formatters.dart';
 import '../../../core/utils/phone_numbering.dart';
+import '../../../core/utils/salon_id.dart';
 import '../../../core/utils/validators.dart';
 import '../../../models/provider_user.dart';
 import '../../../providers/locality_provider.dart';
@@ -35,7 +36,7 @@ const String kDepositPercentRangeMessage =
     'Choisissez un pourcentage entre 5 et 80 %.';
 
 class DepositSettingsScreen extends StatefulWidget {
-  final String providerId;
+  final SalonId providerId;
 
   const DepositSettingsScreen({super.key, required this.providerId});
 

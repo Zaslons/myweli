@@ -4,6 +4,7 @@ import '../core/access/pro_salon_scope.dart';
 import '../core/constants/failure_messages.dart';
 import '../core/di/dependency_injection.dart';
 import '../core/utils/deposit.dart';
+import '../core/utils/salon_id.dart';
 import '../services/interfaces/pro_service_interface.dart';
 
 /// Holds the editable deposit policy for the signed-in provider and persists it
@@ -68,7 +69,7 @@ class ProDepositSettingsProvider extends ChangeNotifier implements SalonScoped {
     notifyListeners();
   }
 
-  Future<void> load(String providerId) async {
+  Future<void> load(SalonId providerId) async {
     _isLoading = true;
     _error = null;
     notifyListeners();
@@ -101,7 +102,7 @@ class ProDepositSettingsProvider extends ChangeNotifier implements SalonScoped {
     }
   }
 
-  Future<bool> save(String providerId) async {
+  Future<bool> save(SalonId providerId) async {
     _isSaving = true;
     _error = null;
     _errorCode = null;

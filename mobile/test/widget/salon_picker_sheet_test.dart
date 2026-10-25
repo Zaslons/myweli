@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:myweli/core/access/pro_salon_scope.dart';
 import 'package:myweli/core/di/dependency_injection.dart';
 import 'package:myweli/core/push/push_registration.dart';
+import 'package:myweli/core/utils/salon_id.dart';
 import 'package:myweli/models/api_response.dart';
 import 'package:myweli/models/salon_subscription.dart';
 import 'package:myweli/providers/pro_auth_provider.dart';
@@ -38,7 +39,7 @@ class _FaultyProService extends MockProService {
   _Fault? fault;
 
   @override
-  Future<ApiResponse<MyProviderInfo>> getMyProvider({String? salonId}) async {
+  Future<ApiResponse<MyProviderInfo>> getMyProvider({SalonId? salonId}) async {
     final f = fault;
     if (salonId == null || f == null) {
       return super.getMyProvider(salonId: salonId);
@@ -213,7 +214,7 @@ void main() {
       // the app never chooses one).
       expect(
         (serviceLocator.subscriptionService as MockSubscriptionService)
-            .startTrialIfAbsent('provider1', tier: SalonTier.reseau),
+            .startTrialIfAbsent(SalonId('provider1'), tier: SalonTier.reseau),
         isTrue,
       );
       await auth.loadMySalons();
@@ -274,9 +275,9 @@ void main() {
     final auth = await signInOwner(tester);
     pro.fault = _Fault.network;
     await tester.runAsync(() async {
-      expect(await auth.switchSalon('provider2'), isFalse);
+      expect(await auth.switchSalon(SalonId('provider2')), isFalse);
       pro.fault = _Fault.unreadable;
-      expect(await auth.switchSalon('provider2'), isFalse);
+      expect(await auth.switchSalon(SalonId('provider2')), isFalse);
     });
     expect(auth.activeSalonId, 'provider1');
   });

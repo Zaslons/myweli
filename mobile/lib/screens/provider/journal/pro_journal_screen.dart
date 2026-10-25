@@ -11,6 +11,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/colors.dart';
 import '../../../core/theme/text_styles.dart';
 import '../../../core/utils/formatters.dart';
+import '../../../core/utils/salon_id.dart';
 import '../../../core/utils/salon_time.dart';
 import '../../../core/utils/status_labels.dart';
 import '../../../models/appointment.dart';
@@ -46,7 +47,8 @@ class ProJournalScreen extends StatefulWidget {
 }
 
 class _ProJournalScreenState extends State<ProJournalScreen> {
-  String get _providerId => context.read<ProAuthProvider>().activeSalonId ?? '';
+  SalonId get _providerId =>
+      context.read<ProAuthProvider>().activeSalonId ?? SalonId.none;
 
   /// Collaborateur own-mode (access R4b §5.3): « Ma journée » shows the
   /// member's own planning only — the lock + hidden actions below; the

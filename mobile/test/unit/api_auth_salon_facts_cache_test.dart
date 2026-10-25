@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
+import 'package:myweli/core/utils/salon_id.dart';
 import 'package:myweli/models/salon_facts.dart';
 import 'package:myweli/models/salon_market.dart';
 import 'package:myweli/services/api/api_auth_service.dart';
@@ -20,7 +21,7 @@ Map<String, dynamic> _providerJson() => {
 };
 
 const _facts = SalonFacts(
-  salonId: 'provider1',
+  salonId: SalonId('provider1'),
   name: 'Salon Excellence',
   category: 'salon',
   address: 'Cocody, Riviera 2',
@@ -58,7 +59,10 @@ void main() {
     final store = InMemorySessionStore();
     final service = await signedIn(store);
     await service.cacheProviderSalonMarket(
-      const SalonMarket(salonId: 'provider1', timezone: 'Africa/Abidjan'),
+      const SalonMarket(
+        salonId: SalonId('provider1'),
+        timezone: 'Africa/Abidjan',
+      ),
     );
     await service.cacheProviderSalonFacts(_facts);
 
@@ -74,7 +78,7 @@ void main() {
     final store = InMemorySessionStore();
     final service = await signedIn(store);
     await service.cacheProviderSalonMarket(
-      const SalonMarket(salonId: 'provider1'),
+      const SalonMarket(salonId: SalonId('provider1')),
     );
     await service.cacheProviderSalonFacts(_facts);
 

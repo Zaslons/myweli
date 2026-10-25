@@ -7,6 +7,7 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'package:myweli/core/access/pro_salon_scope.dart';
 import 'package:myweli/core/di/dependency_injection.dart';
 import 'package:myweli/core/push/push_registration.dart';
+import 'package:myweli/core/utils/salon_id.dart';
 import 'package:myweli/models/api_response.dart';
 import 'package:myweli/models/provider.dart' as models;
 import 'package:myweli/models/provider_user.dart';
@@ -63,7 +64,7 @@ class _ProService extends MockProService {
   }
 
   @override
-  Future<ApiResponse<MyProviderInfo>> getMyProvider({String? salonId}) async {
+  Future<ApiResponse<MyProviderInfo>> getMyProvider({SalonId? salonId}) async {
     final gate = myProviderGate;
     if (gate != null) await gate.future;
     return myProviderAnswer ?? super.getMyProvider(salonId: salonId);
@@ -136,7 +137,7 @@ void main() {
   /// so the Profil row reads « 2 salons — actif : … » deterministically.
   Future<ProAuthProvider> ownerSwitchedTo(
     WidgetTester tester,
-    String salonId,
+    SalonId salonId,
   ) async {
     final session = await signInPro(tester);
     await tester.runAsync(() async {
@@ -193,7 +194,7 @@ void main() {
   testWidgets('« Profil » after a switch: the owner card describes the '
       'switched-to salon', (tester) async {
     tallSurface(tester);
-    final session = await ownerSwitchedTo(tester, 'provider2');
+    final session = await ownerSwitchedTo(tester, SalonId('provider2'));
 
     await tester.pumpWidget(profileApp(session));
     await settleMocks(tester);
@@ -242,7 +243,7 @@ void main() {
     tallSurface(tester);
     // A switch persists the selection and caches provider2's membership —
     // what a later cold start restores from.
-    await ownerSwitchedTo(tester, 'provider2');
+    await ownerSwitchedTo(tester, SalonId('provider2'));
     // A session kept before B8.3 has no copy of the card.
     await tester.runAsync(() => auth.cacheProviderSalonFacts(null));
     pro.myProviderGate = Completer<void>();
@@ -288,7 +289,7 @@ void main() {
   testWidgets('offline with a copy kept: the card shows the salon — no '
       '« Réessayer », never the account\'s fields', (tester) async {
     tallSurface(tester);
-    await ownerSwitchedTo(tester, 'provider2');
+    await ownerSwitchedTo(tester, SalonId('provider2'));
     pro.myProviderAnswer = ApiResponse.error(
       'Connexion impossible.',
       code: 'network',
@@ -315,7 +316,7 @@ void main() {
       'salon at once, no skeleton', (tester) async {
     final semantics = tester.ensureSemantics();
     tallSurface(tester);
-    await ownerSwitchedTo(tester, 'provider2');
+    await ownerSwitchedTo(tester, SalonId('provider2'));
     pro.myProviderGate = Completer<void>();
     late ProAuthProvider session;
     await tester.runAsync(() async {
@@ -346,7 +347,7 @@ void main() {
   testWidgets('offline with a copy of ANOTHER salon: never shown — the card '
       'says the salon could not be loaded', (tester) async {
     tallSurface(tester);
-    await ownerSwitchedTo(tester, 'provider2');
+    await ownerSwitchedTo(tester, SalonId('provider2'));
     // The kept copy names provider1 while the session acts in provider2.
     await tester.runAsync(
       () => auth.cacheProviderSalonFacts(
@@ -379,7 +380,7 @@ void main() {
   ) async {
     final semantics = tester.ensureSemantics();
     tallSurface(tester);
-    await ownerSwitchedTo(tester, 'provider2');
+    await ownerSwitchedTo(tester, SalonId('provider2'));
     await tester.runAsync(() => auth.cacheProviderSalonFacts(null));
     pro.myProviderAnswer = ApiResponse.error(
       'Connexion impossible.',
@@ -424,7 +425,7 @@ void main() {
 
   testWidgets('« Équipe » after a switch: the revoke confirmation names the '
       'switched-to salon', (tester) async {
-    final session = await ownerSwitchedTo(tester, 'provider2');
+    final session = await ownerSwitchedTo(tester, SalonId('provider2'));
 
     await tester.pumpWidget(
       wrapApp(
@@ -490,7 +491,9 @@ void main() {
       tester,
     ) async {
       await signInWithoutMembership(tester);
-      await tester.runAsync(() => auth.setSelectedProviderSalon('provider2'));
+      await tester.runAsync(
+        () => auth.setSelectedProviderSalon(SalonId('provider2')),
+      );
       final session = await coldStartOffline(tester);
       expect(session.selectedSalonId, 'provider2');
       expect(session.salonName, 'votre salon');
@@ -514,7 +517,7 @@ void main() {
       ...MockData.providers[i].toJson(),
       'verified': true,
     });
-    final session = await ownerSwitchedTo(tester, 'provider2');
+    final session = await ownerSwitchedTo(tester, SalonId('provider2'));
     expect(session.activeSalon!.verified, isTrue, reason: 'the test');
 
     await tester.pumpWidget(profileApp(session));
@@ -530,7 +533,7 @@ void main() {
           ChangeNotifierProvider(create: (_) => ProDepositSettingsProvider()),
           ChangeNotifierProvider(create: (_) => LocalityProvider()),
         ],
-        home: const DepositSettingsScreen(providerId: 'provider2'),
+        home: const DepositSettingsScreen(providerId: SalonId('provider2')),
       ),
     );
     await settleMocks(tester, rounds: 2);

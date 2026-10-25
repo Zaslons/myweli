@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:myweli/core/di/dependency_injection.dart';
 import 'package:myweli/core/push/push_registration.dart';
 import 'package:myweli/core/router/pro_router.dart';
+import 'package:myweli/core/utils/salon_id.dart';
 import 'package:myweli/models/api_response.dart';
 import 'package:myweli/models/salon_facts.dart';
 import 'package:myweli/providers/pro_auth_provider.dart';
@@ -23,7 +24,7 @@ class _Pro extends MockProService {
   bool meFails = false;
 
   @override
-  Future<ApiResponse<MyProviderInfo>> getMyProvider({String? salonId}) async {
+  Future<ApiResponse<MyProviderInfo>> getMyProvider({SalonId? salonId}) async {
     if (meFails) {
       return ApiResponse.error('Pas de connexion.', code: 'network');
     }
@@ -109,7 +110,7 @@ void main() {
   test('a live read replaces the kept copy', () async {
     await signIn();
     await auth.cacheProviderSalonFacts(
-      const SalonFacts(salonId: 'provider1', name: 'Ancien nom'),
+      const SalonFacts(salonId: SalonId('provider1'), name: 'Ancien nom'),
     );
 
     final restarted = await restart();
@@ -120,7 +121,7 @@ void main() {
 
   test('a switch keeps the new salon\'s facts', () async {
     final p = await signIn();
-    expect(await p.switchSalon('provider2'), isTrue);
+    expect(await p.switchSalon(SalonId('provider2')), isTrue);
 
     final provider2 = MockData.providers.firstWhere((s) => s.id == 'provider2');
     expect(p.salonFacts, SalonFacts.of(provider2));
@@ -129,7 +130,7 @@ void main() {
 
   test('a copy kept for ANOTHER salon is never shown for this one', () async {
     final p = await signIn();
-    expect(await p.switchSalon('provider2'), isTrue);
+    expect(await p.switchSalon(SalonId('provider2')), isTrue);
     // A copy that names provider1 while the session acts in provider2.
     await auth.cacheProviderSalonFacts(SalonFacts.of(provider1));
     pro.meFails = true;

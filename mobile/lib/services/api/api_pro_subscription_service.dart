@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 import '../../core/config/app_config.dart';
+import '../../core/utils/salon_id.dart';
 import '../../core/utils/team_error_messages.dart';
 import '../../models/api_response.dart';
 import '../../models/salon_subscription.dart';
@@ -40,7 +41,7 @@ class ApiProSubscriptionService implements SubscriptionServiceInterface {
 
   @override
   Future<ApiResponse<SalonSubscription>> getSalonSubscription(
-    String providerId,
+    SalonId providerId,
   ) async {
     if (await _authed.accessToken() == null) {
       return ApiResponse.error('Non connecté');

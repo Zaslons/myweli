@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:myweli/core/access/pro_salon_scope.dart';
 import 'package:myweli/core/di/dependency_injection.dart';
+import 'package:myweli/core/utils/salon_id.dart';
 import 'package:myweli/core/utils/salon_time.dart';
 import 'package:myweli/models/api_response.dart';
 import 'package:myweli/models/appointment.dart';
@@ -239,7 +240,7 @@ void main() {
       server.bookings.addAll(rows);
       final p = ProJournalProvider();
       addTearDown(p.dispose);
-      await p.load('p1', date: DateTime.utc(2026, 7, 13));
+      await p.load(SalonId('p1'), date: DateTime.utc(2026, 7, 13));
       return p;
     }
 
@@ -360,7 +361,7 @@ void main() {
       server.bookings.addAll(rows);
       final p = ProSalonScope.track(ProJournalProvider());
       addTearDown(p.dispose);
-      await p.load('p1', date: DateTime.utc(2026, 7, 13));
+      await p.load(SalonId('p1'), date: DateTime.utc(2026, 7, 13));
       return p;
     }
 
@@ -409,7 +410,7 @@ void main() {
       server.bookings.addAll(rows);
       final p = ProSalonScope.track(ProAppointmentProvider());
       addTearDown(p.dispose);
-      await p.loadAppointments('p1');
+      await p.loadAppointments(SalonId('p1'));
       return p;
     }
 

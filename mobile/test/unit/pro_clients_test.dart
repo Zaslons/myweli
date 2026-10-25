@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:myweli/core/di/dependency_injection.dart';
+import 'package:myweli/core/utils/salon_id.dart';
 import 'package:myweli/models/api_response.dart';
 import 'package:myweli/models/appointment.dart';
 import 'package:myweli/models/salon_client.dart';
@@ -94,49 +95,66 @@ void main() {
         'answer that is a card', () async {
       final service = MockProClientsService();
       expect(
-        (await service.getCard('p1', 'sc3')).data!.client.phoneEditable,
+        (await service.getCard(
+          SalonId('p1'),
+          'sc3',
+        )).data!.client.phoneEditable,
         isTrue,
       );
       expect(
-        (await service.getCard('p1', 'sc1')).data!.client.phoneEditable,
+        (await service.getCard(
+          SalonId('p1'),
+          'sc1',
+        )).data!.client.phoneEditable,
         isFalse,
         reason: 'linked: the account\'s number',
       );
       expect(
-        (await service.updateTags('p1', 'sc3', ['VIP'])).data!.phoneEditable,
+        (await service.updateTags(SalonId('p1'), 'sc3', [
+          'VIP',
+        ])).data!.phoneEditable,
         isTrue,
         reason: 'the tags PATCH answers the card too — « Modifier » stays',
       );
       expect(
-        (await service.updateTags('p1', 'sc1', ['VIP'])).data!.phoneEditable,
+        (await service.updateTags(SalonId('p1'), 'sc1', [
+          'VIP',
+        ])).data!.phoneEditable,
         isFalse,
       );
-      final changed = await service.updatePhone('p1', 'sc3', '+2250700000033');
+      final changed = await service.updatePhone(
+        SalonId('p1'),
+        'sc3',
+        '+2250700000033',
+      );
       expect(changed.data!.card!.client.phoneEditable, isTrue);
       final added = await service.addClient(
-        'p1',
+        SalonId('p1'),
         name: 'Nouvelle',
         phone: '+2250700000099',
       );
       expect(
-        (await service.getCard('p1', added.data!)).data!.client.phoneEditable,
+        (await service.getCard(
+          SalonId('p1'),
+          added.data!,
+        )).data!.client.phoneEditable,
         isTrue,
       );
     });
 
     test('lists sorted by last visit; search by name and digits', () async {
       final service = MockProClientsService();
-      final all = await service.listClients('p1');
+      final all = await service.listClients(SalonId('p1'));
       expect(all.data!.items.first.displayName, 'Aïcha Koné');
       expect(all.data!.availableTags, containsAll(salonClientPresetTags));
 
-      final byName = await service.listClients('p1', query: 'koffi');
+      final byName = await service.listClients(SalonId('p1'), query: 'koffi');
       expect(byName.data!.items.single.displayName, 'Koffi Yao');
 
-      final byDigits = await service.listClients('p1', query: '00 03');
+      final byDigits = await service.listClients(SalonId('p1'), query: '00 03');
       expect(byDigits.data!.items.single.displayName, 'Tante Marie');
 
-      final byTag = await service.listClients('p1', tag: 'VIP');
+      final byTag = await service.listClients(SalonId('p1'), tag: 'VIP');
       expect(byTag.data!.items.single.displayName, 'Aïcha Koné');
     });
 
@@ -145,24 +163,34 @@ void main() {
     // echoes like `ClientsService.list`, or the walk is never exercised.
     test('honours pageSize with the server clamp, and echoes it', () async {
       final service = MockProClientsService();
-      final byDefault = await service.listClients('p1');
+      final byDefault = await service.listClients(SalonId('p1'));
       expect(byDefault.data!.pageSize, 20);
       expect(byDefault.data!.items, hasLength(3));
 
-      final first = await service.listClients('p1', pageSize: 2);
+      final first = await service.listClients(SalonId('p1'), pageSize: 2);
       expect(first.data!.pageSize, 2);
       expect(first.data!.items, hasLength(2));
       expect(first.data!.total, 3);
-      final second = await service.listClients('p1', page: 2, pageSize: 2);
+      final second = await service.listClients(
+        SalonId('p1'),
+        page: 2,
+        pageSize: 2,
+      );
       expect(second.data!.items, hasLength(1));
       expect(
         {...first.data!.items, ...second.data!.items}.map((c) => c.id),
         hasLength(3),
       );
 
-      expect((await service.listClients('p1', pageSize: 0)).data!.pageSize, 1);
       expect(
-        (await service.listClients('p1', pageSize: 500)).data!.pageSize,
+        (await service.listClients(SalonId('p1'), pageSize: 0)).data!.pageSize,
+        1,
+      );
+      expect(
+        (await service.listClients(
+          SalonId('p1'),
+          pageSize: 500,
+        )).data!.pageSize,
         50,
       );
     });
@@ -172,7 +200,7 @@ void main() {
       () async {
         final service = MockProClientsService();
         final dup = await service.addClient(
-          'p1',
+          SalonId('p1'),
           name: 'Doublon',
           phone: '+2250700000001', // Aïcha's number
         );
@@ -181,22 +209,22 @@ void main() {
         expect(dup.data, 'sc1');
 
         final ok = await service.addClient(
-          'p1',
+          SalonId('p1'),
           name: 'Nouvelle',
           phone: '+2250700000099',
           note: 'Vient de l’immeuble d’en face',
         );
         expect(ok.success, isTrue);
-        final card = await service.getCard('p1', ok.data!);
+        final card = await service.getCard(SalonId('p1'), ok.data!);
         expect(card.data!.notes.single.body, 'Vient de l’immeuble d’en face');
       },
     );
 
     test('tags validated; notes capped at 500', () async {
       final service = MockProClientsService();
-      final bad = await service.updateTags('p1', 'sc1', ['x' * 25]);
+      final bad = await service.updateTags(SalonId('p1'), 'sc1', ['x' * 25]);
       expect(bad.code, 'invalid_tags');
-      final tooLong = await service.addNote('p1', 'sc1', 'x' * 501);
+      final tooLong = await service.addNote(SalonId('p1'), 'sc1', 'x' * 501);
       expect(tooLong.code, 'note_too_long');
     });
   });
@@ -213,27 +241,27 @@ void main() {
       'a guest card takes the new number, and its history follows',
       () async {
         final service = MockProClientsService();
-        final before = await service.getVisits('p1', 'sc3');
+        final before = await service.getVisits(SalonId('p1'), 'sc3');
         expect(before.data, hasLength(1), reason: 'the seeded walk-in');
         expect(before.data!.single.userId, 'manual');
         expect(before.data!.single.clientPhone, old);
 
-        final r = await service.updatePhone('p1', 'sc3', fresh);
+        final r = await service.updatePhone(SalonId('p1'), 'sc3', fresh);
         expect(r.success, isTrue);
         expect(r.data!.card!.client.phone, fresh);
         expect(r.data!.card!.stats.visits, 1, reason: 'the count follows too');
 
-        final after = await service.getVisits('p1', 'sc3');
+        final after = await service.getVisits(SalonId('p1'), 'sc3');
         expect(
           after.data!.map((a) => a.id),
           before.data!.map((a) => a.id),
           reason: 'the same visits — moved, not lost',
         );
         expect(after.data!.single.clientPhone, fresh);
-        final card = await service.getCard('p1', 'sc3');
+        final card = await service.getCard(SalonId('p1'), 'sc3');
         expect(card.data!.client.phone, fresh);
         expect(card.data!.stats.visits, 1);
-        final list = await service.listClients('p1', query: '00 33');
+        final list = await service.listClients(SalonId('p1'), query: '00 33');
         expect(
           list.data!.items.single.id,
           'sc3',
@@ -251,25 +279,35 @@ void main() {
         '(T45)', () async {
       final service = MockProClientsService();
       // Salon p2 has its own walk-in under the same old number.
-      expect((await service.getVisits('p2', 'sc3')).data, hasLength(1));
+      expect(
+        (await service.getVisits(SalonId('p2'), 'sc3')).data,
+        hasLength(1),
+      );
 
-      await service.updatePhone('p1', 'sc3', fresh);
+      await service.updatePhone(SalonId('p1'), 'sc3', fresh);
 
-      final card = await service.getCard('p2', 'sc3');
+      final card = await service.getCard(SalonId('p2'), 'sc3');
       expect(card.data!.client.phone, old, reason: 'p2\'s card is p2\'s');
       expect(card.data!.stats.visits, 1, reason: 'its count stays');
       expect(
-        (await service.getVisits('p2', 'sc3')).data!.single.clientPhone,
+        (await service.getVisits(
+          SalonId('p2'),
+          'sc3',
+        )).data!.single.clientPhone,
         old,
         reason: 'p2\'s booking did not move to the new number',
       );
-      final byOld = await service.listClients('p2', query: '00 03');
+      final byOld = await service.listClients(SalonId('p2'), query: '00 03');
       expect(byOld.data!.items.single.id, 'sc3');
-      final byNew = await service.listClients('p2', query: '00 33');
+      final byNew = await service.listClients(SalonId('p2'), query: '00 33');
       expect(byNew.data!.items, isEmpty);
       // The old number is still on a card there: a new one for it is that
       // card.
-      final dup = await service.addClient('p2', name: 'Autre', phone: old);
+      final dup = await service.addClient(
+        SalonId('p2'),
+        name: 'Autre',
+        phone: old,
+      );
       expect(dup.code, 'client_exists');
       expect(dup.data, 'sc3');
     });
@@ -278,18 +316,25 @@ void main() {
       final service = MockProClientsService();
       const number = '+2250700000099';
       final added = await service.addClient(
-        'p1',
+        SalonId('p1'),
         name: 'Nouvelle',
         phone: number,
       );
-      final p2 = await service.listClients('p2');
+      final p2 = await service.listClients(SalonId('p2'));
       expect(p2.data!.items.map((c) => c.id), isNot(contains(added.data)));
-      expect((await service.getCard('p2', added.data!)).code, 'not_found');
-      final there = await service.addClient('p2', name: 'Autre', phone: number);
+      expect(
+        (await service.getCard(SalonId('p2'), added.data!)).code,
+        'not_found',
+      );
+      final there = await service.addClient(
+        SalonId('p2'),
+        name: 'Autre',
+        phone: number,
+      );
       expect(there.success, isTrue, reason: 'the number is free at p2');
 
-      await service.updateTags('p1', 'sc3', ['VIP']);
-      expect((await service.getCard('p2', 'sc3')).data!.client.tags, [
+      await service.updateTags(SalonId('p1'), 'sc3', ['VIP']);
+      expect((await service.getCard(SalonId('p2'), 'sc3')).data!.client.tags, [
         'Fidèle',
       ]);
     });
@@ -297,11 +342,11 @@ void main() {
     test('a card linked to an account keeps the account\'s number: '
         'client_linked, nothing changes', () async {
       final service = MockProClientsService();
-      final r = await service.updatePhone('p1', 'sc1', fresh);
+      final r = await service.updatePhone(SalonId('p1'), 'sc1', fresh);
       expect(r.success, isFalse);
       expect(r.code, 'client_linked');
       expect(
-        (await service.getCard('p1', 'sc1')).data!.client.phone,
+        (await service.getCard(SalonId('p1'), 'sc1')).data!.client.phone,
         '+2250700000001',
       );
     });
@@ -310,36 +355,49 @@ void main() {
         'or with separators', () async {
       final service = MockProClientsService();
       for (final bad in ['', '+225', '+22507000', '+225 07 00 00 00 33']) {
-        final r = await service.updatePhone('p1', 'sc3', bad);
+        final r = await service.updatePhone(SalonId('p1'), 'sc3', bad);
         expect(r.code, 'invalid_phone', reason: '« $bad »');
       }
-      expect((await service.getCard('p1', 'sc3')).data!.client.phone, old);
+      expect(
+        (await service.getCard(SalonId('p1'), 'sc3')).data!.client.phone,
+        old,
+      );
     });
 
     test('a number already on another card is client_exists with THAT card\'s '
         'id; nothing moves', () async {
       final service = MockProClientsService();
-      final r = await service.updatePhone('p1', 'sc3', '+2250700000002');
+      final r = await service.updatePhone(
+        SalonId('p1'),
+        'sc3',
+        '+2250700000002',
+      );
       expect(r.success, isFalse);
       expect(r.code, 'client_exists');
       expect(r.data!.takenBy, 'sc2', reason: 'Koffi Yao\'s card');
-      expect((await service.getCard('p1', 'sc3')).data!.client.phone, old);
       expect(
-        (await service.getVisits('p1', 'sc3')).data!.single.clientPhone,
+        (await service.getCard(SalonId('p1'), 'sc3')).data!.client.phone,
+        old,
+      );
+      expect(
+        (await service.getVisits(
+          SalonId('p1'),
+          'sc3',
+        )).data!.single.clientPhone,
         old,
       );
     });
 
     test('the same number: nothing to do, and the card comes back', () async {
       final service = MockProClientsService();
-      final r = await service.updatePhone('p1', 'sc3', old);
+      final r = await service.updatePhone(SalonId('p1'), 'sc3', old);
       expect(r.success, isTrue);
       expect(r.data!.card!.client.phone, old);
     });
 
     test('an unknown card is not_found', () async {
       final service = MockProClientsService();
-      final r = await service.updatePhone('p1', 'ghost', fresh);
+      final r = await service.updatePhone(SalonId('p1'), 'ghost', fresh);
       expect(r.code, 'not_found');
     });
   });
@@ -347,25 +405,25 @@ void main() {
   group('ProClientsProvider', () {
     test('load → list + tags; search narrows; tag toggle clears', () async {
       final provider = ProClientsProvider();
-      await provider.load('p1');
+      await provider.load(SalonId('p1'));
       expect(provider.clients, hasLength(3));
       expect(provider.availableTags, contains('VIP'));
 
-      await provider.search('p1', 'koffi');
+      await provider.search(SalonId('p1'), 'koffi');
       expect(provider.clients.single.displayName, 'Koffi Yao');
 
-      await provider.search('p1', '');
-      await provider.filterByTag('p1', 'VIP');
+      await provider.search(SalonId('p1'), '');
+      await provider.filterByTag(SalonId('p1'), 'VIP');
       expect(provider.clients.single.displayName, 'Aïcha Koné');
-      await provider.filterByTag('p1', 'VIP'); // toggle off
+      await provider.filterByTag(SalonId('p1'), 'VIP'); // toggle off
       expect(provider.clients, hasLength(3));
     });
 
     test('addClient duplicate → existing id + lastAddWasDuplicate', () async {
       final provider = ProClientsProvider();
-      await provider.load('p1');
+      await provider.load(SalonId('p1'));
       final id = await provider.addClient(
-        'p1',
+        SalonId('p1'),
         name: 'Doublon',
         phone: '+2250700000002',
       );
@@ -375,24 +433,30 @@ void main() {
 
     test('card: load + note add/delete + tags update', () async {
       final provider = ProClientsProvider();
-      await provider.loadCard('p1', 'sc1');
+      await provider.loadCard(SalonId('p1'), 'sc1');
       expect(provider.card!.client.displayName, 'Aïcha Koné');
       expect(provider.card!.stats.visits, 12);
       expect(provider.visits, isNotEmpty);
 
-      expect(await provider.addNote('p1', 'sc1', 'Nouvelle note'), isTrue);
+      expect(
+        await provider.addNote(SalonId('p1'), 'sc1', 'Nouvelle note'),
+        isTrue,
+      );
       expect(provider.card!.notes.first.body, 'Nouvelle note');
       final noteId = provider.card!.notes.first.id;
-      expect(await provider.deleteNote('p1', 'sc1', noteId), isTrue);
+      expect(await provider.deleteNote(SalonId('p1'), 'sc1', noteId), isTrue);
       expect(provider.card!.notes.every((n) => n.id != noteId), isTrue);
 
-      expect(await provider.updateTags('p1', 'sc1', ['VIP', 'Fidèle']), isTrue);
+      expect(
+        await provider.updateTags(SalonId('p1'), 'sc1', ['VIP', 'Fidèle']),
+        isTrue,
+      );
       expect(provider.card!.client.tags, ['VIP', 'Fidèle']);
     });
 
     test('unknown card → cardNotFound state', () async {
       final provider = ProClientsProvider();
-      await provider.loadCard('p1', 'ghost');
+      await provider.loadCard(SalonId('p1'), 'ghost');
       expect(provider.cardNotFound, isTrue);
     });
 
@@ -413,7 +477,7 @@ void main() {
       test('page 1 → the error state, not an empty base', () async {
         service.wireOf = (_) => {'page': 1, 'pageSize': 20};
         final provider = ProClientsProvider();
-        await provider.load('p1');
+        await provider.load(SalonId('p1'));
 
         // The service's own word for an answer it cannot read — never
         // « FormatException: A clients page without its items », which the
@@ -435,10 +499,10 @@ void main() {
                 }
               : {'page': page, 'pageSize': 1};
           final provider = ProClientsProvider();
-          await provider.load('p1');
+          await provider.load(SalonId('p1'));
           expect(provider.hasMore, isTrue);
 
-          await provider.loadMore('p1');
+          await provider.loadMore(SalonId('p1'));
 
           expect(provider.clients.map((c) => c.id), ['sc1']);
           expect(provider.total, 2);
@@ -455,7 +519,7 @@ void main() {
             'pageSize': 1,
             'total': 2,
           };
-          await provider.loadMore('p1');
+          await provider.loadMore(SalonId('p1'));
 
           expect(provider.clients.map((c) => c.id), ['sc1', 'sc2']);
           expect(service.pagesAsked, [1, 2, 2]);
@@ -473,11 +537,15 @@ void main() {
     test('done: the card AND its visits are read again, and the list row '
         'shows the new number', () async {
       final provider = ProClientsProvider();
-      await provider.load('p1');
-      await provider.loadCard('p1', 'sc3');
+      await provider.load(SalonId('p1'));
+      await provider.loadCard(SalonId('p1'), 'sc3');
       final visitReads = service.visitReads;
 
-      final refusal = await provider.updatePhone('p1', 'sc3', '+2250700000033');
+      final refusal = await provider.updatePhone(
+        SalonId('p1'),
+        'sc3',
+        '+2250700000033',
+      );
 
       expect(refusal, isNull);
       expect(provider.card!.client.phone, '+2250700000033');
@@ -497,9 +565,13 @@ void main() {
     test('a number on another card: client_exists, with that card\'s id AND '
         'name; the open card is untouched', () async {
       final provider = ProClientsProvider();
-      await provider.loadCard('p1', 'sc3');
+      await provider.loadCard(SalonId('p1'), 'sc3');
 
-      final refusal = await provider.updatePhone('p1', 'sc3', '+2250700000002');
+      final refusal = await provider.updatePhone(
+        SalonId('p1'),
+        'sc3',
+        '+2250700000002',
+      );
 
       expect(refusal!.code, 'client_exists');
       expect(refusal.takenById, 'sc2');
@@ -512,9 +584,13 @@ void main() {
         'comes back', () async {
       service.failCardOf = 'sc2';
       final provider = ProClientsProvider();
-      await provider.loadCard('p1', 'sc3');
+      await provider.loadCard(SalonId('p1'), 'sc3');
 
-      final refusal = await provider.updatePhone('p1', 'sc3', '+2250700000002');
+      final refusal = await provider.updatePhone(
+        SalonId('p1'),
+        'sc3',
+        '+2250700000002',
+      );
 
       expect(refusal!.code, 'client_exists');
       expect(refusal.takenById, 'sc2');
@@ -524,10 +600,14 @@ void main() {
     test('done even when the history cannot be read afterwards: the change '
         'was made, and is not reported as a failure', () async {
       final provider = ProClientsProvider();
-      await provider.loadCard('p1', 'sc3');
+      await provider.loadCard(SalonId('p1'), 'sc3');
       service.visitsThrow = true;
 
-      final refusal = await provider.updatePhone('p1', 'sc3', '+2250700000033');
+      final refusal = await provider.updatePhone(
+        SalonId('p1'),
+        'sc3',
+        '+2250700000033',
+      );
 
       expect(refusal, isNull);
       expect(provider.card!.client.phone, '+2250700000033');
@@ -538,11 +618,11 @@ void main() {
       'client_linked: the card is read again, so it shows as linked',
       () async {
         final provider = ProClientsProvider();
-        await provider.loadCard('p1', 'sc1');
+        await provider.loadCard(SalonId('p1'), 'sc1');
         final cardReads = service.cardReads;
 
         final refusal = await provider.updatePhone(
-          'p1',
+          SalonId('p1'),
           'sc1',
           '+2250700000033',
         );
@@ -556,8 +636,12 @@ void main() {
 
     test('invalid_phone comes back as the field\'s fault', () async {
       final provider = ProClientsProvider();
-      await provider.loadCard('p1', 'sc3');
-      final refusal = await provider.updatePhone('p1', 'sc3', '+22507');
+      await provider.loadCard(SalonId('p1'), 'sc3');
+      final refusal = await provider.updatePhone(
+        SalonId('p1'),
+        'sc3',
+        '+22507',
+      );
       expect(refusal!.code, 'invalid_phone');
       expect(provider.card!.client.phone, '+2250700000003');
     });
@@ -620,7 +704,7 @@ void main() {
       });
       final res = await linked(
         client,
-      ).listClients('provider1', query: 'ami', page: 2);
+      ).listClients(SalonId('provider1'), query: 'ami', page: 2);
       expect(res.success, isTrue);
       expect(res.data!.items.single.visits, 4);
       expect(res.data!.total, 21);
@@ -643,8 +727,8 @@ void main() {
         );
       });
       final service = linked(client);
-      await service.listClients('provider1');
-      await service.listClients('provider1', page: 3, pageSize: 50);
+      await service.listClients(SalonId('provider1'));
+      await service.listClients(SalonId('provider1'), page: 3, pageSize: 50);
       expect(sent[0].containsKey('pageSize'), isFalse);
       expect(sent[1], {'page': '3', 'pageSize': '50'});
     });
@@ -725,7 +809,9 @@ void main() {
             headers: {'content-type': 'application/json'},
           ),
         );
-        final res = await linked(client).listClients('provider1', pageSize: 50);
+        final res = await linked(
+          client,
+        ).listClients(SalonId('provider1'), pageSize: 50);
         expect(res.success, isFalse, reason: body);
         expect(res.error, 'Une erreur est survenue. Réessayez.', reason: body);
         expect(res.code, 'unreadable', reason: body);
@@ -742,7 +828,7 @@ void main() {
       );
       final res = await linked(
         client,
-      ).addClient('provider1', name: 'X', phone: '+2250700000001');
+      ).addClient(SalonId('provider1'), name: 'X', phone: '+2250700000001');
       expect(res.success, isFalse);
       expect(res.code, 'client_exists');
       expect(res.data, 'sc9');
@@ -786,10 +872,14 @@ void main() {
         );
       });
       final service = linked(client);
-      final card = await service.getCard('provider1', 'sc1');
+      final card = await service.getCard(SalonId('provider1'), 'sc1');
       expect(card.data!.stats.spentFcfa, 60000);
       expect(card.data!.notes.single.authorName, 'Vous');
-      final note = await service.addNote('provider1', 'sc1', 'Nouvelle');
+      final note = await service.addNote(
+        SalonId('provider1'),
+        'sc1',
+        'Nouvelle',
+      );
       expect(note.data!.id, 'n2');
     });
 
@@ -819,7 +909,7 @@ void main() {
       });
       final res = await linked(
         client,
-      ).updatePhone('provider1', 'sc1', '+2250700000033');
+      ).updatePhone(SalonId('provider1'), 'sc1', '+2250700000033');
       expect(res.success, isTrue);
       expect(res.data!.card!.client.phone, '+2250700000033');
       expect(res.data!.card!.client.phoneEditable, isTrue);
@@ -838,7 +928,7 @@ void main() {
         );
         final res = await linked(
           client,
-        ).updatePhone('provider1', 'sc1', '+2250700000002');
+        ).updatePhone(SalonId('provider1'), 'sc1', '+2250700000002');
         expect(res.success, isFalse);
         expect(res.code, 'client_exists');
         expect(res.data!.takenBy, 'sc9');
@@ -860,7 +950,7 @@ void main() {
         );
         final res = await linked(
           client,
-        ).updatePhone('provider1', 'sc1', '+2250700000002');
+        ).updatePhone(SalonId('provider1'), 'sc1', '+2250700000002');
         expect(res.success, isFalse);
         expect(res.code, code);
         expect(res.data, isNull);
@@ -901,7 +991,7 @@ class _CountingClients implements ProClientsServiceInterface {
 
   @override
   Future<ApiResponse<SalonClientsPage>> listClients(
-    String providerId, {
+    SalonId providerId, {
     String? query,
     String? tag,
     int page = 1,
@@ -930,7 +1020,7 @@ class _CountingClients implements ProClientsServiceInterface {
 
   @override
   Future<ApiResponse<SalonClientCard>> getCard(
-    String providerId,
+    SalonId providerId,
     String clientId,
   ) {
     cardReads++;
@@ -942,7 +1032,7 @@ class _CountingClients implements ProClientsServiceInterface {
 
   @override
   Future<ApiResponse<List<Appointment>>> getVisits(
-    String providerId,
+    SalonId providerId,
     String clientId, {
     int page = 1,
   }) {
@@ -955,7 +1045,7 @@ class _CountingClients implements ProClientsServiceInterface {
 
   @override
   Future<ApiResponse<String>> addClient(
-    String providerId, {
+    SalonId providerId, {
     required String name,
     required String phone,
     String? note,
@@ -963,21 +1053,21 @@ class _CountingClients implements ProClientsServiceInterface {
 
   @override
   Future<ApiResponse<SalonClient>> updateTags(
-    String providerId,
+    SalonId providerId,
     String clientId,
     List<String> tags,
   ) => _base.updateTags(providerId, clientId, tags);
 
   @override
   Future<ApiResponse<SalonClientPhoneChange>> updatePhone(
-    String providerId,
+    SalonId providerId,
     String clientId,
     String phone,
   ) => _base.updatePhone(providerId, clientId, phone);
 
   @override
   Future<ApiResponse<SalonClientNote>> addNote(
-    String providerId,
+    SalonId providerId,
     String clientId,
     String body, {
     String? idempotencyKey,
@@ -986,7 +1076,7 @@ class _CountingClients implements ProClientsServiceInterface {
 
   @override
   Future<ApiResponse<bool>> deleteNote(
-    String providerId,
+    SalonId providerId,
     String clientId,
     String noteId,
   ) => _base.deleteNote(providerId, clientId, noteId);

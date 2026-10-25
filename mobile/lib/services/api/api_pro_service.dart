@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 import '../../core/config/app_config.dart';
+import '../../core/utils/salon_id.dart';
 import '../../core/utils/salon_time.dart';
 import '../../core/utils/team_error_messages.dart';
 import '../../models/api_response.dart';
@@ -103,7 +104,7 @@ class ApiProService implements ProServiceInterface {
 
   @override
   Future<ApiResponse<List<Appointment>>> getProviderAppointments(
-    String providerId, {
+    SalonId providerId, {
     AppointmentStatus? status,
     DateTime? startDate,
     DateTime? endDate,
@@ -245,7 +246,7 @@ class ApiProService implements ProServiceInterface {
 
   @override
   Future<ApiResponse<Provider>> updateSalonProfile(
-    String providerId,
+    SalonId providerId,
     Map<String, dynamic> changes,
   ) async {
     if (await _authed.accessToken() == null) {
@@ -267,7 +268,7 @@ class ApiProService implements ProServiceInterface {
   }
 
   @override
-  Future<ApiResponse<bool>> publishSalon(String providerId) async {
+  Future<ApiResponse<bool>> publishSalon(SalonId providerId) async {
     if (await _authed.accessToken() == null) {
       return ApiResponse.error('Non connecté');
     }
@@ -310,7 +311,7 @@ class ApiProService implements ProServiceInterface {
 
   @override
   Future<ApiResponse<JournalDay>> getJournalDay(
-    String providerId,
+    SalonId providerId,
     DateTime date,
   ) async {
     if (await _authed.accessToken() == null) {
@@ -374,7 +375,7 @@ class ApiProService implements ProServiceInterface {
   // ---- Not yet backed by an endpoint → delegate to the mock ----------------
 
   @override
-  Future<ApiResponse<MyProviderInfo>> getMyProvider({String? salonId}) async {
+  Future<ApiResponse<MyProviderInfo>> getMyProvider({SalonId? salonId}) async {
     if (await _authed.accessToken() == null) {
       return ApiResponse.error('Non connecté');
     }
@@ -461,7 +462,7 @@ class ApiProService implements ProServiceInterface {
 
   @override
   Future<ApiResponse<DashboardStats>> getDashboardStats(
-    String providerId,
+    SalonId providerId,
   ) async {
     if (await _authed.accessToken() == null) {
       return ApiResponse.error('Non connecté');
@@ -507,7 +508,7 @@ class ApiProService implements ProServiceInterface {
 
   @override
   Future<ApiResponse<Appointment>> createManualBooking({
-    required String providerId,
+    required SalonId providerId,
     required List<String> serviceIds,
     required DateTime appointmentDateTime,
     String? clientName,
@@ -547,7 +548,7 @@ class ApiProService implements ProServiceInterface {
 
   @override
   Future<ApiResponse<List<Service>>> getProviderServices(
-    String providerId,
+    SalonId providerId,
   ) async {
     if (await _authed.accessToken() == null) {
       return ApiResponse.error('Non connecté');
@@ -568,7 +569,7 @@ class ApiProService implements ProServiceInterface {
 
   @override
   Future<ApiResponse<Service>> createService(
-    String providerId,
+    SalonId providerId,
     Map<String, dynamic> serviceData,
   ) async {
     if (await _authed.accessToken() == null) {
@@ -640,7 +641,7 @@ class ApiProService implements ProServiceInterface {
   }
 
   @override
-  Future<ApiResponse<List<String>>> getGalleryPhotos(String providerId) async {
+  Future<ApiResponse<List<String>>> getGalleryPhotos(SalonId providerId) async {
     if (await _authed.accessToken() == null) {
       return ApiResponse.error('Non connecté');
     }
@@ -657,7 +658,7 @@ class ApiProService implements ProServiceInterface {
 
   @override
   Future<ApiResponse<List<String>>> updateGalleryPhotos(
-    String providerId,
+    SalonId providerId,
     List<String> imageUrls,
   ) async {
     if (await _authed.accessToken() == null) {
@@ -685,7 +686,7 @@ class ApiProService implements ProServiceInterface {
 
   @override
   Future<ApiResponse<List<BeforeAfterPair>>> getBeforeAfters(
-    String providerId,
+    SalonId providerId,
   ) async {
     if (await _authed.accessToken() == null) {
       return ApiResponse.error('Non connecté');
@@ -703,7 +704,7 @@ class ApiProService implements ProServiceInterface {
 
   @override
   Future<ApiResponse<List<BeforeAfterPair>>> updateBeforeAfters(
-    String providerId,
+    SalonId providerId,
     List<BeforeAfterPair> pairs,
   ) async {
     if (await _authed.accessToken() == null) {
@@ -733,7 +734,7 @@ class ApiProService implements ProServiceInterface {
 
   @override
   Future<ApiResponse<Availability>> getProviderAvailability(
-    String providerId,
+    SalonId providerId,
   ) async {
     if (await _authed.accessToken() == null) {
       return ApiResponse.error('Non connecté');
@@ -751,7 +752,7 @@ class ApiProService implements ProServiceInterface {
 
   @override
   Future<ApiResponse<Availability>> updateAvailability(
-    String providerId,
+    SalonId providerId,
     Availability availability,
   ) async {
     if (await _authed.accessToken() == null) {
@@ -771,7 +772,7 @@ class ApiProService implements ProServiceInterface {
 
   @override
   Future<ApiResponse<EarningsData>> getEarnings(
-    String providerId, {
+    SalonId providerId, {
     DateTime? startDate,
     DateTime? endDate,
   }) async {
@@ -798,7 +799,9 @@ class ApiProService implements ProServiceInterface {
   }
 
   @override
-  Future<ApiResponse<DepositPolicy>> getDepositPolicy(String providerId) async {
+  Future<ApiResponse<DepositPolicy>> getDepositPolicy(
+    SalonId providerId,
+  ) async {
     if (await _authed.accessToken() == null) {
       return ApiResponse.error('Non connecté');
     }
@@ -815,7 +818,7 @@ class ApiProService implements ProServiceInterface {
 
   @override
   Future<ApiResponse<DepositPolicy>> updateDepositPolicy(
-    String providerId, {
+    SalonId providerId, {
     required bool depositRequired,
     required double depositPercentage,
     required int cancellationWindowHours,

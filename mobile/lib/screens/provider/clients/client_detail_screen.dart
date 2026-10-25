@@ -10,6 +10,7 @@ import '../../../core/theme/text_styles.dart';
 import '../../../core/utils/external_link.dart';
 import '../../../core/utils/formatters.dart';
 import '../../../core/utils/phone_numbering.dart';
+import '../../../core/utils/salon_id.dart';
 import '../../../core/utils/salon_time.dart';
 import '../../../core/utils/status_labels.dart';
 import '../../../core/utils/text_fit.dart';
@@ -42,9 +43,9 @@ class ClientDetailScreen extends StatefulWidget {
 }
 
 class _ClientDetailScreenState extends State<ClientDetailScreen> {
-  String get _providerId {
+  SalonId get _providerId {
     final auth = context.read<ProAuthProvider>();
-    return auth.activeSalonId ?? '';
+    return auth.activeSalonId ?? SalonId.none;
   }
 
   @override

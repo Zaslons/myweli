@@ -12,6 +12,7 @@ import '../../../core/theme/colors.dart';
 import '../../../core/theme/text_styles.dart';
 import '../../../core/utils/data_export.dart';
 import '../../../core/utils/formatters.dart';
+import '../../../core/utils/salon_id.dart';
 import '../../../models/api_response.dart';
 import '../../../models/salon_client.dart';
 import '../../../providers/pro_auth_provider.dart';
@@ -277,7 +278,7 @@ Future<T?> _read<T>(Future<ApiResponse<T>> Function() read) async {
 /// Every client of the salon, page by page — or null when a page fails or
 /// the walk does not add up ([wholeClientBase]). The pages go one after
 /// another: page 1's `total` and `pageSize` decide how many there are.
-Future<List<SalonClient>?> _walkClientBase(String salonId) async {
+Future<List<SalonClient>?> _walkClientBase(SalonId salonId) async {
   final service = serviceLocator.proClientsService;
   final first = await _read(
     () => service.listClients(salonId, pageSize: _clientWalkPageSize),

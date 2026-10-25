@@ -1,3 +1,4 @@
+import '../../core/utils/salon_id.dart';
 import '../../models/api_response.dart';
 import '../../models/pro_membership.dart';
 import '../../models/provider_login_result.dart';
@@ -116,6 +117,6 @@ abstract class AuthServiceInterface {
   /// provider session (cold-start continuity; `null` = the default salon).
   /// The API layer reads it to scope the session-resolved endpoints; the
   /// server revalidates the membership on every request (T55).
-  Future<void> setSelectedProviderSalon(String? salonId);
-  Future<String?> getSelectedProviderSalon();
+  Future<void> setSelectedProviderSalon(SalonId? salonId);
+  Future<SalonId?> getSelectedProviderSalon();
 }

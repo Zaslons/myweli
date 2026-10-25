@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:myweli/core/di/dependency_injection.dart';
+import 'package:myweli/core/utils/salon_id.dart';
 import 'package:myweli/core/utils/salon_time.dart';
 import 'package:myweli/models/api_response.dart';
 import 'package:myweli/models/availability.dart';
@@ -134,6 +135,8 @@ void main() {
     );
 
     expect(find.text(overlap), findsNothing);
-    verify(() => service.updateAvailability('provider1', any())).called(1);
+    verify(
+      () => service.updateAvailability(SalonId('provider1'), any()),
+    ).called(1);
   });
 }

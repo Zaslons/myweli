@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import '../core/access/pro_salon_scope.dart';
 import '../core/constants/failure_messages.dart';
 import '../core/di/dependency_injection.dart';
+import '../core/utils/salon_id.dart';
 import '../models/availability.dart';
 import '../services/interfaces/pro_service_interface.dart';
 
@@ -23,7 +24,7 @@ class ProAvailabilityProvider extends ChangeNotifier implements SalonScoped {
   String? get loadError => _loadError;
   String? _loadError;
 
-  Future<void> loadAvailability(String providerId) async {
+  Future<void> loadAvailability(SalonId providerId) async {
     if (_currentProviderId == providerId &&
         _availability != null &&
         !_isLoading) {
@@ -58,7 +59,7 @@ class ProAvailabilityProvider extends ChangeNotifier implements SalonScoped {
   }
 
   Future<bool> updateAvailability(
-    String providerId,
+    SalonId providerId,
     Availability availability,
   ) async {
     _isLoading = true;

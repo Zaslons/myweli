@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Statut** | **Validé le 2026-10-22** — relu sur main (`d1e886e1`). Q1 (décision 33) : **le type `SalonId`** (« ce qui vaut le mieux à long terme ») ; Q2 (décision 34) : **e-mail et poussée Sentry** ; Q3 (décision 34) : **pas de suivi des performances pour l'instant** ; Q4 (décision 35) : **pas d'interrupteur** ; Q5 : **construire les trois composants et migrer tous les écrans maintenant** ; Q6 : **les pages publiques lèvent** ; Q7 : **supprimer la table avec ce lot** ; Q8 : **le reste tel qu'écrit**. Huit PR (§3). **PR A fusionnée le 2026-10-22** (#688 — B9.1, B9.5 — §9). **PR B fusionnée le 2026-10-22** (#689 — B9.6 — §10). **PR C fusionnée le 2026-10-22** (#690 — B9.7 — §11). **PR D fusionnée le 2026-10-25** (#691 — B9.11, B9.10 — §12 ; déploiement Vercel de production réussi, le plan du site liste 228 adresses). **PR E fusionnée le 2026-10-25** (#697 — B9.2–B9.4 — §13 ; 81 appliqué et relu le même jour, #698). **PR F1 fusionnée le 2026-10-25** (#699) (B9.8 : les trois briques et tous les écrans asynchrones — §14 ; Q9–Q12 en §8). **PR F2 fusionnée le 2026-10-25** (#700) (B9.8 : toutes les cartes sur `AppCard` — §2.7.3, §15 ; Q13–Q15 en §8). **PR F3 fusionnée le 2026-10-25** (#702) (B9.8 : toutes les puces sur `AppChip` — §2.7.4, §16 ; Q16–Q18 en §8). **PR G fusionnée et déployée le 2026-10-25** (#703 — B9.12 — §2.11, §17 ; révision `myweli-api-00047-55v`). |
+| **Statut** | **Validé le 2026-10-22** — relu sur main (`d1e886e1`). Q1 (décision 33) : **le type `SalonId`** (« ce qui vaut le mieux à long terme ») ; Q2 (décision 34) : **e-mail et poussée Sentry** ; Q3 (décision 34) : **pas de suivi des performances pour l'instant** ; Q4 (décision 35) : **pas d'interrupteur** ; Q5 : **construire les trois composants et migrer tous les écrans maintenant** ; Q6 : **les pages publiques lèvent** ; Q7 : **supprimer la table avec ce lot** ; Q8 : **le reste tel qu'écrit**. Huit PR (§3). **PR A fusionnée le 2026-10-22** (#688 — B9.1, B9.5 — §9). **PR B fusionnée le 2026-10-22** (#689 — B9.6 — §10). **PR C fusionnée le 2026-10-22** (#690 — B9.7 — §11). **PR D fusionnée le 2026-10-25** (#691 — B9.11, B9.10 — §12 ; déploiement Vercel de production réussi, le plan du site liste 228 adresses). **PR E fusionnée le 2026-10-25** (#697 — B9.2–B9.4 — §13 ; 81 appliqué et relu le même jour, #698). **PR F1 fusionnée le 2026-10-25** (#699) (B9.8 : les trois briques et tous les écrans asynchrones — §14 ; Q9–Q12 en §8). **PR F2 fusionnée le 2026-10-25** (#700) (B9.8 : toutes les cartes sur `AppCard` — §2.7.3, §15 ; Q13–Q15 en §8). **PR F3 fusionnée le 2026-10-25** (#702) (B9.8 : toutes les puces sur `AppChip` — §2.7.4, §16 ; Q16–Q18 en §8). **PR G fusionnée et déployée le 2026-10-25** (#703 — B9.12 — §2.11, §17 ; révision `myweli-api-00047-55v`). **PR H1 construite le 2026-10-25** (#706, `feat/batch9-salon-id-pro`) (B9.9, la moitié Pro de `SalonId` — §2.8, §18 ; Q19–Q20 en §8) ; H2 ensuite. |
 | **Owner** | Sadreddine |
 | **Last updated** | 2026-10-25 |
 | **PRD ref / phase** | V1 — rien de visible n'est ajouté ; ce lot rend vrais les documents, les doublures de test, les lectures et les outils |
@@ -311,6 +311,74 @@ partout ; les créneaux pleins ; une seule pastille teintée, rôles compris.
   test.
 - L'épingle R6 actuelle reste : elle couvre les lectures `.providerId`.
 
+**Relu le 2026-10-25, avant de construire (PR H)**, sur main (`4249d87c`).
+« ~32 signatures » comptait les interfaces Pro. L'espace réel est plus
+grand, et il a deux moitiés :
+- **Les déclarations** (`String providerId` / `salonId`, hors V2/V3) :
+  36 dans les interfaces (8 fichiers), 57 dans les doublures, 37 dans les
+  services API, 57 dans les fournisseurs (19 fichiers), 23 dans les écrans,
+  4 dans les widgets, 3 dans `core/` — **217**, sans compter les appels — et
+  **13 champs de modèle** : `Provider.id`, `Appointment.providerId`,
+  `Review.providerId`, `Service.providerId`, `Artist.providerId`,
+  `Availability.providerId`, `TeamMember.providerId`,
+  `TeamInvitation.providerId`, `ProviderUser.providerId`, et les `salonId`
+  de `SalonMembershipInfo`, `ProMembership`, `SalonMarket`, `SalonFacts`.
+  Environ **120 fichiers d'essai** passent un identifiant de salon.
+- **La moitié Pro** — le salon *qui agit* (`pro_*` services, le résolveur
+  `activeSalonId`, l'équipe, les adhésions) : c'est **là que vit l'angle
+  mort R6** (un identifiant de *compte* en position).
+- **La moitié client** — un salon *public* (les favoris, la réservation, les
+  avis, `getProviderById`). L'angle mort R6 n'y est pas ; un autre l'est :
+  **deux `String` côte à côte**, `addFavorite(String userId, String
+  providerId)` — deux arguments inversés compilent.
+
+**La forme**, quelle que soit la portée : `extension type const
+SalonId(String value)`, sans coût à l'exécution (un `String` à
+l'exécution : le JSON, l'égalité d'`Equatable` et les clés de `Map` ne
+changent pas). **Où il naît** : le `fromJson` des modèles, le résolveur
+(`ProAuthProvider`), les paramètres des routes, les données des doublures ;
+les essais librement. Ailleurs, `SalonId(` fait rougir l'épingle.
+
+**Hors portée** : le web (TypeScript, sa propre couche BFF) ; un type
+`AccountId` pour l'autre sens (un salon passé là où un compte est attendu :
+aucun cas connu).
+
+**Questions (Q19–Q20)** — en §8 : **chaque identifiant de salon, en deux
+PR**, et **`implements String`**.
+
+**H1 — la moitié Pro** (le salon qui agit) :
+- **Le type** : `core/utils/salon_id.dart`, `extension type const
+  SalonId(String value) implements String` — hors de `core/theme/`, que la
+  porte du miroir des jetons du web lit (leçon de F3).
+- **Le résolveur** : `ProAuthProvider.activeSalonId` rend un `SalonId?`, et
+  `resolveActingSalonId` avec lui ; le salon choisi (`_selectedSalonId`,
+  `setSelectedProviderSalon`) en est un.
+- **Les interfaces** : `ProServiceInterface` (ses 18 places de salon,
+  `getMyProvider({salonId})` compris), `ProClientsServiceInterface` (8),
+  `ProArtistServiceInterface` (2), `SubscriptionServiceInterface` (1),
+  `AuthServiceInterface.setSelectedProviderSalon` — et leurs doublures et
+  services API, les fournisseurs Pro et les écrans Pro qui les appellent.
+- **Les modèles Pro** : `ProviderUser.providerId` (le salon par défaut : un
+  vrai salon, le mauvais après un changement — l'épingle R6 garde ce
+  cas-là), `SalonMembershipInfo.salonId`, `ProMembership.salonId`,
+  `TeamMember.providerId`, `TeamInvitation.providerId`,
+  `SalonMarket.salonId`, `SalonFacts.salonId` — nés dans leur `fromJson`.
+- **H2 ensuite** : la réservation et ses créneaux, les avis, les favoris,
+  `getProviderById`, et `Provider.id`, `Appointment.providerId`,
+  `Review.providerId`, `Service.providerId`, `Artist.providerId`,
+  `Availability.providerId`. Entre les deux, un `SalonId` passe dans leurs
+  `String` (Q20) : rien ne casse au milieu.
+
+**Les essais de H1, rouges d'abord** (`test/unit/salon_id_type_test.dart`) :
+- aucune place de salon n'est un `String` dans les interfaces de H1, ni dans
+  les champs de ses modèles ; le résolveur rend un `SalonId?` ;
+- **l'épingle de naissance** : sous `lib/`, `SalonId(` n'apparaît que dans
+  les fichiers permis (les `fromJson`, le résolveur, les routes, les
+  données des doublures) ;
+- **la mutation M10 de R6** (`createService(authProvider.provider!.id, …)`,
+  en position) : la mutation qui survivait à l'épingle — **le compilateur la
+  refuse** (`flutter analyze`, `argument_type_not_assignable`).
+
 ### 2.9 Un seul mot pour un salon sans nom (B9.10)
 - **La règle** (SYSTEM §17, WEB-SYSTEM) : un salon sans nom s'écrit
   « **Salon** » comme titre ; dans une phrase, « **le salon** » côté client
@@ -392,7 +460,8 @@ empêche le démarrage.
   exécution sur GCP est demandée à part).
 - **(F) Les composants partagés** : B9.8 (app ; nouvelles photos).
 - **(G) La table orpheline** : B9.12 (serveur, **déploiement**).
-- **(H) Le type `SalonId`** : B9.9 (app).
+- **(H) Le type `SalonId`** : B9.9 (app) — **en deux PR** (Q19) : **H1** la
+  moitié Pro, **H2** la moitié client.
 - **B9.5** : la case « à voir », dans le BACKLOG.
 
 ## 4. Le contrat
@@ -478,6 +547,21 @@ forme retenue : §2.7.3.
 
 **Décisions (2026-10-25, F3).** Q16, Q17, Q18 : les recommandations. La
 forme retenue : §2.7.4.
+- **Q19** (2026-10-25, H) — Jusqu'où va `SalonId` (~217 déclarations,
+  13 champs de modèle, ~120 fichiers d'essai) : **chaque identifiant de
+  salon, en deux PR** (recommandé — H1 la moitié Pro, qui ferme l'angle mort
+  R6 ; H2 la moitié client, qui attrape aussi deux arguments inversés ; à la
+  fin, aucun identifiant de salon n'est un `String` nu), tout en une PR, ou
+  la moitié Pro seule ?
+- **Q20** — Un `SalonId` passe-t-il encore là où un `String` est attendu :
+  **oui, `implements String`** (recommandé — les adresses, le JSON, les clés
+  de `Map` ne changent pas ; seul un `String` nu ne remplit plus une place de
+  salon, le sens de R6), ou opaque (`.value` partout, pour un sens sans
+  défaut connu) ?
+
+**Décisions (2026-10-25, H).** Q19, Q20 : les recommandations. Deux PR,
+**H1** puis **H2** ; `extension type const SalonId(String value) implements
+String`.
 
 ## 9. PR A construite (B9.1, B9.5) — ce qui a été vu
 
@@ -1230,3 +1314,72 @@ la fusion a construite (`image_tag=a0ee1cd`, run 40241432887). **Relu** :
   d'un cran, sûr ;
 - `api.myweli.com/health` répond 200, et la révision nouvelle n'a écrit
   aucune erreur.
+
+## 18. PR H1 construite (B9.9, la moitié Pro) — ce qui a été vu
+
+**`SalonId`** (`core/utils/salon_id.dart`) : `extension type const
+SalonId(String value) implements String` (Q20). Un `String` à l'exécution ;
+dans une place de salon, un `String` nu est refusé par le compilateur.
+
+**Ce que H1 type** — le salon qui agit : le résolveur
+(`resolveActingSalonId`, `ProAuthProvider.activeSalonId`,
+`ProviderSession.actingSalonId` et la sélection R6), les cinq interfaces Pro
+(30 places), leurs doublures et services API, les 15 fournisseurs Pro, les
+écrans Pro, le routeur Pro, la poussée (`providerIdFromPushData`,
+`ensureSalon`), et sept modèles (`ProviderUser.providerId`, les adhésions,
+l'équipe, les invitations, `SalonMarket`, `SalonFacts`). 66 fichiers de
+`lib/`.
+
+**Où il naît** — 15 fichiers, chacun nommé dans l'épingle avec sa raison :
+le type ; le `fromJson` de huit modèles (dont la sélection persistée de la
+session) ; le `?salon=` d'un rendez-vous poussé et la charge d'une
+notification ; les données des doublures. Deux ne sont là que jusqu'à H2 :
+`SalonMarket.of` et `SalonFacts.of` font un `SalonId` de l'`id` d'un
+`Provider`, qui reste un `String` jusque-là.
+
+**Ce que le type a trouvé** :
+- **« Pas de salon » s'écrivait `''`, vingt fois** (`activeSalonId ?? ''`,
+  14 fichiers) : une requête partait avec un identifiant vide. Le type le
+  refuse ; le comportement ne change pas dans H1 — **il a un nom**,
+  `SalonId.none` (la chaîne vide, que le résolveur saute comme avant). Que
+  ces écrans n'envoient rien du tout sans salon serait un changement de
+  comportement : il n'est pas fait ici.
+- **Les implémentations restaient ouvertes** : une doublure qui prend un
+  `String` est une redéfinition valide d'une interface qui prend un
+  `SalonId` (le paramètre s'élargit), et le compilateur ne dit rien. Un
+  appel direct à la doublure aurait encore pris un identifiant de compte.
+  Elles sont typées aussi, et un essai tient toutes les couches Pro, avec
+  une seule exception relue : `_figuresMoved` compare le salon d'un
+  rendez-vous (`Appointment.providerId`, H2) et n'envoie rien.
+- **L'épingle de naissance voyait des appels** : `resolveActingSalonId(`
+  contient `SalonId(`. Elle cherche le mot entier.
+
+**Les essais** : `salon_id_type_test.dart` — neuf rouges d'abord, un dixième
+ajouté ensuite pour les couches au-dessus des interfaces (il ne peut pas
+passer à vide : il doit trouver la seule exception relue) —
+aucune place de salon nue dans les interfaces de H1 ni dans les couches Pro
+au-dessus, les sept champs, le résolveur, la forme du type, l'épingle de
+naissance (dans les deux sens : une naissance de trop, ou une liste qui
+vieillit). Dans les essais, 457 littéraux de salon sont devenus des
+`SalonId`, et les doublures d'essai prennent leurs salons typés.
+
+**Vérifié** :
+- **La suite de l'app** : 2 823 essais verts, 58 sautés (les photos) —
+  ceux de F3 et les dix nouveaux ; `flutter analyze` à 0, le format propre.
+  **Aucune photo ne bouge** : les 58, refaites sur Linux (run
+  40244008806), sont identiques à l'octet près.
+- **Les mutations : 10, toutes rouges**, sur le travail commis. Trois sont
+  **refusées par le compilateur** (`argument_type_not_assignable`) — c'est
+  ce que le type est venu faire : **la M10 de R6** (un identifiant de compte
+  en position, `createService(authProvider.provider!.id, …)`), qui
+  survivait à l'épingle ; **la M9 de R6** (le routeur qui donne l'identifiant
+  du compte à l'écran de l'acompte) ; un identifiant de compte donné à
+  `switchSalon`. Sept font rougir l'essai : une place de salon redevenue
+  `String` dans une interface, dans un fournisseur Pro, dans un modèle ; le
+  résolveur qui rend un `String` ; le type qui n'implémente plus `String` ;
+  un `SalonId` né de l'identifiant du compte dans un écran ; une naissance
+  disparue (la liste relue qui vieillit).
+- **Le web et le serveur** : rien de leur code n'est touché ; mais la porte
+  du miroir du web lit des fichiers de l'app (leçon de F3) — ceux de H1 n'en
+  sont pas, et sa suite passe (2 255) ; l'essai du serveur qui lit
+  `api_auth_service.dart` passe.

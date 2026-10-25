@@ -6,6 +6,7 @@ import '../core/access/pro_access_guard.dart';
 import '../core/access/pro_salon_scope.dart';
 import '../core/constants/failure_messages.dart';
 import '../core/di/dependency_injection.dart';
+import '../core/utils/salon_id.dart';
 import '../models/appointment.dart';
 import '../services/interfaces/pro_service_interface.dart';
 
@@ -21,7 +22,7 @@ class ProDashboardProvider extends ChangeNotifier
   DashboardStats? _stats;
   bool _isLoading = false;
   String? _error;
-  String? _currentProviderId;
+  SalonId? _currentProviderId;
 
   /// A booking was created after [_stats] was fetched and the figures have not
   /// been confirmed by the server since.
@@ -64,7 +65,7 @@ class ProDashboardProvider extends ChangeNotifier
   /// Entering « Accueil »: what is loaded for this salon is used as it is —
   /// unless a booking created since was never confirmed by the server. Only
   /// the pull ([refresh]) always asks.
-  Future<void> loadDashboardStats(String providerId) async {
+  Future<void> loadDashboardStats(SalonId providerId) async {
     if (_currentProviderId == providerId && _stats != null && !_isLoading) {
       if (_stale) await _refetchQuietly();
       return;
@@ -76,7 +77,7 @@ class ProDashboardProvider extends ChangeNotifier
   /// screen, quietly — the answer replaces them; a failure KEEPS them and
   /// leaves the reason for the screen to say once. Without figures, the
   /// ordinary load.
-  Future<void> refresh(String providerId) async {
+  Future<void> refresh(SalonId providerId) async {
     if (_currentProviderId != providerId || _stats == null || _isLoading) {
       await _load(providerId);
       return;
@@ -100,7 +101,7 @@ class ProDashboardProvider extends ChangeNotifier
     notifyListeners();
   }
 
-  Future<void> _load(String providerId) async {
+  Future<void> _load(SalonId providerId) async {
     // A fresh load: what it brings is not stale, and a quiet refetch still in
     // flight was asked before it — possibly for another salon.
     _stale = false;
@@ -150,6 +151,8 @@ class ProDashboardProvider extends ChangeNotifier
   @override
   void bookingChanged(BookingChange change) => _figuresMoved(change.providerId);
 
+  // A booking's salon — `Appointment.providerId`, a String until H2 types it
+  // (hygiene-batch9.md §2.8); compared, never sent.
   void _figuresMoved(String providerId) {
     if (providerId != _currentProviderId) return;
     if (_stats == null && !_isLoading) return; // nothing shown, nothing stale

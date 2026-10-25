@@ -1,4 +1,5 @@
 import '../../core/di/dependency_injection.dart';
+import '../../core/utils/salon_id.dart';
 import '../../models/pro_membership.dart';
 import '../../models/provider_session.dart';
 import '../../models/provider_user.dart';
@@ -42,9 +43,9 @@ TeamMember? mockActiveRow(ProviderUser account, String salonId) {
 /// (docs/design/services-acting-salon.md). A session whose membership is not
 /// cached yet takes the one `GET /me/provider` would give it: its first
 /// active row.
-Future<String> mockActingSalonId() async {
+Future<SalonId> mockActingSalonId() async {
   final account = await _account();
-  if (account == null) return 'provider1';
+  if (account == null) return const SalonId('provider1');
   final auth = serviceLocator.authService;
   final acting = resolveActingSalonId(
     selected: await auth.getSelectedProviderSalon(),
@@ -59,7 +60,7 @@ Future<String> mockActingSalonId() async {
       return m.providerId;
     }
   }
-  return 'provider1';
+  return const SalonId('provider1');
 }
 
 /// Whether the session holds [capability] in [salonId] — the server's tenant

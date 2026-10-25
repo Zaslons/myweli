@@ -5,6 +5,7 @@ import 'package:myweli/core/access/pro_access_guard.dart';
 import 'package:myweli/core/access/pro_salon_scope.dart';
 import 'package:myweli/core/di/dependency_injection.dart';
 import 'package:myweli/core/push/push_registration.dart';
+import 'package:myweli/core/utils/salon_id.dart';
 import 'package:myweli/core/utils/salon_time.dart';
 import 'package:myweli/models/provider_session.dart';
 import 'package:myweli/models/provider_user.dart';
@@ -105,13 +106,16 @@ void main() {
           token: 't',
           refreshToken: 'r',
           provider: user,
-          selectedSalonId: 'p2',
+          selectedSalonId: SalonId('p2'),
         );
         final back = ProviderSession.fromJson(session.toJson());
         expect(back.selectedSalonId, 'p2');
         // copyWith keeps, replaces and clears.
         expect(back.copyWith().selectedSalonId, 'p2');
-        expect(back.copyWith(selectedSalonId: 'p9').selectedSalonId, 'p9');
+        expect(
+          back.copyWith(selectedSalonId: SalonId('p9')).selectedSalonId,
+          'p9',
+        );
         expect(back.copyWith(clearSelectedSalon: true).selectedSalonId, isNull);
         // Legacy (pre-R6) sessions simply have no selection.
         final legacy = ProviderSession.fromJson({
@@ -143,7 +147,7 @@ void main() {
         expect(auth.activeSalonId, 'provider1');
         final spy = ProSalonScope.track(_ResetSpy());
 
-        final ok = await auth.switchSalon('provider2');
+        final ok = await auth.switchSalon(SalonId('provider2'));
         expect(ok, isTrue);
         expect(auth.activeSalonId, 'provider2');
         expect(auth.salonName, 'Beauté Divine');
@@ -173,19 +177,19 @@ void main() {
       expect(auth.salonTimezone, kSalonTz);
       expect(auth.salonCurrency, 'XOF');
 
-      expect(await auth.switchSalon('provider2'), isTrue);
+      expect(await auth.switchSalon(SalonId('provider2')), isTrue);
       expect(auth.salonTimezone, 'Africa/Libreville');
       expect(auth.salonCurrency, 'XAF');
       expect(auth.salonCountryCode, 'GA');
 
-      expect(await auth.switchSalon('provider1'), isTrue);
+      expect(await auth.switchSalon(SalonId('provider1')), isTrue);
       expect(auth.salonTimezone, kSalonTz);
       expect(auth.salonCurrency, 'XOF');
     });
 
     test('cold start restores the switched-to salon', () async {
       final auth = await signInOwner();
-      await auth.switchSalon('provider2');
+      await auth.switchSalon(SalonId('provider2'));
 
       // A new provider instance = the app restarting on the same session.
       final restarted = ProAuthProvider();
@@ -197,7 +201,7 @@ void main() {
     test('a salon the account does NOT belong to is refused; the session '
         'stays put', () async {
       final auth = await signInOwner();
-      final ok = await auth.switchSalon('provider3');
+      final ok = await auth.switchSalon(SalonId('provider3'));
       expect(ok, isFalse);
       expect(auth.activeSalonId, 'provider1');
       expect(auth.isAuthenticated, isTrue);
@@ -206,7 +210,7 @@ void main() {
     test('revoked from the SELECTED salon → silent fallback to the default '
         '(never a sign-out)', () async {
       final auth = await signInOwner();
-      await auth.switchSalon('provider2');
+      await auth.switchSalon(SalonId('provider2'));
       expect(auth.activeSalonId, 'provider2');
 
       // The provider2 ownership disappears mid-session.
@@ -222,7 +226,7 @@ void main() {
 
     test('logout clears the selection', () async {
       final auth = await signInOwner();
-      await auth.switchSalon('provider2');
+      await auth.switchSalon(SalonId('provider2'));
       await auth.logout();
       expect(auth.selectedSalonId, isNull);
       expect(auth.salons, isEmpty);
@@ -251,7 +255,7 @@ void main() {
         // provider1 on a live Réseau offer (chosen on the web, in production).
         expect(
           (serviceLocator.subscriptionService as MockSubscriptionService)
-              .startTrialIfAbsent('provider1', tier: SalonTier.reseau),
+              .startTrialIfAbsent(SalonId('provider1'), tier: SalonTier.reseau),
           isTrue,
         );
 
@@ -277,7 +281,7 @@ void main() {
       final auth = await signInOwner();
       final subs =
           serviceLocator.subscriptionService as MockSubscriptionService;
-      subs.startTrialIfAbsent('provider1', tier: SalonTier.reseau);
+      subs.startTrialIfAbsent(SalonId('provider1'), tier: SalonTier.reseau);
       final created = await auth.addSalon(
         businessName: 'Salon Trois',
         businessType: BusinessType.salon,
@@ -302,23 +306,31 @@ void main() {
         final subs =
             serviceLocator.subscriptionService as MockSubscriptionService;
 
-        final res = await serviceLocator.proService.publishSalon('provider1');
+        final res = await serviceLocator.proService.publishSalon(
+          SalonId('provider1'),
+        );
         expect(res.success, isTrue);
-        final first = (await subs.getSalonSubscription('provider1')).data!;
+        final first = (await subs.getSalonSubscription(
+          SalonId('provider1'),
+        )).data!;
         expect(first.status, SalonOfferStatus.trial);
         expect(first.tier, SalonTier.pro);
 
         // Salon 2 gets its OWN fresh trial; salon 1's is untouched.
         expect(
-          (await serviceLocator.proService.publishSalon('provider2')).success,
+          (await serviceLocator.proService.publishSalon(
+            SalonId('provider2'),
+          )).success,
           isTrue,
         );
         expect(
-          (await subs.getSalonSubscription('provider2')).data!.status,
+          (await subs.getSalonSubscription(SalonId('provider2'))).data!.status,
           SalonOfferStatus.trial,
         );
         expect(
-          (await subs.getSalonSubscription('provider1')).data!.trialEndsAt,
+          (await subs.getSalonSubscription(
+            SalonId('provider1'),
+          )).data!.trialEndsAt,
           first.trialEndsAt,
         );
       });
@@ -327,14 +339,16 @@ void main() {
         await signInOwner();
         final subs =
             serviceLocator.subscriptionService as MockSubscriptionService;
-        subs.startTrialIfAbsent('provider1', tier: SalonTier.business);
+        subs.startTrialIfAbsent(SalonId('provider1'), tier: SalonTier.business);
 
         expect(
-          (await serviceLocator.proService.publishSalon('provider1')).success,
+          (await serviceLocator.proService.publishSalon(
+            SalonId('provider1'),
+          )).success,
           isTrue,
         );
         expect(
-          (await subs.getSalonSubscription('provider1')).data!.tier,
+          (await subs.getSalonSubscription(SalonId('provider1'))).data!.tier,
           SalonTier.business,
         );
       });

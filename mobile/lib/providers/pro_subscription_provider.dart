@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import '../core/access/pro_salon_scope.dart';
 import '../core/constants/failure_messages.dart';
 import '../core/di/dependency_injection.dart';
+import '../core/utils/salon_id.dart';
 import '../models/salon_subscription.dart';
 import '../services/interfaces/subscription_service_interface.dart';
 
@@ -30,7 +31,7 @@ class ProSubscriptionProvider extends ChangeNotifier implements SalonScoped {
   bool get loadFailed => _loadFailed;
   String? get error => _error;
 
-  Future<void> load(String providerId) async {
+  Future<void> load(SalonId providerId) async {
     _isLoading = true;
     _error = null;
     notifyListeners();

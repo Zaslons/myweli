@@ -9,6 +9,7 @@ import '../../../core/theme/colors.dart';
 import '../../../core/theme/text_styles.dart';
 import '../../../core/utils/blocked_dates.dart';
 import '../../../core/utils/formatters.dart';
+import '../../../core/utils/salon_id.dart';
 import '../../../core/utils/salon_time.dart';
 import '../../../models/availability.dart';
 import '../../../providers/pro_auth_provider.dart';
@@ -32,9 +33,9 @@ class AvailabilityScreen extends StatefulWidget {
 }
 
 class _AvailabilityScreenState extends State<AvailabilityScreen> {
-  String _resolvedProviderId(BuildContext context) {
+  SalonId _resolvedProviderId(BuildContext context) {
     final authProvider = Provider.of<ProAuthProvider>(context, listen: false);
-    return authProvider.activeSalonId ?? '';
+    return authProvider.activeSalonId ?? SalonId.none;
   }
 
   @override
@@ -305,7 +306,7 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
     String dayName,
     List<TimeSlot> currentSlots,
     ProAvailabilityProvider provider,
-    String providerId,
+    SalonId providerId,
   ) {
     Navigator.push(
       context,
@@ -336,7 +337,7 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
     BuildContext context,
     Availability availability,
     ProAvailabilityProvider provider,
-    String providerId,
+    SalonId providerId,
   ) async {
     // A blocked date is the ACTIVE SALON's calendar day (salon_time.dart).
     final tz = context.read<ProAuthProvider>().salonTimezone;
@@ -514,7 +515,7 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
     WeeklySchedulePreset preset,
     Availability availability,
     ProAvailabilityProvider provider,
-    String providerId,
+    SalonId providerId,
   ) async {
     // Already the model → a tap is a no-op, the `_setWindow` unchanged rule.
     if (weeklyScheduleMatchesPreset(availability.weeklySchedule, preset)) {
@@ -575,7 +576,7 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
     BuildContext context,
     Availability availability,
     ProAvailabilityProvider provider,
-    String providerId, {
+    SalonId providerId, {
     int? horizonDays,
     int? noticeMinutes,
   }) async {
@@ -605,7 +606,7 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
     int minutes,
     Availability availability,
     ProAvailabilityProvider provider,
-    String providerId,
+    SalonId providerId,
   ) async {
     if (minutes == availability.bufferMinutes) return;
     await provider.updateAvailability(
@@ -622,7 +623,7 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
     Map<int, List<TimeSlot>> breaks,
     Availability availability,
     ProAvailabilityProvider provider,
-    String providerId,
+    SalonId providerId,
   ) async {
     await provider.updateAvailability(
       providerId,
@@ -646,7 +647,7 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
     DateTime date,
     Availability availability,
     ProAvailabilityProvider provider,
-    String providerId,
+    SalonId providerId,
   ) async {
     final tz = context.read<ProAuthProvider>().salonTimezone;
     final day = CalendarDay.of(toSalonTime(date, tz: tz));
@@ -978,7 +979,7 @@ class _DayScheduleEditScreen extends StatefulWidget {
   final String dayName;
   final List<TimeSlot> initialSlots;
   final ProAvailabilityProvider provider;
-  final String providerId;
+  final SalonId providerId;
 
   const _DayScheduleEditScreen({
     required this.dayIndex,

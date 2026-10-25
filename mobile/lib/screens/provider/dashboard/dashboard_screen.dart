@@ -10,6 +10,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/colors.dart';
 import '../../../core/theme/text_styles.dart';
 import '../../../core/utils/formatters.dart';
+import '../../../core/utils/salon_id.dart';
 import '../../../core/utils/text_fit.dart';
 import '../../../models/pro_membership.dart';
 import '../../../providers/notifications_provider.dart';
@@ -50,14 +51,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
     }
   }
 
-  String _resolvedProviderId(BuildContext context) {
+  SalonId _resolvedProviderId(BuildContext context) {
     final authProvider = Provider.of<ProAuthProvider>(context, listen: false);
-    return authProvider.activeSalonId ?? '';
+    return authProvider.activeSalonId ?? SalonId.none;
   }
 
   /// R6: the salon the stats were loaded for — a « Mes salons » switch
   /// happens WITHOUT remounting this screen, so a change triggers a reload.
-  String? _loadedForSalon;
+  SalonId? _loadedForSalon;
 
   /// Open the switcher; handle the add flow and the post-switch reshape
   /// (a staff membership in the new salon lands on the staff shell).

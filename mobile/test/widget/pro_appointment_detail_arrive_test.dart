@@ -5,6 +5,7 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:myweli/core/di/dependency_injection.dart';
 import 'package:myweli/core/theme/colors.dart';
+import 'package:myweli/core/utils/salon_id.dart';
 import 'package:myweli/models/api_response.dart';
 import 'package:myweli/models/appointment.dart';
 import 'package:myweli/providers/pro_appointment_provider.dart';
@@ -56,7 +57,7 @@ void main() {
     ).thenAnswer((_) async => ApiResponse.success([a]));
     // Pre-load: the screen reads the provider's list (auth-gated reload only).
     final appointments = ProAppointmentProvider();
-    await appointments.loadAppointments('p1');
+    await appointments.loadAppointments(SalonId('p1'));
     return wrapApp(
       providers: [
         ChangeNotifierProvider(create: (_) => ProAuthProvider()),

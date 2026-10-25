@@ -3,6 +3,7 @@ import 'package:myweli/core/access/pro_salon_scope.dart';
 import 'package:myweli/core/di/dependency_injection.dart';
 import 'package:myweli/core/push/push_registration.dart';
 import 'package:myweli/core/router/pro_router.dart';
+import 'package:myweli/core/utils/salon_id.dart';
 import 'package:myweli/models/api_response.dart';
 import 'package:myweli/models/provider.dart';
 import 'package:myweli/models/salon_market.dart';
@@ -65,7 +66,7 @@ class _Pro extends MockProService {
   }
 
   @override
-  Future<ApiResponse<MyProviderInfo>> getMyProvider({String? salonId}) async {
+  Future<ApiResponse<MyProviderInfo>> getMyProvider({SalonId? salonId}) async {
     calls++;
     if (script.isNotEmpty) return script.removeAt(0);
     if (meFails) return serverError();
@@ -87,7 +88,7 @@ class _Auth extends MockAuthService {
   void Function()? onSelect;
 
   @override
-  Future<void> setSelectedProviderSalon(String? salonId) async {
+  Future<void> setSelectedProviderSalon(SalonId? salonId) async {
     onSelect?.call();
     return super.setSelectedProviderSalon(salonId);
   }
@@ -183,7 +184,10 @@ void main() {
     test('a refresh that lands replaces the cached facts', () async {
       await signIn();
       await auth.cacheProviderSalonMarket(
-        const SalonMarket(salonId: 'provider1', timezone: 'Africa/Lagos'),
+        const SalonMarket(
+          salonId: SalonId('provider1'),
+          timezone: 'Africa/Lagos',
+        ),
       );
 
       final restarted = await restart();
@@ -202,7 +206,7 @@ void main() {
       expect(
         await auth.getCachedProviderSalonMarket(),
         const SalonMarket(
-          salonId: 'provider1',
+          salonId: SalonId('provider1'),
           timezone: _libreville,
           currency: 'XAF',
           countryCode: 'GA',
@@ -210,7 +214,7 @@ void main() {
         ),
       );
 
-      expect(await p.switchSalon('provider2'), isTrue);
+      expect(await p.switchSalon(SalonId('provider2')), isTrue);
       final cached = await auth.getCachedProviderSalonMarket();
       expect(cached?.salonId, 'provider2');
       expect(cached?.timezone, isNot(_libreville));
@@ -223,7 +227,7 @@ void main() {
       bool? knownWhileSelecting;
       auth.onSelect = () => knownWhileSelecting = p.salonKnown;
 
-      expect(await p.switchSalon('provider2'), isTrue);
+      expect(await p.switchSalon(SalonId('provider2')), isTrue);
 
       expect(knownWhileSelecting, isTrue);
     });
@@ -246,7 +250,7 @@ void main() {
       );
 
       final p = await signIn();
-      expect(await p.switchSalon('provider2'), isTrue);
+      expect(await p.switchSalon(SalonId('provider2')), isTrue);
       expect(p.salonTimezone, _libreville);
       var notified = 0;
       p.addListener(() => notified++);
@@ -274,7 +278,7 @@ void main() {
     test('fallback mid-session whose refetch FAILS: the per-salon stores are '
         'emptied all the same', () async {
       final p = await signIn();
-      expect(await p.switchSalon('provider2'), isTrue);
+      expect(await p.switchSalon(SalonId('provider2')), isTrue);
       final spy = ProSalonScope.track(_ResetSpy());
 
       pro.script.addAll([_Pro.forbidden(), _Pro.serverError()]);
@@ -287,7 +291,7 @@ void main() {
     test('a refresh that falls back (« Réessayer », a refresh): the per-salon '
         'stores are emptied', () async {
       final p = await signIn();
-      expect(await p.switchSalon('provider2'), isTrue);
+      expect(await p.switchSalon(SalonId('provider2')), isTrue);
       final spy = ProSalonScope.track(_ResetSpy());
 
       // Revoked from provider2; the default salon then answers.
@@ -302,7 +306,7 @@ void main() {
       'CONTROL — a refresh that does not fall back resets nothing',
       () async {
         final p = await signIn();
-        expect(await p.switchSalon('provider2'), isTrue);
+        expect(await p.switchSalon(SalonId('provider2')), isTrue);
         final spy = ProSalonScope.track(_ResetSpy());
 
         await p.refreshMembership();
@@ -315,7 +319,7 @@ void main() {
     test('R6 fallback at cold start whose refetch fails: the cached facts '
         'are the lost selection\'s, so they do not answer', () async {
       final p = await signIn();
-      expect(await p.switchSalon('provider2'), isTrue);
+      expect(await p.switchSalon(SalonId('provider2')), isTrue);
       expect((await auth.getCachedProviderSalonMarket())?.salonId, 'provider2');
 
       pro.script.addAll([_Pro.forbidden(), _Pro.serverError()]);

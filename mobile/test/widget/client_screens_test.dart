@@ -9,6 +9,7 @@ import 'package:myweli/core/di/dependency_injection.dart';
 import 'package:myweli/core/theme/app_theme.dart';
 import 'package:myweli/core/theme/text_styles.dart';
 import 'package:myweli/core/utils/app_clock.dart';
+import 'package:myweli/core/utils/salon_id.dart';
 import 'package:myweli/models/api_response.dart';
 import 'package:myweli/models/appointment.dart';
 import 'package:myweli/models/salon_client.dart';
@@ -77,7 +78,7 @@ class _SwitchableClients implements ProClientsServiceInterface {
 
   @override
   Future<ApiResponse<SalonClientCard>> getCard(
-    String providerId,
+    SalonId providerId,
     String clientId,
   ) async {
     final res = await _base.getCard(providerId, clientId);
@@ -155,7 +156,7 @@ class _SwitchableClients implements ProClientsServiceInterface {
 
   @override
   Future<ApiResponse<SalonClientPhoneChange>> updatePhone(
-    String providerId,
+    SalonId providerId,
     String clientId,
     String phone,
   ) async {
@@ -169,7 +170,7 @@ class _SwitchableClients implements ProClientsServiceInterface {
 
   @override
   Future<ApiResponse<List<Appointment>>> getVisits(
-    String providerId,
+    SalonId providerId,
     String clientId, {
     int page = 1,
   }) async {
@@ -184,7 +185,7 @@ class _SwitchableClients implements ProClientsServiceInterface {
 
   @override
   Future<ApiResponse<String>> addClient(
-    String providerId, {
+    SalonId providerId, {
     required String name,
     required String phone,
     String? note,
@@ -192,7 +193,7 @@ class _SwitchableClients implements ProClientsServiceInterface {
 
   @override
   Future<ApiResponse<SalonClient>> updateTags(
-    String providerId,
+    SalonId providerId,
     String clientId,
     List<String> tags,
   ) async {
@@ -203,7 +204,7 @@ class _SwitchableClients implements ProClientsServiceInterface {
 
   @override
   Future<ApiResponse<SalonClientNote>> addNote(
-    String providerId,
+    SalonId providerId,
     String clientId,
     String body, {
     String? idempotencyKey,
@@ -220,14 +221,14 @@ class _SwitchableClients implements ProClientsServiceInterface {
 
   @override
   Future<ApiResponse<bool>> deleteNote(
-    String providerId,
+    SalonId providerId,
     String clientId,
     String noteId,
   ) => _base.deleteNote(providerId, clientId, noteId);
 
   @override
   Future<ApiResponse<SalonClientsPage>> listClients(
-    String providerId, {
+    SalonId providerId, {
     String? query,
     String? tag,
     int page = 1,

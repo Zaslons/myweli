@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:myweli/core/di/dependency_injection.dart';
 import 'package:myweli/core/push/push_registration.dart';
+import 'package:myweli/core/utils/salon_id.dart';
 import 'package:myweli/models/team_member.dart';
 import 'package:myweli/providers/pro_auth_provider.dart';
 import 'package:myweli/providers/pro_team_provider.dart';
@@ -109,7 +110,7 @@ void main() {
     );
     final auth = await signInPro(tester);
     await tester.runAsync(() async {
-      expect(await auth.switchSalon('provider2'), isTrue);
+      expect(await auth.switchSalon(SalonId('provider2')), isTrue);
     });
     expect(auth.role, TeamRole.manager, reason: 'the salon on screen');
 
@@ -126,7 +127,7 @@ void main() {
     MockData.teamMembers.add(
       TeamMember(
         id: 'mem_awa_owner2',
-        providerId: 'provider2',
+        providerId: SalonId('provider2'),
         email: 'awa.manager@myweli.test',
         role: TeamRole.owner,
         status: TeamMemberStatus.active,

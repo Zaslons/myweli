@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:myweli/core/access/pro_salon_scope.dart';
 import 'package:myweli/core/di/dependency_injection.dart';
+import 'package:myweli/core/utils/salon_id.dart';
 import 'package:myweli/models/api_response.dart';
 import 'package:myweli/models/appointment.dart';
 import 'package:myweli/providers/pro_appointment_provider.dart';
@@ -150,7 +151,7 @@ void main() {
   );
 
   Future<bool> create(ProAppointmentProvider p) => p.createManualBooking(
-    providerId: 'p1',
+    providerId: SalonId('p1'),
     serviceIds: const ['s1'],
     appointmentDateTime: DateTime.utc(2026, 7, 13, 10),
     clientName: 'Yao K.',
@@ -250,7 +251,10 @@ void main() {
       final store = ProSalonScope.track(_Shows());
       final p = ProAppointmentProvider();
       // The agenda was left on « En attente »; the booking is « Confirmé ».
-      await p.loadAppointments('p1', status: AppointmentStatus.pending);
+      await p.loadAppointments(
+        SalonId('p1'),
+        status: AppointmentStatus.pending,
+      );
 
       expect(await create(p), isTrue);
 

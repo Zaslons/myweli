@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import '../core/access/pro_salon_scope.dart';
 import '../core/constants/failure_messages.dart';
 import '../core/di/dependency_injection.dart';
+import '../core/utils/salon_id.dart';
 import '../services/interfaces/image_upload_service_interface.dart';
 import '../services/interfaces/pro_service_interface.dart';
 
@@ -33,7 +34,7 @@ class ProGalleryProvider extends ChangeNotifier implements SalonScoped {
   String? get error => _error;
   List<String> get photos => _photos;
 
-  Future<void> load(String providerId) async {
+  Future<void> load(SalonId providerId) async {
     _isLoading = true;
     _loadFailed = false;
     _error = null;
@@ -56,7 +57,7 @@ class ProGalleryProvider extends ChangeNotifier implements SalonScoped {
     }
   }
 
-  Future<bool> addPhoto(String providerId, String source) async {
+  Future<bool> addPhoto(SalonId providerId, String source) async {
     _isUploading = true;
     _uploadProgress = 0;
     _error = null;
@@ -92,7 +93,7 @@ class ProGalleryProvider extends ChangeNotifier implements SalonScoped {
 
   /// Reorder (audit 3.6 — the first photo is the listing cover): swap the
   /// photo with its neighbour and persist through the same gallery PUT.
-  Future<bool> movePhoto(String providerId, int index, int delta) async {
+  Future<bool> movePhoto(SalonId providerId, int index, int delta) async {
     final target = index + delta;
     if (index < 0 ||
         index >= _photos.length ||
@@ -120,7 +121,7 @@ class ProGalleryProvider extends ChangeNotifier implements SalonScoped {
   /// jumps to index 0 — ONE wholesale PUT instead of `index` arrow taps.
   /// Derives from the CURRENT list at call time, never a captured one — the
   /// [restorePhotoAt] rule.
-  Future<bool> setCover(String providerId, int index) async {
+  Future<bool> setCover(SalonId providerId, int index) async {
     // 0 is already the cover; nothing to write.
     if (index <= 0 || index >= _photos.length) return false;
     final next = [..._photos];
@@ -145,7 +146,7 @@ class ProGalleryProvider extends ChangeNotifier implements SalonScoped {
   /// restoring a snapshot silently reverts anything done during the 10s undo
   /// window — a reorder, or worse, a photo uploaded in the meantime, destroyed
   /// with no warning. Undo must undo one action, not rewind the gallery.
-  Future<bool> restorePhotoAt(String providerId, int index, String url) async {
+  Future<bool> restorePhotoAt(SalonId providerId, int index, String url) async {
     final next = [..._photos];
     next.insert(index.clamp(0, next.length), url);
     final saved = await _proService.updateGalleryPhotos(providerId, next);
@@ -160,7 +161,7 @@ class ProGalleryProvider extends ChangeNotifier implements SalonScoped {
     return false;
   }
 
-  Future<bool> removePhoto(String providerId, int index) async {
+  Future<bool> removePhoto(SalonId providerId, int index) async {
     if (index < 0 || index >= _photos.length) return false;
     final next = [..._photos]..removeAt(index);
     final saved = await _proService.updateGalleryPhotos(providerId, next);

@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:myweli/core/utils/data_export.dart';
+import 'package:myweli/core/utils/salon_id.dart';
 import 'package:myweli/models/appointment.dart';
 import 'package:myweli/models/availability.dart';
 import 'package:myweli/models/provider.dart' as models;
@@ -73,7 +74,7 @@ void main() {
         businessName: 'Salon X',
         businessType: BusinessType.salon,
         createdAt: DateTime(2026),
-        providerId: 'p1',
+        providerId: SalonId('p1'),
       ),
       salon: const models.Provider(
         id: 'p1',

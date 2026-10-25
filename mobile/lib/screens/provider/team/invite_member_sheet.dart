@@ -5,6 +5,7 @@ import '../../../core/forms/field_errors.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/colors.dart';
 import '../../../core/theme/text_styles.dart';
+import '../../../core/utils/salon_id.dart';
 import '../../../core/utils/team_error_messages.dart';
 import '../../../core/utils/validators.dart';
 import '../../../models/team_member.dart';
@@ -26,7 +27,7 @@ import '../../../widgets/common/inline_feedback.dart';
 class InviteMemberSheet extends StatefulWidget {
   const InviteMemberSheet({super.key, required this.providerId});
 
-  final String providerId;
+  final SalonId providerId;
 
   @override
   State<InviteMemberSheet> createState() => _InviteMemberSheetState();

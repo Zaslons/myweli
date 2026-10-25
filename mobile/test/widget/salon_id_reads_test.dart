@@ -4,6 +4,7 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'package:myweli/core/access/pro_salon_scope.dart';
 import 'package:myweli/core/di/dependency_injection.dart';
 import 'package:myweli/core/push/push_registration.dart';
+import 'package:myweli/core/utils/salon_id.dart';
 import 'package:myweli/models/api_response.dart';
 import 'package:myweli/models/artist.dart';
 import 'package:myweli/models/availability.dart';
@@ -66,30 +67,32 @@ class _RecordingProService extends MockProService {
   }
 
   @override
-  Future<ApiResponse<MyProviderInfo>> getMyProvider({String? salonId}) async =>
+  Future<ApiResponse<MyProviderInfo>> getMyProvider({SalonId? salonId}) async =>
       myProviderAnswer ?? super.getMyProvider(salonId: salonId);
 
   @override
-  Future<ApiResponse<List<Service>>> getProviderServices(String providerId) {
+  Future<ApiResponse<List<Service>>> getProviderServices(SalonId providerId) {
     servicesAsked.add(providerId);
     return super.getProviderServices(providerId);
   }
 
   @override
-  Future<ApiResponse<Availability>> getProviderAvailability(String providerId) {
+  Future<ApiResponse<Availability>> getProviderAvailability(
+    SalonId providerId,
+  ) {
     availabilityAsked.add(providerId);
     return super.getProviderAvailability(providerId);
   }
 
   @override
-  Future<ApiResponse<DepositPolicy>> getDepositPolicy(String providerId) {
+  Future<ApiResponse<DepositPolicy>> getDepositPolicy(SalonId providerId) {
     depositAsked.add(providerId);
     return super.getDepositPolicy(providerId);
   }
 
   @override
   Future<ApiResponse<Service>> createService(
-    String providerId,
+    SalonId providerId,
     Map<String, dynamic> serviceData,
   ) {
     createdIn.add(providerId);
@@ -101,7 +104,7 @@ class _RecordingArtistService extends MockProArtistService {
   final asked = <String>[];
 
   @override
-  Future<ApiResponse<List<Artist>>> getArtists(String providerId) {
+  Future<ApiResponse<List<Artist>>> getArtists(SalonId providerId) {
     asked.add(providerId);
     return super.getArtists(providerId);
   }
@@ -149,7 +152,7 @@ void main() {
   /// to [salonId] — the R6 « Mes salons » move.
   Future<ProAuthProvider> ownerSwitchedTo(
     WidgetTester tester,
-    String salonId,
+    SalonId salonId,
   ) async {
     final session = await signInPro(tester);
     await tester.runAsync(() async {
@@ -165,7 +168,7 @@ void main() {
     // The R6 add-salon flow lands exactly here: create → auto-switch →
     // this checklist. It counted the DEFAULT salon's services, team, hours
     // and deposit under the new salon's name.
-    final session = await ownerSwitchedTo(tester, 'provider2');
+    final session = await ownerSwitchedTo(tester, SalonId('provider2'));
     pro.reset();
     artists.asked.clear();
 
@@ -195,7 +198,7 @@ void main() {
     MockData.teamMembers.add(
       TeamMember(
         id: 'tm_jean_provider3',
-        providerId: 'provider3',
+        providerId: SalonId('provider3'),
         email: 'jean@salon-excellence.test',
         role: TeamRole.manager,
         status: TeamMemberStatus.active,
@@ -204,7 +207,7 @@ void main() {
         acceptedAt: DateTime(2026, 7, 2),
       ),
     );
-    final session = await ownerSwitchedTo(tester, 'provider3');
+    final session = await ownerSwitchedTo(tester, SalonId('provider3'));
     expect(session.role, TeamRole.manager);
 
     await tester.pumpWidget(

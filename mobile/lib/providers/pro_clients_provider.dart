@@ -6,6 +6,7 @@ import '../core/access/pro_access_guard.dart';
 import '../core/access/pro_salon_scope.dart';
 import '../core/constants/failure_messages.dart';
 import '../core/di/dependency_injection.dart';
+import '../core/utils/salon_id.dart';
 import '../core/utils/submission_key.dart';
 import '../models/appointment.dart';
 import '../models/salon_client.dart';
@@ -53,7 +54,7 @@ class ProClientsProvider extends ChangeNotifier implements ShowsSalonBookings {
   /// True when the salon simply has no clients yet (vs an empty search).
   bool get isBaseEmpty => _total == 0 && _query.isEmpty && _tag.isEmpty;
 
-  Future<void> load(String providerId) async {
+  Future<void> load(SalonId providerId) async {
     _isLoading = true;
     _error = null;
     _loadError = null;
@@ -87,7 +88,7 @@ class ProClientsProvider extends ChangeNotifier implements ShowsSalonBookings {
     }
   }
 
-  Future<void> loadMore(String providerId) async {
+  Future<void> loadMore(SalonId providerId) async {
     if (_isLoadingMore || !hasMore) return;
     _isLoadingMore = true;
     notifyListeners();
@@ -113,13 +114,13 @@ class ProClientsProvider extends ChangeNotifier implements ShowsSalonBookings {
     }
   }
 
-  Future<void> search(String providerId, String query) {
+  Future<void> search(SalonId providerId, String query) {
     _query = query.trim();
     return load(providerId);
   }
 
   /// Toggles [tag] (tapping the active chip clears the filter).
-  Future<void> filterByTag(String providerId, String tag) {
+  Future<void> filterByTag(SalonId providerId, String tag) {
     _tag = _tag == tag ? '' : tag;
     return load(providerId);
   }
@@ -131,7 +132,7 @@ class ProClientsProvider extends ChangeNotifier implements ShowsSalonBookings {
   bool get lastAddWasDuplicate => _lastAddWasDuplicate;
 
   Future<String?> addClient(
-    String providerId, {
+    SalonId providerId, {
     required String name,
     required String phone,
     String? note,
@@ -173,7 +174,7 @@ class ProClientsProvider extends ChangeNotifier implements ShowsSalonBookings {
   /// Which card [_card] is, and the newest request for it — so that the quiet
   /// reload after a booking knows what to ask for, and its answer is dropped
   /// if another card was opened meanwhile.
-  String? _cardProviderId;
+  SalonId? _cardProviderId;
   String? _cardClientId;
 
   /// Whose card [card] is — the provider outlives the card's screen, and the
@@ -181,7 +182,7 @@ class ProClientsProvider extends ChangeNotifier implements ShowsSalonBookings {
   String? get cardClientId => _cardClientId;
   int _cardRequest = 0;
 
-  Future<void> loadCard(String providerId, String clientId) async {
+  Future<void> loadCard(SalonId providerId, String clientId) async {
     _cardProviderId = providerId;
     _cardClientId = clientId;
     _cardRequest++;
@@ -268,7 +269,7 @@ class ProClientsProvider extends ChangeNotifier implements ShowsSalonBookings {
   }
 
   Future<bool> updateTags(
-    String providerId,
+    SalonId providerId,
     String clientId,
     List<String> tags,
   ) async {
@@ -294,7 +295,7 @@ class ProClientsProvider extends ChangeNotifier implements ShowsSalonBookings {
   /// `client_linked` (linked since it was opened: the card is read again, so
   /// it shows read-only), or any other refusal with its message.
   Future<ClientPhoneRefusal?> updatePhone(
-    String providerId,
+    SalonId providerId,
     String clientId,
     String phone,
   ) async {
@@ -356,7 +357,7 @@ class ProClientsProvider extends ChangeNotifier implements ShowsSalonBookings {
   /// fiche de {nom}. ». The 409 carries the card's id only; its `GET` (a read
   /// of that card, audited like any other) has the name. Null when it cannot
   /// be read: the sheet then says « d’un autre client ».
-  Future<String?> _nameOf(String providerId, String clientId) async {
+  Future<String?> _nameOf(SalonId providerId, String clientId) async {
     try {
       final r = await _service.getCard(providerId, clientId);
       final name = r.data?.client.displayName.trim();
@@ -366,7 +367,7 @@ class ProClientsProvider extends ChangeNotifier implements ShowsSalonBookings {
     }
   }
 
-  Future<bool> addNote(String providerId, String clientId, String body) async {
+  Future<bool> addNote(SalonId providerId, String clientId, String body) async {
     final r = await _service.addNote(
       providerId,
       clientId,
@@ -387,7 +388,7 @@ class ProClientsProvider extends ChangeNotifier implements ShowsSalonBookings {
   }
 
   Future<bool> deleteNote(
-    String providerId,
+    SalonId providerId,
     String clientId,
     String noteId,
   ) async {

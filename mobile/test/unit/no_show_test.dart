@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:myweli/core/di/dependency_injection.dart';
+import 'package:myweli/core/utils/salon_id.dart';
 import 'package:myweli/core/utils/visit_history.dart';
 import 'package:myweli/models/api_response.dart';
 import 'package:myweli/models/appointment.dart';
@@ -66,7 +67,7 @@ void main() {
       ).thenAnswer((_) async => ApiResponse.success(true));
 
       final p = ProAppointmentProvider();
-      await p.loadAppointments('p1');
+      await p.loadAppointments(SalonId('p1'));
       final ok = await p.markNoShow('a1');
 
       expect(ok, isTrue);
@@ -79,7 +80,7 @@ void main() {
       ).thenAnswer((_) async => ApiResponse.error('boom'));
 
       final p = ProAppointmentProvider();
-      await p.loadAppointments('p1');
+      await p.loadAppointments(SalonId('p1'));
 
       expect(await p.markNoShow('a1'), isFalse);
       expect(p.error, 'boom');

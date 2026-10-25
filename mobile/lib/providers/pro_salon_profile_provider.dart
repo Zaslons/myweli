@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 
 import '../core/access/pro_salon_scope.dart';
 import '../core/di/dependency_injection.dart';
+import '../core/utils/salon_id.dart';
 import '../models/provider.dart';
 
 /// The salon's editable public profile in the pro app
@@ -24,7 +25,7 @@ class ProSalonProfileProvider extends ChangeNotifier implements SalonScoped {
   /// under ITS field (SYSTEM.md §14 rule 1, phone-leftovers.md §2).
   String? get errorCode => _errorCode;
 
-  Future<void> load(String providerId) async {
+  Future<void> load(SalonId providerId) async {
     _isLoading = true;
     _error = null;
     notifyListeners();
@@ -48,7 +49,7 @@ class ProSalonProfileProvider extends ChangeNotifier implements SalonScoped {
   }
 
   /// Save the allowlisted changes; refreshes [provider] on success.
-  Future<bool> save(String providerId, Map<String, dynamic> changes) async {
+  Future<bool> save(SalonId providerId, Map<String, dynamic> changes) async {
     _isSaving = true;
     _error = null;
     _errorCode = null;
@@ -77,7 +78,7 @@ class ProSalonProfileProvider extends ChangeNotifier implements SalonScoped {
   /// avatar pattern: the PATCH carries ONLY `logoUrl`, so it cannot fight
   /// the rest of the form, which stays staged until « Enregistrer ».
   /// Design: docs/design/salon-logo.md §2.
-  Future<bool> uploadLogo(String providerId, String sourcePath) async {
+  Future<bool> uploadLogo(SalonId providerId, String sourcePath) async {
     _isUploadingLogo = true;
     _logoError = null;
     notifyListeners();
@@ -99,7 +100,7 @@ class ProSalonProfileProvider extends ChangeNotifier implements SalonScoped {
 
   /// Clears the logo — the empty string is the contract's delete
   /// (salon-logo.md §3, the `/me` `phone` semantics).
-  Future<bool> removeLogo(String providerId) =>
+  Future<bool> removeLogo(SalonId providerId) =>
       save(providerId, {'logoUrl': ''});
 
   /// R6 multi-salons: drop the previous salon's data on a switch.
