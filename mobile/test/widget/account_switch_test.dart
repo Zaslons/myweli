@@ -36,6 +36,7 @@ import 'package:myweli/services/mock/mock_push_notification_service.dart';
 import 'package:myweli/services/mock/mock_review_service.dart';
 import 'package:myweli/widgets/booking/appointment_card.dart';
 import 'package:myweli/widgets/booking/compact_appointment_tile.dart';
+import 'package:myweli/widgets/common/app_async_view.dart';
 import 'package:myweli/widgets/common/session_ended_notice.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -170,6 +171,11 @@ void main() {
       find.byType(CompactAppointmentTile),
     ))
       tile.appointment.id,
+    // The detail draws what its view is handed — and prints no salon name.
+    for (final view in tester.widgetList<AppAsyncView<Appointment>>(
+      find.byType(AppAsyncView<Appointment>),
+    ))
+      ?view.data?.id,
   ];
 
   /// Pumps [frames] frames and looks at EVERY one: a booking of A's shown for
@@ -230,6 +236,15 @@ void main() {
     );
     await settleMocks(tester);
     expect(find.text('Derniers rendez-vous'), findsOneWidget);
+    expect(shownBookings(tester), contains('rdv-a'));
+    // …and A opens it: the selection is app-wide and outlives the screen
+    // (F1), so it is A's that B's detail of the same id must not show.
+    router.go('/appointment/rdv-a');
+    await tester.pump();
+    appointments.answerDetails(
+      ApiResponse.success(_booking('rdv-a', auth.user!.id, 'Salon de A')),
+    );
+    await settleMocks(tester);
     expect(shownBookings(tester), contains('rdv-a'));
 
     // « Déconnexion », the way a person does it.
