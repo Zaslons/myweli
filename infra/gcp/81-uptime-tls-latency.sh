@@ -7,8 +7,10 @@
 #
 # `80-uptime-checks.sh` created both checks WITHOUT `--validate-ssl`, so a check
 # passed against an expired, revoked or wrong-host certificate — the browsers
-# and both apps refuse it, the probe did not — and the days-left metric for the
-# certificate was never written. The certificate is Cloudflare's since the
+# and both apps refuse it, the probe did not — and nothing alerted on the
+# certificate's days left, which the checks did record (990 points in the hour before the switch, read from the Monitoring API on 2026-10-25;
+# this header first said the metric was never written, which was false). The
+# certificate is Cloudflare's since the
 # front door moved there (2026-10-07) and renews itself; this is the alarm for
 # the day it does not, two weeks before the apps stop connecting.
 #

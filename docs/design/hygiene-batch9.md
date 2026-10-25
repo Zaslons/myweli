@@ -542,8 +542,25 @@ absente échoue au lieu de sauter.
   d'après chaque déploiement jusque-là. Les mises à jour des vérifications
   sont dans une fonction, pas une boucle : le rendu des politiques rejoue
   une boucle `for` qui précède un corps, et ne doit jamais les rejouer.
-- **Pas encore appliqué** : lancer le script modifie le cloud — je le
-  demande à part.
+- **Appliqué le 2026-10-25** (accord du propriétaire, après la fusion de
+  #697), et relu, pas cru sur parole :
+  - les deux vérifications : `validateSsl` vrai, chemin, période (300 s),
+    délai (10 s) et hôte inchangés ;
+  - les deux politiques (`2907874960028876058`, `9493498265212627759`) :
+    activées, le canal « Owner email », les filtres, seuils et durées
+    écrits ici, leurs runbooks (923 et 1 048 caractères) ;
+  - **les sondes passent toujours** avec la validation : 53/0 et 60/0 sur
+    les huit premières minutes ; le certificat a **89,4 jours** (Google Trust
+    Services, via Cloudflare, jusqu'au 2027-01-23) ; la latence va de 104 à
+    696 ms ;
+  - `DRY=1 bash infra/gcp/93-sync-runbooks.sh` : les deux nouvelles
+    politiques et toutes les autres sont `same` — l'étape d'après le
+    prochain déploiement les accepte.
+- **Corrigé en relisant** : les en-têtes de 80 et 81, le test et la note
+  d'observabilité disaient que la mesure des jours restants « n'était jamais
+  écrite » sans `--validate-ssl`. **Faux** : 990 points dans l'heure
+  d'avant. Ce qui manquait, c'est que la vérification échoue sur un mauvais
+  certificat, et une alerte sur la date. Les quatre endroits disent vrai.
 - **À vérifier dans Sentry** (lot 10) : l'intégration GitHub doit connaître
   `Zaslons/myweli`, sinon `set-commits` est refusé.
 - **Les seuils de taux d'erreur** restent reportés (pas de trafic).

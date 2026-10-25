@@ -35,8 +35,9 @@
 #   api-providers-database-kxq3vEwoNZ4:  passed=102  failed=0
 #
 # The checks validate the certificate since B9.4 (`--validate-ssl=true` below):
-# without it a check passed against an expired or wrong certificate, and the
-# certificate's days-left metric was never written. The checks applied on
+# without it a check passed against an expired or wrong certificate. (The
+# certificate's days-left metric was written all along — 990 points in the hour before the switch, read from the Monitoring API on 2026-10-25 —
+# but nothing alerted on it.) The checks applied on
 # 2026-08-12 are switched over IN PLACE by 81-uptime-tls-latency.sh, which also
 # adds the certificate and latency alerts.
 #
