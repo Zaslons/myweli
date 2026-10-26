@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:myweli/core/constants/failure_messages.dart';
 import 'package:myweli/core/di/dependency_injection.dart';
 import 'package:myweli/models/provider_login_result.dart';
 import 'package:myweli/models/provider_user.dart';
@@ -45,24 +46,28 @@ void main() {
       serviceLocator.authService = MockAuthService();
     });
 
-    test('login-only Google failure surfaces errorCode provider_not_found '
-        'for the « Créer un compte » CTA', () async {
-      final provider = ProAuthProvider();
-      // The Google mock identity was registered in the group above only for
-      // THAT service instance's static MockData — reuse a fresh email path.
-      final ok = await provider.verifyEmailOtp('ghost@salon.test', '000000');
-      expect(ok, isFalse);
-      expect(provider.errorCode, 'otp_invalid');
+    test(
+      'login-only failure surfaces errorCode provider_not_found and the '
+      'one no-account sentence (no sign-up in the app — App Store 3.1.1)',
+      () async {
+        final provider = ProAuthProvider();
+        // The Google mock identity was registered in the group above only for
+        // THAT service instance's static MockData — reuse a fresh email path.
+        final ok = await provider.verifyEmailOtp('ghost@salon.test', '000000');
+        expect(ok, isFalse);
+        expect(provider.errorCode, 'otp_invalid');
 
-      await provider.requestEmailOtp('ghost@salon.test');
-      final notFound = await provider.verifyEmailOtp(
-        'ghost@salon.test',
-        provider.emailDevCode!,
-      );
-      expect(notFound, isFalse);
-      expect(provider.errorCode, 'provider_not_found');
-      expect(provider.isAuthenticated, isFalse);
-    });
+        await provider.requestEmailOtp('ghost@salon.test');
+        final notFound = await provider.verifyEmailOtp(
+          'ghost@salon.test',
+          provider.emailDevCode!,
+        );
+        expect(notFound, isFalse);
+        expect(provider.errorCode, 'provider_not_found');
+        expect(provider.error, kNoProAccountMessage);
+        expect(provider.isAuthenticated, isFalse);
+      },
+    );
 
     test('requestEmailOtp exposes the dev code; a salon signed up on the web '
         'signs in with it', () async {

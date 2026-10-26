@@ -580,7 +580,7 @@ void main() {
       // signed-in session would render the dashboard and this golden would
       // quietly become a baseline for a screen it does not name.
       expect(find.text('Pas encore de compte ?'), findsOneWidget);
-      expect(find.text('S\u2019inscrire'), findsOneWidget);
+      expect(find.text('S\u2019inscrire sur myweli.com'), findsOneWidget);
 
       await expectGolden(tester, 'pro_login_w360_x2');
     });
