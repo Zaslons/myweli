@@ -33,6 +33,14 @@ export const metadata = legalMetadata('/politique-confidentialite');
 /// added. State positively what we do wherever we can — a description that
 /// grows stale reads as out of date; a denial that grows stale is a false
 /// statement to users and to the App Store.
+///
+/// **CORRECTED 2026-10-26 (BACKLOG B0.4)** — the same lesson a third time:
+/// « Google Cloud enregistre … votre adresse IP » was true until 2026-10-07,
+/// when api.myweli.com moved behind the Cloudflare front door. Measured: 60 of
+/// 60 Cloud Run request logs sampled carried a Cloudflare address. The visitor's
+/// address reaches Cloudflare; our server reads it (CF-Connecting-IP) only for
+/// the sign-in limiter, stored as a truncated SHA-256 and pruned daily
+/// (`kRateLimitRetention`, one day, by the 03:30 UTC maintenance job).
 export default function Page() {
   return (
     <LegalPage slug="/politique-confidentialite">
@@ -75,12 +83,19 @@ export default function Page() {
       </P>
       <Ul>
         <Li>
-          <strong>Journaux de requêtes.</strong> Notre hébergeur, Google Cloud,
-          enregistre pour chaque appel à notre API la date, l’adresse de la page
-          demandée, le code de réponse, le navigateur ou l’application utilisée
-          et <strong>votre adresse IP</strong>. Ces journaux servent au
+          <strong>Journaux de requêtes.</strong> Chaque appel à notre API —
+          depuis l’application comme depuis le site — passe d’abord par le
+          réseau de <strong>Cloudflare</strong>, qui reçoit votre{' '}
+          <strong>adresse IP</strong> pour acheminer la requête jusqu’à notre
+          serveur. Notre hébergeur, Google Cloud, enregistre ensuite pour chaque
+          appel la date, l’adresse de la page demandée, le code de réponse et le
+          navigateur ou l’application utilisée&nbsp;; l’adresse IP qu’il voit
+          est celle de Cloudflare, pas la vôtre. Ces journaux servent au
           diagnostic et à la sécurité, et sont supprimés automatiquement au bout
-          de <strong>30 jours</strong>.
+          de <strong>30 jours</strong>. Pour limiter les tentatives de connexion
+          répétées, notre serveur lit aussi l’adresse IP que Cloudflare lui
+          transmet&nbsp;: il n’en conserve qu’une empreinte, jamais l’adresse en
+          clair, effacée au plus tard sous <strong>deux jours</strong>.
         </Li>
         <Li>
           <strong>Rapports d’erreur.</strong> Lorsqu’une page ou notre serveur
@@ -93,7 +108,7 @@ export default function Page() {
           activement votre identité, vos cookies et vos saisies avant l’envoi.
           Nous n’envoyons <strong>aucun</strong> rapport à Sentry lorsque rien
           n’a échoué&nbsp;: ce n’est pas un outil de mesure d’audience. Les
-          fonctions de Sentry qui compteraient les visites ou les sessions sont
+          fonctions de Sentry qui compteraient les visites ou les sessions sont{' '}
           <strong>désactivées</strong> dans notre configuration, et un test le
           vérifie sur le site réellement publié.
         </Li>
@@ -182,26 +197,35 @@ export default function Page() {
         Google Cloud à <strong>Paris, en France</strong>&nbsp;; le site web par
         Vercel&nbsp;; les fichiers — photos, captures d’écran, pièces
         justificatives — par Cloudflare R2, dont les serveurs sont répartis
-        mondialement. <strong>Vos données sortent donc de Côte d’Ivoire</strong>
-        : la base de données et l’API sont dans l’Union européenne, le site est
-        servi depuis les États-Unis, et les fichiers depuis le réseau de
-        Cloudflare.
+        mondialement. Chaque appel à notre API passe aussi par le réseau
+        mondial de Cloudflare avant d’atteindre Paris.{' '}
+        <strong>Vos données sortent donc de Côte d’Ivoire</strong>&nbsp;: la
+        base de données et l’API sont dans l’Union européenne, le site est servi
+        depuis les États-Unis, et les fichiers comme le passage de vos requêtes
+        vers l’API empruntent le réseau de Cloudflare.
       </P>
 
       <H2>Qui d’autre les reçoit</H2>
       <P>
         Uniquement des prestataires techniques, chacun pour une fonction
-        précise&nbsp;: Firebase Cloud Messaging (notifications), Resend (e-mails,
-        hébergé aux États-Unis), Google et Apple (connexion), Sentry (rapports
-        d’erreur, ci-dessus), et CARTO pour les fonds de carte — l’affichage
-        d’une carte transmet votre adresse IP à CARTO.
-        <strong>Nous ne vendons ni ne louons aucune donnée.</strong>
+        précise&nbsp;: Cloudflare (le passage de chaque appel à notre API, et le
+        stockage des fichiers), Firebase Cloud Messaging (notifications), Resend
+        (e-mails, hébergé aux États-Unis), Google et Apple (connexion), Sentry
+        (rapports d’erreur, ci-dessus), et CARTO pour les fonds de carte —
+        l’affichage d’une carte transmet votre adresse IP à CARTO. Nos
+        hébergeurs, Google Cloud et Vercel, sont nommés plus haut.
       </P>
       <P>
-        <strong>Aucun SMS ni message WhatsApp n’est envoyé aujourd’hui.</strong>
+        Chacun de ces prestataires est lié à nous par ses conditions de
+        traitement des données, acceptées sur nos comptes, et assure à vos
+        données une protection au moins équivalente à celle que décrit cette
+        page. <strong>Nous ne vendons ni ne louons aucune donnée.</strong>
+      </P>
+      <P>
+        <strong>Aucun SMS ni message WhatsApp n’est envoyé aujourd’hui.</strong>{' '}
         L’envoi est désactivé au niveau du serveur&nbsp;; aucun numéro de
         téléphone ne part chez un opérateur de messagerie. Lorsque ce service
-        sera activé — après notre immatriculation — le prestataire sera
+        sera activé — après notre immatriculation — le prestataire sera{' '}
         <strong>Termii</strong>, et cette page sera mise à jour avant le premier
         message, pas après.
       </P>
@@ -212,7 +236,7 @@ export default function Page() {
         rien d’autre. Sur les pages publiques&nbsp;— accueil, recherche, pages de
         salon, pages légales —&nbsp;<strong>aucun cookie n’est déposé</strong>.
         Une fois connecté&nbsp;: deux cookies pour une session client, trois pour
-        une session professionnelle — jamais les deux à la fois. Ceux-là sont
+        une session professionnelle — jamais les deux à la fois. Ceux-là sont{' '}
         <strong>inaccessibles au JavaScript</strong>, transmis uniquement en
         HTTPS, et limités à notre site.
       </P>
@@ -242,8 +266,7 @@ export default function Page() {
         d’inscription. Ce n’était pas le cas auparavant&nbsp;: le
         script se chargeait dès l’ouverture de la page, donc avant tout choix de
         votre part. Nous l’avons corrigé dans le logiciel plutôt que dans cette
-        page&nbsp;— la date en haut de cette page est celle de cette
-        correction.
+        page&nbsp;— c’était le 21 août 2026.
       </P>
       <P>
         Il n’existe aucun cookie de mesure d’audience ni de publicité. C’est
@@ -259,10 +282,13 @@ export default function Page() {
       <H2>Vos droits</H2>
       <P>
         Vous pouvez à tout moment consulter, corriger, exporter ou supprimer vos
-        données, sans nous écrire&nbsp;: dans l’application, depuis{' '}
+        données, sans nous écrire&nbsp;: dans l’application MyWeli, depuis{' '}
         <strong>Profil → Exporter mes données</strong> et{' '}
-        <strong>Profil → Supprimer mon compte</strong>&nbsp;; sur le web, depuis{' '}
-        <A href="/mon-compte">Mon compte</A>.
+        <strong>Profil → Supprimer mon compte</strong>&nbsp;; dans
+        l’application MyWeli Pro, le propriétaire du salon depuis{' '}
+        <strong>Profil → Mes données</strong>, et chacun depuis{' '}
+        <strong>Profil → Supprimer mon compte</strong>&nbsp;; sur le web,
+        depuis <A href="/mon-compte">Mon compte</A>.
       </P>
       <P>
         La page <A href="/suppression-compte">Supprimer votre compte</A> décrit
