@@ -1159,6 +1159,37 @@ version 0.0.1 à la place du 581** (relu par l'API). **C'est le candidat à la
 soumission**, sous réserve des vérifications sur l'iPhone (§11.6).
 *2026-10-22 : **soumis**, en revue, publication manuelle (BACKLOG B0.1) ;
 les vérifications sur l'iPhone restent dues (BACKLOG B0.2).*
+***Refusé*** *(revue du 2026-10-19, guideline 3.1.1 : l'inscription
+d'entreprises dans l'app) — remplacé par le 698, ci-dessous.*
+
+**Build 698** (2026-10-26, depuis `main` à `54b02dac`, après #711) : la
+nouvelle soumission de 0.0.1 après le refus 3.1.1 — l'app Pro connecte les
+salons, elle ne les inscrit plus ([pro-app-login-only.md](pro-app-login-only.md),
+BACKLOG B0.11) — avec tous les correctifs de l'app depuis le 587 (lots 1 à
+9). Construit par `release_build.sh` ; IPA relue au §11.3 : **0.0.1 (698)**,
+`com.myweli.pro`, français, portrait seul sur iPhone, aucun
+`UIBackgroundModes` (B0.9), entitlements de production, 35 manifestes, voie
+compagnon `OK` (22 phrases à 0, 9 témoins), B0.11 `OK` (7 phrases à 0 ;
+« S’inscrire sur myweli.com », la phrase « Aucun compte MyWeli Pro… » et
+`/pro/inscription` présents). `altool --validate-app` réussi ; envoyé à
+13:49 UTC (delivery `5363b385-3659-469d-968c-2421a396a8c7`, qui est aussi
+l'identifiant du build), traité **`VALID`** en trois minutes,
+**`buildBundles.locales = ["fr"]`**, chiffrement non exempt `false`.
+« Équipe MyWeli » ne contient plus que le 698 (le 587 retiré, relu par
+l'API), `IN_BETA_TESTING` ; son « What to Test » fr-FR est réécrit —
+l'inscription passe par « S’inscrire sur myweli.com », là où celui du 587
+disait « Créer un compte ». **Pas** ajouté à « Testeurs externes »
+(`READY_FOR_BETA_SUBMISSION`). Symboles et 20 commits sur Sentry (§12) ;
+archive `Runner-pro-698.xcarchive`. **C'est le candidat à la soumission**,
+après les vérifications sur l'iPhone (§11.6, BACKLOG B0.2) : le rattacher
+à la version 0.0.1 à la place du 587, coller les notes du §8, envoyer la
+réponse du §13.2, soumettre (étapes du propriétaire, BACKLOG B0.3).
+*Un envoi peut sembler fait sans l'être* : la validation crée déjà un
+enregistrement d'envoi, qui reste `AWAITING_UPLOAD` tant que rien n'est
+parti, et la liste des builds reste vide jusque-là. C'est
+`GET /v1/apps/<id>/buildUploads` qui le dit (`state`), et
+`~/Library/Logs/ContentDelivery/com.apple.itunes.altool/` qui montre ce que
+l'`altool` local a fait (`validateApp` ou un envoi).
 
 Syntaxe relue dans l'aide de l'`altool` local (version 27.0.5) :
 `--upload-package` est la forme de ses exemples ; `--upload-app -f` existe
@@ -1191,7 +1222,10 @@ build — un `POST` aurait répondu 409 —, il a donc été modifié par `PATCH
 le tour complet du logo, la carte de l'aperçu et le choix d'apps de cartes,
 la carte du profil et ses crédits, rester connecté, la connexion démo, le
 compte neuf Apple. Les quatre cases ci-dessous, avant « Faire pivoter »,
-reprennent ce qui est propre au 565.
+reprennent ce qui est propre au 565. *2026-10-26 :* le **698** remplace le
+587 (relu : un seul build, 698) ; son « What to Test » fr-FR existait déjà à
+la création du build et a été réécrit par `PATCH` — l'inscription sur
+myweli.com, plus de « Créer un compte ».
 
 - [ ] **Connexion démo** : `revue@myweli.test` + le code, exactement comme les
       notes du §8 le décrivent — c'est aussi le test « le code n'a pas expiré ».
@@ -1336,6 +1370,15 @@ on renvoie. Rien n'est soumis sur un build non vérifié.
    `GET /api/0/projects/myweli/myweli-app/files/dsyms/` liste les nouveaux
    debug IDs (la note du script ne compte que les entrées Android). Ne pas
    bloquer TestFlight sur cette étape.
+   *Build 698, 2026-10-26 :* symboles Dart et dSYM natifs de
+   `Runner-pro-698.xcarchive` envoyés (10 fichiers manquants), puis les cinq
+   identifiants relus un par un dans la liste du serveur : `Runner`
+   (`0c0a82aa…`), `App` (`0c7143a3-9a3e…`, celui des symboles Dart aussi),
+   `Flutter` (`4c4c4467…`, déjà présent), `add_2_calendar` (`656d5c5d…`),
+   `objective_c` (`93db733e…`). Release `com.myweli.pro@0.0.1+698` créée et
+   `set-commits` accepté : le serveur liste **20 commits**, le dernier
+   `54b02dac` — l'intégration GitHub de Sentry connaît `Zaslons/myweli`
+   depuis le 2026-08-12.
    *Build 565, 2026-10-12 :* symboles Dart (2 fichiers manquants envoyés) et
    dSYM natifs (2 envoyés) ; relus dans la liste du serveur : `Runner`
    (`691b934c…`), `App` (`0c7143a3-47bf-01e0…`) et le paquet source Dart.

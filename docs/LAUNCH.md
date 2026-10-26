@@ -1231,7 +1231,17 @@ checking rather than assuming:
 > « Ajouter un salon » stay on the web, invitations stay, and « S’inscrire
 > sur myweli.com » opens the web sign-up — a link the owner keeps knowingly,
 > one widget to remove if App Review objects. The review notes and the
-> Resolution Center reply say so plainly (app-store-forms §8, §12).
+> Resolution Center reply say so plainly (app-store-forms §8, §13.2).
+>
+> **2026-10-26 — build 698, the resubmission, is in TestFlight.** From
+> `main` at `54b02dac` (#711, with every app fix since 587): built by
+> `release_build.sh`, the IPA re-read (no background mode; B0.11's sign-up
+> strings gone, the web link in), validated, uploaded, `VALID`, read as
+> French; the only build in « Équipe MyWeli », with a new « What to Test »
+> (sign up on myweli.com); not in « Testeurs externes »; symbols and 20
+> commits on Sentry (app-store-forms §11.5, §12). **Left to the owner**: the
+> device checks on 698 (BACKLOG B0.2), then attach 698 to version 0.0.1,
+> paste the §8 notes, send the §13.2 reply and resubmit (B0.3).
 
 - [ ] Everything in [mobile-store-submission.md](design/mobile-store-submission.md) §5.
       Two of its claims are **stale as of 2026-08-18** and must be corrected
