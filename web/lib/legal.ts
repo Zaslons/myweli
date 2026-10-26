@@ -119,9 +119,15 @@ export function legalRoute(slug: string): LegalRoute {
 /// **Bumped 2026-10-21**: a deleted salon owner's salon loses its numbers and
 /// its address (docs/design/backend-integrity-batch6.md §2.3, decision 17) —
 /// said in the privacy policy and on « Supprimer votre compte ».
+///
+/// **Bumped 2026-10-26** (BACKLOG B0.4, decision 3): every API call goes
+/// through Cloudflare since 2026-10-07, so Google Cloud's request logs carry
+/// Cloudflare's address, not the visitor's — the policy said the opposite;
+/// the processors' « protection au moins équivalente » (App Store 5.1.1(i));
+/// each app's export path; and Cloudflare's second role in the hosts below.
 export const LEGAL_UPDATED_AT = {
-  iso: '2026-10-21',
-  label: '21 octobre 2026',
+  iso: '2026-10-26',
+  label: '26 octobre 2026',
 } as const;
 
 export const COMPANY = {
@@ -142,6 +148,6 @@ export const COMPANY = {
   hosts: [
     'Google Cloud — serveurs applicatifs et base de données, Paris (France)',
     'Vercel Inc. — site web, États-Unis',
-    'Cloudflare Inc. — stockage des fichiers (R2)',
+    'Cloudflare Inc. — stockage des fichiers (R2) et passage des appels à l’API',
   ],
 } as const;
