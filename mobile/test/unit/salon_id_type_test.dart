@@ -211,8 +211,6 @@ void main() {
           "the push payload's `providerId` or its route's `?salon=`",
       // The doubles mint and seed salon ids, as the server does.
       'lib/services/mock/mock_data.dart': 'the seed salons',
-      'lib/services/mock/mock_auth_service.dart': 'a registered salon',
-      'lib/services/mock/mock_pro_service.dart': 'an added salon',
       'lib/services/mock/mock_session.dart': "the mock's default salon",
       'lib/services/mock/mock_favorites_service.dart':
           'the favourites kept on the device',

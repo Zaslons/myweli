@@ -87,9 +87,8 @@ void main() {
               path,
         },
         {
-          // No card on these: a sign-in form, a form, the two splashes.
+          // No card on these: a sign-in form, the two splashes.
           'lib/screens/admin/admin_login_screen.dart',
-          'lib/screens/provider/salons/add_salon_screen.dart',
           'lib/screens/splash/splash_screen.dart',
           'lib/screens/provider/auth/pro_splash_screen.dart',
         },
