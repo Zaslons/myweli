@@ -40,7 +40,7 @@
 
 **Proposed order.**
 - **Done (2026-10-25):** batches 1–9, every item.
-- **Now:** batch 0 — **0.0.1 was rejected**; we start from Apple's reason, then resubmit a new build of 0.0.1 (B0.3) after the device checks (B0.2). The policy draft waits for your wording approval (B0.4).
+- **Now:** batch 0 — **0.0.1 was rejected**; we start from Apple's reason, then resubmit a new build of 0.0.1 (B0.3) after the device checks (B0.2). The privacy policy is corrected and live (B0.4, #709).
 - **Yours:** batch 10, and your half of batch 0 (B0.2's checks on the iPhone, B0.7's Sentry alerts, B0.10's Play forms).
 
 ---
@@ -144,7 +144,7 @@ Each question has a recommendation. Answers unblock the item named in brackets.
     5. French « What to Test »;
     6. version 0.0.2 in App Store Connect with **phased release on** (needs B0.7 first);
     7. submit after B0.2.
-- **B0.4 Privacy policy: Cloudflare, equivalent protection, each app's export path (P1 · S · decision 3).** **Being drafted (its own PR) — you approve the wording before it merges** (merging deploys it).
+- ✅ **B0.4 Privacy policy: Cloudflare, equivalent protection, each app's export path (P1 · S · decision 3).** **Done in #709 — wording approved by you as drafted, deployed 2026-10-26 and read back live**: myweli.com/politique-confidentialite says every API call passes through Cloudflare, which receives the IP, and that Google Cloud's logs carry Cloudflare's address (measured: 60 of 60 request logs); the sign-in limiter keeps a hash for two days at most; Cloudflare's two roles; the processors' « protection au moins équivalente »; each app's export path; the Google-script fix dated 21 August 2026; four glued words separated. Date of the four documents and JSON-LD `dateModified`: 26 October 2026; the mentions légales name Cloudflare's second role.
   - **What:** the policy names Cloudflare only for files, but every API request has gone through Cloudflare since 2026-10-07. It also lacks the « equivalent protection » sentence Apple asks for under 5.1.1(i). And it gives the Pro export path as « Exporter mes données », while the Pro app says « Mes données ».
   - **How:** edit `web/app/politique-confidentialite/page.tsx` and bump `LEGAL_UPDATED_AT`. Re-check the « Journaux de requêtes » sentence against Cloud Logging, since the visitor IP may now be Cloudflare's. After the deploy, read the live page.
 - **B0.5 Set the Pro iOS `updateUrl` in production (P2 · S · decision 4).** **Waits for the release** (decision 4). In the admin console, set `com.myweli.pro / ios` to `https://apps.apple.com/app/id6805272779` with both floors at 0. Read it back through `GET /client-version`.
