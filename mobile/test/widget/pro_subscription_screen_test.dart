@@ -276,8 +276,10 @@ void main() {
       await expectNowhere(tester, forbidden());
     }, variant: bothPlatforms);
 
-    testWidgets('LIVE RÉSEAU: « Ajouter un salon » states what the offer '
-        'allows — never another offer or a trial', (tester) async {
+    // docs/design/pro-app-login-only.md (B0.11, App Store 3.1.1): the card
+    // that opened the add-salon form left with it.
+    testWidgets('LIVE RÉSEAU: the offer, and no « Ajouter un salon » — '
+        'salons are added on the web', (tester) async {
       subs.inner = MockSubscriptionService(
         initial: state(tier: SalonTier.reseau),
       );
@@ -289,8 +291,8 @@ void main() {
         ),
         findsOneWidget,
       );
-      expect(find.text('Ajouter un salon'), findsOneWidget);
-      expect(find.text('Un salon de plus dans votre compte.'), findsOneWidget);
+      expect(find.text('Ajouter un salon'), findsNothing);
+      expect(find.text('Un salon de plus dans votre compte.'), findsNothing);
       expect(find.textContaining('propre essai'), findsNothing);
       await expectNowhere(tester, forbidden());
     }, variant: bothPlatforms);
@@ -318,35 +320,6 @@ void main() {
 
     expect(find.text('Offre expirée'), findsOneWidget);
     expect(find.text('Ajouter un salon'), findsNothing);
-  });
-
-  testWidgets('« Ajouter un salon » opens the add-salon form', (tester) async {
-    subs.inner = MockSubscriptionService(
-      initial: state(tier: SalonTier.reseau),
-    );
-    final router = GoRouter(
-      routes: [
-        GoRoute(path: '/', builder: (_, _) => const ProSubscriptionScreen()),
-        GoRoute(
-          path: '/pro/salons/nouveau',
-          builder: (_, _) => const Scaffold(body: Text('NOUVEAU SALON')),
-        ),
-      ],
-    );
-    await tester.pumpWidget(
-      wrapApp(
-        providers: [
-          ChangeNotifierProvider(create: (_) => ProAuthProvider()),
-          ChangeNotifierProvider(create: (_) => ProSubscriptionProvider()),
-        ],
-        routerConfig: router,
-      ),
-    );
-    await settleMocks(tester, rounds: 2);
-
-    await tester.tap(find.text('Ajouter un salon'));
-    await settleMocks(tester);
-    expect(find.text('NOUVEAU SALON'), findsOneWidget);
   });
 
   testWidgets('200 % text on a 360dp phone: the longest state lays out '
