@@ -1211,6 +1211,17 @@ checking rather than assuming:
 > that replace the crash-free rate (B0.7); and what App Store Connect itself
 > says — the privacy label, the DSA status, the review's progress — read
 > back in batch 10.
+>
+> **2026-10-25 — 0.0.1 rejected.** Apple refused build 587; the owner gives
+> the reason next. **The resubmission is a new build of 0.0.1** carrying every
+> app fix since 587 (batches 1–9), not a 0.0.2 first (BACKLOG decision 1).
+> Decided the same day (BACKLOG decisions 2–7): the device checks run on the
+> resubmitted build (B0.2); the privacy policy is redrafted for the owner's
+> approval before it goes live (B0.4); the iOS `updateUrl` waits for the
+> release (B0.5); the developer account is **Individual**, and KYC and the
+> deposit switch are hidden on iOS only if Apple cites 5.1.1(ix) (B0.6); the
+> store media change only if needed (B0.8); the unused `remote-notification`
+> mode is removed (B0.9).
 
 - [ ] Everything in [mobile-store-submission.md](design/mobile-store-submission.md) §5.
       Two of its claims are **stale as of 2026-08-18** and must be corrected

@@ -26,23 +26,22 @@
 
 | # | Batch | What it fixes | Priority | Surfaces | Needs you for |
 |---|---|---|---|---|---|
-| 0 | **Release track** | 0.0.1 through review, device checks, 0.0.2, the store and policy items around them | P1 | release | 5 decisions + the device checks |
+| 0 | **Release track** | 0.0.1 through review, device checks, 0.0.2, the store and policy items around them | P1 | release | **0.0.1 rejected (2026-10-25)** — the reason, the device checks on the resubmitted build, the policy wording |
 | 1 | ✅ **Pro home and journal stay fresh** | « Ma journée » and « Accueil » showing stale statuses and figures, and an error screen with no way out | P1 | app | **Done — #665** (2026-10-21) |
 | 2 | ✅ **Lost answers to writes** | A booking saved but reported as failed, then a retry into « slot taken » or a double booking | P2 | web, app, backend | **Done — #666** (2026-10-21) |
 | 3 | ✅ **The app says the right thing when something fails** | Raw English exception text, a bare « Erreur », two offline sentences, notification read state | P2 | app (+ web wording) | **Done — #670, #671** (2026-10-21) |
-| 4 | **Web Pro is truthful on failure** | False « choose your offer », « no visits », silent reads, stale Calendrier/Liste, demo refusals | P2 | web | 3 decisions |
-| 5 | **Client web polish** | Sign-in blaming the code, ♥ edge cases, export edge cases, a toast for favourites | P2–P3 | web | 1 decision |
-| 6 | **Backend integrity** | Role gate on booking, invitation accounts, owner contact erasure, demo KYC, deposit range, review reports, Apple token revoke | P2–P3 | backend (+ app, web) | 6 decisions + deploys |
-| 7 | **Pro app UI, accessibility and parity** | Contrast, mid-word breaks, empty states, member deletion text, invitations on « Accueil », export earnings | P2–P3 | app | 3 decisions |
-| 8 | **Product questions** | Undo, phone editing, offline Profil card, V2 analytics wording, dormant phone sign-in | P3 | — | 5 decisions |
-| 9 | **Hygiene, tooling and tests** | Stale docs, release tooling, mocks, test gaps, shared components | P3 | all | 2 decisions |
+| 4 | ✅ **Web Pro is truthful on failure** | False « choose your offer », « no visits », silent reads, stale Calendrier/Liste, demo refusals | P2 | web | **Done — #672, #673** (2026-10-21) |
+| 5 | ✅ **Client web polish** | Sign-in blaming the code, ♥ edge cases, export edge cases, a toast for favourites | P2–P3 | web | **Done — #674, #675** (2026-10-21) |
+| 6 | ✅ **Backend integrity** | Role gate on booking, invitation accounts, owner contact erasure, demo KYC, deposit range, review reports, Apple token revoke | P2–P3 | backend (+ app, web) | **Done — #676–#679**, deployed 2026-10-22 |
+| 7 | ✅ **Pro app UI, accessibility and parity** | Contrast, mid-word breaks, empty states, member deletion text, invitations on « Accueil », export earnings | P2–P3 | app | **Done — #682–#684** |
+| 8 | ✅ **Product questions** | Undo, phone editing, offline Profil card, V2 analytics wording, dormant phone sign-in | P3 | — | **Done — #685, #686** |
+| 9 | ✅ **Hygiene, tooling and tests** | Stale docs, release tooling, mocks, test gaps, shared components | P3 | all | **Done — #688–#707** (2026-10-25) |
 | 10 | **Only you can check** | App Store Connect state, support inbox, App Preview, production walk-throughs | — | owner | your time |
 
 **Proposed order.**
-- **Now:** batch 0 runs on Apple's clock. Batches 1 (#665), 2 (#666), 3 (#670, #671), 4 (#672, #673) and 5 (#674, #675) are done; **batch 6 is the next code slice.**
-- **Then:** batch 6 goes out in one or two backend deploys (each one asked for first).
-- **When touching an area:** batches 7 and 9.
-- **Whenever you answer:** batch 8.
+- **Done (2026-10-25):** batches 1–9, every item.
+- **Now:** batch 0 — **0.0.1 was rejected**; we start from Apple's reason, then resubmit a new build of 0.0.1 (B0.3) after the device checks (B0.2). The policy draft waits for your wording approval (B0.4).
+- **Yours:** batch 10, and your half of batch 0 (B0.2's checks on the iPhone, B0.7's Sentry alerts, B0.10's Play forms).
 
 ---
 
@@ -51,13 +50,13 @@
 Each question has a recommendation. Answers unblock the item named in brackets.
 
 **Release (batch 0)**
-1. **0.0.1 after approval.** Release it at once under LAUNCH §3 (production is stable), or hold it and make 0.0.2, with every fix below, the first public version? Holding costs a second review. *Recommended: release 0.0.1 when §3 allows, ship 0.0.2 with phased release.* [B0.1, B0.3]
-2. **Device checks.** Run the §11.6 checklist on build 587 (the one in review) now, and the post-587 checks on 0.0.2? *Recommended: yes, both, because 587 is what Apple sees.* [B0.2]
-3. **Privacy policy.** Can it say every processor protects data as well as we do? That means their standard data-processing terms are accepted on our accounts. And do you approve the new wording before it goes live? [B0.4]
-4. **Pro iOS update link.** OK to write the App Store link into production now, with both floors left at 0 so nobody is affected? Or wait for the 0.0.1 release? *Recommended: now.* [B0.5]
-5. **KYC under an individual Apple account (5.1.1(ix)).** Is the developer account Individual or Organization? If Apple rejects for this, do we hide KYC and deposits on iOS until an Organization account exists, or appeal first? [B0.6]
-6. **0.0.2 store media.** Reshoot screenshots 3 and 8 and re-cut the preview with the new revenue wording, or keep the current media? *Recommended: re-cut only if 0.0.2 needs new screenshots anyway.* [B0.8]
-7. **The unused iOS « remote-notification » mode.** Remove it in the next build, which adds one device check, or leave it? *Recommended: remove it in 0.0.2.* [B0.9]
+1. **0.0.1 after approval.** Release it at once under LAUNCH §3 (production is stable), or hold it and make 0.0.2, with every fix below, the first public version? Holding costs a second review. *Recommended: release 0.0.1 when §3 allows, ship 0.0.2 with phased release.* [B0.1, B0.3] — ✅ **Answered (2026-10-25): moot — Apple rejected 0.0.1** (build 587; the reason comes next). **The resubmission is a new build of 0.0.1**, with every fix since 587 — no 0.0.2 first.
+2. **Device checks.** Run the §11.6 checklist on build 587 (the one in review) now, and the post-587 checks on 0.0.2? *Recommended: yes, both, because 587 is what Apple sees.* [B0.2] — ✅ **Answered: on the resubmitted build** — §11.6 and the post-587 list together, since 587 is gone.
+3. **Privacy policy.** Can it say every processor protects data as well as we do? That means their standard data-processing terms are accepted on our accounts. And do you approve the new wording before it goes live? [B0.4] — ✅ **Answered: yes, the DPAs are accepted; you approve the draft before it goes live.**
+4. **Pro iOS update link.** OK to write the App Store link into production now, with both floors left at 0 so nobody is affected? Or wait for the 0.0.1 release? *Recommended: now.* [B0.5] — ✅ **Answered: wait for the release** (with 0.0.1 rejected, the link leads nowhere yet).
+5. **KYC under an individual Apple account (5.1.1(ix)).** Is the developer account Individual or Organization? If Apple rejects for this, do we hide KYC and deposits on iOS until an Organization account exists, or appeal first? [B0.6] — ✅ **Answered: Individual; hide them on iOS if Apple cites 5.1.1(ix).**
+6. **0.0.2 store media.** Reshoot screenshots 3 and 8 and re-cut the preview with the new revenue wording, or keep the current media? *Recommended: re-cut only if 0.0.2 needs new screenshots anyway.* [B0.8] — ✅ **Answered: only if needed** (as recommended — if the rejection or the new build makes a shot wrong).
+7. **The unused iOS « remote-notification » mode.** Remove it in the next build, which adds one device check, or leave it? *Recommended: remove it in 0.0.2.* [B0.9] — ✅ **Answered: remove it** (as recommended) — done in #708, for the resubmitted build.
 
 **Pro home and journal (batch 1)**
 
@@ -125,7 +124,7 @@ Each question has a recommendation. Answers unblock the item named in brackets.
 
 ### Batch 0 — Release track (P1, on Apple's clock)
 
-- **B0.1 Carry 0.0.1 through review, then release by hand (P1 · S · decision 1).**
+- **B0.1 Carry 0.0.1 through review, then release by hand (P1 · S · decision 1).** **2026-10-25: build 587 was rejected** (the reason comes next); the next submission is a new build of 0.0.1 (B0.3). The « while it's in review » constraints below apply again once it is resubmitted.
   - **What:** build 587 is in App Review, and its release is set to manual.
   - **How:** while it's in review, nothing the reviewer relies on may change. No `DEMO_PROVIDER_CODE` rotation, no change to Cloudflare in front of `api.myweli.com`, and « Production checks » stay green. Answer any Resolution Center message the same day. If rejected: fix, rebuild through the normal flow, resubmit. If approved: leave it « Pending Developer Release » until you confirm LAUNCH §3, then press Release. Record the dates in LAUNCH §6.2 and app-store-forms §12.3.
 - **B0.2 On-device checks on a real iPhone (P1 · M · decision 2).**
@@ -135,7 +134,7 @@ Each question has a recommendation. Answers unblock the item named in brackets.
     - the demo refusal and the « Ma journée » fix, which were only seen in the simulator.
   - **How (587, now):** you run app-store-forms §11.6 in its written order, in French, against production. The fresh Apple account goes through onboarding, the invite refusal and going live, and is then deleted.
   - **How (0.0.2):** the post-587 list — a 9- and a 10-digit number; deposits off then on; export with the network cut; airplane mode at launch; the switcher offline; a failed « Tout lire »; switching between two salons; revoke then re-invite; **« Appeler » on a salon's page opens the dialer** (B7.11 — two buttons asked `canLaunchUrl(tel:)` first). I turn it into the « What to Test » text and record the results.
-- **B0.3 Ship Pro 0.0.2 (P1 · M · decisions 1, 6, 7).**
+- **B0.3 Ship Pro 0.0.2 (P1 · M · decisions 1, 6, 7).** **Now: resubmit 0.0.1 as a new build** (decision 1) — step 1 keeps the version at 0.0.1 (the build number rises), and step 6 attaches the build to version 0.0.1; the rest stands, starting from the rejection reason.
   - **What:** 22 app commits since 587 (#596–#630) reach users only through a new build.
   - **How:** after Apple decides on 0.0.1:
     1. bump `mobile/pubspec.yaml` to 0.0.2;
@@ -145,18 +144,18 @@ Each question has a recommendation. Answers unblock the item named in brackets.
     5. French « What to Test »;
     6. version 0.0.2 in App Store Connect with **phased release on** (needs B0.7 first);
     7. submit after B0.2.
-- **B0.4 Privacy policy: Cloudflare, equivalent protection, each app's export path (P1 · S · decision 3).**
+- **B0.4 Privacy policy: Cloudflare, equivalent protection, each app's export path (P1 · S · decision 3).** **Being drafted (its own PR) — you approve the wording before it merges** (merging deploys it).
   - **What:** the policy names Cloudflare only for files, but every API request has gone through Cloudflare since 2026-10-07. It also lacks the « equivalent protection » sentence Apple asks for under 5.1.1(i). And it gives the Pro export path as « Exporter mes données », while the Pro app says « Mes données ».
   - **How:** edit `web/app/politique-confidentialite/page.tsx` and bump `LEGAL_UPDATED_AT`. Re-check the « Journaux de requêtes » sentence against Cloud Logging, since the visitor IP may now be Cloudflare's. After the deploy, read the live page.
-- **B0.5 Set the Pro iOS `updateUrl` in production (P2 · S · decision 4).** In the admin console, set `com.myweli.pro / ios` to `https://apps.apple.com/app/id6805272779` with both floors at 0. Read it back through `GET /client-version`.
-- **B0.6 KYC under an individual developer account (P2 · S · decision 5).**
+- **B0.5 Set the Pro iOS `updateUrl` in production (P2 · S · decision 4).** **Waits for the release** (decision 4). In the admin console, set `com.myweli.pro / ios` to `https://apps.apple.com/app/id6805272779` with both floors at 0. Read it back through `GET /client-version`.
+- **B0.6 KYC under an individual developer account (P2 · S · decision 5).** **The account is Individual** (recorded 2026-10-25); hide on iOS only if Apple cites 5.1.1(ix).
   - Record the membership type.
   - If Apple rejects under 5.1.1(ix), hide « Vérification » and the deposit switch on iOS only, with forced-iOS tests, until an Organization account exists.
 - **B0.7 Replace the crash-free-rate alert before phased release (P2 · S).**
   - **What:** sessions are off to keep the privacy promise, so the planned crash-free-rate alert has nothing to measure.
   - **How:** in Sentry `myweli-app`, three issue alerts on production: a new fatal issue in the latest release; any issue seen by more than 3 users in 1 h; app hangs seen by more than 3 users in 1 h. Send a test event for each, and update observability §8.3 and LAUNCH §1.4.
-- **B0.8 0.0.2 store media (P3 · M · decision 6).** If yes: reshoot screenshots 3 and 8 with `tool/app_store_screenshots`, and re-cut the Revenus scene and poster with `tool/app_store_preview`.
-- **B0.9 Remove the unused « remote-notification » background mode (P3 · S · decision 7).** Delete it from `Info.plist`, which both apps share, and check a real push with the app killed in the next TestFlight run.
+- **B0.8 0.0.2 store media (P3 · M · decision 6).** **Only if needed** (decision 6). If yes: reshoot screenshots 3 and 8 with `tool/app_store_screenshots`, and re-cut the Revenus scene and poster with `tool/app_store_preview`.
+- ✅ **B0.9 Remove the unused « remote-notification » background mode (P3 · S · decision 7).** **Done in #708** — removed for the resubmitted build; verified first that the server never sends a silent push and the background handler is empty, and pinned both sides. The killed-app push check is in app-store-forms §11.6 (B0.2). Delete it from `Info.plist`, which both apps share, and check a real push with the app killed in the next TestFlight run.
 - **B0.10 Google Play forms for both apps (P2 · M).**
   - **What:** nothing has been typed into Play Console yet.
   - **How:** you type play-store-forms §1–§5 with the amended App access text. I check them against the policy and the iOS answers, make the 1024×500 banner, and add a length test for the access text.
@@ -262,7 +261,7 @@ This batch takes up three of the six suggested tasks that were never started. It
     - Validate list elements in `getFavorites`: each must be an object with a string `id` and `name`, otherwise status 0.
 - ✅ **B5.4 A favourite added or removed is not announced (P3 · M · decision 16).** **Done in #675** — [web-client-polish.md](design/web-client-polish.md) §11 (with « Annuler », and on « Mon compte » too). On success, a toast « Ajouté aux favoris » / « Retiré des favoris » on the search and salon pages. The live region is already mounted. The spec comes first.
 
-### Batch 6 — Backend integrity (P2–P3, one or two deploys)
+### Batch 6 — Backend integrity (P2–P3, one or two deploys) — ✅ done (#676–#679, deployed 2026-10-22)
 
 - ✅ **B6.1 `POST /appointments` accepts any role (P2 · S).** **Done in #676** — [backend-integrity-batch6.md](design/backend-integrity-batch6.md) §10 (deployed 2026-10-22).
   - **What:** a Pro or admin token can book through the client route. It is written as the client: an invisible, unreviewable booking that still notifies the salon. (Verified: `routes/appointments/index.dart` checks only that someone is signed in.)
@@ -293,7 +292,7 @@ This batch takes up three of the six suggested tasks that were never started. It
 - ✅ **B6.9 Know when the demo identity is lost (P3 · S · decision 22).** **Done in #676** — §10; the server half deployed 2026-10-22; the alert **created on GCP 2026-10-22** (`alertPolicies/10667515608135534511`, to « Owner email »), and added to the list 93/95 read in #681. Put the refusal reason in the cron response, and add a log alert on `demo_reset REFUSED`, copying `96-rebuild-hook-alert.sh`.
 - ✅ **B6.10 A Postgres end-to-end test for client account deletion (P3 · M).** **Done in #676** — §10. A victim plus a bystander, all their rows, run through the real repositories, like the Pro one. Tests only.
 
-### Batch 7 — Pro app UI, accessibility and parity (P2–P3, app)
+### Batch 7 — Pro app UI, accessibility and parity (P2–P3, app) — ✅ done (#682–#684)
 
 - ✅ **B7.1 The « Propriétaire » chip is about 3:1 (P2 · S).** **Done in #683** — [pro-app-batch7.md](design/pro-app-batch7.md) §10 (measured 2.79:1; ink now). Draw the label in `textPrimary` on the gold tint, as the web does. Add the chip to the contrast test, regenerate the team goldens on Linux, and close SYSTEM §21 row 28.
 - ✅ **B7.2 Mid-word breaks at 200 % text (P2 · S).** **Done in #683** — §10 (an `OverflowBar` for the hours; a dialog's icon goes above a title it would break; every dialog title swept).
@@ -314,7 +313,7 @@ This batch takes up three of the six suggested tasks that were never started. It
 - ✅ **B7.13 Admin console segments have no visible boundary (P3 · S).** **Done in #683** — §10. Use one `AdminSegmentedControl`, with a token border on inactive segments.
 - ✅ **B7.14 After a failed fallback to the default salon, per-salon stores keep the old salon's data (P3 · S).** **Done in #682** — §9 (the reset is at the two fallback sites: inside `_clearSalonSelection` it would have emptied the rejoin gate's cards). Call `ProSalonScope.resetAll()` inside `_clearSalonSelection()`.
 
-### Batch 8 — Product questions (P3, need your answers first)
+### Batch 8 — Product questions (P3, need your answers first) — ✅ done (#685, #686; B8.1 and B8.2 decided « nothing now »)
 
 - ✅ **B8.1 Undo for destructive server actions (L · decision 27).** **Decided: keep confirm-only** — [product-questions-batch8.md](design/product-questions-batch8.md) Q1; nothing to build. If wanted: about 10 s « pending » states on the server for cancel and revoke, and a grace period for deletion, stated in the policy.
 - ✅ **B8.2 An editable Pro account phone (M · decision 28).** **Decided: nothing now** (Q2) — the number stopped being an identity in migration 0023 and is no longer unique, so there is no 409 to give; it waits for phone sign-in's return. `PATCH /me/provider/account/phone`, with 409 on a number taken by another account and an audit with ids only. Plus an SMS code if it is still a sign-in identity.
@@ -325,7 +324,7 @@ This batch takes up three of the six suggested tasks that were never started. It
   - **How:** decide together with the return of SMS and WhatsApp (company registration).
 - ✅ **B8.6 Pro account deletion is only partly atomic (L · decision 32).** **Done in #685** — §9 (the retry test, Postgres and in memory; the « réessayez » half already held on both clients). *Recommended:* accept, add a test that a failed identity delete followed by a retry ends fully deleted, and say « réessayez » after a 5xx.
 
-### Batch 9 — Hygiene, tooling and tests (P3, do when touching the area)
+### Batch 9 — Hygiene, tooling and tests (P3, do when touching the area) — ✅ done (#688–#707; B9.12 deployed 2026-10-25)
 
 - ✅ **B9.1 Stale release docs and statuses (M).** **Done in #688** — [hygiene-batch9.md](design/hygiene-batch9.md) §9: 33 roadmap entries (20 turn 🟢, 13 wait for 0.0.2), 8 specs and 5 index rows, LAUNCH and app-store-forms. What only App Store Connect can confirm waits for batch 10.
   - **What:** `LAUNCH.md` and `app-store-forms.md` describe states that have passed. Five specs and several 2026-10-13…16 roadmap entries still read 🟡 or « non fusionné ».
