@@ -8,6 +8,8 @@ import 'package:myweli/services/mock/mock_auth_service.dart';
 import 'package:myweli/services/mock/mock_data.dart';
 import 'package:myweli/services/mock/mock_pro_service.dart';
 
+import '../support/web_created.dart';
+
 /// Team access R4b — the mock world's role simulation: getMyProvider per
 /// seeded account, the field-gated dashboard, and the staff own-filters
 /// (mirrors the R4a server so the demo behaves like prod).
@@ -93,12 +95,17 @@ void main() {
     'an OWNER session keeps the full world (no filters, revenue on)',
     () async {
       await auth.requestProviderEmailOtp('own2@r4b.test');
-      await auth.registerProviderWithEmail(
+      // Signed up on the web (the app no longer registers a business —
+      // App Store 3.1.1), then signed in here.
+      seedWebSignUp(
         email: 'own2@r4b.test',
-        code: MockAuthService.demoOtp,
         phoneNumber: '+2250700000098',
         businessName: 'Salon R4b 2',
         businessType: BusinessType.salon,
+      );
+      await auth.verifyProviderEmailOtp(
+        'own2@r4b.test',
+        MockAuthService.demoOtp,
       );
       final stats = (await pro.getDashboardStats(SalonId('provider1'))).data!;
       expect(stats.hasRevenue, isTrue);

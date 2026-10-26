@@ -4,7 +4,6 @@ import 'package:crypto/crypto.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
-import 'package:myweli/models/provider_user.dart';
 import 'package:myweli/services/api/api_auth_service.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 
@@ -118,20 +117,6 @@ void main() {
     );
     expect(sent['identityToken'], 'apple-identity-token');
     expect(sent['authorizationCode'], 'apple-code');
-  });
-
-  test('Pro sign-up: the code crosses with the salon\'s fields', () async {
-    final (sent, _) = await run(
-      '/auth/provider/register',
-      proSession(201),
-      (s) => s.registerProviderWithApple(
-        phoneNumber: '+2250707010101',
-        businessName: 'Élégance',
-        businessType: BusinessType.salon,
-      ),
-    );
-    expect(sent['authorizationCode'], 'apple-code');
-    expect(sent['businessName'], 'Élégance');
   });
 
   test('an empty code is not sent — the sign-in as before', () async {

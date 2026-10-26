@@ -28,6 +28,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../a11y/_a11y.dart';
 import '../support/fonts.dart';
 import '../support/pump_app.dart';
+import '../support/web_created.dart';
 
 /// Team access R4b §5.3 — the role-shaped dashboard: owner full, manager
 /// without money/Configurer, réception down to Rendez-vous + Clients, and
@@ -183,13 +184,15 @@ void main() {
     const email = 'nameless@dash.test';
     await tester.runAsync(() async {
       await auth.requestProviderEmailOtp(email);
-      await auth.registerProviderWithEmail(
+      // Signed up on the web (the app no longer registers a business —
+      // App Store 3.1.1), then signed in here.
+      seedWebSignUp(
         email: email,
-        code: MockAuthService.demoOtp,
         phoneNumber: '+2250700000096',
         businessName: 'Provisoire',
         businessType: BusinessType.salon,
       );
+      await auth.verifyProviderEmailOtp(email, MockAuthService.demoOtp);
       await auth.logoutProvider();
     });
     final u = MockData.providerUsers.indexWhere((p) => p.email == email);
@@ -214,12 +217,17 @@ void main() {
   testWidgets('OWNER keeps the full dashboard incl. money', (tester) async {
     await tester.runAsync(() async {
       await auth.requestProviderEmailOtp('own@dash.test');
-      await auth.registerProviderWithEmail(
+      // Signed up on the web (the app no longer registers a business —
+      // App Store 3.1.1), then signed in here.
+      seedWebSignUp(
         email: 'own@dash.test',
-        code: MockAuthService.demoOtp,
         phoneNumber: '+2250700000097',
         businessName: 'Salon Dash',
         businessType: BusinessType.salon,
+      );
+      await auth.verifyProviderEmailOtp(
+        'own@dash.test',
+        MockAuthService.demoOtp,
       );
     });
     await tester.pumpWidget(app(await readyAuth(tester)));

@@ -5,7 +5,6 @@ import 'package:myweli/providers/auth_provider.dart';
 import 'package:myweli/providers/pro_auth_provider.dart';
 import 'package:myweli/screens/auth/login_screen.dart';
 import 'package:myweli/screens/provider/auth/pro_login_screen.dart';
-import 'package:myweli/screens/provider/auth/pro_register_screen.dart';
 import 'package:myweli/widgets/common/auth_switch_prompt.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -69,10 +68,6 @@ void main() {
     'the pro login': (
       screen: const ProLoginScreen(),
       proof: 'Pas encore de compte ?',
-    ),
-    'the pro register form': (
-      screen: const ProRegisterScreen(),
-      proof: 'Déjà un compte ?',
     ),
   };
 

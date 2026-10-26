@@ -20,6 +20,8 @@ import 'package:myweli/services/mock/mock_pro_service.dart';
 import 'package:myweli/services/mock/mock_push_notification_service.dart';
 import 'package:myweli/services/mock/mock_subscription_service.dart';
 
+import '../support/web_created.dart';
+
 /// Team access R6b — multi-salons in the app: the models, the mock world
 /// (« Mes salons », selection, « Ajouter un salon » gates), the
 /// ProAuthProvider switch/fallback/persistence plumbing, and the
@@ -128,17 +130,12 @@ void main() {
   });
 
   group('« Mes salons » (mock world)', () {
-    test(
-      'the seeded owner sees BOTH salons, owned first, no add gate yet',
-      () async {
-        final auth = await signInOwner();
-        expect(auth.salons.map((s) => s.salonId), ['provider2', 'provider1']);
-        expect(auth.salons.every((s) => s.isOwner), isTrue);
-        expect(auth.hasMultipleSalons, isTrue);
-        // No offer anywhere → the server-computed gate stays closed.
-        expect(auth.canAddSalon, isFalse);
-      },
-    );
+    test('the seeded owner sees BOTH salons, owned first', () async {
+      final auth = await signInOwner();
+      expect(auth.salons.map((s) => s.salonId), ['provider2', 'provider1']);
+      expect(auth.salons.every((s) => s.isOwner), isTrue);
+      expect(auth.hasMultipleSalons, isTrue);
+    });
 
     test(
       'switchSalon: reshapes, persists, resets the per-salon fleet',
@@ -238,60 +235,18 @@ void main() {
   });
 
   group('« Ajouter un salon » (mock world)', () {
-    test('gated on a live Réseau offer → reseau_required first', () async {
-      final auth = await signInOwner();
-      final created = await auth.addSalon(
-        businessName: 'Salon Trois',
-        businessType: BusinessType.salon,
-      );
-      expect(created, isNull);
-      expect(auth.errorCode, 'reseau_required');
-    });
-
-    test(
-      'with Réseau live: creates the draft, switches to it, lists it',
-      () async {
-        final auth = await signInOwner();
-        // provider1 on a live Réseau offer (chosen on the web, in production).
-        expect(
-          (serviceLocator.subscriptionService as MockSubscriptionService)
-              .startTrialIfAbsent(SalonId('provider1'), tier: SalonTier.reseau),
-          isTrue,
-        );
-
-        final created = await auth.addSalon(
-          businessName: 'Salon Trois',
-          businessType: BusinessType.spa,
-        );
-        expect(created, isNotNull);
-        expect(created!.salonStatus, 'draft');
-        expect(created.role, TeamRole.owner);
-        // Switched to the new salon; the list carries all three.
-        expect(auth.activeSalonId, created.salonId);
-        expect(auth.salons.length, 3);
-        // Its own SETUP state: no offer on the new salon yet.
-        final offer = await serviceLocator.subscriptionService
-            .getSalonSubscription(created.salonId);
-        expect(offer.code, 'no_offer');
-      },
-    );
-
     test('the new salon\'s FIRST publish starts its own trial — on Réseau, the '
         'offer it was added under (pro-companion-path §3.1)', () async {
       final auth = await signInOwner();
       final subs =
           serviceLocator.subscriptionService as MockSubscriptionService;
       subs.startTrialIfAbsent(SalonId('provider1'), tier: SalonTier.reseau);
-      final created = await auth.addSalon(
-        businessName: 'Salon Trois',
-        businessType: BusinessType.salon,
-      );
+      // Added on the web — the app no longer adds salons (App Store 3.1.1).
+      final created = seedWebAddedSalon(auth.provider!, name: 'Salon Trois');
 
-      final published = await serviceLocator.proService.publishSalon(
-        created!.salonId,
-      );
+      final published = await serviceLocator.proService.publishSalon(created);
       expect(published.success, isTrue);
-      final offer = await subs.getSalonSubscription(created.salonId);
+      final offer = await subs.getSalonSubscription(created);
       expect(offer.data!.status, SalonOfferStatus.trial);
       expect(offer.data!.tier, SalonTier.reseau);
     });

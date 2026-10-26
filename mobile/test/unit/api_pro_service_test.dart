@@ -8,7 +8,6 @@ import 'package:myweli/core/utils/team_error_messages.dart';
 import 'package:myweli/models/api_response.dart';
 import 'package:myweli/models/appointment.dart';
 import 'package:myweli/models/availability.dart';
-import 'package:myweli/models/provider_user.dart';
 import 'package:myweli/services/api/api_pro_service.dart';
 import 'package:myweli/services/interfaces/session_store.dart';
 
@@ -793,33 +792,6 @@ void main() {
       expect(res.code, 'demo_account_locked');
       expect(
         res.error,
-        'Compte de démonstration — cette action est désactivée.',
-      );
-    });
-
-    Future<String?> addSalonError(int status, String code) async {
-      final client = MockClient((req) async {
-        expect(req.url.path, '/me/salons');
-        return http.Response(jsonEncode({'error': code}), status);
-      });
-      final res = await _linked(
-        client,
-      ).addSalon(businessName: 'Salon Trois', businessType: BusinessType.salon);
-      return res.error;
-    }
-
-    test('add-salon codes read the shared neutral table, no upgrade '
-        'pointer', () async {
-      expect(
-        await addSalonError(403, 'reseau_required'),
-        'L’ajout de salons n’est pas disponible avec l’offre actuelle.',
-      );
-      expect(
-        await addSalonError(409, 'salon_limit'),
-        'Nombre maximal de salons atteint.',
-      );
-      expect(
-        await addSalonError(403, 'demo_account_locked'),
         'Compte de démonstration — cette action est désactivée.',
       );
     });
