@@ -32,7 +32,8 @@ String teamErrorMessage(String? code, {String? fallback}) => switch (code) {
   'artist_not_found' => 'Fiche employé introuvable. Actualisez et réessayez.',
   'trial_used' => 'Votre essai gratuit a déjà été utilisé.',
   'not_found' => 'Introuvable. Actualisez et réessayez.',
-  // R6 multi-salons (« Ajouter un salon »).
+  // R6 multi-salons (« Ajouter un salon », POST /me/salons — the web's
+  // alone since the app stopped creating salons, App Store 3.1.1).
   'reseau_required' =>
     'L’ajout de salons n’est pas disponible avec l’offre actuelle.',
   'salon_limit' => 'Nombre maximal de salons atteint.',

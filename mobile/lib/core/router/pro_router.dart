@@ -9,7 +9,6 @@ import '../../screens/provider/appointments/pro_manual_booking_screen.dart';
 import '../../screens/provider/artists/artist_form_screen.dart';
 import '../../screens/provider/artists/artist_list_screen.dart';
 import '../../screens/provider/auth/pro_login_screen.dart';
-import '../../screens/provider/auth/pro_register_screen.dart';
 import '../../screens/provider/auth/pro_splash_screen.dart';
 import '../../screens/provider/availability/availability_screen.dart';
 import '../../screens/provider/clients/client_detail_screen.dart';
@@ -27,7 +26,6 @@ import '../../screens/provider/profile/pro_profile_screen.dart';
 import '../../screens/provider/profile/pro_salon_profile_screen.dart';
 import '../../screens/provider/reviews/reviews_screen.dart';
 import '../../screens/provider/salon_preview_screen.dart';
-import '../../screens/provider/salons/add_salon_screen.dart';
 import '../../screens/provider/services/service_form_screen.dart';
 import '../../screens/provider/services/service_list_screen.dart';
 import '../../screens/provider/settings/deposit_settings_screen.dart';
@@ -38,15 +36,13 @@ import '../../screens/provider/team/team_screen.dart';
 import '../utils/salon_id.dart';
 
 class ProRouter {
-  /// The screens that hand over with a `go` — the splash, and sign-in /
-  /// sign-up after a login. A page pushed above one of them is replaced by
-  /// that `go`, so a buffered notification tap waits until the router has
-  /// left them (`landedPushHandler`, docs/design/pro-open-animation.md §2.6).
-  static const Set<String> launchPaths = {
-    '/pro/splash',
-    '/pro/login',
-    '/pro/register',
-  };
+  /// The screens that hand over with a `go` — the splash, and sign-in
+  /// after a login. A page pushed above one of them is replaced by that `go`,
+  /// so a buffered notification tap waits until the router has left them
+  /// (`landedPushHandler`, docs/design/pro-open-animation.md §2.6). There is
+  /// no sign-up screen: salons sign up on the web (App Store 3.1.1,
+  /// docs/design/pro-app-login-only.md).
+  static const Set<String> launchPaths = {'/pro/splash', '/pro/login'};
 
   static final GoRouter router = GoRouter(
     initialLocation: '/pro/splash',
@@ -63,11 +59,6 @@ class ProRouter {
           final returnTo = state.uri.queryParameters['returnTo'];
           return ProLoginScreen(returnTo: returnTo);
         },
-      ),
-      GoRoute(
-        path: '/pro/register',
-        name: 'pro-register',
-        builder: (context, state) => const ProRegisterScreen(),
       ),
       // No phone sign-in for Pros: it was removed (B8.5) — it opened with
       // the clients' AUTH_METHODS switch and took the first account carrying
@@ -217,11 +208,6 @@ class ProRouter {
         path: '/pro/team',
         name: 'pro-team',
         builder: (context, state) => const TeamScreen(),
-      ),
-      GoRoute(
-        path: '/pro/salons/nouveau',
-        name: 'pro-add-salon',
-        builder: (context, state) => const AddSalonScreen(),
       ),
       GoRoute(
         path: '/pro/invitations',

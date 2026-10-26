@@ -35,15 +35,11 @@ class ProProfileScreen extends StatefulWidget {
 }
 
 class _ProProfileScreenState extends State<ProProfileScreen> {
-  /// R6: open the « Mes salons » switcher; route the add flow and the
+  /// R6: open the « Mes salons » switcher, and the
   /// staff-shell reshape after a switch.
   Future<void> _openSalonPicker() async {
     final result = await showSalonPicker(context);
     if (!mounted || result == null) return;
-    if (result == 'add') {
-      unawaited(context.push('/pro/salons/nouveau'));
-      return;
-    }
     final auth = context.read<ProAuthProvider>();
     context.go(auth.isStaff ? '/pro/staff' : '/pro/dashboard');
   }

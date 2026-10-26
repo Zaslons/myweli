@@ -10,7 +10,8 @@ import '../../core/theme/text_styles.dart';
 /// ## Why it is a widget and not two `Row`s
 ///
 /// It was two `Row`s, and both overflowed. `pro_login_screen.dart` ran **149px**
-/// past a 360dp screen at 200% text, `pro_register_screen.dart` the same: a
+/// past a 360dp screen at 200% text, `pro_register_screen.dart` (since
+/// removed — App Store 3.1.1) the same: a
 /// centred `Row` with a `Text` and a `TextButton`, neither able to give way, so
 /// the sentence and its link simply ran off the edge. The overflow was constant
 /// across the width range — 149px at 360, 134 at 375, 119 at 390 — which is the

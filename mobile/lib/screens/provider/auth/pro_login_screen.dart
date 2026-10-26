@@ -6,6 +6,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
+import '../../../core/config/app_config.dart';
 import '../../../core/config/feature_flags.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../core/constants/unnamed_salon.dart';
@@ -14,6 +15,7 @@ import '../../../core/forms/sign_in_refusal.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/colors.dart';
 import '../../../core/theme/text_styles.dart';
+import '../../../core/utils/external_link.dart';
 import '../../../core/utils/validators.dart';
 import '../../../providers/pro_auth_provider.dart';
 import '../../../widgets/common/app_button.dart';
@@ -27,11 +29,13 @@ import '../../../widgets/team/invitation_card.dart';
 import '../../../widgets/team/revoked_access_banner.dart';
 
 /// Salon sign-in — Google + Apple (flag-hidden) + email OTP, replacing the
-/// phone-OTP login (pro auth overhaul P4). LOGIN-ONLY: `provider_not_found`
-/// offers « Créer un compte » → the register screen (identity + business
-/// fields in one submit) — UNLESS the verified email holds pending team
-/// invitations (module `access` R3): the « Invitations » step lets the
-/// invitee join WITHOUT creating a salon. Designs:
+/// phone-OTP login (pro auth overhaul P4). LOGIN-ONLY, and nothing else: the
+/// app no longer signs a business up (App Store 3.1.1 — Apple refused 0.0.1
+/// for it). `provider_not_found` says so in one sentence, with the invitation
+/// hint — UNLESS the verified email holds pending team invitations (module
+/// `access` R3): the « Invitations » step lets the invitee join. A salon
+/// signs up on the web: « S’inscrire sur myweli.com » opens it in the
+/// browser (the owner's call). Designs: docs/design/pro-app-login-only.md ·
 /// docs/design/pro-auth-social.md · docs/design/team-access-r3-app.md §2.2.
 class ProLoginScreen extends StatefulWidget {
   const ProLoginScreen({super.key, this.returnTo});
@@ -164,8 +168,8 @@ class _ProLoginScreenState extends State<ProLoginScreen> {
     await auth.declinePendingInvitation(invitationId);
     if (!mounted) return;
     if (!auth.hasPendingInvitations) {
-      // Every invitation handled — fall back to the classic options step
-      // (« Créer un compte » renders from provider_not_found).
+      // Every invitation handled — fall back to the classic options step,
+      // where provider_not_found's sentence says there is no account.
       setState(() => _step = _Step.options);
     }
   }
@@ -252,7 +256,6 @@ class _ProLoginScreenState extends State<ProLoginScreen> {
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<ProAuthProvider>();
-    final notFound = auth.errorCode == 'provider_not_found';
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(title: const Text('Espace Pro')),
@@ -440,18 +443,15 @@ class _ProLoginScreenState extends State<ProLoginScreen> {
               // §14 rule 3 + §15: a server OUTCOME is form-level, and
               // `InlineFeedback` is a live region — a red Text never was.
               InlineFeedback(_formFault(auth)),
-              if (notFound) ...[
-                const SizedBox(height: AppTheme.spacingS),
-                AppButton(
-                  text: 'Créer un compte',
-                  onPressed: () => context.go('/pro/register'),
-                ),
-              ],
               const SizedBox(height: AppTheme.spacingL),
+              // The app does not sign a business up (App Store 3.1.1,
+              // docs/design/pro-app-login-only.md): the web does, and this
+              // says so — it opens the browser, it never pushes a route.
               AuthSwitchPrompt(
                 question: 'Pas encore de compte ?',
-                actionLabel: 'S’inscrire',
-                onPressed: () => context.go('/pro/register'),
+                actionLabel: 'S’inscrire sur myweli.com',
+                onPressed: () =>
+                    openExternalUrl(context, AppConfig.proSignUpUrl),
               ),
             ],
           ),

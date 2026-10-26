@@ -402,7 +402,7 @@ class _ProSalonProfileScreenState extends State<ProSalonProfileScreen> {
         ),
         const SizedBox(height: AppTheme.spacingS),
         DropdownButtonFormField<String>(
-          // A11 C8 — see pro_register_screen.dart: without this the
+          // A11 C8: without this the
           // button takes its WIDEST item's intrinsic width and overflows
           // the field at 200% text.
           isExpanded: true,

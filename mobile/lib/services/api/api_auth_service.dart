@@ -435,17 +435,6 @@ class ApiAuthService implements AuthServiceInterface {
     return provider;
   }
 
-  /// Shared FLAT ProviderSession handling for every provider login endpoint.
-  Future<ApiResponse<ProviderUser>> _providerLoginFrom(
-    http.Response? res, {
-    int expected = 200,
-  }) async {
-    if (res == null) return networkError();
-    if (res.statusCode != expected) return _refused(res);
-    final provider = await _adoptProviderSession(_decode(res.body));
-    return ApiResponse.success(provider, message: 'Connexion réussie');
-  }
-
   /// Three-way login outcome (team access R3): 200 → signed in ·
   /// 202 → pending invitations (the R2b bridge; [proof] re-proves the
   /// identity on the accept/decline calls) · else → failure with the
@@ -636,125 +625,6 @@ class ApiAuthService implements AuthServiceInterface {
       'code': code,
     },
   };
-
-  @override
-  Future<ApiResponse<ProviderUser>> registerProviderWithGoogle({
-    required String phoneNumber,
-    required String businessName,
-    required BusinessType businessType,
-    String? address,
-    String? areaId,
-  }) async {
-    try {
-      final idToken = await _googleIdToken();
-      if (idToken == null) {
-        // See signInProviderWithGoogle: cancel now throws, so a null here is a
-        // real token failure and no longer disguises itself as a cancel.
-        return ApiResponse.error(
-          'Connexion Google impossible.',
-          code: 'no_id_token',
-        );
-      }
-      final res = await _post('/auth/provider/register', {
-        'idToken': idToken,
-        'phoneNumber': phoneNumber,
-        'businessName': businessName,
-        'businessType': businessType.name,
-        if (address != null && address.isNotEmpty) 'address': address,
-        if (areaId != null && areaId.isNotEmpty) 'areaId': areaId,
-      });
-      return _providerLoginFrom(res, expected: 201);
-    } on GoogleSignInException catch (e) {
-      if (e.code == GoogleSignInExceptionCode.canceled) {
-        return ApiResponse.error('', code: 'cancelled');
-      }
-      _reportSignInFailure('google', e.code.name);
-      return ApiResponse.error(
-        'Connexion Google impossible.',
-        code: 'google_failed',
-      );
-    } catch (_) {
-      _reportSignInFailure('google', 'non_plugin_error');
-      return ApiResponse.error(
-        'Connexion Google impossible.',
-        code: 'google_failed',
-      );
-    }
-  }
-
-  @override
-  Future<ApiResponse<ProviderUser>> registerProviderWithApple({
-    required String phoneNumber,
-    required String businessName,
-    required BusinessType businessType,
-    String? address,
-    String? areaId,
-  }) async {
-    try {
-      // Same nonce discipline as signInProviderWithApple: the RAW nonce goes to
-      // our backend, its SHA-256 to Apple, and the verifier compares them.
-      final rawNonce = _randomNonce();
-      final credential = await _appleCredential(
-        sha256.convert(utf8.encode(rawNonce)).toString(),
-      );
-      final identityToken = credential.identityToken;
-      if (identityToken == null) {
-        return ApiResponse.error(
-          'Inscription Apple impossible.',
-          code: 'no_id_token',
-        );
-      }
-      final res = await _post('/auth/provider/register', {
-        'identityToken': identityToken,
-        'nonce': rawNonce,
-        ..._appleCode(credential),
-        'phoneNumber': phoneNumber,
-        'businessName': businessName,
-        'businessType': businessType.name,
-        if (address != null && address.isNotEmpty) 'address': address,
-        if (areaId != null && areaId.isNotEmpty) 'areaId': areaId,
-      });
-      return _providerLoginFrom(res, expected: 201);
-    } on SignInWithAppleAuthorizationException catch (e) {
-      // A cancel is silent — the user closed the sheet, that is not an error.
-      if (e.code == AuthorizationErrorCode.canceled) {
-        return ApiResponse.error('', code: 'cancelled');
-      }
-      _reportSignInFailure('apple', e.code.name);
-      return ApiResponse.error(
-        'Inscription Apple impossible.',
-        code: 'apple_failed',
-      );
-    } catch (_) {
-      _reportSignInFailure('apple', 'non_plugin_error');
-      return ApiResponse.error(
-        'Inscription Apple impossible.',
-        code: 'apple_failed',
-      );
-    }
-  }
-
-  @override
-  Future<ApiResponse<ProviderUser>> registerProviderWithEmail({
-    required String email,
-    required String code,
-    required String phoneNumber,
-    required String businessName,
-    required BusinessType businessType,
-    String? address,
-    String? areaId,
-  }) async {
-    final res = await _post('/auth/provider/register', {
-      'email': email,
-      'code': code,
-      'phoneNumber': phoneNumber,
-      'businessName': businessName,
-      'businessType': businessType.name,
-      if (address != null && address.isNotEmpty) 'address': address,
-      if (areaId != null && areaId.isNotEmpty) 'areaId': areaId,
-    });
-    return _providerLoginFrom(res, expected: 201);
-  }
 
   @override
   Future<ProviderUser?> getCurrentProvider() async {
@@ -1012,7 +882,7 @@ class ApiAuthService implements AuthServiceInterface {
       case 'invalid_input':
         return 'Numéro ou code invalide.';
       case 'provider_not_found':
-        return 'Aucun compte professionnel pour ce numéro. Inscrivez-vous.';
+        return kNoProAccountMessage;
       case 'provider_exists':
         return 'Un compte existe déjà pour ce numéro. Connectez-vous.';
       case 'invalid_email':

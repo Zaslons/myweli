@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/constants/failure_messages.dart';
@@ -123,25 +122,6 @@ class _Body extends StatelessWidget {
         const SizedBox(height: AppTheme.spacingM),
         _SeatsBar(seats: salon.seats),
         const SizedBox(height: AppTheme.spacingM),
-        // R6 multi-salons: a LIVE Réseau offer opens « Ajouter un salon ».
-        // It states what the account can do with the offer it HAS — not
-        // another offer, a trial or a price.
-        if (salon.tier == SalonTier.reseau && salon.isLive) ...[
-          AppCard(
-            padding: EdgeInsets.zero,
-            child: ListTile(
-              leading: const Icon(
-                Icons.add_business_outlined,
-                color: AppColors.textPrimary,
-              ),
-              title: const Text('Ajouter un salon'),
-              subtitle: const Text('Un salon de plus dans votre compte.'),
-              trailing: const Icon(Icons.chevron_right),
-              onTap: () => context.push('/pro/salons/nouveau'),
-            ),
-          ),
-          const SizedBox(height: AppTheme.spacingM),
-        ],
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
