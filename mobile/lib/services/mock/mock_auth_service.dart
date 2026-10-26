@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import '../../core/constants/app_constants.dart';
+import '../../core/constants/failure_messages.dart';
 import '../../core/utils/app_clock.dart';
 import '../../core/utils/salon_id.dart';
 import '../../models/api_response.dart';
@@ -415,7 +416,7 @@ class MockAuthService implements AuthServiceInterface {
       }
     }
     return const ProviderLoginResult.failure(
-      'Compte introuvable. Créez votre compte.',
+      kNoProAccountMessage,
       code: 'provider_not_found',
     );
   }
@@ -548,131 +549,6 @@ class MockAuthService implements AuthServiceInterface {
     cards!.removeWhere((c) => c.id == invitationId);
     MockData.teamMembers.removeWhere((m) => m.id == invitationId);
     return ApiResponse.success(true);
-  }
-
-  ProviderUser _createProvider({
-    required String email,
-    required String phoneNumber,
-    required String businessName,
-    required BusinessType businessType,
-    String? address,
-  }) {
-    // Mirror salon provisioning (pro-salon-lifecycle/R1): registration links
-    // a DRAFT salon so the account is a real OWNER (providerId set) — the
-    // R4b role plumbing depends on it.
-    // Made the server's way: empty, and at a 0 % deposit
-    // (docs/design/hygiene-batch9.md §2.5).
-    final salonId = SalonId(MockIds.next('provider_reg'));
-    MockData.providers.add(
-      MockData.newSalon(
-        id: salonId,
-        name: businessName,
-        businessType: businessType,
-        phoneNumber: phoneNumber,
-        address: address,
-      ),
-    );
-    final providerUser = ProviderUser(
-      id: MockIds.next('provider'),
-      phoneNumber: phoneNumber,
-      businessName: businessName,
-      businessType: businessType,
-      email: email.trim().toLowerCase(),
-      address: address,
-      createdAt: AppClock.now(),
-      providerId: salonId,
-    );
-    MockData.providerUsers.add(providerUser);
-    _currentProvider = providerUser;
-    return providerUser;
-  }
-
-  @override
-  Future<ApiResponse<ProviderUser>> registerProviderWithGoogle({
-    required String phoneNumber,
-    required String businessName,
-    required BusinessType businessType,
-    String? address,
-    String? areaId, // accepted for parity; the mock draft has no doc to stamp
-  }) async {
-    await Future.delayed(AppConstants.mockDelay);
-    if (_providerByEmail(mockProGoogleEmail) != null) {
-      return ApiResponse.error(
-        'Un compte existe déjà pour cette identité.',
-        code: 'provider_exists',
-      );
-    }
-    return ApiResponse.success(
-      _createProvider(
-        email: mockProGoogleEmail,
-        phoneNumber: phoneNumber,
-        businessName: businessName,
-        businessType: businessType,
-        address: address,
-      ),
-      message: 'Inscription réussie',
-    );
-  }
-
-  @override
-  Future<ApiResponse<ProviderUser>> registerProviderWithApple({
-    required String phoneNumber,
-    required String businessName,
-    required BusinessType businessType,
-    String? address,
-    String? areaId, // accepted for parity; the mock draft has no doc to stamp
-  }) async {
-    await Future.delayed(AppConstants.mockDelay);
-    if (_providerByEmail(mockProAppleEmail) != null) {
-      return ApiResponse.error(
-        'Un compte existe déjà pour cette identité.',
-        code: 'provider_exists',
-      );
-    }
-    return ApiResponse.success(
-      _createProvider(
-        email: mockProAppleEmail,
-        phoneNumber: phoneNumber,
-        businessName: businessName,
-        businessType: businessType,
-        address: address,
-      ),
-      message: 'Inscription réussie',
-    );
-  }
-
-  @override
-  Future<ApiResponse<ProviderUser>> registerProviderWithEmail({
-    required String email,
-    required String code,
-    required String phoneNumber,
-    required String businessName,
-    required BusinessType businessType,
-    String? address,
-    String? areaId, // accepted for parity; the mock draft has no doc to stamp
-  }) async {
-    await Future.delayed(AppConstants.mockDelay);
-    final key = email.trim().toLowerCase();
-    if (_providerEmailOtpStore[key] != code) {
-      return ApiResponse.error('Code incorrect.', code: 'otp_invalid');
-    }
-    if (_providerByEmail(key) != null) {
-      return ApiResponse.error(
-        'Un compte existe déjà pour cette identité.',
-        code: 'provider_exists',
-      );
-    }
-    _providerEmailOtpStore.remove(key);
-    return ApiResponse.success(
-      _createProvider(
-        email: key,
-        phoneNumber: phoneNumber,
-        businessName: businessName,
-        businessType: businessType,
-        address: address,
-      ),
-      message: 'Inscription réussie',
-    );
   }
 
   ProMembership? _cachedMembership;

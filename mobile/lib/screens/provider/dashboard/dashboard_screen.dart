@@ -60,15 +60,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
   /// happens WITHOUT remounting this screen, so a change triggers a reload.
   SalonId? _loadedForSalon;
 
-  /// Open the switcher; handle the add flow and the post-switch reshape
+  /// Open the switcher, and the post-switch reshape
   /// (a staff membership in the new salon lands on the staff shell).
   Future<void> _openSalonPicker() async {
     final result = await showSalonPicker(context);
     if (!mounted || result == null) return;
-    if (result == 'add') {
-      unawaited(context.push('/pro/salons/nouveau'));
-      return;
-    }
     final auth = context.read<ProAuthProvider>();
     if (auth.isStaff) {
       context.go('/pro/staff');
@@ -252,9 +248,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             // account has several salons; « Mes salons » lives on the
             // Profil screen too).
             InkWell(
-              onTap: authProvider.hasMultipleSalons || authProvider.canAddSalon
-                  ? _openSalonPicker
-                  : null,
+              onTap: authProvider.hasMultipleSalons ? _openSalonPicker : null,
               borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
@@ -271,8 +265,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       ),
                     ),
                   ),
-                  if (authProvider.hasMultipleSalons ||
-                      authProvider.canAddSalon) ...[
+                  if (authProvider.hasMultipleSalons) ...[
                     const SizedBox(width: AppTheme.spacingXS),
                     const Icon(
                       Icons.expand_more,

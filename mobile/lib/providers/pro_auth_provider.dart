@@ -10,7 +10,6 @@ import '../core/constants/unnamed_salon.dart';
 import '../core/di/dependency_injection.dart';
 import '../core/router/pro_router.dart';
 import '../core/utils/salon_id.dart';
-import '../models/api_response.dart';
 import '../models/pro_membership.dart';
 import '../models/provider.dart';
 import '../models/provider_login_result.dart';
@@ -174,10 +173,6 @@ class ProAuthProvider extends ChangeNotifier {
       (_provider?.providerId?.isNotEmpty ?? false) ||
       _salons.any((s) => s.isOwner);
 
-  /// Server-computed « Ajouter un salon » gate (≥1 owned live Réseau).
-  bool _canAddSalon = false;
-  bool get canAddSalon => _canAddSalon;
-
   bool _loadingSalons = false;
 
   /// A join landed while a load was out ([acceptInvitation]): that load may
@@ -193,7 +188,6 @@ class ProAuthProvider extends ChangeNotifier {
       final res = await serviceLocator.proService.getMySalons();
       if (res.success && res.data != null) {
         _salons = res.data!.items;
-        _canAddSalon = res.data!.canAddSalon;
         notifyListeners();
       }
     } catch (_) {
@@ -249,47 +243,6 @@ class ProAuthProvider extends ChangeNotifier {
       // usable came back, as the web's unreadable 2xx — and choosing again
       // is safe, the selection is only persisted once the probe succeeds.
       return SalonSwitchOutcome.offline;
-    } finally {
-      _isLoading = false;
-      notifyListeners();
-    }
-  }
-
-  /// « Ajouter un salon » (R6): create the additional draft salon, refresh
-  /// « Mes salons » and SWITCH to it (the caller then lands on onboarding).
-  /// Null on failure — [error]/[errorCode] carry the gate
-  /// (`reseau_required`/`salon_limit`) for the form.
-  Future<SalonMembershipInfo?> addSalon({
-    required String businessName,
-    required BusinessType businessType,
-    String? phoneNumber,
-    String? address,
-    String? areaId,
-  }) async {
-    if (_provider == null) return null;
-    _isLoading = true;
-    _error = null;
-    _errorCode = null;
-    notifyListeners();
-    try {
-      final res = await serviceLocator.proService.addSalon(
-        businessName: businessName,
-        businessType: businessType,
-        phoneNumber: phoneNumber,
-        address: address,
-        areaId: areaId,
-      );
-      if (res.success && res.data != null) {
-        await loadMySalons();
-        await switchSalon(res.data!.salonId);
-        return res.data;
-      }
-      _error = res.error ?? 'Création du salon impossible.';
-      _errorCode = res.code;
-      return null;
-    } catch (e) {
-      _error = kGenericErrorMessage;
-      return null;
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -565,7 +518,6 @@ class ProAuthProvider extends ChangeNotifier {
     _market = null;
     _keptFacts = null;
     _salons = const [];
-    _canAddSalon = false;
     _salonsAgain = false;
     // No store's reset reloads anything, so the selection cleared just
     // below (after an await) is not read in between.
@@ -816,39 +768,6 @@ class ProAuthProvider extends ChangeNotifier {
   String? _errorCode;
   String? get errorCode => _errorCode;
 
-  /// Shared login/registration handling — a signed-in provider comes back.
-  /// A user-cancelled Google sheet fails silently. False with no error when
-  /// the membership refresh ended the session (revoked, nothing pending —
-  /// pro-rejoin-gate.md S11); true under the rejoin gate, which the screen
-  /// routes to ([rejoinPending]).
-  Future<bool> _login(Future<ApiResponse<ProviderUser>> Function() run) async {
-    _isLoading = true;
-    _error = null;
-    _errorCode = null;
-    notifyListeners();
-    try {
-      final response = await run();
-      if (response.success && response.data != null) {
-        _provider = response.data;
-        _syncPush();
-        await refreshMembership();
-        unawaited(loadMySalons());
-        return _provider != null;
-      }
-      _errorCode = response.code;
-      _error = _errorCode == 'cancelled'
-          ? null
-          : (response.error ?? 'Connexion impossible.');
-      return false;
-    } catch (e) {
-      _error = kGenericErrorMessage;
-      return false;
-    } finally {
-      _isLoading = false;
-      notifyListeners();
-    }
-  }
-
   // ---- Team access R3: the login invitation bridge --------------------------
 
   /// Pending invitations surfaced by the last login attempt (the 202
@@ -962,7 +881,7 @@ class ProAuthProvider extends ChangeNotifier {
       if (_pendingInvitations.isEmpty) {
         _invitationProof = null;
         _errorCode = 'provider_not_found';
-        _error = 'Compte introuvable. Créez votre compte.';
+        _error = kNoProAccountMessage;
       }
       return true;
     } catch (e) {
@@ -1017,58 +936,6 @@ class ProAuthProvider extends ChangeNotifier {
   Future<bool> verifyEmailOtp(String email, String code) =>
       _bridgedLogin(() => _authService.verifyProviderEmailOtp(email, code));
 
-  Future<bool> registerWithGoogle({
-    required String phoneNumber,
-    required String businessName,
-    required BusinessType businessType,
-    String? address,
-    String? areaId,
-  }) => _login(
-    () => _authService.registerProviderWithGoogle(
-      phoneNumber: phoneNumber,
-      businessName: businessName,
-      businessType: businessType,
-      address: address,
-      areaId: areaId,
-    ),
-  );
-
-  Future<bool> registerWithApple({
-    required String phoneNumber,
-    required String businessName,
-    required BusinessType businessType,
-    String? address,
-    String? areaId,
-  }) => _login(
-    () => _authService.registerProviderWithApple(
-      phoneNumber: phoneNumber,
-      businessName: businessName,
-      businessType: businessType,
-      address: address,
-      areaId: areaId,
-    ),
-  );
-
-  Future<bool> registerWithEmail({
-    required String email,
-    required String code,
-    required String phoneNumber,
-    required String businessName,
-    required BusinessType businessType,
-    String? address,
-    String? areaId,
-  }) => _login(
-    () => _authService.registerProviderWithEmail(
-      email: email,
-      code: code,
-      phoneNumber: phoneNumber,
-      businessName: businessName,
-      businessType: businessType,
-      address: address,
-      areaId: areaId,
-    ),
-  );
-
   /// Best-effort: register this device under the provider session if push
   /// permission is already granted. Never throws into the auth flow.
   void _syncPush() {
@@ -1098,7 +965,6 @@ class ProAuthProvider extends ChangeNotifier {
       _keptFacts = null;
       _selectedSalonId = null;
       _salons = const [];
-      _canAddSalon = false;
       _salonsAgain = false;
       _clearRejoin();
       _error = null;

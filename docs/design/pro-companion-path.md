@@ -123,6 +123,10 @@ Salon picker « Offre Réseau — un salon de plus dans votre compte »: unchang
 
 ### 2.3 Flows
 
+*(2026-10-26: registration left the app — App Store 3.1.1 refused it; a salon
+signs up on the web, then signs in to the app — [pro-app-login-only.md](pro-app-login-only.md).
+The flow below starts at its first sign-in.)*
+
 **iPhone-only salon, start to live.** Register → onboarding checklist without
 an offer step → complete profile, pin, ≥3 services, ≥3 photos, hours →
 « Mettre mon profil en ligne » → the server starts the 3-month trial on the

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/date_symbol_data_local.dart';
+import 'package:myweli/core/constants/failure_messages.dart';
 import 'package:myweli/core/di/dependency_injection.dart';
 import 'package:myweli/providers/pro_auth_provider.dart';
 import 'package:myweli/screens/provider/auth/pro_login_screen.dart';
@@ -41,10 +42,6 @@ void main() {
         GoRoute(
           path: '/pro/dashboard',
           builder: (_, _) => const Scaffold(body: Text('DASHBOARD')),
-        ),
-        GoRoute(
-          path: '/pro/register',
-          builder: (_, _) => const Scaffold(body: Text('REGISTER')),
         ),
         GoRoute(
           path: '/pro/staff',
@@ -117,17 +114,20 @@ void main() {
     expect(find.text('STAFF_SHELL'), findsOneWidget);
   });
 
-  testWidgets('« Refuser » on the last card falls back to the classic '
-      '« Créer un compte » path', (tester) async {
+  // docs/design/pro-app-login-only.md §4.2 (B0.11, App Store 3.1.1): the
+  // app no longer offers « Créer un compte » — the last refusal ends on the
+  // one no-account sentence, the web sign-up link below as everywhere.
+  testWidgets('« Refuser » on the last card ends on the no-account sentence, '
+      'with no way to create an account in the app', (tester) async {
     await reachInvitationsStep(tester);
 
     await tester.tap(find.text('Refuser'));
     await settle(tester);
 
-    // Back on the options step with the provider_not_found fallback.
     expect(find.text('Vous êtes invité(e)'), findsNothing);
-    expect(find.text('Créer un compte'), findsOneWidget);
-    expect(find.textContaining('Compte introuvable'), findsOneWidget);
+    expect(find.text('Créer un compte'), findsNothing);
+    expect(find.text(kNoProAccountMessage), findsOneWidget);
+    expect(find.text('S’inscrire sur myweli.com'), findsOneWidget);
   });
 
   testWidgets('« Retour » clears the step without touching the invitation', (

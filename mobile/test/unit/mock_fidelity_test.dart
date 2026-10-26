@@ -16,6 +16,7 @@ import 'package:myweli/services/mock/mock_pro_team_service.dart';
 import 'package:myweli/services/mock/mock_subscription_service.dart';
 
 import '../support/frozen_clock.dart';
+import '../support/web_created.dart';
 
 /// docs/design/hygiene-batch9.md §2.5 (B9.6) — the mocks behave like the
 /// server, so what the app is built and tested against is the contract:
@@ -50,17 +51,14 @@ void main() {
     expect(res.signedIn, isTrue, reason: 'the scenario: $email');
   }
 
-  /// Jean, owner of provider1, with a Réseau trial — « Ajouter un salon »
-  /// is gated on one — adds a second salon. Returns its id.
+  /// Jean, owner of provider1, with a Réseau trial — the server gates
+  /// « Ajouter un salon » on one — adds a second salon ON THE WEB (the app
+  /// no longer does: App Store 3.1.1). Returns its id.
   Future<SalonId> jeanAddsASalon({String name = 'Salon Neuf'}) async {
     await signIn('jean@salon-excellence.test');
     subs.startTrialIfAbsent(SalonId('provider1'), tier: SalonTier.reseau);
-    final added = await MockProService().addSalon(
-      businessName: name,
-      businessType: BusinessType.salon,
-    );
-    expect(added.success, isTrue, reason: '${added.error}');
-    return added.data!.salonId;
+    final jean = await auth.getCurrentProvider();
+    return seedWebAddedSalon(jean!, name: name);
   }
 
   Service firstServiceOf(SalonId salonId) =>
@@ -185,17 +183,14 @@ void main() {
       expect(salon.category, 'salon');
     });
 
-    test('registration', () async {
-      await auth.requestProviderEmailOtp('neuf@salon.ci');
-      final reg = await auth.registerProviderWithEmail(
+    test('a salon signed up on the web', () async {
+      final account = seedWebSignUp(
         email: 'neuf@salon.ci',
-        code: MockAuthService.demoOtp,
         phoneNumber: '+2250700000099',
         businessName: 'Ongles Neufs',
         businessType: BusinessType.nailSalon,
       );
-      expect(reg.success, isTrue, reason: '${reg.error}');
-      final id = reg.data!.providerId!;
+      final id = account.providerId!;
       final policy = await MockProService().getDepositPolicy(id);
       expect(policy.data!.depositRequired, isFalse);
       expect(policy.data!.depositPercentage, 0);

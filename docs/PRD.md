@@ -442,7 +442,7 @@ Pro is a separate app/entry (`main_pro.dart`, `pro_router.dart`). Built for the 
 
 ### 10.1 Onboarding, auth & KYC
 
-- **FR-PRO-AUTH-001 [V1]** Phone/OTP login & registration: business name, **business type** (salon/barber/spa/nail/massage/freelance/other), address (pin + landmark), commune. *(exists: `pro_register_screen.dart`)*
+- **FR-PRO-AUTH-001 [V1]** Phone/OTP login & registration: business name, **business type** (salon/barber/spa/nail/massage/freelance/other), address (pin + landmark), commune. *(**2026-10-26 — registration is the web's alone** (`/pro/inscription`): Apple refused Pro 0.0.1 under 3.1.1 for business registration in the app, so the Pro app — iOS and Android — only signs salons in; its « S’inscrire sur myweli.com » opens the web sign-up ([pro-app-login-only.md](design/pro-app-login-only.md)). `pro_register_screen.dart` was removed.)*
 - **FR-PRO-KYC-001 [V1]** **KYC & verification flow** (✅ built — pro uploader + admin approve/reject queue; signed-GET doc viewing): upload business registration / ID, owner photo, business address proof; status pending → verified/rejected; **"Verified" badge** surfaced on consumer profile.
   - **AC:** A provider cannot receive bookings with deposits until verified; admin can approve/reject with reason; provider sees status and required actions.
 - **FR-PRO-ONB-001 [V1]** Guided onboarding (✅ built — progress checklist): create profile → add ≥3 services → add staff → set availability → upload ≥3 photos → set deposit & cancellation policy → go live. Progress checklist.

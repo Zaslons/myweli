@@ -15,7 +15,6 @@ import '../../models/payment.dart';
 import '../../models/pro_membership.dart';
 import '../../models/provider.dart';
 import '../../models/provider_session.dart';
-import '../../models/provider_user.dart';
 import '../../models/review.dart';
 import '../../models/review_summary.dart';
 import '../../models/salon_membership_info.dart';
@@ -423,41 +422,6 @@ class ApiProService implements ProServiceInterface {
     if (res == null) return networkError();
     if (res.statusCode != 200) return _refused(res);
     return ApiResponse.success(MySalonsResult.fromJson(_decode(res.body)));
-  }
-
-  @override
-  Future<ApiResponse<SalonMembershipInfo>> addSalon({
-    required String businessName,
-    required BusinessType businessType,
-    String? phoneNumber,
-    String? address,
-    String? areaId,
-  }) async {
-    if (await _authed.accessToken() == null) {
-      return ApiResponse.error('Non connecté');
-    }
-    final res = await _authed.send(
-      (t) => _client.post(
-        _uri('/me/salons'),
-        headers: _bearer(t),
-        body: jsonEncode({
-          'businessName': businessName,
-          'businessType': businessType.name,
-          if (phoneNumber != null && phoneNumber.isNotEmpty)
-            'phoneNumber': phoneNumber,
-          if (address != null && address.isNotEmpty) 'address': address,
-          if (areaId != null && areaId.isNotEmpty) 'areaId': areaId,
-        }),
-      ),
-    );
-    if (res == null) return networkError();
-    if (res.statusCode != 201) return _refused(res);
-    return ApiResponse.success(
-      SalonMembershipInfo.fromJson(
-        _decode(res.body)['salon'] as Map<String, dynamic>,
-      ),
-      message: 'Salon créé',
-    );
   }
 
   @override
@@ -901,8 +865,9 @@ class ApiProService implements ProServiceInterface {
       // bypass, and « Une erreur est survenue » would hide which field.
       case 'invalid_phone':
         return 'Numéro invalide (format international, ex. +2250700000000).';
-      // « Ajouter un salon » (403 `reseau_required` / 409 `salon_limit`) and
-      // the demo account's lock (publish, POST /me/salons): the team table's
+      // « Ajouter un salon » (403 `reseau_required` / 409 `salon_limit` —
+      // POST /me/salons, the web's alone since App Store 3.1.1) and the demo
+      // account's lock (publish): the team table's
       // neutral sentences, so the mock and the API can never drift. They read
       // « Une erreur est survenue. » before — and the old mock copy pointed
       // the salon to an upgrade (docs/design/pro-companion-path.md §2.2).

@@ -5,7 +5,6 @@ import 'package:myweli/providers/auth_provider.dart';
 import 'package:myweli/providers/pro_auth_provider.dart';
 import 'package:myweli/screens/auth/login_screen.dart';
 import 'package:myweli/screens/provider/auth/pro_login_screen.dart';
-import 'package:myweli/screens/provider/auth/pro_register_screen.dart';
 import 'package:myweli/widgets/common/auth_switch_prompt.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -69,10 +68,6 @@ void main() {
     'the pro login': (
       screen: const ProLoginScreen(),
       proof: 'Pas encore de compte ?',
-    ),
-    'the pro register form': (
-      screen: const ProRegisterScreen(),
-      proof: 'Déjà un compte ?',
     ),
   };
 
@@ -138,18 +133,23 @@ void main() {
         reason: 'the prompt runs to ${prompt.right}dp on a ${width}dp screen',
       );
 
-      for (final part in ['Pas encore de compte ?', 'S’inscrire']) {
+      for (final part in [
+        'Pas encore de compte ?',
+        'S’inscrire sur myweli.com',
+      ]) {
         expect(find.text(part), findsOneWidget, reason: '« $part » vanished');
         expectNoMidWordBreak(tester, part, '${width.toInt()}dp @2x');
       }
 
-      // §13.2: the link is the only way to reach registration from here, and a
+      // §13.2: the link is the only way to reach the web sign-up from here
+      // (the app no longer registers a business — App Store 3.1.1), and a
       // wrapped Wrap run must not squeeze it below the tap minimum.
       final link = tester.getSize(find.byType(TextButton));
       expect(
         link.height,
         greaterThanOrEqualTo(48.0),
-        reason: 'the « S’inscrire » target is ${link.height}dp tall',
+        reason:
+            'the « S’inscrire sur myweli.com » target is ${link.height}dp tall',
       );
     });
   }

@@ -18,6 +18,7 @@ import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../support/pump_app.dart';
+import '../support/web_created.dart';
 
 /// Team access R4b §5.3 — the role-shaped Profil: owner keeps every row;
 /// manager loses money/team/owner rows; staff is the slim personal profile
@@ -179,12 +180,17 @@ void main() {
   testWidgets('OWNER keeps the business card and every row', (tester) async {
     await tester.runAsync(() async {
       await auth.requestProviderEmailOtp('own@profil.test');
-      await auth.registerProviderWithEmail(
+      // Signed up on the web (the app no longer registers a business —
+      // App Store 3.1.1), then signed in here.
+      seedWebSignUp(
         email: 'own@profil.test',
-        code: MockAuthService.demoOtp,
         phoneNumber: '+2250700000096',
         businessName: 'Salon Profil',
         businessType: BusinessType.salon,
+      );
+      await auth.verifyProviderEmailOtp(
+        'own@profil.test',
+        MockAuthService.demoOtp,
       );
     });
     await tester.pumpWidget(app(await readyAuth(tester)));

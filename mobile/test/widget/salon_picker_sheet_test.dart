@@ -205,9 +205,10 @@ void main() {
     await drain(tester);
   });
 
-  testWidgets('« Ajouter un salon » appears once the Réseau gate opens', (
-    tester,
-  ) async {
+  // docs/design/pro-app-login-only.md (B0.11, App Store 3.1.1): the app no
+  // longer creates salons — a live Réseau owner adds one on the web.
+  testWidgets('a live Réseau account sees no « Ajouter un salon » — salons '
+      'are added on the web', (tester) async {
     final auth = await signInOwner(tester);
     await tester.runAsync(() async {
       // provider1 on a live Réseau offer (chosen on the web, in production —
@@ -221,11 +222,10 @@ void main() {
     });
     await pumpPicker(tester, auth);
 
-    expect(find.text('Ajouter un salon'), findsOneWidget);
-    // States the offer the account HAS — unchanged by the companion path.
+    expect(find.text('Ajouter un salon'), findsNothing);
     expect(
       find.text('Offre Réseau — un salon de plus dans votre compte'),
-      findsOneWidget,
+      findsNothing,
     );
     await drain(tester);
   });

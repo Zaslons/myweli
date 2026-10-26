@@ -120,6 +120,11 @@ Errors: 401 · 403 `forbidden` (non-provider) · 403 **`reseau_required`** ·
 
 ## 6. Clients (R6b/R6c summaries — detail passes at build time)
 
+> **2026-10-26 — « Ajouter un salon » left the app** (App Store 3.1.1:
+> creating a business in the app is business registration). The web keeps
+> it (`/pro/salons/nouveau`, `POST /me/salons`); the app's salon picker lists
+> and switches only ([pro-app-login-only.md](pro-app-login-only.md)).
+
 - **App (BUILT — R6b, 2026-07-13)**: `_selectedSalonId` persisted INSIDE the
   `ProviderSession` (cold-start restore, revalidated by the first probe);
   `switchSalon` = validate via `getMyProvider(salonId:)` + persist + reshape

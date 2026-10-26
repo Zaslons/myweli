@@ -277,67 +277,6 @@ class MockProService implements ProServiceInterface {
   }
 
   @override
-  Future<ApiResponse<SalonMembershipInfo>> addSalon({
-    required String businessName,
-    required BusinessType businessType,
-    String? phoneNumber,
-    String? address,
-    String? areaId,
-  }) async {
-    await Future.delayed(AppConstants.mockDelay);
-    final account = await serviceLocator.authService.getCurrentProvider();
-    if (account == null) {
-      return ApiResponse.error('Non connecté', code: 'unauthorized');
-    }
-    final name = businessName.trim();
-    if (name.isEmpty) {
-      return ApiResponse.error('Nom requis', code: 'invalid_input');
-    }
-    if (!_canAddSalon(account)) {
-      return ApiResponse.error(
-        teamErrorMessage('reseau_required'),
-        code: 'reseau_required',
-      );
-    }
-    // The new DRAFT salon in its own free SETUP state (no offer row), made
-    // the server's way: empty, and at a 0 % deposit.
-    final id = SalonId(MockIds.next('provider_add'));
-    MockData.providers.add(
-      MockData.newSalon(
-        id: id,
-        name: name,
-        businessType: businessType,
-        phoneNumber: phoneNumber ?? '',
-        address: address,
-        verified: account.verificationStatus == VerificationStatus.verified,
-      ),
-    );
-    MockData.draftSalonIds.add(id);
-    MockData.teamMembers.add(
-      TeamMember(
-        id: 'mem_add_$id',
-        providerId: id,
-        email: account.email ?? account.phoneNumber,
-        role: TeamRole.owner,
-        status: TeamMemberStatus.active,
-        invitedAt: AppClock.now(),
-        accountId: account.id,
-        acceptedAt: AppClock.now(),
-      ),
-    );
-    return ApiResponse.success(
-      SalonMembershipInfo(
-        salonId: id,
-        salonName: name,
-        role: TeamRole.owner,
-        salonStatus: 'draft',
-        verified: account.verificationStatus == VerificationStatus.verified,
-      ),
-      message: 'Salon créé',
-    );
-  }
-
-  @override
   Future<ApiResponse<DashboardStats>> getDashboardStats(
     SalonId providerId,
   ) async {

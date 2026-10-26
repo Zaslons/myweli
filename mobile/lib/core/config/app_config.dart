@@ -103,6 +103,11 @@ class AppConfig {
   static String get legalNoticeUrl => '$siteBaseUrl/mentions-legales';
   static String get accountDeletionUrl => '$siteBaseUrl/suppression-compte';
 
+  /// Where a salon signs up — the web's « Inscription » (`web/app/pro/
+  /// inscription`). The Pro app no longer registers businesses (App Store
+  /// 3.1.1, docs/design/pro-app-login-only.md); its login screen opens this.
+  static String get proSignUpUrl => '$siteBaseUrl/pro/inscription';
+
   /// Support. Same contract as the four above, and the same review rule.
   ///
   /// It replaced a `wa.me` link built from `supportWhatsApp`, which had no

@@ -56,10 +56,6 @@ void main() {
           path: '/pro/dashboard',
           builder: (_, _) => const Scaffold(body: Text('DASHBOARD')),
         ),
-        GoRoute(
-          path: '/pro/register',
-          builder: (_, _) => const Scaffold(body: Text('REGISTER')),
-        ),
       ],
     );
     return wrapApp(

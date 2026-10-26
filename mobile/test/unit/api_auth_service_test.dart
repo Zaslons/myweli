@@ -5,10 +5,8 @@ import 'package:google_sign_in/google_sign_in.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:myweli/core/utils/salon_id.dart';
-import 'package:myweli/models/api_response.dart';
 import 'package:myweli/models/pro_membership.dart';
 import 'package:myweli/models/provider_login_result.dart';
-import 'package:myweli/models/provider_user.dart';
 import 'package:myweli/models/salon_market.dart';
 import 'package:myweli/models/team_member.dart';
 import 'package:myweli/services/api/api_auth_service.dart';
@@ -187,46 +185,6 @@ void main() {
 
     expect(res.success, isFalse);
     expect(res.error, isNotNull);
-  });
-
-  test('registerProviderWithEmail POSTs identity + business fields and '
-      'signs in immediately (auth overhaul P4)', () async {
-    final store = InMemorySessionStore();
-    final client = MockClient((req) async {
-      expect(req.url.path, '/auth/provider/register');
-      final body = jsonDecode(req.body) as Map<String, dynamic>;
-      expect(body['businessType'], 'salon');
-      expect(body['email'], 'salon@x.com');
-      expect(body['code'], '123456');
-      return http.Response(
-        jsonEncode({
-          'provider': _providerJson(),
-          'accessToken': 'prov-reg-123',
-          'refreshToken': 'prov-reg-refresh',
-          'expiresAt': DateTime(2030).toIso8601String(),
-        }),
-        201,
-      );
-    });
-    final service = ApiAuthService(
-      client: client,
-      baseUrl: 'http://x',
-      providerSessionStore: store,
-    );
-
-    final res = await service.registerProviderWithEmail(
-      email: 'salon@x.com',
-      code: '123456',
-      phoneNumber: _phone,
-      businessName: 'Élégance',
-      businessType: BusinessType.salon,
-    );
-
-    expect(res.success, isTrue);
-    expect(res.data!.id, 'provider_1');
-    // Registration NOW signs in (one submit) — the session is persisted.
-    expect(await store.read(), isNotNull);
-    expect((await service.getCurrentProvider())!.id, 'provider_1');
   });
 
   // The session tests sign in by e-mail: the Pro phone sign-in they used to
@@ -597,31 +555,6 @@ void _googleTests() {
         'google-id-token-abc',
         reason: 'accept re-proves identity with this exact token',
       );
-    });
-  });
-
-  group('registerProviderWithGoogle', () {
-    Future<ApiResponse<ProviderUser>> register(GoogleIdTokenProvider g) =>
-        ApiAuthService(
-          client: _neverCalled(),
-          baseUrl: 'http://x',
-          googleIdToken: g,
-        ).registerProviderWithGoogle(
-          phoneNumber: _phone,
-          businessName: 'Élégance',
-          businessType: BusinessType.salon,
-        );
-
-    test('a cancel is SILENT', () async {
-      final res = await register(_cancelled);
-      expect(res.code, 'cancelled');
-      expect(res.error, isEmpty);
-    });
-
-    test('no token is its own code', () async {
-      final res = await register(_noToken);
-      expect(res.code, 'no_id_token');
-      expect(res.error, isNotEmpty);
     });
   });
 }
