@@ -1242,6 +1242,16 @@ checking rather than assuming:
 > commits on Sentry (app-store-forms §11.5, §12). **Left to the owner**: the
 > device checks on 698 (BACKLOG B0.2), then attach 698 to version 0.0.1,
 > paste the §8 notes, send the §13.2 reply and resubmit (B0.3).
+>
+> **2026-10-26 (night) — 0.0.1 resubmitted with build 698.** Read back
+> through the App Store Connect API: 698 attached to version 0.0.1 in place
+> of 587 and the §8 notes in place (both written through the API on the
+> owner's go); at 23:33 UTC the owner resubmitted, and the same submission
+> (`45ed9726…`) went from `UNRESOLVED_ISSUES` to `WAITING_FOR_REVIEW`, with
+> manual release. As reported by the owner, not observable from here: the
+> device checks on 698 (BACKLOG B0.2) and the Resolution Center reply
+> (app-store-forms §13.2). BACKLOG B0.1's « while in review » constraints
+> apply again.
 
 - [ ] Everything in [mobile-store-submission.md](design/mobile-store-submission.md) §5.
       Two of its claims are **stale as of 2026-08-18** and must be corrected
