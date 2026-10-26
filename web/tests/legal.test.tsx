@@ -266,6 +266,51 @@ describe('B0.4 — the policy says what the front door changed', () => {
   });
 });
 
+// JSX drops a line break that stands between text and an element: `sont`
+// ⏎ `<strong>désactivées</strong>` renders « sontdésactivées ». The rendered
+// policy read that way in four places — seen on the page, not in a test. The
+// scan holds every legal page; the phrases hold the four that were glued.
+describe('no word is glued to its neighbour by a JSX line break', () => {
+  const PAGE_FILES = [
+    'app/politique-confidentialite/page.tsx',
+    'app/cgu/page.tsx',
+    'app/mentions-legales/page.tsx',
+    'app/suppression-compte/page.tsx',
+  ];
+
+  it('no text line runs into an inline element on the next line, or back', () => {
+    const glued: string[] = [];
+    for (const file of PAGE_FILES) {
+      const lines = readFileSync(join(__dirname, '..', file), 'utf8').split('\n');
+      for (let i = 0; i < lines.length - 1; i++) {
+        const a = lines[i].trimEnd();
+        const b = lines[i + 1].trimStart();
+        const textLine = !/^\s*(\/\/|<|\{|\})/.test(a);
+        if (textLine && /[\w’.;:,»)]$/.test(a) && /^<(strong|A|em|a)\b/.test(b)) {
+          glued.push(`${file}:${i + 1}`);
+        }
+        if (/<\/(strong|A|em|a)>$/.test(a) && /^[\wÀ-ÿ«(]/.test(b)) {
+          glued.push(`${file}:${i + 1}`);
+        }
+      }
+    }
+    expect(glued).toEqual([]);
+  });
+
+  it('the policy reads the four that were glued as words', () => {
+    const { container } = render(<ConfidentialitePage />);
+    const text = container.textContent ?? '';
+    for (const phrase of [
+      'sont désactivées',
+      'aujourd’hui. L’envoi',
+      'sera Termii',
+      'sont inaccessibles',
+    ]) {
+      expect(text).toContain(phrase);
+    }
+  });
+});
+
 // docs/design/backend-integrity-batch6.md §2.3 (B6.3, decision 17): what
 // happens to a deleted owner's salon is said where a person looks for it.
 describe('a deleted salon owner: the salon keeps its name, loses its numbers', () => {
