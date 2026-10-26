@@ -77,7 +77,6 @@ void main() {
       for (final (path, label) in [
         ('/pro/dashboard', 'DASHBOARD'),
         ('/pro/staff', 'STAFF_SHELL'),
-        ('/pro/register', 'REGISTER'),
       ])
         GoRoute(
           path: path,

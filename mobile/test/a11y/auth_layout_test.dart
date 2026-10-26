@@ -133,18 +133,23 @@ void main() {
         reason: 'the prompt runs to ${prompt.right}dp on a ${width}dp screen',
       );
 
-      for (final part in ['Pas encore de compte ?', 'S’inscrire']) {
+      for (final part in [
+        'Pas encore de compte ?',
+        'S’inscrire sur myweli.com',
+      ]) {
         expect(find.text(part), findsOneWidget, reason: '« $part » vanished');
         expectNoMidWordBreak(tester, part, '${width.toInt()}dp @2x');
       }
 
-      // §13.2: the link is the only way to reach registration from here, and a
+      // §13.2: the link is the only way to reach the web sign-up from here
+      // (the app no longer registers a business — App Store 3.1.1), and a
       // wrapped Wrap run must not squeeze it below the tap minimum.
       final link = tester.getSize(find.byType(TextButton));
       expect(
         link.height,
         greaterThanOrEqualTo(48.0),
-        reason: 'the « S’inscrire » target is ${link.height}dp tall',
+        reason:
+            'the « S’inscrire sur myweli.com » target is ${link.height}dp tall',
       );
     });
   }
