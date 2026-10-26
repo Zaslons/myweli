@@ -1222,6 +1222,16 @@ checking rather than assuming:
 > deposit switch are hidden on iOS only if Apple cites 5.1.1(ix) (B0.6); the
 > store media change only if needed (B0.8); the unused `remote-notification`
 > mode is removed (B0.9).
+>
+> **2026-10-26 — the reason: guideline 3.1.1.** App Review (2026-10-19, an
+> iPad Air) cited business account registration in the app as access to
+> external purchase mechanisms, and nothing else. **The Pro app becomes
+> login-only on iOS and Android** (BACKLOG B0.11, decisions 38–43,
+> [pro-app-login-only.md](design/pro-app-login-only.md)): sign-up and
+> « Ajouter un salon » stay on the web, invitations stay, and « S’inscrire
+> sur myweli.com » opens the web sign-up — a link the owner keeps knowingly,
+> one widget to remove if App Review objects. The review notes and the
+> Resolution Center reply say so plainly (app-store-forms §8, §12).
 
 - [ ] Everything in [mobile-store-submission.md](design/mobile-store-submission.md) §5.
       Two of its claims are **stale as of 2026-08-18** and must be corrected

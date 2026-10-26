@@ -4,7 +4,7 @@
 |---|---|
 | **Requirement** | FR-PRO auth — final slice of [auth-social-email.md](auth-social-email.md) (P1 backend ✅ · P2 web ✅ · P3 app ✅) |
 | **Phase** | Auth overhaul Phase 4 — pro backend + pro app + pro web |
-| **Status** | **Built** (2026-07-03) — decisions: phone REQUIRED at registration · pro phone-OTP gated in this slice · Apple seam included |
+| **Status** | **Built** (2026-07-03) — decisions: phone REQUIRED at registration · pro phone-OTP gated in this slice · Apple seam included · **2026-10-26: the app's half of registration (§4 `pro_register_screen`, « Créer un compte ») is removed** — App Store 3.1.1; the app signs in only, the web registers ([pro-app-login-only.md](pro-app-login-only.md)) |
 | **Cross-refs** | [app-auth-social.md](app-auth-social.md) · [web-auth-social.md](web-auth-social.md) · `backend/lib/src/auth/provider_auth_repository.dart` · [pro-kyc.md](pro-kyc.md) |
 
 ## 1. Goal & scope
