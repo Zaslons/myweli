@@ -40,8 +40,8 @@
 
 **Proposed order.**
 - **Done (2026-10-25):** batches 1–9, every item.
-- **Now:** batch 0 — **0.0.1 was rejected under 3.1.1** (business registration in the app); B0.11 makes the Pro app login-only, then a new build of 0.0.1 is resubmitted (B0.3) after the device checks (B0.2). The privacy policy is corrected and live (B0.4, #709).
-- **Yours:** batch 10, and your half of batch 0 (B0.2's checks on the iPhone, B0.7's Sentry alerts, B0.10's Play forms).
+- **Now:** batch 0 — **0.0.1 was rejected under 3.1.1** (business registration in the app); B0.11 makes the Pro app login-only (#711). **Build 698**, the new build of 0.0.1, is in TestFlight; it is resubmitted (B0.3) after the device checks (B0.2). The privacy policy is corrected and live (B0.4, #709).
+- **Yours:** batch 10, and your half of batch 0 (B0.2's checks on build 698; then B0.3's attach, notes, reply and submit; B0.7's Sentry alerts; B0.10's Play forms).
 
 ---
 
@@ -144,6 +144,7 @@ Each question has a recommendation. Answers unblock the item named in brackets.
   - **How (587, now):** you run app-store-forms §11.6 in its written order, in French, against production. The fresh Apple account goes through onboarding, the invite refusal and going live, and is then deleted.
   - **How (0.0.2):** the post-587 list — a 9- and a 10-digit number; deposits off then on; export with the network cut; airplane mode at launch; the switcher offline; a failed « Tout lire »; switching between two salons; revoke then re-invite; **« Appeler » on a salon's page opens the dialer** (B7.11 — two buttons asked `canLaunchUrl(tel:)` first). I turn it into the « What to Test » text and record the results.
 - **B0.3 Ship Pro 0.0.2 (P1 · M · decisions 1, 6, 7).** **Now: resubmit 0.0.1 as a new build** (decision 1) — step 1 keeps the version at 0.0.1 (the build number rises), and step 6 attaches the build to version 0.0.1; the rest stands, starting from the rejection reason.
+  - **2026-10-26 — build 698 (steps 2–5 done):** from main at `54b02dac`; IPA checked; uploaded, `VALID` and read as French; symbols and 20 commits on Sentry; the only build in « Équipe MyWeli », with a French « What to Test » (app-store-forms §11.5). **Left (yours):** B0.2 on 698, then attach 698 to version 0.0.1 in place of 587, paste the §8 notes, send the §13.2 reply, and submit.
   - **What:** 22 app commits since 587 (#596–#630) reach users only through a new build.
   - **How:** after Apple decides on 0.0.1:
     1. bump `mobile/pubspec.yaml` to 0.0.2;
@@ -165,7 +166,7 @@ Each question has a recommendation. Answers unblock the item named in brackets.
   - **How:** in Sentry `myweli-app`, three issue alerts on production: a new fatal issue in the latest release; any issue seen by more than 3 users in 1 h; app hangs seen by more than 3 users in 1 h. Send a test event for each, and update observability §8.3 and LAUNCH §1.4.
 - **B0.8 0.0.2 store media (P3 · M · decision 6).** **Only if needed** (decision 6). If yes: reshoot screenshots 3 and 8 with `tool/app_store_screenshots`, and re-cut the Revenus scene and poster with `tool/app_store_preview`.
 - ✅ **B0.9 Remove the unused « remote-notification » background mode (P3 · S · decision 7).** **Done in #708** — removed for the resubmitted build; verified first that the server never sends a silent push and the background handler is empty, and pinned both sides. The killed-app push check is in app-store-forms §11.6 (B0.2). Delete it from `Info.plist`, which both apps share, and check a real push with the app killed in the next TestFlight run.
-- **B0.11 Apple's 3.1.1 rejection: the Pro app signs salons in, it does not sign them up (P1 · M · decisions 38–43).** **Built in #711** — [pro-app-login-only.md](design/pro-app-login-only.md). App Review (2026-10-19, build 587): « Remove the account registration features for business and organizations ». On both apps: « Inscription Pro » (`/pro/register`) and « Ajouter un salon » (`/pro/salons/nouveau`) leave the app with their methods — the web keeps both; invitations stay; « S’inscrire sur myweli.com » opens the web sign-up in the browser; a sign-in with no account says « Aucun compte MyWeli Pro n’est associé à cette adresse. Si votre salon vous a invité… ». The review notes and the Resolution Center reply (app-store-forms §8, §12) say so plainly. **Then:** the resubmission (B0.3) after the device checks (B0.2).
+- **B0.11 Apple's 3.1.1 rejection: the Pro app signs salons in, it does not sign them up (P1 · M · decisions 38–43).** **Built in #711** — [pro-app-login-only.md](design/pro-app-login-only.md). App Review (2026-10-19, build 587): « Remove the account registration features for business and organizations ». On both apps: « Inscription Pro » (`/pro/register`) and « Ajouter un salon » (`/pro/salons/nouveau`) leave the app with their methods — the web keeps both; invitations stay; « S’inscrire sur myweli.com » opens the web sign-up in the browser; a sign-in with no account says « Aucun compte MyWeli Pro n’est associé à cette adresse. Si votre salon vous a invité… ». The review notes and the Resolution Center reply (app-store-forms §8, §13.2) say so plainly. **Then:** the resubmission (B0.3) after the device checks (B0.2).
 - **B0.10 Google Play forms for both apps (P2 · M).**
   - **What:** nothing has been typed into Play Console yet.
   - **How:** you type play-store-forms §1–§5 with the amended App access text. I check them against the policy and the iOS answers, make the 1024×500 banner, and add a length test for the access text.
@@ -343,7 +344,7 @@ This batch takes up three of the six suggested tasks that were never started. It
   - ✅ **B9.3** **Done in #697**: `setup_flavours.rb` updates its phase and schemes in place, so a run on the committed project changes nothing. Proven on a copy, run by the macOS iOS workflow.
 - ✅ **B9.4 Observability follow-ups (M · decision 34).** **Done in #697, applied and verified on 2026-10-25** — both checks validate the certificate and still pass, the two alerts are live, and their runbooks match the repo (§13).
   - `infra/gcp/81-uptime-tls-latency.sh` switches both checks to `--validate-ssl=true` in place and adds two alerts: a certificate with less than 14 days left, and a mean probe latency above 3 s for 15 min. `80-uptime-checks.sh` creates the checks with validation now.
-  - Mobile suspect commits: `release_build.sh` prints `set-commits` for each store build (needs Sentry's GitHub integration — batch 10).
+  - Mobile suspect commits: `release_build.sh` prints `set-commits` for each store build. First used on build 698 (2026-10-26): Sentry accepted it and lists 20 commits for `com.myweli.pro@0.0.1+698`, ending at `54b02dac`.
   - Error-rate thresholds stay deferred until there is real traffic (decision 34, observability §8.2).
 - ✅ **B9.5 FlutterFire Dependabot group (S).** **Already done** — #632–#636 merged on 2026-10-20 and the `firebase` group is in `dependabot.yml`. **To watch:** the next weekly run opens ONE Firebase PR. Merge or close the five open Dependabot PRs (#632–#636; equatable 3.0.0 is a major bump). Then check that the next run opens ONE Firebase PR.
 - ✅ **B9.6 Mock and stub fidelity (M · decision 35).** **Done in #689** — [hygiene-batch9.md](design/hygiene-batch9.md) §10. The invitation caps are the server's two buckets per UTC day, aliases included. A new mock salon is the server's: empty, at 0 %. The catalogue is one store, scoped to the acting salon with the server's `forbidden` and `not_found`; so are the artist and member writes. A counter replaces the 12 clock-built ids (SYSTEM §21 row 43). No mark-read switch (decision 35).
@@ -362,7 +363,7 @@ This batch takes up three of the six suggested tasks that were never started. It
 
   A read-back unblocks B9.1.
 - **`support@myweli.com` reaches a person.** It is the only contact on `/support`, which both store listings use.
-- **Sentry's GitHub integration knows `Zaslons/myweli`** (B9.4). Without it, the `set-commits` command that `release_build.sh` prints is refused, and mobile issues get no suspect commits. In Sentry: Settings, then Integrations, then GitHub.
+- ✅ **Sentry's GitHub integration knows `Zaslons/myweli`** (B9.4). **Already in place — read on 2026-10-26 through Sentry's API**: the GitHub integration has listed `Zaslons/myweli` since 2026-08-12; `set-commits` for build 698 was accepted, and the release lists 20 commits ending at `54b02dac`. Nothing left to do.
 - **App Preview:** whether Apple applied the 25 s poster frame, and how review and the store page treat the preview.
 - **Walk the clients list in production** with a Pro session (`pageSize=1`, pages 1…N): all ids distinct and N equal to `total`. This observes #618's tie-breaker, which the deploy check could not.
 - **Exercise the T72 fix** (decision 21): register a throwaway Pro account with a foreign `providerId`, check it gets a new draft salon, then delete the account.
