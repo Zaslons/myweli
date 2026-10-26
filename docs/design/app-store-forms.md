@@ -571,7 +571,9 @@ phrase de l'app, les invités rejoignent leur salon. Le lien vers le site
 est dit franchement : le propriétaire le garde en connaissance de cause
 (décision 42). App Store Connect reçoit ce bloc quand le propriétaire remplit
 ses coordonnées et le code démo (§13.1) — l'API refuse de remplacer les
-notes sans eux (409). La Play Console ne parlait pas d'inscription : son
+notes sans eux (409). *2026-10-26 : en place* — les coordonnées et le
+code démo étant remplis, l'API a remplacé les notes par ce bloc, relu
+à l'identique (3 853 octets). La Play Console ne parlait pas d'inscription : son
 texte ne change pas ([play-store-forms.md](play-store-forms.md) §2).
 
 La ligne datée ci-dessus reste : `mobile/test/infra/app_review_notes_test.dart`
@@ -1184,6 +1186,16 @@ archive `Runner-pro-698.xcarchive`. **C'est le candidat à la soumission**,
 après les vérifications sur l'iPhone (§11.6, BACKLOG B0.2) : le rattacher
 à la version 0.0.1 à la place du 587, coller les notes du §8, envoyer la
 réponse du §13.2, soumettre (étapes du propriétaire, BACKLOG B0.3).
+**2026-10-26, soir — resoumis.** Relu par l'API : le 698 est **rattaché à la
+version 0.0.1** à la place du 587 (rattaché par l'API sur l'accord du
+propriétaire) ; les **notes du §8** (3 853 octets) collées par l'API et
+relues à l'identique ; puis **resoumis par le propriétaire à 23:33 UTC** — la
+même soumission `45ed9726-1418-435b-b3e2-76726422c5d3` passe de
+`UNRESOLVED_ISSUES` à **`WAITING_FOR_REVIEW`**, son élément
+`READY_FOR_REVIEW`, la version 0.0.1 `WAITING_FOR_REVIEW` avec le 698,
+publication **manuelle**. *Selon le propriétaire, non observable d'ici* :
+les vérifications du §11.6 sur le 698, passées avant la soumission, et la
+réponse du §13.2 envoyée dans le fil du refus.
 *Un envoi peut sembler fait sans l'être* : la validation crée déjà un
 enregistrement d'envoi, qui reste `AWAITING_UPLOAD` tant que rien n'est
 parti, et la liste des builds reste vide jusque-là. C'est
@@ -1204,6 +1216,11 @@ export déjà répondue. Créer un **groupe interne** (jusqu'à 100 utilisateurs
 App Store Connect, **sans revue**), s'y ajouter, installer via l'app
 TestFlight sur un iPhone réglé en français. Les builds expirent au bout de 90
 jours. À vérifier sur l'appareil, contre la production :
+
+*2026-10-26 : le propriétaire indique avoir passé cette liste sur le
+**698** avant de le resoumettre. Les cases ci-dessous ne sont pas cochées
+une à une : leurs résultats n'ont pas été transmis, et rien dans ce dépôt ne
+les observe.*
 
 *Fait le 2026-10-10, par l'API App Store Connect (la clé du §11.4) :* groupe
 interne **« Équipe MyWeli »**, `hasAccessToAllBuilds` **faux** — il ne
@@ -1542,10 +1559,10 @@ fait ; « site » : seulement dans le site App Store Connect.
 | URL marketing (facultative) | vide | **vide** — décision du propriétaire | — |
 | Copyright | vide | `2026 Sadr Eddine Daher` (§3) | — |
 | Publication de la version | **après approbation** | **manuelle** (`MANUAL`) | — |
-| Informations pour la revue | n'existaient pas | créées : connexion requise, identifiant `revue@myweli.test`, **les notes en vigueur du §8** (3 476 octets) | **propriétaire** : le mot de passe démo et les coordonnées de contact — vides, et l'assistant ne les écrit pas — *2026-10-14 : le verrou du compte démo est vérifié en production ; ce sont **les notes amendées** du §8 qui doivent remplacer celles-ci, et l'API refuse de le faire sans les coordonnées de contact (§8)* |
-| Build rattaché | aucun | **587** (0.0.1), lu comme français (§11.5) — il remplace le 581 depuis le 2026-10-14 au soir | les vérifications sur l'iPhone (§11.6) |
+| Informations pour la revue | n'existaient pas | créées : connexion requise, identifiant `revue@myweli.test`, **les notes en vigueur du §8** (3 476 octets) | **propriétaire** : le mot de passe démo et les coordonnées de contact — vides, et l'assistant ne les écrit pas — *2026-10-14 : le verrou du compte démo est vérifié en production ; ce sont **les notes amendées** du §8 qui doivent remplacer celles-ci, et l'API refuse de le faire sans les coordonnées de contact (§8)* — *2026-10-26 : coordonnées et code démo remplis ; les notes du §8 pour le build renvoyé (3 853 octets) collées par l'API et relues à l'identique* |
+| Build rattaché | aucun | **587** (0.0.1), lu comme français (§11.5) — il remplace le 581 depuis le 2026-10-14 au soir ; **698** depuis le 2026-10-26 (rattaché par l'API, relu) | ~~les vérifications sur l'iPhone (§11.6)~~ — faites sur le 698, selon le propriétaire (2026-10-26) |
 | Aperçu vidéo (facultatif) | aucun | **le film choisi par le propriétaire** (version 2, coupe 1, 28,7 s — [pro-app-preview.md](pro-app-preview.md) §0), **téléversé le 2026-10-14** dans les deux emplacements iPhone, traité par Apple, placé avant les captures (`APP_PREVIEW`, `ACTIVE`, lu par la nouvelle API) ; l'image d'affiche demandée à 25 s (`00:00:25:00`) — Apple avait d'abord ignoré le temps envoyé au téléversement et pris son défaut de 5 s ; corrigé, l'image était encore en cours de génération au dernier relevé | regarder l'affiche dans le site ; sinon « Edit Poster Frame » à 25 s |
-| « Soumettre pour la revue » | — | — | propriétaire — **fait** (587 en revue) |
+| « Soumettre pour la revue » | — | — | propriétaire — **fait** (587 en revue, refusé sous 3.1.1) ; **698 resoumis le 2026-10-26 à 23:33 UTC**, `WAITING_FOR_REVIEW` (relu par l'API) |
 
 **Les captures, vues par les deux API.** Elles ont été envoyées par les
 ressources `appScreenshotSets` / `appScreenshots`, qu'Apple déclare
@@ -1619,6 +1636,9 @@ Build <BUILD> of version 0.0.1 is attached, and the App Review notes describe th
 Thank you,
 Sadreddine Daher
 ```
+
+*Envoyée le 2026-10-26 avec `<BUILD>` = 698, selon le propriétaire* — le
+fil du Resolution Center n'a pas d'API : rien d'ici ne l'observe.
 
 *Si le relecteur objecte au lien* : le retirer est un seul widget
 (`AuthSwitchPrompt` de `pro_login_screen.dart`) et une ligne d'essai ; le

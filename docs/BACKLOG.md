@@ -26,7 +26,7 @@
 
 | # | Batch | What it fixes | Priority | Surfaces | Needs you for |
 |---|---|---|---|---|---|
-| 0 | **Release track** | 0.0.1 through review, device checks, 0.0.2, the store and policy items around them | P1 | release | **0.0.1 rejected (2026-10-25)** — the reason, the device checks on the resubmitted build, the policy wording |
+| 0 | **Release track** | 0.0.1 through review, device checks, 0.0.2, the store and policy items around them | P1 | release | **0.0.1 resubmitted with build 698 (2026-10-26)**, waiting for review — Apple's answer, then the release by hand; B0.7's alerts, B0.10's Play forms |
 | 1 | ✅ **Pro home and journal stay fresh** | « Ma journée » and « Accueil » showing stale statuses and figures, and an error screen with no way out | P1 | app | **Done — #665** (2026-10-21) |
 | 2 | ✅ **Lost answers to writes** | A booking saved but reported as failed, then a retry into « slot taken » or a double booking | P2 | web, app, backend | **Done — #666** (2026-10-21) |
 | 3 | ✅ **The app says the right thing when something fails** | Raw English exception text, a bare « Erreur », two offline sentences, notification read state | P2 | app (+ web wording) | **Done — #670, #671** (2026-10-21) |
@@ -40,8 +40,8 @@
 
 **Proposed order.**
 - **Done (2026-10-25):** batches 1–9, every item.
-- **Now:** batch 0 — **0.0.1 was rejected under 3.1.1** (business registration in the app); B0.11 makes the Pro app login-only (#711). **Build 698**, the new build of 0.0.1, is in TestFlight; it is resubmitted (B0.3) after the device checks (B0.2). The privacy policy is corrected and live (B0.4, #709).
-- **Yours:** batch 10, and your half of batch 0 (B0.2's checks on build 698; then B0.3's attach, notes, reply and submit; B0.7's Sentry alerts; B0.10's Play forms).
+- **Now:** batch 0 — **0.0.1 was rejected under 3.1.1** (business registration in the app); B0.11 made the Pro app login-only (#711). **Build 698, the new build of 0.0.1, was resubmitted on 2026-10-26** and is waiting for review, so B0.1's « while it's in review » constraints apply again. The privacy policy is corrected and live (B0.4, #709).
+- **Yours:** batch 10, and your half of batch 0 (answer any Resolution Center message and release by hand after approval, B0.1; B0.7's Sentry alerts; B0.10's Play forms).
 
 ---
 
@@ -133,10 +133,10 @@ Each question has a recommendation. Answers unblock the item named in brackets.
 
 ### Batch 0 — Release track (P1, on Apple's clock)
 
-- **B0.1 Carry 0.0.1 through review, then release by hand (P1 · S · decision 1).** **2026-10-25: build 587 was rejected** (the reason comes next); the next submission is a new build of 0.0.1 (B0.3). The « while it's in review » constraints below apply again once it is resubmitted.
+- **B0.1 Carry 0.0.1 through review, then release by hand (P1 · S · decision 1).** **2026-10-25: build 587 was rejected** (the reason comes next); the next submission is a new build of 0.0.1 (B0.3). The « while it's in review » constraints below apply again once it is resubmitted. **2026-10-26: resubmitted** — build 698, `WAITING_FOR_REVIEW` (read back through the API); the constraints apply again from now.
   - **What:** build 587 is in App Review, and its release is set to manual.
   - **How:** while it's in review, nothing the reviewer relies on may change. No `DEMO_PROVIDER_CODE` rotation, no change to Cloudflare in front of `api.myweli.com`, and « Production checks » stay green. Answer any Resolution Center message the same day. If rejected: fix, rebuild through the normal flow, resubmit. If approved: leave it « Pending Developer Release » until you confirm LAUNCH §3, then press Release. Record the dates in LAUNCH §6.2 and app-store-forms §12.3.
-- **B0.2 On-device checks on a real iPhone (P1 · M · decision 2).**
+- ✅ **B0.2 On-device checks on a real iPhone (P1 · M · decision 2).** **Done on build 698 before the resubmission, as reported by you (2026-10-26).** The results were not itemised, and nothing in the repo observes them (app-store-forms §11.6 carries the dated line).
   - **What:** no signed build has been checked on a real iPhone. That covers:
     - Sign in with Apple, a real push and staying signed in;
     - the portrait lock and the KYC picker;
@@ -144,7 +144,8 @@ Each question has a recommendation. Answers unblock the item named in brackets.
   - **How (587, now):** you run app-store-forms §11.6 in its written order, in French, against production. The fresh Apple account goes through onboarding, the invite refusal and going live, and is then deleted.
   - **How (0.0.2):** the post-587 list — a 9- and a 10-digit number; deposits off then on; export with the network cut; airplane mode at launch; the switcher offline; a failed « Tout lire »; switching between two salons; revoke then re-invite; **« Appeler » on a salon's page opens the dialer** (B7.11 — two buttons asked `canLaunchUrl(tel:)` first). I turn it into the « What to Test » text and record the results.
 - **B0.3 Ship Pro 0.0.2 (P1 · M · decisions 1, 6, 7).** **Now: resubmit 0.0.1 as a new build** (decision 1) — step 1 keeps the version at 0.0.1 (the build number rises), and step 6 attaches the build to version 0.0.1; the rest stands, starting from the rejection reason.
-  - **2026-10-26 — build 698 (steps 2–5 done):** from main at `54b02dac`; IPA checked; uploaded, `VALID` and read as French; symbols and 20 commits on Sentry; the only build in « Équipe MyWeli », with a French « What to Test » (app-store-forms §11.5). **Left (yours):** B0.2 on 698, then attach 698 to version 0.0.1 in place of 587, paste the §8 notes, send the §13.2 reply, and submit.
+  - **2026-10-26 — build 698 (steps 2–5 done):** from main at `54b02dac`; IPA checked; uploaded, `VALID` and read as French; symbols and 20 commits on Sentry; the only build in « Équipe MyWeli », with a French « What to Test » (app-store-forms §11.5). ~~**Left (yours):** B0.2 on 698, then attach 698 to version 0.0.1 in place of 587, paste the §8 notes, send the §13.2 reply, and submit.~~
+  - **2026-10-26 (night) — resubmitted.** Read back through the API: 698 attached to version 0.0.1 in place of 587, the §8 notes in place (3,853 bytes, identical), and at 23:33 UTC the same submission (`45ed9726…`) went from `UNRESOLVED_ISSUES` to `WAITING_FOR_REVIEW`, with manual release. As reported by you: B0.2 ran first, and the §13.2 reply was sent. **Left:** Apple's answer, then B0.1.
   - **What:** 22 app commits since 587 (#596–#630) reach users only through a new build.
   - **How:** after Apple decides on 0.0.1:
     1. bump `mobile/pubspec.yaml` to 0.0.2;
@@ -166,7 +167,7 @@ Each question has a recommendation. Answers unblock the item named in brackets.
   - **How:** in Sentry `myweli-app`, three issue alerts on production: a new fatal issue in the latest release; any issue seen by more than 3 users in 1 h; app hangs seen by more than 3 users in 1 h. Send a test event for each, and update observability §8.3 and LAUNCH §1.4.
 - **B0.8 0.0.2 store media (P3 · M · decision 6).** **Only if needed** (decision 6). If yes: reshoot screenshots 3 and 8 with `tool/app_store_screenshots`, and re-cut the Revenus scene and poster with `tool/app_store_preview`.
 - ✅ **B0.9 Remove the unused « remote-notification » background mode (P3 · S · decision 7).** **Done in #708** — removed for the resubmitted build; verified first that the server never sends a silent push and the background handler is empty, and pinned both sides. The killed-app push check is in app-store-forms §11.6 (B0.2). Delete it from `Info.plist`, which both apps share, and check a real push with the app killed in the next TestFlight run.
-- **B0.11 Apple's 3.1.1 rejection: the Pro app signs salons in, it does not sign them up (P1 · M · decisions 38–43).** **Built in #711** — [pro-app-login-only.md](design/pro-app-login-only.md). App Review (2026-10-19, build 587): « Remove the account registration features for business and organizations ». On both apps: « Inscription Pro » (`/pro/register`) and « Ajouter un salon » (`/pro/salons/nouveau`) leave the app with their methods — the web keeps both; invitations stay; « S’inscrire sur myweli.com » opens the web sign-up in the browser; a sign-in with no account says « Aucun compte MyWeli Pro n’est associé à cette adresse. Si votre salon vous a invité… ». The review notes and the Resolution Center reply (app-store-forms §8, §13.2) say so plainly. **Then:** the resubmission (B0.3) after the device checks (B0.2).
+- ✅ **B0.11 Apple's 3.1.1 rejection: the Pro app signs salons in, it does not sign them up (P1 · M · decisions 38–43).** **Built in #711, shipped in build 698, resubmitted 2026-10-26 (B0.3)** — [pro-app-login-only.md](design/pro-app-login-only.md). App Review (2026-10-19, build 587): « Remove the account registration features for business and organizations ». On both apps: « Inscription Pro » (`/pro/register`) and « Ajouter un salon » (`/pro/salons/nouveau`) leave the app with their methods — the web keeps both; invitations stay; « S’inscrire sur myweli.com » opens the web sign-up in the browser; a sign-in with no account says « Aucun compte MyWeli Pro n’est associé à cette adresse. Si votre salon vous a invité… ». The review notes and the Resolution Center reply (app-store-forms §8, §13.2) say so plainly. **Then:** the resubmission (B0.3) after the device checks (B0.2).
 - **B0.10 Google Play forms for both apps (P2 · M).**
   - **What:** nothing has been typed into Play Console yet.
   - **How:** you type play-store-forms §1–§5 with the amended App access text. I check them against the policy and the iOS answers, make the 1024×500 banner, and add a length test for the access text.
