@@ -178,6 +178,8 @@ describe('the privacy policy does not deny what we actually ship', () => {
   it('discloses request logging rather than denying it', () => {
     // Cloud Run logs the IP, the user agent and the request URL of every call,
     // and no code in this repo can prove that — it is a property of the host.
+    // Since the Cloudflare front door (2026-10-07) that IP is Cloudflare's; the
+    // visitor's reaches Cloudflare — the B0.4 block below holds the wording.
     // So the guard is a PRESENCE check: the disclosure must be on the page.
     // Deleting it is how the old false claim would come back.
     const { container } = render(<ConfidentialitePage />);
@@ -186,6 +188,81 @@ describe('the privacy policy does not deny what we actually ship', () => {
     expect(text).toMatch(/30 jours/i);
     // And the specific sentence that was false must never return.
     expect(text).not.toMatch(/aucun journal applicatif/i);
+  });
+});
+
+// BACKLOG B0.4 (decision 3), measured 2026-10-26. Since 2026-10-07 every API
+// call goes through the Cloudflare front door (api.myweli.com → a Worker →
+// Cloud Run): 60 of 60 Cloud Run request logs sampled carried a Cloudflare
+// address as `remoteIp`. So « Google Cloud enregistre … votre adresse IP » had
+// become false — the visitor's address reaches Cloudflare, and our server reads
+// it only to key the sign-in limiter, as a hash, pruned within two days.
+describe('B0.4 — the policy says what the front door changed', () => {
+  const policy = () => {
+    const { container } = render(<ConfidentialitePage />);
+    return (container.textContent ?? '').replace(/\s+/g, ' ');
+  };
+  const section = (title: RegExp) => {
+    const { container } = render(<ConfidentialitePage />);
+    const h = [...container.querySelectorAll('h2')].find((e) =>
+      title.test(e.textContent ?? ''),
+    );
+    let text = '';
+    let n = h?.nextElementSibling;
+    while (n && n.tagName !== 'H2') {
+      text += ` ${n.textContent ?? ''}`;
+      n = n.nextElementSibling;
+    }
+    return text.replace(/\s+/g, ' ');
+  };
+
+  it('every API call passes through Cloudflare, which receives the IP', () => {
+    const text = section(/journaux techniques/i);
+    expect(text).toMatch(/Chaque appel à notre API[^.]*Cloudflare/);
+    expect(text).toMatch(/Cloudflare, qui reçoit votre adresse IP/);
+  });
+
+  it('no longer says Google Cloud logs the visitor’s IP — it logs Cloudflare’s', () => {
+    const text = section(/journaux techniques/i);
+    expect(text).not.toMatch(/Google Cloud, enregistre[^.]*votre adresse IP/);
+    expect(text).toMatch(/celle de Cloudflare, pas la vôtre/);
+    expect(text).toMatch(/30 jours/);
+  });
+
+  it('the sign-in limiter keeps a hash, never the address, for two days at most', () => {
+    const text = section(/journaux techniques/i);
+    expect(text).toMatch(/empreinte, jamais l’adresse en clair/);
+    expect(text).toMatch(/deux jours/);
+  });
+
+  it('names Cloudflare among the recipients, with its two roles', () => {
+    expect(section(/qui d’autre les reçoit/i)).toMatch(
+      /Cloudflare \(le passage de chaque appel à notre API, et le stockage des fichiers\)/,
+    );
+  });
+
+  it('says the processors protect data at least as well as this page (5.1.1(i))', () => {
+    expect(section(/qui d’autre les reçoit/i)).toMatch(
+      /une protection au moins équivalente à celle que décrit cette page/,
+    );
+  });
+
+  it('gives each app its own export path, as the apps label it', () => {
+    const text = section(/vos droits/i);
+    expect(text).toMatch(/MyWeli, depuis Profil → Exporter mes données/);
+    expect(text).toMatch(
+      /MyWeli Pro, le propriétaire du salon depuis Profil → Mes données/,
+    );
+  });
+
+  it('dates the Google-script correction instead of pointing at the page date', () => {
+    // The page date moved on 2026-08-22 and again since: « la date en haut de
+    // cette page est celle de cette correction » stopped being true then.
+    const text = policy();
+    expect(text).not.toMatch(
+      /la date en haut de cette page est celle de cette correction/,
+    );
+    expect(text).toMatch(/le 21 août 2026/);
   });
 });
 
@@ -266,7 +343,7 @@ describe('lib/legal.ts is the single source of truth', () => {
     expect([...COMPANY.hosts]).toEqual([
       'Google Cloud — serveurs applicatifs et base de données, Paris (France)',
       'Vercel Inc. — site web, États-Unis',
-      'Cloudflare Inc. — stockage des fichiers (R2)',
+      'Cloudflare Inc. — stockage des fichiers (R2) et passage des appels à l’API',
     ]);
     const { container } = render(<MentionsPage />);
     for (const h of COMPANY.hosts) {
