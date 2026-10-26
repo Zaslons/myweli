@@ -108,7 +108,7 @@ export default function Page() {
           activement votre identité, vos cookies et vos saisies avant l’envoi.
           Nous n’envoyons <strong>aucun</strong> rapport à Sentry lorsque rien
           n’a échoué&nbsp;: ce n’est pas un outil de mesure d’audience. Les
-          fonctions de Sentry qui compteraient les visites ou les sessions sont
+          fonctions de Sentry qui compteraient les visites ou les sessions sont{' '}
           <strong>désactivées</strong> dans notre configuration, et un test le
           vérifie sur le site réellement publié.
         </Li>
@@ -222,10 +222,10 @@ export default function Page() {
         page. <strong>Nous ne vendons ni ne louons aucune donnée.</strong>
       </P>
       <P>
-        <strong>Aucun SMS ni message WhatsApp n’est envoyé aujourd’hui.</strong>
+        <strong>Aucun SMS ni message WhatsApp n’est envoyé aujourd’hui.</strong>{' '}
         L’envoi est désactivé au niveau du serveur&nbsp;; aucun numéro de
         téléphone ne part chez un opérateur de messagerie. Lorsque ce service
-        sera activé — après notre immatriculation — le prestataire sera
+        sera activé — après notre immatriculation — le prestataire sera{' '}
         <strong>Termii</strong>, et cette page sera mise à jour avant le premier
         message, pas après.
       </P>
@@ -236,7 +236,7 @@ export default function Page() {
         rien d’autre. Sur les pages publiques&nbsp;— accueil, recherche, pages de
         salon, pages légales —&nbsp;<strong>aucun cookie n’est déposé</strong>.
         Une fois connecté&nbsp;: deux cookies pour une session client, trois pour
-        une session professionnelle — jamais les deux à la fois. Ceux-là sont
+        une session professionnelle — jamais les deux à la fois. Ceux-là sont{' '}
         <strong>inaccessibles au JavaScript</strong>, transmis uniquement en
         HTTPS, et limités à notre site.
       </P>
