@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | Approved 2026-10-27 (owner: §11, Q1–Q4 answered as recommended) · **PR 1 (code) built**; the two keys exist (step 1); the pre-deploy probe measured useless and removed (§5, §9 step 2) — step 3, PR 2 and the deploy remain |
+| **Status** | Approved 2026-10-27 (owner: §11, Q1–Q4 answered as recommended) · **PR 1 (code) built**; the two keys exist (step 1); the pre-deploy probe measured useless and removed (§5, §9 step 2); the two secrets in Secret Manager (step 3, read back); **PR 2 (manifest) built** — the deploy remains |
 | **Owner** | Sadreddine Daher |
 | **Last updated** | 2026-10-27 |
 | **PRD ref / phase** | Account deletion (App Store 5.1.1(v)) · V1 |
@@ -250,11 +250,19 @@ Unchanged: one extra call to Apple per Apple sign-in once active (bounded at
 3. **Owner: two commands** — `gcloud secrets create APPLE_APP_PRIVATE_KEY
    --data-file=<path>` and the same for `APPLE_PRO_PRIVATE_KEY`. Then Claude,
    on the owner's go, grants the runtime service account `secretAccessor` on
-   both and reads the grants back.
+   both and reads the grants back. — ✅ **2026-10-27:** the owner ran all four
+   (both creates and both grants). Read back: each secret has one version, `1`,
+   enabled; `myweli-run` is its only reader; each version's SHA-256 equals its
+   download's, and differs from the other download's (the control) — compared
+   without either key being printed; `98-verify-secret-pins.sh` lists both as
+   current.
 4. **PR 1 — code** (this spec, §5, §8), mergeable any time: without the
    manifest it changes nothing in production (the inactive `NOTICE` stays).
-5. **PR 2 — manifest**, after steps 1–3: the six plain values and two
+5. **PR 2 — manifest**, after steps 1–3: the five plain values and two
    `secretKeyRef`s. Merging does not deploy (production is `workflow_dispatch`).
+   **Merge after PR 1:** main's code before it reads `APPLE_TEAM_ID` alone as
+   half a key and would refuse to boot. `apple_keys_manifest_test.dart` runs
+   the manifest's real values through `AppleSignInKeys.fromEnv` on every push.
 6. **Deploy — after Apple's decision on 0.0.1** (BACKLOG B0.1: nothing the
    reviewer relies on changes during review; this adds a call to Apple inside
    every Apple sign-in), on the owner's go, with the merge's `image_tag`.
