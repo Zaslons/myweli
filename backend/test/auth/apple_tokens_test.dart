@@ -31,59 +31,50 @@ void main() {
   String appleIdToken(String sub) =>
       JWT({'sub': sub, 'aud': 'ci.myweli.app'}).sign(SecretKey('x'));
 
-  group(
-    'AppleSignInKey.fromEnv — all or nothing (Q5: inactive without it)',
-    () {
-      String? Function(String) env(Map<String, String> m) =>
-          (k) => m[k];
+  /// The test key signs for every client these tests use. Choosing a key by
+  /// client, and the boot rules, are apple_signin_keys_test.dart's.
+  final keys = AppleSignInKeys.of({
+    for (final c in ['ci.myweli.app', 'com.myweli.web', 'ci.myweli.pro'])
+      c: key,
+  });
 
-      test('none of the three → null: inactive', () {
-        expect(AppleSignInKey.fromEnv(env({})), isNull);
-      });
-
-      for (final missing in [
-        'APPLE_TEAM_ID',
-        'APPLE_KEY_ID',
-        'APPLE_PRIVATE_KEY',
-      ]) {
-        test('$missing alone missing → refused at boot', () {
-          final all = {
-            'APPLE_TEAM_ID': 'TEAM123456',
-            'APPLE_KEY_ID': 'KEY1234567',
-            'APPLE_PRIVATE_KEY': pem,
-          }..remove(missing);
-          expect(() => AppleSignInKey.fromEnv(env(all)), throwsStateError);
-        });
-      }
-
-      test('an unreadable key → refused at boot', () {
-        expect(
-          () => AppleSignInKey.fromEnv(
-            env({
-              'APPLE_TEAM_ID': 'TEAM123456',
-              'APPLE_KEY_ID': 'KEY1234567',
-              'APPLE_PRIVATE_KEY': 'not a key',
-            }),
-          ),
-          throwsStateError,
+  group('AppleSignInKey.fromPem — the .p8 as Apple gives it', () {
+    test('as is, and with escaped newlines', () {
+      for (final value in [pem, pem.replaceAll('\n', r'\n')]) {
+        final k = AppleSignInKey.fromPem(
+          teamId: 'TEAM123456',
+          keyId: 'KEY1234567',
+          pem: value,
         );
-      });
+        final jwt = JWT.verify(k.clientSecret('ci.myweli.app'), publicKey);
+        expect((jwt.payload as Map)['iss'], 'TEAM123456');
+      }
+    });
 
-      test('the .p8 as Apple gives it — and with escaped newlines', () {
-        for (final value in [pem, pem.replaceAll('\n', r'\n')]) {
-          final k = AppleSignInKey.fromEnv(
-            env({
-              'APPLE_TEAM_ID': 'TEAM123456',
-              'APPLE_KEY_ID': 'KEY1234567',
-              'APPLE_PRIVATE_KEY': value,
-            }),
-          )!;
-          final jwt = JWT.verify(k.clientSecret('ci.myweli.app'), publicKey);
-          expect((jwt.payload as Map)['iss'], 'TEAM123456');
-        }
-      });
-    },
-  );
+    test(
+      'an unreadable key → StateError naming the variable, not the value',
+      () {
+        expect(
+          () => AppleSignInKey.fromPem(
+            teamId: 'TEAM123456',
+            keyId: 'KEY1234567',
+            pem: 'not a key',
+            name: 'APPLE_APP_PRIVATE_KEY',
+          ),
+          throwsA(
+            isA<StateError>().having(
+              (e) => e.message,
+              'message',
+              allOf(
+                contains('APPLE_APP_PRIVATE_KEY'),
+                isNot(contains('not a key')),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  });
 
   test('the client_secret: ES256, kid, iss = team, sub = client, aud = Apple, '
       '5 minutes', () {
@@ -133,12 +124,11 @@ void main() {
 
     AppleTokenService service(
       Future<http.Response> Function(http.Request) answer, {
-      AppleSignInKey? withKey,
       bool noKey = false,
       Duration timeout = const Duration(seconds: 5),
     }) => AppleTokenService(
       repo,
-      noKey ? null : (withKey ?? key),
+      noKey ? AppleSignInKeys.none : keys,
       client: MockClient((req) async {
         sent.add(req);
         return answer(req);
@@ -313,7 +303,7 @@ void main() {
       bool noKey = false,
     }) => AppleTokenService(
       repo,
-      noKey ? null : key,
+      noKey ? AppleSignInKeys.none : keys,
       client: MockClient((req) async {
         sent.add(req);
         return answer(req);

@@ -553,6 +553,9 @@ prouve qu'elles sont passées.
 **La clé Apple** : le journal de démarrage dit
 `NOTICE: no APPLE_TEAM_ID / APPLE_KEY_ID / APPLE_PRIVATE_KEY` — inactif,
 comme prévu (Q5).
+*2026-10-27 : une clé par app — MyWeli et MyWeli Pro sont deux App ID
+primaires ([apple-signin-keys.md](apple-signin-keys.md)) ; l'avis dit
+désormais « NOTICE: no Sign in with Apple key … ».*
 
 **Ce qui n'est pas vérifié en production**, et pourquoi :
 - les écritures (un signalement, une suppression, un enregistrement

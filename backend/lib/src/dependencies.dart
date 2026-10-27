@@ -283,12 +283,16 @@ final AppleIdTokenVerifier appleIdTokenVerifier = () {
   return AppleIdTokenVerifier(clientIds: ids);
 }();
 
-/// The Sign in with Apple key that signs the `client_secret` (B6.7,
-/// docs/design/backend-integrity-batch6.md §13). All three of
-/// `APPLE_TEAM_ID`, `APPLE_KEY_ID`, `APPLE_PRIVATE_KEY`, or none: none is
-/// **inactive** (Q5 — nothing exchanged nor revoked, a log line says so);
-/// some, or a key that does not read, refuses to boot.
-final AppleSignInKey? appleSignInKey = AppleSignInKey.fromEnv(_envOrNull);
+/// The Sign in with Apple keys that sign the `client_secret`, one per app
+/// (B6.7, docs/design/apple-signin-keys.md §4): `APPLE_TEAM_ID` and, per
+/// slot, `APPLE_<APP|PRO>_KEY_ID`, `_PRIVATE_KEY`, `_KEY_CLIENTS`. No slot is
+/// **inactive** (nothing exchanged nor revoked, a boot NOTICE says so); half a
+/// slot, an unreadable key, or a client outside `APPLE_CLIENT_IDS` (or in both
+/// slots) refuses to boot.
+final AppleSignInKeys appleSignInKeys = AppleSignInKeys.fromEnv(
+  _envOrNull,
+  clientIds: appleIdTokenVerifier.audiences,
+);
 
 final AppleTokenRepository appleTokenRepository = _pool == null
     ? InMemoryAppleTokenRepository()
@@ -297,7 +301,7 @@ final AppleTokenRepository appleTokenRepository = _pool == null
 /// Kept at sign-in, revoked at deletion (App Store 5.1.1(v)).
 final AppleTokenService appleTokenService = AppleTokenService(
   appleTokenRepository,
-  appleSignInKey,
+  appleSignInKeys,
 );
 
 /// Outbound email (the OTP channel). Configured → Resend; else a no-network
@@ -1277,7 +1281,7 @@ void _assertConfiguredDependenciesResolve() {
     'googleIdTokenVerifier': () => googleIdTokenVerifier,
     'appleIdTokenVerifier': () => appleIdTokenVerifier,
     // Half an Apple key dies here, at boot — never on the first deletion.
-    'appleSignInKey': () => appleSignInKey,
+    'appleSignInKeys': () => appleSignInKeys,
     'emailProvider': () => emailProvider,
     'messagingProvider': () => messagingProvider,
     'pushProvider': () => pushProvider,
@@ -1325,15 +1329,16 @@ Future<void> initializeDatabase() async {
       '(docs/design/backend-demo-review-account.md).',
     );
   }
-  if (_isProd && !appleTokenService.isActive) {
-    // B6.7 is built inactive until the owner creates the key (Q5): say so
-    // once per boot, where an operator reads — never silently "done".
+  // B6.7 is built inactive until the owner creates the keys, and a client may
+  // have none yet (docs/design/apple-signin-keys.md §4, rules 1 and 5): say so
+  // once per boot, where an operator reads — never silently "done".
+  final appleNotice = appleKeysNotice(
+    appleSignInKeys,
+    appleIdTokenVerifier.audiences,
+  );
+  if (_isProd && appleNotice != null) {
     // ignore: avoid_print — boot diagnostics go to the container log.
-    print(
-      'NOTICE: no APPLE_TEAM_ID / APPLE_KEY_ID / APPLE_PRIVATE_KEY — Sign in '
-      'with Apple tokens are neither kept nor revoked at account deletion '
-      '(docs/design/backend-integrity-batch6.md §13).',
-    );
+    print(appleNotice);
   }
   assertProductionBootConfig(
     databaseUrl: Platform.environment['DATABASE_URL'],
