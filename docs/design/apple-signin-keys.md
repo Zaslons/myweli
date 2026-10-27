@@ -28,7 +28,7 @@ Connect API on 2026-10-27 (`bundleIdCapabilities`, `APPLE_ID_AUTH`):
 |---|---|---|
 | `com.myweli.app` | MyWeli (consumer), iOS | `PRIMARY_APP_CONSENT` — **its own primary** |
 | `com.myweli.pro` | MyWeli Pro, iOS | `PRIMARY_APP_CONSENT` — **its own primary** |
-| `com.myweli.signin` | the website's Services ID (client **and** Pro pages) | attached to one of the two primaries — **which one is not readable from here** (Services IDs are not in the API; the owner reads it in the portal, §9 step 1) |
+| `com.myweli.signin` | the website's Services ID (« MyWeli Web Sign-In », client **and** Pro pages) | attached to **`com.myweli.app`** — read by the owner in the portal on 2026-10-27 (§9 step 1; Services IDs are not in the API) |
 
 Apple's documentation (developer.apple.com/help/account): you create a key and
 « associate it with a primary App ID. You can associate two keys with each
@@ -70,6 +70,11 @@ creates an account, the Pro side never does (`provider_not_found`).
 **The identifier does not depend on any of this:** Apple's TN3159 calls user
 identifiers and private relay addresses « developer team-scoped ». The same
 person has the same `sub` in MyWeli, MyWeli Pro and on the web, grouped or not.
+Its return URL is registered: Apple's `/auth/authorize` for `com.myweli.signin`
+opens its sign-in page with `redirect_uri=https://myweli.com/connexion`, and
+answers « invalid_request — Invalid web redirect url. » to the same request
+with an unregistered path (the control), read on 2026-10-27.
+
 So **neither option below touches account matching** — consistent with the
 owner's report that, on build 698, a web sign-up followed by « Continuer avec
 Apple » in the Pro app landed on « Accueil » (app-store-forms §11.6).
@@ -114,10 +119,12 @@ small, testable server change; everything people see and every revocation stays
 scoped to the product they used.
 
 **The website's one Services ID.** It serves both the client and the Pro pages
-and sits under one primary. Consequence, with two keys: a token kept from a web
-sign-in is revoked with the key of **that** primary. If the Services ID is under
-MyWeli and a person deletes a Pro account they created on the web, the revocation
-cuts their MyWeli-group authorization too — they consent again at their next
+and sits under the **MyWeli** primary (read 2026-10-27). Consequence, with two
+keys: a token kept from a web sign-in is revoked with the MyWeli key
+(`APPLE_APP_KEY_CLIENTS=com.myweli.app,com.myweli.signin`,
+`APPLE_PRO_KEY_CLIENTS=com.myweli.pro`). When a person deletes a Pro account
+they created on the web, the revocation cuts their MyWeli-group authorization
+too — they consent again at their next
 MyWeli Apple sign-in; same identifier, same account. Harmless, and stated here
 so it is not a surprise. A second Services ID for the Pro web (under the Pro
 primary) would remove it — §11, Q2, recommended later, not now.
