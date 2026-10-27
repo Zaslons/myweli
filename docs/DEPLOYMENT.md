@@ -251,7 +251,8 @@ which is how the reminder cron came to be switched off without anyone noticing.
    4. `gcloud secrets create APPLE_APP_PRIVATE_KEY --data-file=<the MyWeli
       .p8>` and the same for `APPLE_PRO_PRIVATE_KEY`; grant the runtime service
       account `secretAccessor` on both. Keep an offline copy in a password
-      manager, then delete the downloads.
+      manager, then delete the downloads. *Done 2026-10-27, version `1` each,
+      read back.*
    5. A PR adds to `infra/gcp/service.yaml`: `APPLE_TEAM_ID`,
       `APPLE_APP_KEY_ID`, `APPLE_APP_KEY_CLIENTS`, `APPLE_PRO_KEY_ID` and
       `APPLE_PRO_KEY_CLIENTS` as plain values (identifiers, not secrets), and

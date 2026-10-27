@@ -265,6 +265,32 @@ spec:
               value: 731308991240-dairlha8r67p4l5d52m44qnt82qdp5js.apps.googleusercontent.com,731308991240-g3jbungp06eqj6fp5neigk84ivjdpj9e.apps.googleusercontent.com,731308991240-ah75c2bvv4ojfipa7crlj38n7rdg60fv.apps.googleusercontent.com
             - name: APPLE_CLIENT_IDS
               value: com.myweli.app,com.myweli.pro,com.myweli.signin
+            # Sign in with Apple token revocation at account deletion (App
+            # Store 5.1.1(v); B6.7 → B0.12, docs/design/apple-signin-keys.md).
+            # ONE KEY PER APP: MyWeli and MyWeli Pro are separate Sign in with
+            # Apple primaries, and Apple associates a key with one primary. Each
+            # slot names its key and the clients it signs for — the web Services
+            # ID sits under MyWeli (read in the portal, 2026-10-27). Team and Key
+            # IDs are identifiers, not secrets; the two .p8 are, pinned. Half a
+            # slot, or a client outside APPLE_CLIENT_IDS, refuses to boot —
+            # backend/test/infra/apple_keys_manifest_test.dart runs these values
+            # through the same rules on every push.
+            - name: APPLE_TEAM_ID
+              value: 5VWKJD956A
+            - name: APPLE_APP_KEY_ID
+              value: DAX5SVLW3Y
+            - name: APPLE_APP_KEY_CLIENTS
+              value: com.myweli.app,com.myweli.signin
+            - name: APPLE_APP_PRIVATE_KEY
+              valueFrom:
+                secretKeyRef: { name: APPLE_APP_PRIVATE_KEY, key: '1' }
+            - name: APPLE_PRO_KEY_ID
+              value: F4C6234X22
+            - name: APPLE_PRO_KEY_CLIENTS
+              value: com.myweli.pro
+            - name: APPLE_PRO_PRIVATE_KEY
+              valueFrom:
+                secretKeyRef: { name: APPLE_PRO_PRIVATE_KEY, key: '1' }
             - name: RESEND_API_KEY
               valueFrom:
                 secretKeyRef: { name: RESEND_API_KEY, key: '1' }
