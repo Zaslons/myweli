@@ -243,11 +243,11 @@ which is how the reminder cron came to be switched off without anyone noticing.
       Apple** → *Configure* → Primary App ID `com.myweli.app` → Register →
       download `AuthKey_<KEY_ID>.p8` (Apple offers it **once**), note the Key
       ID. Again for « MyWeli Pro — Sign in with Apple » on `com.myweli.pro`.
-   3. **Prove each key before anything else**, from `backend/`:
-      `dart run tool/apple_key_probe.dart <TEAM_ID> <KEY_ID> <path.p8>
-      com.myweli.app com.myweli.pro com.myweli.signin` — its own clients
-      `COVERED`, the other app's `NOT COVERED` (the control: if everything
-      says `COVERED`, the probe did not discriminate).
+   3. **No key can be tested before a real sign-in** — Apple answers a fake
+      code with `invalid_grant` and a fake revocation with `200` whatever
+      the key (measured with controls, 2026-10-27,
+      [apple-signin-keys.md](design/apple-signin-keys.md) §5). The test is
+      step 6. **Never attach a `.p8` to a chat**: name its folder.
    4. `gcloud secrets create APPLE_APP_PRIVATE_KEY --data-file=<the MyWeli
       .p8>` and the same for `APPLE_PRO_PRIVATE_KEY`; grant the runtime service
       account `secretAccessor` on both. Keep an offline copy in a password
@@ -260,8 +260,12 @@ which is how the reminder cron came to be switched off without anyone noticing.
       none, every listed client must be in `APPLE_CLIENT_IDS`, and none may be
       in both slots — or the server refuses to boot.
    6. Deploy — after Apple's decision on 0.0.1 (BACKLOG decision 47); the boot
-      `NOTICE` is gone. Sign-ins from then on keep a token; accounts that
-      signed in before have none to revoke until their next Apple sign-in.
+      `NOTICE` is gone. **Then one real Apple sign-in per client** (the Pro
+      app, myweli.com, the MyWeli app once it ships): each adds a row to
+      `apple_tokens` and logs no `apple_token FAILED`; `error=invalid_client`
+      means that client's key does not cover it. Sign-ins from then on keep a
+      token; accounts that signed in before have none to revoke until their
+      next Apple sign-in.
 
    **Changing a secret, in order:**
 

@@ -330,9 +330,13 @@ class AppleTokenService {
           )
           .timeout(_timeout);
       if (res.statusCode != 200) {
+        // Apple's error word tells a key that does not cover the client
+        // (`invalid_client`) from a code Apple refused (`invalid_grant`) —
+        // the only test of a key there is (docs/design/apple-signin-keys.md
+        // §9: no fake request discriminates).
         _log(
-          'apple_token FAILED kind=$kind account=$accountId '
-          'status=${res.statusCode}',
+          'apple_token FAILED kind=$kind account=$accountId client=$clientId '
+          'status=${res.statusCode} error=${appleErrorWord(res.body)}',
         );
         return;
       }
@@ -407,7 +411,8 @@ class AppleTokenService {
           if (res.statusCode != 200) {
             _log(
               'apple_revoke FAILED kind=$kind account=$accountId '
-              'client=${t.clientId} status=${res.statusCode}',
+              'client=${t.clientId} status=${res.statusCode} '
+              'error=${appleErrorWord(res.body)}',
             );
           }
         } catch (e) {
@@ -420,6 +425,22 @@ class AppleTokenService {
     }
     await _tokens.deleteFor(kind: kind, accountId: accountId);
   }
+}
+
+/// Apple's error word in an error answer (`invalid_client`, `invalid_grant`…),
+/// or `-`. Only a short lowercase word is ever returned: the rest of a body
+/// (an `error_description`, anything unexpected) is never logged.
+String appleErrorWord(String body) {
+  try {
+    final decoded = jsonDecode(body);
+    final error = decoded is Map ? decoded['error'] : null;
+    if (error is String && RegExp(r'^[a-z_]{1,40}$').hasMatch(error)) {
+      return error;
+    }
+  } catch (_) {
+    // Not JSON: no word.
+  }
+  return '-';
 }
 
 /// The optional `authorizationCode` of an Apple sign-in body, and the

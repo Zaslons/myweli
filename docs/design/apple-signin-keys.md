@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | Approved 2026-10-27 (owner: §11, Q1–Q4 answered as recommended) · **PR 1 (code) built** — §9 steps 1–3, PR 2 and the deploy remain |
+| **Status** | Approved 2026-10-27 (owner: §11, Q1–Q4 answered as recommended) · **PR 1 (code) built**; the two keys exist (step 1); the pre-deploy probe measured useless and removed (§5, §9 step 2) — step 3, PR 2 and the deploy remain |
 | **Owner** | Sadreddine Daher |
 | **Last updated** | 2026-10-27 |
 | **PRD ref / phase** | Account deletion (App Store 5.1.1(v)) · V1 |
@@ -37,14 +37,17 @@ primary App ID » (*Create a Sign in with Apple private key*); and on ungrouping
 create a new Authentication Key for each app enabled with Sign in with Apple »
 (*Group apps for Sign in with Apple*). **Apple's model is a key per primary.**
 What Apple does **not** document is whether a key is refused for a client of
-another primary — so that is measured, not assumed: the probe of §5 answers it
-before anything is deployed (§9 step 2). The current server holds **one** key;
-if Apple refuses it across primaries, one app's tokens are never exchanged nor
-revoked — and the app in review is the Pro one.
+another primary — and **it cannot be measured before a real sign-in** (§9 step
+2: no fake request discriminates, read with controls on 2026-10-27). So the
+design follows Apple's documented model, and the first real Apple sign-in per
+client after the deploy is the test (§9 step 7). With **one** key, if Apple
+refuses it across primaries, one app's tokens are never exchanged nor revoked —
+and the app in review is the Pro one.
 
 **In scope.** The decision (two keys or grouping); the server reading one key
-per primary and choosing it by client; a probe that proves each key covers its
-clients before anything is deployed; the manifest; the docs that are wrong
+per primary and choosing it by client; a log line that names Apple's error
+word, so a real sign-in tells a key that does not cover its client
+(`invalid_client`) from a refused code; the manifest; the docs that are wrong
 today (DEPLOYMENT.md Phase C, T79); the owner's portal steps.
 
 **Out of scope.** Apple's server-to-server notifications (§11, Q4); a second
@@ -167,12 +170,16 @@ primary) would remove it — §11, Q2, recommended later, not now.
   **every row erased in every case**, as today.
 - `dependencies.dart`: wires `AppleSignInKeys.fromEnv`; the boot `NOTICE`
   covers « no key » and « client X has no key ».
-- `backend/tool/apple_key_probe.dart` (new): given the team, a key id, the
-  `.p8` path and client ids, asks Apple's `/auth/token` with a deliberately
-  invalid code. **`invalid_grant`** = Apple accepted our client secret for that
-  client (the code is what it refused); **`invalid_client`** = this key does
-  not cover this client. Prints the client and Apple's error word only — never
-  the key, the secret or a token.
+- The `FAILED` lines carry the client and **Apple's error word**
+  (`appleErrorWord`: a short lowercase word or `-`, never the rest of the
+  body): at the first real sign-in, `invalid_client` means the key does not
+  cover that client — the only test of a key there is (§9 step 2).
+- *A pre-deploy probe was built and removed the same day:* asking `/auth/token`
+  with an invalid code answered `invalid_grant` and `/auth/revoke` with an
+  invalid token answered `200` **for every control** — a wrong Key ID, a wrong
+  Team ID, a client that does not exist, a secret signed by the other key.
+  Apple refuses the code (or accepts the revocation) before it authenticates
+  the client, so no fake request tells a covering key from a wrong one.
 - Layering unchanged: routes untouched; no contract change (no endpoint, no
   DTO); no migration (`apple_tokens` already keys tokens by client).
 
@@ -180,16 +187,20 @@ primary) would remove it — §11, Q2, recommended later, not now.
 
 - The `.p8` files go **from the owner's download straight into Secret Manager**
   (the owner runs `gcloud secrets create … --data-file=`); Claude never prints,
-  pastes or commits them. The probe reads the file to sign; it prints nothing
-  of it. After upload: the owner keeps an offline copy in a password manager
-  and deletes the downloads.
+  pastes or commits them. After upload: the owner keeps an offline copy in a
+  password manager and deletes the downloads.
+- *2026-10-27:* the two keys' contents reached the session transcript — the
+  files were attached to the chat with « @ », which reads them in. Offered a
+  revoke-and-recreate (nothing used them yet), **the owner chose to keep
+  them**. Next time: a secret file is named by its folder, never attached.
 - Secrets pinned (`key: '1'`), as `service_files_test.dart` requires; the
   runtime service account gets `secretAccessor` on exactly these two.
 - T79 changes from « the key » to « one key per primary, chosen by the token's
   client »; a client with no key keeps and revokes nothing (logged), the boot
   refuses an unknown or doubly-claimed client.
 - Logs: unchanged discipline — never the code, a token, the secret; the new
-  lines carry a client id (public: it is in every identity token).
+  lines carry a client id (public: it is in every identity token) and Apple's
+  error word, filtered to a short lowercase word.
 
 ## 7. Performance
 
@@ -212,12 +223,11 @@ Unchanged: one extra call to Apple per Apple sign-in once active (bounded at
 - Manifest: `service_files_test.dart` — the two private keys by pinned
   `secretKeyRef`; the six plain values present together; every listed client in
   `APPLE_CLIENT_IDS`.
-- The probe: unit test against a fake Apple (`invalid_grant` → covered,
-  `invalid_client` → not, anything else → « unknown », exit non-zero), and it
-  never writes the secret to stdout.
+- The error word: `invalid_client` and `invalid_grant` logged with the client;
+  an `error_description`, a non-JSON body, a long or odd « word » never logged.
 - Mutations: pick the wrong slot; drop the « erase in every case »; accept a
-  client in both slots; accept an unknown client; skip the team check; print
-  the secret in the probe.
+  client in both slots; accept an unknown client; skip the team check; log
+  Apple's whole body, or no word at all.
 
 ## 9. Rollout — who does what, in order
 
@@ -232,10 +242,11 @@ Unchanged: one extra call to Apple per Apple sign-in once active (bounded at
      **`com.myweli.pro`**.
    - Tell Claude the two Key IDs, where the two `.p8` files are, and the
      Services ID's primary.
-2. **Claude: the probe**, each key against all three clients — the expected
-   `invalid_grant` on its own clients, **and the control**: `invalid_client` on
-   the other app's client. If the control also answers `invalid_grant`, the
-   probe does not discriminate, and we say so instead of trusting it.
+2. ~~Claude: the probe~~ — **measured useless, 2026-10-27** (§5): with the two
+   real keys, every client — and every control (wrong Key ID, wrong Team ID, a
+   client that does not exist, the other key's signature) — answered
+   `invalid_grant` on `/auth/token` and `200` on `/auth/revoke`. What it did
+   prove: both `.p8` files read as Apple keys. Coverage is tested at step 7.
 3. **Owner: two commands** — `gcloud secrets create APPLE_APP_PRIVATE_KEY
    --data-file=<path>` and the same for `APPLE_PRO_PRIVATE_KEY`. Then Claude,
    on the owner's go, grants the runtime service account `secretAccessor` on
@@ -247,11 +258,16 @@ Unchanged: one extra call to Apple per Apple sign-in once active (bounded at
 6. **Deploy — after Apple's decision on 0.0.1** (BACKLOG B0.1: nothing the
    reviewer relies on changes during review; this adds a call to Apple inside
    every Apple sign-in), on the owner's go, with the merge's `image_tag`.
-7. **Read back:** the revision Ready at 100 %; no `NOTICE` at boot; then a real
-   round trip — the owner signs in with Apple on the Pro app → `apple_token`
-   logs no `FAILED` and `apple_tokens` gains a row (counted, never read); the
-   owner deletes a throwaway Apple account → no `apple_revoke FAILED`, the row
-   is gone, and the app has left their Settings → Apple ID list (owner-observed).
+7. **Read back — this is where the keys are tested:** the revision Ready at
+   100 %; no `NOTICE` at boot; then **one real Apple sign-in per client** — the
+   Pro app (`com.myweli.pro`, the Pro key), myweli.com (`com.myweli.signin`, the
+   MyWeli key), and the MyWeli app (`com.myweli.app`) once a consumer build
+   exists: each must leave no `apple_token FAILED` line and add a row to
+   `apple_tokens` (counted, never read); `error=invalid_client` would mean
+   that client's key does not cover it. Then the owner deletes a throwaway
+   Apple account: the row is gone and the app has left their Settings → Apple
+   ID list (owner-observed — `/auth/revoke` answers `200` even to a wrong key,
+   §5, so its status proves nothing).
 
 **Docs in PR 1:** DEPLOYMENT.md Phase C (the grouping sentence is wrong; the
 new steps), BACKEND.md T79, backend-integrity-batch6.md §13 (a pointer here),
@@ -259,10 +275,10 @@ new steps), BACKEND.md T79, backend-integrity-batch6.md §13 (a pointer here),
 
 ## 10. Definition of done
 
-Both keys exist; the probe shows each covers exactly its clients, with the
-control red; the server picks the key by client, every boot rule tested and
+Both keys exist and read; the server picks the key by client, every boot rule tested and
 watched red; the manifest pinned; deployed after Apple's decision; the boot
-`NOTICE` gone; one real exchange and one real revocation observed.
+`NOTICE` gone; one real exchange per client observed (no `invalid_client`), and
+one real revocation seen leave the owner's Apple ID list.
 
 ## 11. Open questions — answered by the owner, 2026-10-27
 
@@ -273,8 +289,7 @@ watched red; the manifest pinned; deployed after Apple's decision; the boot
   *Recommended: keep it; revisit if the cross-revocation ever matters.* — ✅
   **Keep one for now.**
 - **Q3. When to deploy?** *Recommended: after Apple's decision on 0.0.1*
-  (B0.1). Creating the keys, the probe, the secrets and both PRs can all happen
-  now. — ✅ **After Apple's decision.**
+  (B0.1). Creating the keys, the secrets and both PRs can all happen now. — ✅ **After Apple's decision.**
 - **Q4. Apple's server-to-server notifications** (Apple tells us when someone
   stops using Apple ID with an app, or deletes their Apple account) — configured
   per primary, not built. *Recommended: a later BACKLOG item, not part of this.*

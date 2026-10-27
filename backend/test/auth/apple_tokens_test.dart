@@ -223,6 +223,26 @@ void main() {
       expect(await repo.listFor(kind: 'user', accountId: 'user_1'), isEmpty);
       expect(logs.single, contains('apple_token FAILED'));
       expect(logs.single, contains('status=400'));
+      expect(logs.single, contains('error=invalid_grant'));
+      expect(logs.single, contains('client=ci.myweli.app'));
+    });
+
+    test('a key that does not cover the client says invalid_client — the '
+        'one answer that tests a key (apple-signin-keys.md §9) — and nothing '
+        'else of Apple\'s answer is logged', () async {
+      await keep(
+        service(
+          (_) async => http.Response(
+            '{"error":"invalid_client","error_description":"rt-secret-1 '
+            'code-secret-1"}',
+            400,
+          ),
+        ),
+      );
+      expect(logs.single, contains('error=invalid_client'));
+      expect(logs.single, isNot(contains('rt-secret-1')));
+      expect(logs.single, isNot(contains('code-secret-1')));
+      expect(logs.single, isNot(contains('error_description')));
     });
 
     test('no answer / a throw → nothing kept, no throw', () async {
@@ -360,6 +380,16 @@ void main() {
       }
     });
 
+    test('Apple refuses a revocation → its error word in the line', () async {
+      await service(
+        (_) async => http.Response('{"error":"invalid_client"}', 400),
+      ).revokeAll(kind: 'user', accountId: 'acc');
+      expect(
+        logs.where((l) => l.contains('apple_revoke FAILED')),
+        everyElement(contains('error=invalid_client')),
+      );
+    });
+
     test('a throw → erased all the same', () async {
       await service(
         (_) async => throw http.ClientException('reset'),
@@ -383,6 +413,23 @@ void main() {
       ).revokeAll(kind: 'user', accountId: 'nobody');
       expect(sent, isEmpty);
       expect(logs, isEmpty);
+    });
+  });
+
+  group('appleErrorWord — only a short word of Apple\'s answer is logged', () {
+    test('the error word', () {
+      expect(appleErrorWord('{"error":"invalid_client"}'), 'invalid_client');
+      expect(appleErrorWord('{"error":"invalid_grant"}'), 'invalid_grant');
+    });
+
+    test('anything else → « - »', () {
+      expect(appleErrorWord('<html>'), '-');
+      expect(appleErrorWord(''), '-');
+      expect(appleErrorWord('{}'), '-');
+      expect(appleErrorWord('{"error":12}'), '-');
+      expect(appleErrorWord('[1]'), '-');
+      expect(appleErrorWord('{"error":"Not A Word, rt-secret"}'), '-');
+      expect(appleErrorWord('{"error":"${'a' * 41}"}'), '-');
     });
   });
 
