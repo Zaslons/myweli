@@ -2302,7 +2302,11 @@ void main() {
           FakeStorageService(),
           idempotency: idem,
           // No key: nothing is revoked at Apple, the rows go all the same.
-          apple: AppleTokenService(appleTokens, null, log: (_) {}),
+          apple: AppleTokenService(
+            appleTokens,
+            AppleSignInKeys.none,
+            log: (_) {},
+          ),
           client: MockClient((_) async => http.Response('', 204)),
         );
 

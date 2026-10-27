@@ -227,26 +227,45 @@ which is how the reminder cron came to be switched off without anyone noticing.
    old. On `JWT_SECRET` that is some instances signing with a key the others
    reject, with nothing in the logs saying why.
 
-   **Sign in with Apple's key — owed, and the server waits for it (B6.7).**
-   Account deletion revokes the person's Apple authorization (App Store
-   5.1.1(v)) only once a key exists; until then the server keeps and revokes
-   nothing and says so at each boot (`NOTICE: no APPLE_TEAM_ID …`). To turn it
-   on — **the owner's steps**, a cloud mutation each, asked for before:
-   1. Apple Developer → *Certificates, Identifiers & Profiles* → *Keys* → **+**:
-      enable **Sign in with Apple**, configure it on the app's primary App ID
-      (every id in `APPLE_CLIENT_IDS` — the two apps and the web's Services ID
-      — must be grouped under it). Download `AuthKey_<KEY_ID>.p8` (Apple
-      offers it **once**); note the Key ID and the Team ID.
-   2. `gcloud secrets create APPLE_PRIVATE_KEY --data-file=AuthKey_<KEY_ID>.p8`,
-      and grant the runtime service account `secretAccessor` on it.
-   3. A PR adds to `infra/gcp/service.yaml`: `APPLE_TEAM_ID` and
-      `APPLE_KEY_ID` as plain values (identifiers, not secrets) and
-      `APPLE_PRIVATE_KEY` by `secretKeyRef`, **pinned** to version `'1'` (the
-      pins test refuses `latest`). All three or none — half a key refuses to
-      boot.
-   4. Deploy; the boot `NOTICE` is gone. Sign-ins from then on keep a token;
-      accounts that signed in before have none to revoke until their next
-      sign-in. Design: docs/design/backend-integrity-batch6.md §13.
+   **Sign in with Apple's keys — owed, and the server waits for them (B6.7,
+   B0.12).** Account deletion revokes the person's Apple authorization (App
+   Store 5.1.1(v)) only once keys exist; until then the server keeps and
+   revokes nothing and says so at each boot (`NOTICE: no Sign in with Apple
+   key …`). **MyWeli and MyWeli Pro are separate Sign in with Apple
+   primaries** (read through the App Store Connect API, 2026-10-27), and Apple
+   associates a key with one primary — so **one key per app**, the server
+   choosing it by the token's client
+   ([apple-signin-keys.md](design/apple-signin-keys.md)). To turn it on — **the
+   owner's steps**, a cloud mutation each, asked for before:
+   1. Apple Developer → *Identifiers* → *Services IDs* → `com.myweli.signin` →
+      Sign In with Apple → *Configure*: note its **Primary App ID** (read only).
+   2. *Keys* → **+** → « MyWeli — Sign in with Apple », tick **Sign in with
+      Apple** → *Configure* → Primary App ID `com.myweli.app` → Register →
+      download `AuthKey_<KEY_ID>.p8` (Apple offers it **once**), note the Key
+      ID. Again for « MyWeli Pro — Sign in with Apple » on `com.myweli.pro`.
+   3. **No key can be tested before a real sign-in** — Apple answers a fake
+      code with `invalid_grant` and a fake revocation with `200` whatever
+      the key (measured with controls, 2026-10-27,
+      [apple-signin-keys.md](design/apple-signin-keys.md) §5). The test is
+      step 6. **Never attach a `.p8` to a chat**: name its folder.
+   4. `gcloud secrets create APPLE_APP_PRIVATE_KEY --data-file=<the MyWeli
+      .p8>` and the same for `APPLE_PRO_PRIVATE_KEY`; grant the runtime service
+      account `secretAccessor` on both. Keep an offline copy in a password
+      manager, then delete the downloads.
+   5. A PR adds to `infra/gcp/service.yaml`: `APPLE_TEAM_ID`,
+      `APPLE_APP_KEY_ID`, `APPLE_APP_KEY_CLIENTS`, `APPLE_PRO_KEY_ID` and
+      `APPLE_PRO_KEY_CLIENTS` as plain values (identifiers, not secrets), and
+      the two private keys by `secretKeyRef`, **pinned** to version `'1'` (the
+      pins test refuses `latest`). A slot is all three of its variables or
+      none, every listed client must be in `APPLE_CLIENT_IDS`, and none may be
+      in both slots — or the server refuses to boot.
+   6. Deploy — after Apple's decision on 0.0.1 (BACKLOG decision 47); the boot
+      `NOTICE` is gone. **Then one real Apple sign-in per client** (the Pro
+      app, myweli.com, the MyWeli app once it ships): each adds a row to
+      `apple_tokens` and logs no `apple_token FAILED`; `error=invalid_client`
+      means that client's key does not cover it. Sign-ins from then on keep a
+      token; accounts that signed in before have none to revoke until their
+      next Apple sign-in.
 
    **Changing a secret, in order:**
 

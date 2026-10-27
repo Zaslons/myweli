@@ -126,6 +126,11 @@ Each question has a recommendation. Answers unblock the item named in brackets.
 41. What a sign-in with no account says? [B0.11] — ✅ **Answered: a neutral sentence + the invitation hint**, no button.
 42. An « S’inscrire » link that opens myweli.com, as Planity Pro has? [B0.11] — ✅ **Answered: yes — you take the risk knowingly** (the EU/US link-out rules that likely let Planity do it do not cover Côte d’Ivoire; if App Review objects, the link is one widget to remove).
 43. « Prendre rendez-vous » for clients who installed the wrong app? [B0.11] — ✅ **Answered: later**, to the MyWeli app's store page once it is published.
+44. B0.7's first alert: any new issue in the latest release, or fatal only? Dart errors reach Sentry at level « error », only native crashes are « fatal ». [B0.7] — ✅ **Answered (2026-10-27): any new issue.**
+45. Sign in with Apple: two keys (the two apps stay separate primaries) or group MyWeli Pro under MyWeli? [B0.12] — ✅ **Answered (2026-10-27): two keys** ([apple-signin-keys.md](design/apple-signin-keys.md) §3).
+46. The website's one Services ID serves both spaces: keep it, or add a Pro Services ID? [B0.12] — ✅ **Answered: keep one for now.**
+47. When does the server start using the keys? [B0.12] — ✅ **Answered: after Apple's decision on 0.0.1** (B0.1); the keys, the probe, the secrets and the PRs happen now.
+48. Apple's server-to-server notifications? [B0.13] — ✅ **Answered: later**, its own item.
 
 ---
 
@@ -164,7 +169,7 @@ Each question has a recommendation. Answers unblock the item named in brackets.
   - If Apple rejects under 5.1.1(ix), hide « Vérification » and the deposit switch on iOS only, with forced-iOS tests, until an Organization account exists.
 - **B0.7 Replace the crash-free-rate alert before phased release (P2 · S).**
   - **What:** sessions are off to keep the privacy promise, so the planned crash-free-rate alert has nothing to measure.
-  - **How:** in Sentry `myweli-app`, three issue alerts on production: a new fatal issue in the latest release; any issue seen by more than 3 users in 1 h; app hangs seen by more than 3 users in 1 h. Send a test event for each, and update observability §8.3 and LAUNCH §1.4.
+  - **How:** in Sentry `myweli-app`, three issue alerts on production: a new issue in the latest release (any level — decision 44); any issue seen by more than 3 users in 1 h; app hangs seen by more than 3 users in 1 h. The hang alert matches `exception.type` containing « App Hang » (build 698's three names) or equal to `ApplicationNotResponding` (Android); the « 3 users » alert excludes both, so a hang alerts once. Send a test event for each, and update observability §8.3 and LAUNCH §1.4.
 - **B0.8 0.0.2 store media (P3 · M · decision 6).** **Only if needed** (decision 6). If yes: reshoot screenshots 3 and 8 with `tool/app_store_screenshots`, and re-cut the Revenus scene and poster with `tool/app_store_preview`.
 - ✅ **B0.9 Remove the unused « remote-notification » background mode (P3 · S · decision 7).** **Done in #708** — removed for the resubmitted build; verified first that the server never sends a silent push and the background handler is empty, and pinned both sides. The killed-app push check is in app-store-forms §11.6 (B0.2). Delete it from `Info.plist`, which both apps share, and check a real push with the app killed in the next TestFlight run.
 - ✅ **B0.11 Apple's 3.1.1 rejection: the Pro app signs salons in, it does not sign them up (P1 · M · decisions 38–43).** **Built in #711, shipped in build 698, resubmitted 2026-10-26 (B0.3)** — [pro-app-login-only.md](design/pro-app-login-only.md). App Review (2026-10-19, build 587): « Remove the account registration features for business and organizations ». On both apps: « Inscription Pro » (`/pro/register`) and « Ajouter un salon » (`/pro/salons/nouveau`) leave the app with their methods — the web keeps both; invitations stay; « S’inscrire sur myweli.com » opens the web sign-up in the browser; a sign-in with no account says « Aucun compte MyWeli Pro n’est associé à cette adresse. Si votre salon vous a invité… ». The review notes and the Resolution Center reply (app-store-forms §8, §13.2) say so plainly. **Then:** the resubmission (B0.3) after the device checks (B0.2).
@@ -172,6 +177,11 @@ Each question has a recommendation. Answers unblock the item named in brackets.
   - **What:** nothing has been typed into Play Console yet.
   - **How:** you type play-store-forms §1–§5 with the amended App access text. I check them against the policy and the iOS answers, make the 1024×500 banner, and add a length test for the access text.
   - **Order:** Android is last (LAUNCH §3).
+
+- **B0.12 Sign in with Apple keys, one per app (P1 · M · decisions 45–47).** Spec: [apple-signin-keys.md](design/apple-signin-keys.md) (approved 2026-10-27).
+  - **What:** B6.7 revokes a deleted account's Apple authorization (5.1.1(v)) but waits for a key. MyWeli and MyWeli Pro are separate Sign in with Apple primaries (read through the API, 2026-10-27), and Apple's model is a key per primary — DEPLOYMENT.md assumed one group and one key.
+  - **How:** you create two keys in the portal (done 2026-10-27: `DAX5SVLW3Y` on MyWeli, `F4C6234X22` on MyWeli Pro; the web Services ID is under MyWeli); you put the two `.p8` in Secret Manager; PR 1 (the server picks the key by client, and logs Apple's error word) and PR 2 (the manifest); the deploy waits for Apple's decision on 0.0.1 (decision 47). **No key can be tested before a real sign-in** (Apple answers every fake request alike — measured with controls), so after the deploy one real Apple sign-in per client is the test, and one real revocation is seen leave your Apple ID list.
+- **B0.13 Apple's server-to-server notifications (P3 · M · decision 48) — later.** Apple tells the server when someone stops using Apple sign-in with an app or deletes their Apple account; configured per primary, not built. Its own spec when it's time.
 
 ### Batch 1 — Pro « Accueil » and « Ma journée » stay fresh (P1, app, one slice) — ✅ done (#665, 2026-10-21)
 

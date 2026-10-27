@@ -5,7 +5,7 @@ import 'package:myweli_backend/src/auth/apple_tokens.dart';
 /// `apple_tokens_test.dart`.
 class RecordingAppleTokens extends AppleTokenService {
   RecordingAppleTokens({this.onRevoke})
-    : super(InMemoryAppleTokenRepository(), null, log: (_) {});
+    : super(InMemoryAppleTokenRepository(), AppleSignInKeys.none, log: (_) {});
 
   /// Runs inside [revokeAll] — lets a test look at the world at that moment
   /// (is the identity still there?).
