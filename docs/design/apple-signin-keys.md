@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | Approved 2026-10-27 (owner: §11, Q1–Q4 answered as recommended) |
+| **Status** | Approved 2026-10-27 (owner: §11, Q1–Q4 answered as recommended) · **PR 1 (code) built** — §9 steps 1–3, PR 2 and the deploy remain |
 | **Owner** | Sadreddine Daher |
 | **Last updated** | 2026-10-27 |
 | **PRD ref / phase** | Account deletion (App Store 5.1.1(v)) · V1 |
