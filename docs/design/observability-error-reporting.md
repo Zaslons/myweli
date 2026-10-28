@@ -231,7 +231,9 @@ Sentry creates something close to this by default when a project is made, so
 check before adding a second one; two rules firing on the same condition is how
 alerting starts being ignored.
 
-**Every rule filters `environment` = `prod`.** Without it:
+**Every rule filters its project's production environment** — `prod` for the
+backend, `production` for the web and the app (the names differ; §8.1.1 has
+where each comes from). Without it:
 - the `local-verification` event from `tool/verify_sentry.dart` would have paged
   someone,
 - and **staging will page constantly** the moment it exists — it is the
@@ -288,6 +290,28 @@ events of the last 90 days, grouped by environment.
   to read back.
 - **Only then is `757125` filtered to `production`.** Filtering first would
   leave a window in which a production CSP report e-mails no one.
+
+**Done, 2026-10-28.**
+- **#717 merged** as `1a3aae34`.
+- **The deployed header, read on myweli.com** about 4½ minutes later: `/`,
+  `/support` and `/pro/connexion` send `report-uri …&sentry_environment=production`.
+  The control, read before the merge, had no such parameter.
+- **`757125` then set to `production`** at 12:03 UTC, and read back through
+  the API: detector `myweli-web`, triggers and e-mail action unchanged.
+- **So every default alert now filters its project's production name:**
+
+  | Alert | Environment |
+  |---|---|
+  | backend `757123` | `prod` |
+  | web `757125` | `production` |
+  | app's §8.3 alerts | `production` (the app's own default stays off) |
+
+- **Not yet observed:** a real CSP report arriving under `production`.
+  - Sentry documents the parameter on its security endpoint.
+  - Sending a fabricated report to prove it would have opened an issue and
+    e-mailed the owner, so it was not done.
+  - The next real violation is the observation; until then, this line is the
+    documentation's word.
 
 ### 8.2 Not yet — rate and spike thresholds
 

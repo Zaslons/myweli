@@ -184,9 +184,11 @@ Each question has a recommendation. Answers unblock the item named in brackets.
   - **Why « every event »:** Sentry no longer has a « seen by more than N users » trigger; the user count is a filter now, and under « a new issue is created » it would only ever see one user.
   - **Found while doing it:** the backend's and web's default alerts (`757123`, `757125`) filtered **no** environment, against observability §8.1's « every rule filters production ». **Fixed on your request (2026-10-28):**
     - **The backend:** `757123` now filters `prod`, the name the backend sends. It was read back through the API, with its triggers and e-mail action unchanged.
-    - **The web — waits on a merge:** its CSP violation reports reached Sentry with no environment, so a filter would have silenced them (`MYWELI-WEB-9`).
+    - **The web — done 2026-10-28, after a merge:** its CSP violation reports reached Sentry with no environment, so a filter would have silenced them (`MYWELI-WEB-9`).
       - You chose to tag them: #717 adds `sentry_environment` to the `report-uri` (observability §8.1.1).
-      - `757125` is filtered to `production` only after #717 is merged, which redeploys myweli.com, and its header is read back.
+      - #717 merged and redeployed myweli.com. The deployed header carries `sentry_environment=production` on `/`, `/support` and `/pro/connexion`; the control before the merge did not.
+      - Then `757125` was set to `production` and read back.
+      - Not yet observed: a real report arriving under `production` (the parameter is Sentry's documented one).
   - **Not set up:** the phone push of decision 34 — e-mail only for now.
   - **What:** sessions are off to keep the privacy promise, so the planned crash-free-rate alert has nothing to measure.
   - **How:** in Sentry `myweli-app`, three issue alerts on production: a new issue in the latest release (any level — decision 44); any issue seen by more than 3 users in 1 h; app hangs seen by more than 3 users in 1 h. The hang alert matches `exception.type` containing « App Hang » (build 698's three names) or equal to `ApplicationNotResponding` (Android); the « 3 users » alert excludes both, so a hang alerts once. Send a test event for each, and update observability §8.3 and LAUNCH §1.4.
