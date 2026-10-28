@@ -250,7 +250,7 @@ la phrase, plus rien du salon ; « Déconnexion » ne parle pas de session ;
 le câblage lu sur la vraie liste). **Rouge d'abord pour la bonne raison** :
 « frame 1: the receptionist is shown the owner's revenue », le constat de la
 sonde. `pro_account_scope_test.dart` (chaque entrée — reprise, e-mail,
-inscription, invitation acceptée depuis la connexion — et chaque sortie
+~~inscription~~ (partie avec B0.11, voir la note du 2026-10-28), invitation acceptée depuis la connexion — et chaque sortie
 remet les deux portées à zéro ; un changement de salon seulement la sienne ;
 le même compte rien ; avant la notification ; un magasin qui lève n'arrête
 ni les autres ni la sortie ; la session refusée, pendant une sortie, pendant
@@ -302,3 +302,22 @@ propre lecture derrière un squelette.
 
 **Non vérifié** : sur un téléphone, une vraie session Pro refusée par la
 production.
+
+> **2026-10-28 — rebasée sur `main`** (après B9.9 #706/#707, B0.11 #711 et
+> le lot 0), derrière #701.
+> - **Les 24 conflits des magasins du salon** avaient tous la même forme :
+>   `main` avait passé la signature en `SalonId`, cette PR ajoutait dessous
+>   `final scope = _scope;`. Les deux sont gardés, par un script qui
+>   vérifiait cette forme exacte avant chaque résolution.
+> - **`pro_auth_provider.dart`** :
+>   - `_login` est supprimé, comme sur `main` : son seul appelant,
+>     l'inscription, a quitté l'app avec B0.11 ;
+>   - `_clearSession()` ne remet plus `_canAddSalon` à zéro (le champ est
+>     parti avec « Ajouter un salon ») et vide tout ce que vidait `main` ;
+>   - `_setProvider` reste le seul endroit qui change le compte.
+> - **Les tests :**
+>   - les 63 identifiants de salon des nouveaux tests sont des `SalonId` ;
+>   - « une inscription remet les deux à zéro » est supprimé : ce chemin
+>     d'entrée n'existe plus ;
+>   - analyse à 0, et les 257 tests des fichiers touchés par #701 et #704
+>     passent.
