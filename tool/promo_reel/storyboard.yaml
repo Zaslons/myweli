@@ -1,0 +1,897 @@
+# MyWeli Pro promo « CARNET → DROP » — the one source of the reel.
+#
+# Approved storyboard (2026-10-19): every number below is taken from it —
+# « GRID AND NOTATION », « LAYOUT 9:16 », « 1:1 and 16:9 » and « Safe zones ».
+# The schema is checked by promo/storyboard.py (README « storyboard.yaml »):
+# meta, cuts and formats strictly; music (AUDIO) and scenes (SCENES) are
+# passed through, except that every cue a scene names must be in music.cues.
+# Pixels are [x0, y0, x1, y1] on the format's canvas; positions are
+# bar.beat.step from the cut's start (promo/timebase.py).
+
+meta:
+  title: "MyWeli Pro — « CARNET → DROP »"
+  fps: 30                 # beat = 16 frames, 16th = 4, bar = 64 (2.1333 s)
+  bpm: 112.5
+  key: C minor            # Cm9 / F9 / A♭maj9 / G7♭9
+  sample_rate: 48000      # 1 frame = 1 600 samples
+
+cuts:
+  # The owner's decision after the first 30-s review (2026-10-19, « Add one bar »): each cut gets ONE bar
+  # more than its name holds, a calm outro, so the end card's full wording holds ≈ 4.3 s and reads at
+  # ≤ 17 cps (verify (i)). storyboard.py allows exactly that one bar past the name, never more.
+  30s:
+    bars: 15
+    frames: 960           # 32.0 s = 14 bars (29.867 s) + the outro bar; past the historical 30-s Status cap (the owner's call)
+    description: the full story — hook, drop 1, booking, Fiche, drop 2 (Revenus), public page, reveal, end card, outro
+  15s:
+    bars: 8
+    frames: 512           # 17.067 s = 7 bars + the outro bar — its own score (re-scored, never spliced) and its own events.json
+    description: one-bar hook, the swipe and tap, a booking made, Revenus, reveal, end card, outro
+
+# Every format's short side is 1080, so type, the phone scale (1.791 px/pt),
+# the touch disc, the lifts and the Lottie keep the same pixel sizes
+# everywhere: each format is re-laid out, never cropped or resized.
+#
+# ONE storyboard → three formats (storyboard « 1:1 and 16:9 »): the scenes
+# say WHAT is shown and WHEN; each format's `layout` says WHERE — the caption
+# placement, the counter, where each kind of lift lands, the hook's page and
+# its scrim, the map credit. The scenes' camera W values are measured in the
+# `reference` format (9:16); each W key says what it keeps (`keep: top` — the
+# point on the window's top edge, e.g. a row hidden under the band; `centre`
+# — the active row in the window's middle; `floor` — a row on the floor), and
+# the other formats re-frame by that rule (promo/scenes/phone.py).
+x-type-px: &type_px       # (YAML anchor only — the key below each format is what is read)
+  hook: 96                # Poppins Medium, white
+  app: 72                 # Poppins Medium #1A1A1A, ≤ 2 lines, every line measured
+  counter: 120            # Poppins Medium figure
+  counter_label: 40       # Inter Medium #4A4A4A
+  tagline: 46             # end card, ONE line
+  store: 40               # « Sur l’App Store et Google Play », Inter Medium #4A4A4A (≥ 40: read, not fine print)
+  site: 40                # « myweli.com », the end card's last line, Inter Medium #1A1A1A (≥ 40)
+  credit: 24              # « © OpenStreetMap contributors · © CARTO » (the app's own), Inter #6E6E6E
+
+formats:
+  9x16:
+    reference: true                       # the scenes' camera W values are measured in this window
+    size: [1080, 1920]
+    safe: [120, 270, 900, 1248]
+    safe_basis: platform
+    safe_note: >-
+      Strict combined text rectangle, the worst case of TikTok, Reels and
+      WhatsApp Status (780×978). Text, lifts and the counter stay at
+      y ≤ 1248 and x ≤ 900 whenever below y 840.
+    # The owner's 9:16 FLOOR (2026-10-19, « Extend to ~y 1450 »): the phone window runs down to y 1424 (≈ 1450, set
+    # by the pictures: Fatou B.'s card bottom, 582 pt, 11 px above the floor and the old 13:15 row's text 20 px under
+    # the floor fade, with the band edge between « Ma journée » and « Aujourd’hui » — README « The formats »).
+    phone_window_note: >-
+      The owner's 9:16 floor (2026-10-19): app pixels only below y 1248 — the
+      demonstrated UI and the touch discs that ride it; text, captions, the
+      counter and the lifts stay inside the platform rectangle (y ≤ 1248).
+    rail_free: [120, 270, 960, 840]   # above y 840 the right button rail has not started: captions may run to x 960
+    zones:
+      caption_band: [0, 0, 1080, 560]     # opaque stage behind the captions
+      caption_fade: [0, 560, 1080, 600]
+      captions: [150, 300, 930, 540]      # centred on x 540, ≤ 780 px wide (x 150–930)
+      hook_block: [150, 300, 930, 700]    # the hook's 96-px block and strike stack
+      phone_window: [180, 600, 900, 1424] # every demonstrated UI element lives here (app pixels only below 1248)
+      overlays: [120, 270, 900, 1248]     # lifts, the counter
+      floor_fade: [0, 1424, 1080, 1448]
+      floor: [0, 1448, 1080, 1920]        # calm stage colour + pattern under the platform chrome
+    layout:
+      caption_band: true
+      caption_column_x: [150, 930]
+      caption_centre_x: 540
+      caption_centre_y: null              # words sit from the band's top (y 300–540)
+      caption_line_max_px: 771
+      caption_lines_max: 2
+      phone_screen_x: [180, 900]          # capture cropped from screen pt 56, 720 px wide
+      px_per_pt: 1.791
+      screen_crop_top_pt: 56
+      phone_bezel_px: 16                  # generic slab: no notch, no buttons
+      phone_radius_px: 96
+      type_px: *type_px
+      lottie_centre: [540, 680]           # wordmark ink ≈ x 180–896, y 619–754
+      lottie_comp_width_px: 900           # 0.833 × the short side
+      end_mark_scale: 1.2
+      end_mark_ink_y: [400, 599]
+      end_tagline_cap_top_y: 712          # one line, 762 px (x 159–921), above y 840
+      lift_x: [120, 900]                  # lifted cards 780 px wide
+      lift_veil: 0.55                     # the phone recedes under a 55 % paper veil
+      lift_path: straight                 # a lift travels straight from its place (one whose place lies outside the
+                                          # text rectangle pops in place: Fatou B. on the owner's floor, review round 5)
+      tilt_axis: x                        # 2.5D tilts are rotX
+      tilt_max_deg: null
+      scene_whip_axis: null               # whips follow the storyboard row (vertical in-phone, horizontal onto Revenus)
+      zoom_pivot_x: null                  # a push-in scales about the phone's own axis
+      phone_anchor: null                  # the band edge is fixed (y 600)
+      caption_align: centre
+      caption_cap_top: {hook: 300, app: 330}   # the hook block y 300–700; app words y 300–540
+      counter_baselines: [322, 496]       # label, figure: the label clear of the rolling band above the figure
+      lift_y:                             # where each kind of lift lands (its x: lift_x)
+        # « Arrivé »: Fatou B.'s card (on the floor, y ≈ 1284–1413) lifts UP into the platform rectangle
+        card_on_floor: {bottom: 1236}
+        card_under_caption: {centre_y: 930}   # « Total réalisé », under the two-line sentence
+        tile_row: {centre_y: 815}         # the Fiche's three tiles, on their own row (y 725–875)
+      hook_page: {x: [40, 1040], top: 640, pivot: [540, 1250], macro_to: [540, 1200]}   # the page fills y ≈ 700–1700, tilted
+      hook_scrim: {rect: [0, 0, 1080, 520], fade: [0, 120]}   # black over the page to y 520, gone by 640: no scribble under the words
+      # the floor is the phone's now (to y 1424): the band's foot, its ink ending on the screen's right edge (x 900),
+      # over the map it credits — as 1:1's (round 3 put it on the floor, x 120, baseline 1236: over the app's pixels now)
+      map_credit: {x: 900, baseline: 552, align: right}
+
+  1x1:
+    size: [1080, 1080]
+    safe: [54, 54, 1026, 1026]
+    safe_basis: ebu_r95_graphics
+    safe_note: EBU R95 graphics-safe, 5 % inset.
+    rail_free: null
+    zones:
+      # the band edge at the journal's chip row (review round 4: at y 330 the band's fade cut the week's dates on
+      # Fatou B.'s framing — the window top allowed by the floor rule fell on them): band to 358, fade to 388
+      caption_band: [0, 0, 1080, 358]
+      caption_fade: [0, 358, 1080, 388]
+      captions: [54, 80, 1026, 340]       # at most two 72-px lines; counter label + 120-px figure fit in 230 px
+      hook_block: [54, 54, 1026, 420]     # captions and the strike stack in the band (its third line reaches y ≈ 414)
+      phone_window: [180, 388, 900, 1002] # ≈ 343 pt visible
+      overlays: [54, 54, 1026, 1026]      # lifts may grow past the phone edges
+      floor_fade: [0, 1002, 1080, 1026]
+      floor: [0, 1026, 1080, 1080]
+    layout:
+      caption_band: true
+      caption_column_x: [54, 1026]
+      caption_centre_x: 540
+      caption_centre_y: null
+      caption_line_max_px: 771
+      caption_lines_max: 2
+      phone_screen_x: [180, 900]
+      px_per_pt: 1.791
+      screen_crop_top_pt: 56
+      phone_bezel_px: 16
+      phone_radius_px: 96
+      type_px: *type_px
+      lottie_centre: [540, 520]
+      lottie_comp_width_px: 900
+      end_mark_scale: 1.2
+      end_mark_ink_y: [250, 449]
+      end_tagline_cap_top_y: 560
+      lift_x: [150, 930]                  # 780 px like 9:16 (the lifts keep their pixel size), centred; they may use x 54–1026
+      lift_veil: 0.55                     # no side room: the phone still recedes under the veil
+      lift_path: straight
+      tilt_axis: x
+      tilt_max_deg: null
+      scene_whip_axis: null
+      zoom_pivot_x: null
+      phone_anchor: null
+      caption_align: centre
+      caption_cap_top: {hook: 80, app: 120}    # app words y 120–275 (two 72-px lines), the band's middle
+      # label + 120-px figure in the band (label ink y ≥ 81 while it switches, figure ink 200–286): the figure ends
+      # 72 px over the band's fade (y 358; round 3: 17 px over the phone's bezel); the roll fades out by the band's
+      # edge instead of being cut there (review round 3)
+      counter_baselines: [120, 284]
+      lift_y:
+        card_on_floor: {bottom: 1000}     # the window's floor (1002)
+        card_under_caption: {centre_y: 690}
+        tile_row: {centre_y: 588}         # the tiles' own row at W 216 (y 513–663)
+      # the page fills the square under the band, smaller than 9:16's (840 px wide, not 1000) so its three strike
+      # rows land inside the graphics-safe area (y ≈ 549–994, review round 3: at 1000 px wide the third was drawn
+      # below the frame, y 1117–1159); the macro's margin note at x ≈ 96–190, inside it too
+      hook_page: {x: [120, 960], top: 10, pivot: [540, 600], macro_to: [540, 760]}
+      hook_scrim: {rect: [0, 0, 1080, 400], fade: [0, 100]}   # the strike stack's third line needs the band to y ≈ 414
+      # the floor is outside the safe area: the band's foot, its ink ending on the screen's right edge (x 900),
+      # right over the map it credits (round 3: ending on x 1026, over the bezel's corner, it read as the caption's)
+      map_credit: {x: 900, baseline: 346, align: right}
+
+  16x9:
+    size: [1920, 1080]
+    safe: [96, 54, 1824, 1026]
+    safe_basis: ebu_r95_graphics
+    safe_note: EBU R95 graphics-safe, 5 % inset. No caption band.
+    # The owner's 16:9 « Re-lay it » (2026-10-19): larger captions for the feed — the column's 72-px words at 88 px
+    # (the longest line, « Chaque rendez-vous », 942 px in the 960-px column), the counter at 144 / 48
+    type_note: >-
+      The owner's 16:9 re-lay (2026-10-19): larger captions for feed
+      legibility — app captions 88 px (72 × 1.22, the column's width), the
+      counter 144 px with its 48-px label; the hook's words, the end card's
+      lockup and the credit keep the storyboard's sizes.
+    rail_free: null
+    zones:
+      captions: [96, 54, 1040, 1026]      # left column, the block centred on y 440; same two-line breaks
+      hook_block: [96, 54, 816, 520]      # captions and strike stack top-left, on the hook's scrim
+      # right third, the phone standing on the floor (layout.phone_anchor): ≈ 526 pt visible when the screen fills
+      # the window — taller than round 3's 512 pt —, the band edge coming down over the rows above W wherever the
+      # screen ends inside it (the lower journal: the old 13:15 row under the band, the slab's bottom on y 1026)
+      # the screen x 1088–1808: the slab's bezel ends ON the graphics-safe edge (x 1824; review round 5: at x 1104–1824
+      # the bezel ran to 1840, and to 1860 in the drop's slam, past action-safe)
+      phone_window: [1088, 54, 1808, 1026]
+      top_fade: [1088, 54, 1808, 84]      # the band's 30-px fade at its resting edge (y 84)
+      # lifts pop out to the LEFT of the phone, no veil — at the left column's full width where it helps (the owner's
+      # round 5, 2026-10-20: the « Arrivé » card and the Fiche's tiles, x 96–1040)
+      overlays: [96, 54, 1044, 1026]
+      slot_card: [96, 560, 620, 1026]     # SLOT « FAUTEUIL » (bars 11–12): EMPTY — no photos (the owner); the caption alone
+      floor_fade: [0, 1026, 1920, 1050]   # app pixels only past the safe edge (the screen filling the window)
+      floor: [0, 1050, 1920, 1080]
+    layout:
+      caption_band: false
+      caption_column_x: [96, 1040]        # 32 px clear of the bezel (x 1072)
+      caption_centre_x: null
+      caption_centre_y: 440
+      caption_line_max_px: 944           # 771 × 88 / 72: the 72-px rule at the 16:9 captions' 88 px
+      caption_lines_max: 2
+      phone_screen_x: [1088, 1808]
+      px_per_pt: 1.791
+      screen_crop_top_pt: 56
+      phone_bezel_px: 16
+      phone_radius_px: 96
+      type_px: {<<: *type_px, app: 88, counter: 144, counter_label: 48}   # type_note: the owner's larger captions
+      lottie_centre: [960, 500]
+      lottie_comp_width_px: 900
+      end_mark_scale: 1.2
+      end_mark_ink_y: [230, 429]
+      end_tagline_cap_top_y: 540          # tagline centred
+      lift_x: [284, 1044]                 # 760 px, 28 px clear of the bezel (x 1072)
+      lift_veil: 0.0
+      # out of the phone BESIDE the sentence: down first, then across under it — never across the caption (review
+      # round 5: the « Total réalisé » card crossed « rendez-vous » and grazed « terminé, » in flight)
+      lift_path: under
+      tilt_axis: y                        # 2.5D tilts become yaw moves
+      tilt_max_deg: 10
+      scene_whip_axis: horizontal         # the bar-5 in-phone whip stays vertical inside the window
+      # a push-in scales about the slab's RIGHT edge, on the safe edge: the phone grows leftwards, so it never
+      # passes x 1824 (review round 3: about the phone's axis the FAB and the snackbar reached x 1835 at the
+      # « rempli. » push's peak) — and, where it stands on the floor, about the floor (review round 5)
+      zoom_pivot_x: 1824
+      # the phone stands on the floor (the owner's « Re-lay it », 2026-10-19): its screen's bottom never rises above
+      # y 1010 (the slab's bottom on the floor, y 1026) — the band edge comes down instead (fx.phone.Window)
+      phone_anchor: floor
+      caption_align: left                 # the column's left edge, x 96
+      caption_cap_top: {hook: 130, app: null}  # the hook top-left; app captions centred on y 440
+      counter_baselines: [354, 561]       # 48 / 144 px: the counter's block (ink y 317–563) centred on the column's y 440
+      lift_y:                             # beside the phone, under the caption (y ≈ 395–490)
+        # the owner's round 5 (2026-10-20): the « Arrivé » card at the left column's full width — 944 px, 1.42× the
+        # card in the phone (round 5: 760 px, 1.15×), « Arrivé » read at 50 %; 16:9 lifts are exempt from « same
+        # pixel size everywhere » (the owner)
+        card_on_floor: {bottom: 1000, x: [96, 1040]}
+        # the card's top 60 px under the two 88-px lines' ink (review round 5: at 770 its top edge was 22 px under
+        # « compté. »'s descender); y ≈ 596–1004, on the floor's side of the safe edge
+        # « Total réalisé » keeps lift_x (760 px): at the column's 944 px it would be 508 px tall — under the
+        # two-line sentence (ink to y ≈ 523) and inside the safe floor (1026) there are 427 px: it cannot grow
+        card_under_caption: {centre_y: 800}
+        tile_row: {centre_y: 720, x: [96, 1040]}   # the Fiche's three tiles across the column (304 px each; were 243)
+      hook_page: {x: [760, 1960], top: -440, pivot: [1360, 560], macro_to: [1340, 640]}   # the page across the frame's right, rows 9–18 in view
+      hook_scrim: {rect: [0, 0, 820, 1080], fade: [200, 0],   # black down the left, the words top-left on it
+                   # the macro shot (f32–63): black behind the question only (its ink y ≈ 130–330), gone by y 540, so
+                   # the margin note writes itself in view (x ≈ 710–845, y ≈ 710–778; review round 3: under the black)
+                   macro: {rect: [0, 0, 820, 400], fade: [200, 140]}}
+      map_credit: {x: 1040, baseline: 1016, align: right}     # at the foot of the left column, by the phone's corner
+
+
+# ── MUSIC ─────────────────────────────────────────────────────────────────────
+# ONE source of cue ids: the scores. Each cut's music IS its score (AUDIO,
+# promo/audio/SCORE.md): the cue ids a scene addresses (`cue:swipe.touch`) are
+# that score's `cues[].id`, checked by promo/storyboard.py. The renderer renders
+# the score FIRST and reads every time from the events.json it writes (where
+# each sound actually landed), never from a number written here.
+music:
+  scores:
+    30s: promo/audio/score_30s.yaml
+    15s: promo/audio/score_15s.yaml
+
+# ── SCENES ────────────────────────────────────────────────────────────────────
+# One list per cut; each scene is a stretch of picture, in order, end to end.
+# The renderer (promo/render.py, promo/scenes/) reads everything from here, so a
+# variant is a --set, never a code change. `rows` are the storyboard's « Beat by
+# beat (30 s) » rows 1–24 in the 30-s cut, and the « BAR n » of « The 15 s cut »
+# in the 15-s one.
+#
+# THE 15-s CUT reuses the 30-s blocks it shares through YAML anchors and merges
+# (`<<: *end_card` = « the 30-s end scene, with these keys changed »): the AIR,
+# Revenus, the reveal and the end card are the 30-s's own, re-timed by the 15-s
+# score's events.json (the same cue ids), and the old 13:15 row's hiding rule
+# and the « Arrivé » lift are the same data. promo/storyboard.py loads every use
+# as its own copy, so a --set on one cut never changes the other.
+#
+# TIMES (film): `cue:<id>` (where the score's sound landed, from events.json),
+#   `cue:<id>@end` (a span's end), either with `+N` / `-N` frames; a grid
+#   position `bar.beat.step` (`5.2&` reads too), also with ±N; `end` = the cut's end.
+# TIMES (take): seconds of the take as written (an instant inside a held picture,
+#   e.g. 10.000); {named: t} the picture whose time is written t to the
+#   millisecond (takes.index_named); {touch: gesture} the measured touch-down
+#   (promo.media.touches: first changed picture − 200 ms); {first_change: g};
+#   {key: type-nom[n]} a typed key's first picture.
+# TIMELINE: segments from `at` on — `hold` a take time; or `src` at `rate`
+#   (default 1) until `src_until` (then held); or `src` … `until` (film) /
+#   `src_until` (take), the rate derived (it is checked never to exceed the
+#   gesture ramps the storyboard allows); `at: chain` starts where the previous
+#   segment reached its src_until; `pick: scroll` picks pictures by their
+#   measured scroll on a cosine instead of by time (take5b, storyboard R3).
+#   `blur: N` accumulates N subframes, each with its own take picture.
+#   `dissolve: <take time>` + `until` + `cite`: a DECLARED dissolve from the
+#   picture on screen to that later picture (on `curve`, default the app's
+#   base easeInOut), the footage between skipped — each picture through the
+#   camera W of its own end of the dissolve (W keys at `at` and `until`).
+# CAMERA: keyframes {at, value, curve}; a key is reached at `at`, from the
+#   previous key on `curve` (linear, ease_out_cubic, ease_in_out_cubic,
+#   fast_out_slow_in, ease_in, ease_out, ease_in_cubic). W = the screen point on
+#   the window's top edge (the band edge, y 600 in 9:16), measured in the
+#   reference format (9:16); `keep: top | centre | floor` (default: the key
+#   before it's, the first `top`) says what the value holds — a point on the
+#   top edge, in the window's middle, on the floor — and the other formats
+#   re-frame by it (never below the screen's top, pt 56). zoom = px_per_pt ÷
+#   1.791 about `anchor_pt` (a screen point) or `anchor_y: top` (the window's
+#   top edge); rot_x in degrees — a tilt, turned into the format's
+#   `tilt_axis` (16:9: yaw, ≤ 10°); `blur` on a key blurs the move into it
+#   (`whip` = a 6-frame whip).
+# PLACES: a lift lands at the format's `lift_x`, its `target.y` naming one of
+#   the format's `lift_y` places; the stacked tiles likewise (`layout.y`); the
+#   counter on the format's `counter_baselines`; the map credit on its
+#   `map_credit`; the hook's page on its `hook_page`; a caption with
+#   `centre: frame` is centred on the canvas (the AIR's word).
+# GENERATED ELEMENTS cite their source (`cite:`); verify lists every one.
+
+scenes:
+  30s:
+
+  # ── rows 1–4 · f0–111 · HOOK: the code-drawn carnet ──────────────────────────
+  - id: hook
+    rows: [1, 2, 3, 4]
+    kind: carnet
+    from: cue:hook.stab
+    to: cue:air1.reverse                    # HARD CUT to the AIR on 2.4
+    stage: {ground: black, pattern: 0.4, drift_px_s: [0, -4]}
+    grain: {seed: 11}
+    cite: "generated illustration of a common pain: procedural ruled paper, unreadable pen scribbles, no font, no name, no number (storyboard row 1; promo/fx/carnet.py); brand pattern per the brand book (Identity p.13 / Brandbook p.22)"
+    carnet:                                 # where the page lies: the format's hook_page (9:16: y ≈ 700–1700, tilted)
+      seed: 7
+      rot_x: 22
+      push: {from: cue:hook.stab, to: 2.2.3+3, scale: [1.10, 1.16]}     # linear, already under way at f0
+      macro: {at: cue:hook.cut, until: cue:strike1, rot_x: 16, scale: 1.7,
+              focus_entry: squeeze, focus_offset: [230, 40]}   # HARD CUT on 1.3 and back on 2.1, the entry on hook_page.macro_to
+      sink: {from: cue:clap_roll1, frames: 16, scale: [1.0, 1.5], light: [1.0, 0.15], blur: 8}   # 2.3: push + sink, motion-blurred
+      ink:
+        - {entry: write, from: cue:hook.pen, to: cue:hook.pen@end, start: 0.3}    # 30 % drawn at f0, complete at f24
+        - {entry: margin, from: cue:hook.margin, frames: 8}                        # the margin note writes itself
+      strikes:                              # rows relative to the entry being written
+        - {row: -7, cue: strike1}
+        - {row: -3, cue: strike2}
+        - {row: 2, cue: strike3}
+      punch: {peak: 1.025, cues: [strike1, strike2, strike3]}
+    captions:
+      - id: hook-question
+        type: hook
+        until: cue:strike1
+        cite: "hook copy, approved storyboard 2026-10-19 (« Votre carnet déborde ? »)"
+        lines:
+          - [{w: Votre, at: cue:hook.word1}, {w: carnet, at: cue:hook.word2}]
+          - [{w: "déborde ?", at: cue:hook.word3}]
+      - id: hook-stack
+        type: hook
+        line_height: 120
+        until: cue:air1.reverse
+        cite: "hook copy, approved storyboard 2026-10-19"
+        lines:
+          - [{w: Rayé., at: cue:strike1}]
+          - [{w: Raturé., at: cue:strike2}]
+          - [{w: Recopié., at: cue:strike3}]
+
+  # ── row 5 · f112–127 · AIR ──────────────────────────────────────────────────
+  - &air1
+    id: air1
+    rows: [5]
+    kind: air
+    from: cue:air1.reverse
+    to: cue:drop1.impact
+    stage: {ground: black, pattern: 1.0, drift_px_s: [0, -4]}
+    cite: "brand pattern per the brand book; no UI"
+    captions:
+      - id: breathe
+        type: hook
+        centre: frame                       # centred on the canvas, every format
+        until: cue:drop1.impact
+        cite: "hook copy, approved storyboard 2026-10-19"
+        lines: [[{w: Respirez., at: cue:air1.reverse}]]
+
+  # ── rows 6–15 · f128–463 · DROP 1: « Ma journée », take1b ───────────────────
+  - id: journal
+    rows: [6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+    kind: phone
+    from: cue:drop1.impact                  # HARD CUT black → paper
+    to: cue:fiche.cut
+    stage: {ground: paper, pattern: 1.0}
+    take: take1b
+    masks: []                               # take1b shows only the « Téléphone du client » placeholder
+    hidden: &hidden_1315                    # framing only, no pixel edited: never readable (verify, every frame of the scene,
+                                            # the form's push and pop included: the row's place × how much of it the picture shows)
+      - {label: "13:15 Yao K. (take 1’s old booking)", rect_pt: [36, 612.7, 361.3, 644.0], shown_on: 31.600}
+    timeline:
+      - {at: cue:drop1.impact, hold: 10.000}                                   # at rest 0–10.66 s
+      - {at: cue:swipe.touch, src: {touch: swipe-arrive}, until: cue:swipe.open, src_until: 11.265, blur: 4}   # 1.11×: open on 3.3
+      - {at: cue:swipe.open, src: 11.265, until: cue:tap.touch, src_until: 11.595}                         # the pane holds open
+      - {at: cue:tap.touch, src: {touch: tap-arrive}, until: cue:arrive.log, src_until: {named: 23.620}}   # seamless cut 11.595 → 21.818; 0.965×, never faster
+      - {at: cue:arrive.log, hold: {named: 23.620}}                            # badge « Arrivé »
+      - {at: cue:whip1, hold: 31.600}                                          # idle 23.985–32.165
+      - {at: cue:slot.touch, src: {touch: tap-libre}, rate: 1, src_until: 32.998}   # the form pushes in
+      - {at: cue:fill.touch1, src: {touch: tap-service}, rate: 1, src_until: 41.482}       # stepped time-lapse:
+      - {at: cue:fill.touch2, src: {touch: tap-sans-numero}, rate: 1, src_until: 49.798}   #   idle pictures skipped
+      - {at: cue:fill.touch3, src: {touch: tap-nom}, rate: 1, src_until: {named: 58.130}}  #   focus, no keyboard
+      - {at: cue:fill.key1, hold: {key: "type-nom[1]"}}                        # Y  66.333
+      - {at: cue:fill.key2, hold: {key: "type-nom[2]"}}                        # a  73.052
+      - {at: cue:fill.key3, hold: {key: "type-nom[3]"}}                        # o  80.282
+      - {at: cue:fill.key4, hold: {key: "type-nom[4]"}}                        # ␠  87.548
+      - {at: cue:fill.key5, hold: {key: "type-nom[5]"}}                        # K  95.083
+      - {at: cue:fill.key6, hold: {key: "type-nom[6]"}}                        # .  105.115
+      - {at: cue:create.drag, src: {touch: scroll-form}, rate: 2.74, src_until: 121.132, blur: 8}   # gesture ramp 2.74×
+      - {at: chain, src: 121.132, rate: 1, src_until: 121.350}                  # the scrollbar fades at 1×
+      - {at: cue:create.touch, src: {touch: tap-creer}, until: cue:create.done, src_until: {named: 131.448}}  # 0.986×; idle cut 121.350 → 130.265
+      - {at: cue:create.done, src: {named: 131.448}, rate: 1}                   # « Rendez-vous créé », 1×
+    camera:
+      W:
+        - {at: cue:drop1.impact, value: 56, keep: top}
+        # Fatou B.'s card bottom (582.0 pt) on y 1413, 11 px above the owner's floor (1424); the 13:15 row's text
+        # (612.7 pt) on y 1468, 20 px under the floor fade; the band edge between « Ma journée » (ink ≤ 104.3 pt,
+        # under the opaque band from 105.7) and « Aujourd’hui » (136 pt) — measured on take1b 10.000
+        - {at: 3.1.0+15, value: 128, curve: ease_out_cubic, keep: floor}
+        - {at: cue:whip1, value: 128}
+        # vertical whip on the app's base easeInOut (peak at +3, the whoosh's): every frame whose shutter shows the
+        # 13:15 row carries it ≥ 80 px (verify (h)) — easeInOutCubic's first and last frames moved it 37–72 px
+        # through the floor and band fades (review round 5); it lands under the band (its 644-pt line on y 560)
+        - {at: cue:whip1+6, value: 667, curve: ease_in_out, blur: whip, keep: top}
+        - {at: 5.2.3+2, value: 667}
+        # the form rows on the window's middle (y 1012 since the owner's floor; were y ≈ 900 in the 600–1192 window)
+        - {at: 5.4.0, value: 312.73, curve: ease_in_out_cubic, blur: 12, keep: centre}   # the date/time row (518–572 pt)
+        - {at: 5.4.2+2, value: 312.73}                                     # held f304–f314, then a 6-frame glide like the other two
+        - {at: cue:fill.touch1, value: 56, curve: ease_in_out_cubic, blur: 16}   # « Coupe homme » (254 pt) on y 955: the screen's top (pt 56) on the band edge, never above
+        - {at: 6.1.2+2, value: 56}
+        - {at: cue:fill.touch2, value: 468.73, curve: ease_in_out_cubic, blur: 16}  # « Client sans numéro » (701 pt)
+        - {at: 6.2.2+2, value: 468.73}
+        - {at: cue:fill.touch3, value: 519.73, curve: ease_in_out_cubic, blur: 8}   # the name field (752 pt)
+        - {at: cue:create.drag, value: 519.73}
+        - {at: 7.1.2, value: 667, curve: ease_in_out_cubic, blur: 8, keep: top}    # « Créer » (832 pt) at y ≈ 896; pt 667 on the band edge: the journal's 13:15 row returns under the band
+      zoom:
+        - {at: 5.4.0, value: 1.0}
+        # micro push 1.791 → 1.86 px/pt toward the filled fields, f304→f314. 16:9 holds 1.0: its push about the floor
+        # (below) has just come back out (f284→f304), and the micro push on top of it made the camera turn four times
+        # in 56 frames (in f264, out f284, in f304, out f314 — round 7's review): it settles once, on f304
+        - {at: 5.4.2+2, value: 1.0385, curve: ease_in_out_cubic, anchor_pt: 545, formats: {16x9: {value: 1.0}}}
+        - {at: cue:fill.touch1, value: 1.0, curve: ease_in_out_cubic, anchor_pt: 545}  # eases back to 1.0 with the glide, f314→f320
+        - {at: cue:create.done, value: 1.0, anchor_y: top}
+        - {at: 8.1.0+12, value: 1.1167, curve: ease_in_out_cubic, anchor_y: top}   # push-in 1.791 → 2.0 px/pt, pt 667 kept on the band edge
+      slam:                                  # the phone slams in on the drop
+        scale: [{at: cue:drop1.impact, value: 1.10}, {at: cue:drop1.impact+8, value: 1.0, curve: fast_out_slow_in}]
+        rot_x: [{at: cue:drop1.impact, value: 14}, {at: cue:drop1.impact+16, value: 0, curve: fast_out_slow_in}]
+      # 16:9 (the owner's round 5, 2026-10-20): the phone stands on the floor, and on the lower journal and the form's
+      # end its window is short (W 667: the band edge at y 639, the upper right empty) — the camera pushes in ABOUT
+      # THE FLOOR, the window growing with the phone (`fill`), eased on the grid: 5.1.2 → 5.2.2 (onto the « Libre »
+      # tap), back 5.2.3 → 5.4.0 under the glide to the form; 7.2.0 → 7.3.0 (from the « Créer » tap), held through
+      # the snackbar, the « rempli. » push on top. 1.23, not the owner's ~1.3–1.5: the left column's captions reach
+      # x 878 (« Un créneau libre ? ») and x 1024 (« rempli. », ink to y 505): at 1.3 the slab's left edge (x 846)
+      # would sit under « libre ? », and its top under « rempli. » — 1.23 keeps the phone ≥ 12 px clear of every
+      # caption (verify (g); the renderer refuses less), the 13:15 row under the band (it rises with the phone)
+      formats:
+        16x9:
+          fill:
+            - {at: 5.1.2, value: 1.0}
+            - {at: 5.2.2, value: 1.23, curve: ease_in_out_cubic}
+            - {at: 5.2.3, value: 1.23}
+            - {at: 5.4.0, value: 1.0, curve: ease_in_out_cubic}
+            - {at: cue:create.touch, value: 1.0}
+            - {at: 7.3.0, value: 1.23, curve: ease_in_out_cubic}
+    # the app's text the 16:9 push must never crop (the owner's round 5): « Créer le rendez-vous » from the form's
+    # rest to the pop, the snackbar « Rendez-vous créé » to the cut — inside the text rectangle and wholly in the
+    # window (verify (g)), in every format
+    readable:
+      - &create_button
+        {label: "« Créer le rendez-vous » (pro_manual_booking_screen.dart:407)", rect_pt: [16.0, 806.67, 386.0, 858.33],
+         from: 7.1.2, to: 7.3.1+3,
+         cite: "pro_manual_booking_screen.dart:407, measured on take1b 130.262 (the black button; the pop starts 131.017 → f422.9)"}
+      - &snackbar
+        {label: "the snackbar « Rendez-vous créé » (pro_manual_booking_screen.dart:250)", rect_pt: [15.33, 710.0, 387.0, 758.0],
+         from: cue:create.done,
+         cite: "pro_manual_booking_screen.dart:250, SnackKind.success — [45,2130,1161,2274] px on take1b 131.448 (scan.json)"}
+    touches:                                 # the App Store film's disc (tool/app_store_preview/frames.py draw_touch :212-219)
+      - {gesture: swipe-arrive, at: cue:swipe.touch, tone: dark}      # black on the white card
+      - {gesture: tap-arrive, at: cue:tap.touch, tone: light}         # white on the dark-green pane
+      - {gesture: tap-libre, at: cue:slot.touch, tone: dark, release_by: 5.2.3+1}   # held 0 ms: gone by f285, before the form pushes in under it
+      - {gesture: tap-service, at: cue:fill.touch1, tone: dark}
+      - {gesture: tap-sans-numero, at: cue:fill.touch2, tone: dark}
+      - {gesture: tap-nom, at: cue:fill.touch3, tone: dark}
+      - {gesture: scroll-form, at: cue:create.drag, tone: dark}
+      - {gesture: tap-creer, at: cue:create.touch, tone: light}       # white on the black button
+    lifts:
+      - &arrive_card
+        id: arrive-card                     # Fatou B. « Arrivé »: real pixels of the card only (pro_journal_screen.dart:296, :768-777)
+        picture: {named: 23.620}
+        rect_pt: [15.67, 510.0, 386.0, 582.0]      # measured on 23.620: green border + card body
+        up: cue:arrive.pop
+        down: 4.4.2                          # settles back over f248–253 (storyboard row 9, easeIn), before the whip on f256
+        target: {y: card_on_floor}           # lift_x wide (780 px); 9:16: its place is on the owner's floor, so it pops in place
+        # its place on the phone, emptied while it is lifted (review round 5: the veiled original read as a second
+        # booking under the landed copy) — the scaffold it sits on, under the same veil
+        # (6 px around, its corners squarer than the card's — the panel is the scaffold's own colour, so only the
+        # card's ink must go: its border's corner arcs too, which a concentric 2-px panel left as faint brackets)
+        slot: {colour: background, pad: 6, radius_pt: 4,
+               cite: "AppColors.background (mobile/lib/core/theme/colors.dart:34, the journal's scaffold between its cards): a plain panel, no UI — the lifted card's place, empty"}
+    captions:
+      - id: arrive
+        until: cue:whip1
+        cite: "pro_journal_screen.dart:284-352 (a Slidable: the swipe reveals « Arrivé », the tap calls journal.arrive)"
+        lines:
+          - [{w: Une, at: cue:drop1.impact}, {w: cliente, at: 3.1.2}, {w: "arrive ?", at: cue:swipe.touch}]
+          - [{w: "Glissez,", at: cue:swipe.open}, {w: appuyez., at: cue:tap.touch}]
+      - id: slot
+        until: cue:fill.touch1
+        cite: "pro_journal_screen.dart:260 (« Libre — HH:MM »)"
+        lines: [[{w: Un, at: cue:whip1}, {w: créneau, at: 5.1.2}, {w: "libre ?", at: 5.2.0}]]
+      - id: no-number
+        until: cue:create.touch
+        cite: "pro_manual_booking_screen.dart:361 (« Client sans numéro »)"
+        lines:
+          - [{w: "Réservez-le,", at: cue:fill.touch1}]
+          - [{w: même, at: 6.1.2}, {w: sans, at: cue:fill.touch2}, {w: numéro., at: 6.2.2}]
+      - id: filled
+        until: cue:fiche.cut
+        cite: "pro_journal_screen.dart:208, :260 (the « Libre — 14:45 » row is replaced; the 15 minutes left fall under the 30-minute rule)"
+        lines: [[{w: Créneau, at: cue:create.touch}, {w: libre, at: 7.2.2}, {w: rempli., at: cue:create.filled}]]
+        strike: {word: libre, at: cue:create.strike}
+        recentre: 4                          # « Créneau libre » centred while it waits; it makes room for « rempli. » f444–447
+
+  # ── row 16 · f464–511 · « Fiche client », take2b ────────────────────────────
+  - id: fiche
+    rows: [16]
+    kind: phone
+    from: cue:fiche.cut                      # HARD CUT on the clap
+    to: cue:drop2.impact
+    stage: {ground: paper, pattern: 1.0}
+    take: take2b
+    masks:                                   # Awa K.'s number, blurred before anything is composited or accumulated
+      - {label: awa-number, rect_pt: [97.0, 183.0, 235.3, 193.3], margin_pt: 4, sigma_px: 14, from_s: 6.435, to_s: 30.96}
+    timeline:
+      - {at: cue:fiche.cut, hold: 6.500}     # at rest 6.435–30.96; the Clients list is not used
+    camera:
+      W: [{at: cue:fiche.cut, value: 216, keep: top}]   # the (blurred) number above y 560, under the band; tiles at y ≈ 727–877
+      slam:
+        rot_x: [{at: cue:fiche.cut, value: 8}, {at: cue:fiche.cut+8, value: 0, curve: ease_out_cubic}]
+    stack:                                   # three real tiles (client_detail_screen.dart:663-676); « 0 Absences » is not lifted
+      picture: 6.500
+      tiles_pt:                              # measured on 6.500 (fill #FAFAFA)
+        - [16.33, 286.0, 102.33, 369.67]     # « 2 » Visites
+        - [112.33, 286.0, 197.0, 369.67]     # « 17 000 FCFA » Dépensé
+        - [300.33, 286.0, 385.67, 369.67]    # « 13 oct. 2026 » Dernière
+      ups: [cue:fiche.card1, cue:fiche.card2, cue:fiche.card3]
+      layout: {axis: horizontal, gap: 16, y: tile_row}   # lift_x wide, on the format's tile_row (9:16: the tiles' own row, y 815)
+      # the panel grows WITH the lifts: at each lift it covers the lifted tiles (where they are now), their
+      # places on the phone and the gaps between, 24 px around — never a tile still waiting for its lift,
+      # which stays on the phone, veiled, with its texture, until its own beat (review round 2)
+      # it stops 2 px above the next row: « PROCHAIN RENDEZ-VOUS »'s cap line (407 pt on take2b 6.500; review round 5:
+      # the 24-px pad sliced the label's top third in 1:1 and hid it whole in 9:16)
+      backdrop: {colour: background, pad: 24, radius: 24, stop_pt: 407.0,
+                 cite: "AppColors.background (mobile/lib/core/theme/colors.dart:34, the app's scaffold under its tiles): a plain panel, no UI"}
+    captions:
+      - id: clients
+        until: cue:drop2.impact
+        cite: "docs/design/app-store-forms.md:330 (the store promo text's own « fichier clients »)"
+        lines: [[{w: Votre, at: cue:fiche.cut}, {w: fichier, at: cue:fiche.log1}, {w: clients., at: cue:fiche.log2}]]
+
+  # ── rows 17–18 · f512–639 · DROP 2: « Revenus », take N1 ────────────────────
+  - &revenus
+    id: revenus
+    rows: [17, 18]
+    kind: phone
+    from: cue:drop2.impact
+    to: cue:page.cut
+    transition: {kind: whip, axis: x, frames: 6}     # horizontal whip-in f512–518, crest on drop2.whip
+    stage: {ground: paper, pattern: 1.0}
+    take: n1
+    masks: []
+    timeline:
+      - {at: cue:drop2.impact, hold: 1.000}  # « Aujourd’hui » at rest: « Total réalisé 0 FCFA »
+      # the wait from the touch-down (7.1517 s) to the first picture showing the figure (#26, 7.815 s) is
+      # 0.663 s: the landing is the 16th f548 (9.3.1) — 0.995×, inside the approved 0.90–1.00× (README)
+      - {at: cue:revenus.touch, src: {touch: tap-mois}, until: cue:revenus.land, src_until: {named: 7.815}}
+      - {at: cue:revenus.land, src: {named: 7.815}, rate: 1, src_until: 7.840}   # then held at rest (#27)
+    figure_picture: {named: 7.815}           # the first picture with « 77 000 FCFA » (verify measures it)
+    camera:
+      W: [{at: cue:drop2.impact, value: 124, keep: top}]   # « Mois » (141 pt) at y 630; the title « Revenus » (ink ≤ 101 pt) wholly under the band; the card at y 704–941
+    touches:
+      - {gesture: tap-mois, at: cue:revenus.touch, tone: dark}
+    counter: &revenus_counter
+      start: 0                               # « Aujourd’hui »: N1 pictures 0–7.35 s, « Total réalisé 0 FCFA »
+      end: 77000                             # « Mois »: N1 #26–#27, « Total réalisé 77 000 FCFA »
+      labels: ["Aujourd’hui", "Mois"]        # the app's tab labels (earnings_screen.dart:139-142)
+      label_switch: cue:revenus.tick1
+      roll: {from: cue:revenus.tick1, to: cue:revenus.land}
+      punch: {at: cue:revenus.land, start: 1.08, frames: 5}
+      exit: {at: cue:sentence.word1-6, frames: 6}   # on the format's counter_baselines, placed as its captions
+      cite: "generated type: the app's figure as formatters.dart:83-93 prints it (NumberFormat('#,##0','fr_FR') + U+202F groups + ' FCFA'), the tab labels earnings_screen.dart:139-142; it starts on N1's « 0 FCFA » and lands on N1's « 77 000 FCFA » on the frame the app first shows it"
+    lifts:
+      - id: total-card                       # « Total réalisé / 77 000 FCFA / Rendez-vous terminés » (earnings_screen.dart:190, :207)
+        picture: {named: 7.833}
+        rect_pt: [78.33, 182.0, 323.67, 314.0]     # measured on N1 #27 (fill #FFFFFF)
+        lands: cue:sentence.pop
+        target: {y: card_under_caption}      # 9:16: centred on y 930
+    captions:
+      - id: counted
+        until: cue:page.cut
+        cite: "earnings_screen.dart:190/:207 (Revenus counts completed bookings only); shortens the approved film headline (tool/app_store_preview/storyboard-scenes.json)"
+        lines:
+          - [{w: Chaque, at: cue:sentence.word1}, {w: rendez-vous, at: cue:sentence.word2}]
+          - [{w: "terminé,", at: cue:sentence.word3}, {w: compté., at: cue:sentence.word4}]
+
+  # ── rows 19–21 · f640–751 · the public page, take5b ─────────────────────────
+  - id: page
+    rows: [19, 20, 21]
+    kind: phone
+    from: cue:page.cut                       # HARD CUT
+    to: cue:air2.reverse
+    stage: {ground: paper, pattern: 1.0}
+    take: take5b
+    masks:                                   # the salon's number, tracked as the page scrolls, cut at the bar
+      - {label: salon-number, rect_pt: [38, 873.5, 220, 892.5], sigma_px: 14, from_s: 27.146, clip_y_pt: [0, 740],
+         track: phone_rect_per_frame.csv}
+    timeline:
+      - {at: cue:page.cut, hold: 25.900}     # at rest 0–26.17
+      - {at: 11.2.2, src: {touch: scroll-page}, until: cue:page.drag, src_until: {first_change: scroll-page}}   # 1.08×
+      - {at: cue:page.drag, src: {first_change: scroll-page}, until: 12.3.0, src_until: 28.480,
+         pick: scroll, track: phone_rect_per_frame.csv}          # 43 repeated pictures: picked by scroll on a cosine
+      - {at: 12.3.0, hold: 28.480}
+    camera:
+      W:
+        - {at: cue:page.cut, value: 56, keep: top}
+        - {at: cue:page.drag, value: 56}
+        # the bar's « Réserver (après la mise en ligne) » line (ink ≤ 807 pt on 28.480) 8 px above the lowest row where
+        # app TEXT is read once the parallax has lifted the phone 40 px (9:16: the text rectangle's bottom, y 1248 —
+        # round 5's 352.46 put both lines below it, on the owner's floor; 1:1: the floor 1002; 16:9: 1026)
+        - {at: 12.3.0, value: 427.32, curve: ease_in_out_cubic, blur: 6, keep: text_floor}
+      slam:
+        rot_x: [{at: cue:page.cut, value: 12}, {at: 11.2.0, value: 0, curve: ease_out_cubic}]    # tilt in over f640–656
+      parallax: {from: cue:page.drag, to: 12.3.0, phone_dy: -40, pattern: 0.4}    # the phone drifts up 40 px, the pattern 16
+    touches:
+      - {gesture: scroll-page, at: 11.2.2, tone: dark, follow: scroll}
+    # the app's own qualifier, paired with « Ils réservent dès la mise en ligne. »: kept inside the text rectangle and
+    # wholly in the window from the page's end (verify (g))
+    readable: &qualifier
+      - {label: "the owner-preview bar « Aperçu — voici ce que verront vos clients. » / « Réserver (après la mise en ligne) »",
+         rect_pt: [74, 750.5, 328, 807.5], from: 12.3.0,
+         cite: "provider_detail_screen.dart:1192 / :1207, measured on take5b 28.480"}
+    # the app's own map attribution is a collapsed (i): not legible. The owner's round 5 (2026-10-20, attribution
+    # correctness): the app's wording, and on screen until the map has dimmed out (AIR 2's last frame, f767)
+    credit: &map_credit
+      text: "© OpenStreetMap contributors · © CARTO"   # placed on the format's map_credit (9:16: the band's foot, ending on x 900)
+      map_rect_pt: [40, 623.7, 362, 781.7]   # at rest (take5b notes); scrolls with the page, cut at the bar (740 pt)
+      cite: "the app's own credits for the CARTO light tiles on OpenStreetMap data its map shows: cartoCredits, mobile/lib/widgets/common/carto_basemap_layer.dart:116 (« © OpenStreetMap contributors », « © CARTO »), joined « · »"
+    captions:
+      - id: page
+        until: 12.1.0
+        cite: "the approved still 02 headline (tool/app_store_screenshots/screens.json), without the typed brand name"
+        lines:
+          - [{w: Votre, at: cue:page.cut}, {w: "page,", at: 11.1.2}, {w: prête, at: 11.2.0}]
+          - [{w: pour vos clients., at: 11.2.2}]
+      - id: online
+        until: cue:reveal.impact
+        cite: "the approved still 02 subline (screens.json), next to the app's own « Réserver (après la mise en ligne) » (provider_detail_screen.dart:1207)"
+        lines:
+          - [{w: Ils, at: 12.1.0}, {w: réservent, at: 12.1.2}]
+          - [{w: dès la, at: cue:riser3}, {w: mise en ligne., at: 12.2.2}]
+
+  # ── row 22 · f752–767 · AIR: the page falls back on black ───────────────────
+  - id: air2
+    rows: [22]
+    kind: phone
+    from: cue:air2.reverse
+    to: cue:reveal.impact
+    stage: {ground: black, pattern: 1.0, drift_px_s: [0, -4]}
+    take: take5b
+    masks:
+      - {label: salon-number, rect_pt: [38, 873.5, 220, 892.5], sigma_px: 14, from_s: 27.146, clip_y_pt: [0, 740],
+         track: phone_rect_per_frame.csv}
+    timeline:
+      - {at: cue:air2.reverse, hold: 28.480}
+    camera:
+      W: [{at: cue:air2.reverse, value: 449.66, keep: text_floor}]   # the page's last framing, its 40-px parallax included (427.32 + 40 / 1.791): no jump on the cut
+      fall: {at: cue:air2.reverse, frames: 12, scale: [1.0, 0.90], opacity: [1.0, 0.0]}
+    readable: *qualifier
+    # the falling phone brings the map back into view: its credit stays, white on black, × the fall's opacity
+    # (review round 5: AIR 2 drew none while « ZONE 4 » showed)
+    credit: *map_credit
+
+  # ── row 23 · f768–823 · BRAND REVEAL: the Pro app's own opening Lottie ───────
+  - &reveal
+    id: reveal
+    rows: [23]
+    kind: lottie
+    from: cue:reveal.impact                  # HARD CUT to #FAFAFA, no pattern
+    to: cue:reveal.glide@end
+    stage: {ground: paper, pattern: 0}
+    lottie: {file: mobile/assets/lottie/open/myweli_loader_mixed_pro.json, colour: "#111111"}
+    cite: "mobile/assets/lottie/open/myweli_loader_mixed_pro.json as pro_splash_screen.dart:45 and :212-219 play it; content unchanged, retimed per segment"
+    warp:                                    # film → comp frame, piecewise linear
+      - [cue:reveal.impact, 0]
+      - [cue:reveal.shimmer, 12]             # 0.90×: « MyWeli Pro » fades in
+      - [cue:reveal.shimmer+12, 38]          # the static hold, shortened (13.2.3, f796)
+      - [cue:reveal.glide, 48]               # 1.50×: the letters fade
+      - [cue:reveal.glide@end, 72]           # 1.44×: M and W glide together into the mark
+    blur: {from: cue:reveal.glide, to: cue:reveal.glide@end, samples: 8}
+
+  # ── row 24 · f824–959 · END: the mark settles, the tagline, the store line, the outro ──
+  - &end_card
+    id: end
+    rows: [24]
+    kind: end_card
+    from: cue:reveal.glide@end
+    to: end
+    # no cut: the mark keeps easing up from where the reveal left it (comp 72, the same place) — a scene
+    # handoff, not a join (review round 3: the plan called it a cut; the MP4 changes by 0.07 levels there)
+    transition: {kind: continuous}
+    stage: {ground: paper, pattern: 0}
+    lottie: {file: mobile/assets/lottie/open/myweli_loader_mixed_pro.json, colour: "#111111", comp: 74}
+    cite: "the finished mark is the Lottie's comp 74 (= comp 142), only moved and scaled"
+    mark:
+      from_comp: 72                          # where the reveal left it
+      settle: {at: cue:end.mark, frames: 8, curve: ease_out_cubic}   # eases up and settles on 14.1
+      # on the last log (15.3.0, f928) a small punch — the outro's second calm event, 1.6 s before the end;
+      # moved and scaled only, its ink stays clear of the tagline by more than half its height
+      punch: {at: cue:end.last, peak: 1.06, out: 3, back: 8}
+    captions:
+      - id: tagline
+        type: tagline
+        reveal: mask
+        until: end
+        cite: "the brand book's Pro tagline (not a statistic); fallback « Votre journée, heure par heure. » (screens.json still 01)"
+        # ONE quick reveal as the mark settles: the 6-frame mask runs f827→f832, whole on the mark's landing
+        # (cue end.mark); the mark's ink is above y 652 by f827, clear of the line (cap top 712)
+        lines: [[{w: "Plus de clients, moins de gestion.", at: cue:end.mark-5}]]
+        # the outro's downbeat (f896): the hook's strike — the brand's single round-cap stroke — comes back as an
+        # underline under « moins de gestion. », drawn left to right with the pen on its cue; under the
+        # descenders, clear of the store line (the renderer refuses a stroke that touches any text)
+        underline: {text: "moins de gestion.", at: cue:end.underline, frames: 8}
+      # the owner's end card (2026-10-20, « Both stores, post later »): the mark · the tagline · the stores · the site,
+      # each line alone on its own beat-grid cue; 34 + 30 + 10 = 74 characters f827→f960 = 16.7 cps (≤ 17).
+      # POSTING GATE (README): the films are posted only once BOTH the iOS and the Android Pro apps are live.
+      - id: store
+        type: store
+        reveal: mask
+        until: end
+        cite: "the owner's decision (2026-10-20, « Both stores, post later »; architecture contract « Owner decision — end card stores + site »): « Sur l’App Store et Google Play » replaces « Disponible sur l’App Store » — posted only once BOTH the iOS and the Android Pro apps are live in their stores (README, POSTING GATE)"
+        lines: [[{w: Sur l’App Store et Google Play, at: cue:end.store}]]  # alone on its own cue, f848 (15-s f400)
+      - id: site
+        type: site
+        reveal: mask
+        until: end
+        cite: "the owner's decision (2026-10-20): « myweli.com », the last line — true today (the site serves 200 and is where salons choose their offer)"
+        lines: [[{w: myweli.com, at: cue:end.site}]]                       # alone on its own cue, f880 (15-s f432)
+
+  15s:
+
+  # ── BAR 1 · f0–47 · HOOK: the code-drawn carnet, one bar ─────────────────────
+  # The 30-s rows 1–4 in one bar (storyboard « The 15 s cut », BAR 1): no macro
+  # cut, no strike words (reading time), no sink — three strikes with their
+  # punches on the log hits f24 / f32 / f40, straight into the AIR.
+  - id: hook
+    rows: [1]
+    kind: carnet
+    from: cue:hook.stab
+    to: cue:air1.reverse                    # HARD CUT to the AIR on 1.4
+    stage: {ground: black, pattern: 0.4, drift_px_s: [0, -4]}
+    grain: {seed: 11}
+    cite: "generated illustration of a common pain: procedural ruled paper, unreadable pen scribbles, no font, no name, no number (storyboard « The 15 s cut », BAR 1; promo/fx/carnet.py); brand pattern per the brand book (Identity p.13 / Brandbook p.22)"
+    carnet:
+      seed: 7
+      rot_x: 22
+      push: {from: cue:hook.stab, to: cue:air1.reverse-1, scale: [1.10, 1.13]}   # the 30-s push's speed (1.10 → 1.16 over f0–95), under way at f0
+      ink:
+        - {entry: write, from: cue:hook.pen, to: cue:hook.pen@end, start: 0.3}  # 30 % drawn at f0, complete at f24
+      strikes:                              # the 30-s rows, on the 15-s log hits
+        - {row: -7, cue: strike1}
+        - {row: -3, cue: strike2}
+        - {row: 2, cue: strike3}
+      punch: {peak: 1.025, cues: [strike1, strike2, strike3]}
+    captions:
+      - id: hook-question
+        type: hook
+        until: cue:air1.reverse             # held to f47: 22 characters in 1.6 s
+        cite: "hook copy, approved storyboard 2026-10-19 (« Votre carnet déborde ? »)"
+        lines:
+          - [{w: Votre, at: cue:hook.word1}, {w: carnet, at: cue:hook.word2}]
+          - [{w: "déborde ?", at: cue:hook.word3}]
+
+  # ── BAR 1 · f48–63 · AIR: the 30-s's own ─────────────────────────────────────
+  - <<: *air1
+    rows: [1]
+
+  # ── BARS 2–4 · f64–255 · DROP: « Ma journée », take1b — the swipe and tap, a booking made ──
+  - id: journal
+    rows: [2, 3, 4]
+    kind: phone
+    from: cue:drop1.impact                  # HARD CUT black → paper; no slam: the camera already sits at W 257
+    to: cue:drop2.impact
+    stage: {ground: paper, pattern: 1.0}
+    take: take1b
+    masks: []                               # take1b shows only the « Téléphone du client » placeholder
+    hidden: *hidden_1315                    # the same rule, on every frame of the scene: whip, push, dissolve and pop
+    timeline:
+      - {at: cue:swipe.touch, src: {touch: swipe-arrive}, until: cue:swipe.open, src_until: 11.265, blur: 4}   # 1.11×: the pane open on 2.2 (f80)
+      - {at: cue:swipe.open, src: 11.265, rate: 1}   # the pane holds open, at 1×: the finger lifts at its own time (11.420 s, f84.7)
+                                            # on take1b's ONE picture 11.265–22.018 s, so the seamless cut on f88 (11.532 → 21.818) shows the same picture
+      - {at: cue:tap.touch, src: {touch: tap-arrive}, until: cue:arrive.log, src_until: {named: 23.620}}   # seamless cut 11.595 → 21.818; 0.965×: « Arrivé » on 3.2 (f144)
+      - {at: cue:arrive.log, hold: {named: 23.620}}                            # badge « Arrivé »
+      - {at: cue:whip1, hold: 31.600}                                          # idle 23.985–32.165
+      - {at: cue:slot.touch, src: {touch: tap-libre}, rate: 1, src_until: 32.998}   # 1×: the form pushes in f174–183.5, at rest from f184
+      - {at: 4.1.0+1, dissolve: 130.262, until: cue:create.touch, curve: ease_in_out,
+         cite: "the App Store film's own declared dissolve 32.998 → 130.262 (« the form, opened → the form, filled »: tool/app_store_preview/storyboard-scenes.json S2, build/app-store/pro/preview/v2/final/cuts.txt) on AppMotion.base's easeInOut (mobile/lib/core/theme/motion.dart:33-34), over f193–196 (storyboard « The 15 s cut », BAR 4); it skips the form fill (the 30-s cut's rows 11–13)",
+         # 16:9 (the owner's round 5, 2026-10-20): a HARD CUT instead — each picture stands on the floor in its own
+         # window, and a 3-frame blend of two windows ghosts the fields; the same declared skip. On 4.1.0, f192, the
+         # bar-4 downbeat (round 8, 2026-10-20 — the builder's call, not the owner's: « f193 » was the builder's
+         # wording; one frame after the downbeat it read as a skipped scroll, and verify (b) holds every cut to the
+         # 16th grid). The +1 above stays for 9:16 / 1:1: their dissolve is whole on the « Créer » tap, f196
+         formats: {16x9: {at: 4.1.0, curve: cut,
+                          cite: "the App Store film's own declared dissolve 32.998 → 130.262 (« the form, opened → the form, filled »: tool/app_store_preview/storyboard-scenes.json S2, build/app-store/pro/preview/v2/final/cuts.txt) — the same skip, pictures #78 → #4437 — as a HARD CUT on f192 (4.1.0, the bar-4 downbeat) in 16:9: the owner's round 5 (2026-10-20: a hard cut instead of the 3-frame dissolve), the frame the builder's call (round 8); it skips the form fill (the 30-s cut's rows 11–13)"}}}
+      - {at: cue:create.touch, src: {touch: tap-creer}, until: cue:create.done, src_until: {named: 131.448}}  # 0.986×, never faster
+      - {at: cue:create.done, src: {named: 131.448}, rate: 1}                   # « Rendez-vous créé », 1×
+    camera:
+      W:
+        - {at: cue:drop1.impact, value: 128, keep: floor}    # Fatou B.'s card bottom (582.0 pt) on y 1413; the 13:15 row under the floor (as the 30-s)
+        - {at: cue:whip1, value: 128}
+        - {at: cue:whip1+6, value: 667, curve: ease_in_out, blur: whip, keep: top}   # vertical whip (the 30-s's curve and rule): the 13:15 row crosses inside the blur and lands under the band
+        - {at: 4.1.0+1, value: 667}             # the form at rest, through W 667: « Client sans numéro », the name and the note fields
+        # the dissolve re-frames (storyboard: « W 660 − Δ », Δ ≈ 128): measured on the two pictures, the
+        # fields from « Client sans numéro » down moved up 145.33 pt (the 125.33-pt scroll + the 20-pt
+        # « 0/10 » line the switch took away; NCC 0.9998 on the note field) — W 667 − 145.33 keeps them in place
+        # 16:9 (the owner's round 5): the cut needs no fields kept in place, and W 521.67 would bring the band edge
+        # down 260 px over the still form on f204–216 (a curtain): the filled form is framed at once by the journal's
+        # window (W 667, the push about the floor held) — « Note », « Total 5 000 FCFA », « Créer le rendez-vous » —
+        # and nothing moves until the snackbar's push
+        - {at: cue:create.touch, value: 521.67, formats: {16x9: {value: 667}}}
+        - {at: 4.1.3, value: 521.67, formats: {16x9: {value: 667}}}   # « Créer le rendez-vous » at y ≈ 1158 while its loader shows
+        - {at: 4.2.2, value: 667, curve: ease_in_out_cubic, blur: 8}   # back to W 667 over f204–216: the 13:15 row under the band before the journal returns
+      zoom:
+        - {at: cue:create.done, value: 1.0, anchor_y: top}
+        - {at: 4.4.0+12, value: 1.1167, curve: ease_in_out_cubic, anchor_y: top}   # push-in 1.791 → 2.0 px/pt f232–252, pt 667 kept on the band edge
+      # 16:9 (the owner's round 5): the push about the floor, its window growing with it, onto the « Libre » tap's
+      # form (3.3.2 → 3.4.2) and held to the whip — the form's end, the cut, « Créer », the journal's return; the
+      # « rempli. » push on top. 1.23: « rempli. » (x ≤ 1024, ink to y 505) keeps 12 px clear of the phone
+      formats:
+        16x9:
+          fill:
+            - {at: cue:slot.touch, value: 1.0}
+            - {at: 3.4.2, value: 1.23, curve: ease_in_out_cubic}
+    readable:
+      - {<<: *create_button, from: cue:create.touch, to: 4.2.3-1}    # the pop starts 131.017 → f218.9
+      - *snackbar
+    touches:                                 # the App Store film's disc (tool/app_store_preview/frames.py draw_touch :212-219)
+      - {gesture: swipe-arrive, at: cue:swipe.touch, tone: dark}      # black on the white card
+      - {gesture: tap-arrive, at: cue:tap.touch, tone: light}         # white on the dark-green pane
+      - {gesture: tap-libre, at: cue:slot.touch, tone: dark, release_by: 3.3.3+1}   # held 0 ms: gone by f173, before the form pushes in on f174
+      - {gesture: tap-creer, at: cue:create.touch, tone: light}       # white on the black button, the frame the dissolve is whole
+    lifts:
+      - <<: *arrive_card                    # the same real card, on the 15-s « Arrivé » (f144)
+        down: 3.2.2+2                       # settles back f154–159, before the whip on f160 (storyboard: « UI lift … f144–159 »)
+    captions:
+      - id: arrive
+        until: cue:whip1
+        cite: "pro_journal_screen.dart:284-352 (a Slidable: the swipe reveals « Arrivé », the tap calls journal.arrive)"
+        lines:                              # 38 characters over 3.2 s
+          - [{w: Une cliente, at: cue:drop1.impact}, {w: "arrive ?", at: 2.1.2}]
+          - [{w: "Glissez,", at: cue:swipe.open}, {w: appuyez., at: cue:tap.touch}]
+      - id: filled
+        until: cue:drop2.impact
+        cite: "pro_journal_screen.dart:208, :260 (the « Libre — 14:45 » row is replaced; the 15 minutes left fall under the 30-minute rule)"
+        lines: [[{w: Créneau, at: cue:whip1}, {w: libre, at: cue:slot.touch}, {w: rempli., at: cue:create.filled}]]   # 21 characters over 3.2 s
+        strike: {word: libre, at: cue:create.strike}
+        # « Créneau libre » waits 2.67 s for « rempli. »: centred meanwhile (round 3: 136 px left of centre), it
+        # glides left to make room over f235–239 — « libre » struck on f236 as it goes — and « rempli. » rises
+        # into its place on f240: the finished line exactly as approved
+        recentre: 4
+
+  # ── BAR 5 · f256–319 · « Revenus », take N1: the 30-s's, the counter alone ───
+  - <<: *revenus
+    rows: [5]
+    to: cue:reveal.impact                   # HARD CUT to the reveal: no sentence, no « Total réalisé » lift
+    counter: {<<: *revenus_counter, exit: null}   # the counter holds to the cut (lands on f292, N1's wait at 0.995×)
+    lifts: []
+    captions: []
+
+  # ── BAR 6 · f320–375 · BRAND REVEAL: the 30-s's, on the 15-s cues ────────────
+  - <<: *reveal
+    rows: [6]
+
+  # ── BARS 7–8 · f376–511 · END: the 30-s's card — tagline, store line, the outro's underline (f448) and punch (f480)
+  - <<: *end_card
+    rows: [7, 8]
