@@ -41,7 +41,7 @@
 **Proposed order.**
 - **Done (2026-10-25):** batches 1–9, every item.
 - **Now:** batch 0 — **0.0.1 was rejected under 3.1.1** (business registration in the app); B0.11 made the Pro app login-only (#711). **Build 698, the new build of 0.0.1, was resubmitted on 2026-10-26** and is waiting for review, so B0.1's « while it's in review » constraints apply again. The privacy policy is corrected and live (B0.4, #709).
-- **Yours:** batch 10, and your half of batch 0 (answer any Resolution Center message and release by hand after approval, B0.1; B0.10: sign in to the Play Console in the browser pane, the upload key, the 12 closed-test testers; decision 55).
+- **Yours:** batch 10, and your half of batch 0 (answer any Resolution Center message and release by hand after approval, B0.1; B0.10: the upload key and a signed AAB, the closed test's countries and 12 testers; decision 55).
 
 ---
 
@@ -144,6 +144,7 @@ Each question has a recommendation. Answers unblock the item named in brackets.
 56. Play's sign-in details require ticking « the credentials give full access to all features »; the demo account has three actions disabled. [B0.10] — ✅ **Answered (2026-10-28): tick it**, the three actions named in the same declaration.
 57. Let Google's automated tests use the demo credentials (default on)? [B0.10] — ✅ **Answered: leave it on**, knowing robots may change the demo salon Apple also reviews, until the weekly reset.
 58. Content rating / target audience: « 4+ like Planity Pro ». [B0.10] — ✅ **Answered: rating 3+ / PEGI 3 / ESRB Everyone; target audience 18+.**
+59. Play's listing asks whether its images were created or modified with AI. [B0.10] — ✅ **Answered (2026-10-28): not flagged.** The frames are composed by our scripts from real captures. You confirmed that neither screen 02's salon photo nor the icon came from an AI image tool.
 
 ---
 
@@ -212,7 +213,7 @@ Each question has a recommendation. Answers unblock the item named in brackets.
   - **Read in the plugin:** `unknown` is 1000, or a code `sign_in_with_apple` 8.2.0 does not know.
   - **Tests:** one per code for each of the two Apple sign-ins (MyWeli and MyWeli Pro), and the real chain on both login screens at 200 % text, looked at. Three mutations watched red.
   - **Why the error itself cannot be removed:** you asked; the spec §10 explains why. iOS raises it on the phone, before our app or server gets anything.
-- **B0.10 Google Play forms — MyWeli Pro first (P2 · M · decisions 51–54).** **Re-audited and prepared on 2026-10-28** — [play-store-forms.md](design/play-store-forms.md), rewritten for MyWeli Pro.
+- **B0.10 Google Play forms — MyWeli Pro first (P2 · M · decisions 51–59).** **Re-audited and prepared on 2026-10-28** — [play-store-forms.md](design/play-store-forms.md), rewritten for MyWeli Pro.
   - **What the audit read:**
     - **The binary:** release APKs of both flavours, read with `aapt2`. Both target SDK 36 (Play's requirement since 2026-08-31). Neither has a photo or media permission, `AD_ID`, exact alarm or foreground service, so no permission declaration is due.
     - **Google's current pages** (fetched 2026-10-28).
@@ -234,10 +235,15 @@ Each question has a recommendation. Answers unblock the item named in brackets.
       - Data safety: 15 types, nothing shared.
       - Sign-in details with your demo code; the « full access » box ticked because Play requires it (decision 56); Google's robot tests left on (decision 57).
     - **The category is « Professionnel »**, and the contact details are published.
-    - **The listing texts are saved as a draft.**
-  - **Left:**
-    - the listing's images (icon, banner, 8 screenshots), which you drag in from `build/play-store/pro/`; the browser pane can't attach files;
-    - a signed AAB and the backed-up upload key (LAUNCH §6.3);
+    - **The listing is saved with its images** (« Prête à être envoyée pour examen »).
+      - The icon, the banner and the 8 screenshots were uploaded by Claude in Chrome, because the browser pane can't attach files.
+      - The screenshots arrive in the order their uploads finish; they were dragged back to 01→08.
+      - **Read back after a reload:** 1/1, 1/1, 8/8, in order. Each of the 10 originals Google keeps has the same SHA-256 as the local file. The three texts match play-store-forms §1 by SHA-256.
+      - « Déclaration relative aux éléments d'IA »: not flagged (decision 59).
+    - **Nothing is sent for review.** « Envoyer l'appli pour examen » stays locked until the closed test is set up. « Publication gérée » is off, so a change is published as soon as Google approves it.
+  - **Left** (the app dashboard, read 2026-10-28; its setup section is gone):
+    - the closed test's countries and regions, and its testers;
+    - a signed AAB and the backed-up upload key (LAUNCH §6.3), then the release;
     - **the closed test: 12 testers for 14 days** before production (decision 52).
   - **MyWeli (client):** later (decision 51); play-store-forms §8 lists what to re-audit then.
   - **Order:** Android is last (LAUNCH §3).

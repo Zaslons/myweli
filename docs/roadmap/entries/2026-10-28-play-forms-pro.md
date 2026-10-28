@@ -14,8 +14,13 @@
     - Chaque libellé cité est présent sur l'écran de connexion Pro.
     - Chaque type de l'étiquette App Store est présent sur Play.
   - **Trouvé en route (B0.15, décision 55) :** les journaux de requêtes de Cloud Run gardent 30 jours l'URL entière, recherche comprise. La raison donnée à Apple pour « Search History : non » est donc fausse.
+  - **Saisi dans la Play Console** (play-store-forms §0.1), le propriétaire connecté, chaque formulaire montré avant l'enregistrement :
+    - les 10 déclarations du « Contenu de l'application » ;
+    - les paramètres de la fiche ;
+    - **la fiche par défaut, enregistrée avec ses images** : l'icône, la bannière et les 8 captures, importées dans Chrome puis remises dans l'ordre 01→08. Relues après rechargement, chaque original conservé par Google a la même empreinte SHA-256 que le fichier local.
+    - Rien n'est envoyé pour examen.
   - **Reste :**
-    - la saisie dans la Play Console, dans le volet navigateur, le propriétaire connecté ;
+    - les pays et les testeurs du test fermé ;
     - la clé d'importation et l'AAB signé ;
     - **le test fermé, 12 testeurs pendant 14 jours**, avant la production ;
     - MyWeli (client) plus tard.

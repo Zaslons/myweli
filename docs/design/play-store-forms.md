@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | **Ré-audité le 2026-10-28 (BACKLOG B0.10)** contre le binaire, la politique publiée, l'étiquette App Store relue ce jour-là et les règles Play en vigueur. **MyWeli Pro seule pour l'instant** (décision 51) ; la saisie se fait dans le volet navigateur, formulaire par formulaire, montré au propriétaire avant chaque enregistrement (décision 53). Historique : rédigé 2026-08-28 ; corrigé 2026-09-24 (libellés de connexion, adresse et numéro Mobile Money) ; 2026-10-05 (plus de choix d'offre dans l'app Pro Android) ; 2026-10-13 (texte d'accès amendé, verrou de suppression du compte démo). |
+| **Status** | **Ré-audité le 2026-10-28 (BACKLOG B0.10)** contre le binaire, la politique publiée, l'étiquette App Store relue ce jour-là et les règles Play en vigueur. **MyWeli Pro seule pour l'instant** (décision 51) ; la saisie se fait dans le volet navigateur, formulaire par formulaire, montré au propriétaire avant chaque enregistrement (décision 53) ; les images, que le volet ne peut pas joindre, importées dans Chrome. **Dans la console le 2026-10-28 : tout le « Contenu de l'application » et la fiche, images comprises, enregistrés et relus ; rien envoyé pour examen (§0.1).** Historique : rédigé 2026-08-28 ; corrigé 2026-09-24 (libellés de connexion, adresse et numéro Mobile Money) ; 2026-10-05 (plus de choix d'offre dans l'app Pro Android) ; 2026-10-13 (texte d'accès amendé, verrou de suppression du compte démo). |
 | **Portée** | **MyWeli Pro** (`com.myweli.pro`) maintenant. MyWeli (`com.myweli.app`) au §8, à ré-auditer avant sa soumission. |
 | **Source de vérité** | La politique de confidentialité publiée (`/politique-confidentialite`) et le binaire — un formulaire qui les contredit est un rejet ET une exposition légale (LAUNCH.md §6.3) |
 | **Règle** | Chaque réponse ci-dessous est dérivée du code, du binaire ou de la politique, jamais inventée. En cas de doute en saisissant : STOP, on vérifie. |
@@ -115,14 +115,43 @@ d'être enregistré, puis relu.
   - Ces coordonnées sont « publiées » aussitôt, sur l'accord du propriétaire.
   - Le site, d'abord enregistré en `http://` (le « https:// » du champ était
     une indication, pas un préfixe), a été corrigé et relu.
-- **Fiche par défaut (fr-FR)** : nom, description courte et description
-  complète **enregistrés en brouillon**, relus caractère pour caractère
-  (29/30, 70/80, 996/4000).
-  - **Restent les images** (icône, bannière, 8 captures) : le volet
-    navigateur ne peut pas joindre de fichier. Le propriétaire les dépose
-    depuis `build/play-store/pro/`.
-- **Rien n'est envoyé pour examen.** Les modifications attendent dans « Vue
-  d'ensemble de la publication », avec la première version du test fermé (§6).
+- **Fiche par défaut (fr-FR) : enregistrée, avec ses images.** La console
+  l'affiche « Prête à être envoyée pour examen ».
+  - **Textes** : nom, description courte, description complète (29/30, 70/80,
+    996/4000). Chacun est identique au §1, empreinte SHA-256 comparée dans la
+    page.
+  - **Images** : l'icône, la bannière et les 8 captures du §1.2–§1.3,
+    importées par Claude dans Chrome (le volet navigateur ne peut pas joindre
+    de fichier), sur la demande du propriétaire.
+    - Les 8 captures arrivent dans l'ordre où l'import se termine. Elles ont
+      été remises dans l'ordre 01→08 à la souris, l'ordre relu après chaque
+      déplacement.
+    - **Relu après rechargement de la page** : icône 1/1, bannière 1/1,
+      captures 8/8, dans l'ordre 01→08. Les originaux conservés par Google ont
+      la même taille et la même empreinte SHA-256 que les fichiers de
+      `build/play-store/pro/`, pour chacun des 10.
+  - **« Déclaration relative aux éléments d'IA »** : une question nouvelle à
+    l'étape « Avis », avant l'enregistrement. Réponse : **« Ne pas signaler
+    les éléments »** (propriétaire, décision 59).
+    - Les cadres sont composés par nos scripts à partir de vraies captures de
+      l'app, sans IA.
+    - La photo du salon (capture 02, « trouvée en ligne », libre de droits
+      selon le propriétaire) et l'icône ne viennent pas d'un générateur
+      d'images IA, d'après le propriétaire. Ce n'est pas vérifiable d'ici.
+- **Rien n'est envoyé pour examen.** Après l'enregistrement, la console
+  propose « Vue d'ensemble de la publication » ; réponse : « Pas maintenant ».
+  - Sur cette page, « Envoyer l'appli pour examen » est verrouillé tant que
+    le tableau de bord n'est pas fini.
+  - « Publication gérée » est désactivée : une fois une modification
+    approuvée par Google, elle est publiée sans autre clic.
+- **Ce que le tableau de bord demande encore** (lu le 2026-10-28) : la
+  section de configuration a disparu, il ne reste que le test fermé (§6).
+  1. Choisir les pays et les régions du test fermé.
+  2. Choisir les testeurs.
+  3. Créer une version : l'AAB signé.
+  4. Ensuite seulement, deux étapes encore verrouillées : prévisualiser et
+     confirmer la version, puis l'envoyer à Google pour examen.
+  5. Puis la demande d'accès à la production, après les 14 jours.
 
 ## 1 · Fiche du Play Store (Store listing) — MyWeli Pro
 
