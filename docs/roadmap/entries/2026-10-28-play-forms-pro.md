@@ -1,0 +1,32 @@
+- 🟡 **Google Play, MyWeli Pro d'abord : les formulaires ré-audités, la bannière et les captures faites (release · 2026-10-28 — BACKLOG B0.10, décisions 51–54).**
+  - **Lu :** les APK de version des deux saveurs (`aapt2`), les pages de Google du jour et l'étiquette App Store relue le même jour. Cible SDK 36, exigée depuis le 2026-08-31. Aucune permission de photos, `AD_ID`, alarme exacte ni service au premier plan, donc aucune déclaration de permission.
+  - **Corrigé dans la Sécurité des données :**
+    - les plantages ont la finalité « Analyses », selon la définition de Google ;
+    - « ID utilisateur », « Fichiers et documents » (pièces KYC en PDF) et « Historique des recherches » sont ajoutés ;
+    - « Applications de santé » et « Fonctionnalités financières » sont dues par toute app.
+  - **Les informations de connexion** sont en anglais, comme Google le demande, avec trois actions désactivées sur le compte démo.
+  - **Faits :**
+    - la bannière 1024 × 500 ;
+    - les 8 cadres approuvés, recomposés en 1080 × 1920 (9:16, la règle de la console), barre d'état de l'iPhone coupée ;
+    - l'icône 512, à partir de celle de l'app Pro.
+  - **Le garde-fou :** `play_store_forms_test.dart` vérifie trois choses.
+    - **Les limites de Play :** la fiche, et la même description que l'App Store. Les instructions de connexion tiennent sous les **500 caractères** que la console compte (aucune page d'aide ne le dit) : 463 aujourd'hui, contre plus de 1 000 dans le premier jet.
+    - Chaque libellé cité est présent sur l'écran de connexion Pro.
+    - Chaque type de l'étiquette App Store est présent sur Play.
+  - **Trouvé en route (B0.15, décision 55) :** les journaux de requêtes de Cloud Run gardent 30 jours l'URL entière, recherche comprise. La raison donnée à Apple pour « Search History : non » est donc fausse.
+  - **Saisi dans la Play Console** (play-store-forms §0.1), le propriétaire connecté, chaque formulaire montré avant l'enregistrement :
+    - les 10 déclarations du « Contenu de l'application » ;
+    - les paramètres de la fiche ;
+    - **la fiche par défaut, enregistrée avec ses images** : l'icône, la bannière et les 8 captures, importées dans Chrome puis remises dans l'ordre 01→08. Relues après rechargement, chaque original conservé par Google a la même empreinte SHA-256 que le fichier local.
+    - Rien n'est envoyé pour examen.
+  - **Recruter les testeurs** (§6.1 à §6.5, décisions 60 à 62) :
+    - uniquement Android ; d'abord des salons, puis des proches, Managers d'un salon d'essai, pas du salon démo ;
+    - la liste du propriétaire, dans l'ordre : le groupe Google, la piste fermée, la version, le SHA-1 de Play avant toute invitation, puis le salon d'essai, qui sert aussi d'essai de l'e-mail ;
+    - trois textes prêts à coller : aux salons, aux proches, et le guide du testeur en 5 étapes ;
+    - le garde-fou : chaque libellé cité est sur l'écran qu'il nomme. La version d'Android, les 7 jours de l'invitation, les 90 jours d'essai et les 15 places sont lus dans le code.
+  - **Reste :**
+    - les pays et les testeurs du test fermé ;
+    - la clé d'importation et l'AAB signé ;
+    - **le test fermé, 12 testeurs pendant 14 jours**, avant la production ;
+    - MyWeli (client) plus tard.
+  - Détail : [play-store-forms.md](../../design/play-store-forms.md).

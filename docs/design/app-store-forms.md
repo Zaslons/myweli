@@ -510,6 +510,14 @@ déjà déclarés.
   chemin, jamais la requête), Product Interaction, Advertising Data, Other
   Usage Data, Environment Scanning, Hands, Head : **non**.
 
+> **2026-10-28 — la raison donnée pour « Search History » est fausse**
+> (BACKLOG B0.15, trouvé par B0.10). Notre serveur ne journalise que le
+> chemin. Mais les journaux de requêtes de **Cloud Run** gardent l'URL
+> entière, chaîne de requête comprise, pendant 30 jours (lu dans Cloud
+> Logging). Le texte d'une recherche de clients (`?query=`) y figure donc.
+> La réponse publiée n'est pas changée ici : c'est la décision 55, exclure
+> ces entrées des journaux ou déclarer « Search History ».
+
 L'étiquette **consommateur** sera différente (sa position ne quitte pas
 l'appareil) — ne pas la dériver de ce tableau.
 
