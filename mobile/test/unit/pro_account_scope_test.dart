@@ -7,7 +7,7 @@ import 'package:myweli/core/access/pro_salon_scope.dart';
 import 'package:myweli/core/di/dependency_injection.dart';
 import 'package:myweli/core/push/push_registration.dart';
 import 'package:myweli/core/router/pro_router.dart';
-import 'package:myweli/models/provider_user.dart';
+import 'package:myweli/core/utils/salon_id.dart';
 import 'package:myweli/providers/pro_auth_provider.dart';
 import 'package:myweli/services/mock/mock_auth_service.dart';
 import 'package:myweli/services/mock/mock_data.dart';
@@ -134,31 +134,9 @@ void main() {
     },
   );
 
-  // The other two ways in: a registration (`_login`) and an invitation
-  // accepted from the sign-in's « Invitations » step.
-  test('a registration resets both', () async {
-    final pro = ProAuthProvider();
-    await pro.ready;
-    final before = (salon.resets, account.resets);
-    const email = 'nouveau.salon@myweli.test';
-    await pro.requestEmailOtp(email);
-
-    expect(
-      await pro.registerWithEmail(
-        email: email,
-        code: MockAuthService.demoOtp,
-        phoneNumber: '+2250700000077',
-        businessName: 'Salon Nouveau',
-        businessType: BusinessType.salon,
-      ),
-      isTrue,
-      reason: 'the scenario: registered',
-    );
-
-    expect(salon.resets, greaterThan(before.$1));
-    expect(account.resets, before.$2 + 1);
-  });
-
+  // The other way in: an invitation accepted from the sign-in's
+  // « Invitations » step. (A registration was the third until B0.11 (#711)
+  // took business sign-up out of the Pro app.)
   test('an invitation accepted from the sign-in resets both', () async {
     final pro = ProAuthProvider();
     await pro.ready;
@@ -207,7 +185,7 @@ void main() {
       final before = (salon.resets, account.resets);
 
       expect(
-        await pro.switchSalon('provider2'),
+        await pro.switchSalon(const SalonId('provider2')),
         isTrue,
         reason: 'the scenario',
       );

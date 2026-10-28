@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:myweli/core/access/pro_salon_scope.dart';
 import 'package:myweli/core/di/dependency_injection.dart';
+import 'package:myweli/core/utils/salon_id.dart';
 import 'package:myweli/models/api_response.dart';
 import 'package:myweli/models/appointment.dart';
 import 'package:myweli/models/artist.dart';
@@ -262,7 +263,11 @@ void main() {
     registerFallbackValue(<KycDocument>[]);
     registerFallbackValue(TeamRole.staff);
     registerFallbackValue(
-      const Availability(providerId: 'p', weeklySchedule: {}, blockedDates: []),
+      const Availability(
+        providerId: SalonId('p'),
+        weeklySchedule: {},
+        blockedDates: [],
+      ),
     );
   });
 
@@ -339,7 +344,7 @@ void main() {
             'loadAppointments',
             ProAppointmentProvider(),
             salonReset,
-            (s) => s.loadAppointments('p1'),
+            (s) => s.loadAppointments(const SalonId('p1')),
             () => held.land(refused()),
           );
         });
@@ -419,7 +424,7 @@ void main() {
             ProAppointmentProvider(),
             salonReset,
             (s) => s.createManualBooking(
-              providerId: 'p1',
+              providerId: const SalonId('p1'),
               serviceIds: const ['s1'],
               appointmentDateTime: DateTime(2026, 11, 2, 10),
             ),
@@ -478,7 +483,7 @@ void main() {
             'loadArtists',
             ProArtistProvider(),
             salonReset,
-            (s) => s.loadArtists('p1'),
+            (s) => s.loadArtists(const SalonId('p1')),
             () => held.land(refused()),
           );
         });
@@ -492,7 +497,7 @@ void main() {
             'createArtist',
             ProArtistProvider(),
             salonReset,
-            (s) => s.createArtist('p1', const {}),
+            (s) => s.createArtist(const SalonId('p1'), const {}),
             () => held.land(refused()),
           );
         });
@@ -536,7 +541,7 @@ void main() {
             'loadAvailability',
             ProAvailabilityProvider(),
             salonReset,
-            (s) => s.loadAvailability('p1'),
+            (s) => s.loadAvailability(const SalonId('p1')),
             () => held.land(refused()),
           );
         });
@@ -551,9 +556,9 @@ void main() {
             ProAvailabilityProvider(),
             salonReset,
             (s) => s.updateAvailability(
-              'p1',
+              const SalonId('p1'),
               const Availability(
-                providerId: 'p1',
+                providerId: SalonId('p1'),
                 weeklySchedule: {},
                 blockedDates: [],
               ),
@@ -571,7 +576,7 @@ void main() {
             'load',
             ProBeforeAfterProvider(),
             salonReset,
-            (s) => s.load('p1'),
+            (s) => s.load(const SalonId('p1')),
             () => held.land(refused()),
           );
         });
@@ -606,7 +611,11 @@ void main() {
                 'addPair ($point)',
                 ProBeforeAfterProvider(),
                 salonReset,
-                (s) => s.addPair('p1', beforeSource: 'b', afterSource: 'a'),
+                (s) => s.addPair(
+                  const SalonId('p1'),
+                  beforeSource: 'b',
+                  afterSource: 'a',
+                ),
                 () => held.land(ApiResponse.success('https://cdn/x.jpg')),
               );
               verifyNever(() => pro.updateBeforeAfters(any(), any()));
@@ -629,7 +638,11 @@ void main() {
             'addPair (the save)',
             ProBeforeAfterProvider(),
             salonReset,
-            (s) => s.addPair('p1', beforeSource: 'b', afterSource: 'a'),
+            (s) => s.addPair(
+              const SalonId('p1'),
+              beforeSource: 'b',
+              afterSource: 'a',
+            ),
             () => held.land(refused()),
           );
         });
@@ -651,7 +664,11 @@ void main() {
             'addPair progress',
             ProBeforeAfterProvider(),
             salonReset,
-            (s) => s.addPair('p1', beforeSource: 'b', afterSource: 'a'),
+            (s) => s.addPair(
+              const SalonId('p1'),
+              beforeSource: 'b',
+              afterSource: 'a',
+            ),
             () {
               progress!(0.5);
               held.land(refused());
@@ -683,7 +700,11 @@ void main() {
               'addPair second progress',
               ProBeforeAfterProvider(),
               salonReset,
-              (s) => s.addPair('p1', beforeSource: 'b', afterSource: 'a'),
+              (s) => s.addPair(
+                const SalonId('p1'),
+                beforeSource: 'b',
+                afterSource: 'a',
+              ),
               () {
                 progress!(0.5);
                 held.land(refused());
@@ -697,7 +718,7 @@ void main() {
               (
                 'restorePairAt',
                 (s) => s.restorePairAt(
-                  'p1',
+                  const SalonId('p1'),
                   0,
                   const BeforeAfterPair(before: 'b', after: 'a'),
                 ),
@@ -711,8 +732,8 @@ void main() {
                       BeforeAfterPair(before: 'b', after: 'a'),
                     ]),
                   );
-                  await s.load('p1');
-                  return s.removePair('p1', 0);
+                  await s.load(const SalonId('p1'));
+                  return s.removePair(const SalonId('p1'), 0);
                 },
               ),
             ]) {
@@ -742,7 +763,7 @@ void main() {
             'load',
             ProDepositSettingsProvider(),
             salonReset,
-            (s) => s.load('p1'),
+            (s) => s.load(const SalonId('p1')),
             () => held.land(refused()),
           );
         });
@@ -763,7 +784,7 @@ void main() {
             'save',
             ProDepositSettingsProvider(),
             salonReset,
-            (s) => s.save('p1'),
+            (s) => s.save(const SalonId('p1')),
             () => held.land(refused()),
           );
         });
@@ -783,7 +804,7 @@ void main() {
             'loadEarnings',
             ProEarningsProvider(),
             salonReset,
-            (s) => s.loadEarnings('p1'),
+            (s) => s.loadEarnings(const SalonId('p1')),
             () => held.land(refused()),
           );
         });
@@ -799,7 +820,7 @@ void main() {
             'load',
             ProGalleryProvider(),
             salonReset,
-            (s) => s.load('p1'),
+            (s) => s.load(const SalonId('p1')),
             () => held.land(refused()),
           );
         });
@@ -823,7 +844,7 @@ void main() {
               'addPhoto (the upload)',
               ProGalleryProvider(),
               salonReset,
-              (s) => s.addPhoto('p1', '/tmp/x.jpg'),
+              (s) => s.addPhoto(const SalonId('p1'), '/tmp/x.jpg'),
               () => held.land(ApiResponse.success('https://cdn/x.jpg')),
             );
             verifyNever(() => pro.updateGalleryPhotos(any(), any()));
@@ -845,7 +866,7 @@ void main() {
             'addPhoto (the save)',
             ProGalleryProvider(),
             salonReset,
-            (s) => s.addPhoto('p1', '/tmp/x.jpg'),
+            (s) => s.addPhoto(const SalonId('p1'), '/tmp/x.jpg'),
             () => held.land(refused()),
           );
         });
@@ -867,7 +888,7 @@ void main() {
             'addPhoto progress',
             ProGalleryProvider(),
             salonReset,
-            (s) => s.addPhoto('p1', '/tmp/x.jpg'),
+            (s) => s.addPhoto(const SalonId('p1'), '/tmp/x.jpg'),
             () {
               progress!(0.5);
               held.land(refused());
@@ -877,13 +898,17 @@ void main() {
 
         for (final (name, run)
             in <(String, Future<bool> Function(ProGalleryProvider))>[
-              ('movePhoto', (s) => s.movePhoto('p1', 0, 1)),
-              ('setCover', (s) => s.setCover('p1', 1)),
+              ('movePhoto', (s) => s.movePhoto(const SalonId('p1'), 0, 1)),
+              ('setCover', (s) => s.setCover(const SalonId('p1'), 1)),
               (
                 'restorePhotoAt',
-                (s) => s.restorePhotoAt('p1', 0, 'https://cdn/r.jpg'),
+                (s) => s.restorePhotoAt(
+                  const SalonId('p1'),
+                  0,
+                  'https://cdn/r.jpg',
+                ),
               ),
-              ('removePhoto', (s) => s.removePhoto('p1', 0)),
+              ('removePhoto', (s) => s.removePhoto(const SalonId('p1'), 0)),
             ]) {
           test(name, () async {
             // Two photos to move, cover or remove: the load answers first.
@@ -896,7 +921,7 @@ void main() {
               () => pro.updateGalleryPhotos(any(), any()),
             ).thenAnswer((_) => held.future);
             final store = ProGalleryProvider();
-            await store.load('p1');
+            await store.load(const SalonId('p1'));
             await expectIgnored(
               name,
               store,
@@ -916,7 +941,7 @@ void main() {
             'publish',
             ProOnboardingProvider(),
             salonReset,
-            (s) => s.publish('p1'),
+            (s) => s.publish(const SalonId('p1')),
             () => held.land(refused()),
           );
         });
@@ -954,7 +979,7 @@ void main() {
                 'onboarding load, read ${point + 1}',
                 ProOnboardingProvider(),
                 salonReset,
-                (s) => s.load(owner, salonId: 'p1'),
+                (s) => s.load(owner, salonId: const SalonId('p1')),
                 () => gate.land(null),
               );
               expect(
@@ -981,7 +1006,7 @@ void main() {
             'loadReviews',
             ProReviewsProvider(),
             salonReset,
-            (s) => s.loadReviews('p1'),
+            (s) => s.loadReviews(const SalonId('p1')),
             () => held.land(refused()),
           );
         });
@@ -997,7 +1022,7 @@ void main() {
             'load',
             ProSalonProfileProvider(),
             salonReset,
-            (s) => s.load('p1'),
+            (s) => s.load(const SalonId('p1')),
             () => held.land(refused()),
           );
         });
@@ -1011,7 +1036,7 @@ void main() {
             'save',
             ProSalonProfileProvider(),
             salonReset,
-            (s) => s.save('p1', const {'name': 'x'}),
+            (s) => s.save(const SalonId('p1'), const {'name': 'x'}),
             () => held.land(refused()),
           );
         });
@@ -1033,7 +1058,7 @@ void main() {
               'uploadLogo (the upload)',
               ProSalonProfileProvider(),
               salonReset,
-              (s) => s.uploadLogo('p1', '/tmp/logo.png'),
+              (s) => s.uploadLogo(const SalonId('p1'), '/tmp/logo.png'),
               () => held.land(ApiResponse.success('https://cdn/logo.png')),
             );
             verifyNever(() => pro.updateSalonProfile(any(), any()));
@@ -1057,7 +1082,7 @@ void main() {
             'uploadLogo (the save)',
             ProSalonProfileProvider(),
             salonReset,
-            (s) => s.uploadLogo('p1', '/tmp/logo.png'),
+            (s) => s.uploadLogo(const SalonId('p1'), '/tmp/logo.png'),
             () => held.land(refused()),
           );
         });
@@ -1073,7 +1098,7 @@ void main() {
             'loadServices',
             ProServiceProvider(),
             salonReset,
-            (s) => s.loadServices('p1'),
+            (s) => s.loadServices(const SalonId('p1')),
             () => held.land(refused()),
           );
         });
@@ -1087,7 +1112,7 @@ void main() {
             'createService',
             ProServiceProvider(),
             salonReset,
-            (s) => s.createService('p1', const {}),
+            (s) => s.createService(const SalonId('p1'), const {}),
             () => held.land(refused()),
           );
         });
@@ -1129,7 +1154,7 @@ void main() {
             'load',
             ProSubscriptionProvider(),
             salonReset,
-            (s) => s.load('p1'),
+            (s) => s.load(const SalonId('p1')),
             () => held.land(refused()),
           );
         });
@@ -1270,7 +1295,7 @@ void main() {
             'load',
             ProClientsProvider(),
             salonReset,
-            (s) => s.load('p1'),
+            (s) => s.load(const SalonId('p1')),
             () => held.land(refused()),
           );
         });
@@ -1278,7 +1303,7 @@ void main() {
         test('loadMore', () async {
           // A first page of one client out of two, so there is more to load.
           final page = (await MockProClientsService().listClients(
-            'provider1',
+            const SalonId('provider1'),
             pageSize: 1,
           )).data!;
           expect(
@@ -1302,12 +1327,12 @@ void main() {
                 : held.future,
           );
           final store = ProClientsProvider();
-          await store.load('p1');
+          await store.load(const SalonId('p1'));
           await expectIgnored(
             'loadMore',
             store,
             salonReset,
-            (s) => s.loadMore('p1'),
+            (s) => s.loadMore(const SalonId('p1')),
             // A refusal writes nothing anyway: the next page would.
             () => held.land(ApiResponse.success(page)),
           );
@@ -1327,7 +1352,11 @@ void main() {
             'addClient',
             ProClientsProvider(),
             salonReset,
-            (s) => s.addClient('p1', name: 'Awa', phone: '+2250700000001'),
+            (s) => s.addClient(
+              const SalonId('p1'),
+              name: 'Awa',
+              phone: '+2250700000001',
+            ),
             () => held.land(refused()),
           );
         });
@@ -1335,12 +1364,12 @@ void main() {
         for (final point in ['the card', 'its visits']) {
           test('loadCard: $point answered after the reset', () async {
             final card = (await MockProClientsService().getCard(
-              'provider1',
+              const SalonId('provider1'),
               'sc1',
             )).data!;
             // Real visits: an empty list is what the reset itself leaves.
             final visits = (await MockProClientsService().getVisits(
-              'provider1',
+              const SalonId('provider1'),
               'sc1',
             )).data!;
             final gate = Completer<void>();
@@ -1360,7 +1389,7 @@ void main() {
               'loadCard ($point)',
               ProClientsProvider(),
               salonReset,
-              (s) => s.loadCard('p1', 'sc1'),
+              (s) => s.loadCard(const SalonId('p1'), 'sc1'),
               () => gate.land(null),
             );
           });
@@ -1386,7 +1415,7 @@ void main() {
                         (_) => ApiResponse.success(card.client),
                       ),
                     ),
-                (s) => s.updateTags('p1', 'sc1', const ['VIP']),
+                (s) => s.updateTags(const SalonId('p1'), 'sc1', const ['VIP']),
               ),
               (
                 'addNote',
@@ -1412,7 +1441,7 @@ void main() {
                         ),
                       ),
                     ),
-                (s) => s.addNote('p1', 'sc1', 'une note de A'),
+                (s) => s.addNote(const SalonId('p1'), 'sc1', 'une note de A'),
               ),
               (
                 'deleteNote',
@@ -1422,14 +1451,14 @@ void main() {
                     ).thenAnswer(
                       (_) => gate.future.then((_) => ApiResponse.success(true)),
                     ),
-                (s) => s.deleteNote('p1', 'sc1', 'note1'),
+                (s) => s.deleteNote(const SalonId('p1'), 'sc1', 'note1'),
               ),
             ]) {
           test(
             '$name answered after the next account opened its card',
             () async {
               final card = (await MockProClientsService().getCard(
-                'provider1',
+                const SalonId('provider1'),
                 'sc1',
               )).data!;
               when(
@@ -1441,12 +1470,15 @@ void main() {
               final gate = Completer<void>();
               stub(card, gate);
               final store = ProClientsProvider();
-              await store.loadCard('p1', 'sc1');
+              await store.loadCard(const SalonId('p1'), 'sc1');
 
               final pending = run(store);
               await pumpEventQueue();
               store.resetForSalonSwitch();
-              await store.loadCard('p1', 'sc1'); // the next account's card
+              await store.loadCard(
+                const SalonId('p1'),
+                'sc1',
+              ); // the next account's card
               final before = store.card;
               var notified = 0;
               store.addListener(() => notified++);
@@ -1473,7 +1505,7 @@ void main() {
         for (final point in ['the change', 'the visits']) {
           test('updatePhone: $point answered after the reset', () async {
             final card = (await MockProClientsService().getCard(
-              'provider1',
+              const SalonId('provider1'),
               'sc1',
             )).data!;
             final gate = Completer<void>();
@@ -1503,7 +1535,8 @@ void main() {
               'updatePhone ($point)',
               ProClientsProvider(),
               salonReset,
-              (s) => s.updatePhone('p1', 'sc1', '+2250700000002'),
+              (s) =>
+                  s.updatePhone(const SalonId('p1'), 'sc1', '+2250700000002'),
               () => gate.land(null),
             );
             if (point == 'the change') {
@@ -1517,7 +1550,7 @@ void main() {
 
         test('the reset forgets the open card', () async {
           final card = (await MockProClientsService().getCard(
-            'provider1',
+            const SalonId('provider1'),
             'sc1',
           )).data!;
           when(
@@ -1526,10 +1559,13 @@ void main() {
           when(
             () => clients.getVisits(any(), any(), page: any(named: 'page')),
           ).thenAnswer(
-            (_) => MockProClientsService().getVisits('provider1', 'sc1'),
+            (_) => MockProClientsService().getVisits(
+              const SalonId('provider1'),
+              'sc1',
+            ),
           );
           final store = ProClientsProvider();
-          await store.loadCard('p1', 'sc1');
+          await store.loadCard(const SalonId('p1'), 'sc1');
           expect(store.card, isNotNull, reason: 'the scenario');
           expect(store.visits, isNotEmpty, reason: 'the scenario');
 
@@ -1571,7 +1607,7 @@ void main() {
                 Appointment(
                   id: 'a1',
                   userId: 'u1',
-                  providerId: 'p1',
+                  providerId: const SalonId('p1'),
                   serviceIds: const ['s1'],
                   appointmentDate: DateTime.utc(2026, 11, 2, 10),
                   status: AppointmentStatus.pending,
@@ -1592,7 +1628,10 @@ void main() {
             ProSalonScope.clear();
             final ear = ProSalonScope.track(_Ear());
             final store = ProJournalProvider();
-            await store.load('p1', date: DateTime.utc(2026, 11, 2));
+            await store.load(
+              const SalonId('p1'),
+              date: DateTime.utc(2026, 11, 2),
+            );
 
             final accepting = store.accept('a1');
             await store.refresh();
@@ -1763,7 +1802,7 @@ void main() {
         when(
           () => clients.getCard(any(), any()),
         ).thenAnswer((_) => Completer<ApiResponse<SalonClientCard>>().future);
-        unawaited(store.loadCard('p1', 'sc1'));
+        unawaited(store.loadCard(const SalonId('p1'), 'sc1'));
         expect(store.cardLoading, isTrue, reason: 'the scenario');
         store.resetForSalonSwitch();
         expect(store.cardLoading, isFalse);
@@ -1774,7 +1813,7 @@ void main() {
             code: 'not_found',
           ),
         );
-        await store.loadCard('p1', 'sc1');
+        await store.loadCard(const SalonId('p1'), 'sc1');
         expect(store.cardNotFound, isTrue, reason: 'the scenario');
         store.resetForSalonSwitch();
         expect(store.cardError, isNull);
@@ -1795,7 +1834,11 @@ void main() {
             code: 'client_exists',
           ),
         );
-        await store.addClient('p1', name: 'Awa', phone: '+2250700000001');
+        await store.addClient(
+          const SalonId('p1'),
+          name: 'Awa',
+          phone: '+2250700000001',
+        );
         expect(store.lastAddWasDuplicate, isTrue, reason: 'the scenario');
         store.resetForSalonSwitch();
         expect(store.lastAddWasDuplicate, isFalse);

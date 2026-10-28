@@ -8,6 +8,7 @@ import 'package:myweli/core/access/account_scope.dart';
 import 'package:myweli/core/access/pro_salon_scope.dart';
 import 'package:myweli/core/di/dependency_injection.dart';
 import 'package:myweli/core/push/push_registration.dart';
+import 'package:myweli/core/utils/salon_id.dart';
 import 'package:myweli/main_pro.dart';
 import 'package:myweli/models/api_response.dart';
 import 'package:myweli/models/app_notification.dart';
@@ -63,7 +64,7 @@ class _HeldFigures extends MockProService {
 
   @override
   Future<ApiResponse<DashboardStats>> getDashboardStats(
-    String providerId,
+    SalonId providerId,
   ) async {
     final hold = gate;
     if (hold != null) await hold.future;
