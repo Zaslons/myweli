@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:myweli/core/di/dependency_injection.dart';
+import 'package:myweli/core/utils/salon_id.dart';
 import 'package:myweli/models/api_response.dart';
 import 'package:myweli/models/app_notification.dart';
 import 'package:myweli/models/appointment.dart';
@@ -74,7 +75,7 @@ void main() {
     Appointment booking(String id) => Appointment(
       id: id,
       userId: 'u-$id',
-      providerId: 'p1',
+      providerId: const SalonId('p1'),
       serviceIds: const ['s1'],
       appointmentDate: DateTime(2026, 11, 2, 10),
       status: AppointmentStatus.confirmed,
@@ -92,7 +93,7 @@ void main() {
     }
 
     Future<bool> book(AppointmentProvider p) => p.bookAppointment(
-      providerId: 'p1',
+      providerId: const SalonId('p1'),
       serviceIds: const ['s1'],
       appointmentDateTime: DateTime(2026, 11, 2, 10),
     );
@@ -191,7 +192,7 @@ void main() {
         final p = AppointmentProvider();
 
         final sending = p.bookAppointment(
-          providerId: 'p1',
+          providerId: const SalonId('p1'),
           serviceIds: const ['s1'],
           appointmentDateTime: DateTime(2026, 11, 2, 10),
         );

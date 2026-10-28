@@ -8,6 +8,7 @@ import 'package:myweli/core/access/account_scope.dart';
 import 'package:myweli/core/di/dependency_injection.dart';
 import 'package:myweli/core/push/push_registration.dart';
 import 'package:myweli/core/router/app_router.dart';
+import 'package:myweli/core/utils/salon_id.dart';
 import 'package:myweli/main.dart';
 import 'package:myweli/models/api_response.dart';
 import 'package:myweli/models/appointment.dart';
@@ -85,7 +86,7 @@ class _HeldAppointments extends MockAppointmentService {
 Appointment _booking(String id, String userId, String salon) => Appointment(
   id: id,
   userId: userId,
-  providerId: 'provider-of-$id',
+  providerId: SalonId('provider-of-$id'),
   serviceIds: const ['s1'],
   // Upcoming: it is on « Mes rendez-vous »' first tab and on the home strip.
   appointmentDate: DateTime.now().add(const Duration(days: 3)),
