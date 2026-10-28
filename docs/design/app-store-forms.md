@@ -694,9 +694,9 @@ la note dit au relecteur (risque assumé, §14).
 | Formulaire | Réponse | Pourquoi |
 |---|---|---|
 | **Conformité export** | **déjà répondue par le binaire** : `ITSAppUsesNonExemptEncryption = false` (`Info.plist`, présent dans l'IPA) | HTTPS/TLS du système uniquement, plus un SHA-256 pour le nonce Apple ; App Store Connect ne pose pas la question à l'envoi ; aucune déclaration de chiffrement française à fournir |
-| **Droits sur le contenu** | « **Oui**, l'app contient, affiche ou accède à du contenu tiers, **et j'ai les droits nécessaires** » | contenu publié par les salons et les clients sous les CGU (`/cgu`) ; tuiles de carte OSM/CARTO avec attribution |
-| **Prix** | **Gratuit** — **fait le 2026-10-06** (pays de base États-Unis, 0,00 $, 175 pays) | aucun achat intégré (aucune dépendance StoreKit) |
-| **Disponibilité** | **Côte d'Ivoire uniquement** — **fait le 2026-10-06** (« Available on App Release », tous les autres pays « Not Available ») | le périmètre réel : l'arbre des localités et le catalogue Mobile Money ne contiennent que la Côte d'Ivoire, donc un salon d'un autre pays ne peut pas choisir sa localité ni être publié ; le storefront CIV a le français par défaut, donc une fiche en français seul convient. **Ajouter un pays = un réglage ici, sans build ni revue**, une fois ses données saisies (vague 1 de [modules/multi-pays.md](../modules/multi-pays.md) : Sénégal, Mali, Burkina Faso, Togo) ; en retirer un après la sortie prive ses salons de l'app — d'où l'ordre « d'abord la CI » (décision du propriétaire, 2026-10-06). Les testeurs TestFlight ne sont pas concernés. |
+| **Droits sur le contenu** | « **Oui**, l'app contient, affiche ou accède à du contenu tiers, **et j'ai les droits nécessaires** » — **relu par l'API le 2026-10-28** (`USES_THIRD_PARTY_CONTENT`) | contenu publié par les salons et les clients sous les CGU (`/cgu`) ; tuiles de carte OSM/CARTO avec attribution |
+| **Prix** | **Gratuit** — **fait le 2026-10-06** (pays de base États-Unis, 0,00 $, 175 pays) ; **relu par l'API le 2026-10-28** (prix manuel 0,0 aux États-Unis) | aucun achat intégré (aucune dépendance StoreKit) |
+| **Disponibilité** | **Côte d'Ivoire uniquement** — **fait le 2026-10-06** (« Available on App Release », tous les autres pays « Not Available ») ; **relu par l'API le 2026-10-28** : la CIV seule `available` (`AVAILABLE_FOR_SALE_UNRELEASED_APP`), les 174 autres non | le périmètre réel : l'arbre des localités et le catalogue Mobile Money ne contiennent que la Côte d'Ivoire, donc un salon d'un autre pays ne peut pas choisir sa localité ni être publié ; le storefront CIV a le français par défaut, donc une fiche en français seul convient. **Ajouter un pays = un réglage ici, sans build ni revue**, une fois ses données saisies (vague 1 de [modules/multi-pays.md](../modules/multi-pays.md) : Sénégal, Mali, Burkina Faso, Togo) ; en retirer un après la sortie prive ses salons de l'app — d'où l'ordre « d'abord la CI » (décision du propriétaire, 2026-10-06). Les testeurs TestFlight ne sont pas concernés. |
 | **Apps iPhone et iPad sur Mac (Apple silicon)** | **décoché le 2026-10-06** | jamais testé ; le profil rend l'app éligible par défaut |
 | **Apple Vision Pro** | **décoché le 2026-10-06** | idem (le profil liste iOS, xrOS, visionOS) |
 | **Publication de la version** | **« Publier manuellement cette version »** | l'approbation ne doit pas publier : la sortie publique attend la production rétablie et stable (§0) |
@@ -1643,6 +1643,40 @@ fil du Resolution Center n'a pas d'API : rien d'ici ne l'observe.
 *Si le relecteur objecte au lien* : le retirer est un seul widget
 (`AuthSwitchPrompt` de `pro_login_screen.dart`) et une ligne d'essai ; le
 reste de B0.11 tient sans lui.
+
+### 13.3 La réponse prête si la revue cite « Se connecter avec Apple »
+
+**Ce qui s'est passé** (BACKLOG B0.1, relu le 2026-10-28 dans Sentry et Cloud
+Logging). Le 2026-10-26 entre 23:36 et 23:39 UTC, trois minutes après la
+nouvelle soumission, un iPhone très probablement d'Apple (Cupertino, heure du
+Pacifique, noyau iOS de développement) a ouvert le build 698 : deux « Se
+connecter avec Apple » ont échoué **sur l'appareil**, erreur iOS 1000, sans
+aucune requête `/auth/provider/apple` au serveur ; il s'est ensuite connecté au
+compte démo par code e-mail. Rien de notre côté ne produit cette erreur : le
+build porte le droit `applesignin`, la production accepte `apple`, et la
+connexion Apple du propriétaire sur 698 a atteint le serveur avec un jeton
+accepté. Sa cause habituelle — aucun compte Apple connecté sur l'appareil —
+est une déduction : l'événement n'en dit pas plus.
+
+À envoyer **seulement si** Apple cite la connexion Apple, en anglais, dans le
+fil. **Avant** : relire les journaux autour de l'heure qu'Apple donne — la
+phrase sur le serveur n'est vraie que si aucune requête `/auth/provider/apple`
+n'y figure.
+
+```text
+Hello,
+
+Thank you for testing Sign in with Apple in MyWeli Pro.
+
+The message « Connexion Apple impossible » appears when iOS itself returns an error before the app receives any credential (ASAuthorizationError 1000, "unknown"). Our server received no Sign in with Apple request from the review device. This error usually occurs when the device is not signed in to an Apple Account in Settings.
+
+Sign in with Apple works on build 698 on a device signed in to an Apple Account. MyWeli Pro only signs in to salon accounts that already exist, so an Apple Account that is not linked to a salon then sees « Aucun compte MyWeli Pro n’est associé à cette adresse », which is expected. To see a populated salon, please use the demo account in the App Review notes (revue@myweli.test, e-mail code).
+
+Could you please try again on a device signed in to an Apple Account?
+
+Thank you,
+Sadreddine Daher
+```
 
 ## 14 · Points ouverts et mineurs connus, non corrigés
 

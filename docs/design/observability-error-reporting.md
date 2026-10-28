@@ -241,6 +241,13 @@ alerting starts being ignored.
 At today's volume — pre-launch, no users — *new issue* is high signal: any error
 is notable, and there are few enough that reading all of them is realistic.
 
+> **2026-10-28 — what Sentry actually holds**, read through its API. The rule
+> above was never applied to Sentry's default « Send a notification for high
+> priority issues » alerts: the backend's (`757123`) and the web's (`757125`)
+> filter **no** environment. The app's default (`757127`) is turned off (BACKLOG
+> decision 49), replaced by §8.3's three alerts, which filter `production` — the
+> name `tool/release_build.sh` sends, not `prod`.
+
 ### 8.2 Not yet — rate and spike thresholds
 
 Meaningless without a baseline. "More than N errors in M minutes" needs a normal
@@ -251,7 +258,29 @@ the null-byte 500 (BACKEND.md §3.4) would have fired one alert **per scanned
 request** before it was fixed. That is the shape of alert fatigue — not a flood
 of different problems, one problem arriving repeatedly.
 
-### 8.3 When mobile ships — the crash-free-rate alert
+### 8.3 When mobile ships — ~~the crash-free-rate alert~~ three issue alerts (B0.7, live 2026-10-28)
+
+**Superseded.** Sessions are off to keep the privacy promise, so a crash-free
+rate has nothing to measure. Instead, on `myweli-app`, environment `production`,
+each e-mailing the owner (created in Sentry's « Monitors → Alerts » screens and
+read back through its API on 2026-10-28):
+
+| Alert | When | If | Throttling |
+|---|---|---|---|
+| `1425724` « App — nouveau problème, dernière version » | a new issue is created | the issue is in the latest release — any level (decision 44: Dart errors arrive as « error », only native crashes as « fatal ») | 5 min |
+| `1425732` « App — plus de 3 utilisateurs en 1 h » | every event | more than 3 users in 1 h; `exception.type` does not contain `App Hang` and does not equal `ApplicationNotResponding` | 60 min |
+| `1425742` « App — blocages, plus de 3 utilisateurs en 1 h » | every event | two blocks: more than 3 users in 1 h **and** `exception.type` contains `App Hang` (build 698's three names); or more than 3 users in 1 h **and** it equals `ApplicationNotResponding` (Android) | 60 min |
+
+- **Why « every event »:** Sentry no longer has a « seen by more than N users »
+  trigger. The user count is a filter, and under « a new issue is created » it
+  would only ever see the first user.
+- **Why two blocks:** one block takes one qualifier (all, any or none), so
+  « more than 3 users **and** (one name **or** the other) » is two blocks.
+- **Proven:** a test notification fired for each block; the e-mails arrived, as
+  reported by the owner. The alerts' own conditions are only proven by a real
+  issue — the first will be the test.
+
+The plan it replaces, kept for the record:
 
 This is the one that matters most, because **[LAUNCH.md](../LAUNCH.md) §1.4's
 staged rollout is watched on it**. Without this alert, "halt the rollout if the
@@ -270,6 +299,7 @@ server has no sessions, and the web SDK is configured for errors only. Their
 ### 8.4 Where alerts go
 
 Email, plus **the Sentry mobile app**, which sends push notifications.
+*(2026-10-28: §8.3's alerts e-mail the owner; the phone push is not set up yet.)*
 
 Chosen because it reaches a phone without building anything: MyWeli's team works
 in WhatsApp, and Sentry has no native WhatsApp integration — bridging it means a

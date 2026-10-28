@@ -26,7 +26,7 @@
 
 | # | Batch | What it fixes | Priority | Surfaces | Needs you for |
 |---|---|---|---|---|---|
-| 0 | **Release track** | 0.0.1 through review, device checks, 0.0.2, the store and policy items around them | P1 | release | **0.0.1 resubmitted with build 698 (2026-10-26)**, waiting for review — Apple's answer, then the release by hand; B0.7's alerts, B0.10's Play forms |
+| 0 | **Release track** | 0.0.1 through review, device checks, 0.0.2, the store and policy items around them | P1 | release | **0.0.1 resubmitted with build 698 (2026-10-26)**, waiting for review — Apple's answer, then the release by hand; B0.10's Play forms |
 | 1 | ✅ **Pro home and journal stay fresh** | « Ma journée » and « Accueil » showing stale statuses and figures, and an error screen with no way out | P1 | app | **Done — #665** (2026-10-21) |
 | 2 | ✅ **Lost answers to writes** | A booking saved but reported as failed, then a retry into « slot taken » or a double booking | P2 | web, app, backend | **Done — #666** (2026-10-21) |
 | 3 | ✅ **The app says the right thing when something fails** | Raw English exception text, a bare « Erreur », two offline sentences, notification read state | P2 | app (+ web wording) | **Done — #670, #671** (2026-10-21) |
@@ -41,7 +41,7 @@
 **Proposed order.**
 - **Done (2026-10-25):** batches 1–9, every item.
 - **Now:** batch 0 — **0.0.1 was rejected under 3.1.1** (business registration in the app); B0.11 made the Pro app login-only (#711). **Build 698, the new build of 0.0.1, was resubmitted on 2026-10-26** and is waiting for review, so B0.1's « while it's in review » constraints apply again. The privacy policy is corrected and live (B0.4, #709).
-- **Yours:** batch 10, and your half of batch 0 (answer any Resolution Center message and release by hand after approval, B0.1; B0.7's Sentry alerts; B0.10's Play forms).
+- **Yours:** batch 10, and your half of batch 0 (answer any Resolution Center message and release by hand after approval, B0.1; B0.10's Play forms).
 
 ---
 
@@ -131,6 +131,8 @@ Each question has a recommendation. Answers unblock the item named in brackets.
 46. The website's one Services ID serves both spaces: keep it, or add a Pro Services ID? [B0.12] — ✅ **Answered: keep one for now.**
 47. When does the server start using the keys? [B0.12] — ✅ **Answered: after Apple's decision on 0.0.1** (B0.1); the keys, the probe, the secrets and the PRs happen now.
 48. Apple's server-to-server notifications? [B0.13] — ✅ **Answered: later**, its own item.
+49. Sentry's default « Send a notification for high priority issues » alert on `myweli-app` watches every environment and overlaps B0.7's first alert: keep it or turn it off? [B0.7] — ✅ **Answered (2026-10-28): turned off**, not deleted.
+50. On iOS error 1000 (`AuthorizationErrorCode.unknown`), should the Pro app say how to fix it rather than only « Connexion Apple impossible. »? [B0.14] — open. *Recommended: yes, in 0.0.2.*
 
 ---
 
@@ -141,6 +143,12 @@ Each question has a recommendation. Answers unblock the item named in brackets.
 - **B0.1 Carry 0.0.1 through review, then release by hand (P1 · S · decision 1).** **2026-10-25: build 587 was rejected** (the reason comes next); the next submission is a new build of 0.0.1 (B0.3). The « while it's in review » constraints below apply again once it is resubmitted. **2026-10-26: resubmitted** — build 698, `WAITING_FOR_REVIEW` (read back through the API); the constraints apply again from now.
   - **What:** build 587 is in App Review, and its release is set to manual.
   - **How:** while it's in review, nothing the reviewer relies on may change. No `DEMO_PROVIDER_CODE` rotation, no change to Cloudflare in front of `api.myweli.com`, and « Production checks » stay green. Answer any Resolution Center message the same day. If rejected: fix, rebuild through the normal flow, resubmit. If approved: leave it « Pending Developer Release » until you confirm LAUNCH §3, then press Release. Record the dates in LAUNCH §6.2 and app-store-forms §12.3.
+  - **2026-10-26, 23:36–23:39 UTC — a device that is almost certainly Apple's opened build 698**, three minutes after the resubmission, while the submission still read `WAITING_FOR_REVIEW`. Read on 2026-10-28 through Sentry (issue `156408587`) and Cloud Logging:
+    - an iPhone 16 Pro on iOS 27.0.1 with a *development* kernel, located in Cupertino, on Pacific time;
+    - two « Se connecter avec Apple » attempts failed **on the device** with iOS error 1000 (`social_sign_in_failed provider=apple code=unknown`); no `/auth/provider/apple` request reached the server then;
+    - the same device then signed in to the demo salon « Maison Nala » with the e-mail code (`/auth/provider/email/otp/verify` 200 at 23:39:07, then its dashboard).
+
+    **Not a defect found in our code or server:** build 698 carries the `applesignin` entitlement (read from the signed IPA), production allows `apple` (`AUTH_METHODS`), and your own Apple sign-in on 698 (15:53 UTC) reached the server, whose `404 provider_not_found` means Apple's token was accepted. Error 1000 is iOS's generic « unknown » code; its usual cause, a device with no Apple Account signed in, is an inference — the event carries nothing more. If App Review cites it, the ready reply is app-store-forms §13.3; B0.14 proposes a clearer message for 0.0.2.
 - ✅ **B0.2 On-device checks on a real iPhone (P1 · M · decision 2).** **Done on build 698 before the resubmission, as reported by you (2026-10-26).** The results were not itemised, and nothing in the repo observes them (app-store-forms §11.6 carries the dated line).
   - **What:** no signed build has been checked on a real iPhone. That covers:
     - Sign in with Apple, a real push and staying signed in;
@@ -167,12 +175,21 @@ Each question has a recommendation. Answers unblock the item named in brackets.
 - **B0.6 KYC under an individual developer account (P2 · S · decision 5).** **The account is Individual** (recorded 2026-10-25); hide on iOS only if Apple cites 5.1.1(ix).
   - Record the membership type.
   - If Apple rejects under 5.1.1(ix), hide « Vérification » and the deposit switch on iOS only, with forced-iOS tests, until an Organization account exists.
-- **B0.7 Replace the crash-free-rate alert before phased release (P2 · S).**
+- ✅ **B0.7 Replace the crash-free-rate alert before phased release (P2 · S · decisions 44, 49).** **Done on 2026-10-28** — created in Sentry's new « Monitors → Alerts » screens and read back through Sentry's API:
+  - `1425724` « App — nouveau problème, dernière version »: a new issue is created, and the issue is in the latest release; 5-minute throttling;
+  - `1425732` « App — plus de 3 utilisateurs en 1 h »: every event, more than 3 users in 1 h, `exception.type` does not contain `App Hang` and does not equal `ApplicationNotResponding`; 60 minutes;
+  - `1425742` « App — blocages, plus de 3 utilisateurs en 1 h »: every event, then two If/Then blocks — more than 3 users in 1 h **and** `exception.type` contains `App Hang`, or more than 3 users in 1 h **and** it equals `ApplicationNotResponding` (the new screens allow one qualifier per block, so the « or » takes two blocks); 60 minutes.
+
+  All three: project `myweli-app`, environment `production` (what `tool/release_build.sh` sends), an e-mail to you. A test notification fired for each block, and **the e-mails arrived, as reported by you**. Sentry's default alert on `myweli-app` (`757127`, every environment) is **turned off, not deleted** (decision 49).
+  - **Why « every event »:** Sentry no longer has a « seen by more than N users » trigger; the user count is a filter now, and under « a new issue is created » it would only ever see one user.
+  - **Found while doing it, not changed here:** the backend's and web's default alerts (`757123`, `757125`) filter **no** environment, against observability §8.1's « every rule filters production ».
+  - **Not set up:** the phone push of decision 34 — e-mail only for now.
   - **What:** sessions are off to keep the privacy promise, so the planned crash-free-rate alert has nothing to measure.
   - **How:** in Sentry `myweli-app`, three issue alerts on production: a new issue in the latest release (any level — decision 44); any issue seen by more than 3 users in 1 h; app hangs seen by more than 3 users in 1 h. The hang alert matches `exception.type` containing « App Hang » (build 698's three names) or equal to `ApplicationNotResponding` (Android); the « 3 users » alert excludes both, so a hang alerts once. Send a test event for each, and update observability §8.3 and LAUNCH §1.4.
 - **B0.8 0.0.2 store media (P3 · M · decision 6).** **Only if needed** (decision 6). If yes: reshoot screenshots 3 and 8 with `tool/app_store_screenshots`, and re-cut the Revenus scene and poster with `tool/app_store_preview`.
 - ✅ **B0.9 Remove the unused « remote-notification » background mode (P3 · S · decision 7).** **Done in #708** — removed for the resubmitted build; verified first that the server never sends a silent push and the background handler is empty, and pinned both sides. The killed-app push check is in app-store-forms §11.6 (B0.2). Delete it from `Info.plist`, which both apps share, and check a real push with the app killed in the next TestFlight run.
 - ✅ **B0.11 Apple's 3.1.1 rejection: the Pro app signs salons in, it does not sign them up (P1 · M · decisions 38–43).** **Built in #711, shipped in build 698, resubmitted 2026-10-26 (B0.3)** — [pro-app-login-only.md](design/pro-app-login-only.md). App Review (2026-10-19, build 587): « Remove the account registration features for business and organizations ». On both apps: « Inscription Pro » (`/pro/register`) and « Ajouter un salon » (`/pro/salons/nouveau`) leave the app with their methods — the web keeps both; invitations stay; « S’inscrire sur myweli.com » opens the web sign-up in the browser; a sign-in with no account says « Aucun compte MyWeli Pro n’est associé à cette adresse. Si votre salon vous a invité… ». The review notes and the Resolution Center reply (app-store-forms §8, §13.2) say so plainly. **Then:** the resubmission (B0.3) after the device checks (B0.2).
+- **B0.14 Say how to fix iOS error 1000 at « Se connecter avec Apple » (P2 · S · decision 50, open).** Seen on 2026-10-26 on a device that is almost certainly Apple's (B0.1). Today `AuthorizationErrorCode.unknown` shows « Connexion Apple impossible. » like any other failure. Proposed for 0.0.2: on that code alone, a sentence that names the usual fix (an Apple Account signed in under Réglages), with the copy approved by you first and a test per code. Both apps share `api_auth_service.dart`.
 - **B0.10 Google Play forms for both apps (P2 · M).**
   - **What:** nothing has been typed into Play Console yet.
   - **How:** you type play-store-forms §1–§5 with the amended App access text. I check them against the policy and the iOS answers, make the 1024×500 banner, and add a length test for the access text.
@@ -369,13 +386,13 @@ This batch takes up three of the six suggested tasks that were never started. It
 ### Batch 10 — Only you can check
 
 - **App Store Connect for 0.0.1:**
-  - the privacy label, content rights, price and availability (the API shows `CANNOT_SELL` in 175 countries), contact details;
-  - whether the amended review notes are in place.
+  - ✅ **Read back through the API on 2026-10-28** — content rights `USES_THIRD_PARTY_CONTENT`; free (base price 0 in the United States); **Côte d'Ivoire only** (`available`, statuses `AVAILABLE_FOR_SALE_UNRELEASED_APP` and `CANNOT_SELL`), the other 174 countries not available, 27 of them also `TRADER_STATUS_NOT_PROVIDED` (the DSA status, app-store-forms §9.1); the review contact's four fields set, demo account `revue@myweli.test`; the amended notes in place, byte-identical to the ones pasted for 698 (B0.3). This is what « `CANNOT_SELL` in 175 countries » was.
+  - **Left: the privacy label** — the API does not expose it; only the site shows it.
 
   A read-back unblocks B9.1.
 - **`support@myweli.com` reaches a person.** It is the only contact on `/support`, which both store listings use.
 - ✅ **Sentry's GitHub integration knows `Zaslons/myweli`** (B9.4). **Already in place — read on 2026-10-26 through Sentry's API**: the GitHub integration has listed `Zaslons/myweli` since 2026-08-12; `set-commits` for build 698 was accepted, and the release lists 20 commits ending at `54b02dac`. Nothing left to do.
-- **App Preview:** whether Apple applied the 25 s poster frame, and how review and the store page treat the preview.
+- **App Preview:** ✅ **the 25 s poster frame is applied** — read through the API on 2026-10-27: both iPhone sizes show `myweli-pro-film-v2.mp4`, poster frame `00:00:25:00`, `COMPLETE`. **Left:** how review and the store page treat the preview.
 - **Walk the clients list in production** with a Pro session (`pageSize=1`, pages 1…N): all ids distinct and N equal to `total`. This observes #618's tie-breaker, which the deploy check could not.
 - **Exercise the T72 fix** (decision 21): register a throwaway Pro account with a foreign `providerId`, check it gets a new draft salon, then delete the account.
 - **The demo salon:**
