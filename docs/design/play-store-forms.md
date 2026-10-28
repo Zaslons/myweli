@@ -6,7 +6,7 @@
 | **Portée** | **MyWeli Pro** (`com.myweli.pro`) maintenant. MyWeli (`com.myweli.app`) au §8, à ré-auditer avant sa soumission. |
 | **Source de vérité** | La politique de confidentialité publiée (`/politique-confidentialite`) et le binaire — un formulaire qui les contredit est un rejet ET une exposition légale (LAUNCH.md §6.3) |
 | **Règle** | Chaque réponse ci-dessous est dérivée du code, du binaire ou de la politique, jamais inventée. En cas de doute en saisissant : STOP, on vérifie. |
-| **Garde-fous** | `mobile/test/infra/play_store_forms_test.dart` (longueurs du §1 contre les limites de Play ; libellés du §2 contre l'écran de connexion Pro) · `mobile/test/infra/app_review_notes_test.dart` (la phrase du compte démo, le verrou de suppression) |
+| **Garde-fous** | `mobile/test/infra/play_store_forms_test.dart` (longueurs du §1 contre les limites de Play ; le texte de connexion du §2 sous les 500 caractères que compte la console, et ses libellés contre l'écran de connexion Pro) · `mobile/test/infra/app_review_notes_test.dart` (la phrase du compte démo, le verrou de suppression) |
 
 Ordre conseillé dans la console : **Fiche du Play Store → Contenu de
 l'application (§2 à §5) → Test fermé (§6)**.
@@ -63,10 +63,12 @@ l'application (§2 à §5) → Test fermé (§6)**.
     recherches dans l'application » au §4. L'ancienne justification d'Apple
     (« le serveur ne journalise que le chemin, jamais la requête ») est fausse
     pour les journaux de Google Cloud ; voir BACKLOG B0.15.
-- **Pas de limite de longueur documentée** pour les instructions de
-  connexion : aucune page de Google n'en donne. Le « test de longueur » prévu
-  par B0.10 vise donc ce que Play limite vraiment, les textes de la fiche (§1),
-  et les libellés que le texte de connexion cite (§2).
+- **La longueur des instructions de connexion** : aucune page d'aide de
+  Google n'en donne, **mais la console en compte une**. Lu dans le formulaire
+  le 2026-10-28 : nom de l'ensemble 60 caractères, identifiant 100, mot de
+  passe 100, « Toute autre information » **500**. Le test de longueur prévu
+  par B0.10 tient donc ce texte sous 500, et les textes de la fiche sous les
+  limites de Play (§1).
 
 ---
 
@@ -179,22 +181,20 @@ ajouter des instructions :
   partout, réutilisables, sans code à usage unique, en anglais. Le compte démo
   a un code **fixe qui n'expire pas** : c'est exactement ce que Google demande.
 
-**Instructions supplémentaires** (coller tel quel — en anglais, comme Google le demande) :
+- **Nom** de l'ensemble (60 caractères au plus) : `Demo salon (shared review account)`
 
-> MyWeli Pro is the business app for beauty salons in Côte d'Ivoire (French
-> UI). It signs in with an e-mail address and a 6-digit code, not a password.
-> The demo account uses a FIXED code that never expires: it is the password
-> above.
-> 1. On the « Espace Pro » screen, type revue@myweli.test in « Votre e-mail ».
-> 2. Tap « Continuer avec e-mail ». No e-mail is sent: the .test domain cannot receive mail, and the fixed code replaces the one normally e-mailed.
-> 3. Type the code in « Code à 6 chiffres », then tap « Se connecter ».
-> You land on « Maison Nala », a complete demo salon: agenda, manual bookings,
-> clients, services, photos, availability and data export all work. Three
-> actions are deliberately disabled for this shared demo account and say so on
-> screen (« Compte de démonstration — cette action est désactivée. »):
-> publishing the salon, inviting team members by e-mail, and deleting the
-> account. No payment of any kind happens in the app. The app only signs in to
-> existing salon accounts; salons sign up on myweli.com.
+**Instructions supplémentaires** (coller tel quel — en anglais, comme Google le demande ; dans « Toute autre information requise pour accéder à votre appli », **500 caractères au plus**, retours à la ligne compris — celui-ci en fait 463) :
+
+> Sign-in is an e-mail and a 6-digit code. The demo code is FIXED and never expires: it is the password above.
+> 1. On « Espace Pro », type revue@myweli.test in « Votre e-mail ».
+> 2. Tap « Continuer avec e-mail ». No e-mail is sent.
+> 3. Type the code in « Code à 6 chiffres », tap « Se connecter ».
+> Three actions are disabled on this shared demo salon and say « Compte de démonstration — cette action est désactivée. »: publishing, inviting staff, deleting the account.
+
+Une ligne de citation = une ligne collée. Le reste de ce que disent les notes
+App Store (paiements, pièces d'identité, modération, position) ne tient pas
+dans 500 caractères. Il n'est pas nécessaire pour se connecter, et le reste du
+formulaire le dit.
 
 - **Pourquoi « trois actions »** : la suppression du compte démo est bloquée
   en production depuis le 2026-10-14. C'est la ligne datée d'app-store-forms

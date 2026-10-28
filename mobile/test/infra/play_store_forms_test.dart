@@ -11,9 +11,11 @@ import 'package:flutter_test/flutter_test.dart';
 ///    full description 4,000 characters (Play help, « Add product details »).
 ///    And the full description is the App Store's, word for word: the page
 ///    says so, and two stores telling two stories is how a claim drifts.
-///    (B0.10 first asked for a length test on the SIGN-IN instructions; no
-///    page of Google's gives that field a limit — 2026-10-28 — so the test
-///    goes where Play's limits are real.)
+///    **And the sign-in instructions fit their field.** No help page of
+///    Google's states a limit; the console does — « 0/500 » under « Toute
+///    autre information requise pour accéder à votre appli », 60 for the
+///    set's name (read in the form on 2026-10-28). The first English draft
+///    was over 1,000 characters and would have been cut or refused.
 /// 2. **The sign-in steps quote labels the Pro app shows.** The 2026-09-24
 ///    audit found « Se connecter par e-mail » in this text, a label that
 ///    never existed. Every « … » in the numbered steps must be a string
@@ -149,6 +151,19 @@ void main() {
               'sign-in screen',
         );
       }
+    });
+
+    test('the instructions fit the console: 500 characters, newlines '
+        'included; the set\'s name 60', () {
+      final pasted = instructions().join('\n');
+      expect(pasted.length, greaterThan(200), reason: 'anti-vacuity');
+      expect(
+        pasted.runes.length,
+        lessThanOrEqualTo(500),
+        reason: '${pasted.runes.length} characters for a 500-character field',
+      );
+      final name = codeSpanAfter(section(play, '## 2 · '), '**Nom** de');
+      expect(name.runes.length, inInclusiveRange(1, 60), reason: name);
     });
 
     test('the username typed in the steps is the one in the form', () {

@@ -9,7 +9,10 @@
     - la bannière 1024 × 500 ;
     - les 8 cadres approuvés, recomposés en 1080 × 2160, barre d'état de l'iPhone coupée ;
     - l'icône 512, à partir de celle de l'app Pro.
-  - **Le garde-fou :** `play_store_forms_test.dart` vérifie trois choses. Les limites de Play et la même description que l'App Store ; chaque libellé cité sur l'écran de connexion Pro ; chaque type de l'étiquette App Store présent sur Play.
+  - **Le garde-fou :** `play_store_forms_test.dart` vérifie trois choses.
+    - **Les limites de Play :** la fiche, et la même description que l'App Store. Les instructions de connexion tiennent sous les **500 caractères** que la console compte (aucune page d'aide ne le dit) : 463 aujourd'hui, contre plus de 1 000 dans le premier jet.
+    - Chaque libellé cité est présent sur l'écran de connexion Pro.
+    - Chaque type de l'étiquette App Store est présent sur Play.
   - **Trouvé en route (B0.15, décision 55) :** les journaux de requêtes de Cloud Run gardent 30 jours l'URL entière, recherche comprise. La raison donnée à Apple pour « Search History : non » est donc fausse.
   - **Reste :**
     - la saisie dans la Play Console, dans le volet navigateur, le propriétaire connecté ;

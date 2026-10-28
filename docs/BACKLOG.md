@@ -220,10 +220,10 @@ Each question has a recommendation. Answers unblock the item named in brackets.
     - **Sign-in details:** in English, as Google asks, with « three actions disabled » (the deletion lock was verified in production on 2026-10-14).
     - **The listing:** plain text; Play does not render Markdown.
   - **Graphics made:** `tool/app_store_screenshots/feature_graphic.py` (the 1024×500 banner) and `play_screenshots.py` (the 8 approved frames at 1080×2160, Play's 2:1 limit, with the iPhone status bar cropped; and the 512 icon from the Pro app's own).
-  - **The guard:** `play_store_forms_test.dart`. Google states no limit for the sign-in instructions, so the « length test » goes where Play's limits are real:
-    - the listing within 30, 80 and 4,000 characters, and the same description as the App Store;
-    - every label in the sign-in steps on the Pro sign-in screen;
-    - every App Store data type with its Play row.
+  - **The guard:** `play_store_forms_test.dart`.
+    - **The length test:** no help page of Google's states a limit for the sign-in instructions, but the console counts one: « Toute autre information » holds **500** characters, the set's name 60 (read in the form on 2026-10-28). The first English draft was over 1,000. The test holds the text under 500 (463 today) and the listing within 30, 80 and 4,000 characters, the same description as the App Store.
+    - every label in the sign-in steps is on the Pro sign-in screen;
+    - every App Store data type has its Play row.
   - **Left:**
     - typing it into the Play Console, in the browser pane once you sign in, each form shown to you before it is saved (decision 53);
     - a signed AAB and the backed-up upload key (LAUNCH §6.3);
