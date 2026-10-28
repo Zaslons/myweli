@@ -203,14 +203,26 @@ export function cspString(opts) {
 /// policy nobody reads is the "guard that cannot fire" pattern in another suit.
 ///
 /// DSN shape: https://<publicKey>@<host>/<projectId>
-function sentryReportUri() {
-  const dsn = process.env.NEXT_PUBLIC_SENTRY_DSN;
+///
+/// **`sentry_environment` is the browser's only way to say where it was.** It
+/// posts the report itself, so no SDK attaches an environment — and the web's
+/// Sentry alert watches `production` only. The name is the three
+/// `sentry.*.config.ts`' own expression, so a report and an SDK event from one
+/// deployment land in the same environment (a test pins the four together):
+/// docs/design/observability-error-reporting.md §8.1.1.
+export function sentryReportUri({
+  dsn = process.env.NEXT_PUBLIC_SENTRY_DSN,
+  environment = process.env.NEXT_PUBLIC_SENTRY_ENV ?? 'development',
+} = {}) {
   if (!dsn) return null;
   try {
     const u = new URL(dsn);
     const projectId = u.pathname.replace(/^\//, '');
     if (!u.username || !projectId) return null;
-    return `https://${u.host}/api/${projectId}/security/?sentry_key=${u.username}`;
+    return (
+      `https://${u.host}/api/${projectId}/security/?sentry_key=${u.username}` +
+      `&sentry_environment=${encodeURIComponent(environment)}`
+    );
   } catch {
     return null;
   }

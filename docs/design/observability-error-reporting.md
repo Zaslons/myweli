@@ -248,6 +248,47 @@ is notable, and there are few enough that reading all of them is realistic.
 > decision 49), replaced by §8.3's three alerts, which filter `production` — the
 > name `tool/release_build.sh` sends, not `prod`.
 
+#### 8.1.1 The backend and the web default alerts filtered, too (2026-10-28)
+
+The owner asked for both defaults to watch production only.
+
+**What each project actually sends.** Read through Sentry's API: the error
+events of the last 90 days, grouped by environment.
+
+| Project | Environments seen | Where the name comes from |
+|---|---|---|
+| `myweli-backend` | `prod` only — 8 events, 2026-10-07 → 10-22 | `ENV` in `infra/gcp/service.yaml`, sent as `Env.name` (`error_reporter.dart`) |
+| `myweli-web` | `production` (15 events, 2026-09-29 → 10-17), **and one with none** | `NEXT_PUBLIC_SENTRY_ENV` per Vercel environment (§9.6), default `development` |
+
+**The backend's alert `757123` now filters `prod`.**
+- Set in « Monitors → Alerts » and read back through the API.
+- Its two triggers, its detector and its e-mail action are unchanged.
+
+**The web needed one more step first: its CSP reports.**
+- The web event without an environment was **a CSP violation report**, which
+  Sentry ranked high priority: `MYWELI-WEB-9`, « Blocked 'script' from
+  'connect.facebook.net' » on `https://myweli.com/`, 2026-10-21.
+- The browser posts these reports itself, to the `report-uri` that
+  `next.config.mjs` derives from the DSN. No Sentry SDK is involved, so no
+  environment is attached.
+- With the alert filtered as it was, it would have silenced the one detector
+  the privacy promise relies on (`tool/check-privacy-promise.spec.ts`: « no
+  report-uri — violations would go nowhere »).
+
+**The decision (owner, 2026-10-28):** filter, and tag the reports.
+- **The tag.** `sentryReportUri` appends `&sentry_environment=<name>`, the
+  parameter Sentry's security endpoint reads.
+- **The name** is the expression the three `sentry.*.config.ts` use:
+  `process.env.NEXT_PUBLIC_SENTRY_ENV ?? 'development'`.
+  - So a report and an SDK event from the same deployment carry the same
+    environment.
+  - A test pins that the four places agree.
+- **The header is built at `next build`.** Merging therefore redeploys the
+  site, and the deployed `Content-Security-Policy-Report-Only` header is what
+  to read back.
+- **Only then is `757125` filtered to `production`.** Filtering first would
+  leave a window in which a production CSP report e-mails no one.
+
 ### 8.2 Not yet — rate and spike thresholds
 
 Meaningless without a baseline. "More than N errors in M minutes" needs a normal
