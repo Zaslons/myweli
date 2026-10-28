@@ -417,3 +417,14 @@ relit de toute façon). Hygiène, gardée, non épinglée.
 
 **Non vérifié** : sur un téléphone, une session réellement refusée par le
 serveur de production (il faudrait révoquer un jeton de renouvellement réel).
+
+> **2026-10-28 — rebasée sur `main`** (après B9.9 #706/#707, B0.11 #711 et
+> le lot 0).
+> - **Un seul conflit :** `favorites_provider.dart`. Le compteur de compte
+>   de cette PR se trouvait à côté de la liste, devenue `List<SalonId>` ;
+>   les deux sont gardés.
+> - **Une correction dans les tests :** les quatre réservations de
+>   `account_scope_stores_test` et `account_switch_test` nomment leur salon
+>   en `SalonId`, comme le reste de la suite.
+> - **Aucun autre changement :** analyse à 0 ; les tests des fichiers
+>   touchés passent.
