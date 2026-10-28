@@ -231,6 +231,15 @@ class ApiAuthService implements AuthServiceInterface {
   void _reportSignInFailure(String provider, String code) =>
       AppLogger.error('social_sign_in_failed provider=$provider code=$code');
 
+  /// What a failed Apple sheet says, for both Apple doors. Only error 1000
+  /// (`unknown`) has a fix the person can make, so only it names one
+  /// (docs/design/apple-signin-error-1000.md, B0.14); `canceled` never gets
+  /// here.
+  static String _appleFailure(AuthorizationErrorCode code) =>
+      code == AuthorizationErrorCode.unknown
+      ? kAppleAccountCheckMessage
+      : 'Connexion Apple impossible.';
+
   @override
   Future<ApiResponse<User>> signInWithGoogle() async {
     try {
@@ -302,10 +311,7 @@ class ApiAuthService implements AuthServiceInterface {
         return ApiResponse.error('', code: 'cancelled');
       }
       _reportSignInFailure('apple', e.code.name);
-      return ApiResponse.error(
-        'Connexion Apple impossible.',
-        code: 'apple_failed',
-      );
+      return ApiResponse.error(_appleFailure(e.code), code: 'apple_failed');
     } catch (_) {
       _reportSignInFailure('apple', 'non_plugin_error');
       return ApiResponse.error(
@@ -540,8 +546,8 @@ class ApiAuthService implements AuthServiceInterface {
         return const ProviderLoginResult.failure('', code: 'cancelled');
       }
       _reportSignInFailure('apple', e.code.name);
-      return const ProviderLoginResult.failure(
-        'Connexion Apple impossible.',
+      return ProviderLoginResult.failure(
+        _appleFailure(e.code),
         code: 'apple_failed',
       );
     } catch (_) {

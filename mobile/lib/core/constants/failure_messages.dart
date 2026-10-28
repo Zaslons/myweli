@@ -23,3 +23,13 @@ const kGenericErrorMessage = 'Une erreur est survenue. Réessayez.';
 const kNoProAccountMessage =
     'Aucun compte MyWeli Pro n’est associé à cette adresse. Si votre salon '
     'vous a invité, connectez-vous avec l’adresse qui a reçu l’invitation.';
+
+/// « Continuer avec Apple » failed on the device with iOS error 1000
+/// (`AuthorizationErrorCode.unknown`), before any request — usually a phone
+/// with no Apple Account signed in, an inference the error itself cannot
+/// confirm, so the sentence asks to CHECK rather than names the cause. Every
+/// other Apple failure keeps « Connexion Apple impossible. ».
+/// docs/design/apple-signin-error-1000.md §2.3 (B0.14, owner's choice A).
+const kAppleAccountCheckMessage =
+    'Connexion Apple impossible sur cet appareil. Vérifiez dans Réglages '
+    'qu’un compte Apple est connecté, puis réessayez.';
