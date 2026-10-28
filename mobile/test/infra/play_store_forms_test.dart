@@ -5,7 +5,8 @@ import 'package:flutter_test/flutter_test.dart';
 /// docs/design/play-store-forms.md — what the owner (or Claude, in the browser
 /// pane) types into the Play Console for MyWeli Pro (BACKLOG B0.10).
 ///
-/// Three facts about that page that nothing checked:
+/// Four facts about that page that nothing checked (the fourth, §6, is what
+/// the closed test's testers and salons are sent):
 ///
 /// 1. **The listing fits Play's limits** — name 30, short description 80,
 ///    full description 4,000 characters (Play help, « Add product details »).
@@ -25,6 +26,17 @@ import 'package:flutter_test/flutter_test.dart';
 ///    Play. The iOS table (app-store-forms §7.1, §7.2) is read, each type
 ///    mapped to its Play name, and the Play table (§4) must carry it. A new
 ///    iOS type with no mapping fails here rather than being skipped.
+/// 4. **What testers are told is what the code does** (§6.3–§6.5). A tester
+///    who looks for a button that does not exist reports the app as broken,
+///    and that report is what Google reads before production. Every « … » in
+///    the three texts is a literal of the Pro sign-in or the invitation card;
+///    the Android version, the invitation's lifetime, the trial and the seats
+///    are read from the files that set them; and every [placeholder] has a
+///    line in §6.2 saying what replaces it.
+///    **What it cannot see:** a literal in the file is not proof it is drawn.
+///    `invitation_card.dart` also writes « Rejoindre » into the text it
+///    measures, so renaming only the button left the guard green (a mutation
+///    tried on 2026-10-28). It goes red once no literal holds the word.
 void main() {
   final play = File('../docs/design/play-store-forms.md').readAsStringSync();
   final ios = File('../docs/design/app-store-forms.md').readAsStringSync();
@@ -239,6 +251,182 @@ void main() {
           reason:
               '« $type » is declared to Apple; its Play counterpart '
               '« ${toPlay[type]} » is missing from play-store-forms §4',
+        );
+      }
+    });
+  });
+
+  group('§6 — what testers and salons are told is what the code does', () {
+    /// The three texts sent as they are (§6.3, §6.4, §6.5).
+    const anchors = [
+      '**Message aux salons** (coller tel quel)',
+      '**Message aux proches** (coller tel quel)',
+      '**Guide du testeur** (coller tel quel)',
+    ];
+    String closedTest() => section(play, '## 6 · ');
+    String guide() => fencedAfter(closedTest(), anchors[2]);
+    String salons() => fencedAfter(closedTest(), anchors[0]);
+    String checklist() {
+      final s = closedTest();
+      final start = s.indexOf('### 6.2');
+      expect(start, isNonNegative, reason: 'no §6.2');
+      return s.substring(start, s.indexOf('### 6.3', start));
+    }
+
+    /// The string literals of the screens a tester goes through — the Pro
+    /// sign-in, and the invitation card it shows — comments removed.
+    Set<String> onScreen() {
+      final out = <String>{};
+      for (final path in [
+        'lib/screens/provider/auth/pro_login_screen.dart',
+        'lib/widgets/team/invitation_card.dart',
+      ]) {
+        final code = File(path)
+            .readAsStringSync()
+            .replaceAll(RegExp(r'/\*[\s\S]*?\*/'), '')
+            .split('\n')
+            .map((l) => l.replaceFirst(RegExp(r'(^|\s)//.*$'), ''))
+            .join('\n');
+        out.addAll([
+          for (final m in RegExp(r"'([^'\\]*)'").allMatches(code)) m.group(1)!,
+        ]);
+      }
+      return out;
+    }
+
+    /// The first number captured by [pattern] in [text].
+    int numberIn(String text, RegExp pattern, String what) {
+      final m = pattern.firstMatch(text);
+      expect(m, isNotNull, reason: 'no $what');
+      return int.parse(m!.group(1)!);
+    }
+
+    test('every « label » in the texts sent is on the screen it names', () {
+      final labels = [
+        for (final a in anchors)
+          for (final m in RegExp(
+            '« ([^»]+) »',
+          ).allMatches(fencedAfter(closedTest(), a)))
+            m.group(1)!,
+      ];
+      // Anti-vacuity: the guide names the sign-in's five labels, « Rejoindre »
+      // and « Renvoyer le code ».
+      expect(
+        labels.toSet(),
+        hasLength(greaterThanOrEqualTo(7)),
+        reason: labels.join(' | '),
+      );
+      final screens = onScreen();
+      for (final label in labels) {
+        expect(
+          screens,
+          contains(label),
+          reason:
+              '« $label » is sent to testers and is on no screen of the Pro '
+              'sign-in or the invitation card',
+        );
+      }
+    });
+
+    test('the Android version in the guide is the app\'s minimum', () {
+      final gradle = File('android/app/build.gradle.kts').readAsStringSync();
+      final api = numberIn(
+        gradle,
+        RegExp(r'minSdk = maxOf\((\d+),'),
+        'minSdk floor in build.gradle.kts',
+      );
+      // API level → the Android version a tester knows.
+      const android = {24: 7, 25: 7, 26: 8, 27: 8, 28: 9, 29: 10, 30: 11};
+      expect(
+        android.keys,
+        contains(api),
+        reason: 'minSdk $api has no Android version here — add it',
+      );
+      final said = numberIn(
+        guide(),
+        RegExp(r'Android \(version (\d+) ou plus récente\)'),
+        'Android version in the guide',
+      );
+      expect(
+        said,
+        android[api],
+        reason: 'minSdk $api is Android ${android[api]}',
+      );
+    });
+
+    test('the invitation lasts as long as the guide says', () {
+      final team = File(
+        '../backend/lib/src/access/team_service.dart',
+      ).readAsStringSync();
+      final days = numberIn(
+        team,
+        RegExp(r'invitationValidity = Duration\(days: (\d+)\)'),
+        'TeamService.invitationValidity',
+      );
+      expect(
+        numberIn(guide(), RegExp(r'valable (\d+) jours'), 'validity'),
+        days,
+      );
+      expect(
+        numberIn(
+          checklist(),
+          RegExp(r'expire au bout de (\d+) jours'),
+          'expiry',
+        ),
+        days,
+      );
+    });
+
+    test('the trial promised to salons is the trial the server gives', () {
+      final sub = File(
+        '../backend/lib/src/subscription/subscription.dart',
+      ).readAsStringSync();
+      final days = numberIn(
+        sub,
+        RegExp(r'kProTrialDays = (\d+);'),
+        'kProTrialDays',
+      );
+      expect(
+        numberIn(salons(), RegExp(r"les (\d+) jours d'essai gratuit"), 'trial'),
+        days,
+      );
+    });
+
+    test('the test salon\'s seats are the Business offer\'s', () {
+      final svc = File(
+        '../backend/lib/src/subscription/salon_subscription_service.dart',
+      ).readAsStringSync();
+      final seats = numberIn(
+        svc,
+        RegExp(r"'business': (\d+),"),
+        "tierSeats['business']",
+      );
+      final text = checklist();
+      expect(
+        numberIn(text, RegExp(r'(\d+) places, vous compris'), 'seats'),
+        seats,
+      );
+      // The owner holds one of them (`used` counts every active row).
+      expect(
+        numberIn(text, RegExp(r'donc (\d+) invités au plus'), 'invitees'),
+        seats - 1,
+      );
+    });
+
+    test('every [placeholder] in the guide is one §6.2 says how to fill', () {
+      final placeholders = {
+        for (final a in anchors)
+          for (final m in RegExp(
+            r'\[[A-ZÉ ]+\]',
+          ).allMatches(fencedAfter(closedTest(), a)))
+            m.group(0)!,
+      };
+      expect(placeholders, isNotEmpty, reason: 'anti-vacuity');
+      for (final p in placeholders) {
+        expect(
+          checklist(),
+          contains('`$p`'),
+          reason: '$p reaches a tester and §6.2 never says what replaces it',
         );
       }
     });

@@ -6,7 +6,7 @@
 | **Portée** | **MyWeli Pro** (`com.myweli.pro`) maintenant. MyWeli (`com.myweli.app`) au §8, à ré-auditer avant sa soumission. |
 | **Source de vérité** | La politique de confidentialité publiée (`/politique-confidentialite`) et le binaire — un formulaire qui les contredit est un rejet ET une exposition légale (LAUNCH.md §6.3) |
 | **Règle** | Chaque réponse ci-dessous est dérivée du code, du binaire ou de la politique, jamais inventée. En cas de doute en saisissant : STOP, on vérifie. |
-| **Garde-fous** | `mobile/test/infra/play_store_forms_test.dart` (longueurs du §1 contre les limites de Play ; le texte de connexion du §2 sous les 500 caractères que compte la console, et ses libellés contre l'écran de connexion Pro) · `mobile/test/infra/app_review_notes_test.dart` (la phrase du compte démo, le verrou de suppression) |
+| **Garde-fous** | `mobile/test/infra/play_store_forms_test.dart` (longueurs du §1 contre les limites de Play ; le texte de connexion du §2 sous les 500 caractères que compte la console, et ses libellés contre l'écran de connexion Pro) · `mobile/test/infra/app_review_notes_test.dart` (la phrase du compte démo, le verrou de suppression) · le même test, §6 : les libellés cités aux testeurs (écran de connexion Pro, carte d'invitation), et la version d'Android, les jours d'invitation et d'essai, les places, lus dans le code |
 
 Ordre conseillé dans la console : **Fiche du Play Store → Contenu de
 l'application (§2 à §5) → Test fermé (§6)**.
@@ -413,7 +413,174 @@ Ce que cela veut dire pour MyWeli Pro :
 3. **Les 12 testeurs, c'est toi qui les trouves.** Ce sont 12 comptes Google
    qui installent et gardent l'app 14 jours. Idéalement des salons : ils ont
    un compte MyWeli Pro (inscription sur myweli.com) ou une invitation
-   d'équipe. Le compte démo reste réservé aux relecteurs.
+   d'équipe. Le compte démo reste réservé aux relecteurs. Où les trouver, et
+   ce qu'on leur envoie : §6.1 à §6.5.
+
+**Une seule façon d'y échapper : un compte développeur d'organisation.** La
+règle ne vise que les comptes personnels (aide 14151465). Un compte personnel
+ne se convertit pas : il faudrait une société immatriculée, un numéro D-U-N-S,
+un nouveau compte Play d'organisation, puis le transfert de l'app. C'est plus
+long que les 14 jours, et l'immatriculation vient après le lancement. Le test
+fermé se fait donc maintenant. Le passage à un compte d'organisation reste à
+envisager avant MyWeli (client) : la page de Google parle d'un test « pour
+leur appli », ce qui laisse penser qu'il en faudra un second pour elle.
+
+### 6.1 Qui recruter (décisions 60 à 62, 2026-10-28)
+
+- **Uniquement des téléphones Android.** L'app s'installe depuis le Play
+  Store, sur Android 7.0 ou plus récent (`minSdkVersion` 24, lu dans l'APK de
+  version), avec un compte Google.
+  - Un utilisateur d'iPhone peut s'inscrire au test sur le Web, mais ne pourra
+    jamais ouvrir l'app. Or Google demande, avant la production, si les
+    testeurs ont utilisé l'app.
+  - Les salons sur iPhone passeront par TestFlight
+    ([mobile-external-testing.md](mobile-external-testing.md) §4.1).
+- **Viser 15 à 20 personnes.** Au moment de la demande d'accès à la
+  production, 12 doivent être inscrites depuis 14 jours sans interruption.
+  Celle qui quitte le test ne compte plus.
+- **D'abord des salons**, les futurs clients de MyWeli Pro.
+  - Ils créent leur compte sur `myweli.com/pro/inscription` et utilisent l'app
+    pour leur vrai salon.
+  - C'est l'usage que Google demande de décrire : toutes les fonctionnalités
+    utilisées, un usage qui ressemble à celui de vrais utilisateurs, un résumé
+    des retours et la façon de les recueillir (aide 14151465).
+- **Puis des proches, dans l'équipe d'un salon d'essai** (décision 60), pas
+  dans le salon démo :
+  - le salon démo est celui où travaillent les relecteurs d'Apple et de
+    Google. Ce que des proches y changeraient resterait sous leurs yeux
+    jusqu'à la réinitialisation des 7 jours ;
+  - tous partageraient un seul compte, donc ses plafonds horaires (rendez-vous,
+    clients, catalogue), au risque de bloquer un relecteur ;
+  - et l'invitation d'équipe y est désactivée.
+- **Pas de testeurs achetés.** Des installations payées ne répondent pas aux
+  questions de Google sur l'usage. Les groupes d'échange de tests (on teste
+  leurs apps, ils testent la nôtre) peuvent compléter le nombre, sans
+  remplacer les salons.
+- **Les retours** (décision 61) : par e-mail à `support@myweli.com`, ou en
+  avis privé sur la page Play de l'app (la console les montre sous
+  « Commentaires des testeurs »).
+- **Ce qu'on promet aux salons** (décision 62) : l'accès avant la sortie, et
+  les 90 jours d'essai gratuit que tout salon reçoit. Aucun prix, aucune autre
+  promesse.
+
+### 6.2 Avant le premier message — à faire par le propriétaire, dans l'ordre
+
+Les libellés de Google Groups et des pages de test de Play ne sont pas relus
+d'ici : ils sont décrits, pas cités.
+
+1. **Le groupe Google.** Sur groups.google.com, un groupe (par exemple
+   `myweli-pro-testeurs`) que tout le monde peut rejoindre sans validation.
+   - Son adresse `…@googlegroups.com` va dans la liste des testeurs de la
+     piste fermée.
+   - Son lien `https://groups.google.com/g/…` remplace `[LIEN DU GROUPE]`
+     dans le guide (§6.5).
+2. **La piste de test fermé** (tableau de bord → « Tests fermés »).
+   - **Pays** : par défaut, la piste reprend ceux de la production, qui n'en a
+     aucun. Ajouter la Côte d'Ivoire, et les pays où vivent des testeurs
+     ([mobile-external-testing.md](mobile-external-testing.md) §4.1).
+   - **Testeurs** : le groupe Google.
+   - **Commentaires** : `support@myweli.com`, si la console demande une
+     adresse.
+   - **Le lien d'inscription** que la console affiche (de la forme
+     `https://play.google.com/apps/testing/com.myweli.pro`) remplace
+     `[LIEN DU TEST]` dans le guide.
+3. **La version** : la clé d'importation sauvegardée, l'AAB signé
+   (`tool/release_build.sh`, LAUNCH §6.3), la version créée dans la piste
+   fermée, puis envoyée à l'examen de Google.
+4. **L'empreinte SHA-1 de Play, avant toute invitation.** Play re-signe l'app
+   avec sa propre clé. Tant que l'empreinte de cette clé n'est pas enregistrée
+   sur le client OAuth Android de `com.myweli.pro`, « Continuer avec Google »
+   répond « Connexion Google impossible. » sur l'app installée depuis Play.
+   La connexion par e-mail, elle, marche sans
+   ([mobile-external-testing.md](mobile-external-testing.md) §5.1).
+5. **Le salon d'essai des proches** (décision 60).
+   - Une adresse e-mail dédiée que vous lisez, pas celle de votre futur vrai
+     salon : hors offre Réseau, un compte ne tient qu'un salon.
+   - Sur `myweli.com/pro/inscription` : un nom (par exemple Salon d'essai
+     MyWeli), un téléphone, une adresse, et l'inscription **par e-mail**
+     (« Recevoir un code », puis « S’inscrire »).
+   - **C'est aussi l'essai de l'e-mail.** Rien d'ici ne prouve que les codes
+     arrivent : la demande répond 202 dans tous les cas, et l'envoi n'est pas
+     journalisé (lu le 2026-10-28). Le code doit arriver dans la boîte de
+     réception, pas dans les spams
+     ([mobile-external-testing.md](mobile-external-testing.md) §5.5).
+   - « Abonnement » → Business → « Choisir cette offre » : 90 jours d'essai,
+     15 places, vous compris, donc 14 invités au plus. Inviter demande une
+     offre active.
+   - **Ne jamais le mettre en ligne** : il reste invisible du public.
+   - « Équipe » → « + Inviter un membre », rôle **Manager**, une invitation
+     par proche, avec l'adresse qu'il vous a donnée. **Seulement une fois la
+     version disponible** : une invitation expire au bout de 7 jours.
+6. **Le test interne.** L'accueil de la console affiche « Tests internes »
+   pour MyWeli Pro. Une personne inscrite au test interne ne peut pas
+   rejoindre le test fermé avant de l'avoir quitté : vérifier sa liste.
+7. **Envoyer** le message (§6.3 ou §6.4), puis le guide (§6.5).
+
+### 6.3 Message aux salons
+
+WhatsApp ou e-mail, envoyé depuis votre numéro ou votre adresse : votre nom
+est déjà visible, le message n'en porte pas.
+
+**Message aux salons** (coller tel quel) :
+
+```text
+Bonjour,
+
+Je lance MyWeli Pro, une application pour gérer votre salon : l'agenda et les rendez-vous, la fiche de chaque client, vos prestations et vos tarifs, et votre page de réservation en ligne sur myweli.com.
+
+Avant sa sortie sur le Play Store, je cherche quelques salons pour la tester pendant 2 semaines sur un téléphone Android. Vous l'utiliseriez pour votre vrai salon, et vos remarques m'aideront à l'améliorer.
+
+Ce que vous y gagnez : l'accès avant tout le monde, et les 90 jours d'essai gratuit que reçoit chaque salon.
+
+Pour commencer, créez le compte de votre salon sur https://myweli.com/pro/inscription. Je vous envoie juste après le guide pour installer l'app.
+
+Merci !
+```
+
+### 6.4 Message aux proches
+
+**Message aux proches** (coller tel quel) :
+
+```text
+Salut !
+
+J'ai besoin de ton aide pour lancer MyWeli Pro, mon application de gestion pour les salons de beauté. Pour la publier sur le Play Store, Google demande qu'au moins 12 personnes la testent pendant 14 jours d'affilée.
+
+Il te faut un téléphone Android et un compte Google (Gmail). Tu vas recevoir par e-mail une invitation de MyWeli Pro à rejoindre l'équipe d'un salon d'essai : rien n'y est réel, tu peux tout essayer.
+
+Envoie-moi l'adresse e-mail que tu veux utiliser (ton Gmail, de préférence). Je t'envoie ensuite le guide : quelques minutes pour installer, puis tu ouvres l'app de temps en temps pendant 2 semaines et tu me dis ce qui ne va pas.
+
+Merci mille fois !
+```
+
+### 6.5 Le guide du testeur
+
+Le même pour tous, envoyé après le message. Remplacer `[LIEN DU GROUPE]` et
+`[LIEN DU TEST]` (§6.2). Chaque libellé entre guillemets est un texte de
+l'écran qu'il nomme ; le test le vérifie.
+
+**Guide du testeur** (coller tel quel) :
+
+```text
+MyWeli Pro : tester l'app en 5 étapes
+
+Il vous faut un téléphone Android (version 7 ou plus récente) avec le Play Store, et votre compte Google.
+
+1. Rejoignez le groupe des testeurs, avec le compte Google de votre téléphone : [LIEN DU GROUPE]
+
+2. Ensuite seulement, acceptez le test, avec le même compte Google : [LIEN DU TEST]
+
+3. Installez MyWeli Pro depuis la page Play Store indiquée par ce lien. Si l'app n'apparaît pas tout de suite, réessayez un peu plus tard.
+
+4. Connectez-vous.
+- Pour votre salon : comme lors de l'inscription sur myweli.com. Avec Google : « Continuer avec Google ». Par e-mail : « Votre e-mail », « Continuer avec e-mail », le code reçu dans « Code à 6 chiffres », puis « Se connecter ».
+- Invité(e) dans une équipe : avec l'adresse qui a reçu l'invitation. « Votre e-mail », « Continuer avec e-mail », le code, « Se connecter », puis « Rejoindre ». L'invitation est valable 7 jours.
+Pas de code ? Regardez dans les spams, puis touchez « Renvoyer le code ».
+
+5. Utilisez l'app pendant 14 jours : ajoutez des rendez-vous, ouvrez la fiche d'un client, modifiez une prestation ou des horaires. Ne quittez pas le test et gardez l'app jusqu'à la fin.
+
+Une remarque, un bug ? Écrivez à support@myweli.com, ou laissez un avis privé sur la page Play Store de l'app. Merci !
+```
 
 ---
 

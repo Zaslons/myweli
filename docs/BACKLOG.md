@@ -145,6 +145,9 @@ Each question has a recommendation. Answers unblock the item named in brackets.
 57. Let Google's automated tests use the demo credentials (default on)? [B0.10] — ✅ **Answered: leave it on**, knowing robots may change the demo salon Apple also reviews, until the weekly reset.
 58. Content rating / target audience: « 4+ like Planity Pro ». [B0.10] — ✅ **Answered: rating 3+ / PEGI 3 / ESRB Everyone; target audience 18+.**
 59. Play's listing asks whether its images were created or modified with AI. [B0.10] — ✅ **Answered (2026-10-28): not flagged.** The frames are composed by our scripts from real captures. You confirmed that neither screen 02's salon photo nor the icon came from an AI image tool.
+60. How do friends and family get past MyWeli Pro's login during the closed test? [B0.10] — ✅ **Answered (2026-10-28): as Managers of a new test salon.** You create it on myweli.com with a dedicated e-mail, choose Business (90-day trial, 15 seats), never publish it, and invite them. Not the demo salon: Apple and Google review in it, everyone would share one account's limits, and invitations are disabled there. All testers are on Android (the Play test installs only from the Play Store).
+61. Where do testers send feedback? [B0.10] — ✅ **Answered: by e-mail to support@myweli.com**, or as private feedback on the app's Play page.
+62. What do we promise salons in the recruitment message? [B0.10] — ✅ **Answered: only what is true today**: early access and the 90-day trial every salon gets. No price, no extra offer.
 
 ---
 
@@ -241,6 +244,12 @@ Each question has a recommendation. Answers unblock the item named in brackets.
       - **Read back after a reload:** 1/1, 1/1, 8/8, in order. Each of the 10 originals Google keeps has the same SHA-256 as the local file. The three texts match play-store-forms §1 by SHA-256.
       - « Déclaration relative aux éléments d'IA »: not flagged (decision 59).
     - **Nothing is sent for review.** « Envoyer l'appli pour examen » stays locked until the closed test is set up. « Publication gérée » is off, so a change is published as soon as Google approves it.
+  - **Recruiting the testers** (play-store-forms §6.1 to §6.5, decisions 60–62):
+    - who: Android only, 15 to 20 people; salons first, then friends as Managers of a test salon;
+    - your checklist in order (§6.2): the Google Group, the closed track, the release, Play's SHA-1 before any invitation, the test salon (which doubles as the e-mail delivery check), then the internal-test list;
+    - three texts to paste: to salons, to friends, and the testers' 5-step guide.
+    - **The guard** (`play_store_forms_test.dart` §6): every « label » in those texts is on the Pro sign-in or the invitation card; the Android version, the invitation's 7 days, the 90-day trial and the 15 seats are read from the code that sets them; every [placeholder] has its line in §6.2.
+    - **Only one way around the 12 testers:** an organization developer account. That needs a registered company and a D-U-N-S number, and a personal account can't be converted. It is longer than the test, so the test runs now.
   - **Left** (the app dashboard, read 2026-10-28; its setup section is gone):
     - the closed test's countries and regions, and its testers;
     - a signed AAB and the backed-up upload key (LAUNCH §6.3), then the release;
