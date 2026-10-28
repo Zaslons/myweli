@@ -383,8 +383,10 @@ Conçu pour les réalités d'ici : FCFA, communes, à domicile, réseaux lents e
 | **Catégorie principale** | **Business** — « Économie et entreprise » (comme « Entreprise » sur Play) | — |
 | Catégorie secondaire | **Productivity** — « Productivité » (facultative) | — |
 
-Que la boîte support@myweli.com soit réellement lue : UNVERIFIED (case §4 de
-[LAUNCH.md](../LAUNCH.md) encore ouverte).
+**La boîte support@myweli.com est lue — vérifié le 2026-10-28** (BACKLOG, lot 10).
+- **La page en ligne :** `/support` répond 200 et n'affiche qu'elle.
+- **Le serveur de courrier :** le courrier de myweli.com est chez Microsoft 365. Son serveur accepte `support@` (`250`) et refuse une adresse inventée (`550 5.4.1`), le témoin.
+- **Une personne :** l'e-mail d'essai du propriétaire y est arrivé, et il l'a lu (selon le propriétaire).
 
 ---
 
@@ -510,6 +512,16 @@ déjà déclarés.
 
 L'étiquette **consommateur** sera différente (sa position ne quitte pas
 l'appareil) — ne pas la dériver de ce tableau.
+
+> **Relu dans le site le 2026-10-28** (BACKLOG, lot 10 ; le propriétaire
+> connecté, lu par les données de la page elle-même). L'étiquette publiée
+> correspond **exactement** aux §7.1 et §7.2 :
+> - **13 types de données, tous « App Functionality ».** Crash Data et
+>   Performance Data sont « non liés », les 11 autres « liés ».
+> - **Aucune ligne de suivi.**
+> - **La politique de confidentialité** est
+>   `https://myweli.com/politique-confidentialite`.
+> - **Publiée le 2026-10-14 à 19:27 UTC.**
 
 ---
 
@@ -1552,10 +1564,10 @@ fait ; « site » : seulement dans le site App Store Connect.
 | Droits sur le contenu | vide | **vide** | **propriétaire** — c'est une déclaration (§9) |
 | Classification d'âge | remplie, 4+ | inchangée | — |
 | Prix, disponibilité | gratuit, Côte d'Ivoire seule | inchangés | à relire dans le site : l'API affiche `CANNOT_SELL` sur les 175 pays, sens inconnu avant une première sortie |
-| Confidentialité de l'app (l'étiquette) | illisible par l'API | **illisible par l'API** | **propriétaire, site** — les réponses du §7, puis « Publier » |
+| Confidentialité de l'app (l'étiquette) | illisible par l'API | **illisible par l'API** — **relue dans le site le 2026-10-28 : identique au §7**, publiée le 2026-10-14 | — |
 | Captures 1206 × 2622 et 1320 × 2868 | aucun jeu | **8 + 8**, toutes `COMPLETE`, dans l'ordre 01 → 08 ; dimensions, taille et somme MD5 de chaque fichier comparées aux fichiers validés | — |
 | Texte promotionnel, description, mots-clés | vides | ceux du §4 (144, 996 et 99 caractères — 100 octets pour les mots-clés) | — |
-| URL d'assistance | vide | `https://myweli.com/support` (200 le jour même) | la boîte `support@myweli.com` : à confirmer comme lue |
+| URL d'assistance | vide | `https://myweli.com/support` (200 le jour même) | — la boîte `support@myweli.com` est lue (vérifié le 2026-10-28, §5) |
 | URL marketing (facultative) | vide | **vide** — décision du propriétaire | — |
 | Copyright | vide | `2026 Sadr Eddine Daher` (§3) | — |
 | Publication de la version | **après approbation** | **manuelle** (`MANUAL`) | — |
@@ -1607,7 +1619,7 @@ la ligne « Verrou de suppression du compte démo — vérifié en production »
 du §8 datée**, c'est-à-dire après le déploiement du backend et l'essai de
 [demo-account-deletion-lock.md](demo-account-deletion-lock.md) §10.1* ; la boîte
 `support@myweli.com`, seul contact de la page d'assistance, à confirmer
-comme lue ; la politique de confidentialité, qui ne nomme Cloudflare que
+comme lue (*fait le 2026-10-28, §5*) ; la politique de confidentialité, qui ne nomme Cloudflare que
 pour le stockage alors que l'API passe par lui depuis le 2026-10-07 ; les
 vérifications sur l'iPhone du §11.6 sur le build retenu.
 
@@ -1657,6 +1669,12 @@ build porte le droit `applesignin`, la production accepte `apple`, et la
 connexion Apple du propriétaire sur 698 a atteint le serveur avec un jeton
 accepté. Sa cause habituelle — aucun compte Apple connecté sur l'appareil —
 est une déduction : l'événement n'en dit pas plus.
+
+**Ce qui change en 0.0.2** (B0.14, construit le 2026-10-28) : sur cette
+erreur, les deux apps diront « Connexion Apple impossible sur cet appareil.
+Vérifiez dans Réglages qu’un compte Apple est connecté, puis réessayez. »
+([apple-signin-error-1000.md](apple-signin-error-1000.md)). Le build 698 n'en
+a rien : la réponse ci-dessous décrit ce qu'Apple a entre les mains.
 
 À envoyer **seulement si** Apple cite la connexion Apple, en anglais, dans le
 fil. **Avant** : relire les journaux autour de l'heure qu'Apple donne — la
