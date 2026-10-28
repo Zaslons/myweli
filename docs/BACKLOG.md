@@ -139,8 +139,11 @@ Each question has a recommendation. Answers unblock the item named in brackets.
 51. Which apps go on Play now? [B0.10] — ✅ **Answered: MyWeli Pro only.** Production has no public salon (`GET /providers` → `total: 0`), so the client app would open empty; it follows once salons are public, like on iOS.
 52. Which Play developer account? [B0.10] — ✅ **Answered: personal.** So production waits for a closed test with 12 testers opted in for 14 days.
 53. Who types the Play Console forms? [B0.10] — ✅ **Answered: Claude, in the browser pane**, you signed in, each form shown to you before it is saved.
-54. Play screenshots? [B0.10] — ✅ **Answered: the 8 approved App Store frames, recomposed** at 1080×2160 with the iPhone status bar cropped.
+54. Play screenshots? [B0.10] — ✅ **Answered: the 8 approved App Store frames, recomposed** at 1080×1920 (9:16, the console's rule; Google's help page still says 2:1) with the iPhone status bar cropped.
 55. Search text in Google Cloud's request logs: exclude those entries (a), or keep them and declare « Search History » on the App Store label (b)? [B0.15] — open. *Recommended: (a) — a salon's client search has no reason to sit in logs for 30 days.*
+56. Play's sign-in details require ticking « the credentials give full access to all features »; the demo account has three actions disabled. [B0.10] — ✅ **Answered (2026-10-28): tick it**, the three actions named in the same declaration.
+57. Let Google's automated tests use the demo credentials (default on)? [B0.10] — ✅ **Answered: leave it on**, knowing robots may change the demo salon Apple also reviews, until the weekly reset.
+58. Content rating / target audience: « 4+ like Planity Pro ». [B0.10] — ✅ **Answered: rating 3+ / PEGI 3 / ESRB Everyone; target audience 18+.**
 
 ---
 
@@ -219,13 +222,21 @@ Each question has a recommendation. Answers unblock the item named in brackets.
     - **Declarations:** « Health apps » and « Financial features » are now due from every app.
     - **Sign-in details:** in English, as Google asks, with « three actions disabled » (the deletion lock was verified in production on 2026-10-14).
     - **The listing:** plain text; Play does not render Markdown.
-  - **Graphics made:** `tool/app_store_screenshots/feature_graphic.py` (the 1024×500 banner) and `play_screenshots.py` (the 8 approved frames at 1080×2160, Play's 2:1 limit, with the iPhone status bar cropped; and the 512 icon from the Pro app's own).
+  - **Graphics made:** `tool/app_store_screenshots/feature_graphic.py` (the 1024×500 banner) and `play_screenshots.py` (the 8 approved frames at 1080×1920, the console's « 16:9 ou 9:16 » rule, with the iPhone status bar cropped; and the 512 icon from the Pro app's own).
   - **The guard:** `play_store_forms_test.dart`.
     - **The length test:** no help page of Google's states a limit for the sign-in instructions, but the console counts one: « Toute autre information » holds **500** characters, the set's name 60 (read in the form on 2026-10-28). The first English draft was over 1,000. The test holds the text under 500 (463 today) and the listing within 30, 80 and 4,000 characters, the same description as the App Store.
     - every label in the sign-in steps is on the Pro sign-in screen;
     - every App Store data type has its Play row.
+  - **In the Play Console, 2026-10-28** (play-store-forms §0.1). Typed in the browser pane, each form shown to you before saving, then read back.
+    - **The 10 « Contenu de l'application » declarations are done.**
+      - Content rating: 3+ / PEGI 3 / ESRB Everyone, the « 4+ » you asked for (decision 58).
+      - Target audience: 18+.
+      - Data safety: 15 types, nothing shared.
+      - Sign-in details with your demo code; the « full access » box ticked because Play requires it (decision 56); Google's robot tests left on (decision 57).
+    - **The category is « Professionnel »**, and the contact details are published.
+    - **The listing texts are saved as a draft.**
   - **Left:**
-    - typing it into the Play Console, in the browser pane once you sign in, each form shown to you before it is saved (decision 53);
+    - the listing's images (icon, banner, 8 screenshots), which you drag in from `build/play-store/pro/`; the browser pane can't attach files;
     - a signed AAB and the backed-up upload key (LAUNCH §6.3);
     - **the closed test: 12 testers for 14 days** before production (decision 52).
   - **MyWeli (client):** later (decision 51); play-store-forms §8 lists what to re-audit then.

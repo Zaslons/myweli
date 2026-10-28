@@ -7,7 +7,7 @@
   - **Les informations de connexion** sont en anglais, comme Google le demande, avec trois actions désactivées sur le compte démo.
   - **Faits :**
     - la bannière 1024 × 500 ;
-    - les 8 cadres approuvés, recomposés en 1080 × 2160, barre d'état de l'iPhone coupée ;
+    - les 8 cadres approuvés, recomposés en 1080 × 1920 (9:16, la règle de la console), barre d'état de l'iPhone coupée ;
     - l'icône 512, à partir de celle de l'app Pro.
   - **Le garde-fou :** `play_store_forms_test.dart` vérifie trois choses.
     - **Les limites de Play :** la fiche, et la même description que l'App Store. Les instructions de connexion tiennent sous les **500 caractères** que la console compte (aucune page d'aide ne le dit) : 463 aujourd'hui, contre plus de 1 000 dans le premier jet.

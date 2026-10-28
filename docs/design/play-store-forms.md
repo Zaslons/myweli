@@ -72,6 +72,58 @@ l'application (§2 à §5) → Test fermé (§6)**.
 
 ---
 
+## 0.1 · Dans la console, le 2026-10-28
+
+Saisi dans le volet navigateur, chaque formulaire montré au propriétaire avant
+d'être enregistré, puis relu.
+
+- **« Contenu de l'application » : les 10 déclarations traitées.** La page dit
+  « Vous savez tout ! ».
+  - Règles de confidentialité, Annonces (non), Identifiant publicitaire (non),
+    Applis gouvernementales (non), Fonctionnalités financières (aucune),
+    Applis de santé (aucune).
+  - **Informations de connexion** : l'ensemble « Demo salon (shared review
+    account) », l'identifiant, le mot de passe tapé par le propriétaire, et le
+    texte du §2 (463/500).
+    - **La case « accès complet à toutes les fonctionnalités » est cochée.**
+      La console refuse l'ensemble sans elle. Les trois actions désactivées
+      sont nommées dans le même texte (choix du propriétaire).
+    - **Les tests automatiques de Google avec ces identifiants restent
+      activés** (réglage par défaut). Le propriétaire l'a choisi en sachant
+      que les robots peuvent modifier le salon démo partagé avec la revue
+      Apple jusqu'à la réinitialisation hebdomadaire.
+  - **Cible et contenu** : 18 ans et plus.
+  - **Classification du contenu** : catégorie « Tous les autres types
+    d'applications », contact `support@myweli.com`, conditions de l'IARC
+    acceptées (propriétaire).
+    - Les réponses du §3 donnent **3 ans et plus** (IARC), **PEGI 3**, ESRB
+      **Tout public**, USK et ClassInd « tous publics », avec la seule mention
+      « Interactivité des utilisateurs ».
+    - C'est le « 4+ » voulu, comme Planity Pro.
+  - **Sécurité des données** : les 15 types du §4, tous « collectés », aucun
+    « partagé », aucun éphémère.
+    - Les finalités portent les libellés de la console : « Fonctionnement de
+      l'appli », « Gestion des comptes », « Analyse », « Prévention des
+      fraudes, sécurité et conformité ».
+    - Création de compte : « Nom d'utilisateur et autre authentification » et
+      « OAuth » ; Google compte aussi un compte créé sur le Web vers lequel
+      l'app renvoie.
+    - L'URL de suppression : `https://myweli.com/suppression-compte`.
+    - Aperçu relu : « Aucune donnée partagée avec des tiers ».
+- **Paramètres de la fiche** : catégorie **Professionnel**, e-mail
+  `support@myweli.com`, site `https://myweli.com`, pas de téléphone.
+  - Ces coordonnées sont « publiées » aussitôt, sur l'accord du propriétaire.
+  - Le site, d'abord enregistré en `http://` (le « https:// » du champ était
+    une indication, pas un préfixe), a été corrigé et relu.
+- **Fiche par défaut (fr-FR)** : nom, description courte et description
+  complète **enregistrés en brouillon**, relus caractère pour caractère
+  (29/30, 70/80, 996/4000).
+  - **Restent les images** (icône, bannière, 8 captures) : le volet
+    navigateur ne peut pas joindre de fichier. Le propriétaire les dépose
+    depuis `build/play-store/pro/`.
+- **Rien n'est envoyé pour examen.** Les modifications attendent dans « Vue
+  d'ensemble de la publication », avec la première version du test fermé (§6).
+
 ## 1 · Fiche du Play Store (Store listing) — MyWeli Pro
 
 Limites de Play (aide Play, « Add product details ») : nom 30 caractères,
@@ -110,8 +162,9 @@ Conçu pour les réalités d'ici : FCFA, communes, à domicile, réseaux lents e
 
 ### 1.1 Catégorie et coordonnées
 
-- **Catégorie** : Application → **Entreprise** (Business), comme « Économie et
-  entreprise » sur l'App Store.
+- **Catégorie** : Appli → **Professionnel** (« Business » en anglais : la
+  console française ne dit pas « Entreprise », lu le 2026-10-28), comme
+  « Économie et entreprise » sur l'App Store.
 - **Adresse e-mail** : `support@myweli.com` — **lue**, vérifiée le 2026-10-28
   (BACKLOG, lot 10).
 - **Site Web** : `https://myweli.com`.
@@ -142,14 +195,18 @@ python3 tool/app_store_screenshots/play_screenshots.py --raw build/app-store/pro
 
 ### 1.3 Captures de téléphone — les 8 cadres approuvés, au format de Play
 
-- **Pourquoi pas les cadres App Store tels quels :** ils font 1206 × 2622.
-  Play refuse une capture dont le grand côté dépasse deux fois le petit (2,17
-  ici).
-- **Les cadres de Play** font **1080 × 2160** (2:1 tout juste), en PNG
-  24 bits sans alpha.
+- **Pourquoi pas les cadres App Store tels quels :** ils font 1206 × 2622, et
+  la console exige des captures « en 16:9 ou 9:16 » (sa règle d'import, lue
+  dans le formulaire le 2026-10-28). La page d'aide de Google dit encore « le
+  grand côté au plus deux fois le petit » : un premier jet en 1080 × 2160,
+  conforme à la page, aurait été refusé par la console.
+- **Les cadres de Play** font **1080 × 1920** (9:16), en PNG 24 bits sans
+  alpha.
   - Mêmes titres, mêmes captures, mêmes masques que l'App Store
     (`screens.json`).
-  - La barre d'état de l'iPhone est coupée ; la carte est un peu plus étroite.
+  - La barre d'état de l'iPhone est coupée. La carte est plus étroite (777
+    au lieu de 960 sur la mise en page de référence), pour que tout l'écran
+    tienne.
   - Au moins 4 captures d'au moins 1080 px rendent la fiche éligible aux mises
     en avant de Play : les 8 le sont.
 - **Ordre** : 01 Agenda · 02 Aperçu de la page · 03 Accueil · 04 Réservation ·
@@ -262,7 +319,7 @@ façon éphémère seulement.
 | Position → **Position exacte** | Facultatif | Fonctionnalités de l'appli | le point du salon (« Utiliser ma position ») — latitude et longitude envoyées et **publiques** |
 | Photos et vidéos → **Photos** | Facultatif | Fonctionnalités de l'appli · Prévention des fraudes, sécurité et conformité | galerie, logo, avant/après, photos d'équipe (publiques) ; images KYC (privées) |
 | Fichiers et documents → **Fichiers et documents** | Facultatif | Fonctionnalités de l'appli · Prévention des fraudes, sécurité et conformité | les pièces KYC envoyées en PDF (`pro_kyc_screen.dart` accepte jpg, png, webp et **pdf**) — *ajouté le 2026-10-28* |
-| Activité dans les applis → **Historique des recherches dans l'application** | Facultatif | Fonctionnalités de l'appli | le texte cherché dans « Clients » (`?query=`), gardé 30 jours dans les journaux de requêtes de Google Cloud — *ajouté le 2026-10-28* |
+| Activité dans les applis → **Historique des recherches via une appli** | Facultatif | Fonctionnalités de l'appli | le texte cherché dans « Clients » (`?query=`), gardé 30 jours dans les journaux de requêtes de Google Cloud — *ajouté le 2026-10-28* |
 | Activité dans les applis → **Autre contenu généré par l'utilisateur** | Facultatif | Fonctionnalités de l'appli | prestations et tarifs, descriptions, horaires, notes clients, notes de réservation |
 | Infos et performances des applis → **Journaux de plantage** | Obligatoire | **Analyses** | Sentry — utilisateur, fil d'Ariane, requête et extras retirés avant envoi (`beforeSend`) |
 | Infos et performances des applis → **Diagnostics** | Obligatoire | **Analyses** | les blocages (app hangs) que Sentry envoie quand il en survient |

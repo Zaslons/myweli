@@ -1,18 +1,19 @@
 #!/usr/bin/env python3
-"""Compose the MyWeli Pro Play Store phone screenshots (1080 × 2160).
+"""Compose the MyWeli Pro Play Store phone screenshots (1080 × 1920, 9:16).
 
 The same eight frames the owner approved for the App Store (compose.py,
 screens.json — captions, captures, masks), laid out for Play. Two things differ:
 
-- **The size.** Play refuses a screenshot whose long side is more than twice
-  its short side; the App Store frames are 1206 × 2622 (2.17). 1080 × 2160 is
-  exactly 2:1.
+- **The size.** The Play Console takes phone screenshots « en 16:9 ou 9:16 »
+  (its own upload rule, read in the form on 2026-10-28 — Google's help page
+  still says « at most twice the short side », which 1080 × 2160 met and the
+  console refuses). 1080 × 1920 is 9:16; the App Store frames are 1206 × 2622.
 - **The status bar.** The captures come from the iOS simulator; their status
   bar (« 09:41 », the iPhone's glyphs) is cropped off, as on the feature
   graphic (feature_graphic.STATUS_BAR_PX).
 
-The card is a little narrower than on the App Store frame, so it keeps the
-frame's margin under it at this height.
+The card is narrower than on the App Store frame so the whole screen still
+fits, with the frame's margin under it, at this height.
 
 It also writes the 512 × 512 store icon: the Pro app's own 1024 marketing icon
 (ios/…/AppIcon-pro.appiconset, pinned by mobile/test/infra/ios_app_icon_test
@@ -38,12 +39,12 @@ from PIL import Image
 import compose as c
 from feature_graphic import STATUS_BAR_PX
 
-SIZE = (1080, 2160)
+SIZE = (1080, 1920)
 ICON_SRC = c.ROOT / "mobile/ios/Runner/Assets.xcassets/AppIcon-pro.appiconset/Icon-1024.png"
 ICON_SIZE = (512, 512)
 # Card width at the 1320-wide reference layout (compose.L): 960 on the App
-# Store frame; 908 here leaves ~100 px under the card at 2160 high.
-CARD_W = 908
+# Store frame; 777 here leaves ~80 px under the card at 1920 high.
+CARD_W = 777
 
 
 def main() -> None:
