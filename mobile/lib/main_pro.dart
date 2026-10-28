@@ -3,8 +3,10 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
+import 'package:provider/single_child_widget.dart';
 
 import 'core/a11y/reduce_motion.dart';
+import 'core/access/account_scope.dart';
 import 'core/access/pro_salon_scope.dart';
 import 'core/config/build_config_guard.dart';
 import 'core/di/dependency_injection.dart';
@@ -146,6 +148,75 @@ Future<void> _startPush(ProAuthProvider auth) async {
   await FcmMessageBridge(handler).init();
 }
 
+/// The Pro app's stores, above every route and alive for the whole app.
+/// A function rather than a list inline in [MyweliProApp] so the tests mount
+/// the exact wiring the app runs (test/widget/pro_account_switch_test.dart).
+List<SingleChildWidget> proAppProviders(ProAuthProvider auth) => [
+  ChangeNotifierProvider.value(value: auth),
+  // Consumer listing data — read-only, powers « Aperçu de ma page »
+  // (docs/design/pro-salon-lifecycle.md B5).
+  ChangeNotifierProvider(create: (_) => ProviderProvider()),
+  ChangeNotifierProvider(create: (_) => LocalityProvider()),
+  // The salon's notification feed (the bell). ACCOUNT-scoped, not
+  // salon-scoped: /me/notifications is keyed by the token subject, so a
+  // multi-salon owner sees one merged feed and a switch must not reset
+  // it — hence AccountScope, not ProSalonScope: another ACCOUNT empties it
+  // (docs/design/pro-account-scope.md §2.1).
+  ChangeNotifierProvider(
+    create: (_) => AccountScope.track(
+      NotificationsProvider(service: serviceLocator.proNotificationService),
+    ),
+  ),
+  ChangeNotifierProvider(
+    create: (_) => ProSalonScope.track(ProDashboardProvider()),
+  ),
+  ChangeNotifierProvider(
+    create: (_) => ProSalonScope.track(ProAppointmentProvider()),
+  ),
+  ChangeNotifierProvider(
+    create: (_) => ProSalonScope.track(ProServiceProvider()),
+  ),
+  ChangeNotifierProvider(
+    create: (_) => ProSalonScope.track(ProArtistProvider()),
+  ),
+  ChangeNotifierProvider(
+    create: (_) => ProSalonScope.track(ProClientsProvider()),
+  ),
+  ChangeNotifierProvider(
+    create: (_) => ProSalonScope.track(ProJournalProvider()),
+  ),
+  ChangeNotifierProvider(
+    create: (_) => ProSalonScope.track(ProAvailabilityProvider()),
+  ),
+  ChangeNotifierProvider(
+    create: (_) => ProSalonScope.track(ProEarningsProvider()),
+  ),
+  ChangeNotifierProvider(
+    create: (_) => ProSalonScope.track(ProReviewsProvider()),
+  ),
+  ChangeNotifierProvider(
+    create: (_) => ProSalonScope.track(ProSalonProfileProvider()),
+  ),
+  ChangeNotifierProvider(
+    create: (_) => ProSalonScope.track(ProDepositSettingsProvider()),
+  ),
+  // The account's identity documents — AccountScope, like the bell.
+  ChangeNotifierProvider(create: (_) => AccountScope.track(ProKycProvider())),
+  ChangeNotifierProvider(
+    create: (_) => ProSalonScope.track(ProOnboardingProvider()),
+  ),
+  ChangeNotifierProvider(
+    create: (_) => ProSalonScope.track(ProGalleryProvider()),
+  ),
+  ChangeNotifierProvider(
+    create: (_) => ProSalonScope.track(ProBeforeAfterProvider()),
+  ),
+  ChangeNotifierProvider(
+    create: (_) => ProSalonScope.track(ProSubscriptionProvider()),
+  ),
+  ChangeNotifierProvider(create: (_) => ProSalonScope.track(ProTeamProvider())),
+];
+
 class MyweliProApp extends StatelessWidget {
   const MyweliProApp({super.key, required this.auth});
 
@@ -154,71 +225,7 @@ class MyweliProApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MultiProvider(
-      providers: [
-        ChangeNotifierProvider.value(value: auth),
-        // Consumer listing data — read-only, powers « Aperçu de ma page »
-        // (docs/design/pro-salon-lifecycle.md B5).
-        ChangeNotifierProvider(create: (_) => ProviderProvider()),
-        ChangeNotifierProvider(create: (_) => LocalityProvider()),
-        // The salon's notification feed (the bell). ACCOUNT-scoped, not
-        // salon-scoped: /me/notifications is keyed by the token subject, so a
-        // multi-salon owner sees one merged feed and a switch must not reset
-        // it — hence no ProSalonScope.track here.
-        ChangeNotifierProvider(
-          create: (_) => NotificationsProvider(
-            service: serviceLocator.proNotificationService,
-          ),
-        ),
-        ChangeNotifierProvider(
-          create: (_) => ProSalonScope.track(ProDashboardProvider()),
-        ),
-        ChangeNotifierProvider(
-          create: (_) => ProSalonScope.track(ProAppointmentProvider()),
-        ),
-        ChangeNotifierProvider(
-          create: (_) => ProSalonScope.track(ProServiceProvider()),
-        ),
-        ChangeNotifierProvider(
-          create: (_) => ProSalonScope.track(ProArtistProvider()),
-        ),
-        ChangeNotifierProvider(
-          create: (_) => ProSalonScope.track(ProClientsProvider()),
-        ),
-        ChangeNotifierProvider(
-          create: (_) => ProSalonScope.track(ProJournalProvider()),
-        ),
-        ChangeNotifierProvider(
-          create: (_) => ProSalonScope.track(ProAvailabilityProvider()),
-        ),
-        ChangeNotifierProvider(
-          create: (_) => ProSalonScope.track(ProEarningsProvider()),
-        ),
-        ChangeNotifierProvider(
-          create: (_) => ProSalonScope.track(ProReviewsProvider()),
-        ),
-        ChangeNotifierProvider(
-          create: (_) => ProSalonScope.track(ProSalonProfileProvider()),
-        ),
-        ChangeNotifierProvider(
-          create: (_) => ProSalonScope.track(ProDepositSettingsProvider()),
-        ),
-        ChangeNotifierProvider(create: (_) => ProKycProvider()),
-        ChangeNotifierProvider(
-          create: (_) => ProSalonScope.track(ProOnboardingProvider()),
-        ),
-        ChangeNotifierProvider(
-          create: (_) => ProSalonScope.track(ProGalleryProvider()),
-        ),
-        ChangeNotifierProvider(
-          create: (_) => ProSalonScope.track(ProBeforeAfterProvider()),
-        ),
-        ChangeNotifierProvider(
-          create: (_) => ProSalonScope.track(ProSubscriptionProvider()),
-        ),
-        ChangeNotifierProvider(
-          create: (_) => ProSalonScope.track(ProTeamProvider()),
-        ),
-      ],
+      providers: proAppProviders(auth),
       // Above MaterialApp so the whole tree rebuilds when iOS Reduce Motion is
       // toggled mid-session — nothing in the framework reads that flag (§9, A8).
       child: ReduceMotionObserver(

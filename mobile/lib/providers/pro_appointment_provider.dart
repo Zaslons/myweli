@@ -68,6 +68,7 @@ class ProAppointmentProvider extends ChangeNotifier
     DateTime? startDate,
     DateTime? endDate,
   }) async {
+    final scope = _scope;
     _loadedProviderId = providerId;
     _loadedStatus = status;
     _loadedFrom = startDate;
@@ -84,6 +85,7 @@ class ProAppointmentProvider extends ChangeNotifier
         startDate: startDate,
         endDate: endDate,
       );
+      if (scope != _scope) return;
       if (response.success && response.data != null) {
         _appointments = response.data!;
         _error = null;
@@ -94,21 +96,26 @@ class ProAppointmentProvider extends ChangeNotifier
         _appointments = [];
       }
     } catch (e) {
+      if (scope != _scope) return;
       _error = kGenericErrorMessage;
       _loadError = _error;
       _appointments = [];
     } finally {
-      _isLoading = false;
-      notifyListeners();
+      if (scope == _scope) {
+        _isLoading = false;
+        notifyListeners();
+      }
     }
   }
 
   Future<bool> acceptAppointment(String appointmentId) async {
+    final scope = _scope;
     _isLoading = true;
     notifyListeners();
 
     try {
       final response = await _proService.acceptAppointment(appointmentId);
+      if (scope != _scope) return response.success;
       if (response.success) {
         // Update local appointment
         final index = _appointments.indexWhere((a) => a.id == appointmentId);
@@ -127,16 +134,20 @@ class ProAppointmentProvider extends ChangeNotifier
         return false;
       }
     } catch (e) {
+      if (scope != _scope) return false;
       _error = kGenericErrorMessage;
       notifyListeners();
       return false;
     } finally {
-      _isLoading = false;
-      notifyListeners();
+      if (scope == _scope) {
+        _isLoading = false;
+        notifyListeners();
+      }
     }
   }
 
   Future<bool> rejectAppointment(String appointmentId, String? reason) async {
+    final scope = _scope;
     _isLoading = true;
     notifyListeners();
 
@@ -145,6 +156,7 @@ class ProAppointmentProvider extends ChangeNotifier
         appointmentId,
         reason,
       );
+      if (scope != _scope) return response.success;
       if (response.success) {
         final index = _appointments.indexWhere((a) => a.id == appointmentId);
         if (index != -1) {
@@ -162,21 +174,26 @@ class ProAppointmentProvider extends ChangeNotifier
         return false;
       }
     } catch (e) {
+      if (scope != _scope) return false;
       _error = kGenericErrorMessage;
       notifyListeners();
       return false;
     } finally {
-      _isLoading = false;
-      notifyListeners();
+      if (scope == _scope) {
+        _isLoading = false;
+        notifyListeners();
+      }
     }
   }
 
   Future<bool> markComplete(String appointmentId) async {
+    final scope = _scope;
     _isLoading = true;
     notifyListeners();
 
     try {
       final response = await _proService.markAppointmentComplete(appointmentId);
+      if (scope != _scope) return response.success;
       if (response.success) {
         final index = _appointments.indexWhere((a) => a.id == appointmentId);
         if (index != -1) {
@@ -194,21 +211,26 @@ class ProAppointmentProvider extends ChangeNotifier
         return false;
       }
     } catch (e) {
+      if (scope != _scope) return false;
       _error = kGenericErrorMessage;
       notifyListeners();
       return false;
     } finally {
-      _isLoading = false;
-      notifyListeners();
+      if (scope == _scope) {
+        _isLoading = false;
+        notifyListeners();
+      }
     }
   }
 
   Future<bool> markNoShow(String appointmentId) async {
+    final scope = _scope;
     _isLoading = true;
     notifyListeners();
 
     try {
       final response = await _proService.markNoShow(appointmentId);
+      if (scope != _scope) return response.success;
       if (response.success) {
         final index = _appointments.indexWhere((a) => a.id == appointmentId);
         if (index != -1) {
@@ -226,16 +248,20 @@ class ProAppointmentProvider extends ChangeNotifier
         return false;
       }
     } catch (e) {
+      if (scope != _scope) return false;
       _error = kGenericErrorMessage;
       notifyListeners();
       return false;
     } finally {
-      _isLoading = false;
-      notifyListeners();
+      if (scope == _scope) {
+        _isLoading = false;
+        notifyListeners();
+      }
     }
   }
 
   Future<bool> reschedule(String appointmentId, DateTime newDateTime) async {
+    final scope = _scope;
     _isLoading = true;
     notifyListeners();
 
@@ -244,6 +270,7 @@ class ProAppointmentProvider extends ChangeNotifier
         appointmentId,
         newDateTime,
       );
+      if (scope != _scope) return response.success;
       if (response.success) {
         final index = _appointments.indexWhere((a) => a.id == appointmentId);
         if (index != -1) {
@@ -260,12 +287,15 @@ class ProAppointmentProvider extends ChangeNotifier
         return false;
       }
     } catch (e) {
+      if (scope != _scope) return false;
       _error = kGenericErrorMessage;
       notifyListeners();
       return false;
     } finally {
-      _isLoading = false;
-      notifyListeners();
+      if (scope == _scope) {
+        _isLoading = false;
+        notifyListeners();
+      }
     }
   }
 
@@ -279,6 +309,7 @@ class ProAppointmentProvider extends ChangeNotifier
     String? artistId,
     bool sendSmsInvite = false,
   }) async {
+    final scope = _scope;
     _isLoading = true;
     _error = null;
     notifyListeners();
@@ -305,6 +336,7 @@ class ProAppointmentProvider extends ChangeNotifier
         sendSmsInvite: sendSmsInvite,
         idempotencyKey: key,
       );
+      if (scope != _scope) return response.success;
       if (response.success && response.data != null) {
         _manualBookingKey.settle();
         final created = response.data!;
@@ -328,11 +360,14 @@ class ProAppointmentProvider extends ChangeNotifier
       _errorCode = response.code;
       return false;
     } catch (e) {
+      if (scope != _scope) return false;
       _error = kGenericErrorMessage;
       return false;
     } finally {
-      _isLoading = false;
-      notifyListeners();
+      if (scope == _scope) {
+        _isLoading = false;
+        notifyListeners();
+      }
     }
   }
 
@@ -375,8 +410,15 @@ class ProAppointmentProvider extends ChangeNotifier
     notifyListeners();
   }
 
+  /// Which salon this state belongs to — moved by [resetForSalonSwitch]
+  /// only. A read or a write takes it before it awaits and writes nothing
+  /// when it moved meanwhile: its answer is the previous salon's, or the
+  /// previous account's (docs/design/pro-account-scope.md §2.2).
+  int _scope = 0;
+
   @override
   void resetForSalonSwitch() {
+    _scope++;
     _loadError = null;
     _appointments = [];
     _loadedProviderId = null;

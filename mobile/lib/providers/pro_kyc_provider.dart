@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 
+import '../core/access/account_scope.dart';
 import '../core/constants/failure_messages.dart';
 import '../core/di/dependency_injection.dart';
 import '../core/utils/app_clock.dart';
@@ -9,7 +10,7 @@ import '../services/interfaces/pro_kyc_service_interface.dart';
 
 /// Holds the provider's KYC documents and verification status, and submits them
 /// through [ProKycServiceInterface].
-class ProKycProvider extends ChangeNotifier {
+class ProKycProvider extends ChangeNotifier implements AccountScoped {
   final ProKycServiceInterface _service = serviceLocator.proKycService;
 
   bool _isLoading = false;
@@ -41,6 +42,30 @@ class ProKycProvider extends ChangeNotifier {
 
   KycDocument? documentFor(KycDocumentType type) => _documents[type];
 
+  /// The account changed (B9.14 — docs/design/pro-account-scope.md §2.1):
+  /// these are the previous account's identity documents, its status and the
+  /// reason a check was refused.
+  /// Whose documents these are — moved by [resetForAccountChange]. A read,
+  /// an upload or a submission sent before writes nothing when it answers
+  /// after: A's document, landed after B signed in, would otherwise join B's
+  /// set and go out with B's « Envoyer » (pro-account-scope.md §2.2).
+  int _account = 0;
+
+  @override
+  void resetForAccountChange() {
+    _account++;
+    _documents.clear();
+    _status = VerificationStatus.pending;
+    _rejectionReason = null;
+    _uploadingType = null;
+    _loaded = false;
+    _loadFailed = false;
+    _isLoading = false;
+    _isSubmitting = false;
+    _error = null;
+    notifyListeners();
+  }
+
   bool hasRequiredDocuments(BusinessType businessType) =>
       requiredKycDocuments(businessType).every(_documents.containsKey);
 
@@ -52,6 +77,7 @@ class ProKycProvider extends ChangeNotifier {
       !_isSubmitting;
 
   Future<void> load(String providerUserId) async {
+    final account = _account;
     _isLoading = true;
     _loadFailed = false;
     _error = null;
@@ -59,6 +85,7 @@ class ProKycProvider extends ChangeNotifier {
 
     try {
       final res = await _service.getKycStatus(providerUserId);
+      if (account != _account) return;
       if (res.success && res.data != null) {
         _status = res.data!.status;
         _rejectionReason = res.data!.rejectionReason;
@@ -72,11 +99,14 @@ class ProKycProvider extends ChangeNotifier {
         _error = res.error ?? kGenericErrorMessage;
       }
     } catch (e) {
+      if (account != _account) return;
       _loadFailed = true;
       _error = kGenericErrorMessage;
     } finally {
-      _isLoading = false;
-      notifyListeners();
+      if (account == _account) {
+        _isLoading = false;
+        notifyListeners();
+      }
     }
   }
 
@@ -87,6 +117,7 @@ class ProKycProvider extends ChangeNotifier {
     String source,
     String contentType,
   ) async {
+    final account = _account;
     _uploadingType = type;
     _error = null;
     notifyListeners();
@@ -95,6 +126,7 @@ class ProKycProvider extends ChangeNotifier {
         source: source,
         contentType: contentType,
       );
+      if (account != _account) return false;
       if (res.success && res.data != null) {
         _documents[type] = KycDocument(
           type: type,
@@ -107,11 +139,14 @@ class ProKycProvider extends ChangeNotifier {
       _error = res.error ?? 'Échec de l’envoi du document';
       return false;
     } catch (e) {
+      if (account != _account) return false;
       _error = kGenericErrorMessage;
       return false;
     } finally {
-      _uploadingType = null;
-      notifyListeners();
+      if (account == _account) {
+        _uploadingType = null;
+        notifyListeners();
+      }
     }
   }
 
@@ -121,6 +156,7 @@ class ProKycProvider extends ChangeNotifier {
   }
 
   Future<bool> submit(String providerUserId) async {
+    final account = _account;
     _isSubmitting = true;
     _error = null;
     notifyListeners();
@@ -130,6 +166,7 @@ class ProKycProvider extends ChangeNotifier {
         providerUserId: providerUserId,
         documents: _documents.values.toList(),
       );
+      if (account != _account) return res.success;
       if (res.success && res.data != null) {
         _status = res.data!.status;
         _rejectionReason = res.data!.rejectionReason;
@@ -139,11 +176,14 @@ class ProKycProvider extends ChangeNotifier {
       _error = res.error ?? 'Erreur lors de l’envoi';
       return false;
     } catch (e) {
+      if (account != _account) return false;
       _error = kGenericErrorMessage;
       return false;
     } finally {
-      _isSubmitting = false;
-      notifyListeners();
+      if (account == _account) {
+        _isSubmitting = false;
+        notifyListeners();
+      }
     }
   }
 }

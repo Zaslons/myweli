@@ -124,9 +124,26 @@ class ProSalonScope {
     return provider;
   }
 
+  /// Reset every tracked store.
+  ///
+  /// **A store that throws is logged and skipped**, as in [bookingCreated]:
+  /// since B9.14 a sign-in and a sign-out reset through here too
+  /// (`ProAuthProvider._setProvider`), and one throwing store must not leave
+  /// the stores after it to the previous account — nor turn the sign-in it
+  /// sits in into a failure.
   static void resetAll() {
-    for (final ref in _scoped) {
-      ref.target?.resetForSalonSwitch();
+    for (final ref in List.of(_scoped)) {
+      final store = ref.target;
+      if (store == null) continue;
+      try {
+        store.resetForSalonSwitch();
+      } catch (error, stackTrace) {
+        AppLogger.error(
+          'ProSalonScope.resetAll: ${store.runtimeType} threw',
+          error: error,
+          stackTrace: stackTrace,
+        );
+      }
     }
     _scoped.removeWhere((ref) => ref.target == null);
   }
@@ -182,6 +199,10 @@ class ProSalonScope {
       }
     }
   }
+
+  @visibleForTesting
+  static bool isTracked(Object store) =>
+      _scoped.any((ref) => identical(ref.target, store));
 
   @visibleForTesting
   static void clear() => _scoped.clear();

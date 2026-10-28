@@ -37,12 +37,14 @@ class ProBeforeAfterProvider extends ChangeNotifier implements SalonScoped {
   List<BeforeAfterPair> get pairs => _pairs;
 
   Future<void> load(SalonId providerId) async {
+    final scope = _scope;
     _isLoading = true;
     _loadFailed = false;
     _error = null;
     notifyListeners();
     try {
       final res = await _proService.getBeforeAfters(providerId);
+      if (scope != _scope) return;
       if (res.success && res.data != null) {
         _pairs = res.data!;
         _loaded = true;
@@ -51,11 +53,14 @@ class ProBeforeAfterProvider extends ChangeNotifier implements SalonScoped {
         _error = res.error ?? kGenericErrorMessage;
       }
     } catch (e) {
+      if (scope != _scope) return;
       _loadFailed = true;
       _error = kGenericErrorMessage;
     } finally {
-      _isLoading = false;
-      notifyListeners();
+      if (scope == _scope) {
+        _isLoading = false;
+        notifyListeners();
+      }
     }
   }
 
@@ -67,6 +72,7 @@ class ProBeforeAfterProvider extends ChangeNotifier implements SalonScoped {
     required String afterSource,
     String? caption,
   }) async {
+    final scope = _scope;
     _isUploading = true;
     _uploadProgress = 0;
     _error = null;
@@ -75,10 +81,12 @@ class ProBeforeAfterProvider extends ChangeNotifier implements SalonScoped {
       final before = await _uploadService.uploadImage(
         source: beforeSource,
         onProgress: (p) {
+          if (scope != _scope) return;
           _uploadProgress = p * 0.5;
           notifyListeners();
         },
       );
+      if (scope != _scope) return false;
       if (!before.success || before.data == null) {
         _error = before.error ?? 'Échec de l’envoi';
         return false;
@@ -86,10 +94,12 @@ class ProBeforeAfterProvider extends ChangeNotifier implements SalonScoped {
       final after = await _uploadService.uploadImage(
         source: afterSource,
         onProgress: (p) {
+          if (scope != _scope) return;
           _uploadProgress = 0.5 + p * 0.5;
           notifyListeners();
         },
       );
+      if (scope != _scope) return false;
       if (!after.success || after.data == null) {
         _error = after.error ?? 'Échec de l’envoi';
         return false;
@@ -104,6 +114,7 @@ class ProBeforeAfterProvider extends ChangeNotifier implements SalonScoped {
         ),
       ];
       final saved = await _proService.updateBeforeAfters(providerId, next);
+      if (scope != _scope) return saved.success;
       if (saved.success && saved.data != null) {
         _pairs = saved.data!;
         return true;
@@ -111,11 +122,14 @@ class ProBeforeAfterProvider extends ChangeNotifier implements SalonScoped {
       _error = saved.error ?? 'Échec de l’enregistrement';
       return false;
     } catch (e) {
+      if (scope != _scope) return false;
       _error = kGenericErrorMessage;
       return false;
     } finally {
-      _isUploading = false;
-      notifyListeners();
+      if (scope == _scope) {
+        _isUploading = false;
+        notifyListeners();
+      }
     }
   }
 
@@ -127,9 +141,11 @@ class ProBeforeAfterProvider extends ChangeNotifier implements SalonScoped {
     int index,
     BeforeAfterPair pair,
   ) async {
+    final scope = _scope;
     final next = [..._pairs];
     next.insert(index.clamp(0, next.length), pair);
     final saved = await _proService.updateBeforeAfters(providerId, next);
+    if (scope != _scope) return saved.success;
     if (saved.success && saved.data != null) {
       _pairs = saved.data!;
       _error = null;
@@ -142,9 +158,11 @@ class ProBeforeAfterProvider extends ChangeNotifier implements SalonScoped {
   }
 
   Future<bool> removePair(SalonId providerId, int index) async {
+    final scope = _scope;
     if (index < 0 || index >= _pairs.length) return false;
     final next = [..._pairs]..removeAt(index);
     final saved = await _proService.updateBeforeAfters(providerId, next);
+    if (scope != _scope) return saved.success;
     if (saved.success && saved.data != null) {
       _pairs = saved.data!;
       _error = null;
@@ -157,8 +175,15 @@ class ProBeforeAfterProvider extends ChangeNotifier implements SalonScoped {
   }
 
   /// R6 multi-salons: drop the previous salon's data on a switch.
+  /// Which salon this state belongs to — moved by [resetForSalonSwitch]
+  /// only. A read or a write takes it before it awaits and writes nothing
+  /// when it moved meanwhile: its answer is the previous salon's, or the
+  /// previous account's (docs/design/pro-account-scope.md §2.2).
+  int _scope = 0;
+
   @override
   void resetForSalonSwitch() {
+    _scope++;
     _loaded = false;
     _isLoading = false;
     _loadFailed = false;

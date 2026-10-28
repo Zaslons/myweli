@@ -227,8 +227,10 @@ class ProJournalProvider extends ChangeNotifier implements ShowsSalonBookings {
     DateTime? newDate,
     DateTime? arrivedAt,
   }) async {
+    final scope = _scope;
     try {
       final res = await run();
+      if (scope != _scope) return res.success;
       if (!res.success) {
         _error = res.error ?? 'Action impossible.';
         ProAccessGuard.report(res.code);
@@ -248,6 +250,7 @@ class ProJournalProvider extends ChangeNotifier implements ShowsSalonBookings {
       ProSalonScope.bookingChanged(change, except: this);
       return true;
     } catch (e) {
+      if (scope != _scope) return false;
       _error = kGenericErrorMessage;
       notifyListeners();
       return false;
@@ -433,8 +436,15 @@ class ProJournalProvider extends ChangeNotifier implements ShowsSalonBookings {
   }
 
   /// R6 multi-salons: drop the previous salon's data on a switch.
+  /// Which salon this state belongs to — moved by [resetForSalonSwitch]
+  /// only. A read or a write takes it before it awaits and writes nothing
+  /// when it moved meanwhile: its answer is the previous salon's, or the
+  /// previous account's (docs/design/pro-account-scope.md §2.2).
+  int _scope = 0;
+
   @override
   void resetForSalonSwitch() {
+    _scope++;
     _request++; // whatever is in flight was asked for the previous salon
     _providerId = SalonId.none;
     _tz = null; // the next salon's tz arrives with its first load

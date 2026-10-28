@@ -25,6 +25,7 @@ class ProAvailabilityProvider extends ChangeNotifier implements SalonScoped {
   String? _loadError;
 
   Future<void> loadAvailability(SalonId providerId) async {
+    final scope = _scope;
     if (_currentProviderId == providerId &&
         _availability != null &&
         !_isLoading) {
@@ -39,6 +40,7 @@ class ProAvailabilityProvider extends ChangeNotifier implements SalonScoped {
 
     try {
       final response = await _proService.getProviderAvailability(providerId);
+      if (scope != _scope) return;
       if (response.success && response.data != null) {
         _availability = response.data;
         _error = null;
@@ -49,12 +51,15 @@ class ProAvailabilityProvider extends ChangeNotifier implements SalonScoped {
         _availability = null;
       }
     } catch (e) {
+      if (scope != _scope) return;
       _error = kGenericErrorMessage;
       _loadError = _error;
       _availability = null;
     } finally {
-      _isLoading = false;
-      notifyListeners();
+      if (scope == _scope) {
+        _isLoading = false;
+        notifyListeners();
+      }
     }
   }
 
@@ -62,6 +67,7 @@ class ProAvailabilityProvider extends ChangeNotifier implements SalonScoped {
     SalonId providerId,
     Availability availability,
   ) async {
+    final scope = _scope;
     _isLoading = true;
     notifyListeners();
 
@@ -70,6 +76,7 @@ class ProAvailabilityProvider extends ChangeNotifier implements SalonScoped {
         providerId,
         availability,
       );
+      if (scope != _scope) return response.success;
       if (response.success && response.data != null) {
         _availability = response.data;
         _error = null;
@@ -81,18 +88,28 @@ class ProAvailabilityProvider extends ChangeNotifier implements SalonScoped {
         return false;
       }
     } catch (e) {
+      if (scope != _scope) return false;
       _error = kGenericErrorMessage;
       notifyListeners();
       return false;
     } finally {
-      _isLoading = false;
-      notifyListeners();
+      if (scope == _scope) {
+        _isLoading = false;
+        notifyListeners();
+      }
     }
   }
 
   /// R6 multi-salons: drop the previous salon's data on a switch.
+  /// Which salon this state belongs to — moved by [resetForSalonSwitch]
+  /// only. A read or a write takes it before it awaits and writes nothing
+  /// when it moved meanwhile: its answer is the previous salon's, or the
+  /// previous account's (docs/design/pro-account-scope.md §2.2).
+  int _scope = 0;
+
   @override
   void resetForSalonSwitch() {
+    _scope++;
     _loadError = null;
     _availability = null;
     _isLoading = false;

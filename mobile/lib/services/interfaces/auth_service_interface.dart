@@ -67,6 +67,11 @@ abstract class AuthServiceInterface {
   Future<ProviderUser?> getCurrentProvider();
   Future<void> logoutProvider();
 
+  /// The PROVIDER session ended without a sign-out — [sessionEnded]'s twin
+  /// for the Pro app (a refused `/auth/provider/refresh`). `ProAuthProvider`
+  /// ends the account on it. docs/design/pro-account-scope.md §2.3.
+  Stream<void> get providerSessionEnded;
+
   /// Team access R4b: cache the last-fetched membership INSIDE the persisted
   /// provider session (instant cold-start shaping; refreshed from
   /// GET /me/provider each start). No-op when signed out.

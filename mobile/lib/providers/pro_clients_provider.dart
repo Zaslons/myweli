@@ -55,6 +55,7 @@ class ProClientsProvider extends ChangeNotifier implements ShowsSalonBookings {
   bool get isBaseEmpty => _total == 0 && _query.isEmpty && _tag.isEmpty;
 
   Future<void> load(SalonId providerId) async {
+    final scope = _scope;
     _isLoading = true;
     _error = null;
     _loadError = null;
@@ -65,6 +66,7 @@ class ProClientsProvider extends ChangeNotifier implements ShowsSalonBookings {
         query: _query.isEmpty ? null : _query,
         tag: _tag.isEmpty ? null : _tag,
       );
+      if (scope != _scope) return;
       if (r.success && r.data != null) {
         _clients
           ..clear()
@@ -80,15 +82,19 @@ class ProClientsProvider extends ChangeNotifier implements ShowsSalonBookings {
         ProAccessGuard.report(r.code);
       }
     } catch (e) {
+      if (scope != _scope) return;
       _error = kGenericErrorMessage;
       _loadError = _error;
     } finally {
-      _isLoading = false;
-      notifyListeners();
+      if (scope == _scope) {
+        _isLoading = false;
+        notifyListeners();
+      }
     }
   }
 
   Future<void> loadMore(SalonId providerId) async {
+    final scope = _scope;
     if (_isLoadingMore || !hasMore) return;
     _isLoadingMore = true;
     notifyListeners();
@@ -99,6 +105,7 @@ class ProClientsProvider extends ChangeNotifier implements ShowsSalonBookings {
         tag: _tag.isEmpty ? null : _tag,
         page: _page + 1,
       );
+      if (scope != _scope) return;
       if (r.success && r.data != null) {
         _clients.addAll(r.data!.items);
         _total = r.data!.total;
@@ -109,8 +116,10 @@ class ProClientsProvider extends ChangeNotifier implements ShowsSalonBookings {
       // nothing appended, the loaded list stays, and the next scroll asks
       // for the same page again.
     } finally {
-      _isLoadingMore = false;
-      notifyListeners();
+      if (scope == _scope) {
+        _isLoadingMore = false;
+        notifyListeners();
+      }
     }
   }
 
@@ -137,6 +146,7 @@ class ProClientsProvider extends ChangeNotifier implements ShowsSalonBookings {
     required String phone,
     String? note,
   }) async {
+    final scope = _scope;
     _error = null;
     _lastAddWasDuplicate = false;
     final r = await _service.addClient(
@@ -145,6 +155,7 @@ class ProClientsProvider extends ChangeNotifier implements ShowsSalonBookings {
       phone: phone,
       note: note,
     );
+    if (scope != _scope) return null;
     if (r.success && r.data != null) {
       await load(providerId);
       return r.data;
@@ -183,6 +194,7 @@ class ProClientsProvider extends ChangeNotifier implements ShowsSalonBookings {
   int _cardRequest = 0;
 
   Future<void> loadCard(SalonId providerId, String clientId) async {
+    final scope = _scope;
     _cardProviderId = providerId;
     _cardClientId = clientId;
     _cardRequest++;
@@ -193,19 +205,24 @@ class ProClientsProvider extends ChangeNotifier implements ShowsSalonBookings {
     notifyListeners();
     try {
       final r = await _service.getCard(providerId, clientId);
+      if (scope != _scope) return;
       if (r.success && r.data != null) {
         _card = r.data;
         final v = await _service.getVisits(providerId, clientId);
+        if (scope != _scope) return;
         _visits = v.data ?? [];
       } else {
         _cardError = r.error ?? 'Une erreur est survenue.';
         _cardErrorCode = r.code;
       }
     } catch (e) {
+      if (scope != _scope) return;
       _cardError = kGenericErrorMessage;
     } finally {
-      _cardLoading = false;
-      notifyListeners();
+      if (scope == _scope) {
+        _cardLoading = false;
+        notifyListeners();
+      }
     }
   }
 
@@ -273,7 +290,9 @@ class ProClientsProvider extends ChangeNotifier implements ShowsSalonBookings {
     String clientId,
     List<String> tags,
   ) async {
+    final scope = _scope;
     final r = await _service.updateTags(providerId, clientId, tags);
+    if (scope != _scope) return false;
     if (r.success && r.data != null && _card != null) {
       _card = _card!.copyWith(client: r.data);
       notifyListeners();
@@ -299,8 +318,10 @@ class ProClientsProvider extends ChangeNotifier implements ShowsSalonBookings {
     String clientId,
     String phone,
   ) async {
+    final scope = _scope;
     try {
       final r = await _service.updatePhone(providerId, clientId, phone);
+      if (scope != _scope) return null;
       final card = r.data?.card;
       if (r.success && card != null) {
         // The number HAS changed: a history that cannot be read now leaves
@@ -309,8 +330,10 @@ class ProClientsProvider extends ChangeNotifier implements ShowsSalonBookings {
         List<Appointment>? visits;
         try {
           final v = await _service.getVisits(providerId, clientId);
+          if (scope != _scope) return null;
           if (v.success) visits = v.data;
         } catch (_) {
+          if (scope != _scope) return null;
           visits = null;
         }
         if (_cardProviderId == providerId && _cardClientId == clientId) {
@@ -346,6 +369,7 @@ class ProClientsProvider extends ChangeNotifier implements ShowsSalonBookings {
         message: r.error ?? 'Une erreur est survenue.',
       );
     } catch (_) {
+      // It only answers — nothing written, so no guard (the mutation pass).
       return const ClientPhoneRefusal(
         code: null,
         message: 'Une erreur est survenue.',
@@ -368,6 +392,7 @@ class ProClientsProvider extends ChangeNotifier implements ShowsSalonBookings {
   }
 
   Future<bool> addNote(SalonId providerId, String clientId, String body) async {
+    final scope = _scope;
     final r = await _service.addNote(
       providerId,
       clientId,
@@ -378,6 +403,7 @@ class ProClientsProvider extends ChangeNotifier implements ShowsSalonBookings {
         'body': body,
       }),
     );
+    if (scope != _scope) return false;
     if (r.success && r.data != null) _noteKey.settle();
     if (r.success && r.data != null && _card != null) {
       _card = _card!.copyWith(notes: [r.data!, ..._card!.notes]);
@@ -392,7 +418,9 @@ class ProClientsProvider extends ChangeNotifier implements ShowsSalonBookings {
     String clientId,
     String noteId,
   ) async {
+    final scope = _scope;
     final r = await _service.deleteNote(providerId, clientId, noteId);
+    if (scope != _scope) return false;
     if (r.success && _card != null) {
       _card = _card!.copyWith(
         notes: _card!.notes.where((n) => n.id != noteId).toList(),
@@ -404,8 +432,15 @@ class ProClientsProvider extends ChangeNotifier implements ShowsSalonBookings {
   }
 
   /// R6 multi-salons: drop the previous salon's data on a switch.
+  /// Which salon this state belongs to — moved by [resetForSalonSwitch]
+  /// only. A read or a write takes it before it awaits and writes nothing
+  /// when it moved meanwhile: its answer is the previous salon's, or the
+  /// previous account's (docs/design/pro-account-scope.md §2.2).
+  int _scope = 0;
+
   @override
   void resetForSalonSwitch() {
+    _scope++;
     _cardRequest++; // a card reload in flight was for the previous salon
     _clients.clear();
     _total = 0;
@@ -417,6 +452,14 @@ class ProClientsProvider extends ChangeNotifier implements ShowsSalonBookings {
     _isLoadingMore = false;
     _error = null;
     _loadError = null;
+    _lastAddWasDuplicate = false;
+    _card = null;
+    _visits = [];
+    _cardLoading = false;
+    _cardError = null;
+    _cardErrorCode = null;
+    _cardProviderId = null;
+    _cardClientId = null;
     notifyListeners();
   }
 }

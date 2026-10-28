@@ -35,12 +35,14 @@ class ProGalleryProvider extends ChangeNotifier implements SalonScoped {
   List<String> get photos => _photos;
 
   Future<void> load(SalonId providerId) async {
+    final scope = _scope;
     _isLoading = true;
     _loadFailed = false;
     _error = null;
     notifyListeners();
     try {
       final res = await _proService.getGalleryPhotos(providerId);
+      if (scope != _scope) return;
       if (res.success && res.data != null) {
         _photos = res.data!;
         _loaded = true;
@@ -49,15 +51,19 @@ class ProGalleryProvider extends ChangeNotifier implements SalonScoped {
         _error = res.error ?? kGenericErrorMessage;
       }
     } catch (e) {
+      if (scope != _scope) return;
       _loadFailed = true;
       _error = kGenericErrorMessage;
     } finally {
-      _isLoading = false;
-      notifyListeners();
+      if (scope == _scope) {
+        _isLoading = false;
+        notifyListeners();
+      }
     }
   }
 
   Future<bool> addPhoto(SalonId providerId, String source) async {
+    final scope = _scope;
     _isUploading = true;
     _uploadProgress = 0;
     _error = null;
@@ -66,16 +72,19 @@ class ProGalleryProvider extends ChangeNotifier implements SalonScoped {
       final upload = await _uploadService.uploadImage(
         source: source,
         onProgress: (p) {
+          if (scope != _scope) return;
           _uploadProgress = p;
           notifyListeners();
         },
       );
+      if (scope != _scope) return false;
       if (!upload.success || upload.data == null) {
         _error = upload.error ?? 'Échec de l’envoi';
         return false;
       }
       final next = [..._photos, upload.data!];
       final saved = await _proService.updateGalleryPhotos(providerId, next);
+      if (scope != _scope) return saved.success;
       if (saved.success && saved.data != null) {
         _photos = saved.data!;
         return true;
@@ -83,17 +92,21 @@ class ProGalleryProvider extends ChangeNotifier implements SalonScoped {
       _error = saved.error ?? 'Échec de l’enregistrement';
       return false;
     } catch (e) {
+      if (scope != _scope) return false;
       _error = kGenericErrorMessage;
       return false;
     } finally {
-      _isUploading = false;
-      notifyListeners();
+      if (scope == _scope) {
+        _isUploading = false;
+        notifyListeners();
+      }
     }
   }
 
   /// Reorder (audit 3.6 — the first photo is the listing cover): swap the
   /// photo with its neighbour and persist through the same gallery PUT.
   Future<bool> movePhoto(SalonId providerId, int index, int delta) async {
+    final scope = _scope;
     final target = index + delta;
     if (index < 0 ||
         index >= _photos.length ||
@@ -106,6 +119,7 @@ class ProGalleryProvider extends ChangeNotifier implements SalonScoped {
     next[index] = next[target];
     next[target] = tmp;
     final saved = await _proService.updateGalleryPhotos(providerId, next);
+    if (scope != _scope) return saved.success;
     if (saved.success && saved.data != null) {
       _photos = saved.data!;
       _error = null;
@@ -122,11 +136,13 @@ class ProGalleryProvider extends ChangeNotifier implements SalonScoped {
   /// Derives from the CURRENT list at call time, never a captured one — the
   /// [restorePhotoAt] rule.
   Future<bool> setCover(SalonId providerId, int index) async {
+    final scope = _scope;
     // 0 is already the cover; nothing to write.
     if (index <= 0 || index >= _photos.length) return false;
     final next = [..._photos];
     next.insert(0, next.removeAt(index));
     final saved = await _proService.updateGalleryPhotos(providerId, next);
+    if (scope != _scope) return saved.success;
     if (saved.success && saved.data != null) {
       _photos = saved.data!;
       _error = null;
@@ -147,9 +163,11 @@ class ProGalleryProvider extends ChangeNotifier implements SalonScoped {
   /// window — a reorder, or worse, a photo uploaded in the meantime, destroyed
   /// with no warning. Undo must undo one action, not rewind the gallery.
   Future<bool> restorePhotoAt(SalonId providerId, int index, String url) async {
+    final scope = _scope;
     final next = [..._photos];
     next.insert(index.clamp(0, next.length), url);
     final saved = await _proService.updateGalleryPhotos(providerId, next);
+    if (scope != _scope) return saved.success;
     if (saved.success && saved.data != null) {
       _photos = saved.data!;
       _error = null;
@@ -162,9 +180,11 @@ class ProGalleryProvider extends ChangeNotifier implements SalonScoped {
   }
 
   Future<bool> removePhoto(SalonId providerId, int index) async {
+    final scope = _scope;
     if (index < 0 || index >= _photos.length) return false;
     final next = [..._photos]..removeAt(index);
     final saved = await _proService.updateGalleryPhotos(providerId, next);
+    if (scope != _scope) return saved.success;
     if (saved.success && saved.data != null) {
       _photos = saved.data!;
       _error = null;
@@ -177,8 +197,15 @@ class ProGalleryProvider extends ChangeNotifier implements SalonScoped {
   }
 
   /// R6 multi-salons: drop the previous salon's data on a switch.
+  /// Which salon this state belongs to — moved by [resetForSalonSwitch]
+  /// only. A read or a write takes it before it awaits and writes nothing
+  /// when it moved meanwhile: its answer is the previous salon's, or the
+  /// previous account's (docs/design/pro-account-scope.md §2.2).
+  int _scope = 0;
+
   @override
   void resetForSalonSwitch() {
+    _scope++;
     _loaded = false;
     _isLoading = false;
     _loadFailed = false;

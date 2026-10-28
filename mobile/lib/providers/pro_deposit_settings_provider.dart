@@ -70,12 +70,14 @@ class ProDepositSettingsProvider extends ChangeNotifier implements SalonScoped {
   }
 
   Future<void> load(SalonId providerId) async {
+    final scope = _scope;
     _isLoading = true;
     _error = null;
     notifyListeners();
 
     try {
       final response = await _proService.getDepositPolicy(providerId);
+      if (scope != _scope) return;
       if (response.success && response.data != null) {
         _depositRequired = response.data!.depositRequired;
         // 0 % is « not chosen yet »: every new salon is stored with it, and
@@ -94,15 +96,19 @@ class ProDepositSettingsProvider extends ChangeNotifier implements SalonScoped {
         _error = response.error ?? kGenericErrorMessage;
       }
     } catch (e) {
+      if (scope != _scope) return;
       _loadFailed = true;
       _error = kGenericErrorMessage;
     } finally {
-      _isLoading = false;
-      notifyListeners();
+      if (scope == _scope) {
+        _isLoading = false;
+        notifyListeners();
+      }
     }
   }
 
   Future<bool> save(SalonId providerId) async {
+    final scope = _scope;
     _isSaving = true;
     _error = null;
     _errorCode = null;
@@ -121,6 +127,7 @@ class ProDepositSettingsProvider extends ChangeNotifier implements SalonScoped {
         mobileMoneyOperator: _mobileMoneyOperator,
         mobileMoneyNumber: trimmed.isEmpty ? null : trimmed,
       );
+      if (scope != _scope) return response.success;
       if (response.success && response.data != null) {
         _error = null;
         return true;
@@ -129,17 +136,27 @@ class ProDepositSettingsProvider extends ChangeNotifier implements SalonScoped {
       _errorCode = response.code;
       return false;
     } catch (e) {
+      if (scope != _scope) return false;
       _error = kGenericErrorMessage;
       return false;
     } finally {
-      _isSaving = false;
-      notifyListeners();
+      if (scope == _scope) {
+        _isSaving = false;
+        notifyListeners();
+      }
     }
   }
 
   /// R6 multi-salons: drop the previous salon's data on a switch.
+  /// Which salon this state belongs to — moved by [resetForSalonSwitch]
+  /// only. A read or a write takes it before it awaits and writes nothing
+  /// when it moved meanwhile: its answer is the previous salon's, or the
+  /// previous account's (docs/design/pro-account-scope.md §2.2).
+  int _scope = 0;
+
   @override
   void resetForSalonSwitch() {
+    _scope++;
     _loaded = false;
     _isLoading = false;
     _isSaving = false;

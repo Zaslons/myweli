@@ -43,11 +43,13 @@ class ProOnboardingProvider extends ChangeNotifier implements SalonScoped {
   /// Take the salon live (docs/design/pro-salon-lifecycle.md B3). The server
   /// re-checks the gate; `incomplete` surfaces its message. True on success.
   Future<bool> publish(SalonId providerId) async {
+    final scope = _scope;
     _isPublishing = true;
     _error = null;
     _publishErrorCode = null;
     notifyListeners();
     final res = await serviceLocator.proService.publishSalon(providerId);
+    if (scope != _scope) return res.success;
     _isPublishing = false;
     if (!res.success) {
       _error = res.error ?? 'La mise en ligne a échoué';
@@ -64,6 +66,7 @@ class ProOnboardingProvider extends ChangeNotifier implements SalonScoped {
   /// (docs/design/r6-salon-id-pin.md). [proUser] stays for what is the
   /// account's own: its KYC and its business type.
   Future<void> load(ProviderUser proUser, {required SalonId? salonId}) async {
+    final scope = _scope;
     _isLoading = true;
     _loadFailed = false;
     _error = null;
@@ -95,6 +98,7 @@ class ProOnboardingProvider extends ChangeNotifier implements SalonScoped {
         final pro = serviceLocator.proService;
 
         final services = read(await pro.getProviderServices(providerId));
+        if (scope != _scope) return;
         // ACTIVE services, as the server's gate counts them
         // (docs/design/web-pro-golive-signup-like-app.md §1): counting the
         // hidden ones said ✓ to a salon the server would refuse.
@@ -103,14 +107,17 @@ class ProOnboardingProvider extends ChangeNotifier implements SalonScoped {
         final staff = read(
           await serviceLocator.proArtistService.getArtists(providerId),
         );
+        if (scope != _scope) return;
         staffCount = staff?.length ?? 0;
 
         final avail = read(await pro.getProviderAvailability(providerId));
+        if (scope != _scope) return;
         availabilitySet = avail != null && _hasAvailableSlot(avail);
 
         // Configured = a choice SAVED, not an answer: the server answers
         // every salon with defaults (B7.7).
         final policy = read(await pro.getDepositPolicy(providerId));
+        if (scope != _scope) return;
         depositConfigured =
             policy != null &&
             depositChosen(
@@ -125,6 +132,7 @@ class ProOnboardingProvider extends ChangeNotifier implements SalonScoped {
         // stop serving, and a failed read here is NOT a throw — it would have
         // rendered a plausible all-todo checklist with no error at all.
         final listing = read(await pro.getMyProvider());
+        if (scope != _scope) return;
         photoCount = listing?.salon.imageUrls.length ?? 0;
         // Mirror the server's publish gate (pro-salon-lifecycle):
         // profile = description + address + commune; location = the map pin.
@@ -142,6 +150,7 @@ class ProOnboardingProvider extends ChangeNotifier implements SalonScoped {
       final kyc = read(
         await serviceLocator.proKycService.getKycStatus(proUser.id),
       );
+      if (scope != _scope) return;
       if (failure != null) {
         _loadFailed = true;
         _error = failure;
@@ -165,11 +174,14 @@ class ProOnboardingProvider extends ChangeNotifier implements SalonScoped {
       _loaded = true;
       _loadFailed = false;
     } catch (e) {
+      if (scope != _scope) return;
       _loadFailed = true;
       _error = kGenericErrorMessage;
     } finally {
-      _isLoading = false;
-      notifyListeners();
+      if (scope == _scope) {
+        _isLoading = false;
+        notifyListeners();
+      }
     }
   }
 
@@ -180,8 +192,15 @@ class ProOnboardingProvider extends ChangeNotifier implements SalonScoped {
       availability.weeklySchedule.values.any((slots) => slots.isNotEmpty);
 
   /// R6 multi-salons: drop the previous salon's data on a switch.
+  /// Which salon this state belongs to — moved by [resetForSalonSwitch]
+  /// only. A read or a write takes it before it awaits and writes nothing
+  /// when it moved meanwhile: its answer is the previous salon's, or the
+  /// previous account's (docs/design/pro-account-scope.md §2.2).
+  int _scope = 0;
+
   @override
   void resetForSalonSwitch() {
+    _scope++;
     _loaded = false;
     _isLoading = false;
     _loadFailed = false;

@@ -33,6 +33,7 @@ class ProArtistProvider extends ChangeNotifier implements SalonScoped {
 
   /// Uploads a staff photo through the image pipeline; returns the hosted URL.
   Future<String?> uploadAvatar(String source) async {
+    final scope = _scope;
     _isUploadingAvatar = true;
     _avatarProgress = 0;
     notifyListeners();
@@ -40,23 +41,29 @@ class ProArtistProvider extends ChangeNotifier implements SalonScoped {
       final res = await _uploadService.uploadImage(
         source: source,
         onProgress: (p) {
+          if (scope != _scope) return;
           _avatarProgress = p;
           notifyListeners();
         },
       );
+      if (scope != _scope) return null;
       if (res.success && res.data != null) return res.data;
       _error = res.error ?? 'Échec de l’envoi';
       return null;
     } catch (e) {
+      if (scope != _scope) return null;
       _error = kGenericErrorMessage;
       return null;
     } finally {
-      _isUploadingAvatar = false;
-      notifyListeners();
+      if (scope == _scope) {
+        _isUploadingAvatar = false;
+        notifyListeners();
+      }
     }
   }
 
   Future<void> loadArtists(SalonId providerId) async {
+    final scope = _scope;
     _isLoading = true;
     _error = null;
     _loadError = null;
@@ -64,6 +71,7 @@ class ProArtistProvider extends ChangeNotifier implements SalonScoped {
 
     try {
       final response = await _artistService.getArtists(providerId);
+      if (scope != _scope) return;
       if (response.success && response.data != null) {
         _artists = response.data!;
         _error = null;
@@ -73,12 +81,15 @@ class ProArtistProvider extends ChangeNotifier implements SalonScoped {
         _artists = [];
       }
     } catch (e) {
+      if (scope != _scope) return;
       _error = kGenericErrorMessage;
       _loadError = _error;
       _artists = [];
     } finally {
-      _isLoading = false;
-      notifyListeners();
+      if (scope == _scope) {
+        _isLoading = false;
+        notifyListeners();
+      }
     }
   }
 
@@ -86,11 +97,13 @@ class ProArtistProvider extends ChangeNotifier implements SalonScoped {
     SalonId providerId,
     Map<String, dynamic> data,
   ) async {
+    final scope = _scope;
     _isLoading = true;
     notifyListeners();
 
     try {
       final response = await _artistService.createArtist(providerId, data);
+      if (scope != _scope) return response.success;
       if (response.success && response.data != null) {
         _artists.add(response.data!);
         _error = null;
@@ -102,21 +115,26 @@ class ProArtistProvider extends ChangeNotifier implements SalonScoped {
         return false;
       }
     } catch (e) {
+      if (scope != _scope) return false;
       _error = kGenericErrorMessage;
       notifyListeners();
       return false;
     } finally {
-      _isLoading = false;
-      notifyListeners();
+      if (scope == _scope) {
+        _isLoading = false;
+        notifyListeners();
+      }
     }
   }
 
   Future<bool> updateArtist(String artistId, Map<String, dynamic> data) async {
+    final scope = _scope;
     _isLoading = true;
     notifyListeners();
 
     try {
       final response = await _artistService.updateArtist(artistId, data);
+      if (scope != _scope) return response.success;
       if (response.success && response.data != null) {
         final index = _artists.indexWhere((a) => a.id == artistId);
         if (index != -1) {
@@ -131,21 +149,26 @@ class ProArtistProvider extends ChangeNotifier implements SalonScoped {
         return false;
       }
     } catch (e) {
+      if (scope != _scope) return false;
       _error = kGenericErrorMessage;
       notifyListeners();
       return false;
     } finally {
-      _isLoading = false;
-      notifyListeners();
+      if (scope == _scope) {
+        _isLoading = false;
+        notifyListeners();
+      }
     }
   }
 
   Future<bool> deleteArtist(String artistId) async {
+    final scope = _scope;
     _isLoading = true;
     notifyListeners();
 
     try {
       final response = await _artistService.deleteArtist(artistId);
+      if (scope != _scope) return response.success;
       if (response.success) {
         _artists.removeWhere((a) => a.id == artistId);
         _error = null;
@@ -157,18 +180,28 @@ class ProArtistProvider extends ChangeNotifier implements SalonScoped {
         return false;
       }
     } catch (e) {
+      if (scope != _scope) return false;
       _error = kGenericErrorMessage;
       notifyListeners();
       return false;
     } finally {
-      _isLoading = false;
-      notifyListeners();
+      if (scope == _scope) {
+        _isLoading = false;
+        notifyListeners();
+      }
     }
   }
 
   /// R6 multi-salons: drop the previous salon's data on a switch.
+  /// Which salon this state belongs to — moved by [resetForSalonSwitch]
+  /// only. A read or a write takes it before it awaits and writes nothing
+  /// when it moved meanwhile: its answer is the previous salon's, or the
+  /// previous account's (docs/design/pro-account-scope.md §2.2).
+  int _scope = 0;
+
   @override
   void resetForSalonSwitch() {
+    _scope++;
     _loadError = null;
     _artists = [];
     _isLoading = false;
