@@ -481,8 +481,16 @@ These block everything. None is surface-specific.
       found by a user and none by the guard written after the previous one. What
       caught the third and fourth was auditing the deployed artifact against the
       plan rather than reading the source.
-- [ ] **A support channel exists** and someone is behind it (WhatsApp per the
-      product's context).
+- [x] **A support channel exists** and someone is behind it (WhatsApp per the
+      product's context). **Checked 2026-10-28 — e-mail, not WhatsApp**
+      (messaging waits on company registration):
+      - **The page:** `https://myweli.com/support` answers 200, and its only
+        contact is `support@myweli.com`.
+      - **The address exists:** myweli.com's Microsoft 365 mail server accepts
+        it (`250`) and rejects a made-up address (`550 5.4.1`).
+      - **Someone reads it:** the owner's test e-mail arrived where they read
+        mail (owner-reported).
+      - BACKLOG batch 10.
 - [x] **Rate limiting** verified on the auth and booking routes against a real
       hostile pattern, not a unit test. **All three probed against deployed
       environments, each with its control** — see the bullets below. The separate
@@ -1216,7 +1224,8 @@ checking rather than assuming:
 > device checks on 587 (B0.2); the iOS `updateUrl` (B0.5); the crash alerts
 > that replace the crash-free rate (B0.7 — *done 2026-10-28*); and what App Store Connect itself
 > says — the privacy label, the DSA status, the review's progress — read
-> back in batch 10.
+> back in batch 10 (*2026-10-28: all read back; the label matches
+> app-store-forms §7*).
 >
 > **2026-10-25 — 0.0.1 rejected.** Apple refused build 587; the owner gives
 > the reason next. **The resubmission is a new build of 0.0.1** carrying every

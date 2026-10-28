@@ -1,0 +1,13 @@
+- 🟡 **« Continuer avec Apple » sur l'erreur iOS 1000 dit quoi vérifier ; le lot 10 relu, sauf l'aperçu vidéo (mobile · App Store, 2026-10-28 — BACKLOG B0.14, lot 10).**
+  - **B0.14 (décision 50, phrase A).** Sur `AuthorizationErrorCode.unknown`, l'erreur 1000 qu'iOS lève sur l'appareil avant tout appel au serveur, les deux apps disent « Connexion Apple impossible sur cet appareil. Vérifiez dans Réglages qu’un compte Apple est connecté, puis réessayez. ».
+    - Les autres codes gardent « Connexion Apple impossible. ». L'annulation ne dit toujours rien, et la ligne Sentry ne change pas.
+    - Lu dans le plugin : `unknown`, c'est 1000 ou tout code que `sign_in_with_apple` 8.2.0 ne connaît pas.
+    - Les tests : un par code pour chacune des deux connexions Apple (MyWeli et MyWeli Pro), plus la vraie chaîne sur les deux écrans de connexion sous iOS, à 200 % de texte, regardée ; trois mutations vues rouges.
+    - Le propriétaire a demandé si l'erreur pouvait disparaître : pas de notre côté, voir la spec §10.
+    - **Livré avec 0.0.2** : le build 698, en revue, n'est pas touché.
+  - **Lot 10, relu le 2026-10-28.**
+    - L'étiquette de confidentialité, lue dans le site : 13 types de données, **exactement** app-store-forms §7, aucun suivi, publiée le 2026-10-14.
+    - `support@myweli.com` : la page `/support` répond 200 ; le serveur Microsoft 365 accepte l'adresse et refuse une adresse inventée ; l'e-mail d'essai du propriétaire y est arrivé. La case « un canal de support » de LAUNCH §4 est cochée.
+    - L'aperçu vidéo est toujours `COMPLETE` dans les deux tailles, affiche à 25 s. Ce qu'en font la revue et la page publique ne se lira qu'après la décision d'Apple et la sortie.
+  - **Les alertes Sentry par défaut** : celle du backend filtre `prod` depuis ce jour ; celle du web attend la fusion de #717.
+  - Détail : [apple-signin-error-1000.md](../../design/apple-signin-error-1000.md).
