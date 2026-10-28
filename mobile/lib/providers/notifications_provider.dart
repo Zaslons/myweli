@@ -1,12 +1,13 @@
 import 'package:flutter/foundation.dart';
 
+import '../core/access/account_scope.dart';
 import '../core/constants/failure_messages.dart';
 import '../core/di/dependency_injection.dart';
 import '../models/api_response.dart';
 import '../models/app_notification.dart';
 import '../services/interfaces/notification_service_interface.dart';
 
-class NotificationsProvider extends ChangeNotifier {
+class NotificationsProvider extends ChangeNotifier implements AccountScoped {
   /// [service] lets the PRO app run the same feed on its own session
   /// (`serviceLocator.proNotificationService`); the consumer app keeps the
   /// default. The feed is ACCOUNT-scoped, not salon-scoped: `/me/notifications`
@@ -36,6 +37,28 @@ class NotificationsProvider extends ChangeNotifier {
   bool _loadFailed = false;
   String? _error;
 
+  /// Whose feed this is — see [resetForAccountChange]. A read or a « lu »
+  /// sent before the account changed writes nothing when it answers after
+  /// (docs/design/consumer-account-scope.md §2.3).
+  int _account = 0;
+
+  /// The account changed (B9.13). Tracked by the consumer app only — the Pro
+  /// app's feed is still kept across a Pro sign-out (§8, Q2: its own PR).
+  @override
+  void resetForAccountChange() {
+    _account++;
+    _items = [];
+    _writing.clear();
+    _confirmedDuringLoad.clear();
+    // The reads still out are the previous account's: none of them will
+    // count itself back down (see [load]).
+    _loadsOut = 0;
+    _isLoading = false;
+    _loadFailed = false;
+    _error = null;
+    notifyListeners();
+  }
+
   List<AppNotification> get notifications => _items;
   bool get isLoading => _isLoading;
   bool get loadFailed => _loadFailed;
@@ -43,37 +66,42 @@ class NotificationsProvider extends ChangeNotifier {
   int get unreadCount => _items.where((n) => !n.read).length;
 
   Future<void> load() async {
+    final account = _account;
     _isLoading = true;
     _error = null;
     _loadsOut++;
     notifyListeners();
 
+    ApiResponse<List<AppNotification>>? response;
     try {
-      final response = await _service.getNotifications();
-      if (response.success && response.data != null) {
-        _items = [
-          for (final n in response.data!)
-            _writing.contains(n.id) || _confirmedDuringLoad.contains(n.id)
-                ? n.copyWith(read: true)
-                : n,
-        ];
-        _loadFailed = false;
-        _error = null;
-      } else {
-        _loadFailed = true;
-        _error = response.error ?? 'Erreur lors du chargement';
-        _items = [];
-      }
+      response = await _service.getNotifications();
     } catch (e) {
-      _loadFailed = true;
-      _error = kGenericErrorMessage;
-      _items = [];
-    } finally {
-      _loadsOut--;
-      if (_loadsOut == 0) _confirmedDuringLoad.clear();
-      _isLoading = false;
-      notifyListeners();
+      response = null;
     }
+    // The previous account's feed: nothing of it lands, and its count went
+    // with the reset.
+    if (account != _account) return;
+    final items = response?.data;
+    if (response != null && response.success && items != null) {
+      _items = [
+        for (final n in items)
+          _writing.contains(n.id) || _confirmedDuringLoad.contains(n.id)
+              ? n.copyWith(read: true)
+              : n,
+      ];
+      _loadFailed = false;
+      _error = null;
+    } else {
+      _loadFailed = true;
+      _error = response == null
+          ? kGenericErrorMessage
+          : response.error ?? 'Erreur lors du chargement';
+      _items = [];
+    }
+    _loadsOut--;
+    if (_loadsOut == 0) _confirmedDuringLoad.clear();
+    _isLoading = false;
+    notifyListeners();
   }
 
   /// What a refused write says when the service has nothing better — the
@@ -115,9 +143,13 @@ class NotificationsProvider extends ChangeNotifier {
     Set<String> marked,
     Future<ApiResponse<bool>> Function() write,
   ) async {
+    final account = _account;
     _setRead(marked, true);
     _writing.addAll(marked);
     final failure = await _persist(write);
+    // The previous account's « lu »: done (or not) on its feed, which is no
+    // longer on screen — the reset emptied the list and the sets.
+    if (account != _account) return failure;
     _writing.removeAll(marked);
     if (failure != null) {
       _setRead(marked, false);

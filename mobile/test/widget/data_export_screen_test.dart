@@ -123,6 +123,7 @@ void main() {
     serviceLocator.favoritesService = favorites;
     serviceLocator.providerService = discovery;
     when(() => auth.getCurrentUser()).thenAnswer((_) async => null);
+    when(() => auth.sessionEnded).thenAnswer((_) => const Stream.empty());
   });
 
   void appointmentsAnswer(Future<ApiResponse<List<Appointment>>> Function() a) {

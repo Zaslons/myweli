@@ -8,7 +8,6 @@ import '../../core/theme/colors.dart';
 import '../../core/theme/text_styles.dart';
 import '../../core/utils/external_link.dart';
 import '../../providers/auth_provider.dart';
-import '../../providers/favorites_provider.dart';
 import '../../widgets/common/app_button.dart';
 import '../../widgets/common/app_snack_bar.dart';
 import '../../widgets/common/confirm_dialog.dart';
@@ -161,14 +160,8 @@ class ProfileScreen extends StatelessWidget {
                       );
 
                       if (confirmed && context.mounted) {
-                        // Clear favorites from state (but keep in storage per user)
-                        final favoritesProvider =
-                            Provider.of<FavoritesProvider>(
-                              context,
-                              listen: false,
-                            );
-                        favoritesProvider.clearFavorites();
-
+                        // Every store of the account is reset by the sign-out
+                        // itself (AccountScope — consumer-account-scope.md).
                         await authProvider.logout();
                         if (context.mounted) {
                           context.go('/login');
@@ -200,15 +193,11 @@ class ProfileScreen extends StatelessWidget {
     final confirmed = await _confirmDeletion(context);
     if (!confirmed || !context.mounted) return;
 
-    final favoritesProvider = Provider.of<FavoritesProvider>(
-      context,
-      listen: false,
-    );
+    // The account's stores are reset by the deletion itself (AccountScope).
     final success = await authProvider.deleteAccount();
     if (!context.mounted) return;
 
     if (success) {
-      favoritesProvider.clearFavorites();
       context.go('/login');
       AppSnackBar.show(context, 'Compte supprimé', kind: SnackKind.success);
     } else {

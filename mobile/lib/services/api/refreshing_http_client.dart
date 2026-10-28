@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:http/http.dart' as http;
@@ -30,6 +31,11 @@ import '../interfaces/session_store.dart';
 /// a 401 that arrives after another request already rotated the session just
 /// retries with the stored token. Seen in production on 2026-10-11 (two
 /// `/auth/refresh` calls within 12 ms; docs/design/session-refresh.md).
+///
+/// **A session it ends is announced** ([sessionsEnded]): the store being
+/// cleared was, until B9.13, all that happened — the app went on showing the
+/// person signed in, and every read of the account failed until a restart
+/// (docs/design/consumer-account-scope.md §2.4).
 class RefreshingHttpClient {
   RefreshingHttpClient({
     required this._client,
@@ -93,6 +99,23 @@ class RefreshingHttpClient {
     }
   }
 
+  static final StreamController<Object> _ended =
+      StreamController<Object>.broadcast();
+
+  /// The identity ([SessionStore.identity]) of each session this client
+  /// ENDED — the server refused to renew it, or what is stored cannot be
+  /// renewed. Never for a transport failure (the session is kept), nor for a
+  /// sign-out, which clears its store itself. Shared by every instance, like
+  /// the single flight: each service builds its own client over the same
+  /// session, and whichever one hears the refusal speaks for all of them.
+  static Stream<Object> get sessionsEnded => _ended.stream;
+
+  /// Clear the stored session and say so.
+  Future<void> _end() async {
+    await _store.clear();
+    _ended.add(_store.identity);
+  }
+
   /// The refresh in flight per session (store identity + endpoint), shared by
   /// every client instance — see the class comment.
   static final Map<(Object, String), Future<String?>> _inflight = {};
@@ -114,12 +137,15 @@ class RefreshingHttpClient {
   Future<String?> _exchange() async {
     final map = await _readMap();
     if (map == null) {
+      // Nothing (readable) is stored, so nothing to announce: a sign-out got
+      // here first, or another exchange already ended it — `send` reads the
+      // token before it ever asks for an exchange.
       await _store.clear();
       return null;
     }
     final refreshToken = map['refreshToken'];
     if (refreshToken is! String || refreshToken.isEmpty) {
-      await _store.clear();
+      await _end();
       return null;
     }
     final res = await _guard(
@@ -131,20 +157,20 @@ class RefreshingHttpClient {
     );
     if (res == null) return null; // transport failure → keep the session
     if (res.statusCode != 200) {
-      await _store.clear(); // refresh rejected (revoked/expired) → end session
+      await _end(); // refresh rejected (revoked/expired) → end session
       return null;
     }
     final Map<String, dynamic> body;
     try {
       body = jsonDecode(res.body) as Map<String, dynamic>;
     } catch (_) {
-      await _store.clear();
+      await _end();
       return null;
     }
     final newAccess = body['accessToken'];
     final newRefresh = body['refreshToken'];
     if (newAccess is! String || newRefresh is! String) {
-      await _store.clear();
+      await _end();
       return null;
     }
     map['token'] = newAccess;

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
 
@@ -64,7 +65,16 @@ class ApiAuthService implements AuthServiceInterface {
        _sessionStore = sessionStore ?? InMemorySessionStore(),
        _providerSessionStore = providerSessionStore ?? InMemorySessionStore(),
        _googleIdToken = googleIdToken ?? _nativeGoogleIdToken,
-       _appleCredential = appleCredential ?? _nativeAppleCredential;
+       _appleCredential = appleCredential ?? _nativeAppleCredential {
+    // For the app's lifetime, like the service. Whichever service's client
+    // heard the refusal, the account this service remembers goes with it.
+    RefreshingHttpClient.sessionsEnded
+        .where((session) => session == _sessionStore.identity)
+        .listen((_) {
+          _currentUser = null;
+          _sessionEnded.add(null);
+        });
+  }
 
   final http.Client _client;
   final String _baseUrl;
@@ -356,6 +366,11 @@ class ApiAuthService implements AuthServiceInterface {
     _currentUser = null;
     await _sessionStore.clear();
   }
+
+  final _sessionEnded = StreamController<void>.broadcast();
+
+  @override
+  Stream<void> get sessionEnded => _sessionEnded.stream;
 
   @override
   Future<User?> getCurrentUser() async {

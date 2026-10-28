@@ -45,6 +45,7 @@ void main() {
     setUp(() {
       reset(service);
       when(() => service.getCurrentUser()).thenAnswer((_) async => null);
+      when(() => service.sessionEnded).thenAnswer((_) => const Stream.empty());
     });
 
     test('returns true and clears the user on success', () async {

@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../core/access/account_scope.dart';
 import '../core/constants/app_constants.dart';
 import '../core/constants/failure_messages.dart';
 import '../core/di/dependency_injection.dart';
@@ -29,7 +30,7 @@ typedef SalonFiguresSink =
       required int reviewCount,
     });
 
-class ProviderProvider extends ChangeNotifier {
+class ProviderProvider extends ChangeNotifier implements AccountScoped {
   final ProviderServiceInterface _providerService =
       serviceLocator.providerService;
   // Lazy so constructing ProviderProvider doesn't require these registered.
@@ -86,6 +87,18 @@ class ProviderProvider extends ChangeNotifier {
   /// How many reviews of each salon [addReviewLocally] has applied — the
   /// stale-answer guard of [rereadSalonAfterReview].
   final Map<String, int> _reviewsApplied = {};
+
+  /// The account changed (B9.13): only the stars it gave are its own.
+  ///
+  /// Everything else here — the salons, the open page, the commune, the sort
+  /// — is public, and emptying it would blank the home under the person.
+  /// No notification: nothing on screen reads these stars, and a rebuild of
+  /// every salon list for nothing is a cost on a low-end phone. No account
+  /// number either: the map is keyed by the previous account's visits, which
+  /// the next account can never review (docs/design/consumer-account-scope.md
+  /// §2.1).
+  @override
+  void resetForAccountChange() => _starsByVisit.clear();
 
   static const _communeKey = 'myweli_selected_commune_v1';
 

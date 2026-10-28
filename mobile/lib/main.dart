@@ -3,8 +3,10 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
+import 'package:provider/single_child_widget.dart';
 
 import 'core/a11y/reduce_motion.dart';
+import 'core/access/account_scope.dart';
 import 'core/config/build_config_guard.dart';
 import 'core/di/dependency_injection.dart';
 import 'core/observability/error_reporting.dart';
@@ -28,6 +30,7 @@ import 'screens/update/update_required_app.dart';
 import 'services/push/fcm_message_bridge.dart';
 import 'widgets/common/content_width_cap.dart';
 import 'widgets/common/default_status_bar_style.dart';
+import 'widgets/common/session_ended_notice.dart';
 
 void main() {
   // Run inside a guarded zone so framework errors and uncaught async errors
@@ -119,6 +122,35 @@ Future<void> _startPush(AuthProvider auth) async {
   await FcmMessageBridge(handler).init();
 }
 
+/// The consumer app's stores, above every route and alive for the whole app.
+/// A function rather than a list inline in [MyweliApp] so the tests mount the
+/// exact wiring the app runs (test/widget/account_switch_test.dart).
+///
+/// **Every store that holds the signed-in account's data is created through
+/// `AccountScope.track`**: they outlive the account, and `AuthProvider` resets
+/// them when it changes (docs/design/consumer-account-scope.md §2.1). The
+/// communes are the same for everybody, so `LocalityProvider` is not.
+List<SingleChildWidget> consumerAppProviders(AuthProvider auth) => [
+  ChangeNotifierProvider.value(value: auth),
+  ChangeNotifierProvider(create: (_) => AccountScope.track(ProviderProvider())),
+  ChangeNotifierProvider(create: (_) => LocalityProvider()),
+  ChangeNotifierProvider(
+    create: (_) => AccountScope.track(AppointmentProvider()),
+  ),
+  ChangeNotifierProvider(
+    create: (_) => AccountScope.track(FavoritesProvider()),
+  ),
+  ChangeNotifierProvider(
+    create: (_) => AccountScope.track(MessagingProvider()),
+  ),
+  ChangeNotifierProvider(
+    create: (_) => AccountScope.track(NotificationsProvider()),
+  ),
+  ChangeNotifierProvider(
+    create: (_) => AccountScope.track(NotificationPreferencesProvider()),
+  ),
+];
+
 class MyweliApp extends StatelessWidget {
   const MyweliApp({super.key, required this.auth});
 
@@ -127,18 +159,7 @@ class MyweliApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MultiProvider(
-      providers: [
-        ChangeNotifierProvider.value(value: auth),
-        ChangeNotifierProvider(create: (_) => ProviderProvider()),
-        ChangeNotifierProvider(create: (_) => LocalityProvider()),
-        ChangeNotifierProvider(create: (_) => AppointmentProvider()),
-        ChangeNotifierProvider(create: (_) => FavoritesProvider()),
-        ChangeNotifierProvider(create: (_) => MessagingProvider()),
-        ChangeNotifierProvider(create: (_) => NotificationsProvider()),
-        ChangeNotifierProvider(
-          create: (_) => NotificationPreferencesProvider(),
-        ),
-      ],
+      providers: consumerAppProviders(auth),
       // Above MaterialApp so the whole tree rebuilds when iOS Reduce Motion is
       // toggled mid-session — nothing in the framework reads that flag (§9, A8).
       child: ReduceMotionObserver(
@@ -170,8 +191,15 @@ class MyweliApp extends StatelessWidget {
           // Outside it, the status bar's default for screens without an
           // AppBar — or a cover's light icons outlive the cover after back
           // (DefaultStatusBarStyle; salon-cover-photo.md §2.1).
-          builder: (context, child) => DefaultStatusBarStyle(
-            child: ContentWidthCap(child: child ?? const SizedBox.shrink()),
+          //
+          // The session the server refused is said, and an account screen
+          // left, from one place above every route (SessionEndedNotice;
+          // consumer-account-scope.md §2.5).
+          builder: (context, child) => SessionEndedNotice(
+            router: AppRouter.router,
+            child: DefaultStatusBarStyle(
+              child: ContentWidthCap(child: child ?? const SizedBox.shrink()),
+            ),
           ),
           routerConfig: AppRouter.router,
         ),

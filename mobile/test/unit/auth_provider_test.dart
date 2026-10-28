@@ -19,6 +19,7 @@ void main() {
   setUp(() {
     reset(service);
     when(() => service.getCurrentUser()).thenAnswer((_) async => null);
+    when(() => service.sessionEnded).thenAnswer((_) => const Stream.empty());
   });
 
   test('verifyOtp surfaces the failure code on a locked error', () async {
