@@ -1344,6 +1344,14 @@ checking rather than assuming:
       apps live in [design/play-store-forms.md](design/play-store-forms.md),
       each derived from the published privacy policy or the binary, never
       invented. The operator types; the thinking is done.
+      *(2026-10-28, B0.10: re-audited for **MyWeli Pro only** (decision 51),
+      against the release APK, Google's pages and the iOS label:
+      - crash data takes « Analyses »; « ID utilisateur », « Fichiers et
+        documents » and « Historique des recherches » are added;
+      - the sign-in text is in English.
+      Claude types it in the browser pane, the owner signed in (decision 53).
+      Production waits for a 12-tester, 14-day closed test (decision 52).
+      MyWeli is re-audited before its own submission.)*
 
 ---
 

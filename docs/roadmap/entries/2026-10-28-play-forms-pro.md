@@ -1,0 +1,19 @@
+- 🟡 **Google Play, MyWeli Pro d'abord : les formulaires ré-audités, la bannière et les captures faites (release · 2026-10-28 — BACKLOG B0.10, décisions 51–54).**
+  - **Lu :** les APK de version des deux saveurs (`aapt2`), les pages de Google du jour et l'étiquette App Store relue le même jour. Cible SDK 36, exigée depuis le 2026-08-31. Aucune permission de photos, `AD_ID`, alarme exacte ni service au premier plan, donc aucune déclaration de permission.
+  - **Corrigé dans la Sécurité des données :**
+    - les plantages ont la finalité « Analyses », selon la définition de Google ;
+    - « ID utilisateur », « Fichiers et documents » (pièces KYC en PDF) et « Historique des recherches » sont ajoutés ;
+    - « Applications de santé » et « Fonctionnalités financières » sont dues par toute app.
+  - **Les informations de connexion** sont en anglais, comme Google le demande, avec trois actions désactivées sur le compte démo.
+  - **Faits :**
+    - la bannière 1024 × 500 ;
+    - les 8 cadres approuvés, recomposés en 1080 × 2160, barre d'état de l'iPhone coupée ;
+    - l'icône 512, à partir de celle de l'app Pro.
+  - **Le garde-fou :** `play_store_forms_test.dart` vérifie trois choses. Les limites de Play et la même description que l'App Store ; chaque libellé cité sur l'écran de connexion Pro ; chaque type de l'étiquette App Store présent sur Play.
+  - **Trouvé en route (B0.15, décision 55) :** les journaux de requêtes de Cloud Run gardent 30 jours l'URL entière, recherche comprise. La raison donnée à Apple pour « Search History : non » est donc fausse.
+  - **Reste :**
+    - la saisie dans la Play Console, dans le volet navigateur, le propriétaire connecté ;
+    - la clé d'importation et l'AAB signé ;
+    - **le test fermé, 12 testeurs pendant 14 jours**, avant la production ;
+    - MyWeli (client) plus tard.
+  - Détail : [play-store-forms.md](../../design/play-store-forms.md).

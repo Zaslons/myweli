@@ -41,7 +41,7 @@
 **Proposed order.**
 - **Done (2026-10-25):** batches 1–9, every item.
 - **Now:** batch 0 — **0.0.1 was rejected under 3.1.1** (business registration in the app); B0.11 made the Pro app login-only (#711). **Build 698, the new build of 0.0.1, was resubmitted on 2026-10-26** and is waiting for review, so B0.1's « while it's in review » constraints apply again. The privacy policy is corrected and live (B0.4, #709).
-- **Yours:** batch 10, and your half of batch 0 (answer any Resolution Center message and release by hand after approval, B0.1; B0.10's Play forms).
+- **Yours:** batch 10, and your half of batch 0 (answer any Resolution Center message and release by hand after approval, B0.1; B0.10: sign in to the Play Console in the browser pane, the upload key, the 12 closed-test testers; decision 55).
 
 ---
 
@@ -134,6 +134,14 @@ Each question has a recommendation. Answers unblock the item named in brackets.
 49. Sentry's default « Send a notification for high priority issues » alert on `myweli-app` watches every environment and overlaps B0.7's first alert: keep it or turn it off? [B0.7] — ✅ **Answered (2026-10-28): turned off**, not deleted.
 50. On iOS error 1000 (`AuthorizationErrorCode.unknown`), should the Pro app say how to fix it rather than only « Connexion Apple impossible. »? [B0.14] — ✅ **Answered (2026-10-28): yes, sentence A** — after asking whether the error could be removed altogether (it cannot from our side; [apple-signin-error-1000.md](design/apple-signin-error-1000.md) §10), and « do what is better in the long term ».
 
+**Google Play (batch 0, B0.10)** — asked and answered on 2026-10-28, after reading the release APKs, production and Google's current pages ([play-store-forms.md](design/play-store-forms.md) §0).
+
+51. Which apps go on Play now? [B0.10] — ✅ **Answered: MyWeli Pro only.** Production has no public salon (`GET /providers` → `total: 0`), so the client app would open empty; it follows once salons are public, like on iOS.
+52. Which Play developer account? [B0.10] — ✅ **Answered: personal.** So production waits for a closed test with 12 testers opted in for 14 days.
+53. Who types the Play Console forms? [B0.10] — ✅ **Answered: Claude, in the browser pane**, you signed in, each form shown to you before it is saved.
+54. Play screenshots? [B0.10] — ✅ **Answered: the 8 approved App Store frames, recomposed** at 1080×2160 with the iPhone status bar cropped.
+55. Search text in Google Cloud's request logs: exclude those entries (a), or keep them and declare « Search History » on the App Store label (b)? [B0.15] — open. *Recommended: (a) — a salon's client search has no reason to sit in logs for 30 days.*
+
 ---
 
 ## 3. The batches
@@ -201,10 +209,37 @@ Each question has a recommendation. Answers unblock the item named in brackets.
   - **Read in the plugin:** `unknown` is 1000, or a code `sign_in_with_apple` 8.2.0 does not know.
   - **Tests:** one per code for each of the two Apple sign-ins (MyWeli and MyWeli Pro), and the real chain on both login screens at 200 % text, looked at. Three mutations watched red.
   - **Why the error itself cannot be removed:** you asked; the spec §10 explains why. iOS raises it on the phone, before our app or server gets anything.
-- **B0.10 Google Play forms for both apps (P2 · M).**
-  - **What:** nothing has been typed into Play Console yet.
-  - **How:** you type play-store-forms §1–§5 with the amended App access text. I check them against the policy and the iOS answers, make the 1024×500 banner, and add a length test for the access text.
+- **B0.10 Google Play forms — MyWeli Pro first (P2 · M · decisions 51–54).** **Re-audited and prepared on 2026-10-28** — [play-store-forms.md](design/play-store-forms.md), rewritten for MyWeli Pro.
+  - **What the audit read:**
+    - **The binary:** release APKs of both flavours, read with `aapt2`. Both target SDK 36 (Play's requirement since 2026-08-31). Neither has a photo or media permission, `AD_ID`, exact alarm or foreground service, so no permission declaration is due.
+    - **Google's current pages** (fetched 2026-10-28).
+    - **The iOS label**, read the same day.
+  - **What it changed in the answers:**
+    - **Data safety:** crash logs and diagnostics take the purpose « Analyses » under Google's definition; « ID utilisateur », « Fichiers et documents » (KYC PDFs) and « Historique des recherches » (B0.15) are added.
+    - **Declarations:** « Health apps » and « Financial features » are now due from every app.
+    - **Sign-in details:** in English, as Google asks, with « three actions disabled » (the deletion lock was verified in production on 2026-10-14).
+    - **The listing:** plain text; Play does not render Markdown.
+  - **Graphics made:** `tool/app_store_screenshots/feature_graphic.py` (the 1024×500 banner) and `play_screenshots.py` (the 8 approved frames at 1080×2160, Play's 2:1 limit, with the iPhone status bar cropped; and the 512 icon from the Pro app's own).
+  - **The guard:** `play_store_forms_test.dart`. Google states no limit for the sign-in instructions, so the « length test » goes where Play's limits are real:
+    - the listing within 30, 80 and 4,000 characters, and the same description as the App Store;
+    - every label in the sign-in steps on the Pro sign-in screen;
+    - every App Store data type with its Play row.
+  - **Left:**
+    - typing it into the Play Console, in the browser pane once you sign in, each form shown to you before it is saved (decision 53);
+    - a signed AAB and the backed-up upload key (LAUNCH §6.3);
+    - **the closed test: 12 testers for 14 days** before production (decision 52).
+  - **MyWeli (client):** later (decision 51); play-store-forms §8 lists what to re-audit then.
   - **Order:** Android is last (LAUNCH §3).
+- **B0.15 Search text kept 30 days in Google Cloud's request logs (P2 · S · decision 55, open).**
+  - **What:** found by B0.10 on 2026-10-28. Cloud Run's own request logs keep the full URL, query string included (read in Cloud Logging: `…/providers?page=1&pageSize=20`), for 30 days. Two requests put personal text there: the Pro client search (`?query=`, a client's name or part of a number) and the public salon search (`?q=`).
+  - **Where it stands:**
+    - **The privacy policy is honest:** Google Cloud records « l'adresse de la page demandée », 30 days.
+    - **The App Store label is not:** app-store-forms §7.3 answers « Search History: no » because « le serveur ne journalise que le chemin, jamais la requête », which is false for the platform's logs.
+    - **Play** declares it (play-store-forms §4).
+    - **Nothing has been searched in production yet:** no log since 2026-09-01 contains `query=`.
+  - **Options (decision 55):**
+    - **(a) A Cloud Logging exclusion** drops request entries whose URL carries `query=` or `q=`. Then the iOS answer becomes true, and Play's row can go. This is a cloud mutation, done on your go, and lost on a new project unless written in `infra/`.
+    - **(b) Keep the logs** and declare « Search History » on the App Store label. That needs no build.
 
 - **B0.12 Sign in with Apple keys, one per app (P1 · M · decisions 45–47).** Spec: [apple-signin-keys.md](design/apple-signin-keys.md) (approved 2026-10-27).
   - **What:** B6.7 revokes a deleted account's Apple authorization (5.1.1(v)) but waits for a key. MyWeli and MyWeli Pro are separate Sign in with Apple primaries (read through the API, 2026-10-27), and Apple's model is a key per primary — DEPLOYMENT.md assumed one group and one key.

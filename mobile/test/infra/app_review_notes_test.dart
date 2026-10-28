@@ -323,7 +323,9 @@ void main() {
   test('Play — the paste-ready text speaks of deletion only once the '
       'production check is dated; the amended text is the one that does', () {
     expect(playPasteAnchor.allMatches(play), hasLength(1));
-    final deletion = RegExp('suppr', caseSensitive: false);
+    // French (« suppression ») or English (« deleting ») — the Play text is in
+    // English since 2026-10-28, as Google asks of sign-in instructions.
+    final deletion = RegExp('suppr|delet', caseSensitive: false);
     if (present(play, playAmendedAnchor)) {
       expect(playTextOf(playAmendedAnchor), contains('suppression du compte'));
     }

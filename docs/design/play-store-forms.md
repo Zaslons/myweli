@@ -2,293 +2,387 @@
 
 | | |
 |---|---|
-| **Status** | Prêt à saisir (owner) — rédigé 2026-08-28 ; **corrigé 2026-09-24** (libellés de connexion du §2, adresse + numéro Mobile Money dans la table Pro du §4.2 — audit App Store, [app-store-forms.md](app-store-forms.md)) ; **2026-10-05** : l'app Pro Android ne propose plus de choix d'offre non plus (§3) ; **2026-10-13** : texte amendé prêt au §2 — trois actions désactivées sur le compte démo au lieu de deux, la suppression du compte s'y ajoute ; **à ne coller qu'une fois le verrou vérifié en production**, le texte en vigueur reste d'ici là |
-| **Portée** | Les DEUX fiches Play : MyWeli (`com.myweli.app`) et MyWeli Pro (`com.myweli.pro`) |
+| **Status** | **Ré-audité le 2026-10-28 (BACKLOG B0.10)** contre le binaire, la politique publiée, l'étiquette App Store relue ce jour-là et les règles Play en vigueur. **MyWeli Pro seule pour l'instant** (décision 51) ; la saisie se fait dans le volet navigateur, formulaire par formulaire, montré au propriétaire avant chaque enregistrement (décision 53). Historique : rédigé 2026-08-28 ; corrigé 2026-09-24 (libellés de connexion, adresse et numéro Mobile Money) ; 2026-10-05 (plus de choix d'offre dans l'app Pro Android) ; 2026-10-13 (texte d'accès amendé, verrou de suppression du compte démo). |
+| **Portée** | **MyWeli Pro** (`com.myweli.pro`) maintenant. MyWeli (`com.myweli.app`) au §8, à ré-auditer avant sa soumission. |
 | **Source de vérité** | La politique de confidentialité publiée (`/politique-confidentialite`) et le binaire — un formulaire qui les contredit est un rejet ET une exposition légale (LAUNCH.md §6.3) |
-| **Règle** | Chaque réponse ci-dessous est dérivée du code ou de la politique, jamais inventée. En cas de doute en saisissant : STOP, on vérifie. |
+| **Règle** | Chaque réponse ci-dessous est dérivée du code, du binaire ou de la politique, jamais inventée. En cas de doute en saisissant : STOP, on vérifie. |
+| **Garde-fous** | `mobile/test/infra/play_store_forms_test.dart` (longueurs du §1 contre les limites de Play ; libellés du §2 contre l'écran de connexion Pro) · `mobile/test/infra/app_review_notes_test.dart` (la phrase du compte démo, le verrou de suppression) |
 
-Ordre conseillé dans la console, par app : **Fiche du Play Store → Accès à
-l'app → Classification du contenu → Sécurité des données**. Compter ~45 min
-pour les deux apps.
+Ordre conseillé dans la console : **Fiche du Play Store → Contenu de
+l'application (§2 à §5) → Test fermé (§6)**.
 
 ---
 
-## 1 · Fiche du Play Store (Store listing)
+## 0 · Ce qui a changé le 2026-10-28, et pourquoi
 
-### MyWeli (consommateur)
+**Les décisions du propriétaire** (BACKLOG, décisions 51 à 54) :
 
-- **Nom de l'app** (30 car. max) : `MyWeli — Beauté & rendez-vous`
-- **Description courte** (80 car. max) :
-  `Réservez coiffure, tresses, onglerie et spa près de chez vous, 24h/24.`
-- **Description complète** (4000 car. max) :
+1. **MyWeli Pro seule sur Play pour l'instant.** La production n'affiche
+   **aucun salon public** (`GET /providers` → `total: 0`, lu le 2026-10-28, une
+   route inexistante en témoin → 404). L'app client s'ouvrirait vide pour le
+   relecteur de Google et pour quiconque l'installe. Comme sur iOS, l'app Pro
+   d'abord, pour que les salons s'inscrivent ; MyWeli suivra (§8).
+2. **Le compte développeur Play est un compte personnel.** Production
+   n'est accessible qu'après un **test fermé : 12 testeurs inscrits sans
+   interruption pendant 14 jours** (§6).
+3. **La saisie** : Claude dans le volet navigateur, le propriétaire connecté,
+   chaque formulaire montré avant d'être enregistré.
+4. **Les captures** : les 8 cadres déjà approuvés pour l'App Store, recomposés
+   au format de Play (§1.3).
 
-> Trouvez et réservez les meilleurs salons de beauté de Côte d'Ivoire —
-> coiffure, tresses, locks, barbier, onglerie, massage, spa — en quelques
-> secondes, sans appel.
->
-> **Réservez quand vous voulez.** Les créneaux affichés sont ceux du salon,
-> en temps réel. Choisissez vos prestations, votre horaire, confirmez —
-> c'est tout.
->
-> **Comparez avant de choisir.** Photos, avant/après, avis clients, tarifs
-> en FCFA et localisation sur la carte : chaque salon se présente
-> entièrement.
->
-> **Suivez vos rendez-vous.** Vos réservations, rappels et l'historique de
-> vos visites, au même endroit. Modifiez ou annulez en un geste.
->
-> **Payez comme d'habitude.** L'acompte éventuel se règle directement au
-> salon par Mobile Money — MyWeli ne détient jamais votre argent.
->
-> Sans publicité, sans profilage : nous ne collectons que le nécessaire à
-> vos rendez-vous (politique de confidentialité sur myweli.com).
->
-> Vous êtes un salon ? Téléchargez MyWeli Pro pour gérer agenda, équipe et
-> clientèle.
+**Ce que l'audit a lu et changé.**
 
-### MyWeli Pro
+- **Le binaire** (APK de version Pro et client construits le 2026-10-28,
+  `aapt2 dump`) :
+  - `targetSdkVersion` **36**, ce que Play exige depuis le 2026-08-31 ;
+  - permissions : `INTERNET`, `ACCESS_FINE_LOCATION`/`COARSE`,
+    `POST_NOTIFICATIONS`, `WAKE_LOCK`, `ACCESS_NETWORK_STATE`, `VIBRATE`,
+    `USE_BIOMETRIC`/`USE_FINGERPRINT`, et la réception FCM ;
+  - **aucune** permission de photos ou de médias (le sélecteur du système
+    suffit), **aucun** `AD_ID`, aucune alarme exacte, aucun service au
+    premier plan. Aucune déclaration de permission n'est donc due (§5).
+- **Les règles de Play**, relues sur les pages de Google le 2026-10-28 :
+  - **les journaux de plantage et les diagnostics ont la finalité
+    « Analyses »** : c'est la définition de Google (« to monitor app health,
+    to diagnose and fix bugs or crashes »). L'ancien §4 disait qu'aucune
+    donnée n'avait cette finalité ; corrigé au §4 ;
+  - **« ID utilisateur » manquait**, alors que l'étiquette App Store le
+    déclare ;
+  - « Accès à l'application » s'appelle désormais **« Informations de
+    connexion »**, et Google veut les identifiants et les instructions **en
+    anglais** : le texte du §2 l'est ;
+  - **« Fonctionnalités financières » et « Applications de santé » sont dues
+    par toute app**, même sans ces fonctionnalités (§5).
+- **Le code depuis août** :
+  - B0.11 (#711) : l'app Pro ne crée plus de compte ni de salon, l'« Adresse
+    à l'inscription » n'existe plus dans l'app ;
+  - la recherche de clients envoie le texte cherché dans l'adresse de la
+    requête (`?query=`). **Google Cloud garde cette adresse 30 jours dans ses
+    journaux** (lu dans Cloud Logging le 2026-10-28 : l'URL entière, chaîne de
+    requête comprise). C'est donc une donnée collectée : « Historique des
+    recherches dans l'application » au §4. L'ancienne justification d'Apple
+    (« le serveur ne journalise que le chemin, jamais la requête ») est fausse
+    pour les journaux de Google Cloud ; voir BACKLOG B0.15.
+- **Pas de limite de longueur documentée** pour les instructions de
+  connexion : aucune page de Google n'en donne. Le « test de longueur » prévu
+  par B0.10 vise donc ce que Play limite vraiment, les textes de la fiche (§1),
+  et les libellés que le texte de connexion cite (§2).
 
-- **Nom de l'app** : `MyWeli Pro — Gestion de salon`
+---
+
+## 1 · Fiche du Play Store (Store listing) — MyWeli Pro
+
+Limites de Play (aide Play, « Add product details ») : nom 30 caractères,
+description courte 80, description complète 4 000. Le test les relit.
+
+- **Nom de l'app** : `MyWeli Pro — Gestion de salon` (29 caractères ; le nom
+  de l'App Store, §4 d'[app-store-forms.md](app-store-forms.md))
 - **Description courte** :
   `L'agenda, la clientèle et les réservations de votre salon, en une app.`
-- **Description complète** :
+- **Description complète** — la même que sur l'App Store, mot pour mot, en
+  texte brut (Play n'interprète pas le Markdown : un `**` collé s'afficherait
+  tel quel) :
 
-> L'outil de gestion des salons de beauté de Côte d'Ivoire : recevez des
-> réservations en ligne et pilotez votre activité au quotidien.
->
-> **Votre agenda, tenu tout seul.** Les clients réservent sur vos créneaux
-> réels ; vous ajoutez les rendez-vous pris au téléphone ou au comptoir en
-> quelques gestes. Vue journée, semaine, et par membre d'équipe.
->
-> **Votre vitrine en ligne.** Photos, avant/après, logo, prestations et
-> tarifs, horaires avec modèles prêts à l'emploi : votre page publique sur
-> myweli.com se remplit depuis l'app.
->
-> **Votre clientèle, enregistrée d'elle-même.** Chaque réservation crée ou
-> retrouve la fiche client — historique de visites, notes, étiquettes.
->
-> **Vos acomptes, sans intermédiaire.** Le client paie l'acompte sur VOTRE
-> Mobile Money et joint sa preuve ; vous confirmez. MyWeli ne touche jamais
-> vos fonds.
->
-> **Votre équipe.** Invitez manager, réception et collaborateurs, chacun
-> avec les accès de son rôle.
->
-> Conçu pour les réalités d'ici : FCFA, communes, à domicile, réseaux
-> lents et petits téléphones.
+**Description complète** (coller tel quel) :
 
-- **Graphismes** (les deux apps) : icône 512×512 (déjà dans le repo),
-  bannière « feature graphic » 1024×500 (à produire — me demander), 2 à 8
-  captures de téléphone (prendre sur ton téléphone en 535 : accueil,
-  recherche/carte, page salon, réservation pour MyWeli ; agenda, réservation
-  manuelle, catalogue, disponibilités pour Pro).
-- **Catégorie** : MyWeli → « Beauté ». Pro → « Entreprise » (Business).
-- **Coordonnées** : e-mail de support + `https://myweli.com/support` ;
-  politique de confidentialité :
-  `https://myweli.com/politique-confidentialite` (les DEUX apps).
+```text
+L'outil de gestion des salons de beauté de Côte d'Ivoire : recevez des réservations en ligne et pilotez votre activité au quotidien.
+
+VOTRE AGENDA, TENU TOUT SEUL
+Les clients réservent sur vos créneaux réels ; vous ajoutez les rendez-vous pris au téléphone ou au comptoir en quelques gestes. Vue journée, semaine, et par membre d'équipe.
+
+VOTRE VITRINE EN LIGNE
+Photos, avant/après, logo, prestations et tarifs, horaires avec modèles prêts à l'emploi : votre page publique sur myweli.com se remplit depuis l'app.
+
+VOTRE CLIENTÈLE, ENREGISTRÉE D'ELLE-MÊME
+Chaque réservation crée ou retrouve la fiche client — historique de visites, notes, étiquettes.
+
+VOS ACOMPTES, SANS INTERMÉDIAIRE
+Le client paie l'acompte sur VOTRE Mobile Money et joint sa preuve ; vous confirmez. MyWeli ne touche jamais vos fonds.
+
+VOTRE ÉQUIPE
+Invitez manager, réception et collaborateurs, chacun avec les accès de son rôle.
+
+Conçu pour les réalités d'ici : FCFA, communes, à domicile, réseaux lents et petits téléphones.
+```
+
+### 1.1 Catégorie et coordonnées
+
+- **Catégorie** : Application → **Entreprise** (Business), comme « Économie et
+  entreprise » sur l'App Store.
+- **Adresse e-mail** : `support@myweli.com` — **lue**, vérifiée le 2026-10-28
+  (BACKLOG, lot 10).
+- **Site Web** : `https://myweli.com`.
+- **Téléphone** : aucun (facultatif).
+- **Politique de confidentialité** (Contenu de l'application) :
+  `https://myweli.com/politique-confidentialite`.
+
+### 1.2 Icône et bannière
+
+Produites par `tool/app_store_screenshots/` à partir des captures brutes du
+tournage App Store (`build/app-store/pro/raw`, hors dépôt) :
+
+```bash
+python3 tool/app_store_screenshots/feature_graphic.py --raw build/app-store/pro/raw --out build/play-store/pro
+python3 tool/app_store_screenshots/play_screenshots.py --raw build/app-store/pro/raw --out build/play-store/pro
+```
+
+- **Icône** `icon-512.png` : 512 × 512, PNG 32 bits opaque. C'est l'icône
+  1024 de l'app Pro (`AppIcon-pro.appiconset`, pas celle de l'app client),
+  réduite. Elle est carrée, sans coins arrondis : Play applique son propre
+  masque.
+- **Bannière** `feature-graphic-1024x500.png` : 1024 × 500, PNG 24 bits sans
+  alpha.
+  - Le symbole, « MyWeli Pro », la description courte, et la capture
+    « Ma journée » dans la carte des cadres App Store.
+  - **La barre d'état de l'iPhone est coupée** (« 09:41 », réseau,
+    batterie) : elle n'a rien à faire sur une fiche Android.
+
+### 1.3 Captures de téléphone — les 8 cadres approuvés, au format de Play
+
+- **Pourquoi pas les cadres App Store tels quels :** ils font 1206 × 2622.
+  Play refuse une capture dont le grand côté dépasse deux fois le petit (2,17
+  ici).
+- **Les cadres de Play** font **1080 × 2160** (2:1 tout juste), en PNG
+  24 bits sans alpha.
+  - Mêmes titres, mêmes captures, mêmes masques que l'App Store
+    (`screens.json`).
+  - La barre d'état de l'iPhone est coupée ; la carte est un peu plus étroite.
+  - Au moins 4 captures d'au moins 1080 px rendent la fiche éligible aux mises
+    en avant de Play : les 8 le sont.
+- **Ordre** : 01 Agenda · 02 Aperçu de la page · 03 Accueil · 04 Réservation ·
+  05 Fiche client · 06 Prestations · 07 Disponibilité · 08 Revenus.
+
+Ce qui reste d'iOS dans les captures, dit franchement : la flèche de retour
+(‹) est celle d'iOS, celle d'Android est ←. Le reste de l'interface est la même
+app Flutter.
 
 ---
 
-## 2 · Accès à l'app (App access)
+## 2 · Informations de connexion (Sign-in details)
 
-### MyWeli Pro — identifiants de démonstration
-
-Choisir « **Tout ou partie des fonctionnalités sont restreintes** » puis
-« Ajouter des instructions » :
+Choisir « **Tout ou partie des fonctionnalités sont restreintes** », puis
+ajouter des instructions :
 
 - **Nom d'utilisateur** : `revue@myweli.test`
-- **Mot de passe** : le code à 6 chiffres — il est dans Secret Manager,
-  **jamais dans ce repo ni dans le chat**. Le lire sur ton poste au moment
-  de remplir :
+- **Mot de passe** : le code à 6 chiffres. Il est dans Secret Manager,
+  **jamais dans ce repo ni dans le chat**. Le lire sur ton poste au moment de
+  remplir :
 
   ```bash
   gcloud secrets versions access latest --secret=DEMO_PROVIDER_CODE --project=myweli
   ```
 
-- **Instructions supplémentaires** (coller tel quel — le texte en vigueur) :
+  C'est **le même code que pour la revue Apple**. Aucune rotation tant
+  qu'Apple n'a pas rendu sa décision (B0.1).
+- **Ce que Google exige :** des identifiants qui marchent toujours, de
+  partout, réutilisables, sans code à usage unique, en anglais. Le compte démo
+  a un code **fixe qui n'expire pas** : c'est exactement ce que Google demande.
 
-> Sur l'écran « Espace Pro », saisir revue@myweli.test dans le champ
-> « Votre e-mail », toucher « Continuer avec e-mail », puis saisir le code à
-> 6 chiffres fourni ci-dessus dans « Code à 6 chiffres » et toucher « Se
-> connecter » (l'e-mail n'existe pas : aucun message n'est envoyé, le code
-> fourni remplace celui normalement envoyé). Vous
-> arrivez sur un salon de démonstration complet : agenda rempli,
-> réservations manuelles, clients, catalogue, photos, disponibilités,
-> exports — tout fonctionne. Deux actions sont volontairement désactivées
-> sur ce compte de démonstration (mise en ligne publique du salon et
-> invitations d'équipe) et l'affichent clairement : « Compte de
-> démonstration — cette action est désactivée. »
+**Instructions supplémentaires** (coller tel quel — en anglais, comme Google le demande) :
 
-- **Instructions amendées** (2026-10-13 — **à ne coller qu'une fois datée la
-  ligne « Verrou de suppression du compte démo — vérifié en production »
-  d'[app-store-forms.md](app-store-forms.md) §8**, à la place des
-  précédentes) :
+> MyWeli Pro is the business app for beauty salons in Côte d'Ivoire (French
+> UI). It signs in with an e-mail address and a 6-digit code, not a password.
+> The demo account uses a FIXED code that never expires: it is the password
+> above.
+> 1. On the « Espace Pro » screen, type revue@myweli.test in « Votre e-mail ».
+> 2. Tap « Continuer avec e-mail ». No e-mail is sent: the .test domain cannot receive mail, and the fixed code replaces the one normally e-mailed.
+> 3. Type the code in « Code à 6 chiffres », then tap « Se connecter ».
+> You land on « Maison Nala », a complete demo salon: agenda, manual bookings,
+> clients, services, photos, availability and data export all work. Three
+> actions are deliberately disabled for this shared demo account and say so on
+> screen (« Compte de démonstration — cette action est désactivée. »):
+> publishing the salon, inviting team members by e-mail, and deleting the
+> account. No payment of any kind happens in the app. The app only signs in to
+> existing salon accounts; salons sign up on myweli.com.
 
-> Sur l'écran « Espace Pro », saisir revue@myweli.test dans le champ
-> « Votre e-mail », toucher « Continuer avec e-mail », puis saisir le code à
-> 6 chiffres fourni ci-dessus dans « Code à 6 chiffres » et toucher « Se
-> connecter » (l'e-mail n'existe pas : aucun message n'est envoyé, le code
-> fourni remplace celui normalement envoyé). Vous
-> arrivez sur un salon de démonstration complet : agenda rempli,
-> réservations manuelles, clients, catalogue, photos, disponibilités,
-> exports — tout fonctionne. Trois actions sont volontairement désactivées
-> sur ce compte de démonstration (mise en ligne publique du salon,
-> invitations d'équipe et suppression du compte) et l'affichent clairement :
-> « Compte de démonstration — cette action est désactivée. »
-
-*Amendé le 2026-10-13
-([demo-account-deletion-lock.md](demo-account-deletion-lock.md)) : « Deux
-actions … (mise en ligne publique du salon et invitations d'équipe) » devient
-« Trois actions … », avec la suppression du compte ; le reste est identique.
-**Le texte amendé n'est vrai qu'une fois le verrou déployé en production** —
-`api.myweli.com` répond alors 403 `demo_account_locked` à
-`DELETE /me/provider` ; le déploiement demande l'accord explicite du
-propriétaire (spec §10). **D'ici là, c'est le texte en vigueur qui va dans la
-Play Console** : le texte amendé inviterait le relecteur à essayer une
-suppression que la production exécute encore. Un test tient les deux textes
-à la phrase de l'app et lit la ligne du §8
-(`mobile/test/infra/app_review_notes_test.dart`).*
-
-*Corrigé le 2026-09-24 (audit App Store,
-[app-store-forms.md](app-store-forms.md) §8) : ce texte disait « Ouvrir « Se
-connecter par e-mail » », un libellé qui n'existe pas dans l'app — l'écran de
-connexion montre directement « Votre e-mail » puis « Continuer avec e-mail »,
-et l'étape du code « Code à 6 chiffres » puis « Se connecter »
-(`pro_login_screen.dart`). **Si l'ancien texte a déjà été saisi dans la Play
-Console, le remplacer (owner).***
-
-### MyWeli (consommateur)
-
-Choisir aussi « restreintes » (la réservation demande un compte) avec ces
-instructions — pas d'identifiants à fournir, l'inscription est libre :
-
-> La navigation (recherche, pages salons, carte) est libre sans compte.
-> Pour réserver, créez un compte en 30 secondes : « Continuer avec
-> e-mail », saisissez n'importe quelle adresse e-mail que vous contrôlez —
-> le code de connexion y est envoyé. Aucune validation manuelle, aucun
-> paiement dans l'app.
+- **Pourquoi « trois actions »** : la suppression du compte démo est bloquée
+  en production depuis le 2026-10-14. C'est la ligne datée d'app-store-forms
+  §8, que `app_review_notes_test.dart` relit.
+- **Ce texte remplace les deux blocs français** (« en vigueur » et
+  « amendé »), qui ne sont plus à coller.
+- **Les étapes 1 à 3 citent les libellés de l'écran de connexion Pro**, et le
+  test les relit dans `pro_login_screen.dart`.
 
 ---
 
 ## 3 · Classification du contenu (questionnaire IARC)
 
-Identique pour les deux apps, catégorie **« Utilitaire, productivité,
-communication ou autre »** :
+Catégorie **« Utilitaire, productivité, communication ou autre »** :
 
 | Question | Réponse |
 |---|---|
 | Violence, contenu sexuel, langage grossier, substances, jeux d'argent | **Non** partout |
-| L'app permet-elle aux utilisateurs d'interagir ou d'échanger du contenu ? | **Oui** — les avis (note, texte, photos) sont publiés sur les pages salons ; pas de messagerie entre utilisateurs |
-| Partage-t-elle la position actuelle de l'utilisateur avec d'autres ? | **Non** — côté client la position ne quitte jamais l'appareil ; le point affiché d'un salon est une adresse d'établissement saisie volontairement, pas la position en temps réel d'une personne |
-| Achats numériques dans l'app ? | **Non** — aucun paiement dans l'app (l'acompte se règle hors app, au salon, par Mobile Money) |
-| Contenu généré par les utilisateurs sans modération préalable ? | Les avis exigent une visite terminée ; photos et fiches salons passent par les comptes vérifiés — répondre selon le libellé exact à l'écran, dans cet esprit |
+| L'app permet-elle aux utilisateurs d'interagir ou d'échanger du contenu ? | **Oui.** Le salon publie sa page (photos, textes) ; les clients publient des avis, que l'app Pro affiche. Pas de messagerie entre utilisateurs : l'envoi de confirmations est un stub local (`MockMessagingService`, aucun envoi). |
+| Partage-t-elle la position actuelle de l'utilisateur avec d'autres ? | **Non** — le point d'un salon est une adresse d'établissement, placée volontairement (« Utiliser ma position »), pas la position en temps réel d'une personne |
+| Achats numériques dans l'app ? | **Non** — aucun paiement dans l'app ; l'acompte se règle hors app, au salon, par Mobile Money ; « Mon abonnement » n'affiche que l'état de l'offre |
+| Contenu généré par les utilisateurs : modération | Les avis exigent une visite terminée, les clients les signalent, un administrateur peut masquer un avis ou suspendre un salon (notes de revue App Store, « USER CONTENT ») |
 
-Résultat attendu : **Tout public / PEGI 3** avec la mention « Interaction
+Résultat attendu : **Tout public / PEGI 3**, avec la mention « Interaction
 entre utilisateurs ».
 
-*2026-10-05 — l'app Pro Android cesse elle aussi de proposer un choix
-d'offre* (décision du propriétaire, [pro-companion-path.md](pro-companion-path.md)
-§11 Q3 ; [app-store-forms.md](app-store-forms.md) §2.4). Plus de sélecteur
-« Choisir » / « Changer d’offre », plus de « Votre offre se gère depuis votre
-espace professionnel sur myweli.com » ni de « Réactivez votre offre sur
-myweli.com » : « Mon abonnement » ne montre que l'état de l'offre en cours, et
-l'essai d'un salon qui n'a rien choisi démarre à sa première mise en ligne.
-**Pourquoi Android aussi, alors que la règle d'origine est celle d'Apple
-(3.1.3(f))** : la politique de paiements de Google Play a la même règle
-d'incitation (*steering*) pour les abonnements numériques — c'est la raison
-retenue par la spec et approuvée par le propriétaire ; le texte actuel de la
-politique Play n'a pas été relu pour ce dossier (UNVERIFIED). Une seule
-conduite sur les deux stores, et le code du sélecteur quitte l'app Flutter.
-C'est aussi la conduite cohérente avec la réponse « Achats numériques dans
-l'app ? **Non** » ci-dessus. Le choix d'une offre se fait sur le web. Les
-testeurs internes restés sur un ancien build choisissent encore avant de
-publier — compatible : le serveur ne démarre l'essai à la publication que
-si aucune offre n'existe (spec §2.4).
+*2026-10-05 :* l'app Pro Android ne propose plus de choix d'offre non plus
+([pro-companion-path.md](pro-companion-path.md) §11 Q3) — une seule conduite
+sur les deux stores, cohérente avec « Achats numériques : Non ».
 
 ---
 
-## 4 · Sécurité des données (Data safety) — le formulaire qui compte
+## 4 · Sécurité des données (Data safety) — MyWeli Pro
 
-Principes transversaux, valables pour chaque ligne :
+**Les questions générales :**
 
-- **Chiffrement en transit** : **Oui** (tout passe en HTTPS).
-- **Suppression demandable** : **Oui** — URL de suppression de compte :
-  `https://myweli.com/suppression-compte` (in-app aussi : Profil →
-  Supprimer mon compte).
-- **« Partagées » au sens de Play** (transférées à un tiers pour SES
-  fins) : **Non pour tout** — nos prestataires (Google Cloud, Firebase,
-  Sentry, Resend, Cloudflare) sont des sous-traitants pour notre compte,
-  ce que Play classe en « collecte », pas en « partage ». Nous ne vendons
-  ni ne louons rien (politique, mot pour mot).
-- **Pas de publicité ni marketing** : aucune donnée n'a la finalité
-  « Publicité ou marketing » ni « Analyses » — les finalités sont
-  « Fonctionnement de l'app », « Gestion du compte », et « Prévention de
-  la fraude/sécurité » pour les journaux.
+- **Collecte ou partage de données requises** : **Oui**.
+- **Toutes les données sont-elles chiffrées en transit ?** **Oui** : tout
+  passe en HTTPS.
+- **Les utilisateurs peuvent-ils demander la suppression de leurs données ?**
+  **Oui**.
+  - URL : `https://myweli.com/suppression-compte`, qui répond 200 et couvre
+    les comptes professionnels (lu le 2026-10-28).
+  - Dans l'app : Profil → « Supprimer mon compte ».
+- **« Partagées » au sens de Play** (transférées à un tiers pour SES fins) :
+  **Non, pour toutes les données.** Google Cloud, Firebase, Sentry, Resend et
+  Cloudflare traitent pour notre compte, sur nos instructions : Play les
+  classe en « collecte », pas en « partage ». Nous ne vendons ni ne louons
+  rien.
+- **Aucune donnée n'a la finalité** « Publicité ou marketing »,
+  « Personnalisation » ni « Communications du développeur ».
 
-### 4.1 MyWeli (consommateur) — données collectées
+**Les données collectées.** Aucune n'est partagée, aucune n'est traitée de
+façon éphémère seulement.
+
+| Catégorie → type Play | Obligatoire ? | Finalités | Ce que c'est, dans l'app Pro |
+|---|---|---|---|
+| Informations personnelles → **Nom** | Obligatoire | Fonctionnalités de l'appli · Gestion du compte | le nom du pro (Google, Apple, profil) ; les noms des clients saisis par le salon |
+| Informations personnelles → **Adresse e-mail** | Obligatoire | Fonctionnalités de l'appli · Gestion du compte | l'e-mail de connexion ; l'e-mail des membres invités |
+| Informations personnelles → **ID utilisateur** | Obligatoire | Fonctionnalités de l'appli · Gestion du compte | l'identifiant du compte (le `sub` du jeton) — *ajouté le 2026-10-28* |
+| Informations personnelles → **Adresse** | Facultatif | Fonctionnalités de l'appli | l'adresse du salon, saisie dans « Profil du salon », publiée sur sa page |
+| Informations personnelles → **Numéro de téléphone** | Facultatif | Fonctionnalités de l'appli | « Téléphone du salon », WhatsApp, les téléphones des clients saisis par le salon |
+| Informations personnelles → **Autres infos** | Facultatif | Fonctionnalités de l'appli · Prévention des fraudes, sécurité et conformité | pièces KYC — identité, photo du visage, RCCM, justificatif d'adresse : stockage privé, jamais publiées, lues par un administrateur |
+| Informations financières → **Autres infos financières** | Facultatif | Fonctionnalités de l'appli | le numéro **Mobile Money de réception** des acomptes, publié sur la page du salon |
+| Position → **Position exacte** | Facultatif | Fonctionnalités de l'appli | le point du salon (« Utiliser ma position ») — latitude et longitude envoyées et **publiques** |
+| Photos et vidéos → **Photos** | Facultatif | Fonctionnalités de l'appli · Prévention des fraudes, sécurité et conformité | galerie, logo, avant/après, photos d'équipe (publiques) ; images KYC (privées) |
+| Fichiers et documents → **Fichiers et documents** | Facultatif | Fonctionnalités de l'appli · Prévention des fraudes, sécurité et conformité | les pièces KYC envoyées en PDF (`pro_kyc_screen.dart` accepte jpg, png, webp et **pdf**) — *ajouté le 2026-10-28* |
+| Activité dans les applis → **Historique des recherches dans l'application** | Facultatif | Fonctionnalités de l'appli | le texte cherché dans « Clients » (`?query=`), gardé 30 jours dans les journaux de requêtes de Google Cloud — *ajouté le 2026-10-28* |
+| Activité dans les applis → **Autre contenu généré par l'utilisateur** | Facultatif | Fonctionnalités de l'appli | prestations et tarifs, descriptions, horaires, notes clients, notes de réservation |
+| Infos et performances des applis → **Journaux de plantage** | Obligatoire | **Analyses** | Sentry — utilisateur, fil d'Ariane, requête et extras retirés avant envoi (`beforeSend`) |
+| Infos et performances des applis → **Diagnostics** | Obligatoire | **Analyses** | les blocages (app hangs) que Sentry envoie quand il en survient |
+| Appareil ou autres ID → **Appareil ou autres ID** | Obligatoire | Fonctionnalités de l'appli | l'ID d'installation Firebase et le jeton FCM (`device_tokens`) — le SDK FCM crée l'ID d'installation à l'initialisation |
+
+**Non collectées**, et pourquoi :
+
+- **Position approximative** : « Près de moi » choisit la commune **sur
+  l'appareil** ; seule la commune part, dans l'adresse.
+- **Historique des achats, infos de paiement** : rien ne s'achète dans l'app ;
+  le prix d'une réservation manuelle est calculé par le serveur.
+- **Interactions avec l'appli** : aucun SDK d'analyse ; le tableau de bord
+  admin compte des lignes opérationnelles, pas des événements de comportement.
+- **Messages, contacts, agenda, santé, fichiers audio, navigation Web,
+  applis installées, identifiant publicitaire** (aucun `AD_ID` dans le
+  manifeste) : **Non**.
+
+**Avant de valider** : Play affiche un aperçu de la section. Le relire à côté
+de `/politique-confidentialite` et de l'étiquette App Store relue le
+2026-10-28 (app-store-forms §7) : les trois doivent raconter la même histoire.
+Les deux taxonomies ne se recoupent pas une pour une. Apple range les
+plantages sous « App Functionality », Google sous « Analyses ». Chacun suit sa
+propre définition, et c'est voulu.
+
+---
+
+## 5 · Les autres déclarations du « Contenu de l'application »
+
+| Déclaration | Réponse | Pourquoi |
+|---|---|---|
+| Politique de confidentialité | `https://myweli.com/politique-confidentialite` | aussi liée dans l'app (Profil → « À propos ») |
+| Annonces | **Non, l'app ne contient pas d'annonces** | aucun SDK publicitaire |
+| Identifiant publicitaire | **Non, l'app ne l'utilise pas** | aucun `com.google.android.gms.permission.AD_ID` dans le manifeste fusionné (lu le 2026-10-28) |
+| Classification du contenu | le questionnaire du §3 | |
+| Public cible et contenu | **18 ans et plus** ; pas destinée aux enfants | un outil de gestion pour des professionnels |
+| Applications d'actualités | **Non** | |
+| Applications gouvernementales | **Non** | |
+| Fonctionnalités financières | **Aucune** de la liste | aucun paiement traité ; l'acompte va du client au salon, hors app |
+| Applications de santé | **Aucune** fonctionnalité de santé | la beauté n'est pas la santé au sens de Play |
+| COVID-19 (si la console la propose encore) | **Non** | |
+| Informations de connexion | le §2 | |
+| Déclarations de permissions (photos, alarmes exactes, service au premier plan, localisation en arrière-plan…) | **aucune n'est due** | aucune de ces permissions dans le manifeste fusionné (§0) |
+
+---
+
+## 6 · Le test fermé — la porte de la production (compte personnel)
+
+Un compte personnel créé après le 13 novembre 2023 doit tenir un **test fermé
+avec au moins 12 testeurs inscrits sans interruption pendant 14 jours** avant
+de pouvoir demander l'accès à la production. Les testeurs qui se désinscrivent
+ne comptent plus. L'examen de la demande prend en général 7 jours ou moins.
+([aide Play 14151465](https://support.google.com/googleplay/android-developer/answer/14151465),
+lu le 2026-10-28.) Le **test interne ne compte pas**
+([mobile-external-testing.md](mobile-external-testing.md) §4).
+
+Ce que cela veut dire pour MyWeli Pro :
+
+1. **La section Sécurité des données est exigée dès le test fermé** (seul le
+   test interne en est dispensé) : les §2 à §5 se remplissent avant.
+2. **Un build signé** (AAB, `tool/release_build.sh`) et la clé d'importation
+   **sauvegardée** (LAUNCH §6.3) précèdent le premier envoi.
+3. **Les 12 testeurs, c'est toi qui les trouves.** Ce sont 12 comptes Google
+   qui installent et gardent l'app 14 jours. Idéalement des salons : ils ont
+   un compte MyWeli Pro (inscription sur myweli.com) ou une invitation
+   d'équipe. Le compte démo reste réservé aux relecteurs.
+
+---
+
+## 7 · Après la saisie
+
+1. Chaque formulaire est relu à l'écran avant d'être enregistré ; à la fin,
+   l'aperçu de la Sécurité des données est relu contre la politique.
+2. LAUNCH §6.3 : « Data safety form completed » se coche alors, avec la date.
+3. **La page de suppression de compte doit nommer l'app ou le développeur
+   exactement comme la fiche** (aide Play 13327111). Elle dit « MyWeli » et
+   couvre les professionnels. Le nom de développeur du compte Play est à
+   comparer pendant la saisie.
+
+---
+
+## 8 · MyWeli (client) — plus tard, à ré-auditer avant la soumission
+
+**Pas maintenant** (décision 51) : la production n'a aucun salon public. Les
+textes ci-dessous sont ceux du 2026-08-28. **Avant de les saisir, refaire
+l'audit de ce document**, sur le binaire et sur Play à ce moment-là. Points déjà
+connus :
+
+- **La description** dit « Vous êtes un salon ? Téléchargez MyWeli Pro… ».
+  Depuis B0.11, l'app Pro ne crée plus de compte. À dire : « inscrivez-vous sur
+  myweli.com, puis gérez… avec MyWeli Pro ».
+- **Les instructions de connexion** doivent être en anglais. Elles doivent
+  aussi citer l'étape obligatoire « Votre numéro de téléphone » : tout numéro
+  valide, de n'importe quel pays ; 10 chiffres après +225 ; aucun SMS envoyé,
+  `MESSAGING_PROVIDER=disabled`.
+- **La Sécurité des données** suit les mêmes corrections que le §4 :
+  - les plantages ont la finalité « Analyses » ;
+  - « ID utilisateur » est à ajouter ;
+  - la photo de profil, l'avatar du client, entre dans « Photos » ;
+  - la recherche de salons (`?q=`) est gardée 30 jours dans les mêmes journaux
+    de requêtes.
+
+### 8.1 Fiche (texte du 2026-08-28)
+
+- **Nom** : `MyWeli — Beauté & rendez-vous`
+- **Description courte** :
+  `Réservez coiffure, tresses, onglerie et spa près de chez vous, 24h/24.`
+- **Description complète** : celle du 2026-08-28 (historique git de ce
+  fichier), à reprendre en texte brut avec la correction ci-dessus.
+- **Catégorie** : Beauté.
+
+### 8.2 Sécurité des données (table du 2026-08-28, à corriger comme dit plus haut)
 
 | Type Play | Collecté ? | Facultatif ? | Finalité |
 |---|---|---|---|
-| Infos perso → **Nom** | Oui | Non (compte) | Gestion du compte |
-| Infos perso → **E-mail** | Oui | Non | Gestion du compte |
-| Infos perso → **N° de téléphone** | Oui | Non (contact réservation) | Fonctionnement |
-| **Position** (approximative ET précise) | **Non collectée** — utilisée uniquement SUR l'appareil pour centrer la carte ; aucune coordonnée transmise (politique : « Elle ne quitte jamais votre appareil ») | — | — |
-| **Photos** | Oui — photos d'avis et capture d'écran de preuve d'acompte, à l'initiative de l'utilisateur | Oui | Fonctionnement |
-| Activité → **Contenu généré par l'utilisateur** | Oui — avis, notes de réservation | Oui | Fonctionnement |
-| Infos app et performances → **Journaux de plantage** | Oui (Sentry, identité retirée avant envoi) | Non | Sécurité/diagnostic |
-| Infos app et performances → **Diagnostics** | Oui (idem) | Non | Sécurité/diagnostic |
-| Identifiants → **Identifiants d'appareil** | Oui — jeton de notification (FCM) | Oui (notifications refusables) | Fonctionnement |
-| Infos financières | **Non** — aucune donnée bancaire ; la preuve d'acompte est une image fournie par l'utilisateur (déclarée en « Photos ») |
-| Messages, contacts, calendrier, historique web, santé, identifiant publicitaire | **Non** partout |
-
-### 4.2 MyWeli Pro — pareil, PLUS
-
-| Type Play | Collecté ? | Note |
-|---|---|---|
-| **Position précise** | **Oui** | Le pro place le point de son salon — transmis et **public** (il sert à guider les clients ; la politique le dit explicitement) |
-| **Photos** | Oui | Galerie, logo, avant/après — publics ; ET pièces KYC — privées |
-| Infos perso → **Autres informations** | **Oui** | Pièces d'identité et d'immatriculation (KYC) : stockage privé séparé, jamais publiées, consultation admin par lien signé 5 min, journalisée |
-| Activité → Contenu utilisateur | Oui | Fiches clients (nom, téléphone, notes du salon), catalogue, horaires |
-| Infos perso → **Adresse** | **Oui** | « Adresse » à l'inscription et adresse du salon — publiée sur la page du salon *(ajouté 2026-09-24)* |
-| Infos financières → **Autres infos financières** | **Oui** | Le **numéro Mobile Money de réception** des acomptes (« Numéro Mobile Money », paramètres d'acompte) — stocké et publié sur la page du salon. **Remplace, pour Pro, le « Non » hérité de la ligne consommateur.** *(ajouté 2026-09-24)* |
-
-> **Ajouté le 2026-09-24 — le formulaire Play Pro doit être mis à jour
-> (owner).** L'audit App Store de l'app Pro
-> ([app-store-forms.md](app-store-forms.md) §7) a relu le code : l'app Pro
-> envoie et stocke une **adresse** (`pro_register_screen.dart`, colonne
-> `provider_users.address`) et le **numéro Mobile Money de réception**
-> (`deposit_settings_screen.dart` → `depositMobileMoneyNumber`), qu'aucune
-> ligne de cette table ne déclarait — et « pareil, PLUS » faisait hériter à
-> Pro le « Infos financières : Non » du consommateur, activement faux. Les
-> deux lignes ci-dessus sont ajoutées ; si la section Sécurité des données
-> Pro a déjà été saisie, **la rouvrir dans la Play Console et les ajouter**,
-> pour que Play, l'App Store et la politique racontent la même histoire.
-
-> Sur l'écran de synthèse, Play affiche un aperçu de la section — la
-> relire en la comparant à `/politique-confidentialite` avant de valider :
-> les deux doivent raconter la même histoire.
-
----
-
-## 5 · Divers à cocher en passant
-
-- **Public cible** : 18 ans et plus (simple et vrai — des rendez-vous
-  s'achètent). Pas d'app « famille ».
-- **App d'actualités** : Non. **App de suivi contacts/COVID** : Non.
-- **Fonctionnalité financière** : Non (aucun paiement traité par l'app).
-- **Applis gouvernementales** : Non.
-- **Publicité** : « Cette app ne contient pas de publicités » — les deux.
-
----
-
-## 6 · Après la saisie
-
-1. Me dire que c'est fait → je vérifie la cohérence forms ↔ politique une
-   dernière fois et on coche LAUNCH.md §6.3.
-2. La bannière 1024×500 : me demander quand tu veux — je la produis aux
-   couleurs de la marque.
-3. iOS reprendra les MÊMES réponses (App Privacy) — cette page est écrite
-   pour servir deux fois. *(2026-09-24 : pour l'app Pro, le dossier iOS
-   existe — [app-store-forms.md](app-store-forms.md) ; Apple demande en plus
-   « lié à l'identité » par type, et ses catégories ne recoupent pas celles de
-   Play une pour une.)*
+| Nom | Oui | Non (compte) | Gestion du compte |
+| E-mail | Oui | Non | Gestion du compte |
+| N° de téléphone | Oui | Non (contact réservation) | Fonctionnement |
+| Position (approximative ET précise) | **Non collectée** — uniquement sur l'appareil | — | — |
+| Photos | Oui — photos d'avis, preuve d'acompte | Oui | Fonctionnement |
+| Contenu généré par l'utilisateur | Oui — avis, notes de réservation | Oui | Fonctionnement |
+| Journaux de plantage, Diagnostics | Oui (Sentry) | Non | **Analyses** |
+| Appareil ou autres ID | Oui — FCM | Oui | Fonctionnement |
+| Infos financières | **Non** — la preuve d'acompte est une image (Photos) | — | — |
