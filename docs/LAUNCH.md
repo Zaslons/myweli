@@ -140,7 +140,9 @@ consequences, all of which change how we work:
   never a destructive change in one step).
 - **Staged rollout.** Play supports percentage rollouts (1% → 5% → 20% → 100%);
   the App Store has phased release over 7 days. Both let you halt. Use them, and
-  watch the crash rate between steps — which requires §5.2.
+  watch the crash rate between steps — which requires §5.2. *(2026-10-28: on
+  iOS, BACKLOG B0.7's three issue alerts watch it —
+  [observability §8.3](design/observability-error-reporting.md).)*
 - **A forced-upgrade path.** A minimum-supported-version check the app honours,
   so that when we *must* retire an old client we can tell it to update rather
   than serve it something it will mishandle. **This is built** (§5.3); what is
@@ -306,7 +308,8 @@ These block everything. None is surface-specific.
       seen from a store build; and while the billing account is closed the
       script cannot read the DSN at all.)* *(2026-10-22: billing is restored and
       signed builds exist; the app half now waits on BACKLOG B0.7 — sessions
-      are off, so a crash-free rate has nothing to measure.)* Whether the *web* trigger was
+      are off, so a crash-free rate has nothing to measure.)* *(2026-10-28: B0.7
+      done — three issue alerts on `production`, observability §8.3.)* Whether the *web* trigger was
       seen in the Sentry dashboard is recorded twice in this document with
       opposite answers (§5.2 names an issue id; §8 says it never happened):
       **UNVERIFIED from this repo** — only the Sentry UI settles it.
@@ -797,7 +800,10 @@ boxes below.
       number must land **in this document**, not only in a design doc, and the crash-free-sessions alert waits on a **signed build** — the mobile
       DSN itself has existed since 2026-08-18. *(2026-10-22: signed builds exist;
       the alert is replaced by three issue alerts instead — sessions are off to
-      keep the privacy promise — BACKLOG B0.7.)*
+      keep the privacy promise — BACKLOG B0.7.)* *(2026-10-28: the three alerts
+      exist — a new issue in the latest release; more than 3 users in an hour;
+      freezes for more than 3 users in an hour. What halts a phased release on
+      them is still to be written here.)*
 
 ### 5.3 No forced-upgrade path — **built 2026-08-18**
 
@@ -1208,7 +1214,7 @@ checking rather than assuming:
 > revision `myweli-api-00046-bzg`); the app changes merged after #592 (#596
 > onwards) reach users only through 0.0.2 (BACKLOG B0.3). **Still owed**: the
 > device checks on 587 (B0.2); the iOS `updateUrl` (B0.5); the crash alerts
-> that replace the crash-free rate (B0.7); and what App Store Connect itself
+> that replace the crash-free rate (B0.7 — *done 2026-10-28*); and what App Store Connect itself
 > says — the privacy label, the DSA status, the review's progress — read
 > back in batch 10.
 >
@@ -1312,7 +1318,7 @@ checking rather than assuming:
       updates, so there is nothing to phase on 1.0.0; the first version is set
       to manual release instead — app-store-forms.md §9.)* *(2026-10-22: the first
       version is 0.0.1, not 1.0.0 — still manual release; phased release
-      applies from 0.0.2, after B0.7.)*
+      applies from 0.0.2, after B0.7.)* *(2026-10-28: B0.7 done.)*
 
 ### 6.3 Android (last)
 
