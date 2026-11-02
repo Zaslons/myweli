@@ -114,6 +114,17 @@ export function formatDateFr(iso: string, tz: string = SALON_TZ): string {
   ).format(new Date(iso));
 }
 
+/// The short month (« 30 sept. 2026 »), in SALON time: the twin of mobile's
+/// `Formatters.formatDateCompact`. For a narrow tile, where the long month is a
+/// single word that cannot wrap: at 320 wide « septembre » spills a half-width
+/// tile, and « novembre » and « décembre » with it.
+export function formatDateCompactFr(iso: string, tz: string = SALON_TZ): string {
+  return salonFormatter(
+    { day: 'numeric', month: 'short', year: 'numeric' },
+    tz,
+  ).format(new Date(iso));
+}
+
 /// Date + time (e.g. "1 décembre 2026 à 09:00"), in SALON time.
 export function formatDateTimeFr(iso: string, tz: string = SALON_TZ): string {
   const d = new Date(iso);

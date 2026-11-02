@@ -421,6 +421,45 @@ const CARD_NUMBER = '+225 07 00 00 00 01';
 /// The number is found by **what it says**, as a text node, so this holds
 /// whether or not it has an element of its own; if the stub's Koffi changes,
 /// the first assertion says so rather than the rest passing about nothing.
+/// The card's two longest values, on any day of the year.
+///
+/// The stub dates the last visit « today », so this page's overflow verdict was
+/// a verdict on the calendar: green through October, red from 1 November, when
+/// « novembre » stopped fitting a half-width tile at 320 (and it would have gone
+/// green again in January, with nothing fixed). September is the longest month,
+/// and seven figures is an amount a good salon reaches.
+async function clientCardLongestValues(page: Page) {
+  await page.route(/\/api\/pro\/clients\/sc1(\?|$)/, async (route) => {
+    if (route.request().method() !== 'GET') return route.fallback();
+    const response = await route.fetch();
+    const card = await response.json();
+    await route.fulfill({
+      response,
+      json: {
+        ...card,
+        lastVisitAt: '2026-09-30T09:00:00.000Z',
+        stats: { ...card.stats, spentFcfa: 1250000 },
+      },
+    });
+  });
+}
+
+/// The tiles' shape, measured, because the text checks depend on the font: a
+/// seven-figure amount fits a half-width tile at 320 on a Mac and not on CI's
+/// wider Linux font. Two across at 375, one per row at 320, on any machine.
+async function clientCardStatsShape(page: Page) {
+  const width = page.viewportSize()?.width ?? 0;
+  const xOf = async (label: string) =>
+    (await page.getByText(label, { exact: true }).boundingBox())?.x;
+  const [visits, spent] = [await xOf('Visites'), await xOf('Dépensé')];
+  expect(visits, 'the « Visites » tile was not found').toBeDefined();
+  if (width >= 360) {
+    expect(spent, `two tiles across at ${width}px`).toBeGreaterThan(visits as number);
+  } else {
+    expect(spent, `one tile per row at ${width}px`).toBe(visits);
+  }
+}
+
 async function clientCardPhoneRow(page: Page) {
   const at = `${page.viewportSize()?.width}px`;
 
@@ -788,6 +827,18 @@ const AUTHED_ROUTES: Route[] = [
     auth: 'pro',
     ready: (page) => page.getByRole('link', { name: 'Appeler' }),
     measure: clientCardPhoneRow,
+  },
+  {
+    // Not the phone row: the stat tiles, with their longest values. `ready`
+    // waits for the seven figures, so a route that stopped matching cannot
+    // pass by measuring the stub's short ones.
+    name: 'the pro client card — its stats at their longest',
+    init: clientCardLongestValues,
+    url: '/pro/clients/sc1',
+    anchor: /Koffi/,
+    auth: 'pro',
+    ready: (page) => page.getByText(/1.250.000/),
+    measure: clientCardStatsShape,
   },
 ];
 
