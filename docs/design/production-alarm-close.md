@@ -1,0 +1,167 @@
+# Production alarm — closed when all is green, and it reaches a person (B9.16) — design spec
+
+| | |
+|---|---|
+| **Status** | **Approved 2026-11-02** by the owner: the @mention route, and a mention on every failing day |
+| **Owner** | Sadreddine Daher |
+| **Last updated** | 2026-11-02 |
+| **PRD ref / phase** | Operations, no product requirement · V1 |
+| **Module** | `.github/workflows/production-checks.yml`, `backend/test/infra/production_alarm_test.dart` |
+| **Origin** | BACKLOG B9.16. `myweli-verification-guardrails` rule 16 records the incident |
+| **Skills checked** | myweli-dev-guardrails ✓ · myweli-verification-guardrails ✓ · no app, web, backend or contract change |
+
+---
+
+## 1. Goal & scope
+
+**Goal.** When the daily monitor fails, the owner finds out that day, by email. An open alarm means something is failing now.
+
+**Why.** The monitor was red from 2026-10-21 to 2026-11-02 and nobody noticed for 13 days. Its only signal was a bot comment on issue #549, which has been open since 2026-09-16, including two fully green weeks in October.
+
+**In scope:**
+- A new job that closes the alarm after a fully green scheduled run (§3.1).
+- An @mention of the owner in the failure comment and the closing comment (§3.2).
+- A guard that runs both jobs' scripts (§4).
+
+**Out of scope:**
+- A red manual run still reopens the alarm and comments, as it does today, even if it measured another site. The next green scheduled run closes it again, so the mistake corrects itself within a day. Restricting that is a separate decision.
+- The Cloud Monitoring « Owner email » channel. It is the fallback if the mention's email does not arrive (§6).
+- The GitHub mobile app. It only shows what GitHub already sends, so it would change nothing here.
+
+---
+
+## 2. What was measured (2026-11-02)
+
+**The owner's GitHub inbox has no thread for #549.** Read with the owner's own `gh` login, read-only, across all pages for this repo:
+- 404 threads, from 2026-08-02 to today. All are pull requests, with the reasons `author`, `state_change` or `comment`.
+- None for #549 or any other issue, although #549 has 33 comments, the latest at 14:17 UTC today.
+- None for failed Actions runs, although the scheduled runs are under the owner's account.
+- The control: PR threads from today do appear, so the empty result for #549 means something.
+
+**The owner reports that the emails they get are Vercel's.** They do not have the GitHub app.
+
+**What this cannot show.** The account's email settings are not readable from here. Whether the owner watches the repo is not readable either: the check returned a 404, which looks the same with or without a subscription, because this login lacks the `notifications` scope. So closing the issue alone would not get a failure noticed, as far as anything here can see. A reopening notifies the same nobody.
+
+**The lookup, against the real repo, outside a checkout:**
+
+| Command | Result |
+|---|---|
+| Without `GH_REPO` | `not a git repository`, exit 1 |
+| With `GH_REPO` | `549` |
+| With `GH_REPO`, a title that matches nothing | nothing printed, exit 0 |
+
+**Today's run:** six of the seven checks passed. Only `privacy` failed, on the stale match #725 fixes.
+
+---
+
+## 3. The change
+
+### 3.1 The other half: closing the alarm
+
+A new job, next to `report`:
+
+```yaml
+clear:
+  name: Close the alarm, if every check passed
+  needs: [cwv, privacy, legal, retention, attestation, secretpins, basemap]
+  if: github.event_name == 'schedule' && success()
+```
+
+Its script uses the same lookup as `report`, including `// empty`, then:
+- No issue with that exact title: says so and exits 0.
+- Already closed: says so and exits 0.
+- Open: `gh issue close` with a comment that links the run and mentions the owner.
+
+It sets `GH_REPO`, because it does not check out the repo, like `report`.
+
+| The run | What happens to the alarm |
+|---|---|
+| Scheduled, all seven passed, issue open | **Closed**, with a comment and a mention |
+| Scheduled, all seven passed, issue closed or missing | Nothing, and the job passes |
+| Scheduled, at least one failed | As today: reopened if closed, then a comment, now with a mention |
+| Scheduled, cancelled | Nothing: neither job runs |
+| Manual, all passed | **Nothing.** A manual run can measure another site through `target` |
+| Manual, at least one failed | As today, now with a mention (§1, out of scope) |
+| A failed scheduled run, re-run by hand, now passing | Closed. It should still count as a `schedule` event aimed at production (expected from GitHub's behaviour, not observed here) |
+
+**If the close itself fails** (a GitHub outage, say), the job goes red, the alarm stays open, and the next green run tries again. It errs towards leaving the alarm on.
+
+### 3.2 Reaching the owner
+
+The failure comment and the closing comment both start with `@Zaslons`. A mention is what makes GitHub notify someone who is not watching the repo.
+
+- **The login is written out, not `github.repository_owner`.** The person is who should be told, even if the repo moves to an organisation.
+- **Every failing day sends a mention, not only the first.** The incident was 13 quiet days, and nothing sends this mail unless something is broken.
+- **A recovery sends one too.** That is what lets the next green run test delivery without a real failure.
+
+### 3.3 The comment that is no longer true
+
+The comment above `report` says every other alert reaches a person and this one did not. Now it will say what was measured and why the mention exists.
+
+---
+
+## 4. The guard
+
+`backend/test/infra/production_alarm_test.dart`. It reads the parsed YAML, so a comment cannot satisfy it, and it runs the real scripts.
+
+**The scripts, run with a stand-in `gh`.** It uses the real `jq` and behaves like the real `gh` measured in §2: it fails without `GH_REPO`, and lists only open issues unless told `--state all`. Only the env names the YAML declares are passed in.
+
+| Job | Situation | Expected |
+|---|---|---|
+| `clear` | Open | Closes that issue; the comment mentions the owner and links the run |
+| `clear` | Already closed | Does not close; exits 0 |
+| `clear` | No issue | Does not close or view anything; exits 0 |
+| `clear` | Only a similar title | Does not close; exits 0 |
+| `clear` | `gh` fails on the lookup | Fails, rather than reporting nothing to do |
+| `report` | No issue | Creates it with that title; the body mentions the owner |
+| `report` | Open | Comments with the mention; no reopen |
+| `report` | **Closed** | **Reopens and comments with the mention.** This is the point of B9.16 |
+
+**The structure, derived rather than listed:**
+- `clear.needs` and `report.needs` each equal every other job in the file. An eighth check missing from `clear.needs` would let the alarm close while that check is red.
+- `clear.if` and `report.if` are exactly as written. Changing when the alarm closes should be a deliberate edit.
+- No check job has `continue-on-error` or its own `if`, on the job or a step, since either could count an unpassed check as passed.
+- `clear` has no `permissions` block of its own, which would drop `issues: write`.
+
+**Every mutation is watched red on committed work**, with a harness that asserts the file changed, and the list goes in the commit message. Planned: each half of the `if`, each `needs` list, an eighth job, `GH_REPO`, `// empty`, the already-closed branch, the reopen, `--state all`, each mention, the title in one job only, a real `gh issue close` swapped for `echo`, `continue-on-error`, and a `permissions` block.
+
+**What this guard cannot see:**
+- How GitHub evaluates the `if`. It reads that line as text; only GitHub runs it, and neither `act` nor `actionlint` is installed here.
+- Whether the email is delivered. See §5.
+
+---
+
+## 5. What is not proved until it runs
+
+**The first real proof is the next scheduled green run closing #549.** That needs both #725 and this PR merged first. The cron says 06:00 UTC, but the last ten runs started between about 10:00 and 14:15 UTC.
+
+Reading that run answers three things:
+1. Did the `clear` job run, and did #549 close with the comment?
+2. Did `report` skip?
+3. **Did the owner get the email?** Only the owner can answer this one.
+
+The first real reopening proves the failure path, and that can only happen when something fails. The guard covers its logic until then.
+
+Nothing is dispatched and #549 is not closed by hand without the owner's explicit go.
+
+---
+
+## 6. Rollout and owner steps
+
+A workflow change takes effect when it reaches `main`. There is no deploy.
+
+**The owner:**
+1. At github.com/settings/notifications, make sure **Email** is on under « Participating, @mentions and custom », and the default notification address is the mailbox they read.
+2. Say whether the closing email arrives after the next green run.
+
+**If it does not arrive,** the alarm still does not reach them. The next step is the Cloud Monitoring « Owner email » channel, which is a cloud change and needs the owner's go.
+
+---
+
+## 7. Definition of done
+
+- [ ] Owner's sign-off on this spec.
+- [ ] Guard green; every mutation watched red on committed work.
+- [ ] Indexed in `docs/design/README.md`; roadmap entry added; B9.16 ticked in `docs/BACKLOG.md`, with « B9.16 open » removed from the Batch 9 heading and row 9.
+- [ ] Feature branch and PR; merged only on the owner's word; no Claude attribution.
+- [ ] The next scheduled green run read, once the owner asks (§5).
