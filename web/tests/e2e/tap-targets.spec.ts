@@ -88,6 +88,31 @@ test('public: buttons, links, chips and fields all reach the floor', async ({
   );
 });
 
+test('the new home page and footer: every link in them reaches the floor (web-swiss-direction §12)', async ({
+  page,
+}) => {
+  await page.goto('/');
+  const categories = page.getByRole('heading', { name: 'Catégories' }).locator('xpath=ancestor::section[1]');
+  const cells = categories.getByRole('link');
+  await expect(cells).toHaveCount(6);
+  for (let i = 0; i < 6; i++) await assertBox(cells.nth(i), `category cell ${i}`, { minW: 0 });
+
+  const cocody = page.locator('details', { hasText: 'Cocody' });
+  await assertBox(cocody.locator('summary'), 'directory summary', { minW: 0 });
+  await cocody.locator('summary').click();
+  const links = cocody.getByRole('link');
+  await expect(links.first()).toBeVisible();
+  const count = await links.count();
+  expect(count).toBeGreaterThan(0);
+  for (let i = 0; i < count; i++) await assertBox(links.nth(i), `directory link ${i}`, { minW: 0 });
+
+  // `getByRole('link')` over the whole landmark, so a link added later is held too.
+  const footerLinks = page.getByRole('contentinfo').getByRole('link');
+  const footerCount = await footerLinks.count();
+  expect(footerCount).toBeGreaterThan(5);
+  for (let i = 0; i < footerCount; i++) await assertBox(footerLinks.nth(i), `footer link ${i}`, { minW: 0 });
+});
+
 test('salon page: the favourite ♥ is a 48px target', async ({ page }) => {
   await page.goto('/beaute-divine'); // the stub salon's real slug
   // No count()-then-skip: count() doesn't wait for hydration, so it skipped a
