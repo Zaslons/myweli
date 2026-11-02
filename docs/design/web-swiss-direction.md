@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | **Approved 2026-11-02** (decisions in §15). Direction B, with the owner's two additions: the real logo and the things that are MyWeli's own (§3), and a pattern with an African identity that **feels calm** (§4). **S0 built, #724** (§13). One step left with the owner: §4.8 before S1 goes live. |
+| **Status** | **Approved 2026-11-02** (decisions in §15). Direction B, with the owner's two additions: the real logo and the things that are MyWeli's own (§3), and a pattern with an African identity that **feels calm** (§4). **S0 merged in #724 and read back on `myweli.com`** (§11, §13). One step left with the owner: §4.8 before S1 goes live. |
 | **Owner** | Sadreddine Daher |
 | **Last updated** | 2026-11-02 |
 | **PRD ref / phase** | FR-WEB-MP-001, FR-WEB-PP-001/002 (presentation only) · V1 |
@@ -348,11 +348,12 @@ None. `imageUrls` is already `required` on `Provider` in `openapi.yaml`, and `im
 | **Trimmed to 18.7 KB, preloaded** | 2457 ms on `/` (2454–2490), first paint 757 ms, CLS 0. Full table in WEB.md §7 |
 | **That still failed** | CI's gate failed on `/suppression-compte`: 2505 ms. Measuring only `/` had missed it |
 | **What paid for it: Sentry's tracing code out of the bundle** | Scripts 203 → 158 KB. We report errors only, so every visitor was downloading code we switch off at runtime. **`/` 2110 ms, `/suppression-compte` 2109 ms**, faster than before the font, first paint still 757 ms. A real error still reaches Sentry: seen on a build with a local DSN |
+| **On `myweli.com` after the merge, five runs** | `/` 1263 ms, `/connexion` 1274 ms, `/suppression-compte` 1480 ms; CLS at most 0.006; scripts 152–153 KB on `/`. WEB.md §7. These are not comparable with the local numbers above, so S1 measures against the local ones |
 | **What S1 still adds to `/`** | At most 4 KB of inline SVG; no image, no script. About 390 ms of room. Measure every budgeted page, five times |
 | **If it breaches** | The budget does not move |
 | **New photos** | Card photos are lazy and below the fold on `/`. Salon page budgets are set from a measurement in S4, added to `lighthouserc.json` so they cannot be forgotten |
 
-**Security.** CSP's `font-src 'self'` already allows `next/font`'s files, and no new origin appears. No third-party font request, which also keeps the privacy policy true. No secrets. Read back the deployed header after S0.
+**Security.** CSP's `font-src 'self'` already allows `next/font`'s files, and no new origin appears. No third-party font request, which also keeps the privacy policy true. No secrets. **Read back after S0:** the served header has `font-src 'self'`; the font comes from our own origin and is byte-identical to the committed file; five pages read, none referring to Google Fonts. Error reporting still initialises and a clean load sends nothing, but a real error reaching Sentry from the live site has not been seen.
 
 ---
 

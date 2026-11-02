@@ -1517,7 +1517,10 @@ Run actually reach Vercel*.
       ```
 
       These also run daily from `production-checks.yml`, so a regression after
-      this point surfaces on its own.
+      this point becomes a comment on the issue « Production checks are failing ».
+      A comment is all it becomes: a false alarm stayed red for 13 days (2026-10-21
+      to 2026-11-02) before anyone looked. Read the last run too:
+      `gh run list --workflow=production-checks.yml --limit 3`.
 
 Design: [design/backend-web-rebuild-hook.md](design/backend-web-rebuild-hook.md).
 
