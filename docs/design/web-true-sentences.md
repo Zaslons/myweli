@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | **Built 2026-11-02** on `fix/web-true-sentences`. The owner approved the words the same day (§7). Not merged |
+| **Status** | **Built and merged 2026-11-02** (#723). The owner approved the words the same day (§7) |
 | **Owner** | Sadreddine Daher |
 | **Last updated** | 2026-11-02 |
 | **PRD ref / phase** | Pro offers (team-access R2a), client cancellation, booking confirmation, Pro access · V1 |
@@ -132,4 +132,5 @@ Both answered by the owner on 2026-11-02:
 - **In a real build:** `booking.spec.ts` follows « Voir mon rendez-vous » to the booking's real page. The cancel confirmation and `/pro/connexion` were looked at, at 375 wide.
 - **Not run locally:** two tests in that run call the stub's fixed port (8787), which only CI's configuration uses. CI runs them.
 - **A wrong test, caught by CI:** the first e2e assertion looked for « Annuler le rendez-vous », but the stub answers every booking as `appt1`, and `account.spec` had already cancelled it. CI's snapshot showed the real page with « Annulé ». It now asserts the salon's name, and was re-run with `account.spec` first to reproduce CI's order.
-- **Not seen:** a real phone, or the deployed site until this merges.
+- **Read back on `myweli.com` after the merge:** the `/professionnels` step and the absence of the `/pro/connexion` block in the served HTML; the trial and deposit sentences in the deployed scripts; and all the old sentences gone from those scripts.
+- **Not seen:** a real phone. **The after-booking screen on the live site:** `/{slug}/reserver` needs a public salon and there are none, so only the tests have covered it.

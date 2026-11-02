@@ -153,7 +153,7 @@ Each question has a recommendation. Answers unblock the item named in brackets.
 62. What do we promise salons in the recruitment message? [B0.10] — ✅ **Answered: only what is true today**: early access and the 90-day trial every salon gets. No price, no extra offer.
 63. Which look for the public site? [B11] — ✅ **Answered (2026-11-02): Swiss structure**, with the real logo and the things that are MyWeli's own, and patterns that carry an African identity. It must follow the brand and feel calm.
 64. Does an African pattern fit, in black? [B11] — ✅ **Answered: yes, once redrawn; black on white, rows of plaits.** Checked against real cloths (web-swiss-direction §4.1): my first drawing was a loud sampler, while Baule cloths are often long quiet rows. White on black is kept for the dark version of the site.
-65. Which typeface? [B11] — ✅ **Answered: Hanken Grotesk** (34.7 KB). SYSTEM §22 had named Inter, and it gets updated in S0.
+65. Which typeface? [B11] — ✅ **Answered: Hanken Grotesk.** Trimmed to 18.7 KB in B11.0, because the full 34.7 KB file went over the LCP budget. SYSTEM §22 had named Inter, and now names this.
 66. Where does the pattern go? [B11] — ✅ **Answered: Home, `/professionnels`, 404.** Salon and category pages let photos lead.
 67. What comes first? [B11, B12] — ✅ **Answered: the untrue sentences, then the new look.**
 68. When does a salon's free trial start? [B12.1] — ✅ **Answered (2026-11-02): keep the clock, fix the wording.** The first offer choice starts it, or go-live with no choice. Moving it to go-live was withdrawn: a salon could then choose an offer, invite a team and run for free without ever opening.
@@ -498,7 +498,7 @@ This batch takes up three of the six suggested tasks that were never started. It
 
 Spec: [web-swiss-direction.md](design/web-swiss-direction.md). Starts after B12.1–B12.4 (decision 67). Each merge is a production web deploy, on your word, and is read back on `myweli.com`.
 
-- **B11.0 Foundations (M):** Hanken Grotesk self-hosted, `displayPoster`, the grid constant, rule roles, WEB-SYSTEM and SYSTEM §22. No layout change. Lighthouse is measured here on the font alone, before anything else moves: `/` had about 190 ms of room when last recorded (2026-08-20).
+- **B11.0 Foundations (M):** Hanken Grotesk self-hosted and trimmed, `displayPoster`, `fontFamily` closed, WEB-SYSTEM §3 and §16, SYSTEM §22, no layout change. Sentry's unused tracing code out of the bundle, which paid for the font: `/` 2110 ms against 2314 before it. **In #724.** B11.1 measures every budgeted page, five times (WEB.md §7).
 - **B11.1 Header, footer, home, the pattern (L):** the real logo, the large wordmark, the panel and band. **Yours first:** show the pattern to 3–5 people (spec §4.8), and check it on a low-end Android.
 - **B11.2 `/professionnels`, 404 and error pages (S).**
 - **B11.3 Salon card, `/recherche`, landings, favourites (M):** the card gains the app's cover photo, a parity gap today.

@@ -143,6 +143,10 @@ export const type = {
   displayLarge: ['57px', { lineHeight: '64px', letterSpacing: '-0.25px' }],
   displayMedium: ['45px', { lineHeight: '52px', letterSpacing: '0px' }],
   displaySmall: ['36px', { lineHeight: '44px', letterSpacing: '0px' }],
+  // WEB-ONLY (WEB_ONLY.type): the public hero from `xl`. A poster size has no place
+  // in a phone app, and `displayLarge` at 1440 wide reads as a heading, not a
+  // statement (web-swiss-direction.md §5.3). A second web-only size needs a reason.
+  displayPoster: ['80px', { lineHeight: '84px', letterSpacing: '-2px' }],
   // Headline
   headlineLarge: ['32px', { lineHeight: '40px', letterSpacing: '0px' }], // screen title (rare — hero)
   headlineMedium: ['28px', { lineHeight: '36px', letterSpacing: '0px' }], // screen title

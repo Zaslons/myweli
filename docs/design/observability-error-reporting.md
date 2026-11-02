@@ -583,7 +583,7 @@ Android build, with real values — no placeholders.
 1. **Where do alerts go?** Email is the default and is easy to ignore. WhatsApp
    is where this team already works, but Sentry has no native WhatsApp
    integration — it would need a webhook.
-2. **Do we want performance monitoring?** `tracesSampleRate: 0` for now.
+2. **Do we want performance monitoring?** `tracesSampleRate: 0` for now. **Since 2026-11-02 the code is also out of the bundle** (`webpack.treeshake.removeTracing` in `next.config.mjs`, 45 KB on every page, WEB.md §7), so turning it on takes both changes: a sample rate alone would silently do nothing. `tests/sentry-bundle.test.ts` holds the two together.
    Revisit once error volume is understood; it is the main cost driver.
 3. **Self-host later?** Not now. Recorded because the portability argument in §2
    is only real if it is occasionally checked.

@@ -306,4 +306,18 @@ export default withSentryConfig(nextConfig, {
   silent: true,
   // Do not fail a build because telemetry could not be uploaded.
   errorHandler: () => {},
+  // We report errors and nothing else: `tracesSampleRate: 0`, no Replay. Without
+  // this every visitor still downloaded the tracing code on every page: 45 KB of
+  // script and about 350 ms of LCP on 3G (docs/WEB.md §7). **Turn `removeTracing`
+  // off before turning tracing on**, or tracing silently does nothing:
+  // tests/sentry-bundle.test.ts holds the two together.
+  webpack: {
+    treeshake: {
+      removeDebugLogging: true,
+      removeTracing: true,
+      excludeReplayIframe: true,
+      excludeReplayShadowDOM: true,
+      excludeReplayCompressionWorker: true,
+    },
+  },
 });

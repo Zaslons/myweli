@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | **Approved 2026-11-02** (decisions in §15). Direction B, with the owner's two additions: the real logo and the things that are MyWeli's own (§3), and a pattern with an African identity that **feels calm** (§4). No code yet: the untrue sentences come first (BACKLOG Batch 12), then S0. One step left with the owner: §4.8 before S1 goes live. |
+| **Status** | **Approved 2026-11-02** (decisions in §15). Direction B, with the owner's two additions: the real logo and the things that are MyWeli's own (§3), and a pattern with an African identity that **feels calm** (§4). **S0 built, #724** (§13). One step left with the owner: §4.8 before S1 goes live. |
 | **Owner** | Sadreddine Daher |
 | **Last updated** | 2026-11-02 |
 | **PRD ref / phase** | FR-WEB-MP-001, FR-WEB-PP-001/002 (presentation only) · V1 |
@@ -172,7 +172,7 @@ An answer to question 3 changes the drawing. The structure of the page does not 
 
 ### 5.1 The typeface: Hanken Grotesk (answered)
 
-One family at every size. Sizes are the measured `latin` variable `woff2` (Fontsource, `Content-Length`, 2026-11-02). Every candidate's subset has to carry French: the Google `latin` range checked for Inter Tight includes `U+00C0–00FF`, `U+0152–0153` (œ) and `U+2000–206F` (’ and the narrow no-break space).
+One family at every size. Sizes are the measured `latin` variable `woff2` (Fontsource, `Content-Length`, 2026-11-02). **Read from the chosen file itself** (`fontTools`, Fontsource 5.3.0): all of ASCII and French except « Ÿ », all the punctuation we print, and weights 100–900. **Not carried: U+202F**, the narrow no-break space in every `Intl` French amount, and ★ ♥ ✓ ✕ ← →. The browser draws those from the system stack, as it always did, and on real amounts it looks right. The Google `latin` *range* promised U+202F; the file does not have it, so a range is not evidence.
 
 | Family | Size | Reading |
 |---|---|---|
@@ -185,9 +185,9 @@ Plain Inter (48.3 KB) is what SYSTEM §22 named, so §22 is updated in the S0 PR
 
 ### 5.2 Loading
 
-- `next/font/local` with the `woff2` committed under `web/styles/fonts/`, with its OFL licence file beside it. No build-time network call, exact bytes pinned, and no request to Google at runtime.
+- `next/font/local` with the `woff2` committed under `web/styles/fonts/`, with its OFL licence and a note of how it was cut. No build-time network call, exact bytes pinned, and no request to Google at runtime.
 - `display: 'swap'`, as WEB.md §7 requires, with `adjustFontFallback` so the swap does not shift the page.
-- Weights 400, 500 and 600 from one variable file.
+- **Weights 400, 500 and 600 from one variable file, 18.7 KB.** The site uses no others, and cutting the rest is what brought the home page back under budget (§11). It stays preloaded.
 - `fontFamily` gets closed in the theme, as the other families were (WEB-SYSTEM §2). `font-mono` has no use on the web today, so nothing is lost.
 
 ### 5.3 Sizes
@@ -204,7 +204,7 @@ Nearly everything is already a token. Only one is new.
 - **`displayPoster` is web-only** and is declared in `WEB_ONLY` (`scripts/dart-tokens.mjs`), since the mirror test fails any undeclared web token. A second token needs a reason.
 - Hero sizes add `tracking-tight`. The app's tracking was tuned for Roboto, so body tracking is looked at again on the real font in S0.
 - **« bien-être » never breaks at its hyphen.** It breaks badly in French (« bien-/être »). A `whitespace-nowrap` span does it, and the text stays the same for search engines.
-- Prices use `tabular-nums`, so columns line up.
+- **Prices line up by themselves.** Every digit in this font has the same width, and it has no `tnum` feature, so `tabular-nums` would do nothing. (Corrected: this line first asked for it.)
 
 ---
 
@@ -343,10 +343,13 @@ None. `imageUrls` is already `required` on `Provider` in `openapi.yaml`, and `im
 
 | | |
 |---|---|
-| **Last recorded, 2026-08-20** (WEB.md §7) | `/` local median **2309 ms**, production **2030 ms**. So about 190 ms of room locally, and those numbers are old |
-| **What this adds to `/`** | One font file, 34.7 KB; at most 4 KB of inline SVG; no image, no script |
-| **The real risk** | A larger `<h1>` can become the LCP element, and the font swap can move it. **Measured in S0, on the font alone, before any layout changes** |
-| **If it breaches** | Cut the font first: narrow the weight axis, tighten the subset. Then preload rules. The budget does not move |
+| **Before the font, five runs** | `/` **LCP median 2314 ms**, first paint 757 ms, CLS 0. So about 190 ms of room. A single CI sample of 1815 ms looked like 685: this metric sits in two modes, and `lhci` uploads one run |
+| **With the full file, 34.7 KB** | **2607 ms, over budget.** Not preloading it gives 2472 ms but first paint goes from 757 to 1060 ms: worse for visitors, and hardly better for the score |
+| **Trimmed to 18.7 KB, preloaded** | 2457 ms on `/` (2454–2490), first paint 757 ms, CLS 0. Full table in WEB.md §7 |
+| **That still failed** | CI's gate failed on `/suppression-compte`: 2505 ms. Measuring only `/` had missed it |
+| **What paid for it: Sentry's tracing code out of the bundle** | Scripts 203 → 158 KB. We report errors only, so every visitor was downloading code we switch off at runtime. **`/` 2110 ms, `/suppression-compte` 2109 ms**, faster than before the font, first paint still 757 ms. A real error still reaches Sentry: seen on a build with a local DSN |
+| **What S1 still adds to `/`** | At most 4 KB of inline SVG; no image, no script. About 390 ms of room. Measure every budgeted page, five times |
+| **If it breaches** | The budget does not move |
 | **New photos** | Card photos are lazy and below the fold on `/`. Salon page budgets are set from a measurement in S4, added to `lighthouserc.json` so they cannot be forgotten |
 
 **Security.** CSP's `font-src 'self'` already allows `next/font`'s files, and no new origin appears. No third-party font request, which also keeps the privacy policy true. No secrets. Read back the deployed header after S0.
@@ -382,7 +385,7 @@ Six PRs, in order, each merged only on the owner's word. A merge is a production
 
 | # | Slice | Done when |
 |---|---|---|
-| **S0** | Starts after BACKLOG Batch 12's four untrue sentences. Font, `displayPoster`, grid constant, rule roles, WEB-SYSTEM + SYSTEM §22. **No layout change** | Lighthouse measured on the font alone. Every e2e green, including `/pro` |
+| **S0** | Font trimmed to 18.7 KB, `displayPoster`, `fontFamily` closed, the rules in WEB-SYSTEM §16, SYSTEM §22. **No layout change.** The grid constant moves to S1, its first user: nothing here would use it | Lighthouse measured on the font alone. Every e2e green, including `/pro` |
 | **S1** | `Weave`, `Header`, `SiteFooter`, `/`. Delete `HeroBackground` from `/` | §4.8 answered. Owner's real-phone check |
 | **S2** | `/professionnels`, 404 and error pages. `HeroBackground` deleted | |
 | **S3** | `ProviderCard`, `/recherche`, landings, favourites list | Cards with and without photos looked at |

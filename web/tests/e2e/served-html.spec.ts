@@ -244,6 +244,37 @@ test(`the app is promised only where it can actually be got: ${path}`, async ({ 
 });
 }
 
+/// **The brand font is what renders, and it comes from us.**
+///
+/// A missing class on `<html>` leaves `var(--font-brand)` undefined, so the page
+/// falls back to the system stack: no error, and every unit test still green. So
+/// this asks the browser what it computed and which face it loaded, and where the
+/// file came from (WEB-SYSTEM §3; the privacy policy promises no third party).
+for (const path of ['/', '/pro/connexion']) {
+  test(`the brand font renders, served from our own origin: ${path}`, async ({ page }) => {
+    const fonts: { url: string; status: number }[] = [];
+    page.on('response', (r) => {
+      if (/\.woff2(\?|$)/.test(r.url())) fonts.push({ url: r.url(), status: r.status() });
+    });
+    await page.goto(path);
+    await page.waitForLoadState('networkidle');
+    const seen = await page.evaluate(async () => {
+      await document.fonts.ready;
+      return {
+        computed: getComputedStyle(document.querySelector('h1') as Element).fontFamily,
+        loaded: [...document.fonts].filter((f) => f.status === 'loaded').map((f) => f.family),
+      };
+    });
+    expect(seen.computed, 'the h1 is not asking for the brand font').toMatch(/brandFont/);
+    expect(seen.loaded.join(), 'no brand font face finished loading').toMatch(/brandFont/);
+    expect(fonts.length, 'no font file was requested').toBeGreaterThan(0);
+    for (const f of fonts) {
+      expect(new URL(f.url).origin, `${f.url} is not ours`).toBe(new URL(page.url()).origin);
+      expect(f.status, `${f.url} did not load`).toBe(200);
+    }
+  });
+}
+
 /// **The flags must actually be there, not merely same-origin.**
 ///
 /// `#476` moved the phone-field flags off GitHub Pages by copying them into

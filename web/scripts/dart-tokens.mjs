@@ -262,6 +262,8 @@ export const WEB_ONLY = {
   motion: ['DEFAULT'],
   // The flex-item escape (WEB-SYSTEM §9's own table documents it).
   zIndex: ['auto'],
+  // The public hero's poster size (WEB-SYSTEM §3): the apps have no such surface.
+  type: ['displayPoster'],
 };
 
 /** Build the expected web exports from the mobile sources + doc tables. */

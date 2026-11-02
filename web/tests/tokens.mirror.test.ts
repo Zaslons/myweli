@@ -81,7 +81,7 @@ function keyDiff(
 }
 
 /** The mirrored slice of a web export: everything not declared web-only. */
-function mirroredPart(web: Record<string, string>, webOnly: string[]) {
+function mirroredPart(web: Record<string, unknown>, webOnly: string[]) {
   return Object.fromEntries(Object.entries(web).filter(([k]) => !webOnly.includes(k)));
 }
 
@@ -151,8 +151,8 @@ describe('the token mirror gate (B3, row 19)', () => {
   });
 
   it('type mirrors AppTextStyles exactly — weight stripped, height resolved to px', () => {
-    expect(keyDiff('type', expected.type, type)).toEqual([]);
-    expect(type).toEqual(expected.type);
+    expect(keyDiff('type', expected.type, type, WEB_ONLY.type)).toEqual([]);
+    expect(mirroredPart(type, WEB_ONLY.type)).toEqual(expected.type);
   });
 
   it('motion matches SYSTEM.md §9 — doc, Dart and web, all three (A8)', () => {

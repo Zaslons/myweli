@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import '../styles/globals.css';
+import { brandFont } from '../styles/font';
 import { SiteChrome } from '../components/SiteChrome';
 import { SiteFooter } from '../components/SiteFooter';
 import { jsonLdScript, organizationJsonLd } from '../lib/seo/jsonld';
@@ -9,7 +10,7 @@ export const metadata = defaultMetadata;
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="fr">
+    <html lang="fr" className={brandFont.variable}>
       <body>
         {/* Brand entity (GEO) — emitted site-wide. */}
         <script

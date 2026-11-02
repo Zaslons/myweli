@@ -6,7 +6,12 @@ export declare const SPACING_KEYS: Record<string, string>;
 export declare const RADIUS_KEYS: Record<string, string>;
 export declare const ICON_KEYS: Record<string, string>;
 export declare const LAYOUT_KEYS: Record<string, string>;
-export declare const WEB_ONLY: { spacing: string[]; motion: string[]; zIndex: string[] };
+export declare const WEB_ONLY: {
+  spacing: string[];
+  motion: string[];
+  zIndex: string[];
+  type: string[];
+};
 
 export declare function stripDartComments(src: string): string;
 export declare function tokenCandidates(stripped: string): string[];

@@ -1571,7 +1571,7 @@ Decided, not forgotten:
   token in this document is role-named** (`textTertiary`, not `gray500`) precisely
   so that a dark theme is a *value swap*, not a rewrite. Don't add a token named
   after its color.
-- **A brand font** (Inter). System fonts today.
+- **A brand font in the apps.** System fonts today, and `AppTheme.themeData(fontFamily:)` is the seam. The web chose **Hanken Grotesk** on 2026-11-02 (WEB-SYSTEM §3), not the Inter this line once named: if the apps ever take a font, it should be that one.
 - **Real tablet/desktop layouts** for the apps (§10 is defensive, not adaptive).
 - **The 52 flag-hidden V2/V3 color offenders** — allowlisted in the pin test with a
   comment, to be fixed if those screens are ever un-shelved.
