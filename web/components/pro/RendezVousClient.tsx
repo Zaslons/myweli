@@ -349,7 +349,7 @@ export function RendezVousClient() {
           <button
             type="button"
             onClick={() => setCreating(true)}
-            className="rounded-lg bg-primary px-m py-s text-labelLarge font-medium text-secondary hover:bg-primaryHover"
+            className="rounded-control bg-primary px-m py-s text-labelLarge font-medium text-secondary hover:bg-primaryHover"
           >
             + Nouveau rendez-vous
           </button>
@@ -378,7 +378,7 @@ export function RendezVousClient() {
                 type="button"
                 aria-label="Jour précédent"
                 title="Raccourci : ←"
-                className="rounded-lg border border-border px-s py-xs text-textSecondary"
+                className="rounded-control border border-primary px-s py-xs text-textSecondary"
                 onClick={() =>
                   // Midday anchor: ±1 day stays inside the salon day at any
                   // wave offset.
@@ -397,13 +397,13 @@ export function RendezVousClient() {
                 value={journalDate}
                 onChange={(e) => setJournalDate(e.target.value)}
                 aria-label="Date"
-                className="min-h-12 rounded-lg border border-borderStrong bg-surface px-s py-xs text-bodyLarge text-textPrimary focus:border-borderFocus focus:ring-1 focus:ring-borderFocus"
+                className="min-h-12 rounded-control border border-primary bg-surface px-s py-xs text-bodyLarge text-textPrimary focus:border-borderFocus focus:ring-1 focus:ring-borderFocus"
               />
               <button
                 type="button"
                 aria-label="Jour suivant"
                 title="Raccourci : →"
-                className="rounded-lg border border-border px-s py-xs text-textSecondary"
+                className="rounded-control border border-primary px-s py-xs text-textSecondary"
                 onClick={() =>
                   setJournalDate(
                     dateKey(
@@ -622,7 +622,7 @@ function WeekView({
             type="button"
             aria-label="Semaine précédente"
             title="Raccourci : ←"
-            className="min-h-12 min-w-12 rounded-lg border border-border px-s py-xs text-textSecondary"
+            className="min-h-12 min-w-12 rounded-control border border-primary px-s py-xs text-textSecondary"
             onClick={() => onWeek(-1)}
           >
             ‹
@@ -634,7 +634,7 @@ function WeekView({
             type="button"
             aria-label="Semaine suivante"
             title="Raccourci : →"
-            className="min-h-12 min-w-12 rounded-lg border border-border px-s py-xs text-textSecondary"
+            className="min-h-12 min-w-12 rounded-control border border-primary px-s py-xs text-textSecondary"
             onClick={() => onWeek(1)}
           >
             ›
@@ -657,7 +657,7 @@ function WeekView({
               id="week-artist"
               value={artistFilter ?? '__all'}
               onChange={(e) => setArtistFilter(e.target.value === '__all' ? null : e.target.value)}
-              className="min-h-12 rounded-lg border border-borderStrong bg-surface px-s text-bodyMedium text-textPrimary"
+              className="min-h-12 rounded-control border border-primary bg-surface px-s text-bodyMedium text-textPrimary"
             >
               <option value="__all">Tous</option>
               {artists.map((a) => (

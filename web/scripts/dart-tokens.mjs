@@ -264,6 +264,9 @@ export const WEB_ONLY = {
   zIndex: ['auto'],
   // The public hero's poster size (WEB-SYSTEM §3): the apps have no such surface.
   type: ['displayPoster'],
+  // Controls are square on the web and rounded in the apps, by the owner's choice
+  // (docs/design/web-swiss-fields.md §7).
+  radius: ['control'],
 };
 
 /** Build the expected web exports from the mobile sources + doc tables. */

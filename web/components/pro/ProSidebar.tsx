@@ -108,7 +108,7 @@ export function ProSidebar({
             type="button"
             onClick={onClose}
             aria-label="Fermer le menu"
-            className="-m-sm flex min-h-12 min-w-12 items-center justify-center rounded-lg text-iconXS text-textTertiary hover:bg-surfaceVariant lg:hidden"
+            className="-m-sm flex min-h-12 min-w-12 items-center justify-center rounded-control text-iconXS text-textTertiary hover:bg-surfaceVariant lg:hidden"
           >
             <span aria-hidden="true">✕</span>
           </button>
@@ -135,7 +135,7 @@ export function ProSidebar({
                     setMenuOpen((o) => !o);
                     setSwitchError(false);
                   }}
-                  className="flex min-h-12 w-full items-center justify-between gap-xs rounded-lg border border-borderStrong bg-surface px-s text-left text-bodyMedium text-textPrimary hover:bg-surfaceVariant"
+                  className="flex min-h-12 w-full items-center justify-between gap-xs rounded-control border border-primary bg-surface px-s text-left text-bodyMedium text-textPrimary hover:bg-surfaceVariant"
                 >
                   {/* clip-ok: chrome in a 240px rail, not content. The button's
                       accessible name carries the whole string, and the salon's
@@ -248,7 +248,7 @@ export function ProSidebar({
                   // The entry's name carries the count its badge shows
                   // (it begins with the visible label — WCAG 2.5.3).
                   aria-label={notifications ? unreadLabel(unread) : undefined}
-                  className={`flex min-h-12 items-center justify-between gap-s rounded-lg px-s text-bodyMedium hover:bg-surfaceVariant ${
+                  className={`flex min-h-12 items-center justify-between gap-s rounded-control px-s text-bodyMedium hover:bg-surfaceVariant ${
                     active
                       ? 'bg-surfaceVariant font-medium text-textPrimary'
                       : 'text-textPrimary'

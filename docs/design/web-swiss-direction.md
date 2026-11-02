@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | **Approved 2026-11-02** (decisions in §15). Direction B, with the owner's two additions: the real logo and the things that are MyWeli's own (§3), and a pattern with an African identity that **feels calm** (§4). **S0 merged in #724 and read back on `myweli.com`** (§11, §13). **S1 in #727** (§13.1). **The owner chose to merge it before §4.8 (2026-11-02):** that check and a low-end Android are still theirs, now on the live site, and an answer to question 3 still changes the drawing. |
+| **Status** | **Approved 2026-11-02** (decisions in §15). Direction B, with the owner's two additions: the real logo and the things that are MyWeli's own (§3), and a pattern with an African identity that **feels calm** (§4). **S0 merged in #724 and read back on `myweli.com`** (§11, §13). **S1 merged in #727 and read back on `myweli.com`** (§11, §13.1). **The owner chose to merge it before §4.8 (2026-11-02):** that check and a low-end Android are still theirs, now on the live site, and an answer to question 3 still changes the drawing. Fields and buttons went square in #728 ([web-swiss-fields.md](web-swiss-fields.md)). |
 | **Owner** | Sadreddine Daher |
 | **Last updated** | 2026-11-02 |
 | **PRD ref / phase** | FR-WEB-MP-001, FR-WEB-PP-001/002 (presentation only) · V1 |
@@ -67,7 +67,7 @@ Why these fit together: strip-woven cloth is already a grid of narrow bands, and
 | **App icon, favicon** | Unchanged | Already black with the mark |
 | **OG image** (`app/opengraph-image.png`) | Link previews | Redrawn: panel on one side, lockup and « Réservation beauté & bien-être en Côte d’Ivoire » on the other. Same 1200×630, same alt text |
 | **Pure black fills, ink text** | Everywhere | SYSTEM §1 is unchanged: brand `#000000`, text `#1A1A1A` |
-| **Rounded controls** | Fields, buttons, chips | Unchanged (`radiusLarge`, `radiusPill`), so the site and the app feel related. Layout boxes lose their corners, not controls |
+| **Square controls** | Fields, buttons | Square, with a thin black line, since #728 ([web-swiss-fields.md](web-swiss-fields.md)). **Corrected 2026-11-02:** this row first kept them rounded (`radiusLarge`) so that the site and the app feel related; the owner chose otherwise, from pictures, once the home page was live. Chips keep `radiusPill` |
 | **The words of the place** | Commune names, FCFA, Wave / Mobile Money | Already on the site; the index treatment (§7.1) makes them part of the look |
 
 ---
@@ -311,7 +311,7 @@ Gets the font only. `SiteFooter` is a server component shown on `/pro` too (its 
 |---|---|
 | 0 salons (today) | Home hides the section. Landings show the empty state. The hero stands on its type and pattern: **no page depends on a photo** |
 | Locality tree unreadable | As today: « Abidjan » fallback, directory hidden, search still works |
-| Font slow or blocked | System fallback with adjusted metrics, then a swap with no visible jump. Text is never hidden |
+| Font slow or blocked | System fallback with adjusted metrics, then a swap. Text is never hidden. **Corrected 2026-11-02:** this said « no visible jump », and it can re-wrap a paragraph, which measured 0.064 on `/suppression-compte` against the 0.1 budget (WEB.md §7) |
 | Salon with no photo | §6.4 |
 | Photo fails to load | The `surfaceVariant` tile stays and the ratio holds, so there is no shift |
 | Long city or salon name | `displaySmall` fits « Yamoussoukro » at 320 wide by estimate; `type-overflow.spec.ts` decides. `break-words` on `<h1>`. Declared `truncate` on card names stays |
@@ -352,6 +352,7 @@ None. `imageUrls` is already `required` on `Provider` in `openapi.yaml`, and `im
 | **What paid for it: Sentry's tracing code out of the bundle** | Scripts 203 → 158 KB. We report errors only, so every visitor was downloading code we switch off at runtime. **`/` 2110 ms, `/suppression-compte` 2109 ms**, faster than before the font, first paint still 757 ms. A real error still reaches Sentry: seen on a build with a local DSN |
 | **On `myweli.com` after the merge, five runs** | `/` 1263 ms, `/connexion` 1274 ms, `/suppression-compte` 1480 ms; CLS at most 0.006; scripts 152–153 KB on `/`. WEB.md §7. These are not comparable with the local numbers above, so S1 measures against the local ones |
 | **S1, five runs, every budgeted page** | `/` **2113 ms** (2112–2173), `/connexion` **2713 ms** (2711–2759; `main` 2712), `/suppression-compte` **2109 ms** (2108–2263). First paint 759, 907 and 756 ms. CLS 0, TBT 0. Scripts 158, 231 and 159 KB. So it cost `/` 3 ms and left the others where they were |
+| **S1 on `myweli.com`, five runs** | `/` 1487 ms, `/connexion` 1323 ms, `/suppression-compte` 1607 ms; TBT at most 26 ms; scripts 152 KB on `/`. WEB.md §7 |
 | **If it breaches** | The budget does not move |
 | **New photos** | Card photos are lazy and below the fold on `/`. Salon page budgets are set from a measurement in S4, added to `lighthouserc.json` so they cannot be forgotten |
 
@@ -411,6 +412,8 @@ Built to §7.1 and §7.8, and looked at from 360 to 1920 ([before and after](ass
 **Still to look at, in the owner's hands:** whether the wordmark at 7 of 12 columns is too loud under a short page such as `/connexion`. It follows §3, but no sketch had shown it.
 
 **The install banner and « L’app MyWeli »** appear only once store URLs exist, so they were looked at on a build with a temporary one: the banner is on the same left edge, a black band above the header's black rule, as §8 expected.
+
+**Read back on `myweli.com` after the merge:** the band on a phone and the panel on a desktop, none on `/connexion`, `/support` or `/pro/connexion`, the wordmark in the footer and the lockup on `/pro/connexion`, no sideways scroll, no CSP message, and all ten privacy checks.
 
 **What is not done here:** the salon card keeps its box until S3, and `/professionnels` keeps `HeroBackground` until S2. Nothing was seen on a real phone.
 

@@ -3,7 +3,7 @@
 import { type DayRanges, type Range, nextRange, openDay } from '../../lib/pro/availability';
 
 const inputCls =
-  'min-h-12 rounded-lg border border-borderStrong bg-surface px-s py-xs text-bodyLarge text-textPrimary focus:border-borderFocus focus:ring-1 focus:ring-borderFocus disabled:border-border disabled:text-textDisabled';
+  'min-h-12 rounded-control border border-primary bg-surface px-s py-xs text-bodyLarge text-textPrimary focus:border-borderFocus focus:ring-1 focus:ring-borderFocus disabled:border-border disabled:text-textDisabled';
 const linkBtn = 'min-h-12 text-bodyMedium text-textTertiary underline disabled:no-underline disabled:opacity-50';
 
 /// The salon's opening hours, EVERY range of each day

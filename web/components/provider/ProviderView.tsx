@@ -203,7 +203,7 @@ export function ProviderView({
             <div className="mt-m flex flex-wrap gap-s">
               <a
                 href={`tel:${p.phoneNumber}`}
-                className="inline-flex min-h-12 items-center rounded-lg border border-borderStrong bg-secondary px-l text-labelLarge font-medium text-textPrimary"
+                className="inline-flex min-h-12 items-center rounded-control border border-primary bg-secondary px-l text-labelLarge font-medium text-textPrimary"
               >
                 Appeler
               </a>
@@ -212,7 +212,7 @@ export function ProviderView({
                   href={`https://wa.me/${p.whatsapp.replace(/[^0-9]/g, '')}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex min-h-12 items-center rounded-lg border border-borderStrong bg-secondary px-l text-labelLarge font-medium text-textPrimary"
+                  className="inline-flex min-h-12 items-center rounded-control border border-primary bg-secondary px-l text-labelLarge font-medium text-textPrimary"
                 >
                   WhatsApp
                 </a>

@@ -11,6 +11,7 @@ export declare const WEB_ONLY: {
   motion: string[];
   zIndex: string[];
   type: string[];
+  radius: string[];
 };
 
 export declare function stripDartComments(src: string): string;

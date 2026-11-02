@@ -81,7 +81,7 @@ export function FavoriteButton({
         onClick={toggle}
         disabled={busy}
         aria-pressed={fav}
-        className="inline-flex min-h-12 items-center gap-xs rounded-lg border border-borderStrong bg-secondary px-m text-labelLarge font-medium text-textPrimary hover:bg-surfaceVariant"
+        className="inline-flex min-h-12 items-center gap-xs rounded-control border border-primary bg-secondary px-m text-labelLarge font-medium text-textPrimary hover:bg-surfaceVariant"
       >
         <span aria-hidden="true">{fav ? '♥' : '♡'}</span>
         {fav ? 'Favori' : 'Ajouter aux favoris'}

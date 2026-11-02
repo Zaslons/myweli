@@ -26,7 +26,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
             covers the pro shell for free. */}
         <a
           href="#contenu"
-          className="sr-only focus:not-sr-only focus:absolute focus:left-m focus:top-m focus:z-toast focus:rounded-lg focus:bg-secondary focus:p-m focus:text-labelLarge focus:text-textPrimary"
+          className="sr-only focus:not-sr-only focus:absolute focus:left-m focus:top-m focus:z-toast focus:rounded-control focus:bg-secondary focus:p-m focus:text-labelLarge focus:text-textPrimary"
         >
           Aller au contenu
         </a>

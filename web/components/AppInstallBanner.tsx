@@ -39,7 +39,7 @@ export function AppInstallBanner({ fullWidth = false }: { fullWidth?: boolean })
           {href ? (
             <a
               href={href}
-              className="inline-flex min-h-12 items-center rounded-md bg-secondary px-m text-labelLarge font-medium text-primary"
+              className="inline-flex min-h-12 items-center rounded-control bg-secondary px-m text-labelLarge font-medium text-primary"
             >
               Télécharger
             </a>

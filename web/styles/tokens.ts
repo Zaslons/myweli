@@ -70,6 +70,9 @@ export const radius = {
   // (SYSTEM.md §6, mirroring `AppTheme.radiusPill`). It replaces `rounded-full`,
   // which was Tailwind's default key and dies with the closed theme (§2).
   pill: '999px',
+  // Web only: anything you type in or press (docs/design/web-swiss-fields.md). Named
+  // for what it is, not its value, so a change of mind is this one line.
+  control: '0px',
 } as const;
 
 // The RHYTHM scale — padding, margin, gap (SYSTEM.md §5's 8pt grid).

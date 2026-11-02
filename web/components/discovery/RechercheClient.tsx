@@ -247,7 +247,7 @@ export function RechercheClient({
               onChange={(e) => {
                 window.location.assign(hrefWith({ sort: e.target.value }));
               }}
-              className="min-h-12 rounded-lg border border-borderStrong bg-surface px-s py-xs text-bodyLarge text-textPrimary focus:border-borderFocus focus:ring-1 focus:ring-borderFocus"
+              className="min-h-12 rounded-control border border-primary bg-surface px-s py-xs text-bodyLarge text-textPrimary focus:border-borderFocus focus:ring-1 focus:ring-borderFocus"
             >
               {SORT_OPTIONS.map((o) => (
                 <option key={o.value} value={o.value}>
@@ -343,7 +343,7 @@ export function RechercheClient({
       <button
         type="button"
         onClick={() => setMobileView((v) => (v === 'list' ? 'map' : 'list'))}
-        className="fixed bottom-l left-1/2 z-sticky inline-flex min-h-12 -translate-x-1/2 items-center rounded-pill bg-primary px-l text-labelLarge font-medium text-secondary shadow-lg lg:hidden"
+        className="fixed bottom-l left-1/2 z-sticky inline-flex min-h-12 -translate-x-1/2 items-center rounded-control bg-primary px-l text-labelLarge font-medium text-secondary shadow-lg lg:hidden"
       >
         {mobileView === 'list' ? 'Carte' : 'Liste'}
       </button>

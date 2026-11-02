@@ -268,7 +268,7 @@ export function AppointmentDetailClient({ id }: { id: string }) {
               href={googleCalendarUrl(appt)}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex min-h-12 items-center rounded-lg border border-borderStrong bg-surface px-m text-bodyMedium text-textPrimary hover:bg-surfaceVariant"
+              className="inline-flex min-h-12 items-center rounded-control border border-primary bg-surface px-m text-bodyMedium text-textPrimary hover:bg-surfaceVariant"
             >
               Ajouter au calendrier (Google)
             </a>
@@ -285,7 +285,7 @@ export function AppointmentDetailClient({ id }: { id: string }) {
                 el.click();
                 URL.revokeObjectURL(url);
               }}
-              className="inline-flex min-h-12 items-center rounded-lg border border-borderStrong bg-surface px-m text-bodyMedium text-textPrimary hover:bg-surfaceVariant"
+              className="inline-flex min-h-12 items-center rounded-control border border-primary bg-surface px-m text-bodyMedium text-textPrimary hover:bg-surfaceVariant"
             >
               Fichier .ics
             </button>
@@ -298,7 +298,7 @@ export function AppointmentDetailClient({ id }: { id: string }) {
             {appt.providerPhone ? (
               <a
                 href={`tel:${appt.providerPhone.replace(/\s/g, "")}`}
-                className="inline-flex min-h-12 items-center rounded-lg border border-borderStrong bg-surface px-m text-bodyMedium text-textPrimary hover:bg-surfaceVariant"
+                className="inline-flex min-h-12 items-center rounded-control border border-primary bg-surface px-m text-bodyMedium text-textPrimary hover:bg-surfaceVariant"
               >
                 Appeler
               </a>
@@ -308,7 +308,7 @@ export function AppointmentDetailClient({ id }: { id: string }) {
                 href={`https://wa.me/${appt.providerWhatsapp.replace(/[^0-9]/g, "")}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex min-h-12 items-center rounded-lg border border-borderStrong bg-surface px-m text-bodyMedium text-textPrimary hover:bg-surfaceVariant"
+                className="inline-flex min-h-12 items-center rounded-control border border-primary bg-surface px-m text-bodyMedium text-textPrimary hover:bg-surfaceVariant"
               >
                 WhatsApp
               </a>
@@ -525,7 +525,7 @@ export function AppointmentDetailClient({ id }: { id: string }) {
           <div className="mt-l">
             <Link
               href={rebookHref(appt)!}
-              className="inline-flex items-center justify-center rounded-lg bg-primary px-l py-s text-labelLarge font-medium text-secondary hover:bg-primaryHover"
+              className="inline-flex items-center justify-center rounded-control bg-primary px-l py-s text-labelLarge font-medium text-secondary hover:bg-primaryHover"
             >
               Réserver à nouveau
             </Link>
