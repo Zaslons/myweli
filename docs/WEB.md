@@ -313,6 +313,18 @@ per-URL block when it reaches 2500.
 
 **Script size now has its own ceiling** (`resource-summary:script:size`, 175 KB on `/` and `/suppression-compte`): measured to pass at 158 KB and to fail at 201 KB with the tracing code back. LCP is an estimate that moves. Bytes do not.
 
+**The same build on `myweli.com` after the merge, 2026-11-02** (five runs per page, these throttling settings, from the same Mac):
+
+| Page | LCP median (range) | First paint | CLS | Scripts | Total |
+|---|---|---|---|---|---|
+| `/` | 1263 ms (1158–1890) | 1107 ms | 0 | 152–153 KB | 214–215 KB |
+| `/connexion` | 1274 ms (951–2412) | 1011 ms | 0–0.006 | 220–222 KB | 291–293 KB |
+| `/suppression-compte` | 1480 ms (1200–1921) | 1050 ms | 0 | 152–153 KB | 199 KB |
+
+All within budget, and the check failed as it should with the LCP budget set to 1000 ms. Don't compare these with the table above: that one is a local server. This is a simulated slow phone on a Mac, not a real phone in Abidjan.
+
+**The daily check's rules on the policy are also read at merge time.** `tool/csp-promises.ts` holds them. `tool/check-privacy-promise.spec.ts` reads them against the header `myweli.com` sends, and `tests/csp.test.ts` against the policy a PR is about to ship. The daily check needs the deployed site, so nothing runs it on a PR: a correct change to `worker-src` turned it red from 2026-10-21 to 2026-11-02 on text that was no longer there, and its next line never ran. **What this cannot see:** the daily check no longer calling the rule, and its other header assertions, which still only run daily.
+
 - Public pages: minimal JS, `next/image`, font-display swap, edge-cached SSG/ISR.
 - Authed app: route-level code-splitting, lazy data, optimistic UI where it helps.
 
