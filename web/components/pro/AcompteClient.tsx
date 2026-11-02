@@ -37,7 +37,7 @@ import { Loading } from '../Loading';
 import { PhoneField } from '../PhoneField';
 
 const input =
-  'block w-full min-h-12 rounded-lg border border-borderStrong bg-surface p-m text-bodyLarge text-textPrimary focus:border-borderFocus focus:ring-1 focus:ring-borderFocus disabled:border-border disabled:text-textDisabled';
+  'block w-full min-h-12 rounded-control border border-primary bg-surface p-m text-bodyLarge text-textPrimary focus:border-borderFocus focus:ring-1 focus:ring-borderFocus disabled:border-border disabled:text-textDisabled';
 
 // The Mobile Money number's check, per switch position: required while a
 // deposit is collected, optional otherwise — but judged whenever it is kept

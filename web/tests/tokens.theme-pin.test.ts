@@ -127,7 +127,7 @@ const RULES: { name: string; pattern: RegExp; allow: string[]; hint: string }[] 
       // `rounded-full` and bare `rounded` were Tailwind's own keys and are gone.
       pattern: /\brounded(?:-(?:full|none|2xl|3xl))?(?=[\s"'`}]|$)/,
       allow: [],
-      hint: 'use rounded-sm|md|lg|xl|xxl|pill (radius, styles/tokens.ts)',
+      hint: 'use rounded-sm|md|lg|xl|xxl|pill|control (radius, styles/tokens.ts)',
     },
     {
       name: 'z-index is a named LAYER, never a number',

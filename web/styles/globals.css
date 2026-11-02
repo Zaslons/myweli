@@ -28,7 +28,6 @@ body {
   :focus-visible {
     outline: 2px solid theme('colors.borderFocus');
     outline-offset: 2px;
-    border-radius: theme('borderRadius.md');
   }
 }
 
@@ -45,11 +44,12 @@ body {
   align-items: center;
   gap: theme('spacing.xs');
   padding: 0 theme('spacing.s');
-  /* borderStrong, not border: the boundary IS the control (SYSTEM §3.3). The
-     phone widgets were invisible to the row-3 count — the grep never sees the
-     input/select that react-phone-number-input renders. */
-  border: 1px solid theme('colors.borderStrong');
-  border-radius: theme('borderRadius.lg');
+  /* The boundary IS the control (SYSTEM §3.3), and on the web it is the page's black
+     line (docs/design/web-swiss-fields.md). The phone widgets were invisible to the
+     row-3 count — the grep never sees the input/select that
+     react-phone-number-input renders. */
+  border: 1px solid theme('colors.primary');
+  border-radius: theme('borderRadius.control');
   background-color: theme('colors.surface');
 }
 .myweli-phone .PhoneInputInput {
@@ -68,8 +68,8 @@ body {
   line-height: theme('fontSize.bodyLarge.1.lineHeight');
   letter-spacing: theme('fontSize.bodyLarge.1.letterSpacing');
   padding: theme('spacing.m');
-  border: 1px solid theme('colors.borderStrong');
-  border-radius: theme('borderRadius.lg');
+  border: 1px solid theme('colors.primary');
+  border-radius: theme('borderRadius.control');
   background-color: theme('colors.surface');
   color: theme('colors.textPrimary');
 }

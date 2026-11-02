@@ -183,7 +183,7 @@ function LocateButton({
       <button
         type="button"
         onClick={locate}
-        className="inline-flex min-h-12 items-center rounded-lg border border-borderStrong bg-secondary px-m text-bodyMedium text-textPrimary shadow hover:bg-surfaceVariant"
+        className="inline-flex min-h-12 items-center rounded-control border border-primary bg-secondary px-m text-bodyMedium text-textPrimary shadow hover:bg-surfaceVariant"
       >
         Autour de moi
       </button>

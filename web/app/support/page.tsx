@@ -118,7 +118,7 @@ export default function SupportPage() {
           <li>
             <a
               href={supportMailto()}
-              className="flex min-h-xxl items-center rounded-md border border-divider px-m py-s text-bodyLarge text-textPrimary underline hover:bg-surfaceVariant"
+              className="flex min-h-xxl items-center rounded-control border border-primary px-m py-s text-bodyLarge text-textPrimary underline hover:bg-surfaceVariant"
             >
               {SUPPORT.email}
             </a>
@@ -134,7 +134,7 @@ export default function SupportPage() {
                 href={whatsapp}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex min-h-xxl items-center rounded-md border border-divider px-m py-s text-bodyLarge text-textPrimary underline hover:bg-surfaceVariant"
+                className="flex min-h-xxl items-center rounded-control border border-primary px-m py-s text-bodyLarge text-textPrimary underline hover:bg-surfaceVariant"
               >
                 WhatsApp
               </a>

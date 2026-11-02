@@ -158,6 +158,7 @@ Each question has a recommendation. Answers unblock the item named in brackets.
 67. What comes first? [B11, B12] — ✅ **Answered: the untrue sentences, then the new look.**
 68. When does a salon's free trial start? [B12.1] — ✅ **Answered (2026-11-02): keep the clock, fix the wording.** The first offer choice starts it, or go-live with no choice. Moving it to go-live was withdrawn: a salon could then choose an offer, invite a team and run for free without ever opening.
 69. Should management stay free once a trial ends, or in setup? — **Open, and not urgent.** Today a salon that never opens keeps its agenda, manual bookings and client records with no time limit (no team, no public page), and a salon past its trial gets warnings only: `SUBSCRIPTION_ENFORCEMENT` is off by default and the committed manifest doesn't set it (the live service was not read). Even with it on, the agenda keeps working, by the 2026-07-11 decision never to lock anyone out of their data. *Recommended:* restrict nothing now, and decide before the first trial ends, about 90 days after the first salon opens. One option: after the trial and grace, a salon can read and export but not add appointments.
+70. Typing fields and buttons: square or rounded, and where? [B11.6] — ✅ **Answered (2026-11-02): square with a thin black line, the search as one bar, on the whole site.** The owner chose from pictures on the real pages. It reverses web-swiss-direction §3, and the site and the apps now look less alike.
 
 ---
 
@@ -506,6 +507,7 @@ Spec: [web-swiss-direction.md](design/web-swiss-direction.md). Starts after B12.
 - **B11.3 Salon card, `/recherche`, landings, favourites (M):** the card gains the app's cover photo, a parity gap today.
 - **B11.4 Salon page (M):** with its own Lighthouse budget.
 - **B11.5 OG image, and an audit of the deployed site by separate eyes (S).**
+- **B11.6 Square fields and buttons, the search as one bar (M · decision 70).** ✅ **Done in #728** — [web-swiss-fields.md](design/web-swiss-fields.md). The whole site, the Espace pro included. **Yours to judge from the pictures:** the rounded cards around them (§8).
 
 ### Batch 12 — The website's flows against the apps
 

@@ -55,12 +55,12 @@ mapping:
 | `textDisabled` `#9E9E9E` | `text-textDisabled` | Disabled controls only |
 | `divider` `#E0E0E0` | `border-divider` | Decorative rules |
 | `border` `#D0D0D0` | `border-border` | Container hairlines |
-| **`borderStrong`** `#8A8A8A` | `border-borderStrong` | **Every interactive control's boundary** |
+| **`borderStrong`** `#8A8A8A` | `border-borderStrong` | **An interactive control's boundary.** On the web since B11.6: chips and the before/after viewer only; fields and buttons use the black line (§16) |
 | **`borderFocus`** `#000000` | `outline-borderFocus` | The focus ring (§5) |
 | semantic | `text-success` `bg-error` … | Status only |
 | **`gold`** `#B5830A` | `border-gold` `bg-gold/15` | Non-text accent (3.10:1 on `surfaceVariant`, the worst surface — darkened from `#B8860B`/2.98 in the mirror-debt slice, §15 row 23). **Was missing from `tokens.ts` entirely**, so `TeamRoleChip` silently substituted `starRating` — a drift bug the closed theme (§2) makes impossible. |
 | spacing | `p-m` `gap-s` … + **`sm` = 12px** · **`0`** · **`xxxl` = 64px** · **`fab` = 96px** | `sm` (the §5 half-step) and `xxxl` were in the apps and had silently gone missing from the web mirror — the **second** drift after `gold`, and more evidence for row 19's generator. `0` is not a "spacing value" but `inset-0`/`pb-0` need the key. `fab` mirrors `AppTheme.fabClearance` (B7.4): `pb-fab` is what a view that scrolls under a floating button owes it at its end (SYSTEM §13.3). |
-| radius | `rounded-lg` … + **`rounded-pill`** | `pill` = 999px, mirroring `AppTheme.radiusPill`. It replaces `rounded-full`, which was Tailwind's own key and dies with the closed theme. |
+| radius | `rounded-lg` … + **`rounded-pill`** + **`rounded-control`** (0, web-only: §16) | `pill` = 999px, mirroring `AppTheme.radiusPill`. It replaces `rounded-full`, which was Tailwind's own key and dies with the closed theme. |
 | z-index | `z-sticky` `z-modal` … | The layer, **named** — never a number (§9). |
 | motion | `duration-base` … | SYSTEM.md §9's scale. `transitionDuration.DEFAULT` **must** stay defined: every bare `transition`/`transition-colors` reads it, so dropping it makes them all instant — silently. |
 
@@ -168,8 +168,7 @@ Hence `tests/tokens.theme-pin.test.ts` — a source sweep, the mirror of mobile'
 **The typeface is Hanken Grotesk, on the web only (B11.0).** One family at every
 size, from one variable file self-hosted with `next/font/local` in `styles/font.ts`:
 no build-time network, and no visitor's browser asks a third party for it.
-`display: 'swap'` and `adjustFontFallback`, so text is never hidden and the swap does
-not move the page. The apps stay on system fonts.
+`display: 'swap'` and `adjustFontFallback`, so text is never hidden and each line keeps its height. **The fallback's widths are close, not equal, so a swap can re-wrap a paragraph** (0.064 on `/suppression-compte`, WEB.md §7). The apps stay on system fonts.
 
 **The file is trimmed to 400–600, 18.7 KB (`styles/fonts/README.md`).** The full file
 went over the LCP budget, and a theme pin refuses `font-bold` and the other weights
@@ -331,9 +330,10 @@ The fix is one base-layer rule, not 271 utilities — **shipped in B4**
 :focus-visible {
   outline: 2px solid theme('colors.borderFocus');
   outline-offset: 2px;
-  border-radius: theme('borderRadius.md');
 }
 ```
+
+**No radius here since B11.6.** This rule used to set 8px, so a square control with no radius class of its own rounded the moment it was clicked. The ring now follows what it surrounds.
 
 - `:focus-visible`, **not** `:focus` — a clicked **button** shows no ring. A
   clicked **text field** does, and that is platform-correct (a field you clicked
@@ -377,7 +377,7 @@ tech:
 
 All of this lives in **one shared `<TextField>`** (§10) — shipped in B4
 (`components/TextField.tsx`, mirroring the app's `InputDecorationTheme` state
-table: `borderStrong` → `borderFocus`+ring on focus → `error`, soft `border`
+table: `primary` (`borderStrong` before B11.6) → `borderFocus`+ring on focus → `error`, soft `border`
 disabled; `min-h-12`; `useId`). `PhoneField` wears the same shell — the library
 forwards `id`/`aria-*` to its inner input. Seven ad-hoc input copies is how we
 ended up with zero labels; the copies are gone.
@@ -748,8 +748,9 @@ Enforced by the `myweli-web-guardrails` skill.*
 - **A section** is `SiteSection`: the rule above it and the hanging heading come with it.
 - **Twelve columns from `lg`,** one below. Reading text stays capped at `max-w-content` (SYSTEM §10). From `lg`, a section's `<h2>` hangs in columns 1–3 and its content takes 4–12.
 - **Flush left**, empty states included.
-- **Rules instead of boxes.** A structural rule is 1px `border-primary`, a row rule 1px `border-divider`. The black rule is a **new, sanctioned use of `primary`**, on public pages only. `Card` stays for real containers.
-- **Rounded corners stay on controls.** Layout boxes and photos lose theirs.
+- **Rules instead of boxes.** A structural rule is 1px `border-primary`, a row rule 1px `border-divider`. The black rule is a **new, sanctioned use of `primary`**: on public pages as structure, and on every page as the line around a field or button. `Card` stays for real containers.
+- **Anything you type in or press is square, with a thin black line** (`rounded-control`, `border-primary`; [web-swiss-fields.md](web-swiss-fields.md), B11.6). It holds on every page, the Espace pro included. Filter chips keep their pill, Google and Apple keep their own shape, and what only holds content is unchanged. **Corrected 2026-11-02:** this line first said rounded corners stay on controls, so that the site and the app feel related. The owner chose otherwise from pictures.
+- **The search is one ruled bar** (`HomeSearch`): the form draws the box and the lines between.
 - **Colour comes from photos.** Same-ratio crops, no filters, no scrims, and **no AI-generated faces or results**.
 - **The pattern** (rows of plaits, black on white; `components/brand/Weave.tsx`): at most one per page, on Home, `/professionnels` and 404 only, never behind text, `aria-hidden`, no animation, and it never replaces a salon's photo. **It keeps one scale:** it stops growing with the screen, because drawn large it stops being texture. Copy never calls it traditional or authentic. White on black is kept for a dark version.
 
