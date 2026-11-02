@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | **Built 2026-11-02**, #NNN. The owner approved it the same day: the @mention route, and a mention on every failing day. **Not yet proved by a real run** (§5) |
+| **Status** | **Built 2026-11-02**, #726. The owner approved it the same day: the @mention route, and a mention on every failing day. **Not yet proved by a real run** (§5) |
 | **Owner** | Sadreddine Daher |
 | **Last updated** | 2026-11-02 |
 | **PRD ref / phase** | Operations, no product requirement · V1 |
