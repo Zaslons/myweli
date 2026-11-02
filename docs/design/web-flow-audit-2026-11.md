@@ -32,6 +32,8 @@ The gaps run both ways: some are the apps behind the web.
 
 ## Says something untrue (fix first)
 
+All four fixed in #723 ([web-true-sentences.md](web-true-sentences.md)). **A correction to C1:** the app's sentence isn't the model it looks like here. It promises a refund nobody on our side makes, and it says so even with no proof sent, so the web states the salon's rule instead (BACKLOG B12.11).
+
 | # | Gap | Impact | Evidence | |
 |---|---|---|---|---|
 | **P1** | The web says the trial starts at go-live, and Équipe sends a draft salon to « Choisissez votre offre ». Choosing creates the subscription with the clock already running; go-live then leaves it alone | **A salon loses free months before it opens** | `subscription-plans.ts:86-87`, `EquipeClient.tsx:226`, `salon_subscription_service.dart:155-160`, `:86` | Checked |

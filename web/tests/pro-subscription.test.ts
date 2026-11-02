@@ -76,10 +76,10 @@ describe('offer cards', () => {
     expect(TRIAL_KEPT_LINE).toMatch(/essai/i);
   });
 
-  it('the setup sentence says when the trial starts — at go-live, not at the choice', () => {
-    // web-pro-access.md §12: no offer is needed to publish any more.
+  it('the setup sentence says when the trial starts: at the first choice, or at go-live', () => {
+    // web-true-sentences.md §2: the server's clock, kept by the owner's decision.
     expect(SETUP_SUBLINE).toBe(
-      'Votre essai de 3 mois démarre à la mise en ligne de votre salon. Vous pouvez choisir ou changer d’offre à tout moment.',
+      'Votre essai de 3 mois démarre dès que vous choisissez une offre ou, sans choix, à la mise en ligne de votre salon. Vous pourrez changer d’offre à tout moment.',
     );
   });
 });

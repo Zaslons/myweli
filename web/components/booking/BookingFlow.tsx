@@ -64,6 +64,7 @@ import { Button } from "../Button";
 import { SalonTimeHint } from "../SalonTimeHint";
 import { SlotsEmpty } from "./SlotsEmpty";
 import { LoginOptions } from "../auth/LoginOptions";
+import { ButtonLink } from "../ButtonLink";
 import { OpenInAppButton } from "../OpenInAppButton";
 import { PhoneField } from "../PhoneField";
 import { TextField } from "../TextField";
@@ -437,8 +438,8 @@ export function BookingFlow({
           Réservation envoyée ✓
         </h2>
         <p className="mt-s text-bodyLarge text-textSecondary">
-          {provider.name} va confirmer votre rendez-vous. Vous recevrez une
-          notification.
+          {provider.name} va confirmer votre rendez-vous. Sa réponse apparaîtra
+          dans vos rendez-vous et vos notifications.
         </p>
         {deposit > 0 && created?.id ? (
           <div className="mt-m">
@@ -452,6 +453,15 @@ export function BookingFlow({
           </div>
         ) : null}
         <div className="mt-l flex flex-wrap gap-s">
+          {/* A way to the booking, as the app goes to « Mes rendez-vous »
+              (web-true-sentences.md §4). With a deposit, sending the proof
+              above stays the page's one filled action. */}
+          <ButtonLink
+            href={created?.id ? `/mon-compte/${created.id}` : "/mon-compte"}
+            variant={deposit > 0 ? "secondary" : "primary"}
+          >
+            {created?.id ? "Voir mon rendez-vous" : "Voir mes rendez-vous"}
+          </ButtonLink>
           <OpenInAppButton />
         </div>
       </section>

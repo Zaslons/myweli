@@ -242,6 +242,7 @@ le code, puis corrigées avec l'accord du propriétaire :
    choisir ou changer d’offre à tout moment. » ; la page reste telle quelle,
    désormais vraie. [pro-companion-path.md](pro-companion-path.md) §5
    enregistre le renversement de la « divergence documentée ».
+   **Corrigé le 2026-11-02 :** cette phrase et celle du point 3 de la page restaient fausses pour un salon qui choisit une offre pendant la configuration, car le premier choix démarre toujours l'essai. Le propriétaire a gardé l'horloge et fait corriger les mots : [web-true-sentences.md](web-true-sentences.md) §2.
 3. FAQ **« Faut-il installer une application ? »** — « tout se gère » était
    trop large (alertes onglet fermé, horaires en plusieurs plages). Devient
    « Non : réservations, agenda, clientèle, équipe et acomptes se gèrent

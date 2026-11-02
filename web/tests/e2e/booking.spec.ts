@@ -32,6 +32,13 @@ test('services-first: prestations → spécialiste → heure → confirmée', as
     .fill('Cheveux fragiles, produits doux svp');
   await page.getByRole('button', { name: 'Confirmer la réservation' }).click();
   await expect(page.getByText('Réservation envoyée ✓')).toBeVisible();
+
+  // web-true-sentences.md §4: the booking is one click away, on its real page.
+  await page.getByRole('link', { name: 'Voir mon rendez-vous' }).click();
+  await expect(page).toHaveURL(/\/mon-compte\/[^/]+$/);
+  // The salon's name, not « Annuler le rendez-vous »: the stub answers every
+  // booking as `appt1`, and account.spec has often cancelled it by now.
+  await expect(page.getByRole('heading', { level: 1, name: 'Beauté Divine' })).toBeVisible();
 });
 
 test.describe('mobile web', () => {
