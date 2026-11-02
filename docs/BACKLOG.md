@@ -37,10 +37,13 @@
 | 8 | ✅ **Product questions** | Undo, phone editing, offline Profil card, V2 analytics wording, dormant phone sign-in | P3 | — | **Done — #685, #686** |
 | 9 | ✅ **Hygiene, tooling and tests** | Stale docs, release tooling, mocks, test gaps, shared components; the account forgotten on every way out | P3 | all | **Done — #688–#707** (2026-10-25); **B9.13 #701, B9.14 #704** (2026-10-28) |
 | 10 | **Only you can check** | ~~App Store Connect state, support inbox~~ (done 2026-10-28), App Preview after the decision, production walk-throughs, the demo salon | — | owner | your time |
+| 11 | **The website's look** | Swiss structure, the real logo, a calm pattern of plaits, Hanken Grotesk | P2 | web | **Spec approved 2026-11-02**; you: show the pattern to 3–5 people before S1 goes live |
+| 12 | **The website's flows against the apps** | Four sentences that aren't true, then the gaps in both directions | P1 for B12.1–B12.4, then P2–P3 | web, apps | B12.1's decision; your go on each merge |
 
 **Proposed order.**
 - **Done (2026-10-25):** batches 1–9, every item.
 - **Now:** batch 0 — **0.0.1 was rejected under 3.1.1** (business registration in the app); B0.11 made the Pro app login-only (#711). **Build 698, the new build of 0.0.1, was resubmitted on 2026-10-26** and is waiting for review, so B0.1's « while it's in review » constraints apply again. The privacy policy is corrected and live (B0.4, #709).
+- **Next (2026-11-02):** batch 12's four untrue sentences (B12.1–B12.4), then batch 11. Your order, decision 67.
 - **Yours:** batch 10, and your half of batch 0 (answer any Resolution Center message and release by hand after approval, B0.1; B0.10: the upload key and a signed AAB, the closed test's countries and 12 testers; decision 55).
 
 ---
@@ -148,6 +151,11 @@ Each question has a recommendation. Answers unblock the item named in brackets.
 60. How do friends and family get past MyWeli Pro's login during the closed test? [B0.10] — ✅ **Answered (2026-10-28): as Managers of a new test salon.** You create it on myweli.com with a dedicated e-mail, choose Business (90-day trial, 15 seats), never publish it, and invite them. Not the demo salon: Apple and Google review in it, everyone would share one account's limits, and invitations are disabled there. All testers are on Android (the Play test installs only from the Play Store).
 61. Where do testers send feedback? [B0.10] — ✅ **Answered: by e-mail to support@myweli.com**, or as private feedback on the app's Play page.
 62. What do we promise salons in the recruitment message? [B0.10] — ✅ **Answered: only what is true today**: early access and the 90-day trial every salon gets. No price, no extra offer.
+63. Which look for the public site? [B11] — ✅ **Answered (2026-11-02): Swiss structure**, with the real logo and the things that are MyWeli's own, and patterns that carry an African identity. It must follow the brand and feel calm.
+64. Does an African pattern fit, in black? [B11] — ✅ **Answered: yes, once redrawn; black on white, rows of plaits.** Checked against real cloths (web-swiss-direction §4.1): my first drawing was a loud sampler, while Baule cloths are often long quiet rows. White on black is kept for the dark version of the site.
+65. Which typeface? [B11] — ✅ **Answered: Hanken Grotesk** (34.7 KB). SYSTEM §22 had named Inter, and it gets updated in S0.
+66. Where does the pattern go? [B11] — ✅ **Answered: Home, `/professionnels`, 404.** Salon and category pages let photos lead.
+67. What comes first? [B11, B12] — ✅ **Answered: the untrue sentences, then the new look.**
 
 ---
 
@@ -483,6 +491,40 @@ This batch takes up three of the six suggested tasks that were never started. It
   - the text nits and snapshot re-save after Apple's decision (decision 36);
   - photo sources and licences (decision 37);
   - the « Essai Fix » test booking needs nothing, because the weekly reset around 2026-10-21 removes it.
+
+### Batch 11 — The website's look
+
+Spec: [web-swiss-direction.md](design/web-swiss-direction.md). Starts after B12.1–B12.4 (decision 67). Each merge is a production web deploy, on your word, and is read back on `myweli.com`.
+
+- **B11.0 Foundations (M):** Hanken Grotesk self-hosted, `displayPoster`, the grid constant, rule roles, WEB-SYSTEM and SYSTEM §22. No layout change. Lighthouse is measured here on the font alone, before anything else moves: `/` had about 190 ms of room when last recorded (2026-08-20).
+- **B11.1 Header, footer, home, the pattern (L):** the real logo, the large wordmark, the panel and band. **Yours first:** show the pattern to 3–5 people (spec §4.8), and check it on a low-end Android.
+- **B11.2 `/professionnels`, 404 and error pages (S).**
+- **B11.3 Salon card, `/recherche`, landings, favourites (M):** the card gains the app's cover photo, a parity gap today.
+- **B11.4 Salon page (M):** with its own Lighthouse budget.
+- **B11.5 OG image, and an audit of the deployed site by separate eyes (S).**
+
+### Batch 12 — The website's flows against the apps
+
+Audit: [web-flow-audit-2026-11.md](design/web-flow-audit-2026-11.md) (2026-11-02), where each item has its evidence on both sides.
+
+**First: sentences that aren't true (decision 67).**
+
+- **B12.1 A salon's free trial can start before it opens (S–M; P1 in the audit).** The site says it starts at go-live; choosing an offer during setup starts it at once. **Your decision:** start the clock at go-live (backend change, my recommendation), or change the sentence.
+- **B12.2 Cancelling with a deposit (S; C1).** Say what the app says: refunded or not, with the amount.
+- **B12.3 After booking (S–M; C2).** A link to the booking, and a sentence that is true for a client who only uses the website.
+- **B12.4 The sign-up loop on `/pro/connexion` (S; P2).** Dormant until store URLs are set, so it must land before they are: that link would go to the client app.
+
+**Then: the web behind the apps.**
+
+- **B12.5 The salon's description on the salon page (S; C3).** Goes with B11.4.
+- **B12.6 « À venir » shows past bookings (S; C4).** Check first whether anything auto-completes them.
+- **B12.7 The rest, when touched (C5–C10, P3–P5):** returning client's home, the search fork, past visits, consent line, deposit details, profile; invitees, the checklist's doors, Revenus' first tab.
+
+**And the apps behind the web (ship with the next build).**
+
+- **B12.8 The client app's search bar does not search (M; A1)**, and no nail or massage chips (S; A2).
+- **B12.9 Pro app: « Non présenté » without confirmation or a start check (S; A3).**
+- **B12.10 The rest (A4–A7):** no-shows in no tab, deactivated services invisible, staff notification door, reviews stopping at 50.
 
 ---
 
