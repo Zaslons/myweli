@@ -21,6 +21,7 @@ import type { Artist } from '../../lib/pro/catalogue';
 import { formatDateFr } from '../../lib/format';
 import {
   type SalonOffer,
+  TEAM_NEEDS_OFFER,
 } from '../../lib/pro/subscription-plans';
 import {
   type TeamMember,
@@ -223,7 +224,7 @@ export function EquipeClient() {
         />
       ) : (
         <p className="mt-m text-bodyLarge text-textSecondary">
-          Choisissez votre offre pour inviter votre équipe.{' '}
+          {TEAM_NEEDS_OFFER}{' '}
           <a href="/pro/abonnement" className="underline">
             Choisir mon offre
           </a>

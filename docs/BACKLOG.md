@@ -43,7 +43,7 @@
 **Proposed order.**
 - **Done (2026-10-25):** batches 1–9, every item.
 - **Now:** batch 0 — **0.0.1 was rejected under 3.1.1** (business registration in the app); B0.11 made the Pro app login-only (#711). **Build 698, the new build of 0.0.1, was resubmitted on 2026-10-26** and is waiting for review, so B0.1's « while it's in review » constraints apply again. The privacy policy is corrected and live (B0.4, #709).
-- **Next (2026-11-02):** batch 12's four untrue sentences (B12.1–B12.4), then batch 11. Your order, decision 67.
+- **Next (2026-11-02):** batch 12's four untrue sentences are in #723, then batch 11. Your order, decision 67.
 - **Yours:** batch 10, and your half of batch 0 (answer any Resolution Center message and release by hand after approval, B0.1; B0.10: the upload key and a signed AAB, the closed test's countries and 12 testers; decision 55).
 
 ---
@@ -156,6 +156,8 @@ Each question has a recommendation. Answers unblock the item named in brackets.
 65. Which typeface? [B11] — ✅ **Answered: Hanken Grotesk** (34.7 KB). SYSTEM §22 had named Inter, and it gets updated in S0.
 66. Where does the pattern go? [B11] — ✅ **Answered: Home, `/professionnels`, 404.** Salon and category pages let photos lead.
 67. What comes first? [B11, B12] — ✅ **Answered: the untrue sentences, then the new look.**
+68. When does a salon's free trial start? [B12.1] — ✅ **Answered (2026-11-02): keep the clock, fix the wording.** The first offer choice starts it, or go-live with no choice. Moving it to go-live was withdrawn: a salon could then choose an offer, invite a team and run for free without ever opening.
+69. Should management stay free once a trial ends, or in setup? — **Open, and not urgent.** Today a salon that never opens keeps its agenda, manual bookings and client records with no time limit (no team, no public page), and a salon past its trial gets warnings only: `SUBSCRIPTION_ENFORCEMENT` is off by default and the committed manifest doesn't set it (the live service was not read). Even with it on, the agenda keeps working, by the 2026-07-11 decision never to lock anyone out of their data. *Recommended:* restrict nothing now, and decide before the first trial ends, about 90 days after the first salon opens. One option: after the trial and grace, a salon can read and export but not add appointments.
 
 ---
 
@@ -509,10 +511,11 @@ Audit: [web-flow-audit-2026-11.md](design/web-flow-audit-2026-11.md) (2026-11-02
 
 **First: sentences that aren't true (decision 67).**
 
-- **B12.1 A salon's free trial can start before it opens (S–M; P1 in the audit).** The site says it starts at go-live; choosing an offer during setup starts it at once. **Your decision:** start the clock at go-live (backend change, my recommendation), or change the sentence.
-- **B12.2 Cancelling with a deposit (S; C1).** Say what the app says: refunded or not, with the amount.
-- **B12.3 After booking (S–M; C2).** A link to the booking, and a sentence that is true for a client who only uses the website.
-- **B12.4 The sign-up loop on `/pro/connexion` (S; P2).** Dormant until store URLs are set, so it must land before they are: that link would go to the client app.
+- ✅ **B12.1–B12.4, in #723** ([web-true-sentences.md](design/web-true-sentences.md)):
+  - **B12.1 The free trial (P1 in the audit).** The site said it starts at go-live, while choosing an offer starts it. The clock stays (decision 68) and the words now say so.
+  - **B12.2 Cancelling with a deposit (C1).** The salon's rule, the amount, the delay and who to see. **Not** the app's sentence: it promises a refund nobody on our side makes (B12.11).
+  - **B12.3 After booking (C2).** A link to the booking, and a sentence true for a client who only uses the website.
+  - **B12.4 The sign-up loop on `/pro/connexion` (P2).** Removed before store URLs could switch it on.
 
 **Then: the web behind the apps.**
 
@@ -525,6 +528,8 @@ Audit: [web-flow-audit-2026-11.md](design/web-flow-audit-2026-11.md) (2026-11-02
 - **B12.8 The client app's search bar does not search (M; A1)**, and no nail or massage chips (S; A2).
 - **B12.9 Pro app: « Non présenté » without confirmation or a start check (S; A3).**
 - **B12.10 The rest (A4–A7):** no-shows in no tab, deactivated services invisible, staff notification door, reviews stopping at 50.
+- **B12.11 The client app's cancel sentence (S).** « Votre acompte sera remboursé » promises what neither the server nor MyWeli does, and the app says it, or « ne sera pas remboursé », even when no proof was sent. Same rule and words as the web (`cancellationNotice`, web-true-sentences.md §3).
+- **B12.12 A real install link for the Pro app (S, after release).** There is one pair of store URLs and it is the client app's, so `/pro/connexion` has none today. Needs its own pair.
 
 ---
 

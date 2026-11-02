@@ -1,5 +1,7 @@
 /// Pure helpers for the consumer account bookings view. Unit-tested.
 
+import { formatFcfa } from '../format';
+
 export type Appointment = {
   id: string;
   status: string;
@@ -155,6 +157,38 @@ export function canReschedule(a: Appointment): boolean {
 
 export function canCancel(a: Appointment): boolean {
   return a.status === 'pending' || a.status === 'confirmed';
+}
+
+/// What a client is told about a deposit before cancelling, or null when there
+/// is nothing to say (docs/design/web-true-sentences.md §3).
+///
+/// **It states the salon's rule, and promises nothing of its own.** The deposit
+/// is between the client and the salon: the server only records the cancellation
+/// (no refund logic), and the CGU say MyWeli « ne rembourse aucun fonds ». Same
+/// cut-off as the app's `cancellation_policy.dart`: exactly at it counts as late.
+export function cancellationNotice(
+  a: Appointment,
+  now: Date = new Date(),
+  currency?: string,
+): string | null {
+  const deposit = a.depositAmount ?? 0;
+  if (deposit <= 0 || a.salonEntered) return null;
+  if (!a.depositScreenshotUrl) {
+    return 'Vous n’avez envoyé aucun justificatif d’acompte pour ce rendez-vous.';
+  }
+  const hours = a.cancellationWindowHours;
+  if (hours == null) {
+    return 'Le remboursement de votre acompte dépend de la règle du salon. Voyez directement avec lui\u00a0: MyWeli ne détient aucun acompte.';
+  }
+  const amount = formatFcfa(deposit, currency);
+  const at = Date.parse(a.appointmentDate);
+  const kept = `D’après la règle du salon, votre acompte de ${amount} ne sera pas remboursé, car`;
+  if (now.getTime() >= at) return `${kept} l’heure du rendez-vous est passée.`;
+  if (now.getTime() >= at - hours * 3_600_000) {
+    return `${kept} vous annulez moins de ${hours}\u00a0h avant.`;
+  }
+  const when = hours === 0 ? 'avant l’heure du rendez-vous' : `plus de ${hours}\u00a0h avant`;
+  return `D’après la règle du salon, votre acompte de ${amount} vous revient, car vous annulez ${when}. Voyez avec le salon pour le récupérer\u00a0: MyWeli ne détient aucun acompte.`;
 }
 
 const STATUS_FR: Record<string, string> = {

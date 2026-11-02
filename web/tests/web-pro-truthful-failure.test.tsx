@@ -134,10 +134,14 @@ describe('Équipe — the offer that could not be read (Q1)', () => {
     expect(screen.queryByText('Impossible de vérifier votre offre.')).toBeNull();
   });
 
-  it('no offer at all (404) still says « Choisissez votre offre » (unchanged)', async () => {
+  it('no offer at all (404): choosing is asked for, and it says the trial starts then', async () => {
     mockFetch(reads({ status: 404, body: { error: 'no_offer' } }));
     render(<EquipeClient />);
-    expect(await screen.findByText(/Choisissez votre offre pour inviter/)).toBeInTheDocument();
+    expect(
+      await screen.findByText(
+        /Pour inviter votre équipe, choisissez votre offre\s*: vos 3 mois d’essai démarrent à ce moment-là\./,
+      ),
+    ).toBeInTheDocument();
   });
 });
 

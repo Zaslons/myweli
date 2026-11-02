@@ -81,10 +81,13 @@ export const TRIAL_KEPT_LINE =
   'Le changement d’offre conserve votre période d’essai.';
 
 export const SETUP_HEADLINE = `Choisissez votre offre — ${TRIAL_MONTHS} mois offerts`;
-/// Since 2026-10-19 (web-pro-access.md §12): no offer is needed to publish —
-/// the trial starts at go-live, as in the app.
-export const SETUP_SUBLINE =
-  'Votre essai de 3 mois démarre à la mise en ligne de votre salon. Vous pouvez choisir ou changer d’offre à tout moment.';
+/// The server's clock (salon_subscription_service.dart): the first choice starts
+/// the trial, and go-live starts it only when no choice was made. Kept by the
+/// owner's decision, so the words follow it (web-true-sentences.md §2).
+export const SETUP_SUBLINE = `Votre essai de ${TRIAL_MONTHS} mois démarre dès que vous choisissez une offre ou, sans choix, à la mise en ligne de votre salon. Vous pourrez changer d’offre à tout moment.`;
+
+/// Équipe, no offer yet: choosing is what starts the clock, so it says so first.
+export const TEAM_NEEDS_OFFER = `Pour inviter votre équipe, choisissez votre offre\u00a0: vos ${TRIAL_MONTHS} mois d’essai démarrent à ce moment-là.`;
 
 /// The billing-state banner (tokens only: grace = warning, expired = error).
 export function offerBanner(offer: SalonOffer): {

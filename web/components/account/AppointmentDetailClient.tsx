@@ -8,6 +8,7 @@ import {
   type Appointment,
   canAttachDeposit,
   canCancel,
+  cancellationNotice,
   canReschedule,
   isUpcoming,
   salonIsLive,
@@ -501,10 +502,8 @@ export function AppointmentDetailClient({ id }: { id: string }) {
             ) : (
               <div className="rounded-lg bg-surface p-m">
                 <p className="text-bodyLarge text-textSecondary">
-                  Confirmer l’annulation&nbsp;?
-                  {appt.depositAmount
-                    ? " L’acompte peut ne pas être remboursé selon la politique du salon."
-                    : ""}
+                  Confirmer l’annulation&nbsp;?{" "}
+                  {cancellationNotice(appt, new Date(), currency)}
                 </p>
                 <div className="mt-s flex gap-s">
                   <Button
