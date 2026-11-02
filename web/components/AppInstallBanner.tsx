@@ -2,12 +2,13 @@
 
 import { useEffect, useState } from 'react';
 import { appStoreUrl } from '../lib/appStore';
+import { SITE_CONTAINER, SITE_EDGE } from '../lib/siteGrid';
 
 const dismissKey = 'myweli_install_dismissed';
 
 /// Dismissible "download the app" nudge (WEB-DESIGN-STANDARDS §7) — one per
 /// session, remembers dismissal, never blocks content. Store link from env.
-export function AppInstallBanner() {
+export function AppInstallBanner({ fullWidth = false }: { fullWidth?: boolean }) {
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {
@@ -29,28 +30,29 @@ export function AppInstallBanner() {
   }
 
   return (
-    <aside
-      aria-label="Installer l’application"
-      className="flex items-center justify-between gap-m bg-primary px-m py-s text-secondary"
-    >
-      <p className="text-bodyMedium">Réservez plus vite — téléchargez l’app MyWeli.</p>
-      <div className="flex items-center gap-s">
-        {href ? (
-          <a
-            href={href}
-            className="inline-flex min-h-12 items-center rounded-md bg-secondary px-m text-labelLarge font-medium text-primary"
+    <aside aria-label="Installer l’application" className="bg-primary text-secondary">
+      <div
+        className={`${fullWidth ? SITE_EDGE : SITE_CONTAINER} flex items-center justify-between gap-m py-s`}
+      >
+        <p className="text-bodyMedium">Réservez plus vite — téléchargez l’app MyWeli.</p>
+        <div className="flex items-center gap-s">
+          {href ? (
+            <a
+              href={href}
+              className="inline-flex min-h-12 items-center rounded-md bg-secondary px-m text-labelLarge font-medium text-primary"
+            >
+              Télécharger
+            </a>
+          ) : null}
+          <button
+            type="button"
+            aria-label="Fermer"
+            onClick={dismiss}
+            className="-my-sm -mr-sm flex min-h-12 min-w-12 items-center justify-center text-iconXS text-secondary"
           >
-            Télécharger
-          </a>
-        ) : null}
-        <button
-          type="button"
-          aria-label="Fermer"
-          onClick={dismiss}
-          className="-my-sm -mr-sm flex min-h-12 min-w-12 items-center justify-center text-iconXS text-secondary"
-        >
-          ✕
-        </button>
+            ✕
+          </button>
+        </div>
       </div>
     </aside>
   );

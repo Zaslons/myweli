@@ -1,5 +1,6 @@
 import Image from 'next/image';
 import Link from 'next/link';
+import { SITE_CONTAINER } from '../../lib/siteGrid';
 
 /// The Pro sign-in and sign-up pages' header (docs/design/web-pro-access.md
 /// P4). They used to have none — `SiteChrome` hid everything under `/pro` —
@@ -9,8 +10,8 @@ import Link from 'next/link';
 /// (a different account).
 export function ProAuthHeader() {
   return (
-    <header className="border-b border-divider bg-secondary">
-      <div className="mx-auto flex max-w-5xl items-center gap-m px-m py-s">
+    <header className="border-b border-primary">
+      <div className={`${SITE_CONTAINER} flex items-center gap-m py-s`}>
         <Link href="/" aria-label="MyWeli — accueil" className="-my-s flex min-h-12 items-center">
           <Image
             src="/brand/myweli_lockup_horizontal_black.svg"
@@ -19,7 +20,7 @@ export function ProAuthHeader() {
             height={50}
             priority
             unoptimized
-            className="h-7 w-auto"
+            className="h-8 w-auto"
           />
         </Link>
         <span className="text-labelLarge font-medium text-textSecondary">Espace pro</span>

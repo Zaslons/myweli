@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | **Approved 2026-11-02** (decisions in §15). Direction B, with the owner's two additions: the real logo and the things that are MyWeli's own (§3), and a pattern with an African identity that **feels calm** (§4). **S0 merged in #724 and read back on `myweli.com`** (§11, §13). One step left with the owner: §4.8 before S1 goes live. |
+| **Status** | **Approved 2026-11-02** (decisions in §15). Direction B, with the owner's two additions: the real logo and the things that are MyWeli's own (§3), and a pattern with an African identity that **feels calm** (§4). **S0 merged in #724 and read back on `myweli.com`** (§11, §13). **S1 in #727** (§13.1). **The owner chose to merge it before §4.8 (2026-11-02):** that check and a low-end Android are still theirs, now on the live site, and an answer to question 3 still changes the drawing. |
 | **Owner** | Sadreddine Daher |
 | **Last updated** | 2026-11-02 |
 | **PRD ref / phase** | FR-WEB-MP-001, FR-WEB-PP-001/002 (presentation only) · V1 |
@@ -62,7 +62,7 @@ Why these fit together: strip-woven cloth is already a grid of narrow bands, and
 | Element | Where | Rule |
 |---|---|---|
 | **Lockup** (`myweli_lockup_horizontal_black.svg`) | `Header`, every public page | Grows from `h-7` to `h-8`. Always links home. Keeps its 48px target. Never redrawn, never typed as text |
-| **Wordmark** (`myweli_wordmark_black.svg`) | `SiteFooter`, large, on the grid | About 7 of 12 columns from `lg` and the full width on a phone. Decorative here (`alt=""`): the lockup already names the page. Smaller on `/pro/*`, see §7.9 |
+| **Wordmark** (`myweli_wordmark_black.svg`) | `SiteFooter`, large, on the grid | About 7 of 12 columns from `lg` and the full width on a phone. Decorative here (`aria-hidden`): the lockup already names the page. **Drawn inline from that file's paths, not as an image** (§13.1), and a test holds them to the file. Smaller on `/pro/*`, see §7.9 |
 | **Mark** (`myweli_mark_*.svg`) | In a clearing in the panel and at the end of the phone band | Black on the page's paper, the exact path, large enough to be recognised. Once per form |
 | **App icon, favicon** | Unchanged | Already black with the mark |
 | **OG image** (`app/opengraph-image.png`) | Link previews | Redrawn: panel on one side, lockup and « Réservation beauté & bien-être en Côte d’Ivoire » on the other. Same 1200×630, same alt text |
@@ -132,8 +132,10 @@ Rows of round-ended strokes that meet from both sides, half a step apart: a plai
 
 | Form | Where | Drawing |
 |---|---|---|
-| **Panel** | Hero from `lg`, columns 8–12, with a structural rule on its left, running to the page's right edge and from the header's rule to the next rule | Scaled by its width and **cut at the bottom like cloth off a roll**, so nothing is ever cut down its side |
-| **Band** | Hero below `lg`, and the 404 page | Full width, three rows and the mark, a row rule under it |
+| **Panel** | Hero from `lg`, columns 8–12, with a structural rule on its left, running to the container's right edge and from the header's rule to the next rule | Scaled by its width and **cut at the bottom like cloth off a roll**, so nothing is ever cut down its side. Its rows end where the header's links do |
+| **Band** | Hero below `lg`, and the 404 page | Three rows and the mark, a row rule under it. Full width on a phone, and stops growing at `sm` (512 wide), flush left |
+
+**Corrected when built, because the pictures showed it (§13.1).** This table first ran the panel to the page's edge and the band at full width at every size. Both scale the motif with the screen: at 1920 the panel was drawn 2.7× and at 768 the band's strokes looked like road markings, which breaks calm rule 4. Capped, it is never drawn above about 2.1×, at any width.
 | **OG image** | Link previews | The panel, exported to the existing PNG |
 
 ### 4.6 Where it goes, and where it does not (answered)
@@ -152,12 +154,12 @@ Rows of round-ended strokes that meet from both sides, half a step apart: a plai
 
 - `components/brand/Weave.tsx`, a server component with no client JS, exporting `WovenPanel` and `WovenBand`.
 - Colours through the theme's role tokens (`stroke-primary`, the page's `surface`), not literals, which is what makes the dark version a value swap.
-- At most **4 KB of markup per page** before compression, pinned by a test. Measured in the sketch: panel 3.1 KB, band 0.8 KB.
+- At most **4 KB of markup per page** before compression, pinned by a test. The sketch measured 3.1 KB and 0.8 KB; one 28-high tile, so that a single `<rect>` draws every row, brought the built forms to 1.7 KB together.
 - Replaces `HeroBackground`, which is deleted, along with its comment about stacking: nothing sits behind text any more.
 
 ### 4.8 Before it goes live: people who would know
 
-I cannot judge from here how this reads in Abidjan. **The owner shows the panel to 3–5 people before S1 is merged:** salon owners, ideally one Ivorian designer. Four questions:
+I cannot judge from here how this reads in Abidjan. **The owner shows the panel to 3–5 people:** salon owners, ideally one Ivorian designer. This was to come before S1 merged; on 2026-11-02 the owner chose to merge first and check on the live site. Four questions:
 
 1. What do you see?
 2. Does it feel like here, or like a souvenir?
@@ -212,7 +214,7 @@ Nearly everything is already a token. Only one is new.
 
 ### 6.1 The grid
 
-- **One container on every public page:** `mx-auto max-w-screen-2xl px-m lg:px-l`, in one shared constant so it cannot drift.
+- **One container on every public page:** `mx-auto max-w-screen-2xl px-m lg:px-l`, in one shared constant (`SITE_CONTAINER`, `lib/siteGrid.ts`) so it cannot drift.
 - `grid-cols-12` from `lg`, one column below it. Gutters `gap-x-m`, `lg:gap-x-l`.
 - Reading paragraphs stay capped at `max-w-content` (SYSTEM §10).
 - **Hanging headings** from `lg`: the `<h2>` in columns 1–3, the content in 4–12. Stacked below `lg`.
@@ -252,7 +254,7 @@ Sections, order, links, headings' words and JSON-LD stay as they are. Only the p
 | Hero | Band, `<h1>`, lead, `HomeSearch` stacked | Columns 1–7: `<h1>` at the top, lead and search on the panel's bottom line. Columns 8–12: panel |
 | Catégories | Same six links, same order, as a ruled index in 2 columns, `min-h-12` cells | Hanging heading, 3 columns |
 | Salons populaires | Tile cards. **Hidden at 0 salons, as today** | 4 across |
-| Partout à {ville} | One `<details>` per commune with a 48px `<summary>`; the links stay in the served HTML | Hanging heading, 4 columns, always open |
+| Partout à {ville} | One `<details>` per commune with a 48px `<summary>`; the links stay in the served HTML | Hanging heading, 4 columns, always open. Two forms of one list, one `display: none`: a `<details>` forced open by CSS would tell a screen reader « collapsed » about links it can see |
 | Value props | Stacked, each under a rule, no card | 3 columns |
 | L'app MyWeli | Only when `appStoreUrl()` has a value, as today | Same |
 | Vous êtes un salon ? | Rule, heading, text, secondary button | Hanging heading |
@@ -299,7 +301,7 @@ Left-aligned with the band. The wording stays as tests hold it.
 
 ### 7.9 `/pro/*`
 
-Gets the font only. `SiteFooter` is a server component shown on `/pro` too (its comment says why), and a poster-size wordmark under an agenda is wrong. So the large wordmark is on public routes, and `/pro/*` gets the lockup at `h-8`. The footer must stay a server component: the choice is made by what the page's own layout passes or by a small client wrapper, whichever ships less JS, decided in S1.
+Gets the font only. `SiteFooter` is a server component shown on `/pro` too (its comment says why), and a poster-size wordmark under an agenda is wrong. So the large wordmark is on public routes, and `/pro/*` gets the lockup at `h-8`. The footer stays a server component. **Decided in S1:** a small client leaf (`FooterMark`), because `SiteChrome` already ships `usePathname` on every page, while passing it from layouts means moving every page into route groups. `/pro/connexion` and `/pro/inscription` keep their own header, moved onto the same container and rule, or their two logos would start 200px apart at 1440.
 
 ---
 
@@ -349,7 +351,7 @@ None. `imageUrls` is already `required` on `Provider` in `openapi.yaml`, and `im
 | **That still failed** | CI's gate failed on `/suppression-compte`: 2505 ms. Measuring only `/` had missed it |
 | **What paid for it: Sentry's tracing code out of the bundle** | Scripts 203 → 158 KB. We report errors only, so every visitor was downloading code we switch off at runtime. **`/` 2110 ms, `/suppression-compte` 2109 ms**, faster than before the font, first paint still 757 ms. A real error still reaches Sentry: seen on a build with a local DSN |
 | **On `myweli.com` after the merge, five runs** | `/` 1263 ms, `/connexion` 1274 ms, `/suppression-compte` 1480 ms; CLS at most 0.006; scripts 152–153 KB on `/`. WEB.md §7. These are not comparable with the local numbers above, so S1 measures against the local ones |
-| **What S1 still adds to `/`** | At most 4 KB of inline SVG; no image, no script. About 390 ms of room. Measure every budgeted page, five times |
+| **S1, five runs, every budgeted page** | `/` **2113 ms** (2112–2173), `/connexion` **2713 ms** (2711–2759; `main` 2712), `/suppression-compte` **2109 ms** (2108–2263). First paint 759, 907 and 756 ms. CLS 0, TBT 0. Scripts 158, 231 and 159 KB. So it cost `/` 3 ms and left the others where they were |
 | **If it breaches** | The budget does not move |
 | **New photos** | Card photos are lazy and below the fold on `/`. Salon page budgets are set from a measurement in S4, added to `lighthouserc.json` so they cannot be forgotten |
 
@@ -366,9 +368,10 @@ Each new guard ships having been watched red, on committed work.
 | `served-html` / e2e | `body` computes the brand font, and the `woff2` answers 200 from our origin | Remove the font class |
 | `tokens.mirror` | `displayPoster` is declared web-only | Remove it from `WEB_ONLY` |
 | `tokens.theme-pin` | The closed `fontFamily`, and the emitted tokens | Use a non-token family |
-| **New: left edge** | Logo x = `<h1>` x = first section x, on each public route at 375, 768, 1280, 1536, 1920 | Change one container's padding. Must fire on `/recherche` at 1920 |
+| **New: left edge** | Logo x = `<h1>` x = first section x, at 320 to 1920. On `/` and `/recherche` from S1; each other public route joins when its slice moves it to this grid | Change one container's padding. Must fire on `/recherche` at 1920 |
 | **New: pattern rules** | `aria-hidden`, no `<text>`, no hex literal, ≤ 4 KB, at most one per page; present on `/` and `/professionnels`; **absent** from salon, landing, `/recherche`, `/connexion`, `/pro` | Add a band to a salon page |
-| **New: logo** | The lockup in the header and the wordmark in the footer are the real brand files, on each public route | Replace one with text |
+| **New: logo** | The lockup in the header is the real file and the wordmark's paths are that file's, on each public route | Replace one with text |
+| **New: the footer is never the page's LCP** | On short pages at 412 × 823 and 1440 × 900, the last LCP entry is outside the footer | Make the wordmark an `<img>` again |
 | **New: SEO unchanged** | `<h1>` text, canonical and JSON-LD on `/`, `/professionnels`, a landing and a salon match a checked-in list | Change a word |
 | `type-overflow` | Reflow at 375 / 320, with `/professionnels` and a long-city case added if missing | A nowrap hero that spills |
 | `tap-targets` | Add category cells, directory `<summary>` and links, footer links | Remove `min-h-12` |
@@ -387,11 +390,29 @@ Six PRs, in order, each merged only on the owner's word. A merge is a production
 | # | Slice | Done when |
 |---|---|---|
 | **S0** | Font trimmed to 18.7 KB, `displayPoster`, `fontFamily` closed, the rules in WEB-SYSTEM §16, SYSTEM §22. **No layout change.** The grid constant moves to S1, its first user: nothing here would use it | Lighthouse measured on the font alone. Every e2e green, including `/pro` |
-| **S1** | `Weave`, `Header`, `SiteFooter`, `/`. Delete `HeroBackground` from `/` | §4.8 answered. Owner's real-phone check |
+| **S1** | `Weave`, `Header`, `SiteFooter`, `/`. Delete `HeroBackground` from `/` | Merged on the owner's word. §4.8 and the real-phone check follow on the live site |
 | **S2** | `/professionnels`, 404 and error pages. `HeroBackground` deleted | |
 | **S3** | `ProviderCard`, `/recherche`, landings, favourites list | Cards with and without photos looked at |
 | **S4** | Salon page. Budgets added | Salon LCP measured |
 | **S5** | OG image. Audit of every page against this spec **on the deployed site**, by separate eyes told to refute it | Findings fixed or filed |
+
+### 13.1 S1: what looking at it changed
+
+Built to §7.1 and §7.8, and looked at from 360 to 1920 ([before and after](assets/web-swiss-s1.png)). Five things it turned up, nearly all of them invisible to a test:
+
+| Seen | Done |
+|---|---|
+| At 768 the band was 220 high and heavy | It stops growing at `sm` (§4.5) |
+| At 1920 the panel reached the page's edge, drawn 2.7×, and the cloth was about to cut the logo; at 2560 it did | It ends at the container (§4.5), so its scale tops out at 2.1× and the logo ends 446px down a 576px hero. Pinned to 2560 |
+| The large wordmark's M started 19px right of the text under it, from empty space in the file | Its viewBox starts on the M's ink, and everything else stays the file's (§3) |
+| At 412 × 823 on `/connexion`, the footer is on screen at first load, and as an `<img>` the wordmark became the page's Largest Contentful Paint. Found by asking which element it was, since the number looked fine | Drawn inline: inline SVG is not a candidate, and it costs no request. The page's number did not move either way (2712 on `main`, 2712 with the image, 2713 inline), so this is about a decoration not being what the metric measures, and it is now held by a test |
+| A pale sliver at the end of every row: the tile's ink, wrapped round by the browser | The ink now sits a little clearer of the tile's sides |
+
+**Still to look at, in the owner's hands:** whether the wordmark at 7 of 12 columns is too loud under a short page such as `/connexion`. It follows §3, but no sketch had shown it.
+
+**The install banner and « L’app MyWeli »** appear only once store URLs exist, so they were looked at on a build with a temporary one: the banner is on the same left edge, a black band above the header's black rule, as §8 expected.
+
+**What is not done here:** the salon card keeps its box until S3, and `/professionnels` keeps `HeroBackground` until S2. Nothing was seen on a real phone.
 
 **During App Review.** `/support` and `/politique-confidentialite` are listed with Apple and they keep their wording. They change only in font, header and footer, and they get checked after each deploy. Timing against Apple's decision is the owner's call at each merge.
 

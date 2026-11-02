@@ -46,7 +46,7 @@ export function HomeSearch({
         placeholder="Où ? (commune)"
         value={commune}
         onChange={(e) => setCommune(e.target.value)}
-        className={`${field} sm:w-56`}
+        className={`${field} sm:w-44 xl:w-56`}
       />
       <datalist id="myweli-communes">
         {allAreas(tree).map(({ area }) => (

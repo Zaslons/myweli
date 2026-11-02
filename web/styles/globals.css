@@ -183,3 +183,9 @@ body {
   box-shadow: theme('boxShadow.lg');
   cursor: ew-resize;
 }
+
+/* A `<summary>` set to `display: flex` loses its triangle everywhere except older
+   Safari, which needs this. `list-none` says the page draws its own. */
+summary.list-none::-webkit-details-marker {
+  display: none;
+}

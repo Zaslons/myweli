@@ -744,11 +744,12 @@ Enforced by the `myweli-web-guardrails` skill.*
 
 **Decided 2026-11-02, applied page by page from B11.1.** The full reasoning, the page-by-page plan and the pattern's rules are in [web-swiss-direction.md](web-swiss-direction.md); this is what a new public page has to follow. Task surfaces (`/connexion`, `/mon-compte/*`, booking, legal, `/pro/*`) take only the font, header and footer.
 
-- **One container, one left edge:** `mx-auto max-w-screen-2xl px-m lg:px-l`. The logo, the `<h1>` and the first section start at the same x, at every width.
+- **One container, one left edge:** `mx-auto max-w-screen-2xl px-m lg:px-l`, as `SITE_CONTAINER` in `lib/siteGrid.ts`, so it cannot drift. The logo, the `<h1>` and the first section start at the same x, at every width, held by `tests/e2e/site-look.spec.ts`. `/recherche` runs full width with `SITE_EDGE`.
+- **A section** is `SiteSection`: the rule above it and the hanging heading come with it.
 - **Twelve columns from `lg`,** one below. Reading text stays capped at `max-w-content` (SYSTEM §10). From `lg`, a section's `<h2>` hangs in columns 1–3 and its content takes 4–12.
 - **Flush left**, empty states included.
 - **Rules instead of boxes.** A structural rule is 1px `border-primary`, a row rule 1px `border-divider`. The black rule is a **new, sanctioned use of `primary`**, on public pages only. `Card` stays for real containers.
 - **Rounded corners stay on controls.** Layout boxes and photos lose theirs.
 - **Colour comes from photos.** Same-ratio crops, no filters, no scrims, and **no AI-generated faces or results**.
-- **The pattern** (rows of plaits, black on white): at most one per page, on Home, `/professionnels` and 404 only, never behind text, `aria-hidden`, no animation, and it never replaces a salon's photo. Copy never calls it traditional or authentic. White on black is kept for a dark version.
+- **The pattern** (rows of plaits, black on white; `components/brand/Weave.tsx`): at most one per page, on Home, `/professionnels` and 404 only, never behind text, `aria-hidden`, no animation, and it never replaces a salon's photo. **It keeps one scale:** it stops growing with the screen, because drawn large it stops being texture. Copy never calls it traditional or authentic. White on black is kept for a dark version.
 
