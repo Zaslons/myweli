@@ -52,6 +52,12 @@ const config: Config = {
     // icon"; `text-titleLarge` on a ✕ said "a card/section heading".
     fontSize: { ...type, ...icon },
 
+    // CLOSED to one family (WEB-SYSTEM §3). `var(--font-brand)` is set on <html> by
+    // next/font; the system stack behind it is what shows while the file loads, on
+    // `global-error` (which replaces the layout), and for the few characters the
+    // font does not carry. `font-serif` and `font-mono` no longer exist.
+    fontFamily: { sans: ['var(--font-brand)', ...defaultTheme.fontFamily.sans] },
+
     // ─── maxWidth: CLOSED, and a real leak fixed (B2c) ──────────────────────
     // Tailwind's own `maxWidth` spreads `theme('spacing')` FIRST and then lays
     // its named rem steps on top. With `spacing` closed to the rhythm tokens

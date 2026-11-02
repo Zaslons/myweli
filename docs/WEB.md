@@ -296,6 +296,23 @@ hiding it: it carries **253 KB of JS across 18 files** against the home page's
 **2900 ms**, above today's number and below the target, so the page cannot get
 slower while the gap stays visible. Lower it as the page is split; delete the
 per-URL block when it reaches 2500.
+
+**The font, and what paid for it, measured 2026-11-02** (`/`, five runs each, these throttling settings, on a Mac):
+
+| Build | LCP median | First paint | Scripts |
+|---|---|---|---|
+| No font | 2314 ms | 757 ms | 203 KB |
+| Full font file (35 KB), preloaded | **2607 ms, over budget** | 757 ms | 203 KB |
+| Full font, not preloaded | 2472 ms | **1060 ms** | 203 KB |
+| Trimmed font (19 KB), preloaded | 2457 ms; `/suppression-compte` **2505 ms in CI, over budget** | 757 ms | 203 KB |
+| **Shipped: trimmed font, Sentry's tracing code removed** | **2110 ms**; `/suppression-compte` 2109 ms | **757 ms** | **158 KB** |
+
+**Two lessons, both paid for here.**
+- **One run is not a measurement.** `lhci` uploads a single representative run, and this metric sits in two modes (1830 ms and 2470 ms appeared in the same five runs of one build). A 1815 ms sample looked like 685 ms of room; five runs showed about 190. A gate that passes on a median of three this close to its limit will fail at random.
+- **Measure every budgeted page, not the one you are thinking about.** Trimming was judged on `/`; CI's gate then failed on `/suppression-compte`, by 5 ms.
+
+**Script size now has its own ceiling** (`resource-summary:script:size`, 175 KB on `/` and `/suppression-compte`): measured to pass at 158 KB and to fail at 201 KB with the tracing code back. LCP is an estimate that moves. Bytes do not.
+
 - Public pages: minimal JS, `next/image`, font-display swap, edge-cached SSG/ISR.
 - Authed app: route-level code-splitting, lazy data, optimistic UI where it helps.
 

@@ -26,6 +26,7 @@ Enforced by the **`myweli-web-guardrails`** skill.
 · [11 Rendering & performance](#11-rendering--performance) · [12 SEO / AEO / GEO](#12-seo--aeo--geo)
 · [13 The app-install push](#13-the-app-install-push) · [14 Enforcement](#14-enforcement)
 · [15 The known-violations register](#15-the-known-violations-register)
+· [16 The public pages' look](#16-the-public-pages-look)
 
 ---
 
@@ -113,7 +114,8 @@ a silencer. B2a left **17**.
 
 `colors` · `borderRadius` · `spacing` · `zIndex` · `screens` · `transitionDuration`
 (B2a) · **`fontSize`** — the 15 type roles + §7's 5 icon sizes (B2b, B2c) ·
-**`maxWidth`** (B2c). Everything a token *should* govern is closed.
+**`maxWidth`** (B2c) · **`fontFamily`** — one family (§3, B11.0). Everything a token
+*should* govern is closed.
 
 **Sizing stays open — and that is the answer, not a deferral (B2c).** B2a carved the
 sizing keys out "until the web gets a sizing scale". B2c checked that premise and it
@@ -163,6 +165,24 @@ Hence `tests/tokens.theme-pin.test.ts` — a source sweep, the mirror of mobile'
 
 ## 3. Type on the web
 
+**The typeface is Hanken Grotesk, on the web only (B11.0).** One family at every
+size, from one variable file self-hosted with `next/font/local` in `styles/font.ts`:
+no build-time network, and no visitor's browser asks a third party for it.
+`display: 'swap'` and `adjustFontFallback`, so text is never hidden and the swap does
+not move the page. The apps stay on system fonts.
+
+**The file is trimmed to 400–600, 18.7 KB (`styles/fonts/README.md`).** The full file
+went over the LCP budget, and a theme pin refuses `font-bold` and the other weights
+it no longer carries. **It stays preloaded:** without that, first paint gets 300 ms
+worse (WEB.md §7).
+
+The file carries all of French except « Ÿ », which we never print, and its digits are
+all one width, so prices line up with no `tabular-nums` (the font has no `tnum`).
+**It does not carry U+202F**, the narrow no-break space in every `Intl` French amount
+(« 5 000 FCFA »), nor the symbols ★ ♥ ✓ ✕ ← → and their kin. The browser draws those
+from the system stack behind it, as it always did. Looked at on real amounts: the
+space sits right, and the amount does not break.
+
 Same scale as the apps ([SYSTEM.md §4](SYSTEM.md#4-type)), mapped to **semantic**
 Tailwind names so the class says what the text *is*, not how big it happens to be:
 
@@ -182,6 +202,8 @@ thing it does not carry (see below), so it stays on the element as `font-*`.
 | `text-headlineSmall` | 24 / 32 | 600 | `text-2xl` ×27 |
 | `text-headlineMedium` | 28 / 36 | 600 | `text-3xl` ×5 (30px) ⚠️ **C8d: five, not two.** `CatalogueClient.tsx:106`, `MediasClient.tsx:65` and `RendezVousClient.tsx:174` carry the same strip, unprotected. |
 | `text-headlineLarge` | 32 / 40 | 600 | `text-4xl` ×1 (36px) |
+| `text-displaySmall` · `text-displayMedium` · `text-displayLarge` | 36/44 · 45/52 · 57/64 | 600 | Mirrored from the apps; first used by the public hero (§16) |
+| **`text-displayPoster`** | 80 / 84, −2px | 600 | **Web-only**, declared in `WEB_ONLY.type`: the public hero from `xl`. A second web-only size needs a reason |
 
 **Not a zero-pixel rename — this is what B2b actually did.** The register said it
 would be; measuring said otherwise, and the difference matters because "zero-pixel"
@@ -621,6 +643,8 @@ web converts, the app deepens:
 |---|---|
 | Token contrast (§1) | `tokens.contrast.test.ts` — real WCAG math, same floors as the apps, **and (B3) a completeness gate: every `colors` key must carry an assertion** |
 | The Flutter↔web mirror (§1) | **`tokens.mirror.test.ts`** (B3) — parses `mobile/lib/core/theme/` + the §9 doc tables per run; per-family equality both directions; parser self-checks (comments stripped, then every `static const\|final … =` candidate must parse — a `static final` or type-inferred declaration screams; doc tables row-counted; the theme directory manifest-pinned); heal with `npm run gen:tokens` |
+| The brand font (§3) | **`e2e/served-html.spec.ts`** asks the browser what the `<h1>` computed, which face loaded, and that the file came from our origin with a 200: a missing class on `<html>` only falls back, silently. **`brand-font.test.ts`**: the file is a real woff2 within 20 KB, its licence travels with it, `swap`, the fallback adjustment and the preload are set, and no code imports a Google font. **`tokens.theme-pin.test.ts`**: one family, the variable first, and no weight the file lacks |
+| Script weight (WEB.md §7) | **`lighthouserc.json`**: `resource-summary:script:size`, 175 KB on `/` and `/suppression-compte`. **`sentry-bundle.test.ts`**: Sentry's tracing code stays out of the bundle and no config samples anything, because with the code gone a sample rate would silently do nothing |
 | Tokens only (§2) | **Closed Tailwind theme** (B2a) + `eslint-plugin-tailwindcss` (`no-custom-classname`, `no-arbitrary-value`) as **errors** — **and** `tokens.theme-pin.test.ts`, because the lint has two blind spots (bare `const` class strings; a bare `rounded`, which it passes clean while Tailwind emits nothing). Config lives in **`.eslintrc.js`**, not `.json`: the plugin resolves `tailwindcss` relative to `dirname(settings.tailwindcss.config)`, so a *relative* config path makes it look in `.` and throw — JSON cannot compute an absolute path |
 | Layering (§9) | `tests/e2e/z-layers.spec.ts` — the drawer/scrim/panel stack and the map control, asserted on **computed layers** (a hit-test can't see it: `<main>` is `inert` while the drawer is open, and inert content isn't hit-tested) |
 | Semantic HTML, labels, keyboard (§4–§6) | **`eslint-plugin-jsx-a11y` strict** — `label-has-associated-control`, `click-events-have-key-events`, `heading-has-content`, `anchor-is-valid`, … |
@@ -713,3 +737,18 @@ scheduled for re-evaluation after it.
 
 *Supersedes `WEB-DESIGN-STANDARDS.md`. Shared rules: [SYSTEM.md](SYSTEM.md).
 Enforced by the `myweli-web-guardrails` skill.*
+
+---
+
+## 16. The public pages' look
+
+**Decided 2026-11-02, applied page by page from B11.1.** The full reasoning, the page-by-page plan and the pattern's rules are in [web-swiss-direction.md](web-swiss-direction.md); this is what a new public page has to follow. Task surfaces (`/connexion`, `/mon-compte/*`, booking, legal, `/pro/*`) take only the font, header and footer.
+
+- **One container, one left edge:** `mx-auto max-w-screen-2xl px-m lg:px-l`. The logo, the `<h1>` and the first section start at the same x, at every width.
+- **Twelve columns from `lg`,** one below. Reading text stays capped at `max-w-content` (SYSTEM §10). From `lg`, a section's `<h2>` hangs in columns 1–3 and its content takes 4–12.
+- **Flush left**, empty states included.
+- **Rules instead of boxes.** A structural rule is 1px `border-primary`, a row rule 1px `border-divider`. The black rule is a **new, sanctioned use of `primary`**, on public pages only. `Card` stays for real containers.
+- **Rounded corners stay on controls.** Layout boxes and photos lose theirs.
+- **Colour comes from photos.** Same-ratio crops, no filters, no scrims, and **no AI-generated faces or results**.
+- **The pattern** (rows of plaits, black on white): at most one per page, on Home, `/professionnels` and 404 only, never behind text, `aria-hidden`, no animation, and it never replaces a salon's photo. Copy never calls it traditional or authentic. White on black is kept for a dark version.
+

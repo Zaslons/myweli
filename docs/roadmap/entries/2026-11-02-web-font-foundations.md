@@ -1,0 +1,9 @@
+- 🟢 **Le site a sa police, et il est plus rapide qu'avant (web · 2026-11-02 — BACKLOG B11.0, décision 65).** Première partie du nouveau look, sans aucun changement de mise en page. [web-swiss-direction.md](../../design/web-swiss-direction.md) §5, le tableau : `WEB.md` §7.
+  - **Hanken Grotesk, hébergée chez nous :** aucune requête à un tiers, et la politique de confidentialité reste vraie.
+  - **Coupée à 18,7 Ko.** Le fichier complet ajoutait 300 ms au LCP de l'accueil et dépassait le budget de 2 500 ms. Le budget n'a pas bougé : seules les graisses 400 à 600, les seules utilisées, restent.
+  - **Ce n'était pas assez :** le contrôle de CI a échoué sur `/suppression-compte`, de 5 ms.
+  - **Ce qui a payé la police :** le code de suivi des performances de Sentry partait chez chaque visiteur alors que nous l'éteignons. Retiré du paquet : 203 → 158 Ko de scripts, et 2 110 ms sur l'accueil contre 2 314 avant la police, premier affichage inchangé (757 ms). Une vraie erreur arrive toujours à Sentry : vu sur un build local.
+  - **Une mesure n'est pas une mesure :** un échantillon de CI à 1 815 ms faisait croire à 685 ms de marge, alors qu'il y en avait 190. Et il faut mesurer toutes les pages surveillées, pas seulement celle à laquelle on pense.
+  - **Vérifié dans le fichier :** tout le français sauf « Ÿ », jamais imprimé. Il lui manque l'espace fine insécable de tous nos montants (« 5 000 FCFA ») : le navigateur la prend à la police système, et regardé sur de vrais montants, c'est juste. Les chiffres ont tous la même largeur : les prix s'alignent sans réglage.
+  - **Les garde-fous :** le navigateur dit ce que le `<h1>` affiche, quelle police a chargé et d'où elle vient. Les scripts ont un plafond de 175 Ko. Et le suivi Sentry ne peut pas être rallumé sans que son code revienne.
+  - **Règles écrites pour la suite :** WEB-SYSTEM §16 (grille, filets, photos, motif).
