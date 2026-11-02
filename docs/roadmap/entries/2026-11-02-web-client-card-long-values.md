@@ -1,0 +1,3 @@
+- 🟢 **La fiche client Pro : la date et le montant tiennent, à tout moment de l'année (web Pro, 2026-11-02 — WEB-SYSTEM §15 ligne 37).** Depuis le 1er novembre, la suite e2e était rouge sur toutes les pull requests : à 320 de large, « novembre » déborde de sa tuile de demi-largeur. Un vrai débordement, découvert parce que le mois a changé.
+  - **Corrigé comme l'app :** la date courte (« 2 nov. 2026 ») et une tuile par rangée aux plus petites largeurs.
+  - **Le garde-fou ne dépend plus de la date :** septembre et sept chiffres sur chaque passage, plus la forme des tuiles, parce que les mesures de texte dépendent de la police.

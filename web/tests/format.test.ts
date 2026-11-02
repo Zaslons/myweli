@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   deName,
+  formatDateCompactFr,
   formatDateFr,
   formatDateTimeFr,
   formatDuration,
@@ -136,5 +137,21 @@ describe('countFr — the number and its noun stay together', () => {
     expect(countFr(3, 'étape', 'étapes')).toBe('3\u00a0étapes');
     expect(countFr(1, 'visite', 'visites')).toBe('1\u00a0visite');
     expect(countFr(0, 'absence', 'absences')).toBe('0\u00a0absence');
+  });
+});
+
+describe('formatDateCompactFr', () => {
+  it('reads like the app’s compact date', () => {
+    expect(formatDateCompactFr('2026-09-30T09:00:00.000Z')).toBe('30 sept. 2026');
+    expect(formatDateCompactFr('2026-11-02T09:00:00.000Z')).toBe('2 nov. 2026');
+  });
+
+  it('never leaves a word too long to fit a narrow tile, in any month', () => {
+    // This is what the tile relies on: words wrap, a long month cannot.
+    for (let month = 1; month <= 12; month++) {
+      const mm = String(month).padStart(2, '0');
+      const words = formatDateCompactFr(`2026-${mm}-15T09:00:00.000Z`).split(/\s+/);
+      expect(words.every((w) => w.length <= 5), words.join(' ')).toBe(true);
+    }
   });
 });

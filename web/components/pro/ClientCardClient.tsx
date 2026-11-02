@@ -30,6 +30,7 @@ import {
 } from '../../lib/phone';
 import {
   deName,
+  formatDateCompactFr,
   formatDateFr,
   formatDateTimeFr,
   formatFcfa,
@@ -458,7 +459,7 @@ export function ClientCardClient({ clientId }: { clientId: string }) {
 
         {/* Stats + history */}
         <div>
-          <div className="grid grid-cols-2 gap-s">
+          <div className="grid grid-cols-stats gap-s">
             <Stat label="Visites" value={String(card.stats.visits)} />
             <Stat
               label="Dépensé"
@@ -472,7 +473,7 @@ export function ClientCardClient({ clientId }: { clientId: string }) {
             <Stat
               label="Dernière visite"
               value={
-                card.lastVisitAt ? formatDateFr(card.lastVisitAt, tz) : '—'
+                card.lastVisitAt ? formatDateCompactFr(card.lastVisitAt, tz) : '—'
               }
             />
           </div>

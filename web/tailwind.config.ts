@@ -152,6 +152,11 @@ const config: Config = {
       // agrees on the rail width.
       gridTemplateColumns: {
         desk: 'minmax(0, 1fr) 20rem',
+        // The Pro client card's four stats: 2 × 2, then one per row once a tile
+        // would be too narrow for an amount that cannot wrap (the app's shape,
+        // docs/design/amounts-that-fit.md §2). 50% is never less than half, so
+        // there is no 3 + 1 on a wide column. The 0.25rem is half of `gap-s`.
+        stats: 'repeat(auto-fit, minmax(max(9rem, calc(50% - 0.25rem)), 1fr))',
       },
       // `size` is NOT here: `size-*` has 74 keys and zero uses — all 17 square
       // elements spell `h-N w-N`. The carve-out was dead weight.
