@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | **Approved 2026-11-02** by the owner: the @mention route, and a mention on every failing day |
+| **Status** | **Built 2026-11-02**, #NNN. The owner approved it the same day: the @mention route, and a mention on every failing day. **Not yet proved by a real run** (§5) |
 | **Owner** | Sadreddine Daher |
 | **Last updated** | 2026-11-02 |
 | **PRD ref / phase** | Operations, no product requirement · V1 |
@@ -123,11 +123,32 @@ The comment above `report` says every other alert reaches a person and this one 
 - No check job has `continue-on-error` or its own `if`, on the job or a step, since either could count an unpassed check as passed.
 - `clear` has no `permissions` block of its own, which would drop `issues: write`.
 
-**Every mutation is watched red on committed work**, with a harness that asserts the file changed, and the list goes in the commit message. Planned: each half of the `if`, each `needs` list, an eighth job, `GH_REPO`, `// empty`, the already-closed branch, the reopen, `--state all`, each mention, the title in one job only, a real `gh issue close` swapped for `echo`, `continue-on-error`, and a `permissions` block.
+**Mutations, watched on committed work: 33 of 34 went red.** A harness refused a dirty tree, asserted that each mutation changed the file, ran the unmutated control first, and restored by checksum. They covered:
+- each part of both `if` lines, and each `needs` list;
+- an eighth check in neither list;
+- `GH_REPO` in both jobs, and `GH_TOKEN` in `clear`;
+- `// empty` in both jobs;
+- the no-issue and already-closed branches, and the reopen;
+- `--state all` in `report`;
+- each mention, the run link, and the title changed in one job only;
+- the exact-title match, and a swallowed lookup failure;
+- each `gh` write swapped for `echo`;
+- `continue-on-error` and `if` on a check job and on a step;
+- `permissions` on each job, and `issues: write` removed from the workflow.
+
+**The one that stayed green, as predicted:** removing `--state all` from `clear`. That job only ever closes open issues, so its behaviour does not change.
+
+**The real scripts against the real repo, read-only.** A wrapper passed `issue list` and `issue view` to the real `gh` and recorded writes without running them. Both ran outside a checkout, and #549 stayed untouched at 33 comments:
+
+| Job | With `GH_REPO` | Without `GH_REPO` |
+|---|---|---|
+| `clear` | exit 0, one write recorded: `gh issue close 549` with the mention and link | exit 1, `not a git repository`, nothing written |
+| `report` | exit 0, one write recorded: `gh issue comment 549` with the mention | exit 1, `not a git repository`, nothing written |
 
 **What this guard cannot see:**
 - How GitHub evaluates the `if`. It reads that line as text; only GitHub runs it, and neither `act` nor `actionlint` is installed here.
-- Whether the email is delivered. See §5.
+- Whether GitHub accepts the file. Nothing parses a `schedule` and `workflow_dispatch` workflow before it reaches `main`. The new job follows `report`'s shape, which lowers that risk without removing it. If GitHub stopped scheduling the file, `The production monitor is still firing` would fail after three days. A rejected file might instead log a failed run, which that job cannot tell apart, and that has not been measured. Reading the next run (§5) settles it.
+- Whether a mention from the bot notifies anyone, and whether the email is delivered. See §5.
 
 ---
 
@@ -160,8 +181,8 @@ A workflow change takes effect when it reaches `main`. There is no deploy.
 
 ## 7. Definition of done
 
-- [ ] Owner's sign-off on this spec.
-- [ ] Guard green; every mutation watched red on committed work.
-- [ ] Indexed in `docs/design/README.md`; roadmap entry added; B9.16 ticked in `docs/BACKLOG.md`, with « B9.16 open » removed from the Batch 9 heading and row 9.
+- [x] Owner's sign-off on this spec.
+- [x] Guard green; mutations watched on committed work (§4).
+- [x] Indexed in `docs/design/README.md`; roadmap entry added; B9.16 ticked in `docs/BACKLOG.md`, with « B9.16 open » removed from the Batch 9 heading and row 9.
 - [ ] Feature branch and PR; merged only on the owner's word; no Claude attribution.
 - [ ] The next scheduled green run read, once the owner asks (§5).

@@ -35,7 +35,7 @@
 | 6 | ✅ **Backend integrity** | Role gate on booking, invitation accounts, owner contact erasure, demo KYC, deposit range, review reports, Apple token revoke | P2–P3 | backend (+ app, web) | **Done — #676–#679**, deployed 2026-10-22 |
 | 7 | ✅ **Pro app UI, accessibility and parity** | Contrast, mid-word breaks, empty states, member deletion text, invitations on « Accueil », export earnings | P2–P3 | app | **Done — #682–#684** |
 | 8 | ✅ **Product questions** | Undo, phone editing, offline Profil card, V2 analytics wording, dormant phone sign-in | P3 | — | **Done — #685, #686** |
-| 9 | ✅ **Hygiene, tooling and tests** | Stale docs, release tooling, mocks, test gaps, shared components; the account forgotten on every way out | P3 | all | **Done — #688–#707** (2026-10-25); **B9.13 #701, B9.14 #704** (2026-10-28); **B9.16 open** |
+| 9 | ✅ **Hygiene, tooling and tests** | Stale docs, release tooling, mocks, test gaps, shared components; the account forgotten on every way out | P3 | all | **Done — #688–#707** (2026-10-25); **B9.13 #701, B9.14 #704** (2026-10-28) |
 | 10 | **Only you can check** | ~~App Store Connect state, support inbox~~ (done 2026-10-28), App Preview after the decision, production walk-throughs, the demo salon | — | owner | your time |
 | 11 | **The website's look** | Swiss structure, the real logo, a calm pattern of plaits, Hanken Grotesk | P2 | web | **Spec approved 2026-11-02**; you: show the pattern to 3–5 people before S1 goes live |
 | 12 | **The website's flows against the apps** | Four sentences that aren't true, then the gaps in both directions | P1 for B12.1–B12.4, then P2–P3 | web, apps | B12.1's decision; your go on each merge |
@@ -445,7 +445,7 @@ This batch takes up three of the six suggested tasks that were never started. It
   - **How:** decide together with the return of SMS and WhatsApp (company registration).
 - ✅ **B8.6 Pro account deletion is only partly atomic (L · decision 32).** **Done in #685** — §9 (the retry test, Postgres and in memory; the « réessayez » half already held on both clients). *Recommended:* accept, add a test that a failed identity delete followed by a retry ends fully deleted, and say « réessayez » after a 5xx.
 
-### Batch 9 — Hygiene, tooling and tests (P3, do when touching the area) — ✅ done (#688–#707; B9.12 deployed 2026-10-25); **B9.16 open**
+### Batch 9 — Hygiene, tooling and tests (P3, do when touching the area) — ✅ done (#688–#707; B9.12 deployed 2026-10-25)
 
 - ✅ **B9.1 Stale release docs and statuses (M).** **Done in #688** — [hygiene-batch9.md](design/hygiene-batch9.md) §9: 33 roadmap entries (20 turn 🟢, 13 wait for 0.0.2), 8 specs and 5 index rows, LAUNCH and app-store-forms. What only App Store Connect can confirm waits for batch 10.
   - **What:** `LAUNCH.md` and `app-store-forms.md` describe states that have passed. Five specs and several 2026-10-13…16 roadmap entries still read 🟡 or « non fusionné ».
@@ -467,7 +467,9 @@ This batch takes up three of the six suggested tasks that were never started. It
 - **B9.13 The client app forgets an account on every way out (M · found by B9.8 F1).** ✅ **Done in #701** (rebased on `main` 2026-10-28) — [consumer-account-scope.md](design/consumer-account-scope.md), Q1 = (a), Q2 = (a). « Déconnexion » emptied the favourites only, and before the sign-out; a deletion the same; a session the server refused emptied nothing and left the app showing the account. A second account on the same phone saw the first one's bookings (home strip, « Mes rendez-vous », the detail, « Donner mon avis »), notifications and switches until its own read answered. Now `AccountScope` (the twin of `ProSalonScope`) resets the six stores of the account whenever the account changes, before anything is redrawn; each read and write drops an answer that belongs to the previous account (a late booking was added to B's list, a late photo was saved on B's profile); and a refused session becomes a way out: « Votre session a expiré. Reconnectez-vous. », in place, or on an account screen to the sign-in and back. **Still to do, apart (Q2):** the same in the Pro app — `ProAuthProvider.logout()` resets no per-salon store and the Pro notifications feed is never reset. → **B9.14**.
 - **B9.14 The Pro app forgets an account on every way out (M · the twin of B9.13).** ✅ **Done in #704** (rebased behind #701 on 2026-10-28) — [pro-account-scope.md](design/pro-account-scope.md), Q1 = (a), Q2 = (a). **Proved by a probe on the real code:** the receptionist who signed in after the owner, on the same phone, saw the owner's two « Revenus prévus » cards at every frame — she has no `finances.view`, the server never sends her money, the app kept it. No Pro sign-in or sign-out reset anything; the bell and the verification (identity documents) kept the previous account's. Now every Pro way in and out resets the 16 salon stores and, through `AccountScope`, the bell and the verification, before anything is redrawn; 15 salon stores and the verification drop an answer sent before the reset (the dashboard already did) — which also stops a gallery or before/after list being saved from the next salon's empty one, and A's identity document joining B's; a refused Pro session goes to the sign-in, which says « Votre session a expiré. Reconnectez-vous. ». The same guards close the « Mes salons » switch race.
 - **B9.15 The daily production check's stale match (S · found reading back #724).** ✅ **Done in #725** — `toContain('worker-src blob:')` failed every day from 2026-10-21, after a correct change to `worker-src 'self' blob:`. It now reads each directive's sources, and the same rule runs on every PR (WEB.md §7).
-- **B9.16 The alarm that stays open (S).** Open. The issue « Production checks are failing » (#549) has been open since 2026-09-16, including the two weeks in October when every run passed, and the job only ever adds a comment. So « open » says nothing and a new failure looks like the last one. Closing it on a fully green scheduled run would make each new failure a reopening. Only the owner can see whether these comments reach them, so that needs asking too. #549 itself stays open until this is decided.
+- **B9.16 The alarm that stays open (S).** ✅ **Done in #NNN** — [production-alarm-close.md](design/production-alarm-close.md). A new job closes « Production checks are failing » (#549) after a fully green scheduled run, so each new failure is a reopening. A manual run cannot close it, because it can measure another site.
+  - **It now reaches a person.** The owner's GitHub inbox held 404 threads for this repo and none for #549 (read 2026-11-02). So the failure and closing comments mention the owner, on every failing day (owner's decision, same day).
+  - **Not yet proved:** the first real proof is the next scheduled green run closing #549. Whether the email arrives is in Batch 10.
 
 ### Batch 10 — Only you can check
 
@@ -495,6 +497,9 @@ This batch takes up three of the six suggested tasks that were never started. It
   - the text nits and snapshot re-save after Apple's decision (decision 36);
   - photo sources and licences (decision 37);
   - the « Essai Fix » test booking needs nothing, because the weekly reset around 2026-10-21 removes it.
+- **The production alarm's email (B9.16):**
+  - At github.com/settings/notifications, make sure **Email** is on under « Participating, @mentions and custom », and the default address is the mailbox you read.
+  - Say whether an email arrives when the next green scheduled run closes #549. If it does not, the alarm still does not reach you, and the next step is the Cloud Monitoring « Owner email » channel.
 
 ### Batch 11 — The website's look
 
