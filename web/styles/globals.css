@@ -25,6 +25,15 @@ body {
    edge, so it composes with the TextField's borderFocus border instead of
    fighting it. */
 @layer base {
+  /* Every placeholder is `textTertiary`, the lightest legal text (SYSTEM §3). Left alone
+     it is preflight's #9CA3AF: off the palette, and 2.43:1 in the main search, which axe
+     cannot see. Both elements are named because preflight's selector does, and a bare
+     `::placeholder` would lose to it on specificity. */
+  input::placeholder,
+  textarea::placeholder {
+    color: theme('colors.textTertiary');
+  }
+
   :focus-visible {
     outline: 2px solid theme('colors.borderFocus');
     outline-offset: 2px;

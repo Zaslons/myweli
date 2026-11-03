@@ -507,7 +507,7 @@ Spec: [web-swiss-direction.md](design/web-swiss-direction.md). Starts after B12.
 - **B11.3 Salon card, `/recherche`, landings, favourites (M):** the card gains the app's cover photo, a parity gap today.
 - **B11.4 Salon page (M):** with its own Lighthouse budget.
 - **B11.5 OG image, and an audit of the deployed site by separate eyes (S).**
-- **B11.6 Square fields and buttons, the search as one bar (M · decision 70).** ✅ **Done in #728** — [web-swiss-fields.md](design/web-swiss-fields.md). The whole site, the Espace pro included. **Yours to judge from the pictures:** the rounded cards around them (§8).
+- **B11.6 Square fields and buttons, the search as one bar (M · decision 70).** ✅ **Done in #728** — [web-swiss-fields.md](design/web-swiss-fields.md). The whole site, the Espace pro included. **Yours to judge from the pictures:** the rounded cards around them (§8). Read back on `myweli.com` and in the iOS simulator; looking at those pictures found the search's pale placeholder text, fixed in #729.
 
 ### Batch 12 — The website's flows against the apps
 

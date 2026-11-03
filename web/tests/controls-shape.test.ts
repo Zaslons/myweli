@@ -68,6 +68,14 @@ describe('controls in the source', () => {
     expect(phone.slice(0, phone.indexOf('}'))).toContain("theme('colors.primary')");
   });
 
+  // A bare `::placeholder` would lose: preflight's selector names the element, so its
+  // specificity is higher, and the off-palette grey would stay with no error anywhere.
+  it('the base placeholder rule names both elements, and the token', () => {
+    const css = readFileSync(join(WEB, 'styles/globals.css'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+    const rule = /input::placeholder,\s*textarea::placeholder\s*\{[^}]*\}/.exec(css)?.[0];
+    expect(rule).toContain("theme('colors.textTertiary')");
+  });
+
   // A field with no radius class would round the moment it was clicked.
   it('the base focus rule does not hand out a radius', () => {
     const css = readFileSync(join(WEB, 'styles/globals.css'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');

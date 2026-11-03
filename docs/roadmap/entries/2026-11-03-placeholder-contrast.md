@@ -1,0 +1,4 @@
+- 🟢 **Le texte d'aide de la recherche se lit enfin (web · 2026-11-03 — #729).** « Quel service ou salon ? » était à 2,43:1 pour un minimum de 4,5:1, dans un gris qui n'est même pas dans notre palette : le champ n'avait jamais choisi de couleur, et il prenait celle de Tailwind par défaut.
+  - **Trouvé à l'œil :** en regardant la recherche dans le simulateur iOS, à côté du formulaire d'inscription, qui lui était bon. Axe ne lit pas les textes d'aide, donc aucun contrôle ne pouvait le voir.
+  - **Corrigé à un seul endroit :** une règle de base, donc un champ écrit à la main ne peut plus l'oublier. Un simple `::placeholder` aurait perdu contre le sélecteur de Tailwind, sans la moindre erreur : essayé exprès, il reste pâle dans le navigateur.
+  - **Le garde-fou :** le balayage des pages lit maintenant la couleur rendue de chaque texte d'aide. Aucun mot ne change.

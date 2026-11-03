@@ -366,6 +366,7 @@ tech:
 {error && <p id={errorId} role="alert">{error}</p>}
 ```
 
+- **Every placeholder is `textTertiary`,** from one base rule in `globals.css`, so a raw field can't miss it. Left alone it is Tailwind's own grey: off the palette, and 2.43:1 in the main search. Axe does not read placeholders, so `e2e/controls-shape.spec.ts` asks for the rendered colour.
 - **Every input has a real `<label htmlFor>`.** A placeholder is **not** a label: it
   vanishes on focus, fails contrast, and is not announced as the field's name.
   There are ≥6 placeholder-only inputs today — **in the login funnels**.
