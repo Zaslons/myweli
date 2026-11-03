@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { STORE_LINKED_PATHS } from '../../lib/storeLinkedPages';
 
 /// docs/design/app-review-round-2.md §5, on the built app: what a reviewer gets when
 /// the app opens one of its five pages of our site.
@@ -9,8 +10,8 @@ import { expect, test, type Page } from '@playwright/test';
 /// too. The anchors are what the browser ends up with, body included, so a sign-up
 /// link added to a page's text fails here as well as one in the chrome.
 ///
-/// The list is written out rather than imported: removing a page from the module must
-/// fail here.
+/// The list is written out rather than imported, and compared to the module: removing a
+/// page from the module must fail here, and so must adding one nobody reads here.
 
 const FIVE = ['/support', '/politique-confidentialite', '/cgu', '/mentions-legales', '/suppression-compte'];
 const CONTROLS = ['/', '/recherche'];
@@ -42,6 +43,10 @@ const collectHydrationErrors = (page: Page) => {
   });
   return errors;
 };
+
+test('this file reads every page of the module', () => {
+  expect([...FIVE].sort()).toEqual([...STORE_LINKED_PATHS].sort());
+});
 
 for (const path of FIVE) {
   test(`${path}: the HTML the server sends names no salon link, RSC payload included`, async ({ request }) => {
@@ -91,6 +96,9 @@ for (const path of CONTROLS) {
   });
 
   test(`control ${path} on iPad: « Espace pro » shows in the header, the group in the footer`, async ({ page }) => {
+    // /recherche holds the map. Live basemap traffic stalls networkidle: axe.spec.ts's
+    // rule, and this harness has no retry to hide it.
+    await page.route('**/basemaps.cartocdn.com/**', (r) => r.abort());
     await page.setViewportSize({ width: 820, height: 1180 });
     const errors = collectHydrationErrors(page);
     await page.goto(path);
@@ -120,6 +128,17 @@ test.describe('the spellings of a path', () => {
     await expect(page).toHaveURL(/\/cgu$/);
     expect((await anchorPaths(page)).filter(toSalons)).toEqual([]);
   });
+
+  for (const url of ['/%63gu', '/mentions%2Dlegales']) {
+    test(`${url}, percent-encoded, is the same page and no link comes back on load`, async ({ page }) => {
+      const errors = collectHydrationErrors(page);
+      await page.goto(url);
+      await page.waitForLoadState('networkidle');
+      await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+      expect((await anchorPaths(page)).filter(toSalons)).toEqual([]);
+      expect(errors).toEqual([]);
+    });
+  }
 
   for (const url of ['/cgu?utm_source=x', '/support?a=b#contact']) {
     test(`${url} is the same page`, async ({ page, request }) => {

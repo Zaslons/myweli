@@ -25,8 +25,18 @@ export const STORE_LINKED_PATHS = [
 const PATHS: ReadonlySet<string> = new Set(STORE_LINKED_PATHS);
 
 /// Exact, never a prefix: `/cgu/x` and `/supports` are other pages. `usePathname` hands
-/// over a bare path, and the query, fragment and trailing slash go anyway, so that no
-/// spelling of these five can bring the links back.
+/// over a bare path, and the query, fragment and trailing slash go anyway. Percent-encoding
+/// goes too, because it reaches here as typed: the server answers `/%63gu` with the static
+/// `/cgu`, so without this the four links came back on hydration, with React errors. A
+/// path too malformed to decode is not one of the five.
 export function isStoreLinkedPage(pathname: string): boolean {
-  return PATHS.has(pathname.split(/[?#]/, 1)[0].replace(/\/+$/, ''));
+  return PATHS.has(decoded(pathname.split(/[?#]/, 1)[0]).replace(/\/+$/, ''));
+}
+
+function decoded(path: string): string {
+  try {
+    return decodeURI(path);
+  } catch {
+    return path;
+  }
 }

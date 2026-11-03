@@ -74,8 +74,19 @@ describe('isStoreLinkedPage: exact, whatever the spelling', () => {
     }
   });
 
+  it('reads every page of the list below: a new one cannot be classified and left unread', () => {
+    expect(FIVE.map(([path]) => path).sort()).toEqual([...STORE_LINKED_PATHS].sort());
+  });
+
   it.each(STORE_LINKED_PATHS.flatMap((p) => [p, `${p}/`, `${p}?utm_source=x`, `${p}/?a=b`, `${p}#top`]))(
     '%s: yes',
+    (path) => {
+      expect(isStoreLinkedPage(path)).toBe(true);
+    },
+  );
+
+  it.each(['/%63gu', '/mentions%2Dlegales', '/%73upport/', '/%63gu?a=b'])(
+    '%s: yes, the server answers it with the same page',
     (path) => {
       expect(isStoreLinkedPage(path)).toBe(true);
     },
@@ -97,6 +108,10 @@ describe('isStoreLinkedPage: exact, whatever the spelling', () => {
     '/supports',
     '/support/x',
     '/CGU',
+    '/%63gux',
+    '/%2Fcgu',
+    '/%zz',
+    '/%E0%A4%A',
   ])('%s: no', (path) => {
     expect(isStoreLinkedPage(path)).toBe(false);
   });
@@ -212,7 +227,7 @@ describe('the app and this list: every page of ours the app holds, and no other'
       if (file === CONFIG) continue;
       const source = stripDartComments(readFileSync(file, 'utf-8'));
       if (/siteBaseUrl/.test(source)) offenders.push(`${relative(LIB, file)}: siteBaseUrl`);
-      for (const [host] of source.matchAll(/[\w.@-]*myweli\.com/g)) {
+      for (const host of hostsOfTheSite(source)) {
         // The API's host, which no one reads as a page.
         if (host !== 'api.myweli.com') offenders.push(`${relative(LIB, file)}: ${host}`);
       }
@@ -221,7 +236,16 @@ describe('the app and this list: every page of ours the app holds, and no other'
   });
 
   it('the config itself names the site once, as the default of its base', () => {
-    expect([...code.matchAll(/[\w.@-]*myweli\.com/g)].map((m) => m[0])).toEqual(['myweli.com']);
+    expect(hostsOfTheSite(code)).toEqual(['myweli.com']);
+  });
+
+  it('a host is a host however it is written', () => {
+    expect(hostsOfTheSite(`'https://MyWeli.com/pro/inscription'`)).toEqual(['myweli.com']);
+    expect(hostsOfTheSite(`'HTTPS://MYWELI.COM/pro'`)).toEqual(['myweli.com']);
+    expect(hostsOfTheSite(`'https://myweli' '.com/pro'`)).toEqual(['myweli.com']);
+    expect(hostsOfTheSite(`'https://my' + r'weli.com/pro'`)).toEqual(['myweli.com']);
+    expect(hostsOfTheSite(`'https://API.myweli.com/x'`)).toEqual(['api.myweli.com']);
+    expect(hostsOfTheSite(`'https://myweli.test/x', 'myweli', '.com'`)).toEqual([]);
   });
 
   describe('the comment stripper, or the above would be reading nothing', () => {
@@ -239,6 +263,15 @@ describe('the app and this list: every page of ours the app holds, and no other'
     });
   });
 });
+
+/// Every host of our domain in Dart code, in lower case. The brand is written MyWeli, and a
+/// host means the same in any case, so a case-sensitive read lets the likeliest spelling
+/// through. Adjacent literals are one string to Dart, so they are one here: the join
+/// `mobile/test/support/dart_source.dart`'s `asCopy` makes, for the same reason.
+function hostsOfTheSite(code: string): string[] {
+  const joined = code.replace(/['"](?:\s+|\s*\+\s*)r?['"]/g, '');
+  return [...joined.matchAll(/[\w.@-]*myweli\.com/gi)].map((m) => m[0].toLowerCase());
+}
 
 function dartFiles(dir: string): string[] {
   return readdirSync(dir).flatMap((name) => {
