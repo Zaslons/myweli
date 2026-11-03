@@ -553,8 +553,9 @@ void main() {
     // which is why regenerating every baseline after fixing them changed
     // nothing at all:
     //
-    //   · « Pas encore de compte ? » + « S'inscrire » in a Row that could not
-    //     wrap — 149px past a 360dp screen at 200% text.
+    //   · A sign-up prompt in a Row that could not wrap — 149px past a 360dp
+    //     screen at 200% text. The prompt has since left the app
+    //     (docs/design/app-review-round-2.md §4).
     //   · « Continuer avec Google », whose label could not shrink.
     //
     // Signed OUT, so `_pumpPro` is the wrong helper: it exists to put a salon
@@ -576,11 +577,13 @@ void main() {
       );
       await settleMocks(tester, rounds: 3);
 
-      // Both halves of the prompt, or the picture is of the wrong thing: a
-      // signed-in session would render the dashboard and this golden would
-      // quietly become a baseline for a screen it does not name.
-      expect(find.text('Pas encore de compte ?'), findsOneWidget);
-      expect(find.text('S\u2019inscrire sur myweli.com'), findsOneWidget);
+      // The form, or the picture is of the wrong thing: a signed-in session
+      // would render the dashboard and this golden would quietly become a
+      // baseline for a screen it does not name. And no prompt below it: this
+      // is the baseline that shows the bottom of the form.
+      expect(find.text('Continuer avec e-mail'), findsOneWidget);
+      expect(find.textContaining('compte ?'), findsNothing);
+      expect(find.textContaining('myweli.com'), findsNothing);
 
       await expectGolden(tester, 'pro_login_w360_x2');
     });

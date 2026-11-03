@@ -95,18 +95,18 @@ class AppConfig {
   ///
   /// **One base and four getters, not four env vars**, because these paths are a
   /// contract with `web/lib/legal.ts` and must move together — four independent
-  /// variables invite three of them being right. **No mobile test can reach the
-  /// web**, so that contract is held by review, in one PR, and by
-  /// `web/tests/legal.test.tsx` pinning the web half.
+  /// variables invite three of them being right. **No mobile test can run the
+  /// web**, so that contract is held by review, in one PR, by
+  /// `web/tests/legal.test.tsx` pinning the web half, and by
+  /// `test/infra/pro_site_links_test.dart` reading that each page's file exists.
+  ///
+  /// With [supportUrl] below, these are ALL the pages of our site the Pro app
+  /// opens. Apple refused « any other links to your site » on build 698, and
+  /// that test fails on a sixth: docs/design/app-review-round-2.md §4.
   static String get privacyUrl => '$siteBaseUrl/politique-confidentialite';
   static String get termsUrl => '$siteBaseUrl/cgu';
   static String get legalNoticeUrl => '$siteBaseUrl/mentions-legales';
   static String get accountDeletionUrl => '$siteBaseUrl/suppression-compte';
-
-  /// Where a salon signs up — the web's « Inscription » (`web/app/pro/
-  /// inscription`). The Pro app no longer registers businesses (App Store
-  /// 3.1.1, docs/design/pro-app-login-only.md); its login screen opens this.
-  static String get proSignUpUrl => '$siteBaseUrl/pro/inscription';
 
   /// Support. Same contract as the four above, and the same review rule.
   ///

@@ -6,7 +6,6 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
-import '../../../core/config/app_config.dart';
 import '../../../core/config/feature_flags.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../core/constants/unnamed_salon.dart';
@@ -15,14 +14,12 @@ import '../../../core/forms/sign_in_refusal.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/colors.dart';
 import '../../../core/theme/text_styles.dart';
-import '../../../core/utils/external_link.dart';
 import '../../../core/utils/validators.dart';
 import '../../../providers/pro_auth_provider.dart';
 import '../../../widgets/common/app_button.dart';
 import '../../../widgets/common/app_snack_bar.dart';
 import '../../../widgets/common/app_text_field.dart';
 import '../../../widgets/common/apple_logo.dart';
-import '../../../widgets/common/auth_switch_prompt.dart';
 import '../../../widgets/common/google_g_logo.dart';
 import '../../../widgets/common/inline_feedback.dart';
 import '../../../widgets/common/session_ended_notice.dart';
@@ -35,9 +32,11 @@ import '../../../widgets/team/revoked_access_banner.dart';
 /// for it). `provider_not_found` says so in one sentence, with the invitation
 /// hint — UNLESS the verified email holds pending team invitations (module
 /// `access` R3): the « Invitations » step lets the invitee join. A salon
-/// signs up on the web: « S’inscrire sur myweli.com » opens it in the
-/// browser (the owner's call). Designs: docs/design/pro-app-login-only.md ·
-/// docs/design/pro-auth-social.md · docs/design/team-access-r3-app.md §2.2.
+/// signs up on the web, and this screen does not point there: Apple refused
+/// that link on build 698, and it left both platforms (the owner's call).
+/// Designs: docs/design/app-review-round-2.md §4 ·
+/// docs/design/pro-app-login-only.md · docs/design/pro-auth-social.md ·
+/// docs/design/team-access-r3-app.md §2.2.
 class ProLoginScreen extends StatefulWidget {
   const ProLoginScreen({super.key, this.returnTo});
 
@@ -460,16 +459,6 @@ class _ProLoginScreenState extends State<ProLoginScreen> {
               // §14 rule 3 + §15: a server OUTCOME is form-level, and
               // `InlineFeedback` is a live region — a red Text never was.
               InlineFeedback(_formFault(auth)),
-              const SizedBox(height: AppTheme.spacingL),
-              // The app does not sign a business up (App Store 3.1.1,
-              // docs/design/pro-app-login-only.md): the web does, and this
-              // says so — it opens the browser, it never pushes a route.
-              AuthSwitchPrompt(
-                question: 'Pas encore de compte ?',
-                actionLabel: 'S’inscrire sur myweli.com',
-                onPressed: () =>
-                    openExternalUrl(context, AppConfig.proSignUpUrl),
-              ),
             ],
           ),
         ),

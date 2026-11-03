@@ -308,12 +308,13 @@ COPY of committed work.
     `privacyUrl`, `termsUrl`, `legalNoticeUrl`, `accountDeletionUrl`, `supportUrl`, and each points
     to its path;
   - `siteBaseUrl` itself is read nowhere else;
-  - no string in the closure contains `myweli.com` but the two infrastructure values (the site's
-    base, the API's host);
+  - no string in the closure contains `myweli.com` but the site's base itself (`siteBaseUrl`'s
+    default; `api_constants.dart` is outside the closure, and the API's host is a build define);
   - no web page of ours appears as a path literal;
   - no sentence says « notre site », « site web », « navigateur » and the like: an instruction needs
     no domain;
-  - every file that opens something outside the app is on a known list;
+  - every call that leaves the app is on a known list, file by file and counted; and there is no
+    web view dependency;
   - `ios/Runner` and `android/app/src` name no `myweli.com`.
 - **Widget**, `pro_login_only_test.dart`, on iOS and Android: each of the three steps offers exactly
   the actions of §4.2, read from the semantics tree so that a reworded link or an `InkWell` cannot
@@ -332,7 +333,8 @@ COPY of committed work.
 |---|---|---|
 | A URL the server sends (`update_url`) | It is data, not source. Seeds: Play URL, NULL for iOS (`migrations.dart:892-899`); the admin service does not check the host | Review; decision 4 of B0 (no `updateUrl` before release); §14 |
 | Text the server sends (push, a refusal's `message`) | Same | The app never shows a server's `message` (`app-failure-messages.md`); the subscription pushes carry no link |
-| A new outbound call inside a file already on the list | The inventory is by file | The domain and getter checks still see our site; a third party is a judgement for review |
+| An existing outbound call re-pointed at a third party | The inventory counts calls; it does not read URLs, most of them being `tel:`, `wa.me` or a map | The domain and getter checks still see our site; a third party is a judgement for review |
+| A sentence that points at the site past the word list | A word list is a word list (« notre site », « site web », « navigateur », …) | Review; the widget tests see a new action on sign-in whatever it says |
 | What the web pages carry | No mobile test reaches the web | §5.2 and the post-merge `curl` |
 
 **Web**: §5.2.
