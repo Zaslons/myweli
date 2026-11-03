@@ -206,8 +206,14 @@ need to touch it.
 ### 5.1 How
 
 - One list and one predicate, `web/lib/storeLinkedPages.ts`: `isStoreLinkedPage(pathname)`,
-  exact match on the five, whatever trailing slash, query or percent-encoding it is handed
-  (the server answers `/%63gu` with `/cgu`, and the links came back on hydration). Not a prefix. Its
+  exact match on the five, whatever query, percent-encoding or run of slashes and backslashes at
+  either end it is handed, encoded or not. Those are the spellings production answers with the
+  page, rendered for the bare path: `/%63gu`, `/cgu%2F`, `/%5Ccgu` and `/%2F/cgu` all answer 200
+  with `/cgu`, and a spelling the predicate missed brought the links back on hydration, because
+  in the browser `usePathname` reads the address as typed. `/cgu%2Fx`, `/.%2Fcgu`, `/cgu%20` and
+  `/cgu%252F` answer a 404, which keeps the links. Not a prefix. **Read on myweli.com on
+  2026-11-03: 560 spellings, no disagreement with the predicate.** This follows Vercel: `next start`
+  answers the encoded-separator spellings with a 404, so a local build cannot show them. Its
   comment says why (this spec) and that the mobile half is `AppConfig`'s five getters.
 - **Header**: `SiteChrome` is already a client component reading `usePathname`; it passes one
   prop to `Header`, whose default keeps « Espace pro ». Not rendered, rather than hidden by
@@ -245,9 +251,10 @@ comment in the same PR. `Header`'s and `SiteFooter`'s tests in
 ### 5.2 Web tests, red first
 
 - **Unit**, `web/tests/store-linked-pages.test.tsx`:
-  - the predicate: each of the five with a trailing slash, a query and percent-encoding, and
-    controls on each side (`/`, `/professionnels`, `/cgu/x`, `/supports`, `/pro/connexion`, a
-    malformed `/%zz`). An exact-match bug is the realistic one;
+  - the predicate: each of the five with a trailing slash, a query, percent-encoding and an
+    encoded slash or backslash at either end, and controls on each side (`/`, `/professionnels`,
+    `/cgu/x`, `/supports`, `/pro/connexion`, a malformed `/%zz`, and `/cgu%2Fx` and the other
+    spellings production answers with a 404). An exact-match bug is the realistic one;
   - **the server's render** (`renderToString`) of the chrome, the page and the footer, for each
     of the five: no link to `/professionnels`, `/pro/inscription`, `/pro/connexion`, the logo and
     breadcrumb go home, the legal and social groups remain. Control: `/` and `/recherche` have
@@ -268,6 +275,9 @@ comment in the same PR. `Header`'s and `SiteFooter`'s tests in
     a body fails too; no hydration error; the logo and breadcrumb go home; the four legal links and
     the social group remain. Control: `/` and `/recherche`;
   - `/cgu/`, `/cgu?utm_source=x` and `/%63gu` behave as `/cgu`, the last with no hydration error;
+  - `/cgu%2F`, answered as production answers it, because `next start` gives a 404: no link and no
+    hydration error. `/cgu%2Fx`, `/x%2Fcgu` and `/supports%2F` are 404s and keep the links. Whether
+    production still answers `/cgu%2F` that way is only read on the live site;
   - the file's written-out list against the module;
   - a client navigation from `/` to `/cgu` and back moves the links;
   - at `lg` and on a phone the lists start where the salons' title starts on `/` (trap 2).

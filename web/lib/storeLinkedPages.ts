@@ -24,18 +24,29 @@ export const STORE_LINKED_PATHS = [
 
 const PATHS: ReadonlySet<string> = new Set(STORE_LINKED_PATHS);
 
-/// Exact, never a prefix: `/cgu/x` and `/supports` are other pages. `usePathname` hands
-/// over a bare path, and the query, fragment and trailing slash go anyway. Percent-encoding
-/// goes too, because it reaches here as typed: the server answers `/%63gu` with the static
-/// `/cgu`, so without this the four links came back on hydration, with React errors. A
-/// path too malformed to decode is not one of the five.
+/// Exact, never a prefix: `/cgu/x` and `/supports` are other pages. The query and fragment
+/// go. Percent-encoding goes too, because on hydration a path reaches here as typed: the
+/// server answers `/%63gu` with the static `/cgu`, rendered for `/cgu`, so a spelling this
+/// misses brings the four links back on load, with React errors.
+///
+/// **So is a run of slashes and backslashes at either end, encoded or not.** Read on
+/// myweli.com: `/cgu%2F`, `/%2Fcgu`, `/%5C/cgu` and `/cgu%2F%5C` answer the page, and
+/// `/cgu%2Fx`, `/.%2Fcgu`, `/cgu%20` and `/cgu%252F` answer a 404, which keeps the links.
+/// That is one decode and one segment, and `decodeURI` will not do: it leaves `%2F` alone.
+/// This follows production: `next start` answers `/cgu%2F` with a 404. A path too malformed
+/// to decode is not one of the five.
+///
+/// The pattern is anchored so that it stays linear. `.replace(/[/\\]+$/, '')` is the
+/// obvious spelling and quadratic: 100 ms for a run of 14,000, twice per render, now that a
+/// visitor can put such a run here with `%2F`.
 export function isStoreLinkedPage(pathname: string): boolean {
-  return PATHS.has(decoded(pathname.split(/[?#]/, 1)[0]).replace(/\/+$/, ''));
+  const segment = /^[/\\]+([^/\\]+)[/\\]*$/.exec(decoded(pathname.split(/[?#]/, 1)[0]))?.[1];
+  return segment !== undefined && PATHS.has(`/${segment}`);
 }
 
 function decoded(path: string): string {
   try {
-    return decodeURI(path);
+    return decodeURIComponent(path);
   } catch {
     return path;
   }
