@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:myweli/core/di/dependency_injection.dart';
@@ -26,6 +27,13 @@ import '_a11y.dart';
 /// (docs/design/app-review-round-2.md §4); the width test stays, because a
 /// sign-in screen with less on it can still overflow, and the banner that says
 /// so is debug-only.
+///
+/// ## On both platforms, because Apple reviews the other one
+///
+/// `flutter test` is Android, and « Continuer avec Apple » is iOS only. So until
+/// this ran on both, the login Apple has cited twice, with that button in it, was
+/// never measured at any width or at 200 %. It is still not photographed:
+/// `pro_login_w360_x2` is Android. This measures; it does not look.
 void main() {
   setUpAll(() async {
     await loadRealFonts();
@@ -41,6 +49,10 @@ void main() {
   /// two points the rest of the suite already stands on.
   const widths = [360.0, 375.0, 390.0];
   const scales = [1.0, 2.0];
+  const bothPlatforms = TargetPlatformVariant({
+    TargetPlatform.android,
+    TargetPlatform.iOS,
+  });
 
   /// Each screen with a string that proves **it** rendered, not a Scaffold.
   ///
@@ -68,7 +80,9 @@ void main() {
       final at = '${width.toInt()}dp × ${scale.toInt()}× text';
 
       for (final entry in screens.entries) {
-        testWidgets('${entry.key} fits $at', (tester) async {
+        testWidgets('${entry.key} fits $at', variant: bothPlatforms, (
+          tester,
+        ) async {
           await pumpAtWidth(
             tester,
             width: width,
@@ -87,6 +101,14 @@ void main() {
             reason:
                 '« ${entry.value.proof} » is not on ${entry.key} at $at, '
                 'so whatever this measured, it was not the screen',
+          );
+          // The variant really reached the screen: this is the one row that
+          // differs, and the reason both platforms run.
+          expect(
+            find.text('Continuer avec Apple'),
+            defaultTargetPlatform == TargetPlatform.iOS
+                ? findsOneWidget
+                : findsNothing,
           );
 
           // A — reaching here already means no RenderFlex overflowed; those

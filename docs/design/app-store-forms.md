@@ -1039,7 +1039,7 @@ def n(p):
         except UnicodeEncodeError: pass
     return sum(b.count(x) for x in found)
 gone_b011 = ["Inscription Pro", "S’inscrire avec", "Ajouter un salon", "Inscrivez-vous", "Créez votre compte", "Compte introuvable. Créez"]
-gone_round2 = ["S’inscrire sur myweli.com", "S’inscrire", "S\x27inscrire", "Pas encore de compte", "/pro/inscription", "/pro/connexion", "/professionnels"]
+gone_round2 = ["S’inscrire sur myweli.com", "S’inscrire", "S\x27inscrire", "Pas encore de compte", "/pro/inscription", "/pro/connexion", "/pro/salons/nouveau", "/professionnels"]
 witnesses_round2 = ["Aucun compte MyWeli Pro n’est associé à cette adresse", "/politique-confidentialite", "/cgu", "/mentions-legales", "/suppression-compte", "/support"]
 pages = {m.decode() for m in re.findall(rb"https://myweli\.com[/a-z-]*", b)}
 bad = [p for p in gone_b011 + gone_round2 if n(p)] + ["manque : " + p for p in witnesses_round2 if not n(p)]
@@ -1076,7 +1076,7 @@ Vérifié le 2026-11-03, avec ses deux sens :
 | `ITSAppUsesNonExemptEncryption` | `false` |
 | DK… | **0** occurrence |
 | phrases de la voie compagnon | `OK : 22 phrases à 0, 9 témoins présents` |
-| phrases de la connexion seule (2026-11-03) | `OK : 13 phrases à 0, 6 témoins présents` |
+| phrases de la connexion seule (2026-11-03) | `OK : 14 phrases à 0, 6 témoins présents` |
 | droits (entitlements) | `aps-environment = production`, `com.apple.developer.applesignin`, `get-task-allow = false`, `beta-reports-active = true` |
 
 Un seul écart : on ne l'envoie pas.
@@ -1356,7 +1356,7 @@ Ce build remplace le 698 pour la revue de la 0.0.1. L'écran de connexion ne pro
 
 À vérifier sur ce build, contre la production, dans cet ordre :
 1. Le compte démo, exactement comme le disent les notes de revue : on arrive sur « Maison Nala ».
-2. L'écran de connexion et l'étape du code ne portent aucun lien. Une adresse sans compte lit « Aucun compte MyWeli Pro n’est associé à cette adresse », sans bouton ajouté.
+2. L'écran de connexion et l'étape du code ne portent aucun lien. Une adresse sans compte, qui reçoit vraiment le code, lit « Aucun compte MyWeli Pro n’est associé à cette adresse », sans bouton ajouté.
 3. Laisser la session plus de 15 minutes, puis revenir : toujours connecté, et tout se charge.
 4. Fermer l'app et la rouvrir : toujours connecté. Se déconnecter : retour à la connexion. Rouvrir : toujours déconnecté.
 5. Une fois sur iPad, en mode compatibilité iPhone : les points 1 et 2.
@@ -1395,20 +1395,36 @@ propriétaire les rapporte, et ils sont datés ici : rien dans ce dépôt n'obse
       Pro », `revue@myweli.test` dans « Votre e-mail », « Continuer avec e-mail », le code
       dans « Code à 6 chiffres », « Se connecter ». L'app ouvre « Maison Nala ».
 - [ ] **2 · Aucun lien sur la connexion** : ni sur la première étape, ni sur celle du code. Avec
-      une adresse sans compte : la phrase « Aucun compte MyWeli Pro n’est associé à cette
-      adresse. … », et rien de plus à toucher que les commandes de l'étape.
+      une adresse sans compte **qui reçoit vraiment le code** (la phrase n'arrive qu'une fois le
+      code vérifié), ou une identité Google ou Apple sans compte : la phrase « Aucun compte
+      MyWeli Pro n’est associé à cette adresse. … », et rien de plus à toucher que les
+      commandes de l'étape.
 - [ ] **3 · Une session laissée plus de 15 minutes** (la vie du jeton d'accès,
       `backend/lib/src/auth/tokens.dart:16`) : l'app revient, charge, et reste connectée.
-      C'est le premier passage signé de B9.13 et B9.14.
+      Ce que ce point prouve : le rafraîchissement silencieux après expiration, dans un build
+      signé. `main_pro.dart` ne monte pas l'`AuthProvider` du client : de B9.13, il n'atteint
+      que le code partagé (`RefreshingHttpClient`, `AccountScope`).
 - [ ] **4 · Redémarrage, puis déconnexion** : tuer l'app et la rouvrir : la session est
       restaurée. Se déconnecter : l'écran de connexion. Rouvrir : toujours déconnecté.
 - [ ] **5 · Un passage sur iPad**, puisque les deux refus nomment un iPad Air : les points 1
       et 2, en mode de compatibilité iPhone. **Sur un simulateur si le propriétaire n'a pas
-      d'iPad** : un simulateur prouve la mise en page, pas le build signé, donc noter lequel a
-      servi.
+      d'iPad** : l'IPA et TestFlight ne s'y installent pas, c'est donc un build de débogage
+      contre la production, la commande des captures. Le propriétaire le lance depuis
+      `mobile/`, ou le demande à Claude, sur un simulateur iPad :
+
+      ```bash
+      flutter run --flavor pro -t lib/main_pro.dart -d "<le simulateur iPad>" \
+        --dart-define=USE_API_BACKEND=true --dart-define=API_BASE_URL=https://api.myweli.com
+      ```
+
+      Un simulateur prouve la mise en page, pas le build signé, donc noter lequel a servi.
 
 **Ce que cette passe ne voit pas, par choix du propriétaire** : un compte Apple neuf, le push
 réel, le KYC, le pivotement, la vraie suppression d'un compte. Ils restent à la 0.0.2.
+
+**Ce qu'elle ne voit pas non plus, sans que ce soit son choix** (relevé le 2026-11-03) : une
+session que le serveur refuse (seuls les tests de widgets la couvrent, et un appareil ne peut
+pas la provoquer à peu de frais), et un deuxième compte sur le même téléphone.
 
 **La liste complète** (celle des builds jusqu'au 698, et de la 0.0.2), sur l'appareil, contre la
 production :

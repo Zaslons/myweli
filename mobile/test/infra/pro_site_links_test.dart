@@ -37,12 +37,20 @@ import '../support/pro_closure.dart';
 ///   Round 2's §10 lists who holds those.
 /// - What the five pages themselves link to. No test here reaches the web:
 ///   `web/tests/` and the post-merge read of the live pages hold that.
-/// - An existing call re-pointed at a third party, or one reworded past the
-///   word list. The inventory below catches a new call, not a changed one.
+/// - A call that is not one of the five (`tel:`, `wa.me`, a map, the store)
+///   re-pointed at somewhere else, and a sentence reworded past the word list.
+///   The inventory below counts those calls and does not read their URLs. Our
+///   domain written whole is seen wherever it is; built from pieces in such a
+///   call, it is left to the IPA check (`app-store-forms.md` §11.3).
+/// - A new package that opens a page by itself. The `url_launcher` importers and
+///   the `webview` check see those two; the next one has another name.
 void main() {
   final closure = proClosure();
   const config = 'lib/core/config/app_config.dart';
   const login = 'lib/screens/provider/auth/pro_login_screen.dart';
+
+  /// `AppConfig.x`, however `dart format` wrapped it.
+  final appConfigRead = RegExp(r'\bAppConfig\s*\.\s*(\w+)');
 
   /// The only pages of ours the Pro app may open: getter, value, page.
   final required = <String, ({String url, String page})>{
@@ -93,9 +101,11 @@ void main() {
 
   group('links to the site', () {
     test('the getters built on the site are exactly the five required pages', () {
-      // Field, getter, function or block body: a member of AppConfig whose
-      // value mentions `siteBaseUrl`, or a member that already does, so
-      // `'$supportUrl/../tarifs'` is on the site too.
+      // A `static` member of AppConfig that mentions `siteBaseUrl`, or a member
+      // already found, before its first `;`, so `'$supportUrl/../tarifs'` is on
+      // the site too. Nothing else: a block body's `return` comes after a `;`,
+      // and a getter outside the class is not `static`. The two tests below
+      // hold those, whatever shape they take.
       final onSite = <String>{};
       for (var known = 0; ; known = onSite.length) {
         final names = ['siteBaseUrl', ...onSite].join('|');
@@ -111,7 +121,7 @@ void main() {
       }
       final used = {
         for (final code in closure.values)
-          for (final m in RegExp(r'\bAppConfig\.(\w+)').allMatches(code))
+          for (final m in appConfigRead.allMatches(code))
             if (onSite.contains(m.group(1))) m.group(1)!,
       };
       expect(
@@ -123,6 +133,52 @@ void main() {
             'missing one is a required page lost. Either way: '
             'docs/design/app-review-round-2.md first.',
       );
+    });
+
+    test('the config names the base six times: itself and the five', () {
+      // The regex above reads a shape; this reads the word. A block body, a
+      // top-level getter or a second helper in this file all have to say
+      // `siteBaseUrl`, and that is one too many, used or not:
+      // `web/tests/store-linked-pages.test.tsx` refuses an unclassified sixth too.
+      expect(
+        RegExp(r'\bsiteBaseUrl\b').allMatches(closure[config]!).length,
+        1 + required.length,
+        reason:
+            'a new way to the site in app_config.dart, however it is written. '
+            'docs/design/app-review-round-2.md §4 first.',
+      );
+    });
+
+    test('each is read once, as the whole of the link it opens', () {
+      // A getter that stays right but stops being what is opened is the way past
+      // everything else here: `Uri.parse(AppConfig.supportUrl).resolve('/x')`,
+      // `cond ? 'https://myweli.$tld/x' : AppConfig.supportUrl`, a local copy.
+      // Each of those reads the getter in another shape, or a second time.
+      final open = RegExp(
+        r'\bopenExternalUrl\(\s*\w+\s*,\s*AppConfig\s*\.\s*(\w+)\s*,?\s*\)',
+      );
+      Map<String, List<String>> found(RegExp pattern) {
+        final files = <String, List<String>>{};
+        for (final e in closure.entries) {
+          for (final m in pattern.allMatches(e.value)) {
+            if (required.containsKey(m.group(1))) {
+              (files[m.group(1)!] ??= []).add(e.key);
+            }
+          }
+        }
+        return files;
+      }
+
+      const about = 'lib/screens/profile/about_screen.dart';
+      const expected = {
+        'privacyUrl': [about],
+        'termsUrl': [about],
+        'legalNoticeUrl': [about],
+        'accountDeletionUrl': [about],
+        'supportUrl': ['lib/screens/provider/profile/pro_profile_screen.dart'],
+      };
+      expect(found(appConfigRead), expected, reason: 'where each one is read');
+      expect(found(open), expected, reason: 'what is done with it');
     });
 
     test('each points to its page, and the page exists', () {
@@ -152,18 +208,26 @@ void main() {
     });
 
     test('no web page of ours is written out as a path', () {
-      // The pages that sign up, sign in or sell. A path needs no domain, and
-      // resolving it against an allowed getter would pass the checks above.
+      // The pages that sign up, sign in or sell, and the page that creates a
+      // salon: `web/app/pro/(dash)/salons/nouveau`, one of the two things Apple's
+      // first refusal was about. A path needs no domain. asCopy, because
+      // '/pro/' 'connexion' is the same path to whoever opens it.
+      //
+      // A list: a page it does not name passes here. What opens such a path goes
+      // through a call, and the getters' test and the inventory read those.
       const pages = [
         '/pro/inscription',
         '/pro/connexion',
         '/pro/abonnement',
+        '/pro/salons/nouveau',
         '/professionnels',
+        '/connexion',
+        '/mon-compte',
       ];
       final hits = [
         for (final e in closure.entries)
           for (final page in pages)
-            if (e.value.contains(page)) '${e.key}: $page',
+            if (asCopy(e.value).contains(page)) '${e.key}: $page',
       ];
       expect(hits, isEmpty);
     });
@@ -175,15 +239,16 @@ void main() {
         r'''[^\s'"]*myweli\.com[^\s'"]*''',
         caseSensitive: false,
       );
-      final hits = {
+      final hits = [
         for (final e in closure.entries)
           // asCopy: 'myweli' '.com' is one word on screen, so one word here.
           for (final m in domain.allMatches(asCopy(e.value)))
             '${e.key}: ${m.group(0)}',
-      };
+      ];
       // Exact, not « empty », because this line is the proof that the scan
-      // reads strings at all. The domain changing turns it red; say so here.
-      expect(hits, {'$config: https://myweli.com'});
+      // reads strings at all. A list, because a second base spelled the same
+      // would disappear into a Set. The domain changing turns it red; say so here.
+      expect(hits, ['$config: https://myweli.com']);
     });
 
     test(
@@ -256,6 +321,26 @@ void main() {
         'lib/screens/update/update_required_app.dart': 1, // the store
         'lib/widgets/common/update_available_banner.dart': 1, // the store
       });
+    });
+
+    test('url_launcher is imported by exactly these', () {
+      // Its `Link` widget leaves the app with none of the three names above, and
+      // an import is the one thing it cannot do without. A new line here means
+      // someone reads what the new file opens.
+      final launcher = RegExp(
+        r'''^\s*(?:import|export)\s+['"]package:url_launcher/''',
+        multiLine: true,
+      );
+      final importers = [
+        for (final e in closure.entries)
+          if (launcher.hasMatch(e.value)) e.key,
+      ]..sort();
+      expect(importers, [
+        'lib/core/utils/external_link.dart',
+        'lib/core/utils/helpers.dart',
+        'lib/screens/provider/clients/client_detail_screen.dart',
+        'lib/screens/providers/provider_detail_screen.dart',
+      ]);
     });
 
     test('there is no web view to stay inside', () {

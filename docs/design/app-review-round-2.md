@@ -89,7 +89,8 @@ Center reply themselves. **No production backend deploy** (decision 47).
 | `provider_not_found`, and the last invitation declined | The sentence, with the link below it | The sentence, unchanged. Nothing to tap |
 
 **No new copy on the login screen.** No replacement line, no privacy link, no
-« contactez-nous ». It is the screen Apple has now cited twice.
+« contactez-nous ». It is the screen Apple has now cited twice. The widget tests hold
+every line of text on it, step by step, on both platforms (§10).
 
 ### 4.2 What each step offers
 
@@ -143,7 +144,9 @@ distance on all sides, with no stray gap. The one baseline that shows the screen
 - **Old builds**: 698 and earlier keep the link. They are TestFlight or the closed
   test only; nothing public shows it, and `/pro/inscription` keeps working.
 - **Accessibility**: one fewer control on the first screen. Nothing else changes;
-  the screen's width and 200 % tests stay, with another proof string.
+  the screen's width and 200 % tests stay, with another proof string, and now run on iOS
+  as well as Android (`auth_layout_test.dart`), so that they measure « Continuer avec
+  Apple ».
 - **Long French, 360 dp, 200 %**: the defect `AuthSwitchPrompt` fixed (149 px past
   a 360 dp screen, `mobile-a11-width.md`) leaves with the widget. Register row 65
   of `SYSTEM.md` §21 is history and stays.
@@ -198,7 +201,8 @@ need to touch it.
 ### 5.1 How
 
 - One list and one predicate, `web/lib/storeLinkedPages.ts`: `isStoreLinkedPage(pathname)`,
-  exact match on the five, whatever trailing slash or query it is handed. Not a prefix. Its
+  exact match on the five, whatever trailing slash, query or percent-encoding it is handed
+  (the server answers `/%63gu` with `/cgu`, and the links came back on hydration). Not a prefix. Its
   comment says why (this spec) and that the mobile half is `AppConfig`'s five getters.
 - **Header**: `SiteChrome` is already a client component reading `usePathname`; it passes one
   prop to `Header`, whose default keeps « Espace pro ». Not rendered, rather than hidden by
@@ -236,20 +240,21 @@ comment in the same PR. `Header`'s and `SiteFooter`'s tests in
 ### 5.2 Web tests, red first
 
 - **Unit**, `web/tests/store-linked-pages.test.tsx`:
-  - the predicate: each of the five with a trailing slash and a query, and controls on each
-    side (`/`, `/professionnels`, `/cgu/x`, `/supports`, `/pro/connexion`). An exact-match
-    bug is the realistic one;
+  - the predicate: each of the five with a trailing slash, a query and percent-encoding, and
+    controls on each side (`/`, `/professionnels`, `/cgu/x`, `/supports`, `/pro/connexion`, a
+    malformed `/%zz`). An exact-match bug is the realistic one;
   - **the server's render** (`renderToString`) of the chrome, the page and the footer, for each
     of the five: no link to `/professionnels`, `/pro/inscription`, `/pro/connexion`, the logo and
     breadcrumb go home, the legal and social groups remain. Control: `/` and `/recherche` have
     all three;
   - each of the five, rendered: no « facturation », « offre », « abonnement », « tarif » or
     « FCFA ». « prix » is allowed, because the CGU speak of a salon's own prices;
-  - the drop: `lg:pt-xxl` beside the group, none without it.
+  - the drop: `lg:pt-xxl` beside the group, none without it;
+  - the render table against the module, so that a page added to the list cannot stay unread.
 - **The cross-surface test**, in the same file, reads the Dart: every `'$siteBaseUrl/…'` in
   `mobile/lib/core/config/app_config.dart` is in the five and every one of the five is there; any
   other use of `siteBaseUrl`, in that file or anywhere in `mobile/lib`, and any other `myweli.com`
-  string but the API's host, fails. **So a new app link to the site fails CI until it is classified**,
+  string but the API's host, in any case and with adjacent literals joined, fails. **So a new app link to the site fails CI until it is classified**,
   on the consumer app as well as Pro. CI's web job has no path filter, so it runs on a mobile-only PR.
 - **e2e**, `web/tests/e2e/store-linked-pages.spec.ts`, at an iPad width and a phone width, on the
   built app:
@@ -257,7 +262,8 @@ comment in the same PR. `Header`'s and `SiteFooter`'s tests in
     (trap 1), and **every anchor on the page** has none of the three, so that a sign-up link added to
     a body fails too; no hydration error; the logo and breadcrumb go home; the four legal links and
     the social group remain. Control: `/` and `/recherche`;
-  - `/cgu/` and `/cgu?utm_source=x` behave as `/cgu`;
+  - `/cgu/`, `/cgu?utm_source=x` and `/%63gu` behave as `/cgu`, the last with no hydration error;
+  - the file's written-out list against the module;
   - a client navigation from `/` to `/cgu` and back moves the links;
   - at `lg` and on a phone the lists start where the salons' title starts on `/` (trap 2).
 
@@ -322,7 +328,7 @@ Two edits to the description, the owner's text, done in `app-store-forms.md` §4
    leur équipe. » It follows the first sentence, on the same line: what the app is, then who it
    is for. 1,061 characters, 1,102 bytes, 18 lines.
 
-Counts at `app-store-forms.md:339`, `:372`, `:1577` are recounted by script. Name, subtitle,
+Counts in `app-store-forms.md` §4 (the table's row and the line under the block) and §13.1 are recounted by script. Name, subtitle,
 promotional text, keywords, copyright, support and privacy URLs and the 16 stills do not
 change. **The marketing URL stays empty** (recorded empty on 2026-10-13); §5 of the forms
 still proposes `https://myweli.com`, and that row is corrected. **The Play listing keeps its text**:
@@ -338,7 +344,7 @@ else. Whether Play takes them is the owner's call (§16); the login's dead end i
   rendered with `--frame full-bleed`. The tool's 25 file checks pass; they read format and
   masks, not App Review's rules, and the rejected film passed the same 25.
 - **Poster**: 00:00:13:00. Set at reservation, read back: Apple ignored the time sent on the
-  deprecated route (`app-store-forms.md:1584`).
+  deprecated route (`app-store-forms.md` §13.1).
 - **Both iPhone slots.** The framed file sits in `IPHONE_DYNAMIC_ISLAND_MEDIUM_PROFILE` and
   `..._LARGE_PROFILE`. A placement cannot be edited: delete, create, read back. **Every size is
   read in « View All Sizes in Media Manager » before « Add for Review »**, as Apple's message
@@ -376,26 +382,35 @@ COPY of committed work.
   - the `AppConfig` getters built on `siteBaseUrl`, directly or through one another, that Pro uses are
     **exactly** `privacyUrl`, `termsUrl`, `legalNoticeUrl`, `accountDeletionUrl`, `supportUrl`, and each
     points to its path, whose page exists in `web/app`;
+  - `app_config.dart` names `siteBaseUrl` exactly six times, itself and the five, so a block body, a
+    top-level getter or a helper in that file is one too many, used or not;
+  - each of the five is read once in the closure, as the whole argument of
+    `openExternalUrl(context, AppConfig.x)`, so a getter re-pointed through `Uri.resolve`, a ternary or a
+    local copy fails;
   - `siteBaseUrl` itself is read nowhere else;
-  - no string in the closure contains `myweli.com` but the site's base itself (`siteBaseUrl`'s
+  - no string in the closure contains `myweli.com` but the site's base itself, **once** (`siteBaseUrl`'s
     default; `api_constants.dart` is outside the closure, and the API's host is a build define);
-  - no web page of ours appears as a path literal;
+  - the pages that sign up, sign in or sell, and `/pro/salons/nouveau`, `/connexion` and `/mon-compte`,
+    appear as no path literal, joined literals included;
   - no sentence says « notre site », « site web », « navigateur » and the like: an instruction needs
     no domain;
-  - every call that leaves the app is on a known list, file by file and counted; and there is no
+  - the three functions that leave the app are called from a known list of files, counted; `url_launcher`
+    is imported by exactly four files, because its `Link` widget uses none of the three; and there is no
     web view dependency;
   - `ios/Runner` and `android/app/src` name no `myweli.com`.
 - **Widget**, `pro_login_only_test.dart`, on iOS and Android: each of the three steps offers exactly
   the actions of §4.2, read from the semantics tree so that a reworded link or an `InkWell` cannot
-  pass; the no-account path shows its sentence, offers nothing new and opens nothing. **Control**: the
+  pass, and says exactly its lines of text, read from every paragraph, so that a sentence with no tap
+  cannot either (§4.1); the no-account path shows its sentence, offers nothing new and opens nothing. **Control**: the
   fake browser does hear a real `openExternalUrl`, or « opened nothing » proves nothing.
 - **Updated**: `pro_login_only_test.dart` (the link group goes), `pro_login_invitations_test.dart:130`
-  (`findsNothing`), `a11y/auth_layout_test.dart` (another proof, the prompt's own tests go),
+  (`findsNothing`), `a11y/auth_layout_test.dart` (another proof, the prompt's own tests go, both platforms),
   `golden/pro_screens_golden_test.dart:582-583`.
 - **Golden**: `pro_login_w360_x2` changes, on Linux only (the « Goldens — regenerate » workflow). Every
   changed PNG is looked at; the rest are compared byte for byte and not committed. `consumer_login` must
   not move. *Done: 57 of 58 byte-identical; the one that changed differs only in the prompt's rows, and
-  the form now ends at the bottom of its last button.*
+  the form now ends at the bottom of its last button.* It is Android: « Continuer avec Apple » is not in it.
+  The width test measures iOS, and nothing photographs it.
 
 **What the guard cannot see, by class:**
 
@@ -403,8 +418,9 @@ COPY of committed work.
 |---|---|---|
 | A URL the server sends (`update_url`) | It is data, not source. Seeds: Play URL, NULL for iOS (`migrations.dart:892-899`); the admin service does not check the host | Review; decision 4 of B0 (no `updateUrl` before release); §14 |
 | Text the server sends (push, a refusal's `message`) | Same | The app never shows a server's `message` (`app-failure-messages.md`); the subscription pushes carry no link |
-| An existing outbound call re-pointed at a third party | The inventory counts calls; it does not read URLs, most of them being `tel:`, `wa.me` or a map | The domain and getter checks still see our site; a third party is a judgement for review |
-| A sentence that points at the site past the word list | A word list is a word list (« notre site », « site web », « navigateur », …) | Review; the widget tests see a new action on sign-in whatever it says |
+| A call that is not one of the five re-pointed elsewhere (`tel:`, `wa.me`, a map, the store) | The inventory counts those calls; it does not read their URLs | Our domain written whole is seen wherever it is. Built from pieces in such a call, only the IPA check reads it (`app-store-forms.md` §11.3), by hand on the IPA. A third party is a judgement for review |
+| A new package that opens a page by itself | The importers' pin knows `url_launcher`, the dependency check knows the word « webview » | Review of `pubspec.yaml` |
+| A sentence that points at the site past the word list | A word list is a word list (« notre site », « site web », « navigateur », …) | On sign-in, the widget tests hold every line and every action, whatever they say. Elsewhere, review: « depuis un ordinateur » on the subscription screen passes everything, and that limit is accepted |
 | What the web pages carry | No mobile test reaches the web | §5.2 and the post-merge `curl` |
 | A new link to the site in the **consumer** app | The guard reads Pro's closure only | §5.2's cross-surface test reads `app_config.dart` and all of `mobile/lib` |
 
@@ -424,12 +440,21 @@ stay on the list for 0.0.2.
 1. **The demo sign-in, exactly as the notes say.** « Espace Pro », `revue@myweli.test` in « Votre
    e-mail », « Continuer avec e-mail », the code in « Code à 6 chiffres », « Se connecter ». Lands on
    « Maison Nala ».
-2. **No link on Connexion**: options and code. An address with no account: the sentence, nothing to tap.
+2. **No link on Connexion**: options and code. An address with no account **that really receives the code**
+   (the sentence only comes after the code is verified), or a Google or Apple identity with none: the sentence,
+   nothing to tap.
 3. **A session left past 15 minutes** (the access token's life, `backend/lib/src/auth/tokens.dart:16`).
-   Comes back, loads, still signed in. This is B9.13 and B9.14's first signed run.
+   Comes back, loads, still signed in. What this proves is the silent refresh after expiry, in a signed
+   build. `main_pro.dart` mounts no plain `AuthProvider`, so of B9.13 it reaches only the shared code
+   (`RefreshingHttpClient`, `AccountScope`).
 4. **Restart, then sign-out.** Kill and reopen: restored. Sign out: Connexion. Reopen: still signed out.
 5. **One run on an iPad**, simulator if the owner has no iPad, since both rejections name one. Steps 1 and
-   2 in iPhone compatibility mode. A simulator run proves the layout, not the signed build; say which was used.
+   2 in iPhone compatibility mode. The IPA and TestFlight do not install on a simulator, so that run is a
+   separate debug build against production; the command is in `app-store-forms.md` §11.6, and the owner runs
+   it or asks Claude to. A simulator run proves the layout, not the signed build; say which was used.
+
+**It does not see, and this is not the owner's choice:** a session the server refuses (only the widget tests
+cover it, and a device cannot cheaply provoke it), and a second account on the same phone.
 
 Reported by the owner, dated in §11.6: nothing in this repo observes a device.
 
@@ -467,7 +492,8 @@ tests and this spec. So one PR carries it all.
 - **A third rejection is possible**, and the review clock is days. The audit's pick was to ship no film; the owner chose
   this one after hearing that.
 - **Salon visitors on the five pages lose the salon links.** The logo still goes home, and home's band still says
-  « Vous êtes un salon ? ». So sign-up stays about three taps away. Apple may read that too; removing it hurts every web
+  « Vous êtes un salon ? ». So sign-up stays two taps from each of the five (the logo, then « Inscrire mon salon » in
+  home's footer) and one from home. Apple may read that too; removing it hurts every web
   visitor and the owner kept it.
 
 **Known, and not acted on:**
@@ -487,7 +513,7 @@ the row is small; store billing is weeks (`app-store-forms.md` §2.4 (b)). No se
 
 The audit's overkill list. Each was considered and left out on purpose:
 
-- **The logo and breadcrumb home links** on the five pages (decision 3). Home is three taps from sign-up and removing them hurts every visitor. The direct links are the exposure.
+- **The logo and breadcrumb home links** on the five pages (decision 3). Home is one tap from sign-up and the five pages two, and removing them hurts every visitor. The direct links are the exposure.
 - **Bare `/app/*` copies of the legal pages.** New URLs in the binary and in App Store Connect, for what the path rule covers.
 - **The end-card tool change, its self-tests and mutations, and the S4 retake.** For 0.0.2.
 - **A staged reshoot** for « Total », dates, chips and blank mask rows. Not approval issues.

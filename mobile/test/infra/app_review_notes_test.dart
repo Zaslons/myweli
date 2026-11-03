@@ -72,6 +72,8 @@ import '../support/dart_source.dart';
 /// pages carry no registration link » is true only once the web is live and
 /// read (the spec's §12 step 2), and the IPA check is a script the owner's build
 /// runs, not one this test runs. It checks the script's lists, not the binary.
+/// And an instruction with no verb of signing up, « visit our site », is out of
+/// [sendsToTheSite]'s sight: a person reads these texts before they go.
 void main() {
   final doc = File('../docs/design/app-store-forms.md').readAsStringSync();
   final play = File('../docs/design/play-store-forms.md').readAsStringSync();
@@ -367,10 +369,13 @@ void main() {
       ];
     }
 
-    /// Telling somebody to go and register on the site: the two sentences the
-    /// notes for build 698 had are the controls below.
+    /// Telling somebody to go and register on the site, in either order: the
+    /// two sentences the notes for build 698 had are the controls below.
+    /// « salon accounts are created … on the MyWeli website » is the agreed
+    /// wording, and `\bcreate\b` is why it passes: it states a fact.
     final sendsToTheSite = RegExp(
-      r'\b(create|register|sign up)\b[^.]*\b(myweli\.com|website)\b',
+      r'\b(create|register|sign up)\b[^.]*\b(myweli\.com|website)\b|'
+      r'\b(myweli\.com|website)\b[^.]*\b(create|register|sign up)\b',
       caseSensitive: false,
     );
 
@@ -406,8 +411,18 @@ void main() {
         isTrue,
         reason: 'the control: what the notes for build 698 said',
       );
+      expect(
+        sendsToTheSite.hasMatch('open myweli.com and create a salon account'),
+        isTrue,
+        reason: 'the control: the same instruction, the other way round',
+      );
       final notes = notesOf(pasteAnchor);
-      for (final word in const ['S’inscrire', "S'inscrire", 'Pas encore de']) {
+      for (final word in const [
+        'S’inscrire',
+        "S'inscrire",
+        'Pas encore de',
+        '/pro/inscription',
+      ]) {
         expect(notes, isNot(contains(word)), reason: word);
       }
       expect(notes, isNot(contains(sendsToTheSite)));
@@ -478,6 +493,7 @@ void main() {
         'S’inscrire sur myweli.com',
         'Pas encore de compte',
         '/pro/inscription',
+        '/pro/salons/nouveau',
       ]) {
         expect(gone, contains(word), reason: word);
       }
@@ -495,6 +511,12 @@ void main() {
       ]) {
         expect(witnesses, contains(Uri.parse(url).path), reason: url);
       }
+    });
+
+    test('the reply says the film ends on a frame that is not a capture', () {
+      // The owner accepted the end card knowingly (the spec's §13), and said to
+      // state it: a reply that drops it hopes the reviewer does not notice.
+      expect(block(replyAnchor), contains('end frame'));
     });
 
     test('the replies wait for the real build number', () {

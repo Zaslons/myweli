@@ -238,6 +238,71 @@ void main() {
         node.label,
     ];
 
+    /// What can be read, line by line: every paragraph on the screen, a
+    /// `Text`, a `Text.rich` or a bare `RichText`, a field's label and hint
+    /// included. docs/design/app-review-round-2.md §4.1: « No new copy on the
+    /// login screen ». [actions] cannot see a sentence with no tap, and the word
+    /// lists only know the words they name, so « Créez-le en ligne » passed both.
+    /// An `Icon` is a paragraph too, of one glyph, so those are left out.
+    ///
+    /// Three values move, so they are generalised and the words around them are
+    /// not: the resend countdown, the invitation's date, and the mock's salon
+    /// and role.
+    Set<String> sentences(WidgetTester tester) {
+      final icons = find.descendant(
+        of: find.byType(Icon),
+        matching: find.byType(RichText),
+      );
+      final glyphs = tester.widgetList(icons).toSet();
+      return {
+        for (final paragraph in tester.widgetList<RichText>(
+          find.byType(RichText),
+        ))
+          if (!glyphs.contains(paragraph))
+            paragraph.text
+                .toPlainText()
+                .replaceFirst(RegExp(r'\(\d+s\)$'), '(Ns)')
+                .replaceFirst(RegExp(r'^Expire le .+$'), 'Expire le …')
+                .replaceFirst(
+                  RegExp(r'^.+ vous invite comme .+$'),
+                  '… vous invite comme …',
+                ),
+      };
+    }
+
+    /// §4.1, each step's words. Only the mock sends « Code (dev) »: it is the
+    /// server's `devCode`, which production never answers.
+    Set<String> optionsSentences() => {
+      'Espace Pro',
+      'Connectez-vous à votre espace salon.',
+      'Continuer avec Google',
+      if (defaultTargetPlatform == TargetPlatform.iOS) 'Continuer avec Apple',
+      'ou',
+      'Votre e-mail',
+      'exemple@email.com',
+      'Continuer avec e-mail',
+    };
+    Set<String> codeSentences(String email, {required String count}) => {
+      'Espace Pro',
+      'Entrez le code reçu par e-mail à $email.',
+      'Code à 6 chiffres',
+      count,
+      'Code (dev) : ${MockAuthService.demoOtp}',
+      'Se connecter',
+      'Renvoyer le code (Ns)',
+      'Changer d’e-mail',
+    };
+    const invitationSentences = {
+      'Espace Pro',
+      'Vous êtes invité(e)',
+      'Rejoignez l’équipe — aucun salon à créer.',
+      '… vous invite comme …',
+      'Expire le …',
+      'Rejoindre',
+      'Refuser',
+      'Retour',
+    };
+
     Future<void> toCodeStep(WidgetTester tester, String email) async {
       await tester.pumpWidget(app());
       await settle(tester);
@@ -301,6 +366,7 @@ void main() {
       await settle(tester);
 
       expect(actions(), unorderedEquals(optionsActions()));
+      expect(sentences(tester), optionsSentences());
       expectNoPrompt();
       expect(launched, isEmpty);
     });
@@ -312,6 +378,10 @@ void main() {
 
       expect(find.text('Se connecter'), findsOneWidget);
       expect(actions(), unorderedEquals(codeActions));
+      expect(
+        sentences(tester),
+        codeSentences('inconnu@salon.test', count: '0/6'),
+      );
       expectNoPrompt();
       expect(launched, isEmpty);
     });
@@ -324,6 +394,7 @@ void main() {
 
       expect(find.text('Vous êtes invité(e)'), findsOneWidget);
       expect(actions(), unorderedEquals(['Rejoindre', 'Refuser', 'Retour']));
+      expect(sentences(tester), invitationSentences);
       expectNoPrompt();
       expect(launched, isEmpty);
     });
@@ -337,6 +408,7 @@ void main() {
 
       expect(find.text(kNoProAccountMessage), findsOneWidget);
       expect(actions(), unorderedEquals(optionsActions()));
+      expect(sentences(tester), {...optionsSentences(), kNoProAccountMessage});
       expectNoPrompt();
       expect(launched, isEmpty);
     });
@@ -390,6 +462,10 @@ void main() {
       expectNoPrompt();
       // The same actions as before the refusal: the sentence brought none.
       expect(actions(), unorderedEquals(codeActions));
+      expect(sentences(tester), {
+        ...codeSentences('inconnu@salon.test', count: '6/6'),
+        kNoProAccountMessage,
+      });
 
       // Reading it is all it does.
       await tester.ensureVisible(sentence);
