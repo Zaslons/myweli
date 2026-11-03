@@ -102,7 +102,9 @@ class AppConfig {
   ///
   /// With [supportUrl] below, these are ALL the pages of our site the Pro app
   /// opens. Apple refused « any other links to your site » on build 698, and
-  /// that test fails on a sixth: docs/design/app-review-round-2.md §4.
+  /// that test fails on a sixth: docs/design/app-review-round-2.md §4. So does
+  /// `web/tests/store-linked-pages.test.tsx`, which reads this file, for either
+  /// app: these are the pages the web keeps free of sign-up links (§5).
   static String get privacyUrl => '$siteBaseUrl/politique-confidentialite';
   static String get termsUrl => '$siteBaseUrl/cgu';
   static String get legalNoticeUrl => '$siteBaseUrl/mentions-legales';

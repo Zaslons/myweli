@@ -297,7 +297,7 @@ Left-aligned with the band. The wording stays as tests hold it.
 ### 7.8 Header and footer
 
 - **Header:** lockup, « Espace pro », bell, « Mon compte », same links, a black rule under it.
-- **Footer:** large wordmark, then the same three link groups and the same `rel="me"` links, on the grid.
+- **Footer:** large wordmark, then the same three link groups and the same `rel="me"` links, on the grid. **Two groups on the five pages the apps open** ([app-review-round-2.md](app-review-round-2.md) §5).
 
 ### 7.9 `/pro/*`
 

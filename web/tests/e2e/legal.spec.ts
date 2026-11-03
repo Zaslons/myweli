@@ -18,6 +18,7 @@ import { expect, test } from '@playwright/test';
 /// `type-overflow.spec.ts` covers `/suppression-compte` at 375px. This file
 /// covers what those two cannot see: that the document is *there*, that it says
 /// when it was last updated, and that its structured data parses.
+/// `store-linked-pages.spec.ts` covers what these pages must no longer link to.
 
 const LEGAL: [slug: string, h1: RegExp][] = [
   ['/politique-confidentialite', /Politique de confidentialité/i],

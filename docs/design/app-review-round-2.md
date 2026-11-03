@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | Approved 2026-11-03 (owner: §3, five decisions) · build, upload and resubmission are the owner's go (§12). **The app's half is built** on `fix/app-review-round2` (§4, §10): not merged, not in any build, not seen on a device |
+| **Status** | Approved 2026-11-03 (owner: §3, five decisions) · build, upload and resubmission are the owner's go (§12). **The app's half (§4, §10) and the web's half (§5) are built** on `fix/app-review-round2`: not merged, not in any build, not live, not seen on a device |
 | **Owner** | Sadreddine Daher |
 | **Last updated** | 2026-11-03 |
 | **PRD ref / phase** | FR-PRO-AUTH-001 (registration on the web only) · V1 |

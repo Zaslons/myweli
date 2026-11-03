@@ -10,7 +10,17 @@ import { HeaderBell } from './HeaderBell';
 /// right, where every booking platform puts it (Jakob's law). From `sm` up:
 /// at 320–375 px the lockup, it, the bell and « Mon compte » do not fit one
 /// line; phones reach it through the footer group and the home band.
-export function Header({ fullWidth = false }: { fullWidth?: boolean }) {
+///
+/// `salonDoor` is off on the five pages the apps open, where it is not rendered at
+/// all: a link hidden by CSS is still in the HTML (docs/design/app-review-round-2.md
+/// §5). The logo still goes home.
+export function Header({
+  fullWidth = false,
+  salonDoor = true,
+}: {
+  fullWidth?: boolean;
+  salonDoor?: boolean;
+}) {
   return (
     <header className="border-b border-primary">
       <nav className={`${fullWidth ? SITE_EDGE : SITE_CONTAINER} flex items-center justify-between py-s`}>
@@ -26,12 +36,14 @@ export function Header({ fullWidth = false }: { fullWidth?: boolean }) {
           />
         </Link>
         <div className="flex items-center gap-m">
-          <Link
-            href="/professionnels"
-            className="-my-s hidden min-h-12 items-center text-labelLarge font-medium text-textPrimary hover:text-textSecondary sm:inline-flex"
-          >
-            Espace pro
-          </Link>
+          {salonDoor ? (
+            <Link
+              href="/professionnels"
+              className="-my-s hidden min-h-12 items-center text-labelLarge font-medium text-textPrimary hover:text-textSecondary sm:inline-flex"
+            >
+              Espace pro
+            </Link>
+          ) : null}
           <HeaderBell />
           <Link
             href="/mon-compte"
