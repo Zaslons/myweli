@@ -424,6 +424,12 @@ COPY of committed work.
 | What the web pages carry | No mobile test reaches the web | §5.2 and the post-merge `curl` |
 | A new link to the site in the **consumer** app | The guard reads Pro's closure only | §5.2's cross-surface test reads `app_config.dart` and all of `mobile/lib` |
 
+**The review of 2026-11-03 fooled the guard's first version**, and that is why it reads as above. Five mutants
+passed every pin and compiled to a product binary holding the link: a block-body getter, a top-level getter in
+`app_config.dart`, a second base literal, a domain built from a const, a getter re-pointed through `Uri.resolve`.
+A `Link` widget and a sentence with no tap on the login passed too. Each is red now, and each of the new checks has
+a mutation only it catches; the commit that closes that round lists them.
+
 **Web**: §5.2.
 
 **The film**: `test_scenes.Storyboard.test_the_film_is_full_bleed_because_apple_refused_the_framed_one`, watched red on the old
