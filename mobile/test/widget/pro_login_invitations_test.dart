@@ -17,7 +17,7 @@ import '../support/pump_app.dart';
 /// Team access R3 §2.2 — the login « Invitations » step: an invited email
 /// signs in with the NORMAL flow, sees the card instead of « compte
 /// introuvable », joins with the proven identity, or declines back to the
-/// classic register fallback.
+/// no-account sentence.
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -116,7 +116,8 @@ void main() {
 
   // docs/design/pro-app-login-only.md §4.2 (B0.11, App Store 3.1.1): the
   // app no longer offers « Créer un compte » — the last refusal ends on the
-  // one no-account sentence, the web sign-up link below as everywhere.
+  // one no-account sentence, with no link below it
+  // (docs/design/app-review-round-2.md §4).
   testWidgets('« Refuser » on the last card ends on the no-account sentence, '
       'with no way to create an account in the app', (tester) async {
     await reachInvitationsStep(tester);
@@ -127,7 +128,7 @@ void main() {
     expect(find.text('Vous êtes invité(e)'), findsNothing);
     expect(find.text('Créer un compte'), findsNothing);
     expect(find.text(kNoProAccountMessage), findsOneWidget);
-    expect(find.text('S’inscrire sur myweli.com'), findsOneWidget);
+    expect(find.text('S’inscrire sur myweli.com'), findsNothing);
   });
 
   testWidgets('« Retour » clears the step without touching the invitation', (

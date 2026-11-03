@@ -3,7 +3,7 @@
 /// Which field an e-mail sign-in step's refusal belongs to — the app's copy of
 /// the web's table (`web/lib/auth/otp-failure.ts`, `codeRefusal` and
 /// `sendRefusal`; web-client-polish.md §2.1, owner decision Q1). The client
-/// sign-in, the salon sign-in and the salon sign-up share it.
+/// sign-in and the salon sign-in share it.
 ///
 /// A refusal that is the code's goes UNDER the code field, the e-mail's under
 /// the e-mail; everything else — a rate limit, a suspended account, no
@@ -12,8 +12,8 @@
 /// under the field: the same server answer said in two places.
 library;
 
-/// « Se connecter » / « S'inscrire »: the code's fault, or null when the
-/// refusal is not the code's.
+/// « Se connecter »: the code's fault, or null when the refusal is not the
+/// code's.
 ///
 /// `invalid_input` is the server's word for a code that is not 4 to 8 digits:
 /// a wrong code, not « Numéro ou code invalide. » on a step with no number.

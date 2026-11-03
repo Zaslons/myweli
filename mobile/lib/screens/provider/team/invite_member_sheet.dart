@@ -231,7 +231,7 @@ class _InviteMemberSheetState extends State<InviteMemberSheet> {
               //
               // A sentence and nothing else: no « choose / change your offer »
               // button for `offer_required` or `seat_limit` — the Pro app never
-              // sells (App Store 3.1.3(f), docs/design/pro-companion-path.md
+              // sells (App Store 3.1.1, docs/design/pro-companion-path.md
               // §2.2). And because this is a live region, the sentence itself
               // is what VoiceOver reads: it must be neutral too.
               InlineFeedback(

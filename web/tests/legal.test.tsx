@@ -398,10 +398,11 @@ describe('lib/legal.ts is the single source of truth', () => {
 
   it('the slugs mobile hard-codes are the slugs that exist', () => {
     // `AppConfig.privacyUrl` and friends build these paths into the app binary,
-    // and **no mobile test can reach the web** — so this list and
+    // and no mobile test can reach the web — so this list and
     // `mobile/lib/core/config/app_config.dart` are one contract reviewed in one
-    // PR, and this is the web half of it. Change a slug here and you must change
-    // it there, in the same commit.
+    // PR, and this is the web half of it. `store-linked-pages.test.tsx` reads the
+    // Dart half against the same paths. Change a slug here and you must change it
+    // there, in the same commit.
     expect(LEGAL_ROUTES.map((r) => r.slug).sort()).toEqual([
       '/cgu',
       '/mentions-legales',

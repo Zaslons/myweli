@@ -42,7 +42,8 @@ abstract class AuthServiceInterface {
   Future<ApiResponse<void>> deleteAccount();
 
   // Pro auth overhaul (docs/design/pro-auth-social.md) — LOGIN-ONLY (a salon
-  // is never auto-created; `provider_not_found` → offer registration).
+  // is never auto-created; `provider_not_found` → one sentence, and no way to
+  // register from here: docs/design/app-review-round-2.md §4).
   // Team access R3: a verified identity with PENDING invitations comes back
   // as [ProviderLoginResult.invited] (the 202 bridge) instead of the 404;
   // Apple has no bridge in the contract (never `.invited`).

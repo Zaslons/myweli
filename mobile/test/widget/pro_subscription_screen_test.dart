@@ -40,7 +40,7 @@ class _SwitchableSubs implements SubscriptionServiceInterface {
 }
 
 /// « Mon abonnement » is READ-ONLY — the Pro app never sells (App Store
-/// 3.1.3(f), docs/design/pro-companion-path.md §2.2): each state shows the
+/// 3.1.1, docs/design/pro-companion-path.md §2.2): each state shows the
 /// salon's current offer and nothing that chooses, switches, promotes or
 /// points to where an offer is obtained. The key tests run on BOTH platforms
 /// (`TargetPlatformVariant`): the rule is not a platform branch, and the

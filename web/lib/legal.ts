@@ -18,11 +18,10 @@
 /// `registered` is flipped.
 ///
 /// **`LEGAL_ROUTES` is half of a cross-surface contract.** `AppConfig.privacyUrl`
-/// and its three siblings build these exact paths into the mobile binary, and
-/// **no mobile test can reach the web** — so this list and
-/// `mobile/lib/core/config/app_config.dart` are reviewed together, in one PR.
-/// `tests/legal.test.tsx` pins the slugs so at least the web half cannot move
-/// silently.
+/// and its three siblings build these exact paths into the mobile binary. No mobile
+/// test can reach the web, so this list and `mobile/lib/core/config/app_config.dart`
+/// are reviewed together, in one PR. `tests/legal.test.tsx` pins the slugs, and
+/// `tests/store-linked-pages.test.tsx` reads that Dart file against the same paths.
 ///
 /// Consumed by: the four `app/*/page.tsx`, `components/SiteFooter.tsx`,
 /// `app/sitemap.ts`, and `backend/lib/src/slug.dart`'s `reservedPublicSlugs`

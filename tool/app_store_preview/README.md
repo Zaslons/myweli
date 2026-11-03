@@ -4,7 +4,9 @@ Turns a raw iOS Simulator recording into the App Preview shown before the
 screenshots on the App Store: « Geste après geste », French, portrait,
 886 × 1920, 30 frames per second, 15 to 30 s.
 
-The film is specified in `docs/design/pro-app-preview.md`. This tool is the
+The film is specified in `docs/design/pro-app-preview.md`. **What goes on the
+store is version 2, in the full-bleed frame** (« Version 2 — the film in
+full-bleed », below): Apple refused the framed cut on 2026-11-03. This tool is the
 sibling of `tool/app_store_screenshots/`: the same paper, mark, type, card,
 border and shadow — imported from it, not copied — with a live capture in the
 card instead of a still.
@@ -42,7 +44,7 @@ the same command with `--variant dry-run` writes `preview-rehearsal.mp4`.
 | `swift/Inspect.swift` | AVFoundation's reading of a written file; decodes frames and sound for `verify`. |
 | `swift/TestClip.swift` | Tests only: writes synthetic takes and films that are wrong on purpose. |
 | `tests/` | The self-tests, and `mutations.py`, which breaks each check in turn and watches a test go red. |
-| `storyboard-scenes.json` | **The film** — version 2, the film of scenes (« option 3 »): S1, S2, S3, S6, S4 and the end card, framed, cut from the takes of 2026-10-14; S6 from the keyed take5b with the salon's phone masked. Chosen by the owner on 2026-10-14 (« Version 2 — the film », below). Until then it was `storyboard-scenes-alt-s6.json`, an alternative. |
+| `storyboard-scenes.json` | **The film** — version 2, the film of scenes (« option 3 »): S1, S2, S3, S6, S4 and the end card, **in the full-bleed frame since 2026-11-03**, cut from the takes of 2026-10-14; S6 from the keyed take5b with the salon's phone masked. Chosen by the owner on 2026-10-14, framed (« Version 2 — the film », below), then refused by Apple in that frame (« Version 2 — the film in full-bleed »). Until then it was `storyboard-scenes-alt-s6.json`, an alternative. |
 | `storyboard-scenes-alt-s5.json` | The alternative, marked rehearsal: the five-scene cut (S5 in, S6 out) that was `storyboard-scenes.json` until the owner chose. Not the film. |
 | `storyboard-scenes-demo.json` | A demonstration of version 2 on the rehearsal take: two scenes and the end card. Marked rehearsal. |
 | `scenes.py` | Version 2's plan: the scenes, their runs, the declared dissolve, the joins, the end card, the poster — and every refusal. Inside a scene it runs version 1's own rule (`edit.check_take`). |
@@ -657,8 +659,10 @@ of the frame. Version 2 builds a film of **scenes**, each cut from its
 own take, joined by a short cross-dissolve and closed by an end card.
 Version 1 (`build`, `storyboard.json`) is unchanged and still works.
 
-**The film is `storyboard-scenes.json`** in the framed frame, chosen by the
-owner on 2026-10-14 (« Version 2 — the film », below). Every other
+**The film is `storyboard-scenes.json`** in the **full-bleed** frame: the owner
+chose the cut on 2026-10-14, framed (« Version 2 — the film », below), Apple refused
+that frame on 2026-11-03, and the owner chose the full-bleed cut (« Version 2 — the
+film in full-bleed »). A test holds `film.frame`. Every other
 storyboard of scenes is marked rehearsal, and a test holds it so.
 
 ```
@@ -668,6 +672,10 @@ python3 tool/app_store_preview/preview.py film \
     --out build/app-store/pro/preview/v2/<name> [--frame framed|full-bleed]
 python3 tool/app_store_preview/preview.py film-verify <out>/preview.mp4
 ```
+
+`--frame framed` on the film's storyboard still works, for the record: it writes
+`preview.mp4` and calls it « the film », with `"frame": "framed"` in `build.json`.
+That is the film Apple refused. Do not upload it.
 
 Outputs, as version 1's: `preview.mp4` (`preview-rehearsal.mp4` for a
 storyboard marked `"rehearsal": true`), `poster.png`, `contact-sheet.png`,
@@ -759,7 +767,8 @@ stretch by times that is not whole frames); `E_TAKE`, `E_TOUCH`,
 
 ### The two frames (`film.frame`, or `--frame`)
 
-- **framed** — the stills' frame (paper, mark, Poppins headline, Inter
+- **framed** — **refused by Apple under 2.3.4 on 2026-11-03: not for a preview.** The
+  stills' frame (paper, mark, Poppins headline, Inter
   sub-line, the rounded card with its border and shadow), the card moved up
   into the sub-line's place and grown down to the stills' own 80-px margin
   (81 after rounding the card to the capture's shape):
@@ -948,6 +957,9 @@ Both: PASS — 25 checks; busiest second 10.61 Mbit (framed) and 12.67
 
 ### Version 2 — the film (2026-10-14)
 
+*2026-11-03: Apple refused this frame; the next section says what replaced it. What follows
+is the record of 2026-10-14.*
+
 The owner watched three cuts on 2026-10-14 and chose the framed
 alternative with the salon's public page: « cut 1, and it is good as it
 is ». It is now **`storyboard-scenes.json`, the film** (its `_chosen` note
@@ -1008,13 +1020,63 @@ The builds of the five-scene storyboard from before the choice,
 `v2/framed/` and `v2/full-bleed/`, were made when it was
 `storyboard-scenes.json`: their `build.json` still says « the film »
 (sha256 `0765290f…` and `ee3fe363…`, 27.5 s). They are not the film; do
-not upload them.
+not upload them. Nor is `v2/final/` any more: it is the framed film Apple
+refused (below).
+
+### Version 2 — the film in full-bleed (2026-11-03)
+
+App Review refused the framed film on build 698 under 2.3.4: « Includes framing
+around the video screen capture of the app. » The owner chose the full-bleed cut of
+the same storyboard and takes, as rendered, knowing that it still ends on a paper card,
+that Revenus says « Total » where the app says « Total réalisé », and that a third
+rejection is possible (`docs/design/app-review-round-2.md` §3 decision 2, §13;
+`docs/design/pro-app-preview.md` §0.6).
+
+**`film.frame` is `full-bleed`, the one value changed in the storyboard** (`_frame` says
+why; `_spec`, `_chosen` and `_poster` still read as they did on 2026-10-14), and
+`test_scenes.Storyboard.test_the_film_is_full_bleed_because_apple_refused_the_framed_one`
+holds it. So `preview.py film` with no `--frame` builds what goes in the slots. No take,
+no plan and no composed frame changed.
+
+**The file to upload is the one the owner was shown**:
+`build/app-store/pro/preview/candidate-full-bleed/preview-full-bleed.mp4`, 14,309,442 bytes,
+sha256 `b34bac542f99579a3d94e0693b3f75437f516202d27666c77f6280d5c286e724`. It was rendered with `--frame full-bleed` on the storyboard
+before this change.
+
+**Rendered again from the commit**, from a private export and with no `--frame`: « PASS — 25 checks »,
+at the build's step 9 and in a separate `film-verify` (exit 0); sha256
+`8d5af02c6bfcd381cd248272bebd1a4ccefe4bf1082d741d1ebcbc4e81aa100d`. **Frame-identical, not byte-identical**:
+
+- same size; **22 bytes differ**: 20 in the creation and modification times of `mvhd`, both `tkhd`
+  and both `mdhd`, 2 in the first key frame's user-data SEI (`47564adc…`), as on 2026-10-14;
+- all 862 frames decode to the same bytes, through `ffmpeg` (`framemd5`, `yuv420p` and `rgb24`) and
+  through AVFoundation (BGRA, hashed); control: 802 neighbouring frames differ under that comparison;
+- the sound decodes the same, packet for packet;
+- `film.json`, `frames/` (the 348 distinct composed frames) and `masks.json` are the same files as
+  the candidate's build;
+- `ffprobe`, independently: H.264 High, level 40, 886 × 1920, 30/1, 862 frames, 28.733 s; AAC LC,
+  48 kHz, 2 channels.
+
+Busiest second 22.59 Mbit, written at a quantiser ceiling of 16 (43.72 at 10), and 3.98 Mbps on
+average: the capture fills the frame, so there is more to write than in the card.
+
+**The poster in App Store Connect is `00:00:13:00`, frame 390**, which reads the same however Apple
+counts its last field (« The poster's time code », above). The tool's own poster for this frame stays
+S3, 0.5 s in: frame 397, 13.233 s, `film.poster["full-bleed"]`, unchanged, and `cuts.txt` says the
+time code cannot name it. Both are one picture: frames 382 to 412 are one composed frame
+(`f_000382.png`), the client's card at rest, its number masked, under the top band. Decoded frame 390
+is 55.6 dB from `poster.png`, worst block 3.6 levels, by `verify.compare_images`, run by hand for this
+note; the checks themselves only read frame 397 (56.9 dB, 3.6).
+
+**Left for 0.0.2**: a retake on the current build with no end card. See B0.8.
 
 ### Known limits of version 2
 
 - A dissolve or a join between two takes blends two pictures that may not
   line up (an app bar in the same place, a list a few points off): it reads
   as a cut that breathes, which is what it is.
+- **The 25 checks read the file's format and its masks, not App Review's rules.** The
+  framed film Apple refused passed the same 25.
 - What a scene must never show (sign-in, an offer, a system alert…) is not
   read by the tool: it is a matter of the take, of looking at
   `contact-sheet.png`, and of reading every decoded frame.
@@ -1073,7 +1135,9 @@ the film's storyboard is not a rehearsal and every other one is; a poster
 frame 17 ms after the app's last change is accepted when the next frames
 show its picture until one is at rest, refused when the next frame shows
 another; the walk stops at a dissolve and at the scene's end; the time code
-on a whole second and off it.
+on a whole second and off it. For the refusal (2026-11-03:
+`test_scenes.Storyboard.test_the_film_is_full_bleed_because_apple_refused_the_framed_one`):
+the film's storyboard says `full-bleed` and takes that frame's own poster.
 
 `mutations.py` breaks each check in the code in turn — every refusal
 silenced, every verification made to pass, numbers and comparisons bent, the
@@ -1101,5 +1165,6 @@ refusal added to the code without being watched.
   take, except for a `--rehearsal` shot that has no footage: that one is a
   hold the edit list places, held to order and spacing only.
 - The film is tagged Rec. 709 and its frames are sRGB values (« The file »).
-- Whether App Store Connect accepts pure digital silence, this bit rate, or a
-  brand frame around the capture is not known until a file is uploaded.
+- Whether App Store Connect accepts pure digital silence or this bit rate is not known
+  until a file is uploaded. *The framed cut of 2026-10-14 processed with both. App
+  Review then refused the brand frame around the capture under 2.3.4, on 2026-11-03.*

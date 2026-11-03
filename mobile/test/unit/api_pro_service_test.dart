@@ -744,7 +744,7 @@ void main() {
     });
   });
 
-  // The Pro app never sells (App Store 3.1.3(f)): a refusal states a fact and
+  // The Pro app never sells (App Store 3.1.1): a refusal states a fact and
   // points nowhere. Design: docs/design/pro-companion-path.md §2.2.
   group('publish and « Ajouter un salon » refusals are neutral', () {
     Future<({String? error, String? code})> publish(

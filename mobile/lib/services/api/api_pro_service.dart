@@ -282,7 +282,7 @@ class ApiProService implements ProServiceInterface {
       // The gate's `missing` keys — `offer` gets its own code. The server
       // starts the trial at the first publish, so only an EXPIRED offer
       // lands here: the sentence states that and points nowhere (App Store
-      // 3.1.3(f) — docs/design/pro-companion-path.md §2.2). The screen
+      // 3.1.1 — docs/design/pro-companion-path.md §2.2). The screen
       // carries the same sentence and falls back to this one elsewhere.
       List<dynamic> missing = const [];
       try {

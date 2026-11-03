@@ -139,7 +139,7 @@ void main() {
       'server starts the trial at the first publish (pro-companion-path)', () {
     // The checklist used to end on « Choisissez votre offre » / « 3 mois
     // offerts » and block « Mettre mon profil en ligne » until a choice was
-    // made. The Pro app no longer offers a choice (App Store 3.1.3(f)), so a
+    // made. The Pro app no longer offers a choice (App Store 3.1.1), so a
     // gate on one would be a dead end it could not explain.
     final steps = build();
     expect(

@@ -572,6 +572,11 @@ MANUAL = [
      S + "Storyboard.test_the_film_is_storyboard_scenes_and_every_other_storyboard_of_scenes_a_rehearsal"),
     ("scenes", "storyboard-scenes-demo.json", '"rehearsal": true', '"rehearsal": false',
      S + "Storyboard.test_the_film_is_storyboard_scenes_and_every_other_storyboard_of_scenes_a_rehearsal"),
+    # the film is full-bleed: Apple refused the framed one under 2.3.4 (2026-11-03)
+    ("scenes", "storyboard-scenes.json", '"frame": "full-bleed",', '"frame": "framed",',
+     S + "Storyboard.test_the_film_is_full_bleed_because_apple_refused_the_framed_one"),
+    ("scenes", "storyboard-scenes.json", '      "full-bleed": {\n        "scene": "S3",', '      "full-bleed": {\n        "scene": "S4",',
+     S + "Storyboard.test_the_film_is_full_bleed_because_apple_refused_the_framed_one"),
     ("scenes", "edit.py", "    for g in [g for g in tm.gestures if gestures is None or g.gesture in gestures]:",
      "    for g in tm.gestures:", S + "Refusals.test_the_proposal_is_accepted"),
 

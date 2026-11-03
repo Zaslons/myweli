@@ -62,7 +62,9 @@ const TOPICS = [
   },
   {
     q: 'Mon salon (professionnels)',
-    a: 'Mise en ligne, équipe, offre et facturation. Indiquez le nom du salon.',
+    // No offer and no billing: the app opens this page, and Apple refused « any other
+    // links to your site » that lead to a purchase (app-review-round-2.md §5).
+    a: 'Mise en ligne et équipe. Indiquez le nom du salon.',
     subject: 'Mon salon',
   },
 ] as const;
