@@ -129,13 +129,59 @@ test.describe('the spellings of a path', () => {
     expect((await anchorPaths(page)).filter(toSalons)).toEqual([]);
   });
 
-  for (const url of ['/%63gu', '/mentions%2Dlegales']) {
+  for (const [url, title] of [
+    ['/%63gu', 'Conditions générales'],
+    ['/mentions%2Dlegales', 'Mentions légales'],
+  ]) {
     test(`${url}, percent-encoded, is the same page and no link comes back on load`, async ({ page }) => {
       const errors = collectHydrationErrors(page);
-      await page.goto(url);
+      const res = await page.goto(url);
       await page.waitForLoadState('networkidle');
-      await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+      // The page itself, by status and title: a 404 has an h1 too, and reading one would
+      // say nothing about these five.
+      expect(res?.status()).toBe(200);
+      await expect(page.getByRole('heading', { level: 1 })).toContainText(title);
       expect((await anchorPaths(page)).filter(toSalons)).toEqual([]);
+      expect(errors).toEqual([]);
+    });
+  }
+
+  /// **`next start` answers `/cgu%2F` with a 404, and production with the static page**, so
+  /// reading it plainly here would read a 404 and prove nothing. The page itself is what
+  /// goes wrong: HTML rendered for `/cgu`, hydrating under an address that says `/cgu%2F`.
+  /// So this harness answers it the way Vercel does. Only a read of the live site can say
+  /// that Vercel still does.
+  test('/cgu%2F, answered as production answers it: no link comes back on load', async ({ page, request }) => {
+    const prerendered = await request.get('/cgu');
+    expect(prerendered.status()).toBe(200);
+    await page.route(
+      (url) => url.pathname === '/cgu%2F',
+      (route) => route.fulfill({ response: prerendered }),
+    );
+    const errors = collectHydrationErrors(page);
+    await page.goto('/cgu%2F');
+    await page.waitForLoadState('networkidle');
+    expect(new URL(page.url()).pathname, 'the address hydration reads, or this tests /cgu').toBe('/cgu%2F');
+    await expect(page.getByRole('heading', { level: 1 })).toContainText('Conditions générales');
+    expect((await anchorPaths(page)).filter(toSalons)).toEqual([]);
+    expect(await page.getByText('Espace pro', { exact: true }).count()).toBe(0);
+    expect(errors).toEqual([]);
+  });
+
+  /// The other side of that decode: a 404 is not one of the five, so its links stay.
+  for (const url of ['/cgu%2Fx', '/x%2Fcgu', '/supports%2F']) {
+    test(`${url} is a 404 and keeps the ordinary links`, async ({ page }) => {
+      await page.setViewportSize({ width: 820, height: 1180 });
+      const errors = collectHydrationErrors(page);
+      const res = await page.goto(url);
+      await page.waitForLoadState('networkidle');
+      expect(res?.status()).toBe(404);
+      await expect(page.getByRole('heading', { level: 1 })).toContainText('Page introuvable');
+      await expect(page.getByRole('banner').getByRole('link', { name: 'Espace pro' })).toBeVisible();
+      const group = page.getByRole('navigation', { name: 'Professionnels' });
+      expect(await group.getByRole('link').evaluateAll((all) => all.map((a) => a.getAttribute('href')))).toEqual(
+        SALON_PATHS,
+      );
       expect(errors).toEqual([]);
     });
   }

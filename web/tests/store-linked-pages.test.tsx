@@ -92,6 +92,48 @@ describe('isStoreLinkedPage: exact, whatever the spelling', () => {
     },
   );
 
+  it.each(
+    STORE_LINKED_PATHS.flatMap((p) => {
+      const bare = p.slice(1);
+      return [`/${bare}%2F`, `/%2F${bare}`, `/${bare}%5C`, `/%5C${bare}`];
+    }),
+  )('%s: yes, an encoded slash or backslash at either end, and the server answers it with the same page', (path) => {
+    expect(isStoreLinkedPage(path)).toBe(true);
+  });
+
+  /// Read on myweli.com, each answered 200 with /cgu: the separators come in runs, in either
+  /// case of hex, beside bare ones, and with the rest of the path encoded too.
+  it.each([
+    '/cgu%2f',
+    '/%2fcgu',
+    '/cgu%5c',
+    '/%5ccgu',
+    '/%2Fcgu%2F',
+    '/%5Ccgu%5C',
+    '/%2F%2Fcgu',
+    '/cgu%2F%2F',
+    '/%2F%5Ccgu',
+    '/cgu%5C%2F',
+    '/%5C%5Ccgu',
+    '/cgu%2F%5C%2F',
+    '/%2F/cgu',
+    '/cgu/%2F',
+    '/%5C/cgu',
+    '/cgu/%5C',
+    '/%2F/%2Fcgu',
+    '/%5C/%2F/cgu',
+    '/cgu/%2F/%5C',
+    '/%63gu%2F',
+    '/%2F%63gu',
+    '/%63gu%5C',
+    '/\\cgu',
+    '/cgu\\',
+    '/cgu%2F?a=b',
+    '/%5Ccgu#top',
+  ])('%s: yes, the same page again', (path) => {
+    expect(isStoreLinkedPage(path)).toBe(true);
+  });
+
   it.each([
     '',
     '/',
@@ -109,12 +151,62 @@ describe('isStoreLinkedPage: exact, whatever the spelling', () => {
     '/support/x',
     '/CGU',
     '/%63gux',
-    '/%2Fcgu',
-    '/cgu%2F',
     '/%zz',
     '/%E0%A4%A',
+    '/cgu%2F%zz',
   ])('%s: no', (path) => {
     expect(isStoreLinkedPage(path)).toBe(false);
+  });
+
+  /// Read on myweli.com: the home page for the first two, a 404 for the rest. **Decoding a
+  /// separator must not turn one of these into one of the five**, because a 404 keeps the
+  /// ordinary links. A prefix match, a second decode or a slash stripped from the middle
+  /// each fail here.
+  it.each([
+    '/%2F',
+    '/%5C',
+    '/cgu%2Fx',
+    '/x%2Fcgu',
+    '/cgu%5Cx',
+    '/x%5Ccgu',
+    '/supports%2F',
+    '/%2Fsupports',
+    '/cgux%5C',
+    '/CGU%2F',
+    '/%43GU',
+    '/cgu%252F',
+    '/%252Fcgu',
+    '/cgu%255C',
+    '/%255Ccgu',
+    '/.%2Fcgu',
+    '/%2E%2Fcgu',
+    '/x%2F..%2Fcgu',
+    '/cgu%2F.',
+    '/cgu%5C.',
+    '/.%5Ccgu',
+    '/cgu%20',
+    '/%20cgu',
+    '/cgu%09',
+    '/cgu%0A',
+    '/cgu%3F',
+    '/cgu%3Fa=b',
+    '/cgu%23',
+    '/cgu%3B',
+    '/cgu%2C',
+    '/%EF%BC%8Fcgu',
+    '/cgu%EF%BC%8F',
+    '/%C0%AFcgu',
+  ])('%s: no, the server does not answer it with one of the five', (path) => {
+    expect(isStoreLinkedPage(path)).toBe(false);
+  });
+
+  /// A visitor can put a run this long here with `%2F`, on a page rendered on demand. The
+  /// budget is far from both sides: under a millisecond when linear, seconds when quadratic.
+  it('stays linear on a long run of separators', () => {
+    const run = '/'.repeat(100_000);
+    const start = performance.now();
+    for (const path of [`${run}x`, `/x${run}x`, `/cgu${run}x`, `${run}cgu${run}`]) isStoreLinkedPage(path);
+    expect(performance.now() - start).toBeLessThan(500);
   });
 });
 
@@ -164,7 +256,7 @@ describe.each(FIVE)('%s, as the server renders it', (path, Page) => {
 
 /// The control. Without it « no link » is also what a footer that lost its group
 /// everywhere would report, and that is the owner's other choice, the one refused.
-describe.each(['/', '/recherche', '/professionnels', '/connexion', '/cgu/x', '/supports'])(
+describe.each(['/', '/recherche', '/professionnels', '/connexion', '/cgu/x', '/supports', '/cgu%2Fx', '/x%2Fcgu', '/supports%2F', '/cgu%252F'])(
   '%s keeps everything',
   (path) => {
     it('« Espace pro » in the header', () => {
@@ -181,6 +273,20 @@ describe.each(['/', '/recherche', '/professionnels', '/connexion', '/cgu/x', '/s
       for (const label of ['Liens légaux', 'Réseaux sociaux']) {
         expect((page.querySelector(`nav[aria-label="${label}"]`) as Element).className).toContain('lg:pt-xxl');
       }
+    });
+  },
+);
+
+/// The predicate above, through the two components that read it: the form the browser
+/// holds on a hydrated page, the one the server's prerender never saw.
+describe.each(['/cgu%2F', '/%2Fsupport', '/mentions-legales%5C', '/%5Csuppression-compte', '/%2F%5Cpolitique-confidentialite'])(
+  '%s, as the browser holds it',
+  (path) => {
+    it('renders no salon link and no salon word', () => {
+      const page = serve(path);
+      expect(hrefs(page).filter(toSalons)).toEqual([]);
+      expect(page.body.textContent).not.toContain('Espace pro');
+      expect(page.querySelector('nav[aria-labelledby="footer-pro"]')).toBeNull();
     });
   },
 );
