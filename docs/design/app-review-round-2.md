@@ -154,9 +154,21 @@ distance on all sides, with no stray gap. The one baseline that shows the screen
 Store Connect's Support and Privacy URLs: `/support`, `/politique-confidentialite`,
 `/cgu`, `/mentions-legales`, `/suppression-compte`.
 
+**Why these five and no others.** They are all the pages of our site the binary
+holds (`AppConfig`'s five getters, §10's guard), and they cannot leave it: privacy
+(5.1.1(i)) and support (1.5) are required, the deletion page is what the stores ask
+for, and CGU and mentions légales are the owner's call (§14). From each of them,
+sign-up was one tap away and the offers one screen further (§2 finding 3), which is
+what « any other links to your site that could indirectly provide access to external
+purchase mechanisms » describes. No other page is in the binary or on the listing, and
+those are where salons look for the door, so they keep it.
+
+**What the owner accepted.** A salon reading one of these five pages loses the shortcut
+to its Espace pro and to sign-up. It goes through the logo and home's band instead (§13).
+
 | On those five | Before | After |
 |---|---|---|
-| Header | « Espace pro » → `/professionnels` (from `sm` up) | Gone. Logo → `/`, the bell and « Mon compte » stay |
+| Header | « Espace pro » → `/professionnels` (from `sm` up) | Gone, at every width. Logo → `/`, the bell and « Mon compte » stay |
 | Footer | Group « Professionnels »: « MyWeli Pro pour les salons », « Inscrire mon salon », « Connexion Espace pro » | Gone. The legal and social groups stay |
 | Breadcrumb | « Accueil » → `/` | Unchanged |
 | `/support` body | « Mise en ligne, équipe, offre et facturation. Indiquez le nom du salon. » | « Mise en ligne et équipe. Indiquez le nom du salon. » |
@@ -164,33 +176,55 @@ Store Connect's Support and Privacy URLs: `/support`, `/politique-confidentialit
 **Every other page is unchanged**, including `/`, `/professionnels` and `/connexion`.
 The `/support` wording changes for everyone, since it is that page's body.
 
+**The bodies, read for this spec, need nothing else.** No link to `/pro/*` or
+`/professionnels` and no price in any of the five. Their links go to `/`, to each other,
+to `/mon-compte` and `/mon-compte/donnees` (the client's account), and to `mailto:` and
+`wa.me`. The sentences about professionals (CGU §7, the privacy policy, the deletion page)
+are about data and duties, and name no offer. **No legal wording changes here**: the privacy
+policy's text needs the owner's approval before it goes live (D3), and this slice has no
+need to touch it.
+
+**Left alone, knowingly:**
+
+- **« Mon compte » in the header.** Signed out it lands on `/connexion`, which keeps its
+  footer group, so it is the same distance from sign-up as the logo. Decision 3 keeps both.
+- **The install banner.** It shows on the five when a store URL is configured, and leads to
+  a store listing, not to our site. Decision 3 does not name it.
+- **Home's band** (`ProBand`) only renders on `/`.
+
 ### 5.1 How
 
-- One list and one predicate, e.g. `web/lib/storeLinkedPages.ts`:
-  `isStoreLinkedPage(pathname)`, exact match on the five. Not a prefix. Its comment
-  says why (this spec) and that the mobile half is `AppConfig`'s five getters.
-- **Header**: `SiteChrome` is already a client component reading `usePathname`; it
-  passes one prop to `Header`, whose default keeps « Espace pro ».
-- **Footer**: `SiteFooter` is a server component, deliberately (its comment refuses
-  a hydration boundary « to hide four links »). That reason yields to Apple's
-  sentence, and the comment says so. The group moves to a small client island that
-  reads `usePathname` and holds `PRO_LINKS` itself.
+- One list and one predicate, `web/lib/storeLinkedPages.ts`: `isStoreLinkedPage(pathname)`,
+  exact match on the five, whatever trailing slash or query it is handed. Not a prefix. Its
+  comment says why (this spec) and that the mobile half is `AppConfig`'s five getters.
+- **Header**: `SiteChrome` is already a client component reading `usePathname`; it passes one
+  prop to `Header`, whose default keeps « Espace pro ». Not rendered, rather than hidden by
+  CSS: a hidden link is still in the HTML a reviewer's tools read.
+- **Footer**: `SiteFooter` stays a server component. Its comment refused a hydration boundary
+  « to hide four links »; that reason yields to Apple's sentence, and the comment says so. The
+  three groups move to one small client leaf, `FooterGroups`, which reads `usePathname` and
+  holds `PRO_LINKS` itself. The legal and social lists arrive as props, rendered on the server,
+  the way `FooterMark` takes its wordmark.
 
 **Two traps, both of which the deployed-artifact check must catch:**
 
 1. **The links must not travel to these pages as props.** Passing the rendered group
    as `children` to a client wrapper serializes every `href` into the page's RSC
    payload: no visible link, but `/pro/inscription` in the HTML of the page that
-   claims not to have it. The island holds the list.
+   claims not to have it. The leaf holds the list, so the check reads the raw HTML as
+   well as the anchors.
 2. **`lg:pt-xxl` belongs to the group.** The legal and social groups drop by the
-   height of the salons' title so that all three lists start on one line
-   (`SiteFooter.tsx`). With the group gone that drop is a stray gap, and the two
-   groups should start at the columns' top. Look at it at `lg`.
+   height of the salons' title so that all three lists start on one line. With the group
+   gone that drop is a stray gap, and the two groups start at the columns' top. It is why
+   one leaf holds all three: the drop has to know whether the title is there. They keep
+   their columns (`lg:col-span-4`), so they stay on the site's grid, and the third is empty.
 
 The pages stay static: no `headers()`, no `cookies()` in the layout, which would make
 every page dynamic to hide four links. `usePathname` renders on the server for a
 static page, so the HTML a `curl` reads must already be clean; that is the claim to
-check, not an assumption.
+check, not an assumption. It also moves on a client navigation, which a server-side check
+would not: a visitor who arrives on `/` and follows « Conditions d’utilisation » sees the
+links go, and back.
 
 Update `web-pro-access.md` P1 and P2 (the door has five exceptions) and the header's
 comment in the same PR. `Header`'s and `SiteFooter`'s tests in
@@ -198,17 +232,30 @@ comment in the same PR. `Header`'s and `SiteFooter`'s tests in
 
 ### 5.2 Web tests, red first
 
-- Unit: each of the five paths hides both; a control path on each side (`/`,
-  `/professionnels`, `/cgu/x`, `/supports`) keeps both. An exact-match bug is the
-  realistic one.
-- e2e at an iPad width, where the header link is visible: on each of the five, no
-  anchor to `/professionnels`, `/pro/inscription` or `/pro/connexion`; the logo and
-  breadcrumb still go home; the four legal links and the social group remain
-  (`legal.spec.ts`). Control: `/` still has all three.
-- A source pin: `/support` has no « facturation » or « offre ».
-- The class these cannot see: a **new** sign-up link in the body of one of the five.
-  The e2e reads anchors site-wide on the page rather than the two components, so a
-  body link is caught too; say so in its name.
+- **Unit**, `web/tests/store-linked-pages.test.tsx`:
+  - the predicate: each of the five with a trailing slash and a query, and controls on each
+    side (`/`, `/professionnels`, `/cgu/x`, `/supports`, `/pro/connexion`). An exact-match
+    bug is the realistic one;
+  - **the server's render** (`renderToString`) of the chrome, the page and the footer, for each
+    of the five: no link to `/professionnels`, `/pro/inscription`, `/pro/connexion`, the logo and
+    breadcrumb go home, the legal and social groups remain. Control: `/` and `/recherche` have
+    all three;
+  - `/support`, rendered: no « facturation », « offre », « abonnement », « tarif » or « FCFA »;
+  - the drop: `lg:pt-xxl` beside the group, none without it.
+- **The cross-surface test**, in the same file, reads the Dart: every `'$siteBaseUrl/…'` in
+  `mobile/lib/core/config/app_config.dart` is in the five and every one of the five is there; any
+  other use of `siteBaseUrl`, in that file or anywhere in `mobile/lib`, and any other `myweli.com`
+  string but the API's host, fails. **So a new app link to the site fails CI until it is classified**,
+  on the consumer app as well as Pro. CI's web job has no path filter, so it runs on a mobile-only PR.
+- **e2e**, `web/tests/e2e/store-linked-pages.spec.ts`, at an iPad width and a phone width, on the
+  built app:
+  - on each of the five, **the raw HTML** has none of the three paths or the words of the links
+    (trap 1), and **every anchor on the page** has none of the three, so that a sign-up link added to
+    a body fails too; no hydration error; the logo and breadcrumb go home; the four legal links and
+    the social group remain. Control: `/` and `/recherche`;
+  - `/cgu/` and `/cgu?utm_source=x` behave as `/cgu`;
+  - a client navigation from `/` to `/cgu` and back moves the links;
+  - at `lg` the lists start where the salons' title starts on `/` (trap 2).
 
 ## 6. The review notes and the reply
 
@@ -337,6 +384,7 @@ COPY of committed work.
 | An existing outbound call re-pointed at a third party | The inventory counts calls; it does not read URLs, most of them being `tel:`, `wa.me` or a map | The domain and getter checks still see our site; a third party is a judgement for review |
 | A sentence that points at the site past the word list | A word list is a word list (« notre site », « site web », « navigateur », …) | Review; the widget tests see a new action on sign-in whatever it says |
 | What the web pages carry | No mobile test reaches the web | §5.2 and the post-merge `curl` |
+| A new link to the site in the **consumer** app | The guard reads Pro's closure only | §5.2's cross-surface test reads `app_config.dart` and all of `mobile/lib` |
 
 **Web**: §5.2.
 
