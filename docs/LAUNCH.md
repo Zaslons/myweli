@@ -52,6 +52,8 @@ questions none of our gates can answer:
      587 (0.0.1) is in App Review. `release_build.sh` built every one, so they
      carry the DSN; whether an event from a store build has reached Sentry is
      not recorded here.)*
+     *(2026-11-03: Apple refused 587, and then its replacement 698 that day. The
+     next build of 0.0.1 is not made yet: [design/app-review-round-2.md](design/app-review-round-2.md).)*
    Uptime checks on `/health` and a database-backed route are live and alerting
    to a human, verified against real probe data
    (§5.2, [design/observability-error-reporting.md](design/observability-error-reporting.md)).
@@ -245,6 +247,8 @@ starts. Concretely:
   *(2026-10-22: billing reopened on 2026-10-06 and production was restored;
   build 587 was submitted and is in App Review, its release set to manual —
   BACKLOG B0.1.)*
+  *(2026-11-03: Apple refused 587, and then 698; the next submission waits on the
+  owner — [design/app-review-round-2.md](design/app-review-round-2.md) §12.)*
 - The consumer app and Android keep their places in the order.
 
 The form-by-form packet, the rebuild commands and the owner's ordered
@@ -1094,7 +1098,9 @@ checking rather than assuming:
 > (app-store-forms.md §11.1). The App Store Connect record **exists** — Apple
 > ID 6805272779, SKU myweli-pro, verified read-only in App Store Connect
 > (app-store-forms.md §3). The 3.1.1 decision is **taken**: path (a), the
-> free companion app of guideline 3.1.3(f), on **both** apps — no plan choice
+> free companion app of guideline 3.1.3(f) *(2026-11-03: the product decision
+> stands and that guideline is no longer cited, its list being closed:
+> [design/pro-companion-path.md](design/pro-companion-path.md) §1)*, on **both** apps — no plan choice
 > in the Pro app on iOS or Android, the trial starting at a salon's first
 > publish when it never chose ([design/pro-companion-path.md](design/pro-companion-path.md),
 > built 2026-10-05). PR #550 is merged (`f6ffb585`). **Still owner-side:**

@@ -159,6 +159,9 @@ None.
 
 - Lands on main and **ships with 0.0.2**. Build 698, under review, is not
   touched, so app-store-forms §13.3's reply still describes what Apple has.
+  *(2026-11-03: all three clauses are overtaken. B0.14 is on `main`, so it ships in
+  the next build of 0.0.1; Apple refused 698 that day; and §13.3 now describes the
+  new build: [app-review-round-2.md](app-review-round-2.md) §6.)*
 - Nothing to change in App Store Connect.
 
 ## 10. Questions — answered

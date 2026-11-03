@@ -17,7 +17,7 @@ import 'mock_data.dart';
 /// touched — exactly the pre-R6 single-salon behavior every existing test
 /// drives.
 ///
-/// Nothing here chooses an offer: the app never does (App Store 3.1.3(f)).
+/// Nothing here chooses an offer: the app never does (App Store 3.1.1).
 /// The one write is [startTrialIfAbsent], the server's publish-time trial
 /// start mirrored for `MockProService.publishSalon`.
 /// Design: docs/design/pro-companion-path.md §3.1 / §5.

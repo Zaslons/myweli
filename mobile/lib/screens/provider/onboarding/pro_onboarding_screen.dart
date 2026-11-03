@@ -51,7 +51,7 @@ class _ProOnboardingScreenState extends State<ProOnboardingScreen> {
     // The server starts the trial at the first publish, so `offer_required`
     // now means the salon's offer EXPIRED. The bar states that and carries
     // NO action: it used to open the offer picker (« Choisir »), which the
-    // Pro app no longer has (App Store 3.1.3(f) — docs/design/
+    // Pro app no longer has (App Store 3.1.1 — docs/design/
     // pro-companion-path.md §2.2). Any other refusal — the demo account's
     // lock included — shows the service's sentence.
     final offerInactive =

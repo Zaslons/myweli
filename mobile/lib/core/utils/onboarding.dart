@@ -82,7 +82,7 @@ List<OnboardingStep> buildOnboardingChecklist({
     // No offer step. The server starts the salon's trial at its first
     // successful publish, so a salon with no offer goes live like any other
     // — and the Pro app never asks for a choice it may not offer (App Store
-    // 3.1.3(f), docs/design/pro-companion-path.md §2.2).
+    // 3.1.1, docs/design/pro-companion-path.md §2.2).
   ];
 }
 
