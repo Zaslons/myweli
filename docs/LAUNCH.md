@@ -53,7 +53,9 @@ questions none of our gates can answer:
      carry the DSN; whether an event from a store build has reached Sentry is
      not recorded here.)*
      *(2026-11-03: Apple refused 587 on 2026-10-19 and its replacement, 698, on
-     2026-11-03. The next build of 0.0.1 is not made yet:
+     2026-11-03. The next build of 0.0.1, 719, was made the same night by the same
+     script and carries the DSN (2 occurrences in the binary, compared without
+     printing). It is uploaded and in TestFlight, not attached or submitted:
      [design/app-review-round-2.md](design/app-review-round-2.md).)*
    Uptime checks on `/health` and a database-backed route are live and alerting
    to a human, verified against real probe data
@@ -1279,12 +1281,22 @@ checking rather than assuming:
 > iPad Air) cited the framing around the film's capture, and the sign-in's « S'inscrire
 > sur myweli.com », with « remove features, account registration links, and any other
 > links to your site… ». So the link kept knowingly above is gone, on iOS and Android. **The
-> answer is built on `fix/app-review-round2` and is not merged** (BACKLOG B0.16, decisions 71–76,
+> answer was built on `fix/app-review-round2` and merged the same day, below** (BACKLOG B0.16, decisions 71–80,
 > [app-review-round-2.md](design/app-review-round-2.md)): no link on the sign-in; the five pages
 > the app opens without the salon links; the full-bleed cut of the film, its end card and « Total »
 > an accepted risk; review notes without 3.1.3(f); a focused device pass. **Web merges are production
-> deploys: the five pages go live at merge, and the build comes after. No production backend deploy**
+> deploys: the five pages went live at the merge, and the build came after. No production backend deploy**
 > (decision 47): no step needs one. Until the next « Add for Review », B0.1's constraints are lifted.
+>
+> **2026-11-03, night — #731 merged, the web live, build 719 in TestFlight; not resubmitted.** Squash
+> `713114a5` at 22:25:58 UTC, all 13 checks green; Vercel's production deployment of it succeeded. Read live
+> at 22:37:15 UTC with an iPad user agent, the five pages hold 0 of `/professionnels`, `/pro/inscription`,
+> `/pro/connexion`, `/pro/salons/nouveau` and « facturation »; `/` and `/connexion` still hold the links (the
+> limits of that read: the spec's §13). Build **719**, from `713114a5`: IPA read, validated, uploaded, `VALID`,
+> read as French, the only build in « Équipe MyWeli », symbols and a release on Sentry (app-store-forms §11.3,
+> §11.5). Version 0.0.1 is still `REJECTED`, release `MANUAL`, **698 still attached**.
+> **Not done:** the device pass, the film, the description (decision 79), attaching 719, the notes, the
+> reply, « Add for Review ». The backend is not deployed.
 
 - [ ] Everything in [mobile-store-submission.md](design/mobile-store-submission.md) §5.
       Two of its claims are **stale as of 2026-08-18** and must be corrected

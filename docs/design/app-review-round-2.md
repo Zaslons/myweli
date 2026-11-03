@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | Approved 2026-11-03 (owner: §3, five decisions) · build, upload and resubmission are the owner's go (§12). **The app's half (§4, §10), the web's half (§5), the texts for Apple (§6, §7), the film's storyboard (§8) and the record are done** on `fix/app-review-round2`: not merged, not in any build, not live, not pasted, not uploaded, not seen on a device. The owner approved the notes, the description and the reply on 2026-11-03 (decision 77) |
+| **Status** | Approved 2026-11-03 (owner: §3, five decisions) · build, upload and resubmission are the owner's go (§12). **The app's half (§4, §10), the web's half (§5), the texts for Apple (§6, §7), the film's storyboard (§8) and the record are merged (#731, squash `713114a5`, 2026-11-03). The web is live and read. Build 719 is built, read, uploaded, `VALID` and in TestFlight** (§12). **Not done:** the device pass, the film, the description, attaching 719, the notes, the reply and the resubmission; version 0.0.1 is still `REJECTED`, with 698. The backend is not deployed. The owner approved the notes, the description and the reply on 2026-11-03 (decision 77), and corrected the description the same day (decision 79) |
 | **Owner** | Sadreddine Daher |
 | **Last updated** | 2026-11-03 |
 | **PRD ref / phase** | FR-PRO-AUTH-001 (registration on the web only) · V1 |
@@ -78,6 +78,9 @@ In their own words, from the question they answered. They bind everything below.
 Also decided: stop citing guideline 3.1.3(f) in anything sent to Apple; rewrite
 the review notes; the owner approves the notes' wording and sends the Resolution
 Center reply themselves. **No production backend deploy** (decision 47).
+
+*Two more the same day, after the independent check:* decision 79 (« Correct both », the description, §7) and
+decision 80 (« Accept it », the pricing page, §13). Both are in BACKLOG §2.
 
 ## 4. The app — the removal
 
@@ -181,8 +184,10 @@ The `/support` wording changes for everyone, since it is that page's body.
 
 **The bodies, read for this spec, need nothing else.** No link to `/pro/*` or
 `/professionnels` and no price in any of the five. Their links go to `/`, to each other,
-to `/mon-compte` and `/mon-compte/donnees` (the client's account), and to `mailto:` and
-`wa.me`. The sentences about professionals (CGU §7, the privacy policy, the deletion page)
+to `/mon-compte` and `/mon-compte/donnees` (the client's account), and to `mailto:`. *Corrected on
+2026-11-03: this also named `wa.me`. `/support`'s code draws a `wa.me` link only when
+`NEXT_PUBLIC_MYWELI_WHATSAPP` is set at build (`web/lib/support.ts`), and the read of the deployed pages
+found none on any of the five.* The sentences about professionals (CGU §7, the privacy policy, the deletion page)
 are about data and duties, and name no offer. **No legal wording changes here**: the privacy
 policy's text needs the owner's approval before it goes live (D3), and this slice has no
 need to touch it.
@@ -287,12 +292,14 @@ statically, with 0 hits for the three paths, « Espace pro » and « facturation
 an iPad user agent; `/`, `/recherche`, `/connexion` and `/professionnels` still have them. First Load JS
 is unchanged on the five (132 kB). Looked at from 375 to 1920: the header ends on « Mon compte », the two
 groups sit under the wordmark, and the third column is empty. Red first and mutations: the commit messages.
+*Read on myweli.com after the merge, on 2026-11-03: §12, with its limits.*
 
 ## 6. The review notes and the reply
 
 `app-store-forms.md` §8 stays the one paste block, and its weight is recounted
 (`app_review_notes_test.dart` fails if the « Poids » sentence lies). **The owner
 approves the wording** (done on 2026-11-03, decision 77); nothing is pasted before §12 step 2.
+*Step 2 is done; still nothing is pasted: §12 step 6 comes after the device pass and the film.*
 
 Four passages change, now in the block:
 
@@ -318,7 +325,7 @@ Four passages change, now in the block:
   populated salon. »
 
 **« those pages carry no link to salon registration » is true only once §5 is live and checked**
-(§12 step 2). It says what those pages carry. It does not say the site is out of reach:
+(§12 step 2; *checked on 2026-11-03, §12*). It says what those pages carry. It does not say the site is out of reach:
 the logo still goes home and « Mon compte » reaches the client's sign-in (§5), and the notes must
 not imply otherwise. The review measured that route, which is why the sentence names salon
 registration and not « a registration link ».
@@ -331,11 +338,12 @@ the notes « describe how accounts work in the app », since they say nothing of
 **TestFlight's « What to Test »** loses the sign-up wording. **The IPA check** (§11.3)
 flips: « S’inscrire sur myweli.com », « Pas encore de compte » and `/pro/inscription` move
 to the « gone » list; `kNoProAccountMessage` stays a witness, and the five paths join it; any sixth
-`https://myweli.com…` in the binary fails it. *Read on an unsigned build of this branch, with the API's
-defines: `OK`; the binary names the five pages and the API, nothing else of ours. Not the signed IPA, which
-is still step 4.* Build 698's record stays as history. **The prepared answer about Sign in with Apple** (§13.3) names the
+`https://myweli.com…` in the binary fails it. *Read first on an unsigned build of the branch, with the API's
+defines: `OK`; the binary names the five pages and the API, nothing else of ours. Then on the signed IPA of
+build 719, on 2026-11-03: `OK` on both lists (§12 step 4, `app-store-forms.md` §11.3).* Build 698's record stays as history. **The prepared answer about Sign in with Apple** (§13.3) names the
 new build's sentence and `<BUILD>`, since B0.14 is on `main` and ships in this build, and it now says
-Apple sign-in must be tried on the build first: this focused pass does not cover it. **`app_review_notes_test.dart`**
+Apple sign-in must be tried on the build first: this focused pass covers that only if its step 5 runs on the signed
+build, on a device signed in to an Apple account (§11). **`app_review_notes_test.dart`**
 holds it: no 3.1.3(f) in anything sent, no sign-up link or instruction in the notes, the sign-in steps
 in the words of the login screen, the description's counts, the IPA lists, no build number written in
 a reply.
@@ -348,15 +356,26 @@ Two edits to the description, the owner's text, done in `app-store-forms.md` §4
    publique se remplit depuis l'app. »
 2. Add, with no link: « MyWeli Pro s’adresse aux salons qui ont déjà un compte MyWeli et à
    leur équipe. » It follows the first sentence, on the same line: what the app is, then who it
-   is for. 1,061 characters, 1,102 bytes, 18 lines.
+   is for. 1,061 characters, 1,102 bytes, 18 lines at this step.
+
+**2026-11-03, after the independent check: decision 79, « Correct both ».** Two corrections to the same text, the
+owner's too. Neither refusal cited them.
+
+3. « Vue journée, semaine, et par membre d'équipe. » becomes « Vue journée et par membre d'équipe. » The journal has
+   a strip that picks a day, and no week view.
+4. « Conçu pour les réalités d'ici : FCFA, communes, à domicile, réseaux lents et petits téléphones. » loses
+   « à domicile, ». The word is at 0 in the binary, and in `mobile/lib` only in a comment.
+
+**1,039 characters, 1,079 bytes, 18 lines**, counted by script from the block.
 
 Counts in `app-store-forms.md` §4 (the table's row and the line under the block) and §13.1 are recounted by script. Name, subtitle,
 promotional text, keywords, copyright, support and privacy URLs and the 16 stills do not
 change. **The marketing URL stays empty** (recorded empty on 2026-10-13); §5 of the forms
 still proposes `https://myweli.com`, and that row is corrected. **The Play listing keeps its text**:
 decision 4 is about the App Store, and Play's is saved in its console. It was word for word the same,
-and `play_store_forms_test.dart` held that, so the guard now allows exactly these two edits and nothing
-else. Whether Play takes them is the owner's call (§16); the login's dead end is the same on Android.
+and `play_store_forms_test.dart` held that, so the guard now allows exactly these four edits and nothing
+else (two until decision 79), any of them taken being a repair. Whether Play takes them is the owner's call (§16); the
+login's dead end is the same on Android.
 
 ## 8. The film (decision 2)
 
@@ -365,13 +384,16 @@ else. Whether Play takes them is the owner's call (§16); the login's dead end i
   spec), 886×1920, 862 frames, 28.733 s. The same storyboard and takes as the framed cut,
   rendered with `--frame full-bleed`. The tool's 25 file checks pass; they read format and
   masks, not App Review's rules, and the rejected film passed the same 25.
-- **Poster**: 00:00:13:00. Set at reservation, read back: Apple ignored the time sent on the
+- **Poster**: 00:00:13:00. Set at reservation, read back on both slots: Apple ignored the time sent on the
   deprecated route (`app-store-forms.md` §13.1).
 - **Both iPhone slots.** The framed file sits in `IPHONE_DYNAMIC_ISLAND_MEDIUM_PROFILE` and
   `..._LARGE_PROFILE`. A placement cannot be edited: delete, create, read back. **Every size is
   read in « View All Sizes in Media Manager » before « Add for Review »**, as Apple's message
-  warns. A framed copy left in any size repeats what Apple just refused, so this is a gate and not a nicety.
-- **Media before submission**: Rejected allows media edits, Waiting for Review does not.
+  warns, and by the owner: it is a site view with no recorded API equivalent (§12 step 6). A framed copy left in any
+  size repeats what Apple just refused, so this is a gate and not a nicety.
+- **Media before submission**: Rejected allows media edits, Waiting for Review does not. *2026-11-03: that is what
+  the docs say of the state; there is no recorded precedent for these edits on a `REJECTED` version with an open
+  submission (§13).*
 - **The storyboard says full-bleed.** First written here as « the storyboard file stays as it is »;
   changed the same day so that the committed tool builds what goes in the slots. `film.frame` is the one
   value changed, with a dated `_frame` note and a self-test, watched red. **The candidate stays the file to
@@ -456,7 +478,7 @@ a mutation only it catches; the commit that closes that round lists them.
 
 **The film**: `test_scenes.Storyboard.test_the_film_is_full_bleed_because_apple_refused_the_framed_one`, watched red on the old
 storyboard. **The texts**: the last group of `mobile/test/infra/app_review_notes_test.dart` (§6), and `play_store_forms_test.dart`, which
-holds Play's description to the App Store's but for §7's two edits. They read documents and source. Whether a sentence is true of the build
+holds Play's description to the App Store's but for §7's four edits. They read documents and source. Whether a sentence is true of the build
 is the IPA check's and the device pass's to say.
 
 **The last two shapes, from the final check on `2b411154`.** Both stayed green on every pin, and both are red now, on a
@@ -483,8 +505,10 @@ stay on the list for 0.0.2.
    signed in and loads, the several requests at once that raced in production on 2026-10-11. **Warm:** leave it in the
    background past 15 minutes, come back, open « Clients » from « Accueil »; the list loads, still signed in. That tap matters:
    coming back alone sends the server nothing, and would prove nothing. What this proves is the silent refresh after expiry, in a signed
-   build. `main_pro.dart` mounts no plain `AuthProvider`, so of B9.13 it reaches only the shared code
-   (`RefreshingHttpClient`, `AccountScope`).
+   build. `main_pro.dart` mounts no plain `AuthProvider`. Of B9.13 it reaches `RefreshingHttpClient` and `AccountScope`,
+   `notifications_provider.dart` and `provider_provider.dart` (both mounted by `main_pro.dart`), `api_auth_service.dart`
+   and `session_ended_notice.dart`. *Corrected on 2026-11-03: this said « only the shared code (`RefreshingHttpClient`,
+   `AccountScope`) », which was too narrow.*
 4. **Restart, sign-out, sign-in.** Kill and reopen: restored. Sign out: Connexion. Reopen: still signed out. Sign in
    again: « Maison Nala » reloads (decision 78: a way back in after a way out, in one process, was not run).
 5. **One run on an iPad**, simulator if the owner has no iPad, since both rejections name one. Steps 1 and
@@ -492,7 +516,17 @@ stay on the list for 0.0.2.
    almost certainly Apple's hit with error 1000 on 698). Note which comes: a sign-in, « Aucun compte MyWeli Pro… », or B0.14's
    sentence. Cancelling Apple's sheet shows nothing, by design, so go through with it. The IPA and TestFlight do not install on a simulator, so that run is a
    separate debug build against production; the command is in `app-store-forms.md` §11.6, and the owner runs
-   it or asks Claude to. A simulator run proves the layout, not the signed build; say which was used.
+   it or asks Claude to. A simulator run proves the layout, not the signed build; say which was used. « works on build
+   <BUILD> » in the prepared answer (§6) needs the signed build, on a device signed in to an Apple account.
+
+**Two additions, the owner's (2026-11-03), and not in TestFlight's « What to Test »**, which is already written in
+App Store Connect and read back identical to the block in `app-store-forms.md` §11.5:
+
+- **In step 1, open « Accueil > Avis » on the demo account and report whether a review exists.** The notes mention
+  « Signaler », and it only shows on a review. If there is none, **the owner decides whether that sentence stands**; it
+  is still true of the app. Decision 77 approved the block as written, so it does not change without them.
+- **Read the Instagram profile's bio and report whether it links to salon sign-up.** The five pages keep the link to
+  that profile (§5).
 
 **It does not see, and this is not the owner's choice:** a session the server refuses (only the widget tests
 cover it, and a device cannot cheaply provoke it), and a second account on the same phone.
@@ -502,24 +536,50 @@ Reported by the owner, dated in §11.6: nothing in this repo observes a device.
 ## 12. Rollout
 
 **The web and the app land together, in one PR. The web is live at merge; the build comes after merge.**
-Nothing is merged, uploaded, pasted or sent except by the owner's go.
+Nothing is merged, uploaded, pasted or sent except by the owner's go. *On 2026-11-03 steps 1 to 4 ran as written
+below; steps 5 to 7 have not.*
 
 | # | Step | Who |
 |---|---|---|
-| 1 | The PR: this spec, the app, the web, the notes block, CI green, goldens on Linux | Claude, then the owner's review |
-| 2 | Merge. **The web is live.** `curl` the five paths with an iPad user agent and read them: no `/professionnels`, `/pro/inscription`, `/pro/connexion`; control: `/` still has them | Owner merges; Claude checks |
-| 3 | Hold other merges (dependabot included) until the build is made. Build from `main`: `./tool/release_build.sh ios pro`, which refuses a dirty tree or a HEAD that is not `origin/main`. Version stays 0.0.1; the build number is `git rev-list --count HEAD`, so `<BUILD>` is read from the IPA, not predicted | Claude, on the owner's go |
-| 4 | Read the IPA (§11.3, flipped: §6). Upload, wait for `VALID` | Claude, on the owner's go |
-| 5 | The device pass (§11) | Owner |
-| 6 | App Store Connect, in this order while the version is editable: the film in both slots, read back in Media Manager (§8); the description (§7); the build; the notes, wording approved (§6) | Owner approves; API or owner |
-| 7 | The Resolution Center reply and « Add for Review » | Owner only |
+| 1 | The PR: this spec, the app, the web, the notes block, CI green, goldens on Linux. **Done: #731** | Claude, then the owner's review |
+| 2 | Merge. **The web is live.** `curl` the five paths with an iPad user agent and read them: no `/professionnels`, `/pro/inscription`, `/pro/connexion`; control: `/` still has them. **Done 2026-11-03** | Planned: owner merges, Claude checks. Done: Claude merged on the owner's standing go, and checked |
+| 3 | Hold other merges (dependabot included) until the build is made. Build from `main`: `./tool/release_build.sh ios pro`, which refuses a dirty tree or a HEAD that is not `origin/main`. Version stays 0.0.1; the build number is `git rev-list --count HEAD`, so `<BUILD>` is read from the IPA, not predicted. **Done 2026-11-03: 719** | Claude, on the owner's go |
+| 4 | Read the IPA (§11.3, flipped: §6). Upload, wait for `VALID`. **TestFlight:** « Équipe MyWeli » holds this build only, not in « Testeurs externes », and « What to Test » written from `app-store-forms.md` §11.5 and read back. **Sentry:** symbols and release, read back on the server. **All done 2026-11-03** | Claude, on the owner's go |
+| 5 | The device pass (§11), with the owner's two additions. **Not run** | Owner |
+| 6 | App Store Connect, in this order while the version is editable: the film in both slots, with the poster read back on both, **and the owner reads « View All Sizes in Media Manager »**, a site view with no recorded API equivalent (§8); the description (§7, with decision 79); the build; the notes, wording approved (§6). **The film goes first, and any refusal stops the sequence before the build, the notes or the reply are touched** (§13). **Not done** | Owner approves; API or owner; the Media Manager read is the owner's |
+| 7 | The Resolution Center reply and « Add for Review ». **Not done** | Owner only |
 | 8 | While in review: B0.1 applies (no `DEMO_PROVIDER_CODE` rotation, no Cloudflare change, same-day answers) | Both |
 
 **No production backend deploy** (decision 47): no step needs one, and the next one switches the Apple keys
 on, whatever its reason. **Web merges are production deploys**, so during review the five pages are not edited.
 
-The stale-doc sweep (BACKLOG, LAUNCH, PRD, `pro-app-login-only.md`'s body) is on this branch too, with §8's notes, the
-tests and this spec. So one PR carries it all.
+The stale-doc sweep (BACKLOG, LAUNCH, PRD, `pro-app-login-only.md`'s body) landed in #731 too, with §8's notes, the
+tests and this spec, so one PR carried it all. This record of the merge and of build 719 is a separate docs change on
+top of it, and touches no page.
+
+**What steps 1 to 4 read, on 2026-11-03.** All observed; what was not observed is under the limits.
+
+- **The merge.** #731, squash-merged by Claude on the owner's standing go as `713114a5`
+  (`713114a56d1a8aeac576a39e423c5a51c1ed3607`) at 22:25:58 UTC, all 13 checks green on head `b45f5cd1`. The first run of
+  « Mobile — iOS builds » never got a runner (cancelled after 15 minutes, « not acquired by Runner », 0 steps), and the
+  re-run passed at 21:47 UTC. The previous commit's iOS run passed, and nothing under `mobile/` outside `test/` changed
+  between them.
+- **The live read.** Vercel's production deployment of `713114a5` reported success. Read at 22:37:15 UTC with an iPad
+  user agent: on each of the five, `/professionnels`, `/pro/inscription`, `/pro/connexion`, `/pro/salons/nouveau` and
+  « facturation » are at 0. Before the merge `/cgu` had 4, 3 and 3 of the first three. Controls after: `/` has 4, 1, 1 and
+  `/connexion` has 2, 1, 1. An independent read: identical bytes across iPad, iPhone and desktop user agents, and rendered
+  in Chromium at 375, 820 and 1280 with 0 salon links and 0 errors. Real Safari, on an iPad Air 11-inch (M3) simulator at
+  about 23:17 UTC: the header of `/support` and of `/cgu` ends on « Mon compte », `/support`'s footer holds only legal
+  links and Instagram, and `/` shows « Espace pro », the control.
+- **The two taps.** 84 of 84 one-tap landings and 135 of 135 two-tap routes confirmed: salon registration is two taps
+  from the five, never one. « Mon compte » lands on `/connexion?returnTo=/mon-compte`, through a client-side gate.
+- **The build, the upload, TestFlight, Sentry.** Build 719 from `713114a5` at 22:30 UTC, `altool` validation succeeded,
+  the IPA read, delivery `4eb50f72-f6d1-4ca2-ad6a-e5e544fdb25f`, `VALID`, `buildBundles.locales` `["fr"]`; « Équipe
+  MyWeli » holds 719 only, `IN_BETA_TESTING`; 6 of 6 debug IDs read back on Sentry: `app-store-forms.md` §11.3, §11.5,
+  §12.
+- **The limits.** Only `/support` and `/cgu` were looked at in Safari; the other three were read raw and rendered in
+  Chromium. Only the `lhr1` edge was reachable. `%2F` and `%5C` typed by hand bring the links back (§5.1).
+- **Still as it was.** Version 0.0.1 is `REJECTED`, release `MANUAL`, 698 attached. The backend is not deployed.
 
 ## 13. Accepted risks and the contingency
 
@@ -532,16 +592,31 @@ tests and this spec. So one PR carries it all.
   re-render cannot fix a take. The retake is for 0.0.2.
 - **A third rejection is possible**, and the review clock is days. The audit's pick was to ship no film; the owner chose
   this one after hearing that.
+- **The pricing page, two taps from the five pages (decision 80, « Accept it », 2026-11-03).** `/professionnels` is two
+  taps from them, as sign-up is, and reads « 3 mois offerts — sans carte bancaire », « Combien coûte MyWeli Pro ? » and
+  « l’offre Réseau », with no amount and no currency. Apple could still object.
 - **Salon visitors on the five pages lose the salon links.** The logo still goes home, and home's band still says
   « Vous êtes un salon ? ». So sign-up stays two taps from each of the five (the logo, then « Inscrire mon salon » in
   home's footer) and one from home. Apple may read that too; removing it hurts every web
-  visitor and the owner kept it.
+  visitor and the owner kept it. *Measured live on 2026-11-03: two taps, never one (§12).*
 
 **Known, and not acted on:**
 
-- **« Mon compte » on the five pages** reaches the client's sign-in in one tap, and salon sign-up from there in one more
-  (§5). It is not in decision 3, and the owner hears of it with the wording (§16).
-
+- **« Mon compte » on the five pages** reaches the client's sign-in in one tap (`/connexion?returnTo=/mon-compte`, through a
+  client-side gate), and salon sign-up from there in one more (§5). It is not in decision 3, and the owner hears of it with
+  the wording (§16).
+- **The Dynamic Island pill on every capture frame of the film.** The simulator recorder draws it; it is not around the
+  capture. The refused film had it too, and Apple cited only the framing. To decide at the 0.0.2 retake (B0.8).
+- **No recorded precedent on a `REJECTED` version with an open submission.** Replacing the film (delete and create a
+  placement), setting the poster at reservation and editing the description are inferred only. So the film goes first, and
+  any refusal stops the sequence before the build, the notes or the reply are touched. Read poster `00:00:13:00` back on
+  both slots.
+- **The limits of the real-WebKit read.** Only `/support` and `/cgu` were looked at in Safari, on an iPad Air 11-inch (M3)
+  simulator; the other three were read raw and rendered in Chromium. Only the `lhr1` edge was reachable (§12).
+- **`%2F` and `%5C`, typed by hand, bring the salon links back on the five** (§5.1). The app and App Store Connect use the
+  bare paths. A follow-up was offered to the owner as a separate task, and it does not merge during review.
+- **Play's description keeps both sentences decision 79 corrected** (« semaine » and « à domicile, »), saved in its
+  console: the owner has not decided on Play (§7, §16).
 - **5.1.1(ix)**, KYC under an individual seller: uncited twice. Fallback decided (B0.6: hide KYC and the deposit switch on
   iOS if cited).
 - **5.1.1(v)**, a reviewer cannot see a real deletion: the demo account refuses it by design. A recording taken during the
@@ -576,7 +651,9 @@ The audit's overkill list. Each was considered and left out on purpose:
 - [ ] `flutter analyze` 0, `dart format` clean, the design-token gates, the full mobile suite once; web lint, typecheck, unit, e2e, build.
 - [ ] Goldens on Linux; every changed PNG looked at; the rest byte-compared.
 - [ ] Notes wording approved by the owner; weight recounted; no 3.1.3(f) anywhere sent to Apple.
-- [ ] After merge: the five pages read live with a control (§12 step 2). The IPA read (§6). The device pass reported (§11).
+- [x] After merge: the five pages read live with a control (§12 step 2). *2026-11-03, with its limits.*
+- [x] The IPA read (§6). *Build 719, 2026-11-03.*
+- [ ] The device pass reported (§11).
 - [ ] Both iPhone slots read back with the new file and the poster before « Add for Review ».
 - [ ] Feature branch and PR. No Claude attribution of any kind. A roadmap entry.
 
@@ -595,5 +672,12 @@ were told, before answering:
 - no recording of a real deletion is attached unless Apple asks. « Any other account is deleted at that step » rests on code and
   tests, and the focused pass does not exercise it (§11).
 
-**Still open, and blocks nothing:** whether the Play listing takes the description's two edits (§7). It keeps the old text until
-Play comes up again.
+**Answered later the same day, after the independent check.** Decision 79, « Correct both »: the description loses « semaine » and
+« à domicile, » (§7); the notes and the reply stay as approved. Decision 80, « Accept it »: the pricing page stays two taps from
+the five pages (§13).
+
+**Open, and the owner's:** if the demo account has no review (§11, step 1's reading), whether the notes' « Signaler » sentence
+stands.
+
+**Still open, and blocks nothing:** whether the Play listing takes the description's four edits (§7, decisions 74 and 79). It keeps
+the old text until Play comes up again.
