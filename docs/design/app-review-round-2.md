@@ -449,6 +449,12 @@ storyboard. **The texts**: the last group of `mobile/test/infra/app_review_notes
 holds Play's description to the App Store's but for §7's two edits. They read documents and source. Whether a sentence is true of the build
 is the IPA check's and the device pass's to say.
 
+**The last two shapes, from the final check on `2b411154`.** Both stayed green on every pin, and both are red now, on a
+copy of `8dcf44fa`, analyzer 0, with the baseline green first. A sixth getter built on `termsUrl` in a block body is red on
+« the config names each of the five once ». `const SelectableText(…)` on the login is red on all ten scenarios that call
+`expectNoPrompt` (five, on both platforms); with the new line taken out of the test, that same mutant passes, so the line is
+what catches it.
+
 ## 11. The device pass (decision 5)
 
 « Focused pass » — on the build going to review, from TestFlight, on a real iPhone. It replaces
