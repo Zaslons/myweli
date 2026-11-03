@@ -1426,7 +1426,7 @@ propriétaire les rapporte, et ils sont datés ici : rien dans ce dépôt n'obse
 **Ce que cette passe ne voit pas, par choix du propriétaire** : un compte Apple neuf, le push
 réel, le KYC, le pivotement, la vraie suppression d'un compte. Ils restent à la 0.0.2.
 
-**Ce qu'elle ne voit pas non plus, sans que ce soit son choix** (relevé le 2026-11-03) : une
+**Ce qu'elle ne voit pas non plus, sans que le propriétaire l'ait choisi** (relevé le 2026-11-03) : une
 session que le serveur refuse (seuls les tests de widgets la couvrent, et un appareil ne peut
 pas la provoquer à peu de frais), et un deuxième compte sur le même téléphone.
 

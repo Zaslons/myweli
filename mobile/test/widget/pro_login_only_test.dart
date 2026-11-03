@@ -262,10 +262,10 @@ void main() {
             paragraph.text
                 .toPlainText()
                 .replaceFirst(RegExp(r'\(\d+s\)$'), '(Ns)')
-                .replaceFirst(RegExp(r'^Expire le .+$'), 'Expire le …')
+                .replaceFirst(RegExp(r'^Expire le .+$'), 'Expire le {date}')
                 .replaceFirst(
                   RegExp(r'^.+ vous invite comme .+$'),
-                  '… vous invite comme …',
+                  '{salon} vous invite comme {rôle}',
                 ),
       };
     }
@@ -296,8 +296,8 @@ void main() {
       'Espace Pro',
       'Vous êtes invité(e)',
       'Rejoignez l’équipe — aucun salon à créer.',
-      '… vous invite comme …',
-      'Expire le …',
+      '{salon} vous invite comme {rôle}',
+      'Expire le {date}',
       'Rejoindre',
       'Refuser',
       'Retour',
