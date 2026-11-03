@@ -186,8 +186,8 @@ The `/support` wording changes for everyone, since it is that page's body.
 `/professionnels` and no price in any of the five. Their links go to `/`, to each other,
 to `/mon-compte` and `/mon-compte/donnees` (the client's account), and to `mailto:`. *Corrected on
 2026-11-03: this also named `wa.me`. `/support`'s code draws a `wa.me` link only when
-`NEXT_PUBLIC_MYWELI_WHATSAPP` is set at build (`web/lib/support.ts`), and the read of the deployed pages
-found none on any of the five.* The sentences about professionals (CGU §7, the privacy policy, the deletion page)
+`NEXT_PUBLIC_MYWELI_WHATSAPP` is set at build (`web/lib/support.ts`), and a raw read of the five, on 2026-11-03 at 23:53 UTC
+with an iPad user agent, found none.* The sentences about professionals (CGU §7, the privacy policy, the deletion page)
 are about data and duties, and name no offer. **No legal wording changes here**: the privacy
 policy's text needs the owner's approval before it goes live (D3), and this slice has no
 need to touch it.
@@ -389,7 +389,7 @@ login's dead end is the same on Android.
 - **Both iPhone slots.** The framed file sits in `IPHONE_DYNAMIC_ISLAND_MEDIUM_PROFILE` and
   `..._LARGE_PROFILE`. A placement cannot be edited: delete, create, read back. **Every size is
   read in « View All Sizes in Media Manager » before « Add for Review »**, as Apple's message
-  warns, and by the owner: it is a site view with no recorded API equivalent (§12 step 6). A framed copy left in any
+  warns. It is a site view with no recorded API equivalent, so whoever does it reads it in the site (§12 step 6). A framed copy left in any
   size repeats what Apple just refused, so this is a gate and not a nicety.
 - **Media before submission**: Rejected allows media edits, Waiting for Review does not. *2026-11-03: that is what
   the docs say of the state; there is no recorded precedent for these edits on a `REJECTED` version with an open
@@ -519,7 +519,7 @@ stay on the list for 0.0.2.
    it or asks Claude to. A simulator run proves the layout, not the signed build; say which was used. « works on build
    <BUILD> » in the prepared answer (§6) needs the signed build, on a device signed in to an Apple account.
 
-**Two additions, the owner's (2026-11-03), and not in TestFlight's « What to Test »**, which is already written in
+**Two additions for the owner (2026-11-03), and not in TestFlight's « What to Test »**, which is already written in
 App Store Connect and read back identical to the block in `app-store-forms.md` §11.5:
 
 - **In step 1, open « Accueil > Avis » on the demo account and report whether a review exists.** The notes mention
@@ -544,9 +544,9 @@ below; steps 5 to 7 have not.*
 | 1 | The PR: this spec, the app, the web, the notes block, CI green, goldens on Linux. **Done: #731** | Claude, then the owner's review |
 | 2 | Merge. **The web is live.** `curl` the five paths with an iPad user agent and read them: no `/professionnels`, `/pro/inscription`, `/pro/connexion`; control: `/` still has them. **Done 2026-11-03** | Planned: owner merges, Claude checks. Done: Claude merged on the owner's standing go, and checked |
 | 3 | Hold other merges (dependabot included) until the build is made. Build from `main`: `./tool/release_build.sh ios pro`, which refuses a dirty tree or a HEAD that is not `origin/main`. Version stays 0.0.1; the build number is `git rev-list --count HEAD`, so `<BUILD>` is read from the IPA, not predicted. **Done 2026-11-03: 719** | Claude, on the owner's go |
-| 4 | Read the IPA (§11.3, flipped: §6). Upload, wait for `VALID`. **TestFlight:** « Équipe MyWeli » holds this build only, not in « Testeurs externes », and « What to Test » written from `app-store-forms.md` §11.5 and read back. **Sentry:** symbols and release, read back on the server. **All done 2026-11-03** | Claude, on the owner's go |
-| 5 | The device pass (§11), with the owner's two additions. **Not run** | Owner |
-| 6 | App Store Connect, in this order while the version is editable: the film in both slots, with the poster read back on both, **and the owner reads « View All Sizes in Media Manager »**, a site view with no recorded API equivalent (§8); the description (§7, with decision 79); the build; the notes, wording approved (§6). **The film goes first, and any refusal stops the sequence before the build, the notes or the reply are touched** (§13). **Not done** | Owner approves; API or owner; the Media Manager read is the owner's |
+| 4 | Read the IPA (§11.3, flipped: §6). Upload, wait for `VALID`. **TestFlight:** « Équipe MyWeli » holds this build only, not in « Testeurs externes », and « What to Test » written from `app-store-forms.md` §11.5 and read back. **Sentry:** symbols read back on the server (6 of 6 debug IDs), the release created, with its commits. **All done 2026-11-03** | Read and upload: Claude, on the owner's go. TestFlight and Sentry: Claude |
+| 5 | The device pass (§11), with the two additions for the owner. **Not run** | Owner |
+| 6 | App Store Connect, in this order while the version is editable: the film in both slots, with the poster read back on both, **and every size read in « View All Sizes in Media Manager »**, a site view with no recorded API equivalent, so whoever does it reads it in the site (§8); the description (§7, with decision 79); the build; the notes, wording approved (§6). **The film goes first, and any refusal stops the sequence before the build, the notes or the reply are touched** (§13). **Not done** | Owner approves; API or owner |
 | 7 | The Resolution Center reply and « Add for Review ». **Not done** | Owner only |
 | 8 | While in review: B0.1 applies (no `DEMO_PROVIDER_CODE` rotation, no Cloudflare change, same-day answers) | Both |
 

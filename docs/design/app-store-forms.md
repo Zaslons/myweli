@@ -1491,7 +1491,7 @@ propriétaire les rapporte, et ils sont datés ici : rien dans ce dépôt n'obse
       phrase « works on build <BUILD> » du §13.3 demande le build signé, sur un appareil connecté
       à un compte Apple.
 
-**Deux ajouts du propriétaire (2026-11-03), hors du bloc « What to Test »** du §11.5, déjà écrit dans
+**Deux ajouts pour le propriétaire (2026-11-03), hors du bloc « What to Test »** du §11.5, déjà écrit dans
 App Store Connect et relu à l'identique. Ils se rapportent ici, datés, comme le reste :
 
 - [ ] **Au point 1, ouvrir « Accueil > Avis » sur le compte démo** et rapporter s'il y a un avis. Les
@@ -1541,7 +1541,7 @@ la création du build et a été réécrit par `PATCH` — l'inscription sur
 myweli.com, plus de « Créer un compte ». *2026-11-03 :* le **719** remplace le
 698 (relu : un seul build, 719, `IN_BETA_TESTING` ; pas dans « Testeurs externes »,
 `READY_FOR_BETA_SUBMISSION`) ; son « What to Test » fr-FR est celui du §11.5, 1 010 caractères, relu à
-l'identique. Fait par Claude, sur le feu vert du propriétaire.
+l'identique. Fait par Claude.
 
 - [ ] **Connexion démo** : `revue@myweli.test` + le code, exactement comme les
       notes du §8 le décrivent — c'est aussi le test « le code n'a pas expiré ».
@@ -1843,11 +1843,11 @@ numéros).*
        *Fait le 2026-11-03 :* la PR fusionnée (#731), le web relu en ligne ; le build 719, l'IPA
        relue (§11.3), l'envoi, `VALID` ; **TestFlight** (« Équipe MyWeli » ne contient que le 719,
        « What to Test » écrit et relu, pas dans « Testeurs externes ») **et les symboles Sentry**,
-       par Claude, sur le feu vert du propriétaire (§11.5, §11.6, §12).
-       **Reste, dans l'ordre :** la passe ciblée (§11.6), avec les deux ajouts du propriétaire ; puis,
-       tant que la version se modifie, **le film d'abord, dans les deux emplacements, que le
-       propriétaire lit dans « View All Sizes in Media Manager »** (une vue du site, sans équivalent
-       API consigné), l'affiche relue sur les deux ; la description (§4), le build, les notes
+       par Claude (§11.5, §11.6, §12).
+       **Reste, dans l'ordre :** la passe ciblée (§11.6), avec les deux ajouts pour le propriétaire ; puis,
+       tant que la version se modifie, **le film d'abord, dans les deux emplacements, relus
+       dans « View All Sizes in Media Manager »** (une vue du site, sans équivalent API consigné :
+       qui s'en charge la lit dans le site), l'affiche relue sur les deux ; la description (§4), le build, les notes
        approuvées (§8) ; enfin la réponse (§13.2) et « Add for Review », par le propriétaire seul.
        Tout refus d'App Store Connect arrête la suite avant de toucher au build, aux notes ou à la
        réponse (spec §13).
@@ -1880,7 +1880,7 @@ fait ; « site » : seulement dans le site App Store Connect.
 | Publication de la version | **après approbation** | **manuelle** (`MANUAL`) | — |
 | Informations pour la revue | n'existaient pas | créées : connexion requise, identifiant `revue@myweli.test`, **les notes en vigueur du §8** (3 476 octets) | **propriétaire** : le mot de passe démo et les coordonnées de contact — vides, et l'assistant ne les écrit pas — *2026-10-14 : le verrou du compte démo est vérifié en production ; ce sont **les notes amendées** du §8 qui doivent remplacer celles-ci, et l'API refuse de le faire sans les coordonnées de contact (§8)* — *2026-10-26 : coordonnées et code démo remplis ; les notes du §8 pour le build renvoyé (3 853 octets) collées par l'API et relues à l'identique* — *2026-11-03 : **à remplacer par le bloc du §8** (3 937 octets) ; formulation approuvée (décision 77) et web relu le même jour ; pas encore collé* |
 | Build rattaché | aucun | **587** (0.0.1), lu comme français (§11.5) — il remplace le 581 depuis le 2026-10-14 au soir ; **698** depuis le 2026-10-26 (rattaché par l'API, relu) | ~~les vérifications sur l'iPhone (§11.6)~~ — faites sur le 698, selon le propriétaire (2026-10-26) — *2026-11-03 : le 698 est refusé, et toujours attaché ; **le 719** (§11.5) se rattache à sa place, après la passe ciblée (§11.6) et le film* |
-| Aperçu vidéo (facultatif) | aucun | **le film choisi par le propriétaire** (version 2, coupe 1, 28,7 s — [pro-app-preview.md](pro-app-preview.md) §0), **téléversé le 2026-10-14** dans les deux emplacements iPhone, traité par Apple, placé avant les captures (`APP_PREVIEW`, `ACTIVE`, lu par la nouvelle API) ; l'image d'affiche demandée à 25 s (`00:00:25:00`) — Apple avait d'abord ignoré le temps envoyé au téléversement et pris son défaut de 5 s ; corrigé, l'image était encore en cours de génération au dernier relevé | ~~regarder l'affiche dans le site ; sinon « Edit Poster Frame » à 25 s~~ — **2026-11-03 : Apple a refusé ce film sous 2.3.4.** À remplacer **dans les deux emplacements** (`IPHONE_DYNAMIC_ISLAND_MEDIUM_PROFILE` et `..._LARGE_PROFILE`) par la coupe plein écran, `candidate-full-bleed/preview-full-bleed.mp4`, sha256 `b34bac54…`, affiche `00:00:13:00` demandée à la réservation ([pro-app-preview.md](pro-app-preview.md) §0.6). Un placement ne se modifie pas : supprimer, créer, relire. L'affiche se relit sur les deux. **Le propriétaire lit chaque taille dans « View All Sizes in Media Manager » avant « Add for Review »**, une vue du site sans équivalent API consigné : une copie cadrée oubliée répète le refus. *2026-11-03 : aucun précédent consigné pour remplacer le film, poser l'affiche à la réservation ou modifier la description sur une version `REJECTED` dont la soumission reste ouverte : c'est une inférence, donc le film passe d'abord, et un refus arrête la suite avant le build, les notes ou la réponse (spec §13).* Risque accepté par le propriétaire : la carte de fin et « Total » |
+| Aperçu vidéo (facultatif) | aucun | **le film choisi par le propriétaire** (version 2, coupe 1, 28,7 s — [pro-app-preview.md](pro-app-preview.md) §0), **téléversé le 2026-10-14** dans les deux emplacements iPhone, traité par Apple, placé avant les captures (`APP_PREVIEW`, `ACTIVE`, lu par la nouvelle API) ; l'image d'affiche demandée à 25 s (`00:00:25:00`) — Apple avait d'abord ignoré le temps envoyé au téléversement et pris son défaut de 5 s ; corrigé, l'image était encore en cours de génération au dernier relevé | ~~regarder l'affiche dans le site ; sinon « Edit Poster Frame » à 25 s~~ — **2026-11-03 : Apple a refusé ce film sous 2.3.4.** À remplacer **dans les deux emplacements** (`IPHONE_DYNAMIC_ISLAND_MEDIUM_PROFILE` et `..._LARGE_PROFILE`) par la coupe plein écran, `candidate-full-bleed/preview-full-bleed.mp4`, sha256 `b34bac54…`, affiche `00:00:13:00` demandée à la réservation ([pro-app-preview.md](pro-app-preview.md) §0.6). Un placement ne se modifie pas : supprimer, créer, relire. L'affiche se relit sur les deux. **Lire chaque taille dans « View All Sizes in Media Manager » avant « Add for Review »**, une vue du site sans équivalent API consigné, donc qui s'en charge la lit dans le site : une copie cadrée oubliée répète le refus. *2026-11-03 : aucun précédent consigné pour remplacer le film, poser l'affiche à la réservation ou modifier la description sur une version `REJECTED` dont la soumission reste ouverte : c'est une inférence, donc le film passe d'abord, et un refus arrête la suite avant le build, les notes ou la réponse (spec §13).* Risque accepté par le propriétaire : la carte de fin et « Total » |
 | « Soumettre pour la revue » | — | — | propriétaire — **fait** (587 en revue, refusé sous 3.1.1) ; **698 resoumis le 2026-10-26 à 23:33 UTC**, `WAITING_FOR_REVIEW` (relu par l'API) ; **refusé le 2026-11-03** sous 2.3.4 et 3.1.1 ; la reprise reste à soumettre, par le propriétaire |
 
 **Les captures, vues par les deux API.** Elles ont été envoyées par les
