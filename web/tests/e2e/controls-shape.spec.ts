@@ -54,6 +54,17 @@ const notBlackLined = (page: Page) =>
       .map((el) => `${el.tagName} ${el.getAttribute('aria-label') ?? el.id} ${getComputedStyle(el).borderTopColor}`);
   }, TYPING);
 
+/// `textTertiary`, the lightest legal text. Axe does not read placeholders, which is how
+/// the main search sat at 2.43:1 in Tailwind's own grey: it is the rendered colour that
+/// has to be asked for.
+const palePlaceholders = (page: Page) =>
+  page.evaluate(() =>
+    [...document.querySelectorAll('input[placeholder], textarea[placeholder]')]
+      .filter((el) => el.getBoundingClientRect().width > 1)
+      .filter((el) => getComputedStyle(el, '::placeholder').color !== 'rgb(110, 110, 110)')
+      .map((el) => `${el.getAttribute('placeholder')} ${getComputedStyle(el, '::placeholder').color}`),
+  );
+
 const PUBLIC = [
   '/',
   '/recherche?commune=Cocody',
@@ -92,6 +103,7 @@ const sweep = async (page: Page, paths: string[]) => {
       await page.waitForLoadState('networkidle');
       expect(await notSquare(page), `${path} at ${width}: not square`).toEqual([]);
       expect(await notBlackLined(page), `${path} at ${width}: no black line`).toEqual([]);
+      expect(await palePlaceholders(page), `${path} at ${width}: pale placeholder`).toEqual([]);
     }
   }
 };
@@ -121,6 +133,11 @@ test('the sweep is reading real controls, so a clean result means something', as
   );
   expect(counted[0]).toBeGreaterThan(0);
   expect(counted[1]).toBeGreaterThan(1);
+});
+
+test('the search has placeholders to read, so the sweep’s check above can fail', async ({ page }) => {
+  await page.goto('/');
+  expect(await page.locator('form[data-search-bar] input[placeholder]').count()).toBe(2);
 });
 
 test('filter chips keep their pill', async ({ page }) => {
