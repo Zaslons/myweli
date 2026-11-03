@@ -110,6 +110,7 @@ describe('isStoreLinkedPage: exact, whatever the spelling', () => {
     '/CGU',
     '/%63gux',
     '/%2Fcgu',
+    '/cgu%2F',
     '/%zz',
     '/%E0%A4%A',
   ])('%s: no', (path) => {

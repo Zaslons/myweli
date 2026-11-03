@@ -1058,6 +1058,10 @@ Vérifié le 2026-11-03, avec ses deux sens :
   B0.11, « S’inscrire », « Pas encore de compte », et la phrase sans compte qui manque.
 - **`ÉCHEC`** sur des fichiers écrits exprès : le lien en UTF-16, `/pro/inscription`, l'apostrophe droite, une
   sixième page du site, et un fichier tronqué où les témoins manquent.
+- **Après la revue du 2026-11-03**, `/pro/salons/nouveau` rejoint la liste : c'est la page qui crée un salon, et un
+  lien vers elle, résolu depuis `AppConfig.supportUrl`, passait les tests et ce script. Lu sur un instantané AOT
+  *product* de `main_pro.dart`, pas sur un build iOS : `OK : 14 phrases à 0, 6 témoins présents` sur la branche, et
+  `ÉCHEC : ['/pro/salons/nouveau']` quand ce lien y est compilé.
 
 **Ce n'est pas l'IPA signée** : la lecture qui compte reste à faire sur le build de la reprise (§11.5).
 
