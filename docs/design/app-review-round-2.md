@@ -189,8 +189,13 @@ need to touch it.
 
 **Left alone, knowingly:**
 
-- **« Mon compte » in the header.** Signed out it lands on `/connexion`, which keeps its
-  footer group, so it is the same distance from sign-up as the logo. Decision 3 keeps both.
+- **« Mon compte » in the header.** Signed out it lands on `/connexion` (« Se connecter ou
+  créer un compte », the client's), which keeps its header door and footer group, so it is the
+  same distance from salon sign-up as the logo. **Decision 3 names the logo and the breadcrumb,
+  not this.** Removing it from the header would not close the route: the privacy and deletion
+  pages link to `/mon-compte` in their bodies (legal wording, D3), and the deletion instructions
+  need them. So it stays, and what is sent to Apple says only what was verified: no link to salon
+  registration (§6). The owner is told with the wording (§16).
 - **The install banner.** It shows on the five when a store URL is configured, and leads to
   a store listing, not to our site. Decision 3 does not name it.
 - **Home's band** (`ProBand`) only renders on `/`.
@@ -279,13 +284,17 @@ groups sit under the wordmark, and the third column is empty. Red first and muta
 (`app_review_notes_test.dart` fails if the « Poids » sentence lies). **The owner
 approves the wording**; nothing is pasted before that.
 
-Three passages change, now in the block. They are still drafts until that approval:
+Four passages change, now in the block. They are still drafts until that approval:
 
 - **SUBSCRIPTION**: « MyWeli Pro is a free app for salons that already have a MyWeli
   account. There is no purchasing in the app and no button, link or instruction to
   buy or register elsewhere: Profil > « Mon abonnement » only shows the salon's current
   plan and its status. A new salon's free trial starts automatically when the salon goes
   live; nothing is chosen or bought in the app. » No guideline number.
+- **USER CONTENT**: « …moderated by MyWeli: a salon reports a review with « Signaler » under
+  « Avis », customers report reviews from the MyWeli app, administrators can hide a review or
+  suspend a salon… ». That path is in this binary (#678, already in 698); the other one needs an
+  app the reviewer cannot reach.
 - **ACCOUNT DELETION**, last sentence: « Any other account is deleted at that step; if it
   has upcoming appointments, the app first asks to finish or cancel them. » No instruction
   to register anywhere.
@@ -295,17 +304,20 @@ Three passages change, now in the block. They are still drafts until that approv
   with no account is told « Aucun compte MyWeli Pro n’est associé à cette adresse. » Team
   members invited by their salon join it from the sign-in screen. The app opens our website
   only for its support and legal pages (Profil > « Aide & Support » and « À propos »), and
-  those pages carry no registration link. Please use the demo account above to see a
+  those pages carry no link to salon registration. Please use the demo account above to see a
   populated salon. »
 
-**« those pages carry no registration link » is true only once §5 is live and checked**
-(§12 step 2). It says what those pages carry. It does not say the site is out of reach,
-because the logo still goes home, and the notes must not imply otherwise.
+**« those pages carry no link to salon registration » is true only once §5 is live and checked**
+(§12 step 2). It says what those pages carry. It does not say the site is out of reach:
+the logo still goes home and « Mon compte » reaches the client's sign-in (§5), and the notes must
+not imply otherwise. The review measured that route, which is why the sentence names salon
+registration and not « a registration link ».
 
 Also out of the notes, the §13.2 reply and every other text sent to Apple: the number
 3.1.3(f). **The Resolution Center reply** is a new §13.2 block, drafted for the owner,
 sent by the owner, with the real `<BUILD>` and only true sentences (2.3.4: replaced with
-full-screen captures, text overlays and an end frame saying an account is required).
+full-screen captures, text and touch overlays, and an end frame saying an account is required;
+the notes « describe how accounts work in the app », since they say nothing of the film).
 **TestFlight's « What to Test »** loses the sign-up wording. **The IPA check** (§11.3)
 flips: « S’inscrire sur myweli.com », « Pas encore de compte » and `/pro/inscription` move
 to the « gone » list; `kNoProAccountMessage` stays a witness, and the five paths join it; any sixth
@@ -504,6 +516,9 @@ tests and this spec. So one PR carries it all.
 
 **Known, and not acted on:**
 
+- **« Mon compte » on the five pages** reaches the client's sign-in in one tap, and salon sign-up from there in one more
+  (§5). It is not in decision 3, and the owner hears of it with the wording (§16).
+
 - **5.1.1(ix)**, KYC under an individual seller: uncited twice. Fallback decided (B0.6: hide KYC and the deposit switch on
   iOS if cited).
 - **5.1.1(v)**, a reviewer cannot see a real deletion: the demo account refuses it by design. A recording taken during the
@@ -546,6 +561,8 @@ The audit's overkill list. Each was considered and left out on purpose:
 
 None blocks the build. For the owner, at step 6: the notes' wording, including:
 
+- « Mon compte », which stays on the five pages for the reasons in §5, so the notes and the reply say « no link to salon
+  registration » and not « no registration link »;
 - whether « the separate MyWeli app and myweli.com » stays in the first paragraph. The audit would keep it (consumers booking an
   in-person service, in text that is not public). But the consumer app was not published at the last reading, and production had no
   public salon on 2026-10-28, so a reviewer may find neither;

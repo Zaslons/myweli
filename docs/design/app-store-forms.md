@@ -629,7 +629,7 @@ texte ne change pas ([play-store-forms.md](play-store-forms.md) §2).
 refusé le 698 (2.3.4 et 3.1.1) : « remove features, account registration links, and
 any other links to your site… ». Le paragraphe ci-dessus devient l'histoire : le lien
 gardé par la décision 42 est retiré ([app-review-round-2.md](app-review-round-2.md)
-§4, §6). Trois passages changent, rien d'autre :
+§4, §6). Quatre passages changent, rien d'autre :
 
 - **SUBSCRIPTION** ne cite plus 3.1.3(f), dont la liste est fermée (§2.1), et dit
   « no button, link or instruction to buy or register elsewhere », puisqu'Apple tient
@@ -642,11 +642,15 @@ gardé par la décision 42 est retiré ([app-review-round-2.md](app-review-round
 - **SALON ACCOUNTS** dit ce qui est : plus d'inscription ni de lien, une seule mention
   que les comptes se créent sur le site, sans lien ni consigne, et les seules pages
   que l'app ouvre.
+- **USER CONTENT** nomme « Signaler » sous « Avis », le chemin que ce binaire a (#678,
+  déjà dans le 698), à côté de celui de l'app cliente, que le relecteur ne peut pas atteindre.
 
-**« and those pages carry no registration link » n'est vrai qu'une fois le web en
+**« and those pages carry no link to salon registration » n'est vrai qu'une fois le web en
 ligne et relu** (spec §12, étape 2) : la phrase dit ce que ces pages portent, pas que
-le site est hors d'atteinte, puisque le logo ramène toujours à l'accueil. Rien n'est
-collé avant ce relevé.
+le site est hors d'atteinte. Le logo ramène toujours à l'accueil, et « Mon compte » mène en
+un geste à la connexion des clients, qui crée un compte client et dont le pied de page garde
+le groupe des salons. D'où « salon registration », et non « registration link » : relevé par
+la revue le 2026-11-03 sur un build de la branche (spec §5, §13). Rien n'est collé avant ce relevé.
 
 Restent au propriétaire, pour l'approbation (spec §16) :
 
@@ -663,14 +667,14 @@ La ligne datée ci-dessus reste : `mobile/test/infra/app_review_notes_test.dart`
 la lit, et n'autorise un bloc « coller tel quel » qui promet le verrou que
 si elle est datée. *Le test ne voit pas la production : il lit la ligne.*
 
-**Notes** (coller tel quel — le build de la reprise, 2026-11-03 ; **une fois la formulation approuvée par le propriétaire et le web relu en ligne**). Poids : **3 865 octets**
-(3 804 caractères) — sous la limite de 4 000. Compté par script sur le
+**Notes** (coller tel quel — le build de la reprise, 2026-11-03 ; **une fois la formulation approuvée par le propriétaire et le web relu en ligne**). Poids : **3 937 octets**
+(3 872 caractères) — sous la limite de 4 000. Compté par script sur le
 texte exact du bloc, sans le saut de ligne final ; le test le recompte à
 chaque CI et échoue si ce paragraphe ment.
 *Historique : 3 476 octets (notes en vigueur, 2026-10-11) ; 3 648 (notes
 amendées, 2026-10-13, le verrou) ; 3 853 le 2026-10-26 — les notes amendées,
-ACCOUNT DELETION et SALON ACCOUNTS réécrites pour 3.1.1 ; 3 865 le 2026-11-03 —
-SUBSCRIPTION, ACCOUNT DELETION et SALON ACCOUNTS réécrites pour le deuxième refus.
+ACCOUNT DELETION et SALON ACCOUNTS réécrites pour 3.1.1 ; 3 937 le 2026-11-03 —
+SUBSCRIPTION, USER CONTENT, ACCOUNT DELETION et SALON ACCOUNTS réécrites pour le deuxième refus.
 Les anciens blocs sont retirés : celui-ci les remplace.*
 
 ```text
@@ -695,7 +699,7 @@ IDENTITY DOCUMENTS (Profil > « Vérification »)
 Uploading identity documents is optional. It is needed only to switch on customer deposits, so that deposits go only to verified salons. The documents are stored privately, never published, and read only by a MyWeli administrator.
 
 USER CONTENT
-Customer reviews shown under « Avis » are moderated by MyWeli: customers report reviews from the MyWeli app, administrators can hide a review or suspend a salon, and a salon reaches support from Profil > « Aide & Support ».
+Customer reviews shown under « Avis » are moderated by MyWeli: a salon reports a review with « Signaler » under « Avis », customers report reviews from the MyWeli app, administrators can hide a review or suspend a salon, and a salon reaches support from Profil > « Aide & Support ».
 
 LOCATION
 Location is requested only when the owner taps « Utiliser ma position » (Profil > « Profil du salon ») or « Près de moi » in the commune list, to place the salon's pin on the map or find its commune. The pin is the salon's public business address.
@@ -704,7 +708,7 @@ ACCOUNT DELETION
 Profil > « Supprimer mon compte », then type SUPPRIMER to confirm. The shared demo account cannot be deleted: after the SUPPRIMER confirmation, the app answers « Compte de démonstration — cette action est désactivée. » and you stay signed in. Any other account is deleted at that step; if it has upcoming appointments, the app first asks to finish or cancel them.
 
 SALON ACCOUNTS
-The app only signs in to existing salon accounts, with an e-mail code, Apple or Google. It has no registration, no registration link and no way to add a salon; salon accounts are created outside the app, on the MyWeli website. An identity with no account is told « Aucun compte MyWeli Pro n’est associé à cette adresse. » Team members invited by their salon join it from the sign-in screen. The app opens our website only for its support and legal pages (Profil > « Aide & Support » and « À propos »), and those pages carry no registration link. Please use the demo account above to see a populated salon.
+The app only signs in to existing salon accounts, with an e-mail code, Apple or Google. It has no registration, no registration link and no way to add a salon; salon accounts are created outside the app, on the MyWeli website. An identity with no account is told « Aucun compte MyWeli Pro n’est associé à cette adresse. » Team members invited by their salon join it from the sign-in screen. The app opens our website only for its support and legal pages (Profil > « Aide & Support » and « À propos »), and those pages carry no link to salon registration. Please use the demo account above to see a populated salon.
 ```
 
 Libellés relus dans le code le 2026-09-24, et **le 2026-11-03 sur cette branche, après le
@@ -1853,6 +1857,7 @@ anglais, dans le fil du refus de la soumission `45ed9726…`.
   (spec §12, étape 2) ;
 - le film plein écran est dans **les deux** emplacements iPhone, lus dans « View All Sizes in
   Media Manager » (§13.1) ;
+- les notes du §8 sont collées et relues : la dernière phrase de la réponse y renvoie ;
 - `<BUILD>` est remplacé par le numéro lu dans l'IPA.
 
 **La réponse** (à envoyer telle quelle, `<BUILD>` remplacé) :
@@ -1862,11 +1867,11 @@ Hello,
 
 Thank you for reviewing MyWeli Pro (submission 45ed9726-1418-435b-b3e2-76726422c5d3). Build <BUILD> of version 0.0.1 is attached.
 
-Guideline 3.1.1: we removed « S’inscrire sur myweli.com » from the sign-in screen. The app now has no registration feature and no registration link. A person without an account reads « Aucun compte MyWeli Pro n’est associé à cette adresse. », with no button or link to sign up. The app opens our website only for its support and legal pages (Profil > « Aide & Support » and « À propos »), and those pages no longer carry a registration link.
+Guideline 3.1.1: we removed « S’inscrire sur myweli.com » from the sign-in screen. The app now has no registration feature and no registration link. A person without an account reads « Aucun compte MyWeli Pro n’est associé à cette adresse. », with no button or link to sign up. The app opens our website only for its support and legal pages (Profil > « Aide & Support » and « À propos »), and those pages no longer carry a link to salon registration.
 
-Guideline 2.3.4: we replaced the app preview in both iPhone sizes. It now uses only full-screen video captures of the app, with no framing around them, plus text overlays and an end frame saying that a MyWeli Pro account is required.
+Guideline 2.3.4: we replaced the app preview in both iPhone sizes. It now uses only full-screen video captures of the app, with no framing around them, plus text and touch overlays, and an end frame saying that a MyWeli Pro account is required.
 
-The App Review notes describe these changes.
+The App Review notes describe how accounts work in the app.
 
 Thank you,
 Sadreddine Daher
@@ -1962,7 +1967,7 @@ Sadreddine Daher
 
 | Point | Nature | Risque / suite |
 |---|---|---|
-| **1.2 — pas de « Signaler » dans « Avis » côté Pro.** `POST /reviews/{id}/report` répond 403 à tout rôle autre que `user` (`backend/routes/reviews/[id]/report.dart`). | code | Faible (le salon démo n'a probablement pas d'avis) ; atténué par la rubrique USER CONTENT des notes. Suite : autoriser le salon à signaler les avis de son propre salon + « Signaler » sur la tuile. **Corrigé** (#678, lot 6) : Propriétaire et Gérant signalent, la file admin marque « Signalé par le salon » ; en production, l'app avec 0.0.2. |
+| **1.2 — pas de « Signaler » dans « Avis » côté Pro.** `POST /reviews/{id}/report` répond 403 à tout rôle autre que `user` (`backend/routes/reviews/[id]/report.dart`). | code | Faible (le salon démo n'a probablement pas d'avis) ; atténué par la rubrique USER CONTENT des notes. Suite : autoriser le salon à signaler les avis de son propre salon + « Signaler » sur la tuile. **Corrigé** (#678, lot 6) : Propriétaire et Gérant signalent, la file admin marque « Signalé par le salon » ; en production, et **dans l'app depuis le 698** (`git show 54b02dac:mobile/lib/screens/provider/reviews/reviews_screen.dart`, relu le 2026-11-03), non « avec 0.0.2 » comme cette ligne le disait. La rubrique USER CONTENT le nomme depuis la reprise. |
 | **5.1.1(v) — Sign in with Apple : jetons non révoqués** à la suppression (Apple : « should » appeler `/auth/revoke`). | code + clé owner | Rarement testé en revue. Suite : capter l'`authorizationCode`, l'échanger côté serveur (clé privée Sign in with Apple, portail), révoquer à la suppression. Peut suivre le lancement. **Construit** (#679, lot 6) et en production — **inactif** tant que la clé `.p8` n'existe pas (étape du propriétaire, DEPLOYMENT.md phase C). |
 | **Suppression du propriétaire : le salon garde ses coordonnées** (téléphone, WhatsApp, numéro Mobile Money, adresse) en brouillon (`provider_account_service.dart`). | décision | Divulgué par la politique et `/suppression-compte`. Suite : effacer ces champs à la suppression, garder l'historique. **Corrigé** (#677, lot 6) : effacés à la suppression, le nom et l'historique gardés ; en production. |
 | **Politique de confidentialité** : pas la phrase « nos sous-traitants offrent une protection équivalente » (5.1.1(i)) ; dit « Profil → Exporter mes données » là où l'app Pro dit « Mes données ». | web (texte légal) | Une phrase + aligner le libellé (`web/app/politique-confidentialite/page.tsx`). **Corrigé** (#709, B0.4, en ligne le 2026-10-26, relu) : la phrase de protection équivalente, « Profil → Mes données » côté Pro — et ce que la relecture a trouvé en plus : depuis le 2026-10-07, Google Cloud ne voit plus que l'adresse de Cloudflare. |

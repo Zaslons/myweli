@@ -69,8 +69,8 @@ import '../support/dart_source.dart';
 /// twice. docs/design/app-review-round-2.md §6, §7.
 ///
 /// What this group cannot see: whether a sentence is TRUE of the build. « those
-/// pages carry no registration link » is true only once the web is live and
-/// read (the spec's §12 step 2), and the IPA check is a script the owner's build
+/// pages carry no link to salon registration » is true only once the web is live
+/// and read (the spec's §12 step 2), and the IPA check is a script the owner's build
 /// runs, not one this test runs. It checks the script's lists, not the binary.
 /// And an instruction with no verb of signing up, « visit our site », is out of
 /// [sendsToTheSite]'s sight: a person reads these texts before they go.
