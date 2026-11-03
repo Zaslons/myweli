@@ -1,3 +1,7 @@
+import { WovenBandRow } from '../components/brand/Weave';
+import { ButtonLink } from '../components/ButtonLink';
+import { SITE_CONTAINER } from '../lib/siteGrid';
+
 /// The one not-found boundary — every `notFound()` in the app renders it:
 /// an unknown salon slug, an unknown city, an unknown area, a bogus flat
 /// combo, the booking funnel.
@@ -15,19 +19,19 @@
 /// labels, which is §21 row 84's pattern. One phrase now (§17).
 export default function NotFound() {
   return (
-    <main className="mx-auto max-w-3xl px-m py-xxl text-center">
-      <h1 className="text-headlineMedium font-semibold text-textPrimary">
-        Page introuvable
-      </h1>
-      <p className="mt-m text-bodyLarge text-textSecondary">
-        Ce salon ou cette page n’existe pas (ou plus).
-      </p>
-      <a
-        href="/"
-        className="mt-l inline-flex items-center justify-center rounded-control bg-primary px-l py-s text-labelLarge font-medium text-secondary"
-      >
-        Découvrir des salons
-      </a>
+    <main>
+      <WovenBandRow />
+      <div className={`${SITE_CONTAINER} py-xl lg:py-xxl`}>
+        <h1 className="text-headlineLarge font-semibold tracking-tight text-textPrimary lg:text-displaySmall">
+          Page introuvable
+        </h1>
+        <p className="mt-m max-w-content text-bodyLarge text-textSecondary">
+          Ce salon ou cette page n’existe pas (ou plus).
+        </p>
+        <ButtonLink href="/" className="mt-l">
+          Découvrir des salons
+        </ButtonLink>
+      </div>
     </main>
   );
 }

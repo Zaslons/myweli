@@ -36,7 +36,7 @@ const PREF_ROWS: {
   {
     key: 'reminders',
     title: 'Rappels de rendez-vous',
-    subtitle: 'Rappels 24 h et 2 h avant vos rendez-vous.',
+    subtitle: 'Rappels 24\u00a0h et 2\u00a0h avant vos rendez-vous.',
   },
   {
     key: 'marketing',

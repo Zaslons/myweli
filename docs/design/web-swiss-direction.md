@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | **Approved 2026-11-02** (decisions in §15). Direction B, with the owner's two additions: the real logo and the things that are MyWeli's own (§3), and a pattern with an African identity that **feels calm** (§4). **S0 merged in #724 and read back on `myweli.com`** (§11, §13). **S1 merged in #727 and read back on `myweli.com`** (§11, §13.1). **The owner chose to merge it before §4.8 (2026-11-02):** that check and a low-end Android are still theirs, now on the live site, and an answer to question 3 still changes the drawing. Fields and buttons went square in #728 ([web-swiss-fields.md](web-swiss-fields.md)). |
+| **Status** | **Approved 2026-11-02** (decisions in §15). Direction B, with the owner's two additions: the real logo and the things that are MyWeli's own (§3), and a pattern with an African identity that **feels calm** (§4). **S0 merged in #724 and read back on `myweli.com`** (§11, §13). **S1 merged in #727 and read back on `myweli.com`** (§11, §13.1). **The owner chose to merge it before §4.8 (2026-11-02):** that check and a low-end Android are still theirs, now on the live site, and an answer to question 3 still changes the drawing. Fields and buttons went square in #728 ([web-swiss-fields.md](web-swiss-fields.md)). **S2 in #730** (§13.2). |
 | **Owner** | Sadreddine Daher |
 | **Last updated** | 2026-11-02 |
 | **PRD ref / phase** | FR-WEB-MP-001, FR-WEB-PP-001/002 (presentation only) · V1 |
@@ -144,7 +144,8 @@ Rows of round-ended strokes that meet from both sides, half a step apart: a plai
 |---|---|
 | `/` | Panel or band in the hero |
 | `/professionnels` | Panel or band in the hero |
-| 404 and error pages | Band |
+| 404 | Band |
+| Error pages | **None** (corrected in S2, §13.2): the grid and left alignment only |
 | Salon pages, category pages, `/recherche` | **None.** Photos are the content, and the page's job is choosing a salon |
 | `/connexion`, `/mon-compte/*`, booking, legal, `/pro/*` | **None** |
 
@@ -292,7 +293,7 @@ Same list and map, same filters, same mobile toggle. The map is untouched. Cards
 
 ### 7.7 404 and error pages
 
-Left-aligned with the band. The wording stays as tests hold it.
+The 404 is left-aligned with the band. The error pages are left-aligned on the grid, with no band (§13.2). The wording stays as tests hold it.
 
 ### 7.8 Header and footer
 
@@ -353,6 +354,7 @@ None. `imageUrls` is already `required` on `Provider` in `openapi.yaml`, and `im
 | **On `myweli.com` after the merge, five runs** | `/` 1263 ms, `/connexion` 1274 ms, `/suppression-compte` 1480 ms; CLS at most 0.006; scripts 152–153 KB on `/`. WEB.md §7. These are not comparable with the local numbers above, so S1 measures against the local ones |
 | **S1, five runs, every budgeted page** | `/` **2113 ms** (2112–2173), `/connexion` **2713 ms** (2711–2759; `main` 2712), `/suppression-compte` **2109 ms** (2108–2263). First paint 759, 907 and 756 ms. CLS 0, TBT 0. Scripts 158, 231 and 159 KB. So it cost `/` 3 ms and left the others where they were |
 | **S1 on `myweli.com`, five runs** | `/` 1487 ms, `/connexion` 1323 ms, `/suppression-compte` 1607 ms; TBT at most 26 ms; scripts 152 KB on `/`. WEB.md §7 |
+| **S2, five runs each, on a local build** | `/` 2115 ms, `/connexion` 2713 ms, `/suppression-compte` 2109 ms, all where they were; `/professionnels`, which has no budget, 2148 ms. CLS 0, TBT 0 |
 | **If it breaches** | The budget does not move |
 | **New photos** | Card photos are lazy and below the fold on `/`. Salon page budgets are set from a measurement in S4, added to `lighthouserc.json` so they cannot be forgotten |
 
@@ -392,7 +394,7 @@ Six PRs, in order, each merged only on the owner's word. A merge is a production
 |---|---|---|
 | **S0** | Font trimmed to 18.7 KB, `displayPoster`, `fontFamily` closed, the rules in WEB-SYSTEM §16, SYSTEM §22. **No layout change.** The grid constant moves to S1, its first user: nothing here would use it | Lighthouse measured on the font alone. Every e2e green, including `/pro` |
 | **S1** | `Weave`, `Header`, `SiteFooter`, `/`. Delete `HeroBackground` from `/` | Merged on the owner's word. §4.8 and the real-phone check follow on the live site |
-| **S2** | `/professionnels`, 404 and error pages. `HeroBackground` deleted | |
+| **S2** | `/professionnels`, 404 and error pages. `HeroBackground` deleted | Built in #730 (§13.2) |
 | **S3** | `ProviderCard`, `/recherche`, landings, favourites list | Cards with and without photos looked at |
 | **S4** | Salon page. Budgets added | Salon LCP measured |
 | **S5** | OG image. Audit of every page against this spec **on the deployed site**, by separate eyes told to refute it | Findings fixed or filed |
@@ -416,6 +418,20 @@ Built to §7.1 and §7.8, and looked at from 360 to 1920 ([before and after](ass
 **Read back on `myweli.com` after the merge:** the band on a phone and the panel on a desktop, none on `/connexion`, `/support` or `/pro/connexion`, the wordmark in the footer and the lockup on `/pro/connexion`, no sideways scroll, no CSP message, and all ten privacy checks.
 
 **What is not done here:** the salon card keeps its box until S3, and `/professionnels` keeps `HeroBackground` until S2. Nothing was seen on a real phone.
+
+### 13.2 S2: `/professionnels`, 404 and error pages
+
+Built to §7.2 and §7.7 ([pictures](assets/web-swiss-s2.png)). `SiteHero` now holds the hero for `/` and `/professionnels`, and `HeroBackground` is gone. No word, link or JSON-LD changed.
+
+| Decided or found | Why |
+|---|---|
+| **The error pages get the grid and no band** | §4.6 said « 404 and error pages », but the owner's answer was « Home, Pro page, 404 ». `app/error.tsx`'s chunk is in every page's scripts, so a pattern there costs every visitor for a page few see |
+| **`global-error` takes the grid and left alignment only** | It replaces the root layout, and depends on as little as it can |
+| **The 404's button and `global-error`'s were under the 48px floor** | Both 36px, since they were hand-written. The 404 now uses `ButtonLink`, and `global-error` has `min-h-12` |
+| **« (24 / h et 2 h avant) » split across a line at 1440** | No-break spaces, there and on the account's notifications page. No word changes. A test now holds `/professionnels` |
+| **Noticed, not touched:** the page's served title ends « … en Côte d’Ivoire · MyWeli », after opening « MyWeli Pro », so the brand is in it twice | S2 changes no search-engine text. For the audit in S5 (B11.5) |
+
+**At 360 × 640** the whole hero fits, with 114px to spare above the fold's limit for the filled action.
 
 **During App Review.** `/support` and `/politique-confidentialite` are listed with Apple and they keep their wording. They change only in font, header and footer, and they get checked after each deploy. Timing against Apple's decision is the owner's call at each merge.
 

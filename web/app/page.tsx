@@ -1,11 +1,11 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { WovenBand, WovenPanel } from '../components/brand/Weave';
 import { JsonLd } from '../components/JsonLd';
 import { ProBand } from '../components/home/ProBand';
 import { OpenInAppButton } from '../components/OpenInAppButton';
 import { HomeSearch } from '../components/home/HomeSearch';
 import { ProviderCard } from '../components/provider/ProviderCard';
+import { SiteHero } from '../components/SiteHero';
 import { SiteSection } from '../components/SiteSection';
 import { defaultCity, getLocalityTree } from '../lib/api/localities';
 import { searchProviders } from '../lib/api/providers';
@@ -99,32 +99,21 @@ export default async function HomePage() {
       <JsonLd data={faqJsonLd(faq)} />
 
       <main>
-        <section>
-          <div className="border-b border-divider lg:hidden">
-            <div className={`${SITE_CONTAINER} py-m`}>
-              <WovenBand />
-            </div>
+        <SiteHero
+          title={
+            <>
+              Réservez beauté & <span className="whitespace-nowrap">bien-être</span> à {cityName}
+            </>
+          }
+        >
+          <p className="max-w-xl text-bodyLarge text-textSecondary">
+            Coiffure, tresses, barbier, onglerie, spa — réservez en ligne, près
+            de chez vous, en quelques secondes.
+          </p>
+          <div className="mt-l">
+            <HomeSearch tree={tree} />
           </div>
-          <div className={`${SITE_CONTAINER} lg:grid lg:grid-cols-12 lg:gap-x-l`}>
-            <div className="flex flex-col py-l lg:col-span-7 lg:min-h-hero lg:justify-between lg:py-xl">
-              <h1 className="text-balance break-words text-displaySmall font-semibold tracking-tight text-textPrimary sm:text-displayMedium lg:text-displayLarge xl:text-displayPoster">
-                Réservez beauté & <span className="whitespace-nowrap">bien-être</span> à {cityName}
-              </h1>
-              <div className="mt-m lg:mt-xl">
-                <p className="max-w-xl text-bodyLarge text-textSecondary">
-                  Coiffure, tresses, barbier, onglerie, spa — réservez en ligne, près
-                  de chez vous, en quelques secondes.
-                </p>
-                <div className="mt-l">
-                  <HomeSearch tree={tree} />
-                </div>
-              </div>
-            </div>
-            <div data-weave-panel className="relative hidden border-l border-primary lg:col-span-5 lg:block">
-              <WovenPanel />
-            </div>
-          </div>
-        </section>
+        </SiteHero>
 
         <SiteSection title="Catégories">
           <ul className="grid grid-cols-2 gap-x-m lg:grid-cols-3 lg:gap-x-l">

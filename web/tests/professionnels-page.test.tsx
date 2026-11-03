@@ -71,6 +71,12 @@ describe('/professionnels', () => {
     );
   });
 
+  // « (24 / h et 2 h avant) » was how it read at 1440 wide.
+  it('a figure and its unit never split across two lines', () => {
+    const { container } = render(<ProfessionnelsPage />);
+    expect(container.textContent).not.toMatch(/\d h\b/);
+  });
+
   it('no price anywhere on the page (owner decision, 2026-10-19)', () => {
     const { container } = render(<ProfessionnelsPage />);
     expect(container.textContent).not.toMatch(/FCFA|\/mois|Sur devis|70 000|120 000/);
