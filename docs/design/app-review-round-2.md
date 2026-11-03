@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | Approved 2026-11-03 (owner: §3, five decisions) · build, upload and resubmission are the owner's go (§12). **The app's half (§4, §10), the web's half (§5), the texts for Apple (§6, §7), the film's storyboard (§8) and the record are done** on `fix/app-review-round2`: not merged, not in any build, not live, not pasted, not uploaded, not seen on a device. The notes' wording waits for the owner's approval |
+| **Status** | Approved 2026-11-03 (owner: §3, five decisions) · build, upload and resubmission are the owner's go (§12). **The app's half (§4, §10), the web's half (§5), the texts for Apple (§6, §7), the film's storyboard (§8) and the record are done** on `fix/app-review-round2`: not merged, not in any build, not live, not pasted, not uploaded, not seen on a device. The owner approved the notes, the description and the reply on 2026-11-03 (decision 77) |
 | **Owner** | Sadreddine Daher |
 | **Last updated** | 2026-11-03 |
 | **PRD ref / phase** | FR-PRO-AUTH-001 (registration on the web only) · V1 |
@@ -282,9 +282,9 @@ groups sit under the wordmark, and the third column is empty. Red first and muta
 
 `app-store-forms.md` §8 stays the one paste block, and its weight is recounted
 (`app_review_notes_test.dart` fails if the « Poids » sentence lies). **The owner
-approves the wording**; nothing is pasted before that.
+approves the wording** (done on 2026-11-03, decision 77); nothing is pasted before §12 step 2.
 
-Four passages change, now in the block. They are still drafts until that approval:
+Four passages change, now in the block:
 
 - **SUBSCRIPTION**: « MyWeli Pro is a free app for salons that already have a MyWeli
   account. There is no purchasing in the app and no button, link or instruction to
@@ -467,13 +467,20 @@ stay on the list for 0.0.2.
 2. **No link on Connexion**: options and code. An address with no account **that really receives the code**
    (the sentence only comes after the code is verified), or a Google or Apple identity with none: the sentence,
    nothing to tap.
-3. **A session left past 15 minutes** (the access token's life, `backend/lib/src/auth/tokens.dart:16`).
-   Comes back, loads, still signed in. What this proves is the silent refresh after expiry, in a signed
+3. **A session left past 15 minutes, cold then warm** (the access token's life, `backend/lib/src/auth/tokens.dart:16`).
+   **Two waits, not one:** the token refreshes only on the first refused request (`RefreshingHttpClient.send`), so each run
+   uses up the expiry the other needs. **Cold** (decision 78): kill the app, wait past 15 minutes, reopen; « Maison Nala » opens
+   signed in and loads, the several requests at once that raced in production on 2026-10-11. **Warm:** leave it in the
+   background past 15 minutes, come back, open « Clients » from « Accueil »; the list loads, still signed in. That tap matters:
+   coming back alone sends the server nothing, and would prove nothing. What this proves is the silent refresh after expiry, in a signed
    build. `main_pro.dart` mounts no plain `AuthProvider`, so of B9.13 it reaches only the shared code
    (`RefreshingHttpClient`, `AccountScope`).
-4. **Restart, then sign-out.** Kill and reopen: restored. Sign out: Connexion. Reopen: still signed out.
+4. **Restart, sign-out, sign-in.** Kill and reopen: restored. Sign out: Connexion. Reopen: still signed out. Sign in
+   again: « Maison Nala » reloads (decision 78: a way back in after a way out, in one process, was not run).
 5. **One run on an iPad**, simulator if the owner has no iPad, since both rejections name one. Steps 1 and
-   2 in iPhone compatibility mode. The IPA and TestFlight do not install on a simulator, so that run is a
+   2 in iPhone compatibility mode, and one tap on « Continuer avec Apple » (decision 78, B0.14's path, which a device that was
+   almost certainly Apple's hit with error 1000 on 698). Note which comes: a sign-in, « Aucun compte MyWeli Pro… », or B0.14's
+   sentence. Cancelling Apple's sheet shows nothing, by design, so go through with it. The IPA and TestFlight do not install on a simulator, so that run is a
    separate debug build against production; the command is in `app-store-forms.md` §11.6, and the owner runs
    it or asks Claude to. A simulator run proves the layout, not the signed build; say which was used.
 
@@ -565,15 +572,18 @@ The audit's overkill list. Each was considered and left out on purpose:
 
 ## 16. Open questions
 
-None blocks the build. For the owner, at step 6: the notes' wording, including:
+**Answered by the owner on 2026-11-03 (decision 77): the notes, the description and the reply are approved as written.** They
+were told, before answering:
 
-- « Mon compte », which stays on the five pages for the reasons in §5, so the notes and the reply say « no link to salon
-  registration » and not « no registration link »;
-- whether « the separate MyWeli app and myweli.com » stays in the first paragraph. The audit would keep it (consumers booking an
-  in-person service, in text that is not public). But the consumer app was not published at the last reading, and production had no
-  public salon on 2026-10-28, so a reviewer may find neither;
-- « A new salon's free trial starts automatically when the salon goes live », which simplifies decision 68: a first offer chosen on
-  the web starts it earlier. It is true of the app;
-- whether to attach a recording of a real deletion. « Any other account is deleted at that step » rests on code and tests, and the
-  focused pass does not exercise it (§11);
-- whether the Play listing takes the description's two edits (§7). It keeps the old text until then.
+- « Mon compte » stays on the five pages for the reasons in §5, so the notes and the reply say « no link to salon registration »
+  and not « no registration link »;
+- that sign-up is two taps from those pages, where this spec had said about three when decision 3 was taken;
+- « the separate MyWeli app and myweli.com » stays in the first paragraph. The consumer app was not published at the last reading, and
+  production had no public salon on 2026-10-28, so a reviewer may find neither;
+- « A new salon's free trial starts automatically when the salon goes live » simplifies decision 68: a first offer chosen on the web
+  starts it earlier. It is true of the app;
+- no recording of a real deletion is attached unless Apple asks. « Any other account is deleted at that step » rests on code and
+  tests, and the focused pass does not exercise it (§11).
+
+**Still open, and blocks nothing:** whether the Play listing takes the description's two edits (§7). It keeps the old text until
+Play comes up again.

@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | **Prêt à remplir, en attente de** : la facturation GCP (production arrêtée), l'état du salon démo en production, et **la voie compagnon** ([pro-companion-path.md](pro-companion-path.md), construite le 2026-10-05) — sa fusion, et son backend déployé en production **avant** la soumission. Rédigé 2026-09-24 ; **mis à jour 2026-10-05** : fiche App Store Connect vérifiée (Apple ID 6805272779, §0 #3, §3), décision 3.1.1 prise — voie (a), sur les deux apps (§2), Xcode 27 prêt (§0 #2), deux avis App Store Connect à traiter (§0 #6). **Mis à jour le 2026-10-22** (BACKLOG B9.1) : la facturation est rouverte (2026-10-06) et la production rétablie ; le salon démo vit en production (2026-10-11) ; la voie compagnon est fusionnée (#551) et en production ; le **build 587 (0.0.1) est soumis et en revue**, publication manuelle (BACKLOG B0.1). Ce qu'App Store Connect seul peut confirmer — l'issue de la déclaration DSA, ce que dit l'étiquette de confidentialité, l'avancement de la revue — se relit au lot 10. **Mis à jour le 2026-11-03** ([app-review-round-2.md](app-review-round-2.md), BACKLOG B0.16) : Apple a refusé le build 698 (2.3.4 et 3.1.1). Les §4, §5, §8, §11.3, §11.5, §11.6 et §13 portent les textes de la reprise. **Rien n'est encore construit, collé ni envoyé** : le build, la formulation des notes et la soumission attendent le propriétaire. |
+| **Status** | **Prêt à remplir, en attente de** : la facturation GCP (production arrêtée), l'état du salon démo en production, et **la voie compagnon** ([pro-companion-path.md](pro-companion-path.md), construite le 2026-10-05) — sa fusion, et son backend déployé en production **avant** la soumission. Rédigé 2026-09-24 ; **mis à jour 2026-10-05** : fiche App Store Connect vérifiée (Apple ID 6805272779, §0 #3, §3), décision 3.1.1 prise — voie (a), sur les deux apps (§2), Xcode 27 prêt (§0 #2), deux avis App Store Connect à traiter (§0 #6). **Mis à jour le 2026-10-22** (BACKLOG B9.1) : la facturation est rouverte (2026-10-06) et la production rétablie ; le salon démo vit en production (2026-10-11) ; la voie compagnon est fusionnée (#551) et en production ; le **build 587 (0.0.1) est soumis et en revue**, publication manuelle (BACKLOG B0.1). Ce qu'App Store Connect seul peut confirmer — l'issue de la déclaration DSA, ce que dit l'étiquette de confidentialité, l'avancement de la revue — se relit au lot 10. **Mis à jour le 2026-11-03** ([app-review-round-2.md](app-review-round-2.md), BACKLOG B0.16) : Apple a refusé le build 698 (2.3.4 et 3.1.1). Les §4, §5, §8, §11.3, §11.5, §11.6 et §13 portent les textes de la reprise. **Rien n'est encore construit, collé ni envoyé** : le propriétaire a approuvé les trois textes le 2026-11-03 (décision 77) ; le build, le collage et la soumission suivent la fusion (spec §12). |
 | **Portée** | L'app **MyWeli Pro** seule — `com.myweli.pro`, nom affiché « MyWeli Pro », iPhone uniquement. Le consommateur (`com.myweli.app`) aura son propre dossier. |
 | **Source** | L'audit App Store du 2026-09-24 (cinq lentilles, chaque constat bloquant/majeur revu par un vérificateur indépendant) et le commit `68fc33c` qui en corrige la partie code. |
 | **Pendant Android** | [play-store-forms.md](play-store-forms.md) — même règle, même ton. |
@@ -625,7 +625,7 @@ code démo étant remplis, l'API a remplacé les notes par ce bloc, relu
 à l'identique (3 853 octets). La Play Console ne parlait pas d'inscription : son
 texte ne change pas ([play-store-forms.md](play-store-forms.md) §2).
 
-**2026-11-03 — le bloc de la reprise, à approuver par le propriétaire.** Apple a
+**2026-11-03 — le bloc de la reprise, approuvé par le propriétaire le jour même (décision 77).** Apple a
 refusé le 698 (2.3.4 et 3.1.1) : « remove features, account registration links, and
 any other links to your site… ». Le paragraphe ci-dessus devient l'histoire : le lien
 gardé par la décision 42 est retiré ([app-review-round-2.md](app-review-round-2.md)
@@ -652,7 +652,7 @@ un geste à la connexion des clients, qui crée un compte client et dont le pied
 le groupe des salons. D'où « salon registration », et non « registration link » : relevé par
 la revue le 2026-11-03 sur un build de la branche (spec §5, §13). Rien n'est collé avant ce relevé.
 
-Restent au propriétaire, pour l'approbation (spec §16) :
+Approuvés tels quels par le propriétaire le 2026-11-03, après en avoir été informé (spec §16) :
 
 - **La première phrase** garde « the separate MyWeli app and myweli.com ». Elle décrit
   le service. Mais l'app consommateur n'était pas publiée au dernier relevé (§3 : « Prepare for
@@ -667,7 +667,7 @@ La ligne datée ci-dessus reste : `mobile/test/infra/app_review_notes_test.dart`
 la lit, et n'autorise un bloc « coller tel quel » qui promet le verrou que
 si elle est datée. *Le test ne voit pas la production : il lit la ligne.*
 
-**Notes** (coller tel quel — le build de la reprise, 2026-11-03 ; **une fois la formulation approuvée par le propriétaire et le web relu en ligne**). Poids : **3 937 octets**
+**Notes** (coller tel quel — le build de la reprise, 2026-11-03 ; **formulation approuvée par le propriétaire le 2026-11-03 ; à coller une fois le web relu en ligne**). Poids : **3 937 octets**
 (3 872 caractères) — sous la limite de 4 000. Compté par script sur le
 texte exact du bloc, sans le saut de ligne final ; le test le recompte à
 chaque CI et échoue si ce paragraphe ment.
@@ -1365,9 +1365,9 @@ Ce build remplace le 698 pour la revue de la 0.0.1. L'écran de connexion ne pro
 À vérifier sur ce build, contre la production, dans cet ordre :
 1. Le compte démo, exactement comme le disent les notes de revue : on arrive sur « Maison Nala ».
 2. L'écran de connexion et l'étape du code ne portent aucun lien. Une adresse sans compte, qui reçoit vraiment le code, lit « Aucun compte MyWeli Pro n’est associé à cette adresse », sans bouton ajouté.
-3. Laisser la session plus de 15 minutes, puis revenir : toujours connecté, et tout se charge.
-4. Fermer l'app et la rouvrir : toujours connecté. Se déconnecter : retour à la connexion. Rouvrir : toujours déconnecté.
-5. Une fois sur iPad, en mode compatibilité iPhone : les points 1 et 2.
+3. Fermer l'app, attendre plus de 15 minutes, la rouvrir : toujours connecté, et tout se charge. Puis la laisser en arrière-plan plus de 15 minutes, revenir et ouvrir « Clients » : toujours connecté, et la liste se charge.
+4. Fermer l'app et la rouvrir : toujours connecté. Se déconnecter : retour à la connexion. Rouvrir : toujours déconnecté. Se reconnecter : « Maison Nala » se recharge.
+5. Une fois sur iPad, en mode compatibilité iPhone : les points 1 et 2, et toucher une fois « Continuer avec Apple ».
 ```
 
 *Un envoi peut sembler fait sans l'être* : la validation crée déjà un
@@ -1407,15 +1407,31 @@ propriétaire les rapporte, et ils sont datés ici : rien dans ce dépôt n'obse
       code vérifié), ou une identité Google ou Apple sans compte : la phrase « Aucun compte
       MyWeli Pro n’est associé à cette adresse. … », et rien de plus à toucher que les
       commandes de l'étape.
-- [ ] **3 · Une session laissée plus de 15 minutes** (la vie du jeton d'accès,
-      `backend/lib/src/auth/tokens.dart:16`) : l'app revient, charge, et reste connectée.
+- [ ] **3 · Une session laissée plus de 15 minutes, à froid puis à chaud** (la vie du jeton
+      d'accès, `backend/lib/src/auth/tokens.dart:16`). **Deux attentes, pas une** : le jeton ne se
+      rafraîchit qu'à la première requête refusée (`RefreshingHttpClient.send`), donc chaque passage
+      consomme l'expiration dont l'autre a besoin.
+      - **À froid** (décision 78) : tuer l'app, attendre plus de 15 minutes, la rouvrir. « Maison
+        Nala » s'ouvre, connecté, et se charge. C'est le démarrage qui lance plusieurs requêtes à la
+        fois : la course vue en production le 2026-10-11.
+      - **À chaud** : la laisser en arrière-plan plus de 15 minutes, revenir, ouvrir « Clients »
+        depuis « Accueil ». La liste se charge, toujours connecté. Ce geste compte : le seul retour
+        dans l'app n'envoie aucune requête au serveur, et ne prouverait rien.
+
       Ce que ce point prouve : le rafraîchissement silencieux après expiration, dans un build
       signé. `main_pro.dart` ne monte pas l'`AuthProvider` du client : de B9.13, il n'atteint
       que le code partagé (`RefreshingHttpClient`, `AccountScope`).
-- [ ] **4 · Redémarrage, puis déconnexion** : tuer l'app et la rouvrir : la session est
-      restaurée. Se déconnecter : l'écran de connexion. Rouvrir : toujours déconnecté.
+- [ ] **4 · Redémarrage, déconnexion, reconnexion** : tuer l'app et la rouvrir : la session est
+      restaurée. Se déconnecter : l'écran de connexion. Rouvrir : toujours déconnecté. Se
+      reconnecter : « Maison Nala » se recharge (décision 78 : l'entrée dans une session après
+      une sortie, dans le même processus, n'était pas jouée).
 - [ ] **5 · Un passage sur iPad**, puisque les deux refus nomment un iPad Air : les points 1
-      et 2, en mode de compatibilité iPhone. **Sur un simulateur si le propriétaire n'a pas
+      et 2, en mode de compatibilité iPhone, et toucher une fois « Continuer avec Apple »
+      (décision 78 ; le B0.1 note qu'un appareil, très probablement celui d'Apple, y a eu l'erreur
+      1000 sur le 698, et le B0.14 change cette phrase). Noter ce qui vient : une connexion, « Aucun
+      compte MyWeli Pro… », ou « Connexion Apple impossible sur cet appareil. Vérifiez dans Réglages
+      qu’un compte Apple est connecté, puis réessayez. » Annuler la feuille d'Apple n'affiche rien, et
+      c'est normal : aller au bout. **Sur un simulateur si le propriétaire n'a pas
       d'iPad** : l'IPA et TestFlight ne s'y installent pas, c'est donc un build de débogage
       contre la production, la commande des captures. Le propriétaire le lance depuis
       `mobile/`, ou le demande à Claude, sur un simulateur iPad :
@@ -1845,8 +1861,8 @@ vérifications sur l'iPhone du §11.6 sur le build retenu.
 
 ### 13.2 La réponse au deuxième refus, 2.3.4 et 3.1.1 (Resolution Center) — à envoyer par le propriétaire
 
-Brouillon du 2026-11-03 ([app-review-round-2.md](app-review-round-2.md) §6). Le
-propriétaire approuve la formulation et l'envoie lui-même : le fil n'a pas d'API. En
+Du 2026-11-03 ([app-review-round-2.md](app-review-round-2.md) §6), formulation approuvée
+le jour même (décision 77). Le propriétaire l'envoie lui-même : le fil n'a pas d'API. En
 anglais, dans le fil du refus de la soumission `45ed9726…`.
 
 **Tout cela doit être vrai avant l'envoi** :
