@@ -122,7 +122,7 @@ class _DemoLockedTeam extends MockProTeamService {
 /// Team access R3 §2.1 — the 3-step invite sheet: email validation, the
 /// role cards' locked copy, the Collaborateur fiche step (+ inline create),
 /// duplicate errors inline — and the refusals, which are a neutral sentence
-/// and nothing else: the Pro app never sells (App Store 3.1.3(f),
+/// and nothing else: the Pro app never sells (App Store 3.1.1,
 /// docs/design/pro-companion-path.md §2.2).
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();

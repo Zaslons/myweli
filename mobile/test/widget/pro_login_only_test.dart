@@ -335,6 +335,9 @@ void main() {
       expect(find.textContaining('compte ?'), findsNothing);
       expect(find.textContaining('inscrire'), findsNothing);
       expect(find.textContaining('myweli.com'), findsNothing);
+      // [sentences] reads paragraphs, and this is the one way to show words
+      // that is not one: it paints through an `EditableText`.
+      expect(find.byType(SelectableText), findsNothing);
     }
 
     /// On both platforms, because « Continuer avec Apple » is iOS only and

@@ -104,8 +104,8 @@ void main() {
       // A `static` member of AppConfig that mentions `siteBaseUrl`, or a member
       // already found, before its first `;`, so `'$supportUrl/../tarifs'` is on
       // the site too. Nothing else: a block body's `return` comes after a `;`,
-      // and a getter outside the class is not `static`. The two tests below
-      // hold those, whatever shape they take.
+      // and a getter outside the class is not `static`. The next two tests hold
+      // those, by counting the names.
       final onSite = <String>{};
       for (var known = 0; ; known = onSite.length) {
         final names = ['siteBaseUrl', ...onSite].join('|');
@@ -147,6 +147,22 @@ void main() {
             'a new way to the site in app_config.dart, however it is written. '
             'docs/design/app-review-round-2.md §4 first.',
       );
+    });
+
+    test('the config names each of the five once: its own getter', () {
+      // The base can stay at six and every getter stay right while a sixth is
+      // built on one of them, in a block body the first test does not follow:
+      // `get x { const p = '/tarifs'; return termsUrl.replaceFirst('/cgu', p); }`.
+      for (final name in required.keys) {
+        expect(
+          RegExp('\\b$name\\b').allMatches(closure[config]!).length,
+          1,
+          reason:
+              '$name is used inside app_config.dart: a way to the site that '
+              'the other tests read as the required page. '
+              'docs/design/app-review-round-2.md §4 first.',
+        );
+      }
     });
 
     test('each is read once, as the whole of the link it opens', () {

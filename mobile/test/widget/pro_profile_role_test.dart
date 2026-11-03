@@ -26,7 +26,7 @@ import '../support/web_created.dart';
 ///
 /// « Aide & Support » is pinned for EVERY role: since the companion path took
 /// the help buttons off « Mon abonnement » (an offer surface may not point
-/// anywhere — App Store 3.1.3(f)), this row is the Pro app's one help entry.
+/// anywhere — App Store 3.1.1), this row is the Pro app's one help entry.
 /// An owner whose offer is in grace or expired has nowhere else to go.
 /// Design: docs/design/pro-companion-path.md §2.2.
 void main() {
