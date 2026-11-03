@@ -18,8 +18,9 @@ import '../../../widgets/common/empty_state.dart';
 /// « Mon abonnement » — the salon's CURRENT offer, read-only: its status
 /// (trial / paid / grace / expired), its dates and its seats. Nothing else.
 ///
-/// **The Pro app never sells** (App Store 3.1.3(f), « free stand-alone
-/// companion app to a paid web based tool »): no plan choice, no other tier,
+/// **The Pro app never sells** (App Store 3.1.1; the companion path,
+/// docs/design/pro-companion-path.md §1, which says why 3.1.3(f) is no longer
+/// cited to Apple): no plan choice, no other tier,
 /// no price, no trial promotion, no entitlement list, and no pointer — web,
 /// support, e-mail — to where an offer is obtained. This screen used to be the
 /// offer picker; choosing now happens on the web, and the app never says so.

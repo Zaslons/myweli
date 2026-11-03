@@ -11,7 +11,10 @@ import 'package:flutter_test/flutter_test.dart';
 /// 1. **The listing fits Play's limits** — name 30, short description 80,
 ///    full description 4,000 characters (Play help, « Add product details »).
 ///    And the full description is the App Store's, word for word: the page
-///    says so, and two stores telling two stories is how a claim drifts.
+///    says so, and two stores telling two stories is how a claim drifts. One
+///    dated exception: decision 4 of Apple's second refusal (2026-11-03) edited
+///    the App Store's text only, so Play may be behind by exactly those two
+///    edits, and by nothing else, until the owner says otherwise.
 ///    **And the sign-in instructions fit their field.** No help page of
 ///    Google's states a limit; the console does — « 0/500 » under « Toute
 ///    autre information requise pour accéder à votre appli », 60 for the
@@ -94,13 +97,26 @@ void main() {
       expect(full.runes.length, lessThanOrEqualTo(4000));
     });
 
-    test('the full description is the App Store one, word for word', () {
+    test('the full description is the App Store one, word for word, or '
+        'behind it by the two edits of 2026-11-03 and nothing else', () {
       final full = fencedAfter(
         listing(),
         '**Description complète** (coller tel quel)',
       );
       final appStore = fencedAfter(section(ios, '## 4 · '), '**Description**');
-      expect(full, appStore);
+      // docs/design/app-review-round-2.md §7. Undone on the App Store's text,
+      // they must give Play's. Play taking them is a repair, and stays green.
+      final beforeTheEdits = appStore
+          .replaceFirst(
+            "votre page publique se remplit depuis l'app.",
+            "votre page publique sur myweli.com se remplit depuis l'app.",
+          )
+          .replaceFirst(
+            ' MyWeli Pro s’adresse aux salons qui ont déjà un compte MyWeli '
+                'et à leur équipe.',
+            '',
+          );
+      expect(full, anyOf(appStore, beforeTheEdits));
     });
 
     test('no Markdown in what is pasted — Play shows it literally', () {
