@@ -1,19 +1,19 @@
-/// The five pages of our site that the apps open, and the only ones on App Store
-/// Connect's form: Support, Privacy, the CGU, the mentions légales, the deletion
-/// page. **They carry no link to sign-up, to the Espace pro or to the offers.**
+/// The five pages of our site that the apps open: support, privacy, the CGU, the
+/// mentions légales, the deletion page. Two of them are also App Store Connect's Support
+/// and Privacy URLs. **They carry no link to sign-up, to the Espace pro or to the offers.**
 ///
 /// Apple refused build 698 of MyWeli Pro under 3.1.1 and asked to « remove features,
 /// account registration links, and any other links to your site that could indirectly
-/// provide access to external purchase mechanisms ». The app cannot lose these pages,
-/// because privacy and support are required, so the pages lost the direct links. Every
-/// other page keeps them: that is where salons look for the door, and the owner accepted
-/// that a salon reading one of these five goes through the logo instead
+/// provide access to external purchase mechanisms ». The app keeps these pages, since
+/// privacy and support are required, so the pages lost the direct links. Every other page
+/// keeps them: that is where salons look for the door, and the owner accepted that a salon
+/// reading one of these five goes through the logo instead
 /// (docs/design/app-review-round-2.md §5).
 ///
 /// **The other half of this list is `AppConfig`'s five getters**, in
 /// `mobile/lib/core/config/app_config.dart`. `tests/store-linked-pages.test.tsx` reads
-/// that file, so a new link from the app to the site fails CI until it is added here,
-/// and so hidden from sign-up, or removed.
+/// that file, so a new link from the app to the site fails CI until its page is added
+/// here, or the link is dropped.
 export const STORE_LINKED_PATHS = [
   '/support',
   '/politique-confidentialite',

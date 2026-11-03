@@ -191,6 +191,9 @@ need to touch it.
 - **The install banner.** It shows on the five when a store URL is configured, and leads to
   a store listing, not to our site. Decision 3 does not name it.
 - **Home's band** (`ProBand`) only renders on `/`.
+- **The layout's script chunk.** A client leaf means `PRO_LINKS` and the header's link are in a
+  JavaScript file every page loads. No anchor, no text and no byte of the HTML carries them on
+  the five; a reviewer would have to read the bundle.
 
 ### 5.1 How
 
@@ -240,7 +243,8 @@ comment in the same PR. `Header`'s and `SiteFooter`'s tests in
     of the five: no link to `/professionnels`, `/pro/inscription`, `/pro/connexion`, the logo and
     breadcrumb go home, the legal and social groups remain. Control: `/` and `/recherche` have
     all three;
-  - `/support`, rendered: no « facturation », « offre », « abonnement », « tarif » or « FCFA »;
+  - each of the five, rendered: no « facturation », « offre », « abonnement », « tarif » or
+    « FCFA ». « prix » is allowed, because the CGU speak of a salon's own prices;
   - the drop: `lg:pt-xxl` beside the group, none without it.
 - **The cross-surface test**, in the same file, reads the Dart: every `'$siteBaseUrl/…'` in
   `mobile/lib/core/config/app_config.dart` is in the five and every one of the five is there; any
@@ -255,7 +259,13 @@ comment in the same PR. `Header`'s and `SiteFooter`'s tests in
     the social group remain. Control: `/` and `/recherche`;
   - `/cgu/` and `/cgu?utm_source=x` behave as `/cgu`;
   - a client navigation from `/` to `/cgu` and back moves the links;
-  - at `lg` the lists start where the salons' title starts on `/` (trap 2).
+  - at `lg` and on a phone the lists start where the salons' title starts on `/` (trap 2).
+
+*Done, on the local production build against the stub, not on myweli.com:* the five answer 200,
+statically, with 0 hits for the three paths, « Espace pro » and « facturation » in the HTML read with
+an iPad user agent; `/`, `/recherche`, `/connexion` and `/professionnels` still have them. First Load JS
+is unchanged on the five (132 kB). Looked at from 375 to 1920: the header ends on « Mon compte », the two
+groups sit under the wordmark, and the third column is empty. Red first and mutations: the commit messages.
 
 ## 6. The review notes and the reply
 
