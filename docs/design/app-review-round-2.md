@@ -1,0 +1,440 @@
+# Apple's second rejection of MyWeli Pro 0.0.1 — round 2 (2.3.4, 3.1.1)
+
+| | |
+|---|---|
+| **Status** | Approved 2026-11-03 (owner: §3, five decisions) · build, upload and resubmission are the owner's go (§12) |
+| **Owner** | Sadreddine Daher |
+| **Last updated** | 2026-11-03 |
+| **PRD ref / phase** | FR-PRO-AUTH-001 (registration on the web only) · V1 |
+| **BACKLOG** | B0.1, B0.2, B0.3, B0.11 (batch 0, the release track) |
+| **Related** | [pro-app-login-only.md](pro-app-login-only.md) (round 1; its §8 and Q1 pre-agreed this removal) · [app-store-forms.md](app-store-forms.md) (§8 notes, §11.3 IPA check, §11.6 device checks, §13.2 reply) · [pro-app-preview.md](pro-app-preview.md) (the film) · [web-pro-access.md](web-pro-access.md) (P1 header door, P2 footer group, the two things §5 narrows) · [pro-companion-path.md](pro-companion-path.md) |
+| **Skills checked** | myweli-dev-guardrails · myweli-web-guardrails · myweli-verification-guardrails |
+
+## 1. Why — Apple's message
+
+App Review, 3 November 2026, **build 698**, iPad Air 11-inch (M3), submission
+`45ed9726-1418-435b-b3e2-76726422c5d3`. Two guidelines:
+
+- **2.3.4.** « Includes framing around the video screen capture of the app. »
+  Next step: only video screen captures, with narration and video or textual
+  overlays. « some app previews may only be viewed and updated by selecting
+  "View All Sizes in Media Manager" ».
+- **3.1.1.** The login page's call to action « S'inscrire sur myweli.com ». Next
+  step: « remove features, account registration links, and any other links to
+  your site that could indirectly provide access to external purchase
+  mechanisms. »
+
+The second one is wider than the first rejection (build 587, 19 October, the
+in-app registration form). « any other links to your site » is what makes the
+required support and legal pages part of this round (§5), even though Apple did
+not cite them.
+
+## 2. What the audit found
+
+A read-only audit on `main` at `acd6d73f` (2026-11-03): Apple's pages, every
+link and sentence in the Pro app, the store metadata, the preview, the release
+route, then an adversarial pass. Line numbers are from that commit.
+
+**Pro** means the import closure of `lib/main_pro.dart`, computed by script: 264
+of 353 Dart files, read against the 33 routes of `pro_router.dart`.
+
+| # | Finding | Where | Rated |
+|---|---|---|---|
+| 1 | The only in-app call to action towards sign-up. It sits after the step branches, so it renders on options, code **and** invitations: the demo path shows it. Round 1's §4.1 said « options step » only | `pro_login_screen.dart:463-472` | Cited |
+| 2 | The framed film (capture in a rounded card on paper, mark and headline above) sits in both iPhone slots | `build/app-store/pro/preview/v2/final/preview.mp4`, BACKLOG:489 | Cited |
+| 3 | All five pages the app opens lead to sign-up in one tap: header « Espace pro », footer « Inscrire mon salon ». Then `/pro/abonnement` shows the offers behind sign-up. The header link only hides below `sm`, so a reviewer's iPad sees it | `web/components/Header.tsx:29-34`, `SiteFooter.tsx:10-14` | Medium |
+| 4 | `/support` is the one in-app destination whose body names billing | `web/app/support/page.tsx:65` | Low |
+| 5 | The notes describe the cited link and send the reviewer to register on myweli.com for the deletion test | `app-store-forms.md:640`, `:643` | Must change |
+| 6 | The notes cite 3.1.3(f). Apple's text is a closed list (VoIP, cloud storage, email, web hosting); a salon tool is none of those. Our docs quote only the tail of the rule | `app-store-forms.md:628`, `:255`, `:1652` | Weak claim |
+| 7 | The IPA check for build 698 expected the link and `/pro/inscription` to be **present** | `app-store-forms.md:1194-1196` | Must flip |
+| 8 | The next build carries B9.13 and B9.14, which rewrite sign-in, restore, sign-out and the session-end path, and have never run in a signed build | `refreshing_http_client.dart`, BACKLOG:468-469 | Device pass |
+| 9 | Both rejections name an iPad Air; Pro is iPhone-only (`TARGETED_DEVICE_FAMILY = 1`, `project.pbxproj:1347`) and its look in iPhone compatibility mode on an iPad is only inferred | `app-store-forms.md:73` | Device pass |
+| 10 | Round 1's « one widget, one test line » undercounts: 1 widget, 3 imports, 1 getter, 1 orphan file, 1 false comment, 4 test files, 1 golden | §4.3, §10 | Corrected |
+
+Clean, read and left alone: no other Pro string contains `myweli.com`, « le
+site », « navigateur » or « inscri… »; no share link and no displayed public URL;
+no native resource names the site (`grep` over `ios/Runner` and `android/app/src`,
+re-read for this spec). « Mon abonnement » is a statement with no button or price
+(`pro_subscription_no_pricing_test.dart`). Phone, `wa.me` and map links lead to
+third parties, not to our site.
+
+Not observable by anyone in this round, and stated as such: App Store Connect's
+live state, the Resolution Center thread, build 698's binary, the app on an iPad,
+production demo data. Whether a reviewer would tap through the web pages is a
+judgement; Apple has not cited them.
+
+## 3. The owner's decisions (2026-11-03)
+
+In their own words, from the question they answered. They bind everything below.
+
+| # | Decision | What it means |
+|---|---|---|
+| 1 | The login link goes, on both platforms: pre-agreed in [pro-app-login-only.md](pro-app-login-only.md) §8 and Q1 (one behaviour) | §4. No iOS-only branch |
+| 2 | VIDEO: « Upload the full-screen trial » | §8. The full-bleed cut of the same storyboard and takes, as rendered, end card included. The owner was told it still ends on a paper card, that Revenus says « Total » where the app says « Total réalisé », and that a third rejection is possible. **Accepted risk** (§13). A proper retake is for 0.0.2 |
+| 3 | WEB: « Remove the links » | §5. On exactly five pages. The logo and breadcrumb still go home. Every other page unchanged |
+| 4 | DESCRIPTION: « Both edits » | §7 |
+| 5 | DEVICE CHECK: « Focused pass » | §11. Replaces decision 2's full list for this build |
+
+Also decided: stop citing guideline 3.1.3(f) in anything sent to Apple; rewrite
+the review notes; the owner approves the notes' wording and sends the Resolution
+Center reply themselves. **No production backend deploy** (decision 47).
+
+## 4. The app — the removal
+
+### 4.1 « Connexion » (`pro_login_screen.dart`), both platforms
+
+| Where | Before | After |
+|---|---|---|
+| Below every sign-in step | « Pas encore de compte ? » / « S’inscrire sur myweli.com » → the browser at `/pro/inscription` | Nothing |
+| `provider_not_found`, and the last invitation declined | The sentence, with the link below it | The sentence, unchanged. Nothing to tap |
+
+**No new copy on the login screen.** No replacement line, no privacy link, no
+« contactez-nous ». It is the screen Apple has now cited twice.
+
+### 4.2 What each step offers
+
+Exactly this, and it is what the widget tests pin (§10):
+
+| Step | Actions |
+|---|---|
+| Options | « Continuer avec Google », « Continuer avec Apple » (iOS only, `_showApple`), the e-mail field, « Continuer avec e-mail » |
+| Code | The code field, « Se connecter », « Renvoyer le code », « Changer d’e-mail » |
+| Invitations | « Rejoindre », « Refuser » on each card, « Retour » |
+| No account (any step that reaches it) | The step's own actions. The sentence is a live region with no button |
+
+The no-account sentence stays exactly as it is (`kNoProAccountMessage`,
+[pro-app-login-only.md](pro-app-login-only.md) §4.2):
+
+> « Aucun compte MyWeli Pro n’est associé à cette adresse. Si votre salon vous a
+> invité, connectez-vous avec l’adresse qui a reçu l’invitation. »
+
+**This is a dead end on purpose.** No guideline asks for a sign-up path, and Apple
+has now asked twice for its absence. The store description says who the app is
+for (§7). Communication outside the app is not touched: e-mails, the website, a
+salesperson.
+
+### 4.3 What leaves the code
+
+Each removal confirmed by `grep` before it goes:
+
+- `pro_login_screen.dart`: the `AuthSwitchPrompt`, the `SizedBox` above it and
+  their comment; the imports of `app_config`, `external_link` and
+  `auth_switch_prompt` (nothing else in the file uses them); the sentence of the
+  class doc that describes the link.
+- `core/config/app_config.dart`: `proSignUpUrl` and its doc.
+- `widgets/common/auth_switch_prompt.dart`: deleted. The login was its only caller.
+- `core/constants/failure_messages.dart:19-20`: the comment said the link « does
+  that, once, for everyone ». It now says nothing on the screen points to a sign-up.
+
+Stays: `kNoProAccountMessage`, `openExternalUrl` (About, Profil), `web/app/pro/inscription`
+(the web's own sign-up), `pro_router.dart:42-44` (still true).
+
+### 4.4 Layout
+
+The scroll view's padding is `AppTheme.spacingL`, and `InlineFeedback(null)` is a
+`SizedBox.shrink`. So the `SizedBox(height: spacingL)` that separated the prompt
+goes with it: the form ends on its last control plus the scroll padding, the same
+distance on all sides, with no stray gap. The one baseline that shows the screen
+(`pro_login_w360_x2`) must show this, and is read by eye (§10). A new sentence in
+`InlineFeedback` keeps its own `spacingS` above.
+
+### 4.5 States & edge cases
+
+- **Old builds**: 698 and earlier keep the link. They are TestFlight or the closed
+  test only; nothing public shows it, and `/pro/inscription` keeps working.
+- **Accessibility**: one fewer control on the first screen. Nothing else changes;
+  the screen's width and 200 % tests stay, with another proof string.
+- **Long French, 360 dp, 200 %**: the defect `AuthSwitchPrompt` fixed (149 px past
+  a 360 dp screen, `mobile-a11-width.md`) leaves with the widget. Register row 65
+  of `SYSTEM.md` §21 is history and stays.
+
+## 5. The web slice (decision 3)
+
+**Exactly these five paths**, the five the app opens, two of which are also App
+Store Connect's Support and Privacy URLs: `/support`, `/politique-confidentialite`,
+`/cgu`, `/mentions-legales`, `/suppression-compte`.
+
+| On those five | Before | After |
+|---|---|---|
+| Header | « Espace pro » → `/professionnels` (from `sm` up) | Gone. Logo → `/`, the bell and « Mon compte » stay |
+| Footer | Group « Professionnels »: « MyWeli Pro pour les salons », « Inscrire mon salon », « Connexion Espace pro » | Gone. The legal and social groups stay |
+| Breadcrumb | « Accueil » → `/` | Unchanged |
+| `/support` body | « Mise en ligne, équipe, offre et facturation. Indiquez le nom du salon. » | « Mise en ligne et équipe. Indiquez le nom du salon. » |
+
+**Every other page is unchanged**, including `/`, `/professionnels` and `/connexion`.
+The `/support` wording changes for everyone, since it is that page's body.
+
+### 5.1 How
+
+- One list and one predicate, e.g. `web/lib/storeLinkedPages.ts`:
+  `isStoreLinkedPage(pathname)`, exact match on the five. Not a prefix. Its comment
+  says why (this spec) and that the mobile half is `AppConfig`'s five getters.
+- **Header**: `SiteChrome` is already a client component reading `usePathname`; it
+  passes one prop to `Header`, whose default keeps « Espace pro ».
+- **Footer**: `SiteFooter` is a server component, deliberately (its comment refuses
+  a hydration boundary « to hide four links »). That reason yields to Apple's
+  sentence, and the comment says so. The group moves to a small client island that
+  reads `usePathname` and holds `PRO_LINKS` itself.
+
+**Two traps, both of which the deployed-artifact check must catch:**
+
+1. **The links must not travel to these pages as props.** Passing the rendered group
+   as `children` to a client wrapper serializes every `href` into the page's RSC
+   payload: no visible link, but `/pro/inscription` in the HTML of the page that
+   claims not to have it. The island holds the list.
+2. **`lg:pt-xxl` belongs to the group.** The legal and social groups drop by the
+   height of the salons' title so that all three lists start on one line
+   (`SiteFooter.tsx`). With the group gone that drop is a stray gap, and the two
+   groups should start at the columns' top. Look at it at `lg`.
+
+The pages stay static: no `headers()`, no `cookies()` in the layout, which would make
+every page dynamic to hide four links. `usePathname` renders on the server for a
+static page, so the HTML a `curl` reads must already be clean; that is the claim to
+check, not an assumption.
+
+Update `web-pro-access.md` P1 and P2 (the door has five exceptions) and the header's
+comment in the same PR. `Header`'s and `SiteFooter`'s tests in
+`web/tests/pro-access.test.tsx` keep proving the default.
+
+### 5.2 Web tests, red first
+
+- Unit: each of the five paths hides both; a control path on each side (`/`,
+  `/professionnels`, `/cgu/x`, `/supports`) keeps both. An exact-match bug is the
+  realistic one.
+- e2e at an iPad width, where the header link is visible: on each of the five, no
+  anchor to `/professionnels`, `/pro/inscription` or `/pro/connexion`; the logo and
+  breadcrumb still go home; the four legal links and the social group remain
+  (`legal.spec.ts`). Control: `/` still has all three.
+- A source pin: `/support` has no « facturation » or « offre ».
+- The class these cannot see: a **new** sign-up link in the body of one of the five.
+  The e2e reads anchors site-wide on the page rather than the two components, so a
+  body link is caught too; say so in its name.
+
+## 6. The review notes and the reply
+
+`app-store-forms.md` §8 stays the one paste block, and its weight is recounted
+(`app_review_notes_test.dart` fails if the « Poids » sentence lies). **The owner
+approves the wording**; nothing is pasted before that.
+
+Three passages change. Drafts, for that approval:
+
+- **SUBSCRIPTION**: « MyWeli Pro is a free app for salons that already have a MyWeli
+  account. There is no purchasing in the app and no button, link or instruction to
+  buy or register elsewhere: Profil > « Mon abonnement » only shows the salon's current
+  plan and its status. A new salon's free trial starts automatically when the salon goes
+  live; nothing is chosen or bought in the app. » No guideline number.
+- **ACCOUNT DELETION**, last sentence: « Any other account is deleted at that step; if it
+  has upcoming appointments, the app first asks to finish or cancel them. » No instruction
+  to register anywhere.
+- **SALON ACCOUNTS**: « The app only signs in to existing salon accounts, with an e-mail
+  code, Apple or Google. It has no registration, no registration link and no way to add a
+  salon; salon accounts are created outside the app, on the MyWeli website. An identity
+  with no account is told « Aucun compte MyWeli Pro n’est associé à cette adresse. » Team
+  members invited by their salon join it from the sign-in screen. The app opens our website
+  only for its support and legal pages (Profil > « Aide & Support » and « À propos »), and
+  those pages carry no registration link. Please use the demo account above to see a
+  populated salon. »
+
+**« those pages carry no registration link » is true only once §5 is live and checked**
+(§12 step 2). It says what those pages carry. It does not say the site is out of reach,
+because the logo still goes home, and the notes must not imply otherwise.
+
+Also out of the notes, the §13.2 reply and every other text sent to Apple: the number
+3.1.3(f). **The Resolution Center reply** is a new §13.2 block, drafted for the owner,
+sent by the owner, with the real `<BUILD>` and only true sentences (2.3.4: replaced with
+full-screen captures, text overlays and an end frame saying an account is required).
+**TestFlight's « What to Test »** loses the sign-up wording. **The IPA check** (§11.3)
+flips: « S’inscrire sur myweli.com », « Pas encore de compte » and `/pro/inscription` move
+to the « gone » list; `kNoProAccountMessage` stays a witness. Build 698's record stays as
+history.
+
+## 7. The store listing (decision 4)
+
+Two edits to the description, the owner's text:
+
+1. « votre page publique sur myweli.com se remplit depuis l'app. » becomes « votre page
+   publique se remplit depuis l'app. »
+2. Add, with no link: « MyWeli Pro s’adresse aux salons qui ont déjà un compte MyWeli et à
+   leur équipe. »
+
+Counts at `app-store-forms.md:339`, `:372`, `:1577` are recounted by script. Name, subtitle,
+promotional text, keywords, copyright, support and privacy URLs and the 16 stills do not
+change. **The marketing URL stays empty** (recorded empty on 2026-10-13); §5 of the forms
+still proposes `https://myweli.com`, and that row is corrected. The Play listing is another
+store's text and is not part of this.
+
+## 8. The film (decision 2)
+
+- **File**: `build/app-store/pro/preview/candidate-full-bleed/preview-full-bleed.mp4`, sha256
+  `b34bac542f99579a3d94e0693b3f75437f516202d27666c77f6280d5c286e724` (recomputed for this
+  spec), 886×1920, 862 frames, 28.733 s. The same storyboard and takes as the framed cut,
+  rendered with `--frame full-bleed`. The tool's 25 file checks pass; they read format and
+  masks, not App Review's rules, and the rejected film passed the same 25.
+- **Poster**: 00:00:13:00. Set at reservation, read back: Apple ignored the time sent on the
+  deprecated route (`app-store-forms.md:1584`).
+- **Both iPhone slots.** The framed file sits in `IPHONE_DYNAMIC_ISLAND_MEDIUM_PROFILE` and
+  `..._LARGE_PROFILE`. A placement cannot be edited: delete, create, read back. **Every size is
+  read in « View All Sizes in Media Manager » before « Add for Review »**, as Apple's message
+  warns. A framed copy left in any size is a certain rejection, so this is a gate and not a nicety.
+- **Media before submission**: Rejected allows media edits, Waiting for Review does not.
+- **The storyboard file stays as it is**: its hash identifies the cut, and `film.frame` is
+  changed by the 0.0.2 retake. `pro-app-preview.md` records which file is in the slots and how it
+  was rendered, and its « not settled » note on frames gets Apple's answer.
+
+## 9. Architecture, contract, data, security, performance
+
+- **API, data model, OpenAPI**: nothing. No endpoint or migration. The server's registration
+  endpoints stay for the web.
+- **Layers**: a screen loses a widget; `AppConfig` loses a getter. No service or provider moves.
+- **Security**: nothing new is trusted or exposed. No threat-model row: no trust boundary moves.
+- **Performance**: the app sheds a widget. The web gains one small client island on every page
+  and a prop; the CWV gate decides, and the pages stay static.
+- **V1 scope**: nothing added to any surface.
+
+## 10. Testing — red first
+
+Every new test is seen failing on the old code, and that is recorded in the commit message.
+Comments are stripped before any source pin matches (`stripDartComments`). Mutations run on a
+COPY of committed work.
+
+**Mobile.**
+
+- **Source pin**, in `test/widget/pro_login_only_test.dart`, over the Pro closure: no « S’inscrire »,
+  « Pas encore de compte », `proSignUpUrl` or `/pro/inscription`, in any apostrophe spelling. The
+  widget's file is gone.
+- **The site-link guard**, `test/infra/pro_site_links_test.dart`, over the closure computed from
+  `lib/main_pro.dart`:
+  - the `AppConfig` getters built on `siteBaseUrl` that Pro uses are **exactly**
+    `privacyUrl`, `termsUrl`, `legalNoticeUrl`, `accountDeletionUrl`, `supportUrl`, and each points
+    to its path;
+  - `siteBaseUrl` itself is read nowhere else;
+  - no string in the closure contains `myweli.com` but the two infrastructure values (the site's
+    base, the API's host);
+  - no web page of ours appears as a path literal;
+  - no sentence says « notre site », « site web », « navigateur » and the like: an instruction needs
+    no domain;
+  - every file that opens something outside the app is on a known list;
+  - `ios/Runner` and `android/app/src` name no `myweli.com`.
+- **Widget**, `pro_login_only_test.dart`, on iOS and Android: each of the three steps offers exactly
+  the actions of §4.2, read from the semantics tree so that a reworded link or an `InkWell` cannot
+  pass; the no-account path shows its sentence, offers nothing new and opens nothing. **Control**: the
+  fake browser does hear a real `openExternalUrl`, or « opened nothing » proves nothing.
+- **Updated**: `pro_login_only_test.dart` (the link group goes), `pro_login_invitations_test.dart:130`
+  (`findsNothing`), `a11y/auth_layout_test.dart` (another proof, the prompt's own tests go),
+  `golden/pro_screens_golden_test.dart:582-583`.
+- **Golden**: `pro_login_w360_x2` changes, on Linux only (the « Goldens — regenerate » workflow). Every
+  changed PNG is looked at; the rest are compared byte for byte and not committed. `consumer_login` must
+  not move.
+
+**What the guard cannot see, by class:**
+
+| Class | Why it is blind | What covers it |
+|---|---|---|
+| A URL the server sends (`update_url`) | It is data, not source. Seeds: Play URL, NULL for iOS (`migrations.dart:892-899`); the admin service does not check the host | Review; decision 4 of B0 (no `updateUrl` before release); §14 |
+| Text the server sends (push, a refusal's `message`) | Same | The app never shows a server's `message` (`app-failure-messages.md`); the subscription pushes carry no link |
+| A new outbound call inside a file already on the list | The inventory is by file | The domain and getter checks still see our site; a third party is a judgement for review |
+| What the web pages carry | No mobile test reaches the web | §5.2 and the post-merge `curl` |
+
+**Web**: §5.2.
+
+## 11. The device pass (decision 5)
+
+« Focused pass » — on the build going to review, from TestFlight, on a real iPhone. It replaces
+decision 2's full list (`app-store-forms.md` §11.6 and the post-587 list) **for this build**; those
+stay on the list for 0.0.2.
+
+1. **The demo sign-in, exactly as the notes say.** « Espace Pro », `revue@myweli.test` in « Votre
+   e-mail », « Continuer avec e-mail », the code in « Code à 6 chiffres », « Se connecter ». Lands on
+   « Maison Nala ».
+2. **No link on Connexion**: options and code. An address with no account: the sentence, nothing to tap.
+3. **A session left past 15 minutes** (the access token's life, `backend/lib/src/auth/tokens.dart:16`).
+   Comes back, loads, still signed in. This is B9.13 and B9.14's first signed run.
+4. **Restart, then sign-out.** Kill and reopen: restored. Sign out: Connexion. Reopen: still signed out.
+5. **One run on an iPad**, simulator if the owner has no iPad, since both rejections name one. Steps 1 and
+   2 in iPhone compatibility mode. A simulator run proves the layout, not the signed build; say which was used.
+
+Reported by the owner, dated in §11.6: nothing in this repo observes a device.
+
+## 12. Rollout
+
+**The web and the app land together, in one PR. The web is live at merge; the build comes after merge.**
+Nothing is merged, uploaded, pasted or sent except by the owner's go.
+
+| # | Step | Who |
+|---|---|---|
+| 1 | The PR: this spec, the app, the web, the notes block, CI green, goldens on Linux | Claude, then the owner's review |
+| 2 | Merge. **The web is live.** `curl` the five paths with an iPad user agent and read them: no `/professionnels`, `/pro/inscription`, `/pro/connexion`; control: `/` still has them | Owner merges; Claude checks |
+| 3 | Hold other merges (dependabot included) until the build is made. Build from `main`: `./tool/release_build.sh ios pro`, which refuses a dirty tree or a HEAD that is not `origin/main`. Version stays 0.0.1; the build number is `git rev-list --count HEAD`, so `<BUILD>` is read from the IPA, not predicted | Claude, on the owner's go |
+| 4 | Read the IPA (§11.3, flipped: §6). Upload, wait for `VALID` | Claude, on the owner's go |
+| 5 | The device pass (§11) | Owner |
+| 6 | App Store Connect, in this order while the version is editable: the film in both slots, read back in Media Manager (§8); the description (§7); the build; the notes, wording approved (§6) | Owner approves; API or owner |
+| 7 | The Resolution Center reply and « Add for Review » | Owner only |
+| 8 | While in review: B0.1 applies (no `DEMO_PROVIDER_CODE` rotation, no Cloudflare change, same-day answers) | Both |
+
+**No production backend deploy** (decision 47): no step needs one, and the next one switches the Apple keys
+on, whatever its reason. **Web merges are production deploys**, so during review the five pages are not edited.
+
+The stale-doc sweep beyond this PR's files (BACKLOG, LAUNCH, PRD, `pro-app-login-only.md`'s body) follows in the
+docs PR; §8's notes, the tests and this spec travel with the code.
+
+## 13. Accepted risks and the contingency
+
+**Accepted by the owner, knowingly:**
+
+- **The end card.** 2.5 s of paper, mark and disclosure, not a capture, on the same paper the reviewer just objected
+  to around the capture. For it: Apple's previews page names the end frame as a place for disclaimer copy, and the
+  rejection names only framing on a film that carried this card.
+- **« Total ».** The take says « Total » on Revenus; the build says « Total réalisé » and « Rendez-vous terminés ». A
+  re-render cannot fix a take. The retake is for 0.0.2.
+- **A third rejection is possible**, and the review clock is days. The audit's pick was to ship no film; the owner chose
+  this one after hearing that.
+- **Salon visitors on the five pages lose the salon links.** The logo still goes home, and home's band still says
+  « Vous êtes un salon ? ». So sign-up stays about three taps away. Apple may read that too; removing it hurts every web
+  visitor and the owner kept it.
+
+**Known, and not acted on:**
+
+- **5.1.1(ix)**, KYC under an individual seller: uncited twice. Fallback decided (B0.6: hide KYC and the deposit switch on
+  iOS if cited).
+- **5.1.1(v)**, a reviewer cannot see a real deletion: the demo account refuses it by design. A recording taken during the
+  device pass can be attached, the owner's choice.
+- **The stills** show « Revenus » and « Total » from before those labels changed (stills 3, 8). 2.3.3 asks that they follow
+  the UI; they wait for 0.0.2.
+
+**The contingency.** If Apple challenges the model itself (a plan bought outside the app governs the app, and 3.1.3(f) does not
+fit): **« Mon abonnement » is hidden, or store billing is opened. A decision for then**, the owner's, and not taken now. Hiding
+the row is small; store billing is weeks (`app-store-forms.md` §2.4 (b)). No sentence sent to Apple before that argues the point.
+
+## 14. What is NOT changed, and why
+
+The audit's overkill list. Each was considered and left out on purpose:
+
+- **The logo and breadcrumb home links** on the five pages (decision 3). Home is three taps from sign-up and removing them hurts every visitor. The direct links are the exposure.
+- **Bare `/app/*` copies of the legal pages.** New URLs in the binary and in App Store Connect, for what the path rule covers.
+- **The end-card tool change, its self-tests and mutations, and the S4 retake.** For 0.0.2.
+- **A staged reshoot** for « Total », dates, chips and blank mask rows. Not approval issues.
+- **The 16 stills.** 2.3.3 allows their frame; 2.3.4 concerns previews.
+- **Hiding or renaming « Mon abonnement », hiding KYC.** Both harm owners to answer a citation Apple has not made.
+- **CGU, Mentions légales and the About deletion row.** Once the pages are clean they cost nothing and they build trust. The native deletion stays unconditionally (5.1.1(v)).
+- **A privacy link on the login screen.** The very screen Apple just cited; reachable after sign-in has not been cited.
+- **A second disposable reviewer account.** Backend work and a deploy decision 47 forbids.
+- **Never-rendered strings (`trial_used`, `reseau_required`) and the dead `openWhatsApp`.** Unreachable.
+- **An iOS-only branch.** One behaviour on both platforms; Google did not ask, and the owner chose.
+- **The full stale-doc sweep before the resubmission.** Only what must be true at submission travels with the code.
+
+## 15. Definition of done
+
+- [ ] This spec committed before code, indexed in `README.md`, cross-linked from the code it governs.
+- [ ] Every new test and guard watched red on the old code, and red under a mutation on a copy of committed work; both in the commit message.
+- [ ] `flutter analyze` 0, `dart format` clean, the design-token gates, the full mobile suite once; web lint, typecheck, unit, e2e, build.
+- [ ] Goldens on Linux; every changed PNG looked at; the rest byte-compared.
+- [ ] Notes wording approved by the owner; weight recounted; no 3.1.3(f) anywhere sent to Apple.
+- [ ] After merge: the five pages read live with a control (§12 step 2). The IPA read (§6). The device pass reported (§11).
+- [ ] Both iPhone slots read back with the new file and the poster before « Add for Review ».
+- [ ] Feature branch and PR. No Claude attribution of any kind. A roadmap entry.
+
+## 16. Open questions
+
+None blocks the build. For the owner, at step 6: the notes' wording, including whether « and myweli.com » stays in the first
+paragraph (the audit would keep it: consumers booking an in-person service, in text that is not public) and whether to attach a
+recording of a real deletion.

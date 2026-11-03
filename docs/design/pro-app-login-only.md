@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | Approved 2026-10-26 (owner: §9, every question answered) |
+| **Status** | Approved 2026-10-26 (owner: §9, every question answered). **The link of Q5 and §4.1 was refused by Apple on 2026-11-03 and leaves the app: [app-review-round-2.md](app-review-round-2.md).** The rest of this spec stands; the sentences that still describe the link are history until the docs PR |
 | **Owner** | Sadreddine Daher |
 | **Last updated** | 2026-10-26 |
 | **PRD ref / phase** | FR-PRO-AUTH-001 (registration moves to the web), access R6 (« Ajouter un salon ») · V1 |
