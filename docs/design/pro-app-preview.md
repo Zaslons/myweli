@@ -2,12 +2,12 @@
 
 | | |
 |---|---|
-| **Status** | **Version 2 — built, chosen and uploaded (2026-10-14).** The owner watched three cuts and chose cut 1 « as it is »: framed, with the public page, 28.733 s, five scenes and the end card (`tool/app_store_preview/storyboard-scenes.json`, #590; film sha256 `4d945614…`, passes all 25 checks). **Uploaded to version 0.0.1** in both iPhone slots, processed by Apple, placed ahead of the screenshots; poster asked at 25.000 s (`00:00:25:00`) — Apple first ignored the time sent with the upload and used its 5-s default; corrected. Version 1 (§1–§11) stays as the record. |
+| **Status** | **Apple refused the framed film on 2026-11-03 (2.3.4, build 698). The owner chose the full-screen trial: the full-bleed cut of the same storyboard and takes, end card and « Total » included, as an accepted risk. Rendered and verified; not yet uploaded (§0.6).** A retake on fresh takes with no end card is for 0.0.2. The rest of this row is the record of 2026-10-14. **Version 2 — built, chosen and uploaded (2026-10-14).** The owner watched three cuts and chose cut 1 « as it is »: framed, with the public page, 28.733 s, five scenes and the end card (`tool/app_store_preview/storyboard-scenes.json`, #590; film sha256 `4d945614…`, passes all 25 checks). **Uploaded to version 0.0.1** in both iPhone slots, processed by Apple, placed ahead of the screenshots; poster asked at 25.000 s (`00:00:25:00`) — Apple first ignored the time sent with the upload and used its 5-s default; corrected. Version 1 (§1–§11) stays as the record. |
 | **Owner** | Sadreddine Daher |
-| **Last updated** | 2026-10-14 |
+| **Last updated** | 2026-11-03 |
 | **PRD ref / phase** | Launch — store submission · V1 |
 | **Skills checked** | myweli-dev-guardrails · myweli-verification-guardrails |
-| **Governs** | `tool/app_store_preview/` (its README carries the editing rule in full and the runbook for the take) · [app-store-forms.md](app-store-forms.md) §10, §13.1 · sits next to [pro-app-store-screenshots.md](pro-app-store-screenshots.md) |
+| **Governs** | `tool/app_store_preview/` (its README carries the editing rule in full and the runbook for the take) · [app-store-forms.md](app-store-forms.md) §10, §13.1 · sits next to [pro-app-store-screenshots.md](pro-app-store-screenshots.md) · [app-review-round-2.md](app-review-round-2.md) §8, §13 (the refusal) |
 
 ## 0. Version 2 — the multi-scene film (owner's choice, 2026-10-14)
 
@@ -100,6 +100,65 @@ only processing and review will say. Nothing is uploaded before the owner has
 watched the film and said go. For a first version the preview has to go in the
 same submission as the app; the owner decides whether 0.0.1 waits for it.
 
+*2026-11-03: settled by Apple, and by the owner after it: the frame is full-bleed, and the
+poster moves with it (§0.6).*
+
+### 0.6 Apple's answer: the frame is refused (2026-11-03)
+
+**What Apple said.** App Review, build 698, under 2.3.4: « Includes framing around the
+video screen capture of the app. » Next step: only video screen captures, with narration
+and video or textual overlays. It also warns that some previews can only be seen and
+changed through « View All Sizes in Media Manager ». The same framed film had been on the
+page during the review of 2026-10-19, which did not cite it, so not being cited proves
+little.
+
+**What the owner chose (decision 2 of round 2).** « Upload the full-screen trial »: the
+full-bleed cut of the same storyboard and takes, as rendered, end card included. The owner
+was told, before choosing, and accepted:
+
+- **It still ends on a paper card.** 2.5 s of paper, mark and disclosure is not a screen
+  capture, and it is the paper the reviewer objected to around the capture. For it: Apple's
+  previews page names the end frame as a place for disclaimer copy, and the rejection names
+  only the framing on a film that carried this card.
+- **Revenus says « Total »** where the app says « Total réalisé » and « Rendez-vous
+  terminés » ([provider-earnings.md](provider-earnings.md)). A re-render cannot fix a take.
+- **A third rejection is possible**, and the review clock is days. The audit's own pick was
+  to ship no film.
+
+**The file to upload.** `build/app-store/pro/preview/candidate-full-bleed/preview-full-bleed.mp4`,
+sha256 `b34bac542f99579a3d94e0693b3f75437f516202d27666c77f6280d5c286e724`, the file the owner was shown: 14,309,442 bytes, 886 × 1920, 862 frames,
+28.733 s, H.264 High Level 4.0, AAC-LC stereo at 48 kHz, digital silence. Read again on
+2026-11-03: the tool's 25 checks, and `ffprobe` independently. **The 25 checks read the file's
+format and masks, not App Review's rules: the refused film passed the same 25.**
+
+**The committed tool reproduces it.** `film.frame` in `storyboard-scenes.json` is `full-bleed`
+since 2026-11-03, and a self-test holds it. Rendered without `--frame`, from a private export of
+the commit, on the same takes: PASS, 25 checks, sha256 `8d5af02c6bfcd381cd248272bebd1a4ccefe4bf1082d741d1ebcbc4e81aa100d`.
+**Frame-identical, not byte-identical.** The two files are the same size and differ in 22 bytes: 20
+in the creation and modification times of `mvhd`, both `tkhd` and both `mdhd`, and 2 in the first key
+frame's user-data SEI (Apple's encoder UUID `47564adc…`), as the rebuild of 2026-10-14 did. Every one
+of the 862 frames decodes to the same bytes through `ffmpeg` (`yuv420p` and `rgb24`) and through
+AVFoundation (control: 802 neighbouring frames differ under the same comparison). The sound decodes
+the same. So the candidate stays the file to upload, and nothing has to be shown to the owner again.
+
+**The poster: `00:00:13:00`, frame 390.** It is whole-second, so it reads the same whether Apple's
+last field counts frames or hundredths. The tool's own poster frame for this cut stays S3, 0.5 s in:
+frame 397, 13.233 s, which a time code cannot name (`cuts.txt` says so), and the storyboard's value
+was left alone. **Both are the same picture**: frames 382 to 412 are one composed frame
+(`f_000382.png`), the client's card at rest with its number masked. Decoded frame 390 is 55.6 dB from
+`poster.png`, worst block 3.6 levels, by `verify`'s own comparison, whose bar is 48 dB and 8 levels (frame
+397 is 56.9 dB and 3.6). Set at reservation and read back: Apple ignored the time sent on the deprecated route
+([app-store-forms.md](app-store-forms.md) §13.1).
+
+**How it goes up** ([app-review-round-2.md](app-review-round-2.md) §8, §12). Both iPhone slots,
+`IPHONE_DYNAMIC_ISLAND_MEDIUM_PROFILE` and `..._LARGE_PROFILE`. A placement cannot be edited: delete,
+create, read back. **Every size read in « View All Sizes in Media Manager » before « Add for Review »**:
+a framed copy left in any size repeats the refusal. Rejected allows media edits; Waiting for Review does
+not.
+
+**For 0.0.2.** A retake on the current build, on fresh takes, with no end card and the disclosure inside
+the footage, so that nothing on screen is anything but a capture and its overlays (B0.8).
+
 ## 1. Goal & scope
 
 The owner asked on 2026-10-13 for a motion-design video of the Pro app,
@@ -127,6 +186,9 @@ Play (a different format and rulebook), other languages, an iPad cut.
 | Personal data | fictional account data, not a real person's (2.3.9) | guidelines |
 | First version | the preview must go **in the same submission** as the version; nothing can be uploaded once the version is « Waiting for Review » | [Submit assets from Asset Library](https://developer.apple.com/help/app-store-connect/manage-submissions-to-app-review/submit-assets-from-asset-library) · [App and submission statuses](https://developer.apple.com/help/app-store-connect/reference/app-information/app-and-submission-statuses) |
 | Afterwards | replaced only with a new app version; **the poster frame cannot be changed once approved** | [Placing assets on your App Store surfaces](https://developer.apple.com/documentation/appstoreconnectapi/placing-assets-on-your-app-store-surfaces) · specifications page |
+
+*2026-11-03: the frame is no longer an unknown. App Review refused it under 2.3.4 (§0.6); the
+stills' frame is allowed by 2.3.3 and did not move.*
 
 **Not stated on any Apple page read** — so neither promised nor forbidden: a
 brand frame around the capture (the stills use one), whether a *silent* audio
@@ -304,7 +366,8 @@ rate, HEVC, no audio track.
   this reading is ours, not Apple's. An accepted risk, or the scroll to the
   total is dropped.
 - **The brand frame.** Apple's pages do not address it. Fallback: the same
-  take, full-bleed, captions over the app's own margins.
+  take, full-bleed, captions over the app's own margins. *2026-11-03: it happened:
+  refused under 2.3.4, and the fallback is what goes up (§0.6).*
 
 **Unknown at Apple** (§2): the silent track, the aspect-ratio rule, the Côte
 d'Ivoire storefront.

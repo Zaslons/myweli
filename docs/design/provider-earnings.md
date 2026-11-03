@@ -122,3 +122,7 @@ figure for the same day ([provider-dashboard-stats.md](provider-dashboard-stats.
   [pro-app-preview.md](pro-app-preview.md) §8. The owner's call: the film is
   not re-cut. Per the same spec's §2, a preview is replaced only with a new
   app version, and its poster frame cannot be changed once approved.
+  *2026-11-03: Apple refused that film's frame, so the same takes go up full-bleed. S4 still shows
+  « Total », a re-render cannot change a take, and the owner accepted that for this
+  resubmission. The retake is for 0.0.2 ([pro-app-preview.md](pro-app-preview.md) §0.6). The poster moved
+  to S3, so it no longer shows this card.*
