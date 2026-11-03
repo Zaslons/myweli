@@ -1267,6 +1267,17 @@ checking rather than assuming:
 > device checks on 698 (BACKLOG B0.2) and the Resolution Center reply
 > (app-store-forms §13.2). BACKLOG B0.1's « while in review » constraints
 > apply again.
+>
+> **2026-11-03 — refused again: guidelines 2.3.4 and 3.1.1, build 698.** App Review (an
+> iPad Air) cited the framing around the film's capture, and the sign-in's « S'inscrire
+> sur myweli.com », with « remove features, account registration links, and any other
+> links to your site… ». So the link kept knowingly above is gone, on iOS and Android. **The
+> answer is built on `fix/app-review-round2` and is not merged** (BACKLOG B0.16, decisions 71–76,
+> [app-review-round-2.md](design/app-review-round-2.md)): no link on the sign-in; the five pages
+> the app opens without the salon links; the full-bleed cut of the film, its end card and « Total »
+> an accepted risk; review notes without 3.1.3(f); a focused device pass. **Web merges are production
+> deploys: the five pages go live at merge, and the build comes after. No production backend deploy**
+> (decision 47): no step needs one. Until the next « Add for Review », B0.1's constraints are lifted.
 
 - [ ] Everything in [mobile-store-submission.md](design/mobile-store-submission.md) §5.
       Two of its claims are **stale as of 2026-08-18** and must be corrected

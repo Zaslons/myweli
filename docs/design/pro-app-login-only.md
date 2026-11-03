@@ -2,12 +2,12 @@
 
 | | |
 |---|---|
-| **Status** | Approved 2026-10-26 (owner: §9, every question answered). **The link of Q5 and §4.1 was refused by Apple on 2026-11-03 and leaves the app: [app-review-round-2.md](app-review-round-2.md).** The rest of this spec stands; the sentences that still describe the link are history until the docs PR |
+| **Status** | Approved 2026-10-26 (owner: §9, every question answered). **Apple objected to the link of Q5 and §4.1 on 2026-11-03 (build 698), and it leaves the app on both platforms: [app-review-round-2.md](app-review-round-2.md).** The login-only rule, the sentence of §4.2 and the invitations stand. Where this spec describes the link, a dated note says it is gone; what was true on 2026-10-26 stays as written |
 | **Owner** | Sadreddine Daher |
-| **Last updated** | 2026-10-26 |
+| **Last updated** | 2026-11-03 |
 | **PRD ref / phase** | FR-PRO-AUTH-001 (registration moves to the web), access R6 (« Ajouter un salon ») · V1 |
 | **BACKLOG** | B0.11 (batch 0, the release track) |
-| **Related** | [pro-companion-path.md](pro-companion-path.md) (3.1.3(f): the app never sells) · [app-store-forms.md](app-store-forms.md) (review notes, §2 3.1.1 analysis) · [pro-auth-social.md](pro-auth-social.md) (login-only sign-in) · [team-access-r6-multi-salons.md](team-access-r6-multi-salons.md) (« Ajouter un salon ») |
+| **Related** | [app-review-round-2.md](app-review-round-2.md) (the second refusal: the link goes) · [pro-companion-path.md](pro-companion-path.md) (the app never sells) · [app-store-forms.md](app-store-forms.md) (review notes, §2 3.1.1 analysis) · [pro-auth-social.md](pro-auth-social.md) (login-only sign-in) · [team-access-r6-multi-salons.md](team-access-r6-multi-salons.md) (« Ajouter un salon ») |
 | **Skills checked** | myweli-dev-guardrails · myweli-verification-guardrails |
 
 ## 1. Why — Apple's rejection of 0.0.1
@@ -78,7 +78,7 @@ Researched first — Google Play's Payments policy, and how peers do it
 | Q2 | « Ajouter un salon » in the app? | **Removed** — creating a business is what Apple named; Réseau owners add salons on the web. |
 | Q3 | Team invitations (an employee joins an existing salon)? | **Kept** — nothing is bought, no business is created. |
 | Q4 | What a sign-in with no account says | **A neutral sentence + the invitation hint** (§4.2). |
-| Q5 | An « S’inscrire » link that opens myweli.com, as Planity does? | **Yes — the owner takes the risk** knowingly: the EU/US link-out rules do not cover CI, and reviewers have asked apps to remove registration links too. If App Review objects, removing the link is one widget (§8). |
+| Q5 | An « S’inscrire » link that opens myweli.com, as Planity does? | **Yes — the owner takes the risk** knowingly: the EU/US link-out rules do not cover CI, and reviewers have asked apps to remove registration links too. If App Review objects, removing the link is one widget (§8). **2026-11-03: App Review objected on build 698 (« remove features, account registration links, and any other links to your site… »). The link is gone.** It was not one widget: see §8. |
 | Q6 | « Prendre rendez-vous » for clients who installed the wrong app? | **Later**, to the MyWeli consumer app's store page once it is published — nothing outbound to booking in this resubmission. |
 
 ## 4. UX & flows — before → after (exact copy)
@@ -94,6 +94,11 @@ Researched first — Google Play's Payments policy, and how peers do it
 The link says where it goes (« sur myweli.com ») because it leaves the app —
 a person should know a browser is about to open.
 
+*2026-11-03: the first row's « after » and « the bottom link above » are history. Nothing on this
+screen points to a sign-up any more, on any step
+([app-review-round-2.md](app-review-round-2.md) §4). The prompt was also not on the options step
+alone, as the first row said: it sat after the step branches, so the demo path showed it.*
+
 ### 4.2 The no-account sentence
 
 > « Aucun compte MyWeli Pro n’est associé à cette adresse. Si votre salon vous
@@ -103,7 +108,9 @@ One sentence, everywhere the app learns there is no account: the API
 mapping of `provider_not_found`, `ProAuthProvider` after the last invitation
 is declined, the mock. It sits in `InlineFeedback` (a live region — read by
 VoiceOver/TalkBack). It never points to the web itself: the bottom link does
-that, once, for everyone.
+that, once, for everyone. *2026-11-03: no longer. The sentence stays word for word, and now nothing
+on the screen points to the web. A dead end, on purpose: no guideline asks for a sign-up path, and
+Apple has asked twice for its absence. The store description says who the app is for.*
 
 ### 4.3 What leaves the app
 
@@ -127,7 +134,9 @@ that, once, for everyone.
 - **A new salon.** Opens MyWeli Pro → « S’inscrire sur myweli.com » → the
   browser, `/pro/inscription` → signs up there → back in the app, signs in
   with the same Apple, Google or e-mail → lands on « Accueil » with its
-  onboarding checklist, as a web-created salon always did.
+  onboarding checklist, as a web-created salon always did. *2026-11-03: it starts
+  on the website now: nothing in the app leads there. Communication outside the app
+  (e-mails, the site, a salesperson) is not touched.*
 - **An invited employee.** Signs in with the invited address → the
   « Invitations » step → joins. Unchanged.
 - **Someone with no account and no invitation.** Signs in → §4.2's sentence.
@@ -137,19 +146,21 @@ that, once, for everyone.
 ### 4.5 States & edge cases
 
 - **No browser / launch failure**: `openExternalUrl` shows « Impossible
-  d’ouvrir le lien. » (its existing behaviour).
-- **Offline**: the browser shows its own offline page; the app is unchanged.
+  d’ouvrir le lien. » (its existing behaviour). *2026-11-03: no link on this screen now.*
+- **Offline**: the browser shows its own offline page; the app is unchanged. *Same.*
 - **Old builds** (TestFlight, Android internal) keep the in-app form; the
   server endpoints are unchanged, so they keep working.
 - **Accessibility**: the link is the existing `AuthSwitchPrompt` (≥ 48 dp,
-  200 % text); the sentence is in an existing live region.
+  200 % text); the sentence is in an existing live region. *2026-11-03:
+  `AuthSwitchPrompt` is deleted with the link; the live region stays.*
 
 ## 5. Architecture
 
 App only — models, services, providers, screens. No endpoint, contract,
 migration or web change: the web already registers salons and adds them. The
 URL is `AppConfig.siteBaseUrl` + `/pro/inscription` (a getter, like the legal
-links), opened by `openExternalUrl`.
+links), opened by `openExternalUrl`. *2026-11-03: the getter is gone. A guard now
+holds the Pro app's pages on our site at five (`test/infra/pro_site_links_test.dart`).*
 
 ## 6. Security & authz
 
@@ -168,20 +179,25 @@ stays (server).
   registration keeps its copy).
 - **Widget**: the login's « S’inscrire sur myweli.com » opens
   `https://myweli.com/pro/inscription` in an external application (a fake
-  `url_launcher` platform) and pushes no route; `provider_not_found` shows
+  `url_launcher` platform) and pushes no route (*2026-11-03: replaced by exact action
+  lists for each step, read from the semantics tree*); `provider_not_found` shows
   §4.2's sentence and no « Créer un compte »; the salon picker shows no « Ajouter
   un salon » row even for an account that may add one; « Mon abonnement » on
   a live Réseau offer shows no add card.
 - **Unit**: `provider_not_found` maps to §4.2's sentence (API); the mock says
   the same.
 - **Cross-surface**: `web/app/pro/inscription/page.tsx` exists — the link's
-  destination is a real page.
+  destination is a real page. *2026-11-03: removed with the link; the page stays, it is
+  the web's own sign-up.*
 - Tests that built accounts through `register…` or a second salon through
   `addSalon` seed them instead (the mock's data), so the behaviours they
   prove still hold.
 - **Mutations** on committed work; the suite; goldens on Linux.
 
 ## 8. Rollout
+
+**2026-11-03: this rollout ran, Apple refused build 698, and the contingency below fired.**
+What follows is the record; the next rollout is [app-review-round-2.md](app-review-round-2.md) §12.
 
 - **The resubmission**: a new build of **0.0.1** (decision 1), after the
   device checks (B0.2) — which gain « S’inscrire sur myweli.com opens the
@@ -195,6 +211,9 @@ stays (server).
   the website.
 - **If App Review objects to the link**: remove the `AuthSwitchPrompt` (one
   widget, one test line) and resubmit; the rest of this slice stands.
+  *2026-11-03: it objected, and the rest does stand. « One widget, one test line » undercounted:
+  one widget, three imports, one getter, one orphan file, one false comment, four test files and one
+  golden. And Apple's wording reached past the login, to the five pages the app opens.*
 - **Later** (Q6): « Prendre rendez-vous » → the consumer app's store page, once
   it is published.
 

@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | Approved 2026-11-03 (owner: §3, five decisions) · build, upload and resubmission are the owner's go (§12). **The app's half (§4, §10) and the web's half (§5) are built** on `fix/app-review-round2`: not merged, not in any build, not live, not seen on a device |
+| **Status** | Approved 2026-11-03 (owner: §3, five decisions) · build, upload and resubmission are the owner's go (§12). **The app's half (§4, §10), the web's half (§5), the texts for Apple (§6, §7), the film's storyboard (§8) and the record are done** on `fix/app-review-round2`: not merged, not in any build, not live, not pasted, not uploaded, not seen on a device. The notes' wording waits for the owner's approval |
 | **Owner** | Sadreddine Daher |
 | **Last updated** | 2026-11-03 |
 | **PRD ref / phase** | FR-PRO-AUTH-001 (registration on the web only) · V1 |
@@ -273,7 +273,7 @@ groups sit under the wordmark, and the third column is empty. Red first and muta
 (`app_review_notes_test.dart` fails if the « Poids » sentence lies). **The owner
 approves the wording**; nothing is pasted before that.
 
-Three passages change. Drafts, for that approval:
+Three passages change, now in the block. They are still drafts until that approval:
 
 - **SUBSCRIPTION**: « MyWeli Pro is a free app for salons that already have a MyWeli
   account. There is no purchasing in the app and no button, link or instruction to
@@ -283,7 +283,7 @@ Three passages change. Drafts, for that approval:
 - **ACCOUNT DELETION**, last sentence: « Any other account is deleted at that step; if it
   has upcoming appointments, the app first asks to finish or cancel them. » No instruction
   to register anywhere.
-- **SALON ACCOUNTS**: « The app only signs in to existing salon accounts, with an e-mail
+- **SALON ACCOUNTS** (the sentence on the pages joins the audit's draft, since §5 removes the links): « The app only signs in to existing salon accounts, with an e-mail
   code, Apple or Google. It has no registration, no registration link and no way to add a
   salon; salon accounts are created outside the app, on the MyWeli website. An identity
   with no account is told « Aucun compte MyWeli Pro n’est associé à cette adresse. » Team
@@ -302,23 +302,33 @@ sent by the owner, with the real `<BUILD>` and only true sentences (2.3.4: repla
 full-screen captures, text overlays and an end frame saying an account is required).
 **TestFlight's « What to Test »** loses the sign-up wording. **The IPA check** (§11.3)
 flips: « S’inscrire sur myweli.com », « Pas encore de compte » and `/pro/inscription` move
-to the « gone » list; `kNoProAccountMessage` stays a witness. Build 698's record stays as
-history.
+to the « gone » list; `kNoProAccountMessage` stays a witness, and the five paths join it; any sixth
+`https://myweli.com…` in the binary fails it. *Read on an unsigned build of this branch, with the API's
+defines: `OK`; the binary names the five pages and the API, nothing else of ours. Not the signed IPA, which
+is still step 4.* Build 698's record stays as history. **The prepared answer about Sign in with Apple** (§13.3) names the
+new build's sentence and `<BUILD>`, since B0.14 is on `main` and ships in this build, and it now says
+Apple sign-in must be tried on the build first: this focused pass does not cover it. **`app_review_notes_test.dart`**
+holds it: no 3.1.3(f) in anything sent, no sign-up link or instruction in the notes, the sign-in steps
+in the words of the login screen, the description's counts, the IPA lists, no build number written in
+a reply.
 
 ## 7. The store listing (decision 4)
 
-Two edits to the description, the owner's text:
+Two edits to the description, the owner's text, done in `app-store-forms.md` §4:
 
 1. « votre page publique sur myweli.com se remplit depuis l'app. » becomes « votre page
    publique se remplit depuis l'app. »
 2. Add, with no link: « MyWeli Pro s’adresse aux salons qui ont déjà un compte MyWeli et à
-   leur équipe. »
+   leur équipe. » It follows the first sentence, on the same line: what the app is, then who it
+   is for. 1,061 characters, 1,102 bytes, 18 lines.
 
 Counts at `app-store-forms.md:339`, `:372`, `:1577` are recounted by script. Name, subtitle,
 promotional text, keywords, copyright, support and privacy URLs and the 16 stills do not
 change. **The marketing URL stays empty** (recorded empty on 2026-10-13); §5 of the forms
-still proposes `https://myweli.com`, and that row is corrected. The Play listing is another
-store's text and is not part of this.
+still proposes `https://myweli.com`, and that row is corrected. **The Play listing keeps its text**:
+decision 4 is about the App Store, and Play's is saved in its console. It was word for word the same,
+and `play_store_forms_test.dart` held that, so the guard now allows exactly these two edits and nothing
+else. Whether Play takes them is the owner's call (§16); the login's dead end is the same on Android.
 
 ## 8. The film (decision 2)
 
@@ -334,9 +344,11 @@ store's text and is not part of this.
   read in « View All Sizes in Media Manager » before « Add for Review »**, as Apple's message
   warns. A framed copy left in any size repeats what Apple just refused, so this is a gate and not a nicety.
 - **Media before submission**: Rejected allows media edits, Waiting for Review does not.
-- **The storyboard file stays as it is**: its hash identifies the cut, and `film.frame` is
-  changed by the 0.0.2 retake. `pro-app-preview.md` records which file is in the slots and how it
-  was rendered, and its « not settled » note on frames gets Apple's answer.
+- **The storyboard says full-bleed.** First written here as « the storyboard file stays as it is »;
+  changed the same day so that the committed tool builds what goes in the slots. `film.frame` is the one
+  value changed, with a dated `_frame` note and a self-test, watched red. **The candidate stays the file to
+  upload.** Rendered again from the commit, it is frame-identical and not byte-identical: 22 bytes differ,
+  every one of the 862 frames decodes the same (`pro-app-preview.md` §0.6, which records the rest).
 
 ## 9. Architecture, contract, data, security, performance
 
@@ -398,6 +410,11 @@ COPY of committed work.
 
 **Web**: §5.2.
 
+**The film**: `test_scenes.Storyboard.test_the_film_is_full_bleed_because_apple_refused_the_framed_one`, watched red on the old
+storyboard. **The texts**: the last group of `mobile/test/infra/app_review_notes_test.dart` (§6), and `play_store_forms_test.dart`, which
+holds Play's description to the App Store's but for §7's two edits. They read documents and source. Whether a sentence is true of the build
+is the IPA check's and the device pass's to say.
+
 ## 11. The device pass (decision 5)
 
 « Focused pass » — on the build going to review, from TestFlight, on a real iPhone. It replaces
@@ -435,8 +452,8 @@ Nothing is merged, uploaded, pasted or sent except by the owner's go.
 **No production backend deploy** (decision 47): no step needs one, and the next one switches the Apple keys
 on, whatever its reason. **Web merges are production deploys**, so during review the five pages are not edited.
 
-The stale-doc sweep beyond this PR's files (BACKLOG, LAUNCH, PRD, `pro-app-login-only.md`'s body) follows in the
-docs PR; §8's notes, the tests and this spec travel with the code.
+The stale-doc sweep (BACKLOG, LAUNCH, PRD, `pro-app-login-only.md`'s body) is on this branch too, with §8's notes, the
+tests and this spec. So one PR carries it all.
 
 ## 13. Accepted risks and the contingency
 
@@ -481,7 +498,6 @@ The audit's overkill list. Each was considered and left out on purpose:
 - **A second disposable reviewer account.** Backend work and a deploy decision 47 forbids.
 - **Never-rendered strings (`trial_used`, `reseau_required`) and the dead `openWhatsApp`.** Unreachable.
 - **An iOS-only branch.** One behaviour on both platforms; Google did not ask, and the owner chose.
-- **The full stale-doc sweep before the resubmission.** Only what must be true at submission travels with the code.
 
 ## 15. Definition of done
 
@@ -496,6 +512,13 @@ The audit's overkill list. Each was considered and left out on purpose:
 
 ## 16. Open questions
 
-None blocks the build. For the owner, at step 6: the notes' wording, including whether « and myweli.com » stays in the first
-paragraph (the audit would keep it: consumers booking an in-person service, in text that is not public) and whether to attach a
-recording of a real deletion.
+None blocks the build. For the owner, at step 6: the notes' wording, including:
+
+- whether « the separate MyWeli app and myweli.com » stays in the first paragraph. The audit would keep it (consumers booking an
+  in-person service, in text that is not public). But the consumer app was not published at the last reading, and production had no
+  public salon on 2026-10-28, so a reviewer may find neither;
+- « A new salon's free trial starts automatically when the salon goes live », which simplifies decision 68: a first offer chosen on
+  the web starts it earlier. It is true of the app;
+- whether to attach a recording of a real deletion. « Any other account is deleted at that step » rests on code and tests, and the
+  focused pass does not exercise it (§11);
+- whether the Play listing takes the description's two edits (§7). It keeps the old text until then.

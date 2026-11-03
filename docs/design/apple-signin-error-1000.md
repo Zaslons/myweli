@@ -5,7 +5,7 @@
 | **Status** | Approved 2026-10-28 — Q1 answered: sentence A (§2.3, §10) |
 | **Owner** | Sadreddine Daher |
 | **Last updated** | 2026-10-28 |
-| **PRD ref / phase** | FR-AUTH-001/002 (sign-in) · V1 · ships with 0.0.2 |
+| **PRD ref / phase** | FR-AUTH-001/002 (sign-in) · V1 · ships with the next build, 0.0.1 or 0.0.2: it is on `main` (2026-11-03) |
 | **BACKLOG** | B0.14, decision 50 (answered « do it » on 2026-10-28) |
 | **Related** | [app-store-forms.md](app-store-forms.md) §13.3 (the 2026-10-26 event and the ready reply) · [app-auth-social.md](app-auth-social.md) · [pro-auth-social.md](pro-auth-social.md) · `mobile/lib/services/api/api_auth_service.dart` |
 | **Skills checked** | myweli-dev-guardrails · myweli-verification-guardrails |
