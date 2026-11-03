@@ -492,8 +492,8 @@ class MockAuthService implements AuthServiceInterface {
         code: 'otp_invalid',
       );
     }
-    // LOGIN-ONLY; a correct code with no salon keeps the code for register —
-    // and for the invitation ACCEPT (the 202 bridge never consumes it).
+    // LOGIN-ONLY; a correct code with no salon stays unconsumed, for the
+    // invitation ACCEPT (the 202 bridge never consumes it).
     final res = _providerLogin(key, EmailOtpInvitationProof(key, code));
     if (res.signedIn) _providerEmailOtpStore.remove(key);
     return res;

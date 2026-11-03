@@ -5,7 +5,7 @@ import '../constants/failure_messages.dart';
 /// can never drift between backends.
 ///
 /// **No sentence here sends the salon anywhere to obtain an offer.** The Pro
-/// app is a companion app (App Store 3.1.3(f)): it states a fact — the offer
+/// app never sells (App Store 3.1.1): it states a fact — the offer
 /// is not active, the places are taken — and never asks the salon to choose,
 /// upgrade or contact anyone about an offer, nor says where one is bought. An
 /// `InlineFeedback` is a live region, so VoiceOver reads these sentences

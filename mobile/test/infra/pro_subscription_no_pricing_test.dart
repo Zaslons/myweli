@@ -4,7 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import '../support/dart_source.dart';
 
-/// The Pro app never sells — App Store 3.1.1 and 3.1.3(f), on BOTH stores.
+/// The Pro app never sells — App Store 3.1.1, on BOTH stores.
 ///
 /// ## Why this file exists
 ///
@@ -15,7 +15,7 @@ import '../support/dart_source.dart';
 /// Apple's reading; advertising its price and routing the purchase off-platform
 /// is the shape that gets an app rejected.
 ///
-/// **Then, the choice itself (3.1.3(f)).** The owner decided on 2026-10-05 that
+/// **Then, the choice itself.** The owner decided on 2026-10-05 that
 /// MyWeli Pro ships as a « free stand-alone companion app to a paid web based
 /// tool »: no purchasing, and no call to action to purchase outside the app.
 /// So the offer picker left the app — on iOS AND Android, because Google Play's
@@ -94,7 +94,7 @@ void main() {
         isEmpty,
         reason:
             'the Pro app may show the current offer, never a way to choose, '
-            'switch, activate or obtain one (App Store 3.1.3(f), both '
+            'switch, activate or obtain one (App Store 3.1.1, both '
             'stores): $hits',
       );
     });

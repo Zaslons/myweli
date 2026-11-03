@@ -7,8 +7,8 @@ import '../../models/salon_subscription.dart';
 ///
 /// Read-only in the app. Nothing here chooses or switches an offer: the
 /// server starts the salon's one trial at its first successful publish, and
-/// offers are chosen on the web — the Pro app is a companion app (App Store
-/// 3.1.3(f)). Design: docs/design/pro-companion-path.md §3.1.
+/// offers are chosen on the web — the Pro app never sells (App Store 3.1.1).
+/// Design: docs/design/pro-companion-path.md §3.1.
 abstract class SubscriptionServiceInterface {
   /// The current offer state. The SETUP state (no offer row yet) is a 404
   /// server-side → `ApiResponse.error(code: 'no_offer')`.

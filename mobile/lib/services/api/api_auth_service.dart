@@ -226,11 +226,11 @@ class ApiAuthService implements AuthServiceInterface {
   /// Reports WHICH social sign-in failure happened, and nothing about who.
   ///
   /// **Six call sites had none of this**, across the consumer login, the pro
-  /// login and the pro email-OTP registration — so a misconfigured signing
-  /// SHA-1, a network blip and an unsupported device were indistinguishable in
-  /// telemetry. The user always saw the right error; we learned nothing from it
-  /// and would have heard about a systemic failure from a salon owner rather
-  /// than a dashboard.
+  /// login and the pro email-OTP registration the app had then — so a
+  /// misconfigured signing SHA-1, a network blip and an unsupported device were
+  /// indistinguishable in telemetry. The user always saw the right error; we
+  /// learned nothing from it and would have heard about a systemic failure from
+  /// a salon owner rather than a dashboard.
   ///
   /// **A cancel is never reported.** Under `google_sign_in` 7.x `canceled` has
   /// exactly one source, `GetCredentialCancellationException` — a real user
@@ -453,7 +453,7 @@ class ApiAuthService implements AuthServiceInterface {
   // ---- Pro auth overhaul (docs/design/pro-auth-social.md) -------------------
 
   /// Adopt + persist a FLAT ProviderSession body ({provider, accessToken,
-  /// refreshToken}) — shared by logins, registration and invitation accepts.
+  /// refreshToken}) — shared by logins and invitation accepts.
   Future<ProviderUser> _adoptProviderSession(Map<String, dynamic> body) async {
     final provider = ProviderUser.fromJson(
       body['provider'] as Map<String, dynamic>,

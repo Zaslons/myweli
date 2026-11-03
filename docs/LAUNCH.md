@@ -52,6 +52,9 @@ questions none of our gates can answer:
      587 (0.0.1) is in App Review. `release_build.sh` built every one, so they
      carry the DSN; whether an event from a store build has reached Sentry is
      not recorded here.)*
+     *(2026-11-03: Apple refused 587 on 2026-10-19 and its replacement, 698, on
+     2026-11-03. The next build of 0.0.1 is not made yet:
+     [design/app-review-round-2.md](design/app-review-round-2.md).)*
    Uptime checks on `/health` and a database-backed route are live and alerting
    to a human, verified against real probe data
    (§5.2, [design/observability-error-reporting.md](design/observability-error-reporting.md)).
@@ -245,6 +248,8 @@ starts. Concretely:
   *(2026-10-22: billing reopened on 2026-10-06 and production was restored;
   build 587 was submitted and is in App Review, its release set to manual —
   BACKLOG B0.1.)*
+  *(2026-11-03: Apple refused 587 on 2026-10-19 and 698 on 2026-11-03; the next
+  submission waits on the owner — [design/app-review-round-2.md](design/app-review-round-2.md) §12.)*
 - The consumer app and Android keep their places in the order.
 
 The form-by-form packet, the rebuild commands and the owner's ordered
@@ -1094,7 +1099,9 @@ checking rather than assuming:
 > (app-store-forms.md §11.1). The App Store Connect record **exists** — Apple
 > ID 6805272779, SKU myweli-pro, verified read-only in App Store Connect
 > (app-store-forms.md §3). The 3.1.1 decision is **taken**: path (a), the
-> free companion app of guideline 3.1.3(f), on **both** apps — no plan choice
+> free companion app of guideline 3.1.3(f) *(2026-11-03: the product decision
+> stands and that guideline is no longer cited, its list being closed:
+> [design/pro-companion-path.md](design/pro-companion-path.md) §1)*, on **both** apps — no plan choice
 > in the Pro app on iOS or Android, the trial starting at a salon's first
 > publish when it never chose ([design/pro-companion-path.md](design/pro-companion-path.md),
 > built 2026-10-05). PR #550 is merged (`f6ffb585`). **Still owner-side:**
@@ -1267,6 +1274,17 @@ checking rather than assuming:
 > device checks on 698 (BACKLOG B0.2) and the Resolution Center reply
 > (app-store-forms §13.2). BACKLOG B0.1's « while in review » constraints
 > apply again.
+>
+> **2026-11-03 — refused again: guidelines 2.3.4 and 3.1.1, build 698.** App Review (an
+> iPad Air) cited the framing around the film's capture, and the sign-in's « S'inscrire
+> sur myweli.com », with « remove features, account registration links, and any other
+> links to your site… ». So the link kept knowingly above is gone, on iOS and Android. **The
+> answer is built on `fix/app-review-round2` and is not merged** (BACKLOG B0.16, decisions 71–76,
+> [app-review-round-2.md](design/app-review-round-2.md)): no link on the sign-in; the five pages
+> the app opens without the salon links; the full-bleed cut of the film, its end card and « Total »
+> an accepted risk; review notes without 3.1.3(f); a focused device pass. **Web merges are production
+> deploys: the five pages go live at merge, and the build comes after. No production backend deploy**
+> (decision 47): no step needs one. Until the next « Add for Review », B0.1's constraints are lifted.
 
 - [ ] Everything in [mobile-store-submission.md](design/mobile-store-submission.md) §5.
       Two of its claims are **stale as of 2026-08-18** and must be corrected

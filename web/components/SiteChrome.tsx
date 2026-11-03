@@ -2,6 +2,7 @@
 
 import { usePathname } from 'next/navigation';
 import { isProRoute } from '../lib/proRoute';
+import { isStoreLinkedPage } from '../lib/storeLinkedPages';
 import { AppInstallBanner } from './AppInstallBanner';
 import { Header } from './Header';
 import { ProAuthHeader } from './pro/ProAuthHeader';
@@ -22,7 +23,7 @@ export function SiteChrome() {
   return (
     <>
       <AppInstallBanner fullWidth={fullWidth} />
-      <Header fullWidth={fullWidth} />
+      <Header fullWidth={fullWidth} salonDoor={!isStoreLinkedPage(pathname)} />
     </>
   );
 }

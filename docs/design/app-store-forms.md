@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | **Prêt à remplir, en attente de** : la facturation GCP (production arrêtée), l'état du salon démo en production, et **la voie compagnon** ([pro-companion-path.md](pro-companion-path.md), construite le 2026-10-05) — sa fusion, et son backend déployé en production **avant** la soumission. Rédigé 2026-09-24 ; **mis à jour 2026-10-05** : fiche App Store Connect vérifiée (Apple ID 6805272779, §0 #3, §3), décision 3.1.1 prise — voie (a), sur les deux apps (§2), Xcode 27 prêt (§0 #2), deux avis App Store Connect à traiter (§0 #6). **Mis à jour le 2026-10-22** (BACKLOG B9.1) : la facturation est rouverte (2026-10-06) et la production rétablie ; le salon démo vit en production (2026-10-11) ; la voie compagnon est fusionnée (#551) et en production ; le **build 587 (0.0.1) est soumis et en revue**, publication manuelle (BACKLOG B0.1). Ce qu'App Store Connect seul peut confirmer — l'issue de la déclaration DSA, ce que dit l'étiquette de confidentialité, l'avancement de la revue — se relit au lot 10. |
+| **Status** | **Prêt à remplir, en attente de** : la facturation GCP (production arrêtée), l'état du salon démo en production, et **la voie compagnon** ([pro-companion-path.md](pro-companion-path.md), construite le 2026-10-05) — sa fusion, et son backend déployé en production **avant** la soumission. Rédigé 2026-09-24 ; **mis à jour 2026-10-05** : fiche App Store Connect vérifiée (Apple ID 6805272779, §0 #3, §3), décision 3.1.1 prise — voie (a), sur les deux apps (§2), Xcode 27 prêt (§0 #2), deux avis App Store Connect à traiter (§0 #6). **Mis à jour le 2026-10-22** (BACKLOG B9.1) : la facturation est rouverte (2026-10-06) et la production rétablie ; le salon démo vit en production (2026-10-11) ; la voie compagnon est fusionnée (#551) et en production ; le **build 587 (0.0.1) est soumis et en revue**, publication manuelle (BACKLOG B0.1). Ce qu'App Store Connect seul peut confirmer — l'issue de la déclaration DSA, ce que dit l'étiquette de confidentialité, l'avancement de la revue — se relit au lot 10. **Mis à jour le 2026-11-03** ([app-review-round-2.md](app-review-round-2.md), BACKLOG B0.16) : Apple a refusé le build 698 (2.3.4 et 3.1.1). Les §4, §5, §8, §11.3, §11.5, §11.6 et §13 portent les textes de la reprise. **Rien n'est encore construit, collé ni envoyé** : le propriétaire a approuvé les trois textes le 2026-11-03 (décision 77) ; le build, le collage et la soumission suivent la fusion (spec §12). |
 | **Portée** | L'app **MyWeli Pro** seule — `com.myweli.pro`, nom affiché « MyWeli Pro », iPhone uniquement. Le consommateur (`com.myweli.app`) aura son propre dossier. |
 | **Source** | L'audit App Store du 2026-09-24 (cinq lentilles, chaque constat bloquant/majeur revu par un vérificateur indépendant) et le commit `68fc33c` qui en corrige la partie code. |
 | **Pendant Android** | [play-store-forms.md](play-store-forms.md) — même règle, même ton. |
@@ -162,7 +162,7 @@ exceptions, vérifiées une à une par l'audit :
 | Exception | Tient ? |
 |---|---|
 | 3.1.3(e) biens et services physiques | Non pour l'offre MyWeli (logiciel). **Oui pour les acomptes** des clients, payés au salon pour une prestation physique. |
-| **3.1.3(f) app compagnon gratuite d'un outil web payant** | **Oui, à condition** qu'il n'y ait « no purchasing inside the app, or calls to action for purchase outside of the app ». |
+| **3.1.3(f) app compagnon gratuite d'un outil web payant** | **Oui, à condition** qu'il n'y ait « no purchasing inside the app, or calls to action for purchase outside of the app ». *Lecture du 2026-10-05, trop large : voir la note du 2026-11-03 ci-dessous.* |
 | 3.1.3(b) multiplateforme | Non : exige que les mêmes offres soient aussi vendues en achat intégré. |
 | 3.1.3(c) entreprise | Non : les salons s'inscrivent eux-mêmes, rien n'est vendu à une organisation pour ses employés. |
 
@@ -173,6 +173,21 @@ exceptions, vérifiées une à une par l'audit :
 > pas pour l'inscription : l'app Pro ne fait plus que connecter les salons
 > (iOS et Android), l'inscription et l'ajout de salons restent sur le web
 > ([pro-app-login-only.md](pro-app-login-only.md), BACKLOG B0.11).
+>
+> **2026-11-03 — 3.1.3(f) ne couvre pas un outil de salon.** Le tableau ne cite
+> que la fin de la règle. Son début réserve l'exception à un outil web « for VoIP,
+> Cloud Storage, Email Services, or Web Hosting » (page d'Apple relue le
+> 2026-11-03, datée du 16 octobre 2026). **La liste est fermée, et un outil de
+> gestion de salon n'y figure pas.** Depuis quand elle est écrite ainsi n'est pas
+> établi (UNVERIFIED : seule la page du jour a été lue). Apple n'a cité 3.1.3(f)
+> dans aucun des deux refus, ni pour l'accepter ni pour l'écarter : nos notes l'ont
+> invoquée sans recevoir de réponse, et ce silence ne prouve rien. Donc **plus aucun
+> texte envoyé à Apple ne cite ce numéro** (décision du propriétaire) ; ce que fait
+> l'app ne change pas : aucun achat, aucun appel à acheter ailleurs. Le modèle reste
+> exposé (§2.1 : une offre achetée hors de l'app débloque des fonctions). Si Apple le
+> conteste : masquer « Mon abonnement » ou ouvrir l'achat intégré (§2.4 (b)), une
+> décision du propriétaire, à prendre à ce moment-là
+> ([app-review-round-2.md](app-review-round-2.md) §13).
 | Exception de lien du storefront US | Non : ne couvre pas la Côte d'Ivoire, et un binaire est relu pour tous les storefronts. |
 
 La question métier était ouverte depuis le début ([PRD.md](../PRD.md) OQ-3) ;
@@ -255,6 +270,9 @@ l'essai qui démarre à la mise en ligne* :
 MyWeli Pro is a free companion app to the MyWeli service for salons (guideline 3.1.3(f)). There is no purchasing in the app and no link to, or instruction about, purchasing elsewhere: Profil > « Mon abonnement » only shows the salon's current plan and its status.
 ```
 
+*2026-11-03 : cette phrase est sortie des notes, elle a accompagné les builds 587 et
+698. La rubrique SUBSCRIPTION du §8 ne cite plus de numéro de règle (§2.1).*
+
 **(b) Achat intégré (IAP).** Vendre Pro / Business / Réseau en abonnements
 auto-renouvelables : produits App Store Connect, accord « Paid Apps » avec
 coordonnées bancaires et fiscales, validation serveur des reçus et des
@@ -323,7 +341,8 @@ il sert à `altool --build-status` (§11) et à l'`updateUrl` iOS (§12).
 
 ## 4 · Textes de la fiche — comptés au caractère et à l'octet
 
-Recomptés le 2026-09-24 avec `python3` (`len(s)` et `len(s.encode())`).
+Recomptés le 2026-09-24 avec `python3` (`len(s)` et `len(s.encode())`) ; la
+description, le 2026-11-03.
 Apple compte les **mots-clés en octets** (é = 2 octets) et le reste en
 caractères.
 
@@ -336,7 +355,7 @@ caractères.
 | **Mots-clés** | **100 octets** | `coiffure,coiffeur,tresses,barbier,onglerie,spa,institut,beauté,planning,rendez-vous,acompte,abidjan` | 99 | **100** (pile la limite) |
 | ↳ repli si le champ refuse | 100 octets | la même liste **sans** `,abidjan` | 91 | 92 |
 | **Texte promotionnel** | 170 car. | `Recevez des réservations en ligne et tenez agenda, équipe et fichier clients au même endroit — pensé pour les salons de beauté de Côte d'Ivoire.` | 144 | 152 |
-| **Description** | 4000 car. | ci-dessous | 996 | 1 031 |
+| **Description** | 4000 car. | ci-dessous | 1 061 | 1 102 |
 
 Règles suivies pour les mots-clés : virgules sans espace ; aucun mot déjà
 dans le nom ou le sous-titre (vérifié : intersection vide) ; aucune marque ni
@@ -346,16 +365,26 @@ nouvelle revue. « Nouveautés » n'existe pas pour la première version.
 **Description** — texte brut (l'App Store n'interprète pas le Markdown :
 intertitres en capitales, une ligne vide entre les blocs). Reprise de la
 description Play Pro. Elle ne dit **rien** des offres, abonnements ou prix
-(3.1.1) :
+(3.1.1).
+
+*2026-11-03, décision 4 de la reprise ([app-review-round-2.md](app-review-round-2.md)
+§7), le texte du propriétaire :* « sur myweli.com » quitte la vitrine, et une phrase,
+sans lien, dit à qui l'app s'adresse. Elle suit la première phrase : l'app ne dit
+nulle part comment obtenir un compte, et c'est là qu'un salon lit ce qu'est l'app.
+Ce texte n'est pas encore dans App Store Connect (§13.1). *L'ancien : 996 caractères, 1 031
+octets.* **Google Play garde l'ancien** : la décision ne porte que sur l'App Store, et sa fiche est
+enregistrée dans la console. Les deux textes étaient identiques mot pour mot, et le test qui le
+tenait admet désormais ces deux changements, et rien d'autre
+([play-store-forms.md](play-store-forms.md) §1). Les reporter sur Play reste au choix du propriétaire.
 
 ```text
-L'outil de gestion des salons de beauté de Côte d'Ivoire : recevez des réservations en ligne et pilotez votre activité au quotidien.
+L'outil de gestion des salons de beauté de Côte d'Ivoire : recevez des réservations en ligne et pilotez votre activité au quotidien. MyWeli Pro s’adresse aux salons qui ont déjà un compte MyWeli et à leur équipe.
 
 VOTRE AGENDA, TENU TOUT SEUL
 Les clients réservent sur vos créneaux réels ; vous ajoutez les rendez-vous pris au téléphone ou au comptoir en quelques gestes. Vue journée, semaine, et par membre d'équipe.
 
 VOTRE VITRINE EN LIGNE
-Photos, avant/après, logo, prestations et tarifs, horaires avec modèles prêts à l'emploi : votre page publique sur myweli.com se remplit depuis l'app.
+Photos, avant/après, logo, prestations et tarifs, horaires avec modèles prêts à l'emploi : votre page publique se remplit depuis l'app.
 
 VOTRE CLIENTÈLE, ENREGISTRÉE D'ELLE-MÊME
 Chaque réservation crée ou retrouve la fiche client — historique de visites, notes, étiquettes.
@@ -369,7 +398,7 @@ Invitez manager, réception et collaborateurs, chacun avec les accès de son rô
 Conçu pour les réalités d'ici : FCFA, communes, à domicile, réseaux lents et petits téléphones.
 ```
 
-(996 caractères / 1 031 octets, 18 lignes, sans la ligne vide finale.)
+(1 061 caractères / 1 102 octets, 18 lignes, sans la ligne vide finale.)
 
 ---
 
@@ -377,9 +406,9 @@ Conçu pour les réalités d'ici : FCFA, communes, à domicile, réseaux lents e
 
 | Champ | Valeur | Vérifié |
 |---|---|---|
-| **URL d'assistance** (obligatoire) | `https://myweli.com/support` — affiche support@myweli.com ; ouverte dans l'app par Profil → « Aide & Support » | HTTP 200 le 2026-09-24 (le web est servi par Vercel, indépendamment de l'API) |
-| **Politique de confidentialité** (obligatoire) | `https://myweli.com/politique-confidentialite` — liée dans l'app par Profil → « À propos » et sur l'écran d'inscription | HTTP 200 le 2026-09-24 |
-| URL marketing (facultative) | `https://myweli.com` | — |
+| **URL d'assistance** (obligatoire) | `https://myweli.com/support` — affiche support@myweli.com ; ouverte dans l'app par Profil → « Aide & Support ». *2026-11-03 : une des cinq pages sans lien vers l'espace des salons ([app-review-round-2.md](app-review-round-2.md) §5), une fois la PR fusionnée* | HTTP 200 le 2026-09-24 (le web est servi par Vercel, indépendamment de l'API) |
+| **Politique de confidentialité** (obligatoire) | `https://myweli.com/politique-confidentialite` — liée dans l'app par Profil → « À propos ». *L'écran d'inscription qui la liait aussi a quitté l'app le 2026-10-26. 2026-11-03 : une des cinq pages sans lien vers l'espace des salons, une fois la PR fusionnée* | HTTP 200 le 2026-09-24 |
+| URL marketing (facultative) | **vide** — décision du propriétaire du 2026-10-13 (§13.1). *Ne pas y mettre `https://myweli.com`, que ce dossier a proposé jusqu'au 2026-11-03 : la page d'accueil mène à l'inscription des salons, en un geste, depuis la fiche* | vide au 2026-10-13 ; non relu depuis, à regarder en modifiant la page de la version |
 | **Catégorie principale** | **Business** — « Économie et entreprise » (comme « Entreprise » sur Play) | — |
 | Catégorie secondaire | **Productivity** — « Productivité » (facultative) | — |
 
@@ -543,7 +572,7 @@ l'appareil) — ne pas la dériver de ce tableau.
 | Prénom / Nom | ceux du propriétaire |
 | Téléphone | au format international avec l'indicatif (`+225 …` ou `+33 …`) — le champ refuse les chiffres seuls |
 | E-mail | celui du propriétaire |
-| Pièce jointe | aucune |
+| Pièce jointe | aucune. *2026-11-03 : le compte démo refuse la suppression et les notes ne renvoient plus vers un autre compte ; joindre un enregistrement d'une vraie suppression reste au choix du propriétaire ([app-review-round-2.md](app-review-round-2.md) §13, §16)* |
 
 ```bash
 gcloud secrets versions access latest --secret=DEMO_PROVIDER_CODE --project myweli
@@ -596,18 +625,57 @@ code démo étant remplis, l'API a remplacé les notes par ce bloc, relu
 à l'identique (3 853 octets). La Play Console ne parlait pas d'inscription : son
 texte ne change pas ([play-store-forms.md](play-store-forms.md) §2).
 
+**2026-11-03 — le bloc de la reprise, approuvé par le propriétaire le jour même (décision 77).** Apple a
+refusé le 698 (2.3.4 et 3.1.1) : « remove features, account registration links, and
+any other links to your site… ». Le paragraphe ci-dessus devient l'histoire : le lien
+gardé par la décision 42 est retiré ([app-review-round-2.md](app-review-round-2.md)
+§4, §6). Quatre passages changent, rien d'autre :
+
+- **SUBSCRIPTION** ne cite plus 3.1.3(f), dont la liste est fermée (§2.1), et dit
+  « no button, link or instruction to buy or register elsewhere », puisqu'Apple tient
+  un lien d'inscription pour un accès à un mécanisme d'achat. Les notes du 698 se
+  contredisaient sur ce point.
+- **ACCOUNT DELETION** n'envoie plus le relecteur s'inscrire sur le site pour tester
+  une suppression. *Vrai dans le code et les tests, non vu en production : la phrase
+  « Any other account is deleted at that step » repose sur ce que dit le « Non vérifié
+  en production » plus haut, et la passe ciblée (§11.6) ne le couvre pas.*
+- **SALON ACCOUNTS** dit ce qui est : plus d'inscription ni de lien, une seule mention
+  que les comptes se créent sur le site, sans lien ni consigne, et les seules pages
+  que l'app ouvre.
+- **USER CONTENT** nomme « Signaler » sous « Avis », le chemin que ce binaire a (#678,
+  déjà dans le 698), à côté de celui de l'app cliente, que le relecteur ne peut pas atteindre.
+
+**« and those pages carry no link to salon registration » n'est vrai qu'une fois le web en
+ligne et relu** (spec §12, étape 2) : la phrase dit ce que ces pages portent, pas que
+le site est hors d'atteinte. Le logo ramène toujours à l'accueil, et « Mon compte » mène en
+un geste à la connexion des clients, qui crée un compte client et dont le pied de page garde
+le groupe des salons. D'où « salon registration », et non « registration link » : relevé par
+la revue le 2026-11-03 sur un build de la branche (spec §5, §13). Rien n'est collé avant ce relevé.
+
+Approuvés tels quels par le propriétaire le 2026-11-03, après en avoir été informé (spec §16) :
+
+- **La première phrase** garde « the separate MyWeli app and myweli.com ». Elle décrit
+  le service. Mais l'app consommateur n'était pas publiée au dernier relevé (§3 : « Prepare for
+  Submission » ; décision 51) et la production n'avait pas de salon public le 2026-10-28.
+  Même chose pour « customers report reviews from the MyWeli app » (USER CONTENT). Ces
+  deux phrases sont là depuis la première soumission, et aucun des deux refus ne les cite.
+- **« A new salon's free trial starts automatically when the salon goes live »** vaut
+  pour un salon qui n'a pas choisi d'offre sur le web : la décision 68 fait partir l'essai
+  du premier choix d'offre, s'il y en a un. La phrase simplifie, et elle dit vrai de l'app.
+
 La ligne datée ci-dessus reste : `mobile/test/infra/app_review_notes_test.dart`
 la lit, et n'autorise un bloc « coller tel quel » qui promet le verrou que
 si elle est datée. *Le test ne voit pas la production : il lit la ligne.*
 
-**Notes** (coller tel quel — le build renvoyé, 2026-10-26). Poids : **3 853 octets**
-(3 793 caractères) — sous la limite de 4 000. Compté par script sur le
+**Notes** (coller tel quel — le build de la reprise, 2026-11-03 ; **formulation approuvée par le propriétaire le 2026-11-03 ; à coller une fois le web relu en ligne**). Poids : **3 937 octets**
+(3 872 caractères) — sous la limite de 4 000. Compté par script sur le
 texte exact du bloc, sans le saut de ligne final ; le test le recompte à
 chaque CI et échoue si ce paragraphe ment.
 *Historique : 3 476 octets (notes en vigueur, 2026-10-11) ; 3 648 (notes
 amendées, 2026-10-13, le verrou) ; 3 853 le 2026-10-26 — les notes amendées,
-ACCOUNT DELETION et SALON ACCOUNTS réécrites pour 3.1.1. Les deux anciens
-blocs sont retirés : celui-ci les remplace.*
+ACCOUNT DELETION et SALON ACCOUNTS réécrites pour 3.1.1 ; 3 937 le 2026-11-03 —
+SUBSCRIPTION, USER CONTENT, ACCOUNT DELETION et SALON ACCOUNTS réécrites pour le deuxième refus.
+Les anciens blocs sont retirés : celui-ci les remplace.*
 
 ```text
 MyWeli Pro is the business app for beauty salons in Côte d'Ivoire (French UI). Salon owners and their staff manage their agenda, clients, services, photos and opening hours; their customers book through the separate MyWeli app and myweli.com.
@@ -625,36 +693,39 @@ PAYMENTS
 No payment of any kind happens in the app. A salon may ask its customers for a booking deposit; the customer pays it directly to the salon's own Mobile Money account, outside the app, for an in-person beauty service, and the salon confirms it in the app. MyWeli never holds or moves money.
 
 SUBSCRIPTION
-MyWeli Pro is a free companion app to the MyWeli service for salons (guideline 3.1.3(f)). There is no purchasing in the app and no link to, or instruction about, purchasing elsewhere: Profil > « Mon abonnement » only shows the salon's current plan and its status. A new salon's free trial starts automatically when the salon goes live; nothing is chosen or bought in the app.
+MyWeli Pro is a free app for salons that already have a MyWeli account. There is no purchasing in the app and no button, link or instruction to buy or register elsewhere: Profil > « Mon abonnement » only shows the salon's current plan and its status. A new salon's free trial starts automatically when the salon goes live; nothing is chosen or bought in the app.
 
 IDENTITY DOCUMENTS (Profil > « Vérification »)
 Uploading identity documents is optional. It is needed only to switch on customer deposits, so that deposits go only to verified salons. The documents are stored privately, never published, and read only by a MyWeli administrator.
 
 USER CONTENT
-Customer reviews shown under « Avis » are moderated by MyWeli: customers report reviews from the MyWeli app, administrators can hide a review or suspend a salon, and a salon reaches support from Profil > « Aide & Support ».
+Customer reviews shown under « Avis » are moderated by MyWeli: a salon reports a review with « Signaler » under « Avis », customers report reviews from the MyWeli app, administrators can hide a review or suspend a salon, and a salon reaches support from Profil > « Aide & Support ».
 
 LOCATION
 Location is requested only when the owner taps « Utiliser ma position » (Profil > « Profil du salon ») or « Près de moi » in the commune list, to place the salon's pin on the map or find its commune. The pin is the salon's public business address.
 
 ACCOUNT DELETION
-Profil > « Supprimer mon compte », then type SUPPRIMER to confirm. The shared demo account cannot be deleted: after the SUPPRIMER confirmation, the app answers « Compte de démonstration — cette action est désactivée. » and you stay signed in. To test deletion end to end, create a salon account on myweli.com (see SALON ACCOUNTS), sign in to the app with it, then delete it here. If that account has upcoming appointments, the app first asks to finish or cancel them.
+Profil > « Supprimer mon compte », then type SUPPRIMER to confirm. The shared demo account cannot be deleted: after the SUPPRIMER confirmation, the app answers « Compte de démonstration — cette action est désactivée. » and you stay signed in. Any other account is deleted at that step; if it has upcoming appointments, the app first asks to finish or cancel them.
 
 SALON ACCOUNTS
-The app only signs in to existing salon accounts, with an e-mail code, Apple or Google. It no longer creates accounts or salons: salons sign up on the MyWeli website, and the sign-in screen's « S’inscrire sur myweli.com » opens that page in the browser. An identity with no account is told « Aucun compte MyWeli Pro n’est associé à cette adresse. » Team members invited by their salon join it from the sign-in screen. Please use the demo account above to see a populated salon.
+The app only signs in to existing salon accounts, with an e-mail code, Apple or Google. It has no registration, no registration link and no way to add a salon; salon accounts are created outside the app, on the MyWeli website. An identity with no account is told « Aucun compte MyWeli Pro n’est associé à cette adresse. » Team members invited by their salon join it from the sign-in screen. The app opens our website only for its support and legal pages (Profil > « Aide & Support » and « À propos »), and those pages carry no link to salon registration. Please use the demo account above to see a populated salon.
 ```
 
-Libellés relus dans le code le 2026-09-24 : `pro_login_screen.dart`
+Libellés relus dans le code le 2026-09-24, et **le 2026-11-03 sur cette branche, après le
+retrait du lien** : `pro_login_screen.dart`
 (« Espace Pro », « Votre e-mail », « Continuer avec e-mail », « Code à 6
-chiffres », « Se connecter » ; *2026-10-26* : « S’inscrire sur myweli.com », et la
-phrase sans compte, la constante `kNoProAccountMessage`), `dashboard_screen.dart` (« Accueil », icône
+chiffres », « Se connecter » ; *2026-10-26* : la
+phrase sans compte, la constante `kNoProAccountMessage` ; *le « S’inscrire sur myweli.com » de cette date a quitté l'écran le 2026-11-03*), `dashboard_screen.dart` (« Accueil », icône
 « Profil »), `pro_profile_screen.dart` (« Profil du salon », « Vérification »,
-« Mon abonnement », « Aide & Support », « Supprimer mon compte », mot
+« Mon abonnement », « Aide & Support », « À propos », « Supprimer mon compte », mot
 `SUPPRIMER`), `pro_salon_profile_screen.dart` (« Utiliser ma position »),
 `commune_picker_sheet.dart` (« Près de moi »), `reviews_screen.dart` (« Avis »).
 **Si un libellé change, ces notes changent dans la même PR.** *2026-10-13 :
 la phrase « Compte de démonstration — cette action est désactivée. » est la
 constante `demoAccountLockedMessage` (`team_error_messages.dart`) ; le test
-cité plus haut tient les deux blocs à cette constante.*
+cité plus haut tient les deux blocs à cette constante.* *2026-11-03 : ce test
+tient aussi les étapes de connexion aux mots de l'écran, et refuse 3.1.3(f) et toute
+consigne d'inscription dans ce qui part chez Apple.*
 
 **Corrigé le 2026-10-05** (critique d'exhaustivité de l'audit de la voie
 compagnon, puis relu dans le code) :
@@ -691,7 +762,9 @@ reste connecté. La suppression de bout en bout se teste sur un compte neuf —
 *depuis le 2026-10-26 créé sur myweli.com, l'app ne créant plus de compte
 (3.1.1)* — et la dernière phrase vaut
 pour ce compte-là : un compte ordinaire qui a des rendez-vous à venir doit
-d'abord les terminer ou les annuler.
+d'abord les terminer ou les annuler. *2026-11-03 : les notes ne demandent plus ce
+compte neuf au relecteur (ci-dessus) ; l'essai reste le nôtre, à faire avant la
+0.0.2.*
 
 *Avant ce verrou, et tant qu'il n'est pas en production* : la suppression
 n'est pas verrouillée pour l'identité démo, et la remise à zéro hebdomadaire
@@ -705,7 +778,9 @@ Pourquoi la rubrique IDENTITY DOCUMENTS : 5.1.1(ix) veut que les apps qui
 demandent des données sensibles soient soumises par une personne morale ;
 l'équipe est une personne physique et la société n'est pas encore
 immatriculée. Le KYC est facultatif et ne sert qu'aux acomptes — c'est ce que
-la note dit au relecteur (risque assumé, §14).
+la note dit au relecteur (risque assumé, §14). *2026-11-03 : risque inchangé. Ni
+le refus du 587 ni celui du 698 ne cite 5.1.1(ix), ce qui ne prouve rien ; le repli
+reste celui de B0.6 : masquer le KYC et les acomptes sur iOS si Apple le cite.*
 
 ---
 
@@ -765,6 +840,11 @@ d'Apple ; une demande de pièce complémentaire arriverait par e-mail.
 > non prévus » — ne tient plus : le propriétaire en veut un, placé avant les
 > captures. Le film recommandé est **validé par le propriétaire le
 > 2026-10-13** : [pro-app-preview.md](pro-app-preview.md).
+>
+> **2026-11-03 : Apple a refusé le film cadré sous 2.3.4** (« Includes framing
+> around the video screen capture of the app. »). Le propriétaire a choisi la coupe
+> plein écran des mêmes prises (§13.1). Les 16 captures ne changent pas : 2.3.3
+> autorise leur cadre, 2.3.4 parle des aperçus.
 
 ~~L'app est iPhone uniquement (§1.2) : **aucun jeu iPad**. Un seul jeu, **6,9
 pouces**, portrait, **1320 × 2868** (ou 1290 × 2796 ; 1260 × 2736 est aussi
@@ -945,6 +1025,50 @@ Le script a été vérifié le 2026-10-05 sur le binaire du build non signé de
 « Changer d’offre » ajouté en UTF-16, puis sur un fichier tronqué où les
 témoins manquent.
 
+*Ajouté le 2026-11-03 — la connexion seule, vérifiée dans le binaire*
+([app-review-round-2.md](app-review-round-2.md) §6, BACKLOG B0.11, B0.16). **La liste
+de B0.11 ne figurait pas ici, et elle attendait le lien** : le relevé du 698 (§11.5)
+exigeait « S’inscrire sur myweli.com » et `/pro/inscription` **présents**. Ils passent
+du côté des phrases à 0. Les cinq chemins que l'app ouvre sont des témoins : si l'un
+manque, c'est le fichier qui n'est pas le bon.
+
+```bash
+unzip -p "$IPA" Payload/Runner.app/Frameworks/App.framework/App | python3 -c '
+import re, sys
+b = sys.stdin.buffer.read()
+def n(p):
+    found = set()
+    for e in ("utf-8", "utf-16-le", "latin-1"):
+        try: found.add(p.encode(e))
+        except UnicodeEncodeError: pass
+    return sum(b.count(x) for x in found)
+gone_b011 = ["Inscription Pro", "S’inscrire avec", "Ajouter un salon", "Inscrivez-vous", "Créez votre compte", "Compte introuvable. Créez"]
+gone_round2 = ["S’inscrire sur myweli.com", "S’inscrire", "S\x27inscrire", "Pas encore de compte", "/pro/inscription", "/pro/connexion", "/pro/salons/nouveau", "/professionnels"]
+witnesses_round2 = ["Aucun compte MyWeli Pro n’est associé à cette adresse", "/politique-confidentialite", "/cgu", "/mentions-legales", "/suppression-compte", "/support"]
+pages = {m.decode() for m in re.findall(rb"https://myweli\.com[/a-z-]*", b)}
+bad = [p for p in gone_b011 + gone_round2 if n(p)] + ["manque : " + p for p in witnesses_round2 if not n(p)]
+bad += ["page de trop : " + p for p in sorted(pages - {"https://myweli.com" + w for w in witnesses_round2 if w.startswith("/")})]
+print("ÉCHEC :", bad) if bad else print("OK :", len(gone_b011) + len(gone_round2), "phrases à 0,", len(witnesses_round2), "témoins présents")
+'
+```
+
+Vérifié le 2026-11-03, avec ses deux sens :
+
+- **`OK`** sur le binaire d'un build **non signé** de cette branche : `flutter build ios --release
+  --no-codesign --flavor pro`, avec les *defines* de l'API, `--obfuscate`, depuis une copie privée de
+  `0e9d52a4` ; rien de signé ni d'envoyé. Le script de la voie compagnon y affiche aussi `OK`. `myweli.com`
+  y paraît sept fois : les cinq pages, une fois chacune, et l'API deux fois.
+- **`ÉCHEC`** sur le binaire du 587, le seul resté sur ce Mac (le 698 n'y est plus) : les six phrases de
+  B0.11, « S’inscrire », « Pas encore de compte », et la phrase sans compte qui manque.
+- **`ÉCHEC`** sur des fichiers écrits exprès : le lien en UTF-16, `/pro/inscription`, l'apostrophe droite, une
+  sixième page du site, et un fichier tronqué où les témoins manquent.
+- **Après la revue du 2026-11-03**, `/pro/salons/nouveau` rejoint la liste : c'est la page qui crée un salon, et un
+  lien vers elle, résolu depuis `AppConfig.supportUrl`, passait les tests et ce script. Lu sur un instantané AOT
+  *product* de `main_pro.dart`, pas sur un build iOS : `OK : 14 phrases à 0, 6 témoins présents` sur la branche, et
+  `ÉCHEC : ['/pro/salons/nouveau']` quand ce lien y est compilé.
+
+**Ce n'est pas l'IPA signée** : la lecture qui compte reste à faire sur le build de la reprise (§11.5).
+
 | Attendu | Valeur |
 |---|---|
 | `CFBundleIdentifier` | `com.myweli.pro` |
@@ -960,6 +1084,7 @@ témoins manquent.
 | `ITSAppUsesNonExemptEncryption` | `false` |
 | DK… | **0** occurrence |
 | phrases de la voie compagnon | `OK : 22 phrases à 0, 9 témoins présents` |
+| phrases de la connexion seule (2026-11-03) | `OK : 14 phrases à 0, 6 témoins présents` |
 | droits (entitlements) | `aps-environment = production`, `com.apple.developer.applesignin`, `get-task-allow = false`, `beta-reports-active = true` |
 
 Un seul écart : on ne l'envoie pas.
@@ -1216,6 +1341,35 @@ même soumission `45ed9726-1418-435b-b3e2-76726422c5d3` passe de
 publication **manuelle**. *Selon le propriétaire, non observable d'ici* :
 les vérifications du §11.6 sur le 698, passées avant la soumission, et la
 réponse du §13.2 envoyée dans le fil du refus.
+***Refusé*** *(revue du 2026-11-03, iPad Air 11 pouces M3, guidelines 2.3.4 et 3.1.1 :
+le film cadré, et « S’inscrire sur myweli.com » sur l'écran de connexion) — la reprise
+suit.*
+
+**Le build de la reprise — pas encore construit (2026-11-03).** Une nouvelle
+soumission de 0.0.1, depuis `main` **après la fusion de la PR**, par
+`release_build.sh` ; le numéro est `git rev-list --count HEAD`, donc `<BUILD>` se **lit
+dans l'IPA**, il ne se prédit pas. Il porte aussi ce que `main` a reçu depuis le 698 :
+B9.13 et B9.14 (qui récrivent la connexion, la reprise de session et la déconnexion, et
+n'ont jamais tourné dans un build signé) et B0.14. Rien ne change dans `mobile/ios`,
+`mobile/android`, `pubspec` ni les ressources depuis le 698 (`git diff 54b02dac` vide sur la
+branche, le 2026-11-03) ; à relire à la construction, `main` pouvant recevoir d'autres fusions. Ordre et responsabilités :
+[app-review-round-2.md](app-review-round-2.md) §12. IPA relue au §11.3, listes du
+2026-11-03 comprises. **Aucun déploiement du backend** (décision 47).
+
+**What to Test** (fr-FR, coller tel quel — remplace celui du 698, qui parlait de
+l'inscription ; un `PATCH` si le texte existe déjà à la création du build) :
+
+```text
+Ce build remplace le 698 pour la revue de la 0.0.1. L'écran de connexion ne propose plus que de se connecter : Google, Apple ou e-mail.
+
+À vérifier sur ce build, contre la production, dans cet ordre :
+1. Le compte démo, exactement comme le disent les notes de revue : on arrive sur « Maison Nala ».
+2. L'écran de connexion et l'étape du code ne portent aucun lien. Une adresse sans compte, qui reçoit vraiment le code, lit « Aucun compte MyWeli Pro n’est associé à cette adresse », sans bouton ajouté.
+3. Fermer l'app, attendre plus de 15 minutes, la rouvrir : toujours connecté, et tout se charge. Puis la laisser en arrière-plan plus de 15 minutes, revenir et ouvrir « Clients » : toujours connecté, et la liste se charge.
+4. Fermer l'app et la rouvrir : toujours connecté. Se déconnecter : retour à la connexion. Rouvrir : toujours déconnecté. Se reconnecter : « Maison Nala » se recharge.
+5. Une fois sur iPad, en mode compatibilité iPhone : les points 1 et 2, et toucher une fois « Continuer avec Apple ».
+```
+
 *Un envoi peut sembler fait sans l'être* : la validation crée déjà un
 enregistrement d'envoi, qui reste `AWAITING_UPLOAD` tant que rien n'est
 parti, et la liste des builds reste vide jusque-là. C'est
@@ -1235,7 +1389,69 @@ App Store Connect → l'app → **TestFlight** : le build apparaît, conformité
 export déjà répondue. Créer un **groupe interne** (jusqu'à 100 utilisateurs
 App Store Connect, **sans revue**), s'y ajouter, installer via l'app
 TestFlight sur un iPhone réglé en français. Les builds expirent au bout de 90
-jours. À vérifier sur l'appareil, contre la production :
+jours.
+
+**La passe ciblée — pour le build de la reprise (décision 5 du 2026-11-03).** Elle
+remplace, **pour ce build seulement**, la liste plus bas et celle d'après le 587
+(BACKLOG B0.2), qui restent dues pour la 0.0.2. Sur le build qui part en revue, installé
+par TestFlight sur un vrai iPhone, contre la production. Profil → « À propos » doit afficher
+« Version 0.0.1 (<BUILD>) ». Pourquoi ces cinq-là :
+[app-review-round-2.md](app-review-round-2.md) §11. **Résultats : pas encore passée.** Le
+propriétaire les rapporte, et ils sont datés ici : rien dans ce dépôt n'observe un appareil.
+
+- [ ] **1 · La connexion démo, exactement comme les notes le disent** (§8) : sur « Espace
+      Pro », `revue@myweli.test` dans « Votre e-mail », « Continuer avec e-mail », le code
+      dans « Code à 6 chiffres », « Se connecter ». L'app ouvre « Maison Nala ».
+- [ ] **2 · Aucun lien sur la connexion** : ni sur la première étape, ni sur celle du code. Avec
+      une adresse sans compte **qui reçoit vraiment le code** (la phrase n'arrive qu'une fois le
+      code vérifié), ou une identité Google ou Apple sans compte : la phrase « Aucun compte
+      MyWeli Pro n’est associé à cette adresse. … », et rien de plus à toucher que les
+      commandes de l'étape.
+- [ ] **3 · Une session laissée plus de 15 minutes, à froid puis à chaud** (la vie du jeton
+      d'accès, `backend/lib/src/auth/tokens.dart:16`). **Deux attentes, pas une** : le jeton ne se
+      rafraîchit qu'à la première requête refusée (`RefreshingHttpClient.send`), donc chaque passage
+      consomme l'expiration dont l'autre a besoin.
+      - **À froid** (décision 78) : tuer l'app, attendre plus de 15 minutes, la rouvrir. « Maison
+        Nala » s'ouvre, connecté, et se charge. C'est le démarrage qui lance plusieurs requêtes à la
+        fois : la course vue en production le 2026-10-11.
+      - **À chaud** : la laisser en arrière-plan plus de 15 minutes, revenir, ouvrir « Clients »
+        depuis « Accueil ». La liste se charge, toujours connecté. Ce geste compte : le seul retour
+        dans l'app n'envoie aucune requête au serveur, et ne prouverait rien.
+
+      Ce que ce point prouve : le rafraîchissement silencieux après expiration, dans un build
+      signé. `main_pro.dart` ne monte pas l'`AuthProvider` du client : de B9.13, il n'atteint
+      que le code partagé (`RefreshingHttpClient`, `AccountScope`).
+- [ ] **4 · Redémarrage, déconnexion, reconnexion** : tuer l'app et la rouvrir : la session est
+      restaurée. Se déconnecter : l'écran de connexion. Rouvrir : toujours déconnecté. Se
+      reconnecter : « Maison Nala » se recharge (décision 78 : l'entrée dans une session après
+      une sortie, dans le même processus, n'était pas jouée).
+- [ ] **5 · Un passage sur iPad**, puisque les deux refus nomment un iPad Air : les points 1
+      et 2, en mode de compatibilité iPhone, et toucher une fois « Continuer avec Apple »
+      (décision 78 ; le B0.1 note qu'un appareil, très probablement celui d'Apple, y a eu l'erreur
+      1000 sur le 698, et le B0.14 change cette phrase). Noter ce qui vient : une connexion, « Aucun
+      compte MyWeli Pro… », ou « Connexion Apple impossible sur cet appareil. Vérifiez dans Réglages
+      qu’un compte Apple est connecté, puis réessayez. » Annuler la feuille d'Apple n'affiche rien, et
+      c'est normal : aller au bout. **Sur un simulateur si le propriétaire n'a pas
+      d'iPad** : l'IPA et TestFlight ne s'y installent pas, c'est donc un build de débogage
+      contre la production, la commande des captures. Le propriétaire le lance depuis
+      `mobile/`, ou le demande à Claude, sur un simulateur iPad :
+
+      ```bash
+      flutter run --flavor pro -t lib/main_pro.dart -d "<le simulateur iPad>" \
+        --dart-define=USE_API_BACKEND=true --dart-define=API_BASE_URL=https://api.myweli.com
+      ```
+
+      Un simulateur prouve la mise en page, pas le build signé, donc noter lequel a servi.
+
+**Ce que cette passe ne voit pas, par choix du propriétaire** : un compte Apple neuf, le push
+réel, le KYC, le pivotement, la vraie suppression d'un compte. Ils restent à la 0.0.2.
+
+**Ce qu'elle ne voit pas non plus, sans que le propriétaire l'ait choisi** (relevé le 2026-11-03) : une
+session que le serveur refuse (seuls les tests de widgets la couvrent, et un appareil ne peut
+pas la provoquer à peu de frais), et un deuxième compte sur le même téléphone.
+
+**La liste complète** (celle des builds jusqu'au 698, et de la 0.0.2), sur l'appareil, contre la
+production :
 
 *2026-10-26 : le propriétaire indique avoir passé cette liste sur le
 **698** avant de le resoumettre. Les cases ci-dessous ne sont pas cochées
@@ -1277,6 +1493,9 @@ myweli.com, plus de « Créer un compte ».
       « Continuer avec Apple » → « Accueil ». Avant l'inscription, la même
       identité lit « Aucun compte MyWeli Pro n’est associé à cette
       adresse. … » sans bouton.
+      **Depuis le 2026-11-03, plus rien dans l'app ne mène au site** (B0.16) : le
+      lien ci-dessus est retiré. Le compte se crée en allant soi-même sur
+      `/pro/inscription`, puis on revient dans l'app.
       Ce compte neuf sert aux quatre cases suivantes, **dans cet ordre** ;
       puis **le supprimer** (Profil → « Supprimer mon compte » → `SUPPRIMER`) :
       la suppression aboutit.
@@ -1548,10 +1767,17 @@ numéros).*
        manuelle (BACKLOG B0.1).* **2026-10-25 : Apple a refusé le 0.0.1
        (build 587)** ; le motif suit. Le prochain envoi est **un nouveau build
        de la 0.0.1**, avec toutes les corrections depuis le 587 (BACKLOG,
-       décision 1) — pas de 0.0.2 avant.
+       décision 1) — pas de 0.0.2 avant. **2026-11-03 : Apple a refusé le build 698**
+       (2.3.4 et 3.1.1) ; voir le point 22.
 21. [ ] Après approbation : **ne pas publier** avant que [LAUNCH.md](../LAUNCH.md)
        §3 le permette (production rétablie et stable) — la publication est
        manuelle (§9).
+22. [ ] **La reprise après le deuxième refus (2026-11-03).** Dans l'ordre de
+       [app-review-round-2.md](app-review-round-2.md) §12 : la PR fusionnée, le web relu en
+       ligne ; le build, l'IPA relue (§11.3), l'envoi ; la passe ciblée (§11.6) ; puis, tant que
+       la version se modifie, **le film dans les deux emplacements, relus dans « View All Sizes
+       in Media Manager »**, la description (§4), le build, les notes approuvées (§8) ; enfin
+       la réponse (§13.2) et « Add for Review », par le propriétaire seul.
 
 ### 13.1 Ce qu'App Store Connect contient au 2026-10-13 — et ce qu'il reste à y écrire
 
@@ -1574,15 +1800,15 @@ fait ; « site » : seulement dans le site App Store Connect.
 | Prix, disponibilité | gratuit, Côte d'Ivoire seule | inchangés | à relire dans le site : l'API affiche `CANNOT_SELL` sur les 175 pays, sens inconnu avant une première sortie |
 | Confidentialité de l'app (l'étiquette) | illisible par l'API | **illisible par l'API** — **relue dans le site le 2026-10-28 : identique au §7**, publiée le 2026-10-14 | — |
 | Captures 1206 × 2622 et 1320 × 2868 | aucun jeu | **8 + 8**, toutes `COMPLETE`, dans l'ordre 01 → 08 ; dimensions, taille et somme MD5 de chaque fichier comparées aux fichiers validés | — |
-| Texte promotionnel, description, mots-clés | vides | ceux du §4 (144, 996 et 99 caractères — 100 octets pour les mots-clés) | — |
+| Texte promotionnel, description, mots-clés | vides | ceux du §4 (144, 996 et 99 caractères — 100 octets pour les mots-clés) | *2026-11-03 :* **la description est à remplacer** par celle du §4 (1 061 caractères), pendant que la version se modifie |
 | URL d'assistance | vide | `https://myweli.com/support` (200 le jour même) | — la boîte `support@myweli.com` est lue (vérifié le 2026-10-28, §5) |
-| URL marketing (facultative) | vide | **vide** — décision du propriétaire | — |
+| URL marketing (facultative) | vide | **vide** — décision du propriétaire | *2026-11-03 :* le laisser vide, et le regarder en modifiant la page (§5) |
 | Copyright | vide | `2026 Sadr Eddine Daher` (§3) | — |
 | Publication de la version | **après approbation** | **manuelle** (`MANUAL`) | — |
-| Informations pour la revue | n'existaient pas | créées : connexion requise, identifiant `revue@myweli.test`, **les notes en vigueur du §8** (3 476 octets) | **propriétaire** : le mot de passe démo et les coordonnées de contact — vides, et l'assistant ne les écrit pas — *2026-10-14 : le verrou du compte démo est vérifié en production ; ce sont **les notes amendées** du §8 qui doivent remplacer celles-ci, et l'API refuse de le faire sans les coordonnées de contact (§8)* — *2026-10-26 : coordonnées et code démo remplis ; les notes du §8 pour le build renvoyé (3 853 octets) collées par l'API et relues à l'identique* |
-| Build rattaché | aucun | **587** (0.0.1), lu comme français (§11.5) — il remplace le 581 depuis le 2026-10-14 au soir ; **698** depuis le 2026-10-26 (rattaché par l'API, relu) | ~~les vérifications sur l'iPhone (§11.6)~~ — faites sur le 698, selon le propriétaire (2026-10-26) |
-| Aperçu vidéo (facultatif) | aucun | **le film choisi par le propriétaire** (version 2, coupe 1, 28,7 s — [pro-app-preview.md](pro-app-preview.md) §0), **téléversé le 2026-10-14** dans les deux emplacements iPhone, traité par Apple, placé avant les captures (`APP_PREVIEW`, `ACTIVE`, lu par la nouvelle API) ; l'image d'affiche demandée à 25 s (`00:00:25:00`) — Apple avait d'abord ignoré le temps envoyé au téléversement et pris son défaut de 5 s ; corrigé, l'image était encore en cours de génération au dernier relevé | regarder l'affiche dans le site ; sinon « Edit Poster Frame » à 25 s |
-| « Soumettre pour la revue » | — | — | propriétaire — **fait** (587 en revue, refusé sous 3.1.1) ; **698 resoumis le 2026-10-26 à 23:33 UTC**, `WAITING_FOR_REVIEW` (relu par l'API) |
+| Informations pour la revue | n'existaient pas | créées : connexion requise, identifiant `revue@myweli.test`, **les notes en vigueur du §8** (3 476 octets) | **propriétaire** : le mot de passe démo et les coordonnées de contact — vides, et l'assistant ne les écrit pas — *2026-10-14 : le verrou du compte démo est vérifié en production ; ce sont **les notes amendées** du §8 qui doivent remplacer celles-ci, et l'API refuse de le faire sans les coordonnées de contact (§8)* — *2026-10-26 : coordonnées et code démo remplis ; les notes du §8 pour le build renvoyé (3 853 octets) collées par l'API et relues à l'identique* — *2026-11-03 : **à remplacer par le bloc du §8** (3 865 octets), une fois la formulation approuvée et le web relu* |
+| Build rattaché | aucun | **587** (0.0.1), lu comme français (§11.5) — il remplace le 581 depuis le 2026-10-14 au soir ; **698** depuis le 2026-10-26 (rattaché par l'API, relu) | ~~les vérifications sur l'iPhone (§11.6)~~ — faites sur le 698, selon le propriétaire (2026-10-26) — *2026-11-03 : le 698 est refusé ; **le build de la reprise** se rattache à sa place, après la passe ciblée (§11.6)* |
+| Aperçu vidéo (facultatif) | aucun | **le film choisi par le propriétaire** (version 2, coupe 1, 28,7 s — [pro-app-preview.md](pro-app-preview.md) §0), **téléversé le 2026-10-14** dans les deux emplacements iPhone, traité par Apple, placé avant les captures (`APP_PREVIEW`, `ACTIVE`, lu par la nouvelle API) ; l'image d'affiche demandée à 25 s (`00:00:25:00`) — Apple avait d'abord ignoré le temps envoyé au téléversement et pris son défaut de 5 s ; corrigé, l'image était encore en cours de génération au dernier relevé | ~~regarder l'affiche dans le site ; sinon « Edit Poster Frame » à 25 s~~ — **2026-11-03 : Apple a refusé ce film sous 2.3.4.** À remplacer **dans les deux emplacements** (`IPHONE_DYNAMIC_ISLAND_MEDIUM_PROFILE` et `..._LARGE_PROFILE`) par la coupe plein écran, `candidate-full-bleed/preview-full-bleed.mp4`, sha256 `b34bac54…`, affiche `00:00:13:00` demandée à la réservation ([pro-app-preview.md](pro-app-preview.md) §0.6). Un placement ne se modifie pas : supprimer, créer, relire. **Lire chaque taille dans « View All Sizes in Media Manager » avant « Add for Review »** : une copie cadrée oubliée répète le refus. Risque accepté par le propriétaire : la carte de fin et « Total » |
+| « Soumettre pour la revue » | — | — | propriétaire — **fait** (587 en revue, refusé sous 3.1.1) ; **698 resoumis le 2026-10-26 à 23:33 UTC**, `WAITING_FOR_REVIEW` (relu par l'API) ; **refusé le 2026-11-03** sous 2.3.4 et 3.1.1 ; la reprise reste à soumettre, par le propriétaire |
 
 **Les captures, vues par les deux API.** Elles ont été envoyées par les
 ressources `appScreenshotSets` / `appScreenshots`, qu'Apple déclare
@@ -1633,12 +1859,51 @@ vérifications sur l'iPhone du §11.6 sur le build retenu.
 
 ---
 
-### 13.2 La réponse au refus 3.1.1 (Resolution Center) — à envoyer par le propriétaire
+### 13.2 La réponse au deuxième refus, 2.3.4 et 3.1.1 (Resolution Center) — à envoyer par le propriétaire
+
+Du 2026-11-03 ([app-review-round-2.md](app-review-round-2.md) §6), formulation approuvée
+le jour même (décision 77). Le propriétaire l'envoie lui-même : le fil n'a pas d'API. En
+anglais, dans le fil du refus de la soumission `45ed9726…`.
+
+**Tout cela doit être vrai avant l'envoi** :
+
+- le build `<BUILD>` est attaché à la version 0.0.1, et son IPA est relue (§11.3) : sans lien
+  ni `/pro/inscription` ;
+- le web est en ligne et relu avec un user agent d'iPad : les cinq pages sans les trois chemins
+  (spec §12, étape 2) ;
+- le film plein écran est dans **les deux** emplacements iPhone, lus dans « View All Sizes in
+  Media Manager » (§13.1) ;
+- les notes du §8 sont collées et relues : la dernière phrase de la réponse y renvoie ;
+- `<BUILD>` est remplacé par le numéro lu dans l'IPA.
+
+**La réponse** (à envoyer telle quelle, `<BUILD>` remplacé) :
+
+```text
+Hello,
+
+Thank you for reviewing MyWeli Pro (submission 45ed9726-1418-435b-b3e2-76726422c5d3). Build <BUILD> of version 0.0.1 is attached.
+
+Guideline 3.1.1: we removed « S’inscrire sur myweli.com » from the sign-in screen. The app now has no registration feature and no registration link. A person without an account reads « Aucun compte MyWeli Pro n’est associé à cette adresse. », with no button or link to sign up. The app opens our website only for its support and legal pages (Profil > « Aide & Support » and « À propos »), and those pages no longer carry a link to salon registration.
+
+Guideline 2.3.4: we replaced the app preview in both iPhone sizes. It now uses only full-screen video captures of the app, with no framing around them, plus text and touch overlays, and an end frame saying that a MyWeli Pro account is required.
+
+The App Review notes describe how accounts work in the app.
+
+Thank you,
+Sadreddine Daher
+```
+
+*« an end frame » est dit franchement : la carte de fin (2,5 s sur fond papier) n'est pas une
+capture, et le propriétaire l'a acceptée en connaissance de cause (spec §13). Le cacher
+reviendrait à espérer que le relecteur ne la voie pas.*
+
+#### La réponse au premier refus (3.1.1, 2026-10-26) — envoyée, gardée pour l'histoire
 
 Brouillon du 2026-10-26 ([pro-app-login-only.md](pro-app-login-only.md)
 §8). En anglais, dans le fil du refus, **une fois le nouveau build attaché à
 la version 0.0.1** (remplacer `<BUILD>`). Il dit franchement le lien vers le
 site : le cacher reviendrait à espérer que le relecteur ne le voie pas.
+*2026-11-03 : ne plus l'envoyer. Il décrit ce lien, et cite 3.1.3(f).*
 
 ```text
 Hello,
@@ -1662,7 +1927,9 @@ fil du Resolution Center n'a pas d'API : rien d'ici ne l'observe.
 
 *Si le relecteur objecte au lien* : le retirer est un seul widget
 (`AuthSwitchPrompt` de `pro_login_screen.dart`) et une ligne d'essai ; le
-reste de B0.11 tient sans lui.
+reste de B0.11 tient sans lui. *2026-11-03 : il a objecté, et c'est fait. Le décompte était
+faux : un widget, trois imports, un getter, un fichier orphelin, un commentaire faux, quatre
+fichiers de tests et une image de référence ([app-review-round-2.md](app-review-round-2.md) §2).*
 
 ### 13.3 La réponse prête si la revue cite « Se connecter avec Apple »
 
@@ -1678,25 +1945,33 @@ connexion Apple du propriétaire sur 698 a atteint le serveur avec un jeton
 accepté. Sa cause habituelle — aucun compte Apple connecté sur l'appareil —
 est une déduction : l'événement n'en dit pas plus.
 
-**Ce qui change en 0.0.2** (B0.14, construit le 2026-10-28) : sur cette
-erreur, les deux apps diront « Connexion Apple impossible sur cet appareil.
+**Ce qui change** (B0.14, construit le 2026-10-28) : sur cette
+erreur, les deux apps disent « Connexion Apple impossible sur cet appareil.
 Vérifiez dans Réglages qu’un compte Apple est connecté, puis réessayez. »
 ([apple-signin-error-1000.md](apple-signin-error-1000.md)). Le build 698 n'en
-a rien : la réponse ci-dessous décrit ce qu'Apple a entre les mains.
+avait rien. *2026-11-03 : B0.14 prévoyait la 0.0.2, mais il est sur `main`, et le script ne
+construit que `main` : **le build de la reprise de la 0.0.1 le porte**. La réponse ci-dessous
+décrit donc ce build-là, et non plus le 698.*
 
 À envoyer **seulement si** Apple cite la connexion Apple, en anglais, dans le
-fil. **Avant** : relire les journaux autour de l'heure qu'Apple donne — la
+fil. **Avant** :
+
+- relire les journaux autour de l'heure qu'Apple donne — la
 phrase sur le serveur n'est vraie que si aucune requête `/auth/provider/apple`
-n'y figure.
+n'y figure ;
+- **essayer « Continuer avec Apple » sur ce build**, sur un appareil connecté à un compte
+Apple : « works on build <BUILD> » n'est vrai qu'après cet essai, et la passe ciblée (§11.6) ne
+le couvre pas ;
+- remplacer `<BUILD>` par le numéro lu dans l'IPA.
 
 ```text
 Hello,
 
 Thank you for testing Sign in with Apple in MyWeli Pro.
 
-The message « Connexion Apple impossible » appears when iOS itself returns an error before the app receives any credential (ASAuthorizationError 1000, "unknown"). Our server received no Sign in with Apple request from the review device. This error usually occurs when the device is not signed in to an Apple Account in Settings.
+The message « Connexion Apple impossible sur cet appareil. Vérifiez dans Réglages qu’un compte Apple est connecté, puis réessayez. » appears when iOS itself returns an error before the app receives any credential (ASAuthorizationError 1000, "unknown"). Our server received no Sign in with Apple request from the review device. This error usually occurs when the device is not signed in to an Apple Account in Settings.
 
-Sign in with Apple works on build 698 on a device signed in to an Apple Account. MyWeli Pro only signs in to salon accounts that already exist, so an Apple Account that is not linked to a salon then sees « Aucun compte MyWeli Pro n’est associé à cette adresse », which is expected. To see a populated salon, please use the demo account in the App Review notes (revue@myweli.test, e-mail code).
+Sign in with Apple works on build <BUILD> on a device signed in to an Apple Account. MyWeli Pro only signs in to salon accounts that already exist, so an Apple Account that is not linked to a salon then sees « Aucun compte MyWeli Pro n’est associé à cette adresse », which is expected. To see a populated salon, please use the demo account in the App Review notes (revue@myweli.test, e-mail code).
 
 Could you please try again on a device signed in to an Apple Account?
 
@@ -1708,7 +1983,7 @@ Sadreddine Daher
 
 | Point | Nature | Risque / suite |
 |---|---|---|
-| **1.2 — pas de « Signaler » dans « Avis » côté Pro.** `POST /reviews/{id}/report` répond 403 à tout rôle autre que `user` (`backend/routes/reviews/[id]/report.dart`). | code | Faible (le salon démo n'a probablement pas d'avis) ; atténué par la rubrique USER CONTENT des notes. Suite : autoriser le salon à signaler les avis de son propre salon + « Signaler » sur la tuile. **Corrigé** (#678, lot 6) : Propriétaire et Gérant signalent, la file admin marque « Signalé par le salon » ; en production, l'app avec 0.0.2. |
+| **1.2 — pas de « Signaler » dans « Avis » côté Pro.** `POST /reviews/{id}/report` répond 403 à tout rôle autre que `user` (`backend/routes/reviews/[id]/report.dart`). | code | Faible (le salon démo n'a probablement pas d'avis) ; atténué par la rubrique USER CONTENT des notes. Suite : autoriser le salon à signaler les avis de son propre salon + « Signaler » sur la tuile. **Corrigé** (#678, lot 6) : Propriétaire et Gérant signalent, la file admin marque « Signalé par le salon » ; en production, et **dans l'app depuis le 698** (`git show 54b02dac:mobile/lib/screens/provider/reviews/reviews_screen.dart`, relu le 2026-11-03), non « avec 0.0.2 » comme cette ligne le disait. La rubrique USER CONTENT le nomme depuis la reprise. |
 | **5.1.1(v) — Sign in with Apple : jetons non révoqués** à la suppression (Apple : « should » appeler `/auth/revoke`). | code + clé owner | Rarement testé en revue. Suite : capter l'`authorizationCode`, l'échanger côté serveur (clé privée Sign in with Apple, portail), révoquer à la suppression. Peut suivre le lancement. **Construit** (#679, lot 6) et en production — **inactif** tant que la clé `.p8` n'existe pas (étape du propriétaire, DEPLOYMENT.md phase C). |
 | **Suppression du propriétaire : le salon garde ses coordonnées** (téléphone, WhatsApp, numéro Mobile Money, adresse) en brouillon (`provider_account_service.dart`). | décision | Divulgué par la politique et `/suppression-compte`. Suite : effacer ces champs à la suppression, garder l'historique. **Corrigé** (#677, lot 6) : effacés à la suppression, le nom et l'historique gardés ; en production. |
 | **Politique de confidentialité** : pas la phrase « nos sous-traitants offrent une protection équivalente » (5.1.1(i)) ; dit « Profil → Exporter mes données » là où l'app Pro dit « Mes données ». | web (texte légal) | Une phrase + aligner le libellé (`web/app/politique-confidentialite/page.tsx`). **Corrigé** (#709, B0.4, en ligne le 2026-10-26, relu) : la phrase de protection équivalente, « Profil → Mes données » côté Pro — et ce que la relecture a trouvé en plus : depuis le 2026-10-07, Google Cloud ne voit plus que l'adresse de Cloudflare. |
@@ -1717,7 +1992,7 @@ Sadreddine Daher
 | **Identité démo non recréée si elle est perdue.** ~~La suppression n'est pas verrouillée ; les rendez-vous à venir de la remise à zéro n'existent qu'à J+1/J+2.~~ **Suppression verrouillée côté serveur, construit le 2026-10-13** — 403 `demo_account_locked` sur `DELETE /me/provider` ([demo-account-deletion-lock.md](demo-account-deletion-lock.md)) — ~~**pas encore déployé en production**~~ (déployé le 2026-10-14, voir la fin de la ligne) : tant qu'il ne l'était pas, un relecteur peut encore détruire le compte, et ce sont les notes en vigueur du §8 qui se collent, pas les notes amendées (la ligne datée du §8 en décide). | code + déploiement (accord du propriétaire) | Une fois déployé et vérifié (spec §10.1), il ne reste que la perte hors produit — une opération en base, une restauration. Dans ce cas : recréer par l'app + recapturer. Faire recréer l'identité par la remise à zéro n'est pas construit ; observé le 2026-10-13 sur les dépôts en mémoire : elle continue de restaurer le salon orphelin et ne recrée rien. **Déployé en production et vu répondre dans l'app le 2026-10-14** (§8). |
 | **`tool/release_build.sh` exige Secret Manager** (`MOBILE_SENTRY_DSN`). | owner | ~~Aucun build tant que la facturation est fermée.~~ *(2026-10-22 : facturation rouverte le 2026-10-06 ; le script construit.)* Prendre le DSN dans la console Sentry et construire à la main enfreindrait la règle « personne ne manipule le DSN » : décision, pas défaut. |
 | **L'archive Xcode n'est pas rangée par saveur** : `build/ios/archive/Runner.xcarchive` est écrasée par le build suivant (celle du 2026-08-29 est aujourd'hui l'archive **consommateur**). | code | Contourné à la main au §11.2. Suite : que le script la renomme en `Runner-$FLAVOUR.xcarchive` et imprime les dSYM dans la commande Sentry. |
-| **5.1.1(ix) — KYC et compte développeur individuel.** Pièce d'identité + photo du visage, vendeur = personne physique, société non immatriculée (`infra/legal/registration-manifest.json`). | décision | Majeur maintenu par l'audit, appliqué de façon inégale par Apple. Atténué par la rubrique IDENTITY DOCUMENTS. Si rejet : masquer le KYC et les acomptes sur iOS jusqu'au compte Organisation. Type d'adhésion à confirmer (developer.apple.com → Membership). |
+| **5.1.1(ix) — KYC et compte développeur individuel.** Pièce d'identité + photo du visage, vendeur = personne physique, société non immatriculée (`infra/legal/registration-manifest.json`). | décision | Majeur maintenu par l'audit, appliqué de façon inégale par Apple. Atténué par la rubrique IDENTITY DOCUMENTS. Si rejet : masquer le KYC et les acomptes sur iOS jusqu'au compte Organisation. Type d'adhésion à confirmer (developer.apple.com → Membership). **2026-11-03 : risque inchangé**, non cité par les deux refus, et non traité par la reprise ; compte individuel (BACKLOG B0.6, repli décidé). |
 | Numéro de build = nombre de commits de **n'importe quelle** `HEAD` : un build de branche peut griller un numéro. | code, optionnel | Construire depuis `main` (§11.2). |
 | ~~`CFBundleDevelopmentRegion` reste `en`.~~ | ~~code, optionnel~~ | **L'attente était fausse** : App Store Connect lisait les builds 569 et 577 comme anglais (`buildBundles.locales = ["en"]`). **Corrigé le 2026-10-13** — langue de développement `fr` et un `fr.lproj` dans le paquet ([ios-language-and-orientation.md](ios-language-and-orientation.md)) ; l'effet se lit sur le prochain build envoyé (§11.5). |
 | ~~Le dialogue de suppression dit « Votre salon sera retiré de MyWeli » même à un membre d'équipe.~~ | ~~code~~ | **Corrigé** (#682, lot 7, B7.3) : la phrase suit « le compte possède un salon » ; le web en ligne, l'app avec 0.0.2. |
@@ -1727,7 +2002,8 @@ Sadreddine Daher
 
 ## 15 · Liens
 
-- La voie compagnon (3.1.3(f), décision du 2026-10-05) :
+- Le deuxième refus (2.3.4, 3.1.1, 2026-11-03) : [app-review-round-2.md](app-review-round-2.md).
+- La voie compagnon (décision du 2026-10-05 ; sa lecture de 3.1.3(f) est corrigée au §2.1) :
   [pro-companion-path.md](pro-companion-path.md) — l'inventaire avant → après,
   le contrat serveur, les tests.
 - Android : [play-store-forms.md](play-store-forms.md) — la table Pro de
