@@ -311,13 +311,18 @@ jobs:
         run: node infra/legal/98-verify-registration-attestation.mjs
 
   # **A monitor whose only signal is a red row in the Actions tab is a monitor
-  # nobody reads.** Every other alert in this system reaches a person — the
-  # Cloud Monitoring policies all carry the 'Owner email' channel — and this one
-  # did not, which made it the weakest link in exactly the layer that exists to
-  # catch what CI cannot see.
+  # nobody reads.** The Cloud Monitoring policies all carry the 'Owner email'
+  # channel, and this monitor had nothing, which is why this job exists.
   #
   # One issue, reopened and commented rather than duplicated, so a week of
   # failures is one thread and not seven.
+  #
+  # **An issue nobody is told about is the same monitor.** This job fired every
+  # day from 2026-10-21 to 2026-11-02 and nobody knew. Read that day, the owner's
+  # GitHub inbox held 404 threads for this repo and none for this issue, so the
+  # comment now mentions them: a mention is what notifies someone who is not
+  # watching the repo. On every failing day, not only the first.
+  # docs/design/production-alarm-close.md
   report:
     name: Say so, if any check failed
     needs: [cwv, privacy, legal, retention, attestation, secretpins, basemap]
@@ -354,7 +359,7 @@ jobs:
                   --jq "map(select(.title == \"$TITLE\")) | .[0].number // empty")
 
           BODY=$(printf '%s\n' \
-            'The scheduled real-domain checks failed.' \
+            '@Zaslons The scheduled real-domain checks failed.' \
             '' \
             "CWV: ${CWV} · privacy: ${PRIVACY} · legal: ${LEGAL} · retention: ${RETENTION} · attestation: ${ATTESTATION} · secret pins: ${SECRETPINS} · basemap: ${BASEMAP}" \
             '' \
@@ -401,3 +406,60 @@ jobs:
           else
             gh issue create --title "$TITLE" --body "$BODY"
           fi
+
+  # **The other half, and what makes an open alarm mean something.** `report`
+  # only ever opened, reopened or commented, so the issue stayed open from
+  # 2026-09-16 through two fully green weeks in October. Being open said nothing,
+  # and a new failure looked like the last one. Closing on green makes each new
+  # failure a reopening.
+  #
+  # `schedule` only, because `workflow_dispatch` takes a custom `target`, and a
+  # green run against another site says nothing about production. `success()`
+  # needs every job listed below to have passed, and no check has its own `if` or
+  # `continue-on-error` to skip or excuse one.
+  # backend/test/infra/production_alarm_test.dart runs this script and holds all
+  # of that.
+  #
+  # If the close itself fails, this job goes red and the alarm stays on until the
+  # next green run tries again. The mention is also how the next green run tests
+  # delivery without a real failure. docs/design/production-alarm-close.md
+  clear:
+    name: Close the alarm, if every check passed
+    needs: [cwv, privacy, legal, retention, attestation, secretpins, basemap]
+    if: github.event_name == 'schedule' && success()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Close the tracking issue
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # No checkout here either, so `gh` has to be told (see `report`).
+          GH_REPO: ${{ github.repository }}
+          RUN: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          TITLE='Production checks are failing'
+
+          # The same lookup as `report`, for the reason given there.
+          NUM=$(gh issue list --state all --search "$TITLE in:title" \
+                  --json number,title \
+                  --jq "map(select(.title == \"$TITLE\")) | .[0].number // empty")
+
+          if [ -z "$NUM" ]; then
+            echo "no tracking issue, nothing to close"
+            exit 0
+          fi
+
+          STATE=$(gh issue view "$NUM" --json state --jq .state)
+          if [ "$STATE" != 'OPEN' ]; then
+            echo "#$NUM is already closed"
+            exit 0
+          fi
+
+          BODY=$(printf '%s\n' \
+            '@Zaslons Every check passed on this scheduled run, so this is closed.' \
+            'The next failure reopens it.' \
+            '' \
+            "${RUN}")
+
+          gh issue close "$NUM" --comment "$BODY"
+          echo "closed #$NUM"
