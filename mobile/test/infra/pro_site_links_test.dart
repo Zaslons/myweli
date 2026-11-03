@@ -94,13 +94,21 @@ void main() {
   group('links to the site', () {
     test('the getters built on the site are exactly the five required pages', () {
       // Field, getter, function or block body: a member of AppConfig whose
-      // value mentions `siteBaseUrl`.
-      final builtOnSite = RegExp(
-        r'static[^;{]*?\b(\w+)\s*(?:\([^)]*\))?\s*(?:=>|=|\{)[^;]*\bsiteBaseUrl\b',
-      );
-      final onSite = {
-        for (final m in builtOnSite.allMatches(closure[config]!)) m.group(1)!,
-      };
+      // value mentions `siteBaseUrl`, or a member that already does, so
+      // `'$supportUrl/../tarifs'` is on the site too.
+      final onSite = <String>{};
+      for (var known = 0; ; known = onSite.length) {
+        final names = ['siteBaseUrl', ...onSite].join('|');
+        final builtOnSite = RegExp(
+          r'static[^;{]*?\b(\w+)\s*(?:\([^)]*\))?\s*(?:=>|=|\{)[^;]*\b'
+          '(?:$names)'
+          r'\b',
+        );
+        onSite.addAll({
+          for (final m in builtOnSite.allMatches(closure[config]!)) m.group(1)!,
+        });
+        if (onSite.length == known) break;
+      }
       final used = {
         for (final code in closure.values)
           for (final m in RegExp(r'\bAppConfig\.(\w+)').allMatches(code))

@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | Approved 2026-11-03 (owner: §3, five decisions) · build, upload and resubmission are the owner's go (§12) |
+| **Status** | Approved 2026-11-03 (owner: §3, five decisions) · build, upload and resubmission are the owner's go (§12). **The app's half is built** on `fix/app-review-round2` (§4, §10): not merged, not in any build, not seen on a device |
 | **Owner** | Sadreddine Daher |
 | **Last updated** | 2026-11-03 |
 | **PRD ref / phase** | FR-PRO-AUTH-001 (registration on the web only) · V1 |
@@ -98,7 +98,7 @@ Exactly this, and it is what the widget tests pin (§10):
 | Step | Actions |
 |---|---|
 | Options | « Continuer avec Google », « Continuer avec Apple » (iOS only, `_showApple`), the e-mail field, « Continuer avec e-mail » |
-| Code | The code field, « Se connecter », « Renvoyer le code », « Changer d’e-mail » |
+| Code | The code field, « Se connecter », « Renvoyer le code » (disabled during its cooldown, so the tests read no tap on it), « Changer d’e-mail » |
 | Invitations | « Rejoindre », « Refuser » on each card, « Retour » |
 | No account (any step that reaches it) | The step's own actions. The sentence is a live region with no button |
 
@@ -275,7 +275,7 @@ store's text and is not part of this.
 - **Both iPhone slots.** The framed file sits in `IPHONE_DYNAMIC_ISLAND_MEDIUM_PROFILE` and
   `..._LARGE_PROFILE`. A placement cannot be edited: delete, create, read back. **Every size is
   read in « View All Sizes in Media Manager » before « Add for Review »**, as Apple's message
-  warns. A framed copy left in any size is a certain rejection, so this is a gate and not a nicety.
+  warns. A framed copy left in any size repeats what Apple just refused, so this is a gate and not a nicety.
 - **Media before submission**: Rejected allows media edits, Waiting for Review does not.
 - **The storyboard file stays as it is**: its hash identifies the cut, and `film.frame` is
   changed by the 0.0.2 retake. `pro-app-preview.md` records which file is in the slots and how it
@@ -304,9 +304,9 @@ COPY of committed work.
   widget's file is gone.
 - **The site-link guard**, `test/infra/pro_site_links_test.dart`, over the closure computed from
   `lib/main_pro.dart`:
-  - the `AppConfig` getters built on `siteBaseUrl` that Pro uses are **exactly**
-    `privacyUrl`, `termsUrl`, `legalNoticeUrl`, `accountDeletionUrl`, `supportUrl`, and each points
-    to its path;
+  - the `AppConfig` getters built on `siteBaseUrl`, directly or through one another, that Pro uses are
+    **exactly** `privacyUrl`, `termsUrl`, `legalNoticeUrl`, `accountDeletionUrl`, `supportUrl`, and each
+    points to its path, whose page exists in `web/app`;
   - `siteBaseUrl` itself is read nowhere else;
   - no string in the closure contains `myweli.com` but the site's base itself (`siteBaseUrl`'s
     default; `api_constants.dart` is outside the closure, and the API's host is a build define);
@@ -325,7 +325,8 @@ COPY of committed work.
   `golden/pro_screens_golden_test.dart:582-583`.
 - **Golden**: `pro_login_w360_x2` changes, on Linux only (the « Goldens — regenerate » workflow). Every
   changed PNG is looked at; the rest are compared byte for byte and not committed. `consumer_login` must
-  not move.
+  not move. *Done: 57 of 58 byte-identical; the one that changed differs only in the prompt's rows, and
+  the form now ends at the bottom of its last button.*
 
 **What the guard cannot see, by class:**
 
