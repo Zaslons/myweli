@@ -323,6 +323,16 @@ per-URL block when it reaches 2500.
 
 All within budget, and the check failed as it should with the LCP budget set to 1000 ms. Don't compare these with the table above: that one is a local server. This is a simulated slow phone on a Mac, not a real phone in Abidjan.
 
+**The new look's home page, header and footer (#727), five runs each, on the local build as in the first table:** `/` 2113 ms, `/connexion` 2713 ms (`main` 2712), `/suppression-compte` 2109 ms. First paint and scripts did not move. The hero's type, the pattern and the wordmark cost `/` 3 ms, all inline SVG and text.
+
+**The same on `myweli.com` after the merge, five runs each:** `/` 1487 ms, `/connexion` 1323 ms, `/suppression-compte` 1607 ms, all within budget. `/` read 1263 ms before the new look (1158–1890) and 1487 ms after it (1170–1912). The ranges overlap, and five runs can't say whether that is a real cost, so the next daily runs are the thing to watch.
+
+**The same again after square fields and buttons (#728), five runs each:** `/` 1907 ms (1158–1916), `/connexion` 1456 ms (1156–2207), `/suppression-compte` 1158 ms (1155–1604), CLS 0. The home page has now read 1263, 1487 and 1907 ms across three sets, drawing on the same range of values, while `/suppression-compte` went from 1607 to 1158 ms. That looks like which of two modes a run lands in. It is within budget, but not proved to be noise, and it is worth another look if it stays high.
+
+**A font swap can move text.** `/suppression-compte` read a CLS of 0.064 in some live runs, and 0 in others. A `layout-shift` observer named it: when the font arrives after first paint, a paragraph re-wraps by one line. `adjustFontFallback` keeps each line's height, not its width. It comes from the font (#724), not the new look, and it is under the 0.1 budget. Lighthouse's own explanation errored here too.
+
+**Ask which element it is, not only what number it is.** With the wordmark as an `<img>`, `/connexion` read the same 2712 ms, but its Largest Contentful Paint had become the footer's logo. Nothing failed, and Lighthouse's own element audit errored on this machine, so it took a `PerformanceObserver` to see. It is inline now, with a test on short pages.
+
 **The daily check's rules on the policy are also read at merge time.** `tool/csp-promises.ts` holds them. `tool/check-privacy-promise.spec.ts` reads them against the header `myweli.com` sends, and `tests/csp.test.ts` against the policy a PR is about to ship. The daily check needs the deployed site, so nothing runs it on a PR: a correct change to `worker-src` turned it red from 2026-10-21 to 2026-11-02 on text that was no longer there, and its next line never ran. **What this cannot see:** the daily check no longer calling the rule, and its other header assertions, which still only run daily.
 
 - Public pages: minimal JS, `next/image`, font-display swap, edge-cached SSG/ISR.

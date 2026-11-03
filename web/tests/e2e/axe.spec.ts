@@ -166,6 +166,16 @@ const PUBLIC_ROUTES: [url: string, anchor: string | RegExp][] = [
   ['/suppression-compte', 'Supprimer votre compte'],
 ];
 
+// The route list above runs at the default desktop width, where the home page's
+// directory is the open form. This is the phone's: the band, and a `<details>`
+// (with its heading inside a `<summary>`) open.
+test('the home page at phone width, a commune open, is axe-clean', async ({ page }) => {
+  await page.setViewportSize({ width: 375, height: 812 });
+  await page.goto('/');
+  await page.locator('details', { hasText: 'Cocody' }).locator('summary').click();
+  await scan(page, '/ at 375', /Réservez beauté/);
+});
+
 test('public routes are axe-clean', async ({ page }) => {
   for (const [url, anchor] of PUBLIC_ROUTES) {
     await page.goto(url);

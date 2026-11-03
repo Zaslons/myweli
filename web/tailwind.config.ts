@@ -148,7 +148,10 @@ const config: Config = {
       width: defaultTheme.spacing,
       height: defaultTheme.spacing,
       minWidth: defaultTheme.spacing,
-      minHeight: defaultTheme.spacing,
+      // `hero`: the home hero from `lg`. The panel stops growing with the container
+      // at 1536, where its logo ends 446px down, so the cloth is cut below it at every
+      // width (pinned in tests/e2e/site-look.spec.ts).
+      minHeight: { ...defaultTheme.spacing, hero: '36rem' },
       maxHeight: defaultTheme.spacing,
       inset: defaultTheme.spacing,
       translate: defaultTheme.spacing,

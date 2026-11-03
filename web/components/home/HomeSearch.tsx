@@ -28,11 +28,18 @@ export function HomeSearch({
     router.push(resolveSearchHref(service, commune, tree));
   }
 
+  // One ruled bar (docs/design/web-swiss-fields.md §3): the form draws the box and the
+  // lines between, so its parts have no border of their own and no line ever doubles.
+  // A focused part rises, or the black button would paint over the ring beside it.
   const field =
-    'min-h-12 rounded-lg border border-borderStrong bg-surface p-m text-bodyLarge text-textPrimary focus:border-borderFocus focus:ring-1 focus:ring-borderFocus';
+    'relative min-h-12 min-w-0 rounded-control bg-surface p-m text-bodyLarge text-textPrimary focus:z-dropdown focus:ring-1 focus:ring-borderFocus';
 
   return (
-    <form onSubmit={submit} className="flex flex-col gap-s sm:flex-row">
+    <form
+      data-search-bar
+      onSubmit={submit}
+      className="flex flex-col divide-y divide-primary rounded-control border border-primary sm:flex-row sm:divide-x sm:divide-y-0"
+    >
       <input
         aria-label="Service ou salon"
         placeholder="Quel service ou salon ?"
@@ -46,7 +53,7 @@ export function HomeSearch({
         placeholder="Où ? (commune)"
         value={commune}
         onChange={(e) => setCommune(e.target.value)}
-        className={`${field} sm:w-56`}
+        className={`${field} sm:w-44 xl:w-56`}
       />
       <datalist id="myweli-communes">
         {allAreas(tree).map(({ area }) => (
@@ -55,7 +62,7 @@ export function HomeSearch({
       </datalist>
       <button
         type="submit"
-        className="inline-flex min-h-12 items-center justify-center rounded-lg bg-primary px-l text-labelLarge font-medium text-secondary hover:bg-primaryHover"
+        className="relative inline-flex min-h-12 items-center justify-center rounded-control bg-primary px-l text-labelLarge font-medium text-secondary hover:bg-primaryHover focus:z-dropdown"
       >
         Rechercher
       </button>

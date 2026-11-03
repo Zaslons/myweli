@@ -157,7 +157,7 @@ export function BlockedDatesDialog({
                   aria-pressed={isOn}
                   disabled={outside}
                   onClick={() => toggle(key)}
-                  className={`flex min-h-12 items-center justify-center rounded-lg text-bodyMedium ${
+                  className={`flex min-h-12 items-center justify-center rounded-control text-bodyMedium ${
                     isOn ? 'bg-primary text-secondary' : 'text-textPrimary hover:bg-surfaceVariant'
                   } ${key === today && !isOn ? 'ring-1 ring-primary' : ''} disabled:text-textDisabled disabled:hover:bg-transparent`}
                 >

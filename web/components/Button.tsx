@@ -10,15 +10,16 @@ export function buttonClasses(variant: ButtonVariant = 'primary'): string {
   // labelLarge, not bodyMedium: §4 gives labelLarge (14/20, 500) as "Button
   // labels" — same size and line as bodyMedium, tighter tracking (0.1 vs 0.25).
   const base =
-    'relative inline-flex min-h-12 items-center justify-center rounded-lg px-l py-s ' +
+    'relative inline-flex min-h-12 items-center justify-center rounded-control px-l py-s ' +
     'text-labelLarge font-medium transition-colors disabled:opacity-50';
   const styles =
     variant === 'primary'
       ? 'bg-primary text-secondary hover:bg-primaryHover'
       : variant === 'secondary'
-        ? // The outline IS the control here (WCAG 1.4.11) → borderStrong, not
-          // the 1.44:1 `border`. One edit covers every secondary button.
-          'border border-borderStrong bg-secondary text-textPrimary hover:bg-surfaceVariant'
+        ? // The outline IS the control here (WCAG 1.4.11), and it is the page's
+          // black rule (docs/design/web-swiss-fields.md). One edit covers every
+          // secondary button.
+          'border border-primary bg-secondary text-textPrimary hover:bg-surfaceVariant'
         : 'px-m text-textPrimary hover:bg-surfaceVariant';
   return `${base} ${styles}`;
 }

@@ -56,7 +56,7 @@ export function WeekStrip({
             type="button"
             aria-pressed={isShown}
             onClick={() => onSelect(key)}
-            className="flex min-h-12 min-w-0 flex-col items-center gap-xs rounded-lg py-xs hover:bg-surfaceVariant"
+            className="flex min-h-12 min-w-0 flex-col items-center gap-xs rounded-control py-xs hover:bg-surfaceVariant"
           >
             <span className="text-labelSmall text-textTertiary">{short}</span>{' '}
             {/* The Calendrier's marks: the shown day filled, today ringed. */}

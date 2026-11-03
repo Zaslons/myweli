@@ -143,7 +143,7 @@ export function AddSalonClient() {
         <select
           value={businessType}
           onChange={(e) => setBusinessType(e.target.value)}
-          className="mt-xs block w-full min-h-12 rounded-lg border border-borderStrong bg-surface p-m text-bodyLarge text-textPrimary"
+          className="mt-xs block w-full min-h-12 rounded-control border border-primary bg-surface p-m text-bodyLarge text-textPrimary"
         >
           {BUSINESS_TYPES.map((t) => (
             <option key={t.value} value={t.value}>

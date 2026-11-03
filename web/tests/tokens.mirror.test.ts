@@ -132,8 +132,8 @@ describe('the token mirror gate (B3, row 19)', () => {
   });
 
   it('radius mirrors AppTheme.radius* exactly', () => {
-    expect(keyDiff('radius', expected.radius, radius)).toEqual([]);
-    expect(radius).toEqual(expected.radius);
+    expect(keyDiff('radius', expected.radius, radius, WEB_ONLY.radius)).toEqual([]);
+    expect(mirroredPart(radius, WEB_ONLY.radius)).toEqual(expected.radius);
   });
 
   it('icon mirrors AppTheme.icon* exactly — bare sizes, no lineHeight', () => {

@@ -1,0 +1,8 @@
+- 🟢 **Champs et boutons carrés sur tout le site, et la recherche en une seule barre (web · 2026-11-02 — BACKLOG B11.6, décision 70, #728).** Une fois l'accueil en ligne, les champs arrondis étaient la seule chose qui ne suivait pas les filets. Le propriétaire a choisi sur des images des vraies pages. [web-swiss-fields.md](../../design/web-swiss-fields.md).
+  - **La règle :** tout ce qu'on remplit ou qu'on presse est carré, avec un trait noir fin. Ce qui ne fait que contenir ne change pas. Les filtres gardent leur forme de pilule, Google et Apple leur forme à eux.
+  - **La recherche :** un seul cadre et des traits entre ses parties, sans espace, sur l'accueil et sur `/recherche`.
+  - **Un seul jeton :** `rounded-control`. Il y avait 40 copies du style d'un champ, écrites à la main.
+  - **Un piège évité :** la règle de base du focus donnait 8 px d'arrondi à tout élément, donc un champ carré se serait arrondi au clic. Elle ne le fait plus.
+  - **Le contrôle a corrigé la spec :** il a signalé les photos de la galerie et les épingles de la carte comme des boutons ronds. Les deux sont maintenant des exceptions écrites, et c'est la bonne réponse pour chacun.
+  - **Deux phrases corrigées au passage :** « Rounded controls » dans la spec du nouveau look, et « no visible jump » pour la police, qui peut en réalité faire passer un paragraphe à la ligne (0,064 sur `/suppression-compte`, sous le budget de 0,1).
+  - **Pas encore vu :** iOS, à regarder sur le site déployé. Le site et les apps se ressemblent un peu moins, ce que le propriétaire a choisi en connaissance de cause. Les cartes autour des champs restent arrondies : à juger sur les images.

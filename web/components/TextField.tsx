@@ -66,12 +66,12 @@ export function TextField({
       .join(' ') || undefined;
 
   const field = [
-    'mt-xs w-full min-h-12 rounded-lg border bg-surface p-m text-bodyLarge',
+    'mt-xs w-full min-h-12 rounded-control border bg-surface p-m text-bodyLarge',
     'text-textPrimary placeholder:text-textTertiary',
     'disabled:border-border disabled:text-textDisabled',
     error
       ? 'border-error focus:border-error focus:ring-1 focus:ring-error'
-      : 'border-borderStrong focus:border-borderFocus focus:ring-1 focus:ring-borderFocus',
+      : 'border-primary focus:border-borderFocus focus:ring-1 focus:ring-borderFocus',
   ].join(' ');
 
   return (

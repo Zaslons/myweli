@@ -321,6 +321,10 @@ under laziness; pin every computed bound with a test.*
 `radiusPill` exists for the same reason as `spacingSM`: `999` was hand-written 21
 times. A pill is a *shape*, not a number — name it.
 
+**On the web, fields and buttons are square** (`rounded-control`, 0, web-only;
+[web-swiss-fields.md](web-swiss-fields.md)). The apps keep this table. If they follow
+one day, this is the seam.
+
 ---
 
 ## 7. Icon size

@@ -24,7 +24,7 @@ export default function NotFound() {
       </p>
       <a
         href="/"
-        className="mt-l inline-flex items-center justify-center rounded-lg bg-primary px-l py-s text-labelLarge font-medium text-secondary"
+        className="mt-l inline-flex items-center justify-center rounded-control bg-primary px-l py-s text-labelLarge font-medium text-secondary"
       >
         Découvrir des salons
       </a>

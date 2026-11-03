@@ -310,7 +310,7 @@ export function EquipeClient() {
                       aria-label={`Actions pour ${m.email}`}
                       disabled={busyId === m.id}
                       onClick={() => setMenuFor(menuFor === m.id ? null : m.id)}
-                      className="-my-sm flex min-h-12 min-w-12 items-center justify-center rounded-lg text-iconXS text-textSecondary hover:bg-surfaceVariant"
+                      className="-my-sm flex min-h-12 min-w-12 items-center justify-center rounded-control text-iconXS text-textSecondary hover:bg-surfaceVariant"
                     >
                       ⋯
                     </button>

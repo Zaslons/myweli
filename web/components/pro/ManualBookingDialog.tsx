@@ -287,7 +287,7 @@ export function ManualBookingDialog({
               min={todayYmd(tz)}
               value={date}
               onChange={(e) => setDate(e.target.value)}
-              className="flex-1 min-h-12 rounded-lg border border-borderStrong bg-surface p-m text-bodyLarge text-textPrimary focus:border-borderFocus focus:ring-1 focus:ring-borderFocus"
+              className="flex-1 min-h-12 rounded-control border border-primary bg-surface p-m text-bodyLarge text-textPrimary focus:border-borderFocus focus:ring-1 focus:ring-borderFocus"
             />
             <input
               type="time"
@@ -295,7 +295,7 @@ export function ManualBookingDialog({
               step={900}
               value={time}
               onChange={(e) => setTime(e.target.value)}
-              className="flex-1 min-h-12 rounded-lg border border-borderStrong bg-surface p-m text-bodyLarge text-textPrimary focus:border-borderFocus focus:ring-1 focus:ring-borderFocus"
+              className="flex-1 min-h-12 rounded-control border border-primary bg-surface p-m text-bodyLarge text-textPrimary focus:border-borderFocus focus:ring-1 focus:ring-borderFocus"
             />
           </div>
         </div>
@@ -332,7 +332,7 @@ export function ManualBookingDialog({
             placeholder="Client (nom ou téléphone)…"
             aria-label="Rechercher ou nommer le client"
             aria-describedby={searchFailed ? "client-search-failed" : undefined}
-            className="w-full min-h-12 rounded-lg border border-borderStrong bg-surface p-m text-bodyLarge text-textPrimary focus:border-borderFocus focus:ring-1 focus:ring-borderFocus"
+            className="w-full min-h-12 rounded-control border border-primary bg-surface p-m text-bodyLarge text-textPrimary focus:border-borderFocus focus:ring-1 focus:ring-borderFocus"
           />
           {searchFailed ? (
             <div className="mt-xs flex flex-wrap items-center gap-s">
@@ -405,7 +405,7 @@ export function ManualBookingDialog({
         maxLength={500}
         placeholder="Note (optionnel)"
         aria-label="Note"
-        className="mt-m w-full min-h-12 rounded-lg border border-borderStrong bg-surface p-m text-bodyLarge text-textPrimary focus:border-borderFocus focus:ring-1 focus:ring-borderFocus"
+        className="mt-m w-full min-h-12 rounded-control border border-primary bg-surface p-m text-bodyLarge text-textPrimary focus:border-borderFocus focus:ring-1 focus:ring-borderFocus"
       />
 
       {/* Total (the app's running sum; server re-prices) */}
