@@ -502,7 +502,7 @@ This batch takes up three of the six suggested tasks that were never started. It
 - **B9.15 The daily production check's stale match (S · found reading back #724).** ✅ **Done in #725** — `toContain('worker-src blob:')` failed every day from 2026-10-21, after a correct change to `worker-src 'self' blob:`. It now reads each directive's sources, and the same rule runs on every PR (WEB.md §7).
 - **B9.16 The alarm that stays open (S).** ✅ **Done in #726** — [production-alarm-close.md](design/production-alarm-close.md). A new job closes « Production checks are failing » (#549) after a fully green scheduled run, so each new failure is a reopening. A manual run cannot close it, because it can measure another site.
   - **It now reaches a person.** The owner's GitHub inbox held 404 threads for this repo and none for #549 (read 2026-11-02). So the failure and closing comments mention the owner, on every failing day (owner's decision, same day).
-  - **Proved on 2026-11-03, read on 2026-11-04:** scheduled run `41642929847` closed #549 at 13:20 UTC with a comment mentioning the owner, and `report` was skipped. A `mention` thread for #549 is now in the owner's GitHub inbox, where there was none. **Not yet proved:** whether the email arrives, which is in Batch 10, and a real reopening.
+  - **Proved on 2026-11-03, read on 2026-11-04:** scheduled run `41642929847` closed #549 at 13:20 UTC with a comment mentioning the owner, and `report` was skipped. A `mention` thread for #549 is now in the owner's GitHub inbox, where there was none. **Owner-reported on 2026-11-04:** the closing email arrived. **Not yet proved:** a real reopening.
 
 ### Batch 10 — Only you can check
 
@@ -530,9 +530,7 @@ This batch takes up three of the six suggested tasks that were never started. It
   - the text nits and snapshot re-save after Apple's decision (decision 36);
   - photo sources and licences (decision 37);
   - the « Essai Fix » test booking needs nothing, because the weekly reset around 2026-10-21 removes it.
-- **The production alarm's email (B9.16):**
-  - At github.com/settings/notifications, make sure **Email** is on under « Participating, @mentions and custom », and the default address is the mailbox you read.
-  - Say whether an email arrived when the green scheduled run closed #549, on 2026-11-03 at 13:20 UTC (run `41642929847`). GitHub's inbox holds a `mention` thread for it, but an email cannot be read from here. If none arrived, the alarm still does not reach you, and the next step is the Cloud Monitoring « Owner email » channel.
+- **The production alarm's email (B9.16):** ✅ you reported on 2026-11-04 that the closing email of 2026-11-03 arrived. If a later mention does not arrive, check that **Email** is on under « Participating, @mentions and custom » at github.com/settings/notifications, and that the default address is the mailbox you read. If it is, the next step is the Cloud Monitoring « Owner email » channel.
 
 ### Batch 11 — The website's look
 
