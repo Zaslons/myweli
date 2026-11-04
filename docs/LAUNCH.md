@@ -55,7 +55,7 @@ questions none of our gates can answer:
      *(2026-11-03: Apple refused 587 on 2026-10-19 and its replacement, 698, on
      2026-11-03. The next build of 0.0.1, 719, was made the same night by the same
      script and carries the DSN (2 occurrences in the binary, compared without
-     printing). It is uploaded and in TestFlight, not attached or submitted:
+     printing). It is uploaded, in TestFlight and attached to version 0.0.1, not submitted:
      [design/app-review-round-2.md](design/app-review-round-2.md).)*
    Uptime checks on `/health` and a database-backed route are live and alerting
    to a human, verified against real probe data
@@ -1281,7 +1281,7 @@ checking rather than assuming:
 > iPad Air) cited the framing around the film's capture, and the sign-in's « S'inscrire
 > sur myweli.com », with « remove features, account registration links, and any other
 > links to your site… ». So the link kept knowingly above is gone, on iOS and Android. **The
-> answer was built on `fix/app-review-round2` and merged the same day, below** (BACKLOG B0.16, decisions 71–80,
+> answer was built on `fix/app-review-round2` and merged the same day, below** (BACKLOG B0.16, decisions 71–81,
 > [app-review-round-2.md](design/app-review-round-2.md)): no link on the sign-in; the five pages
 > the app opens without the salon links; the full-bleed cut of the film, its end card and « Total »
 > an accepted risk; review notes without 3.1.3(f); a focused device pass. **Web merges are production
@@ -1294,9 +1294,24 @@ checking rather than assuming:
 > `/pro/connexion`, `/pro/salons/nouveau` and « facturation »; `/` and `/connexion` still hold the links (the
 > limits of that read: the spec's §13). Build **719**, from `713114a5`: IPA read, validated, uploaded, `VALID`,
 > read as French, the only build in « Équipe MyWeli », symbols and a release on Sentry (app-store-forms §11.3,
-> §11.5). Version 0.0.1 is still `REJECTED`, release `MANUAL`, **698 still attached**.
-> **Not done:** the device pass, the film, the description (decision 79), attaching 719, the notes, the
-> reply, « Add for Review ». The backend is not deployed.
+> §11.5). Version 0.0.1 was then still `REJECTED`, release `MANUAL`, with 698 attached: the next paragraph changes that.
+>
+> **2026-11-03, later that night — App Store Connect holds the new page; not resubmitted.** *Owner-reported:* the focused
+> pass, « my results passed », on their iPhone, on signed build 719; « Continuer avec Apple » there showed « Aucun compte
+> MyWeli Pro… »; the Instagram bio does not link to salon sign-up; the demo salon's « Avis » has no review. *Step 5 ran on
+> that iPhone, not an iPad.* At about 23:43 UTC, on an iPad Air 11-inch (M3) simulator, a debug build from `713114a5` showed no
+> link on the sign-in, and one tap on « Continuer avec Apple » ended on B0.14's sentence after Apple's system dialog was
+> closed. A successful Apple sign-in on an iPad remains unobserved. After the owner's results, as they had been told: the film at
+> 23:49 UTC, previews `17000019-5a03-88cb-8118-40e21663fe37` (`IPHONE_67`) and `f3000019-5a03-88cb-8114-ec9980fce3b8`
+> (`IPHONE_61`), 14,309,442 bytes, `sourceFileChecksum` `543d367a6caf1b1069d0cd62e2246177` read back on both, `COMPLETE`, poster
+> `00:00:13:00` read back on both (Apple ignored the time at reservation and at commit, and a PATCH after processing took); the
+> framed films deleted after that (204); the description, 1,039 characters; build 719 attached (204), read back as
+> `4eb50f72-f6d1-4ca2-ad6a-e5e544fdb25f`; the notes, 3,991 bytes, with one clause the owner delegated (decision 81). The
+> description and the notes read back identical. Version 0.0.1 is `PREPARE_FOR_SUBMISSION`, release `MANUAL`; submission `45ed9726…` is `UNRESOLVED_ISSUES`, as
+> expected. **Not done:** the demo sign-in and the no-account address on that iPad, « View All Sizes in Media Manager », the
+> reply (given to the owner with 719), « Add for Review », the read-back after it. The last scheduled « Production checks » run
+> was green at 13:16 UTC on `4e78e485`, before the merge; a green run after `713114a5` has not been observed. The backend is
+> not deployed.
 
 - [ ] Everything in [mobile-store-submission.md](design/mobile-store-submission.md) §5.
       Two of its claims are **stale as of 2026-08-18** and must be corrected

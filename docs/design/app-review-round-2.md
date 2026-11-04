@@ -2,9 +2,9 @@
 
 | | |
 |---|---|
-| **Status** | Approved 2026-11-03 (owner: §3, five decisions) · build, upload and resubmission are the owner's go (§12). **The app's half (§4, §10), the web's half (§5), the texts for Apple (§6, §7), the film's storyboard (§8) and the record are merged (#731, squash `713114a5`, 2026-11-03). The web is live and read. Build 719 is built, read, uploaded, `VALID` and in TestFlight** (§12). **Not done:** the device pass, the film, the description, attaching 719, the notes, the reply and the resubmission; version 0.0.1 is still `REJECTED`, with 698. The backend is not deployed. The owner approved the notes, the description and the reply on 2026-11-03 (decision 77), and corrected the description the same day (decision 79) |
+| **Status** | Approved 2026-11-03 (owner: §3, five decisions) · build, upload and resubmission are the owner's go (§12). **The app's half (§4, §10), the web's half (§5), the texts for Apple (§6, §7), the film's storyboard (§8) and the record are merged (#731, squash `713114a5`, 2026-11-03). The web is live and read. Build 719 is built, read, uploaded, `VALID` and in TestFlight** (§12). **That night, in App Store Connect: the full-screen film in both slots, the description, 719 attached, the notes; version 0.0.1 moved from `REJECTED` to `PREPARE_FOR_SUBMISSION`, release `MANUAL`. The owner reports that the focused pass passed on their iPhone (§11). Nothing has been sent or resubmitted.** **Not done:** the iPad's demo sign-in and no-account address, the read of « View All Sizes in Media Manager », the reply (its text given to the owner with 719), « Add for Review » and the read-back after it. The backend is not deployed. The owner approved the notes, the description and the reply on 2026-11-03 (decision 77), corrected the description the same day (decision 79), and delegated one clause of the notes (decision 81) |
 | **Owner** | Sadreddine Daher |
-| **Last updated** | 2026-11-03 |
+| **Last updated** | 2026-11-04 |
 | **PRD ref / phase** | FR-PRO-AUTH-001 (registration on the web only) · V1 |
 | **BACKLOG** | B0.1, B0.2, B0.3, B0.11 (batch 0, the release track) |
 | **Related** | [pro-app-login-only.md](pro-app-login-only.md) (round 1; its §8 and Q1 pre-agreed this removal) · [app-store-forms.md](app-store-forms.md) (§8 notes, §11.3 IPA check, §11.6 device checks, §13.2 reply) · [pro-app-preview.md](pro-app-preview.md) (the film) · [web-pro-access.md](web-pro-access.md) (P1 header door, P2 footer group, the two things §5 narrows) · [pro-companion-path.md](pro-companion-path.md) |
@@ -297,9 +297,12 @@ groups sit under the wordmark, and the third column is empty. Red first and muta
 ## 6. The review notes and the reply
 
 `app-store-forms.md` §8 stays the one paste block, and its weight is recounted
-(`app_review_notes_test.dart` fails if the « Poids » sentence lies). **The owner
+(`app_review_notes_test.dart` fails if the « Poids » sentence lies): **3,991 bytes, 3,926 characters, 31 lines**,
+counted by script, under the 4,000 limit. *3,937 bytes and 3,872 characters were right for the text decision 77
+approved, before decision 81's clause.* **The owner
 approves the wording** (done on 2026-11-03, decision 77); nothing is pasted before §12 step 2.
-*Step 2 is done; still nothing is pasted: §12 step 6 comes after the device pass and the film.*
+*Step 2 is done. §12 step 6 ran after the owner's reported pass: the notes are in App Store Connect, read back identical
+(§12).*
 
 Four passages change, now in the block:
 
@@ -308,10 +311,12 @@ Four passages change, now in the block:
   buy or register elsewhere: Profil > « Mon abonnement » only shows the salon's current
   plan and its status. A new salon's free trial starts automatically when the salon goes
   live; nothing is chosen or bought in the app. » No guideline number.
-- **USER CONTENT**: « …moderated by MyWeli: a salon reports a review with « Signaler » under
-  « Avis », customers report reviews from the MyWeli app, administrators can hide a review or
-  suspend a salon… ». That path is in this binary (#678, already in 698); the other one needs an
-  app the reviewer cannot reach.
+- **USER CONTENT**: « …moderated by MyWeli: a salon reports a review with « Signaler » under « Avis » (not visible
+  on the demo salon, which has no reviews), customers report reviews from the MyWeli app, administrators can hide a
+  review or suspend a salon… ». That path is in this binary (#678, already in 698); the other one needs an
+  app the reviewer cannot reach. *2026-11-03: the clause in brackets is decision 81, the only difference from what
+  decision 77 approved (§16). The demo salon having no review is owner-reported (§11). Read on 2026-11-04:
+  `backend/lib/src/demo` writes no review, so the weekly reset adds none.*
 - **ACCOUNT DELETION**, last sentence: « Any other account is deleted at that step; if it
   has upcoming appointments, the app first asks to finish or cancel them. » No instruction
   to register anywhere.
@@ -366,7 +371,8 @@ owner's too. Neither refusal cited them.
 4. « Conçu pour les réalités d'ici : FCFA, communes, à domicile, réseaux lents et petits téléphones. » loses
    « à domicile, ». The word is at 0 in the binary, and in `mobile/lib` only in a comment.
 
-**1,039 characters, 1,079 bytes, 18 lines**, counted by script from the block.
+**1,039 characters, 1,079 bytes, 18 lines**, counted by script from the block. *Written to fr-FR in App Store Connect on
+2026-11-03, read back identical; keywords, promotional text, support URL, marketing URL (empty) and locale unchanged.*
 
 Counts in `app-store-forms.md` §4 (the table's row and the line under the block) and §13.1 are recounted by script. Name, subtitle,
 promotional text, keywords, copyright, support and privacy URLs and the 16 stills do not
@@ -384,16 +390,23 @@ login's dead end is the same on Android.
   spec), 886×1920, 862 frames, 28.733 s. The same storyboard and takes as the framed cut,
   rendered with `--frame full-bleed`. The tool's 25 file checks pass; they read format and
   masks, not App Review's rules, and the rejected film passed the same 25.
-- **Poster**: 00:00:13:00. Set at reservation, read back on both slots: Apple ignored the time sent on the
-  deprecated route (`app-store-forms.md` §13.1).
-- **Both iPhone slots.** The framed file sits in `IPHONE_DYNAMIC_ISLAND_MEDIUM_PROFILE` and
+- **Poster**: 00:00:13:00. *2026-11-03, as it went:* Apple ignored the time sent at reservation and at commit, and set
+  00:00:05:01; a PATCH after processing set 00:00:13:00, read back on both slots (`app-store-forms.md` §13.1).
+- **Both iPhone slots.** The framed file sat in `IPHONE_DYNAMIC_ISLAND_MEDIUM_PROFILE` and
   `..._LARGE_PROFILE`. A placement cannot be edited: delete, create, read back. **Every size is
   read in « View All Sizes in Media Manager » before « Add for Review »**, as Apple's message
   warns. It is a site view with no recorded API equivalent, so whoever does it reads it in the site (§12 step 6). A framed copy left in any
   size repeats what Apple just refused, so this is a gate and not a nicety.
-- **Media before submission**: Rejected allows media edits, Waiting for Review does not. *2026-11-03: that is what
-  the docs say of the state; there is no recorded precedent for these edits on a `REJECTED` version with an open
-  submission (§13).*
+- **In App Store Connect, 2026-11-03, 23:49 UTC.** New previews `17000019-5a03-88cb-8118-40e21663fe37` (`IPHONE_67`) and
+  `f3000019-5a03-88cb-8114-ec9980fce3b8` (`IPHONE_61`), file `myweli-pro-film-full-bleed.mp4`, 14,309,442 bytes, sha256
+  `b34bac54…` checked before upload, `sourceFileChecksum` `543d367a6caf1b1069d0cd62e2246177` read back on both and equal to
+  the local file's md5, `assetDeliveryState` and `videoDeliveryState` `COMPLETE`. The framed films
+  `eb0e26ae-48f9-4bbf-b8e4-0f9d65c7a041` and `95da9952-95f5-4680-9419-5796e69fc420` were deleted (204) only after both new
+  copies were `COMPLETE`. The localization's `/placements` reads 2 `APP_PREVIEW` `ACTIVE` and 16 `APP_SCREENSHOT` `ACTIVE`.
+  Route: the deprecated `appPreviews` resources, which worked. **Not read: « View All Sizes in Media Manager », so that gate
+  is still open.**
+- **Media before submission**: Rejected allows media edits, Waiting for Review does not. *2026-11-03: there was no recorded
+  precedent for these edits on a `REJECTED` version with an open submission. Apple accepted them that night (§13).*
 - **The storyboard says full-bleed.** First written here as « the storyboard file stays as it is »;
   changed the same day so that the committed tool builds what goes in the slots. `film.frame` is the one
   value changed, with a dated `_frame` note and a self-test, watched red. **The candidate stays the file to
@@ -531,23 +544,41 @@ App Store Connect and read back identical to the block in `app-store-forms.md` �
 **It does not see, and this is not the owner's choice:** a session the server refuses (only the widget tests
 cover it, and a device cannot cheaply provoke it), and a second account on the same phone.
 
-Reported by the owner, dated in §11.6: nothing in this repo observes a device.
+Reported by the owner, dated in `app-store-forms.md` §11.6: nothing in this repo observes a device.
+
+**Owner-reported, 2026-11-03:**
+
+- **The pass:** « my results passed », on their iPhone, on signed build 719. It is one report for the whole pass, not
+  itemised, so the boxes for steps 1 to 4 in `app-store-forms.md` §11.6 are not ticked one by one.
+- **« Continuer avec Apple »** on that iPhone showed « Aucun compte MyWeli Pro… ».
+- **The Instagram bio** does not link to salon sign-up.
+- **The demo salon's « Avis »** has no review: decision 81 (§16).
+
+**The iPad: step 5 ran on an iPhone, not an iPad.** Observed by Claude at about 23:43 UTC on 2026-11-03, on an iPad Air
+11-inch (M3) simulator, Apple's review device: a **debug** build of the pro flavour from `713114a5` (`com.myweli.pro`,
+`UIDeviceFamily` [1], so iPhone compatibility mode). The sign-in screen shows no link, including after scrolling to its
+end. One tap on « Continuer avec Apple » opened Apple's system dialog « Sign in to your Apple Account »; closing it shows
+the full sentence « Connexion Apple impossible sur cet appareil. Vérifiez dans Réglages qu’un compte Apple est connecté,
+puis réessayez. » with nothing to tap. (Step 5 says that cancelling Apple's sheet shows nothing; closing this dialog
+showed the sentence.) **What it cannot show:** it is not the signed build, so a successful Apple sign-in on an iPad remains
+unobserved. **Still open:** the demo sign-in and the no-account address on that iPad were asked of the owner, and no result
+is reported.
 
 ## 12. Rollout
 
 **The web and the app land together, in one PR. The web is live at merge; the build comes after merge.**
 Nothing is merged, uploaded, pasted or sent except by the owner's go. *On 2026-11-03 steps 1 to 4 ran as written
-below; steps 5 to 7 have not.*
+below. Step 5 is owner-reported, with its iPad part open. Step 6 ran, but for the Media Manager read. Step 7 has not.*
 
 | # | Step | Who |
 |---|---|---|
 | 1 | The PR: this spec, the app, the web, the notes block, CI green, goldens on Linux. **Done: #731** | Claude, then the owner's review |
-| 2 | Merge. **The web is live.** `curl` the five paths with an iPad user agent and read them: no `/professionnels`, `/pro/inscription`, `/pro/connexion`; control: `/` still has them. **Done 2026-11-03** | Planned: owner merges, Claude checks. Done: Claude merged on the owner's standing go, and checked |
+| 2 | Merge. **The web is live.** `curl` the five paths with an iPad user agent and read them: no `/professionnels`, `/pro/inscription`, `/pro/connexion`; control: `/` still has them. **Done 2026-11-03** | Planned: owner merges, Claude checks. Done: Claude merged and checked, on the owner's go (« Merge, build, upload ») |
 | 3 | Hold other merges (dependabot included) until the build is made. Build from `main`: `./tool/release_build.sh ios pro`, which refuses a dirty tree or a HEAD that is not `origin/main`. Version stays 0.0.1; the build number is `git rev-list --count HEAD`, so `<BUILD>` is read from the IPA, not predicted. **Done 2026-11-03: 719** | Claude, on the owner's go |
-| 4 | Read the IPA (§11.3, flipped: §6). Upload, wait for `VALID`. **TestFlight:** « Équipe MyWeli » holds this build only, not in « Testeurs externes », and « What to Test » written from `app-store-forms.md` §11.5 and read back. **Sentry:** symbols read back on the server (6 of 6 debug IDs), the release created, with its commits. **All done 2026-11-03** | Read and upload: Claude, on the owner's go. TestFlight and Sentry: Claude |
-| 5 | The device pass (§11), with the two additions for the owner. **Not run** | Owner |
-| 6 | App Store Connect, in this order while the version is editable: the film in both slots, with the poster read back on both, **and every size read in « View All Sizes in Media Manager »**, a site view with no recorded API equivalent, so whoever does it reads it in the site (§8); the description (§7, with decision 79); the build; the notes, wording approved (§6). **The film goes first, and any refusal stops the sequence before the build, the notes or the reply are touched** (§13). **Not done** | Owner approves; API or owner |
-| 7 | The Resolution Center reply and « Add for Review ». **Not done** | Owner only |
+| 4 | Read the IPA (§11.3, flipped: §6). Upload, wait for `VALID`. **TestFlight:** « Équipe MyWeli » holds this build only, not in « Testeurs externes », and « What to Test » written from `app-store-forms.md` §11.5 and read back. **Sentry:** symbols read back on the server (6 of 6 debug IDs), the release created, with its commits. **All done 2026-11-03** | Read, upload and TestFlight: Claude, on the owner's go. Sentry: by Claude, following the runbook; that go did not name it |
+| 5 | The device pass (§11), with the two additions for the owner. **Owner-reported on 2026-11-03: « my results passed », on their iPhone, signed build 719, with both additions. Its step 5 ran on an iPhone, so the iPad's demo sign-in and no-account address stay open** | Owner |
+| 6 | App Store Connect, in this order while the version is editable: the film in both slots, with the poster read back on both, **and every size read in « View All Sizes in Media Manager »**, a site view with no recorded API equivalent, so whoever does it reads it in the site (§8); the description (§7, with decision 79); the build; the notes, wording approved (§6). **The film goes first, and any refusal stops the sequence before the build, the notes or the reply are touched** (§13). **Done on 2026-11-03 with no refusal, except the Media Manager read, which is open** | Planned: owner approves; API or owner. Done: Claude, after the owner's « my results passed », having told them it would do exactly that if the results passed. The Media Manager read: whoever does it, in the site |
+| 7 | The Resolution Center reply and « Add for Review ». **Not done.** The reply's text was given to the owner with 719; nothing has been sent or resubmitted | Owner only |
 | 8 | While in review: B0.1 applies (no `DEMO_PROVIDER_CODE` rotation, no Cloudflare change, same-day answers) | Both |
 
 **No production backend deploy** (decision 47): no step needs one, and the next one switches the Apple keys
@@ -559,7 +590,10 @@ top of it, and touches no page.
 
 **What steps 1 to 4 read, on 2026-11-03.** All observed; what was not observed is under the limits.
 
-- **The merge.** #731, squash-merged by Claude on the owner's standing go as `713114a5`
+- **The go.** The owner's choice « Merge, build, upload » was described to them as: merge, read the five live pages, build,
+  check the build for the removed link, upload to TestFlight for the device pass. Sentry's symbols followed the runbook, by
+  Claude, and were not named in that go.
+- **The merge.** #731, squash-merged by Claude on that go as `713114a5`
   (`713114a56d1a8aeac576a39e423c5a51c1ed3607`) at 22:25:58 UTC, all 13 checks green on head `b45f5cd1`. The first run of
   « Mobile — iOS builds » never got a runner (cancelled after 15 minutes, « not acquired by Runner », 0 steps), and the
   re-run passed at 21:47 UTC. The previous commit's iOS run passed, and nothing under `mobile/` outside `test/` changed
@@ -579,7 +613,29 @@ top of it, and touches no page.
   §12.
 - **The limits.** Only `/support` and `/cgu` were looked at in Safari; the other three were read raw and rendered in
   Chromium. Only the `lhr1` edge was reachable. `%2F` and `%5C` typed by hand bring the links back (§5.1).
-- **Still as it was.** Version 0.0.1 is `REJECTED`, release `MANUAL`, 698 attached. The backend is not deployed.
+- **As it stood then.** Version 0.0.1 was `REJECTED`, release `MANUAL`, 698 attached. Step 6 changed that later the same
+  night, below. The backend is not deployed.
+
+**What step 6 read, on 2026-11-03.** Written and read back by Claude, after the owner's « my results passed », having told
+them it would do exactly that if the results passed.
+
+- **The film and its poster,** at 23:49 UTC: §8 holds the IDs and the checksums. Both framed copies are deleted. The
+  localization's `/placements` reads 2 `APP_PREVIEW` `ACTIVE` and 16 `APP_SCREENSHOT` `ACTIVE`.
+- **The description.** Written to fr-FR, 1,039 characters, read back identical. Keywords, promotional text, support URL,
+  marketing URL (empty) and locale unchanged.
+- **The build.** 719 attached (204), read back as `4eb50f72-f6d1-4ca2-ad6a-e5e544fdb25f`. The version moved from `REJECTED`
+  to `PREPARE_FOR_SUBMISSION`, release `MANUAL`.
+- **The notes.** Written, read back identical, 3,991 bytes (decision 81). Demo and contact fields unchanged by fingerprint:
+  password set, contact set, demo required, demo user `revue@myweli.test`.
+- **The submission.** `45ed9726-1418-435b-b3e2-76726422c5d3` is `UNRESOLVED_ISSUES`, its item `REJECTED`, as expected before
+  the owner resubmits.
+
+**Not done, as of that read:** the iPad's demo sign-in and no-account address (§11); the read of « View All Sizes in Media
+Manager »; a same-day demo sign-in on TestFlight beyond what the owner reported; the reply (its text given to the owner with
+719); « Add for Review »; the read-back after it. The backend is not deployed. **Nothing has been sent or resubmitted.**
+
+**Production checks.** The last scheduled run was green at 13:16 UTC on `4e78e485`, before the merge, and issue #549 is
+closed. A green run after `713114a5` has not been observed.
 
 ## 13. Accepted risks and the contingency
 
@@ -607,14 +663,11 @@ top of it, and touches no page.
   the wording (§16).
 - **The Dynamic Island pill on every capture frame of the film.** The simulator recorder draws it; it is not around the
   capture. The refused film had it too, and Apple cited only the framing. To decide at the 0.0.2 retake (B0.8).
-- **No recorded precedent on a `REJECTED` version with an open submission.** Replacing the film (delete and create a
-  placement), setting the poster at reservation and editing the description are inferred only. So the film goes first, and
-  any refusal stops the sequence before the build, the notes or the reply are touched. Read poster `00:00:13:00` back on
-  both slots.
 - **The limits of the real-WebKit read.** Only `/support` and `/cgu` were looked at in Safari, on an iPad Air 11-inch (M3)
   simulator; the other three were read raw and rendered in Chromium. Only the `lhr1` edge was reachable (§12).
 - **`%2F` and `%5C`, typed by hand, bring the salon links back on the five** (§5.1). The app and App Store Connect use the
-  bare paths. A follow-up was offered to the owner as a separate task, and it does not merge during review.
+  bare paths. A follow-up was offered to the owner as a separate task, and it does not merge during review. *2026-11-03: the
+  owner started it as a separate session; its state is not known here.*
 - **Play's description keeps both sentences decision 79 corrected** (« semaine » and « à domicile, »), saved in its
   console: the owner has not decided on Play (§7, §16).
 - **5.1.1(ix)**, KYC under an individual seller: uncited twice. Fallback decided (B0.6: hide KYC and the deposit switch on
@@ -623,6 +676,15 @@ top of it, and touches no page.
   device pass can be attached, the owner's choice.
 - **The stills** show « Revenus » and « Total » from before those labels changed (stills 3, 8). 2.3.3 asks that they follow
   the UI; they wait for 0.0.2.
+
+**Settled on 2026-11-03:**
+
+- **No recorded precedent on a `REJECTED` version with an open submission.** Replacing the film, setting the poster and
+  editing the description were inferred only, so the plan put the film first, with any refusal stopping the sequence before
+  the build, the notes or the reply were touched. **Apple accepted all of them**: the new films reached `COMPLETE` and the
+  framed ones were deleted (204), through the deprecated `appPreviews` resources; the description was written and read back
+  identical; the poster took, but only from a PATCH after processing, Apple having ignored the time sent at reservation and at
+  commit and set 00:00:05:01 (§8). **Not settled by this:** « View All Sizes in Media Manager », not read (§12 step 6).
 
 **The contingency.** If Apple challenges the model itself (a plan bought outside the app governs the app, and 3.1.3(f) does not
 fit): **« Mon abonnement » is hidden, or store billing is opened. A decision for then**, the owner's, and not taken now. Hiding
@@ -646,16 +708,18 @@ The audit's overkill list. Each was considered and left out on purpose:
 
 ## 15. Definition of done
 
-- [ ] This spec committed before code, indexed in `README.md`, cross-linked from the code it governs.
-- [ ] Every new test and guard watched red on the old code, and red under a mutation on a copy of committed work; both in the commit message.
-- [ ] `flutter analyze` 0, `dart format` clean, the design-token gates, the full mobile suite once; web lint, typecheck, unit, e2e, build.
-- [ ] Goldens on Linux; every changed PNG looked at; the rest byte-compared.
-- [ ] Notes wording approved by the owner; weight recounted; no 3.1.3(f) anywhere sent to Apple.
+*Checked on 2026-11-04 against #731's 20 commits, its 13 checks and its squash.*
+
+- [x] This spec committed before code, indexed in `README.md`, cross-linked from the code it governs. *`29d527b6` before `ea631a55`; the web slice's `d6cb0ba2` before `132a91fc`.*
+- [ ] Every new test and guard watched red on the old code, and red under a mutation on a copy of committed work; both in the commit message. *Left open: the record does not say this. `ea631a55` lists guards green on the old code and red only under mutation, as does `b5a2b18b` for one (the labels were right), and `3d20632a` says every test on the two new surfaces was seen red at least once. The last two guards' red is written in §10, not in a commit message: `8dcf44fa` points to `77c4bfd8`, whose body is empty.*
+- [x] `flutter analyze` 0, `dart format` clean, the design-token gates, the full mobile suite once; web lint, typecheck, unit, e2e, build. *`3d20632a` (suite, gates), `b09de93e` (full e2e 383), `2b411154` (at `0abc89c1`: analyze 0, format clean, 3,164 tests, 2,455 web unit tests, build); all 13 checks on head `b45f5cd1`.*
+- [x] Goldens on Linux; every changed PNG looked at; the rest byte-compared. *`3d20632a`, run 41643819126: 57 of 58 byte-identical, the one changed looked at. `2b411154`: no rendering changed after it.*
+- [x] Notes wording approved by the owner; weight recounted; no 3.1.3(f) anywhere sent to Apple. *For #731: decision 77, 3,937 bytes, held by `app_review_notes_test.dart`. Since then, one clause the owner delegated: decision 81, 3,991 bytes.*
 - [x] After merge: the five pages read live with a control (§12 step 2). *2026-11-03, with its limits.*
 - [x] The IPA read (§6). *Build 719, 2026-11-03.*
-- [ ] The device pass reported (§11).
-- [ ] Both iPhone slots read back with the new file and the poster before « Add for Review ».
-- [ ] Feature branch and PR. No Claude attribution of any kind. A roadmap entry.
+- [ ] The device pass reported (§11). *Reported for the iPhone on 2026-11-03. Left open while the iPad's demo sign-in has no result.*
+- [ ] Both iPhone slots read back with the new file and the poster before « Add for Review ». *Read back through the API on 2026-11-03 (§8). Left open with its gate, « View All Sizes in Media Manager », not read (§8, §12 step 6).*
+- [x] Feature branch and PR. No Claude attribution of any kind. A roadmap entry. *`fix/app-review-round2`, #731; no attribution in its 20 commits, its body or its squash; `docs/roadmap/entries/2026-11-03-app-review-round-2.md`.*
 
 ## 16. Open questions
 
@@ -676,8 +740,11 @@ were told, before answering:
 « à domicile, » (§7); the notes and the reply stay as approved. Decision 80, « Accept it »: the pricing page stays two taps from
 the five pages (§13).
 
-**Open, and the owner's:** if the demo account has no review (§11, step 1's reading), whether the notes' « Signaler » sentence
-stands.
+**Delegated by the owner on 2026-11-03: [decision 81](../BACKLOG.md).** The demo account has no review, owner-reported (§11). This
+was open and the owner's: whether the notes' « Signaler » sentence stands. Their words: « there was no review , so do what is
+better ». Claude kept the sentence, which is still true of the app, and added one clause, and the owner has been told the exact
+clause. Old: « Signaler » under « Avis », customers report. New: « Signaler » under « Avis » (not visible on the demo salon, which
+has no reviews), customers report. The notes differ from what decision 77 approved by this clause only (§6).
 
 **Still open, and blocks nothing:** whether the Play listing takes the description's four edits (§7, decisions 74 and 79). It keeps
 the old text until Play comes up again.
