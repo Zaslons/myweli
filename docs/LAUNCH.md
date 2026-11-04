@@ -55,7 +55,8 @@ questions none of our gates can answer:
      *(2026-11-03: Apple refused 587 on 2026-10-19 and its replacement, 698, on
      2026-11-03. The next build of 0.0.1, 719, was made the same night by the same
      script and carries the DSN (2 occurrences in the binary, compared without
-     printing). It is uploaded, in TestFlight and attached to version 0.0.1, not submitted:
+     printing). It is uploaded, in TestFlight and attached to version 0.0.1. Not submitted on
+     that date; on 2026-11-04 the API reads `WAITING_FOR_REVIEW`, submitted at 00:02:00 UTC:
      [design/app-review-round-2.md](design/app-review-round-2.md).)*
    Uptime checks on `/health` and a database-backed route are live and alerting
    to a human, verified against real probe data
@@ -1286,7 +1287,7 @@ checking rather than assuming:
 > the app opens without the salon links; the full-bleed cut of the film, its end card and « Total »
 > an accepted risk; review notes without 3.1.3(f); a focused device pass. **Web merges are production
 > deploys: the five pages went live at the merge, and the build came after. No production backend deploy**
-> (decision 47): no step needs one. Until the next « Add for Review », B0.1's constraints are lifted.
+> (decision 47): no step needs one. Until the next « Add for Review », B0.1's constraints are lifted. *They apply again from 00:02:00 UTC on 2026-11-04, per the API: below.*
 >
 > **2026-11-03, night — #731 merged, the web live, build 719 in TestFlight; not resubmitted.** Squash
 > `713114a5` at 22:25:58 UTC, all 13 checks green; Vercel's production deployment of it succeeded. Read live
@@ -1296,7 +1297,7 @@ checking rather than assuming:
 > read as French, the only build in « Équipe MyWeli », symbols and a release on Sentry (app-store-forms §11.3,
 > §11.5). Version 0.0.1 was then still `REJECTED`, release `MANUAL`, with 698 attached: the next paragraph changes that.
 >
-> **2026-11-03, later that night — App Store Connect holds the new page; not resubmitted.** *Owner-reported:* the focused
+> **2026-11-03, later that night — App Store Connect holds the new page; not resubmitted at that read.** *Owner-reported:* the focused
 > pass, « my results passed », on their iPhone, on signed build 719; « Continuer avec Apple » there showed « Aucun compte
 > MyWeli Pro… »; the Instagram bio does not link to salon sign-up; the demo salon's « Avis » has no review. *Step 5 ran on
 > that iPhone, not an iPad.* At about 23:43 UTC, on an iPad Air 11-inch (M3) simulator, a debug build from `713114a5` showed no
@@ -1307,11 +1308,19 @@ checking rather than assuming:
 > `00:00:13:00` read back on both (Apple ignored the time at reservation and at commit, and a PATCH after processing took); the
 > framed films deleted after that (204); the description, 1,039 characters; build 719 attached (204), read back as
 > `4eb50f72-f6d1-4ca2-ad6a-e5e544fdb25f`; the notes, 3,991 bytes, with one clause the owner delegated (decision 81). The
-> description and the notes read back identical. Version 0.0.1 is `PREPARE_FOR_SUBMISSION`, release `MANUAL`; submission `45ed9726…` is `UNRESOLVED_ISSUES`, as
-> expected. **Not done:** the demo sign-in and the no-account address on that iPad, « View All Sizes in Media Manager », the
+> description and the notes read back identical. Version 0.0.1 was `PREPARE_FOR_SUBMISSION`, release `MANUAL`; submission `45ed9726…` was `UNRESOLVED_ISSUES`, as it
+> stood then. **Not done at that read:** the demo sign-in and the no-account address on that iPad, « View All Sizes in Media Manager », the
 > reply (given to the owner with 719), « Add for Review », the read-back after it. The last scheduled « Production checks » run
 > was green at 13:16 UTC on `4e78e485`, before the merge; a green run after `713114a5` has not been observed. The backend is
 > not deployed.
+>
+> **2026-11-04 — in review, per the API.** Read twice by Claude's review of this record, the second at 00:18 UTC: version 0.0.1
+> `WAITING_FOR_REVIEW`, release `MANUAL`; submission `45ed9726…` `WAITING_FOR_REVIEW`, submitted at 00:02:00 UTC by an actor of type
+> `USER`, not an API key, its item `READY_FOR_REVIEW`. B0.1's constraints apply from then, and a merge to `main` is a production
+> deployment even when it is docs only. Not readable there: whether the Resolution Center reply was sent, and which person
+> submitted. Not reported: « View All Sizes in Media Manager » and the demo sign-in and no-account address on the iPad. #732 (the
+> `%2F` and `%5C` spellings) merged at 23:59:03 UTC on 2026-11-03 and its production deployment succeeded at 00:01:08 UTC; the raw
+> read is clean, as it was before #732, and the rendered read of those addresses, with a control, is owed.
 
 - [ ] Everything in [mobile-store-submission.md](design/mobile-store-submission.md) §5.
       Two of its claims are **stale as of 2026-08-18** and must be corrected
