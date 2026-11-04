@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | **Apple refused the framed film on 2026-11-03 (2.3.4, build 698). The owner chose the full-screen trial: the full-bleed cut of the same storyboard and takes, end card and « Total » included, as an accepted risk. Rendered, verified, and in both iPhone slots since 2026-11-03, 23:49 UTC; whether « View All Sizes in Media Manager » was read is not reported as of 2026-11-04 (§0.6).** A retake on fresh takes with no end card is for 0.0.2. The rest of this row is the record of 2026-10-14. **Version 2 — built, chosen and uploaded (2026-10-14).** The owner watched three cuts and chose cut 1 « as it is »: framed, with the public page, 28.733 s, five scenes and the end card (`tool/app_store_preview/storyboard-scenes.json`, #590; film sha256 `4d945614…`, passes all 25 checks). **Uploaded to version 0.0.1** in both iPhone slots, processed by Apple, placed ahead of the screenshots; poster asked at 25.000 s (`00:00:25:00`) — Apple first ignored the time sent with the upload and used its 5-s default; corrected. Version 1 (§1–§11) stays as the record. |
+| **Status** | **Apple refused the framed film on 2026-11-03 (2.3.4, build 698). The owner chose the full-screen trial: the full-bleed cut of the same storyboard and takes, end card and « Total » included, as an accepted risk. Rendered, verified, and in both iPhone slots since 2026-11-03, 23:49 UTC; « View All Sizes in Media Manager » is owner-reported as checked on 2026-11-04, with no order stated against the submission (§0.6).** **2026-11-04: resubmitted at 00:02:00 UTC with build 719, in review (`WAITING_FOR_REVIEW`, release `MANUAL`, per the API); B0.1 applies. Still open: Apple's decision; a green scheduled « Production checks » run after `713114a5` and `7a2c7e15` (the last is 13:16 UTC on 2026-11-03, on `4e78e485`); a successful Apple sign-in on an iPad, unobserved; the production backend deploy after Apple's decision, the one that switches on the Apple keys; the release by hand after approval; merging the docs PR that holds this record.** A retake on fresh takes with no end card is for 0.0.2. The rest of this row is the record of 2026-10-14. **Version 2 — built, chosen and uploaded (2026-10-14).** The owner watched three cuts and chose cut 1 « as it is »: framed, with the public page, 28.733 s, five scenes and the end card (`tool/app_store_preview/storyboard-scenes.json`, #590; film sha256 `4d945614…`, passes all 25 checks). **Uploaded to version 0.0.1** in both iPhone slots, processed by Apple, placed ahead of the screenshots; poster asked at 25.000 s (`00:00:25:00`) — Apple first ignored the time sent with the upload and used its 5-s default; corrected. Version 1 (§1–§11) stays as the record. |
 | **Owner** | Sadreddine Daher |
 | **Last updated** | 2026-11-03 |
 | **PRD ref / phase** | Launch — store submission · V1 |
@@ -155,8 +155,8 @@ was left alone. **Both are the same picture**: frames 382 to 412 are one compose
 create, read back. **Every size read in « View All Sizes in Media Manager » before « Add for Review »**:
 a framed copy left in any size repeats the refusal. Rejected allows media edits; Waiting for Review does
 not. *Done on 2026-11-03, at 23:49 UTC, and Apple accepted it on the `REJECTED` version: the IDs, the checksums and the
-deletion of the framed copies are in [app-store-forms.md](app-store-forms.md) §13.1. Whether « View All Sizes in Media Manager » was
-read before the submission of 2026-11-04 is not reported.*
+deletion of the framed copies are in [app-store-forms.md](app-store-forms.md) §13.1. « View All Sizes in Media Manager »: owner-reported
+as checked on 2026-11-04, with no order stated against that day's submission, and not observable from here.*
 
 **For 0.0.2.** A retake on the current build, on fresh takes, with no end card and the disclosure inside
 the footage, so that nothing on screen is anything but a capture and its overlays (B0.8).

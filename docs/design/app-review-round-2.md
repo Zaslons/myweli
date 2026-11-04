@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | Approved 2026-11-03 (owner: §3, five decisions) · build, upload and resubmission are the owner's go (§12). **The app's half (§4, §10), the web's half (§5), the texts for Apple (§6, §7), the film's storyboard (§8) and the record are merged (#731, squash `713114a5`, 2026-11-03). The web is live and read. Build 719 is built, read, uploaded, `VALID` and in TestFlight** (§12). **That night, in App Store Connect: the full-screen film in both slots, the description, 719 attached, the notes; version 0.0.1 moved from `REJECTED` to `PREPARE_FOR_SUBMISSION`, release `MANUAL`, as it stood then. The owner reports that the focused pass passed on their iPhone (§11).** **2026-11-04, read through the API at 00:18 UTC: version 0.0.1 is `WAITING_FOR_REVIEW`, release `MANUAL`, submitted at 00:02:00 UTC by a user account (§12). #732, the `%2F` and `%5C` spellings, was merged and deployed before that (§5.1).** **Not reported:** whether the iPad's demo sign-in and no-account address ran, whether « View All Sizes in Media Manager » was read, whether the reply was sent (its text was given to the owner with 719). **Owed:** a rendered read of #732's addresses, with a control. The backend is not deployed. The owner approved the notes, the description and the reply on 2026-11-03 (decision 77), corrected the description the same day (decision 79), and delegated one clause of the notes (decision 81) |
+| **Status** | Approved 2026-11-03 (owner: §3, five decisions) · build, upload and resubmission are the owner's go (§12). **The app's half (§4, §10), the web's half (§5), the texts for Apple (§6, §7), the film's storyboard (§8) and the record are merged (#731, squash `713114a5`, 2026-11-03). The web is live and read. Build 719 is built, read, uploaded, `VALID` and in TestFlight** (§12). **That night, in App Store Connect: the full-screen film in both slots, the description, 719 attached, the notes; version 0.0.1 moved from `REJECTED` to `PREPARE_FOR_SUBMISSION`, release `MANUAL`, as it stood then. The owner reports that the focused pass passed on their iPhone (§11).** **2026-11-04: resubmitted at 00:02:00 UTC with build 719, in review (`WAITING_FOR_REVIEW`, release `MANUAL`, per the API); B0.1 applies. Still open: Apple's decision; a green scheduled « Production checks » run after `713114a5` and `7a2c7e15` (the last is 13:16 UTC on 2026-11-03, on `4e78e485`); a successful Apple sign-in on an iPad, unobserved; the production backend deploy after Apple's decision, the one that switches on the Apple keys; the release by hand after approval; merging the docs PR that holds this record.** #732, the `%2F` and `%5C` spellings, was merged and deployed before the submission, and its rendered read is done for one address (§5.1). *Owner-reported on 2026-11-04:* the iPad's demo sign-in and no-account address passed, on a simulator and a debug build, not signed 719 (§11); Media Manager checked and the reply sent, with no order stated against the submission (§12). The backend is not deployed. The owner approved the notes, the description and the reply on 2026-11-03 (decision 77), corrected the description the same day (decision 79), and delegated one clause of the notes (decision 81) |
 | **Owner** | Sadreddine Daher |
 | **Last updated** | 2026-11-04 |
 | **PRD ref / phase** | FR-PRO-AUTH-001 (registration on the web only) · V1 |
@@ -227,8 +227,9 @@ need to touch it.
   2026-11-03 as `7a2c7e15`. Its production deployment reported success at 00:01:08 UTC, 52 seconds before the submission's date
   (§12), and the live layout chunk holds the new predicate. A raw read at 00:26 UTC, iPad user agent: the five bare pages,
   `/cgu%2F` and `/%5Csupport` are 200 with 0 hrefs to `/professionnels`, `/pro/inscription` and `/pro/connexion`; the control `/`
-  has 3, 1 and 1. **That is raw HTML, which was clean before #732 too, so it does not prove the fix. The hydrated page is what
-  #732 fixes, and it has not been read: a rendered read of those addresses, with a control, is owed** (§12). A read is allowed
+  has 3, 1 and 1. **That is raw HTML, which was clean before #732 too, so it does not prove the fix.** Nor does the raw read at
+  00:06 UTC, same user agent: the five pages show 0 of `/professionnels`, `/pro/inscription`, `/pro/connexion` and « facturation », the controls `/` 4, 1, 1 and `/connexion` 2, 1, 1, and `/support%2F`, `/%2Fsupport` and `/support%5C` are also 0. (`/` reads 4 occurrences of `/professionnels`, 3 of them hrefs, at 00:40 UTC, which accounts for the 4 here and the 3 at 00:26.) **The hydrated page is what #732 fixes, and its
+  rendered read is done for one address:** real Safari on the iPad Air 11-inch (M3) simulator at 00:06 UTC opened `/support%2F` and, after hydration, the header ends on « Mon compte » with no « Espace pro ». The frame shows the header, the body and the top of the footer's wordmark, not the footer's links. Before #732 the same address showed the salon links after hydration, which is the control. The other spellings were read raw only (§12). A read is allowed
   during review; a web edit is not.
 - **Header**: `SiteChrome` is already a client component reading `usePathname`; it passes one
   prop to `Header`, whose default keeps « Espace pro ». Not rendered, rather than hidden by
@@ -413,8 +414,8 @@ login's dead end is the same on Android.
   the local file's md5, `assetDeliveryState` and `videoDeliveryState` `COMPLETE`. The framed films
   `eb0e26ae-48f9-4bbf-b8e4-0f9d65c7a041` and `95da9952-95f5-4680-9419-5796e69fc420` were deleted (204) only after both new
   copies were `COMPLETE`. The localization's `/placements` reads 2 `APP_PREVIEW` `ACTIVE` and 16 `APP_SCREENSHOT` `ACTIVE`.
-  Route: the deprecated `appPreviews` resources, which worked. **Not observed: « View All Sizes in Media Manager ». It was a gate
-  before « Add for Review », and whether it was read first is not reported (§12).**
+  Route: the deprecated `appPreviews` resources, which worked. **« View All Sizes in Media Manager » was a gate before « Add for Review » and is not observable
+  from here. Owner-reported on 2026-11-04: « I checked Media Manager ». The owner did not say whether that came before or after the submission, so no order is stated (§12).**
 - **Media before submission**: Rejected allows media edits, Waiting for Review does not. *2026-11-04: the version is
   `WAITING_FOR_REVIEW`, per the API (§12).* *2026-11-03: there was no recorded
   precedent for these edits on a `REJECTED` version with an open submission. Apple accepted them that night (§13).*
@@ -572,15 +573,15 @@ end. One tap on « Continuer avec Apple » opened Apple's system dialog « Sign 
 the full sentence « Connexion Apple impossible sur cet appareil. Vérifiez dans Réglages qu’un compte Apple est connecté,
 puis réessayez. » with nothing to tap. (Step 5 says that cancelling Apple's sheet shows nothing; closing this dialog
 showed the sentence.) **What it cannot show:** it is not the signed build, so a successful Apple sign-in on an iPad remains
-unobserved. **Not reported:** the demo sign-in and the no-account address on that iPad were asked of the owner, and as of 2026-11-04 no
-result is reported. The submission has passed since (§12): they either ran and are unreported, or did not run, and this record
-says neither.
+unobserved.
+
+**The iPad's two results, 2026-11-04.** *Owner-reported*, on that simulator and that debug build, not signed 719: « demo sign-in on the iPad passed, Maison Nala loaded, and I received the code on another email and when entered it said aucun compte myweli... ». *Observed by Claude at 00:04 UTC*, on that simulator, the no-account screen: the full sentence « Aucun compte MyWeli Pro n’est associé à cette adresse. Si votre salon vous a invité, connectez-vous avec l’adresse qui a reçu l’invitation. », with only « Se connecter », « Renvoyer le code » and « Changer d’e-mail » beside it: nothing about signing up. **Its limit stands.** A simulator proves the layout, not the signed build. A successful Apple sign-in on an iPad remains unobserved: the signed build ran on the owner's iPhone, where it gave « Aucun compte MyWeli Pro… », and the simulator has no Apple account.
 
 ## 12. Rollout
 
 **The web and the app land together, in one PR. The web is live at merge; the build comes after merge.**
 Nothing is merged, uploaded, pasted or sent except by the owner's go. *On 2026-11-03 steps 1 to 4 ran as written
-below. Step 5 is owner-reported, with no result for its iPad part. Step 6 ran; its Media Manager read is not reported. On 2026-11-04 the API reads step 7's « Add for Review » as done; its reply is not known.*
+below. Step 5 is owner-reported, its iPad part on 2026-11-04, on a simulator and a debug build. Step 6 ran, and its Media Manager read is owner-reported on 2026-11-04. On 2026-11-04 the API reads step 7's « Add for Review » as done, and its reply is owner-reported as sent.*
 
 | # | Step | Who |
 |---|---|---|
@@ -588,9 +589,9 @@ below. Step 5 is owner-reported, with no result for its iPad part. Step 6 ran; i
 | 2 | Merge. **The web is live.** `curl` the five paths with an iPad user agent and read them: no `/professionnels`, `/pro/inscription`, `/pro/connexion`; control: `/` still has them. **Done 2026-11-03** | Planned: owner merges, Claude checks. Done: Claude merged and checked, on the owner's go (« Merge, build, upload ») |
 | 3 | Hold other merges (dependabot included) until the build is made. Build from `main`: `./tool/release_build.sh ios pro`, which refuses a dirty tree or a HEAD that is not `origin/main`. Version stays 0.0.1; the build number is `git rev-list --count HEAD`, so `<BUILD>` is read from the IPA, not predicted. **Done 2026-11-03: 719** | Claude, on the owner's go |
 | 4 | Read the IPA (§11.3, flipped: §6). Upload, wait for `VALID`. **TestFlight:** « Équipe MyWeli » holds this build only, not in « Testeurs externes », and « What to Test » written from `app-store-forms.md` §11.5 and read back. **Sentry:** symbols read back on the server (6 of 6 debug IDs), the release created, with its commits. **All done 2026-11-03** | Read, upload and TestFlight: Claude, on the owner's go. Sentry: by Claude, following the runbook; that go did not name it |
-| 5 | The device pass (§11), with the two additions for the owner. **Owner-reported on 2026-11-03: « my results passed », on their iPhone, signed build 719, with both additions. Its step 5 ran on an iPhone, so the iPad's demo sign-in and no-account address have no result: not reported as of 2026-11-04** | Owner |
-| 6 | App Store Connect, in this order while the version is editable: the film in both slots, with the poster read back on both, **and every size read in « View All Sizes in Media Manager »**, a site view with no recorded API equivalent, so whoever does it reads it in the site (§8); the description (§7, with decision 79); the build; the notes, wording approved (§6). **The film goes first, and any refusal stops the sequence before the build, the notes or the reply are touched** (§13). **Done on 2026-11-03 with no refusal. The Media Manager read: not observed, and not reported as of 2026-11-04** | Planned: owner approves; API or owner. Done: Claude, after the owner's « my results passed », having told them it would do exactly that if the results passed. The Media Manager read: in the site, by whoever does it |
-| 7 | The Resolution Center reply and « Add for Review ». **« Add for Review »: done per the API, submitted at 00:02:00 UTC on 2026-11-04 by a user account, not an API key; which person is not readable. The reply: not known until the owner says whether it was sent** (its text was given to the owner with 719, and the thread has no API) | Planned: owner only |
+| 5 | The device pass (§11), with the two additions for the owner. **Owner-reported on 2026-11-03: « my results passed », on their iPhone, signed build 719, with both additions. Its step 5 ran on an iPhone. Owner-reported on 2026-11-04: the iPad's demo sign-in and no-account address passed, on an iPad Air 11-inch (M3) simulator, a debug build from `713114a5`, not signed 719 (§11). A successful Apple sign-in on an iPad remains unobserved** | Owner |
+| 6 | App Store Connect, in this order while the version is editable: the film in both slots, with the poster read back on both, **and every size read in « View All Sizes in Media Manager »**, a site view with no recorded API equivalent, so whoever does it reads it in the site (§8); the description (§7, with decision 79); the build; the notes, wording approved (§6). **The film goes first, and any refusal stops the sequence before the build, the notes or the reply are touched** (§13). **Done on 2026-11-03 with no refusal. The Media Manager read: owner-reported on 2026-11-04 (« I checked Media Manager »), not observable from here, with no order stated against the submission** | Planned: owner approves; API or owner. Done: Claude, after the owner's « my results passed », having told them it would do exactly that if the results passed. The Media Manager read: in the site, by whoever does it |
+| 7 | The Resolution Center reply and « Add for Review ». **« Add for Review »: done per the API, submitted at 00:02:00 UTC on 2026-11-04 by a user account, not an API key; which person is not readable. The reply: owner-reported as sent on 2026-11-04 (« I checked Media Manager and sent the reply »), the `app-store-forms.md` §13.2 block with 719, not observable from here** (the thread has no API) | Planned: owner only |
 | 8 | While in review: B0.1 applies (no `DEMO_PROVIDER_CODE` rotation, no Cloudflare change, same-day answers, no edit to the five pages). **In force since 00:02:00 UTC on 2026-11-04, per the API** | Both |
 
 **No production backend deploy** (decision 47): no step needs one, and the next one switches the Apple keys
@@ -661,18 +662,25 @@ stay as they stood on 2026-11-03; these replace their present tense.
   §8 keeps as its own gate.
 - **Not readable from the API:** whether the Resolution Center reply was sent, and which person submitted.
 - **Not recorded from this read:** the attached build, the notes and the description since the submission.
+- **Read earlier, at 00:05 UTC, by Claude:** submission `45ed9726-1418-435b-b3e2-76726422c5d3` `WAITING_FOR_REVIEW`, `submittedDate` 2026-11-04T00:02:00.35Z, item `READY_FOR_REVIEW`; version 0.0.1 `WAITING_FOR_REVIEW`, release `MANUAL`, build 719 attached. The film, the description and the notes were still as written.
 
-**The gates before « Add for Review ».** That point passed at 00:02:00 UTC. The Media Manager read and the iPad's demo sign-in and
-no-account address were gates before it, and nobody has reported whether they ran first. They were either met and are unreported,
-or were passed unmet; this record says neither, so §15's boxes stay unticked. As of 2026-11-04 each is **not reported**, as are the
-reply and a same-day demo sign-in beyond the owner's report. §16 holds the questions for the owner. If Media Manager was not read,
-read it now: viewing changes nothing.
+**The gates before « Add for Review », owner-reported on 2026-11-04.** That point passed at 00:02:00 UTC. The iPad's demo sign-in and
+no-account address passed, on a simulator and a debug build, not signed 719 (§11). « I checked Media Manager and sent the reply »: the
+reply is the `app-store-forms.md` §13.2 block, with 719. The owner did not say whether the Media Manager read came before or after
+the submission, so this record states no order. Neither the read nor the reply is observable from here. A demo sign-in on TestFlight
+is known only from the owner's report of 2026-11-03.
 
-**Owed now:** the rendered read of #732's addresses, in a browser, with a control (§5.1). Reads are allowed during review; a web
-edit is not.
+**The rendered read owed by #732 is done, for one address** (§5.1). `/support%2F`, real Safari on the iPad Air 11-inch (M3) simulator,
+00:06 UTC, with the same address before #732 as the control. It does not cover the footer's links, and the other spellings were read
+raw only. Reads are allowed during review; a web edit is not.
 
 **Production checks.** The last scheduled run was green at 13:16 UTC on `4e78e485`, before the merge, and issue #549 is
-closed. A green run after `713114a5` has not been observed. Read again at 00:24 UTC on 2026-11-04: still that run.
+closed. A green run after `713114a5` has not been observed. Read again at 00:24 UTC on 2026-11-04: still that run. Read again at
+00:40 UTC: still that run, so no green scheduled run after `713114a5` or `7a2c7e15`.
+
+**Still open on 2026-11-04:** Apple's decision; that green run; a successful Apple sign-in on an iPad; the production backend deploy
+after Apple's decision, the one that switches on the Apple keys; the release by hand after approval; merging the docs PR that holds
+this record, which waits for the owner's word (§16).
 
 ## 13. Accepted risks and the contingency
 
@@ -718,13 +726,14 @@ closed. A green run after `713114a5` has not been observed. Read again at 00:24 
   the build, the notes or the reply were touched. **Apple accepted all of them**: the new films reached `COMPLETE` and the
   framed ones were deleted (204), through the deprecated `appPreviews` resources; the description was written and read back
   identical; the poster took, but only from a PATCH after processing, Apple having ignored the time sent at reservation and at
-  commit and set 00:00:05:01 (§8). **Not settled by this:** « View All Sizes in Media Manager », not observed and not reported (§12).
+  commit and set 00:00:05:01 (§8). **Not settled by this:** « View All Sizes in Media Manager », not observable from here, owner-reported as checked on 2026-11-04 (§12).
 
 **Closed by #732, recorded on 2026-11-04:**
 
 - **`%2F` and `%5C`, typed by hand, brought the salon links back on the five.** The app and App Store Connect use the bare paths.
   #732 merged at 23:59:03 UTC on 2026-11-03 and its production deployment reported success at 00:01:08 UTC, before the submission.
-  **Still owed:** the rendered read of those addresses, with a control (§5.1, §12).
+  **The rendered read, 2026-11-04:** `/support%2F` only, in real Safari on the iPad simulator at 00:06 UTC, its header read and not the footer's links, with the
+  same address before #732 as the control. The other spellings were read raw only (§5.1, §12).
 
 **The contingency.** If Apple challenges the model itself (a plan bought outside the app governs the app, and 3.1.3(f) does not
 fit): **« Mon abonnement » is hidden, or store billing is opened. A decision for then**, the owner's, and not taken now. Hiding
@@ -757,8 +766,8 @@ The audit's overkill list. Each was considered and left out on purpose:
 - [x] Notes wording approved by the owner; weight recounted; no 3.1.3(f) anywhere sent to Apple. *For #731: decision 77, 3,937 bytes, held by `app_review_notes_test.dart`. Since then, one clause the owner delegated: decision 81, 3,991 bytes.*
 - [x] After merge: the five pages read live with a control (§12 step 2). *2026-11-03, with its limits.*
 - [x] The IPA read (§6). *Build 719, 2026-11-03.*
-- [ ] The device pass reported (§11). *Reported for the iPhone on 2026-11-03. Unticked while the iPad's demo sign-in has no result: not reported as of 2026-11-04, the submission having passed (§12).*
-- [ ] Both iPhone slots read back with the new file and the poster before « Add for Review ». *Read back through the API on 2026-11-03 (§8); on 2026-11-04 each slot holds only its new preview (§12). Unticked with its gate: whether « View All Sizes in Media Manager » was read before the submission is not reported (§8, §12).*
+- [x] The device pass reported (§11). *Reported for the iPhone on 2026-11-03, on signed build 719. Owner-reported for the iPad on 2026-11-04: the demo sign-in and the no-account address passed, on an iPad Air 11-inch (M3) simulator and a debug build from `713114a5`, not signed 719. A successful Apple sign-in on an iPad remains unobserved (§12).*
+- [x] Both iPhone slots read back with the new file and the poster before « Add for Review ». *Read back through the API on 2026-11-03, before the submission (§8); on 2026-11-04 each slot holds only its new preview (§12). Its gate, « View All Sizes in Media Manager »: owner-reported as checked on 2026-11-04, with no order stated against the submission. So « before » here is the API's read, not Media Manager's (§8, §12).*
 - [x] Feature branch and PR. No Claude attribution of any kind. A roadmap entry. *`fix/app-review-round2`, #731; no attribution in its 20 commits, its body or its squash; `docs/roadmap/entries/2026-11-03-app-review-round-2.md`.*
 
 ## 16. Open questions
@@ -786,14 +795,11 @@ better ». Claude kept the sentence, which is still true of the app, and added o
 clause. Old: « Signaler » under « Avis », customers report. New: « Signaler » under « Avis » (not visible on the demo salon, which
 has no reviews), customers report. The notes differ from what decision 77 approved by this clause only (§6).
 
-**For the owner, recorded on 2026-11-04.** None of these has an answer in this record. Answers go in §12, dated, or stay « not
-reported »:
+**Answered by the owner on 2026-11-04, owner-reported (§11, §12):** the iPad's demo sign-in and no-account address, and « I checked
+Media Manager and sent the reply ».
 
-1. Was « View All Sizes in Media Manager » read before submitting? If not, read it now: viewing changes nothing.
-2. Did the iPad's demo sign-in and no-account address run?
-3. Was the Resolution Center reply sent?
-4. Does the docs PR holding this record merge during review, or after Apple's decision? The merge triggers a production deployment
-   of an unchanged web tree (§12).
+**Open, and the owner's:** does the docs PR holding this record merge during review, or after Apple's decision? The merge triggers a
+production deployment of an unchanged web tree (§12), and B0.1 applies since 00:02:00 UTC. It waits for the owner's word.
 
 **Still open, and blocks nothing:** whether the Play listing takes the description's four edits (§7, decisions 74 and 79). It keeps
 the old text until Play comes up again.

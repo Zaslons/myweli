@@ -3,6 +3,7 @@
 | | |
 |---|---|
 | **Status** | Living document. Nothing here is done until its box is ticked **with evidence**. |
+| **Pro 0.0.1** | **2026-11-04: resubmitted at 00:02:00 UTC with build 719, in review (`WAITING_FOR_REVIEW`, release `MANUAL`, per the API); B0.1 applies. Still open: Apple's decision; a green scheduled « Production checks » run after `713114a5` and `7a2c7e15` (the last is 13:16 UTC on 2026-11-03, on `4e78e485`); a successful Apple sign-in on an iPad, unobserved; the production backend deploy after Apple's decision, the one that switches on the Apple keys; the release by hand after approval; merging the docs PR that holds this record.** The record: §6.2 and [design/app-review-round-2.md](design/app-review-round-2.md) §12. |
 | **Order** | **Web first → iOS → Android last** (§3) — *amended 2026-09-24 (owner): the **Pro app goes to the Apple App Store first** — TestFlight and App Review now, the public release still behind production restored and stable (§3)* |
 | **Related** | [ROADMAP.md](ROADMAP.md) · [BACKLOG.md](BACKLOG.md) (what is left, and how we will solve it) · [DEPLOYMENT.md](DEPLOYMENT.md) · [BACKEND.md](BACKEND.md) · [design/mobile-store-submission.md](design/mobile-store-submission.md) |
 
@@ -253,6 +254,7 @@ starts. Concretely:
   BACKLOG B0.1.)*
   *(2026-11-03: Apple refused 587 on 2026-10-19 and 698 on 2026-11-03; the next
   submission waits on the owner — [design/app-review-round-2.md](design/app-review-round-2.md) §12.)*
+  *(2026-11-04: resubmitted at 00:02:00 UTC with build 719, in review; the release stays manual and stays behind this section.)*
 - The consumer app and Android keep their places in the order.
 
 The form-by-form packet, the rebuild commands and the owner's ordered
@@ -1318,9 +1320,30 @@ checking rather than assuming:
 > `WAITING_FOR_REVIEW`, release `MANUAL`; submission `45ed9726…` `WAITING_FOR_REVIEW`, submitted at 00:02:00 UTC by an actor of type
 > `USER`, not an API key, its item `READY_FOR_REVIEW`. B0.1's constraints apply from then, and a merge to `main` is a production
 > deployment even when it is docs only. Not readable there: whether the Resolution Center reply was sent, and which person
-> submitted. Not reported: « View All Sizes in Media Manager » and the demo sign-in and no-account address on the iPad. #732 (the
-> `%2F` and `%5C` spellings) merged at 23:59:03 UTC on 2026-11-03 and its production deployment succeeded at 00:01:08 UTC; the raw
-> read is clean, as it was before #732, and the rendered read of those addresses, with a control, is owed.
+> submitted. #732 (the
+> `%2F` and `%5C` spellings) merged at 23:59:03 UTC on 2026-11-03 as `7a2c7e15` and its production deployment succeeded at 00:01:08 UTC, 52 seconds
+> before the submission; the raw read is clean, as it was before #732, so it proves nothing about the fix.
+>
+> **2026-11-04 — the owner's answers and the rendered read.** *Owner-reported, not observable from here:* on an iPad Air 11-inch (M3)
+> simulator, a debug build of the pro flavour from `713114a5`, not signed 719: « demo sign-in on the iPad passed, Maison Nala loaded, and I received the code on another email and when entered it said aucun compte myweli... ». And « I checked Media Manager and
+> sent the reply », the reply being the app-store-forms §13.2 block with 719. The owner did not say whether the Media Manager read came
+> before or after the submission, so no order is stated. *Observed by Claude:* at 00:04 UTC, on that simulator, the no-account screen:
+> the full sentence « Aucun compte MyWeli Pro n’est associé à cette adresse. Si votre salon vous a invité, connectez-vous avec l’adresse qui a reçu l’invitation. », with only « Se connecter », « Renvoyer le code » and
+> « Changer d’e-mail » beside it: nothing about signing up. At 00:05 UTC, through the API: submission `45ed9726…` `WAITING_FOR_REVIEW`,
+> `submittedDate` 2026-11-04T00:02:00.35Z, item `READY_FOR_REVIEW`; version 0.0.1 `WAITING_FOR_REVIEW`, release `MANUAL`, build 719
+> attached; the film, the description and the notes still as written. At 00:06 UTC, raw, with an iPad user agent: the five pages show 0 of
+> `/professionnels`, `/pro/inscription`, `/pro/connexion` and « facturation », the controls `/` 4, 1, 1 and `/connexion` 2, 1, 1, and
+> `/support%2F`, `/%2Fsupport` and `/support%5C` are also 0. **The rendered read owed by #732, done for one address:** real Safari on
+> that simulator at 00:06 UTC opened `/support%2F` and, after hydration, the header ends on « Mon compte » with no « Espace pro ». The
+> frame shows the header, the body and the top of the footer's wordmark, not the footer's links. Before #732 the same address showed the
+> salon links after hydration, which is the control. The other spellings were read raw only.
+>
+> **Still open on 2026-11-04:** Apple's decision; a green scheduled « Production checks » run after `713114a5` and `7a2c7e15` (the last is
+> 13:16 UTC on 2026-11-03, on `4e78e485`; read again at 00:40 UTC); a successful Apple sign-in on an iPad, unobserved, since the signed
+> build ran on the owner's iPhone (where it gave « Aucun compte MyWeli Pro… ») and the simulator has no Apple account; the production
+> backend deploy after Apple's decision, the one that switches on the Apple keys; the release by hand after approval; merging the docs PR
+> that holds this record, whose merge deploys production with an unchanged web tree, and which waits for the owner's word. B0.1 applies
+> since 00:02:00 UTC.
 
 - [ ] Everything in [mobile-store-submission.md](design/mobile-store-submission.md) §5.
       Two of its claims are **stale as of 2026-08-18** and must be corrected

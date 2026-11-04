@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | **Prêt à remplir, en attente de** : la facturation GCP (production arrêtée), l'état du salon démo en production, et **la voie compagnon** ([pro-companion-path.md](pro-companion-path.md), construite le 2026-10-05) — sa fusion, et son backend déployé en production **avant** la soumission. Rédigé 2026-09-24 ; **mis à jour 2026-10-05** : fiche App Store Connect vérifiée (Apple ID 6805272779, §0 #3, §3), décision 3.1.1 prise — voie (a), sur les deux apps (§2), Xcode 27 prêt (§0 #2), deux avis App Store Connect à traiter (§0 #6). **Mis à jour le 2026-10-22** (BACKLOG B9.1) : la facturation est rouverte (2026-10-06) et la production rétablie ; le salon démo vit en production (2026-10-11) ; la voie compagnon est fusionnée (#551) et en production ; le **build 587 (0.0.1) est soumis et en revue**, publication manuelle (BACKLOG B0.1). Ce qu'App Store Connect seul peut confirmer — l'issue de la déclaration DSA, ce que dit l'étiquette de confidentialité, l'avancement de la revue — se relit au lot 10. **Mis à jour le 2026-11-03** ([app-review-round-2.md](app-review-round-2.md), BACKLOG B0.16) : Apple a refusé le build 698 (2.3.4 et 3.1.1). Les §4, §5, §8, §11.3, §11.5, §11.6 et §13 portent les textes de la reprise. **Fusionné le 2026-11-03 (#731), le web relu en ligne ; le build 719 est construit, relu, envoyé, `VALID` et dans TestFlight (§11.3, §11.5). Le même soir, dans App Store Connect : le film plein écran, la description, le 719 rattaché à la version 0.0.1, qui passe de `REJECTED` à `PREPARE_FOR_SUBMISSION`, publication `MANUAL`, et les notes (§13.1), tel que c'était alors. La passe ciblée est réussie selon le propriétaire, sur son iPhone (§11.6).** **Le 2026-11-04, lu par l'API à 00:18 UTC : la version 0.0.1 est `WAITING_FOR_REVIEW`, publication `MANUAL`, soumise à 00:02:00 UTC par un compte utilisateur (§13.1).** Non rapportés : la connexion démo et l'adresse sans compte sur iPad, la lecture de « View All Sizes in Media Manager », et si la réponse (§13.2) a été envoyée (spec §12). Le backend n'est pas déployé. Le propriétaire a approuvé les trois textes le 2026-11-03 (décision 77), corrigé la description le même jour (décision 79), et délégué une clause des notes (décision 81). |
+| **Status** | **Prêt à remplir, en attente de** : la facturation GCP (production arrêtée), l'état du salon démo en production, et **la voie compagnon** ([pro-companion-path.md](pro-companion-path.md), construite le 2026-10-05) — sa fusion, et son backend déployé en production **avant** la soumission. Rédigé 2026-09-24 ; **mis à jour 2026-10-05** : fiche App Store Connect vérifiée (Apple ID 6805272779, §0 #3, §3), décision 3.1.1 prise — voie (a), sur les deux apps (§2), Xcode 27 prêt (§0 #2), deux avis App Store Connect à traiter (§0 #6). **Mis à jour le 2026-10-22** (BACKLOG B9.1) : la facturation est rouverte (2026-10-06) et la production rétablie ; le salon démo vit en production (2026-10-11) ; la voie compagnon est fusionnée (#551) et en production ; le **build 587 (0.0.1) est soumis et en revue**, publication manuelle (BACKLOG B0.1). Ce qu'App Store Connect seul peut confirmer — l'issue de la déclaration DSA, ce que dit l'étiquette de confidentialité, l'avancement de la revue — se relit au lot 10. **Mis à jour le 2026-11-03** ([app-review-round-2.md](app-review-round-2.md), BACKLOG B0.16) : Apple a refusé le build 698 (2.3.4 et 3.1.1). Les §4, §5, §8, §11.3, §11.5, §11.6 et §13 portent les textes de la reprise. **Fusionné le 2026-11-03 (#731), le web relu en ligne ; le build 719 est construit, relu, envoyé, `VALID` et dans TestFlight (§11.3, §11.5). Le même soir, dans App Store Connect : le film plein écran, la description, le 719 rattaché à la version 0.0.1, qui passe de `REJECTED` à `PREPARE_FOR_SUBMISSION`, publication `MANUAL`, et les notes (§13.1), tel que c'était alors. La passe ciblée est réussie selon le propriétaire, sur son iPhone (§11.6).** **2026-11-04 : resoumise à 00:02:00 UTC avec le build 719, en revue (`WAITING_FOR_REVIEW`, publication `MANUAL`, selon l'API) ; le B0.1 s'applique. Reste ouvert : la décision d'Apple ; un « Production checks » planifié vert après `713114a5` et `7a2c7e15` (le dernier : 13:16 UTC le 2026-11-03, sur `4e78e485`) ; une connexion Apple réussie sur un iPad, non observée ; le déploiement du backend en production après la décision d'Apple, celui qui allume les clés Apple ; la publication à la main après approbation ; la fusion de la PR de documents qui porte ce relevé.** (§13.1, spec §12.) *Selon le propriétaire, le 2026-11-04 :* la connexion démo et l'adresse sans compte sur iPad, sur un simulateur et un build de débogage, pas le 719 signé (§11.6) ; Media Manager vu et la réponse (§13.2) envoyée, sans ordre dit avec la soumission. Le backend n'est pas déployé. Le propriétaire a approuvé les trois textes le 2026-11-03 (décision 77), corrigé la description le même jour (décision 79), et délégué une clause des notes (décision 81). |
 | **Portée** | L'app **MyWeli Pro** seule — `com.myweli.pro`, nom affiché « MyWeli Pro », iPhone uniquement. Le consommateur (`com.myweli.app`) aura son propre dossier. |
 | **Source** | L'audit App Store du 2026-09-24 (cinq lentilles, chaque constat bloquant/majeur revu par un vérificateur indépendant) et le commit `68fc33c` qui en corrige la partie code. |
 | **Pendant Android** | [play-store-forms.md](play-store-forms.md) — même règle, même ton. |
@@ -669,7 +669,7 @@ cinq pages, 0 occurrence de `/professionnels`, `/pro/inscription`, `/pro/connexi
 L'inscription d'un salon est à deux gestes de ces pages, jamais un (84 atterrissages à un geste sur 84,
 135 parcours à deux gestes sur 135). **Les limites** : Safari réel seulement sur `/support` et `/cgu`,
 les trois autres lues brutes et rendues sous Chromium, un seul nœud du réseau joignable (`lhr1`). `%2F`
-ou `%5C` tapés à la main ramenaient alors les liens ; #732 l'a fermé la même nuit, sa lecture rendue reste due (spec §5.1, §12, §13). La condition de cette phrase est levée ;
+ou `%5C` tapés à la main ramenaient alors les liens ; #732 l'a fermé la même nuit ; sa lecture rendue est faite le 2026-11-04 pour une seule adresse, `/support%2F`, et les autres graphies ne sont lues que brutes (spec §5.1, §12, §13). La condition de cette phrase est levée ;
 ~~rien n'est collé pour autant : le film passe d'abord (point 22 du §13)~~ *le film est en place et les notes sont écrites, le soir du 2026-11-03 (§13.1)*.
 
 Approuvés tels quels par le propriétaire le 2026-11-03, après en avoir été informé (spec §16) :
@@ -1411,8 +1411,8 @@ version 0.0.1 passe de `REJECTED` à `PREPARE_FOR_SUBMISSION`, publication `MANU
 alors. Le film, la description, le rattachement et les notes ont suivi le « my
 results passed » du propriétaire, après que Claude lui a annoncé qu'il ferait exactement cela si les résultats
 passaient (§13.1). **Le 2026-11-04, lu par l'API à 00:18 UTC : `WAITING_FOR_REVIEW`, soumise à 00:02:00 UTC par
-un compte utilisateur (§13.1).** **Non rapportés** ([app-review-round-2.md](app-review-round-2.md) §12) : le passage
-sur iPad (§11.6), la lecture de « View All Sizes in Media Manager », et si la réponse (§13.2) a été envoyée. **Aucun
+un compte utilisateur (§13.1).** **Selon le propriétaire, le 2026-11-04** ([app-review-round-2.md](app-review-round-2.md) §12) : le passage
+sur iPad, sur un simulateur et un build de débogage (§11.6) ; Media Manager vu et la réponse (§13.2) envoyée, sans ordre dit avec la soumission. **Aucun
 déploiement du backend** (décision 47).
 
 **What to Test** (fr-FR, coller tel quel — remplace celui du 698, qui parlait de
@@ -1464,7 +1464,7 @@ datés ici : rien dans ce dépôt n'observe un appareil.
 **Résultats du 2026-11-03, selon le propriétaire** : « my results passed », sur son iPhone, build signé
 719. C'est un rapport d'ensemble, non détaillé : les cases 1 à 4 ne sont donc pas cochées une à une, comme pour
 le 698 plus bas. « Continuer avec Apple » sur cet iPhone a affiché « Aucun compte MyWeli Pro… ». Son point 5 a
-tourné sur un iPhone, pas sur un iPad : la case 5 reste non cochée (le relevé suit la liste).
+tourné sur un iPhone, pas sur un iPad : la case 5 reste non cochée (le relevé suit la liste). *2026-11-04 : cochée, avec sa limite, pour le passage sur simulateur ; le relevé suit la liste.*
 
 - [ ] **1 · La connexion démo, exactement comme les notes le disent** (§8) : sur « Espace
       Pro », `revue@myweli.test` dans « Votre e-mail », « Continuer avec e-mail », le code
@@ -1495,7 +1495,7 @@ tourné sur un iPhone, pas sur un iPad : la case 5 reste non cochée (le relevé
       restaurée. Se déconnecter : l'écran de connexion. Rouvrir : toujours déconnecté. Se
       reconnecter : « Maison Nala » se recharge (décision 78 : l'entrée dans une session après
       une sortie, dans le même processus, n'était pas jouée).
-- [ ] **5 · Un passage sur iPad**, puisque les deux refus nomment un iPad Air : les points 1
+- [x] **5 · Un passage sur iPad**, puisque les deux refus nomment un iPad Air : les points 1
       et 2, en mode de compatibilité iPhone, et toucher une fois « Continuer avec Apple »
       (décision 78 ; le B0.1 note qu'un appareil, très probablement celui d'Apple, y a eu l'erreur
       1000 sur le 698, et le B0.14 change cette phrase). Noter ce qui vient : une connexion, « Aucun
@@ -1523,9 +1523,9 @@ bout. Un toucher sur « Continuer avec Apple » ouvre le dialogue système d'App
 le fermer affiche la phrase entière « Connexion Apple impossible sur cet appareil. Vérifiez dans Réglages qu’un
 compte Apple est connecté, puis réessayez. », sans rien à toucher. (Le point 5 dit qu'annuler la feuille d'Apple
 n'affiche rien ; fermer ce dialogue-ci a affiché la phrase.) **Ce que cela ne montre pas** : ce n'est pas le build
-signé, donc une connexion Apple réussie sur un iPad reste non observée. **Non rapporté au 2026-11-04** : la connexion démo et
-l'adresse sans compte sur cet iPad, demandées au propriétaire, sans résultat. La soumission est passée depuis (§13.1) :
-ces essais ont eu lieu sans être rapportés, ou n'ont pas eu lieu, et ce dossier ne dit ni l'un ni l'autre.
+signé, donc une connexion Apple réussie sur un iPad reste non observée.
+
+**Le point 5, relevé du 2026-11-04.** *Selon le propriétaire*, sur ce simulateur et ce build de débogage, pas le 719 signé : « demo sign-in on the iPad passed, Maison Nala loaded, and I received the code on another email and when entered it said aucun compte myweli... ». *Observé par Claude à 00:04 UTC*, sur ce simulateur, l'écran sans compte : la phrase entière « Aucun compte MyWeli Pro n’est associé à cette adresse. Si votre salon vous a invité, connectez-vous avec l’adresse qui a reçu l’invitation. », avec seulement « Se connecter », « Renvoyer le code » et « Changer d’e-mail » à côté : rien sur l'inscription. **Sa limite reste** : un simulateur prouve la mise en page, pas le build signé. Une connexion Apple réussie sur un iPad reste non observée : le build signé a tourné sur l'iPhone du propriétaire, où il a donné « Aucun compte MyWeli Pro… », et le simulateur n'a pas de compte Apple. La case 5 est cochée pour cela, et pour rien de plus.
 
 **Deux ajouts pour le propriétaire (2026-11-03), hors du bloc « What to Test »** du §11.5, déjà écrit dans
 App Store Connect et relu à l'identique. Ils se rapportent ici, datés, comme le reste :
@@ -1870,7 +1870,7 @@ numéros).*
        lot 10.* *2026-11-03, pour le 719 : la connexion démo sur TestFlight n'est connue que
        par le rapport du propriétaire (§11.6). Le dernier « Production checks » planifié
        est vert à 13:16 UTC sur `4e78e485`, avant la fusion, et le ticket #549 est fermé ;
-       aucun passage vert n'est observé après `713114a5`.*
+       aucun passage vert n'est observé après `713114a5`.* *2026-11-04, relu à 00:40 UTC : toujours ce passage, donc aucun vert planifié après `713114a5` ni `7a2c7e15`.*
 20. [x] **Soumettre pour la revue.** Ne plus toucher au code démo tant que la
        version est en revue. *Soumis : le build 587 est en revue, publication
        manuelle (BACKLOG B0.1).* **2026-10-25 : Apple a refusé le 0.0.1
@@ -1878,7 +1878,7 @@ numéros).*
        de la 0.0.1**, avec toutes les corrections depuis le 587 (BACKLOG,
        décision 1) — pas de 0.0.2 avant. **2026-11-03 : Apple a refusé le build 698**
        (2.3.4 et 3.1.1) ; voir le point 22. **2026-11-04 : de nouveau `WAITING_FOR_REVIEW`,
-       soumise à 00:02:00 UTC, selon l'API (§13.1) : ne plus toucher au code démo.**
+       soumise à 00:02:00 UTC avec le 719, selon l'API (§13.1) : ne plus toucher au code démo.**
 21. [ ] Après approbation : **ne pas publier** avant que [LAUNCH.md](../LAUNCH.md)
        §3 le permette (production rétablie et stable) — la publication est
        manuelle (§9).
@@ -1893,12 +1893,14 @@ numéros).*
        description (§4), le rattachement du 719, les notes (§8)** (§13.1). Aucun refus d'App Store Connect
        (spec §13).
        **Le 2026-11-04, lu par l'API : « Add for Review » est fait, `WAITING_FOR_REVIEW`, soumise à 00:02:00 UTC
-       par un compte utilisateur (§13.1).** **Non rapportés au 2026-11-04 :** le passage sur iPad (la connexion démo
-       et l'adresse sans compte, §11.6) et la lecture de **« View All Sizes in Media Manager »** (une vue du site,
-       sans équivalent API consigné : qui s'en charge la lit dans le site ; si elle n'a pas été faite, la faire
-       maintenant, regarder ne change rien), préalables d'« Add for Review », sans que l'on sache s'ils ont eu lieu
-       avant ; et si la réponse (§13.2), remise au propriétaire avec 719, a été envoyée. **Due :** la lecture rendue
-       des adresses de #732, avec un témoin (spec §5.1).
+       par un compte utilisateur (§13.1).** *Selon le propriétaire, le 2026-11-04 :* le passage sur iPad (la connexion démo
+       et l'adresse sans compte, sur un simulateur et un build de débogage, §11.6) ; « I checked Media Manager and sent the reply » :
+       la lecture de **« View All Sizes in Media Manager »** (une vue du site, sans équivalent API consigné) et la réponse (§13.2,
+       avec 719). Rien d'ici ne les observe. Le propriétaire n'a pas dit si Media Manager vient avant ou après la soumission : aucun
+       ordre n'est donné, et la case reste non cochée, puisqu'elle dit « dans l'ordre ». **La lecture rendue de #732 est faite pour une
+       adresse, `/support%2F`** (spec §5.1). **Reste ouvert :** la décision d'Apple ; un « Production checks » planifié vert après `713114a5`
+       et `7a2c7e15` ; une connexion Apple réussie sur un iPad ; le déploiement du backend en production après la décision d'Apple,
+       celui qui allume les clés Apple ; la publication à la main après approbation ; la fusion de la PR de documents qui porte ce relevé.
 
 ### 13.1 Ce qu'App Store Connect contient au 2026-10-13 — et ce qu'il reste à y écrire
 
@@ -1933,8 +1935,8 @@ Le relevé du 2026-11-04 est à la ligne « Soumettre pour la revue ».*
 | Publication de la version | **après approbation** | **manuelle** (`MANUAL`) | — |
 | Informations pour la revue | n'existaient pas | créées : connexion requise, identifiant `revue@myweli.test`, **les notes en vigueur du §8** (3 476 octets) | **propriétaire** : le mot de passe démo et les coordonnées de contact — vides, et l'assistant ne les écrit pas — *2026-10-14 : le verrou du compte démo est vérifié en production ; ce sont **les notes amendées** du §8 qui doivent remplacer celles-ci, et l'API refuse de le faire sans les coordonnées de contact (§8)* — *2026-10-26 : coordonnées et code démo remplis ; les notes du §8 pour le build renvoyé (3 853 octets) collées par l'API et relues à l'identique* — *2026-11-03 : ~~à remplacer par le bloc du §8 (3 937 octets, le poids du texte approuvé par la décision 77)~~ **le bloc du §8 est écrit et relu à l'identique** : 3 991 octets, 3 926 caractères, 31 lignes, avec la clause de la décision 81. Champs démo et contact inchangés, comparés par empreinte : mot de passe rempli, contact rempli, connexion requise, identifiant `revue@myweli.test`* |
 | Build rattaché | aucun | **587** (0.0.1), lu comme français (§11.5) — il remplace le 581 depuis le 2026-10-14 au soir ; **698** depuis le 2026-10-26 (rattaché par l'API, relu) ; **719** depuis le 2026-11-03 | ~~les vérifications sur l'iPhone (§11.6)~~ — faites sur le 698, selon le propriétaire (2026-10-26) — *2026-11-03 : le 698 est refusé ; **le 719** (§11.5) est rattaché à sa place, après la passe ciblée rapportée par le propriétaire (§11.6) et le film : 204, relu `4eb50f72-f6d1-4ca2-ad6a-e5e544fdb25f`. La version passe de `REJECTED` à `PREPARE_FOR_SUBMISSION`, publication `MANUAL`* |
-| Aperçu vidéo (facultatif) | aucun | **le film choisi par le propriétaire** (version 2, coupe 1, 28,7 s — [pro-app-preview.md](pro-app-preview.md) §0), **téléversé le 2026-10-14** dans les deux emplacements iPhone, traité par Apple, placé avant les captures (`APP_PREVIEW`, `ACTIVE`, lu par la nouvelle API) ; l'image d'affiche demandée à 25 s (`00:00:25:00`) — Apple avait d'abord ignoré le temps envoyé au téléversement et pris son défaut de 5 s ; corrigé, l'image était encore en cours de génération au dernier relevé. *Depuis le 2026-11-03 : la coupe plein écran (dernière colonne)* | ~~regarder l'affiche dans le site ; sinon « Edit Poster Frame » à 25 s~~ — **2026-11-03 : Apple a refusé ce film sous 2.3.4.** **Remplacé le 2026-11-03, en place à 23:49 UTC, dans les deux emplacements** (`IPHONE_DYNAMIC_ISLAND_MEDIUM_PROFILE` et `..._LARGE_PROFILE`), par la coupe plein écran `candidate-full-bleed/preview-full-bleed.mp4` ([pro-app-preview.md](pro-app-preview.md) §0.6) : nouveaux aperçus `17000019-5a03-88cb-8118-40e21663fe37` (`IPHONE_67`) et `f3000019-5a03-88cb-8114-ec9980fce3b8` (`IPHONE_61`), fichier `myweli-pro-film-full-bleed.mp4`, 14 309 442 octets, sha256 `b34bac54…` vérifiée avant l'envoi, `sourceFileChecksum` `543d367a6caf1b1069d0cd62e2246177` relu sur les deux et égal au md5 du fichier local, `assetDeliveryState` et `videoDeliveryState` `COMPLETE`. **L'affiche** : Apple a ignoré le temps envoyé à la réservation et au commit, et posé `00:00:05:01` ; un `PATCH` après le traitement a posé `00:00:13:00`, relu sur les deux. Les films cadrés `eb0e26ae-48f9-4bbf-b8e4-0f9d65c7a041` et `95da9952-95f5-4680-9419-5796e69fc420` sont supprimés (204), seulement une fois les deux nouveaux `COMPLETE`. Les `/placements` de la localisation lisent 2 `APP_PREVIEW` `ACTIVE` et 16 `APP_SCREENSHOT` `ACTIVE`. Route : les ressources `appPreviews` dépréciées, qui ont fonctionné. **Chaque taille devait être lue dans « View All Sizes in Media Manager » avant « Add for Review »**, une vue du site sans équivalent API consigné, donc qui s'en charge la lit dans le site : une copie cadrée oubliée répète le refus. **Si cette lecture a eu lieu : non rapporté au 2026-11-04.** *Lu par l'API le 2026-11-04 : `IPHONE_67` ne contient que `17000019-5a03-88cb-8118-40e21663fe37`, `IPHONE_61` que `f3000019-5a03-88cb-8114-ec9980fce3b8`, et les deux films cadrés répondent 404. Cela ne remplace pas la vue de Media Manager : si elle n'a pas été lue, la lire maintenant, regarder ne change rien.* *2026-11-03 : il n'y avait aucun précédent consigné pour remplacer le film, poser l'affiche ou modifier la description sur une version `REJECTED` dont la soumission reste ouverte. C'est réglé : Apple a tout accepté (spec §13).* Risque accepté par le propriétaire : la carte de fin et « Total » |
-| « Soumettre pour la revue » | — | — | propriétaire — **fait** (587 en revue, refusé sous 3.1.1) ; **698 resoumis le 2026-10-26 à 23:33 UTC**, `WAITING_FOR_REVIEW` (relu par l'API) ; **refusé le 2026-11-03** sous 2.3.4 et 3.1.1 ; *le 2026-11-03, la soumission `45ed9726-1418-435b-b3e2-76726422c5d3` lisait `UNRESOLVED_ISSUES`, son élément `REJECTED`, tel que c'était alors* ; **le 2026-11-04, lu par l'API, deux fois, la seconde à 00:18 UTC, par la revue de Claude : version `ce5cb759-b202-4c15-94cf-3040180a711f`, `appStoreState` et `appVersionState` `WAITING_FOR_REVIEW`, publication `MANUAL` ; soumission `WAITING_FOR_REVIEW`, `submittedDate` 2026-11-04T00:02:00.35Z, `submittedByActor` de type `USER` (pas une clé d'API), `lastUpdatedByActor` `APPLE`, son élément `READY_FOR_REVIEW`.** Illisible par l'API : si la réponse a été envoyée, et quelle personne a soumis |
+| Aperçu vidéo (facultatif) | aucun | **le film choisi par le propriétaire** (version 2, coupe 1, 28,7 s — [pro-app-preview.md](pro-app-preview.md) §0), **téléversé le 2026-10-14** dans les deux emplacements iPhone, traité par Apple, placé avant les captures (`APP_PREVIEW`, `ACTIVE`, lu par la nouvelle API) ; l'image d'affiche demandée à 25 s (`00:00:25:00`) — Apple avait d'abord ignoré le temps envoyé au téléversement et pris son défaut de 5 s ; corrigé, l'image était encore en cours de génération au dernier relevé. *Depuis le 2026-11-03 : la coupe plein écran (dernière colonne)* | ~~regarder l'affiche dans le site ; sinon « Edit Poster Frame » à 25 s~~ — **2026-11-03 : Apple a refusé ce film sous 2.3.4.** **Remplacé le 2026-11-03, en place à 23:49 UTC, dans les deux emplacements** (`IPHONE_DYNAMIC_ISLAND_MEDIUM_PROFILE` et `..._LARGE_PROFILE`), par la coupe plein écran `candidate-full-bleed/preview-full-bleed.mp4` ([pro-app-preview.md](pro-app-preview.md) §0.6) : nouveaux aperçus `17000019-5a03-88cb-8118-40e21663fe37` (`IPHONE_67`) et `f3000019-5a03-88cb-8114-ec9980fce3b8` (`IPHONE_61`), fichier `myweli-pro-film-full-bleed.mp4`, 14 309 442 octets, sha256 `b34bac54…` vérifiée avant l'envoi, `sourceFileChecksum` `543d367a6caf1b1069d0cd62e2246177` relu sur les deux et égal au md5 du fichier local, `assetDeliveryState` et `videoDeliveryState` `COMPLETE`. **L'affiche** : Apple a ignoré le temps envoyé à la réservation et au commit, et posé `00:00:05:01` ; un `PATCH` après le traitement a posé `00:00:13:00`, relu sur les deux. Les films cadrés `eb0e26ae-48f9-4bbf-b8e4-0f9d65c7a041` et `95da9952-95f5-4680-9419-5796e69fc420` sont supprimés (204), seulement une fois les deux nouveaux `COMPLETE`. Les `/placements` de la localisation lisent 2 `APP_PREVIEW` `ACTIVE` et 16 `APP_SCREENSHOT` `ACTIVE`. Route : les ressources `appPreviews` dépréciées, qui ont fonctionné. **Chaque taille devait être lue dans « View All Sizes in Media Manager » avant « Add for Review »**, une vue du site sans équivalent API consigné, donc qui s'en charge la lit dans le site : une copie cadrée oubliée répète le refus. **Cette lecture, selon le propriétaire, le 2026-11-04 : « I checked Media Manager », sans dire si elle vient avant ou après la soumission : aucun ordre n'est donné, et rien d'ici ne l'observe.** *Lu par l'API le 2026-11-04 : `IPHONE_67` ne contient que `17000019-5a03-88cb-8118-40e21663fe37`, `IPHONE_61` que `f3000019-5a03-88cb-8114-ec9980fce3b8`, et les deux films cadrés répondent 404. Cela ne remplace pas la vue de Media Manager.* *2026-11-03 : il n'y avait aucun précédent consigné pour remplacer le film, poser l'affiche ou modifier la description sur une version `REJECTED` dont la soumission reste ouverte. C'est réglé : Apple a tout accepté (spec §13).* Risque accepté par le propriétaire : la carte de fin et « Total » |
+| « Soumettre pour la revue » | — | — | propriétaire — **fait** (587 en revue, refusé sous 3.1.1) ; **698 resoumis le 2026-10-26 à 23:33 UTC**, `WAITING_FOR_REVIEW` (relu par l'API) ; **refusé le 2026-11-03** sous 2.3.4 et 3.1.1 ; *le 2026-11-03, la soumission `45ed9726-1418-435b-b3e2-76726422c5d3` lisait `UNRESOLVED_ISSUES`, son élément `REJECTED`, tel que c'était alors* ; **le 2026-11-04, lu par l'API, deux fois, la seconde à 00:18 UTC, par la revue de Claude : version `ce5cb759-b202-4c15-94cf-3040180a711f`, `appStoreState` et `appVersionState` `WAITING_FOR_REVIEW`, publication `MANUAL` ; soumission `WAITING_FOR_REVIEW`, `submittedDate` 2026-11-04T00:02:00.35Z, `submittedByActor` de type `USER` (pas une clé d'API), `lastUpdatedByActor` `APPLE`, son élément `READY_FOR_REVIEW`.** Illisible par l'API : si la réponse a été envoyée, et quelle personne a soumis. *Lu plus tôt par Claude, à 00:05 UTC : soumission `WAITING_FOR_REVIEW`, `submittedDate` 2026-11-04T00:02:00.35Z, élément `READY_FOR_REVIEW` ; version 0.0.1 `WAITING_FOR_REVIEW`, publication `MANUAL`, le build 719 rattaché ; le film, la description et les notes toujours tels qu'écrits.* |
 
 **Les captures, vues par les deux API.** Elles ont été envoyées par les
 ressources `appScreenshotSets` / `appScreenshots`, qu'Apple déclare
@@ -1985,29 +1987,29 @@ vérifications sur l'iPhone du §11.6 sur le build retenu.
 
 ---
 
-### 13.2 La réponse au deuxième refus, 2.3.4 et 3.1.1 (Resolution Center) — à envoyer par le propriétaire
+### 13.2 La réponse au deuxième refus, 2.3.4 et 3.1.1 (Resolution Center) — envoyée par le propriétaire, selon lui (2026-11-04)
 
 Du 2026-11-03 ([app-review-round-2.md](app-review-round-2.md) §6), formulation approuvée
 le jour même (décision 77). Le propriétaire l'envoie lui-même : le fil n'a pas d'API. En
 anglais, dans le fil du refus de la soumission `45ed9726…`.
 
-*2026-11-04 : la version est `WAITING_FOR_REVIEW` selon l'API (§13.1). Si cette réponse a été envoyée ne se lit pas par
-l'API : c'est au propriétaire de le dire. Les préalables ci-dessous restent ceux d'alors, et ce dossier ne dit pas s'ils ont tous été
-vrais avant l'envoi.*
+*2026-11-04 : la version est `WAITING_FOR_REVIEW` selon l'API (§13.1). **Envoyée, selon le propriétaire** : « I checked Media Manager and
+sent the reply ». C'est le bloc ci-dessous, avec 719. Rien d'ici ne l'observe : le fil n'a pas d'API.*
 
-**Tout cela doit être vrai avant l'envoi** :
+**Tout cela doit être vrai avant l'envoi** : *rempli au 2026-11-04, chaque ligne ci-dessous. Le propriétaire n'a pas dit si Media Manager vient
+avant ou après la soumission : aucun ordre n'est donné.*
 
 - le build `<BUILD>` est attaché à la version 0.0.1, et son IPA est relue (§11.3) : sans lien
   ni `/pro/inscription` ; *fait le 2026-11-03 : IPA du 719 relue, 719 attaché et relu (§13.1)* ;
 - le web est en ligne et relu avec un user agent d'iPad : les cinq pages sans les trois chemins
   (spec §12, étape 2) ; *fait le 2026-11-03, à 22:37:15 UTC (§8), avec ses limites* ;
 - le film plein écran est dans **les deux** emplacements iPhone, lus dans « View All Sizes in
-  Media Manager » (§13.1) ; *les deux emplacements : fait le 2026-11-03, relus par l'API.* **La lecture
-  dans Media Manager : non rapportée au 2026-11-04** ;
+  Media Manager » (§13.1) ; *les deux emplacements : fait le 2026-11-03, relus par l'API. La lecture
+  dans Media Manager : faite, selon le propriétaire (2026-11-04)* ;
 - les notes du §8 sont collées et relues : la dernière phrase de la réponse y renvoie ; *fait le
   2026-11-03 : écrites et relues à l'identique, 3 991 octets (§13.1)* ;
 - `<BUILD>` est remplacé par le numéro lu dans l'IPA : *719, le build attaché ; le texte a été remis au
-  propriétaire avec ce numéro le 2026-11-03 ; s'il a été envoyé : non rapporté au 2026-11-04*.
+  propriétaire avec ce numéro le 2026-11-03 ; envoyé, selon lui (2026-11-04)*.
 
 **La réponse** (à envoyer telle quelle, `<BUILD>` remplacé) :
 
