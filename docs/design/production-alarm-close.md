@@ -2,9 +2,9 @@
 
 | | |
 |---|---|
-| **Status** | **Built 2026-11-02**, #726. The owner approved it the same day: the @mention route, and a mention on every failing day. **Not yet proved by a real run** (§5) |
+| **Status** | **Built 2026-11-02**, #726. The owner approved it the same day: the @mention route, and a mention on every failing day. **The close is proved by a real run on 2026-11-03; the email and a real reopening are not** (§5) |
 | **Owner** | Sadreddine Daher |
-| **Last updated** | 2026-11-02 |
+| **Last updated** | 2026-11-04 |
 | **PRD ref / phase** | Operations, no product requirement · V1 |
 | **Module** | `.github/workflows/production-checks.yml`, `backend/test/infra/production_alarm_test.dart` |
 | **Origin** | BACKLOG B9.16. `myweli-verification-guardrails` rule 16 records the incident |
@@ -165,6 +165,14 @@ The first real reopening proves the failure path, and that can only happen when 
 
 Nothing is dispatched and #549 is not closed by hand without the owner's explicit go.
 
+**Read at 16:05 UTC on 2026-11-04, by GET, answering the three:**
+
+1. **Yes.** Scheduled run `41642929847`, on `4e78e485`, `success`. `clear` ran, and #549 closed at 13:20:16 UTC on 2026-11-03, with a comment that mentions the owner, says every check passed and links the run.
+2. **Yes.** `report` was skipped.
+3. **Not known.** GitHub recorded a `mentioned` event for the owner at 13:21:10 UTC, and their inbox now holds a thread for #549 with the reason `mention`, marked read, where §2 found none. So the mention reached GitHub's inbox. An email cannot be read from here, and only the owner can say.
+
+The next scheduled run, `41838514759` on 2026-11-04, was green too: `clear` ran against the closed issue, and #549 stayed closed with no new comment, as the guard's « Already closed » row expects. **Still not proved by a real run:** the failure path, a reopening.
+
 ---
 
 ## 6. Rollout and owner steps
@@ -173,9 +181,9 @@ A workflow change takes effect when it reaches `main`. There is no deploy.
 
 **The owner:**
 1. At github.com/settings/notifications, make sure **Email** is on under « Participating, @mentions and custom », and the default notification address is the mailbox they read.
-2. Say whether the closing email arrives after the next green run.
+2. Say whether the closing email arrived: the green run closed #549 on 2026-11-03 (§5).
 
-**If it does not arrive,** the alarm still does not reach them. The next step is the Cloud Monitoring « Owner email » channel, which is a cloud change and needs the owner's go.
+**If it did not arrive,** the alarm still does not reach them. The next step is the Cloud Monitoring « Owner email » channel, which is a cloud change and needs the owner's go.
 
 ---
 
@@ -185,4 +193,4 @@ A workflow change takes effect when it reaches `main`. There is no deploy.
 - [x] Guard green; mutations watched on committed work (§4).
 - [x] Indexed in `docs/design/README.md`; roadmap entry added; B9.16 ticked in `docs/BACKLOG.md`, with « B9.16 open » removed from the Batch 9 heading and row 9.
 - [ ] Feature branch and PR; merged only on the owner's word; no Claude attribution.
-- [ ] The next scheduled green run read, once the owner asks (§5).
+- [x] The next scheduled green run read, on 2026-11-04 (§5). The email is still the owner's to say.
