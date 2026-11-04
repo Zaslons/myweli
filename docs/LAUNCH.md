@@ -1345,7 +1345,7 @@ checking rather than assuming:
 >
 > **Closed later on 2026-11-04** ([app-review-round-2.md](design/app-review-round-2.md) §12): the green scheduled « Production checks » run, `41838514759`, at 13:29 UTC on
 > `bb59b7de`, before #730's deploy, so the next one is the first against the new look; and the docs record, on `main` as `bb59b7de`. That
-> merge started no deployment. GitHub reports #734 as closed, not merged, and the owner's comment there puts that down to a 502 from GitHub.
+> merge started no deployment. GitHub reports #734 as closed, not merged. The comment there puts that down to a 502 from GitHub. It went out from the owner's GitHub account, but the owner neither wrote nor reported it: the working session that did the merge posted it and saw the 502s itself.
 
 - [ ] Everything in [mobile-store-submission.md](design/mobile-store-submission.md) §5.
       Two of its claims are **stale as of 2026-08-18** and must be corrected

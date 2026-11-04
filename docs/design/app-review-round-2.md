@@ -690,11 +690,24 @@ files' times, signed out, on the build whose full SHA is in the chunks `/support
 - **What did change.** 1,405 more bytes on each page: the 404's fragment in the RSC payload went from 585 to 1,990, with the band's drawing
   ([web-swiss-direction.md](web-swiss-direction.md) §13.2). It is not rendered, and its one link goes to `/`. Forced to show in the reader's own browser, it
   holds no salon link. Without it and with same-length hashes neutralised, old and new are byte-identical.
+- **What those lines leave out.** The console was not empty: a 401 on `/api/me/notifications` on every page read, in both engines, and WebKit's message that a report-only policy ignores `frame-ancestors`, which nobody sees
+  without Web Inspector. The hydration check was proved on generic errors, not on a real React mismatch. The stylesheet and scripts these pages reference changed too, and their contents were not compared. The salon paths
+  also sit in the main-app chunk's route list, which §5 does not name, and no anchor renders them.
 - **Later deployments.** #735 and #664, no `web/` file, production deployments created at 15:03 and 15:25 UTC. A raw read at 15:29 UTC: the five are the same length and differ only
   in the build ID and chunk hashes. Not read hydrated again.
 - **The limits.** Not real Safari and not a device: Playwright's WebKit build, driven by an older Playwright (1.58.2) than the repo's, which cannot drive the
   installed build. Only the `lhr1` edge; Apple's reviewers may reach another. How the app opens these pages was not read. The old stylesheet now answers 404,
   so the look was not compared. Two HEAD requests to `/support` went outside the GET-only rule; everything else was GET.
+
+**After that read, on 2026-11-04: two more production deployments, and the five changed only in the build ID and script names.** #735 merged at 15:00:39 UTC as `a117b091`, Production deployment created at
+15:03:25 UTC. #664 merged at 15:22:47 UTC as `8b01861b`, Production deployment created at 15:25:13 UTC. Neither has a `web/` file. Raw reads with an iPad user agent at 15:20:44 and 15:26:59 UTC, against the copies
+saved at 13:41 UTC, after #730's deploy:
+
+- **The pages.** The five, `/support%2F`, `/%2Fsupport` and `/support%5C`: all 200, 0 salon links, and each file the same length at all three reads. Controls: `/` still has 4, 1, 1 and `/connexion` 2, 1, 1.
+- **The test changes.** The only differences are the build ID and script file names. With the chunk hashes and the build ID removed, the three reads of each page are byte-identical. So a push with no `web/` change
+  gives new script hashes: a byte comparison can no longer be the test, and that comparison can.
+- **The iOS build on `main` at `a117b091` reads red, and it never ran.** Run `41853307580`: GitHub gave it no macOS runner (« The job was not acquired by Runner of type hosted even after multiple attempts »), 0 steps,
+  job cancelled after about 15 minutes. The same `mobile/` tree was green on #735's PR run, `41840080469`. Read at 16:27 UTC, it is still the newest iOS run on `main`.
 
 **Production checks.** The last scheduled run was green at 13:16 UTC on `4e78e485`, before the merge, and issue #549 is
 closed. A green run after `713114a5` has not been observed. Read again at 00:24 UTC on 2026-11-04: still that run. Read again at
@@ -706,8 +719,8 @@ the deployment list, `3b49f478`'s deployment, the newest then, which holds both 
 did not read the new look. **The next scheduled run is the first against #730**, and none had run at this read.
 
 **The docs record is on `main`, and GitHub does not call that a merge.** It landed as `bb59b7de` at 11:05:07 UTC on 2026-11-04, with the same tree as the PR's head `5c2c202d`, whose check
-runs are green. GitHub reports #734 as closed at 11:56:10 UTC, with no merge commit. The owner's comment there says GitHub's incident of that day answered the merge with a 502, and that
-the push started no CI and no deployment. The deployment list agrees: none for `bb59b7de`, and one for `a41f7db9` as the control. So the deployment this section predicted for that merge did not happen.
+runs are green. GitHub reports #734 as closed at 11:56:10 UTC, with no merge commit. The comment there says GitHub's incident of that day answered the merge with a 502, and that
+the push started no CI and no deployment. It went out from the owner's GitHub account, but the owner neither wrote nor reported it: the working session that did the merge posted it and saw the 502s itself, so this is observed by that session, not owner-reported. The deployment list agrees: none for `bb59b7de`, and one for `a41f7db9` as the control. So the deployment this section predicted for that merge did not happen.
 
 **Still open on 2026-11-04, at that read:** Apple's decision; a successful Apple sign-in on an iPad; the production backend deploy
 after Apple's decision, the one that switches on the Apple keys; the release by hand after approval.
