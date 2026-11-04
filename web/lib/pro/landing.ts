@@ -35,7 +35,7 @@ export const PRO_LANDING = {
     },
     {
       title: 'Moins de rendez-vous manqués',
-      body: 'Rappels automatiques à vos clients dans l’app MyWeli (24 h et 2 h avant), et règles d’acompte.',
+      body: 'Rappels automatiques à vos clients dans l’app MyWeli (24\u00a0h et 2\u00a0h avant), et règles d’acompte.',
     },
     {
       title: 'Votre équipe',

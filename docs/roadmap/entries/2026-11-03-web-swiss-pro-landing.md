@@ -1,0 +1,7 @@
+- 🟢 **La page des salons et la page 404 passent au nouveau look (web · 2026-11-03 — BACKLOG B11.2, #730).** Troisième partie. Aucun mot, lien ou donnée pour les moteurs de recherche ne change. [web-swiss-direction.md](../../design/web-swiss-direction.md) §13.2, [images](../../design/assets/web-swiss-s2.png).
+  - **`/professionnels` :** le même haut de page que l'accueil, les avantages en liste réglée sur trois colonnes, les étapes avec de grands chiffres au lieu des petits ronds noirs. Toujours une seule action pleine par écran.
+  - **La 404 :** alignée à gauche, avec la bande de tresses. **Les pages d'erreur :** la grille, sans motif. Leur code est chargé sur toutes les pages, et le motif aurait coûté à chaque visiteur pour une page que presque personne ne voit.
+  - **Deux boutons trop petits, corrigés :** celui de la 404 et celui de la dernière page d'erreur faisaient 36 px au lieu de 48.
+  - **Vu sur l'image :** « (24 / h et 2 h avant) » se coupait à la ligne à 1440 de large. Corrigé là et sur les notifications du compte, sans changer un mot.
+  - **Un test à refaire :** en cassant la page exprès, le premier essai ne sortait pas le bouton de l'écran, donc il ne prouvait rien. Il a fallu pousser plus loin pour voir le test échouer, ce qui montre aussi 114 px de marge à 360 × 640.
+  - **La vitesse n'a pas bougé :** `/` 2 115 ms, `/connexion` 2 713 ms, `/suppression-compte` 2 109 ms.

@@ -2,6 +2,7 @@ import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import ErrorBoundary from '../app/error';
 import GlobalErrorBoundary from '../app/global-error';
+import { SITE_CONTAINER } from '../lib/siteGrid';
 import { scrubEvent } from '../lib/sentry-scrub';
 
 /// The two error boundaries, and what leaves the browser
@@ -101,6 +102,15 @@ describe('app/error.tsx — the route boundary', () => {
     ).toBeInTheDocument();
   });
 
+  // docs/design/web-swiss-direction.md §13.2. This file's chunk is in every page's
+  // scripts, so a pattern here would cost every visitor for a page few ever see.
+  it('sits on the site grid, left-aligned, with no pattern', () => {
+    const { container } = render(<ErrorBoundary error={err} reset={vi.fn()} />);
+    expect(container.querySelector('main')?.className).toContain(SITE_CONTAINER);
+    expect(container.querySelector('.text-center')).toBeNull();
+    expect(container.querySelector('svg[data-weave]')).toBeNull();
+  });
+
   it('the retry control actually calls reset', () => {
     // The house idiom (b6-states.test.tsx clicks this exact label).
     const reset = vi.fn();
@@ -138,6 +148,13 @@ describe('app/global-error.tsx — the last boundary', () => {
     expect(
       screen.getByRole('button', { name: 'Réessayer' }),
     ).toBeInTheDocument();
+  });
+
+  it('is left-aligned on the grid, and its button reaches the 48px floor', () => {
+    render(<GlobalErrorBoundary error={err} reset={vi.fn()} />);
+    expect(screen.getByRole('main').className).toContain(SITE_CONTAINER);
+    expect(screen.getByRole('main').className).not.toContain('text-center');
+    expect(screen.getByRole('button', { name: 'Réessayer' }).className).toContain('min-h-12');
   });
 
   it('never shows the raw error', () => {

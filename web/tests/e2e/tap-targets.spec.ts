@@ -113,6 +113,17 @@ test('the new home page and footer: every link in them reaches the floor (web-sw
   for (let i = 0; i < footerCount; i++) await assertBox(footerLinks.nth(i), `footer link ${i}`, { minW: 0 });
 });
 
+test('/professionnels and the 404: their buttons reach the floor', async ({ page }) => {
+  await page.goto('/professionnels');
+  const buttons = page.locator('main').getByRole('link');
+  const count = await buttons.count();
+  expect(count).toBeGreaterThan(2);
+  for (let i = 0; i < count; i++) await assertBox(buttons.nth(i), `/professionnels link ${i}`, { minW: 0 });
+
+  await page.goto('/page-qui-nexiste-pas');
+  await assertBox(page.getByRole('link', { name: 'Découvrir des salons' }), '404 link', { minW: 0 });
+});
+
 test('salon page: the favourite ♥ is a 48px target', async ({ page }) => {
   await page.goto('/beaute-divine'); // the stub salon's real slug
   // No count()-then-skip: count() doesn't wait for hydration, so it skipped a

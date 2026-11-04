@@ -51,7 +51,7 @@ dependencies:
   # Maps & Location
   flutter_map: ^8.3.2
   latlong2: ^0.10.1
-  geolocator: ^14.1.1
+  geolocator: ^14.1.2
 
   # Image caching (direct dep; used by TimedCachedImage)
   flutter_cache_manager: ^3.4.5
@@ -73,7 +73,7 @@ dependencies:
   cached_network_image: ^3.3.1
   flutter_svg: ^2.0.9
   # Brand loader animations (Lottie): in-app loading (mark_loader) + app-open (loader_v2).
-  lottie: ^3.5.1
+  lottie: ^3.6.1
   # Pull-to-refresh with the brand mark_loader instead of the Material spinner.
   custom_refresh_indicator: ^4.0.2
   flutter_slidable: ^4.0.3
@@ -119,11 +119,11 @@ dependencies:
   # channel. iOS uses setForegroundNotificationPresentationOptions instead.
   # v22: v19/v20 pin `timezone ^0.10`, which collides with the ^0.11 the
   # salon-time seam runs on (core/utils/salon_time.dart).
-  flutter_local_notifications: ^22.2.0
+  flutter_local_notifications: ^22.3.2
   # The re-enable path when notifications are denied at the OS level.
-  app_settings: ^8.0.3
+  app_settings: ^9.0.1
   sentry_flutter: ^9.0.0
-  package_info_plus: ^10.2.1
+  package_info_plus: ^10.2.2
 
 dev_dependencies:
   flutter_test:

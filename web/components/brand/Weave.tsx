@@ -1,3 +1,5 @@
+import { SITE_CONTAINER } from '../../lib/siteGrid';
+
 /// « Le pagne MyWeli »: rows of plaits, black on the page's paper, after the long
 /// quiet bands of Baule strip-woven cloth (docs/design/web-swiss-direction.md §4).
 /// Its rules are §4.3, held by tests/weave.test.tsx: one motif, the logo once, no
@@ -88,5 +90,16 @@ export function WovenBand() {
       <rect width="210" height="69" fill="url(#weave-band)" />
       <Mark x={232} y={1} height={67} />
     </svg>
+  );
+}
+
+/// The band on its own row, on the site's container, with a row rule under it.
+export function WovenBandRow({ className = '' }: { className?: string }) {
+  return (
+    <div className={`border-b border-divider ${className}`}>
+      <div className={`${SITE_CONTAINER} py-m`}>
+        <WovenBand />
+      </div>
+    </div>
   );
 }
