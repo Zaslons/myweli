@@ -129,7 +129,8 @@ the identity-limits design demands of an open-set key are honoured:
   deadline (the existing guard « every limiter query carries a deadline » went
   red when the prune was first written without one, and was right: a wedged
   Postgres would otherwise hold the cron for Cloud Run's 300 s); called once a
-  day from the subscriptions cron **next to `pruneAdminLoginThrottle`** (same route, same
+  day from the subscriptions cron (since 2026-10-21 the maintenance cron —
+  [infra-cron-maintenance.md](infra-cron-maintenance.md)) **next to `pruneAdminLoginThrottle`** (same route, same
   reason recorded there: a prune nobody can see is the shape this repo keeps
   finding), with `olderThan = 1 day`. Nothing reads a window older than its
   own length (1 h for identity buckets, 1 min for IP buckets), so the retention

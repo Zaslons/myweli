@@ -4,10 +4,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
-import 'package:myweli/models/api_response.dart';
+import 'package:myweli/core/utils/salon_id.dart';
 import 'package:myweli/models/pro_membership.dart';
 import 'package:myweli/models/provider_login_result.dart';
-import 'package:myweli/models/provider_user.dart';
 import 'package:myweli/models/salon_market.dart';
 import 'package:myweli/models/team_member.dart';
 import 'package:myweli/services/api/api_auth_service.dart';
@@ -188,71 +187,14 @@ void main() {
     expect(res.error, isNotNull);
   });
 
+  // The session tests sign in by e-mail: the Pro phone sign-in they used to
+  // go through is gone (B8.5, docs/design/product-questions-batch8.md §2.5).
   test(
-    'sendOtpToProvider hits the provider OTP route, returns the dev code',
-    () async {
-      final client = MockClient((req) async {
-        expect(req.url.path, '/auth/provider/otp/request');
-        return http.Response(
-          jsonEncode({'expiresInSeconds': 300, 'devCode': '654321'}),
-          202,
-        );
-      });
-      final service = ApiAuthService(client: client, baseUrl: 'http://x');
-
-      final res = await service.sendOtpToProvider(_phone);
-
-      expect(res.success, isTrue);
-      expect(res.data, '654321');
-    },
-  );
-
-  test('registerProviderWithEmail POSTs identity + business fields and '
-      'signs in immediately (auth overhaul P4)', () async {
-    final store = InMemorySessionStore();
-    final client = MockClient((req) async {
-      expect(req.url.path, '/auth/provider/register');
-      final body = jsonDecode(req.body) as Map<String, dynamic>;
-      expect(body['businessType'], 'salon');
-      expect(body['email'], 'salon@x.com');
-      expect(body['code'], '123456');
-      return http.Response(
-        jsonEncode({
-          'provider': _providerJson(),
-          'accessToken': 'prov-reg-123',
-          'refreshToken': 'prov-reg-refresh',
-          'expiresAt': DateTime(2030).toIso8601String(),
-        }),
-        201,
-      );
-    });
-    final service = ApiAuthService(
-      client: client,
-      baseUrl: 'http://x',
-      providerSessionStore: store,
-    );
-
-    final res = await service.registerProviderWithEmail(
-      email: 'salon@x.com',
-      code: '123456',
-      phoneNumber: _phone,
-      businessName: 'Élégance',
-      businessType: BusinessType.salon,
-    );
-
-    expect(res.success, isTrue);
-    expect(res.data!.id, 'provider_1');
-    // Registration NOW signs in (one submit) — the session is persisted.
-    expect(await store.read(), isNotNull);
-    expect((await service.getCurrentProvider())!.id, 'provider_1');
-  });
-
-  test(
-    'verifyOtpForProvider persists the provider session and restores it',
+    'verifyProviderEmailOtp persists the provider session and restores it',
     () async {
       final store = InMemorySessionStore();
       final client = MockClient((req) async {
-        expect(req.url.path, '/auth/provider/otp/verify');
+        expect(req.url.path, '/auth/provider/email/otp/verify');
         return http.Response(
           jsonEncode({
             'provider': _providerJson(),
@@ -269,10 +211,10 @@ void main() {
         providerSessionStore: store,
       );
 
-      final res = await service.verifyOtpForProvider(_phone, '123456');
+      final res = await service.verifyProviderEmailOtp('salon@x.com', '123456');
 
-      expect(res.success, isTrue);
-      expect(res.data!.id, 'provider_1');
+      expect(res.signedIn, isTrue);
+      expect(res.provider!.id, 'provider_1');
       // Persisted under the provider store (incl. the refresh token for silent
       // refresh), and restorable after a cold start.
       final stored = jsonDecode((await store.read())!) as Map<String, dynamic>;
@@ -286,16 +228,16 @@ void main() {
     },
   );
 
-  test('verifyOtpForProvider surfaces provider_not_found', () async {
+  test('verifyProviderEmailOtp surfaces provider_not_found', () async {
     final client = MockClient(
       (req) async =>
           http.Response(jsonEncode({'error': 'provider_not_found'}), 404),
     );
     final service = ApiAuthService(client: client, baseUrl: 'http://x');
 
-    final res = await service.verifyOtpForProvider(_phone, '000000');
+    final res = await service.verifyProviderEmailOtp('salon@x.com', '000000');
 
-    expect(res.success, isFalse);
+    expect(res.signedIn, isFalse);
     expect(res.code, 'provider_not_found');
   });
 
@@ -312,7 +254,7 @@ void main() {
       baseUrl: 'http://x',
       providerSessionStore: store,
     );
-    await service.verifyOtpForProvider(_phone, '123456');
+    await service.verifyProviderEmailOtp('salon@x.com', '123456');
 
     await service.logoutProvider();
 
@@ -339,16 +281,16 @@ void main() {
       baseUrl: 'http://x',
       providerSessionStore: store,
     );
-    await service.verifyOtpForProvider(_phone, '123456');
+    await service.verifyProviderEmailOtp('salon@x.com', '123456');
     await service.cacheProviderMembership(
       const ProMembership(
         role: TeamRole.reception,
         capabilities: {},
-        salonId: 'salon_1',
+        salonId: SalonId('salon_1'),
         salonName: 'Salon Excellence',
       ),
     );
-    await service.setSelectedProviderSalon('salon_1');
+    await service.setSelectedProviderSalon(SalonId('salon_1'));
     expect((await service.getCachedProviderMembership())?.salonId, 'salon_1');
 
     await service.cacheProviderMembership(null);
@@ -363,7 +305,7 @@ void main() {
   // GET /me/provider fails still knows the salon's clock.
   group('the salon market facts', () {
     const lbv = SalonMarket(
-      salonId: 'salon_1',
+      salonId: SalonId('salon_1'),
       timezone: 'Africa/Libreville',
       currency: 'XAF',
       countryCode: 'GA',
@@ -384,13 +326,13 @@ void main() {
     test('survive a restart, and the membership written after them', () async {
       final store = InMemorySessionStore();
       final service = serviceOn(store);
-      await service.verifyOtpForProvider(_phone, '123456');
+      await service.verifyProviderEmailOtp('salon@x.com', '123456');
       await service.cacheProviderSalonMarket(lbv);
       await service.cacheProviderMembership(
         const ProMembership(
           role: TeamRole.owner,
           capabilities: {},
-          salonId: 'salon_1',
+          salonId: SalonId('salon_1'),
           salonName: 'Salon Excellence',
         ),
       );
@@ -407,12 +349,12 @@ void main() {
     test('null CLEARS them — the membership kept', () async {
       final store = InMemorySessionStore();
       final service = serviceOn(store);
-      await service.verifyOtpForProvider(_phone, '123456');
+      await service.verifyProviderEmailOtp('salon@x.com', '123456');
       await service.cacheProviderMembership(
         const ProMembership(
           role: TeamRole.owner,
           capabilities: {},
-          salonId: 'salon_1',
+          salonId: SalonId('salon_1'),
           salonName: 'Salon Excellence',
         ),
       );
@@ -613,31 +555,6 @@ void _googleTests() {
         'google-id-token-abc',
         reason: 'accept re-proves identity with this exact token',
       );
-    });
-  });
-
-  group('registerProviderWithGoogle', () {
-    Future<ApiResponse<ProviderUser>> register(GoogleIdTokenProvider g) =>
-        ApiAuthService(
-          client: _neverCalled(),
-          baseUrl: 'http://x',
-          googleIdToken: g,
-        ).registerProviderWithGoogle(
-          phoneNumber: _phone,
-          businessName: 'Élégance',
-          businessType: BusinessType.salon,
-        );
-
-    test('a cancel is SILENT', () async {
-      final res = await register(_cancelled);
-      expect(res.code, 'cancelled');
-      expect(res.error, isEmpty);
-    });
-
-    test('no token is its own code', () async {
-      final res = await register(_noToken);
-      expect(res.code, 'no_id_token');
-      expect(res.error, isNotEmpty);
     });
   });
 }

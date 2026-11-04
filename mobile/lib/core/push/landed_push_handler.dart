@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:go_router/go_router.dart';
 
+import '../utils/salon_id.dart';
 import 'push_message_handler.dart';
 
 /// A [PushMessageHandler] whose buffered tap replays only once the app has
@@ -30,7 +31,7 @@ PushMessageHandler landedPushHandler({
   required bool Function() isSignedIn,
   required Set<String> launchPaths,
   required List<String> allowedRoutePrefixes,
-  Future<bool> Function(String providerId)? ensureSalon,
+  Future<bool> Function(SalonId providerId)? ensureSalon,
   String? salonSwitchFallbackRoute,
 }) {
   bool landed() {

@@ -2,7 +2,7 @@
 /// session lives in httpOnly cookies set by the BFF (no tokens here). None of
 /// them throws (docs/design/web-consumer-network-failure.md §2).
 
-import { readJson, send } from '../api/network';
+import { readJson, send, sendIdempotent } from '../api/network';
 import {
   DEFAULT_HORIZON_DAYS,
   DEFAULT_NOTICE_MINUTES,
@@ -41,26 +41,42 @@ export type CreatedBooking = {
   totalPrice?: number;
 };
 
-export async function createBooking(payload: {
-  providerId: string;
-  serviceIds: string[];
-  appointmentDateTime: string;
-  artistId: string | null;
-  notes?: string;
-}): Promise<{ ok: boolean; appointment?: CreatedBooking; error?: string }> {
-  const res = await send('/api/bookings', {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify(payload),
-  });
-  if (!res.ok) {
-    const body = (await res.json().catch(() => ({}))) as { error?: string };
-    return { ok: false, error: body.error };
-  }
-  // A lost body: the booking exists (the server answered 2xx) — « Réservation
-  // envoyée », without the deposit block, which the detail page offers (K2).
-  const body = await readJson<{ appointment?: CreatedBooking }>(res);
-  return { ok: true, appointment: body?.appointment };
+/// Books under [key] (docs/design/write-idempotency.md §4): one key per
+/// submission, reused on « Réessayer ». A lost answer is asked again once
+/// with it, at once — the server replays the booking it made, so the screen
+/// gets « Réservation envoyée » WITH the deposit block instead of a 409 on
+/// the person's own slot. `lost`: nothing answered, twice.
+export async function createBooking(
+  payload: {
+    providerId: string;
+    serviceIds: string[];
+    appointmentDateTime: string;
+    artistId: string | null;
+    notes?: string;
+  },
+  key: string,
+  opts: { wait?: (ms: number) => Promise<void> } = {},
+): Promise<{ ok: boolean; appointment?: CreatedBooking; error?: string; lost?: boolean }> {
+  const r = await sendIdempotent<{ appointment?: Partial<CreatedBooking> }>(
+    '/api/bookings',
+    {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(payload),
+    },
+    key,
+    { complete: (b) => Boolean(b?.appointment?.id), ...opts },
+  );
+  if (r.status === 0) return { ok: false, lost: true };
+  if (r.status < 200 || r.status >= 300) return { ok: false, error: r.error };
+  // Still without its body after asking again: the booking exists (the
+  // server answered 2xx) — « Réservation envoyée », without the deposit
+  // block, which the detail page offers (K2).
+  const appointment = r.body?.appointment;
+  return {
+    ok: true,
+    appointment: appointment?.id ? (appointment as CreatedBooking) : undefined,
+  };
 }
 
 /// The outcome of a slot query — `ok: false` means WE COULD NOT ASK, which is
@@ -103,10 +119,11 @@ export async function fetchSlots(params: {
   // The BFF preserves the upstream status, so the information was always
   // here — only this function threw it away.
   if (!res.ok) return { ok: false, slots: [], gone: res.status === 404 };
-  // A lost body is « we could not ask », not « no opening that day ».
-  const body = await readJson<{ slots?: string[] }>(res);
-  if (!body) return { ok: false, slots: [] };
-  return { ok: true, slots: body.slots ?? [] };
+  // A lost body is « we could not ask », not « no opening that day » — and so
+  // is a 200 without its list (hygiene-batch9.md §2.10).
+  const slots = (await readJson<{ slots?: unknown }>(res))?.slots;
+  if (!Array.isArray(slots)) return { ok: false, slots: [] };
+  return { ok: true, slots: slots as string[] };
 }
 
 

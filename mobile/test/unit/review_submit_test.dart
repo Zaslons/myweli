@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:myweli/core/constants/app_constants.dart';
 import 'package:myweli/core/di/dependency_injection.dart';
+import 'package:myweli/core/utils/salon_id.dart';
 import 'package:myweli/models/api_response.dart';
 import 'package:myweli/models/provider.dart';
 import 'package:myweli/models/review.dart';
@@ -11,7 +12,7 @@ import 'package:myweli/services/mock/mock_provider_service.dart';
 import 'package:myweli/services/mock/mock_review_service.dart';
 
 Review _review({
-  required String providerId,
+  required SalonId providerId,
   int rating = 5,
   String appointmentId = '',
   String? id,
@@ -34,7 +35,7 @@ class _CountedSalons extends MockProviderService {
   int byIdCalls = 0;
 
   @override
-  Future<ApiResponse<Provider>> getProviderById(String id) {
+  Future<ApiResponse<Provider>> getProviderById(SalonId id) {
     byIdCalls++;
     return super.getProviderById(id);
   }
@@ -52,12 +53,14 @@ void main() {
     test('persists a valid review and rejects an invalid rating', () async {
       final service = MockReviewService();
 
-      final ok = await service.submitReview(_review(providerId: 'provider1'));
+      final ok = await service.submitReview(
+        _review(providerId: SalonId('provider1')),
+      );
       expect(ok.success, isTrue);
       expect(ok.data!.rating, 5);
 
       final bad = await service.submitReview(
-        _review(providerId: 'provider1', rating: 0),
+        _review(providerId: SalonId('provider1'), rating: 0),
       );
       expect(bad.success, isFalse);
     });
@@ -90,10 +93,18 @@ void main() {
       );
 
       await service.submitReview(
-        _review(providerId: 'provider2', appointmentId: 'twice', rating: 5),
+        _review(
+          providerId: SalonId('provider2'),
+          appointmentId: 'twice',
+          rating: 5,
+        ),
       );
       await service.submitReview(
-        _review(providerId: 'provider2', appointmentId: 'twice', rating: 1),
+        _review(
+          providerId: SalonId('provider2'),
+          appointmentId: 'twice',
+          rating: 1,
+        ),
       );
 
       final stored = MockData.reviews.where((r) => r.appointmentId == 'twice');
@@ -121,10 +132,10 @@ void main() {
       final service = MockReviewService();
 
       await service.submitReview(
-        _review(providerId: 'provider4', id: 'unkeyed1'),
+        _review(providerId: SalonId('provider4'), id: 'unkeyed1'),
       );
       await service.submitReview(
-        _review(providerId: 'provider4', id: 'unkeyed2'),
+        _review(providerId: SalonId('provider4'), id: 'unkeyed2'),
       );
 
       // Matched on '', the first would have taken `review1`'s place and the
@@ -151,12 +162,20 @@ void main() {
           (MockData.providers[i].rating, MockData.providers[i].reviewCount);
 
       await service.submitReview(
-        _review(providerId: 'provider3', appointmentId: 'figures', rating: 2),
+        _review(
+          providerId: SalonId('provider3'),
+          appointmentId: 'figures',
+          rating: 2,
+        ),
       );
       expect(figures(), (3.0, 2));
 
       await service.submitReview(
-        _review(providerId: 'provider3', appointmentId: 'figures', rating: 5),
+        _review(
+          providerId: SalonId('provider3'),
+          appointmentId: 'figures',
+          rating: 5,
+        ),
       );
       expect(figures(), (4.5, 2)); // (3,0 × 2 − 2 + 5) / 2
     });
@@ -174,11 +193,11 @@ void main() {
 
     test('submitReview adds the review to the selected provider', () async {
       final provider = ProviderProvider();
-      await provider.loadProviderById('provider1');
+      await provider.loadProviderById(SalonId('provider1'));
       expect(provider.selectedProvider, isNotNull);
       final before = provider.selectedProvider!.reviews.length;
 
-      final mine = _review(providerId: 'provider1');
+      final mine = _review(providerId: SalonId('provider1'));
       final ok = await provider.submitReview(mine);
 
       expect(ok, isTrue);
@@ -195,18 +214,18 @@ void main() {
     /// tables: a review the mock did not STORE is erased by the next read.
     test('a reload keeps the review: first, and counted', () async {
       final provider = ProviderProvider();
-      await provider.loadProviderById('provider1');
+      await provider.loadProviderById(SalonId('provider1'));
       final before = provider.selectedProvider!;
 
       final ok = await provider.submitReview(
         _review(
-          providerId: 'provider1',
+          providerId: SalonId('provider1'),
           appointmentId: 'reload',
           createdAt: DateTime(2026, 10, 12),
         ),
       );
       expect(ok, isTrue);
-      await provider.loadProviderById('provider1');
+      await provider.loadProviderById(SalonId('provider1'));
 
       final after = provider.selectedProvider!;
       expect(after.reviews.first.appointmentId, 'reload');
@@ -217,13 +236,13 @@ void main() {
     test('the re-read after « Publier » does not erase the review under the '
         'mocks', () async {
       final provider = ProviderProvider();
-      await provider.loadProviderById('provider1');
+      await provider.loadProviderById(SalonId('provider1'));
       final before = provider.selectedProvider!;
       final reads = salons.byIdCalls;
 
       final ok = await provider.submitReview(
         _review(
-          providerId: 'provider1',
+          providerId: SalonId('provider1'),
           appointmentId: 'reread',
           createdAt: DateTime(2026, 10, 13),
         ),

@@ -1,7 +1,9 @@
 import 'package:flutter/foundation.dart';
 
 import '../core/access/pro_salon_scope.dart';
+import '../core/constants/failure_messages.dart';
 import '../core/di/dependency_injection.dart';
+import '../core/utils/salon_id.dart';
 import '../models/before_after_pair.dart';
 import '../services/interfaces/image_upload_service_interface.dart';
 import '../services/interfaces/pro_service_interface.dart';
@@ -23,41 +25,54 @@ class ProBeforeAfterProvider extends ChangeNotifier implements SalonScoped {
 
   bool get isLoading => _isLoading;
   bool get loadFailed => _loadFailed;
+
+  /// What these fields hold is the server's, not the defaults they start
+  /// with: a read has answered since the last reset (B9.8). The screen
+  /// waits for it — on the first frame it showed the defaults.
+  bool get loaded => _loaded;
+  bool _loaded = false;
   bool get isUploading => _isUploading;
   double get uploadProgress => _uploadProgress;
   String? get error => _error;
   List<BeforeAfterPair> get pairs => _pairs;
 
-  Future<void> load(String providerId) async {
+  Future<void> load(SalonId providerId) async {
+    final scope = _scope;
     _isLoading = true;
     _loadFailed = false;
     _error = null;
     notifyListeners();
     try {
       final res = await _proService.getBeforeAfters(providerId);
+      if (scope != _scope) return;
       if (res.success && res.data != null) {
         _pairs = res.data!;
+        _loaded = true;
       } else {
         _loadFailed = true;
-        _error = res.error ?? 'Erreur lors du chargement';
+        _error = res.error ?? kGenericErrorMessage;
       }
     } catch (e) {
+      if (scope != _scope) return;
       _loadFailed = true;
-      _error = e.toString();
+      _error = kGenericErrorMessage;
     } finally {
-      _isLoading = false;
-      notifyListeners();
+      if (scope == _scope) {
+        _isLoading = false;
+        notifyListeners();
+      }
     }
   }
 
   /// Uploads the [beforeSource] + [afterSource] images, appends the pair, and
   /// persists. Returns false (with [error] set) on any failure.
   Future<bool> addPair(
-    String providerId, {
+    SalonId providerId, {
     required String beforeSource,
     required String afterSource,
     String? caption,
   }) async {
+    final scope = _scope;
     _isUploading = true;
     _uploadProgress = 0;
     _error = null;
@@ -66,10 +81,12 @@ class ProBeforeAfterProvider extends ChangeNotifier implements SalonScoped {
       final before = await _uploadService.uploadImage(
         source: beforeSource,
         onProgress: (p) {
+          if (scope != _scope) return;
           _uploadProgress = p * 0.5;
           notifyListeners();
         },
       );
+      if (scope != _scope) return false;
       if (!before.success || before.data == null) {
         _error = before.error ?? 'Échec de l’envoi';
         return false;
@@ -77,10 +94,12 @@ class ProBeforeAfterProvider extends ChangeNotifier implements SalonScoped {
       final after = await _uploadService.uploadImage(
         source: afterSource,
         onProgress: (p) {
+          if (scope != _scope) return;
           _uploadProgress = 0.5 + p * 0.5;
           notifyListeners();
         },
       );
+      if (scope != _scope) return false;
       if (!after.success || after.data == null) {
         _error = after.error ?? 'Échec de l’envoi';
         return false;
@@ -95,6 +114,7 @@ class ProBeforeAfterProvider extends ChangeNotifier implements SalonScoped {
         ),
       ];
       final saved = await _proService.updateBeforeAfters(providerId, next);
+      if (scope != _scope) return saved.success;
       if (saved.success && saved.data != null) {
         _pairs = saved.data!;
         return true;
@@ -102,11 +122,14 @@ class ProBeforeAfterProvider extends ChangeNotifier implements SalonScoped {
       _error = saved.error ?? 'Échec de l’enregistrement';
       return false;
     } catch (e) {
-      _error = e.toString();
+      if (scope != _scope) return false;
+      _error = kGenericErrorMessage;
       return false;
     } finally {
-      _isUploading = false;
-      notifyListeners();
+      if (scope == _scope) {
+        _isUploading = false;
+        notifyListeners();
+      }
     }
   }
 
@@ -114,13 +137,15 @@ class ProBeforeAfterProvider extends ChangeNotifier implements SalonScoped {
   /// for why this re-inserts into the CURRENT list instead of restoring a
   /// pre-delete snapshot.
   Future<bool> restorePairAt(
-    String providerId,
+    SalonId providerId,
     int index,
     BeforeAfterPair pair,
   ) async {
+    final scope = _scope;
     final next = [..._pairs];
     next.insert(index.clamp(0, next.length), pair);
     final saved = await _proService.updateBeforeAfters(providerId, next);
+    if (scope != _scope) return saved.success;
     if (saved.success && saved.data != null) {
       _pairs = saved.data!;
       _error = null;
@@ -132,10 +157,12 @@ class ProBeforeAfterProvider extends ChangeNotifier implements SalonScoped {
     return false;
   }
 
-  Future<bool> removePair(String providerId, int index) async {
+  Future<bool> removePair(SalonId providerId, int index) async {
+    final scope = _scope;
     if (index < 0 || index >= _pairs.length) return false;
     final next = [..._pairs]..removeAt(index);
     final saved = await _proService.updateBeforeAfters(providerId, next);
+    if (scope != _scope) return saved.success;
     if (saved.success && saved.data != null) {
       _pairs = saved.data!;
       _error = null;
@@ -148,8 +175,16 @@ class ProBeforeAfterProvider extends ChangeNotifier implements SalonScoped {
   }
 
   /// R6 multi-salons: drop the previous salon's data on a switch.
+  /// Which salon this state belongs to — moved by [resetForSalonSwitch]
+  /// only. A read or a write takes it before it awaits and writes nothing
+  /// when it moved meanwhile: its answer is the previous salon's, or the
+  /// previous account's (docs/design/pro-account-scope.md §2.2).
+  int _scope = 0;
+
   @override
   void resetForSalonSwitch() {
+    _scope++;
+    _loaded = false;
     _isLoading = false;
     _loadFailed = false;
     _isUploading = false;

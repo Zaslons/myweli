@@ -472,9 +472,8 @@ void main() {
       expect(kIdentityWindow <= kRateLimitRetention, isTrue);
       expect(kInviteWindow <= kRateLimitRetention, isTrue);
       expect(kIpAuthWindow <= kRateLimitRetention, isTrue);
-      final cron = File(
-        'routes/internal/cron/subscriptions.dart',
-      ).readAsStringSync();
+      // The maintenance tick's wiring (docs/design/infra-cron-maintenance.md).
+      final cron = File('lib/src/dependencies.dart').readAsStringSync();
       expect(cron, contains('pruneRateLimitWindows(kRateLimitRetention)'));
     });
 

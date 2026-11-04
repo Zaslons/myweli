@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest';
 // @ts-expect-error — next.config.mjs is plain ESM with no declaration file. Its
 // RUNTIME value is precisely what this test exists to check.
 import { cspDirectives, cspString } from '../next.config.mjs';
+import { cspProblems } from '../tool/csp-promises';
 
 type Directives = Record<string, string[]>;
 
@@ -189,5 +190,69 @@ describe('the Content-Security-Policy', () => {
         + 'it. Either add it to the right directive, or add it to '
         + 'NOT_SUBRESOURCES with the reason it is not a subresource',
     ).toEqual([]);
+  });
+});
+
+/// **The daily check on myweli.com, asked at merge time.**
+///
+/// That check cannot run on a PR: it needs the deployed site. So 9f320d4c rightly
+/// changed `worker-src` and every PR check stayed green, while the daily one went
+/// red the next morning and stayed red for 13 days. Its rules now live in one place,
+/// and this reads them against the policy a PR is about to ship.
+describe('what the daily check asks of the policy', () => {
+  const REPORT = 'https://x/api/1/security/?sentry_key=k';
+  const directives = () => cspDirectives({ dev: false, reportUri: REPORT }) as Directives;
+  const render = (d: Directives) =>
+    Object.entries(d)
+      .map(([k, v]) => `${k} ${v.join(' ')}`)
+      .join('; ');
+  const reportOnly = (d: Directives) => ({ 'content-security-policy-report-only': render(d) });
+  const dropping = (directive: string, needle: string) => {
+    const d = directives();
+    const kept = d[directive].filter((s) => !s.includes(needle));
+    expect(kept.length, `nothing to drop: ${needle} is not in ${directive}`).toBe(d[directive].length - 1);
+    return { ...d, [directive]: kept };
+  };
+
+  it('accepts the policy in this repo, so a merge cannot turn it red the next day', () => {
+    expect(cspString({ dev: false, reportUri: REPORT })).toBe(render(directives()));
+    expect(cspProblems(reportOnly(directives()))).toEqual([]);
+  });
+
+  it('reads sources, not spelling: their order can change', () => {
+    const d = directives();
+    expect(cspProblems(reportOnly({ ...d, 'worker-src': [...d['worker-src']].reverse() }))).toEqual([]);
+    expect(render(d)).toContain("worker-src 'self' blob:");
+  });
+
+  it('still holds the day the policy moves from Report-Only to enforcing', () => {
+    expect(cspProblems({ 'content-security-policy': render(directives()) })).toEqual([]);
+  });
+
+  it.each([
+    ['worker-src', 'blob:', 'no map constructs'],
+    ['worker-src', "'self'", 'the Pro service worker cannot register'],
+    ['connect-src', 'cartocdn.com', 'the map renders blank'],
+    // img-src also lists this host, so a match on the whole policy stays green here.
+    ['connect-src', 'r2.cloudflarestorage.com', 'every upload fails'],
+  ])('refuses %s without %s: %s', (directive, needle) => {
+    const problems = cspProblems(reportOnly(dropping(directive, needle)));
+    expect(problems).toHaveLength(1);
+    expect(problems[0]).toContain(directive);
+    expect(problems[0]).toContain(needle);
+  });
+
+  it('refuses a policy whose violations go nowhere', () => {
+    const { 'report-uri': _gone, ...d } = directives();
+    expect(cspProblems(reportOnly(d))).toEqual([expect.stringContaining('report-uri')]);
+  });
+
+  it('refuses a response with no policy at all', () => {
+    expect(cspProblems({})).toHaveLength(1);
+  });
+
+  it('names every problem at once: one stale line cannot hide the next', () => {
+    const { 'report-uri': _gone, ...d } = dropping('worker-src', 'blob:');
+    expect(cspProblems(reportOnly(d))).toHaveLength(2);
   });
 });

@@ -1,5 +1,7 @@
 import 'package:equatable/equatable.dart';
 
+import '../core/utils/salon_id.dart';
+
 import 'provider.dart';
 
 /// The acting salon's MARKET facts — the part of its GET /me/provider payload
@@ -29,7 +31,7 @@ class SalonMarket extends Equatable {
     areaId: salon.areaId,
   );
 
-  final String salonId;
+  final SalonId salonId;
 
   /// Null on a LOADED salon is the server's own default (Africa/Abidjan,
   /// `backend/lib/src/salon_time.dart`) — not a missing value.
@@ -39,7 +41,7 @@ class SalonMarket extends Equatable {
   final String? areaId;
 
   factory SalonMarket.fromJson(Map<String, dynamic> json) => SalonMarket(
-    salonId: json['salonId'] as String,
+    salonId: SalonId(json['salonId'] as String),
     timezone: json['timezone'] as String?,
     currency: json['currency'] as String?,
     countryCode: json['countryCode'] as String?,

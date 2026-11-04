@@ -10,11 +10,13 @@ import '../../core/theme/text_styles.dart';
 import '../../core/utils/app_clock.dart';
 import '../../core/utils/booking_error_cta.dart';
 import '../../core/utils/formatters.dart';
+import '../../core/utils/salon_id.dart';
 import '../../core/utils/salon_time.dart';
 import '../../providers/appointment_provider.dart';
 import '../../providers/locality_provider.dart';
+import '../common/app_chip.dart';
+import '../common/app_skeleton.dart';
 import '../common/empty_state.dart';
-import '../common/loading_indicator.dart';
 import '../common/myweli_date_picker.dart';
 import '../common/salon_time_hint.dart';
 
@@ -61,7 +63,7 @@ class SlotPicker extends StatefulWidget {
     this.refreshSignal,
   });
 
-  final String providerId;
+  final SalonId providerId;
 
   /// The day whose slots are shown. **Controlled**: the host owns it, because
   /// the hub also sets it from outside (picking a service auto-jumps to the
@@ -300,9 +302,10 @@ class _SlotPickerState extends State<SlotPicker> {
         // request too — telling a user the salon was full when the truth was
         // that we never reached it.
         if (_loading)
+          // The day's slots on their way, where they will sit (B9.8).
           const Padding(
             padding: EdgeInsets.symmetric(vertical: AppTheme.spacingSM),
-            child: Center(child: LoadingIndicator()),
+            child: SkeletonPills(count: 8, label: 'Chargement des créneaux…'),
           )
         else if (_error != null)
           Padding(
@@ -413,28 +416,13 @@ class _SlotPickerState extends State<SlotPicker> {
               final selected =
                   widget.selectedSlot != null &&
                   widget.selectedSlot!.isAtSameMomentAs(slot);
-              return ChoiceChip(
-                label: Text(
-                  Formatters.formatTime(toSalonTime(slot, tz: widget.tz)),
-                ),
+              return AppChip.choice(
+                label: Formatters.formatTime(toSalonTime(slot, tz: widget.tz)),
                 selected: selected,
                 onSelected: (_) {
                   widget.onInteraction?.call();
                   widget.onSlotSelected(slot);
                 },
-                selectedColor: AppColors.primary.withValues(alpha: 0.15),
-                labelStyle: AppTextStyles.bodySmall.copyWith(
-                  color: selected ? AppColors.primary : AppColors.textPrimary,
-                ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(AppTheme.radiusPill),
-                  side: BorderSide(
-                    color: selected
-                        ? AppColors.primary
-                        : AppColors.borderStrong,
-                  ),
-                ),
-                backgroundColor: AppColors.secondary,
               );
             }).toList(),
           ),

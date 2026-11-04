@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
+import 'package:myweli/core/utils/salon_id.dart';
 import 'package:myweli/models/availability.dart';
 import 'package:myweli/services/api/api_pro_artist_service.dart';
 import 'package:myweli/services/interfaces/session_store.dart';
@@ -74,7 +75,7 @@ void main() {
         200,
       );
     });
-    final res = await _linked(client).getArtists('provider1');
+    final res = await _linked(client).getArtists(SalonId('provider1'));
     expect(res.success, isTrue);
     expect(res.data!.single.name, 'Awa');
   });
@@ -86,7 +87,7 @@ void main() {
         200,
       ),
     );
-    final res = await _linked(client).getArtists('provider1');
+    final res = await _linked(client).getArtists(SalonId('provider1'));
     expect(res.success, isTrue);
     expect(res.data, isEmpty);
   });
@@ -105,7 +106,7 @@ void main() {
         final client = MockClient(
           (req) async => http.Response(jsonEncode(body), 200),
         );
-        final res = await _linked(client).getArtists('provider1');
+        final res = await _linked(client).getArtists(SalonId('provider1'));
         expect(res.success, isFalse);
         expect(res.data, isNull);
       });
@@ -122,7 +123,7 @@ void main() {
         body = jsonDecode(req.body) as Map<String, dynamic>;
         return http.Response(jsonEncode(_artistJson()), 201);
       });
-      final res = await _linked(client).createArtist('provider1', {
+      final res = await _linked(client).createArtist(SalonId('provider1'), {
         'name': 'Awa',
         'specialization': 'Tresses',
         'rating': 5, // must not be sent
@@ -233,7 +234,7 @@ void main() {
     final client = MockClient(
       (req) async => http.Response(jsonEncode({'error': 'forbidden'}), 403),
     );
-    final res = await _linked(client).getArtists('provider1');
+    final res = await _linked(client).getArtists(SalonId('provider1'));
     expect(res.success, isFalse);
     expect(res.code, 'forbidden');
   });

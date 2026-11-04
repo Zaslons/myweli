@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:myweli/core/di/dependency_injection.dart';
+import 'package:myweli/core/utils/salon_id.dart';
 import 'package:myweli/models/salon_subscription.dart';
 import 'package:myweli/services/mock/mock_pro_service.dart';
 import 'package:myweli/services/mock/mock_subscription_service.dart';
@@ -26,7 +27,7 @@ void main() {
 
   test('an EXPIRED offer refuses the publish with the neutral sentence — and '
       'never grants a second trial', () async {
-    final res = await MockProService().publishSalon('provider1');
+    final res = await MockProService().publishSalon(SalonId('provider1'));
 
     expect(res.success, isFalse);
     expect(res.code, 'offer_required');
@@ -35,7 +36,7 @@ void main() {
       'La mise en ligne est indisponible : l’offre de votre salon n’est '
       'plus active.',
     );
-    final state = await subs.getSalonSubscription('provider1');
+    final state = await subs.getSalonSubscription(SalonId('provider1'));
     expect(state.data!.status, SalonOfferStatus.expired);
     expect(state.data!.trialEndsAt, expiredAt);
   });

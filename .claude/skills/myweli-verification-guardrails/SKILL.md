@@ -402,6 +402,28 @@ checkable thing is not the claim — it is **when someone last confirmed it**.
 
 ---
 
+## 16. A monitor nobody reads is not a monitor
+
+The check fired. It fired every day. That is not the same as anyone knowing.
+
+> **The incident.** `production-checks.yml` failed every day from 2026-10-21 to
+> 2026-11-02 on one stale match: `toContain('worker-src blob:')`, after a correct
+> change to `worker-src 'self' blob:`. The commit that made the change fixed the
+> same match in the e2e test beside it, with a comment saying why. It could not
+> see this one, because a check that needs the deployed site never runs on a PR.
+> The alarm was a comment on an issue open since September, and all 33 of its
+> comments are the bot's. 55 commits reached `main` meanwhile, some of them read
+> back on `myweli.com` by hand. It was found by accident, while looking for a
+> « before » number. While it was red, the line after it never ran, and a real
+> privacy failure would have looked identical.
+
+**Rule:** a read-back includes the monitor's last run
+(`gh run list --workflow=production-checks.yml --limit 3`). Read a scheduled
+check's rules at merge time too, where a PR can still fail. And a monitor that is
+red for the wrong reason is a defect of its own, because it hides the right ones.
+
+---
+
 ## The one-line version
 
 **Before you say it works: name the observation that would prove you wrong, and

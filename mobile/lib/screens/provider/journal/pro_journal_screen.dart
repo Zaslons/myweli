@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -10,17 +11,23 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/colors.dart';
 import '../../../core/theme/text_styles.dart';
 import '../../../core/utils/formatters.dart';
+import '../../../core/utils/salon_id.dart';
 import '../../../core/utils/salon_time.dart';
 import '../../../core/utils/status_labels.dart';
 import '../../../models/appointment.dart';
+import '../../../models/journal_day.dart';
 import '../../../providers/pro_auth_provider.dart';
 import '../../../providers/pro_journal_provider.dart';
+import '../../../providers/pro_team_provider.dart';
+import '../../../widgets/common/app_async_view.dart';
+import '../../../widgets/common/app_chip.dart';
+import '../../../widgets/common/app_skeleton.dart';
 import '../../../widgets/common/app_snack_bar.dart';
 import '../../../widgets/common/brand_refresh.dart';
 import '../../../widgets/common/empty_state.dart';
-import '../../../widgets/common/loading_indicator.dart';
 import '../../../widgets/common/myweli_date_picker.dart';
 import '../../../widgets/common/myweli_date_time_picker.dart';
+import '../../../widgets/team/pro_invitations_card.dart';
 
 /// « Ma journée » — the pro-app day timeline (module `journal` J1b,
 /// docs/design/journal-j1b-app.md). Mobile-first equivalent of the web grid:
@@ -40,7 +47,8 @@ class ProJournalScreen extends StatefulWidget {
 }
 
 class _ProJournalScreenState extends State<ProJournalScreen> {
-  String get _providerId => context.read<ProAuthProvider>().activeSalonId ?? '';
+  SalonId get _providerId =>
+      context.read<ProAuthProvider>().activeSalonId ?? SalonId.none;
 
   /// Collaborateur own-mode (access R4b §5.3): « Ma journée » shows the
   /// member's own planning only — the lock + hidden actions below; the
@@ -124,7 +132,9 @@ class _ProJournalScreenState extends State<ProJournalScreen> {
             // Null in salon mode, and null is what renders nothing — a
             // `bool ownMode` would still have to decide what an empty name
             // draws, and the honest answer is « no line at all ».
-            salonName: ownMode ? auth.salonName : null,
+            // The line names the salon; with no name there is nothing to
+            // say (« votre salon » centred over the day was the fallback).
+            salonName: ownMode ? auth.knownSalonName : null,
           ),
           Expanded(child: _body(journal)),
         ],
@@ -149,36 +159,61 @@ class _ProJournalScreenState extends State<ProJournalScreen> {
     }
   }
 
-  Widget _body(ProJournalProvider journal) {
-    if (journal.isLoading && journal.day == null) {
-      return const LoadingIndicator();
-    }
-    if (journal.error != null && journal.day == null) {
-      return EmptyState(
-        icon: Icons.wifi_off,
-        title: 'Une erreur est survenue',
-        description: journal.error,
-        actionText: 'Réessayer',
-        onAction: () => journal.load(
-          _providerId,
-          tz: context.read<ProAuthProvider>().salonTimezone,
-        ),
-      );
-    }
+  Widget _body(ProJournalProvider journal) => AppAsyncView<JournalDay>(
+    isLoading: journal.isLoading,
+    error: journal.error,
+    // A day CHANGE keeps the last day's rows until its answer — by design
+    // (`ProJournalProvider._dayKey`).
+    data: journal.day,
+    // A day with nothing booked is still the day: its own empty state, with
+    // the invitations above it.
+    isEmpty: (_) => false,
+    loading: const SkeletonCardList(),
+    empty: const SizedBox.shrink(),
+    onRetry: () => journal.load(
+      _providerId,
+      tz: context.read<ProAuthProvider>().salonTimezone,
+    ),
+    onRefresh: journal.refresh,
+    builder: (context, _) => _day(journal),
+  );
+
+  Widget _day(ProJournalProvider journal) {
     final items = journal.visibleAppointments;
+    // The Collaborateur's « Journée » is their landing screen: their own
+    // invitations sit at the top of the day, as on « Accueil » — and only
+    // there, the salon's « Ma journée » is opened from « Accueil », which
+    // has them (pro-app-batch7.md §2.6, B7.6).
+    final invitations = _ownMode;
     return BrandRefresh(
-      onRefresh: journal.refresh,
+      onRefresh: () async {
+        if (invitations) {
+          unawaited(context.read<ProTeamProvider>().loadMyInvitations());
+        }
+        await journal.refresh();
+      },
+      // One control for a new booking: the floating « Nouveau » (decision
+      // 25). The empty state's own « + Nouvelle réservation » pushed the same
+      // route, and at 200 % the two touched (B7.4, SYSTEM §21 row 81).
       child: items.isEmpty
           ? ListView(
+              padding: const EdgeInsets.only(bottom: AppTheme.fabClearance),
               children: [
+                if (invitations)
+                  // Its own padding, not a wrapper's: a day with no
+                  // invitation keeps no strip of it.
+                  const ProInvitationsCard(
+                    padding: EdgeInsets.fromLTRB(
+                      AppTheme.spacingM,
+                      AppTheme.spacingS,
+                      AppTheme.spacingM,
+                      0,
+                    ),
+                  ),
                 const SizedBox(height: AppTheme.spacingXXXL),
-                EmptyState(
+                const EmptyState(
                   icon: Icons.event_available,
                   title: 'Aucun rendez-vous ce jour',
-                  actionText: _ownMode ? null : '+ Nouvelle réservation',
-                  onAction: _ownMode
-                      ? null
-                      : () => context.push('/pro/appointment/new'),
                 ),
               ],
             )
@@ -187,9 +222,12 @@ class _ProJournalScreenState extends State<ProJournalScreen> {
                 AppTheme.spacingM,
                 AppTheme.spacingS,
                 AppTheme.spacingM,
-                96,
+                AppTheme.fabClearance,
               ),
-              children: _rows(journal, items),
+              children: [
+                if (invitations) const ProInvitationsCard(),
+                ..._rows(journal, items),
+              ],
             ),
     );
   }
@@ -745,8 +783,8 @@ class _ArtistChips extends StatelessWidget {
   Widget _chip(BuildContext context, String label, bool selected, String? id) {
     return Padding(
       padding: const EdgeInsets.only(right: AppTheme.spacingS),
-      child: FilterChip(
-        label: Text(label),
+      child: AppChip.choice(
+        label: label,
         selected: selected,
         onSelected: (_) => journal.setArtistFilter(selected ? null : id),
       ),
@@ -773,6 +811,19 @@ class _TimelineCard extends StatelessWidget {
       AppointmentStatus.cancelled => AppColors.textTertiary,
       AppointmentStatus.pending => AppColors.warning,
       AppointmentStatus.confirmed => AppColors.info,
+    };
+  }
+
+  /// [_statusColor]'s mapping, as the badge's tone: the journal's own —
+  /// past is grey, a no-show red, an arrival green.
+  AppChipTone get _statusTone {
+    if (arrived) return AppChipTone.success;
+    return switch (appt.status) {
+      AppointmentStatus.completed => AppChipTone.neutral,
+      AppointmentStatus.noShow => AppChipTone.error,
+      AppointmentStatus.cancelled => AppChipTone.neutral,
+      AppointmentStatus.pending => AppChipTone.warning,
+      AppointmentStatus.confirmed => AppChipTone.info,
     };
   }
 
@@ -833,13 +884,13 @@ class _TimelineCard extends StatelessWidget {
                     ),
                     if ((appt.clientNoShowCount ?? 0) >= 1) ...[
                       const SizedBox(width: AppTheme.spacingXS),
-                      _badge(
-                        appt.clientNoShowCount == 1
+                      AppChip.status(
+                        label: appt.clientNoShowCount == 1
                             ? '1 absence'
                             : '${appt.clientNoShowCount} absences',
-                        (appt.clientNoShowCount ?? 0) >= 2
-                            ? AppColors.error
-                            : AppColors.textSecondary,
+                        tone: (appt.clientNoShowCount ?? 0) >= 2
+                            ? AppChipTone.error
+                            : AppChipTone.neutral,
                       ),
                     ],
                     if (appt.depositAmount > 0) ...[
@@ -865,25 +916,8 @@ class _TimelineCard extends StatelessWidget {
               ],
             ),
           ),
-          _badge(statusLabel, _statusColor),
+          AppChip.status(label: statusLabel, tone: _statusTone),
         ],
-      ),
-    );
-  }
-
-  Widget _badge(String label, Color color) {
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppTheme.spacingS,
-        vertical: AppTheme.spacingXS,
-      ),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
-      ),
-      child: Text(
-        label,
-        style: AppTextStyles.labelSmall.copyWith(color: color),
       ),
     );
   }

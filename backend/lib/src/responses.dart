@@ -143,6 +143,7 @@ Response teamResponse(
       'invitation_expired',
     ),
     'invalid_state' => jsonError(HttpStatus.conflict, 'invalid_state'),
+    'member_revoked' => jsonError(HttpStatus.conflict, 'member_revoked'),
     'invite_rate_limited' => jsonError(
       HttpStatus.tooManyRequests,
       'invite_rate_limited',

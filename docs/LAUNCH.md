@@ -3,6 +3,7 @@
 | | |
 |---|---|
 | **Status** | Living document. Nothing here is done until its box is ticked **with evidence**. |
+| **Pro 0.0.1** | **2026-11-04: resubmitted at 00:02:00 UTC with build 719, in review (`WAITING_FOR_REVIEW`, release `MANUAL`, per the API); B0.1 applies. Still open: Apple's decision; a green scheduled « Production checks » run after `713114a5` and `7a2c7e15` (the last is 13:16 UTC on 2026-11-03, on `4e78e485`); a successful Apple sign-in on an iPad, unobserved; the production backend deploy after Apple's decision, the one that switches on the Apple keys; the release by hand after approval; merging the docs PR that holds this record.** The record: §6.2 and [design/app-review-round-2.md](design/app-review-round-2.md) §12. |
 | **Order** | **Web first → iOS → Android last** (§3) — *amended 2026-09-24 (owner): the **Pro app goes to the Apple App Store first** — TestFlight and App Review now, the public release still behind production restored and stable (§3)* |
 | **Related** | [ROADMAP.md](ROADMAP.md) · [BACKLOG.md](BACKLOG.md) (what is left, and how we will solve it) · [DEPLOYMENT.md](DEPLOYMENT.md) · [BACKEND.md](BACKEND.md) · [design/mobile-store-submission.md](design/mobile-store-submission.md) |
 
@@ -48,6 +49,16 @@ questions none of our gates can answer:
      signed 2026-08-29 — but it is superseded by the App Store audit and was
      never uploaded as far as this repo records; the next one is a rebuild,
      §6.2.)*
+     *(2026-10-22: Pro builds 551 to 587 have been signed and uploaded since;
+     587 (0.0.1) is in App Review. `release_build.sh` built every one, so they
+     carry the DSN; whether an event from a store build has reached Sentry is
+     not recorded here.)*
+     *(2026-11-03: Apple refused 587 on 2026-10-19 and its replacement, 698, on
+     2026-11-03. The next build of 0.0.1, 719, was made the same night by the same
+     script and carries the DSN (2 occurrences in the binary, compared without
+     printing). It is uploaded, in TestFlight and attached to version 0.0.1. Not submitted on
+     that date; on 2026-11-04 the API reads `WAITING_FOR_REVIEW`, submitted at 00:02:00 UTC:
+     [design/app-review-round-2.md](design/app-review-round-2.md).)*
    Uptime checks on `/health` and a database-backed route are live and alerting
    to a human, verified against real probe data
    (§5.2, [design/observability-error-reporting.md](design/observability-error-reporting.md)).
@@ -119,6 +130,9 @@ We already have the machinery for this: `--dart-define=API_BASE_URL=…` and the
 is missing is a build actually pointed at it — no TestFlight or internal-track
 build has been produced at all (§6.2, §6.3). *(2026-09-24: a signed Pro IPA
 exists but was never uploaded; nothing is in TestFlight yet.)*
+*(2026-10-22: Pro builds have gone through TestFlight since 555, on
+2026-10-10 — every one pointed at production. A staging-pointed build still
+does not exist.)*
 
 ### 1.4 The constraint that makes mobile different from web
 
@@ -133,12 +147,16 @@ consequences, all of which change how we work:
   never a destructive change in one step).
 - **Staged rollout.** Play supports percentage rollouts (1% → 5% → 20% → 100%);
   the App Store has phased release over 7 days. Both let you halt. Use them, and
-  watch the crash rate between steps — which requires §5.2.
+  watch the crash rate between steps — which requires §5.2. *(2026-10-28: on
+  iOS, BACKLOG B0.7's three issue alerts watch it —
+  [observability §8.3](design/observability-error-reporting.md).)*
 - **A forced-upgrade path.** A minimum-supported-version check the app honours,
   so that when we *must* retire an old client we can tell it to update rather
   than serve it something it will mishandle. **This is built** (§5.3); what is
   still owed is the iOS `updateUrl`, which stays NULL until the App Store listing
   exists.
+  *(2026-10-22: the listing exists — Apple ID 6805272779; setting the URL is
+  BACKLOG B0.5.)*
 
 ### 1.5 Feature flags — deploying without exposing
 
@@ -148,6 +166,13 @@ already exists in the app and is used this way (`futureProviderFeatures`,
 behind a flag, off; enable for ourselves; then everyone. It also gives a kill
 switch that does not need a store release — which, per §1.4, is the only kind of
 switch that works quickly on mobile.
+
+**Before turning `futureProviderFeatures` on** (the V2/V3 Pro screens), settle
+what was decided while they slept:
+- **The « Rapports » chart counts « Total réalisé »** — completed bookings, the
+  « Revenus » screen's word — not « Revenus prévus » (decision 30,
+  [product-questions-batch8.md](design/product-questions-batch8.md) §2.4). Its
+  figures are written by hand today.
 
 ---
 
@@ -198,7 +223,8 @@ absent:
   live costs nothing. *This line used to say "Sign in with Apple working"; it is
   not *proven*, because no signed build exists (2026-09-24: one exists, with
   the entitlement baked in, but Sign in with Apple has never been exercised on
-  a device — §6.2). The entitlement itself is
+  a device — §6.2). *(2026-10-22: signed builds 551–587 exist; Sign in
+  with Apple has still not been exercised on a device — BACKLOG B0.2.)* The entitlement itself is
   in **both** files — `Runner.entitlements` and `RunnerRelease.entitlements`,
   pinned by `mobile/test/infra/ios_entitlements_test.dart` — since 2026-08-18.
   This line said « the entitlement is absent » for four days after it landed.*
@@ -223,6 +249,12 @@ starts. Concretely:
   with the demo account against `api.myweli.com` (guideline 2.1), so the
   outage (billing disabled by 2026-09-16, both databases suspended on
   2026-09-23) blocks the submission itself; only the upload and internal TestFlight can precede it.
+  *(2026-10-22: billing reopened on 2026-10-06 and production was restored;
+  build 587 was submitted and is in App Review, its release set to manual —
+  BACKLOG B0.1.)*
+  *(2026-11-03: Apple refused 587 on 2026-10-19 and 698 on 2026-11-03; the next
+  submission waits on the owner — [design/app-review-round-2.md](design/app-review-round-2.md) §12.)*
+  *(2026-11-04: resubmitted at 00:02:00 UTC with build 719, in review; the release stays manual and stays behind this section.)*
 - The consumer app and Android keep their places in the order.
 
 The form-by-form packet, the rebuild commands and the owner's ordered
@@ -284,7 +316,10 @@ These block everything. None is surface-specific.
       half cannot be proven where it has to be. *(2026-09-24: a signed Pro IPA
       exists but has never run in anyone's hands, so no mobile event has been
       seen from a store build; and while the billing account is closed the
-      script cannot read the DSN at all.)* Whether the *web* trigger was
+      script cannot read the DSN at all.)* *(2026-10-22: billing is restored and
+      signed builds exist; the app half now waits on BACKLOG B0.7 — sessions
+      are off, so a crash-free rate has nothing to measure.)* *(2026-10-28: B0.7
+      done — three issue alerts on `production`, observability §8.3.)* Whether the *web* trigger was
       seen in the Sentry dashboard is recorded twice in this document with
       opposite answers (§5.2 names an issue id; §8 says it never happened):
       **UNVERIFIED from this repo** — only the Sentry UI settles it.
@@ -456,8 +491,16 @@ These block everything. None is surface-specific.
       found by a user and none by the guard written after the previous one. What
       caught the third and fourth was auditing the deployed artifact against the
       plan rather than reading the source.
-- [ ] **A support channel exists** and someone is behind it (WhatsApp per the
-      product's context).
+- [x] **A support channel exists** and someone is behind it (WhatsApp per the
+      product's context). **Checked 2026-10-28 — e-mail, not WhatsApp**
+      (messaging waits on company registration):
+      - **The page:** `https://myweli.com/support` answers 200, and its only
+        contact is `support@myweli.com`.
+      - **The address exists:** myweli.com's Microsoft 365 mail server accepts
+        it (`250`) and rejects a made-up address (`550 5.4.1`).
+      - **Someone reads it:** the owner's test e-mail arrived where they read
+        mail (owner-reported).
+      - BACKLOG batch 10.
 - [x] **Rate limiting** verified on the auth and booking routes against a real
       hostile pattern, not a unit test. **All three probed against deployed
       environments, each with its control** — see the bullets below. The separate
@@ -773,7 +816,12 @@ boxes below.
       channel that could not have shown it.
 - [ ] Alert thresholds agreed — what crash rate halts a staged rollout. The
       number must land **in this document**, not only in a design doc, and the crash-free-sessions alert waits on a **signed build** — the mobile
-      DSN itself has existed since 2026-08-18.
+      DSN itself has existed since 2026-08-18. *(2026-10-22: signed builds exist;
+      the alert is replaced by three issue alerts instead — sessions are off to
+      keep the privacy promise — BACKLOG B0.7.)* *(2026-10-28: the three alerts
+      exist — a new issue in the latest release; more than 3 users in an hour;
+      freezes for more than 3 users in an hour. What halts a phased release on
+      them is still to be written here.)*
 
 ### 5.3 No forced-upgrade path — **built 2026-08-18**
 
@@ -1056,7 +1104,9 @@ checking rather than assuming:
 > (app-store-forms.md §11.1). The App Store Connect record **exists** — Apple
 > ID 6805272779, SKU myweli-pro, verified read-only in App Store Connect
 > (app-store-forms.md §3). The 3.1.1 decision is **taken**: path (a), the
-> free companion app of guideline 3.1.3(f), on **both** apps — no plan choice
+> free companion app of guideline 3.1.3(f) *(2026-11-03: the product decision
+> stands and that guideline is no longer cited, its list being closed:
+> [design/pro-companion-path.md](design/pro-companion-path.md) §1)*, on **both** apps — no plan choice
 > in the Pro app on iOS or Android, the trial starting at a salon's first
 > publish when it never chose ([design/pro-companion-path.md](design/pro-companion-path.md),
 > built 2026-10-05). PR #550 is merged (`f6ffb585`). **Still owner-side:**
@@ -1176,6 +1226,124 @@ checking rather than assuming:
 > (#588), a rehearsal was cut, the day of 14 October is staged on the demo
 > salon, and the take itself can only be shot in daytime; the owner's steps
 > on the App Store Connect site; the device checks on 581.
+>
+> **2026-10-22 — catching up (BACKLOG B9.1).** Build 587 (0.0.1) was
+> submitted and is **in App Review**, its release set to manual (BACKLOG
+> B0.1). Since 2026-10-14: production restored (billing reopened 2026-10-06);
+> the backend deployed twice — batch 6 (`1e3bd81`) and batch 8 (`eca4db6`,
+> revision `myweli-api-00046-bzg`); the app changes merged after #592 (#596
+> onwards) reach users only through 0.0.2 (BACKLOG B0.3). **Still owed**: the
+> device checks on 587 (B0.2); the iOS `updateUrl` (B0.5); the crash alerts
+> that replace the crash-free rate (B0.7 — *done 2026-10-28*); and what App Store Connect itself
+> says — the privacy label, the DSA status, the review's progress — read
+> back in batch 10 (*2026-10-28: all read back; the label matches
+> app-store-forms §7*).
+>
+> **2026-10-25 — 0.0.1 rejected.** Apple refused build 587; the owner gives
+> the reason next. **The resubmission is a new build of 0.0.1** carrying every
+> app fix since 587 (batches 1–9), not a 0.0.2 first (BACKLOG decision 1).
+> Decided the same day (BACKLOG decisions 2–7): the device checks run on the
+> resubmitted build (B0.2); the privacy policy is redrafted for the owner's
+> approval before it goes live (B0.4); the iOS `updateUrl` waits for the
+> release (B0.5); the developer account is **Individual**, and KYC and the
+> deposit switch are hidden on iOS only if Apple cites 5.1.1(ix) (B0.6); the
+> store media change only if needed (B0.8); the unused `remote-notification`
+> mode is removed (B0.9).
+>
+> **2026-10-26 — the reason: guideline 3.1.1.** App Review (2026-10-19, an
+> iPad Air) cited business account registration in the app as access to
+> external purchase mechanisms, and nothing else. **The Pro app becomes
+> login-only on iOS and Android** (BACKLOG B0.11, decisions 38–43,
+> [pro-app-login-only.md](design/pro-app-login-only.md)): sign-up and
+> « Ajouter un salon » stay on the web, invitations stay, and « S’inscrire
+> sur myweli.com » opens the web sign-up — a link the owner keeps knowingly,
+> one widget to remove if App Review objects. The review notes and the
+> Resolution Center reply say so plainly (app-store-forms §8, §13.2).
+>
+> **2026-10-26 — build 698, the resubmission, is in TestFlight.** From
+> `main` at `54b02dac` (#711, with every app fix since 587): built by
+> `release_build.sh`, the IPA re-read (no background mode; B0.11's sign-up
+> strings gone, the web link in), validated, uploaded, `VALID`, read as
+> French; the only build in « Équipe MyWeli », with a new « What to Test »
+> (sign up on myweli.com); not in « Testeurs externes »; symbols and 20
+> commits on Sentry (app-store-forms §11.5, §12). **Left to the owner**: the
+> device checks on 698 (BACKLOG B0.2), then attach 698 to version 0.0.1,
+> paste the §8 notes, send the §13.2 reply and resubmit (B0.3).
+>
+> **2026-10-26 (night) — 0.0.1 resubmitted with build 698.** Read back
+> through the App Store Connect API: 698 attached to version 0.0.1 in place
+> of 587 and the §8 notes in place (both written through the API on the
+> owner's go); at 23:33 UTC the owner resubmitted, and the same submission
+> (`45ed9726…`) went from `UNRESOLVED_ISSUES` to `WAITING_FOR_REVIEW`, with
+> manual release. As reported by the owner, not observable from here: the
+> device checks on 698 (BACKLOG B0.2) and the Resolution Center reply
+> (app-store-forms §13.2). BACKLOG B0.1's « while in review » constraints
+> apply again.
+>
+> **2026-11-03 — refused again: guidelines 2.3.4 and 3.1.1, build 698.** App Review (an
+> iPad Air) cited the framing around the film's capture, and the sign-in's « S'inscrire
+> sur myweli.com », with « remove features, account registration links, and any other
+> links to your site… ». So the link kept knowingly above is gone, on iOS and Android. **The
+> answer was built on `fix/app-review-round2` and merged the same day, below** (BACKLOG B0.16, decisions 71–81,
+> [app-review-round-2.md](design/app-review-round-2.md)): no link on the sign-in; the five pages
+> the app opens without the salon links; the full-bleed cut of the film, its end card and « Total »
+> an accepted risk; review notes without 3.1.3(f); a focused device pass. **Web merges are production
+> deploys: the five pages went live at the merge, and the build came after. No production backend deploy**
+> (decision 47): no step needs one. Until the next « Add for Review », B0.1's constraints are lifted. *They apply again from 00:02:00 UTC on 2026-11-04, per the API: below.*
+>
+> **2026-11-03, night — #731 merged, the web live, build 719 in TestFlight; not resubmitted.** Squash
+> `713114a5` at 22:25:58 UTC, all 13 checks green; Vercel's production deployment of it succeeded. Read live
+> at 22:37:15 UTC with an iPad user agent, the five pages hold 0 of `/professionnels`, `/pro/inscription`,
+> `/pro/connexion`, `/pro/salons/nouveau` and « facturation »; `/` and `/connexion` still hold the links (the
+> limits of that read: the spec's §13). Build **719**, from `713114a5`: IPA read, validated, uploaded, `VALID`,
+> read as French, the only build in « Équipe MyWeli », symbols and a release on Sentry (app-store-forms §11.3,
+> §11.5). Version 0.0.1 was then still `REJECTED`, release `MANUAL`, with 698 attached: the next paragraph changes that.
+>
+> **2026-11-03, later that night — App Store Connect holds the new page; not resubmitted at that read.** *Owner-reported:* the focused
+> pass, « my results passed », on their iPhone, on signed build 719; « Continuer avec Apple » there showed « Aucun compte
+> MyWeli Pro… »; the Instagram bio does not link to salon sign-up; the demo salon's « Avis » has no review. *Step 5 ran on
+> that iPhone, not an iPad.* At about 23:43 UTC, on an iPad Air 11-inch (M3) simulator, a debug build from `713114a5` showed no
+> link on the sign-in, and one tap on « Continuer avec Apple » ended on B0.14's sentence after Apple's system dialog was
+> closed. A successful Apple sign-in on an iPad remains unobserved. After the owner's results, as they had been told: the film at
+> 23:49 UTC, previews `17000019-5a03-88cb-8118-40e21663fe37` (`IPHONE_67`) and `f3000019-5a03-88cb-8114-ec9980fce3b8`
+> (`IPHONE_61`), 14,309,442 bytes, `sourceFileChecksum` `543d367a6caf1b1069d0cd62e2246177` read back on both, `COMPLETE`, poster
+> `00:00:13:00` read back on both (Apple ignored the time at reservation and at commit, and a PATCH after processing took); the
+> framed films deleted after that (204); the description, 1,039 characters; build 719 attached (204), read back as
+> `4eb50f72-f6d1-4ca2-ad6a-e5e544fdb25f`; the notes, 3,991 bytes, with one clause the owner delegated (decision 81). The
+> description and the notes read back identical. Version 0.0.1 was `PREPARE_FOR_SUBMISSION`, release `MANUAL`; submission `45ed9726…` was `UNRESOLVED_ISSUES`, as it
+> stood then. **Not done at that read:** the demo sign-in and the no-account address on that iPad, « View All Sizes in Media Manager », the
+> reply (given to the owner with 719), « Add for Review », the read-back after it. The last scheduled « Production checks » run
+> was green at 13:16 UTC on `4e78e485`, before the merge; a green run after `713114a5` has not been observed. The backend is
+> not deployed.
+>
+> **2026-11-04 — in review, per the API.** Read twice by Claude's review of this record, the second at 00:18 UTC: version 0.0.1
+> `WAITING_FOR_REVIEW`, release `MANUAL`; submission `45ed9726…` `WAITING_FOR_REVIEW`, submitted at 00:02:00 UTC by an actor of type
+> `USER`, not an API key, its item `READY_FOR_REVIEW`. B0.1's constraints apply from then, and a merge to `main` is a production
+> deployment even when it is docs only. Not readable there: whether the Resolution Center reply was sent, and which person
+> submitted. #732 (the
+> `%2F` and `%5C` spellings) merged at 23:59:03 UTC on 2026-11-03 as `7a2c7e15` and its production deployment succeeded at 00:01:08 UTC, 52 seconds
+> before the submission; the raw read is clean, as it was before #732, so it proves nothing about the fix.
+>
+> **2026-11-04 — the owner's answers and the rendered read.** *Owner-reported, not observable from here:* on an iPad Air 11-inch (M3)
+> simulator, a debug build of the pro flavour from `713114a5`, not signed 719: « demo sign-in on the iPad passed, Maison Nala loaded, and I received the code on another email and when entered it said aucun compte myweli... ». And « I checked Media Manager and
+> sent the reply », the reply being the app-store-forms §13.2 block with 719. The owner did not say whether the Media Manager read came
+> before or after the submission, so no order is stated. *Observed by Claude:* at 00:04 UTC, on that simulator, the no-account screen:
+> the full sentence « Aucun compte MyWeli Pro n’est associé à cette adresse. Si votre salon vous a invité, connectez-vous avec l’adresse qui a reçu l’invitation. », with only « Se connecter », « Renvoyer le code » and
+> « Changer d’e-mail » beside it: nothing about signing up. At 00:05 UTC, through the API: submission `45ed9726…` `WAITING_FOR_REVIEW`,
+> `submittedDate` 2026-11-04T00:02:00.35Z, item `READY_FOR_REVIEW`; version 0.0.1 `WAITING_FOR_REVIEW`, release `MANUAL`, build 719
+> attached; the film, the description and the notes still as written. At 00:06 UTC, raw, with an iPad user agent: the five pages show 0 of
+> `/professionnels`, `/pro/inscription`, `/pro/connexion` and « facturation », the controls `/` 4, 1, 1 and `/connexion` 2, 1, 1, and
+> `/support%2F`, `/%2Fsupport` and `/support%5C` are also 0. **The rendered read owed by #732, done for one address:** real Safari on
+> that simulator at 00:06 UTC opened `/support%2F` and, after hydration, the header ends on « Mon compte » with no « Espace pro ». The
+> frame shows the header, the body and the top of the footer's wordmark, not the footer's links. Before #732 the same address showed the
+> salon links after hydration, which is the control. The other spellings were read raw in that pass, and all 20 forms rendered in Chromium (#733).
+>
+> **Still open on 2026-11-04:** Apple's decision; a green scheduled « Production checks » run after `713114a5` and `7a2c7e15` (the last is
+> 13:16 UTC on 2026-11-03, on `4e78e485`; read again at 00:40 UTC); a successful Apple sign-in on an iPad, unobserved, since the signed
+> build ran on the owner's iPhone (where it gave « Aucun compte MyWeli Pro… ») and the simulator has no Apple account; the production
+> backend deploy after Apple's decision, the one that switches on the Apple keys; the release by hand after approval; merging the docs PR
+> that holds this record, whose merge deploys production with an unchanged web tree, and which the owner chose on 2026-11-04 to merge after green, in review. B0.1 applies
+> since 00:02:00 UTC.
 
 - [ ] Everything in [mobile-store-submission.md](design/mobile-store-submission.md) §5.
       Two of its claims are **stale as of 2026-08-18** and must be corrected
@@ -1207,12 +1375,19 @@ checking rather than assuming:
       but is superseded; nothing has been uploaded, as far as this repo
       records. The device checks this box asks for are listed in
       app-store-forms.md §11.6.*
+      *2026-10-22: builds 555–587 went through internal TestFlight; the owner
+      is invited. Someone other than the developer exercising one is still
+      owed — the device checks are BACKLOG B0.2.*
 - [ ] Screenshots, description, keywords, age rating, privacy questionnaire.
       *2026-09-24: for the Pro app every answer is pre-derived —
       app-store-forms.md §4 (texts, counted in characters and bytes), §6 (age
       rating), §7 (App Privacy), §10 (6.9-inch iPhone screenshots only: Pro is
       iPhone-only since `68fc33c`). Unticked until typed into App Store Connect
       and the screenshots exist.*
+      *2026-10-22: the texts and 16 screenshots were entered on 2026-10-13, and
+      the version was submitted — App Store Connect takes no submission
+      without its privacy answers. Ticking waits for the read-back of what
+      they say (BACKLOG batch 10).*
 - [ ] Sign in with Apple working in the signed build (rule 4.8). **Both halves
       are in place** as of 2026-08-18: `com.apple.developer.applesignin` is in
       both entitlements files (pinned by `test/infra/ios_entitlements_test.dart`,
@@ -1227,7 +1402,9 @@ checking rather than assuming:
       §11.6).*
 - [ ] Phased release enabled. *(2026-09-24: Apple's phased release applies to
       updates, so there is nothing to phase on 1.0.0; the first version is set
-      to manual release instead — app-store-forms.md §9.)*
+      to manual release instead — app-store-forms.md §9.)* *(2026-10-22: the first
+      version is 0.0.1, not 1.0.0 — still manual release; phased release
+      applies from 0.0.2, after B0.7.)* *(2026-10-28: B0.7 done.)*
 
 ### 6.3 Android (last)
 
@@ -1244,6 +1421,14 @@ checking rather than assuming:
       apps live in [design/play-store-forms.md](design/play-store-forms.md),
       each derived from the published privacy policy or the binary, never
       invented. The operator types; the thinking is done.
+      *(2026-10-28, B0.10: re-audited for **MyWeli Pro only** (decision 51),
+      against the release APK, Google's pages and the iOS label:
+      - crash data takes « Analyses »; « ID utilisateur », « Fichiers et
+        documents » and « Historique des recherches » are added;
+      - the sign-in text is in English.
+      Claude types it in the browser pane, the owner signed in (decision 53).
+      Production waits for a 12-tester, 14-day closed test (decision 52).
+      MyWeli is re-audited before its own submission.)*
 
 ---
 
@@ -1409,7 +1594,10 @@ Run actually reach Vercel*.
       ```
 
       These also run daily from `production-checks.yml`, so a regression after
-      this point surfaces on its own.
+      this point becomes a comment on the issue « Production checks are failing ».
+      A comment is all it becomes: a false alarm stayed red for 13 days (2026-10-21
+      to 2026-11-02) before anyone looked. Read the last run too:
+      `gh run list --workflow=production-checks.yml --limit 3`.
 
 Design: [design/backend-web-rebuild-hook.md](design/backend-web-rebuild-hook.md).
 

@@ -1,8 +1,10 @@
 import 'package:flutter/foundation.dart';
 
 import '../core/access/pro_salon_scope.dart';
+import '../core/constants/failure_messages.dart';
 import '../core/di/dependency_injection.dart';
 import '../core/utils/deposit.dart';
+import '../core/utils/salon_id.dart';
 import '../services/interfaces/pro_service_interface.dart';
 
 /// Holds the editable deposit policy for the signed-in provider and persists it
@@ -24,6 +26,12 @@ class ProDepositSettingsProvider extends ChangeNotifier implements SalonScoped {
   bool get isLoading => _isLoading;
   bool get isSaving => _isSaving;
   bool get loadFailed => _loadFailed;
+
+  /// The policy is the salon's, not the defaults these fields start with:
+  /// a read has answered since the last salon switch (B9.8). The form waits
+  /// for it — on the first frame it showed the defaults.
+  bool get loaded => _loaded;
+  bool _loaded = false;
   String? get error => _error;
 
   /// Machine code of the last failed [save] (`invalid_phone`), so the form
@@ -61,13 +69,15 @@ class ProDepositSettingsProvider extends ChangeNotifier implements SalonScoped {
     notifyListeners();
   }
 
-  Future<void> load(String providerId) async {
+  Future<void> load(SalonId providerId) async {
+    final scope = _scope;
     _isLoading = true;
     _error = null;
     notifyListeners();
 
     try {
       final response = await _proService.getDepositPolicy(providerId);
+      if (scope != _scope) return;
       if (response.success && response.data != null) {
         _depositRequired = response.data!.depositRequired;
         // 0 % is « not chosen yet »: every new salon is stored with it, and
@@ -78,22 +88,27 @@ class ProDepositSettingsProvider extends ChangeNotifier implements SalonScoped {
         _cancellationWindowHours = response.data!.cancellationWindowHours;
         _mobileMoneyOperator = response.data!.mobileMoneyOperator;
         _mobileMoneyNumber = response.data!.mobileMoneyNumber ?? '';
+        _loaded = true;
         _loadFailed = false;
         _error = null;
       } else {
         _loadFailed = true;
-        _error = response.error ?? 'Erreur lors du chargement';
+        _error = response.error ?? kGenericErrorMessage;
       }
     } catch (e) {
+      if (scope != _scope) return;
       _loadFailed = true;
-      _error = e.toString();
+      _error = kGenericErrorMessage;
     } finally {
-      _isLoading = false;
-      notifyListeners();
+      if (scope == _scope) {
+        _isLoading = false;
+        notifyListeners();
+      }
     }
   }
 
-  Future<bool> save(String providerId) async {
+  Future<bool> save(SalonId providerId) async {
+    final scope = _scope;
     _isSaving = true;
     _error = null;
     _errorCode = null;
@@ -112,6 +127,7 @@ class ProDepositSettingsProvider extends ChangeNotifier implements SalonScoped {
         mobileMoneyOperator: _mobileMoneyOperator,
         mobileMoneyNumber: trimmed.isEmpty ? null : trimmed,
       );
+      if (scope != _scope) return response.success;
       if (response.success && response.data != null) {
         _error = null;
         return true;
@@ -120,17 +136,28 @@ class ProDepositSettingsProvider extends ChangeNotifier implements SalonScoped {
       _errorCode = response.code;
       return false;
     } catch (e) {
-      _error = e.toString();
+      if (scope != _scope) return false;
+      _error = kGenericErrorMessage;
       return false;
     } finally {
-      _isSaving = false;
-      notifyListeners();
+      if (scope == _scope) {
+        _isSaving = false;
+        notifyListeners();
+      }
     }
   }
 
   /// R6 multi-salons: drop the previous salon's data on a switch.
+  /// Which salon this state belongs to — moved by [resetForSalonSwitch]
+  /// only. A read or a write takes it before it awaits and writes nothing
+  /// when it moved meanwhile: its answer is the previous salon's, or the
+  /// previous account's (docs/design/pro-account-scope.md §2.2).
+  int _scope = 0;
+
   @override
   void resetForSalonSwitch() {
+    _scope++;
+    _loaded = false;
     _isLoading = false;
     _isSaving = false;
     _loadFailed = false;

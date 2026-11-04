@@ -6,6 +6,7 @@ import 'package:myweli/core/di/dependency_injection.dart';
 import 'package:myweli/core/theme/app_theme.dart';
 import 'package:myweli/core/theme/colors.dart';
 import 'package:myweli/core/utils/app_clock.dart';
+import 'package:myweli/core/utils/salon_id.dart';
 import 'package:myweli/models/provider.dart' as models;
 import 'package:myweli/providers/appointment_provider.dart';
 import 'package:myweli/providers/favorites_provider.dart';
@@ -67,7 +68,7 @@ void main() {
           ),
         ],
         home: const ProviderDetailScreen(
-          providerId: 'provider1',
+          providerId: SalonId('provider1'),
           preview: true,
         ),
       ),
@@ -297,7 +298,7 @@ void main() {
         ChangeNotifierProvider(create: (_) => AppointmentProvider()),
         ChangeNotifierProvider(create: (_) => FavoritesProvider()),
       ],
-      subject: const ProviderDetailScreen(providerId: 'provider1'),
+      subject: const ProviderDetailScreen(providerId: SalonId('provider1')),
       rounds: 5,
     );
     return salon;

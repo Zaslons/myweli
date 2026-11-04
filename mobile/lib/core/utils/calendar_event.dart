@@ -1,5 +1,6 @@
 import 'package:add_2_calendar/add_2_calendar.dart';
 
+import '../constants/unnamed_salon.dart';
 import 'formatters.dart';
 
 /// Plain, package-free description of a calendar entry built from an
@@ -27,7 +28,7 @@ class CalendarEventData {
 /// description lists the services and, when a deposit applies, the
 /// acompte/solde line — mirroring what the detail screen already shows.
 CalendarEventData buildAppointmentCalendarEvent({
-  required String providerName,
+  required String? providerName,
   String? providerAddress,
   required List<String> serviceNames,
   required DateTime start,
@@ -43,12 +44,15 @@ CalendarEventData buildAppointmentCalendarEvent({
       'Acompte ${Formatters.formatCurrency(depositAmount, currency: currency)} · '
           'Solde ${Formatters.formatCurrency(balanceDue, currency: currency)}',
   ];
+  // A title: « Rendez-vous — Salon » for a salon with no name — it read
+  // « Rendez-vous — le salon » here and « Rendez-vous — MyWeli » on the web.
+  final name = salonNameOr(providerName, kUnnamedSalon);
   return CalendarEventData(
-    title: 'Rendez-vous — $providerName',
+    title: 'Rendez-vous — $name',
     description: lines.join('\n'),
     location: (providerAddress != null && providerAddress.trim().isNotEmpty)
         ? providerAddress
-        : providerName,
+        : name,
     start: start,
     end: start.add(Duration(minutes: minutes)),
   );

@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:myweli/core/utils/salon_id.dart';
 import 'package:myweli/services/mock/mock_pro_service.dart';
 
 void main() {
@@ -7,7 +8,7 @@ void main() {
   setUp(() => service = MockProService());
 
   test('createService carries price range + duration variants', () async {
-    final res = await service.createService('provider1', {
+    final res = await service.createService(SalonId('provider1'), {
       'name': 'Tresses',
       'description': 'selon la longueur',
       'price': 15000,
@@ -49,7 +50,7 @@ void main() {
   test('createManualBooking answers with the length of what was booked — '
       'the sum of its services', () async {
     final res = await service.createManualBooking(
-      providerId: 'provider1',
+      providerId: SalonId('provider1'),
       serviceIds: const ['service1', 'service3'], // 30 + 45 minutes
       appointmentDateTime: DateTime.utc(2027, 1, 15, 14, 30),
       clientName: 'Yao K.',
@@ -64,7 +65,7 @@ void main() {
   test('…and with 30 minutes when the services come to nothing, like the '
       'server', () async {
     final res = await service.createManualBooking(
-      providerId: 'provider1',
+      providerId: SalonId('provider1'),
       serviceIds: const ['unknown'],
       appointmentDateTime: DateTime.utc(2027, 1, 15, 16),
     );

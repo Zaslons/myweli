@@ -1,4 +1,5 @@
 import '../../core/constants/app_constants.dart';
+import '../../core/utils/salon_id.dart';
 import '../../core/utils/salon_time.dart';
 import '../../models/api_response.dart';
 import '../../models/provider.dart';
@@ -92,7 +93,7 @@ class MockProviderService implements ProviderServiceInterface {
   }
 
   @override
-  Future<ApiResponse<Provider>> getProviderById(String id) async {
+  Future<ApiResponse<Provider>> getProviderById(SalonId id) async {
     await Future.delayed(AppConstants.mockDelay);
 
     try {

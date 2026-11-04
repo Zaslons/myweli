@@ -8,6 +8,7 @@ import {
   type Appointment,
   canAttachDeposit,
   canCancel,
+  cancellationNotice,
   canReschedule,
   isUpcoming,
   salonIsLive,
@@ -41,6 +42,8 @@ import { TextField } from "../TextField";
 import { SalonTimeHint } from "../SalonTimeHint";
 import { DepositProof } from "../booking/DepositProof";
 import { ReviewForm } from "./ReviewForm";
+import { loadFailure, loadFailureMessage, type LoadFailure } from "../../lib/api/load-failure";
+import { UNNAMED_SALON, salonNameOr } from '../../lib/salon-name';
 
 export function AppointmentDetailClient({ id }: { id: string }) {
   const router = useRouter();
@@ -52,7 +55,10 @@ export function AppointmentDetailClient({ id }: { id: string }) {
   const [notFound, setNotFound] = useState(false);
   // Any other failed read (no network, a 5xx): « Réessayer », never
   // « introuvable » (docs/design/web-consumer-network-failure.md §3.2).
-  const [loadFailed, setLoadFailed] = useState(false);
+  // Why the read failed (docs/design/app-failure-messages.md §2.2): no answer
+  // says « Pas de connexion » under the title; a server that answered, the
+  // error state's own sentence.
+  const [loadFailed, setLoadFailed] = useState<LoadFailure | false>(false);
   const [cancelError, setCancelError] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -93,7 +99,7 @@ export function AppointmentDetailClient({ id }: { id: string }) {
       return;
     }
     if (r.status !== 200 || !r.appt) {
-      setLoadFailed(true);
+      setLoadFailed(loadFailure(r.status));
       setLoading(false);
       return;
     }
@@ -173,7 +179,11 @@ export function AppointmentDetailClient({ id }: { id: string }) {
     // The page's h1 survives the error (§4), and a way back (§12).
     return (
       <div>
-        <ErrorState title="Rendez-vous" onRetry={() => void load()} />
+        <ErrorState
+          title="Rendez-vous"
+          message={loadFailureMessage(loadFailed)}
+          onRetry={() => void load()}
+        />
         <p className="mt-m">
           <Link href="/mon-compte" className="text-bodyMedium underline">
             ← Mes rendez-vous
@@ -221,7 +231,7 @@ export function AppointmentDetailClient({ id }: { id: string }) {
             clusters" rather than title toolbars. */}
         <div className="flex flex-wrap items-center justify-between gap-m">
           <h1 className="text-titleLarge font-semibold text-textPrimary">
-            {appt.providerName ?? "Salon"}
+            {salonNameOr(appt.providerName, UNNAMED_SALON)}
           </h1>
           <Chip>{statusLabelFr(appt.status)}</Chip>
         </div>
@@ -258,7 +268,7 @@ export function AppointmentDetailClient({ id }: { id: string }) {
               href={googleCalendarUrl(appt)}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex min-h-12 items-center rounded-lg border border-borderStrong bg-surface px-m text-bodyMedium text-textPrimary hover:bg-surfaceVariant"
+              className="inline-flex min-h-12 items-center rounded-control border border-primary bg-surface px-m text-bodyMedium text-textPrimary hover:bg-surfaceVariant"
             >
               Ajouter au calendrier (Google)
             </a>
@@ -275,7 +285,7 @@ export function AppointmentDetailClient({ id }: { id: string }) {
                 el.click();
                 URL.revokeObjectURL(url);
               }}
-              className="inline-flex min-h-12 items-center rounded-lg border border-borderStrong bg-surface px-m text-bodyMedium text-textPrimary hover:bg-surfaceVariant"
+              className="inline-flex min-h-12 items-center rounded-control border border-primary bg-surface px-m text-bodyMedium text-textPrimary hover:bg-surfaceVariant"
             >
               Fichier .ics
             </button>
@@ -288,7 +298,7 @@ export function AppointmentDetailClient({ id }: { id: string }) {
             {appt.providerPhone ? (
               <a
                 href={`tel:${appt.providerPhone.replace(/\s/g, "")}`}
-                className="inline-flex min-h-12 items-center rounded-lg border border-borderStrong bg-surface px-m text-bodyMedium text-textPrimary hover:bg-surfaceVariant"
+                className="inline-flex min-h-12 items-center rounded-control border border-primary bg-surface px-m text-bodyMedium text-textPrimary hover:bg-surfaceVariant"
               >
                 Appeler
               </a>
@@ -298,7 +308,7 @@ export function AppointmentDetailClient({ id }: { id: string }) {
                 href={`https://wa.me/${appt.providerWhatsapp.replace(/[^0-9]/g, "")}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex min-h-12 items-center rounded-lg border border-borderStrong bg-surface px-m text-bodyMedium text-textPrimary hover:bg-surfaceVariant"
+                className="inline-flex min-h-12 items-center rounded-control border border-primary bg-surface px-m text-bodyMedium text-textPrimary hover:bg-surfaceVariant"
               >
                 WhatsApp
               </a>
@@ -492,10 +502,8 @@ export function AppointmentDetailClient({ id }: { id: string }) {
             ) : (
               <div className="rounded-lg bg-surface p-m">
                 <p className="text-bodyLarge text-textSecondary">
-                  Confirmer l’annulation&nbsp;?
-                  {appt.depositAmount
-                    ? " L’acompte peut ne pas être remboursé selon la politique du salon."
-                    : ""}
+                  Confirmer l’annulation&nbsp;?{" "}
+                  {cancellationNotice(appt, new Date(), currency)}
                 </p>
                 <div className="mt-s flex gap-s">
                   <Button
@@ -517,7 +525,7 @@ export function AppointmentDetailClient({ id }: { id: string }) {
           <div className="mt-l">
             <Link
               href={rebookHref(appt)!}
-              className="inline-flex items-center justify-center rounded-lg bg-primary px-l py-s text-labelLarge font-medium text-secondary hover:bg-primaryHover"
+              className="inline-flex items-center justify-center rounded-control bg-primary px-l py-s text-labelLarge font-medium text-secondary hover:bg-primaryHover"
             >
               Réserver à nouveau
             </Link>

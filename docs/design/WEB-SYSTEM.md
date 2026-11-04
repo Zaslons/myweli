@@ -26,6 +26,7 @@ Enforced by the **`myweli-web-guardrails`** skill.
 · [11 Rendering & performance](#11-rendering--performance) · [12 SEO / AEO / GEO](#12-seo--aeo--geo)
 · [13 The app-install push](#13-the-app-install-push) · [14 Enforcement](#14-enforcement)
 · [15 The known-violations register](#15-the-known-violations-register)
+· [16 The public pages' look](#16-the-public-pages-look)
 
 ---
 
@@ -54,12 +55,12 @@ mapping:
 | `textDisabled` `#9E9E9E` | `text-textDisabled` | Disabled controls only |
 | `divider` `#E0E0E0` | `border-divider` | Decorative rules |
 | `border` `#D0D0D0` | `border-border` | Container hairlines |
-| **`borderStrong`** `#8A8A8A` | `border-borderStrong` | **Every interactive control's boundary** |
+| **`borderStrong`** `#8A8A8A` | `border-borderStrong` | **An interactive control's boundary.** On the web since B11.6: chips and the before/after viewer only; fields and buttons use the black line (§16) |
 | **`borderFocus`** `#000000` | `outline-borderFocus` | The focus ring (§5) |
 | semantic | `text-success` `bg-error` … | Status only |
 | **`gold`** `#B5830A` | `border-gold` `bg-gold/15` | Non-text accent (3.10:1 on `surfaceVariant`, the worst surface — darkened from `#B8860B`/2.98 in the mirror-debt slice, §15 row 23). **Was missing from `tokens.ts` entirely**, so `TeamRoleChip` silently substituted `starRating` — a drift bug the closed theme (§2) makes impossible. |
-| spacing | `p-m` `gap-s` … + **`sm` = 12px** · **`0`** · **`xxxl` = 64px** | `sm` (the §5 half-step) and `xxxl` were in the apps and had silently gone missing from the web mirror — the **second** drift after `gold`, and more evidence for row 19's generator. `0` is not a "spacing value" but `inset-0`/`pb-0` need the key. |
-| radius | `rounded-lg` … + **`rounded-pill`** | `pill` = 999px, mirroring `AppTheme.radiusPill`. It replaces `rounded-full`, which was Tailwind's own key and dies with the closed theme. |
+| spacing | `p-m` `gap-s` … + **`sm` = 12px** · **`0`** · **`xxxl` = 64px** · **`fab` = 96px** | `sm` (the §5 half-step) and `xxxl` were in the apps and had silently gone missing from the web mirror — the **second** drift after `gold`, and more evidence for row 19's generator. `0` is not a "spacing value" but `inset-0`/`pb-0` need the key. `fab` mirrors `AppTheme.fabClearance` (B7.4): `pb-fab` is what a view that scrolls under a floating button owes it at its end (SYSTEM §13.3). |
+| radius | `rounded-lg` … + **`rounded-pill`** + **`rounded-control`** (0, web-only: §16) | `pill` = 999px, mirroring `AppTheme.radiusPill`. It replaces `rounded-full`, which was Tailwind's own key and dies with the closed theme. |
 | z-index | `z-sticky` `z-modal` … | The layer, **named** — never a number (§9). |
 | motion | `duration-base` … | SYSTEM.md §9's scale. `transitionDuration.DEFAULT` **must** stay defined: every bare `transition`/`transition-colors` reads it, so dropping it makes them all instant — silently. |
 
@@ -113,7 +114,8 @@ a silencer. B2a left **17**.
 
 `colors` · `borderRadius` · `spacing` · `zIndex` · `screens` · `transitionDuration`
 (B2a) · **`fontSize`** — the 15 type roles + §7's 5 icon sizes (B2b, B2c) ·
-**`maxWidth`** (B2c). Everything a token *should* govern is closed.
+**`maxWidth`** (B2c) · **`fontFamily`** — one family (§3, B11.0). Everything a token
+*should* govern is closed.
 
 **Sizing stays open — and that is the answer, not a deferral (B2c).** B2a carved the
 sizing keys out "until the web gets a sizing scale". B2c checked that premise and it
@@ -163,6 +165,23 @@ Hence `tests/tokens.theme-pin.test.ts` — a source sweep, the mirror of mobile'
 
 ## 3. Type on the web
 
+**The typeface is Hanken Grotesk, on the web only (B11.0).** One family at every
+size, from one variable file self-hosted with `next/font/local` in `styles/font.ts`:
+no build-time network, and no visitor's browser asks a third party for it.
+`display: 'swap'` and `adjustFontFallback`, so text is never hidden and each line keeps its height. **The fallback's widths are close, not equal, so a swap can re-wrap a paragraph** (0.064 on `/suppression-compte`, WEB.md §7). The apps stay on system fonts.
+
+**The file is trimmed to 400–600, 18.7 KB (`styles/fonts/README.md`).** The full file
+went over the LCP budget, and a theme pin refuses `font-bold` and the other weights
+it no longer carries. **It stays preloaded:** without that, first paint gets 300 ms
+worse (WEB.md §7).
+
+The file carries all of French except « Ÿ », which we never print, and its digits are
+all one width, so prices line up with no `tabular-nums` (the font has no `tnum`).
+**It does not carry U+202F**, the narrow no-break space in every `Intl` French amount
+(« 5 000 FCFA »), nor the symbols ★ ♥ ✓ ✕ ← → and their kin. The browser draws those
+from the system stack behind it, as it always did. Looked at on real amounts: the
+space sits right, and the amount does not break.
+
 Same scale as the apps ([SYSTEM.md §4](SYSTEM.md#4-type)), mapped to **semantic**
 Tailwind names so the class says what the text *is*, not how big it happens to be:
 
@@ -182,6 +201,8 @@ thing it does not carry (see below), so it stays on the element as `font-*`.
 | `text-headlineSmall` | 24 / 32 | 600 | `text-2xl` ×27 |
 | `text-headlineMedium` | 28 / 36 | 600 | `text-3xl` ×5 (30px) ⚠️ **C8d: five, not two.** `CatalogueClient.tsx:106`, `MediasClient.tsx:65` and `RendezVousClient.tsx:174` carry the same strip, unprotected. |
 | `text-headlineLarge` | 32 / 40 | 600 | `text-4xl` ×1 (36px) |
+| `text-displaySmall` · `text-displayMedium` · `text-displayLarge` | 36/44 · 45/52 · 57/64 | 600 | Mirrored from the apps; first used by the public hero (§16) |
+| **`text-displayPoster`** | 80 / 84, −2px | 600 | **Web-only**, declared in `WEB_ONLY.type`: the public hero from `xl`. A second web-only size needs a reason |
 
 **Not a zero-pixel rename — this is what B2b actually did.** The register said it
 would be; measuring said otherwise, and the difference matters because "zero-pixel"
@@ -309,9 +330,10 @@ The fix is one base-layer rule, not 271 utilities — **shipped in B4**
 :focus-visible {
   outline: 2px solid theme('colors.borderFocus');
   outline-offset: 2px;
-  border-radius: theme('borderRadius.md');
 }
 ```
+
+**No radius here since B11.6.** This rule used to set 8px, so a square control with no radius class of its own rounded the moment it was clicked. The ring now follows what it surrounds.
 
 - `:focus-visible`, **not** `:focus` — a clicked **button** shows no ring. A
   clicked **text field** does, and that is platform-correct (a field you clicked
@@ -344,6 +366,7 @@ tech:
 {error && <p id={errorId} role="alert">{error}</p>}
 ```
 
+- **Every placeholder is `textTertiary`,** from one base rule in `globals.css`, so a raw field can't miss it. Left alone it is Tailwind's own grey: off the palette, and 2.43:1 in the main search. Axe does not read placeholders, so `e2e/controls-shape.spec.ts` asks for the rendered colour.
 - **Every input has a real `<label htmlFor>`.** A placeholder is **not** a label: it
   vanishes on focus, fails contrast, and is not announced as the field's name.
   There are ≥6 placeholder-only inputs today — **in the login funnels**.
@@ -355,7 +378,7 @@ tech:
 
 All of this lives in **one shared `<TextField>`** (§10) — shipped in B4
 (`components/TextField.tsx`, mirroring the app's `InputDecorationTheme` state
-table: `borderStrong` → `borderFocus`+ring on focus → `error`, soft `border`
+table: `primary` (`borderStrong` before B11.6) → `borderFocus`+ring on focus → `error`, soft `border`
 disabled; `min-h-12`; `useId`). `PhoneField` wears the same shell — the library
 forwards `id`/`aria-*` to its inner input. Seven ad-hoc input copies is how we
 ended up with zero labels; the copies are gone.
@@ -621,6 +644,8 @@ web converts, the app deepens:
 |---|---|
 | Token contrast (§1) | `tokens.contrast.test.ts` — real WCAG math, same floors as the apps, **and (B3) a completeness gate: every `colors` key must carry an assertion** |
 | The Flutter↔web mirror (§1) | **`tokens.mirror.test.ts`** (B3) — parses `mobile/lib/core/theme/` + the §9 doc tables per run; per-family equality both directions; parser self-checks (comments stripped, then every `static const\|final … =` candidate must parse — a `static final` or type-inferred declaration screams; doc tables row-counted; the theme directory manifest-pinned); heal with `npm run gen:tokens` |
+| The brand font (§3) | **`e2e/served-html.spec.ts`** asks the browser what the `<h1>` computed, which face loaded, and that the file came from our origin with a 200: a missing class on `<html>` only falls back, silently. **`brand-font.test.ts`**: the file is a real woff2 within 20 KB, its licence travels with it, `swap`, the fallback adjustment and the preload are set, and no code imports a Google font. **`tokens.theme-pin.test.ts`**: one family, the variable first, and no weight the file lacks |
+| Script weight (WEB.md §7) | **`lighthouserc.json`**: `resource-summary:script:size`, 175 KB on `/` and `/suppression-compte`. **`sentry-bundle.test.ts`**: Sentry's tracing code stays out of the bundle and no config samples anything, because with the code gone a sample rate would silently do nothing |
 | Tokens only (§2) | **Closed Tailwind theme** (B2a) + `eslint-plugin-tailwindcss` (`no-custom-classname`, `no-arbitrary-value`) as **errors** — **and** `tokens.theme-pin.test.ts`, because the lint has two blind spots (bare `const` class strings; a bare `rounded`, which it passes clean while Tailwind emits nothing). Config lives in **`.eslintrc.js`**, not `.json`: the plugin resolves `tailwindcss` relative to `dirname(settings.tailwindcss.config)`, so a *relative* config path makes it look in `.` and throw — JSON cannot compute an absolute path |
 | Layering (§9) | `tests/e2e/z-layers.spec.ts` — the drawer/scrim/panel stack and the map control, asserted on **computed layers** (a hit-test can't see it: `<main>` is `inert` while the drawer is open, and inert content isn't hit-tested) |
 | Semantic HTML, labels, keyboard (§4–§6) | **`eslint-plugin-jsx-a11y` strict** — `label-has-associated-control`, `click-events-have-key-events`, `heading-has-content`, `anchor-is-valid`, … |
@@ -630,6 +655,7 @@ web converts, the app deepens:
 | **Truncation is declared (§9)** | **`tokens.theme-pin.test.ts`** (B11) — every `truncate` / `line-clamp-*` / `text-ellipsis` carries `// clip-ok: <why the clipped text is not the only copy>`. Reads the TypeScript AST's string literals, so prose *about* truncation is never flagged. The browser half proves nothing is being cut; this proves every class that could cut was thought about |
 | Type does not overflow (§3) | `tests/e2e/type-overflow.spec.ts` — the same file, and it predates the reflow work (B2b). **Listed here for the first time in B11**: it and the tap-target gate below have existed for several slices and appeared nowhere in this table, which is how an enforcement inventory quietly stops being one |
 | Tap targets ≥ 48 (SYSTEM.md §13.2) | `tests/e2e/tap-targets.spec.ts` — an explicit named list of controls, so it sees nothing it was not told about. Row 26 (`Faq.tsx`'s `<summary>` at ≈35px) is exactly what that costs |
+| A salon with no name (SYSTEM.md §17.2) | **`tests/unnamed-salon.test.ts`** (B9.10) — the words from `lib/salon-name.ts`, and a pin: no « ce salon » / « votre salon » / « le salon » literal, no `?? 'Salon'` or `?? 'MyWeli'` fallback, outside that file |
 | Everything | typecheck · lint · `vitest` · `next build` |
 
 Two of these are the point:
@@ -703,6 +729,7 @@ Counted in the code as of 2026-07-14. Each burn-down PR drives a row to **0**.
 | 34 | **`MonthCalendar` drew out-of-month days dimmed AND clickable** | **12 live cells per month** | recorded in `myweli_month_grid.dart`'s source and **in no document at all**, which is why it survived: mobile's grid omits those days and web did not, so clicking one selected a day the header does not name. `textTertiary` is also already spent on *disabled*, so dimmed-but-active and disabled rendered the same grey. **A14c changes web to match mobile, not the other way round** — the cell stays as reserved space so the grid does not reflow. The first version of the gate was **vacuous and green against the defect**: it asserted no rendered day was `> 30`, and June's trailing cells are 1–5 *July*, which read « 1 »…« 5 ». Counting identities (30 buttons, not 42) is what made it fail | ✅ **A14c** |
 | 35 | Wire formats are the contract's, not the widget's | ~~2 directions broken~~ → **0** | **A salon that onboarded on the web could never set its opening hours, so it could never go live.** `openapi.yaml:4033-4036` types `TimeSlot.startTime` as `format: date-time` ("only the time-of-day is significant — placeholder date") and the server normalises every value to `2024-01-01T09:00:00.000Z`. The mobile app complies; the web did not, in **both** directions. WRITE: `toApi` sent `d.start` verbatim, and `d.start` falls back to `'09:00'` whenever the salon has no stored slots — the server validates with `DateTime.tryParse`, which answers null to `'09:00'` → 400 `invalid_input`. That fallback fires exactly during onboarding, and `availability` is one of the six publish-gate keys. READ: `toEditable` fed the server's ISO straight into an `<input type="time">`, which accepts only `HH:mm`, so the field rendered blank for any salon that DID have hours. Both now go through one seam (`timeOfDay`/`wireTime`), parsed with a regex rather than a `Date` — `new Date('2024-01-01T09:00:00.000Z').getHours()` is 4 in New York, which would move a salon's opening hour with the browser's timezone. **Why 559 green tests said nothing: every fixture in `pro-availability.test.ts` used the bare `'09:00'` form, so the suite asserted the round-trip of a format the server never sends or accepts.** And the API-level funnel smoke (Q1) **could not have caught it either** — it speaks the wire format correctly, so it stays green while a client mis-speaks it. That is the standing limit of an API-level gate, and the reason this row exists rather than a note in the spec | ✅ **Q1** (found while building the funnel e2e; fixed red-first) |
 | 36 | **The Google button said « Se connecter » while every other surface said « Continuer »** | **3 `renderButton` call sites** | the web half of [SYSTEM.md §21 row 87](SYSTEM.md#21). Google's button is painted by Google's script from an options object, and the three call sites had drifted apart with nothing to hold them together: two omitted `text`, so GIS fell back to `signin_with` and web read **« Se connecter avec Google » beside « Continuer avec Apple »** while both mobile apps said « Continuer avec »; a third omitted `locale: 'fr'`. Nothing failed and no test could fail — the button is a cross-origin iframe, so its label is not in our DOM and is unassertable from here. Only reading the three files together shows it, and they sit in three directories. Beside it, Apple was our `Button` at full container width against Google's fixed 320 × 40 — not a styling gap but a **structural** one, since Google's button cannot be restyled at all (its presets are the whole API, and it is the only source of the ID token the backend verifies) | ✅ **Closed.** `gisOptions(text)` in `components/auth/socialButton.ts` is one settled object; `social-buttons.test.ts` pins it and asserts **`text` is the only key permitted to vary**, which is the property that actually failed, tested at the only layer that can see it. `AppleSignInButton` matches the GIS silhouette in **px** — rem would drift from Google's absolutely-sized iframe the moment the root font size moves, which is row 31's problem arriving from the other direction. The 40px preset collides with `Button`'s pinned **48px** tap-target floor; resolved by **growing the target, not the glyph** — a 48px `<button>` wrapping a 40 × 320 painted `<span>` — so the floor and `button.test.tsx` both stand unweakened rather than being given an exception 🟢 |
+| 37 | **A fixture dated « today » made the overflow gate a verdict on the calendar** | ~~1~~ → **0** | the stub's last visit is today, and `type-overflow.spec.ts` measured the Pro client card with it: green through October, **red from 1 November on every pull request**, because « novembre » does not fit a half-width tile at 320. A real spill, found only because the month changed, and it would have gone green again in January. Fixed the way the app already had it: the short date (`formatDateCompactFr`) and one tile per row at the narrowest widths. **The longest values are now pinned whatever the date**: September and seven figures, plus the tiles' shape, since the text checks depend on the font. **Still blind:** other pages' dates from the same fixture, and any date a subject shows that is not the worst month | ✅ **2026-11-02** |
 
 **Bold** slices are committed (the a11y tranche). *Italic* are specified and
 scheduled for re-evaluation after it.
@@ -711,3 +738,20 @@ scheduled for re-evaluation after it.
 
 *Supersedes `WEB-DESIGN-STANDARDS.md`. Shared rules: [SYSTEM.md](SYSTEM.md).
 Enforced by the `myweli-web-guardrails` skill.*
+
+---
+
+## 16. The public pages' look
+
+**Decided 2026-11-02, applied page by page from B11.1.** The full reasoning, the page-by-page plan and the pattern's rules are in [web-swiss-direction.md](web-swiss-direction.md); this is what a new public page has to follow. Task surfaces (`/connexion`, `/mon-compte/*`, booking, legal, `/pro/*`) take only the font, header and footer.
+
+- **One container, one left edge:** `mx-auto max-w-screen-2xl px-m lg:px-l`, as `SITE_CONTAINER` in `lib/siteGrid.ts`, so it cannot drift. The logo, the `<h1>` and the first section start at the same x, at every width, held by `tests/e2e/site-look.spec.ts`. `/recherche` runs full width with `SITE_EDGE`.
+- **A section** is `SiteSection`: the rule above it and the hanging heading come with it.
+- **Twelve columns from `lg`,** one below. Reading text stays capped at `max-w-content` (SYSTEM §10). From `lg`, a section's `<h2>` hangs in columns 1–3 and its content takes 4–12.
+- **Flush left**, empty states included.
+- **Rules instead of boxes.** A structural rule is 1px `border-primary`, a row rule 1px `border-divider`. The black rule is a **new, sanctioned use of `primary`**: on public pages as structure, and on every page as the line around a field or button. `Card` stays for real containers.
+- **Anything you type in or press is square, with a thin black line** (`rounded-control`, `border-primary`; [web-swiss-fields.md](web-swiss-fields.md), B11.6). It holds on every page, the Espace pro included. Filter chips keep their pill, Google and Apple keep their own shape, and what only holds content is unchanged. **Corrected 2026-11-02:** this line first said rounded corners stay on controls, so that the site and the app feel related. The owner chose otherwise from pictures.
+- **The search is one ruled bar** (`HomeSearch`): the form draws the box and the lines between.
+- **Colour comes from photos.** Same-ratio crops, no filters, no scrims, and **no AI-generated faces or results**.
+- **The pattern** (rows of plaits, black on white; `components/brand/Weave.tsx`): at most one per page, on Home, `/professionnels` and 404 only, never behind text, `aria-hidden`, no animation, and it never replaces a salon's photo. **It keeps one scale:** it stops growing with the screen, because drawn large it stops being texture. Copy never calls it traditional or authentic. White on black is kept for a dark version.
+

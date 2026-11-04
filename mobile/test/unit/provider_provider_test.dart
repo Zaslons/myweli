@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:myweli/core/di/dependency_injection.dart';
+import 'package:myweli/core/utils/salon_id.dart';
 import 'package:myweli/models/api_response.dart';
 import 'package:myweli/models/provider.dart';
 import 'package:myweli/models/review.dart';
@@ -104,7 +105,7 @@ void main() {
   group('addReviewLocally moves the aggregate with the review', () {
     Review review(int stars) => Review(
       id: 'r$stars',
-      providerId: 'provider1',
+      providerId: SalonId('provider1'),
       userId: 'user1',
       userName: 'Awa K.',
       rating: stars,

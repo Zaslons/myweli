@@ -732,7 +732,11 @@ class ProviderCatalogService {
             (salon['countryCode'] as String?) ?? 'CI',
           )
         : _operators;
-    final error = _validateDepositPolicy(body, allowedOperators);
+    final error = _validateDepositPolicy(
+      body,
+      allowedOperators,
+      storedPercentage: salon['depositPercentage'] as num?,
+    );
     if (error != null) return (ok: false, error: error, data: null);
 
     final required = body['depositRequired'] as bool;
@@ -750,8 +754,12 @@ class ProviderCatalogService {
       'depositPercentage': (body['depositPercentage'] as num).toDouble(),
       'cancellationWindowHours': (body['cancellationWindowHours'] as num)
           .toInt(),
-      'depositMobileMoneyOperator': (body['mobileMoneyOperator'] as String?)
-          ?.trim(),
+      // Only an operator of the country's catalogue is ever kept (T57): with
+      // deposits off one outside it is not judged (B6.5) — and not stored.
+      'depositMobileMoneyOperator': _keptOperator(
+        body['mobileMoneyOperator'] as String?,
+        allowedOperators,
+      ),
       'depositMobileMoneyNumber': (body['mobileMoneyNumber'] as String?)
           ?.trim(),
     };
@@ -773,16 +781,38 @@ class ProviderCatalogService {
   static const _operators = {'wave', 'orangeMoney', 'mtnMoMo', 'moov'};
   static const _maxCancellationHours = 720; // 30 days
 
+  static String? _keptOperator(String? op, Set<String> allowed) {
+    final o = op?.trim();
+    return o != null && allowed.contains(o) ? o : null;
+  }
+
+  /// One range for app, web and server — the app's slider, the web's since
+  /// 2026-10-20 (decision 19, docs/design/backend-integrity-batch6.md §2.5).
+  static const double _minDepositFraction = 0.05;
+  static const double _maxDepositFraction = 0.80;
+
   String? _validateDepositPolicy(
     Map<String, dynamic> body,
-    Set<String> allowedOperators,
-  ) {
+    Set<String> allowedOperators, {
+    num? storedPercentage,
+  }) {
     final required = body['depositRequired'];
     if (required is! bool) return 'invalid_input';
 
     final pct = body['depositPercentage'];
     if (pct is! num || pct < 0 || pct > 1) return 'invalid_input';
-    if (required && pct <= 0) return 'invalid_input';
+    // A required deposit is 5–80 % — judged when the percentage CHANGES: a
+    // value saved before the rule is shown and kept as it is (otherwise a
+    // salon at 90 % could not even change its cancellation window). Its own
+    // code, so the fault sits under the slider.
+    final changed =
+        storedPercentage == null || (pct - storedPercentage).abs() > 1e-9;
+    if (required &&
+        changed &&
+        (pct < _minDepositFraction - 1e-9 ||
+            pct > _maxDepositFraction + 1e-9)) {
+      return 'invalid_percentage';
+    }
 
     final hours = body['cancellationWindowHours'];
     if (hours is! num || hours < 0 || hours > _maxCancellationHours) {
@@ -790,8 +820,13 @@ class ProviderCatalogService {
     }
 
     final op = body['mobileMoneyOperator'];
-    if (op != null && (op is! String || !allowedOperators.contains(op))) {
-      return 'invalid_input';
+    if (op != null && op is! String) return 'invalid_input';
+    // The catalogue judges the operator only when a deposit is asked: with
+    // deposits off it pays nothing, and an operator removed from the
+    // catalogue used to block EVERY save. Deposit on: its own code, under the
+    // operator field.
+    if (required && op is String && !allowedOperators.contains(op)) {
+      return 'operator_unavailable';
     }
     // Its own code, so a client can put the fault under the number field —
     // and, deposits off, reveal the hidden card to do so

@@ -46,7 +46,9 @@ export const PRO_LANDING = {
   steps: [
     'Créez votre compte',
     'Ajoutez vos prestations, vos horaires et vos photos',
-    'Mettez votre salon en ligne — vos 3 mois offerts commencent',
+    // Not « vos 3 mois commencent »: a salon that chose an offer has already
+    // started them (web-true-sentences.md §2).
+    'Mettez votre salon en ligne\u00a0: vos clients peuvent réserver',
   ],
   faqTitle: 'Questions fréquentes',
   faq: [

@@ -5,6 +5,7 @@ import 'package:myweli_backend/src/auth/provider_auth_repository.dart';
 import 'package:myweli_backend/src/auth/tokens.dart';
 import 'package:test/test.dart';
 
+import 'ensure_owner_contract.dart';
 import 'invite_contract.dart';
 
 /// Module `access` R1: the membership rows + the per-request resolver
@@ -86,6 +87,16 @@ void main() {
   // docs/design/backend-team-reinvite.md §8.
   group('invite — the twin contract (in-memory)', () {
     inviteContract(
+      repo: InMemoryMembershipRepository.new,
+      providerId: 'p1',
+      account: (email) async => 'acc-$email',
+    );
+  });
+
+  // The same body runs on Postgres (db/postgres_repositories_test.dart):
+  // docs/design/backend-integrity-batch6.md §2.8 (B6.8a).
+  group('ensureOwner — the twin contract (in-memory)', () {
+    ensureOwnerContract(
       repo: InMemoryMembershipRepository.new,
       providerId: 'p1',
       account: (email) async => 'acc-$email',

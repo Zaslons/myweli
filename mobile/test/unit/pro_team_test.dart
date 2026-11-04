@@ -171,14 +171,20 @@ void main() {
       );
     });
 
+    // The server's caps, not a knob: one address 3 times a UTC day per
+    // salon (the salon's 20 are in mock_fidelity_test.dart).
     test('per-day cap → invite_rate_limited (T37)', () async {
-      final svc = MockProTeamService(
-        subscriptions: liveOffer(),
-        maxInvitesPerDay: 1,
-      );
-      await svc.inviteMember(email: 'a@b.com', role: TeamRole.manager);
+      final svc = MockProTeamService(subscriptions: liveOffer());
+      for (var i = 0; i < 3; i++) {
+        final res = await svc.inviteMember(
+          email: 'a@b.com',
+          role: TeamRole.manager,
+        );
+        expect(res.success, isTrue, reason: '${res.code}');
+        await svc.revokeMember(res.data!.id);
+      }
       expect(
-        (await svc.inviteMember(email: 'b@b.com', role: TeamRole.manager)).code,
+        (await svc.inviteMember(email: 'a@b.com', role: TeamRole.manager)).code,
         'invite_rate_limited',
       );
     });
@@ -194,6 +200,18 @@ void main() {
         (await svc.resendInvitation('mem_owner1')).code,
         'owner_protected',
       );
+    });
+
+    test('a revoked member\'s role cannot change → member_revoked, as the '
+        'server answers 409 (B7.5)', () async {
+      final svc = MockProTeamService();
+      expect((await svc.revokeMember('mem_manager1')).success, isTrue);
+      final res = await svc.changeRole(
+        'mem_manager1',
+        role: TeamRole.reception,
+      );
+      expect(res.code, 'member_revoked');
+      expect(res.error, 'Ce membre n’a plus accès au salon.');
     });
 
     test('changeRole to staff requires a valid fiche; updates land', () async {
@@ -317,6 +335,21 @@ void main() {
       final member = await p.acceptMyInvitation(p.myInvitations.single.id);
       expect(member, isNotNull);
       expect(p.invitationCount, 0);
+    });
+
+    // pro-app-batch7.md §2.6 (B7.6): the card reads the list whenever it was
+    // emptied and not read since — a salon switch empties it.
+    test('invitationsAsked: false at first and after a reset, true once '
+        'asked or seeded', () async {
+      final p = ProTeamProvider();
+      expect(p.invitationsAsked, isFalse);
+      final load = p.loadMyInvitations();
+      expect(p.invitationsAsked, isTrue, reason: 'asked as the read starts');
+      await load;
+      p.resetForSalonSwitch();
+      expect(p.invitationsAsked, isFalse);
+      p.seedMyInvitations(const []);
+      expect(p.invitationsAsked, isTrue);
     });
   });
 }

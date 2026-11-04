@@ -311,7 +311,7 @@ That is a property of the migrations, not of the rollback:
   inserts a row that now violates a constraint. **Rollback across such a
   migration breaks the old image**, and there is no down statement to undo it.
 
-**Most migrations are additive; five are not, and they say so.** A count is
+**Most migrations are additive; the few that are not say so.** A count is
 deliberately not repeated here — a number beside a list is a second source of
 truth, and this one was three behind for months. `grep 'rollback-unsafe:'
 backend/lib/src/db/migrations.dart` is authoritative, and
@@ -325,8 +325,14 @@ email had been free text since `0001`/`0003`), and `0026`, which adds BOTH a
 per-artist unique slot and a per-artist overlap exclusion — an image that
 books per salon has no notion of an artist calendar.
 
-The other statements that look destructive
-look destructive are `ALTER TABLE users ALTER COLUMN phone_number DROP NOT NULL`
+**One removes something.** `0043` drops `provider_otp_codes` (B9.12), the
+contract step after B8.5 stopped every read and write of the Pro phone codes.
+A rollback **one** step, to `myweli-api-00046-bzg` (`eca4db6`), is safe: that
+image never names the table. Two steps, to `00045-8hs` (batch 6) or older,
+breaks every Pro account deletion on its `DELETE FROM provider_otp_codes`
+(a 500). [hygiene-batch9.md](hygiene-batch9.md) §2.11.
+
+The other statements that look destructive are `ALTER TABLE users ALTER COLUMN phone_number DROP NOT NULL`
 and two `DROP CONSTRAINT IF EXISTS` on unique indexes — all three *widen* the
 schema, which is the safe direction.
 

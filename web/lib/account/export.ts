@@ -61,6 +61,12 @@ export function exportFailureMessage(failed: ExportSection[]): string {
   return `Impossible de charger ${list}. Vos données ne sont proposées que complètes : vérifiez votre connexion et réessayez.`;
 }
 
+/// The reads answered, and the file still could not be assembled from them
+/// (an entry it cannot hold): its own sentence — naming the reads would blame
+/// what worked (docs/design/web-client-polish.md §2.3). The salon's export and
+/// the app's two export screens say the same.
+export const EXPORT_BUILD_FAILED = 'Le fichier n’a pas pu être préparé. Réessayez.';
+
 /// The browser refused the clipboard. The download needs no permission, so
 /// that is the way out.
 export const EXPORT_COPY_FAILED =

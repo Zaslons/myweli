@@ -1,7 +1,9 @@
 import 'package:flutter/foundation.dart';
 
 import '../core/access/pro_salon_scope.dart';
+import '../core/constants/failure_messages.dart';
 import '../core/di/dependency_injection.dart';
+import '../core/utils/salon_id.dart';
 import '../models/review.dart';
 import '../models/review_summary.dart';
 import '../services/interfaces/pro_service_interface.dart';
@@ -26,14 +28,31 @@ class ProReviewsProvider extends ChangeNotifier implements SalonScoped {
   ReviewSummary? _summary;
   bool _isLoading = false;
   String? _error;
-  String? _currentProviderId;
+  SalonId? _currentProviderId;
 
   List<Review> get reviews => _reviews;
   ReviewSummary? get summary => _summary;
   bool get isLoading => _isLoading;
   String? get error => _error;
 
-  Future<void> loadReviews(String providerId) async {
+  /// The load's own failure — today the only one [error] holds here, kept
+  /// apart as on the other Pro lists, so a write added later cannot become
+  /// the list's load error (B9.8).
+  String? get loadError => _loadError;
+  String? _loadError;
+
+  /// « Signaler » (B6.6): true once the server took the report.
+  Future<bool> reportReview(String reviewId, {String? reason}) async {
+    try {
+      final res = await _proService.reportSalonReview(reviewId, reason: reason);
+      return res.success;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Future<void> loadReviews(SalonId providerId) async {
+    final scope = _scope;
     if (_currentProviderId == providerId &&
         _reviews.isNotEmpty &&
         !_isLoading) {
@@ -42,6 +61,7 @@ class ProReviewsProvider extends ChangeNotifier implements SalonScoped {
 
     _isLoading = true;
     _error = null;
+    _loadError = null;
     _currentProviderId = providerId;
     notifyListeners();
 
@@ -49,6 +69,7 @@ class ProReviewsProvider extends ChangeNotifier implements SalonScoped {
       // No providerId argument: `/me/provider/reviews` resolves the acting
       // salon from the token, honouring the R6 selection on the way.
       final res = await _proService.getMyReviews();
+      if (scope != _scope) return;
       if (res.success && res.data != null) {
         _reviews = res.data!.items;
         _summary = res.data!.summary;
@@ -57,20 +78,33 @@ class ProReviewsProvider extends ChangeNotifier implements SalonScoped {
         _reviews = [];
         _summary = null;
         _error = res.error ?? 'Erreur lors du chargement des avis';
+        _loadError = _error;
       }
     } catch (e) {
-      _error = e.toString();
+      if (scope != _scope) return;
+      _error = kGenericErrorMessage;
+      _loadError = _error;
       _reviews = [];
       _summary = null;
     } finally {
-      _isLoading = false;
-      notifyListeners();
+      if (scope == _scope) {
+        _isLoading = false;
+        notifyListeners();
+      }
     }
   }
 
   /// R6 multi-salons: drop the previous salon's data on a switch.
+  /// Which salon this state belongs to — moved by [resetForSalonSwitch]
+  /// only. A read or a write takes it before it awaits and writes nothing
+  /// when it moved meanwhile: its answer is the previous salon's, or the
+  /// previous account's (docs/design/pro-account-scope.md §2.2).
+  int _scope = 0;
+
   @override
   void resetForSalonSwitch() {
+    _scope++;
+    _loadError = null;
     _reviews = [];
     _summary = null;
     _isLoading = false;

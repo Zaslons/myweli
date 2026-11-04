@@ -62,7 +62,9 @@ const TOPICS = [
   },
   {
     q: 'Mon salon (professionnels)',
-    a: 'Mise en ligne, équipe, offre et facturation. Indiquez le nom du salon.',
+    // No offer and no billing: the app opens this page, and Apple refused « any other
+    // links to your site » that lead to a purchase (app-review-round-2.md §5).
+    a: 'Mise en ligne et équipe. Indiquez le nom du salon.',
     subject: 'Mon salon',
   },
 ] as const;
@@ -118,7 +120,7 @@ export default function SupportPage() {
           <li>
             <a
               href={supportMailto()}
-              className="flex min-h-xxl items-center rounded-md border border-divider px-m py-s text-bodyLarge text-textPrimary underline hover:bg-surfaceVariant"
+              className="flex min-h-xxl items-center rounded-control border border-primary px-m py-s text-bodyLarge text-textPrimary underline hover:bg-surfaceVariant"
             >
               {SUPPORT.email}
             </a>
@@ -134,7 +136,7 @@ export default function SupportPage() {
                 href={whatsapp}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex min-h-xxl items-center rounded-md border border-divider px-m py-s text-bodyLarge text-textPrimary underline hover:bg-surfaceVariant"
+                className="flex min-h-xxl items-center rounded-control border border-primary px-m py-s text-bodyLarge text-textPrimary underline hover:bg-surfaceVariant"
               >
                 WhatsApp
               </a>

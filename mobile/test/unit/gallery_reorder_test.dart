@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:myweli/core/di/dependency_injection.dart';
+import 'package:myweli/core/utils/salon_id.dart';
 import 'package:myweli/models/api_response.dart';
 import 'package:myweli/providers/pro_gallery_provider.dart';
 import 'package:myweli/services/interfaces/pro_service_interface.dart';
@@ -23,19 +24,19 @@ void main() {
     reset(service);
     gallery = ProGalleryProvider();
     when(
-      () => service.getGalleryPhotos('p1'),
+      () => service.getGalleryPhotos(SalonId('p1')),
     ).thenAnswer((_) async => ApiResponse.success(['a', 'b', 'c']));
-    await gallery.load('p1');
+    await gallery.load(SalonId('p1'));
   });
 
   test(
     'movePhoto swaps with the neighbour and persists the new order',
     () async {
       when(
-        () => service.updateGalleryPhotos('p1', ['b', 'a', 'c']),
+        () => service.updateGalleryPhotos(SalonId('p1'), ['b', 'a', 'c']),
       ).thenAnswer((_) async => ApiResponse.success(['b', 'a', 'c']));
 
-      expect(await gallery.movePhoto('p1', 1, -1), isTrue);
+      expect(await gallery.movePhoto(SalonId('p1'), 1, -1), isTrue);
       expect(gallery.photos, ['b', 'a', 'c']);
     },
   );
@@ -43,8 +44,8 @@ void main() {
   test(
     'movePhoto rejects out-of-bounds moves without a network call',
     () async {
-      expect(await gallery.movePhoto('p1', 0, -1), isFalse);
-      expect(await gallery.movePhoto('p1', 2, 1), isFalse);
+      expect(await gallery.movePhoto(SalonId('p1'), 0, -1), isFalse);
+      expect(await gallery.movePhoto(SalonId('p1'), 2, 1), isFalse);
       verifyNever(() => service.updateGalleryPhotos(any(), any()));
       expect(gallery.photos, ['a', 'b', 'c']);
     },
@@ -52,18 +53,20 @@ void main() {
 
   test('setCover promotes the photo to index 0 in ONE write', () async {
     when(
-      () => service.updateGalleryPhotos('p1', ['c', 'a', 'b']),
+      () => service.updateGalleryPhotos(SalonId('p1'), ['c', 'a', 'b']),
     ).thenAnswer((_) async => ApiResponse.success(['c', 'a', 'b']));
 
-    expect(await gallery.setCover('p1', 2), isTrue);
+    expect(await gallery.setCover(SalonId('p1'), 2), isTrue);
     expect(gallery.photos, ['c', 'a', 'b']);
-    verify(() => service.updateGalleryPhotos('p1', ['c', 'a', 'b'])).called(1);
+    verify(
+      () => service.updateGalleryPhotos(SalonId('p1'), ['c', 'a', 'b']),
+    ).called(1);
   });
 
   test('setCover on the cover or out of bounds writes nothing', () async {
-    expect(await gallery.setCover('p1', 0), isFalse);
-    expect(await gallery.setCover('p1', -1), isFalse);
-    expect(await gallery.setCover('p1', 3), isFalse);
+    expect(await gallery.setCover(SalonId('p1'), 0), isFalse);
+    expect(await gallery.setCover(SalonId('p1'), -1), isFalse);
+    expect(await gallery.setCover(SalonId('p1'), 3), isFalse);
     verifyNever(() => service.updateGalleryPhotos(any(), any()));
     expect(gallery.photos, ['a', 'b', 'c']);
   });
@@ -74,14 +77,14 @@ void main() {
       // Remove 'a' first; the promotion must be computed from ['b', 'c'],
       // not from any list captured earlier.
       when(
-        () => service.updateGalleryPhotos('p1', ['b', 'c']),
+        () => service.updateGalleryPhotos(SalonId('p1'), ['b', 'c']),
       ).thenAnswer((_) async => ApiResponse.success(['b', 'c']));
-      await gallery.removePhoto('p1', 0);
+      await gallery.removePhoto(SalonId('p1'), 0);
 
       when(
-        () => service.updateGalleryPhotos('p1', ['c', 'b']),
+        () => service.updateGalleryPhotos(SalonId('p1'), ['c', 'b']),
       ).thenAnswer((_) async => ApiResponse.success(['c', 'b']));
-      expect(await gallery.setCover('p1', 1), isTrue);
+      expect(await gallery.setCover(SalonId('p1'), 1), isTrue);
       expect(gallery.photos, ['c', 'b']);
     },
   );
@@ -91,17 +94,17 @@ void main() {
       () => service.updateGalleryPhotos(any(), any()),
     ).thenAnswer((_) async => ApiResponse.error('network_error'));
 
-    expect(await gallery.setCover('p1', 1), isFalse);
+    expect(await gallery.setCover(SalonId('p1'), 1), isFalse);
     expect(gallery.photos, ['a', 'b', 'c']);
     expect(gallery.error, 'network_error');
   });
 
   test('movePhoto keeps the order and surfaces the error on failure', () async {
     when(
-      () => service.updateGalleryPhotos('p1', any()),
+      () => service.updateGalleryPhotos(SalonId('p1'), any()),
     ).thenAnswer((_) async => ApiResponse.error('offline'));
 
-    expect(await gallery.movePhoto('p1', 0, 1), isFalse);
+    expect(await gallery.movePhoto(SalonId('p1'), 0, 1), isFalse);
     expect(gallery.photos, ['a', 'b', 'c']);
     expect(gallery.error, 'offline');
   });
@@ -115,22 +118,22 @@ void main() {
   test('restorePhotoAt re-inserts into the CURRENT list, keeping work done '
       'during the undo window', () async {
     when(
-      () => service.updateGalleryPhotos('p1', ['a', 'c']),
+      () => service.updateGalleryPhotos(SalonId('p1'), ['a', 'c']),
     ).thenAnswer((_) async => ApiResponse.success(['a', 'c']));
-    expect(await gallery.removePhoto('p1', 1), isTrue); // delete 'b'
+    expect(await gallery.removePhoto(SalonId('p1'), 1), isTrue); // delete 'b'
     expect(gallery.photos, ['a', 'c']);
 
     // …the user changes the cover before tapping « Annuler ».
     when(
-      () => service.updateGalleryPhotos('p1', ['c', 'a']),
+      () => service.updateGalleryPhotos(SalonId('p1'), ['c', 'a']),
     ).thenAnswer((_) async => ApiResponse.success(['c', 'a']));
-    expect(await gallery.movePhoto('p1', 1, -1), isTrue);
+    expect(await gallery.movePhoto(SalonId('p1'), 1, -1), isTrue);
     expect(gallery.photos, ['c', 'a']);
 
     when(
-      () => service.updateGalleryPhotos('p1', ['c', 'b', 'a']),
+      () => service.updateGalleryPhotos(SalonId('p1'), ['c', 'b', 'a']),
     ).thenAnswer((_) async => ApiResponse.success(['c', 'b', 'a']));
-    expect(await gallery.restorePhotoAt('p1', 1, 'b'), isTrue);
+    expect(await gallery.restorePhotoAt(SalonId('p1'), 1, 'b'), isTrue);
 
     // 'b' is back AND the new cover survived. The snapshot version would have
     // PUT ['a','b','c'] — silently reverting a reorder the user never asked to
@@ -140,15 +143,15 @@ void main() {
 
   test('restorePhotoAt reports failure instead of failing silently', () async {
     when(
-      () => service.updateGalleryPhotos('p1', ['a', 'c']),
+      () => service.updateGalleryPhotos(SalonId('p1'), ['a', 'c']),
     ).thenAnswer((_) async => ApiResponse.success(['a', 'c']));
-    await gallery.removePhoto('p1', 1);
+    await gallery.removePhoto(SalonId('p1'), 1);
 
     when(
-      () => service.updateGalleryPhotos('p1', ['a', 'b', 'c']),
+      () => service.updateGalleryPhotos(SalonId('p1'), ['a', 'b', 'c']),
     ).thenAnswer((_) async => ApiResponse.error('Réseau indisponible'));
     expect(
-      await gallery.restorePhotoAt('p1', 1, 'b'),
+      await gallery.restorePhotoAt(SalonId('p1'), 1, 'b'),
       isFalse,
       reason: 'the call site needs the result to tell the user',
     );

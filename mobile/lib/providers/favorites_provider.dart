@@ -1,16 +1,24 @@
 import 'package:flutter/foundation.dart';
 
+import '../core/access/account_scope.dart';
+import '../core/constants/failure_messages.dart';
 import '../core/di/dependency_injection.dart';
 import '../core/utils/salon_figures.dart';
+import '../core/utils/salon_id.dart';
 import '../models/api_response.dart';
 import '../models/provider.dart';
 import '../services/interfaces/favorites_service_interface.dart';
 
-class FavoritesProvider extends ChangeNotifier {
+class FavoritesProvider extends ChangeNotifier implements AccountScoped {
   final FavoritesServiceInterface _favoritesService =
       serviceLocator.favoritesService;
 
-  List<String> _favoriteProviderIds = [];
+  /// Whose favourites these are — see [resetForAccountChange]. A read or a
+  /// heart sent before the account changed writes nothing when it answers
+  /// after (docs/design/consumer-account-scope.md §2.3).
+  int _account = 0;
+
+  List<SalonId> _favoriteProviderIds = [];
   List<Provider> _favoriteProviders = [];
   bool _isLoading = false;
   String? _error;
@@ -36,87 +44,87 @@ class FavoritesProvider extends ChangeNotifier {
       return;
     }
 
+    final account = _account;
     _isLoading = true;
     _error = null;
     _currentUserId = userId;
     notifyListeners();
 
+    ApiResponse<List<Provider>>? response;
     try {
-      final response = await _favoritesService.getFavoriteProviders(userId);
-      if (response.success && response.data != null) {
-        _favoriteProviders = response.data!;
-        _favoriteProviderIds = [for (final p in response.data!) p.id];
-        _error = null;
-      } else {
-        _error = response.error ?? 'Erreur lors du chargement des favoris';
-        _favoriteProviderIds = [];
-        _favoriteProviders = [];
-      }
+      response = await _favoritesService.getFavoriteProviders(userId);
     } catch (e) {
-      _error = e.toString();
+      response = null;
+    }
+    if (account != _account) return;
+    final loaded = response?.data;
+    if (response != null && response.success && loaded != null) {
+      _favoriteProviders = loaded;
+      _favoriteProviderIds = [for (final p in loaded) p.id];
+      _error = null;
+    } else {
+      _error = response == null
+          ? kGenericErrorMessage
+          : response.error ?? 'Erreur lors du chargement des favoris';
       _favoriteProviderIds = [];
       _favoriteProviders = [];
-    } finally {
-      _isLoading = false;
-      notifyListeners();
     }
+    _isLoading = false;
+    notifyListeners();
   }
 
   /// Toggle favorite status for a provider
-  Future<bool> toggleFavorite(String userId, String providerId) async {
+  Future<bool> toggleFavorite(String userId, SalonId providerId) async {
     if (userId.isEmpty) {
       _error = 'Utilisateur non connecté';
       notifyListeners();
       return false;
     }
 
+    final account = _account;
     // Ensure favorites are loaded
     if (_currentUserId != userId || _favoriteProviderIds.isEmpty) {
       await loadFavorites(userId);
     }
+    if (account != _account) return false;
 
     final isCurrentlyFavorite = _favoriteProviderIds.contains(providerId);
 
     _isLoading = true;
     notifyListeners();
 
+    ApiResponse<bool>? response;
     try {
-      final ApiResponse<bool> response;
       if (isCurrentlyFavorite) {
         response = await _favoritesService.removeFavorite(userId, providerId);
       } else {
         response = await _favoritesService.addFavorite(userId, providerId);
       }
-
-      if (response.success) {
-        // Update local state
-        if (isCurrentlyFavorite) {
-          _favoriteProviderIds.remove(providerId);
-        } else {
-          if (!_favoriteProviderIds.contains(providerId)) {
-            _favoriteProviderIds.add(providerId);
-          }
-        }
-        _error = null;
-        notifyListeners();
-        return true;
-      } else {
-        _error = response.error ?? 'Erreur lors de la modification des favoris';
-        notifyListeners();
-        return false;
-      }
     } catch (e) {
-      _error = e.toString();
-      notifyListeners();
-      return false;
-    } finally {
-      _isLoading = false;
-      notifyListeners();
+      response = null;
     }
+    final done = response != null && response.success;
+    // Done on the previous account's favourites — not on the next one's.
+    if (account != _account) return done;
+    if (done) {
+      if (isCurrentlyFavorite) {
+        _favoriteProviderIds.remove(providerId);
+      } else if (!_favoriteProviderIds.contains(providerId)) {
+        _favoriteProviderIds.add(providerId);
+      }
+      _error = null;
+    } else {
+      _error = response == null
+          ? kGenericErrorMessage
+          : response.error ?? 'Erreur lors de la modification des favoris';
+    }
+    _isLoading = false;
+    notifyListeners();
+    return done;
   }
 
   /// Check if a provider is favorited
-  bool isFavorite(String providerId) {
+  bool isFavorite(SalonId providerId) {
     return _favoriteProviderIds.contains(providerId);
   }
 
@@ -147,7 +155,7 @@ class FavoritesProvider extends ChangeNotifier {
   /// The signature is `SalonFiguresSink`'s (provider_provider.dart): the
   /// review sheet hands this method to `ProviderProvider.submitReview`.
   void patchSalonFigures(
-    String providerId, {
+    SalonId providerId, {
     required double rating,
     required int reviewCount,
   }) {
@@ -162,11 +170,16 @@ class FavoritesProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Clear favorites (e.g., on logout)
-  void clearFavorites() {
+  /// The account changed (B9.13). It replaces `clearFavorites`, which the
+  /// profile screen called by hand — before the sign-out, so a sign-out that
+  /// failed emptied the hearts of an account still signed in.
+  @override
+  void resetForAccountChange() {
+    _account++;
     _favoriteProviderIds = [];
     _favoriteProviders = [];
     _currentUserId = null;
+    _isLoading = false;
     _error = null;
     notifyListeners();
   }

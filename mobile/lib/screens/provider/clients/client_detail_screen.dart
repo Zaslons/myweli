@@ -7,8 +7,10 @@ import '../../../core/forms/field_errors.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/colors.dart';
 import '../../../core/theme/text_styles.dart';
+import '../../../core/utils/external_link.dart';
 import '../../../core/utils/formatters.dart';
 import '../../../core/utils/phone_numbering.dart';
+import '../../../core/utils/salon_id.dart';
 import '../../../core/utils/salon_time.dart';
 import '../../../core/utils/status_labels.dart';
 import '../../../core/utils/text_fit.dart';
@@ -17,12 +19,14 @@ import '../../../models/appointment.dart';
 import '../../../models/salon_client.dart';
 import '../../../providers/pro_auth_provider.dart';
 import '../../../providers/pro_clients_provider.dart';
+import '../../../widgets/common/app_async_view.dart';
 import '../../../widgets/common/app_button.dart';
+import '../../../widgets/common/app_chip.dart';
+import '../../../widgets/common/app_skeleton.dart';
 import '../../../widgets/common/app_snack_bar.dart';
 import '../../../widgets/common/app_text_field.dart';
 import '../../../widgets/common/empty_state.dart';
 import '../../../widgets/common/inline_feedback.dart';
-import '../../../widgets/common/loading_indicator.dart';
 import '../../../widgets/common/phone_number_field.dart';
 
 /// The client card (module `clients` C1c, docs/design/clients-c1.md §5):
@@ -39,9 +43,9 @@ class ClientDetailScreen extends StatefulWidget {
 }
 
 class _ClientDetailScreenState extends State<ClientDetailScreen> {
-  String get _providerId {
+  SalonId get _providerId {
     final auth = context.read<ProAuthProvider>();
-    return auth.activeSalonId ?? '';
+    return auth.activeSalonId ?? SalonId.none;
   }
 
   @override
@@ -78,23 +82,28 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
   }
 
   Widget _body(ProClientsProvider clients) {
-    if (clients.cardLoading) return const LoadingIndicator();
+    // A card that is not there is the client's state, not a failed read.
     if (clients.cardNotFound) {
       return const EmptyState(
         icon: Icons.person_off_outlined,
         title: 'Client introuvable',
       );
     }
-    if (clients.cardError != null || clients.card == null) {
-      return EmptyState(
-        icon: Icons.wifi_off,
-        title: 'Une erreur est survenue',
-        description: clients.cardError,
-        actionText: 'Réessayer',
-        onAction: () => clients.loadCard(_providerId, widget.clientId),
-      );
-    }
-    final card = clients.card!;
+    return AppAsyncView<SalonClientCard>(
+      isLoading: clients.cardLoading,
+      error: clients.cardError,
+      // Another client's, on this screen's first frame: the provider
+      // outlives it (B9.8).
+      data: clients.cardClientId == widget.clientId ? clients.card : null,
+      isEmpty: (_) => false,
+      loading: const SkeletonDetail(sections: 3),
+      empty: const SizedBox.shrink(),
+      onRetry: () => clients.loadCard(_providerId, widget.clientId),
+      builder: (context, card) => _card(clients, card),
+    );
+  }
+
+  Widget _card(ProClientsProvider clients, SalonClientCard card) {
     final client = card.client;
     return ListView(
       padding: const EdgeInsets.all(AppTheme.spacingM),
@@ -146,6 +155,9 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
     final clients = context.read<ProClientsProvider>();
     await showModalBottomSheet<void>(
       context: context,
+      // Ten tags, a fault and the keyboard are taller than the default 9/16
+      // of the screen — the sheet overflowed (B9.7). It scrolls instead.
+      isScrollControlled: true,
       builder: (_) => _TagSheet(
         initial: client.tags,
         onSave: (tags) =>
@@ -303,8 +315,7 @@ class _Header extends StatelessWidget {
                   IconButton(
                     icon: const Icon(Icons.phone),
                     tooltip: 'Appeler',
-                    onPressed: () =>
-                        launchUrl(Uri.parse('tel:${client.phone}')),
+                    onPressed: () => callPhone(context, client.phone!),
                   ),
                   IconButton(
                     icon: const Icon(Icons.chat),
@@ -402,12 +413,9 @@ class _Header extends StatelessWidget {
             runSpacing: AppTheme.spacingXS,
             crossAxisAlignment: WrapCrossAlignment.center,
             children: [
-              for (final t in client.tags) Chip(label: Text(t)),
-              ActionChip(
-                label: Text(
-                  client.tags.isEmpty ? '+ Tags' : 'Modifier',
-                  style: AppTextStyles.bodySmall,
-                ),
+              for (final t in client.tags) AppChip.tag(label: t),
+              AppChip.action(
+                label: client.tags.isEmpty ? '+ Tags' : 'Modifier',
                 onPressed: onEditTags,
               ),
             ],
@@ -1018,50 +1026,75 @@ class _VisitsSection extends StatelessWidget {
               ),
             )
           else
-            for (final v in visits)
-              Padding(
-                padding: const EdgeInsets.symmetric(
-                  vertical: AppTheme.spacingXS,
-                ),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        Formatters.formatDateTime(
-                          toSalonTime(
-                            v.appointmentDate,
-                            tz: context.read<ProAuthProvider>().salonTimezone,
-                          ),
-                        ),
-                        style: AppTextStyles.bodyMedium.copyWith(
-                          color: AppColors.textPrimary,
-                        ),
-                      ),
-                    ),
-                    // The date takes all the width that is left; without
-                    // this, a date that fits its line exactly ends ON the
-                    // amount (« 08:007 000 FCFA », seen on the simulator).
-                    const SizedBox(width: AppTheme.spacingS),
-                    Text(
-                      Formatters.formatCurrency(
-                        v.totalPrice,
-                        currency: context.read<ProAuthProvider>().salonCurrency,
-                      ),
-                      style: AppTextStyles.bodySmall.copyWith(
-                        color: AppColors.textSecondary,
-                      ),
-                    ),
-                    const SizedBox(width: AppTheme.spacingS),
-                    Text(
-                      StatusLabels.of(v.status),
-                      style: AppTextStyles.bodySmall.copyWith(
-                        color: _statusColor(v.status),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+            for (final v in visits) _visitRow(context, v),
         ],
+      ),
+    );
+  }
+
+  /// One visit: the date, its amount, its status. Beside each other while the
+  /// date's longest word fits next to the two; else the date on its own line
+  /// and the two under it (B7.10 — SYSTEM §21 row 96). At 200 % on 360 dp a
+  /// seven-digit amount left the date less than « octobre » needs (97 dp),
+  /// and it broke inside the word. Measured with [TextFit], never a size
+  /// constant; at the default size nothing changes.
+  Widget _visitRow(BuildContext context, Appointment v) {
+    final date = Formatters.formatDateTime(
+      toSalonTime(
+        v.appointmentDate,
+        tz: context.read<ProAuthProvider>().salonTimezone,
+      ),
+    );
+    final amount = Formatters.formatCurrency(
+      v.totalPrice,
+      currency: context.read<ProAuthProvider>().salonCurrency,
+    );
+    final status = StatusLabels.of(v.status);
+    final dateStyle = AppTextStyles.bodyMedium.copyWith(
+      color: AppColors.textPrimary,
+    );
+    final amountStyle = AppTextStyles.bodySmall.copyWith(
+      color: AppColors.textSecondary,
+    );
+    final statusStyle = AppTextStyles.bodySmall.copyWith(
+      color: _statusColor(v.status),
+    );
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: AppTheme.spacingXS),
+      child: LayoutBuilder(
+        builder: (context, box) {
+          final fit = TextFit.of(context);
+          final beside =
+              box.maxWidth -
+              fit.lineWidth(amount, amountStyle) -
+              fit.lineWidth(status, statusStyle) -
+              2 * AppTheme.spacingS;
+          final figures = [
+            Text(amount, style: amountStyle),
+            const SizedBox(width: AppTheme.spacingS),
+            Text(status, style: statusStyle),
+          ];
+          if (!fit.holds(beside, [(text: date, style: dateStyle)])) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(date, style: dateStyle),
+                const SizedBox(height: AppTheme.spacingXS),
+                Row(children: figures),
+              ],
+            );
+          }
+          return Row(
+            children: [
+              // The date takes all the width that is left; without this, a
+              // date that fits its line exactly ends ON the amount
+              // (« 08:007 000 FCFA », seen on the simulator).
+              Expanded(child: Text(date, style: dateStyle)),
+              const SizedBox(width: AppTheme.spacingS),
+              ...figures,
+            ],
+          );
+        },
       ),
     );
   }
@@ -1078,8 +1111,29 @@ class _TagSheet extends StatefulWidget {
 }
 
 class _TagSheetState extends State<_TagSheet> {
-  /// A7/§14: the custom-tag field's fault. Its three rules were silent no-ops.
-  String? _tagError;
+  /// The most a client carries, the server's cap.
+  static const _maxTags = 10;
+  static const _limitFault =
+      'Vous avez atteint 10 tags — retirez-en un pour en ajouter.';
+
+  /// A7/§14, on `FieldErrors` since B9.7: the custom-tag field's fault is
+  /// asked again as the value changes, where any keystroke used to clear it.
+  late final _errors = FieldErrors({'tag': _tagRule});
+
+  /// Read against the tags already chosen: already there, then the limit —
+  /// at ten, the limit is what to fix whatever is typed — then empty.
+  String? _tagRule(String value) {
+    final t = value.trim();
+    if (t.isNotEmpty && _tags.contains(t)) return 'Ce tag est déjà ajouté.';
+    if (_tags.length >= _maxTags) return _limitFault;
+    if (t.isEmpty) return 'Saisissez un tag.';
+    return null;
+  }
+
+  /// A save that failed — the sheet's outcome, not the field's (SYSTEM §14,
+  /// the three slots: in a sheet, `InlineFeedback`). It used to leave the
+  /// sheet open and say nothing.
+  String? _failure;
 
   late final List<String> _tags = List.of(widget.initial);
   final _customController = TextEditingController();
@@ -1095,19 +1149,50 @@ class _TagSheetState extends State<_TagSheet> {
     setState(() {
       if (_tags.contains(tag)) {
         _tags.remove(tag);
-      } else if (_tags.length < 10) {
+      } else if (_tags.length < _maxTags) {
         _tags.add(tag);
+      } else {
+        // The eleventh chip did nothing at all (§14 rule 5): it says why.
+        _errors.set('tag', _limitFault);
+        return;
       }
+      _recheck();
+    });
+  }
+
+  /// A chip changes the set the rule reads, so a fault on show is asked
+  /// again (§14 rule 2). The limit raised with the box empty is answered by
+  /// the count alone: « Saisissez un tag. » is for « + ».
+  void _recheck() {
+    final text = _customController.text;
+    if (_errors['tag'] == _limitFault && text.trim().isEmpty) {
+      if (_tags.length < _maxTags) _errors.set('tag', null);
+    } else {
+      _errors.revalidate('tag', text);
+    }
+  }
+
+  void _addCustom() {
+    final text = _customController.text;
+    setState(() {
+      if (!_errors.validate({'tag': text})) return;
+      _tags.add(text.trim());
+      _customController.clear();
     });
   }
 
   Future<void> _save() async {
-    setState(() => _busy = true);
+    setState(() {
+      _busy = true;
+      _failure = null;
+    });
     final ok = await widget.onSave(_tags);
-    if (mounted) {
-      setState(() => _busy = false);
-      if (ok) Navigator.of(context).pop();
-    }
+    if (!mounted) return;
+    setState(() {
+      _busy = false;
+      if (!ok) _failure = 'Enregistrement impossible. Réessayez.';
+    });
+    if (ok) Navigator.of(context).pop();
   }
 
   @override
@@ -1124,76 +1209,53 @@ class _TagSheetState extends State<_TagSheet> {
         top: AppTheme.spacingL,
         bottom: MediaQuery.of(context).viewInsets.bottom + AppTheme.spacingL,
       ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Text(
-            'Tags',
-            style: AppTextStyles.titleLarge.copyWith(
-              color: AppColors.textPrimary,
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              'Tags',
+              style: AppTextStyles.titleLarge.copyWith(
+                color: AppColors.textPrimary,
+              ),
             ),
-          ),
-          const SizedBox(height: AppTheme.spacingM),
-          Wrap(
-            spacing: AppTheme.spacingXS,
-            runSpacing: AppTheme.spacingXS,
-            children: [
-              for (final t in choices)
-                FilterChip(
-                  label: Text(t),
-                  selected: _tags.contains(t),
-                  onSelected: (_) => _toggle(t),
-                ),
-            ],
-          ),
-          const SizedBox(height: AppTheme.spacingM),
-          AppTextField(
-            controller: _customController,
-            label: 'Tag personnalisé',
-            hint: 'Ex : Mariée juin',
-            maxLength: 24,
-            errorText: _tagError,
-            onChanged: (_) {
-              if (_tagError != null) setState(() => _tagError = null);
-            },
-            suffixIcon: IconButton(
-              tooltip: 'Ajouter le tag',
-              icon: const Icon(Icons.add),
-              onPressed: () {
-                final t = _customController.text.trim();
-                // Three rules used to fail in complete silence — the button was
-                // ENABLED, the user tapped, and nothing happened at all. A7
-                // wrote this block once and the edit silently did not apply;
-                // the review caught the resulting dead `errorText`, which is
-                // the very bug this slice exists to kill.
-                final fault = t.isEmpty
-                    ? 'Saisissez un tag.'
-                    : _tags.contains(t)
-                    ? 'Ce tag est déjà ajouté.'
-                    : _tags.length >= 10
-                    ? 'Vous avez atteint 10 tags — retirez-en un '
-                          'pour en ajouter.'
-                    : null;
-                if (fault != null) {
-                  setState(() => _tagError = fault);
-                  return;
-                }
-                setState(() {
-                  _tagError = null;
-                  _tags.add(t);
-                  _customController.clear();
-                });
-              },
+            const SizedBox(height: AppTheme.spacingM),
+            Wrap(
+              spacing: AppTheme.spacingXS,
+              runSpacing: AppTheme.spacingXS,
+              children: [
+                for (final t in choices)
+                  AppChip.choice(
+                    label: t,
+                    selected: _tags.contains(t),
+                    onSelected: (_) => _toggle(t),
+                  ),
+              ],
             ),
-          ),
-          const SizedBox(height: AppTheme.spacingM),
-          AppButton(
-            text: 'Enregistrer',
-            isLoading: _busy,
-            onPressed: _busy ? null : _save,
-          ),
-        ],
+            const SizedBox(height: AppTheme.spacingM),
+            AppTextField(
+              controller: _customController,
+              label: 'Tag personnalisé',
+              hint: 'Ex : Mariée juin',
+              maxLength: 24,
+              errorText: _errors['tag'],
+              onChanged: (v) => setState(() => _errors.revalidate('tag', v)),
+              suffixIcon: IconButton(
+                tooltip: 'Ajouter le tag',
+                icon: const Icon(Icons.add),
+                onPressed: _addCustom,
+              ),
+            ),
+            InlineFeedback(_failure),
+            const SizedBox(height: AppTheme.spacingM),
+            AppButton(
+              text: 'Enregistrer',
+              isLoading: _busy,
+              onPressed: _busy ? null : _save,
+            ),
+          ],
+        ),
       ),
     );
   }

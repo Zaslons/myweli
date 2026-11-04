@@ -4,6 +4,7 @@ import '../../core/theme/app_theme.dart';
 import '../../core/theme/colors.dart';
 import '../../core/theme/text_styles.dart';
 import '../../core/utils/formatters.dart';
+import 'app_chip.dart';
 
 /// How much of the rating a site has room for.
 enum AppRatingSize {
@@ -131,23 +132,13 @@ class AppRating extends StatelessWidget {
 class _NewPill extends StatelessWidget {
   const _NewPill();
 
+  // `dense`: labelSmall's own 16px line IS the pill, so it is exactly as
+  // tall as the rating row it replaces — `ProviderCard` budgets that row at
+  // 16 (`_textBlockHeight`), and a padded pill overflowed it.
   @override
-  Widget build(BuildContext context) {
-    return Container(
-      // No vertical padding: labelSmall's own 16px line IS the pill, so it is
-      // exactly as tall as the rating row it replaces — `ProviderCard` budgets
-      // that row at 16 (`_textBlockHeight`), and a padded pill overflowed it.
-      padding: const EdgeInsets.symmetric(horizontal: AppTheme.spacingS),
-      decoration: BoxDecoration(
-        color: AppColors.textSecondary.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(AppTheme.radiusPill),
-      ),
-      child: Text(
-        'Nouveau',
-        style: AppTextStyles.labelSmall.copyWith(
-          color: AppColors.textSecondary,
-        ),
-      ),
-    );
-  }
+  Widget build(BuildContext context) => const AppChip.status(
+    label: 'Nouveau',
+    tone: AppChipTone.neutral,
+    dense: true,
+  );
 }

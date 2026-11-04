@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:myweli/core/di/dependency_injection.dart';
+import 'package:myweli/core/utils/salon_id.dart';
 import 'package:myweli/models/api_response.dart';
 import 'package:myweli/models/provider.dart' as models;
 import 'package:myweli/models/review.dart';
@@ -82,7 +83,7 @@ void main() {
                   context: context,
                   isScrollControlled: true,
                   builder: (_) => const SubmitReviewSheet(
-                    providerId: 'provider1',
+                    providerId: SalonId('provider1'),
                     appointmentId: 'apt-1',
                   ),
                 ),

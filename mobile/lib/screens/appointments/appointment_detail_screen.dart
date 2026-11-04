@@ -3,6 +3,8 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../core/constants/failure_messages.dart';
+import '../../core/constants/unnamed_salon.dart';
 import '../../core/di/dependency_injection.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/colors.dart';
@@ -11,17 +13,20 @@ import '../../core/utils/app_clock.dart';
 import '../../core/utils/booking_error_cta.dart';
 import '../../core/utils/calendar_event.dart';
 import '../../core/utils/cancellation_policy.dart';
+import '../../core/utils/external_link.dart';
 import '../../core/utils/formatters.dart';
 import '../../core/utils/salon_time.dart';
 import '../../models/appointment.dart';
 import '../../providers/appointment_provider.dart';
 import '../../providers/locality_provider.dart';
 import '../../widgets/booking/deposit_payment_sheet.dart';
+import '../../widgets/common/app_async_view.dart';
 import '../../widgets/common/app_button.dart';
+import '../../widgets/common/app_card.dart';
+import '../../widgets/common/app_skeleton.dart';
 import '../../widgets/common/app_snack_bar.dart';
 import '../../widgets/common/confirm_dialog.dart';
 import '../../widgets/common/inline_feedback.dart';
-import '../../widgets/common/loading_indicator.dart';
 import '../../widgets/common/salon_time_hint.dart';
 import '../../widgets/common/timed_cached_image.dart';
 import '../../widgets/review/submit_review_sheet.dart';
@@ -76,9 +81,10 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
       );
       return;
     }
-    final uri = whatsapp
-        ? Uri.parse('https://wa.me/${raw.replaceAll(RegExp(r'[^0-9]'), '')}')
-        : Uri.parse('tel:${raw.replaceAll(RegExp(r'\s'), '')}');
+    if (!whatsapp) return callPhone(context, raw);
+    final uri = Uri.parse(
+      'https://wa.me/${raw.replaceAll(RegExp(r'[^0-9]'), '')}',
+    );
     if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
       AppSnackBar.showOn(
         messenger,
@@ -209,7 +215,7 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
       context,
       ok: success,
       success: 'Rendez-vous reporté',
-      error: provider.error ?? 'Erreur',
+      error: provider.error ?? kGenericErrorMessage,
     );
   }
 
@@ -226,7 +232,8 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
       appointmentId: appointment.id,
       depositAmount: appointment.depositAmount,
       balanceDue: appointment.balanceDue,
-      providerName: appointment.providerName ?? 'le salon',
+      // « Wave · Salon »: a label, so the title form.
+      providerName: salonNameOr(appointment.providerName, kUnnamedSalon),
       depositOperator: appointment.depositMobileMoneyOperator,
       depositCountryCode: appointment.providerCountryCode,
       depositNumber: appointment.depositMobileMoneyNumber,
@@ -349,7 +356,7 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
     final messenger = ScaffoldMessenger.of(context);
     final ok = await addAppointmentToCalendar(
       buildAppointmentCalendarEvent(
-        providerName: appointment.providerName ?? 'le salon',
+        providerName: appointment.providerName,
         providerAddress: appointment.providerAddress,
         serviceNames: appointment.serviceNames,
         start: appointment.appointmentDate,
@@ -394,206 +401,197 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.surface,
+      // Cards are `secondary` on `background` (SYSTEM §3.1): the step that
+      // lifts them, now they have no shadow (B9.8 F2).
+      backgroundColor: AppColors.background,
       appBar: AppBar(title: const Text('Détails')),
       body: Consumer<AppointmentProvider>(
         builder: (context, provider, _) {
-          if (provider.isLoading && provider.selectedAppointment == null) {
-            return const LoadingIndicator();
-          }
+          // The provider's selection is app-wide and survives the screen: on
+          // the way to B it still holds A. Shown as it was, A's details — and
+          // A's actions — stood on B's screen until B answered.
+          final selected = provider.selectedAppointment;
+          return AppAsyncView<Appointment>(
+            isLoading: provider.isLoading,
+            error: provider.error,
+            data: selected?.id == widget.appointmentId ? selected : null,
+            isEmpty: (_) => false,
+            loading: const SkeletonDetail(sections: 3),
+            empty: const SizedBox.shrink(),
+            onRetry: () => provider.loadAppointmentById(widget.appointmentId),
+            builder: (context, appointment) =>
+                _detail(context, provider, appointment),
+          );
+        },
+      ),
+    );
+  }
 
-          final appointment = provider.selectedAppointment;
-          if (appointment == null) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(
-                    Icons.error_outline,
-                    size: AppTheme.iconXL,
-                    color: AppColors.error,
-                  ),
-                  const SizedBox(height: AppTheme.spacingM),
-                  Text(
-                    provider.error ?? 'Rendez-vous non trouvé',
-                    style: AppTextStyles.bodyMedium.copyWith(
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
-                ],
-              ),
-            );
-          }
-
-          return SingleChildScrollView(
-            padding: const EdgeInsets.all(AppTheme.spacingM),
+  Widget _detail(
+    BuildContext context,
+    AppointmentProvider provider,
+    Appointment appointment,
+  ) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(AppTheme.spacingM),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Appointment Info Card
+          AppCard(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Appointment Info Card
-                Container(
-                  padding: const EdgeInsets.all(AppTheme.spacingL),
-                  decoration: BoxDecoration(
-                    color: AppColors.secondary,
-                    borderRadius: BorderRadius.circular(AppTheme.radiusXL),
-                    boxShadow: AppTheme.elevation1,
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Informations du rendez-vous',
-                        style: AppTextStyles.titleLarge,
-                      ),
-                      const Divider(height: 24),
-                      _InfoRow(
-                        icon: Icons.calendar_today,
-                        label: 'Date',
-                        value: Formatters.formatDate(
-                          toSalonTime(
-                            appointment.appointmentDate,
-                            tz: appointment.providerTimezone,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: AppTheme.spacingM),
-                      _InfoRow(
-                        icon: Icons.access_time,
-                        label: 'Heure',
-                        value: Formatters.formatTime(
-                          toSalonTime(
-                            appointment.appointmentDate,
-                            tz: appointment.providerTimezone,
-                          ),
-                        ),
-                      ),
-                      SalonTimeHint(
-                        tz: appointment.providerTimezone,
-                        countryLabel: context
-                            .watch<LocalityProvider>()
-                            .countryName(appointment.providerCountryCode),
-                        padding: const EdgeInsets.only(top: AppTheme.spacingXS),
-                      ),
-                      if (appointment.artistName case final artist?) ...[
-                        const SizedBox(height: AppTheme.spacingM),
-                        _InfoRow(
-                          icon: Icons.person_outline,
-                          label: 'Spécialiste',
-                          value: artist,
-                        ),
-                      ],
-                      const SizedBox(height: AppTheme.spacingM),
-                      _InfoRow(
-                        icon: Icons.attach_money,
-                        label: 'Prix total',
-                        value: Formatters.formatCurrency(
-                          appointment.totalPrice,
-                          currency:
-                              appointment.currency ??
-                              appointment.providerCurrency ??
-                              'XOF',
-                        ),
-                      ),
-                      if (appointment.depositAmount > 0) ...[
-                        const SizedBox(height: AppTheme.spacingM),
-                        _depositSection(appointment),
-                        const SizedBox(height: AppTheme.spacingM),
-                        _InfoRow(
-                          icon: Icons.account_balance_wallet_outlined,
-                          label: 'Solde à régler au salon',
-                          value: Formatters.formatCurrency(
-                            appointment.balanceDue,
-                            currency:
-                                appointment.currency ??
-                                appointment.providerCurrency ??
-                                'XOF',
-                          ),
-                        ),
-                      ],
-                      if (appointment.notes != null &&
-                          appointment.notes!.isNotEmpty) ...[
-                        const SizedBox(height: AppTheme.spacingM),
-                        _InfoRow(
-                          icon: Icons.note,
-                          label: 'Notes',
-                          value: appointment.notes!,
-                        ),
-                      ],
-                    ],
-                  ),
+                const Text(
+                  'Informations du rendez-vous',
+                  style: AppTextStyles.titleLarge,
                 ),
-                const SizedBox(height: AppTheme.spacingL),
-                // The salon stopped taking appointments (§12, §6 cell 6).
-                //
-                // Stated once, above the actions it explains — the client is
-                // not left to infer it from a button that has quietly gone
-                // missing. What stays is deliberate: « Annuler » (a stopped
-                // salon must not trap anyone in a booking), « Appeler » /
-                // « WhatsApp » (this is when they need the salon MOST), the
-                // deposit block, and the calendar export.
-                if (salonStoppedMessage(appointment.providerStatus)
-                    case final stopped?) ...[
-                  InlineFeedback(stopped, kind: SnackKind.info),
-                  const SizedBox(height: AppTheme.spacingM),
-                ],
-                // Action Buttons
-                if (appointment.status != AppointmentStatus.cancelled &&
-                    appointment.status != AppointmentStatus.completed) ...[
-                  if (appointment.appointmentDate.isAfter(AppClock.now())) ...[
-                    // « Reporter » is withheld for a salon that is not live:
-                    // the server refuses the move (`provider_suspended` /
-                    // `provider_not_published`), so offering it would be a
-                    // dead end with a button on it. Hiding is a courtesy OVER
-                    // the server gate, never instead of one.
-                    if (appointment.salonIsLive) ...[
-                      AppButton(
-                        text: 'Reporter',
-                        icon: Icons.event_repeat,
-                        isLoading: provider.isLoading,
-                        onPressed: () => _handleReschedule(appointment),
-                      ),
-                      const SizedBox(height: AppTheme.spacingS),
-                    ],
-                    AppButton(
-                      text: 'Ajouter au calendrier',
-                      type: AppButtonType.secondary,
-                      icon: Icons.event_available,
-                      onPressed: () => _addToCalendar(appointment),
+                const Divider(height: 24),
+                _InfoRow(
+                  icon: Icons.calendar_today,
+                  label: 'Date',
+                  value: Formatters.formatDate(
+                    toSalonTime(
+                      appointment.appointmentDate,
+                      tz: appointment.providerTimezone,
                     ),
-                    const SizedBox(height: AppTheme.spacingS),
-                  ],
-                  AppButton(
-                    text: 'Annuler le rendez-vous',
-                    type: AppButtonType.secondary,
-                    isLoading: provider.isLoading,
-                    onPressed: () => _handleCancel(appointment),
                   ),
-                  const SizedBox(height: AppTheme.spacingS),
-                ],
-                if (appointment.status == AppointmentStatus.completed) ...[
-                  AppButton(
-                    text: 'Donner mon avis',
-                    icon: Icons.rate_review_outlined,
-                    onPressed: () => _leaveReview(appointment),
+                ),
+                const SizedBox(height: AppTheme.spacingM),
+                _InfoRow(
+                  icon: Icons.access_time,
+                  label: 'Heure',
+                  value: Formatters.formatTime(
+                    toSalonTime(
+                      appointment.appointmentDate,
+                      tz: appointment.providerTimezone,
+                    ),
                   ),
-                  const SizedBox(height: AppTheme.spacingS),
+                ),
+                SalonTimeHint(
+                  tz: appointment.providerTimezone,
+                  countryLabel: context.watch<LocalityProvider>().countryName(
+                    appointment.providerCountryCode,
+                  ),
+                  padding: const EdgeInsets.only(top: AppTheme.spacingXS),
+                ),
+                if (appointment.artistName case final artist?) ...[
+                  const SizedBox(height: AppTheme.spacingM),
+                  _InfoRow(
+                    icon: Icons.person_outline,
+                    label: 'Spécialiste',
+                    value: artist,
+                  ),
                 ],
-                AppButton(
-                  text: 'Appeler',
-                  icon: Icons.phone,
-                  onPressed: () => _contactSalon(appointment, whatsapp: false),
+                const SizedBox(height: AppTheme.spacingM),
+                _InfoRow(
+                  icon: Icons.attach_money,
+                  label: 'Prix total',
+                  value: Formatters.formatCurrency(
+                    appointment.totalPrice,
+                    currency:
+                        appointment.currency ??
+                        appointment.providerCurrency ??
+                        'XOF',
+                  ),
                 ),
-                const SizedBox(height: AppTheme.spacingS),
-                AppButton(
-                  text: 'WhatsApp',
-                  icon: Icons.chat_outlined,
-                  type: AppButtonType.secondary,
-                  onPressed: () => _contactSalon(appointment, whatsapp: true),
-                ),
+                if (appointment.depositAmount > 0) ...[
+                  const SizedBox(height: AppTheme.spacingM),
+                  _depositSection(appointment),
+                  const SizedBox(height: AppTheme.spacingM),
+                  _InfoRow(
+                    icon: Icons.account_balance_wallet_outlined,
+                    label: 'Solde à régler au salon',
+                    value: Formatters.formatCurrency(
+                      appointment.balanceDue,
+                      currency:
+                          appointment.currency ??
+                          appointment.providerCurrency ??
+                          'XOF',
+                    ),
+                  ),
+                ],
+                if (appointment.notes != null &&
+                    appointment.notes!.isNotEmpty) ...[
+                  const SizedBox(height: AppTheme.spacingM),
+                  _InfoRow(
+                    icon: Icons.note,
+                    label: 'Notes',
+                    value: appointment.notes!,
+                  ),
+                ],
               ],
             ),
-          );
-        },
+          ),
+          const SizedBox(height: AppTheme.spacingL),
+          // The salon stopped taking appointments (§12, §6 cell 6).
+          //
+          // Stated once, above the actions it explains — the client is
+          // not left to infer it from a button that has quietly gone
+          // missing. What stays is deliberate: « Annuler » (a stopped
+          // salon must not trap anyone in a booking), « Appeler » /
+          // « WhatsApp » (this is when they need the salon MOST), the
+          // deposit block, and the calendar export.
+          if (salonStoppedMessage(appointment.providerStatus)
+              case final stopped?) ...[
+            InlineFeedback(stopped, kind: SnackKind.info),
+            const SizedBox(height: AppTheme.spacingM),
+          ],
+          // Action Buttons
+          if (appointment.status != AppointmentStatus.cancelled &&
+              appointment.status != AppointmentStatus.completed) ...[
+            if (appointment.appointmentDate.isAfter(AppClock.now())) ...[
+              // « Reporter » is withheld for a salon that is not live:
+              // the server refuses the move (`provider_suspended` /
+              // `provider_not_published`), so offering it would be a
+              // dead end with a button on it. Hiding is a courtesy OVER
+              // the server gate, never instead of one.
+              if (appointment.salonIsLive) ...[
+                AppButton(
+                  text: 'Reporter',
+                  icon: Icons.event_repeat,
+                  isLoading: provider.isLoading,
+                  onPressed: () => _handleReschedule(appointment),
+                ),
+                const SizedBox(height: AppTheme.spacingS),
+              ],
+              AppButton(
+                text: 'Ajouter au calendrier',
+                type: AppButtonType.secondary,
+                icon: Icons.event_available,
+                onPressed: () => _addToCalendar(appointment),
+              ),
+              const SizedBox(height: AppTheme.spacingS),
+            ],
+            AppButton(
+              text: 'Annuler le rendez-vous',
+              type: AppButtonType.secondary,
+              isLoading: provider.isLoading,
+              onPressed: () => _handleCancel(appointment),
+            ),
+            const SizedBox(height: AppTheme.spacingS),
+          ],
+          if (appointment.status == AppointmentStatus.completed) ...[
+            AppButton(
+              text: 'Donner mon avis',
+              icon: Icons.rate_review_outlined,
+              onPressed: () => _leaveReview(appointment),
+            ),
+            const SizedBox(height: AppTheme.spacingS),
+          ],
+          AppButton(
+            text: 'Appeler',
+            icon: Icons.phone,
+            onPressed: () => _contactSalon(appointment, whatsapp: false),
+          ),
+          const SizedBox(height: AppTheme.spacingS),
+          AppButton(
+            text: 'WhatsApp',
+            icon: Icons.chat_outlined,
+            type: AppButtonType.secondary,
+            onPressed: () => _contactSalon(appointment, whatsapp: true),
+          ),
+        ],
       ),
     );
   }

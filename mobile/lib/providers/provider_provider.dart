@@ -3,9 +3,12 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../core/access/account_scope.dart';
 import '../core/constants/app_constants.dart';
+import '../core/constants/failure_messages.dart';
 import '../core/di/dependency_injection.dart';
 import '../core/utils/salon_figures.dart';
+import '../core/utils/salon_id.dart';
 import '../models/provider.dart';
 import '../models/review.dart';
 import '../services/interfaces/image_upload_service_interface.dart';
@@ -22,12 +25,12 @@ import '../services/interfaces/review_service_interface.dart';
 /// `FavoritesProvider.patchSalonFigures` here.
 typedef SalonFiguresSink =
     void Function(
-      String providerId, {
+      SalonId providerId, {
       required double rating,
       required int reviewCount,
     });
 
-class ProviderProvider extends ChangeNotifier {
+class ProviderProvider extends ChangeNotifier implements AccountScoped {
   final ProviderServiceInterface _providerService =
       serviceLocator.providerService;
   // Lazy so constructing ProviderProvider doesn't require these registered.
@@ -44,7 +47,7 @@ class ProviderProvider extends ChangeNotifier {
   /// by every salon page in the stack; [selectedProvider] alone cannot say
   /// whose it is: during a read it still holds the previous salon, and after
   /// a failed one it is `null` for everybody.
-  String? _selectedProviderId;
+  SalonId? _selectedProviderId;
   bool _isLoading = false;
   bool _isSubmittingReview = false;
   String? _error;
@@ -59,6 +62,17 @@ class ProviderProvider extends ChangeNotifier {
   /// sentences to tell them apart is how `'Salon introuvable'` became dead
   /// code that never rendered.
   String? _errorCode;
+
+  /// The salon LIST's own read (B9.8). [isLoading] and [error] belong to
+  /// every read here: the featured carousel finishing first turned
+  /// [isLoading] off while the list was still out — « Aucun salon trouvé »
+  /// under a list on its way — and a salon page's failed read gave a list
+  /// screen its error.
+  bool _listLoading = false;
+  String? _listError;
+
+  /// The featured carousel's own read, for the same reason.
+  bool _featuredLoading = false;
   String? _selectedCategory;
   String? _selectedCommune;
   ProviderSort _sort = ProviderSort.relevance;
@@ -74,6 +88,18 @@ class ProviderProvider extends ChangeNotifier {
   /// stale-answer guard of [rereadSalonAfterReview].
   final Map<String, int> _reviewsApplied = {};
 
+  /// The account changed (B9.13): only the stars it gave are its own.
+  ///
+  /// Everything else here — the salons, the open page, the commune, the sort
+  /// — is public, and emptying it would blank the home under the person.
+  /// No notification: nothing on screen reads these stars, and a rebuild of
+  /// every salon list for nothing is a cost on a low-end phone. No account
+  /// number either: the map is keyed by the previous account's visits, which
+  /// the next account can never review (docs/design/consumer-account-scope.md
+  /// §2.1).
+  @override
+  void resetForAccountChange() => _starsByVisit.clear();
+
   static const _communeKey = 'myweli_selected_commune_v1';
 
   List<Provider> get providers => _providers;
@@ -87,6 +113,9 @@ class ProviderProvider extends ChangeNotifier {
   bool get isSubmittingReview => _isSubmittingReview;
   String? get error => _error;
   String? get errorCode => _errorCode;
+  bool get listLoading => _listLoading;
+  String? get listError => _listError;
+  bool get featuredLoading => _featuredLoading;
   String? get selectedCategory => _selectedCategory;
   String? get selectedCommune => _selectedCommune;
   ProviderSort get sort => _sort;
@@ -94,7 +123,9 @@ class ProviderProvider extends ChangeNotifier {
 
   Future<void> loadProviders({String? category, String? searchQuery}) async {
     _isLoading = true;
+    _listLoading = true;
     _error = null;
+    _listError = null;
     _selectedCategory = category;
     notifyListeners();
 
@@ -110,14 +141,17 @@ class ProviderProvider extends ChangeNotifier {
         _providers = response.data!;
         _error = null;
       } else {
-        _error = response.error ?? 'Erreur lors du chargement';
+        _error = response.error ?? kGenericErrorMessage;
+        _listError = _error;
         _providers = [];
       }
     } catch (e) {
-      _error = e.toString();
+      _error = kGenericErrorMessage;
+      _listError = _error;
       _providers = [];
     } finally {
       _isLoading = false;
+      _listLoading = false;
       notifyListeners();
     }
   }
@@ -166,6 +200,7 @@ class ProviderProvider extends ChangeNotifier {
 
   Future<void> loadFeaturedProviders() async {
     _isLoading = true;
+    _featuredLoading = true;
     notifyListeners();
 
     try {
@@ -177,6 +212,7 @@ class ProviderProvider extends ChangeNotifier {
       // Silent fail for featured providers
     } finally {
       _isLoading = false;
+      _featuredLoading = false;
       notifyListeners();
     }
   }
@@ -197,7 +233,7 @@ class ProviderProvider extends ChangeNotifier {
   /// stale silently.
   void beginProviderLoad() => _isLoading = true;
 
-  Future<void> loadProviderById(String id) async {
+  Future<void> loadProviderById(SalonId id) async {
     _selectedProviderId = id;
     _isLoading = true;
     _error = null;
@@ -216,7 +252,7 @@ class ProviderProvider extends ChangeNotifier {
         code = response.code;
       }
     } catch (e) {
-      error = e.toString();
+      error = kGenericErrorMessage;
       code = 'network';
     }
     // Another salon was asked for while this read was out — a later load, or
@@ -273,7 +309,7 @@ class ProviderProvider extends ChangeNotifier {
   /// reads [selectedProvider], [isLoading] and [error]; a lookup that set any
   /// of them would repaint that page behind the user's back. `null` = not
   /// found, gone, or unreachable — the caller says so.
-  Future<Provider?> providerForMap(String id) async {
+  Future<Provider?> providerForMap(SalonId id) async {
     for (final p in _providers) {
       if (p.id == id) return p;
     }
@@ -365,7 +401,7 @@ class ProviderProvider extends ChangeNotifier {
   /// slot: the list (the map's markers and [providerForMap] read it first),
   /// the featured list, and whatever [alsoPatch] holds.
   void _patchFigures(
-    String id,
+    SalonId id,
     double rating,
     int reviewCount,
     SalonFiguresSink? alsoPatch,
@@ -418,7 +454,7 @@ class ProviderProvider extends ChangeNotifier {
   /// while it was covered —, so it can disagree with the lists until its
   /// next read.
   Future<void> rereadSalonAfterReview(
-    String providerId, {
+    SalonId providerId, {
     SalonFiguresSink? alsoPatch,
   }) async {
     final applied = _reviewsApplied[providerId];
@@ -476,7 +512,7 @@ class ProviderProvider extends ChangeNotifier {
       _error = res.error ?? 'Erreur lors de la publication';
       return false;
     } catch (e) {
-      _error = e.toString();
+      _error = kGenericErrorMessage;
       return false;
     } finally {
       _isSubmittingReview = false;

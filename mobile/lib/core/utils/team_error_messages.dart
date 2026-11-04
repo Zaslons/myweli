@@ -1,9 +1,11 @@
+import '../constants/failure_messages.dart';
+
 /// Machine-code → French copy for the team & offers surfaces (team access
 /// R3). ONE table used by BOTH the mock and the API services so the copy
 /// can never drift between backends.
 ///
 /// **No sentence here sends the salon anywhere to obtain an offer.** The Pro
-/// app is a companion app (App Store 3.1.3(f)): it states a fact — the offer
+/// app never sells (App Store 3.1.1): it states a fact — the offer
 /// is not active, the places are taken — and never asks the salon to choose,
 /// upgrade or contact anyone about an offer, nor says where one is bought. An
 /// `InlineFeedback` is a live region, so VoiceOver reads these sentences
@@ -21,6 +23,8 @@ String teamErrorMessage(String? code, {String? fallback}) => switch (code) {
   'invite_rate_limited' =>
     'Trop d’invitations envoyées aujourd’hui. Réessayez demain.',
   'owner_protected' => 'Le propriétaire ne peut pas être modifié.',
+  // A revoked member's role (409 — docs/design/pro-app-batch7.md §2.5).
+  'member_revoked' => 'Ce membre n’a plus accès au salon.',
   'invitation_expired' =>
     'Cette invitation a expiré. Demandez au salon de la renvoyer.',
   'invalid_role' => 'Rôle invalide.',
@@ -28,14 +32,15 @@ String teamErrorMessage(String? code, {String? fallback}) => switch (code) {
   'artist_not_found' => 'Fiche employé introuvable. Actualisez et réessayez.',
   'trial_used' => 'Votre essai gratuit a déjà été utilisé.',
   'not_found' => 'Introuvable. Actualisez et réessayez.',
-  // R6 multi-salons (« Ajouter un salon »).
+  // R6 multi-salons (« Ajouter un salon », POST /me/salons — the web's
+  // alone since the app stopped creating salons, App Store 3.1.1).
   'reseau_required' =>
     'L’ajout de salons n’est pas disponible avec l’offre actuelle.',
   'salon_limit' => 'Nombre maximal de salons atteint.',
   'not_a_member' => 'Votre accès à ce salon a été retiré.',
   'forbidden' => 'Action réservée au propriétaire du salon.',
   'demo_account_locked' => demoAccountLockedMessage,
-  _ => fallback ?? 'Une erreur est survenue. Réessayez.',
+  _ => fallback ?? kGenericErrorMessage,
 };
 
 /// The invite refused by the offer gate (`offer_required`). The server sends
@@ -72,3 +77,34 @@ const String demoAccountLockedMessage =
 /// per-day invite cap that shares the machine code.
 const String resendBudgetExhaustedMessage =
     'Budget de renvois épuisé pour cette invitation.';
+
+/// « Rejoindre » refused, when no code says more.
+const String invitationAcceptFailedMessage =
+    'Invitation impossible à accepter.';
+
+/// « Refuser » refused, when no code says more.
+const String invitationDeclineFailedMessage = 'Refus impossible.';
+
+/// A refused accept or decline, in the INVITEE's words — the web's
+/// `invitationActionError`, code for code (pro-rejoin-gate.md S5, S7), shared
+/// by the « Invitations » screen, the rejoin gate and the « Accueil » /
+/// « Journée » card (pro-app-batch7.md §2.6).
+///
+/// - `network` — no answer at all — is the offline sentence (S4). It used to
+///   fall to [failed]: every API service sends that code, and only the tests
+///   scripted the sentence without it.
+/// - `forbidden` here is the server's address check (T37), where
+///   [teamErrorMessage] would tell an invitee the action is the owner's
+///   (G12) — so [failed].
+/// - A code the table does not know (a 5xx's `internal_error`) is [failed],
+///   never the generic sentence; with no code, the service's own [message].
+String invitationActionError({
+  required String? code,
+  required String? message,
+  required String failed,
+}) => switch (code) {
+  null => message ?? failed,
+  'network' => kNoConnectionMessage,
+  'forbidden' => failed,
+  _ => teamErrorMessage(code, fallback: failed),
+};

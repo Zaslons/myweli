@@ -5,8 +5,8 @@ import '../../models/salon_subscription.dart';
 ///
 /// **Nothing here is displayed.** The Pro app shows only the salon's CURRENT
 /// offer — its tier, status, dates and seats, all from the server — and never
-/// another tier, a price, a trial promotion or an entitlement list: it is a
-/// companion app (App Store 3.1.3(f)), and offers are chosen on the web. The
+/// another tier, a price, a trial promotion or an entitlement list: it never
+/// sells (App Store 3.1.1), and offers are chosen on the web. The
 /// trial length, the anchors, the entitlement checklists and the ROI line
 /// left with the picker. Design: docs/design/pro-companion-path.md §2.
 class SubscriptionPlans {

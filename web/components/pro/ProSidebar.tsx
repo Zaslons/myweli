@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 import { navForMembership } from '../../lib/pro/nav';
 import { unreadLabel } from '../../lib/pro/notifications';
-import { loadFailureMessage, type LoadFailure } from '../../lib/pro/load-failure';
+import { loadFailureMessage, type LoadFailure } from '../../lib/api/load-failure';
 import { ROLE_LABELS, type TeamRole } from '../../lib/pro/team';
 import { useIsDesktop } from '../../lib/pro/use-is-desktop';
 import { Skeleton } from '../Skeleton';
@@ -14,6 +14,7 @@ import { TeamRoleChip } from './TeamRoleChip';
 import { useProMembership } from './ProMembershipContext';
 import { useOptionalProNotifications } from './ProNotificationsContext';
 import { UnreadBadge } from './UnreadBadge';
+import { UNNAMED_SALON, salonNameOr } from '../../lib/salon-name';
 
 /// Whether the nav's active-route highlight should light up for [href].
 /// « Aujourd'hui » (/pro) matches exactly; every other entry also stays active
@@ -107,7 +108,7 @@ export function ProSidebar({
             type="button"
             onClick={onClose}
             aria-label="Fermer le menu"
-            className="-m-sm flex min-h-12 min-w-12 items-center justify-center rounded-lg text-iconXS text-textTertiary hover:bg-surfaceVariant lg:hidden"
+            className="-m-sm flex min-h-12 min-w-12 items-center justify-center rounded-control text-iconXS text-textTertiary hover:bg-surfaceVariant lg:hidden"
           >
             <span aria-hidden="true">✕</span>
           </button>
@@ -134,7 +135,7 @@ export function ProSidebar({
                     setMenuOpen((o) => !o);
                     setSwitchError(false);
                   }}
-                  className="flex min-h-12 w-full items-center justify-between gap-xs rounded-lg border border-borderStrong bg-surface px-s text-left text-bodyMedium text-textPrimary hover:bg-surfaceVariant"
+                  className="flex min-h-12 w-full items-center justify-between gap-xs rounded-control border border-primary bg-surface px-s text-left text-bodyMedium text-textPrimary hover:bg-surfaceVariant"
                 >
                   {/* clip-ok: chrome in a 240px rail, not content. The button's
                       accessible name carries the whole string, and the salon's
@@ -183,7 +184,7 @@ export function ProSidebar({
                             aria-hidden="true"
                             className="flex h-8 w-8 shrink-0 items-center justify-center rounded-pill bg-surfaceVariant text-bodyMedium text-textSecondary"
                           >
-                            {s.salonName.slice(0, 1).toUpperCase()}
+                            {salonNameOr(s.salonName, UNNAMED_SALON).slice(0, 1).toUpperCase()}
                           </span>
                         )}
                         <span className="min-w-0 flex-1">
@@ -193,7 +194,9 @@ export function ProSidebar({
                               name in the rail and its profile one click away.
                               A chooser among the pro's OWN salons is the case
                               where a prefix is enough to tell them apart. */}
-                          <span className="block truncate">{s.salonName}</span>
+                          <span className="block truncate">
+                            {salonNameOr(s.salonName, UNNAMED_SALON)}
+                          </span>
                           <span className="block text-bodySmall text-textTertiary">
                             {ROLE_LABELS[s.role as TeamRole]}
                             {s.salonStatus === 'draft' ? ' · Brouillon' : ''}
@@ -245,7 +248,7 @@ export function ProSidebar({
                   // The entry's name carries the count its badge shows
                   // (it begins with the visible label — WCAG 2.5.3).
                   aria-label={notifications ? unreadLabel(unread) : undefined}
-                  className={`flex min-h-12 items-center justify-between gap-s rounded-lg px-s text-bodyMedium hover:bg-surfaceVariant ${
+                  className={`flex min-h-12 items-center justify-between gap-s rounded-control px-s text-bodyMedium hover:bg-surfaceVariant ${
                     active
                       ? 'bg-surfaceVariant font-medium text-textPrimary'
                       : 'text-textPrimary'

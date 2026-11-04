@@ -115,11 +115,19 @@ const RULES: { name: string; pattern: RegExp; allow: string[]; hint: string }[] 
       hint: 'use a token (styles/tokens.ts). `black`/`white` are `primary`/`secondary`',
     },
     {
+      // The font file carries 400–600 (styles/fonts/README.md). A heavier or
+      // lighter class would not fail: it would quietly render as 600 or 400.
+      name: 'no weight the font does not carry',
+      pattern: /(?:^|[\s"'`:])font-(?:thin|extralight|light|bold|extrabold|black)(?=[\s"'`}]|$)/,
+      allow: [],
+      hint: 'use font-normal, font-medium or font-semibold',
+    },
+    {
       name: 'no default radius',
       // `rounded-full` and bare `rounded` were Tailwind's own keys and are gone.
       pattern: /\brounded(?:-(?:full|none|2xl|3xl))?(?=[\s"'`}]|$)/,
       allow: [],
-      hint: 'use rounded-sm|md|lg|xl|xxl|pill (radius, styles/tokens.ts)',
+      hint: 'use rounded-sm|md|lg|xl|xxl|pill|control (radius, styles/tokens.ts)',
     },
     {
       name: 'z-index is a named LAYER, never a number',
@@ -209,6 +217,16 @@ describe('the tokens are actually WIRED, not just spelled', () => {
     expect(Object.keys(resolved.theme!.fontSize!).sort()).toEqual(
       [...Object.keys(type), ...Object.keys(icon)].sort(),
     );
+  });
+
+  // WEB-SYSTEM §3. One family, closed like the other scales: without the variable
+  // first, every page silently stays on the system font while the file downloads.
+  it('the one font family is the brand font, with the system stack behind it', () => {
+    const resolved = resolveConfig(tailwindConfig as never);
+    const families = resolved.theme!.fontFamily as Record<string, string[]>;
+    expect(Object.keys(families)).toEqual(['sans']);
+    expect(families.sans[0]).toBe('var(--font-brand)');
+    expect(families.sans).toContain('system-ui');
   });
 
   // docs/design/web-pro-week-strip.md — the claim "the classes we use exist",

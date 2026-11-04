@@ -4,14 +4,27 @@
 /// team_error_messages.dart so copy can never drift between surfaces),
 /// invite validation and roster presentation helpers.
 
-import { NO_CONNECTION_MESSAGE } from '../api/network';
+import { NO_CONNECTION_MESSAGE, writeFailureMessage } from '../api/network';
 import type { components } from '../api/schema';
+import { UNNAMED_SALON_IN_SENTENCE, salonNameOr } from '../salon-name';
 
 export type Membership = components['schemas']['Membership'];
 export type TeamMember = components['schemas']['TeamMember'];
 export type TeamInvitation = components['schemas']['TeamInvitation'];
 /// One « Mes salons » entry (module `access` R6 — GET /me/salons).
 export type SalonMembership = components['schemas']['SalonMembership'];
+
+/// Whether deleting this account removes a salon (B7.3 —
+/// docs/design/pro-app-batch7.md §2.3). The server removes every salon the
+/// account OWNS — its linked salon and each owner membership — and nothing of
+/// a salon where it is only a member. Not the role in the salon on screen: an
+/// owner looking at a salon they only manage still owns theirs.
+export function ownsASalon(
+  profile: { account: { providerId?: string | null } },
+  salons: readonly Pick<SalonMembership, 'role'>[],
+): boolean {
+  return Boolean(profile.account.providerId) || salons.some((s) => s.role === 'owner');
+}
 
 export type TeamRole = 'owner' | 'manager' | 'reception' | 'staff';
 export type TeamRoleInput = 'manager' | 'reception' | 'staff';
@@ -40,6 +53,23 @@ export const ROLE_SUMMARIES: Record<TeamRoleInput, string> = {
 /// notes quote word for word; tests/pro-team.test.ts compares the two.
 export const DEMO_ACCOUNT_LOCKED_MESSAGE =
   'Compte de démonstration — cette action est désactivée.';
+
+/// A refusal of « Mettre en ligne » or of an offer change, worded
+/// (docs/design/web-pro-truthful-failure.md §2.3): the demo account and a
+/// suspended salon say why — a « réessayez » they cannot act on had the
+/// reviewer retry for ever — and nothing answered says so. Anything else is
+/// the surface's own [fallback].
+export function salonRefusalMessage(
+  status: number,
+  error: string | undefined,
+  fallback: string,
+): string {
+  if (error === 'demo_account_locked') return DEMO_ACCOUNT_LOCKED_MESSAGE;
+  if (error === 'provider_suspended') {
+    return 'Votre salon est suspendu. Contactez MyWeli pour le réactiver — vos rendez-vous sont intacts.';
+  }
+  return writeFailureMessage(status, fallback);
+}
 
 /// The shared table's sentence for an unknown or absent code — the app's
 /// `teamErrorMessage` fallback (team_error_messages.dart) and the web's
@@ -147,14 +177,20 @@ export function gateExitMessage(raison: string | null): string | null {
 
 /// The app's accept success line.
 export function joinedSalonMessage(salonName: string): string {
-  return `Vous avez rejoint ${salonName}`;
+  return `Vous avez rejoint ${salonNameOr(salonName, UNNAMED_SALON_IN_SENTENCE)}`;
 }
 
 /// The app's login banner when it knows which salon was lost. The web's
 /// `?motif=acces-retire` banner stays generic (`not_a_member`): a salon name
 /// never travels in a URL.
+///
+/// With no name to give, the one sentence for a withdrawn access — the
+/// `not_a_member` refusal's — as in the app; it printed « Votre accès à  a été
+/// retiré. ».
 export function revokedAccessMessage(salonName: string): string {
-  return `Votre accès à ${salonName} a été retiré.`;
+  return salonName.trim()
+    ? `Votre accès à ${salonName} a été retiré.`
+    : teamErrorMessage('not_a_member');
 }
 
 /// An invitee's refused accept/decline → copy. `forbidden` is the roster's

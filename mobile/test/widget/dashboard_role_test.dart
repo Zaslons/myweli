@@ -6,11 +6,13 @@ import 'package:myweli/core/di/dependency_injection.dart';
 import 'package:myweli/core/push/push_registration.dart';
 import 'package:myweli/core/theme/app_theme.dart';
 import 'package:myweli/core/utils/formatters.dart';
+import 'package:myweli/core/utils/salon_id.dart';
 import 'package:myweli/models/api_response.dart';
 import 'package:myweli/models/provider_user.dart';
 import 'package:myweli/providers/notifications_provider.dart';
 import 'package:myweli/providers/pro_auth_provider.dart';
 import 'package:myweli/providers/pro_dashboard_provider.dart';
+import 'package:myweli/providers/pro_team_provider.dart';
 import 'package:myweli/screens/provider/dashboard/dashboard_screen.dart';
 import 'package:myweli/services/interfaces/pro_service_interface.dart';
 import 'package:myweli/services/mock/mock_auth_service.dart';
@@ -19,12 +21,14 @@ import 'package:myweli/services/mock/mock_device_registration_service.dart';
 import 'package:myweli/services/mock/mock_notification_service.dart';
 import 'package:myweli/services/mock/mock_pro_service.dart';
 import 'package:myweli/services/mock/mock_push_notification_service.dart';
+import 'package:myweli/widgets/common/app_card.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../a11y/_a11y.dart';
 import '../support/fonts.dart';
 import '../support/pump_app.dart';
+import '../support/web_created.dart';
 
 /// Team access R4b §5.3 — the role-shaped dashboard: owner full, manager
 /// without money/Configurer, réception down to Rendez-vous + Clients, and
@@ -89,6 +93,8 @@ void main() {
           create: (_) =>
               NotificationsProvider(service: MockNotificationService()),
         ),
+        // The invitations card (B7.6) — renders nothing here: no invitation.
+        ChangeNotifierProvider(create: (_) => ProTeamProvider()),
       ],
       routerConfig: router,
       theme: realFonts ? AppTheme.themeData(fontFamily: kRealFont) : null,
@@ -171,15 +177,57 @@ void main() {
     expect(find.text('Analyses'), findsNothing);
   });
 
+  // hygiene-batch9.md §2.9 (B9.10) — the session's salon with no name: the
+  // greeting has nothing to address, so it does not say « votre salon ».
+  testWidgets('a salon with no name: « Bienvenue » alone, and the session '
+      'knows no name', (tester) async {
+    const email = 'nameless@dash.test';
+    await tester.runAsync(() async {
+      await auth.requestProviderEmailOtp(email);
+      // Signed up on the web (the app no longer registers a business —
+      // App Store 3.1.1), then signed in here.
+      seedWebSignUp(
+        email: email,
+        phoneNumber: '+2250700000096',
+        businessName: 'Provisoire',
+        businessType: BusinessType.salon,
+      );
+      await auth.verifyProviderEmailOtp(email, MockAuthService.demoOtp);
+      await auth.logoutProvider();
+    });
+    final u = MockData.providerUsers.indexWhere((p) => p.email == email);
+    final s = MockData.providers.indexWhere(
+      (p) => p.id == MockData.providerUsers[u].providerId,
+    );
+    MockData.providerUsers[u] = MockData.providerUsers[u].copyWith(
+      businessName: '',
+    );
+    MockData.providers[s] = MockData.providers[s].copyWith(name: '');
+    await loginAs(tester, email);
+    final authProvider = await readyAuth(tester);
+    expect(authProvider.knownSalonName, isNull);
+    expect(authProvider.salonName, 'votre salon', reason: 'in a sentence');
+
+    await tester.pumpWidget(app(authProvider));
+    await settle(tester);
+    expect(find.text('Bienvenue'), findsOneWidget);
+    expect(find.textContaining('votre salon'), findsNothing);
+  });
+
   testWidgets('OWNER keeps the full dashboard incl. money', (tester) async {
     await tester.runAsync(() async {
       await auth.requestProviderEmailOtp('own@dash.test');
-      await auth.registerProviderWithEmail(
+      // Signed up on the web (the app no longer registers a business —
+      // App Store 3.1.1), then signed in here.
+      seedWebSignUp(
         email: 'own@dash.test',
-        code: MockAuthService.demoOtp,
         phoneNumber: '+2250700000097',
         businessName: 'Salon Dash',
         businessType: BusinessType.salon,
+      );
+      await auth.verifyProviderEmailOtp(
+        'own@dash.test',
+        MockAuthService.demoOtp,
       );
     });
     await tester.pumpWidget(app(await readyAuth(tester)));
@@ -236,7 +284,7 @@ void main() {
 
       // The cards, by their subtitle — unique per card where titles repeat.
       Rect cardOf(Finder inside) => tester.getRect(
-        find.ancestor(of: inside, matching: find.byType(Container)).first,
+        find.ancestor(of: inside, matching: find.byType(AppCard)).first,
       );
       final revenus = find.text('Revenus prévus');
       final rects = [
@@ -323,7 +371,7 @@ class _ShootFigures extends MockProService {
 
   @override
   Future<ApiResponse<DashboardStats>> getDashboardStats(
-    String providerId,
+    SalonId providerId,
   ) async {
     final base = await super.getDashboardStats(providerId);
     final f = figures;

@@ -1,7 +1,9 @@
 import 'package:flutter/foundation.dart';
 
 import '../core/access/pro_salon_scope.dart';
+import '../core/constants/failure_messages.dart';
 import '../core/di/dependency_injection.dart';
+import '../core/utils/salon_id.dart';
 import '../models/service.dart';
 import '../services/interfaces/pro_service_interface.dart';
 
@@ -11,13 +13,19 @@ class ProServiceProvider extends ChangeNotifier implements SalonScoped {
   List<Service> _services = [];
   bool _isLoading = false;
   String? _error;
-  String? _currentProviderId;
+  SalonId? _currentProviderId;
 
   List<Service> get services => _services;
   bool get isLoading => _isLoading;
   String? get error => _error;
 
-  Future<void> loadServices(String providerId) async {
+  /// The load's own failure: [error] is also every write's here, so a failed
+  /// save would read as the list's load error (B9.8).
+  String? get loadError => _loadError;
+  String? _loadError;
+
+  Future<void> loadServices(SalonId providerId) async {
+    final scope = _scope;
     if (_currentProviderId == providerId &&
         _services.isNotEmpty &&
         !_isLoading) {
@@ -26,36 +34,45 @@ class ProServiceProvider extends ChangeNotifier implements SalonScoped {
 
     _isLoading = true;
     _error = null;
+    _loadError = null;
     _currentProviderId = providerId;
     notifyListeners();
 
     try {
       final response = await _proService.getProviderServices(providerId);
+      if (scope != _scope) return;
       if (response.success && response.data != null) {
         _services = response.data!;
         _error = null;
       } else {
         _error = response.error ?? 'Erreur lors du chargement des services';
+        _loadError = _error;
         _services = [];
       }
     } catch (e) {
-      _error = e.toString();
+      if (scope != _scope) return;
+      _error = kGenericErrorMessage;
+      _loadError = _error;
       _services = [];
     } finally {
-      _isLoading = false;
-      notifyListeners();
+      if (scope == _scope) {
+        _isLoading = false;
+        notifyListeners();
+      }
     }
   }
 
   Future<bool> createService(
-    String providerId,
+    SalonId providerId,
     Map<String, dynamic> serviceData,
   ) async {
+    final scope = _scope;
     _isLoading = true;
     notifyListeners();
 
     try {
       final response = await _proService.createService(providerId, serviceData);
+      if (scope != _scope) return response.success;
       if (response.success && response.data != null) {
         _services.add(response.data!);
         _error = null;
@@ -67,12 +84,15 @@ class ProServiceProvider extends ChangeNotifier implements SalonScoped {
         return false;
       }
     } catch (e) {
-      _error = e.toString();
+      if (scope != _scope) return false;
+      _error = kGenericErrorMessage;
       notifyListeners();
       return false;
     } finally {
-      _isLoading = false;
-      notifyListeners();
+      if (scope == _scope) {
+        _isLoading = false;
+        notifyListeners();
+      }
     }
   }
 
@@ -80,11 +100,13 @@ class ProServiceProvider extends ChangeNotifier implements SalonScoped {
     String serviceId,
     Map<String, dynamic> serviceData,
   ) async {
+    final scope = _scope;
     _isLoading = true;
     notifyListeners();
 
     try {
       final response = await _proService.updateService(serviceId, serviceData);
+      if (scope != _scope) return response.success;
       if (response.success && response.data != null) {
         final index = _services.indexWhere((s) => s.id == serviceId);
         if (index != -1) {
@@ -99,21 +121,26 @@ class ProServiceProvider extends ChangeNotifier implements SalonScoped {
         return false;
       }
     } catch (e) {
-      _error = e.toString();
+      if (scope != _scope) return false;
+      _error = kGenericErrorMessage;
       notifyListeners();
       return false;
     } finally {
-      _isLoading = false;
-      notifyListeners();
+      if (scope == _scope) {
+        _isLoading = false;
+        notifyListeners();
+      }
     }
   }
 
   Future<bool> deleteService(String serviceId) async {
+    final scope = _scope;
     _isLoading = true;
     notifyListeners();
 
     try {
       final response = await _proService.deleteService(serviceId);
+      if (scope != _scope) return response.success;
       if (response.success) {
         _services.removeWhere((s) => s.id == serviceId);
         _error = null;
@@ -125,18 +152,29 @@ class ProServiceProvider extends ChangeNotifier implements SalonScoped {
         return false;
       }
     } catch (e) {
-      _error = e.toString();
+      if (scope != _scope) return false;
+      _error = kGenericErrorMessage;
       notifyListeners();
       return false;
     } finally {
-      _isLoading = false;
-      notifyListeners();
+      if (scope == _scope) {
+        _isLoading = false;
+        notifyListeners();
+      }
     }
   }
 
   /// R6 multi-salons: drop the previous salon's data on a switch.
+  /// Which salon this state belongs to — moved by [resetForSalonSwitch]
+  /// only. A read or a write takes it before it awaits and writes nothing
+  /// when it moved meanwhile: its answer is the previous salon's, or the
+  /// previous account's (docs/design/pro-account-scope.md §2.2).
+  int _scope = 0;
+
   @override
   void resetForSalonSwitch() {
+    _scope++;
+    _loadError = null;
     _services = [];
     _isLoading = false;
     _error = null;

@@ -13,6 +13,7 @@ import '../../core/theme/colors.dart';
 import '../../core/theme/text_styles.dart';
 import '../../core/utils/formatters.dart';
 import '../../core/utils/mobile_money.dart';
+import '../../core/utils/salon_id.dart';
 import '../../models/locality.dart';
 import '../../providers/appointment_provider.dart';
 import '../../providers/locality_provider.dart';
@@ -31,7 +32,7 @@ Future<bool?> showDepositPaymentSheet(
   BuildContext context, {
   required double depositAmount,
   required double balanceDue,
-  required String providerId,
+  required SalonId providerId,
   required String providerName,
   required List<String> serviceIds,
   required DateTime appointmentDateTime,
@@ -112,7 +113,7 @@ class _DepositPaymentSheet extends StatefulWidget {
   final String? appointmentId;
 
   // Book-mode only.
-  final String? providerId;
+  final SalonId? providerId;
   final List<String>? serviceIds;
   final DateTime? appointmentDateTime;
   final String? artistId;

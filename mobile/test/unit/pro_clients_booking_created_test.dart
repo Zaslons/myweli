@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:myweli/core/access/pro_access_guard.dart';
 import 'package:myweli/core/di/dependency_injection.dart';
+import 'package:myweli/core/utils/salon_id.dart';
 import 'package:myweli/models/api_response.dart';
 import 'package:myweli/models/appointment.dart';
 import 'package:myweli/models/salon_client.dart';
@@ -49,7 +50,7 @@ class _Service extends MockProClientsService {
 
   @override
   Future<ApiResponse<SalonClientCard>> getCard(
-    String providerId,
+    SalonId providerId,
     String clientId,
   ) async {
     cardCalls.add(clientId);
@@ -68,7 +69,7 @@ class _Service extends MockProClientsService {
 
   @override
   Future<ApiResponse<List<Appointment>>> getVisits(
-    String providerId,
+    SalonId providerId,
     String clientId, {
     int page = 1,
   }) async {
@@ -100,7 +101,7 @@ void main() {
 
   Appointment booking({
     String? phone = _Service.phone,
-    String providerId = 'p1',
+    SalonId providerId = const SalonId('p1'),
   }) => Appointment(
     id: 'm1',
     userId: 'manual',
@@ -117,7 +118,7 @@ void main() {
   Future<ProClientsProvider> opened() async {
     final p = ProClientsProvider();
     addTearDown(p.dispose);
-    await p.loadCard('p1', 'sc1');
+    await p.loadCard(SalonId('p1'), 'sc1');
     expect(p.card!.upcoming, isNull);
     expect(p.visits, isEmpty);
     return p;
@@ -172,7 +173,7 @@ void main() {
     p.bookingCreated(booking(phone: '+2250700000999'));
     p.bookingCreated(booking(phone: null)); // « Client sans numéro »
     p.bookingCreated(booking(phone: ''));
-    p.bookingCreated(booking(providerId: 'p2')); // another salon
+    p.bookingCreated(booking(providerId: SalonId('p2'))); // another salon
     await pumpEventQueue();
 
     expect(service.cardCalls, ['sc1']);
@@ -259,7 +260,7 @@ void main() {
     await pumpEventQueue();
 
     service.gate = null;
-    await p.loadCard('p1', 'sc2');
+    await p.loadCard(SalonId('p1'), 'sc2');
     expect(p.card!.client.displayName, 'Aminata');
     final visitCallsBefore = service.visitCalls;
 
@@ -285,7 +286,7 @@ void main() {
 
     service.visitsGate = null;
     service.visits = [];
-    await p.loadCard('p1', 'sc2');
+    await p.loadCard(SalonId('p1'), 'sc2');
     expect(p.card!.client.displayName, 'Aminata');
     expect(p.visits, isEmpty);
 

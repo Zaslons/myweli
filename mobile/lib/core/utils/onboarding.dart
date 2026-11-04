@@ -68,14 +68,21 @@ List<OnboardingStep> buildOnboardingChecklist({
     ),
     OnboardingStep(OnboardingStepKey.staff, staffStatus),
     OnboardingStep(OnboardingStepKey.availability, doneIf(availabilitySet)),
-    OnboardingStep(OnboardingStepKey.deposit, doneIf(depositConfigured)),
+    // Never a todo (B7.7, decision 24): done once a choice is saved, else
+    // optional — a deposit is not a go-live condition.
+    OnboardingStep(
+      OnboardingStepKey.deposit,
+      depositConfigured
+          ? OnboardingStepStatus.done
+          : OnboardingStepStatus.optional,
+    ),
     OnboardingStep(OnboardingStepKey.verification, verificationStep()),
     // The upload pipeline shipped — photos gate go-live like the server does.
     OnboardingStep(OnboardingStepKey.photos, doneIf(photoCount >= kMinPhotos)),
     // No offer step. The server starts the salon's trial at its first
     // successful publish, so a salon with no offer goes live like any other
     // — and the Pro app never asks for a choice it may not offer (App Store
-    // 3.1.3(f), docs/design/pro-companion-path.md §2.2).
+    // 3.1.1, docs/design/pro-companion-path.md §2.2).
   ];
 }
 

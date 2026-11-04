@@ -6,12 +6,15 @@ import 'package:provider/provider.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/colors.dart';
 import '../../core/theme/text_styles.dart';
+import '../../models/provider.dart' as models;
 import '../../providers/provider_provider.dart';
 import '../../services/interfaces/provider_service_interface.dart';
+import '../../widgets/common/app_async_view.dart';
+import '../../widgets/common/app_chip.dart';
+import '../../widgets/common/app_skeleton.dart';
 import '../../widgets/common/commune_picker_sheet.dart';
 import '../../widgets/common/commune_pill.dart';
 import '../../widgets/common/empty_state.dart';
-import '../../widgets/common/loading_indicator.dart';
 import '../../widgets/provider/provider_card.dart';
 
 class ProviderListScreen extends StatefulWidget {
@@ -107,7 +110,7 @@ class _ProviderListScreenState extends State<ProviderListScreen> {
                     onTap: () => _openCommunePicker(provider),
                   ),
                 ),
-                if (!provider.isLoading && provider.providers.isNotEmpty)
+                if (!provider.listLoading && provider.providers.isNotEmpty)
                   Text(
                     _countLabel(provider),
                     style: AppTextStyles.bodySmall.copyWith(
@@ -171,49 +174,20 @@ class _ProviderListScreenState extends State<ProviderListScreen> {
     );
   }
 
+  /// « Trier » (lit while a sort other than relevance is on) and
+  /// « Disponible aujourd'hui »: chips that say which is on — they were drawn
+  /// by hand and said nothing of it to a screen reader (B9.8 F3).
   Widget _filterPill({
     required IconData icon,
     required String label,
     required bool active,
     required VoidCallback onTap,
-  }) {
-    final fg = active ? AppColors.secondary : AppColors.textPrimary;
-    return ConstrainedBox(
-      constraints: const BoxConstraints(minHeight: 48), // §13.2 touch target
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(AppTheme.radiusPill),
-        child: Container(
-          alignment: Alignment.center,
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppTheme.spacingM,
-            vertical: AppTheme.spacingS,
-          ),
-          decoration: BoxDecoration(
-            color: active ? AppColors.primary : AppColors.surface,
-            borderRadius: BorderRadius.circular(AppTheme.radiusPill),
-            border: Border.all(
-              color: active ? AppColors.primary : AppColors.borderStrong,
-            ),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(icon, size: AppTheme.iconXS, color: fg),
-              const SizedBox(width: AppTheme.spacingS),
-              Text(
-                label,
-                style: AppTextStyles.bodyMedium.copyWith(
-                  color: fg,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
+  }) => AppChip.choice(
+    label: label,
+    icon: icon,
+    selected: active,
+    onSelected: (_) => onTap(),
+  );
 
   Future<void> _openSortSheet(ProviderProvider provider) async {
     final chosen = await showModalBottomSheet<ProviderSort>(
@@ -255,23 +229,18 @@ class _ProviderListScreenState extends State<ProviderListScreen> {
   }
 
   Widget _buildResults(ProviderProvider provider) {
-    if (provider.isLoading && provider.providers.isEmpty) {
-      return const LoadingIndicator();
-    }
-
-    if (provider.error != null && provider.providers.isEmpty) {
-      return EmptyState(
-        icon: Icons.wifi_off,
-        title: 'Connexion impossible',
-        description: 'Vérifiez votre connexion et réessayez.',
-        actionText: 'Réessayer',
-        onAction: () => provider.loadProviders(category: widget.category),
-      );
-    }
-
-    if (provider.providers.isEmpty) {
-      final commune = provider.selectedCommune;
-      return EmptyState(
+    final commune = provider.selectedCommune;
+    Future<void> reload() => provider.loadProviders(category: widget.category);
+    return AppAsyncView<List<models.Provider>>(
+      isLoading: provider.listLoading,
+      // The list's own: [ProviderProvider.error] is also a salon page's.
+      error: provider.listError,
+      data: provider.providers,
+      isEmpty: (d) => d.isEmpty,
+      loading: _isGrid
+          ? const SkeletonCardList(block: true)
+          : const SkeletonCardList(lead: SkeletonLead.thumbnail),
+      empty: EmptyState(
         icon: Icons.search_off,
         title: commune != null
             ? 'Aucun salon à $commune'
@@ -281,10 +250,14 @@ class _ProviderListScreenState extends State<ProviderListScreen> {
             : 'Essayez de modifier vos critères de recherche',
         actionText: commune != null ? 'Voir toutes les communes' : null,
         onAction: commune != null ? () => provider.setCommune(null) : null,
-      );
-    }
+      ),
+      onRetry: reload,
+      onRefresh: reload,
+      builder: (context, providers) => _results(provider, providers),
+    );
+  }
 
-    final providers = provider.providers;
+  Widget _results(ProviderProvider provider, List<models.Provider> providers) {
     if (_isGrid) {
       return BrandRefresh(
         onRefresh: () => provider.loadProviders(category: widget.category),

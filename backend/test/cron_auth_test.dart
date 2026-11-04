@@ -155,10 +155,17 @@ void main() {
     });
 
     test('no route reads the header any more', () {
-      for (final f in [
-        'routes/internal/cron/reminders.dart',
-        'routes/internal/cron/subscriptions.dart',
-      ]) {
+      // Every cron route, not a list of the ones someone remembered — the
+      // lesson of no_secret_in_url_test.dart; the maintenance cron
+      // (docs/design/infra-cron-maintenance.md) is the third.
+      final routes = Directory('routes/internal/cron')
+          .listSync()
+          .whereType<File>()
+          .map((f) => f.path)
+          .where((p) => p.endsWith('.dart'))
+          .toList();
+      expect(routes, hasLength(3));
+      for (final f in routes) {
         // Comment lines stripped, same as above: both routes' docs still say
         // what was retired, and they should.
         final code = File(f)

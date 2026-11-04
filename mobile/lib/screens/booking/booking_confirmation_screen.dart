@@ -2,9 +2,9 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:myweli/widgets/common/loading_indicator.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/constants/unnamed_salon.dart';
 import '../../core/di/dependency_injection.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/colors.dart';
@@ -13,6 +13,7 @@ import '../../core/utils/booking_duration.dart';
 import '../../core/utils/booking_error_cta.dart';
 import '../../core/utils/deposit.dart';
 import '../../core/utils/formatters.dart';
+import '../../core/utils/salon_id.dart';
 import '../../core/utils/salon_time.dart';
 import '../../providers/appointment_provider.dart';
 import '../../providers/auth_provider.dart';
@@ -21,6 +22,8 @@ import '../../providers/messaging_provider.dart';
 import '../../providers/provider_provider.dart';
 import '../../widgets/booking/deposit_payment_sheet.dart';
 import '../../widgets/common/app_button.dart';
+import '../../widgets/common/app_card.dart';
+import '../../widgets/common/app_skeleton.dart';
 import '../../widgets/common/app_snack_bar.dart';
 import '../../widgets/common/app_text_field.dart';
 import '../../widgets/common/label_value_row.dart';
@@ -30,7 +33,7 @@ import '../../widgets/common/salon_unavailable_view.dart';
 import '../../widgets/push/push_permission_sheet.dart';
 
 class BookingConfirmationScreen extends StatefulWidget {
-  final String providerId;
+  final SalonId providerId;
   final List<String> serviceIds;
   final DateTime appointmentDateTime;
   final String? artistId;
@@ -113,7 +116,7 @@ class _BookingConfirmationScreenState extends State<BookingConfirmationScreen> {
     unawaited(
       context.read<MessagingProvider>().sendBookingConfirmation(
         recipientPhone: phone,
-        providerName: salon?.name ?? 'le salon',
+        providerName: salonNameOr(salon?.name, kUnnamedSalonInSentence),
         dateTime: widget.appointmentDateTime,
         depositAmount: depositAmount,
         tz: salon?.timezone,
@@ -143,7 +146,8 @@ class _BookingConfirmationScreenState extends State<BookingConfirmationScreen> {
         depositAmount: depositAmount,
         balanceDue: balanceDue,
         providerId: widget.providerId,
-        providerName: p?.name ?? 'le salon',
+        // « Wave · Salon »: a label, so the title form.
+        providerName: salonNameOr(p?.name, kUnnamedSalon),
         serviceIds: widget.serviceIds,
         appointmentDateTime: widget.appointmentDateTime,
         depositOperator: p?.depositMobileMoneyOperator,
@@ -216,13 +220,15 @@ class _BookingConfirmationScreenState extends State<BookingConfirmationScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.surface,
+      // Cards are `secondary` on `background` (SYSTEM §3.1): the step that
+      // lifts them, now they have no shadow (B9.8 F2).
+      backgroundColor: AppColors.background,
       appBar: AppBar(title: const Text('Confirmer')),
       body: Consumer<ProviderProvider>(
         builder: (context, provider, _) {
           final p = provider.selectedProvider;
           if (p == null && provider.isLoading) {
-            return const Center(child: LoadingIndicator());
+            return const SkeletonDetail(sections: 3);
           }
           if (p == null) {
             // **There was no error branch here at all.** `p == null` mapped
@@ -231,6 +237,7 @@ class _BookingConfirmationScreenState extends State<BookingConfirmationScreen> {
             // `provider.errorCode` both populated and both ignored.
             return SalonUnavailableView(
               errorCode: provider.errorCode,
+              message: provider.error,
               onRetry: () => provider.loadProviderById(widget.providerId),
             );
           }
@@ -253,13 +260,7 @@ class _BookingConfirmationScreenState extends State<BookingConfirmationScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 // Summary Card
-                Container(
-                  padding: const EdgeInsets.all(AppTheme.spacingL),
-                  decoration: BoxDecoration(
-                    color: AppColors.secondary,
-                    borderRadius: BorderRadius.circular(AppTheme.radiusXL),
-                    boxShadow: AppTheme.elevation1,
-                  ),
+                AppCard(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [

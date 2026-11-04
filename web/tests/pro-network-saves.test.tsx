@@ -18,7 +18,10 @@ import { ClientCardClient } from '../components/pro/ClientCardClient';
 import { DisponibilitesClient } from '../components/pro/DisponibilitesClient';
 import { ProLoginOptions } from '../components/pro/ProLoginOptions';
 
-/// docs/design/web-pro-network-failure.md §1/§3 — a save with no network.
+/// docs/design/web-pro-network-failure.md §1/§3 — a save with no network. Since
+/// docs/design/app-failure-messages.md §2.2 it SAYS so: « Pas de connexion.
+/// Réessayez. », the sentence the app says (« L’enregistrement a échoué » is
+/// for a server that refused).
 /// Before: the write threw, `setBusy(false)` never ran, and the button stayed
 /// disabled for ever — inside « Modifier le numéro », a dialog that cannot be
 /// closed while it saves, the salon was shut in until a reload. Now: the
@@ -110,7 +113,7 @@ describe('a save with no network says so and gives the control back', () => {
     fireEvent.click(within(dialog).getByRole('button', { name: 'Enregistrer' }));
 
     expect(
-      await within(dialog).findByText('L’enregistrement a échoué. Réessayez.'),
+      await within(dialog).findByText('Pas de connexion. Réessayez.'),
     ).toBeInTheDocument();
     expect(writes).toEqual(['PATCH /api/pro/clients/sc1']);
     expect(within(dialog).getByRole('button', { name: 'Enregistrer' })).toBeEnabled();
@@ -129,7 +132,7 @@ describe('a save with no network says so and gives the control back', () => {
 
     fireEvent.click(save);
     expect(await screen.findByRole('alert')).toHaveTextContent(
-      'L’enregistrement a échoué. Réessayez.',
+      'Pas de connexion. Réessayez.',
     );
     expect(screen.getByRole('button', { name: 'Enregistrer' })).toBeEnabled();
 
@@ -146,11 +149,24 @@ describe('a save with no network says so and gives the control back', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Enregistrer' }));
 
     expect(await screen.findByRole('alert')).toHaveTextContent(
-      'L’enregistrement a échoué. Réessayez.',
+      'Pas de connexion. Réessayez.',
     );
     expect(writes).toEqual(['PATCH /api/pro/catalogue/services/s1']);
     expect(screen.getByRole('button', { name: 'Enregistrer' })).toBeEnabled();
     expect(screen.getByLabelText('Nom du service')).toHaveValue('Tresses');
+  });
+
+  it('Catalogue — an employee saved with no network: « Pas de connexion. Réessayez. »', async () => {
+    mockFetch();
+    render(<CatalogueClient />);
+    // `Tabs` are plain buttons in a group (components/Tabs.tsx).
+    fireEvent.click(await screen.findByRole('button', { name: 'Employés' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Ajouter un employé' }));
+    fireEvent.change(screen.getByLabelText('Nom'), { target: { value: 'Awa' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Enregistrer' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Pas de connexion. Réessayez.');
+    expect(screen.getByRole('button', { name: 'Enregistrer' })).toBeEnabled();
   });
 });
 

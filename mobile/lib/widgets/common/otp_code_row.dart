@@ -10,7 +10,8 @@ import '../../core/theme/text_styles.dart';
 /// ## Why this is shared, when there were only two copies
 ///
 /// §11's rule of thumb is that a *third* inline copy is a review failure, and
-/// this row had two — `otp_verify_screen` and `pro_otp_verify_screen`. The count
+/// this row had two — `otp_verify_screen` and `pro_otp_verify_screen` (the
+/// second removed with the Pro phone sign-in, B8.5). The count
 /// is not what decided it. **The two copies had already diverged, in the
 /// direction that hurts**: the geometry was character-for-character identical
 /// while the behaviour was not, and everything the pro screen was missing was

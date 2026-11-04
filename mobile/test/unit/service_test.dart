@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:myweli/core/utils/salon_id.dart';
 import 'package:myweli/models/service.dart';
 
 void main() {
@@ -10,7 +11,7 @@ void main() {
       price: 15000,
       priceMax: 25000,
       durationMinutes: 120,
-      providerId: 'p1',
+      providerId: SalonId('p1'),
     );
 
     final back = Service.fromJson(service.toJson());
@@ -26,7 +27,7 @@ void main() {
       description: 'Coupe',
       price: 5000,
       durationMinutes: 30,
-      providerId: 'p1',
+      providerId: SalonId('p1'),
     );
 
     final back = Service.fromJson(service.toJson());
@@ -44,7 +45,7 @@ void main() {
       priceMax: 25000,
       durationMinutes: 120,
       durationVariants: DurationVariants(court: 120, moyen: 180, long: 240),
-      providerId: 'p1',
+      providerId: SalonId('p1'),
     );
 
     final back = Service.fromJson(service.toJson());
@@ -62,7 +63,7 @@ void main() {
       description: '',
       price: 5000,
       durationMinutes: 30,
-      providerId: 'p1',
+      providerId: SalonId('p1'),
     );
     expect(service.durationVariants.isEmpty, isTrue);
 

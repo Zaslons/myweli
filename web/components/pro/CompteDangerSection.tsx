@@ -12,13 +12,14 @@ import {
 import {
   EXPORT_COPY_FAILED,
   type ExportSection,
-  SECTION_ORDER,
   buildProviderDataExport,
   exportFailureMessage,
 } from '../../lib/pro/export';
-import { DEMO_ACCOUNT_LOCKED_MESSAGE } from '../../lib/pro/team';
+import { EXPORT_BUILD_FAILED } from '../../lib/account/export';
+import { DEMO_ACCOUNT_LOCKED_MESSAGE, ownsASalon } from '../../lib/pro/team';
 import { Button } from '../Button';
 import { TextField } from '../TextField';
+import { useOptionalProMembership } from './ProMembershipContext';
 
 /// A refused deletion, by machine code. The two refusals a user can be told
 /// about each get their sentence; anything else is the generic failure.
@@ -61,6 +62,11 @@ export function CompteDangerSection({
   exportEnabled?: boolean;
 }) {
   const router = useRouter();
+  // The sentence says what the server removes (B7.3): the salons the account
+  // owns. « Mes salons » comes from the dashboard's context (none when the
+  // section is mounted bare, as in its unit tests).
+  const salons = useOptionalProMembership()?.salons ?? [];
+  const removesASalon = ownsASalon(profile, salons);
   const [exporting, setExporting] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
@@ -114,14 +120,15 @@ export function CompteDangerSection({
   /// no-file (docs/design/export-unreadable-200.md §2.3): the reads are
   /// checked for their lists, but the file is still built from what crossed
   /// the network, and the button used to just come back with nothing said.
-  /// The throw does not say which data was wrong, so every section is named.
+  /// It says so in its own words: it used to name all three reads, which had
+  /// answered (docs/design/web-client-polish.md §2.3).
   async function prepare(): Promise<string | null> {
     setExporting(true);
     setExportError(null);
     try {
       return await assembleJson();
     } catch {
-      setExportError(exportFailureMessage(SECTION_ORDER));
+      setExportError(EXPORT_BUILD_FAILED);
       return null;
     } finally {
       setExporting(false);
@@ -218,7 +225,7 @@ export function CompteDangerSection({
         ) : (
           <div className="rounded-lg bg-surface p-m">
             <p className="text-bodyLarge text-textSecondary">
-              {exportEnabled
+              {removesASalon
                 ? 'Cette action est définitive. Votre salon sera retiré de MyWeli. Pensez à exporter vos données avant. Tapez SUPPRIMER pour confirmer.'
                 : 'Cette action est définitive. Votre compte MyWeli Pro sera supprimé. Tapez SUPPRIMER pour confirmer.'}
             </p>

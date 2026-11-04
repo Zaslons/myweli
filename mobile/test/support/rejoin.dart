@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:myweli/core/utils/app_clock.dart';
+import 'package:myweli/core/utils/salon_id.dart';
 import 'package:myweli/models/provider_user.dart';
 import 'package:myweli/models/team_invitation.dart';
 import 'package:myweli/models/team_member.dart';
@@ -52,7 +53,7 @@ void inviteFromBeauteDivine({String email = kFatou}) {
   MockData.teamMembers.add(
     TeamMember(
       id: 'mem_p2_second',
-      providerId: 'provider2',
+      providerId: SalonId('provider2'),
       email: email,
       role: TeamRole.manager,
       status: TeamMemberStatus.invited,
@@ -64,7 +65,7 @@ void inviteFromBeauteDivine({String email = kFatou}) {
   (MockData.teamInvitations[email] ??= []).add(
     TeamInvitation(
       id: 'mem_p2_second',
-      providerId: 'provider2',
+      providerId: SalonId('provider2'),
       salonName: 'Beauté Divine',
       role: TeamRole.manager,
       roleLabel: 'Manager',
@@ -111,7 +112,7 @@ void bareRevokedAccount(String email) {
   MockData.teamMembers.add(
     TeamMember(
       id: 'mem_social',
-      providerId: 'provider1',
+      providerId: SalonId('provider1'),
       email: email,
       role: TeamRole.reception,
       status: TeamMemberStatus.revoked,

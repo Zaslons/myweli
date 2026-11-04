@@ -17,7 +17,8 @@ import {
   updateArtist,
   updateService,
 } from '../../lib/api/pro';
-import { loadFailure, loadFailureMessage, type LoadFailure } from '../../lib/pro/load-failure';
+import { loadFailure, loadFailureMessage, type LoadFailure } from '../../lib/api/load-failure';
+import { writeFailureMessage } from '../../lib/api/network';
 import { formatDuration, priceRange } from '../../lib/format';
 import {
   type DayForm,
@@ -294,7 +295,7 @@ function renderTable<T extends { id: string }>(
 }
 
 const inputCls =
-  'block w-full min-h-12 rounded-lg border border-borderStrong bg-surface p-m text-bodyLarge text-textPrimary focus:border-borderFocus focus:ring-1 focus:ring-borderFocus disabled:border-border disabled:text-textDisabled';
+  'block w-full min-h-12 rounded-control border border-primary bg-surface p-m text-bodyLarge text-textPrimary focus:border-borderFocus focus:ring-1 focus:ring-borderFocus disabled:border-border disabled:text-textDisabled';
 
 function ServiceFormCard({
   providerId,
@@ -330,7 +331,7 @@ function ServiceFormCard({
       ? await updateService(providerId, serviceId, payload)
       : await createService(providerId, payload);
     setBusy(false);
-    if (!r.ok) return setErr('L’enregistrement a échoué. Réessayez.');
+    if (!r.ok) return setErr(writeFailureMessage(r.status, 'L’enregistrement a échoué. Réessayez.'));
     onSaved();
   }
 
@@ -535,7 +536,7 @@ function ArtistFormCard({
       ? await updateArtist(providerId, artistId, payload)
       : await createArtist(providerId, payload);
     setBusy(false);
-    if (!r.ok) return setErr('L’enregistrement a échoué. Réessayez.');
+    if (!r.ok) return setErr(writeFailureMessage(r.status, 'L’enregistrement a échoué. Réessayez.'));
     onSaved();
   }
 

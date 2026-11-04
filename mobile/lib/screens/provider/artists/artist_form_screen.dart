@@ -7,6 +7,7 @@ import '../../../core/forms/field_errors.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/colors.dart';
 import '../../../core/theme/text_styles.dart';
+import '../../../core/utils/salon_id.dart';
 import '../../../core/utils/validators.dart';
 import '../../../models/artist.dart';
 import '../../../models/availability.dart';
@@ -41,9 +42,9 @@ class _ArtistFormScreenState extends State<ArtistFormScreen> {
   Map<int, List<TimeSlot>> _workingHours = {};
   String? _avatarUrl;
 
-  String _resolvedProviderId(BuildContext context) {
+  SalonId _resolvedProviderId(BuildContext context) {
     final authProvider = Provider.of<ProAuthProvider>(context, listen: false);
-    return authProvider.activeSalonId ?? '';
+    return authProvider.activeSalonId ?? SalonId.none;
   }
 
   @override

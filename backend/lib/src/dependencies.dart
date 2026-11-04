@@ -22,6 +22,7 @@ import 'appointments/booking_service.dart';
 import 'appointments/journal_service.dart';
 import 'appointments/pro_appointment_service.dart';
 import 'appointments/slot_service.dart';
+import 'auth/apple_tokens.dart';
 import 'auth/auth_methods.dart';
 import 'auth/auth_repository.dart';
 import 'auth/demo_seam.dart';
@@ -40,6 +41,7 @@ import 'cron_auth.dart';
 import 'db/database.dart';
 import 'db/migrations.dart';
 import 'db/postgres_admin_auth_repository.dart';
+import 'db/postgres_apple_token_repository.dart';
 import 'db/postgres_appointment_repository.dart';
 import 'db/postgres_audit_log_repository.dart';
 import 'db/postgres_auth_repository.dart';
@@ -49,6 +51,7 @@ import 'db/postgres_demo_snapshot_repository.dart';
 import 'db/postgres_device_token_repository.dart';
 import 'db/postgres_disputes_repository.dart';
 import 'db/postgres_favorites_repository.dart';
+import 'db/postgres_idempotency_store.dart';
 import 'db/postgres_login_throttle.dart';
 import 'db/postgres_membership_repository.dart';
 import 'db/postgres_messaging_outbox_repository.dart';
@@ -71,9 +74,11 @@ import 'email/resend_email_provider.dart';
 import 'email/send_budget.dart';
 import 'favorites_repository.dart';
 import 'favorites_service.dart';
+import 'idempotency/idempotency_store.dart';
 import 'kyc_service.dart';
 import 'localities/localities_repository.dart';
 import 'localities/localities_service.dart';
+import 'maintenance/maintenance_tick.dart';
 import 'messaging/booking_notifier.dart';
 import 'messaging/messaging_outbox_repository.dart';
 import 'messaging/messaging_prefs_repository.dart';
@@ -278,6 +283,27 @@ final AppleIdTokenVerifier appleIdTokenVerifier = () {
   return AppleIdTokenVerifier(clientIds: ids);
 }();
 
+/// The Sign in with Apple keys that sign the `client_secret`, one per app
+/// (B6.7, docs/design/apple-signin-keys.md §4): `APPLE_TEAM_ID` and, per
+/// slot, `APPLE_<APP|PRO>_KEY_ID`, `_PRIVATE_KEY`, `_KEY_CLIENTS`. No slot is
+/// **inactive** (nothing exchanged nor revoked, a boot NOTICE says so); half a
+/// slot, an unreadable key, or a client outside `APPLE_CLIENT_IDS` (or in both
+/// slots) refuses to boot.
+final AppleSignInKeys appleSignInKeys = AppleSignInKeys.fromEnv(
+  _envOrNull,
+  clientIds: appleIdTokenVerifier.audiences,
+);
+
+final AppleTokenRepository appleTokenRepository = _pool == null
+    ? InMemoryAppleTokenRepository()
+    : PostgresAppleTokenRepository(_pool!);
+
+/// Kept at sign-in, revoked at deletion (App Store 5.1.1(v)).
+final AppleTokenService appleTokenService = AppleTokenService(
+  appleTokenRepository,
+  appleSignInKeys,
+);
+
 /// Outbound email (the OTP channel). Configured → Resend; else a no-network
 /// log provider for dev/CI (devCode is echoed inline off-prod). Production
 /// must configure it while the "email" method is enabled (fail-fast).
@@ -347,6 +373,19 @@ Future<int?> pruneRateLimitWindows(Duration olderThan) async {
   // it rather than failing (lib/src/security/rate_limiter.dart).
   return pruneOrReport(() => limiter.prune(olderThan));
 }
+
+/// The kept answers of the four creating POSTs, replayed for the same
+/// `Idempotency-Key` (docs/design/write-idempotency.md §3). In Postgres
+/// because a retry may land on another instance than the first answer; the
+/// in-memory twin is dev and CI only.
+final IdempotencyStore idempotencyStore = _pool == null
+    ? InMemoryIdempotencyStore()
+    : PostgresIdempotencyStore(_pool!);
+
+/// Prunes the kept answers older than [olderThan] (the daily cron, with
+/// `kIdempotencyWindow`); `null` = the prune failed and said so on one line.
+Future<int?> pruneIdempotencyKeys(Duration olderThan) =>
+    pruneOrReport(() => idempotencyStore.prune(olderThan), what: 'idempotency');
 
 /// The ceilings, per hour, per identity. Configurable for the same reason the
 /// send budget's are: a launch changes the right number, and a redeploy is a
@@ -655,6 +694,9 @@ final ProviderAccountService providerAccountService = ProviderAccountService(
   // L1/T59 — a deleted salon owner's phone must stop ringing too.
   devices: deviceTokenRepository,
   notifications: notificationsRepository,
+  idempotency: idempotencyStore,
+  // B6.7 — the Apple authorization is revoked with the account.
+  apple: appleTokenService,
   // Erasure unpublishes every owned salon — the prebuilt slug set shrank.
   rebuild: siteRebuildNotifier,
 );
@@ -683,6 +725,16 @@ final DemoSnapshotRepository demoSnapshotRepository = _pool == null
     ? InMemoryDemoSnapshotRepository()
     : PostgresDemoSnapshotRepository(_pool!);
 
+/// The daily housekeeping (`/internal/cron/maintenance`,
+/// docs/design/infra-cron-maintenance.md), built with each real task and its
+/// own window — the source test reads these four lines.
+final MaintenanceTick maintenanceTick = MaintenanceTick(
+  pruneThrottle: () => pruneAdminLoginThrottle(const Duration(hours: 24)),
+  pruneRateLimits: () => pruneRateLimitWindows(kRateLimitRetention),
+  pruneIdempotency: () => pruneIdempotencyKeys(kIdempotencyWindow),
+  demoReset: (now) async => (await demoResetService.tickIfDue(now)).outcome,
+);
+
 final DemoResetService demoResetService = DemoResetService(
   providerAuthRepository,
   providersRepository,
@@ -692,6 +744,8 @@ final DemoResetService demoResetService = DemoResetService(
   membershipRepository,
   bookingService,
   demoSnapshotRepository,
+  // B6.4: a reviewer's KYC pieces go at each reset.
+  storage: storageService,
 );
 
 /// R6 — « Mes salons »: the multi-salon directory + « Ajouter un salon ».
@@ -1122,6 +1176,9 @@ final UserErasureService userErasureService = UserErasureService(
   appointmentRepository,
   clientsService,
   storageService,
+  idempotency: idempotencyStore,
+  // B6.7 — the Apple authorization is revoked with the account.
+  apple: appleTokenService,
 );
 
 /// The provider-directed sibling: turns client-driven booking events into
@@ -1223,6 +1280,8 @@ void _assertConfiguredDependenciesResolve() {
     'originAuth': () => originAuth,
     'googleIdTokenVerifier': () => googleIdTokenVerifier,
     'appleIdTokenVerifier': () => appleIdTokenVerifier,
+    // Half an Apple key dies here, at boot — never on the first deletion.
+    'appleSignInKeys': () => appleSignInKeys,
     'emailProvider': () => emailProvider,
     'messagingProvider': () => messagingProvider,
     'pushProvider': () => pushProvider,
@@ -1269,6 +1328,17 @@ Future<void> initializeDatabase() async {
       'ACTIVE in production for $kDemoProviderEmail '
       '(docs/design/backend-demo-review-account.md).',
     );
+  }
+  // B6.7 is built inactive until the owner creates the keys, and a client may
+  // have none yet (docs/design/apple-signin-keys.md §4, rules 1 and 5): say so
+  // once per boot, where an operator reads — never silently "done".
+  final appleNotice = appleKeysNotice(
+    appleSignInKeys,
+    appleIdTokenVerifier.audiences,
+  );
+  if (_isProd && appleNotice != null) {
+    // ignore: avoid_print — boot diagnostics go to the container log.
+    print(appleNotice);
   }
   assertProductionBootConfig(
     databaseUrl: Platform.environment['DATABASE_URL'],

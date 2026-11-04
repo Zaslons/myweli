@@ -10,21 +10,25 @@ import {
   getMyProvider,
   saveDepositPolicy,
 } from '../../lib/api/pro';
-import { loadFailure, loadFailureMessage, type LoadFailure } from '../../lib/pro/load-failure';
+import { loadFailure, loadFailureMessage, type LoadFailure } from '../../lib/api/load-failure';
+import { writeFailureMessage } from '../../lib/api/network';
 import { useFieldErrors } from '../../lib/forms/useFieldErrors';
 import { operatorsFor } from '../../lib/localities';
 import { PHONE_INVALID } from '../../lib/phone';
 import { formatFcfa } from '../../lib/format';
 import {
+  DEPOSIT_PERCENT_MESSAGE,
   DEPOSIT_PERCENT_RANGE,
   DEPOSIT_SAMPLE_TOTAL,
   type DepositForm,
+  OPERATOR_UNAVAILABLE_MESSAGE,
   buildDepositPayload,
   depositExample,
   depositToForm,
   sliderPosition,
   validateDeposit,
   validateDepositNumber,
+  validateDepositPercent,
   windowChoices,
 } from '../../lib/pro/deposit';
 import { useLocalities } from '../../lib/use-localities';
@@ -33,7 +37,7 @@ import { Loading } from '../Loading';
 import { PhoneField } from '../PhoneField';
 
 const input =
-  'block w-full min-h-12 rounded-lg border border-borderStrong bg-surface p-m text-bodyLarge text-textPrimary focus:border-borderFocus focus:ring-1 focus:ring-borderFocus disabled:border-border disabled:text-textDisabled';
+  'block w-full min-h-12 rounded-control border border-primary bg-surface p-m text-bodyLarge text-textPrimary focus:border-borderFocus focus:ring-1 focus:ring-borderFocus disabled:border-border disabled:text-textDisabled';
 
 // The Mobile Money number's check, per switch position: required while a
 // deposit is collected, optional otherwise — but judged whenever it is kept
@@ -65,6 +69,10 @@ export function AcompteClient() {
   const [loadError, setLoadError] = useState<LoadFailure | false>(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // The slider's and the operator's own faults — under them, tied to them
+  // (B6.5: the server's range and catalogue).
+  const [percentError, setPercentError] = useState<string | null>(null);
+  const [operatorError, setOperatorError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
   const [verified, setVerified] = useState(false);
   // « Numéro Mobile Money » answers UNDER its field (§14 rules 1/2 —
@@ -134,6 +142,9 @@ export function AcompteClient() {
   function set<K extends keyof DepositForm>(k: K, v: DepositForm[K]) {
     setForm((f) => (f ? { ...f, [k]: v } : f));
     setSaved(false);
+    // A fault belongs to its control: changing it takes the fault away.
+    if (k === 'percent') setPercentError(null);
+    if (k === 'operator') setOperatorError(null);
   }
 
   async function save() {
@@ -145,7 +156,10 @@ export function AcompteClient() {
     if (!numberOk && !f.required) setShowNumberWhileOff(true);
     const v = validateDeposit(f);
     setError(v);
-    if (v || !numberOk) return;
+    const pv = validateDepositPercent(f, lastPercentage);
+    setPercentError(pv);
+    setOperatorError(null);
+    if (v || pv || !numberOk) return;
     setBusy(true);
     setError(null);
     // A new answer replaces the last one: « Acompte enregistré. » must not
@@ -166,10 +180,19 @@ export function AcompteClient() {
         if (!f.required) setShowNumberWhileOff(true);
         return;
       }
+      // The server's range and catalogue (B6.5): under their controls.
+      if (r.error === 'invalid_percentage') {
+        setPercentError(DEPOSIT_PERCENT_MESSAGE);
+        return;
+      }
+      if (r.error === 'operator_unavailable') {
+        setOperatorError(OPERATOR_UNAVAILABLE_MESSAGE);
+        return;
+      }
       setError(
         r.error === 'verification_required'
           ? 'Vérifiez votre compte pour activer les acomptes.'
-          : 'L’enregistrement a échoué. Réessayez.',
+          : writeFailureMessage(r.status, 'L’enregistrement a échoué. Réessayez.'),
       );
       return;
     }
@@ -249,8 +272,15 @@ export function AcompteClient() {
                 step={DEPOSIT_PERCENT_RANGE.step}
                 value={sliderPosition(form.percent)}
                 aria-valuetext={percentLabel}
+                aria-invalid={percentError ? true : undefined}
+                aria-describedby={percentError ? 'deposit-percent-error' : undefined}
                 onChange={(e) => set('percent', e.target.value)}
               />
+              {percentError ? (
+                <p id="deposit-percent-error" role="alert" className="mt-xs text-bodyMedium text-error">
+                  {percentError}
+                </p>
+              ) : null}
             </div>
             <div
               data-testid="deposit-example"
@@ -301,6 +331,8 @@ export function AcompteClient() {
                   <select
                     className={input}
                     value={form.operator}
+                    aria-invalid={operatorError ? true : undefined}
+                    aria-describedby={operatorError ? 'deposit-operator-error' : undefined}
                     onChange={(e) => set('operator', e.target.value)}
                   >
                     <option value="">— Choisir —</option>
@@ -312,6 +344,13 @@ export function AcompteClient() {
                   </select>
                 )}
               </label>
+            ) : null}
+            {/* After the label, not inside it: inside, it would become part of
+                the select's accessible name. */}
+            {form.required && operatorError ? (
+              <p id="deposit-operator-error" role="alert" className="text-bodyMedium text-error">
+                {operatorError}
+              </p>
             ) : null}
             {/* The shared PhoneField (+225 on screen — parity with the app).
                 It mounts with the switch — or with a refusal while deposits

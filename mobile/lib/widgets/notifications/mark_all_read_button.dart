@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../providers/notifications_provider.dart';
-import '../common/app_snack_bar.dart';
+import 'read_failure_snack.dart';
 
 /// « Tout marquer comme lu » — the app-bar action of BOTH notification centres
 /// (the consumer's `/notifications`, the pro's `/pro/notifications`), which
@@ -36,10 +36,11 @@ class _MarkAllReadButtonState extends State<MarkAllReadButton> {
     final messenger = ScaffoldMessenger.of(context);
     // A finger never focuses a Material button; a keyboard activation does.
     final hadFocus = _focus.hasPrimaryFocus;
+    ReadFailureSnack.hide(); // a new attempt: the last failure is not the news
     final failure = await provider.markAllRead();
     if (failure == null || !mounted) return;
     if (ModalRoute.isCurrentOf(context) ?? true) {
-      AppSnackBar.showOn(messenger, failure, kind: SnackKind.error);
+      ReadFailureSnack.show(messenger, failure);
     }
     // The focus fell with the button. It comes back with it — only if it is
     // still nowhere in particular: never stolen from what was focused since.

@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
+import 'package:myweli/core/utils/salon_id.dart';
 import 'package:myweli/providers/admin/admin_providers_provider.dart';
 import 'package:myweli/providers/admin/admin_users_provider.dart';
 import 'package:myweli/services/admin/admin_service.dart';
@@ -60,9 +61,9 @@ void main() {
 
       await p.load();
       expect(p.items, hasLength(1));
-      expect(await p.suspend('p1', 'abus'), isTrue);
+      expect(await p.suspend(SalonId('p1'), 'abus'), isTrue);
       expect(p.items.single['status'], 'suspended');
-      expect(await p.feature('p1', true), isTrue);
+      expect(await p.feature(SalonId('p1'), true), isTrue);
       expect(p.items.single['featured'], true);
     });
 
@@ -93,7 +94,7 @@ void main() {
       p.setFilter(1); // Actifs
       await p.load();
       expect(p.items, hasLength(1));
-      expect(await p.suspend('p1', 'x'), isTrue);
+      expect(await p.suspend(SalonId('p1'), 'x'), isTrue);
       expect(p.items, isEmpty);
     });
 
@@ -117,7 +118,7 @@ void main() {
         ),
       );
       await p.load();
-      expect(await p.suspend('p1', 'x'), isFalse);
+      expect(await p.suspend(SalonId('p1'), 'x'), isFalse);
       expect(p.items, hasLength(1));
       expect(p.actionError, isNotNull);
     });

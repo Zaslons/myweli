@@ -11,6 +11,7 @@ import 'package:myweli_backend/src/appointments/slot_service.dart';
 import 'package:myweli_backend/src/auth/provider_auth_repository.dart';
 import 'package:myweli_backend/src/auth/tokens.dart';
 import 'package:myweli_backend/src/email/email_provider.dart';
+import 'package:myweli_backend/src/idempotency/idempotency_store.dart';
 import 'package:myweli_backend/src/messaging/salon_notifier.dart';
 import 'package:myweli_backend/src/notifications/notification_prefs_repository.dart';
 import 'package:myweli_backend/src/notifications/notifications_repository.dart';
@@ -39,8 +40,10 @@ void main() {
   late InMemoryMembershipRepository members;
   late InMemoryNotificationsRepository salonFeed;
   late SalonNotifier salonNotifier;
+  late InMemoryIdempotencyStore idem;
 
   setUp(() async {
+    idem = InMemoryIdempotencyStore();
     providers = InMemoryProvidersRepository();
     appts = InMemoryAppointmentRepository();
     booking = BookingService(providers, appts, SlotService(providers, appts));
@@ -145,14 +148,19 @@ void main() {
         MembershipService(InMemoryMembershipRepository(), providerAuth),
       );
       when(() => context.read<SalonNotifier>()).thenReturn(salonNotifier);
+      when(() => context.read<IdempotencyStore>()).thenReturn(idem);
       return context;
     }
 
-    Request post(String path, {String? bearer, Object? body}) => Request.post(
-      Uri.parse('http://localhost$path'),
-      headers: {if (bearer != null) 'Authorization': 'Bearer $bearer'},
-      body: body == null ? null : jsonEncode(body),
-    );
+    Request post(String path, {String? bearer, Object? body, String? key}) =>
+        Request.post(
+          Uri.parse('http://localhost$path'),
+          headers: {
+            if (bearer != null) 'Authorization': 'Bearer $bearer',
+            if (key != null) 'Idempotency-Key': key,
+          },
+          body: body == null ? null : jsonEncode(body),
+        );
 
     Future<Map<String, dynamic>> jsonOf(Response r) async =>
         await r.json() as Map<String, dynamic>;
@@ -188,6 +196,35 @@ void main() {
       // Client-driven events notify the team; the salon's own entry does not.
       expect(await salonFeed.listForUser('acc-owner'), isEmpty);
     });
+
+    // docs/design/write-idempotency.md §3: the answer was lost, the salon
+    // tries again with the SAME key — one booking, and the first answer.
+    test(
+      'the same Idempotency-Key twice: ONE booking, the second answer is '
+      'the first, replayed (it used to be a 409 or a second booking)',
+      () async {
+        Future<Response> send() => manual.onRequest(
+          ctx(
+            post(
+              '/providers/provider1/appointments',
+              bearer: token,
+              body: validBody(),
+              key: 'manual-key-00000001',
+            ),
+          ),
+          'provider1',
+        );
+        final first = await send();
+        final second = await send();
+        expect(first.statusCode, HttpStatus.created);
+        expect(second.statusCode, HttpStatus.created);
+        final a = jsonDecode(await first.body()) as Map<String, dynamic>;
+        final b = jsonDecode(await second.body()) as Map<String, dynamic>;
+        expect(b['id'], a['id']);
+        expect(second.headers['idempotent-replayed'], 'true');
+        expect(await appts.listForProvider('provider1'), hasLength(1));
+      },
+    );
 
     test('valid manual booking → 201 confirmed', () async {
       final res = await manual.onRequest(

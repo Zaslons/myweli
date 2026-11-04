@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:myweli/core/di/dependency_injection.dart';
+import 'package:myweli/core/utils/salon_id.dart';
 import 'package:myweli/models/api_response.dart';
 import 'package:myweli/models/provider.dart' as models;
 import 'package:myweli/models/review.dart';
@@ -66,7 +67,10 @@ void main() {
     );
     return wrapApp(
       providers: [ChangeNotifierProvider.value(value: providers)],
-      home: const ProviderDetailScreen(providerId: 'provider1', preview: true),
+      home: const ProviderDetailScreen(
+        providerId: SalonId('provider1'),
+        preview: true,
+      ),
     );
   }
 
@@ -141,7 +145,7 @@ void main() {
       wrapApp(
         providers: [ChangeNotifierProvider.value(value: providers)],
         home: const ProviderDetailScreen(
-          providerId: 'provider1',
+          providerId: SalonId('provider1'),
           preview: true,
         ),
       ),
@@ -152,7 +156,7 @@ void main() {
     providers.addReviewLocally(
       Review(
         id: 'r1',
-        providerId: 'provider1',
+        providerId: SalonId('provider1'),
         userId: 'user1',
         userName: 'Awa K.',
         rating: 5,

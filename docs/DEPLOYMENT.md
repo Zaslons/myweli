@@ -227,6 +227,47 @@ which is how the reminder cron came to be switched off without anyone noticing.
    old. On `JWT_SECRET` that is some instances signing with a key the others
    reject, with nothing in the logs saying why.
 
+   **Sign in with Apple's keys — owed, and the server waits for them (B6.7,
+   B0.12).** Account deletion revokes the person's Apple authorization (App
+   Store 5.1.1(v)) only once keys exist; until then the server keeps and
+   revokes nothing and says so at each boot (`NOTICE: no Sign in with Apple
+   key …`). **MyWeli and MyWeli Pro are separate Sign in with Apple
+   primaries** (read through the App Store Connect API, 2026-10-27), and Apple
+   associates a key with one primary — so **one key per app**, the server
+   choosing it by the token's client
+   ([apple-signin-keys.md](design/apple-signin-keys.md)). To turn it on — **the
+   owner's steps**, a cloud mutation each, asked for before:
+   1. Apple Developer → *Identifiers* → *Services IDs* → `com.myweli.signin` →
+      Sign In with Apple → *Configure*: note its **Primary App ID** (read only).
+   2. *Keys* → **+** → « MyWeli — Sign in with Apple », tick **Sign in with
+      Apple** → *Configure* → Primary App ID `com.myweli.app` → Register →
+      download `AuthKey_<KEY_ID>.p8` (Apple offers it **once**), note the Key
+      ID. Again for « MyWeli Pro — Sign in with Apple » on `com.myweli.pro`.
+   3. **No key can be tested before a real sign-in** — Apple answers a fake
+      code with `invalid_grant` and a fake revocation with `200` whatever
+      the key (measured with controls, 2026-10-27,
+      [apple-signin-keys.md](design/apple-signin-keys.md) §5). The test is
+      step 6. **Never attach a `.p8` to a chat**: name its folder.
+   4. `gcloud secrets create APPLE_APP_PRIVATE_KEY --data-file=<the MyWeli
+      .p8>` and the same for `APPLE_PRO_PRIVATE_KEY`; grant the runtime service
+      account `secretAccessor` on both. Keep an offline copy in a password
+      manager, then delete the downloads. *Done 2026-10-27, version `1` each,
+      read back.*
+   5. A PR adds to `infra/gcp/service.yaml`: `APPLE_TEAM_ID`,
+      `APPLE_APP_KEY_ID`, `APPLE_APP_KEY_CLIENTS`, `APPLE_PRO_KEY_ID` and
+      `APPLE_PRO_KEY_CLIENTS` as plain values (identifiers, not secrets), and
+      the two private keys by `secretKeyRef`, **pinned** to version `'1'` (the
+      pins test refuses `latest`). A slot is all three of its variables or
+      none, every listed client must be in `APPLE_CLIENT_IDS`, and none may be
+      in both slots — or the server refuses to boot.
+   6. Deploy — after Apple's decision on 0.0.1 (BACKLOG decision 47); the boot
+      `NOTICE` is gone. **Then one real Apple sign-in per client** (the Pro
+      app, myweli.com, the MyWeli app once it ships): each adds a row to
+      `apple_tokens` and logs no `apple_token FAILED`; `error=invalid_client`
+      means that client's key does not cover it. Sign-ins from then on keep a
+      token; accounts that signed in before have none to revoke until their
+      next Apple sign-in.
+
    **Changing a secret, in order:**
 
    1. `printf '%s' "$NEW" | gcloud secrets versions add <NAME> --data-file=-`
@@ -348,8 +389,18 @@ which is how the reminder cron came to be switched off without anyone noticing.
    well** — without it there is no URL to reconstruct and the webhook 404s
    (BACKEND.md §7 T19).
 6. **Crons are Cloud Scheduler jobs**, not dashboard entries: `myweli-reminders`
-   every 15 min and `myweli-subscriptions` daily at 03:00 UTC, both authenticated
-   with a Google-signed OIDC token (`myweli-scheduler@`). A transitional
+   every 15 min, `myweli-subscriptions` daily at 03:00 UTC (the offers walk) and
+   `myweli-maintenance` daily at 03:30 UTC (the prunes and the demo reset —
+   [design/infra-cron-maintenance.md](design/infra-cron-maintenance.md)), all
+   authenticated with a Google-signed OIDC token (`myweli-scheduler@`), **all
+   three declared in `infra/gcp/99-scheduler-jobs.sh`** — read-only by default
+   (it reads each job back and reports drift), `APPLY=1` to create a missing
+   one; force a run after a create and read its 200 in the service's log.
+   **Check a cron route by forcing its job, never by calling it without a
+   token**: the anonymous 403 is the right answer, and it pages « A cron call
+   was REFUSED » all the same (it did, 2026-10-21). A run's counts are in its
+   HTTP answer, which Scheduler does not keep — the log shows the status, and a
+   failed prune its `*_prune_failed` line. A transitional
    `X-Cron-Secret` header is still accepted and was to be retired once real runs
    were seen on the OIDC path. **That condition is now met, twice over
    (2026-08-17)** — see

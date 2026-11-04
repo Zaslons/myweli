@@ -10,7 +10,7 @@ import {
 } from '../../lib/api/pro';
 import { writeFailureMessage } from '../../lib/api/network';
 import { formatDateTimeFr } from '../../lib/format';
-import { loadFailureMessage } from '../../lib/pro/load-failure';
+import { loadFailureMessage } from '../../lib/api/load-failure';
 import { proWebRouteFor, salonOf } from '../../lib/pro/notifications';
 import { Button } from '../Button';
 import { EmptyState } from '../EmptyState';

@@ -1,5 +1,7 @@
 import 'package:equatable/equatable.dart';
 
+import '../core/utils/salon_id.dart';
+
 import 'team_member.dart';
 
 /// One « Mes salons » entry (module `access` R6 — GET /me/salons): a salon
@@ -15,7 +17,7 @@ class SalonMembershipInfo extends Equatable {
     this.imageUrl,
   });
 
-  final String salonId;
+  final SalonId salonId;
   final String salonName;
   final TeamRole role;
 
@@ -29,7 +31,7 @@ class SalonMembershipInfo extends Equatable {
 
   factory SalonMembershipInfo.fromJson(Map<String, dynamic> json) =>
       SalonMembershipInfo(
-        salonId: json['salonId'] as String,
+        salonId: SalonId(json['salonId'] as String),
         salonName: (json['salonName'] as String?) ?? '',
         role: teamRoleFrom(json['role'] as String?),
         salonStatus: (json['salonStatus'] as String?) ?? 'active',

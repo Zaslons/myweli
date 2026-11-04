@@ -52,6 +52,12 @@ const config: Config = {
     // icon"; `text-titleLarge` on a ✕ said "a card/section heading".
     fontSize: { ...type, ...icon },
 
+    // CLOSED to one family (WEB-SYSTEM §3). `var(--font-brand)` is set on <html> by
+    // next/font; the system stack behind it is what shows while the file loads, on
+    // `global-error` (which replaces the layout), and for the few characters the
+    // font does not carry. `font-serif` and `font-mono` no longer exist.
+    fontFamily: { sans: ['var(--font-brand)', ...defaultTheme.fontFamily.sans] },
+
     // ─── maxWidth: CLOSED, and a real leak fixed (B2c) ──────────────────────
     // Tailwind's own `maxWidth` spreads `theme('spacing')` FIRST and then lays
     // its named rem steps on top. With `spacing` closed to the rhythm tokens
@@ -142,7 +148,10 @@ const config: Config = {
       width: defaultTheme.spacing,
       height: defaultTheme.spacing,
       minWidth: defaultTheme.spacing,
-      minHeight: defaultTheme.spacing,
+      // `hero`: the home hero from `lg`. The panel stops growing with the container
+      // at 1536, where its logo ends 446px down, so the cloth is cut below it at every
+      // width (pinned in tests/e2e/site-look.spec.ts).
+      minHeight: { ...defaultTheme.spacing, hero: '36rem' },
       maxHeight: defaultTheme.spacing,
       inset: defaultTheme.spacing,
       translate: defaultTheme.spacing,
@@ -152,6 +161,11 @@ const config: Config = {
       // agrees on the rail width.
       gridTemplateColumns: {
         desk: 'minmax(0, 1fr) 20rem',
+        // The Pro client card's four stats: 2 × 2, then one per row once a tile
+        // would be too narrow for an amount that cannot wrap (the app's shape,
+        // docs/design/amounts-that-fit.md §2). 50% is never less than half, so
+        // there is no 3 + 1 on a wide column. The 0.25rem is half of `gap-s`.
+        stats: 'repeat(auto-fit, minmax(max(9rem, calc(50% - 0.25rem)), 1fr))',
       },
       // `size` is NOT here: `size-*` has 74 keys and zero uses — all 17 square
       // elements spell `h-N w-N`. The carve-out was dead weight.

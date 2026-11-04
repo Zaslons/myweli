@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | Living list, **snapshot of 2026-10-18** (main at `a91edc66`). Tick or strike an item in the PR that closes it, with the PR number. |
+| **Status** | Living list, **snapshot of 2026-10-18** (main at `a91edc66`). Tick or strike an item in the PR that closes it, with the PR number. **Ticked through 2026-10-21:** batch 1 (#665), batch 2 (#666) and batch 3 (#670, #671). |
 | **How it was built** | Every item recorded as left to do since 2026-10-13 was collected: the out-of-scope sections of 76 specs and roadmap entries, the follow-up sections of PRs #598–#631, and the six suggested tasks still waiting. That gave 116 raw items. Then **each one was checked against the code on main** (file and line, in the linked sources), not taken from the docs. Duplicates were merged. Five items turned out to be fixed or not defects (§4). Four can only be checked by the owner (batch 10). |
 | **Related** | [LAUNCH.md](LAUNCH.md) (the launch gates; not repeated here) · [ROADMAP.md](ROADMAP.md) · [design/README.md](design/README.md) |
 
@@ -26,23 +26,25 @@
 
 | # | Batch | What it fixes | Priority | Surfaces | Needs you for |
 |---|---|---|---|---|---|
-| 0 | **Release track** | 0.0.1 through review, device checks, 0.0.2, the store and policy items around them | P1 | release | 5 decisions + the device checks |
-| 1 | **Pro home and journal stay fresh** | « Ma journée » and « Accueil » showing stale statuses and figures, and an error screen with no way out | P1 | app | 3 small decisions |
-| 2 | **Lost answers to writes** | A booking saved but reported as failed, then a retry into « slot taken » or a double booking | P2 | web, app, backend | 1 decision |
-| 3 | **The app says the right thing when something fails** | Raw English exception text, a bare « Erreur », two offline sentences, notification read state | P2 | app (+ web wording) | 1 decision |
-| 4 | **Web Pro is truthful on failure** | False « choose your offer », « no visits », silent reads, stale Calendrier/Liste, demo refusals | P2 | web | 3 decisions |
-| 5 | **Client web polish** | Sign-in blaming the code, ♥ edge cases, export edge cases, a toast for favourites | P2–P3 | web | 1 decision |
-| 6 | **Backend integrity** | Role gate on booking, invitation accounts, owner contact erasure, demo KYC, deposit range, review reports, Apple token revoke | P2–P3 | backend (+ app, web) | 6 decisions + deploys |
-| 7 | **Pro app UI, accessibility and parity** | Contrast, mid-word breaks, empty states, member deletion text, invitations on « Accueil », export earnings | P2–P3 | app | 3 decisions |
-| 8 | **Product questions** | Undo, phone editing, offline Profil card, V2 analytics wording, dormant phone sign-in | P3 | — | 5 decisions |
-| 9 | **Hygiene, tooling and tests** | Stale docs, release tooling, mocks, test gaps, shared components | P3 | all | 2 decisions |
-| 10 | **Only you can check** | App Store Connect state, support inbox, App Preview, production walk-throughs | — | owner | your time |
+| 0 | **Release track** | 0.0.1 through review, device checks, 0.0.2, the store and policy items around them | P1 | release | **Build 698 refused on 2026-11-03 (2.3.4, 3.1.1).** The answer is merged (#731) and the web is live. App Store Connect took build 719, the full-screen film, the description and the notes, read back on 2026-11-03. **2026-11-04: resubmitted at 00:02:00 UTC with build 719, in review (`WAITING_FOR_REVIEW`, release `MANUAL`, per the API); B0.1 applies. Still open: Apple's decision; a green scheduled « Production checks » run after `713114a5` and `7a2c7e15` (the last is 13:16 UTC on 2026-11-03, on `4e78e485`); a successful Apple sign-in on an iPad, unobserved; the production backend deploy after Apple's decision, the one that switches on the Apple keys; the release by hand after approval; merging the docs PR that holds this record.** (B0.16). Owner-reported: the focused pass on your iPhone; on 2026-11-04, the iPad simulator's two results, Media Manager checked and the reply sent. You: any Resolution Center message, the same day; then the release by hand; B0.10's Play forms |
+| 1 | ✅ **Pro home and journal stay fresh** | « Ma journée » and « Accueil » showing stale statuses and figures, and an error screen with no way out | P1 | app | **Done — #665** (2026-10-21) |
+| 2 | ✅ **Lost answers to writes** | A booking saved but reported as failed, then a retry into « slot taken » or a double booking | P2 | web, app, backend | **Done — #666** (2026-10-21) |
+| 3 | ✅ **The app says the right thing when something fails** | Raw English exception text, a bare « Erreur », two offline sentences, notification read state | P2 | app (+ web wording) | **Done — #670, #671** (2026-10-21) |
+| 4 | ✅ **Web Pro is truthful on failure** | False « choose your offer », « no visits », silent reads, stale Calendrier/Liste, demo refusals | P2 | web | **Done — #672, #673** (2026-10-21) |
+| 5 | ✅ **Client web polish** | Sign-in blaming the code, ♥ edge cases, export edge cases, a toast for favourites | P2–P3 | web | **Done — #674, #675** (2026-10-21) |
+| 6 | ✅ **Backend integrity** | Role gate on booking, invitation accounts, owner contact erasure, demo KYC, deposit range, review reports, Apple token revoke | P2–P3 | backend (+ app, web) | **Done — #676–#679**, deployed 2026-10-22 |
+| 7 | ✅ **Pro app UI, accessibility and parity** | Contrast, mid-word breaks, empty states, member deletion text, invitations on « Accueil », export earnings | P2–P3 | app | **Done — #682–#684** |
+| 8 | ✅ **Product questions** | Undo, phone editing, offline Profil card, V2 analytics wording, dormant phone sign-in | P3 | — | **Done — #685, #686** |
+| 9 | ✅ **Hygiene, tooling and tests** | Stale docs, release tooling, mocks, test gaps, shared components; the account forgotten on every way out | P3 | all | **Done — #688–#707** (2026-10-25); **B9.13 #701, B9.14 #704** (2026-10-28) |
+| 10 | **Only you can check** | ~~App Store Connect state, support inbox~~ (done 2026-10-28), App Preview after the decision, production walk-throughs, the demo salon | — | owner | your time |
+| 11 | **The website's look** | Swiss structure, the real logo, a calm pattern of plaits, Hanken Grotesk | P2 | web | **Spec approved 2026-11-02**; you: show the pattern to 3–5 people before S1 goes live |
+| 12 | **The website's flows against the apps** | Four sentences that aren't true, then the gaps in both directions | P1 for B12.1–B12.4, then P2–P3 | web, apps | B12.1's decision; your go on each merge |
 
 **Proposed order.**
-- **Now:** batch 0 runs on Apple's clock. Batch 1 is the next code slice.
-- **Then:** batches 2 → 3 → 4 → 5, while batch 6 accumulates and goes out in one or two backend deploys.
-- **When touching an area:** batches 7 and 9.
-- **Whenever you answer:** batch 8.
+- **Done (2026-10-25):** batches 1–9, every item.
+- **Now:** batch 0 — **0.0.1 was rejected under 3.1.1** (business registration in the app); B0.11 made the Pro app login-only (#711). **Build 698, the new build of 0.0.1, was resubmitted on 2026-10-26** and **refused on 2026-11-03** under 2.3.4 (the framed film) and 3.1.1 (the sign-in's link): B0.16 is the answer (#731; build 719 attached). **2026-11-04: resubmitted at 00:02:00 UTC with build 719, in review (`WAITING_FOR_REVIEW`, release `MANUAL`, per the API); B0.1 applies. Still open: Apple's decision; a green scheduled « Production checks » run after `713114a5` and `7a2c7e15` (the last is 13:16 UTC on 2026-11-03, on `4e78e485`); a successful Apple sign-in on an iPad, unobserved; the production backend deploy after Apple's decision, the one that switches on the Apple keys; the release by hand after approval; merging the docs PR that holds this record.** B0.1's « while it's in review » constraints were lifted only while 0.0.1 was rejected. The privacy policy is corrected and live (B0.4, #709).
+- **Next (2026-11-02):** batch 12's four untrue sentences are in #723, then batch 11. Your order, decision 67.
+- **Yours:** batch 10, and your half of batch 0 (answer any Resolution Center message and release by hand after approval, B0.1; B0.10: the upload key and a signed AAB, the closed test's countries and 12 testers; decision 55).
 
 ---
 
@@ -51,73 +53,126 @@
 Each question has a recommendation. Answers unblock the item named in brackets.
 
 **Release (batch 0)**
-1. **0.0.1 after approval.** Release it at once under LAUNCH §3 (production is stable), or hold it and make 0.0.2, with every fix below, the first public version? Holding costs a second review. *Recommended: release 0.0.1 when §3 allows, ship 0.0.2 with phased release.* [B0.1, B0.3]
-2. **Device checks.** Run the §11.6 checklist on build 587 (the one in review) now, and the post-587 checks on 0.0.2? *Recommended: yes, both, because 587 is what Apple sees.* [B0.2]
-3. **Privacy policy.** Can it say every processor protects data as well as we do? That means their standard data-processing terms are accepted on our accounts. And do you approve the new wording before it goes live? [B0.4]
-4. **Pro iOS update link.** OK to write the App Store link into production now, with both floors left at 0 so nobody is affected? Or wait for the 0.0.1 release? *Recommended: now.* [B0.5]
-5. **KYC under an individual Apple account (5.1.1(ix)).** Is the developer account Individual or Organization? If Apple rejects for this, do we hide KYC and deposits on iOS until an Organization account exists, or appeal first? [B0.6]
-6. **0.0.2 store media.** Reshoot screenshots 3 and 8 and re-cut the preview with the new revenue wording, or keep the current media? *Recommended: re-cut only if 0.0.2 needs new screenshots anyway.* [B0.8]
-7. **The unused iOS « remote-notification » mode.** Remove it in the next build, which adds one device check, or leave it? *Recommended: remove it in 0.0.2.* [B0.9]
+1. **0.0.1 after approval.** Release it at once under LAUNCH §3 (production is stable), or hold it and make 0.0.2, with every fix below, the first public version? Holding costs a second review. *Recommended: release 0.0.1 when §3 allows, ship 0.0.2 with phased release.* [B0.1, B0.3] — ✅ **Answered (2026-10-25): moot — Apple rejected 0.0.1** (build 587; the reason comes next). **The resubmission is a new build of 0.0.1**, with every fix since 587 — no 0.0.2 first.
+2. **Device checks.** Run the §11.6 checklist on build 587 (the one in review) now, and the post-587 checks on 0.0.2? *Recommended: yes, both, because 587 is what Apple sees.* [B0.2] — ✅ **Answered: on the resubmitted build** — §11.6 and the post-587 list together, since 587 is gone. *2026-11-03: for the next build, decision 75 replaces this list.*
+3. **Privacy policy.** Can it say every processor protects data as well as we do? That means their standard data-processing terms are accepted on our accounts. And do you approve the new wording before it goes live? [B0.4] — ✅ **Answered: yes, the DPAs are accepted; you approve the draft before it goes live.**
+4. **Pro iOS update link.** OK to write the App Store link into production now, with both floors left at 0 so nobody is affected? Or wait for the 0.0.1 release? *Recommended: now.* [B0.5] — ✅ **Answered: wait for the release** (with 0.0.1 rejected, the link leads nowhere yet).
+5. **KYC under an individual Apple account (5.1.1(ix)).** Is the developer account Individual or Organization? If Apple rejects for this, do we hide KYC and deposits on iOS until an Organization account exists, or appeal first? [B0.6] — ✅ **Answered: Individual; hide them on iOS if Apple cites 5.1.1(ix).**
+6. **0.0.2 store media.** Reshoot screenshots 3 and 8 and re-cut the preview with the new revenue wording, or keep the current media? *Recommended: re-cut only if 0.0.2 needs new screenshots anyway.* [B0.8] — ✅ **Answered: only if needed** (as recommended — if the rejection or the new build makes a shot wrong).
+7. **The unused iOS « remote-notification » mode.** Remove it in the next build, which adds one device check, or leave it? *Recommended: remove it in 0.0.2.* [B0.9] — ✅ **Answered: remove it** (as recommended) — done in #708, for the resubmitted build.
 
 **Pro home and journal (batch 1)**
 
-8. **After « Accepter », « Rejeter », « Terminé » or « Absent » on the booking detail:** show the new status in « Ma journée » immediately, then reload quietly? *Recommended: yes, since the server has already confirmed.* [B1.1]
-9. **Pull-to-refresh on « Accueil » fails while figures are on screen:** keep the figures and say « Pas de connexion. Réessayez. »? *Recommended: yes.* Or replace them with the error state? [B1.2]
-10. Ship the salon-switch race fix **in the same PR** as the « Accueil » refresh fix? *Recommended: yes, they touch the same function.* [B1.3]
+8. **After « Accepter », « Rejeter », « Terminé » or « Absent » on the booking detail:** show the new status in « Ma journée » immediately, then reload quietly? *Recommended: yes, since the server has already confirmed.* [B1.1] — ✅ **Answered: as recommended** (#665).
+9. **Pull-to-refresh on « Accueil » fails while figures are on screen:** keep the figures and say « Pas de connexion. Réessayez. »? *Recommended: yes.* Or replace them with the error state? [B1.2] — ✅ **Answered: as recommended** (#665).
+10. Ship the salon-switch race fix **in the same PR** as the « Accueil » refresh fix? *Recommended: yes, they touch the same function.* [B1.3] — ✅ **Answered: as recommended** (#665).
 
 **Lost answers (batch 2)**
 
-11. Fix the lost booking answer **on the web only**, by checking « Mes rendez-vous » before saying it failed? Or add an **idempotency key** on the server, so web and app both get it (backend change and deploy)? *Recommended: idempotency key. It covers bookings, manual bookings, notes and invitations on both surfaces.* [B2.1]
+11. Fix the lost booking answer **on the web only**, by checking « Mes rendez-vous » before saying it failed? Or add an **idempotency key** on the server, so web and app both get it (backend change and deploy)? *Recommended: idempotency key. It covers bookings, manual bookings, notes and invitations on both surfaces.* [B2.1] — ✅ **Answered: the idempotency key** (#666).
 
 **App failure messages (batch 3)**
 
-12. **Notification « marquer comme lu » whose answer was lost:** keep showing it unread until the next load (today), or retry the write once? A retry is safe because the write is idempotent. *Recommended: retry once.* [B3.3]
+12. **Notification « marquer comme lu » whose answer was lost:** keep showing it unread until the next load (today), or retry the write once? A retry is safe because the write is idempotent. *Recommended: retry once.* [B3.3] — ✅ **Answered: retry once** (#671).
 
 **Web Pro (batch 4)**
 
-13. **When the salon's offer can't be read:** leave « Mettre en ligne » clickable and let the server decide? *Recommended: yes, the server re-checks.* Or block it until the offer is read? [B4.1]
-14. **The rejoin gate after a reload:** remember the last salon's name in the browser, so it can say « Votre accès à {salon} a été retiré », like the app? Or keep the generic line? *Recommended: remember it.* [B4.4]
-15. **Four minor Pro sections that vanish silently on a failed read** (seats bar, stats tiles, panel client card, client suggestions): give them a one-line « indisponible » note with « Réessayer », or accept the silence? *Recommended: the note, for the three that drive an action; the stats tiles can stay « — ».* [B4.5]
+13. **When the salon's offer can't be read:** leave « Mettre en ligne » clickable and let the server decide? *Recommended: yes, the server re-checks.* Or block it until the offer is read? [B4.1] — ✅ **No longer anything to decide**: « Mettre en ligne » stopped reading the offer on 2026-10-19, so the server already decides; Équipe's case was asked instead (#672: say it, keep « Inviter »).
+14. **The rejoin gate after a reload:** remember the last salon's name in the browser, so it can say « Votre accès à {salon} a été retiré », like the app? Or keep the generic line? *Recommended: remember it.* [B4.4] — ✅ **Answered: remember it** (built in #673).
+15. **Four minor Pro sections that vanish silently on a failed read** (seats bar, stats tiles, panel client card, client suggestions): give them a one-line « indisponible » note with « Réessayer », or accept the silence? *Recommended: the note, for the three that drive an action; the stats tiles can stay « — ».* [B4.5] — ✅ **Answered: as recommended** (#672).
 
 **Client web (batch 5)**
 
-16. **The web ♥:** show only « Ajouté aux favoris » / « Retiré des favoris », or also « Annuler » like the app? « Annuler » would be the web's first toast with an action. *Recommended: message only for now.* [B5.4]
+16. **The web ♥:** show only « Ajouté aux favoris » / « Retiré des favoris », or also « Annuler » like the app? « Annuler » would be the web's first toast with an action. *Recommended: message only for now.* [B5.4] — ✅ **Answered: message + « Annuler »**, like the app (Médias already has an action toast); « Mon compte » announces too ([web-client-polish.md](design/web-client-polish.md) Q2, Q4).
 
 **Backend (batch 6)**
 
-17. **When an owner deletes their account:** erase the salon's phone, WhatsApp, Mobile Money number and address, and keep only the name and the history? *Recommended: yes.* [B6.3]
-18. **A reviewer's KYC on the demo account:** erase it at the weekly reset (*recommended*), or refuse KYC submission on the demo account like publish and invite? [B6.4]
-19. **One deposit percentage range for app, web and server:** 5–80 % (today's app slider), 1–100 % (today's web field), or another range? [B6.5]
-20. **Salons reporting reviews:** the same admin queue as client reports, marked « signalé par le salon »? And may every team member report, or only Propriétaire and Gérant? [B6.6]
+17. **When an owner deletes their account:** erase the salon's phone, WhatsApp, Mobile Money number and address, and keep only the name and the history? *Recommended: yes.* [B6.3] — ✅ **Answered: yes** — erase the numbers and the address, keep the name and the history ([backend-integrity-batch6.md](design/backend-integrity-batch6.md) Q1).
+18. **A reviewer's KYC on the demo account:** erase it at the weekly reset (*recommended*), or refuse KYC submission on the demo account like publish and invite? [B6.4] — ✅ **Answered: erase it at the weekly reset** (Q2).
+19. **One deposit percentage range for app, web and server:** 5–80 % (today's app slider), 1–100 % (today's web field), or another range? [B6.5] — ✅ **Answered: 5–80 %**, server-enforced when the deposit is on and the % changes (Q3).
+20. **Salons reporting reviews:** the same admin queue as client reports, marked « signalé par le salon »? And may every team member report, or only Propriétaire and Gérant? [B6.6] — ✅ **Answered: the same queue, marked « Signalé par le salon »; Propriétaire and Gérant only** (Q4).
 21. **Exercising the T72 fix in production:** create and delete one throwaway Pro account, or accept the CI test plus the database check? [B10]
-22. **Demo identity lost outside the product:** should the weekly reset re-create it, or is an alert plus manual recovery enough? *Recommended: the alert now; re-creation only if it ever happens.* [B6.9]
+22. **Demo identity lost outside the product:** should the weekly reset re-create it, or is an alert plus manual recovery enough? *Recommended: the alert now; re-creation only if it ever happens.* [B6.9] — ✅ **Answered: the alert now, no re-creation** (Q6).
 
 **Pro app (batch 7)**
 
-23. **Team invitations on the app's « Accueil »:** the web's full card with « Rejoindre » / « Refuser » (*recommended*), or only a badge on Profil? [B7.6]
-24. **The « Acompte & annulation » onboarding step:** required, or « facultatif » until the salon saves a choice? *Recommended: facultatif, since deposits are not a go-live condition.* [B7.7]
-25. **An empty « Ma journée »:** keep the floating « Nouveau » button (*recommended*) or the in-page « + Nouvelle réservation »? [B7.4]
-26. **Orientation:** portrait only for both apps on Android and iPhone, the client app included? *Recommended: yes.* Or a landscape design pass for the client app? [B7.9]
+23. **Team invitations on the app's « Accueil »:** the web's full card with « Rejoindre » / « Refuser » (*recommended*), or only a badge on Profil? [B7.6] — ✅ **Answered: the web's card on « Accueil » and the staff « Journée »** (Q1).
+24. **The « Acompte & annulation » onboarding step:** required, or « facultatif » until the salon saves a choice? *Recommended: facultatif, since deposits are not a go-live condition.* [B7.7] — ✅ **Answered: « facultatif » until a choice is saved** (Q2).
+25. **An empty « Ma journée »:** keep the floating « Nouveau » button (*recommended*) or the in-page « + Nouvelle réservation »? [B7.4] — ✅ **Answered: keep the floating « Nouveau »** (Q4).
+26. **Orientation:** portrait only for both apps on Android and iPhone, the client app included? *Recommended: yes.* Or a landscape design pass for the client app? [B7.9] — ✅ **Answered: portrait on Android and iPhone for both apps; the iPad unchanged** (Q3).
 
 **Product questions (batch 8)**
 
-27. **Undo** for cancelling a booking, revoking a member and deleting an account? It needs server « pending » states, and a grace period stated in the privacy policy. Or keep confirm-only? [B8.1]
-28. **The Pro account phone:** still a sign-in identity, so changing it needs an SMS code and waits for real SMS? Or only a contact number pros can edit now? [B8.2]
-29. **The « Profil » salon card offline:** keep a small offline copy (name, category, address, phone), or accept « could not load / Réessayer »? [B8.3]
-30. **V2 analytics chart:** count « Revenus prévus » or « Total réalisé »? Needed only when V2 is built. [B8.4]
-31. **Dormant phone sign-in:** repair and route it when SMS returns, or delete it now and rebuild it later on today's sign-in path? [B8.5]
-32. **Atomic Pro account deletion:** accept today's repeatable order, where a retry completes the deletion, or build full atomicity at real cost? *Recommended: accept, and add the retry test.* [B8.6]
+27. **Undo** for cancelling a booking, revoking a member and deleting an account? It needs server « pending » states, and a grace period stated in the privacy policy. Or keep confirm-only? [B8.1] — ✅ **Answered: keep confirm-only** (SYSTEM §15's ladder; [product-questions-batch8.md](design/product-questions-batch8.md) Q1).
+28. **The Pro account phone:** still a sign-in identity, so changing it needs an SMS code and waits for real SMS? Or only a contact number pros can edit now? [B8.2] — ✅ **Answered: nothing now** — it stopped being an identity in migration 0023 (no longer unique); decide with phone sign-in's return (Q2).
+29. **The « Profil » salon card offline:** keep a small offline copy (name, category, address, phone), or accept « could not load / Réessayer »? [B8.3] — ✅ **Answered: a small offline copy** (Q3).
+30. **V2 analytics chart:** count « Revenus prévus » or « Total réalisé »? Needed only when V2 is built. [B8.4] — ✅ **Answered: « Total réalisé »** (Q4).
+31. **Dormant phone sign-in:** repair and route it when SMS returns, or delete it now and rebuild it later on today's sign-in path? [B8.5] — ✅ **Answered: remove it now** — it opens with the clients' `AUTH_METHODS` switch and signs into the first account carrying a number that is no longer unique (Q5).
+32. **Atomic Pro account deletion:** accept today's repeatable order, where a retry completes the deletion, or build full atomicity at real cost? *Recommended: accept, and add the retry test.* [B8.6] — ✅ **Answered: accept, and add the retry test** (Q6).
 
 **Hygiene (batch 9)**
 
-33. **Type-level `SalonId`** across about 34 salon-scoped signatures, to close a test blind spot? Or accept the documented limit? *Recommended: accept for now.* [B9.9]
-34. **Alerts:** stay with e-mail plus Sentry push, or build a WhatsApp webhook? And do you want Sentry performance monitoring (paid)? [B9.4]
-35. **Mock mode:** add a « mark read fails » switch so the revert can be shown by hand? It's already pinned by 32 tests. *Recommended: no.* [B9.6]
+33. **Type-level `SalonId`** across about 34 salon-scoped signatures, to close a test blind spot? Or accept the documented limit? *Recommended: accept for now.* [B9.9] — ✅ **Answered: build the type** (« what is better for the long term »; [hygiene-batch9.md](design/hygiene-batch9.md) Q1).
+34. **Alerts:** stay with e-mail plus Sentry push, or build a WhatsApp webhook? And do you want Sentry performance monitoring (paid)? [B9.4] — ✅ **Answered: e-mail plus Sentry push; no performance monitoring for now** (Q2, Q3).
+35. **Mock mode:** add a « mark read fails » switch so the revert can be shown by hand? It's already pinned by 32 tests. *Recommended: no.* [B9.6] — ✅ **Answered: no** (Q4).
 
 **Demo salon (batch 10)**
 
 36. OK to fix the demo salon's text nits and re-save its snapshot in production **after Apple's decision**? [B10]
 37. **The demo salon photos:** where did each come from? A link and a licence for each. [B10]
+
+**Apple's rejection of 0.0.1 — guideline 3.1.1 (batch 0)** — asked and answered on 2026-10-26, after researching Google Play's policy and how peers do it ([pro-app-login-only.md](design/pro-app-login-only.md) §3).
+
+38. Remove business sign-up from the Pro app on iOS only, or on both platforms? [B0.11] — ✅ **Answered: both** (the Planity Pro model; revisit only if MyWeli ever sells through the stores).
+39. « Ajouter un salon » in the app? [B0.11] — ✅ **Answered: removed** (the web adds salons).
+40. Team invitations (an employee joins an existing salon)? [B0.11] — ✅ **Answered: kept.**
+41. What a sign-in with no account says? [B0.11] — ✅ **Answered: a neutral sentence + the invitation hint**, no button.
+42. An « S’inscrire » link that opens myweli.com, as Planity Pro has? [B0.11] — ✅ **Answered: yes — you take the risk knowingly** (the EU/US link-out rules that likely let Planity do it do not cover Côte d’Ivoire; if App Review objects, the link is one widget to remove). **2026-11-03: App Review objected; the link goes (decision 71, B0.16).**
+43. « Prendre rendez-vous » for clients who installed the wrong app? [B0.11] — ✅ **Answered: later**, to the MyWeli app's store page once it is published.
+44. B0.7's first alert: any new issue in the latest release, or fatal only? Dart errors reach Sentry at level « error », only native crashes are « fatal ». [B0.7] — ✅ **Answered (2026-10-27): any new issue.**
+45. Sign in with Apple: two keys (the two apps stay separate primaries) or group MyWeli Pro under MyWeli? [B0.12] — ✅ **Answered (2026-10-27): two keys** ([apple-signin-keys.md](design/apple-signin-keys.md) §3).
+46. The website's one Services ID serves both spaces: keep it, or add a Pro Services ID? [B0.12] — ✅ **Answered: keep one for now.**
+47. When does the server start using the keys? [B0.12] — ✅ **Answered: after Apple's decision on 0.0.1** (B0.1); the keys, the probe, the secrets and the PRs happen now.
+48. Apple's server-to-server notifications? [B0.13] — ✅ **Answered: later**, its own item.
+49. Sentry's default « Send a notification for high priority issues » alert on `myweli-app` watches every environment and overlaps B0.7's first alert: keep it or turn it off? [B0.7] — ✅ **Answered (2026-10-28): turned off**, not deleted.
+50. On iOS error 1000 (`AuthorizationErrorCode.unknown`), should the Pro app say how to fix it rather than only « Connexion Apple impossible. »? [B0.14] — ✅ **Answered (2026-10-28): yes, sentence A** — after asking whether the error could be removed altogether (it cannot from our side; [apple-signin-error-1000.md](design/apple-signin-error-1000.md) §10), and « do what is better in the long term ».
+
+**Google Play (batch 0, B0.10)** — asked and answered on 2026-10-28, after reading the release APKs, production and Google's current pages ([play-store-forms.md](design/play-store-forms.md) §0).
+
+51. Which apps go on Play now? [B0.10] — ✅ **Answered: MyWeli Pro only.** Production has no public salon (`GET /providers` → `total: 0`), so the client app would open empty; it follows once salons are public, like on iOS.
+52. Which Play developer account? [B0.10] — ✅ **Answered: personal.** So production waits for a closed test with 12 testers opted in for 14 days.
+53. Who types the Play Console forms? [B0.10] — ✅ **Answered: Claude, in the browser pane**, you signed in, each form shown to you before it is saved.
+54. Play screenshots? [B0.10] — ✅ **Answered: the 8 approved App Store frames, recomposed** at 1080×1920 (9:16, the console's rule; Google's help page still says 2:1) with the iPhone status bar cropped.
+55. Search text in Google Cloud's request logs: exclude those entries (a), or keep them and declare « Search History » on the App Store label (b)? [B0.15] — open. *Recommended: (a) — a salon's client search has no reason to sit in logs for 30 days.*
+56. Play's sign-in details require ticking « the credentials give full access to all features »; the demo account has three actions disabled. [B0.10] — ✅ **Answered (2026-10-28): tick it**, the three actions named in the same declaration.
+57. Let Google's automated tests use the demo credentials (default on)? [B0.10] — ✅ **Answered: leave it on**, knowing robots may change the demo salon Apple also reviews, until the weekly reset.
+58. Content rating / target audience: « 4+ like Planity Pro ». [B0.10] — ✅ **Answered: rating 3+ / PEGI 3 / ESRB Everyone; target audience 18+.**
+59. Play's listing asks whether its images were created or modified with AI. [B0.10] — ✅ **Answered (2026-10-28): not flagged.** The frames are composed by our scripts from real captures. You confirmed that neither screen 02's salon photo nor the icon came from an AI image tool.
+60. How do friends and family get past MyWeli Pro's login during the closed test? [B0.10] — ✅ **Answered (2026-10-28): as Managers of a new test salon.** You create it on myweli.com with a dedicated e-mail, choose Business (90-day trial, 15 seats), never publish it, and invite them. Not the demo salon: Apple and Google review in it, everyone would share one account's limits, and invitations are disabled there. All testers are on Android (the Play test installs only from the Play Store).
+61. Where do testers send feedback? [B0.10] — ✅ **Answered: by e-mail to support@myweli.com**, or as private feedback on the app's Play page.
+62. What do we promise salons in the recruitment message? [B0.10] — ✅ **Answered: only what is true today**: early access and the 90-day trial every salon gets. No price, no extra offer.
+63. Which look for the public site? [B11] — ✅ **Answered (2026-11-02): Swiss structure**, with the real logo and the things that are MyWeli's own, and patterns that carry an African identity. It must follow the brand and feel calm.
+64. Does an African pattern fit, in black? [B11] — ✅ **Answered: yes, once redrawn; black on white, rows of plaits.** Checked against real cloths (web-swiss-direction §4.1): my first drawing was a loud sampler, while Baule cloths are often long quiet rows. White on black is kept for the dark version of the site.
+65. Which typeface? [B11] — ✅ **Answered: Hanken Grotesk.** Trimmed to 18.7 KB in B11.0, because the full 34.7 KB file went over the LCP budget. SYSTEM §22 had named Inter, and now names this.
+66. Where does the pattern go? [B11] — ✅ **Answered: Home, `/professionnels`, 404.** Salon and category pages let photos lead.
+67. What comes first? [B11, B12] — ✅ **Answered: the untrue sentences, then the new look.**
+68. When does a salon's free trial start? [B12.1] — ✅ **Answered (2026-11-02): keep the clock, fix the wording.** The first offer choice starts it, or go-live with no choice. Moving it to go-live was withdrawn: a salon could then choose an offer, invite a team and run for free without ever opening.
+69. Should management stay free once a trial ends, or in setup? — **Open, and not urgent.** Today a salon that never opens keeps its agenda, manual bookings and client records with no time limit (no team, no public page), and a salon past its trial gets warnings only: `SUBSCRIPTION_ENFORCEMENT` is off by default and the committed manifest doesn't set it (the live service was not read). Even with it on, the agenda keeps working, by the 2026-07-11 decision never to lock anyone out of their data. *Recommended:* restrict nothing now, and decide before the first trial ends, about 90 days after the first salon opens. One option: after the trial and grace, a salon can read and export but not add appointments.
+70. Typing fields and buttons: square or rounded, and where? [B11.6] — ✅ **Answered (2026-11-02): square with a thin black line, the search as one bar, on the whole site.** The owner chose from pictures on the real pages. It reverses web-swiss-direction §3, and the site and the apps now look less alike.
+
+**Apple's second rejection of 0.0.1 — guidelines 2.3.4 and 3.1.1 (batch 0)** — asked and answered on 2026-11-03, after a read-only audit ([app-review-round-2.md](design/app-review-round-2.md) §2, §3).
+
+71. The sign-in's link to the site? [B0.16] — ✅ **Answered: it goes, on both platforms**, as decision 38 and pro-app-login-only §8 pre-agreed. One behaviour, no iOS-only branch.
+72. The film? [B0.16] — ✅ **Answered: « Upload the full-screen trial »**: the full-bleed cut of the same storyboard and takes, as rendered, end card included. You were told it still ends on a paper card, that Revenus says « Total » where the app says « Total réalisé », and that a third rejection is possible. **An accepted risk.** A proper retake is for 0.0.2 (B0.8).
+73. The five web pages the app opens? [B0.16] — ✅ **Answered: « Remove the links »**: on exactly `/support`, `/politique-confidentialite`, `/cgu`, `/mentions-legales` and `/suppression-compte`, no « Espace pro » in the header, no footer salon group, and `/support` stops mentioning « offre et facturation ». The logo and breadcrumb still go home. Every other page is unchanged.
+74. The store description? [B0.16] — ✅ **Answered: « Both edits »**: drop « sur myweli.com », and add, with no link, « MyWeli Pro s’adresse aux salons qui ont déjà un compte MyWeli et à leur équipe. »
+75. The device check on the next build? [B0.2, B0.16] — ✅ **Answered: « Focused pass »**: the demo sign-in exactly as the notes say, no link on the sign-in, a session left past 15 minutes, restart and sign-out, plus one run on an iPad (a simulator if you have no iPad). It replaces decision 2's full list for this build.
+76. The review notes and 3.1.3(f)? [B0.16] — ✅ **Answered: stop citing it in anything sent to Apple.** Its text is a closed list (VoIP, cloud storage, e-mail, web hosting). The notes are rewritten; you approve their wording and send the Resolution Center reply yourself. No production backend deploy (decision 47).
+77. The texts for Apple? [B0.16] — ✅ **Answered (2026-11-03): all three approved as written**: the notes, the description and the reply. You were told that « Mon compte » stays on the five pages, so they say « no link to salon registration »; that sign-up is two taps from those pages, not about three; that the notes keep « the separate MyWeli app and myweli.com » and the trial sentence; and that no deletion recording is attached unless Apple asks. Play's description keeps its old text for now. *The description was corrected afterwards, decision 79; the reply stands as approved. The notes differ from the approved wording by one clause only, decision 81.*
+78. More on the focused pass? [B0.2, B0.16] — ✅ **Answered (2026-11-03): add all three**: a cold start on an expired session, signing back in after signing out, and one tap on « Continuer avec Apple » on the iPad run. The cold start takes its own wait of 15 minutes (app-store-forms §11.6, spec §11).
+79. The description's week view and « à domicile »? [B0.16] — ✅ **Answered (2026-11-03), after the independent check: « Correct both ».** « Vue journée et par membre d'équipe. » in place of « Vue journée, semaine, et par membre d'équipe. », and « Conçu pour les réalités d'ici : FCFA, communes, réseaux lents et petits téléphones. » in place of the same sentence with « à domicile, ». « domicile » is at 0 in the binary and in `mobile/lib` only in a comment; the journal has a strip that picks a day, no week view. Neither refusal cited them. Play's text does not change: you have not decided on Play ([app-review-round-2.md](design/app-review-round-2.md) §7, §16).
+80. The pricing page, two taps from the five pages? [B0.16] — ✅ **Answered (2026-11-03): « Accept it ».** `/professionnels` is two taps from the five pages, as sign-up is, and reads « 3 mois offerts — sans carte bancaire », « Combien coûte MyWeli Pro ? », « l’offre Réseau », no amount and no currency. Apple could still object ([app-review-round-2.md](design/app-review-round-2.md) §13, §16).
+81. The notes' « Signaler » sentence, on a demo salon with no review? [B0.16] — ✅ **Answered (2026-11-03): you delegated it: « there was no review , so do what is better ».** You report that the demo salon's « Avis » has no review (app-store-forms §11.6), and the spec had left this sentence to you. I kept it, since it is still true of the app, and added one clause, so that the reviewer knows why « Signaler » does not show on this account. Old: « Signaler » under « Avis », customers report. New: « Signaler » under « Avis » (not visible on the demo salon, which has no reviews), customers report. You have been told the exact clause. 3,991 bytes, 3,926 characters, 31 lines, counted by script, under the 4,000 limit; App Store Connect holds exactly this text ([app-review-round-2.md](design/app-review-round-2.md) §6, §16; app-store-forms §8).
 
 ---
 
@@ -125,17 +180,27 @@ Each question has a recommendation. Answers unblock the item named in brackets.
 
 ### Batch 0 — Release track (P1, on Apple's clock)
 
-- **B0.1 Carry 0.0.1 through review, then release by hand (P1 · S · decision 1).**
+- **B0.1 Carry 0.0.1 through review, then release by hand (P1 · S · decision 1).** **2026-10-25: build 587 was rejected** (the reason comes next); the next submission is a new build of 0.0.1 (B0.3). The « while it's in review » constraints below apply again once it is resubmitted. **2026-10-26: resubmitted** — build 698, `WAITING_FOR_REVIEW` (read back through the API); the constraints apply again from now. **2026-11-03: build 698 was refused** under 2.3.4 and 3.1.1 (B0.16). The constraints were lifted while it was rejected. **2026-11-04: resubmitted at 00:02:00 UTC with build 719, per the API (`WAITING_FOR_REVIEW`, read at 00:05 and 00:18 UTC); the constraints apply from then: no `DEMO_PROVIDER_CODE` rotation, no Cloudflare change, same-day answers, no edits to the five pages.** Web merges are production deploys, so the five pages of decision 73 are not edited during review. *A merge to `main` deploys even when `web/` does not change: Vercel reads « Deployment has completed » on `4e78e485`, no `web/` file, and on `7a0f21d6`, docs only. So a docs merge during review is your call too (B0.16).*
   - **What:** build 587 is in App Review, and its release is set to manual.
   - **How:** while it's in review, nothing the reviewer relies on may change. No `DEMO_PROVIDER_CODE` rotation, no change to Cloudflare in front of `api.myweli.com`, and « Production checks » stay green. Answer any Resolution Center message the same day. If rejected: fix, rebuild through the normal flow, resubmit. If approved: leave it « Pending Developer Release » until you confirm LAUNCH §3, then press Release. Record the dates in LAUNCH §6.2 and app-store-forms §12.3.
-- **B0.2 On-device checks on a real iPhone (P1 · M · decision 2).**
+  - **2026-10-26, 23:36–23:39 UTC — a device that is almost certainly Apple's opened build 698**, three minutes after the resubmission, while the submission still read `WAITING_FOR_REVIEW`. Read on 2026-10-28 through Sentry (issue `156408587`) and Cloud Logging:
+    - an iPhone 16 Pro on iOS 27.0.1 with a *development* kernel, located in Cupertino, on Pacific time;
+    - two « Se connecter avec Apple » attempts failed **on the device** with iOS error 1000 (`social_sign_in_failed provider=apple code=unknown`); no `/auth/provider/apple` request reached the server then;
+    - the same device then signed in to the demo salon « Maison Nala » with the e-mail code (`/auth/provider/email/otp/verify` 200 at 23:39:07, then its dashboard).
+
+    **Not a defect found in our code or server:** build 698 carries the `applesignin` entitlement (read from the signed IPA), production allows `apple` (`AUTH_METHODS`), and your own Apple sign-in on 698 (15:53 UTC) reached the server, whose `404 provider_not_found` means Apple's token was accepted. Error 1000 is iOS's generic « unknown » code; its usual cause, a device with no Apple Account signed in, is an inference — the event carries nothing more. If App Review cites it, the ready reply is app-store-forms §13.3; B0.14 proposes a clearer message for 0.0.2.
+- **B0.2 On-device checks on a real iPhone (P1 · M · decisions 2, 75).** ✅ **Done on build 698 before the resubmission, as reported by you (2026-10-26).** The results were not itemised, and nothing in the repo observes them (app-store-forms §11.6 carries the dated line). **Due again on the next build: the focused pass of decision 75. 2026-11-03, build 719: passed on your iPhone, as reported by you (« my results passed »), not itemised. 2026-11-04, its iPad step, owner-reported: the demo sign-in and the no-account address passed, on an iPad Air 11-inch (M3) simulator and a debug build from `713114a5`, not signed 719; a successful Apple sign-in on an iPad remains unobserved (B0.16)** (app-store-forms §11.6: the silent refresh after expiry, in a signed build, is what it proves of B9.13 and B9.14). The full list and the post-587 list wait for 0.0.2.
   - **What:** no signed build has been checked on a real iPhone. That covers:
     - Sign in with Apple, a real push and staying signed in;
     - the portrait lock and the KYC picker;
     - the demo refusal and the « Ma journée » fix, which were only seen in the simulator.
   - **How (587, now):** you run app-store-forms §11.6 in its written order, in French, against production. The fresh Apple account goes through onboarding, the invite refusal and going live, and is then deleted.
-  - **How (0.0.2):** the post-587 list — a 9- and a 10-digit number; deposits off then on; export with the network cut; airplane mode at launch; the switcher offline; a failed « Tout lire »; switching between two salons; revoke then re-invite. I turn it into the « What to Test » text and record the results.
-- **B0.3 Ship Pro 0.0.2 (P1 · M · decisions 1, 6, 7).**
+  - **How (0.0.2):** the post-587 list — a 9- and a 10-digit number; deposits off then on; export with the network cut; airplane mode at launch; the switcher offline; a failed « Tout lire »; switching between two salons; revoke then re-invite; **« Appeler » on a salon's page opens the dialer** (B7.11 — two buttons asked `canLaunchUrl(tel:)` first). I turn it into the « What to Test » text and record the results.
+- **B0.3 Ship Pro 0.0.2 (P1 · M · decisions 1, 6, 7).** **Now: resubmit 0.0.1 as a new build** (decision 1) — step 1 keeps the version at 0.0.1 (the build number rises), and step 6 attaches the build to version 0.0.1; the rest stands, starting from the rejection reason.
+  - **2026-10-26 — build 698 (steps 2–5 done):** from main at `54b02dac`; IPA checked; uploaded, `VALID` and read as French; symbols and 20 commits on Sentry; the only build in « Équipe MyWeli », with a French « What to Test » (app-store-forms §11.5). ~~**Left (yours):** B0.2 on 698, then attach 698 to version 0.0.1 in place of 587, paste the §8 notes, send the §13.2 reply, and submit.~~
+  - **2026-10-26 (night) — resubmitted.** Read back through the API: 698 attached to version 0.0.1 in place of 587, the §8 notes in place (3,853 bytes, identical), and at 23:33 UTC the same submission (`45ed9726…`) went from `UNRESOLVED_ISSUES` to `WAITING_FOR_REVIEW`, with manual release. As reported by you: B0.2 ran first, and the §13.2 reply was sent. **Left:** Apple's answer, then B0.1.
+  - **2026-11-03 — refused (2.3.4, 3.1.1).** The next submission is again a new build of 0.0.1, from `main` after B0.16's merge. Its steps and their order are in [app-review-round-2.md](design/app-review-round-2.md) §12; its number is read from the IPA.
+  - **2026-11-03 (night) — build 719 (steps 2–5 done):** from main at `713114a5`, after #731; IPA read; uploaded, `VALID` and read as French; symbols and a release on Sentry; the only build in « Équipe MyWeli », with a French « What to Test » (app-store-forms §11.3, §11.5). ~~**Not attached:** version 0.0.1 is still `REJECTED`, with 698.~~ **Attached the same night** (204, read back as `4eb50f72-f6d1-4ca2-ad6a-e5e544fdb25f`): version 0.0.1 went from `REJECTED` to `PREPARE_FOR_SUBMISSION`, release `MANUAL`. **2026-11-04: `WAITING_FOR_REVIEW`, submitted at 00:02:00 UTC, per the API (B0.1).** Owner-reported, and still open: B0.16's list.
   - **What:** 22 app commits since 587 (#596–#630) reach users only through a new build.
   - **How:** after Apple decides on 0.0.1:
     1. bump `mobile/pubspec.yaml` to 0.0.2;
@@ -145,43 +210,131 @@ Each question has a recommendation. Answers unblock the item named in brackets.
     5. French « What to Test »;
     6. version 0.0.2 in App Store Connect with **phased release on** (needs B0.7 first);
     7. submit after B0.2.
-- **B0.4 Privacy policy: Cloudflare, equivalent protection, each app's export path (P1 · S · decision 3).**
+- ✅ **B0.4 Privacy policy: Cloudflare, equivalent protection, each app's export path (P1 · S · decision 3).** **Done in #709 — wording approved by you as drafted, deployed 2026-10-26 and read back live**: myweli.com/politique-confidentialite says every API call passes through Cloudflare, which receives the IP, and that Google Cloud's logs carry Cloudflare's address (measured: 60 of 60 request logs); the sign-in limiter keeps a hash for two days at most; Cloudflare's two roles; the processors' « protection au moins équivalente »; each app's export path; the Google-script fix dated 21 August 2026; four glued words separated. Date of the four documents and JSON-LD `dateModified`: 26 October 2026; the mentions légales name Cloudflare's second role.
   - **What:** the policy names Cloudflare only for files, but every API request has gone through Cloudflare since 2026-10-07. It also lacks the « equivalent protection » sentence Apple asks for under 5.1.1(i). And it gives the Pro export path as « Exporter mes données », while the Pro app says « Mes données ».
   - **How:** edit `web/app/politique-confidentialite/page.tsx` and bump `LEGAL_UPDATED_AT`. Re-check the « Journaux de requêtes » sentence against Cloud Logging, since the visitor IP may now be Cloudflare's. After the deploy, read the live page.
-- **B0.5 Set the Pro iOS `updateUrl` in production (P2 · S · decision 4).** In the admin console, set `com.myweli.pro / ios` to `https://apps.apple.com/app/id6805272779` with both floors at 0. Read it back through `GET /client-version`.
-- **B0.6 KYC under an individual developer account (P2 · S · decision 5).**
+- **B0.5 Set the Pro iOS `updateUrl` in production (P2 · S · decision 4).** **Waits for the release** (decision 4). In the admin console, set `com.myweli.pro / ios` to `https://apps.apple.com/app/id6805272779` with both floors at 0. Read it back through `GET /client-version`.
+- **B0.6 KYC under an individual developer account (P2 · S · decision 5).** **The account is Individual** (recorded 2026-10-25); hide on iOS only if Apple cites 5.1.1(ix).
   - Record the membership type.
   - If Apple rejects under 5.1.1(ix), hide « Vérification » and the deposit switch on iOS only, with forced-iOS tests, until an Organization account exists.
-- **B0.7 Replace the crash-free-rate alert before phased release (P2 · S).**
-  - **What:** sessions are off to keep the privacy promise, so the planned crash-free-rate alert has nothing to measure.
-  - **How:** in Sentry `myweli-app`, three issue alerts on production: a new fatal issue in the latest release; any issue seen by more than 3 users in 1 h; app hangs seen by more than 3 users in 1 h. Send a test event for each, and update observability §8.3 and LAUNCH §1.4.
-- **B0.8 0.0.2 store media (P3 · M · decision 6).** If yes: reshoot screenshots 3 and 8 with `tool/app_store_screenshots`, and re-cut the Revenus scene and poster with `tool/app_store_preview`.
-- **B0.9 Remove the unused « remote-notification » background mode (P3 · S · decision 7).** Delete it from `Info.plist`, which both apps share, and check a real push with the app killed in the next TestFlight run.
-- **B0.10 Google Play forms for both apps (P2 · M).**
-  - **What:** nothing has been typed into Play Console yet.
-  - **How:** you type play-store-forms §1–§5 with the amended App access text. I check them against the policy and the iOS answers, make the 1024×500 banner, and add a length test for the access text.
-  - **Order:** Android is last (LAUNCH §3).
+- ✅ **B0.7 Replace the crash-free-rate alert before phased release (P2 · S · decisions 44, 49).** **Done on 2026-10-28** — created in Sentry's new « Monitors → Alerts » screens and read back through Sentry's API:
+  - `1425724` « App — nouveau problème, dernière version »: a new issue is created, and the issue is in the latest release; 5-minute throttling;
+  - `1425732` « App — plus de 3 utilisateurs en 1 h »: every event, more than 3 users in 1 h, `exception.type` does not contain `App Hang` and does not equal `ApplicationNotResponding`; 60 minutes;
+  - `1425742` « App — blocages, plus de 3 utilisateurs en 1 h »: every event, then two If/Then blocks — more than 3 users in 1 h **and** `exception.type` contains `App Hang`, or more than 3 users in 1 h **and** it equals `ApplicationNotResponding` (the new screens allow one qualifier per block, so the « or » takes two blocks); 60 minutes.
 
-### Batch 1 — Pro « Accueil » and « Ma journée » stay fresh (P1, app, one slice)
+  All three: project `myweli-app`, environment `production` (what `tool/release_build.sh` sends), an e-mail to you. A test notification fired for each block, and **the e-mails arrived, as reported by you**. Sentry's default alert on `myweli-app` (`757127`, every environment) is **turned off, not deleted** (decision 49).
+  - **Why « every event »:** Sentry no longer has a « seen by more than N users » trigger; the user count is a filter now, and under « a new issue is created » it would only ever see one user.
+  - **Found while doing it:** the backend's and web's default alerts (`757123`, `757125`) filtered **no** environment, against observability §8.1's « every rule filters production ». **Fixed on your request (2026-10-28):**
+    - **The backend:** `757123` now filters `prod`, the name the backend sends. It was read back through the API, with its triggers and e-mail action unchanged.
+    - **The web — done 2026-10-28, after a merge:** its CSP violation reports reached Sentry with no environment, so a filter would have silenced them (`MYWELI-WEB-9`).
+      - You chose to tag them: #717 adds `sentry_environment` to the `report-uri` (observability §8.1.1).
+      - #717 merged and redeployed myweli.com. The deployed header carries `sentry_environment=production` on `/`, `/support` and `/pro/connexion`; the control before the merge did not.
+      - Then `757125` was set to `production` and read back.
+      - Not yet observed: a real report arriving under `production` (the parameter is Sentry's documented one).
+  - **Not set up:** the phone push of decision 34 — e-mail only for now.
+  - **What:** sessions are off to keep the privacy promise, so the planned crash-free-rate alert has nothing to measure.
+  - **How:** in Sentry `myweli-app`, three issue alerts on production: a new issue in the latest release (any level — decision 44); any issue seen by more than 3 users in 1 h; app hangs seen by more than 3 users in 1 h. The hang alert matches `exception.type` containing « App Hang » (build 698's three names) or equal to `ApplicationNotResponding` (Android); the « 3 users » alert excludes both, so a hang alerts once. Send a test event for each, and update observability §8.3 and LAUNCH §1.4.
+- **B0.8 0.0.2 store media (P3 · M · decisions 6, 72).** **2026-11-03: the film is needed**, since decision 72 ships a stale take with an end card. For 0.0.2: fresh takes on the current build with no end card, the disclosure inside the footage, and a decision on the Dynamic Island pill the simulator recorder draws on every capture frame (spec §13). The stills are still **only if needed** (decision 6). If yes: reshoot screenshots 3 and 8 with `tool/app_store_screenshots`, and re-cut the Revenus scene and poster with `tool/app_store_preview`. *When a film goes up: on 2026-11-03 Apple ignored the poster's time at reservation and at commit, and only a PATCH after processing took (app-store-forms §13.1).*
+- ✅ **B0.9 Remove the unused « remote-notification » background mode (P3 · S · decision 7).** **Done in #708** — removed for the resubmitted build; verified first that the server never sends a silent push and the background handler is empty, and pinned both sides. The killed-app push check is in app-store-forms §11.6 (B0.2). Delete it from `Info.plist`, which both apps share, and check a real push with the app killed in the next TestFlight run.
+- ✅ **B0.11 Apple's 3.1.1 rejection: the Pro app signs salons in, it does not sign them up (P1 · M · decisions 38–43).** **Built in #711, shipped in build 698, resubmitted 2026-10-26 (B0.3)** — [pro-app-login-only.md](design/pro-app-login-only.md). App Review (2026-10-19, build 587): « Remove the account registration features for business and organizations ». On both apps: « Inscription Pro » (`/pro/register`) and « Ajouter un salon » (`/pro/salons/nouveau`) leave the app with their methods — the web keeps both; invitations stay; « S’inscrire sur myweli.com » opens the web sign-up in the browser (**refused on 2026-11-03, and gone: B0.16**); a sign-in with no account says « Aucun compte MyWeli Pro n’est associé à cette adresse. Si votre salon vous a invité… ». The review notes and the Resolution Center reply (app-store-forms §8, §13.2) say so plainly. **Then:** the resubmission (B0.3) after the device checks (B0.2).
+- **B0.16 Apple's second rejection: the film and the sign-in's link (P1 · M · decisions 71–81).** App Review, 2026-11-03, build 698, an iPad Air: 2.3.4, « Includes framing around the video screen capture of the app »; 3.1.1, the login's « S'inscrire sur myweli.com », with « remove features, account registration links, and any other links to your site… » [app-review-round-2.md](design/app-review-round-2.md). ~~Built on `fix/app-review-round2`, not merged.~~ **2026-11-03: merged (#731), the web is live and read, build 719 is uploaded and in TestFlight. That night you reported the focused pass as passed on your iPhone, and App Store Connect took the full-screen film, the description, build 719 and the notes; version 0.0.1 went to `PREPARE_FOR_SUBMISSION`, release `MANUAL`, as it stood then.** **2026-11-04: resubmitted at 00:02:00 UTC with build 719, in review (`WAITING_FOR_REVIEW`, release `MANUAL`, per the API); B0.1 applies. Still open: Apple's decision; a green scheduled « Production checks » run after `713114a5` and `7a2c7e15` (the last is 13:16 UTC on 2026-11-03, on `4e78e485`); a successful Apple sign-in on an iPad, unobserved; the production backend deploy after Apple's decision, the one that switches on the Apple keys; the release by hand after approval; merging the docs PR that holds this record.** *Owner-reported on 2026-11-04:* the iPad's demo sign-in and no-account address, on a simulator and a debug build, not signed 719; Media Manager checked and your reply sent, with no order stated against the submission. **The backend is not deployed.**
+  - **The app:** the link leaves the sign-in on both platforms, and a guard fails on any new link from Pro to the site.
+  - **The web:** the five pages the app opens lose the salon links in the header and footer; `/support` stops naming billing.
+  - **The hand-typed spellings (#732, `7a2c7e15`, live):** `/support%2F`, `/%5Ccgu` and the like answered the page and brought the salon links back on load. Nothing sent to Apple uses them. **Read live in Chromium on 2026-11-04:** all 20 forms have no salon link, no salon word and no React error. Controls: `/%63gu` and the bare paths stay clean, `/cgu%2Fx` stays a 404 with its links, and `/` and `/professionnels%2F` keep theirs. In real Safari, one address, on the next line.
+  - **#732, recorded on 2026-11-04:** merged at 23:59:03 UTC on 2026-11-03 as `7a2c7e15`; its production deployment reported success at 00:01:08 UTC, 52 seconds before the submission's date; the live layout chunk holds the new predicate. A raw read at 00:26 UTC, iPad user agent: the five pages, `/cgu%2F` and `/%5Csupport` are 200 with 0 hrefs to `/professionnels`, `/pro/inscription` and `/pro/connexion`; the control `/` has 3, 1 and 1. That is raw HTML, clean before #732 too, so it proves nothing about the fix. Nor does my raw read at 00:06 UTC, iPad user agent: the five pages show 0 of `/professionnels`, `/pro/inscription`, `/pro/connexion` and « facturation », the controls `/` 4, 1, 1 and `/connexion` 2, 1, 1, and `/support%2F`, `/%2Fsupport` and `/support%5C` are also 0. (`/` reads 4 occurrences of `/professionnels`, 3 of them hrefs, at 00:40 UTC, which accounts for the 4 here and the 3 at 00:26.) The hydrated page is what #732 fixes. **Its rendered read is done for one address:** real Safari on the iPad Air 11-inch (M3) simulator at 00:06 UTC opened `/support%2F` and, after hydration, the header ends on « Mon compte » with no « Espace pro ». The frame shows the header, the body and the top of the footer's wordmark, not the footer's links. Before #732 the same address showed the salon links after hydration, which is the control. The other spellings were read raw in that pass, and all 20 forms rendered in Chromium (#733, the line above). A read is allowed during review; a web edit is not.
+  - **The film:** the full-bleed cut in both iPhone slots, an accepted risk (decision 72). `film.frame` says so, so the tool reproduces it: frame-identical to the file you were shown, not byte-identical. In both slots since 23:49 UTC on 2026-11-03.
+  - **The texts:** review notes without 3.1.3(f) or any instruction to register (3,991 bytes, 3,926 characters; 3,937 bytes was the text decision 77 approved, before decision 81's clause); the description's two edits (decision 74) and your two corrections (decision 79), 1,039 characters; the marketing URL stays empty; a new reply and « What to Test »; the IPA check flipped, read `OK` on an unsigned build of the branch and then on the signed IPA of build 719 (app-store-forms §4, §5, §8, §11.3, §11.5, §13).
+  - **Done on 2026-11-03, on your go** (« Merge, build, upload », described to you as: merge, read the five live pages, build, check the build for the removed link, upload to TestFlight for the device pass; spec §12, steps 1–4): the PR's CI (13 of 13 green) and the merge (#731, squash `713114a5`, 22:25:58 UTC); I read the five pages live (0 salon links, with `/` and `/connexion` as controls; the limits are in spec §13); build 719 from `main`, its IPA read, validated and uploaded, `VALID`, read as French; TestFlight: « Équipe MyWeli » holds 719 only (698 removed), it is not in « Testeurs externes », and « What to Test » is written from the forms block and read back identical. **By me, following the runbook and not named in that go, Sentry:** symbols uploaded (6 of 6 debug IDs read back), release `com.myweli.pro@0.0.1+719`, with its commits.
+  - **Reported by you on 2026-11-03** (nothing in the repo observes a device): the focused pass, « my results passed », on your iPhone, on signed build 719; « Continuer avec Apple » on that iPhone showed « Aucun compte MyWeli Pro… »; Instagram's bio does not link to salon sign-up; the demo salon's « Avis » has no review (decision 81).
+  - **The iPad: your step 5 ran on an iPhone, not an iPad.** At about 23:43 UTC I ran a debug build of the pro flavour from `713114a5` (`com.myweli.pro`, `UIDeviceFamily` [1], so iPhone compatibility mode) on an iPad Air 11-inch (M3) simulator, Apple's review device. No link on the sign-in, including after scrolling to its end. One tap on « Continuer avec Apple » opened Apple's system dialog « Sign in to your Apple Account »; closing it shows the full sentence « Connexion Apple impossible sur cet appareil. Vérifiez dans Réglages qu’un compte Apple est connecté, puis réessayez. » with nothing to tap. It is not the signed build, so a successful Apple sign-in on an iPad remains unobserved. **Owner-reported on 2026-11-04, on that simulator and that debug build, not signed 719:** « demo sign-in on the iPad passed, Maison Nala loaded, and I received the code on another email and when entered it said aucun compte myweli... ». At 00:04 UTC I saw the no-account screen on that simulator: the full sentence « Aucun compte MyWeli Pro n’est associé à cette adresse. Si votre salon vous a invité, connectez-vous avec l’adresse qui a reçu l’invitation. », with only « Se connecter », « Renvoyer le code » and « Changer d’e-mail » beside it: nothing about signing up. A simulator proves the layout, not the signed build.
+  - **In App Store Connect on 2026-11-03, after your « my results passed », as I had told you I would if the results passed.** The film at 23:49 UTC: new previews `17000019-5a03-88cb-8118-40e21663fe37` (`IPHONE_67`) and `f3000019-5a03-88cb-8114-ec9980fce3b8` (`IPHONE_61`), file `myweli-pro-film-full-bleed.mp4`, 14,309,442 bytes, sha256 `b34bac54…` checked before upload, `sourceFileChecksum` `543d367a6caf1b1069d0cd62e2246177` read back on both and equal to the local file's md5, `COMPLETE`. The poster: Apple ignored the time sent at reservation and at commit and set `00:00:05:01`; a PATCH after processing set `00:00:13:00`, read back on both. The framed films `eb0e26ae-48f9-4bbf-b8e4-0f9d65c7a041` and `95da9952-95f5-4680-9419-5796e69fc420` deleted (204) only after both new copies were `COMPLETE`; `/placements` reads 2 `APP_PREVIEW` and 16 `APP_SCREENSHOT`, all `ACTIVE`. The description: fr-FR, 1,039 characters, read back identical; keywords, promotional text, support URL, marketing URL (empty) and locale unchanged. The build: 719 attached (204), read back as `4eb50f72-f6d1-4ca2-ad6a-e5e544fdb25f`, and version 0.0.1 went from `REJECTED` to `PREPARE_FOR_SUBMISSION`, release `MANUAL`. The notes: read back identical; demo and contact fields unchanged by fingerprint. Submission `45ed9726-1418-435b-b3e2-76726422c5d3` read `UNRESOLVED_ISSUES`, its item `REJECTED`, as it stood then. Apple accepted all of it on the `REJECTED` version, which settles the no-precedent risk (spec §13).
+  - **Read through the API on 2026-11-04,** by my review of this record, twice, the second at 00:18 UTC. Version 0.0.1 (`ce5cb759-b202-4c15-94cf-3040180a711f`): `appStoreState` and `appVersionState` `WAITING_FOR_REVIEW`, release `MANUAL`. Submission `45ed9726-1418-435b-b3e2-76726422c5d3`: `WAITING_FOR_REVIEW`, `submittedDate` 2026-11-04T00:02:00.35Z, by an actor of type `USER`, not an API key, its item `READY_FOR_REVIEW`. So « Add for Review » is done, per the API. Not readable there: whether your reply was sent, and which person submitted. `IPHONE_67` holds only `17000019-5a03-88cb-8118-40e21663fe37`, `IPHONE_61` only `f3000019-5a03-88cb-8114-ec9980fce3b8`, and both framed previews answer 404, which does not replace the Media Manager view.
+  - **Read through the API at 00:05 UTC on 2026-11-04,** by me: submission `45ed9726-1418-435b-b3e2-76726422c5d3` `WAITING_FOR_REVIEW`, `submittedDate` 2026-11-04T00:02:00.35Z, item `READY_FOR_REVIEW`; version 0.0.1 `WAITING_FOR_REVIEW`, release `MANUAL`, build 719 attached. The film, the description and the notes were still as written.
+  - **Owner-reported on 2026-11-04** (nothing in the repo observes these; spec §11, §12): the iPad's two results, above, and « I checked Media Manager and sent the reply ». You did not say whether the Media Manager read came before or after the submission, so this record states no order. The reply is the app-store-forms §13.2 block, with 719. **Still open:** Apple's decision; a green scheduled « Production checks » run after `713114a5` and `7a2c7e15` (the last is 13:16 UTC on 2026-11-03, on `4e78e485`; read again at 00:40 UTC on 2026-11-04; #549 is closed); a successful Apple sign-in on an iPad, unobserved, since the signed build ran on your iPhone (where it gave « Aucun compte MyWeli Pro… ») and the simulator has no Apple account; the production backend deploy after Apple's decision, the one that switches on the Apple keys; the release by hand after approval; merging the docs PR that holds this record. **Your decision, 2026-11-04:** « After green, in review ». That merge triggers a production deployment of an unchanged web tree, and B0.1 applies since 00:02:00 UTC.
+  - **Known, not acted on** (spec §13): the end card and « Total »; `/professionnels` two taps from the five pages (decision 80); the Dynamic Island pill on the film's capture frames; a real-WebKit read limited to two pages and one edge; 5.1.1(ix) (B0.6); a reviewer cannot see a real deletion; the stills' old labels. **If Apple challenges the model itself** (a plan bought outside the app governs the app): hide « Mon abonnement » or open store billing, your decision then.
+  - **What this cannot see:** App Store Connect's live state, the Resolution Center thread, the app on any device. All tests read code and text, none reads App Review.
+- ✅ **B0.14 Say how to fix iOS error 1000 at « Continuer avec Apple » (P2 · S · decision 50).** **Built in #718. It is on `main`, so it ships in the next build of 0.0.1, not only 0.0.2 (read 2026-11-03)** — [apple-signin-error-1000.md](design/apple-signin-error-1000.md).
+  - **The sentence:** on `AuthorizationErrorCode.unknown`, both apps now say « Connexion Apple impossible sur cet appareil. Vérifiez dans Réglages qu’un compte Apple est connecté, puis réessayez. » (sentence A).
+  - **Unchanged:** every other code still says « Connexion Apple impossible. », the cancel still says nothing, and the Sentry line stays the same.
+  - **Read in the plugin:** `unknown` is 1000, or a code `sign_in_with_apple` 8.2.0 does not know.
+  - **Tests:** one per code for each of the two Apple sign-ins (MyWeli and MyWeli Pro), and the real chain on both login screens at 200 % text, looked at. Three mutations watched red.
+  - **Why the error itself cannot be removed:** you asked; the spec §10 explains why. iOS raises it on the phone, before our app or server gets anything.
+- **B0.10 Google Play forms — MyWeli Pro first (P2 · M · decisions 51–59).** **Re-audited and prepared on 2026-10-28** — [play-store-forms.md](design/play-store-forms.md), rewritten for MyWeli Pro.
+  - **What the audit read:**
+    - **The binary:** release APKs of both flavours, read with `aapt2`. Both target SDK 36 (Play's requirement since 2026-08-31). Neither has a photo or media permission, `AD_ID`, exact alarm or foreground service, so no permission declaration is due.
+    - **Google's current pages** (fetched 2026-10-28).
+    - **The iOS label**, read the same day.
+  - **What it changed in the answers:**
+    - **Data safety:** crash logs and diagnostics take the purpose « Analyses » under Google's definition; « ID utilisateur », « Fichiers et documents » (KYC PDFs) and « Historique des recherches » (B0.15) are added.
+    - **Declarations:** « Health apps » and « Financial features » are now due from every app.
+    - **Sign-in details:** in English, as Google asks, with « three actions disabled » (the deletion lock was verified in production on 2026-10-14).
+    - **The listing:** plain text; Play does not render Markdown.
+  - **Graphics made:** `tool/app_store_screenshots/feature_graphic.py` (the 1024×500 banner) and `play_screenshots.py` (the 8 approved frames at 1080×1920, the console's « 16:9 ou 9:16 » rule, with the iPhone status bar cropped; and the 512 icon from the Pro app's own).
+  - **The guard:** `play_store_forms_test.dart`.
+    - **The length test:** no help page of Google's states a limit for the sign-in instructions, but the console counts one: « Toute autre information » holds **500** characters, the set's name 60 (read in the form on 2026-10-28). The first English draft was over 1,000. The test holds the text under 500 (463 today) and the listing within 30, 80 and 4,000 characters, the same description as the App Store *(2026-11-03: Play's is now behind by four edits, decisions 74 and 79; the test allows those and nothing else)*.
+    - every label in the sign-in steps is on the Pro sign-in screen;
+    - every App Store data type has its Play row.
+  - **In the Play Console, 2026-10-28** (play-store-forms §0.1). Typed in the browser pane, each form shown to you before saving, then read back.
+    - **The 10 « Contenu de l'application » declarations are done.**
+      - Content rating: 3+ / PEGI 3 / ESRB Everyone, the « 4+ » you asked for (decision 58).
+      - Target audience: 18+.
+      - Data safety: 15 types, nothing shared.
+      - Sign-in details with your demo code; the « full access » box ticked because Play requires it (decision 56); Google's robot tests left on (decision 57).
+    - **The category is « Professionnel »**, and the contact details are published.
+    - **The listing is saved with its images** (« Prête à être envoyée pour examen »).
+      - The icon, the banner and the 8 screenshots were uploaded by Claude in Chrome, because the browser pane can't attach files.
+      - The screenshots arrive in the order their uploads finish; they were dragged back to 01→08.
+      - **Read back after a reload:** 1/1, 1/1, 8/8, in order. Each of the 10 originals Google keeps has the same SHA-256 as the local file. The three texts match play-store-forms §1 by SHA-256.
+      - « Déclaration relative aux éléments d'IA »: not flagged (decision 59).
+    - **Nothing is sent for review.** « Envoyer l'appli pour examen » stays locked until the closed test is set up. « Publication gérée » is off, so a change is published as soon as Google approves it.
+  - **Recruiting the testers** (play-store-forms §6.1 to §6.5, decisions 60–62):
+    - who: Android only, 15 to 20 people; salons first, then friends as Managers of a test salon;
+    - your checklist in order (§6.2): the Google Group, the closed track, the release, Play's SHA-1 before any invitation, the test salon (which doubles as the e-mail delivery check), then the internal-test list;
+    - three texts to paste: to salons, to friends, and the testers' 5-step guide.
+    - **The guard** (`play_store_forms_test.dart` §6): every « label » in those texts is on the Pro sign-in or the invitation card; the Android version, the invitation's 7 days, the 90-day trial and the 15 seats are read from the code that sets them; every [placeholder] has its line in §6.2.
+    - **Only one way around the 12 testers:** an organization developer account. That needs a registered company and a D-U-N-S number, and a personal account can't be converted. It is longer than the test, so the test runs now.
+  - **Left** (the app dashboard, read 2026-10-28; its setup section is gone):
+    - the closed test's countries and regions, and its testers;
+    - a signed AAB and the backed-up upload key (LAUNCH §6.3), then the release;
+    - **the closed test: 12 testers for 14 days** before production (decision 52).
+  - **MyWeli (client):** later (decision 51); play-store-forms §8 lists what to re-audit then.
+  - **Order:** Android is last (LAUNCH §3).
+- **B0.15 Search text kept 30 days in Google Cloud's request logs (P2 · S · decision 55, open).**
+  - **What:** found by B0.10 on 2026-10-28. Cloud Run's own request logs keep the full URL, query string included (read in Cloud Logging: `…/providers?page=1&pageSize=20`), for 30 days. Two requests put personal text there: the Pro client search (`?query=`, a client's name or part of a number) and the public salon search (`?q=`).
+  - **Where it stands:**
+    - **The privacy policy is honest:** Google Cloud records « l'adresse de la page demandée », 30 days.
+    - **The App Store label is not:** app-store-forms §7.3 answers « Search History: no » because « le serveur ne journalise que le chemin, jamais la requête », which is false for the platform's logs.
+    - **Play** declares it (play-store-forms §4).
+    - **Nothing has been searched in production yet:** no log since 2026-09-01 contains `query=`.
+  - **Options (decision 55):**
+    - **(a) A Cloud Logging exclusion** drops request entries whose URL carries `query=` or `q=`. Then the iOS answer becomes true, and Play's row can go. This is a cloud mutation, done on your go, and lost on a new project unless written in `infra/`.
+    - **(b) Keep the logs** and declare « Search History » on the App Store label. That needs no build.
+
+- **B0.12 Sign in with Apple keys, one per app (P1 · M · decisions 45–47).** Spec: [apple-signin-keys.md](design/apple-signin-keys.md) (approved 2026-10-27).
+  - **What:** B6.7 revokes a deleted account's Apple authorization (5.1.1(v)) but waits for a key. MyWeli and MyWeli Pro are separate Sign in with Apple primaries (read through the API, 2026-10-27), and Apple's model is a key per primary — DEPLOYMENT.md assumed one group and one key.
+  - **How:** you create two keys in the portal (done 2026-10-27: `DAX5SVLW3Y` on MyWeli, `F4C6234X22` on MyWeli Pro; the web Services ID is under MyWeli); you put the two `.p8` in Secret Manager (done 2026-10-27, read back by fingerprint); PR 1 (the server picks the key by client, and logs Apple's error word) and PR 2 (the manifest); the deploy waits for Apple's decision on 0.0.1 (decision 47). **No key can be tested before a real sign-in** (Apple answers every fake request alike — measured with controls), so after the deploy one real Apple sign-in per client is the test, and one real revocation is seen leave your Apple ID list.
+- **B0.13 Apple's server-to-server notifications (P3 · M · decision 48) — later.** Apple tells the server when someone stops using Apple sign-in with an app or deletes their Apple account; configured per primary, not built. Its own spec when it's time.
+
+### Batch 1 — Pro « Accueil » and « Ma journée » stay fresh (P1, app, one slice) — ✅ done (#665, 2026-10-21)
 
 This batch takes up three of the six suggested tasks that were never started. It extends #587's `ProSalonScope.bookingCreated` pattern instead of patching screens one by one.
 
-- **B1.1 Status changes from the booking detail reach « Ma journée » and « Accueil » (P1 · M · decision 8).**
+- ✅ **B1.1 Status changes from the booking detail reach « Ma journée » and « Accueil » (P1 · M · decision 8).** **Done in #665** — [app-pro-home-journal-fresh.md](design/app-pro-home-journal-fresh.md).
   - **What:** tap a booking, press « Accepter », go back: the card still says « En attente », and so do the home counts, until a pull. The detail writes one store and the journal reads another. Opening the detail is a plain push (`pro_journal_screen.dart:290`), and nothing announces a status change.
   - **How:**
     1. Red widget test: journal → « Accepter » → back, expecting « Confirmé » and the pending count down by one. Same for Rejeter, Terminé and Absent.
     2. Add `ProSalonScope.bookingChanged(appointment)`, called by the four status writes and by the journal's swipe actions.
     3. The journal updates the row at once, then reloads quietly. The home store re-fetches quietly; the client card reloads.
-- **B1.2 « Accueil » error is a dead end, and pull-to-refresh asks nothing (P1 · M · decision 9).**
+- ✅ **B1.2 « Accueil » error is a dead end, and pull-to-refresh asks nothing (P1 · M · decision 9).** **Done in #665** — [app-pro-home-journal-fresh.md](design/app-pro-home-journal-fresh.md).
   - **What:** a failed home load shows a bare sentence with no retry (`dashboard_screen.dart:180-189`). Once figures are loaded, pulling down returns early (`pro_dashboard_provider.dart:36-44`).
   - **How:** the house `EmptyState` with « Réessayer » inside `BrandRefresh`, as « Ma journée » does. Plus `refresh(salonId)`, which always asks the server: quietly when figures are on screen (kept on failure, with a message), as a normal load when there are none. The existing KNOWN-DEFECT test should turn red first.
-- **B1.3 « Accueil » can show the previous salon's figures after a switch during loading (P2 · S · decision 10).**
+- ✅ **B1.3 « Accueil » can show the previous salon's figures after a switch during loading (P2 · S · decision 10).** **Done in #665** — [app-pro-home-journal-fresh.md](design/app-pro-home-journal-fresh.md).
   - **What:** a late answer for salon A overwrites salon B's figures, revenue included, and later loads skip the server.
   - **How:** a sequence number on the main load (the journal store's pattern), bumped by the salon-switch reset. Outdated answers are dropped. A red unit test with a held answer comes first.
 
-### Batch 2 — Lost answers to writes (P2, decision 11)
+### Batch 2 — Lost answers to writes (P2, decision 11) — ✅ done (#666, 2026-10-21)
 
-- **B2.1 A write the server saved but whose answer was lost (P2 · L).**
+- ✅ **B2.1 A write the server saved but whose answer was lost (P2 · L).** **Done in #666** — [write-idempotency.md](design/write-idempotency.md); backend deployed 2026-10-21 (migration 0040), web live; the app's part ships with its next store build. Its keys are pruned by the daily maintenance cron (#667).
   - **What:**
     - Web booking: the server creates it, the answer is lost, and the client reads « La réservation a échoué ». A retry gets « Ce créneau vient d'être pris » for their own slot. With several free chairs and « Sans préférence », it can create a second booking.
     - The same class affects the Pro manual booking, client notes and invitations, where a retry adds a note twice or gets a 409.
@@ -193,29 +346,29 @@ This batch takes up three of the six suggested tasks that were never started. It
   - **How (web only, if you prefer):** before saying it failed, look for your own appointment in « Mes rendez-vous ».
   - Needs a backend deploy.
 
-### Batch 3 — The app says the right thing when something fails (P2)
+### Batch 3 — The app says the right thing when something fails (P2) — ✅ done (#670, #671, 2026-10-21)
 
-- **B3.1 No raw exception text and no bare « Erreur » (P2 · L).**
+- ✅ **B3.1 No raw exception text and no bare « Erreur » (P2 · L).** **Done in #670** — [app-failure-messages.md](design/app-failure-messages.md) §10 (73 sites, not 67; a batch-1 defect found on the way).
   - **What:** 67 `_error = e.toString()` sites in 23 files. A captive-portal Wi-Fi (HTML with status 200) or a Cloudflare error page shows « TypeError… » or « FormatException… ». Several reads say only « Erreur ».
   - **How:** two shared helpers in `mobile/lib/services/api`.
     - A parse helper that turns `FormatException` / `TypeError` into `ApiResponse.error(« Une erreur est survenue. Réessayez. », code: 'unreadable')`. This generalises what #630 did in `listClients`.
     - An `errorFromResponse(res)` that reads `{error}` when the body is JSON and otherwise maps by status. It replaces each service's private `_errorFrom`.
     - Then migrate the 67 sites provider by provider, with a pin test forbidding `e.toString()` in providers.
-- **B3.2 One offline sentence, everywhere (P3 · M).**
+- ✅ **B3.2 One offline sentence, everywhere (P3 · M).** **Done in #670** — [app-failure-messages.md](design/app-failure-messages.md) §10.
   - **What:** four app services (`api_pro_service`, `api_auth_service`, `api_appointment_service`, `api_provider_service`) say « Connexion au serveur impossible ». Everything else, and the web, says « Pas de connexion. Réessayez. ». Many web save failures say « L'enregistrement a échoué » offline, including the « Mon compte » contact number next to a name field that gets it right.
   - **How:**
     - App: one constant mirroring the web's `NO_CONNECTION_MESSAGE`, used in the four services and the 14 files that spell it out, plus a pin test against the old sentence.
     - Web: `writeFailureMessage(status, …)` on each save-failure sentence, and `loadFailure` moved to `lib/api` for the client pages.
-- **B3.3 Notification read state can lag the server (P2 · S · decision 12).**
+- ✅ **B3.3 Notification read state can lag the server (P2 · S · decision 12).** **Done in #671** — [app-failure-messages.md](design/app-failure-messages.md) §11.
   - **What:** three cases in the client and Pro apps, which share the provider:
     - a reload during an in-flight « marquer comme lu » brings the row back unread;
     - a write whose answer was lost reverts a row the server did mark read;
     - after a successful retry, the failure snackbar stays up for its 6 s.
   - **How:** keep the ids with a write in flight, re-apply them after `load()` and again on success. On a lost answer, retry once (decision 12) or re-read the list instead of reverting blindly. Hide the failure snackbar when a new attempt starts (`AppSnackBar.showOn` returns its controller).
 
-### Batch 4 — Web Pro is truthful on failure (P2, web)
+### Batch 4 — Web Pro is truthful on failure (P2, web) — ✅ done (#672, #673, 2026-10-21)
 
-- **B4.1 Three failed reads show something false, and « Voir le justificatif » does nothing (P2 · M · decision 13).**
+- ✅ **B4.1 Three failed reads show something false, and « Voir le justificatif » does nothing (P2 · M · decision 13).** **Done in #672** — [web-pro-truthful-failure.md](design/web-pro-truthful-failure.md) §1.1, §10: « Mettre en ligne » and « Voir le justificatif » were already fixed on main; the false « Choisissez votre offre » had moved to Équipe, now three-state.
   - **What:**
     - A draft salon whose offer couldn't be read is told « Choisissez votre offre » and can't go live.
     - A client card says « Aucune visite » beside a visit count of 5.
@@ -226,13 +379,13 @@ This batch takes up three of the six suggested tasks that were never started. It
     - A `visitsFailed` state, and a « Charger plus » that retries the same page.
     - A visible failure on the receipt link.
     - Reuse `loadFailureMessage` and the section-level `ErrorState`.
-- **B4.2 « Calendrier » and « Liste » stay stale after a day-grid action (P2 · M)** *(suggested task)*.
+- ✅ **B4.2 « Calendrier » and « Liste » stay stale after a day-grid action (P2 · M)** *(suggested task)*. **Done in #673** — [web-pro-truthful-failure.md](design/web-pro-truthful-failure.md) §11 (also: « + Nouveau rendez-vous » from the Semaine now reloads the week).
   - **What:** after creating, moving, accepting or cancelling in the day view, the other two tabs keep the old data until a reload. `items` is set once at mount.
   - **How:** in `RendezVousClient.tsx`, a `loadItems()` with its own request id (the journal's dedupe), and one `refreshAfterChange()` passed to the grid and to the dialog's `onCreated`.
-- **B4.3 Demo account and suspended salon get a generic error (P2 · S)** *(suggested task)*.
+- ✅ **B4.3 Demo account and suspended salon get a generic error (P2 · S)** *(suggested task)*. **Done in #672** — [web-pro-truthful-failure.md](design/web-pro-truthful-failure.md) §10.
   - **What:** « Mettre en ligne » and the offer page say « …a échoué. Réessayez. » for `demo_account_locked`, so the reviewer retries forever.
   - **How:** `publishSalon` returns `error`. `GoLiveCard` and `AbonnementClient` map `demo_account_locked` to `DEMO_ACCOUNT_LOCKED_MESSAGE`, `provider_suspended` to the existing salon sentence, and status 0 to the offline sentence.
-- **B4.4 Rejoin gate gaps (P2 · S · decision 14).**
+- ✅ **B4.4 Rejoin gate gaps (P2 · S · decision 14).** **Done in #673** — [web-pro-truthful-failure.md](design/web-pro-truthful-failure.md) §11 (the remembered salon is also forgotten at every sign-in: the browser cannot match its id).
   - **What:**
     - Accepting or declining on « Aujourd'hui » with a dead session shows a failure instead of going to sign-in.
     - A failed first `/me` shows the owner's full menu to any role. Nothing leaks, since the server refuses the pages, but the menu is wrong.
@@ -241,129 +394,183 @@ This batch takes up three of the six suggested tasks that were never started. It
     - `onUnauthenticated` on both cards.
     - Start `awaitingProfile` true and use the existing `healProfile` loop on a failed first probe.
     - If you choose to: remember the acting salon `{id, name}` in `localStorage`, cleared at sign-out.
-- **B4.5 Minor sections that vanish silently (P3 · S · decision 15).** The seats bar, the stats tiles, the panel's client card and the « Nouveau rendez-vous » suggestions get a one-line « indisponible » note with « Réessayer », worded by `loadFailureMessage`.
+- ✅ **B4.5 Minor sections that vanish silently (P3 · S · decision 15).** **Done in #672** — [web-pro-truthful-failure.md](design/web-pro-truthful-failure.md) §10 (the seats bar is Équipe's offer, in B4.1). The seats bar, the stats tiles, the panel's client card and the « Nouveau rendez-vous » suggestions get a one-line « indisponible » note with « Réessayer », worded by `loadFailureMessage`.
 
-### Batch 5 — Client web polish (P2–P3, web)
+### Batch 5 — Client web polish (P2–P3, web) — ✅ done (#674, #675, 2026-10-21)
 
-- **B5.1 Sign-in blames the code for every failure (P2 · S).**
+- ✅ **B5.1 Sign-in blames the code for every failure (P2 · S).** **Done in #674** — [web-client-polish.md](design/web-client-polish.md) §10 (the send step and the salon sign-up too).
   - **What:** a server error, a rate limit or a broken answer says « Code incorrect ou expiré. » under the code field (`LoginOptions.tsx:159-174`). The Pro web sign-in has the same branch.
   - **How:** map by error code, as the app does.
     - `otp_invalid`, `otp_expired`, `otp_none` and `otp_locked` go under the field.
     - 429 gets a form-level « Trop de tentatives. Réessayez plus tard. ».
     - Everything else gets the form-level generic or offline sentence.
-- **B5.2 The search ♥ (P2 · S).**
+- ✅ **B5.2 The search ♥ (P2 · S).** **Done in #675** — [web-client-polish.md](design/web-client-polish.md) §11.
   - **What:** a failed session check sends a signed-in user to the login page, and a double click sends two requests.
   - **How:** track the probe as ok / anonymous / failed, and treat failed like the salon page's button, where the write's own 401 decides. Add a per-card in-flight set.
-- **B5.3 Export edge cases (P3 · S).**
+- ✅ **B5.3 Export edge cases (P3 · S).** **Done in #674** — [web-client-polish.md](design/web-client-polish.md) §10 (the app's two export screens too, Q3).
   - **What:** after an assembly error, the salon export blames three reads that succeeded. « Mes données » builds its document during render, so one broken favourite entry (`[null]`) hangs or crashes the page instead of refusing.
   - **How:**
     - A dedicated « Le fichier n'a pas pu être préparé. Réessayez. ».
     - Build the document inside `load()` in a try/catch.
     - Validate list elements in `getFavorites`: each must be an object with a string `id` and `name`, otherwise status 0.
-- **B5.4 A favourite added or removed is not announced (P3 · M · decision 16).** On success, a toast « Ajouté aux favoris » / « Retiré des favoris » on the search and salon pages. The live region is already mounted. The spec comes first.
+- ✅ **B5.4 A favourite added or removed is not announced (P3 · M · decision 16).** **Done in #675** — [web-client-polish.md](design/web-client-polish.md) §11 (with « Annuler », and on « Mon compte » too). On success, a toast « Ajouté aux favoris » / « Retiré des favoris » on the search and salon pages. The live region is already mounted. The spec comes first.
 
-### Batch 6 — Backend integrity (P2–P3, one or two deploys)
+### Batch 6 — Backend integrity (P2–P3, one or two deploys) — ✅ done (#676–#679, deployed 2026-10-22)
 
-- **B6.1 `POST /appointments` accepts any role (P2 · S).**
+- ✅ **B6.1 `POST /appointments` accepts any role (P2 · S).** **Done in #676** — [backend-integrity-batch6.md](design/backend-integrity-batch6.md) §10 (deployed 2026-10-22).
   - **What:** a Pro or admin token can book through the client route. It is written as the client: an invisible, unreviewable booking that still notifies the salon. (Verified: `routes/appointments/index.dart` checks only that someone is signed in.)
   - **How:** POST answers 403 unless the role is `user`, copying `review.dart`. Add a route test, and the 403 in openapi.
-- **B6.2 A dead invitation still creates an account (P2 · S).**
+- ✅ **B6.2 A dead invitation still creates an account (P2 · S).** **Done in #676** — §10 (deployed 2026-10-22).
   - **What:** opening an expired, revoked or misaddressed invitation creates the Pro account, then refuses. At the next sign-in, the server creates an empty salon for that account.
   - **How:** a read-only `TeamService.checkAcceptable` runs the four checks before `createMemberAccount`. If `accept` still fails in the race, remove the new account.
-- **B6.3 A deleted owner's salon keeps their personal numbers (P2 · S · decision 17).** After the unpublish loop, blank the phone and address, and null the WhatsApp and Mobile Money fields. Keep the name and the history, and state it in the privacy policy.
-- **B6.4 The demo reset leaves a reviewer's KYC behind (P2 · M · decision 18).** At the weekly reset, delete the demo account's `kyc/<accountId>/` objects (the deletion loop) and reset its status, via a new `resetKyc`.
-- **B6.5 One deposit range, and a removed operator must not block a save (P2 · M · decision 19).**
+- ✅ **B6.3 A deleted owner's salon keeps their personal numbers (P2 · S · decision 17).** **Done in #677** — [backend-integrity-batch6.md](design/backend-integrity-batch6.md) §11 (deployed 2026-10-22). After the unpublish loop, blank the phone and address, and null the WhatsApp and Mobile Money fields. Keep the name and the history, and state it in the privacy policy.
+- ✅ **B6.4 The demo reset leaves a reviewer's KYC behind (P2 · M · decision 18).** **Done in #677** — §11 (deployed 2026-10-22). At the weekly reset, delete the demo account's `kyc/<accountId>/` objects (the deletion loop) and reset its status, via a new `resetKyc`.
+- ✅ **B6.5 One deposit range, and a removed operator must not block a save (P2 · M · decision 19).** **Done in #677** — §11 (an operator outside the catalogue is not judged with deposits off — and not kept, T57; deployed 2026-10-22).
   - **What:** app 5–80 %, web 1–100 %, server 0–100 %. A value saved on one surface can't be shown on another. An operator removed from the catalogue blocks every save, even with deposits off.
   - **How:** the server enforces the chosen range, and both forms use the same bounds. With deposits off, skip the catalogue check. With deposits on, answer `operator_unavailable` so the fault shows under the operator field.
-- **B6.6 Salons can't report reviews of their own salon (P2 · M · decision 20).**
+- ✅ **B6.6 Salons can't report reviews of their own salon (P2 · M · decision 20).** **Done in #678** — [backend-integrity-batch6.md](design/backend-integrity-batch6.md) §12 (the key stays `(review_id, reporter_user_id)`, since salon and client ids never collide; a sibling `reportBySalon` holds the « a review of this salon » check; deployed 2026-10-22).
   - **What:** App Store 1.2 expects reporting on user content, and the Pro « Avis » screen has none.
   - **How:**
     - Server: `POST /me/provider/reviews/{id}/report`, behind the same membership gate. It reuses `ModerationService.report` with the reporter recorded as the salon, and a migration adds `reporter_kind`.
     - Clients: a « Signaler » button in the Pro « Avis » on app and web.
-- **B6.7 Revoke the Apple token when an account is deleted (P2 · L).**
+- ✅ **B6.7 Revoke the Apple token when an account is deleted (P2 · L).** **Done in #679** — [backend-integrity-batch6.md](design/backend-integrity-batch6.md) §13, §14 (built inactive until the `.p8` key exists — the owner's steps are in DEPLOYMENT.md, Phase C; a token is kept only if Apple's answer names the same `sub`; deployed 2026-10-22).
   - **What:** under 5.1.1(v), MyWeli stays under « Apps using Apple ID » after deletion.
   - **How:**
     1. You create a Sign in with Apple `.p8` key and store it in Secret Manager.
     2. The clients send `authorizationCode` at sign-in.
     3. The server exchanges it for a refresh token, stored per account (migration), and revokes it on deletion.
-- **B6.8 Guards with no live trigger (P3 · S each).**
+- ✅ **B6.8 Guards with no live trigger (P3 · S each).** **Done in #676** — §10 (deployed 2026-10-22).
   - `ensureOwner` should behave the same in Postgres and in memory (deny by default).
   - `ensureSalon` should refuse to write an owner row on a salon owned by someone else (T72).
   - The team API should refuse to change the role of a revoked member (409), next to B7.5.
-- **B6.9 Know when the demo identity is lost (P3 · S · decision 22).** Put the refusal reason in the cron response, and add a log alert on `demo_reset REFUSED`, copying `96-rebuild-hook-alert.sh`.
-- **B6.10 A Postgres end-to-end test for client account deletion (P3 · M).** A victim plus a bystander, all their rows, run through the real repositories, like the Pro one. Tests only.
+- ✅ **B6.9 Know when the demo identity is lost (P3 · S · decision 22).** **Done in #676** — §10; the server half deployed 2026-10-22; the alert **created on GCP 2026-10-22** (`alertPolicies/10667515608135534511`, to « Owner email »), and added to the list 93/95 read in #681. Put the refusal reason in the cron response, and add a log alert on `demo_reset REFUSED`, copying `96-rebuild-hook-alert.sh`.
+- ✅ **B6.10 A Postgres end-to-end test for client account deletion (P3 · M).** **Done in #676** — §10. A victim plus a bystander, all their rows, run through the real repositories, like the Pro one. Tests only.
 
-### Batch 7 — Pro app UI, accessibility and parity (P2–P3, app)
+### Batch 7 — Pro app UI, accessibility and parity (P2–P3, app) — ✅ done (#682–#684)
 
-- **B7.1 The « Propriétaire » chip is about 3:1 (P2 · S).** Draw the label in `textPrimary` on the gold tint, as the web does. Add the chip to the contrast test, regenerate the team goldens on Linux, and close SYSTEM §21 row 28.
-- **B7.2 Mid-word breaks at 200 % text (P2 · S).**
+- ✅ **B7.1 The « Propriétaire » chip is about 3:1 (P2 · S).** **Done in #683** — [pro-app-batch7.md](design/pro-app-batch7.md) §10 (measured 2.79:1; ink now). Draw the label in `textPrimary` on the gold tint, as the web does. Add the chip to the contrast test, regenerate the team goldens on Linux, and close SYSTEM §21 row 28.
+- ✅ **B7.2 Mid-word breaks at 200 % text (P2 · S).** **Done in #683** — §10 (an `OverflowBar` for the hours; a dialog's icon goes above a title it would break; every dialog title swept).
   - **What:** « Mard/i » in the pause rows; « Abandonne/r les modifi/cations ? » in a dialog title.
   - **How:** use the measured-fit idiom in `WeeklyHoursEditor`, shorten the title to « Abandonner ? », and add weekday names and dialog titles to `expectNoMidWordBreak`.
-- **B7.3 The deletion dialog tells members « Votre salon sera retiré » (P2 · S).** Only owners see that sentence. Members get « Cette action est définitive. Votre compte MyWeli Pro sera supprimé. », with the web picking the same way.
-- **B7.4 Empty-day layout (P2 · S · decision 25).**
+- ✅ **B7.3 The deletion dialog tells members « Votre salon sera retiré » (P2 · S).** **Done in #682** — [pro-app-batch7.md](design/pro-app-batch7.md) §9 (the sentence follows « the account owns a salon », as the server removes — app and web, Q5). Only owners see that sentence. Members get « Cette action est définitive. Votre compte MyWeli Pro sera supprimé. », with the web picking the same way.
+- ✅ **B7.4 Empty-day layout (P2 · S · decision 25).** **Done in #683** — §10 (`fabClearance`; the Liste's empty day is now pull-to-refresh too).
   - **What:** the empty « Calendrier » day is hand-rolled and hides under the FAB at large text. « Ma journée » offers the same action twice.
   - **How:** the shared `EmptyState`, a 96 dp bottom inset, one control in « Ma journée », layout tests at 200 % on a 360 dp screen, and close SYSTEM §21 rows 80–81.
-- **B7.5 « Changer le rôle » on a revoked member (P3 · S).** Revoked rows become non-tappable, like the web, with a widget test.
-- **B7.6 Pending invitations on « Accueil » (P2 · M · decision 23).** Reuse `ProTeamProvider.loadMyInvitations()` and `InvitationCard`, on « Accueil » and on the staff « Journée ». A UX spec comes first.
-- **B7.7 The « Acompte & annulation » step is ticked for every salon (P2 · S · decision 24).** It counts as done only once a choice is saved: a stored percentage above 0, or deposits on. Otherwise « facultatif ».
-- **B7.8 The app's salon export has no earnings (P2 · S).** A sixth read through `_read`, `ProExportSection.earnings`, the web's exact shape, and a strict `transactions` list per #630's rule.
-- **B7.9 Orientation (P2 · S · decision 26).** Add `android:screenOrientation="portrait"` on `MainActivity`, plus one tablet-emulator smoke run. On Android 16+, orientation locks are ignored on large screens.
-- **B7.10 Long values at large text and large amounts (P3 · M).** Add 7-digit amounts to the fixtures, fix the five sites with the measured-fit idiom, and turn `reportGluedTokenBreaks` into an assertion.
-- **B7.11 Call buttons do nothing without a dialer (P3 · S).** `callPhone(context, number)` with a snackbar, plus a pin test against raw `launchUrl`.
-- **B7.12 Two separate links in the consent sentence for screen readers (P3 · S).** A test, and `explicitChildNodes` if it fails.
-- **B7.13 Admin console segments have no visible boundary (P3 · S).** Use one `AdminSegmentedControl`, with a token border on inactive segments.
-- **B7.14 After a failed fallback to the default salon, per-salon stores keep the old salon's data (P3 · S).** Call `ProSalonScope.resetAll()` inside `_clearSalonSelection()`.
+- ✅ **B7.5 « Changer le rôle » on a revoked member (P3 · S).** **Done in #682** — §9. Revoked rows become non-tappable, like the web, with a widget test.
+- ✅ **B7.6 Pending invitations on « Accueil » (P2 · M · decision 23).** **Done in #684** — [pro-app-batch7.md](design/pro-app-batch7.md) §11 (the card on « Accueil » and the staff « Journée »; a join reloads « Mes salons »; **also fixed:** offline, every invitation screen said « Invitation impossible à accepter. », not « Pas de connexion »). Reuse `ProTeamProvider.loadMyInvitations()` and `InvitationCard`, on « Accueil » and on the staff « Journée ». A UX spec comes first.
+- ✅ **B7.7 The « Acompte & annulation » step is ticked for every salon (P2 · S · decision 24).** **Done in #682** — §9 (app and web; « Facultatif »). It counts as done only once a choice is saved: a stored percentage above 0, or deposits on. Otherwise « facultatif ».
+- ✅ **B7.8 The app's salon export has no earnings (P2 · S).** **Done in #684** — §11 (« Revenus » in the summary; a 200 without its transactions refuses the export). A sixth read through `_read`, `ProExportSection.earnings`, the web's exact shape, and a strict `transactions` list per #630's rule.
+- ✅ **B7.9 Orientation (P2 · S · decision 26).** **Done in #682** — §9 (checked on an Android 16 emulator: portrait holds on a phone; tablet metrics rotate, as Android 16 decides, and stay usable). Add `android:screenOrientation="portrait"` on `MainActivity`, plus one tablet-emulator smoke run. On Android 16+, orientation locks are ignored on large screens.
+- ✅ **B7.10 Long values at large text and large amounts (P3 · M).** **Done in #683** — §10 (four sites broke and were fixed; the total steps down a size, the owner's decision). Add 7-digit amounts to the fixtures, fix the five sites with the measured-fit idiom, and turn `reportGluedTokenBreaks` into an assertion.
+- ✅ **B7.11 Call buttons do nothing without a dialer (P3 · S).** **Done in #682** — §9. **Worse than listed:** two buttons asked `canLaunchUrl(tel:)`, which answers « no » on Android 11+ for an undeclared scheme — they most likely did nothing on most phones (device check added to B0.2). `callPhone(context, number)` with a snackbar, plus a pin test against raw `launchUrl`.
+- ✅ **B7.12 Two separate links in the consent sentence for screen readers (P3 · S).** **Done in #683** — §10 (proved as is; nothing to change). A test, and `explicitChildNodes` if it fails.
+- ✅ **B7.13 Admin console segments have no visible boundary (P3 · S).** **Done in #683** — §10. Use one `AdminSegmentedControl`, with a token border on inactive segments.
+- ✅ **B7.14 After a failed fallback to the default salon, per-salon stores keep the old salon's data (P3 · S).** **Done in #682** — §9 (the reset is at the two fallback sites: inside `_clearSalonSelection` it would have emptied the rejoin gate's cards). Call `ProSalonScope.resetAll()` inside `_clearSalonSelection()`.
 
-### Batch 8 — Product questions (P3, need your answers first)
+### Batch 8 — Product questions (P3, need your answers first) — ✅ done (#685, #686; B8.1 and B8.2 decided « nothing now »)
 
-- **B8.1 Undo for destructive server actions (L · decision 27).** If wanted: about 10 s « pending » states on the server for cancel and revoke, and a grace period for deletion, stated in the policy.
-- **B8.2 An editable Pro account phone (M · decision 28).** `PATCH /me/provider/account/phone`, with 409 on a number taken by another account and an audit with ids only. Plus an SMS code if it is still a sign-in identity.
-- **B8.3 The « Profil » salon card offline (S · decision 29).** Persist a slim copy of the acting salon, cleared at logout.
-- **B8.4 V2 analytics wording (S · decision 30).** Nothing now. Add the label to the checklist for turning V2 on.
-- **B8.5 Dormant phone sign-in (S · decision 31).**
+- ✅ **B8.1 Undo for destructive server actions (L · decision 27).** **Decided: keep confirm-only** — [product-questions-batch8.md](design/product-questions-batch8.md) Q1; nothing to build. If wanted: about 10 s « pending » states on the server for cancel and revoke, and a grace period for deletion, stated in the policy.
+- ✅ **B8.2 An editable Pro account phone (M · decision 28).** **Decided: nothing now** (Q2) — the number stopped being an identity in migration 0023 and is no longer unique, so there is no 409 to give; it waits for phone sign-in's return. `PATCH /me/provider/account/phone`, with 409 on a number taken by another account and an audit with ids only. Plus an SMS code if it is still a sign-in identity.
+- ✅ **B8.3 The « Profil » salon card offline (S · decision 29).** **Done in #686** — [product-questions-batch8.md](design/product-questions-batch8.md) §10 (`SalonFacts` in the session; offline at cold start the card shows the salon; another salon's copy never shows). Persist a slim copy of the acting salon, cleared at logout.
+- ✅ **B8.4 V2 analytics wording (S · decision 30).** **Done in #686** — « Total réalisé » (Q4), on a new LAUNCH §1.5 list for turning `futureProviderFeatures` on, and on the screen. Nothing now. Add the label to the checklist for turning V2 on.
+- ✅ **B8.5 Dormant phone sign-in (S · decision 31).** **Done in #685** — removed (Q5) — [product-questions-batch8.md](design/product-questions-batch8.md) §9. **Worse than listed:** the server route opened with the CLIENTS' `AUTH_METHODS` switch, and took the first account carrying a number that is no longer unique (T80). Server, contract, web and app. Rebuilt on purpose when SMS returns, with B8.2.
   - **What:** an unrouted screen, and a sign-in that skips the membership load.
   - **How:** decide together with the return of SMS and WhatsApp (company registration).
-- **B8.6 Pro account deletion is only partly atomic (L · decision 32).** *Recommended:* accept, add a test that a failed identity delete followed by a retry ends fully deleted, and say « réessayez » after a 5xx.
+- ✅ **B8.6 Pro account deletion is only partly atomic (L · decision 32).** **Done in #685** — §9 (the retry test, Postgres and in memory; the « réessayez » half already held on both clients). *Recommended:* accept, add a test that a failed identity delete followed by a retry ends fully deleted, and say « réessayez » after a 5xx.
 
-### Batch 9 — Hygiene, tooling and tests (P3, do when touching the area)
+### Batch 9 — Hygiene, tooling and tests (P3, do when touching the area) — ✅ done (#688–#707; B9.12 deployed 2026-10-25)
 
-- **B9.1 Stale release docs and statuses (M).**
+- ✅ **B9.1 Stale release docs and statuses (M).** **Done in #688** — [hygiene-batch9.md](design/hygiene-batch9.md) §9: 33 roadmap entries (20 turn 🟢, 13 wait for 0.0.2), 8 specs and 5 index rows, LAUNCH and app-store-forms. What only App Store Connect can confirm waits for batch 10.
   - **What:** `LAUNCH.md` and `app-store-forms.md` describe states that have passed. Five specs and several 2026-10-13…16 roadmap entries still read 🟡 or « non fusionné ».
   - **How:** one docs PR, after the App Store Connect read-back (batch 10).
-- **B9.2 iOS release tooling (S).**
-  - `release_build.sh`:
-    - park the archive per flavour and build;
-    - include dSYMs in the printed Sentry command;
-    - refuse to build unless HEAD equals `origin/main`;
-    - validate before upload.
-  - **B9.3** *(suggested task)*: the flavour setup script should update its build phase and schemes in place, and stop dropping Flutter's pre-action.
-- **B9.4 Observability follow-ups (M · decision 34).**
-  - `--validate-ssl` on the uptime checks, plus alerts on certificate expiry under 14 days and latency above about 3 s for 15 min.
-  - Commit tracking for mobile releases (suspect commits).
-  - Error-rate thresholds once there is real traffic.
-- **B9.5 FlutterFire Dependabot group (S).** Merge or close the five open Dependabot PRs (#632–#636; equatable 3.0.0 is a major bump). Then check that the next run opens ONE Firebase PR.
-- **B9.6 Mock and stub fidelity (M · decision 35).** Invite limits keyed on `AppClock`, a default 0 % deposit, the bare-manager salon case, and ids that don't collide under a frozen clock. A failing mark-read mock only if you want it.
-- **B9.7 Form-validation tests (M).** 11 of 17 form screens have no « error under the field » test. Start with `_NotesSection`, and move `_TagSheet` onto `FieldErrors`.
-- **B9.8 Shared components (L).** `AppCard`, `AppChip` and `AppAsyncView` as SYSTEM §11.3 specifies. `AppAsyncView` makes a forgotten state or a raw error impossible, and pairs with B3.1.
-- **B9.9 The R6 salon-id pin's blind spot (L · decision 33).** A positional account id isn't seen by the pin. The real fix is a `SalonId` extension type. Nothing on main triggers it.
-- **B9.10 One home for fallback copy (S).** Three spellings of a missing salon name: one constant per surface, and a rule in SYSTEM §12 and WEB-SYSTEM.
-- **B9.11 Web list reads that still turn a missing list into `[]` (S, when touched).** Notifications, invitations, team, reviews, visits and public pages. Since #630 only a server contract change can trigger it. Make each read require its array, as #630 did for the exports.
+- ✅ **B9.2 iOS release tooling (S).** **Done in #697** — [hygiene-batch9.md](design/hygiene-batch9.md) §13. `release_build.sh` refuses a dirty tree, or a HEAD that is not a freshly fetched `origin/main`, before reading any secret; for iOS it also needs `ASC_KEY_ID` and `ASC_ISSUER_ID`. It parks the archive as `Runner-<flavour>-<build>.xcarchive` and validates the IPA (a refusal stops everything). It then prints the symbols command (with the dSYMs), `set-commits` and the upload command. Tested by running the real script in a throwaway repository.
+  - ✅ **B9.3** **Done in #697**: `setup_flavours.rb` updates its phase and schemes in place, so a run on the committed project changes nothing. Proven on a copy, run by the macOS iOS workflow.
+- ✅ **B9.4 Observability follow-ups (M · decision 34).** **Done in #697, applied and verified on 2026-10-25** — both checks validate the certificate and still pass, the two alerts are live, and their runbooks match the repo (§13).
+  - `infra/gcp/81-uptime-tls-latency.sh` switches both checks to `--validate-ssl=true` in place and adds two alerts: a certificate with less than 14 days left, and a mean probe latency above 3 s for 15 min. `80-uptime-checks.sh` creates the checks with validation now.
+  - Mobile suspect commits: `release_build.sh` prints `set-commits` for each store build. First used on build 698 (2026-10-26): Sentry accepted it and lists 20 commits for `com.myweli.pro@0.0.1+698`, ending at `54b02dac`.
+  - Error-rate thresholds stay deferred until there is real traffic (decision 34, observability §8.2).
+- ✅ **B9.5 FlutterFire Dependabot group (S).** **Already done** — #632–#636 merged on 2026-10-20 and the `firebase` group is in `dependabot.yml`. **To watch:** the next weekly run opens ONE Firebase PR. Merge or close the five open Dependabot PRs (#632–#636; equatable 3.0.0 is a major bump). Then check that the next run opens ONE Firebase PR.
+- ✅ **B9.6 Mock and stub fidelity (M · decision 35).** **Done in #689** — [hygiene-batch9.md](design/hygiene-batch9.md) §10. The invitation caps are the server's two buckets per UTC day, aliases included. A new mock salon is the server's: empty, at 0 %. The catalogue is one store, scoped to the acting salon with the server's `forbidden` and `not_found`; so are the artist and member writes. A counter replaces the 12 clock-built ids (SYSTEM §21 row 43). No mark-read switch (decision 35).
+- ✅ **B9.7 Form-validation tests (M).** **Done in #690** — [hygiene-batch9.md](design/hygiene-batch9.md) §11. `_TagSheet` is on `FieldErrors`. Its limit is said for a chip too, a failed save is shown, and the sheet scrolls (it overflowed at ten tags). The notes, admin and Pro sign-ins, staff form and service form have their « under the field » tests: 15 of 17 screens, the last two unrouted until SMS. Also: the three e-mail sign-ins now say a refused code or e-mail under its field, as the web does (SYSTEM §14, §21 row 32).
+- ✅ **B9.8 Shared components (L).** `AppCard`, `AppChip` and `AppAsyncView` as SYSTEM §11.3 specifies. `AppAsyncView` makes a forgotten state or a raw error impossible, and pairs with B3.1. **Three PRs (Q12).** **F1 in #699** — [hygiene-batch9.md](design/hygiene-batch9.md) §14, SYSTEM §12.1: `AppAsyncView`, the one load error « Chargement impossible » (Q9), still skeletons on cards (Q11) and `AppCard`; 44 of the 48 spinners moved (39 files), four named ones left, one pin on `lib/`. The move found ten screens that said something false, each fixed at its provider: a detail showing the previous entity (and its actions), lists saying « aucun » for a failed read, a shared `isLoading` or `error`, defaults shown as answers. **F2 in #700** — §15, SYSTEM §3.1, §8, §11.3: every card is `AppCard` (27 Material `Card`s, 31 drawn by hand), no shadow, no border unless a control, `spacingM`; one semantics container, a chosen card said (Q13); the docked « Total » keeps its shadow (Q14). It found six silent tappable cards and six pages carrying cards on `surface`. **F3 in #702** — §16, SYSTEM §11.3: every chip is `AppChip` — `.choice` (Material's `ChoiceChip` under `chipTheme`, the ✓ on a chosen chip in the icon's place, Q16; the booking's slots filled, Q17), `.tag`, `.action`, and `.status`, one tinted pill for every status and badge (Q18), each tone ≥ 4.5:1, the appointment statuses on the B7 kinds (confirmed = ok, completed = neutral; the journal keeps its own). It found the Pro detail's status at 1.02:1, the home tile's « En attente » at 1.6:1, the search filters unannounced, statuses drawn three ways, and a Manager pill the same grey as a Collaborateur's (1.09:1 — the strong tone now carries the brand line).
+- ✅ **B9.9 The R6 salon-id pin's blind spot (L · decision 33).** A positional account id isn't seen by the pin. The real fix is a `SalonId` extension type. Nothing on main triggers it. **Two PRs (Q19), `implements String` (Q20).** **H1 in #706** — [hygiene-batch9.md](design/hygiene-batch9.md) §2.8, §18: the Pro half — the resolver, five interfaces, their doubles and API services, the Pro providers, screens, router and push, seven models (66 lib files); R6's M10 no longer compiles. Born in 15 reviewed places; « no salon » is `SalonId.none` (twenty `?? ''`). **H2 in #707** — §19: the public salon — seven models (`Provider.id`, `Appointment.providerId`…), booking, reviews, favorites, `getProviderById`, the console's five salon calls (48 lib files). No salon-named slot in the app is a bare `String`; born in 26 reviewed places.
+- ✅ **B9.10 One home for fallback copy (S).** **Done in #691** — [hygiene-batch9.md](design/hygiene-batch9.md) §12. There were five forms and an empty string. Now there are words per place, the same in the app and on the web: « Salon » for a title, « le salon » in a client's sentence, « votre salon » in the Pro session's, and « Votre planning ». They live in SYSTEM §17.2, with one constant file and one pin per surface. The calendar, the Pro titles, invitations and « Mes salons » are fixed too.
+- ✅ **B9.12 Drop the orphaned `provider_otp_codes` table (S — B8.5 deployed 2026-10-22, image `eca4db6`).** B8.5 (#685) stopped every read and write of it, but an older image still deletes from it on each Pro account deletion — dropping it in the same deploy would turn every deletion into a 500 on a rollback. Drop it once no deployed image reads it, with a `// rollback-unsafe:` line (LAUNCH §1.4's contract step). **Done in #703, deployed 2026-10-25** — revision `myweli-api-00047-55v` (`commit: a0ee1cd`), Ready at 100 %, its digest the image the merge built; `00046-bzg` is the rollback target. Read back: `/health` 200, no error logged by the new revision — [hygiene-batch9.md](design/hygiene-batch9.md) §2.11, §17: migration `0043_drop_provider_otp_codes`, the list's first `DROP TABLE`. Read before building: production serves `myweli-api-00046-bzg` (`commit: eca4db6`), which never names the table, so a one-step rollback stays safe; its `// rollback-unsafe:` names the two-step one (`00045-8hs`, every Pro deletion a 500). It runs at boot, before the port opens: a failed drop leaves traffic on `eca4db6`.
+- ✅ **B9.11 Web list reads that still turn a missing list into `[]` (S, when touched).** **Done in #691** — §12. The eight authed reads and the slots now require their list (status 0). Public pages throw where the build fails closed: ISR keeps the last good page, and a production build fails rather than publish an empty site. Previews still degrade. `getProviderBySlug` no longer turns a 5xx into a 404, and the locality tree follows the same rule. The contract now requires `items`.
+- **B9.13 The client app forgets an account on every way out (M · found by B9.8 F1).** ✅ **Done in #701** (rebased on `main` 2026-10-28) — [consumer-account-scope.md](design/consumer-account-scope.md), Q1 = (a), Q2 = (a). « Déconnexion » emptied the favourites only, and before the sign-out; a deletion the same; a session the server refused emptied nothing and left the app showing the account. A second account on the same phone saw the first one's bookings (home strip, « Mes rendez-vous », the detail, « Donner mon avis »), notifications and switches until its own read answered. Now `AccountScope` (the twin of `ProSalonScope`) resets the six stores of the account whenever the account changes, before anything is redrawn; each read and write drops an answer that belongs to the previous account (a late booking was added to B's list, a late photo was saved on B's profile); and a refused session becomes a way out: « Votre session a expiré. Reconnectez-vous. », in place, or on an account screen to the sign-in and back. **Still to do, apart (Q2):** the same in the Pro app — `ProAuthProvider.logout()` resets no per-salon store and the Pro notifications feed is never reset. → **B9.14**.
+- **B9.14 The Pro app forgets an account on every way out (M · the twin of B9.13).** ✅ **Done in #704** (rebased behind #701 on 2026-10-28) — [pro-account-scope.md](design/pro-account-scope.md), Q1 = (a), Q2 = (a). **Proved by a probe on the real code:** the receptionist who signed in after the owner, on the same phone, saw the owner's two « Revenus prévus » cards at every frame — she has no `finances.view`, the server never sends her money, the app kept it. No Pro sign-in or sign-out reset anything; the bell and the verification (identity documents) kept the previous account's. Now every Pro way in and out resets the 16 salon stores and, through `AccountScope`, the bell and the verification, before anything is redrawn; 15 salon stores and the verification drop an answer sent before the reset (the dashboard already did) — which also stops a gallery or before/after list being saved from the next salon's empty one, and A's identity document joining B's; a refused Pro session goes to the sign-in, which says « Votre session a expiré. Reconnectez-vous. ». The same guards close the « Mes salons » switch race.
+- **B9.15 The daily production check's stale match (S · found reading back #724).** ✅ **Done in #725** — `toContain('worker-src blob:')` failed every day from 2026-10-21, after a correct change to `worker-src 'self' blob:`. It now reads each directive's sources, and the same rule runs on every PR (WEB.md §7).
+- **B9.16 The alarm that stays open (S).** ✅ **Done in #726** — [production-alarm-close.md](design/production-alarm-close.md). A new job closes « Production checks are failing » (#549) after a fully green scheduled run, so each new failure is a reopening. A manual run cannot close it, because it can measure another site.
+  - **It now reaches a person.** The owner's GitHub inbox held 404 threads for this repo and none for #549 (read 2026-11-02). So the failure and closing comments mention the owner, on every failing day (owner's decision, same day).
+  - **Not yet proved:** the first real proof is the next scheduled green run closing #549. Whether the email arrives is in Batch 10.
 
 ### Batch 10 — Only you can check
 
 - **App Store Connect for 0.0.1:**
-  - the privacy label, content rights, price and availability (the API shows `CANNOT_SELL` in 175 countries), contact details;
-  - whether the amended review notes are in place.
+  - ✅ **Read back through the API on 2026-10-28** — content rights `USES_THIRD_PARTY_CONTENT`; free (base price 0 in the United States); **Côte d'Ivoire only** (`available`, statuses `AVAILABLE_FOR_SALE_UNRELEASED_APP` and `CANNOT_SELL`), the other 174 countries not available, 27 of them also `TRADER_STATUS_NOT_PROVIDED` (the DSA status, app-store-forms §9.1); the review contact's four fields set, demo account `revue@myweli.test`; the amended notes in place, byte-identical to the ones pasted for 698 (B0.3). This is what « `CANNOT_SELL` in 175 countries » was.
+  - ✅ **The privacy label — read on the site on 2026-10-28** (signed in by you, read through the page's own data): 13 data types, **exactly app-store-forms §7**.
+    - Linked to the user, all « App Functionality »: Name, Email Address, Phone Number, Physical Address, Precise Location, Other Financial Info, Photos or Videos, Other User Content, User ID, Device ID, Other Data Types.
+    - Not linked: Crash Data, Performance Data.
+    - **No tracking row**, and the privacy policy URL is set.
+    - Published 2026-10-14 19:27 UTC.
 
   A read-back unblocks B9.1.
-- **`support@myweli.com` reaches a person.** It is the only contact on `/support`, which both store listings use.
-- **App Preview:** whether Apple applied the 25 s poster frame, and how review and the store page treat the preview.
+- ✅ **`support@myweli.com` reaches a person — 2026-10-28.** It is the only contact on `/support`, which both store listings use.
+  - **The live page:** 200, its only contact `support@myweli.com`, 12 times.
+  - **The mail server:** myweli.com's mail is Microsoft 365 (MX `myweli-com.mail.protection.outlook.com`). Its server answers `250 Recipient OK` for `support@` and `550 5.4.1` for a made-up address, the control.
+  - **A person:** your test e-mail arrived there and you read it (owner-reported).
+- ✅ **Sentry's GitHub integration knows `Zaslons/myweli`** (B9.4). **Already in place — read on 2026-10-26 through Sentry's API**: the GitHub integration has listed `Zaslons/myweli` since 2026-08-12; `set-commits` for build 698 was accepted, and the release lists 20 commits ending at `54b02dac`. Nothing left to do.
+- **App Preview:** ✅ **the 25 s poster frame is applied** — read through the API on 2026-10-27, and again on 2026-10-28 with 0.0.1 still `WAITING_FOR_REVIEW`: both iPhone sizes show `myweli-pro-film-v2.mp4`, poster frame `00:00:25:00`, asset and video `COMPLETE`, no errors.
+  - **Left: what review and the store page do with it.** Neither can be read before it happens.
+    - Review's view comes with Apple's decision on 0.0.1. A rejection would cite guideline 2.3.x; pro-app-preview.md checked the film against 2.3.3, 2.3.4, 2.3.7 and 2.3.9. **2026-11-03: it came: 2.3.4 refuses the frame, and this file leaves both slots (B0.16, decision 72).** After the replacement: read each size in « View All Sizes in Media Manager », with the poster at `00:00:13:00`. *2026-11-03, 23:49 UTC: replaced, and the poster read back through the API at `00:00:13:00` on both; the Media Manager read is owner-reported on 2026-11-04, with no order stated against the submission (B0.16).*
+    - The store page shows it only after the manual release.
 - **Walk the clients list in production** with a Pro session (`pageSize=1`, pages 1…N): all ids distinct and N equal to `total`. This observes #618's tie-breaker, which the deploy check could not.
 - **Exercise the T72 fix** (decision 21): register a throwaway Pro account with a foreign `providerId`, check it gets a new draft salon, then delete the account.
 - **The demo salon:**
   - the text nits and snapshot re-save after Apple's decision (decision 36);
   - photo sources and licences (decision 37);
   - the « Essai Fix » test booking needs nothing, because the weekly reset around 2026-10-21 removes it.
+- **The production alarm's email (B9.16):**
+  - At github.com/settings/notifications, make sure **Email** is on under « Participating, @mentions and custom », and the default address is the mailbox you read.
+  - Say whether an email arrives when the next green scheduled run closes #549. If it does not, the alarm still does not reach you, and the next step is the Cloud Monitoring « Owner email » channel.
+
+### Batch 11 — The website's look
+
+Spec: [web-swiss-direction.md](design/web-swiss-direction.md). Starts after B12.1–B12.4 (decision 67). Each merge is a production web deploy, on your word, and is read back on `myweli.com`.
+
+- **B11.0 Foundations (M):** Hanken Grotesk self-hosted and trimmed, `displayPoster`, `fontFamily` closed, WEB-SYSTEM §3 and §16, SYSTEM §22, no layout change. Sentry's unused tracing code out of the bundle, which paid for the font: `/` 2110 ms against 2314 before it. ✅ **Merged in #724, read back on `myweli.com`:** LCP medians 1263–1480 ms on the three budgeted pages. B11.1 measures every budgeted page, five times (WEB.md §7).
+- **B11.1 Header, footer, home, the pattern (L):** the real logo, the large wordmark, the panel and band. ✅ **Done in #727** (spec §13.1), merged on your word before your check. **Still yours, on the live site:** show the pattern to 3–5 people (spec §4.8), and check it on a low-end Android. An answer that something in it is wrong changes the drawing.
+- **B11.2 `/professionnels`, 404 and error pages (S).**
+- **B11.3 Salon card, `/recherche`, landings, favourites (M):** the card gains the app's cover photo, a parity gap today.
+- **B11.4 Salon page (M):** with its own Lighthouse budget.
+- **B11.5 OG image, and an audit of the deployed site by separate eyes (S).**
+- **B11.6 Square fields and buttons, the search as one bar (M · decision 70).** ✅ **Done in #728** — [web-swiss-fields.md](design/web-swiss-fields.md). The whole site, the Espace pro included. **Yours to judge from the pictures:** the rounded cards around them (§8). Read back on `myweli.com` and in the iOS simulator; looking at those pictures found the search's pale placeholder text, fixed in #729.
+
+### Batch 12 — The website's flows against the apps
+
+Audit: [web-flow-audit-2026-11.md](design/web-flow-audit-2026-11.md) (2026-11-02), where each item has its evidence on both sides.
+
+**First: sentences that aren't true (decision 67).**
+
+- ✅ **B12.1–B12.4, in #723** ([web-true-sentences.md](design/web-true-sentences.md)):
+  - **B12.1 The free trial (P1 in the audit).** The site said it starts at go-live, while choosing an offer starts it. The clock stays (decision 68) and the words now say so.
+  - **B12.2 Cancelling with a deposit (C1).** The salon's rule, the amount, the delay and who to see. **Not** the app's sentence: it promises a refund nobody on our side makes (B12.11).
+  - **B12.3 After booking (C2).** A link to the booking, and a sentence true for a client who only uses the website.
+  - **B12.4 The sign-up loop on `/pro/connexion` (P2).** Removed before store URLs could switch it on.
+
+**Then: the web behind the apps.**
+
+- **B12.5 The salon's description on the salon page (S; C3).** Goes with B11.4.
+- **B12.6 « À venir » shows past bookings (S; C4).** Check first whether anything auto-completes them.
+- **B12.7 The rest, when touched (C5–C10, P3–P5):** returning client's home, the search fork, past visits, consent line, deposit details, profile; invitees, the checklist's doors, Revenus' first tab.
+
+**And the apps behind the web (ship with the next build).**
+
+- **B12.8 The client app's search bar does not search (M; A1)**, and no nail or massage chips (S; A2).
+- **B12.9 Pro app: « Non présenté » without confirmation or a start check (S; A3).**
+- **B12.10 The rest (A4–A7):** no-shows in no tab, deactivated services invisible, staff notification door, reviews stopping at 50.
+- **B12.11 The client app's cancel sentence (S).** « Votre acompte sera remboursé » promises what neither the server nor MyWeli does, and the app says it, or « ne sera pas remboursé », even when no proof was sent. Same rule and words as the web (`cancellationNotice`, web-true-sentences.md §3).
+- **B12.12 A real install link for the Pro app (S, after release).** There is one pair of store URLs and it is the client app's, so `/pro/connexion` has none today. Needs its own pair.
 
 ---
 

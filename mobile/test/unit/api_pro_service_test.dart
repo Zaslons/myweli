@@ -3,11 +3,11 @@ import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
+import 'package:myweli/core/utils/salon_id.dart';
 import 'package:myweli/core/utils/team_error_messages.dart';
 import 'package:myweli/models/api_response.dart';
 import 'package:myweli/models/appointment.dart';
 import 'package:myweli/models/availability.dart';
-import 'package:myweli/models/provider_user.dart';
 import 'package:myweli/services/api/api_pro_service.dart';
 import 'package:myweli/services/interfaces/session_store.dart';
 
@@ -124,9 +124,10 @@ void main() {
         );
       });
 
-      final res = await _service(
-        client,
-      ).getProviderAppointments('provider1', status: AppointmentStatus.pending);
+      final res = await _service(client).getProviderAppointments(
+        SalonId('provider1'),
+        status: AppointmentStatus.pending,
+      );
 
       expect(res.success, isTrue);
       expect(res.data!.single.id, 'a1');
@@ -200,7 +201,9 @@ void main() {
         return http.Response(jsonEncode({'error': 'unauthorized'}), 401);
       });
 
-      final res = await _service(client).getProviderAppointments('provider1');
+      final res = await _service(
+        client,
+      ).getProviderAppointments(SalonId('provider1'));
 
       expect(res.success, isTrue);
       expect(refreshed, isTrue);
@@ -218,7 +221,10 @@ void main() {
     );
 
     expect((await service.acceptAppointment('a1')).success, isFalse);
-    expect((await service.getProviderAppointments('p')).success, isFalse);
+    expect(
+      (await service.getProviderAppointments(SalonId('p'))).success,
+      isFalse,
+    );
   });
 
   test(
@@ -238,7 +244,7 @@ void main() {
           200,
         );
       });
-      final res = await _linked(client).getDepositPolicy('provider1');
+      final res = await _linked(client).getDepositPolicy(SalonId('provider1'));
       expect(res.success, isTrue);
       expect(res.data!.depositRequired, isTrue);
       expect(res.data!.depositPercentage, 0.4);
@@ -255,7 +261,7 @@ void main() {
       return http.Response(jsonEncode(body), 200);
     });
     final res = await _linked(client).updateDepositPolicy(
-      'provider1',
+      SalonId('provider1'),
       depositRequired: true,
       depositPercentage: 0.5,
       cancellationWindowHours: 48,
@@ -293,7 +299,7 @@ void main() {
       });
       final res = await _linked(
         client,
-      ).getEarnings('provider1', startDate: DateTime.utc(2030, 6, 1));
+      ).getEarnings(SalonId('provider1'), startDate: DateTime.utc(2030, 6, 1));
       expect(res.success, isTrue);
       expect(res.data!.totalEarnings, 15000);
       expect(res.data!.currency, 'XAF');
@@ -308,9 +314,45 @@ void main() {
         200,
       ),
     );
-    final res = await _linked(client).getEarnings('provider1');
+    final res = await _linked(client).getEarnings(SalonId('provider1'));
     expect(res.success, isTrue);
     expect(res.data!.currency, isNull);
+  });
+
+  // docs/design/pro-app-batch7.md §2.8 (B7.8), #630's rule: the server always
+  // sends `totalEarnings` and the `transactions` list. A 200 without them is
+  // a failed read — `transactions` read as « none » would export as a salon
+  // that earned nothing.
+  group('getEarnings: a 200 without its parts is unreadable', () {
+    final bodies = <String, Object>{
+      'no transactions': {'totalEarnings': 5000},
+      'transactions not a list': {'totalEarnings': 5000, 'transactions': 'x'},
+      'no total': {'transactions': <Object>[]},
+      'a total that is not a number': {
+        'totalEarnings': '5000',
+        'transactions': <Object>[],
+      },
+      'an empty object': <String, Object>{},
+    };
+    for (final MapEntry(key: name, value: body) in bodies.entries) {
+      test(name, () async {
+        final client = MockClient(
+          (req) async => http.Response(jsonEncode(body), 200),
+        );
+        final res = await _linked(client).getEarnings(SalonId('provider1'));
+        expect(res.success, isFalse);
+        expect(res.code, 'unreadable');
+      });
+    }
+
+    test('not JSON at all (a portal’s page)', () async {
+      final client = MockClient(
+        (req) async => http.Response('<html>portail</html>', 200),
+      );
+      final res = await _linked(client).getEarnings(SalonId('provider1'));
+      expect(res.success, isFalse);
+      expect(res.code, 'unreadable');
+    });
   });
 
   test('getDashboardStats GETs /providers/{id}/dashboard + parses', () async {
@@ -332,7 +374,7 @@ void main() {
         200,
       );
     });
-    final res = await _linked(client).getDashboardStats('provider1');
+    final res = await _linked(client).getDashboardStats(SalonId('provider1'));
     expect(res.success, isTrue);
     expect(res.data!.todayAppointments, 3);
     expect(res.data!.monthRevenue, 50000);
@@ -355,7 +397,7 @@ void main() {
         200,
       );
     });
-    final res = await _linked(client).getProviderServices('provider1');
+    final res = await _linked(client).getProviderServices(SalonId('provider1'));
     expect(res.success, isTrue);
     expect(res.data!.single.active, false);
   });
@@ -366,7 +408,7 @@ void main() {
       expect((jsonDecode(req.body) as Map)['name'], 'Coupe');
       return http.Response(jsonEncode(_svcJson(active: true)), 201);
     });
-    final res = await _linked(client).createService('provider1', {
+    final res = await _linked(client).createService(SalonId('provider1'), {
       'name': 'Coupe',
       'price': 5000,
       'durationMinutes': 30,
@@ -485,9 +527,12 @@ void main() {
       return http.Response(jsonEncode(_availJson()), 200);
     });
     final svc = _linked(client);
-    expect((await svc.getProviderAvailability('provider1')).success, isTrue);
+    expect(
+      (await svc.getProviderAvailability(SalonId('provider1'))).success,
+      isTrue,
+    );
     final put = await svc.updateAvailability(
-      'provider1',
+      SalonId('provider1'),
       Availability.fromJson(_availJson()),
     );
     expect(put.success, isTrue);
@@ -513,7 +558,7 @@ void main() {
       }
       return http.Response(jsonEncode({'error': 'unauthorized'}), 401);
     });
-    final res = await _linked(client).getProviderServices('provider1');
+    final res = await _linked(client).getProviderServices(SalonId('provider1'));
     expect(res.success, isTrue);
     expect(refreshed, isTrue);
   });
@@ -522,7 +567,7 @@ void main() {
     final client = MockClient(
       (req) async => http.Response(jsonEncode({'error': 'forbidden'}), 403),
     );
-    final res = await _linked(client).getProviderServices('provider1');
+    final res = await _linked(client).getProviderServices(SalonId('provider1'));
     expect(res.success, isFalse);
     expect(res.code, 'forbidden');
   });
@@ -538,7 +583,7 @@ void main() {
         return http.Response(jsonEncode(_apptJson(status: 'confirmed')), 201);
       });
       final res = await _linked(client).createManualBooking(
-        providerId: 'provider1',
+        providerId: SalonId('provider1'),
         serviceIds: ['service1'],
         appointmentDateTime: DateTime.utc(2030, 6, 25, 9),
         clientName: 'Awa',
@@ -599,7 +644,7 @@ void main() {
         200,
       );
     });
-    final res = await _linked(client).getGalleryPhotos('provider1');
+    final res = await _linked(client).getGalleryPhotos(SalonId('provider1'));
     expect(res.success, isTrue);
     expect(res.data, ['https://cdn/a.jpg', 'https://cdn/b.jpg']);
   });
@@ -619,7 +664,7 @@ void main() {
     });
     final res = await _linked(
       client,
-    ).updateGalleryPhotos('provider1', ['https://cdn/x.jpg']);
+    ).updateGalleryPhotos(SalonId('provider1'), ['https://cdn/x.jpg']);
     expect(res.success, isTrue);
     expect(res.data, ['https://cdn/x.jpg']);
     expect(body!['imageUrls'], ['https://cdn/x.jpg']);
@@ -641,7 +686,7 @@ void main() {
         (req) async => http.Response(jsonEncode({'error': code}), 409),
       );
       final res = await _linked(client).createManualBooking(
-        providerId: 'provider1',
+        providerId: SalonId('provider1'),
         serviceIds: const ['service1'],
         appointmentDateTime: DateTime.utc(2030, 6, 25, 9),
         clientName: 'Awa',
@@ -692,12 +737,14 @@ void main() {
     test('an unknown code still falls back', () async {
       expect(
         await manualBookingError('something_new'),
-        'Une erreur est survenue.',
+        // The approved generic sentence (docs/design/app-failure-messages.md
+        // §8) — the tables' own « Une erreur est survenue. » is retired.
+        'Une erreur est survenue. Réessayez.',
       );
     });
   });
 
-  // The Pro app never sells (App Store 3.1.3(f)): a refusal states a fact and
+  // The Pro app never sells (App Store 3.1.1): a refusal states a fact and
   // points nowhere. Design: docs/design/pro-companion-path.md §2.2.
   group('publish and « Ajouter un salon » refusals are neutral', () {
     Future<({String? error, String? code})> publish(
@@ -709,7 +756,7 @@ void main() {
         expect(req.url.path, '/providers/provider1/publish');
         return http.Response(jsonEncode(body), status);
       });
-      final res = await _linked(client).publishSalon('provider1');
+      final res = await _linked(client).publishSalon(SalonId('provider1'));
       return (error: res.error, code: res.code);
     }
 
@@ -745,33 +792,6 @@ void main() {
       expect(res.code, 'demo_account_locked');
       expect(
         res.error,
-        'Compte de démonstration — cette action est désactivée.',
-      );
-    });
-
-    Future<String?> addSalonError(int status, String code) async {
-      final client = MockClient((req) async {
-        expect(req.url.path, '/me/salons');
-        return http.Response(jsonEncode({'error': code}), status);
-      });
-      final res = await _linked(
-        client,
-      ).addSalon(businessName: 'Salon Trois', businessType: BusinessType.salon);
-      return res.error;
-    }
-
-    test('add-salon codes read the shared neutral table, no upgrade '
-        'pointer', () async {
-      expect(
-        await addSalonError(403, 'reseau_required'),
-        'L’ajout de salons n’est pas disponible avec l’offre actuelle.',
-      );
-      expect(
-        await addSalonError(409, 'salon_limit'),
-        'Nombre maximal de salons atteint.',
-      );
-      expect(
-        await addSalonError(403, 'demo_account_locked'),
         'Compte de démonstration — cette action est désactivée.',
       );
     });
@@ -828,7 +848,9 @@ void main() {
       final client = MockClient(
         (req) async => throw http.ClientException('Failed host lookup'),
       );
-      final res = await _service(client).getMyProvider(salonId: 'provider2');
+      final res = await _service(
+        client,
+      ).getMyProvider(salonId: SalonId('provider2'));
       expect(res.success, isFalse);
       expect(res.code, 'network');
     });
@@ -838,7 +860,9 @@ void main() {
         (req) async =>
             http.Response(jsonEncode({'error': 'not_a_member'}), 403),
       );
-      final res = await _service(client).getMyProvider(salonId: 'provider2');
+      final res = await _service(
+        client,
+      ).getMyProvider(salonId: SalonId('provider2'));
       expect(res.success, isFalse);
       expect(res.code, 'not_a_member');
     });

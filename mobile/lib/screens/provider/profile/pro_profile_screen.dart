@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 
 import '../../../core/config/app_config.dart';
 import '../../../core/constants/salon_categories.dart';
+import '../../../core/constants/unnamed_salon.dart';
 import '../../../core/di/dependency_injection.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/colors.dart';
@@ -19,6 +20,8 @@ import '../../../models/team_member.dart';
 import '../../../providers/pro_auth_provider.dart';
 import '../../../providers/pro_team_provider.dart';
 import '../../../widgets/common/app_button.dart';
+import '../../../widgets/common/app_card.dart';
+import '../../../widgets/common/app_skeleton.dart';
 import '../../../widgets/common/app_snack_bar.dart';
 import '../../../widgets/common/confirm_dialog.dart';
 import '../../../widgets/provider/salon_picker_sheet.dart';
@@ -32,15 +35,11 @@ class ProProfileScreen extends StatefulWidget {
 }
 
 class _ProProfileScreenState extends State<ProProfileScreen> {
-  /// R6: open the « Mes salons » switcher; route the add flow and the
+  /// R6: open the « Mes salons » switcher, and the
   /// staff-shell reshape after a switch.
   Future<void> _openSalonPicker() async {
     final result = await showSalonPicker(context);
     if (!mounted || result == null) return;
-    if (result == 'add') {
-      unawaited(context.push('/pro/salons/nouveau'));
-      return;
-    }
     final auth = context.read<ProAuthProvider>();
     context.go(auth.isStaff ? '/pro/staff' : '/pro/dashboard');
   }
@@ -76,53 +75,53 @@ class _ProProfileScreenState extends State<ProProfileScreen> {
                 if (authProvider.role != TeamRole.owner)
                   // Member header (access R4b): a personal card — the salon
                   // is not theirs to edit.
-                  Card(
-                    child: Padding(
-                      padding: const EdgeInsets.all(AppTheme.spacingM),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Expanded(
-                                child: Text(
-                                  (provider.name?.isNotEmpty ?? false)
-                                      ? provider.name!
-                                      : (provider.email ?? ''),
-                                  style: AppTextStyles.titleMedium.copyWith(
-                                    color: AppColors.textPrimary,
-                                  ),
-                                  overflow: TextOverflow.ellipsis,
+                  AppCard(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                (provider.name?.isNotEmpty ?? false)
+                                    ? provider.name!
+                                    : (provider.email ?? ''),
+                                style: AppTextStyles.titleMedium.copyWith(
+                                  color: AppColors.textPrimary,
                                 ),
-                              ),
-                              TeamRoleChip(role: authProvider.role),
-                            ],
-                          ),
-                          if (provider.email != null) ...[
-                            const SizedBox(height: AppTheme.spacingS),
-                            Text(
-                              provider.email!,
-                              style: AppTextStyles.bodyLarge.copyWith(
-                                color: AppColors.textSecondary,
+                                overflow: TextOverflow.ellipsis,
                               ),
                             ),
+                            TeamRoleChip(role: authProvider.role),
                           ],
-                          const SizedBox(height: AppTheme.spacingM),
-                          Text(
-                            'Salon',
-                            style: AppTextStyles.titleMedium.copyWith(
-                              color: AppColors.textPrimary,
-                            ),
-                          ),
+                        ),
+                        if (provider.email != null) ...[
                           const SizedBox(height: AppTheme.spacingS),
                           Text(
-                            authProvider.salonName,
+                            provider.email!,
                             style: AppTextStyles.bodyLarge.copyWith(
                               color: AppColors.textSecondary,
                             ),
                           ),
                         ],
-                      ),
+                        const SizedBox(height: AppTheme.spacingM),
+                        Text(
+                          'Salon',
+                          style: AppTextStyles.titleMedium.copyWith(
+                            color: AppColors.textPrimary,
+                          ),
+                        ),
+                        const SizedBox(height: AppTheme.spacingS),
+                        Text(
+                          salonNameOr(
+                            authProvider.knownSalonName,
+                            kUnnamedSalon,
+                          ),
+                          style: AppTextStyles.bodyLarge.copyWith(
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
+                      ],
                     ),
                   )
                 else
@@ -130,15 +129,19 @@ class _ProProfileScreenState extends State<ProProfileScreen> {
                 const SizedBox(height: AppTheme.spacingM),
                 // « Mes salons » (R6): every membership + the switcher — for
                 // ALL roles (a member can belong to several salons too).
-                Card(
+                AppCard(
+                  padding: EdgeInsets.zero,
                   child: ListTile(
                     leading: const Icon(Icons.storefront),
                     title: const Text('Mes salons'),
                     subtitle: Text(
                       authProvider.hasMultipleSalons
                           ? '${authProvider.salons.length} salons — '
-                                'actif : ${authProvider.salonName}'
-                          : authProvider.salonName,
+                                'actif : ${salonNameOr(authProvider.knownSalonName, kUnnamedSalon)}'
+                          : salonNameOr(
+                              authProvider.knownSalonName,
+                              kUnnamedSalon,
+                            ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -150,7 +153,8 @@ class _ProProfileScreenState extends State<ProProfileScreen> {
                 // Role-gated rows (access R4b) — UI hiding is convenience;
                 // the routes 403 server-side regardless.
                 if (authProvider.can(ProCap.salonPublish)) ...[
-                  Card(
+                  AppCard(
+                    padding: EdgeInsets.zero,
                     child: ListTile(
                       leading: const Icon(Icons.checklist_rounded),
                       title: const Text('Configurer mon profil'),
@@ -161,7 +165,8 @@ class _ProProfileScreenState extends State<ProProfileScreen> {
                   const SizedBox(height: AppTheme.spacingM),
                 ],
                 if (authProvider.can(ProCap.profileManage)) ...[
-                  Card(
+                  AppCard(
+                    padding: EdgeInsets.zero,
                     child: ListTile(
                       leading: const Icon(Icons.storefront_outlined),
                       title: const Text('Profil du salon'),
@@ -173,7 +178,8 @@ class _ProProfileScreenState extends State<ProProfileScreen> {
                   const SizedBox(height: AppTheme.spacingM),
                 ],
                 if (authProvider.can(ProCap.salonPublish)) ...[
-                  Card(
+                  AppCard(
+                    padding: EdgeInsets.zero,
                     child: ListTile(
                       leading: const Icon(Icons.verified_user_outlined),
                       title: const Text('Vérification'),
@@ -192,7 +198,8 @@ class _ProProfileScreenState extends State<ProProfileScreen> {
                   const SizedBox(height: AppTheme.spacingM),
                 ],
                 if (authProvider.can(ProCap.membersManage)) ...[
-                  Card(
+                  AppCard(
+                    padding: EdgeInsets.zero,
                     child: ListTile(
                       leading: const Icon(Icons.group_outlined),
                       title: const Text('Équipe'),
@@ -210,7 +217,8 @@ class _ProProfileScreenState extends State<ProProfileScreen> {
                           padding: const EdgeInsets.only(
                             bottom: AppTheme.spacingS,
                           ),
-                          child: Card(
+                          child: AppCard(
+                            padding: EdgeInsets.zero,
                             child: ListTile(
                               leading: const Icon(Icons.mail_outline),
                               title: const Text('Invitations'),
@@ -244,7 +252,8 @@ class _ProProfileScreenState extends State<ProProfileScreen> {
                         ),
                 ),
                 if (authProvider.can(ProCap.subscriptionManage)) ...[
-                  Card(
+                  AppCard(
+                    padding: EdgeInsets.zero,
                     child: ListTile(
                       leading: const Icon(Icons.workspace_premium_outlined),
                       title: const Text('Mon abonnement'),
@@ -255,7 +264,8 @@ class _ProProfileScreenState extends State<ProProfileScreen> {
                   const SizedBox(height: AppTheme.spacingS),
                 ],
                 if (authProvider.can(ProCap.depositManage)) ...[
-                  Card(
+                  AppCard(
+                    padding: EdgeInsets.zero,
                     child: ListTile(
                       leading: const Icon(Icons.payments_outlined),
                       title: const Text('Paramètres d’acompte'),
@@ -266,7 +276,8 @@ class _ProProfileScreenState extends State<ProProfileScreen> {
                   const SizedBox(height: AppTheme.spacingS),
                 ],
                 if (authProvider.can(ProCap.catalogueManage)) ...[
-                  Card(
+                  AppCard(
+                    padding: EdgeInsets.zero,
                     child: ListTile(
                       leading: const Icon(Icons.photo_library_outlined),
                       title: const Text('Photos du salon'),
@@ -275,7 +286,8 @@ class _ProProfileScreenState extends State<ProProfileScreen> {
                     ),
                   ),
                   const SizedBox(height: AppTheme.spacingS),
-                  Card(
+                  AppCard(
+                    padding: EdgeInsets.zero,
                     child: ListTile(
                       leading: const Icon(Icons.compare_outlined),
                       title: const Text('Avant / Après'),
@@ -286,7 +298,8 @@ class _ProProfileScreenState extends State<ProProfileScreen> {
                   const SizedBox(height: AppTheme.spacingS),
                 ],
                 if (authProvider.can(ProCap.salonPublish))
-                  Card(
+                  AppCard(
+                    padding: EdgeInsets.zero,
                     child: ListTile(
                       leading: const Icon(Icons.download_outlined),
                       title: const Text('Mes données'),
@@ -306,7 +319,8 @@ class _ProProfileScreenState extends State<ProProfileScreen> {
                 // contact control lived on the subscription screen, three taps
                 // in, and it opened a WhatsApp link that no build configures.
                 // A salon with a problem had nowhere to go.
-                Card(
+                AppCard(
+                  padding: EdgeInsets.zero,
                   child: ListTile(
                     leading: const Icon(Icons.help_outline),
                     title: const Text('Aide & Support'),
@@ -317,7 +331,8 @@ class _ProProfileScreenState extends State<ProProfileScreen> {
                 ),
                 const SizedBox(height: AppTheme.spacingM),
 
-                Card(
+                AppCard(
+                  padding: EdgeInsets.zero,
                   child: ListTile(
                     leading: const Icon(Icons.info_outline),
                     title: const Text('À propos'),
@@ -373,9 +388,13 @@ class _ProProfileScreenState extends State<ProProfileScreen> {
     final confirmed = await showConfirmDialog(
       context,
       title: 'Supprimer votre compte ?',
-      message:
-          'Cette action est définitive. Votre salon sera retiré de '
-          'MyWeli. Pensez à exporter vos données avant.',
+      // What the server will do (B7.3): an owner's salons go, a member's
+      // account only — docs/design/pro-app-batch7.md §2.3.
+      message: authProvider.ownsASalon
+          ? 'Cette action est définitive. Votre salon sera retiré de '
+                'MyWeli. Pensez à exporter vos données avant.'
+          : 'Cette action est définitive. Votre compte MyWeli Pro sera '
+                'supprimé.',
       confirmLabel: 'Supprimer définitivement',
       icon: Icons.warning_amber_rounded,
       // A6 closes the ladder's asymmetry: the CONSUMER account delete has
@@ -430,9 +449,11 @@ class _ProProfileScreenState extends State<ProProfileScreen> {
   }
 }
 
-/// The owner's card — the ACTING salon (R6), read from `activeSalon`, the
-/// `GET /me/provider` salon payload. Never the account's `businessName` & co.:
-/// those are a copy made at sign-up, of the default salon, and never updated
+/// The owner's card — the ACTING salon (R6), read from `salonFacts`: the
+/// `GET /me/provider` salon payload, else the copy the session kept of it, so
+/// an offline cold start still shows the salon (product-questions-batch8.md
+/// §2.3, B8.3). Never the account's `businessName` & co.: those are a copy
+/// made at sign-up, of the default salon, and never updated
 /// (docs/design/r6-salon-fact-reads.md §2.1).
 class _SalonCard extends StatefulWidget {
   const _SalonCard();
@@ -442,9 +463,6 @@ class _SalonCard extends StatefulWidget {
 }
 
 class _SalonCardState extends State<_SalonCard> {
-  /// A skeleton bar: one line of the card, no text in it.
-  static const double _skeletonBarHeight = 16;
-
   /// « Réessayer » in flight — `refreshMembership` raises no `isLoading`
   /// (only the cold start and a switch do), so the card keeps its own.
   bool _retrying = false;
@@ -458,14 +476,18 @@ class _SalonCardState extends State<_SalonCard> {
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<ProAuthProvider>();
-    final salon = auth.activeSalon;
+    // Live, or the kept copy — for the acting salon only (B8.3).
+    final salon = auth.salonFacts;
     final category = salon == null ? null : salonCategoryLabel(salon.category);
     final rows = <Widget>[
       // The membership's name is cached in the session: known before the
       // salon payload lands, and offline.
       _fact(
         'Nom du salon',
-        salon != null && salon.name.isNotEmpty ? salon.name : auth.salonName,
+        salonNameOr(
+          salon?.name,
+          salonNameOr(auth.knownSalonName, kUnnamedSalon),
+        ),
       ),
       if (salon != null) ...[
         if (category != null) _fact('Catégorie', category),
@@ -477,18 +499,15 @@ class _SalonCardState extends State<_SalonCard> {
       else
         _unavailable(),
     ];
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(AppTheme.spacingM),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            for (final (i, row) in rows.indexed) ...[
-              if (i > 0) const SizedBox(height: AppTheme.spacingM),
-              row,
-            ],
+    return AppCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          for (final (i, row) in rows.indexed) ...[
+            if (i > 0) const SizedBox(height: AppTheme.spacingM),
+            row,
           ],
-        ),
+        ],
       ),
     );
   }
@@ -509,39 +528,26 @@ class _SalonCardState extends State<_SalonCard> {
   );
 
   /// The rows' shape while the salon payload is on its way (§12: the shape is
-  /// known, so a skeleton, not a spinner). One label for screen readers.
-  Widget _skeleton() => Semantics(
-    container: true,
+  /// known, so a skeleton, not a spinner). One label for screen readers. The
+  /// idiom the shared skeletons were cut from (B9.8).
+  Widget _skeleton() => AppSkeleton(
     label: 'Chargement des informations du salon',
-    child: ExcludeSemantics(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          for (final (i, width) in const [0.45, 0.7, 0.5].indexed) ...[
-            if (i > 0) const SizedBox(height: AppTheme.spacingM),
-            _bar(0.3),
-            const SizedBox(height: AppTheme.spacingS),
-            _bar(width),
-          ],
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        for (final (i, width) in const [0.45, 0.7, 0.5].indexed) ...[
+          if (i > 0) const SizedBox(height: AppTheme.spacingM),
+          const SkeletonBar(widthFactor: 0.3),
+          const SizedBox(height: AppTheme.spacingS),
+          SkeletonBar(widthFactor: width),
         ],
-      ),
+      ],
     ),
   );
 
-  Widget _bar(double widthFactor) => FractionallySizedBox(
-    widthFactor: widthFactor,
-    alignment: AlignmentDirectional.centerStart,
-    child: Container(
-      height: _skeletonBarHeight,
-      decoration: BoxDecoration(
-        color: AppColors.surfaceVariant,
-        borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
-      ),
-    ),
-  );
-
-  /// Offline cold start, or the probe failed: say so, and offer the retry —
-  /// one that can succeed once the network is back (§12).
+  /// Offline cold start with no copy kept (a session from before B8.3, or
+  /// one that never loaded this salon), or the probe failed: say so, and
+  /// offer the retry — one that can succeed once the network is back (§12).
   Widget _unavailable() => Column(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [

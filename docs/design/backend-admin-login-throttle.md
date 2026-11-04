@@ -162,6 +162,11 @@ is already covered by the missed-cron alert. The deleted count is returned so th
 operation is observable. A third maintenance task is when to extract
 `/internal/cron/maintenance`.
 
+> **Since 2026-10-21 it runs on `/internal/cron/maintenance`** (job
+> `myweli-maintenance`, 03:30 UTC) with the three other housekeeping tasks —
+> the extraction came at the fourth rider, as the cron's own comment had moved
+> the line to: [infra-cron-maintenance.md](infra-cron-maintenance.md).
+
 ## 7. Tests
 
 `LoginThrottle` had **no test at all** before this, and

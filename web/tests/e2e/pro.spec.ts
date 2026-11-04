@@ -879,6 +879,16 @@ test('« Avis » shows the summary + review cards (web-pro-reviews.md)', async (
   await expect(page.getByText(/avec Awa/)).toBeVisible();
   await expect(page.getByText('Mariam')).toBeVisible();
   await expect(page.getByAltText('Photo de l’avis')).toBeVisible();
+
+  // B6.6 (App Store 1.2): the owner reports a review, through the real BFF
+  // (docs/design/backend-integrity-batch6.md §2.6).
+  // Scoped to one card: every review has its own « Signaler ».
+  const review = page.getByRole('listitem').filter({ hasText: 'Service impeccable.' });
+  await review.getByRole('button', { name: 'Signaler' }).click();
+  await review.getByLabel('Raison du signalement').fill('Insultes');
+  // The toggle gave way to the form: the one « Signaler » left sends it.
+  await review.getByRole('button', { name: 'Signaler' }).click();
+  await expect(review.getByText('Merci. Notre équipe va examiner cet avis.')).toBeVisible();
 });
 
 test('« Vérification » : upload des documents KYC → soumission (web-pro-kyc.md)', async ({
@@ -1244,4 +1254,30 @@ test('manual booking: a walk-in with no name and no number (web-manual-booking-w
   await expect(dialog.getByText('Saisissez un numéro de téléphone.')).toHaveCount(0);
   await dialog.getByRole('button', { name: 'Créer', exact: true }).click();
   await expect(page.getByText('Rendez-vous créé')).toBeVisible();
+});
+
+test('a booking accepted in the Journée reads « Confirmé » in « Liste » — no reload (web-pro-truthful-failure.md §2.2)', async ({
+  page,
+}) => {
+  // B4.2: « Calendrier » and « Liste » drew the list read at load, so a
+  // change made in the Journée stayed invisible there until a reload. This
+  // identity's one booking (« Mariam ») is in both its Journée and its list
+  // (stub-api.mjs, FRESH_LISTS_EMAIL); each login re-arms it « En attente ».
+  await signInPro(page, 'listes.fraiches@salon.test');
+  await page.goto('/pro/rendez-vous?vue=liste&filtre=en-attente');
+  await expect(page.getByRole('link', { name: /Mariam/ })).toContainText('En attente');
+
+  await page.getByRole('button', { name: 'Journée' }).click();
+  await page.getByRole('button', { name: /^Mariam/ }).click();
+  const panel = page.getByRole('dialog', { name: 'Détails du rendez-vous' });
+  await panel.getByRole('button', { name: 'Accepter' }).click();
+  await expect(panel).toBeHidden();
+  await expect(page.getByRole('button', { name: /^Mariam, Confirmé/ })).toBeVisible();
+
+  // The same page life — no reload: « En attente » is empty now, and « Tous »
+  // says what the Journée did.
+  await page.getByRole('button', { name: 'Liste' }).click();
+  await expect(page.getByText('Aucun rendez-vous', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Tous' }).click();
+  await expect(page.getByRole('link', { name: /Mariam/ })).toContainText('Confirmé');
 });

@@ -1,8 +1,10 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
+import 'package:myweli/core/utils/salon_id.dart';
 import 'package:myweli/providers/admin/admin_provider_detail_provider.dart';
 import 'package:myweli/providers/admin/admin_user_detail_provider.dart';
 import 'package:myweli/services/admin/admin_service.dart';
@@ -47,12 +49,12 @@ void main() {
         ),
       );
 
-      await p.load('p1');
+      await p.load(SalonId('p1'));
       expect(p.provider?['name'], 'Beauté Divine');
       expect(p.provider!.containsKey('recentAppointments'), isFalse);
       expect(p.appointments, hasLength(1));
 
-      expect(await p.suspend('p1', 'abus'), isTrue);
+      expect(await p.suspend(SalonId('p1'), 'abus'), isTrue);
       expect(p.provider?['status'], 'suspended');
       // The featured flag from the original load is preserved across the merge.
       expect(p.provider?['featured'], true);
@@ -97,8 +99,51 @@ void main() {
         ),
       ),
     );
-    await p.load('nope');
+    await p.load(SalonId('nope'));
     expect(p.provider, isNull);
     expect(p.error, isNotNull);
+  });
+
+  // docs/design/hygiene-batch9.md §14 (B9.8): the provider is app-wide and
+  // outlives the screen. The way to salon B showed salon A — its name, its
+  // status, and « Suspendre » acting on B's id — until B answered; when B's
+  // read failed, A stayed, with no error at all.
+  test('the way to B drops A; a late answer for A is nobody\'s', () async {
+    final a = Completer<http.Response>();
+    final b = Completer<http.Response>();
+    var firstA = true;
+    final p = AdminProviderDetailProvider(
+      service: svc(
+        MockClient((req) {
+          if (req.url.path == '/admin/providers/a') {
+            if (firstA) {
+              firstA = false;
+              return Future.value(
+                http.Response(jsonEncode({'id': 'a', 'name': 'Salon A'}), 200),
+              );
+            }
+            return a.future;
+          }
+          return b.future;
+        }),
+      ),
+    );
+
+    await p.load(SalonId('a'));
+    expect(p.provider?['name'], 'Salon A');
+
+    unawaited(p.load(SalonId('a')));
+    unawaited(p.load(SalonId('b')));
+    expect(p.id, 'b');
+    expect(p.provider, isNull, reason: 'A, on B\'s screen');
+
+    a.complete(http.Response(jsonEncode({'id': 'a', 'name': 'Salon A'}), 200));
+    await pumpEventQueue();
+    expect(p.provider, isNull, reason: 'A\'s late answer, written under B');
+
+    b.complete(http.Response('{}', 503));
+    await pumpEventQueue();
+    expect(p.provider, isNull);
+    expect(p.error, isNotNull, reason: 'a failed B is an error, not A');
   });
 }

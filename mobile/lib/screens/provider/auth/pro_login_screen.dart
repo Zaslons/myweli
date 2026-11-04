@@ -8,7 +8,9 @@ import 'package:provider/provider.dart';
 
 import '../../../core/config/feature_flags.dart';
 import '../../../core/constants/app_constants.dart';
+import '../../../core/constants/unnamed_salon.dart';
 import '../../../core/forms/field_errors.dart';
+import '../../../core/forms/sign_in_refusal.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/colors.dart';
 import '../../../core/theme/text_styles.dart';
@@ -18,19 +20,23 @@ import '../../../widgets/common/app_button.dart';
 import '../../../widgets/common/app_snack_bar.dart';
 import '../../../widgets/common/app_text_field.dart';
 import '../../../widgets/common/apple_logo.dart';
-import '../../../widgets/common/auth_switch_prompt.dart';
 import '../../../widgets/common/google_g_logo.dart';
 import '../../../widgets/common/inline_feedback.dart';
+import '../../../widgets/common/session_ended_notice.dart';
 import '../../../widgets/team/invitation_card.dart';
 import '../../../widgets/team/revoked_access_banner.dart';
 
 /// Salon sign-in — Google + Apple (flag-hidden) + email OTP, replacing the
-/// phone-OTP login (pro auth overhaul P4). LOGIN-ONLY: `provider_not_found`
-/// offers « Créer un compte » → the register screen (identity + business
-/// fields in one submit) — UNLESS the verified email holds pending team
-/// invitations (module `access` R3): the « Invitations » step lets the
-/// invitee join WITHOUT creating a salon. Designs:
-/// docs/design/pro-auth-social.md · docs/design/team-access-r3-app.md §2.2.
+/// phone-OTP login (pro auth overhaul P4). LOGIN-ONLY, and nothing else: the
+/// app no longer signs a business up (App Store 3.1.1 — Apple refused 0.0.1
+/// for it). `provider_not_found` says so in one sentence, with the invitation
+/// hint — UNLESS the verified email holds pending team invitations (module
+/// `access` R3): the « Invitations » step lets the invitee join. A salon
+/// signs up on the web, and this screen does not point there: Apple refused
+/// that link on build 698, and it left both platforms (the owner's call).
+/// Designs: docs/design/app-review-round-2.md §4 ·
+/// docs/design/pro-app-login-only.md · docs/design/pro-auth-social.md ·
+/// docs/design/team-access-r3-app.md §2.2.
 class ProLoginScreen extends StatefulWidget {
   const ProLoginScreen({super.key, this.returnTo});
 
@@ -52,13 +58,22 @@ class _ProLoginScreenState extends State<ProLoginScreen> {
   /// auth provider after the global handler signed the member out.
   String? _revokedSalon;
 
+  /// The server ended the session (pro-account-scope.md §2.3, Q2 = a) —
+  /// consumed once, like the revoked notice.
+  bool _sessionEnded = false;
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      final notice = context.read<ProAuthProvider>().consumeRevokedNotice();
-      if (notice != null && mounted) {
-        setState(() => _revokedSalon = notice);
+      final auth = context.read<ProAuthProvider>();
+      final notice = auth.consumeRevokedNotice();
+      final ended = auth.consumeSessionEndedNotice();
+      if ((notice != null || ended) && mounted) {
+        setState(() {
+          _revokedSalon = notice;
+          _sessionEnded = ended;
+        });
       }
     });
   }
@@ -162,8 +177,8 @@ class _ProLoginScreenState extends State<ProLoginScreen> {
     await auth.declinePendingInvitation(invitationId);
     if (!mounted) return;
     if (!auth.hasPendingInvitations) {
-      // Every invitation handled — fall back to the classic options step
-      // (« Créer un compte » renders from provider_not_found).
+      // Every invitation handled — fall back to the classic options step,
+      // where provider_not_found's sentence says there is no account.
       setState(() => _step = _Step.options);
     }
   }
@@ -201,10 +216,29 @@ class _ProLoginScreenState extends State<ProLoginScreen> {
     if (ok) {
       setState(() {
         _codeController.clear();
+        // A new code: the last one's fault is not this one's.
+        _errors.set('code', null);
         _step = _Step.code;
       });
       _startCooldown();
+      return;
     }
+    // The e-mail's fault under the e-mail — when it is on screen; « Renvoyer
+    // le code » is on the code step, where it is the form's.
+    final fault = emailFieldFault(auth.errorCode);
+    if (fault != null && _step == _Step.options) {
+      setState(() => _errors.set('email', fault));
+      focusFirstError(_errors, _focusNodes);
+    }
+  }
+
+  /// What the form says under itself: the refusal, unless it belongs to a
+  /// field on screen (sign_in_refusal.dart — the web's table).
+  String? _formFault(ProAuthProvider auth) {
+    final code = auth.errorCode;
+    if (_step == _Step.code && codeFieldFault(code) != null) return null;
+    if (_step == _Step.options && emailFieldFault(code) != null) return null;
+    return auth.error;
   }
 
   Future<void> _verifyCode() async {
@@ -218,13 +252,19 @@ class _ProLoginScreenState extends State<ProLoginScreen> {
       _emailController.text.trim(),
       _codeController.text.trim(),
     );
-    if (mounted) _land(ok);
+    if (!mounted) return;
+    // « Code incorrect. » is the code's: under the code (SYSTEM §14 rule 1).
+    final fault = ok ? null : codeFieldFault(auth.errorCode);
+    if (fault != null) {
+      setState(() => _errors.set('code', fault));
+      focusFirstError(_errors, _focusNodes);
+    }
+    _land(ok);
   }
 
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<ProAuthProvider>();
-    final notFound = auth.errorCode == 'provider_not_found';
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(title: const Text('Espace Pro')),
@@ -237,6 +277,13 @@ class _ProLoginScreenState extends State<ProLoginScreen> {
               if (_revokedSalon != null) ...[
                 const SizedBox(height: AppTheme.spacingM),
                 RevokedAccessBanner(salonName: _revokedSalon!),
+              ],
+              if (_sessionEnded) ...[
+                const SizedBox(height: AppTheme.spacingM),
+                const InlineFeedback(
+                  kSessionEndedMessage,
+                  kind: SnackKind.info,
+                ),
               ],
               const SizedBox(height: AppTheme.spacingL),
               SvgPicture.asset(
@@ -331,8 +378,13 @@ class _ProLoginScreenState extends State<ProLoginScreen> {
                   InvitationCard(
                     invitation: invitation,
                     busy: auth.isLoading,
-                    onAccept: () =>
-                        _acceptInvitation(invitation.id, invitation.salonName),
+                    onAccept: () => _acceptInvitation(
+                      invitation.id,
+                      salonNameOr(
+                        invitation.salonName,
+                        kUnnamedSalonInSentence,
+                      ),
+                    ),
                     onDecline: () => _declineInvitation(invitation.id),
                   ),
                   const SizedBox(height: AppTheme.spacingM),
@@ -406,20 +458,7 @@ class _ProLoginScreenState extends State<ProLoginScreen> {
               ],
               // §14 rule 3 + §15: a server OUTCOME is form-level, and
               // `InlineFeedback` is a live region — a red Text never was.
-              InlineFeedback(auth.error),
-              if (notFound) ...[
-                const SizedBox(height: AppTheme.spacingS),
-                AppButton(
-                  text: 'Créer un compte',
-                  onPressed: () => context.go('/pro/register'),
-                ),
-              ],
-              const SizedBox(height: AppTheme.spacingL),
-              AuthSwitchPrompt(
-                question: 'Pas encore de compte ?',
-                actionLabel: 'S’inscrire',
-                onPressed: () => context.go('/pro/register'),
-              ),
+              InlineFeedback(_formFault(auth)),
             ],
           ),
         ),

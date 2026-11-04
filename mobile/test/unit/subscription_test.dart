@@ -5,6 +5,7 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:myweli/core/di/dependency_injection.dart';
+import 'package:myweli/core/utils/salon_id.dart';
 import 'package:myweli/models/api_response.dart';
 import 'package:myweli/models/salon_subscription.dart';
 import 'package:myweli/providers/pro_subscription_provider.dart';
@@ -82,7 +83,7 @@ void main() {
   group('MockSubscriptionService — the offer arc (server mirror)', () {
     test('defaults to SETUP (no offer) → code no_offer', () async {
       final res = await MockSubscriptionService().getSalonSubscription(
-        'provider1',
+        SalonId('provider1'),
       );
       expect(res.success, isFalse);
       expect(res.code, 'no_offer');
@@ -91,8 +92,8 @@ void main() {
     test('startTrialIfAbsent: no row → the ONE 90-day trial on the given '
         'tier, with that tier\'s cap (pro-companion-path §3.1)', () async {
       final svc = MockSubscriptionService();
-      expect(svc.startTrialIfAbsent('provider1'), isTrue);
-      final state = await svc.getSalonSubscription('provider1');
+      expect(svc.startTrialIfAbsent(SalonId('provider1')), isTrue);
+      final state = await svc.getSalonSubscription(SalonId('provider1'));
       expect(state.data!.status, SalonOfferStatus.trial);
       expect(state.data!.tier, SalonTier.pro);
       expect(state.data!.seats.cap, 5);
@@ -101,8 +102,11 @@ void main() {
         inInclusiveRange(89, 90),
       );
 
-      expect(svc.startTrialIfAbsent('salon_b', tier: SalonTier.reseau), isTrue);
-      final reseau = await svc.getSalonSubscription('salon_b');
+      expect(
+        svc.startTrialIfAbsent(SalonId('salon_b'), tier: SalonTier.reseau),
+        isTrue,
+      );
+      final reseau = await svc.getSalonSubscription(SalonId('salon_b'));
       expect(reseau.data!.tier, SalonTier.reseau);
       expect(reseau.data!.seats.cap, 15);
     });
@@ -113,9 +117,9 @@ void main() {
       final chosen = MockSubscriptionService(
         initial: sample(tier: SalonTier.business),
       );
-      expect(chosen.startTrialIfAbsent('provider1'), isFalse);
+      expect(chosen.startTrialIfAbsent(SalonId('provider1')), isFalse);
       expect(
-        (await chosen.getSalonSubscription('provider1')).data!.tier,
+        (await chosen.getSalonSubscription(SalonId('provider1'))).data!.tier,
         SalonTier.business,
       );
 
@@ -123,17 +127,22 @@ void main() {
       final expired = MockSubscriptionService(
         initial: sample(status: SalonOfferStatus.expired, unpublished: true),
       );
-      expect(expired.startTrialIfAbsent('provider1'), isFalse);
-      final state = await expired.getSalonSubscription('provider1');
+      expect(expired.startTrialIfAbsent(SalonId('provider1')), isFalse);
+      final state = await expired.getSalonSubscription(SalonId('provider1'));
       expect(state.data!.status, SalonOfferStatus.expired);
       expect(state.data!.unpublishedForBilling, isTrue);
 
       // A second start on the same salon is a no-op too.
       final svc = MockSubscriptionService();
-      expect(svc.startTrialIfAbsent('p'), isTrue);
-      final first = (await svc.getSalonSubscription('p')).data!.trialEndsAt;
-      expect(svc.startTrialIfAbsent('p', tier: SalonTier.reseau), isFalse);
-      final again = (await svc.getSalonSubscription('p')).data!;
+      expect(svc.startTrialIfAbsent(SalonId('p')), isTrue);
+      final first = (await svc.getSalonSubscription(
+        SalonId('p'),
+      )).data!.trialEndsAt;
+      expect(
+        svc.startTrialIfAbsent(SalonId('p'), tier: SalonTier.reseau),
+        isFalse,
+      );
+      final again = (await svc.getSalonSubscription(SalonId('p'))).data!;
       expect(again.tier, SalonTier.pro);
       expect(again.trialEndsAt, first);
     });
@@ -170,11 +179,11 @@ void main() {
         baseUrl: 'http://x',
         providerSessionStore: await connectedStore(),
       );
-      final ok = await svc.getSalonSubscription('p1');
+      final ok = await svc.getSalonSubscription(SalonId('p1'));
       expect(ok.success, isTrue);
       expect(ok.data!.seats.cap, 5);
 
-      final setup = await svc.getSalonSubscription('p1');
+      final setup = await svc.getSalonSubscription(SalonId('p1'));
       expect(setup.success, isFalse);
       expect(setup.code, 'no_offer');
     });
@@ -185,7 +194,7 @@ void main() {
         baseUrl: 'http://x',
         providerSessionStore: InMemorySessionStore(),
       );
-      expect((await svc.getSalonSubscription('p1')).success, isFalse);
+      expect((await svc.getSalonSubscription(SalonId('p1'))).success, isFalse);
     });
   });
 
@@ -201,10 +210,10 @@ void main() {
 
     test('load populates the salon state', () async {
       when(
-        () => service.getSalonSubscription('p1'),
+        () => service.getSalonSubscription(SalonId('p1')),
       ).thenAnswer((_) async => ApiResponse.success(sample()));
       final p = ProSubscriptionProvider();
-      await p.load('p1');
+      await p.load(SalonId('p1'));
       expect(p.salon!.seats.used, 2);
       expect(p.isSetup, isFalse);
       expect(p.loadFailed, isFalse);
@@ -212,10 +221,10 @@ void main() {
 
     test('no_offer maps to the explicit SETUP state (not an error)', () async {
       when(
-        () => service.getSalonSubscription('p1'),
+        () => service.getSalonSubscription(SalonId('p1')),
       ).thenAnswer((_) async => ApiResponse.error('', code: 'no_offer'));
       final p = ProSubscriptionProvider();
-      await p.load('p1');
+      await p.load(SalonId('p1'));
       expect(p.isSetup, isTrue);
       expect(p.salon, isNull);
       expect(p.loadFailed, isFalse);
@@ -223,10 +232,10 @@ void main() {
 
     test('load failure sets loadFailed', () async {
       when(
-        () => service.getSalonSubscription('p1'),
+        () => service.getSalonSubscription(SalonId('p1')),
       ).thenAnswer((_) async => ApiResponse.error('boom'));
       final p = ProSubscriptionProvider();
-      await p.load('p1');
+      await p.load(SalonId('p1'));
       expect(p.loadFailed, isTrue);
       expect(p.salon, isNull);
     });

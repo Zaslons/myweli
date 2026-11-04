@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
 
@@ -7,18 +8,22 @@ import 'package:http/http.dart' as http;
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 
 import '../../core/config/app_config.dart';
+import '../../core/constants/failure_messages.dart';
 import '../../core/utils/logger.dart';
+import '../../core/utils/salon_id.dart';
 import '../../models/api_response.dart';
 import '../../models/pro_membership.dart';
 import '../../models/provider_login_result.dart';
 import '../../models/provider_session.dart';
 import '../../models/provider_user.dart';
+import '../../models/salon_facts.dart';
 import '../../models/salon_market.dart';
 import '../../models/session.dart';
 import '../../models/team_invitation.dart';
 import '../../models/user.dart';
 import '../interfaces/auth_service_interface.dart';
 import '../interfaces/session_store.dart';
+import 'api_errors.dart';
 import 'refreshing_http_client.dart';
 
 /// Real HTTP implementation of [AuthServiceInterface] (backend B2 + B-prov).
@@ -38,6 +43,15 @@ import 'refreshing_http_client.dart';
 /// `authenticate()` does.
 typedef GoogleIdTokenProvider = Future<String?> Function();
 
+/// Opens Apple's sheet for [hashedNonce] (the SHA-256 of the raw nonce the
+/// backend later checks) and returns the credential. A `typedef` for the same
+/// reason as [GoogleIdTokenProvider]: the three Apple entry points can then be
+/// tested — what they send, the authorization code included (B6.7,
+/// docs/design/backend-integrity-batch6.md §13). Throws
+/// [SignInWithAppleAuthorizationException] on a cancel, like the SDK.
+typedef AppleCredentialProvider =
+    Future<AuthorizationCredentialAppleID> Function(String hashedNonce);
+
 class ApiAuthService implements AuthServiceInterface {
   ApiAuthService({
     http.Client? client,
@@ -45,11 +59,30 @@ class ApiAuthService implements AuthServiceInterface {
     SessionStore? sessionStore,
     SessionStore? providerSessionStore,
     GoogleIdTokenProvider? googleIdToken,
+    AppleCredentialProvider? appleCredential,
   }) : _client = client ?? http.Client(),
        _baseUrl = baseUrl ?? AppConfig.apiBaseUrl,
        _sessionStore = sessionStore ?? InMemorySessionStore(),
        _providerSessionStore = providerSessionStore ?? InMemorySessionStore(),
-       _googleIdToken = googleIdToken ?? _nativeGoogleIdToken;
+       _googleIdToken = googleIdToken ?? _nativeGoogleIdToken,
+       _appleCredential = appleCredential ?? _nativeAppleCredential {
+    // For the app's lifetime, like the service. Whichever service's client
+    // heard the refusal, the account this service remembers goes with it.
+    RefreshingHttpClient.sessionsEnded
+        .where((session) => session == _sessionStore.identity)
+        .listen((_) {
+          _currentUser = null;
+          _sessionEnded.add(null);
+        });
+    // And the provider session's, for the Pro app (pro-account-scope.md).
+    RefreshingHttpClient.sessionsEnded
+        .where((session) => session == _providerSessionStore.identity)
+        .listen((_) {
+          _currentProvider = null;
+          _providerToken = null;
+          _providerSessionEnded.add(null);
+        });
+  }
 
   final http.Client _client;
   final String _baseUrl;
@@ -61,6 +94,30 @@ class ApiAuthService implements AuthServiceInterface {
   /// `api_auth_service_test.dart` contained not one occurrence of "google".
   /// Same shape as `ImageCompressor` in `ApiImageUploadService`.
   final GoogleIdTokenProvider _googleIdToken;
+
+  /// The Apple credential seam — same shape, same reason.
+  final AppleCredentialProvider _appleCredential;
+
+  /// Native Sign in with Apple: the one sheet all three entry points open,
+  /// asking for the e-mail and the name.
+  static Future<AuthorizationCredentialAppleID> _nativeAppleCredential(
+    String hashedNonce,
+  ) => SignInWithApple.getAppleIDCredential(
+    scopes: [
+      AppleIDAuthorizationScopes.email,
+      AppleIDAuthorizationScopes.fullName,
+    ],
+    nonce: hashedNonce,
+  );
+
+  /// Apple's one-time code, sent with the identity token so the server can
+  /// keep the refresh token it revokes when the account is deleted (B6.7 —
+  /// App Store 5.1.1(v)). Absent when Apple gave none.
+  static Map<String, String> _appleCode(
+    AuthorizationCredentialAppleID credential,
+  ) => credential.authorizationCode.isEmpty
+      ? const {}
+      : {'authorizationCode': credential.authorizationCode};
 
   /// **`initialize()` must run exactly once, and finish, before anything else.**
   /// v7 replaced per-call construction with a process-wide singleton
@@ -126,7 +183,7 @@ class ApiAuthService implements AuthServiceInterface {
   @override
   Future<ApiResponse<String>> sendOtp(String phoneNumber) async {
     final res = await _post('/auth/otp/request', {'phoneNumber': phoneNumber});
-    if (res == null) return _networkError();
+    if (res == null) return networkError();
     if (res.statusCode == 202) {
       final body = _decode(res.body);
       return ApiResponse.success(
@@ -134,7 +191,7 @@ class ApiAuthService implements AuthServiceInterface {
         message: 'Code OTP envoyé',
       );
     }
-    return _errorFrom(res);
+    return _refused(res);
   }
 
   @override
@@ -149,8 +206,8 @@ class ApiAuthService implements AuthServiceInterface {
   /// Shared AuthSession handling for every login endpoint: parse the NESTED
   /// `{tokens: {...}, user}` shape, persist, and set the current user.
   Future<ApiResponse<User>> _loginFrom(http.Response? res) async {
-    if (res == null) return _networkError();
-    if (res.statusCode != 200) return _errorFrom(res);
+    if (res == null) return networkError();
+    if (res.statusCode != 200) return _refused(res);
 
     final body = _decode(res.body);
     final tokens = body['tokens'] as Map<String, dynamic>;
@@ -169,11 +226,11 @@ class ApiAuthService implements AuthServiceInterface {
   /// Reports WHICH social sign-in failure happened, and nothing about who.
   ///
   /// **Six call sites had none of this**, across the consumer login, the pro
-  /// login and the pro email-OTP registration — so a misconfigured signing
-  /// SHA-1, a network blip and an unsupported device were indistinguishable in
-  /// telemetry. The user always saw the right error; we learned nothing from it
-  /// and would have heard about a systemic failure from a salon owner rather
-  /// than a dashboard.
+  /// login and the pro email-OTP registration the app had then — so a
+  /// misconfigured signing SHA-1, a network blip and an unsupported device were
+  /// indistinguishable in telemetry. The user always saw the right error; we
+  /// learned nothing from it and would have heard about a systemic failure from
+  /// a salon owner rather than a dashboard.
   ///
   /// **A cancel is never reported.** Under `google_sign_in` 7.x `canceled` has
   /// exactly one source, `GetCredentialCancellationException` — a real user
@@ -191,6 +248,15 @@ class ApiAuthService implements AuthServiceInterface {
   /// integration point, keeping this file ignorant of Sentry.
   void _reportSignInFailure(String provider, String code) =>
       AppLogger.error('social_sign_in_failed provider=$provider code=$code');
+
+  /// What a failed Apple sheet says, for both Apple doors. Only error 1000
+  /// (`unknown`) has a fix the person can make, so only it names one
+  /// (docs/design/apple-signin-error-1000.md, B0.14); `canceled` never gets
+  /// here.
+  static String _appleFailure(AuthorizationErrorCode code) =>
+      code == AuthorizationErrorCode.unknown
+      ? kAppleAccountCheckMessage
+      : 'Connexion Apple impossible.';
 
   @override
   Future<ApiResponse<User>> signInWithGoogle() async {
@@ -237,12 +303,8 @@ class ApiAuthService implements AuthServiceInterface {
       // iOS convention: Apple receives sha256(rawNonce); the backend gets the
       // raw nonce and checks the token's claim (replay defence — T31).
       final rawNonce = _randomNonce();
-      final credential = await SignInWithApple.getAppleIDCredential(
-        scopes: [
-          AppleIDAuthorizationScopes.email,
-          AppleIDAuthorizationScopes.fullName,
-        ],
-        nonce: sha256.convert(utf8.encode(rawNonce)).toString(),
+      final credential = await _appleCredential(
+        sha256.convert(utf8.encode(rawNonce)).toString(),
       );
       final identityToken = credential.identityToken;
       if (identityToken == null) {
@@ -259,6 +321,7 @@ class ApiAuthService implements AuthServiceInterface {
         'identityToken': identityToken,
         'nonce': rawNonce,
         if (fullName.isNotEmpty) 'fullName': fullName,
+        ..._appleCode(credential),
       });
       return _loginFrom(res);
     } on SignInWithAppleAuthorizationException catch (e) {
@@ -266,10 +329,7 @@ class ApiAuthService implements AuthServiceInterface {
         return ApiResponse.error('', code: 'cancelled');
       }
       _reportSignInFailure('apple', e.code.name);
-      return ApiResponse.error(
-        'Connexion Apple impossible.',
-        code: 'apple_failed',
-      );
+      return ApiResponse.error(_appleFailure(e.code), code: 'apple_failed');
     } catch (_) {
       _reportSignInFailure('apple', 'non_plugin_error');
       return ApiResponse.error(
@@ -282,7 +342,7 @@ class ApiAuthService implements AuthServiceInterface {
   @override
   Future<ApiResponse<String>> requestEmailOtp(String email) async {
     final res = await _post('/auth/email/otp/request', {'email': email});
-    if (res == null) return _networkError();
+    if (res == null) return networkError();
     if (res.statusCode == 202) {
       final body = _decode(res.body);
       return ApiResponse.success(
@@ -290,7 +350,7 @@ class ApiAuthService implements AuthServiceInterface {
         message: 'Code envoyé par e-mail',
       );
     }
-    return _errorFrom(res);
+    return _refused(res);
   }
 
   @override
@@ -314,6 +374,15 @@ class ApiAuthService implements AuthServiceInterface {
     _currentUser = null;
     await _sessionStore.clear();
   }
+
+  final _sessionEnded = StreamController<void>.broadcast();
+  final _providerSessionEnded = StreamController<void>.broadcast();
+
+  @override
+  Stream<void> get providerSessionEnded => _providerSessionEnded.stream;
+
+  @override
+  Stream<void> get sessionEnded => _sessionEnded.stream;
 
   @override
   Future<User?> getCurrentUser() async {
@@ -356,8 +425,8 @@ class ApiAuthService implements AuthServiceInterface {
         }),
       ),
     );
-    if (res == null) return _networkError();
-    if (res.statusCode != 200) return _errorFrom(res);
+    if (res == null) return networkError();
+    if (res.statusCode != 200) return _refused(res);
 
     final user = User.fromJson(_decode(res.body));
     _currentUser = user;
@@ -375,60 +444,16 @@ class ApiAuthService implements AuthServiceInterface {
     final res = await _authed.send(
       (token) => _client.delete(_uri('/me'), headers: _bearer(token)),
     );
-    if (res == null) return _networkError();
-    if (res.statusCode != 204) return _errorFrom(res);
+    if (res == null) return networkError();
+    if (res.statusCode != 204) return _refused(res);
     await logout();
     return ApiResponse.success(null, message: 'Compte supprimé');
-  }
-
-  // ---- Provider auth (real backend) ----------------------------------------
-
-  @override
-  Future<ApiResponse<String>> sendOtpToProvider(String phoneNumber) async {
-    final res = await _post('/auth/provider/otp/request', {
-      'phoneNumber': phoneNumber,
-    });
-    if (res == null) return _networkError();
-    if (res.statusCode == 202) {
-      final body = _decode(res.body);
-      return ApiResponse.success(
-        body['devCode'] as String? ?? '',
-        message: 'Code OTP envoyé',
-      );
-    }
-    return _errorFrom(res);
-  }
-
-  @override
-  Future<ApiResponse<ProviderUser>> verifyOtpForProvider(
-    String phoneNumber,
-    String otp,
-  ) async {
-    final res = await _post('/auth/provider/otp/verify', {
-      'phoneNumber': phoneNumber,
-      'code': otp,
-    });
-    if (res == null) return _networkError();
-    if (res.statusCode != 200) return _errorFrom(res);
-
-    final body = _decode(res.body);
-    final provider = ProviderUser.fromJson(
-      body['provider'] as Map<String, dynamic>,
-    );
-    _currentProvider = provider;
-    _providerToken = body['accessToken'] as String;
-    await _persistProviderSession(
-      provider,
-      _providerToken!,
-      body['refreshToken'] as String?,
-    );
-    return ApiResponse.success(provider, message: 'Connexion réussie');
   }
 
   // ---- Pro auth overhaul (docs/design/pro-auth-social.md) -------------------
 
   /// Adopt + persist a FLAT ProviderSession body ({provider, accessToken,
-  /// refreshToken}) — shared by logins, registration and invitation accepts.
+  /// refreshToken}) — shared by logins and invitation accepts.
   Future<ProviderUser> _adoptProviderSession(Map<String, dynamic> body) async {
     final provider = ProviderUser.fromJson(
       body['provider'] as Map<String, dynamic>,
@@ -443,17 +468,6 @@ class ApiAuthService implements AuthServiceInterface {
     return provider;
   }
 
-  /// Shared FLAT ProviderSession handling for every provider login endpoint.
-  Future<ApiResponse<ProviderUser>> _providerLoginFrom(
-    http.Response? res, {
-    int expected = 200,
-  }) async {
-    if (res == null) return _networkError();
-    if (res.statusCode != expected) return _errorFrom(res);
-    final provider = await _adoptProviderSession(_decode(res.body));
-    return ApiResponse.success(provider, message: 'Connexion réussie');
-  }
-
   /// Three-way login outcome (team access R3): 200 → signed in ·
   /// 202 → pending invitations (the R2b bridge; [proof] re-proves the
   /// identity on the accept/decline calls) · else → failure with the
@@ -464,7 +478,8 @@ class ApiAuthService implements AuthServiceInterface {
   }) async {
     if (res == null) {
       return const ProviderLoginResult.failure(
-        'Connexion au serveur impossible',
+        kNoConnectionMessage,
+        code: 'network',
       );
     }
     if (res.statusCode == 200) {
@@ -487,7 +502,10 @@ class ApiAuthService implements AuthServiceInterface {
     } catch (_) {
       code = null;
     }
-    return ProviderLoginResult.failure(_messageFor(code), code: code);
+    return ProviderLoginResult.failure(
+      _messageFor(code) ?? kGenericErrorMessage,
+      code: code,
+    );
   }
 
   @override
@@ -533,12 +551,8 @@ class ApiAuthService implements AuthServiceInterface {
   Future<ProviderLoginResult> signInProviderWithApple() async {
     try {
       final rawNonce = _randomNonce();
-      final credential = await SignInWithApple.getAppleIDCredential(
-        scopes: [
-          AppleIDAuthorizationScopes.email,
-          AppleIDAuthorizationScopes.fullName,
-        ],
-        nonce: sha256.convert(utf8.encode(rawNonce)).toString(),
+      final credential = await _appleCredential(
+        sha256.convert(utf8.encode(rawNonce)).toString(),
       );
       final identityToken = credential.identityToken;
       if (identityToken == null) {
@@ -550,6 +564,7 @@ class ApiAuthService implements AuthServiceInterface {
       final res = await _post('/auth/provider/apple', {
         'identityToken': identityToken,
         'nonce': rawNonce,
+        ..._appleCode(credential),
       });
       // No 202 bridge on the Apple route (contract) — never `.invited`.
       return _providerLoginResultFrom(res);
@@ -558,8 +573,8 @@ class ApiAuthService implements AuthServiceInterface {
         return const ProviderLoginResult.failure('', code: 'cancelled');
       }
       _reportSignInFailure('apple', e.code.name);
-      return const ProviderLoginResult.failure(
-        'Connexion Apple impossible.',
+      return ProviderLoginResult.failure(
+        _appleFailure(e.code),
         code: 'apple_failed',
       );
     } catch (_) {
@@ -576,7 +591,7 @@ class ApiAuthService implements AuthServiceInterface {
     final res = await _post('/auth/provider/email/otp/request', {
       'email': email,
     });
-    if (res == null) return _networkError();
+    if (res == null) return networkError();
     if (res.statusCode == 202) {
       final body = _decode(res.body);
       return ApiResponse.success(
@@ -584,7 +599,7 @@ class ApiAuthService implements AuthServiceInterface {
         message: 'Code envoyé par e-mail',
       );
     }
-    return _errorFrom(res);
+    return _refused(res);
   }
 
   @override
@@ -612,11 +627,11 @@ class ApiAuthService implements AuthServiceInterface {
       'invitationId': invitationId,
       ..._proofBody(proof),
     });
-    if (res == null) return _networkError();
+    if (res == null) return networkError();
     // 200 = accepted under an existing account · 201 = bare member account
     // created — BOTH carry a live flat ProviderSession.
     if (res.statusCode != 200 && res.statusCode != 201) {
-      return _errorFrom(res);
+      return _refused(res);
     }
     final provider = await _adoptProviderSession(_decode(res.body));
     return ApiResponse.success(provider, message: 'Invitation acceptée');
@@ -631,8 +646,8 @@ class ApiAuthService implements AuthServiceInterface {
       'invitationId': invitationId,
       ..._proofBody(proof),
     });
-    if (res == null) return _networkError();
-    if (res.statusCode != 200) return _errorFrom(res);
+    if (res == null) return networkError();
+    if (res.statusCode != 200) return _refused(res);
     return ApiResponse.success(true);
   }
 
@@ -643,128 +658,6 @@ class ApiAuthService implements AuthServiceInterface {
       'code': code,
     },
   };
-
-  @override
-  Future<ApiResponse<ProviderUser>> registerProviderWithGoogle({
-    required String phoneNumber,
-    required String businessName,
-    required BusinessType businessType,
-    String? address,
-    String? areaId,
-  }) async {
-    try {
-      final idToken = await _googleIdToken();
-      if (idToken == null) {
-        // See signInProviderWithGoogle: cancel now throws, so a null here is a
-        // real token failure and no longer disguises itself as a cancel.
-        return ApiResponse.error(
-          'Connexion Google impossible.',
-          code: 'no_id_token',
-        );
-      }
-      final res = await _post('/auth/provider/register', {
-        'idToken': idToken,
-        'phoneNumber': phoneNumber,
-        'businessName': businessName,
-        'businessType': businessType.name,
-        if (address != null && address.isNotEmpty) 'address': address,
-        if (areaId != null && areaId.isNotEmpty) 'areaId': areaId,
-      });
-      return _providerLoginFrom(res, expected: 201);
-    } on GoogleSignInException catch (e) {
-      if (e.code == GoogleSignInExceptionCode.canceled) {
-        return ApiResponse.error('', code: 'cancelled');
-      }
-      _reportSignInFailure('google', e.code.name);
-      return ApiResponse.error(
-        'Connexion Google impossible.',
-        code: 'google_failed',
-      );
-    } catch (_) {
-      _reportSignInFailure('google', 'non_plugin_error');
-      return ApiResponse.error(
-        'Connexion Google impossible.',
-        code: 'google_failed',
-      );
-    }
-  }
-
-  @override
-  Future<ApiResponse<ProviderUser>> registerProviderWithApple({
-    required String phoneNumber,
-    required String businessName,
-    required BusinessType businessType,
-    String? address,
-    String? areaId,
-  }) async {
-    try {
-      // Same nonce discipline as signInProviderWithApple: the RAW nonce goes to
-      // our backend, its SHA-256 to Apple, and the verifier compares them.
-      final rawNonce = _randomNonce();
-      final credential = await SignInWithApple.getAppleIDCredential(
-        scopes: [
-          AppleIDAuthorizationScopes.email,
-          AppleIDAuthorizationScopes.fullName,
-        ],
-        nonce: sha256.convert(utf8.encode(rawNonce)).toString(),
-      );
-      final identityToken = credential.identityToken;
-      if (identityToken == null) {
-        return ApiResponse.error(
-          'Inscription Apple impossible.',
-          code: 'no_id_token',
-        );
-      }
-      final res = await _post('/auth/provider/register', {
-        'identityToken': identityToken,
-        'nonce': rawNonce,
-        'phoneNumber': phoneNumber,
-        'businessName': businessName,
-        'businessType': businessType.name,
-        if (address != null && address.isNotEmpty) 'address': address,
-        if (areaId != null && areaId.isNotEmpty) 'areaId': areaId,
-      });
-      return _providerLoginFrom(res, expected: 201);
-    } on SignInWithAppleAuthorizationException catch (e) {
-      // A cancel is silent — the user closed the sheet, that is not an error.
-      if (e.code == AuthorizationErrorCode.canceled) {
-        return ApiResponse.error('', code: 'cancelled');
-      }
-      _reportSignInFailure('apple', e.code.name);
-      return ApiResponse.error(
-        'Inscription Apple impossible.',
-        code: 'apple_failed',
-      );
-    } catch (_) {
-      _reportSignInFailure('apple', 'non_plugin_error');
-      return ApiResponse.error(
-        'Inscription Apple impossible.',
-        code: 'apple_failed',
-      );
-    }
-  }
-
-  @override
-  Future<ApiResponse<ProviderUser>> registerProviderWithEmail({
-    required String email,
-    required String code,
-    required String phoneNumber,
-    required String businessName,
-    required BusinessType businessType,
-    String? address,
-    String? areaId,
-  }) async {
-    final res = await _post('/auth/provider/register', {
-      'email': email,
-      'code': code,
-      'phoneNumber': phoneNumber,
-      'businessName': businessName,
-      'businessType': businessType.name,
-      if (address != null && address.isNotEmpty) 'address': address,
-      if (areaId != null && areaId.isNotEmpty) 'areaId': areaId,
-    });
-    return _providerLoginFrom(res, expected: 201);
-  }
 
   @override
   Future<ProviderUser?> getCurrentProvider() async {
@@ -819,7 +712,7 @@ class ApiAuthService implements AuthServiceInterface {
   }
 
   @override
-  Future<void> setSelectedProviderSalon(String? salonId) async {
+  Future<void> setSelectedProviderSalon(SalonId? salonId) async {
     final raw = await _providerSessionStore.read();
     if (raw == null) return;
     try {
@@ -842,7 +735,7 @@ class ApiAuthService implements AuthServiceInterface {
   }
 
   @override
-  Future<String?> getSelectedProviderSalon() async {
+  Future<SalonId?> getSelectedProviderSalon() async {
     final raw = await _providerSessionStore.read();
     if (raw == null) return null;
     try {
@@ -884,6 +777,39 @@ class ApiAuthService implements AuthServiceInterface {
       );
     } catch (_) {
       /* a broken blob is repaired on the next login */
+    }
+  }
+
+  @override
+  Future<void> cacheProviderSalonFacts(SalonFacts? facts) async {
+    final raw = await _providerSessionStore.read();
+    if (raw == null) return; // signed out — nothing to cache into
+    try {
+      final session = ProviderSession.fromJson(
+        jsonDecode(raw) as Map<String, dynamic>,
+      );
+      await _providerSessionStore.save(
+        jsonEncode(
+          session
+              .copyWith(salonFacts: facts, clearSalonFacts: facts == null)
+              .toJson(),
+        ),
+      );
+    } catch (_) {
+      /* a broken blob is repaired on the next login */
+    }
+  }
+
+  @override
+  Future<SalonFacts?> getCachedProviderSalonFacts() async {
+    final raw = await _providerSessionStore.read();
+    if (raw == null) return null;
+    try {
+      return ProviderSession.fromJson(
+        jsonDecode(raw) as Map<String, dynamic>,
+      ).salonFacts;
+    } catch (_) {
+      return null;
     }
   }
 
@@ -957,22 +883,17 @@ class ApiAuthService implements AuthServiceInterface {
     await _providerSessionStore.save(jsonEncode(session.toJson()));
   }
 
-  ApiResponse<T> _networkError<T>() =>
-      ApiResponse.error('Connexion au serveur impossible');
-
   /// Maps the backend error envelope to an [ApiResponse] error, preserving the
   /// machine `code` so callers branch exactly as they do with the mock.
-  ApiResponse<T> _errorFrom<T>(http.Response res) {
-    String? code;
-    try {
-      code = _decode(res.body)['error'] as String?;
-    } catch (_) {
-      code = null;
-    }
-    return ApiResponse.error(_messageFor(code), code: code);
-  }
 
-  String _messageFor(String? code) {
+  /// A refusal, worded: this service's codes keep their sentences, anything
+  /// else is the generic one (docs/design/app-failure-messages.md §2.1).
+  ApiResponse<T> _refused<T>(http.Response res) =>
+      errorFromResponse(res, messageFor: _messageFor);
+
+  /// The codes with words of their own; anything else is the generic sentence
+  /// (`errorFromResponse`).
+  String? _messageFor(String? code) {
     switch (code) {
       // L2: the one error on this surface the user can actually resolve — so it
       // says WHAT to do. A bare « échec » leaves them with an account they
@@ -994,7 +915,7 @@ class ApiAuthService implements AuthServiceInterface {
       case 'invalid_input':
         return 'Numéro ou code invalide.';
       case 'provider_not_found':
-        return 'Aucun compte professionnel pour ce numéro. Inscrivez-vous.';
+        return kNoProAccountMessage;
       case 'provider_exists':
         return 'Un compte existe déjà pour ce numéro. Connectez-vous.';
       case 'invalid_email':
@@ -1009,7 +930,7 @@ class ApiAuthService implements AuthServiceInterface {
       case 'invitation_expired':
         return 'Cette invitation a expiré. Demandez au salon de la renvoyer.';
       default:
-        return 'Une erreur est survenue.';
+        return null;
     }
   }
 }

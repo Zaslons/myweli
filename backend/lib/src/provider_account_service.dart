@@ -2,8 +2,10 @@ import 'package:http/http.dart' as http;
 
 import 'access/membership_repository.dart';
 import 'appointments/appointment_repository.dart';
+import 'auth/apple_tokens.dart';
 import 'auth/demo_seam.dart';
 import 'auth/provider_auth_repository.dart';
+import 'idempotency/idempotency_store.dart';
 import 'notifications/notifications_repository.dart';
 import 'providers_repository.dart';
 import 'push/device_token_repository.dart';
@@ -25,10 +27,14 @@ class ProviderAccountService {
     this._memberships, {
     DeviceTokenRepository? devices,
     NotificationsRepository? notifications,
+    IdempotencyStore? idempotency,
+    AppleTokenService? apple,
     http.Client? client,
     SiteRebuildNotifier? rebuild,
   }) : _devices = devices,
        _notifications = notifications,
+       _idempotency = idempotency,
+       _apple = apple,
        _client = client ?? http.Client(),
        _rebuild = rebuild ?? NoopSiteRebuildNotifier();
 
@@ -42,13 +48,32 @@ class ProviderAccountService {
   /// but wired in `dependencies.dart`, so production always has them.
   final DeviceTokenRepository? _devices;
   final NotificationsRepository? _notifications;
+
+  /// The kept answers of its writes (docs/design/write-idempotency.md §6) —
+  /// a manual booking's holds the client's name and phone for 24 h.
+  final IdempotencyStore? _idempotency;
   final http.Client _client;
   final SiteRebuildNotifier _rebuild;
+
+  /// Sign in with Apple (B6.7) — optional for the same reason; wired in
+  /// `dependencies.dart`.
+  final AppleTokenService? _apple;
 
   /// Delete the account behind [accountId]. Error codes: `forbidden`
   /// (unknown account), `demo_account_locked` (the store-review demo
   /// identity, T69 — answered first, nothing is written), `future_bookings`
   /// (settle the agenda first).
+  /// What an erased owner's salons lose (B6.3): the contact numbers, the
+  /// address, and the deposit that needed the Mobile Money number.
+  static const Map<String, dynamic> _erasedContact = {
+    'phoneNumber': '',
+    'address': '',
+    'whatsapp': null,
+    'depositMobileMoneyNumber': null,
+    'depositMobileMoneyOperator': null,
+    'depositRequired': false,
+  };
+
   Future<({bool ok, String? error})> deleteAccount(String accountId) async {
     final account = await _auth.accountById(accountId);
     if (account == null) return (ok: false, error: 'forbidden');
@@ -107,6 +132,11 @@ class ProviderAccountService {
       final before = await _providers.byId(providerId);
       if (before?['status'] == 'active') anyWasActive = true;
       await _providers.setStatus(providerId, 'draft');
+      // The salon outlives its owner — its name and history stay for the
+      // clients — but the PERSON's numbers and address do not (decision 17,
+      // docs/design/backend-integrity-batch6.md §2.3). A deposit without a
+      // number is no deposit: off.
+      await _providers.updateProfile(providerId, _erasedContact);
     }
     // Once for the whole account, after the loop — one erasure, one build.
     if (anyWasActive) {
@@ -134,6 +164,13 @@ class ProviderAccountService {
     // Before the identity delete, like everything else here.
     await _devices?.deleteForUser(accountId);
     await _notifications?.deleteForUser(accountId);
+    await _idempotency?.deleteForAccount(accountId);
+
+    // B6.7 (App Store 5.1.1(v)): revoke the Sign in with Apple authorization
+    // and forget the token — never blocking, and before the identity, so a
+    // failed delete retries into an empty list. The demo identity never gets
+    // here (locked above). docs/design/backend-integrity-batch6.md §13.
+    await _apple?.revokeAll(kind: 'provider', accountId: accountId);
 
     final ok = await _auth.deleteAccount(accountId);
     if (!ok) return (ok: false, error: 'forbidden');

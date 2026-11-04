@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
+import '../../../core/constants/failure_messages.dart';
 import '../../../core/forms/field_errors.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/colors.dart';
@@ -9,21 +10,33 @@ import '../../../core/theme/text_styles.dart';
 import '../../../core/utils/deposit.dart';
 import '../../../core/utils/formatters.dart';
 import '../../../core/utils/phone_numbering.dart';
+import '../../../core/utils/salon_id.dart';
 import '../../../core/utils/validators.dart';
 import '../../../models/provider_user.dart';
 import '../../../providers/locality_provider.dart';
 import '../../../providers/pro_auth_provider.dart';
 import '../../../providers/pro_deposit_settings_provider.dart';
+import '../../../widgets/common/app_async_view.dart';
 import '../../../widgets/common/app_button.dart';
+import '../../../widgets/common/app_card.dart';
+import '../../../widgets/common/app_chip.dart';
+import '../../../widgets/common/app_skeleton.dart';
 import '../../../widgets/common/app_snack_bar.dart';
-import '../../../widgets/common/empty_state.dart';
 import '../../../widgets/common/inline_feedback.dart';
 import '../../../widgets/common/label_value_row.dart';
-import '../../../widgets/common/loading_indicator.dart';
 import '../../../widgets/common/phone_number_field.dart';
 
+/// The server's `operator_unavailable` (B6.5): an operator the country's
+/// catalogue no longer offers, with a deposit asked — under the chips.
+const String kDepositOperatorUnavailableMessage =
+    'Cet opérateur n’est plus proposé. Choisissez-en un autre.';
+
+/// The server's `invalid_percentage` (B6.5, decision 19) — under the slider.
+const String kDepositPercentRangeMessage =
+    'Choisissez un pourcentage entre 5 et 80 %.';
+
 class DepositSettingsScreen extends StatefulWidget {
-  final String providerId;
+  final SalonId providerId;
 
   const DepositSettingsScreen({super.key, required this.providerId});
 
@@ -36,6 +49,10 @@ class _DepositSettingsScreenState extends State<DepositSettingsScreen> {
   static const double _sampleTotal = 20000;
 
   final _numberFocus = FocusNode();
+
+  /// The server's range refusal (`invalid_percentage`, B6.5 — one range for
+  /// app, web and server, decision 19): under the slider, gone when it moves.
+  String? _percentageError;
 
   /// The operator chips' — so a refused press can take the salon to them
   /// (§14's focus amendment, [focusFirstError]).
@@ -148,6 +165,22 @@ class _DepositSettingsScreenState extends State<DepositSettingsScreen> {
     // salon read « Informations invalides. » in a bar. It is `invalid_phone`
     // now (phone-leftovers.md §2): the field's fault, under the field — and,
     // deposits off, the hidden card shows so the message has somewhere to sit.
+    // The server's catalogue and range (docs/design/backend-integrity-
+    // batch6.md §2.5): each under its own control, never a bar.
+    if (!ok && provider.errorCode == 'operator_unavailable') {
+      setState(
+        () => _errors.set('operator', kDepositOperatorUnavailableMessage),
+      );
+      focusFirstError(_errors, {
+        'operator': _operatorFocus,
+        'number': _numberFocus,
+      });
+      return;
+    }
+    if (!ok && provider.errorCode == 'invalid_percentage') {
+      setState(() => _percentageError = kDepositPercentRangeMessage);
+      return;
+    }
     if (!ok && provider.errorCode == 'invalid_phone') {
       setState(() {
         _errors.set('number', 'Saisissez un numéro de téléphone valide.');
@@ -161,7 +194,7 @@ class _DepositSettingsScreenState extends State<DepositSettingsScreen> {
       context,
       ok: ok,
       success: 'Paramètres enregistrés',
-      error: provider.error ?? 'Erreur',
+      error: provider.error ?? kGenericErrorMessage,
     );
   }
 
@@ -172,19 +205,22 @@ class _DepositSettingsScreenState extends State<DepositSettingsScreen> {
       appBar: AppBar(title: const Text('Acompte')),
       body: Consumer<ProDepositSettingsProvider>(
         builder: (context, provider, _) {
-          if (provider.isLoading) {
-            return const LoadingIndicator();
-          }
-          if (provider.loadFailed) {
-            return EmptyState(
-              icon: Icons.wifi_off,
-              title: 'Chargement impossible',
-              description: 'Vérifiez votre connexion et réessayez.',
-              actionText: 'Réessayer',
-              onAction: () => provider.load(widget.providerId),
-            );
-          }
-          return _buildForm(provider);
+          return AppAsyncView<ProDepositSettingsProvider>(
+            isLoading: provider.isLoading,
+            error: provider.loadFailed
+                ? provider.error ?? kGenericErrorMessage
+                : null,
+            // A form, so only once its read has settled: kept on screen
+            // through a reload, it would take the owner's edits back.
+            data: provider.loaded && !provider.isLoading && !provider.loadFailed
+                ? provider
+                : null,
+            isEmpty: (_) => false,
+            loading: const SkeletonDetail(sections: 3),
+            empty: const SizedBox.shrink(),
+            onRetry: () => provider.load(widget.providerId),
+            builder: (context, p) => _buildForm(p),
+          );
         },
       ),
     );
@@ -239,55 +275,39 @@ class _DepositSettingsScreenState extends State<DepositSettingsScreen> {
           ),
           const SizedBox(height: AppTheme.spacingM),
         ],
-        Container(
-          decoration: BoxDecoration(
-            color: AppColors.secondary,
-            borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
-            border: Border.all(color: AppColors.border),
-          ),
-          // Flutter 3.44 asserts on this (`list_tile.dart`,
-          // `_findIntermediateWidget`): the tile paints its ink on the nearest
-          // `Material` ANCESTOR, and the walk up stops at the first coloured box —
-          // this one. The switch row's ripple painted BEHIND its own card. The
-          // assertion is new; the defect is not. `transparency` paints nothing, so
-          // the bordered card and its golden are unchanged.
-          child: Material(
-            type: MaterialType.transparency,
-            child: SwitchListTile(
-              value: provider.depositRequired,
-              onChanged: verified
-                  ? (on) {
-                      provider.setDepositRequired(on);
-                      setState(() {
-                        _showNumberWhileOff = false;
-                        // The operator is required only while a deposit is
-                        // collected: a message left from « on » goes.
-                        _errors.revalidate(
-                          'operator',
-                          provider.mobileMoneyOperator ?? '',
-                        );
-                      });
-                    }
-                  : null,
-              title: const Text('Exiger un acompte'),
-              subtitle: Text(
-                'Limite les rendez-vous manqués',
-                style: AppTextStyles.bodySmall.copyWith(
-                  color: AppColors.textTertiary,
-                ),
+        AppCard(
+          // The card IS the `Material` the tile paints its ink on — what the
+          // transparent layer under a decorated box was there for (Flutter 3.44's
+          // `_findIntermediateWidget` assertion); a list of rows needs no padding.
+          padding: EdgeInsets.zero,
+          child: SwitchListTile(
+            value: provider.depositRequired,
+            onChanged: verified
+                ? (on) {
+                    provider.setDepositRequired(on);
+                    setState(() {
+                      _showNumberWhileOff = false;
+                      // The operator is required only while a deposit is
+                      // collected: a message left from « on » goes.
+                      _errors.revalidate(
+                        'operator',
+                        provider.mobileMoneyOperator ?? '',
+                      );
+                    });
+                  }
+                : null,
+            title: const Text('Exiger un acompte'),
+            subtitle: Text(
+              'Limite les rendez-vous manqués',
+              style: AppTextStyles.bodySmall.copyWith(
+                color: AppColors.textTertiary,
               ),
             ),
           ),
         ),
         if (provider.depositRequired) ...[
           const SizedBox(height: AppTheme.spacingM),
-          Container(
-            padding: const EdgeInsets.all(AppTheme.spacingM),
-            decoration: BoxDecoration(
-              color: AppColors.secondary,
-              borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
-              border: Border.all(color: AppColors.border),
-            ),
+          AppCard(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -302,8 +322,14 @@ class _DepositSettingsScreenState extends State<DepositSettingsScreen> {
                   max: 0.80,
                   divisions: 15,
                   label: '$pct %',
-                  onChanged: provider.setDepositPercentage,
+                  onChanged: (v) {
+                    provider.setDepositPercentage(v);
+                    if (_percentageError != null) {
+                      setState(() => _percentageError = null);
+                    }
+                  },
                 ),
+                InlineFeedback(_percentageError),
               ],
             ),
           ),
@@ -354,13 +380,7 @@ class _DepositSettingsScreenState extends State<DepositSettingsScreen> {
         ],
         if (provider.depositRequired || _showNumberWhileOff) ...[
           const SizedBox(height: AppTheme.spacingM),
-          Container(
-            padding: const EdgeInsets.all(AppTheme.spacingM),
-            decoration: BoxDecoration(
-              color: AppColors.secondary,
-              borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
-              border: Border.all(color: AppColors.border),
-            ),
+          AppCard(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -403,12 +423,7 @@ class _DepositSettingsScreenState extends State<DepositSettingsScreen> {
                           ],
                         );
                       }
-                      return const Center(
-                        child: Padding(
-                          padding: EdgeInsets.all(AppTheme.spacingS),
-                          child: LoadingIndicator(),
-                        ),
-                      );
+                      return const SkeletonPills(count: 3);
                     }
                     return Focus(
                       focusNode: _operatorFocus,
@@ -416,12 +431,9 @@ class _DepositSettingsScreenState extends State<DepositSettingsScreen> {
                         spacing: AppTheme.spacingS,
                         runSpacing: AppTheme.spacingS,
                         children: operators.map((op) {
-                          return ChoiceChip(
-                            label: Text(op.label),
+                          return AppChip.choice(
+                            label: op.label,
                             selected: provider.mobileMoneyOperator == op.id,
-                            showCheckmark: false,
-                            selectedColor: AppColors.primary,
-                            backgroundColor: AppColors.surface,
                             onSelected: (_) {
                               provider.setMobileMoneyOperator(op.id);
                               setState(
@@ -460,13 +472,7 @@ class _DepositSettingsScreenState extends State<DepositSettingsScreen> {
           ),
         ],
         const SizedBox(height: AppTheme.spacingM),
-        Container(
-          padding: const EdgeInsets.all(AppTheme.spacingM),
-          decoration: BoxDecoration(
-            color: AppColors.secondary,
-            borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
-            border: Border.all(color: AppColors.border),
-          ),
+        AppCard(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -488,19 +494,9 @@ class _DepositSettingsScreenState extends State<DepositSettingsScreen> {
                 spacing: AppTheme.spacingS,
                 children: [12, 24, 48].map((h) {
                   final selected = provider.cancellationWindowHours == h;
-                  return ChoiceChip(
-                    label: Text(
-                      '$h h',
-                      style: TextStyle(
-                        color: selected
-                            ? AppColors.secondary
-                            : AppColors.textPrimary,
-                      ),
-                    ),
+                  return AppChip.choice(
+                    label: '$h h',
                     selected: selected,
-                    showCheckmark: false,
-                    selectedColor: AppColors.primary,
-                    backgroundColor: AppColors.surface,
                     onSelected: (_) => provider.setCancellationWindowHours(h),
                   );
                 }).toList(),

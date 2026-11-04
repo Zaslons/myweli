@@ -27,6 +27,15 @@ export type DepositForm = {
 /// (tests/deposit-default-parity.test.ts).
 export const DEFAULT_DEPOSIT_PERCENT = 30;
 
+/// Whether the salon has CHOSEN its deposit policy (B7.7, decision 24 —
+/// docs/design/pro-app-batch7.md §2.7): the server answers every salon with
+/// defaults (off, a stored 0), so an answer is not a choice. A saved form
+/// always sends its percentage, so a choice is deposits on, or a stored
+/// percentage above 0. The app's `depositChosen` (core/utils/deposit.dart).
+export function depositChosen(p: Pick<DepositPolicy, 'depositRequired' | 'depositPercentage'>): boolean {
+  return p.depositRequired || p.depositPercentage > 0;
+}
+
 /// The app's rules (`deposit_settings_screen.dart`), on the web since
 /// docs/design/web-pro-deposit-app-rules.md (owner decision 2026-10-20): a
 /// slider 5–80 % by steps of 5, three cancellation delays, and the example
@@ -85,12 +94,11 @@ export function depositToForm(p?: DepositPolicy): DepositForm {
   };
 }
 
-/// The percentage field's rule (1–100, as its message says). [validateDeposit]
-/// holds the salon to it while a deposit is collected; [buildDepositPayload]
-/// sends the field only when it passes. Below 1 is refused: '0.4' passed the
-/// old `> 0`, was stored as 0.004, came back as « 0 » and could not be saved
-/// again. Two decimals at most — what [depositToForm] reads back exactly
-/// ('12.345' would come back « 12.35 » and be rewritten by an untouched save).
+/// The shape [buildDepositPayload] sends from the field (1–100, two decimals
+/// at most — what [depositToForm] reads back exactly: '12.345' would come back
+/// « 12.35 » and be rewritten by an untouched save); anything else sends the
+/// last loaded or saved percentage. Below 1 is never sent from the field:
+/// '0.4' passed the old `> 0`, was stored as 0.004 and came back as « 0 ».
 function percentOk(percent: string): boolean {
   const text = percent.trim();
   if (!/^\d+(\.\d{1,2})?$/.test(text)) return false;
@@ -109,9 +117,40 @@ export function validateDeposit(f: DepositForm): string | null {
     return 'Fenêtre d’annulation invalide (0–720 h).';
   }
   if (!f.required) return null;
-  if (!percentOk(f.percent)) return 'Pourcentage invalide (1–100 %).';
   if (!f.operator) return 'Choisissez un opérateur Mobile Money.';
   return null;
+}
+
+/// The one range of app, web and server (decision 19,
+/// docs/design/backend-integrity-batch6.md §2.5) — said under the slider.
+export const DEPOSIT_PERCENT_MESSAGE = 'Choisissez un pourcentage entre 5 et 80 %.';
+
+/// The server's `operator_unavailable`: an operator the country's catalogue
+/// no longer offers, with a deposit asked — said under the operator.
+export const OPERATOR_UNAVAILABLE_MESSAGE =
+  'Cet opérateur n’est plus proposé. Choisissez-en un autre.';
+
+/// The percentage, while a deposit is collected: 5–80 % — judged only when it
+/// CHANGED from [loadedFraction] (the last loaded or saved one): a value saved
+/// before the range (100 %, 0,4 %) is shown and kept as it is, as the server
+/// keeps it. It replaces « Pourcentage invalide (1–100 %) ».
+export function validateDepositPercent(
+  f: DepositForm,
+  loadedFraction?: number,
+): string | null {
+  if (!f.required) return null;
+  const text = f.percent.trim();
+  const shaped = /^\d+(\.\d{1,2})?$/.test(text);
+  const n = Number(text);
+  if (
+    shaped &&
+    loadedFraction !== undefined &&
+    Math.abs(n / 100 - loadedFraction) < 1e-9
+  ) {
+    return null;
+  }
+  const { min, max } = DEPOSIT_PERCENT_RANGE;
+  return shaped && n >= min && n <= max ? null : DEPOSIT_PERCENT_MESSAGE;
 }
 
 /// « Numéro Mobile Money » — its fault renders UNDER the field (§14 rule 1,

@@ -211,6 +211,9 @@ export const SPACING_KEYS = {
   spacingXL: 'xl',
   spacingXXL: 'xxl',
   spacingXXXL: 'xxxl',
+  // B7.4: what a view scrolling under a floating button owes it at its end
+  // (SYSTEM.md §5, §13.3) — the end padding of a scroll view, so rhythm.
+  fabClearance: 'fab',
 };
 
 export const RADIUS_KEYS = {
@@ -259,6 +262,11 @@ export const WEB_ONLY = {
   motion: ['DEFAULT'],
   // The flex-item escape (WEB-SYSTEM §9's own table documents it).
   zIndex: ['auto'],
+  // The public hero's poster size (WEB-SYSTEM §3): the apps have no such surface.
+  type: ['displayPoster'],
+  // Controls are square on the web and rounded in the apps, by the owner's choice
+  // (docs/design/web-swiss-fields.md §7).
+  radius: ['control'],
 };
 
 /** Build the expected web exports from the mobile sources + doc tables. */

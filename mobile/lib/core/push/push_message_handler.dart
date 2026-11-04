@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import '../utils/salon_id.dart';
 
 /// The push routing BRAIN — deliberately free of any Firebase import, so it is
 /// unit-testable without a native app (the bridge that talks to
@@ -54,14 +55,16 @@ String? routeFromPushData(
 /// The salon a PRO push belongs to: the `providerId` data key, else the
 /// route's `?salon=` (the in-app feed row carries only the route, so the
 /// salon rides in it — backend `SalonNotifier`).
-String? providerIdFromPushData(Map<String, Object?> data) {
+SalonId? providerIdFromPushData(Map<String, Object?> data) {
   final direct = data['providerId'];
-  if (direct is String && direct.trim().isNotEmpty) return direct.trim();
+  if (direct is String && direct.trim().isNotEmpty) {
+    return SalonId(direct.trim());
+  }
 
   final raw = data['route'];
   if (raw is! String) return null;
   final salon = Uri.tryParse(raw)?.queryParameters['salon'];
-  return (salon == null || salon.isEmpty) ? null : salon;
+  return (salon == null || salon.isEmpty) ? null : SalonId(salon);
 }
 
 /// Turns a push/notification payload into navigation.
@@ -95,7 +98,7 @@ class PushMessageHandler {
 
   /// Pro only: make [providerId] the active salon. Returns false when the
   /// account can't act on it (revoked, unknown).
-  final Future<bool> Function(String providerId)? ensureSalon;
+  final Future<bool> Function(SalonId providerId)? ensureSalon;
 
   /// Null → treat as authenticated (the consumer app before session restore
   /// passes a real predicate; tests may omit it).

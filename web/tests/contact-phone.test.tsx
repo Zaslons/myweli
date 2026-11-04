@@ -69,9 +69,13 @@ function mockFetch(
               status: 409,
             });
           }
-          return new Response(JSON.stringify({ id: 'a1', depositAmount: 0 }), {
-            status: 201,
-          });
+          // The BFF's shape (`app/api/bookings/route.ts`): a 2xx without
+          // `appointment.id` is a lost body now, and is asked again
+          // (docs/design/write-idempotency.md §4).
+          return new Response(
+            JSON.stringify({ ok: true, appointment: { id: 'a1', depositAmount: 0 } }),
+            { status: 201 },
+          );
         }
         return new Response('{}', { status: 200 });
       }

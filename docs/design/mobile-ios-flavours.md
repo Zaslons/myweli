@@ -185,6 +185,9 @@ the entitlement is baked into the signed binary.*
   schemes without what Flutter's own migration added to them since (the
   « Run Prepare Flutter Framework Script » pre-action and
   `customLLDBInitFile`). So the language section was applied **alone**, lifted
-  verbatim from the script, and the full script was not re-run. Not fixed
-  here: until it is, do not commit the output of a full run without reading
-  the diff.
+  verbatim from the script, and the full script was not re-run. **Fixed in
+  B9.3** ([hygiene-batch9.md](hygiene-batch9.md) §2.2): the phase is found by
+  its name and updated in place, and a scheme is loaded and only its
+  configurations corrected — a run on the committed project changes nothing,
+  proven by `test/infra/setup_flavours_test.dart` on a copy (on the macOS iOS
+  workflow, where the `xcodeproj` gem is).

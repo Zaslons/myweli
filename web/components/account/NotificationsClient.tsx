@@ -19,6 +19,7 @@ import {
   markNotificationRead,
   updateNotificationPrefs,
 } from '../../lib/api/account';
+import { loadFailure, loadFailureMessage, type LoadFailure } from '../../lib/api/load-failure';
 import { writeFailureMessage } from '../../lib/api/network';
 import { formatDateTimeFr } from '../../lib/format';
 import { Button } from '../Button';
@@ -54,7 +55,10 @@ export function NotificationsClient() {
   const [items, setItems] = useState<AppNotification[]>([]);
   const [prefs, setPrefs] = useState<NotificationPrefs | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(false);
+  // Why each read failed (docs/design/app-failure-messages.md §2.2): no
+  // answer is « Pas de connexion » over the page's own sentence.
+  const [error, setError] = useState<LoadFailure | false>(false);
+  const [prefsFailed, setPrefsFailed] = useState<LoadFailure | false>(false);
   const [prefError, setPrefError] = useState(false);
   // A « marquer comme lu » the server refused: under that notification, or
   // under the header for « Tout lire » (docs/design/web-consumer-optimistic-revert.md §3.2 ②③).
@@ -77,12 +81,17 @@ export function NotificationsClient() {
       return;
     }
     if (feed.status !== 200) {
-      setError(true);
+      setError(loadFailure(feed.status));
       setLoading(false);
       return;
     }
     setItems(feed.items);
-    if (p.status === 200 && p.prefs) setPrefs(p.prefs);
+    if (p.status === 200 && p.prefs) {
+      setPrefs(p.prefs);
+      setPrefsFailed(false);
+    } else {
+      setPrefsFailed(loadFailure(p.status));
+    }
     setLoading(false);
   }, [router]);
 
@@ -152,7 +161,11 @@ export function NotificationsClient() {
   if (error) {
     return (
       <div>
-        <ErrorState title="Notifications" message="Chargement impossible." onRetry={load} />
+        <ErrorState
+          title="Notifications"
+          message={loadFailureMessage(error, 'Chargement impossible.')}
+          onRetry={load}
+        />
       </div>
     );
   }
@@ -273,7 +286,7 @@ export function NotificationsClient() {
         </div>
       ) : (
         <ErrorState
-          message="Préférences indisponibles."
+          message={loadFailureMessage(prefsFailed, 'Préférences indisponibles.')}
           onRetry={load}
         />
       )}

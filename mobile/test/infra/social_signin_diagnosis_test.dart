@@ -22,7 +22,12 @@ import 'package:flutter_test/flutter_test.dart';
 /// misconfigured SHA-1, a network blip and an unsupported device were
 /// indistinguishable in telemetry.
 ///
-/// A grep rather than a call, because none of the six paths is reachable from a
+/// **Four since 2026-10-26**: the Pro app no longer registers a business
+/// (App Store 3.1.1 — docs/design/pro-app-login-only.md), so the two
+/// registration paths (Google, Apple) left with it. The consumer and Pro
+/// LOGINS remain, each with Google and Apple.
+///
+/// A grep rather than a call, because none of the four paths is reachable from a
 /// test: they all enter the real `GoogleSignIn.instance` / `SignInWithApple`
 /// plugin, which needs a platform channel. Same reasoning as
 /// `ios_google_client_test.dart`.
@@ -46,16 +51,16 @@ void main() {
     // would satisfy all of them with zero.
     expect(
       count('.canceled)'),
-      greaterThanOrEqualTo(6),
+      greaterThanOrEqualTo(4),
       reason:
-          'expected the six social catch arms; the file or the '
+          'expected the four social catch arms; the file or the '
           'comment-stripper is wrong',
     );
   });
 
-  test('all twelve failure paths report which failure it was', () {
-    // Six typed arms + six bare `catch (_)`. One definition is not a call.
-    expect(count('_reportSignInFailure('), 13);
+  test('all eight failure paths report which failure it was', () {
+    // Four typed arms + four bare `catch (_)`. One definition is not a call.
+    expect(count('_reportSignInFailure('), 9);
   });
 
   test('the typed arms report the real code, not a hardcoded string', () {
@@ -65,9 +70,9 @@ void main() {
     expect(
       count("_reportSignInFailure('google', e.code.name)") +
           count("_reportSignInFailure('apple', e.code.name)"),
-      6,
+      4,
     );
-    expect(count("'non_plugin_error')"), 6);
+    expect(count("'non_plugin_error')"), 4);
   });
 
   test('a user closing the sheet is never reported', () {
@@ -78,7 +83,7 @@ void main() {
       r'if \(e\.code == \w+\.canceled\) \{(.*?)\n      \}',
       dotAll: true,
     ).allMatches(code);
-    expect(cancelBlocks.length, 6, reason: 'the six cancel guards');
+    expect(cancelBlocks.length, 4, reason: 'the four cancel guards');
     for (final b in cancelBlocks) {
       expect(b.group(1), isNot(contains('_reportSignInFailure')));
     }

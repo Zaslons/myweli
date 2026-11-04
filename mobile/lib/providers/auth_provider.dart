@@ -2,6 +2,8 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 
+import '../core/access/account_scope.dart';
+import '../core/constants/failure_messages.dart';
 import '../core/di/dependency_injection.dart';
 import '../models/api_response.dart';
 import '../models/user.dart';
@@ -40,7 +42,77 @@ class AuthProvider extends ChangeNotifier {
   bool get isAuthenticated => _user != null;
 
   AuthProvider() {
+    _sessionEnds = _authService.sessionEnded.listen((_) => _onSessionEnded());
     _loadCurrentUser();
+  }
+
+  late final StreamSubscription<void> _sessionEnds;
+
+  @override
+  void dispose() {
+    _sessionEnds.cancel();
+    super.dispose();
+  }
+
+  /// **Every change of WHO is signed in goes through here** (B9.13 —
+  /// docs/design/consumer-account-scope.md §2.2). When the account's id
+  /// changes — A → nobody, nobody → B — every account-scoped store is reset
+  /// in this same synchronous block, before the caller's `notifyListeners`:
+  /// no frame sees the new account with the old one's bookings. The same
+  /// account (a profile edit) resets nothing.
+  void _setUser(User? next) {
+    final changed = next?.id != _user?.id;
+    _user = next;
+    if (!changed) return;
+    _updateErrorCode = null;
+    _emailDevCode = null;
+    _sessionEndedNotice = false;
+    AccountScope.resetAll();
+  }
+
+  /// A « Déconnexion » or a deletion is under way: it clears the session
+  /// itself, so a refusal heard meanwhile is that same way out (§3) — unless
+  /// it fails: a deletion whose own request was the one refused leaves no
+  /// session behind it, and then [_endedWhileLeaving] ends the account.
+  bool _leaving = false;
+  bool _endedWhileLeaving = false;
+
+  bool _sessionEndedNotice = false;
+
+  /// True ONCE after the server ended the session (§2.5): the root's
+  /// `SessionEndedNotice` says it, then it is spent.
+  bool consumeSessionEndedNotice() {
+    final notice = _sessionEndedNotice;
+    _sessionEndedNotice = false;
+    return notice;
+  }
+
+  /// The server refused to renew the session (`AuthServiceInterface
+  /// .sessionEnded`): the account ends here, as a sign-out ends it — minus the
+  /// device unregistration, which needs the session that is gone.
+  void _onSessionEnded() {
+    if (_user == null) return;
+    if (_leaving) {
+      _endedWhileLeaving = true;
+      return;
+    }
+    _setUser(null);
+    _error = null;
+    _sessionEndedNotice = true;
+    notifyListeners();
+  }
+
+  /// The end of a « Déconnexion » or a deletion, whatever it answered: one
+  /// that left the account signed in while the server ended its session
+  /// ends it now, with the notice. The caller notifies.
+  void _doneLeaving() {
+    _leaving = false;
+    final ended = _endedWhileLeaving;
+    _endedWhileLeaving = false;
+    if (ended && _user != null) {
+      _setUser(null);
+      _sessionEndedNotice = true;
+    }
   }
 
   Future<void> _loadCurrentUser() async {
@@ -48,11 +120,11 @@ class AuthProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      _user = await _authService.getCurrentUser();
+      _setUser(await _authService.getCurrentUser());
       _error = null;
       if (_user != null) _syncPush();
     } catch (e) {
-      _error = e.toString();
+      _error = kGenericErrorMessage;
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -86,7 +158,7 @@ class AuthProvider extends ChangeNotifier {
         return false;
       }
     } catch (e) {
-      _error = e.toString();
+      _error = kGenericErrorMessage;
       return false;
     } finally {
       _isLoading = false;
@@ -102,7 +174,7 @@ class AuthProvider extends ChangeNotifier {
     try {
       final response = await _authService.verifyOtp(phoneNumber, otp);
       if (response.success && response.data != null) {
-        _user = response.data;
+        _setUser(response.data);
         _error = null;
         _otpErrorCode = null;
         _syncPush();
@@ -113,7 +185,7 @@ class AuthProvider extends ChangeNotifier {
         return false;
       }
     } catch (e) {
-      _error = e.toString();
+      _error = kGenericErrorMessage;
       return false;
     } finally {
       _isLoading = false;
@@ -133,11 +205,12 @@ class AuthProvider extends ChangeNotifier {
   Future<bool> _login(Future<ApiResponse<User>> Function() run) async {
     _isLoading = true;
     _error = null;
+    _otpErrorCode = null;
     notifyListeners();
     try {
       final response = await run();
       if (response.success && response.data != null) {
-        _user = response.data;
+        _setUser(response.data);
         _error = null;
         _otpErrorCode = null;
         _syncPush();
@@ -149,7 +222,7 @@ class AuthProvider extends ChangeNotifier {
           : (response.error ?? 'Connexion impossible.');
       return false;
     } catch (e) {
-      _error = e.toString();
+      _error = kGenericErrorMessage;
       return false;
     } finally {
       _isLoading = false;
@@ -164,6 +237,9 @@ class AuthProvider extends ChangeNotifier {
   Future<bool> requestEmailOtp(String email) async {
     _isLoading = true;
     _error = null;
+    // A new attempt: the last one's code would place this one's sentence
+    // (sign_in_refusal.dart), so it goes with it, as on ProAuthProvider.
+    _otpErrorCode = null;
     notifyListeners();
     try {
       final response = await _authService.requestEmailOtp(email);
@@ -178,7 +254,7 @@ class AuthProvider extends ChangeNotifier {
       _otpErrorCode = response.code;
       return false;
     } catch (e) {
-      _error = e.toString();
+      _error = kGenericErrorMessage;
       return false;
     } finally {
       _isLoading = false;
@@ -191,6 +267,7 @@ class AuthProvider extends ChangeNotifier {
 
   Future<void> logout() async {
     _isLoading = true;
+    _leaving = true;
     notifyListeners();
 
     try {
@@ -201,11 +278,13 @@ class AuthProvider extends ChangeNotifier {
         /* best-effort */
       }
       await _authService.logout();
-      _user = null;
+      _setUser(null);
       _error = null;
     } catch (e) {
-      _error = e.toString();
+      // Still signed in: the account keeps its data too.
+      _error = kGenericErrorMessage;
     } finally {
+      _doneLeaving();
       _isLoading = false;
       notifyListeners();
     }
@@ -214,22 +293,24 @@ class AuthProvider extends ChangeNotifier {
   /// Permanently deletes the account. On success the local user is cleared.
   Future<bool> deleteAccount() async {
     _isLoading = true;
+    _leaving = true;
     _error = null;
     notifyListeners();
 
     try {
       final response = await _authService.deleteAccount();
       if (response.success) {
-        _user = null;
+        _setUser(null);
         _error = null;
         return true;
       }
       _error = response.error ?? 'Erreur lors de la suppression';
       return false;
     } catch (e) {
-      _error = e.toString();
+      _error = kGenericErrorMessage;
       return false;
     } finally {
+      _doneLeaving();
       _isLoading = false;
       notifyListeners();
     }
@@ -238,6 +319,7 @@ class AuthProvider extends ChangeNotifier {
   /// Uploads a new avatar through the image pipeline, then saves it on the
   /// user. Returns true on success.
   Future<bool> uploadAvatar(String source) async {
+    final account = _user?.id;
     _isUploadingAvatar = true;
     _avatarProgress = 0;
     _error = null;
@@ -250,13 +332,16 @@ class AuthProvider extends ChangeNotifier {
           notifyListeners();
         },
       );
+      // Signed out — or another account in — while the file went up: the
+      // photo was A's, and saving it now would put it on B's profile (§1).
+      if (_user?.id != account) return false;
       if (!res.success || res.data == null) {
         _error = res.error ?? 'Échec de l’envoi';
         return false;
       }
       return await updateUser(avatarUrl: res.data);
     } catch (e) {
-      _error = e.toString();
+      _error = kGenericErrorMessage;
       return false;
     } finally {
       _isUploadingAvatar = false;
@@ -270,6 +355,7 @@ class AuthProvider extends ChangeNotifier {
     String? avatarUrl,
     String? phone,
   }) async {
+    final account = _user?.id;
     _isLoading = true;
     _error = null;
     _updateErrorCode = null;
@@ -282,8 +368,11 @@ class AuthProvider extends ChangeNotifier {
         avatarUrl: avatarUrl,
         phone: phone,
       );
+      // The account changed while the edit was out: its answer is the
+      // previous account's — taking it would sign A back in under B.
+      if (_user?.id != account) return false;
       if (response.success && response.data != null) {
-        _user = response.data;
+        _setUser(response.data);
         _error = null;
         return true;
       } else {
@@ -292,7 +381,7 @@ class AuthProvider extends ChangeNotifier {
         return false;
       }
     } catch (e) {
-      _error = e.toString();
+      _error = kGenericErrorMessage;
       return false;
     } finally {
       _isLoading = false;

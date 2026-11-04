@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:myweli/core/di/dependency_injection.dart';
+import 'package:myweli/core/utils/salon_id.dart';
 import 'package:myweli/models/before_after_pair.dart';
 import 'package:myweli/providers/pro_before_after_provider.dart';
 import 'package:myweli/services/mock/mock_image_upload_service.dart';
@@ -30,10 +31,10 @@ void main() {
   group('MockProService before/after persistence', () {
     test('updateBeforeAfters round-trips via getBeforeAfters', () async {
       final service = MockProService();
-      await service.updateBeforeAfters('provider3', const [
+      await service.updateBeforeAfters(SalonId('provider3'), const [
         BeforeAfterPair(before: 'b.jpg', after: 'a.jpg', caption: 'X'),
       ]);
-      final got = await service.getBeforeAfters('provider3');
+      final got = await service.getBeforeAfters(SalonId('provider3'));
       expect(got.data, hasLength(1));
       expect(got.data!.first.caption, 'X');
     });
@@ -47,12 +48,12 @@ void main() {
 
     test('loads, adds a pair (two uploads), then removes it', () async {
       final p = ProBeforeAfterProvider();
-      await p.load('provider1');
+      await p.load(SalonId('provider1'));
       expect(p.loadFailed, isFalse);
       final initial = p.pairs.length;
 
       final added = await p.addPair(
-        'provider1',
+        SalonId('provider1'),
         beforeSource: 'asset:assets/images/providers/spa_relax_photo.png',
         afterSource: 'asset:assets/images/providers/beaute_divine_photo.png',
         caption: 'Soin visage',
@@ -62,18 +63,21 @@ void main() {
       expect(p.pairs.last.caption, 'Soin visage');
       expect(p.isUploading, isFalse);
 
-      final removed = await p.removePair('provider1', p.pairs.length - 1);
+      final removed = await p.removePair(
+        SalonId('provider1'),
+        p.pairs.length - 1,
+      );
       expect(removed, isTrue);
       expect(p.pairs.length, initial);
     });
 
     test('an empty image source fails the add without persisting', () async {
       final p = ProBeforeAfterProvider();
-      await p.load('provider1');
+      await p.load(SalonId('provider1'));
       final initial = p.pairs.length;
 
       final ok = await p.addPair(
-        'provider1',
+        SalonId('provider1'),
         beforeSource: '',
         afterSource: 'asset:assets/images/providers/spa_relax_photo.png',
       );

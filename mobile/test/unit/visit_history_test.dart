@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:myweli/core/utils/salon_id.dart';
 import 'package:myweli/core/utils/visit_history.dart';
 import 'package:myweli/models/appointment.dart';
 
@@ -13,7 +14,7 @@ void main() {
   }) => Appointment(
     id: id,
     userId: 'u1',
-    providerId: 'p1',
+    providerId: SalonId('p1'),
     serviceIds: const ['s1'],
     appointmentDate: date,
     status: status,

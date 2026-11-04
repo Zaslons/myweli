@@ -8,6 +8,7 @@ import '../../core/config/app_config.dart';
 import '../../models/api_response.dart';
 import '../interfaces/image_upload_service_interface.dart';
 import '../interfaces/session_store.dart';
+import 'api_errors.dart';
 import 'refreshing_http_client.dart';
 
 /// Compresses [source] (a local file path) to JPEG bytes for upload. Injected
@@ -119,9 +120,7 @@ class ApiImageUploadService implements ImageUploadServiceInterface {
         body: jsonEncode({'contentType': 'image/jpeg', 'purpose': _purpose}),
       ),
     );
-    if (signRes == null) {
-      return ApiResponse.error('Pas de connexion. Réessayez.');
-    }
+    if (signRes == null) return networkError();
     if (signRes.statusCode != 200) {
       return _errorFrom(signRes);
     }
@@ -156,15 +155,8 @@ class ApiImageUploadService implements ImageUploadServiceInterface {
     return ApiResponse.success(ticket['publicUrl'] as String);
   }
 
-  ApiResponse<String> _errorFrom(http.Response res) {
-    try {
-      final body = jsonDecode(res.body) as Map<String, dynamic>;
-      return ApiResponse.error(
-        body['message'] as String? ?? 'Échec de l’envoi',
-        code: body['error'] as String?,
-      );
-    } catch (_) {
-      return ApiResponse.error('Échec de l’envoi');
-    }
-  }
+  /// An upload refused: its own sentence, whatever the code — never the
+  /// server's `message` (docs/design/app-failure-messages.md §2.1).
+  ApiResponse<String> _errorFrom(http.Response res) =>
+      errorFromResponse(res, messageFor: (_) => 'Échec de l’envoi');
 }

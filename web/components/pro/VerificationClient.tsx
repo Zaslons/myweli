@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation';
 import { ErrorState } from '../ErrorState';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { getKycStatus, getMyProvider, submitKyc } from '../../lib/api/pro';
-import { loadFailure, loadFailureMessage, type LoadFailure } from '../../lib/pro/load-failure';
+import { loadFailure, loadFailureMessage, type LoadFailure } from '../../lib/api/load-failure';
 import {
   KYC_ACCEPT,
   KYC_DOC_TYPES,

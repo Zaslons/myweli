@@ -142,6 +142,85 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
 
+  /internal/cron/subscriptions:
+    post:
+      tags: [messaging]
+      summary: The daily offers walk — trial warnings, grace notice, enforcement (internal)
+      description: >
+        Hit by Cloud Scheduler (`myweli-subscriptions`, daily 03:00 UTC). The
+        same door as the reminders cron: the Google-signed OIDC token only;
+        404 when the OIDC pair is unconfigured, 403 otherwise. Idempotent per
+        tick. The trial warnings (J-14/J-7/J-1), the grace notice and — only
+        with `SUBSCRIPTION_ENFORCEMENT` on — the past-grace unpublish. Nothing
+        else since docs/design/infra-cron-maintenance.md: the housekeeping that
+        rode here is `/internal/cron/maintenance`.
+      parameters:
+        - { in: header, name: Authorization, schema: { type: string } }
+      responses:
+        '200':
+          description: What the walk did this tick
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [notices, unpublished]
+                properties:
+                  notices: { type: integer }
+                  unpublished: { type: integer }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /internal/cron/maintenance:
+    post:
+      tags: [messaging]
+      summary: The daily housekeeping — security prunes, kept answers, demo reset (internal)
+      description: >
+        Hit by Cloud Scheduler (`myweli-maintenance`, daily 03:30 UTC). The
+        same door as the other crons: the Google-signed OIDC token only; 404
+        when the OIDC pair is unconfigured, 403 otherwise. Idempotent per tick:
+        every prune is, and the demo reset is due-gated (every 7 days). A
+        prune that failed is `null` in the answer (and one `*_prune_failed`
+        log line), never a guess; a demo reset that fails is a 500.
+        Design: docs/design/infra-cron-maintenance.md.
+      parameters:
+        - { in: header, name: Authorization, schema: { type: string } }
+      responses:
+        '200':
+          description: Each task's outcome this tick
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  [throttleRowsPruned, rateLimitWindowsPruned, idempotencyKeysPruned, demoReset]
+                properties:
+                  throttleRowsPruned:
+                    type: integer
+                    nullable: true
+                    description: admin_login_throttle rows older than 24 h
+                  rateLimitWindowsPruned:
+                    type: integer
+                    nullable: true
+                    description: identity_rate_limits windows past kRateLimitRetention (1 day)
+                  idempotencyKeysPruned:
+                    type: integer
+                    nullable: true
+                    description: idempotency_keys rows older than 24 h
+                  demoReset:
+                    type: string
+                    enum: [ran, not_due, no_snapshot, 'refused:not_demo_owned']
+                    description: >
+                      What the demo-salon reset did this tick, and why when it
+                      did not run. `refused:not_demo_owned` is the demo
+                      identity LOST — the salon's owner row is no longer it;
+                      an alert watches the matching log line
+                      (`infra/gcp/84-demo-reset-alert.sh`). It was a boolean
+                      that said `false` for both « not the day » and
+                      « refused » (docs/design/backend-integrity-batch6.md
+                      §2.9, B6.9).
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
   /auth/otp/verify:
     post:
       tags: [auth]
@@ -221,6 +300,24 @@ paths:
                   type: string
                   description: The raw nonce used for the sign-in request (replay defence).
                 fullName: { type: string, description: First-auth display-name hint. }
+                authorizationCode:
+                  type: string
+                  description: >-
+                    Optional (B6.7). Apple's one-time authorization code from
+                    the same sign-in. After a SUCCESSFUL sign-in the server
+                    exchanges it for a refresh token, kept to revoke the
+                    authorization when the account is deleted (App Store
+                    5.1.1(v)) — only if Apple's answer names the same `sub`.
+                    Never a reason for the sign-in to fail: unusable → ignored;
+                    a wrong JSON type → 400 `invalid_body` like every field.
+                    Inactive (ignored) while no Apple key is configured.
+                redirectUri:
+                  type: string
+                  description: >-
+                    Optional — sent by the web's BFF only, never the browser:
+                    the redirect URI of the authorization, which Apple
+                    requires to exchange a web code. Must be https; else
+                    ignored.
       responses:
         '200':
           description: Signed in
@@ -619,6 +716,7 @@ paths:
       security: [{ bearerAuth: [] }]
       parameters:
         - { $ref: '#/components/parameters/SalonSelector' }
+        - { $ref: '#/components/parameters/IdempotencyKey' }
       requestBody:
         required: true
         content:
@@ -633,13 +731,24 @@ paths:
       responses:
         '201':
           description: Invitation created, or a revoked/expired row invited again (the pending member row)
+          headers:
+            Idempotent-Replayed: { $ref: '#/components/headers/IdempotentReplayed' }
           content:
             application/json:
               schema: { $ref: '#/components/schemas/TeamMember' }
         '400': { $ref: '#/components/responses/BadRequest' }
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
-        '409': { $ref: '#/components/responses/Conflict' }
+        '409':
+          description: >-
+            `member_exists`, `offer_required`, `seat_limit` (above), or
+            `request_in_progress` — the same `Idempotency-Key` is still being
+            answered: ask again with it. A replayed invitation is never
+            `member_exists`.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '422': { $ref: '#/components/responses/IdempotencyKeyReused' }
         '429': { $ref: '#/components/responses/RateLimited' }
 
   /me/provider/members/{memberId}:
@@ -673,6 +782,14 @@ paths:
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: >
+            `member_revoked` — the member was revoked: a former member's role
+            is not changed, a re-invitation states its own
+            (docs/design/backend-integrity-batch6.md §2.8, B6.8c).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
 
   /me/provider/members/{memberId}/revoke:
     post:
@@ -898,6 +1015,9 @@ paths:
             application/json:
               schema:
                 type: object
+                # Always sent; the web reads a 200 without it as a failed read
+                # (docs/design/hygiene-batch9.md §2.10).
+                required: [items]
                 properties:
                   items: { type: array, items: { $ref: '#/components/schemas/Notification' } }
         '401': { $ref: '#/components/responses/Unauthorized' }
@@ -1157,27 +1277,6 @@ paths:
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
 
-  /auth/provider/otp/request:
-    post:
-      tags: [auth]
-      summary: Request a login code for an existing provider (B-prov)
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema: { $ref: '#/components/schemas/OtpRequest' }
-      responses:
-        '202':
-          description: Code dispatched (dev builds return it inline)
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  expiresInSeconds: { type: integer }
-                  devCode: { type: string, description: dev only }
-        '429': { $ref: '#/components/responses/RateLimited' }
-
   /auth/provider/register:
     post:
       tags: [auth]
@@ -1224,6 +1323,24 @@ paths:
                 idToken: { type: string, description: Google ID token (identity proof). }
                 identityToken: { type: string, description: Apple identity token. }
                 nonce: { type: string }
+                authorizationCode:
+                  type: string
+                  description: >-
+                    Optional (B6.7). Apple's one-time authorization code from
+                    the same sign-in (with `identityToken`). After a SUCCESSFUL sign-in the server
+                    exchanges it for a refresh token, kept to revoke the
+                    authorization when the account is deleted (App Store
+                    5.1.1(v)) — only if Apple's answer names the same `sub`.
+                    Never a reason for the sign-in to fail: unusable → ignored;
+                    a wrong JSON type → 400 `invalid_body` like every field.
+                    Inactive (ignored) while no Apple key is configured.
+                redirectUri:
+                  type: string
+                  description: >-
+                    Optional — sent by the web's BFF only, never the browser:
+                    the redirect URI of the authorization, which Apple
+                    requires to exchange a web code. Must be https; else
+                    ignored.
                 email: { type: string, format: email }
                 code: { type: string, description: Email OTP (identity proof with `email`). }
       responses:
@@ -1307,6 +1424,24 @@ paths:
               properties:
                 identityToken: { type: string }
                 nonce: { type: string }
+                authorizationCode:
+                  type: string
+                  description: >-
+                    Optional (B6.7). Apple's one-time authorization code from
+                    the same sign-in. After a SUCCESSFUL sign-in the server
+                    exchanges it for a refresh token, kept to revoke the
+                    authorization when the account is deleted (App Store
+                    5.1.1(v)) — only if Apple's answer names the same `sub`.
+                    Never a reason for the sign-in to fail: unusable → ignored;
+                    a wrong JSON type → 400 `invalid_body` like every field.
+                    Inactive (ignored) while no Apple key is configured.
+                redirectUri:
+                  type: string
+                  description: >-
+                    Optional — sent by the web's BFF only, never the browser:
+                    the redirect URI of the authorization, which Apple
+                    requires to exchange a web code. Must be https; else
+                    ignored.
       responses:
         '200':
           description: Signed in (flat ProviderSession)
@@ -1471,50 +1606,6 @@ paths:
         '400': { $ref: '#/components/responses/BadRequest' }
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
-        '404': { $ref: '#/components/responses/NotFound' }
-        '429': { $ref: '#/components/responses/RateLimited' }
-
-  /auth/provider/otp/verify:
-    post:
-      tags: [auth]
-      summary: Verify a provider code; returns the account + a token pair (B-prov)
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema: { $ref: '#/components/schemas/OtpVerify' }
-      responses:
-        '200':
-          description: Verified
-          content:
-            application/json:
-              schema:
-                type: object
-                required: [provider, accessToken, refreshToken, expiresAt]
-                properties:
-                  provider: { $ref: '#/components/schemas/ProviderUser' }
-                  accessToken:
-                    type: string
-                    description: Signed JWT, role `provider`.
-                  refreshToken:
-                    type: string
-                    description: >
-                      Rotating opaque refresh token (hashed at rest); exchange
-                      at POST /auth/provider/refresh.
-                  expiresAt:
-                    type: string
-                    format: date-time
-                    description: Access-token expiry.
-        '400':
-          description: >
-            `invalid_phone` — `phoneNumber` missing or not a valid number.
-            `invalid_input` — `code` missing or not a 6-digit code (the two
-            used to share `invalid_input` — docs/design/phone-leftovers.md
-            §2). `invalid_body` — not a JSON object, or a field of the wrong
-            JSON type. `otp_*` — the code itself was refused.
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/Error' }
         '404': { $ref: '#/components/responses/NotFound' }
         '429': { $ref: '#/components/responses/RateLimited' }
 
@@ -1704,6 +1795,9 @@ paths:
             application/json:
               schema:
                 type: object
+                # Always sent; the web's build fails rather than publish a
+                # sitemap without it (docs/design/hygiene-batch9.md §2.10).
+                required: [items]
                 properties:
                   items:
                     type: array
@@ -2134,8 +2228,16 @@ paths:
         Server-authoritative (booking derives each deposit from this).
         **Enabling deposits requires a KYC-VERIFIED account** (T52) →
         403 `verification_required` otherwise.
-        Validated: `depositPercentage` 0..1 (and > 0 when required);
-        `cancellationWindowHours` 0..720; `mobileMoneyOperator` in the enum;
+        Validated: `depositPercentage` 0..1; **a required deposit is 0.05–0.80
+        when the percentage changes** — a value stored before the range is
+        kept while it is sent back unchanged — else 400 `invalid_percentage`
+        (one range for app, web and server, decision 19 —
+        docs/design/backend-integrity-batch6.md §2.5);
+        `cancellationWindowHours` 0..720; `mobileMoneyOperator`: with a
+        required deposit, one of the salon country's catalog, else 400
+        `operator_unavailable` (it may have been removed from the catalog);
+        with deposits off it is not judged, and **one outside the catalog is
+        not kept** (stored null — T57);
         `mobileMoneyNumber` E.164 (a +225 number has exactly 10 digits after
         the code; checked whenever present, deposits on or off) — a bad one
         is 400 `invalid_phone`, its own code so a client can put the fault
@@ -2165,7 +2267,14 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/DepositPolicy' }
-        '400': { $ref: '#/components/responses/BadRequest' }
+        '400':
+          description: >
+            `invalid_percentage` (under the slider) · `operator_unavailable`
+            (under the operator) · `invalid_phone` (under the number) ·
+            `invalid_input` (every other fault) · `invalid_body`.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
@@ -2303,6 +2412,8 @@ paths:
         double-booking (409). `sendSmsInvite` is accepted but a no-op until the
         notifications slice.
       security: [{ bearerAuth: [] }]
+      parameters:
+        - { $ref: '#/components/parameters/IdempotencyKey' }
       requestBody:
         required: true
         content:
@@ -2328,6 +2439,8 @@ paths:
       responses:
         '201':
           description: The created (confirmed) appointment
+          headers:
+            Idempotent-Replayed: { $ref: '#/components/headers/IdempotentReplayed' }
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Appointment' }
@@ -2339,6 +2452,8 @@ paths:
           description: >
             `slot_unavailable` — the exact start is already booked.
             `provider_suspended` — the salon was stopped.
+            `request_in_progress` — the same `Idempotency-Key` is still being
+            answered: ask again with it.
             A salon that has merely not published yet is NOT refused here: it
             owns its own calendar (row 82), which is also why this route never
             returns `beyond_horizon` or `too_soon` — the salon is exempt from
@@ -2346,6 +2461,7 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Error' }
+        '422': { $ref: '#/components/responses/IdempotencyKeyReused' }
 
   /uploads/sign:
     post:
@@ -2601,6 +2717,8 @@ paths:
       tags: [clients]
       summary: Add an internal note (≤500 chars; team-only, never consumer-visible)
       security: [{ bearerAuth: [] }]
+      parameters:
+        - { $ref: '#/components/parameters/IdempotencyKey' }
       requestBody:
         required: true
         content:
@@ -2613,6 +2731,8 @@ paths:
       responses:
         '201':
           description: Created
+          headers:
+            Idempotent-Replayed: { $ref: '#/components/headers/IdempotentReplayed' }
           content:
             application/json:
               schema: { $ref: '#/components/schemas/SalonClientNote' }
@@ -2620,6 +2740,14 @@ paths:
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: >-
+            `request_in_progress` — the same `Idempotency-Key` is still being
+            answered: ask again with it.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '422': { $ref: '#/components/responses/IdempotencyKeyReused' }
 
   /providers/{id}/clients/{clientId}/notes/{noteId}:
     parameters:
@@ -2739,6 +2867,8 @@ paths:
       tags: [appointments]
       summary: Book an appointment — created pending, server-priced (B-appt)
       security: [{ bearerAuth: [] }]
+      parameters:
+        - { $ref: '#/components/parameters/IdempotencyKey' }
       requestBody:
         required: true
         content:
@@ -2773,6 +2903,8 @@ paths:
       responses:
         '201':
           description: The created (pending) appointment
+          headers:
+            Idempotent-Replayed: { $ref: '#/components/headers/IdempotentReplayed' }
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Appointment' }
@@ -2789,6 +2921,14 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/Error' }
         '401': { $ref: '#/components/responses/Unauthorized' }
+        '403':
+          description: >
+            `forbidden` — the token is not a client's (a salon's or an
+            admin's): booking is a client's act, refused before the body is
+            read (docs/design/backend-integrity-batch6.md §2.1, B6.1).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
         '404': { $ref: '#/components/responses/NotFound' }
         '409':
           description: >
@@ -2809,9 +2949,12 @@ paths:
             (the mobile `Provider` model has no `status` field), and the
             never-published case is the state EVERY salon starts in while the
             suspended one takes a deliberate admin act.
+            `request_in_progress` — the same `Idempotency-Key` is still being
+            answered: ask again with it.
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Error' }
+        '422': { $ref: '#/components/responses/IdempotencyKeyReused' }
         '429': { $ref: '#/components/responses/RateLimited' }
 
   /appointments/{id}:
@@ -3458,6 +3601,52 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
 
+  /me/provider/reviews/{id}/report:
+    post:
+      tags: [reviews]
+      summary: The salon reports a review of its own salon (B6.6)
+      description: >
+        The same moderation queue as a client's report, marked « Signalé par
+        le salon » (`reportedBySalon` on `GET /admin/reviews/reports`) — App
+        Store 1.2 asks for a way to report user content, and the Pro « Avis »
+        had none. The salon is resolved like `GET /me/provider/reviews` (the
+        account's, or `?salonId=` against an ACTIVE membership); **only the
+        Propriétaire and the Gérant** may report (`profile.manage`, decision
+        20). A review of another salon is 404. Idempotent per (review, salon).
+        `reason` is optional (docs/design/backend-integrity-batch6.md §2.6).
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { in: path, name: id, required: true, schema: { type: string } }
+        - { in: query, name: salonId, schema: { type: string } }
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason: { type: string, maxLength: 500 }
+      responses:
+        '200':
+          description: Reported (idempotent)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: string, enum: [reported] }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403':
+          description: >
+            `forbidden` — not a salon token, not a member of the salon, or a
+            member without `profile.manage` (Réception, Collaborateur).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '405': { description: Method not allowed }
+
   /admin/reviews/reports:
     get:
       tags: [admin]
@@ -3488,6 +3677,12 @@ paths:
                         reportCount: { type: integer }
                         lastReason: { type: string }
                         lastReportedAt: { type: string, format: date-time }
+                        reportedBySalon:
+                          type: boolean
+                          description: >
+                            One of the open reports is the salon's own
+                            (B6.6) — the console shows « Signalé par le
+                            salon ».
                   page: { type: integer }
                   pageSize: { type: integer }
                   total: { type: integer }
@@ -4090,6 +4285,25 @@ components:
         protected routes (e.g. /me) as those slices land — see docs/BACKEND.md §3.1.
 
   parameters:
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: false
+      schema: { type: string, pattern: '^[A-Za-z0-9_-]{8,128}$' }
+      description: >-
+        One key per form submission (a UUID), reused on every retry of that
+        same submission: a write whose answer was lost is asked again with it,
+        and the server REPLAYS its first success (same status, same body,
+        `Idempotent-Replayed: true`) instead of writing again — no second
+        booking, note or invitation, no 409 on the caller's own booking.
+        Scoped to the caller's account and this exact route (path ids and
+        query); kept 24 h. Absent → the write behaves as without keys. A
+        malformed key → 400 `invalid_idempotency_key`; the same request
+        still running → 409 `request_in_progress` (wait, ask again with the
+        same key); the key used for ANOTHER body → 422
+        `idempotency_key_reused`. A refused write (any non-2xx) frees the key.
+        Only the four creating POSTs take it. Design:
+        docs/design/write-idempotency.md.
     SalonSelector:
       name: salonId
       in: query
@@ -4157,6 +4371,21 @@ components:
       content:
         application/json:
           schema: { $ref: '#/components/schemas/Error' }
+    IdempotencyKeyReused:
+      description: >-
+        `idempotency_key_reused` — this `Idempotency-Key` was sent before with
+        another body. A client bug, never a retry: a new submission takes a
+        new key.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+
+  headers:
+    IdempotentReplayed:
+      description: >-
+        `true` when this answer is the replay of an earlier success for the
+        same `Idempotency-Key` — nothing was written again.
+      schema: { type: string, enum: ['true'] }
 
   schemas:
     Health:

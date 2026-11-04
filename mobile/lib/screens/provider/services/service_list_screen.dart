@@ -1,17 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:myweli/widgets/common/brand_refresh.dart';
-import 'package:myweli/widgets/common/loading_indicator.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/colors.dart';
 import '../../../core/theme/text_styles.dart';
 import '../../../core/utils/formatters.dart';
+import '../../../core/utils/salon_id.dart';
 import '../../../models/service.dart';
 import '../../../providers/pro_auth_provider.dart';
 import '../../../providers/pro_service_provider.dart';
-import '../../../widgets/common/app_button.dart';
+import '../../../widgets/common/app_async_view.dart';
+import '../../../widgets/common/app_card.dart';
+import '../../../widgets/common/app_skeleton.dart';
+import '../../../widgets/common/empty_state.dart';
 
 class ServiceListScreen extends StatefulWidget {
   const ServiceListScreen({super.key});
@@ -21,9 +24,9 @@ class ServiceListScreen extends StatefulWidget {
 }
 
 class _ServiceListScreenState extends State<ServiceListScreen> {
-  String _resolvedProviderId(BuildContext context) {
+  SalonId _resolvedProviderId(BuildContext context) {
     final authProvider = Provider.of<ProAuthProvider>(context, listen: false);
-    return authProvider.activeSalonId ?? '';
+    return authProvider.activeSalonId ?? SalonId.none;
   }
 
   @override
@@ -57,74 +60,51 @@ class _ServiceListScreenState extends State<ServiceListScreen> {
             return const Center(child: Text('Veuillez vous connecter'));
           }
 
-          if (serviceProvider.isLoading && serviceProvider.services.isEmpty) {
-            return const Center(child: LoadingIndicator());
+          Future<void> reload() async {
+            if (authProvider.provider != null) {
+              await serviceProvider.loadServices(_resolvedProviderId(context));
+            }
           }
 
-          final services = serviceProvider.services;
-          if (services.isEmpty) {
-            return Center(
-              child: Padding(
-                padding: const EdgeInsets.all(AppTheme.spacingL),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Icon(
-                      Icons.build,
-                      size: AppTheme.iconXL,
-                      color: AppColors.textSecondary,
-                    ),
-                    const SizedBox(height: AppTheme.spacingM),
-                    Text(
-                      'Aucun service pour le moment',
-                      style: AppTextStyles.titleLarge.copyWith(
-                        color: AppColors.textSecondary,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: AppTheme.spacingS),
-                    Text(
-                      'Ajoutez vos services pour que les clients puissent réserver.',
-                      style: AppTextStyles.bodyMedium.copyWith(
-                        color: AppColors.textTertiary,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: AppTheme.spacingL),
-                    AppButton(
-                      text: 'Ajouter un service',
-                      onPressed: () => context.push('/pro/service/new'),
-                      isFullWidth: false,
-                    ),
-                  ],
-                ),
-              ),
-            );
-          }
+          // A failed list said « Aucun service pour le moment » (B9.8).
+          return AppAsyncView<List<Service>>(
+            isLoading: serviceProvider.isLoading,
+            error: serviceProvider.loadError,
+            data: serviceProvider.services,
+            isEmpty: (d) => d.isEmpty,
+            loading: const SkeletonCardList(lines: [0.5, 0.3]),
+            empty: EmptyState(
+              icon: Icons.build,
+              title: 'Aucun service pour le moment',
+              description:
+                  'Ajoutez vos services pour que les clients puissent '
+                  'réserver.',
+              actionText: 'Ajouter un service',
+              onAction: () => context.push('/pro/service/new'),
+            ),
+            onRetry: reload,
+            onRefresh: reload,
+            builder: (context, services) => _list(services, reload),
+          );
+        },
+      ),
+    );
+  }
 
-          return BrandRefresh(
-            onRefresh: () async {
-              if (authProvider.provider != null) {
-                await serviceProvider.loadServices(
-                  _resolvedProviderId(context),
-                );
-              }
-            },
-            child: ListView.builder(
-              physics: const AlwaysScrollableScrollPhysics(),
-              padding: const EdgeInsets.all(AppTheme.spacingL),
-              itemCount: services.length,
-              itemBuilder: (context, index) {
-                final service = services[index];
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: AppTheme.spacingM),
-                  child: _ServiceCard(
-                    service: service,
-                    onTap: () =>
-                        context.push('/pro/service/${service.id}/edit'),
-                  ),
-                );
-              },
+  Widget _list(List<Service> services, Future<void> Function() reload) {
+    return BrandRefresh(
+      onRefresh: reload,
+      child: ListView.builder(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.all(AppTheme.spacingL),
+        itemCount: services.length,
+        itemBuilder: (context, index) {
+          final service = services[index];
+          return Padding(
+            padding: const EdgeInsets.only(bottom: AppTheme.spacingM),
+            child: _ServiceCard(
+              service: service,
+              onTap: () => context.push('/pro/service/${service.id}/edit'),
             ),
           );
         },
@@ -141,16 +121,10 @@ class _ServiceCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(AppTheme.spacingM),
-        decoration: BoxDecoration(
-          color: AppColors.secondary,
-          borderRadius: BorderRadius.circular(AppTheme.radiusXL),
-          boxShadow: AppTheme.elevation1,
-        ),
+    return SizedBox(
+      width: double.infinity,
+      child: AppCard(
+        onTap: onTap,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [

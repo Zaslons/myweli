@@ -7,6 +7,8 @@ import { ErrorState } from "../ErrorState";
 import { Loading } from "../Loading";
 import { SkeletonRows } from "../Skeleton";
 import { type Me, getMe } from "../../lib/api/account";
+import { loadFailure, loadFailureMessage, type LoadFailure } from "../../lib/api/load-failure";
+import { NO_CONNECTION_MESSAGE, SubmissionKey } from "../../lib/api/network";
 import type { Provider } from "../../lib/api/providers";
 import { updateContactPhone } from "../../lib/auth/client";
 import {
@@ -62,6 +64,7 @@ import { Button } from "../Button";
 import { SalonTimeHint } from "../SalonTimeHint";
 import { SlotsEmpty } from "./SlotsEmpty";
 import { LoginOptions } from "../auth/LoginOptions";
+import { ButtonLink } from "../ButtonLink";
 import { OpenInAppButton } from "../OpenInAppButton";
 import { PhoneField } from "../PhoneField";
 import { TextField } from "../TextField";
@@ -164,7 +167,8 @@ export function BookingFlow({
   const [me, setMe] = useState<Me | null | undefined>(undefined);
   // The probe got no usable answer (no network, a 5xx) — which is not « signed
   // out »: only a 401 is. `probeKey` re-runs it from « Réessayer ».
-  const [probeFailed, setProbeFailed] = useState(false);
+  // Why the session probe failed (docs/design/app-failure-messages.md §2.2).
+  const [probeFailed, setProbeFailed] = useState<LoadFailure | false>(false);
   const [probeKey, setProbeKey] = useState(0);
   const [phone, setPhone] = useState("");
   // Its fault answers UNDER the field, on submit (§14 rules 1/2/5 —
@@ -181,6 +185,9 @@ export function BookingFlow({
   // `InviteMemberDialog`, which stores the code for exactly this reason.
   const [errorCode, setErrorCode] = useState<string | undefined>(undefined);
   const [created, setCreated] = useState<CreatedBooking | null>(null);
+  // One Idempotency-Key per submission — the same on « Réessayer », a new
+  // one once the booking changed (docs/design/write-idempotency.md §4).
+  const bookingKey = useRef(new SubmissionKey());
 
   const cta = bookingErrorCta(errorCode);
 
@@ -203,7 +210,7 @@ export function BookingFlow({
       // form to someone signed in (docs/design/web-consumer-network-failure.md
       // §3.2).
       if (r.status !== 200 && r.status !== 401) {
-        setProbeFailed(true);
+        setProbeFailed(loadFailure(r.status));
         return;
       }
       setMe(r.status === 200 ? (r.user ?? null) : null);
@@ -391,14 +398,19 @@ export function BookingFlow({
         return setError("Votre numéro n’a pas pu être enregistré. Réessayez.");
       }
     }
-    const b = await createBooking({
+    const booking = {
       providerId: provider.id,
       serviceIds: s.serviceIds,
       appointmentDateTime: s.slot!,
       artistId: s.artistId,
       notes: notes.trim() || undefined,
-    });
+    };
+    const b = await createBooking(booking, bookingKey.current.for(booking));
     setBusy(false);
+    // Nothing answered, even asked again: say so — « Réessayer » is safe now,
+    // it sends the same key (owner Q4). « La réservation a échoué » is for a
+    // real refusal.
+    if (b.lost) return setError(NO_CONNECTION_MESSAGE);
     if (!b.ok) {
       // A14d: this site already read the CODE — it just did not know the two
       // window codes existed, so they fell through to « réessayez », inviting
@@ -412,6 +424,7 @@ export function BookingFlow({
         }),
       );
     }
+    bookingKey.current.settle();
     setCreated(b.appointment ?? null);
     setS(goPhase(s, "done"));
   }
@@ -425,8 +438,8 @@ export function BookingFlow({
           Réservation envoyée ✓
         </h2>
         <p className="mt-s text-bodyLarge text-textSecondary">
-          {provider.name} va confirmer votre rendez-vous. Vous recevrez une
-          notification.
+          {provider.name} va confirmer votre rendez-vous. Sa réponse apparaîtra
+          dans vos rendez-vous et vos notifications.
         </p>
         {deposit > 0 && created?.id ? (
           <div className="mt-m">
@@ -440,6 +453,15 @@ export function BookingFlow({
           </div>
         ) : null}
         <div className="mt-l flex flex-wrap gap-s">
+          {/* A way to the booking, as the app goes to « Mes rendez-vous »
+              (web-true-sentences.md §4). With a deposit, sending the proof
+              above stays the page's one filled action. */}
+          <ButtonLink
+            href={created?.id ? `/mon-compte/${created.id}` : "/mon-compte"}
+            variant={deposit > 0 ? "secondary" : "primary"}
+          >
+            {created?.id ? "Voir mon rendez-vous" : "Voir mes rendez-vous"}
+          </ButtonLink>
           <OpenInAppButton />
         </div>
       </section>
@@ -502,6 +524,7 @@ export function BookingFlow({
         {me === undefined && probeFailed ? (
           <ErrorState
             className="mt-m"
+            message={loadFailureMessage(probeFailed)}
             onRetry={() => setProbeKey((k) => k + 1)}
           />
         ) : me === undefined ? (

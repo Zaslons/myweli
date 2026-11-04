@@ -75,7 +75,8 @@ const IdentityLimits kDefaultIdentityLimits = (
 /// open question rather than a gap.
 const Duration kIdentityWindow = Duration(hours: 1);
 
-/// How long the daily prune keeps a window (`routes/internal/cron/subscriptions.dart`).
+/// How long the daily prune keeps a window (`MaintenanceTick`, run by
+/// `routes/internal/cron/maintenance.dart` — docs/design/infra-cron-maintenance.md).
 ///
 /// **Load-bearing since the invite buckets.** A window survives the prune only
 /// while its START is newer than `now - kRateLimitRetention`; the hourly

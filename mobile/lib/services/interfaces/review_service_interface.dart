@@ -1,3 +1,4 @@
+import '../../core/utils/salon_id.dart';
 import '../../models/api_response.dart';
 import '../../models/review.dart';
 
@@ -9,7 +10,7 @@ abstract class ReviewServiceInterface {
 
   /// A provider's reviews, newest first (paginated).
   Future<ApiResponse<List<Review>>> getProviderReviews(
-    String providerId, {
+    SalonId providerId, {
     int page,
     int pageSize,
   });

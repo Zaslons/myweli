@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:myweli/core/di/dependency_injection.dart';
@@ -5,8 +6,6 @@ import 'package:myweli/providers/auth_provider.dart';
 import 'package:myweli/providers/pro_auth_provider.dart';
 import 'package:myweli/screens/auth/login_screen.dart';
 import 'package:myweli/screens/provider/auth/pro_login_screen.dart';
-import 'package:myweli/screens/provider/auth/pro_register_screen.dart';
-import 'package:myweli/widgets/common/auth_switch_prompt.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -14,27 +13,27 @@ import '../support/fonts.dart';
 import '../support/secure_storage.dart';
 import '_a11y.dart';
 
-/// The three auth screens, across §10's compact range (A11 C8).
+/// The auth screens, across §10's compact range (A11 C8).
 ///
 /// ## These were a subject of no width test at all
 ///
 /// `layout_test.dart` measures nine subjects and the screens people **sign in
-/// on** are not among them — the consumer login, the pro login and the pro
-/// register form were checked at one width (390) by one golden, at 1× only.
+/// on** are not among them — the consumer login and the pro login were checked
+/// at one width (390) by one golden, at 1× only.
 ///
-/// So this shipped: at 200% text the pro login's « Pas encore de compte ? »
-/// prompt ran **149px** past a 360dp screen, and the pro register form's
-/// « Déjà un compte ? » did the same. Both are a centred `Row` holding a
-/// sentence and a `TextButton`, neither able to give way. The overflow barely
-/// moved across the range — 149px at 360, 134 at 375, 119 at 390 — because the
-/// content has a fixed intrinsic width; it is not a layout that adapts badly,
-/// it is one that does not adapt.
+/// That is how a prompt at the bottom of the pro login shipped running **149px**
+/// past a 360dp screen at 200% text, found by running the app on a 360dp
+/// Android device. The prompt has since left the app
+/// (docs/design/app-review-round-2.md §4); the width test stays, because a
+/// sign-in screen with less on it can still overflow, and the banner that says
+/// so is debug-only.
 ///
-/// It is the last line of the **first screen a pro ever sees**, and the only
-/// route from it to registration.
+/// ## On both platforms, because Apple reviews the other one
 ///
-/// Found by running the app on a 360dp Android device at 200% text. The banner
-/// is debug-only, so on a release build the line is simply cut in half.
+/// `flutter test` is Android, and « Continuer avec Apple » is iOS only. So until
+/// this ran on both, the login Apple has cited twice, with that button in it, was
+/// never measured at any width or at 200 %. It is still not photographed:
+/// `pro_login_w360_x2` is Android. This measures; it does not look.
 void main() {
   setUpAll(() async {
     await loadRealFonts();
@@ -50,6 +49,10 @@ void main() {
   /// two points the rest of the suite already stands on.
   const widths = [360.0, 375.0, 390.0];
   const scales = [1.0, 2.0];
+  const bothPlatforms = TargetPlatformVariant({
+    TargetPlatform.android,
+    TargetPlatform.iOS,
+  });
 
   /// Each screen with a string that proves **it** rendered, not a Scaffold.
   ///
@@ -57,10 +60,10 @@ void main() {
   /// walks `RenderParagraph`s and flags only `didExceedMaxLines` or
   /// `!softWrap` — and `grep -n 'maxLines\|softWrap' ` returns **zero hits**
   /// for both login screens and every widget they compose. So B cannot fire on
-  /// two of the three subjects, and A (no overflow) is satisfied by an empty
-  /// tree. Without C, a screen that renders a bare AppBar — behind a feature
-  /// flag, or with the provider in a state these tests do not seed — is
-  /// eighteen green tests about nothing.
+  /// either subject, and A (no overflow) is satisfied by an empty tree. Without
+  /// C, a screen that renders a bare AppBar — behind a feature flag, or with the
+  /// provider in a state these tests do not seed — is twelve green tests about
+  /// nothing.
   final screens = <String, ({Widget screen, String proof})>{
     'the consumer login': (
       screen: const LoginScreen(),
@@ -68,11 +71,7 @@ void main() {
     ),
     'the pro login': (
       screen: const ProLoginScreen(),
-      proof: 'Pas encore de compte ?',
-    ),
-    'the pro register form': (
-      screen: const ProRegisterScreen(),
-      proof: 'Déjà un compte ?',
+      proof: 'Connectez-vous à votre espace salon.',
     ),
   };
 
@@ -81,7 +80,9 @@ void main() {
       final at = '${width.toInt()}dp × ${scale.toInt()}× text';
 
       for (final entry in screens.entries) {
-        testWidgets('${entry.key} fits $at', (tester) async {
+        testWidgets('${entry.key} fits $at', variant: bothPlatforms, (
+          tester,
+        ) async {
           await pumpAtWidth(
             tester,
             width: width,
@@ -101,6 +102,14 @@ void main() {
                 '« ${entry.value.proof} » is not on ${entry.key} at $at, '
                 'so whatever this measured, it was not the screen',
           );
+          // The variant really reached the screen: this is the one row that
+          // differs, and the reason both platforms run.
+          expect(
+            find.text('Continuer avec Apple'),
+            defaultTargetPlatform == TargetPlatform.iOS
+                ? findsOneWidget
+                : findsNothing,
+          );
 
           // A — reaching here already means no RenderFlex overflowed; those
           // are reported FlutterErrors and the pump dies on them. That is the
@@ -112,45 +121,5 @@ void main() {
         });
       }
     }
-  }
-
-  // ---- the prompt itself, where the defect lived -------------------------
-
-  for (final width in widths) {
-    testWidgets('the auth prompt keeps both halves and stays tappable at '
-        '${width.toInt()}dp × 2× text', (tester) async {
-      await pumpAtWidth(
-        tester,
-        width: width,
-        scale: 2,
-        providers: [ChangeNotifierProvider(create: (_) => ProAuthProvider())],
-        home: const ProLoginScreen(),
-      );
-
-      // Both halves present and whole. The failure this replaces did not
-      // truncate — it drew the line at full width, past the screen edge — so
-      // "the text exists" is not enough on its own; the box has to be inside
-      // the window.
-      final prompt = tester.getRect(find.byType(AuthSwitchPrompt));
-      expect(
-        prompt.right,
-        lessThanOrEqualTo(width),
-        reason: 'the prompt runs to ${prompt.right}dp on a ${width}dp screen',
-      );
-
-      for (final part in ['Pas encore de compte ?', 'S’inscrire']) {
-        expect(find.text(part), findsOneWidget, reason: '« $part » vanished');
-        expectNoMidWordBreak(tester, part, '${width.toInt()}dp @2x');
-      }
-
-      // §13.2: the link is the only way to reach registration from here, and a
-      // wrapped Wrap run must not squeeze it below the tap minimum.
-      final link = tester.getSize(find.byType(TextButton));
-      expect(
-        link.height,
-        greaterThanOrEqualTo(48.0),
-        reason: 'the « S’inscrire » target is ${link.height}dp tall',
-      );
-    });
   }
 }

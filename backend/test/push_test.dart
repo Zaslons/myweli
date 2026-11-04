@@ -290,6 +290,14 @@ void main() {
         expect(android['priority'], 'high');
         final apns = message!['apns'] as Map<String, dynamic>;
         expect((apns['headers'] as Map)['apns-priority'], '10');
+        // Never a silent push (B0.9, decision 7): every message carries a
+        // `notification`, and nothing asks iOS to wake the app in the
+        // background. The iOS app no longer declares `remote-notification`
+        // (`ios_store_readiness_test.dart`); a silent push would need it back.
+        expect(message!['notification'], isA<Map<String, dynamic>>());
+        expect(apns.containsKey('payload'), isFalse);
+        expect(jsonEncode(message), isNot(contains('content-available')));
+        expect((apns['headers'] as Map)['apns-push-type'], isNot('background'));
         // Browsers (web-pro-browser-push.md §4): the same urgency, and a day
         // at most — past that, a booking alert no longer helps (the e-mail
         // and the feed have said it).

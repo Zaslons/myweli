@@ -13,7 +13,7 @@ import {
   resendInvitation,
   revokeMember,
 } from '../../lib/api/pro';
-import { loadFailure, loadFailureMessage, type LoadFailure } from '../../lib/pro/load-failure';
+import { loadFailure, loadFailureMessage, type LoadFailure } from '../../lib/api/load-failure';
 import { Modal } from '../Modal';
 import { Toast } from '../Toast';
 import { useToast } from '../../lib/useToast';
@@ -21,6 +21,7 @@ import type { Artist } from '../../lib/pro/catalogue';
 import { formatDateFr } from '../../lib/format';
 import {
   type SalonOffer,
+  TEAM_NEEDS_OFFER,
 } from '../../lib/pro/subscription-plans';
 import {
   type TeamMember,
@@ -33,6 +34,7 @@ import { SkeletonRows } from '../Skeleton';
 import { ChangeRoleDialog } from './ChangeRoleDialog';
 import { InviteMemberDialog } from './InviteMemberDialog';
 import { TeamRoleChip } from './TeamRoleChip';
+import { UNNAMED_OWN_SALON, salonNameOr } from '../../lib/salon-name';
 
 function initials(email: string): string {
   const base = email.split('@')[0] ?? email;
@@ -47,10 +49,14 @@ function initials(email: string): string {
 export function EquipeClient() {
   const router = useRouter();
   const [providerId, setProviderId] = useState<string | null>(null);
-  const [salonName, setSalonName] = useState('ce salon');
+  const [salonName, setSalonName] = useState(UNNAMED_OWN_SALON);
   const [artists, setArtists] = useState<Artist[]>([]);
   const [members, setMembers] = useState<TeamMember[]>([]);
   const [offer, setOffer] = useState<SalonOffer | null>(null);
+  // The offer has THREE states (docs/design/web-pro-truthful-failure.md §2.1):
+  // present, absent (404 — « Choisissez votre offre »), and unknown — the read
+  // failed, and saying « choose one » to a salon that has one was false.
+  const [offerFailed, setOfferFailed] = useState<LoadFailure | false>(false);
   const [loading, setLoading] = useState(true);
   const [reloadKey, setReloadKey] = useState(0);
   const [error, setError] = useState<LoadFailure | false>(false);
@@ -81,7 +87,8 @@ export function EquipeClient() {
       }
       const pid = me.profile.provider.id;
       setProviderId(pid);
-      setSalonName(me.profile.provider.name || 'ce salon');
+      // In a sentence: « … l'accès à votre salon », as in the app.
+      setSalonName(salonNameOr(me.profile.provider.name, UNNAMED_OWN_SALON));
       setArtists(me.profile.provider.artists ?? []);
       const [roster, sub] = await Promise.all([
         getTeamMembers(),
@@ -97,11 +104,30 @@ export function EquipeClient() {
         return;
       }
       setMembers(roster.items);
-      if (sub.status === 200 && sub.offer) setOffer(sub.offer);
+      applyOffer(sub);
       setLoading(false);
     })();
   }, [router, reloadKey]);
 
+
+  function applyOffer(sub: { status: number; offer?: SalonOffer }) {
+    if (sub.status === 200 && sub.offer) {
+      setOffer(sub.offer);
+      setOfferFailed(false);
+    } else if (sub.status === 404) {
+      setOffer(null);
+      setOfferFailed(false);
+    } else {
+      setOfferFailed(loadFailure(sub.status));
+    }
+  }
+
+  /// « Réessayer » under an unreadable offer: that read only.
+  async function retryOffer() {
+    if (!providerId) return;
+    setOfferFailed(false);
+    applyOffer(await getSalonSubscription(providerId));
+  }
 
   function upsert(member: TeamMember) {
     setMembers((prev) => {
@@ -188,9 +214,17 @@ export function EquipeClient() {
             />
           </div>
         </div>
+      ) : offerFailed ? (
+        // « Inviter » stays usable (owner Q1): the server re-checks the offer,
+        // and its `offer_required` already has words.
+        <ErrorState
+          className="mt-m max-w-sm"
+          message={loadFailureMessage(offerFailed, 'Impossible de vérifier votre offre.')}
+          onRetry={() => void retryOffer()}
+        />
       ) : (
         <p className="mt-m text-bodyLarge text-textSecondary">
-          Choisissez votre offre pour inviter votre équipe.{' '}
+          {TEAM_NEEDS_OFFER}{' '}
           <a href="/pro/abonnement" className="underline">
             Choisir mon offre
           </a>
@@ -276,7 +310,7 @@ export function EquipeClient() {
                       aria-label={`Actions pour ${m.email}`}
                       disabled={busyId === m.id}
                       onClick={() => setMenuFor(menuFor === m.id ? null : m.id)}
-                      className="-my-sm flex min-h-12 min-w-12 items-center justify-center rounded-lg text-iconXS text-textSecondary hover:bg-surfaceVariant"
+                      className="-my-sm flex min-h-12 min-w-12 items-center justify-center rounded-control text-iconXS text-textSecondary hover:bg-surfaceVariant"
                     >
                       ⋯
                     </button>

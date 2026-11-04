@@ -12,7 +12,6 @@ import {
 } from '../../lib/api/pro';
 import { formatDateFr } from '../../lib/format';
 import {
-  NO_CONNECTION_MESSAGE,
   teamErrorMessage,
   type TeamInvitation,
 } from '../../lib/pro/team';
@@ -23,6 +22,9 @@ import { GoogleSignInButton } from '../auth/GoogleSignInButton';
 import { LegalConsentText } from '../LegalConsentText';
 import { AppleSignInButton } from '../auth/AppleSignInButton';
 import { appleIdentity } from '../../lib/auth/apple';
+import { forgetSalon } from '../../lib/pro/remembered-salon';
+import { type SignInRefusal, codeRefusal, sendRefusal } from '../../lib/auth/otp-failure';
+import { UNNAMED_SALON_AT_SENTENCE_START, salonNameOr } from '../../lib/salon-name';
 
 /// The identity proof retained IN MEMORY across the 202 invitation bridge
 /// (team access R5a): the Google credential or the still-unconsumed
@@ -46,6 +48,13 @@ export function ProLoginOptions({ onSuccess }: { onSuccess: () => void }) {
   );
   const [invitations, setInvitations] = useState<TeamInvitation[]>([]);
   const proofRef = useRef<InviteProof | null>(null);
+  /// Every way in ends here: an account is signed in, so the salon a previous
+  /// session remembered is not this one's to name (decision 14,
+  /// docs/design/web-pro-truthful-failure.md §2.4).
+  const signedIn = () => {
+    forgetSalon();
+    onSuccess();
+  };
   // Resend cooldown (module 11): 60 s, restarted on each send.
   const [cooldown, setCooldown] = useState(0);
   useEffect(() => {
@@ -71,16 +80,25 @@ export function ProLoginOptions({ onSuccess }: { onSuccess: () => void }) {
   const notFoundMessage = 'Compte introuvable.';
 
 
+  /// A refused step, said where the table puts it — under a field only while
+  /// that field is on screen (« Renvoyer le code » has no e-mail field to
+  /// point at), under the form otherwise (docs/design/web-client-polish.md
+  /// §2.1).
+  function refuse(f: SignInRefusal) {
+    const shown = f.field === 'code' ? step === 'code' : step === 'options';
+    if (f.field && shown) return fields.set(f.field, f.message);
+    setError(f.message);
+  }
+
   async function sendCode() {
     if (!fields.validate({ email: email.trim() })) return;
     setBusy(true);
     setError(null);
     const r = await requestEmailOtpPro(email.trim());
     setBusy(false);
-    // Status 0 = no answer: the e-mail was never judged
-    // (docs/design/web-pro-network-failure.md §3).
-    if (r.status === 0) return setError(NO_CONNECTION_MESSAGE);
-    if (!r.ok) return setError('E-mail invalide ou envoi impossible.');
+    // No answer, a rate limit or an outage is not the e-mail's fault: only
+    // the server's `invalid_email` goes under the field.
+    if (!r.ok) return refuse(sendRefusal(r));
     setDevCode(r.devCode);
     setStep('code');
     setCooldown(60);
@@ -98,15 +116,14 @@ export function ProLoginOptions({ onSuccess }: { onSuccess: () => void }) {
       setInvitations(r.invitations);
       return setStep('invitations');
     }
-    // No answer: the code was never judged — not « Code incorrect ».
-    if (r.status === 0) return setError(NO_CONNECTION_MESSAGE);
     if (!r.ok) {
       // « Compte introuvable » is an ACCOUNT state and drives the signup link →
-      // form-level. A bad code is the code field's fault (§14 rule 1).
+      // form-level. The rest is the shared table: the code's own verdicts
+      // under the field, what is not the code's fault under the form.
       if (r.error === 'provider_not_found') return setError(notFoundMessage);
-      return fields.set('code', 'Code incorrect ou expiré.');
+      return refuse(codeRefusal(r));
     }
-    onSuccess();
+    signedIn();
   }
 
   async function acceptInvitation(inv: TeamInvitation) {
@@ -119,7 +136,7 @@ export function ProLoginOptions({ onSuccess }: { onSuccess: () => void }) {
     });
     setBusy(false);
     if (!r.ok) return setError(teamErrorMessage(r.error));
-    onSuccess();
+    signedIn();
   }
 
   async function declineInvitation(inv: TeamInvitation) {
@@ -157,7 +174,10 @@ export function ProLoginOptions({ onSuccess }: { onSuccess: () => void }) {
               className="flex flex-col gap-s rounded-lg border border-border bg-surface p-m"
             >
               <p className="text-bodyLarge text-textPrimary">
-                <span className="font-semibold">{inv.salonName}</span> vous
+                <span className="font-semibold">
+                  {salonNameOr(inv.salonName, UNNAMED_SALON_AT_SENTENCE_START)}
+                </span>{' '}
+                vous
                 invite comme {inv.roleLabel}
               </p>
               <p className="text-bodySmall text-textTertiary">
@@ -262,7 +282,7 @@ export function ProLoginOptions({ onSuccess }: { onSuccess: () => void }) {
                   : 'Connexion Google impossible.',
               );
             }
-            onSuccess();
+            signedIn();
           }}
         />
       ) : null}
@@ -288,7 +308,7 @@ export function ProLoginOptions({ onSuccess }: { onSuccess: () => void }) {
                   : 'Connexion Apple impossible.',
               );
             }
-            onSuccess();
+            signedIn();
           }}
         />
       ) : null}

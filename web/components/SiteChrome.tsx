@@ -1,6 +1,8 @@
 'use client';
 
 import { usePathname } from 'next/navigation';
+import { isProRoute } from '../lib/proRoute';
+import { isStoreLinkedPage } from '../lib/storeLinkedPages';
 import { AppInstallBanner } from './AppInstallBanner';
 import { Header } from './Header';
 import { ProAuthHeader } from './pro/ProAuthHeader';
@@ -10,18 +12,18 @@ import { ProAuthHeader } from './pro/ProAuthHeader';
 const PRO_AUTH = new Set(['/pro/connexion', '/pro/inscription']);
 
 /// Consumer chrome (install banner + site header). Hidden on the pro
-/// dashboard, which has its own sidebar shell. **`/pro` or `/pro/…` exactly**
-/// — the prefix test this used to be (`startsWith('/pro')`) also hid the
-/// header of `/professionnels`, the public page for salons
-/// (docs/design/web-pro-access.md §1.3).
+/// dashboard, which has its own sidebar shell. `/recherche` runs full width, so its
+/// chrome does too: the logo starts where the list does
+/// (docs/design/web-swiss-direction.md §6.2).
 export function SiteChrome() {
   const pathname = usePathname() ?? '';
   if (PRO_AUTH.has(pathname)) return <ProAuthHeader />;
-  if (pathname === '/pro' || pathname.startsWith('/pro/')) return null;
+  if (isProRoute(pathname)) return null;
+  const fullWidth = pathname === '/recherche';
   return (
     <>
-      <AppInstallBanner />
-      <Header />
+      <AppInstallBanner fullWidth={fullWidth} />
+      <Header fullWidth={fullWidth} salonDoor={!isStoreLinkedPage(pathname)} />
     </>
   );
 }

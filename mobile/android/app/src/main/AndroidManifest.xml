@@ -26,11 +26,16 @@
             android:name=".MainActivity"
             android:exported="true"
             android:launchMode="singleTop"
+            android:screenOrientation="portrait"
             android:taskAffinity=""
             android:theme="@style/LaunchTheme"
             android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
             android:hardwareAccelerated="true"
             android:windowSoftInputMode="adjustResize">
+            <!-- Portrait, as on the iPhone (B7.9, decision 26 —
+                 docs/design/pro-app-batch7.md §2.9). Android 16+ ignores the
+                 lock on large screens, by the system's rule: a tablet still
+                 gets landscape. -->
             <!-- Specifies an Android theme to apply to this Activity as soon as
                  the Android process has started. This theme is visible to the user
                  while the Flutter UI initializes. After that, this theme continues
@@ -82,9 +87,14 @@
              someone on a build we have deliberately blocked, with no way out.
 
              `https` covers the Play listing URL and every legal/support link;
-             `market` covers the direct-to-Play-app deep link. `tel` and the
-             WhatsApp/`geo` links are separate schemes with their own call
-             sites — left alone here rather than widened speculatively. -->
+             `market` covers the direct-to-Play-app deep link. The WhatsApp/
+             `geo` links are separate schemes with their own call sites.
+
+             `tel` (B7.11 — docs/design/pro-app-batch7.md §2.11): every
+             « Appeler » goes through `callPhone`, which opens `tel:` without
+             asking `canLaunchUrl` — that question is what made two buttons
+             dead here. Declared anyway, so any future `canLaunchUrl(tel:)`
+             answers truthfully. -->
         <intent>
             <action android:name="android.intent.action.VIEW"/>
             <data android:scheme="https"/>
@@ -92,6 +102,10 @@
         <intent>
             <action android:name="android.intent.action.VIEW"/>
             <data android:scheme="market"/>
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.DIAL"/>
+            <data android:scheme="tel"/>
         </intent>
     </queries>
 </manifest>

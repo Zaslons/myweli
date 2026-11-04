@@ -3,12 +3,14 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 import '../../core/config/app_config.dart';
+import '../../core/utils/salon_id.dart';
 import '../../models/api_response.dart';
 import '../../models/artist.dart';
 import '../../models/availability.dart' show TimeSlot;
 import '../../models/provider_session.dart';
 import '../interfaces/pro_artist_service_interface.dart';
 import '../interfaces/session_store.dart';
+import 'api_errors.dart';
 import 'refreshing_http_client.dart';
 
 /// Real HTTP implementation of [ProArtistServiceInterface] (backend
@@ -40,7 +42,7 @@ class ApiProArtistService implements ProArtistServiceInterface {
   late final RefreshingHttpClient _authed;
 
   @override
-  Future<ApiResponse<List<Artist>>> getArtists(String providerId) async {
+  Future<ApiResponse<List<Artist>>> getArtists(SalonId providerId) async {
     if (await _authed.accessToken() == null) {
       return ApiResponse.error('Non connecté');
     }
@@ -50,14 +52,14 @@ class ApiProArtistService implements ProArtistServiceInterface {
         headers: _bearer(t),
       ),
     );
-    if (res == null) return _networkError();
-    if (res.statusCode != 200) return _errorFrom(res);
+    if (res == null) return networkError();
+    if (res.statusCode != 200) return errorFromResponse(res);
     // The server always sends `items` (an empty list for a salon with no
     // staff): a 200 without it is an answer that did not arrive whole, never
     // « no team » — the salon export would ship it as complete
     // (docs/design/export-unreadable-200.md §2).
     final list = _decode(res.body)['items'];
-    if (list is! List) return ApiResponse.error('Erreur');
+    if (list is! List) return unreadable();
     final items = list
         .map((e) => Artist.fromJson(e as Map<String, dynamic>))
         .toList();
@@ -66,7 +68,7 @@ class ApiProArtistService implements ProArtistServiceInterface {
 
   @override
   Future<ApiResponse<Artist>> createArtist(
-    String providerId,
+    SalonId providerId,
     Map<String, dynamic> data,
   ) async {
     if (await _authed.accessToken() == null) {
@@ -79,8 +81,8 @@ class ApiProArtistService implements ProArtistServiceInterface {
         body: jsonEncode(_wire(data)),
       ),
     );
-    if (res == null) return _networkError();
-    if (res.statusCode != 201) return _errorFrom(res);
+    if (res == null) return networkError();
+    if (res.statusCode != 201) return errorFromResponse(res);
     return ApiResponse.success(Artist.fromJson(_decode(res.body)));
   }
 
@@ -98,8 +100,8 @@ class ApiProArtistService implements ProArtistServiceInterface {
         body: jsonEncode(_wire(data)),
       ),
     );
-    if (res == null) return _networkError();
-    if (res.statusCode != 200) return _errorFrom(res);
+    if (res == null) return networkError();
+    if (res.statusCode != 200) return errorFromResponse(res);
     return ApiResponse.success(Artist.fromJson(_decode(res.body)));
   }
 
@@ -113,8 +115,10 @@ class ApiProArtistService implements ProArtistServiceInterface {
         headers: _bearer(t),
       ),
     );
-    if (res == null) return _networkError();
-    if (res.statusCode != 204 && res.statusCode != 200) return _errorFrom(res);
+    if (res == null) return networkError();
+    if (res.statusCode != 204 && res.statusCode != 200) {
+      return errorFromResponse(res);
+    }
     return ApiResponse.success(true);
   }
 
@@ -158,18 +162,4 @@ class ApiProArtistService implements ProArtistServiceInterface {
   Map<String, String> _bearer(String t) => {'Authorization': 'Bearer $t'};
   Map<String, dynamic> _decode(String body) =>
       jsonDecode(body) as Map<String, dynamic>;
-  ApiResponse<T> _networkError<T>() =>
-      ApiResponse.error('Pas de connexion. Réessayez.');
-
-  ApiResponse<T> _errorFrom<T>(http.Response res) {
-    try {
-      final body = jsonDecode(res.body) as Map<String, dynamic>;
-      return ApiResponse.error(
-        body['message'] as String? ?? 'Erreur',
-        code: body['error'] as String?,
-      );
-    } catch (_) {
-      return ApiResponse.error('Erreur');
-    }
-  }
 }

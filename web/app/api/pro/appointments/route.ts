@@ -1,4 +1,5 @@
 import { type NextRequest, NextResponse } from 'next/server';
+import { idempotencyKeyHeader } from '../../../../lib/bff';
 import { callApiPro, respondPro } from '../../../../lib/bff-pro';
 
 /// Pro BFF: the salon's bookings (provider-scoped server-side from the account).
@@ -23,6 +24,7 @@ export async function POST(req: NextRequest) {
   return respondPro(
     await callApiPro(req, `/providers/${providerId}/appointments`, {
       method: 'POST',
+      headers: idempotencyKeyHeader(req), // docs/design/write-idempotency.md §4
       body: JSON.stringify(body),
     }),
   );

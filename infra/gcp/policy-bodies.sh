@@ -115,6 +115,7 @@ sys.exit(0 if ch and all(isinstance(c,str) and c.strip() for c in ch) else 1)' "
 }
 
 add infra/gcp/80-uptime-checks.sh
+add infra/gcp/84-demo-reset-alert.sh
 add infra/gcp/85-db-capacity-alert.sh
 add infra/gcp/86-cron-auth-alert.sh
 add infra/gcp/88-email-budget-alert.sh
@@ -130,6 +131,17 @@ add infra/gcp/88-email-budget-alert.sh
 if gcloud compute security-policies describe myweli-api-rate-limit \
     --project="${PROJECT:-myweli}" >/dev/null 2>&1; then
   add infra/gcp/91-armor-deny-alert.sh
+fi
+# 81-uptime-tls-latency.sh is listed once it has been RUN (B9.4). Its two
+# policies do not exist until someone applies it — a cloud change, asked for
+# first — and 93-sync-runbooks.sh exits 1 on a rendered policy with no live
+# twin, so a fixed `add` would fail every deploy's post-step until then. The
+# same gate as 91's: the list follows what is live.
+if CLOUDSDK_CORE_DISABLE_PROMPTS=1 gcloud alpha monitoring policies list \
+    --project="${PROJECT:-myweli}" \
+    --filter='displayName="api.myweli.com: certificate expires within 14 days"' \
+    --format='value(name)' 2>/dev/null | grep -q .; then
+  add infra/gcp/81-uptime-tls-latency.sh
 fi
 add infra/gcp/92-identity-limit-alert.sh
 add infra/gcp/94-identity-warning-alert.sh

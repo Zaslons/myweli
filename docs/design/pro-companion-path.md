@@ -2,9 +2,9 @@
 
 | | |
 |---|---|
-| **Status** | Approved 2026-10-05 (owner: §11 Q1–Q4, every recommended option) |
+| **Status** | Approved 2026-10-05 (owner: §11 Q1–Q4, every recommended option). **Its product decisions stand. Its reading of 3.1.3(f) was too wide: see the note in §1 (2026-11-03)** |
 | **Owner** | Sadreddine Daher |
-| **Last updated** | 2026-10-05 |
+| **Last updated** | 2026-11-03 |
 | **PRD ref / phase** | PRD §6.2 (salon offers), OQ-3 (store billing) · V1 |
 | **ROADMAP entry** | [2026-10-05-pro-companion-path](../roadmap/entries/2026-10-05-pro-companion-path.md) (parent: [2026-09-24-pro-app-store-readiness](../roadmap/entries/2026-09-24-pro-app-store-readiness.md)) |
 | **Skills checked** | myweli-dev-guardrails · myweli-backend-guardrails · myweli-verification-guardrails |
@@ -17,6 +17,22 @@ stand-alone companion app to a paid web based tool"): the app must contain
 **no purchasing** and **no calls to action for purchase outside the app**. It
 may show the salon's current plan state. Choosing or changing an offer happens
 on the web, and **the app never says so**.
+
+> **2026-11-03 — what this reading left out.** The sentence above quotes the end of the rule.
+> Apple's text limits it to a paid web-based tool « for VoIP, Cloud Storage, Email Services, or
+> Web Hosting » (page read 2026-11-03, dated October 16, 2026). **That list is closed, and a salon
+> tool is not on it, so 3.1.3(f) does not cover MyWeli Pro as written.** When Apple wrote the list
+> this way is not established: only today's page was read. Neither rejection cites 3.1.3(f), to
+> accept it or to refuse it. It sat in the review notes from 2026-10-05 and got no answer, which
+> proves nothing.
+>
+> **What does not change:** everything this spec builds. No purchasing, no plan choice, no call to
+> action, on both platforms, with the trial starting server-side. Those stand on 3.1.1(a)
+> and on Apple's two refusals, whatever exception applies. **What changes:** no text sent to Apple
+> cites the number (owner, 2026-11-03), and nobody here should read this title as « Apple's rule
+> permits this model ». A plan bought outside the app does govern the app (`app-store-forms.md` §2.1).
+> If Apple challenges that: hide « Mon abonnement », or open store billing, the owner's decision
+> then ([app-review-round-2.md](app-review-round-2.md) §13). « Companion path » stays this spec's name.
 
 **Why this is not just hiding a button.** Today choosing an offer *is* how a
 salon's one 3-month trial starts (`chooseOffer`, the only writer of
@@ -122,6 +138,10 @@ Salon picker « Offre Réseau — un salon de plus dans votre compte »: unchang
 (state, shown only to a live Réseau account).
 
 ### 2.3 Flows
+
+*(2026-10-26: registration left the app — App Store 3.1.1 refused it; a salon
+signs up on the web, then signs in to the app — [pro-app-login-only.md](pro-app-login-only.md).
+The flow below starts at its first sign-in.)*
 
 **iPhone-only salon, start to live.** Register → onboarding checklist without
 an offer step → complete profile, pin, ≥3 services, ≥3 photos, hours →
@@ -330,7 +350,7 @@ here. The check runs again on the IPA that is submitted
    onboarding". It does not; onboarding is optional, reached from the
    « Configurer mon profil » card. See app-store-forms.md §8.)*
 5. Then §11 of app-store-forms.md: signed IPA, TestFlight, screenshots,
-   review notes with the 3.1.3(f) sentence.
+   review notes with the 3.1.3(f) sentence. *2026-11-03: the notes no longer cite it (§1).*
 
 ## 10. Definition of done
 - [ ] Backend + mobile + docs per §3/§2, contract and T54/T69 updated.

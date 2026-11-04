@@ -23,6 +23,9 @@ import { ProRegisterClient } from '../components/pro/ProRegisterClient';
 /// A salon finds and opens its Espace Pro (docs/design/web-pro-access.md):
 /// the four doors (§3), the Pro sign-in pages that lead back to the site
 /// (P4), and the consent the law asks for before an account exists (§5).
+///
+/// P1 and P2 have five exceptions, the pages the apps open: those are proved in
+/// `store-linked-pages.test.tsx`. Here `pathname` is `/`, so this is the default.
 
 let meStatus = 401;
 

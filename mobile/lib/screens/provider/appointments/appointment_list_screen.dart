@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:myweli/widgets/common/brand_refresh.dart';
-import 'package:myweli/widgets/common/loading_indicator.dart';
+import 'package:myweli/widgets/common/empty_state.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/theme/app_theme.dart';
@@ -9,12 +9,17 @@ import '../../../core/theme/colors.dart';
 import '../../../core/theme/text_styles.dart';
 import '../../../core/utils/app_clock.dart';
 import '../../../core/utils/formatters.dart';
+import '../../../core/utils/salon_id.dart';
 import '../../../core/utils/salon_time.dart';
 import '../../../core/utils/status_colors.dart';
 import '../../../core/utils/status_labels.dart';
 import '../../../models/appointment.dart';
 import '../../../providers/pro_appointment_provider.dart';
 import '../../../providers/pro_auth_provider.dart';
+import '../../../widgets/common/app_async_view.dart';
+import '../../../widgets/common/app_card.dart';
+import '../../../widgets/common/app_chip.dart';
+import '../../../widgets/common/app_skeleton.dart';
 import 'appointment_calendar_view.dart';
 
 class AppointmentListScreen extends StatefulWidget {
@@ -45,7 +50,9 @@ class _AppointmentListScreenState extends State<AppointmentListScreen>
           listen: false,
         );
         // Load all appointments for calendar view
-        appointmentProvider.loadAppointments(authProvider.activeSalonId ?? '');
+        appointmentProvider.loadAppointments(
+          authProvider.activeSalonId ?? SalonId.none,
+        );
       }
     });
   }
@@ -64,7 +71,9 @@ class _AppointmentListScreenState extends State<AppointmentListScreen>
 
       if (_mainTabController.index == 0) {
         // Calendar view - load all appointments
-        appointmentProvider.loadAppointments(authProvider.activeSalonId ?? '');
+        appointmentProvider.loadAppointments(
+          authProvider.activeSalonId ?? SalonId.none,
+        );
       } else {
         // List view - load based on selected list tab
         _loadAppointmentsForListTab(_listTabController.index);
@@ -93,14 +102,14 @@ class _AppointmentListScreenState extends State<AppointmentListScreen>
       case 0: // Today — the ACTIVE SALON's day bounds (salon_time.dart).
         final bounds = salonDayBoundsUtc(tz: authProvider.salonTimezone);
         appointmentProvider.loadAppointments(
-          authProvider.activeSalonId ?? '',
+          authProvider.activeSalonId ?? SalonId.none,
           startDate: bounds.startUtc,
           endDate: bounds.endUtc,
         );
         return;
       case 1: // Upcoming
         appointmentProvider.loadAppointments(
-          authProvider.activeSalonId ?? '',
+          authProvider.activeSalonId ?? SalonId.none,
           startDate: AppClock.now(),
         );
         return;
@@ -112,7 +121,7 @@ class _AppointmentListScreenState extends State<AppointmentListScreen>
     }
 
     appointmentProvider.loadAppointments(
-      authProvider.activeSalonId ?? '',
+      authProvider.activeSalonId ?? SalonId.none,
       status: status,
     );
   }
@@ -145,7 +154,8 @@ class _AppointmentListScreenState extends State<AppointmentListScreen>
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => context.push('/pro/appointment/new'),
         icon: const Icon(Icons.add),
-        label: const Text('Ajouter'),
+        // « Nouveau », as in « Ma journée » (B7.4): one action, one word.
+        label: const Text('Nouveau'),
       ),
       body: Consumer2<ProAuthProvider, ProAppointmentProvider>(
         builder: (context, authProvider, appointmentProvider, _) {
@@ -153,110 +163,128 @@ class _AppointmentListScreenState extends State<AppointmentListScreen>
             return const Center(child: Text('Veuillez vous connecter'));
           }
 
-          if (appointmentProvider.isLoading &&
-              appointmentProvider.appointments.isEmpty) {
-            return const Center(child: LoadingIndicator());
+          Future<void> reload() async {
+            if (authProvider.provider != null) {
+              await appointmentProvider.loadAppointments(
+                authProvider.activeSalonId ?? SalonId.none,
+              );
+            }
           }
 
-          final appointments = appointmentProvider.appointments;
-
-          return TabBarView(
-            controller: _mainTabController,
-            children: [
-              // Calendar View
-              BrandRefresh(
-                onRefresh: () async {
-                  if (authProvider.provider != null) {
-                    await appointmentProvider.loadAppointments(
-                      authProvider.activeSalonId ?? '',
-                    );
-                  }
-                },
-                // **No `isEmpty` branch here, and removing it is a fix** (A14c
-                // §18.1). This used to replace the whole calendar with a
-                // centred « Aucun rendez-vous », so a salon with nothing booked
-                // — a brand-new one, or any pro on a quiet week — **could not
-                // open its calendar at all**. It could not browse forward to
-                // plan, and the calendar's own empty state («Aucun rendez-vous
-                // pour mercredi 11 mars 2026 », which names the day) was
-                // unreachable, never photographed, and effectively dead code.
-                //
-                // A calendar with no appointments is not an error state. It is
-                // a calendar. The day list underneath already says so per day,
-                // which is the more useful sentence anyway.
-                child: AppointmentCalendarView(appointments: appointments),
-              ),
-              // List View
-              Column(
-                children: [
-                  TabBar(
-                    controller: _listTabController,
-                    onTap: _loadAppointmentsForListTab,
-                    // §13.3's width twin — the same bar as `earnings_screen`,
-                    // and the same silent fade: « Aujourd’hui » needs 72.2dp and
-                    // gets 58.0 at 360. See that file for the full argument for
-                    // `center` over the M3 default.
-                    //
-                    // **This one lives inside a `TabBarView` page**, so making it
-                    // scrollable is a gesture-arena change as well as a layout
-                    // one: a horizontal drag on the strip now scrolls the strip
-                    // instead of paging back to « Calendrier ». That is what
-                    // scrollable tabs are, and it is the standard trade.
-                    isScrollable: true,
-                    tabAlignment: TabAlignment.center,
-                    tabs: const [
-                      Tab(text: 'Aujourd’hui'),
-                      Tab(text: 'À venir'),
-                      Tab(text: 'En attente'),
-                      Tab(text: 'Tous'),
-                    ],
-                  ),
-                  Expanded(
-                    child: BrandRefresh(
-                      onRefresh: () async {
-                        _loadAppointmentsForListTab(_listTabController.index);
-                      },
-                      child: appointments.isEmpty
-                          ? Center(
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  const Icon(
-                                    Icons.event_busy,
-                                    size: AppTheme.iconXL,
-                                    color: AppColors.textSecondary,
-                                  ),
-                                  const SizedBox(height: AppTheme.spacingM),
-                                  Text(
-                                    'Aucun rendez-vous',
-                                    style: AppTextStyles.titleLarge.copyWith(
-                                      color: AppColors.textSecondary,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            )
-                          : ListView.builder(
-                              padding: const EdgeInsets.all(AppTheme.spacingM),
-                              itemCount: appointments.length,
-                              itemBuilder: (context, index) {
-                                final appointment = appointments[index];
-                                return _AppointmentCard(
-                                  appointment: appointment,
-                                  onTap: () => context.push(
-                                    '/pro/appointment/${appointment.id}',
-                                  ),
-                                );
-                              },
-                            ),
-                    ),
-                  ),
-                ],
-              ),
-            ],
+          // The calendar IS the empty state (A14c §18.1, below) — so a load
+          // that failed with nothing to show is the only state that replaces
+          // it. It used to render the calendar too, saying « Aucun
+          // rendez-vous » for a day it never read (B9.8).
+          return AppAsyncView<List<Appointment>>(
+            isLoading: appointmentProvider.isLoading,
+            error: appointmentProvider.loadError,
+            data: appointmentProvider.appointments,
+            isEmpty: (d) => d.isEmpty,
+            loading: const SkeletonCardList(),
+            empty: _views(authProvider, appointmentProvider, const [], reload),
+            onRetry: reload,
+            builder: (context, appointments) =>
+                _views(authProvider, appointmentProvider, appointments, reload),
           );
         },
       ),
+    );
+  }
+
+  Widget _views(
+    ProAuthProvider authProvider,
+    ProAppointmentProvider appointmentProvider,
+    List<Appointment> appointments,
+    Future<void> Function() reload,
+  ) {
+    return TabBarView(
+      controller: _mainTabController,
+      children: [
+        // Calendar View
+        BrandRefresh(
+          onRefresh: reload,
+          // **No `isEmpty` branch here, and removing it is a fix** (A14c
+          // §18.1). This used to replace the whole calendar with a
+          // centred « Aucun rendez-vous », so a salon with nothing booked
+          // — a brand-new one, or any pro on a quiet week — **could not
+          // open its calendar at all**. It could not browse forward to
+          // plan, and the calendar's own empty state («Aucun rendez-vous
+          // pour mercredi 11 mars 2026 », which names the day) was
+          // unreachable, never photographed, and effectively dead code.
+          //
+          // A calendar with no appointments is not an error state. It is
+          // a calendar. The day list underneath already says so per day,
+          // which is the more useful sentence anyway.
+          child: AppointmentCalendarView(appointments: appointments),
+        ),
+        // List View
+        Column(
+          children: [
+            TabBar(
+              controller: _listTabController,
+              onTap: _loadAppointmentsForListTab,
+              // §13.3's width twin — the same bar as `earnings_screen`,
+              // and the same silent fade: « Aujourd’hui » needs 72.2dp and
+              // gets 58.0 at 360. See that file for the full argument for
+              // `center` over the M3 default.
+              //
+              // **This one lives inside a `TabBarView` page**, so making it
+              // scrollable is a gesture-arena change as well as a layout
+              // one: a horizontal drag on the strip now scrolls the strip
+              // instead of paging back to « Calendrier ». That is what
+              // scrollable tabs are, and it is the standard trade.
+              isScrollable: true,
+              tabAlignment: TabAlignment.center,
+              tabs: const [
+                Tab(text: 'Aujourd’hui'),
+                Tab(text: 'À venir'),
+                Tab(text: 'En attente'),
+                Tab(text: 'Tous'),
+              ],
+            ),
+            Expanded(
+              child: BrandRefresh(
+                onRefresh: () async {
+                  _loadAppointmentsForListTab(_listTabController.index);
+                },
+                // The house EmptyState, in a list (B7.4): something
+                // to pull, so « tirer pour actualiser » works on an
+                // empty day too, and `fabClearance` at the end of both.
+                child: appointments.isEmpty
+                    ? ListView(
+                        padding: const EdgeInsets.only(
+                          bottom: AppTheme.fabClearance,
+                        ),
+                        children: const [
+                          EmptyState(
+                            icon: Icons.event_busy,
+                            title: 'Aucun rendez-vous',
+                          ),
+                        ],
+                      )
+                    : ListView.builder(
+                        padding: const EdgeInsets.fromLTRB(
+                          AppTheme.spacingM,
+                          AppTheme.spacingM,
+                          AppTheme.spacingM,
+                          AppTheme.fabClearance,
+                        ),
+                        itemCount: appointments.length,
+                        itemBuilder: (context, index) {
+                          final appointment = appointments[index];
+                          return _AppointmentCard(
+                            appointment: appointment,
+                            onTap: () => context.push(
+                              '/pro/appointment/${appointment.id}',
+                            ),
+                          );
+                        },
+                      ),
+              ),
+            ),
+          ],
+        ),
+      ],
     );
   }
 }
@@ -267,76 +295,73 @@ class _AppointmentCard extends StatelessWidget {
 
   const _AppointmentCard({required this.appointment, required this.onTap});
 
-  Color _getStatusColor(AppointmentStatus status) =>
-      appointmentStatusColor(status);
-
   @override
   Widget build(BuildContext context) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: AppTheme.spacingM),
-      child: ListTile(
-        onTap: onTap,
-        title: Text(
-          Formatters.formatDateTime(
-            toSalonTime(
-              appointment.appointmentDate,
-              tz: context.read<ProAuthProvider>().salonTimezone,
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppTheme.spacingM),
+      child: AppCard(
+        padding: EdgeInsets.zero,
+        child: ListTile(
+          onTap: onTap,
+          title: Text(
+            Formatters.formatDateTime(
+              toSalonTime(
+                appointment.appointmentDate,
+                tz: context.read<ProAuthProvider>().salonTimezone,
+              ),
+            ),
+            style: AppTextStyles.titleMedium.copyWith(
+              color: AppColors.textPrimary,
             ),
           ),
-          style: AppTextStyles.titleMedium.copyWith(
-            color: AppColors.textPrimary,
-          ),
-        ),
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Module clients C1c: who booked + the no-show badge.
-            Row(
-              children: [
-                Flexible(
-                  child: Text(
-                    appointment.clientDisplayName ??
-                        appointment.clientName ??
-                        'Client',
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-                if ((appointment.clientNoShowCount ?? 0) >= 1) ...[
-                  const SizedBox(width: AppTheme.spacingXS),
-                  Text(
-                    appointment.clientNoShowCount == 1
-                        ? '· 1 absence'
-                        : '· ${appointment.clientNoShowCount} absences',
-                    style: AppTextStyles.bodySmall.copyWith(
-                      color: (appointment.clientNoShowCount ?? 0) >= 2
-                          ? AppColors.error
-                          : AppColors.textSecondary,
+          subtitle: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Module clients C1c: who booked + the no-show badge.
+              Row(
+                children: [
+                  Flexible(
+                    child: Text(
+                      appointment.clientDisplayName ??
+                          appointment.clientName ??
+                          'Client',
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
+                  if ((appointment.clientNoShowCount ?? 0) >= 1) ...[
+                    const SizedBox(width: AppTheme.spacingXS),
+                    Text(
+                      appointment.clientNoShowCount == 1
+                          ? '· 1 absence'
+                          : '· ${appointment.clientNoShowCount} absences',
+                      style: AppTextStyles.bodySmall.copyWith(
+                        color: (appointment.clientNoShowCount ?? 0) >= 2
+                            ? AppColors.error
+                            : AppColors.textSecondary,
+                      ),
+                    ),
+                  ],
                 ],
-              ],
-            ),
-            Text(
-              Formatters.count(
-                appointment.serviceIds.length,
-                'service',
-                'services',
               ),
-            ),
-            Text(
-              Formatters.formatCurrency(
-                appointment.totalPrice,
-                currency: context.read<ProAuthProvider>().salonCurrency,
+              Text(
+                Formatters.count(
+                  appointment.serviceIds.length,
+                  'service',
+                  'services',
+                ),
               ),
-            ),
-          ],
-        ),
-        trailing: Chip(
-          label: Text(
-            StatusLabels.of(appointment.status),
-            style: AppTextStyles.bodySmall.copyWith(color: Colors.white),
+              Text(
+                Formatters.formatCurrency(
+                  appointment.totalPrice,
+                  currency: context.read<ProAuthProvider>().salonCurrency,
+                ),
+              ),
+            ],
           ),
-          backgroundColor: _getStatusColor(appointment.status),
+          trailing: AppChip.status(
+            label: StatusLabels.of(appointment.status),
+            tone: appointmentStatusTone(appointment.status),
+          ),
         ),
       ),
     );

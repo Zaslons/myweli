@@ -3,6 +3,7 @@
 /// unit-tested.
 
 import type { Appointment } from './appointments';
+import { UNNAMED_SALON, salonNameOr } from '../salon-name';
 
 /// 20260711T090000Z — the compact UTC stamp both formats want.
 function stamp(iso: string): string {
@@ -18,7 +19,8 @@ function endIso(a: Appointment): string {
 }
 
 export function calendarTitle(a: Appointment): string {
-  return `Rendez-vous — ${a.providerName ?? 'MyWeli'}`;
+  // A title, as in the app: « Rendez-vous — Salon » — it said « MyWeli ».
+  return `Rendez-vous — ${salonNameOr(a.providerName, UNNAMED_SALON)}`;
 }
 
 export function googleCalendarUrl(a: Appointment): string {

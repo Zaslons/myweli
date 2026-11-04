@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:myweli/core/di/dependency_injection.dart';
 import 'package:myweli/core/utils/app_clock.dart';
+import 'package:myweli/core/utils/salon_id.dart';
 import 'package:myweli/models/review.dart';
 import 'package:myweli/providers/appointment_provider.dart';
 import 'package:myweli/providers/favorites_provider.dart';
@@ -108,7 +109,7 @@ void main() {
       Review(
         id: 'draft',
         appointmentId: 'home-first',
-        providerId: 'provider1',
+        providerId: SalonId('provider1'),
         userId: 'user1',
         userName: 'Awa K.',
         rating: 5,

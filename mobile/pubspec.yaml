@@ -50,7 +50,7 @@ dependencies:
 
   # Maps & Location
   flutter_map: ^8.3.2
-  latlong2: ^0.9.1
+  latlong2: ^0.10.1
   geolocator: ^14.1.1
 
   # Image caching (direct dep; used by TimedCachedImage)
@@ -66,7 +66,7 @@ dependencies:
   # Auth overhaul: native Google Sign-In (+ Apple seam, flag-gated) and the
   # SHA-256 for Apple's nonce. Design: docs/design/app-auth-social.md.
   google_sign_in: ^7.2.0
-  sign_in_with_apple: ^8.1.0
+  sign_in_with_apple: ^8.2.0
   crypto: ^3.0.3
 
   # UI Components
@@ -95,7 +95,7 @@ dependencies:
 
   # Utilities
   uuid: ^4.6.0
-  equatable: ^2.1.0
+  equatable: ^3.0.0
   # Elapsed time that runs with the timers it is measured against — a fake
   # clock under flutter_test, the real one in the app. Already in the app
   # through `intl`; named here because `OpenAnimationPlayer` imports it
@@ -105,9 +105,9 @@ dependencies:
 
   # Icons
   cupertino_icons: ^1.0.6
-  url_launcher: ^6.3.2
+  url_launcher: ^6.3.3
   add_2_calendar: ^3.0.1
-  timezone: ^0.11.1
+  timezone: ^0.11.2
 
   # Push notifications (FR-NOTIF-001 — docs/design/push-notifications-app.md).
   # The real FCM adapter behind the push seam; Firebase is initialized ONLY in

@@ -8,7 +8,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { salonStoppedMessageFor } from '../../lib/account/appointments';
 import type { Provider } from '../../lib/api/providers';
 import { getMyProvider } from '../../lib/api/pro';
-import { loadFailure, loadFailureMessage, type LoadFailure } from '../../lib/pro/load-failure';
+import { loadFailure, loadFailureMessage, type LoadFailure } from '../../lib/api/load-failure';
 import { ProviderView } from '../provider/ProviderView';
 
 /// « Aperçu de ma page » (docs/design/pro-salon-lifecycle.md B4): the owner

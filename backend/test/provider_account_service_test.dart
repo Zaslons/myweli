@@ -6,6 +6,7 @@ import 'package:myweli_backend/src/appointments/appointment_repository.dart';
 import 'package:myweli_backend/src/auth/demo_seam.dart';
 import 'package:myweli_backend/src/auth/provider_auth_repository.dart';
 import 'package:myweli_backend/src/auth/tokens.dart';
+import 'package:myweli_backend/src/idempotency/idempotency_store.dart';
 import 'package:myweli_backend/src/notifications/notifications_repository.dart';
 import 'package:myweli_backend/src/provider_account_service.dart';
 import 'package:myweli_backend/src/providers_repository.dart';
@@ -13,6 +14,7 @@ import 'package:myweli_backend/src/push/device_token_repository.dart';
 import 'package:myweli_backend/src/site/site_rebuild_notifier.dart';
 import 'package:myweli_backend/src/storage/storage_service.dart';
 import 'package:test/test.dart';
+import 'auth/apple_token_fake.dart';
 
 class _MockProviders extends Mock implements ProvidersRepository {}
 
@@ -22,6 +24,23 @@ class _MockAppointments extends Mock implements AppointmentRepository {}
 /// address at registration, so a stored variant (or no address at all) has
 /// to be handed to the service directly.
 class _MockAuth extends Mock implements ProviderAuthRepository {}
+
+/// The in-memory store, whose identity delete fails ONCE — the step the
+/// Postgres twin fails with a foreign key (B8.6).
+class _IdentityFailsOnce extends InMemoryProviderAuthRepository {
+  _IdentityFailsOnce({required super.tokens}) : super(echoDevCode: true);
+
+  bool _failed = false;
+
+  @override
+  Future<bool> deleteAccount(String accountId) async {
+    if (!_failed) {
+      _failed = true;
+      throw StateError('the identity delete failed');
+    }
+    return super.deleteAccount(accountId);
+  }
+}
 
 /// Records what it was asked to do, so a call site can be observed.
 class _RecordingNotifier implements SiteRebuildNotifier {
@@ -48,6 +67,9 @@ void main() {
     when(
       () => providers.setStatus(any(), any()),
     ).thenAnswer((_) async => {'id': 'p1', 'status': 'draft'});
+    when(
+      () => providers.updateProfile(any(), any()),
+    ).thenAnswer((_) async => <String, dynamic>{});
     // The erasure fire is GUARDED on the prior status, so the service now
     // reads each salon before unpublishing it. Live by default in this file;
     // the all-draft negative overrides per test.
@@ -120,6 +142,53 @@ void main() {
     expect(await memberships.listForProvider('p1'), isEmpty);
   });
 
+  // docs/design/product-questions-batch8.md §2.6 (B8.6, decision 32): the
+  // in-memory twin of the Postgres test — a failure at the identity, then
+  // « Réessayez »: the retry finishes the deletion.
+  test('a failure at the identity, then a retry: the account and its team '
+      'rows are gone', () async {
+    final failing = _IdentityFailsOnce(tokens: tokens);
+    final memberships = InMemoryMembershipRepository();
+    final service = ProviderAccountService(
+      failing,
+      providers,
+      appointments,
+      FakeStorageService(),
+      memberships,
+      client: MockClient((_) async => http.Response('', 204)),
+    );
+    final reg = await failing.register(
+      businessName: 'X',
+      businessType: 'salon',
+      phoneNumber: '+2250700000071',
+      email: 'retry@test.pro',
+      authProvider: 'google',
+      googleSub: 'retry-sub',
+      providerId: 'p1',
+    );
+    final id = reg.provider!.id;
+    await memberships.ensureOwner(
+      providerId: 'p1',
+      accountId: id,
+      email: 'retry@test.pro',
+    );
+
+    await expectLater(service.deleteAccount(id), throwsStateError);
+    expect(await failing.accountById(id), isNotNull);
+    expect(
+      await memberships.listForAccount(id),
+      isNotEmpty,
+      reason: 'the team row went before the identity',
+    );
+
+    final retry = await service.deleteAccount(id);
+
+    expect(retry.ok, isTrue);
+    expect(await failing.accountById(id), isNull);
+    expect(await memberships.listForAccount(id), isEmpty);
+    verify(() => providers.setStatus('p1', 'draft')).called(2);
+  });
+
   test('a deleted SALON stops receiving push too', () async {
     // The identical defect the consumer side had (L1, T59): the pro deletion
     // settled the agenda, unpublished the salons and erased the KYC documents,
@@ -177,6 +246,48 @@ void main() {
     );
   });
 
+  test('a deleted SALON account takes its kept answers with it', () async {
+    // docs/design/write-idempotency.md §3, §6: a manual booking's kept answer
+    // holds the client's name and phone for 24 h — it goes with the account.
+    final idem = InMemoryIdempotencyStore();
+    final service = ProviderAccountService(
+      auth,
+      providers,
+      appointments,
+      FakeStorageService(),
+      InMemoryMembershipRepository(),
+      idempotency: idem,
+      client: MockClient((_) async => http.Response('', 204)),
+    );
+    final id = await registerWithKyc(keys: []);
+    for (final acc in [id, 'someone-else']) {
+      await idem.claim(
+        accountId: acc,
+        route: '/providers/p1/appointments',
+        key: 'key-00000001',
+        fingerprint: 'f',
+      );
+      await idem.complete(
+        accountId: acc,
+        route: '/providers/p1/appointments',
+        key: 'key-00000001',
+        status: 201,
+        body: '{"clientPhone":"+2250700000001"}',
+      );
+    }
+
+    expect((await service.deleteAccount(id)).ok, isTrue);
+
+    Future<IdempotencyClaim> again(String acc) => idem.claim(
+      accountId: acc,
+      route: '/providers/p1/appointments',
+      key: 'key-00000001',
+      fingerprint: 'f',
+    );
+    expect(await again(id), isA<ClaimReserved>(), reason: 'erased');
+    expect(await again('someone-else'), isA<ClaimReplay>());
+  });
+
   test('a storage failure never blocks the account erasure', () async {
     final service = ProviderAccountService(
       auth,
@@ -221,6 +332,53 @@ void main() {
     expect(r.error, 'future_bookings');
     expect(await auth.accountById(id), isNotNull);
     verifyNever(() => providers.setStatus(any(), any()));
+  });
+
+  group('B6.7 — Sign in with Apple is revoked with the account', () {
+    test('revoked under the PRO kind, BEFORE the identity goes', () async {
+      final id = await registerWithKyc(keys: []);
+      bool? presentAtRevoke;
+      final apple = RecordingAppleTokens(
+        onRevoke: (_, accountId) async =>
+            presentAtRevoke = await auth.accountById(accountId) != null,
+      );
+      final r = await ProviderAccountService(
+        auth,
+        providers,
+        appointments,
+        FakeStorageService(),
+        InMemoryMembershipRepository(),
+        apple: apple,
+      ).deleteAccount(id);
+      expect(r.ok, isTrue);
+      expect(apple.revoked, [('provider', id)]);
+      expect(presentAtRevoke, isTrue);
+      expect(await auth.accountById(id), isNull);
+    });
+
+    test('a refused deletion (bookings ahead) revokes nothing', () async {
+      final id = await registerWithKyc(keys: []);
+      final future = DateTime.now()
+          .toUtc()
+          .add(const Duration(days: 2))
+          .toIso8601String();
+      when(() => appointments.listForProvider('p1')).thenAnswer(
+        (_) async => [
+          {'status': 'confirmed', 'appointmentDate': future},
+        ],
+      );
+      final apple = RecordingAppleTokens();
+      final r = await ProviderAccountService(
+        auth,
+        providers,
+        appointments,
+        FakeStorageService(),
+        InMemoryMembershipRepository(),
+        apple: apple,
+      ).deleteAccount(id);
+      expect(r.error, 'future_bookings');
+      expect(apple.revoked, isEmpty);
+    });
   });
 
   group('R6 — deletion across ALL owned salons (T53)', () {
@@ -317,6 +475,40 @@ void main() {
       verify(() => providers.setStatus('p1', 'draft')).called(1);
       verify(() => providers.setStatus('p2', 'draft')).called(1);
       verifyNever(() => providers.setStatus('p_managed', any()));
+    });
+
+    // docs/design/backend-integrity-batch6.md §2.3 (B6.3, decision 17): the
+    // salon outlives its owner for the clients' history, and kept the
+    // person's phone, WhatsApp, Mobile Money number and address.
+    test('each OWNED salon loses its numbers and its address — the name and '
+        'the history stay; a member-only salon is untouched', () async {
+      final id = await registerWithKyc(keys: []);
+      await memberships.ensureOwner(
+        providerId: 'p2',
+        accountId: id,
+        email: 'del@test.pro',
+      );
+      final inv = await memberships.invite(
+        providerId: 'p_managed',
+        email: 'del@test.pro',
+        role: 'manager',
+        expiresAt: DateTime.now().add(const Duration(days: 7)),
+      );
+      await memberships.activate(inv!.id, id);
+
+      final r = await service.deleteAccount(id);
+      expect(r.ok, isTrue);
+      const erased = <String, dynamic>{
+        'phoneNumber': '',
+        'address': '',
+        'whatsapp': null,
+        'depositMobileMoneyNumber': null,
+        'depositMobileMoneyOperator': null,
+        'depositRequired': false,
+      };
+      verify(() => providers.updateProfile('p1', erased)).called(1);
+      verify(() => providers.updateProfile('p2', erased)).called(1);
+      verifyNever(() => providers.updateProfile('p_managed', any()));
     });
   });
 
@@ -423,6 +615,21 @@ void main() {
         ],
       );
     }
+
+    test('B6.7: the locked demo identity revokes no Apple token', () async {
+      final demo = await populated(kDemoProviderEmail);
+      final apple = RecordingAppleTokens();
+      final r = await ProviderAccountService(
+        auth,
+        providers,
+        appointments,
+        FakeStorageService(),
+        memberships,
+        apple: apple,
+      ).deleteAccount(demo.id);
+      expect(r.error, 'demo_account_locked');
+      expect(apple.revoked, isEmpty);
+    });
 
     test('refused with demo_account_locked, and nothing is mutated', () async {
       final demo = await populated(kDemoProviderEmail);

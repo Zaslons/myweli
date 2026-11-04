@@ -10,6 +10,7 @@ import 'package:myweli/models/app_notification.dart';
 import 'package:myweli/providers/notifications_provider.dart';
 import 'package:myweli/providers/pro_auth_provider.dart';
 import 'package:myweli/providers/pro_dashboard_provider.dart';
+import 'package:myweli/providers/pro_team_provider.dart';
 import 'package:myweli/screens/provider/dashboard/dashboard_screen.dart';
 import 'package:myweli/services/interfaces/notification_service_interface.dart';
 import 'package:myweli/services/mock/mock_auth_service.dart';
@@ -20,6 +21,7 @@ import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../support/pump_app.dart';
+import '../support/settle.dart';
 
 class _MockNotificationService extends Mock
     implements NotificationServiceInterface {}
@@ -111,11 +113,16 @@ void main() {
           ChangeNotifierProvider(
             create: (_) => NotificationsProvider(service: notifications),
           ),
+          ChangeNotifierProvider(create: (_) => ProTeamProvider()),
         ],
         routerConfig: router,
       ),
     );
     await tester.pumpAndSettle();
+    // The dashboard's skeleton is still (B9.8): `pumpAndSettle` returns with
+    // its read out, where the spinner it replaced kept frames — and fake
+    // time — going until the read landed.
+    await settleMocks(tester);
   }
 
   testWidgets('nothing unread → a bare bell, no badge', (tester) async {

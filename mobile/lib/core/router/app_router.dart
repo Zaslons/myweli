@@ -16,6 +16,7 @@ import '../../screens/profile/profile_screen.dart';
 import '../../screens/providers/provider_detail_screen.dart';
 import '../../screens/providers/provider_list_screen.dart';
 import '../../screens/splash/splash_screen.dart';
+import '../utils/salon_id.dart';
 
 class AppRouter {
   static final GoRouter router = GoRouter(
@@ -54,7 +55,7 @@ class AppRouter {
         path: '/provider/:id',
         name: 'provider-detail',
         builder: (context, state) {
-          final id = state.pathParameters['id']!;
+          final id = SalonId(state.pathParameters['id']!);
           return ProviderDetailScreen(providerId: id);
         },
       ),
@@ -62,7 +63,7 @@ class AppRouter {
         path: '/booking',
         name: 'booking-hub',
         builder: (context, state) {
-          final providerId = state.uri.queryParameters['providerId']!;
+          final providerId = SalonId(state.uri.queryParameters['providerId']!);
           final serviceIdsParam = state.uri.queryParameters['serviceIds'];
           final initialServiceIds =
               serviceIdsParam == null || serviceIdsParam.isEmpty
@@ -79,7 +80,7 @@ class AppRouter {
         path: '/booking/confirm',
         name: 'booking-confirmation',
         builder: (context, state) {
-          final providerId = state.uri.queryParameters['providerId']!;
+          final providerId = SalonId(state.uri.queryParameters['providerId']!);
           final serviceIds = state.uri.queryParameters['serviceIds']!.split(
             ',',
           );
@@ -156,7 +157,11 @@ class AppRouter {
         path: '/carte',
         name: 'carte',
         builder: (context, state) {
-          final focusProviderId = state.uri.queryParameters['providerId'];
+          final focusProviderId =
+              switch (state.uri.queryParameters['providerId']) {
+                final String id when id.isNotEmpty => SalonId(id),
+                _ => null,
+              };
           return MapScreen(focusProviderId: focusProviderId);
         },
       ),

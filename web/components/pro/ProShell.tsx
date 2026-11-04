@@ -103,7 +103,7 @@ function ProShellFrame({ children }: { children: ReactNode }) {
           aria-label="Ouvrir le menu"
           aria-controls="pro-sidebar-nav"
           aria-expanded={open}
-          className="-my-s -ml-s flex min-h-12 min-w-12 items-center justify-center rounded-lg text-textPrimary hover:bg-surfaceVariant"
+          className="-my-s -ml-s flex min-h-12 min-w-12 items-center justify-center rounded-control text-textPrimary hover:bg-surfaceVariant"
         >
           <svg
             width="24"
@@ -158,7 +158,7 @@ function NotificationsBell() {
     <Link
       href="/pro/notifications"
       aria-label={unreadLabel(unread)}
-      className="-my-s -mr-s ml-auto flex min-h-12 min-w-12 items-center justify-center gap-xs rounded-lg text-textPrimary hover:bg-surfaceVariant"
+      className="-my-s -mr-s ml-auto flex min-h-12 min-w-12 items-center justify-center gap-xs rounded-control text-textPrimary hover:bg-surfaceVariant"
     >
       <Icon name="bell" size="iconS" />
       <UnreadBadge count={unread} />

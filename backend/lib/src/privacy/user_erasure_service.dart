@@ -1,9 +1,11 @@
 import 'package:http/http.dart' as http;
 
 import '../appointments/appointment_repository.dart';
+import '../auth/apple_tokens.dart';
 import '../auth/auth_repository.dart';
 import '../clients/clients_service.dart';
 import '../favorites_repository.dart';
+import '../idempotency/idempotency_store.dart';
 import '../notifications/notification_prefs_repository.dart';
 import '../notifications/notifications_repository.dart';
 import '../push/device_token_repository.dart';
@@ -34,8 +36,12 @@ class UserErasureService {
     this._appointments,
     this._clients,
     this._storage, {
+    IdempotencyStore? idempotency,
+    AppleTokenService? apple,
     http.Client? client,
-  }) : _client = client ?? http.Client();
+  }) : _idempotency = idempotency,
+       _apple = apple,
+       _client = client ?? http.Client();
 
   final AuthRepository _auth;
   final DeviceTokenRepository _devices;
@@ -46,6 +52,11 @@ class UserErasureService {
   final AppointmentRepository _appointments;
   final ClientsService _clients;
   final StorageService _storage;
+  final IdempotencyStore? _idempotency;
+
+  /// Sign in with Apple (B6.7): optional so the existing constructions in
+  /// tests keep compiling — wired in `dependencies.dart`.
+  final AppleTokenService? _apple;
   final http.Client _client;
 
   /// Erase everything [userId] left behind, then the identity itself.
@@ -115,6 +126,10 @@ class UserErasureService {
     // 3. Favourites.
     await _favorites.deleteForUser(userId);
 
+    // 3b. The kept answers of its writes — a booking's answer, held 24 h for
+    //     a lost-answer retry (docs/design/write-idempotency.md §6).
+    await _idempotency?.deleteForAccount(userId);
+
     // 4. The content survives, the author does not — plus the reports this user
     //    filed, which cannot be tombstoned (a UNIQUE constraint would collide).
     //    Returns the PUBLIC photo keys it detached: review photo URLs are
@@ -166,6 +181,13 @@ class UserErasureService {
       'avatar/$userId/',
       StorageBucket.public,
     );
+
+    // 7b. Sign in with Apple (B6.7, App Store 5.1.1(v)): revoke the
+    //     authorization so MyWeli leaves the person's « Apps using Apple ID »,
+    //     and forget the token. Never blocks (Apple's answer is logged), and
+    //     before the identity: a failed delete retries into an empty list.
+    //     docs/design/backend-integrity-batch6.md §13.
+    await _apple?.revokeAll(kind: 'user', accountId: userId);
 
     // 8. And only now the identity.
     final ok = await _auth.deleteUser(userId);

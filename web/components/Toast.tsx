@@ -15,12 +15,23 @@ import type { ToastState } from '../lib/useToast';
 /// error = `bg-error` (#8B0000 — ~10.6:1 under `secondary` white text).
 /// Position: fixed bottom-center on `z-toast` — feedback is always on top (§9);
 /// the pre-B5 EquipeClient toast had no z token and painted on DOM-order luck.
-export function Toast({ toast }: { toast: ToastState }) {
+export function Toast({
+  toast,
+  aboveFloatingControl = false,
+}: {
+  toast: ToastState;
+  /// The page has its own floating control at the bottom centre under `lg`
+  /// (the search's « Carte » toggle: 24–72px): the toast sits above it there,
+  /// at 80px (`bottom-xxxl` + `pb-m`), never over it.
+  aboveFloatingControl?: boolean;
+}) {
   return (
     <div
       role="status"
       aria-live="polite"
-      className="pointer-events-none fixed bottom-l left-1/2 z-toast -translate-x-1/2"
+      className={`pointer-events-none fixed left-1/2 z-toast -translate-x-1/2 ${
+        aboveFloatingControl ? 'bottom-xxxl pb-m lg:bottom-l lg:pb-0' : 'bottom-l'
+      }`}
     >
       {toast ? (
         <div

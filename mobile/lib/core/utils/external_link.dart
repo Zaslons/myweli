@@ -21,8 +21,10 @@ import '../../widgets/common/app_snack_bar.dart';
 /// inside a store-submission PR is unrelated risk. This file collapses the two
 /// that genuinely *were* duplicates — the byte-identical `wa.me` blocks in
 /// `profile_screen` and `pro_subscription_screen`, down to their duplicated
-/// failure copy — and serves the new legal links. The remaining eight are
-/// recorded as a follow-up rather than swept.
+/// failure copy — and serves the new legal links. The remaining eight were
+/// recorded as a follow-up rather than swept; the four `tel:` ones have since
+/// moved to [callPhone] (B7.11), because two of them asked `canLaunchUrl`
+/// first and so did nothing on most phones.
 ///
 /// Both capture the `ScaffoldMessenger` **before** the await: the widget may be
 /// gone by the time the platform answers, and reading `context` afterwards is
@@ -56,6 +58,21 @@ Future<void> openExternalUrl(
     AppSnackBar.showOn(messenger, failureMessage, kind: SnackKind.error);
   }
 }
+
+/// Call [number] — every « Appeler » in both apps (B7.11,
+/// docs/design/pro-app-batch7.md §2.11).
+///
+/// Opens `tel:` straight away and NEVER asks `canLaunchUrl` first: on Android
+/// 11+ that question answers « no » for a scheme the app has not declared, and
+/// on iOS for one missing from `LSApplicationQueriesSchemes` — two buttons that
+/// asked it did nothing on most phones, without a word. A device with no
+/// dialer (a tablet, an emulator) gets the sentence, never silence. Spaces in
+/// the stored number are dropped, as the call sites always did.
+Future<void> callPhone(BuildContext context, String number) => openExternalUrl(
+  context,
+  'tel:${number.replaceAll(RegExp(r'\s'), '')}',
+  failureMessage: 'Impossible d’ouvrir l’application.',
+);
 
 /// Open a WhatsApp conversation with [number] (E.164 without `+`), prefilled
 /// with [message].

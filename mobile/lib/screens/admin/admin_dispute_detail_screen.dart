@@ -9,9 +9,10 @@ import '../../core/theme/text_styles.dart';
 import '../../core/utils/formatters.dart';
 import '../../providers/admin/admin_dispute_detail_provider.dart';
 import '../../providers/admin/admin_disputes_provider.dart';
+import '../../widgets/common/app_async_view.dart';
 import '../../widgets/common/app_button.dart';
+import '../../widgets/common/app_skeleton.dart';
 import '../../widgets/common/app_snack_bar.dart';
-import '../../widgets/common/loading_indicator.dart';
 import 'widgets/admin_detail_widgets.dart';
 import 'widgets/admin_scaffold.dart';
 import 'widgets/reason_dialog.dart';
@@ -65,16 +66,21 @@ class _AdminDisputeDetailScreenState extends State<AdminDisputeDetailScreen> {
     return AdminScaffold(title: 'Litige', showBack: true, child: _body(p));
   }
 
-  Widget _body(AdminDisputeDetailProvider p) {
-    if (p.isLoading && p.dispute == null) return const LoadingIndicator();
-    if (p.dispute == null) {
-      return AdminDetailError(
-        message: p.error ?? 'Introuvable',
-        onRetry: () =>
-            context.read<AdminDisputeDetailProvider>().load(widget.id),
-      );
-    }
-    final d = p.dispute!;
+  Widget _body(
+    AdminDisputeDetailProvider p,
+  ) => AppAsyncView<Map<String, dynamic>>(
+    isLoading: p.isLoading,
+    error: p.error,
+    // Another dispute's, on this screen's first frame (the provider outlives it).
+    data: p.id == widget.id ? p.dispute : null,
+    isEmpty: (_) => false,
+    loading: const SkeletonDetail(sections: 2),
+    empty: const SizedBox.shrink(),
+    onRetry: () => context.read<AdminDisputeDetailProvider>().load(widget.id),
+    builder: (context, d) => _detail(p, d),
+  );
+
+  Widget _detail(AdminDisputeDetailProvider p, Map<String, dynamic> d) {
     final open = d['status'] == 'open';
     return Column(
       children: [

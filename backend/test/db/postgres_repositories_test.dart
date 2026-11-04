@@ -6,20 +6,25 @@ import 'dart:io';
 
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
+import 'package:myweli_backend/src/access/membership_service.dart';
+import 'package:myweli_backend/src/auth/apple_tokens.dart';
 import 'package:myweli_backend/src/auth/auth_repository.dart'
     show RefreshOutcome, RefreshResult, TokenPair, kRefreshReuseGrace;
 import 'package:myweli_backend/src/auth/tokens.dart';
 import 'package:myweli_backend/src/boot_config.dart';
 import 'package:myweli_backend/src/clients/clients_repository.dart'
     show GuestPhoneChange, GuestPhoneOutcome;
+import 'package:myweli_backend/src/clients/clients_service.dart';
 import 'package:myweli_backend/src/db/database.dart';
 import 'package:myweli_backend/src/db/migrations.dart';
+import 'package:myweli_backend/src/db/postgres_apple_token_repository.dart';
 import 'package:myweli_backend/src/db/postgres_appointment_repository.dart';
 import 'package:myweli_backend/src/db/postgres_auth_repository.dart';
 import 'package:myweli_backend/src/db/postgres_client_version_repository.dart';
 import 'package:myweli_backend/src/db/postgres_clients_repository.dart';
 import 'package:myweli_backend/src/db/postgres_device_token_repository.dart';
 import 'package:myweli_backend/src/db/postgres_favorites_repository.dart';
+import 'package:myweli_backend/src/db/postgres_idempotency_store.dart';
 import 'package:myweli_backend/src/db/postgres_membership_repository.dart';
 import 'package:myweli_backend/src/db/postgres_notification_prefs_repository.dart';
 import 'package:myweli_backend/src/db/postgres_notifications_repository.dart';
@@ -28,13 +33,17 @@ import 'package:myweli_backend/src/db/postgres_provider_auth_repository.dart';
 import 'package:myweli_backend/src/db/postgres_providers_repository.dart';
 import 'package:myweli_backend/src/db/postgres_reviews_repository.dart';
 import 'package:myweli_backend/src/db/postgres_salon_subscription_repository.dart';
+import 'package:myweli_backend/src/privacy/user_erasure_service.dart';
 import 'package:myweli_backend/src/provider_account_service.dart';
 import 'package:myweli_backend/src/salon_time.dart';
 import 'package:myweli_backend/src/storage/storage_service.dart';
 import 'package:postgres/postgres.dart';
 import 'package:test/test.dart';
 
+import '../access/ensure_owner_contract.dart';
 import '../access/invite_contract.dart';
+import '../auth/apple_token_repository_contract.dart';
+import '../idempotency/idempotency_contract.dart';
 
 void main() {
   final url = Platform.environment['DATABASE_URL'];
@@ -78,7 +87,7 @@ void main() {
     // Isolate state between tests; the seeded providers stay.
     await pool.execute(
       'TRUNCATE appointments, refresh_tokens, otp_codes, users, '
-      'provider_users, provider_otp_codes, provider_refresh_tokens, '
+      'provider_users, provider_refresh_tokens, '
       'favorites, reviews, salon_clients, salon_client_notes, '
       'provider_audit_log CASCADE',
     );
@@ -358,7 +367,7 @@ void main() {
         );
 
     test(
-      'register creates the account (+ link) then verify returns a token',
+      'register creates the account (+ link) and a provider session',
       () async {
         final r = repo();
         final reg = await r.register(
@@ -387,15 +396,16 @@ void main() {
           'provider_exists',
         );
 
-        // The dormant phone-OTP path still logs the salon in.
-        final code = (await r.requestOtp(provPhone)).devCode!;
-        final ok = await r.verifyOtp(provPhone, code);
-        expect(ok.ok, isTrue);
+        // The session registration hands back is a provider's
+        // (the phone sign-in that used to be checked here is gone — B8.5).
         expect(
-          tokens.verifyAccessToken(ok.tokens!.accessToken)!.payload,
+          tokens.verifyAccessToken(reg.tokens!.accessToken)!.payload,
           containsPair('role', 'provider'),
         );
-        expect((await r.accountById(ok.provider!.id))!.providerId, 'provider1');
+        expect(
+          (await r.accountById(reg.provider!.id))!.providerId,
+          'provider1',
+        );
       },
     );
 
@@ -431,32 +441,6 @@ void main() {
         );
       },
     );
-
-    test('verify requires registration; wrong codes lock out', () async {
-      final r = repo(maxAttempts: 2);
-      // Unregistered phone: a code can be requested, but verify → not found.
-      final code = (await r.requestOtp('+2250500000000')).devCode!;
-      expect(
-        (await r.verifyOtp('+2250500000000', code)).error,
-        'provider_not_found',
-      );
-
-      final reg = await r.register(
-        email: 'reg30@test.pro',
-
-        authProvider: 'google',
-
-        googleSub: 'reg-sub-30',
-        phoneNumber: provPhone,
-        businessName: 'X',
-        businessType: 'salon',
-      );
-      expect(reg.ok, isTrue);
-      final sent = await r.requestOtp(provPhone);
-      final wrong = sent.devCode == '111111' ? '222222' : '111111';
-      expect((await r.verifyOtp(provPhone, wrong)).error, 'otp_invalid');
-      expect((await r.verifyOtp(provPhone, wrong)).error, 'otp_locked');
-    });
 
     test('submitKyc persists kyc_docs + pending; survives re-read', () async {
       final r = repo();
@@ -1762,6 +1746,46 @@ void main() {
       'createdAt': DateTime.utc(2030, 6, int.parse(appt)).toIso8601String(),
     };
 
+    // docs/design/backend-integrity-batch6.md §2.6 (B6.6) on the real schema
+    // (migration 0041): a salon's report is kept as one, and the admin queue
+    // says so; a second report from the same salon is no second row.
+    test(
+      'a salon’s report is marked in the queue (0041 reporter_kind)',
+      () async {
+        final r = PostgresReviewsRepository(pool);
+        final stamp = DateTime.now().microsecondsSinceEpoch;
+        final review = {
+          ...rv('9'),
+          'id': 'rev_b66_$stamp',
+          'appointmentId': 'appt_b66_$stamp',
+        };
+        await r.upsertByAppointment(review);
+        await r.addReport('rev_b66_$stamp', 'user_b66_$stamp', 'spam');
+        final before = (await r.listReportedReviews(
+          pageSize: 200,
+        )).items.singleWhere((m) => m['reviewId'] == 'rev_b66_$stamp');
+        expect(before['reportedBySalon'], isFalse);
+
+        await r.addReport(
+          'rev_b66_$stamp',
+          'provider1',
+          'Insultes',
+          reporterKind: 'salon',
+        );
+        await r.addReport(
+          'rev_b66_$stamp',
+          'provider1',
+          'Encore',
+          reporterKind: 'salon',
+        );
+        final after = (await r.listReportedReviews(
+          pageSize: 200,
+        )).items.singleWhere((m) => m['reviewId'] == 'rev_b66_$stamp');
+        expect(after['reportedBySalon'], isTrue);
+        expect(after['reportCount'], 2);
+      },
+    );
+
     test(
       'upsert-by-appointment + paginate + aggregate (provider + artist)',
       () async {
@@ -1894,6 +1918,66 @@ void main() {
             );
         return reg.provider!.id;
       },
+    );
+  });
+
+  // The owner row on the REAL schema — `ON CONFLICT … DO UPDATE SET
+  // account_id` re-pointed a manager's, an invited or a revoked row at the
+  // caller, keeping its role (docs/design/backend-integrity-batch6.md §2.8).
+  group('PostgresMembershipRepository — ensureOwner, the twin contract', () {
+    var n = 0;
+    ensureOwnerContract(
+      repo: () => PostgresMembershipRepository(pool),
+      providerId: 'provider1', // seeded
+      account: (email) async {
+        n++;
+        final reg =
+            await PostgresProviderAuthRepository(
+              pool,
+              tokens: tokens,
+              echoDevCode: true,
+            ).register(
+              email: email,
+              authProvider: 'google',
+              googleSub:
+                  'sub-owner-contract-$n-${DateTime.now().microsecondsSinceEpoch}',
+              phoneNumber: '+22505000030${n.toString().padLeft(2, '0')}',
+              businessName: 'Contract',
+              businessType: 'salon',
+            );
+        return reg.provider!.id;
+      },
+    );
+  });
+
+  // B6.7 (migration 0042) — the Sign in with Apple refresh tokens: the same
+  // contract as the in-memory twin, and the table refuses an unknown kind.
+  group('PostgresAppleTokenRepository — the twin contract (0042)', () {
+    final stamp = DateTime.now().microsecondsSinceEpoch;
+    appleTokenRepositoryContract(
+      repo: () => PostgresAppleTokenRepository(pool),
+      id: (name) => 'apple-$name-$stamp',
+    );
+
+    test('a kind other than user / provider is refused by the table', () async {
+      await expectLater(
+        PostgresAppleTokenRepository(pool).keep(
+          kind: 'admin',
+          accountId: 'apple-admin-$stamp',
+          clientId: 'ci.myweli.app',
+          refreshToken: 'rt',
+        ),
+        throwsA(anything),
+      );
+    });
+  });
+
+  // docs/design/write-idempotency.md §3 — the same contract as the in-memory
+  // twin, on the real table (migration 0040).
+  group('PostgresIdempotencyStore — the twin contract', () {
+    idempotencyContract(
+      store: (now) => PostgresIdempotencyStore(pool, now: now),
+      prefix: 'pg-${DateTime.now().microsecondsSinceEpoch}-',
     );
   });
 
@@ -2071,6 +2155,221 @@ void main() {
     });
   });
 
+  // ---- Client account deletion on the REAL schema (B6.10) -----------------
+  // The Pro deletion has run here since the 2026-10-14 production 500; the
+  // client's ran only on the in-memory twins, which have no foreign keys and
+  // none of the real statements. A victim and a bystander with the same
+  // footprint, erased through the production service over the real schema:
+  // the victim keeps nothing personal, the bystander keeps everything.
+  // docs/design/backend-integrity-batch6.md §2.10
+  group('client account deletion — on the real schema (B6.10)', () {
+    final stamp = DateTime.now().microsecondsSinceEpoch;
+
+    Future<int> count(String sql, Map<String, Object?> parameters) async {
+      final r = await pool.execute(Sql.named(sql), parameters: parameters);
+      return r.first.first! as int;
+    }
+
+    Future<String> user(String phone) async {
+      final auth = PostgresAuthRepository(
+        pool,
+        tokens: tokens,
+        echoDevCode: true,
+      );
+      final v = await auth.verifyOtp(
+        phone,
+        (await auth.requestOtp(phone)).devCode!,
+      );
+      return v.user!.id;
+    }
+
+    test(
+      'the victim keeps nothing personal; the bystander keeps everything',
+      () async {
+        final devices = PostgresDeviceTokenRepository(pool);
+        final notifications = PostgresNotificationsRepository(pool);
+        final prefs = PostgresNotificationPrefsRepository(pool);
+        final favorites = PostgresFavoritesRepository(pool);
+        final reviews = PostgresReviewsRepository(pool);
+        final appointments = PostgresAppointmentRepository(pool);
+        final idem = PostgresIdempotencyStore(pool);
+        final appleTokens = PostgresAppleTokenRepository(pool);
+
+        final victim = await user(
+          '+2250700${(stamp % 10000).toString().padLeft(4, '0')}91',
+        );
+        final bystander = await user(
+          '+2250700${(stamp % 10000).toString().padLeft(4, '0')}92',
+        );
+
+        // A review both report — so the bystander's report must survive.
+        await reviews.upsertByAppointment({
+          'id': 'b610-target-$stamp',
+          'appointmentId': 'b610-appt-target-$stamp',
+          'userId': 'someone-else',
+          'userName': 'Kouassi',
+          'providerId': 'provider1',
+          'rating': 1,
+          'text': 'Bof',
+          'createdAt': '2026-03-10T10:00:00.000Z',
+        });
+
+        var hour = 8;
+        for (final uid in [victim, bystander]) {
+          hour += 1;
+          await devices.upsert(
+            token: 'b610-tok-$uid',
+            userId: uid,
+            role: 'user',
+            platform: 'android',
+          );
+          await notifications.add(
+            userId: uid,
+            type: 'booking_confirmed',
+            title: 'Rendez-vous confirmé',
+            body: 'Salon Excellence',
+          );
+          await prefs.update(uid, reminders: false, marketing: false);
+          await favorites.add(uid, 'provider1');
+          await appointments.create({
+            'id': 'b610-appt-$uid',
+            'userId': uid,
+            'providerId': 'provider1',
+            'serviceIds': ['service1'],
+            'clientName': 'Awa',
+            'clientPhone': '+2250700000001',
+            'notes': 'Allergique',
+            'appointmentDate':
+                '2026-03-${(stamp % 20 + 1).toString().padLeft(2, '0')}T${hour.toString().padLeft(2, '0')}:00:00.000Z',
+            'status': 'completed',
+            'totalPrice': 15000,
+            'createdAt': '2026-03-01T10:00:00.000Z',
+          });
+          await reviews.upsertByAppointment({
+            'id': 'b610-review-$uid',
+            'appointmentId': 'b610-appt-$uid',
+            'userId': uid,
+            'userName': 'Awa',
+            'providerId': 'provider1',
+            'rating': 5,
+            'text': 'Très bien',
+            'createdAt': '2026-03-11T10:00:00.000Z',
+          });
+          await reviews.addReport('b610-target-$stamp', uid, 'spam');
+          await idem.claim(
+            accountId: uid,
+            route: '/appointments',
+            key: 'k-b610-0001',
+            fingerprint: 'f',
+          );
+          await idem.complete(
+            accountId: uid,
+            route: '/appointments',
+            key: 'k-b610-0001',
+            status: 201,
+            body: '{}',
+          );
+          // B6.7 — a Sign in with Apple token (0042).
+          await appleTokens.keep(
+            kind: 'user',
+            accountId: uid,
+            clientId: 'ci.myweli.app',
+            refreshToken: 'rt-b610-$uid',
+          );
+        }
+
+        final providerAuth = PostgresProviderAuthRepository(
+          pool,
+          tokens: tokens,
+          echoDevCode: true,
+        );
+        final service = UserErasureService(
+          PostgresAuthRepository(pool, tokens: tokens, echoDevCode: true),
+          devices,
+          notifications,
+          prefs,
+          favorites,
+          reviews,
+          appointments,
+          ClientsService(
+            providerAuth,
+            MembershipService(PostgresMembershipRepository(pool), providerAuth),
+            PostgresAuthRepository(pool, tokens: tokens, echoDevCode: true),
+            PostgresClientsRepository(pool),
+            appointments,
+            PostgresProviderAuditLogRepository(pool),
+          ),
+          FakeStorageService(),
+          idempotency: idem,
+          // No key: nothing is revoked at Apple, the rows go all the same.
+          apple: AppleTokenService(
+            appleTokens,
+            AppleSignInKeys.none,
+            log: (_) {},
+          ),
+          client: MockClient((_) async => http.Response('', 204)),
+        );
+
+        final r = await service.eraseUser(victim);
+        expect(r.ok, isTrue, reason: '${r.error}');
+
+        // Per table: the victim's rows, then the bystander's.
+        final perUser = {
+          'users': 'SELECT count(*)::int FROM users WHERE id = @u',
+          'device_tokens':
+              'SELECT count(*)::int FROM device_tokens WHERE user_id = @u',
+          'notifications':
+              'SELECT count(*)::int FROM notifications WHERE user_id = @u',
+          'notification_preferences':
+              'SELECT count(*)::int FROM notification_preferences '
+              'WHERE user_id = @u',
+          'favorites': 'SELECT count(*)::int FROM favorites WHERE user_id = @u',
+          'reviews (authored)':
+              'SELECT count(*)::int FROM reviews WHERE user_id = @u',
+          'review_reports':
+              'SELECT count(*)::int FROM review_reports '
+              'WHERE reporter_user_id = @u',
+          'idempotency_keys':
+              'SELECT count(*)::int FROM idempotency_keys WHERE account_id = @u',
+          'apple_tokens':
+              "SELECT count(*)::int FROM apple_tokens WHERE account_kind = 'user' "
+              'AND account_id = @u',
+        };
+        for (final e in perUser.entries) {
+          expect(await count(e.value, {'u': victim}), 0, reason: e.key);
+          expect(
+            await count(e.value, {'u': bystander}),
+            greaterThan(0),
+            reason: e.key,
+          );
+        }
+
+        // The content survives, the person does not: the booking is stripped
+        // (the salon keeps its book), the review is tombstoned.
+        final appt = (await pool.execute(
+          Sql.named(
+            'SELECT client_name, client_phone, notes FROM appointments '
+            'WHERE id = @id',
+          ),
+          parameters: {'id': 'b610-appt-$victim'},
+        )).single;
+        expect(appt, [null, null, null]);
+        final keptAppt = (await pool.execute(
+          Sql.named('SELECT client_name FROM appointments WHERE id = @id'),
+          parameters: {'id': 'b610-appt-$bystander'},
+        )).single;
+        expect(keptAppt, ['Awa']);
+        expect(
+          await count('SELECT count(*)::int FROM reviews WHERE id = @id', {
+            'id': 'b610-review-$victim',
+          }),
+          1,
+          reason: 'the review text stays for the salon',
+        );
+      },
+    );
+  });
+
   // ---- Provider account deletion on the REAL schema (T53) -----------------
   // Production answered 500 `ForeignKeyViolationException` to every
   // `DELETE /me/provider` from a salon owner (2026-10-14, revision
@@ -2129,6 +2428,45 @@ void main() {
       ).ensureOwner(providerId: salonId, accountId: id, email: email);
       return (id: id, salonId: salonId);
     }
+
+    // docs/design/backend-integrity-batch6.md §2.3 (B6.3): on the real
+    // schema the address is a column AND a document key; both go.
+    test('the erased owner’s salon keeps its name, loses its numbers and '
+        'its address', () async {
+      final providers = PostgresProvidersRepository(pool);
+      final o = await owner('b63-owner@test.pro', '+2250500006301');
+      await providers.updateProfile(o.salonId, {
+        'name': 'Chez Awa B63',
+        'address': 'Rue des Jardins, Cocody',
+        'whatsapp': '+2250500006302',
+      });
+      await providers.updateDepositPolicy(o.salonId, {
+        'depositRequired': true,
+        'depositPercentage': 0.3,
+        'depositMobileMoneyOperator': 'orange',
+        'depositMobileMoneyNumber': '+2250500006303',
+      });
+
+      final r = await service().deleteAccount(o.id);
+      expect(r.ok, isTrue, reason: '${r.error}');
+
+      // The address column (search) by SQL; the document through the
+      // repository's own reader (`data` is stored as an encoded string).
+      final column = (await pool.execute(
+        Sql.named('SELECT name, address FROM providers WHERE id = @id'),
+        parameters: {'id': o.salonId},
+      )).single;
+      expect(column[0], 'Chez Awa B63', reason: 'the name stays');
+      expect(column[1], '', reason: 'the address column');
+      final doc = (await providers.byId(o.salonId))!;
+      expect(doc['name'], 'Chez Awa B63');
+      expect(doc['phoneNumber'], '', reason: 'the phone');
+      expect(doc['address'], '', reason: 'the address in the document');
+      expect(doc['whatsapp'], isNull, reason: 'WhatsApp');
+      expect(doc['depositMobileMoneyNumber'], isNull, reason: 'the number');
+      expect(doc['depositMobileMoneyOperator'], isNull, reason: 'the operator');
+      expect(doc['depositRequired'], isFalse, reason: 'no deposit, no number');
+    });
 
     test('a salon owner with a team is erased — the production path, end to '
         'end', () async {
@@ -2334,6 +2672,54 @@ WHERE c.contype = 'f'
       } finally {
         await pool.execute('DROP TABLE IF EXISTS deletion_blocker_probe');
       }
+    });
+
+    // docs/design/product-questions-batch8.md §2.6 (B8.6, decision 32): the
+    // deletion is a sequence of replayable steps, not one transaction — and
+    // the answer to a failure in the middle is « Réessayez ». So the retry
+    // must FINISH it: everything the first attempt erased stays erased, and
+    // what it could not reach goes now.
+    test('a deletion that fails at the identity, then a retry: everything '
+        'is erased', () async {
+      final o = await owner('del-retry@test.pro', '+2250500001006');
+      Future<int> teamRows() => count(
+        'SELECT count(*)::int FROM provider_members WHERE account_id = @a',
+        {'a': o.id},
+      );
+
+      await pool.execute(
+        'CREATE TABLE deletion_blocker_probe '
+        '(account_id text REFERENCES provider_users(id))',
+      );
+      try {
+        await pool.execute(
+          Sql.named('INSERT INTO deletion_blocker_probe VALUES (@a)'),
+          parameters: {'a': o.id},
+        );
+        await expectLater(
+          service().deleteAccount(o.id),
+          throwsA(isA<ServerException>()),
+        );
+        // Halfway: the salon is already unpublished and its contact erased;
+        // the identity and its team row are still there.
+        final halfway = await PostgresProvidersRepository(pool).byId(o.salonId);
+        expect(halfway?['status'], 'draft');
+        expect(halfway?['phoneNumber'], '');
+        expect(await authRepo().accountById(o.id), isNotNull);
+        expect(await teamRows(), 1);
+      } finally {
+        await pool.execute('DROP TABLE IF EXISTS deletion_blocker_probe');
+      }
+
+      // The retry, as « Réessayez » asks.
+      final retry = await service().deleteAccount(o.id);
+
+      expect(retry.ok, isTrue, reason: 'the retry did not finish: $retry');
+      expect(await authRepo().accountById(o.id), isNull);
+      expect(await teamRows(), 0);
+      final salon = await PostgresProvidersRepository(pool).byId(o.salonId);
+      expect(salon?['status'], 'draft', reason: 'the salon stays unpublished');
+      expect(salon?['phoneNumber'], '', reason: 'and its contact erased');
     });
   });
 }

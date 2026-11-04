@@ -1,4 +1,5 @@
 import 'package:equatable/equatable.dart';
+import '../core/utils/salon_id.dart';
 
 class Review extends Equatable {
   final String id;
@@ -6,7 +7,7 @@ class Review extends Equatable {
   /// The completed appointment this review is of (one review per visit). May be
   /// empty for legacy/mock seed reviews.
   final String appointmentId;
-  final String providerId;
+  final SalonId providerId;
   final String userId;
   final String userName;
   final int rating; // 1-5
@@ -75,7 +76,7 @@ class Review extends Equatable {
     return Review(
       id: json['id'] as String,
       appointmentId: json['appointmentId'] as String? ?? '',
-      providerId: json['providerId'] as String,
+      providerId: SalonId(json['providerId'] as String),
       userId: json['userId'] as String,
       userName: json['userName'] as String,
       rating: (json['rating'] as num).toInt(),

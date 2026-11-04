@@ -18,11 +18,10 @@
 /// `registered` is flipped.
 ///
 /// **`LEGAL_ROUTES` is half of a cross-surface contract.** `AppConfig.privacyUrl`
-/// and its three siblings build these exact paths into the mobile binary, and
-/// **no mobile test can reach the web** — so this list and
-/// `mobile/lib/core/config/app_config.dart` are reviewed together, in one PR.
-/// `tests/legal.test.tsx` pins the slugs so at least the web half cannot move
-/// silently.
+/// and its three siblings build these exact paths into the mobile binary. No mobile
+/// test can reach the web, so this list and `mobile/lib/core/config/app_config.dart`
+/// are reviewed together, in one PR. `tests/legal.test.tsx` pins the slugs, and
+/// `tests/store-linked-pages.test.tsx` reads that Dart file against the same paths.
 ///
 /// Consumed by: the four `app/*/page.tsx`, `components/SiteFooter.tsx`,
 /// `app/sitemap.ts`, and `backend/lib/src/slug.dart`'s `reservedPublicSlugs`
@@ -115,9 +114,19 @@ export function legalRoute(slug: string): LegalRoute {
 /// change — the accepted cost of one date. The alternative is worse: a privacy
 /// policy whose substance moved while its date stood still is the version a
 /// regulator reads as concealment.
+///
+/// **Bumped 2026-10-21**: a deleted salon owner's salon loses its numbers and
+/// its address (docs/design/backend-integrity-batch6.md §2.3, decision 17) —
+/// said in the privacy policy and on « Supprimer votre compte ».
+///
+/// **Bumped 2026-10-26** (BACKLOG B0.4, decision 3): every API call goes
+/// through Cloudflare since 2026-10-07, so Google Cloud's request logs carry
+/// Cloudflare's address, not the visitor's — the policy said the opposite;
+/// the processors' « protection au moins équivalente » (App Store 5.1.1(i));
+/// each app's export path; and Cloudflare's second role in the hosts below.
 export const LEGAL_UPDATED_AT = {
-  iso: '2026-08-22',
-  label: '22 août 2026',
+  iso: '2026-10-26',
+  label: '26 octobre 2026',
 } as const;
 
 export const COMPANY = {
@@ -138,6 +147,6 @@ export const COMPANY = {
   hosts: [
     'Google Cloud — serveurs applicatifs et base de données, Paris (France)',
     'Vercel Inc. — site web, États-Unis',
-    'Cloudflare Inc. — stockage des fichiers (R2)',
+    'Cloudflare Inc. — stockage des fichiers (R2) et passage des appels à l’API',
   ],
 } as const;

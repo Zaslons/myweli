@@ -6,9 +6,10 @@ import type { paths } from "./schema";
 
 /// Typed Myweli API client — types are generated from docs/api/openapi.yaml
 /// (`npm run gen:api`). Base URL from env; the localhost default is
-/// development-only (see `lib/api-base.ts`), because the callers of this client
-/// degrade to empty results rather than failing, and the ISR pages call them
-/// during `next build`.
+/// development-only (see `lib/api-base.ts`), because the ISR pages call this
+/// client during `next build`. What its callers do with an answer they cannot
+/// read is `lib/api/public-read.ts`: throw where the build fails closed,
+/// degrade to empty on a preview (hygiene-batch9.md §2.10).
 ///
 /// ## Why `server-only` (2026-08-18)
 ///
@@ -26,8 +27,9 @@ import type { paths } from "./schema";
 /// value discarded. One `api.GET(...)` in a client component would have turned
 /// that dead weight into a live cross-origin request, and the failure would
 /// have been an opaque CORS error in a preview — while `providers.ts` and
-/// `localities.ts` swallow errors and return `[]`, so it would have rendered as
-/// an empty marketplace with nothing in the logs.
+/// `localities.ts` swallowed errors and returned `[]` (on a preview they still
+/// do), so it would have rendered as an empty marketplace with nothing in the
+/// logs.
 ///
 /// `server-only` turns that from a runtime surprise into a **build failure that
 /// names the file**. It is one line, and it is the guard the CORS decision

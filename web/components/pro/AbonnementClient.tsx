@@ -6,7 +6,7 @@ import { ErrorState } from '../ErrorState';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { chooseOffer, getMyProvider, getSalonSubscription } from '../../lib/api/pro';
-import { loadFailure, loadFailureMessage, type LoadFailure } from '../../lib/pro/load-failure';
+import { loadFailure, loadFailureMessage, type LoadFailure } from '../../lib/api/load-failure';
 import { formatFcfa } from '../../lib/format';
 import {
   type OfferCard,
@@ -20,7 +20,7 @@ import {
   contactWhatsAppUrl,
   offerBanner,
 } from '../../lib/pro/subscription-plans';
-import { seatsLabel } from '../../lib/pro/team';
+import { salonRefusalMessage, seatsLabel } from '../../lib/pro/team';
 import { Button } from '../Button';
 import { Loading } from '../Loading';
 
@@ -79,7 +79,7 @@ export function AbonnementClient() {
       setNotice(
         r.error === 'trial_used'
           ? 'Votre essai gratuit a déjà été utilisé. Contactez-nous pour activer votre offre.'
-          : 'Le changement d’offre a échoué. Réessayez.',
+          : salonRefusalMessage(r.status, r.error, 'Le changement d’offre a échoué. Réessayez.'),
       );
       return;
     }
@@ -133,7 +133,7 @@ export function AbonnementClient() {
               href={contactWhatsAppUrl()!}
               target="_blank"
               rel="noopener noreferrer"
-              className="mt-m inline-flex items-center justify-center rounded-lg bg-primary px-l py-s text-labelLarge font-medium text-secondary hover:bg-primaryHover"
+              className="mt-m inline-flex items-center justify-center rounded-control bg-primary px-l py-s text-labelLarge font-medium text-secondary hover:bg-primaryHover"
             >
               Nous contacter sur WhatsApp
             </a>
@@ -173,7 +173,7 @@ export function AbonnementClient() {
           </p>
           <Link
             href="/pro/salons/nouveau"
-            className="mt-m inline-flex items-center justify-center rounded-lg bg-primary px-l py-s text-labelLarge font-medium text-secondary hover:bg-primaryHover"
+            className="mt-m inline-flex items-center justify-center rounded-control bg-primary px-l py-s text-labelLarge font-medium text-secondary hover:bg-primaryHover"
           >
             Ajouter un salon
           </Link>

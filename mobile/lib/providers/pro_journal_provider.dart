@@ -4,8 +4,10 @@ import 'package:flutter/foundation.dart';
 
 import '../core/access/pro_access_guard.dart';
 import '../core/access/pro_salon_scope.dart';
+import '../core/constants/failure_messages.dart';
 import '../core/di/dependency_injection.dart';
 import '../core/utils/app_clock.dart';
+import '../core/utils/salon_id.dart';
 import '../core/utils/salon_time.dart';
 import '../models/api_response.dart';
 import '../models/appointment.dart';
@@ -22,7 +24,7 @@ import '../services/interfaces/pro_service_interface.dart';
 class ProJournalProvider extends ChangeNotifier implements ShowsSalonBookings {
   final ProServiceInterface _service = serviceLocator.proService;
 
-  String _providerId = '';
+  SalonId _providerId = SalonId.none;
 
   /// The ACTIVE salon's IANA timezone (multi-pays MP2) — set by [load] from
   /// `ProAuthProvider.salonTimezone`; null = Africa/Abidjan (Wave 0).
@@ -120,7 +122,7 @@ class ProJournalProvider extends ChangeNotifier implements ShowsSalonBookings {
   bool get hasUnassigned =>
       (_day?.appointments ?? const []).any((a) => a.artistId == null);
 
-  Future<void> load(String providerId, {DateTime? date, String? tz}) async {
+  Future<void> load(SalonId providerId, {DateTime? date, String? tz}) async {
     _providerId = providerId;
     if (tz != null) _tz = tz;
     if (date != null) {
@@ -149,7 +151,7 @@ class ProJournalProvider extends ChangeNotifier implements ShowsSalonBookings {
       }
     } catch (e) {
       if (request != _request) return;
-      _error = e.toString();
+      _error = kGenericErrorMessage;
       _day = null;
     }
     _isLoading = false;
@@ -172,41 +174,149 @@ class ProJournalProvider extends ChangeNotifier implements ShowsSalonBookings {
     notifyListeners();
   }
 
-  // ---- Actions (optimistic-ish: act then refetch the day) ------------------
+  // ---- Actions: act, then the change everywhere ---------------------------
+  //
+  // docs/design/app-pro-home-journal-fresh.md §2.1 (owner decision 8): once
+  // the server accepts a gesture, the row changes at once and the day is read
+  // again quietly — it used to be read again the ordinary way, and a failed
+  // read then dropped the whole day for « Une erreur est survenue » although
+  // the gesture had succeeded. The other stores (« Accueil », the client card,
+  // the « Rendez-vous » list) hear it through [ProSalonScope.bookingChanged].
 
-  Future<bool> accept(String id) => _act(() => _service.acceptAppointment(id));
+  Future<bool> accept(String id) => _act(
+    id,
+    BookingChangeKind.accepted,
+    () => _service.acceptAppointment(id),
+  );
 
   /// Refuse a PENDING request — the server's `reject` (→ `cancelled`, and the
   /// client is told « Réservation refusée »). Never `noShow`: « Refuser » used
   /// to call it, recording the request as the client's absence
   /// (docs/design/app-journal-refuser.md).
-  Future<bool> reject(String id) =>
-      _act(() => _service.rejectAppointment(id, null));
-  Future<bool> complete(String id) =>
-      _act(() => _service.markAppointmentComplete(id));
-  Future<bool> noShow(String id) => _act(() => _service.markNoShow(id));
-  Future<bool> arrive(String id) => _act(() => _service.markArrived(id));
+  Future<bool> reject(String id) => _act(
+    id,
+    BookingChangeKind.rejected,
+    () => _service.rejectAppointment(id, null),
+  );
+  Future<bool> complete(String id) => _act(
+    id,
+    BookingChangeKind.completed,
+    () => _service.markAppointmentComplete(id),
+  );
+  Future<bool> noShow(String id) =>
+      _act(id, BookingChangeKind.noShow, () => _service.markNoShow(id));
+  Future<bool> arrive(String id) => _act(
+    id,
+    BookingChangeKind.arrived,
+    () => _service.markArrived(id),
+    // The server's own time replaces it with the quiet read.
+    arrivedAt: AppClock.now(),
+  );
 
-  Future<bool> reschedule(String id, DateTime newDateTime) =>
-      _act(() => _service.rescheduleAppointment(id, newDateTime));
+  Future<bool> reschedule(String id, DateTime newDateTime) => _act(
+    id,
+    BookingChangeKind.rescheduled,
+    () => _service.rescheduleAppointment(id, newDateTime),
+    newDate: newDateTime,
+  );
 
-  Future<bool> _act(Future<ApiResponse<bool>> Function() run) async {
+  Future<bool> _act(
+    String id,
+    BookingChangeKind kind,
+    Future<ApiResponse<bool>> Function() run, {
+    DateTime? newDate,
+    DateTime? arrivedAt,
+  }) async {
+    final scope = _scope;
     try {
       final res = await run();
-      final ok = res.success;
-      if (ok) {
-        await refresh();
-      } else {
+      if (scope != _scope) return res.success;
+      if (!res.success) {
         _error = res.error ?? 'Action impossible.';
         ProAccessGuard.report(res.code);
         notifyListeners();
+        return false;
       }
-      return ok;
+      final row = _day?.appointments.where((a) => a.id == id).firstOrNull;
+      final change = BookingChange(
+        appointmentId: id,
+        providerId: _providerId,
+        kind: kind,
+        newDate: newDate,
+        arrivedAt: arrivedAt,
+        clientPhone: row?.clientPhone,
+      );
+      bookingChanged(change); // this day, at once — then a quiet read
+      ProSalonScope.bookingChanged(change, except: this);
+      return true;
     } catch (e) {
-      _error = e.toString();
+      if (scope != _scope) return false;
+      _error = kGenericErrorMessage;
       notifyListeners();
       return false;
     }
+  }
+
+  // ---- A booking changed (HearsBookingChanges) -----------------------------
+
+  /// [change] was accepted by the server — here or anywhere else in the app
+  /// (docs/design/app-pro-home-journal-fresh.md §2.1). The row and its day's
+  /// dot change at once; the day is then read again quietly, and the server's
+  /// day replaces the local one. A failed read keeps the change.
+  @override
+  void bookingChanged(BookingChange change) {
+    if (_providerId.isEmpty || change.providerId != _providerId) return;
+    final day = _day;
+    final selected = keyOf(_selectedDate);
+    if (day == null || _dayKey != selected) {
+      // No rows of the selected date to change (first load in flight, failed,
+      // or a day change in flight): ask again the ordinary way — a request
+      // sent now is answered after the change, and it outdates the one in
+      // flight.
+      notifyListeners();
+      unawaited(load(_providerId, date: _selectedDate));
+      return;
+    }
+    final i = day.appointments.indexWhere((a) => a.id == change.appointmentId);
+    if (i != -1) {
+      final before = day.appointments[i];
+      final after = change.applyTo(before);
+      final beforeKey = keyOf(before.appointmentDate);
+      final afterKey = keyOf(after.appointmentDate);
+      // The dots count what is not cancelled (`_load`): a refusal takes one
+      // away, a move carries one to its new day.
+      if (before.status != AppointmentStatus.cancelled) {
+        final n = (_weekCounts[beforeKey] ?? 0) - 1;
+        _weekCounts[beforeKey] = n < 0 ? 0 : n;
+      }
+      if (after.status != AppointmentStatus.cancelled) {
+        _weekCounts[afterKey] = (_weekCounts[afterKey] ?? 0) + 1;
+      }
+      final rows = [...day.appointments];
+      if (afterKey == selected) {
+        rows[i] = after;
+      } else {
+        rows.removeAt(i); // moved to another day
+      }
+      _day = JournalDay(
+        date: day.date,
+        hours: day.hours,
+        artists: day.artists,
+        appointments: rows,
+      );
+    } else if (change.kind == BookingChangeKind.rescheduled &&
+        change.newDate != null &&
+        keyOf(change.newDate!) == selected) {
+      // Moved INTO this day from another: its row is not here — the quiet
+      // read brings it; its dot now.
+      _weekCounts[selected] = (_weekCounts[selected] ?? 0) + 1;
+    }
+    // As for a creation: a refresh of this same day may be in flight, and its
+    // answer may predate the change — the quiet read below outdates it, and
+    // nobody else would lower the flag it raised.
+    _isLoading = false;
+    notifyListeners();
+    unawaited(_reloadQuietly());
   }
 
   // ---- A booking was created (ShowsSalonBookings) --------------------------
@@ -326,10 +436,17 @@ class ProJournalProvider extends ChangeNotifier implements ShowsSalonBookings {
   }
 
   /// R6 multi-salons: drop the previous salon's data on a switch.
+  /// Which salon this state belongs to — moved by [resetForSalonSwitch]
+  /// only. A read or a write takes it before it awaits and writes nothing
+  /// when it moved meanwhile: its answer is the previous salon's, or the
+  /// previous account's (docs/design/pro-account-scope.md §2.2).
+  int _scope = 0;
+
   @override
   void resetForSalonSwitch() {
+    _scope++;
     _request++; // whatever is in flight was asked for the previous salon
-    _providerId = '';
+    _providerId = SalonId.none;
     _tz = null; // the next salon's tz arrives with its first load
     _loadedOnce = false;
     _day = null;

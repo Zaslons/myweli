@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../../../core/config/feature_flags.dart';
 import '../../../core/constants/booking_horizons.dart';
+import '../../../core/constants/failure_messages.dart';
 import '../../../core/forms/field_errors.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/colors.dart';
@@ -10,18 +11,22 @@ import '../../../core/theme/text_styles.dart';
 import '../../../core/utils/app_clock.dart';
 import '../../../core/utils/formatters.dart';
 import '../../../core/utils/phone_numbering.dart';
+import '../../../core/utils/salon_id.dart';
 import '../../../core/utils/salon_time.dart';
+import '../../../core/utils/text_fit.dart';
 import '../../../core/utils/validators.dart';
+import '../../../models/service.dart';
 import '../../../providers/pro_appointment_provider.dart';
 import '../../../providers/pro_auth_provider.dart';
 import '../../../providers/pro_service_provider.dart';
+import '../../../widgets/common/app_async_view.dart';
 import '../../../widgets/common/app_button.dart';
+import '../../../widgets/common/app_skeleton.dart';
 import '../../../widgets/common/app_snack_bar.dart';
 import '../../../widgets/common/app_text_field.dart';
 import '../../../widgets/common/empty_state.dart';
 import '../../../widgets/common/inline_feedback.dart';
 import '../../../widgets/common/label_value_row.dart';
-import '../../../widgets/common/loading_indicator.dart';
 import '../../../widgets/common/myweli_date_picker.dart';
 import '../../../widgets/common/myweli_time_picker.dart';
 import '../../../widgets/common/phone_number_field.dart';
@@ -66,7 +71,7 @@ class _ProManualBookingScreenState extends State<ProManualBookingScreen> {
   bool _anonymous = false;
   bool _sendSms = true;
   bool _submitting = false;
-  String? _providerId;
+  SalonId? _providerId;
 
   String? get _tz => context.read<ProAuthProvider>().salonTimezone;
 
@@ -252,7 +257,7 @@ class _ProManualBookingScreenState extends State<ProManualBookingScreen> {
     } else {
       // The server's refusal here is a slot conflict — it names the date/time
       // row, so it stays with the form rather than floating over it.
-      setState(() => _selectionError = provider.error ?? 'Erreur');
+      setState(() => _selectionError = provider.error ?? kGenericErrorMessage);
     }
   }
 
@@ -276,142 +281,173 @@ class _ProManualBookingScreenState extends State<ProManualBookingScreen> {
                   'un rendez-vous.',
             );
           }
-          if (serviceProvider.isLoading && serviceProvider.services.isEmpty) {
-            return const LoadingIndicator();
-          }
-
-          final services = serviceProvider.services;
-          final total = services
-              .where((s) => _selected.contains(s.id))
-              .fold<double>(0, (sum, s) => sum + s.price);
-
-          return ListView(
-            padding: const EdgeInsets.all(AppTheme.spacingM),
-            children: [
-              _label('SERVICES'),
-              if (services.isEmpty)
-                Text(
-                  'Ajoutez des services à votre profil pour pouvoir créer un '
-                  'rendez-vous.',
-                  style: AppTextStyles.bodySmall.copyWith(
-                    color: AppColors.textTertiary,
-                  ),
-                )
-              else
-                ...services.map(
-                  (s) => CheckboxListTile(
-                    value: _selected.contains(s.id),
-                    onChanged: (v) => setState(() {
-                      if (v == true) {
-                        _selected.add(s.id);
-                      } else {
-                        _selected.remove(s.id);
-                      }
-                    }),
-                    title: Text(s.name),
-                    subtitle: Text(
-                      '${Formatters.formatPriceRange(s.price, s.priceMax, currency: context.read<ProAuthProvider>().salonCurrency)} · '
-                      '${Formatters.formatDuration(s.durationMinutes)}',
-                    ),
-                    contentPadding: EdgeInsets.zero,
-                    controlAffinity: ListTileControlAffinity.leading,
-                    dense: true,
-                  ),
-                ),
-              const SizedBox(height: AppTheme.spacingM),
-              _label('DATE & HEURE'),
-              Row(
-                children: [
-                  Expanded(
-                    child: _PickerField(
-                      icon: Icons.calendar_today,
-                      label: _date == null
-                          ? 'Date'
-                          : Formatters.formatDateShort(_date!),
-                      onTap: _pickDate,
-                    ),
-                  ),
-                  const SizedBox(width: AppTheme.spacingM),
-                  Expanded(
-                    child: _PickerField(
-                      icon: Icons.access_time,
-                      label: _time == null ? 'Heure' : _time!.format(context),
-                      onTap: _pickTime,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: AppTheme.spacingM),
-              _label('CLIENT'),
-              PhoneNumberField(
-                label: 'Téléphone du client',
-                // The current value, not the card's: the ListView culls this
-                // field off-screen, and it must come back as it was left.
-                initialValue: _phone,
-                enabled: !_anonymous,
-                errorText: _errors['phone'],
-                onChanged: (e164) => setState(() {
-                  _phone = e164;
-                  _errors.revalidate('phone', e164);
-                }),
-              ),
-              CheckboxListTile(
-                value: _anonymous,
-                onChanged: (v) => setState(() => _anonymous = v ?? false),
-                title: const Text('Client sans numéro'),
-                contentPadding: EdgeInsets.zero,
-                controlAffinity: ListTileControlAffinity.leading,
-                dense: true,
-              ),
-              const SizedBox(height: AppTheme.spacingS),
-              AppTextField(
-                label: 'Nom du client (optionnel)',
-                controller: _name,
-              ),
-              if (FeatureFlags.smsInvite) ...[
-                const SizedBox(height: AppTheme.spacingS),
-                SwitchListTile(
-                  value: _sendSms && !_anonymous && _phone.isNotEmpty,
-                  onChanged: (_anonymous || _phone.isEmpty)
-                      ? null
-                      : (v) => setState(() => _sendSms = v),
-                  title: const Text('Envoyer la confirmation par SMS'),
-                  subtitle: const Text('Le client reçoit un lien vers l’app'),
-                  contentPadding: EdgeInsets.zero,
-                  dense: true,
-                ),
-              ],
-              const SizedBox(height: AppTheme.spacingS),
-              AppTextField(
-                label: 'Note (optionnel)',
-                controller: _note,
-                maxLines: 2,
-              ),
-              const SizedBox(height: AppTheme.spacingM),
-              LabelValueRow(
-                label: 'Total',
-                value: Formatters.formatCurrency(
-                  total,
-                  currency: context.read<ProAuthProvider>().salonCurrency,
-                ),
-                labelStyle: AppTextStyles.bodyMedium.copyWith(
-                  color: AppColors.textSecondary,
-                ),
-                valueStyle: AppTextStyles.titleMedium.copyWith(
-                  color: AppColors.primary,
-                ),
-              ),
-              const SizedBox(height: AppTheme.spacingL),
-              InlineFeedback(_selectionError),
-              AppButton(
-                text: 'Créer le rendez-vous',
-                isLoading: _submitting,
-                onPressed: _canSubmit ? () => _submit(total) : null,
-              ),
-            ],
+          // No catalogue is a state the form says itself (« Ajoutez des
+          // services… »); a catalogue that did not load is not — it said the
+          // same sentence (B9.8).
+          return AppAsyncView<List<Service>>(
+            isLoading: serviceProvider.isLoading,
+            error: serviceProvider.loadError,
+            data: serviceProvider.services,
+            isEmpty: (d) => d.isEmpty,
+            loading: const SkeletonDetail(sections: 2),
+            empty: _form(const []),
+            onRetry: () => serviceProvider.loadServices(providerId),
+            builder: (context, services) => _form(services),
           );
         },
       ),
+    );
+  }
+
+  Widget _form(List<Service> services) {
+    final total = services
+        .where((s) => _selected.contains(s.id))
+        .fold<double>(0, (sum, s) => sum + s.price);
+
+    return ListView(
+      padding: const EdgeInsets.all(AppTheme.spacingM),
+      children: [
+        _label('SERVICES'),
+        if (services.isEmpty)
+          Text(
+            'Ajoutez des services à votre profil pour pouvoir créer un '
+            'rendez-vous.',
+            style: AppTextStyles.bodySmall.copyWith(
+              color: AppColors.textTertiary,
+            ),
+          )
+        else
+          ...services.map(
+            (s) => CheckboxListTile(
+              value: _selected.contains(s.id),
+              onChanged: (v) => setState(() {
+                if (v == true) {
+                  _selected.add(s.id);
+                } else {
+                  _selected.remove(s.id);
+                }
+              }),
+              title: Text(s.name),
+              subtitle: Text(
+                '${Formatters.formatPriceRange(s.price, s.priceMax, currency: context.read<ProAuthProvider>().salonCurrency)} · '
+                '${Formatters.formatDuration(s.durationMinutes)}',
+              ),
+              contentPadding: EdgeInsets.zero,
+              controlAffinity: ListTileControlAffinity.leading,
+              dense: true,
+            ),
+          ),
+        const SizedBox(height: AppTheme.spacingM),
+        _label('DATE & HEURE'),
+        _dateTimeRow(context),
+        const SizedBox(height: AppTheme.spacingM),
+        _label('CLIENT'),
+        PhoneNumberField(
+          label: 'Téléphone du client',
+          // The current value, not the card's: the ListView culls this
+          // field off-screen, and it must come back as it was left.
+          initialValue: _phone,
+          enabled: !_anonymous,
+          errorText: _errors['phone'],
+          onChanged: (e164) => setState(() {
+            _phone = e164;
+            _errors.revalidate('phone', e164);
+          }),
+        ),
+        CheckboxListTile(
+          value: _anonymous,
+          onChanged: (v) => setState(() => _anonymous = v ?? false),
+          title: const Text('Client sans numéro'),
+          contentPadding: EdgeInsets.zero,
+          controlAffinity: ListTileControlAffinity.leading,
+          dense: true,
+        ),
+        const SizedBox(height: AppTheme.spacingS),
+        AppTextField(label: 'Nom du client (optionnel)', controller: _name),
+        if (FeatureFlags.smsInvite) ...[
+          const SizedBox(height: AppTheme.spacingS),
+          SwitchListTile(
+            value: _sendSms && !_anonymous && _phone.isNotEmpty,
+            onChanged: (_anonymous || _phone.isEmpty)
+                ? null
+                : (v) => setState(() => _sendSms = v),
+            title: const Text('Envoyer la confirmation par SMS'),
+            subtitle: const Text('Le client reçoit un lien vers l’app'),
+            contentPadding: EdgeInsets.zero,
+            dense: true,
+          ),
+        ],
+        const SizedBox(height: AppTheme.spacingS),
+        AppTextField(label: 'Note (optionnel)', controller: _note, maxLines: 2),
+        const SizedBox(height: AppTheme.spacingM),
+        LabelValueRow(
+          label: 'Total',
+          value: Formatters.formatCurrency(
+            total,
+            currency: context.read<ProAuthProvider>().salonCurrency,
+          ),
+          labelStyle: AppTextStyles.bodyMedium.copyWith(
+            color: AppColors.textSecondary,
+          ),
+          valueStyle: AppTextStyles.titleMedium.copyWith(
+            color: AppColors.primary,
+          ),
+        ),
+        const SizedBox(height: AppTheme.spacingL),
+        InlineFeedback(_selectionError),
+        AppButton(
+          text: 'Créer le rendez-vous',
+          isLoading: _submitting,
+          onPressed: _canSubmit ? () => _submit(total) : null,
+        ),
+      ],
+    );
+  }
+
+  /// The date and the time, side by side while both labels fit their half;
+  /// one field per line when they do not (B7.10 — SYSTEM §21 row 96). At
+  /// 200 % « 15/01/2026 » needs 151 dp and its half had less, at 360, 375 and
+  /// 390 dp: it broke inside the date. Measured with [TextFit] — the room is
+  /// the field's own: its side padding, its border, its icon and the gap.
+  Widget _dateTimeRow(BuildContext context) {
+    final date = _date == null ? 'Date' : Formatters.formatDateShort(_date!);
+    final time = _time == null ? 'Heure' : _time!.format(context);
+    final dateField = _PickerField(
+      icon: Icons.calendar_today,
+      label: date,
+      onTap: _pickDate,
+    );
+    final timeField = _PickerField(
+      icon: Icons.access_time,
+      label: time,
+      onTap: _pickTime,
+    );
+    return LayoutBuilder(
+      builder: (context, box) {
+        final half = (box.maxWidth - AppTheme.spacingM) / 2;
+        final room = half - _PickerField.chrome;
+        final fits = TextFit.of(context).holds(room, [
+          (text: date, style: AppTextStyles.bodyMedium),
+          (text: time, style: AppTextStyles.bodyMedium),
+        ]);
+        if (!fits) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              dateField,
+              const SizedBox(height: AppTheme.spacingS),
+              timeField,
+            ],
+          );
+        }
+        return Row(
+          children: [
+            Expanded(child: dateField),
+            const SizedBox(width: AppTheme.spacingM),
+            Expanded(child: timeField),
+          ],
+        );
+      },
     );
   }
 
@@ -437,6 +473,11 @@ class _PickerField extends StatelessWidget {
     required this.label,
     required this.onTap,
   });
+
+  /// What the field takes from its width before its label: the side
+  /// padding, the 1 dp border each side, the icon and the gap after it.
+  static const double chrome =
+      2 * AppTheme.spacingSM + 2 + AppTheme.iconS + AppTheme.spacingS;
 
   @override
   Widget build(BuildContext context) {

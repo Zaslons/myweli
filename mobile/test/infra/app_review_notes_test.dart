@@ -2,7 +2,11 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:myweli/core/config/app_config.dart';
+import 'package:myweli/core/constants/failure_messages.dart';
 import 'package:myweli/core/utils/team_error_messages.dart';
+
+import '../support/dart_source.dart';
 
 /// The review notes — the texts the owner pastes into App Store Connect
 /// (docs/design/app-store-forms.md §8) and into the Play Console
@@ -53,9 +57,23 @@ import 'package:myweli/core/utils/team_error_messages.dart';
 /// promise by what the amended texts say today (the quoted sentence in the
 /// ACCOUNT DELETION section, the word « delete » outside it, « suppression »
 /// in the Play text) — a promise reworded past those is out of its sight.
-/// Nor does it check the OTHER labels the notes quote (« Espace Pro »,
-/// « Supprimer mon compte », …) against the app: those are reread by hand
+/// Nor does it check the labels the notes quote outside the sign-in steps
+/// (« Supprimer mon compte », …) against the app: those are reread by hand
 /// when a label changes.
+///
+/// ## Apple's second refusal (build 698, 2026-11-03)
+///
+/// The last group holds what round 2 changed: no text sent to Apple cites
+/// 3.1.3(f), whose list is closed (VoIP, cloud storage, e-mail, web hosting),
+/// and none tells anybody to register on the site, which the notes for 698 did
+/// twice. docs/design/app-review-round-2.md §6, §7.
+///
+/// What this group cannot see: whether a sentence is TRUE of the build. « those
+/// pages carry no link to salon registration » is true only once the web is live
+/// and read (the spec's §12 step 2), and the IPA check is a script the owner's build
+/// runs, not one this test runs. It checks the script's lists, not the binary.
+/// And an instruction with no verb of signing up, « visit our site », is out of
+/// [sendsToTheSite]'s sight: a person reads these texts before they go.
 void main() {
   final doc = File('../docs/design/app-store-forms.md').readAsStringSync();
   final play = File('../docs/design/play-store-forms.md').readAsStringSync();
@@ -320,10 +338,209 @@ void main() {
     expect(differing.last, startsWith('Profil > « Supprimer mon compte »'));
   });
 
+  group('Apple\'s second refusal — what is sent, and what is checked', () {
+    const replyAnchor = '**La réponse** (à envoyer telle quelle';
+    const whatToTestAnchor = '**What to Test** (fr-FR, coller tel quel';
+    const descriptionAnchor = '**Description** — texte brut';
+
+    /// A block named by its anchor, once.
+    String block(String anchor) {
+      expect(anchor.allMatches(doc), hasLength(1), reason: anchor);
+      return notesOf(anchor);
+    }
+
+    /// The prepared answer about Sign in with Apple: the fence of §13.3.
+    String appleReply() {
+      const heading = '### 13.3 ';
+      expect(heading.allMatches(doc), hasLength(1));
+      return notesOf(heading);
+    }
+
+    /// `name = ["…", "…"]` in the IPA check of §11.3.
+    List<String> scriptList(String name) {
+      final lists = RegExp(
+        '^$name = \\[(.*)\\]\$',
+        multiLine: true,
+      ).allMatches(doc).toList();
+      expect(lists, hasLength(1), reason: '`$name` of §11.3');
+      return [
+        for (final m in RegExp('"([^"]*)"').allMatches(lists.single.group(1)!))
+          m.group(1)!,
+      ];
+    }
+
+    /// Telling somebody to go and register on the site, in either order: the
+    /// two sentences the notes for build 698 had are the controls below.
+    /// « salon accounts are created … on the MyWeli website » is the agreed
+    /// wording, and `\bcreate\b` is why it passes: it states a fact.
+    final sendsToTheSite = RegExp(
+      r'\b(create|register|sign up)\b[^.]*\b(myweli\.com|website)\b|'
+      r'\b(myweli\.com|website)\b[^.]*\b(create|register|sign up)\b',
+      caseSensitive: false,
+    );
+
+    test('no text sent to Apple cites guideline 3.1.3(f)', () {
+      final texts = {
+        'notes': notesOf(pasteAnchor),
+        'reply': block(replyAnchor),
+        'What to Test': block(whatToTestAnchor),
+        'description': block(descriptionAnchor),
+        'Apple reply': appleReply(),
+      };
+      for (final text in texts.entries) {
+        expect(text.value, isNot(contains('3.1.3')), reason: text.key);
+      }
+    });
+
+    test('the description and « What to Test » say nothing of signing up', () {
+      for (final text in [block(descriptionAnchor), block(whatToTestAnchor)]) {
+        expect(text.toLowerCase(), isNot(contains('inscri')));
+      }
+    });
+
+    test('the notes name no sign-up link and tell nobody to register', () {
+      expect(
+        sendsToTheSite.hasMatch(
+          'To test deletion end to end, create a salon account on myweli.com',
+        ),
+        isTrue,
+        reason: 'the control: what the notes for build 698 said',
+      );
+      expect(
+        sendsToTheSite.hasMatch('salons sign up on the MyWeli website, and'),
+        isTrue,
+        reason: 'the control: what the notes for build 698 said',
+      );
+      expect(
+        sendsToTheSite.hasMatch('open myweli.com and create a salon account'),
+        isTrue,
+        reason: 'the control: the same instruction, the other way round',
+      );
+      final notes = notesOf(pasteAnchor);
+      for (final word in const [
+        'S’inscrire',
+        "S'inscrire",
+        'Pas encore de',
+        '/pro/inscription',
+      ]) {
+        expect(notes, isNot(contains(word)), reason: word);
+      }
+      expect(notes, isNot(contains(sendsToTheSite)));
+    });
+
+    test(
+      'the sign-in steps of the notes are the words of the login screen',
+      () {
+        final screen = stripDartComments(
+          File(
+            'lib/screens/provider/auth/pro_login_screen.dart',
+          ).readAsStringSync(),
+        );
+        final steps = notesOf(
+          pasteAnchor,
+        ).split('\n').where((line) => RegExp(r'^\d\. ').hasMatch(line));
+        expect(steps, hasLength(3));
+        final labels = [
+          for (final line in steps)
+            for (final m in RegExp(r'«\s*([^»]*?)\s*»').allMatches(line))
+              m.group(1)!,
+        ];
+        expect(labels, contains('Se connecter'));
+        for (final label in labels) {
+          expect(
+            screen,
+            contains("'$label'"),
+            reason:
+                '« $label » is in the sign-in steps of the notes and not on '
+                'the screen. The reviewer follows these words.',
+          );
+        }
+      },
+    );
+
+    test('the store description names no site, and its counts are real', () {
+      final description = block(descriptionAnchor);
+      expect(description, contains('acompte'), reason: 'the listing itself');
+      expect(description, isNot(contains('myweli.com')));
+      expect(description, isNot(contains('http')));
+      expect(description.runes.length, lessThanOrEqualTo(4000));
+
+      final below = RegExp(
+        r'^\(([\d\s]+) caractères / ([\d\s]+) octets, (\d+) lignes',
+        multiLine: true,
+      ).allMatches(doc).toList();
+      expect(below, hasLength(1), reason: 'the line under the block moved');
+      final row = RegExp(
+        r'^\| \*\*Description\*\* \| 4000 car\. \| ci-dessous \| '
+        r'([\d\s]+) \| ([\d\s]+) \|$',
+        multiLine: true,
+      ).allMatches(doc).toList();
+      expect(row, hasLength(1), reason: 'the row of §4 moved');
+
+      final characters = description.runes.length;
+      final bytes = utf8.encode(description).length;
+      expect(number(below.single.group(1)!), characters);
+      expect(number(below.single.group(2)!), bytes);
+      expect(int.parse(below.single.group(3)!), description.split('\n').length);
+      expect(number(row.single.group(1)!), characters);
+      expect(number(row.single.group(2)!), bytes);
+    });
+
+    test('the IPA check expects the link gone and the five pages there', () {
+      final gone = scriptList('gone_round2');
+      final witnesses = scriptList('witnesses_round2');
+      for (final word in const [
+        'S’inscrire sur myweli.com',
+        'Pas encore de compte',
+        '/pro/inscription',
+        '/pro/salons/nouveau',
+      ]) {
+        expect(gone, contains(word), reason: word);
+      }
+      expect(gone.toSet().intersection(witnesses.toSet()), isEmpty);
+      // A witness that drifts from the app reads as « the sentence left ».
+      final noAccount = witnesses.where((w) => w.startsWith('Aucun compte'));
+      expect(noAccount, hasLength(1));
+      expect(kNoProAccountMessage, startsWith(noAccount.single));
+      for (final url in [
+        AppConfig.privacyUrl,
+        AppConfig.termsUrl,
+        AppConfig.legalNoticeUrl,
+        AppConfig.accountDeletionUrl,
+        AppConfig.supportUrl,
+      ]) {
+        expect(witnesses, contains(Uri.parse(url).path), reason: url);
+      }
+    });
+
+    test('the reply says the film ends on a frame that is not a capture', () {
+      // The owner accepted the end card knowingly (the spec's §13), and said to
+      // state it: a reply that drops it hopes the reviewer does not notice.
+      expect(block(replyAnchor), contains('end frame'));
+    });
+
+    test('the replies wait for the real build number', () {
+      for (final reply in [block(replyAnchor), appleReply()]) {
+        expect(reply, contains('<BUILD>'));
+        // `git rev-list --count HEAD`: read from the IPA, never predicted.
+        expect(
+          reply,
+          isNot(contains(RegExp(r'\bbuild \d', caseSensitive: false))),
+        );
+      }
+    });
+
+    test('the Apple reply quotes the sentence the app says on that error', () {
+      expect(appleReply(), contains('« $kAppleAccountCheckMessage »'));
+    });
+  });
+
   test('Play — the paste-ready text speaks of deletion only once the '
       'production check is dated; the amended text is the one that does', () {
     expect(playPasteAnchor.allMatches(play), hasLength(1));
-    final deletion = RegExp('suppr', caseSensitive: false);
+    // French (« suppression ») or English (« deleting ») — the Play text is in
+    // English since 2026-10-28, as Google asks of sign-in instructions.
+    final deletion = RegExp('suppr|delet', caseSensitive: false);
     if (present(play, playAmendedAnchor)) {
       expect(playTextOf(playAmendedAnchor), contains('suppression du compte'));
     }

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:myweli/core/di/dependency_injection.dart';
+import 'package:myweli/core/utils/salon_id.dart';
 import 'package:myweli/models/api_response.dart';
 import 'package:myweli/models/payment.dart';
 import 'package:myweli/models/provider_user.dart';
@@ -43,7 +44,7 @@ void main() {
       // Multi-pays MP2: the operator-catalog chips.
       ChangeNotifierProvider(create: (_) => LocalityProvider()),
     ],
-    home: const DepositSettingsScreen(providerId: 'p1'),
+    home: const DepositSettingsScreen(providerId: SalonId('p1')),
   );
 
   /// Same host, on a settings provider the test already primed — the screen
@@ -55,7 +56,7 @@ void main() {
       ChangeNotifierProvider(create: (_) => ProAuthProvider()),
       ChangeNotifierProvider(create: (_) => LocalityProvider()),
     ],
-    home: const DepositSettingsScreen(providerId: 'p1'),
+    home: const DepositSettingsScreen(providerId: SalonId('p1')),
   );
 
   testWidgets('shows the loaded policy', (tester) async {
@@ -67,6 +68,9 @@ void main() {
 
     await tester.pumpWidget(host());
     await tester.pumpAndSettle();
+    // Drain the mock locality fetch: the operators' skeleton is still
+    // (B9.8), so `pumpAndSettle` no longer waits it out as the spinner did.
+    await tester.pump(const Duration(milliseconds: 400));
 
     expect(find.text('Exiger un acompte'), findsOneWidget);
     expect(find.text('30 %'), findsOneWidget);
@@ -217,7 +221,7 @@ void main() {
     // prefilled from it — the app's own round trip: what the API returned goes
     // back to the API untouched. (The cold-start twin is the next test.)
     final settings = ProDepositSettingsProvider();
-    await settings.load('p1');
+    await settings.load(SalonId('p1'));
     await tester.pumpWidget(hostWith(settings));
     await settle(tester);
     await settle(tester);
@@ -502,7 +506,7 @@ void main() {
     await settle(tester);
   }
 
-  testWidgets('the server\'s `invalid_phone` lands UNDER the Mobile Money '
+  testWidgets('the server’s `invalid_phone` lands UNDER the Mobile Money '
       'field, not in a bar', (tester) async {
     when(
       () => service.getDepositPolicy(any()),
@@ -633,7 +637,7 @@ void main() {
           ),
           ChangeNotifierProvider(create: (_) => LocalityProvider()),
         ],
-        home: const DepositSettingsScreen(providerId: 'p1'),
+        home: const DepositSettingsScreen(providerId: SalonId('p1')),
       ),
     );
     await settle(tester);
@@ -686,7 +690,7 @@ void main() {
           ),
           ChangeNotifierProvider(create: (_) => LocalityProvider()),
         ],
-        home: const DepositSettingsScreen(providerId: 'p1'),
+        home: const DepositSettingsScreen(providerId: SalonId('p1')),
       ),
     );
     await settle(tester);
@@ -707,7 +711,7 @@ void main() {
 
     final sent = verify(
       () => service.updateDepositPolicy(
-        'p1',
+        SalonId('p1'),
         depositRequired: true,
         depositPercentage: captureAny(named: 'depositPercentage'),
         cancellationWindowHours: any(named: 'cancellationWindowHours'),
@@ -759,7 +763,7 @@ void main() {
           ),
           ChangeNotifierProvider(create: (_) => LocalityProvider()),
         ],
-        home: const DepositSettingsScreen(providerId: 'p1'),
+        home: const DepositSettingsScreen(providerId: SalonId('p1')),
       ),
     );
     await settle(tester);
@@ -801,7 +805,7 @@ void main() {
     await pressSave(tester);
     verify(
       () => service.updateDepositPolicy(
-        'p1',
+        SalonId('p1'),
         depositRequired: true,
         depositPercentage: any(named: 'depositPercentage'),
         cancellationWindowHours: any(named: 'cancellationWindowHours'),
@@ -835,7 +839,7 @@ void main() {
           ),
           ChangeNotifierProvider(create: (_) => LocalityProvider()),
         ],
-        home: const DepositSettingsScreen(providerId: 'p1'),
+        home: const DepositSettingsScreen(providerId: SalonId('p1')),
       ),
     );
     await settle(tester);
@@ -873,7 +877,7 @@ void main() {
     await pressSave(tester);
     verify(
       () => service.updateDepositPolicy(
-        'p1',
+        SalonId('p1'),
         depositRequired: false,
         depositPercentage: any(named: 'depositPercentage'),
         cancellationWindowHours: any(named: 'cancellationWindowHours'),
@@ -881,6 +885,81 @@ void main() {
         mobileMoneyNumber: storedNumber,
       ),
     ).called(1);
+  });
+  // docs/design/backend-integrity-batch6.md §2.5 (B6.5, decision 19): the
+  // server's range and catalogue, each said under its own control — never
+  // the bar « any other refusal » gets.
+  void refuseWith(String code) {
+    when(
+      () => service.updateDepositPolicy(
+        any(),
+        depositRequired: any(named: 'depositRequired'),
+        depositPercentage: any(named: 'depositPercentage'),
+        cancellationWindowHours: any(named: 'cancellationWindowHours'),
+        mobileMoneyOperator: any(named: 'mobileMoneyOperator'),
+        mobileMoneyNumber: any(named: 'mobileMoneyNumber'),
+      ),
+    ).thenAnswer((_) async => ApiResponse.error('Erreur', code: code));
+  }
+
+  Widget verifiedHost() => wrapApp(
+    providers: [
+      ChangeNotifierProvider(create: (_) => ProDepositSettingsProvider()),
+      ChangeNotifierProvider<ProAuthProvider>(create: (_) => _VerifiedPro()),
+      ChangeNotifierProvider(create: (_) => LocalityProvider()),
+    ],
+    home: const DepositSettingsScreen(providerId: SalonId('p1')),
+  );
+
+  testWidgets('the server’s `operator_unavailable` lands under the operator '
+      'chips, not in a bar — choosing one clears it', (tester) async {
+    const removed = 'Cet opérateur n’est plus proposé. Choisissez-en un autre.';
+    when(() => service.getDepositPolicy(any())).thenAnswer(
+      (_) async => ApiResponse.success(
+        const DepositPolicy(
+          depositRequired: true,
+          depositPercentage: 0.30,
+          // An operator the catalogue no longer offers.
+          mobileMoneyOperator: 'paypal',
+          mobileMoneyNumber: storedNumber,
+        ),
+      ),
+    );
+    refuseWith('operator_unavailable');
+
+    await tester.pumpWidget(verifiedHost());
+    await settle(tester);
+    await settle(tester);
+    await pressSave(tester);
+
+    expect(find.byType(SnackBar), findsNothing);
+    expect(find.text(removed).hitTestable(), findsOneWidget);
+
+    await tester.tap(find.widgetWithText(ChoiceChip, 'Wave'));
+    await tester.pump();
+    expect(find.text(removed), findsNothing);
+  });
+
+  testWidgets('the server’s `invalid_percentage` lands under the slider, '
+      'not in a bar — moving it clears it', (tester) async {
+    const range = 'Choisissez un pourcentage entre 5 et 80 %.';
+    when(
+      () => service.getDepositPolicy(any()),
+    ).thenAnswer((_) async => ApiResponse.success(loadedPolicy));
+    refuseWith('invalid_percentage');
+
+    await tester.pumpWidget(verifiedHost());
+    await settle(tester);
+    await settle(tester);
+    await pressSave(tester);
+
+    expect(find.byType(SnackBar), findsNothing);
+    await scrollTo(tester, find.byType(Slider), delta: -200);
+    expect(find.text(range), findsOneWidget);
+
+    await tester.drag(find.byType(Slider), const Offset(40, 0));
+    await tester.pump();
+    expect(find.text(range), findsNothing);
   });
 }
 

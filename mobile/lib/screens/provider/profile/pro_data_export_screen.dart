@@ -5,19 +5,22 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
+import '../../../core/constants/failure_messages.dart';
 import '../../../core/di/dependency_injection.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/colors.dart';
 import '../../../core/theme/text_styles.dart';
 import '../../../core/utils/data_export.dart';
+import '../../../core/utils/formatters.dart';
+import '../../../core/utils/salon_id.dart';
 import '../../../models/api_response.dart';
 import '../../../models/salon_client.dart';
 import '../../../providers/pro_auth_provider.dart';
+import '../../../widgets/common/app_async_view.dart';
 import '../../../widgets/common/app_button.dart';
+import '../../../widgets/common/app_skeleton.dart';
 import '../../../widgets/common/app_snack_bar.dart';
-import '../../../widgets/common/empty_state.dart';
 import '../../../widgets/common/label_value_row.dart';
-import '../../../widgets/common/loading_indicator.dart';
 
 /// « Mes données » for salons (audit 11.5 — AUTH-005 for pros): assembles the
 /// account, the listing, the catalogue and the salon's own records into one
@@ -42,7 +45,14 @@ class _ProDataExportScreenState extends State<ProDataExportScreen> {
   /// The sections whose read failed on the last attempt, named in the
   /// refusal. Empty while [_failed] = no session to read with.
   Set<ProExportSection> _failedSections = const {};
+
+  /// Every read answered and the file could not be made from them — its own
+  /// sentence, not the reads (docs/design/web-client-polish.md §2.3).
+  bool _buildFailed = false;
   Map<String, dynamic>? _export;
+
+  /// The earnings total as the summary says it, in the salon's currency.
+  String? _revenue;
 
   @override
   void initState() {
@@ -55,6 +65,7 @@ class _ProDataExportScreenState extends State<ProDataExportScreen> {
       _loading = true;
       _failed = false;
       _failedSections = const {};
+      _buildFailed = false;
     });
     final auth = context.read<ProAuthProvider>();
     final account = auth.provider;
@@ -76,12 +87,14 @@ class _ProDataExportScreenState extends State<ProDataExportScreen> {
     // salon is read by account, not by public id (T51), so a draft salon
     // exports like a published one.
     final pro = serviceLocator.proService;
-    final (info, services, artists, appointments, clients) = await (
+    final (info, services, artists, appointments, clients, earnings) = await (
       _read(() => pro.getMyProvider()),
       _read(() => pro.getProviderServices(salonId)),
       _read(() => serviceLocator.proArtistService.getArtists(salonId)),
       _read(() => pro.getProviderAppointments(salonId)),
       _walkClientBase(salonId),
+      // The whole period, as the web's export (pro-app-batch7.md §2.8).
+      _read(() => pro.getEarnings(salonId)),
     ).wait;
     if (!mounted) return;
 
@@ -90,7 +103,8 @@ class _ProDataExportScreenState extends State<ProDataExportScreen> {
         services == null ||
         artists == null ||
         appointments == null ||
-        clients == null) {
+        clients == null ||
+        earnings == null) {
       setState(() {
         _loading = false;
         _failed = true;
@@ -100,19 +114,38 @@ class _ProDataExportScreenState extends State<ProDataExportScreen> {
           if (artists == null) ProExportSection.artists,
           if (appointments == null) ProExportSection.appointments,
           if (clients == null) ProExportSection.clients,
+          if (earnings == null) ProExportSection.earnings,
         };
       });
       return;
     }
 
-    setState(() {
-      _export = buildProviderDataExport(
+    // Made OUTSIDE `setState`: a throw in its callback left the loader up
+    // for ever. The reads answered; the file could not be made from them.
+    final Map<String, dynamic> export;
+    try {
+      export = buildProviderDataExport(
         account: account,
         salon: salon,
         services: services,
         artists: artists,
         appointments: appointments,
         clients: clients,
+        earnings: earnings,
+      );
+    } catch (_) {
+      setState(() {
+        _loading = false;
+        _failed = true;
+        _buildFailed = true;
+      });
+      return;
+    }
+    setState(() {
+      _export = export;
+      _revenue = Formatters.formatCurrency(
+        earnings.totalEarnings,
+        currency: earnings.currency ?? auth.salonCurrency,
       );
       _loading = false;
     });
@@ -136,53 +169,61 @@ class _ProDataExportScreenState extends State<ProDataExportScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(title: const Text('Mes données')),
-      body: _loading
-          ? const LoadingIndicator()
-          : _failed || _export == null
-          ? EmptyState(
-              icon: Icons.wifi_off,
-              title: 'Chargement impossible',
-              description: _failedSections.isEmpty
-                  ? 'Vérifiez votre connexion et réessayez.'
-                  : proExportFailureMessage(_failedSections),
-              actionText: 'Réessayer',
-              onAction: _load,
-            )
-          : ListView(
-              padding: const EdgeInsets.all(AppTheme.spacingM),
-              children: [
-                Text(
-                  'Une copie des données de votre salon : compte, fiche, '
-                  'catalogue, rendez-vous et fichier clients.',
-                  style: AppTextStyles.bodySmall.copyWith(
-                    color: AppColors.textTertiary,
-                  ),
-                ),
-                const SizedBox(height: AppTheme.spacingM),
-                _CountRow(
-                  label: 'Services',
-                  count: (_export!['services'] as List).length,
-                ),
-                _CountRow(
-                  label: 'Équipe',
-                  count: (_export!['artists'] as List).length,
-                ),
-                _CountRow(
-                  label: 'Rendez-vous',
-                  count: (_export!['appointments'] as List).length,
-                ),
-                _CountRow(
-                  label: 'Clients',
-                  count: (_export!['clients'] as List).length,
-                ),
-                const SizedBox(height: AppTheme.spacingL),
-                AppButton(
-                  text: 'Copier mes données (JSON)',
-                  icon: Icons.copy_outlined,
-                  onPressed: _copy,
-                ),
-              ],
+      body: AppAsyncView<Map<String, dynamic>>(
+        isLoading: _loading,
+        // No session to read with is not a connection: the generic sentence,
+        // where « Vérifiez votre connexion » used to be (B9.8).
+        error: !_failed
+            ? null
+            : _buildFailed
+            ? kDataExportBuildFailed
+            : _failedSections.isEmpty
+            ? kGenericErrorMessage
+            : proExportFailureMessage(_failedSections),
+        data: _failed ? null : _export,
+        isEmpty: (_) => false,
+        loading: const SkeletonDetail(sections: 2),
+        empty: const SizedBox.shrink(),
+        onRetry: _load,
+        builder: (context, export) => ListView(
+          padding: const EdgeInsets.all(AppTheme.spacingM),
+          children: [
+            Text(
+              'Une copie des données de votre salon : compte, fiche, '
+              'catalogue, rendez-vous, fichier clients et revenus.',
+              style: AppTextStyles.bodySmall.copyWith(
+                color: AppColors.textTertiary,
+              ),
             ),
+            const SizedBox(height: AppTheme.spacingM),
+            _CountRow(
+              label: 'Services',
+              count: (export['services'] as List).length,
+            ),
+            _CountRow(
+              label: 'Équipe',
+              count: (export['artists'] as List).length,
+            ),
+            _CountRow(
+              label: 'Rendez-vous',
+              count: (export['appointments'] as List).length,
+            ),
+            _CountRow(
+              label: 'Clients',
+              count: (export['clients'] as List).length,
+            ),
+            // A total, not a count: the file holds the amount and the
+            // number of transactions behind it (B7.8).
+            _SummaryRow(label: 'Revenus', value: _revenue!),
+            const SizedBox(height: AppTheme.spacingL),
+            AppButton(
+              text: 'Copier mes données (JSON)',
+              icon: Icons.copy_outlined,
+              onPressed: _copy,
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -194,12 +235,24 @@ class _CountRow extends StatelessWidget {
   const _CountRow({required this.label, required this.count});
 
   @override
+  Widget build(BuildContext context) =>
+      _SummaryRow(label: label, value: '$count');
+}
+
+/// One line of the summary: what the file holds, and how much of it.
+class _SummaryRow extends StatelessWidget {
+  final String label;
+  final String value;
+
+  const _SummaryRow({required this.label, required this.value});
+
+  @override
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: AppTheme.spacingXS),
       child: LabelValueRow(
         label: label,
-        value: '$count',
+        value: value,
         valueStyle: AppTextStyles.bodyMedium.copyWith(
           color: AppColors.textSecondary,
         ),
@@ -225,7 +278,7 @@ Future<T?> _read<T>(Future<ApiResponse<T>> Function() read) async {
 /// Every client of the salon, page by page — or null when a page fails or
 /// the walk does not add up ([wholeClientBase]). The pages go one after
 /// another: page 1's `total` and `pageSize` decide how many there are.
-Future<List<SalonClient>?> _walkClientBase(String salonId) async {
+Future<List<SalonClient>?> _walkClientBase(SalonId salonId) async {
   final service = serviceLocator.proClientsService;
   final first = await _read(
     () => service.listClients(salonId, pageSize: _clientWalkPageSize),

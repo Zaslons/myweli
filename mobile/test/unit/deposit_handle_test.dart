@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:myweli/core/utils/mobile_money.dart';
+import 'package:myweli/core/utils/salon_id.dart';
 import 'package:myweli/models/appointment.dart';
 import 'package:myweli/models/availability.dart';
 import 'package:myweli/models/provider.dart' as models;
@@ -30,7 +31,7 @@ void main() {
       'Provider round-trips the deposit handle (default off when absent)',
       () {
         const p = models.Provider(
-          id: 'p1',
+          id: SalonId('p1'),
           name: 'Salon',
           description: '',
           address: 'x',
@@ -39,7 +40,7 @@ void main() {
           reviewCount: 1,
           services: [],
           availability: Availability(
-            providerId: 'p1',
+            providerId: SalonId('p1'),
             weeklySchedule: {},
             blockedDates: [],
           ),
@@ -66,7 +67,7 @@ void main() {
       final a = Appointment(
         id: 'a1',
         userId: 'u1',
-        providerId: 'p1',
+        providerId: SalonId('p1'),
         serviceIds: const ['s1'],
         appointmentDate: DateTime(2026, 6, 23, 10),
         status: AppointmentStatus.pending,
@@ -90,7 +91,7 @@ void main() {
       final service = MockAppointmentService();
 
       final res = await service.bookAppointment(
-        providerId: 'provider2',
+        providerId: SalonId('provider2'),
         serviceIds: const ['service4'],
         appointmentDateTime: DateTime.now().add(const Duration(days: 3)),
         depositAmount: 6000,
@@ -108,14 +109,14 @@ void main() {
   test('MockProService persists the deposit handle via the policy', () async {
     final service = MockProService();
     await service.updateDepositPolicy(
-      'provider1',
+      SalonId('provider1'),
       depositRequired: true,
       depositPercentage: 0.3,
       cancellationWindowHours: 24,
       mobileMoneyOperator: 'orangeMoney',
       mobileMoneyNumber: '+2250500000000',
     );
-    final policy = (await service.getDepositPolicy('provider1')).data!;
+    final policy = (await service.getDepositPolicy(SalonId('provider1'))).data!;
     expect(policy.depositRequired, isTrue);
     expect(policy.mobileMoneyOperator, 'orangeMoney');
     expect(policy.mobileMoneyNumber, '+2250500000000');

@@ -1,6 +1,7 @@
 import '../../core/constants/app_constants.dart';
 import '../../core/di/dependency_injection.dart';
 import '../../core/utils/app_clock.dart';
+import '../../core/utils/salon_id.dart';
 import '../../core/utils/salon_time.dart';
 import '../../core/utils/team_error_messages.dart';
 import '../../models/api_response.dart';
@@ -19,6 +20,8 @@ import '../../models/service.dart';
 import '../../models/team_member.dart';
 import '../interfaces/pro_service_interface.dart';
 import 'mock_data.dart';
+import 'mock_ids.dart';
+import 'mock_session.dart';
 import 'mock_subscription_service.dart';
 
 class MockProService implements ProServiceInterface {
@@ -47,7 +50,7 @@ class MockProService implements ProServiceInterface {
   /// R6: the account's ACTIVE row inside [salonId] — the owner scalar, an
   /// owner row, or a member row. Null = no active membership there (the
   /// uniform per-salon denial).
-  Future<TeamMember?> _rowInSalon(ProviderUser account, String salonId) async {
+  Future<TeamMember?> _rowInSalon(ProviderUser account, SalonId salonId) async {
     for (final m in MockData.teamMembers) {
       if (m.providerId != salonId) continue;
       if (m.status != TeamMemberStatus.active) continue;
@@ -61,12 +64,32 @@ class MockProService implements ProServiceInterface {
 
   /// The persisted salon selection (best-effort — isolated unit tests may
   /// run without the locator wired).
-  Future<String?> _selection() async {
+  Future<SalonId?> _selection() async {
     try {
       return await serviceLocator.authService.getSelectedProviderSalon();
     } catch (_) {
       return null;
     }
+  }
+
+  @override
+  Future<ApiResponse<void>> reportSalonReview(
+    String reviewId, {
+    String? reason,
+  }) async {
+    await Future.delayed(AppConstants.mockDelay);
+    // The server's rules: a review of the acting salon only.
+    final me = await getMyProvider();
+    final salon = me.data?.salon;
+    if (salon == null) {
+      return ApiResponse.error(me.error ?? 'Non connecté', code: me.code);
+    }
+    final mine = MockData.reviews.any(
+      (r) => r.id == reviewId && r.providerId == salon.id,
+    );
+    return mine
+        ? ApiResponse.success(null)
+        : ApiResponse.error('Avis introuvable.', code: 'not_found');
   }
 
   @override
@@ -107,14 +130,14 @@ class MockProService implements ProServiceInterface {
   }
 
   @override
-  Future<ApiResponse<MyProviderInfo>> getMyProvider({String? salonId}) async {
+  Future<ApiResponse<MyProviderInfo>> getMyProvider({SalonId? salonId}) async {
     await Future.delayed(AppConstants.mockDelay);
     final account = await serviceLocator.authService.getCurrentProvider();
     if (account == null) {
       return ApiResponse.error('Non connecté', code: 'unauthorized');
     }
 
-    String resolvedSalonId;
+    SalonId resolvedSalonId;
     TeamRole role;
     String? artistId;
     String? artistName;
@@ -178,7 +201,7 @@ class MockProService implements ProServiceInterface {
 
   /// Salons the account OWNS in the mock world: the scalar link ∪ active
   /// owner rows (the R6 mirror of the backend's owned set).
-  Set<String> _ownedSalonIds(ProviderUser account) => {
+  Set<SalonId> _ownedSalonIds(ProviderUser account) => {
     if (account.providerId != null) account.providerId!,
     for (final m in MockData.teamMembers)
       if (m.role == TeamRole.owner &&
@@ -210,8 +233,8 @@ class MockProService implements ProServiceInterface {
     }
     final owned = _ownedSalonIds(account);
     // Owned + member ACTIVE rows, joined against the salon list.
-    final ids = <String>{...owned};
-    final roleById = <String, TeamRole>{
+    final ids = <SalonId>{...owned};
+    final roleById = <SalonId, TeamRole>{
       for (final id in owned) id: TeamRole.owner,
     };
     for (final m in MockData.teamMembers) {
@@ -254,66 +277,8 @@ class MockProService implements ProServiceInterface {
   }
 
   @override
-  Future<ApiResponse<SalonMembershipInfo>> addSalon({
-    required String businessName,
-    required BusinessType businessType,
-    String? phoneNumber,
-    String? address,
-    String? areaId,
-  }) async {
-    await Future.delayed(AppConstants.mockDelay);
-    final account = await serviceLocator.authService.getCurrentProvider();
-    if (account == null) {
-      return ApiResponse.error('Non connecté', code: 'unauthorized');
-    }
-    final name = businessName.trim();
-    if (name.isEmpty) {
-      return ApiResponse.error('Nom requis', code: 'invalid_input');
-    }
-    if (!_canAddSalon(account)) {
-      return ApiResponse.error(
-        teamErrorMessage('reseau_required'),
-        code: 'reseau_required',
-      );
-    }
-    // The new DRAFT salon in its own free SETUP state (no offer row).
-    final id = 'provider_add_${AppClock.now().millisecondsSinceEpoch}';
-    MockData.providers.add(
-      MockData.providers.first.copyWith(
-        id: id,
-        name: name,
-        artists: const [],
-        verified: account.verificationStatus == VerificationStatus.verified,
-      ),
-    );
-    MockData.draftSalonIds.add(id);
-    MockData.teamMembers.add(
-      TeamMember(
-        id: 'mem_add_$id',
-        providerId: id,
-        email: account.email ?? account.phoneNumber,
-        role: TeamRole.owner,
-        status: TeamMemberStatus.active,
-        invitedAt: AppClock.now(),
-        accountId: account.id,
-        acceptedAt: AppClock.now(),
-      ),
-    );
-    return ApiResponse.success(
-      SalonMembershipInfo(
-        salonId: id,
-        salonName: name,
-        role: TeamRole.owner,
-        salonStatus: 'draft',
-        verified: account.verificationStatus == VerificationStatus.verified,
-      ),
-      message: 'Salon créé',
-    );
-  }
-
-  @override
   Future<ApiResponse<DashboardStats>> getDashboardStats(
-    String providerId,
+    SalonId providerId,
   ) async {
     await Future.delayed(AppConstants.mockDelay);
 
@@ -419,7 +384,7 @@ class MockProService implements ProServiceInterface {
 
   @override
   Future<ApiResponse<List<Appointment>>> getProviderAppointments(
-    String providerId, {
+    SalonId providerId, {
     AppointmentStatus? status,
     DateTime? startDate,
     DateTime? endDate,
@@ -519,7 +484,7 @@ class MockProService implements ProServiceInterface {
 
   @override
   Future<ApiResponse<Provider>> updateSalonProfile(
-    String providerId,
+    SalonId providerId,
     Map<String, dynamic> changes,
   ) async {
     await Future<void>.delayed(const Duration(milliseconds: 300));
@@ -534,7 +499,7 @@ class MockProService implements ProServiceInterface {
   }
 
   @override
-  Future<ApiResponse<bool>> publishSalon(String providerId) async {
+  Future<ApiResponse<bool>> publishSalon(SalonId providerId) async {
     await Future<void>.delayed(const Duration(milliseconds: 300));
     // The server's offer rule, mirrored (docs/design/pro-companion-path.md
     // §3.1): NO offer row → the first publish starts the salon's one trial
@@ -569,7 +534,7 @@ class MockProService implements ProServiceInterface {
   /// ANOTHER salon on a live Réseau offer (the salon was added under Réseau),
   /// else `pro`.
   Future<SalonTier> _defaultTrialTier(
-    String providerId,
+    SalonId providerId,
     MockSubscriptionService subs,
   ) async {
     ProviderUser? account;
@@ -604,7 +569,7 @@ class MockProService implements ProServiceInterface {
 
   @override
   Future<ApiResponse<JournalDay>> getJournalDay(
-    String providerId,
+    SalonId providerId,
     DateTime date,
   ) async {
     await Future.delayed(AppConstants.mockDelay);
@@ -647,7 +612,7 @@ class MockProService implements ProServiceInterface {
 
   @override
   Future<ApiResponse<Appointment>> createManualBooking({
-    required String providerId,
+    required SalonId providerId,
     required List<String> serviceIds,
     required DateTime appointmentDateTime,
     String? clientName,
@@ -655,7 +620,10 @@ class MockProService implements ProServiceInterface {
     String? notes,
     String? artistId,
     bool sendSmsInvite = false,
+    String? idempotencyKey,
   }) async {
+    // The mock never loses an answer, so it never sees a retry under the
+    // same key: the key is accepted and has nothing to do here.
     await Future.delayed(AppConstants.mockDelay);
 
     if (serviceIds.isEmpty) {
@@ -682,7 +650,7 @@ class MockProService implements ProServiceInterface {
     if (durationMinutes <= 0) durationMinutes = 30;
 
     final appointment = Appointment(
-      id: 'manual_${AppClock.now().millisecondsSinceEpoch}',
+      id: MockIds.next('manual'),
       userId: 'manual',
       providerId: providerId,
       serviceIds: serviceIds,
@@ -718,34 +686,86 @@ class MockProService implements ProServiceInterface {
     return ApiResponse.success(true);
   }
 
+  /// The server's refusal in the words `ApiProService._messageFor` gives it.
+  ApiResponse<T> _refused<T>(String code) => ApiResponse.error(
+    code == 'forbidden'
+        ? 'Action non autorisée pour ce salon.'
+        : 'Introuvable.',
+    code: code,
+  );
+
+  // The catalogue lives in `MockData.providers` — one store, so what a Pro
+  // writes is what the Pro screens read back and what a client books, as on
+  // the server. Every write was a no-op answering success, and the reads
+  // were the seed (docs/design/hygiene-batch9.md §2.5).
+
+  int _salonAt(SalonId providerId) =>
+      MockData.providers.indexWhere((p) => p.id == providerId);
+
+  void _writeServices(int at, List<Service> services) =>
+      MockData.providers[at] = MockData.providers[at].copyWith(
+        services: services,
+      );
+
+  /// A write by service id acts in the salon the session acts in — the path
+  /// salon `ApiProService` sends — and finds the service THERE, or answers
+  /// `not_found` (the server's repository looks in the path salon only).
+  Future<({int at, int index, String? refusal})> _ownService(
+    String serviceId,
+  ) async {
+    final salonId = await mockActingSalonId();
+    if (!await mockCan(salonId, ProCap.catalogueManage)) {
+      return (at: -1, index: -1, refusal: 'forbidden');
+    }
+    final at = _salonAt(salonId);
+    final index = at == -1
+        ? -1
+        : MockData.providers[at].services.indexWhere((s) => s.id == serviceId);
+    if (index == -1) {
+      return (at: -1, index: -1, refusal: 'not_found');
+    }
+    return (at: at, index: index, refusal: null);
+  }
+
   @override
   Future<ApiResponse<List<Service>>> getProviderServices(
-    String providerId,
+    SalonId providerId,
   ) async {
     await Future.delayed(AppConstants.mockDelay);
-    final services = MockData.getServicesForProvider(providerId);
-    return ApiResponse.success(services);
+    final at = _salonAt(providerId);
+    return ApiResponse.success(
+      at == -1 ? <Service>[] : List.of(MockData.providers[at].services),
+    );
   }
 
   @override
   Future<ApiResponse<Service>> createService(
-    String providerId,
+    SalonId providerId,
     Map<String, dynamic> serviceData,
   ) async {
     await Future.delayed(AppConstants.mockDelay);
-    // In real implementation, create service
+    if (!await mockCan(providerId, ProCap.catalogueManage)) {
+      return _refused('forbidden');
+    }
+    final at = _salonAt(providerId);
+    if (at == -1) return _refused('not_found');
     final service = Service(
-      id: 'service_${AppClock.now().millisecondsSinceEpoch}',
-      name: serviceData['name'] as String,
-      description: serviceData['description'] as String? ?? '',
+      id: MockIds.next('service'),
+      name: (serviceData['name'] as String).trim(),
+      description: (serviceData['description'] as String?)?.trim() ?? '',
       price: (serviceData['price'] as num).toDouble(),
       priceMax: (serviceData['priceMax'] as num?)?.toDouble(),
-      durationMinutes: serviceData['durationMinutes'] as int,
+      durationMinutes: (serviceData['durationMinutes'] as num).toInt(),
       durationVariants: DurationVariants.fromJson(
         serviceData['durationVariants'] as Map<String, dynamic>?,
       ),
       providerId: providerId,
+      artistIds: List<String>.from(
+        serviceData['artistIds'] as List? ?? const <String>[],
+      ),
+      active: serviceData['active'] as bool? ?? true,
     );
+    _writeServices(at, [...MockData.providers[at].services, service]);
     return ApiResponse.success(service);
   }
 
@@ -755,25 +775,42 @@ class MockProService implements ProServiceInterface {
     Map<String, dynamic> serviceData,
   ) async {
     await Future.delayed(AppConstants.mockDelay);
-    // In real implementation, update service
-    final service = Service(
-      id: serviceId,
-      name: serviceData['name'] as String,
-      description: serviceData['description'] as String? ?? '',
-      price: (serviceData['price'] as num).toDouble(),
-      priceMax: (serviceData['priceMax'] as num?)?.toDouble(),
-      durationMinutes: serviceData['durationMinutes'] as int,
-      durationVariants: DurationVariants.fromJson(
-        serviceData['durationVariants'] as Map<String, dynamic>?,
-      ),
-      providerId: serviceData['providerId'] as String,
-    );
-    return ApiResponse.success(service);
+    final own = await _ownService(serviceId);
+    if (own.refusal != null) return _refused(own.refusal!);
+    final services = [...MockData.providers[own.at].services];
+    // The server's PATCH: the editable keys the body carries change, the
+    // rest stays (`ProviderCatalogService.updateService`).
+    const editable = [
+      'name',
+      'description',
+      'price',
+      'priceMax',
+      'durationMinutes',
+      'durationVariants',
+      'artistIds',
+      'active',
+    ];
+    final merged = {
+      ...services[own.index].toJson(),
+      for (final k in editable)
+        if (serviceData.containsKey(k)) k: serviceData[k],
+    };
+    merged['description'] ??= '';
+    final updated = Service.fromJson(merged);
+    services[own.index] = updated;
+    _writeServices(own.at, services);
+    return ApiResponse.success(updated);
   }
 
   @override
   Future<ApiResponse<bool>> deleteService(String serviceId) async {
     await Future.delayed(AppConstants.mockDelay);
+    final own = await _ownService(serviceId);
+    if (own.refusal != null) return _refused(own.refusal!);
+    _writeServices(
+      own.at,
+      [...MockData.providers[own.at].services]..removeAt(own.index),
+    );
     return ApiResponse.success(true);
   }
 
@@ -783,11 +820,16 @@ class MockProService implements ProServiceInterface {
     bool active,
   ) async {
     await Future.delayed(AppConstants.mockDelay);
+    final own = await _ownService(serviceId);
+    if (own.refusal != null) return _refused(own.refusal!);
+    final services = [...MockData.providers[own.at].services];
+    services[own.index] = services[own.index].copyWith(active: active);
+    _writeServices(own.at, services);
     return ApiResponse.success(true);
   }
 
   @override
-  Future<ApiResponse<List<String>>> getGalleryPhotos(String providerId) async {
+  Future<ApiResponse<List<String>>> getGalleryPhotos(SalonId providerId) async {
     await Future.delayed(AppConstants.mockDelay);
     final provider = MockData.providers.firstWhere(
       (p) => p.id == providerId,
@@ -798,7 +840,7 @@ class MockProService implements ProServiceInterface {
 
   @override
   Future<ApiResponse<List<String>>> updateGalleryPhotos(
-    String providerId,
+    SalonId providerId,
     List<String> imageUrls,
   ) async {
     await Future.delayed(AppConstants.mockDelay);
@@ -813,7 +855,7 @@ class MockProService implements ProServiceInterface {
 
   @override
   Future<ApiResponse<List<BeforeAfterPair>>> getBeforeAfters(
-    String providerId,
+    SalonId providerId,
   ) async {
     await Future.delayed(AppConstants.mockDelay);
     final provider = MockData.providers.firstWhere(
@@ -827,7 +869,7 @@ class MockProService implements ProServiceInterface {
 
   @override
   Future<ApiResponse<List<BeforeAfterPair>>> updateBeforeAfters(
-    String providerId,
+    SalonId providerId,
     List<BeforeAfterPair> pairs,
   ) async {
     await Future.delayed(AppConstants.mockDelay);
@@ -842,7 +884,7 @@ class MockProService implements ProServiceInterface {
 
   @override
   Future<ApiResponse<Availability>> getProviderAvailability(
-    String providerId,
+    SalonId providerId,
   ) async {
     await Future.delayed(AppConstants.mockDelay);
     final provider = MockData.providers.firstWhere(
@@ -854,7 +896,7 @@ class MockProService implements ProServiceInterface {
 
   @override
   Future<ApiResponse<Availability>> updateAvailability(
-    String providerId,
+    SalonId providerId,
     Availability availability,
   ) async {
     await Future.delayed(AppConstants.mockDelay);
@@ -870,7 +912,7 @@ class MockProService implements ProServiceInterface {
 
   @override
   Future<ApiResponse<EarningsData>> getEarnings(
-    String providerId, {
+    SalonId providerId, {
     DateTime? startDate,
     DateTime? endDate,
   }) async {
@@ -932,7 +974,9 @@ class MockProService implements ProServiceInterface {
   }
 
   @override
-  Future<ApiResponse<DepositPolicy>> getDepositPolicy(String providerId) async {
+  Future<ApiResponse<DepositPolicy>> getDepositPolicy(
+    SalonId providerId,
+  ) async {
     await Future.delayed(AppConstants.mockDelay);
     final provider = MockData.providers.firstWhere(
       (p) => p.id == providerId,
@@ -951,7 +995,7 @@ class MockProService implements ProServiceInterface {
 
   @override
   Future<ApiResponse<DepositPolicy>> updateDepositPolicy(
-    String providerId, {
+    SalonId providerId, {
     required bool depositRequired,
     required double depositPercentage,
     required int cancellationWindowHours,

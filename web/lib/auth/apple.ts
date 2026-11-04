@@ -17,7 +17,8 @@ declare global {
         signIn: (options?: {
           nonce?: string;
         }) => Promise<{
-          authorization: { id_token: string };
+          /// `code`: the one-time authorization code (B6.7).
+          authorization: { id_token: string; code?: string };
           user?: { name?: { firstName?: string; lastName?: string } };
         }>;
       };
@@ -39,6 +40,10 @@ export type AppleIdentity = {
   nonce: string;
   /// Apple sends the name on the FIRST authorisation only.
   fullName?: string;
+  /// Apple's one-time code (B6.7): the server exchanges it for the refresh
+  /// token it revokes when the account is deleted
+  /// (docs/design/backend-integrity-batch6.md §13).
+  authorizationCode?: string;
 };
 
 /// Opens Apple's popup; resolves to the identity, or null when the person
@@ -62,10 +67,12 @@ export async function appleIdentity(clientId: string): Promise<AppleIdentity | n
     const res = await window.AppleID.auth.signIn({ nonce });
     const name = res.user?.name;
     const fullName = [name?.firstName, name?.lastName].filter(Boolean).join(' ');
+    const code = res.authorization.code;
     return {
       identityToken: res.authorization.id_token,
       nonce,
       fullName: fullName || undefined,
+      ...(code ? { authorizationCode: code } : {}),
     };
   } catch {
     return null;

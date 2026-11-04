@@ -49,3 +49,91 @@ export async function readJson<T>(res: Response): Promise<T | undefined> {
     return undefined;
   }
 }
+
+// --- a write whose answer is lost (docs/design/write-idempotency.md §4) ------
+
+/// The header the four creating POSTs carry. The BFF hands it to the API on
+/// those four routes only (`idempotencyKeyHeader` in `lib/bff.ts`).
+export const IDEMPOTENCY_KEY_HEADER = 'Idempotency-Key';
+
+/// How long « already running » (409 `request_in_progress`) is waited for
+/// before asking again, and how many times.
+export const IN_PROGRESS_WAIT_MS = 800;
+export const MAX_IN_PROGRESS_WAITS = 3;
+
+/// One key per SUBMISSION of a form: the same while the form is unchanged —
+/// « Réessayer » is the same request, which the server may already have done
+/// — a new one as soon as anything in it changed (another slot, another
+/// text), and a new one after a success, so that sending the same words
+/// again on purpose is a second note, not a replay of the first.
+export class SubmissionKey {
+  private last?: { form: string; key: string };
+
+  for(form: unknown): string {
+    const sig = JSON.stringify(form);
+    if (this.last?.form !== sig) {
+      this.last = { form: sig, key: crypto.randomUUID() };
+    }
+    return this.last.key;
+  }
+
+  settle(): void {
+    this.last = undefined;
+  }
+}
+
+/// Nothing came back (status 0), or a gateway answered instead of the
+/// server: the write may have been done. A 500 is the server's own answer.
+function answerLost(status: number): boolean {
+  return status === 0 || status === 502 || status === 503 || status === 504;
+}
+
+export type IdempotentAnswer<T> = { status: number; body?: T; error?: string };
+
+/// A creating write that can be asked again without risk, because it carries
+/// its [key]: the server replays the write it did instead of doing it again.
+///
+/// - A lost answer — or a 2xx whose body is not [complete] (the deposit block
+///   needs the booking's id and amount) — is asked again ONCE, at once, with
+///   the same key, without a word: the replay is invisible (owner Q2).
+/// - « Already running » waits and asks again, [MAX_IN_PROGRESS_WAITS] times.
+/// - Still nothing: status 0 — « nothing answered », and the screen's
+///   « Réessayer » sends the same key again.
+/// - A refusal is the answer, as it came, with its code.
+/// - A 2xx without its body twice is still a success: the write was done.
+export async function sendIdempotent<T>(
+  url: string,
+  init: RequestInit,
+  key: string,
+  opts: {
+    complete: (body: T | undefined) => boolean;
+    wait?: (ms: number) => Promise<void>;
+  },
+): Promise<IdempotentAnswer<T>> {
+  const wait = opts.wait ?? ((ms) => new Promise<void>((r) => setTimeout(r, ms)));
+  const headers = { ...(init.headers as Record<string, string>), [IDEMPOTENCY_KEY_HEADER]: key };
+  let askedAgain = false;
+  let waits = 0;
+  for (;;) {
+    const res = await send(url, { ...init, headers });
+    if (res.ok) {
+      const body = await readJson<T>(res);
+      if (opts.complete(body) || askedAgain) return { status: res.status, body };
+      askedAgain = true;
+      continue;
+    }
+    if (answerLost(res.status)) {
+      if (askedAgain) return { status: 0 };
+      askedAgain = true;
+      continue;
+    }
+    const error = (await readJson<{ error?: string }>(res))?.error;
+    if (res.status === 409 && error === 'request_in_progress') {
+      if (waits >= MAX_IN_PROGRESS_WAITS) return { status: 0 };
+      waits += 1;
+      await wait(IN_PROGRESS_WAIT_MS);
+      continue;
+    }
+    return { status: res.status, error };
+  }
+}

@@ -348,6 +348,8 @@ make_job() { # name schedule path
 }
 make_job myweli-reminders-staging     '*/15 * * * *' /internal/cron/reminders
 make_job myweli-subscriptions-staging '0 3 * * *'    /internal/cron/subscriptions
+# The housekeeping off the subscriptions cron (docs/design/infra-cron-maintenance.md).
+make_job myweli-maintenance-staging   '30 3 * * *'   /internal/cron/maintenance
 
 cat <<EOF
 
@@ -365,6 +367,7 @@ Staging infrastructure is up. Read back, before anything else:
 
      gcloud scheduler jobs resume myweli-reminders-staging --location=${REGION}
      gcloud scheduler jobs resume myweli-subscriptions-staging --location=${REGION}
+     gcloud scheduler jobs resume myweli-maintenance-staging --location=${REGION}
 
    then run the acceptance list in docs/design/infra-staging.md §9.3.
 

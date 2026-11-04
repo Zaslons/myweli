@@ -13,6 +13,8 @@ import 'package:myweli/services/mock/mock_pro_service.dart';
 import 'package:myweli/services/mock/mock_pro_team_service.dart';
 import 'package:myweli/services/mock/mock_push_notification_service.dart';
 
+import '../support/web_created.dart';
+
 /// Team access R4b — ProAuthProvider's membership plumbing: refresh after
 /// login, can() fallbacks, activeSalonId, and the revoked flow (guard →
 /// probe → sign-out + one-shot notice). Runs on the MOCK world (the seeded
@@ -64,16 +66,18 @@ void main() {
   });
 
   test('an OWNER login stays owner-shaped through the same path', () async {
-    // Register an owner (creates a linked account) then re-login.
+    // An owner signed up on the web (a linked account), then logged in.
     final auth = ProAuthProvider();
     await auth.requestEmailOtp('own@r4b.test');
-    await auth.registerWithEmail(
+    // Signed up on the web (the app no longer registers a business —
+    // App Store 3.1.1), then signed in here.
+    seedWebSignUp(
       email: 'own@r4b.test',
-      code: auth.emailDevCode!,
       phoneNumber: '+2250700000099',
       businessName: 'Salon R4b',
       businessType: BusinessType.salon,
     );
+    await auth.verifyEmailOtp('own@r4b.test', auth.emailDevCode!);
     expect(auth.role, TeamRole.owner);
     expect(auth.can(ProCap.salonPublish), isTrue);
   });

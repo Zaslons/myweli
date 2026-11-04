@@ -6,6 +6,7 @@ import 'package:myweli_backend/src/auth/auth_methods.dart';
 import 'package:myweli_backend/src/auth/id_token_verifier.dart';
 import 'package:myweli_backend/src/auth/provider_auth_repository.dart';
 import 'package:myweli_backend/src/http/body_fields.dart';
+import 'package:myweli_backend/src/provider_account_service.dart';
 import 'package:myweli_backend/src/responses.dart';
 import 'package:myweli_backend/src/validators.dart';
 
@@ -91,6 +92,16 @@ Future<Response> onRequest(RequestContext context) async {
     return providerSessionResponse(existing);
   }
 
+  // A dead invitation creates no account (docs/design/backend-integrity-
+  // batch6.md §2.2, B6.2): checked BEFORE the account exists. It used to be
+  // created first and the refusal came after — and the account stayed; its
+  // next sign-in self-healed it into an empty salon.
+  final acceptable = await team.checkAcceptable(
+    invitationId,
+    accountEmail: verifiedEmail,
+  );
+  if (!acceptable.ok) return _teamError(acceptable.error);
+
   final created = await repo.createMemberAccount(
     email: verifiedEmail,
     authProvider: authProvider,
@@ -104,7 +115,16 @@ Future<Response> onRequest(RequestContext context) async {
     accountId: created.provider!.id,
     accountEmail: verifiedEmail,
   );
-  if (!r.ok) return _teamError(r.error);
+  if (!r.ok) {
+    // The race: alive when checked, dead when accepted (withdrawn in
+    // between). The account made for it goes with the refusal — through the
+    // ONE erasure path, which holds the demo lock
+    // (docs/design/demo-account-deletion-lock.md §5).
+    await context.read<ProviderAccountService>().deleteAccount(
+      created.provider!.id,
+    );
+    return _teamError(r.error);
+  }
   return providerSessionResponse(created, successStatus: HttpStatus.created);
 }
 

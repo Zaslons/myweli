@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:myweli/core/access/pro_salon_scope.dart';
 import 'package:myweli/core/di/dependency_injection.dart';
 import 'package:myweli/core/push/push_registration.dart';
+import 'package:myweli/core/utils/salon_id.dart';
 import 'package:myweli/models/api_response.dart';
 import 'package:myweli/models/salon_subscription.dart';
 import 'package:myweli/providers/pro_auth_provider.dart';
@@ -38,7 +39,7 @@ class _FaultyProService extends MockProService {
   _Fault? fault;
 
   @override
-  Future<ApiResponse<MyProviderInfo>> getMyProvider({String? salonId}) async {
+  Future<ApiResponse<MyProviderInfo>> getMyProvider({SalonId? salonId}) async {
     final f = fault;
     if (salonId == null || f == null) {
       return super.getMyProvider(salonId: salonId);
@@ -161,6 +162,26 @@ void main() {
     await drain(tester);
   });
 
+  // hygiene-batch9.md §2.9 (B9.10) — a row is a title: « Salon », not an
+  // empty line under an initial « ? ».
+  testWidgets('a salon with no name reads « Salon » in the list', (
+    tester,
+  ) async {
+    final i = MockData.providers.indexWhere((p) => p.id == 'provider2');
+    final named = MockData.providers[i];
+    MockData.providers[i] = named.copyWith(name: '');
+    addTearDown(() => MockData.providers[i] = named);
+    final auth = await signInOwner(tester);
+    await pumpPicker(tester, auth);
+
+    expect(
+      find.descendant(of: find.byType(ListTile), matching: find.text('Salon')),
+      findsOneWidget,
+    );
+    expect(find.text('?'), findsNothing);
+    await drain(tester);
+  });
+
   testWidgets('tapping the other salon switches and pops with its id', (
     tester,
   ) async {
@@ -184,27 +205,27 @@ void main() {
     await drain(tester);
   });
 
-  testWidgets('« Ajouter un salon » appears once the Réseau gate opens', (
-    tester,
-  ) async {
+  // docs/design/pro-app-login-only.md (B0.11, App Store 3.1.1): the app no
+  // longer creates salons — a live Réseau owner adds one on the web.
+  testWidgets('a live Réseau account sees no « Ajouter un salon » — salons '
+      'are added on the web', (tester) async {
     final auth = await signInOwner(tester);
     await tester.runAsync(() async {
       // provider1 on a live Réseau offer (chosen on the web, in production —
       // the app never chooses one).
       expect(
         (serviceLocator.subscriptionService as MockSubscriptionService)
-            .startTrialIfAbsent('provider1', tier: SalonTier.reseau),
+            .startTrialIfAbsent(SalonId('provider1'), tier: SalonTier.reseau),
         isTrue,
       );
       await auth.loadMySalons();
     });
     await pumpPicker(tester, auth);
 
-    expect(find.text('Ajouter un salon'), findsOneWidget);
-    // States the offer the account HAS — unchanged by the companion path.
+    expect(find.text('Ajouter un salon'), findsNothing);
     expect(
       find.text('Offre Réseau — un salon de plus dans votre compte'),
-      findsOneWidget,
+      findsNothing,
     );
     await drain(tester);
   });
@@ -254,9 +275,9 @@ void main() {
     final auth = await signInOwner(tester);
     pro.fault = _Fault.network;
     await tester.runAsync(() async {
-      expect(await auth.switchSalon('provider2'), isFalse);
+      expect(await auth.switchSalon(SalonId('provider2')), isFalse);
       pro.fault = _Fault.unreadable;
-      expect(await auth.switchSalon('provider2'), isFalse);
+      expect(await auth.switchSalon(SalonId('provider2')), isFalse);
     });
     expect(auth.activeSalonId, 'provider1');
   });

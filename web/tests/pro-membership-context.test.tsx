@@ -129,11 +129,10 @@ describe('ProMembershipProvider', () => {
     expect(screen.getByText('finances:oui')).toBeTruthy();
   });
 
-  it('401 → no redirect from the context (page guards own it)', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async () => new Response(null, { status: 401 })),
-    );
+  it('401 → no redirect from the context (page guards own it), and no menu '
+    + 'drawn from nothing: it waits', async () => {
+    const fetch = vi.fn(async () => new Response(null, { status: 401 }));
+    vi.stubGlobal('fetch', fetch);
 
     render(
       <ProMembershipProvider>
@@ -141,7 +140,13 @@ describe('ProMembershipProvider', () => {
       </ProMembershipProvider>,
     );
 
-    await screen.findByText('role:legacy');
+    await waitFor(() => expect(fetch).toHaveBeenCalled());
+    for (let i = 0; i < 5; i += 1) await new Promise((r) => setTimeout(r, 0));
+    // Not the owner-shaped legacy menu (B4.4,
+    // docs/design/web-pro-truthful-failure.md §2.4) — the page's own 401
+    // takes it to the login.
+    expect(screen.getByText('chargement')).toBeTruthy();
+    expect(screen.queryByText('role:legacy')).toBeNull();
     expect(replace).not.toHaveBeenCalled();
   });
 });

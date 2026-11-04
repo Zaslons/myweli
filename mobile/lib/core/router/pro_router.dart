@@ -9,7 +9,6 @@ import '../../screens/provider/appointments/pro_manual_booking_screen.dart';
 import '../../screens/provider/artists/artist_form_screen.dart';
 import '../../screens/provider/artists/artist_list_screen.dart';
 import '../../screens/provider/auth/pro_login_screen.dart';
-import '../../screens/provider/auth/pro_register_screen.dart';
 import '../../screens/provider/auth/pro_splash_screen.dart';
 import '../../screens/provider/availability/availability_screen.dart';
 import '../../screens/provider/clients/client_detail_screen.dart';
@@ -27,7 +26,6 @@ import '../../screens/provider/profile/pro_profile_screen.dart';
 import '../../screens/provider/profile/pro_salon_profile_screen.dart';
 import '../../screens/provider/reviews/reviews_screen.dart';
 import '../../screens/provider/salon_preview_screen.dart';
-import '../../screens/provider/salons/add_salon_screen.dart';
 import '../../screens/provider/services/service_form_screen.dart';
 import '../../screens/provider/services/service_list_screen.dart';
 import '../../screens/provider/settings/deposit_settings_screen.dart';
@@ -35,17 +33,16 @@ import '../../screens/provider/staff/staff_home_screen.dart';
 import '../../screens/provider/subscription/pro_subscription_screen.dart';
 import '../../screens/provider/team/pro_invitations_screen.dart';
 import '../../screens/provider/team/team_screen.dart';
+import '../utils/salon_id.dart';
 
 class ProRouter {
-  /// The screens that hand over with a `go` — the splash, and sign-in /
-  /// sign-up after a login. A page pushed above one of them is replaced by
-  /// that `go`, so a buffered notification tap waits until the router has
-  /// left them (`landedPushHandler`, docs/design/pro-open-animation.md §2.6).
-  static const Set<String> launchPaths = {
-    '/pro/splash',
-    '/pro/login',
-    '/pro/register',
-  };
+  /// The screens that hand over with a `go` — the splash, and sign-in
+  /// after a login. A page pushed above one of them is replaced by that `go`,
+  /// so a buffered notification tap waits until the router has left them
+  /// (`landedPushHandler`, docs/design/pro-open-animation.md §2.6). There is
+  /// no sign-up screen: salons sign up on the web (App Store 3.1.1,
+  /// docs/design/pro-app-login-only.md).
+  static const Set<String> launchPaths = {'/pro/splash', '/pro/login'};
 
   static final GoRouter router = GoRouter(
     initialLocation: '/pro/splash',
@@ -63,14 +60,10 @@ class ProRouter {
           return ProLoginScreen(returnTo: returnTo);
         },
       ),
-      GoRoute(
-        path: '/pro/register',
-        name: 'pro-register',
-        builder: (context, state) => const ProRegisterScreen(),
-      ),
-      // /pro/verify-otp unrouted — phone-OTP login is dormant at launch
-      // (AUTH_METHODS gates the backend; ProOtpVerifyScreen kept for the
-      // Termii-era phone VERIFICATION reuse). docs/design/pro-auth-social.md.
+      // No phone sign-in for Pros: it was removed (B8.5) — it opened with
+      // the clients' AUTH_METHODS switch and took the first account carrying
+      // a number that is no longer unique. Rebuilt on purpose when SMS
+      // returns (docs/design/product-questions-batch8.md §2.5).
       // The Collaborateur shell (access R4b): Journée · Calendrier · Profil.
       GoRoute(
         path: '/pro/staff',
@@ -135,7 +128,10 @@ class ProRouter {
           // `?salon=` — a salon notification (push OR feed row) may belong to
           // another of the account's salons; the screen switches to it before
           // loading (R6). See docs/design/push-notifications-fcm.md §10.
-          final salonId = state.uri.queryParameters['salon'];
+          final salonId = switch (state.uri.queryParameters['salon']) {
+            final String id when id.isNotEmpty => SalonId(id),
+            _ => null,
+          };
           return ProAppointmentDetailScreen(
             appointmentId: id,
             salonId: salonId,
@@ -198,7 +194,7 @@ class ProRouter {
         name: 'pro-deposit-settings',
         builder: (context, state) {
           final providerId =
-              context.read<ProAuthProvider>().activeSalonId ?? '';
+              context.read<ProAuthProvider>().activeSalonId ?? SalonId.none;
           return DepositSettingsScreen(providerId: providerId);
         },
       ),
@@ -212,11 +208,6 @@ class ProRouter {
         path: '/pro/team',
         name: 'pro-team',
         builder: (context, state) => const TeamScreen(),
-      ),
-      GoRoute(
-        path: '/pro/salons/nouveau',
-        name: 'pro-add-salon',
-        builder: (context, state) => const AddSalonScreen(),
       ),
       GoRoute(
         path: '/pro/invitations',

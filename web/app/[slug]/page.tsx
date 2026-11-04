@@ -25,9 +25,11 @@ import { resolveTaxonomyRoot, taxonomyRootSlugs } from '../../lib/taxonomy';
 // own slice. Note the asymmetry: `[slug]/reserver` is `force-dynamic`, so the
 // FUNNEL closes instantly and only the marketing page lags.
 //
-// It also bounds a defect nobody had written down: `getProviderBySlug`
-// collapses 5xx and network failures into `null` too, so a 30-second backend
-// blip cached a 404 for a LIVE salon for the whole window (§9).
+// It also bounded a defect nobody had written down: `getProviderBySlug`
+// collapsed 5xx and network failures into `null` too, so a 30-second backend
+// blip cached a 404 for a LIVE salon for the whole window (§9). Since B9.11
+// only a real 404 is `null`; any other failure throws and Next keeps the last
+// good page (`lib/api/public-read.ts`, hygiene-batch9.md §2.10).
 export const revalidate = 300;
 // **false, and that is the 404 fix.** An unknown slug then never enters this
 // route, so Next serves the prerendered 404 — 311 characters of real HTML —

@@ -529,6 +529,21 @@ const MEMBER_LOGINS = {
   'sonia.staff@equipe.test': 'staff',
   'revoked.staff@equipe.test': 'revoked',
 };
+// docs/design/web-pro-truthful-failure.md §2.2 (B4.2): an owner whose ONE
+// booking (pfresh, « Mariam ») is in BOTH its Journée and its list — the
+// owner's own are not (pj1/pj2 vs pappt1). pro.spec accepts it in the
+// Journée and reads « Liste ». Its own login and token, so no other spec sees
+// it move while workers share this stub; each login re-arms it « En attente ».
+const FRESH_LISTS_EMAIL = 'listes.fraiches@salon.test';
+const isFreshLists = (req) =>
+  (req.headers.authorization || '').includes('pro-fresh-lists');
+const freshAppt = (date) => ({
+  ...proAppt('pfresh'),
+  clientName: 'Mariam',
+  salonClientId: null,
+  clientNoShowCount: 0,
+  ...(date ? { appointmentDate: `${date}T10:00:00.000Z` } : {}),
+});
 const MEMBER_EMAILS = {
   owner: 'salon@example.com',
   manager: 'awa.manager@equipe.test',
@@ -777,8 +792,19 @@ function readJsonObject(req) {
   });
 }
 
+// docs/design/write-idempotency.md §3, in miniature: a booking POSTed again
+// under the same `Idempotency-Key` is REPLAYED, never booked twice — and how
+// many times each key really booked is readable, so the lost-answer e2e
+// (booking.spec.ts) can say « one booking » instead of hoping.
+const keptBookings = new Map(); // key → the 201 body
+const bookingsByKey = new Map(); // key → how many bookings it created
+
 createServer(async (req, res) => {
   const url = new URL(req.url, `http://localhost:${port}`);
+  if (url.pathname === '/__stub/bookings') {
+    const key = url.searchParams.get('key') ?? '';
+    return json(res, 200, { created: bookingsByKey.get(key) ?? 0 });
+  }
   if (url.pathname === '/sitemap/providers') {
     return json(res, 200, { items: [{ slug: 'beaute-divine' }] });
   }
@@ -1023,6 +1049,15 @@ createServer(async (req, res) => {
         expiresAt: '2099-01-01T00:00:00.000Z',
       });
     }
+    if (b.email === FRESH_LISTS_EMAIL) {
+      proStatus.pfresh = 'pending';
+      return json(res, 200, {
+        provider: { id: 'acc-fresh', businessName: 'Beauté Divine', providerId: 'p1' },
+        accessToken: 'pro-fresh-lists-access',
+        refreshToken: 'pro-fresh-lists-refresh',
+        expiresAt: '2099-01-01T00:00:00.000Z',
+      });
+    }
     // Team access R5b: member logins carry ROLE tokens.
     const memberRole = MEMBER_LOGINS[b.email];
     if (memberRole) {
@@ -1077,6 +1112,14 @@ createServer(async (req, res) => {
   const journalM = url.pathname.match(/^\/providers\/([^/]+)\/journal$/);
   if (journalM) {
     const date = url.searchParams.get('date') || stubDayKey();
+    if (isFreshLists(req)) {
+      return json(res, 200, {
+        date,
+        hours: { open: '09:00', close: '18:00', breaks: [] },
+        artists: [{ id: 'artist-a', name: 'Awa', imageUrl: null }],
+        appointments: [freshAppt(date)],
+      });
+    }
     // Team access R5b: own-scope (staff) gets ONLY their artist's column +
     // their own rows — mirrors journal_service.dart's journalScope filter.
     if (roleOf(req) === 'staff') {
@@ -1330,16 +1373,6 @@ createServer(async (req, res) => {
     return res.end();
   }
 
-  if (url.pathname === '/auth/provider/otp/request') {
-    return json(res, 200, { devCode: '123456' });
-  }
-  if (url.pathname === '/auth/provider/otp/verify') {
-    return json(res, 200, {
-      provider: { id: 'acc1', businessName: 'Beauté Divine', providerId: 'p1' },
-      accessToken: 'pro-access',
-      refreshToken: 'pro-refresh',
-    });
-  }
   if (url.pathname === '/auth/provider/refresh') {
     return json(res, 200, {
       accessToken: 'pro-access-2',
@@ -1827,6 +1860,15 @@ createServer(async (req, res) => {
   // one, sending the salon id from the browser to a route that checks nothing.
   // The PUBLIC list closes with Decision C — hidden AND unknown, because a 404
   // that only covered the hidden case would mean « exists but hidden ».
+  // The salon reports a review of its own salon (B6.6): stateless — the
+  // owner may, a member without profile.manage may not.
+  const salonReport = url.pathname.match(/^\/me\/provider\/reviews\/([^/]+)\/report$/);
+  if (salonReport && req.method === 'POST') {
+    if (!['owner', 'manager'].includes(roleOf(req))) {
+      return json(res, 403, { error: 'forbidden' });
+    }
+    return json(res, 200, { status: 'reported' });
+  }
   const pubReviews = url.pathname.match(/^\/providers\/([^/]+)\/reviews$/);
   if (pubReviews && !['p1', 'p2'].includes(pubReviews[1])) {
     return json(res, 404, { error: 'not_found' });
@@ -1940,14 +1982,27 @@ createServer(async (req, res) => {
     if (!id) {
       if (req.method === 'POST') {
         const b = await readBody(req);
+        const key = req.headers['idempotency-key'];
+        if (key && keptBookings.has(key)) {
+          res.writeHead(201, {
+            'content-type': 'application/json',
+            'idempotent-replayed': 'true',
+          });
+          return res.end(JSON.stringify(keptBookings.get(key)));
+        }
         const deposit = b.providerId === 'p2' ? 7500 : 0;
-        return json(res, 201, {
+        const booked = {
           id: 'appt1',
           status: 'pending',
           totalPrice: 15000,
           depositAmount: deposit,
           balanceDue: 15000 - deposit,
-        });
+        };
+        if (key) {
+          keptBookings.set(key, booked);
+          bookingsByKey.set(key, (bookingsByKey.get(key) ?? 0) + 1);
+        }
+        return json(res, 201, booked);
       }
       // Provider list (M7) vs consumer list (M6), split by token. Team
       // access R5b: staff (own-scope) sees only THEIR artist's rows —
@@ -1958,9 +2013,11 @@ createServer(async (req, res) => {
         return json(res, 200, { items: [], page: 1, pageSize: 0, total: 0 });
       }
       const items = isPro(req)
-        ? roleOf(req) === 'staff'
-          ? [proAppt('pstaff1')]
-          : [proAppt('pappt1')]
+        ? isFreshLists(req)
+          ? [freshAppt()]
+          : roleOf(req) === 'staff'
+            ? [proAppt('pstaff1')]
+            : [proAppt('pappt1')]
         : [
             consumerAppt('appt1'),
             consumerAppt('appt2'),

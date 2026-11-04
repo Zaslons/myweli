@@ -17,7 +17,11 @@ vi.mock('next/navigation', () => ({
 import { DELETE } from '../app/api/pro/account/route';
 import { CompteDangerSection } from '../components/pro/CompteDangerSection';
 import type { ProProfile } from '../lib/api/pro';
-import { DEMO_ACCOUNT_LOCKED_MESSAGE } from '../lib/pro/team';
+import {
+  DEMO_ACCOUNT_LOCKED_MESSAGE,
+  ownsASalon,
+  type SalonMembership,
+} from '../lib/pro/team';
 
 /// « Compte » on /pro/profil when the server REFUSES the deletion — the
 /// shared store-review demo account cannot delete itself (403
@@ -63,6 +67,67 @@ afterEach(() => {
   cleanup();
   vi.unstubAllGlobals();
   replace.mockReset();
+});
+
+/// docs/design/pro-app-batch7.md §2.3 (B7.3, Q5) — the sentence says what the
+/// SERVER removes: every salon the account owns, nothing of a salon where it
+/// is only a member. So it follows « owns a salon », not the salon on screen.
+describe('CompteDangerSection — the sentence follows « owns a salon »', () => {
+  const OWNER = /Votre salon sera retiré de MyWeli/;
+  const MEMBER = /Votre compte MyWeli Pro sera supprimé/;
+  const open = () => fireEvent.click(screen.getByText('Supprimer mon compte'));
+
+  it('an owner (the account’s linked salon) reads that the salon goes', () => {
+    serverAnswers(204);
+    const owner = {
+      ...profile,
+      account: { ...profile.account, providerId: 'p1' },
+    } as ProProfile;
+    render(<CompteDangerSection profile={owner} />);
+    open();
+    expect(screen.getByText(OWNER)).toBeTruthy();
+    expect(screen.queryByText(MEMBER)).toBeNull();
+  });
+
+  it('a member reads that their account goes', () => {
+    serverAnswers(204);
+    const member = {
+      ...profile,
+      membership: { role: 'manager', capabilities: ['profile.manage'] },
+    } as unknown as ProProfile;
+    render(<CompteDangerSection profile={member} exportEnabled={false} />);
+    open();
+    expect(screen.getByText(MEMBER)).toBeTruthy();
+    expect(screen.queryByText(OWNER)).toBeNull();
+  });
+
+  it('an owner looking at a salon they only manage (no export here) still reads that their salon goes', () => {
+    serverAnswers(204);
+    const ownerElsewhere = {
+      account: { id: 'acc-1', email: 'owner@salon.test', providerId: 'p1' },
+      provider: { id: 'p2', name: 'Autre Salon', status: 'active' },
+      membership: { role: 'manager', capabilities: ['profile.manage'] },
+    } as unknown as ProProfile;
+    render(<CompteDangerSection profile={ownerElsewhere} exportEnabled={false} />);
+    open();
+    expect(screen.getByText(OWNER)).toBeTruthy();
+  });
+});
+
+describe('ownsASalon — what the server will remove', () => {
+  const base = { account: { id: 'a' } } as unknown as ProProfile;
+  const salon = (role: string) => ({ role }) as unknown as SalonMembership;
+
+  it('the linked salon, or an owner row in « Mes salons »', () => {
+    expect(ownsASalon({ ...base, account: { id: 'a', providerId: 'p1' } } as ProProfile, [])).toBe(true);
+    expect(ownsASalon(base, [salon('manager'), salon('owner')])).toBe(true);
+  });
+
+  it('a member everywhere, or nothing known → false', () => {
+    expect(ownsASalon(base, [salon('manager'), salon('staff')])).toBe(false);
+    expect(ownsASalon(base, [])).toBe(false);
+    expect(ownsASalon({ ...base, account: { id: 'a', providerId: '' } } as ProProfile, [])).toBe(false);
+  });
 });
 
 describe('CompteDangerSection — a refused deletion', () => {
@@ -160,6 +225,10 @@ const ALL_FAILED =
   "Export interrompu : impossible de charger les rendez-vous, le fichier clients et les revenus. Aucun fichier n'a été créé. Réessayez.";
 const COPY_FAILED =
   'La copie a échoué. Téléchargez le fichier avec « Exporter (JSON) ».';
+/// A file that cannot be assembled: its own sentence — the reads answered,
+/// so naming them would blame what worked (docs/design/web-client-polish.md
+/// §2.3, B5.3).
+const BUILD_FAILED = 'Le fichier n’a pas pu être préparé. Réessayez.';
 
 type Answer = { status: number; body?: unknown } | 'throw';
 
@@ -480,10 +549,11 @@ describe('CompteDangerSection — the export refuses instead of shipping holes',
     expect(out.createObjectURL).not.toHaveBeenCalled();
   });
 
-  // §2.3: whatever still breaks while the file is assembled is a refusal
-  // with the export's message — it cannot say which data was wrong, so it
-  // names them all — never a silent no-file.
-  it('a file that cannot be assembled is refused with the message, and the buttons come back', async () => {
+  // export-unreadable-200.md §2.3: whatever still breaks while the file is
+  // assembled is a refusal, never a silent no-file — and since
+  // web-client-polish.md §2.3 it says so in its own words, without naming
+  // three reads that answered.
+  it('a file that cannot be assembled is refused with its own sentence, and the buttons come back', async () => {
     exportReads();
     const out = watchOutputs();
     const broken = {
@@ -494,7 +564,7 @@ describe('CompteDangerSection — the export refuses instead of shipping holes',
 
     fireEvent.click(exportButton());
 
-    expect((await screen.findByRole('alert')).textContent).toBe(ALL_FAILED);
+    expect((await screen.findByRole('alert')).textContent).toBe(BUILD_FAILED);
     expect(out.createObjectURL).not.toHaveBeenCalled();
     expect(out.anchorClick).not.toHaveBeenCalled();
     expect(exportButton().textContent).toBe('Exporter (JSON)');
@@ -508,7 +578,7 @@ describe('CompteDangerSection — the export refuses instead of shipping holes',
 
     fireEvent.click(screen.getByRole('button', { name: 'Copier' }));
 
-    expect((await screen.findByRole('alert')).textContent).toBe(ALL_FAILED);
+    expect((await screen.findByRole('alert')).textContent).toBe(BUILD_FAILED);
     expect(out.writeText).not.toHaveBeenCalled();
     expect(screen.queryByText('Copié ✓')).toBeNull();
   });

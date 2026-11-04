@@ -53,7 +53,15 @@ abstract interface class ReviewsRepository {
   Future<Map<String, dynamic>?> reviewByAppointment(String appointmentId);
 
   /// A consumer flags a review. Idempotent per (review, reporter).
-  Future<void> addReport(String reviewId, String reporterUserId, String reason);
+  /// One report per (review, reporter) — a second is a no-op. [reporterKind]
+  /// is `user` (a client) or `salon` (the salon itself, B6.6 — its id in
+  /// [reporterUserId]).
+  Future<void> addReport(
+    String reviewId,
+    String reporterUserId,
+    String reason, {
+    String reporterKind = 'user',
+  });
 
   /// Reviews with ≥1 open report (one row each: newest report first), paginated.
   Future<({List<Map<String, dynamic>> items, int total})> listReportedReviews({
@@ -206,8 +214,9 @@ class InMemoryReviewsRepository implements ReviewsRepository {
   Future<void> addReport(
     String reviewId,
     String reporterUserId,
-    String reason,
-  ) async {
+    String reason, {
+    String reporterKind = 'user',
+  }) async {
     final exists = _reports.any(
       (r) => r['reviewId'] == reviewId && r['reporterUserId'] == reporterUserId,
     );
@@ -216,6 +225,7 @@ class InMemoryReviewsRepository implements ReviewsRepository {
       'id': 'report_${_reportSeq++}',
       'reviewId': reviewId,
       'reporterUserId': reporterUserId,
+      'reporterKind': reporterKind,
       'reason': reason,
       'status': 'open',
       'createdAt': DateTime.now().toUtc().toIso8601String(),
@@ -252,9 +262,11 @@ class InMemoryReviewsRepository implements ReviewsRepository {
           'reportCount': 1,
           'lastReason': rep['reason'],
           'lastReportedAt': rep['createdAt'],
+          'reportedBySalon': rep['reporterKind'] == 'salon',
         };
       } else {
         entry['reportCount'] = (entry['reportCount'] as int) + 1;
+        if (rep['reporterKind'] == 'salon') entry['reportedBySalon'] = true;
       }
     }
     final all = byReview.values.toList();

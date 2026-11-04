@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 
+import '../../core/constants/unnamed_salon.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/colors.dart';
 import '../../core/theme/text_styles.dart';
+import '../../core/utils/team_error_messages.dart';
 
 /// « Votre accès à {salon} a été retiré. » — the revoked-access notice (module
 /// `access` R4b §5.3), shared by the sign-in screen and the rejoin gate
@@ -15,12 +17,14 @@ import '../../core/theme/text_styles.dart';
 class RevokedAccessBanner extends StatelessWidget {
   const RevokedAccessBanner({super.key, required this.salonName});
 
-  /// The salon the access was lost to. `ProAuthProvider.salonName`'s
-  /// fallback « votre salon » (no salon known) reads « ce salon ».
+  /// The salon the access was lost to. When `ProAuthProvider.salonName` has
+  /// no name to give (its unnamed word, [kUnnamedOwnSalon]), the banner says
+  /// the app's one sentence for a withdrawn access — the `not_a_member`
+  /// refusal's — rather than « Votre accès à votre salon ».
   final String salonName;
 
-  String get _message => salonName == 'votre salon'
-      ? 'Votre accès à ce salon a été retiré.'
+  String get _message => salonName == kUnnamedOwnSalon
+      ? teamErrorMessage('not_a_member')
       : 'Votre accès à $salonName a été retiré.';
 
   @override

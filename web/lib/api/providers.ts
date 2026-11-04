@@ -3,6 +3,7 @@ import { serviceSlugsForName } from '../service-landing';
 import { slugify } from '../slug';
 import { api } from './client';
 import { allAreas, type LocalityTree } from './localities';
+import { unreadable } from './public-read';
 import type { components } from './schema';
 
 export type Provider = components['schemas']['Provider'];
@@ -10,30 +11,50 @@ export type Service = components['schemas']['Service'];
 export type Review = components['schemas']['Review'];
 export type Artist = components['schemas']['Artist'];
 
-/// Public provider read by slug (web M1 endpoint). Returns null on 404 / error
-/// so pages can `notFound()` rather than crash an SSG/ISR render.
+/// Public provider read by slug (web M1 endpoint). `null` for a real 404 only,
+/// so the page can `notFound()`. Any other failure is [unreadable]: it used to
+/// be `null` too, so a 30-second API blip cached a 404 for a LIVE salon for the
+/// whole ISR window.
 export async function getProviderBySlug(slug: string): Promise<Provider | null> {
+  let cause: unknown;
   try {
-    const { data, error } = await api.GET('/providers/by-slug/{slug}', {
+    const { data, error, response } = await api.GET('/providers/by-slug/{slug}', {
       params: { path: { slug } },
     });
-    if (error || !data) return null;
-    return data;
-  } catch {
-    return null;
+    if (typeof data?.id === 'string') return data;
+    if (response.status === 404) return null;
+    cause = error ?? `status ${response.status}, no salon`;
+  } catch (e) {
+    cause = e;
   }
+  return unreadable(`GET /providers/by-slug/${slug}`, null, cause);
+}
+
+/// A list read: the answer's `items`, or [unreadable]. A real empty list is
+/// an empty list.
+async function readItems<T>(
+  what: string,
+  call: () => Promise<{ data?: { items?: T[] }; error?: unknown }>,
+): Promise<T[]> {
+  let cause: unknown;
+  try {
+    const { data, error } = await call();
+    if (!error && Array.isArray(data?.items)) return data.items;
+    cause = error ?? 'no items';
+  } catch (e) {
+    cause = e;
+  }
+  return unreadable(what, [] as T[], cause);
 }
 
 /// All listable provider slugs (for generateStaticParams + the sitemap).
 export async function getAllProviderSlugs(): Promise<string[]> {
-  try {
-    const { data } = await api.GET('/sitemap/providers', {});
-    return (data?.items ?? [])
-      .map((i) => i.slug)
-      .filter((s): s is string => typeof s === 'string');
-  } catch {
-    return [];
-  }
+  const items = await readItems('GET /sitemap/providers', () =>
+    api.GET('/sitemap/providers', {}),
+  );
+  return items
+    .map((i) => i.slug)
+    .filter((s): s is string => typeof s === 'string');
 }
 
 /// Providers in a category + commune, best-rated first (backs a landing page).
@@ -41,15 +62,11 @@ export async function listProviders(
   apiKey: string,
   commune: string,
 ): Promise<Provider[]> {
-  try {
-    const { data, error } = await api.GET('/providers', {
+  return readItems('GET /providers (landing)', () =>
+    api.GET('/providers', {
       params: { query: { category: apiKey, commune, sort: 'rating' } },
-    });
-    if (error || !data) return [];
-    return data.items ?? [];
-  } catch {
-    return [];
-  }
+    }),
+  );
 }
 
 /// Flexible discovery search/list (home featured + /recherche). Any of q /
@@ -64,8 +81,8 @@ export async function searchProviders(opts: {
   sort?: 'relevance' | 'rating' | 'price';
   availableToday?: boolean;
 }): Promise<Provider[]> {
-  try {
-    const { data, error } = await api.GET('/providers', {
+  return readItems('GET /providers (search)', () =>
+    api.GET('/providers', {
       params: {
         query: {
           ...(opts.q ? { q: opts.q } : {}),
@@ -76,12 +93,8 @@ export async function searchProviders(opts: {
           pageSize: opts.pageSize ?? 12,
         },
       },
-    });
-    if (error || !data) return [];
-    return data.items ?? [];
-  } catch {
-    return [];
-  }
+    }),
+  );
 }
 
 /// A landing route param triple ({slug}/{city}/{area}) — nested URLs
@@ -107,22 +120,18 @@ function areaParamsOf(
 export async function getLandingParams(
   tree: LocalityTree,
 ): Promise<LandingParams[]> {
-  try {
-    const { data } = await api.GET('/providers', {
-      params: { query: { pageSize: 50 } },
-    });
-    const seen = new Map<string, LandingParams>();
-    for (const p of data?.items ?? []) {
-      const catSlug = categorySlugForApiKey(p.category);
-      const geo = areaParamsOf(p, tree);
-      if (!catSlug || !geo) continue;
-      const key = `${catSlug}/${geo.city}/${geo.area}`;
-      seen.set(key, { slug: catSlug, ...geo });
-    }
-    return [...seen.values()];
-  } catch {
-    return [];
+  const items = await readItems('GET /providers (landing params)', () =>
+    api.GET('/providers', { params: { query: { pageSize: 50 } } }),
+  );
+  const seen = new Map<string, LandingParams>();
+  for (const p of items) {
+    const catSlug = categorySlugForApiKey(p.category);
+    const geo = areaParamsOf(p, tree);
+    if (!catSlug || !geo) continue;
+    const key = `${catSlug}/${geo.city}/${geo.area}`;
+    seen.set(key, { slug: catSlug, ...geo });
   }
+  return [...seen.values()];
 }
 
 /// Providers in a commune (all categories) — backs service landings, filtered
@@ -130,37 +139,27 @@ export async function getLandingParams(
 export async function listProvidersByCommune(
   commune: string,
 ): Promise<Provider[]> {
-  try {
-    const { data, error } = await api.GET('/providers', {
-      params: { query: { commune, sort: 'rating' } },
-    });
-    if (error || !data) return [];
-    return data.items ?? [];
-  } catch {
-    return [];
-  }
+  return readItems('GET /providers (commune)', () =>
+    api.GET('/providers', { params: { query: { commune, sort: 'rating' } } }),
+  );
 }
 
 /// Service×area landing params with ≥1 matching provider (catalogue-derived).
 export async function getServiceLandingParams(
   tree: LocalityTree,
 ): Promise<LandingParams[]> {
-  try {
-    const { data } = await api.GET('/providers', {
-      params: { query: { pageSize: 50 } },
-    });
-    const seen = new Map<string, LandingParams>();
-    for (const p of data?.items ?? []) {
-      const geo = areaParamsOf(p, tree);
-      if (!geo) continue;
-      for (const svc of p.services ?? []) {
-        for (const slug of serviceSlugsForName(svc.name)) {
-          seen.set(`${slug}/${geo.city}/${geo.area}`, { slug, ...geo });
-        }
+  const items = await readItems('GET /providers (service params)', () =>
+    api.GET('/providers', { params: { query: { pageSize: 50 } } }),
+  );
+  const seen = new Map<string, LandingParams>();
+  for (const p of items) {
+    const geo = areaParamsOf(p, tree);
+    if (!geo) continue;
+    for (const svc of p.services ?? []) {
+      for (const slug of serviceSlugsForName(svc.name)) {
+        seen.set(`${slug}/${geo.city}/${geo.area}`, { slug, ...geo });
       }
     }
-    return [...seen.values()];
-  } catch {
-    return [];
   }
+  return [...seen.values()];
 }

@@ -1,15 +1,21 @@
+import '../../core/utils/salon_id.dart';
 import '../../models/api_response.dart';
 import '../../models/appointment.dart';
 
 abstract class AppointmentServiceInterface {
   Future<ApiResponse<Appointment>> bookAppointment({
-    required String providerId,
+    required SalonId providerId,
     required List<String> serviceIds,
     required DateTime appointmentDateTime,
     String? artistId,
     String? notes,
     double depositAmount = 0,
     String? depositScreenshotUrl,
+
+    /// One per submission, reused on « Réessayer »: a lost answer is asked
+    /// again under it and the server replays the booking
+    /// (docs/design/write-idempotency.md §4).
+    String? idempotencyKey,
   });
   Future<ApiResponse<List<Appointment>>> getUserAppointments({
     AppointmentStatus? status,
@@ -40,7 +46,7 @@ abstract class AppointmentServiceInterface {
     required DateTime newDateTime,
   });
   Future<ApiResponse<List<DateTime>>> getAvailableTimeSlots({
-    required String providerId,
+    required SalonId providerId,
     required DateTime date,
     List<String>? serviceIds,
     String? artistId,

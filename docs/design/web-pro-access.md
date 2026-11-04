@@ -60,8 +60,8 @@
 
 | # | Où | Quoi |
 |---|---|---|
-| **P1** | **En-tête**, à droite, avant la cloche et « Mon compte » | Lien **« Espace pro »** → `/professionnels`. Visible à partir de 640 px : à 320–375 px, logo + « Espace pro » + cloche + « Mon compte » ne tiennent pas sur une ligne (mesuré au build) ; les téléphones ont P2 et P3 |
-| **P2** | **Pied de page**, un groupe « Professionnels » au-dessus des liens légaux | « MyWeli Pro pour les salons » → `/professionnels` · « Inscrire mon salon » → `/pro/inscription` · « Connexion Espace pro » → `/pro/connexion` |
+| **P1** | **En-tête**, à droite, avant la cloche et « Mon compte » | Lien **« Espace pro »** → `/professionnels`. Visible à partir de 640 px : à 320–375 px, logo + « Espace pro » + cloche + « Mon compte » ne tiennent pas sur une ligne (mesuré au build) ; les téléphones ont P2 et P3. **Sauf sur les cinq pages que l'app ouvre** ([app-review-round-2.md](app-review-round-2.md) §5) |
+| **P2** | **Pied de page**, un groupe « Professionnels » au-dessus des liens légaux | « MyWeli Pro pour les salons » → `/professionnels` · « Inscrire mon salon » → `/pro/inscription` · « Connexion Espace pro » → `/pro/connexion`. **Sauf sur les mêmes cinq pages** (décision du 2026-11-03, Apple 3.1.1) |
 | **P3** | **Accueil**, une bande avant la FAQ | « **Vous êtes un salon ?** » · « Recevez vos réservations en ligne, 24 h/24, et gérez agenda, équipe et clientèle au même endroit. » · bouton secondaire « Découvrir MyWeli Pro » → `/professionnels` |
 | **P4** | **`/pro/connexion`, `/pro/inscription`** | Un en-tête minimal : le logo MyWeli (→ `/`) et « Espace pro » ; pas la cloche ni « Mon compte » du client (deux espaces différents, une seule session à la fois à l'écran) |
 
@@ -242,6 +242,7 @@ le code, puis corrigées avec l'accord du propriétaire :
    choisir ou changer d’offre à tout moment. » ; la page reste telle quelle,
    désormais vraie. [pro-companion-path.md](pro-companion-path.md) §5
    enregistre le renversement de la « divergence documentée ».
+   **Corrigé le 2026-11-02 :** cette phrase et celle du point 3 de la page restaient fausses pour un salon qui choisit une offre pendant la configuration, car le premier choix démarre toujours l'essai. Le propriétaire a gardé l'horloge et fait corriger les mots : [web-true-sentences.md](web-true-sentences.md) §2.
 3. FAQ **« Faut-il installer une application ? »** — « tout se gère » était
    trop large (alertes onglet fermé, horaires en plusieurs plages). Devient
    « Non : réservations, agenda, clientèle, équipe et acomptes se gèrent

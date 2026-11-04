@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:myweli/core/access/pro_salon_scope.dart';
 import 'package:myweli/core/di/dependency_injection.dart';
 import 'package:myweli/core/push/push_registration.dart';
+import 'package:myweli/core/utils/salon_id.dart';
 import 'package:myweli/models/provider_session.dart';
 import 'package:myweli/providers/pro_auth_provider.dart';
 import 'package:myweli/services/mock/mock_auth_service.dart';
@@ -61,16 +62,24 @@ void main() {
   group('the one rule', () {
     test('selection → the account\'s own salon → the membership\'s; an '
         'empty id names no salon', () {
-      String? r(String? s, String? l, String? m) =>
+      String? r(SalonId? s, SalonId? l, SalonId? m) =>
           resolveActingSalonId(selected: s, linked: l, membership: m);
-      expect(r('p2', 'p1', 'p3'), 'p2', reason: 'a switch wins');
-      expect(r(null, 'p1', 'p3'), 'p1', reason: 'an owner\'s default');
-      expect(r(null, null, 'p3'), 'p3', reason: 'a bare member');
+      expect(
+        r(SalonId('p2'), SalonId('p1'), SalonId('p3')),
+        'p2',
+        reason: 'a switch wins',
+      );
+      expect(
+        r(null, SalonId('p1'), SalonId('p3')),
+        'p1',
+        reason: 'an owner\'s default',
+      );
+      expect(r(null, null, SalonId('p3')), 'p3', reason: 'a bare member');
       expect(r(null, null, null), isNull, reason: 'no salon anywhere');
       // ProMembership.fromJson reads a missing salonId as '' — never a
       // path segment (`/providers//services/…`).
-      expect(r('', '', 'p3'), 'p3');
-      expect(r(null, null, ''), isNull);
+      expect(r(SalonId(''), SalonId(''), SalonId('p3')), 'p3');
+      expect(r(null, null, SalonId('')), isNull);
     });
 
     test('ProAuthProvider.activeSalonId and the persisted session agree — '
@@ -97,7 +106,7 @@ void main() {
 
       final owner = await signIn('jean@salon-excellence.test');
       agree(owner, 'provider1');
-      expect(await owner.switchSalon('provider2'), isTrue);
+      expect(await owner.switchSalon(SalonId('provider2')), isTrue);
       agree(owner, 'provider2');
       await owner.logout();
 
@@ -151,7 +160,7 @@ void main() {
         'roster', () async {
       final auth = await signIn('jean@salon-excellence.test');
       expect(await rosterSalons(), {'provider1'});
-      expect(await auth.switchSalon('provider2'), isTrue);
+      expect(await auth.switchSalon(SalonId('provider2')), isTrue);
       expect(await rosterSalons(), {'provider2'});
     });
   });

@@ -12,10 +12,11 @@ import '../../core/utils/formatters.dart';
 import '../../providers/appointment_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/favorites_provider.dart';
+import '../../widgets/common/app_async_view.dart';
 import '../../widgets/common/app_button.dart';
+import '../../widgets/common/app_card.dart';
+import '../../widgets/common/app_skeleton.dart';
 import '../../widgets/common/app_snack_bar.dart';
-import '../../widgets/common/empty_state.dart';
-import '../../widgets/common/loading_indicator.dart';
 
 /// « Mes données » (FR-AUTH-005): the profile, the appointments and the
 /// favourites, assembled on the device into one JSON the client can copy.
@@ -37,6 +38,10 @@ class _DataExportScreenState extends State<DataExportScreen> {
   /// nothing to copy: a section emptied by its failure reads as « you have
   /// none » (docs/design/consumer-export-completeness.md §3).
   List<DataExportSection> _failed = const [];
+
+  /// Every read answered and the file could not be made from them — its own
+  /// sentence, not the reads (docs/design/web-client-polish.md §2.3).
+  bool _buildFailed = false;
   Map<String, dynamic>? _export;
   int _appointmentCount = 0;
   int _favoriteCount = 0;
@@ -51,6 +56,7 @@ class _DataExportScreenState extends State<DataExportScreen> {
     setState(() {
       _loading = true;
       _failed = const [];
+      _buildFailed = false;
     });
 
     try {
@@ -103,13 +109,12 @@ class _DataExportScreenState extends State<DataExportScreen> {
         _loading = false;
       });
     } catch (_) {
+      // Neither load throws (see above): what throws here is the file being
+      // made from answers that came. It used to name both reads.
       if (!mounted) return;
       setState(() {
         _loading = false;
-        _failed = const [
-          DataExportSection.appointments,
-          DataExportSection.favorites,
-        ];
+        _buildFailed = true;
       });
     }
   }
@@ -142,28 +147,30 @@ class _DataExportScreenState extends State<DataExportScreen> {
     );
   }
 
-  Widget _buildBody() {
-    if (_loading) {
-      return const LoadingIndicator();
-    }
-    if (_failed.isNotEmpty || _export == null) {
-      return EmptyState(
-        icon: Icons.wifi_off,
-        title: 'Chargement impossible',
-        description: dataExportFailureMessage(_failed),
-        actionText: 'Réessayer',
-        onAction: _load,
-      );
-    }
+  Widget _buildBody() => AppAsyncView<Map<String, dynamic>>(
+    isLoading: _loading,
+    error: _buildFailed
+        ? kDataExportBuildFailed
+        : _failed.isNotEmpty
+        ? dataExportFailureMessage(_failed)
+        : null,
+    data: _export,
+    isEmpty: (_) => false,
+    loading: const SkeletonDetail(sections: 2),
+    empty: const SizedBox.shrink(),
+    onRetry: _load,
+    builder: (context, export) => _ready(export),
+  );
 
-    final profile = _export!['profile'] as Map<String, dynamic>;
+  Widget _ready(Map<String, dynamic> export) {
+    final profile = export['profile'] as Map<String, dynamic>;
     final user = context.read<AuthProvider>().user;
 
     return ListView(
       padding: const EdgeInsets.all(AppTheme.spacingM),
       children: [
         Text(
-          'Généré le ${Formatters.formatDate(DateTime.parse(_export!['generatedAt'] as String))}',
+          'Généré le ${Formatters.formatDate(DateTime.parse(export['generatedAt'] as String))}',
           style: AppTextStyles.bodySmall.copyWith(
             color: AppColors.textTertiary,
           ),
@@ -226,26 +233,22 @@ class _SectionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return SizedBox(
       width: double.infinity,
-      padding: const EdgeInsets.all(AppTheme.spacingM),
-      decoration: BoxDecoration(
-        color: AppColors.secondary,
-        borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
-        border: Border.all(color: AppColors.border),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            label,
-            style: AppTextStyles.labelSmall.copyWith(
-              color: AppColors.textTertiary,
+      child: AppCard(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              label,
+              style: AppTextStyles.labelSmall.copyWith(
+                color: AppColors.textTertiary,
+              ),
             ),
-          ),
-          const SizedBox(height: AppTheme.spacingXS),
-          child,
-        ],
+            const SizedBox(height: AppTheme.spacingXS),
+            child,
+          ],
+        ),
       ),
     );
   }

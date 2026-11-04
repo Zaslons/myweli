@@ -8,6 +8,7 @@ import '../../models/app_notification.dart';
 import '../../models/notification_preferences.dart';
 import '../interfaces/notification_service_interface.dart';
 import '../interfaces/session_store.dart';
+import 'api_errors.dart';
 import 'refreshing_http_client.dart';
 
 /// Real HTTP implementation of [NotificationServiceInterface] (backend
@@ -50,8 +51,8 @@ class ApiNotificationService implements NotificationServiceInterface {
     final res = await _authed.send(
       (t) => _client.get(_uri('/me/notifications'), headers: _bearer(t)),
     );
-    if (res == null) return _networkError();
-    if (res.statusCode != 200) return _errorFrom(res);
+    if (res == null) return networkError();
+    if (res.statusCode != 200) return errorFromResponse(res);
     final body = jsonDecode(res.body) as Map<String, dynamic>;
     final items = ((body['items'] as List?) ?? const [])
         .map((e) => AppNotification.fromJson(e as Map<String, dynamic>))
@@ -78,8 +79,8 @@ class ApiNotificationService implements NotificationServiceInterface {
         headers: _bearer(t),
       ),
     );
-    if (res == null) return _networkError();
-    if (res.statusCode != 200) return _errorFrom(res);
+    if (res == null) return networkError();
+    if (res.statusCode != 200) return errorFromResponse(res);
     return ApiResponse.success(
       NotificationPreferences.fromJson(
         jsonDecode(res.body) as Map<String, dynamic>,
@@ -108,8 +109,8 @@ class ApiNotificationService implements NotificationServiceInterface {
         body: body,
       ),
     );
-    if (res == null) return _networkError();
-    if (res.statusCode != 200) return _errorFrom(res);
+    if (res == null) return networkError();
+    if (res.statusCode != 200) return errorFromResponse(res);
     return ApiResponse.success(
       NotificationPreferences.fromJson(
         jsonDecode(res.body) as Map<String, dynamic>,
@@ -124,8 +125,8 @@ class ApiNotificationService implements NotificationServiceInterface {
     final res = await _authed.send(
       (t) => _client.post(_uri(path), headers: _bearer(t)),
     );
-    if (res == null) return _networkError();
-    if (res.statusCode != 200) return _errorFrom(res);
+    if (res == null) return networkError();
+    if (res.statusCode != 200) return errorFromResponse(res);
     return ApiResponse.success(true);
   }
 
@@ -137,18 +138,4 @@ class ApiNotificationService implements NotificationServiceInterface {
   /// No answer at all. The CODE is what lets a caller tell this from a
   /// refusal without comparing sentences
   /// (docs/design/app-notifications-read-revert.md §3.4).
-  ApiResponse<T> _networkError<T>() =>
-      ApiResponse.error('Pas de connexion. Réessayez.', code: 'network');
-
-  ApiResponse<T> _errorFrom<T>(http.Response res) {
-    try {
-      final body = jsonDecode(res.body) as Map<String, dynamic>;
-      return ApiResponse.error(
-        body['message'] as String? ?? 'Erreur',
-        code: body['error'] as String?,
-      );
-    } catch (_) {
-      return ApiResponse.error('Erreur');
-    }
-  }
 }

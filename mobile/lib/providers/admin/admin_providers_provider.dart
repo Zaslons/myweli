@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 
+import '../../core/utils/salon_id.dart';
 import '../../models/api_response.dart';
 import '../../services/admin/admin_service.dart';
 
@@ -54,12 +55,12 @@ class AdminProvidersProvider extends ChangeNotifier {
     load();
   }
 
-  Future<bool> suspend(String id, String reason) =>
+  Future<bool> suspend(SalonId id, String reason) =>
       _act(_service.suspendProvider(id, reason), id);
 
-  Future<bool> restore(String id) => _act(_service.restoreProvider(id), id);
+  Future<bool> restore(SalonId id) => _act(_service.restoreProvider(id), id);
 
-  Future<bool> feature(String id, bool featured) =>
+  Future<bool> feature(SalonId id, bool featured) =>
       _act(_service.featureProvider(id, featured), id);
 
   Future<bool> _act(

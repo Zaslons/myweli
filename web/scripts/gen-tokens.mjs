@@ -45,6 +45,7 @@ for (const [k, [size, opts]] of Object.entries(t.type)) {
     `  ${k}: ['${size}', { lineHeight: '${opts.lineHeight}', letterSpacing: '${opts.letterSpacing}' }],`,
   );
 }
+console.log(`  // WEB_ONLY: ${WEB_ONLY.type.join(', ')} — keep the hand-written line in styles/tokens.ts`);
 console.log('} satisfies Record<string, TypeToken>;\n');
 
 console.log('export const icon = {');

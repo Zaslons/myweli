@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:myweli/core/utils/breaks.dart';
+import 'package:myweli/core/utils/salon_id.dart';
 import 'package:myweli/models/availability.dart';
 import 'package:myweli/services/mock/mock_appointment_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -70,7 +71,7 @@ void main() {
 
   test('Availability round-trips breaks through JSON (+ empty default)', () {
     final availability = Availability(
-      providerId: 'p1',
+      providerId: SalonId('p1'),
       weeklySchedule: const {},
       blockedDates: const [],
       breaks: {
@@ -96,7 +97,7 @@ void main() {
     for (var i = 1; i <= 14; i++) {
       final d = DateTime.now().add(Duration(days: i));
       final res = await service.getAvailableTimeSlots(
-        providerId: 'provider1',
+        providerId: SalonId('provider1'),
         date: d,
         serviceIds: const ['service1'], // 30 min
       );

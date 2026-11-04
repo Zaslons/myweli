@@ -197,12 +197,14 @@ ON CONFLICT (appointment_id) DO UPDATE SET
   Future<void> addReport(
     String reviewId,
     String reporterUserId,
-    String reason,
-  ) async {
+    String reason, {
+    String reporterKind = 'user',
+  }) async {
     await _pool.execute(
       Sql.named(
-        'INSERT INTO review_reports (id, review_id, reporter_user_id, reason) '
-        'VALUES (@id, @rid, @uid, @reason) '
+        'INSERT INTO review_reports '
+        '(id, review_id, reporter_user_id, reason, reporter_kind) '
+        'VALUES (@id, @rid, @uid, @reason, @kind) '
         'ON CONFLICT (review_id, reporter_user_id) DO NOTHING',
       ),
       parameters: {
@@ -210,6 +212,7 @@ ON CONFLICT (appointment_id) DO UPDATE SET
         'rid': reviewId,
         'uid': reporterUserId,
         'reason': reason,
+        'kind': reporterKind,
       },
     );
   }
@@ -230,12 +233,13 @@ ON CONFLICT (appointment_id) DO UPDATE SET
       Sql.named('''
 SELECT r.id AS review_id, r.provider_id, r.user_name, r.rating, r.text,
   r.moderation_status,
-  rep.report_count, rep.last_reason, rep.last_reported_at
+  rep.report_count, rep.last_reason, rep.last_reported_at, rep.by_salon
 FROM reviews r
 JOIN (
   SELECT review_id, COUNT(*)::int AS report_count,
     (array_agg(reason ORDER BY created_at DESC))[1] AS last_reason,
-    MAX(created_at) AS last_reported_at
+    MAX(created_at) AS last_reported_at,
+    bool_or(reporter_kind = 'salon') AS by_salon
   FROM review_reports WHERE status = 'open'
   GROUP BY review_id
 ) rep ON rep.review_id = r.id
@@ -257,6 +261,8 @@ LIMIT @lim OFFSET @off'''),
           'lastReason': m['last_reason'],
           'lastReportedAt': (m['last_reported_at'] as DateTime)
               .toIso8601String(),
+          // « Signalé par le salon » in the admin queue (B6.6).
+          'reportedBySalon': m['by_salon'] == true,
         };
       }).toList(),
       total: total,

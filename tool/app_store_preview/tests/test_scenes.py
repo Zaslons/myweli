@@ -177,6 +177,23 @@ class Storyboard(unittest.TestCase):
             sb = scenes.load(json.loads((TOOL / name).read_text(encoding="utf-8")), TOOL)
             self.assertEqual(sb["rehearsal"], name != "storyboard-scenes.json", name)
 
+    def test_the_film_is_full_bleed_because_apple_refused_the_framed_one(self):
+        """App Review, 2026-11-03, build 698, guideline 2.3.4: « Includes
+        framing around the video screen capture of the app. » It watched the
+        framed cut (`4d945614…`), the one the owner chose on 2026-10-14. The
+        owner chose the full-bleed cut of the same storyboard and takes the
+        same day (docs/design/app-review-round-2.md §3 decision 2, §8), so
+        this file has to say so: without `--frame`, the tool builds what is in
+        the slots. A storyboard back on « framed » would rebuild the film Apple
+        refused, and call it the film. The frame's own poster goes with it: the
+        bottom band cuts through the framed film's."""
+        import json
+        from tests.support import TOOL
+        doc = json.loads((TOOL / "storyboard-scenes.json").read_text(encoding="utf-8"))
+        sb = scenes.load(doc, TOOL)
+        self.assertEqual(sb["film"]["frame"], "full-bleed")
+        self.assertEqual(scenes.poster_of(sb)["scene"], "S3")
+
 
 class Propose(unittest.TestCase):
     def test_each_scene_is_its_gestures_whole_with_its_rests(self):

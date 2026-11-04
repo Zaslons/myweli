@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:myweli/core/di/dependency_injection.dart';
+import 'package:myweli/core/utils/salon_id.dart';
 import 'package:myweli/models/review.dart';
 import 'package:myweli/models/review_summary.dart';
 import 'package:myweli/providers/pro_auth_provider.dart';
@@ -34,7 +35,7 @@ class _Loaded extends ProReviewsProvider {
 
 Review _five(int i) => Review(
   id: 'r$i',
-  providerId: 'p1',
+  providerId: SalonId('p1'),
   userId: 'u$i',
   userName: 'Awa',
   rating: 5,

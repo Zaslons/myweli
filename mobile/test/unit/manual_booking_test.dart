@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:myweli/core/di/dependency_injection.dart';
+import 'package:myweli/core/utils/salon_id.dart';
 import 'package:myweli/models/api_response.dart';
 import 'package:myweli/models/appointment.dart';
 import 'package:myweli/providers/pro_appointment_provider.dart';
@@ -13,7 +14,7 @@ void main() {
     final a = Appointment(
       id: 'm1',
       userId: 'manual',
-      providerId: 'p1',
+      providerId: SalonId('p1'),
       serviceIds: const ['s1'],
       appointmentDate: DateTime(2026, 7, 1, 10),
       status: AppointmentStatus.confirmed,
@@ -43,7 +44,7 @@ void main() {
     Appointment created() => Appointment(
       id: 'm1',
       userId: 'manual',
-      providerId: 'p1',
+      providerId: SalonId('p1'),
       serviceIds: const ['s1'],
       appointmentDate: DateTime(2026, 7, 1, 10),
       status: AppointmentStatus.confirmed,
@@ -62,6 +63,7 @@ void main() {
           clientPhone: any(named: 'clientPhone'),
           notes: any(named: 'notes'),
           sendSmsInvite: any(named: 'sendSmsInvite'),
+          idempotencyKey: any(named: 'idempotencyKey'),
         ),
       ).thenAnswer((_) async => response);
     }
@@ -71,7 +73,7 @@ void main() {
 
       final p = ProAppointmentProvider();
       final ok = await p.createManualBooking(
-        providerId: 'p1',
+        providerId: SalonId('p1'),
         serviceIds: const ['s1'],
         appointmentDateTime: DateTime(2026, 7, 1, 10),
         clientPhone: '+2250700000012',
@@ -87,7 +89,7 @@ void main() {
 
       final p = ProAppointmentProvider();
       final ok = await p.createManualBooking(
-        providerId: 'p1',
+        providerId: SalonId('p1'),
         serviceIds: const ['s1'],
         appointmentDateTime: DateTime(2026, 7, 1, 10),
       );
@@ -116,7 +118,7 @@ void main() {
     Appointment created() => Appointment(
       id: 'm1',
       userId: 'manual',
-      providerId: 'p1',
+      providerId: SalonId('p1'),
       serviceIds: const ['s1'],
       appointmentDate: at,
       status: AppointmentStatus.confirmed,
@@ -148,18 +150,19 @@ void main() {
           notes: any(named: 'notes'),
           artistId: any(named: 'artistId'),
           sendSmsInvite: any(named: 'sendSmsInvite'),
+          idempotencyKey: any(named: 'idempotencyKey'),
         ),
       ).thenAnswer((_) async => ApiResponse.success(created()));
 
       final p = ProAppointmentProvider();
       await p.loadAppointments(
-        'p1',
+        SalonId('p1'),
         status: status,
         startDate: from,
         endDate: to,
       );
       final ok = await p.createManualBooking(
-        providerId: 'p1',
+        providerId: SalonId('p1'),
         serviceIds: const ['s1'],
         appointmentDateTime: at,
       );
@@ -223,7 +226,7 @@ void main() {
 
         p.resetForSalonSwitch();
         await p.createManualBooking(
-          providerId: 'p1',
+          providerId: SalonId('p1'),
           serviceIds: const ['s1'],
           appointmentDateTime: at,
         );

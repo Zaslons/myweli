@@ -215,8 +215,12 @@ void main() {
         'lib/src/db/postgres_provider_auth_repository.dart',
         // The service: its own method, and the one call to the repository.
         'lib/src/provider_account_service.dart',
-        // The route: calls the SERVICE.
+        // The routes: they call the SERVICE — « Supprimer mon compte », and
+        // the public accept discarding the account it made when the
+        // invitation died in between (docs/design/backend-integrity-batch6.md
+        // §2.2).
         'routes/me/provider/index.dart',
+        'routes/auth/provider/invitations/accept.dart',
       },
       reason:
           'a new caller of deleteAccount( — it must go through '

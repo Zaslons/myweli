@@ -30,6 +30,11 @@ void main() {
       teamErrorMessage('demo_account_locked'),
       'Compte de démonstration — cette action est désactivée.',
     );
+    // B7.5 — the server's 409 on a revoked member's role, said in words.
+    expect(
+      teamErrorMessage('member_revoked'),
+      'Ce membre n’a plus accès au salon.',
+    );
   });
 
   test('offer_required: setup and expired get different sentences', () {

@@ -231,7 +231,9 @@ Sentry creates something close to this by default when a project is made, so
 check before adding a second one; two rules firing on the same condition is how
 alerting starts being ignored.
 
-**Every rule filters `environment` = `prod`.** Without it:
+**Every rule filters its project's production environment** — `prod` for the
+backend, `production` for the web and the app (the names differ; §8.1.1 has
+where each comes from). Without it:
 - the `local-verification` event from `tool/verify_sentry.dart` would have paged
   someone,
 - and **staging will page constantly** the moment it exists — it is the
@@ -240,6 +242,76 @@ alerting starts being ignored.
 
 At today's volume — pre-launch, no users — *new issue* is high signal: any error
 is notable, and there are few enough that reading all of them is realistic.
+
+> **2026-10-28 — what Sentry actually holds**, read through its API. The rule
+> above was never applied to Sentry's default « Send a notification for high
+> priority issues » alerts: the backend's (`757123`) and the web's (`757125`)
+> filter **no** environment. The app's default (`757127`) is turned off (BACKLOG
+> decision 49), replaced by §8.3's three alerts, which filter `production` — the
+> name `tool/release_build.sh` sends, not `prod`.
+
+#### 8.1.1 The backend and the web default alerts filtered, too (2026-10-28)
+
+The owner asked for both defaults to watch production only.
+
+**What each project actually sends.** Read through Sentry's API: the error
+events of the last 90 days, grouped by environment.
+
+| Project | Environments seen | Where the name comes from |
+|---|---|---|
+| `myweli-backend` | `prod` only — 8 events, 2026-10-07 → 10-22 | `ENV` in `infra/gcp/service.yaml`, sent as `Env.name` (`error_reporter.dart`) |
+| `myweli-web` | `production` (15 events, 2026-09-29 → 10-17), **and one with none** | `NEXT_PUBLIC_SENTRY_ENV` per Vercel environment (§9.6), default `development` |
+
+**The backend's alert `757123` now filters `prod`.**
+- Set in « Monitors → Alerts » and read back through the API.
+- Its two triggers, its detector and its e-mail action are unchanged.
+
+**The web needed one more step first: its CSP reports.**
+- The web event without an environment was **a CSP violation report**, which
+  Sentry ranked high priority: `MYWELI-WEB-9`, « Blocked 'script' from
+  'connect.facebook.net' » on `https://myweli.com/`, 2026-10-21.
+- The browser posts these reports itself, to the `report-uri` that
+  `next.config.mjs` derives from the DSN. No Sentry SDK is involved, so no
+  environment is attached.
+- With the alert filtered as it was, it would have silenced the one detector
+  the privacy promise relies on (`tool/check-privacy-promise.spec.ts`: « no
+  report-uri — violations would go nowhere »).
+
+**The decision (owner, 2026-10-28):** filter, and tag the reports.
+- **The tag.** `sentryReportUri` appends `&sentry_environment=<name>`, the
+  parameter Sentry's security endpoint reads.
+- **The name** is the expression the three `sentry.*.config.ts` use:
+  `process.env.NEXT_PUBLIC_SENTRY_ENV ?? 'development'`.
+  - So a report and an SDK event from the same deployment carry the same
+    environment.
+  - A test pins that the four places agree.
+- **The header is built at `next build`.** Merging therefore redeploys the
+  site, and the deployed `Content-Security-Policy-Report-Only` header is what
+  to read back.
+- **Only then is `757125` filtered to `production`.** Filtering first would
+  leave a window in which a production CSP report e-mails no one.
+
+**Done, 2026-10-28.**
+- **#717 merged** as `1a3aae34`.
+- **The deployed header, read on myweli.com** about 4½ minutes later: `/`,
+  `/support` and `/pro/connexion` send `report-uri …&sentry_environment=production`.
+  The control, read before the merge, had no such parameter.
+- **`757125` then set to `production`** at 12:03 UTC, and read back through
+  the API: detector `myweli-web`, triggers and e-mail action unchanged.
+- **So every default alert now filters its project's production name:**
+
+  | Alert | Environment |
+  |---|---|
+  | backend `757123` | `prod` |
+  | web `757125` | `production` |
+  | app's §8.3 alerts | `production` (the app's own default stays off) |
+
+- **Not yet observed:** a real CSP report arriving under `production`.
+  - Sentry documents the parameter on its security endpoint.
+  - Sending a fabricated report to prove it would have opened an issue and
+    e-mailed the owner, so it was not done.
+  - The next real violation is the observation; until then, this line is the
+    documentation's word.
 
 ### 8.2 Not yet — rate and spike thresholds
 
@@ -251,7 +323,29 @@ the null-byte 500 (BACKEND.md §3.4) would have fired one alert **per scanned
 request** before it was fixed. That is the shape of alert fatigue — not a flood
 of different problems, one problem arriving repeatedly.
 
-### 8.3 When mobile ships — the crash-free-rate alert
+### 8.3 When mobile ships — ~~the crash-free-rate alert~~ three issue alerts (B0.7, live 2026-10-28)
+
+**Superseded.** Sessions are off to keep the privacy promise, so a crash-free
+rate has nothing to measure. Instead, on `myweli-app`, environment `production`,
+each e-mailing the owner (created in Sentry's « Monitors → Alerts » screens and
+read back through its API on 2026-10-28):
+
+| Alert | When | If | Throttling |
+|---|---|---|---|
+| `1425724` « App — nouveau problème, dernière version » | a new issue is created | the issue is in the latest release — any level (decision 44: Dart errors arrive as « error », only native crashes as « fatal ») | 5 min |
+| `1425732` « App — plus de 3 utilisateurs en 1 h » | every event | more than 3 users in 1 h; `exception.type` does not contain `App Hang` and does not equal `ApplicationNotResponding` | 60 min |
+| `1425742` « App — blocages, plus de 3 utilisateurs en 1 h » | every event | two blocks: more than 3 users in 1 h **and** `exception.type` contains `App Hang` (build 698's three names); or more than 3 users in 1 h **and** it equals `ApplicationNotResponding` (Android) | 60 min |
+
+- **Why « every event »:** Sentry no longer has a « seen by more than N users »
+  trigger. The user count is a filter, and under « a new issue is created » it
+  would only ever see the first user.
+- **Why two blocks:** one block takes one qualifier (all, any or none), so
+  « more than 3 users **and** (one name **or** the other) » is two blocks.
+- **Proven:** a test notification fired for each block; the e-mails arrived, as
+  reported by the owner. The alerts' own conditions are only proven by a real
+  issue — the first will be the test.
+
+The plan it replaces, kept for the record:
 
 This is the one that matters most, because **[LAUNCH.md](../LAUNCH.md) §1.4's
 staged rollout is watched on it**. Without this alert, "halt the rollout if the
@@ -270,6 +364,7 @@ server has no sessions, and the web SDK is configured for errors only. Their
 ### 8.4 Where alerts go
 
 Email, plus **the Sentry mobile app**, which sends push notifications.
+*(2026-10-28: §8.3's alerts e-mail the owner; the phone push is not set up yet.)*
 
 Chosen because it reaches a phone without building anything: MyWeli's team works
 in WhatsApp, and Sentry has no native WhatsApp integration — bridging it means a
@@ -336,11 +431,20 @@ production — and a deleted check leaves no trace of what it used to assert.
 
 - **Web and the app.** Vercel has its own availability, and an app cannot be
   probed. Uptime here means the API.
-- **Certificate expiry.** The managed cert renews automatically, but nothing
-  watches that it did.
-- **Latency.** These checks answer "does it answer", not "does it answer in
-  time". A budget for that belongs with performance monitoring, which is
-  deliberately off (§9.3).
+- ~~**Certificate expiry.**~~ **Covered since B9.4**
+  (`infra/gcp/81-uptime-tls-latency.sh`): both checks validate the certificate
+  (`--validate-ssl=true`), and an alert fires when the certificate has less
+  than 14 days left. Before, a check passed against an expired certificate,
+  and nothing alerted on the days left — the metric itself was recorded all
+  along (990 points in the hour before the switch, read from the Monitoring API on 2026-10-25; a first draft of this line said otherwise).
+  **Applied 2026-10-25**: both checks validate, and with validation on they
+  still pass (53/0 and 60/0 in the first eight minutes); the certificate,
+  Google Trust Services via Cloudflare, ends 2027-01-23 (89.4 days).
+- ~~**Latency.**~~ **Covered since B9.4**, coarsely: the mean probe latency
+  across regions above 3 s for 15 minutes alerts, per check. A real latency
+  budget still belongs with performance monitoring, which stays off (§9.3,
+  decision 34).
+- **Error-rate thresholds** — still not (§8.2): no traffic, no baseline.
 
 ## 9. What is NOT wired yet — the account-side step
 
@@ -420,9 +524,14 @@ uniform across the three:
 Mobile's release is deliberately the version + build, because that is what maps a
 crash-free rate to a specific TestFlight or Play build — the number §1.4's staged
 rollout is watched on. It is the right identifier; it simply is not a commit, so
-suspect commits there needs a release-to-commit association wired separately
-(`sentry-cli releases set-commits`, in a release workflow). Not worth doing until
-mobile is actually distributed.
+suspect commits there needs a release-to-commit association wired separately.
+**Since B9.4, `tool/release_build.sh` prints it** for each store build — the
+app's release (`com.myweli.<app>@<version>+<build>`) and the commit it was
+built from, which is always `origin/main` now (B9.2):
+`sentry-cli releases set-commits "<release>" --commit "Zaslons/myweli@<sha>"`.
+Printed, not run, like the symbols upload: it needs the Sentry token. It also
+needs Sentry's GitHub integration to know `Zaslons/myweli` — a console fact
+this repository cannot see (BACKLOG batch 10).
 
 **Do not block on any of this.** Errors flow without the integration; it is an
 enhancement, and a fiddly one can wait until events are arriving.
@@ -474,7 +583,7 @@ Android build, with real values — no placeholders.
 1. **Where do alerts go?** Email is the default and is easy to ignore. WhatsApp
    is where this team already works, but Sentry has no native WhatsApp
    integration — it would need a webhook.
-2. **Do we want performance monitoring?** `tracesSampleRate: 0` for now.
+2. **Do we want performance monitoring?** `tracesSampleRate: 0` for now. **Since 2026-11-02 the code is also out of the bundle** (`webpack.treeshake.removeTracing` in `next.config.mjs`, 45 KB on every page, WEB.md §7), so turning it on takes both changes: a sample rate alone would silently do nothing. `tests/sentry-bundle.test.ts` holds the two together.
    Revisit once error volume is understood; it is the main cost driver.
 3. **Self-host later?** Not now. Recorded because the portability argument in §2
    is only real if it is occasionally checked.

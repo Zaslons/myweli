@@ -5,6 +5,7 @@ import 'package:myweli/core/access/pro_salon_scope.dart';
 import 'package:myweli/core/di/dependency_injection.dart';
 import 'package:myweli/core/push/push_registration.dart';
 import 'package:myweli/core/router/pro_router.dart';
+import 'package:myweli/core/utils/salon_id.dart';
 import 'package:myweli/models/api_response.dart';
 import 'package:myweli/models/team_invitation.dart';
 import 'package:myweli/models/team_member.dart';
@@ -593,9 +594,6 @@ void main() {
 /// The invitations the gate check asks for — the mock's own answer unless a
 /// test scripts another, counted.
 class _ScriptedTeam extends MockProTeamService {
-  // Most tests here re-invite once; the daily cap is not what they test.
-  _ScriptedTeam() : super(maxInvitesPerDay: 1000);
-
   int listCalls = 0;
   ApiResponse<List<TeamInvitation>>? answer;
   bool throws = false;
@@ -637,7 +635,7 @@ class _ScriptedPro extends MockProService {
   }
 
   @override
-  Future<ApiResponse<MyProviderInfo>> getMyProvider({String? salonId}) async {
+  Future<ApiResponse<MyProviderInfo>> getMyProvider({SalonId? salonId}) async {
     calls++;
     final meanwhile = during;
     during = null;

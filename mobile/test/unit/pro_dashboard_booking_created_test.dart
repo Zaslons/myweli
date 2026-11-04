@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:myweli/core/access/pro_access_guard.dart';
 import 'package:myweli/core/di/dependency_injection.dart';
+import 'package:myweli/core/utils/salon_id.dart';
 import 'package:myweli/models/api_response.dart';
 import 'package:myweli/models/appointment.dart';
 import 'package:myweli/providers/pro_dashboard_provider.dart';
@@ -25,7 +26,7 @@ class _Service extends MockProService {
 
   @override
   Future<ApiResponse<DashboardStats>> getDashboardStats(
-    String providerId,
+    SalonId providerId,
   ) async {
     calls++;
     // Decided on arrival, like a server.
@@ -62,40 +63,44 @@ void main() {
       ..gate = null;
   });
 
-  Appointment booking({String providerId = 'p1'}) => Appointment(
-    id: 'm1',
-    userId: 'manual',
-    providerId: providerId,
-    serviceIds: const ['s1'],
-    appointmentDate: DateTime.utc(2026, 7, 13, 10),
-    status: AppointmentStatus.confirmed,
-    totalPrice: 5000,
-    createdAt: DateTime.utc(2026, 7, 1),
-  );
+  Appointment booking({SalonId providerId = const SalonId('p1')}) =>
+      Appointment(
+        id: 'm1',
+        userId: 'manual',
+        providerId: providerId,
+        serviceIds: const ['s1'],
+        appointmentDate: DateTime.utc(2026, 7, 13, 10),
+        status: AppointmentStatus.confirmed,
+        totalPrice: 5000,
+        createdAt: DateTime.utc(2026, 7, 1),
+      );
 
   Future<ProDashboardProvider> loaded() async {
     final p = ProDashboardProvider();
     addTearDown(p.dispose);
-    await p.loadDashboardStats('p1');
+    await p.loadDashboardStats(SalonId('p1'));
     expect(p.stats!.todayAppointments, 2);
     return p;
   }
 
-  test('KNOWN DEFECT, recorded and not endorsed (spec §1.2 « Left », §11.2): '
-      'the figures are fetched once per salon, so a second load — the '
-      'pull-to-refresh — asks for nothing', () async {
-    // Not this slice's doing, and not fixed by it: recorded because §2.5's
-    // « the next pull-to-refresh asks again » only holds when the figures are
-    // known to be stale (below). The day « Accueil »'s pull-to-refresh is
-    // repaired, THIS case goes red — and so does the last step of « the quiet
-    // refetch fails », which reads « no longer stale » off the same cache.
-    // That red is the repair, not a regression: rewrite both then.
-    final p = await loaded();
-    service.today = 3;
-    await p.loadDashboardStats('p1');
-    expect(service.calls, 1);
-    expect(p.stats!.todayAppointments, 2);
-  });
+  test(
+    'the KNOWN DEFECT this case used to pin is repaired '
+    '(docs/design/app-pro-home-journal-fresh.md §2.2): entering « Accueil » '
+    'again uses what is loaded, and the pull — `refresh` — asks the server',
+    () async {
+      // It recorded « the pull-to-refresh asks for nothing » and said it would
+      // go red the day the pull was repaired, to be rewritten then. This is the
+      // rewrite: the pull is `refresh`, and it always asks.
+      final p = await loaded();
+      service.today = 3;
+      await p.loadDashboardStats(SalonId('p1'));
+      expect(service.calls, 1);
+      expect(p.stats!.todayAppointments, 2);
+      await p.refresh(SalonId('p1'));
+      expect(service.calls, 2);
+      expect(p.stats!.todayAppointments, 3);
+    },
+  );
 
   test('a booking is created: the figures are asked for again and replaced, '
       'with no loader', () async {
@@ -143,7 +148,7 @@ void main() {
       expect(p.isLoading, isFalse);
 
       // Still failing: the pull changes nothing and says nothing.
-      await p.loadDashboardStats('p1');
+      await p.loadDashboardStats(SalonId('p1'));
       expect(service.calls, 3);
       expect(p.stats!.todayAppointments, 2);
       expect(p.error, isNull);
@@ -151,13 +156,13 @@ void main() {
       // Back online.
       service.failure = null;
       service.today = 3;
-      await p.loadDashboardStats('p1');
+      await p.loadDashboardStats(SalonId('p1'));
       expect(service.calls, 4);
       expect(p.stats!.todayAppointments, 3);
 
-      // Confirmed by the server: no longer stale. The only way to read that
-      // is the cache this slice did not write — see the KNOWN DEFECT case.
-      await p.loadDashboardStats('p1');
+      // Confirmed by the server: no longer stale — entering « Accueil »
+      // again does not ask (only the pull does, app-pro-home-journal-fresh.md).
+      await p.loadDashboardStats(SalonId('p1'));
       expect(service.calls, 4);
       expect(loadingSeen, everyElement(isFalse));
     });
@@ -191,7 +196,7 @@ void main() {
     final p = ProDashboardProvider();
     addTearDown(p.dispose);
     service.failure = 'error';
-    await p.loadDashboardStats('p1');
+    await p.loadDashboardStats(SalonId('p1'));
     expect(p.stats, isNull);
     expect(p.error, isNotNull);
     expect(service.calls, 1);
@@ -207,7 +212,7 @@ void main() {
 
   test('another salon’s booking is ignored', () async {
     final p = await loaded();
-    p.bookingCreated(booking(providerId: 'p2'));
+    p.bookingCreated(booking(providerId: SalonId('p2')));
     await pumpEventQueue();
     expect(service.calls, 1);
   });
@@ -228,7 +233,7 @@ void main() {
       final p = ProDashboardProvider();
       addTearDown(p.dispose);
       service.gate = Completer<void>();
-      final load = p.loadDashboardStats('p1'); // decided: 2
+      final load = p.loadDashboardStats(SalonId('p1')); // decided: 2
       await pumpEventQueue();
       expect(p.isLoading, isTrue);
 
@@ -272,7 +277,7 @@ void main() {
     addTearDown(p.dispose);
     service.gate = Completer<void>();
     service.failure = 'error';
-    final load = p.loadDashboardStats('p1'); // decided: a failure
+    final load = p.loadDashboardStats(SalonId('p1')); // decided: a failure
     await pumpEventQueue();
     p.bookingCreated(booking()); // remembered: the load may predate it
     service.gate!.complete();
@@ -284,7 +289,7 @@ void main() {
 
     service.failure = null;
     service.today = 3;
-    await p.loadDashboardStats('p1'); // « Accueil » reopened
+    await p.loadDashboardStats(SalonId('p1')); // « Accueil » reopened
     await pumpEventQueue();
     expect(p.stats!.todayAppointments, 3);
     expect(service.calls, 2, reason: 'one request, not one and its double');
@@ -301,7 +306,7 @@ void main() {
 
     service.today = 9;
     service.gate = null;
-    await p.loadDashboardStats('p2'); // decided: 9, answered at once
+    await p.loadDashboardStats(SalonId('p2')); // decided: 9, answered at once
     expect(p.stats!.todayAppointments, 9);
 
     held.complete(); // p1's answer lands last

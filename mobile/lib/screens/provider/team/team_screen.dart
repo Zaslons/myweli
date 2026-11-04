@@ -12,11 +12,13 @@ import '../../../providers/pro_artist_provider.dart';
 import '../../../providers/pro_auth_provider.dart';
 import '../../../providers/pro_subscription_provider.dart';
 import '../../../providers/pro_team_provider.dart';
+import '../../../widgets/common/app_async_view.dart';
+import '../../../widgets/common/app_card.dart';
+import '../../../widgets/common/app_skeleton.dart';
 import '../../../widgets/common/app_snack_bar.dart';
 import '../../../widgets/common/brand_refresh.dart';
 import '../../../widgets/common/confirm_dialog.dart';
 import '../../../widgets/common/empty_state.dart';
-import '../../../widgets/common/loading_indicator.dart';
 import '../../../widgets/team/team_role_chip.dart';
 import 'invite_member_sheet.dart';
 
@@ -115,7 +117,9 @@ class _TeamScreenState extends State<TeamScreen> {
       (_) => _maybeLoadSubscription(),
     );
     return Scaffold(
-      backgroundColor: AppColors.surface,
+      // Cards are `secondary` on `background` (SYSTEM §3.1): the step that
+      // lifts them, now they have no shadow (B9.8 F2).
+      backgroundColor: AppColors.background,
       appBar: AppBar(title: const Text('Équipe')),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _openInviteSheet,
@@ -128,23 +132,17 @@ class _TeamScreenState extends State<TeamScreen> {
     );
   }
 
-  Widget _body(ProTeamProvider team) {
-    if (team.isLoading && team.members.isEmpty) {
-      return const LoadingIndicator();
-    }
-    if (team.error != null && team.members.isEmpty) {
-      return EmptyState(
-        icon: Icons.wifi_off,
-        title: 'Une erreur est survenue',
-        description: team.error,
-        actionText: 'Réessayer',
-        onAction: _loadAll,
-      );
-    }
+  Widget _body(ProTeamProvider team) => AppAsyncView<List<TeamMember>>(
+    isLoading: team.isLoading,
+    error: team.error,
+    data: team.members,
     // "Empty" = the owner alone (their own row always exists).
-    if (team.members.length <= 1) {
-      return ListView(
-        padding: const EdgeInsets.all(AppTheme.spacingM),
+    isEmpty: (d) => d.length <= 1,
+    loading: const SkeletonCardList(lead: SkeletonLead.avatar),
+    // A column, not a list: the pull around it is the scroll view.
+    empty: Padding(
+      padding: const EdgeInsets.all(AppTheme.spacingM),
+      child: Column(
         children: [
           const _SeatsHeader(),
           const SizedBox(height: AppTheme.spacingXL),
@@ -158,9 +156,14 @@ class _TeamScreenState extends State<TeamScreen> {
             onAction: _openInviteSheet,
           ),
         ],
-      );
-    }
+      ),
+    ),
+    onRetry: _loadAll,
+    onRefresh: () async => _loadAll(),
+    builder: (context, members) => _members(members),
+  );
 
+  Widget _members(List<TeamMember> members) {
     return BrandRefresh(
       onRefresh: () async => _loadAll(),
       child: ListView.separated(
@@ -168,16 +171,21 @@ class _TeamScreenState extends State<TeamScreen> {
           AppTheme.spacingM,
           AppTheme.spacingM,
           AppTheme.spacingM,
-          96, // clear the FAB
+          AppTheme.fabClearance,
         ),
-        itemCount: team.members.length + 1,
+        itemCount: members.length + 1,
         separatorBuilder: (_, _) => const SizedBox(height: AppTheme.spacingS),
         itemBuilder: (context, index) {
           if (index == 0) return const _SeatsHeader();
-          final member = team.members[index - 1];
+          final member = members[index - 1];
           return _MemberRow(
             member: member,
-            onTap: member.isOwner ? null : () => _openActionsSheet(member),
+            // The owner and a revoked member are inert, as on the web: a
+            // revoked member's only action would be « Changer le rôle »,
+            // which the server refuses (409 member_revoked — B7.5).
+            onTap: member.isOwner || member.status == TeamMemberStatus.revoked
+                ? null
+                : () => _openActionsSheet(member),
           );
         },
       ),
@@ -195,13 +203,7 @@ class _SeatsHeader extends StatelessWidget {
     final seats = subs.salon?.seats;
     if (seats == null) return const SizedBox.shrink();
     final ratio = seats.cap == 0 ? 0.0 : seats.used / seats.cap;
-    return Container(
-      padding: const EdgeInsets.all(AppTheme.spacingM),
-      decoration: BoxDecoration(
-        color: AppColors.secondary,
-        borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
-        border: Border.all(color: AppColors.border),
-      ),
+    return AppCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -236,8 +238,8 @@ class _MemberRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final initial = member.email.isEmpty ? '?' : member.email[0].toUpperCase();
-    return Card(
-      margin: EdgeInsets.zero,
+    return AppCard(
+      padding: EdgeInsets.zero,
       child: ListTile(
         onTap: onTap,
         leading: CircleAvatar(

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
+import '../../../core/constants/failure_messages.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/colors.dart';
 import '../../../core/theme/text_styles.dart';
@@ -10,14 +10,17 @@ import '../../../models/pro_membership.dart';
 import '../../../models/salon_subscription.dart';
 import '../../../providers/pro_auth_provider.dart';
 import '../../../providers/pro_subscription_provider.dart';
+import '../../../widgets/common/app_async_view.dart';
+import '../../../widgets/common/app_card.dart';
+import '../../../widgets/common/app_skeleton.dart';
 import '../../../widgets/common/empty_state.dart';
-import '../../../widgets/common/loading_indicator.dart';
 
 /// « Mon abonnement » — the salon's CURRENT offer, read-only: its status
 /// (trial / paid / grace / expired), its dates and its seats. Nothing else.
 ///
-/// **The Pro app never sells** (App Store 3.1.3(f), « free stand-alone
-/// companion app to a paid web based tool »): no plan choice, no other tier,
+/// **The Pro app never sells** (App Store 3.1.1; the companion path,
+/// docs/design/pro-companion-path.md §1, which says why 3.1.3(f) is no longer
+/// cited to Apple): no plan choice, no other tier,
 /// no price, no trial promotion, no entitlement list, and no pointer — web,
 /// support, e-mail — to where an offer is obtained. This screen used to be the
 /// offer picker; choosing now happens on the web, and the app never says so.
@@ -61,7 +64,9 @@ class _ProSubscriptionScreenState extends State<ProSubscriptionScreen> {
     final providerId = auth.activeSalonId;
     WidgetsBinding.instance.addPostFrameCallback((_) => _maybeLoad());
     return Scaffold(
-      backgroundColor: AppColors.surface,
+      // Cards are `secondary` on `background` (SYSTEM §3.1): the step that
+      // lifts them, now they have no shadow (B9.8 F2).
+      backgroundColor: AppColors.background,
       appBar: AppBar(title: const Text('Mon abonnement')),
       body: providerId == null || !auth.can(ProCap.subscriptionManage)
           ? const EmptyState(
@@ -70,36 +75,35 @@ class _ProSubscriptionScreenState extends State<ProSubscriptionScreen> {
               description: 'L’offre du salon est gérée par son propriétaire.',
             )
           : Consumer<ProSubscriptionProvider>(
-              builder: (context, provider, _) {
-                if (provider.isLoading) return const LoadingIndicator();
-
-                if (provider.loadFailed) {
-                  return EmptyState(
-                    icon: Icons.wifi_off,
-                    title: 'Une erreur est survenue',
-                    description: provider.error,
-                    actionText: 'Réessayer',
-                    onAction: () => provider.load(providerId),
-                  );
-                }
-
-                // SETUP (no offer row — GET 404): a fact and when it changes,
-                // nothing else. The trial starts when the salon goes live.
-                if (provider.isSetup) {
-                  return const EmptyState(
-                    icon: Icons.workspace_premium_outlined,
-                    title: 'Pas encore d’offre active',
-                    description:
-                        'Votre offre démarre à la mise en ligne de votre '
-                        'salon.',
-                  );
-                }
-
-                final salon = provider.salon;
-                // The first frame, before the post-frame load has started.
-                if (salon == null) return const LoadingIndicator();
-                return _Body(salon: salon);
-              },
+              builder: (context, provider, _) =>
+                  AppAsyncView<({SalonSubscription? offer})>(
+                    isLoading: provider.isLoading,
+                    error: provider.loadFailed
+                        ? provider.error ?? kGenericErrorMessage
+                        : null,
+                    // Null until the read answers — the first frame, before
+                    // the post-frame load has started. SETUP answers too:
+                    // with no offer.
+                    data: provider.isSetup
+                        ? (offer: null)
+                        : provider.salon == null
+                        ? null
+                        : (offer: provider.salon),
+                    isEmpty: (d) => d.offer == null,
+                    loading: const SkeletonDetail(sections: 3),
+                    // SETUP (no offer row — GET 404): a fact and when it
+                    // changes, nothing else. The trial starts when the salon
+                    // goes live.
+                    empty: const EmptyState(
+                      icon: Icons.workspace_premium_outlined,
+                      title: 'Pas encore d’offre active',
+                      description:
+                          'Votre offre démarre à la mise en ligne de votre '
+                          'salon.',
+                    ),
+                    onRetry: () => provider.load(providerId),
+                    builder: (context, d) => _Body(salon: d.offer!),
+                  ),
             ),
     );
   }
@@ -119,24 +123,6 @@ class _Body extends StatelessWidget {
         const SizedBox(height: AppTheme.spacingM),
         _SeatsBar(seats: salon.seats),
         const SizedBox(height: AppTheme.spacingM),
-        // R6 multi-salons: a LIVE Réseau offer opens « Ajouter un salon ».
-        // It states what the account can do with the offer it HAS — not
-        // another offer, a trial or a price.
-        if (salon.tier == SalonTier.reseau && salon.isLive) ...[
-          Card(
-            child: ListTile(
-              leading: const Icon(
-                Icons.add_business_outlined,
-                color: AppColors.textPrimary,
-              ),
-              title: const Text('Ajouter un salon'),
-              subtitle: const Text('Un salon de plus dans votre compte.'),
-              trailing: const Icon(Icons.chevron_right),
-              onTap: () => context.push('/pro/salons/nouveau'),
-            ),
-          ),
-          const SizedBox(height: AppTheme.spacingM),
-        ],
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -258,13 +244,7 @@ class _SeatsBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final ratio = seats.cap == 0 ? 0.0 : seats.used / seats.cap;
-    return Container(
-      padding: const EdgeInsets.all(AppTheme.spacingM),
-      decoration: BoxDecoration(
-        color: AppColors.secondary,
-        borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
-        border: Border.all(color: AppColors.border),
-      ),
+    return AppCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/constants/failure_messages.dart';
+import '../../core/constants/unnamed_salon.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/colors.dart';
 import '../../core/theme/text_styles.dart';
@@ -15,11 +17,11 @@ import '../common/timed_cached_image.dart';
 /// team-access-r6-multi-salons.md §6): the salon switcher bottom sheet.
 /// Lists every membership (owned first) with the caller's role there and
 /// the salon state; tapping switches the acting salon (per-salon state is
-/// reset by [ProAuthProvider.switchSalon]). « Ajouter un salon » appears
-/// when the server says the account may (live Réseau offer).
+/// reset by [ProAuthProvider.switchSalon]). It lists and switches; it does
+/// not add a salon — that is the web's (App Store 3.1.1,
+/// docs/design/pro-app-login-only.md).
 ///
-/// Returns the switched-to salon id, `'add'` when the add flow was chosen,
-/// or null (dismissed / switch refused).
+/// Returns the switched-to salon id, or null (dismissed / switch refused).
 Future<String?> showSalonPicker(BuildContext context) {
   // Refresh in place — the sheet opens on cached data instantly.
   context.read<ProAuthProvider>().loadMySalons();
@@ -130,21 +132,6 @@ class _SalonPickerSheetState extends State<_SalonPickerSheet> {
                           onFailed: (msg) => setState(() => _error = msg),
                         ),
                       ),
-                      if (auth.canAddSalon) ...[
-                        const Divider(height: 1),
-                        ListTile(
-                          leading: const Icon(
-                            Icons.add_business_outlined,
-                            color: AppColors.textPrimary,
-                          ),
-                          title: const Text('Ajouter un salon'),
-                          subtitle: const Text(
-                            'Offre Réseau — un salon de plus dans votre compte',
-                            style: AppTextStyles.bodySmall,
-                          ),
-                          onTap: () => Navigator.of(context).pop('add'),
-                        ),
-                      ],
                     ],
                   ),
                 ),
@@ -199,9 +186,10 @@ class _SalonTile extends StatelessWidget {
                   ? AppColors.secondary
                   : AppColors.textPrimary,
               child: Text(
-                salon.salonName.isEmpty
-                    ? '?'
-                    : salon.salonName.characters.first.toUpperCase(),
+                salonNameOr(
+                  salon.salonName,
+                  kUnnamedSalon,
+                ).characters.first.toUpperCase(),
                 style: AppTextStyles.titleSmall.copyWith(
                   color: isActive ? AppColors.secondary : AppColors.textPrimary,
                 ),
@@ -211,7 +199,7 @@ class _SalonTile extends StatelessWidget {
         children: [
           Flexible(
             child: Text(
-              salon.salonName,
+              salonNameOr(salon.salonName, kUnnamedSalon),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
@@ -249,7 +237,7 @@ class _SalonTile extends StatelessWidget {
           // refusal keeps its sentence (web-pro-no-connection-copy.md §5).
           onFailed(
             outcome == SalonSwitchOutcome.offline
-                ? 'Pas de connexion. Réessayez.'
+                ? kNoConnectionMessage
                 : 'Changement impossible — votre accès à ce salon a '
                       'peut-être été retiré.',
           );

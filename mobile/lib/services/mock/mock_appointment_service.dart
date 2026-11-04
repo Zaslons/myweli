@@ -6,6 +6,7 @@ import 'package:uuid/uuid.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/utils/app_clock.dart';
 import '../../core/utils/breaks.dart';
+import '../../core/utils/salon_id.dart';
 import '../../core/utils/salon_time.dart';
 import '../../core/utils/staff_hours.dart';
 import '../../models/api_response.dart';
@@ -58,14 +59,17 @@ class MockAppointmentService implements AppointmentServiceInterface {
 
   @override
   Future<ApiResponse<Appointment>> bookAppointment({
-    required String providerId,
+    required SalonId providerId,
     required List<String> serviceIds,
     required DateTime appointmentDateTime,
     String? artistId,
     String? notes,
     double depositAmount = 0,
     String? depositScreenshotUrl,
+    String? idempotencyKey,
   }) async {
+    // The mock never loses an answer, so it never sees a retry under the
+    // same key: the key is accepted and has nothing to do here.
     await Future.delayed(AppConstants.mockDelay);
 
     // Find provider to get service prices
@@ -129,7 +133,7 @@ class MockAppointmentService implements AppointmentServiceInterface {
   }
 
   String? _pickArtistIdForBooking({
-    required String providerId,
+    required SalonId providerId,
     required List<String> serviceIds,
     required DateTime appointmentDateTime,
   }) {
@@ -343,7 +347,7 @@ class MockAppointmentService implements AppointmentServiceInterface {
 
   @override
   Future<ApiResponse<List<DateTime>>> getAvailableTimeSlots({
-    required String providerId,
+    required SalonId providerId,
     required DateTime date,
     List<String>? serviceIds,
     String? artistId,
@@ -606,7 +610,7 @@ class MockAppointmentService implements AppointmentServiceInterface {
   }
 
   int _durationMinutesFor({
-    required String providerId,
+    required SalonId providerId,
     required List<String> serviceIds,
   }) {
     final provider = MockData.providers.firstWhere(

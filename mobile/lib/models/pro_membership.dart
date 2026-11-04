@@ -1,5 +1,7 @@
 import 'package:equatable/equatable.dart';
 
+import '../core/utils/salon_id.dart';
+
 import 'team_member.dart';
 
 /// App-side capability names — MIRROR of the backend's
@@ -77,7 +79,7 @@ class ProMembership extends Equatable {
   final String? artistId;
   final String? artistName;
 
-  final String salonId;
+  final SalonId salonId;
   final String salonName;
 
   bool can(String capability) => capabilities.contains(capability);
@@ -94,7 +96,7 @@ class ProMembership extends Equatable {
         .toSet(),
     artistId: json['artistId'] as String?,
     artistName: json['artistName'] as String?,
-    salonId: json['salonId'] as String? ?? '',
+    salonId: SalonId(json['salonId'] as String? ?? ''),
     salonName: json['salonName'] as String? ?? '',
   );
 

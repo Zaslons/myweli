@@ -112,7 +112,11 @@ abstract interface class MembershipRepository {
 
   /// Idempotently ensure the salon's OWNER row for [accountId]/[email]
   /// (registration + provisioning self-heal + the 0027 backfill's runtime
-  /// mirror).
+  /// mirror). Refuses by default (a [StateError], nothing written) when the
+  /// salon already holds any OTHER row for this address or this account — an
+  /// invitation, a revoked or an active member of another role: never
+  /// re-pointed, never promoted (docs/design/backend-integrity-batch6.md
+  /// §2.8, B6.8a). Both twins answer alike.
   Future<Member> ensureOwner({
     required String providerId,
     required String accountId,
@@ -242,6 +246,17 @@ class InMemoryMembershipRepository implements MembershipRepository {
     final existing = await activeMember(accountId, providerId);
     if (existing != null && existing.role == MemberRoleNames.owner) {
       return existing;
+    }
+    final key = email.toLowerCase();
+    if (_rows.any(
+      (m) =>
+          m.providerId == providerId &&
+          (m.email == key || m.accountId == accountId),
+    )) {
+      throw StateError(
+        'ensureOwner refused: salon $providerId already holds a row for '
+        'this address or account',
+      );
     }
     final now = DateTime.now().toUtc();
     final member = Member(

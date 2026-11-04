@@ -229,12 +229,13 @@ describe('AcompteClient — the fallback is what was loaded or SAVED, nothing el
 });
 
 describe('AcompteClient — a save with no network', () => {
-  it('says it failed and gives « Enregistrer » back — never a button disabled for ever', async () => {
+  it('says « Pas de connexion » and gives « Enregistrer » back — never a button disabled for ever', async () => {
     mockFetch({ put: ['throw'] });
     render(<AcompteClient />);
     fireEvent.click(await screen.findByRole('button', { name: 'Enregistrer' }));
+    // No answer is said as such (docs/design/app-failure-messages.md §2.2).
     expect(await screen.findByRole('alert')).toHaveTextContent(
-      'L’enregistrement a échoué. Réessayez.',
+      'Pas de connexion. Réessayez.',
     );
     const save = screen.getByRole('button', { name: 'Enregistrer' });
     expect(save).toBeEnabled();
@@ -253,7 +254,7 @@ describe('AcompteClient — a save with no network', () => {
 
     fireEvent.click(save); // the network drops
     expect(await screen.findByRole('alert')).toHaveTextContent(
-      'L’enregistrement a échoué. Réessayez.',
+      'Pas de connexion. Réessayez.',
     );
     expect(screen.queryByText('Acompte enregistré.')).toBeNull();
   });

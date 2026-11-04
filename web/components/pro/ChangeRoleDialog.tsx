@@ -105,7 +105,7 @@ export function ChangeRoleDialog({
                 setRole(r);
                 setError(undefined);
               }}
-              className={`rounded-lg border px-m py-s text-left ${
+              className={`rounded-control border px-m py-s text-left ${
                 role === r
                   ? 'border-primary bg-surfaceVariant'
                   : 'border-border bg-surface'
@@ -141,7 +141,7 @@ export function ChangeRoleDialog({
                   value={newFicheName}
                   onChange={(e) => setNewFicheName(e.target.value)}
                   placeholder="Nom de l’employé"
-                  className="min-h-12 flex-1 rounded-lg border border-borderStrong bg-surface p-m text-bodyLarge text-textPrimary focus:border-borderFocus focus:ring-1 focus:ring-borderFocus"
+                  className="min-h-12 flex-1 rounded-control border border-primary bg-surface p-m text-bodyLarge text-textPrimary focus:border-borderFocus focus:ring-1 focus:ring-borderFocus"
                 />
                 <Button
                   onClick={createFiche}
@@ -156,7 +156,7 @@ export function ChangeRoleDialog({
                   id="changerole-fiche"
                   value={artistId}
                   onChange={(e) => setArtistId(e.target.value)}
-                  className="min-h-12 flex-1 rounded-lg border border-borderStrong bg-surface p-m text-bodyLarge text-textPrimary"
+                  className="min-h-12 flex-1 rounded-control border border-primary bg-surface p-m text-bodyLarge text-textPrimary"
                 >
                   <option value="">Choisir une fiche…</option>
                   {artists.map((a) => (

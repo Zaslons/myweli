@@ -9,8 +9,10 @@ import '../../core/theme/colors.dart';
 import '../../core/theme/motion.dart';
 import '../../core/theme/text_styles.dart';
 import '../../core/utils/app_clock.dart';
+import '../../core/utils/external_link.dart';
 import '../../core/utils/formatters.dart';
 import '../../core/utils/helpers.dart';
+import '../../core/utils/salon_id.dart';
 import '../../models/appointment.dart';
 import '../../models/availability.dart';
 import '../../models/provider.dart' as models;
@@ -20,10 +22,11 @@ import '../../providers/auth_provider.dart';
 import '../../providers/favorites_provider.dart';
 import '../../providers/provider_provider.dart';
 import '../../widgets/booking/compact_appointment_tile.dart';
+import '../../widgets/common/app_card.dart';
 import '../../widgets/common/app_rating.dart';
+import '../../widgets/common/app_skeleton.dart';
 import '../../widgets/common/app_snack_bar.dart';
 import '../../widgets/common/confirm_dialog.dart';
-import '../../widgets/common/loading_indicator.dart';
 import '../../widgets/common/salon_unavailable_view.dart';
 import '../../widgets/common/section_heading.dart';
 import '../../widgets/common/timed_cached_image.dart';
@@ -39,7 +42,7 @@ import '../../widgets/review/submit_review_sheet.dart';
 /// (`imageUrls[0]`): see docs/design/salon-cover-photo.md. Its « Contact »
 /// card opens on a map of the salon: docs/design/salon-location-map.md.
 class ProviderDetailScreen extends StatefulWidget {
-  final String providerId;
+  final SalonId providerId;
 
   /// Owner preview (docs/design/pro-salon-lifecycle.md B5): renders the
   /// LOGGED-OUT client view of the salon — no consumer session providers are
@@ -450,7 +453,8 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
           // has no copy yet — the loader; its own read failed — §12.
           final p = _salonOf(provider);
           if (p == null && (provider.isLoading || !_slotIsMine(provider))) {
-            return const LoadingIndicator();
+            // No AppBar on this branch: the page's header is a sliver.
+            return const SafeArea(child: SkeletonDetail(block: true));
           }
           if (p == null) {
             // §12, shared with the booking hub and the confirmation screen.
@@ -460,6 +464,7 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
             // way out now leads somewhere.
             return SalonUnavailableView(
               errorCode: provider.errorCode,
+              message: provider.error,
               onRetry: () => provider.loadProviderById(widget.providerId),
             );
           }
@@ -783,14 +788,7 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
                                 minHeight: 48,
                               ), // §13.2 touch target
                               child: InkWell(
-                                onTap: () async {
-                                  final uri = Uri.parse(
-                                    'tel:${p.phoneNumber.replaceAll(RegExp(r'\s'), '')}',
-                                  );
-                                  if (await canLaunchUrl(uri)) {
-                                    await launchUrl(uri);
-                                  }
-                                },
+                                onTap: () => callPhone(context, p.phoneNumber),
                                 borderRadius: BorderRadius.circular(
                                   AppTheme.radiusLarge,
                                 ),
@@ -1218,14 +1216,7 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
                   : Builder(
                       builder: (context) {
                         final call = OutlinedButton.icon(
-                          onPressed: () async {
-                            final uri = Uri.parse(
-                              'tel:${p.phoneNumber.replaceAll(RegExp(r'\s'), '')}',
-                            );
-                            if (await canLaunchUrl(uri)) {
-                              await launchUrl(uri);
-                            }
-                          },
+                          onPressed: () => callPhone(context, p.phoneNumber),
                           icon: const Icon(
                             Icons.phone_outlined,
                             size: AppTheme.iconS,
@@ -1568,32 +1559,28 @@ class _SectionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      margin: const EdgeInsets.only(top: AppTheme.spacingM),
-      decoration: BoxDecoration(
-        color: AppColors.secondary,
-        borderRadius: BorderRadius.circular(AppTheme.radiusXL),
-        boxShadow: AppTheme.elevation1,
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(AppTheme.spacingM),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // A11 C5: this was the third copy of the heading row, and the one
-            // outside every gate — `Spacer` instead of `spaceBetween`, and no
-            // `Expanded` on the title, so « Vos rendez-vous ici » + « Voir tout »
-            // overflowed by 112–142dp at 200% text and nothing measured it.
-            SectionHeading(
-              title: title,
-              style: AppTextStyles.titleMedium,
-              action: trailing,
-              onTap: onHeaderTap,
-            ),
-            const SizedBox(height: AppTheme.spacingS),
-            child,
-          ],
+    return Padding(
+      padding: const EdgeInsets.only(top: AppTheme.spacingM),
+      child: SizedBox(
+        width: double.infinity,
+        child: AppCard(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // A11 C5: this was the third copy of the heading row, and the one
+              // outside every gate — `Spacer` instead of `spaceBetween`, and no
+              // `Expanded` on the title, so « Vos rendez-vous ici » + « Voir tout »
+              // overflowed by 112–142dp at 200% text and nothing measured it.
+              SectionHeading(
+                title: title,
+                style: AppTextStyles.titleMedium,
+                action: trailing,
+                onTap: onHeaderTap,
+              ),
+              const SizedBox(height: AppTheme.spacingS),
+              child,
+            ],
+          ),
         ),
       ),
     );

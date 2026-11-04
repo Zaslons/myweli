@@ -167,19 +167,24 @@ void main() {
     );
   });
 
-  group('routes/internal/cron/subscriptions.dart', () {
-    final src = File(
-      'routes/internal/cron/subscriptions.dart',
-    ).readAsStringSync();
+  // The daily maintenance cron since docs/design/infra-cron-maintenance.md
+  // (it rode the subscriptions cron before).
+  group('the daily maintenance tick', () {
+    final src = File('lib/src/dependencies.dart').readAsStringSync();
 
     test('calls pruneRateLimitWindows daily, and returns the count', () {
       // The retention is a named constant since the daily invite buckets
       // (docs/design/backend-team-invite-caps.md §5.4) — still one day.
-      expect(src, contains('await pruneRateLimitWindows(kRateLimitRetention)'));
-      expect(kRateLimitRetention, const Duration(days: 1));
       expect(
         src,
-        contains("'rateLimitWindowsPruned':"),
+        contains(
+          'pruneRateLimits: () => pruneRateLimitWindows(kRateLimitRetention)',
+        ),
+      );
+      expect(kRateLimitRetention, const Duration(days: 1));
+      expect(
+        File('lib/src/maintenance/maintenance_tick.dart').readAsStringSync(),
+        contains("'rateLimitWindowsPruned'"),
         reason: 'a prune nobody can see is the shape this repo keeps finding',
       );
     });

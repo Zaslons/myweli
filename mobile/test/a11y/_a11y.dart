@@ -473,21 +473,24 @@ List<String> gluedTokenBreaks(WidgetTester tester) =>
   return (examined: examined, broken: found);
 }
 
-/// Prints [gluedTokenBreaks] and asserts nothing.
+/// Fails on any glued token — a value joined by a no-break space or hyphen,
+/// « 1 250 000 FCFA » — that its box breaks (§13.3, SYSTEM §21 row 96).
 ///
-/// It also prints how many glued paragraphs it LOOKED at: a sweep that
-/// examined none prints no break either, and « nothing found » must not be
-/// read off a walk that saw nothing.
-void reportGluedTokenBreaks(WidgetTester tester, {required String context}) {
+/// It began as a report (it printed and asserted nothing) because the gate's
+/// fixtures carried no amount large enough to break anything: 0 broken over
+/// 19 subjects. The fixtures now carry seven-digit amounts (B7.10 —
+/// docs/design/pro-app-batch7.md §2.10), so it asserts. A walk that examined
+/// no glued paragraph passes — the subjects name their own values to
+/// `expectNoMidWordBreak` where it matters.
+void expectNoGluedTokenBreaks(WidgetTester tester, {required String context}) {
   final sweep = _sweepGluedTokens(tester);
-  if (sweep.examined == 0) return;
-  debugPrint(
-    'GLUED-SWEEP [$context] examined=${sweep.examined} '
-    'broken=${sweep.broken.length}',
+  expect(
+    sweep.broken,
+    isEmpty,
+    reason:
+        '[$context] a glued value is broken inside its box '
+        '(examined ${sweep.examined}): ${sweep.broken.join(' · ')}',
   );
-  for (final line in sweep.broken) {
-    debugPrint('GLUED-BREAK [$context] $line');
-  }
 }
 
 /// How many characters a squeezed label must still show (§13.3, A12).

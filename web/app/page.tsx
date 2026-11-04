@@ -1,16 +1,18 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import { WovenBand, WovenPanel } from '../components/brand/Weave';
 import { JsonLd } from '../components/JsonLd';
 import { ProBand } from '../components/home/ProBand';
 import { OpenInAppButton } from '../components/OpenInAppButton';
-import { HeroBackground } from '../components/home/HeroBackground';
 import { HomeSearch } from '../components/home/HomeSearch';
 import { ProviderCard } from '../components/provider/ProviderCard';
+import { SiteSection } from '../components/SiteSection';
 import { defaultCity, getLocalityTree } from '../lib/api/localities';
 import { searchProviders } from '../lib/api/providers';
 import { buildTaxonomyPath, categoryList } from '../lib/landing';
 import { faqJsonLd, websiteJsonLd } from '../lib/seo/jsonld';
 import { appStoreUrl } from '../lib/appStore';
+import { SITE_CONTAINER } from '../lib/siteGrid';
 
 export const revalidate = 3600; // ISR — featured refreshes hourly
 
@@ -60,6 +62,25 @@ function buildFaq(cityName: string) {
   ];
 }
 
+/// One commune's links into the nested landing tree. Called twice (see the
+/// directory below), which is why it is one function: the two cannot drift.
+function AreaLinks({ citySlug, area }: { citySlug: string; area: { slug: string; name: string } }) {
+  return (
+    <ul>
+      {categoryList.map((c) => (
+        <li key={c.slug}>
+          <Link
+            href={buildTaxonomyPath(c.slug, citySlug, area.slug)}
+            className="flex min-h-12 items-center text-bodyMedium text-textSecondary hover:text-textPrimary"
+          >
+            {c.label} à {area.name}
+          </Link>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 export default async function HomePage() {
   const [featured, tree] = await Promise.all([
     searchProviders({ pageSize: 8 }),
@@ -78,107 +99,113 @@ export default async function HomePage() {
       <JsonLd data={faqJsonLd(faq)} />
 
       <main>
-      <section className="relative overflow-hidden border-b border-divider">
-        <HeroBackground />
-        {/* `relative` is load-bearing: the backdrop is absolutely positioned, so
-            it paints in the positioned step. Without `relative` here this content
-            is a static block and paints UNDER it. Both positioned + DOM order
-            (backdrop first) is what keeps the text on top — no z-index needed.
-            Nothing guards this: an elementFromPoint hit-test reports the text on
-            top either way, because the backdrop is `pointer-events-none`. So the
-            comment IS the guard. Do not remove it, or the class. */}
-        <div className="relative mx-auto max-w-5xl px-m py-xxl">
-          <h1 className="max-w-2xl text-headlineLarge font-semibold text-textPrimary">
-            Réservez beauté & bien-être à {cityName}
-          </h1>
-          <p className="mt-m max-w-xl text-bodyLarge text-textSecondary">
-            Coiffure, tresses, barbier, onglerie, spa — réservez en ligne, près
-            de chez vous, en quelques secondes.
-          </p>
-          <div className="mt-l max-w-3xl">
-            <HomeSearch tree={tree} />
-          </div>
-        </div>
-      </section>
-
-      <div className="mx-auto max-w-5xl px-m py-xl">
         <section>
-          <h2 className="text-titleLarge font-semibold text-textPrimary">Catégories</h2>
-          <div className="mt-m grid grid-cols-2 gap-s sm:grid-cols-3 lg:grid-cols-6">
-            {TILES.map((t) => (
-              <Link
-                key={t.label}
-                href={t.href}
-                className="rounded-xl border border-border bg-secondary p-m text-center text-bodyMedium text-textPrimary hover:bg-surfaceVariant"
-              >
-                {t.label}
-              </Link>
-            ))}
+          <div className="border-b border-divider lg:hidden">
+            <div className={`${SITE_CONTAINER} py-m`}>
+              <WovenBand />
+            </div>
+          </div>
+          <div className={`${SITE_CONTAINER} lg:grid lg:grid-cols-12 lg:gap-x-l`}>
+            <div className="flex flex-col py-l lg:col-span-7 lg:min-h-hero lg:justify-between lg:py-xl">
+              <h1 className="text-balance break-words text-displaySmall font-semibold tracking-tight text-textPrimary sm:text-displayMedium lg:text-displayLarge xl:text-displayPoster">
+                Réservez beauté & <span className="whitespace-nowrap">bien-être</span> à {cityName}
+              </h1>
+              <div className="mt-m lg:mt-xl">
+                <p className="max-w-xl text-bodyLarge text-textSecondary">
+                  Coiffure, tresses, barbier, onglerie, spa — réservez en ligne, près
+                  de chez vous, en quelques secondes.
+                </p>
+                <div className="mt-l">
+                  <HomeSearch tree={tree} />
+                </div>
+              </div>
+            </div>
+            <div data-weave-panel className="relative hidden border-l border-primary lg:col-span-5 lg:block">
+              <WovenPanel />
+            </div>
           </div>
         </section>
 
+        <SiteSection title="Catégories">
+          <ul className="grid grid-cols-2 gap-x-m lg:grid-cols-3 lg:gap-x-l">
+            {TILES.map((t) => (
+              <li key={t.label}>
+                <Link
+                  href={t.href}
+                  className="flex min-h-12 items-center border-b border-divider text-bodyLarge text-textPrimary hover:text-textSecondary"
+                >
+                  {t.label}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </SiteSection>
+
         {featured.length > 0 ? (
-          <section className="mt-xl">
-            <h2 className="text-titleLarge font-semibold text-textPrimary">
-              Salons populaires
-            </h2>
-            <div className="mt-m grid grid-cols-1 gap-m sm:grid-cols-2 lg:grid-cols-4">
+          <SiteSection title="Salons populaires" stacked>
+            <div className="grid grid-cols-1 gap-m sm:grid-cols-2 lg:grid-cols-4">
               {featured.map((p) => (
                 <ProviderCard key={p.id} provider={p} />
               ))}
             </div>
-          </section>
+          </SiteSection>
         ) : null}
 
         {city && directoryAreas.length > 0 ? (
-          <section className="mt-xl">
-            <h2 className="text-titleLarge font-semibold text-textPrimary">
-              Partout à {cityName}
-            </h2>
-            <div className="mt-m grid grid-cols-1 gap-l sm:grid-cols-2 lg:grid-cols-4">
+          <SiteSection title={`Partout à ${cityName}`}>
+            {/* Two forms of one list, so that neither needs a script. A phone gets
+                one disclosure per commune, since twenty links is a long scroll; from
+                `lg` they are all open, and a `<details>` pressed open would tell a
+                screen reader « collapsed » about links it can see. Both are in the
+                served HTML, and the one not in use is `display: none`. */}
+            <div className="lg:hidden">
+              {directoryAreas.map((area) => (
+                <details key={area.slug} className="group border-b border-divider">
+                  <summary className="flex min-h-12 cursor-pointer list-none items-center justify-between gap-m">
+                    <h3 className="text-bodyLarge font-medium text-textPrimary">{area.name}</h3>
+                    <span aria-hidden="true" className="text-iconS text-textSecondary group-open:rotate-180">
+                      ▾
+                    </span>
+                  </summary>
+                  <AreaLinks citySlug={city.slug} area={area} />
+                </details>
+              ))}
+            </div>
+            <div className="hidden grid-cols-4 gap-x-l lg:grid">
               {directoryAreas.map((area) => (
                 <div key={area.slug}>
-                  <h3 className="font-medium text-textPrimary">{area.name}</h3>
-                  <ul className="mt-s space-y-xs text-bodyMedium">
-                    {categoryList.map((c) => (
-                      <li key={c.slug}>
-                        <Link
-                          href={buildTaxonomyPath(c.slug, city.slug, area.slug)}
-                          className="text-textSecondary underline hover:text-textPrimary"
-                        >
-                          {c.label} à {area.name}
-                        </Link>
-                      </li>
-                    ))}
-                  </ul>
+                  <h3 className="flex min-h-12 items-center text-bodyLarge font-medium text-textPrimary">
+                    {area.name}
+                  </h3>
+                  <AreaLinks citySlug={city.slug} area={area} />
                 </div>
               ))}
             </div>
-          </section>
+          </SiteSection>
         ) : null}
 
-        <section className="mt-xl grid grid-cols-1 gap-m sm:grid-cols-3">
-          {[
-            ['Réservation en ligne', '24h/24, sans appel ni attente.'],
-            [
-              'Acompte direct au salon',
-              'Wave / Mobile Money — MyWeli ne prélève rien.',
-            ],
-            // No WhatsApp/SMS until messaging is switched on — the app's
-            // notifications carry both (promise-honesty-sweep.md, T5).
-            [
-              'Rappels dans l’app',
-              'Confirmation du salon, puis rappels 24 h et 2 h avant votre rendez-vous.',
-            ],
-          ].map(([title, body]) => (
-            <div
-              key={title}
-              className="rounded-xl border border-border bg-secondary p-l"
-            >
-              <p className="font-medium text-textPrimary">{title}</p>
-              <p className="mt-xs text-bodyLarge text-textSecondary">{body}</p>
-            </div>
-          ))}
+        <section className="border-t border-primary">
+          <div className={`${SITE_CONTAINER} py-m lg:grid lg:grid-cols-3 lg:gap-x-l lg:py-xxl`}>
+            {[
+              ['Réservation en ligne', '24h/24, sans appel ni attente.'],
+              [
+                'Acompte direct au salon',
+                'Wave / Mobile Money — MyWeli ne prélève rien.',
+              ],
+              // No WhatsApp/SMS until messaging is switched on — the app's
+              // notifications carry both (promise-honesty-sweep.md, T5).
+              [
+                'Rappels dans l’app',
+                // No-break spaces: « 2 h » split across two lines at 375.
+                'Confirmation du salon, puis rappels 24\u00a0h et 2\u00a0h avant votre rendez-vous.',
+              ],
+            ].map(([title, body]) => (
+              <div key={title} className="border-t border-divider py-m first:border-t-0 lg:border-t-0 lg:py-0">
+                <p className="font-medium text-textPrimary">{title}</p>
+                <p className="mt-xs text-bodyLarge text-textSecondary">{body}</p>
+              </div>
+            ))}
+          </div>
         </section>
 
         {/* **The whole section, not just the button.** `OpenInAppButton`
@@ -189,36 +216,29 @@ export default async function HomePage() {
             component-level test could not see it, because the orphan is the
             wrapper. */}
         {appStoreUrl() ? (
-          <section className="mt-xl flex flex-col items-start justify-between gap-m rounded-xl border border-border bg-surfaceVariant p-l sm:flex-row sm:items-center">
-            <div>
-              <p className="text-titleLarge font-semibold text-textPrimary">
-                L’app MyWeli
-              </p>
-              <p className="mt-xs text-bodyLarge text-textSecondary">
+          <SiteSection title="L’app MyWeli">
+            <div className="flex flex-col items-start gap-m lg:flex-row lg:items-center lg:justify-between lg:gap-l">
+              <p className="text-bodyLarge text-textSecondary">
                 Réservez plus vite et gérez vos rendez-vous depuis votre poche.
               </p>
+              <OpenInAppButton />
             </div>
-            <OpenInAppButton />
-          </section>
+          </SiteSection>
         ) : null}
 
         {/* The salons' door (web-pro-access.md P3), before the FAQ. */}
         <ProBand />
 
-        <section className="mt-xl">
-          <h2 className="text-titleLarge font-semibold text-textPrimary">
-            Questions fréquentes
-          </h2>
-          <dl className="mt-m space-y-m">
+        <SiteSection title="Questions fréquentes">
+          <dl className="divide-y divide-divider">
             {faq.map((f) => (
-              <div key={f.question}>
+              <div key={f.question} className="py-m first:pt-0 last:pb-0">
                 <dt className="font-medium text-textPrimary">{f.question}</dt>
-                <dd className="mt-xs text-bodyLarge text-textSecondary">{f.answer}</dd>
+                <dd className="mt-xs max-w-content text-bodyLarge text-textSecondary">{f.answer}</dd>
               </div>
             ))}
           </dl>
-        </section>
-      </div>
+        </SiteSection>
       </main>
     </>
   );

@@ -7,6 +7,7 @@ import { StatusChip } from '../StatusChip';
 import { ErrorState } from '../ErrorState';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { SubmissionKey, writeFailureMessage } from '../../lib/api/network';
 import { Toast } from '../Toast';
 import { useToast } from '../../lib/useToast';
 import { statusLabelFr } from '../../lib/account/appointments';
@@ -20,7 +21,7 @@ import {
   updateClientPhone,
   updateClientTags,
 } from '../../lib/api/pro';
-import { loadFailure, loadFailureMessage, type LoadFailure } from '../../lib/pro/load-failure';
+import { loadFailure, loadFailureMessage, type LoadFailure } from '../../lib/api/load-failure';
 import { useFieldErrors } from '../../lib/forms/useFieldErrors';
 import {
   PHONE_INVALID,
@@ -29,6 +30,7 @@ import {
 } from '../../lib/phone';
 import {
   deName,
+  formatDateCompactFr,
   formatDateFr,
   formatDateTimeFr,
   formatFcfa,
@@ -70,10 +72,17 @@ export function ClientCardClient({ clientId }: { clientId: string }) {
   const [visits, setVisits] = useState<ProAppointment[]>([]);
   const [visitsTotal, setVisitsTotal] = useState(0);
   const [visitsPage, setVisitsPage] = useState(1);
+  // The history read failed: it says so — never « Aucune visite » beside a
+  // visit count (docs/design/web-pro-truthful-failure.md §2.1).
+  const [visitsFailed, setVisitsFailed] = useState<LoadFailure | false>(false);
+  // A « Charger plus » that failed: its line, and the SAME page asked again.
+  const [moreFailed, setMoreFailed] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
   const [error, setError] = useState<LoadFailure | false>(false);
   const [noteDraft, setNoteDraft] = useState('');
+  // One Idempotency-Key per note sent (docs/design/write-idempotency.md §4).
+  const noteKey = useRef(new SubmissionKey());
   const [busy, setBusy] = useState(false);
   const [editingTags, setEditingTags] = useState(false);
   const [customTag, setCustomTag] = useState('');
@@ -112,6 +121,8 @@ export function ClientCardClient({ clientId }: { clientId: string }) {
     setVisits(v.items);
     setVisitsTotal(v.total);
     setVisitsPage(1);
+    setVisitsFailed(v.status === 200 ? false : loadFailure(v.status));
+    setMoreFailed(null);
     setLoading(false);
   }, [router, clientId]);
 
@@ -150,9 +161,18 @@ export function ClientCardClient({ clientId }: { clientId: string }) {
     const body = noteDraft.trim();
     if (!body) return;
     setBusy(true);
-    const r = await addClientNote(providerId!, clientId, body);
+    const r = await addClientNote(
+      providerId!,
+      clientId,
+      body,
+      noteKey.current.for({ clientId, body }),
+    );
     setBusy(false);
     if (r.ok && r.note) {
+      // Only once the note shows: a 2xx that came back without it, even
+      // asked again, keeps the key — tapping « Ajouter » replays it, never a
+      // second note.
+      noteKey.current.settle();
       setCard((c) => (c ? { ...c, notes: [r.note!, ...c.notes] } : c));
       setNoteDraft('');
     }
@@ -169,8 +189,24 @@ export function ClientCardClient({ clientId }: { clientId: string }) {
     }
   }
 
+  /// The history alone, again — « Réessayer » under a failed read.
+  async function retryVisits() {
+    const v = await getClientVisits(providerId!, clientId, 1);
+    setVisits(v.items);
+    setVisitsTotal(v.total);
+    setVisitsPage(1);
+    setVisitsFailed(v.status === 200 ? false : loadFailure(v.status));
+  }
+
   async function moreVisits() {
+    setMoreFailed(null);
     const v = await getClientVisits(providerId!, clientId, visitsPage + 1);
+    // Only a page that came moves the counter: a failed one was skipped
+    // before, and its visits were never shown.
+    if (v.status !== 200) {
+      setMoreFailed(writeFailureMessage(v.status, 'Le chargement a échoué. Réessayez.'));
+      return;
+    }
     setVisits((prev) => [...prev, ...v.items]);
     setVisitsPage(visitsPage + 1);
   }
@@ -423,7 +459,7 @@ export function ClientCardClient({ clientId }: { clientId: string }) {
 
         {/* Stats + history */}
         <div>
-          <div className="grid grid-cols-2 gap-s">
+          <div className="grid grid-cols-stats gap-s">
             <Stat label="Visites" value={String(card.stats.visits)} />
             <Stat
               label="Dépensé"
@@ -437,7 +473,7 @@ export function ClientCardClient({ clientId }: { clientId: string }) {
             <Stat
               label="Dernière visite"
               value={
-                card.lastVisitAt ? formatDateFr(card.lastVisitAt, tz) : '—'
+                card.lastVisitAt ? formatDateCompactFr(card.lastVisitAt, tz) : '—'
               }
             />
           </div>
@@ -461,7 +497,13 @@ export function ClientCardClient({ clientId }: { clientId: string }) {
             <h2 className="text-titleLarge font-semibold text-textPrimary">
               Historique des visites
             </h2>
-            {visits.length === 0 ? (
+            {visitsFailed ? (
+              <ErrorState
+                className="mt-m"
+                message={loadFailureMessage(visitsFailed, 'Historique indisponible.')}
+                onRetry={() => void retryVisits()}
+              />
+            ) : visits.length === 0 ? (
               <p className="mt-m text-bodyMedium text-textSecondary">
                 Aucune visite enregistrée.
               </p>
@@ -487,11 +529,16 @@ export function ClientCardClient({ clientId }: { clientId: string }) {
                 ))}
               </ul>
             )}
-            {visits.length < visitsTotal ? (
+            {!visitsFailed && visits.length < visitsTotal ? (
               <div className="mt-m text-center">
                 <Button variant="secondary" onClick={moreVisits}>
                   Charger plus
                 </Button>
+                {moreFailed ? (
+                  <p role="alert" className="mt-s text-bodyMedium text-error">
+                    {moreFailed}
+                  </p>
+                ) : null}
               </div>
             ) : null}
           </Card>
@@ -637,7 +684,7 @@ function EditPhoneModal({
       return;
     }
     setBusy(false);
-    setOutcome({ text: 'L’enregistrement a échoué. Réessayez.' });
+    setOutcome({ text: writeFailureMessage(r.status, 'L’enregistrement a échoué. Réessayez.') });
   }
 
   return (

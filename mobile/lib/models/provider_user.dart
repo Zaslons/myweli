@@ -1,5 +1,7 @@
 import 'package:equatable/equatable.dart';
 
+import '../core/utils/salon_id.dart';
+
 import 'kyc_document.dart';
 
 enum BusinessType { salon, barber, spa, nailSalon, massage, other }
@@ -22,7 +24,7 @@ class ProviderUser extends Equatable {
   /// Submitted KYC documents (references only — no file bytes on device).
   final List<KycDocument> kycDocs;
   final DateTime createdAt;
-  final String? providerId; // Consumer Provider id (e.g. provider1)
+  final SalonId? providerId; // Consumer Provider id (e.g. provider1)
 
   const ProviderUser({
     required this.id,
@@ -67,7 +69,7 @@ class ProviderUser extends Equatable {
     String? rejectionReason,
     List<KycDocument>? kycDocs,
     DateTime? createdAt,
-    String? providerId,
+    SalonId? providerId,
   }) {
     return ProviderUser(
       id: id ?? this.id,
@@ -125,7 +127,10 @@ class ProviderUser extends Equatable {
                 .toList()
           : const [],
       createdAt: DateTime.parse(json['createdAt'] as String),
-      providerId: json['providerId'] as String?,
+      providerId: switch (json['providerId']) {
+        final String id => SalonId(id),
+        _ => null,
+      },
     );
   }
 }

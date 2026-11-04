@@ -410,5 +410,9 @@ And these were researched against Google's and Apple's own pages and came back
 1. **The demo-account mechanism** (§5.2) — its own spec before any code.
 2. **Which salons, and how they are recruited.** Twelve opted-in testers for
    fourteen days is a commitment from twelve businesses, not a mailing list.
+   *2026-10-28: for MyWeli Pro on Play, answered in
+   [play-store-forms.md](play-store-forms.md) §6.1–§6.5. Salons come first,
+   then friends as Managers of a test salon (never the demo salon). The
+   owner's ordered checklist and the three texts to send are there.*
 3. **Which consumer accounts book against them** during the cohort, so the Pro
    app is exercised rather than merely installed.

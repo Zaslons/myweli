@@ -1,11 +1,13 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:myweli/core/utils/data_export.dart';
+import 'package:myweli/core/utils/salon_id.dart';
 import 'package:myweli/models/appointment.dart';
 import 'package:myweli/models/availability.dart';
 import 'package:myweli/models/provider.dart' as models;
 import 'package:myweli/models/provider_user.dart';
 import 'package:myweli/models/salon_client.dart';
 import 'package:myweli/models/user.dart';
+import 'package:myweli/services/interfaces/pro_service_interface.dart';
 
 void main() {
   final user = User(
@@ -19,7 +21,7 @@ void main() {
   Appointment appointment(String id) => Appointment(
     id: id,
     userId: 'u1',
-    providerId: 'p1',
+    providerId: SalonId('p1'),
     serviceIds: const ['s1', 's2'],
     appointmentDate: DateTime(2026, 6, 21, 10),
     status: AppointmentStatus.completed,
@@ -72,10 +74,10 @@ void main() {
         businessName: 'Salon X',
         businessType: BusinessType.salon,
         createdAt: DateTime(2026),
-        providerId: 'p1',
+        providerId: SalonId('p1'),
       ),
       salon: const models.Provider(
-        id: 'p1',
+        id: SalonId('p1'),
         name: 'Salon X',
         description: 'desc',
         address: 'Cocody',
@@ -84,7 +86,7 @@ void main() {
         reviewCount: 3,
         services: [],
         availability: Availability(
-          providerId: 'p1',
+          providerId: SalonId('p1'),
           weeklySchedule: {},
           blockedDates: [],
         ),
@@ -105,15 +107,42 @@ void main() {
           noShows: 0,
         ),
       ],
+      earnings: EarningsData(
+        totalEarnings: 1250000,
+        transactions: [
+          for (final id in ['t1', 't2'])
+            EarningsTransaction(
+              id: id,
+              appointmentId: 'a-$id',
+              amount: 625000,
+              date: DateTime.utc(2026, 7, 1),
+              status: 'completed',
+            ),
+        ],
+      ),
       generatedAt: DateTime.utc(2026, 7, 11),
     );
 
     expect((export['account'] as Map)['businessName'], 'Salon X');
+    // The web's shape exactly (web/lib/pro/export.ts): the total and a COUNT
+    // of transactions, not the list (pro-app-batch7.md §2.8, B7.8).
+    expect(export['earnings'], {'totalEarnings': 1250000, 'transactions': 2});
     expect((export['salon'] as Map)['commune'], isNull);
     final clients = export['clients'] as List;
     expect((clients.first as Map)['name'], 'Koffi');
     expect((clients.first as Map)['visits'], 4);
     expect(export['generatedAt'], '2026-07-11T00:00:00.000Z');
+  });
+
+  test('a refusal names the earnings last, in the file’s order (B7.8)', () {
+    expect(
+      proExportFailureMessage({
+        ProExportSection.earnings,
+        ProExportSection.services,
+      }),
+      'Export interrompu : impossible de charger les services et les '
+      'revenus. Vérifiez votre connexion et réessayez.',
+    );
   });
 
   // docs/design/app-pro-export-completeness.md §4 — the web's

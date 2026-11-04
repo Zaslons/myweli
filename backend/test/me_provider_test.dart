@@ -344,6 +344,10 @@ void main() {
       when(
         () => providers.setStatus('p1', 'draft'),
       ).thenAnswer((_) async => {'id': 'p1', 'status': 'draft'});
+      // B6.3: the salon's numbers and address go with its owner.
+      when(
+        () => providers.updateProfile('p1', any()),
+      ).thenAnswer((_) async => <String, dynamic>{});
       // The erasure's rebuild fire is guarded on the PRIOR status, so the
       // service now reads the salon before unpublishing it.
       when(
@@ -356,6 +360,14 @@ void main() {
       );
       expect(res.statusCode, HttpStatus.noContent);
       verify(() => providers.setStatus('p1', 'draft')).called(1);
+      // …and its numbers and address (docs/design/backend-integrity-batch6.md
+      // §2.3), through the route as through the service.
+      verify(
+        () => providers.updateProfile(
+          'p1',
+          any(that: containsPair('phoneNumber', '')),
+        ),
+      ).called(1);
       verify(() => auth.deleteAccount('acc1')).called(1);
     });
 
@@ -525,6 +537,10 @@ void main() {
       when(
         () => providers.setStatus('p1', 'draft'),
       ).thenAnswer((_) async => {'id': 'p1', 'status': 'draft'});
+      // B6.3: the salon's numbers and address go with its owner.
+      when(
+        () => providers.updateProfile('p1', any()),
+      ).thenAnswer((_) async => <String, dynamic>{});
       when(() => auth.deleteAccount('acc1')).thenAnswer((_) async => true);
 
       final res = await me_provider.onRequest(
@@ -564,6 +580,10 @@ void main() {
       when(
         () => providers.setStatus('p1', 'draft'),
       ).thenAnswer((_) async => {'id': 'p1', 'status': 'draft'});
+      // B6.3: the salon's numbers and address go with its owner.
+      when(
+        () => providers.updateProfile('p1', any()),
+      ).thenAnswer((_) async => <String, dynamic>{});
       when(() => auth.deleteAccount('acc1')).thenAnswer((_) async => true);
     }
 

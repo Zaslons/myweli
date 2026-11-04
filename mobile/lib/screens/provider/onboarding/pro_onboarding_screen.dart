@@ -2,18 +2,21 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
+import '../../../core/constants/failure_messages.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/colors.dart';
 import '../../../core/theme/text_styles.dart';
 import '../../../core/utils/formatters.dart';
 import '../../../core/utils/onboarding.dart';
+import '../../../core/utils/salon_id.dart';
 import '../../../core/utils/team_error_messages.dart';
 import '../../../providers/pro_auth_provider.dart';
 import '../../../providers/pro_onboarding_provider.dart';
+import '../../../widgets/common/app_async_view.dart';
 import '../../../widgets/common/app_button.dart';
+import '../../../widgets/common/app_card.dart';
+import '../../../widgets/common/app_skeleton.dart';
 import '../../../widgets/common/app_snack_bar.dart';
-import '../../../widgets/common/empty_state.dart';
-import '../../../widgets/common/loading_indicator.dart';
 
 class ProOnboardingScreen extends StatefulWidget {
   const ProOnboardingScreen({super.key});
@@ -40,14 +43,15 @@ class _ProOnboardingScreenState extends State<ProOnboardingScreen> {
 
   Future<void> _goLive() async {
     final messenger = ScaffoldMessenger.of(context);
-    final providerId = context.read<ProAuthProvider>().activeSalonId ?? '';
+    final providerId =
+        context.read<ProAuthProvider>().activeSalonId ?? SalonId.none;
     final onboarding = context.read<ProOnboardingProvider>();
     final ok = await onboarding.publish(providerId);
     if (!mounted) return;
     // The server starts the trial at the first publish, so `offer_required`
     // now means the salon's offer EXPIRED. The bar states that and carries
     // NO action: it used to open the offer picker (« Choisir »), which the
-    // Pro app no longer has (App Store 3.1.3(f) — docs/design/
+    // Pro app no longer has (App Store 3.1.1 — docs/design/
     // pro-companion-path.md §2.2). Any other refusal — the demo account's
     // lock included — shows the service's sentence.
     final offerInactive =
@@ -78,19 +82,24 @@ class _ProOnboardingScreenState extends State<ProOnboardingScreen> {
           if (pro == null) {
             return const Center(child: Text('Veuillez vous connecter'));
           }
-          if (onboarding.isLoading) {
-            return const LoadingIndicator();
-          }
-          if (onboarding.loadFailed) {
-            return EmptyState(
-              icon: Icons.wifi_off,
-              title: 'Chargement impossible',
-              description: 'Vérifiez votre connexion et réessayez.',
-              actionText: 'Réessayer',
-              onAction: () => onboarding.load(pro, salonId: auth.activeSalonId),
-            );
-          }
-          return _buildList(onboarding);
+          return AppAsyncView<ProOnboardingProvider>(
+            isLoading: onboarding.isLoading,
+            error: onboarding.loadFailed
+                ? onboarding.error ?? kGenericErrorMessage
+                : null,
+            // Only a settled read: its actions change what it shows.
+            data:
+                onboarding.loaded &&
+                    !onboarding.isLoading &&
+                    !onboarding.loadFailed
+                ? onboarding
+                : null,
+            isEmpty: (_) => false,
+            loading: const SkeletonTileList(count: 7),
+            empty: const SizedBox.shrink(),
+            onRetry: () => onboarding.load(pro, salonId: auth.activeSalonId),
+            builder: (context, o) => _buildList(o),
+          );
         },
       ),
     );
@@ -165,24 +174,27 @@ class _StepRow extends StatelessWidget {
     final route = _route(step.key);
     final sublabel = _sublabel(step);
 
-    return Card(
-      margin: const EdgeInsets.only(bottom: AppTheme.spacingS),
-      child: ListTile(
-        leading: Icon(
-          _statusIcon(step.status),
-          color: _statusColor(step.status),
-        ),
-        title: Text(_label(step.key)),
-        subtitle: sublabel == null ? null : Text(sublabel),
-        trailing: route != null
-            ? const Icon(Icons.chevron_right, color: AppColors.textTertiary)
-            : Text(
-                _statusText(step.status),
-                style: AppTextStyles.bodySmall.copyWith(
-                  color: _statusColor(step.status),
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppTheme.spacingS),
+      child: AppCard(
+        padding: EdgeInsets.zero,
+        child: ListTile(
+          leading: Icon(
+            _statusIcon(step.status),
+            color: _statusColor(step.status),
+          ),
+          title: Text(_label(step.key)),
+          subtitle: sublabel == null ? null : Text(sublabel),
+          trailing: route != null
+              ? const Icon(Icons.chevron_right, color: AppColors.textTertiary)
+              : Text(
+                  _statusText(step.status),
+                  style: AppTextStyles.bodySmall.copyWith(
+                    color: _statusColor(step.status),
+                  ),
                 ),
-              ),
-        onTap: route == null ? null : () => context.push(route),
+          onTap: route == null ? null : () => context.push(route),
+        ),
       ),
     );
   }
@@ -236,6 +248,11 @@ class _StepRow extends StatelessWidget {
     }
     if (step.key == OnboardingStepKey.photos) {
       return 'Ajouter des photos du salon';
+    }
+    // B7.7 — until a choice is saved (docs/design/pro-app-batch7.md §2.7).
+    if (step.key == OnboardingStepKey.deposit &&
+        step.status == OnboardingStepStatus.optional) {
+      return 'Facultatif';
     }
     if (step.status == OnboardingStepStatus.inProgress) {
       return 'En cours';

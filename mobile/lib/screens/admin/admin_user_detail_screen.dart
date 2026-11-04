@@ -8,9 +8,10 @@ import '../../core/utils/formatters.dart';
 import '../../providers/admin/admin_disputes_provider.dart';
 import '../../providers/admin/admin_user_detail_provider.dart';
 import '../../providers/admin/admin_users_provider.dart';
+import '../../widgets/common/app_async_view.dart';
 import '../../widgets/common/app_button.dart';
+import '../../widgets/common/app_skeleton.dart';
 import '../../widgets/common/app_snack_bar.dart';
-import '../../widgets/common/loading_indicator.dart';
 import 'widgets/admin_detail_widgets.dart';
 import 'widgets/admin_scaffold.dart';
 import 'widgets/reason_dialog.dart';
@@ -96,15 +97,19 @@ class _AdminUserDetailScreenState extends State<AdminUserDetailScreen> {
     return AdminScaffold(title: 'Client', showBack: true, child: _body(p));
   }
 
-  Widget _body(AdminUserDetailProvider p) {
-    if (p.isLoading && p.user == null) return const LoadingIndicator();
-    if (p.user == null) {
-      return AdminDetailError(
-        message: p.error ?? 'Introuvable',
-        onRetry: () => context.read<AdminUserDetailProvider>().load(widget.id),
-      );
-    }
-    final u = p.user!;
+  Widget _body(AdminUserDetailProvider p) => AppAsyncView<Map<String, dynamic>>(
+    isLoading: p.isLoading,
+    error: p.error,
+    // Another client's, on this screen's first frame (the provider outlives it).
+    data: p.id == widget.id ? p.user : null,
+    isEmpty: (_) => false,
+    loading: const SkeletonDetail(sections: 2),
+    empty: const SizedBox.shrink(),
+    onRetry: () => context.read<AdminUserDetailProvider>().load(widget.id),
+    builder: (context, u) => _detail(p, u),
+  );
+
+  Widget _detail(AdminUserDetailProvider p, Map<String, dynamic> u) {
     return Column(
       children: [
         Expanded(

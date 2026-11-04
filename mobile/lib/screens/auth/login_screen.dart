@@ -9,6 +9,7 @@ import 'package:provider/provider.dart';
 import '../../core/config/feature_flags.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/forms/field_errors.dart';
+import '../../core/forms/sign_in_refusal.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/colors.dart';
 import '../../core/theme/text_styles.dart';
@@ -129,10 +130,31 @@ class _LoginScreenState extends State<LoginScreen> {
     if (ok) {
       setState(() {
         _codeController.clear();
+        // A new code: the last one's fault is not this one's.
+        _errors.set('code', null);
         _step = _LoginStep.code;
       });
       _startCooldown();
+      return;
     }
+    // The e-mail's fault under the e-mail — when it is on screen; « Renvoyer
+    // le code » is on the code step, where it is the form's.
+    final fault = emailFieldFault(auth.otpErrorCode);
+    if (fault != null && _step == _LoginStep.options) {
+      setState(() => _errors.set('email', fault));
+      focusFirstError(_errors, _focusNodes);
+    }
+  }
+
+  /// What the form says under itself: the refusal, unless it belongs to a
+  /// field on screen (sign_in_refusal.dart — the web's table).
+  String? _formFault(AuthProvider auth) {
+    final code = auth.otpErrorCode;
+    if (_step == _LoginStep.code && codeFieldFault(code) != null) return null;
+    if (_step == _LoginStep.options && emailFieldFault(code) != null) {
+      return null;
+    }
+    return auth.error;
   }
 
   Future<void> _verifyEmailCode() async {
@@ -147,7 +169,16 @@ class _LoginScreenState extends State<LoginScreen> {
       _codeController.text.trim(),
     );
     if (!mounted) return;
-    if (ok) _afterLogin(auth);
+    if (ok) {
+      _afterLogin(auth);
+      return;
+    }
+    // « Code incorrect. » is the code's: under the code (SYSTEM §14 rule 1).
+    final fault = codeFieldFault(auth.otpErrorCode);
+    if (fault != null) {
+      setState(() => _errors.set('code', fault));
+      focusFirstError(_errors, _focusNodes);
+    }
   }
 
   Future<void> _savePhone() async {
@@ -283,7 +314,7 @@ class _LoginScreenState extends State<LoginScreen> {
     // §14 rule 3 + §15: a server OUTCOME is form-level, not a field fault
     // — and `InlineFeedback` is a live region, which a hand-rolled red Text
     // never was.
-    InlineFeedback(auth.error),
+    InlineFeedback(_formFault(auth)),
   ];
 
   List<Widget> _codeStep(AuthProvider auth) => [
@@ -340,7 +371,7 @@ class _LoginScreenState extends State<LoginScreen> {
     // §14 rule 3 + §15: a server OUTCOME is form-level, not a field fault
     // — and `InlineFeedback` is a live region, which a hand-rolled red Text
     // never was.
-    InlineFeedback(auth.error),
+    InlineFeedback(_formFault(auth)),
   ];
 
   List<Widget> _phoneStep(AuthProvider auth) => [

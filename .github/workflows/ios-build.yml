@@ -76,6 +76,17 @@ jobs:
       - name: Install dependencies
         run: flutter pub get --enforce-lockfile
 
+      # `ios/tool/setup_flavours.rb` is a no-op on the committed project
+      # (docs/design/hygiene-batch9.md §2.2, B9.3). Its test runs the script on
+      # a copy and needs the `xcodeproj` gem, which CocoaPods brings here and
+      # the Linux runners do not have — there it skips. REQUIRE_XCODEPROJ makes
+      # a missing gem FAIL here rather than skip unseen. Before the build, so
+      # the copy is of the committed tree.
+      - name: The flavour setup script changes nothing
+        run: flutter test test/infra/setup_flavours_test.dart
+        env:
+          REQUIRE_XCODEPROJ: '1'
+
       # `--simulator` on purpose: it needs no signing certificate, no
       # provisioning profile and no Apple credentials in CI, while still doing
       # the whole job — SPM + CocoaPods resolution, then a real compile and

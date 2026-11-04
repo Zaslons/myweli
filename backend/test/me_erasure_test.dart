@@ -14,6 +14,7 @@ import 'package:myweli_backend/src/clients/clients_repository.dart';
 import 'package:myweli_backend/src/clients/clients_service.dart';
 import 'package:myweli_backend/src/clients/provider_audit_log.dart';
 import 'package:myweli_backend/src/favorites_repository.dart';
+import 'package:myweli_backend/src/idempotency/idempotency_store.dart';
 import 'package:myweli_backend/src/notifications/notification_prefs_repository.dart';
 import 'package:myweli_backend/src/notifications/notifications_repository.dart';
 import 'package:myweli_backend/src/privacy/user_erasure_service.dart';
@@ -23,6 +24,7 @@ import 'package:myweli_backend/src/storage/storage_service.dart';
 import 'package:test/test.dart';
 
 import '../routes/me/index.dart' as me_route;
+import 'auth/apple_token_fake.dart';
 
 class _MockRequestContext extends Mock implements RequestContext {}
 
@@ -206,26 +208,34 @@ void main() {
       );
     }
 
+    // docs/design/write-idempotency.md §3, §6: the kept answers go with the
+    // account (they may hold what a booking answered).
+    final idem = InMemoryIdempotencyStore();
+
     /// Set to a table name to make that repository throw — the ordering gate.
-    UserErasureService erasureService({http.Client? client}) =>
-        UserErasureService(
-          auth,
-          devices,
-          notifications,
-          prefs,
-          favorites,
-          reviews,
-          appointments,
-          clientsService(),
-          FakeStorageService(),
-          client:
-              client ??
-              MockClient((req) async {
-                expect(req.method, 'DELETE');
-                erasedObjects.add(req.url.path);
-                return http.Response('', 204);
-              }),
-        );
+    UserErasureService erasureService({
+      http.Client? client,
+      RecordingAppleTokens? apple,
+    }) => UserErasureService(
+      auth,
+      devices,
+      notifications,
+      prefs,
+      favorites,
+      reviews,
+      appointments,
+      clientsService(),
+      FakeStorageService(),
+      idempotency: idem,
+      apple: apple,
+      client:
+          client ??
+          MockClient((req) async {
+            expect(req.method, 'DELETE');
+            erasedObjects.add(req.url.path);
+            return http.Response('', 204);
+          }),
+    );
 
     RequestContext ctx(Request request, {UserErasureService? erasure}) {
       final c = _MockRequestContext();
@@ -311,6 +321,43 @@ void main() {
       // `get` upserts a default, so absence reads as "back to defaults".
       expect((await prefs.get(victim)).marketing, isTrue);
       expect((await prefs.get(bystander)).marketing, isFalse);
+    });
+
+    test('the kept answers of its writes go (idempotency keys)', () async {
+      for (final who in [victim, bystander]) {
+        await idem.claim(
+          accountId: who,
+          route: '/appointments',
+          key: 'k-erase-0001',
+          fingerprint: 'f',
+        );
+        await idem.complete(
+          accountId: who,
+          route: '/appointments',
+          key: 'k-erase-0001',
+          status: 201,
+          body: '{}',
+        );
+      }
+      expect((await erase(victim)).statusCode, HttpStatus.noContent);
+      expect(
+        await idem.claim(
+          accountId: victim,
+          route: '/appointments',
+          key: 'k-erase-0001',
+          fingerprint: 'f',
+        ),
+        isA<ClaimReserved>(),
+      );
+      expect(
+        await idem.claim(
+          accountId: bystander,
+          route: '/appointments',
+          key: 'k-erase-0001',
+          fingerprint: 'f',
+        ),
+        isA<ClaimReplay>(),
+      );
     });
 
     test('favourites go', () async {
@@ -488,6 +535,52 @@ void main() {
       expect((await erase(victim)).statusCode, HttpStatus.noContent);
       verify(() => auth.deleteUser(victim)).called(1);
       verifyNever(() => auth.deleteUser(bystander));
+    });
+
+    // ---- Sign in with Apple (B6.7) -----------------------------------------
+
+    test('the Apple authorization is revoked — BEFORE the identity goes, so '
+        'a failed delete can retry', () async {
+      var identityGone = false;
+      when(() => auth.deleteUser(victim)).thenAnswer((_) async {
+        identityGone = true;
+        return true;
+      });
+      bool? goneAtRevoke;
+      final apple = RecordingAppleTokens(
+        onRevoke: (_, _) async => goneAtRevoke = identityGone,
+      );
+      final res = await me_route.onRequest(
+        ctx(
+          req('DELETE', token: tok(victim)),
+          erasure: erasureService(apple: apple),
+        ),
+      );
+      expect(res.statusCode, HttpStatus.noContent);
+      expect(apple.revoked, [('user', victim)]);
+      expect(goneAtRevoke, isFalse);
+    });
+
+    test('a refused erasure (a booking tomorrow) revokes nothing', () async {
+      await appointments.create({
+        'id': 'appt-$victim-apple',
+        'userId': victim,
+        'providerId': 'provider1',
+        'appointmentDate': DateTime.now()
+            .toUtc()
+            .add(const Duration(days: 1))
+            .toIso8601String(),
+        'status': 'confirmed',
+      });
+      final apple = RecordingAppleTokens();
+      final res = await me_route.onRequest(
+        ctx(
+          req('DELETE', token: tok(victim)),
+          erasure: erasureService(apple: apple),
+        ),
+      );
+      expect(res.statusCode, HttpStatus.conflict);
+      expect(apple.revoked, isEmpty);
     });
 
     // ---- The future-bookings gate ------------------------------------------

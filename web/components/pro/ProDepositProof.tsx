@@ -6,7 +6,7 @@ import {
   type LoadFailure,
   loadFailure,
   loadFailureMessage,
-} from "../../lib/pro/load-failure";
+} from "../../lib/api/load-failure";
 import { Button } from "../Button";
 import { Lightbox } from "../Lightbox";
 import { Skeleton } from "../Skeleton";

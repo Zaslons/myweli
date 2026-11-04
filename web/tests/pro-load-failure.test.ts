@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { loadFailure, loadFailureMessage } from '../lib/pro/load-failure';
+import { loadFailure, loadFailureMessage } from '../lib/api/load-failure';
 import { NO_CONNECTION_MESSAGE } from '../lib/pro/team';
 
 /// docs/design/web-pro-no-connection-copy.md §2 — why a Pro read failed, as

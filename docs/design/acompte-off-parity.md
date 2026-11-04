@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Statut** | **Approuvé le 2026-10-16** (propriétaire : « merge 615, then fix the web Acompte gap » ; sur le 0 % de l'app : « Fix both, propose 30% ») — **construit le même jour** sur `fix/acompte-parity` ; §8 dit ce qui a été construit autrement ou en plus |
+| **Statut** | **Approuvé le 2026-10-16** (propriétaire : « merge 615, then fix the web Acompte gap » ; sur le 0 % de l'app : « Fix both, propose 30% ») — **construit le même jour, fusionné** (#616) ; §8 dit ce qui a été construit autrement ou en plus |
 | **Owner** | Sadreddine |
 | **Last updated** | 2026-10-16 |
 | **PRD ref / phase** | Protection anti-no-show (acompte Pro) · V1 — partie [pro-deposit-policy.md](pro-deposit-policy.md) |

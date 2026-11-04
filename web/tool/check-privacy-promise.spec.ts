@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { cspProblems } from './csp-promises';
 
 /// **Does the DEPLOYED site keep the promises the privacy policy makes?**
 ///
@@ -192,10 +193,5 @@ test('production sends the security headers', async ({ request }) => {
   // promise is that the site has it, not that we set it.
   expect(h['strict-transport-security'], 'HSTS disappeared').toBeTruthy();
 
-  const csp = h['content-security-policy-report-only'];
-  expect(csp, 'the CSP is absent from the deployment').toBeTruthy();
-  expect(csp).toContain('*.r2.cloudflarestorage.com');
-  expect(csp).toContain('worker-src blob:');
-  // Violations must reach a person, or Report-Only is a policy nobody reads.
-  expect(csp, 'no report-uri — violations would go nowhere').toContain('report-uri');
+  expect(cspProblems(h)).toEqual([]);
 });

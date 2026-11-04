@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:myweli/core/di/dependency_injection.dart';
 import 'package:myweli/core/utils/app_clock.dart';
+import 'package:myweli/core/utils/salon_id.dart';
 import 'package:myweli/providers/pro_auth_provider.dart';
 import 'package:myweli/providers/pro_journal_provider.dart';
 import 'package:myweli/screens/provider/journal/pro_journal_screen.dart';
@@ -211,10 +212,14 @@ void main() {
       final service = MockProService();
 
       freezeClock(kFixedNow);
-      final midMonth = (await service.getDashboardStats('provider1')).data!;
+      final midMonth = (await service.getDashboardStats(
+        SalonId('provider1'),
+      )).data!;
 
       freezeClock(kMonthEdgeNow);
-      final monthEdge = (await service.getDashboardStats('provider1')).data!;
+      final monthEdge = (await service.getDashboardStats(
+        SalonId('provider1'),
+      )).data!;
 
       expect(
         midMonth.monthRevenue,

@@ -1,8 +1,13 @@
 import 'package:flutter/foundation.dart';
 
+import '../core/access/account_scope.dart';
+import '../core/constants/failure_messages.dart';
 import '../core/di/dependency_injection.dart';
 import '../core/utils/app_clock.dart';
+import '../core/utils/salon_id.dart';
+import '../core/utils/submission_key.dart';
 import '../core/utils/visit_history.dart' as vh;
+import '../models/api_response.dart';
 import '../models/appointment.dart';
 import '../services/interfaces/appointment_service_interface.dart';
 
@@ -12,12 +17,43 @@ import '../services/interfaces/appointment_service_interface.dart';
 const String kSlotsError =
     'Impossible de charger les créneaux. Vérifiez votre connexion.';
 
-class AppointmentProvider extends ChangeNotifier {
+class AppointmentProvider extends ChangeNotifier implements AccountScoped {
   final AppointmentServiceInterface _appointmentService =
       serviceLocator.appointmentService;
 
+  /// Whose bookings these are — moved by [resetForAccountChange]. Each read
+  /// and write takes it before it awaits and writes nothing when it moved
+  /// meanwhile: the answer is the previous account's
+  /// (docs/design/consumer-account-scope.md §2.3).
+  int _account = 0;
+
+  /// The account changed (B9.13): « Mes rendez-vous », the home strip, the
+  /// detail and « Donner mon avis » all read this store, and it lives for the
+  /// whole app.
+  @override
+  void resetForAccountChange() {
+    _account++;
+    _appointments = [];
+    _selectedAppointment = null;
+    _selectedId = null;
+    _isLoading = false;
+    _error = null;
+    _errorCode = null;
+    _listError = null;
+    // The same form under the next account is another submission.
+    _bookingKey.settle();
+    notifyListeners();
+  }
+
+  /// One Idempotency-Key per booking submission — the same on « Réessayer »,
+  /// a new one once the booking changed or after it succeeded
+  /// (docs/design/write-idempotency.md §4). Held here, not by the screen, so
+  /// it survives the sheet closing and opening again on the same booking.
+  final SubmissionKey _bookingKey = SubmissionKey();
+
   List<Appointment> _appointments = [];
   Appointment? _selectedAppointment;
+  String? _selectedId;
   bool _isLoading = false;
   String? _error;
 
@@ -27,11 +63,19 @@ class AppointmentProvider extends ChangeNotifier {
   /// pick its `offer_required` sentence.
   String? _errorCode;
 
+  /// The list's own failure. [error] belongs to every operation here — a
+  /// cancel, a deposit, a booking — so « Mes rendez-vous » reading it would
+  /// show « Erreur lors de l’annulation » as the reason its list is empty
+  /// (B9.8). It had no error state at all: a failed load said « Aucun
+  /// rendez-vous ».
+  String? _listError;
+
   List<Appointment> get appointments => _appointments;
   Appointment? get selectedAppointment => _selectedAppointment;
   bool get isLoading => _isLoading;
   String? get error => _error;
   String? get errorCode => _errorCode;
+  String? get listError => _listError;
 
   List<Appointment> get upcomingAppointments {
     final now = AppClock.now();
@@ -62,7 +106,7 @@ class AppointmentProvider extends ChangeNotifier {
   List<Appointment> get visitHistory =>
       vh.visitHistory(_appointments, AppClock.now());
 
-  bool hasCompletedBookingAt(String providerId, String userId) =>
+  bool hasCompletedBookingAt(SalonId providerId, String userId) =>
       latestCompletedAppointmentId(providerId, userId) != null;
 
   /// The most recent completed appointment the user had at [providerId] — the
@@ -71,7 +115,7 @@ class AppointmentProvider extends ChangeNotifier {
   /// Returns the whole booking, not just its id, because the review sheet
   /// shows WHO served that visit and the answer rides the appointment now
   /// (Decision C) rather than being looked up in the salon's roster.
-  Appointment? latestCompletedAppointment(String providerId, String userId) {
+  Appointment? latestCompletedAppointment(SalonId providerId, String userId) {
     final completed =
         _appointments
             .where(
@@ -85,36 +129,39 @@ class AppointmentProvider extends ChangeNotifier {
     return completed.isEmpty ? null : completed.first;
   }
 
-  String? latestCompletedAppointmentId(String providerId, String userId) =>
+  String? latestCompletedAppointmentId(SalonId providerId, String userId) =>
       latestCompletedAppointment(providerId, userId)?.id;
 
   Future<void> loadAppointments({AppointmentStatus? status}) async {
+    final account = _account;
     _isLoading = true;
     _error = null;
     notifyListeners();
 
+    List<Appointment>? loaded;
+    String? error;
     try {
       final response = await _appointmentService.getUserAppointments(
         status: status,
       );
       if (response.success && response.data != null) {
-        _appointments = response.data!;
-        _error = null;
+        loaded = response.data!;
       } else {
-        _error = response.error ?? 'Erreur lors du chargement';
-        _appointments = [];
+        error = response.error ?? kGenericErrorMessage;
       }
     } catch (e) {
-      _error = e.toString();
-      _appointments = [];
-    } finally {
-      _isLoading = false;
-      notifyListeners();
+      error = kGenericErrorMessage;
     }
+    if (account != _account) return;
+    _appointments = loaded ?? [];
+    _error = error;
+    _listError = error;
+    _isLoading = false;
+    notifyListeners();
   }
 
   Future<bool> bookAppointment({
-    required String providerId,
+    required SalonId providerId,
     required List<String> serviceIds,
     required DateTime appointmentDateTime,
     String? artistId,
@@ -122,13 +169,23 @@ class AppointmentProvider extends ChangeNotifier {
     double depositAmount = 0,
     String? depositScreenshotUrl,
   }) async {
+    final account = _account;
     _isLoading = true;
     _error = null;
     _errorCode = null;
     notifyListeners();
 
+    ApiResponse<Appointment>? response;
     try {
-      final response = await _appointmentService.bookAppointment(
+      final key = _bookingKey.forForm({
+        'providerId': providerId,
+        'serviceIds': serviceIds,
+        'appointmentDateTime': appointmentDateTime.toUtc().toIso8601String(),
+        'artistId': artistId,
+        'notes': notes,
+        'depositScreenshotUrl': depositScreenshotUrl,
+      });
+      response = await _appointmentService.bookAppointment(
         providerId: providerId,
         serviceIds: serviceIds,
         appointmentDateTime: appointmentDateTime,
@@ -136,25 +193,30 @@ class AppointmentProvider extends ChangeNotifier {
         notes: notes,
         depositAmount: depositAmount,
         depositScreenshotUrl: depositScreenshotUrl,
+        idempotencyKey: key,
       );
-      if (response.success && response.data != null) {
-        _appointments.add(response.data!);
-        _error = null;
-        _errorCode = null;
-        return true;
-      } else {
-        _error = response.error ?? 'Erreur lors de la réservation';
-        _errorCode = response.code;
-        return false;
-      }
     } catch (e) {
-      _error = e.toString();
-      _errorCode = null;
-      return false;
-    } finally {
-      _isLoading = false;
-      notifyListeners();
+      response = null;
     }
+    final made = response != null && response.success && response.data != null;
+    // Made on the previous account, which is right — and not added to the
+    // next one's list.
+    if (account != _account) return made;
+    if (made) {
+      _bookingKey.settle();
+      _appointments.add(response.data!);
+      _error = null;
+      _errorCode = null;
+    } else if (response != null) {
+      _error = response.error ?? 'Erreur lors de la réservation';
+      _errorCode = response.code;
+    } else {
+      _error = kGenericErrorMessage;
+      _errorCode = null;
+    }
+    _isLoading = false;
+    notifyListeners();
+    return made;
   }
 
   /// Pay-later: attach a deposit screenshot (already uploaded → [screenshotKey])
@@ -163,118 +225,138 @@ class AppointmentProvider extends ChangeNotifier {
     required String appointmentId,
     required String screenshotKey,
   }) async {
+    final account = _account;
     _isLoading = true;
     _error = null;
     notifyListeners();
+    ApiResponse<Appointment>? response;
     try {
-      final response = await _appointmentService.submitDeposit(
+      response = await _appointmentService.submitDeposit(
         appointmentId: appointmentId,
         screenshotKey: screenshotKey,
       );
-      if (response.success && response.data != null) {
-        final i = _appointments.indexWhere((a) => a.id == appointmentId);
-        if (i != -1) _appointments[i] = response.data!;
-        _error = null;
-        return true;
-      }
-      _error = response.error ?? 'Erreur lors de l’envoi de l’acompte';
-      return false;
     } catch (e) {
-      _error = e.toString();
-      return false;
-    } finally {
-      _isLoading = false;
-      notifyListeners();
+      response = null;
     }
+    final sent = response != null && response.success && response.data != null;
+    if (account != _account) return sent;
+    if (sent) {
+      final i = _appointments.indexWhere((a) => a.id == appointmentId);
+      if (i != -1) _appointments[i] = response.data!;
+      _error = null;
+    } else {
+      _error = response == null
+          ? kGenericErrorMessage
+          : response.error ?? 'Erreur lors de l’envoi de l’acompte';
+    }
+    _isLoading = false;
+    notifyListeners();
+    return sent;
   }
 
   Future<void> loadAppointmentById(String id) async {
+    // The selection is app-wide and outlives the detail screen: kept, the way
+    // to B showed A's details — and A's actions — until B answered (B9.8).
+    if (_selectedAppointment?.id != id) _selectedAppointment = null;
+    final account = _account;
+    _selectedId = id;
     _isLoading = true;
     _error = null;
     notifyListeners();
 
+    Appointment? found;
+    String? error;
     try {
       final response = await _appointmentService.getAppointmentById(id);
       if (response.success && response.data != null) {
-        _selectedAppointment = response.data;
-        _error = null;
+        found = response.data;
       } else {
-        _error = response.error ?? 'Rendez-vous non trouvé';
-        _selectedAppointment = null;
+        error = response.error ?? 'Rendez-vous non trouvé';
       }
     } catch (e) {
-      _error = e.toString();
-      _selectedAppointment = null;
-    } finally {
-      _isLoading = false;
-      notifyListeners();
+      error = kGenericErrorMessage;
     }
+    // Another booking was opened while this read was out: its answer is no
+    // longer anybody's (`ProviderProvider.loadProviderById`'s guard) — nor is
+    // it when the account changed, even for the same id: a push of A's
+    // replayed under B opens A's id (consumer-account-scope.md §9).
+    if (_selectedId != id || account != _account) return;
+    _selectedAppointment = found;
+    _error = error;
+    _isLoading = false;
+    notifyListeners();
   }
 
   Future<bool> cancelAppointment(String id) async {
+    final account = _account;
     _isLoading = true;
     _error = null;
     notifyListeners();
 
+    ApiResponse<void>? response;
     try {
-      final response = await _appointmentService.cancelAppointment(id);
-      if (response.success) {
-        final index = _appointments.indexWhere((a) => a.id == id);
-        if (index != -1) {
-          _appointments[index] = _appointments[index].copyWith(
-            status: AppointmentStatus.cancelled,
-          );
-        }
-        _error = null;
-        return true;
-      } else {
-        _error = response.error ?? 'Erreur lors de l’annulation';
-        return false;
-      }
+      response = await _appointmentService.cancelAppointment(id);
     } catch (e) {
-      _error = e.toString();
-      return false;
-    } finally {
-      _isLoading = false;
-      notifyListeners();
+      response = null;
     }
+    final cancelled = response != null && response.success;
+    if (account != _account) return cancelled;
+    if (cancelled) {
+      final index = _appointments.indexWhere((a) => a.id == id);
+      if (index != -1) {
+        _appointments[index] = _appointments[index].copyWith(
+          status: AppointmentStatus.cancelled,
+        );
+      }
+      _error = null;
+    } else {
+      _error = response == null
+          ? kGenericErrorMessage
+          : response.error ?? 'Erreur lors de l’annulation';
+    }
+    _isLoading = false;
+    notifyListeners();
+    return cancelled;
   }
 
   Future<bool> rescheduleAppointment({
     required String id,
     required DateTime newDateTime,
   }) async {
+    final account = _account;
     _isLoading = true;
     _error = null;
     notifyListeners();
 
+    ApiResponse<Appointment>? response;
     try {
-      final response = await _appointmentService.rescheduleAppointment(
+      response = await _appointmentService.rescheduleAppointment(
         id: id,
         newDateTime: newDateTime,
       );
-      if (response.success && response.data != null) {
-        final updated = response.data!;
-        final index = _appointments.indexWhere((a) => a.id == id);
-        if (index != -1) {
-          _appointments[index] = updated;
-        }
-        if (_selectedAppointment?.id == id) {
-          _selectedAppointment = updated;
-        }
-        _error = null;
-        return true;
-      } else {
-        _error = response.error ?? 'Erreur lors du report';
-        return false;
-      }
     } catch (e) {
-      _error = e.toString();
-      return false;
-    } finally {
-      _isLoading = false;
-      notifyListeners();
+      response = null;
     }
+    final moved = response != null && response.success && response.data != null;
+    if (account != _account) return moved;
+    if (moved) {
+      final updated = response.data!;
+      final index = _appointments.indexWhere((a) => a.id == id);
+      if (index != -1) {
+        _appointments[index] = updated;
+      }
+      if (_selectedAppointment?.id == id) {
+        _selectedAppointment = updated;
+      }
+      _error = null;
+    } else {
+      _error = response == null
+          ? kGenericErrorMessage
+          : response.error ?? 'Erreur lors du report';
+    }
+    _isLoading = false;
+    notifyListeners();
+    return moved;
   }
 
   /// The salon's free starts on [date], **and why the list is empty when it is**.
@@ -291,7 +373,7 @@ class AppointmentProvider extends ChangeNotifier {
   /// are none"* and never the envelope's other fields.
   Future<({List<DateTime> slots, String? error, String? code})>
   getAvailableTimeSlots({
-    required String providerId,
+    required SalonId providerId,
     required DateTime date,
     List<String>? serviceIds,
     String? artistId,

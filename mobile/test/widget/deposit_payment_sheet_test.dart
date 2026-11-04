@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:myweli/core/di/dependency_injection.dart';
+import 'package:myweli/core/utils/salon_id.dart';
 import 'package:myweli/providers/locality_provider.dart';
 import 'package:myweli/widgets/booking/deposit_payment_sheet.dart';
 import 'package:provider/provider.dart';
@@ -22,7 +23,7 @@ void main() {
             context,
             depositAmount: 6000,
             balanceDue: 14000,
-            providerId: 'p1',
+            providerId: SalonId('p1'),
             providerName: 'Beauté Divine',
             serviceIds: const ['s1'],
             appointmentDateTime: DateTime(2024, 6, 24, 10),

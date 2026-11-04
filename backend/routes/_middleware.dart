@@ -17,6 +17,7 @@ import 'package:myweli_backend/src/appointments/booking_service.dart';
 import 'package:myweli_backend/src/appointments/journal_service.dart';
 import 'package:myweli_backend/src/appointments/pro_appointment_service.dart';
 import 'package:myweli_backend/src/appointments/slot_service.dart';
+import 'package:myweli_backend/src/auth/apple_tokens.dart';
 import 'package:myweli_backend/src/auth/auth_methods.dart';
 import 'package:myweli_backend/src/auth/auth_repository.dart';
 import 'package:myweli_backend/src/auth/demo_seam.dart';
@@ -32,8 +33,10 @@ import 'package:myweli_backend/src/dependencies.dart';
 import 'package:myweli_backend/src/deposit_service.dart';
 import 'package:myweli_backend/src/email/email_provider.dart';
 import 'package:myweli_backend/src/favorites_service.dart';
+import 'package:myweli_backend/src/idempotency/idempotency_store.dart';
 import 'package:myweli_backend/src/kyc_service.dart';
 import 'package:myweli_backend/src/localities/localities_service.dart';
+import 'package:myweli_backend/src/maintenance/maintenance_tick.dart';
 import 'package:myweli_backend/src/messaging/booking_notifier.dart';
 import 'package:myweli_backend/src/messaging/messaging_service.dart';
 import 'package:myweli_backend/src/messaging/reminder_scheduler.dart';
@@ -68,8 +71,10 @@ Handler middleware(Handler handler) {
       .use(provider<SmokeSeam>((_) => smokeSeam))
       .use(provider<DemoSeam>((_) => demoSeam))
       .use(provider<DemoResetService>((_) => demoResetService))
+      .use(provider<MaintenanceTick>((_) => maintenanceTick))
       .use(provider<GoogleIdTokenVerifier>((_) => googleIdTokenVerifier))
       .use(provider<AppleIdTokenVerifier>((_) => appleIdTokenVerifier))
+      .use(provider<AppleTokenService>((_) => appleTokenService))
       .use(provider<EmailProvider>((_) => emailProvider))
       .use(provider<ProviderAuthRepository>((_) => providerAuthRepository))
       .use(provider<ProviderAccountService>((_) => providerAccountService))
@@ -79,6 +84,7 @@ Handler middleware(Handler handler) {
       .use(provider<TeamService>((_) => teamService))
       .use(provider<SubscriptionScheduler>((_) => subscriptionScheduler))
       .use(provider<AppointmentRepository>((_) => appointmentRepository))
+      .use(provider<IdempotencyStore>((_) => idempotencyStore))
       .use(provider<BookingService>((_) => bookingService))
       .use(provider<SlotService>((_) => slotService))
       .use(

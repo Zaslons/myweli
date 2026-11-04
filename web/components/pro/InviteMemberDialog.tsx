@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
+import { SubmissionKey } from '../../lib/api/network';
 import { createArtistReturning, inviteMember } from '../../lib/api/pro';
 import type { Artist } from '../../lib/pro/catalogue';
 import {
@@ -44,6 +45,8 @@ export function InviteMemberDialog({
   const [creatingFiche, setCreatingFiche] = useState(false);
   const [newFicheName, setNewFicheName] = useState('');
   const [busy, setBusy] = useState(false);
+  // One Idempotency-Key per submission (docs/design/write-idempotency.md §4).
+  const submission = useRef(new SubmissionKey());
   // The machine code (not the message) — so we can render both the copy and
   // the matching CTA (offer_required/seat_limit → the picker).
   const [errorCode, setErrorCode] = useState<string | undefined>();
@@ -82,16 +85,18 @@ export function InviteMemberDialog({
     }
     setBusy(true);
     setErrorCode(undefined);
-    const r = await inviteMember({
+    const invitation = {
       email: checked.email,
       role,
       artistId: role === 'staff' ? artistId : undefined,
-    });
+    };
+    const r = await inviteMember(invitation, submission.current.for(invitation));
     setBusy(false);
     if (!r.ok || !r.member) {
       setErrorCode(r.error ?? 'unknown');
       return;
     }
+    submission.current.settle();
     onInvited(r.member, checked.email);
   }
 
@@ -107,7 +112,7 @@ export function InviteMemberDialog({
             value={stepEmail}
             onChange={(e) => setStepEmail(e.target.value)}
             placeholder="collaborateur@exemple.com"
-            className="mt-xs block w-full min-h-12 rounded-lg border border-borderStrong bg-surface p-m text-bodyLarge text-textPrimary focus:border-borderFocus focus:ring-1 focus:ring-borderFocus"
+            className="mt-xs block w-full min-h-12 rounded-control border border-primary bg-surface p-m text-bodyLarge text-textPrimary focus:border-borderFocus focus:ring-1 focus:ring-borderFocus"
           />
         </label>
 
@@ -123,7 +128,7 @@ export function InviteMemberDialog({
                   setRole(r);
                   setErrorCode(undefined);
                 }}
-                className={`rounded-lg border px-m py-s text-left ${
+                className={`rounded-control border px-m py-s text-left ${
                   role === r
                     ? 'border-primary bg-surfaceVariant'
                     : 'border-border bg-surface'
@@ -160,7 +165,7 @@ export function InviteMemberDialog({
                   value={newFicheName}
                   onChange={(e) => setNewFicheName(e.target.value)}
                   placeholder="Nom de l’employé"
-                  className="min-h-12 flex-1 rounded-lg border border-borderStrong bg-surface p-m text-bodyLarge text-textPrimary focus:border-borderFocus focus:ring-1 focus:ring-borderFocus"
+                  className="min-h-12 flex-1 rounded-control border border-primary bg-surface p-m text-bodyLarge text-textPrimary focus:border-borderFocus focus:ring-1 focus:ring-borderFocus"
                 />
                 <Button
                   onClick={createFiche}
@@ -175,7 +180,7 @@ export function InviteMemberDialog({
                   id="invite-fiche"
                   value={artistId}
                   onChange={(e) => setArtistId(e.target.value)}
-                  className="min-h-12 flex-1 rounded-lg border border-borderStrong bg-surface p-m text-bodyLarge text-textPrimary"
+                  className="min-h-12 flex-1 rounded-control border border-primary bg-surface p-m text-bodyLarge text-textPrimary"
                 >
                   <option value="">Choisir une fiche…</option>
                   {artists.map((a) => (

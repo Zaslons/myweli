@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:go_router/go_router.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:myweli/core/di/dependency_injection.dart';
 import 'package:myweli/core/utils/formatters.dart';
+import 'package:myweli/core/utils/salon_id.dart';
 import 'package:myweli/models/api_response.dart';
 import 'package:myweli/models/provider_user.dart';
 import 'package:myweli/models/salon_subscription.dart';
@@ -35,12 +35,12 @@ class _SwitchableSubs implements SubscriptionServiceInterface {
 
   @override
   Future<ApiResponse<SalonSubscription>> getSalonSubscription(
-    String providerId,
+    SalonId providerId,
   ) => inner.getSalonSubscription(providerId);
 }
 
 /// « Mon abonnement » is READ-ONLY — the Pro app never sells (App Store
-/// 3.1.3(f), docs/design/pro-companion-path.md §2.2): each state shows the
+/// 3.1.1, docs/design/pro-companion-path.md §2.2): each state shows the
 /// salon's current offer and nothing that chooses, switches, promotes or
 /// points to where an offer is obtained. The key tests run on BOTH platforms
 /// (`TargetPlatformVariant`): the rule is not a platform branch, and the
@@ -103,7 +103,7 @@ void main() {
 
   /// The seat cap the mock derives from the tier, against the seeded team.
   String seatsLine(int cap) =>
-      '${MockData.teamSeatsUsed(providerId: 'provider1')} / $cap places';
+      '${MockData.teamSeatsUsed(providerId: SalonId('provider1'))} / $cap places';
 
   /// Everything the read-only screen may never show, in any state, on any
   /// platform — the spec's §2.1 rule as finders. « Pro » / « Business » /
@@ -275,8 +275,10 @@ void main() {
       await expectNowhere(tester, forbidden());
     }, variant: bothPlatforms);
 
-    testWidgets('LIVE RÉSEAU: « Ajouter un salon » states what the offer '
-        'allows — never another offer or a trial', (tester) async {
+    // docs/design/pro-app-login-only.md (B0.11, App Store 3.1.1): the card
+    // that opened the add-salon form left with it.
+    testWidgets('LIVE RÉSEAU: the offer, and no « Ajouter un salon » — '
+        'salons are added on the web', (tester) async {
       subs.inner = MockSubscriptionService(
         initial: state(tier: SalonTier.reseau),
       );
@@ -288,8 +290,8 @@ void main() {
         ),
         findsOneWidget,
       );
-      expect(find.text('Ajouter un salon'), findsOneWidget);
-      expect(find.text('Un salon de plus dans votre compte.'), findsOneWidget);
+      expect(find.text('Ajouter un salon'), findsNothing);
+      expect(find.text('Un salon de plus dans votre compte.'), findsNothing);
       expect(find.textContaining('propre essai'), findsNothing);
       await expectNowhere(tester, forbidden());
     }, variant: bothPlatforms);
@@ -319,35 +321,6 @@ void main() {
     expect(find.text('Ajouter un salon'), findsNothing);
   });
 
-  testWidgets('« Ajouter un salon » opens the add-salon form', (tester) async {
-    subs.inner = MockSubscriptionService(
-      initial: state(tier: SalonTier.reseau),
-    );
-    final router = GoRouter(
-      routes: [
-        GoRoute(path: '/', builder: (_, _) => const ProSubscriptionScreen()),
-        GoRoute(
-          path: '/pro/salons/nouveau',
-          builder: (_, _) => const Scaffold(body: Text('NOUVEAU SALON')),
-        ),
-      ],
-    );
-    await tester.pumpWidget(
-      wrapApp(
-        providers: [
-          ChangeNotifierProvider(create: (_) => ProAuthProvider()),
-          ChangeNotifierProvider(create: (_) => ProSubscriptionProvider()),
-        ],
-        routerConfig: router,
-      ),
-    );
-    await settleMocks(tester, rounds: 2);
-
-    await tester.tap(find.text('Ajouter un salon'));
-    await settleMocks(tester);
-    expect(find.text('NOUVEAU SALON'), findsOneWidget);
-  });
-
   testWidgets('200 % text on a 360dp phone: the longest state lays out '
       'without overflow', (tester) async {
     pinSurface(tester, size: kFloorPhone, scale: 2.0);
@@ -365,7 +338,8 @@ void main() {
     subs.inner = _FailingSubs();
     await pumpScreen(tester);
 
-    expect(find.text('Une erreur est survenue'), findsOneWidget);
+    // The shared load error (B9.8, Q9).
+    expect(find.text('Chargement impossible'), findsOneWidget);
     expect(find.text('Réessayer'), findsOneWidget);
   });
 
@@ -388,6 +362,6 @@ void main() {
 class _FailingSubs implements SubscriptionServiceInterface {
   @override
   Future<ApiResponse<SalonSubscription>> getSalonSubscription(
-    String providerId,
+    SalonId providerId,
   ) async => ApiResponse.error('Pas de connexion. Réessayez.');
 }

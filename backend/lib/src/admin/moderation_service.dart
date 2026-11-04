@@ -36,6 +36,29 @@ class ModerationService {
     return (ok: true, error: null, data: {'status': 'reported'});
   }
 
+  /// A salon flags a review of ITS salon (B6.6, decision 20 — App Store 1.2):
+  /// the same queue as a client's report, recorded with the salon as the
+  /// reporter (`reporter_kind = salon`). A review of another salon — or none
+  /// — is `not_found`: a salon cannot report what is not its own.
+  /// Idempotent per (review, salon). The route decides who in the salon may
+  /// (docs/design/backend-integrity-batch6.md §2.6).
+  Future<ModerationResult> reportBySalon(
+    String providerId,
+    String reviewId,
+    Object? reason,
+  ) async {
+    final r = reason is String ? reason.trim() : '';
+    if (r.length > _maxReason) {
+      return (ok: false, error: 'invalid_input', data: null);
+    }
+    final review = await _reviews.reviewById(reviewId);
+    if (review == null || review['providerId'] != providerId) {
+      return (ok: false, error: 'not_found', data: null);
+    }
+    await _reviews.addReport(reviewId, providerId, r, reporterKind: 'salon');
+    return (ok: true, error: null, data: {'status': 'reported'});
+  }
+
   Future<ModerationResult> queue({int page = 1, int pageSize = 20}) async {
     final res = await _reviews.listReportedReviews(
       page: page,

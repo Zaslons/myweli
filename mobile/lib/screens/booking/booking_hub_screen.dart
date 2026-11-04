@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:myweli/widgets/common/loading_indicator.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/a11y/reduce_motion.dart';
@@ -11,6 +10,7 @@ import '../../core/theme/text_styles.dart';
 import '../../core/utils/booking_duration.dart';
 import '../../core/utils/formatters.dart';
 import '../../core/utils/rebook.dart';
+import '../../core/utils/salon_id.dart';
 import '../../core/utils/salon_time.dart';
 import '../../models/provider.dart' as models;
 import '../../models/service.dart';
@@ -18,13 +18,15 @@ import '../../providers/appointment_provider.dart';
 import '../../providers/provider_provider.dart';
 import '../../widgets/booking/length_variant_selector.dart';
 import '../../widgets/booking/slot_picker.dart';
+import '../../widgets/common/app_card.dart';
+import '../../widgets/common/app_skeleton.dart';
 import '../../widgets/common/app_snack_bar.dart';
 import '../../widgets/common/inline_feedback.dart';
 import '../../widgets/common/label_value_row.dart';
 import '../../widgets/common/salon_unavailable_view.dart';
 
 class BookingDraft {
-  final String providerId;
+  final SalonId providerId;
   final List<String> serviceIds;
   final String? artistId;
   final DateTime? dateTime;
@@ -67,7 +69,7 @@ enum _HubEntryPoint { services, artist, dateTime }
 enum _HubSection { services, artist, dateTime }
 
 class BookingHubScreen extends StatefulWidget {
-  final String providerId;
+  final SalonId providerId;
 
   /// Pre-fill (used by rebook): the services + stylist to start from.
   final List<String> initialServiceIds;
@@ -419,7 +421,7 @@ class _BookingHubScreenState extends State<BookingHubScreen> {
         builder: (context, providerProvider, appointmentProvider, _) {
           if (providerProvider.isLoading &&
               providerProvider.selectedProvider == null) {
-            return const Center(child: LoadingIndicator());
+            return const SkeletonDetail(sections: 3);
           }
 
           final p = providerProvider.selectedProvider;
@@ -428,6 +430,7 @@ class _BookingHubScreenState extends State<BookingHubScreen> {
             // AppBar still titled « Réserver ».
             return SalonUnavailableView(
               errorCode: providerProvider.errorCode,
+              message: providerProvider.error,
               onRetry: () =>
                   providerProvider.loadProviderById(widget.providerId),
             );
@@ -444,15 +447,7 @@ class _BookingHubScreenState extends State<BookingHubScreen> {
                   child: ListView(
                     controller: _scrollController,
                     children: [
-                      Container(
-                        padding: const EdgeInsets.all(AppTheme.spacingM),
-                        decoration: BoxDecoration(
-                          color: AppColors.secondary,
-                          borderRadius: BorderRadius.circular(
-                            AppTheme.radiusXL,
-                          ),
-                          boxShadow: AppTheme.elevation1,
-                        ),
+                      AppCard(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
@@ -922,16 +917,10 @@ class _HubSectionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(AppTheme.spacingM),
-      decoration: BoxDecoration(
-        color: AppColors.secondary,
-        borderRadius: BorderRadius.circular(AppTheme.radiusXL),
-        border: Border.all(
-          color: expanded ? AppColors.primary : AppColors.borderStrong,
-        ),
-        boxShadow: AppTheme.elevation1,
-      ),
+    return AppCard(
+      // A step is a control: its line says which one is open (Q13).
+      outlined: true,
+      selected: expanded,
       child: Column(
         children: [
           ConstrainedBox(

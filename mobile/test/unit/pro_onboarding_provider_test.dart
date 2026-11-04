@@ -1,7 +1,9 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
+import 'package:myweli/core/constants/failure_messages.dart';
 import 'package:myweli/core/di/dependency_injection.dart';
 import 'package:myweli/core/utils/onboarding.dart';
+import 'package:myweli/core/utils/salon_id.dart';
 import 'package:myweli/models/api_response.dart';
 import 'package:myweli/models/availability.dart';
 import 'package:myweli/models/kyc_document.dart';
@@ -111,18 +113,20 @@ void main() {
     final salon = MockData.providers.first.copyWith(
       imageUrls: const ['a.jpg', 'b.jpg', 'c.jpg'],
     );
-    when(() => pro.getProviderServices('p1')).thenAnswer(
-      (_) async =>
-          ApiResponse.success(MockData.getServicesForProvider('provider1')),
+    when(() => pro.getProviderServices(SalonId('p1'))).thenAnswer(
+      (_) async => ApiResponse.success(
+        MockData.getServicesForProvider(SalonId('provider1')),
+      ),
     );
-    when(() => artists.getArtists('p1')).thenAnswer(
-      (_) async =>
-          ApiResponse.success(MockData.getArtistsForProvider('provider1')),
+    when(() => artists.getArtists(SalonId('p1'))).thenAnswer(
+      (_) async => ApiResponse.success(
+        MockData.getArtistsForProvider(SalonId('provider1')),
+      ),
     );
     when(
-      () => pro.getProviderAvailability('p1'),
+      () => pro.getProviderAvailability(SalonId('p1')),
     ).thenAnswer((_) async => ApiResponse.success(salon.availability));
-    when(() => pro.getDepositPolicy('p1')).thenAnswer(
+    when(() => pro.getDepositPolicy(SalonId('p1'))).thenAnswer(
       (_) async => ApiResponse.success(
         const DepositPolicy(depositRequired: false, depositPercentage: 0),
       ),
@@ -134,7 +138,7 @@ void main() {
           membership: ProMembership(
             role: TeamRole.owner,
             capabilities: presetCapabilitiesFor(TeamRole.owner),
-            salonId: 'p1',
+            salonId: SalonId('p1'),
             salonName: salon.name,
           ),
         ),
@@ -154,9 +158,9 @@ void main() {
         businessName: 'Salon X',
         businessType: BusinessType.salon,
         createdAt: DateTime(2026),
-        providerId: 'p1',
+        providerId: SalonId('p1'),
       ),
-      salonId: 'p1',
+      salonId: SalonId('p1'),
     );
 
     expect(
@@ -168,6 +172,56 @@ void main() {
     );
     expect(p.steps.map((s) => s.key.name), isNot(contains('offer')));
     expect(p.readyToGoLive, isTrue);
+  });
+
+  // docs/design/hygiene-batch9.md §14 (B9.8) — every service answers a
+  // failure instead of throwing, and each read here took one for « nothing
+  // done »: offline, a salon saw its whole checklist to do, and the error
+  // state above it could not be reached.
+  test('a read that failed is the load\'s failure, not a step to do', () async {
+    final salon = MockData.providers.first;
+    when(() => pro.getProviderServices(SalonId('p1'))).thenAnswer(
+      (_) async => ApiResponse<List<Service>>.error(kNoConnectionMessage),
+    );
+    when(() => artists.getArtists(SalonId('p1'))).thenAnswer(
+      (_) async => ApiResponse.success(
+        MockData.getArtistsForProvider(SalonId('provider1')),
+      ),
+    );
+    when(
+      () => pro.getProviderAvailability(SalonId('p1')),
+    ).thenAnswer((_) async => ApiResponse.success(salon.availability));
+    when(() => pro.getDepositPolicy(SalonId('p1'))).thenAnswer(
+      (_) async => ApiResponse.success(
+        const DepositPolicy(depositRequired: false, depositPercentage: 0),
+      ),
+    );
+    when(() => pro.getMyProvider()).thenAnswer(
+      (_) async => ApiResponse<MyProviderInfo>.error(kGenericErrorMessage),
+    );
+    when(() => kyc.getKycStatus(any())).thenAnswer(
+      (_) async => ApiResponse.success(
+        const KycStatus(status: VerificationStatus.verified),
+      ),
+    );
+
+    final p = ProOnboardingProvider();
+    await p.load(
+      ProviderUser(
+        id: 'pu1',
+        phoneNumber: '+2250700000000',
+        businessName: 'Salon X',
+        businessType: BusinessType.salon,
+        createdAt: DateTime(2026),
+        providerId: SalonId('p1'),
+      ),
+      salonId: SalonId('p1'),
+    );
+
+    expect(p.loadFailed, isTrue);
+    expect(p.loaded, isFalse);
+    // The first failure, in its own words.
+    expect(p.error, kNoConnectionMessage);
   });
 
   // docs/design/web-pro-golive-signup-like-app.md §4 — the app judged two
@@ -185,16 +239,17 @@ void main() {
       required Availability availability,
     }) async {
       when(
-        () => pro.getProviderServices('p1'),
+        () => pro.getProviderServices(SalonId('p1')),
       ).thenAnswer((_) async => ApiResponse.success(services));
-      when(() => artists.getArtists('p1')).thenAnswer(
-        (_) async =>
-            ApiResponse.success(MockData.getArtistsForProvider('provider1')),
+      when(() => artists.getArtists(SalonId('p1'))).thenAnswer(
+        (_) async => ApiResponse.success(
+          MockData.getArtistsForProvider(SalonId('provider1')),
+        ),
       );
       when(
-        () => pro.getProviderAvailability('p1'),
+        () => pro.getProviderAvailability(SalonId('p1')),
       ).thenAnswer((_) async => ApiResponse.success(availability));
-      when(() => pro.getDepositPolicy('p1')).thenAnswer(
+      when(() => pro.getDepositPolicy(SalonId('p1'))).thenAnswer(
         (_) async => ApiResponse.success(
           const DepositPolicy(depositRequired: false, depositPercentage: 0),
         ),
@@ -206,7 +261,7 @@ void main() {
             membership: ProMembership(
               role: TeamRole.owner,
               capabilities: presetCapabilitiesFor(TeamRole.owner),
-              salonId: 'p1',
+              salonId: SalonId('p1'),
               salonName: salon.name,
             ),
           ),
@@ -225,16 +280,16 @@ void main() {
           businessName: 'Salon X',
           businessType: BusinessType.salon,
           createdAt: DateTime(2026),
-          providerId: 'p1',
+          providerId: SalonId('p1'),
         ),
-        salonId: 'p1',
+        salonId: SalonId('p1'),
       );
       return p;
     }
 
     test('an inactive service does not count toward the three', () async {
       final three = MockData.getServicesForProvider(
-        'provider1',
+        SalonId('provider1'),
       ).take(3).toList();
       final p = await load(
         services: [three[0], three[1], three[2].copyWith(active: false)],
@@ -251,7 +306,7 @@ void main() {
       'a day with hours counts, whatever its slots’ flags — as the server',
       () async {
         final p = await load(
-          services: MockData.getServicesForProvider('provider1'),
+          services: MockData.getServicesForProvider(SalonId('provider1')),
           availability: salon.availability.copyWith(
             weeklySchedule: {
               0: [
@@ -275,31 +330,31 @@ void main() {
   group('publish (pro-salon-lifecycle B3)', () {
     test('success → true, no error, loading toggles', () async {
       when(
-        () => pro.publishSalon('p1'),
+        () => pro.publishSalon(SalonId('p1')),
       ).thenAnswer((_) async => ApiResponse.success(true, message: 'ok'));
       final p = ProOnboardingProvider();
-      final ok = await p.publish('p1');
+      final ok = await p.publish(SalonId('p1'));
       expect(ok, isTrue);
       expect(p.error, isNull);
       expect(p.isPublishing, isFalse);
-      verify(() => pro.publishSalon('p1')).called(1);
+      verify(() => pro.publishSalon(SalonId('p1'))).called(1);
     });
 
     test('incomplete → false + the server message surfaces', () async {
-      when(() => pro.publishSalon('p1')).thenAnswer(
+      when(() => pro.publishSalon(SalonId('p1'))).thenAnswer(
         (_) async => ApiResponse.error(
           'Complétez les étapes requises avant la mise en ligne.',
           code: 'incomplete',
         ),
       );
       final p = ProOnboardingProvider();
-      expect(await p.publish('p1'), isFalse);
+      expect(await p.publish(SalonId('p1')), isFalse);
       expect(p.error, contains('Complétez les étapes'));
     });
 
     test('offer_required (an EXPIRED offer) exposes the machine code so the '
         'screen can show its neutral sentence', () async {
-      when(() => pro.publishSalon('p1')).thenAnswer(
+      when(() => pro.publishSalon(SalonId('p1'))).thenAnswer(
         (_) async => ApiResponse.error(
           'La mise en ligne est indisponible : l’offre de votre salon n’est '
           'plus active.',
@@ -307,8 +362,105 @@ void main() {
         ),
       );
       final p = ProOnboardingProvider();
-      expect(await p.publish('p1'), isFalse);
+      expect(await p.publish(SalonId('p1')), isFalse);
       expect(p.publishErrorCode, 'offer_required');
     });
   });
+
+  group(
+    '« Acompte & annulation » follows a SAVED choice (B7.7, decision 24)',
+    () {
+      // The server answers 200 with defaults for a salon that never chose
+      // (`depositRequired: false`, `depositPercentage: 0`): an answer is not a
+      // choice. docs/design/pro-app-batch7.md §2.7.
+      Future<OnboardingStepStatus> depositStepFor(DepositPolicy policy) async {
+        final salon = MockData.providers.first.copyWith(
+          imageUrls: const ['a.jpg', 'b.jpg', 'c.jpg'],
+        );
+        when(() => pro.getProviderServices(SalonId('p1'))).thenAnswer(
+          (_) async => ApiResponse.success(
+            MockData.getServicesForProvider(SalonId('provider1')),
+          ),
+        );
+        when(() => artists.getArtists(SalonId('p1'))).thenAnswer(
+          (_) async => ApiResponse.success(
+            MockData.getArtistsForProvider(SalonId('provider1')),
+          ),
+        );
+        when(
+          () => pro.getProviderAvailability(SalonId('p1')),
+        ).thenAnswer((_) async => ApiResponse.success(salon.availability));
+        when(
+          () => pro.getDepositPolicy(SalonId('p1')),
+        ).thenAnswer((_) async => ApiResponse.success(policy));
+        when(() => pro.getMyProvider()).thenAnswer(
+          (_) async => ApiResponse.success(
+            MyProviderInfo(
+              salon: salon,
+              membership: ProMembership(
+                role: TeamRole.owner,
+                capabilities: presetCapabilitiesFor(TeamRole.owner),
+                salonId: SalonId('p1'),
+                salonName: salon.name,
+              ),
+            ),
+          ),
+        );
+        when(() => kyc.getKycStatus(any())).thenAnswer(
+          (_) async => ApiResponse.success(
+            const KycStatus(status: VerificationStatus.verified),
+          ),
+        );
+        final p = ProOnboardingProvider();
+        await p.load(
+          ProviderUser(
+            id: 'pu1',
+            phoneNumber: '+2250700000000',
+            businessName: 'Salon X',
+            businessType: BusinessType.salon,
+            createdAt: DateTime(2026),
+            providerId: SalonId('p1'),
+          ),
+          salonId: SalonId('p1'),
+        );
+        return statusOf(p, OnboardingStepKey.deposit);
+      }
+
+      test(
+        'never chosen (the server\'s defaults) → optional, not done',
+        () async {
+          expect(
+            await depositStepFor(
+              const DepositPolicy(depositRequired: false, depositPercentage: 0),
+            ),
+            OnboardingStepStatus.optional,
+          );
+        },
+      );
+
+      test(
+        'saved with deposits OFF (the form sends its 30 %) → done',
+        () async {
+          expect(
+            await depositStepFor(
+              const DepositPolicy(
+                depositRequired: false,
+                depositPercentage: 0.3,
+              ),
+            ),
+            OnboardingStepStatus.done,
+          );
+        },
+      );
+
+      test('deposits ON → done', () async {
+        expect(
+          await depositStepFor(
+            const DepositPolicy(depositRequired: true, depositPercentage: 0.3),
+          ),
+          OnboardingStepStatus.done,
+        );
+      });
+    },
+  );
 }

@@ -1,7 +1,9 @@
 import 'package:flutter/foundation.dart';
 
 import '../core/access/pro_salon_scope.dart';
+import '../core/constants/failure_messages.dart';
 import '../core/di/dependency_injection.dart';
+import '../core/utils/submission_key.dart';
 import '../models/api_response.dart';
 import '../models/team_invitation.dart';
 import '../models/team_member.dart';
@@ -12,6 +14,10 @@ import '../services/interfaces/pro_team_service_interface.dart';
 /// Mutations update the row in place from the returned member.
 class ProTeamProvider extends ChangeNotifier implements SalonScoped {
   ProTeamServiceInterface get _service => serviceLocator.proTeamService;
+
+  /// One Idempotency-Key per invitation submission
+  /// (docs/design/write-idempotency.md §4).
+  final SubmissionKey _inviteKey = SubmissionKey();
 
   // ---- Owner roster ---------------------------------------------------------
 
@@ -41,21 +47,26 @@ class ProTeamProvider extends ChangeNotifier implements SalonScoped {
   String? get actionErrorCode => _actionErrorCode;
 
   Future<void> load() async {
+    final scope = _scope;
     _isLoading = true;
     _error = null;
     notifyListeners();
     try {
       final res = await _service.getMembers();
+      if (scope != _scope) return;
       if (res.success && res.data != null) {
         _members = _sorted(res.data!);
       } else {
         _error = res.error ?? 'Erreur lors du chargement';
       }
     } catch (e) {
-      _error = e.toString();
+      if (scope != _scope) return;
+      _error = kGenericErrorMessage;
     } finally {
-      _isLoading = false;
-      notifyListeners();
+      if (scope == _scope) {
+        _isLoading = false;
+        notifyListeners();
+      }
     }
   }
 
@@ -64,6 +75,7 @@ class ProTeamProvider extends ChangeNotifier implements SalonScoped {
     required TeamRole role,
     String? artistId,
   }) async {
+    final scope = _scope;
     _isInviting = true;
     _inviteError = null;
     _inviteErrorCode = null;
@@ -73,8 +85,15 @@ class ProTeamProvider extends ChangeNotifier implements SalonScoped {
         email: email,
         role: role,
         artistId: artistId,
+        idempotencyKey: _inviteKey.forForm({
+          'email': email,
+          'role': role.name,
+          'artistId': artistId,
+        }),
       );
+      if (scope != _scope) return null;
       if (res.success && res.data != null) {
+        _inviteKey.settle();
         // Replace by id: inviting a revoked or expired address again returns
         // the SAME row (docs/design/backend-team-reinvite.md), which an
         // append would show twice until the next reload.
@@ -90,11 +109,14 @@ class ProTeamProvider extends ChangeNotifier implements SalonScoped {
       _inviteErrorCode = res.code;
       return null;
     } catch (e) {
-      _inviteError = e.toString();
+      if (scope != _scope) return null;
+      _inviteError = kGenericErrorMessage;
       return null;
     } finally {
-      _isInviting = false;
-      notifyListeners();
+      if (scope == _scope) {
+        _isInviting = false;
+        notifyListeners();
+      }
     }
   }
 
@@ -122,11 +144,13 @@ class ProTeamProvider extends ChangeNotifier implements SalonScoped {
   Future<bool> _memberAction(
     Future<ApiResponse<TeamMember>> Function() run,
   ) async {
+    final scope = _scope;
     _actionError = null;
     _actionErrorCode = null;
     notifyListeners();
     try {
       final res = await run();
+      if (scope != _scope) return res.success;
       if (res.success && res.data != null) {
         final updated = res.data!;
         _members = _sorted([
@@ -140,7 +164,8 @@ class ProTeamProvider extends ChangeNotifier implements SalonScoped {
       notifyListeners();
       return false;
     } catch (e) {
-      _actionError = e.toString();
+      if (scope != _scope) return false;
+      _actionError = kGenericErrorMessage;
       notifyListeners();
       return false;
     }
@@ -150,24 +175,48 @@ class ProTeamProvider extends ChangeNotifier implements SalonScoped {
 
   List<TeamInvitation> _myInvitations = const [];
   bool _invitationsLoading = false;
+  bool _invitationsAsked = false;
 
   List<TeamInvitation> get myInvitations => _myInvitations;
   int get invitationCount => _myInvitations.length;
   bool get invitationsLoading => _invitationsLoading;
 
+  /// Whether the list was asked for since the last salon reset. A switch
+  /// empties it ([resetForSalonSwitch]) without anything reading it again —
+  /// the « Accueil » / « Journée » card reads it whenever this is false, so
+  /// it follows the reset itself, not a salon id that changes before it
+  /// (pro-app-batch7.md §2.6, B7.6).
+  bool get invitationsAsked => _invitationsAsked;
+
+  /// The list's failed read — silent for the cards and the badge, which
+  /// simply do not show; said on « Mes invitations », which said « Aucune
+  /// invitation en attente » for a list it never read (B9.8).
+  String? get invitationsError => _invitationsError;
+  String? _invitationsError;
+
   Future<void> loadMyInvitations() async {
+    final scope = _scope;
+    _invitationsAsked = true;
     _invitationsLoading = true;
+    _invitationsError = null;
     notifyListeners();
     try {
       final res = await _service.getMyInvitations();
+      if (scope != _scope) return;
       if (res.success && res.data != null) {
         _myInvitations = res.data!;
+      } else {
+        _invitationsError = res.error ?? kGenericErrorMessage;
       }
     } catch (_) {
-      // Silent — the profile badge simply doesn't show.
+      if (scope != _scope) return;
+      // Silent for the badge — it simply doesn't show.
+      _invitationsError = kGenericErrorMessage;
     } finally {
-      _invitationsLoading = false;
-      notifyListeners();
+      if (scope == _scope) {
+        _invitationsLoading = false;
+        notifyListeners();
+      }
     }
   }
 
@@ -179,6 +228,7 @@ class ProTeamProvider extends ChangeNotifier implements SalonScoped {
   /// follows reads the list anyway.
   void seedMyInvitations(List<TeamInvitation> cards) {
     _myInvitations = List.unmodifiable(cards);
+    _invitationsAsked = true;
     _invitationsLoading = false;
     _actionError = null;
     _actionErrorCode = null;
@@ -186,10 +236,12 @@ class ProTeamProvider extends ChangeNotifier implements SalonScoped {
 
   /// Accept under the current session; the card disappears on success.
   Future<TeamMember?> acceptMyInvitation(String invitationId) async {
+    final scope = _scope;
     _actionError = null;
     _actionErrorCode = null;
     try {
       final res = await _service.acceptInvitation(invitationId);
+      if (scope != _scope) return null;
       if (res.success && res.data != null) {
         _myInvitations = _myInvitations
             .where((i) => i.id != invitationId)
@@ -207,17 +259,20 @@ class ProTeamProvider extends ChangeNotifier implements SalonScoped {
       notifyListeners();
       return null;
     } catch (e) {
-      _actionError = e.toString();
+      if (scope != _scope) return null;
+      _actionError = kGenericErrorMessage;
       notifyListeners();
       return null;
     }
   }
 
   Future<bool> declineMyInvitation(String invitationId) async {
+    final scope = _scope;
     _actionError = null;
     _actionErrorCode = null;
     try {
       final res = await _service.declineInvitation(invitationId);
+      if (scope != _scope) return res.success;
       if (res.success) {
         _myInvitations = _myInvitations
             .where((i) => i.id != invitationId)
@@ -230,7 +285,8 @@ class ProTeamProvider extends ChangeNotifier implements SalonScoped {
       notifyListeners();
       return false;
     } catch (e) {
-      _actionError = e.toString();
+      if (scope != _scope) return false;
+      _actionError = kGenericErrorMessage;
       notifyListeners();
       return false;
     }
@@ -246,8 +302,15 @@ class ProTeamProvider extends ChangeNotifier implements SalonScoped {
   }
 
   /// R6 multi-salons: drop the previous salon's data on a switch.
+  /// Which salon this state belongs to — moved by [resetForSalonSwitch]
+  /// only. A read or a write takes it before it awaits and writes nothing
+  /// when it moved meanwhile: its answer is the previous salon's, or the
+  /// previous account's (docs/design/pro-account-scope.md §2.2).
+  int _scope = 0;
+
   @override
   void resetForSalonSwitch() {
+    _scope++;
     _members = const [];
     _isLoading = false;
     _error = null;
@@ -258,6 +321,8 @@ class ProTeamProvider extends ChangeNotifier implements SalonScoped {
     _actionErrorCode = null;
     _myInvitations = const [];
     _invitationsLoading = false;
+    _invitationsAsked = false;
+    _invitationsError = null;
     notifyListeners();
   }
 }

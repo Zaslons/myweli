@@ -1,13 +1,18 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
+
 import '../../core/constants/app_constants.dart';
+import '../../core/constants/failure_messages.dart';
 import '../../core/utils/app_clock.dart';
+import '../../core/utils/salon_id.dart';
 import '../../models/api_response.dart';
 import '../../models/appointment.dart';
 import '../../models/pro_membership.dart';
 import '../../models/provider_login_result.dart';
 import '../../models/provider_user.dart';
+import '../../models/salon_facts.dart';
 import '../../models/salon_market.dart';
 import '../../models/session.dart';
 import '../../models/team_invitation.dart';
@@ -16,6 +21,7 @@ import '../../models/user.dart';
 import '../interfaces/auth_service_interface.dart';
 import '../interfaces/session_store.dart';
 import 'mock_data.dart';
+import 'mock_ids.dart';
 
 /// Per-phone OTP state the mock uses to emulate real SMS-OTP behaviour: a code
 /// with an expiry, a wrong-attempt budget, and a resend budget.
@@ -47,13 +53,9 @@ class MockAuthService implements AuthServiceInterface {
   ProviderUser? _currentProvider;
   final Map<String, _OtpState> _otpStates = {};
   final Map<String, _OtpState> _emailOtpStates = {}; // lowercased email
-  final Map<String, String> _providerOtpStore = {}; // phone -> otp
 
   Future<void> _persistSession(User user) async {
-    final session = Session(
-      token: 'mock_${user.id}_${AppClock.now().millisecondsSinceEpoch}',
-      user: user,
-    );
+    final session = Session(token: MockIds.next('mock_${user.id}'), user: user);
     await _sessionStore.save(jsonEncode(session.toJson()));
   }
 
@@ -132,7 +134,7 @@ class MockAuthService implements AuthServiceInterface {
         // deletion leaves the account intact — it could not, because the
         // account was never there.
         final created = User(
-          id: 'user_${AppClock.now().millisecondsSinceEpoch}',
+          id: MockIds.next('user'),
           phoneNumber: phoneNumber,
           createdAt: AppClock.now(),
         );
@@ -171,7 +173,7 @@ class MockAuthService implements AuthServiceInterface {
       (u) => u.email?.toLowerCase() == email,
       orElse: () {
         final created = User(
-          id: 'user_${AppClock.now().millisecondsSinceEpoch}',
+          id: MockIds.next('user'),
           email: email,
           authProvider: provider,
           createdAt: AppClock.now(),
@@ -245,7 +247,7 @@ class MockAuthService implements AuthServiceInterface {
       (u) => u.email?.toLowerCase() == key,
       orElse: () {
         final created = User(
-          id: 'user_${AppClock.now().millisecondsSinceEpoch}',
+          id: MockIds.next('user'),
           email: key,
           authProvider: 'email',
           createdAt: AppClock.now(),
@@ -264,6 +266,39 @@ class MockAuthService implements AuthServiceInterface {
     await Future.delayed(const Duration(milliseconds: 100));
     _currentUser = null;
     await _sessionStore.clear();
+  }
+
+  final _sessionEnded = StreamController<void>.broadcast();
+
+  @override
+  Stream<void> get sessionEnded => _sessionEnded.stream;
+
+  /// What a refused refresh does to the real service (`RefreshingHttpClient`
+  /// clears the stored session and says so): the session ends without a
+  /// sign-out. The doubles fail the way the server does (B9.6) — the demo has
+  /// no server to refuse anything, so only a test calls this.
+  /// docs/design/consumer-account-scope.md §2.4.
+  @visibleForTesting
+  Future<void> expireSession() async {
+    _currentUser = null;
+    await _sessionStore.clear();
+    _sessionEnded.add(null);
+  }
+
+  final _providerSessionEnded = StreamController<void>.broadcast();
+
+  @override
+  Stream<void> get providerSessionEnded => _providerSessionEnded.stream;
+
+  /// [expireSession] for the provider session.
+  @visibleForTesting
+  Future<void> expireProviderSession() async {
+    _currentProvider = null;
+    _cachedMembership = null;
+    _cachedSalonMarket = null;
+    _cachedSalonFacts = null;
+    _selectedSalonId = null;
+    _providerSessionEnded.add(null);
   }
 
   @override
@@ -369,43 +404,6 @@ class MockAuthService implements AuthServiceInterface {
     return ApiResponse.success(null, message: 'Compte supprimé');
   }
 
-  // Provider methods
-  @override
-  Future<ApiResponse<String>> sendOtpToProvider(String phoneNumber) async {
-    await Future.delayed(AppConstants.mockDelay);
-    const otp = '123456';
-    _providerOtpStore[phoneNumber] = otp;
-    return ApiResponse.success(otp, message: 'Code OTP envoyé avec succès');
-  }
-
-  @override
-  Future<ApiResponse<ProviderUser>> verifyOtpForProvider(
-    String phoneNumber,
-    String otp,
-  ) async {
-    await Future.delayed(AppConstants.mockDelay);
-    final storedOtp = _providerOtpStore[phoneNumber];
-    if (storedOtp == null || storedOtp != otp) {
-      return ApiResponse.error('Code OTP invalide');
-    }
-
-    // Find or create provider user
-    var providerUser = MockData.providerUsers.firstWhere(
-      (p) => p.phoneNumber == phoneNumber,
-      orElse: () => ProviderUser(
-        id: 'provider_${AppClock.now().millisecondsSinceEpoch}',
-        phoneNumber: phoneNumber,
-        businessName: 'Business',
-        businessType: BusinessType.other,
-        createdAt: AppClock.now(),
-      ),
-    );
-
-    _currentProvider = providerUser;
-    _providerOtpStore.remove(phoneNumber);
-    return ApiResponse.success(providerUser, message: 'Connexion réussie');
-  }
-
   // ---- Pro auth overhaul (docs/design/pro-auth-social.md) -------------------
 
   /// Mock salon Google identity — LOGIN-ONLY (no auto-create).
@@ -453,7 +451,7 @@ class MockAuthService implements AuthServiceInterface {
       }
     }
     return const ProviderLoginResult.failure(
-      'Compte introuvable. Créez votre compte.',
+      kNoProAccountMessage,
       code: 'provider_not_found',
     );
   }
@@ -494,8 +492,8 @@ class MockAuthService implements AuthServiceInterface {
         code: 'otp_invalid',
       );
     }
-    // LOGIN-ONLY; a correct code with no salon keeps the code for register —
-    // and for the invitation ACCEPT (the 202 bridge never consumes it).
+    // LOGIN-ONLY; a correct code with no salon stays unconsumed, for the
+    // invitation ACCEPT (the 202 bridge never consumes it).
     final res = _providerLogin(key, EmailOtpInvitationProof(key, code));
     if (res.signedIn) _providerEmailOtpStore.remove(key);
     return res;
@@ -542,7 +540,7 @@ class MockAuthService implements AuthServiceInterface {
     var account = _providerByEmail(email);
     if (account == null) {
       account = ProviderUser(
-        id: 'member_${AppClock.now().millisecondsSinceEpoch}',
+        id: MockIds.next('member'),
         phoneNumber: '',
         businessName: '',
         businessType: BusinessType.other,
@@ -588,128 +586,6 @@ class MockAuthService implements AuthServiceInterface {
     return ApiResponse.success(true);
   }
 
-  ProviderUser _createProvider({
-    required String email,
-    required String phoneNumber,
-    required String businessName,
-    required BusinessType businessType,
-    String? address,
-  }) {
-    // Mirror salon provisioning (pro-salon-lifecycle/R1): registration links
-    // a DRAFT salon so the account is a real OWNER (providerId set) — the
-    // R4b role plumbing depends on it.
-    final ts = AppClock.now().millisecondsSinceEpoch;
-    final salonId = 'provider_reg_$ts';
-    MockData.providers.add(
-      MockData.providers.first.copyWith(
-        id: salonId,
-        name: businessName,
-        artists: const [],
-      ),
-    );
-    final providerUser = ProviderUser(
-      id: 'provider_$ts',
-      phoneNumber: phoneNumber,
-      businessName: businessName,
-      businessType: businessType,
-      email: email.trim().toLowerCase(),
-      address: address,
-      createdAt: AppClock.now(),
-      providerId: salonId,
-    );
-    MockData.providerUsers.add(providerUser);
-    _currentProvider = providerUser;
-    return providerUser;
-  }
-
-  @override
-  Future<ApiResponse<ProviderUser>> registerProviderWithGoogle({
-    required String phoneNumber,
-    required String businessName,
-    required BusinessType businessType,
-    String? address,
-    String? areaId, // accepted for parity; the mock draft has no doc to stamp
-  }) async {
-    await Future.delayed(AppConstants.mockDelay);
-    if (_providerByEmail(mockProGoogleEmail) != null) {
-      return ApiResponse.error(
-        'Un compte existe déjà pour cette identité.',
-        code: 'provider_exists',
-      );
-    }
-    return ApiResponse.success(
-      _createProvider(
-        email: mockProGoogleEmail,
-        phoneNumber: phoneNumber,
-        businessName: businessName,
-        businessType: businessType,
-        address: address,
-      ),
-      message: 'Inscription réussie',
-    );
-  }
-
-  @override
-  Future<ApiResponse<ProviderUser>> registerProviderWithApple({
-    required String phoneNumber,
-    required String businessName,
-    required BusinessType businessType,
-    String? address,
-    String? areaId, // accepted for parity; the mock draft has no doc to stamp
-  }) async {
-    await Future.delayed(AppConstants.mockDelay);
-    if (_providerByEmail(mockProAppleEmail) != null) {
-      return ApiResponse.error(
-        'Un compte existe déjà pour cette identité.',
-        code: 'provider_exists',
-      );
-    }
-    return ApiResponse.success(
-      _createProvider(
-        email: mockProAppleEmail,
-        phoneNumber: phoneNumber,
-        businessName: businessName,
-        businessType: businessType,
-        address: address,
-      ),
-      message: 'Inscription réussie',
-    );
-  }
-
-  @override
-  Future<ApiResponse<ProviderUser>> registerProviderWithEmail({
-    required String email,
-    required String code,
-    required String phoneNumber,
-    required String businessName,
-    required BusinessType businessType,
-    String? address,
-    String? areaId, // accepted for parity; the mock draft has no doc to stamp
-  }) async {
-    await Future.delayed(AppConstants.mockDelay);
-    final key = email.trim().toLowerCase();
-    if (_providerEmailOtpStore[key] != code) {
-      return ApiResponse.error('Code incorrect.', code: 'otp_invalid');
-    }
-    if (_providerByEmail(key) != null) {
-      return ApiResponse.error(
-        'Un compte existe déjà pour cette identité.',
-        code: 'provider_exists',
-      );
-    }
-    _providerEmailOtpStore.remove(key);
-    return ApiResponse.success(
-      _createProvider(
-        email: key,
-        phoneNumber: phoneNumber,
-        businessName: businessName,
-        businessType: businessType,
-        address: address,
-      ),
-      message: 'Inscription réussie',
-    );
-  }
-
   ProMembership? _cachedMembership;
 
   @override
@@ -734,18 +610,29 @@ class MockAuthService implements AuthServiceInterface {
   Future<SalonMarket?> getCachedProviderSalonMarket() async =>
       _cachedSalonMarket;
 
-  /// R6: the mock's in-memory salon selection (persistence-parity with the
-  /// API session store for the life of the process).
-  String? _selectedSalonId;
+  SalonFacts? _cachedSalonFacts;
 
   @override
-  Future<void> setSelectedProviderSalon(String? salonId) async {
+  Future<void> cacheProviderSalonFacts(SalonFacts? facts) async {
+    if (_currentProvider == null) return;
+    _cachedSalonFacts = facts;
+  }
+
+  @override
+  Future<SalonFacts?> getCachedProviderSalonFacts() async => _cachedSalonFacts;
+
+  /// R6: the mock's in-memory salon selection (persistence-parity with the
+  /// API session store for the life of the process).
+  SalonId? _selectedSalonId;
+
+  @override
+  Future<void> setSelectedProviderSalon(SalonId? salonId) async {
     if (_currentProvider == null) return;
     _selectedSalonId = salonId;
   }
 
   @override
-  Future<String?> getSelectedProviderSalon() async => _selectedSalonId;
+  Future<SalonId?> getSelectedProviderSalon() async => _selectedSalonId;
 
   @override
   Future<ProviderUser?> getCurrentProvider() async {
@@ -757,6 +644,7 @@ class MockAuthService implements AuthServiceInterface {
   Future<void> logoutProvider() async {
     _cachedMembership = null;
     _cachedSalonMarket = null;
+    _cachedSalonFacts = null;
     _selectedSalonId = null;
     await Future.delayed(const Duration(milliseconds: 100));
     _currentProvider = null;

@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:myweli/core/constants/booking_horizons.dart';
+import 'package:myweli/core/utils/salon_id.dart';
 import 'package:myweli/models/availability.dart';
 import 'package:myweli/services/mock/mock_appointment_service.dart';
 import 'package:myweli/services/mock/mock_data.dart';
@@ -9,7 +10,7 @@ void main() {
   group('Availability.bufferMinutes', () {
     test('round-trips through JSON', () {
       final availability = Availability(
-        providerId: 'p1',
+        providerId: SalonId('p1'),
         weeklySchedule: const {},
         blockedDates: const [],
         bufferMinutes: 15,
@@ -21,7 +22,7 @@ void main() {
 
     test('defaults to 0 when absent', () {
       final json = Availability(
-        providerId: 'p1',
+        providerId: SalonId('p1'),
         weeklySchedule: const {},
         blockedDates: const [],
       ).toJson()..remove('bufferMinutes');
@@ -42,7 +43,7 @@ void main() {
   group('Availability — the bookable window (A14d)', () {
     test('round-trips through JSON', () {
       final availability = Availability(
-        providerId: 'p1',
+        providerId: SalonId('p1'),
         weeklySchedule: const {},
         blockedDates: const [],
         bookingHorizonDays: 30,
@@ -60,7 +61,7 @@ void main() {
       // follow it. A hard cast here would crash the whole pro screen.
       final json =
           Availability(
-              providerId: 'p1',
+              providerId: SalonId('p1'),
               weeklySchedule: const {},
               blockedDates: const [],
             ).toJson()
@@ -82,7 +83,7 @@ void main() {
   });
 
   group('buffer affects slot availability', () {
-    const providerId = 'provider2';
+    const providerId = SalonId('provider2');
     const artistId = 'artist3';
     const serviceIds = ['service6']; // Lissage, artist3 only
 

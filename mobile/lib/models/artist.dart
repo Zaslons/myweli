@@ -1,12 +1,13 @@
 import 'package:equatable/equatable.dart';
 
+import '../core/utils/salon_id.dart';
 import 'availability.dart';
 
 class Artist extends Equatable {
   final String id;
   final String name;
   final String? imageUrl;
-  final String providerId;
+  final SalonId providerId;
   final String? specialization; // e.g., 'Hair Stylist', 'Barber', 'Esthetician'
   final double? rating;
   final int? reviewCount;
@@ -42,7 +43,7 @@ class Artist extends Equatable {
     String? id,
     String? name,
     String? imageUrl,
-    String? providerId,
+    SalonId? providerId,
     String? specialization,
     double? rating,
     int? reviewCount,
@@ -83,7 +84,7 @@ class Artist extends Equatable {
       id: json['id'] as String,
       name: json['name'] as String,
       imageUrl: json['imageUrl'] as String?,
-      providerId: json['providerId'] as String,
+      providerId: SalonId(json['providerId'] as String),
       specialization: json['specialization'] as String?,
       rating: (json['rating'] as num?)?.toDouble(),
       reviewCount: json['reviewCount'] as int?,

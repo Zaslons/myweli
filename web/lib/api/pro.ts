@@ -1,4 +1,4 @@
-import { readJson, send } from './network';
+import { readJson, send, sendIdempotent } from './network';
 import type { Review } from './providers';
 import type { KycStatus } from '../pro/kyc';
 import type { Availability } from '../pro/availability';
@@ -88,31 +88,6 @@ export type ProProfile = {
   membership?: Membership;
 };
 
-export async function requestOtpPro(
-  phoneNumber: string,
-): Promise<{ ok: boolean; devCode?: string; error?: string }> {
-  const res = await send('/api/pro/auth/request-otp', {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ phoneNumber }),
-  });
-  const body = await res.json().catch(() => ({}));
-  return res.ok ? { ok: true, devCode: body.devCode } : { ok: false, error: body.error };
-}
-
-export async function verifyOtpPro(
-  phoneNumber: string,
-  code: string,
-): Promise<{ ok: boolean; error?: string }> {
-  const res = await send('/api/pro/auth/verify', {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ phoneNumber, code }),
-  });
-  const body = await res.json().catch(() => ({}));
-  return res.ok ? { ok: true } : { ok: false, error: body.error };
-}
-
 export async function getMyProvider(): Promise<{
   status: number;
   profile?: ProProfile;
@@ -139,13 +114,16 @@ export async function getMySalons(): Promise<{
   const res = await send('/api/pro/salons');
   if (!res.ok) return { status: res.status, items: [], canAddSalon: false };
   const body = await readJson<{
-    items?: SalonMembership[];
+    items?: unknown;
     canAddSalon?: boolean;
   }>(res);
-  if (!body) return { status: 0, items: [], canAddSalon: false };
+  // A 200 without its list is a failed read — hygiene-batch9.md §2.10.
+  if (!Array.isArray(body?.items)) {
+    return { status: 0, items: [], canAddSalon: false };
+  }
   return {
     status: 200,
-    items: body.items ?? [],
+    items: body.items as SalonMembership[],
     canAddSalon: body.canAddSalon === true,
   };
 }
@@ -204,8 +182,11 @@ export async function getProNotifications(): Promise<{
 }> {
   const res = await send('/api/pro/notifications');
   if (!res.ok) return { status: res.status, items: [] };
-  const body = await readJson<{ items?: AppNotification[] }>(res);
-  return body ? { status: 200, items: body.items ?? [] } : { status: 0, items: [] };
+  // A 200 without its list is a failed read — hygiene-batch9.md §2.10.
+  const items = (await readJson<{ items?: unknown }>(res))?.items;
+  return Array.isArray(items)
+    ? { status: 200, items: items as AppNotification[] }
+    : { status: 0, items: [] };
 }
 
 /// Both carry their status: the caller puts the row back to unread and tells
@@ -309,6 +290,9 @@ export async function publishSalon(providerId: string): Promise<{
   ok: boolean;
   status: number;
   missing?: string[];
+  /// The refusal's code — `demo_account_locked`, `provider_suspended` — so the
+  /// card can name it (docs/design/web-pro-truthful-failure.md §2.3).
+  error?: string;
 }> {
   const res = await send('/api/pro/publish', {
     method: 'POST',
@@ -316,8 +300,11 @@ export async function publishSalon(providerId: string): Promise<{
     body: JSON.stringify({ providerId }),
   });
   if (res.ok) return { ok: true, status: res.status };
-  const body = (await res.json().catch(() => ({}))) as { missing?: string[] };
-  return { ok: false, status: res.status, missing: body.missing };
+  const body = (await res.json().catch(() => ({}))) as {
+    missing?: string[];
+    error?: string;
+  };
+  return { ok: false, status: res.status, missing: body.missing, error: body.error };
 }
 
 /// The signed-in provider's KYC (docs/design/web-pro-kyc.md).
@@ -364,15 +351,18 @@ export async function listProviderReviews(
   );
   if (!res.ok) return { status: res.status, items: [], total: 0, pageSize: 0 };
   const body = await readJson<{
-    items?: Review[];
+    items?: unknown;
     total?: number;
     pageSize?: number;
     summary?: ReviewSummary;
   }>(res);
-  if (!body) return { status: 0, items: [], total: 0, pageSize: 0 };
+  // A 200 without its list is a failed read — hygiene-batch9.md §2.10.
+  if (!body || !Array.isArray(body.items)) {
+    return { status: 0, items: [], total: 0, pageSize: 0 };
+  }
   return {
     status: 200,
-    items: body.items ?? [],
+    items: body.items as Review[],
     total: body.total ?? 0,
     pageSize: body.pageSize ?? 50,
     ...(body.summary ? { summary: body.summary } : {}),
@@ -400,6 +390,22 @@ export async function proAction(
   if (res.ok) return { ok: true, status: res.status };
   const b = (await res.json().catch(() => ({}))) as { error?: string };
   return { ok: false, status: res.status, error: b.error };
+}
+
+/// The salon reports a review of its own salon (B6.6 —
+/// docs/design/backend-integrity-batch6.md §2.6): the same moderation queue
+/// as a client's report, marked « Signalé par le salon ». Status 0 = no
+/// answer (the wrapper never throws).
+export async function reportSalonReview(
+  reviewId: string,
+  reason: string,
+): Promise<{ ok: boolean; status: number }> {
+  const res = await send(`/api/pro/reviews/${encodeURIComponent(reviewId)}/report`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(reason.trim() ? { reason: reason.trim() } : {}),
+  });
+  return { ok: res.ok, status: res.status };
 }
 
 /// The short-lived signed URL of a booking's deposit screenshot. A read like
@@ -689,11 +695,17 @@ export async function loginProWithGoogle(idToken: string): Promise<{
 export async function loginProWithApple(identity: {
   identityToken: string;
   nonce: string;
+  /// Apple's one-time code (B6.7 — docs/design/backend-integrity-batch6.md §13).
+  authorizationCode?: string;
 }): Promise<{ ok: boolean; error?: string }> {
   const res = await send('/api/pro/auth/apple', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ identityToken: identity.identityToken, nonce: identity.nonce }),
+    body: JSON.stringify({
+      identityToken: identity.identityToken,
+      nonce: identity.nonce,
+      ...(identity.authorizationCode ? { authorizationCode: identity.authorizationCode } : {}),
+    }),
   });
   const body = await res.json().catch(() => ({}));
   return res.ok ? { ok: true } : { ok: false, error: body.error };
@@ -787,8 +799,11 @@ export async function getTeamMembers(): Promise<{
 }> {
   const res = await send('/api/pro/members');
   if (!res.ok) return { status: res.status, items: [] };
-  const body = await readJson<{ items?: TeamMember[] }>(res);
-  return body ? { status: 200, items: body.items ?? [] } : { status: 0, items: [] };
+  // A 200 without its list is a failed read — hygiene-batch9.md §2.10.
+  const items = (await readJson<{ items?: unknown }>(res))?.items;
+  return Array.isArray(items)
+    ? { status: 200, items: items as TeamMember[] }
+    : { status: 0, items: [] };
 }
 
 type MemberResult = { ok: boolean; status: number; member?: TeamMember; error?: string };
@@ -802,18 +817,28 @@ async function memberResult(res: Response): Promise<MemberResult> {
   return { ok: true, status: res.status, member: await readJson<TeamMember>(res) };
 }
 
-export async function inviteMember(input: {
-  email: string;
-  role: TeamRoleInput;
-  artistId?: string;
-}): Promise<MemberResult> {
-  return memberResult(
-    await send('/api/pro/members', {
+/// Under [key], one per submission (docs/design/write-idempotency.md §4): a
+/// lost answer is asked again once with it — the invitation and its e-mail
+/// went once, and the replay is never `member_exists`.
+export async function inviteMember(
+  input: { email: string; role: TeamRoleInput; artistId?: string },
+  key: string,
+  opts: { wait?: (ms: number) => Promise<void> } = {},
+): Promise<MemberResult> {
+  const r = await sendIdempotent<TeamMember>(
+    '/api/pro/members',
+    {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify(input),
-    }),
+    },
+    key,
+    { complete: (b) => Boolean(b?.id), ...opts },
   );
+  if (r.status < 200 || r.status >= 300) {
+    return { ok: false, status: r.status, error: r.error };
+  }
+  return { ok: true, status: r.status, member: r.body };
 }
 
 export async function changeMemberRole(
@@ -851,9 +876,11 @@ export async function getMyInvitations(): Promise<{
 }> {
   const res = await send('/api/pro/invitations');
   if (!res.ok) return { status: res.status, invitations: [] };
-  const body = await readJson<{ invitations?: TeamInvitation[] }>(res);
-  return body
-    ? { status: 200, invitations: body.invitations ?? [] }
+  // A 200 without its list is a failed read — hygiene-batch9.md §2.10.
+  const invitations = (await readJson<{ invitations?: unknown }>(res))
+    ?.invitations;
+  return Array.isArray(invitations)
+    ? { status: 200, invitations: invitations as TeamInvitation[] }
     : { status: 0, invitations: [] };
 }
 
@@ -898,8 +925,13 @@ export async function listClients(
   if (opts.pageSize) qs.set('pageSize', String(opts.pageSize));
   const res = await send(`/api/pro/clients?${qs}`);
   if (!res.ok) return { status: res.status };
-  const list = await readJson<SalonClientList>(res);
-  return list ? { status: 200, list } : { status: 0 };
+  // A 200 without its list is a failed read — hygiene-batch9.md §2.10. It
+  // checked nothing: a 200 `{}` reached the manual booking's client search,
+  // which reads `list.items.map`.
+  const list = await readJson<{ items?: unknown }>(res);
+  return Array.isArray(list?.items)
+    ? { status: 200, list: list as SalonClientList }
+    : { status: 0 };
 }
 
 /// The server's largest page (`ClientsService.list` clamps to 50).
@@ -978,9 +1010,14 @@ export async function getClientVisits(
     `/api/pro/clients/${clientId}/visits?providerId=${encodeURIComponent(providerId)}&page=${page}`,
   );
   if (!res.ok) return { status: res.status, items: [], total: 0 };
-  const b = await readJson<{ items?: ProAppointment[]; total?: number }>(res);
-  if (!b) return { status: 0, items: [], total: 0 };
-  return { status: 200, items: b.items ?? [], total: b.total ?? 0 };
+  const b = await readJson<{ items?: unknown; total?: number }>(res);
+  // A 200 without its list is a failed read — hygiene-batch9.md §2.10.
+  if (!b || !Array.isArray(b.items)) return { status: 0, items: [], total: 0 };
+  return {
+    status: 200,
+    items: b.items as ProAppointment[],
+    total: b.total ?? 0,
+  };
 }
 
 export async function updateClientTags(
@@ -1014,18 +1051,28 @@ export async function updateClientPhone(
   return { ok: false, status: res.status, error: b.error, clientId: b.clientId };
 }
 
+/// Under [key], one per submission (docs/design/write-idempotency.md §4): a
+/// lost answer — or a 2xx without the note — is asked again once with it,
+/// so the note is added once and shows once.
 export async function addClientNote(
   providerId: string,
   clientId: string,
   body: string,
+  key: string,
+  opts: { wait?: (ms: number) => Promise<void> } = {},
 ): Promise<{ ok: boolean; status: number; note?: SalonClientNote }> {
-  const res = await send(`/api/pro/clients/${clientId}/notes`, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ providerId, body }),
-  });
-  if (!res.ok) return { ok: false, status: res.status };
-  return { ok: true, status: res.status, note: await readJson<SalonClientNote>(res) };
+  const r = await sendIdempotent<SalonClientNote>(
+    `/api/pro/clients/${clientId}/notes`,
+    {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ providerId, body }),
+    },
+    key,
+    { complete: (b) => Boolean(b?.id), ...opts },
+  );
+  if (r.status < 200 || r.status >= 300) return { ok: false, status: r.status };
+  return { ok: true, status: r.status, note: r.body };
 }
 
 export async function deleteClientNote(
@@ -1088,17 +1135,26 @@ export async function createManualBooking(
     notes?: string;
     sendSmsInvite?: boolean;
   },
+  key: string,
+  opts: { wait?: (ms: number) => Promise<void> } = {},
 ): Promise<{ ok: boolean; status: number; appt?: ProAppointment; error?: string }> {
-  const res = await send('/api/pro/appointments', {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ providerId, ...input }),
-  });
-  if (res.ok) {
-    return { ok: true, status: res.status, appt: await readJson<ProAppointment>(res) };
+  // Under [key], one per submission (docs/design/write-idempotency.md §4): a
+  // lost answer is asked again once with it — one booking, never a 409 on
+  // the slot the salon just took.
+  const r = await sendIdempotent<ProAppointment>(
+    '/api/pro/appointments',
+    {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ providerId, ...input }),
+    },
+    key,
+    { complete: (b) => Boolean(b?.id), ...opts },
+  );
+  if (r.status >= 200 && r.status < 300) {
+    return { ok: true, status: r.status, appt: r.body };
   }
-  const b = (await res.json().catch(() => ({}))) as { error?: string };
-  return { ok: false, status: res.status, error: b.error };
+  return { ok: false, status: r.status, error: r.error };
 }
 
 
@@ -1122,6 +1178,8 @@ export async function registerPro(
     identityToken?: string;
     nonce?: string;
     fullName?: string;
+    /// Apple's one-time code (B6.7).
+    authorizationCode?: string;
     email?: string;
     code?: string;
   },

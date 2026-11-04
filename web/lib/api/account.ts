@@ -108,11 +108,20 @@ export async function getFavorites(): Promise<{
   const res = await send('/api/me/favorites');
   if (!res.ok) return { status: res.status, favorites: [] };
   // The BFF always sends `favorites` (§2.2, as `getMe` above): a 200 without
-  // it is no answer, not « Aucun favori ».
+  // it is no answer, not « Aucun favori ». Nor is a list holding something
+  // that is not a salon — every reader takes its `id` and `name`, and « Mes
+  // données » hung on a `null` (docs/design/web-client-polish.md §2.3).
   const favorites = (await readJson<{ favorites?: unknown }>(res))?.favorites;
-  return Array.isArray(favorites)
+  return Array.isArray(favorites) && favorites.every(isFavoriteEntry)
     ? { status: 200, favorites: favorites as Provider[] }
     : { status: 0, favorites: [] };
+}
+
+/// A favourite as its readers need it: an object with a text `id` and `name`.
+function isFavoriteEntry(v: unknown): boolean {
+  if (typeof v !== 'object' || v === null) return false;
+  const { id, name } = v as { id?: unknown; name?: unknown };
+  return typeof id === 'string' && id.length > 0 && typeof name === 'string';
 }
 
 export async function addFavorite(
@@ -163,14 +172,19 @@ export async function deleteAccount(): Promise<{
 
 // --- notifications (parity 5.1/5.2) -----------------------------------------
 
+/// A 200 without its list is a failed read (status 0), as for the export's
+/// reads (#630): the server always sends it, so « no notifications » is its
+/// `items: []` to say, never ours (hygiene-batch9.md §2.10, B9.11).
 export async function getNotifications(): Promise<{
   status: number;
   items: AppNotification[];
 }> {
   const res = await send('/api/me/notifications');
   if (!res.ok) return { status: res.status, items: [] };
-  const body = await readJson<{ items?: AppNotification[] }>(res);
-  return body ? { status: 200, items: body.items ?? [] } : { status: 0, items: [] };
+  const items = (await readJson<{ items?: unknown }>(res))?.items;
+  return Array.isArray(items)
+    ? { status: 200, items: items as AppNotification[] }
+    : { status: 0, items: [] };
 }
 
 /// Both carry their status: the caller puts the notification back to unread

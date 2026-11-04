@@ -56,12 +56,24 @@ web/
   and it **refuses to resolve in production** when neither `API_BASE_URL` nor
   `NEXT_PUBLIC_API_BASE_URL` is set. The localhost fallback it replaced looked
   harmless (a wrong URL fails loudly with connection errors) and was not: the
-  build-time fetches below use an **empty-result fallback**, and the ISR pages
+  build-time fetches below used an **empty-result fallback**, and the ISR pages
   call them during `next build`. A production deploy missing the variable
   therefore published **a marketplace with no salons in it and no error
   anywhere**. Set it per Vercel environment — Production → production API,
   Preview → staging ([LAUNCH.md](LAUNCH.md) §5.4). Design:
   [design/infra-staging.md](design/infra-staging.md) §1.3.
+- **A public page does not publish what it could not read** (B9.11, decision
+  Q6). `lib/api/providers.ts` and `lib/api/localities.ts` go through
+  `lib/api/public-read.ts`: where the build fails closed — production, local,
+  CI (`lib/build-posture.ts`) — a refusal, no answer, or a 200 without its list
+  **throws**. At ISR regeneration Next keeps the last good page and tries again;
+  at build time the build fails and the previous deployment stays up. They used
+  to return `[]` (or `null` → a 404 for a live salon). A **Vercel preview**,
+  whose staging API sleeps, still degrades to empty. A real empty list, and a
+  real 404, are still that.
+- **A list read requires its list** (B9.11). The authed wrappers in
+  `lib/api/*.ts` read a 200 without its array as a failed read (status 0 — the
+  page's error state with its retry), never as « nothing here ».
 - **Every environment variable an operator sets for the web is listed in
   `web/.env.example`** — the platform- and build-set ones (`VERCEL_ENV`,
   `VERCEL_GIT_COMMIT_SHA`, `SENTRY_AUTH_TOKEN`) appear there commented (copy
@@ -284,6 +296,45 @@ hiding it: it carries **253 KB of JS across 18 files** against the home page's
 **2900 ms**, above today's number and below the target, so the page cannot get
 slower while the gap stays visible. Lower it as the page is split; delete the
 per-URL block when it reaches 2500.
+
+**The font, and what paid for it, measured 2026-11-02** (`/`, five runs each, these throttling settings, on a Mac):
+
+| Build | LCP median | First paint | Scripts |
+|---|---|---|---|
+| No font | 2314 ms | 757 ms | 203 KB |
+| Full font file (35 KB), preloaded | **2607 ms, over budget** | 757 ms | 203 KB |
+| Full font, not preloaded | 2472 ms | **1060 ms** | 203 KB |
+| Trimmed font (19 KB), preloaded | 2457 ms; `/suppression-compte` **2505 ms in CI, over budget** | 757 ms | 203 KB |
+| **Shipped: trimmed font, Sentry's tracing code removed** | **2110 ms**; `/suppression-compte` 2109 ms | **757 ms** | **158 KB** |
+
+**Two lessons, both paid for here.**
+- **One run is not a measurement.** `lhci` uploads a single representative run, and this metric sits in two modes (1830 ms and 2470 ms appeared in the same five runs of one build). A 1815 ms sample looked like 685 ms of room; five runs showed about 190. A gate that passes on a median of three this close to its limit will fail at random.
+- **Measure every budgeted page, not the one you are thinking about.** Trimming was judged on `/`; CI's gate then failed on `/suppression-compte`, by 5 ms.
+
+**Script size now has its own ceiling** (`resource-summary:script:size`, 175 KB on `/` and `/suppression-compte`): measured to pass at 158 KB and to fail at 201 KB with the tracing code back. LCP is an estimate that moves. Bytes do not.
+
+**The same build on `myweli.com` after the merge, 2026-11-02** (five runs per page, these throttling settings, from the same Mac):
+
+| Page | LCP median (range) | First paint | CLS | Scripts | Total |
+|---|---|---|---|---|---|
+| `/` | 1263 ms (1158–1890) | 1107 ms | 0 | 152–153 KB | 214–215 KB |
+| `/connexion` | 1274 ms (951–2412) | 1011 ms | 0–0.006 | 220–222 KB | 291–293 KB |
+| `/suppression-compte` | 1480 ms (1200–1921) | 1050 ms | 0 | 152–153 KB | 199 KB |
+
+All within budget, and the check failed as it should with the LCP budget set to 1000 ms. Don't compare these with the table above: that one is a local server. This is a simulated slow phone on a Mac, not a real phone in Abidjan.
+
+**The new look's home page, header and footer (#727), five runs each, on the local build as in the first table:** `/` 2113 ms, `/connexion` 2713 ms (`main` 2712), `/suppression-compte` 2109 ms. First paint and scripts did not move. The hero's type, the pattern and the wordmark cost `/` 3 ms, all inline SVG and text.
+
+**The same on `myweli.com` after the merge, five runs each:** `/` 1487 ms, `/connexion` 1323 ms, `/suppression-compte` 1607 ms, all within budget. `/` read 1263 ms before the new look (1158–1890) and 1487 ms after it (1170–1912). The ranges overlap, and five runs can't say whether that is a real cost, so the next daily runs are the thing to watch.
+
+**The same again after square fields and buttons (#728), five runs each:** `/` 1907 ms (1158–1916), `/connexion` 1456 ms (1156–2207), `/suppression-compte` 1158 ms (1155–1604), CLS 0. The home page has now read 1263, 1487 and 1907 ms across three sets, drawing on the same range of values, while `/suppression-compte` went from 1607 to 1158 ms. That looks like which of two modes a run lands in. It is within budget, but not proved to be noise, and it is worth another look if it stays high.
+
+**A font swap can move text.** `/suppression-compte` read a CLS of 0.064 in some live runs, and 0 in others. A `layout-shift` observer named it: when the font arrives after first paint, a paragraph re-wraps by one line. `adjustFontFallback` keeps each line's height, not its width. It comes from the font (#724), not the new look, and it is under the 0.1 budget. Lighthouse's own explanation errored here too.
+
+**Ask which element it is, not only what number it is.** With the wordmark as an `<img>`, `/connexion` read the same 2712 ms, but its Largest Contentful Paint had become the footer's logo. Nothing failed, and Lighthouse's own element audit errored on this machine, so it took a `PerformanceObserver` to see. It is inline now, with a test on short pages.
+
+**The daily check's rules on the policy are also read at merge time.** `tool/csp-promises.ts` holds them. `tool/check-privacy-promise.spec.ts` reads them against the header `myweli.com` sends, and `tests/csp.test.ts` against the policy a PR is about to ship. The daily check needs the deployed site, so nothing runs it on a PR: a correct change to `worker-src` turned it red from 2026-10-21 to 2026-11-02 on text that was no longer there, and its next line never ran. **What this cannot see:** the daily check no longer calling the rule, and its other header assertions, which still only run daily.
+
 - Public pages: minimal JS, `next/image`, font-display swap, edge-cached SSG/ISR.
 - Authed app: route-level code-splitting, lazy data, optimistic UI where it helps.
 

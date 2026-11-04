@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:myweli/core/di/dependency_injection.dart';
+import 'package:myweli/core/utils/salon_id.dart';
 import 'package:myweli/core/utils/team_error_messages.dart';
 import 'package:myweli/models/api_response.dart';
 import 'package:myweli/models/provider.dart' as models;
@@ -39,7 +40,13 @@ class _SwitchableTeam implements ProTeamServiceInterface {
     required String email,
     required TeamRole role,
     String? artistId,
-  }) => inner.inviteMember(email: email, role: role, artistId: artistId);
+    String? idempotencyKey,
+  }) => inner.inviteMember(
+    email: email,
+    role: role,
+    artistId: artistId,
+    idempotencyKey: idempotencyKey,
+  );
 
   @override
   Future<ApiResponse<TeamMember>> changeRole(
@@ -76,14 +83,14 @@ class _SwitchableSubs implements SubscriptionServiceInterface {
 
   @override
   Future<ApiResponse<SalonSubscription>> getSalonSubscription(
-    String providerId,
+    SalonId providerId,
   ) => inner.getSalonSubscription(providerId);
 }
 
 class _FailingSubs implements SubscriptionServiceInterface {
   @override
   Future<ApiResponse<SalonSubscription>> getSalonSubscription(
-    String providerId,
+    SalonId providerId,
   ) async => ApiResponse.error('Pas de connexion. Réessayez.');
 }
 
@@ -105,6 +112,7 @@ class _DemoLockedTeam extends MockProTeamService {
     required String email,
     required TeamRole role,
     String? artistId,
+    String? idempotencyKey,
   }) async => ApiResponse.error(
     teamErrorMessage('demo_account_locked'),
     code: 'demo_account_locked',
@@ -114,7 +122,7 @@ class _DemoLockedTeam extends MockProTeamService {
 /// Team access R3 §2.1 — the 3-step invite sheet: email validation, the
 /// role cards' locked copy, the Collaborateur fiche step (+ inline create),
 /// duplicate errors inline — and the refusals, which are a neutral sentence
-/// and nothing else: the Pro app never sells (App Store 3.1.3(f),
+/// and nothing else: the Pro app never sells (App Store 3.1.1,
 /// docs/design/pro-companion-path.md §2.2).
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -130,8 +138,10 @@ void main() {
   });
 
   /// The sheet's salon with a given lifecycle (`draft` · `active`).
-  models.Provider salonIn(String status, {String id = 'provider1'}) => MockData
-      .providers
+  models.Provider salonIn(
+    String status, {
+    SalonId id = const SalonId('provider1'),
+  }) => MockData.providers
       .firstWhere((p) => p.id == 'provider1')
       .copyWith(id: id, status: status);
 
@@ -468,7 +478,7 @@ void main() {
       'sentence', (tester) async {
     useOffer(MockSubscriptionService());
     subs.inner = _FailingSubs();
-    sessionSalon = salonIn('active', id: 'another-salon');
+    sessionSalon = salonIn('active', id: SalonId('another-salon'));
     await submitManager(tester);
     expect(find.text(setupSentence), findsOneWidget);
     expect(find.text(expiredSentence), findsNothing);
@@ -527,7 +537,7 @@ class _SheetHostState extends State<_SheetHost> {
     super.initState();
     // « Équipe » loads the salon's offer state before the sheet can open.
     WidgetsBinding.instance.addPostFrameCallback(
-      (_) => context.read<ProSubscriptionProvider>().load('provider1'),
+      (_) => context.read<ProSubscriptionProvider>().load(SalonId('provider1')),
     );
   }
 
@@ -539,7 +549,8 @@ class _SheetHostState extends State<_SheetHost> {
           onPressed: () => showModalBottomSheet<String>(
             context: context,
             isScrollControlled: true,
-            builder: (_) => const InviteMemberSheet(providerId: 'provider1'),
+            builder: (_) =>
+                const InviteMemberSheet(providerId: SalonId('provider1')),
           ),
           child: const Text('OUVRIR'),
         ),

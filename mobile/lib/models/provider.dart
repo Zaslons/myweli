@@ -1,5 +1,6 @@
 import 'package:equatable/equatable.dart';
 
+import '../core/utils/salon_id.dart';
 import 'artist.dart';
 import 'availability.dart';
 import 'before_after_pair.dart';
@@ -7,7 +8,7 @@ import 'review.dart';
 import 'service.dart';
 
 class Provider extends Equatable {
-  final String id;
+  final SalonId id;
   final String name;
   final String description;
   final String address;
@@ -145,7 +146,7 @@ class Provider extends Equatable {
   ];
 
   Provider copyWith({
-    String? id,
+    SalonId? id,
     String? name,
     String? description,
     String? address,
@@ -256,7 +257,7 @@ class Provider extends Equatable {
 
   factory Provider.fromJson(Map<String, dynamic> json) {
     return Provider(
-      id: json['id'] as String,
+      id: SalonId(json['id'] as String),
       name: json['name'] as String,
       description: json['description'] as String,
       address: json['address'] as String,

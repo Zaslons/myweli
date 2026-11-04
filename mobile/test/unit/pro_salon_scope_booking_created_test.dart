@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:myweli/core/access/pro_salon_scope.dart';
 import 'package:myweli/core/di/dependency_injection.dart';
+import 'package:myweli/core/utils/salon_id.dart';
 import 'package:myweli/models/api_response.dart';
 import 'package:myweli/models/appointment.dart';
 import 'package:myweli/providers/pro_appointment_provider.dart';
@@ -20,7 +21,7 @@ class _Service extends MockProService {
 
   @override
   Future<ApiResponse<List<Appointment>>> getProviderAppointments(
-    String providerId, {
+    SalonId providerId, {
     AppointmentStatus? status,
     DateTime? startDate,
     DateTime? endDate,
@@ -28,7 +29,7 @@ class _Service extends MockProService {
 
   @override
   Future<ApiResponse<Appointment>> createManualBooking({
-    required String providerId,
+    required SalonId providerId,
     required List<String> serviceIds,
     required DateTime appointmentDateTime,
     String? clientName,
@@ -36,6 +37,7 @@ class _Service extends MockProService {
     String? notes,
     String? artistId,
     bool sendSmsInvite = false,
+    String? idempotencyKey,
   }) async {
     calls++;
     if (outcome == 'throw') throw Exception('SocketException');
@@ -72,6 +74,10 @@ class _Shows implements ShowsSalonBookings {
   @override
   void bookingCreated(Appointment booking) => heard.add(booking);
 
+  // Changes are another announcement (pro_booking_changed_test.dart).
+  @override
+  void bookingChanged(BookingChange change) {}
+
   @override
   void resetForSalonSwitch() => resets++;
 }
@@ -86,6 +92,10 @@ class _Throws implements ShowsSalonBookings {
     throw StateError('a store with a bug');
   }
 
+  // Changes are another announcement (pro_booking_changed_test.dart).
+  @override
+  void bookingChanged(BookingChange change) {}
+
   @override
   void resetForSalonSwitch() {}
 }
@@ -98,6 +108,10 @@ class _Spawns implements ShowsSalonBookings {
   @override
   void bookingCreated(Appointment booking) =>
       spawned.add(ProSalonScope.track(_Shows()));
+
+  // Changes are another announcement (pro_booking_changed_test.dart).
+  @override
+  void bookingChanged(BookingChange change) {}
 
   @override
   void resetForSalonSwitch() {}
@@ -128,7 +142,7 @@ void main() {
   final booking = Appointment(
     id: 'm1',
     userId: 'manual',
-    providerId: 'p1',
+    providerId: SalonId('p1'),
     serviceIds: const ['s1'],
     appointmentDate: DateTime.utc(2026, 7, 13, 10),
     status: AppointmentStatus.confirmed,
@@ -137,7 +151,7 @@ void main() {
   );
 
   Future<bool> create(ProAppointmentProvider p) => p.createManualBooking(
-    providerId: 'p1',
+    providerId: SalonId('p1'),
     serviceIds: const ['s1'],
     appointmentDateTime: DateTime.utc(2026, 7, 13, 10),
     clientName: 'Yao K.',
@@ -237,7 +251,10 @@ void main() {
       final store = ProSalonScope.track(_Shows());
       final p = ProAppointmentProvider();
       // The agenda was left on « En attente »; the booking is « Confirmé ».
-      await p.loadAppointments('p1', status: AppointmentStatus.pending);
+      await p.loadAppointments(
+        SalonId('p1'),
+        status: AppointmentStatus.pending,
+      );
 
       expect(await create(p), isTrue);
 

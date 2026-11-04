@@ -5,6 +5,7 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'package:myweli/core/di/dependency_injection.dart';
 import 'package:myweli/core/push/push_registration.dart';
 import 'package:myweli/core/utils/app_clock.dart';
+import 'package:myweli/core/utils/salon_id.dart';
 import 'package:myweli/core/utils/salon_time.dart';
 import 'package:myweli/models/api_response.dart';
 import 'package:myweli/models/salon_subscription.dart';
@@ -32,6 +33,7 @@ import 'package:myweli/screens/provider/reviews/reviews_screen.dart';
 import 'package:myweli/screens/provider/settings/deposit_settings_screen.dart';
 import 'package:myweli/screens/provider/team/pro_invitations_screen.dart';
 import 'package:myweli/screens/provider/team/team_screen.dart';
+import 'package:myweli/services/interfaces/pro_service_interface.dart';
 import 'package:myweli/services/mock/mock_auth_service.dart';
 import 'package:myweli/services/mock/mock_device_registration_service.dart';
 import 'package:myweli/services/mock/mock_locality_service.dart';
@@ -202,7 +204,7 @@ void main() {
     testWidgets('the deposit policy form', (tester) async {
       await _pumpPro(
         tester,
-        const DepositSettingsScreen(providerId: 'provider1'),
+        const DepositSettingsScreen(providerId: SalonId('provider1')),
         extra: [
           ChangeNotifierProvider(create: (_) => ProDepositSettingsProvider()),
           ChangeNotifierProvider(create: (_) => LocalityProvider()),
@@ -219,6 +221,8 @@ void main() {
         tester,
         const DashboardScreen(),
         extra: [
+          // The invitations card (B7.6): nothing to draw — no invitation.
+          ChangeNotifierProvider(create: (_) => ProTeamProvider()),
           ChangeNotifierProvider(create: (_) => ProDashboardProvider()),
           ChangeNotifierProvider(
             create: (_) => NotificationsProvider(
@@ -229,6 +233,29 @@ void main() {
         size: const Size(390, 1400),
       );
       await expectGolden(tester, 'pro_dashboard');
+    });
+
+    // docs/design/app-pro-home-journal-fresh.md §2.3, §9: the error state
+    // when the figures got no answer — the title, the reason, « Réessayer ».
+    testWidgets('the dashboard — the figures got no answer', (tester) async {
+      await _pumpPro(
+        tester,
+        const DashboardScreen(),
+        extra: [
+          // The invitations card (B7.6): nothing to draw — no invitation.
+          ChangeNotifierProvider(create: (_) => ProTeamProvider()),
+          ChangeNotifierProvider<ProDashboardProvider>(
+            create: (_) => _OfflineHome(),
+          ),
+          ChangeNotifierProvider(
+            create: (_) => NotificationsProvider(
+              service: serviceLocator.proNotificationService,
+            ),
+          ),
+        ],
+        size: const Size(390, 844),
+      );
+      await expectGolden(tester, 'pro_dashboard_offline');
     });
 
     testWidgets('the journal', (tester) async {
@@ -304,7 +331,12 @@ void main() {
       await _pumpPro(
         tester,
         const ProJournalScreen(),
-        extra: [ChangeNotifierProvider(create: (_) => ProJournalProvider())],
+        extra: [
+          ChangeNotifierProvider(create: (_) => ProJournalProvider()),
+          // The invitations card (B7.6) heads a Collaborateur's day — it
+          // draws nothing here: the staff account has no invitation.
+          ChangeNotifierProvider(create: (_) => ProTeamProvider()),
+        ],
         size: const Size(390, 1200),
         rounds: 10,
         email: kStaffEmail,
@@ -483,6 +515,8 @@ void main() {
         tester,
         const DashboardScreen(),
         extra: [
+          // The invitations card (B7.6): nothing to draw — no invitation.
+          ChangeNotifierProvider(create: (_) => ProTeamProvider()),
           ChangeNotifierProvider(create: (_) => ProDashboardProvider()),
           // The service is passed EXPLICITLY, as the 1× dashboard golden does
           // twelve tests above: this file hand-assigns the locator rather than
@@ -519,8 +553,9 @@ void main() {
     // which is why regenerating every baseline after fixing them changed
     // nothing at all:
     //
-    //   · « Pas encore de compte ? » + « S'inscrire » in a Row that could not
-    //     wrap — 149px past a 360dp screen at 200% text.
+    //   · A sign-up prompt in a Row that could not wrap — 149px past a 360dp
+    //     screen at 200% text. The prompt has since left the app
+    //     (docs/design/app-review-round-2.md §4).
     //   · « Continuer avec Google », whose label could not shrink.
     //
     // Signed OUT, so `_pumpPro` is the wrong helper: it exists to put a salon
@@ -542,11 +577,13 @@ void main() {
       );
       await settleMocks(tester, rounds: 3);
 
-      // Both halves of the prompt, or the picture is of the wrong thing: a
-      // signed-in session would render the dashboard and this golden would
-      // quietly become a baseline for a screen it does not name.
-      expect(find.text('Pas encore de compte ?'), findsOneWidget);
-      expect(find.text('S\u2019inscrire'), findsOneWidget);
+      // The form, or the picture is of the wrong thing: a signed-in session
+      // would render the dashboard and this golden would quietly become a
+      // baseline for a screen it does not name. And no prompt below it: this
+      // is the baseline that shows the bottom of the form.
+      expect(find.text('Continuer avec e-mail'), findsOneWidget);
+      expect(find.textContaining('compte ?'), findsNothing);
+      expect(find.textContaining('myweli.com'), findsNothing);
 
       await expectGolden(tester, 'pro_login_w360_x2');
     });
@@ -672,6 +709,25 @@ void main() {
 /// The branch reads the seam rather than the wall clock, because a comparison
 /// against an unfrozen clock inside a frozen test is the exact silent decoupling
 /// `salon_time_pin_test` now pins.
+/// « Accueil » whose figures got no answer: the error state as the screen
+/// draws it (docs/design/app-pro-home-journal-fresh.md §2.3).
+class _OfflineHome extends ProDashboardProvider {
+  @override
+  DashboardStats? get stats => null;
+
+  @override
+  bool get isLoading => false;
+
+  @override
+  String? get error => 'Pas de connexion. Réessayez.';
+
+  @override
+  bool get errorIsOffline => true;
+
+  @override
+  Future<void> loadDashboardStats(String providerId) async {}
+}
+
 class _FixedRoster extends MockProTeamService {
   @override
   Future<ApiResponse<List<TeamMember>>> getMembers() async {

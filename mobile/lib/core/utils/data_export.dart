@@ -5,6 +5,7 @@ import '../../models/provider_user.dart';
 import '../../models/salon_client.dart';
 import '../../models/service.dart';
 import '../../models/user.dart';
+import '../../services/interfaces/pro_service_interface.dart';
 import 'app_clock.dart';
 
 /// Builds the user's data-export document (JSON-ready) from already-loaded
@@ -68,6 +69,13 @@ String dataExportFailureMessage(Iterable<DataExportSection> failed) {
       'complètes : vérifiez votre connexion et réessayez.';
 }
 
+/// Every read answered, and the file still could not be made from them: its
+/// own sentence — naming the reads would blame what worked
+/// (docs/design/web-client-polish.md §2.3). The web's two exports say the
+/// same (`EXPORT_BUILD_FAILED`).
+const String kDataExportBuildFailed =
+    'Le fichier n’a pas pu être préparé. Réessayez.';
+
 /// The clipboard refused the copy. The app has no download, and a
 /// `PlatformException` from the clipboard is not a lasting state: the button
 /// stays, and it is the retry.
@@ -83,6 +91,7 @@ Map<String, dynamic> buildProviderDataExport({
   required List<Artist> artists,
   required List<Appointment> appointments,
   required List<SalonClient> clients,
+  required EarningsData earnings,
   DateTime? generatedAt,
 }) {
   return {
@@ -137,17 +146,25 @@ Map<String, dynamic> buildProviderDataExport({
           },
         )
         .toList(),
+    // The web's shape exactly (web/lib/pro/export.ts): the total and a COUNT
+    // of transactions — not the list (pro-app-batch7.md §2.8, B7.8).
+    'earnings': {
+      'totalEarnings': earnings.totalEarnings,
+      'transactions': earnings.transactions.length,
+    },
   };
 }
 
-/// The salon export's five reads, in the order the file holds them — and the
-/// order a refusal names them (docs/design/app-pro-export-completeness.md §3).
+/// The salon export's six reads, in the order the file holds them — and the
+/// order a refusal names them (docs/design/app-pro-export-completeness.md §3;
+/// the earnings since pro-app-batch7.md §2.8, as on the web).
 enum ProExportSection {
   salon('la fiche du salon'),
   services('les services'),
   artists('l’équipe'),
   appointments('les rendez-vous'),
-  clients('le fichier clients');
+  clients('le fichier clients'),
+  earnings('les revenus');
 
   const ProExportSection(this.label);
 

@@ -5,6 +5,7 @@ import 'package:myweli/core/access/pro_access_guard.dart';
 import 'package:myweli/core/access/pro_salon_scope.dart';
 import 'package:myweli/core/di/dependency_injection.dart';
 import 'package:myweli/core/push/push_registration.dart';
+import 'package:myweli/core/utils/salon_id.dart';
 import 'package:myweli/core/utils/salon_time.dart';
 import 'package:myweli/models/provider_session.dart';
 import 'package:myweli/models/provider_user.dart';
@@ -18,6 +19,8 @@ import 'package:myweli/services/mock/mock_device_registration_service.dart';
 import 'package:myweli/services/mock/mock_pro_service.dart';
 import 'package:myweli/services/mock/mock_push_notification_service.dart';
 import 'package:myweli/services/mock/mock_subscription_service.dart';
+
+import '../support/web_created.dart';
 
 /// Team access R6b — multi-salons in the app: the models, the mock world
 /// (« Mes salons », selection, « Ajouter un salon » gates), the
@@ -105,13 +108,16 @@ void main() {
           token: 't',
           refreshToken: 'r',
           provider: user,
-          selectedSalonId: 'p2',
+          selectedSalonId: SalonId('p2'),
         );
         final back = ProviderSession.fromJson(session.toJson());
         expect(back.selectedSalonId, 'p2');
         // copyWith keeps, replaces and clears.
         expect(back.copyWith().selectedSalonId, 'p2');
-        expect(back.copyWith(selectedSalonId: 'p9').selectedSalonId, 'p9');
+        expect(
+          back.copyWith(selectedSalonId: SalonId('p9')).selectedSalonId,
+          'p9',
+        );
         expect(back.copyWith(clearSelectedSalon: true).selectedSalonId, isNull);
         // Legacy (pre-R6) sessions simply have no selection.
         final legacy = ProviderSession.fromJson({
@@ -124,17 +130,12 @@ void main() {
   });
 
   group('« Mes salons » (mock world)', () {
-    test(
-      'the seeded owner sees BOTH salons, owned first, no add gate yet',
-      () async {
-        final auth = await signInOwner();
-        expect(auth.salons.map((s) => s.salonId), ['provider2', 'provider1']);
-        expect(auth.salons.every((s) => s.isOwner), isTrue);
-        expect(auth.hasMultipleSalons, isTrue);
-        // No offer anywhere → the server-computed gate stays closed.
-        expect(auth.canAddSalon, isFalse);
-      },
-    );
+    test('the seeded owner sees BOTH salons, owned first', () async {
+      final auth = await signInOwner();
+      expect(auth.salons.map((s) => s.salonId), ['provider2', 'provider1']);
+      expect(auth.salons.every((s) => s.isOwner), isTrue);
+      expect(auth.hasMultipleSalons, isTrue);
+    });
 
     test(
       'switchSalon: reshapes, persists, resets the per-salon fleet',
@@ -143,7 +144,7 @@ void main() {
         expect(auth.activeSalonId, 'provider1');
         final spy = ProSalonScope.track(_ResetSpy());
 
-        final ok = await auth.switchSalon('provider2');
+        final ok = await auth.switchSalon(SalonId('provider2'));
         expect(ok, isTrue);
         expect(auth.activeSalonId, 'provider2');
         expect(auth.salonName, 'Beauté Divine');
@@ -173,19 +174,19 @@ void main() {
       expect(auth.salonTimezone, kSalonTz);
       expect(auth.salonCurrency, 'XOF');
 
-      expect(await auth.switchSalon('provider2'), isTrue);
+      expect(await auth.switchSalon(SalonId('provider2')), isTrue);
       expect(auth.salonTimezone, 'Africa/Libreville');
       expect(auth.salonCurrency, 'XAF');
       expect(auth.salonCountryCode, 'GA');
 
-      expect(await auth.switchSalon('provider1'), isTrue);
+      expect(await auth.switchSalon(SalonId('provider1')), isTrue);
       expect(auth.salonTimezone, kSalonTz);
       expect(auth.salonCurrency, 'XOF');
     });
 
     test('cold start restores the switched-to salon', () async {
       final auth = await signInOwner();
-      await auth.switchSalon('provider2');
+      await auth.switchSalon(SalonId('provider2'));
 
       // A new provider instance = the app restarting on the same session.
       final restarted = ProAuthProvider();
@@ -197,7 +198,7 @@ void main() {
     test('a salon the account does NOT belong to is refused; the session '
         'stays put', () async {
       final auth = await signInOwner();
-      final ok = await auth.switchSalon('provider3');
+      final ok = await auth.switchSalon(SalonId('provider3'));
       expect(ok, isFalse);
       expect(auth.activeSalonId, 'provider1');
       expect(auth.isAuthenticated, isTrue);
@@ -206,7 +207,7 @@ void main() {
     test('revoked from the SELECTED salon → silent fallback to the default '
         '(never a sign-out)', () async {
       final auth = await signInOwner();
-      await auth.switchSalon('provider2');
+      await auth.switchSalon(SalonId('provider2'));
       expect(auth.activeSalonId, 'provider2');
 
       // The provider2 ownership disappears mid-session.
@@ -222,7 +223,7 @@ void main() {
 
     test('logout clears the selection', () async {
       final auth = await signInOwner();
-      await auth.switchSalon('provider2');
+      await auth.switchSalon(SalonId('provider2'));
       await auth.logout();
       expect(auth.selectedSalonId, isNull);
       expect(auth.salons, isEmpty);
@@ -234,60 +235,18 @@ void main() {
   });
 
   group('« Ajouter un salon » (mock world)', () {
-    test('gated on a live Réseau offer → reseau_required first', () async {
-      final auth = await signInOwner();
-      final created = await auth.addSalon(
-        businessName: 'Salon Trois',
-        businessType: BusinessType.salon,
-      );
-      expect(created, isNull);
-      expect(auth.errorCode, 'reseau_required');
-    });
-
-    test(
-      'with Réseau live: creates the draft, switches to it, lists it',
-      () async {
-        final auth = await signInOwner();
-        // provider1 on a live Réseau offer (chosen on the web, in production).
-        expect(
-          (serviceLocator.subscriptionService as MockSubscriptionService)
-              .startTrialIfAbsent('provider1', tier: SalonTier.reseau),
-          isTrue,
-        );
-
-        final created = await auth.addSalon(
-          businessName: 'Salon Trois',
-          businessType: BusinessType.spa,
-        );
-        expect(created, isNotNull);
-        expect(created!.salonStatus, 'draft');
-        expect(created.role, TeamRole.owner);
-        // Switched to the new salon; the list carries all three.
-        expect(auth.activeSalonId, created.salonId);
-        expect(auth.salons.length, 3);
-        // Its own SETUP state: no offer on the new salon yet.
-        final offer = await serviceLocator.subscriptionService
-            .getSalonSubscription(created.salonId);
-        expect(offer.code, 'no_offer');
-      },
-    );
-
     test('the new salon\'s FIRST publish starts its own trial — on Réseau, the '
         'offer it was added under (pro-companion-path §3.1)', () async {
       final auth = await signInOwner();
       final subs =
           serviceLocator.subscriptionService as MockSubscriptionService;
-      subs.startTrialIfAbsent('provider1', tier: SalonTier.reseau);
-      final created = await auth.addSalon(
-        businessName: 'Salon Trois',
-        businessType: BusinessType.salon,
-      );
+      subs.startTrialIfAbsent(SalonId('provider1'), tier: SalonTier.reseau);
+      // Added on the web — the app no longer adds salons (App Store 3.1.1).
+      final created = seedWebAddedSalon(auth.provider!, name: 'Salon Trois');
 
-      final published = await serviceLocator.proService.publishSalon(
-        created!.salonId,
-      );
+      final published = await serviceLocator.proService.publishSalon(created);
       expect(published.success, isTrue);
-      final offer = await subs.getSalonSubscription(created.salonId);
+      final offer = await subs.getSalonSubscription(created);
       expect(offer.data!.status, SalonOfferStatus.trial);
       expect(offer.data!.tier, SalonTier.reseau);
     });
@@ -302,23 +261,31 @@ void main() {
         final subs =
             serviceLocator.subscriptionService as MockSubscriptionService;
 
-        final res = await serviceLocator.proService.publishSalon('provider1');
+        final res = await serviceLocator.proService.publishSalon(
+          SalonId('provider1'),
+        );
         expect(res.success, isTrue);
-        final first = (await subs.getSalonSubscription('provider1')).data!;
+        final first = (await subs.getSalonSubscription(
+          SalonId('provider1'),
+        )).data!;
         expect(first.status, SalonOfferStatus.trial);
         expect(first.tier, SalonTier.pro);
 
         // Salon 2 gets its OWN fresh trial; salon 1's is untouched.
         expect(
-          (await serviceLocator.proService.publishSalon('provider2')).success,
+          (await serviceLocator.proService.publishSalon(
+            SalonId('provider2'),
+          )).success,
           isTrue,
         );
         expect(
-          (await subs.getSalonSubscription('provider2')).data!.status,
+          (await subs.getSalonSubscription(SalonId('provider2'))).data!.status,
           SalonOfferStatus.trial,
         );
         expect(
-          (await subs.getSalonSubscription('provider1')).data!.trialEndsAt,
+          (await subs.getSalonSubscription(
+            SalonId('provider1'),
+          )).data!.trialEndsAt,
           first.trialEndsAt,
         );
       });
@@ -327,14 +294,16 @@ void main() {
         await signInOwner();
         final subs =
             serviceLocator.subscriptionService as MockSubscriptionService;
-        subs.startTrialIfAbsent('provider1', tier: SalonTier.business);
+        subs.startTrialIfAbsent(SalonId('provider1'), tier: SalonTier.business);
 
         expect(
-          (await serviceLocator.proService.publishSalon('provider1')).success,
+          (await serviceLocator.proService.publishSalon(
+            SalonId('provider1'),
+          )).success,
           isTrue,
         );
         expect(
-          (await subs.getSalonSubscription('provider1')).data!.tier,
+          (await subs.getSalonSubscription(SalonId('provider1'))).data!.tier,
           SalonTier.business,
         );
       });
@@ -591,8 +560,11 @@ const _reviewedProviderIdReads = <String, ({int reads, String why})>{
   // account's default → the membership's salon), and `can`'s fallback for a
   // linked owner before any membership has loaded.
   'lib/providers/pro_auth_provider.dart · _provider': (
-    reads: 2,
-    why: 'the activeSalonId resolver and the pre-membership owner fallback',
+    reads: 3,
+    why:
+        'the activeSalonId resolver, the pre-membership owner fallback, and '
+        'ownsASalon — whether the account OWNS a salon (its linked one), '
+        'which the deletion removes; never which salon to act in (B7.3)',
   ),
   // A booking's salon (Appointment.providerId).
   'lib/screens/home/home_screen.dart · a': (
@@ -634,6 +606,32 @@ const _reviewedProviderIdReads = <String, ({int reads, String why})>{
   'lib/providers/pro_dashboard_provider.dart · booking': (
     reads: 1,
     why: 'a created booking refreshes the dashboard of its salon only',
+  ),
+  // A booking that CHANGED (docs/design/app-pro-home-journal-fresh.md §2.1):
+  // each store applies it only when it is its own salon's.
+  'lib/providers/pro_journal_provider.dart · change': (
+    reads: 1,
+    why: 'a changed booking is applied only to the day of its salon',
+  ),
+  'lib/providers/pro_clients_provider.dart · change': (
+    reads: 1,
+    why: 'a changed booking reaches the client card of its salon only',
+  ),
+  'lib/providers/pro_dashboard_provider.dart · change': (
+    reads: 1,
+    why: 'a changed booking refreshes the dashboard of its salon only',
+  ),
+  'lib/providers/pro_appointment_provider.dart · change': (
+    reads: 1,
+    why: 'a change from elsewhere corrects a row of the same salon only',
+  ),
+  'lib/providers/pro_appointment_provider.dart · current': (
+    reads: 1,
+    why: 'the listed row’s own salon, compared with the change’s',
+  ),
+  'lib/providers/pro_appointment_provider.dart · row': (
+    reads: 1,
+    why: 'a change is announced for the salon of the row it changed',
   ),
   'lib/core/utils/data_export.dart · a': (
     reads: 1,

@@ -9,7 +9,7 @@ import { ErrorState } from '../ErrorState';
 import { SkeletonRows } from '../Skeleton';
 import { useCallback, useEffect, useState } from 'react';
 import { getEarnings, getMyProvider } from '../../lib/api/pro';
-import { loadFailure, loadFailureMessage, type LoadFailure } from '../../lib/pro/load-failure';
+import { loadFailure, loadFailureMessage, type LoadFailure } from '../../lib/api/load-failure';
 import { formatDateTimeFr, formatFcfa } from '../../lib/format';
 import {
   type EarningsData,

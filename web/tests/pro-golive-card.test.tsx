@@ -30,16 +30,20 @@ const PROFILE = {
   },
 } as unknown as ProProfile;
 
-function stub({ deposit = 200, kyc = { status: 'pending', documents: [] } } = {}) {
+/// The deposit policy defaults to a CHOSEN one (off, at the form's 30 %); a
+/// test passes the server's never-chosen defaults (off, 0) to see the step
+/// stay « Facultatif » (B7.7).
+function stub({
+  deposit = 200,
+  kyc = { status: 'pending', documents: [] },
+  policy = { depositRequired: false, depositPercentage: 0.3, cancellationWindowHours: 24 },
+} = {}) {
   vi.stubGlobal(
     'fetch',
     vi.fn(async (url: string) => {
       const u = String(url);
       if (u.startsWith('/api/pro/acompte')) {
-        return new Response(
-          JSON.stringify({ depositRequired: false, depositPercentage: 0, cancellationWindowHours: 24 }),
-          { status: deposit },
-        );
+        return new Response(JSON.stringify(policy), { status: deposit });
       }
       if (u === '/api/pro/kyc') return new Response(JSON.stringify(kyc), { status: 200 });
       return new Response('{}', { status: 404 });
@@ -50,6 +54,22 @@ function stub({ deposit = 200, kyc = { status: 'pending', documents: [] } } = {}
 afterEach(() => {
   cleanup();
   vi.unstubAllGlobals();
+});
+
+describe('GoLiveCard — « Acompte & annulation » follows a SAVED choice (B7.7)', () => {
+  it('never chosen (the server’s defaults: off, 0) → « Facultatif », and not counted', async () => {
+    stub({ policy: { depositRequired: false, depositPercentage: 0, cancellationWindowHours: 24 } });
+    render(<GoLiveCard profile={PROFILE} onPublished={() => {}} />);
+    expect(await screen.findByText('5 étapes sur 7 terminées')).toBeInTheDocument();
+    expect(screen.getByText('Facultatif')).toBeInTheDocument();
+  });
+
+  it('deposits ON → done', async () => {
+    stub({ policy: { depositRequired: true, depositPercentage: 0.3, cancellationWindowHours: 24 } });
+    render(<GoLiveCard profile={PROFILE} onPublished={() => {}} />);
+    expect(await screen.findByText('6 étapes sur 8 terminées')).toBeInTheDocument();
+    expect(screen.queryByText('Facultatif')).toBeNull();
+  });
 });
 
 describe('GoLiveCard — the app’s checklist', () => {

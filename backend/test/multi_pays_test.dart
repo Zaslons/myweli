@@ -343,7 +343,13 @@ void main() {
       }
 
       expect(await save('wave'), isNull);
-      expect(await save('mpesa'), 'invalid_input'); // not in CI's catalog
+      // Not in CI's catalog, deposits off: the save passes (an operator
+      // removed from the catalogue used to block every save — B6.5) but the
+      // operator is NOT kept: no operator outside the country's catalog is
+      // ever stored (T57).
+      expect(await save('mpesa'), isNull);
+      final stored = await catalog.depositPolicy(accountId, 'provider1');
+      expect((stored.data! as Map)['mobileMoneyOperator'], isNull);
     });
   });
 

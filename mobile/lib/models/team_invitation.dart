@@ -1,5 +1,7 @@
 import 'package:equatable/equatable.dart';
 
+import '../core/utils/salon_id.dart';
+
 import 'team_member.dart';
 
 /// A pending-invitation card as shown to the INVITEE — mirrors the backend
@@ -16,7 +18,7 @@ class TeamInvitation extends Equatable {
   });
 
   final String id;
-  final String providerId;
+  final SalonId providerId;
   final String salonName;
   final TeamRole role;
 
@@ -31,8 +33,11 @@ class TeamInvitation extends Equatable {
     );
     return TeamInvitation(
       id: json['id'] as String,
-      providerId: json['providerId'] as String? ?? '',
-      salonName: json['salonName'] as String? ?? 'Salon',
+      providerId: SalonId(json['providerId'] as String? ?? ''),
+      // Kept as sent: the screen says an unnamed salon in the form its
+      // sentence needs (unnamed_salon.dart) — « Salon » here made « Vous avez
+      // rejoint Salon ».
+      salonName: json['salonName'] as String? ?? '',
       role: role,
       roleLabel: json['roleLabel'] as String? ?? teamRoleLabel(role),
       expiresAt: json['expiresAt'] == null

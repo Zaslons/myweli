@@ -4,6 +4,7 @@ import '../../core/utils/message_templates.dart';
 import '../../models/api_response.dart';
 import '../../models/messaging.dart';
 import '../interfaces/messaging_service_interface.dart';
+import 'mock_ids.dart';
 
 class MockMessagingService implements MessagingServiceInterface {
   final List<OutboundMessage> _outbox = [];
@@ -53,7 +54,7 @@ class MockMessagingService implements MessagingServiceInterface {
         : preferred;
 
     final message = OutboundMessage(
-      id: 'msg_${AppClock.now().microsecondsSinceEpoch}',
+      id: MockIds.next('msg'),
       recipientPhone: recipientPhone,
       channel: channel,
       template: template,

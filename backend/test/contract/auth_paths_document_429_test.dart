@@ -21,10 +21,13 @@ void main() {
       if ((k as String).startsWith('/auth/') || k.startsWith('/admin/auth/')) k,
   ];
 
-  test('the scope is the twenty paths the spec counts', () {
-    // 17 under /auth/, 3 under /admin/auth/ — spec §3. A change here is not a
-    // failure, it is a prompt to re-read the scope of the limiter.
-    expect(limited, hasLength(20), reason: limited.join(', '));
+  test('the scope is the eighteen paths the spec counts', () {
+    // 15 under /auth/, 3 under /admin/auth/ — spec §3, less the two Pro phone
+    // sign-in paths removed by B8.5 (docs/design/product-questions-batch8.md
+    // §2.5). The limiter is a prefix test, so its scope did not move. A change
+    // here is not a failure, it is a prompt to re-read the scope of the
+    // limiter.
+    expect(limited, hasLength(18), reason: limited.join(', '));
   });
 
   for (final path in limited) {

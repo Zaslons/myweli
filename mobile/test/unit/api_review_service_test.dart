@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
+import 'package:myweli/core/utils/salon_id.dart';
 import 'package:myweli/models/review.dart';
 import 'package:myweli/services/api/api_review_service.dart';
 import 'package:myweli/services/interfaces/session_store.dart';
@@ -10,7 +11,7 @@ import 'package:myweli/services/interfaces/session_store.dart';
 Review _review({String appointmentId = 'appt1'}) => Review(
   id: 'r1',
   appointmentId: appointmentId,
-  providerId: 'provider1',
+  providerId: SalonId('provider1'),
   userId: 'u1',
   userName: 'Awa',
   rating: 5,
@@ -104,7 +105,7 @@ void main() {
       final res = await _service(
         client,
         token: null,
-      ).getProviderReviews('provider1', page: 2);
+      ).getProviderReviews(SalonId('provider1'), page: 2);
       expect(res.success, isTrue);
       expect(res.data!.single.serviceName, 'Coupe');
     },

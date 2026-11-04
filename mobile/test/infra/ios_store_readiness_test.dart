@@ -217,6 +217,17 @@ void main() {
     );
   });
 
+  // B0.9 (decision 7, docs/BACKLOG.md). The server sends `notification`
+  // pushes only — never `content-available`, never a data-only message
+  // (`fcm_v1_push_provider_test.dart` pins it) — and the background handler
+  // is empty, so `remote-notification` asked iOS for a power the app never
+  // used. A notification still arrives with the app killed: iOS shows it, and
+  // the tap reaches `getInitialMessage`.
+  test('no background mode the app does not use', () {
+    expect(plist, isNot(contains('UIBackgroundModes')));
+    expect(plist, isNot(contains('remote-notification')));
+  });
+
   // docs/design/ios-language-and-orientation.md. App Store Connect read builds
   // 569 and 577 as `locales = ["en"]`: the bundle held only Base.lproj, and
   // Base is the project's development language — English by default. The

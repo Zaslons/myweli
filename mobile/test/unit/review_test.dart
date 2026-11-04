@@ -1,11 +1,12 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:myweli/core/utils/salon_id.dart';
 import 'package:myweli/models/review.dart';
 
 void main() {
   test('round-trips through JSON with the upgraded fields', () {
     final review = Review(
       id: 'r1',
-      providerId: 'p1',
+      providerId: SalonId('p1'),
       userId: 'u1',
       userName: 'Marie',
       rating: 5,

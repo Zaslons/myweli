@@ -1,0 +1,8 @@
+- 🟡 **Le site public : la direction choisie, et un audit de ses parcours contre les apps (web · design, 2026-11-02 — BACKLOG lots 11 et 12, décisions 63–67).** Rien de construit : des specs et des décisions.
+  - **La direction** ([web-swiss-direction.md](../../design/web-swiss-direction.md)) : structure suisse, une seule marge gauche, Hanken Grotesk, le vrai logo plus grand et le mot-symbole en grand dans le pied de page.
+  - **L'identité africaine, et calme :** des rangs de tresses, noir sur blanc, d'après le tissage baoulé.
+    - Vérifiée sur de vrais tissus (High Museum, The Met) : le premier dessin, sept motifs côte à côte, était bruyant, et il est retiré.
+    - Pas de figures de Korhogo ni de signes nommés du bògòlanfini. Le blanc sur noir est gardé pour la version sombre.
+    - **Reste au propriétaire :** montrer le motif à 3 à 5 personnes à Abidjan avant la mise en ligne. Ni moi ni aucun test ne peut en juger.
+  - **Les parcours** ([web-flow-audit-2026-11.md](../../design/web-flow-audit-2026-11.md)) : réservation, connexion, agenda et catalogue suivent les apps. Les écarts sont après la réservation, pour les clients qui reviennent, et dans quatre phrases fausses, à corriger d'abord (B12.1–B12.4). Certains écarts vont dans l'autre sens : la barre de recherche de l'app client ne cherche pas.
+  - **Corrigé en route :** l'échelle de type du site ne s'arrête pas à 32 px, comme je l'avais dit ; les tailles 36, 45 et 57 existent et ne servent nulle part.

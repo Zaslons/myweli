@@ -2,12 +2,20 @@ import 'package:flutter/foundation.dart';
 
 import '../core/access/pro_access_guard.dart';
 import '../core/access/pro_salon_scope.dart';
+import '../core/constants/failure_messages.dart';
 import '../core/di/dependency_injection.dart';
+import '../core/utils/salon_id.dart';
+import '../core/utils/submission_key.dart';
 import '../models/appointment.dart';
 import '../services/interfaces/pro_service_interface.dart';
 
-class ProAppointmentProvider extends ChangeNotifier implements SalonScoped {
+class ProAppointmentProvider extends ChangeNotifier
+    implements HearsBookingChanges {
   final ProServiceInterface _proService = serviceLocator.proService;
+
+  /// One Idempotency-Key per manual-booking submission
+  /// (docs/design/write-idempotency.md §4).
+  final SubmissionKey _manualBookingKey = SubmissionKey();
 
   List<Appointment> _appointments = [];
   bool _isLoading = false;
@@ -21,6 +29,11 @@ class ProAppointmentProvider extends ChangeNotifier implements SalonScoped {
   List<Appointment> get appointments => _appointments;
   bool get isLoading => _isLoading;
   String? get error => _error;
+
+  /// The load's own failure: [error] is also every write's here, so a failed
+  /// save would read as the list's load error (B9.8).
+  String? get loadError => _loadError;
+  String? _loadError;
   String? get errorCode => _errorCode;
 
   /// What [_appointments] was last asked for — « En attente » asks for one
@@ -35,6 +48,10 @@ class ProAppointmentProvider extends ChangeNotifier implements SalonScoped {
   DateTime? _loadedTo;
 
   /// The same test `getProviderAppointments` applies: both bounds inclusive.
+  /// The salon of the loaded list — the announcement of a change names it
+  /// when the row is not in the list.
+  SalonId? _loadedProviderId;
+
   bool _belongsToLoadedList(Appointment a) {
     final status = _loadedStatus;
     final from = _loadedFrom;
@@ -46,16 +63,19 @@ class ProAppointmentProvider extends ChangeNotifier implements SalonScoped {
   }
 
   Future<void> loadAppointments(
-    String providerId, {
+    SalonId providerId, {
     AppointmentStatus? status,
     DateTime? startDate,
     DateTime? endDate,
   }) async {
+    final scope = _scope;
+    _loadedProviderId = providerId;
     _loadedStatus = status;
     _loadedFrom = startDate;
     _loadedTo = endDate;
     _isLoading = true;
     _error = null;
+    _loadError = null;
     notifyListeners();
 
     try {
@@ -65,29 +85,37 @@ class ProAppointmentProvider extends ChangeNotifier implements SalonScoped {
         startDate: startDate,
         endDate: endDate,
       );
+      if (scope != _scope) return;
       if (response.success && response.data != null) {
         _appointments = response.data!;
         _error = null;
       } else {
         _error = response.error ?? 'Erreur lors du chargement des rendez-vous';
+        _loadError = _error;
         ProAccessGuard.report(response.code);
         _appointments = [];
       }
     } catch (e) {
-      _error = e.toString();
+      if (scope != _scope) return;
+      _error = kGenericErrorMessage;
+      _loadError = _error;
       _appointments = [];
     } finally {
-      _isLoading = false;
-      notifyListeners();
+      if (scope == _scope) {
+        _isLoading = false;
+        notifyListeners();
+      }
     }
   }
 
   Future<bool> acceptAppointment(String appointmentId) async {
+    final scope = _scope;
     _isLoading = true;
     notifyListeners();
 
     try {
       final response = await _proService.acceptAppointment(appointmentId);
+      if (scope != _scope) return response.success;
       if (response.success) {
         // Update local appointment
         final index = _appointments.indexWhere((a) => a.id == appointmentId);
@@ -98,6 +126,7 @@ class ProAppointmentProvider extends ChangeNotifier implements SalonScoped {
         }
         _error = null;
         notifyListeners();
+        _announce(appointmentId, BookingChangeKind.accepted);
         return true;
       } else {
         _error = response.error ?? 'Erreur lors de l’acceptation';
@@ -105,16 +134,20 @@ class ProAppointmentProvider extends ChangeNotifier implements SalonScoped {
         return false;
       }
     } catch (e) {
-      _error = e.toString();
+      if (scope != _scope) return false;
+      _error = kGenericErrorMessage;
       notifyListeners();
       return false;
     } finally {
-      _isLoading = false;
-      notifyListeners();
+      if (scope == _scope) {
+        _isLoading = false;
+        notifyListeners();
+      }
     }
   }
 
   Future<bool> rejectAppointment(String appointmentId, String? reason) async {
+    final scope = _scope;
     _isLoading = true;
     notifyListeners();
 
@@ -123,6 +156,7 @@ class ProAppointmentProvider extends ChangeNotifier implements SalonScoped {
         appointmentId,
         reason,
       );
+      if (scope != _scope) return response.success;
       if (response.success) {
         final index = _appointments.indexWhere((a) => a.id == appointmentId);
         if (index != -1) {
@@ -132,6 +166,7 @@ class ProAppointmentProvider extends ChangeNotifier implements SalonScoped {
         }
         _error = null;
         notifyListeners();
+        _announce(appointmentId, BookingChangeKind.rejected);
         return true;
       } else {
         _error = response.error ?? 'Erreur lors du rejet';
@@ -139,21 +174,26 @@ class ProAppointmentProvider extends ChangeNotifier implements SalonScoped {
         return false;
       }
     } catch (e) {
-      _error = e.toString();
+      if (scope != _scope) return false;
+      _error = kGenericErrorMessage;
       notifyListeners();
       return false;
     } finally {
-      _isLoading = false;
-      notifyListeners();
+      if (scope == _scope) {
+        _isLoading = false;
+        notifyListeners();
+      }
     }
   }
 
   Future<bool> markComplete(String appointmentId) async {
+    final scope = _scope;
     _isLoading = true;
     notifyListeners();
 
     try {
       final response = await _proService.markAppointmentComplete(appointmentId);
+      if (scope != _scope) return response.success;
       if (response.success) {
         final index = _appointments.indexWhere((a) => a.id == appointmentId);
         if (index != -1) {
@@ -163,6 +203,7 @@ class ProAppointmentProvider extends ChangeNotifier implements SalonScoped {
         }
         _error = null;
         notifyListeners();
+        _announce(appointmentId, BookingChangeKind.completed);
         return true;
       } else {
         _error = response.error ?? 'Erreur lors de la mise à jour';
@@ -170,21 +211,26 @@ class ProAppointmentProvider extends ChangeNotifier implements SalonScoped {
         return false;
       }
     } catch (e) {
-      _error = e.toString();
+      if (scope != _scope) return false;
+      _error = kGenericErrorMessage;
       notifyListeners();
       return false;
     } finally {
-      _isLoading = false;
-      notifyListeners();
+      if (scope == _scope) {
+        _isLoading = false;
+        notifyListeners();
+      }
     }
   }
 
   Future<bool> markNoShow(String appointmentId) async {
+    final scope = _scope;
     _isLoading = true;
     notifyListeners();
 
     try {
       final response = await _proService.markNoShow(appointmentId);
+      if (scope != _scope) return response.success;
       if (response.success) {
         final index = _appointments.indexWhere((a) => a.id == appointmentId);
         if (index != -1) {
@@ -194,6 +240,7 @@ class ProAppointmentProvider extends ChangeNotifier implements SalonScoped {
         }
         _error = null;
         notifyListeners();
+        _announce(appointmentId, BookingChangeKind.noShow);
         return true;
       } else {
         _error = response.error ?? 'Erreur lors de la mise à jour';
@@ -201,16 +248,20 @@ class ProAppointmentProvider extends ChangeNotifier implements SalonScoped {
         return false;
       }
     } catch (e) {
-      _error = e.toString();
+      if (scope != _scope) return false;
+      _error = kGenericErrorMessage;
       notifyListeners();
       return false;
     } finally {
-      _isLoading = false;
-      notifyListeners();
+      if (scope == _scope) {
+        _isLoading = false;
+        notifyListeners();
+      }
     }
   }
 
   Future<bool> reschedule(String appointmentId, DateTime newDateTime) async {
+    final scope = _scope;
     _isLoading = true;
     notifyListeners();
 
@@ -219,6 +270,7 @@ class ProAppointmentProvider extends ChangeNotifier implements SalonScoped {
         appointmentId,
         newDateTime,
       );
+      if (scope != _scope) return response.success;
       if (response.success) {
         final index = _appointments.indexWhere((a) => a.id == appointmentId);
         if (index != -1) {
@@ -235,17 +287,20 @@ class ProAppointmentProvider extends ChangeNotifier implements SalonScoped {
         return false;
       }
     } catch (e) {
-      _error = e.toString();
+      if (scope != _scope) return false;
+      _error = kGenericErrorMessage;
       notifyListeners();
       return false;
     } finally {
-      _isLoading = false;
-      notifyListeners();
+      if (scope == _scope) {
+        _isLoading = false;
+        notifyListeners();
+      }
     }
   }
 
   Future<bool> createManualBooking({
-    required String providerId,
+    required SalonId providerId,
     required List<String> serviceIds,
     required DateTime appointmentDateTime,
     String? clientName,
@@ -254,11 +309,22 @@ class ProAppointmentProvider extends ChangeNotifier implements SalonScoped {
     String? artistId,
     bool sendSmsInvite = false,
   }) async {
+    final scope = _scope;
     _isLoading = true;
     _error = null;
     notifyListeners();
 
     try {
+      final key = _manualBookingKey.forForm({
+        'providerId': providerId,
+        'serviceIds': serviceIds,
+        'appointmentDateTime': appointmentDateTime.toUtc().toIso8601String(),
+        'clientName': clientName,
+        'clientPhone': clientPhone,
+        'notes': notes,
+        'artistId': artistId,
+        'sendSmsInvite': sendSmsInvite,
+      });
       final response = await _proService.createManualBooking(
         providerId: providerId,
         serviceIds: serviceIds,
@@ -268,8 +334,11 @@ class ProAppointmentProvider extends ChangeNotifier implements SalonScoped {
         notes: notes,
         artistId: artistId,
         sendSmsInvite: sendSmsInvite,
+        idempotencyKey: key,
       );
+      if (scope != _scope) return response.success;
       if (response.success && response.data != null) {
+        _manualBookingKey.settle();
         final created = response.data!;
         if (_belongsToLoadedList(created)) {
           _appointments = [..._appointments, created]
@@ -291,18 +360,68 @@ class ProAppointmentProvider extends ChangeNotifier implements SalonScoped {
       _errorCode = response.code;
       return false;
     } catch (e) {
-      _error = e.toString();
+      if (scope != _scope) return false;
+      _error = kGenericErrorMessage;
       return false;
     } finally {
-      _isLoading = false;
-      notifyListeners();
+      if (scope == _scope) {
+        _isLoading = false;
+        notifyListeners();
+      }
     }
   }
 
   /// R6 multi-salons: drop the previous salon's data on a switch.
+  /// The detail's four writes, announced once the server accepted them, so
+  /// « Ma journée », « Accueil » and the client card follow at once
+  /// (docs/design/app-pro-home-journal-fresh.md §2.1). This list already
+  /// carries the change; it is not told again.
+  void _announce(String appointmentId, BookingChangeKind kind) {
+    final row = _appointments.where((a) => a.id == appointmentId).firstOrNull;
+    final providerId = row?.providerId ?? _loadedProviderId;
+    if (providerId == null) return;
+    ProSalonScope.bookingChanged(
+      BookingChange(
+        appointmentId: appointmentId,
+        providerId: providerId,
+        kind: kind,
+        clientPhone: row?.clientPhone,
+      ),
+      except: this,
+    );
+  }
+
+  /// A change made elsewhere (« Ma journée »): the row follows, with no
+  /// reload. A row its new status takes out of a filtered list leaves it.
+  @override
+  void bookingChanged(BookingChange change) {
+    final i = _appointments.indexWhere((a) => a.id == change.appointmentId);
+    if (i == -1) return;
+    final current = _appointments[i];
+    if (current.providerId != change.providerId) return;
+    final after = change.applyTo(current);
+    final rows = [..._appointments];
+    if (_belongsToLoadedList(after)) {
+      rows[i] = after;
+    } else {
+      rows.removeAt(i);
+    }
+    _appointments = rows;
+    notifyListeners();
+  }
+
+  /// Which salon this state belongs to — moved by [resetForSalonSwitch]
+  /// only. A read or a write takes it before it awaits and writes nothing
+  /// when it moved meanwhile: its answer is the previous salon's, or the
+  /// previous account's (docs/design/pro-account-scope.md §2.2).
+  int _scope = 0;
+
   @override
   void resetForSalonSwitch() {
+    _scope++;
+    _loadError = null;
     _appointments = [];
+    _loadedProviderId = null;
     _loadedStatus = null;
     _loadedFrom = null;
     _loadedTo = null;

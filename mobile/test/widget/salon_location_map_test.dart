@@ -11,6 +11,7 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:myweli/core/di/dependency_injection.dart';
 import 'package:myweli/core/theme/colors.dart';
+import 'package:myweli/core/utils/salon_id.dart';
 import 'package:myweli/models/api_response.dart';
 import 'package:myweli/models/appointment.dart';
 import 'package:myweli/models/provider.dart' as models;
@@ -27,8 +28,8 @@ import 'package:myweli/services/mock/mock_data.dart';
 import 'package:myweli/services/mock/mock_favorites_service.dart';
 import 'package:myweli/services/mock/mock_provider_service.dart';
 import 'package:myweli/widgets/booking/appointment_card.dart';
+import 'package:myweli/widgets/common/app_skeleton.dart';
 import 'package:myweli/widgets/common/carto_basemap_layer.dart';
-import 'package:myweli/widgets/common/loading_indicator.dart';
 import 'package:myweli/widgets/common/salon_map_marker.dart';
 import 'package:myweli/widgets/common/salon_unavailable_view.dart';
 import 'package:myweli/widgets/providers/salon_location_preview.dart';
@@ -478,7 +479,7 @@ void main() {
                 appointment: Appointment(
                   id: 'a1',
                   userId: 'u1',
-                  providerId: 'provider1',
+                  providerId: SalonId('provider1'),
                   serviceIds: const [],
                   appointmentDate: DateTime(2026, 10, 20, 10),
                   status: AppointmentStatus.confirmed,
@@ -548,7 +549,7 @@ void main() {
     /// salon page's salon, a list loaded earlier. Fresh by default.
     Future<void> pumpMap(
       WidgetTester tester,
-      String focus, {
+      SalonId focus, {
       ProviderProvider? providers,
     }) async {
       pinSurface(tester, size: const Size(390, 844));
@@ -602,7 +603,7 @@ void main() {
             ..salon = reviewed
                 ? excellence.copyWith(rating: 4.6, reviewCount: 12)
                 : excellence.copyWith(rating: 0, reviewCount: 0);
-          await pumpMap(tester, 'provider1');
+          await pumpMap(tester, SalonId('provider1'));
           final inSheet = find.byType(BottomSheet);
           expect(find.text('Voir le salon'), findsOneWidget);
           Finder sheetText(String t) =>
@@ -629,7 +630,7 @@ void main() {
         ..list = [divine]
         ..salon = excellence;
 
-      await pumpMap(tester, 'provider1');
+      await pumpMap(tester, SalonId('provider1'));
 
       expect(service.byIdCalls, 1, reason: 'one public read, not in the list');
       // The sheet is up, on this salon.
@@ -691,7 +692,7 @@ void main() {
       final providers = ProviderProvider();
       await providers.loadProviders();
 
-      await pumpMap(tester, 'provider1', providers: providers);
+      await pumpMap(tester, SalonId('provider1'), providers: providers);
 
       expect(service.byIdCalls, 0);
       expect(find.text('Voir le salon'), findsOneWidget);
@@ -716,7 +717,7 @@ void main() {
       // What the salon page beneath leaves in the shared slot.
       final providers = ProviderProvider()..showPreloaded(excellence);
 
-      await pumpMap(tester, 'provider1', providers: providers);
+      await pumpMap(tester, SalonId('provider1'), providers: providers);
 
       expect(providers.isLoading, isTrue, reason: 'the list is still out');
       expect(find.text('Voir le salon'), findsOneWidget);
@@ -736,7 +737,7 @@ void main() {
         ..hangList = true
         ..salon = excellence;
 
-      await pumpMap(tester, 'provider1');
+      await pumpMap(tester, SalonId('provider1'));
 
       expect(service.byIdCalls, 1);
       expect(find.text('Voir le salon'), findsOneWidget);
@@ -752,7 +753,7 @@ void main() {
         ..list = [divine]
         ..salon = null;
 
-      await pumpMap(tester, 'gone');
+      await pumpMap(tester, SalonId('gone'));
 
       expect(find.text('Voir le salon'), findsNothing);
       expect(
@@ -783,13 +784,18 @@ void main() {
         routes: [
           GoRoute(
             path: '/provider/:id',
-            builder: (_, state) =>
-                ProviderDetailScreen(providerId: state.pathParameters['id']!),
+            builder: (_, state) => ProviderDetailScreen(
+              providerId: SalonId(state.pathParameters['id']!),
+            ),
           ),
           GoRoute(
             path: '/carte',
             builder: (_, state) => MapScreen(
-              focusProviderId: state.uri.queryParameters['providerId'],
+              focusProviderId:
+                  switch (state.uri.queryParameters['providerId']) {
+                    final String id => SalonId(id),
+                    _ => null,
+                  },
             ),
           ),
           GoRoute(
@@ -888,7 +894,7 @@ void main() {
       await tester.pump();
 
       expect(service.byIdCalls, 1, reason: 'its read is out');
-      expect(find.byType(LoadingIndicator), findsOneWidget);
+      expect(find.byType(AppSkeleton), findsOneWidget);
       expect(find.text(divine.name), findsNothing);
       expect(find.text(divine.address), findsNothing);
       expect(find.text('Réserver'), findsNothing);
@@ -903,7 +909,7 @@ void main() {
         ..gate = Completer<void>();
       final (router, providers) = await pumpStack(tester);
       await tester.pump();
-      expect(find.byType(LoadingIndicator), findsOneWidget);
+      expect(find.byType(AppSkeleton), findsOneWidget);
 
       // Salon B above it before A's read answered; then both answer — A's to
       // nobody (the slot is B's by then).
@@ -930,7 +936,7 @@ void main() {
         ..gate = Completer<void>();
       final providers = ProviderProvider();
 
-      final read = providers.loadProviderById('provider2');
+      final read = providers.loadProviderById(SalonId('provider2'));
       expect(providers.selectedProviderId, 'provider2', reason: 'before');
       // Page A takes the slot back while B's read is out.
       providers.restoreSalon(excellence);
@@ -953,7 +959,7 @@ void main() {
     var notified = 0;
     providers.addListener(() => notified++);
 
-    final found = await providers.providerForMap('provider1');
+    final found = await providers.providerForMap(SalonId('provider1'));
 
     expect(found?.id, 'provider1');
     expect(providers.selectedProvider?.id, 'provider2');
@@ -961,7 +967,7 @@ void main() {
     expect(providers.error, isNull);
     expect(notified, 0);
     // The selected salon itself is served without a read.
-    expect(await providers.providerForMap('provider2'), same(divine));
+    expect(await providers.providerForMap(SalonId('provider2')), same(divine));
     expect(service.byIdCalls, 1);
   });
 }

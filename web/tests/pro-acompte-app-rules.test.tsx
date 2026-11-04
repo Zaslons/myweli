@@ -191,3 +191,60 @@ describe('AcompteClient — the app’s rules', () => {
     expect(sent[0].body.policy).toMatchObject({ depositPercentage: 0.75 });
   });
 });
+
+/// docs/design/backend-integrity-batch6.md §2.5 (B6.5, decision 19): one range
+/// on the server too, and an operator removed from the catalogue said where it
+/// belongs — never a bar saying « L’enregistrement a échoué ».
+describe('AcompteClient — the server’s range and catalogue', () => {
+  const PERCENT = 'Choisissez un pourcentage entre 5 et 80 %.';
+  const OPERATOR = 'Cet opérateur n’est plus proposé. Choisissez-en un autre.';
+  const operator = () => screen.getByRole('combobox', { name: 'Opérateur Mobile Money' });
+
+  function describedText(el: HTMLElement): string {
+    const id = el.getAttribute('aria-describedby') ?? '';
+    return document.getElementById(id)?.textContent ?? '';
+  }
+
+  it('invalid_percentage → under the slider, tied to it', async () => {
+    mockFetch({ put: [{ status: 400, body: { error: 'invalid_percentage' } }] });
+    render(<AcompteClient />);
+    await screen.findByText('Limite les rendez-vous manqués');
+    save();
+    await screen.findByText(PERCENT);
+    expect(slider()).toHaveAttribute('aria-invalid', 'true');
+    expect(describedText(slider())).toBe(PERCENT);
+    expect(screen.queryByText('L’enregistrement a échoué. Réessayez.')).toBeNull();
+
+    // Moving the slider takes the fault away.
+    fireEvent.change(slider(), { target: { value: '30' } });
+    expect(screen.queryByText(PERCENT)).toBeNull();
+    expect(slider()).not.toHaveAttribute('aria-invalid');
+  });
+
+  it('operator_unavailable → under the operator, tied to it', async () => {
+    mockFetch({ put: [{ status: 400, body: { error: 'operator_unavailable' } }] });
+    render(<AcompteClient />);
+    await screen.findByText('Limite les rendez-vous manqués');
+    await waitFor(() => expect(operator()).toBeEnabled());
+    save();
+    await screen.findByText(OPERATOR);
+    expect(operator()).toHaveAttribute('aria-invalid', 'true');
+    expect(describedText(operator())).toBe(OPERATOR);
+    expect(screen.queryByText('L’enregistrement a échoué. Réessayez.')).toBeNull();
+
+    fireEvent.change(operator(), { target: { value: 'orange' } });
+    expect(screen.queryByText(OPERATOR)).toBeNull();
+  });
+
+  it('a value saved before the range (0,4 %) is saved as it is — never '
+    + '« Pourcentage invalide (1–100 %) »', async () => {
+    mockFetch({ policy: [{ status: 200, body: { ...POLICY, depositPercentage: 0.004 } }] });
+    render(<AcompteClient />);
+    await screen.findByText('0,4 %');
+    save();
+    await waitFor(() => expect(sent).toHaveLength(1));
+    expect(sent[0].body.policy).toMatchObject({ depositPercentage: 0.004 });
+    expect(screen.queryByText(/Pourcentage invalide/)).toBeNull();
+  });
+});
+

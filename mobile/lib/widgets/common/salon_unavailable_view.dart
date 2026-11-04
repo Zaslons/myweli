@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/constants/failure_messages.dart';
 import '../../core/utils/booking_error_cta.dart';
+import 'app_async_view.dart';
 import 'empty_state.dart';
 
 /// The §12 error state for a screen whose whole subject is one salon.
@@ -21,25 +23,39 @@ import 'empty_state.dart';
 /// minting « Salon indisponible » purely to have a heading; the sentence is 41
 /// characters and says the whole thing.
 class SalonUnavailableView extends StatelessWidget {
-  const SalonUnavailableView({super.key, this.errorCode, this.onRetry});
+  const SalonUnavailableView({
+    super.key,
+    this.errorCode,
+    this.message,
+    this.onRetry,
+  });
 
   /// From `ProviderProvider.errorCode` — `not_found` · `network` ·
-  /// `server_error`. Null falls to the retryable arm, which is the safe
-  /// default: an unrecognised failure is not proof that retrying is futile.
+  /// `server_error`. Anything but `not_found` is a load that failed, and
+  /// falls to the shared error, which retries: the safe default, since an
+  /// unrecognised failure is not proof that retrying is futile.
   final String? errorCode;
 
-  /// Offered only when [salonLoadFailure] says retrying can succeed.
+  /// The failure's own sentence (`ProviderProvider.error`) — « Pas de
+  /// connexion » only when nothing answered.
+  final String? message;
+
   final VoidCallback? onRetry;
 
   @override
   Widget build(BuildContext context) {
-    final failure = salonLoadFailure(errorCode);
-    final cta = failure.cta;
+    final gone = salonLoadFailure(errorCode);
+    if (gone == null) {
+      return AppErrorView(
+        message: message ?? kGenericErrorMessage,
+        onRetry: onRetry,
+      );
+    }
     return EmptyState(
-      icon: failure.icon,
-      title: failure.message,
-      actionText: cta?.label ?? (onRetry == null ? null : 'Réessayer'),
-      onAction: cta != null ? () => context.go(cta.href) : onRetry,
+      icon: gone.icon,
+      title: gone.message,
+      actionText: gone.cta.label,
+      onAction: () => context.go(gone.cta.href),
     );
   }
 }

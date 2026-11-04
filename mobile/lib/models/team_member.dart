@@ -1,5 +1,7 @@
 import 'package:equatable/equatable.dart';
 
+import '../core/utils/salon_id.dart';
+
 /// The four preset roles (module `access` §2.2). Enforcement is server-side
 /// (capabilities); the app only labels and shapes.
 enum TeamRole { owner, manager, reception, staff }
@@ -43,7 +45,7 @@ class TeamMember extends Equatable {
   });
 
   final String id;
-  final String providerId;
+  final SalonId providerId;
   final String email;
   final TeamRole role;
   final TeamMemberStatus status;
@@ -71,7 +73,7 @@ class TeamMember extends Equatable {
 
   factory TeamMember.fromJson(Map<String, dynamic> json) => TeamMember(
     id: json['id'] as String,
-    providerId: json['providerId'] as String? ?? '',
+    providerId: SalonId(json['providerId'] as String? ?? ''),
     email: json['email'] as String? ?? '',
     role: TeamRole.values.firstWhere(
       (e) => e.name == json['role'],

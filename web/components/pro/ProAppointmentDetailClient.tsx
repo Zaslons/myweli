@@ -27,7 +27,7 @@ import {
   loadFailure,
   loadFailureMessage,
   type LoadFailure,
-} from "../../lib/pro/load-failure";
+} from "../../lib/api/load-failure";
 import { rescheduleAppointment } from "../../lib/api/pro";
 import { hhmm, minutesOfDay } from "../../lib/pro/journal";
 import { combineDateTime } from "../../lib/pro/manual-booking";
@@ -441,7 +441,7 @@ export function ProAppointmentDetailClient({
                     min={salonToday(new Date(), tz)}
                     value={reprogDate}
                     onChange={(e) => setReprogDate(e.target.value)}
-                    className="min-h-12 rounded-lg border border-borderStrong bg-secondary p-m text-bodyLarge text-textPrimary focus:border-borderFocus focus:ring-1 focus:ring-borderFocus"
+                    className="min-h-12 rounded-control border border-primary bg-secondary p-m text-bodyLarge text-textPrimary focus:border-borderFocus focus:ring-1 focus:ring-borderFocus"
                   />
                   <input
                     type="time"
@@ -449,7 +449,7 @@ export function ProAppointmentDetailClient({
                     step={900}
                     value={reprogTime}
                     onChange={(e) => setReprogTime(e.target.value)}
-                    className="min-h-12 rounded-lg border border-borderStrong bg-secondary p-m text-bodyLarge text-textPrimary focus:border-borderFocus focus:ring-1 focus:ring-borderFocus"
+                    className="min-h-12 rounded-control border border-primary bg-secondary p-m text-bodyLarge text-textPrimary focus:border-borderFocus focus:ring-1 focus:ring-borderFocus"
                   />
                 </div>
                 {reprogError ? (

@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:myweli/core/di/dependency_injection.dart';
 import 'package:myweli/core/utils/review_card.dart';
+import 'package:myweli/core/utils/salon_id.dart';
 import 'package:myweli/models/api_response.dart';
 import 'package:myweli/models/review.dart';
 import 'package:myweli/models/review_summary.dart';
@@ -14,7 +15,7 @@ import 'package:myweli/services/mock/mock_pro_service.dart';
 Review _review(int i, int rating) => Review(
   id: 'r$i',
   appointmentId: 'a$i',
-  providerId: 'p1',
+  providerId: SalonId('p1'),
   userId: 'u$i',
   userName: 'Awa',
   rating: rating,
@@ -90,14 +91,14 @@ void main() {
   group('ProReviewsProvider', () {
     test('keeps the summary with the reviews', () async {
       final p = ProReviewsProvider();
-      await p.loadReviews('p1');
+      await p.loadReviews(SalonId('p1'));
       expect(p.reviews, hasLength(50));
       expect(p.summary, _summary);
     });
 
     test('a salon switch drops it with the reviews', () async {
       final p = ProReviewsProvider();
-      await p.loadReviews('p1');
+      await p.loadReviews(SalonId('p1'));
       p.resetForSalonSwitch();
       expect(p.summary, isNull);
     });

@@ -1,11 +1,14 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:myweli/core/di/dependency_injection.dart';
+import 'package:myweli/core/utils/salon_id.dart';
 import 'package:myweli/models/pro_membership.dart';
 import 'package:myweli/models/provider_user.dart';
 import 'package:myweli/models/team_member.dart';
 import 'package:myweli/services/mock/mock_auth_service.dart';
 import 'package:myweli/services/mock/mock_data.dart';
 import 'package:myweli/services/mock/mock_pro_service.dart';
+
+import '../support/web_created.dart';
 
 /// Team access R4b — the mock world's role simulation: getMyProvider per
 /// seeded account, the field-gated dashboard, and the staff own-filters
@@ -68,7 +71,7 @@ void main() {
     'the dashboard field-gates money for non-finance roles (R1 mirror)',
     () async {
       await loginAs('awa.manager@myweli.test');
-      final stats = (await pro.getDashboardStats('provider1')).data!;
+      final stats = (await pro.getDashboardStats(SalonId('provider1'))).data!;
       expect(stats.hasRevenue, isFalse);
       expect(stats.todayRevenue, isNull);
       expect(stats.totalAppointments, greaterThanOrEqualTo(0));
@@ -77,9 +80,14 @@ void main() {
 
   test('staff journal + list are own-artist filtered (T40 mirror)', () async {
     await loginAs('sonia.staff@myweli.test');
-    final day = (await pro.getJournalDay('provider1', DateTime.now())).data!;
+    final day = (await pro.getJournalDay(
+      SalonId('provider1'),
+      DateTime.now(),
+    )).data!;
     expect(day.appointments.every((a) => a.artistId == 'artist1'), isTrue);
-    final list = (await pro.getProviderAppointments('provider1')).data!;
+    final list = (await pro.getProviderAppointments(
+      SalonId('provider1'),
+    )).data!;
     expect(list.every((a) => a.artistId == 'artist1'), isTrue);
   });
 
@@ -87,14 +95,19 @@ void main() {
     'an OWNER session keeps the full world (no filters, revenue on)',
     () async {
       await auth.requestProviderEmailOtp('own2@r4b.test');
-      await auth.registerProviderWithEmail(
+      // Signed up on the web (the app no longer registers a business —
+      // App Store 3.1.1), then signed in here.
+      seedWebSignUp(
         email: 'own2@r4b.test',
-        code: MockAuthService.demoOtp,
         phoneNumber: '+2250700000098',
         businessName: 'Salon R4b 2',
         businessType: BusinessType.salon,
       );
-      final stats = (await pro.getDashboardStats('provider1')).data!;
+      await auth.verifyProviderEmailOtp(
+        'own2@r4b.test',
+        MockAuthService.demoOtp,
+      );
+      final stats = (await pro.getDashboardStats(SalonId('provider1'))).data!;
       expect(stats.hasRevenue, isTrue);
     },
   );

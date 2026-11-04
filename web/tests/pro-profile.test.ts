@@ -13,6 +13,7 @@ import {
   buildDepositPayload,
   depositToForm,
   validateDeposit,
+  validateDepositPercent,
   validateDepositNumber,
 } from '../lib/pro/deposit';
 
@@ -149,9 +150,11 @@ describe('pro deposit form', () => {
     expect(validateDeposit(on)).toBeNull();
   });
 
-  it('requires %, operator when required', () => {
-    expect(validateDeposit({ ...on, percent: '0' })).toMatch(/pourcentage/i);
+  it('requires an operator when required; the percentage has its own rule', () => {
     expect(validateDeposit({ ...on, operator: '' })).toMatch(/opérateur/i);
+    expect(validateDepositPercent({ ...on, percent: '0' })).toBe(
+      'Choisissez un pourcentage entre 5 et 80 %.',
+    );
   });
 
   it('the Mobile Money number (checked under its field): required with a deposit, +225 = 10 digits', () => {
@@ -228,11 +231,8 @@ describe('pro deposit form', () => {
     }
   });
 
-  it('the percentage is sent from the field exactly when it passes the rule validateDeposit applies (1–100)', () => {
-    // One rule, two readers: what the switch-on check accepts is what the
-    // payload takes from the field — on or off.
+  it('the percentage sent from the field: 1–100, two decimals at most — else the last one', () => {
     for (const percent of ['1', '30', '55', '100', '12.5', '12.34', ' 30 ']) {
-      expect(validateDeposit({ ...on, percent }), percent).toBeNull();
       for (const required of [true, false]) {
         expect(
           buildDepositPayload({ ...on, required, percent }, 0.45).depositPercentage,
@@ -240,19 +240,34 @@ describe('pro deposit form', () => {
         ).toBe(Number(percent) / 100);
       }
     }
-    // Below 1 is refused as its message says (« 1–100 % »): '0.4' passed the
-    // old `> 0` check, was stored as 0.004, read back as « 0 » and refused —
-    // a policy the web wrote and could not save again.
-    // Two decimals at most — what the form reads back exactly
-    // (depositToForm reads to the hundredth): '12.345' would be stored as
-    // 0.12345, read as « 12.35 » and rewritten by an untouched save.
+    // Below 1 is never sent from the field: '0.4' passed the old `> 0`, was
+    // stored as 0.004 and read back as « 0 ». Two decimals at most — what the
+    // form reads back exactly ('12.345' would come back « 12.35 »).
     for (const percent of ['', 'abc', '0', '0.4', '0.99', '101', '12.345', '1e2', '+30']) {
-      expect(validateDeposit({ ...on, percent }), percent).toMatch(/pourcentage/i);
       expect(
         buildDepositPayload({ ...on, required: false, percent }, 0.45).depositPercentage,
         percent,
       ).toBe(0.45);
     }
+  });
+
+  // docs/design/backend-integrity-batch6.md §2.5 (B6.5, decision 19): one
+  // range, 5–80 %, as the app and the server — judged when it changed.
+  it('the percentage, deposit on: 5–80 % when it changed; a value saved before is kept', () => {
+    const msg = 'Choisissez un pourcentage entre 5 et 80 %.';
+    for (const percent of ['5', '30', '80', '12.5']) {
+      expect(validateDepositPercent({ ...on, percent }), percent).toBeNull();
+    }
+    for (const percent of ['', 'abc', '0', '4', '85', '100', '12.345', '1e2']) {
+      expect(validateDepositPercent({ ...on, percent }), percent).toBe(msg);
+    }
+    // Unchanged from what was loaded or saved: kept as it is, as the server.
+    expect(validateDepositPercent({ ...on, percent: '100' }, 1)).toBeNull();
+    expect(validateDepositPercent({ ...on, percent: '0.4' }, 0.004)).toBeNull();
+    // Moved: into the range.
+    expect(validateDepositPercent({ ...on, percent: '90' }, 1)).toBe(msg);
+    // Deposits off: not judged.
+    expect(validateDepositPercent({ ...on, required: false, percent: '0' })).toBeNull();
   });
 
   it('depositToForm converts fraction → percent', () => {
@@ -299,14 +314,15 @@ describe('pro deposit form', () => {
     for (let k = 0; k <= 15; k++) {
       const written = (k / 15) * (0.8 - 0.05) + 0.05;
       expect(at(written), String(written)).toBe(String(5 + 5 * k));
-      expect(validateDeposit({ ...on, percent: at(written) }), String(written)).toBeNull();
+      expect(validateDepositPercent({ ...on, percent: at(written) }), String(written)).toBeNull();
     }
     expect(at(1)).toBe('100');
-    // Written by another client below the web's floor: shown to the
-    // hundredth (« 0.4 »; under 0.005 % that is « 0 ») — and refused by the
-    // switch-on check, like any value < 1.
+    // Written by another client below the range: shown to the hundredth
+    // (« 0.4 »; under 0.005 % that is « 0 ») — kept as it is while untouched,
+    // refused once it moves (B6.5).
     expect(at(0.004)).toBe('0.4');
-    expect(validateDeposit({ ...on, percent: at(0.004) })).toMatch(/pourcentage/i);
+    expect(validateDepositPercent({ ...on, percent: at(0.004) }, 0.004)).toBeNull();
+    expect(validateDepositPercent({ ...on, percent: at(0.004) })).toMatch(/pourcentage/i);
   });
 });
 

@@ -1,4 +1,5 @@
 import { type NextRequest, NextResponse } from 'next/server';
+import { appleCodeFields } from '../../../../../lib/auth/apple-bff';
 import { proLoginViaBackend } from '../../../../../lib/auth-bff';
 
 /// Pro BFF: salon registration (docs/design/web-pro-registration.md) —
@@ -13,5 +14,11 @@ export async function POST(req: NextRequest) {
   if (!businessName || !businessType || !phoneNumber || !hasIdentity) {
     return NextResponse.json({ error: 'invalid_input' }, { status: 400 });
   }
-  return proLoginViaBackend('/auth/provider/register', body);
+  // B6.7: Apple's code crosses with an Apple identity only, and the redirect
+  // is THIS origin's — a browser-named one is dropped (lib/auth/apple-bff.ts).
+  const { authorizationCode, redirectUri: _ignored, ...rest } = body;
+  return proLoginViaBackend('/auth/provider/register', {
+    ...rest,
+    ...(body.identityToken ? appleCodeFields(req, authorizationCode) : {}),
+  });
 }

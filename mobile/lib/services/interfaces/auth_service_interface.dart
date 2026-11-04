@@ -1,7 +1,9 @@
+import '../../core/utils/salon_id.dart';
 import '../../models/api_response.dart';
 import '../../models/pro_membership.dart';
 import '../../models/provider_login_result.dart';
 import '../../models/provider_user.dart';
+import '../../models/salon_facts.dart';
 import '../../models/salon_market.dart';
 import '../../models/user.dart';
 
@@ -20,6 +22,13 @@ abstract class AuthServiceInterface {
   Future<void> logout();
   Future<User?> getCurrentUser();
 
+  /// The client session ended WITHOUT a sign-out: the server refused to renew
+  /// it (a refresh token revoked, expired or reused, an account deleted
+  /// elsewhere). `AuthProvider` ends the account on it — the stored session
+  /// is already gone. Never fired by [logout] or [deleteAccount], nor for the
+  /// provider session. docs/design/consumer-account-scope.md §2.4.
+  Stream<void> get sessionEnded;
+
   /// [phone] sets the CONTACT phone (unverified until proven via SMS later);
   /// empty string clears it.
   Future<ApiResponse<User>> updateUser({
@@ -32,15 +41,9 @@ abstract class AuthServiceInterface {
   /// Permanently delete the signed-in user's account. Irreversible.
   Future<ApiResponse<void>> deleteAccount();
 
-  // Provider methods — phone OTP dormant at launch (AUTH_METHODS-gated).
-  Future<ApiResponse<String>> sendOtpToProvider(String phoneNumber);
-  Future<ApiResponse<ProviderUser>> verifyOtpForProvider(
-    String phoneNumber,
-    String otp,
-  );
-
   // Pro auth overhaul (docs/design/pro-auth-social.md) — LOGIN-ONLY (a salon
-  // is never auto-created; `provider_not_found` → offer registration).
+  // is never auto-created; `provider_not_found` → one sentence, and no way to
+  // register from here: docs/design/app-review-round-2.md §4).
   // Team access R3: a verified identity with PENDING invitations comes back
   // as [ProviderLoginResult.invited] (the 202 bridge) instead of the 404;
   // Apple has no bridge in the contract (never `.invited`).
@@ -62,40 +65,13 @@ abstract class AuthServiceInterface {
     InvitationProof proof,
   );
 
-  /// Registration = identity + business fields in ONE submit (signs in too).
-  /// The REQUIRED [phoneNumber] is the salon contact.
-  Future<ApiResponse<ProviderUser>> registerProviderWithGoogle({
-    required String phoneNumber,
-    required String businessName,
-    required BusinessType businessType,
-    String? address,
-    String? areaId,
-  });
-
-  /// The Apple twin of [registerProviderWithGoogle]. The backend has accepted
-  /// this since the auth overhaul — `routes/auth/provider/register.dart:87-112`
-  /// verifies the identity token and stores `authProvider: 'apple'` + the
-  /// `appleSub` — but no client ever called it, so the register screen's Apple
-  /// button was a no-op stub.
-  Future<ApiResponse<ProviderUser>> registerProviderWithApple({
-    required String phoneNumber,
-    required String businessName,
-    required BusinessType businessType,
-    String? address,
-    String? areaId,
-  });
-  Future<ApiResponse<ProviderUser>> registerProviderWithEmail({
-    required String email,
-    required String code,
-    required String phoneNumber,
-    required String businessName,
-    required BusinessType businessType,
-    String? address,
-    String? areaId,
-  });
-
   Future<ProviderUser?> getCurrentProvider();
   Future<void> logoutProvider();
+
+  /// The PROVIDER session ended without a sign-out — [sessionEnded]'s twin
+  /// for the Pro app (a refused `/auth/provider/refresh`). `ProAuthProvider`
+  /// ends the account on it. docs/design/pro-account-scope.md §2.3.
+  Stream<void> get providerSessionEnded;
 
   /// Team access R4b: cache the last-fetched membership INSIDE the persisted
   /// provider session (instant cold-start shaping; refreshed from
@@ -111,10 +87,17 @@ abstract class AuthServiceInterface {
   Future<void> cacheProviderSalonMarket(SalonMarket? market);
   Future<SalonMarket?> getCachedProviderSalonMarket();
 
+  /// What « Profil » shows of the acting salon (name, category, address,
+  /// phone), cached INSIDE the persisted provider session like the market —
+  /// an offline cold start still shows them (product-questions-batch8.md
+  /// §2.3, B8.3). `null` CLEARS them. No-op when signed out.
+  Future<void> cacheProviderSalonFacts(SalonFacts? facts);
+  Future<SalonFacts?> getCachedProviderSalonFacts();
+
   /// R6 multi-salons: persist/restore the switched-to salon INSIDE the
   /// provider session (cold-start continuity; `null` = the default salon).
   /// The API layer reads it to scope the session-resolved endpoints; the
   /// server revalidates the membership on every request (T55).
-  Future<void> setSelectedProviderSalon(String? salonId);
-  Future<String?> getSelectedProviderSalon();
+  Future<void> setSelectedProviderSalon(SalonId? salonId);
+  Future<SalonId?> getSelectedProviderSalon();
 }

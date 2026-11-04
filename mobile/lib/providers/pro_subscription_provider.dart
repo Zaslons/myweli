@@ -1,7 +1,9 @@
 import 'package:flutter/foundation.dart';
 
 import '../core/access/pro_salon_scope.dart';
+import '../core/constants/failure_messages.dart';
 import '../core/di/dependency_injection.dart';
+import '../core/utils/salon_id.dart';
 import '../models/salon_subscription.dart';
 import '../services/interfaces/subscription_service_interface.dart';
 
@@ -29,12 +31,14 @@ class ProSubscriptionProvider extends ChangeNotifier implements SalonScoped {
   bool get loadFailed => _loadFailed;
   String? get error => _error;
 
-  Future<void> load(String providerId) async {
+  Future<void> load(SalonId providerId) async {
+    final scope = _scope;
     _isLoading = true;
     _error = null;
     notifyListeners();
     try {
       final res = await _service.getSalonSubscription(providerId);
+      if (scope != _scope) return;
       if (res.success && res.data != null) {
         _salon = res.data;
         _isSetup = false;
@@ -48,17 +52,27 @@ class ProSubscriptionProvider extends ChangeNotifier implements SalonScoped {
         _error = res.error ?? 'Erreur lors du chargement';
       }
     } catch (e) {
+      if (scope != _scope) return;
       _loadFailed = true;
-      _error = e.toString();
+      _error = kGenericErrorMessage;
     } finally {
-      _isLoading = false;
-      notifyListeners();
+      if (scope == _scope) {
+        _isLoading = false;
+        notifyListeners();
+      }
     }
   }
 
   /// R6 multi-salons: drop the previous salon's data on a switch.
+  /// Which salon this state belongs to — moved by [resetForSalonSwitch]
+  /// only. A read or a write takes it before it awaits and writes nothing
+  /// when it moved meanwhile: its answer is the previous salon's, or the
+  /// previous account's (docs/design/pro-account-scope.md §2.2).
+  int _scope = 0;
+
   @override
   void resetForSalonSwitch() {
+    _scope++;
     _salon = null;
     _isSetup = false;
     _isLoading = false;

@@ -7,6 +7,7 @@ import 'package:http/testing.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:myweli/core/di/dependency_injection.dart';
+import 'package:myweli/core/utils/salon_id.dart';
 import 'package:myweli/models/api_response.dart';
 import 'package:myweli/models/appointment.dart';
 import 'package:myweli/models/provider.dart' as models;
@@ -37,6 +38,15 @@ class _Discovery extends Mock implements ProviderServiceInterface {}
 
 /// The signed-in client, fixed: the screen reads the profile from the
 /// session, not from a request.
+/// The favourites read answered, and the file still cannot be made from
+/// them — a list the export cannot hold (docs/design/web-client-polish.md
+/// §2.3, Q3).
+class _Unbuildable extends FavoritesProvider {
+  @override
+  List<models.Provider> get favoriteProviders =>
+      throw StateError('a favourite the file cannot hold');
+}
+
 class _SignedIn extends AuthProvider {
   _SignedIn(this._signedIn);
 
@@ -86,7 +96,7 @@ void main() {
   Appointment appt(String id) => Appointment(
     id: id,
     userId: 'u1',
-    providerId: 'provider1',
+    providerId: SalonId('provider1'),
     serviceIds: const ['s1'],
     appointmentDate: DateTime(2026, 9, 1, 10),
     status: AppointmentStatus.completed,
@@ -99,7 +109,7 @@ void main() {
   // A salon that stopped: the favourites read still hydrates it (Decision C),
   // the discovery list does not carry it.
   final stopped = MockData.providers[2].copyWith(
-    id: 'stopped-salon',
+    id: SalonId('stopped-salon'),
     name: 'Salon Fermé',
     status: 'suspended',
   );
@@ -113,6 +123,7 @@ void main() {
     serviceLocator.favoritesService = favorites;
     serviceLocator.providerService = discovery;
     when(() => auth.getCurrentUser()).thenAnswer((_) async => null);
+    when(() => auth.sessionEnded).thenAnswer((_) => const Stream.empty());
   });
 
   void appointmentsAnswer(Future<ApiResponse<List<Appointment>>> Function() a) {
@@ -393,5 +404,22 @@ void main() {
       ['a1', 'a2'],
     );
     expect(doc['favorites'], [salonA.name, salonB.name]);
+  });
+
+  // docs/design/web-client-polish.md §2.3 (Q3): the reads answered and the
+  // file could not be made — its own sentence. It used to name both reads,
+  // which had worked.
+  testWidgets('a file that cannot be built → its own sentence, never the '
+      'reads that answered', (tester) async {
+    await pump(tester, favoritesState: _Unbuildable());
+
+    expect(find.text('Chargement impossible'), findsOneWidget);
+    expect(
+      find.text('Le fichier n’a pas pu être préparé. Réessayez.'),
+      findsOneWidget,
+    );
+    expect(find.textContaining('Impossible de charger'), findsNothing);
+    expect(find.text('Réessayer'), findsOneWidget);
+    expect(find.text(copyButton), findsNothing);
   });
 }

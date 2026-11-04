@@ -1,7 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { loadFailure, loadFailureMessage, type LoadFailure } from "../../lib/api/load-failure";
+import { SubmissionKey } from "../../lib/api/network";
 import {
   type ProProfile,
   createManualBooking,
@@ -75,6 +77,11 @@ export function ManualBookingDialog({
   const [time, setTime] = useState("");
   const [query, setQuery] = useState("");
   const [matches, setMatches] = useState<SalonClientListItem[]>([]);
+  // The search failed: it says so — not the same fact as « no such client »
+  // (docs/design/web-pro-truthful-failure.md §2.1, owner Q3). The name can
+  // still be typed and the client created.
+  const [searchFailed, setSearchFailed] = useState<LoadFailure | false>(false);
+  const [searchKey, setSearchKey] = useState(0);
   const [picked, setPicked] = useState<PickedClient | null>(
     initialClient ?? null,
   );
@@ -83,6 +90,8 @@ export function ManualBookingDialog({
   const [withoutNumber, setWithoutNumber] = useState(false);
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
+  // One Idempotency-Key per submission (docs/design/write-idempotency.md §4).
+  const submission = useRef(new SubmissionKey());
 
   // Grid-cell entry: the tapped cell IS the date/time choice.
   const fixed = Boolean(dateTimeIso);
@@ -102,14 +111,21 @@ export function ManualBookingDialog({
   useEffect(() => {
     if (picked || query.trim().length < 2) {
       setMatches([]);
+      setSearchFailed(false);
       return;
     }
+    let active = true;
     const t = setTimeout(async () => {
       const r = await listClients(providerId, { query });
+      if (!active) return;
       setMatches(r.list?.items.slice(0, 5) ?? []);
+      setSearchFailed(r.status === 200 && r.list ? false : loadFailure(r.status));
     }, 250);
-    return () => clearTimeout(t);
-  }, [providerId, query, picked]);
+    return () => {
+      active = false;
+      clearTimeout(t);
+    };
+  }, [providerId, query, picked, searchKey]);
 
   function toggle(id: string) {
     setSelected((prev) =>
@@ -159,7 +175,7 @@ export function ManualBookingDialog({
     setError(null);
     setBusy(true);
     const name = picked?.name ?? query.trim();
-    const r = await createManualBooking(providerId, {
+    const booking = {
       serviceIds: selected,
       appointmentDateTime: dt,
       artistId: artistId || undefined,
@@ -171,9 +187,17 @@ export function ManualBookingDialog({
       // anything today, so the dialog offers no control for one
       // (docs/design/web-manual-booking.md §2).
       sendSmsInvite: false,
-    });
+    };
+    const r = await createManualBooking(
+      providerId,
+      booking,
+      submission.current.for(booking),
+    );
     setBusy(false);
-    if (r.ok) onCreated();
+    if (r.ok) {
+      submission.current.settle();
+      onCreated();
+    }
     else if (r.error === "invalid_phone" && picked?.phone)
       // docs/design/phone-leftovers.md §7: the refused number is the one on
       // the client's card, and this dialog has no field for it — the generic
@@ -263,7 +287,7 @@ export function ManualBookingDialog({
               min={todayYmd(tz)}
               value={date}
               onChange={(e) => setDate(e.target.value)}
-              className="flex-1 min-h-12 rounded-lg border border-borderStrong bg-surface p-m text-bodyLarge text-textPrimary focus:border-borderFocus focus:ring-1 focus:ring-borderFocus"
+              className="flex-1 min-h-12 rounded-control border border-primary bg-surface p-m text-bodyLarge text-textPrimary focus:border-borderFocus focus:ring-1 focus:ring-borderFocus"
             />
             <input
               type="time"
@@ -271,7 +295,7 @@ export function ManualBookingDialog({
               step={900}
               value={time}
               onChange={(e) => setTime(e.target.value)}
-              className="flex-1 min-h-12 rounded-lg border border-borderStrong bg-surface p-m text-bodyLarge text-textPrimary focus:border-borderFocus focus:ring-1 focus:ring-borderFocus"
+              className="flex-1 min-h-12 rounded-control border border-primary bg-surface p-m text-bodyLarge text-textPrimary focus:border-borderFocus focus:ring-1 focus:ring-borderFocus"
             />
           </div>
         </div>
@@ -307,8 +331,19 @@ export function ManualBookingDialog({
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Client (nom ou téléphone)…"
             aria-label="Rechercher ou nommer le client"
-            className="w-full min-h-12 rounded-lg border border-borderStrong bg-surface p-m text-bodyLarge text-textPrimary focus:border-borderFocus focus:ring-1 focus:ring-borderFocus"
+            aria-describedby={searchFailed ? "client-search-failed" : undefined}
+            className="w-full min-h-12 rounded-control border border-primary bg-surface p-m text-bodyLarge text-textPrimary focus:border-borderFocus focus:ring-1 focus:ring-borderFocus"
           />
+          {searchFailed ? (
+            <div className="mt-xs flex flex-wrap items-center gap-s">
+              <p id="client-search-failed" role="alert" className="text-bodyMedium text-error">
+                {loadFailureMessage(searchFailed, "Recherche indisponible.")}
+              </p>
+              <Button variant="secondary" onClick={() => setSearchKey((k) => k + 1)}>
+                Réessayer
+              </Button>
+            </div>
+          ) : null}
           {matches.length > 0 ? (
             <ul className="mt-xs divide-y divide-border rounded-lg border border-border">
               {matches.map((c) => (
@@ -370,7 +405,7 @@ export function ManualBookingDialog({
         maxLength={500}
         placeholder="Note (optionnel)"
         aria-label="Note"
-        className="mt-m w-full min-h-12 rounded-lg border border-borderStrong bg-surface p-m text-bodyLarge text-textPrimary focus:border-borderFocus focus:ring-1 focus:ring-borderFocus"
+        className="mt-m w-full min-h-12 rounded-control border border-primary bg-surface p-m text-bodyLarge text-textPrimary focus:border-borderFocus focus:ring-1 focus:ring-borderFocus"
       />
 
       {/* Total (the app's running sum; server re-prices) */}

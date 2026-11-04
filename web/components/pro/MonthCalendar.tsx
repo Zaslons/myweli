@@ -78,7 +78,7 @@ export function MonthCalendar({
               key={k}
               type="button"
               onClick={() => onSelect(k)}
-              className={`min-h-12 flex aspect-square flex-col items-center justify-center rounded-lg text-bodyMedium ${
+              className={`min-h-12 flex aspect-square flex-col items-center justify-center rounded-control text-bodyMedium ${
                 isSel
                   ? 'bg-primary text-secondary'
                   : 'text-textPrimary hover:bg-surfaceVariant'

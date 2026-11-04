@@ -3,16 +3,20 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:go_router/go_router.dart';
 
+import '../core/access/account_scope.dart';
 import '../core/access/pro_access_guard.dart';
 import '../core/access/pro_salon_scope.dart';
+import '../core/constants/failure_messages.dart';
+import '../core/constants/unnamed_salon.dart';
 import '../core/di/dependency_injection.dart';
 import '../core/router/pro_router.dart';
-import '../models/api_response.dart';
+import '../core/utils/salon_id.dart';
 import '../models/pro_membership.dart';
 import '../models/provider.dart';
 import '../models/provider_login_result.dart';
 import '../models/provider_session.dart';
 import '../models/provider_user.dart';
+import '../models/salon_facts.dart';
 import '../models/salon_market.dart';
 import '../models/salon_membership_info.dart';
 import '../models/team_invitation.dart';
@@ -119,6 +123,22 @@ class ProAuthProvider extends ChangeNotifier {
   Future<void> _cacheShape() async {
     await _authService.cacheProviderMembership(_membership);
     await _authService.cacheProviderSalonMarket(_market);
+    _keptFacts = _activeSalon == null ? null : SalonFacts.of(_activeSalon!);
+    await _authService.cacheProviderSalonFacts(_keptFacts);
+  }
+
+  /// The copy of the acting salon's « Profil » facts the session keeps
+  /// (B8.3) — restored at cold start, replaced by every live read.
+  SalonFacts? _keptFacts;
+
+  /// What « Profil » shows of the acting salon: the live salon, else the copy
+  /// kept from the last read — for THAT salon only, never one the session has
+  /// since moved away from (docs/design/product-questions-batch8.md §2.3).
+  SalonFacts? get salonFacts {
+    final live = _activeSalon;
+    if (live != null) return SalonFacts.of(live);
+    final kept = _keptFacts;
+    return kept != null && kept.salonId == activeSalonId ? kept : null;
   }
 
   /// « Réessayer » on the gate: one more GET /me/provider. Notifies at the
@@ -136,19 +156,29 @@ class ProAuthProvider extends ChangeNotifier {
   /// The salon the user SWITCHED to (« Mes salons »), null = the default.
   /// Persisted in the session (cold-start continuity) and revalidated by
   /// every `?salonId=` request server-side (T55).
-  String? _selectedSalonId;
-  String? get selectedSalonId => _selectedSalonId;
+  SalonId? _selectedSalonId;
+  SalonId? get selectedSalonId => _selectedSalonId;
 
   /// « Mes salons » — the switcher payload (loaded at start + on demand).
   List<SalonMembershipInfo> _salons = const [];
   List<SalonMembershipInfo> get salons => _salons;
   bool get hasMultipleSalons => _salons.length > 1;
 
-  /// Server-computed « Ajouter un salon » gate (≥1 owned live Réseau).
-  bool _canAddSalon = false;
-  bool get canAddSalon => _canAddSalon;
+  /// Whether deleting this account removes a salon. The server removes every
+  /// salon the account OWNS — its linked salon and each active owner
+  /// membership (`provider_account_service.dart` deleteAccount) — and nothing
+  /// of a salon where it is only a member. Not the role in the salon on
+  /// screen: an owner looking at a salon they only manage still owns theirs.
+  /// docs/design/pro-app-batch7.md §2.3 (B7.3).
+  bool get ownsASalon =>
+      (_provider?.providerId?.isNotEmpty ?? false) ||
+      _salons.any((s) => s.isOwner);
 
   bool _loadingSalons = false;
+
+  /// A join landed while a load was out ([acceptInvitation]): that load may
+  /// have been answered before the join, so one more runs after it.
+  bool _salonsAgain = false;
 
   /// Refresh « Mes salons » (best-effort — the switcher opens on cached
   /// data and refreshes in place).
@@ -159,13 +189,16 @@ class ProAuthProvider extends ChangeNotifier {
       final res = await serviceLocator.proService.getMySalons();
       if (res.success && res.data != null) {
         _salons = res.data!.items;
-        _canAddSalon = res.data!.canAddSalon;
         notifyListeners();
       }
     } catch (_) {
       /* keep the cached list */
     } finally {
       _loadingSalons = false;
+      if (_salonsAgain) {
+        _salonsAgain = false;
+        unawaited(loadMySalons());
+      }
     }
   }
 
@@ -174,12 +207,12 @@ class ProAuthProvider extends ChangeNotifier {
   /// per-salon provider so no stale cross-salon data lingers. False = the
   /// switch did not happen — the caller stays on the current salon and the
   /// list refreshes; [switchSalonOutcome] says why.
-  Future<bool> switchSalon(String salonId) async =>
+  Future<bool> switchSalon(SalonId salonId) async =>
       await switchSalonOutcome(salonId) == SalonSwitchOutcome.switched;
 
   /// [switchSalon], saying why it did not happen — the picker names the
   /// network (docs/design/web-pro-no-connection-copy.md §5).
-  Future<SalonSwitchOutcome> switchSalonOutcome(String salonId) async {
+  Future<SalonSwitchOutcome> switchSalonOutcome(SalonId salonId) async {
     if (_provider == null) return SalonSwitchOutcome.refused;
     if (salonId == activeSalonId) return SalonSwitchOutcome.switched;
     _isLoading = true;
@@ -217,47 +250,6 @@ class ProAuthProvider extends ChangeNotifier {
     }
   }
 
-  /// « Ajouter un salon » (R6): create the additional draft salon, refresh
-  /// « Mes salons » and SWITCH to it (the caller then lands on onboarding).
-  /// Null on failure — [error]/[errorCode] carry the gate
-  /// (`reseau_required`/`salon_limit`) for the form.
-  Future<SalonMembershipInfo?> addSalon({
-    required String businessName,
-    required BusinessType businessType,
-    String? phoneNumber,
-    String? address,
-    String? areaId,
-  }) async {
-    if (_provider == null) return null;
-    _isLoading = true;
-    _error = null;
-    _errorCode = null;
-    notifyListeners();
-    try {
-      final res = await serviceLocator.proService.addSalon(
-        businessName: businessName,
-        businessType: businessType,
-        phoneNumber: phoneNumber,
-        address: address,
-        areaId: areaId,
-      );
-      if (res.success && res.data != null) {
-        await loadMySalons();
-        await switchSalon(res.data!.salonId);
-        return res.data;
-      }
-      _error = res.error ?? 'Création du salon impossible.';
-      _errorCode = res.code;
-      return null;
-    } catch (e) {
-      _error = e.toString();
-      return null;
-    } finally {
-      _isLoading = false;
-      notifyListeners();
-    }
-  }
-
   /// Drop the selection back to the default salon (used when the selected
   /// salon refuses the session mid-flight).
   Future<void> _clearSalonSelection() async {
@@ -274,7 +266,7 @@ class ProAuthProvider extends ChangeNotifier {
   /// (never `provider.id` — an account id is not a salon id). The services
   /// that read the salon from the session resolve it by the same function
   /// (docs/design/services-acting-salon.md).
-  String? get activeSalonId => resolveActingSalonId(
+  SalonId? get activeSalonId => resolveActingSalonId(
     selected: _selectedSalonId,
     linked: _provider?.providerId,
     membership: _membership?.salonId,
@@ -286,14 +278,20 @@ class ProAuthProvider extends ChangeNotifier {
   /// `businessName` is a sign-up copy of its DEFAULT salon, so it answers
   /// only while that salon is the acting one — never after a switch
   /// (docs/design/r6-salon-fact-reads.md §2.3).
-  String get salonName {
+  ///
+  /// [salonName] is for a sentence (« … l'accès à votre salon »); a title
+  /// reads [knownSalonName] and writes « Salon » itself (unnamed_salon.dart).
+  String get salonName => salonNameOr(knownSalonName, kUnnamedOwnSalon);
+
+  /// The acting salon's name, or null when none is known.
+  String? get knownSalonName {
     final fromMembership = _membership?.salonName;
     if (fromMembership != null && fromMembership.isNotEmpty) {
       return fromMembership;
     }
     final actingInDefault = _selectedSalonId == null && activeSalonId != null;
     final business = actingInDefault ? _provider?.businessName : null;
-    return (business == null || business.isEmpty) ? 'votre salon' : business;
+    return (business == null || business.isEmpty) ? null : business;
   }
 
   /// Capability gate. Fallback without a membership (legacy session /
@@ -324,6 +322,11 @@ class ProAuthProvider extends ChangeNotifier {
       var res = await serviceLocator.proService.getMyProvider();
       if (!res.success && res.code == 'forbidden' && _selectedSalonId != null) {
         await _clearSalonSelection();
+        // The lost salon's stores go with it, whatever the refetch answers
+        // (B7.14 — docs/design/pro-app-batch7.md §2.14). Here, not inside
+        // `_clearSalonSelection`: the rejoin gate calls that after its
+        // awaits, and a reset there would empty the cards it seeded (S9).
+        ProSalonScope.resetAll();
         res = await serviceLocator.proService.getMyProvider();
       }
       if (res.success && res.data != null) {
@@ -357,9 +360,11 @@ class ProAuthProvider extends ChangeNotifier {
         // default salon and reshape; the session survives.
         await _clearSalonSelection();
         fellBack = true;
+        // Whatever the refetch answers (B7.14): a failed one used to keep
+        // the lost salon's stores, shown under the default salon's name.
+        ProSalonScope.resetAll();
         res = await serviceLocator.proService.getMyProvider();
         if (res.success && res.data != null) {
-          ProSalonScope.resetAll();
           await loadMySalons();
         }
       }
@@ -390,6 +395,17 @@ class ProAuthProvider extends ChangeNotifier {
     return notice;
   }
 
+  bool _sessionEndedNotice = false;
+
+  /// True ONCE after the server ended the Pro session: the sign-in says
+  /// « Votre session a expiré. Reconnectez-vous. » (pro-account-scope.md
+  /// §2.3, Q2 = a), then it is spent.
+  bool consumeSessionEndedNotice() {
+    final notice = _sessionEndedNotice;
+    _sessionEndedNotice = false;
+    return notice;
+  }
+
   /// [notice] is the salon named by the login banner — taken by the caller
   /// BEFORE anything is nulled (C1: a second answer computing it afterwards
   /// renamed it « votre salon »).
@@ -397,6 +413,7 @@ class ProAuthProvider extends ChangeNotifier {
     _revokedNotice = notice;
     _membership = null;
     _activeSalon = null;
+    _keptFacts = null;
     await logout();
     _router.go('/pro/login');
   }
@@ -511,14 +528,16 @@ class ProAuthProvider extends ChangeNotifier {
     _membership = null;
     _activeSalon = null;
     _market = null;
+    _keptFacts = null;
     _salons = const [];
-    _canAddSalon = false;
+    _salonsAgain = false;
     // No store's reset reloads anything, so the selection cleared just
     // below (after an await) is not read in between.
     ProSalonScope.resetAll();
     try {
       await _authService.cacheProviderMembership(null);
       await _authService.cacheProviderSalonMarket(null);
+      await _authService.cacheProviderSalonFacts(null);
     } catch (_) {
       /* best-effort — the next refresh overwrites it */
     }
@@ -604,6 +623,26 @@ class ProAuthProvider extends ChangeNotifier {
     }
   }
 
+  /// An invitation accepted from inside a salon — Profil → Invitations, the
+  /// « Accueil » and « Journée » card: the account belongs to one more salon,
+  /// so « Mes salons » reloads. Before, only the rejoin gate's way out did,
+  /// and the switcher missed the joined salon until its next load
+  /// (docs/design/pro-app-batch7.md §2.6, B7.6).
+  Future<TeamMember?> acceptInvitation(
+    Future<TeamMember?> Function() accept,
+  ) async {
+    final joined = await accept();
+    if (joined != null) {
+      // A load already out keeps its place; this one runs after it.
+      if (_loadingSalons) {
+        _salonsAgain = true;
+      } else {
+        unawaited(loadMySalons());
+      }
+    }
+    return joined;
+  }
+
   /// Leaves the gate into the joined salon: a refresh started before the
   /// accept is let land (its not_a_member is ignored), a fresh one gives the
   /// new shape, and the router goes to that salon's shell — the staff shell
@@ -648,7 +687,89 @@ class ProAuthProvider extends ChangeNotifier {
     // The global 403 seam (access §5.3): forbidden responses anywhere in the
     // pro surfaces trigger ONE membership probe — revoked members sign out.
     ProAccessGuard.onForbidden = checkMembershipAlive;
+    _sessionEnds = _authService.providerSessionEnded.listen(
+      (_) => _onSessionEnded(),
+    );
     ready = loadCurrentProvider();
+  }
+
+  late final StreamSubscription<void> _sessionEnds;
+
+  @override
+  void dispose() {
+    _sessionEnds.cancel();
+    super.dispose();
+  }
+
+  /// **Every change of WHO is signed in goes through here** (B9.14 —
+  /// docs/design/pro-account-scope.md §2.1). When the account's id changes
+  /// — the restore, each sign-in, each way out — every salon store and every
+  /// account store is reset in this same synchronous block, before the
+  /// caller notifies: no frame shows the receptionist the owner's figures.
+  /// Another account is another salon, or another role in the same one. The
+  /// same account (a membership refresh, a salon switch) resets nothing
+  /// here; a switch resets the salon stores itself.
+  void _setProvider(ProviderUser? next) {
+    final changed = next?.id != _provider?.id;
+    _provider = next;
+    if (!changed) return;
+    _sessionEndedNotice = false;
+    ProSalonScope.resetAll();
+    AccountScope.resetAll();
+  }
+
+  /// A « Déconnexion » is under way: it clears the session itself, so a
+  /// refusal heard meanwhile is that same way out — unless it fails, and
+  /// then [_doneLeaving] ends the account all the same (consumer twin:
+  /// `AuthProvider`, consumer-account-scope.md §11).
+  bool _leaving = false;
+  bool _endedWhileLeaving = false;
+
+  /// The server refused to renew the Pro session
+  /// (`AuthServiceInterface.providerSessionEnded`): out, to the sign-in,
+  /// with the sentence. `logout` tries to unregister the device too — that
+  /// needs the session that is gone, and is best-effort already.
+  void _onSessionEnded() {
+    if (_provider == null) return;
+    if (_leaving) {
+      _endedWhileLeaving = true;
+      return;
+    }
+    unawaited(_endSession());
+  }
+
+  Future<void> _endSession() async {
+    await logout();
+    if (_provider != null) return; // the sign-out failed: _doneLeaving ends it
+    _sessionEndedNotice = true;
+    _router.go('/pro/login');
+    notifyListeners();
+  }
+
+  /// The end of a « Déconnexion », whatever it answered. The caller
+  /// notifies.
+  void _doneLeaving() {
+    _leaving = false;
+    final ended = _endedWhileLeaving;
+    _endedWhileLeaving = false;
+    if (ended && _provider != null) {
+      _clearSession();
+      _sessionEndedNotice = true;
+      _router.go('/pro/login');
+    }
+  }
+
+  /// What a sign-out forgets of the session itself.
+  void _clearSession() {
+    _setProvider(null);
+    _membership = null;
+    _activeSalon = null;
+    _market = null;
+    _keptFacts = null;
+    _selectedSalonId = null;
+    _salons = const [];
+    _salonsAgain = false;
+    _clearRejoin();
   }
 
   final GoRouter? _routerOverride;
@@ -698,7 +819,7 @@ class ProAuthProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      _provider = await _authService.getCurrentProvider();
+      _setProvider(await _authService.getCurrentProvider());
       _error = null;
       if (_provider != null) {
         // Instant shaping from the cached membership + the R6 selection,
@@ -708,6 +829,8 @@ class ProAuthProvider extends ChangeNotifier {
         // The salon's clock with it — so a refresh that fails below still
         // leaves the salon known (pro-app-salon-not-loaded.md §3.1).
         _market = await _authService.getCachedProviderSalonMarket();
+        // And what « Profil » shows of it, for an offline card (B8.3).
+        _keptFacts = await _authService.getCachedProviderSalonFacts();
         _selectedSalonId = await _authService.getSelectedProviderSalon();
         _markRestored();
         // The stored shape is read: the first frame may take it now, before
@@ -718,62 +841,11 @@ class ProAuthProvider extends ChangeNotifier {
         unawaited(loadMySalons());
       }
     } catch (e) {
-      _error = e.toString();
+      _error = kGenericErrorMessage;
     } finally {
       // Signed out, or the restore itself failed: there is nothing more the
       // stored session can say, so it counts as restored.
       _markRestored();
-      _isLoading = false;
-      notifyListeners();
-    }
-  }
-
-  Future<bool> sendOtp(String phoneNumber) async {
-    _isLoading = true;
-    _error = null;
-    notifyListeners();
-
-    try {
-      final response = await _authService.sendOtpToProvider(phoneNumber);
-      if (response.success) {
-        _error = null;
-        return true;
-      } else {
-        _error = response.error ?? 'Erreur lors de l’envoi du code';
-        return false;
-      }
-    } catch (e) {
-      _error = e.toString();
-      return false;
-    } finally {
-      _isLoading = false;
-      notifyListeners();
-    }
-  }
-
-  Future<bool> verifyOtp(String phoneNumber, String otp) async {
-    _isLoading = true;
-    _error = null;
-    notifyListeners();
-
-    try {
-      final response = await _authService.verifyOtpForProvider(
-        phoneNumber,
-        otp,
-      );
-      if (response.success && response.data != null) {
-        _provider = response.data;
-        _error = null;
-        _syncPush();
-        return true;
-      } else {
-        _error = response.error ?? 'Code OTP invalide';
-        return false;
-      }
-    } catch (e) {
-      _error = e.toString();
-      return false;
-    } finally {
       _isLoading = false;
       notifyListeners();
     }
@@ -789,39 +861,6 @@ class ProAuthProvider extends ChangeNotifier {
   /// login screen offers « Créer un compte »).
   String? _errorCode;
   String? get errorCode => _errorCode;
-
-  /// Shared login/registration handling — a signed-in provider comes back.
-  /// A user-cancelled Google sheet fails silently. False with no error when
-  /// the membership refresh ended the session (revoked, nothing pending —
-  /// pro-rejoin-gate.md S11); true under the rejoin gate, which the screen
-  /// routes to ([rejoinPending]).
-  Future<bool> _login(Future<ApiResponse<ProviderUser>> Function() run) async {
-    _isLoading = true;
-    _error = null;
-    _errorCode = null;
-    notifyListeners();
-    try {
-      final response = await run();
-      if (response.success && response.data != null) {
-        _provider = response.data;
-        _syncPush();
-        await refreshMembership();
-        unawaited(loadMySalons());
-        return _provider != null;
-      }
-      _errorCode = response.code;
-      _error = _errorCode == 'cancelled'
-          ? null
-          : (response.error ?? 'Connexion impossible.');
-      return false;
-    } catch (e) {
-      _error = e.toString();
-      return false;
-    } finally {
-      _isLoading = false;
-      notifyListeners();
-    }
-  }
 
   // ---- Team access R3: the login invitation bridge --------------------------
 
@@ -849,7 +888,7 @@ class ProAuthProvider extends ChangeNotifier {
     try {
       final result = await run();
       if (result.signedIn) {
-        _provider = result.provider;
+        _setProvider(result.provider);
         _syncPush();
         await refreshMembership();
         unawaited(loadMySalons());
@@ -868,7 +907,7 @@ class ProAuthProvider extends ChangeNotifier {
                 : 'Connexion impossible.');
       return false;
     } catch (e) {
-      _error = e.toString();
+      _error = kGenericErrorMessage;
       return false;
     } finally {
       _isLoading = false;
@@ -891,7 +930,7 @@ class ProAuthProvider extends ChangeNotifier {
         proof,
       );
       if (response.success && response.data != null) {
-        _provider = response.data;
+        _setProvider(response.data);
         _pendingInvitations = const [];
         _invitationProof = null;
         _syncPush();
@@ -903,7 +942,7 @@ class ProAuthProvider extends ChangeNotifier {
       _errorCode = response.code;
       return false;
     } catch (e) {
-      _error = e.toString();
+      _error = kGenericErrorMessage;
       return false;
     } finally {
       _isLoading = false;
@@ -936,11 +975,11 @@ class ProAuthProvider extends ChangeNotifier {
       if (_pendingInvitations.isEmpty) {
         _invitationProof = null;
         _errorCode = 'provider_not_found';
-        _error = 'Compte introuvable. Créez votre compte.';
+        _error = kNoProAccountMessage;
       }
       return true;
     } catch (e) {
-      _error = e.toString();
+      _error = kGenericErrorMessage;
       return false;
     } finally {
       _isLoading = false;
@@ -980,7 +1019,7 @@ class ProAuthProvider extends ChangeNotifier {
       _errorCode = response.code;
       return false;
     } catch (e) {
-      _error = e.toString();
+      _error = kGenericErrorMessage;
       return false;
     } finally {
       _isLoading = false;
@@ -990,58 +1029,6 @@ class ProAuthProvider extends ChangeNotifier {
 
   Future<bool> verifyEmailOtp(String email, String code) =>
       _bridgedLogin(() => _authService.verifyProviderEmailOtp(email, code));
-
-  Future<bool> registerWithGoogle({
-    required String phoneNumber,
-    required String businessName,
-    required BusinessType businessType,
-    String? address,
-    String? areaId,
-  }) => _login(
-    () => _authService.registerProviderWithGoogle(
-      phoneNumber: phoneNumber,
-      businessName: businessName,
-      businessType: businessType,
-      address: address,
-      areaId: areaId,
-    ),
-  );
-
-  Future<bool> registerWithApple({
-    required String phoneNumber,
-    required String businessName,
-    required BusinessType businessType,
-    String? address,
-    String? areaId,
-  }) => _login(
-    () => _authService.registerProviderWithApple(
-      phoneNumber: phoneNumber,
-      businessName: businessName,
-      businessType: businessType,
-      address: address,
-      areaId: areaId,
-    ),
-  );
-
-  Future<bool> registerWithEmail({
-    required String email,
-    required String code,
-    required String phoneNumber,
-    required String businessName,
-    required BusinessType businessType,
-    String? address,
-    String? areaId,
-  }) => _login(
-    () => _authService.registerProviderWithEmail(
-      email: email,
-      code: code,
-      phoneNumber: phoneNumber,
-      businessName: businessName,
-      businessType: businessType,
-      address: address,
-      areaId: areaId,
-    ),
-  );
 
   /// Best-effort: register this device under the provider session if push
   /// permission is already granted. Never throws into the auth flow.
@@ -1055,6 +1042,7 @@ class ProAuthProvider extends ChangeNotifier {
 
   Future<void> logout() async {
     _isLoading = true;
+    _leaving = true;
     notifyListeners();
 
     try {
@@ -1065,18 +1053,13 @@ class ProAuthProvider extends ChangeNotifier {
         /* best-effort */
       }
       await _authService.logoutProvider();
-      _provider = null;
-      _membership = null;
-      _activeSalon = null;
-      _market = null;
-      _selectedSalonId = null;
-      _salons = const [];
-      _canAddSalon = false;
-      _clearRejoin();
+      _clearSession();
       _error = null;
     } catch (e) {
-      _error = e.toString();
+      // Still signed in: the account keeps its salon too.
+      _error = kGenericErrorMessage;
     } finally {
+      _doneLeaving();
       _isLoading = false;
       notifyListeners();
     }

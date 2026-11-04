@@ -6,11 +6,14 @@ import 'package:http/http.dart' as http;
 
 import '../../core/config/app_config.dart';
 import '../../core/utils/booking_error_cta.dart';
+import '../../core/utils/salon_id.dart';
 import '../../models/api_response.dart';
 import '../../models/appointment.dart';
 import '../../models/session.dart';
 import '../interfaces/appointment_service_interface.dart';
 import '../interfaces/session_store.dart';
+import 'api_errors.dart';
+import 'idempotent_write.dart';
 import 'refreshing_http_client.dart';
 
 /// Compresses [source] (a local file path) to JPEG bytes. Injected so the
@@ -60,22 +63,26 @@ class ApiAppointmentService implements AppointmentServiceInterface {
 
   @override
   Future<ApiResponse<Appointment>> bookAppointment({
-    required String providerId,
+    required SalonId providerId,
     required List<String> serviceIds,
     required DateTime appointmentDateTime,
     String? artistId,
     String? notes,
     double depositAmount = 0,
     String? depositScreenshotUrl,
+    String? idempotencyKey,
   }) async {
     if (await _authed.accessToken() == null) {
       return ApiResponse.error('Connectez-vous pour réserver');
     }
     // Note: depositAmount is computed server-side from the provider's policy.
-    final res = await _authed.send(
-      (token) => _client.post(
+    // Under its key, a lost answer is asked again once: the server replays
+    // the booking (docs/design/write-idempotency.md §4).
+    final res = await sendIdempotent(
+      _authed,
+      (token, key) => _client.post(
         _uri('/appointments'),
-        headers: _authHeaders(token),
+        headers: {..._authHeaders(token), ...key},
         body: jsonEncode({
           'providerId': providerId,
           'serviceIds': serviceIds,
@@ -85,9 +92,12 @@ class ApiAppointmentService implements AppointmentServiceInterface {
           'depositScreenshotUrl': ?depositScreenshotUrl,
         }),
       ),
+      key: idempotencyKey,
     );
-    if (res == null) return _networkError();
-    if (res.statusCode != 201) return _errorFrom(res);
+    // Nothing answered, even asked again (owner Q4): « Réessayer » is safe —
+    // it sends the same key, and the server replays what it did.
+    if (res == null) return networkError();
+    if (res.statusCode != 201) return _refused(res);
     return ApiResponse.success(Appointment.fromJson(_decode(res.body)));
   }
 
@@ -116,9 +126,16 @@ class ApiAppointmentService implements AppointmentServiceInterface {
         body: jsonEncode({'contentType': 'image/jpeg', 'purpose': 'deposit'}),
       ),
     );
-    if (signRes == null) return _networkError();
-    if (signRes.statusCode != 200) return _errorFrom(signRes);
-    final ticket = _decode(signRes.body);
+    if (signRes == null) return networkError();
+    if (signRes.statusCode != 200) return _refused(signRes);
+    // The deposit sheet calls this directly: an unreadable ticket is
+    // `unreadable`, never a throw (docs/design/app-failure-messages.md §2.1).
+    final read = readOrUnreadable(
+      signRes,
+      (json) => json! as Map<String, dynamic>,
+    );
+    if (!read.success) return unreadable();
+    final ticket = read.data!;
 
     // 2. PUT the bytes straight to storage (the presign is the auth — no
     //    bearer here). Cloudflare R2 does not implement presigned POST and
@@ -161,8 +178,8 @@ class ApiAppointmentService implements AppointmentServiceInterface {
         body: jsonEncode({'screenshotKey': screenshotKey}),
       ),
     );
-    if (res == null) return _networkError();
-    if (res.statusCode != 200) return _errorFrom(res);
+    if (res == null) return networkError();
+    if (res.statusCode != 200) return _refused(res);
     return ApiResponse.success(Appointment.fromJson(_decode(res.body)));
   }
 
@@ -179,9 +196,13 @@ class ApiAppointmentService implements AppointmentServiceInterface {
         headers: _authHeaders(token),
       ),
     );
-    if (res == null) return _networkError();
-    if (res.statusCode != 200) return _errorFrom(res);
-    return ApiResponse.success(_decode(res.body)['url'] as String);
+    if (res == null) return networkError();
+    if (res.statusCode != 200) return _refused(res);
+    // Read by the booking detail directly: unreadable, never a throw.
+    return readOrUnreadable(
+      res,
+      (json) => (json! as Map<String, dynamic>)['url']! as String,
+    );
   }
 
   @override
@@ -197,8 +218,8 @@ class ApiAppointmentService implements AppointmentServiceInterface {
     final res = await _authed.send(
       (token) => _client.get(uri, headers: _authHeaders(token)),
     );
-    if (res == null) return _networkError();
-    if (res.statusCode != 200) return _errorFrom(res);
+    if (res == null) return networkError();
+    if (res.statusCode != 200) return _refused(res);
     final items = (_decode(res.body)['items'] as List)
         .map((e) => Appointment.fromJson(e as Map<String, dynamic>))
         .toList();
@@ -214,8 +235,8 @@ class ApiAppointmentService implements AppointmentServiceInterface {
       (token) =>
           _client.get(_uri('/appointments/$id'), headers: _authHeaders(token)),
     );
-    if (res == null) return _networkError();
-    if (res.statusCode != 200) return _errorFrom(res);
+    if (res == null) return networkError();
+    if (res.statusCode != 200) return _refused(res);
     return ApiResponse.success(Appointment.fromJson(_decode(res.body)));
   }
 
@@ -230,8 +251,8 @@ class ApiAppointmentService implements AppointmentServiceInterface {
         headers: _authHeaders(token),
       ),
     );
-    if (res == null) return _networkError();
-    if (res.statusCode != 200) return _errorFrom(res);
+    if (res == null) return networkError();
+    if (res.statusCode != 200) return _refused(res);
     return ApiResponse.success(null, message: 'Rendez-vous annulé');
   }
 
@@ -252,14 +273,14 @@ class ApiAppointmentService implements AppointmentServiceInterface {
         }),
       ),
     );
-    if (res == null) return _networkError();
-    if (res.statusCode != 200) return _errorFrom(res);
+    if (res == null) return networkError();
+    if (res.statusCode != 200) return _refused(res);
     return ApiResponse.success(Appointment.fromJson(_decode(res.body)));
   }
 
   @override
   Future<ApiResponse<List<DateTime>>> getAvailableTimeSlots({
-    required String providerId,
+    required SalonId providerId,
     required DateTime date,
     List<String>? serviceIds,
     String? artistId,
@@ -281,8 +302,8 @@ class ApiAppointmentService implements AppointmentServiceInterface {
       },
     );
     final res = await _send(() => _client.get(uri)); // public
-    if (res == null) return _networkError();
-    if (res.statusCode != 200) return _errorFrom(res);
+    if (res == null) return networkError();
+    if (res.statusCode != 200) return _refused(res);
     final slots = (_decode(res.body)['slots'] as List)
         .map((s) => DateTime.parse(s as String))
         .toList();
@@ -309,20 +330,14 @@ class ApiAppointmentService implements AppointmentServiceInterface {
   Map<String, dynamic> _decode(String body) =>
       jsonDecode(body) as Map<String, dynamic>;
 
-  ApiResponse<T> _networkError<T>() =>
-      ApiResponse.error('Connexion au serveur impossible');
+  /// A refusal, worded: this service's codes keep their sentences, anything
+  /// else is the generic one (docs/design/app-failure-messages.md §2.1).
+  ApiResponse<T> _refused<T>(http.Response res) =>
+      errorFromResponse(res, messageFor: _messageFor);
 
-  ApiResponse<T> _errorFrom<T>(http.Response res) {
-    String? code;
-    try {
-      code = _decode(res.body)['error'] as String?;
-    } catch (_) {
-      code = null;
-    }
-    return ApiResponse.error(_messageFor(code), code: code);
-  }
-
-  String _messageFor(String? code) {
+  /// The codes with words of their own; anything else is the generic sentence
+  /// (`errorFromResponse`).
+  String? _messageFor(String? code) {
     switch (code) {
       case 'slot_unavailable':
         return 'Ce créneau n’est plus disponible. Choisissez un autre horaire.';
@@ -359,7 +374,7 @@ class ApiAppointmentService implements AppointmentServiceInterface {
         return 'Ce salon demande plus de délai avant un rendez-vous. '
             'Choisissez une date plus tardive.';
       default:
-        return 'Une erreur est survenue.';
+        return null;
     }
   }
 }

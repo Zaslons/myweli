@@ -86,7 +86,9 @@ describe('publishChecklist — the app’s eight steps', () => {
       kyc: { status: 'pending', documents: [] },
     });
     expect(byKey(items, 'staff').status).toBe('todo');
-    expect(byKey(items, 'deposit').status).toBe('todo');
+    // B7.7: never a todo — optional until a choice is saved, and said.
+    expect(byKey(items, 'deposit').status).toBe('optional');
+    expect(byKey(items, 'deposit').sublabel).toBe('Facultatif');
     expect(byKey(items, 'verification').status).toBe('todo');
     expect(canPublish(items)).toBe(true);
     expect(items.filter((i) => i.blocking).map((i) => i.key)).toEqual([
@@ -164,6 +166,7 @@ describe('the progress line — the app’s', () => {
       depositConfigured: false,
       kyc: null,
     });
-    expect(checklistProgress(items)).toEqual({ done: 5, total: 8 });
+    // The deposit not chosen is optional — not counted (B7.7).
+    expect(checklistProgress(items)).toEqual({ done: 5, total: 7 });
   });
 });

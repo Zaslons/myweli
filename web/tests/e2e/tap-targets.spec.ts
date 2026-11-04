@@ -2,6 +2,7 @@ import { expect, test } from '@playwright/test';
 
 import { signInConsumer, signInPro } from './_auth';
 import { asUnaskedBrowser } from './_push';
+import { keepSharedGallery } from './_gallery';
 import { serveStubImages } from './_pixel';
 
 /// B4 — §13.2's 48px floor, pinned (WEB-SYSTEM §15 row 7h).
@@ -87,6 +88,31 @@ test('public: buttons, links, chips and fields all reach the floor', async ({
   );
 });
 
+test('the new home page and footer: every link in them reaches the floor (web-swiss-direction §12)', async ({
+  page,
+}) => {
+  await page.goto('/');
+  const categories = page.getByRole('heading', { name: 'Catégories' }).locator('xpath=ancestor::section[1]');
+  const cells = categories.getByRole('link');
+  await expect(cells).toHaveCount(6);
+  for (let i = 0; i < 6; i++) await assertBox(cells.nth(i), `category cell ${i}`, { minW: 0 });
+
+  const cocody = page.locator('details', { hasText: 'Cocody' });
+  await assertBox(cocody.locator('summary'), 'directory summary', { minW: 0 });
+  await cocody.locator('summary').click();
+  const links = cocody.getByRole('link');
+  await expect(links.first()).toBeVisible();
+  const count = await links.count();
+  expect(count).toBeGreaterThan(0);
+  for (let i = 0; i < count; i++) await assertBox(links.nth(i), `directory link ${i}`, { minW: 0 });
+
+  // `getByRole('link')` over the whole landmark, so a link added later is held too.
+  const footerLinks = page.getByRole('contentinfo').getByRole('link');
+  const footerCount = await footerLinks.count();
+  expect(footerCount).toBeGreaterThan(5);
+  for (let i = 0; i < footerCount; i++) await assertBox(footerLinks.nth(i), `footer link ${i}`, { minW: 0 });
+});
+
 test('salon page: the favourite ♥ is a 48px target', async ({ page }) => {
   await page.goto('/beaute-divine'); // the stub salon's real slug
   // No count()-then-skip: count() doesn't wait for hydration, so it skipped a
@@ -148,6 +174,8 @@ test('pro: « Client sans numéro » — its whole row is the target (web-manual
 });
 
 test('pro: Médias — the undo toast’s « Annuler » (web-pro-medias-like-app)', async ({ page }) => {
+  // The screens only: the saves are answered here, never by the shared stub.
+  await keepSharedGallery(page);
   await signInPro(page);
   await page.goto('/pro/medias');
   await page.getByRole('button', { name: 'Supprimer' }).last().click();
@@ -158,7 +186,7 @@ test('pro: Médias — the undo toast’s « Annuler » (web-pro-medias-like-app
   const undo = page.getByRole('status').getByRole('button', { name: 'Annuler' });
   await expect(undo).toBeVisible();
   await assertBox(undo, 'undo toast « Annuler »', { minW: 0 });
-  await undo.click(); // the stub's gallery is shared
+  await undo.click();
 });
 
 test('pro: the glyph buttons that grew invisibly', async ({ page }) => {

@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import '../styles/globals.css';
+import { brandFont } from '../styles/font';
 import { SiteChrome } from '../components/SiteChrome';
 import { SiteFooter } from '../components/SiteFooter';
 import { jsonLdScript, organizationJsonLd } from '../lib/seo/jsonld';
@@ -9,7 +10,7 @@ export const metadata = defaultMetadata;
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="fr">
+    <html lang="fr" className={brandFont.variable}>
       <body>
         {/* Brand entity (GEO) — emitted site-wide. */}
         <script
@@ -25,7 +26,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
             covers the pro shell for free. */}
         <a
           href="#contenu"
-          className="sr-only focus:not-sr-only focus:absolute focus:left-m focus:top-m focus:z-toast focus:rounded-lg focus:bg-secondary focus:p-m focus:text-labelLarge focus:text-textPrimary"
+          className="sr-only focus:not-sr-only focus:absolute focus:left-m focus:top-m focus:z-toast focus:rounded-control focus:bg-secondary focus:p-m focus:text-labelLarge focus:text-textPrimary"
         >
           Aller au contenu
         </a>

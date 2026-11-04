@@ -154,7 +154,9 @@ key survived the rewrite — `UIBackgroundModes: remote-notification`,
 comment**, which is restored. The registration now happens later in launch;
 whether that affects `firebase_messaging`'s AppDelegate swizzling for a
 notification that *launches* the app is **not answerable on a simulator** and
-is carried into §7.
+is carried into §7. *(2026-10-25, B0.9: `UIBackgroundModes` is gone — the
+server never sends a silent push. The launch-from-notification tap is now an
+explicit device check, app-store-forms §11.6 « Push, l'app tuée ».)*
 
 ## 6b. A stale generated file will tell you the deployment target regressed
 

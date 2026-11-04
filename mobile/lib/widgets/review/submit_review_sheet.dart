@@ -8,6 +8,7 @@ import '../../core/theme/app_theme.dart';
 import '../../core/theme/colors.dart';
 import '../../core/theme/text_styles.dart';
 import '../../core/utils/app_clock.dart';
+import '../../core/utils/salon_id.dart';
 import '../../models/review.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/favorites_provider.dart';
@@ -23,7 +24,7 @@ import '../provider/mock_image_picker_sheet.dart';
 const _maxReviewPhotos = 3;
 
 class SubmitReviewSheet extends StatefulWidget {
-  final String providerId;
+  final SalonId providerId;
 
   /// The completed appointment being reviewed (one review per visit).
   final String appointmentId;

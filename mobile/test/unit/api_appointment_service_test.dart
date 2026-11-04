@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
+import 'package:myweli/core/utils/salon_id.dart';
 import 'package:myweli/models/api_response.dart';
 import 'package:myweli/models/appointment.dart';
 import 'package:myweli/models/session.dart';
@@ -75,7 +76,7 @@ void main() {
       );
 
       final res = await service.getAvailableTimeSlots(
-        providerId: 'provider1',
+        providerId: SalonId('provider1'),
         date: DateTime(2026, 6, 25),
         serviceIds: ['service1'],
       );
@@ -97,7 +98,7 @@ void main() {
       final service = await _authed(client);
 
       final res = await service.bookAppointment(
-        providerId: 'provider1',
+        providerId: SalonId('provider1'),
         serviceIds: ['service1'],
         appointmentDateTime: DateTime.utc(2026, 6, 25, 9),
       );
@@ -118,7 +119,7 @@ void main() {
       final service = await _authed(client);
 
       final res = await service.bookAppointment(
-        providerId: 'provider1',
+        providerId: SalonId('provider1'),
         serviceIds: ['service1'],
         appointmentDateTime: DateTime.utc(2026, 6, 25, 9),
       );
@@ -136,7 +137,7 @@ void main() {
     final service = ApiAppointmentService(client: client, baseUrl: 'http://x');
 
     final res = await service.bookAppointment(
-      providerId: 'provider1',
+      providerId: SalonId('provider1'),
       serviceIds: ['service1'],
       appointmentDateTime: DateTime.utc(2026, 6, 25, 9),
     );
@@ -225,7 +226,7 @@ void main() {
     );
 
     final res = await service.bookAppointment(
-      providerId: 'provider1',
+      providerId: SalonId('provider1'),
       serviceIds: ['service1'],
       appointmentDateTime: DateTime.utc(2026, 6, 25, 9),
     );
@@ -326,7 +327,7 @@ void main() {
         ),
       );
       return service.bookAppointment(
-        providerId: 'provider1',
+        providerId: SalonId('provider1'),
         serviceIds: ['service1'],
         appointmentDateTime: DateTime.utc(2026, 6, 25, 9),
       );
@@ -375,7 +376,9 @@ void main() {
       // The over-reach guard — the default arm must survive.
       expect(
         (await bookWith('something_new', 409)).error,
-        'Une erreur est survenue.',
+        // The approved generic sentence (docs/design/app-failure-messages.md
+        // §8) — the tables' own « Une erreur est survenue. » is retired.
+        'Une erreur est survenue. Réessayez.',
       );
     });
   });

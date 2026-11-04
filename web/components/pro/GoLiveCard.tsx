@@ -5,7 +5,9 @@ import { Card } from '../Card';
 import { useEffect, useId, useState } from 'react';
 import type { ProProfile } from '../../lib/api/pro';
 import { getDepositPolicy, getKycStatus, publishSalon } from '../../lib/api/pro';
+import { depositChosen } from '../../lib/pro/deposit';
 import type { KycStatus } from '../../lib/pro/kyc';
+import { salonRefusalMessage } from '../../lib/pro/team';
 import {
   type ChecklistItem,
   canPublish,
@@ -53,7 +55,9 @@ export function GoLiveCard({
       ([deposit, kyc]) => {
         if (!active) return;
         setExtras({
-          depositConfigured: deposit.status === 200 && Boolean(deposit.policy),
+          // A choice SAVED, not an answer (B7.7).
+          depositConfigured:
+            deposit.status === 200 && !!deposit.policy && depositChosen(deposit.policy),
           kyc: kyc.status === 200 ? (kyc.kyc ?? null) : null,
         });
       },
@@ -86,7 +90,7 @@ export function GoLiveCard({
       setError(
         r.status === 409
           ? 'Certaines étapes ne sont pas terminées. Vérifiez la liste.'
-          : 'La mise en ligne a échoué. Réessayez.',
+          : salonRefusalMessage(r.status, r.error, 'La mise en ligne a échoué. Réessayez.'),
       );
       return;
     }

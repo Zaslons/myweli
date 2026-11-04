@@ -1,0 +1,6 @@
+- 🟢 **Quatre phrases du site qui n'étaient pas vraies (web · 2026-11-02 — BACKLOG B12.1 à B12.4, décision 68).** Aucun changement serveur. [web-true-sentences.md](../../design/web-true-sentences.md).
+  - **L'essai gratuit :** le site disait qu'il démarre à la mise en ligne, alors que choisir une offre le démarre. Le propriétaire a gardé l'horloge : démarrer à la mise en ligne aurait permis d'inviter une équipe et de tout gérer sans jamais ouvrir. Les mots suivent le serveur.
+  - **Annuler avec un acompte :** le site dit maintenant la règle du salon, le montant et le délai, et qui voir. Il ne promet pas de remboursement : MyWeli ne détient aucun fonds. Sans justificatif envoyé, il le dit.
+  - **Après la réservation :** un lien vers le rendez-vous, et une phrase vraie pour un client qui n'utilise que le site.
+  - **`/pro/connexion` :** retiré le bloc qui envoyait les nouveaux salons vers l'app, laquelle les renvoie vers le site, et dont le bouton aurait ouvert l'app client.
+  - **Reste :** la phrase d'annulation de l'app a le même défaut (B12.11, prochaine version de l'app).

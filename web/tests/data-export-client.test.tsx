@@ -27,6 +27,7 @@ const BOTH_FAILED = `Impossible de charger vos rendez-vous et vos favoris. ${TAI
 const PROFILE_FAILED = `Impossible de charger votre profil. ${TAIL}`;
 const COPY_FAILED =
   'La copie a échoué. Téléchargez le fichier avec « Télécharger (JSON) ».';
+const BUILD_FAILED = 'Le fichier n’a pas pu être préparé. Réessayez.';
 
 /// A read's answer: a status and a JSON body, a fetch that throws, or a 200
 /// whose body breaks after the headers (a connection dropped mid-body).
@@ -262,6 +263,41 @@ describe('DataExportClient — a failed read is refused, never an empty section'
     expect(urls).toEqual(
       expect.arrayContaining(['/api/me', '/api/appointments', '/api/me/favorites']),
     );
+    expect(screen.queryByRole('alert')).toBeNull();
+  });
+});
+
+/// docs/design/web-client-polish.md §2.3 (B5.3): a list that came back with
+/// something that is not an entry in it. Before: a favourite `null` threw
+/// inside `load()` — an unhandled rejection, the page on its loader for ever —
+/// and an appointment `null` threw while RENDERING.
+describe('DataExportClient — a list with a broken entry', () => {
+  for (const [name, entry] of [
+    ['null', null],
+    ['no name', { id: 'p1' }],
+    ['a number for an id', { id: 1, name: 'Beauté Divine' }],
+  ] as const) {
+    it(`a favourite that is not one (${name}) → « vos favoris », not an endless loader`, async () => {
+      reads({ favorites: { status: 200, body: { favorites: [entry] } } });
+      render(<DataExportClient />);
+
+      await expectRefusal(FAVORITES_FAILED);
+    });
+  }
+
+  it('an appointment the file cannot hold → its own sentence and « Réessayer », never a broken page', async () => {
+    reads({ appointments: { status: 200, body: { items: [null] } } });
+    const out = watchOutputs();
+    render(<DataExportClient />);
+
+    await expectRefusal(BUILD_FAILED);
+    expect(out.createObjectURL).not.toHaveBeenCalled();
+
+    reads();
+    fireEvent.click(screen.getByRole('button', { name: 'Réessayer' }));
+    expect(
+      await screen.findByRole('button', { name: 'Télécharger (JSON)' }),
+    ).toBeTruthy();
     expect(screen.queryByRole('alert')).toBeNull();
   });
 });

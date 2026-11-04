@@ -70,6 +70,9 @@ export const radius = {
   // (SYSTEM.md §6, mirroring `AppTheme.radiusPill`). It replaces `rounded-full`,
   // which was Tailwind's default key and dies with the closed theme (§2).
   pill: '999px',
+  // Web only: anything you type in or press (docs/design/web-swiss-fields.md). Named
+  // for what it is, not its value, so a change of mind is this one line.
+  control: '0px',
 } as const;
 
 // The RHYTHM scale — padding, margin, gap (SYSTEM.md §5's 8pt grid).
@@ -90,6 +93,9 @@ export const spacing = {
   xl: '32px',
   xxl: '48px',
   xxxl: '64px', // mirrors `AppTheme.spacingXXXL` — the second mirror drift (see §15 row 19)
+  // `AppTheme.fabClearance` (B7.4): the end padding a view that scrolls under a
+  // floating button owes it — `pb-fab` (SYSTEM.md §5, §13.3).
+  fab: '96px',
 } as const;
 
 // Type (SYSTEM.md §4) — the web mirror of `AppTextStyles`
@@ -140,6 +146,10 @@ export const type = {
   displayLarge: ['57px', { lineHeight: '64px', letterSpacing: '-0.25px' }],
   displayMedium: ['45px', { lineHeight: '52px', letterSpacing: '0px' }],
   displaySmall: ['36px', { lineHeight: '44px', letterSpacing: '0px' }],
+  // WEB-ONLY (WEB_ONLY.type): the public hero from `xl`. A poster size has no place
+  // in a phone app, and `displayLarge` at 1440 wide reads as a heading, not a
+  // statement (web-swiss-direction.md §5.3). A second web-only size needs a reason.
+  displayPoster: ['80px', { lineHeight: '84px', letterSpacing: '-2px' }],
   // Headline
   headlineLarge: ['32px', { lineHeight: '40px', letterSpacing: '0px' }], // screen title (rare — hero)
   headlineMedium: ['28px', { lineHeight: '36px', letterSpacing: '0px' }], // screen title

@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:myweli/core/di/dependency_injection.dart';
+import 'package:myweli/core/utils/salon_id.dart';
 import 'package:myweli/models/api_response.dart';
 import 'package:myweli/models/pro_membership.dart';
 import 'package:myweli/models/provider.dart' as models;
@@ -29,7 +30,7 @@ class _MockProService extends Mock implements ProServiceInterface {}
 /// `provider.id`). A full pro sign-in would only be a slower way to say this.
 class _SignedInAuth extends ProAuthProvider {
   @override
-  String? get activeSalonId => 'provider1';
+  SalonId? get activeSalonId => SalonId('provider1');
 }
 
 /// The seeded salon the form loads — « Salon Excellence », phone and WhatsApp
@@ -92,7 +93,7 @@ void main() {
           membership: ProMembership(
             role: TeamRole.owner,
             capabilities: presetCapabilitiesFor(TeamRole.owner),
-            salonId: seededSalon().id,
+            salonId: SalonId(seededSalon().id),
             salonName: seededSalon().name,
           ),
         ),
@@ -239,7 +240,7 @@ void main() {
   /// The body of the one `updateSalonProfile` call.
   Map<String, dynamic> sentBody() =>
       verify(
-            () => pro.updateSalonProfile('provider1', captureAny()),
+            () => pro.updateSalonProfile(SalonId('provider1'), captureAny()),
           ).captured.single
           as Map<String, dynamic>;
 

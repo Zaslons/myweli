@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:myweli/widgets/common/brand_loader.dart';
 import 'package:myweli/widgets/common/brand_refresh.dart';
-import 'package:myweli/widgets/common/loading_indicator.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/constants/booking_horizons.dart';
@@ -10,10 +9,15 @@ import '../../../core/theme/colors.dart';
 import '../../../core/theme/text_styles.dart';
 import '../../../core/utils/blocked_dates.dart';
 import '../../../core/utils/formatters.dart';
+import '../../../core/utils/salon_id.dart';
 import '../../../core/utils/salon_time.dart';
 import '../../../models/availability.dart';
 import '../../../providers/pro_auth_provider.dart';
 import '../../../providers/pro_availability_provider.dart';
+import '../../../widgets/common/app_async_view.dart';
+import '../../../widgets/common/app_card.dart';
+import '../../../widgets/common/app_chip.dart';
+import '../../../widgets/common/app_skeleton.dart';
 import '../../../widgets/common/app_snack_bar.dart';
 import '../../../widgets/common/confirm_dialog.dart';
 import '../../../widgets/common/myweli_date_picker.dart';
@@ -29,9 +33,9 @@ class AvailabilityScreen extends StatefulWidget {
 }
 
 class _AvailabilityScreenState extends State<AvailabilityScreen> {
-  String _resolvedProviderId(BuildContext context) {
+  SalonId _resolvedProviderId(BuildContext context) {
     final authProvider = Provider.of<ProAuthProvider>(context, listen: false);
-    return authProvider.activeSalonId ?? '';
+    return authProvider.activeSalonId ?? SalonId.none;
   }
 
   @override
@@ -60,227 +64,225 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
             return const Center(child: Text('Veuillez vous connecter'));
           }
 
-          if (availabilityProvider.isLoading &&
-              availabilityProvider.availability == null) {
-            return const Center(child: LoadingIndicator());
+          Future<void> reload() async {
+            if (authProvider.provider != null) {
+              await availabilityProvider.loadAvailability(
+                _resolvedProviderId(context),
+              );
+            }
           }
 
-          final availability = availabilityProvider.availability;
-          if (availability == null) {
-            return Center(
-              child: Text(
-                availabilityProvider.error ?? 'Aucune disponibilité configurée',
-                style: AppTextStyles.bodyLarge.copyWith(
-                  color: AppColors.textSecondary,
-                ),
-              ),
-            );
-          }
-
-          return BrandRefresh(
-            onRefresh: () async {
-              if (authProvider.provider != null) {
-                await availabilityProvider.loadAvailability(
-                  _resolvedProviderId(context),
-                );
-              }
-            },
-            child: SingleChildScrollView(
-              physics: const AlwaysScrollableScrollPhysics(),
-              padding: const EdgeInsets.all(AppTheme.spacingM),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _BookingWindowSection(
-                    bookingHorizonDays: availability.bookingHorizonDays,
-                    minimumNoticeMinutes: availability.minimumNoticeMinutes,
-                    onHorizonChanged: (days) => _setWindow(
-                      context,
-                      availability,
-                      availabilityProvider,
-                      _resolvedProviderId(context),
-                      horizonDays: days,
-                    ),
-                    onNoticeChanged: (minutes) => _setWindow(
-                      context,
-                      availability,
-                      availabilityProvider,
-                      _resolvedProviderId(context),
-                      noticeMinutes: minutes,
-                    ),
-                  ),
-                  const SizedBox(height: AppTheme.spacingL),
-                  _BufferSection(
-                    bufferMinutes: availability.bufferMinutes,
-                    onChanged: (minutes) => _setBuffer(
-                      context,
-                      minutes,
-                      availability,
-                      availabilityProvider,
-                      _resolvedProviderId(context),
-                    ),
-                  ),
-                  const SizedBox(height: AppTheme.spacingL),
-                  Text(
-                    'Pauses',
-                    style: AppTextStyles.titleLarge.copyWith(
-                      color: AppColors.textPrimary,
-                    ),
-                  ),
-                  const SizedBox(height: AppTheme.spacingXS),
-                  Text(
-                    'Une pause récurrente par jour (ex. déjeuner). '
-                    'Aucun créneau ne sera proposé pendant ces heures.',
-                    style: AppTextStyles.bodySmall.copyWith(
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
-                  const SizedBox(height: AppTheme.spacingS),
-                  WeeklyHoursEditor(
-                    hours: availability.breaks,
-                    offLabel: 'Aucune',
-                    defaultStart: const TimeOfDay(hour: 12, minute: 0),
-                    defaultEnd: const TimeOfDay(hour: 13, minute: 0),
-                    onChanged: (breaks) => _setBreaks(
-                      context,
-                      breaks,
-                      availability,
-                      availabilityProvider,
-                      _resolvedProviderId(context),
-                    ),
-                  ),
-                  const SizedBox(height: AppTheme.spacingL),
-                  Text(
-                    'Horaires de travail',
-                    style: AppTextStyles.titleLarge.copyWith(
-                      color: AppColors.textPrimary,
-                    ),
-                  ),
-                  const SizedBox(height: AppTheme.spacingXS),
-                  // The one section of four that had no explanatory sentence —
-                  // and the derived-créneaux question is the one the owner
-                  // actually fielded (availability-presets.md §2).
-                  Text(
-                    kCreneauxCopy,
-                    style: AppTextStyles.bodySmall.copyWith(
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
-                  const SizedBox(height: AppTheme.spacingS),
-                  // Sub-labelled like the window card's rows: an unlabelled
-                  // Wrap after an unrelated sentence would be a puzzle.
-                  Text(
-                    'Modèles',
-                    style: AppTextStyles.bodySmall.copyWith(
-                      color: AppColors.textPrimary,
-                    ),
-                  ),
-                  const SizedBox(height: AppTheme.spacingXS),
-                  Wrap(
-                    spacing: AppTheme.spacingS,
-                    runSpacing: AppTheme.spacingS,
-                    children: WeeklySchedulePresets.all.map((preset) {
-                      return ChoiceChip(
-                        label: Text(preset.label),
-                        // Honest selection: lit only while the schedule IS
-                        // the model — any manual edit unlights every chip.
-                        selected: weeklyScheduleMatchesPreset(
-                          availability.weeklySchedule,
-                          preset,
-                        ),
-                        onSelected: (_) => _applyPreset(
-                          context,
-                          preset,
-                          availability,
-                          availabilityProvider,
-                          _resolvedProviderId(context),
-                        ),
-                      );
-                    }).toList(),
-                  ),
-                  const SizedBox(height: AppTheme.spacingM),
-                  ...List.generate(7, (index) {
-                    final dayName = _getDayName(index);
-                    final daySlots = availability.weeklySchedule[index] ?? [];
-                    return _DayScheduleCard(
-                      dayIndex: index,
-                      dayName: dayName,
-                      timeSlots: daySlots,
-                      onEdit: () => _showEditDayDialog(
-                        context,
-                        index,
-                        dayName,
-                        daySlots,
-                        availabilityProvider,
-                        _resolvedProviderId(context),
-                      ),
-                    );
-                  }),
-                  const SizedBox(height: AppTheme.spacingL),
-                  Text(
-                    'Dates bloquées',
-                    style: AppTextStyles.titleLarge.copyWith(
-                      color: AppColors.textPrimary,
-                    ),
-                  ),
-                  const SizedBox(height: AppTheme.spacingSM),
-                  if (availability.blockedDates.isEmpty)
-                    Container(
-                      padding: const EdgeInsets.all(AppTheme.spacingM),
-                      decoration: BoxDecoration(
-                        color: AppColors.secondary,
-                        borderRadius: BorderRadius.circular(
-                          AppTheme.radiusLarge,
-                        ),
-                      ),
-                      child: Row(
-                        children: [
-                          const Icon(
-                            Icons.info_outline,
-                            color: AppColors.textSecondary,
-                          ),
-                          const SizedBox(width: AppTheme.spacingSM),
-                          Expanded(
-                            child: Text(
-                              'Aucune date bloquée',
-                              style: AppTextStyles.bodyMedium.copyWith(
-                                color: AppColors.textSecondary,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    )
-                  else
-                    ...availability.blockedDates.map(
-                      (date) => _BlockedDateCard(
-                        date: date,
-                        tz: context.read<ProAuthProvider>().salonTimezone,
-                        onRemove: () => _removeBlockedDate(
-                          context,
-                          date,
-                          availability,
-                          availabilityProvider,
-                          _resolvedProviderId(context),
-                        ),
-                      ),
-                    ),
-                  const SizedBox(height: AppTheme.spacingSM),
-                  OutlinedButton.icon(
-                    onPressed: () => _showBlockedDatesPicker(
-                      context,
-                      availability,
-                      availabilityProvider,
-                      _resolvedProviderId(context),
-                    ),
-                    icon: const Icon(Icons.edit_calendar),
-                    label: const Text('Gérer les dates bloquées'),
-                  ),
-                ],
-              ),
-            ),
+          // A bare grey sentence, before — the failure's text, or a save's,
+          // since [ProAvailabilityProvider.error] is both (B9.8).
+          return AppAsyncView<Availability>(
+            isLoading: availabilityProvider.isLoading,
+            error: availabilityProvider.loadError,
+            data: availabilityProvider.availability,
+            isEmpty: (_) => false,
+            loading: const SkeletonDetail(sections: 3),
+            empty: const SizedBox.shrink(),
+            onRetry: reload,
+            builder: (context, availability) =>
+                _availability(availabilityProvider, availability, reload),
           );
         },
+      ),
+    );
+  }
+
+  Widget _availability(
+    ProAvailabilityProvider availabilityProvider,
+    Availability availability,
+    Future<void> Function() reload,
+  ) {
+    return BrandRefresh(
+      onRefresh: reload,
+      child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.all(AppTheme.spacingM),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _BookingWindowSection(
+              bookingHorizonDays: availability.bookingHorizonDays,
+              minimumNoticeMinutes: availability.minimumNoticeMinutes,
+              onHorizonChanged: (days) => _setWindow(
+                context,
+                availability,
+                availabilityProvider,
+                _resolvedProviderId(context),
+                horizonDays: days,
+              ),
+              onNoticeChanged: (minutes) => _setWindow(
+                context,
+                availability,
+                availabilityProvider,
+                _resolvedProviderId(context),
+                noticeMinutes: minutes,
+              ),
+            ),
+            const SizedBox(height: AppTheme.spacingL),
+            _BufferSection(
+              bufferMinutes: availability.bufferMinutes,
+              onChanged: (minutes) => _setBuffer(
+                context,
+                minutes,
+                availability,
+                availabilityProvider,
+                _resolvedProviderId(context),
+              ),
+            ),
+            const SizedBox(height: AppTheme.spacingL),
+            Text(
+              'Pauses',
+              style: AppTextStyles.titleLarge.copyWith(
+                color: AppColors.textPrimary,
+              ),
+            ),
+            const SizedBox(height: AppTheme.spacingXS),
+            Text(
+              'Une pause récurrente par jour (ex. déjeuner). '
+              'Aucun créneau ne sera proposé pendant ces heures.',
+              style: AppTextStyles.bodySmall.copyWith(
+                color: AppColors.textSecondary,
+              ),
+            ),
+            const SizedBox(height: AppTheme.spacingS),
+            WeeklyHoursEditor(
+              hours: availability.breaks,
+              offLabel: 'Aucune',
+              defaultStart: const TimeOfDay(hour: 12, minute: 0),
+              defaultEnd: const TimeOfDay(hour: 13, minute: 0),
+              onChanged: (breaks) => _setBreaks(
+                context,
+                breaks,
+                availability,
+                availabilityProvider,
+                _resolvedProviderId(context),
+              ),
+            ),
+            const SizedBox(height: AppTheme.spacingL),
+            Text(
+              'Horaires de travail',
+              style: AppTextStyles.titleLarge.copyWith(
+                color: AppColors.textPrimary,
+              ),
+            ),
+            const SizedBox(height: AppTheme.spacingXS),
+            // The one section of four that had no explanatory sentence —
+            // and the derived-créneaux question is the one the owner
+            // actually fielded (availability-presets.md §2).
+            Text(
+              kCreneauxCopy,
+              style: AppTextStyles.bodySmall.copyWith(
+                color: AppColors.textSecondary,
+              ),
+            ),
+            const SizedBox(height: AppTheme.spacingS),
+            // Sub-labelled like the window card's rows: an unlabelled
+            // Wrap after an unrelated sentence would be a puzzle.
+            Text(
+              'Modèles',
+              style: AppTextStyles.bodySmall.copyWith(
+                color: AppColors.textPrimary,
+              ),
+            ),
+            const SizedBox(height: AppTheme.spacingXS),
+            Wrap(
+              spacing: AppTheme.spacingS,
+              runSpacing: AppTheme.spacingS,
+              children: WeeklySchedulePresets.all.map((preset) {
+                return AppChip.choice(
+                  label: preset.label,
+                  // Honest selection: lit only while the schedule IS
+                  // the model — any manual edit unlights every chip.
+                  selected: weeklyScheduleMatchesPreset(
+                    availability.weeklySchedule,
+                    preset,
+                  ),
+                  onSelected: (_) => _applyPreset(
+                    context,
+                    preset,
+                    availability,
+                    availabilityProvider,
+                    _resolvedProviderId(context),
+                  ),
+                );
+              }).toList(),
+            ),
+            const SizedBox(height: AppTheme.spacingM),
+            ...List.generate(7, (index) {
+              final dayName = _getDayName(index);
+              final daySlots = availability.weeklySchedule[index] ?? [];
+              return _DayScheduleCard(
+                dayIndex: index,
+                dayName: dayName,
+                timeSlots: daySlots,
+                onEdit: () => _showEditDayDialog(
+                  context,
+                  index,
+                  dayName,
+                  daySlots,
+                  availabilityProvider,
+                  _resolvedProviderId(context),
+                ),
+              );
+            }),
+            const SizedBox(height: AppTheme.spacingL),
+            Text(
+              'Dates bloquées',
+              style: AppTextStyles.titleLarge.copyWith(
+                color: AppColors.textPrimary,
+              ),
+            ),
+            const SizedBox(height: AppTheme.spacingSM),
+            if (availability.blockedDates.isEmpty)
+              AppCard(
+                child: Row(
+                  children: [
+                    const Icon(
+                      Icons.info_outline,
+                      color: AppColors.textSecondary,
+                    ),
+                    const SizedBox(width: AppTheme.spacingSM),
+                    Expanded(
+                      child: Text(
+                        'Aucune date bloquée',
+                        style: AppTextStyles.bodyMedium.copyWith(
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              )
+            else
+              ...availability.blockedDates.map(
+                (date) => _BlockedDateCard(
+                  date: date,
+                  tz: context.read<ProAuthProvider>().salonTimezone,
+                  onRemove: () => _removeBlockedDate(
+                    context,
+                    date,
+                    availability,
+                    availabilityProvider,
+                    _resolvedProviderId(context),
+                  ),
+                ),
+              ),
+            const SizedBox(height: AppTheme.spacingSM),
+            OutlinedButton.icon(
+              onPressed: () => _showBlockedDatesPicker(
+                context,
+                availability,
+                availabilityProvider,
+                _resolvedProviderId(context),
+              ),
+              icon: const Icon(Icons.edit_calendar),
+              label: const Text('Gérer les dates bloquées'),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -304,7 +306,7 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
     String dayName,
     List<TimeSlot> currentSlots,
     ProAvailabilityProvider provider,
-    String providerId,
+    SalonId providerId,
   ) {
     Navigator.push(
       context,
@@ -335,7 +337,7 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
     BuildContext context,
     Availability availability,
     ProAvailabilityProvider provider,
-    String providerId,
+    SalonId providerId,
   ) async {
     // A blocked date is the ACTIVE SALON's calendar day (salon_time.dart).
     final tz = context.read<ProAuthProvider>().salonTimezone;
@@ -513,7 +515,7 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
     WeeklySchedulePreset preset,
     Availability availability,
     ProAvailabilityProvider provider,
-    String providerId,
+    SalonId providerId,
   ) async {
     // Already the model → a tap is a no-op, the `_setWindow` unchanged rule.
     if (weeklyScheduleMatchesPreset(availability.weeklySchedule, preset)) {
@@ -574,7 +576,7 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
     BuildContext context,
     Availability availability,
     ProAvailabilityProvider provider,
-    String providerId, {
+    SalonId providerId, {
     int? horizonDays,
     int? noticeMinutes,
   }) async {
@@ -604,7 +606,7 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
     int minutes,
     Availability availability,
     ProAvailabilityProvider provider,
-    String providerId,
+    SalonId providerId,
   ) async {
     if (minutes == availability.bufferMinutes) return;
     await provider.updateAvailability(
@@ -621,7 +623,7 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
     Map<int, List<TimeSlot>> breaks,
     Availability availability,
     ProAvailabilityProvider provider,
-    String providerId,
+    SalonId providerId,
   ) async {
     await provider.updateAvailability(
       providerId,
@@ -645,7 +647,7 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
     DateTime date,
     Availability availability,
     ProAvailabilityProvider provider,
-    String providerId,
+    SalonId providerId,
   ) async {
     final tz = context.read<ProAuthProvider>().salonTimezone;
     final day = CalendarDay.of(toSalonTime(date, tz: tz));
@@ -726,12 +728,7 @@ class _BookingWindowSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(AppTheme.spacingM),
-      decoration: BoxDecoration(
-        color: AppColors.secondary,
-        borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
-      ),
+    return AppCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -777,8 +774,8 @@ class _BookingWindowSection extends StatelessWidget {
             spacing: AppTheme.spacingS,
             runSpacing: AppTheme.spacingS,
             children: BookingWindowPresets.horizons.map((days) {
-              return ChoiceChip(
-                label: Text(horizonLabel(days)),
+              return AppChip.choice(
+                label: horizonLabel(days),
                 selected: bookingHorizonDays == days,
                 onSelected: (_) => onHorizonChanged(days),
               );
@@ -796,8 +793,8 @@ class _BookingWindowSection extends StatelessWidget {
             spacing: AppTheme.spacingS,
             runSpacing: AppTheme.spacingS,
             children: BookingWindowPresets.notices.map((minutes) {
-              return ChoiceChip(
-                label: Text(noticeLabel(minutes)),
+              return AppChip.choice(
+                label: noticeLabel(minutes),
                 selected: minimumNoticeMinutes == minutes,
                 onSelected: (_) => onNoticeChanged(minutes),
               );
@@ -819,12 +816,7 @@ class _BufferSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(AppTheme.spacingM),
-      decoration: BoxDecoration(
-        color: AppColors.secondary,
-        borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
-      ),
+    return AppCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -869,8 +861,8 @@ class _BufferSection extends StatelessWidget {
             spacing: AppTheme.spacingS,
             runSpacing: AppTheme.spacingS,
             children: _presets.map((minutes) {
-              return ChoiceChip(
-                label: Text(minutes == 0 ? 'Aucun' : '$minutes min'),
+              return AppChip.choice(
+                label: minutes == 0 ? 'Aucun' : '$minutes min',
                 selected: bufferMinutes == minutes,
                 onSelected: (_) => onChanged(minutes),
               );
@@ -897,40 +889,43 @@ class _DayScheduleCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: AppTheme.spacingS),
-      child: ListTile(
-        title: Text(
-          dayName,
-          style: AppTextStyles.titleMedium.copyWith(
-            color: AppColors.textPrimary,
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppTheme.spacingS),
+      child: AppCard(
+        padding: EdgeInsets.zero,
+        child: ListTile(
+          title: Text(
+            dayName,
+            style: AppTextStyles.titleMedium.copyWith(
+              color: AppColors.textPrimary,
+            ),
           ),
-        ),
-        subtitle: timeSlots.isEmpty
-            ? Text(
-                'Fermé',
-                style: AppTextStyles.bodyMedium.copyWith(
-                  color: AppColors.textSecondary,
+          subtitle: timeSlots.isEmpty
+              ? Text(
+                  'Fermé',
+                  style: AppTextStyles.bodyMedium.copyWith(
+                    color: AppColors.textSecondary,
+                  ),
+                )
+              : Wrap(
+                  spacing: AppTheme.spacingS,
+                  runSpacing: AppTheme.spacingXS,
+                  children: timeSlots.map((slot) {
+                    final start = Formatters.formatTime(slot.startTime);
+                    final end = Formatters.formatTime(slot.endTime);
+                    return AppChip.status(
+                      label: '$start - $end',
+                      tone: slot.isAvailable
+                          ? AppChipTone.strong
+                          : AppChipTone.error,
+                    );
+                  }).toList(),
                 ),
-              )
-            : Wrap(
-                spacing: AppTheme.spacingS,
-                runSpacing: AppTheme.spacingXS,
-                children: timeSlots.map((slot) {
-                  final start = Formatters.formatTime(slot.startTime);
-                  final end = Formatters.formatTime(slot.endTime);
-                  return Chip(
-                    label: Text('$start - $end'),
-                    backgroundColor: slot.isAvailable
-                        ? AppColors.primary.withValues(alpha: 0.1)
-                        : AppColors.error.withValues(alpha: 0.1),
-                  );
-                }).toList(),
-              ),
-        trailing: IconButton(
-          tooltip: 'Modifier',
-          icon: const Icon(Icons.edit),
-          onPressed: onEdit,
+          trailing: IconButton(
+            tooltip: 'Modifier',
+            icon: const Icon(Icons.edit),
+            onPressed: onEdit,
+          ),
         ),
       ),
     );
@@ -950,26 +945,29 @@ class _BlockedDateCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: AppTheme.spacingS),
-      child: ListTile(
-        leading: const Icon(Icons.block, color: AppColors.error),
-        title: Text(
-          // The SALON's day, not the raw instant's. A blocked date is stored
-          // as salon midnight in UTC, so on any salon east or west of
-          // Greenwich `formatDate` on the raw value names the wrong day — the
-          // client-side mirror of the `blocked_date` bug fixed in the same PR.
-          // Every other reader already converts: mock_appointment_service and
-          // mock_provider_service both compare through `toSalonTime`.
-          Formatters.formatDate(toSalonTime(date, tz: tz)),
-          style: AppTextStyles.bodyMedium.copyWith(
-            color: AppColors.textPrimary,
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppTheme.spacingS),
+      child: AppCard(
+        padding: EdgeInsets.zero,
+        child: ListTile(
+          leading: const Icon(Icons.block, color: AppColors.error),
+          title: Text(
+            // The SALON's day, not the raw instant's. A blocked date is stored
+            // as salon midnight in UTC, so on any salon east or west of
+            // Greenwich `formatDate` on the raw value names the wrong day — the
+            // client-side mirror of the `blocked_date` bug fixed in the same PR.
+            // Every other reader already converts: mock_appointment_service and
+            // mock_provider_service both compare through `toSalonTime`.
+            Formatters.formatDate(toSalonTime(date, tz: tz)),
+            style: AppTextStyles.bodyMedium.copyWith(
+              color: AppColors.textPrimary,
+            ),
           ),
-        ),
-        trailing: IconButton(
-          tooltip: 'Supprimer',
-          icon: const Icon(Icons.delete, color: AppColors.error),
-          onPressed: onRemove,
+          trailing: IconButton(
+            tooltip: 'Supprimer',
+            icon: const Icon(Icons.delete, color: AppColors.error),
+            onPressed: onRemove,
+          ),
         ),
       ),
     );
@@ -981,7 +979,7 @@ class _DayScheduleEditScreen extends StatefulWidget {
   final String dayName;
   final List<TimeSlot> initialSlots;
   final ProAvailabilityProvider provider;
-  final String providerId;
+  final SalonId providerId;
 
   const _DayScheduleEditScreen({
     required this.dayIndex,
@@ -1051,12 +1049,7 @@ class _DayScheduleEditScreenState extends State<_DayScheduleEditScreen> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 if (_slots.isEmpty)
-                  Container(
-                    padding: const EdgeInsets.all(AppTheme.spacingL),
-                    decoration: BoxDecoration(
-                      color: AppColors.secondary,
-                      borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
-                    ),
+                  AppCard(
                     child: Column(
                       children: [
                         const Icon(
@@ -1334,38 +1327,41 @@ class _TimeSlotCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: AppTheme.spacingS),
-      child: ListTile(
-        leading: CircleAvatar(
-          backgroundColor: slot.isAvailable
-              ? AppColors.primary.withValues(alpha: 0.2)
-              : AppColors.error.withValues(alpha: 0.2),
-          child: Icon(
-            slot.isAvailable ? Icons.check : Icons.close,
-            color: slot.isAvailable ? AppColors.primary : AppColors.error,
-          ),
-        ),
-        title: Text(
-          '${Formatters.formatTime(slot.startTime)} - ${Formatters.formatTime(slot.endTime)}',
-          style: AppTextStyles.titleMedium.copyWith(
-            color: AppColors.textPrimary,
-          ),
-        ),
-        trailing: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            IconButton(
-              tooltip: 'Modifier',
-              icon: const Icon(Icons.edit),
-              onPressed: onEdit,
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppTheme.spacingS),
+      child: AppCard(
+        padding: EdgeInsets.zero,
+        child: ListTile(
+          leading: CircleAvatar(
+            backgroundColor: slot.isAvailable
+                ? AppColors.primary.withValues(alpha: 0.2)
+                : AppColors.error.withValues(alpha: 0.2),
+            child: Icon(
+              slot.isAvailable ? Icons.check : Icons.close,
+              color: slot.isAvailable ? AppColors.primary : AppColors.error,
             ),
-            IconButton(
-              tooltip: 'Supprimer',
-              icon: const Icon(Icons.delete, color: AppColors.error),
-              onPressed: onRemove,
+          ),
+          title: Text(
+            '${Formatters.formatTime(slot.startTime)} - ${Formatters.formatTime(slot.endTime)}',
+            style: AppTextStyles.titleMedium.copyWith(
+              color: AppColors.textPrimary,
             ),
-          ],
+          ),
+          trailing: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              IconButton(
+                tooltip: 'Modifier',
+                icon: const Icon(Icons.edit),
+                onPressed: onEdit,
+              ),
+              IconButton(
+                tooltip: 'Supprimer',
+                icon: const Icon(Icons.delete, color: AppColors.error),
+                onPressed: onRemove,
+              ),
+            ],
+          ),
         ),
       ),
     );

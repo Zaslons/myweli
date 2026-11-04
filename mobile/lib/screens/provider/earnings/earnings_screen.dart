@@ -1,15 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:myweli/widgets/common/empty_state.dart';
-import 'package:myweli/widgets/common/loading_indicator.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/colors.dart';
 import '../../../core/theme/text_styles.dart';
 import '../../../core/utils/formatters.dart';
+import '../../../core/utils/salon_id.dart';
 import '../../../core/utils/salon_time.dart';
+import '../../../core/utils/text_fit.dart';
 import '../../../providers/pro_auth_provider.dart';
 import '../../../providers/pro_earnings_provider.dart';
+import '../../../services/interfaces/pro_service_interface.dart';
+import '../../../widgets/common/app_async_view.dart';
+import '../../../widgets/common/app_card.dart';
+import '../../../widgets/common/app_skeleton.dart';
 
 class EarningsScreen extends StatefulWidget {
   const EarningsScreen({super.key});
@@ -96,7 +101,7 @@ class _EarningsScreenState extends State<EarningsScreen>
     }
 
     earningsProvider.loadEarnings(
-      authProvider.activeSalonId ?? '',
+      authProvider.activeSalonId ?? SalonId.none,
       startDate: startDate,
       endDate: endDate,
     );
@@ -149,126 +154,157 @@ class _EarningsScreenState extends State<EarningsScreen>
             return const Center(child: Text('Veuillez vous connecter'));
           }
 
-          if (earningsProvider.isLoading) {
-            return const Center(child: LoadingIndicator());
-          }
-
-          final earnings = earningsProvider.earnings;
-          if (earnings == null) {
-            return Center(
-              child: Text(
-                earningsProvider.error ?? 'Aucune donnée disponible',
-                style: AppTextStyles.bodyLarge.copyWith(
-                  color: AppColors.textSecondary,
-                ),
-              ),
-            );
-          }
-
-          return Column(
-            children: [
-              // §12/§6 (§21 row 40, second defect): this was a bare
-              // `Container(color: secondary)` — no radius, no elevation, no
-              // margin — so the app's headline number read as an unstyled band
-              // welded to the tab bar. It is a surface; it gets surface tokens.
-              Container(
-                margin: const EdgeInsets.all(AppTheme.spacingM),
-                padding: const EdgeInsets.all(AppTheme.spacingL),
-                decoration: BoxDecoration(
-                  color: AppColors.secondary,
-                  borderRadius: BorderRadius.circular(AppTheme.radiusXL),
-                  boxShadow: AppTheme.elevation1,
-                ),
-                // The label says what the total counts — completed bookings
-                // only, where the Accueil's « Revenus prévus » cards also
-                // count confirmed ones (provider-earnings.md §12). Label,
-                // figure, then what it counts: the Accueil card's shape.
-                // Never « encaissé »: MyWeli does not see a payment.
-                child: Column(
-                  children: [
-                    Text(
-                      'Total réalisé',
-                      style: AppTextStyles.bodyMedium.copyWith(
-                        color: AppColors.textSecondary,
-                      ),
-                    ),
-                    const SizedBox(height: AppTheme.spacingS),
-                    Text(
-                      Formatters.formatCurrency(
-                        earnings.totalEarnings,
-                        currency:
-                            earnings.currency ?? authProvider.salonCurrency,
-                      ),
-                      style: AppTextStyles.headlineLarge.copyWith(
-                        color: AppColors.primary,
-                      ),
-                    ),
-                    Text(
-                      'Rendez-vous terminés',
-                      textAlign: TextAlign.center,
-                      style: AppTextStyles.bodySmall.copyWith(
-                        color: AppColors.textTertiary,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Expanded(
-                child: earnings.transactions.isEmpty
-                    // §12 (§21 row 40, third defect): a bare `Center(Text(…))`
-                    // met the four-states contract in name only — no icon, no
-                    // title, no explanation. It matters more now than it did:
-                    // fixing the first-load bug above makes « Aujourd'hui » the
-                    // FIRST thing most salons see, because most salons have no
-                    // takings yet at the moment they open the screen.
-                    ? const EmptyState(
-                        icon: Icons.receipt_long_outlined,
-                        title: 'Aucune transaction',
-                        // Was « Les paiements encaissés … » — a payment
-                        // MyWeli never sees, under a total that counts
-                        // completed bookings.
-                        description:
-                            'Les rendez-vous terminés sur cette période '
-                            'apparaîtront ici.',
-                      )
-                    : ListView.builder(
-                        padding: const EdgeInsets.all(AppTheme.spacingM),
-                        itemCount: earnings.transactions.length,
-                        itemBuilder: (context, index) {
-                          final transaction = earnings.transactions[index];
-                          return Card(
-                            margin: const EdgeInsets.only(
-                              bottom: AppTheme.spacingM,
-                            ),
-                            child: ListTile(
-                              title: Text(
-                                Formatters.formatDateTime(
-                                  toSalonTime(
-                                    transaction.date,
-                                    tz: authProvider.salonTimezone,
-                                  ),
-                                ),
-                              ),
-                              trailing: Text(
-                                Formatters.formatCurrency(
-                                  transaction.amount,
-                                  currency:
-                                      earnings.currency ??
-                                      authProvider.salonCurrency,
-                                ),
-                                style: AppTextStyles.titleMedium.copyWith(
-                                  color: AppColors.primary,
-                                ),
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-              ),
-            ],
+          // A bare grey sentence, before: the failure's text, or « Aucune
+          // donnée disponible » for a read not yet made (B9.8).
+          return AppAsyncView<EarningsData>(
+            isLoading: earningsProvider.isLoading,
+            error: earningsProvider.loadError,
+            // Not kept through a reload: the reload is another period's, and
+            // the totals on screen would be the last tab's under this one.
+            data: earningsProvider.isLoading ? null : earningsProvider.earnings,
+            isEmpty: (_) => false,
+            loading: const SkeletonDetail(sections: 2),
+            empty: const SizedBox.shrink(),
+            onRetry: () => _loadEarningsForTab(_tabController.index),
+            builder: (context, earnings) => _earnings(authProvider, earnings),
           );
         },
       ),
+    );
+  }
+
+  Widget _earnings(ProAuthProvider authProvider, EarningsData earnings) {
+    return Column(
+      children: [
+        // §12/§6 (§21 row 40, second defect): this was a bare
+        // `Container(color: secondary)` — no radius, no elevation, no
+        // margin — so the app's headline number read as an unstyled band
+        // welded to the tab bar. It is a surface; it gets surface tokens.
+        Padding(
+          padding: const EdgeInsets.all(AppTheme.spacingM),
+          child: AppCard(
+            // The label says what the total counts — completed bookings
+            // only, where the Accueil's « Revenus prévus » cards also
+            // count confirmed ones (provider-earnings.md §12). Label,
+            // figure, then what it counts: the Accueil card's shape.
+            // Never « encaissé »: MyWeli does not see a payment.
+            child: Column(
+              children: [
+                Text(
+                  'Total réalisé',
+                  style: AppTextStyles.bodyMedium.copyWith(
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+                const SizedBox(height: AppTheme.spacingS),
+                EarningsTotal(
+                  Formatters.formatCurrency(
+                    earnings.totalEarnings,
+                    currency: earnings.currency ?? authProvider.salonCurrency,
+                  ),
+                ),
+                Text(
+                  'Rendez-vous terminés',
+                  textAlign: TextAlign.center,
+                  style: AppTextStyles.bodySmall.copyWith(
+                    color: AppColors.textTertiary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        Expanded(
+          child: earnings.transactions.isEmpty
+              // §12 (§21 row 40, third defect): a bare `Center(Text(…))`
+              // met the four-states contract in name only — no icon, no
+              // title, no explanation. It matters more now than it did:
+              // fixing the first-load bug above makes « Aujourd'hui » the
+              // FIRST thing most salons see, because most salons have no
+              // takings yet at the moment they open the screen.
+              ? const EmptyState(
+                  icon: Icons.receipt_long_outlined,
+                  title: 'Aucune transaction',
+                  // Was « Les paiements encaissés … » — a payment
+                  // MyWeli never sees, under a total that counts
+                  // completed bookings.
+                  description:
+                      'Les rendez-vous terminés sur cette période '
+                      'apparaîtront ici.',
+                )
+              : ListView.builder(
+                  padding: const EdgeInsets.all(AppTheme.spacingM),
+                  itemCount: earnings.transactions.length,
+                  itemBuilder: (context, index) {
+                    final transaction = earnings.transactions[index];
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: AppTheme.spacingM),
+                      child: AppCard(
+                        padding: EdgeInsets.zero,
+                        child: ListTile(
+                          title: Text(
+                            Formatters.formatDateTime(
+                              toSalonTime(
+                                transaction.date,
+                                tz: authProvider.salonTimezone,
+                              ),
+                            ),
+                          ),
+                          trailing: Text(
+                            Formatters.formatCurrency(
+                              transaction.amount,
+                              currency:
+                                  earnings.currency ??
+                                  authProvider.salonCurrency,
+                            ),
+                            style: AppTextStyles.titleMedium.copyWith(
+                              color: AppColors.primary,
+                            ),
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+        ),
+      ],
+    );
+  }
+}
+
+/// The headline figure, at the largest headline size in which every part of
+/// it stays whole (B7.10 — docs/design/pro-app-batch7.md §10, SYSTEM §21 row
+/// 96). At 200 % on 360 dp a seven-digit total broke inside the number in
+/// `headlineLarge`, and a lone full-width figure has no column to give up:
+/// it steps down — Large, Medium, Small — and is still scaled by the user's
+/// text setting. At the default size nothing changes. The owner's decision
+/// (2026-10-22), an exception to amounts-that-fit's « nothing shrinks ».
+class EarningsTotal extends StatelessWidget {
+  const EarningsTotal(this.figure, {super.key});
+
+  final String figure;
+
+  static const List<TextStyle> _sizes = [
+    AppTextStyles.headlineLarge,
+    AppTextStyles.headlineMedium,
+    AppTextStyles.headlineSmall,
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, box) {
+        final fit = TextFit.of(context);
+        final size = _sizes.firstWhere(
+          (style) => fit.holds(box.maxWidth, [(text: figure, style: style)]),
+          orElse: () => _sizes.last,
+        );
+        return Text(
+          figure,
+          textAlign: TextAlign.center,
+          style: size.copyWith(color: AppColors.primary),
+        );
+      },
     );
   }
 }

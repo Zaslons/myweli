@@ -196,6 +196,107 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/internal/cron/subscriptions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * The daily offers walk — trial warnings, grace notice, enforcement (internal)
+         * @description Hit by Cloud Scheduler (`myweli-subscriptions`, daily 03:00 UTC). The same door as the reminders cron: the Google-signed OIDC token only; 404 when the OIDC pair is unconfigured, 403 otherwise. Idempotent per tick. The trial warnings (J-14/J-7/J-1), the grace notice and — only with `SUBSCRIPTION_ENFORCEMENT` on — the past-grace unpublish. Nothing else since docs/design/infra-cron-maintenance.md: the housekeeping that rode here is `/internal/cron/maintenance`.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: {
+                    Authorization?: string;
+                };
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description What the walk did this tick */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            notices: number;
+                            unpublished: number;
+                        };
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/internal/cron/maintenance": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * The daily housekeeping — security prunes, kept answers, demo reset (internal)
+         * @description Hit by Cloud Scheduler (`myweli-maintenance`, daily 03:30 UTC). The same door as the other crons: the Google-signed OIDC token only; 404 when the OIDC pair is unconfigured, 403 otherwise. Idempotent per tick: every prune is, and the demo reset is due-gated (every 7 days). A prune that failed is `null` in the answer (and one `*_prune_failed` log line), never a guess; a demo reset that fails is a 500. Design: docs/design/infra-cron-maintenance.md.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: {
+                    Authorization?: string;
+                };
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Each task's outcome this tick */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @description admin_login_throttle rows older than 24 h */
+                            throttleRowsPruned: number | null;
+                            /** @description identity_rate_limits windows past kRateLimitRetention (1 day) */
+                            rateLimitWindowsPruned: number | null;
+                            /** @description idempotency_keys rows older than 24 h */
+                            idempotencyKeysPruned: number | null;
+                            /**
+                             * @description What the demo-salon reset did this tick, and why when it did not run. `refused:not_demo_owned` is the demo identity LOST — the salon's owner row is no longer it; an alert watches the matching log line (`infra/gcp/84-demo-reset-alert.sh`). It was a boolean that said `false` for both « not the day » and « refused » (docs/design/backend-integrity-batch6.md §2.9, B6.9).
+                             * @enum {string}
+                             */
+                            demoReset: "ran" | "not_due" | "no_snapshot" | "refused:not_demo_owned";
+                        };
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/auth/otp/verify": {
         parameters: {
             query?: never;
@@ -326,6 +427,10 @@ export interface paths {
                         nonce?: string;
                         /** @description First-auth display-name hint. */
                         fullName?: string;
+                        /** @description Optional (B6.7). Apple's one-time authorization code from the same sign-in. After a SUCCESSFUL sign-in the server exchanges it for a refresh token, kept to revoke the authorization when the account is deleted (App Store 5.1.1(v)) — only if Apple's answer names the same `sub`. Never a reason for the sign-in to fail: unusable → ignored; a wrong JSON type → 400 `invalid_body` like every field. Inactive (ignored) while no Apple key is configured. */
+                        authorizationCode?: string;
+                        /** @description Optional — sent by the web's BFF only, never the browser: the redirect URI of the authorization, which Apple requires to exchange a web code. Must be https; else ignored. */
+                        redirectUri?: string;
                     };
                 };
             };
@@ -829,7 +934,10 @@ export interface paths {
                     /** @description R6 multi-salons: select the acting salon among the caller's ACTIVE memberships. Absent → the caller's default salon (legacy behavior). Any invalid selection (never-member, revoked-there, unknown id) is a uniform 403 `forbidden` — no membership-existence oracle (threat T55) — and never auto-provisions. */
                     salonId?: components["parameters"]["SalonSelector"];
                 };
-                header?: never;
+                header?: {
+                    /** @description One key per form submission (a UUID), reused on every retry of that same submission: a write whose answer was lost is asked again with it, and the server REPLAYS its first success (same status, same body, `Idempotent-Replayed: true`) instead of writing again — no second booking, note or invitation, no 409 on the caller's own booking. Scoped to the caller's account and this exact route (path ids and query); kept 24 h. Absent → the write behaves as without keys. A malformed key → 400 `invalid_idempotency_key`; the same request still running → 409 `request_in_progress` (wait, ask again with the same key); the key used for ANOTHER body → 422 `idempotency_key_reused`. A refused write (any non-2xx) frees the key. Only the four creating POSTs take it. Design: docs/design/write-idempotency.md. */
+                    "Idempotency-Key"?: components["parameters"]["IdempotencyKey"];
+                };
                 path?: never;
                 cookie?: never;
             };
@@ -849,6 +957,7 @@ export interface paths {
                 /** @description Invitation created, or a revoked/expired row invited again (the pending member row) */
                 201: {
                     headers: {
+                        "Idempotent-Replayed": components["headers"]["IdempotentReplayed"];
                         [name: string]: unknown;
                     };
                     content: {
@@ -858,7 +967,16 @@ export interface paths {
                 400: components["responses"]["BadRequest"];
                 401: components["responses"]["Unauthorized"];
                 403: components["responses"]["Forbidden"];
-                409: components["responses"]["Conflict"];
+                /** @description `member_exists`, `offer_required`, `seat_limit` (above), or `request_in_progress` — the same `Idempotency-Key` is still being answered: ask again with it. A replayed invitation is never `member_exists`. */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                422: components["responses"]["IdempotencyKeyReused"];
                 429: components["responses"]["RateLimited"];
             };
         };
@@ -920,6 +1038,15 @@ export interface paths {
                 401: components["responses"]["Unauthorized"];
                 403: components["responses"]["Forbidden"];
                 404: components["responses"]["NotFound"];
+                /** @description `member_revoked` — the member was revoked: a former member's role is not changed, a re-invitation states its own (docs/design/backend-integrity-batch6.md §2.8, B6.8c). */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
             };
         };
         trace?: never;
@@ -1321,7 +1448,7 @@ export interface paths {
                     };
                     content: {
                         "application/json": {
-                            items?: components["schemas"]["Notification"][];
+                            items: components["schemas"]["Notification"][];
                         };
                     };
                 };
@@ -1745,51 +1872,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/auth/provider/otp/request": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Request a login code for an existing provider (B-prov) */
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody: {
-                content: {
-                    "application/json": components["schemas"]["OtpRequest"];
-                };
-            };
-            responses: {
-                /** @description Code dispatched (dev builds return it inline) */
-                202: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": {
-                            expiresInSeconds?: number;
-                            /** @description dev only */
-                            devCode?: string;
-                        };
-                    };
-                };
-                429: components["responses"]["RateLimited"];
-            };
-        };
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/auth/provider/register": {
         parameters: {
             query?: never;
@@ -1826,6 +1908,10 @@ export interface paths {
                         /** @description Apple identity token. */
                         identityToken?: string;
                         nonce?: string;
+                        /** @description Optional (B6.7). Apple's one-time authorization code from the same sign-in (with `identityToken`). After a SUCCESSFUL sign-in the server exchanges it for a refresh token, kept to revoke the authorization when the account is deleted (App Store 5.1.1(v)) — only if Apple's answer names the same `sub`. Never a reason for the sign-in to fail: unusable → ignored; a wrong JSON type → 400 `invalid_body` like every field. Inactive (ignored) while no Apple key is configured. */
+                        authorizationCode?: string;
+                        /** @description Optional — sent by the web's BFF only, never the browser: the redirect URI of the authorization, which Apple requires to exchange a web code. Must be https; else ignored. */
+                        redirectUri?: string;
                         /** Format: email */
                         email?: string;
                         /** @description Email OTP (identity proof with `email`). */
@@ -1952,6 +2038,10 @@ export interface paths {
                     "application/json": {
                         identityToken: string;
                         nonce?: string;
+                        /** @description Optional (B6.7). Apple's one-time authorization code from the same sign-in. After a SUCCESSFUL sign-in the server exchanges it for a refresh token, kept to revoke the authorization when the account is deleted (App Store 5.1.1(v)) — only if Apple's answer names the same `sub`. Never a reason for the sign-in to fail: unusable → ignored; a wrong JSON type → 400 `invalid_body` like every field. Inactive (ignored) while no Apple key is configured. */
+                        authorizationCode?: string;
+                        /** @description Optional — sent by the web's BFF only, never the browser: the redirect URI of the authorization, which Apple requires to exchange a web code. Must be https; else ignored. */
+                        redirectUri?: string;
                     };
                 };
             };
@@ -2213,68 +2303,6 @@ export interface paths {
                 400: components["responses"]["BadRequest"];
                 401: components["responses"]["Unauthorized"];
                 403: components["responses"]["Forbidden"];
-                404: components["responses"]["NotFound"];
-                429: components["responses"]["RateLimited"];
-            };
-        };
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/auth/provider/otp/verify": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Verify a provider code; returns the account + a token pair (B-prov) */
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody: {
-                content: {
-                    "application/json": components["schemas"]["OtpVerify"];
-                };
-            };
-            responses: {
-                /** @description Verified */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": {
-                            provider: components["schemas"]["ProviderUser"];
-                            /** @description Signed JWT, role `provider`. */
-                            accessToken: string;
-                            /** @description Rotating opaque refresh token (hashed at rest); exchange at POST /auth/provider/refresh. */
-                            refreshToken: string;
-                            /**
-                             * Format: date-time
-                             * @description Access-token expiry.
-                             */
-                            expiresAt: string;
-                        };
-                    };
-                };
-                /** @description `invalid_phone` — `phoneNumber` missing or not a valid number. `invalid_input` — `code` missing or not a 6-digit code (the two used to share `invalid_input` — docs/design/phone-leftovers.md §2). `invalid_body` — not a JSON object, or a field of the wrong JSON type. `otp_*` — the code itself was refused. */
-                400: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
-                    };
-                };
                 404: components["responses"]["NotFound"];
                 429: components["responses"]["RateLimited"];
             };
@@ -2581,7 +2609,7 @@ export interface paths {
                     };
                     content: {
                         "application/json": {
-                            items?: {
+                            items: {
                                 slug?: string;
                             }[];
                         };
@@ -3299,7 +3327,7 @@ export interface paths {
         };
         /**
          * Replace a salon's deposit policy wholesale (B-deposit)
-         * @description Server-authoritative (booking derives each deposit from this). **Enabling deposits requires a KYC-VERIFIED account** (T52) → 403 `verification_required` otherwise. Validated: `depositPercentage` 0..1 (and > 0 when required); `cancellationWindowHours` 0..720; `mobileMoneyOperator` in the enum; `mobileMoneyNumber` E.164 (a +225 number has exactly 10 digits after the code; checked whenever present, deposits on or off) — a bad one is 400 `invalid_phone`, its own code so a client can put the fault under that field (docs/design/phone-leftovers.md §2). **When `depositRequired` is true, the Mobile Money operator + number are required** (400 `invalid_input` when either is absent). Every other fault: 400 `invalid_input`. **The policy is replaced whole**: every field is overwritten by what is sent (the operator and number trimmed, the hours as an integer), and a nullable field (`mobileMoneyOperator`, `mobileMoneyNumber`) left out or sent as null is erased. A client that hides the operator or the percentage while deposits are off must still send them as held — a null operator or a 0 percentage erases them — and the appointment read serves the salon's CURRENT operator to a client still owing a deposit. A new salon starts at `depositPercentage` 0, which clients read as not chosen yet and answer by proposing 30% (docs/design/acompte-off-parity.md).
+         * @description Server-authoritative (booking derives each deposit from this). **Enabling deposits requires a KYC-VERIFIED account** (T52) → 403 `verification_required` otherwise. Validated: `depositPercentage` 0..1; **a required deposit is 0.05–0.80 when the percentage changes** — a value stored before the range is kept while it is sent back unchanged — else 400 `invalid_percentage` (one range for app, web and server, decision 19 — docs/design/backend-integrity-batch6.md §2.5); `cancellationWindowHours` 0..720; `mobileMoneyOperator`: with a required deposit, one of the salon country's catalog, else 400 `operator_unavailable` (it may have been removed from the catalog); with deposits off it is not judged, and **one outside the catalog is not kept** (stored null — T57); `mobileMoneyNumber` E.164 (a +225 number has exactly 10 digits after the code; checked whenever present, deposits on or off) — a bad one is 400 `invalid_phone`, its own code so a client can put the fault under that field (docs/design/phone-leftovers.md §2). **When `depositRequired` is true, the Mobile Money operator + number are required** (400 `invalid_input` when either is absent). Every other fault: 400 `invalid_input`. **The policy is replaced whole**: every field is overwritten by what is sent (the operator and number trimmed, the hours as an integer), and a nullable field (`mobileMoneyOperator`, `mobileMoneyNumber`) left out or sent as null is erased. A client that hides the operator or the percentage while deposits are off must still send them as held — a null operator or a 0 percentage erases them — and the appointment read serves the salon's CURRENT operator to a client still owing a deposit. A new salon starts at `depositPercentage` 0, which clients read as not chosen yet and answer by proposing 30% (docs/design/acompte-off-parity.md).
          */
         put: {
             parameters: {
@@ -3325,7 +3353,15 @@ export interface paths {
                         "application/json": components["schemas"]["DepositPolicy"];
                     };
                 };
-                400: components["responses"]["BadRequest"];
+                /** @description `invalid_percentage` (under the slider) · `operator_unavailable` (under the operator) · `invalid_phone` (under the number) · `invalid_input` (every other fault) · `invalid_body`. */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
                 401: components["responses"]["Unauthorized"];
                 403: components["responses"]["Forbidden"];
                 404: components["responses"]["NotFound"];
@@ -3556,7 +3592,10 @@ export interface paths {
         post: {
             parameters: {
                 query?: never;
-                header?: never;
+                header?: {
+                    /** @description One key per form submission (a UUID), reused on every retry of that same submission: a write whose answer was lost is asked again with it, and the server REPLAYS its first success (same status, same body, `Idempotent-Replayed: true`) instead of writing again — no second booking, note or invitation, no 409 on the caller's own booking. Scoped to the caller's account and this exact route (path ids and query); kept 24 h. Absent → the write behaves as without keys. A malformed key → 400 `invalid_idempotency_key`; the same request still running → 409 `request_in_progress` (wait, ask again with the same key); the key used for ANOTHER body → 422 `idempotency_key_reused`. A refused write (any non-2xx) frees the key. Only the four creating POSTs take it. Design: docs/design/write-idempotency.md. */
+                    "Idempotency-Key"?: components["parameters"]["IdempotencyKey"];
+                };
                 path: {
                     id: string;
                 };
@@ -3581,6 +3620,7 @@ export interface paths {
                 /** @description The created (confirmed) appointment */
                 201: {
                     headers: {
+                        "Idempotent-Replayed": components["headers"]["IdempotentReplayed"];
                         [name: string]: unknown;
                     };
                     content: {
@@ -3591,7 +3631,7 @@ export interface paths {
                 401: components["responses"]["Unauthorized"];
                 403: components["responses"]["Forbidden"];
                 404: components["responses"]["NotFound"];
-                /** @description `slot_unavailable` — the exact start is already booked. `provider_suspended` — the salon was stopped. A salon that has merely not published yet is NOT refused here: it owns its own calendar (row 82), which is also why this route never returns `beyond_horizon` or `too_soon` — the salon is exempt from its own booking window (A14d). */
+                /** @description `slot_unavailable` — the exact start is already booked. `provider_suspended` — the salon was stopped. `request_in_progress` — the same `Idempotency-Key` is still being answered: ask again with it. A salon that has merely not published yet is NOT refused here: it owns its own calendar (row 82), which is also why this route never returns `beyond_horizon` or `too_soon` — the salon is exempt from its own booking window (A14d). */
                 409: {
                     headers: {
                         [name: string]: unknown;
@@ -3600,6 +3640,7 @@ export interface paths {
                         "application/json": components["schemas"]["Error"];
                     };
                 };
+                422: components["responses"]["IdempotencyKeyReused"];
             };
         };
         delete?: never;
@@ -3924,7 +3965,10 @@ export interface paths {
         post: {
             parameters: {
                 query?: never;
-                header?: never;
+                header?: {
+                    /** @description One key per form submission (a UUID), reused on every retry of that same submission: a write whose answer was lost is asked again with it, and the server REPLAYS its first success (same status, same body, `Idempotent-Replayed: true`) instead of writing again — no second booking, note or invitation, no 409 on the caller's own booking. Scoped to the caller's account and this exact route (path ids and query); kept 24 h. Absent → the write behaves as without keys. A malformed key → 400 `invalid_idempotency_key`; the same request still running → 409 `request_in_progress` (wait, ask again with the same key); the key used for ANOTHER body → 422 `idempotency_key_reused`. A refused write (any non-2xx) frees the key. Only the four creating POSTs take it. Design: docs/design/write-idempotency.md. */
+                    "Idempotency-Key"?: components["parameters"]["IdempotencyKey"];
+                };
                 path: {
                     id: string;
                     clientId: string;
@@ -3942,6 +3986,7 @@ export interface paths {
                 /** @description Created */
                 201: {
                     headers: {
+                        "Idempotent-Replayed": components["headers"]["IdempotentReplayed"];
                         [name: string]: unknown;
                     };
                     content: {
@@ -3952,6 +3997,16 @@ export interface paths {
                 401: components["responses"]["Unauthorized"];
                 403: components["responses"]["Forbidden"];
                 404: components["responses"]["NotFound"];
+                /** @description `request_in_progress` — the same `Idempotency-Key` is still being answered: ask again with it. */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                422: components["responses"]["IdempotencyKeyReused"];
             };
         };
         delete?: never;
@@ -4156,7 +4211,10 @@ export interface paths {
         post: {
             parameters: {
                 query?: never;
-                header?: never;
+                header?: {
+                    /** @description One key per form submission (a UUID), reused on every retry of that same submission: a write whose answer was lost is asked again with it, and the server REPLAYS its first success (same status, same body, `Idempotent-Replayed: true`) instead of writing again — no second booking, note or invitation, no 409 on the caller's own booking. Scoped to the caller's account and this exact route (path ids and query); kept 24 h. Absent → the write behaves as without keys. A malformed key → 400 `invalid_idempotency_key`; the same request still running → 409 `request_in_progress` (wait, ask again with the same key); the key used for ANOTHER body → 422 `idempotency_key_reused`. A refused write (any non-2xx) frees the key. Only the four creating POSTs take it. Design: docs/design/write-idempotency.md. */
+                    "Idempotency-Key"?: components["parameters"]["IdempotencyKey"];
+                };
                 path?: never;
                 cookie?: never;
             };
@@ -4178,6 +4236,7 @@ export interface paths {
                 /** @description The created (pending) appointment */
                 201: {
                     headers: {
+                        "Idempotent-Replayed": components["headers"]["IdempotentReplayed"];
                         [name: string]: unknown;
                     };
                     content: {
@@ -4194,8 +4253,17 @@ export interface paths {
                     };
                 };
                 401: components["responses"]["Unauthorized"];
+                /** @description `forbidden` — the token is not a client's (a salon's or an admin's): booking is a client's act, refused before the body is read (docs/design/backend-integrity-batch6.md §2.1, B6.1). */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
                 404: components["responses"]["NotFound"];
-                /** @description `slot_unavailable` — the requested time isn't a free slot (closed/past/break/already-booked/non-aligned). `beyond_horizon` — the date is further ahead than the salon's `bookingHorizonDays` (A14d). `too_soon` — the start is inside the salon's `minimumNoticeMinutes`. The last two are distinct from `slot_unavailable` on purpose: that code makes every client say some version of "someone else just took your slot", which is false for a window breach and leaves the user retrying a time that can never be offered. `provider_not_published` — the salon has never gone live, so it is absent from discovery and reachable only by a stale link or a favourite. `provider_suspended` — the salon was stopped. These two are split for the same reason as the pair above, and the split matters more here: a client cannot tell them apart for itself (the mobile `Provider` model has no `status` field), and the never-published case is the state EVERY salon starts in while the suspended one takes a deliberate admin act. */
+                /** @description `slot_unavailable` — the requested time isn't a free slot (closed/past/break/already-booked/non-aligned). `beyond_horizon` — the date is further ahead than the salon's `bookingHorizonDays` (A14d). `too_soon` — the start is inside the salon's `minimumNoticeMinutes`. The last two are distinct from `slot_unavailable` on purpose: that code makes every client say some version of "someone else just took your slot", which is false for a window breach and leaves the user retrying a time that can never be offered. `provider_not_published` — the salon has never gone live, so it is absent from discovery and reachable only by a stale link or a favourite. `provider_suspended` — the salon was stopped. These two are split for the same reason as the pair above, and the split matters more here: a client cannot tell them apart for itself (the mobile `Provider` model has no `status` field), and the never-published case is the state EVERY salon starts in while the suspended one takes a deliberate admin act. `request_in_progress` — the same `Idempotency-Key` is still being answered: ask again with it. */
                 409: {
                     headers: {
                         [name: string]: unknown;
@@ -4204,6 +4272,7 @@ export interface paths {
                         "application/json": components["schemas"]["Error"];
                     };
                 };
+                422: components["responses"]["IdempotencyKeyReused"];
                 429: components["responses"]["RateLimited"];
             };
         };
@@ -5245,6 +5314,77 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/me/provider/reviews/{id}/report": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * The salon reports a review of its own salon (B6.6)
+         * @description The same moderation queue as a client's report, marked « Signalé par le salon » (`reportedBySalon` on `GET /admin/reviews/reports`) — App Store 1.2 asks for a way to report user content, and the Pro « Avis » had none. The salon is resolved like `GET /me/provider/reviews` (the account's, or `?salonId=` against an ACTIVE membership); **only the Propriétaire and the Gérant** may report (`profile.manage`, decision 20). A review of another salon is 404. Idempotent per (review, salon). `reason` is optional (docs/design/backend-integrity-batch6.md §2.6).
+         */
+        post: {
+            parameters: {
+                query?: {
+                    salonId?: string;
+                };
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": {
+                        reason?: string;
+                    };
+                };
+            };
+            responses: {
+                /** @description Reported (idempotent) */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {string} */
+                            status?: "reported";
+                        };
+                    };
+                };
+                400: components["responses"]["BadRequest"];
+                401: components["responses"]["Unauthorized"];
+                /** @description `forbidden` — not a salon token, not a member of the salon, or a member without `profile.manage` (Réception, Collaborateur). */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                404: components["responses"]["NotFound"];
+                /** @description Method not allowed */
+                405: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/admin/reviews/reports": {
         parameters: {
             query?: never;
@@ -5283,6 +5423,8 @@ export interface paths {
                                 lastReason?: string;
                                 /** Format: date-time */
                                 lastReportedAt?: string;
+                                /** @description One of the open reports is the salon's own (B6.6) — the console shows « Signalé par le salon ». */
+                                reportedBySalon?: boolean;
                             }[];
                             page?: number;
                             pageSize?: number;
@@ -7216,13 +7358,27 @@ export interface components {
                 "application/json": components["schemas"]["Error"];
             };
         };
+        /** @description `idempotency_key_reused` — this `Idempotency-Key` was sent before with another body. A client bug, never a retry: a new submission takes a new key. */
+        IdempotencyKeyReused: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["Error"];
+            };
+        };
     };
     parameters: {
+        /** @description One key per form submission (a UUID), reused on every retry of that same submission: a write whose answer was lost is asked again with it, and the server REPLAYS its first success (same status, same body, `Idempotent-Replayed: true`) instead of writing again — no second booking, note or invitation, no 409 on the caller's own booking. Scoped to the caller's account and this exact route (path ids and query); kept 24 h. Absent → the write behaves as without keys. A malformed key → 400 `invalid_idempotency_key`; the same request still running → 409 `request_in_progress` (wait, ask again with the same key); the key used for ANOTHER body → 422 `idempotency_key_reused`. A refused write (any non-2xx) frees the key. Only the four creating POSTs take it. Design: docs/design/write-idempotency.md. */
+        IdempotencyKey: string;
         /** @description R6 multi-salons: select the acting salon among the caller's ACTIVE memberships. Absent → the caller's default salon (legacy behavior). Any invalid selection (never-member, revoked-there, unknown id) is a uniform 403 `forbidden` — no membership-existence oracle (threat T55) — and never auto-provisions. */
         SalonSelector: string;
     };
     requestBodies: never;
-    headers: never;
+    headers: {
+        /** @description `true` when this answer is the replay of an earlier success for the same `Idempotency-Key` — nothing was written again. */
+        IdempotentReplayed: "true";
+    };
     pathItems: never;
 }
 export type $defs = Record<string, never>;

@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:dart_frog/dart_frog.dart';
 import 'package:mocktail/mocktail.dart';
+import 'package:myweli_backend/src/auth/apple_tokens.dart';
 import 'package:myweli_backend/src/auth/auth_methods.dart';
 import 'package:myweli_backend/src/auth/auth_repository.dart';
 import 'package:myweli_backend/src/auth/id_token_verifier.dart';
@@ -16,6 +17,7 @@ import '../../routes/auth/email/otp/verify.dart' as email_verify;
 import '../../routes/auth/google.dart' as google_route;
 import '../../routes/auth/otp/request.dart' as phone_request;
 import '../http/observed.dart';
+import 'apple_token_fake.dart';
 
 class _MockRequestContext extends Mock implements RequestContext {}
 
@@ -37,6 +39,10 @@ class _FakeApple extends AppleIdTokenVerifier {
     seenNonce = nonce;
     return result;
   }
+
+  /// The verified token's audience — the client its code is exchanged with.
+  @override
+  String? audienceOf(String verifiedToken) => 'ci.myweli.app';
 }
 
 const IdTokenResult _okClaims = (
@@ -67,8 +73,10 @@ void main() {
   late GoogleIdTokenVerifier google;
   late AppleIdTokenVerifier apple;
   late EmailProvider email;
+  late RecordingAppleTokens appleTokens;
 
   setUp(() {
+    appleTokens = RecordingAppleTokens();
     repo = InMemoryAuthRepository(
       tokens: TokenService(secret: 'test-secret'),
       echoDevCode: true,
@@ -86,6 +94,7 @@ void main() {
     when(() => context.read<AuthMethods>()).thenReturn(methods);
     when(() => context.read<GoogleIdTokenVerifier>()).thenReturn(google);
     when(() => context.read<AppleIdTokenVerifier>()).thenReturn(apple);
+    when(() => context.read<AppleTokenService>()).thenReturn(appleTokens);
     when(() => context.read<EmailProvider>()).thenReturn(email);
     return context;
   }
@@ -156,6 +165,71 @@ void main() {
     expect((body['user'] as Map)['name'], 'Ama Koné');
   });
 
+  group('apple: the authorizationCode (B6.7 — kept to revoke at deletion)', () {
+    test('a code → exchanged for THIS user, with the token\'s audience and '
+        'its verified sub', () async {
+      final res = await apple_route.onRequest(
+        ctx(
+          post('/auth/apple', {
+            'identityToken': 'tok',
+            'nonce': 'n-1',
+            'authorizationCode': 'code-1',
+          }),
+        ),
+      );
+      expect(res.statusCode, HttpStatus.ok);
+      final userId = ((await jsonOf(res))['user'] as Map)['id'];
+      expect(appleTokens.kept, [
+        {
+          'kind': 'user',
+          'accountId': userId,
+          'clientId': 'ci.myweli.app',
+          'sub': 'sub-1',
+          'code': 'code-1',
+          'redirectUri': null,
+        },
+      ]);
+    });
+
+    test('the web BFF\'s redirectUri goes with it', () async {
+      await apple_route.onRequest(
+        ctx(
+          post('/auth/apple', {
+            'identityToken': 'tok',
+            'authorizationCode': 'code-1',
+            'redirectUri': 'https://myweli.com/connexion',
+          }),
+        ),
+      );
+      expect(
+        appleTokens.kept.single['redirectUri'],
+        'https://myweli.com/connexion',
+      );
+    });
+
+    test('no code → nothing exchanged, the sign-in as before', () async {
+      final res = await apple_route.onRequest(
+        ctx(post('/auth/apple', {'identityToken': 'tok'})),
+      );
+      expect(res.statusCode, HttpStatus.ok);
+      expect(appleTokens.kept, isEmpty);
+    });
+
+    test('a refused token → nothing exchanged', () async {
+      apple = _FakeApple(_rejected);
+      final res = await apple_route.onRequest(
+        ctx(
+          post('/auth/apple', {
+            'identityToken': 'tok',
+            'authorizationCode': 'code-1',
+          }),
+        ),
+      );
+      expect(res.statusCode, HttpStatus.unauthorized);
+      expect(appleTokens.kept, isEmpty);
+    });
+  });
+
   test('email otp: 202 + devCode → verify → 200 session', () async {
     final req = await email_request.onRequest(
       ctx(post('/auth/email/otp/request', {'email': 'ama@x.com'})),
@@ -213,6 +287,18 @@ void main() {
           'identityToken': 'tok',
           'fullName': const ['Awa'],
         },
+      ),
+      // B6.7 — read with the rest, before the sign-in: no session is made
+      // and then answered 400.
+      (
+        apple_route.onRequest,
+        '/auth/apple',
+        {'identityToken': 'tok', 'authorizationCode': 5},
+      ),
+      (
+        apple_route.onRequest,
+        '/auth/apple',
+        {'identityToken': 'tok', 'authorizationCode': 'c', 'redirectUri': true},
       ),
     ]) {
       final res = await observed(r.$1, ctx(post(r.$2, r.$3)));

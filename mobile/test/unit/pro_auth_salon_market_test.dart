@@ -1,7 +1,9 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:myweli/core/access/pro_salon_scope.dart';
 import 'package:myweli/core/di/dependency_injection.dart';
 import 'package:myweli/core/push/push_registration.dart';
 import 'package:myweli/core/router/pro_router.dart';
+import 'package:myweli/core/utils/salon_id.dart';
 import 'package:myweli/models/api_response.dart';
 import 'package:myweli/models/provider.dart';
 import 'package:myweli/models/salon_market.dart';
@@ -30,6 +32,13 @@ import '../support/rejoin.dart';
 const _owner = 'jean@salon-excellence.test';
 const _libreville = 'Africa/Libreville';
 
+/// Counts the per-salon resets a fallback owes (B7.14).
+class _ResetSpy implements SalonScoped {
+  int resets = 0;
+  @override
+  void resetForSalonSwitch() => resets++;
+}
+
 /// GET /me/provider, steerable: [script] answers the next calls in order, then
 /// the mock world answers again.
 class _Pro extends MockProService {
@@ -57,7 +66,7 @@ class _Pro extends MockProService {
   }
 
   @override
-  Future<ApiResponse<MyProviderInfo>> getMyProvider({String? salonId}) async {
+  Future<ApiResponse<MyProviderInfo>> getMyProvider({SalonId? salonId}) async {
     calls++;
     if (script.isNotEmpty) return script.removeAt(0);
     if (meFails) return serverError();
@@ -79,7 +88,7 @@ class _Auth extends MockAuthService {
   void Function()? onSelect;
 
   @override
-  Future<void> setSelectedProviderSalon(String? salonId) async {
+  Future<void> setSelectedProviderSalon(SalonId? salonId) async {
     onSelect?.call();
     return super.setSelectedProviderSalon(salonId);
   }
@@ -175,7 +184,10 @@ void main() {
     test('a refresh that lands replaces the cached facts', () async {
       await signIn();
       await auth.cacheProviderSalonMarket(
-        const SalonMarket(salonId: 'provider1', timezone: 'Africa/Lagos'),
+        const SalonMarket(
+          salonId: SalonId('provider1'),
+          timezone: 'Africa/Lagos',
+        ),
       );
 
       final restarted = await restart();
@@ -194,7 +206,7 @@ void main() {
       expect(
         await auth.getCachedProviderSalonMarket(),
         const SalonMarket(
-          salonId: 'provider1',
+          salonId: SalonId('provider1'),
           timezone: _libreville,
           currency: 'XAF',
           countryCode: 'GA',
@@ -202,7 +214,7 @@ void main() {
         ),
       );
 
-      expect(await p.switchSalon('provider2'), isTrue);
+      expect(await p.switchSalon(SalonId('provider2')), isTrue);
       final cached = await auth.getCachedProviderSalonMarket();
       expect(cached?.salonId, 'provider2');
       expect(cached?.timezone, isNot(_libreville));
@@ -215,7 +227,7 @@ void main() {
       bool? knownWhileSelecting;
       auth.onSelect = () => knownWhileSelecting = p.salonKnown;
 
-      expect(await p.switchSalon('provider2'), isTrue);
+      expect(await p.switchSalon(SalonId('provider2')), isTrue);
 
       expect(knownWhileSelecting, isTrue);
     });
@@ -238,7 +250,7 @@ void main() {
       );
 
       final p = await signIn();
-      expect(await p.switchSalon('provider2'), isTrue);
+      expect(await p.switchSalon(SalonId('provider2')), isTrue);
       expect(p.salonTimezone, _libreville);
       var notified = 0;
       p.addListener(() => notified++);
@@ -257,10 +269,57 @@ void main() {
       expect(notified, greaterThan(0), reason: 'the screen must learn it');
     });
 
+    // docs/design/pro-app-batch7.md §2.14 (B7.14) — a fallback to the
+    // default salon empties the per-salon stores, whatever the refetch
+    // answers: otherwise provider2's agenda, clients, journal and team show
+    // under provider1's name until each screen reloads. Not inside
+    // `_clearSalonSelection`: the rejoin gate calls it AFTER its awaits, and
+    // a reset there would empty the cards it just seeded (S9).
+    test('fallback mid-session whose refetch FAILS: the per-salon stores are '
+        'emptied all the same', () async {
+      final p = await signIn();
+      expect(await p.switchSalon(SalonId('provider2')), isTrue);
+      final spy = ProSalonScope.track(_ResetSpy());
+
+      pro.script.addAll([_Pro.forbidden(), _Pro.serverError()]);
+      await p.checkMembershipAlive();
+
+      expect(p.activeSalonId, 'provider1');
+      expect(spy.resets, 1);
+    });
+
+    test('a refresh that falls back (« Réessayer », a refresh): the per-salon '
+        'stores are emptied', () async {
+      final p = await signIn();
+      expect(await p.switchSalon(SalonId('provider2')), isTrue);
+      final spy = ProSalonScope.track(_ResetSpy());
+
+      // Revoked from provider2; the default salon then answers.
+      pro.script.add(_Pro.forbidden());
+      await p.refreshMembership();
+
+      expect(p.activeSalonId, 'provider1');
+      expect(spy.resets, 1);
+    });
+
+    test(
+      'CONTROL — a refresh that does not fall back resets nothing',
+      () async {
+        final p = await signIn();
+        expect(await p.switchSalon(SalonId('provider2')), isTrue);
+        final spy = ProSalonScope.track(_ResetSpy());
+
+        await p.refreshMembership();
+
+        expect(p.activeSalonId, 'provider2');
+        expect(spy.resets, 0);
+      },
+    );
+
     test('R6 fallback at cold start whose refetch fails: the cached facts '
         'are the lost selection\'s, so they do not answer', () async {
       final p = await signIn();
-      expect(await p.switchSalon('provider2'), isTrue);
+      expect(await p.switchSalon(SalonId('provider2')), isTrue);
       expect((await auth.getCachedProviderSalonMarket())?.salonId, 'provider2');
 
       pro.script.addAll([_Pro.forbidden(), _Pro.serverError()]);

@@ -1,4 +1,5 @@
 import '../../core/utils/app_clock.dart';
+import '../../core/utils/salon_id.dart';
 import '../../core/utils/salon_time.dart';
 import '../../models/appointment.dart';
 import '../../models/artist.dart';
@@ -43,7 +44,7 @@ class MockData {
       address: 'Cocody, Angré 7ème Tranche',
       verificationStatus: VerificationStatus.verified,
       createdAt: DateTime(2024, 1, 1),
-      providerId: 'provider1',
+      providerId: SalonId('provider1'),
     ),
     ProviderUser(
       id: 'provider_user2',
@@ -54,7 +55,7 @@ class MockData {
       address: 'Marcory, Zone 4',
       verificationStatus: VerificationStatus.verified,
       createdAt: DateTime(2024, 1, 15),
-      providerId: 'provider2',
+      providerId: SalonId('provider2'),
     ),
     // Team-member accounts (access R4b): BARE — no providerId (that field
     // means salon OWNERSHIP); their salon resolves via the roster rows.
@@ -119,13 +120,13 @@ class MockData {
   }
 
   // Sample Artists
-  static List<Artist> getArtistsForProvider(String providerId) {
+  static List<Artist> getArtistsForProvider(SalonId providerId) {
     if (providerId == 'provider1') {
       return [
         const Artist(
           id: 'artist1',
           name: 'Kouassi Jean',
-          providerId: 'provider1',
+          providerId: SalonId('provider1'),
           specialization: 'Barbier',
           rating: 4.8,
           reviewCount: 45,
@@ -133,7 +134,7 @@ class MockData {
         const Artist(
           id: 'artist2',
           name: 'Diallo Amadou',
-          providerId: 'provider1',
+          providerId: SalonId('provider1'),
           specialization: 'Coiffeur',
           rating: 4.6,
           reviewCount: 32,
@@ -144,7 +145,7 @@ class MockData {
         const Artist(
           id: 'artist3',
           name: 'Marie Kouassi',
-          providerId: 'provider2',
+          providerId: SalonId('provider2'),
           specialization: 'Coiffeuse',
           rating: 4.9,
           reviewCount: 67,
@@ -152,7 +153,7 @@ class MockData {
         const Artist(
           id: 'artist4',
           name: 'Fatou Diallo',
-          providerId: 'provider2',
+          providerId: SalonId('provider2'),
           specialization: 'Esthéticienne',
           rating: 4.7,
           reviewCount: 28,
@@ -160,7 +161,7 @@ class MockData {
         Artist(
           id: 'artist5',
           name: 'Aminata Traoré',
-          providerId: 'provider2',
+          providerId: SalonId('provider2'),
           specialization: 'Coiffeuse',
           rating: 4.5,
           reviewCount: 19,
@@ -177,7 +178,7 @@ class MockData {
         const Artist(
           id: 'artist6',
           name: 'Sophie Martin',
-          providerId: 'provider3',
+          providerId: SalonId('provider3'),
           specialization: 'Massothérapeute',
           rating: 4.8,
           reviewCount: 52,
@@ -185,28 +186,31 @@ class MockData {
         const Artist(
           id: 'artist7',
           name: 'Claire Dubois',
-          providerId: 'provider3',
+          providerId: SalonId('provider3'),
           specialization: 'Esthéticienne',
           rating: 4.6,
           reviewCount: 38,
         ),
       ];
-    } else {
+    } else if (providerId == 'provider4') {
       return [
         const Artist(
           id: 'artist8',
           name: 'Yves Kouassi',
-          providerId: 'provider4',
+          providerId: SalonId('provider4'),
           specialization: 'Barbier',
           rating: 4.7,
           reviewCount: 41,
         ),
       ];
     }
+    // A salon made at run time starts with no team, as on the server (it
+    // used to get provider4's barber — docs/design/hygiene-batch9.md §2.5).
+    return const [];
   }
 
   // Sample Services
-  static List<Service> getServicesForProvider(String providerId) {
+  static List<Service> getServicesForProvider(SalonId providerId) {
     if (providerId == 'provider1') {
       return [
         const Service(
@@ -215,7 +219,7 @@ class MockData {
           description: 'Coupe de cheveux pour homme',
           price: 5000,
           durationMinutes: 30,
-          providerId: 'provider1',
+          providerId: SalonId('provider1'),
           artistIds: ['artist1', 'artist2'], // Both artists can do this
         ),
         const Service(
@@ -224,7 +228,7 @@ class MockData {
           description: 'Rasage complet avec tondeuse',
           price: 3000,
           durationMinutes: 20,
-          providerId: 'provider1',
+          providerId: SalonId('provider1'),
           artistIds: ['artist1'], // Only artist1 can do this
         ),
         const Service(
@@ -233,7 +237,7 @@ class MockData {
           description: 'Coupe et rasage complet',
           price: 7000,
           durationMinutes: 45,
-          providerId: 'provider1',
+          providerId: SalonId('provider1'),
           artistIds: ['artist1'], // Only artist1 can do this
         ),
       ];
@@ -247,7 +251,7 @@ class MockData {
           priceMax: 25000,
           durationMinutes: 120,
           durationVariants: DurationVariants(court: 120, moyen: 180, long: 240),
-          providerId: 'provider2',
+          providerId: SalonId('provider2'),
           artistIds: ['artist3', 'artist5'], // Only these two can do this
         ),
         const Service(
@@ -257,7 +261,7 @@ class MockData {
           price: 12000,
           priceMax: 18000,
           durationMinutes: 90,
-          providerId: 'provider2',
+          providerId: SalonId('provider2'),
           artistIds: ['artist3', 'artist4'], // These two can do this
         ),
         const Service(
@@ -266,11 +270,11 @@ class MockData {
           description: 'Lissage brésilien',
           price: 20000,
           durationMinutes: 150,
-          providerId: 'provider2',
+          providerId: SalonId('provider2'),
           artistIds: ['artist3'], // Only artist3 can do this
         ),
       ];
-    } else {
+    } else if (providerId == 'provider3') {
       return [
         const Service(
           id: 'service7',
@@ -278,7 +282,7 @@ class MockData {
           description: 'Massage complet du corps',
           price: 10000,
           durationMinutes: 60,
-          providerId: 'provider3',
+          providerId: SalonId('provider3'),
           artistIds: ['artist6'], // Only artist6 can do this
         ),
         const Service(
@@ -287,17 +291,41 @@ class MockData {
           description: 'Soin des ongles',
           price: 5000,
           durationMinutes: 45,
-          providerId: 'provider3',
+          providerId: SalonId('provider3'),
           artistIds: ['artist7'], // Only artist7 can do this
         ),
       ];
+    } else if (providerId == 'provider4') {
+      return [
+        const Service(
+          id: 'service9',
+          name: 'Coupe Classique',
+          description: 'Coupe traditionnelle',
+          price: 4000,
+          durationMinutes: 25,
+          providerId: SalonId('provider4'),
+          artistIds: ['artist8'], // Only artist8 can do this
+        ),
+        const Service(
+          id: 'service10',
+          name: 'Rasage à l’ancienne',
+          description: 'Rasage avec rasoir',
+          price: 3500,
+          durationMinutes: 15,
+          providerId: SalonId('provider4'),
+          artistIds: ['artist8'], // Only artist8 can do this
+        ),
+      ];
     }
+    // A salon made at run time starts with an empty catalogue, as on the
+    // server (it used to get provider3's — docs/design/hygiene-batch9.md §2.5).
+    return const [];
   }
 
   // Sample Providers
   static final List<Provider> providers = [
     Provider(
-      id: 'provider1',
+      id: SalonId('provider1'),
       name: 'Salon Excellence',
       description: 'Salon de coiffure moderne au cœur d’Abidjan',
       address: 'Cocody, Angré 7ème Tranche',
@@ -328,17 +356,17 @@ class MockData {
       ],
       rating: 4.5,
       reviewCount: 120,
-      services: getServicesForProvider('provider1'),
-      artists: getArtistsForProvider('provider1'),
+      services: getServicesForProvider(SalonId('provider1')),
+      artists: getArtistsForProvider(SalonId('provider1')),
       availability: Availability(
-        providerId: 'provider1',
+        providerId: SalonId('provider1'),
         weeklySchedule: {
           0: const [], // Monday closed
-          1: _generateTimeSlots('provider1', 9, 18), // Tuesday
-          2: _generateTimeSlots('provider1', 9, 18), // Wednesday
-          3: _generateTimeSlots('provider1', 9, 18), // Thursday
-          4: _generateTimeSlots('provider1', 9, 18), // Friday
-          5: _generateTimeSlots('provider1', 9, 16), // Saturday
+          1: _generateTimeSlots(SalonId('provider1'), 9, 18), // Tuesday
+          2: _generateTimeSlots(SalonId('provider1'), 9, 18), // Wednesday
+          3: _generateTimeSlots(SalonId('provider1'), 9, 18), // Thursday
+          4: _generateTimeSlots(SalonId('provider1'), 9, 18), // Friday
+          5: _generateTimeSlots(SalonId('provider1'), 9, 16), // Saturday
           6: const [], // Sunday closed
         },
         blockedDates: const [],
@@ -354,7 +382,7 @@ class MockData {
       category: 'barber',
     ),
     Provider(
-      id: 'provider2',
+      id: SalonId('provider2'),
       name: 'Beauté Divine',
       description: 'Institut de beauté pour femmes',
       address: 'Marcory, Zone 4',
@@ -377,17 +405,17 @@ class MockData {
       ],
       rating: 4.8,
       reviewCount: 89,
-      services: getServicesForProvider('provider2'),
-      artists: getArtistsForProvider('provider2'),
+      services: getServicesForProvider(SalonId('provider2')),
+      artists: getArtistsForProvider(SalonId('provider2')),
       availability: Availability(
-        providerId: 'provider2',
+        providerId: SalonId('provider2'),
         weeklySchedule: {
-          0: _generateTimeSlots('provider2', 8, 17),
-          1: _generateTimeSlots('provider2', 8, 17),
-          2: _generateTimeSlots('provider2', 8, 17),
-          3: _generateTimeSlots('provider2', 8, 17),
-          4: _generateTimeSlots('provider2', 8, 17),
-          5: _generateTimeSlots('provider2', 9, 15),
+          0: _generateTimeSlots(SalonId('provider2'), 8, 17),
+          1: _generateTimeSlots(SalonId('provider2'), 8, 17),
+          2: _generateTimeSlots(SalonId('provider2'), 8, 17),
+          3: _generateTimeSlots(SalonId('provider2'), 8, 17),
+          4: _generateTimeSlots(SalonId('provider2'), 8, 17),
+          5: _generateTimeSlots(SalonId('provider2'), 9, 15),
           6: const [],
         },
         blockedDates: const [],
@@ -397,7 +425,7 @@ class MockData {
       category: 'salon',
     ),
     Provider(
-      id: 'provider3',
+      id: SalonId('provider3'),
       name: 'Spa Relax',
       description: 'Centre de bien-être et relaxation',
       address: 'Yopougon, Sicogi',
@@ -415,18 +443,18 @@ class MockData {
       imageUrls: const ['asset:assets/images/providers/spa_relax_photo.png'],
       rating: 4.7,
       reviewCount: 156,
-      services: getServicesForProvider('provider3'),
-      artists: getArtistsForProvider('provider3'),
+      services: getServicesForProvider(SalonId('provider3')),
+      artists: getArtistsForProvider(SalonId('provider3')),
       availability: Availability(
-        providerId: 'provider3',
+        providerId: SalonId('provider3'),
         weeklySchedule: {
-          0: _generateTimeSlots('provider3', 10, 19),
-          1: _generateTimeSlots('provider3', 10, 19),
-          2: _generateTimeSlots('provider3', 10, 19),
-          3: _generateTimeSlots('provider3', 10, 19),
-          4: _generateTimeSlots('provider3', 10, 19),
-          5: _generateTimeSlots('provider3', 10, 18),
-          6: _generateTimeSlots('provider3', 12, 17),
+          0: _generateTimeSlots(SalonId('provider3'), 10, 19),
+          1: _generateTimeSlots(SalonId('provider3'), 10, 19),
+          2: _generateTimeSlots(SalonId('provider3'), 10, 19),
+          3: _generateTimeSlots(SalonId('provider3'), 10, 19),
+          4: _generateTimeSlots(SalonId('provider3'), 10, 19),
+          5: _generateTimeSlots(SalonId('provider3'), 10, 18),
+          6: _generateTimeSlots(SalonId('provider3'), 12, 17),
         },
         blockedDates: const [],
       ),
@@ -435,7 +463,7 @@ class MockData {
       category: 'spa',
     ),
     Provider(
-      id: 'provider4',
+      id: SalonId('provider4'),
       name: 'Barber Shop Pro',
       description: 'Salon de coiffure pour hommes',
       address: 'Plateau, Avenue Franchet d’Esperey',
@@ -454,36 +482,17 @@ class MockData {
       ],
       rating: 4.6,
       reviewCount: 203,
-      services: const [
-        Service(
-          id: 'service9',
-          name: 'Coupe Classique',
-          description: 'Coupe traditionnelle',
-          price: 4000,
-          durationMinutes: 25,
-          providerId: 'provider4',
-          artistIds: ['artist8'], // Only artist8 can do this
-        ),
-        Service(
-          id: 'service10',
-          name: 'Rasage à l’ancienne',
-          description: 'Rasage avec rasoir',
-          price: 3500,
-          durationMinutes: 15,
-          providerId: 'provider4',
-          artistIds: ['artist8'], // Only artist8 can do this
-        ),
-      ],
-      artists: getArtistsForProvider('provider4'),
+      services: getServicesForProvider(SalonId('provider4')),
+      artists: getArtistsForProvider(SalonId('provider4')),
       availability: Availability(
-        providerId: 'provider4',
+        providerId: SalonId('provider4'),
         weeklySchedule: {
           0: const [],
-          1: _generateTimeSlots('provider4', 8, 19),
-          2: _generateTimeSlots('provider4', 8, 19),
-          3: _generateTimeSlots('provider4', 8, 19),
-          4: _generateTimeSlots('provider4', 8, 19),
-          5: _generateTimeSlots('provider4', 8, 18),
+          1: _generateTimeSlots(SalonId('provider4'), 8, 19),
+          2: _generateTimeSlots(SalonId('provider4'), 8, 19),
+          3: _generateTimeSlots(SalonId('provider4'), 8, 19),
+          4: _generateTimeSlots(SalonId('provider4'), 8, 19),
+          5: _generateTimeSlots(SalonId('provider4'), 8, 18),
           6: const [],
         },
         blockedDates: const [],
@@ -497,7 +506,7 @@ class MockData {
   static final List<Review> reviews = [
     Review(
       id: 'review1',
-      providerId: 'provider1',
+      providerId: SalonId('provider1'),
       userId: 'user2',
       userName: 'Marie Diallo',
       rating: 5,
@@ -512,7 +521,7 @@ class MockData {
     ),
     Review(
       id: 'review2',
-      providerId: 'provider1',
+      providerId: SalonId('provider1'),
       userId: 'user2',
       userName: 'Marie Diallo',
       rating: 4,
@@ -523,7 +532,7 @@ class MockData {
     ),
     Review(
       id: 'review3',
-      providerId: 'provider1',
+      providerId: SalonId('provider1'),
       userId: 'user2',
       userName: 'Marie Diallo',
       rating: 5,
@@ -532,7 +541,7 @@ class MockData {
     ),
     Review(
       id: 'review4',
-      providerId: 'provider2',
+      providerId: SalonId('provider2'),
       userId: 'user1',
       userName: 'Jean Kouassi',
       rating: 5,
@@ -542,7 +551,7 @@ class MockData {
     ),
     Review(
       id: 'review5',
-      providerId: 'provider2',
+      providerId: SalonId('provider2'),
       userId: 'user2',
       userName: 'Marie Diallo',
       rating: 4,
@@ -551,7 +560,7 @@ class MockData {
     ),
     Review(
       id: 'review6',
-      providerId: 'provider3',
+      providerId: SalonId('provider3'),
       userId: 'user1',
       userName: 'Jean Kouassi',
       rating: 5,
@@ -560,7 +569,7 @@ class MockData {
     ),
     Review(
       id: 'review7',
-      providerId: 'provider4',
+      providerId: SalonId('provider4'),
       userId: 'user2',
       userName: 'Marie Diallo',
       rating: 4,
@@ -594,7 +603,7 @@ class MockData {
     Appointment(
       id: 'appointment1',
       userId: 'user1',
-      providerId: 'provider1',
+      providerId: SalonId('provider1'),
       serviceIds: const ['service1'],
       appointmentDate: AppClock.now().add(const Duration(days: 2)),
       status: AppointmentStatus.confirmed,
@@ -605,7 +614,7 @@ class MockData {
     Appointment(
       id: 'appointment2',
       userId: 'user1',
-      providerId: 'provider2',
+      providerId: SalonId('provider2'),
       serviceIds: const ['service4'],
       appointmentDate: AppClock.now().add(const Duration(days: 5)),
       status: AppointmentStatus.pending,
@@ -617,7 +626,7 @@ class MockData {
     Appointment(
       id: 'appointment_completed1',
       userId: 'user1',
-      providerId: 'provider1',
+      providerId: SalonId('provider1'),
       serviceIds: const ['service1'],
       appointmentDate: AppClock.now().subtract(const Duration(days: 10)),
       status: AppointmentStatus.completed,
@@ -629,7 +638,7 @@ class MockData {
     Appointment(
       id: 'appointment_completed2',
       userId: 'user2',
-      providerId: 'provider2',
+      providerId: SalonId('provider2'),
       serviceIds: const ['service4'],
       appointmentDate: AppClock.now().subtract(const Duration(days: 7)),
       status: AppointmentStatus.completed,
@@ -655,7 +664,7 @@ class MockData {
   // Note: These slots use today's date as a template, but the actual date
   // will be applied when checking availability for a specific date
   static List<TimeSlot> _generateTimeSlots(
-    String providerId,
+    SalonId providerId,
     int startHour,
     int endHour,
   ) {
@@ -692,7 +701,7 @@ class MockData {
   static List<TeamMember> _seedTeamMembers() => [
     TeamMember(
       id: 'mem_owner1',
-      providerId: 'provider1',
+      providerId: SalonId('provider1'),
       email: 'jean@salon-excellence.test',
       role: TeamRole.owner,
       status: TeamMemberStatus.active,
@@ -702,7 +711,7 @@ class MockData {
     ),
     TeamMember(
       id: 'mem_manager1',
-      providerId: 'provider1',
+      providerId: SalonId('provider1'),
       email: 'awa.manager@myweli.test',
       role: TeamRole.manager,
       status: TeamMemberStatus.active,
@@ -712,7 +721,7 @@ class MockData {
     ),
     TeamMember(
       id: 'mem_staff1',
-      providerId: 'provider1',
+      providerId: SalonId('provider1'),
       email: 'invitee@myweli.test',
       role: TeamRole.staff,
       status: TeamMemberStatus.invited,
@@ -725,7 +734,7 @@ class MockData {
     // ACTIVE members backing the R4b role demos (accounts seeded above).
     TeamMember(
       id: 'mem_reception2',
-      providerId: 'provider1',
+      providerId: SalonId('provider1'),
       email: 'fatou.reception@myweli.test',
       role: TeamRole.reception,
       status: TeamMemberStatus.active,
@@ -735,7 +744,7 @@ class MockData {
     ),
     TeamMember(
       id: 'mem_staff2',
-      providerId: 'provider1',
+      providerId: SalonId('provider1'),
       email: 'sonia.staff@myweli.test',
       role: TeamRole.staff,
       status: TeamMemberStatus.active,
@@ -747,7 +756,7 @@ class MockData {
     ),
     TeamMember(
       id: 'mem_reception1',
-      providerId: 'provider1',
+      providerId: SalonId('provider1'),
       email: 'retard@myweli.test',
       role: TeamRole.reception,
       status: TeamMemberStatus.invited,
@@ -762,7 +771,7 @@ class MockData {
     // counts are untouched.
     TeamMember(
       id: 'mem_owner2',
-      providerId: 'provider2',
+      providerId: SalonId('provider2'),
       email: 'jean@salon-excellence.test',
       role: TeamRole.owner,
       status: TeamMemberStatus.active,
@@ -777,7 +786,7 @@ class MockData {
     // (and their goldens) are untouched.
     TeamMember(
       id: 'mem_ancien',
-      providerId: 'provider2',
+      providerId: SalonId('provider2'),
       email: 'ancien.membre@myweli.test',
       role: TeamRole.reception,
       status: TeamMemberStatus.invited,
@@ -793,7 +802,7 @@ class MockData {
     'invitee@myweli.test': [
       TeamInvitation(
         id: 'mem_staff1',
-        providerId: 'provider1',
+        providerId: SalonId('provider1'),
         salonName: 'Salon Excellence',
         role: TeamRole.staff,
         roleLabel: 'Collaborateur',
@@ -803,7 +812,7 @@ class MockData {
     'mock.google@salon.test': [
       TeamInvitation(
         id: 'mem_google1',
-        providerId: 'provider2',
+        providerId: SalonId('provider2'),
         salonName: 'Beauté Divine',
         role: TeamRole.manager,
         roleLabel: 'Manager',
@@ -814,7 +823,7 @@ class MockData {
     'ancien.membre@myweli.test': [
       TeamInvitation(
         id: 'mem_ancien',
-        providerId: 'provider2',
+        providerId: SalonId('provider2'),
         salonName: 'Beauté Divine',
         role: TeamRole.reception,
         roleLabel: 'Réception',
@@ -825,7 +834,7 @@ class MockData {
     'retard@myweli.test': [
       TeamInvitation(
         id: 'mem_reception1',
-        providerId: 'provider1',
+        providerId: SalonId('provider1'),
         salonName: 'Salon Excellence',
         role: TeamRole.reception,
         roleLabel: 'Réception',
@@ -842,26 +851,103 @@ class MockData {
 
   /// R6: mock salons created via « Ajouter un salon » — rendered as DRAFT
   /// in « Mes salons » (the Provider model carries no status client-side).
-  static final Set<String> draftSalonIds = {};
+  static final Set<SalonId> draftSalonIds = {};
+
+  /// A salon made at run time (registration, « Ajouter un salon »), the way
+  /// the server makes one (`draftSalonDocument`, backend
+  /// providers_repository.dart): an empty listing, no catalogue, no team, no
+  /// hours, and **no deposit** (0 %, off). Both used to copy
+  /// `providers.first`, so a new salon opened with Salon Excellence's
+  /// services, photos, 4,5 rating and 30 % deposit — and the « Acompte &
+  /// annulation » step looked already chosen (docs/design/hygiene-batch9.md
+  /// §2.5).
+  static Provider newSalon({
+    required SalonId id,
+    required String name,
+    required BusinessType businessType,
+    String phoneNumber = '',
+    String? address,
+    bool verified = false,
+  }) => Provider(
+    id: id,
+    name: name,
+    description: '',
+    address: address ?? '',
+    city: 'Abidjan',
+    countryCode: 'CI',
+    timezone: kSalonTz,
+    currency: 'XOF',
+    imageUrls: const [],
+    rating: 0,
+    reviewCount: 0,
+    services: const [],
+    availability: Availability(
+      providerId: id,
+      weeklySchedule: const {},
+      blockedDates: const [],
+    ),
+    phoneNumber: phoneNumber,
+    whatsapp: phoneNumber,
+    category: switch (businessType) {
+      // The server's `SalonProvisioningService.categoryFor`.
+      BusinessType.barber => 'barber',
+      BusinessType.spa => 'spa',
+      BusinessType.nailSalon => 'nails',
+      BusinessType.massage => 'massage',
+      BusinessType.salon || BusinessType.other => 'salon',
+    },
+    verified: verified,
+    depositRequired: false,
+    depositPercentage: 0,
+  );
+
+  /// The daily invitation counters (server T37), keyed `<UTC day>|<bucket>`.
+  /// Written by `MockProTeamService.inviteMember`; cleared with the roster.
+  static final Map<String, int> inviteBuckets = {};
+
+  /// The seeded salons' services and artists, as seeded. The catalogue fakes
+  /// write into [providers] — one store, read by the Pro screens and the
+  /// client's alike, as on the server — so [resetTeam] restores it too.
+  static void resetCatalogue() {
+    for (var i = 0; i < providers.length; i++) {
+      final id = providers[i].id;
+      if (!const {
+        'provider1',
+        'provider2',
+        'provider3',
+        'provider4',
+      }.contains(id)) {
+        continue;
+      }
+      providers[i] = providers[i].copyWith(
+        services: getServicesForProvider(id),
+        artists: getArtistsForProvider(id),
+      );
+    }
+  }
 
   /// Seats in use — owner + active + unexpired pending, PER SALON (R6
   /// multi-salons). NOT quite the backend's rule: the server counts expired
   /// invitations too (they hold their seat until revoked or invited again —
   /// docs/design/backend-team-reinvite.md §11).
-  static int teamSeatsUsed({String providerId = 'provider1'}) => teamMembers
-      .where(
-        (m) =>
-            m.providerId == providerId &&
-            (m.status == TeamMemberStatus.active ||
-                (m.isPending && !m.expired)),
-      )
-      .length;
+  static int teamSeatsUsed({SalonId providerId = const SalonId('provider1')}) =>
+      teamMembers
+          .where(
+            (m) =>
+                m.providerId == providerId &&
+                (m.status == TeamMemberStatus.active ||
+                    (m.isPending && !m.expired)),
+          )
+          .length;
 
-  /// Restore the seeded roster/cards (tests: call in setUp). Also re-seeds
-  /// the member ACCOUNTS (the R4b role demos and the former member) if a
-  /// test stripped them.
+  /// Restore the seeded roster/cards (tests: call in setUp), the day's
+  /// invitation counters and the seeded catalogues ([resetCatalogue]). Also
+  /// re-seeds the member ACCOUNTS (the R4b role demos and the former member)
+  /// if a test stripped them.
   static void resetTeam() {
     draftSalonIds.clear();
+    inviteBuckets.clear();
+    resetCatalogue();
     teamMembers
       ..clear()
       ..addAll(_seedTeamMembers());

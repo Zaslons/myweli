@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 
+import '../../core/constants/unnamed_salon.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/colors.dart';
 import '../../core/theme/text_styles.dart';
 import '../../core/utils/formatters.dart';
 import '../../models/team_invitation.dart';
 import '../common/app_button.dart';
+import '../common/app_card.dart';
 
 /// « {Salon} vous invite comme {Rôle} » — shared by the login
 /// « Invitations » step and the authed Profil → Invitations screen
@@ -48,22 +50,23 @@ class InvitationCard extends StatelessWidget {
     required this.onAccept,
     required this.onDecline,
     this.busy = false,
+    this.locked = false,
   });
 
   final TeamInvitation invitation;
   final VoidCallback onAccept;
   final VoidCallback onDecline;
+
+  /// This card's answer is out: « Rejoindre » spins, both buttons wait.
   final bool busy;
+
+  /// Another card's answer is out: both buttons wait, without a spinner — one
+  /// answer at a time (pro-app-batch7.md §2.6, as the web's card).
+  final bool locked;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(AppTheme.spacingL),
-      decoration: BoxDecoration(
-        color: AppColors.secondary,
-        borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
-        border: Border.all(color: AppColors.border),
-      ),
+    return AppCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -87,7 +90,10 @@ class InvitationCard extends StatelessWidget {
                           style: AppTextStyles.bodyLarge,
                           children: [
                             TextSpan(
-                              text: invitation.salonName,
+                              text: salonNameOr(
+                                invitation.salonName,
+                                kUnnamedSalonAtSentenceStart,
+                              ),
                               style: AppTextStyles.titleMedium,
                             ),
                             const TextSpan(text: ' vous invite comme '),
@@ -119,7 +125,7 @@ class InvitationCard extends StatelessWidget {
               final join = AppButton(
                 text: 'Rejoindre',
                 isLoading: busy,
-                onPressed: busy ? null : onAccept,
+                onPressed: busy || locked ? null : onAccept,
               );
               // Side by side while « Rejoindre » can sit WHOLE beside
               // « Refuser »; otherwise stacked, each full width. §13.3: a
@@ -148,7 +154,7 @@ class InvitationCard extends StatelessWidget {
                       text: 'Refuser',
                       type: AppButtonType.text,
                       isFullWidth: false,
-                      onPressed: busy ? null : onDecline,
+                      onPressed: busy || locked ? null : onDecline,
                     ),
                   ],
                 );
@@ -161,7 +167,7 @@ class InvitationCard extends StatelessWidget {
                   AppButton(
                     text: 'Refuser',
                     type: AppButtonType.text,
-                    onPressed: busy ? null : onDecline,
+                    onPressed: busy || locked ? null : onDecline,
                   ),
                 ],
               );

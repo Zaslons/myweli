@@ -64,8 +64,6 @@ const ROWS: Row[] = [
   // The member's « Alertes par e-mail » (salon-email-alerts.md §4).
   { name: 'getProNotificationPrefs', kind: 'read', call: () => pro.getProNotificationPrefs() },
   // --- writes --------------------------------------------------------------
-  { name: 'requestOtpPro', kind: 'write', noStatus: true, call: () => pro.requestOtpPro('+2250700000000') },
-  { name: 'verifyOtpPro', kind: 'write', noStatus: true, call: () => pro.verifyOtpPro('+2250700000000', '1234') },
   {
     name: 'addSalon',
     kind: 'write',
@@ -150,7 +148,7 @@ const ROWS: Row[] = [
     name: 'inviteMember',
     kind: 'write',
     payload: ['member'],
-    call: () => pro.inviteMember({ email: 'a@b.ci', role: 'manager' }),
+    call: () => pro.inviteMember({ email: 'a@b.ci', role: 'manager' }, 'test-key-00000001'),
   },
   {
     name: 'changeMemberRole',
@@ -162,6 +160,8 @@ const ROWS: Row[] = [
   { name: 'resendInvitation', kind: 'write', payload: ['member'], call: () => pro.resendInvitation('m1') },
   { name: 'acceptMyInvitation', kind: 'write', call: () => pro.acceptMyInvitation('i1') },
   { name: 'declineMyInvitation', kind: 'write', call: () => pro.declineMyInvitation('i1') },
+  // B6.6: the salon reports a review of its own salon.
+  { name: 'reportSalonReview', kind: 'write', call: () => pro.reportSalonReview('r1', 'Insultes') },
   {
     name: 'addClient',
     kind: 'write',
@@ -174,7 +174,7 @@ const ROWS: Row[] = [
     kind: 'write',
     call: () => pro.updateClientPhone('p1', 'c1', '+2250700000000'),
   },
-  { name: 'addClientNote', kind: 'write', payload: ['note'], call: () => pro.addClientNote('p1', 'c1', 'x') },
+  { name: 'addClientNote', kind: 'write', payload: ['note'], call: () => pro.addClientNote('p1', 'c1', 'x', 'test-key-00000001') },
   { name: 'deleteClientNote', kind: 'write', call: () => pro.deleteClientNote('p1', 'c1', 'n1') },
   {
     name: 'rescheduleAppointment',
@@ -187,10 +187,11 @@ const ROWS: Row[] = [
     kind: 'write',
     payload: ['appt'],
     call: () =>
-      pro.createManualBooking('p1', {
-        serviceIds: ['s1'],
-        appointmentDateTime: '2030-01-15T09:00:00.000Z',
-      }),
+      pro.createManualBooking(
+        'p1',
+        { serviceIds: ['s1'], appointmentDateTime: '2030-01-15T09:00:00.000Z' },
+        'test-key-00000001',
+      ),
   },
   {
     name: 'registerPro',
@@ -354,9 +355,11 @@ describe('lib/api/pro.ts — an answer is still read as before', () => {
     });
   });
 
-  it('a 200 list without `items` is an empty list — the server said so', async () => {
+  it('a 200 list without `items` is a failed read — the server said nothing', async () => {
+    // It read « the server said so »; the server always sends `items`, so it
+    // had said nothing (hygiene-batch9.md §2.10, B9.11).
     stubFetch(() => new Response('{}', { status: 200 }));
-    expect(await pro.getTeamMembers()).toEqual({ status: 200, items: [] });
+    expect(await pro.getTeamMembers()).toEqual({ status: 0, items: [] });
   });
 });
 

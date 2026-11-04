@@ -9,17 +9,20 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/colors.dart';
 import '../../../core/theme/text_styles.dart';
 import '../../../core/utils/formatters.dart';
+import '../../../core/utils/salon_id.dart';
 import '../../../core/utils/validators.dart';
 import '../../../models/salon_client.dart';
 import '../../../providers/pro_auth_provider.dart';
 import '../../../providers/pro_clients_provider.dart';
+import '../../../widgets/common/app_async_view.dart';
 import '../../../widgets/common/app_button.dart';
+import '../../../widgets/common/app_chip.dart';
+import '../../../widgets/common/app_skeleton.dart';
 import '../../../widgets/common/app_text_field.dart';
 import '../../../widgets/common/brand_loader.dart';
 import '../../../widgets/common/brand_refresh.dart';
 import '../../../widgets/common/empty_state.dart';
 import '../../../widgets/common/inline_feedback.dart';
-import '../../../widgets/common/loading_indicator.dart';
 import '../../../widgets/common/phone_number_field.dart';
 
 /// The salon client base — « Clients » (module `clients` C1c,
@@ -38,9 +41,9 @@ class _ClientListScreenState extends State<ClientListScreen> {
   final _scrollController = ScrollController();
   Timer? _debounce;
 
-  String get _providerId {
+  SalonId get _providerId {
     final auth = context.read<ProAuthProvider>();
-    return auth.activeSalonId ?? '';
+    return auth.activeSalonId ?? SalonId.none;
   }
 
   @override
@@ -144,8 +147,8 @@ class _ClientListScreenState extends State<ClientListScreen> {
                 for (final t in clients.availableTags)
                   Padding(
                     padding: const EdgeInsets.only(right: AppTheme.spacingS),
-                    child: FilterChip(
-                      label: Text(t),
+                    child: AppChip.choice(
+                      label: t,
                       selected: clients.tag == t,
                       onSelected: (_) => context
                           .read<ProClientsProvider>()
@@ -162,36 +165,40 @@ class _ClientListScreenState extends State<ClientListScreen> {
   }
 
   Widget _body(ProClientsProvider clients) {
-    if (clients.isLoading) {
-      return const LoadingIndicator();
-    }
-    if (clients.error != null) {
-      return EmptyState(
-        icon: Icons.wifi_off,
-        title: 'Une erreur est survenue',
-        description: clients.error,
-        actionText: 'Réessayer',
-        onAction: () => clients.load(_providerId),
-      );
-    }
-    if (clients.isBaseEmpty) {
-      return EmptyState(
-        icon: Icons.people_outline,
-        title: 'Vos clients apparaîtront ici',
-        description:
-            'Automatiquement, après leur première réservation. Vous pouvez '
-            'aussi les ajouter vous-même.',
-        actionText: '+ Ajouter un client',
-        onAction: _openAddSheet,
-      );
-    }
-    if (clients.clients.isEmpty) {
-      return EmptyState(
-        icon: Icons.search_off,
-        title: 'Aucun client trouvé',
-        description: 'Essayez un autre nom ou numéro.',
-      );
-    }
+    // No clients at all is one empty state, none matching the search
+    // another; both are « empty » to the view.
+    final empty = clients.isBaseEmpty
+        ? EmptyState(
+            icon: Icons.people_outline,
+            title: 'Vos clients apparaîtront ici',
+            description:
+                'Automatiquement, après leur première réservation. Vous pouvez '
+                'aussi les ajouter vous-même.',
+            actionText: '+ Ajouter un client',
+            onAction: _openAddSheet,
+          )
+        : const EmptyState(
+            icon: Icons.search_off,
+            title: 'Aucun client trouvé',
+            description: 'Essayez un autre nom ou numéro.',
+          );
+    // The list stays while a search is out — it was a full-screen spinner
+    // on every query — and [error] is not the list's: a refused « Ajouter »
+    // replaced it with an error page (B9.8).
+    return AppAsyncView<List<SalonClient>>(
+      isLoading: clients.isLoading,
+      error: clients.loadError,
+      data: clients.clients,
+      isEmpty: (d) => d.isEmpty,
+      loading: const SkeletonTileList(),
+      empty: empty,
+      onRetry: () => clients.load(_providerId),
+      onRefresh: () => clients.load(_providerId),
+      builder: (context, items) => _list(clients, items),
+    );
+  }
+
+  Widget _list(ProClientsProvider clients, List<SalonClient> items) {
     return BrandRefresh(
       onRefresh: () => clients.load(_providerId),
       child: ListView.separated(
@@ -263,17 +270,17 @@ class _ClientRow extends StatelessWidget {
           ),
           if (client.linked) ...[
             const SizedBox(width: AppTheme.spacingXS),
-            _MiniBadge(label: 'MyWeli', color: AppColors.textTertiary),
+            const AppChip.status(label: 'MyWeli', tone: AppChipTone.neutral),
           ],
           if (client.noShows >= 1) ...[
             const SizedBox(width: AppTheme.spacingXS),
-            _MiniBadge(
+            AppChip.status(
               label: client.noShows == 1
                   ? '1 absence'
                   : '${client.noShows} absences',
-              color: client.noShows >= 2
-                  ? AppColors.error
-                  : AppColors.textSecondary,
+              tone: client.noShows >= 2
+                  ? AppChipTone.error
+                  : AppChipTone.neutral,
             ),
           ],
         ],
@@ -288,34 +295,9 @@ class _ClientRow extends StatelessWidget {
               spacing: AppTheme.spacingXS,
               children: [
                 for (final t in client.tags.take(2))
-                  _MiniBadge(label: t, color: AppColors.textSecondary),
+                  AppChip.status(label: t, tone: AppChipTone.neutral),
               ],
             ),
-    );
-  }
-}
-
-class _MiniBadge extends StatelessWidget {
-  const _MiniBadge({required this.label, required this.color});
-
-  final String label;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppTheme.spacingS,
-        vertical: AppTheme.spacingXS,
-      ),
-      decoration: BoxDecoration(
-        border: Border.all(color: color.withValues(alpha: 0.4)),
-        borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
-      ),
-      child: Text(
-        label,
-        style: AppTextStyles.labelSmall.copyWith(color: color),
-      ),
     );
   }
 }

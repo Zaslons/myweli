@@ -216,17 +216,20 @@ void main() {
       );
     });
 
-    test('declining the LAST card falls back to provider_not_found (the '
-        '« Créer un compte » path)', () async {
-      final provider = await bridgedProvider();
-      final ok = await provider.declinePendingInvitation(
-        provider.pendingInvitations.single.id,
-      );
-      expect(ok, isTrue);
-      expect(provider.hasPendingInvitations, isFalse);
-      expect(provider.errorCode, 'provider_not_found');
-      expect(provider.isAuthenticated, isFalse);
-    });
+    test(
+      'declining the LAST card falls back to provider_not_found (the '
+      'no-account sentence — the app no longer signs a business up)',
+      () async {
+        final provider = await bridgedProvider();
+        final ok = await provider.declinePendingInvitation(
+          provider.pendingInvitations.single.id,
+        );
+        expect(ok, isTrue);
+        expect(provider.hasPendingInvitations, isFalse);
+        expect(provider.errorCode, 'provider_not_found');
+        expect(provider.isAuthenticated, isFalse);
+      },
+    );
 
     test('clearPendingInvitations resets the step (« Retour »)', () async {
       final provider = await bridgedProvider();

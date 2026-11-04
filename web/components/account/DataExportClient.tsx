@@ -10,8 +10,8 @@ import {
   getMe,
   listAppointments,
 } from '../../lib/api/account';
-import type { Appointment } from '../../lib/account/appointments';
 import {
+  EXPORT_BUILD_FAILED,
   EXPORT_COPY_FAILED,
   type ExportSection,
   buildUserDataExport,
@@ -27,19 +27,26 @@ import { Loading } from '../Loading';
 /// The copy is whole or it is not offered: a read that fails names the
 /// missing data and the page offers « Réessayer », never a section emptied
 /// by its failure (docs/design/consumer-export-completeness.md).
+///
+/// The document is built once, in `load()`, not while rendering: an entry the
+/// file cannot hold is the page's error state with « Réessayer » — it used to
+/// break the page (docs/design/web-client-polish.md §2.3).
 export function DataExportClient() {
   const router = useRouter();
   const [me, setMe] = useState<Me | null>(null);
-  const [appointments, setAppointments] = useState<Appointment[]>([]);
-  const [favoriteNames, setFavoriteNames] = useState<string[]>([]);
+  const [appointmentCount, setAppointmentCount] = useState(0);
+  const [favoriteCount, setFavoriteCount] = useState(0);
+  const [json, setJson] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [failed, setFailed] = useState<ExportSection[]>([]);
+  const [buildFailed, setBuildFailed] = useState(false);
   const [copied, setCopied] = useState(false);
   const [copyFailed, setCopyFailed] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
     setFailed([]);
+    setBuildFailed(false);
     // None of the three throws: a request with no usable answer — no network,
     // or a body cut off on the way — is status 0 (lib/api/network.ts,
     // docs/design/web-consumer-network-failure.md §2), one more failed section.
@@ -62,9 +69,20 @@ export function DataExportClient() {
       setLoading(false);
       return;
     }
-    setMe(user);
-    setAppointments(a.items);
-    setFavoriteNames(f.favorites.map((p) => p.name));
+    try {
+      const doc = buildUserDataExport({
+        me: user,
+        appointments: a.items,
+        favoriteProviderNames: f.favorites.map((p) => p.name),
+      });
+      setJson(JSON.stringify(doc, null, 2));
+      setMe(user);
+      setAppointmentCount(a.items.length);
+      setFavoriteCount(f.favorites.length);
+    } catch {
+      // The reads answered; the file could not be made from them.
+      setBuildFailed(true);
+    }
     setLoading(false);
   }, [router]);
 
@@ -79,7 +97,14 @@ export function DataExportClient() {
   }, [copied]);
 
   if (loading) return <Loading className="mt-l" />;
-  if (failed.length > 0 || !me) {
+  if (buildFailed) {
+    return (
+      <div>
+        <ErrorState title="Mes données" message={EXPORT_BUILD_FAILED} onRetry={load} />
+      </div>
+    );
+  }
+  if (failed.length > 0 || !me || json === null) {
     return (
       <div>
         <ErrorState
@@ -91,16 +116,12 @@ export function DataExportClient() {
     );
   }
 
-  const doc = buildUserDataExport({
-    me,
-    appointments,
-    favoriteProviderNames: favoriteNames,
-  });
-  const json = JSON.stringify(doc, null, 2);
+  // Narrowed for the handlers below (they close over it).
+  const file = json;
 
   function download() {
     setCopyFailed(false);
-    const blob = new Blob([json], { type: 'application/json' });
+    const blob = new Blob([file], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
@@ -112,7 +133,7 @@ export function DataExportClient() {
   async function copy() {
     setCopyFailed(false);
     try {
-      await navigator.clipboard.writeText(json);
+      await navigator.clipboard.writeText(file);
     } catch {
       // Permission, an unfocused page, or no clipboard at all (an insecure
       // origin) — the download needs none of them.
@@ -142,11 +163,11 @@ export function DataExportClient() {
           </div>
           <div className="flex justify-between gap-m">
             <dt className="text-textTertiary">Rendez-vous</dt>
-            <dd className="text-textPrimary">{appointments.length}</dd>
+            <dd className="text-textPrimary">{appointmentCount}</dd>
           </div>
           <div className="flex justify-between gap-m">
             <dt className="text-textTertiary">Favoris</dt>
-            <dd className="text-textPrimary">{favoriteNames.length}</dd>
+            <dd className="text-textPrimary">{favoriteCount}</dd>
           </div>
         </dl>
         <div className="mt-m flex flex-wrap gap-s">

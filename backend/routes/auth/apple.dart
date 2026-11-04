@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:dart_frog/dart_frog.dart';
+import 'package:myweli_backend/src/auth/apple_tokens.dart';
 import 'package:myweli_backend/src/auth/auth_methods.dart';
 import 'package:myweli_backend/src/auth/auth_repository.dart';
 import 'package:myweli_backend/src/auth/id_token_verifier.dart';
@@ -32,8 +33,11 @@ Future<Response> onRequest(RequestContext context) async {
   }
   final nonce = optionalString(body, 'nonce')?.trim();
   final fullName = optionalString(body, 'fullName')?.trim();
+  // B6.7 — read with the other fields: a wrong type is 400 before sign-in.
+  final appleCode = appleCodeOf(body);
 
-  final claims = await context.read<AppleIdTokenVerifier>().verify(
+  final verifier = context.read<AppleIdTokenVerifier>();
+  final claims = await verifier.verify(
     identityToken,
     nonce: (nonce != null && nonce.isNotEmpty) ? nonce : null,
   );
@@ -47,5 +51,19 @@ Future<Response> onRequest(RequestContext context) async {
     name: (fullName != null && fullName.isNotEmpty) ? fullName : claims.name,
     avatarUrl: claims.avatarUrl,
   );
+  // B6.7: the sign-in's code becomes the refresh token the account's
+  // deletion revokes (docs/design/backend-integrity-batch6.md §13). After a
+  // successful sign-in only; bounded, and never this sign-in's to fail.
+  if (result.ok) {
+    await keepAppleSignInCode(
+      apple: appleCode,
+      identityToken: identityToken,
+      verifier: verifier,
+      sub: claims.sub!,
+      kind: 'user',
+      accountId: result.user!.id,
+      tokens: context.read<AppleTokenService>,
+    );
+  }
   return authSessionResponse(result);
 }
