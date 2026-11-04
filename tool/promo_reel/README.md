@@ -8,14 +8,22 @@ the recorded takes, in order. No editor, no templates, no stock.
 The approved storyboard (2026-10-19) is the brief; `storyboard.yaml` is its
 machine-readable form and the one source of the pipeline.
 
-> **POSTING GATE (the owner, 2026-10-20).** The films end on « Sur l’App
-> Store et Google Play » and « myweli.com ». **Post them only once BOTH the
-> iOS and the Android MyWeli Pro apps are live in their stores.** Today the
-> Android app is not (docs/BACKLOG.md B0.10: « nothing has been typed into
-> Play Console yet »; LAUNCH.md: « Android last »): the end card's store line
-> is not true yet, and nothing here checks it — the owner does, on the day.
+> **POSTING GATE (the owner, 2026-10-20: « Both stores, post later »).** The
+> films end on « Sur l’App Store et Google Play » and « myweli.com ». **Post
+> them only once BOTH the iOS and the Android MyWeli Pro apps are live in their
+> stores.** By the repo on 2026-11-04 neither is: iOS is in App Review (build
+> 719, docs/BACKLOG.md B0.1); on Android the listing is typed in, but « Nothing
+> is sent for review » and « the closed test: 12 testers for 14 days » is still
+> to run (B0.10; LAUNCH.md: « Android last »). The end card's store line is not
+> true yet, and nothing here checks it — the owner does, on the day.
 > myweli.com is true today (the site serves 200 and is where salons choose
 > their offer).
+>
+> **Merging is not posting.** This tool reached `main` through #664 on the
+> owner's word of 2026-11-04; no film is committed. Still not done: the owner
+> has not confirmed listening to the soundtrack; the Maison Nala cover photo's
+> licence for an ad; CARTO's terms for video; a test on a real phone under each
+> platform's overlay.
 
 Design spec: [docs/design/pro-promo-reel.md](../../docs/design/pro-promo-reel.md)
 — the owner's decisions, the honesty rules and how the code holds each one,

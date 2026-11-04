@@ -2,13 +2,13 @@
 
 | | |
 |---|---|
-| **Statut** | **Approuvé le 2026-10-19 par le propriétaire** (le storyboard « CARNET → DROP »), puis **construit et vérifié les 2026-10-19 et 2026-10-20** sur `feat/promo-reel` (pas poussée, pas de PR) par `tool/promo_reel/` : deux coupes (30 s et 15 s), chacune en 9:16, 1:1 et 16:9 — six films. **Le rendu final** (R9, le 2026-10-20) : les trois films touchés reconstruits, `verify --all` sortie 0, 54 contrôles sur 54, six PASS et une bande-son par coupe ; 432 tests, OK (1 ignoré) (§9). **Décisions du propriétaire le 2026-10-19** (§2 les cite une à une) : le concept « CARNET → DROP » ; l'amapiano à 112,5 BPM ; le carnet dessiné par le code, sans photo ; « Disponible sur l’App Store » sous la signature, publié seulement après la sortie (remplacé le 2026-10-20) ; une mesure de plus (« Add one bar (Recommended) ») ; le soulignement et le coup de zoom de la carte de fin gardés (« Keep both ») ; le crochet 16:9 en deux moitiés gardé (« Keep the split ») ; le 16:9 remis en page (« Re-lay it ») ; le plancher 9:16 descendu vers y 1450 (« Extend to ~y 1450 », posé à y 1424, §2). **Le 2026-10-20** (§2) : le glissé 9:16 (« Keep it »), la suspension 9:16 (« Accept it »), la suspension 1:1 (« Keep as is »), les trois retouches 16:9 (« all three » : la poussée sur le sol, les cartes à pleine largeur de colonne, la coupe franche du formulaire 15 s), et la carte de fin « Sur l’App Store et Google Play » · « myweli.com » (« Both stores, post later »). Le crédit de carte dans les mots de l'app n'est pas une réponse du propriétaire : le contrat le consigne comme « my call, attribution correctness, not marketing copy ». **Le 2026-10-20 après R8** (§2) : « Accept 1.23× » (la poussée 16:9) et « Accept it » (le formulaire de la 15 s 16:9 jamais vu rempli) ; **mes décisions, pas les siennes** : la coupe de la 15 s 16:9 sur f192 (le premier temps), le disque du tap « Mois » accepté et rapporté par verify (g), le libellé du crédit de carte. **Pas fait** (§10) : le propriétaire n'a pas encore confirmé avoir écouté la bande-son ; rien n'est publié — **RÈGLE DE PUBLICATION : seulement quand les DEUX apps Pro sont en ligne, iOS ET Android** (d'après le dépôt, ni l'une ni l'autre aujourd'hui : l'iOS en App Review, BACKLOG B0.1 ; rien n'est encore saisi dans la Play Console, B0.10 ; « Android last », LAUNCH.md §3 ; le propriétaire le confirme le jour même, §10.3). |
+| **Statut** | **Approuvé le 2026-10-19 par le propriétaire** (le storyboard « CARNET → DROP »), puis **construit et vérifié les 2026-10-19 et 2026-10-20** sur `feat/promo-reel` (PR #664) par `tool/promo_reel/` : deux coupes (30 s et 15 s), chacune en 9:16, 1:1 et 16:9 — six films. **Le rendu final** (R9, le 2026-10-20) : les trois films touchés reconstruits, `verify --all` sortie 0, 54 contrôles sur 54, six PASS et une bande-son par coupe ; 432 tests, OK (1 ignoré) (§9). **Fusionné le 2026-11-04 (#664), sur la parole du propriétaire. Fusionner n'est pas publier : la règle de publication ci-dessous ne bouge pas.** **Décisions du propriétaire le 2026-10-19** (§2 les cite une à une) : le concept « CARNET → DROP » ; l'amapiano à 112,5 BPM ; le carnet dessiné par le code, sans photo ; « Disponible sur l’App Store » sous la signature, publié seulement après la sortie (remplacé le 2026-10-20) ; une mesure de plus (« Add one bar (Recommended) ») ; le soulignement et le coup de zoom de la carte de fin gardés (« Keep both ») ; le crochet 16:9 en deux moitiés gardé (« Keep the split ») ; le 16:9 remis en page (« Re-lay it ») ; le plancher 9:16 descendu vers y 1450 (« Extend to ~y 1450 », posé à y 1424, §2). **Le 2026-10-20** (§2) : le glissé 9:16 (« Keep it »), la suspension 9:16 (« Accept it »), la suspension 1:1 (« Keep as is »), les trois retouches 16:9 (« all three » : la poussée sur le sol, les cartes à pleine largeur de colonne, la coupe franche du formulaire 15 s), et la carte de fin « Sur l’App Store et Google Play » · « myweli.com » (« Both stores, post later »). Le crédit de carte dans les mots de l'app n'est pas une réponse du propriétaire : le contrat le consigne comme « my call, attribution correctness, not marketing copy ». **Le 2026-10-20 après R8** (§2) : « Accept 1.23× » (la poussée 16:9) et « Accept it » (le formulaire de la 15 s 16:9 jamais vu rempli) ; **mes décisions, pas les siennes** : la coupe de la 15 s 16:9 sur f192 (le premier temps), le disque du tap « Mois » accepté et rapporté par verify (g), le libellé du crédit de carte. **Pas fait** (§10) : le propriétaire n'a pas encore confirmé avoir écouté la bande-son ; la licence de la photo de couverture de Maison Nala pour une publicité, les conditions CARTO pour la vidéo et un essai sur un vrai téléphone sous l'interface de chaque plateforme restent à faire ; rien n'est publié — **RÈGLE DE PUBLICATION (« Both stores, post later ») : seulement quand les DEUX apps Pro sont en ligne, iOS ET Android** (d'après le dépôt le 2026-11-04, ni l'une ni l'autre : l'iOS en App Review, build 719, BACKLOG B0.1 ; la fiche Play est saisie, rien n'est envoyé pour examen et il reste le test fermé de 12 testeurs pendant 14 jours, B0.10 ; « Android last », LAUNCH.md §3 ; le propriétaire le confirme le jour même, §10.3). |
 | **Owner** | Sadreddine Daher |
-| **Last updated** | 2026-10-20 |
+| **Last updated** | 2026-11-04 |
 | **PRD ref / phase** | Lancement — marketing · V1 (hors app : rien dans `mobile/`, `web/` ni `backend/` ne change) |
 | **ROADMAP entry** | [2026-10-19-promo-reel.md](../roadmap/entries/2026-10-19-promo-reel.md) |
 | **Skills checked** | myweli-dev-guardrails ✓ · myweli-verification-guardrails ✓ |
-| **Governs** | `tool/promo_reel/` (son [README](../../tool/promo_reel/README.md) donne la construction, chaque règle et chaque décision prise contre le texte du storyboard, avec ses mesures). Frère de `tool/app_store_preview/` ([pro-app-preview.md](pro-app-preview.md)), dont il lit les prises, les journaux de gestes et les scans sans les modifier, et du Reel « Le trait » (`tool/marketing_video/`, `pro-marketing-reel.md` — tous deux sur la branche `feat/pro-marketing-reel`, pas encore fusionnée). |
+| **Governs** | `tool/promo_reel/` (son [README](../../tool/promo_reel/README.md) donne la construction, chaque règle et chaque décision prise contre le texte du storyboard, avec ses mesures). Frère de `tool/app_store_preview/` ([pro-app-preview.md](pro-app-preview.md)), dont il lit les prises, les journaux de gestes et les scans sans les modifier, et du Reel « Le trait » (`tool/marketing_video/`, `pro-marketing-reel.md` — tous deux sur `main` depuis #638). |
 
 ## 1. Objectif et périmètre
 
@@ -543,18 +543,22 @@ du numéro du salon flouté (f712–f748, trois formats).
    lit N1. De même, take1b, take2b et take5b correspondent au build 587 : après
    0.0.2 (le champ téléphone de #611, le « Modifier » de #614), revérifier le
    formulaire et la fiche avant de réutiliser le film.
-3. **Rien n'est publié — les règles de publication.**
+3. **Rien n'est publié — les règles de publication.** La fusion (#664, le
+   2026-11-04, sur la parole du propriétaire) n'est pas une publication : aucun
+   film n'est commité.
    - **RÈGLE DE PUBLICATION (le propriétaire, 2026-10-20, « Both stores, post
      later ») : les films ne sont publiés QUE lorsque les DEUX apps MyWeli Pro
      sont en ligne, sur l'App Store ET sur Google Play.** Le propriétaire a
      demandé d'ajouter Google Play et myweli.com ; Google Play n'étant pas vrai
      aujourd'hui, il a choisi une seule version, publiée plus tard. La carte de fin
      dit « Sur l’App Store et Google Play » et « myweli.com ». D'après le dépôt
-     (`docs/BACKLOG.md`, instantané du 2026-10-18, sur `main` mais pas encore
-     sur cette branche) : l'app Android n'est pas en ligne — B0.10 « nothing
-     has been typed into Play Console yet », et LAUNCH.md §3 « Android last » ;
-     l'app iOS non plus — B0.1, le build 587 en App Review avec une sortie
-     manuelle. Ni l'un ni l'autre ne se vérifie d'ici (App Store Connect et la
+     (`docs/BACKLOG.md`, relu le 2026-11-04) : l'app Android n'est pas en ligne
+     — B0.10, la fiche et les déclarations sont saisies dans la Play Console
+     depuis le 2026-10-28, mais « Nothing is sent for review » et il reste « the
+     closed test: 12 testers for 14 days » avant la production ; LAUNCH.md §3
+     « Android last » ; l'app iOS non plus — B0.1, la 0.0.1 refusée deux fois,
+     renvoyée le 2026-11-04 avec le build 719 (`WAITING_FOR_REVIEW`), avec une
+     sortie manuelle. Ni l'un ni l'autre ne se vérifie d'ici (App Store Connect et la
      Play Console sont hors de portée du dépôt) : c'est le propriétaire qui
      confirme, le jour de la publication, que les deux fiches sont en ligne.
      Rien dans `tool/promo_reel/` ne tient cette règle ; le README de l'outil
