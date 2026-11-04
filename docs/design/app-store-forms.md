@@ -1830,7 +1830,9 @@ numéros).*
        invitation faits le 2026-10-10 ; les vérifications sur l'appareil
        restent au propriétaire.* *2026-11-03, pour le 719 : la passe ciblée tient lieu
        de ces cases (décision 75) ; rapportée par le propriétaire sur son iPhone, sans
-       résultat rapporté pour son passage sur iPad (§11.6).*
+       résultat rapporté pour son passage sur iPad (§11.6).* *2026-11-04, selon le propriétaire :
+       le passage sur iPad, sur un simulateur et un build de débogage, pas le 719 signé (§11.6) ;
+       une connexion Apple réussie sur un iPad reste non observée.*
 14. [x] **Symboles Sentry** (§12.2). *Dart et natifs, builds 555, 560, 565, 569, 577, 579, 581, 587 et 698 ; 719 : symboles envoyés, 6 identifiants sur 6 relus (§12).*
 15. [x] **Captures** sur le salon démo — *8 captures légendées, 1206 × 2622 (obligatoire) et 1320 × 2868, faites le 2026-10-13 ([pro-app-store-screenshots.md](pro-app-store-screenshots.md)) ; **validées par le propriétaire et téléversées le 2026-10-13** — 16 images, traitées, dans l'ordre (§13.1).*
 16. [x] **Remplir App Store Connect** : informations sur l'app (§3, §5, §6,
