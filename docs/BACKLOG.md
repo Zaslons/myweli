@@ -540,10 +540,10 @@ Spec: [web-swiss-direction.md](design/web-swiss-direction.md). Starts after B12.
 
 - **B11.0 Foundations (M):** Hanken Grotesk self-hosted and trimmed, `displayPoster`, `fontFamily` closed, WEB-SYSTEM §3 and §16, SYSTEM §22, no layout change. Sentry's unused tracing code out of the bundle, which paid for the font: `/` 2110 ms against 2314 before it. ✅ **Merged in #724, read back on `myweli.com`:** LCP medians 1263–1480 ms on the three budgeted pages. B11.1 measures every budgeted page, five times (WEB.md §7).
 - **B11.1 Header, footer, home, the pattern (L):** the real logo, the large wordmark, the panel and band. ✅ **Done in #727** (spec §13.1), merged on your word before your check. **Still yours, on the live site:** show the pattern to 3–5 people (spec §4.8), and check it on a low-end Android. An answer that something in it is wrong changes the drawing.
-- **B11.2 `/professionnels`, 404 and error pages (S).**
+- **B11.2 `/professionnels`, 404 and error pages (S).** ✅ **Done in #730** (spec §13.2).
 - **B11.3 Salon card, `/recherche`, landings, favourites (M):** the card gains the app's cover photo, a parity gap today.
 - **B11.4 Salon page (M):** with its own Lighthouse budget.
-- **B11.5 OG image, and an audit of the deployed site by separate eyes (S).**
+- **B11.5 OG image, and an audit of the deployed site by separate eyes (S).** The audit also looks at `/professionnels`'s title, which carries the brand twice (spec §13.2).
 - **B11.6 Square fields and buttons, the search as one bar (M · decision 70).** ✅ **Done in #728** — [web-swiss-fields.md](design/web-swiss-fields.md). The whole site, the Espace pro included. **Yours to judge from the pictures:** the rounded cards around them (§8). Read back on `myweli.com` and in the iOS simulator; looking at those pictures found the search's pale placeholder text, fixed in #729.
 
 ### Batch 12 — The website's flows against the apps

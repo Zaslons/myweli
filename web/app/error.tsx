@@ -4,6 +4,7 @@ import * as Sentry from '@sentry/nextjs';
 import { useEffect } from 'react';
 
 import { ErrorState } from '../components/ErrorState';
+import { SITE_CONTAINER } from '../lib/siteGrid';
 
 /// The route-segment error boundary — every unhandled render or data error in a
 /// page lands here (docs/design/observability-error-reporting.md §5).
@@ -21,6 +22,10 @@ import { ErrorState } from '../components/ErrorState';
 /// `title` is passed because this replaces a whole page, and §4 requires one h1
 /// per page in every state: without it the heading skeleton disappears precisely
 /// when a user most needs to know where they are.
+///
+/// **On the grid, with no pattern, unlike the 404.** This file's chunk is in every
+/// page's scripts, so a pattern here would cost every visitor for a page few ever see
+/// (docs/design/web-swiss-direction.md §13.2).
 export default function Error({
   error,
   reset,
@@ -37,7 +42,7 @@ export default function Error({
   }, [error]);
 
   return (
-    <main className="mx-auto max-w-3xl px-m py-xxl">
+    <main className={`${SITE_CONTAINER} py-xl lg:py-xxl`}>
       <ErrorState
         title="Une erreur est survenue"
         message="Nous n’avons pas pu afficher cette page. Réessayez dans un instant."

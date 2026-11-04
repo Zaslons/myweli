@@ -154,6 +154,7 @@ const PUBLIC_ROUTES: [url: string, anchor: string | RegExp][] = [
   // web-pro-access.md: the salons' page, and the Pro sign-up with its new
   // header and consent line.
   ['/professionnels', /logiciel de réservation des salons/],
+  ['/page-qui-nexiste-pas', 'Page introuvable'],
   ['/pro/inscription', /Créer|compte/i],
   // The review's finds: an AREA taxonomy landing (its h1→h3 skip survived
   // the first matrix) — landing.spec's own stub route.
@@ -174,6 +175,14 @@ test('the home page at phone width, a commune open, is axe-clean', async ({ page
   await page.goto('/');
   await page.locator('details', { hasText: 'Cocody' }).locator('summary').click();
   await scan(page, '/ at 375', /Réservez beauté/);
+});
+
+test('/professionnels and the 404 at phone width are axe-clean', async ({ page }) => {
+  await page.setViewportSize({ width: 375, height: 812 });
+  await page.goto('/professionnels');
+  await scan(page, '/professionnels at 375', /logiciel de réservation des salons/);
+  await page.goto('/page-qui-nexiste-pas');
+  await scan(page, 'the 404 at 375', 'Page introuvable');
 });
 
 test('public routes are axe-clean', async ({ page }) => {

@@ -1,9 +1,11 @@
 import type { Metadata } from 'next';
 import { ButtonLink } from '../../components/ButtonLink';
 import { JsonLd } from '../../components/JsonLd';
-import { HeroBackground } from '../../components/home/HeroBackground';
+import { SiteHero } from '../../components/SiteHero';
+import { SiteSection } from '../../components/SiteSection';
 import { PRO_LANDING as L } from '../../lib/pro/landing';
 import { faqJsonLd, siteUrl } from '../../lib/seo/jsonld';
+import { SITE_CONTAINER } from '../../lib/siteGrid';
 
 /// « MyWeli Pro pour les salons » — the public page a salon finds
 /// (docs/design/web-pro-access.md §4). Indexable and static; ONE filled action
@@ -25,91 +27,76 @@ export const metadata: Metadata = {
   },
 };
 
-const h2 = 'text-titleLarge font-semibold text-textPrimary';
-
 export default function ProfessionnelsPage() {
   return (
     <>
       <JsonLd data={faqJsonLd([...L.faq])} />
       <main>
-        <section className="relative overflow-hidden border-b border-divider">
-          <HeroBackground />
-          {/* `relative`: the backdrop is absolutely positioned (see the home
-              page's hero for why this class is load-bearing). */}
-          <div className="relative mx-auto max-w-5xl px-m py-xxl">
-            <h1 className="max-w-2xl text-headlineLarge font-semibold text-textPrimary">{L.title}</h1>
-            <p className="mt-m max-w-xl text-bodyLarge text-textSecondary">{L.subtitle}</p>
-            <div className="mt-l flex flex-wrap items-center gap-s">
-              <ButtonLink href="/pro/inscription">{L.signUp}</ButtonLink>
-              <ButtonLink href="/pro/connexion" variant="secondary">
-                {L.signIn}
-              </ButtonLink>
-            </div>
-            <p className="mt-m text-bodyMedium text-textSecondary">{L.trial}</p>
+        <SiteHero title={L.title}>
+          <p className="max-w-xl text-bodyLarge text-textSecondary">{L.subtitle}</p>
+          <div className="mt-l flex flex-wrap items-center gap-s">
+            <ButtonLink href="/pro/inscription">{L.signUp}</ButtonLink>
+            <ButtonLink href="/pro/connexion" variant="secondary">
+              {L.signIn}
+            </ButtonLink>
           </div>
-        </section>
+          <p className="mt-m text-bodyMedium text-textSecondary">{L.trial}</p>
+        </SiteHero>
 
-        <div className="mx-auto max-w-5xl px-m py-xl">
-          <section aria-labelledby="pro-benefits">
-            <h2 id="pro-benefits" className={h2}>
-              {L.benefitsTitle}
-            </h2>
-            <ul className="mt-m grid grid-cols-1 gap-m sm:grid-cols-2 lg:grid-cols-3">
-              {L.benefits.map((b) => (
-                <li key={b.title} className="rounded-xl border border-border bg-secondary p-l">
-                  <h3 className="text-titleMedium font-semibold text-textPrimary">{b.title}</h3>
-                  <p className="mt-xs text-bodyLarge text-textSecondary">{b.body}</p>
-                </li>
-              ))}
-            </ul>
-          </section>
+        <SiteSection title={L.benefitsTitle} titleId="pro-benefits" stacked>
+          <ul className="grid grid-cols-1 gap-x-l gap-y-l sm:grid-cols-2 lg:grid-cols-3">
+            {L.benefits.map((b) => (
+              <li key={b.title} className="border-t border-divider pt-m">
+                <h3 className="text-titleMedium font-semibold text-textPrimary">{b.title}</h3>
+                <p className="mt-xs text-bodyLarge text-textSecondary">{b.body}</p>
+              </li>
+            ))}
+          </ul>
+        </SiteSection>
 
-          <section aria-labelledby="pro-steps" className="mt-xl">
-            <h2 id="pro-steps" className={h2}>
-              {L.stepsTitle}
-            </h2>
-            <ol className="mt-m grid grid-cols-1 gap-m sm:grid-cols-3">
-              {L.steps.map((step, i) => (
-                <li key={step} className="flex items-start gap-s">
-                  <span
-                    aria-hidden="true"
-                    className="flex min-h-8 min-w-8 shrink-0 items-center justify-center rounded-pill bg-primary text-labelLarge font-medium text-secondary"
-                  >
-                    {i + 1}
-                  </span>
-                  <span className="text-bodyLarge text-textPrimary">{step}</span>
-                </li>
-              ))}
-            </ol>
-          </section>
+        <SiteSection title={L.stepsTitle} titleId="pro-steps">
+          <ol className="grid grid-cols-1 gap-y-l sm:grid-cols-3 sm:gap-x-l">
+            {L.steps.map((step, i) => (
+              <li key={step} className="flex items-baseline gap-m sm:block">
+                <span
+                  aria-hidden="true"
+                  className="text-displayMedium font-semibold tracking-tight text-textPrimary"
+                >
+                  {i + 1}
+                </span>
+                <p className="text-bodyLarge text-textPrimary sm:mt-s">{step}</p>
+              </li>
+            ))}
+          </ol>
+        </SiteSection>
 
-          <section aria-labelledby="pro-faq" className="mt-xl">
-            <h2 id="pro-faq" className={h2}>
-              {L.faqTitle}
-            </h2>
-            <dl className="mt-m space-y-m">
-              {L.faq.map((f) => (
-                <div key={f.question}>
-                  <dt className="font-medium text-textPrimary">{f.question}</dt>
-                  <dd className="mt-xs text-bodyLarge text-textSecondary">{f.answer}</dd>
-                </div>
-              ))}
-            </dl>
-          </section>
+        <SiteSection title={L.faqTitle} titleId="pro-faq">
+          <dl className="divide-y divide-divider">
+            {L.faq.map((f) => (
+              <div key={f.question} className="py-m first:pt-0 last:pb-0">
+                <dt className="font-medium text-textPrimary">{f.question}</dt>
+                <dd className="mt-xs max-w-content text-bodyLarge text-textSecondary">{f.answer}</dd>
+              </div>
+            ))}
+          </dl>
+        </SiteSection>
 
-          <section
-            aria-labelledby="pro-closing"
-            className="mt-xl flex flex-col items-start justify-between gap-m rounded-xl border border-border bg-surfaceVariant p-l sm:flex-row sm:items-center"
+        <section aria-labelledby="pro-closing" className="border-t border-primary">
+          <div
+            className={`${SITE_CONTAINER} flex flex-col items-start gap-m py-xl lg:flex-row lg:items-center lg:justify-between lg:gap-l lg:py-xxl`}
           >
-            <h2 id="pro-closing" className={h2}>
+            <h2
+              id="pro-closing"
+              className="text-headlineSmall font-semibold text-textPrimary lg:text-headlineMedium"
+            >
               {L.closing}
             </h2>
             {/* Secondary: the hero holds the page's one filled action. */}
             <ButtonLink href="/pro/inscription" variant="secondary" className="shrink-0">
               {L.signUp}
             </ButtonLink>
-          </section>
-        </div>
+          </div>
+        </section>
       </main>
     </>
   );

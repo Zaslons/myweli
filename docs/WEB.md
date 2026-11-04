@@ -329,6 +329,8 @@ All within budget, and the check failed as it should with the LCP budget set to 
 
 **The same again after square fields and buttons (#728), five runs each:** `/` 1907 ms (1158–1916), `/connexion` 1456 ms (1156–2207), `/suppression-compte` 1158 ms (1155–1604), CLS 0. The home page has now read 1263, 1487 and 1907 ms across three sets, drawing on the same range of values, while `/suppression-compte` went from 1607 to 1158 ms. That looks like which of two modes a run lands in. It is within budget, but not proved to be noise, and it is worth another look if it stays high.
 
+**`/professionnels` and the 404 (#730), five runs each on a local build:** `/` 2115 ms, `/connexion` 2713 ms, `/suppression-compte` 2109 ms, all where they were, and `/professionnels`, which has no budget, 2148 ms. `/connexion` read 2754 ms in the run before this, on code that didn't touch it, so a 40 ms move there says little.
+
 **A font swap can move text.** `/suppression-compte` read a CLS of 0.064 in some live runs, and 0 in others. A `layout-shift` observer named it: when the font arrives after first paint, a paragraph re-wraps by one line. `adjustFontFallback` keeps each line's height, not its width. It comes from the font (#724), not the new look, and it is under the 0.1 budget. Lighthouse's own explanation errored here too.
 
 **Ask which element it is, not only what number it is.** With the wordmark as an `<img>`, `/connexion` read the same 2712 ms, but its Largest Contentful Paint had become the footer's logo. Nothing failed, and Lighthouse's own element audit errored on this machine, so it took a `PerformanceObserver` to see. It is inline now, with a test on short pages.
