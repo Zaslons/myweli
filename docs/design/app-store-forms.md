@@ -1415,6 +1415,15 @@ un compte utilisateur (§13.1).** **Selon le propriétaire, le 2026-11-04** ([ap
 sur iPad, sur un simulateur et un build de débogage (§11.6) ; Media Manager vu et la réponse (§13.2) envoyée, sans ordre dit avec la soumission. **Aucun
 déploiement du backend** (décision 47).
 
+**Le build qui suit le 719 : ce diff ne sera plus vide** (relevé le 2026-11-04, c'est attendu). Depuis
+`713114a5`, `main` a reçu les cinq montées de Dependabot réunies en une (`chore/deps-five-mobile-bumps`,
+à la place de #692 à #696) : `mobile/pubspec.yaml` et `mobile/pubspec.lock` changent, sept paquets
+(geolocator 14.1.2, flutter_local_notifications 22.3.2 avec son `_linux` 8.0.2 et son
+`_platform_interface` 12.2.0, package_info_plus 10.2.2, app_settings 9.0.1, lottie 3.6.1) ;
+`mobile/ios`, `mobile/android` et `mobile/assets` ne changent pas. Si Apple refuse encore, ou pour la
+0.0.2, le relevé de ce build-là nomme ces deux fichiers au lieu de « vide », et sa passe ajoute le
+regard du §11.6.
+
 **What to Test** (fr-FR, coller tel quel — remplace celui du 698, qui parlait de
 l'inscription ; un `PATCH` si le texte existe déjà à la création du build) :
 
@@ -1547,6 +1556,14 @@ réel, le KYC, le pivotement, la vraie suppression d'un compte. Ils restent à l
 **Ce qu'elle ne voit pas non plus, sans que le propriétaire l'ait choisi** (relevé le 2026-11-03) : une
 session que le serveur refuse (seuls les tests de widgets la couvrent, et un appareil ne peut
 pas la provoquer à peu de frais), et un deuxième compte sur le même téléphone.
+
+**Au build qui suit le 719, un regard de plus**, quelle que soit sa liste (relevé le 2026-11-04). C'est
+le premier à porter lottie 3.6.1 (3.5.1 jusqu'au 719, §11.5). Sur un vrai iPhone, regarder une fois
+l'animation d'ouverture Pro (`myweli_loader_mixed_pro.json`, `pro_splash_screen.dart`) et `BrandLoader`
+(le `mark_loader` des chargements et du tirer-pour-rafraîchir) : ils jouent comme sur le 719, sans saut
+ni trait manquant. *Hors appareil, à la revue de cette montée :* les sept animations de l'app rendues
+image par image sous 3.5.1 et 3.6.1, 2 365 images, 0 différence. Cela ne remplace pas ce regard : rien
+dans ce dépôt n'observe un appareil. Il se rapporte ici, daté, comme le reste.
 
 **La liste complète** (celle des builds jusqu'au 698, et de la 0.0.2), sur l'appareil, contre la
 production :
