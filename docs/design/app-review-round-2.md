@@ -212,7 +212,9 @@ need to touch it.
   with `/cgu`, and a spelling the predicate missed brought the links back on hydration, because
   in the browser `usePathname` reads the address as typed. `/cgu%2Fx`, `/.%2Fcgu`, `/cgu%20` and
   `/cgu%252F` answer a 404, which keeps the links. Not a prefix. **Read on myweli.com on
-  2026-11-03: 560 spellings, no disagreement with the predicate.** This follows Vercel: `next start`
+  2026-11-03: 560 spellings, no disagreement with the predicate.** **Read live after the merge
+  on 2026-11-04 (#732, `7a2c7e15`, Chromium, not Safari): no salon link and no React error on any
+  of the 20 forms, with the controls unchanged.** This follows Vercel: `next start`
   answers the encoded-separator spellings with a 404, so a local build cannot show them. Its
   comment says why (this spec) and that the mobile half is `AppConfig`'s five getters.
 - **Header**: `SiteChrome` is already a client component reading `usePathname`; it passes one
