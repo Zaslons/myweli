@@ -44,7 +44,7 @@
 - **Done (2026-10-25):** batches 1–9, every item.
 - **Now:** batch 0 — **0.0.1 was rejected under 3.1.1** (business registration in the app); B0.11 made the Pro app login-only (#711). **Build 698, the new build of 0.0.1, was resubmitted on 2026-10-26** and **refused on 2026-11-03** under 2.3.4 (the framed film) and 3.1.1 (the sign-in's link): B0.16 is the answer (#731; build 719 attached). **2026-11-04: resubmitted at 00:02:00 UTC with build 719, in review (`WAITING_FOR_REVIEW`, release `MANUAL`, per the API); B0.1 applies. Still open: Apple's decision; a green scheduled « Production checks » run after `713114a5` and `7a2c7e15` (the last is 13:16 UTC on 2026-11-03, on `4e78e485`); a successful Apple sign-in on an iPad, unobserved; the production backend deploy after Apple's decision, the one that switches on the Apple keys; the release by hand after approval; merging the docs PR that holds this record.** B0.1's « while it's in review » constraints were lifted only while 0.0.1 was rejected. The privacy policy is corrected and live (B0.4, #709).
 - **Next (2026-11-02):** batch 12's four untrue sentences are in #723, then batch 11. Your order, decision 67.
-- **Yours:** batch 10, and your half of batch 0 (the steps of B0.16, then answer any Resolution Center message and release by hand after approval, B0.1; B0.10: the upload key and a signed AAB, the closed test's countries and 12 testers; decision 55).
+- **Yours:** batch 10, and your half of batch 0 (the word on when the docs PR merges, B0.16; then answer any Resolution Center message and release by hand after approval, B0.1; B0.10: the upload key and a signed AAB, the closed test's countries and 12 testers; decision 55).
 
 ---
 
