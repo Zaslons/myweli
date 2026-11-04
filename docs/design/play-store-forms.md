@@ -164,12 +164,13 @@ description courte 80, description complète 4 000. Le test les relit.
   `L'agenda, la clientèle et les réservations de votre salon, en une app.`
 - **Description complète** — la même que sur l'App Store, mot pour mot, en
   texte brut (Play n'interprète pas le Markdown : un `**` collé s'afficherait
-  tel quel). *2026-11-03 : l'App Store a changé sur deux points, à la demande du
-  propriétaire, après le deuxième refus d'Apple (« sur myweli.com » retiré, une phrase sur
-  les salons qui ont déjà un compte :
+  tel quel). *2026-11-03 : l'App Store a changé sur quatre points, à la demande du
+  propriétaire, après le deuxième refus d'Apple : décision 74 (« sur myweli.com » retiré, une phrase
+  sur les salons qui ont déjà un compte) et décision 79 (« semaine » retiré de « Vue journée, semaine,
+  et par membre d'équipe. », et « à domicile, » de la dernière phrase :
   [app-review-round-2.md](app-review-round-2.md) §7). Ce texte reste celui qui est enregistré
-  dans la console, et le test n'admet que cet écart. Les reporter ici et dans la console reste
-  au choix du propriétaire.* :
+  dans la console, et le test n'admet que ces quatre écarts. Les reporter ici et dans la console reste
+  au choix du propriétaire, qui n'a pas tranché pour Play.* :
 
 **Description complète** (coller tel quel) :
 

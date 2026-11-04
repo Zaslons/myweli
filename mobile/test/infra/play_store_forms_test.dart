@@ -12,8 +12,8 @@ import 'package:flutter_test/flutter_test.dart';
 ///    full description 4,000 characters (Play help, « Add product details »).
 ///    And the full description is the App Store's, word for word: the page
 ///    says so, and two stores telling two stories is how a claim drifts. One
-///    dated exception: decision 4 of Apple's second refusal (2026-11-03) edited
-///    the App Store's text only, so Play may be behind by exactly those two
+///    dated exception: decisions 74 and 79 (Apple's second refusal, 2026-11-03)
+///    edited the App Store's text only, so Play may be behind by those four
 ///    edits, and by nothing else, until the owner says otherwise.
 ///    **And the sign-in instructions fit their field.** No help page of
 ///    Google's states a limit; the console does — « 0/500 » under « Toute
@@ -98,25 +98,53 @@ void main() {
     });
 
     test('the full description is the App Store one, word for word, or '
-        'behind it by the two edits of 2026-11-03 and nothing else', () {
+        'behind it by the four edits of 2026-11-03 and nothing else', () {
       final full = fencedAfter(
         listing(),
         '**Description complète** (coller tel quel)',
       );
       final appStore = fencedAfter(section(ios, '## 4 · '), '**Description**');
-      // docs/design/app-review-round-2.md §7. Undone on the App Store's text,
-      // they must give Play's. Play taking them is a repair, and stays green.
-      final beforeTheEdits = appStore
-          .replaceFirst(
-            "votre page publique se remplit depuis l'app.",
-            "votre page publique sur myweli.com se remplit depuis l'app.",
-          )
-          .replaceFirst(
-            ' MyWeli Pro s’adresse aux salons qui ont déjà un compte MyWeli '
-                'et à leur équipe.',
-            '',
-          );
-      expect(full, anyOf(appStore, beforeTheEdits));
+      // docs/design/app-review-round-2.md §7: decision 74's two, decision 79's
+      // two. Undone on the App Store's text, in any combination, they must give
+      // Play's. Play taking any of them is a repair, and stays green.
+      const edits = [
+        (
+          now: "votre page publique se remplit depuis l'app.",
+          before: "votre page publique sur myweli.com se remplit depuis l'app.",
+        ),
+        (
+          now:
+              ' MyWeli Pro s’adresse aux salons qui ont déjà un compte MyWeli '
+              'et à leur équipe.',
+          before: '',
+        ),
+        (
+          now: "Vue journée et par membre d'équipe.",
+          before: "Vue journée, semaine, et par membre d'équipe.",
+        ),
+        (
+          now: 'FCFA, communes, réseaux lents',
+          before: 'FCFA, communes, à domicile, réseaux lents',
+        ),
+      ];
+      var allowed = {appStore};
+      for (final edit in edits) {
+        expect(
+          appStore,
+          contains(edit.now),
+          reason: 'an edit the App Store text no longer has allows nothing',
+        );
+        allowed = {
+          ...allowed,
+          for (final text in allowed) text.replaceFirst(edit.now, edit.before),
+        };
+      }
+      expect(allowed, hasLength(16), reason: 'anti-vacuity: four real edits');
+      expect(
+        allowed,
+        contains(full),
+        reason: 'Play differs from the App Store by more than those four edits',
+      );
     });
 
     test('no Markdown in what is pasted — Play shows it literally', () {

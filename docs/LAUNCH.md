@@ -3,6 +3,7 @@
 | | |
 |---|---|
 | **Status** | Living document. Nothing here is done until its box is ticked **with evidence**. |
+| **Pro 0.0.1** | **2026-11-04: resubmitted at 00:02:00 UTC with build 719, in review (`WAITING_FOR_REVIEW`, release `MANUAL`, per the API); B0.1 applies. Still open: Apple's decision; a green scheduled « Production checks » run after `713114a5` and `7a2c7e15` (the last is 13:16 UTC on 2026-11-03, on `4e78e485`); a successful Apple sign-in on an iPad, unobserved; the production backend deploy after Apple's decision, the one that switches on the Apple keys; the release by hand after approval; merging the docs PR that holds this record.** The record: §6.2 and [design/app-review-round-2.md](design/app-review-round-2.md) §12. |
 | **Order** | **Web first → iOS → Android last** (§3) — *amended 2026-09-24 (owner): the **Pro app goes to the Apple App Store first** — TestFlight and App Review now, the public release still behind production restored and stable (§3)* |
 | **Related** | [ROADMAP.md](ROADMAP.md) · [BACKLOG.md](BACKLOG.md) (what is left, and how we will solve it) · [DEPLOYMENT.md](DEPLOYMENT.md) · [BACKEND.md](BACKEND.md) · [design/mobile-store-submission.md](design/mobile-store-submission.md) |
 
@@ -53,7 +54,10 @@ questions none of our gates can answer:
      carry the DSN; whether an event from a store build has reached Sentry is
      not recorded here.)*
      *(2026-11-03: Apple refused 587 on 2026-10-19 and its replacement, 698, on
-     2026-11-03. The next build of 0.0.1 is not made yet:
+     2026-11-03. The next build of 0.0.1, 719, was made the same night by the same
+     script and carries the DSN (2 occurrences in the binary, compared without
+     printing). It is uploaded, in TestFlight and attached to version 0.0.1. Not submitted on
+     that date; on 2026-11-04 the API reads `WAITING_FOR_REVIEW`, submitted at 00:02:00 UTC:
      [design/app-review-round-2.md](design/app-review-round-2.md).)*
    Uptime checks on `/health` and a database-backed route are live and alerting
    to a human, verified against real probe data
@@ -250,6 +254,7 @@ starts. Concretely:
   BACKLOG B0.1.)*
   *(2026-11-03: Apple refused 587 on 2026-10-19 and 698 on 2026-11-03; the next
   submission waits on the owner — [design/app-review-round-2.md](design/app-review-round-2.md) §12.)*
+  *(2026-11-04: resubmitted at 00:02:00 UTC with build 719, in review; the release stays manual and stays behind this section.)*
 - The consumer app and Android keep their places in the order.
 
 The form-by-form packet, the rebuild commands and the owner's ordered
@@ -1279,12 +1284,66 @@ checking rather than assuming:
 > iPad Air) cited the framing around the film's capture, and the sign-in's « S'inscrire
 > sur myweli.com », with « remove features, account registration links, and any other
 > links to your site… ». So the link kept knowingly above is gone, on iOS and Android. **The
-> answer is built on `fix/app-review-round2` and is not merged** (BACKLOG B0.16, decisions 71–76,
+> answer was built on `fix/app-review-round2` and merged the same day, below** (BACKLOG B0.16, decisions 71–81,
 > [app-review-round-2.md](design/app-review-round-2.md)): no link on the sign-in; the five pages
 > the app opens without the salon links; the full-bleed cut of the film, its end card and « Total »
 > an accepted risk; review notes without 3.1.3(f); a focused device pass. **Web merges are production
-> deploys: the five pages go live at merge, and the build comes after. No production backend deploy**
-> (decision 47): no step needs one. Until the next « Add for Review », B0.1's constraints are lifted.
+> deploys: the five pages went live at the merge, and the build came after. No production backend deploy**
+> (decision 47): no step needs one. Until the next « Add for Review », B0.1's constraints are lifted. *They apply again from 00:02:00 UTC on 2026-11-04, per the API: below.*
+>
+> **2026-11-03, night — #731 merged, the web live, build 719 in TestFlight; not resubmitted.** Squash
+> `713114a5` at 22:25:58 UTC, all 13 checks green; Vercel's production deployment of it succeeded. Read live
+> at 22:37:15 UTC with an iPad user agent, the five pages hold 0 of `/professionnels`, `/pro/inscription`,
+> `/pro/connexion`, `/pro/salons/nouveau` and « facturation »; `/` and `/connexion` still hold the links (the
+> limits of that read: the spec's §13). Build **719**, from `713114a5`: IPA read, validated, uploaded, `VALID`,
+> read as French, the only build in « Équipe MyWeli », symbols and a release on Sentry (app-store-forms §11.3,
+> §11.5). Version 0.0.1 was then still `REJECTED`, release `MANUAL`, with 698 attached: the next paragraph changes that.
+>
+> **2026-11-03, later that night — App Store Connect holds the new page; not resubmitted at that read.** *Owner-reported:* the focused
+> pass, « my results passed », on their iPhone, on signed build 719; « Continuer avec Apple » there showed « Aucun compte
+> MyWeli Pro… »; the Instagram bio does not link to salon sign-up; the demo salon's « Avis » has no review. *Step 5 ran on
+> that iPhone, not an iPad.* At about 23:43 UTC, on an iPad Air 11-inch (M3) simulator, a debug build from `713114a5` showed no
+> link on the sign-in, and one tap on « Continuer avec Apple » ended on B0.14's sentence after Apple's system dialog was
+> closed. A successful Apple sign-in on an iPad remains unobserved. After the owner's results, as they had been told: the film at
+> 23:49 UTC, previews `17000019-5a03-88cb-8118-40e21663fe37` (`IPHONE_67`) and `f3000019-5a03-88cb-8114-ec9980fce3b8`
+> (`IPHONE_61`), 14,309,442 bytes, `sourceFileChecksum` `543d367a6caf1b1069d0cd62e2246177` read back on both, `COMPLETE`, poster
+> `00:00:13:00` read back on both (Apple ignored the time at reservation and at commit, and a PATCH after processing took); the
+> framed films deleted after that (204); the description, 1,039 characters; build 719 attached (204), read back as
+> `4eb50f72-f6d1-4ca2-ad6a-e5e544fdb25f`; the notes, 3,991 bytes, with one clause the owner delegated (decision 81). The
+> description and the notes read back identical. Version 0.0.1 was `PREPARE_FOR_SUBMISSION`, release `MANUAL`; submission `45ed9726…` was `UNRESOLVED_ISSUES`, as it
+> stood then. **Not done at that read:** the demo sign-in and the no-account address on that iPad, « View All Sizes in Media Manager », the
+> reply (given to the owner with 719), « Add for Review », the read-back after it. The last scheduled « Production checks » run
+> was green at 13:16 UTC on `4e78e485`, before the merge; a green run after `713114a5` has not been observed. The backend is
+> not deployed.
+>
+> **2026-11-04 — in review, per the API.** Read twice by Claude's review of this record, the second at 00:18 UTC: version 0.0.1
+> `WAITING_FOR_REVIEW`, release `MANUAL`; submission `45ed9726…` `WAITING_FOR_REVIEW`, submitted at 00:02:00 UTC by an actor of type
+> `USER`, not an API key, its item `READY_FOR_REVIEW`. B0.1's constraints apply from then, and a merge to `main` is a production
+> deployment even when it is docs only. Not readable there: whether the Resolution Center reply was sent, and which person
+> submitted. #732 (the
+> `%2F` and `%5C` spellings) merged at 23:59:03 UTC on 2026-11-03 as `7a2c7e15` and its production deployment succeeded at 00:01:08 UTC, 52 seconds
+> before the submission; the raw read is clean, as it was before #732, so it proves nothing about the fix.
+>
+> **2026-11-04 — the owner's answers and the rendered read.** *Owner-reported, not observable from here:* on an iPad Air 11-inch (M3)
+> simulator, a debug build of the pro flavour from `713114a5`, not signed 719: « demo sign-in on the iPad passed, Maison Nala loaded, and I received the code on another email and when entered it said aucun compte myweli... ». And « I checked Media Manager and
+> sent the reply », the reply being the app-store-forms §13.2 block with 719. The owner did not say whether the Media Manager read came
+> before or after the submission, so no order is stated. *Observed by Claude:* at 00:04 UTC, on that simulator, the no-account screen:
+> the full sentence « Aucun compte MyWeli Pro n’est associé à cette adresse. Si votre salon vous a invité, connectez-vous avec l’adresse qui a reçu l’invitation. », with only « Se connecter », « Renvoyer le code » and
+> « Changer d’e-mail » beside it: nothing about signing up. At 00:05 UTC, through the API: submission `45ed9726…` `WAITING_FOR_REVIEW`,
+> `submittedDate` 2026-11-04T00:02:00.35Z, item `READY_FOR_REVIEW`; version 0.0.1 `WAITING_FOR_REVIEW`, release `MANUAL`, build 719
+> attached; the film, the description and the notes still as written. At 00:06 UTC, raw, with an iPad user agent: the five pages show 0 of
+> `/professionnels`, `/pro/inscription`, `/pro/connexion` and « facturation », the controls `/` 4, 1, 1 and `/connexion` 2, 1, 1, and
+> `/support%2F`, `/%2Fsupport` and `/support%5C` are also 0. **The rendered read owed by #732, done for one address:** real Safari on
+> that simulator at 00:06 UTC opened `/support%2F` and, after hydration, the header ends on « Mon compte » with no « Espace pro ». The
+> frame shows the header, the body and the top of the footer's wordmark, not the footer's links. Before #732 the same address showed the
+> salon links after hydration, which is the control. The other spellings were read raw in that pass, and all 20 forms rendered in Chromium (#733).
+>
+> **Still open on 2026-11-04:** Apple's decision; a green scheduled « Production checks » run after `713114a5` and `7a2c7e15` (the last is
+> 13:16 UTC on 2026-11-03, on `4e78e485`; read again at 00:40 UTC); a successful Apple sign-in on an iPad, unobserved, since the signed
+> build ran on the owner's iPhone (where it gave « Aucun compte MyWeli Pro… ») and the simulator has no Apple account; the production
+> backend deploy after Apple's decision, the one that switches on the Apple keys; the release by hand after approval; merging the docs PR
+> that holds this record, whose merge deploys production with an unchanged web tree, and which the owner chose on 2026-11-04 to merge after green, in review. B0.1 applies
+> since 00:02:00 UTC.
 
 - [ ] Everything in [mobile-store-submission.md](design/mobile-store-submission.md) §5.
       Two of its claims are **stale as of 2026-08-18** and must be corrected
