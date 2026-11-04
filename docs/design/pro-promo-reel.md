@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Statut** | **Approuvé le 2026-10-19 par le propriétaire** (le storyboard « CARNET → DROP »), puis **construit et vérifié les 2026-10-19 et 2026-10-20** sur `feat/promo-reel` (PR #664) par `tool/promo_reel/` : deux coupes (30 s et 15 s), chacune en 9:16, 1:1 et 16:9 — six films. **Le rendu final** (R9, le 2026-10-20) : les trois films touchés reconstruits, `verify --all` sortie 0, 54 contrôles sur 54, six PASS et une bande-son par coupe ; 432 tests, OK (1 ignoré) (§9). **Fusionné le 2026-11-04 (#664), sur la parole du propriétaire. Fusionner n'est pas publier : la règle de publication ci-dessous ne bouge pas.** **Décisions du propriétaire le 2026-10-19** (§2 les cite une à une) : le concept « CARNET → DROP » ; l'amapiano à 112,5 BPM ; le carnet dessiné par le code, sans photo ; « Disponible sur l’App Store » sous la signature, publié seulement après la sortie (remplacé le 2026-10-20) ; une mesure de plus (« Add one bar (Recommended) ») ; le soulignement et le coup de zoom de la carte de fin gardés (« Keep both ») ; le crochet 16:9 en deux moitiés gardé (« Keep the split ») ; le 16:9 remis en page (« Re-lay it ») ; le plancher 9:16 descendu vers y 1450 (« Extend to ~y 1450 », posé à y 1424, §2). **Le 2026-10-20** (§2) : le glissé 9:16 (« Keep it »), la suspension 9:16 (« Accept it »), la suspension 1:1 (« Keep as is »), les trois retouches 16:9 (« all three » : la poussée sur le sol, les cartes à pleine largeur de colonne, la coupe franche du formulaire 15 s), et la carte de fin « Sur l’App Store et Google Play » · « myweli.com » (« Both stores, post later »). Le crédit de carte dans les mots de l'app n'est pas une réponse du propriétaire : le contrat le consigne comme « my call, attribution correctness, not marketing copy ». **Le 2026-10-20 après R8** (§2) : « Accept 1.23× » (la poussée 16:9) et « Accept it » (le formulaire de la 15 s 16:9 jamais vu rempli) ; **mes décisions, pas les siennes** : la coupe de la 15 s 16:9 sur f192 (le premier temps), le disque du tap « Mois » accepté et rapporté par verify (g), le libellé du crédit de carte. **Pas fait** (§10) : le propriétaire n'a pas encore confirmé avoir écouté la bande-son ; la licence de la photo de couverture de Maison Nala pour une publicité, les conditions CARTO pour la vidéo et un essai sur un vrai téléphone sous l'interface de chaque plateforme restent à faire ; rien n'est publié — **RÈGLE DE PUBLICATION (« Both stores, post later ») : seulement quand les DEUX apps Pro sont en ligne, iOS ET Android** (d'après le dépôt le 2026-11-04, ni l'une ni l'autre : l'iOS en App Review, build 719, BACKLOG B0.1 ; la fiche Play est saisie, rien n'est envoyé pour examen et il reste le test fermé de 12 testeurs pendant 14 jours, B0.10 ; « Android last », LAUNCH.md §3 ; le propriétaire le confirme le jour même, §10.3). |
+| **Statut** | **Approuvé le 2026-10-19 par le propriétaire** (le storyboard « CARNET → DROP »), puis **construit et vérifié les 2026-10-19 et 2026-10-20** sur `feat/promo-reel` (PR #664) par `tool/promo_reel/` : deux coupes (30 s et 15 s), chacune en 9:16, 1:1 et 16:9 — six films. **Le rendu final** (R9, le 2026-10-20) : les trois films touchés reconstruits, `verify --all` sortie 0, 54 contrôles sur 54, six PASS et une bande-son par coupe ; 432 tests, OK (1 ignoré) (§9). **Fusionné le 2026-11-04 (#664), sur la parole du propriétaire. Fusionner n'est pas publier : la règle de publication ci-dessous ne bouge pas.** **Décisions du propriétaire le 2026-10-19** (§2 les cite une à une) : le concept « CARNET → DROP » ; l'amapiano à 112,5 BPM ; le carnet dessiné par le code, sans photo ; « Disponible sur l’App Store » sous la signature, publié seulement après la sortie (remplacé le 2026-10-20) ; une mesure de plus (« Add one bar (Recommended) ») ; le soulignement et le coup de zoom de la carte de fin gardés (« Keep both ») ; le crochet 16:9 en deux moitiés gardé (« Keep the split ») ; le 16:9 remis en page (« Re-lay it ») ; le plancher 9:16 descendu vers y 1450 (« Extend to ~y 1450 », posé à y 1424, §2). **Le 2026-10-20** (§2) : le glissé 9:16 (« Keep it »), la suspension 9:16 (« Accept it »), la suspension 1:1 (« Keep as is »), les trois retouches 16:9 (« all three » : la poussée sur le sol, les cartes à pleine largeur de colonne, la coupe franche du formulaire 15 s), et la carte de fin « Sur l’App Store et Google Play » · « myweli.com » (« Both stores, post later »). Le crédit de carte dans les mots de l'app n'est pas une réponse du propriétaire : le contrat le consigne comme « my call, attribution correctness, not marketing copy ». **Le 2026-10-20 après R8** (§2) : « Accept 1.23× » (la poussée 16:9) et « Accept it » (le formulaire de la 15 s 16:9 jamais vu rempli) ; **mes décisions, pas les siennes** : la coupe de la 15 s 16:9 sur f192 (le premier temps), le disque du tap « Mois » accepté et rapporté par verify (g), le libellé du crédit de carte. **Pas fait** (§10) : le propriétaire n'a pas encore confirmé avoir écouté la bande-son ; la licence de la photo de couverture de Maison Nala pour une publicité, les conditions CARTO pour la vidéo, un essai sur un vrai téléphone sous l'interface de chaque plateforme et la comparaison de chaque prise à l'app alors en ligne (refilmer au besoin) restent à faire ; rien n'est publié — **RÈGLE DE PUBLICATION (« Both stores, post later ») : seulement quand les DEUX apps Pro sont en ligne, iOS ET Android** (d'après le dépôt le 2026-11-04, ni l'une ni l'autre : l'iOS en App Review, build 719, BACKLOG B0.1 ; la fiche Play est saisie, rien n'est envoyé pour examen et il reste le test fermé de 12 testeurs pendant 14 jours, B0.10 ; « Android last », LAUNCH.md §3 ; le propriétaire le confirme le jour même, §10.3). |
 | **Owner** | Sadreddine Daher |
 | **Last updated** | 2026-11-04 |
 | **PRD ref / phase** | Lancement — marketing · V1 (hors app : rien dans `mobile/`, `web/` ni `backend/` ne change) |
@@ -540,9 +540,13 @@ du numéro du salon flouté (f712–f748, trois formats).
    changer ce chiffre : une prise refaite après montrerait d'autres nombres, et
    le compteur (`start`, `end`, `figure_picture`, l'atterrissage) devrait être
    repointé sur elle. Le film reste cohérent avec lui-même, puisque le compteur
-   lit N1. De même, take1b, take2b et take5b correspondent au build 587 : après
-   0.0.2 (le champ téléphone de #611, le « Modifier » de #614), revérifier le
-   formulaire et la fiche avant de réutiliser le film.
+   lit N1. De même, take1b, take2b et take5b correspondent au build 587 : #611
+   (le champ téléphone) et #614 (le « Modifier » sous le numéro) sont déjà dans
+   le build 719 ; le journal (AppChip, #702) et Revenus (AppCard, #700) ont aussi
+   changé depuis. Vu sur les goldens du dépôt, pas sur le film : la pastille
+   « Confirmé » du journal s'arrondit (`pro_journal_day.png`), la carte « Total
+   réalisé » perd son ombre et rétrécit (`pro_earnings.png`). Avant de publier,
+   comparer chaque prise à l'app alors en ligne, refilmer au besoin.
 3. **Rien n'est publié — les règles de publication.** La fusion (#664, le
    2026-11-04, sur la parole du propriétaire) n'est pas une publication : aucun
    film n'est commité.
@@ -564,6 +568,13 @@ du numéro du salon flouté (f712–f748, trois formats).
      Rien dans `tool/promo_reel/` ne tient cette règle ; le README de l'outil
      l'écrit en tête (« POSTING GATE »). « myweli.com » est vrai aujourd'hui :
      `https://myweli.com/` a répondu 200 le 2026-10-20 à 15:50 UTC.
+   - **Chaque prise face à l'app alors en ligne.** Le film montre le build 587
+     (take1b, take2b, take5b, le 2026-10-14) et N1 (le 2026-10-19) ; l'app a
+     changé depuis (§10.2). Avant de publier, comparer chaque prise à l'app alors
+     en ligne, refilmer au besoin. `verify` contrôle le MP4 écrit contre les prises,
+     jamais contre l'app : rien dans `tool/promo_reel/` ne fait cette comparaison.
+     Une prise qui écrit dans le salon de démonstration attend le feu vert du
+     propriétaire (§10.5).
    - **La photo de couverture de Maison Nala** (la page publique, mesures 11–12)
      ne repose que sur la déclaration du propriétaire d'une licence libre ; son
      usage dans une publicité et ses liens sources sont à confirmer avant de
@@ -638,8 +649,8 @@ porte dans son message de commit les contrôles vus rouges avant elle.
 - **La bande-son, à l'oreille** (§10.1).
 - **Publication** : la date, les canaux, et les conditions du §10.3 (la règle
   « Both stores, post later » : les deux apps Pro en ligne, iOS ET Android,
-  confirmé par le propriétaire le jour même ; la licence de la photo de Maison
-  Nala ; les conditions CARTO).
+  confirmé par le propriétaire le jour même ; chaque prise comparée à l'app
+  alors en ligne ; la licence de la photo de Maison Nala ; les conditions CARTO).
 - **Les retouches 16:9 telles que construites — DÉCIDÉES le 2026-10-20
   après R8** (le contrat, « Owner decisions after round 8 » ; §2) : le
   propriétaire, « Accept 1.23× » (la poussée sur le sol reste à 1,23×) et

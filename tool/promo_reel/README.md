@@ -23,7 +23,11 @@ machine-readable form and the one source of the pipeline.
 > owner's word of 2026-11-04; no film is committed. Still not done: the owner
 > has not confirmed listening to the soundtrack; the Maison Nala cover photo's
 > licence for an ad; CARTO's terms for video; a test on a real phone under each
-> platform's overlay.
+> platform's overlay; **comparing each take with the app then live, refilming if
+> needed** (the footage is build 587's and N1 of 2026-10-19, and the app has moved
+> since: #611 and #614 are already in build 719, and the journal's AppChip and
+> Revenus's AppCard came after; `verify` checks the written MP4 against the takes,
+> never against the app; spec §10.2).
 
 Design spec: [docs/design/pro-promo-reel.md](../../docs/design/pro-promo-reel.md)
 — the owner's decisions, the honesty rules and how the code holds each one,
