@@ -2,9 +2,9 @@
 
 | | |
 |---|---|
-| **Status** | **Approved 2026-11-02** (decisions in §15). Direction B, with the owner's two additions: the real logo and the things that are MyWeli's own (§3), and a pattern with an African identity that **feels calm** (§4). **S0 merged in #724 and read back on `myweli.com`** (§11, §13). **S1 merged in #727 and read back on `myweli.com`** (§11, §13.1). **The owner chose to merge it before §4.8 (2026-11-02):** that check and a low-end Android are still theirs, now on the live site, and an answer to question 3 still changes the drawing. Fields and buttons went square in #728 ([web-swiss-fields.md](web-swiss-fields.md)). **S2 in #730** (§13.2). |
+| **Status** | **Approved 2026-11-02** (decisions in §15). Direction B, with the owner's two additions: the real logo and the things that are MyWeli's own (§3), and a pattern with an African identity that **feels calm** (§4). **S0 merged in #724 and read back on `myweli.com`** (§11, §13). **S1 merged in #727 and read back on `myweli.com`** (§11, §13.1). **The owner chose to merge it before §4.8 (2026-11-02):** that check and a low-end Android are still theirs, now on the live site, and an answer to question 3 still changes the drawing. Fields and buttons went square in #728 ([web-swiss-fields.md](web-swiss-fields.md)). **S2 merged in #730 on 2026-11-04 and read on `myweli.com`** (§13.2). |
 | **Owner** | Sadreddine Daher |
-| **Last updated** | 2026-11-02 |
+| **Last updated** | 2026-11-04 |
 | **PRD ref / phase** | FR-WEB-MP-001, FR-WEB-PP-001/002 (presentation only) · V1 |
 | **Module** | Web public: `app/page.tsx`, `app/professionnels`, `app/recherche`, `app/[slug]`, `components/home`, `components/landing`, `components/provider`, `Header`, `SiteFooter`, `styles/tokens.ts` |
 | **Skills checked** | myweli-web-guardrails ✓ · myweli-verification-guardrails ✓ · no backend change |
@@ -149,13 +149,16 @@ Rows of round-ended strokes that meet from both sides, half a step apart: a plai
 | Salon pages, category pages, `/recherche` | **None.** Photos are the content, and the page's job is choosing a salon |
 | `/connexion`, `/mon-compte/*`, booking, legal, `/pro/*` | **None** |
 
-**Hard rules, held by tests (§12):** at most one panel or band on a page · never behind text · no animation · `aria-hidden`, so it says nothing to a screen reader · no text inside it · inline SVG only, no image file.
+**Hard rules, held by tests (§12):** at most one panel or band visible on a page · never behind text · no animation · `aria-hidden`, so it says nothing to a screen reader · no text inside it · inline SVG only, no image file.
+
+**« None » means not drawn, not absent from the page's HTML (read on 2026-11-04, §13.2).** The 404's band is carried in the RSC payload of every page, so it travels with each « None » row too, the five store-linked pages included. It is not rendered there.
 
 ### 4.7 Technical shape
 
 - `components/brand/Weave.tsx`, a server component with no client JS, exporting `WovenPanel` and `WovenBand`.
 - Colours through the theme's role tokens (`stroke-primary`, the page's `surface`), not literals, which is what makes the dark version a value swap.
 - At most **4 KB of markup per page** before compression, pinned by a test. The sketch measured 3.1 KB and 0.8 KB; one 28-high tile, so that a single `<rect>` draws every row, brought the built forms to 1.7 KB together.
+  **What that pin reads (checked 2026-11-04):** `site-look.spec.ts` adds up the `outerHTML` of `svg[data-weave]` in the DOM, on `/` only, and `weave.test.tsx` measures the two forms' own markup, on no page. Neither reads the RSC payload, where the same trees travel again. Counted with it, `/` and `/professionnels` are at 5,193 bytes against the test's 4,096: 1,728 in the markup and 3,465 in the payload, about 826 bytes gzipped on `/professionnels`, an estimate. `/` was at 4,144 before S2, from a copy saved that morning. Whether the budget counts the payload is **the owner's call, still open** (§13.2).
 - Replaces `HeroBackground`, which is deleted, along with its comment about stacking: nothing sits behind text any more.
 
 ### 4.8 Before it goes live: people who would know
@@ -394,7 +397,7 @@ Six PRs, in order, each merged only on the owner's word. A merge is a production
 |---|---|---|
 | **S0** | Font trimmed to 18.7 KB, `displayPoster`, `fontFamily` closed, the rules in WEB-SYSTEM §16, SYSTEM §22. **No layout change.** The grid constant moves to S1, its first user: nothing here would use it | Lighthouse measured on the font alone. Every e2e green, including `/pro` |
 | **S1** | `Weave`, `Header`, `SiteFooter`, `/`. Delete `HeroBackground` from `/` | Merged on the owner's word. §4.8 and the real-phone check follow on the live site |
-| **S2** | `/professionnels`, 404 and error pages. `HeroBackground` deleted | Built in #730 (§13.2) |
+| **S2** | `/professionnels`, 404 and error pages. `HeroBackground` deleted | Merged in #730 on 2026-11-04, read on `myweli.com` (§13.2) |
 | **S3** | `ProviderCard`, `/recherche`, landings, favourites list | Cards with and without photos looked at |
 | **S4** | Salon page. Budgets added | Salon LCP measured |
 | **S5** | OG image. Audit of every page against this spec **on the deployed site**, by separate eyes told to refute it | Findings fixed or filed |
@@ -433,7 +436,14 @@ Built to §7.2 and §7.7 ([pictures](assets/web-swiss-s2.png)). `SiteHero` now h
 
 **At 360 × 640** the whole hero fits, with 114px to spare above the fold's limit for the filled action.
 
-**During App Review.** `/support` and `/politique-confidentialite` are listed with Apple and they keep their wording. They change only in font, header and footer, and they get checked after each deploy. Timing against Apple's decision is the owner's call at each merge.
+**Read on `myweli.com` after the merge (2026-11-04, `a41f7db9`): the 404's band is in every page's HTML.** This was not recorded when it was built. Next.js serializes the root 404 into every page's RSC payload (read on nine pages), so the first row's reason applies to the 404 as well: it costs every visitor for a page few see. Q3 in §15 was answered before this was read.
+
+- **On the five store-linked pages** ([app-review-round-2.md](app-review-round-2.md) §5, §12) it is not rendered, with no `svg[data-weave]` in the DOM, and it adds no route to sign-up: their HTML has no `/professionnels`, `/pro/inscription`, `/pro/connexion`, « Espace pro » or « Inscrire », and the fragment's one link goes to `/`.
+- **What it costs.** On each of the five, the 404's fragment grew from 585 to 1,990 bytes, against copies saved before the deploy, and nothing else in those files changed but same-length hashes. The band's tree is 1,049 of those bytes. Compressed, these are estimates, because no before and after exists from one encoder: cutting from the live HTML saves about 270–440 bytes of gzip for the band alone and 470–650 for the whole fragment, and putting a rebuilt old fragment back shows about 350–520 of growth. Browsers get brotli, so these are a guide and not what a visitor is sent.
+- **Speed.** No like-for-like before exists, so nothing is claimed either way. Read live, the budgeted pages are within budget and the LCP element on `/` and `/professionnels` is the `<h1>`, not the pattern.
+- **The budget.** Counted with the payload, `/` and `/professionnels` are over §4.7's 4 KB, and its tests do not read the payload. **Whether the budget counts the payload is the owner's call, still open.** Taking the band off the 404 would change the HTML of the five pages again, so it waits for Apple's decision (B0.1).
+
+**During App Review.** `/support` and `/politique-confidentialite` are listed with Apple and they keep their wording. They change only in font, header and footer, and they get checked after each deploy. Timing against Apple's decision is the owner's call at each merge. Read after this deploy: words and links unchanged on all five, with their HTML grown as above ([app-review-round-2.md](app-review-round-2.md) §12).
 
 **Mixed look between merges.** Accepted: there is no public traffic to speak of (memory: not yet public), and each slice stands on its own.
 

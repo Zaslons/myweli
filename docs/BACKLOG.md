@@ -543,7 +543,16 @@ Spec: [web-swiss-direction.md](design/web-swiss-direction.md). Starts after B12.
 - **B11.2 `/professionnels`, 404 and error pages (S).** ✅ **Done in #730** (spec §13.2).
 - **B11.3 Salon card, `/recherche`, landings, favourites (M):** the card gains the app's cover photo, a parity gap today.
 - **B11.4 Salon page (M):** with its own Lighthouse budget.
-- **B11.5 OG image, and an audit of the deployed site by separate eyes (S).** The audit also looks at `/professionnels`'s title, which carries the brand twice (spec §13.2).
+- **B11.5 OG image, and an audit of the deployed site by separate eyes (S).** The audit also looks at `/professionnels`'s title, which carries the brand twice (spec §13.2). **Also for the audit, from the live read after #730 (2026-11-04), none urgent. Hold these until Apple has decided, because every merge deploys production and nothing the reviewer relies on should move during review (B0.1):**
+  - **`/professionnels`'s `<h1>` cuts a word at 200% text,** at 390 and 360 wide: « réservatio / n des ». Nothing is clipped, but it reads as broken (`SiteHero`, `break-words`, no hyphen).
+  - **A plain space before `:`, `;` and `?`** in `web/lib/pro/landing.ts` lets the mark start a line: « la fiche client / : historique » at 1280. The FAQ strings feed the JSON-LD, so changing those changes search text.
+  - **`/professionnels` has no `og:image`, `twitter:image`, `og:type`, `og:site_name` or `og:locale`,** while it declares a large card (`summary_large_image`). Not from #730.
+  - **Specks at the panel's foot from 1536 wide:** the cloth's cut lands on the first pixel of the next row, and it reads as a fault. `/` shows the same row at 1920, in a saved crop.
+  - **The 404's `<title>` is the home page's,** so a tab or a screen reader does not say the page was not found. Not from #730.
+  - **The filled button in forced-colours mode** loses its fill and has no border, so it shows as bare link text: the 404's, and the hero's « Inscrire mon salon », which then looks weaker than the secondary (`Button.tsx`).
+  - **No Lighthouse budget for `/professionnels`** in `web/lighthouserc.json` or `web/tool/lighthouse-production.json`, so nothing fails if it slows. First reading, live from a Mac, three runs: LCP 1156 ms, CLS 0, TBT 13 ms.
+  - **`/connexion` is 293 ms from its live LCP budget** (2207 ms against 2500, five runs from a Mac), so it may fail the daily check at random. The daily check's one representative run read 1527–2276 ms on the four days up to the merge. Why it sits that high is not established; a throttled real browser reads 1520 ms.
+  - **The LCP gate cannot see a large element painted late by a timer** (`simulate`): a control page painting one at 3 s read 751 ms and passed on LCP. A late image is seen. Not a live defect today: the live LCP element is text, at first paint.
 - **B11.6 Square fields and buttons, the search as one bar (M · decision 70).** ✅ **Done in #728** — [web-swiss-fields.md](design/web-swiss-fields.md). The whole site, the Espace pro included. **Yours to judge from the pictures:** the rounded cards around them (§8). Read back on `myweli.com` and in the iOS simulator; looking at those pictures found the search's pale placeholder text, fixed in #729.
 
 ### Batch 12 — The website's flows against the apps

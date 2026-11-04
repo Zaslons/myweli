@@ -676,6 +676,26 @@ is known only from the owner's report of 2026-11-03.
 00:06 UTC, with the same address before #732 as the control. It does not cover the footer's links. The other spellings were read
 raw in that pass, and all 20 forms rendered in Chromium afterwards (#733). Reads are allowed during review; a web edit is not.
 
+**The rendered read owed after #730's deploy is done, on 2026-11-04.** #730 (`a41f7db9`, `/professionnels` and the 404, merged on the owner's
+word, in review) edits none of the five pages' own files, but their served HTML changed. Read from about 13:46 to 14:40 UTC, by the saved
+files' times, signed out, on the build whose full SHA is in the chunks `/support` loads: the five, hydrated, in Chromium 149 and WebKit 26.0, each at
+820×1180 and 390×844, so 20 reads, all 200.
+
+- **No link.** No link, button or menu on any of the five leads to `/professionnels`, `/pro/inscription` or `/pro/connexion`, raw or hydrated. Controls: `/`
+  has 5 such links and `/connexion` 4. Typed spellings that answer 200 show none; those that answer 404 keep them, as §5.1 says.
+- **Two taps.** Each of the three is exactly two taps from each of the five, never one: a crawl in all four browser and size pairs, and 48 of 48 runs with
+  real taps. « Mon compte » still reaches the client's sign-in in one tap (§13).
+- **Words and links unchanged.** 0 differences against the HTML saved before the deploy, raw and hydrated. `/support` has no WhatsApp row. 0 page errors, CSP
+  violations or hydration messages.
+- **What did change.** 1,405 more bytes on each page: the 404's fragment in the RSC payload went from 585 to 1,990, with the band's drawing
+  ([web-swiss-direction.md](web-swiss-direction.md) §13.2). It is not rendered, and its one link goes to `/`. Forced to show in the reader's own browser, it
+  holds no salon link. Without it and with same-length hashes neutralised, old and new are byte-identical.
+- **Later deployments.** #735 and #664, no `web/` file, production deployments created at 15:03 and 15:25 UTC. A raw read at 15:29 UTC: the five are the same length and differ only
+  in the build ID and chunk hashes. Not read hydrated again.
+- **The limits.** Not real Safari and not a device: Playwright's WebKit build, driven by an older Playwright (1.58.2) than the repo's, which cannot drive the
+  installed build. Only the `lhr1` edge; Apple's reviewers may reach another. How the app opens these pages was not read. The old stylesheet now answers 404,
+  so the look was not compared. Two HEAD requests to `/support` went outside the GET-only rule; everything else was GET.
+
 **Production checks.** The last scheduled run was green at 13:16 UTC on `4e78e485`, before the merge, and issue #549 is
 closed. A green run after `713114a5` has not been observed. Read again at 00:24 UTC on 2026-11-04: still that run. Read again at
 00:40 UTC: still that run, so no green scheduled run after `713114a5` or `7a2c7e15`.
