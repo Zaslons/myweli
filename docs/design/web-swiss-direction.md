@@ -483,7 +483,7 @@ All answered by the owner on 2026-11-02 (BACKLOG decisions 63–67).
 
 **Also left with the owner, from the read of 2026-11-04 (§4.7, §13.2; BACKLOG B11.2): does §4.7's budget of 4 KB of markup count the RSC payload?**
 
-- **(a) It means drawn markup.** Then §4.7 says so, and the two tests whose names say « what a visitor is sent » (`site-look.spec.ts`) and « every visitor is sent both » (`weave.test.tsx`) are retitled.
-- **(b) It counts the payload.** Then `/` and `/professionnels` are over, at 5,193 bytes against 4,096. Taking the band off the 404 still leaves them 48 bytes over, at 4,144, so the budget or the drawing must move too.
+- **(a) It means drawn markup.** Then §4.7 says so, and the two tests whose names say « what a visitor is sent » (`site-look.spec.ts`) and « every visitor is sent both » (`weave.test.tsx`) are retitled. The payload's 3,465 bytes stay uncounted.
+- **(b) It counts the payload.** Then `/` and `/professionnels` are over, at 5,193 bytes against 4,096. Taking the band off the 404 still leaves them 48 bytes over, at 4,144, so the budget, the drawing or the way it is delivered must move too, and the pins must read the payload.
 
 Any web change waits on the merge rule in B0.1 (BACKLOG).

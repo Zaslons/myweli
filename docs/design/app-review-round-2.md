@@ -703,9 +703,9 @@ files' times, signed out, on the build whose full SHA is in the chunks `/support
 15:03:25 UTC. #664 merged at 15:22:47 UTC as `8b01861b`, Production deployment created at 15:25:13 UTC. Neither has a `web/` file. Raw reads with an iPad user agent at 15:20:44 and 15:26:59 UTC, against the copies
 saved at 13:41 UTC, after #730's deploy:
 
-- **The pages.** The five, `/support%2F`, `/%2Fsupport` and `/support%5C`: all 200, 0 salon links, and each file the same length at all three reads. Controls: `/` still has 4, 1, 1 and `/connexion` 2, 1, 1.
-- **The test changes.** The only differences are the build ID and script file names. With the chunk hashes and the build ID removed, the three reads of each page are byte-identical. So a push with no `web/` change
-  gives new script hashes: a byte comparison can no longer be the test, and that comparison can.
+- **The pages.** The five, `/support%2F`, `/%2Fsupport` and `/support%5C`: all 200, 0 salon links, and each file the same length at all three reads. Controls, as occurrences of the three paths: `/` still 4, 1, 1 and `/connexion` 2, 1, 1.
+- **The test changes.** The only differences are the build ID and script file names. With the chunk hashes and the build ID removed, the three reads of each page are byte-identical. So a production deployment with no `web/` file
+  gives new script hashes (`bb59b7de` had no deployment, and none changed). A raw byte comparison across deployments proves nothing; the normalised one works on pages that do not regenerate. `/` does: read at 16:32 and 16:38 UTC, its flight chunks were the same set in a different order, so on `/` compare those without regard to order.
 - **The iOS build on `main` at `a117b091` reads red, and it never ran.** Run `41853307580`: GitHub gave it no macOS runner (« The job was not acquired by Runner of type hosted even after multiple attempts »), 0 steps,
   job cancelled after about 15 minutes. The same `mobile/` tree was green on #735's PR run, `41840080469`. Read at 16:27 UTC, it is still the newest iOS run on `main`.
 
