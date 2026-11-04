@@ -479,13 +479,13 @@ scenes:
     # window (verify (g)), in every format
     readable:
       - &create_button
-        {label: "« Créer le rendez-vous » (pro_manual_booking_screen.dart:407)", rect_pt: [16.0, 806.67, 386.0, 858.33],
+        {label: "« Créer le rendez-vous » (pro_manual_booking_screen.dart:399)", rect_pt: [16.0, 806.67, 386.0, 858.33],
          from: 7.1.2, to: 7.3.1+3,
-         cite: "pro_manual_booking_screen.dart:407, measured on take1b 130.262 (the black button; the pop starts 131.017 → f422.9)"}
+         cite: "pro_manual_booking_screen.dart:399, measured on take1b 130.262 (the black button; the pop starts 131.017 → f422.9)"}
       - &snackbar
-        {label: "the snackbar « Rendez-vous créé » (pro_manual_booking_screen.dart:250)", rect_pt: [15.33, 710.0, 387.0, 758.0],
+        {label: "the snackbar « Rendez-vous créé » (pro_manual_booking_screen.dart:255)", rect_pt: [15.33, 710.0, 387.0, 758.0],
          from: cue:create.done,
-         cite: "pro_manual_booking_screen.dart:250, SnackKind.success — [45,2130,1161,2274] px on take1b 131.448 (scan.json)"}
+         cite: "pro_manual_booking_screen.dart:255, SnackKind.success — [45,2130,1161,2274] px on take1b 131.448 (scan.json)"}
     touches:                                 # the App Store film's disc (tool/app_store_preview/frames.py draw_touch :212-219)
       - {gesture: swipe-arrive, at: cue:swipe.touch, tone: dark}      # black on the white card
       - {gesture: tap-arrive, at: cue:tap.touch, tone: light}         # white on the dark-green pane
@@ -497,7 +497,7 @@ scenes:
       - {gesture: tap-creer, at: cue:create.touch, tone: light}       # white on the black button
     lifts:
       - &arrive_card
-        id: arrive-card                     # Fatou B. « Arrivé »: real pixels of the card only (pro_journal_screen.dart:296, :768-777)
+        id: arrive-card                     # Fatou B. « Arrivé »: real pixels of the card only (pro_journal_screen.dart:334, :806-815)
         picture: {named: 23.620}
         rect_pt: [15.67, 510.0, 386.0, 582.0]      # measured on 23.620: green border + card body
         up: cue:arrive.pop
@@ -512,23 +512,23 @@ scenes:
     captions:
       - id: arrive
         until: cue:whip1
-        cite: "pro_journal_screen.dart:284-352 (a Slidable: the swipe reveals « Arrivé », the tap calls journal.arrive)"
+        cite: "pro_journal_screen.dart:322-390 (a Slidable: the swipe reveals « Arrivé », the tap calls journal.arrive)"
         lines:
           - [{w: Une, at: cue:drop1.impact}, {w: cliente, at: 3.1.2}, {w: "arrive ?", at: cue:swipe.touch}]
           - [{w: "Glissez,", at: cue:swipe.open}, {w: appuyez., at: cue:tap.touch}]
       - id: slot
         until: cue:fill.touch1
-        cite: "pro_journal_screen.dart:260 (« Libre — HH:MM »)"
+        cite: "pro_journal_screen.dart:298 (« Libre — HH:MM »)"
         lines: [[{w: Un, at: cue:whip1}, {w: créneau, at: 5.1.2}, {w: "libre ?", at: 5.2.0}]]
       - id: no-number
         until: cue:create.touch
-        cite: "pro_manual_booking_screen.dart:361 (« Client sans numéro »)"
+        cite: "pro_manual_booking_screen.dart:360 (« Client sans numéro »)"
         lines:
           - [{w: "Réservez-le,", at: cue:fill.touch1}]
           - [{w: même, at: 6.1.2}, {w: sans, at: cue:fill.touch2}, {w: numéro., at: 6.2.2}]
       - id: filled
         until: cue:fiche.cut
-        cite: "pro_journal_screen.dart:208, :260 (the « Libre — 14:45 » row is replaced; the 15 minutes left fall under the 30-minute rule)"
+        cite: "pro_journal_screen.dart:246, :298 (the « Libre — 14:45 » row is replaced; the 15 minutes left fall under the 30-minute rule)"
         lines: [[{w: Créneau, at: cue:create.touch}, {w: libre, at: 7.2.2}, {w: rempli., at: cue:create.filled}]]
         strike: {word: libre, at: cue:create.strike}
         recentre: 4                          # « Créneau libre » centred while it waits; it makes room for « rempli. » f444–447
@@ -549,7 +549,7 @@ scenes:
       W: [{at: cue:fiche.cut, value: 216, keep: top}]   # the (blurred) number above y 560, under the band; tiles at y ≈ 727–877
       slam:
         rot_x: [{at: cue:fiche.cut, value: 8}, {at: cue:fiche.cut+8, value: 0, curve: ease_out_cubic}]
-    stack:                                   # three real tiles (client_detail_screen.dart:663-676); « 0 Absences » is not lifted
+    stack:                                   # three real tiles (client_detail_screen.dart:671-684); « 0 Absences » is not lifted
       picture: 6.500
       tiles_pt:                              # measured on 6.500 (fill #FAFAFA)
         - [16.33, 286.0, 102.33, 369.67]     # « 2 » Visites
@@ -567,7 +567,7 @@ scenes:
     captions:
       - id: clients
         until: cue:drop2.impact
-        cite: "docs/design/app-store-forms.md:330 (the store promo text's own « fichier clients »)"
+        cite: "docs/design/app-store-forms.md:357 (the store promo text's own « fichier clients »)"
         lines: [[{w: Votre, at: cue:fiche.cut}, {w: fichier, at: cue:fiche.log1}, {w: clients., at: cue:fiche.log2}]]
 
   # ── rows 17–18 · f512–639 · DROP 2: « Revenus », take N1 ────────────────────
@@ -595,14 +595,14 @@ scenes:
     counter: &revenus_counter
       start: 0                               # « Aujourd’hui »: N1 pictures 0–7.35 s, « Total réalisé 0 FCFA »
       end: 77000                             # « Mois »: N1 #26–#27, « Total réalisé 77 000 FCFA »
-      labels: ["Aujourd’hui", "Mois"]        # the app's tab labels (earnings_screen.dart:139-142)
+      labels: ["Aujourd’hui", "Mois"]        # the app's tab labels (earnings_screen.dart:144-147)
       label_switch: cue:revenus.tick1
       roll: {from: cue:revenus.tick1, to: cue:revenus.land}
       punch: {at: cue:revenus.land, start: 1.08, frames: 5}
       exit: {at: cue:sentence.word1-6, frames: 6}   # on the format's counter_baselines, placed as its captions
-      cite: "generated type: the app's figure as formatters.dart:83-93 prints it (NumberFormat('#,##0','fr_FR') + U+202F groups + ' FCFA'), the tab labels earnings_screen.dart:139-142; it starts on N1's « 0 FCFA » and lands on N1's « 77 000 FCFA » on the frame the app first shows it"
+      cite: "generated type: the app's figure as formatters.dart:83-93 prints it (NumberFormat('#,##0','fr_FR') + U+202F groups + ' FCFA'), the tab labels earnings_screen.dart:144-147; it starts on N1's « 0 FCFA » and lands on N1's « 77 000 FCFA » on the frame the app first shows it"
     lifts:
-      - id: total-card                       # « Total réalisé / 77 000 FCFA / Rendez-vous terminés » (earnings_screen.dart:190, :207)
+      - id: total-card                       # « Total réalisé / 77 000 FCFA / Rendez-vous terminés » (earnings_screen.dart:194, :207)
         picture: {named: 7.833}
         rect_pt: [78.33, 182.0, 323.67, 314.0]     # measured on N1 #27 (fill #FFFFFF)
         lands: cue:sentence.pop
@@ -610,7 +610,7 @@ scenes:
     captions:
       - id: counted
         until: cue:page.cut
-        cite: "earnings_screen.dart:190/:207 (Revenus counts completed bookings only); shortens the approved film headline (tool/app_store_preview/storyboard-scenes.json)"
+        cite: "earnings_screen.dart:194/:207 (Revenus counts completed bookings only); shortens the approved film headline (tool/app_store_preview/storyboard-scenes.json)"
         lines:
           - [{w: Chaque, at: cue:sentence.word1}, {w: rendez-vous, at: cue:sentence.word2}]
           - [{w: "terminé,", at: cue:sentence.word3}, {w: compté., at: cue:sentence.word4}]
@@ -650,7 +650,7 @@ scenes:
     readable: &qualifier
       - {label: "the owner-preview bar « Aperçu — voici ce que verront vos clients. » / « Réserver (après la mise en ligne) »",
          rect_pt: [74, 750.5, 328, 807.5], from: 12.3.0,
-         cite: "provider_detail_screen.dart:1192 / :1207, measured on take5b 28.480"}
+         cite: "provider_detail_screen.dart:1190 / :1205, measured on take5b 28.480"}
     # the app's own map attribution is a collapsed (i): not legible. The owner's round 5 (2026-10-20, attribution
     # correctness): the app's wording, and on screen until the map has dimmed out (AIR 2's last frame, f767)
     credit: &map_credit
@@ -666,7 +666,7 @@ scenes:
           - [{w: pour vos clients., at: 11.2.2}]
       - id: online
         until: cue:reveal.impact
-        cite: "the approved still 02 subline (screens.json), next to the app's own « Réserver (après la mise en ligne) » (provider_detail_screen.dart:1207)"
+        cite: "the approved still 02 subline (screens.json), next to the app's own « Réserver (après la mise en ligne) » (provider_detail_screen.dart:1205)"
         lines:
           - [{w: Ils, at: 12.1.0}, {w: réservent, at: 12.1.2}]
           - [{w: dès la, at: cue:riser3}, {w: mise en ligne., at: 12.2.2}]
@@ -866,13 +866,13 @@ scenes:
     captions:
       - id: arrive
         until: cue:whip1
-        cite: "pro_journal_screen.dart:284-352 (a Slidable: the swipe reveals « Arrivé », the tap calls journal.arrive)"
+        cite: "pro_journal_screen.dart:322-390 (a Slidable: the swipe reveals « Arrivé », the tap calls journal.arrive)"
         lines:                              # 38 characters over 3.2 s
           - [{w: Une cliente, at: cue:drop1.impact}, {w: "arrive ?", at: 2.1.2}]
           - [{w: "Glissez,", at: cue:swipe.open}, {w: appuyez., at: cue:tap.touch}]
       - id: filled
         until: cue:drop2.impact
-        cite: "pro_journal_screen.dart:208, :260 (the « Libre — 14:45 » row is replaced; the 15 minutes left fall under the 30-minute rule)"
+        cite: "pro_journal_screen.dart:246, :298 (the « Libre — 14:45 » row is replaced; the 15 minutes left fall under the 30-minute rule)"
         lines: [[{w: Créneau, at: cue:whip1}, {w: libre, at: cue:slot.touch}, {w: rempli., at: cue:create.filled}]]   # 21 characters over 3.2 s
         strike: {word: libre, at: cue:create.strike}
         # « Créneau libre » waits 2.67 s for « rempli. »: centred meanwhile (round 3: 136 px left of centre), it

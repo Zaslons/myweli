@@ -1087,7 +1087,7 @@ class PhoneScene(Scene):
                             "cite": sl["cite"]})
         if self.stack:
             out.append({"element": f"stacked tiles: real pixels of {self.source.name} picture #{self.stack['index']}",
-                        "scene": self.id, "cite": "real app pixels, nothing redrawn (client_detail_screen.dart:663-676)"})
+                        "scene": self.id, "cite": "real app pixels, nothing redrawn (client_detail_screen.dart:671-684)"})
             if self.stack["backdrop"]:
                 bd = self.stack["backdrop"]
                 out.append({"element": f"a plain panel behind the lifted tiles ({bd[3]} token, {bd[1]:g}-px margin)",

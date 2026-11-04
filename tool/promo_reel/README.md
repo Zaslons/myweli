@@ -1218,8 +1218,8 @@ The 30-s cut:
   640 over the page, so the macro and the push-in never put scribbles under
   the white words (the layout's caption band, applied to the hook).
 - **The « Modifier » chip** in take2b's Fiche is the tag editor
-  (client_detail_screen.dart:408, `tags.isEmpty ? '+ Tags' : 'Modifier'`), not
-  #614's « Modifier » under the number (:442) — the footage is build 587's.
+  (client_detail_screen.dart:418, `tags.isEmpty ? '+ Tags' : 'Modifier'`), not
+  #614's « Modifier » under the number (:450) — the footage is build 587's.
 - Awa K.'s number uses the storyboard's rectangle + 4 pt, σ 14 px (7 % of the
   digits' detail left, measured on the film's picture).
 

@@ -183,14 +183,14 @@ storyboard.yaml ──► partition (promo/audio, score_30s.yaml / score_15s.yam
 | **Les noms sont inventés** | Fatou B., Awa K., Mariam T., Koffi A., Yao K. sont des noms de démonstration ; Maison Nala est un salon de démonstration fictif, jamais présenté comme un vrai client | — |
 
 **Les légendes et ce qui les fonde** (chaque `cite:` dans le storyboard) :
-« Glissez, appuyez. » — le Slidable de `pro_journal_screen.dart:284-352` (le
+« Glissez, appuyez. » — le Slidable de `pro_journal_screen.dart:322-390` (le
 glissé révèle « Arrivé », le tap appelle `journal.arrive`) ; « Un créneau libre ? »
-— `:260` ; « Réservez-le, même sans numéro. » — `pro_manual_booking_screen.dart:361`
-(« Client sans numéro ») ; « Créneau ~~libre~~ rempli. » — `pro_journal_screen.dart:208,
-:260` (la ligne « Libre — 14:45 » remplacée, les 15 minutes restantes sous la règle
+— `:298` ; « Réservez-le, même sans numéro. » — `pro_manual_booking_screen.dart:360`
+(« Client sans numéro ») ; « Créneau ~~libre~~ rempli. » — `pro_journal_screen.dart:246,
+:298` (la ligne « Libre — 14:45 » remplacée, les 15 minutes restantes sous la règle
 des 30 minutes) ; « Votre fichier clients. » — le texte promotionnel du magasin
-([app-store-forms.md](app-store-forms.md):330) ; « Chaque rendez-vous terminé,
-compté. » — `earnings_screen.dart:190/:207` (« encaissé » n'est jamais employé) ;
+([app-store-forms.md](app-store-forms.md):357) ; « Chaque rendez-vous terminé,
+compté. » — `earnings_screen.dart:194/:207` (« encaissé » n'est jamais employé) ;
 « Votre page, prête pour vos clients. » et « Ils réservent dès la mise en ligne. »
 — la capture approuvée 02 (`tool/app_store_screenshots/screens.json`) ; « Plus de
 clients, moins de gestion. » — la signature Pro du livre de marque, pas une
