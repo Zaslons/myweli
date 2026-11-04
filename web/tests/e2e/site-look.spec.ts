@@ -30,6 +30,24 @@ test.describe('one left edge (§6.2)', () => {
       expect(section).toBeCloseTo(logo, 0);
     });
 
+    test(`/professionnels at ${width}: the logo, the <h1> and the first section`, async ({ page }) => {
+      await size(page, width);
+      await page.goto('/professionnels');
+      const logo = await logoLeft(page);
+      const h1 = (await page.getByRole('heading', { level: 1 }).boundingBox())!.x;
+      const section = (await page.getByRole('heading', { name: 'Tout ce qu’il faut pour votre salon' }).boundingBox())!.x;
+      expect(h1).toBeCloseTo(logo, 0);
+      expect(section).toBeCloseTo(logo, 0);
+    });
+
+    test(`the 404 at ${width}: the logo and the <h1>`, async ({ page }) => {
+      await size(page, width);
+      await page.goto('/page-qui-nexiste-pas');
+      const h1 = page.getByRole('heading', { level: 1, name: 'Page introuvable' });
+      expect((await h1.boundingBox())!.x).toBeCloseTo(await logoLeft(page), 0);
+      expect(await h1.evaluate((el) => getComputedStyle(el).textAlign)).not.toBe('center');
+    });
+
     test(`/recherche at ${width}: the logo and the list`, async ({ page }) => {
       await size(page, width);
       await page.goto('/recherche?commune=Cocody');
@@ -51,6 +69,22 @@ test.describe('the pattern (§4.6)', () => {
     await size(page, 1024);
     await expect(page.locator('svg[data-weave]:visible')).toHaveCount(1);
     await expect(page.locator('svg[data-weave]:visible')).toHaveAttribute('data-weave', 'panel');
+  });
+
+  test('/professionnels shows exactly one too, and the 404 only ever the band', async ({ page }) => {
+    await size(page, 375);
+    await page.goto('/professionnels');
+    await expect(page.locator('svg[data-weave]:visible')).toHaveAttribute('data-weave', 'band');
+    await size(page, 1024);
+    await expect(page.locator('svg[data-weave]:visible')).toHaveCount(1);
+    await expect(page.locator('svg[data-weave]:visible')).toHaveAttribute('data-weave', 'panel');
+
+    await page.goto('/page-qui-nexiste-pas');
+    for (const width of [375, 1024, 1920]) {
+      await size(page, width);
+      await expect(page.locator('svg[data-weave]:visible')).toHaveCount(1);
+      await expect(page.locator('svg[data-weave]:visible')).toHaveAttribute('data-weave', 'band');
+    }
   });
 
   // §4.3 rule 4: « Fine, not chunky ». A phone-width band scaled up to a tablet
@@ -101,33 +135,101 @@ test.describe('the pattern (§4.6)', () => {
 });
 
 test.describe('the panel (§4.5)', () => {
-  for (const width of [1024, 1280, 1440, 1536, 1920, 2560]) {
-    test(`at ${width}: meets its rules and the container's edge, and the logo is never cut`, async ({ page }) => {
-      await size(page, width);
-      await page.goto('/');
-      const panel = page.locator('[data-weave-panel]');
-      const p = (await panel.boundingBox())!;
+  for (const [path, nextHeading, action] of [
+    ['/', 'Catégories', 'main form'],
+    ['/professionnels', 'Tout ce qu’il faut pour votre salon', 'main a[href="/pro/connexion"]'],
+  ]) {
+    for (const width of [1024, 1280, 1440, 1536, 1920, 2560]) {
+      test(`${path} at ${width}: meets its rules and the container's edge, and the logo is never cut`, async ({ page }) => {
+        await size(page, width);
+        await page.goto(path);
+        const panel = page.locator('[data-weave-panel]');
+        const p = (await panel.boundingBox())!;
 
-      const account = (await page.getByRole('banner').getByRole('link', { name: 'Mon compte', exact: true }).boundingBox())!;
-      expect(p.x + p.width, 'the rows end where the header does').toBeCloseTo(account.x + account.width, 0);
-      const header = await box(page, 'header');
-      expect(p.y).toBeCloseTo(header.y + header.height, 0);
-      const next = page.getByRole('heading', { name: 'Catégories' }).locator('xpath=ancestor::section[1]');
-      expect((await next.boundingBox())!.y).toBeCloseTo(p.y + p.height, 0);
+        const account = (await page.getByRole('banner').getByRole('link', { name: 'Mon compte', exact: true }).boundingBox())!;
+        expect(p.x + p.width, 'the rows end where the header does').toBeCloseTo(account.x + account.width, 0);
+        const header = await box(page, 'header');
+        expect(p.y).toBeCloseTo(header.y + header.height, 0);
+        const next = page.getByRole('heading', { name: nextHeading }).locator('xpath=ancestor::section[1]');
+        expect((await next.boundingBox())!.y).toBeCloseTo(p.y + p.height, 0);
 
-      const mark = (await page.locator('svg[data-weave=panel] svg').boundingBox())!;
-      expect(mark.y + mark.height, 'the cloth is cut at the bottom, never through the logo').toBeLessThanOrEqual(
-        p.y + p.height,
-      );
-      expect(mark.x + mark.width).toBeLessThanOrEqual(p.x + p.width);
+        const mark = (await page.locator('svg[data-weave=panel] svg').boundingBox())!;
+        expect(mark.y + mark.height, 'the cloth is cut at the bottom, never through the logo').toBeLessThanOrEqual(
+          p.y + p.height,
+        );
+        expect(mark.x + mark.width).toBeLessThanOrEqual(p.x + p.width);
 
-      // Never behind text.
-      for (const text of [page.getByRole('heading', { level: 1 }), page.locator('main form').first()]) {
-        const t = (await text.boundingBox())!;
-        expect(t.x + t.width, 'text runs into the panel').toBeLessThanOrEqual(p.x);
-      }
-    });
+        // Never behind text.
+        for (const text of [page.getByRole('heading', { level: 1 }), page.locator(action).first()]) {
+          const t = (await text.boundingBox())!;
+          expect(t.x + t.width, 'text runs into the panel').toBeLessThanOrEqual(p.x);
+        }
+      });
+    }
   }
+});
+
+test.describe('/professionnels (§7.2)', () => {
+  test('one filled action per screen, in the hero, on a phone and a desktop', async ({ page }) => {
+    for (const width of [375, 1280]) {
+      await size(page, width);
+      await page.goto('/professionnels');
+      const filled = await page.locator('main a').evaluateAll((links) =>
+        links
+          .filter((a) => getComputedStyle(a).backgroundColor === 'rgb(0, 0, 0)')
+          .map((a) => a.textContent?.trim()),
+      );
+      expect(filled).toEqual(['Inscrire mon salon']);
+    }
+  });
+
+  test('the filled action is on screen without scrolling at 360 × 640', async ({ page }) => {
+    await size(page, 360, 640);
+    await page.goto('/professionnels');
+    const action = (await page.getByRole('link', { name: 'Inscrire mon salon' }).first().boundingBox())!;
+    expect(action.y + action.height).toBeLessThanOrEqual(640);
+  });
+
+  test('the steps have large numerals, not discs, in order, and hidden from a screen reader', async ({ page }) => {
+    await size(page, 1280);
+    await page.goto('/professionnels');
+    const numerals = await page
+      .getByRole('heading', { name: 'Comment ça marche' })
+      .locator('xpath=ancestor::section[1]')
+      .locator('ol li > span[aria-hidden="true"]')
+      .evaluateAll((all) =>
+        all.map((n) => {
+          const s = getComputedStyle(n);
+          return [n.textContent, parseFloat(s.fontSize) >= 36, s.borderTopLeftRadius, s.backgroundColor];
+        }),
+      );
+    expect(numerals).toEqual([
+      ['1', true, '0px', 'rgba(0, 0, 0, 0)'],
+      ['2', true, '0px', 'rgba(0, 0, 0, 0)'],
+      ['3', true, '0px', 'rgba(0, 0, 0, 0)'],
+    ]);
+  });
+
+  test('what search engines read has not moved (§14)', async ({ page }) => {
+    await page.goto('/professionnels');
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText(
+      'Le logiciel de réservation des salons de beauté en Côte d’Ivoire',
+    );
+    await expect(page).toHaveTitle(
+      'MyWeli Pro — logiciel de réservation pour salons de beauté en Côte d’Ivoire · MyWeli',
+    );
+    await expect(page.locator('link[rel=canonical]')).toHaveAttribute('href', /\/professionnels$/);
+    const types = await page.locator('script[type="application/ld+json"]').evaluateAll((all) =>
+      all.map((s) => JSON.parse(s.textContent as string)['@type']).sort(),
+    );
+    expect(types).toEqual(['FAQPage', 'Organization']);
+    await expect(page.getByRole('heading', { level: 2 })).toHaveText([
+      'Tout ce qu’il faut pour votre salon',
+      'Comment ça marche',
+      'Questions fréquentes',
+      'Prêt à recevoir vos premières réservations ?',
+    ]);
+  });
 });
 
 test.describe('the hero on a phone', () => {
@@ -295,20 +397,22 @@ test.describe('rules instead of boxes (§6.3)', () => {
     expect(await sections.evaluate((el) => getComputedStyle(el).borderTopColor)).toBe('rgb(0, 0, 0)');
   });
 
-  test('no boxed section is left on the home page', async ({ page }) => {
-    await page.goto('/');
-    const boxed = await page.locator('main section').evaluateAll((all) =>
-      all.flatMap((s) =>
-        // Not every `a`: a button keeps its corners (§3), and salon cards lose
-        // theirs in S3. The category links are what were boxes here.
-        [s, ...s.querySelectorAll('div, li a')].filter((el) => {
-          const css = getComputedStyle(el);
-          return parseFloat(css.borderTopLeftRadius) > 0 && parseFloat(css.borderLeftWidth) > 0;
-        }).map((el) => el.outerHTML.slice(0, 80)),
-      ),
-    );
-    expect(boxed).toEqual([]);
-  });
+  for (const path of ['/', '/professionnels']) {
+    test(`no boxed section is left on ${path}`, async ({ page }) => {
+      await page.goto(path);
+      const boxed = await page.locator('main section').evaluateAll((all) =>
+        all.flatMap((s) =>
+          // Not every `a`: salon cards lose their corners in S3. What were boxes on
+          // these pages are the category links, the benefits and the closing row.
+          [s, ...s.querySelectorAll('div, li, li a')].filter((el) => {
+            const css = getComputedStyle(el);
+            return parseFloat(css.borderTopLeftRadius) > 0 && parseFloat(css.borderLeftWidth) > 0;
+          }).map((el) => el.outerHTML.slice(0, 80)),
+        ),
+      );
+      expect(boxed).toEqual([]);
+    });
+  }
 });
 
 test('what search engines read has not moved (§14)', async ({ page }) => {

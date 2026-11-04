@@ -3,6 +3,8 @@
 import * as Sentry from '@sentry/nextjs';
 import { useEffect } from 'react';
 
+import { SITE_CONTAINER } from '../lib/siteGrid';
+
 /// The last boundary — a failure in the **root layout itself**, which
 /// `app/error.tsx` cannot catch because it renders *inside* that layout.
 ///
@@ -32,7 +34,7 @@ export default function GlobalError({
   return (
     <html lang="fr">
       <body>
-        <main className="mx-auto max-w-3xl px-m py-xxl text-center">
+        <main className={`${SITE_CONTAINER} py-xl lg:py-xxl`}>
           <h1 className="text-headlineMedium font-semibold text-textPrimary">
             Une erreur est survenue
           </h1>
@@ -42,7 +44,7 @@ export default function GlobalError({
           <button
             type="button"
             onClick={reset}
-            className="mt-l inline-flex items-center justify-center rounded-control bg-primary px-l py-s text-labelLarge font-medium text-secondary"
+            className="mt-l inline-flex min-h-12 items-center justify-center rounded-control bg-primary px-l py-s text-labelLarge font-medium text-secondary"
           >
             Réessayer
           </button>
