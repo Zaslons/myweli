@@ -669,7 +669,7 @@ cinq pages, 0 occurrence de `/professionnels`, `/pro/inscription`, `/pro/connexi
 L'inscription d'un salon est à deux gestes de ces pages, jamais un (84 atterrissages à un geste sur 84,
 135 parcours à deux gestes sur 135). **Les limites** : Safari réel seulement sur `/support` et `/cgu`,
 les trois autres lues brutes et rendues sous Chromium, un seul nœud du réseau joignable (`lhr1`). `%2F`
-ou `%5C` tapés à la main ramenaient alors les liens ; #732 l'a fermé la même nuit ; sa lecture rendue est faite le 2026-11-04 pour une seule adresse, `/support%2F`, et les autres graphies ne sont lues que brutes (spec §5.1, §12, §13). La condition de cette phrase est levée ;
+ou `%5C` tapés à la main ramenaient alors les liens ; #732 l'a fermé la même nuit ; sa lecture rendue est faite le 2026-11-04 : Safari réel pour une seule adresse, `/support%2F`, et Chromium pour les 20 graphies (#733 ; spec §5.1, §12, §13). La condition de cette phrase est levée ;
 ~~rien n'est collé pour autant : le film passe d'abord (point 22 du §13)~~ *le film est en place et les notes sont écrites, le soir du 2026-11-03 (§13.1)*.
 
 Approuvés tels quels par le propriétaire le 2026-11-03, après en avoir été informé (spec §16) :

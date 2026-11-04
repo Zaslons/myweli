@@ -217,7 +217,9 @@ need to touch it.
   with `/cgu`, and a spelling the predicate missed brought the links back on hydration, because
   in the browser `usePathname` reads the address as typed. `/cgu%2Fx`, `/.%2Fcgu`, `/cgu%20` and
   `/cgu%252F` answer a 404, which keeps the links. Not a prefix. **Read on myweli.com on
-  2026-11-03: 560 spellings, no disagreement with the predicate.** This follows Vercel: `next start`
+  2026-11-03: 560 spellings, no disagreement with the predicate.** **Read live after the merge
+  on 2026-11-04 (#732, `7a2c7e15`, Chromium; real Safari for one address, below): no salon link and no React error on any
+  of the 20 forms, with the controls unchanged.** This follows Vercel: `next start`
   answers the encoded-separator spellings with a 404, so a local build cannot show them. Its
   comment says why (this spec) and that the mobile half is `AppConfig`'s five getters.
 - **The `%2F` and `%5C` gap, closed by #732.** *Recorded on 2026-11-04.* The first version went through `decodeURI`, which
@@ -229,7 +231,7 @@ need to touch it.
   `/cgu%2F` and `/%5Csupport` are 200 with 0 hrefs to `/professionnels`, `/pro/inscription` and `/pro/connexion`; the control `/`
   has 3, 1 and 1. **That is raw HTML, which was clean before #732 too, so it does not prove the fix.** Nor does the raw read at
   00:06 UTC, same user agent: the five pages show 0 of `/professionnels`, `/pro/inscription`, `/pro/connexion` and « facturation », the controls `/` 4, 1, 1 and `/connexion` 2, 1, 1, and `/support%2F`, `/%2Fsupport` and `/support%5C` are also 0. (`/` reads 4 occurrences of `/professionnels`, 3 of them hrefs, at 00:40 UTC, which accounts for the 4 here and the 3 at 00:26.) **The hydrated page is what #732 fixes, and its
-  rendered read is done for one address:** real Safari on the iPad Air 11-inch (M3) simulator at 00:06 UTC opened `/support%2F` and, after hydration, the header ends on « Mon compte » with no « Espace pro ». The frame shows the header, the body and the top of the footer's wordmark, not the footer's links. Before #732 the same address showed the salon links after hydration, which is the control. The other spellings were read raw only (§12). A read is allowed
+  rendered read is done for one address:** real Safari on the iPad Air 11-inch (M3) simulator at 00:06 UTC opened `/support%2F` and, after hydration, the header ends on « Mon compte » with no « Espace pro ». The frame shows the header, the body and the top of the footer's wordmark, not the footer's links. Before #732 the same address showed the salon links after hydration, which is the control. The other spellings were read raw in that pass; all 20 forms are read rendered in Chromium, above (#733). A read is allowed
   during review; a web edit is not.
 - **Header**: `SiteChrome` is already a client component reading `usePathname`; it passes one
   prop to `Header`, whose default keeps « Espace pro ». Not rendered, rather than hidden by
@@ -598,7 +600,7 @@ below. Step 5 is owner-reported, its iPad part on 2026-11-04, on a simulator and
 on, whatever its reason. **Web merges are production deploys**, so during review the five pages are not edited.
 *2026-11-04: a merge to `main` deploys even when `web/` does not change. Vercel reads « Deployment has completed » on `4e78e485`,
 which touches no `web/` file, and on `7a0f21d6`, docs only. So merging the docs PR that holds this record triggers a production
-deployment of an unchanged web tree. Whether it merges during review or after Apple's decision is the owner's call (§16).*
+deployment of an unchanged web tree. The owner chose on 2026-11-04 to merge it after green, in review (§16).*
 
 The stale-doc sweep (BACKLOG, LAUNCH, PRD, `pro-app-login-only.md`'s body) landed in #731 too, with §8's notes, the
 tests and this spec, so one PR carried it all. This record of the merge and of build 719 is a separate docs change on
@@ -670,9 +672,9 @@ reply is the `app-store-forms.md` §13.2 block, with 719. The owner did not say 
 the submission, so this record states no order. Neither the read nor the reply is observable from here. A demo sign-in on TestFlight
 is known only from the owner's report of 2026-11-03.
 
-**The rendered read owed by #732 is done, for one address** (§5.1). `/support%2F`, real Safari on the iPad Air 11-inch (M3) simulator,
-00:06 UTC, with the same address before #732 as the control. It does not cover the footer's links, and the other spellings were read
-raw only. Reads are allowed during review; a web edit is not.
+**The rendered read owed by #732 is done: one address in real Safari, all 20 forms in Chromium** (§5.1). `/support%2F`, real Safari on the iPad Air 11-inch (M3) simulator,
+00:06 UTC, with the same address before #732 as the control. It does not cover the footer's links. The other spellings were read
+raw in that pass, and all 20 forms rendered in Chromium afterwards (#733). Reads are allowed during review; a web edit is not.
 
 **Production checks.** The last scheduled run was green at 13:16 UTC on `4e78e485`, before the merge, and issue #549 is
 closed. A green run after `713114a5` has not been observed. Read again at 00:24 UTC on 2026-11-04: still that run. Read again at
@@ -680,7 +682,7 @@ closed. A green run after `713114a5` has not been observed. Read again at 00:24 
 
 **Still open on 2026-11-04:** Apple's decision; that green run; a successful Apple sign-in on an iPad; the production backend deploy
 after Apple's decision, the one that switches on the Apple keys; the release by hand after approval; merging the docs PR that holds
-this record, which waits for the owner's word (§16).
+this record, after green and in review, the owner's choice (§16).
 
 ## 13. Accepted risks and the contingency
 
@@ -733,7 +735,7 @@ this record, which waits for the owner's word (§16).
 - **`%2F` and `%5C`, typed by hand, brought the salon links back on the five.** The app and App Store Connect use the bare paths.
   #732 merged at 23:59:03 UTC on 2026-11-03 and its production deployment reported success at 00:01:08 UTC, before the submission.
   **The rendered read, 2026-11-04:** `/support%2F` only, in real Safari on the iPad simulator at 00:06 UTC, its header read and not the footer's links, with the
-  same address before #732 as the control. The other spellings were read raw only (§5.1, §12).
+  same address before #732 as the control. All 20 forms were then read rendered in Chromium (#733, §5.1).
 
 **The contingency.** If Apple challenges the model itself (a plan bought outside the app governs the app, and 3.1.3(f) does not
 fit): **« Mon abonnement » is hidden, or store billing is opened. A decision for then**, the owner's, and not taken now. Hiding
@@ -798,8 +800,8 @@ has no reviews), customers report. The notes differ from what decision 77 approv
 **Answered by the owner on 2026-11-04, owner-reported (§11, §12):** the iPad's demo sign-in and no-account address, and « I checked
 Media Manager and sent the reply ».
 
-**Open, and the owner's:** does the docs PR holding this record merge during review, or after Apple's decision? The merge triggers a
-production deployment of an unchanged web tree (§12), and B0.1 applies since 00:02:00 UTC. It waits for the owner's word.
+**Answered by the owner on 2026-11-04:** the docs PR holding this record merges « After green, in review ». The merge triggers a
+production deployment of an unchanged web tree (§12), and B0.1 applies since 00:02:00 UTC.
 
 **Still open, and blocks nothing:** whether the Play listing takes the description's four edits (§7, decisions 74 and 79). It keeps
 the old text until Play comes up again.

@@ -1336,13 +1336,13 @@ checking rather than assuming:
 > `/support%2F`, `/%2Fsupport` and `/support%5C` are also 0. **The rendered read owed by #732, done for one address:** real Safari on
 > that simulator at 00:06 UTC opened `/support%2F` and, after hydration, the header ends on « Mon compte » with no « Espace pro ». The
 > frame shows the header, the body and the top of the footer's wordmark, not the footer's links. Before #732 the same address showed the
-> salon links after hydration, which is the control. The other spellings were read raw only.
+> salon links after hydration, which is the control. The other spellings were read raw in that pass, and all 20 forms rendered in Chromium (#733).
 >
 > **Still open on 2026-11-04:** Apple's decision; a green scheduled « Production checks » run after `713114a5` and `7a2c7e15` (the last is
 > 13:16 UTC on 2026-11-03, on `4e78e485`; read again at 00:40 UTC); a successful Apple sign-in on an iPad, unobserved, since the signed
 > build ran on the owner's iPhone (where it gave « Aucun compte MyWeli Pro… ») and the simulator has no Apple account; the production
 > backend deploy after Apple's decision, the one that switches on the Apple keys; the release by hand after approval; merging the docs PR
-> that holds this record, whose merge deploys production with an unchanged web tree, and which waits for the owner's word. B0.1 applies
+> that holds this record, whose merge deploys production with an unchanged web tree, and which the owner chose on 2026-11-04 to merge after green, in review. B0.1 applies
 > since 00:02:00 UTC.
 
 - [ ] Everything in [mobile-store-submission.md](design/mobile-store-submission.md) §5.
