@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | Approved 2026-11-03 (owner: §3, five decisions) · build, upload and resubmission are the owner's go (§12). **The app's half (§4, §10), the web's half (§5), the texts for Apple (§6, §7), the film's storyboard (§8) and the record are merged (#731, squash `713114a5`, 2026-11-03). The web is live and read. Build 719 is built, read, uploaded, `VALID` and in TestFlight** (§12). **That night, in App Store Connect: the full-screen film in both slots, the description, 719 attached, the notes; version 0.0.1 moved from `REJECTED` to `PREPARE_FOR_SUBMISSION`, release `MANUAL`, as it stood then. The owner reports that the focused pass passed on their iPhone (§11).** **2026-11-04: resubmitted at 00:02:00 UTC with build 719, in review (`WAITING_FOR_REVIEW`, release `MANUAL`, per the API); B0.1 applies. Still open: Apple's decision; a green scheduled « Production checks » run after `713114a5` and `7a2c7e15` (the last is 13:16 UTC on 2026-11-03, on `4e78e485`); a successful Apple sign-in on an iPad, unobserved; the production backend deploy after Apple's decision, the one that switches on the Apple keys; the release by hand after approval; merging the docs PR that holds this record.** #732, the `%2F` and `%5C` spellings, was merged and deployed before the submission, and its rendered read is done for one address (§5.1). *Owner-reported on 2026-11-04:* the iPad's demo sign-in and no-account address passed, on a simulator and a debug build, not signed 719 (§11); Media Manager checked and the reply sent, with no order stated against the submission (§12). The backend is not deployed. The owner approved the notes, the description and the reply on 2026-11-03 (decision 77), corrected the description the same day (decision 79), and delegated one clause of the notes (decision 81) |
+| **Status** | Approved 2026-11-03 (owner: §3, five decisions) · build, upload and resubmission are the owner's go (§12). **The app's half (§4, §10), the web's half (§5), the texts for Apple (§6, §7), the film's storyboard (§8) and the record are merged (#731, squash `713114a5`, 2026-11-03). The web is live and read. Build 719 is built, read, uploaded, `VALID` and in TestFlight** (§12). **That night, in App Store Connect: the full-screen film in both slots, the description, 719 attached, the notes; version 0.0.1 moved from `REJECTED` to `PREPARE_FOR_SUBMISSION`, release `MANUAL`, as it stood then. The owner reports that the focused pass passed on their iPhone (§11).** **2026-11-04: resubmitted at 00:02:00 UTC with build 719, in review (`WAITING_FOR_REVIEW`, release `MANUAL`, per the API); B0.1 applies. Still open: Apple's decision; a successful Apple sign-in on an iPad, unobserved; the production backend deploy after Apple's decision, the one that switches on the Apple keys; the release by hand after approval.** Closed later on 2026-11-04 (§12): the green scheduled « Production checks » run, `41838514759`, which ran before #730's deploy, so the next one is the first against the new look; and the docs record, on `main` as `bb59b7de`. #732, the `%2F` and `%5C` spellings, was merged and deployed before the submission, and its rendered read is done for one address (§5.1). *Owner-reported on 2026-11-04:* the iPad's demo sign-in and no-account address passed, on a simulator and a debug build, not signed 719 (§11); Media Manager checked and the reply sent, with no order stated against the submission (§12). The backend is not deployed. The owner approved the notes, the description and the reply on 2026-11-03 (decision 77), corrected the description the same day (decision 79), and delegated one clause of the notes (decision 81) |
 | **Owner** | Sadreddine Daher |
 | **Last updated** | 2026-11-04 |
 | **PRD ref / phase** | FR-PRO-AUTH-001 (registration on the web only) · V1 |
@@ -600,7 +600,7 @@ below. Step 5 is owner-reported, its iPad part on 2026-11-04, on a simulator and
 on, whatever its reason. **Web merges are production deploys**, so during review the five pages are not edited.
 *2026-11-04: a merge to `main` deploys even when `web/` does not change. Vercel reads « Deployment has completed » on `4e78e485`,
 which touches no `web/` file, and on `7a0f21d6`, docs only. So merging the docs PR that holds this record triggers a production
-deployment of an unchanged web tree. The owner chose on 2026-11-04 to merge it after green, in review (§16).*
+deployment of an unchanged web tree. The owner chose on 2026-11-04 to merge it after green, in review (§16).* **Read later that day:** that merge started no deployment (below, after « Production checks »).
 
 The stale-doc sweep (BACKLOG, LAUNCH, PRD, `pro-app-login-only.md`'s body) landed in #731 too, with §8's notes, the
 tests and this spec, so one PR carried it all. This record of the merge and of build 719 is a separate docs change on
@@ -676,13 +676,54 @@ is known only from the owner's report of 2026-11-03.
 00:06 UTC, with the same address before #732 as the control. It does not cover the footer's links. The other spellings were read
 raw in that pass, and all 20 forms rendered in Chromium afterwards (#733). Reads are allowed during review; a web edit is not.
 
+**The rendered read owed after #730's deploy is done, on 2026-11-04.** #730 (`a41f7db9`, `/professionnels` and the 404, merged on the owner's
+word, in review) edits none of the five pages' own files, but their served HTML changed. Read from about 13:46 to 14:40 UTC, by the saved
+files' times, signed out, on the build whose full SHA is in the chunks `/support` loads: the five, hydrated, in Chromium 149 and WebKit 26.0, each at
+820×1180 and 390×844, so 20 reads, all 200.
+
+- **No link.** No link, button or menu on any of the five leads to `/professionnels`, `/pro/inscription` or `/pro/connexion`, raw or hydrated. Controls: `/`
+  has 5 such links and `/connexion` 4. Typed spellings that answer 200 show none; those that answer 404 keep them, as §5.1 says.
+- **Two taps.** Each of the three is exactly two taps from each of the five, never one: a crawl in all four browser and size pairs, and 48 of 48 runs with
+  real taps. « Mon compte » still reaches the client's sign-in in one tap (§13).
+- **Words and links unchanged.** 0 differences against the HTML saved before the deploy, raw and hydrated. `/support` has no WhatsApp row. 0 page errors, CSP
+  violations or hydration messages.
+- **What did change.** 1,405 more bytes on each page: the 404's fragment in the RSC payload went from 585 to 1,990, with the band's drawing
+  ([web-swiss-direction.md](web-swiss-direction.md) §13.2). It is not rendered, and its one link goes to `/`. Forced to show in the reader's own browser, it
+  holds no salon link. Without it and with same-length hashes neutralised, old and new are byte-identical.
+- **What those lines leave out.** The console was not empty: a 401 on `/api/me/notifications` on every page read, in both engines, and WebKit's message that a report-only policy ignores `frame-ancestors`, which nobody sees
+  without Web Inspector. The hydration check was proved on generic errors, not on a real React mismatch. The stylesheet and scripts these pages reference changed too, and their contents were not compared. The salon paths
+  also sit in the main-app chunk's route list, which §5 does not name, and no anchor renders them.
+- **Later deployments.** #735 and #664, no `web/` file, production deployments created at 15:03 and 15:25 UTC. A raw read at 15:29 UTC: the five are the same length and differ only
+  in the build ID and chunk hashes. Not read hydrated again.
+- **The limits.** Not real Safari and not a device: Playwright's WebKit build, driven by an older Playwright (1.58.2) than the repo's, which cannot drive the
+  installed build. Only the `lhr1` edge; Apple's reviewers may reach another. How the app opens these pages was not read. The old stylesheet now answers 404,
+  so the look was not compared. Two HEAD requests to `/support` went outside the GET-only rule; everything else was GET.
+
+**After that read, on 2026-11-04: two more production deployments, and the five changed only in the build ID and script names.** #735 merged at 15:00:39 UTC as `a117b091`, Production deployment created at
+15:03:25 UTC. #664 merged at 15:22:47 UTC as `8b01861b`, Production deployment created at 15:25:13 UTC. Neither has a `web/` file. Raw reads with an iPad user agent at 15:20:44 and 15:26:59 UTC, against the copies
+saved at 13:41 UTC, after #730's deploy:
+
+- **The pages.** The five, `/support%2F`, `/%2Fsupport` and `/support%5C`: all 200, 0 salon links, and each file the same length at all three reads. Controls, as occurrences of the three paths: `/` still 4, 1, 1 and `/connexion` 2, 1, 1.
+- **The test changes.** The only differences are the build ID and script file names. With the chunk hashes and the build ID removed, the three reads of each page are byte-identical. So a production deployment with no `web/` file
+  gives new script hashes (`bb59b7de` had no deployment, and none changed). A raw byte comparison across deployments proves nothing; the normalised one works on pages that do not regenerate. `/` does: read at 16:32 and 16:38 UTC, its flight chunks were the same set in a different order, so on `/` compare those without regard to order.
+- **The iOS build on `main` at `a117b091` reads red, and it never ran.** Run `41853307580`: GitHub gave it no macOS runner (« The job was not acquired by Runner of type hosted even after multiple attempts »), 0 steps,
+  job cancelled after about 15 minutes. The same `mobile/` tree was green on #735's PR run, `41840080469`. Read at 16:27 UTC, it is still the newest iOS run on `main`.
+
 **Production checks.** The last scheduled run was green at 13:16 UTC on `4e78e485`, before the merge, and issue #549 is
 closed. A green run after `713114a5` has not been observed. Read again at 00:24 UTC on 2026-11-04: still that run. Read again at
 00:40 UTC: still that run, so no green scheduled run after `713114a5` or `7a2c7e15`.
 
-**Still open on 2026-11-04:** Apple's decision; that green run; a successful Apple sign-in on an iPad; the production backend deploy
-after Apple's decision, the one that switches on the Apple keys; the release by hand after approval; merging the docs PR that holds
-this record, after green and in review, the owner's choice (§16).
+**Production checks, read again at 16:05 UTC on 2026-11-04: a green run after both commits is observed.** Run `41838514759`: scheduled, `success`, created at 13:29:10 UTC,
+on `bb59b7de`, which holds `713114a5` and `7a2c7e15`. Its checks ended by 13:31:54 UTC, `report` was skipped, and #549 stayed closed with no new comment. The site it read was, by inference from
+the deployment list, `3b49f478`'s deployment, the newest then, which holds both commits. #730 merged at 13:38:36 UTC and its deployment was created at 13:41:07 UTC, so this run
+did not read the new look. **The next scheduled run is the first against #730**, and none had run at this read.
+
+**The docs record is on `main`, and GitHub does not call that a merge.** It landed as `bb59b7de` at 11:05:07 UTC on 2026-11-04, with the same tree as the PR's head `5c2c202d`, whose check
+runs are green. GitHub reports #734 as closed at 11:56:10 UTC, with no merge commit. The comment there says GitHub's incident of that day answered the merge with a 502, and that
+the push started no CI and no deployment. It went out from the owner's GitHub account, but the owner neither wrote nor reported it: the working session that did the merge posted it and saw the 502s itself, so this is observed by that session, not owner-reported. The deployment list agrees: none for `bb59b7de`, and one for `a41f7db9` as the control. So the deployment this section predicted for that merge did not happen.
+
+**Still open on 2026-11-04, at that read:** Apple's decision; a successful Apple sign-in on an iPad; the production backend deploy
+after Apple's decision, the one that switches on the Apple keys; the release by hand after approval.
 
 ## 13. Accepted risks and the contingency
 
@@ -801,7 +842,7 @@ has no reviews), customers report. The notes differ from what decision 77 approv
 Media Manager and sent the reply ».
 
 **Answered by the owner on 2026-11-04:** the docs PR holding this record merges « After green, in review ». The merge triggers a
-production deployment of an unchanged web tree (§12), and B0.1 applies since 00:02:00 UTC.
+production deployment of an unchanged web tree (§12), and B0.1 applies since 00:02:00 UTC. *It landed as `bb59b7de`, with no deployment (§12).*
 
 **Still open, and blocks nothing:** whether the Play listing takes the description's four edits (§7, decisions 74 and 79). It keeps
 the old text until Play comes up again.

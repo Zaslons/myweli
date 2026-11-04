@@ -2,9 +2,9 @@
 
 | | |
 |---|---|
-| **Status** | **Approved 2026-11-02** (decisions in §15). Direction B, with the owner's two additions: the real logo and the things that are MyWeli's own (§3), and a pattern with an African identity that **feels calm** (§4). **S0 merged in #724 and read back on `myweli.com`** (§11, §13). **S1 merged in #727 and read back on `myweli.com`** (§11, §13.1). **The owner chose to merge it before §4.8 (2026-11-02):** that check and a low-end Android are still theirs, now on the live site, and an answer to question 3 still changes the drawing. Fields and buttons went square in #728 ([web-swiss-fields.md](web-swiss-fields.md)). **S2 in #730** (§13.2). |
+| **Status** | **Approved 2026-11-02** (decisions in §15). Direction B, with the owner's two additions: the real logo and the things that are MyWeli's own (§3), and a pattern with an African identity that **feels calm** (§4). **S0 merged in #724 and read back on `myweli.com`** (§11, §13). **S1 merged in #727 and read back on `myweli.com`** (§11, §13.1). **The owner chose to merge it before §4.8 (2026-11-02):** that check and a low-end Android are still theirs, now on the live site, and an answer to question 3 still changes the drawing. Fields and buttons went square in #728 ([web-swiss-fields.md](web-swiss-fields.md)). **S2 merged in #730 on 2026-11-04. `/professionnels` and the 404 read on `myweli.com` in Chromium only: no Safari or WebKit layout, no real phone, and the error pages not read live** (§13.2). |
 | **Owner** | Sadreddine Daher |
-| **Last updated** | 2026-11-02 |
+| **Last updated** | 2026-11-04 |
 | **PRD ref / phase** | FR-WEB-MP-001, FR-WEB-PP-001/002 (presentation only) · V1 |
 | **Module** | Web public: `app/page.tsx`, `app/professionnels`, `app/recherche`, `app/[slug]`, `components/home`, `components/landing`, `components/provider`, `Header`, `SiteFooter`, `styles/tokens.ts` |
 | **Skills checked** | myweli-web-guardrails ✓ · myweli-verification-guardrails ✓ · no backend change |
@@ -149,13 +149,16 @@ Rows of round-ended strokes that meet from both sides, half a step apart: a plai
 | Salon pages, category pages, `/recherche` | **None.** Photos are the content, and the page's job is choosing a salon |
 | `/connexion`, `/mon-compte/*`, booking, legal, `/pro/*` | **None** |
 
-**Hard rules, held by tests (§12):** at most one panel or band on a page · never behind text · no animation · `aria-hidden`, so it says nothing to a screen reader · no text inside it · inline SVG only, no image file.
+**Hard rules, held by tests (§12):** at most one panel or band visible on a page · never behind text · no animation · `aria-hidden`, so it says nothing to a screen reader · no text inside it · inline SVG only, no image file.
+
+**« None » means not drawn, not absent from the page's HTML (read on 2026-11-04, §13.2).** The 404's band is carried in the RSC payload of every page, so it travels with each « None » row too, the five store-linked pages included. It is not rendered there.
 
 ### 4.7 Technical shape
 
 - `components/brand/Weave.tsx`, a server component with no client JS, exporting `WovenPanel` and `WovenBand`.
 - Colours through the theme's role tokens (`stroke-primary`, the page's `surface`), not literals, which is what makes the dark version a value swap.
 - At most **4 KB of markup per page** before compression, pinned by a test. The sketch measured 3.1 KB and 0.8 KB; one 28-high tile, so that a single `<rect>` draws every row, brought the built forms to 1.7 KB together.
+  **What that pin reads (checked 2026-11-04):** `site-look.spec.ts` adds up the `outerHTML` of `svg[data-weave]` in the DOM, on `/` only, and `weave.test.tsx` measures the two forms' own markup, on no page. Neither reads the RSC payload, where the same trees travel again. Counted with it, `/` and `/professionnels` are at 5,193 bytes against the test's 4,096: 1,728 in the markup and 3,465 in the payload, about 826 bytes gzipped on `/professionnels`, an estimate. `/` was at 4,144 before S2, from a copy saved that morning. Whether the budget counts the payload is **the owner's call, still open**, with its options in §15 (§13.2).
 - Replaces `HeroBackground`, which is deleted, along with its comment about stacking: nothing sits behind text any more.
 
 ### 4.8 Before it goes live: people who would know
@@ -355,6 +358,7 @@ None. `imageUrls` is already `required` on `Provider` in `openapi.yaml`, and `im
 | **S1, five runs, every budgeted page** | `/` **2113 ms** (2112–2173), `/connexion` **2713 ms** (2711–2759; `main` 2712), `/suppression-compte` **2109 ms** (2108–2263). First paint 759, 907 and 756 ms. CLS 0, TBT 0. Scripts 158, 231 and 159 KB. So it cost `/` 3 ms and left the others where they were |
 | **S1 on `myweli.com`, five runs** | `/` 1487 ms, `/connexion` 1323 ms, `/suppression-compte` 1607 ms; TBT at most 26 ms; scripts 152 KB on `/`. WEB.md §7 |
 | **S2, five runs each, on a local build** | `/` 2115 ms, `/connexion` 2713 ms, `/suppression-compte` 2109 ms, all where they were; `/professionnels`, which has no budget, 2148 ms. CLS 0, TBT 0 |
+| **S2 on `myweli.com`, five runs, 2026-11-04** | `/` 1906 ms (1304–1920), `/connexion` 2207 ms (1914–2218), `/suppression-compte` 1309 ms (1163–1615), all within budget; `/professionnels`, which has no budget, 1160 ms (1152–1461). CLS at most 0.064, TBT at most 53 ms. WEB.md §7. From a Mac, so not comparable with the local numbers above, and with no like-for-like before: no regression is claimed, and none is ruled out |
 | **If it breaches** | The budget does not move |
 | **New photos** | Card photos are lazy and below the fold on `/`. Salon page budgets are set from a measurement in S4, added to `lighthouserc.json` so they cannot be forgotten |
 
@@ -372,7 +376,7 @@ Each new guard ships having been watched red, on committed work.
 | `tokens.mirror` | `displayPoster` is declared web-only | Remove it from `WEB_ONLY` |
 | `tokens.theme-pin` | The closed `fontFamily`, and the emitted tokens | Use a non-token family |
 | **New: left edge** | Logo x = `<h1>` x = first section x, at 320 to 1920. On `/` and `/recherche` from S1; each other public route joins when its slice moves it to this grid | Change one container's padding. Must fire on `/recherche` at 1920 |
-| **New: pattern rules** | `aria-hidden`, no `<text>`, no hex literal, ≤ 4 KB, at most one per page; present on `/` and `/professionnels`; **absent** from salon, landing, `/recherche`, `/connexion`, `/pro` | Add a band to a salon page |
+| **New: pattern rules** | `aria-hidden`, no `<text>`, no hex literal, ≤ 4 KB in the DOM (§4.7), at most one **visible** per page; drawn on `/` and `/professionnels`; **not drawn** on salon, landing, `/recherche`, `/connexion`, `/pro`, where the DOM has no `svg[data-weave]`. The RSC payload is not read (§4.6) | Add a band to a salon page |
 | **New: logo** | The lockup in the header is the real file and the wordmark's paths are that file's, on each public route | Replace one with text |
 | **New: the footer is never the page's LCP** | On short pages at 412 × 823 and 1440 × 900, the last LCP entry is outside the footer | Make the wordmark an `<img>` again |
 | **New: SEO unchanged** | `<h1>` text, canonical and JSON-LD on `/`, `/professionnels`, a landing and a salon match a checked-in list | Change a word |
@@ -394,7 +398,7 @@ Six PRs, in order, each merged only on the owner's word. A merge is a production
 |---|---|---|
 | **S0** | Font trimmed to 18.7 KB, `displayPoster`, `fontFamily` closed, the rules in WEB-SYSTEM §16, SYSTEM §22. **No layout change.** The grid constant moves to S1, its first user: nothing here would use it | Lighthouse measured on the font alone. Every e2e green, including `/pro` |
 | **S1** | `Weave`, `Header`, `SiteFooter`, `/`. Delete `HeroBackground` from `/` | Merged on the owner's word. §4.8 and the real-phone check follow on the live site |
-| **S2** | `/professionnels`, 404 and error pages. `HeroBackground` deleted | Built in #730 (§13.2) |
+| **S2** | `/professionnels`, 404 and error pages. `HeroBackground` deleted | Merged in #730 on 2026-11-04. `/professionnels` and the 404 read on `myweli.com` in Chromium only, the error pages not read live (§13.2) |
 | **S3** | `ProviderCard`, `/recherche`, landings, favourites list | Cards with and without photos looked at |
 | **S4** | Salon page. Budgets added | Salon LCP measured |
 | **S5** | OG image. Audit of every page against this spec **on the deployed site**, by separate eyes told to refute it | Findings fixed or filed |
@@ -433,7 +437,16 @@ Built to §7.2 and §7.7 ([pictures](assets/web-swiss-s2.png)). `SiteHero` now h
 
 **At 360 × 640** the whole hero fits, with 114px to spare above the fold's limit for the filled action.
 
-**During App Review.** `/support` and `/politique-confidentialite` are listed with Apple and they keep their wording. They change only in font, header and footer, and they get checked after each deploy. Timing against Apple's decision is the owner's call at each merge.
+**Read on `myweli.com` after the merge (2026-11-04, `a41f7db9`): the 404's band is in every page's HTML.** This was not recorded when it was built. Next.js serializes the root 404 into every page's RSC payload (read on nine pages), so the first row's reason applies to the 404 as well: it costs every visitor for a page few see. Q3 in §15 was answered before this was read.
+
+- **On the five store-linked pages** ([app-review-round-2.md](app-review-round-2.md) §5, §12) it is not rendered, with no `svg[data-weave]` in the DOM, and it adds no route to sign-up: their HTML has no `/professionnels`, `/pro/inscription`, `/pro/connexion`, « Espace pro » or « Inscrire », and the fragment's one link goes to `/`.
+- **What it costs.** On each of the five, the 404's fragment grew from 585 to 1,990 bytes, against copies saved before the deploy, and nothing else in those files changed but same-length hashes. The band's tree is 1,049 of those bytes. Compressed, the saved copy against the live one, each from one encoder: gzip at level 6 about +350 to +530 bytes a page, and brotli about +310 to +370 at qualities 5 and 11. Putting the real old fragment back into the live file gives about the same gzip growth, and cutting from the live HTML saves about 270–440 bytes of gzip for the band alone and 470–650 for the whole fragment. Browsers get brotli, and Vercel's own served bytes have no before, so these are a guide and not what a visitor is sent.
+- **Speed.** No like-for-like before exists, so nothing is claimed either way. Read live, five runs each from a Mac: `/` 1906 ms, `/connexion` 2207 ms and `/suppression-compte` 1309 ms, all within budget, and `/professionnels`, which has none, 1160 ms (§11). The LCP element on `/` and `/professionnels` is the `<h1>`, not the pattern.
+- **The budget.** Counted with the payload, `/` and `/professionnels` are over §4.7's 4 KB, and its tests do not read the payload. **Whether the budget counts the payload is the owner's call, still open, with its options in §15.** Taking the band off the 404 would change the HTML of the five pages again, so it waits on B0.1's merge rule.
+
+**What that read covered, on 2026-11-04, signed out, in Chromium 149 only.** `/professionnels`: its 36 main strings against `landing.ts`, its 15 anchors, served and hydrated, and its `<head>` and JSON-LD. Both pages: the six required sizes and 367 widths from 320 to 2560, 200% text four ways at 390, axe at 360 and 1280, and console and CSP events. The read of the five pages ([app-review-round-2.md](app-review-round-2.md) §12) landed on both in WebKit, for their headings and links and not their layout. **Not read:** their layout in Safari or WebKit, so iPhone Safari is unverified; a real phone, or real iOS or Android text scaling; a signed-in visitor, so the bell at 360; the install banner's effect on the fold, since none appeared; and **the error pages, `app/error.tsx` and `global-error`, which this read did not open**, so « read on `myweli.com` » does not cover them.
+
+**During App Review.** `/support` and `/politique-confidentialite` are listed with Apple and they keep their wording. They change only in font, header and footer, and they get checked after each deploy. Timing against Apple's decision is the owner's call at each merge. Read after this deploy: words and links unchanged on all five, with their HTML grown as above ([app-review-round-2.md](app-review-round-2.md) §12).
 
 **Mixed look between merges.** Accepted: there is no public traffic to speak of (memory: not yet public), and each slice stands on its own.
 
@@ -467,3 +480,10 @@ All answered by the owner on 2026-11-02 (BACKLOG decisions 63–67).
 | Q5 | What comes first | **The untrue sentences** ([web-flow-audit-2026-11.md](web-flow-audit-2026-11.md)), **then the new look** |
 
 **Left with the owner:** §4.8, showing the panel to people in Abidjan before S1 goes live. I cannot judge that from here.
+
+**Also left with the owner, from the read of 2026-11-04 (§4.7, §13.2; BACKLOG B11.2): does §4.7's budget of 4 KB of markup count the RSC payload?**
+
+- **(a) It means drawn markup.** Then §4.7 says so, and the two tests whose names say « what a visitor is sent » (`site-look.spec.ts`) and « every visitor is sent both » (`weave.test.tsx`) are retitled. The payload's 3,465 bytes stay uncounted.
+- **(b) It counts the payload.** Then `/` and `/professionnels` are over, at 5,193 bytes against 4,096. Taking the band off the 404 still leaves them 48 bytes over, at 4,144, so the budget, the drawing or the way it is delivered must move too, and the pins must read the payload.
+
+Any web change waits on the merge rule in B0.1 (BACKLOG).

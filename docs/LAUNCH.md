@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Status** | Living document. Nothing here is done until its box is ticked **with evidence**. |
-| **Pro 0.0.1** | **2026-11-04: resubmitted at 00:02:00 UTC with build 719, in review (`WAITING_FOR_REVIEW`, release `MANUAL`, per the API); B0.1 applies. Still open: Apple's decision; a green scheduled « Production checks » run after `713114a5` and `7a2c7e15` (the last is 13:16 UTC on 2026-11-03, on `4e78e485`); a successful Apple sign-in on an iPad, unobserved; the production backend deploy after Apple's decision, the one that switches on the Apple keys; the release by hand after approval; merging the docs PR that holds this record.** The record: §6.2 and [design/app-review-round-2.md](design/app-review-round-2.md) §12. |
+| **Pro 0.0.1** | **2026-11-04: resubmitted at 00:02:00 UTC with build 719, in review (`WAITING_FOR_REVIEW`, release `MANUAL`, per the API); B0.1 applies. Still open: Apple's decision; a successful Apple sign-in on an iPad, unobserved; the production backend deploy after Apple's decision, the one that switches on the Apple keys; the release by hand after approval.** Closed later on 2026-11-04 ([app-review-round-2.md](design/app-review-round-2.md) §12): the green scheduled « Production checks » run, `41838514759`, which ran before #730's deploy, so the next one is the first against the new look; and the docs record, on `main` as `bb59b7de`. The record: §6.2 and [design/app-review-round-2.md](design/app-review-round-2.md) §12. |
 | **Order** | **Web first → iOS → Android last** (§3) — *amended 2026-09-24 (owner): the **Pro app goes to the Apple App Store first** — TestFlight and App Review now, the public release still behind production restored and stable (§3)* |
 | **Related** | [ROADMAP.md](ROADMAP.md) · [BACKLOG.md](BACKLOG.md) (what is left, and how we will solve it) · [DEPLOYMENT.md](DEPLOYMENT.md) · [BACKEND.md](BACKEND.md) · [design/mobile-store-submission.md](design/mobile-store-submission.md) |
 
@@ -1338,12 +1338,14 @@ checking rather than assuming:
 > frame shows the header, the body and the top of the footer's wordmark, not the footer's links. Before #732 the same address showed the
 > salon links after hydration, which is the control. The other spellings were read raw in that pass, and all 20 forms rendered in Chromium (#733).
 >
-> **Still open on 2026-11-04:** Apple's decision; a green scheduled « Production checks » run after `713114a5` and `7a2c7e15` (the last is
-> 13:16 UTC on 2026-11-03, on `4e78e485`; read again at 00:40 UTC); a successful Apple sign-in on an iPad, unobserved, since the signed
+> **Still open on 2026-11-04:** Apple's decision; a successful Apple sign-in on an iPad, unobserved, since the signed
 > build ran on the owner's iPhone (where it gave « Aucun compte MyWeli Pro… ») and the simulator has no Apple account; the production
-> backend deploy after Apple's decision, the one that switches on the Apple keys; the release by hand after approval; merging the docs PR
-> that holds this record, whose merge deploys production with an unchanged web tree, and which the owner chose on 2026-11-04 to merge after green, in review. B0.1 applies
+> backend deploy after Apple's decision, the one that switches on the Apple keys; the release by hand after approval. B0.1 applies
 > since 00:02:00 UTC.
+>
+> **Closed later on 2026-11-04** ([app-review-round-2.md](design/app-review-round-2.md) §12): the green scheduled « Production checks » run, `41838514759`, at 13:29 UTC on
+> `bb59b7de`, before #730's deploy, so the next one is the first against the new look; and the docs record, on `main` as `bb59b7de`. That
+> merge started no deployment. GitHub reports #734 as closed, not merged. The comment there puts that down to a 502 from GitHub. It went out from the owner's GitHub account, but the owner neither wrote nor reported it: the working session that did the merge posted it and saw the 502s itself.
 
 - [ ] Everything in [mobile-store-submission.md](design/mobile-store-submission.md) §5.
       Two of its claims are **stale as of 2026-08-18** and must be corrected
