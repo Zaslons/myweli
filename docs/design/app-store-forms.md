@@ -1417,10 +1417,13 @@ déploiement du backend** (décision 47).
 
 **Le build qui suit le 719 : ce diff ne sera plus vide** (relevé le 2026-11-04, c'est attendu). Depuis
 `713114a5`, `main` a reçu les cinq montées de Dependabot réunies en une (`chore/deps-five-mobile-bumps`,
-à la place de #692 à #696) : `mobile/pubspec.yaml` et `mobile/pubspec.lock` changent, sept paquets
-(geolocator 14.1.2, flutter_local_notifications 22.3.2 avec son `_linux` 8.0.2 et son
+à la place de #692 à #696), puis flutter_local_notifications 22.3.3 (Dependabot a repris #693 pour cette
+version, le verrou refait sur Flutter 3.44.9) : `mobile/pubspec.yaml` et `mobile/pubspec.lock` changent,
+sept paquets (geolocator 14.1.2, flutter_local_notifications 22.3.3 avec son `_linux` 8.0.2 et son
 `_platform_interface` 12.2.0, package_info_plus 10.2.2, app_settings 9.0.1, lottie 3.6.1) ;
-`mobile/ios`, `mobile/android` et `mobile/assets` ne changent pas. Si Apple refuse encore, ou pour la
+`mobile/ios`, `mobile/android` et `mobile/assets` ne changent pas. *Dans le code du paquet, 22.3.3 ne
+change que le Java d'Android (l'heure des notifications répétées, au changement d'heure) : aucun fichier
+Dart, iOS ou macOS, et l'app ne programme aucune notification.* Si Apple refuse encore, ou pour la
 0.0.2, le relevé de ce build-là nomme ces deux fichiers au lieu de « vide », et sa passe ajoute le
 regard du §11.6.
 
