@@ -130,9 +130,11 @@ jobs:
       # **It reads nothing until a public salon has a photo, and says so in the log.**
       # No card, no photo through Vercel's optimizer and no 31-day cache could be read
       # when B11.3 merged, because production has no public salon. This wakes by itself
-      # with the first one, and from then on it is how a 402 from the optimizer gets
-      # caught: a tile with a letter on it, which nobody would report. Then B11.3's last
-      # line gets read and closed by hand. docs/design/web-swiss-cards.md §9.
+      # with the first one. It reads the first photo, and also asks for one transformation
+      # nobody has read, because that photo's file is cached for 31 days and cannot show a
+      # plan out of transformations: the next new photo would, as a tile with a letter on
+      # it, which nobody would report. Then B11.3's last line gets read and closed by
+      # hand. docs/design/web-swiss-cards.md §9.
       - name: The first card photo on /recherche, if there is one
         run: npm run check:card-photo
         env:
@@ -405,9 +407,13 @@ jobs:
             'the live site still publish the registration status the manifest' \
             'records — a red row there usually means Vercel is serving an older' \
             'deployment, since web/ has no deploy workflow of its own. The card' \
-            'photo job asserts that the first salon photo on /recherche is served' \
-            'through the image optimizer; a red row there means visitors see a' \
-            'letter on a tile, and a 402 means the plan ran out of transformations' \
+            'photo job reads /recherche and, once a public salon has a photo, the' \
+            'first one. Red means one of four things, and the job log says which:' \
+            '/recherche answered neither a list nor an empty list; that photo did' \
+            'not load through the image optimizer, so visitors see a letter on a' \
+            'tile; its card is no longer 4:3; or a transformation nobody has read' \
+            'was refused. A 402 there means the plan ran out of transformations:' \
+            'new photos show a letter while cached ones still load' \
             '(docs/design/web-swiss-cards.md §7, §9).' \
             '' \
             '**The attestation job is different, and a failure there does NOT' \
