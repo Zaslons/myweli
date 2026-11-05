@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { ButtonLink } from '../../components/ButtonLink';
 import { JsonLd } from '../../components/JsonLd';
+import { SiteFaqList } from '../../components/SiteFaqList';
 import { SiteHero } from '../../components/SiteHero';
 import { SiteSection } from '../../components/SiteSection';
 import { PRO_LANDING as L } from '../../lib/pro/landing';
@@ -71,14 +72,7 @@ export default function ProfessionnelsPage() {
         </SiteSection>
 
         <SiteSection title={L.faqTitle} titleId="pro-faq">
-          <dl className="divide-y divide-divider">
-            {L.faq.map((f) => (
-              <div key={f.question} className="py-m first:pt-0 last:pb-0">
-                <dt className="font-medium text-textPrimary">{f.question}</dt>
-                <dd className="mt-xs max-w-content text-bodyLarge text-textSecondary">{f.answer}</dd>
-              </div>
-            ))}
-          </dl>
+          <SiteFaqList items={L.faq} />
         </SiteSection>
 
         <section aria-labelledby="pro-closing" className="border-t border-primary">

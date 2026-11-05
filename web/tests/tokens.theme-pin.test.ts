@@ -278,6 +278,20 @@ describe('the tokens are actually WIRED, not just spelled', () => {
     expect(maxWidth['screen-lg']).toBeDefined();
   });
 
+  // docs/design/web-swiss-cards.md §2.2: a card's 4:3 and the letter a failed photo
+  // carries. `theme.extend`, so nothing else in those two scales moved.
+  it('the card’s two tokens are wired, and emit the classes the card spells', async () => {
+    const resolved = resolveConfig(tailwindConfig as never);
+    expect((resolved.theme!.aspectRatio as Record<string, string>).card).toBe('4 / 3');
+    expect((resolved.theme!.content as Record<string, string>).initial).toBe('attr(data-initial)');
+    const { css } = await postcss([tailwindcss(tailwindConfig as never)]).process(
+      '@tailwind utilities;',
+      { from: undefined },
+    );
+    expect(css).toContain('.aspect-card {');
+    expect(css).toContain('.after\\:content-initial::after {');
+  });
+
   // Catches a typo'd token — `text-bodyMedum` — which Tailwind renders as nothing
   // at all. ESLint catches it on a `className=` attribute; it cannot see the four
   // bare `const`/default-param strings, and this can.

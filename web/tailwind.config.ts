@@ -121,6 +121,13 @@ const config: Config = {
     }),
 
     extend: {
+      // A salon's photo on a card, 4:3 (docs/design/web-swiss-cards.md §2.2). Here, and
+      // not in `styles/tokens.ts`: `Icon.tsx` imports that file, and `Icon` is in the
+      // five store-linked pages' graph (§13). `cover` waits for its first user in S4.
+      aspectRatio: { card: '4 / 3' },
+      // The card's letter on a photo that failed: the `::after` a browser generates only
+      // for an image that did not load carries it from `data-initial` (§2.4).
+      content: { initial: 'attr(data-initial)' },
       // ─── Sizing stays open. That is the decision, not a deferral (B2c) ─────
       // B2a carved these out "until the web gets a sizing scale". B2c checked
       // that premise and it does not hold: **sizing is not a token class in this

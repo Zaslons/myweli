@@ -31,6 +31,53 @@ describe('EmptyState', () => {
   });
 });
 
+/// docs/design/web-swiss-cards.md §5: flush left for the public pages, and nothing
+/// moves for the pro pages and the account, which keep the default.
+describe('EmptyState `align`', () => {
+  const full = (align?: 'center' | 'start', plain?: boolean) =>
+    render(
+      <EmptyState
+        align={align}
+        plain={plain}
+        icon="search"
+        title="Aucun résultat"
+        action={<a href="/recherche">Agir</a>}
+      />,
+    ).container;
+
+  it('the default is byte for byte what it was', () => {
+    const c = full();
+    expect((c.firstChild as HTMLElement).className).toBe(
+      'rounded-xl border border-border bg-secondary p-xl text-center ',
+    );
+    expect(c.querySelector('[class*="mx-auto"]')).not.toBeNull();
+    expect(screen.getByRole('link', { name: 'Agir' }).parentElement!.className).toBe(
+      'mt-l flex justify-center',
+    );
+  });
+
+  it('plain, and a caller’s class, are too', () => {
+    const plain = full('center', true);
+    expect((plain.firstChild as HTMLElement).className).toBe('p-xl text-center ');
+    const placed = render(<EmptyState title="Vide" className="mt-s" />).container;
+    expect((placed.firstChild as HTMLElement).className).toBe(
+      'rounded-xl border border-border bg-secondary p-xl text-center mt-s',
+    );
+  });
+
+  it('`start` has no box, no padding and nothing centred, and the lens stands on the edge', () => {
+    const c = full('start');
+    const root = c.firstChild as HTMLElement;
+    for (const gone of ['rounded-xl', 'border', 'bg-secondary', 'p-xl', 'text-center']) {
+      expect(root.className).not.toContain(gone);
+    }
+    expect(c.innerHTML).not.toContain('mx-auto');
+    expect(c.innerHTML).not.toContain('justify-center');
+    expect(c.querySelector('[class*="-ml-s"]')).not.toBeNull();
+    expect(screen.getByRole('link', { name: 'Agir' }).parentElement!.className).toBe('mt-l flex');
+  });
+});
+
 describe('ErrorState', () => {
   it('message is an alert; retry is a REAL control (§12: never a dead end)', () => {
     const retry = vi.fn();
