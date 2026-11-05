@@ -5,6 +5,10 @@ import { type Page, devices, expect, test } from '@playwright/test';
 import { signInPro } from './_auth';
 import { asGrantedBrowser, asUnaskedBrowser } from './_push';
 import { serveStubImages } from './_pixel';
+// A booking's day comes from the stub's clock, never a date in the file: the
+// dialog refuses a past instant against the browser's clock (`isFutureIso`), so
+// a fixed date fails these tests once it has passed. 2026-12-01 was one.
+import { stubDayKey } from './stub-clock.mjs';
 
 
 test('unauthenticated /pro redirects to /pro/connexion', async ({ page }) => {
@@ -764,7 +768,7 @@ test('« + Nouveau rendez-vous » on /pro/rendez-vous books standalone (web-manu
   const dialog = page.getByRole('dialog', { name: 'Nouveau rendez-vous' });
   await dialog.getByRole('checkbox').first().check();
   // Standalone entry → the dialog owns date & time (future-only).
-  await dialog.getByLabel('Date du rendez-vous').fill('2026-12-01');
+  await dialog.getByLabel('Date du rendez-vous').fill(stubDayKey(new Date(), 30));
   await dialog.getByLabel('Heure du rendez-vous').fill('11:00');
   await dialog
     .getByLabel('Rechercher ou nommer le client')
@@ -785,7 +789,7 @@ test('client card: « Nouveau rendez-vous » opens the dialog pre-picked (C1b de
   const dialog = page.getByRole('dialog', { name: 'Nouveau rendez-vous' });
   await expect(dialog.getByText(/Koffi/)).toBeVisible(); // pre-picked client
   await dialog.getByRole('checkbox').first().check();
-  await dialog.getByLabel('Date du rendez-vous').fill('2026-12-01');
+  await dialog.getByLabel('Date du rendez-vous').fill(stubDayKey(new Date(), 30));
   await dialog.getByLabel('Heure du rendez-vous').fill('15:00');
   await dialog.getByRole('button', { name: 'Créer', exact: true }).click();
   await expect(page.getByText('Rendez-vous créé')).toBeVisible();
@@ -1244,7 +1248,7 @@ test('manual booking: a walk-in with no name and no number (web-manual-booking-w
   await page.getByRole('button', { name: '+ Nouveau rendez-vous' }).click();
   const dialog = page.getByRole('dialog', { name: 'Nouveau rendez-vous' });
   await dialog.getByRole('checkbox').first().check();
-  await dialog.getByLabel('Date du rendez-vous').fill('2026-12-02');
+  await dialog.getByLabel('Date du rendez-vous').fill(stubDayKey(new Date(), 31));
   await dialog.getByLabel('Heure du rendez-vous').fill('11:00');
   await dialog.getByLabel('Rechercher ou nommer le client').fill('Awa');
   await dialog.getByRole('button', { name: 'Créer', exact: true }).click();
