@@ -115,6 +115,10 @@ jobs:
   cardphoto:
     name: Real domain — a salon card's photo, once there is one
     runs-on: ubuntu-latest
+    # It installs packages and reads a public page, so it gets none of the workflow's
+    # issues or id-token rights.
+    permissions:
+      contents: read
     defaults:
       run:
         working-directory: web
