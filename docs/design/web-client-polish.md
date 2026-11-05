@@ -294,7 +294,7 @@ puis qui dit « Vérifiez votre connexion ».
   `Toast` prend `aboveFloatingControl` : sous `lg`, le toast se place à
   80 px (`bottom-xxxl` + `pb-m`, des jetons seulement), au-dessus du bouton.
   Un e2e sur 390 px mesure les deux boîtes.
-  **Depuis le 2026-11-05 :** « Carte » est en bas à gauche, à la marge de la page
+  **À la fusion de B11.3 :** « Carte » passe en bas à gauche, à la marge de la page
   ([web-swiss-cards.md](web-swiss-cards.md) §2.4) ; le toast reste centré à 80 px,
   au-dessus de sa bande, et ne bouge pas.
 - **La page salon** : le focus revient au bouton après la réponse — succès ou
