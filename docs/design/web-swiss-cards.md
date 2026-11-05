@@ -540,7 +540,9 @@ Run 2026-11-05 on detached copies, on committed work. Each mutation applied by e
 - **First pass, at `23eecdbd` (backend `747d6e39`): 128 rows, 114 red, 12 green, 2 printed skips.** The 12 green are 3 baselines, 6 controls or reads meant to be green, and 3 that stayed green under a mutation meant to turn them red.
 - **Second pass, after the reviews: 42 rows, 31 red, 10 green, 1 printed skip.** Browser and `check:card-photo` rows at `c7f5ef9c`, unit rows at `f7d1691e`. The 10 green are 3 baselines, 4 controls, the old check and a blind copy of the new one on the stand-in (the finding itself), and one failing image that read green from the cache, which a later row empties first.
 
-**What the tables below list.** They hold 123 and 39 rows against the 128 and 42 counted here. The other 8 are baselines with no mutation, 5 in the first pass and 3 in the second, counted and not listed.
+- **Third pass, on the owner's answers and the last review: 53 rows, 41 red, 10 green, 2 printed skips.** Each on a detached clone of its own concern's commit as it then stood, whose message or docs were amended afterwards, with no code changed. The 10 green are 5 baselines, 3 controls, the check as it was on a stand-in billed by source image (the finding itself), and the same stand-in read by a probe that does not vary its source, which shows the query is what sees it.
+
+**What the tables below list.** The first two hold 123 and 39 rows against the 128 and 42 counted here. The other 8 are baselines with no mutation, 5 in the first pass and 3 in the second, counted and not listed.
 
 **What stayed green under a mutation, and what happened to it**
 
@@ -722,6 +724,66 @@ Run 2026-11-05 on detached copies, on committed work. Each mutation applied by e
 | tap-targets: the city index | The link really small: h-8. min-h-12 is gone, so this is the only way it can fall below the floor | RED |
 | site-look: a commune too long, at 200% text | The review’s gap: break-words off the commune | RED |
 | site-look: a commune too long, at 200% text | Non-vacuity: the doubling dropped, in this test only | RED |
+
+**Third pass**
+
+| Guard | Mutation | Result |
+|---|---|---|
+| site-look: « Carte » over the list | None: baseline on the committed copy | GREEN |
+| site-look: « Carte » over the list | The button centred again: left-1/2 and -translate-x-1/2 | RED |
+| site-look: « Carte » over the list | min-h-12 off the button | RED |
+| site-look: « Carte » over the list | A map control under « Liste »: the zoom buttons at the bottom left | RED |
+| site-look: « Carte » over the list | The tap on « Liste » does not come back | RED |
+| site-look: the first card’s photo is fetched first | None: baseline on the committed copy | GREEN |
+| site-look: the first card’s photo is fetched first | The landings lose the prop: every level there goes lazy | RED |
+| site-look: the first card’s photo is fetched first | /recherche loses the prop | RED |
+| site-look: the first card’s photo is fetched first | Every row has the prop, on /recherche | RED |
+| site-look: the first card’s photo is fetched first | Every tile has the prop, on a landing with six | RED |
+| site-look: the first card’s photo is fetched first | `/` takes the prop on its first card | RED |
+| site-look: the first card’s photo is fetched first | The favourites take the prop | RED |
+| site-look: the first card’s photo is fetched first | The prop keeps `fetchPriority` and drops the preload: `priority` goes, fetchPriority="high" stays | RED |
+| provider-card.test.tsx: `imagePriority` is a high fetch priority with no `loading` | The prop does nothing | RED |
+| provider-card.test.tsx: a logo stays lazy | The logo takes the prop too | RED |
+| optimizer-sources | None: baseline on the committed copy | GREEN |
+| optimizer-sources: a brand importer shows the brand’s own files | The review’s first case: an avatar on the header’s <Image>, no longer a literal /brand/ src | RED |
+| optimizer-sources: a brand importer shows the brand’s own files | A spread after the literal src, which could replace it | RED |
+| optimizer-sources: a brand importer shows the brand’s own files | The header’s import under another name, which the <Image> read would miss | RED |
+| optimizer-sources: no reader reaches the optimizer | The review’s second case: a new file renders review photos through <Gallery> | RED |
+| optimizer-sources: no reader reaches the optimizer | An avatar reader imports Hero | RED |
+| optimizer-sources: no reader reaches the optimizer | ReviewList, which reads photoUrls, imports ProviderCard | RED |
+| optimizer-sources: no reader reaches the optimizer | AvisClient, the exception for next/image, imports BeforeAfterViewer too | RED |
+| optimizer-sources: exactly these importers | next/legacy/image in a new .tsx | RED |
+| optimizer-sources: exactly these importers | A routed page.jsx under app/ | RED |
+| optimizer-sources: exactly these importers | A new top-level directory | RED |
+| optimizer-sources: exactly these importers | A backticked dynamic import | RED |
+| optimizer-sources: AvisClient carries unoptimized | unoptimized = {false}, spaced, which the last version read as a bare word | RED |
+| optimizer-sources: AvisClient carries unoptimized | unoptimized = {keep}, spaced: a variable proves nothing | RED |
+| optimizer-sources: AvisClient carries unoptimized | Control: unoptimized = {true}, spaced | GREEN |
+| optimizer-sources: scans a real tree | The walk starts in lib/ alone | RED |
+| optimizer-sources: the walk | The walk stops reading .jsx | RED |
+| optimizer-sources: the walk | The test trees are read as shipped code | RED |
+| site-look: the Next server refuses the stub’s photo within 5 s | None: baseline on the committed copy | GREEN |
+| site-look: the Next server refuses the stub’s photo within 5 s | The preload’s lookup never answers: the stall this bound exists for | RED |
+| tool/check-card-photo.spec.ts | The check as it was at 164eda16, on a stand-in out of transformations and billed by source image: any quality of the known file answers, a new source 402. The review’s finding | GREEN |
+| tool/check-card-photo.spec.ts | The check now, on the same stand-in | RED |
+| tool/check-card-photo.spec.ts | Mutation: the probe stops varying the source, on the same stand-in | GREEN |
+| tool/check-card-photo.spec.ts | The check now, on a stand-in that refuses a new source with a 400: the message says it is not the plan | RED |
+| tool/check-card-photo.spec.ts | Control: the check now, on a stand-in with no ceiling, which sends x-vercel-cache | GREEN |
+| tool/check-card-photo.spec.ts | The check now, on a photo that never answers | RED |
+| production-alarm-status | None: baseline on the committed copy | GREEN |
+| production-alarm-status | A ninth check, emailDelivery:, a capital in its key, with no row | RED |
+| production-alarm-status | A ninth check, smtp: # a note, with no row | RED |
+| production-alarm-status | A plain ninth check with no row: still seen | RED |
+| production-alarm-status | The status line drops card photo | RED |
+| tool/check-card-photo.spec.ts | None. Real bytes through the real optimizer, with ?m= on the source | GREEN |
+| tool/check-card-photo.spec.ts | Salons on the page and no card photo: the stub’s list cut to a logo and a letter | SKIP |
+| tool/check-card-photo.spec.ts | An empty list: /recherche?q=vide | SKIP |
+| tool/check-card-photo.spec.ts | Not one of the page’s two states | RED |
+| tool/check-card-photo.spec.ts | Not a 200 | RED |
+| tool/check-card-photo.spec.ts | A local build with a failing image, its image cache emptied first | RED |
+| tool/check-card-photo.spec.ts | A local server stopped | RED |
+
+**Rows above that read an older guard stay as the record of it:** the first pass's « no priority » rows and its « within 1 s » row were true of the guards as they then were. `backend/test/infra/production_alarm_test.dart` passes on a detached copy with `cardphoto`'s `permissions` in place, 15 tests, and needed no edit.
 
 ### What these cannot see
 
