@@ -867,7 +867,10 @@ test.describe('the salon card', () => {
     const started = Date.now();
     const answer = await request.get('/_next/image?url=https://cdn.stub/p1.jpg&w=640&q=75');
     expect(answer.status()).toBeGreaterThanOrEqual(400);
-    expect(Date.now() - started).toBeLessThan(1000);
+    // What it has to tell apart: 26 ms with the preload, against no answer in 6 s and a 30 s
+    // stall on CI. 5 s still goes red on both, and stops measuring a busy runner, because a
+    // required suite with `retries: 0` would go red on a pause with no defect.
+    expect(Date.now() - started).toBeLessThan(5_000);
   });
 });
 
