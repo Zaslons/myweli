@@ -4,6 +4,7 @@ import 'package:intl_phone_field/intl_phone_field.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:myweli/core/config/feature_flags.dart';
 import 'package:myweli/core/di/dependency_injection.dart';
+import 'package:myweli/core/utils/app_clock.dart';
 import 'package:myweli/core/utils/salon_id.dart';
 import 'package:myweli/models/api_response.dart';
 import 'package:myweli/models/appointment.dart';
@@ -33,6 +34,11 @@ class _MockProService extends Mock implements ProServiceInterface {}
 void main() {
   late _MockProService service;
 
+  // Relative, never a date: the screen refuses a past instant against the real
+  // clock (« Choisissez une date et une heure à venir »), so with a fixed date
+  // every test here that submits goes red once that date has passed.
+  final future = AppClock.now().add(const Duration(days: 30));
+
   setUpAll(() {
     serviceLocator.authService = MockAuthService();
     service = _MockProService();
@@ -46,7 +52,7 @@ void main() {
     userId: 'manual',
     providerId: SalonId('provider1'),
     serviceIds: const ['s1'],
-    appointmentDate: DateTime(2027, 1, 15, 14, 30),
+    appointmentDate: future,
     status: AppointmentStatus.confirmed,
     totalPrice: 15000,
     createdAt: DateTime(2026),
@@ -91,10 +97,10 @@ void main() {
           ChangeNotifierProvider(create: (_) => ProServiceProvider()),
           ChangeNotifierProvider(create: (_) => ProAppointmentProvider()),
         ],
-        // The grid-cell entry (a fixed future instant), so the date/time
-        // pickers stay out of the way of what this file is about.
+        // The grid-cell entry (a future instant), so the date/time pickers
+        // stay out of the way of what this file is about.
         home: ProManualBookingScreen(
-          initialDateTime: DateTime(2027, 1, 15, 14, 30),
+          initialDateTime: future,
           initialClientPhone: initialClientPhone,
         ),
       ),

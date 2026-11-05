@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:myweli/core/di/dependency_injection.dart';
+import 'package:myweli/core/utils/app_clock.dart';
 import 'package:myweli/core/utils/salon_id.dart';
 import 'package:myweli/models/api_response.dart';
 import 'package:myweli/models/team_invitation.dart';
@@ -92,7 +93,8 @@ void main() {
         salonName: 'Beauté Divine',
         role: TeamRole.staff,
         roleLabel: 'Collaborateur',
-        expiresAt: DateTime.utc(2026, 11, 5),
+        // Relative, as the mock's own invitations are (a fixed date expired).
+        expiresAt: AppClock.now().add(const Duration(days: 7)),
       ),
     );
     final held = team.holdAccept = Completer<void>();
