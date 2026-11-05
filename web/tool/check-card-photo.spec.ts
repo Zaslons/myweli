@@ -44,8 +44,8 @@ function unreadByAnyone(file: string, now: Date): string {
 }
 
 test(`${path}: the first card photo, once there is one`, async ({ page, request }) => {
-  // Longer than the poll below, or its message could never print: a test's own default
-  // of 30 s would end first, as a timeout that says nothing about the photo.
+  // Longer than the poll below. At the default of 30 s, a photo that never loads also
+  // read « Test timeout of 30000ms exceeded », which says nothing about the photo.
   test.setTimeout(60_000);
 
   const response = await page.goto(path, { waitUntil: 'domcontentloaded' });
