@@ -896,6 +896,32 @@ test.describe('the salon card', () => {
         expect(button.y + button.height, 'it became a block in the page').toBe(height - 24);
         expect(button.x + button.width).toBeLessThanOrEqual(column.x);
       });
+
+      // From far down a long list the page under the map is much shorter, so the browser held
+      // it at its end: the footer alone, with the map and « Liste » above the screen. Read
+      // before any press: Playwright's click scrolls its target into view by itself.
+      test(`at ${width}, pressed far down the list: the map opens whole, and « Liste » goes back to the same place`, async ({ page }) => {
+        await size(page, width, height);
+        await page.route(/cartocdn\.com/, (r) => r.abort());
+        await routeNextImages(page);
+        await page.goto('/recherche?q=vitrine');
+        const row = page.locator('main [role="presentation"]:has(h3)').nth(6);
+        await row.evaluate((el) => el.scrollIntoView({ block: 'center', behavior: 'instant' }));
+        const from = await page.evaluate(() => window.scrollY);
+        expect(from, 'not far enough down, so this proves nothing').toBeGreaterThan(height);
+        await toggleOn(page).click();
+        const map = page.locator('.maplibregl-map');
+        await expect(map).toBeVisible();
+        const whole = (await map.boundingBox())!;
+        expect(whole.y, 'the map’s top is off the screen').toBeGreaterThanOrEqual(0);
+        expect(whole.y + whole.height, 'the map’s foot is off the screen').toBeLessThanOrEqual(height);
+        const liste = page.getByRole('button', { name: 'Liste', exact: true });
+        const button = (await liste.boundingBox())!;
+        expect(button.y + button.height, '« Liste » is not at the screen’s foot').toBe(height - 24);
+        await liste.click();
+        await expect(toggleOn(page)).toBeVisible();
+        expect(await page.evaluate(() => window.scrollY), 'the list lost its place').toBe(from);
+      });
     }
 
     test('at 390 a press on « Instagram » opens the link, and not the map', async ({ page, context }) => {

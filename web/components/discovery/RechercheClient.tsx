@@ -1,6 +1,7 @@
 'use client';
 
 import dynamic from 'next/dynamic';
+import { flushSync } from 'react-dom';
 import { chipLinkClasses } from '../Chip';
 import { EmptyState } from '../EmptyState';
 import { Loading } from '../Loading';
@@ -95,6 +96,7 @@ export function RechercheClient({
   const [favErrors, setFavErrors] = useState<Record<string, string | undefined>>({});
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [mobileView, setMobileView] = useState<'list' | 'map'>('list');
+  const listScrollY = useRef(0);
   const cardRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
   const mappable = withCoords(results);
@@ -183,6 +185,17 @@ export function RechercheClient({
       block: 'nearest',
     });
   }, [selectedId]);
+
+  /// The map opens whole, and « Liste » goes back to where the list stood. The page under the
+  /// map is short, so from far down a long list the browser would hold the page at its end:
+  /// the footer alone on the screen, with the map and this button above it
+  /// (docs/design/web-swiss-cards.md §2.4).
+  function toggleMobileView() {
+    const toMap = mobileView === 'list';
+    if (toMap) listScrollY.current = window.scrollY;
+    flushSync(() => setMobileView(toMap ? 'map' : 'list'));
+    window.scrollTo({ top: toMap ? 0 : listScrollY.current, behavior: 'instant' });
+  }
 
   // Every control re-navigates with the OTHER filters preserved (SSR refetch).
   const hrefWith = (patch: {
@@ -358,7 +371,7 @@ export function RechercheClient({
           listed in docs/design/web-swiss-cards.md §2.4 (decision 5). */}
       <button
         type="button"
-        onClick={() => setMobileView((v) => (v === 'list' ? 'map' : 'list'))}
+        onClick={toggleMobileView}
         className="sticky bottom-l z-sticky ml-m flex min-h-12 w-fit items-center rounded-control bg-primary px-l text-labelLarge font-medium text-secondary shadow-lg lg:hidden"
       >
         {mobileView === 'list' ? 'Carte' : 'Liste'}
