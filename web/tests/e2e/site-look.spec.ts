@@ -687,22 +687,44 @@ test.describe('the salon card', () => {
     }
   });
 
-  // §7's outcome: no level earned a first photo fetched ahead of the rest, so none has
-  // one. Putting it back is a new measurement, not a one-line change.
-  test.describe('no card photo is fetched first (§7)', () => {
-    for (const path of ['/', '/coiffure', '/coiffure/abidjan', '/coiffure/abidjan/marcory', '/recherche?q=vitrine']) {
-      test(`${path}: none`, async ({ page }) => {
+  // §7's outcome, the owner's choice on applied throttling: on each of these four levels
+  // the first card's photo, and only that one, is fetched first. « At most one » would stay
+  // green with none, so this reads exactly one. Same bytes either way.
+  test.describe('the first card’s photo is fetched first (§7)', () => {
+    const high = (page: Page) => page.locator('main img[fetchpriority="high"]');
+    // Next writes `priority` as a preload too, which the `<img>` alone would not show.
+    const preloads = async (page: Page) =>
+      (
+        await page
+          .locator('head link[rel="preload"][as="image"]')
+          .evaluateAll((links) => links.map((l) => l.getAttribute('imagesrcset') ?? l.getAttribute('href') ?? ''))
+      ).filter((p) => p.includes('cdn.stub'));
+
+    for (const path of ['/coiffure', '/coiffure/abidjan', '/coiffure/abidjan/marcory', '/recherche?q=vitrine']) {
+      test(`${path}: exactly one, the first card’s`, async ({ page }) => {
         await routeNextImages(page);
         await page.goto(path);
-        await expect(page.locator('main a img').first()).toBeAttached();
-        await expect(page.locator('main img[fetchpriority="high"]')).toHaveCount(0);
-        // Next writes `priority` as a preload too, which the `<img>` alone would not show.
-        const preloads = await page.locator('head link[rel="preload"][as="image"]').evaluateAll((links) =>
-          links.map((l) => l.getAttribute('imagesrcset') ?? l.getAttribute('href') ?? ''),
-        );
-        expect(preloads.filter((p) => p.includes('cdn.stub'))).toEqual([]);
+        await expect(page.locator('main img[data-initial]').first()).toHaveAttribute('fetchpriority', 'high');
+        await expect(high(page)).toHaveCount(1);
+        expect(await preloads(page)).toHaveLength(1);
       });
     }
+
+    test('/: none, because a phone would preload a photo it has off-screen', async ({ page }) => {
+      await routeNextImages(page);
+      await page.goto('/');
+      await expect(page.locator('main a img').first()).toBeAttached();
+      await expect(high(page)).toHaveCount(0);
+      expect(await preloads(page)).toEqual([]);
+    });
+
+    test('the favourites: none, behind a sign-in and with no budget', async ({ page }) => {
+      await routeNextImages(page);
+      await signInConsumer(page);
+      await expect(page.locator('main img[data-initial]').first()).toBeAttached();
+      await expect(high(page)).toHaveCount(0);
+      expect(await preloads(page)).toEqual([]);
+    });
   });
 
   // The owner moved it after seeing the before and after (web-swiss-cards.md §2.4): it sits

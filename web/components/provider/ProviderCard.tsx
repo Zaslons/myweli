@@ -41,6 +41,7 @@ export function ProviderCard({
   favoritePending = false,
   layout = 'tile',
   imageSizes,
+  imagePriority = false,
   linked = true,
 }: {
   provider: Provider;
@@ -62,6 +63,9 @@ export function ProviderCard({
   layout?: 'tile' | 'row' | 'rowOnPhone';
   /// Defaults by layout. A grid of its own passes its own (`CARD_SIZES`).
   imageSizes?: string;
+  /// The first card of a landing level or `/recherche`, and no other: that photo is
+  /// fetched first, on the owner's choice (spec §7, decision 6). A logo stays lazy.
+  imagePriority?: boolean;
   /// False for a favourite whose salon stopped: that link ends on a 404. The root is a
   /// `<div>` then, with no hover (decision 3).
   linked?: boolean;
@@ -110,9 +114,9 @@ export function ProviderCard({
             sizes={sizes}
             alt={name}
             data-initial={initial}
-            // Lazy on every list, the largest paint included: `priority` on a list's
-            // first photo earned nothing by the measurement in the spec's §7.
-            loading="lazy"
+            // Next refuses `priority` and `loading` together.
+            priority={imagePriority || undefined}
+            loading={imagePriority ? undefined : 'lazy'}
             className={`object-cover ${FAILED_COVER} after:flex after:items-end after:font-semibold after:tracking-tight after:text-textSecondary after:content-initial ${initialSizeOnFailure}`}
           />
         </>

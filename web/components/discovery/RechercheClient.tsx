@@ -283,7 +283,7 @@ export function RechercheClient({
               description="Essayez une autre recherche ou une autre commune."
             />
           ) : (
-            results.map((p) => (
+            results.map((p, i) => (
               <div
                 key={p.id}
                 ref={(el) => {
@@ -306,6 +306,9 @@ export function RechercheClient({
                 <ProviderCard
                   provider={p}
                   layout="row"
+                  // docs/design/web-swiss-cards.md §7: the photo that can be the largest
+                  // paint, fetched first. The same bytes either way.
+                  imagePriority={i === 0}
                   favorite={favIds.has(p.id)}
                   onToggleFavorite={() => toggleFavorite(p.id)}
                   favoriteBusy={favRead === 'loading'}
