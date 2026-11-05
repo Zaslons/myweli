@@ -16,6 +16,7 @@
     "gen:tokens": "node scripts/gen-tokens.mjs",
     "check:privacy": "playwright test tool/check-privacy-promise.spec.ts --config=tool/privacy.config.ts",
     "check:legal": "playwright test tool/check-registration-claim.spec.ts --config=tool/privacy.config.ts",
+    "check:card-photo": "playwright test tool/check-card-photo.spec.ts --config=tool/privacy.config.ts",
     "check:cwv": "lhci autorun --config=tool/lighthouse-production.json",
     "prebuild": "node tool/copy-flags.mjs"
   },
