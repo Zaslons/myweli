@@ -27,6 +27,7 @@ import { describe, expect, it } from 'vitest';
 /// import below it, and `<Image …></Image>` ran on to the next `/>`. What this still
 /// cannot see is data handed along by a file that names none of the words below: a
 /// parent that gets a URL from a helper and gives it to `Gallery` reads no such word.
+/// Nor a module loaded by a computed path, `import(name)`, which has no path to read.
 const NOT_SHIPPED = new Set(['tests', 'tool', 'scripts', 'public']);
 /// Build output and tools' own files, wherever they sit.
 const NEVER = new Set(['node_modules', 'test-results', 'playwright-report', 'coverage']);
@@ -169,7 +170,9 @@ function resolveIn(tree: ReadonlySet<string>, from: string, specifier: string): 
       ? posix.join(posix.dirname(from), specifier)
       : null;
   if (base === null) return null;
-  const candidates = [base, ...EXTENSIONS.map((e) => base + e), ...EXTENSIONS.map((e) => posix.join(base, 'index' + e))];
+  // `./Gallery.js` can name `Gallery.tsx`, as the project's `bundler` resolution allows.
+  const bare = base.replace(/\.[cm]?jsx?$/, '');
+  const candidates = [base, ...[base, bare].flatMap((b) => EXTENSIONS.map((e) => b + e)), ...EXTENSIONS.map((e) => posix.join(base, 'index' + e))];
   return candidates.find((c) => tree.has(c)) ?? null;
 }
 
@@ -295,6 +298,9 @@ describe('who can put a file in the image cache', () => {
       wayToADoor(tree({ 'components/provider/Gallery.tsx': '', 'components/provider/index.ts': "export { Gallery } from './Gallery';", 'components/provider/r.tsx': "import { Gallery } from '.';" }), 'components/provider/r.tsx', doors),
       'a barrel has no door in its name',
     ).toEqual(['components/provider/r.tsx', 'components/provider/index.ts', 'components/provider/Gallery.tsx']);
+    for (const spelling of ['Gallery.tsx', 'Gallery.js', 'Gallery.jsx']) {
+      expect(wayToADoor(tree({ ...gallery, 'r.tsx': `import { G } from './components/provider/${spelling}';` }), 'r.tsx', doors), spelling).not.toBeNull();
+    }
     expect(wayToADoor(tree({ ...gallery, 'r.tsx': "import type { G } from './components/provider/Gallery';" }), 'r.tsx', doors), 'a type loads nothing').toBeNull();
     expect(wayToADoor(tree({ ...gallery, 'a.tsx': "import './b';", 'b.tsx': "import './a';" }), 'a.tsx', doors), 'a cycle').toBeNull();
     expect(wayToADoor(tree({ ...gallery, 'r.tsx': "import { Gallery } from 'gallery';" }), 'r.tsx', doors), 'a package of that name').toBeNull();
