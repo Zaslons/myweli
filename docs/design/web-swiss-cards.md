@@ -680,6 +680,7 @@ Every § in this table is the parent's, unless it says otherwise.
 | §11 is silent on transformations | With a short TTL most views would be billed, and a Hobby plan would fail with a 402 (arithmetic) | `minimumCacheTTL`, a new line in `next.config.mjs` |
 | §11 is silent on the cache and erasure | Review photos go through the optimizer, and erasure deletes them | `unoptimized` on `AvisClient`. Decision 1 |
 | §12 lists a before-and-after SEO guard for a landing | It exists for `/` and `/professionnels` only | Added here at all three levels. The salon page's is S4's |
+| This spec's §8, `routeNextImages` « answers a pixel » | A loaded 1×1 file reads `naturalWidth` 0, as a failed photo does, because a `w` descriptor divides it by its density (measured: 1 ÷ 1.07, floored). And a box on a fractional x paints the page's colour in its first column (measured at 1280) | A 64×48 opaque PNG in one colour, so the failed photo's check means something and a loaded photo can be read covering its letter. The 30×30 corner is read from 2px in |
 | §13 « Cards with and without photos looked at » | Cannot be done on production | Locally now, on production when a salon is public, with a scheduled check for that day (§9 of this spec). A new job the parent did not plan |
 
 ---

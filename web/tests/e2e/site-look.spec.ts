@@ -1,4 +1,7 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type Locator, type Page } from '@playwright/test';
+
+import { signInConsumer } from './_auth';
+import { PHOTO, PHOTO_COLOUR, paintedIn, routeNextImages } from './_pixel';
 
 /// B11.1 — docs/design/web-swiss-direction.md §12. What the new look promises and
 /// a unit test cannot see, because each of these is a fact about the rendered box:
@@ -55,6 +58,22 @@ test.describe('one left edge (§6.2)', () => {
       await expect(h1).toBeVisible();
       expect((await h1.boundingBox())!.x).toBeCloseTo(await logoLeft(page), 0);
     });
+
+    for (const path of ['/coiffure', '/coiffure/abidjan', '/coiffure/abidjan/cocody', '/coiffure/abidjan/plateau']) {
+      test(`${path} at ${width}: the logo, the <h1> and the first section`, async ({ page }) => {
+        await size(page, width);
+        await page.goto(path);
+        const logo = await logoLeft(page);
+        expect((await page.getByRole('heading', { level: 1 }).boundingBox())!.x).toBeCloseTo(logo, 0);
+        expect((await page.getByRole('heading', { level: 2 }).first().boundingBox())!.x).toBeCloseTo(logo, 0);
+        if (path.endsWith('/plateau')) {
+          // Nobody has a salon there, so this is the empty state. Flush left, with no box.
+          const empty = page.getByText('Aucun salon de coiffure à Plateau pour le moment');
+          expect((await empty.boundingBox())!.x).toBeCloseTo(logo, 0);
+          expect(await empty.evaluate((el) => getComputedStyle(el).textAlign)).not.toBe('center');
+        }
+      });
+    }
   }
 });
 
@@ -117,6 +136,8 @@ test.describe('the pattern (§4.6)', () => {
 
   for (const path of [
     '/recherche?commune=Cocody',
+    '/coiffure',
+    '/coiffure/abidjan',
     '/coiffure/abidjan/cocody',
     '/beaute-divine',
     '/connexion',
@@ -132,6 +153,13 @@ test.describe('the pattern (§4.6)', () => {
       await expect(page.locator('svg[data-weave]')).toHaveCount(0);
     });
   }
+
+  // The list above reads `/mon-compte` signed out, so it reaches the redirect.
+  test('none on the account signed in, with a favourite on it', async ({ page }) => {
+    await signInConsumer(page);
+    await expect(page.getByRole('button', { name: 'Retirer des favoris' }).first()).toBeVisible();
+    await expect(page.locator('svg[data-weave]')).toHaveCount(0);
+  });
 });
 
 test.describe('the panel (§4.5)', () => {
@@ -397,20 +425,343 @@ test.describe('rules instead of boxes (§6.3)', () => {
     expect(await sections.evaluate((el) => getComputedStyle(el).borderTopColor)).toBe('rgb(0, 0, 0)');
   });
 
-  for (const path of ['/', '/professionnels']) {
-    test(`no boxed section is left on ${path}`, async ({ page }) => {
+  // Rooted on `main`, not `main section`: `/recherche` has no `<section>`, so the old
+  // check read nothing there (measured: 0). Chips keep their pill, and a map's pins and
+  // controls belong to the map, as in controls-shape.spec.ts.
+  for (const [path, hasCard] of [
+    ['/', true],
+    ['/professionnels', false],
+    ['/coiffure', true],
+    ['/coiffure/abidjan', true],
+    ['/coiffure/abidjan/cocody', true],
+    ['/coiffure/abidjan/marcory', true],
+    ['/recherche?q=vitrine', true],
+  ] as const) {
+    test(`no box is left on ${path}`, async ({ page }) => {
+      await routeNextImages(page);
       await page.goto(path);
-      const boxed = await page.locator('main section').evaluateAll((all) =>
+      if (hasCard) await expect(page.locator('main a img').first()).toBeAttached();
+      const boxed = await page.locator('main').evaluateAll((all) =>
         all.flatMap((s) =>
-          // Not every `a`: salon cards lose their corners in S3. What were boxes on
-          // these pages are the category links, the benefits and the closing row.
-          [s, ...s.querySelectorAll('div, li, li a')].filter((el) => {
-            const css = getComputedStyle(el);
-            return parseFloat(css.borderTopLeftRadius) > 0 && parseFloat(css.borderLeftWidth) > 0;
-          }).map((el) => el.outerHTML.slice(0, 80)),
+          [s, ...s.querySelectorAll('div, li, a')]
+            .filter((el) => !el.classList.contains('rounded-pill'))
+            .filter((el) => el.closest('.maplibregl-map, .myweli-marker') === null)
+            .filter((el) => {
+              const css = getComputedStyle(el);
+              return parseFloat(css.borderTopLeftRadius) > 0 && parseFloat(css.borderLeftWidth) > 0;
+            })
+            .map((el) => el.outerHTML.slice(0, 80)),
         ),
       );
       expect(boxed).toEqual([]);
+    });
+  }
+});
+
+/// B11.3 — docs/design/web-swiss-cards.md §8. A card is a salon's own photo, square and
+/// uncovered, with flush-left text and one thin rule. The fixtures are in
+/// card-fixtures.json: a fixture is a pixel, so whether it looks right is for the
+/// pictures, and a real photo for the first public salon.
+test.describe('the salon card', () => {
+  /// The image's own box loses 1px to the rule, and reads 1.34–1.35, so the ratio is
+  /// the media box's.
+  const mediaOf = (img: Locator) => img.locator('..');
+  const ratioOf = async (el: Locator) => {
+    const b = (await el.boundingBox())!;
+    return b.width / b.height;
+  };
+  /// What is on top at a point of a box. `elementFromPoint` needs it on screen.
+  const topAt = async (box: Locator, at: 'centre' | 'bottom-left') => {
+    await box.scrollIntoViewIfNeeded();
+    return box.evaluate((el, where) => {
+      const b = el.getBoundingClientRect();
+      const [x, y] =
+        where === 'centre' ? [b.x + b.width / 2, b.y + b.height / 2] : [b.x + 4, b.bottom - 6];
+      return document.elementFromPoint(x, y)?.tagName;
+    }, at);
+  };
+  // Inset by 2px: a box on a fractional x paints the page's colour in its first column,
+  // and the bottom holds the rule. The corner is where Chromium's broken-image mark goes.
+  const topLeft = () => ({ x: 2, y: 2, width: 30, height: 30 });
+  const bottomLeft = ({ height }: { height: number }) => ({
+    x: 2,
+    y: height - 40,
+    width: 38,
+    height: 36,
+  });
+
+  for (const path of ['/recherche?q=vitrine', '/coiffure/abidjan/marcory']) {
+    for (const width of [375, 1280]) {
+      test(`${path} at ${width}: a photo at 4:3, with nothing on it`, async ({ page }) => {
+        await size(page, width);
+        await routeNextImages(page);
+        await page.goto(path);
+        const img = page.locator('main img[alt="Beauté Divine"]');
+        const media = mediaOf(img);
+        await expect(img).toBeVisible();
+        expect(Math.abs((await ratioOf(media)) - 4 / 3)).toBeLessThanOrEqual(0.02);
+        expect(
+          await img.evaluate((el) => {
+            const s = getComputedStyle(el);
+            return [s.borderTopLeftRadius, s.filter, s.opacity, s.mixBlendMode];
+          }),
+        ).toEqual(['0px', 'none', '1', 'normal']);
+        // A scrim on a pseudo-element is what `elementFromPoint` cannot see.
+        for (const box of [media, img.locator('xpath=ancestor::a[1]')]) {
+          expect(
+            await box.evaluate((el) => [
+              getComputedStyle(el, '::before').content,
+              getComputedStyle(el, '::after').content,
+            ]),
+          ).toEqual(['none', 'none']);
+        }
+        expect(await topAt(media, 'centre')).toBe('IMG');
+      });
+
+      test(`${path} at ${width}: a failed photo is the salon's letter on the tile`, async ({ page }) => {
+        await size(page, width);
+        await routeNextImages(page);
+        await page.goto(path);
+        const img = page.locator('main img[alt="Atelier Prestige"]');
+        const media = mediaOf(img);
+        await img.scrollIntoViewIfNeeded();
+        await expect
+          .poll(() => img.evaluate((el: HTMLImageElement) => el.complete && el.naturalWidth === 0))
+          .toBe(true);
+        expect(Math.abs((await ratioOf(media)) - 4 / 3)).toBeLessThanOrEqual(0.02);
+        expect((await paintedIn(media, topLeft)).colours).toEqual(['rgb(245,245,245)']);
+        expect((await paintedIn(media, bottomLeft)).dark, 'no letter on the tile').toBeGreaterThan(0);
+      });
+    }
+  }
+
+  test('a slow photo holds its ratio and the letter, and paints over it with no shift', async ({ page }) => {
+    await size(page, 390);
+    let answer!: () => void;
+    const released = new Promise<void>((r) => (answer = r));
+    await page.route('**/_next/image**', async (r) => {
+      await released;
+      await r.fulfill({ status: 200, contentType: 'image/png', body: PHOTO });
+    });
+    // Not `load`: a photo held open holds that too.
+    await page.goto('/recherche?q=vitrine', { waitUntil: 'domcontentloaded' });
+    const img = page.locator('main img[alt="Beauté Divine"]');
+    const media = mediaOf(img);
+    await expect(img).toBeAttached();
+    expect(await img.evaluate((el: HTMLImageElement) => el.naturalWidth)).toBe(0);
+    expect(Math.abs((await ratioOf(media)) - 4 / 3)).toBeLessThanOrEqual(0.02);
+    const before = (await media.boundingBox())!;
+    expect((await paintedIn(media, bottomLeft)).dark, 'no letter while it loads').toBeGreaterThan(0);
+
+    answer();
+    await expect.poll(() => img.evaluate((el: HTMLImageElement) => el.naturalWidth)).toBeGreaterThan(0);
+    expect(await topAt(media, 'bottom-left')).toBe('IMG');
+    expect((await media.boundingBox())!).toEqual(before);
+    // And in paint: a loaded photo covers the letter whole.
+    expect((await paintedIn(media, bottomLeft)).colours).toEqual([PHOTO_COLOUR]);
+  });
+
+  test('neither a photo nor a logo: the letter, and a logo has none under it', async ({ page }) => {
+    await size(page, 390);
+    await routeNextImages(page);
+    await page.goto('/recherche?q=vitrine');
+    const row = (name: string) =>
+      page.locator('main a').filter({ has: page.getByRole('heading', { level: 3, name }) });
+    // `.absolute`: the heart's spacer beside the price is `aria-hidden` too.
+    const letter = 'span.absolute[aria-hidden="true"]';
+    await expect(row('Chez Awa').locator('img')).toHaveCount(0);
+    await expect(row('Chez Awa').locator(letter)).toHaveText('C');
+    await expect(row('Maison Nala').locator('img[alt="Logo Maison Nala"]')).toBeVisible();
+    await expect(row('Maison Nala').locator(letter)).toHaveCount(0);
+  });
+
+  /// Every text rectangle in a row against its heart's box. Range rectangles, because an
+  /// element's box can reach the heart with no text anywhere near it.
+  const textUnderHearts = (page: Page) =>
+    page.evaluate(() => {
+      const met: string[] = [];
+      const hearts = [...document.querySelectorAll('main button[aria-pressed]')];
+      for (const heart of hearts) {
+        const h = heart.getBoundingClientRect();
+        const walker = document.createTreeWalker(heart.parentElement!, NodeFilter.SHOW_TEXT);
+        for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+          if (heart.contains(node) || !node.textContent?.trim()) continue;
+          if (node.parentElement?.closest('.sr-only')) continue;
+          const range = document.createRange();
+          range.selectNodeContents(node);
+          for (const r of range.getClientRects()) {
+            const apart = r.right <= h.left || r.left >= h.right || r.bottom <= h.top || r.top >= h.bottom;
+            if (!apart && r.width > 0) met.push(`${node.textContent.trim().slice(0, 30)} meets ${heart.getAttribute('aria-label')}`);
+          }
+        }
+      }
+      return { hearts: hearts.length, met };
+    });
+  const sideways = (page: Page) =>
+    page.evaluate(() => [document.documentElement.scrollWidth, document.documentElement.clientWidth]);
+
+  for (const width of [320, 390]) {
+    test(`at ${width} no text meets a heart, and the page does not scroll sideways`, async ({ page }) => {
+      await size(page, width);
+      await routeNextImages(page);
+      await page.goto('/recherche?q=vitrine');
+      await expect(page.getByRole('heading', { name: '8 salons' })).toBeVisible();
+      const { hearts, met } = await textUnderHearts(page);
+      expect(hearts, 'every fixture has its heart').toBe(8);
+      expect(met).toEqual([]);
+      const [scroll, client] = await sideways(page);
+      expect(scroll).toBe(client);
+    });
+  }
+
+  // Android's text scaling, which is what `text-size-adjust` does on a mobile page. iOS's
+  // « aA » is page zoom, a 195-wide page, which is another question.
+  test.describe('at 200% text', () => {
+    test.use({ isMobile: true, hasTouch: true, deviceScaleFactor: 2 });
+
+    for (const width of [320, 390]) {
+      test(`at ${width} no text meets a heart, and the page does not scroll sideways`, async ({ page }) => {
+        await size(page, width, 800);
+        await routeNextImages(page);
+        await page.goto('/recherche?q=vitrine');
+        await page.addStyleTag({
+          content: 'html { -webkit-text-size-adjust: 200% !important; text-size-adjust: 200% !important; }',
+        });
+        // One short name, on one line: under 40 high, the text did not double, and
+        // everything below would prove nothing.
+        const one = page.locator('main h3').filter({ hasText: /^Salon$/ });
+        await expect.poll(() => one.evaluate((el) => el.getBoundingClientRect().height)).toBeGreaterThanOrEqual(40);
+        const { hearts, met } = await textUnderHearts(page);
+        expect(hearts).toBe(8);
+        expect(met).toEqual([]);
+        const [scroll, client] = await sideways(page);
+        expect(scroll).toBe(client);
+      });
+    }
+  });
+
+  test.describe('at most one photo is fetched first (§7)', () => {
+    const high = (page: Page) => page.locator('main img[fetchpriority="high"]');
+
+    for (const path of ['/coiffure', '/coiffure/abidjan', '/coiffure/abidjan/marcory', '/recherche?q=vitrine']) {
+      test(`${path}: one at most`, async ({ page }) => {
+        await routeNextImages(page);
+        await page.goto(path);
+        await expect(page.locator('main a img').first()).toBeAttached();
+        expect(await high(page).count()).toBeLessThanOrEqual(1);
+      });
+    }
+
+    test('/: none, because a phone would preload a photo it has off-screen', async ({ page }) => {
+      await routeNextImages(page);
+      await page.goto('/');
+      await expect(page.locator('main a img').first()).toBeAttached();
+      await expect(high(page)).toHaveCount(0);
+    });
+  });
+
+  test('a row selected from the map has a square ring, with its offset', async ({ page }) => {
+    await size(page, 1280);
+    await page.route('**/basemaps.cartocdn.com/**', (r) => r.abort());
+    await routeNextImages(page);
+    await page.goto('/recherche?commune=Cocody');
+    await page.locator('.myweli-marker').first().click();
+    const ring = page.locator('main .ring-2');
+    await expect(ring).toBeVisible();
+    const { radius, shadow } = await ring.evaluate((el) => {
+      const s = getComputedStyle(el);
+      return { radius: s.borderTopLeftRadius, shadow: s.boxShadow };
+    });
+    expect(radius).toBe('0px');
+    // The offset in `surface`, #FAFAFA, 2px, inside the 4px that draws the ring in black.
+    expect(shadow).toContain('rgb(250, 250, 250) 0px 0px 0px 2px');
+    expect(shadow).toContain('rgb(0, 0, 0) 0px 0px 0px 4px');
+  });
+
+  test.describe('the favourites, signed in', () => {
+    const favourites = (page: Page) =>
+      page.getByRole('heading', { name: 'Favoris' }).locator('xpath=ancestor::section[1]');
+    const entry = (page: Page, name: string) =>
+      favourites(page)
+        .locator('.grid > div')
+        .filter({ has: page.getByRole('heading', { level: 3, name }) });
+
+    test('a row on a phone, a tile from sm', async ({ page }) => {
+      await routeNextImages(page);
+      await signInConsumer(page);
+      const card = entry(page, 'Beauté Divine').locator('a');
+      const media = card.locator('img').locator('..');
+      await size(page, 390);
+      await expect(media).toBeVisible();
+      const phone = [(await media.boundingBox())!.width, (await card.boundingBox())!.width];
+      expect(Math.abs(phone[0] / phone[1] - 1 / 3)).toBeLessThanOrEqual(0.02);
+      await size(page, 820);
+      const tablet = [(await media.boundingBox())!.width, (await card.boundingBox())!.width];
+      expect(tablet[0]).toBeCloseTo(tablet[1], 0);
+    });
+
+    test('a stopped salon is no link and offers no « Annuler »; a live one has both', async ({ page }) => {
+      await routeNextImages(page);
+      await signInConsumer(page);
+      const stopped = entry(page, 'Salon Arrêté');
+      const live = entry(page, 'Beauté Divine');
+      await expect(stopped).toBeVisible();
+      await expect(stopped.locator('a')).toHaveCount(0);
+      await expect(stopped.getByText('Ce salon ne prend plus de rendez-vous sur MyWeli.')).toBeVisible();
+      await expect(live.locator('a')).toHaveAttribute('href', '/beaute-divine');
+
+      await stopped.getByRole('button', { name: 'Retirer des favoris' }).click();
+      await expect(page.getByText('Retiré des favoris')).toBeVisible();
+      await expect(page.getByRole('button', { name: 'Annuler' })).toHaveCount(0);
+
+      await live.getByRole('button', { name: 'Retirer des favoris' }).click();
+      await expect(page.getByRole('button', { name: 'Annuler' })).toBeVisible();
+    });
+  });
+
+  // The fast failure every spec above stands on (`_cdn-stub-dns.cjs`). Unrouted, because
+  // this is the request the Next server has to answer.
+  test('the Next server refuses the stub’s unresolvable photo at once', async ({ request }) => {
+    const started = Date.now();
+    const answer = await request.get('/_next/image?url=https://cdn.stub/p1.jpg&w=640&q=75');
+    expect(answer.status()).toBeGreaterThanOrEqual(400);
+    expect(Date.now() - started).toBeLessThan(1000);
+  });
+});
+
+/// The list was read from `main` at ea0c8f0c, built against the stub, before any edit to
+/// the landing (web-swiss-cards.md §12): the words search engines read did not move.
+test.describe('what search engines read on a landing has not moved', () => {
+  for (const [path, h1, canonical, h2s] of [
+    [
+      '/coiffure',
+      'Coiffure en Côte d\'Ivoire',
+      /\/coiffure$/,
+      ['Choisissez votre ville', '1 salon', 'Autres prestations en Côte d\'Ivoire', 'Questions fréquentes'],
+    ],
+    [
+      '/coiffure/abidjan',
+      'Coiffure à Abidjan',
+      /\/coiffure\/abidjan$/,
+      ['Choisissez votre commune', '1 salon', 'Autres prestations à Abidjan', 'Questions fréquentes'],
+    ],
+    [
+      '/coiffure/abidjan/cocody',
+      'Coiffure à Cocody',
+      /\/coiffure\/abidjan\/cocody$/,
+      ['1 salon', 'Coiffure dans d’autres communes', 'Autres prestations à Cocody', 'Questions fréquentes'],
+    ],
+  ] as const) {
+    test(path, async ({ page }) => {
+      await page.goto(path);
+      await expect(page.getByRole('heading', { level: 1 })).toHaveText(h1);
+      await expect(page).toHaveTitle(`${h1} — réserver en ligne · MyWeli`);
+      await expect(page.locator('link[rel=canonical]')).toHaveAttribute('href', canonical);
+      const types = await page.locator('script[type="application/ld+json"]').evaluateAll((all) =>
+        all.map((s) => JSON.parse(s.textContent as string)['@type']).sort(),
+      );
+      expect(types).toEqual(['BreadcrumbList', 'FAQPage', 'ItemList', 'Organization']);
+      await expect(page.getByRole('heading', { level: 2 })).toHaveText([...h2s]);
     });
   }
 });

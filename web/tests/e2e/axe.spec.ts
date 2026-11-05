@@ -185,6 +185,15 @@ test('/professionnels and the 404 at phone width are axe-clean', async ({ page }
   await scan(page, 'the 404 at 375', 'Page introuvable');
 });
 
+// docs/design/web-swiss-cards.md §8, §12. Every form a card can take: a photo, a failed
+// one, a logo, the letter, an unnamed salon, the rating with its count. There is no tag
+// filter above, so this is where `image-redundant-alt` gets its answer about a photo
+// whose alt is the name beside it. If it fires, the alt becomes "" and §12's line changes.
+test('/recherche with every kind of card is axe-clean', async ({ page }) => {
+  await page.goto('/recherche?q=vitrine');
+  await scan(page, '/recherche?q=vitrine', /Recherche : vitrine/);
+});
+
 test('public routes are axe-clean', async ({ page }) => {
   for (const [url, anchor] of PUBLIC_ROUTES) {
     await page.goto(url);
@@ -211,6 +220,17 @@ test('consumer account routes are axe-clean', async ({ page }) => {
     await page.goto(url);
     await scan(page, url, anchor, ready);
   }
+});
+
+// The account's route above waits for the bookings, not the favourites, which load
+// with them and now carry a photo, a heading and, for a stopped salon, no link.
+test('the favourites, signed in, are axe-clean, a stopped salon among them', async ({ page }) => {
+  await page.goto('/connexion');
+  await submitOtpLogin(page, 'client@example.com');
+  await page.waitForURL(/mon-compte|\/$/);
+  await page.goto('/mon-compte');
+  await expect(page.getByRole('heading', { level: 3, name: 'Salon Arrêté' })).toBeVisible();
+  await scan(page, '/mon-compte favourites', 'Mon compte');
 });
 
 test('pro routes are axe-clean', async ({ page }) => {
