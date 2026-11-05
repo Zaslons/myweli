@@ -14,8 +14,12 @@ import { expect, test } from '@playwright/test';
 /// cache after its first read, and a cached file keeps answering (inferred: Vercel's
 /// answer past the ceiling is unread). What fails there is the next new photo, as a tile
 /// with a letter on it, which nobody would report. So each run also asks for one
-/// transformation nobody has read: the same file at a quality that changes daily. Its
-/// cost is one transformation a day.
+/// transformation nobody has read: the same file with `?m=<epoch day>` on its `url`
+/// parameter, at the page's own `q`. A changing quality would not do: it repeats, an
+/// expired copy may still answer it, and a plan billed by source image would not count
+/// it as new. A new source never repeats and is new under either billing model. Its cost
+/// is one transformation a day. **What Vercel and R2 do with it is UNVERIFIED until the
+/// first real run,** so the log prints the probe's `x-vercel-cache`, to show if it missed.
 ///
 /// It is a MONITOR, GET only, with no cookies. **It reads the page, not the API:** these
 /// jobs already reach myweli.com from a runner, while no scheduled check reaches
@@ -24,8 +28,9 @@ import { expect, test } from '@playwright/test';
 /// Three outcomes, and only these:
 /// - not a 200, or neither of the page's two states: red, because a check that measured
 ///   nothing is not green;
-/// - « Aucun salon trouvé », or a list with no card photo: a printed skip, green,
-///   claiming nothing;
+/// - « Aucun salon trouvé », or salons on the page with no card photo: a printed skip,
+///   green, claiming nothing. The log tells the two apart, because the second is also
+///   what photos no longer reaching the page would look like;
 /// - a list with a card photo: the first one's `/_next/image` answers 200, it has
 ///   decoded to something, its box is 4:3, and a transformation nobody has read answers
 ///   200 too. Anything else is red.
@@ -35,11 +40,15 @@ const path = process.env.CARD_PHOTO_PATH ?? '/recherche';
 
 test.use({ baseURL: target, viewport: { width: 390, height: 844 } });
 
-/// 60 values, so a quality comes back after 60 days, past the cache's 31 and never on one
-/// that is still cached. 1 to 60, so never the 75 a page asks for.
+/// The same file under a source URL nobody has asked for, new each UTC day and never
+/// again. `remotePatterns` has no `search`, so Next accepts the query
+/// (`match-remote-pattern.js:43`). A card's photo starts `https://` (`ProviderCard`), so
+/// its `url` parses.
 function unreadByAnyone(file: string, now: Date): string {
   const url = new URL(file);
-  url.searchParams.set('q', String((Math.floor(now.getTime() / 86_400_000) % 60) + 1));
+  const source = new URL(url.searchParams.get('url') ?? '');
+  source.searchParams.set('m', String(Math.floor(now.getTime() / 86_400_000)));
+  url.searchParams.set('url', source.href);
   return url.href;
 }
 
@@ -60,8 +69,14 @@ test(`${path}: the first card photo, once there is one`, async ({ page, request 
 
   // Only a card's photo carries `data-initial`, so a logo or a letter is not read as one.
   const photo = page.locator('main img[data-initial]').first();
-  if ((await empty.isVisible()) || (await photo.count()) === 0) {
-    const nothing = 'no public salon with a photo: nothing read';
+  // Both are green, and claim nothing (§9). The log tells them apart, so that the first
+  // reader of a surprising count can act on it.
+  const nothing = (await empty.isVisible())
+    ? 'empty list: no public salon, nothing read'
+    : (await photo.count()) === 0
+      ? `${(await count.textContent())?.trim()} on the page, none shows a photo: nothing read`
+      : null;
+  if (nothing) {
     console.log(nothing);
     test.skip(true, nothing);
     return;
@@ -90,9 +105,11 @@ test(`${path}: the first card photo, once there is one`, async ({ page, request 
 
   const unread = unreadByAnyone(file, new Date());
   const transformed = await request.get(unread);
+  // Before the status is judged, so a red run shows it too.
+  console.log(`${unread}: ${transformed.status()}, x-vercel-cache: ${transformed.headers()['x-vercel-cache'] ?? 'absent'}`);
   expect(
     transformed.status(),
-    `${unread}, a transformation nobody has read, did not answer 200: new photos show a letter while cached ones still load. A 402 means the plan ran out`,
+    `${unread}, a transformation nobody has read, did not answer 200. A 402 means the plan ran out: new photos show a letter while cached ones still load. A 400 means the request was refused, by the \`images\` config or because the answer was no image, and not the plan`,
   ).toBe(200);
   console.log(`read ${file}: 200, decoded, 4:3; ${unread}: 200`);
 });

@@ -137,8 +137,11 @@ jobs:
       # with the first one. It reads the first photo, and also asks for one transformation
       # nobody has read, because that photo's file is cached for 31 days and cannot show a
       # plan out of transformations: the next new photo would, as a tile with a letter on
-      # it, which nobody would report. Then B11.3's last line gets read and closed by
-      # hand. docs/design/web-swiss-cards.md §9.
+      # it, which nobody would report. The probe is that file under a source URL new each
+      # day, `?m=<epoch day>`, which is new under either billing model. What Vercel and R2
+      # do with it is unread until the first real run, so its log prints x-vercel-cache.
+      # Then B11.3's last line gets read and closed by hand.
+      # docs/design/web-swiss-cards.md §9.
       - name: The first card photo on /recherche, if there is one
         run: npm run check:card-photo
         env:
@@ -417,7 +420,8 @@ jobs:
             'not load through the image optimizer, so visitors see a letter on a' \
             'tile; its card is no longer 4:3; or a transformation nobody has read' \
             'was refused. A 402 there means the plan ran out of transformations:' \
-            'new photos show a letter while cached ones still load' \
+            'new photos show a letter while cached ones still load. A 400 means the' \
+            'request was refused, by the config or as no image, and not the plan' \
             '(docs/design/web-swiss-cards.md §7, §9).' \
             '' \
             '**The attestation job is different, and a failure there does NOT' \
