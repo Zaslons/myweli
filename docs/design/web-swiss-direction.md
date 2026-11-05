@@ -240,7 +240,7 @@ Black structural rules are a **new use of `primary`**, recorded in WEB-SYSTEM. `
 ### 6.4 Photos
 
 - **Same-ratio crops:** 4:3 on cards, 3:2 on the salon cover, through two named `aspectRatio` tokens. Same-ratio crops are what make uneven phone photos look like one set. **Corrected 2026-11-05:** `card` arrives with S3 and `cover` waits for its first user in S4. This said the app's card is close to 4:3, which is only its two-column phone grid (1.24–1.36): its carousel is 1.56, one column 1.82, its list 1:1. The decision stands. **Added 2026-11-05:** each ratio is cut at one place, `object-subject`, 50% 20% (web-swiss-cards.md §11, decisions 2 and 8). The cover takes it now in its present box, and keeps it when its 3:2 arrives in S4.
-- **The crop is a little above the centre, 50% 20%, on cards and on the salon cover. Corrected 2026-11-05:** this said it was centred, as the app's, which was signed without seeing a portrait and was wrong. In a crop test on the real card, centre lost a tall updo whole, `object-top` turned upright rooms into ceilings, and 20% kept the heads and the rooms (web-swiss-cards.md §2.4, decisions 2 and 8). The app stays centred until after Apple's decision (BACKLOG B12.13). The test's portraits were the owner's private AI stand-ins, never committed: the rule three lines below does not change.
+- **The crop is a little above the centre, 50% 20%, on cards and on the salon cover. Corrected 2026-11-05:** this said it was centred, as the app's, which was signed without seeing a portrait and was wrong. In a crop test on the real card, centre lost a tall updo whole, `object-top` turned upright rooms into ceilings, and 20% kept the faces, the fade and the rooms, and the updo lost only its very top (web-swiss-cards.md §2.4, decisions 2 and 8). The app stays centred until after Apple's decision (BACKLOG B12.13). The test's portraits were the owner's private AI stand-ins, never committed: the rule three lines below does not change.
 - **Square corners**, so the grid stays visible.
 - **No filters and no scrims.** Hair colour is information.
 - **No AI-generated faces or results** anywhere on the site. A fake result on a booking site misleads people.
@@ -358,7 +358,7 @@ None. `imageUrls` is already `required` on `Provider` in `openapi.yaml`, and `im
 - Same `<h1>` words, canonical URLs, metadata and JSON-LD on every page. A test compares them before and after (§12).
 - The directory's links stay in the served HTML inside `<details>`.
 - Sitemap and `llms.txt` unchanged.
-- Salon card photos need real `alt` text, not `alt=""`, since they are content. Words: the salon's name. **Corrected 2026-11-05:** this added « as the hero's alt already does », and the hero says `Salon {name}`, so « Salon Salon Excellence » is possible. Cards use the bare name, and `Hero` is S4's.
+- Salon card photos need real `alt` text, not `alt=""`, since they are content. Words: the salon's name. **Corrected 2026-11-05:** this added « as the hero's alt already does », and the hero says `Salon {name}`, so « Salon Salon Excellence » is possible. Cards use the bare name, and the rest of `Hero` is S4's.
 
 ---
 
@@ -419,7 +419,7 @@ Six PRs, in order, each merged only on the owner's word. A merge is a production
 | **S0** | Font trimmed to 18.7 KB, `displayPoster`, `fontFamily` closed, the rules in WEB-SYSTEM §16, SYSTEM §22. **No layout change.** The grid constant moves to S1, its first user: nothing here would use it | Lighthouse measured on the font alone. Every e2e green, including `/pro` |
 | **S1** | `Weave`, `Header`, `SiteFooter`, `/`. Delete `HeroBackground` from `/` | Merged on the owner's word. §4.8 and the real-phone check follow on the live site |
 | **S2** | `/professionnels`, 404 and error pages. `HeroBackground` deleted | Merged in #730 on 2026-11-04. `/professionnels` and the 404 read on `myweli.com` in Chromium only, the error pages not read live (§13.2) |
-| **S3** | `ProviderCard`, `/recherche`, landings, favourites list. Spec: [web-swiss-cards.md](web-swiss-cards.md) | Cards with and without photos looked at. **Corrected 2026-11-05:** that cannot be done on production, which has no public salon. Locally now, on the live site when a salon is public, with a scheduled check for that day (its §9) |
+| **S3** | `ProviderCard`, `/recherche`, landings, favourites list, and `Hero`'s cover position (its decision 8, added 2026-11-05). Spec: [web-swiss-cards.md](web-swiss-cards.md) | Cards with and without photos looked at. **Corrected 2026-11-05:** that cannot be done on production, which has no public salon. Locally now, on the live site when a salon is public, with a scheduled check for that day (its §9) |
 | **S4** | Salon page. Budgets added | Salon LCP measured |
 | **S5** | OG image. Audit of every page against this spec **on the deployed site**, by separate eyes told to refute it | Findings fixed or filed |
 
