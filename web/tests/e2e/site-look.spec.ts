@@ -688,9 +688,9 @@ test.describe('the salon card', () => {
   });
 
   // §7's outcome, the owner's choice on applied throttling: on each of these four levels
-  // the first card's photo, and only that one, is fetched first. « At most one » would stay
-  // green with none, so this reads exactly one. Same bytes either way.
-  test.describe('the first card’s photo is fetched first (§7)', () => {
+  // the first photo, and only that one, is fetched first. « At most one » would stay green
+  // with none, so this reads exactly one. Same bytes either way.
+  test.describe('the first photo is fetched first (§7)', () => {
     const high = (page: Page) => page.locator('main img[fetchpriority="high"]');
     // Next writes `priority` as a preload too, which the `<img>` alone would not show.
     const preloads = async (page: Page) =>
@@ -701,7 +701,7 @@ test.describe('the salon card', () => {
       ).filter((p) => p.includes('cdn.stub'));
 
     for (const path of ['/coiffure', '/coiffure/abidjan', '/coiffure/abidjan/marcory', '/recherche?q=vitrine']) {
-      test(`${path}: exactly one, the first card’s`, async ({ page }) => {
+      test(`${path}: exactly one, the first photo’s`, async ({ page }) => {
         await routeNextImages(page);
         await page.goto(path);
         await expect(page.locator('main img[data-initial]').first()).toHaveAttribute('fetchpriority', 'high');
@@ -709,6 +709,37 @@ test.describe('the salon card', () => {
         expect(await preloads(page)).toHaveLength(1);
       });
     }
+
+    // « Load it first » means the first photo, not the first card (decision 6). As built at
+    // first, a list opening on a logo-only salon preloaded nothing and lost the whole gain.
+    test('a list that starts with a logo and a letter: the first salon with a photo holds it', async ({ page, request }) => {
+      // From the served HTML: the preload scanner reads this before any script runs.
+      const html = await (await request.get('/recherche?q=sans-photo-en-tete')).text();
+      const inHtml = [...html.matchAll(/<link[^>]*rel="preload"[^>]*as="image"[^>]*>/g)]
+        .map((m) => m[0])
+        .filter((link) => link.includes('cdn.stub'));
+      expect(inHtml).toHaveLength(1);
+      expect(inHtml[0]).toContain('f1.jpg');
+      await routeNextImages(page);
+      await page.goto('/recherche?q=sans-photo-en-tete');
+      await expect(page.locator('main [role="presentation"]:has(h3)')).toHaveCount(4);
+      await expect(high(page)).toHaveCount(1);
+      await expect(high(page)).toHaveAttribute('alt', 'Beauté Divine');
+      await expect(page.locator('main img[alt="Logo Maison Nala"]')).toHaveAttribute('loading', 'lazy');
+      await expect(page.locator('main img[alt="Chez Koffi Barber"]')).toHaveAttribute('loading', 'lazy');
+      expect(await preloads(page)).toHaveLength(1);
+    });
+
+    test('a list with no photo at all: none, the logo included', async ({ page, request }) => {
+      const html = await (await request.get('/recherche?q=sans-photo')).text();
+      expect(html, 'the list itself, or this proves nothing').toContain('Maison Nala');
+      expect([...html.matchAll(/<link[^>]*rel="preload"[^>]*as="image"[^>]*>/g)].filter((m) => m[0].includes('cdn.stub'))).toEqual([]);
+      await routeNextImages(page);
+      await page.goto('/recherche?q=sans-photo');
+      await expect(page.locator('main img[alt="Logo Maison Nala"]')).toHaveAttribute('loading', 'lazy');
+      await expect(high(page)).toHaveCount(0);
+      expect(await preloads(page)).toEqual([]);
+    });
 
     test('/: none, because a phone would preload a photo it has off-screen', async ({ page }) => {
       await routeNextImages(page);

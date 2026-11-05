@@ -849,6 +849,15 @@ createServer(async (req, res) => {
       json(res, 200, { items, page: 1, pageSize: 20, total: items.length });
     if (query === 'vide') return listOf([]);
     if (query === 'vitrine') return listOf(CARD_FIXTURES);
+    // A list that really starts without a photo, and one with none at all: the first photo
+    // is not the first card (web-swiss-cards.md §7). Their own reads, so the eight every
+    // other spec counts stay eight.
+    if (query === 'sans-photo-en-tete') {
+      return listOf(['f3', 'f4', 'f1', 'f2'].map((id) => CARD_FIXTURES.find((f) => f.id === id)));
+    }
+    if (query === 'sans-photo') {
+      return listOf(['f3', 'f4'].map((id) => CARD_FIXTURES.find((f) => f.id === id)));
+    }
     // F9 again, with a commune: one word too long for the column beside the heart at
     // 200% text, and no price to lift it out of the heart's band.
     if (query === 'commune-longue') {

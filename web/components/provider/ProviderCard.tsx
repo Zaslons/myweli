@@ -22,6 +22,16 @@ export const CARD_SIZES = {
 const httpsOrNull = (url: string | null | undefined): string | null =>
   url && url.startsWith('https://') ? url : null;
 
+/// What counts as a salon's photo, in one place: the card draws this and a list asks it,
+/// so the two cannot disagree. `?.`, not `.`: lib/api/account.ts validates only `id` and
+/// `name`.
+const photoOf = (provider: Provider): string | null => httpsOrNull(provider.imageUrls?.[0]);
+
+/// The first salon on a list that shows a photo, or -1: the owner's « load it first » means
+/// the first photo, so a logo or a letter before it does not take it (spec §7, decision 6).
+export const firstPhotoIndex = (providers: readonly Provider[]): number =>
+  providers.findIndex((provider) => photoOf(provider) !== null);
+
 /// A browser generates an `<img>`'s `::after` only when the image failed, so a loaded
 /// photo is untouched. `alt` alone is not enough: Chromium still draws its broken-image
 /// mark in the corner (measured, 428 colours there at 390 and 526 at 1280 without this;
@@ -64,8 +74,9 @@ export function ProviderCard({
   layout?: 'tile' | 'row' | 'rowOnPhone';
   /// Defaults by layout. A grid of its own passes its own (`CARD_SIZES`).
   imageSizes?: string;
-  /// The first card of a landing level or `/recherche`, and no other: that photo is
-  /// fetched first, on the owner's choice (spec §7, decision 6). A logo stays lazy.
+  /// The first photo of a landing level or `/recherche`, and no other: a list passes it
+  /// from `firstPhotoIndex`, and that photo is fetched first, on the owner's choice (spec
+  /// §7, decision 6). A logo stays lazy.
   imagePriority?: boolean;
   /// False for a favourite whose salon stopped: that link ends on a 404. The root is a
   /// `<div>` then, with no hover (decision 3).
@@ -78,8 +89,7 @@ export function ProviderCard({
   const phoneRow = layout === 'rowOnPhone';
   const sizes = imageSizes ?? (row ? CARD_SIZES.row : CARD_SIZES.site);
 
-  // `?.`, not `.`: lib/api/account.ts validates only `id` and `name`.
-  const photo = httpsOrNull(provider.imageUrls?.[0]);
+  const photo = photoOf(provider);
   const logo = photo ? null : httpsOrNull(provider.logoUrl);
   const initial = salonInitial(name);
   const initialSize =

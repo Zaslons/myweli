@@ -17,7 +17,7 @@ import {
 } from '../../lib/api/account';
 import { HomeSearch } from '../home/HomeSearch';
 import { writeFailureMessage } from '../../lib/api/network';
-import { ProviderCard } from '../provider/ProviderCard';
+import { firstPhotoIndex, ProviderCard } from '../provider/ProviderCard';
 import { Toast } from '../Toast';
 import { useToast } from '../../lib/useToast';
 import { announceFavorite } from '../../lib/account/favorite-toast';
@@ -98,6 +98,7 @@ export function RechercheClient({
   const cardRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
   const mappable = withCoords(results);
+  const firstPhoto = firstPhotoIndex(results);
   // Map center for empty results: the searched commune's city, else the
   // home market's first city (results themselves auto-fit via bounds).
   const mapCenter = useMemo(() => {
@@ -306,9 +307,9 @@ export function RechercheClient({
                 <ProviderCard
                   provider={p}
                   layout="row"
-                  // docs/design/web-swiss-cards.md §7: the photo that can be the largest
-                  // paint, fetched first. The same bytes either way.
-                  imagePriority={i === 0}
+                  // docs/design/web-swiss-cards.md §7: the first photo, which can be the
+                  // largest paint, fetched first. The same bytes either way.
+                  imagePriority={i === firstPhoto}
                   favorite={favIds.has(p.id)}
                   onToggleFavorite={() => toggleFavorite(p.id)}
                   favoriteBusy={favRead === 'loading'}

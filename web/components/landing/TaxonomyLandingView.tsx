@@ -27,7 +27,7 @@ import {
 } from '../../lib/seo/jsonld';
 import type { TaxonomyRoot } from '../../lib/taxonomy';
 import { JsonLd } from '../JsonLd';
-import { ProviderCard } from '../provider/ProviderCard';
+import { firstPhotoIndex, ProviderCard } from '../provider/ProviderCard';
 import { SiteFaqList } from '../SiteFaqList';
 import { SiteSection } from '../SiteSection';
 import { SITE_CONTAINER } from '../../lib/siteGrid';
@@ -264,6 +264,7 @@ function Crumbs({ input }: { input: TaxonomyInput }) {
 
 export async function TaxonomyLandingView(input: TaxonomyInput) {
   const providers = await providersFor(input);
+  const firstPhoto = firstPhotoIndex(providers);
   const faq = buildFaq(input);
   const place = placeOf(input);
   const label = input.root.label;
@@ -354,9 +355,9 @@ export async function TaxonomyLandingView(input: TaxonomyInput) {
           <ul className="grid grid-cols-1 gap-x-m gap-y-l sm:grid-cols-2 lg:grid-cols-3 lg:gap-x-l">
             {providers.map((p, i) => (
               <li key={p.id}>
-                {/* The photo that can be the largest paint, fetched first, on all three
-                    levels (docs/design/web-swiss-cards.md §7). The same bytes either way. */}
-                <ProviderCard provider={p} imagePriority={i === 0} />
+                {/* The first photo, which can be the largest paint, fetched first, on all
+                    three levels (docs/design/web-swiss-cards.md §7). The same bytes either way. */}
+                <ProviderCard provider={p} imagePriority={i === firstPhoto} />
               </li>
             ))}
           </ul>
