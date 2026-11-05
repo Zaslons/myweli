@@ -115,6 +115,16 @@ const provider = {
 // Web KYC (web-pro-kyc.md) — mutable status + submitted docs.
 const kycState = { status: 'pending', documents: [], rejectionReason: null };
 
+// A salon page with a cover, a logo over it and a gallery, all three on one page, so a test
+// can see that a place set on the cover did not reach the other two. Its own slug, because
+// a logo on `beaute-divine` would change what every other spec reads. In the sitemap
+// because `dynamicParams` is false: a slug that is not listed answers a 404.
+const LOGO_SALON = {
+  ...JSON.parse(JSON.stringify(provider)),
+  slug: 'salon-au-logo',
+  logoUrl: 'https://cdn.stub/p1-logo.png',
+};
+
 // K2: a deposit-required salon for the pay-later proof-upload journey.
 const depositProvider = {
   ...JSON.parse(JSON.stringify(provider)),
@@ -815,7 +825,7 @@ createServer(async (req, res) => {
     return json(res, 200, { created: bookingsByKey.get(key) ?? 0 });
   }
   if (url.pathname === '/sitemap/providers') {
-    return json(res, 200, { items: [{ slug: 'beaute-divine' }] });
+    return json(res, 200, { items: [{ slug: 'beaute-divine' }, { slug: LOGO_SALON.slug }] });
   }
   if (url.pathname === '/localities') {
     res.writeHead(200, {
@@ -827,6 +837,7 @@ createServer(async (req, res) => {
   const m = url.pathname.match(/^\/providers\/by-slug\/(.+)$/);
   if (m) {
     if (m[1] === 'beaute-divine') return json(res, 200, provider);
+    if (m[1] === LOGO_SALON.slug) return json(res, 200, LOGO_SALON);
     if (m[1] === 'institut-acompte') return json(res, 200, depositProvider);
     return json(res, 404, { error: 'not_found' });
   }

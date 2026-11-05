@@ -811,6 +811,30 @@ test.describe('the salon card', () => {
     });
   });
 
+  // Where a photo is cut in a fixed frame (web-swiss-cards.md §2.4, decisions 2 and 8), read
+  // from the computed style: a token that never reaches the stylesheet reads 50% 50%, and the
+  // class alone in the HTML would not show that.
+  test.describe('where a photo is cut', () => {
+    const position = (image: Locator) => image.evaluate((el) => getComputedStyle(el).objectPosition);
+
+    test('a card’s photo is at 50% 20%, and a logo stays in its corner', async ({ page }) => {
+      await routeNextImages(page);
+      await page.goto('/recherche?q=vitrine');
+      expect(await position(page.locator('main img[alt="Beauté Divine"]'))).toBe('50% 20%');
+      expect(await position(page.locator('main img[alt="Logo Maison Nala"]'))).toBe('0% 100%');
+    });
+
+    test('the salon page’s cover is at 50% 20%, and its logo and gallery stay centred', async ({ page }) => {
+      await routeNextImages(page);
+      await page.goto('/salon-au-logo');
+      expect(await position(page.locator('header img[alt="Salon Beauté Divine"]'))).toBe('50% 20%');
+      expect(await position(page.locator('header img[alt="Logo Beauté Divine"]'))).toBe('50% 50%');
+      const gallery = page.getByRole('button', { name: /^Agrandir la photo/ }).locator('img');
+      expect(await gallery.count(), 'the gallery’s photos, or this proves nothing').toBeGreaterThan(0);
+      expect(await position(gallery.first())).toBe('50% 50%');
+    });
+  });
+
   test('a row selected from the map has a square ring, with its offset', async ({ page }) => {
     await size(page, 1280);
     await page.route('**/basemaps.cartocdn.com/**', (r) => r.abort());

@@ -118,7 +118,9 @@ export function ProviderCard({
             // Next refuses `priority` and `loading` together.
             priority={imagePriority || undefined}
             loading={imagePriority ? undefined : 'lazy'}
-            className={`object-cover ${FAILED_COVER} after:flex after:items-end after:font-semibold after:tracking-tight after:text-textSecondary after:content-initial ${initialSizeOnFailure}`}
+            // A little above the centre: centred, a 3:4 portrait loses a head high in the
+            // frame (docs/design/web-swiss-cards.md §2.4, decision 2). `object-subject`.
+            className={`object-cover object-subject ${FAILED_COVER} after:flex after:items-end after:font-semibold after:tracking-tight after:text-textSecondary after:content-initial ${initialSizeOnFailure}`}
           />
         </>
       ) : logo ? (

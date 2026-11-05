@@ -278,17 +278,25 @@ describe('the tokens are actually WIRED, not just spelled', () => {
     expect(maxWidth['screen-lg']).toBeDefined();
   });
 
-  // docs/design/web-swiss-cards.md §2.2: a card's 4:3 and the letter a failed photo
-  // carries. `theme.extend`, so nothing else in those two scales moved.
-  it('the card’s two tokens are wired, and emit the classes the card spells', async () => {
+  // docs/design/web-swiss-cards.md §2.2: a card's 4:3, where its photo is cut, and the
+  // letter a failed photo carries. `theme.extend`, so nothing else in those scales moved.
+  it('the card’s three tokens are wired, and emit the classes the card spells', async () => {
     const resolved = resolveConfig(tailwindConfig as never);
     expect((resolved.theme!.aspectRatio as Record<string, string>).card).toBe('4 / 3');
     expect((resolved.theme!.content as Record<string, string>).initial).toBe('attr(data-initial)');
+    const position = resolved.theme!.objectPosition as Record<string, string>;
+    expect(position.subject).toBe('50% 20%');
+    // Extended, not replaced: writing `theme.objectPosition` would drop these with a green
+    // build, and the logo's corner with them (WEB-SYSTEM §2).
+    expect(position['left-bottom']).toBe('left bottom');
+    expect(position.center).toBe('center');
     const { css } = await postcss([tailwindcss(tailwindConfig as never)]).process(
       '@tailwind utilities;',
       { from: undefined },
     );
     expect(css).toContain('.aspect-card {');
+    expect(css).toMatch(/\.object-subject \{\s*object-position: 50% 20%;?\s*\}/);
+    expect(css).toContain('.object-left-bottom {');
     expect(css).toContain('.after\\:content-initial::after {');
   });
 

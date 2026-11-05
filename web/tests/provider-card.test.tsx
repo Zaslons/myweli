@@ -183,6 +183,18 @@ describe('the photo’s files', () => {
     expect(img().hasAttribute('loading')).toBe(false);
   });
 
+  it('a photo is cut at `object-subject`, on every layout; a logo keeps its corner', () => {
+    for (const layout of ['tile', 'row', 'rowOnPhone'] as const) {
+      const { container, unmount } = render(<ProviderCard provider={photoAndLogo} layout={layout} />);
+      expect(container.querySelector('img')!.className.split(' ')).toContain('object-subject');
+      unmount();
+    }
+    const { container } = render(<ProviderCard provider={logoOnly} />);
+    const logo = container.querySelector('img')!.className.split(' ');
+    expect(logo).toContain('object-left-bottom');
+    expect(logo).not.toContain('object-subject');
+  });
+
   it('`imagePriority` reaches a photo only: a logo stays lazy', () => {
     const { container } = render(
       <ProviderCard provider={{ ...photoAndLogo, imageUrls: [] }} imagePriority />,
