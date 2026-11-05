@@ -660,6 +660,30 @@ test.describe('the salon card', () => {
         expect(met).toEqual([]);
         expect(await pageWidth(page)).toBe(width);
       });
+
+      // No price, so the commune sits in the heart's own band, and one word that cannot
+      // wrap: nothing in `q=vitrine` is both.
+      test(`at ${width} a commune too long for its column breaks, and stays off the heart`, async ({ page }) => {
+        await size(page, width, 800);
+        await routeNextImages(page);
+        await page.goto('/recherche?q=commune-longue');
+        await page.addStyleTag({
+          content: 'html { -webkit-text-size-adjust: 200% !important; text-size-adjust: 200% !important; }',
+        });
+        const commune = page.locator('main p').filter({ hasText: /^Yamoussoukro$/ });
+        const lines = () =>
+          commune.evaluate((el) => {
+            const range = document.createRange();
+            range.selectNodeContents(el);
+            return range.getClientRects().length;
+          });
+        await expect.poll(() => commune.evaluate((el) => parseFloat(getComputedStyle(el).fontSize))).toBeGreaterThanOrEqual(28);
+        const { hearts, met } = await textUnderHearts(page);
+        expect(hearts).toBe(1);
+        expect(met).toEqual([]);
+        expect(await lines(), 'one line: the word fits, and this proved nothing').toBeGreaterThanOrEqual(2);
+        expect(await pageWidth(page)).toBe(width);
+      });
     }
   });
 

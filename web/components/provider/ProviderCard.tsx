@@ -161,7 +161,7 @@ export function ProviderCard({
       <div className="flex">
         <div className="min-w-0 flex-1">
           {provider.commune ? (
-            <p className="mt-xs text-bodyMedium text-textSecondary">{provider.commune}</p>
+            <p className="mt-xs break-words text-bodyMedium text-textSecondary">{provider.commune}</p>
           ) : null}
           {min != null ? (
             <p className="mt-xs text-bodyMedium text-textTertiary">

@@ -838,6 +838,14 @@ createServer(async (req, res) => {
       json(res, 200, { items, page: 1, pageSize: 20, total: items.length });
     if (query === 'vide') return listOf([]);
     if (query === 'vitrine') return listOf(CARD_FIXTURES);
+    // F9 again, with a commune: one word too long for the column beside the heart at
+    // 200% text, and no price to lift it out of the heart's band.
+    if (query === 'commune-longue') {
+      const rated = CARD_FIXTURES.find((f) => f.id === 'f9');
+      return listOf([
+        { ...rated, id: 'f10', slug: 'salon-lointain', name: 'Salon Lointain', commune: 'Yamoussoukro' },
+      ]);
+    }
     // F1 to F6, and not F7: a landing's `ItemList` would carry an empty name
     // (`TaxonomyLandingView.tsx`), today's behaviour for an unnamed public salon, filed
     // in B11.5. So `/barbier/abidjan/marcory` stays empty.
