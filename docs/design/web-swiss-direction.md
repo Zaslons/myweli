@@ -280,7 +280,7 @@ Two layouts, one component, with every existing prop unchanged:
 No box: a rule and a hover state. `next/image`, lazy, with real `sizes`. The rating, the « Nouveau » pill and the favourite heart with all its states stay as they are.
 
 **Corrected 2026-11-05, by [web-swiss-cards.md](web-swiss-cards.md) §2.2, which now governs the card:**
-- **Layouts:** a third value, `rowOnPhone`, the same two switching at `sm`, for the favourites: as tiles they pushed support and account deletion down 1082px on a phone. `row` holds at every width, as this says, though all three competitors stack on phones (decision 2).
+- **Layouts:** a third value, `rowOnPhone`, the same two switching at `sm`, for the favourites: as tiles they would push support and account deletion down 1186px on a phone, and rows push them 64px (corrected 2026-11-05: this read 1082). `row` holds at every width, as this says, though all three competitors stack on phones (decision 2).
 - **Props:** all five stay. `layout`, `imageSizes` and `linked` are additive. `linked={false}` is a stopped favourite, whose link ended on a 404 (decision 3).
 - **Where the rule goes:** at the foot of the media block, and the list draws the lines between rows. Hover and focus underline the name, because the old hover would hide a no-photo tile.
 - **« Lazy » stands, measured.** A card photo is the Largest Contentful Paint on landings and `/recherche` at 412×823, so `priority` on the first card was tried per level under the rule in its §7. No level earned it, and it came out.

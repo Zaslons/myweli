@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | **Approved, 2026-11-05: the four decisions in §11 are answered. Building.** Both merges wait for Apple's decision on build 719 and the owner's word |
+| **Status** | **Approved, 2026-11-05: the four decisions in §11 are answered. Built on `feat/web-swiss-cards`, proved locally, not pushed (§10).** Both merges wait for Apple's decision on build 719 and the owner's word |
 | **Owner** | Sadreddine Daher |
 | **Last updated** | 2026-11-05, against `main` at `ea0c8f0c` |
 | **PRD ref / phase** | FR-WEB-MP-001 (presentation), plus one parity gap: the card's cover photo · V1 |
@@ -105,7 +105,7 @@ linked?: boolean;                         // default true. false: the root is a 
     <div class="mt-xs text-bodyMedium text-textTertiary"><SalonRating withCount /></div>
     <div class="flex">
       <div class="min-w-0 flex-1">
-        <p class="mt-xs text-bodyMedium text-textSecondary">commune</p>
+        <p class="mt-xs break-words text-bodyMedium text-textSecondary">commune</p>
         <p class="mt-xs text-bodyMedium text-textTertiary">à partir de <span class="inline-block">15 000 FCFA</span></p>
       </div>
       with a heart: <span aria-hidden class="h-12 w-12 shrink-0"></span>
@@ -126,7 +126,7 @@ linked?: boolean;                         // default true. false: the root is a 
 | **One rule, at the foot of the media block** | It gives a no-photo tile an edge. `surfaceVariant` #F5F5F5 on `surface` #FAFAFA is 1.045:1 (`tokens.ts:18-19`), and forced colours drop the fill. Under a photo it hardly shows (seen) |
 | **No other rule in the card** | The list draws the lines between rows, so a card never doubles one |
 | **Hover and focus underline the name** | `hover:bg-surfaceVariant` would hide the no-photo tile, and direction §6.4 rules out dimming a photo |
-| **The spacer, `h-12 w-12`, in the row that holds the commune and price** | The heart is `h-12 w-12`, in rem, at the wrapper's bottom right. A spacer as tall as the heart fills the heart's band whatever the text, so the name and the rating above it can never reach the heart, and the commune and price beside it stay clear of it. Measured at 320 and 390, normal and doubled, on a long name and on a rated salon with no commune and no price: no text met a heart. A px padding against a rem box is a named defect (WEB-SYSTEM §9, unit contract). This replaces the `min-h-24` an earlier draft had |
+| **The spacer, `h-12 w-12`, in the row that holds the commune and price** | The heart is `h-12 w-12`, in rem, at the wrapper's bottom right. A spacer as tall as the heart fills the heart's band whatever the text, so the name and the rating above it can never reach the heart, and the commune and price beside it stay clear of it. Measured at 320 and 390, normal and doubled, on a long name and on a rated salon with no commune and no price: no text met a heart. A spacer cannot stop one word too wide for its column, so the commune has `break-words` too (§14). A px padding against a rem box is a named defect (WEB-SYSTEM §9, unit contract). This replaces the `min-h-24` an earlier draft had |
 | **No `whitespace-nowrap` on the rating line** | With the count it can be wider than the column at doubled text. It wraps and stays inside (measured, three-digit count) |
 | **`inline-block` around the amount** | `formatFcfa` puts a plain space before « FCFA » (`format.ts:40`). Without this, 320 reads « 15 000 / FCFA ». With it, « à partir de / 15 000 FCFA », and if even that cannot fit it still wraps rather than spills. `textContent` is unchanged, so `provider-card.test.tsx:15` holds |
 | **The heart stays bottom-right, off the photo, with no disc** | Direction §7.3 keeps it as it is. The app puts it on the photo with a disc. Here that would cover a salon's photo for a difference of look, not of capability |
@@ -145,7 +145,7 @@ linked?: boolean;                         // default true. false: the root is a 
 - **`https://`:** a dev seed's `asset:` makes `next dev` throw (`image-loader.js:48-53`), and `next start` should answer 400 (inferred), as `''` should throw in dev (inferred). Either one reads as no photo here, and the next form takes over. **It does not cover a local backend on fake storage:** its URLs start `https://fake-storage.local` (`storage_service.dart:157`), a host outside `remotePatterns`, so `next dev` throws on `/`, the landings and `/recherche` too, as it already does on the salon page. Production answers 400 and the letter shows. Dev only, recorded, not handled.
 - **`loading`:** lazy on every list, the largest paint included. `priority` on a list's first photo was built, measured and taken out: §7.
 - **Logo `sizes`:** the tile's value, unchanged, although the logo is drawn at 2/3. That is at most 1.5× the width a logo needs, on a small file whose small words benefit. One less constant.
-- **Logo and initial sit in the bottom-left corner with no padding,** on the same x as the name under them, following the owner's flush-left rule. The corner holds for square logos (seen). Wide, tall and white-box logos are shown beside centred in sheet 14. Decision 2.
+- **Logo and initial sit in the bottom-left corner with no padding,** on the same x as the name under them, following the owner's flush-left rule. The corner holds for square logos (seen). Wide, tall and white-box logos are shown beside centred in sheet 14. Decision 2. A logo stands on the foot rule. The letter's line box does too, and its ink stands above the rule by half its leading and the font's descent: 12.5–13 CSS px at `displayLarge`, 10.5–11 in a 320 row, 19–26 at doubled text (measured from the pictures). `leading-none` would close only 3.5 of those (line height 64 to 57, read in a browser), so it stays as it is.
 - **Nothing is layered under a logo:** a letter would show below a contained logo (seen). Under a photo it is covered whole, so the letter sits there (§2.4).
 - **`name`** is `salonNameOr(provider.name, UNNAMED_SALON)` everywhere in the card, the heart's label included. `salonInitial(name)` is new in `lib/salon-name.ts`: the first letter or digit after NFC, upper-cased in `fr-FR`, and the first letter of `UNNAMED_SALON` if there is none. So « 💇 Awa » gives A, « « Chez Awa » » gives C, and « !!! » gives S.
 
@@ -219,7 +219,7 @@ The `<h1>` stays `headlineSmall` and the count `<h2>` stays `titleLarge`. Direct
 ```
 
 - **Hanging, not stacked.** Direction §6.1 and WEB-SYSTEM §16 make hanging the default, and `stacked` is for content needing all twelve columns.
-- **The ruled index of cities** replaces the boxes at `:308`, in the home page's Catégories treatment: `grid grid-cols-1 gap-x-m sm:grid-cols-2 lg:grid-cols-3 lg:gap-x-l`, each link `flex min-h-12 flex-col justify-center border-b border-divider py-s hover:text-textSecondary`, with its two lines as today. One column below `sm`, because « Coiffure à Yamoussoukro » does not fit in half a phone.
+- **The ruled index of cities** replaces the boxes at `:308`, in the home page's Catégories treatment: `grid grid-cols-1 gap-x-m sm:grid-cols-2 lg:grid-cols-3 lg:gap-x-l`, each link `flex flex-col justify-center border-b border-divider py-s text-textPrimary hover:text-textSecondary`, with its two lines as today. The colour is on the link so its hover reaches the name, and two lines and `py-s` are 65 tall at every width, so it has no `min-h-12` (§14). One column below `sm`, because « Coiffure à Yamoussoukro » does not fit in half a phone.
 - **`SiteFaqList`** (`components/SiteFaqList.tsx`) is the `dl` at `app/page.tsx:222-229`, already copied at `professionnels/page.tsx:74-81`. Three uses justify the extraction, and both pages keep their markup exactly. Landing answers are now open. They were in the HTML already, inside `<details>`.
 - Every photo lazy (§7).
 
@@ -228,7 +228,7 @@ The `<h1>` stays `headlineSmall` and the count `<h2>` stays `titleLarge`. Direct
 - `:496-506` gains `inline-flex min-h-12 items-center`. It computes to 20px against the 48px floor, and no test covers it.
 - `removeFav`: when `salonStoppedMessageFor(removed.status)` answers, `show(FAVORITE_REMOVED, 'success')` with no « Annuler », because `FavoritesService.add` refuses a hidden salon (`favorites_service.dart:63-73`). Otherwise `announceFavorite` as today.
 - The empty and error states stay centred, as everything else in the account does. The sentence for a stopped salon stays where it is today, under the card.
-- **What the phone gains (measured, 4 favourites at 390).** Section height 744 today, 704 as rows, 1826 as tiles. « Aide & Support » at y=1537 today, 1497 as rows, 2619 as tiles. « Supprimer mon compte » at y=1803 today, 1763 as rows, 2885 as tiles. A row picks a 256w file where a tile picks 750w.
+- **What the phone gains (measured 2026-11-05 on three real builds: `main`, the branch, and the branch with `layout="tile"`; 4 favourites at 390, one of them stopped).** Section height 640 today, 704 as rows, 1826 as tiles. « Aide & Support » at y=1433 today, 1497 as rows, 2619 as tiles. « Supprimer mon compte » at y=1699 today, 1763 as rows, 2885 as tiles. **So rows move support and account deletion down 64px, and tiles would move them 1186px.** At 320: 656, 720 and 1632, so +64 and +976. With four live favourites the moves are the same at both widths. This line used to read 744, 1537 and 1803 for today, so rows looked 40px shorter than today: those three figures were wrong, and the rows and tiles figures held (§14). A row picks a 256w file where a tile picks 750w.
 - **203px at `lg` is smaller than 312px at `sm`,** because a third column arrives inside `max-w-2xl`. It is one class to change, and direction §1 says no layout change there, so it stays. It is in the pictures.
 
 ### 2.4 Every state
@@ -237,8 +237,8 @@ The `<h1>` stays `headlineSmall` and the count `<h2>` stays `titleLarge`. Direct
 |---|---|
 | **Photo** | 4:3, `object-cover`, centre crop, as the app. Square corners, no filter, nothing on top. The letter under it is covered whole: `elementFromPoint` at the tile's bottom-left is the `<img>` (measured) |
 | **Photo in a portrait** | A 3:4 phone photo keeps 22% to 78% of its height, a 2:3 one 25% to 75% (arithmetic). A head in the upper third would lose its top. `object-top` would keep it and cost a room its chairs (sheet 14: a drawing, and the real interior F1). **No real portrait has been looked at.** Decision 2 |
-| **Photo slow** | The tile holds the ratio, the salon's letter sits on it bottom-left, and the photo paints over it with no shift. No spinner and no retry. On a normal connection the letter shows briefly on every photo: a still picture cannot show that, and the first real list gets looked at for it. The app has a 12 s retry (`timed_cached_image.dart:212-247`): recorded as a difference, filed in B12.7 |
-| **Photo fails** | The tile, ratio held, with the letter, the same as a salon with no photo. **`alt` and `object-cover` are not enough:** `next/image` makes the alt text transparent, but Chromium still draws its broken-image mark in the corner. An `::after` on the `<img>` covers it and carries the letter from `data-initial`: a browser generates one only when the image failed, so a loaded photo is untouched. Measured by pixels: with it, the corner is one colour, #F5F5F5; without it, 548 colours. **A photo with transparency would show the letter through it:** accepted, salon photos are opaque in practice (inferred). **WebKit is UNVERIFIED,** and gets looked at in the iOS simulator. The worst case is that small mark beside the letter under it |
+| **Photo slow** | The tile holds the ratio, the salon's letter sits on it bottom-left, and the photo paints over it with no shift. No spinner and no retry. **Seen in Safari** (iOS 26.5 simulator, the file held 15 s): the letter, then the photo at the same size with no shift. On a normal connection the letter shows briefly on every photo: a still picture cannot show that, and the first real list gets looked at for it. The app has a 12 s retry (`timed_cached_image.dart:212-247`): recorded as a difference, filed in B12.7 |
+| **Photo fails** | The tile, ratio held, with the letter, the same as a salon with no photo. **`alt` and `object-cover` are not enough:** `next/image` makes the alt text transparent, but Chromium still draws its broken-image mark in the corner. An `::after` on the `<img>` covers it and carries the letter from `data-initial`: a browser generates one only when the image failed, so a loaded photo is untouched. Measured by pixels: with it, the corner is one colour, #F5F5F5; without it, 548 colours. **A photo with transparency would show the letter through it:** accepted, salon photos are opaque in practice (inferred). **WebKit, seen 2026-11-05 in Safari on an iOS 26.5 simulator, is the worst case this line expected:** the tile holds its ratio with the letter bottom-left, a small blue « ? » is drawn in the tile's centre, and a thin grey outline around it. So WebKit makes no `::after` here, or draws its mark above it. Only `onError` could remove it (inferred), and the next line rules that out on `/` and landings, so it goes to the owner |
 | **No swap on failure** | A failed photo does not fall back to the logo. `onError` needs client code on `/` and landings, and Next re-requests each image after hydration when `onError` is set (`image-component.js:169-174`). Direction §8 asks only that the tile stays |
 | **Logo fails or is slow** | The tile with no letter, because a letter would sit below a contained logo. The `::after` cover, without `content-initial` |
 | **No photo, logo** | The logo, bottom-left, on `surfaceVariant`. Any aspect ratio: `salon-logo.md` §1 has no cropper |
@@ -261,11 +261,11 @@ The `<h1>` stays `headlineSmall` and the count `<h2>` stays `titleLarge`. Direct
 | **0 salons (production today)** | `/`: section hidden. Landing: flush-left `EmptyState`, with the links below it. `/recherche`: count hidden, flush-left `EmptyState`. Favourites: centred, with its link |
 | **List unreadable** | Unchanged. `/` and landings throw, so ISR keeps the last good page and a build fails, while a preview degrades to empty (`public-read.ts:20-26`). `/recherche` throws to `app/error.tsx` (inferred). Favourites: `ErrorState` with retry (`:460-465`) |
 | **Loading** | Unchanged. None on server pages. Map: `Loading`. Hearts disabled while `favRead==='loading'`. Account: `SkeletonRows` |
-| **200% text** | Boxes that hold text have no fixed height. Measured with Chromium's mobile text scaling, name 16 to 32px, in the real list. **At 320:** no sideways scroll, no text under a heart, names whole. Rows 300 to 388 high, F6 620. « Port-/Bouët » breaks and the price takes four lines: long, and nothing lost. **At 390:** rows 220 to 268 high, F6 452. **A tile at 288:** 408 to 448 high. Android's text scaling is the real case, UNVERIFIED on a device. iOS « aA » is page zoom: 200% on a 390 phone is a 195-wide page, below every gate on the site. At 195, no sideways scroll (measured), and « 1 500 000 » enters the heart's box by 12px, because a seven-digit price cannot break (measured on the earlier prototype, same widths). Recorded, not handled: only at that width with that price |
+| **200% text** | Boxes that hold text have no fixed height. Measured with Chromium's mobile text scaling, name 16 to 32px, in the real list. **At 320:** no sideways scroll, no text under a heart, names whole. Rows 300 to 388 high, F6 620. « Port-/Bouët » breaks and the price takes four lines: long, and nothing lost. **At 390:** rows 220 to 268 high, F6 452. **A tile at 288:** 408 to 448 high. Android's text scaling is the real case, UNVERIFIED on a device. iOS « aA » is page zoom: 200% on a 390 phone is a 195-wide page, below every gate on the site. At 195, no sideways scroll (measured), and « 1 500 000 » enters the heart's box by 12px, because a seven-digit price cannot break (measured on the earlier prototype, same widths). Recorded, not handled: only at that width with that price. **A long one-word commune breaks:** « Yamoussoukro » with no price takes two lines beside the heart at 320 and 390, and an e2e holds it (§14) |
 | **320 wide** | Row 288: photo 96×72, text 180, 116 high, price on two lines, no overlap (measured). The floating « Carte » toggle stays above the list, and at 360×640 it sits over the first card's name, as it does today over whatever is under it. The stub's « Beauté Divine » is 98 wide in that 180 column |
-| **Forced colours** | The fill goes. The tile keeps only its bottom rule, and the letter or the logo carries it: a failed photo is the letter above a line, not white space (seen). The rule is interrupted under the letter (inferred: the text backplate). Photo and logo unchanged. The heart changes glyph, not only colour. Chromium's emulated palette only. **Existing limit:** `ring-2` is a box-shadow, so the selected row loses its ring in this mode (inferred). The scroll still lands on it. Not made worse |
+| **Forced colours** | The fill goes. The tile keeps only its bottom rule, and the letter or the logo carries it: a failed photo is the letter above a line, not white space (seen). The rule is interrupted under the letter (inferred: the text backplate). A logo and a photo themselves are unchanged, and a loaded photo's hidden letter interrupts the foot rule too: it starts 8.5–39 CSS px in (measured on the pictures). The heart changes glyph, not only colour. Chromium's emulated palette only. **Existing limit:** `ring-2` is a box-shadow, so the selected row loses its ring in this mode (inferred). The scroll still lands on it. Not made worse |
 | **Keyboard** | Two stops, in order: the link, then the heart. They are siblings, never nested. Each has the global 2px ring at 2px offset, the link's around the whole card, the heart's following its `rounded-pill`. The name underlines with focus as with hover. On `/recherche` either stop highlights the marker (`:288-293`). The gaps are at least 16px, so the link's ring touches no neighbour. A stopped favourite has no link stop |
-| **Selected from the map** | Scrolled to, `ring-2 ring-primary ring-offset-2`, square. A faint rule shows just inside the ring's foot (seen), left as it is |
+| **Selected from the map** | Scrolled to, `ring-2 ring-primary ring-offset-2`, square. A faint rule shows just inside the ring's foot, and on a row after the first one just inside its top as well (seen), left as it is |
 | **Install banner** | Unchanged |
 
 ### 2.5 Against the app
@@ -379,7 +379,7 @@ Which element won, on the prototype, unthrottled, with photos intercepted. **Nob
 
 | Page | Budget | After S3 |
 |---|---|---|
-| `/`, `/suppression-compte` | LCP 2500, CLS 0.1, TBT 200, scripts 179,200 (`lighthouserc.json`) | **Unchanged, not raised.** S2 stands at 2115 and 2109 ms. Scripts grow about 320 B gzipped on the five pages and 300 B on `/` (measured, a sum of distinct files that includes the `nomodule` polyfills). The gate decides |
+| `/`, `/suppression-compte` | LCP 2500, CLS 0.1, TBT 200, scripts 179,200 (`lighthouserc.json`) | **Unchanged, not raised.** S2 stands at 2115 and 2109 ms. **Scripts, on the final tree:** 162,497 B on `/` and 164,545 B on `/suppression-compte` against 179,200. Against `main`, by Lighthouse's transfer sizes, +376 to +381 B on `/` and +587 to +592 B on `/suppression-compte`, in two reads; the table below read +310 and +521 B; §13's sum of distinct gzipped files reads +302 B at most. All are under §13's 1 KB and the budget. This row used to say about 320 and 300 B, from the prototype. The gate decides, and passed |
 | `/connexion` | LCP 2900 | Unchanged. S2: 2713 ms |
 | Landings, `/recherche` | None | **None added in S3.** In CI the stub's image host does not resolve, and in production the landings are empty, so a budget today would measure a page without its largest paint: the failure `ci.yml:736` warns about. B11.4's line gains them, with the same way of serving real bytes |
 
@@ -444,7 +444,7 @@ Read by the same rule, this table keeps the prop on all four levels, where the s
 ### What a photo costs on Vercel
 
 - **No object gets a `Cache-Control` header at upload** (`storage_service.dart:303,416`, seen in the signing code; **no served header of a real object has been read**, so what `cdn.myweli.com` answers is inferred). `minimumCacheTTL` is unset, so the TTL is Next's default of 60 s (`image-config.js:56`). Vercel's doc says 3600 for this: **UNVERIFIED which.** One saved read, `live/opt5.h`, a `/_next/image` of a local file on the live site, shows `x-vercel-cache: HIT` with `age: 156`, past 60 s: a different kind of source, so not conclusive.
-- **The arithmetic, from the data pass, assuming 15 photos per view, none of it observed:** about 330 `/recherche` views a month would reach Hobby's 5K. Over it, new images would fail with a 402, which is §2.4's letter on a tile. On paid rates, 100K views would be about $75–122 a month.
+- **The arithmetic, from the data pass, assuming 15 photos per view, none of it observed:** about 330 `/recherche` views a month would reach Hobby's 5K. Over it, new images would fail with a 402, which is §2.4's letter on a tile, and files already cached should keep answering (inferred; Vercel's answer past the ceiling is UNVERIFIED). `check:card-photo` asks for one new transformation a day so that it can see this (§9), about 31 a month, 0.6% of that 5K. On paid rates, 100K views would be about $75–122 a month.
 - **The fix is one line:** `images: { minimumCacheTTL: 2678400 }`, 31 days, for a surface that has no photo views yet. It is safe for salon photos because keys are random and a replaced photo gets a new URL (`upload_signing_service.dart:182`). Cost then falls to about photos × widths a month (arithmetic). **It is not free of consequence: §6.** Next's own optimizer honours it locally (measured above); Vercel's is UNVERIFIED.
 - **`deviceSizes` stays,** because changing it would change what the client bundle inlines.
 - **The plan is UNVERIFIED.** No doc names it and no header reveals it. The owner reads it (§9).
@@ -453,7 +453,7 @@ Read by the same rule, this table keeps the prop on all four levels, where the s
 
 ## 8. Testing plan
 
-Every new guard is watched red **on committed work**, and the commit records it. A mutation that does not apply is no result. On the prototype today: `vitest` 195 files, 2550 tests green; `tsc` and ESLint clean on the changed files. **Playwright, axe and Lighthouse have not run on it.**
+Every new guard is watched red **on committed work**, and the commit records it. A mutation that does not apply is no result. On the prototype today: `vitest` 195 files, 2550 tests green; `tsc` and ESLint clean on the changed files. **Playwright, axe and Lighthouse have not run on it.** **On the branch's final web tree, `f7d1691e`, 2026-11-05:** ESLint and `tsc` clean, `gen:api` no drift, `vitest` 199 files and 2602 tests green, `next build` passes, Playwright 504 passed with none skipped or flaky, Lighthouse's three budgeted pages pass over 9 runs (`/` 2183 ms, `/connexion` 2755 ms, `/suppression-compte` 2411 ms, CLS 0 and TBT 0 on all three).
 
 ### New guards
 
@@ -472,7 +472,7 @@ Every new guard is watched red **on committed work**, and the commit records it.
 | `empty-state` unit | Default is byte-for-byte today's classes. `start` has no box, `p-xl`, `text-center`, `mx-auto` or `justify-center`, and has `-ml-s` | Put `justify-center` back in `start`. Drop `-ml-s` |
 | `tokens.theme-pin` | `aspectRatio.card` and `content.initial` are wired | Rename one in the config |
 | `next-config` unit | `minimumCacheTTL` ≥ 30 days. `remotePatterns` is exactly the three hosts | Delete the line. Add a host |
-| **New source pin: `optimizer-sources.test.ts`,** in the shape of `no-public-provider-read.test.ts` | The files importing `next/image` are exactly the eight in §6. `AvisClient`'s `Image` carries `unoptimized`. Its message says why: a file erasure deletes must never enter that cache | Remove `unoptimized`. Add an importer |
+| **New source pin: `optimizer-sources.test.ts`,** in the shape of `no-public-provider-read.test.ts` | The files importing `next/image` are exactly the eight in §6. `AvisClient`'s `Image` carries `unoptimized`, bare or `{true}`. Its message says why: a file erasure deletes must never enter that cache | Remove `unoptimized`. `unoptimized={false}`, which the first version read as the word and let through. Add an importer |
 | `pro-avis` render | A review photo's `src` is the file's own URL, not `/_next/image` | Remove `unoptimized` |
 | **New e2e: the card** (`site-look.spec.ts`), `/recherche?q=vitrine` and `/coiffure/abidjan/marcory`, at 375 and 1280 | **The media box's** ratio is 1.33 ± 0.02: the rule takes 1px from the `<img>`, whose own ratio reads 1.34–1.35 (measured). On the `<img>`: `border-radius` 0, `filter: none`, `opacity: 1`, `mix-blend-mode: normal`. On the media box and the link: computed `::before` and `::after` `content` are `none`. `elementFromPoint` at the photo's centre is the `<img>` | `rounded-sm`, `aspect-video`, a `brightness-90`, an overlay `div`, and **a pseudo-element scrim** on the link, which `elementFromPoint` cannot see |
 | Same, a failed photo | `naturalWidth` 0, the ratio holds. **Read from pixels:** a helper in `_pixel.ts` screenshots the tile and reads it on a canvas. The top-left 30×30 is one colour, `rgb(245,245,245)`, and the bottom-left holds dark pixels, the letter. Computed style alone proves a rule exists, not that it paints | Remove `after:` from the photo: 548 colours in that corner (measured). Remove `after:content-initial`: no dark pixels |
@@ -484,9 +484,13 @@ Every new guard is watched red **on committed work**, and the commit records it.
 | **New e2e: favourites, signed in** | At 390 the media is a third of the row, at 820 the full tile. A stopped salon has no `<a>` in its card and its removal shows no « Annuler » button; a live one has both. The stub's `p4` is the stopped one (`stub-api.mjs:970`) | `layout="tile"`. `linked` always true. `announceFavorite` for a stopped salon |
 | **`focus.spec.ts`:** a card with a heart | Tab goes link, then heart. Each computes `RING`. The name underlines on focus | `tabindex="-1"` on the heart. Remove `group-focus-visible:underline` |
 | **`site-look` SEO:** root, city, area | `<h1>`, title, canonical, JSON-LD types and `<h2>` list match a list **taken from `main` before any edit** | Change a word |
-| **Test server:** `_cdn-stub-dns.cjs` | `GET /_next/image?url=https://cdn.stub/p1.jpg&w=640&q=75` answers ≥ 400 within 1 s | Swap the preload for one whose lookup never answers: no answer in 6 s (measured) |
+| **Test server:** `_cdn-stub-dns.cjs` | `GET /_next/image?url=https://cdn.stub/p1.jpg&w=640&q=75` answers ≥ 400 within 1 s. It reads the speed, not the preload: on a Mac whose real lookup of `cdn.stub` fails at once it stays green with no preload at all | Swap the preload for one whose lookup never answers: no answer in 6 s (measured) |
+| **New: `cdn-stub-preload.test.ts`** | The preload answers `fetch` for `cdn.stub` where a lookup that never answers stands in for CI's stall, leaves every other host to the real lookup, and keeps what `util.promisify` reads. `NODE_OPTIONS` sits on the step that runs `npm run lhci` in `web-lighthouse`, and on the Next server in `playwright.config.ts`, with each file's comments stripped | Let `cdn.stub` through, refuse every host, drop the symbols, never install it. Delete or comment out either line, move it to another step or to the stub, misspell the path |
+| **New: `production-alarm-status.test.ts`** | Every check in `production-checks.yml`, derived from the file, has an env row reading its own `needs.<job>.result`, and that row's variable is in the report's status line | Drop « card photo » from the line. Drop or comment out its row. Point the row at another job. Add a ninth job with no row |
+| **New e2e: a ruled index answers the pointer** | On `/`'s Catégories and `/coiffure`'s cities, the name's computed colour changes under a hover | The colour back on the name. The hover off the home page's link |
+| **New e2e: a commune too long, at 200% text,** `/recherche?q=commune-longue` at 320 and 390 | No text meets the heart, the word really broke (two lines or more, so a word that fits proves nothing), and no sideways scroll | Remove `break-words`. Drop the doubling |
 | **Backend list read, its own PR** | `imageUrls` and `logoUrl` through `query()` and `byIds()` on Postgres | Project them out of each SELECT |
-| **`tool/check-card-photo.spec.ts`** (§9) | Three outcomes, and only these (§9) | A local build with a failing image: red. `/recherche?q=vide`: a printed skip. A local server stopped: red |
+| **`tool/check-card-photo.spec.ts`** (§9) | Three outcomes, and only these (§9) | A local build with a failing image and an empty image cache: red. `/recherche?q=vide`: a printed skip. A local server stopped: red. **A stand-in where the file already read answers 200 and anything new 402: red, where the first version stayed green.** A photo that never answers: red, and the failure names the photo |
 
 ### Existing guards that change
 
@@ -497,9 +501,9 @@ Every row is watched red once, and the commit records it.
 | `site-look` left edge (`:20-59`) | Add `/coiffure`, `/coiffure/abidjan`, `/coiffure/abidjan/cocody`, `/coiffure/abidjan/plateau` (empty) | Change a container's padding |
 | `site-look` pattern (`:118-134`) | Add root and city. Its `/mon-compte` runs signed out, so it reaches the redirect. Add a signed-in read | Put a `data-weave` svg in a card |
 | `site-look` no boxes (`:400-415`) | **For `/recherche`, root the check on `main`, not `main section`: the page has no `<section>`, so the old check would be vacuous there (measured: 0).** Assert a card exists first. Exempt `rounded-pill` and `.maplibregl-map, .myweli-marker`, as `controls-shape.spec.ts:30` does. Widen from `li a` to `a`. Add the three landings and `/recherche`. On the prototype: nothing found on any of them, and one box found when the old classes are put back on a card (measured) | Put `rounded-xl border` back on the card |
-| `site-look` LCP (`:357-383`) | `/coiffure/abidjan/cocody` now holds a photo. No edit: its `networkidle` settles with the preload below, and the last entry should still be « page » (inferred) | None: no change, read on the first run |
+| `site-look` LCP (`:357-383`) | `/coiffure/abidjan/cocody` now holds a photo. No edit: its `networkidle` settles with the preload below. **Read 2026-11-05: the last entry is « page » at both sizes.** The reason is narrower than it looks: in the suite the photo never loads, so the entry is the `<p>`, and with a generated 1600×1200 file it is the `<img>`, in `main`. So this test only proves the footer does not win, and says nothing about LCP time or a real photo | None: no change, read on the first run |
 | `type-overflow` (`:70-100`) | Add `/coiffure/abidjan/cocody`, `/coiffure`, `/coiffure/abidjan/marcory` and `/recherche?q=vitrine`. With no truncation there is no declared loss to protect the matrix from | Fix a width on the card's text |
-| `tap-targets` (`:71-84`) | Add the row's heart, landing chips, crumbs, the city index, « Retirer » signed in | Remove `min-h-12` from each |
+| `tap-targets` (`:71-84`) | Add the row's heart, landing chips, crumbs, the city index, « Retirer » signed in | Remove `min-h-12` from the crumbs, chips and « Retirer ». The heart at `h-8`. The city index at `h-8` reads 32: it has no `min-h-12`, because that class held nothing there (§14) |
 | `axe` (`:161`) | Add `/recherche?q=vitrine` and the signed-in favourites. It runs with no tag filter (`:129`), so **this is where `image-redundant-alt` gets its answer.** If it fires, the alt becomes `""` on a card whose name is beside the photo, and §12's line changes | Give a card's image an empty link |
 | `controls-shape` | Holds, heart exempt (`:27`). `/mon-compte/favoris` (`:82`) has no route and falls into `[id]`: left, noted for B11.5, since `/mon-compte` covers the list | None: no change |
 
@@ -518,8 +522,197 @@ It returns one salon and ignores `q` (`stub-api.mjs:824-836`), so no list can sh
 | `q=vitrine` | F1 photo, F2 photo, F3 logo only, F4 initial only, F5 a photo at `https://cdn.stub/absent.jpg`, F6 long name, F7 unnamed with no price or commune, F9 rated with a three-digit count, no commune, no price |
 | `commune=Marcory`, when `category` is absent or `salon` | F1 to F6. **Not F7:** a landing's `ItemList` would carry an empty name (`TaxonomyLandingView.tsx:277-283`). That is today's behaviour for an unnamed public salon, direction §1 bars a JSON-LD change in S3, and it is filed in B11.5. The unnamed tile is held by the unit test and the `/recherche` row. So `/barbier/abidjan/marcory` stays empty |
 | `q=vide` | Nothing, for an empty `/recherche` |
+| `q=commune-longue` | One row: F9 with « Yamoussoukro » as its commune, the one word too long for the column beside the heart at 200% text, with no price to lift it out of the heart's band. Its own read, so the eight every other spec counts stay eight |
 
 - `/coiffure/abidjan/plateau` stays empty.
+
+### Watched red: the record
+
+Run 2026-11-05 on detached copies, on committed work. Each mutation applied by exact text with its match count asserted, the diff asserted non-empty, only that guard run, the copy restored and asserted clean. No guard was weakened to pass. Chromium only, on this Mac.
+
+- **First pass, at `23eecdbd` (backend `747d6e39`): 128 rows, 114 red, 12 green, 2 printed skips.** The 12 green are 3 baselines, 6 controls or reads meant to be green, and 3 that stayed green under a mutation meant to turn them red.
+- **Second pass, after the reviews: 42 rows, 31 red, 10 green, 1 printed skip.** Browser and `check:card-photo` rows at `c7f5ef9c`, unit rows at `f7d1691e`. The 10 green are 3 baselines, 4 controls, the old check and a blind copy of the new one on the stand-in (the finding itself), and one failing image that read green from the cache, which the next row empties.
+
+**What stayed green under a mutation, and what happened to it**
+
+| Guard | Mutation | Why it stayed green | Now |
+|---|---|---|---|
+| `tap-targets`, the city index | Remove `min-h-12` | The link is 65 tall without it, so the class held nothing | The class is gone (§14). The guard reads 32 under `h-8` |
+| Test server, `_cdn-stub-dns.cjs` | No preload at all | This Mac's real lookup fails at once, so it reads the same | `cdn-stub-preload.test.ts` goes red on it, and on losing either `NODE_OPTIONS` line |
+| `optimizer-sources` | `unoptimized={false}` | The pin read the word | It reads the value |
+| The alarm test | « card photo » out of the status line | Nothing claimed that line | `production-alarm-status.test.ts` goes red on it |
+
+**First pass**
+
+| Guard | Mutation | Result |
+|---|---|---|
+| provider-card.test.tsx: photo > logo > initial | Drop the logo branch | RED |
+| provider-card.test.tsx: no letter with a logo | Put a letter beside the logo | RED |
+| provider-card.test.tsx: the letter comes before the `<img>` | Move the letter after the `<img>` | RED |
+| provider-card.test.tsx: asset: and '' read as no photo | Remove the https:// check | RED |
+| provider-card.test.tsx: no rounded-*, border or bg-secondary on the `<a>` | Put rounded-xl back | RED |
+| provider-card.test.tsx: no rounded-*, border or bg-secondary on the `<a>` | Put border back | RED |
+| provider-card.test.tsx: no rounded-*, border or bg-secondary on the `<a>` | Put bg-secondary back | RED |
+| provider-card.test.tsx: account keeps a candidate of 256w or less | Change `account` to …, 92vw | RED |
+| provider-card.test.tsx: loading=lazy, no fetchpriority=high | Put `priority` on it (for `loading`) | RED |
+| provider-card.test.tsx: the spacer exists only with a heart | Render it always | RED |
+| provider-card.test.tsx: the spacer is h-12 w-12 | Drop h-12 | RED |
+| provider-card.test.tsx: no truncate or whitespace-nowrap; one inline run | Put truncate back | RED |
+| provider-card.test.tsx: no truncate or whitespace-nowrap; one inline run | whitespace-nowrap on the rating | RED |
+| provider-card.test.tsx: no truncate or whitespace-nowrap; one inline run | `<h3>` a flex row | RED |
+| provider-card.test.tsx: the default is a link to /{slug} | Default `linked` to false | RED |
+| provider-card.test.tsx: linked={false} has no group-hover | Keep the hover classes when not linked | RED |
+| provider-card.test.tsx: « (32 avis) » with reviews | Drop withCount | RED |
+| provider-card.test.tsx: asset: and '' read as no photo | The other half: test the photo with `!= null`, so '' reaches `<Image>` | RED |
+| salon-name table (unnamed-salon.test.ts) | Use charAt(0) | RED |
+| empty-state unit (b6-states.test.tsx) | Put justify-center back in `start` | RED |
+| empty-state unit (b6-states.test.tsx) | Drop -ml-s | RED |
+| empty-state unit (b6-states.test.tsx): default byte for byte | Change the default box | RED |
+| empty-state unit (b6-states.test.tsx): `start` has no p-xl | Keep p-xl in `start` | RED |
+| empty-state unit (b6-states.test.tsx): `start` has no mx-auto | Keep mx-auto in `start` | RED |
+| tokens.theme-pin: aspectRatio.card | Rename it in the config | RED |
+| tokens.theme-pin: content.initial | Rename it in the config | RED |
+| next-config unit: minimumCacheTTL ≥ 30 days | Delete the line | RED |
+| next-config unit: minimumCacheTTL ≥ 30 days | One day instead | RED |
+| next-config unit: exactly the three hosts | Add a host | RED |
+| optimizer-sources.test.ts: AvisClient carries unoptimized | Remove `unoptimized` | RED |
+| optimizer-sources.test.ts: it does not read a comment | Turn the attribute into a comment: `// unoptimized` | RED |
+| optimizer-sources.test.ts: exactly eight importers | Add an importer | RED |
+| optimizer-sources.test.ts: exactly eight importers | Add a dynamic importer | RED |
+| optimizer-sources.test.ts: a comment is not an importer | Control: the import only in a comment | GREEN |
+| pro-avis render (pro-avis-summary.test.tsx) | Remove `unoptimized` | RED |
+| provider-card.test.tsx: a favourite with no gallery does not throw | `.` for `?.` on imageUrls | RED |
+| provider-card.test.tsx: an unnamed salon reads « Salon », « S » | Use provider.name raw | RED |
+| provider-card.test.tsx: each layout has its own default sizes | No row default | RED |
+| provider-card.test.tsx: no svg[data-weave] | Put a data-weave svg in the media box | RED |
+| provider-card.test.tsx: data-initial matches the letter | Drop data-initial | RED |
+| provider-card.test.tsx: alt is the name | alt="" | RED |
+| provider-card.test.tsx: alt is « Logo {name} » | alt={name} on the logo | RED |
+| heart-announced.test.tsx: a stopped salon has no « Annuler » | `announceFavorite` for a stopped salon | RED |
+| optimizer-sources.test.ts: scans a real tree | Point it at no directory | RED |
+| optimizer-sources.test.ts: AvisClient carries unoptimized | `unoptimized={false}`: a word, not the behaviour | GREEN |
+| pro-avis render (pro-avis-summary.test.tsx) | `unoptimized={false}` | RED |
+| production_alarm_test.dart: clear.needs | Leave clear.needs alone | RED |
+| production_alarm_test.dart: report.needs | Leave report.needs alone | RED |
+| production_alarm_test.dart: no check counts as passed without passing | continue-on-error on the job | RED |
+| production_alarm_test.dart: no check counts as passed without passing | An `if` on the job | RED |
+| production_alarm_test.dart: the same, on a step | continue-on-error on the step | RED |
+| production_alarm_test.dart: the report's status line | Drop « card photo » from the status line (the spec claims no guard for it) | GREEN |
+| e2e the card: border-radius 0 on the `<img>` | rounded-sm | RED |
+| e2e the card: the media box is 1.33 ± 0.02 | aspect-video | RED |
+| e2e the card: filter none | a brightness-90 | RED |
+| e2e the card: elementFromPoint at the centre is the `<img>` | An overlay div | RED |
+| e2e the card: no ::before or ::after on the link | A pseudo-element scrim on the link | RED |
+| e2e the card: no ::before or ::after on the media box | A pseudo-element scrim on the media box | RED |
+| e2e a failed photo: the corner is one colour | Remove `after:` from the photo | RED |
+| e2e a failed photo: the letter, in dark pixels | Remove after:content-initial | RED |
+| e2e a slow photo: the letter is visible | Drop the letter | RED |
+| e2e a slow photo: the loaded `<img>` is on top | Put it after the `<img>` | RED |
+| e2e heart and text: no text meets the heart | Remove the spacer | RED |
+| e2e heart and text: no text meets the heart | Drop its h-12 | RED |
+| e2e heart and text: scrollWidth equals the viewport | Remove min-w-0 from « Trier » | RED |
+| e2e heart and text, 200%: non-vacuity first | Drop the emulation (the 200% style tag) | RED |
+| e2e heart and text, 200%: non-vacuity first | Drop the emulation (isMobile) | RED |
+| e2e no priority: no fetchpriority=high, no card photo preloaded | Put `priority` on the card's photo | RED |
+| e2e the selected row: the offset in surface | Remove ring-offset-2 | RED |
+| e2e the selected row: border-radius 0 | Put rounded-xl back on the row | RED |
+| e2e favourites: a third of the row at 390, the full tile at 820 | layout="tile" | RED |
+| e2e favourites: a stopped salon has no `<a>` | `linked` always true | RED |
+| e2e favourites: no « Annuler » for a stopped salon | `announceFavorite` for a stopped salon | RED |
+| focus.spec.ts: Tab goes link, then heart | tabindex="-1" on the heart | RED |
+| focus.spec.ts: the name underlines on focus | Remove group-focus-visible:underline | RED |
+| site-look SEO: root, city, area | Change a word in an `<h2>` | RED |
+| site-look SEO: JSON-LD types | ItemList gone | RED |
+| Test server: _cdn-stub-dns.cjs, ≥ 400 within 1 s | Swap the preload for one whose lookup never answers | RED |
+| Test server: _cdn-stub-dns.cjs | No preload at all (on this Mac, a real lookup) | GREEN |
+| site-look left edge: landings | Change a container's padding | RED |
+| site-look left edge: the empty landing | `align="start"` removed from its EmptyState | RED |
+| site-look pattern: root, city, signed-in account | Put a data-weave svg in a card | RED |
+| site-look no boxes | Put rounded-xl border back on the card | RED |
+| type-overflow: the four new routes | Fix a width on the card's text | RED |
+| tap-targets: the row's heart | Heart at h-8 w-8 (it has no min-h-12 to remove) | RED |
+| tap-targets: crumbs | Remove min-h-12 | RED |
+| tap-targets: the city index | Remove min-h-12 | GREEN |
+| tap-targets: landing chips | Remove min-h-12 | RED |
+| tap-targets: « Retirer » signed in | Remove min-h-12 | RED |
+| axe: /recherche?q=vitrine and the signed-in favourites | Give a card's image an empty link | RED |
+| e2e neither a photo nor a logo: a logo has no letter under it | Put a letter beside the logo | RED |
+| e2e neither a photo nor a logo: the letter | Drop the initial form | RED |
+| e2e heart and text: scrollWidth equals the viewport | Remove max-w-full from « Trier »'s label | RED |
+| site-look left edge: landings | The same from `lg`: the first one lost to `lg:px-l` | RED |
+| site-look left edge: the first section's `<h2>` | Change SiteSection's padding, so the `<h1>` holds and the `<h2>` does not | RED |
+| type-overflow: /recherche?q=vitrine | Fix a width on the row's text: the first one lost to `flex-1` | RED |
+| tap-targets: the city index | Why C05c stayed green: min-h-12 removed, and the spec asks for 999 so it prints the height | RED |
+| tap-targets: the city index | Can it fire on this link at all: h-8 instead of min-h-12 | RED |
+| tool/check-card-photo.spec.ts | A local build with a failing image | RED |
+| tool/check-card-photo.spec.ts | `/recherche?q=vide`: a printed skip | SKIP |
+| tool/check-card-photo.spec.ts | Not one of the page's two states: a page with neither | RED |
+| tool/check-card-photo.spec.ts | Not a 200: a path that 404s | RED |
+| tool/check-card-photo.spec.ts | A local server stopped | RED |
+| tool/check-card-photo.spec.ts | A list with no card photo: the stub's list cut to a logo and a letter | SKIP |
+| tool/check-card-photo.spec.ts | Real bytes, and the card is aspect-video | RED |
+| tool/check-card-photo.spec.ts | The photo is `unoptimized`, so it does not go through the optimizer | RED |
+| postgres_repositories_test.dart: query() carries imageUrls | Project imageUrls out of query()'s SELECT | RED |
+| postgres_repositories_test.dart: query() carries logoUrl | Project logoUrl out of query()'s SELECT | RED |
+| postgres_repositories_test.dart: byIds() carries imageUrls | Project imageUrls out of byIds()'s SELECT | RED |
+| postgres_repositories_test.dart: byIds() carries logoUrl | Project logoUrl out of byIds()'s SELECT | RED |
+| postgres_repositories_test.dart: control: the same SELECT form | Project out a key nobody reads, in query() | GREEN |
+| postgres_repositories_test.dart: control: the same SELECT form | Project out a key nobody reads, in byIds() | GREEN |
+| provider-card.test.tsx: no fetchpriority=high | Stay lazy and add fetchPriority="high": U07 stops at `loading`, before this line | RED |
+| tokens.theme-pin: emits .aspect-card | The card no longer spells it: `aspect-video` | RED |
+| tokens.theme-pin: emits after:content-initial | The card no longer spells it | RED |
+| e2e no priority: no card photo in a preload | `priority` on the photo, and the spec's fetchpriority line removed, so the preload line is what is left | RED |
+| e2e favourites: the full tile at 820 | layout="row": a row at every width | RED |
+| e2e favourites: a live salon keeps its link | `linked={false}` for every favourite | RED |
+| focus.spec.ts: the link computes RING | No outline on the link | RED |
+| focus.spec.ts: the heart computes RING | No outline on the heart | RED |
+| site-look SEO: `<h1>` | Change a word | RED |
+| site-look SEO: title | Change a word | RED |
+| site-look SEO: canonical | Change the URL | RED |
+
+**Second pass**
+
+| Guard | Mutation | Result |
+|---|---|---|
+| optimizer-sources: AvisClient carries unoptimized | X10 again: unoptimized={false} | RED |
+| optimizer-sources: AvisClient carries unoptimized | unoptimized={keep}: a variable proves nothing | RED |
+| optimizer-sources: AvisClient carries unoptimized | Control: unoptimized={true} | GREEN |
+| cdn-stub-preload: ci.yml | Delete NODE_OPTIONS from the Lighthouse step | RED |
+| cdn-stub-preload: ci.yml | Comment it out, so only a comment names it | RED |
+| cdn-stub-preload: ci.yml | Move it off the lhci step, onto the step before | RED |
+| cdn-stub-preload: ci.yml | A wrong path in the flag | RED |
+| cdn-stub-preload: ci.yml | Control: one more env row on that step | GREEN |
+| cdn-stub-preload: playwright.config | Delete it from the Next server | RED |
+| cdn-stub-preload: playwright.config | Comment it out | RED |
+| cdn-stub-preload: playwright.config | On the stub instead of the Next server | RED |
+| cdn-stub-preload: the preload | E22b, in this guard: the preload lets cdn.stub through to the lookup that hangs | RED |
+| cdn-stub-preload: the preload | It refuses every host | RED |
+| cdn-stub-preload: the preload | It loses the real lookup’s symbols | RED |
+| cdn-stub-preload: the preload | It is never installed | RED |
+| production-alarm-status | A06 again: « card photo » out of the status line | RED |
+| production-alarm-status | The env row gone, the line kept | RED |
+| production-alarm-status | The env row commented out | RED |
+| production-alarm-status | The row reads another job | RED |
+| production-alarm-status | A ninth check arrives with no row, so the derived list has to see it | RED |
+| production-alarm-status | The jobs block cannot be found | RED |
+| production-alarm-status | Control: a word changed in the prose | GREEN |
+| tool/check-card-photo.spec.ts | The check as it was at 23eecdbd, on a stand-in out of transformations: q=75 answers 200, anything new 402. The review’s finding | GREEN |
+| tool/check-card-photo.spec.ts | The check now, on the same stand-in | RED |
+| tool/check-card-photo.spec.ts | Mutation: the check asks for q=75 again, on the same stand-in | GREEN |
+| tool/check-card-photo.spec.ts | Control: the check now, on a stand-in with no ceiling | GREEN |
+| tool/check-card-photo.spec.ts | The check as it was at 23eecdbd, on a photo that never answers: the poll’s message cannot print | RED |
+| tool/check-card-photo.spec.ts | The check now, on the same photo: the poll’s message prints | RED |
+| tool/check-card-photo.spec.ts | A local build with a failing image, with the image cache still holding the file from the row above, so it read green. The next row empties it | GREEN |
+| tool/check-card-photo.spec.ts | /recherche?q=vide: a printed skip | SKIP |
+| tool/check-card-photo.spec.ts | Not one of the page’s two states | RED |
+| tool/check-card-photo.spec.ts | Not a 200 | RED |
+| tool/check-card-photo.spec.ts | A local server stopped | RED |
+| tool/check-card-photo.spec.ts | A local build with a failing image, its image cache emptied first. CP18 read green because the 31-day cache still held the file from CP16 | RED |
+| site-look: a ruled index answers the pointer, /coiffure | The review’s defect: the colour back on the name | RED |
+| site-look: a ruled index answers the pointer, / | The home page’s hover removed | RED |
+| tap-targets: the city index | The link really small: h-8. min-h-12 is gone, so this is the only way it can fall below the floor | RED |
+| site-look: a commune too long, at 200% text | The review’s gap: break-words off the commune | RED |
+| site-look: a commune too long, at 200% text | Non-vacuity: the doubling dropped, in this test only | RED |
 
 ### What these cannot see
 
@@ -544,7 +737,7 @@ It returns one salon and ignores `q` (`stub-api.mjs:824-836`), so no list can sh
 2. §7's measurement, with and without `imagePriority`.
 3. §13's comparison of the five pages.
 4. Every mutation in §8.
-5. WebKit: the failed photo with its letter, the slow photo, and the row, in the iOS simulator against the local build.
+5. WebKit: the failed photo with its letter, the slow photo, and the row, in the iOS simulator against the local build. **Done 2026-11-05, Safari on an iOS 26.5 simulator, real bytes through the local optimizer.** The row, a photo, the letter, a logo and a landing's tile read as in Chromium. The slow photo holds the letter and paints with no shift. The failed photo shows a small blue « ? » and a thin outline as well as its letter (§2.4), which goes to the owner. Not read there: doubled text, forced colours, keyboard focus. The pictures hold demo photos, so none is committed.
 
 **After the merge, on `myweli.com`** (GET only, signed out)
 
@@ -558,15 +751,15 @@ It returns one salon and ignores `q` (`stub-api.mjs:824-836`), so no list can sh
 
 **So direction §13's « Cards with and without photos looked at » is met locally, and not on production.** It stays open under B11.3 until a salon is public.
 
-**The mechanism for that day, since a sentence in a doc would be forgotten.** `web/tool/check-card-photo.spec.ts`, run by `npm run check:card-photo` (`playwright test … --config=tool/privacy.config.ts`, as `check:privacy` and `check:legal` are), GET only, no cookies, against `PRIVACY_URL`. **It reads the page, not the API:** those jobs already reach `myweli.com` from a runner, while no scheduled check reaches `api.myweli.com` through the Worker (UNVERIFIED that a runner can). Phone viewport, 390×844, so no basemap loads.
+**The mechanism for that day, since a sentence in a doc would be forgotten.** `web/tool/check-card-photo.spec.ts`, run by `npm run check:card-photo` (`playwright test … --config=tool/privacy.config.ts`, as `check:privacy` and `check:legal` are), GET only, no cookies, against `PRIVACY_URL`. **It reads the page, not the API:** those jobs already reach `myweli.com` from a runner, while no scheduled check reaches `api.myweli.com` through the Worker (UNVERIFIED that a runner can). Phone viewport, 390×844.
 
 | What it finds on `/recherche` | Outcome |
 |---|---|
 | Not a 200, or neither « Aucun salon trouvé » nor a count `<h2>` (an error page, a refused API) | **Red.** The file's own rule: « a check that measured nothing is not green » (`production-checks.yml:271`) |
 | « Aucun salon trouvé », or a list with no card photo | **A printed skip:** « no public salon with a photo: nothing read ». Green, claiming nothing |
-| A list with a card photo | The first one: its `/_next/image` answers 200, `naturalWidth` above 0, media ratio 1.33 ± 0.02. Anything else is **red**, which is how a 402 is caught from then on |
+| A list with a card photo | The first one: its `/_next/image` answers 200, `naturalWidth` above 0, media ratio 1.33 ± 0.02. **And one transformation nobody has read answers 200:** the same file, with `q` set from the date to 1–60, so it comes back after 60 days, past the cache's 31, and is never the page's 75. Anything else is **red**. That last read is how a plan out of transformations shows: the first photo's own file is cached after its first read and should keep answering, while new photos fail as a letter on a tile (§14). Its cost is one transformation a day |
 
-**The workflow change, whole.** A job `cardphoto`, the same shape as `privacy`, with `PRIVACY_URL: ${{ github.event.inputs.target || 'https://myweli.com' }}`, so a dispatch with a custom target reads that target as the others do. It has no `if` and no `continue-on-error`. Added to `report.needs` and `clear.needs` (`:328`, `:428`). `report` gains the env row `CARDPHOTO: ${{ needs.cardphoto.result }}`, « · card photo: ${CARDPHOTO} » in its status line, and « Five of these run against myweli.com » with card photo named beside CWV, privacy, legal and retention (`:368-370`). `clear`'s comment gains: « The card photo check reads nothing until a public salon has a photo; the run's log says which. » `docs/design/production-alarm-close.md` goes from seven checks to eight. `backend/test/infra/production_alarm_test.dart:46-53,76-92` derives the checks from this file, so it needs no edit, and it fails if either `needs` is missed; CI has no path filter, so it runs on the web PR. That test is the mutation: leave `clear.needs` alone and see it red.
+**The workflow change, whole.** A job `cardphoto`, the same shape as `privacy`, with `PRIVACY_URL: ${{ github.event.inputs.target || 'https://myweli.com' }}`, so a dispatch with a custom target reads that target as the others do. It has no `if` and no `continue-on-error`. Added to `report.needs` and `clear.needs` (`:328`, `:428`). `report` gains the env row `CARDPHOTO: ${{ needs.cardphoto.result }}`, « · card photo: ${CARDPHOTO} » in its status line, and « Five of these run against myweli.com » with card photo named beside CWV, privacy, legal and retention (`:368-370`). The report's sentence on this job names its four reds: `/recherche` answering neither a list nor an empty list, the photo not loading through the optimizer, a card no longer 4:3, and a new transformation refused. `clear`'s comment gains: « The card photo check reads nothing until a public salon has a photo; the run's log says which. » `docs/design/production-alarm-close.md` goes from seven checks to eight. `backend/test/infra/production_alarm_test.dart:46-53,76-92` derives the checks from this file, so it needs no edit, and it fails if either `needs` is missed; CI has no path filter, so it runs on the web PR. That test is the mutation: leave `clear.needs` alone and see it red.
 
 It wakes with the first public salon, and on that same day `check:cwv` starts measuring `/` with real photos, by itself. The first time it runs for real, B11.3's last line gets read and closed by hand: the cards looked at on the live site, with the first real portrait and the letter's flash among them.
 
@@ -594,6 +787,8 @@ It wakes with the first public salon, and on that same day `check:cwv` starts me
 - [ ] `web-swiss-direction.md`: its status and its §6.4, §7.3–§7.5, §8, §9, §10 and §11, corrected per §14 here, with the date. WEB-SYSTEM §16: `aspect-card`, `content-initial`, the card, favourites as the one exception to « font, header and footer only ». `account-deletion-erasure.md` §11. `production-alarm-close.md`. README index, BACKLOG per §15, one roadmap entry.
 - [ ] This spec cross-linked from `ProviderCard.tsx`.
 - [ ] Feature branches and PRs, CI green, no Claude attribution. Merges left to the owner.
+
+**Where this stands, 2026-11-05, before any push.** Met locally, and read in this spec: typecheck, lint, `vitest`, `next build`, Playwright, axe and Lighthouse on the final tree, the backend test on a fresh Postgres 16, every guard watched red (§8), §13's comparison, the pictures looked at, and WebKit in the simulator. **Still open, so the boxes stay empty:** both PRs and their CI, the pictures reaching the owner, the deployed read-back (§9), and the owner's calls: §7's method, §13's condition 2, and what the pictures left to him (§2.4, §7, §11).
 
 ---
 
@@ -625,7 +820,7 @@ It wakes with the first public salon, and on that same day `check:cwv` starts me
 - (c) Rows only. The link and « Annuler » stay. The stopped salon is filed in B12.7.
 - (d) Neither. Both filed in B12.7.
 
-*Why (a):* the web already withholds these links for bookings for this same reason (`lib/account/appointments.ts:87-91`, `account.spec.ts:356-365`), a photo makes a dead link more inviting, and `FavoritesService.add` refuses a hidden salon, so « Annuler » can only fail. The stub answers every write 204, so e2e cannot see that. Rows put support and account deletion where they are today: section 704 tall against 744 today and 1826 as tiles. It needs your word because direction §1 limits flow and layout changes there, and because the app differs: its card stays tappable and opens a sentence. The sentence stays on the card's last line: moving it under the name would be a new slot on the card, not done.
+*Why (a):* the web already withholds these links for bookings for this same reason (`lib/account/appointments.ts:87-91`, `account.spec.ts:356-365`), a photo makes a dead link more inviting, and `FavoritesService.add` refuses a hidden salon, so « Annuler » can only fail. The stub answers every write 204, so e2e cannot see that. Rows keep support and account deletion close to where they are today: section 704 tall against 640 today and 1826 as tiles, so 64px lower instead of 1186px lower. **Corrected after the answer, 2026-11-05:** this read 744 today, which made rows look shorter than today (§14), and the owner is told. It needs your word because direction §1 limits flow and layout changes there, and because the app differs: its card stays tappable and opens a sentence. The sentence stays on the card's last line: moving it under the name would be a new slot on the card, not done.
 
 **4. What the app has that the card lacks.** BACKLOG B12.7 says C5–C10 get done « when touched », and this slice touches the landings (C6) and the favourites' file (C7, C10). (Sheet 16)
 - (a) **Add the review count, « ★ 4,8 (32 avis) », and defer C5–C10 by name, recommended.**
@@ -685,6 +880,8 @@ Plus `store-linked-pages.test.tsx` and its e2e. After the merge, words and links
 
 **On the real branch, 2026-11-05 (`571038b2` against `ea0c8f0c`): conditions 1, 3, 4 and 5 hold, and condition 2 does not hold as written.** After its three normalisations, all five pages still differ, at one place each: a few characters on one side of a `self.__next_f.push` boundary, because a chunk renamed from `785` to `5878` makes the `I[…]` rows 6 characters longer, and Next cuts the inline payload into `<script>`s by length (the cut is inferred from where it moved; Next's source was not read). Decoding each page's payload and normalising it gives identical text, and everything outside the payload is identical. **The condition stays as written, and this stops the merge until the owner has read it.**
 
+**Re-run on the final web tree, 2026-11-05 (`f7d1691e` against `ea0c8f0c`), because the review's fixes touched `TaxonomyLandingView` and `ProviderCard`: the same result.** Condition 1: words, links and `class` attributes identical, in order, on all five. Condition 2: does not hold as written, for the same cause, with the same 7 B per page: 5 inline payload scripts on each side, the decoded payload identical after normalising, and everything outside it identical. Condition 3: the same stylesheet as the earlier read (`f5a802c7a217fd7f.css`), 553 to 581 rules, 0 removed, 0 out of order, 28 added. Condition 4: 12 scripts per page on both sides, the gzipped sum up by 299 to 302 B. Condition 5: 10 of 10, 0 computed-style differences over 1,737,926 property reads, identical PNG bytes; the controls read 135 differences on two different pages and 0 on one page loaded twice. `store-linked-pages.test.tsx` and its 34 e2e tests pass in the same tree's full suites.
+
 ---
 
 ## 14. Where the approved spec was wrong or silent
@@ -698,7 +895,7 @@ Every § in this table is the parent's, unless it says otherwise.
 | §7.3 « a rule and a hover state » | Does not say where, and the old hover would hide a no-photo tile | Rule at the foot of the media, row rules in the list, name underlined |
 | §7.3 does not place the heart | Bottom-right on the web, on the photo in the app | Stays bottom-right, off the photo, with a spacer as tall as the heart |
 | §7.3 gives `row` no breakpoint | All three competitors stack on phones. The app's list keeps a thumbnail on the left | A row at every width, as §7.3 says. Decision 2 (c) is the other answer |
-| §7.3 « two layouts » | Favourites as tiles push support and account deletion down 1082px on a phone | A third value, `rowOnPhone`, the same two layouts switching at `sm`. Decision 3 |
+| §7.3 « two layouts » | Favourites as tiles push support and account deletion down 1186px on a phone, and rows 64px (corrected 2026-11-05: this read 1082) | A third value, `rowOnPhone`, the same two layouts switching at `sm`. Decision 3 |
 | §7.3 « real `sizes` » | One layout, three grids. And a wrong `vw` silently drops candidates | Additive `imageSizes`, `CARD_SIZES` |
 | §7.3 « every existing prop unchanged » | Holds. `linked` is new, for a stopped favourite | Additive. Decision 3 |
 | §6.4 « two named tokens » | `cover` has no user until S4 | `card` now, `cover` in S4 |
@@ -727,8 +924,17 @@ Every § in this table is the parent's, unless it says otherwise.
 | This spec's §8, `routeNextImages` « answers a pixel » | A loaded 1×1 file reads `naturalWidth` 0, as a failed photo does, because a `w` descriptor divides it by its density (measured: 1 ÷ 1.07, floored). And a box on a fractional x paints the page's colour in its first column (measured at 1280) | A 64×48 opaque PNG in one colour, so the failed photo's check means something and a loaded photo can be read covering its letter. The 30×30 corner is read from 2px in |
 | This spec's §7 rule names the metric and not the method | `lighthouserc` names no method, so Lighthouse runs `simulate`, and the same file's numbers applied with `devtools` give the opposite answer on all four levels | The rule was applied to `simulate`, what the gate reads. Both tables are in §7, and the choice is the owner's |
 | This spec's §7 « all four photos » on `/` | `/` reads eight salons, and a phone fetches seven or eight on load | Measured in §7. No change to the page |
-| This spec's §9 and `tool/check-card-photo.spec.ts:17`, « Phone viewport, so no basemap loads » | Below `lg` the map is mounted and hidden, and it still loads the basemap, read at 412 and 360 (not at 390) | Recorded in §7. The check still reads what it reads. The sentence and the comment are left for the owner, with the map itself |
+| This spec's §9 and `tool/check-card-photo.spec.ts:17`, « Phone viewport, so no basemap loads » | Below `lg` the map is mounted and hidden, and it still loads the basemap, read at 412 and 360 (not at 390) | Recorded in §7. The clause is deleted from both places: it was false, and only the map's own cost is the owner's |
 | This spec's §13 « the only differences on the prototype » | On the real branch the payload's `<script>` boundaries move too | Reported under §13. Condition 2 is unchanged |
+| This spec's §2.3, `min-h-12` and `hover:text-textSecondary` on the ruled index | Both lines always render, with `py-s`, 65 tall at every width, so the class held nothing and §8's mutation of it stayed green. And both children set their own colour, so the hover changed nothing: `rgb(26, 26, 26)` before and after on `/coiffure`, read in a browser, where the home page's index moves to `rgb(74, 74, 74)` | `min-h-12` goes, and `tap-targets` still holds the 48px (`h-8` reads 32). The colour moves to the link, as on the home page, and an e2e holds both indexes |
+| This spec's §2.2, « the commune and price beside it stay clear of it » | Not one word too wide for its column. « Yamoussoukro » at 200% text with no price runs 187 wide beside a 132 column, meets the heart at 320, 360 and 390, and at 320 passes the card's edge. It is in the taxonomy. No fixture had that combination | `break-words` on the commune, one stub read, one e2e. « 1 500 000 » at 195 wide stays as §2.4 records it |
+| This spec's §2.3 and §11 decision 3, « where they are today », 744 today | Three real builds read 640 today, 704 as rows, 1826 as tiles. Rows move support and account deletion down 64px, not up 40, and tiles 1186px, not 1082. The figures for today were wrong, and those for rows and tiles held | Corrected here, in direction §7.3 and in BACKLOG's decision 84. **Decision 3 was answered on the old figure, so the owner is told.** Rows are still 1122px shorter than tiles |
+| This spec's §2.2, the letter in the « bottom-left corner » | The left edge holds. The ink stands 11–13 CSS px above the rule at normal text, by its own line box | Worded in §2.2. `leading-none` would close 3.5px of that, so no change |
+| This spec's §2.4, forced colours and the selected row | A loaded photo's hidden letter interrupts the foot rule too, and a selected row after the first has a faint rule inside the ring's top as well | Worded in §2.4, no code |
+| This spec's §2.4, « WebKit is UNVERIFIED » | Seen in Safari: the failed photo shows a small blue « ? » and a thin outline beside its letter, the worst case §2.4 expected. The row, photo, letter, logo, tile and slow photo read as in Chromium | Recorded in §2.4 and §9, step 5. Removing the mark needs `onError`, which §2.4 rules out on `/` and landings, so it goes to the owner |
+| This spec's §9 and the workflow, « how a 402 is caught » | The check read one fixed URL, cached for 31 days after its first read. On a stand-in answering 200 for that file and 402 for anything new, it stayed green. Locally, a file read earlier still answered 200 once its source was gone. Vercel's own answer past the ceiling is UNVERIFIED | Each run also reads one transformation nobody has read, at one transformation a day. The stand-in now reads red, and real bytes through Next's optimizer read 200. The alarm's sentence named one red of four, and now names all four |
+| This spec's §8, the test-server guard as what holds the preload | It reads the speed. With no preload at all it stayed green on this Mac, and nothing read `NODE_OPTIONS` in `ci.yml` | A new unit test stands in for CI's stall with a lookup that never answers, and reads both lines. What CI's own libuv pool does is still read on the first CI run |
+| This spec's §8 and §9 are silent on the alarm's status line | Dropping « card photo » from it left every test green | A new derived test, in `web/`, because any file under `backend/` starts `deploy-backend.yml` |
 | §13 « Cards with and without photos looked at » | Cannot be done on production | Locally now, on production when a salon is public, with a scheduled check for that day (§9 of this spec). A new job the parent did not plan |
 
 ---
@@ -737,7 +943,7 @@ Every § in this table is the parent's, unless it says otherwise.
 
 - **B11.3**, after the existing line: « **Still open until a salon is public:** cards with and without photos looked at on the live site, the first real portrait's crop, and the letter's brief showing on a normal connection (`web-swiss-cards.md` §9). `check:card-photo` wakes by itself. »
 - **B11.4**, after the existing line: « **Also from S3:** Lighthouse budgets for a landing and `/recherche`, with real bytes through the optimizer, as `web-swiss-cards.md` §7 measured once by hand. The stub's image host does not resolve, so a budget without that measures a page without its largest paint. »
-- **B11.5**, added to its list: « A landing's `ItemList` carries an empty name for an unnamed public salon (`TaxonomyLandingView.tsx:277-283`). `ItemList` has no photo. A neighbouring marker paints over the open popup on `/recherche`, covering the rating and price (`ResultsMap.tsx:82`), which shows on the first real multi-salon list. `controls-shape.spec.ts:82` reads `/mon-compte/favoris`, which has no route and falls into `[id]`. `politique-confidentialite` names R2 for files and Vercel as the host, while resized public photos also sit in Vercel's cache: look after Apple's decision. »
-- **B12.7**, after the existing line: « **S3 (B11.3) touched the landings and the favourites' file and left C5, C6, C7 and C10, on the owner's decision of 2026-11-05.** The tile already takes a heart, so C6's first step is wiring. New lines, no audit lists them: the heart's message when signed out; a way out of an empty `/recherche`; a grid/list toggle on the web; a slow photo's retry; a place line for a salon with no commune; review photos drawn at 64 and 96px from the full file (up to 5 MB) on the salon page and `/pro/avis`, where a small copy made at upload under the same `review/{userId}/` prefix would keep them out of the image cache and still go with erasure (`web-swiss-cards.md` §11). »
+- **B11.5**, added to its list: « A landing's `ItemList` carries an empty name for an unnamed public salon (`TaxonomyLandingView.tsx:277-283`). `ItemList` has no photo. A neighbouring marker paints over the open popup on `/recherche`, covering the rating and price (`ResultsMap.tsx:82`), which shows on the first real multi-salon list. `controls-shape.spec.ts:82` reads `/mon-compte/favoris`, which has no route and falls into `[id]`. `politique-confidentialite` names R2 for files and Vercel as the host, while resized public photos also sit in Vercel's cache: look after Apple's decision. `/mon-compte` at 200% text is 466 wide and scrolls sideways at 320 and 390, because « Exporter mes données » is `shrink-0` (`AccountClient.tsx:566`). Without that, 390 fits and 320 is 357 wide, from the profile's « Modifier » and e-mail lines. It predates S3. « Carte » on `/recherche` has the same forced-colours loss as the filled button above: no fill and no border, so a loose word on a white patch over the row's text. On a landing a plain space before « ? » and « » » lets the mark start a line: « » sur chaque fiche. » at 360, a lone « ? » at 320 and 390. Those words feed `FAQPage`, so changing them changes what search engines read. Separately, « Combien coûte coiffure à Marcory ? » and « Coiffure à Plateau » read oddly in French. »
+- **B12.7**, after the existing line: « **S3 (B11.3) touched the landings and the favourites' file and left C5, C6, C7 and C10, on the owner's decision of 2026-11-05.** The tile already takes a heart, so C6's first step is wiring. New lines, no audit lists them: the heart's message when signed out; a way out of an empty `/recherche`; a grid/list toggle on the web; a slow photo's retry; a failed photo's small blue « ? » and outline in Safari, which only `onError` could remove (`web-swiss-cards.md` §2.4); a place line for a salon with no commune; review photos drawn at 64 and 96px from the full file (up to 5 MB) on the salon page and `/pro/avis`, where a small copy made at upload under the same `review/{userId}/` prefix would keep them out of the image cache and still go with erasure (`web-swiss-cards.md` §11). »
 - **B12.10**, after the existing line: « **The app's card, from S3:** `via.placeholder.com` for a missing photo (`salon-cover-photo.md:245`), no mark on a stopped favourite, its stale comment (`provider_card.dart:20-26`), its home strip going stale after a toggle. »
 - **One decision row per answer in §11,** numbered from 82, the next free number in BACKLOG's decisions when this was written; check it again before writing. Decision 1 (`82`) records the owner's words, « do what is best in the long term », and that (a) was this spec's call.

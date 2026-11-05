@@ -52,7 +52,7 @@
 
 **Today's run:** six of the seven checks passed. Only `privacy` failed, on the stale match #725 fixes.
 
-**Eight checks since 2026-11-05 (B11.3):** `cardphoto` joined them, and its comment on a close says what it means. It reads nothing until a public salon has a photo, and a green run then claims nothing about one: the run's log says which ([web-swiss-cards.md](web-swiss-cards.md) §9).
+**Eight checks since 2026-11-05 (B11.3):** `cardphoto` joined them, and its comment on a close says what it means. It reads nothing until a public salon has a photo, and a green run then claims nothing about one: the run's log says which. With a photo it also asks for one transformation nobody has read, because the first photo's own file is cached for 31 days and cannot show a plan out of transformations ([web-swiss-cards.md](web-swiss-cards.md) §9).
 
 ---
 
