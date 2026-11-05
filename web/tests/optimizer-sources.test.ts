@@ -48,6 +48,10 @@ function stripComments(src: string): string {
 
 const IMPORTS_IMAGE = /(from\s+|import\s*\(\s*|require\(\s*|import\s+)['"]next\/image['"]/;
 
+/// The attribute switched on: bare, or `{true}`. Reading the word alone stayed green under
+/// `unoptimized={false}`, and a variable proves nothing here.
+const STAYS_OUT = /\bunoptimized(?:\s*=\s*\{\s*true\s*\})?(?=[\s/>])/;
+
 describe('who can put a file in the image cache', () => {
   const files = ROOTS.flatMap((r) => walk(r));
 
@@ -73,13 +77,21 @@ describe('who can put a file in the image cache', () => {
     ).toEqual(IMPORTERS);
   });
 
+  it('the pattern reads the attribute’s value, not its name', () => {
+    expect(STAYS_OUT.test('<Image unoptimized src={a} />')).toBe(true);
+    expect(STAYS_OUT.test('<Image src={a} unoptimized />')).toBe(true);
+    expect(STAYS_OUT.test('<Image src={a} unoptimized={true} />')).toBe(true);
+    expect(STAYS_OUT.test('<Image src={a} unoptimized={false} />')).toBe(false);
+    expect(STAYS_OUT.test('<Image src={a} unoptimized={keep} />')).toBe(false);
+  });
+
   it('AvisClient shows review photos with `unoptimized`', () => {
     const src = stripComments(readFileSync('components/pro/AvisClient.tsx', 'utf8'));
     const images = src.match(/<Image\b[\s\S]*?\/>/g) ?? [];
     expect(images.length, 'no <Image> found, so this proves nothing').toBeGreaterThan(0);
     for (const image of images) {
       expect(
-        /\bunoptimized\b/.test(image),
+        STAYS_OUT.test(image),
         `a review photo is a file erasure deletes, and must never enter the optimizer’s cache:\n${image}`,
       ).toBe(true);
     }
