@@ -296,7 +296,11 @@ puis qui dit « Vérifiez votre connexion ».
   Un e2e sur 390 px mesure les deux boîtes.
   **À la fusion de B11.3 :** « Carte » passe en bas à gauche, à la marge de la page
   ([web-swiss-cards.md](web-swiss-cards.md) §2.4) ; le toast reste centré à 80 px,
-  au-dessus de sa bande, et ne bouge pas.
+  au-dessus de sa bande, et ne bouge pas. Le bouton suit la liste au pied de l'écran
+  et s'arrête au-dessus du pied de page. Là où il s'est arrêté, ou sous une liste
+  courte, il peut se trouver à la hauteur du toast, à 320, 360 et 390 : le toast passe
+  dessus, n'atteint que sa marge droite en texte normal, et un appui à cet endroit
+  arrive au bouton.
 - **La page salon** : le focus revient au bouton après la réponse — succès ou
   échec — s'il est tombé ; il ne revenait qu'après un échec.
 
