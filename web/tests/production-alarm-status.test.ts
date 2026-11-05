@@ -18,9 +18,9 @@ const workflow = readFileSync(join('..', '.github', 'workflows', 'production-che
 const NOT_CHECKS = new Set(['report', 'clear']);
 
 const jobs = workflow.slice(workflow.search(/^jobs:$/m));
-// A capital letter or a comment on the key's line is still a job, or a ninth check would
-// slip past the day it arrives.
-const checks = [...jobs.matchAll(/^ {2}([A-Za-z_][\w-]*):[ \t]*(?:#.*)?$/gm)]
+// A capital letter, a quote or a comment on the key's line is still a job, or a ninth
+// check would slip past the day it arrives.
+const checks = [...jobs.matchAll(/^ {2}["']?([A-Za-z_][\w-]*)["']?:[ \t]*(?:#.*)?$/gm)]
   .map((m) => m[1])
   .filter((name) => !NOT_CHECKS.has(name));
 
@@ -42,5 +42,13 @@ describe('production-checks.yml, the report’s status line', () => {
       return !row || !statusLine.includes(`\${${row[1]}}`);
     });
     expect(missing, 'a check the issue does not mention can be the red one').toEqual([]);
+  });
+
+  // It runs `npm ci` and reads a public page. `production_alarm_test.dart` reads the
+  // permissions of `report` and `clear` only, so nothing else notices this widening.
+  it('cardphoto holds contents: read and nothing else', () => {
+    const cardphoto = jobs.match(/^ {2}cardphoto:$[\s\S]*?(?=^ {2}\S)/m)?.[0];
+    expect(cardphoto, 'no cardphoto job').toBeDefined();
+    expect(cardphoto, 'cardphoto holds contents: read and nothing else').toMatch(/^ {4}permissions:\n {6}contents: read\n {4}\S/m);
   });
 });
