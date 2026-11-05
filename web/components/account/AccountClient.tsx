@@ -493,8 +493,8 @@ export function AccountClient() {
               const stopped = salonStoppedMessageFor(f.status);
               return (
                 <div key={f.id}>
-                  {/* Rows below `sm`, so support and account deletion stay where they
-                      are; tiles from `sm`. A stopped salon is not a link: it would end on
+                  {/* Rows below `sm`, so support and account deletion move down 64px, not
+                      1186px; tiles from `sm`. A stopped salon is not a link: it would end on
                       a 404 (docs/design/web-swiss-cards.md, decision 3). */}
                   <ProviderCard
                     provider={f}
