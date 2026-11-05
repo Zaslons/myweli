@@ -753,10 +753,19 @@ Run 2026-11-05 on detached copies, on committed work. Each mutation applied by e
 | Readable now | Not readable now |
 |---|---|
 | `/recherche` and the three landing levels: left edge, flush-left empty state, ruled index, open FAQ, no box, no pattern, no sideways scroll, at six sizes | **Any card.** `GET /providers` reads `total: 0`, the demo salon is a permanent draft, staging is `absent`, and a preview has nothing behind it |
-| `<h1>`, canonical and JSON-LD on those pages against the list | **Any photo through Vercel's optimizer,** and the 31-day TTL in effect |
+| `<h1>`, canonical and JSON-LD on those pages against the list | **Any salon's photo through Vercel's optimizer,** and the 31-day TTL on one |
 | `/` unchanged: its section stays hidden | **The favourites list** (no sign-in on a live host) |
 | The five pages: words and links | **LCP with a photo** on any page |
 | CSP console, all ten privacy checks, `gh run list --workflow=production-checks.yml --limit 3` | |
+| **The 31-day TTL, on a local file** (below) | |
+
+**The TTL needs no public salon, because `/_next/image` accepts a local source.** After the merge, once, GET only:
+
+```
+curl -sS -D - -o /dev/null 'https://myweli.com/_next/image?url=%2Fbrand%2Fmyweli_lockup_horizontal_black.png&w=256&q=75'
+```
+
+`-D - -o /dev/null` prints a GET's headers, where `curl -I` would send a HEAD. **It proves** that Vercel's optimizer answers with the config's TTL, if `cache-control` reads `max-age=2678400`, and its `x-vercel-cache` says whether that read was a miss. **It does not prove** anything about a remote source on R2 or a salon's photo, how long Vercel really keeps the entry, or a plan's ceiling. A first read can cost one transformation. On `next start` here the same read answered 200 with `public, max-age=2678400, must-revalidate` (measured 2026-11-05). **A preview cannot do it:** previews answer a 302 to Vercel's sign-in (observed 2026-11-05, not bypassed).
 
 **So direction §13's « Cards with and without photos looked at » is met locally, and not on production.** It stays open under B11.3 until a salon is public.
 
@@ -765,7 +774,7 @@ Run 2026-11-05 on detached copies, on committed work. Each mutation applied by e
 | What it finds on `/recherche` | Outcome |
 |---|---|
 | Not a 200, or neither « Aucun salon trouvé » nor a count `<h2>` (an error page, a refused API) | **Red.** The file's own rule: « a check that measured nothing is not green » (`production-checks.yml:271`) |
-| « Aucun salon trouvé », or salons on the page with no card photo | **A printed skip, and the log tells the two apart:** « empty list: no public salon, nothing read », against « 3 salons on the page, none shows a photo: nothing read ». Green, claiming nothing, as decided. The second is also what photos no longer reaching the page look like, so its first reader can act on the count |
+| « Aucun salon trouvé », or salons on the page with no card photo | **A printed skip, and the log tells the two apart:** « empty list: no public salon, nothing read », against « 2 salons on the page, none shows a photo: nothing read ». Green, claiming nothing, as decided. The second is also what photos no longer reaching the page look like, so its first reader can act on the count |
 | A list with a card photo | The first one: its `/_next/image` answers 200, `naturalWidth` above 0, media ratio 1.33 ± 0.02. **And one transformation nobody has read answers 200:** the same file with `?m=<epoch day>` on its `url` parameter, at the page's own `q`, so it never repeats and is new under either billing model. Anything else is **red**, and the message says what a 402 means against a 400. That last read is how a plan out of transformations shows: the first photo's own file is cached after its first read and should keep answering, while new photos fail as a letter on a tile (§14). Its cost is one transformation a day. The log prints the probe's `x-vercel-cache`. **`remotePatterns` has no `search`, so Next accepts the query (read), and real bytes through Next's optimizer read 200 (measured). On Vercel and R2 it is UNVERIFIED until the first real run,** which is why that header is logged. Because `q` stays the page's own, `images.qualities` needs no pin for this check: the page itself asks for that quality |
 
 **The workflow change, whole.** A job `cardphoto`, the same shape as `privacy`, with `PRIVACY_URL: ${{ github.event.inputs.target || 'https://myweli.com' }}`, so a dispatch with a custom target reads that target as the others do. It has no `if` and no `continue-on-error`, and it declares `permissions: contents: read`, so it holds none of the workflow's `issues` or `id-token` rights (corrected 2026-11-05: it inherited them; `cwv`, `privacy` and `legal` still do, for their own change). Added to `report.needs` and `clear.needs` (`:328`, `:428`). `report` gains the env row `CARDPHOTO: ${{ needs.cardphoto.result }}`, « · card photo: ${CARDPHOTO} » in its status line, and « Five of these run against myweli.com » with card photo named beside CWV, privacy, legal and retention (`:368-370`). The report's sentence on this job names its four reds: `/recherche` answering neither a list nor an empty list, the photo not loading through the optimizer, a card no longer 4:3, and a new transformation refused. `clear`'s comment gains: « The card photo check reads nothing until a public salon has a photo; the run's log says which. » `docs/design/production-alarm-close.md` goes from seven checks to eight. `backend/test/infra/production_alarm_test.dart:46-53,76-92` derives the checks from this file, so it needs no edit, and it fails if either `needs` is missed; CI has no path filter, so it runs on the web PR. That test is the mutation: leave `clear.needs` alone and see it red.
