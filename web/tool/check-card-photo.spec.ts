@@ -19,7 +19,9 @@ import { expect, test } from '@playwright/test';
 /// expired copy may still answer it, and a plan billed by source image would not count
 /// it as new. A new source never repeats and is new under either billing model. Its cost
 /// is one transformation a day. **What Vercel and R2 do with it is UNVERIFIED until the
-/// first real run,** so the log prints the probe's `x-vercel-cache`, to show if it missed.
+/// first real run,** so the log prints the probe's `x-vercel-cache`, and nothing here
+/// asserts it. On that run a person reads the line: 200 and `MISS`. A `HIT` on a new `m`
+/// means the probe cannot see a ceiling (web-swiss-cards.md §9).
 ///
 /// It is a MONITOR, GET only, with no cookies. **It reads the page, not the API:** these
 /// jobs already reach myweli.com from a runner, while no scheduled check reaches
@@ -33,7 +35,7 @@ import { expect, test } from '@playwright/test';
 ///   what photos no longer reaching the page would look like;
 /// - a list with a card photo: the first one's `/_next/image` answers 200, it has
 ///   decoded to something, its box is 4:3, and a transformation nobody has read answers
-///   200 too. Anything else is red.
+///   200 with an image too. Anything else is red.
 const target = process.env.PRIVACY_URL ?? 'https://myweli.com';
 /// Rehearsals only, so a local stub can show each outcome. The workflow never sets it.
 const path = process.env.CARD_PHOTO_PATH ?? '/recherche';
@@ -111,5 +113,11 @@ test(`${path}: the first card photo, once there is one`, async ({ page, request 
     transformed.status(),
     `${unread}, a transformation nobody has read, did not answer 200. A 402 means the plan ran out: new photos show a letter while cached ones still load. A 400 means the request was refused, by the \`images\` config or because the answer was no image, and not the plan`,
   ).toBe(200);
-  console.log(`read ${file}: 200, decoded, 4:3; ${unread}: 200`);
+  // A 200 that is no image is a page or an error dressed as a success, and says nothing
+  // about the plan. The page's own photo is checked as decoded above; this one is not.
+  expect(
+    transformed.headers()['content-type'] ?? '',
+    `${unread} answered 200 with no image, so this read nothing about the plan`,
+  ).toMatch(/^image\//);
+  console.log(`read ${file}: 200, decoded, 4:3; ${unread}: 200, an image`);
 });
