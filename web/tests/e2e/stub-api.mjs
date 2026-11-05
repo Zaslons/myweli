@@ -1,6 +1,7 @@
 // Minimal stub of the Myweli API for hermetic web e2e — the Next server fetches
 // it server-side, so this replaces the dart_frog backend (no DB/network needed).
 // Started by playwright.config.ts; serves one provider + the sitemap feed.
+import { readFileSync } from 'node:fs';
 import { createServer } from 'node:http';
 
 import {
@@ -11,6 +12,14 @@ import {
 } from './stub-clock.mjs';
 
 const port = Number(process.env.STUB_PORT ?? 8787);
+
+/// Every form a salon card can take, for the reads below only, so Lighthouse and every
+/// other spec keep the single card (docs/design/web-swiss-cards.md §8). F7 is unnamed
+/// and F9 has no commune and no price. F5's photo is `absent.jpg`, which
+/// `routeNextImages` answers with a 404.
+const CARD_FIXTURES = JSON.parse(
+  readFileSync(new URL('./card-fixtures.json', import.meta.url), 'utf8'),
+);
 
 const provider = {
   id: 'p1',
@@ -824,6 +833,17 @@ createServer(async (req, res) => {
   if (url.pathname === '/providers') {
     const category = url.searchParams.get('category');
     const commune = url.searchParams.get('commune');
+    const query = url.searchParams.get('q');
+    const listOf = (items) =>
+      json(res, 200, { items, page: 1, pageSize: 20, total: items.length });
+    if (query === 'vide') return listOf([]);
+    if (query === 'vitrine') return listOf(CARD_FIXTURES);
+    // F1 to F6, and not F7: a landing's `ItemList` would carry an empty name
+    // (`TaxonomyLandingView.tsx`), today's behaviour for an unnamed public salon, filed
+    // in B11.5. So `/barbier/abidjan/marcory` stays empty.
+    if (commune === 'Marcory' && (!category || category === 'salon')) {
+      return listOf(CARD_FIXTURES.filter((f) => f.id !== 'f7' && f.id !== 'f9'));
+    }
     const matches =
       (!category || category === provider.category) &&
       (!commune || commune === provider.commune);
