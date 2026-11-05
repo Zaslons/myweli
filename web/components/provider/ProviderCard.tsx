@@ -24,7 +24,8 @@ const httpsOrNull = (url: string | null | undefined): string | null =>
 
 /// A browser generates an `<img>`'s `::after` only when the image failed, so a loaded
 /// photo is untouched. `alt` alone is not enough: Chromium still draws its broken-image
-/// mark in the corner (measured, 548 colours there without this; spec §2.4).
+/// mark in the corner (measured, 428 colours there at 390 and 526 at 1280 without this;
+/// spec §2.4).
 const FAILED_COVER = 'after:absolute after:inset-0 after:bg-surfaceVariant';
 
 /// The salon card, in two layouts: a salon's own photo, square and uncovered, with

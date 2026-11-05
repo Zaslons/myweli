@@ -350,8 +350,9 @@ export function RechercheClient({
       </div>
 
       {/* Mobile floating toggle — the app's map tab, web-shaped. At the page's gutter, so
-          it sits over a row's photo column and never over its text: the owner moved it
-          there after seeing the before and after (docs/design/web-swiss-cards.md §2.4). */}
+          it sits over a row's photo column and off the card's text at normal text from
+          250 wide up: the owner moved it there after seeing the before and after. What it
+          still covers is listed in docs/design/web-swiss-cards.md §2.4. */}
       <button
         type="button"
         onClick={() => setMobileView((v) => (v === 'list' ? 'map' : 'list'))}
