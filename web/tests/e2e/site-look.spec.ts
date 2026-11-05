@@ -728,8 +728,10 @@ test.describe('the salon card', () => {
   });
 
   // The owner moved it after seeing the before and after (web-swiss-cards.md §2.4): it sits
-  // over a row's photo column and never over its text. A fixed button over a list is only
-  // wrong at some scroll, so each row is brought under it.
+  // over a row's photo column and off the card's text, at normal text and at these widths.
+  // A fixed button over a list is only wrong at some scroll, so each row is brought under
+  // it. This reads the card's text only: a refused heart's sentence and the footer's last
+  // link are §2.4's to state, and neither is held here.
   test.describe('« Carte » over the list', () => {
     for (const [width, height] of [
       [320, 568],
@@ -783,7 +785,14 @@ test.describe('the salon card', () => {
       await expect(liste).toBeVisible();
       const button = (await liste.boundingBox())!;
       expect(button.height).toBeGreaterThanOrEqual(48);
-      const controls = page.locator('.maplibregl-ctrl, .maplibregl-ctrl-attrib, .maplibregl-ctrl-logo');
+      // Attribution exists when the map is built and the zoom mounts a little later, so
+      // counting before it could pass on attribution alone. « Autour de moi » is our own
+      // button, not one of MapLibre's.
+      await expect(page.locator('.maplibregl-ctrl-zoom-in')).toBeVisible();
+      await expect(page.getByRole('button', { name: 'Autour de moi' })).toBeVisible();
+      const controls = page.locator(
+        '.maplibregl-ctrl, .maplibregl-ctrl-attrib, .maplibregl-ctrl-logo, button:has-text("Autour de moi")',
+      );
       const count = await controls.count();
       expect(count, 'no map control to read').toBeGreaterThan(0);
       for (let i = 0; i < count; i++) {
