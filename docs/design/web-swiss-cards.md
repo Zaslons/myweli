@@ -412,13 +412,34 @@ Delete `.next/cache/images` before each series. Read LCP **and which element it 
 | Area | 1674 | 2761 | **−1087** | 1631 | 2584 | −953 |
 | `/recherche?q=vitrine` | 1495 | 3005 | **−1510** | 1497 | 1453 | +44 |
 
-Read by the same rule, this table keeps the prop on all four levels, where the simulated one takes it off all four. The largest paint is the same element in both. **The mechanism, seen in the requests:** on the city level at 412, the lazy photo's request starts at 1426–1668 ms, after the stylesheet, and with the prop at 582–584 ms, beside it, which is what the paragraph at the top of this section predicted. **Why the simulation misses it (inferred):** its LCP is not set by the photo on these pages. The photo ends at 770 ms in that simulated run and the LCP still reads 2635, and the text-only `/suppression-compte` reads 2108, so about 2100 ms is a floor that a photo does not move. Lighthouse's own warnings are off too: `lcp-lazy-loaded` and `prioritize-lcp-image` error on this Chrome, as the element audit does. **CLS under this throttling:** 0.167 on the city level at 412 (5 of 5 with the prop, 2 of 5 without) and 0.068 on the area level at 360 (5 of 5 both). The cause was not read, because `layout-shifts` errors as well. The branch follows the rule as written, and whether the rule should read this table instead is the owner's call: reverting the commit that removed the prop restores it on every level.
+Read by the same rule, this table keeps the prop on all four levels, where the simulated one takes it off all four. The largest paint is the same element in both. **The mechanism, seen in the requests:** on the city level at 412, the lazy photo's request starts at 1426–1668 ms, after the stylesheet, and with the prop at 582–584 ms, beside it, which is what the paragraph at the top of this section predicted. **Why the simulation misses it (inferred):** its LCP is not set by the photo on these pages. The photo ends at 770 ms in that simulated run and the LCP still reads 2635, and the text-only `/suppression-compte` reads 2108, so about 2100 ms is a floor that a photo does not move. Lighthouse's own warnings are off too: `lcp-lazy-loaded` and `prioritize-lcp-image` error on this Chrome, as the element audit does. **CLS under this throttling:** 0.167 on the city level at 412 (5 of 5 with the prop, 2 of 5 without) and 0.068 on the area level at 360 (5 of 5 both). The cause was not read, because `layout-shifts` errors as well. The branch follows the rule as written, and whether the rule should read this table instead is the owner's call: reverting the commit that removed the prop restores it on every level. For scale, on the city level at 412 with this throttling: `main`, which has no photo there, 1513 ms on a `<p>`; the committed branch, lazy, 2655 ms on the photo; with the prop, 1669 ms on the photo. That page's CLS predates this slice: 0.176 on `main` in 4 of 5 runs, 0.167 on the branch in 5 of 5.
+
+**The committed branch (`571038b2`, no prop) against `main` (`ea0c8f0c`),** same session, same simulated method, each built as CI's `web-lighthouse` builds it, medians of five:
+
+| Page | Budget | `main` (range) | Branch (range) | Largest paint, both | CLS, TBT | Images, branch | Scripts, `main` → branch |
+|---|---|---|---|---|---|---|---|
+| `/` | LCP 2500, scripts 179,200 B | 2110 (2109–2127) | **2261** (2128–2264) | `<h1>`, 5 of 5 | 0, 0 | 2, 56 KB (`main` 1, 2.4 KB) | 162,178 → 162,488 B |
+| `/connexion` | LCP 2900 | 2755 (2412–2865) | **2754** (2112–2864) | `<p>`, 5 of 5 | 0, 0 | 1, 2.4 KB | 239,229 → 240,665 B, no budget |
+| `/suppression-compte` | LCP 2500, scripts 179,200 B | 2109 (2108–2412) | **2411** (2108–2569) | `<p>`, 5 of 5 | 0, 0 | 1, 2.4 KB | 164,015 → 164,536 B |
+
+**No budgeted page is over its budget.** `/` moved about 150 ms, one simulated round trip, in every series that had a photo. The other two are the modes WEB.md §7 names: `af79b362` read `/connexion` 2865 (2563–3318) and `/suppression-compte` 2108 (2108–2263) in this same session, on code that does not reach them. One `/suppression-compte` run read 2569, above its budget, and the gate reads a median: close, not a breach.
+
+| Level, branch | 412×823 | 360×640 | Largest paint, 412 · 360 |
+|---|---|---|---|
+| Root | 2484 | 2484 | Photo · `<p>` |
+| City | 2259 | 2259 | Photo · `<p>` |
+| Area | **2639** | **2640** | Photo · photo |
+| `/recherche?q=vitrine` | **2663** | 2482 | Photo · `<h1>` |
+
+**Over 2500 ms: area at both sizes and `/recherche` at 412. That goes to the owner, with no number set to make it pass.** CLS 0. TBT 0 on the landings, with one run at 10, and 47–54 on `/recherche`. The « without » build above differs from this one only by a prop nothing passes, and it read area 2485 at both sizes and `/recherche` 2527 at 412. So two reads of what is in effect one build differ by up to about 150 ms, and a 100 ms threshold on five runs sits inside this metric's noise. Each level's first, cold run read 2873–3480 at 412.
 
 **If a budgeted page breaches, the budget does not move** (direction §11). If a landing or `/recherche` is over 2500 ms, that goes to the owner as a finding, with no number written down to make it pass.
 
-**Bytes.** On `/`, Chrome's lazy distance probably fetches all four photos on load (inferred, not measured). On a phone at DPR 2 that is four 750w files. The measurement records it, since many visitors pay per megabyte. There is no image budget to break, so this needs looking at.
+**Bytes, measured.** `/` reads `searchProviders({ pageSize: 8 })`, so the number to read is eight photos, not the four this line used to infer. With eight distinct photos in a throwaway stub, never committed, five runs each: at 412×823 (DPR 1.75) **seven of the eight are fetched on load,** all 750w, 277 KB; at 360×640 **all eight,** 640w, 271 KB. None is on-screen, and the largest paint stays the `<h1>` (2260 and 2261 ms). With the stub's one card it is one photo, 54 KB at 412. **These demo files are small** (50–106 KB PNGs), so what a real photo weighs is UNVERIFIED. Many visitors pay per megabyte and there is no image budget to break, so this still needs looking at.
 
-**CI's Lighthouse does not see a photo.** On `/` the page requests `/_next/image?url=https://cdn.stub/p1.jpg`. LCP stays the `<h1>`, so the number should not move (inferred). The preload in §8 keeps that request from stalling. The first CI run gets read for this.
+**The hidden map costs more than the photos, and predates this slice.** `/recherche?q=vitrine` at 412 and at 360: 52 requests and 1200 KB. The photos are 34 KB of that. 640 KB in 17 requests goes to `basemaps.cartocdn.com` and `tiles.basemaps.cartocdn.com`, and one script is 268 KB, for a map that is `display: none` below `lg`: `RechercheClient` mounts `ResultsMap` inside `hidden lg:block`, as `main` does (seen in `main`'s source; the bytes were read on the branch). Not changed here, and it goes to the owner.
+
+**CI's Lighthouse does not see a photo.** On `/` the page requests `/_next/image?url=https://cdn.stub/p1.jpg`. With real bytes locally the `<h1>` holds in 5 of 5, and the number does move, 2110 to 2261 ms (above). This line used to infer that it would not. CI's request fails at once instead of loading, so its effect there is still unread: the preload in §8 keeps that request from stalling, and the first CI run gets read for this.
 
 ### What a photo costs on Vercel
 
@@ -662,6 +683,8 @@ It wakes with the first public salon, and on that same day `check:cwv` starts me
 
 Plus `store-linked-pages.test.tsx` and its e2e. After the merge, words and links read on `myweli.com`, as after #730.
 
+**On the real branch, 2026-11-05 (`571038b2` against `ea0c8f0c`): conditions 1, 3, 4 and 5 hold, and condition 2 does not hold as written.** After its three normalisations, all five pages still differ, at one place each: a few characters on one side of a `self.__next_f.push` boundary, because a chunk renamed from `785` to `5878` makes the `I[…]` rows 6 characters longer, and Next cuts the inline payload into `<script>`s by length (the cut is inferred from where it moved; Next's source was not read). Decoding each page's payload and normalising it gives identical text, and everything outside the payload is identical. **The condition stays as written, and this stops the merge until the owner has read it.**
+
 ---
 
 ## 14. Where the approved spec was wrong or silent
@@ -702,6 +725,10 @@ Every § in this table is the parent's, unless it says otherwise.
 | §11 is silent on the cache and erasure | Review photos go through the optimizer, and erasure deletes them | `unoptimized` on `AvisClient`. Decision 1 |
 | §12 lists a before-and-after SEO guard for a landing | It exists for `/` and `/professionnels` only | Added here at all three levels. The salon page's is S4's |
 | This spec's §8, `routeNextImages` « answers a pixel » | A loaded 1×1 file reads `naturalWidth` 0, as a failed photo does, because a `w` descriptor divides it by its density (measured: 1 ÷ 1.07, floored). And a box on a fractional x paints the page's colour in its first column (measured at 1280) | A 64×48 opaque PNG in one colour, so the failed photo's check means something and a loaded photo can be read covering its letter. The 30×30 corner is read from 2px in |
+| This spec's §7 rule names the metric and not the method | `lighthouserc` names no method, so Lighthouse runs `simulate`, and the same file's numbers applied with `devtools` give the opposite answer on all four levels | The rule was applied to `simulate`, what the gate reads. Both tables are in §7, and the choice is the owner's |
+| This spec's §7 « all four photos » on `/` | `/` reads eight salons, and a phone fetches seven or eight on load | Measured in §7. No change to the page |
+| This spec's §9 and `tool/check-card-photo.spec.ts:17`, « Phone viewport, so no basemap loads » | Below `lg` the map is mounted and hidden, and it still loads the basemap, read at 412 and 360 (not at 390) | Recorded in §7. The check still reads what it reads. The sentence and the comment are left for the owner, with the map itself |
+| This spec's §13 « the only differences on the prototype » | On the real branch the payload's `<script>` boundaries move too | Reported under §13. Condition 2 is unchanged |
 | §13 « Cards with and without photos looked at » | Cannot be done on production | Locally now, on production when a salon is public, with a scheduled check for that day (§9 of this spec). A new job the parent did not plan |
 
 ---
