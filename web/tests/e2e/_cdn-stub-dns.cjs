@@ -13,7 +13,8 @@
 //
 // Only this host, and never in production: nothing outside tests/e2e loads this file.
 // `net` reads `dns.lookup` when it connects, so replacing the property reaches `fetch`.
-// Held by the « test server » case in site-look.spec.ts.
+// Held by the « test server » case in site-look.spec.ts, which reads the speed, and by
+// tests/cdn-stub-preload.test.ts, which reads this file and the two lines that load it.
 const dns = require('node:dns');
 
 const realLookup = dns.lookup;
