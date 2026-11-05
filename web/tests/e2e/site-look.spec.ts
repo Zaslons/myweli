@@ -597,8 +597,9 @@ test.describe('the salon card', () => {
       }
       return { hearts: hearts.length, met };
     });
-  const sideways = (page: Page) =>
-    page.evaluate(() => [document.documentElement.scrollWidth, document.documentElement.clientWidth]);
+  // Against the width asked for, not `clientWidth`: with `isMobile` a page that spills
+  // can have its layout viewport widened to fit, and the check would compare it to itself.
+  const pageWidth = (page: Page) => page.evaluate(() => document.documentElement.scrollWidth);
 
   for (const width of [320, 390]) {
     test(`at ${width} no text meets a heart, and the page does not scroll sideways`, async ({ page }) => {
@@ -609,8 +610,7 @@ test.describe('the salon card', () => {
       const { hearts, met } = await textUnderHearts(page);
       expect(hearts, 'every fixture has its heart').toBe(8);
       expect(met).toEqual([]);
-      const [scroll, client] = await sideways(page);
-      expect(scroll).toBe(client);
+      expect(await pageWidth(page)).toBe(width);
     });
   }
 
@@ -634,8 +634,7 @@ test.describe('the salon card', () => {
         const { hearts, met } = await textUnderHearts(page);
         expect(hearts).toBe(8);
         expect(met).toEqual([]);
-        const [scroll, client] = await sideways(page);
-        expect(scroll).toBe(client);
+        expect(await pageWidth(page)).toBe(width);
       });
     }
   });

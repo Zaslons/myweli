@@ -18,7 +18,7 @@ const dns = require('node:dns');
 
 const realLookup = dns.lookup;
 
-dns.lookup = function lookup(hostname, options, callback) {
+function lookup(hostname, options, callback) {
   if (hostname !== 'cdn.stub') return realLookup.call(this, hostname, options, callback);
   const answer = typeof options === 'function' ? options : callback;
   const refusal = Object.assign(new Error('getaddrinfo ENOTFOUND cdn.stub'), {
@@ -27,4 +27,10 @@ dns.lookup = function lookup(hostname, options, callback) {
     hostname,
   });
   return process.nextTick(answer, refusal);
-};
+}
+
+// `util.promisify` reads the real one's result names off a symbol. Every other host has
+// to keep behaving exactly as it did.
+for (const key of Object.getOwnPropertySymbols(realLookup)) lookup[key] = realLookup[key];
+
+dns.lookup = lookup;

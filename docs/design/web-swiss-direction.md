@@ -35,7 +35,7 @@
 
 **In scope.** Tokens and rules (§5, §6), the logo and identity (§3), the pattern (§4), and these pages: `/`, `/professionnels`, `/recherche`, the taxonomy landings, the salon page, 404 and error pages, the OG image.
 
-**Inherits only the font, header and footer, with no layout change:** `/connexion`, `/mon-compte/*`, `/[slug]/reserver`, `/support`, the legal pages, `/pro/connexion`, `/pro/inscription`, `/pro/*`. **Corrected 2026-11-05:** this contradicted §7.3 and §13's S3, which put the new card in the favourites on `/mon-compte`. The card applies there, and the account's columns, container and states do not. WEB-SYSTEM §16 records the exception, and a stopped favourite no longer being a link is the one flow change (web-swiss-cards.md, decision 3). These are task surfaces; restyling them adds risk and no brand value. The booking funnel keeps its flow as is.
+**Inherits only the font, header and footer, with no layout change:** `/connexion`, `/mon-compte/*`, `/[slug]/reserver`, `/support`, the legal pages, `/pro/connexion`, `/pro/inscription`, `/pro/*`. These are task surfaces; restyling them adds risk and no brand value. The booking funnel keeps its flow as is. **Corrected 2026-11-05:** this contradicted §7.3 and §13's S3, which put the new card in the favourites on `/mon-compte`. The card applies there, and the account's columns, container and states do not. WEB-SYSTEM §16 records the exception, and a stopped favourite no longer being a link is the one flow change (web-swiss-cards.md, decision 3).
 
 **Out of scope.**
 - The apps. The font and pattern can reach them later: `AppTheme.themeData(fontFamily:)` is the seam.
