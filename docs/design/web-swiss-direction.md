@@ -2,9 +2,9 @@
 
 | | |
 |---|---|
-| **Status** | **Approved 2026-11-02** (decisions in §15). Direction B, with the owner's two additions: the real logo and the things that are MyWeli's own (§3), and a pattern with an African identity that **feels calm** (§4). **S0 merged in #724 and read back on `myweli.com`** (§11, §13). **S1 merged in #727 and read back on `myweli.com`** (§11, §13.1). **The owner chose to merge it before §4.8 (2026-11-02):** that check and a low-end Android are still theirs, now on the live site, and an answer to question 3 still changes the drawing. Fields and buttons went square in #728 ([web-swiss-fields.md](web-swiss-fields.md)). **S2 merged in #730 on 2026-11-04. `/professionnels` and the 404 read on `myweli.com` in Chromium only: no Safari or WebKit layout, no real phone, and the error pages not read live** (§13.2). |
+| **Status** | **Approved 2026-11-02** (decisions in §15). Direction B, with the owner's two additions: the real logo and the things that are MyWeli's own (§3), and a pattern with an African identity that **feels calm** (§4). **S0 merged in #724 and read back on `myweli.com`** (§11, §13). **S1 merged in #727 and read back on `myweli.com`** (§11, §13.1). **The owner chose to merge it before §4.8 (2026-11-02):** that check and a low-end Android are still theirs, now on the live site, and an answer to question 3 still changes the drawing. Fields and buttons went square in #728 ([web-swiss-fields.md](web-swiss-fields.md)). **S2 merged in #730 on 2026-11-04. `/professionnels` and the 404 read on `myweli.com` in Chromium only: no Safari or WebKit layout, no real phone, and the error pages not read live** (§13.2). **S3 built on 2026-11-05, not merged: its spec, [web-swiss-cards.md](web-swiss-cards.md), approved the same day, corrects §1, §5.3, §6.1, §6.4, §7.3–§7.5, §8–§11 and §13 here, each marked with that date. Where they differ, its §14 says why.** |
 | **Owner** | Sadreddine Daher |
-| **Last updated** | 2026-11-04 |
+| **Last updated** | 2026-11-05 |
 | **PRD ref / phase** | FR-WEB-MP-001, FR-WEB-PP-001/002 (presentation only) · V1 |
 | **Module** | Web public: `app/page.tsx`, `app/professionnels`, `app/recherche`, `app/[slug]`, `components/home`, `components/landing`, `components/provider`, `Header`, `SiteFooter`, `styles/tokens.ts` |
 | **Skills checked** | myweli-web-guardrails ✓ · myweli-verification-guardrails ✓ · no backend change |
@@ -30,12 +30,12 @@
 | The logo is small and appears once | `Header` `h-7`. The footer has none |
 | No shared left edge | `Header` is `max-w-5xl`, centred. `/recherche` starts at the page edge: at 1440 the logo sits at x = 224 and the `<h1>` at x = 24 |
 | Everything is a bordered box | Ten `rounded-xl border` blocks in the source of the home page, `/professionnels`, the landings, the salon card and panel, and the empty state |
-| Salon cards have no photo | `ProviderCard` has none. The app's card leads with a 180-high cover: a parity gap |
+| Salon cards have no photo | `ProviderCard` has none. The app's card leads with a cover photo: a parity gap. **Corrected 2026-11-05:** this said « a 180-high cover », which is its grid only; its list uses an 80×80 thumbnail |
 | **No salon is public yet** | `GET /providers` → `total: 0`. A design that needs salon photos launches empty |
 
 **In scope.** Tokens and rules (§5, §6), the logo and identity (§3), the pattern (§4), and these pages: `/`, `/professionnels`, `/recherche`, the taxonomy landings, the salon page, 404 and error pages, the OG image.
 
-**Inherits only the font, header and footer, with no layout change:** `/connexion`, `/mon-compte/*`, `/[slug]/reserver`, `/support`, the legal pages, `/pro/connexion`, `/pro/inscription`, `/pro/*`. These are task surfaces; restyling them adds risk and no brand value. The booking funnel keeps its flow as is.
+**Inherits only the font, header and footer, with no layout change:** `/connexion`, `/mon-compte/*`, `/[slug]/reserver`, `/support`, the legal pages, `/pro/connexion`, `/pro/inscription`, `/pro/*`. **Corrected 2026-11-05:** this contradicted §7.3 and §13's S3, which put the new card in the favourites on `/mon-compte`. The card applies there, and the account's columns, container and states do not. WEB-SYSTEM §16 records the exception, and a stopped favourite no longer being a link is the one flow change (web-swiss-cards.md, decision 3). These are task surfaces; restyling them adds risk and no brand value. The booking funnel keeps its flow as is.
 
 **Out of scope.**
 - The apps. The font and pattern can reach them later: `AppTheme.themeData(fontFamily:)` is the seam.
@@ -204,7 +204,7 @@ Nearly everything is already a token. Only one is new.
 |---|---|---|---|---|
 | Hero `<h1>`, `/` and `/professionnels` | `displaySmall` 36/44 | `displayMedium` 45/52 | `displayLarge` 57/64 | **`displayPoster` 80/84** |
 | Page `<h1>`, salon and landing | `headlineLarge` 32/40 | `headlineLarge` | `displaySmall` | `displaySmall` |
-| Section `<h2>`, public pages | `headlineSmall` 24/32 | `headlineSmall` | `headlineMedium` 28/36 | `headlineMedium` |
+| Section `<h2>`, public pages. **Corrected 2026-11-05:** not `/recherche`'s count, which stays `titleLarge`, and its `<h1>` stays `headlineSmall`: it is a list beside a map | `headlineSmall` 24/32 | `headlineSmall` | `headlineMedium` 28/36 | `headlineMedium` |
 | Reading | `bodyLarge` 16/24, as today | | | |
 
 - **`displayPoster` is web-only** and is declared in `WEB_ONLY` (`scripts/dart-tokens.mjs`), since the mirror test fails any undeclared web token. A second token needs a reason.
@@ -222,7 +222,7 @@ Nearly everything is already a token. Only one is new.
 - `grid-cols-12` from `lg`, one column below it. Gutters `gap-x-m`, `lg:gap-x-l`.
 - Reading paragraphs stay capped at `max-w-content` (SYSTEM §10).
 - **Hanging headings** from `lg`: the `<h2>` in columns 1–3, the content in 4–12. Stacked below `lg`.
-- **Flush left, everywhere on these pages.** Empty states included: `EmptyState` gains an `align` option, and its default stays centred for the pro pages.
+- **Flush left, everywhere on these pages.** Empty states included: `EmptyState` gains an `align` option, and its default stays centred for the pro pages. **Corrected 2026-11-05:** the public pages only. The favourites' empty state stays centred with the rest of the account.
 
 ### 6.2 One left edge
 
@@ -239,11 +239,12 @@ Black structural rules are a **new use of `primary`**, recorded in WEB-SYSTEM. `
 
 ### 6.4 Photos
 
-- **Same-ratio crops:** 4:3 on cards (the app's card is close to that), 3:2 on the salon cover, through two named `aspectRatio` tokens. Same-ratio crops are what make uneven phone photos look like one set.
+- **Same-ratio crops:** 4:3 on cards, 3:2 on the salon cover, through two named `aspectRatio` tokens. Same-ratio crops are what make uneven phone photos look like one set. **Corrected 2026-11-05:** `card` arrives with S3 and `cover` waits for its first user in S4. This said the app's card is close to 4:3, which is only its two-column phone grid (1.24–1.36): its carousel is 1.56, one column 1.82, its list 1:1. The decision stands.
+- **The crop is centred,** as the app's. A head in the upper third of a portrait loses its top, and `object-top` would cost a room its chairs. No real portrait has been looked at (added 2026-11-05, web-swiss-cards.md §2.4, decision 2).
 - **Square corners**, so the grid stays visible.
 - **No filters and no scrims.** Hair colour is information.
 - **No AI-generated faces or results** anywhere on the site. A fake result on a booking site misleads people.
-- **A salon with no photo:** its logo on `surfaceVariant` if it has one, otherwise its initial in display type. Never a stock image and never the pattern.
+- **A salon with no photo:** its logo on `surfaceVariant` if it has one, otherwise its initial in display type. Never a stock image and never the pattern. **Added 2026-11-05:** the logo is contained, 2/3 of the tile, in the bottom-left corner with no padding, on the name's x. Any ratio can arrive, often opaque (web-swiss-cards.md §2.2, decision 2).
 
 ---
 
@@ -278,13 +279,26 @@ Two layouts, one component, with every existing prop unchanged:
 
 No box: a rule and a hover state. `next/image`, lazy, with real `sizes`. The rating, the « Nouveau » pill and the favourite heart with all its states stay as they are.
 
+**Corrected 2026-11-05, by [web-swiss-cards.md](web-swiss-cards.md) §2.2, which now governs the card:**
+- **Layouts:** a third value, `rowOnPhone`, the same two switching at `sm`, for the favourites: as tiles they pushed support and account deletion down 1082px on a phone. `row` holds at every width, as this says, though all three competitors stack on phones (decision 2).
+- **Props:** all five stay. `layout`, `imageSizes`, `imagePriority` and `linked` are additive. `linked={false}` is a stopped favourite, whose link ended on a 404 (decision 3).
+- **Where the rule goes:** at the foot of the media block, and the list draws the lines between rows. Hover and focus underline the name, because the old hover would hide a no-photo tile.
+- **« Lazy »:** true only for `/`. A card photo is the Largest Contentful Paint on landings and `/recherche` at 412×823, so `imagePriority` is on one card per level, kept only by the rule in its §7.
+- **« Real `sizes` »:** one layout, three grids, and a wrong `vw` silently drops candidates, hence `CARD_SIZES`.
+- **The rating:** the same component, on its own line in the app's order, with its count, « ★ 4,8 (32 avis) » (decision 4).
+- **The heart** is not placed here. It stays bottom-right, off the photo, with a spacer as tall as the heart.
+
 ### 7.4 `/recherche`
 
 Same list and map, same filters, same mobile toggle. The map is untouched. Cards use `row`, and the full-width header starts at the list's left edge.
 
+**Corrected 2026-11-05:** this left out the empty state, now flush left (§6.1), and the selection ring, now square with `ring-offset-2`, on every row's `py-m` (§6.3). « Same filters » holds, except that « Trier » can now shrink, because it scrolled the page sideways at 320 with doubled text (web-swiss-cards.md §2.3).
+
 ### 7.5 Landings
 
 `max-w-content` becomes the site grid. Reading text stays capped. Cards 3 across from `lg`. Sibling chips stay chips. The empty state goes left-aligned with its current words. The FAQ follows §7.1.
+
+**Corrected 2026-11-05:** sections are hanging, §6.1's default. The city links this left out become a ruled index, the home page's Catégories treatment. The FAQ follows §7.1 through a new `SiteFaqList`, because `Faq` is shared with the salon page, whose own container breaks the edge: it waits for S4 (web-swiss-cards.md §2.3).
 
 ### 7.6 Salon page
 
@@ -317,8 +331,9 @@ Gets the font only. `SiteFooter` is a server component shown on `/pro` too (its 
 | Locality tree unreadable | As today: « Abidjan » fallback, directory hidden, search still works |
 | Font slow or blocked | System fallback with adjusted metrics, then a swap. Text is never hidden. **Corrected 2026-11-02:** this said « no visible jump », and it can re-wrap a paragraph, which measured 0.064 on `/suppression-compte` against the 0.1 budget (WEB.md §7) |
 | Salon with no photo | §6.4 |
-| Photo fails to load | The `surfaceVariant` tile stays and the ratio holds, so there is no shift |
-| Long city or salon name | `displaySmall` fits « Yamoussoukro » at 320 wide by estimate; `type-overflow.spec.ts` decides. `break-words` on `<h1>`. Declared `truncate` on card names stays |
+| Photo fails to load | The `surfaceVariant` tile stays and the ratio holds, so there is no shift. **Corrected 2026-11-05:** Chromium also draws a broken-image mark, and a pale tile says nothing while a photo is slow, so the salon's letter sits under the photo and in the failed image's `::after` (web-swiss-cards.md §2.4). WebKit UNVERIFIED |
+| Long city or salon name | `displaySmall` fits « Yamoussoukro » at 320 wide by estimate; `type-overflow.spec.ts` decides. `break-words` on `<h1>`. **Corrected 2026-11-05:** this said declared `truncate` on card names stays. That `truncate` did not truncate, and at doubled text it cut short names for the reader who enlarged them, so names wrap (decision 2) |
+| A control under 48px | **Added 2026-11-05:** « Retirer des favoris » and a landing's crumbs measured 20px. Both raised to the floor, no word changed |
 | 320 wide, 400% zoom | One column. The band fills the width. Covered by the reflow gate |
 | Large browser font | Same limit as today: type is `px`, boxes are `rem` (WEB-SYSTEM §9). Not made worse |
 | Forced-colours mode | The pattern is decorative. Text and controls are the system's |
@@ -332,6 +347,8 @@ Gets the font only. `SiteFooter` is a server component shown on `/pro` too (its 
 
 None. `imageUrls` is already `required` on `Provider` in `openapi.yaml`, and `imageUrls[0]` is already the listing cover. To confirm in S3: the real list read returns it (the app's card relies on it and the stub has it).
 
+**Answered 2026-11-05: in code yes, live no.** The route returns repository maps with no projection, and the repository selects the whole document. No live read is possible, because `GET /providers` reads `total: 0`, and nothing pinned it. So one backend test, test only, in its own PR, because any file under `backend/` starts `deploy-backend.yml` (web-swiss-cards.md §3, §9).
+
 ---
 
 ## 10. SEO / AEO / GEO
@@ -339,7 +356,7 @@ None. `imageUrls` is already `required` on `Provider` in `openapi.yaml`, and `im
 - Same `<h1>` words, canonical URLs, metadata and JSON-LD on every page. A test compares them before and after (§12).
 - The directory's links stay in the served HTML inside `<details>`.
 - Sitemap and `llms.txt` unchanged.
-- Salon card photos need real `alt` text, not `alt=""`, since they are content. Words: the salon's name, as the hero's alt already does.
+- Salon card photos need real `alt` text, not `alt=""`, since they are content. Words: the salon's name. **Corrected 2026-11-05:** this added « as the hero's alt already does », and the hero says `Salon {name}`, so « Salon Salon Excellence » is possible. Cards use the bare name, and `Hero` is S4's.
 
 ---
 
@@ -360,7 +377,8 @@ None. `imageUrls` is already `required` on `Provider` in `openapi.yaml`, and `im
 | **S2, five runs each, on a local build** | `/` 2115 ms, `/connexion` 2713 ms, `/suppression-compte` 2109 ms, all where they were; `/professionnels`, which has no budget, 2148 ms. CLS 0, TBT 0 |
 | **S2 on `myweli.com`, five runs, 2026-11-04** | `/` 1906 ms (1304–1920), `/connexion` 2207 ms (1914–2218), `/suppression-compte` 1309 ms (1163–1615), all within budget; `/professionnels`, which has no budget, 1160 ms (1152–1461). CLS at most 0.064, TBT at most 53 ms. WEB.md §7. From a Mac, so not comparable with the local numbers above, and with no like-for-like before: no regression is claimed, and none is ruled out |
 | **If it breaches** | The budget does not move |
-| **New photos** | Card photos are lazy and below the fold on `/`. Salon page budgets are set from a measurement in S4, added to `lighthouserc.json` so they cannot be forgotten |
+| **New photos** | Card photos are lazy and below the fold on `/`. Salon page budgets are set from a measurement in S4, added to `lighthouserc.json` so they cannot be forgotten. **Corrected 2026-11-05:** « below the fold » holds only for `/` at the sizes Lighthouse and a desktop use: at 820×1180 the photo is the LCP there too, recorded and not changed. Landings and `/recherche` have no budget in S3, because CI cannot serve a photo and production's landings are empty: they are measured once by hand, and the gate moves to B11.4 (web-swiss-cards.md §7) |
+| **Transformations** | **Added 2026-11-05:** with Next's default of 60 s most photo views would be a billed transformation, so `images.minimumCacheTTL` is 31 days. It is global, and erasure deletes review photos, so `AvisClient` shows those `unoptimized` (web-swiss-cards.md §6, §7, decision 1) |
 
 **Security.** CSP's `font-src 'self'` already allows `next/font`'s files, and no new origin appears. No third-party font request, which also keeps the privacy policy true. No secrets. **Read back after S0:** the served header has `font-src 'self'`; the font comes from our own origin and is byte-identical to the committed file; five pages read, none referring to Google Fonts. Error reporting still initialises and a clean load sends nothing, but a real error reaching Sentry from the live site has not been seen.
 
@@ -399,7 +417,7 @@ Six PRs, in order, each merged only on the owner's word. A merge is a production
 | **S0** | Font trimmed to 18.7 KB, `displayPoster`, `fontFamily` closed, the rules in WEB-SYSTEM §16, SYSTEM §22. **No layout change.** The grid constant moves to S1, its first user: nothing here would use it | Lighthouse measured on the font alone. Every e2e green, including `/pro` |
 | **S1** | `Weave`, `Header`, `SiteFooter`, `/`. Delete `HeroBackground` from `/` | Merged on the owner's word. §4.8 and the real-phone check follow on the live site |
 | **S2** | `/professionnels`, 404 and error pages. `HeroBackground` deleted | Merged in #730 on 2026-11-04. `/professionnels` and the 404 read on `myweli.com` in Chromium only, the error pages not read live (§13.2) |
-| **S3** | `ProviderCard`, `/recherche`, landings, favourites list | Cards with and without photos looked at |
+| **S3** | `ProviderCard`, `/recherche`, landings, favourites list. Spec: [web-swiss-cards.md](web-swiss-cards.md) | Cards with and without photos looked at. **Corrected 2026-11-05:** that cannot be done on production, which has no public salon. Locally now, on the live site when a salon is public, with a scheduled check for that day (its §9) |
 | **S4** | Salon page. Budgets added | Salon LCP measured |
 | **S5** | OG image. Audit of every page against this spec **on the deployed site**, by separate eyes told to refute it | Findings fixed or filed |
 
