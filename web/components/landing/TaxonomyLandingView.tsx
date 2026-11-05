@@ -306,15 +306,17 @@ export async function TaxonomyLandingView(input: TaxonomyInput) {
       {input.level === 'root' && cities.length > 0 ? (
         <SiteSection title="Choisissez votre ville">
           {/* A ruled index, the home page's Catégories treatment. One column below `sm`,
-              because « Coiffure à Yamoussoukro » does not fit in half a phone. */}
+              because « Coiffure à Yamoussoukro » does not fit in half a phone. The colour
+              sits on the link so its hover reaches the name, and its two lines and `py-s`
+              are 65 tall, so no `min-h-12`: it would hold nothing (spec §14). */}
           <div className="grid grid-cols-1 gap-x-m sm:grid-cols-2 lg:grid-cols-3 lg:gap-x-l">
             {cities.map((city) => (
               <Link
                 key={city.slug}
                 href={buildTaxonomyPath(input.root.slug, city.slug)}
-                className="flex min-h-12 flex-col justify-center border-b border-divider py-s hover:text-textSecondary"
+                className="flex flex-col justify-center border-b border-divider py-s text-textPrimary hover:text-textSecondary"
               >
-                <span className="font-medium text-textPrimary">
+                <span className="font-medium">
                   {label} à {city.name}
                 </span>
                 <span className="mt-xs block text-bodyMedium text-textSecondary">

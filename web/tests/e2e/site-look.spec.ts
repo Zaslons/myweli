@@ -458,6 +458,30 @@ test.describe('rules instead of boxes (§6.3)', () => {
   }
 });
 
+/// A ruled index has no box to light up, so the pointer's one answer is the name's colour.
+/// A child that sets its own colour stops the link's hover reaching it, and that reads as
+/// a link that does nothing (web-swiss-cards.md §2.3).
+test.describe('a ruled index answers the pointer', () => {
+  for (const [path, name] of [
+    ['/', /^Coiffure$/],
+    ['/coiffure', /Coiffure à Abidjan/],
+  ] as const) {
+    test(`${path}: the name changes colour under the pointer`, async ({ page }) => {
+      await page.goto(path);
+      const link = page.locator('main').getByRole('link', { name }).first();
+      // The first text in the link, wherever the link nests it.
+      const colour = () =>
+        link.evaluate((el) => {
+          const text = document.createTreeWalker(el, NodeFilter.SHOW_TEXT).nextNode()!;
+          return getComputedStyle(text.parentElement!).color;
+        });
+      const before = await colour();
+      await link.hover();
+      await expect.poll(colour).not.toBe(before);
+    });
+  }
+});
+
 /// B11.3 — docs/design/web-swiss-cards.md §8. A card is a salon's own photo, square and
 /// uncovered, with flush-left text and one thin rule. The fixtures are in
 /// card-fixtures.json: a fixture is a pixel, so whether it looks right is for the
