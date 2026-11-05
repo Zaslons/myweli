@@ -4,6 +4,7 @@ import { expect, test } from '@playwright/test';
 import { submitOtpLogin } from './_auth';
 import { keepSharedGallery } from './_gallery';
 import { asUnaskedBrowser } from './_push';
+import { stubDayKey } from './stub-clock.mjs';
 
 /// B5 — §14's "the whole of §4–§8, on real pages" gate (WEB-SYSTEM §15 row 15).
 ///
@@ -391,7 +392,9 @@ test('a VISIBLE toast is axe-clean', async ({ page }) => {
   await dialog.getByRole('checkbox').first().check();
   await dialog.getByLabel('Rechercher ou nommer le client').fill('Cliente Axe');
   await dialog.getByRole('checkbox', { name: 'Client sans numéro' }).check();
-  await dialog.getByLabel('Date du rendez-vous').fill('2026-12-01');
+  // The stub's clock, never a date: the dialog refuses a past instant, and
+  // without the success toast this scan has nothing to look at.
+  await dialog.getByLabel('Date du rendez-vous').fill(stubDayKey(new Date(), 30));
   await dialog.getByLabel('Heure du rendez-vous').fill('09:00');
   await dialog.getByRole('button', { name: 'Créer', exact: true }).click();
   const toast = page.getByRole('status').filter({ hasText: /./ });
