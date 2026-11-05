@@ -240,14 +240,16 @@ export function RechercheClient({
 
         {/* Trier + « Disponible aujourd'hui » (parity 2.1/2.2 — FR-DISC-007). */}
         <div className="mt-m flex flex-wrap items-center gap-s">
-          <label className="flex items-center gap-s text-bodyMedium text-textSecondary">
+          {/* `max-w-full` and `min-w-0`: with doubled text at 320 the unchanged « Trier »
+              made the page 322 wide (docs/design/web-swiss-cards.md §2.3). */}
+          <label className="flex max-w-full items-center gap-s text-bodyMedium text-textSecondary">
             Trier
             <select
               value={sort}
               onChange={(e) => {
                 window.location.assign(hrefWith({ sort: e.target.value }));
               }}
-              className="min-h-12 rounded-control border border-primary bg-surface px-s py-xs text-bodyLarge text-textPrimary focus:border-borderFocus focus:ring-1 focus:ring-borderFocus"
+              className="min-h-12 min-w-0 rounded-control border border-primary bg-surface px-s py-xs text-bodyLarge text-textPrimary focus:border-borderFocus focus:ring-1 focus:ring-borderFocus"
             >
               {SORT_OPTIONS.map((o) => (
                 <option key={o.value} value={o.value}>
@@ -270,15 +272,18 @@ export function RechercheClient({
             {results.length} salon{results.length > 1 ? 's' : ''}
           </h2>
         ) : null}
-        <div className="mt-m space-y-m">
+        {/* The list draws the lines between rows, so a card never doubles one. The empty
+            state is not inside the divide. */}
+        <div className={results.length === 0 ? 'mt-m' : 'mt-xs divide-y divide-divider'}>
           {results.length === 0 ? (
             <EmptyState
+              align="start"
               icon="search"
               title="Aucun salon trouvé"
               description="Essayez une autre recherche ou une autre commune."
             />
           ) : (
-            results.map((p) => (
+            results.map((p, i) => (
               <div
                 key={p.id}
                 ref={(el) => {
@@ -291,14 +296,19 @@ export function RechercheClient({
                 // contains focusable children, so capture their focus/blur.
                 onFocus={() => setHoveredId(p.id)}
                 onBlur={() => setHoveredId(null)}
-                className={
-                  selectedId === p.id
-                    ? 'rounded-xl ring-2 ring-primary'
-                    : undefined
-                }
+                // Every row keeps its `py-m`, not `first:pt-0`: that put the first row's ring
+                // on its photo and its name. The offset keeps the ring off the photo's left
+                // edge, as the focus ring does. Square, like the row it marks.
+                className={`py-m ${
+                  selectedId === p.id ? 'ring-2 ring-primary ring-offset-2 ring-offset-surface' : ''
+                }`}
               >
                 <ProviderCard
                   provider={p}
+                  layout="row"
+                  // docs/design/web-swiss-cards.md §7: the photo that can be the largest
+                  // paint, and only if its measurement keeps it.
+                  imagePriority={i === 0}
                   favorite={favIds.has(p.id)}
                   onToggleFavorite={() => toggleFavorite(p.id)}
                   favoriteBusy={favRead === 'loading'}

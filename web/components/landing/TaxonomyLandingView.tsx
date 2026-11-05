@@ -27,8 +27,10 @@ import {
 } from '../../lib/seo/jsonld';
 import type { TaxonomyRoot } from '../../lib/taxonomy';
 import { JsonLd } from '../JsonLd';
-import { Faq } from '../provider/Faq';
 import { ProviderCard } from '../provider/ProviderCard';
+import { SiteFaqList } from '../SiteFaqList';
+import { SiteSection } from '../SiteSection';
+import { SITE_CONTAINER } from '../../lib/siteGrid';
 
 /// The nested SEO landing family (multi-pays MP3): ONE view for the three
 /// levels of both taxonomies — /coiffure (root), /coiffure/abidjan (city),
@@ -245,7 +247,10 @@ function Crumbs({ input }: { input: TaxonomyInput }) {
                   {c.name}
                 </span>
               ) : (
-                <Link href={href} className="underline hover:text-textPrimary">
+                <Link
+                  href={href}
+                  className="inline-flex min-h-12 items-center underline hover:text-textPrimary"
+                >
                   {c.name}
                 </Link>
               )}
@@ -269,7 +274,9 @@ export async function TaxonomyLandingView(input: TaxonomyInput) {
   const areaSlug = input.level === 'area' ? input.area.slug : undefined;
 
   return (
-    <main className="mx-auto max-w-content px-m py-l">
+    // The new look: the site grid and `SiteSection`, tiles from `lg` beside the hanging
+    // `<h2>`, and the same order and words as before (docs/design/web-swiss-cards.md §2.3).
+    <main>
       <JsonLd data={breadcrumbJsonLd(crumbsOf(input))} />
       {providers.length > 0 ? (
         <JsonLd
@@ -283,29 +290,29 @@ export async function TaxonomyLandingView(input: TaxonomyInput) {
       ) : null}
       <JsonLd data={faqJsonLd(faq)} />
 
-      <Crumbs input={input} />
-
-      <h1 className="mt-m text-headlineMedium font-semibold text-textPrimary">
-        {h1Of(input)}
-      </h1>
-      <p className="mt-m text-bodyLarge text-textSecondary">
-        Les meilleurs salons de {label.toLowerCase()} {place.prefix}{' '}
-        {place.name}, réservables en ligne 24/7 — comparez tarifs, avis et
-        disponibilités, puis réservez en quelques secondes.
-      </p>
+      <div className={`${SITE_CONTAINER} pb-l pt-s`}>
+        <Crumbs input={input} />
+        <h1 className="mt-s break-words text-headlineLarge font-semibold text-textPrimary lg:text-displaySmall">
+          {h1Of(input)}
+        </h1>
+        <p className="mt-m max-w-content text-bodyLarge text-textSecondary">
+          Les meilleurs salons de {label.toLowerCase()} {place.prefix}{' '}
+          {place.name}, réservables en ligne 24/7 — comparez tarifs, avis et
+          disponibilités, puis réservez en quelques secondes.
+        </p>
+      </div>
 
       {/* Root level: pick your city. City level: pick your commune/quartier. */}
       {input.level === 'root' && cities.length > 0 ? (
-        <section className="mt-l">
-          <h2 className="text-titleLarge font-semibold text-textPrimary">
-            Choisissez votre ville
-          </h2>
-          <div className="mt-s grid grid-cols-1 gap-s sm:grid-cols-2">
+        <SiteSection title="Choisissez votre ville">
+          {/* A ruled index, the home page's Catégories treatment. One column below `sm`,
+              because « Coiffure à Yamoussoukro » does not fit in half a phone. */}
+          <div className="grid grid-cols-1 gap-x-m sm:grid-cols-2 lg:grid-cols-3 lg:gap-x-l">
             {cities.map((city) => (
               <Link
                 key={city.slug}
                 href={buildTaxonomyPath(input.root.slug, city.slug)}
-                className="rounded-xl border border-border bg-secondary p-m hover:bg-surfaceVariant"
+                className="flex min-h-12 flex-col justify-center border-b border-divider py-s hover:text-textSecondary"
               >
                 <span className="font-medium text-textPrimary">
                   {label} à {city.name}
@@ -317,15 +324,12 @@ export async function TaxonomyLandingView(input: TaxonomyInput) {
               </Link>
             ))}
           </div>
-        </section>
+        </SiteSection>
       ) : null}
 
       {input.level === 'city' ? (
-        <section className="mt-l">
-          <h2 className="text-titleLarge font-semibold text-textPrimary">
-            Choisissez votre {areaKindOf(input.city)}
-          </h2>
-          <div className="mt-s flex flex-wrap gap-s">
+        <SiteSection title={`Choisissez votre ${areaKindOf(input.city)}`}>
+          <div className="flex flex-wrap gap-s">
             {input.city.areas.map((a) => (
               <Link
                 key={a.slug}
@@ -340,38 +344,38 @@ export async function TaxonomyLandingView(input: TaxonomyInput) {
               </Link>
             ))}
           </div>
-        </section>
+        </SiteSection>
       ) : null}
 
       {providers.length > 0 ? (
-        <>
-        <h2 className="mt-l text-titleLarge font-semibold text-textPrimary">
-          {providers.length} salon{providers.length > 1 ? 's' : ''}
-        </h2>
-        <ul className="mt-m grid gap-m sm:grid-cols-2">
-          {providers.map((p) => (
-            <li key={p.id}>
-              <ProviderCard provider={p} />
-            </li>
-          ))}
-        </ul>
-        </>
+        <SiteSection title={`${providers.length} salon${providers.length > 1 ? 's' : ''}`}>
+          <ul className="grid grid-cols-1 gap-x-m gap-y-l sm:grid-cols-2 lg:grid-cols-3 lg:gap-x-l">
+            {providers.map((p, i) => (
+              <li key={p.id}>
+                {/* The photo that can be the largest paint, and only if the measurement
+                    in docs/design/web-swiss-cards.md §7 keeps it. */}
+                <ProviderCard provider={p} imagePriority={i === 0} />
+              </li>
+            ))}
+          </ul>
+        </SiteSection>
       ) : (
-        <EmptyState
-          className="mt-l"
-          icon="search"
-          title={`Aucun salon de ${label.toLowerCase()} ${place.prefix} ${place.name} pour le moment`}
-          description="Explorez les liens ci-dessous."
-        />
+        <section className="border-t border-primary">
+          <div className={`${SITE_CONTAINER} py-xl lg:py-xxl`}>
+            <EmptyState
+              align="start"
+              icon="search"
+              title={`Aucun salon de ${label.toLowerCase()} ${place.prefix} ${place.name} pour le moment`}
+              description="Explorez les liens ci-dessous."
+            />
+          </div>
+        </section>
       )}
 
       {/* Area level: the same root across the city's other areas. */}
       {input.level === 'area' ? (
-        <section className="mt-xl">
-          <h2 className="text-titleLarge font-semibold text-textPrimary">
-            {label} dans d’autres {areaKindOf(input.city)}s
-          </h2>
-          <div className="mt-s flex flex-wrap gap-s">
+        <SiteSection title={`${label} dans d’autres ${areaKindOf(input.city)}s`}>
+          <div className="flex flex-wrap gap-s">
             {input.city.areas
               .filter((a) => a.slug !== input.area.slug)
               .map((a) => (
@@ -388,23 +392,24 @@ export async function TaxonomyLandingView(input: TaxonomyInput) {
                 </Link>
               ))}
           </div>
-        </section>
+        </SiteSection>
       ) : null}
 
-      <section className="mt-l">
-        <h2 className="text-titleLarge font-semibold text-textPrimary">
-          Autres prestations {place.prefix} {place.name}
-        </h2>
-        <div className="mt-s flex flex-wrap gap-s">
+      <SiteSection title={`Autres prestations ${place.prefix} ${place.name}`}>
+        <div className="flex flex-wrap gap-s">
           {siblingsAtLevel(input.root.slug, citySlug, areaSlug).map((s) => (
             <Link key={s.href} href={s.href} className={chip}>
               {s.label}
             </Link>
           ))}
         </div>
-      </section>
+      </SiteSection>
 
-      <Faq items={faq} />
+      {/* Open: the same words as `FAQPage`, in the page rather than behind a disclosure.
+          `Faq` stays for the salon page, whose turn is S4. */}
+      <SiteSection title="Questions fréquentes">
+        <SiteFaqList items={faq} />
+      </SiteSection>
     </main>
   );
 }

@@ -133,7 +133,7 @@ export default async function HomePage() {
 
         {featured.length > 0 ? (
           <SiteSection title="Salons populaires" stacked>
-            <div className="grid grid-cols-1 gap-m sm:grid-cols-2 lg:grid-cols-4">
+            <div className="grid grid-cols-1 gap-x-m gap-y-l sm:grid-cols-2 lg:grid-cols-4 lg:gap-x-l">
               {featured.map((p) => (
                 <ProviderCard key={p.id} provider={p} />
               ))}
