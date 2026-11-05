@@ -83,28 +83,31 @@ test('/recherche: anonymous heart → /connexion with returnTo (parity 2.15)', a
 test('/recherche on a phone: the ♥ says what it did, above the « Carte » toggle, and « Annuler » takes it back (web-client-polish.md §2.4)', async ({
   page,
 }) => {
-  // B5.4 (decision 16). The stub keeps Beauté Divine a favourite and answers
-  // every write 204 — nothing here moves another spec's state.
+  // B5.4 (decision 16). The stub answers every write 204 — nothing here moves another
+  // spec's state. A list long enough for the toggle to stand at the screen's foot: on the
+  // stub's usual one salon it rests under the row instead (web-swiss-cards.md §2.4), and
+  // site-look.spec.ts reads the toast against it there.
   await page.setViewportSize({ width: 390, height: 844 });
   await signInConsumer(page);
   await page.route('**/basemaps.cartocdn.com/**', (r) => r.abort());
-  await page.goto('/recherche?q=tresses');
-  const heart = page.getByRole('button', { name: 'Retirer Beauté Divine des favoris' });
+  await page.goto('/recherche?q=vitrine');
+  const heart = page.getByRole('button', { name: 'Ajouter Beauté Divine aux favoris' });
   await expect(heart).toBeEnabled();
   await heart.click();
 
-  const said = page.getByRole('status').filter({ hasText: 'Retiré des favoris' });
+  const said = page.getByRole('status').filter({ hasText: 'Ajouté aux favoris' });
   await expect(said).toBeVisible();
   // The toast is centred and the « Carte » toggle is at the bottom left under lg: a
-  // long toast could reach it sideways, so it sits ABOVE its band, never over it.
+  // long toast could reach it sideways, so it sits ABOVE the band the toggle rides in.
   const pill = await said.locator('div').first().boundingBox();
   const toggle = await page.getByRole('button', { name: 'Carte' }).boundingBox();
+  expect(toggle!.y + toggle!.height, 'the toggle is not at the screen’s foot').toBe(844 - 24);
   expect(pill!.y + pill!.height).toBeLessThanOrEqual(toggle!.y);
 
   await page.getByRole('button', { name: 'Annuler' }).click();
   await expect(
-    page.getByRole('button', { name: 'Retirer Beauté Divine des favoris' }),
-  ).toHaveAttribute('aria-pressed', 'true');
+    page.getByRole('button', { name: 'Ajouter Beauté Divine aux favoris' }),
+  ).toHaveAttribute('aria-pressed', 'false');
   await expect(said).toBeHidden();
 });
 

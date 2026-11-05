@@ -729,9 +729,9 @@ test.describe('the salon card', () => {
 
   // The owner moved it after seeing the before and after (web-swiss-cards.md §2.4): it sits
   // over a row's photo column and off the card's text, at normal text and at these widths.
-  // A fixed button over a list is only wrong at some scroll, so each row is brought under
-  // it. This reads the card's text only: a refused heart's sentence and the footer's last
-  // link are §2.4's to state, and neither is held here.
+  // A button floating over a list is only wrong at some scroll, so each row is brought
+  // under it. This reads the card's text only: a refused heart's sentence is §2.4's to
+  // state, and the footer is the next block's.
   test.describe('« Carte » over the list', () => {
     for (const [width, height] of [
       [320, 568],
@@ -809,6 +809,122 @@ test.describe('the salon card', () => {
       await expect(page.locator('main [role="presentation"]:has(h3)').first()).toBeVisible();
       await expect(page.getByRole('button', { name: 'Carte', exact: true })).toBeVisible();
     });
+  });
+
+  // The owner's choice on 2026-11-05 (web-swiss-cards.md §11, decision 5): it rides the list
+  // at the screen's foot and stops above the footer. Fixed, it stood on « Instagram » at every
+  // width below `lg`: the link's centre answered the button and a press opened the map.
+  test.describe('« Carte » stops above the footer', () => {
+    const SIZES = [
+      [320, 568],
+      [360, 640],
+      [390, 844],
+      [768, 1024],
+      [820, 1180],
+      [1023, 768],
+    ] as const;
+    const toEnd = (page: Page) =>
+      page.evaluate(() => window.scrollTo({ top: document.documentElement.scrollHeight, behavior: 'instant' }));
+    const toggleOn = (page: Page) => page.getByRole('button', { name: 'Carte', exact: true });
+
+    for (const [width, height] of SIZES) {
+      for (const path of ['/recherche?q=vitrine', '/recherche?q=vide']) {
+        test(`${path} at ${width}: every footer link answers, and the button is above the footer`, async ({ page }) => {
+          await size(page, width, height);
+          await routeNextImages(page);
+          await page.goto(path);
+          await expect(toggleOn(page)).toBeVisible();
+          await toEnd(page);
+          const button = (await toggleOn(page).boundingBox())!;
+          const footer = (await page.locator('footer').boundingBox())!;
+          expect(button.y + button.height, 'the button reaches the footer').toBeLessThanOrEqual(footer.y);
+          // Last link first, from the end of the page, each brought on-screen only if it is
+          // not: the footer can be taller than the screen, and `elementFromPoint` answers
+          // nothing outside it.
+          const links = await page.locator('footer a').evaluateAll((els) =>
+            els.reverse().map((el) => {
+              el.scrollIntoView({ block: 'nearest', behavior: 'instant' });
+              const r = el.getBoundingClientRect();
+              const hit = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2);
+              return { name: el.textContent?.trim(), answers: !!hit && (hit === el || el.contains(hit)) };
+            }),
+          );
+          expect(links.map((l) => l.name), 'the link it used to stand on').toContain('Instagram');
+          expect(links.filter((l) => !l.answers)).toEqual([]);
+        });
+      }
+
+      test(`at ${width}, mid-list: it stands at the screen’s foot, clear of the text column`, async ({ page }) => {
+        await size(page, width, height);
+        await routeNextImages(page);
+        await page.goto('/recherche?q=vitrine');
+        const row = page.locator('main [role="presentation"]:has(h3)').nth(3);
+        await row.evaluate((el) => el.scrollIntoView({ block: 'center', behavior: 'instant' }));
+        const button = (await toggleOn(page).boundingBox())!;
+        const column = (await row.locator('h3').locator('..').boundingBox())!;
+        expect(button.y + button.height, 'it became a block in the page').toBe(height - 24);
+        expect(button.x + button.width).toBeLessThanOrEqual(column.x);
+      });
+    }
+
+    test('at 390 a press on « Instagram » opens the link, and not the map', async ({ page, context }) => {
+      await size(page, 390, 844);
+      await routeNextImages(page);
+      await context.route(/instagram\.com/, (r) => r.fulfill({ status: 200, contentType: 'text/html', body: '' }));
+      await page.goto('/recherche?q=vitrine');
+      await expect(toggleOn(page)).toBeVisible();
+      await toEnd(page);
+      const link = (await page.locator('footer').getByRole('link', { name: 'Instagram' }).boundingBox())!;
+      const opened = context.waitForEvent('page', { timeout: 5_000 });
+      await page.mouse.click(link.x + link.width / 2, link.y + link.height / 2);
+      const profile = await opened;
+      await profile.waitForURL(/instagram\.com/);
+      await expect(page.locator('.maplibregl-map')).toBeHidden();
+      await expect(toggleOn(page)).toBeVisible();
+    });
+
+    // Where it has stopped, or rests under a short list, it can stand level with the toast.
+    // The toast is on top and at most half the screen wide, so it reaches the button's right
+    // padding and not its word, and a press there goes through to the button (§2.4).
+    for (const [width, height] of SIZES.slice(0, 3)) {
+      test(`at ${width}, level with the toast: its word stays clear and a press still answers`, async ({ page }) => {
+        await size(page, width, height);
+        await routeNextImages(page);
+        await page.route('**/api/me/favorites**', (r) =>
+          r.request().method() === 'GET'
+            ? r.fulfill({ status: 200, contentType: 'application/json', body: '{"favorites":[]}' })
+            : r.fulfill({ status: 204 }),
+        );
+        await page.goto('/recherche?q=tresses');
+        const heart = page.getByRole('button', { name: 'Ajouter Beauté Divine aux favoris' });
+        await expect(heart).toBeEnabled();
+        await heart.click();
+        const pill = page.getByRole('status').filter({ hasText: 'Ajouté aux favoris' }).locator('div').first();
+        await expect(pill).toBeVisible();
+        const toast = (await pill.boundingBox())!;
+        const read = await toggleOn(page).evaluate((el, t) => {
+          const end = document.documentElement.scrollHeight - innerHeight;
+          for (let y = 0; y <= end; y += 2) {
+            window.scrollTo({ top: y, behavior: 'instant' });
+            const b = el.getBoundingClientRect();
+            if (b.left < t.x + t.width && t.x < b.right && b.top < t.y + t.height && t.y < b.bottom) {
+              const range = document.createRange();
+              range.selectNodeContents(el);
+              // Inside the part the toast covers, where a press has to reach the button.
+              const under = document.elementFromPoint(
+                (Math.max(b.left, t.x) + Math.min(b.right, t.x + t.width)) / 2,
+                (Math.max(b.top, t.y) + Math.min(b.bottom, t.y + t.height)) / 2,
+              );
+              return { wordEnd: range.getBoundingClientRect().right, answers: under === el };
+            }
+          }
+          return null;
+        }, toast);
+        expect(read, 'they never stood level, so this proves nothing').not.toBeNull();
+        expect(read!.wordEnd).toBeLessThanOrEqual(toast.x);
+        expect(read!.answers).toBe(true);
+      });
+    }
   });
 
   // Where a photo is cut in a fixed frame (web-swiss-cards.md §2.4, decisions 2 and 8), read

@@ -21,8 +21,11 @@ export function Toast({
 }: {
   toast: ToastState;
   /// The page has its own floating control at the bottom under `lg` (the search's
-  /// « Carte » toggle, at the left: 24–72px): the toast stays centred and sits above
-  /// that band there, at 80px (`bottom-xxxl` + `pb-m`), so a long one never meets it.
+  /// « Carte » toggle, at the left: 24–72px while it rides a list): the toast stays centred
+  /// and sits above that band, at 80px (`bottom-xxxl` + `pb-m`). Where the toggle has
+  /// stopped above the footer or rests under a short list, it can stand level with the
+  /// toast, which is on top, at most half the screen wide, and lets a press through
+  /// (docs/design/web-swiss-cards.md §2.4).
   aboveFloatingControl?: boolean;
 }) {
   return (
