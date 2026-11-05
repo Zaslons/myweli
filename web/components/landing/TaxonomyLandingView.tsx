@@ -350,11 +350,9 @@ export async function TaxonomyLandingView(input: TaxonomyInput) {
       {providers.length > 0 ? (
         <SiteSection title={`${providers.length} salon${providers.length > 1 ? 's' : ''}`}>
           <ul className="grid grid-cols-1 gap-x-m gap-y-l sm:grid-cols-2 lg:grid-cols-3 lg:gap-x-l">
-            {providers.map((p, i) => (
+            {providers.map((p) => (
               <li key={p.id}>
-                {/* The photo that can be the largest paint, and only if the measurement
-                    in docs/design/web-swiss-cards.md §7 keeps it. */}
-                <ProviderCard provider={p} imagePriority={i === 0} />
+                <ProviderCard provider={p} />
               </li>
             ))}
           </ul>

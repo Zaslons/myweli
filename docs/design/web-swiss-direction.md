@@ -281,9 +281,9 @@ No box: a rule and a hover state. `next/image`, lazy, with real `sizes`. The rat
 
 **Corrected 2026-11-05, by [web-swiss-cards.md](web-swiss-cards.md) §2.2, which now governs the card:**
 - **Layouts:** a third value, `rowOnPhone`, the same two switching at `sm`, for the favourites: as tiles they pushed support and account deletion down 1082px on a phone. `row` holds at every width, as this says, though all three competitors stack on phones (decision 2).
-- **Props:** all five stay. `layout`, `imageSizes`, `imagePriority` and `linked` are additive. `linked={false}` is a stopped favourite, whose link ended on a 404 (decision 3).
+- **Props:** all five stay. `layout`, `imageSizes` and `linked` are additive. `linked={false}` is a stopped favourite, whose link ended on a 404 (decision 3).
 - **Where the rule goes:** at the foot of the media block, and the list draws the lines between rows. Hover and focus underline the name, because the old hover would hide a no-photo tile.
-- **« Lazy »:** true only for `/`. A card photo is the Largest Contentful Paint on landings and `/recherche` at 412×823, so `imagePriority` is on one card per level, kept only by the rule in its §7.
+- **« Lazy » stands, measured.** A card photo is the Largest Contentful Paint on landings and `/recherche` at 412×823, so `priority` on the first card was tried per level under the rule in its §7. No level earned it, and it came out.
 - **« Real `sizes` »:** one layout, three grids, and a wrong `vw` silently drops candidates, hence `CARD_SIZES`.
 - **The rating:** the same component, on its own line in the app's order, with its count, « ★ 4,8 (32 avis) » (decision 4).
 - **The heart** is not placed here. It stays bottom-right, off the photo, with a spacer as tall as the heart.

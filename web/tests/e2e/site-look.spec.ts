@@ -639,24 +639,22 @@ test.describe('the salon card', () => {
     }
   });
 
-  test.describe('at most one photo is fetched first (§7)', () => {
-    const high = (page: Page) => page.locator('main img[fetchpriority="high"]');
-
-    for (const path of ['/coiffure', '/coiffure/abidjan', '/coiffure/abidjan/marcory', '/recherche?q=vitrine']) {
-      test(`${path}: one at most`, async ({ page }) => {
+  // §7's outcome: no level earned a first photo fetched ahead of the rest, so none has
+  // one. Putting it back is a new measurement, not a one-line change.
+  test.describe('no card photo is fetched first (§7)', () => {
+    for (const path of ['/', '/coiffure', '/coiffure/abidjan', '/coiffure/abidjan/marcory', '/recherche?q=vitrine']) {
+      test(`${path}: none`, async ({ page }) => {
         await routeNextImages(page);
         await page.goto(path);
         await expect(page.locator('main a img').first()).toBeAttached();
-        expect(await high(page).count()).toBeLessThanOrEqual(1);
+        await expect(page.locator('main img[fetchpriority="high"]')).toHaveCount(0);
+        // Next writes `priority` as a preload too, which the `<img>` alone would not show.
+        const preloads = await page.locator('head link[rel="preload"][as="image"]').evaluateAll((links) =>
+          links.map((l) => l.getAttribute('imagesrcset') ?? l.getAttribute('href') ?? ''),
+        );
+        expect(preloads.filter((p) => p.includes('cdn.stub'))).toEqual([]);
       });
     }
-
-    test('/: none, because a phone would preload a photo it has off-screen', async ({ page }) => {
-      await routeNextImages(page);
-      await page.goto('/');
-      await expect(page.locator('main a img').first()).toBeAttached();
-      await expect(high(page)).toHaveCount(0);
-    });
   });
 
   test('a row selected from the map has a square ring, with its offset', async ({ page }) => {

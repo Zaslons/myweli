@@ -83,7 +83,6 @@ Props, all additive. The five existing props do not change.
 ```ts
 layout?: 'tile' | 'row' | 'rowOnPhone';   // default 'tile'. rowOnPhone: row below sm, tile from sm
 imageSizes?: string;                      // default: row ? CARD_SIZES.row : CARD_SIZES.site
-imagePriority?: boolean;                  // default false. One card per page at most (§7)
 linked?: boolean;                         // default true. false: the root is a <div>, no hover
 ```
 
@@ -136,7 +135,7 @@ linked?: boolean;                         // default true. false: the root is a 
 
 | | Condition | Markup |
 |---|---|---|
-| **Photo** | `provider.imageUrls?.[0]` starts with `https://` | `<span aria-hidden class="absolute bottom-0 left-0 {INITIAL}">B</span>`, then `<Image fill sizes={imageSizes} alt={name} data-initial="B" priority={imagePriority \|\| undefined} loading={imagePriority ? undefined : 'lazy'} className="object-cover after:absolute after:inset-0 after:bg-surfaceVariant after:flex after:items-end after:font-semibold after:tracking-tight after:text-textSecondary after:content-initial {INITIAL with after:}" />` |
+| **Photo** | `provider.imageUrls?.[0]` starts with `https://` | `<span aria-hidden class="absolute bottom-0 left-0 {INITIAL}">B</span>`, then `<Image fill sizes={imageSizes} alt={name} data-initial="B" loading="lazy" className="object-cover after:absolute after:inset-0 after:bg-surfaceVariant after:flex after:items-end after:font-semibold after:tracking-tight after:text-textSecondary after:content-initial {INITIAL with after:}" />` |
 | **Logo** | No photo, and `provider.logoUrl` starts with `https://` | `<div class="absolute bottom-0 left-0 h-2/3 w-2/3"><Image fill sizes={imageSizes} alt={`Logo ${name}`} loading="lazy" className="object-contain object-left-bottom after:absolute after:inset-0 after:bg-surfaceVariant" /></div>` |
 | **Initial** | Neither | `<span aria-hidden class="absolute bottom-0 left-0 {INITIAL}">B</span>` |
 
@@ -144,7 +143,7 @@ linked?: boolean;                         // default true. false: the root is a 
 
 - **`?.`, not `.`:** `lib/api/account.ts:120-125` validates only `id` and `name`.
 - **`https://`:** a dev seed's `asset:` makes `next dev` throw (`image-loader.js:48-53`), and `next start` should answer 400 (inferred), as `''` should throw in dev (inferred). Either one reads as no photo here, and the next form takes over. **It does not cover a local backend on fake storage:** its URLs start `https://fake-storage.local` (`storage_service.dart:157`), a host outside `remotePatterns`, so `next dev` throws on `/`, the landings and `/recherche` too, as it already does on the salon page. Production answers 400 and the letter shows. Dev only, recorded, not handled.
-- **`priority` and `loading`:** Next refuses both together, hence `undefined` on each side.
+- **`loading`:** lazy on every list, the largest paint included. `priority` on a list's first photo was built, measured and taken out: §7.
 - **Logo `sizes`:** the tile's value, unchanged, although the logo is drawn at 2/3. That is at most 1.5× the width a logo needs, on a small file whose small words benefit. One less constant.
 - **Logo and initial sit in the bottom-left corner with no padding,** on the same x as the name under them, following the owner's flush-left rule. The corner holds for square logos (seen). Wide, tall and white-box logos are shown beside centred in sheet 14. Decision 2.
 - **Nothing is layered under a logo:** a letter would show below a contained logo (seen). Under a photo it is covered whole, so the letter sits there (§2.4).
@@ -192,7 +191,7 @@ Container width is `SITE_CONTAINER`'s: 16px each side below `lg`, 24px from `lg`
 
 | Line | Change |
 |---|---|
-| `:300` | `layout="row"`, and `imagePriority` on index 0 (§7 may narrow this) |
+| `:300` | `layout="row"`. Every photo lazy (§7) |
 | `:273` | `mt-m space-y-m` becomes `mt-xs divide-y divide-divider` when there are results, and `mt-m` when there are none, because the empty state is not inside the divide |
 | Each row, `:285-295` | `py-m` on every row. **Not `first:pt-0`:** that put the first row's ring on its photo and name (seen) |
 | `:296` | `rounded-xl` goes. `ring-2 ring-primary ring-offset-2 ring-offset-surface`. `.ring-2` stays, and `discovery.spec.ts:136` reads it. The offset keeps the ring off the photo's left edge, as the focus ring does. The first photo moves 4px down (y=371 against 367, measured) |
@@ -222,7 +221,7 @@ The `<h1>` stays `headlineSmall` and the count `<h2>` stays `titleLarge`. Direct
 - **Hanging, not stacked.** Direction §6.1 and WEB-SYSTEM §16 make hanging the default, and `stacked` is for content needing all twelve columns.
 - **The ruled index of cities** replaces the boxes at `:308`, in the home page's Catégories treatment: `grid grid-cols-1 gap-x-m sm:grid-cols-2 lg:grid-cols-3 lg:gap-x-l`, each link `flex min-h-12 flex-col justify-center border-b border-divider py-s hover:text-textSecondary`, with its two lines as today. One column below `sm`, because « Coiffure à Yamoussoukro » does not fit in half a phone.
 - **`SiteFaqList`** (`components/SiteFaqList.tsx`) is the `dl` at `app/page.tsx:222-229`, already copied at `professionnels/page.tsx:74-81`. Three uses justify the extraction, and both pages keep their markup exactly. Landing answers are now open. They were in the HTML already, inside `<details>`.
-- `imagePriority` on the first card (§7 may narrow this to some levels).
+- Every photo lazy (§7).
 
 **Favourites** (`AccountClient.tsx`)
 - `:490` gains `layout="rowOnPhone"`, `imageSizes={CARD_SIZES.account}` and `linked={!stopped}`. `:479`'s columns stay.
@@ -371,10 +370,10 @@ Which element won, on the prototype, unthrottled, with photos intercepted. **Nob
 | Page | Rule |
 |---|---|
 | `/` | All lazy, as direction §11 says. `priority` would preload a photo for phones, where it is off-screen, against the budgeted LCP. At 820×1180 the photo is the LCP and lazy: no budget sits there, so this is recorded and not changed |
-| Landings, `/recherche` | `imagePriority` on the first card only, per level, and only where the measurement below earns it. Exactly one preload, and it follows `sizes` (measured: one, and the phone tile picks 828w at 412×823, 750w at 390) |
+| Landings, `/recherche` | **All lazy, by the measurement below.** `imagePriority` on the first card was built and measured on every level, and no level earned it, so the prop came out. While it existed there was exactly one preload, and it followed `sizes` (on the prototype, the phone tile picked 828w at 412×823 and 750w at 390; on the branch at DPR 1.75, 750w at 412 and 640w at 360) |
 | Favourites | All lazy. Noindex, behind sign-in, and no budget |
 
-**This has to earn its place. The rule, so nobody has to judge it later:** for each of root, city, area and `/recherche`, compare the median LCP with and without the prop. Keep the prop on that level only if it falls by at least 100 ms at 412×823 and does not rise by 100 ms or more at 360×640. Otherwise take it off that level. If no level keeps it, the prop comes out and direction §7.3's word stands.
+**It had to earn its place. The rule, so nobody had to judge it later:** for each of root, city, area and `/recherche`, compare the median LCP with and without the prop. Keep the prop on that level only if it falls by at least 100 ms at 412×823 and does not rise by 100 ms or more at 360×640. Otherwise take it off that level. If no level keeps it, the prop comes out and direction §7.3's word stands. **No level kept it, so direction §7.3's word stands** (results below).
 
 ### Budgets
 
@@ -392,6 +391,28 @@ Which element won, on the prototype, unthrottled, with photos intercepted. **Nob
 | Five each at 412×823 and at 360×640, with and without `imagePriority` | `/coiffure`, `/coiffure/abidjan`, `/coiffure/abidjan/marcory`, `/recherche?q=vitrine` |
 
 Delete `.next/cache/images` before each series. Read LCP **and which element it is**, CLS, TBT, and image requests and kilobytes. **Local numbers compare only with local numbers:** `sharp` is absent, so `next start` falls back to squoosh (`image-optimizer.js:709`), and the first hit is a transformation.
+
+**With and without the prop, 2026-11-05, on `af79b362`.** The « without » build is that commit with the prop off both callers, uncommitted. Lighthouse 12.1.0 with `lighthouserc`'s settings, whose method is `simulate` because the file names none (read back in each run's `configSettings`). Google Chrome 156, `--headless=new`, DPR 1.75 at both sizes. Medians of five, the two builds side by side, with `.next/cache/images` deleted before each series, so the first run of each is the cold transformation. Bytes: `f1` and `p1` are `salon_excellence_photo.png`, `f2` and `p2` `barber_shop_pro_photo.png`, `f6` `spa_relax_photo.png`, `f3-logo.png` `maison-nala-logo.png`, and `absent.jpg` a 404. **The element is read from each run's own trace** (`largestContentfulPaint::Candidate`), because Lighthouse 12.1's `largest-contentful-paint-element` audit errors on this Chrome (« Cannot read properties of undefined (reading 'frame_sequence') »).
+
+| Level | 412×823 with | without | Change | 360×640 with | without | Change | Largest paint, 412 · 360 (5 of 5, both builds) | The rule |
+|---|---|---|---|---|---|---|---|---|
+| Root, `/coiffure` | 2562 | 2487 | **+75** | 2559 | 2484 | +75 | Photo · `<p>` | Off |
+| City, `/coiffure/abidjan` | 2412 | 2260 | **+152** | 2411 | 2261 | +150 | Photo · `<p>` | Off |
+| Area, `/coiffure/abidjan/marcory` | 2635 | 2485 | **+150** | 2635 | 2485 | +150 | Photo · photo | Off |
+| `/recherche?q=vitrine` | 2485 | 2527 | **−42** | 2525 | 2483 | +42 | Photo · `<h1>` | Off |
+
+**No level fell by 100 ms at 412×823, so the prop came out.** CLS 0 in all sixteen series. TBT 0 on the landings, and 49–64 on `/recherche`, with one cold run at 1146 (with the prop, 412). Image requests and kilobytes are the same with and without: root and city 2 requests (the header's mark and one photo), 56 KB at 412 and 47 KB at 360; area 6 requests, 144 KB and 118 KB; `/recherche` 6 requests, 34 KB at both, because a row picks 256w. The photo itself does load sooner with the prop: in the simulation it ends at 770 ms against 1886 on the area level at 412 (`metrics.lcpLoadEnd`, one run). The simulated LCP stays near 2500 either way.
+
+**What that number cannot see, and why it goes to the owner.** The same two builds and the same file's numbers, with `--throttling-method=devtools`, which applies `requestLatencyMs`, `downloadThroughputKbps` and `uploadThroughputKbps` to the real requests instead of estimating. `lighthouserc` does not run this method, so **it is not the rule's measure and it decided nothing above.** Medians of five:
+
+| Level | 412×823 with | without | Change | 360×640 with | without | Change |
+|---|---|---|---|---|---|---|
+| Root | 1673 | 2654 | **−981** | 1523 | 1504 | +19 |
+| City | 1669 | 2970 | **−1301** | 1520 | 1504 | +16 |
+| Area | 1674 | 2761 | **−1087** | 1631 | 2584 | −953 |
+| `/recherche?q=vitrine` | 1495 | 3005 | **−1510** | 1497 | 1453 | +44 |
+
+Read by the same rule, this table keeps the prop on all four levels, where the simulated one takes it off all four. The largest paint is the same element in both. **The mechanism, seen in the requests:** on the city level at 412, the lazy photo's request starts at 1426–1668 ms, after the stylesheet, and with the prop at 582–584 ms, beside it, which is what the paragraph at the top of this section predicted. **Why the simulation misses it (inferred):** its LCP is not set by the photo on these pages. The photo ends at 770 ms in that simulated run and the LCP still reads 2635, and the text-only `/suppression-compte` reads 2108, so about 2100 ms is a floor that a photo does not move. Lighthouse's own warnings are off too: `lcp-lazy-loaded` and `prioritize-lcp-image` error on this Chrome, as the element audit does. **CLS under this throttling:** 0.167 on the city level at 412 (5 of 5 with the prop, 2 of 5 without) and 0.068 on the area level at 360 (5 of 5 both). The cause was not read, because `layout-shifts` errors as well. The branch follows the rule as written, and whether the rule should read this table instead is the owner's call: reverting the commit that removed the prop restores it on every level.
 
 **If a budgeted page breaches, the budget does not move** (direction §11). If a landing or `/recherche` is over 2500 ms, that goes to the owner as a finding, with no number written down to make it pass.
 
@@ -421,7 +442,7 @@ Every new guard is watched red **on committed work**, and the commit records it.
 | Same | `asset:…` and `''` read as no photo, and no `<img>` | Remove the `https://` check |
 | Same | No `rounded-*`, `border ` or `bg-secondary` on the `<a>`. No `svg[data-weave]` | Put `rounded-xl` back |
 | Same | Each layout's default `sizes`. `account`'s `srcset` has a candidate of 256w or less | Change `account` to `…, 92vw`. **This is the trap in §2.2** |
-| Same | `imagePriority`: `fetchpriority="high"` and no `loading`. Default: `loading="lazy"` | Default it to true |
+| Same | The photo: `loading="lazy"`, and no `fetchpriority="high"` | Put `priority` on it |
 | Same | The spacer exists only with a heart, and is `h-12 w-12` | Render it always. Drop `h-12` |
 | Same | No `truncate` or `whitespace-nowrap` in the card. The name and the mark are one inline run | Put `truncate` back |
 | Same | `linked={false}`: no `<a>`, no `group-hover`. Default: an `<a>` to `/{slug}` | Default it to false |
@@ -437,7 +458,7 @@ Every new guard is watched red **on committed work**, and the commit records it.
 | Same, a slow photo | With `/_next/image` held open, the tile holds its ratio and the letter is visible. With it loaded, `elementFromPoint` at the bottom-left is the `<img>` | Drop the letter. Put it after the `<img>` |
 | **New e2e: heart and text,** at 320, 390 and 200% text, with the fixtures that include the long name and F9 (rated, three-digit count, no commune, no price) | No text's range rectangle meets the heart's box. `scrollWidth` equals the viewport | Remove the spacer. Drop its `h-12`. Remove `min-w-0` from « Trier » at 320 and 200%: 322 wide (measured) |
 | Same, 200% | **Non-vacuity first:** the name's line box is at least 40 high, or the check proves nothing. Emulated with `isMobile` and `text-size-adjust: 200%`, measured to double | Drop the emulation and see the first assertion fail |
-| **New e2e: one priority** | At most one `img[fetchpriority=high]` in `main` on a landing and on `/recherche`, per §7's outcome, none on `/` | Pass `imagePriority` to every card |
+| **New e2e: no priority** | §7's outcome: no `img[fetchpriority=high]` in `main` and no card photo in a `link[rel=preload]`, on `/`, all three landing levels and `/recherche` | Put `priority` on the card's photo |
 | **New e2e: the selected row** | `border-radius` 0, computed `box-shadow` carries the 2px offset in `surface` | Remove `ring-offset-2` |
 | **New e2e: favourites, signed in** | At 390 the media is a third of the row, at 820 the full tile. A stopped salon has no `<a>` in its card and its removal shows no « Annuler » button; a live one has both. The stub's `p4` is the stopped one (`stub-api.mjs:970`) | `layout="tile"`. `linked` always true. `announceFavorite` for a stopped salon |
 | **`focus.spec.ts`:** a card with a heart | Tab goes link, then heart. Each computes `RING`. The name underlines on focus | `tabindex="-1"` on the heart. Remove `group-focus-visible:underline` |
@@ -649,7 +670,7 @@ Every § in this table is the parent's, unless it says otherwise.
 
 | Parent says | What holds | Done here |
 |---|---|---|
-| §7.3 « `next/image`, lazy »; §11 « lazy and below the fold » | True only for `/`, at phone and desktop sizes. A card photo is the LCP on landings and `/recherche` at 412×823, and on `/` at 820×1180. At 360×640 root, city and `/recherche` have it off-screen | `imagePriority` on one card, per level, kept only by §7's rule |
+| §7.3 « `next/image`, lazy »; §11 « lazy and below the fold » | « Lazy » holds. « Below the fold » is true only for `/`, at phone and desktop sizes: a card photo is the LCP on landings and `/recherche` at 412×823, and on `/` at 820×1180. At 360×640 root, city and `/recherche` have it off-screen | `imagePriority` on one card, per level, was built and measured under §7's rule. No level met it, so the prop came out and every photo is lazy |
 | §7.3 « The rating … stay as they are » | Same component, but it leaves the name's row, and gains the count under decision 4 | Own line, the app's order |
 | §7.3 « a rule and a hover state » | Does not say where, and the old hover would hide a no-photo tile | Rule at the foot of the media, row rules in the list, name underlined |
 | §7.3 does not place the heart | Bottom-right on the web, on the photo in the app | Stays bottom-right, off the photo, with a spacer as tall as the heart |

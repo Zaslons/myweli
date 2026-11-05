@@ -173,14 +173,11 @@ describe('the photo’s files', () => {
     expect(Math.min(...widths)).toBeLessThanOrEqual(256);
   });
 
-  it('lazy by default; `imagePriority` is a high fetch priority with no `loading`', () => {
-    const { container, rerender } = render(<ProviderCard provider={photoAndLogo} />);
-    const img = () => container.querySelector('img')!;
-    expect(img()).toHaveAttribute('loading', 'lazy');
-    expect(img().getAttribute('fetchpriority')).not.toBe('high');
-    rerender(<ProviderCard provider={photoAndLogo} imagePriority />);
-    expect(img().getAttribute('fetchpriority')).toBe('high');
-    expect(img().hasAttribute('loading')).toBe(false);
+  it('the photo is lazy, with no high fetch priority (the measurement in the spec’s §7)', () => {
+    const { container } = render(<ProviderCard provider={photoAndLogo} />);
+    const img = container.querySelector('img')!;
+    expect(img).toHaveAttribute('loading', 'lazy');
+    expect(img.getAttribute('fetchpriority')).not.toBe('high');
   });
 });
 
