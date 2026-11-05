@@ -18,7 +18,11 @@ const workflow = readFileSync(join('..', '.github', 'workflows', 'production-che
 const NOT_CHECKS = new Set(['report', 'clear']);
 
 const jobs = workflow.slice(workflow.search(/^jobs:$/m));
-const checks = [...jobs.matchAll(/^ {2}([a-z][a-z0-9_-]*):$/gm)].map((m) => m[1]).filter((name) => !NOT_CHECKS.has(name));
+// A capital letter or a comment on the key's line is still a job, or a ninth check would
+// slip past the day it arrives.
+const checks = [...jobs.matchAll(/^ {2}([A-Za-z_][\w-]*):[ \t]*(?:#.*)?$/gm)]
+  .map((m) => m[1])
+  .filter((name) => !NOT_CHECKS.has(name));
 
 const report = jobs.match(/^ {2}report:$[\s\S]*?(?=^ {2}\S[^\n]*:$|$(?![\s\S]))/m)?.[0] ?? '';
 /// The line that opens with the first check's row.
