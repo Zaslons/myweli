@@ -286,8 +286,9 @@ describe('the tokens are actually WIRED, not just spelled', () => {
     expect((resolved.theme!.content as Record<string, string>).initial).toBe('attr(data-initial)');
     const position = resolved.theme!.objectPosition as Record<string, string>;
     expect(position.subject).toBe('50% 20%');
-    // Extended, not replaced: writing `theme.objectPosition` would drop these with a green
-    // build, and the logo's corner with them (WEB-SYSTEM §2).
+    // Extended, not replaced: writing `theme.objectPosition` would drop these, and the logo's
+    // corner with them (WEB-SYSTEM §2). A fresh build's lint refuses that too, on the logo's
+    // class; a stale `.next/cache/eslint` does not, and tests do not run a build.
     expect(position['left-bottom']).toBe('left bottom');
     expect(position.center).toBe('center');
     const { css } = await postcss([tailwindcss(tailwindConfig as never)]).process(
@@ -295,6 +296,9 @@ describe('the tokens are actually WIRED, not just spelled', () => {
       { from: undefined },
     );
     expect(css).toContain('.aspect-card {');
+    // The value. That the class is on the card and the cover is provider-card's, hero-cover's
+    // and the e2e's to hold: this scan reads comments too, so a word left in one keeps this
+    // line green with the class off both (web-swiss-cards.md §8).
     expect(css).toMatch(/\.object-subject \{\s*object-position: 50% 20%;?\s*\}/);
     expect(css).toContain('.object-left-bottom {');
     expect(css).toContain('.after\\:content-initial::after {');

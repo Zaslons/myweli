@@ -116,9 +116,10 @@ const provider = {
 const kycState = { status: 'pending', documents: [], rejectionReason: null };
 
 // A salon page with a cover, a logo over it and a gallery, all three on one page, so a test
-// can see that a place set on the cover did not reach the other two. Its own slug, because
-// a logo on `beaute-divine` would change what every other spec reads. In the sitemap
-// because `dynamicParams` is false: a slug that is not listed answers a 404.
+// can see that a place set on the cover did not reach the other two. Its own slug, so
+// `beaute-divine`'s page stays as every other spec has it: a logo there changes that page's
+// bytes and no test's result (web-swiss-cards.md §8). In the sitemap because `dynamicParams`
+// is false: a slug that is not listed answers a 404.
 const LOGO_SALON = {
   ...JSON.parse(JSON.stringify(provider)),
   slug: 'salon-au-logo',

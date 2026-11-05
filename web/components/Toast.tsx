@@ -24,7 +24,7 @@ export function Toast({
   /// « Carte » toggle, at the left: 24–72px while it rides a list): the toast stays centred
   /// and sits above that band, at 80px (`bottom-xxxl` + `pb-m`). Where the toggle has
   /// stopped above the footer or rests under a short list, it can stand level with the
-  /// toast, which is on top, at most half the screen wide, and lets a press through
+  /// toast, which is on top, at most half the screen wide at normal text, and lets a press through
   /// (docs/design/web-swiss-cards.md §2.4).
   aboveFloatingControl?: boolean;
 }) {

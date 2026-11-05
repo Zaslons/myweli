@@ -2,6 +2,7 @@ import { expect, test, type Locator, type Page } from '@playwright/test';
 
 import { signInConsumer } from './_auth';
 import { PHOTO, PHOTO_COLOUR, paintedIn, routeNextImages } from './_pixel';
+import { zIndex } from '../../styles/tokens';
 
 /// B11.1 — docs/design/web-swiss-direction.md §12. What the new look promises and
 /// a unit test cannot see, because each of these is a fact about the rendered box:
@@ -722,7 +723,11 @@ test.describe('the salon card', () => {
       expect(inHtml[0]).toContain('f1.jpg');
       await routeNextImages(page);
       await page.goto('/recherche?q=sans-photo-en-tete');
-      await expect(page.locator('main [role="presentation"]:has(h3)')).toHaveCount(4);
+      const rows = page.locator('main [role="presentation"]:has(h3)');
+      await expect(rows).toHaveCount(4);
+      // The list itself, or this proves nothing: it opens without a photo.
+      await expect(rows.nth(0).locator('img[data-initial]')).toHaveCount(0);
+      await expect(rows.nth(1).locator('img[data-initial]')).toHaveCount(0);
       await expect(high(page)).toHaveCount(1);
       await expect(high(page)).toHaveAttribute('alt', 'Beauté Divine');
       await expect(page.locator('main img[alt="Logo Maison Nala"]')).toHaveAttribute('loading', 'lazy');
@@ -850,6 +855,8 @@ test.describe('the salon card', () => {
       [320, 568],
       [360, 640],
       [390, 844],
+      // A break at `sm` alone stands here, where nothing else reads it.
+      [640, 900],
       [768, 1024],
       [820, 1180],
       [1023, 768],
@@ -894,7 +901,11 @@ test.describe('the salon card', () => {
         const button = (await toggleOn(page).boundingBox())!;
         const column = (await row.locator('h3').locator('..').boundingBox())!;
         expect(button.y + button.height, 'it became a block in the page').toBe(height - 24);
+        expect(button.x, 'the page’s gutter').toBe(16);
         expect(button.x + button.width).toBeLessThanOrEqual(column.x);
+        // Above whatever carries its own layer, such as the map's controls. Taken off, nothing
+        // covered it at 390, so this reads the token and not an effect (§8).
+        expect(await toggleOn(page).evaluate((el) => getComputedStyle(el).zIndex)).toBe(String(zIndex.sticky));
       });
 
       // From far down a long list the page under the map is much shorter, so the browser held
@@ -924,6 +935,20 @@ test.describe('the salon card', () => {
       });
     }
 
+    // Beside the list from `lg`, so no button. « Carte » reads stop at 1023, and nothing else
+    // looks for its absence.
+    for (const width of [1024, 1280]) {
+      test(`at ${width} there is no button, because the map stands beside the list`, async ({ page }) => {
+        await size(page, width, 800);
+        await page.route(/cartocdn\.com/, (r) => r.abort());
+        await routeNextImages(page);
+        await page.goto('/recherche?q=vitrine');
+        await expect(page.locator('main [role="presentation"]:has(h3)').first(), 'the list itself, or this proves nothing').toBeVisible();
+        await expect(page.locator('.maplibregl-map')).toBeVisible();
+        await expect(toggleOn(page)).toBeHidden();
+      });
+    }
+
     test('at 390 a press on « Instagram » opens the link, and not the map', async ({ page, context }) => {
       await size(page, 390, 844);
       await routeNextImages(page);
@@ -941,8 +966,9 @@ test.describe('the salon card', () => {
     });
 
     // Where it has stopped, or rests under a short list, it can stand level with the toast.
-    // The toast is on top and at most half the screen wide, so it reaches the button's right
-    // padding and not its word, and a press there goes through to the button (§2.4).
+    // The toast is on top and at most half the screen wide at normal text, so it reaches the
+    // button's right padding and not its word, and a press there goes through to the button.
+    // At doubled text it does reach the word, and that is recorded in §2.4, not held here.
     for (const [width, height] of SIZES.slice(0, 3)) {
       test(`at ${width}, level with the toast: its word stays clear and a press still answers`, async ({ page }) => {
         await size(page, width, height);
@@ -990,22 +1016,29 @@ test.describe('the salon card', () => {
   test.describe('where a photo is cut', () => {
     const position = (image: Locator) => image.evaluate((el) => getComputedStyle(el).objectPosition);
 
-    test('a card’s photo is at 50% 20%, and a logo stays in its corner', async ({ page }) => {
-      await routeNextImages(page);
-      await page.goto('/recherche?q=vitrine');
-      expect(await position(page.locator('main img[alt="Beauté Divine"]'))).toBe('50% 20%');
-      expect(await position(page.locator('main img[alt="Logo Maison Nala"]'))).toBe('0% 100%');
-    });
+    // Each width of its own, because a class at one breakpoint could undo it on every phone.
+    for (const width of [390, 820, 1280]) {
+      test(`at ${width}: a card’s photo is at 50% 20%, and a logo stays in its corner`, async ({ page }) => {
+        await size(page, width);
+        await routeNextImages(page);
+        await page.goto('/recherche?q=vitrine');
+        expect(await position(page.locator('main img[alt="Beauté Divine"]'))).toBe('50% 20%');
+        expect(await position(page.locator('main img[alt="Logo Maison Nala"]'))).toBe('0% 100%');
+      });
 
-    test('the salon page’s cover is at 50% 20%, and its logo and gallery stay centred', async ({ page }) => {
-      await routeNextImages(page);
-      await page.goto('/salon-au-logo');
-      expect(await position(page.locator('header img[alt="Salon Beauté Divine"]'))).toBe('50% 20%');
-      expect(await position(page.locator('header img[alt="Logo Beauté Divine"]'))).toBe('50% 50%');
-      const gallery = page.getByRole('button', { name: /^Agrandir la photo/ }).locator('img');
-      expect(await gallery.count(), 'the gallery’s photos, or this proves nothing').toBeGreaterThan(0);
-      expect(await position(gallery.first())).toBe('50% 50%');
-    });
+      test(`at ${width}: the salon page’s cover is at 50% 20%, and its logo and gallery stay centred`, async ({ page }) => {
+        await size(page, width);
+        await routeNextImages(page);
+        await page.goto('/salon-au-logo');
+        expect(await position(page.locator('header img[alt="Salon Beauté Divine"]'))).toBe('50% 20%');
+        expect(await position(page.locator('header img[alt="Logo Beauté Divine"]'))).toBe('50% 50%');
+        // With its number: a review's photo carries the same words with none, and held this
+        // count up when the gallery was gone.
+        const gallery = page.getByRole('button', { name: /^Agrandir la photo \d/ }).locator('img');
+        expect(await gallery.count(), 'the gallery’s photos, or this proves nothing').toBeGreaterThan(0);
+        expect(await position(gallery.first())).toBe('50% 50%');
+      });
+    }
   });
 
   test('a row selected from the map has a square ring, with its offset', async ({ page }) => {
