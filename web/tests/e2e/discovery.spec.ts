@@ -95,8 +95,8 @@ test('/recherche on a phone: the ♥ says what it did, above the « Carte » tog
 
   const said = page.getByRole('status').filter({ hasText: 'Retiré des favoris' });
   await expect(said).toBeVisible();
-  // The toast and the « Carte » toggle share the bottom centre under lg: the
-  // toast sits ABOVE it, never over it.
+  // The toast is centred and the « Carte » toggle is at the bottom left under lg: a
+  // long toast could reach it sideways, so it sits ABOVE its band, never over it.
   const pill = await said.locator('div').first().boundingBox();
   const toggle = await page.getByRole('button', { name: 'Carte' }).boundingBox();
   expect(pill!.y + pill!.height).toBeLessThanOrEqual(toggle!.y);

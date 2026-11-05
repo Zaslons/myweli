@@ -346,16 +346,18 @@ export function RechercheClient({
         </div>
       </div>
 
-      {/* Mobile floating toggle — the app's map tab, web-shaped. */}
+      {/* Mobile floating toggle — the app's map tab, web-shaped. At the page's gutter, so
+          it sits over a row's photo column and never over its text: the owner moved it
+          there after seeing the before and after (docs/design/web-swiss-cards.md §2.4). */}
       <button
         type="button"
         onClick={() => setMobileView((v) => (v === 'list' ? 'map' : 'list'))}
-        className="fixed bottom-l left-1/2 z-sticky inline-flex min-h-12 -translate-x-1/2 items-center rounded-control bg-primary px-l text-labelLarge font-medium text-secondary shadow-lg lg:hidden"
+        className="fixed bottom-l left-m z-sticky inline-flex min-h-12 items-center rounded-control bg-primary px-l text-labelLarge font-medium text-secondary shadow-lg lg:hidden"
       >
         {mobileView === 'list' ? 'Carte' : 'Liste'}
       </button>
-      {/* The ♥'s announcement (B5.4) — lifted above the « Carte » toggle,
-          which holds the same bottom-centre spot under lg. */}
+      {/* The ♥'s announcement (B5.4) — centred, and lifted above the band the
+          « Carte » toggle holds at the bottom left under lg, so a long one never meets it. */}
       <Toast toast={toast} aboveFloatingControl />
     </div>
   );

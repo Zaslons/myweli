@@ -294,6 +294,8 @@ Same list and map, same filters, same mobile toggle. The map is untouched. Cards
 
 **Corrected 2026-11-05:** this left out the empty state, now flush left (§6.1), and the selection ring, now square with `ring-offset-2`, on every row's `py-m` (§6.3). « Same filters » holds, except that « Trier » can now shrink, because it scrolled the page sideways at 320 with doubled text (web-swiss-cards.md §2.3).
 
+**Corrected 2026-11-05, after the before and after:** « same mobile toggle » holds for its words and behaviour, not its place. Centred, it covered more of the new rows' text than of today's cards, so the owner moved it to the page's gutter, over the photo column (web-swiss-cards.md §2.4, decision 5).
+
 ### 7.5 Landings
 
 `max-w-content` becomes the site grid. Reading text stays capped. Cards 3 across from `lg`. Sibling chips stay chips. The empty state goes left-aligned with its current words. The FAQ follows §7.1.

@@ -20,9 +20,9 @@ export function Toast({
   aboveFloatingControl = false,
 }: {
   toast: ToastState;
-  /// The page has its own floating control at the bottom centre under `lg`
-  /// (the search's « Carte » toggle: 24–72px): the toast sits above it there,
-  /// at 80px (`bottom-xxxl` + `pb-m`), never over it.
+  /// The page has its own floating control at the bottom under `lg` (the search's
+  /// « Carte » toggle, at the left: 24–72px): the toast stays centred and sits above
+  /// that band there, at 80px (`bottom-xxxl` + `pb-m`), so a long one never meets it.
   aboveFloatingControl?: boolean;
 }) {
   return (

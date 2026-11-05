@@ -705,6 +705,81 @@ test.describe('the salon card', () => {
     }
   });
 
+  // The owner moved it after seeing the before and after (web-swiss-cards.md §2.4): it sits
+  // over a row's photo column and never over its text. A fixed button over a list is only
+  // wrong at some scroll, so each row is brought under it.
+  test.describe('« Carte » over the list', () => {
+    for (const [width, height] of [
+      [320, 568],
+      [360, 640],
+      [390, 844],
+      [768, 1024],
+      [820, 1180],
+    ] as const) {
+      test(`at ${width}: it stays off every row’s text, and is 48 tall`, async ({ page }) => {
+        await size(page, width, height);
+        await routeNextImages(page);
+        await page.goto('/recherche?q=vitrine');
+        const toggle = page.getByRole('button', { name: 'Carte', exact: true });
+        await expect(toggle).toBeVisible();
+        // `:has(h3)`, because the map's own elements carry this role too, once it has mounted.
+        const rows = page.locator('main [role="presentation"]:has(h3)');
+        expect(await rows.count(), 'the fixtures’ eight rows').toBe(8);
+
+        const atRest = (await toggle.boundingBox())!;
+        let passedUnder = 0;
+        for (let i = 0; i < 8; i++) {
+          const row = rows.nth(i);
+          const before = (await row.boundingBox())!;
+          await page.evaluate(
+            (top) => window.scrollBy({ top, behavior: 'instant' }),
+            before.y + before.height / 2 - (atRest.y + atRest.height / 2),
+          );
+          const button = (await toggle.boundingBox())!;
+          const rowBox = (await row.boundingBox())!;
+          const column = (await row.locator('h3').locator('..').boundingBox())!;
+          expect(button.x + button.width, `row ${i}: the button reaches its text column`).toBeLessThanOrEqual(column.x);
+          expect(button.height, 'the button fell below the 48px floor').toBeGreaterThanOrEqual(48);
+          const under = rowBox.y < button.y + button.height && button.y < rowBox.y + rowBox.height;
+          if (under) passedUnder++;
+          // A row wholly above the button at the top of the page can never reach it. Any
+          // other row must really have passed under it, or this proves nothing about it.
+          if (before.y + before.height > atRest.y) expect(under, `row ${i} never passed under the button`).toBe(true);
+          await page.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }));
+        }
+        expect(passedUnder, 'no row passed under the button').toBeGreaterThan(0);
+      });
+    }
+
+    test('at 390 the map view reads « Liste », on no map control, and its tap comes back', async ({ page }) => {
+      await size(page, 390, 844);
+      await page.route(/cartocdn\.com/, (r) => r.abort());
+      await page.goto('/recherche?q=vitrine');
+      await page.getByRole('button', { name: 'Carte', exact: true }).click();
+      await expect(page.locator('.maplibregl-map')).toBeVisible();
+      const liste = page.getByRole('button', { name: 'Liste', exact: true });
+      await expect(liste).toBeVisible();
+      const button = (await liste.boundingBox())!;
+      expect(button.height).toBeGreaterThanOrEqual(48);
+      const controls = page.locator('.maplibregl-ctrl, .maplibregl-ctrl-attrib, .maplibregl-ctrl-logo');
+      const count = await controls.count();
+      expect(count, 'no map control to read').toBeGreaterThan(0);
+      for (let i = 0; i < count; i++) {
+        const control = await controls.nth(i).boundingBox();
+        if (!control) continue;
+        const meets =
+          control.x < button.x + button.width &&
+          button.x < control.x + control.width &&
+          control.y < button.y + button.height &&
+          button.y < control.y + control.height;
+        expect(meets, `« Liste » sits on a map control, number ${i}`).toBe(false);
+      }
+      await liste.click();
+      await expect(page.locator('main [role="presentation"]:has(h3)').first()).toBeVisible();
+      await expect(page.getByRole('button', { name: 'Carte', exact: true })).toBeVisible();
+    });
+  });
+
   test('a row selected from the map has a square ring, with its offset', async ({ page }) => {
     await size(page, 1280);
     await page.route('**/basemaps.cartocdn.com/**', (r) => r.abort());
