@@ -25,6 +25,7 @@ export function EmptyState({
   description,
   action,
   plain = false,
+  align = 'center',
   className = '',
 }: {
   icon?: IconName;
@@ -33,14 +34,28 @@ export function EmptyState({
   action?: ReactNode;
   /** No card chrome — for embedding inside an already-boxed host (DataTable). */
   plain?: boolean;
+  /**
+   * `start`: flush left on the page's edge, with no box and no padding, for the
+   * public pages (docs/design/web-swiss-cards.md §5). `plain` alone would keep
+   * `p-xl` and break that edge.
+   */
+  align?: 'center' | 'start';
   className?: string;
 }) {
+  const start = align === 'start';
+  const shell = start
+    ? ''
+    : `${plain ? 'p-xl' : 'rounded-xl border border-border bg-secondary p-xl'} text-center`;
   return (
-    <div
-      className={`${plain ? 'p-xl' : 'rounded-xl border border-border bg-secondary p-xl'} text-center ${className}`}
-    >
+    <div className={`${shell} ${className}`}>
       {icon ? (
-        <Icon name={icon} size="iconXL" className="mx-auto text-textTertiary" />
+        <Icon
+          name={icon}
+          size="iconXL"
+          // The search glyph starts 3/24 inside its 64px box, so the lens would stand
+          // 8px right of the title. Both `start` callers use `search`.
+          className={start ? '-ml-s text-textTertiary' : 'mx-auto text-textTertiary'}
+        />
       ) : null}
       <p className={`text-titleLarge font-medium text-textSecondary ${icon ? 'mt-l' : ''}`}>
         {title}
@@ -50,7 +65,9 @@ export function EmptyState({
       {description ? (
         <p className="mt-s text-bodyLarge text-textTertiary">{description}</p>
       ) : null}
-      {action ? <div className="mt-l flex justify-center">{action}</div> : null}
+      {action ? (
+        <div className={start ? 'mt-l flex' : 'mt-l flex justify-center'}>{action}</div>
+      ) : null}
     </div>
   );
 }

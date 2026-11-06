@@ -5,6 +5,7 @@ import { ProBand } from '../components/home/ProBand';
 import { OpenInAppButton } from '../components/OpenInAppButton';
 import { HomeSearch } from '../components/home/HomeSearch';
 import { ProviderCard } from '../components/provider/ProviderCard';
+import { SiteFaqList } from '../components/SiteFaqList';
 import { SiteHero } from '../components/SiteHero';
 import { SiteSection } from '../components/SiteSection';
 import { defaultCity, getLocalityTree } from '../lib/api/localities';
@@ -132,7 +133,7 @@ export default async function HomePage() {
 
         {featured.length > 0 ? (
           <SiteSection title="Salons populaires" stacked>
-            <div className="grid grid-cols-1 gap-m sm:grid-cols-2 lg:grid-cols-4">
+            <div className="grid grid-cols-1 gap-x-m gap-y-l sm:grid-cols-2 lg:grid-cols-4 lg:gap-x-l">
               {featured.map((p) => (
                 <ProviderCard key={p.id} provider={p} />
               ))}
@@ -219,14 +220,7 @@ export default async function HomePage() {
         <ProBand />
 
         <SiteSection title="Questions fréquentes">
-          <dl className="divide-y divide-divider">
-            {faq.map((f) => (
-              <div key={f.question} className="py-m first:pt-0 last:pb-0">
-                <dt className="font-medium text-textPrimary">{f.question}</dt>
-                <dd className="mt-xs max-w-content text-bodyLarge text-textSecondary">{f.answer}</dd>
-              </div>
-            ))}
-          </dl>
+          <SiteFaqList items={faq} />
         </SiteSection>
       </main>
     </>

@@ -70,6 +70,12 @@ type Route = {
 const PUBLIC_ROUTES: [name: string, url: string, anchor: string | RegExp][] = [
   ['the marketing home — all 15 of the h2s that grew 20 → 22px live here', '/', /Réservez beauté/],
   ['discovery', '/recherche?commune=Cocody', /Salons à Cocody/],
+  // web-swiss-cards.md §8: every form a card can take, in a row. A long name wraps now,
+  // so there is no declared loss left to protect this matrix from.
+  ['discovery with every kind of card', '/recherche?q=vitrine', /Recherche : vitrine/],
+  ['a root landing — the ruled index of cities', '/coiffure', /Coiffure en Côte d.Ivoire/],
+  ['an area landing — one tile, chips and crumbs', '/coiffure/abidjan/cocody', 'Coiffure à Cocody'],
+  ['an area landing with every kind of tile', '/coiffure/abidjan/marcory', 'Coiffure à Marcory'],
   // B8 caught this route VACUOUS: the stub's salon is `beaute-divine` and the
   // canonical path is `/{slug}` — `/salon/salon-excellence` had been scanning
   // the 404 page (which also doesn't overflow) since the slug scheme changed.
@@ -560,7 +566,8 @@ for (const vp of VIEWPORTS) {
         // guard — waiting on it beats `networkidle`, which never fires on the
         // image-bearing routes (the stub's salon photos point at an
         // unresolvable `cdn.stub`, so `next/image` keeps the network busy past
-        // the 30s timeout). B8 found the salon route had been silently scanning
+        // the 30s timeout; since B11.3 `_cdn-stub-dns.cjs` fails that lookup at once, so
+        // it settles, and the anchor stays for the vacuity it guards). B8 found the salon route had been silently scanning
         // the 404 page for months (a slug rename left it 404, and the 404 page
         // doesn't overflow either — a green gate measuring nothing); a heading
         // unique to the REAL page makes that vacuity loud.

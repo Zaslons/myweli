@@ -125,6 +125,11 @@ lignes. « Photos » garde « Aucune photo pour le moment. ».
   les trois largeurs par `salon_header_test.dart`.
 - **Photo claire** : le dégradé. **Photo très large / haute** : `cover` recadre
   au centre, comme le site.
+  **À la fusion de B11.3 :** le site ne recadre plus au centre : sa carte et sa
+  couverture coupent à 50 % 20 %, un peu au-dessus, sur le choix du propriétaire
+  ([web-swiss-cards.md](web-swiss-cards.md) §11, décisions 2 et 8). L'app reste au
+  centre jusqu'après la décision d'Apple sur 0.0.1 (BACKLOG B12.13), parce que tout
+  ce qui est sous `mobile/lib` part dans le prochain build Pro.
 - **`imageUrls[0] == ''`** : « pas de couverture » (la vérité JavaScript du
   site) ; la bande « Photos » montre alors toute la liste.
 

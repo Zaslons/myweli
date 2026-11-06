@@ -88,6 +88,40 @@ test('public: buttons, links, chips and fields all reach the floor', async ({
   );
 });
 
+test('the salon card and the landings: the heart, chips, crumbs and the city index (web-swiss-cards §8)', async ({
+  page,
+}) => {
+  await page.goto('/recherche?q=vitrine');
+  await assertBox(
+    page.getByRole('button', { name: /Beauté Divine.*favoris/ }),
+    'the row’s heart',
+  );
+
+  await page.goto('/coiffure');
+  const crumbs = page.getByRole('navigation', { name: 'Fil d’Ariane' });
+  await assertBox(crumbs.getByRole('link', { name: 'Accueil' }), 'crumb « Accueil »', { minW: 0 });
+  await assertBox(
+    page.getByRole('link', { name: /Coiffure à Abidjan/ }),
+    'the city index',
+    { minW: 0 },
+  );
+
+  await page.goto('/coiffure/abidjan');
+  await assertBox(
+    page.getByRole('navigation', { name: 'Fil d’Ariane' }).getByRole('link', { name: 'Coiffure', exact: true }),
+    'crumb « Coiffure »',
+    { minW: 0 },
+  );
+  await assertBox(page.getByRole('link', { name: 'Cocody', exact: true }), 'landing chip', { minW: 0 });
+});
+
+test('« Retirer des favoris » reaches the floor, signed in (web-swiss-cards §8)', async ({ page }) => {
+  await signInConsumer(page);
+  const remove = page.getByRole('button', { name: 'Retirer des favoris' }).first();
+  await expect(remove).toBeVisible();
+  await assertBox(remove, '« Retirer des favoris »', { minW: 0 });
+});
+
 test('the new home page and footer: every link in them reaches the floor (web-swiss-direction §12)', async ({
   page,
 }) => {

@@ -134,7 +134,7 @@ The site and the apps look less alike now: a booking starts on square fields on 
 
 **The cards around the controls.** The booking steps, the client's account and the Espace pro keep their rounded cards (`Card`, `rounded-xl`), now holding square buttons and fields. It follows the owner's scope, which was fields and buttons. Whether it reads as a mismatch is for the owner to judge from the [pictures](assets/web-swiss-fields.png). If so, it is one more token.
 
-**The floating « Carte » button over the footer.** On a short results page on a phone, it sits over the large wordmark. It floats by design and goes when the page gets longer, so this is recorded rather than changed.
+**The floating « Carte » button over the footer.** On a short results page on a phone, it sits over the large wordmark. It floats by design and goes when the page gets longer, so this is recorded rather than changed. **At the merge of B11.3:** it stops above the footer at every width below `lg`, on the owner's choice ([web-swiss-cards.md](web-swiss-cards.md) §2.4, decision 5).
 
 ---
 
