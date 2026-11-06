@@ -20,3 +20,13 @@ next-env.d.ts
 # The salon page's generated test photo (tool/test-photo.mjs). Regenerated, never
 # committed: the PR and the manual LCP runs use it, and no binary goes into git.
 /tool/out
+
+# No photo is committed under web/: salons' photos live on R2, the brand is SVG and PNG, and
+# the one test photo is drawn by tool/test-photo.mjs. A JPEG here is a measuring run's
+# output or a demo photo (BACKLOG 37: licence unknown) on its way into `git add -A`, so it
+# is ignored wherever it lands, not only in /tool/out. One really meant to be committed is
+# added with `git add -f`, and the PR says why.
+*.jpg
+*.jpeg
+*.JPG
+*.JPEG

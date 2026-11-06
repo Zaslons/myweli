@@ -17,10 +17,12 @@
 ///
 /// **Deterministic.** One seeded generator, no clock, no `Math.random`: the same command
 /// gives the same bytes on any machine with this lockfile (tests/test-photo.test.ts pins a
-/// small render's hash). `jpeg-js` is the locked dev copy `@lhci/cli` already installs
-/// (Lighthouse's), so nothing is downloaded.
+/// small render's hash). `jpeg-js` is declared at exactly 0.4.4 in `package.json`, the copy
+/// `@lhci/cli`'s Lighthouse already locked, so nothing new is downloaded, and a bump of
+/// Lighthouse cannot move or drop the encoder this hash depends on.
 ///
-/// **Never committed.** It writes to `tool/out/`, which `web/.gitignore` ignores:
+/// **Never committed.** It writes to `tool/out/`, and `web/.gitignore` ignores every JPEG
+/// under `web/`, wherever a path passed here puts it:
 ///
 ///     node tool/test-photo.mjs                 # → tool/out/salon-test-photo.jpg
 ///     node tool/test-photo.mjs /some/where.jpg
