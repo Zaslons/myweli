@@ -301,6 +301,65 @@ describe('Toast clears a floating control', () => {
     expect([lift(), aside()]).toEqual(['-63px', '']);
   });
 
+  // Review of the build (B11.4): the 8 of air above the control, held on its own.
+  it('a control 7 below the pill, within the 8 of air: it moves, 1 up', () => {
+    // Too wide to slide past (aside needs 111, the gutter leaves 81); up 764 − (771 − 8) = 1.
+    control({ left: 16, right: 200, top: 771, bottom: 819 });
+    show();
+    expect([lift(), aside()]).toEqual(['1px', '']);
+  });
+
+  // Review of the build (B11.4): each of the three ways a placement is asked for with no scroll.
+  it('without ResizeObserver, a resize alone places the pill again (a shorter window, no scroll)', () => {
+    // 390×920: the pill 784–840, « Carte » riding at 848–896, 8 below it: no move. The window
+    // made 844 tall: the pill 708–764, and the list's end on the screen stops « Carte » at
+    // 700–748, level with it. Only `resize` fires: there is no observer and no scroll.
+    vi.stubGlobal('ResizeObserver', undefined);
+    vi.stubGlobal('innerHeight', 920);
+    PILL = { left: 97, right: 293, top: 784, bottom: 840 };
+    const el = control({ left: 16, right: 101, top: 848, bottom: 896 });
+    show();
+    expect([lift(), aside()]).toEqual(['', '']);
+    vi.stubGlobal('innerHeight', 844);
+    PILL = { left: 97, right: 293, top: 708, bottom: 764 };
+    el.getBoundingClientRect = () => box({ left: 16, right: 101, top: 700, bottom: 748 });
+    act(() => {
+      window.dispatchEvent(new Event('resize'));
+    });
+    expect([lift(), aside()]).toEqual(['', '12px']);
+  });
+
+  it('a control that grows with no scroll or resize: its own ResizeObserver places the pill again', () => {
+    // A ResizeObserver that calls back only for what it observes, as a browser's does.
+    const observers: { call: () => void; seen: Set<Element> }[] = [];
+    vi.stubGlobal(
+      'ResizeObserver',
+      class {
+        seen = new Set<Element>();
+        call: () => void;
+        constructor(cb: () => void) {
+          this.call = cb;
+          observers.push(this);
+        }
+        observe(el: Element) {
+          this.seen.add(el);
+        }
+        disconnect() {
+          this.seen.clear();
+        }
+      },
+    );
+    const el = control({ left: 16, right: 101, top: 772, bottom: 820 });
+    show();
+    expect([lift(), aside()]).toEqual(['', '']);
+    // Its text grows: 12 taller, its top 760, within 8 of the pill's foot at 764.
+    el.getBoundingClientRect = () => box({ left: 16, right: 101, top: 760, bottom: 820 });
+    act(() => {
+      for (const o of observers) if (o.seen.has(el)) o.call();
+    });
+    expect([lift(), aside()]).toEqual(['', '12px']);
+  });
+
   it('a slide that fits only before rounding is not taken: the pill stays 16 from the side', () => {
     // The pill 97.4–293.4: the gutter leaves 390 − 16 − 293.4 = 80.6 on the right. The control ends
     // at 169.6, so aside needs 80.2, worn as 81, which would end the pill 15.6 from the side.

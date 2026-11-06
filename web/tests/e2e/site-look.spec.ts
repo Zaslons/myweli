@@ -1,7 +1,7 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
 
 import { signInConsumer } from './_auth';
-import { DOUBLED, answerFavourites, hermetic, rootAt32, scanMessage } from './_message';
+import { DOUBLED, type MessageScan, answerFavourites, hermetic, rootAt32, scanMessage } from './_message';
 import { PHOTO, PHOTO_COLOUR, paintedIn, routeNextImages } from './_pixel';
 import { zIndex } from '../../styles/tokens';
 
@@ -1267,6 +1267,46 @@ test.describe('the salon card', () => {
     };
     const first = (steps: number[]) => `at scroll ${steps.slice(0, 5).join(', ')}${steps.length > 5 ? '…' : ''}`;
 
+    // What the plan's port measured with this rule (web-swiss-salon.md §2.6, §2.10; its scratch
+    // `vals.json`, `search.best.<setting>.<size>.<q>`, each page scanned in 2px steps): the
+    // largest slide, rise and drop, in px. Each is held as a ceiling 2px above it, a move the port
+    // saw is seen again, and a move it never saw stays unseen. So a change that slides less and
+    // rises more (a slide refused by a label misread, which jsdom cannot see), or that moves the
+    // message further than the owner was told (decision 100), goes red here even while the
+    // message still clears « Carte » (review of the build, B11.4).
+    type Moves = readonly [slide: number, rise: number, drop: number];
+    const MEASURED: Record<Text, Record<string, Record<'tresses' | 'vitrine', Moves>>> = {
+      normal: {
+        '320x568': { tresses: [29, 0, 0], vitrine: [29, 58, 0] },
+        '360x640': { tresses: [19, 0, 0], vitrine: [19, 0, 0] },
+        '390x844': { tresses: [11, 0, 0], vitrine: [11, 0, 0] },
+      },
+      doubled: {
+        '320x568': { tresses: [0, 135, 64], vitrine: [0, 135, 64] },
+        '360x640': { tresses: [0, 135, 64], vitrine: [0, 135, 64] },
+        '390x844': { tresses: [0, 135, 64], vitrine: [0, 135, 64] },
+      },
+      root32: {
+        '320x568': { tresses: [29, 54, 0], vitrine: [29, 54, 0] },
+        '360x640': { tresses: [19, 54, 0], vitrine: [19, 54, 0] },
+        '390x844': { tresses: [11, 0, 0], vitrine: [11, 0, 0] },
+      },
+    };
+    const asMeasured = (r: MessageScan, [slide, rise, drop]: Moves) => {
+      for (const [move, measured, steps, largest] of [
+        ['slide', slide, r.slid, r.maxSlide],
+        ['rise', rise, r.rose, r.maxRise],
+        ['drop', drop, r.dropped, r.maxDrop],
+      ] as const) {
+        if (measured === 0) {
+          expect(steps, `a ${move} (up to ${largest}px) where the port measured none`).toBe(0);
+        } else {
+          expect(steps, `no ${move} where the port measured one of ${measured}px`).toBeGreaterThan(0);
+          expect(largest, `the largest ${move}, against the port's ${measured}px`).toBeLessThanOrEqual(measured + 2);
+        }
+      }
+    };
+
     for (const [text, label] of [
       ['normal', 'at normal text'],
       ['doubled', 'with doubled text (Android)'],
@@ -1280,13 +1320,14 @@ test.describe('the salon card', () => {
           [360, 640],
           [390, 844],
         ] as const) {
-          for (const q of ['tresses', 'vitrine']) {
-            test(`/recherche?q=${q} at ${width}×${height}: the message never comes within 8px of « Carte », and a press at its centre answers it`, async ({ page }) => {
+          for (const q of ['tresses', 'vitrine'] as const) {
+            test(`/recherche?q=${q} at ${width}×${height}: the message never comes within 8px of « Carte », a press at its centre answers it, and it moves as measured`, async ({ page }) => {
               await open(page, width, height, `/recherche?q=${q}`, text);
               const r = await scan(page, 4);
               expect(r.crossed, '« Carte » never stood in the message’s way, so this proves nothing').toBeGreaterThan(0);
               expect(r.nearCount, `within 8px: ${JSON.stringify(r.near)}`).toBe(0);
               expect(r.pressMisses.length, `a press at « Carte »’s centre missed it ${first(r.pressMisses)}`).toBe(0);
+              asMeasured(r, MEASURED[text][`${width}x${height}`][q]);
             });
           }
         }
@@ -1294,10 +1335,12 @@ test.describe('the salon card', () => {
         // WEB-SYSTEM §9's reflow screen, and a phone held sideways: where the screen has no room
         // the message stays whole on it, never moved nearer an edge than 16px, « Annuler » whole.
         // At 320×256 with doubled text nothing clears, and the message still covers « Carte » for
-        // 96px of scrolling (accepted, decision 102); held sideways at 568×320 it never meets it.
-        const short: (readonly [number, number, boolean])[] =
-          text === 'doubled' ? [[320, 256, false], [568, 320, true]] : text === 'root32' ? [[320, 256, false]] : [];
-        for (const [width, height, room] of short) {
+        // 96px of scrolling (accepted, decision 102): within 8px of it at 27 steps of 4px, held at
+        // 30 so the accepted overlap cannot grow unseen (review of the build, B11.4). Held
+        // sideways at 568×320, and at 320×256 with the 200 % font, it never meets it.
+        const short: (readonly [number, number, number])[] =
+          text === 'doubled' ? [[320, 256, 30], [568, 320, 0]] : text === 'root32' ? [[320, 256, 0]] : [];
+        for (const [width, height, nearAtMost] of short) {
           test(`/recherche?q=tresses at ${width}×${height}: the message stays whole on the screen, 16px from its edges once moved, and « Annuler » with it`, async ({ page }) => {
             await open(page, width, height, '/recherche?q=tresses', text);
             const r = await scan(page, 4);
@@ -1305,7 +1348,7 @@ test.describe('the salon card', () => {
             expect(r.offScreen.length, `the message was cut by the screen ${first(r.offScreen)}`).toBe(0);
             expect(r.nearEdge.length, `a move took it nearer an edge than 16px ${first(r.nearEdge)}`).toBe(0);
             expect(r.annulerCut.length, `« Annuler » was cut by the screen ${first(r.annulerCut)}`).toBe(0);
-            if (room) expect(r.nearCount, `within 8px: ${JSON.stringify(r.near)}`).toBe(0);
+            expect(r.nearCount, `within 8px: ${JSON.stringify(r.near)}`).toBeLessThanOrEqual(nearAtMost);
           });
         }
 
@@ -1364,6 +1407,49 @@ test.describe('the salon card', () => {
       expect(r.after[1], 'after « Carte »').toEqual({ word: 'Liste', there: true, clear: true, home: true });
       expect(r.after[2].clear, 'after « Liste », the message is where it was before the press').toBe(true);
       expect(r.after[2].there).toBe(true);
+    });
+
+    // A window made shorter while the message shows, at the top of the page: no scroll follows,
+    // and neither the pill nor « Carte » changes size, so no observer sees it. Only the toast's
+    // `resize` listener can place the message again (review of the build, B11.4).
+    test('/recherche?q=tresses from 390×920 to 390×844, no scroll: the message is placed again, clear of « Carte » and aside', async ({ page }) => {
+      await open(page, 390, 920, '/recherche?q=tresses', 'normal');
+      const read = () =>
+        page.evaluate(async () => {
+          const frame = () => new Promise<void>((done) => requestAnimationFrame(() => setTimeout(done, 0)));
+          await frame();
+          await frame();
+          const region = [...document.querySelectorAll('[role="status"]')].find((x) =>
+            (x.textContent ?? '').includes('Ajouté aux favoris'),
+          );
+          const pill = region?.firstElementChild?.getBoundingClientRect();
+          const carte = [...document.querySelectorAll<HTMLButtonElement>('main button')]
+            .find((b) => b.textContent?.trim() === 'Carte')
+            ?.getBoundingClientRect();
+          if (!pill || !carte) return null;
+          return {
+            height: innerHeight,
+            scrollY,
+            clear: !(
+              carte.left - 8 < pill.right &&
+              pill.left < carte.right + 8 &&
+              carte.top - 8 < pill.bottom &&
+              pill.top < carte.bottom + 8
+            ),
+            home: Math.abs((pill.left + pill.right) / 2 - document.documentElement.clientWidth / 2) <= 1,
+          };
+        });
+      await page.locator('main button[aria-label$="favoris"]').first().click();
+      await expect(page.getByRole('status').filter({ hasText: 'Ajouté aux favoris' })).toBeVisible();
+      expect(await read(), 'at 920 tall « Carte » is not in the message’s way, or this proves nothing').toEqual({
+        height: 920,
+        scrollY: 0,
+        clear: true,
+        home: true,
+      });
+      await size(page, 390, 844);
+      await page.waitForFunction(() => innerHeight === 844);
+      expect(await read(), 'after the window was made shorter').toEqual({ height: 844, scrollY: 0, clear: true, home: false });
     });
   });
 
