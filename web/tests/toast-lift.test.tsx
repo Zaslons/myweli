@@ -450,6 +450,37 @@ describe('a slide that would newly cover another control’s label', () => {
     expect([lift(), aside()]).toEqual(['', '12px']);
   });
 
+  // Review of the build (B11.4): a row's link carries words for screen readers only (`sr-only`,
+  // absolutely placed and clipped), whose Range box is as wide as the words though nothing shows.
+  const linkWithHidden = (hiddenStyle: Partial<CSSStyleDeclaration>) => {
+    const link = document.createElement('a');
+    link.setAttribute('href', '/salon-g');
+    link.textContent = 'Salon G';
+    const hidden = document.createElement('span');
+    hidden.textContent = 'pas encore d’avis';
+    Object.assign(hidden.style, hiddenStyle);
+    link.appendChild(hidden);
+    document.body.appendChild(link);
+    // The words shown stand beside the slid pill (109–305); the hidden ones run under it.
+    at['Salon G'] = { left: 310, right: 360, top: 712, bottom: 730 };
+    at['pas encore d’avis'] = { left: 296, right: 420, top: 712, bottom: 730 };
+  };
+
+  it('words only a screen reader reads (`sr-only`) are no part of a label: the slide is taken', () => {
+    linkWithHidden({ position: 'absolute', clip: 'rect(0px, 0px, 0px, 0px)' });
+    control({ left: 16, right: 101, top: 700, bottom: 748 });
+    show();
+    expect([lift(), aside()]).toEqual(['', '12px']);
+  });
+
+  it('words placed absolutely but not clipped (a badge) are seen, and count', () => {
+    linkWithHidden({ position: 'absolute' });
+    control({ left: 16, right: 101, top: 700, bottom: 748 });
+    show();
+    // Up 72, down 48: the shorter, down.
+    expect([lift(), aside()]).toEqual(['-48px', '']);
+  });
+
   it('a control with no text (a row’s photo link) has no label, whatever its tap area', () => {
     const link = document.createElement('a');
     link.setAttribute('href', '/salon-e');

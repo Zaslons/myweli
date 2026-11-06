@@ -21,10 +21,21 @@ const covered = (p: Box, cs: Box[]) =>
   cs.reduce((sum, c) => (meets(p, c) ? sum + Math.min(p.bottom, c.bottom + AIR) - Math.max(p.top, c.top - AIR) : sum), 0);
 const over = (a: Box, b: Box) => a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom;
 
-/// The label of every other control on the screen, one box each: the box of its text, which is
-/// what a person reads and aims at (a row's ♥, a link's words), not its tap area, which is
-/// larger and mostly empty. Links and buttons only; the floating controls and what is inside the
-/// toast (its « Annuler ») are not counted; a control with no text has no label here.
+/// Words only a screen reader reads (`sr-only`: placed absolutely and clipped to nothing) are not
+/// seen, yet their Range box is as wide as the words: inside a row's link at 320, « salon, pas
+/// encore d’avis » ran the label 45px past the visible text. So they are no part of a label.
+function unseen(text: Node, control: Element): boolean {
+  for (let el = text.parentElement; el; el = el === control ? null : el.parentElement) {
+    const style = getComputedStyle(el);
+    if (style.position === 'absolute' && style.clip && style.clip !== 'auto') return true;
+  }
+  return false;
+}
+
+/// The label of every other control on the screen, one box each: the box of its visible text,
+/// which is what a person reads and aims at (a row's ♥, a link's words), not its tap area, which
+/// is larger and mostly empty. Links and buttons only; the floating controls and what is inside
+/// the toast (its « Annuler ») are not counted; a control with no visible text has no label here.
 function labels(region: Element): Box[] {
   // jsdom has no Range boxes: there no label is seen, so no slide is refused.
   if (typeof Range === 'undefined' || typeof Range.prototype.getBoundingClientRect !== 'function') return [];
@@ -35,7 +46,7 @@ function labels(region: Element): Box[] {
     let label: Box | null = null;
     const texts = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
     for (let t = texts.nextNode(); t; t = texts.nextNode()) {
-      if (!t.textContent?.trim()) continue;
+      if (!t.textContent?.trim() || unseen(t, el)) continue;
       range.selectNodeContents(t);
       const r = range.getBoundingClientRect();
       if (!r.width || !r.height) continue;
@@ -117,7 +128,7 @@ export function Toast({
   /// clear; else up or down, whichever is the shorter move (the nearer side); where none clears,
   /// kept whole on the screen where it covers the control least. So the two never meet where
   /// the screen has room
-  /// (docs/design/web-swiss-cards.md §2.4, B11.5). This replaces decision 86's « the toast
+  /// (docs/design/web-swiss-salon.md §2.3, B11.5). This replaces decision 86's « the toast
   /// stays where it is ».
   ///
   /// « Carte »'s home is 80px (`bottom-xxxl` + `pb-m`), px like the 24–72px band the button
