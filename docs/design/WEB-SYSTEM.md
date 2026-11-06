@@ -420,8 +420,9 @@ it `data-floating-control` and gives `Toast` its home: `aboveFloatingControl`
 salon page's bar, `bottom-20`, rem like the bar). From that home the pill is
 measured against every marked control on the screen, and where one comes within
 `s` (8px) it moves, in this fixed order: **aside**, within the `m` (16px) gutters,
-unless the slid pill would newly cover another control's label (the words of a
-link or button, such as a row's ♥, never its tap area); **else up or down,
+unless the slid pill would newly cover another control's label (the visible words
+of a link or button, such as a row's ♥, never its tap area, nor words only a
+screen reader reads, `sr-only`); **else up or down,
 whichever is the shorter move**, up on a tie, never nearer the screen's top or
 foot than `m`; **where neither clears**, it stays whole on the screen where it
 covers the control least. Moves are whole px, rounded so the `s` of air and the
@@ -497,7 +498,8 @@ split view** (specified 2026-11-06 for B11.4's cover branch,
 [web-swiss-salon.md](web-swiss-salon.md) §2.5, not merged; BACKLOG 101). The map
 stands beside the list from `lg`, and from `md` in a window wider than tall: each
 `lg:` class of the split view has a `md:landscape:` twin (`landscape` is
-Tailwind's built-in orientation variant). Why: below `lg` the footer stacks and is
+Tailwind's built-in orientation variant), except the list column's `lg:px-l`:
+below `lg` its gutter stays `m`, so the `<h1>` keeps the header logo's x. Why: below `lg` the footer stacks and is
 taller than such a window (927px at 1023 wide), so a floating « Carte » that stops
 above it had left the screen by the page's end (y −255 at 1023×768, −572 at
 844×390); beside the list there is no button to lose. Portrait windows keep the
