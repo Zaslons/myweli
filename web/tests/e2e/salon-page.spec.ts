@@ -200,7 +200,8 @@ const atTheEnd = (page: Page) =>
 
 /// One Tab press at a time from the top of the document, through `main` and then the footer
 /// until the focus leaves the page: where each stop stands against the bar. `wholly` is a stop
-/// whose part on the screen is all behind the bar; `room` is the screen above the bar.
+/// whose part on the screen is all within the bar's rows, so all behind it; `room` is the
+/// screen above the bar.
 type Stop = { name: string; inBar: boolean; inFooter: boolean; under: number; wholly: boolean; height: number; room: number };
 async function tabWalk(page: Page): Promise<Stop[]> {
   // The map mounts only once it nears the screen (MapEmbed's IntersectionObserver, then a
@@ -238,7 +239,7 @@ async function tabWalk(page: Page): Promise<Stop[]> {
         inBar,
         inFooter: !!el.closest('footer'),
         under: shown && !inBar ? Math.max(0, Math.min(b.bottom, t.bottom) - Math.max(b.top, t.top)) : 0,
-        wholly: shown && !inBar && bottom > top && top >= t.top,
+        wholly: shown && !inBar && bottom > top && top >= t.top && bottom <= t.bottom,
         height: b.height,
         room: shown ? t.top : innerHeight,
       };
