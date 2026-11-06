@@ -113,4 +113,38 @@ Watched red, each on a fresh build of committed code (§5):
 
 ## 5. What was measured
 
-*Filled in by the build; see the PR.*
+**The guard, each run on a fresh build of committed code** (stacked on #743):
+
+| Run | Result |
+|---|---|
+| The fix | 4 passed |
+| #743's `BookingFlow` | red in all four: at the page's end the footer's last link is under the bar, from the first step |
+| The bar `fixed` again (fit logic kept) | red in all four, the same check |
+| Never compact | red: « the bar takes 48 % » (Android mode) · « 31 % » (browser font) |
+| Always compact | red at 320 and 375: « at normal text the bar carries the total » |
+| Compact, summary still hidden | red in both doubled modes: « no total is shown » |
+
+**One spec followed the bar:** `booking.spec.ts` found it as `.fixed.bottom-0`
+and now finds `.sticky.bottom-0`.
+
+**The five store-linked pages.** The stylesheet gains exactly one rule,
+`.-mx-m{margin-left:-16px;margin-right:-16px}`, and its hashed name changes.
+Every element's computed style and box on the five pages stays identical at
+375, 820 and 1280 (1,698 elements, against main). `BookingFlow.tsx` is outside
+their import graph.
+
+**The real code, looked at.** At Android-doubled 320×568 the bar is 73 px
+(13 %), reading « Confirmer », and the summary shows « Total 15 000 – 25 000
+FCFA · Durée : 2 h ». At normal 375×667 it is 65 px (10 %) with the total, and
+there is no summary on the phone.
+
+**Suites** (this stacked PR gets no CI until #742 and #743 merge):
+
+- the full e2e suite on the default ports: 429 passed;
+- unit: 195 files, 2,550 tests;
+- lint and typecheck clean.
+
+**Not verified:** real phones.
+
+**The disk filled up mid-task** (117 MB free on a 460 GB volume). The owner
+freed space; nothing of this branch was lost.
