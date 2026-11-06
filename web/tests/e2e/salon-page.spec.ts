@@ -273,7 +273,7 @@ async function tabWalk(page: Page): Promise<Stop[]> {
 /// `BarClearance` gives `<html>` a bottom padding as tall as the bar and a scroll padding of the
 /// bar plus 8px while the page shows. Sticky, as #741 first had it, the bar stopped above the
 /// footer and left the screen at the page's end (243px of scrolling back for « Réserver » at
-/// 320×568, 616px with doubled text); fixed with no room, it stood on « Instagram », which no
+/// 320×568, 515px with doubled text, 616 at 844×390); fixed with no room, it stood on « Instagram », which no
 /// longer answered a press (measured in plan 103, 27 of 27 settings).
 test.describe('a phone: the booking bar (§1.4, decision 103)', () => {
   const PHONES = [
@@ -513,6 +513,46 @@ test.describe('a phone: the booking bar (§1.4, decision 103)', () => {
     test.use(ANDROID);
     endCase(320, 568, 'doubled');
     walkCase(320, 568, 'doubled');
+
+    /// D10: with doubled text on Android, a row wider than the screen makes Chrome lay the page
+    /// out wider than the screen (row 38 of WEB-SYSTEM §15): 418×742 at 320×568, the screen
+    /// showing its bottom-left 320×568. A fixed box spans that layout, so `inset-x-0` alone put
+    /// « Réserver » 82px off the screen's right edge. The install banner's « Télécharger ✕ » row
+    /// is such a row once a store link is set, which no e2e build has (§3.4), so a row as wide
+    /// stands in for it, as the build's review measured it does.
+    test('at 320×568 with doubled text (Android) and a row wider than the screen, the bar keeps to the screen and « Réserver » stays on it', async ({ page }) => {
+      await openAt(page, 320, 568, 'doubled');
+      await page.evaluate(() => {
+        const row = document.createElement('div');
+        row.style.width = '418px';
+        row.style.height = '1px';
+        document.body.prepend(row);
+      });
+      await expect
+        .poll(() => page.evaluate(() => window.innerWidth), { message: 'the page was not laid out wider, so this proves nothing' })
+        .toBeGreaterThan(320);
+      await scrollTo(page.getByRole('heading', { name: /^Avis \(/ }), 'center');
+      const at = await page.evaluate(() => {
+        const vv = window.visualViewport!;
+        const bar = document.querySelector('main > :last-child')!;
+        const cta = [...bar.querySelectorAll('a')].find((a) => a.textContent?.trim() === 'Réserver')!;
+        const b = bar.getBoundingClientRect();
+        const c = cta.getBoundingClientRect();
+        return {
+          layout: window.innerWidth,
+          screen: { left: vv.offsetLeft, right: vv.offsetLeft + vv.width, bottom: vv.offsetTop + vv.height },
+          bar: { left: b.left, right: b.right, bottom: b.bottom },
+          cta: { left: c.left, right: c.right, bottom: c.bottom },
+        };
+      });
+      test.info().annotations.push({ type: 'widened', description: JSON.stringify(at) });
+      expect(at.layout, 'the layout is not wider than the screen, so this proves nothing').toBeGreaterThan(at.screen.right);
+      expect(Math.abs(at.bar.bottom - at.screen.bottom), `the bar’s foot is at ${at.bar.bottom}, the screen’s at ${at.screen.bottom}`).toBeLessThanOrEqual(0.5);
+      expect(Math.abs(at.bar.left - at.screen.left), `the bar starts at ${at.bar.left}, the screen at ${at.screen.left}`).toBeLessThanOrEqual(0.5);
+      expect(Math.abs(at.bar.right - at.screen.right), `the bar ends at ${at.bar.right}, the screen at ${at.screen.right}`).toBeLessThanOrEqual(0.5);
+      expect(at.cta.right, '« Réserver » runs off the screen’s right edge').toBeLessThanOrEqual(at.screen.right);
+      expect(at.cta.bottom, '« Réserver » runs off the screen’s foot').toBeLessThanOrEqual(at.screen.bottom);
+    });
 
     // WEB-SYSTEM §9's reflow screen: the 137px bar leaves 119px above it, less than some
     // controls are tall (decision 104). None is hidden whole, and one is partly under the bar
