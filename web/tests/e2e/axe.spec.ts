@@ -399,6 +399,36 @@ test('Médias — the delete question, then the undo toast — axe-clean (web-pr
   await undo.click();
 });
 
+/// Decision 100: the favourite's message moves out of a floating control's way, and the move is
+/// written on the live region's own style, so the region and what it announces do not change
+/// (web-swiss-salon.md §2.3). The scan above reads a toast that is never measured; this one reads
+/// the message moved aside, under the one salon of `?q=tresses`, where « Carte » rests level with
+/// its home.
+test('a MOVED toast is axe-clean, and still in its live region (decision 100)', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.route('**/api/me/favorites**', (r) =>
+    r.request().method() === 'GET'
+      ? r.fulfill({ status: 200, contentType: 'application/json', body: '{"favorites":[]}' })
+      : r.fulfill({ status: 204 }),
+  );
+  await page.goto('/recherche?q=tresses');
+  const heart = page.getByRole('button', { name: 'Ajouter Beauté Divine aux favoris' });
+  await expect(heart).toBeEnabled();
+  await heart.click();
+  const region = page.getByRole('status').filter({ hasText: 'Ajouté aux favoris' });
+  await expect(region).toBeVisible();
+  await expect(region).toHaveAttribute('aria-live', 'polite');
+  const offCentre = async () => {
+    const b = (await region.locator('div').first().boundingBox())!;
+    return Math.abs(b.x + b.width / 2 - 195);
+  };
+  await expect.poll(offCentre, { message: 'the message did not move, so this proves nothing' }).toBeGreaterThan(1);
+  await expectNoViolations(page, '/recherche + moved toast');
+  // The scan is only proof if the moved message survived it.
+  await expect(region).toBeVisible();
+  expect(await offCentre(), 'the message went back before the scan ended').toBeGreaterThan(1);
+});
+
 test('a VISIBLE toast is axe-clean', async ({ page }) => {
   await page.goto('/pro/connexion');
   await submitOtpLogin(page, 'salon@example.com');

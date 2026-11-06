@@ -1,5 +1,6 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
 
+import { answerFavourites, hermetic, scanMessage } from './_message';
 import { routeNextImages } from './_pixel';
 import before from './salon-seo-before.json';
 
@@ -293,6 +294,63 @@ test.describe('a phone: the booking bar (§1.4)', () => {
       expect(under).toEqual([]);
     });
   }
+});
+
+/// Decision 100 at the page's end: the bar stops above the footer and climbs through the band the
+/// heart's message stands in. #741 left the message where it was, within 8px of the bar for 156px
+/// of scrolling at 320×568 (measured on the port); now it moves out of the bar's way, by the
+/// shorter of up and down, as the bar is the screen's whole width (web-swiss-salon.md §2.3).
+/// One frame per step, in the page (_message.ts); the figures go into the test's annotations.
+test.describe('a phone: the heart’s message and the bar at the page’s end (decision 100)', () => {
+  test.describe.configure({ timeout: 60_000 });
+
+  const open = async (page: Page, width: number, height: number) => {
+    await hermetic(page);
+    await size(page, width, height);
+    await routeNextImages(page);
+    await answerFavourites(page);
+    await page.goto(SALON);
+    await expect(page.getByRole('button', { name: 'Ajouter aux favoris' })).toBeEnabled();
+  };
+  const scan = async (page: Page) => {
+    const r = await scanMessage(page, { control: 'bar', heart: 'salon', step: 2, lastPx: 800 });
+    const { near: _near, glyphHits, offScreen, nearEdge, annulerCut, pressMisses: _misses, ...figures } = r;
+    test.info().annotations.push({
+      type: 'scan',
+      description: JSON.stringify({
+        ...figures,
+        glyphHits: glyphHits.length,
+        offScreen: offScreen.length,
+        nearEdge: nearEdge.length,
+        annulerCut: annulerCut.length,
+      }),
+    });
+    return r;
+  };
+
+  for (const [width, height] of [
+    [320, 568],
+    [390, 844],
+  ] as const) {
+    test(`at ${width}×${height}, over the page’s last 800px, the message keeps 8px of air from the bar`, async ({ page }) => {
+      await open(page, width, height);
+      const r = await scan(page);
+      expect(r.controlRaised, 'the bar never stopped above the footer here, so this proves nothing').toBeGreaterThan(0);
+      expect(r.crossed, 'the bar never came near the message’s home, so this proves nothing').toBeGreaterThan(0);
+      expect(r.nearCount, `within 8px: ${JSON.stringify(r.near)}`).toBe(0);
+    });
+  }
+
+  // « Else shorter » (decision 100): the bar is the screen's whole width, so the message goes
+  // just above it or just below it, whichever is the shorter move. Rising first, as the rule of
+  // 6 November did, it went up to 157px here; the shorter way peaks at 93 (measured on the port).
+  test('at 320×568, the message takes the shorter way past the bar: never 100px up, and both up and down', async ({ page }) => {
+    await open(page, 320, 568);
+    const r = await scan(page);
+    expect(r.maxRise, 'it rose further than the shorter way would take it').toBeLessThan(100);
+    expect(r.rose, 'it never rose, so this proves nothing').toBeGreaterThan(0);
+    expect(r.dropped, 'it never dropped, so this proves nothing').toBeGreaterThan(0);
+  });
 });
 
 /// Read from #737's tip, 57b252a8, whose `web/` is b0995489's, built against this stub on
