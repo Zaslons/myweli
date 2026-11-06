@@ -565,6 +565,19 @@ which recomputes when the DOM changes, so an element screenshot or a text
 edit can silently drop the doubling. Check the size at the moment you
 measure.
 
+**A pinned bar takes at most a quarter of the screen, and it is sticky, not
+fixed** ([web-funnel-bar-fit.md](web-funnel-bar-fit.md)). At doubled text the
+funnel's « total + Confirmer » bar took 48 % of a 320×568 screen. Because it
+was `fixed`, it also covered the footer's last link at the end of the page at
+every text size, and the page guessed its height with a `pb-[6rem]` it
+outgrew.
+
+- A sticky bar, last in its flow, takes its own room and stops above the
+  footer. The salon page's bar does the same (#741).
+- When the full bar would exceed 25 % of the screen, it keeps its action and
+  sheds the rest into the page. The page measures the full bar before paint;
+  it doesn't branch on the text scale.
+
 **The unit contract, stated because it was an accident until B11.** The type
 scale (`styles/tokens.ts`) and the spacing scale are **px**; the sizing keys —
 `width`, `height`, `minWidth`, `minHeight`, `maxHeight`, `inset`, `translate` —

@@ -48,8 +48,9 @@ test.describe('mobile web', () => {
     page,
   }) => {
     await page.goto('/beaute-divine/reserver');
-    // The fixed bar is there from the start, disabled until services + time.
-    const bar = page.locator('.fixed.bottom-0');
+    // The pinned bar is there from the start, disabled until services + time.
+    // Sticky since web-funnel-bar-fit.md: it stops above the footer.
+    const bar = page.locator('.sticky.bottom-0');
     await expect(bar).toBeVisible();
     await expect(
       bar.getByRole('button', { name: 'Confirmer', exact: true }),

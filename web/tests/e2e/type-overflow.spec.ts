@@ -1263,6 +1263,60 @@ async function walkFunnel(page: Page, at: (step: string) => Promise<void>) {
 /// once). Nothing else pins it.
 const DOUBLE_UNIT = /FCFA\s–/;
 
+/// The share of the screen the pinned bar may take (web-funnel-bar-fit.md §2):
+/// above it, the bar sheds its total and keeps « Confirmer ».
+const BAR_LIMIT = 0.25;
+
+/// The funnel's pinned bar, measured (web-funnel-bar-fit.md).
+///
+/// Found from what it does rather than how it is styled: the visible
+/// « Confirmer », then its first `sticky` or `fixed` ancestor. Reports the bar's
+/// share of the screen, whether a total is shown visibly in the bar or in the
+/// summary panel, and — after scrolling to the end of the page, then back —
+/// how many px of the footer's last link and of the last step card sit under
+/// it. The scroll is restored, so the walk continues where it was.
+async function pinnedBar(page: Page) {
+  return page.evaluate(() => {
+    const confirm = Array.from(document.querySelectorAll('button')).find(
+      (b) => b.textContent?.trim() === 'Confirmer' && b.checkVisibility(),
+    );
+    let bar: HTMLElement | null = confirm ?? null;
+    while (bar && !['sticky', 'fixed'].includes(getComputedStyle(bar).position)) bar = bar.parentElement;
+    if (!bar) return null;
+    const isTotal = (el: Element) => /^\d[\d\s]*( – \d[\d\s]*)? FCFA$/.test(el.textContent?.trim() ?? '');
+    const shown = (el: Element) => el.checkVisibility() && el.getBoundingClientRect().height > 0;
+    const inBar = Array.from(bar.querySelectorAll('*')).some((el) => isTotal(el) && shown(el));
+    const summary = bar.parentElement?.querySelector('aside');
+    const inSummary = !!summary && Array.from(summary.querySelectorAll('*')).some((el) => isTotal(el) && shown(el));
+    const share = bar.getBoundingClientRect().height / window.innerHeight;
+
+    const y = window.scrollY;
+    window.scrollTo(0, document.documentElement.scrollHeight);
+    const b = bar.getBoundingClientRect();
+    const under = (el: Element | null | undefined) => {
+      if (!el) return null;
+      const r = el.getBoundingClientRect();
+      return Math.max(0, Math.min(r.bottom, b.bottom) - Math.max(r.top, b.top));
+    };
+    const links = document.querySelectorAll('footer a');
+    const cards = Array.from(document.querySelectorAll('section')).filter((s) => s.querySelector(':scope > button[aria-expanded]'));
+    const ends = { footerLink: under(links[links.length - 1]), lastCard: under(cards[cards.length - 1]) };
+    window.scrollTo(0, y);
+    return { share, inBar, inSummary, ...ends };
+  });
+}
+
+/// The bar's checks, at every step that has one (the confirm step does not).
+async function expectBarFits(page: Page, step: string, normalText: boolean) {
+  const bar = await pinnedBar(page);
+  expect(bar, `${step}: no pinned bar holds the visible « Confirmer »`).not.toBeNull();
+  expect(bar!.share, `${step}: the bar takes ${Math.round(bar!.share * 100)} % of the screen`).toBeLessThanOrEqual(BAR_LIMIT);
+  expect(bar!.inBar || bar!.inSummary, `${step}: no total is shown, in the bar or in the summary`).toBe(true);
+  expect(bar!.footerLink, `${step}: at the page's end the footer's last link is under the bar`).toBe(0);
+  expect(bar!.lastCard, `${step}: at the page's end the last step is under the bar`).toBe(0);
+  if (normalText) expect(bar!.inBar, `${step}: at normal text the bar carries the total`).toBe(true);
+}
+
 test.describe('the booking funnel at doubled text (web-funnel-doubled-text)', () => {
   for (const mode of DOUBLED_TEXT) {
     test.describe(mode.name, () => {
@@ -1319,6 +1373,7 @@ test.describe('the booking funnel at doubled text (web-funnel-doubled-text)', ()
             await page.getByText(DOUBLE_UNIT).count(),
             `${step}: a total prints « FCFA » twice`,
           ).toBe(0);
+          if (step !== 'the confirm step') await expectBarFits(page, step, false);
         });
         await expect(page.getByRole('heading', { level: 2, name: 'Confirmer' })).toBeVisible();
       });
@@ -1345,6 +1400,7 @@ test.describe('the booking funnel at doubled text (web-funnel-doubled-text)', ()
             ).toBeLessThanOrEqual(HAIR);
           }
           expect(await page.getByText(DOUBLE_UNIT).count(), `${step}: a total prints « FCFA » twice`).toBe(0);
+          if (step !== 'the confirm step') await expectBarFits(page, step, true);
         });
         await expect(page.getByText(priceRange(15000, 25000), { exact: true }).first()).toBeAttached();
       });
