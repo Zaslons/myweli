@@ -3,6 +3,7 @@ import { expect, test, type Page } from '@playwright/test';
 import { signInConsumer, signInPro } from './_auth';
 import { asUnaskedBrowser } from './_push';
 import { serveStubImages } from './_pixel';
+import { priceRange } from '../../lib/format';
 
 /// B2b — the type scale must not overflow anything (WEB-SYSTEM §3).
 ///
@@ -1018,6 +1019,9 @@ async function priceRows(page: Page) {
           const r = el.getBoundingClientRect();
           return { left: r.left, top: r.top, right: r.right, bottom: r.bottom };
         };
+        const whole = document.createRange();
+        whole.selectNodeContents(price);
+        const lines = new Set(Array.from(whole.getClientRects(), (r) => Math.round(r.top))).size;
         const broken: string[] = [];
         const walker = document.createTreeWalker(price, NodeFilter.SHOW_TEXT);
         for (let text = walker.nextNode(); text; text = walker.nextNode()) {
@@ -1035,11 +1039,35 @@ async function priceRows(page: Page) {
           fontSize: parseFloat(getComputedStyle(price).fontSize),
           nameBox: box(name),
           priceBox: box(price),
-          rowRight: box(li).right,
+          row: box(li),
+          lines,
           broken,
         };
       }),
     );
+}
+
+/// **The stub's prices are too short to test the rule.** At 32px « 15 000 –
+/// 25 000 » still fits one 288px line, so no number is ever asked to break, and
+/// a price put back to `whitespace-nowrap` ends at x 317 — inside a 320 screen,
+/// past its row, and invisible to every check. Both mutations passed this guard
+/// until it measured a price that must wrap. So the second service is given the
+/// longest range a salon here plausibly charges, written by the page's own
+/// formatter; in the page rather than in the stub, whose prices other specs
+/// count on.
+const LONGEST_PRICE = priceRange(150000, 250000);
+
+async function withLongestPrice(page: Page) {
+  const shown = await page
+    .locator('section', { has: page.getByRole('heading', { name: 'Services & tarifs' }) })
+    .locator('li')
+    .nth(1)
+    .evaluate((li, text) => {
+      const price = li.querySelector(':scope > p')!;
+      price.textContent = text;
+      return price.textContent;
+    }, LONGEST_PRICE);
+  expect(shown, 'the second service\'s price was not replaced').toBe(LONGEST_PRICE);
 }
 
 test.describe('the salon page at doubled text (web-salon-price-reflow)', () => {
@@ -1063,9 +1091,10 @@ test.describe('the salon page at doubled text (web-salon-price-reflow)', () => {
           page.getByRole('heading', { name: 'Beauté Divine' }).first(),
           '/beaute-divine did not render its own page (wrong DOM — vacuous scan)',
         ).toBeVisible();
+        await withLongestPrice(page);
 
         const rows = await priceRows(page);
-        expect(rows.length, 'no service rows — nothing below would be measured').toBeGreaterThan(0);
+        expect(rows.length, 'fewer than two service rows — nothing below would be measured').toBeGreaterThanOrEqual(2);
         // The vacuity guard for the mode itself: a Chromium that ignored the
         // emulation would pass every check below at 16px.
         for (const row of rows) {
@@ -1077,6 +1106,19 @@ test.describe('the salon page at doubled text (web-salon-price-reflow)', () => {
           'the layout viewport grew past the screen — fixed bars and toasts are placed off it',
         ).toEqual([PHONE_320.width, PHONE_320.height]);
         expect(await horizontalOverflow(page), 'the page scrolls sideways').toEqual([]);
+        for (const row of rows) {
+          expect(
+            row.priceBox.right,
+            `« ${row.price} » runs past its row's right edge`,
+          ).toBeLessThanOrEqual(row.row.right + HAIR);
+          expect(row.priceBox.left, `« ${row.price} » starts before its row`).toBeGreaterThanOrEqual(
+            row.row.left - HAIR,
+          );
+        }
+        expect(
+          rows[1].lines,
+          `« ${LONGEST_PRICE} » fits one line — the whole-number check below measures nothing`,
+        ).toBeGreaterThan(1);
         for (const row of rows) {
           expect(
             row.broken,
@@ -1103,9 +1145,10 @@ test.describe('the salon page at doubled text (web-salon-price-reflow)', () => {
         await serveStubImages(page);
         await page.goto('/beaute-divine');
         await expect(page.getByRole('heading', { name: 'Beauté Divine' }).first()).toBeVisible();
+        await withLongestPrice(page);
 
         const rows = await priceRows(page);
-        expect(rows.length, 'no service rows — nothing below would be measured').toBeGreaterThan(0);
+        expect(rows.length, 'fewer than two service rows — nothing below would be measured').toBeGreaterThanOrEqual(2);
         for (const row of rows) {
           expect(row.fontSize, `« ${row.price} » is not at its normal size`).toBe(16);
           expect(
@@ -1113,7 +1156,7 @@ test.describe('the salon page at doubled text (web-salon-price-reflow)', () => {
             `« ${row.price} » left the line of « ${row.name} » at normal text`,
           ).toBeLessThan(row.nameBox.bottom);
           expect(
-            Math.abs(row.priceBox.right - row.rowRight),
+            Math.abs(row.priceBox.right - row.row.right),
             `« ${row.price} » is off the right edge of its row`,
           ).toBeLessThanOrEqual(HAIR);
         }
