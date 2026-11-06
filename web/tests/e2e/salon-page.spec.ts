@@ -292,14 +292,15 @@ test.describe('a phone: the booking bar (§1.4, decision 103)', () => {
       expect(end.ctaTop, '« Réserver » is above the screen').toBeGreaterThanOrEqual(0);
       expect(end.ctaBottom, '« Réserver » is below the screen').toBeLessThanOrEqual(height + 0.5);
       expect(end.ctaAnswers, 'a press at « Réserver »’s centre does not reach it').toBe(true);
+      expect(end.instaGap, '« Instagram » reaches the bar').toBeGreaterThan(0);
+      expect(end.instaAnswers, 'a press at « Instagram »’s centre does not reach it').toBe(true);
       // The room under the footer is the bar's measured height, not a guess: at the very end
-      // the footer's foot meets the bar's top.
+      // the footer's foot meets the bar's top. (After the two above, so that a bar with no room
+      // fails on « Instagram » and a room of the wrong height on this.)
       expect(
         Math.abs(end.footerFoot - end.barTop),
         `the footer ends at ${end.footerFoot}, the ${end.barHeight}px bar starts at ${end.barTop}`,
       ).toBeLessThanOrEqual(1);
-      expect(end.instaGap, '« Instagram » reaches the bar').toBeGreaterThan(0);
-      expect(end.instaAnswers, 'a press at « Instagram »’s centre does not reach it').toBe(true);
       // Last link first, each brought on-screen only if it is not, as site-look's « Carte »
       // test does: `elementFromPoint` answers nothing off the screen.
       const links = await page.locator('footer a').evaluateAll((els) =>
@@ -422,7 +423,7 @@ test.describe('a phone: the booking bar (§1.4, decision 103)', () => {
       });
     const on = await read();
     const barHeight = (await bar(page).boundingBox())!.height;
-    expect(on.computed, 'the salon page set neither, so this proves nothing').toEqual([`${barHeight}px`, `${barHeight + 8}px`]);
+    expect(on.computed, 'the salon page did not set both, so this proves nothing').toEqual([`${barHeight}px`, `${barHeight + 8}px`]);
     await page.evaluate(() => {
       (window as unknown as { stillHere: boolean }).stillHere = true;
     });
