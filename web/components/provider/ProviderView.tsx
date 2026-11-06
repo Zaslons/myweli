@@ -14,6 +14,7 @@ import { BookingCta } from '../BookingCta';
 import { SalonVisitsCard } from '../account/SalonVisitsCard';
 import { JsonLd } from '../JsonLd';
 import { BeforeAfter } from './BeforeAfter';
+import { BarClearance } from './BarClearance';
 import { BookingPanel } from './BookingPanel';
 import { Faq } from './Faq';
 import { FavoriteButton } from './FavoriteButton';
@@ -156,29 +157,17 @@ export function ProviderView({
           sections scroll. Before the sections in the DOM, so the panel is reached right
           after the name; below `lg` the panel is hidden and the order is the phone's.
 
-          `max-lg:[&_*]:scroll-mb-fab`, on this column and the next: below `lg`, whatever the
-          keyboard focuses in them stops 96px (`fab`) above the screen's foot, clear of the
-          65px booking bar. The browser scrolls a focused control just into view at the
-          bottom and took no account of the bar, so the FAQ's questions and a gallery photo
-          were hidden under it (WCAG 2.4.11). On the columns and not on `main`, which holds
-          the bar, whose own « Réserver » would chase its margin; `scroll-padding` on `<html>`
-          would do it once, but that is CSS the five store-linked pages share
-          (web-swiss-salon.md §1.4). Written here in the `className` and not in a constant,
-          so ESLint reads it: `no-arbitrary-value` refuses a bracketed 96px there and
-          `no-custom-classname` a misspelt token, neither of which it sees in a bare string.
-          (Not spelt out in this comment: Tailwind reads comments too, and would emit the
-          class.)
-          With the browser's text at double size the bar is 113px and up to 19px of a focused
-          control can still sit under it: a px margin against a rem bar (WEB-SYSTEM §9). */}
-      <div className="lg:col-span-4 lg:col-start-9 lg:row-span-2 max-lg:[&_*]:scroll-mb-fab">
+          Below `lg`, what the keyboard focuses here is kept clear of the booking bar by
+          the page's scroll padding, which the bar carries (below). */}
+      <div className="lg:col-span-4 lg:col-start-9 lg:row-span-2">
         <ProviderHero provider={p} slug={slug} preview={preview} className="lg:px-0 lg:pt-0" />
         <aside className="sticky top-l hidden lg:block">
           <BookingPanel provider={p} slug={slug} disabled={preview} />
         </aside>
       </div>
 
-      {/* The sections, with the same clearance below `lg` as the column above. */}
-      <div className="lg:col-span-8 max-lg:[&_*]:scroll-mb-fab">
+      {/* The sections. */}
+      <div className="lg:col-span-8">
         <p className="max-w-content px-m pt-m text-bodyLarge text-textSecondary">
           Réservez en ligne chez {p.name}, {cat} à {commune} ({country}).
           Services, tarifs, horaires et avis — réservation 24/7, sans appel.
@@ -263,15 +252,20 @@ export function ProviderView({
         <Faq items={faq} />
       </div>
 
-      {/* Mobile booking bar. Sticky, not fixed, and the last thing in `main`: it rides the
-          screen's foot while the page scrolls and stops above the footer, as « Carte » does
-          (web-swiss-cards.md §2.4, decision 5). Fixed, with the 48px « Réserver », it stood on
-          the footer's last link at the page's end. In the flow, so `main` needs no bottom padding.
+      {/* Mobile booking bar, fixed at the screen's foot below `lg`: « Réserver » never leaves
+          the screen, at the page's very end included (BACKLOG 103). Fixed, it would stand on
+          the footer's last link there, and a focused control could go under it, so
+          `BarClearance` measures the bar and gives `<html>` a bottom padding as tall as the
+          bar, so the page ends below the footer and the bar stops short of its last link, and
+          a scroll padding of the bar plus `s`, so whatever the keyboard focuses, in the page or
+          in the footer, stops 8px above it (WCAG 2.4.11), at every text size. Taken off from
+          `lg` and when the page goes; the five store-linked pages never mount it. Not printed:
+          fixed, it would stand at the foot of every printed page.
           `data-floating-control` is how the favourite's toast finds it and moves clear of it
           (Toast.tsx, B11.5). */}
       <div
         data-floating-control=""
-        className="sticky bottom-0 z-sticky flex items-center justify-between gap-m border-t border-divider bg-secondary px-m py-s lg:hidden"
+        className="fixed inset-x-0 bottom-0 z-sticky flex items-center justify-between gap-m border-t border-divider bg-secondary px-m py-s print:hidden lg:hidden"
       >
         {min != null ? (
           <div className="text-bodyMedium">
@@ -284,6 +278,7 @@ export function ProviderView({
           <span />
         )}
         <BookingCta slug={slug} disabled={preview} />
+        <BarClearance />
       </div>
     </main>
   );
