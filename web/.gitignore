@@ -16,3 +16,7 @@ next-env.d.ts
 # Not committed: 267 files, 1.3MB, and regenerating them from the locked
 # dependency is what keeps them from drifting out of step with it.
 /public/flags
+
+# The salon page's generated test photo (tool/test-photo.mjs). Regenerated, never
+# committed: the PR and the manual LCP runs use it, and no binary goes into git.
+/tool/out
