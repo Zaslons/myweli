@@ -2,9 +2,9 @@
 
 | | |
 |---|---|
-| **Status** | **Approved 2026-11-02** (decisions in §15). Direction B, with the owner's two additions: the real logo and the things that are MyWeli's own (§3), and a pattern with an African identity that **feels calm** (§4). **S0 merged in #724 and read back on `myweli.com`** (§11, §13). **S1 merged in #727 and read back on `myweli.com`** (§11, §13.1). **The owner chose to merge it before §4.8 (2026-11-02):** that check and a low-end Android are still theirs, now on the live site, and an answer to question 3 still changes the drawing. Fields and buttons went square in #728 ([web-swiss-fields.md](web-swiss-fields.md)). **S2 merged in #730 on 2026-11-04. `/professionnels` and the 404 read on `myweli.com` in Chromium only: no Safari or WebKit layout, no real phone, and the error pages not read live** (§13.2). **S3 built on 2026-11-05, not merged: its spec, [web-swiss-cards.md](web-swiss-cards.md), approved the same day, corrects §1, §5.3, §6.1, §6.4, §7.3–§7.5, §8–§11 and §13 here, each marked with that date. Where they differ, its §14 says why.** |
+| **Status** | **Approved 2026-11-02** (decisions in §15). Direction B, with the owner's two additions: the real logo and the things that are MyWeli's own (§3), and a pattern with an African identity that **feels calm** (§4). **S0 merged in #724 and read back on `myweli.com`** (§11, §13). **S1 merged in #727 and read back on `myweli.com`** (§11, §13.1). **The owner chose to merge it before §4.8 (2026-11-02):** that check and a low-end Android are still theirs, now on the live site, and an answer to question 3 still changes the drawing. Fields and buttons went square in #728 ([web-swiss-fields.md](web-swiss-fields.md)). **S2 merged in #730 on 2026-11-04. `/professionnels` and the 404 read on `myweli.com` in Chromium only: no Safari or WebKit layout, no real phone, and the error pages not read live** (§13.2). **S3 built on 2026-11-05, not merged: its spec, [web-swiss-cards.md](web-swiss-cards.md), approved the same day, corrects §1, §5.3, §6.1, §6.4, §7.3–§7.5, §8–§11 and §13 here, each marked with that date. Where they differ, its §14 says why.** **S4's spec started on 2026-11-06: [web-swiss-salon.md](web-swiss-salon.md). Its §1, the salon cover's 3:2 shape with §7.6's layout, was brought forward by the owner and answered from pictures (BACKLOG 94–98); written before any code, not built.** |
 | **Owner** | Sadreddine Daher |
-| **Last updated** | 2026-11-05 |
+| **Last updated** | 2026-11-06 |
 | **PRD ref / phase** | FR-WEB-MP-001, FR-WEB-PP-001/002 (presentation only) · V1 |
 | **Module** | Web public: `app/page.tsx`, `app/professionnels`, `app/recherche`, `app/[slug]`, `components/home`, `components/landing`, `components/provider`, `Header`, `SiteFooter`, `styles/tokens.ts` |
 | **Skills checked** | myweli-web-guardrails ✓ · myweli-verification-guardrails ✓ · no backend change |
@@ -228,6 +228,8 @@ Nearly everything is already a token. Only one is new.
 
 The logo, the `<h1>` and the first section start at the same x on every public route, at every width (the defect in §1). `/recherche` runs full width, so `SiteChrome` passes it a full-width header. Held by an e2e test (§12).
 
+**Added 2026-11-06: one exception, the salon page.** From `lg` its cover takes the left edge and its `<h1>` starts in column 9, beside the cover (§7.6), so there the logo and the `<h1>` do not share an x. The cover's x is the logo's, held by an e2e. WEB-SYSTEM §16 records it, with two more until S4's sections ([web-swiss-salon.md](web-swiss-salon.md) §1.2).
+
 ### 6.3 Rules instead of boxes
 
 | Rule | Token | Use |
@@ -239,7 +241,7 @@ Black structural rules are a **new use of `primary`**, recorded in WEB-SYSTEM. `
 
 ### 6.4 Photos
 
-- **Same-ratio crops:** 4:3 on cards, 3:2 on the salon cover, through two named `aspectRatio` tokens. Same-ratio crops are what make uneven phone photos look like one set. **Corrected 2026-11-05:** `card` arrives with S3 and `cover` waits for its first user in S4. This said the app's card is close to 4:3, which is only its two-column phone grid (1.24–1.36): its carousel is 1.56, one column 1.82, its list 1:1. The decision stands. **Added 2026-11-05:** each ratio is cut at one place, `object-subject`, 50% 20% (web-swiss-cards.md §11, decisions 2 and 8). The cover takes it now in its present box, and keeps it when its 3:2 arrives in S4.
+- **Same-ratio crops:** 4:3 on cards, 3:2 on the salon cover, through two named `aspectRatio` tokens. Same-ratio crops are what make uneven phone photos look like one set. **Corrected 2026-11-05:** `card` arrives with S3 and `cover` waits for its first user in S4. This said the app's card is close to 4:3, which is only its two-column phone grid (1.24–1.36): its carousel is 1.56, one column 1.82, its list 1:1. The decision stands. **Added 2026-11-05:** each ratio is cut at one place, `object-subject`, 50% 20% (web-swiss-cards.md §11, decisions 2 and 8). The cover takes it now in its present box, and keeps it when its 3:2 arrives in S4. **Corrected 2026-11-06:** `cover` arrives with B11.4's shape, brought forward on 2026-11-05 (BACKLOG 94) and specified in [web-swiss-salon.md](web-swiss-salon.md) §1, not merged, and the owner kept 50% 20% for it from pictures (BACKLOG 96).
 - **The crop is a little above the centre, 50% 20%, on cards and on the salon cover. Corrected 2026-11-05:** this said it was centred, as the app's, which was signed without seeing a portrait and was wrong. In a crop test on the real card, centre lost a tall updo whole, `object-top` turned upright rooms into ceilings, and 20% kept the faces, the fade and the rooms, and the updo lost only its very top (web-swiss-cards.md §2.4, decisions 2 and 8). The app stays centred until after Apple's decision (BACKLOG B12.13). The test's portraits were the owner's private AI stand-ins, never committed: the rule three lines below does not change.
 - **Square corners**, so the grid stays visible.
 - **No filters and no scrims.** Hair colour is information.
@@ -304,10 +306,11 @@ Same list and map, same filters, same mobile toggle. The map is untouched. Cards
 
 ### 7.6 Salon page
 
-- Phone: unchanged order, and the sticky booking bar stays.
-- From `lg`: cover in columns 1–8 at 3:2. Columns 9–12: name, rating, `BookingPanel`, sticky.
+- Phone: unchanged order, and the sticky booking bar stays. **Corrected 2026-11-06:** the cover is 3:2 here too, full width, and the bar is `sticky` and stops above the footer, as « Carte » does: with the 48px « Réserver » a fixed bar stood on the footer's last link ([web-swiss-salon.md](web-swiss-salon.md) §1.2, §1.4; BACKLOG 97).
+- From `lg`: cover in columns 1–8 at 3:2. Columns 9–12: name, rating, `BookingPanel`, sticky. **Corrected 2026-11-06:** « sticky » means the panel alone, at `top-l`. The name and the rating scroll away, because a sticky column holding them could pass a 768-tall screen and hide its own foot ([web-swiss-salon.md](web-swiss-salon.md) §1.4).
+- **Added 2026-11-06:** from 640 to 1023 px wide the page is the phone's single column, the cover full width at 3:2, 427 to 682 tall. A 3.2:1 band would come back at 1023 otherwise ([web-swiss-salon.md](web-swiss-salon.md) §1.3).
 - Sections below get a structural rule and a larger `<h2>`.
-- The salon's own logo stays on its cover (salon-logo.md §5).
+- The salon's own logo stays on its cover ([salon-cover-photo.md](salon-cover-photo.md) §2.1, item 4). **Corrected 2026-11-06:** this cited salon-logo.md §5, which is about the logo's upload purpose.
 - No pattern (§4.6).
 
 ### 7.7 404 and error pages
@@ -420,7 +423,7 @@ Six PRs, in order, each merged only on the owner's word. A merge is a production
 | **S1** | `Weave`, `Header`, `SiteFooter`, `/`. Delete `HeroBackground` from `/` | Merged on the owner's word. §4.8 and the real-phone check follow on the live site |
 | **S2** | `/professionnels`, 404 and error pages. `HeroBackground` deleted | Merged in #730 on 2026-11-04. `/professionnels` and the 404 read on `myweli.com` in Chromium only, the error pages not read live (§13.2) |
 | **S3** | `ProviderCard`, `/recherche`, landings, favourites list, and `Hero`'s cover position (its decision 8, added 2026-11-05). Spec: [web-swiss-cards.md](web-swiss-cards.md) | Cards with and without photos looked at. **Corrected 2026-11-05:** that cannot be done on production, which has no public salon. Locally now, on the live site when a salon is public, with a scheduled check for that day (its §9) |
-| **S4** | Salon page. Budgets added | Salon LCP measured |
+| **S4** | Salon page. Budgets added. **Spec: [web-swiss-salon.md](web-swiss-salon.md). Its §1, the cover's 3:2 shape and §7.6's layout, was brought forward on 2026-11-05 (BACKLOG 94–98) to its own PR, right after S3's** | Salon LCP measured. **For §1, by hand with a generated test photo (its §1.9); the budget stays with the rest of S4** |
 | **S5** | OG image. Audit of every page against this spec **on the deployed site**, by separate eyes told to refute it | Findings fixed or filed |
 
 ### 13.1 S1: what looking at it changed
