@@ -1,13 +1,13 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
 
-import { answerFavourites, hermetic, scanMessage } from './_message';
+import { DOUBLED, answerFavourites, hermetic, rootAt32, scanMessage } from './_message';
 import { routeNextImages } from './_pixel';
 import before from './salon-seo-before.json';
 
 /// The salon page with its cover in 3:2 (docs/design/web-swiss-salon.md §1.4, §1.8, §1.10):
 /// what a computer sees on its first screen, the booking panel that stays in view, the
-/// phone's booking bar against the footer and the heart's message, the focus that no longer
-/// jumps, and what search engines read. The cover's own shape and place are
+/// phone's booking bar, which never leaves the screen and keeps the footer clear (decision 103,
+/// §3), and the heart's message, the focus that no longer jumps, and what search engines read. The cover's own shape and place are
 /// site-look.spec.ts's, beside the rest of the site's left edge.
 ///
 /// **What this cannot see:** whether it looks right, and any browser but Chromium (§1.14).
@@ -129,25 +129,177 @@ test.describe('the page does not jump to the heart on load (§1.4)', () => {
   }
 });
 
-test.describe('a phone: the booking bar (§1.4)', () => {
+type Text = 'normal' | 'doubled' | 'root32';
+const TEXT: Record<Text, string> = {
+  normal: 'at normal text',
+  doubled: 'with doubled text (Android)',
+  root32: 'with a 32px root (a computer’s font at 200 %)',
+};
+/// Chrome's text scaling on Android needs a touch phone (site-look.spec.ts's recipe), so the
+/// doubled cases sit in a `describe` of their own.
+const ANDROID = { isMobile: true, hasTouch: true, deviceScaleFactor: 2 } as const;
+
+/// The salon page at a size and a text setting, nothing leaving the machine (the map's tiles
+/// included) and the heart answered without a sign-in (_message.ts). Doubled text is put
+/// on once the page is up, as Android applies it, so the bar grows under `BarClearance`'s eyes.
+async function openAt(page: Page, width: number, height: number, text: Text): Promise<void> {
+  await hermetic(page);
+  await size(page, width, height);
+  await routeNextImages(page);
+  await answerFavourites(page);
+  if (text === 'root32') await rootAt32(page);
+  await page.goto(SALON);
+  await expect(page.getByRole('button', { name: 'Ajouter aux favoris' })).toBeEnabled();
+  if (text === 'root32') {
+    expect(
+      await page.evaluate(() => getComputedStyle(document.documentElement).fontSize),
+      'the root is not 32px, so this proves nothing',
+    ).toBe('32px');
+  }
+  if (text === 'doubled') {
+    const h1 = page.getByRole('heading', { level: 1 });
+    const before = (await h1.boundingBox())!.height;
+    await page.addStyleTag({ content: DOUBLED });
+    await expect
+      .poll(async () => (await h1.boundingBox())!.height, { message: 'the text did not double, so this proves nothing' })
+      .toBeGreaterThanOrEqual(before * 1.8);
+  }
+}
+
+/// The page's very end, read in one go: where « Réserver », « Instagram » (the footer's last
+/// link) and the footer's foot stand against the bar, and whether a press at « Réserver »'s and
+/// « Instagram »'s centres lands on them.
+const atTheEnd = (page: Page) =>
+  page.evaluate(async () => {
+    window.scrollTo({ top: document.documentElement.scrollHeight, behavior: 'instant' });
+    await new Promise<void>((done) => requestAnimationFrame(() => setTimeout(done, 0)));
+    const answers = (el: Element) => {
+      const r = el.getBoundingClientRect();
+      const hit = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2);
+      return !!hit && (hit === el || el.contains(hit));
+    };
+    const bar = document.querySelector('main > :last-child')!;
+    const cta = [...bar.querySelectorAll('a')].find((a) => a.textContent?.trim() === 'Réserver')!;
+    const insta = [...document.querySelectorAll('footer a')].find((a) => a.textContent?.trim() === 'Instagram')!;
+    const b = bar.getBoundingClientRect();
+    const c = cta.getBoundingClientRect();
+    const i = insta.getBoundingClientRect();
+    return {
+      y: window.scrollY,
+      max: document.documentElement.scrollHeight - innerHeight,
+      barTop: b.top,
+      barHeight: b.height,
+      ctaTop: c.top,
+      ctaBottom: c.bottom,
+      ctaAnswers: answers(cta),
+      instaGap: b.top - i.bottom,
+      instaAnswers: answers(insta),
+      footerFoot: document.querySelector('footer')!.getBoundingClientRect().bottom,
+    };
+  });
+
+/// One Tab press at a time from the top of the document, through `main` and then the footer
+/// until the focus leaves the page: where each stop stands against the bar. `wholly` is a stop
+/// whose part on the screen is all behind the bar; `room` is the screen above the bar.
+type Stop = { name: string; inBar: boolean; inFooter: boolean; under: number; wholly: boolean; height: number; room: number };
+async function tabWalk(page: Page): Promise<Stop[]> {
+  // The map mounts only once it nears the screen (MapEmbed's IntersectionObserver, then a
+  // dynamic import), which a walk from the top passed before it existed: its controls were
+  // never focused, and in planning two of them stood whole under the bar. So it is mounted
+  // first. Mounting it moves where Chromium's Tab key starts, so the start is put back at
+  // the top of the document: a focus on a sentinel there, which then goes.
+  const map = page.getByRole('region', { name: /^Carte — / });
+  await map.evaluate((el) => el.scrollIntoView({ block: 'center', behavior: 'instant' }));
+  await expect(map.getByRole('button', { name: 'Zoom in' })).toBeAttached({ timeout: 15_000 });
+  await page.evaluate(() => {
+    window.scrollTo({ top: 0, behavior: 'instant' });
+    const start = document.createElement('span');
+    start.tabIndex = -1;
+    document.body.prepend(start);
+    start.focus();
+    start.remove();
+  });
+  const stops: Stop[] = [];
+  for (let i = 0; i < 200; i++) {
+    await page.keyboard.press('Tab');
+    const stop = await page.evaluate(() => {
+      const el = document.activeElement as HTMLElement | null;
+      if (!el || el === document.body) return null;
+      const bar = document.querySelector('main > :last-child')!;
+      const name = (el.getAttribute('aria-label') || el.textContent || el.tagName).trim().slice(0, 48);
+      const b = el.getBoundingClientRect();
+      const t = bar.getBoundingClientRect();
+      const shown = t.height > 0;
+      const inBar = bar.contains(el);
+      const top = Math.max(b.top, 0);
+      const bottom = Math.min(b.bottom, innerHeight);
+      return {
+        name,
+        inBar,
+        inFooter: !!el.closest('footer'),
+        under: shown && !inBar ? Math.max(0, Math.min(b.bottom, t.bottom) - Math.max(b.top, t.top)) : 0,
+        wholly: shown && !inBar && bottom > top && top >= t.top,
+        height: b.height,
+        room: shown ? t.top : innerHeight,
+      };
+    });
+    // Out of the page, or round to its top again.
+    if (stop === null || (stops.length > 0 && stop.name === stops[0].name)) break;
+    stops.push(stop);
+  }
+  test.info().annotations.push({
+    type: 'walk',
+    description: JSON.stringify({ stops: stops.length, footer: stops.filter((s) => s.inFooter).length }),
+  });
+  // The walk has to start at the top and reach the map's controls, the FAQ's last question and
+  // the footer's last link, or it proved nothing about what it skipped.
+  const names = stops.map((s) => s.name);
+  expect(names[0], 'the walk did not start at the top').toBe('Aller au contenu');
+  expect(names, 'the walk never reached the FAQ').toContain('Faut-il payer un acompte ?');
+  expect(names, 'the walk never reached the map').toEqual(expect.arrayContaining(MAP_CONTROLS));
+  expect(
+    stops.some((s) => s.inBar && s.name === 'Réserver'),
+    'the walk never reached the bar’s « Réserver »',
+  ).toBe(true);
+  expect(
+    stops.filter((s) => s.inFooter).at(-1)?.name,
+    'the walk did not go through the footer to its last link',
+  ).toBe('Instagram');
+  return stops;
+}
+
+/// Decision 103 (web-swiss-salon.md §3): below `lg` the bar is fixed at the screen's foot, and
+/// `BarClearance` gives `<html>` a bottom padding as tall as the bar and a scroll padding of the
+/// bar plus 8px while the page shows. Sticky, as #741 first had it, the bar stopped above the
+/// footer and left the screen at the page's end (243px of scrolling back for « Réserver » at
+/// 320×568, 616px with doubled text); fixed with no room, it stood on « Instagram », which no
+/// longer answered a press (measured in plan 103, 27 of 27 settings).
+test.describe('a phone: the booking bar (§1.4, decision 103)', () => {
   const PHONES = [
     [390, 844],
     [320, 568],
   ] as const;
 
-  for (const [width, height] of PHONES) {
-    // Fixed, the 65px bar stood on « Instagram » at the page's end, and a press there
-    // landed on the bar. Sticky, it stops above the footer, as « Carte » does.
-    test(`at ${width}×${height}, at the page’s end, every footer link answers and the bar is above the footer`, async ({ page }) => {
-      await size(page, width, height);
-      await routeNextImages(page);
-      await page.goto(SALON);
-      await page.evaluate(() =>
-        window.scrollTo({ top: document.documentElement.scrollHeight, behavior: 'instant' }),
-      );
-      const b = (await bar(page).boundingBox())!;
-      const footer = (await page.locator('footer').boundingBox())!;
-      expect(b.y + b.height, 'the bar reaches the footer').toBeLessThanOrEqual(footer.y);
+  /// D1: at the very end « Réserver » is on the screen and answers, and the footer ends where
+  /// the bar starts, so its last link keeps the footer's own bottom padding above the bar.
+  const endCase = (width: number, height: number, text: Text) =>
+    test(`at ${width}×${height} ${TEXT[text]}, at the page’s very end « Réserver » is on the screen, « Instagram » is clear of the bar, and every footer link answers`, async ({ page }) => {
+      await openAt(page, width, height, text);
+      const end = await atTheEnd(page);
+      test.info().annotations.push({ type: 'end', description: JSON.stringify(end) });
+      expect(end.y, 'the page did not scroll, so this proves nothing').toBeGreaterThan(0);
+      expect(Math.abs(end.y - end.max), 'not at the page’s very end, so this proves nothing').toBeLessThanOrEqual(1);
+      expect(end.ctaTop, '« Réserver » is above the screen').toBeGreaterThanOrEqual(0);
+      expect(end.ctaBottom, '« Réserver » is below the screen').toBeLessThanOrEqual(height + 0.5);
+      expect(end.ctaAnswers, 'a press at « Réserver »’s centre does not reach it').toBe(true);
+      // The room under the footer is the bar's measured height, not a guess: at the very end
+      // the footer's foot meets the bar's top.
+      expect(
+        Math.abs(end.footerFoot - end.barTop),
+        `the footer ends at ${end.footerFoot}, the ${end.barHeight}px bar starts at ${end.barTop}`,
+      ).toBeLessThanOrEqual(1);
+      expect(end.instaGap, '« Instagram » reaches the bar').toBeGreaterThan(0);
+      expect(end.instaAnswers, 'a press at « Instagram »’s centre does not reach it').toBe(true);
       // Last link first, each brought on-screen only if it is not, as site-look's « Carte »
       // test does: `elementFromPoint` answers nothing off the screen.
       const links = await page.locator('footer a').evaluateAll((els) =>
@@ -158,10 +310,14 @@ test.describe('a phone: the booking bar (§1.4)', () => {
           return { name: el.textContent?.trim(), answers: !!hit && (hit === el || el.contains(hit)) };
         }),
       );
-      expect(links.map((l) => l.name), 'the link it used to stand on').toContain('Instagram');
+      expect(links.map((l) => l.name), 'the link the bar would stand on').toContain('Instagram');
       expect(links.filter((l) => !l.answers)).toEqual([]);
     });
 
+  for (const [width, height] of PHONES) endCase(width, height, 'normal');
+  endCase(320, 568, 'root32');
+
+  for (const [width, height] of PHONES) {
     test(`at ${width}×${height}, mid-page, the bar stands at the screen’s foot and « Réserver » answers`, async ({ page }) => {
       await size(page, width, height);
       await routeNextImages(page);
@@ -239,79 +395,169 @@ test.describe('a phone: the booking bar (§1.4)', () => {
     });
   }
 
-  // The browser scrolls a focused control just into view at the screen's foot, under the
+  // D4. The browser scrolls a focused control just into view at the screen's foot, under the
   // bar: the FAQ's « Quels sont les tarifs… » was hidden whole at 390 and 1023, and all but
-  // 0.3px of « Comment réserver… » at 320 (measured on this page before its fix, §1.4). Each
-  // column keeps 96px clear below `lg`.
-  // At a doubled browser font 17px can still sit under the 113px bar, and that is recorded
-  // in §1.4, not held here.
-  for (const [width, height] of [...PHONES, [1023, 768]] as const) {
-    test(`at ${width}×${height}, nothing the keyboard reaches stands under the bar`, async ({ page }) => {
-      await size(page, width, height);
-      await routeNextImages(page);
-      await page.route('**/basemaps.cartocdn.com/**', (r) => r.abort());
-      await page.goto(SALON);
-      await expect(page.getByRole('button', { name: 'Ajouter aux favoris' })).toBeEnabled();
-      // The map mounts only once it nears the screen (MapEmbed's IntersectionObserver, then a
-      // dynamic import), which a walk from the top passed before it existed: its controls were
-      // never focused, and in planning two of them stood whole under the bar. So it is mounted
-      // first. Mounting it moves where Chromium's Tab key starts, so the start is put back at
-      // the top of the document: a focus on a sentinel there, which then goes.
-      const map = page.getByRole('region', { name: /^Carte — / });
-      await map.evaluate((el) => el.scrollIntoView({ block: 'center', behavior: 'instant' }));
-      await expect(map.getByRole('button', { name: 'Zoom in' })).toBeAttached({ timeout: 15_000 });
-      await page.evaluate(() => {
-        window.scrollTo({ top: 0, behavior: 'instant' });
-        const start = document.createElement('span');
-        start.tabIndex = -1;
-        document.body.prepend(start);
-        start.focus();
-        start.remove();
-      });
-      const under: string[] = [];
-      const seen: string[] = [];
-      for (let i = 0; i < 120; i++) {
-        await page.keyboard.press('Tab');
-        const stop = await page.evaluate(() => {
-          const el = document.activeElement as HTMLElement | null;
-          if (!el || el === document.body || el.closest('footer')) return null;
-          const bar = document.querySelector('main > :last-child')!;
-          const name = (el.getAttribute('aria-label') || el.textContent || el.tagName).trim().slice(0, 48);
-          if (bar.contains(el)) return { name, under: 0, inBar: true };
-          const b = el.getBoundingClientRect();
-          const t = bar.getBoundingClientRect();
-          return { name, under: Math.max(0, Math.min(b.bottom, t.bottom) - Math.max(b.top, t.top)), inBar: false };
-        });
-        if (stop === null) break;
-        seen.push(stop.name);
-        if (!stop.inBar && stop.under > 0) under.push(`« ${stop.name} »: ${stop.under}px under the bar`);
-      }
-      // The walk has to start at the top and reach the map's controls and the FAQ's last
-      // question, or it proved nothing about what it skipped.
-      expect(seen[0], 'the walk did not start at the top').toBe('Aller au contenu');
-      expect(seen, 'the walk never reached the FAQ').toContain('Faut-il payer un acompte ?');
-      expect(seen, 'the walk never reached the map').toEqual(expect.arrayContaining(MAP_CONTROLS));
+  // 0.3px of « Comment réserver… » at 320 (measured on this page before #741's fix, §1.4). The
+  // page's scroll padding, the bar plus 8px, now keeps whatever is focused clear of it, the
+  // footer's links included, at every text size (§3.3).
+  const walkCase = (width: number, height: number, text: Text) =>
+    test(`at ${width}×${height} ${TEXT[text]}, nothing the keyboard reaches, in the page or the footer, stands under the bar`, async ({ page }) => {
+      await openAt(page, width, height, text);
+      const stops = await tabWalk(page);
+      const under = stops.filter((s) => !s.inBar && s.under > 0).map((s) => `« ${s.name} »: ${s.under}px under the bar`);
       expect(under).toEqual([]);
     });
+  for (const [width, height] of [...PHONES, [1023, 768]] as const) walkCase(width, height, 'normal');
+
+  /// D5: the room and the scroll padding are the salon page's, written on `<html>` while it
+  /// shows; the next page, reached without a full load, must not inherit them (the five
+  /// store-linked pages among them).
+  test('at 390×844, after a client-side visit to /cgu, <html> carries no room and no scroll padding', async ({ page }) => {
+    await openAt(page, 390, 844, 'normal');
+    const read = () =>
+      page.evaluate(() => {
+        const html = document.documentElement;
+        const s = getComputedStyle(html);
+        return { inline: [html.style.paddingBottom, html.style.scrollPaddingBottom], computed: [s.paddingBottom, s.scrollPaddingBottom] };
+      });
+    const on = await read();
+    const barHeight = (await bar(page).boundingBox())!.height;
+    expect(on.computed, 'the salon page set neither, so this proves nothing').toEqual([`${barHeight}px`, `${barHeight + 8}px`]);
+    await page.evaluate(() => {
+      (window as unknown as { stillHere: boolean }).stillHere = true;
+    });
+    await page.locator('footer').getByRole('link', { name: 'Conditions d’utilisation' }).click();
+    await page.waitForURL('**/cgu');
+    await expect(page.locator('[data-floating-control]')).toHaveCount(0);
+    expect(
+      await page.evaluate(() => (window as unknown as { stillHere?: boolean }).stillHere),
+      'a full load, so this proves nothing about the salon page’s clean-up',
+    ).toBe(true);
+    await expect.poll(read).toEqual({ inline: ['', ''], computed: ['0px', 'auto'] });
+  });
+
+  /// D6: the page's script can arrive after a visitor has reached the footer; the room then
+  /// opens below the screen. Whoever is at the very end is kept at the end (§3.3). The page's
+  /// chunks are held until the visitor is parked there, then let through.
+  for (const [width, height] of PHONES) {
+    test(`at ${width}×${height}, a visitor at the very end before the page’s script runs is at the new end once it has, « Instagram » clear of the bar`, async ({ page }) => {
+      await hermetic(page);
+      await size(page, width, height);
+      await routeNextImages(page);
+      let release = () => {};
+      const held = new Promise<void>((done) => (release = done));
+      await page.route('**/_next/static/chunks/**', async (r) => {
+        await held;
+        await r.continue();
+      });
+      await page.goto(SALON, { waitUntil: 'domcontentloaded' });
+      await expect.poll(() => bar(page).evaluate((el) => getComputedStyle(el).position)).toBe('fixed');
+      // The web fonts change the page's height when they land: parked before them, the
+      // visitor would no longer be at the end when the script runs.
+      await page.evaluate(() => document.fonts.ready);
+      const parked = await page.evaluate(() => {
+        window.scrollTo({ top: document.documentElement.scrollHeight, behavior: 'instant' });
+        const b = document.querySelector('main > :last-child')!.getBoundingClientRect();
+        const i = [...document.querySelectorAll('footer a')].find((a) => a.textContent?.trim() === 'Instagram')!;
+        return {
+          y: window.scrollY,
+          max: document.documentElement.scrollHeight - innerHeight,
+          room: document.documentElement.style.paddingBottom,
+          instaUnder: i.getBoundingClientRect().bottom - b.top,
+        };
+      });
+      test.info().annotations.push({ type: 'parked', description: JSON.stringify(parked) });
+      expect(parked.y, 'the page did not scroll, so this proves nothing').toBeGreaterThan(0);
+      expect(Math.abs(parked.y - parked.max), 'not at the very end, so this proves nothing').toBeLessThanOrEqual(1);
+      expect(parked.room, 'the script had already run, so this proves nothing').toBe('');
+      expect(parked.instaUnder, '« Instagram » was clear before the script, so this proves nothing').toBeGreaterThan(0);
+      release();
+      await expect.poll(() => page.evaluate(() => document.documentElement.style.paddingBottom)).not.toBe('');
+      const end = await page.evaluate(async () => {
+        await new Promise<void>((done) => requestAnimationFrame(() => setTimeout(done, 0)));
+        const b = document.querySelector('main > :last-child')!.getBoundingClientRect();
+        const insta = [...document.querySelectorAll('footer a')].find((a) => a.textContent?.trim() === 'Instagram')!;
+        const i = insta.getBoundingClientRect();
+        const hit = document.elementFromPoint(i.x + i.width / 2, i.y + i.height / 2);
+        return {
+          y: window.scrollY,
+          max: document.documentElement.scrollHeight - innerHeight,
+          instaGap: b.top - i.bottom,
+          instaAnswers: !!hit && (hit === insta || insta.contains(hit)),
+        };
+      });
+      test.info().annotations.push({ type: 'after the script', description: JSON.stringify(end) });
+      expect(Math.abs(end.y - end.max), `left at ${end.y}, the page now ends at ${end.max}`).toBeLessThanOrEqual(1);
+      expect(end.instaGap, '« Instagram » is under the bar').toBeGreaterThan(0);
+      expect(end.instaAnswers, 'a press at « Instagram »’s centre does not reach it').toBe(true);
+    });
   }
+
+  /// D7: fixed, the bar would stand at the foot of every printed page (plan 103's first build:
+  /// 5 of 5 pages). It is not printed; the hero's « Réserver » is.
+  test('at 390×844, printed, the bar is not, and neither is its « À partir de »', async ({ page }) => {
+    await openAt(page, 390, 844, 'normal');
+    const read = () =>
+      page.evaluate(() => ({
+        display: getComputedStyle(document.querySelector('main > :last-child')!).display,
+        price: document.body.innerText.includes('À partir de'),
+      }));
+    expect(await read(), 'on the screen the bar and its price show, so this proves nothing').toEqual({ display: 'flex', price: true });
+    await page.emulateMedia({ media: 'print' });
+    expect(await read()).toEqual({ display: 'none', price: false });
+  });
+
+  test.describe(TEXT.doubled, () => {
+    test.use(ANDROID);
+    endCase(320, 568, 'doubled');
+    walkCase(320, 568, 'doubled');
+
+    // WEB-SYSTEM §9's reflow screen: the 137px bar leaves 119px above it, less than some
+    // controls are tall (decision 104). None is hidden whole, and one is partly under the bar
+    // only when it is too tall to stand, with its 8px, in the room above it.
+    test('at 320×256 with doubled text (Android), the keyboard never hides a control whole under the bar', async ({ page }) => {
+      await openAt(page, 320, 256, 'doubled');
+      const stops = await tabWalk(page);
+      const wholly = stops.filter((s) => s.wholly).map((s) => `« ${s.name} »`);
+      const partly = stops.filter((s) => !s.inBar && s.under > 0);
+      test.info().annotations.push({ type: 'partly under the bar', description: JSON.stringify(partly) });
+      expect(wholly, 'hidden whole under the bar').toEqual([]);
+      expect(
+        partly.filter((s) => s.height + 8 <= s.room).map((s) => `« ${s.name} »: ${s.under}px under, ${s.height}px tall, ${s.room}px of room`),
+        'partly under the bar though it fits above it',
+      ).toEqual([]);
+    });
+  });
 });
 
-/// Decision 100 at the page's end: the bar stops above the footer and climbs through the band the
-/// heart's message stands in. #741 left the message where it was, within 8px of the bar for 156px
-/// of scrolling at 320×568 (measured on the port); now it moves out of the bar's way, by the
-/// shorter of up and down, as the bar is the screen's whole width (web-swiss-salon.md §2.3).
-/// One frame per step, in the page (_message.ts); the figures go into the test's annotations.
-test.describe('a phone: the heart’s message and the bar at the page’s end (decision 100)', () => {
+/// Decision 100 at the page's end. While the bar was sticky (#741 at first), it stopped above
+/// the footer and climbed through the band the heart's message stands in, and the message
+/// climbed with it: up to 224px at 320×568 with doubled text, 92 at normal text (plan 103).
+/// Fixed (decision 103), the bar never leaves the screen's foot, so the message wears at the
+/// very end the move it wears at rest, and keeps its 8px from the bar (web-swiss-salon.md
+/// §3.4). One frame per step, in the page (_message.ts); the figures go into the annotations.
+test.describe('a phone: the heart’s message and the bar at the page’s end (decisions 100, 103)', () => {
   test.describe.configure({ timeout: 60_000 });
 
-  const open = async (page: Page, width: number, height: number) => {
-    await hermetic(page);
-    await size(page, width, height);
-    await routeNextImages(page);
-    await answerFavourites(page);
-    await page.goto(SALON);
-    await expect(page.getByRole('button', { name: 'Ajouter aux favoris' })).toBeEnabled();
+  /// The move worn at rest, as plan 103 measured it (`summary.fixjs2.<text>.messageRest`, the
+  /// heart centred and pressed): 0 at normal text, where the message's home is 15px above the
+  /// 65px bar; 65px up at 320×568 with doubled text, where the bar is 137px.
+  const REST: Record<string, number> = { 'normal 320x568': 0, 'normal 390x844': 0, 'doubled 320x568': 65 };
+
+  /// The heart centred and pressed: the move the message's region wears, once a frame has run.
+  const restMove = async (page: Page) => {
+    const heart = page.getByRole('button', { name: 'Ajouter aux favoris' });
+    await heart.evaluate((el) => el.scrollIntoView({ block: 'center', behavior: 'instant' }));
+    await heart.click();
+    const region = page.getByRole('status').filter({ hasText: 'Ajouté aux favoris' });
+    await expect(region.locator('div').first()).toBeVisible();
+    return region.evaluate(async (el) => {
+      await new Promise<void>((done) => requestAnimationFrame(() => setTimeout(done, 0)));
+      const live = el as HTMLElement;
+      return { dx: parseFloat(live.style.translate) || 0, dy: parseFloat(live.style.marginBottom) || 0 };
+    });
   };
+
   const scan = async (page: Page) => {
     const r = await scanMessage(page, { control: 'bar', heart: 'salon', step: 2, lastPx: 800 });
     const { near: _near, glyphHits, offScreen, nearEdge, annulerCut, pressMisses: _misses, ...figures } = r;
@@ -328,28 +574,34 @@ test.describe('a phone: the heart’s message and the bar at the page’s end (d
     return r;
   };
 
-  for (const [width, height] of [
-    [320, 568],
-    [390, 844],
-  ] as const) {
-    test(`at ${width}×${height}, over the page’s last 800px, the message keeps 8px of air from the bar`, async ({ page }) => {
-      await open(page, width, height);
+  const restCase = (width: number, height: number, text: Text) =>
+    test(`at ${width}×${height} ${TEXT[text]}, over the page’s last 800px, the message wears its resting move and keeps 8px of air from the bar`, async ({ page }) => {
+      await openAt(page, width, height, text);
+      const rest = await restMove(page);
+      const measured = REST[`${text} ${width}x${height}`];
+      test.info().annotations.push({ type: 'rest', description: JSON.stringify(rest) });
+      expect(Math.abs(rest.dy - measured), `at rest it is ${rest.dy}px up; plan 103 measured ${measured}`).toBeLessThanOrEqual(1);
+      expect(rest.dx, 'at rest it slid aside, which plan 103 never saw').toBe(0);
+      if (text === 'doubled') {
+        expect(rest.dy, 'the bar is clear of the message’s home, so this proves nothing').toBeGreaterThan(0);
+      }
       const r = await scan(page);
-      expect(r.controlRaised, 'the bar never stopped above the footer here, so this proves nothing').toBeGreaterThan(0);
-      expect(r.crossed, 'the bar never came near the message’s home, so this proves nothing').toBeGreaterThan(0);
+      expect(r.from + (r.steps - 1) * 2, 'the scan did not reach the page’s end').toBe(r.end);
+      expect(r.end - r.from, 'the page is shorter than the scan, so this proves less').toBe(800);
+      expect(r.dyMax - rest.dy, `it rose to ${r.dyMax}px at the end, ${rest.dy}px at rest`).toBeLessThanOrEqual(1);
+      expect(rest.dy - r.dyMin, `it fell to ${r.dyMin}px at the end, ${rest.dy}px at rest`).toBeLessThanOrEqual(1);
+      expect([r.dxMin, r.dxMax], 'it slid aside at the end').toEqual([0, 0]);
+      if (text === 'doubled') {
+        expect(r.crossed, 'the bar did not stand in the message’s home at every step').toBe(r.steps);
+      }
       expect(r.nearCount, `within 8px: ${JSON.stringify(r.near)}`).toBe(0);
     });
-  }
 
-  // « Else shorter » (decision 100): the bar is the screen's whole width, so the message goes
-  // just above it or just below it, whichever is the shorter move. Rising first, as the rule of
-  // 6 November did, it went up to 157px here; the shorter way peaks at 93 (measured on the port).
-  test('at 320×568, the message takes the shorter way past the bar: never 100px up, and both up and down', async ({ page }) => {
-    await open(page, 320, 568);
-    const r = await scan(page);
-    expect(r.maxRise, 'it rose further than the shorter way would take it').toBeLessThan(100);
-    expect(r.rose, 'it never rose, so this proves nothing').toBeGreaterThan(0);
-    expect(r.dropped, 'it never dropped, so this proves nothing').toBeGreaterThan(0);
+  restCase(320, 568, 'normal');
+  restCase(390, 844, 'normal');
+  test.describe(TEXT.doubled, () => {
+    test.use(ANDROID);
+    restCase(320, 568, 'doubled');
   });
 });
 

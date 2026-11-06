@@ -37,6 +37,12 @@ export type MessageScan = {
   maxSlide: number;
   maxRise: number;
   maxDrop: number;
+  /// The smallest and largest move worn at any step, up (`dy`, a lift is positive) and aside
+  /// (`dx`): equal when the message wears one move over the whole scan.
+  dyMin: number;
+  dyMax: number;
+  dxMin: number;
+  dxMax: number;
   /// Steps where the pill covered any part of a ♡/♥ glyph's own text box (not its tap area).
   glyphHits: number[];
   /// Steps where the pill was not whole on the screen.
@@ -138,6 +144,7 @@ async function scanInPage({ control, heart, step, lastPx }: ScanArgs): Promise<M
   const res: MessageScan = {
     from, end, steps: 0, crossed: 0, nearCount: 0, near: [], overlapCount: 0, pressMisses: [],
     moved: 0, slid: 0, rose: 0, dropped: 0, maxSlide: 0, maxRise: 0, maxDrop: 0,
+    dyMin: Infinity, dyMax: -Infinity, dxMin: Infinity, dxMax: -Infinity,
     glyphHits: [], offScreen: [], nearEdge: [], annulerCut: [], controlRaised: 0, presses: 0, ms: 0,
   };
   for (let s = from; s <= end; s += step) {
@@ -174,6 +181,10 @@ async function scanInPage({ control, heart, step, lastPx }: ScanArgs): Promise<M
         if (!hit || !(hit === el || el.contains(hit))) res.pressMisses.push(s);
       }
     }
+    res.dyMin = Math.min(res.dyMin, dy);
+    res.dyMax = Math.max(res.dyMax, dy);
+    res.dxMin = Math.min(res.dxMin, dx);
+    res.dxMax = Math.max(res.dxMax, dx);
     if (dx || dy) res.moved++;
     if (dx) {
       res.slid++;
