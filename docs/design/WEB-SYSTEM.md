@@ -583,6 +583,42 @@ design — there is one layout that has to survive less space.
    [web-b11-reflow.md](web-b11-reflow.md) §5: `DataTable`, the pro journal grid,
    the three map canvases, and `MonthCalendar`.
 
+**Doubled text is a second input, and 320 at normal size does not cover it.**
+The salon page passed every row of this gate and still went **441 px** wide at
+200 % text on a 320 phone: one `whitespace-nowrap` price
+([web-salon-price-reflow.md](web-salon-price-reflow.md)). A phone doubles text
+in two ways, and they fail differently:
+
+- With **Android-style text scaling** (`text-size-adjust: 200%` on a touch
+  phone), the browser grows the *layout viewport* to hold the overflow. Fixed
+  bars and toasts are then placed off the screen. The document does not scroll
+  sideways, so `horizontalOverflow`, which measures against that grown
+  viewport, reads clean. The assertion that sees it is the viewport's own
+  size: `innerWidth × innerHeight` must equal the screen's.
+- With the **browser font at 200 %** (a 32px root), the viewport stays 320 and
+  the page scrolls sideways.
+
+`type-overflow.spec.ts` runs the salon page and the booking funnel at 320×568
+in both modes, with a vacuity check that the text really is doubled. Six more
+pages widen in the Android mode and are not gated yet: §15 row 38. One trap,
+measured: Chromium implements `text-size-adjust` through its text autosizer,
+which recomputes when the DOM changes, so an element screenshot or a text
+edit can silently drop the doubling. Check the size at the moment you
+measure.
+
+**A pinned bar takes at most a quarter of the screen, and it is sticky, not
+fixed** ([web-funnel-bar-fit.md](web-funnel-bar-fit.md)). At doubled text the
+funnel's « total + Confirmer » bar took 48 % of a 320×568 screen. Because it
+was `fixed`, it also covered the footer's last link at the end of the page at
+every text size, and the page guessed its height with a `pb-[6rem]` it
+outgrew.
+
+- A sticky bar, last in its flow, takes its own room and stops above the
+  footer. The salon page's bar does the same (#741).
+- When the full bar would exceed 25 % of the screen, it keeps its action and
+  sheds the rest into the page. The page measures the full bar before paint;
+  it doesn't branch on the text scale.
+
 **The unit contract, stated because it was an accident until B11.** The type
 scale (`styles/tokens.ts`) and the spacing scale are **px**; the sizing keys —
 `width`, `height`, `minWidth`, `minHeight`, `maxHeight`, `inset`, `translate` —
@@ -777,6 +813,7 @@ Counted in the code as of 2026-07-14. Each burn-down PR drives a row to **0**.
 | 35 | Wire formats are the contract's, not the widget's | ~~2 directions broken~~ → **0** | **A salon that onboarded on the web could never set its opening hours, so it could never go live.** `openapi.yaml:4033-4036` types `TimeSlot.startTime` as `format: date-time` ("only the time-of-day is significant — placeholder date") and the server normalises every value to `2024-01-01T09:00:00.000Z`. The mobile app complies; the web did not, in **both** directions. WRITE: `toApi` sent `d.start` verbatim, and `d.start` falls back to `'09:00'` whenever the salon has no stored slots — the server validates with `DateTime.tryParse`, which answers null to `'09:00'` → 400 `invalid_input`. That fallback fires exactly during onboarding, and `availability` is one of the six publish-gate keys. READ: `toEditable` fed the server's ISO straight into an `<input type="time">`, which accepts only `HH:mm`, so the field rendered blank for any salon that DID have hours. Both now go through one seam (`timeOfDay`/`wireTime`), parsed with a regex rather than a `Date` — `new Date('2024-01-01T09:00:00.000Z').getHours()` is 4 in New York, which would move a salon's opening hour with the browser's timezone. **Why 559 green tests said nothing: every fixture in `pro-availability.test.ts` used the bare `'09:00'` form, so the suite asserted the round-trip of a format the server never sends or accepts.** And the API-level funnel smoke (Q1) **could not have caught it either** — it speaks the wire format correctly, so it stays green while a client mis-speaks it. That is the standing limit of an API-level gate, and the reason this row exists rather than a note in the spec | ✅ **Q1** (found while building the funnel e2e; fixed red-first) |
 | 36 | **The Google button said « Se connecter » while every other surface said « Continuer »** | **3 `renderButton` call sites** | the web half of [SYSTEM.md §21 row 87](SYSTEM.md#21). Google's button is painted by Google's script from an options object, and the three call sites had drifted apart with nothing to hold them together: two omitted `text`, so GIS fell back to `signin_with` and web read **« Se connecter avec Google » beside « Continuer avec Apple »** while both mobile apps said « Continuer avec »; a third omitted `locale: 'fr'`. Nothing failed and no test could fail — the button is a cross-origin iframe, so its label is not in our DOM and is unassertable from here. Only reading the three files together shows it, and they sit in three directories. Beside it, Apple was our `Button` at full container width against Google's fixed 320 × 40 — not a styling gap but a **structural** one, since Google's button cannot be restyled at all (its presets are the whole API, and it is the only source of the ID token the backend verifies) | ✅ **Closed.** `gisOptions(text)` in `components/auth/socialButton.ts` is one settled object; `social-buttons.test.ts` pins it and asserts **`text` is the only key permitted to vary**, which is the property that actually failed, tested at the only layer that can see it. `AppleSignInButton` matches the GIS silhouette in **px** — rem would drift from Google's absolutely-sized iframe the moment the root font size moves, which is row 31's problem arriving from the other direction. The 40px preset collides with `Button`'s pinned **48px** tap-target floor; resolved by **growing the target, not the glyph** — a 48px `<button>` wrapping a 40 × 320 painted `<span>` — so the floor and `button.test.tsx` both stand unweakened rather than being given an exception 🟢 |
 | 37 | **A fixture dated « today » made the overflow gate a verdict on the calendar** | ~~1~~ → **0** | the stub's last visit is today, and `type-overflow.spec.ts` measured the Pro client card with it: green through October, **red from 1 November on every pull request**, because « novembre » does not fit a half-width tile at 320. A real spill, found only because the month changed, and it would have gone green again in January. Fixed the way the app already had it: the short date (`formatDateCompactFr`) and one tile per row at the narrowest widths. **The longest values are now pinned whatever the date**: September and seven figures, plus the tiles' shape, since the text checks depend on the font. **Still blind:** other pages' dates from the same fixture, and any date a subject shows that is not the worst month | ✅ **2026-11-02** |
+| 38 | **Doubled text widens pages that pass at 320 with normal text** | ~~8 pages~~ → ~~7~~ → **6** in the Android mode · **0** with the browser font at 200 % | found 2026-11-06 on the salon page ([web-salon-price-reflow.md](web-salon-price-reflow.md)): a `whitespace-nowrap` price, « 15 000 – 25 000 FCFA » at 32px, made it **441px** wide on a 320 phone. Under Android-style text scaling (`text-size-adjust: 200%` on a touch phone) the browser grows the **layout viewport** to hold the overflow, so the « Réserver » bar and the favourites toast landed off screen while `horizontalOverflow`, measuring against that grown viewport, read clean (§9). The salon page is fixed and gated in both modes, and so is the booking funnel (344: its step headers and recap rows, [web-funnel-doubled-text.md](web-funnel-doubled-text.md)). **Left, at 320, Android mode only:** `/` and `/recherche` 352 (the card's « Note ★ 4,8 » is `whitespace-nowrap`, and #737 rewrites that card), the 404 336 (« introuvable », one word wider than its heading), and three store-linked pages. **The 404 is frozen with them**: `app/not-found.tsx` is every route's not-found boundary and its markup ships in all five store-linked pages' HTML, so its fix (hyphenation, specified in web-funnel-doubled-text.md §5) waits for Apple's decision too. The three store-linked pages, frozen while Apple reviews the Pro app: `/support` 352, `/politique-confidentialite` 375, `/mentions-legales` 343 (« support@myweli.com »). Measured in Chromium's mobile emulation; real phones are not verified | ✅ the salon page · ✅ the booking funnel · the rest open (the 404 and the three store-linked pages wait for Apple's decision; `/` and `/recherche` for #737) |
 
 **Bold** slices are committed (the a11y tranche). *Italic* are specified and
 scheduled for re-evaluation after it.
