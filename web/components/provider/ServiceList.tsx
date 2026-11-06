@@ -15,18 +15,21 @@ export function ServiceList({
     <section className="px-m py-l">
       <h2 className="text-titleLarge font-semibold text-textPrimary">Services & tarifs</h2>
       <ul className="mt-m divide-y divide-divider">
+        {/* A price that cannot sit beside its service drops under it, on the
+            right edge (web-salon-price-reflow.md). `flex-1` weighs only the
+            name's longest word, so at normal text nothing moves. */}
         {active.map((s) => (
           <li
             key={s.id}
-            className="flex items-baseline justify-between gap-m py-s"
+            className="flex flex-wrap items-baseline justify-between gap-x-m py-s"
           >
-            <div>
+            <div className="flex-1">
               <p className="text-textPrimary">{s.name}</p>
               <p className="text-bodyMedium text-textTertiary">
                 {formatDuration(s.durationMinutes)}
               </p>
             </div>
-            <p className="whitespace-nowrap text-textPrimary">
+            <p className="ml-auto text-right text-textPrimary">
               {priceRange(s.price, s.priceMax, currency ?? undefined)}
             </p>
           </li>
