@@ -164,8 +164,10 @@ export function ProviderView({
           the bar, whose own « Réserver » would chase its margin; `scroll-padding` on `<html>`
           would do it once, but that is CSS the five store-linked pages share
           (web-swiss-salon.md §1.4). Written here in the `className` and not in a constant,
-          so ESLint reads it: `no-arbitrary-value` refuses `scroll-mb-[96px]` and
+          so ESLint reads it: `no-arbitrary-value` refuses a bracketed 96px there and
           `no-custom-classname` a misspelt token, neither of which it sees in a bare string.
+          (Not spelt out in this comment: Tailwind reads comments too, and would emit the
+          class.)
           With the browser's text at double size the bar is 113px and up to 19px of a focused
           control can still sit under it: a px margin against a rem bar (WEB-SYSTEM §9). */}
       <div className="lg:col-span-4 lg:col-start-9 lg:row-span-2 max-lg:[&_*]:scroll-mb-fab">
