@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | **§1: its plan approved by the owner's answers, from pictures, on 2026-11-05 (BACKLOG 95–98); this spec written 2026-11-06; not built, not merged.** §1 is B11.4's cover shape, brought forward by the owner (BACKLOG 94). It is written before any code, on its own branch, `feat/web-salon-cover`, cut from #737's tip `57b252a8`. Its PR is stacked on #737 and merges right after it, both after Apple's decision and on the owner's word. **§2, the rest of S4, is not specified yet.** |
+| **Status** | **§1: its plan approved by the owner's answers, from pictures, on 2026-11-05 (BACKLOG 95–98); this spec written 2026-11-06, and built the same day on `feat/web-salon-cover` (§1.10 records its guards watched red); not merged.** §1 is B11.4's cover shape, brought forward by the owner (BACKLOG 94). It is written before any code, on its own branch, `feat/web-salon-cover`, cut from #737's tip `57b252a8`. Its PR is stacked on #737 and merges right after it, both after Apple's decision and on the owner's word. **§2, the rest of S4, is not specified yet.** |
 | **Owner** | Sadreddine Daher |
 | **Last updated** | 2026-11-06 |
 | **PRD ref / phase** | FR-WEB-PP-001/002 (presentation only) · V1 |
@@ -51,6 +51,7 @@ No browser but Chromium was used.
 7. **The favourite toast lifts above the bar** (`aboveFloatingControl`). Today it covers part of « Réserver ».
 8. **The `<h1>` wraps its chip** (`flex-wrap`), because the rail is narrow.
 9. **A generated test photo.** Upright, face-free, at least 2048 px wide, at a real camera's weight, drawn by a small committed script that is deterministic and procedural: no face, no stand-in, no demo photo, so its bytes need no licence and no large binary is committed. It is the only photo allowed in anything committed or in the PR. Without it the computer's gain cannot be measured (§1.9) and the PR has no photo it may show.
+10. **Focus under the phone bar** (WCAG 2.4.11), added by the build as §1.4 allowed: fixed on this page alone, with no global CSS, at normal text (§1.4).
 
 **Not in this branch yet: the four « Carte » fixes.** The owner answered « Fix them in the cover update » for the four costs of « Carte » never put in words (BACKLOG 91, §1.12). They are planned separately and join this branch only after the owner signs off that plan. Nothing in this spec builds them.
 
@@ -64,7 +65,7 @@ No browser but Chromium was used.
 - the hero's alt « Salon {name} »;
 - a salon with no photo shown with its logo or initial (direction §6.4);
 - a failed cover's letter, as the card has (direction §8);
-- focus hidden under the phone bar, if its fix needs global CSS (§1.4);
+- at a doubled browser font, the last 17–19 px of a focused control under the 113 px phone bar (§1.4): a px margin against a rem bar, the same kind as the toast's;
 - the page's two layout exceptions in WEB-SYSTEM §16, until the sections take `SiteSection`;
 - B12.5 (the salon's description) and `slow-phone.spec.ts:66`'s claim; B12.7's review photos;
 - the parity gaps: in the app, tapping the cover opens the viewer, and the heart sits on the cover;
@@ -137,7 +138,7 @@ At 3:2 and 20%, read from the pictures (the reading is the planner's): faces and
 | **Signed in, favourite** | The heart under the intro as today. Its toast « Ajouté aux favoris » with « Annuler » sits above the bar under `lg` (§1.4) |
 | **Favourite refused** | The heart's sentence under it as today (`FavoriteButton.tsx`), and focus comes back to the heart after a failed call (`consumer-optimistic-revert.test.tsx:421-437`, unchanged) |
 | **Unknown slug** | 404, unchanged |
-| **Text at 200% (browser font setting)** | Type is px and does not grow (WEB-SYSTEM §9, §15 rows 29 and 31). `aspect-cover` has no length, so the cover keeps its shape where today's rem `h-56`/`sm:h-80` grew (inferred). `min-h-12` is rem, so at a 32 px root the bar is 113 tall, and the toast's 80 px lift still leaves it over the top 24 px of « Réserver », over its left 23.5 px; « Annuler » does not reach it and presses go through (measured, A2). A px offset against a rem box is a defect by WEB-SYSTEM §9: recorded, the same kind as « Carte »'s in BACKLOG 91 |
+| **Text at 200% (browser font setting)** | Type is px and does not grow (WEB-SYSTEM §9, §15 rows 29 and 31). `aspect-cover` has no length, so the cover keeps its shape where today's rem `h-56`/`sm:h-80` grew (inferred). `min-h-12` is rem, so at a 32 px root the bar is 113 tall, and the toast's 80 px lift still leaves it over the top 24 px of « Réserver », over its left 23.5 px; « Annuler » does not reach it and presses go through (measured, A2). The focus clearance is 96 px, so 17–19.3 px of a control focused at the screen's foot stays under that bar, none hidden whole (measured on the build, §1.4). A px offset against a rem box is a defect by WEB-SYSTEM §9: both recorded, the same kind as « Carte »'s in BACKLOG 91 |
 | **Page zoom 200%** | 1280×800 becomes 640×400: the layout below `lg`, the photo fills the first screen and the bar shows « Réserver » (inferred, not measured). Today's heart sits below that screen too, so the focus jump would scroll today's page (inferred) |
 | **320 wide, reflow** | The phone layout with a 213-tall cover, 11 px shorter than today: nothing new can overflow. No sideways scroll was found at any size shot (measured, A) |
 | **A phone held sideways, 844×390** | Header and photo, with the bar's « Réserver » at the bottom (325–390), and the `<h1>` at 659.7, below the first screen (measured, A). Today lands scrolled 454 px instead, the `<h1>` at −37, past the cover (measured, `main`) |
@@ -168,7 +169,16 @@ At the page's very end it is no longer at the screen's foot: at 390×844 it sits
 - Phone: unchanged. The header, the hero's « Réserver », the heart, the gallery, … the FAQ, then the bar's « Réserver ».
 - From `lg`: the header, then the panel's « Réserver », « Appeler » and « WhatsApp », then the heart, the gallery, … the FAQ. Today the panel is reached after the whole FAQ; now right after the name, which is also where it is on screen.
 
-**Focus hidden under the phone bar (WCAG 2.4.11), a known defect.** A Tab walk on A2 in Chromium, at 390×844 and 1023×768, hid three controls entirely under the bar: the FAQ's « Quels sont les tarifs… » summary, and the map's « Toggle attribution » and « MapLibre ». « Où se trouve… » was mostly hidden, 46 of 48 px at 1023. Chromium scrolls a focused element just into view at the bottom and does not centre it. Today's fixed 53 px bar should do the same (inferred, not measured): it is not new. The simple fix, `scroll-padding-bottom` on `<html>` below `lg`, is global CSS shared with the five store-linked pages, so it waits for Apple's decision. The build tries a page-scoped `scroll-margin-bottom` on this page's controls; if it does not pass the lint or does not work, the defect goes to WEB-SYSTEM §15's register and stays in B11.4. WebKit and Gecko are UNVERIFIED (§1.14).
+**Focus hidden under the phone bar (WCAG 2.4.11): found in planning, fixed by the build on this page alone.** A Tab walk on A2 in Chromium, at 390×844 and 1023×768, hid three controls entirely under the bar: the FAQ's « Quels sont les tarifs… » summary, and the map's « Toggle attribution » and « MapLibre ». « Où se trouve… » was mostly hidden, 46 of 48 px at 1023. Chromium scrolls a focused element just into view at the bottom and does not centre it. Today's fixed 53 px bar should do the same (inferred, not measured): it is not new.
+
+The build walked it again on its own tree before the fix (Chromium, from the top of the page to the footer, the map's tiles blocked, 2026-11-06), and measured how much of each focused control stood under the bar:
+- at 390×844: « Quels sont les tarifs… » 48 of 48 px, « Où se trouve… » 8 of 48, the first gallery photo 65 of 160;
+- at 1023×768: « Quels sont les tarifs… » 48 of 48, « Où se trouve… » 46 of 48, the gallery photo 65 of 160;
+- at 320×568: « Comment réserver… » 63.7 of 64, the gallery photo 33.3 of 160, « Comparaison 1 » and « 2 » 29.3 of 56;
+- at a 32 px root (the bar 113 tall): at 390, « Comparaison 1 » and « 2 » 110 of 112 and « Comment réserver… » 109 of 112; at 320, « Agrandir » 95.7 of 96 and « Quels sont les tarifs… » 113 of 160.
+The map's two controls did not come up in that walk, unlike A2's; nothing in the fix depends on which controls they are.
+
+**The fix.** `ProviderView`'s `CLEAR_OF_BAR`, `max-lg:[&_*]:scroll-mb-fab`, on the rail and on the sections' column: below `lg`, whatever is focused in them is scrolled to stop 96 px (`fab`, the clearance a floating control is owed, SYSTEM §5) above the screen's foot. Not on `main`, which holds the bar, whose own « Réserver » would then chase its margin. It needs no global CSS: `scroll-padding-bottom` on `<html>` would do the same once, but that is the five store-linked pages' stylesheet. It is an arbitrary *variant* with a token value, the first in the code: ESLint's `no-arbitrary-value` reads values and passes it, and WEB-SYSTEM §16 records it. **After:** nothing under the bar at 390×844, 320×568 and 1023×768; at a 32 px root, 17–19.3 px of each control focused at the foot stays under the 113 px bar, none hidden whole (2.4.11 asks that a focused control not be entirely hidden), the hero's « Réserver » at 320 included (75.3 of 96 before). Held by `salon-page.spec.ts`'s Tab walk at normal text; the doubled font is recorded, not held. WebKit and Gecko are UNVERIFIED (§1.14).
 
 **Headings and landmarks.** The `<h1>`, in the rail, comes before every `<h2>` in the DOM. The `<h2>` list is unchanged, with no `<h3>`. The landmarks are today's: the `<header>` inside `<main>` (generic, not a banner) and an unlabelled `<aside>` inside `<main>`, left unlabelled because a name would make it a complementary landmark nested in `main`.
 
@@ -180,20 +190,20 @@ None. `imageUrls[0]` is already the cover, `logoUrl` the logo. No `openapi.yaml`
 
 ### 1.6 Architecture & components
 
-The code basis is two scratch patches, never committed: `b114/patches/A.patch` and `b114/patches/A2-over-A.patch`. They were made on `b0995489`, whose `web/` is the same as `57b252a8`'s, and on an archive of `57b252a8` A applies cleanly and A2 applies over it (dry run), read 2026-11-06. On `b0995489`, A passed `tsc --noEmit` and ESLint with `--max-warnings=0` on the changed files, and both checks were watched red (planning stage). The build reapplies them with tests and this spec.
+The code basis is two scratch patches, never committed: `b114/patches/A.patch` and `b114/patches/A2-over-A.patch`. They were made on `b0995489`, whose `web/` is the same as `57b252a8`'s, and on an archive of `57b252a8` A applies cleanly and A2 applies over it (dry run), read 2026-11-06. On `b0995489`, A passed `tsc --noEmit` and ESLint with `--max-warnings=0` on the changed files, and both checks were watched red (planning stage). **The build** applied both to this branch with `git apply`, cleanly, and added what they lacked: `flex-wrap` on the `<h1>`, `CLEAR_OF_BAR` (§1.4), the `// Design:` lines and corrected citations, the class-less `<div>` removed, the test photo's script, and the tests of §1.10.
 
 - **Token.** `tailwind.config.ts`, `theme.extend.aspectRatio`: `{ card: '4 / 3', cover: '3 / 2' }`, and the comment's « `cover` waits for its first user in S4 » goes. Not in `styles/tokens.ts`: `Icon` imports that file. A web layout ratio with no app mirror: `tokens.mirror` does not read `extend`, which is how `card` already works (inferred from `card`; the build confirms it).
 - **`components/provider/Hero.tsx`** splits into two exports:
   - `ProviderCover({ provider, sizes, className })`: `<div class="relative aspect-cover w-full bg-surfaceVariant …">` with the `<Image fill priority sizes={sizes} class="object-cover object-subject">` (alt `Salon {name}`) and the logo block, unchanged. `null` without a photo.
   - `ProviderHero({ provider, slug, preview, className })`: the `<header>` with the category line, the `<h1>` (gaining `flex-wrap`) with its chip, the rating, and « Réserver » in `mt-m lg:hidden` with `disabled={preview}`. `slug` defaults to `provider.slug ?? ''`; the page passes its route slug.
   - Its comment cites salon-cover-photo.md §2.1, item 4, for the logo.
-- **`components/provider/ProviderView.tsx`**: the grid and DOM order of §1.2; the old `lg:grid-cols-3` wrapper and old aside go; `COVER_SIZES` (§1.9) exported for its test; the bar as in §1.4.
+- **`components/provider/ProviderView.tsx`**: the grid and DOM order of §1.2; the old `lg:grid-cols-3` wrapper and old aside go, and so does the class-less `<div>` the patches kept inside the sections' column (no box changes); `COVER_SIZES` (§1.9) exported for its test; the bar as in §1.4; `CLEAR_OF_BAR` on the rail and the sections' column (§1.4).
 - **`components/BookingCta.tsx`**: `min-h-12` on both branches.
 - **`components/provider/BookingPanel.tsx`**: « Appeler » and « WhatsApp » become `inline-flex min-h-12 flex-1 items-center justify-center`. The panel's `rounded-xl` box stays: direction §6.3 keeps `Card` for real containers.
 - **`components/provider/ReviewList.tsx`**: a review's text gets `max-w-content`. The intro and the FAQ are already capped.
 - **`components/provider/FavoriteButton.tsx`**: the `called` guard (§1.4) and `<Toast toast={toast} aboveFloatingControl />`.
 - **Unchanged:** `Gallery`, `BeforeAfter`, `MapEmbed`, `Faq`, `Hours`, `ServiceList`, `SalonVisitsCard`, `Toast.tsx`, `lib/siteGrid.ts`, the JSON-LD, `providerMetadata`, `buildFaq`, `app/[slug]/page.tsx`.
-- **The test photo's script** (§1.1 item 9) is the build's choice of name and tool, under `web/tool/`. `jpeg-js` 0.4.4 is already in the lockfile through Lighthouse (dev only, read in `package-lock.json`), so encoding needs no download; whether to declare it is the build's call.
+- **The test photo's script** (§1.1 item 9): `web/tool/test-photo.mjs`, with its types in `test-photo.d.mts`. `node tool/test-photo.mjs` writes `web/tool/out/salon-test-photo.jpg`, which `web/.gitignore` ignores; a path may be passed instead. It draws a room from numbers, with one seeded generator: a ceiling with three pendant lights, three mirrors over a counter with bottles, three black chairs, a cabinet, a plank floor and a plant, under a camera's grain and vignette, and ticks on both edges at every tenth of the height, longer at the half, so a picture of the cover shows which band it keeps. No person and nothing from a model. 2448×3264 (3:4, an 8-megapixel phone's shape), JPEG quality 92, 2,373,939 bytes, sha256 `820144ba…1898`, the same bytes on two runs (measured 2026-11-06, 2.3 s). `jpeg-js` 0.4.4 is not declared: it comes locked through `@lhci/cli`'s Lighthouse, so a declaration would only churn the lockfile. `tests/test-photo.test.ts` holds it: a 96×128 render's hash pinned, upright, at least 2048 wide, 1.5–4 MB.
 - `Hero.tsx` and `ProviderView.tsx` gain `// Design: docs/design/web-swiss-salon.md §1`.
 
 ### 1.7 Security, privacy, and the five store-linked pages
@@ -212,7 +222,7 @@ The code basis is two scratch patches, never committed: `b114/patches/A.patch` a
 **Unchanged:** the `<h1>` text, `<title>`, meta description, canonical, Open Graph and `og:image`, the JSON-LD (`LocalBusiness`, `FAQPage`, `BreadcrumbList`), the sitemap, `robots` and `llms.txt`. The served HTML keeps every word; its order changes in one place, the booking panel now coming before the sections instead of after them. The preview still renders no JSON-LD.
 
 **Checks:**
-- a new e2e on `/beaute-divine`: the `<h1>` text, the canonical and the JSON-LD blocks equal a list taken from `b0995489`. This is the salon page's row of direction §12's « SEO unchanged » guard, which S3 left to S4;
+- a new e2e on `/beaute-divine` (`salon-page.spec.ts`): the `<h1>` text, the `<title>`, the canonical, the meta description, `og:image`, every JSON-LD block and the `<h2>` list equal a list taken from `57b252a8`, whose `web/` is `b0995489`'s, built against the stub before any edit (`tests/e2e/salon-seo-before.json`). This is the salon page's row of direction §12's « SEO unchanged » guard, which S3 left to S4;
 - the unit test of §1.10 that the `<h1>` precedes every `<h2>`;
 - `served-html.spec.ts` and `axe.spec.ts:151` (`/beaute-divine`), unchanged and run;
 - the five pages' gate (§1.7) for theirs.
@@ -242,7 +252,7 @@ Phones and tablets are unchanged, because both are `100vw`: 320@2 640w, 360@2 75
 
 **How it is measured, by hand** (B11.3's method, web-swiss-cards.md §7, its tools in `b113/final-check3/lcp/`, scratch):
 - `next build` and `next start` of #737's tip and of this branch, one at a time, against one stub;
-- real bytes through the local optimizer: `rewrite.cjs` sends `https://cdn.stub/` to `serve.mjs`, which serves the generated photo as `p1.jpg`; B11.3's 720×1080 `p1.jpg` stays the phone control, where it was measured before;
+- real bytes through the local optimizer: `rewrite.cjs` sends `https://cdn.stub/` to `serve.mjs`, which serves the generated photo (`node tool/test-photo.mjs <dir>/p1.jpg`) as `p1.jpg`; B11.3's 720×1080 `p1.jpg` stays the phone control, where it was measured before;
 - Lighthouse with `--throttling-method=devtools`, five runs each, a cold image cache per series, on `/beaute-divine` at 412×823 and 360×640 (the existing `lh-412.json`, `lh-360.json`) and at 1280×800 and 1920×1080 (a new desktop profile, DPR 1);
 - recorded: the median LCP, which element it is (it must be the cover `<img>`, WEB.md §7), the request's `w=` and bytes, the photo preloads in the HTML (exactly one, with the new `imagesizes`), CLS and TBT;
 - no picture of a demo photo is kept.
@@ -260,39 +270,41 @@ Phones and tablets are unchanged, because both are `100vw`: 320@2 640w, 360@2 75
 
 Each new guard is watched red on committed work, on a copy (`git worktree add --detach` or `git archive` into scratch), never by editing and checking out in the branch's tree. Each result is recorded with the commit.
 
-**Unit (vitest)**
+**Unit (vitest).** The build's names; « mutation » is what must turn the test red, watched in the record below.
 
 | Test | What it holds | The mutation that must turn it red |
 |---|---|---|
-| `hero-cover.test.tsx`, rewritten for `ProviderCover` | The cover's box has `aspect-cover`; the cover has `object-subject`; the logo has neither | Remove `aspect-cover`; move `object-subject` to the logo; remove it from the cover |
-| New: the cover's srcset | `sizes === COVER_SIZES`; the srcset's widths are exactly 640…3840w, smallest 640; `fetchpriority="high"` | `sizes` with `60vw` (384w appears); a `sizes` with no bare `vw` (16w appears); drop `priority` |
-| `tokens.theme-pin.test.ts` | `aspectRatio.cover === '3 / 2'`; the CSS has `.aspect-cover {` with `aspect-ratio: 3 / 2` | Set `'16 / 9'`; remove the key |
-| New: the hero in the preview | `ProviderHero preview` draws « Réserver » as a disabled button, with no `/reserver` link | Drop `disabled={preview}` |
-| New: `FavoriteButton` on load | Mounted with nothing focused, `document.activeElement` stays `<body>` | Remove the `called` guard |
-| `consumer-optimistic-revert.test.tsx:421-437` | Focus comes back after a failed call | Must stay green with the fix |
-| New: `ProviderView`'s order | The `<h1>` precedes every `<h2>`; the panel's « Réserver » precedes the heart; the bar is `main`'s last child | Move the rail after the sections; move the bar out of `main` |
-| New: `ProviderView` with no photo | No cover element; the rail keeps `lg:col-start-9`; the `<h1>` is still first | Drop `lg:col-start-9` |
-| New: the favourite toast | Its region carries the lift (`bottom-xxxl` under `lg`) | Drop `aboveFloatingControl` |
-| `salon-rating-sites.test.tsx`, `provider-address-dedupe.test.tsx` | Unchanged | — |
+| `hero-cover.test.tsx`, rewritten for `ProviderCover` | The cover's box has `aspect-cover`; the cover has `object-subject`; the logo has neither, and its box is not a cover; no photo draws nothing | Remove `aspect-cover`; move `object-subject` to the logo; remove it from the cover |
+| `salon-page.test.tsx`: the cover's srcset | Rendered in `ProviderView`: `sizes === COVER_SIZES`; the srcset's widths are exactly 640…3840w; `fetchpriority="high"`, not lazy | `sizes` with `60vw` (384w appears); a `sizes` with no bare `vw` (16w appears); drop `priority` |
+| `tokens.theme-pin.test.ts` | `aspectRatio.cover === '3 / 2'`, `card` still `4 / 3`; the CSS has `.aspect-cover { aspect-ratio: 3 / 2 }` | Set `'16 / 9'`; remove the key |
+| `salon-page.test.tsx`: the preview | `ProviderHero preview` draws « Réserver » as a disabled button with its title, and no `/reserver` link; `ProviderView preview` has no `/reserver` link anywhere and three disabled « Réserver » | Drop `disabled={preview}` |
+| `salon-page.test.tsx`: the heart on load | Mounted with nothing focused, after its read, `document.activeElement` stays `<body>` | Remove the `called` guard |
+| `consumer-optimistic-revert.test.tsx:421-437` | Focus comes back after a failed call | Must stay green with the fix (34 of 34) |
+| `salon-page.test.tsx`: the order | The `<h1>` precedes every `<h2>`; the panel's « Réserver » precedes the heart; `main`'s last child is the bar, with its « Réserver » and « À partir de » | Move the rail after the sections; move the bar out of `main` |
+| `salon-page.test.tsx`: no photo | No cover image and no `.aspect-cover`; the rail, which holds the panel, keeps `lg:col-start-9`; the `<h1>` is still first | Drop `lg:col-start-9` |
+| `salon-page.test.tsx`: the toast | `FavoriteButton`'s toast region carries `bottom-xxxl` and `lg:bottom-l` | Drop `aboveFloatingControl` |
+| `test-photo.test.ts` | A 96×128 render twice gives the same bytes, and its hash is pinned; the full photo is upright, at least 2048 wide, 1.5–4 MB, and decodes at its size | `Math.random` in the grain; width 2000 |
+| `salon-rating-sites.test.tsx`, `provider-address-dedupe.test.tsx` | Unchanged, green | — |
 
 **E2E (Playwright, its own ports 3000 and 8787)**
 
 | Spec | What it holds | The mutation |
 |---|---|---|
-| `site-look.spec.ts:1029-1040` | The cover at 50% 20%, the logo and the gallery at 50% 50%. The selector becomes `main img[…]`, because the cover leaves `<header>` | Remove the position class, after the selector change |
-| New, `site-look` | The cover's box is 1.5 ± 0.01 at 320, 390, 820, 1023, 1024, 1280 and 1920. From 1024: the cover's x equals the header logo's (± 1); the `<h1>`'s x ≥ the cover's right edge + 23; the name block's `<header>` top equals the cover's top (± 1), and the `<h1>` is 24 ± 1 below it (cover 49, `<h1>` 73 at 1280). Below 1024: the `<h1>`'s top is below the cover's foot | `aspect-cover` → `h-80`; drop `lg:col-span-8`; drop `lg:px-l`; drop `lg:pt-0` |
-| New, first screen | At 1024×768, 1280×800 and 1366×768 the `<h1>`, the rating and the panel's « Réserver » are inside the viewport | Move the rail after the sections |
-| New, sticky | At 1280×800 and 1024×768, scrolled to « Avis » and to « Questions fréquentes », the panel's top is 24 ± 1 and `elementFromPoint` at « Réserver »'s centre is that link. Nothing is asserted at the very end, where the panel rides up | Drop `sticky` |
-| New, no jump | At 320×568, 844×390 and 1280×800, after load and the favourites call, `scrollY === 0` and focus is on `<body>`. At 1280 only the focus check can fail, since the heart is on screen | Revert the guard (expect 317 at 320 and 454 at 844×390) |
-| New, the bar at the end | At 390×844 and 320×568, scrolled to the end, every footer link answers `elementFromPoint` at its centre | The bar back to `fixed inset-x-0` (red: « Instagram » under it, measured on A) |
-| New, the bar mid-page | At 390×844 and 320×568, scrolled to « Avis », the bar's foot equals the screen's foot (± 0.5) and « Réserver » answers | Drop `sticky` (the bar falls to the page's end) |
-| New, the toast against the bar | At 390×844 and 320×568, after a press on the heart (favourites answered in the browser, as `site-look.spec.ts:976` does), the toast's pill ends above the bar and a press at « Réserver »'s top-left corner lands on it | Drop `aboveFloatingControl` (red at 320: « Annuler » takes the corner, measured) |
-| `type-overflow.spec.ts` | A long-name subject at 320, 1024 and 1280: « ✔ Vérifié » keeps one line | Drop `flex-wrap` (the chip goes to two lines, measured) |
-| `provider.spec.ts:113-115` | « Réserver »'s href. Added: exactly one visible « Réserver » link at 1280 (two today) | Drop `lg:hidden` |
-| `pro.spec.ts:962-973` | Added: no `a[href$="/reserver"]` in the preview | Drop `disabled={preview}` (red on `b0995489` too: the defect) |
-| `tap-targets.spec.ts` | « Réserver » at 390 (hero and bar) and at 1280 (panel), and « Appeler » and « WhatsApp » at 1280, are at least 48 tall | Remove `min-h-12` |
-| New, SEO unchanged | `/beaute-divine`'s `<h1>` text, canonical and JSON-LD equal a list taken from `b0995489` | Change a word of the `<h1>` |
-| `axe.spec.ts:151`, `focus`, `controls-shape`, `slow-phone`, `account`, `redirects`, `served-html`, `store-linked-pages` | Existing; run, no change expected | — |
+| `site-look.spec.ts`, « where a photo is cut » | The cover at 50% 20%, the logo and the gallery at 50% 50%. The selector is now `main img[…]`, because the cover left `<header>` | Remove `object-subject` from the cover |
+| `site-look.spec.ts`, new, « the salon page's cover » | At 320, 390, 820, 1023, 1024, 1280 and 1920: the cover's box is 1.5 ± 0.01; its width is the width `sizes` names (± 1); the file asked for is the smallest candidate at or above it at density 1 (`currentSrc`'s `w=`: 640, 640, 828, 1080, 750, 828, 1080). From 1024: the cover's x is the header logo's (± 1); the `<h1>`'s x ≥ the cover's right edge + 23; the name block's `<header>` top is the cover's (± 1), and the `<h1>` 24 ± 1 below it. Below 1024: the cover at x 0 and the `<h1>` under it | `aspect-cover` → `h-80`; drop `lg:col-span-8`; drop `lg:px-l`; drop `lg:pt-0` |
+| `salon-page.spec.ts`, first screen | At 1024×768, 1280×800 and 1366×768 the `<h1>`, the rating and the panel's « Réserver » are inside the viewport, at scroll 0 | Move the rail after the sections |
+| `salon-page.spec.ts`, sticky | At 1280×800 and 1024×768, scrolled to « Avis » and to « Questions fréquentes » (scroll > 400), the panel's top is 24 ± 1 and `elementFromPoint` at « Réserver »'s centre is that link. Nothing is asserted at the very end, where the panel rides up | Drop `sticky` |
+| `salon-page.spec.ts`, no jump | At 320×568, 844×390 and 1280×800, after load and the favourites read, `scrollY === 0` and focus is on `<body>`. At 1280 only the focus can fail, since the heart is on screen | Revert the guard |
+| `salon-page.spec.ts`, the bar at the end | At 390×844 and 320×568, scrolled to the end, the bar ends above the footer and every footer link, « Instagram » among them, answers `elementFromPoint` at its centre | The bar back to `fixed inset-x-0` |
+| `salon-page.spec.ts`, the bar mid-page | At 390×844 and 320×568, scrolled to « Avis » (scroll > the screen), the bar's foot is the screen's foot (± 0.5) and its « Réserver » answers | Drop `sticky` (the bar falls to the page's end) |
+| `salon-page.spec.ts`, the toast against the bar | At 390×844 and 320×568, after a press on the heart (favourites answered in the browser, as `site-look.spec.ts` does for « Carte »), « Annuler » showing, the pill ends above the bar and a press 1 px inside « Réserver »'s top-left corner lands on it | Drop `aboveFloatingControl` |
+| `salon-page.spec.ts`, focus under the bar | At 390×844, 320×568 and 1023×768, a Tab walk from the top to the footer, which has to reach « Faut-il payer un acompte ? »: no focused control outside the bar has a pixel under it | `CLEAR_OF_BAR` emptied |
+| `salon-page.spec.ts`, SEO unchanged | `/beaute-divine`'s `<h1>` text, `<title>`, canonical, meta description, `og:image`, every JSON-LD block and the `<h2>` list equal `salon-seo-before.json`, read from `57b252a8` (whose `web/` is `b0995489`'s) against the stub before any edit; one `<h1>` | Change a word of the `<h1>` |
+| `type-overflow.spec.ts`, new | At 320, 1024 and 1280, the stub salon renamed in the page to « Institut de beauté et coiffure afro Excellence Riviera Palmeraie »: the name takes more than one line, « ✔ Vérifié » one line, and nothing scrolls sideways | Drop `flex-wrap` |
+| `provider.spec.ts`, new | At 1280×800 exactly one displayed « Réserver » link, the panel's (two before) | Drop `lg:hidden` |
+| `pro.spec.ts`, the go-live test | Added: no `main a[href$="/reserver"]` on the preview | Drop `disabled={preview}` |
+| `tap-targets.spec.ts`, new | At 390 both « Réserver » (hero and bar), at 1280 the panel's « Réserver », « Appeler » and « WhatsApp », are at least 48 tall | Remove `min-h-12` from `BookingCta`'s link; from the panel's two links |
+| `axe.spec.ts:151`, `focus`, `controls-shape`, `slow-phone`, `account`, `redirects`, `served-html`, `store-linked-pages` | Existing; green in the full run, no change | — |
 | Not added | A no-photo salon in the stub. A new slug changes `served-html`'s and `provider`'s counts, as B11.3 found; the unit test holds that path and A2's measurement saw it | — |
 
 **Also:** the five pages' gate (§1.7) with its controls; `tsc`, ESLint with `--max-warnings=0`, `gen:api` with no drift, `next build`; the Lighthouse runs of §1.9. Full suites run one at a time, never in parallel.
@@ -302,7 +314,7 @@ Each new guard is watched red on committed work, on a copy (`git worktree add --
 ### 1.11 Rollout
 
 - **Branch:** `feat/web-salon-cover`, cut from #737's tip `57b252a8` (by the local ref, `origin/feat/web-swiss-cards` is `57b252a8`; nothing was fetched). Commits authored as the owner, conventional, no tool attribution.
-- **This commit is docs only** (the spec first). The build follows on the same branch.
+- **The spec first, in its own docs-only commit,** then the build on the same branch, in its own commits (§1.10's record names them).
 - **Its own PR, stacked on #737** (base `feat/web-swiss-cards`), merged right after #737, both after Apple's decision and on the owner's word (answer 98).
 - **CI cannot check it until #737 merges.** `ci.yml` runs on pull requests into `main` only (`pull_request: branches: [main]`), so a PR based on #737's branch gets no CI until #737 merges and the PR is retargeted. So the full local suites run first, one at a time: vitest, `next build`, Playwright, the five pages' gate, the Lighthouse runs.
 - **The merge train:** after #737's squash, `git rebase --onto main <#737's old tip>`, retarget the PR to `main` before the push, let CI run, then merge on the owner's word.
@@ -341,6 +353,7 @@ Asked on 2026-11-05 with four private sheets of pictures (`1-ordinateur`, `2-cad
 
 **Measured or inferred, and not put in these words, so the answers do not cover them.** They go to the owner with the PR, for their word at the merge:
 - From 1006 to 1023 px wide on a 768-tall screen, the bar runs over the bottom of the salon's logo (cosmetic).
+- Found and fixed by the build: reached with the Tab key, a control near the screen's foot no longer goes under the bottom bar on a phone; it stops 96 px above the foot. With the browser's text at double size the bar is 113 px tall, and up to 19 px of the control can still sit under it, never all of it (§1.4). The fix uses a Tailwind form new to the code, a token on every element inside the page's two columns.
 - On this page the `<h1>` does not start on the logo's x, the sections do not hang their headings beside the rail, and the sections' text starts at x 40 where the cover starts at 24 (WEB-SYSTEM §16's two exceptions, until B11.4's sections).
 - A cover that fails to load is a grey block with Chromium's broken-image mark and the logo, with no letter.
 - At the very end of a page on a computer, the booking box rides up with the rail and is only partly on screen (its top at −113 at 1280); « Réserver » still answers.
@@ -351,7 +364,7 @@ Asked on 2026-11-05 with four private sheets of pictures (`1-ordinateur`, `2-cad
 
 - **The owner:** sign off the plan of the four « Carte » fixes before they join this branch (BACKLOG 91); give the word for each merge and deploy, after Apple's decision.
 - **The owner:** installing Playwright's WebKit 2311 and Firefox 1532 (the machine has 2248 and 1509) is a download and needs their word; until then WebKit and Gecko are UNVERIFIED, focus under the bar included.
-- **The Gate stage:** the LCP table of §1.9; the five pages' gate with the amended condition 3; `.pb-xxl`'s removal read with the Tailwind CLI, not a grep; `tokens.mirror` confirmed blind to `extend`; the page-scoped focus fix tried, or the defect registered.
+- **The Gate stage:** the LCP table of §1.9; the five pages' gate with the amended condition 3 (the focus fix adds one more rule, `.max-lg\:\[\&_\*\]\:scroll-mb-fab *` in a `max-width` query, which the condition allows); `.pb-xxl`'s removal read with the Tailwind CLI, not a grep; `tokens.mirror` confirmed blind to `extend`. The page-scoped focus fix was tried by the build and holds at normal text (§1.4).
 - **Not shot yet:** any width at 768, a six-photo gallery (the stub salon has one), the install banner on this page with a store URL, the owner's preview in a browser, real phones and tablets.
 - **Still open after the merge:** B11.3's line on a room on the salon page's cover stays open until a salon is public, and the first real salon's cover is looked at on the live site, because a generator's framing and a demo room are not a salon's photos.
 - **The app** (B12.13): its comment « the website's `h-56` on phones » (`provider_detail_screen.dart:1590`) goes stale when this merges; the app keeps 224 dp, centred, until after Apple's decision.
@@ -382,6 +395,7 @@ Each body below is in `docs/BACKLOG.md` exactly once, character for character. B
 - **Decision 94**, at its end: « **The plan with pictures went to you on 2026-11-05, and you answered it the same evening: decisions 95–98.** »
 - **B11.3**, at its end: « **The cover's new shape is decided (decisions 95–98, `web-swiss-salon.md` §1):** the line above on a room on the salon page's cover stays open until a salon is public, and is read on the first real salon's cover. »
 - **B11.4**, at its end: « **The cover's shape, specified on 2026-11-06 (decisions 95–98):** `web-swiss-salon.md` §1, on its own branch, `feat/web-salon-cover`, stacked on #737, not built yet. It brings forward the `cover` token, the 3:2 cover at every width cut at `object-subject`, direction §7.6's layout from `lg` with only the booking box sticky, and exact `sizes`. It also fixes the focus jump above, the live « Réserver » in your preview, « Réserver », « Appeler » and « WhatsApp » under 48 px, the phone bar over the footer's last link, and the favourite message over « Réserver ». The four « Carte » fixes of decision 91 join that branch once you sign off their plan. **Still here after it:** Lighthouse budgets for the salon page, a landing and `/recherche`, with real bytes; `/recherche`'s hidden map on phones; the home page's off-screen photos; the `<h1>` and `<h2>` sizes of direction §5.3; the sections (hanging headings through `SiteSection`, `Faq` in the site look, flush left, the salon page in the full left-edge test, and until then the page's two exceptions in WEB-SYSTEM §16); square gallery tiles, review cards, map and review photos; gallery `sizes`; the hero's alt « Salon {name} »; a salon with no photo shown with its logo or letter; a failed cover's letter (today a grey block with Chromium's broken-image mark); focus hidden under the phone bar, if its fix needs global CSS; B12.5's description and `slow-phone.spec.ts:66`'s claim; B12.7's review photos; the parity gaps (in the app the cover opens the viewer and the heart sits on it); « ✔ Vérifié » inside the `<h1>`; the Pro preview's notice, which stays `max-w-5xl`. »
+- **B11.4, built**, at its end, after the line above: « **Built on 2026-11-06 on that branch, not merged:** all of the above, and the focus hidden under the phone bar is fixed on the page itself, with no global CSS: on a phone, a control reached with the Tab key stops 96 px above the screen's foot, clear of the bar. With the browser's text at double size the bar is 113 px tall and up to 19 px of that control can still sit under it, never all of it (`web-swiss-salon.md` §1.4). Still to come before your word: the LCP runs with the generated test photo, and the five store-linked pages' gate. »
 - **B12.13**, at its end: « **From B11.4's cover (decision 97):** the site's cover becomes 3:2 on phones too, so the comment « the website's `h-56` on phones » (`provider_detail_screen.dart:1590`) goes stale when `feat/web-salon-cover` merges. The app keeps its 224 dp, centred, until after Apple's decision; fix the comment with the crop. »
 
 ### 1.17 Where the plan was wrong at this branch's base
