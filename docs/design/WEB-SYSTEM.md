@@ -411,6 +411,28 @@ five « Enregistré. » confirmations + the go-live banner onto persistent
 `role="status"` regions whose **text** toggles, and the two « Copié ✓ » label
 swaps onto sr-only status twins. « Chargement… » strings await B6's `Loading`.
 
+**A toast never covers a floating control where the screen has room** (specified
+2026-11-06 for B11.4's cover branch, [web-swiss-salon.md](web-swiss-salon.md)
+§2.3, not merged; BACKLOG 100, which replaces decision 86's « the toast stays
+where it is »). A page whose control floats at the screen's foot under `lg` marks
+it `data-floating-control` and gives `Toast` its home: `aboveFloatingControl`
+(« Carte », 80px, px like the band the button rides in) or `aboveBookingBar` (the
+salon page's bar, `bottom-20`, rem like the bar). From that home the pill is
+measured against every marked control on the screen, and where one comes within
+`s` (8px) it moves, in this fixed order: **aside**, within the `m` (16px) gutters,
+unless the slid pill would newly cover another control's label (the words of a
+link or button, such as a row's ♥, never its tap area); **else up or down,
+whichever is the shorter move**, up on a tie, never nearer the screen's top or
+foot than `m`; **where neither clears**, it stays whole on the screen where it
+covers the control least. Moves are whole px, rounded so the `s` of air and the
+`m` edges stay whole, and are worn on the region's own inline style: `translate`
+aside, so the pill never re-wraps, `margin-bottom` up and down. It is placed again
+on scroll, on resize, on a `ResizeObserver` of the pill and the controls, and on a
+`MutationObserver` for a control that appears. Without the CSS `translate`
+property it only goes up or down, and without either observer it still places on
+scroll and resize. The region, its role and what it says do not change. **A toast
+with neither prop is never measured:** every other page's stays at `bottom-l`.
+
 ## 8. Dialogs
 
 Six hand-rolled modals, **zero** focus traps. A modal that doesn't trap focus lets
@@ -469,6 +491,23 @@ dashboard's nav is the reference: a persistent sidebar at `lg+`, an off-canvas
 **drawer** below — one `<ProSidebar>`, repositioned by CSS, opened by a hamburger
 in a slim top bar (B0; [web-pro-mobile-nav.md](web-pro-mobile-nav.md)). It used to
 be `w-60` with no breakpoint, eating 240px of a 375px phone on every `/pro` route.
+
+**One public layout reads the window's shape, not only its width: `/recherche`'s
+split view** (specified 2026-11-06 for B11.4's cover branch,
+[web-swiss-salon.md](web-swiss-salon.md) §2.5, not merged; BACKLOG 101). The map
+stands beside the list from `lg`, and from `md` in a window wider than tall: each
+`lg:` class of the split view has a `md:landscape:` twin (`landscape` is
+Tailwind's built-in orientation variant). Why: below `lg` the footer stacks and is
+taller than such a window (927px at 1023 wide), so a floating « Carte » that stops
+above it had left the screen by the page's end (y −255 at 1023×768, −572 at
+844×390); beside the list there is no button to lose. Portrait windows keep the
+list and « Carte ». The apps' phones are portrait (Android's manifest, the
+iPhone's orientations; the iPad build turns), so this layout has no app twin.
+**The ordering trap:** Tailwind writes every `md:landscape:` rule after every
+`lg:` rule, so in a landscape window from `lg` the `md:landscape:` twin is the one
+that applies, and each pair must carry the same value. `RechercheClient`'s comment
+says so. Scoping the twins with `max-lg:` would remove the trap, at the cost of
+three-variant classes.
 
 ### z-index
 
@@ -557,6 +596,12 @@ under a large browser font **the boxes grow and the type does not**.
   across at a 24px root), the journal's `top: 32` offsets against an `h-8`
   header, a duplicated `320px`/`20rem` grid rail, and a `48px` claiming to match
   `min-h-12`.
+- **A toast against a floating control is placed by measurement, not by an
+  offset** (§7; specified 2026-11-06, not merged). Its home may be px
+  (« Carte »'s, like the band the button rides in) or rem (the salon page's bar's,
+  like the bar), and from either it moves clear of the control's real box, so a px
+  home cannot drift into a rem control at a large root. The home is still a token
+  offset; the measuring is what keeps the two apart.
 
 **The honest limit: this contract does not make a browser font preference
 work.** Text stays px, so Chrome's Appearance → Font size still moves the boxes
@@ -754,6 +799,6 @@ Enforced by the `myweli-web-guardrails` skill.*
 - **The search is one ruled bar** (`HomeSearch`): the form draws the box and the lines between.
 - **Colour comes from photos.** Same-ratio crops, one ratio per use: `aspect-card` (4:3) on the salon card and `aspect-cover` (3:2) on the salon page's cover (**added 2026-11-06** with B11.4's cover, [web-swiss-salon.md](web-swiss-salon.md), not merged). No filters, no scrims, and **no AI-generated faces or results**.
 - **A salon card is `ProviderCard`** ([web-swiss-cards.md](web-swiss-cards.md)): the salon's own photo at `aspect-card` (4:3), square and uncovered, with flush-left text and one thin rule at the foot of the media. `tile`, `row`, or `rowOnPhone`, which switches at `sm`, with `CARD_SIZES` for `sizes`. **`object-subject` (`50% 20%`) says where a salon's photo is cut in a fixed frame: a little above the centre, on the card and on the salon page's cover, and on nothing else, not a logo, a gallery or a before and after** (the owner chose it from pictures, web-swiss-cards.md §2.4). Lazy, except the first photo of a landing level or `/recherche`, which takes `imagePriority` from `firstPhotoIndex`, the card's own rule of what a photo is. With no photo, the logo in the bottom-left corner, otherwise the salon's letter; `content-initial` carries that letter on a photo that failed. The card's three tokens are in `tailwind.config.ts`, and the cover's `aspect-cover` joins them there (B11.4's cover, [web-swiss-salon.md](web-swiss-salon.md), not merged), never in `styles/tokens.ts`, because `Icon` imports that file and `Icon` is in the five store-linked pages' graph. Names wrap, never truncate. A list draws the rules between its rows, so a card never doubles one.
-- **The salon page** (`ProviderView`; [web-swiss-salon.md](web-swiss-salon.md) §1; **added 2026-11-06 for B11.4's cover, not merged**). From `lg`: the site's container without its phone padding, the cover in columns 1–8 at `aspect-cover`, cut at `object-subject`, and columns 9–12 for the name block and then `BookingPanel`. **Only the panel sticks,** at `top-l`. Below `lg`: one column in the app's order, the cover full width at 3:2, and the booking bar `sticky bottom-0` as the last thing in `main`, so it stops above the footer, as « Carte » does. A control the keyboard focuses in the page's two columns stops 96 px (`fab`) above the screen's foot below `lg`, clear of the bar: `max-lg:[&_*]:scroll-mb-fab`, an arbitrary *variant* with a token value and the first in the code. It is written in the two columns' `className`s, where ESLint reads it: in a bare constant neither `no-arbitrary-value` nor `no-custom-classname` sees it. It is page-scoped because `scroll-padding` on `<html>` would reach the five store-linked pages; its rule sits in the shared stylesheet, matched only inside those columns (web-swiss-salon.md §1.4). The heart's toast rises above the bar in rem, `Toast`'s `aboveBookingBar` (`bottom-20`), because the bar's height is rem (`min-h-12`); « Carte »'s px lift, `aboveFloatingControl`, is BACKLOG 91's to fix. **Its exceptions, on the record:** the cover takes the left edge and the `<h1>` starts in column 9 by design, so on this page the logo and the `<h1>` do not share an x (the first rule of this section; direction §6.2). Until B11.4's sections take `SiteSection`, two more: the sections stay one 8-column block, because hanging headings (the `<h2>` in columns 1–3, the content in 4–12) cannot sit beside a rail in 9–12; and their text starts at x 40 where the cover starts at 24 at 1280, because each section keeps its own `px-m`.
+- **The salon page** (`ProviderView`; [web-swiss-salon.md](web-swiss-salon.md) §1; **added 2026-11-06 for B11.4's cover, not merged**). From `lg`: the site's container without its phone padding, the cover in columns 1–8 at `aspect-cover`, cut at `object-subject`, and columns 9–12 for the name block and then `BookingPanel`. **Only the panel sticks,** at `top-l`. Below `lg`: one column in the app's order, the cover full width at 3:2, and the booking bar `sticky bottom-0` as the last thing in `main`, so it stops above the footer, as « Carte » does. A control the keyboard focuses in the page's two columns stops 96 px (`fab`) above the screen's foot below `lg`, clear of the bar: `max-lg:[&_*]:scroll-mb-fab`, an arbitrary *variant* with a token value and the first in the code. It is written in the two columns' `className`s, where ESLint reads it: in a bare constant neither `no-arbitrary-value` nor `no-custom-classname` sees it. It is page-scoped because `scroll-padding` on `<html>` would reach the five store-linked pages; its rule sits in the shared stylesheet, matched only inside those columns (web-swiss-salon.md §1.4). The heart's toast rises above the bar in rem, `Toast`'s `aboveBookingBar` (`bottom-20`), because the bar's height is rem (`min-h-12`); « Carte »'s home, `aboveFloatingControl`, stays px, and from either home the message is moved clear of the bar or « Carte » by measurement (§7; BACKLOG 100; specified 2026-11-06 in [web-swiss-salon.md](web-swiss-salon.md) §2, not merged). **Its exceptions, on the record:** the cover takes the left edge and the `<h1>` starts in column 9 by design, so on this page the logo and the `<h1>` do not share an x (the first rule of this section; direction §6.2). Until B11.4's sections take `SiteSection`, two more: the sections stay one 8-column block, because hanging headings (the `<h2>` in columns 1–3, the content in 4–12) cannot sit beside a rail in 9–12; and their text starts at x 40 where the cover starts at 24 at 1280, because each section keeps its own `px-m`.
 - **The pattern** (rows of plaits, black on white; `components/brand/Weave.tsx`): at most one visible per page, drawn on Home, `/professionnels` and 404 only, never behind text, `aria-hidden`, no animation, and it never replaces a salon's photo. **It keeps one scale:** it stops growing with the screen, because drawn large it stops being texture. Copy never calls it traditional or authentic. White on black is kept for a dark version. **« Drawn » and « visible » are the rule, not what the HTML holds:** Home and `/professionnels` carry both forms in their DOM, and the 404's band travels in every page's RSC payload ([web-swiss-direction.md](web-swiss-direction.md) §4.6).
 
