@@ -2,6 +2,7 @@ import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '@playwright/test';
 
 import { submitOtpLogin } from './_auth';
+import { hermetic } from './_message';
 import { keepSharedGallery } from './_gallery';
 import { asUnaskedBrowser } from './_push';
 import { stubDayKey } from './stub-clock.mjs';
@@ -405,6 +406,7 @@ test('Médias — the delete question, then the undo toast — axe-clean (web-pr
 /// the message moved aside, under the one salon of `?q=tresses`, where « Carte » rests level with
 /// its home.
 test('a MOVED toast is axe-clean, and still in its live region (decision 100)', async ({ page }) => {
+  await hermetic(page);
   await page.setViewportSize({ width: 390, height: 844 });
   await page.route('**/api/me/favorites**', (r) =>
     r.request().method() === 'GET'

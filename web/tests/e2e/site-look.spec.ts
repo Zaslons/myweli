@@ -1070,6 +1070,7 @@ test.describe('the salon card', () => {
       ] as const) {
         for (const path of ['/recherche?q=vitrine', '/recherche?q=vide']) {
           test(`${path} at ${width}×${height}: no « Carte » to lose, and every footer link answers`, async ({ page }) => {
+            await hermetic(page);
             await size(page, width, height);
             await page.route(/cartocdn\.com/, (r) => r.abort());
             await routeNextImages(page);
@@ -1091,6 +1092,7 @@ test.describe('the salon card', () => {
         }
 
         test(`at ${width}×${height}: the map stands right of the list, one <h1>, and far down the list it is whole at the screen’s top`, async ({ page }) => {
+          await hermetic(page);
           await size(page, width, height);
           await page.route(/cartocdn\.com/, (r) => r.abort());
           await routeNextImages(page);
@@ -1114,6 +1116,7 @@ test.describe('the salon card', () => {
         });
 
         test(`at ${width}×${height}: the <h1> stands on the header logo’s left edge`, async ({ page }) => {
+          await hermetic(page);
           await size(page, width, height);
           await page.route(/cartocdn\.com/, (r) => r.abort());
           await page.goto('/recherche?q=vitrine');
@@ -1143,6 +1146,7 @@ test.describe('the salon card', () => {
     ] as const) {
       for (const q of ['vitrine', 'vide'] as const) {
         test(`/recherche?q=${q} at ${width}×${height}: nothing above the list ever goes under it`, async ({ page }) => {
+          await hermetic(page);
           await size(page, width, height);
           await page.route(/cartocdn\.com/, (r) => r.abort());
           await routeNextImages(page);
