@@ -18,6 +18,7 @@ import type { ToastState } from '../lib/useToast';
 export function Toast({
   toast,
   aboveFloatingControl = false,
+  aboveBookingBar = false,
 }: {
   toast: ToastState;
   /// The page has its own floating control at the bottom under `lg` (the search's
@@ -27,13 +28,26 @@ export function Toast({
   /// toast, which is on top, at most half the screen wide at normal text, and lets a press through
   /// (docs/design/web-swiss-cards.md §2.4).
   aboveFloatingControl?: boolean;
+  /// The salon page's booking bar under `lg` (docs/design/web-swiss-salon.md §1.4): 65px at
+  /// normal text, but its « Réserver » is `min-h-12`, which is rem, so with the browser's text
+  /// at double size (a 32px root) the bar is 113px. The lift is `bottom-20`, 5rem, rem like
+  /// the bar: 80px at normal text, the same place as the px lift above, 15px clear of the bar;
+  /// 160px at a 32px root, 47px clear. The px lift left the pill over the bar there, and at 320
+  /// and 360 « Annuler » took a corner of « Réserver », so a press there undid the favourite.
+  /// « Carte »'s lift above stays px: the same cost is the first of BACKLOG 91's four, whose
+  /// fixes wait for the owner's word on their own plan.
+  aboveBookingBar?: boolean;
 }) {
   return (
     <div
       role="status"
       aria-live="polite"
       className={`pointer-events-none fixed left-1/2 z-toast -translate-x-1/2 ${
-        aboveFloatingControl ? 'bottom-xxxl pb-m lg:bottom-l lg:pb-0' : 'bottom-l'
+        aboveBookingBar
+          ? 'bottom-20 lg:bottom-l'
+          : aboveFloatingControl
+            ? 'bottom-xxxl pb-m lg:bottom-l lg:pb-0'
+            : 'bottom-l'
       }`}
     >
       {toast ? (

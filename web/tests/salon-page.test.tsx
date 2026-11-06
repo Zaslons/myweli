@@ -132,11 +132,14 @@ describe('the heart (§1.4)', () => {
     expect(document.activeElement).toBe(document.body);
   });
 
-  it('its toast is lifted above the booking bar under `lg`, and back at 24px from `lg`', () => {
+  // In rem, as the bar's height is: the px lift (`bottom-xxxl pb-m`, « Carte »'s) left the pill
+  // over the bar with the browser's text at double size (§1.4).
+  it('its toast is lifted above the booking bar under `lg` in rem, and back at 24px from `lg`', () => {
     signedOut();
     render(<FavoriteButton providerId={SALON.id} slug="beaute-divine" />);
     const region = screen.getByRole('status').className.split(' ');
-    expect(region).toContain('bottom-xxxl');
+    expect(region).toContain('bottom-20');
     expect(region).toContain('lg:bottom-l');
+    expect(region).not.toContain('bottom-xxxl');
   });
 });

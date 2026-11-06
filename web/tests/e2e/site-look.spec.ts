@@ -107,9 +107,27 @@ test.describe('the salon page’s cover (web-swiss-salon.md §1.2)', () => {
       const name = await box(page, 'main header');
       const h1 = (await page.getByRole('heading', { level: 1 }).boundingBox())!;
 
-      // The width `sizes` names at this screen, and the box it was drawn in.
+      // The box it is drawn in, by the layout's arithmetic (§1.2), and the width the `<img>`'s
+      // own `sizes` names at this screen, read the way the browser reads it: the first media
+      // condition that matches, its length resolved on a probe. A `sizes` off the box inside
+      // one candidate's step would still fetch the same file, so the file alone cannot say.
       const slot = width < 1024 ? width : width >= 1536 ? 984 : 0.6667 * width - 40;
-      expect(Math.abs(cover.width - slot), `drawn ${cover.width} wide, asked for ${slot}`).toBeLessThanOrEqual(1);
+      expect(Math.abs(cover.width - slot), `drawn ${cover.width} wide, the layout gives ${slot}`).toBeLessThanOrEqual(1);
+      const named = await page.locator(COVER).evaluate((img: HTMLImageElement) => {
+        for (const part of img.sizes.split(/,(?![^(]*\))/).map((p) => p.trim())) {
+          const m = /^(\([^)]*\))\s+(.+)$/.exec(part);
+          if (m && !matchMedia(m[1]).matches) continue;
+          const probe = document.createElement('div');
+          probe.style.cssText = `position:absolute;visibility:hidden;width:${m ? m[2] : part}`;
+          document.body.append(probe);
+          const w = probe.getBoundingClientRect().width;
+          probe.remove();
+          return { part, w };
+        }
+        return null;
+      });
+      expect(named, 'no length in `sizes` applies').not.toBeNull();
+      expect(Math.abs(cover.width - named!.w), `drawn ${cover.width} wide, « ${named!.part} » names ${named!.w}`).toBeLessThanOrEqual(1);
       const asked = await page.locator(COVER).evaluate(async (img: HTMLImageElement) => {
         await img.decode().catch(() => undefined);
         return Number(new URL(img.currentSrc).searchParams.get('w'));

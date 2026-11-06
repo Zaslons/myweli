@@ -100,9 +100,10 @@ export function FavoriteButton({
         </p>
       ) : null}
       {/* Lifted above the salon page's booking bar under `lg`: at 24px it stood on the bar,
-          and at 320 « Annuler » took a corner of « Réserver ». The lift is 80px, in px, and
-          at a doubled browser font the bar is taller than that (web-swiss-salon.md §1.4). */}
-      <Toast toast={toast} aboveFloatingControl />
+          and at 320 « Annuler » took a corner of « Réserver ». The lift is in rem, as the bar's
+          height is, so it stays clear with the browser's text at double size
+          (web-swiss-salon.md §1.4). */}
+      <Toast toast={toast} aboveBookingBar />
     </>
   );
 }

@@ -160,5 +160,22 @@
     "Localisation",
     "Contact",
     "Questions fréquentes"
+  ],
+  "meta": [
+    "charset=utf-8",
+    "content=Beauté Divine : salon de coiffure à Cocody, Côte d'Ivoire. Réservez en ligne — services, tarifs, horaires et avis. name=description",
+    "content=Beauté Divine : salon de coiffure à Cocody, Côte d'Ivoire. Réservez en ligne — services, tarifs, horaires et avis. name=twitter:description",
+    "content=Beauté Divine : salon de coiffure à Cocody, Côte d'Ivoire. Réservez en ligne — services, tarifs, horaires et avis. property=og:description",
+    "content=Beauté Divine — Salon de coiffure à Cocody name=twitter:title",
+    "content=Beauté Divine — Salon de coiffure à Cocody property=og:title",
+    "content=http://127.0.0.1:3000/beaute-divine property=og:url",
+    "content=https://cdn.stub/p1.jpg name=twitter:image",
+    "content=https://cdn.stub/p1.jpg property=og:image",
+    "content=summary_large_image name=twitter:card",
+    "content=width=device-width, initial-scale=1 name=viewport",
+    "name=next-size-adjust"
+  ],
+  "links": [
+    "href=http://127.0.0.1:3000/beaute-divine rel=canonical"
   ]
 }

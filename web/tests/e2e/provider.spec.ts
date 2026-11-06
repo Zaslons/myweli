@@ -119,7 +119,7 @@ test('a computer shows one « Réserver », the panel’s, beside the name (web-
   page,
 }) => {
   // From `lg` the panel stands right under the name, so the hero's own « Réserver » goes:
-  // there were two on one screen before, 160px apart. The phone's bar is hidden there too.
+  // there were two on one screen before, their tops 165px apart (493 and 658 at 1280×800). The phone's bar is hidden there too.
   // `getByRole` leaves out what is not displayed, so this counts what a visitor sees.
   await page.setViewportSize({ width: 1280, height: 800 });
   await page.goto('/beaute-divine');

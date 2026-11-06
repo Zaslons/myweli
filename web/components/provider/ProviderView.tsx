@@ -104,16 +104,6 @@ function buildFaq(
 export const COVER_SIZES =
   '(min-width: 1536px) 984px, (min-width: 1024px) calc(66.67vw - 40px), 100vw';
 
-/// Below `lg`, whatever the keyboard focuses in the page's two columns stops 96px (`fab`)
-/// above the screen's foot, clear of the 65px booking bar: the browser scrolls a focused
-/// control just into view at the bottom, and it took no account of the bar, so the FAQ's
-/// questions and a gallery photo were hidden under it (WCAG 2.4.11). Page-scoped, on the
-/// columns and not the bar, whose own « Réserver » would chase its margin; `scroll-padding`
-/// on `<html>` would do it once, but that is CSS the five store-linked pages share
-/// (web-swiss-salon.md §1.4). At a doubled browser font the bar is 113px and up to 19px of a
-/// focused control can still sit under it: a px margin against a rem bar (WEB-SYSTEM §9).
-const CLEAR_OF_BAR = 'max-lg:[&_*]:scroll-mb-fab';
-
 /// The public salon page.
 /// Design: docs/design/web-swiss-salon.md §1 (the cover in 3:2 and, from `lg`, the name and
 /// the booking panel beside it).
@@ -165,15 +155,28 @@ export function ProviderView({
       {/* Columns 9–12 from `lg`: the name, then the booking panel, which sticks while the
           sections scroll. Before the sections in the DOM, so the panel is reached right
           after the name; below `lg` the panel is hidden and the order is the phone's.
-          `CLEAR_OF_BAR` on this column and the next: see its comment. */}
-      <div className={`lg:col-span-4 lg:col-start-9 lg:row-span-2 ${CLEAR_OF_BAR}`}>
+
+          `max-lg:[&_*]:scroll-mb-fab`, on this column and the next: below `lg`, whatever the
+          keyboard focuses in them stops 96px (`fab`) above the screen's foot, clear of the
+          65px booking bar. The browser scrolls a focused control just into view at the
+          bottom and took no account of the bar, so the FAQ's questions and a gallery photo
+          were hidden under it (WCAG 2.4.11). On the columns and not on `main`, which holds
+          the bar, whose own « Réserver » would chase its margin; `scroll-padding` on `<html>`
+          would do it once, but that is CSS the five store-linked pages share
+          (web-swiss-salon.md §1.4). Written here in the `className` and not in a constant,
+          so ESLint reads it: `no-arbitrary-value` refuses `scroll-mb-[96px]` and
+          `no-custom-classname` a misspelt token, neither of which it sees in a bare string.
+          With the browser's text at double size the bar is 113px and up to 19px of a focused
+          control can still sit under it: a px margin against a rem bar (WEB-SYSTEM §9). */}
+      <div className="lg:col-span-4 lg:col-start-9 lg:row-span-2 max-lg:[&_*]:scroll-mb-fab">
         <ProviderHero provider={p} slug={slug} preview={preview} className="lg:px-0 lg:pt-0" />
         <aside className="sticky top-l hidden lg:block">
           <BookingPanel provider={p} slug={slug} disabled={preview} />
         </aside>
       </div>
 
-      <div className={`lg:col-span-8 ${CLEAR_OF_BAR}`}>
+      {/* The sections, with the same clearance below `lg` as the column above. */}
+      <div className="lg:col-span-8 max-lg:[&_*]:scroll-mb-fab">
         <p className="max-w-content px-m pt-m text-bodyLarge text-textSecondary">
           Réservez en ligne chez {p.name}, {cat} à {commune} ({country}).
           Services, tarifs, horaires et avis — réservation 24/7, sans appel.

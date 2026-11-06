@@ -28,6 +28,9 @@ const answersAt = (el: Locator, at: 'centre' | 'top-left') =>
 const scrollTo = (heading: Locator, block: 'start' | 'center') =>
   heading.evaluate((el, b) => el.scrollIntoView({ block: b, behavior: 'instant' }), block);
 
+/// The map's controls a keyboard reaches (MapLibre's own names), mounted before the Tab walk.
+const MAP_CONTROLS = ['Zoom in', 'Zoom out', 'Toggle attribution', 'MapLibre'];
+
 /// The panel's « Réserver », in columns 9–12 from `lg`.
 const panelCta = (page: Page) => page.locator('main aside').getByRole('link', { name: 'Réserver', exact: true });
 /// The phone's booking bar: the last thing in `main` (salon-page.test.tsx holds the order).
@@ -84,6 +87,21 @@ test.describe('a computer: the name and « Réserver » beside the photo (§1.2)
       });
     }
   }
+});
+
+// The sections' column is 984px wide at 1920 (columns 1–8 of the site's container), and a
+// review's text ran its whole width, past direction §6.1's 720px reading cap, which the intro
+// and the FAQ already keep (§1.1 item 4).
+test('at 1920×1080 a review’s text keeps its reading width (§1.1)', async ({ page }) => {
+  await size(page, 1920, 1080);
+  await routeNextImages(page);
+  await page.route('**/basemaps.cartocdn.com/**', (r) => r.abort());
+  await page.goto(SALON);
+  const text = page.locator('main p').filter({ hasText: /^Service impeccable\.$/ });
+  const card = (await text.locator('xpath=ancestor::li[1]').boundingBox())!;
+  expect(card.width, 'the review’s card is no wider than the cap, so this proves nothing').toBeGreaterThan(760);
+  const p = (await text.boundingBox())!;
+  expect(p.width, `the review runs ${p.width}px wide`).toBeLessThanOrEqual(720);
 });
 
 test.describe('the page does not jump to the heart on load (§1.4)', () => {
@@ -181,6 +199,45 @@ test.describe('a phone: the booking bar (§1.4)', () => {
     });
   }
 
+  // With the browser's text at double size (Chrome's font-size setting, a 32px root), the bar
+  // is 113px: `min-h-12` is rem. The px lift ended the pill 33px down into it, and at 320 and
+  // 360 « Annuler » took a corner of « Réserver », so a press there undid the favourite
+  // (measured by the review of this branch). The lift is rem now, like the bar.
+  for (const [width, height] of [
+    [320, 568],
+    [360, 640],
+  ] as const) {
+    test(`at ${width}×${height} with the browser’s text at double size, the heart’s message stands above the bar`, async ({ page }) => {
+      await size(page, width, height);
+      const cdp = await page.context().newCDPSession(page);
+      await cdp.send('Page.setFontSizes', { fontSizes: { standard: 32, fixed: 26 } });
+      await routeNextImages(page);
+      await page.route('**/api/me/favorites**', (r) =>
+        r.request().method() === 'GET'
+          ? r.fulfill({ status: 200, contentType: 'application/json', body: '{"favorites":[]}' })
+          : r.fulfill({ status: 204 }),
+      );
+      await page.goto(SALON);
+      expect(
+        await page.evaluate(() => getComputedStyle(document.documentElement).fontSize),
+        'the text is not doubled, so this proves nothing',
+      ).toBe('32px');
+      const heart = page.getByRole('button', { name: 'Ajouter aux favoris' });
+      await expect(heart).toBeEnabled();
+      await heart.evaluate((el) => el.scrollIntoView({ block: 'center', behavior: 'instant' }));
+      await heart.click();
+      const pill = page.getByRole('status').filter({ hasText: 'Ajouté aux favoris' }).locator('div').first();
+      await expect(pill).toBeVisible();
+      await expect(pill.getByRole('button', { name: 'Annuler' })).toBeVisible();
+      const toast = (await pill.boundingBox())!;
+      const b = (await bar(page).boundingBox())!;
+      expect(b.height, 'the bar did not grow with the text, so this proves nothing').toBeGreaterThan(100);
+      expect(b.y + b.height, 'the bar is not at the screen’s foot, so this proves nothing').toBeCloseTo(height, 0);
+      expect(toast.y + toast.height, 'the message reaches the bar').toBeLessThanOrEqual(b.y);
+      expect(await answersAt(bar(page).getByRole('link', { name: 'Réserver', exact: true }), 'top-left')).toBe(true);
+    });
+  }
+
   // The browser scrolls a focused control just into view at the screen's foot, under the
   // bar: the FAQ's « Quels sont les tarifs… » was hidden whole at 390 and 1023, and all but
   // 0.3px of « Comment réserver… » at 320 (measured on this page before its fix, §1.4). Each
@@ -194,6 +251,22 @@ test.describe('a phone: the booking bar (§1.4)', () => {
       await page.route('**/basemaps.cartocdn.com/**', (r) => r.abort());
       await page.goto(SALON);
       await expect(page.getByRole('button', { name: 'Ajouter aux favoris' })).toBeEnabled();
+      // The map mounts only once it nears the screen (MapEmbed's IntersectionObserver, then a
+      // dynamic import), which a walk from the top passed before it existed: its controls were
+      // never focused, and in planning two of them stood whole under the bar. So it is mounted
+      // first. Mounting it moves where Chromium's Tab key starts, so the start is put back at
+      // the top of the document: a focus on a sentinel there, which then goes.
+      const map = page.getByRole('region', { name: /^Carte — / });
+      await map.evaluate((el) => el.scrollIntoView({ block: 'center', behavior: 'instant' }));
+      await expect(map.getByRole('button', { name: 'Zoom in' })).toBeAttached({ timeout: 15_000 });
+      await page.evaluate(() => {
+        window.scrollTo({ top: 0, behavior: 'instant' });
+        const start = document.createElement('span');
+        start.tabIndex = -1;
+        document.body.prepend(start);
+        start.focus();
+        start.remove();
+      });
       const under: string[] = [];
       const seen: string[] = [];
       for (let i = 0; i < 120; i++) {
@@ -212,8 +285,11 @@ test.describe('a phone: the booking bar (§1.4)', () => {
         seen.push(stop.name);
         if (!stop.inBar && stop.under > 0) under.push(`« ${stop.name} »: ${stop.under}px under the bar`);
       }
-      // The walk has to reach the FAQ's last question, or it proved nothing about the end.
+      // The walk has to start at the top and reach the map's controls and the FAQ's last
+      // question, or it proved nothing about what it skipped.
+      expect(seen[0], 'the walk did not start at the top').toBe('Aller au contenu');
       expect(seen, 'the walk never reached the FAQ').toContain('Faut-il payer un acompte ?');
+      expect(seen, 'the walk never reached the map').toEqual(expect.arrayContaining(MAP_CONTROLS));
       expect(under).toEqual([]);
     });
   }
@@ -222,7 +298,9 @@ test.describe('a phone: the booking bar (§1.4)', () => {
 /// Read from #737's tip, 57b252a8, whose `web/` is b0995489's, built against this stub on
 /// 2026-11-06 before any edit to the page (web-swiss-direction.md §12, the salon page's row).
 /// The layout moved; the words search engines read did not, and the stub's public salon is
-/// never written to, so the list holds in a full run.
+/// never written to, so the list holds in a full run. `meta` and `links` are every `<meta>`
+/// (Open Graph's and Twitter's included) and every canonical or alternate link, each with all
+/// its attributes, read from the same build the same way when the review asked for them.
 test('what search engines read on a salon page has not moved (§1.8)', async ({ page }) => {
   await page.goto(SALON);
   const read = await page.evaluate(() => ({
@@ -235,6 +313,12 @@ test('what search engines read on a salon page has not moved (§1.8)', async ({ 
       JSON.parse(s.textContent as string),
     ),
     h2: [...document.querySelectorAll('h2')].map((h) => h.textContent),
+    meta: [...document.querySelectorAll('meta')]
+      .map((m) => [...m.attributes].map((a) => `${a.name}=${a.value}`).sort().join(' '))
+      .sort(),
+    links: [...document.querySelectorAll('link[rel=canonical], link[rel=alternate]')]
+      .map((l) => [...l.attributes].map((a) => `${a.name}=${a.value}`).sort().join(' '))
+      .sort(),
   }));
   expect(read).toEqual(before);
   expect(await page.locator('h1').count(), 'one <h1>').toBe(1);
