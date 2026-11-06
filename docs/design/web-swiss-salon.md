@@ -307,6 +307,48 @@ Each new guard is watched red on committed work, on a copy (`git worktree add --
 | `axe.spec.ts:151`, `focus`, `controls-shape`, `slow-phone`, `account`, `redirects`, `served-html`, `store-linked-pages` | Existing; green in the full run, no change | — |
 | Not added | A no-photo salon in the stub. A new slug changes `served-html`'s and `provider`'s counts, as B11.3 found; the unit test holds that path and A2's measurement saw it | — |
 
+**Watched red (the record).** On 2026-11-06, on the build's committed tree (`9d0f4c67`): each mutation on its own fresh `git archive` of `web/` in scratch, `node_modules` cloned from the branch (the same lockfile), the mutation applied by exact replacement (a replacement that matched nothing would have voided the run), only the guarding test run, the copy deleted after. Vitest with `TZ=UTC`; Playwright one run at a time on its own ports, each with its own `next build`. Every guard went red on its own assertion, read in the log, not on a build or syntax error. The driver and the logs are scratch (`b116/mutate.py`, `b116/mutations/`), never committed.
+
+| # | Mutation | Test run | Red? What it said |
+|---|---|---|---|
+| U1 | `aspect-cover` off the cover's box | `hero-cover.test.tsx` | Red: the box's classes lack `aspect-cover` |
+| U2 | `object-subject` moved from the cover to the logo | `hero-cover.test.tsx` | Red: the cover lacks `object-subject` |
+| U3 | `object-subject` off the cover | `hero-cover.test.tsx` | Red: the same |
+| U4 | `COVER_SIZES` with `60vw` in place of `calc(66.67vw - 40px)` | `salon-page.test.tsx`, the srcset | Red: nine widths, 384w among them |
+| U5 | `COVER_SIZES` with `calc(100vw - 0px)`, no bare `vw` | the same | Red: sixteen widths from 16w |
+| U6 | `priority` off the cover | the same | Red: no `fetchpriority="high"` |
+| U7 | `cover: '16 / 9'` | `tokens.theme-pin.test.ts`, the cover's test | Red: `'16 / 9'` is not `'3 / 2'` |
+| U8 | the `cover` key removed | the same | Red: `undefined` |
+| U9 | `disabled={preview}` off the hero's « Réserver » | `salon-page.test.tsx`, the preview | Red, both tests: no disabled button, and a `/reserver` link |
+| U10 | the `called` guard removed (the old effect) | `salon-page.test.tsx`, the heart on load | Red: the heart has the focus |
+| U10b | none: the control that must stay green | `consumer-optimistic-revert.test.tsx` | **Green**, 34 of 34: focus still comes back after a failed call |
+| U11 | the rail moved after the sections | `salon-page.test.tsx`, the order | Red: « Services & tarifs » before the `<h1>` |
+| U12 | the bar moved out of `main` | the same | Red: `main`'s last child has no « Réserver » |
+| U13 | `lg:col-start-9` off the rail | `salon-page.test.tsx`, no photo | Red |
+| U14 | `aboveFloatingControl` off the heart's toast | `salon-page.test.tsx`, the toast | Red: no `bottom-xxxl` |
+| U15 | `Math.random` in the photo's grain | `test-photo.test.ts` | Red: the pinned hash moved |
+| U16 | the photo 2000 wide | `test-photo.test.ts` | Red: 2000 < 2048 |
+| E1 | `object-subject` off the cover | `site-look`, « cover is at 50% 20% » | Red at 390, 820, 1280: `50% 50%` |
+| E2 | `aspect-cover` → `h-80` | `site-look`, the cover's box | Red at all seven widths: 320×320, ratio off by 0.5 |
+| E3 | `lg:col-span-8` off the cover | the same | Red at 1024, 1280, 1920: drawn 59 wide where `sizes` names 643 (1024); green below `lg`, where the class does nothing |
+| E4 | `lg:px-l` off `main` | the same | Red at 1024, 1280, 1920: drawn 32 px wider than `sizes` names |
+| E5 | `lg:pt-0` off the name block | the same | Red at 1024, 1280, 1920: the `<h1>` 48 below the photo's top, not 24 |
+| E6 | the rail moved after the sections | `salon-page`, first screen | Red at 1280×800 and 1366×768: the panel's « Réserver » ends at 836 and 874. Green at 1024×768, where the rail then sits under the shorter cover and still ends on the screen |
+| E7 | `sticky` off the panel | `salon-page`, sticky | Red, all four: the panel's top at −2009 and −2780 |
+| E8 | the `called` guard removed | `salon-page`, no jump | Red, all three: scrolled 366 at 320×568 and 757 at 844×390 (317 and 454 on `main`; the taller cover puts the heart lower), and the focus on the heart at 1280×800 |
+| E9 | the bar back to `fixed inset-x-0 bottom-0` | `salon-page`, the bar at the end | Red at both: the bar's foot at 844 and 568, below the footer's top |
+| E9b | the same, with the test's first assertion taken out of the copy | the same | Red at both on the links alone: « Instagram » does not answer |
+| E10 | `sticky` off the bar | `salon-page`, the bar mid-page | Red at both: the bar's foot at 1599 and 1493, off the screen |
+| E11 | `aboveFloatingControl` off the heart's toast | `salon-page`, the toast against the bar | Red at both: the pill ends at 820 (the bar from 779) and 544 (from 503) |
+| E11b | the same, with the test's pill assertion taken out of the copy | the same | Red at 320: « Annuler » takes « Réserver »'s corner. Green at 390, where it ends 0.5 px short, as A2 measured |
+| E12 | `CLEAR_OF_BAR` emptied | `salon-page`, focus under the bar | Red at all three: « Quels sont les tarifs… » 48 px under the bar at 390, « Comment réserver… » 63.7 at 320 |
+| E13 | « Salon » added before the name in the `<h1>` | `salon-page`, SEO | Red: `h1` « Salon Beauté Divine✔ Vérifié » |
+| E14 | `flex-wrap` off the `<h1>` | `type-overflow`, a long name | Red at 320, 1024, 1280: « ✔ Vérifié » on two lines |
+| E15 | `lg:hidden` off the hero's « Réserver » | `provider`, one « Réserver » | Red: two at 1280 |
+| E16 | `disabled={preview}` off the hero's « Réserver » | `pro`, the go-live test | Red: one `/reserver` link in the preview |
+| E17 | `min-h-12` off `BookingCta`'s link | `tap-targets`, the salon page | Red: « Réserver » 36 tall |
+| E18 | `min-h-12` off the panel's two links | the same | Red: « Appeler » 22 tall |
+
 **Also:** the five pages' gate (§1.7) with its controls; `tsc`, ESLint with `--max-warnings=0`, `gen:api` with no drift, `next build`; the Lighthouse runs of §1.9. Full suites run one at a time, never in parallel.
 
 **What these cannot see** (direction §12): no screenshot harness exists, so before-and-after pictures at 360, 768, 1440 and 1920 (and this spec's 320, 390, 820, 1280) are looked at, using the generated test photo only. The private sheets with stand-ins and demo rooms went to the owner only and never go into the PR. 768 was not shot yet.
@@ -371,10 +413,10 @@ Asked on 2026-11-05 with four private sheets of pictures (`1-ordinateur`, `2-cad
 
 ### 1.15 Definition of done
 
-- [ ] `tsc`, ESLint `--max-warnings=0`, `gen:api` with no drift, vitest, `next build`, Playwright, axe green; no budget raised.
-- [ ] Every new guard of §1.10 watched red on a copy of committed work, recorded.
-- [ ] Tokens only (closed theme, no arbitrary value); 48 px targets; visible focus; heading order; four states.
-- [ ] SEO checks of §1.8 green: `<h1>`, canonical, JSON-LD unchanged.
+- [x] `tsc`, ESLint `--max-warnings=0`, `gen:api` with no drift, vitest, `next build`, Playwright, axe green; no budget raised. *(Locally on the build, 2026-11-06: vitest 203 files, 2672 tests; the whole Playwright suite, 585 tests, axe among them. CI cannot run until #737 merges, §1.11.)*
+- [x] Every new guard of §1.10 watched red on a copy of committed work, recorded. *(§1.10's record.)*
+- [x] Tokens only (closed theme, no arbitrary value); 48 px targets; visible focus; heading order; four states. *(One arbitrary variant with a token value, `CLEAR_OF_BAR`, recorded in WEB-SYSTEM §16.)*
+- [x] SEO checks of §1.8 green: `<h1>`, canonical, JSON-LD unchanged.
 - [ ] The five pages' gate: conditions 1–5, condition 3 as amended in §1.7, with controls.
 - [ ] §1.9's table filled from real runs, the LCP element named.
 - [ ] Pictures with the generated test photo only, looked at; nothing private in the PR.
