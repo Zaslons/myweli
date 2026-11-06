@@ -214,15 +214,14 @@ export const answerFavourites = (page: Page) =>
   );
 
 /// Nothing leaves the machine: every request to a host other than this one is aborted, and a
-/// page that opens is closed at once.
+/// popup the page opens is closed at once. Popups only: axe opens a blank page of its own in the
+/// same context to finish its run, and closing every new page took that one too.
 export async function hermetic(page: Page): Promise<void> {
   await page.context().route(
     (url) => /^https?:$/.test(url.protocol) && !['127.0.0.1', 'localhost'].includes(url.hostname),
     (r) => r.abort(),
   );
-  page.context().on('page', (other) => {
-    if (other !== page) void other.close();
-  });
+  page.on('popup', (popup) => void popup.close());
 }
 
 /// Chrome's own text scaling on Android, which is what `text-size-adjust` does on a mobile page
