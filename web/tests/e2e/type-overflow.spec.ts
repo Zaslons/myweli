@@ -1171,3 +1171,183 @@ test.describe('the salon page at doubled text (web-salon-price-reflow)', () => {
     });
   }
 });
+
+/// The booking funnel at doubled text (docs/design/web-funnel-doubled-text.md).
+///
+/// The same failure as the salon page, in two rows the funnel repeats: a step
+/// header (`SectionCard` — « Spécialiste » beside « Pas de préférence ») and a
+/// recap row (`Recap` — a `dt` beside its `dd`). At 2× neither side has a word
+/// short enough to give, so the row ran off its card and, at 320, the page grew
+/// to 344×611 — taking the fixed « Confirmer » bar off the screen. And
+/// « Confirmation » was one word wider than its card. The rule is the salon
+/// page's: a value that cannot sit beside its label moves under it, on the
+/// right edge.
+
+/// Every label/value row the funnel draws: the step headers (a button that
+/// opens its step, the title and the current choice) and the recap rows. For
+/// each: both boxes, the row's, and every token of either side that spans two
+/// line boxes — a token is a run between plain spaces (see `priceRows`), so a
+/// date, a time, a price or a salon's name broken mid-word reads here.
+async function funnelRows(page: Page) {
+  return page.evaluate(() => {
+    const rows = [
+      ...Array.from(document.querySelectorAll<HTMLElement>('section > button[aria-expanded]')),
+      ...Array.from(document.querySelectorAll<HTMLElement>('dl > div')),
+    ].filter((row) => row.children.length === 2);
+    const box = (el: Element) => {
+      const r = el.getBoundingClientRect();
+      return { left: r.left, top: r.top, right: r.right, bottom: r.bottom };
+    };
+    const brokenTokens = (el: Element) => {
+      const broken: string[] = [];
+      const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+      for (let text = walker.nextNode(); text; text = walker.nextNode()) {
+        for (const m of (text.nodeValue ?? '').matchAll(/[^ ]+/g)) {
+          const range = document.createRange();
+          range.setStart(text, m.index!);
+          range.setEnd(text, m.index! + m[0].length);
+          if (new Set(Array.from(range.getClientRects(), (r) => Math.round(r.top))).size > 1) {
+            broken.push(m[0]);
+          }
+        }
+      }
+      return broken;
+    };
+    return rows.map((row) => {
+      const [label, value] = Array.from(row.children);
+      return {
+        kind: row.tagName === 'BUTTON' ? ('step' as const) : ('recap' as const),
+        label: label.textContent?.trim() ?? '',
+        value: value.textContent?.trim() ?? '',
+        labelFont: parseFloat(getComputedStyle(label).fontSize),
+        labelBox: box(label),
+        valueBox: box(value),
+        row: box(row),
+        broken: [...brokenTokens(label), ...brokenTokens(value)],
+      };
+    });
+  });
+}
+
+/// The funnel, walked as `booking.spec.ts` walks it — a service, « Pas de
+/// préférence », the first slot, « Confirmer », the code — calling `at` with
+/// every step's rows in view.
+///
+/// **Clicks go through the DOM, and that is a recorded cost, not a shortcut.**
+/// At doubled text the fixed bar covers 34–57 % of the screen
+/// (web-funnel-doubled-text.md §6), so a pointer click on a control the page
+/// scrolled to lands on the bar. The bar's shape is the open follow-up; this
+/// file measures layout, and a pointer that cannot reach is not a layout fact.
+async function walkFunnel(page: Page, at: (step: string) => Promise<void>) {
+  const tap = (locator: ReturnType<Page['getByRole']>) =>
+    locator.evaluate((el) => (el as HTMLElement).click());
+  await page.goto('/beaute-divine/reserver');
+  await expect(page.getByRole('heading', { level: 1, name: /Réserver chez Beauté Divine/ })).toBeVisible();
+  await at('the steps, nothing chosen');
+  await tap(page.getByRole('checkbox').first());
+  await tap(page.getByRole('radio', { name: /Pas de préférence/ }));
+  await tap(page.getByRole('button', { name: /^\d{2}:\d{2}$/ }).first());
+  await expect(page.getByRole('button', { name: /^Date et heure/ })).toContainText(':');
+  await at('the steps, a service, a specialist and a time chosen');
+  await tap(page.getByRole('button', { name: 'Confirmer', exact: true }).last());
+  await page.getByLabel('Votre e-mail').fill('awa@example.com');
+  await tap(page.getByRole('button', { name: 'Continuer avec e-mail' }));
+  await page.getByLabel('Code à 6 chiffres').fill('123456');
+  await tap(page.getByRole('button', { name: 'Se connecter' }));
+  await expect(page.getByRole('button', { name: 'Confirmer la réservation' })).toBeVisible();
+  await at('the confirm step');
+}
+
+/// The double-unit total « 15 000 FCFA – 25 000 FCFA » that the bar, the side
+/// panel and the recap printed (amounts-that-fit.md §2: a range prints its unit
+/// once). Nothing else pins it.
+const DOUBLE_UNIT = /FCFA\s–/;
+
+test.describe('the booking funnel at doubled text (web-funnel-doubled-text)', () => {
+  for (const mode of DOUBLED_TEXT) {
+    test.describe(mode.name, () => {
+      test.use({ viewport: PHONE_320, ...mode.use });
+
+      test(`${mode.name} — every step keeps the screen's size at 320×568`, async ({ page }) => {
+        await page.addInitScript((css) => {
+          const add = () => {
+            const style = document.createElement('style');
+            style.textContent = css;
+            document.head.appendChild(style);
+          };
+          if (document.head) add();
+          else document.addEventListener('DOMContentLoaded', add);
+        }, mode.css);
+        await serveStubImages(page);
+
+        await walkFunnel(page, async (step) => {
+          const rows = await funnelRows(page);
+          expect(rows.length, `${step}: no label/value rows — nothing would be measured`).toBeGreaterThanOrEqual(3);
+          const headers = rows.filter((row) => row.kind === 'step');
+          for (const row of headers) {
+            expect(row.labelFont, `${step}: « ${row.label} » is not doubled — the mode did not apply`).toBe(32);
+          }
+          // The confirm step has no step titles, and it is where Chromium's
+          // text autosizer — which implements `text-size-adjust` — was seen to
+          // drop the doubling after the DOM changed. Its recap labels are the
+          // 14px `bodyMedium`: doubled by the Android mode, untouched by a
+          // larger root, whose px tokens do not follow it.
+          const salon = rows.find((row) => row.kind === 'recap' && row.label === 'Salon');
+          if (salon) {
+            expect(salon.labelFont, `${step}: the recap is not at this mode's size`).toBe(
+              'isMobile' in mode.use ? 28 : 14,
+            );
+          }
+          expect(headers.length + (salon ? 1 : 0), `${step}: nothing proves the mode applied here`).toBeGreaterThan(0);
+          expect(
+            await page.evaluate(() => [window.innerWidth, window.innerHeight]),
+            `${step}: the layout viewport grew past the screen — the bar is placed off it`,
+          ).toEqual([PHONE_320.width, PHONE_320.height]);
+          expect(await horizontalOverflow(page), `${step}: the page scrolls sideways`).toEqual([]);
+          for (const row of rows) {
+            for (const [side, b] of [['label', row.labelBox], ['value', row.valueBox]] as const) {
+              expect(b.right, `${step}: « ${row.label} »'s ${side} runs past its row`).toBeLessThanOrEqual(row.row.right + HAIR);
+              expect(b.left, `${step}: « ${row.label} »'s ${side} starts before its row`).toBeGreaterThanOrEqual(row.row.left - HAIR);
+            }
+            expect(row.broken, `${step}: « ${row.label} · ${row.value} » breaks inside a word`).toEqual([]);
+          }
+          expect(await overflowingText(page), `${step}: text spills out of its own box`).toEqual([]);
+          expect(await overflowingFlexRows(page), `${step}: a nowrap flex row does not fit its own container`).toEqual([]);
+          expect(await verticalClipping(page), `${step}: text is cut off the bottom of its own box`).toEqual([]);
+          expect(await truncationLosses(page), `${step}: text is being truncated away`).toEqual([]);
+          expect(
+            await page.getByText(DOUBLE_UNIT).count(),
+            `${step}: a total prints « FCFA » twice`,
+          ).toBe(0);
+        });
+        await expect(page.getByRole('heading', { level: 2, name: 'Confirmer' })).toBeVisible();
+      });
+    });
+  }
+
+  /// The other half: at normal text no value moves. Each sits on its label's
+  /// line, at the row's right edge — the date card at 320 included, whose value
+  /// wraps beside its title rather than under it.
+  for (const viewport of [PHONE_320, { width: 375, height: 812 }]) {
+    test.describe(`normal text at ${viewport.width}`, () => {
+      test.use({ viewport });
+
+      test(`normal text — every value stays beside its label at ${viewport.width}`, async ({ page }) => {
+        await serveStubImages(page);
+        await walkFunnel(page, async (step) => {
+          const rows = await funnelRows(page);
+          expect(rows.length, `${step}: no label/value rows — nothing would be measured`).toBeGreaterThanOrEqual(3);
+          for (const row of rows) {
+            expect(row.valueBox.top, `${step}: « ${row.value} » left the line of « ${row.label} »`).toBeLessThan(row.labelBox.bottom);
+            expect(
+              Math.abs(row.valueBox.right - row.row.right),
+              `${step}: « ${row.value} » is off the right edge of its row`,
+            ).toBeLessThanOrEqual(HAIR);
+          }
+          expect(await page.getByText(DOUBLE_UNIT).count(), `${step}: a total prints « FCFA » twice`).toBe(0);
+        });
+        await expect(page.getByText(priceRange(15000, 25000), { exact: true }).first()).toBeAttached();
+      });
+    });
+  }
+});
