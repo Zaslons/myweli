@@ -3,6 +3,7 @@ import { expect, test, type Page } from '@playwright/test';
 import { signInConsumer, signInPro } from './_auth';
 import { asUnaskedBrowser } from './_push';
 import { serveStubImages } from './_pixel';
+import { priceRange } from '../../lib/format';
 
 /// B2b — the type scale must not overflow anything (WEB-SYSTEM §3).
 ///
@@ -963,6 +964,210 @@ test.describe('the « Semaine » tab at desktop widths (web-pro-week-view)', () 
       await expect(page.getByRole('button', { name: /— Sans artiste, Lun \d+ à 15:30$/ })).toBeVisible();
       expect(await horizontalOverflow(page), `the page scrolls sideways at ${width}`).toEqual([]);
       expect(await overflowingText(page), `text spills out of its own box at ${width}`).toEqual([]);
+    });
+  }
+});
+
+/// The salon page at doubled text (docs/design/web-salon-price-reflow.md).
+///
+/// Everything above renders text at its normal size, and that is how the salon
+/// page shipped 441px wide at 200 % text on a 320 phone: the price was
+/// `whitespace-nowrap`, and « 15 000 – 25 000 FCFA » at 32px could not fit
+/// beside « Tresses ». A phone doubles text in two ways, and they fail
+/// differently, so both run:
+///
+/// - **Android-style** (a touch phone, `text-size-adjust: 200%`): the browser
+///   grows the LAYOUT viewport to hold the overflow — 441×783 on a 320×568
+///   screen — so the fixed « Réserver » bar and the favourites toast are placed
+///   off screen. `horizontalOverflow` measures against that grown viewport and
+///   reads clean; the viewport's own size is the assertion that sees it.
+/// - **The browser font at 200 %** (a 32px root): the viewport stays 320 and the
+///   document scrolls sideways — `horizontalOverflow`'s case.
+const DOUBLED_TEXT = [
+  {
+    name: 'Android-style doubled text',
+    use: { isMobile: true, hasTouch: true, deviceScaleFactor: 2 },
+    // `!important` because preflight pins `-webkit-text-size-adjust: 100%` on
+    // `html`; this stands in for the phone's setting, which outranks the page.
+    css: 'html { -webkit-text-size-adjust: 200% !important; text-size-adjust: 200% !important; }',
+  },
+  {
+    name: 'the browser font at 200 %',
+    use: {},
+    // The preference sets the root size; nothing on the site sets its own.
+    css: 'html { font-size: 32px; }',
+  },
+] as const;
+
+/// The smallest phone screen 1.4.10 names, at a real phone's height.
+const PHONE_320 = { width: 320, height: 568 };
+
+/// « Services & tarifs », measured row by row: the service name's box, the
+/// price's box, the row's, the price's computed font size, its line count, and
+/// every token of the price that spans more than one line box.
+///
+/// **A token is what may not break** (amounts-that-fit.md §2): a number with
+/// its grouping spaces, a word, the dash. The plain spaces between them are the
+/// only legal breaks, so a token is a run between U+0020 — NOT `\s`, which in
+/// JavaScript also matches the U+202F that groups « 250 000 », the same trap
+/// that blinded mobile's `expectNoMidWordBreak`. Found in the price's text
+/// nodes, so this holds whatever the price's markup becomes.
+async function priceRows(page: Page) {
+  return page
+    .locator('section', { has: page.getByRole('heading', { name: 'Services & tarifs' }) })
+    .locator('li')
+    .evaluateAll((items) =>
+      items.map((li) => {
+        const name = li.querySelector<HTMLElement>(':scope > div > p')!;
+        const price = li.querySelector<HTMLElement>(':scope > p')!;
+        const box = (el: Element) => {
+          const r = el.getBoundingClientRect();
+          return { left: r.left, top: r.top, right: r.right, bottom: r.bottom };
+        };
+        const whole = document.createRange();
+        whole.selectNodeContents(price);
+        const lines = new Set(Array.from(whole.getClientRects(), (r) => Math.round(r.top))).size;
+        const broken: string[] = [];
+        const walker = document.createTreeWalker(price, NodeFilter.SHOW_TEXT);
+        for (let text = walker.nextNode(); text; text = walker.nextNode()) {
+          for (const m of (text.nodeValue ?? '').matchAll(/[^ ]+/g)) {
+            const range = document.createRange();
+            range.setStart(text, m.index!);
+            range.setEnd(text, m.index! + m[0].length);
+            const lines = new Set(Array.from(range.getClientRects(), (r) => Math.round(r.top)));
+            if (lines.size > 1) broken.push(m[0]);
+          }
+        }
+        return {
+          name: name.textContent ?? '',
+          price: price.textContent ?? '',
+          fontSize: parseFloat(getComputedStyle(price).fontSize),
+          nameBox: box(name),
+          priceBox: box(price),
+          row: box(li),
+          lines,
+          broken,
+        };
+      }),
+    );
+}
+
+/// **The stub's prices are too short to test the rule.** At 32px « 15 000 –
+/// 25 000 » still fits one 288px line, so no number is ever asked to break, and
+/// a price put back to `whitespace-nowrap` ends at x 317 — inside a 320 screen,
+/// past its row, and invisible to every check. Both mutations passed this guard
+/// until it measured a price that must wrap — and `break-all` passed even then,
+/// cutting « F / CFA » rather than a number, until the check took words as
+/// tokens too (see `priceRows`). So the second service is given the
+/// longest range a salon here plausibly charges, written by the page's own
+/// formatter; in the page rather than in the stub, whose prices other specs
+/// count on.
+const LONGEST_PRICE = priceRange(150000, 250000);
+
+async function withLongestPrice(page: Page) {
+  const shown = await page
+    .locator('section', { has: page.getByRole('heading', { name: 'Services & tarifs' }) })
+    .locator('li')
+    .nth(1)
+    .evaluate((li, text) => {
+      const price = li.querySelector(':scope > p')!;
+      price.textContent = text;
+      return price.textContent;
+    }, LONGEST_PRICE);
+  expect(shown, 'the second service\'s price was not replaced').toBe(LONGEST_PRICE);
+}
+
+test.describe('the salon page at doubled text (web-salon-price-reflow)', () => {
+  for (const mode of DOUBLED_TEXT) {
+    test.describe(mode.name, () => {
+      test.use({ viewport: PHONE_320, ...mode.use });
+
+      test(`${mode.name} — the page keeps the screen's size at 320×568`, async ({ page }) => {
+        await page.addInitScript((css) => {
+          const add = () => {
+            const style = document.createElement('style');
+            style.textContent = css;
+            document.head.appendChild(style);
+          };
+          if (document.head) add();
+          else document.addEventListener('DOMContentLoaded', add);
+        }, mode.css);
+        await serveStubImages(page);
+        await page.goto('/beaute-divine');
+        await expect(
+          page.getByRole('heading', { name: 'Beauté Divine' }).first(),
+          '/beaute-divine did not render its own page (wrong DOM — vacuous scan)',
+        ).toBeVisible();
+        await withLongestPrice(page);
+
+        const rows = await priceRows(page);
+        expect(rows.length, 'fewer than two service rows — nothing below would be measured').toBeGreaterThanOrEqual(2);
+        // The vacuity guard for the mode itself: a Chromium that ignored the
+        // emulation would pass every check below at 16px.
+        for (const row of rows) {
+          expect(row.fontSize, `« ${row.price} » is not doubled — the mode did not apply`).toBe(32);
+        }
+
+        expect(
+          await page.evaluate(() => [window.innerWidth, window.innerHeight]),
+          'the layout viewport grew past the screen — fixed bars and toasts are placed off it',
+        ).toEqual([PHONE_320.width, PHONE_320.height]);
+        expect(await horizontalOverflow(page), 'the page scrolls sideways').toEqual([]);
+        for (const row of rows) {
+          expect(
+            row.priceBox.right,
+            `« ${row.price} » runs past its row's right edge`,
+          ).toBeLessThanOrEqual(row.row.right + HAIR);
+          expect(row.priceBox.left, `« ${row.price} » starts before its row`).toBeGreaterThanOrEqual(
+            row.row.left - HAIR,
+          );
+        }
+        expect(
+          rows[1].lines,
+          `« ${LONGEST_PRICE} » fits one line — the whole-token check below measures nothing`,
+        ).toBeGreaterThan(1);
+        for (const row of rows) {
+          expect(
+            row.broken,
+            `« ${row.price} » breaks inside a token — a number or a word may not break (amounts-that-fit.md §2)`,
+          ).toEqual([]);
+        }
+        expect(await overflowingText(page), 'text spills out of its own box').toEqual([]);
+        expect(await overflowingFlexRows(page), 'a nowrap flex row does not fit its own container').toEqual([]);
+        expect(await verticalClipping(page), 'text is cut off the bottom of its own box').toEqual([]);
+        expect(await truncationLosses(page), 'text is being truncated away').toEqual([]);
+      });
+    });
+  }
+
+  /// The other half of the decision: at normal text the price never moves. It
+  /// leaves its service's line only when the two cannot share one, which at
+  /// 16px on the stub's services never happens — so a layout that always drops
+  /// the price, or pulls it off the right edge, goes red here.
+  for (const viewport of [PHONE_320, { width: 375, height: 812 }]) {
+    test.describe(`normal text at ${viewport.width}`, () => {
+      test.use({ viewport });
+
+      test(`normal text — each price stays beside its service at ${viewport.width}`, async ({ page }) => {
+        await serveStubImages(page);
+        await page.goto('/beaute-divine');
+        await expect(page.getByRole('heading', { name: 'Beauté Divine' }).first()).toBeVisible();
+        await withLongestPrice(page);
+
+        const rows = await priceRows(page);
+        expect(rows.length, 'fewer than two service rows — nothing below would be measured').toBeGreaterThanOrEqual(2);
+        for (const row of rows) {
+          expect(row.fontSize, `« ${row.price} » is not at its normal size`).toBe(16);
+          expect(
+            row.priceBox.top,
+            `« ${row.price} » left the line of « ${row.name} » at normal text`,
+          ).toBeLessThan(row.nameBox.bottom);
+          expect(
+            Math.abs(row.priceBox.right - row.row.right),
+            `« ${row.price} » is off the right edge of its row`,
+          ).toBeLessThanOrEqual(HAIR);
+        }
+      });
     });
   }
 });
