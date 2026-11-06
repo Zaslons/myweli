@@ -532,6 +532,18 @@ describe('a slide that would newly cover another control’s label', () => {
     expect([lift(), aside()]).toEqual(['', '12px']);
   });
 
+  it('a control that is itself `sr-only` (« Aller au contenu » until focused) has no label', () => {
+    const skip = document.createElement('a');
+    skip.setAttribute('href', '#contenu');
+    skip.textContent = 'Aller au contenu';
+    Object.assign(skip.style, { position: 'absolute', clip: 'rect(0px, 0px, 0px, 0px)' });
+    document.body.appendChild(skip);
+    at['Aller au contenu'] = { left: 296, right: 420, top: 712, bottom: 730 };
+    control({ left: 16, right: 101, top: 700, bottom: 748 });
+    show();
+    expect([lift(), aside()]).toEqual(['', '12px']);
+  });
+
   it('words placed absolutely but not clipped (a badge) are seen, and count', () => {
     linkWithHidden({ position: 'absolute' });
     control({ left: 16, right: 101, top: 700, bottom: 748 });
