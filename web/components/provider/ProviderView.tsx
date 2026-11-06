@@ -266,8 +266,13 @@ export function ProviderView({
       {/* Mobile booking bar. Sticky, not fixed, and the last thing in `main`: it rides the
           screen's foot while the page scrolls and stops above the footer, as « Carte » does
           (web-swiss-cards.md §2.4, decision 5). Fixed, with the 48px « Réserver », it stood on
-          the footer's last link at the page's end. In the flow, so `main` needs no bottom padding. */}
-      <div className="sticky bottom-0 z-sticky flex items-center justify-between gap-m border-t border-divider bg-secondary px-m py-s lg:hidden">
+          the footer's last link at the page's end. In the flow, so `main` needs no bottom padding.
+          `data-floating-control` is how the favourite's toast finds it and moves clear of it
+          (Toast.tsx, B11.5). */}
+      <div
+        data-floating-control=""
+        className="sticky bottom-0 z-sticky flex items-center justify-between gap-m border-t border-divider bg-secondary px-m py-s lg:hidden"
+      >
         {min != null ? (
           <div className="text-bodyMedium">
             <span className="text-textTertiary">À partir de </span>

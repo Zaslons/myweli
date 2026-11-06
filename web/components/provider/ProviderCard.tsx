@@ -12,7 +12,7 @@ import { SalonRating } from '../Rating';
 /// at DPR 2; held by tests/provider-card.test.tsx.
 export const CARD_SIZES = {
   site: '(min-width: 1536px) 354px, (min-width: 1024px) 23vw, (min-width: 640px) 48vw, 92vw',
-  row: '(min-width: 1024px) 18vw, 32vw',
+  row: '(min-width: 1024px) 18vw, (min-width: 768px) and (orientation: landscape) 18vw, 32vw',
   account: '(min-width: 1024px) 203px, (min-width: 640px) 312px, 32vw',
 } as const;
 

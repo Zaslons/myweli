@@ -97,6 +97,7 @@ export function RechercheClient({
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [mobileView, setMobileView] = useState<'list' | 'map'>('list');
   const listScrollY = useRef(0);
+  const toggleRef = useRef<HTMLButtonElement>(null);
   const cardRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
   const mappable = withCoords(results);
@@ -190,12 +191,39 @@ export function RechercheClient({
   /// map is short, so from far down a long list the browser would hold the page at its end:
   /// the footer alone on the screen, with the map and this button above it
   /// (docs/design/web-swiss-cards.md §2.4).
+  ///
+  /// « Carte » and « Liste » are two elements now, one under the list and one under the map
+  /// (B11.5), so the press hands the focus to the one that appears, as the single button
+  /// kept it before.
   function toggleMobileView() {
     const toMap = mobileView === 'list';
+    const hadFocus = document.activeElement === toggleRef.current;
     if (toMap) listScrollY.current = window.scrollY;
     flushSync(() => setMobileView(toMap ? 'map' : 'list'));
+    if (hadFocus) toggleRef.current?.focus({ preventScroll: true });
     window.scrollTo({ top: toMap ? 0 : listScrollY.current, behavior: 'instant' });
   }
+
+  /// The mobile toggle — the app's map tab, web-shaped. At the page's gutter, over a row's
+  /// photo column and off the card's text at normal text from 250 wide up, and `sticky`: it
+  /// rides at the screen's foot and stops above the footer (decisions 5 and 91). Where it is
+  /// placed decides what it can ride over: under the list it is the list's last child, so it
+  /// floats over the rows only, never the search, the filters or « N salons » above them
+  /// (B11.5). `data-floating-control` is how the toast finds it (Toast.tsx).
+  /// `ml-m` only under the map: under the list the column's own `px-m` is the gutter.
+  const toggle = (underMap: boolean) => (
+    <button
+      ref={toggleRef}
+      type="button"
+      onClick={toggleMobileView}
+      data-floating-control=""
+      className={`sticky bottom-l z-sticky flex min-h-12 w-fit items-center rounded-control bg-primary px-l text-labelLarge font-medium text-secondary shadow-lg md:landscape:hidden lg:hidden ${
+        underMap ? 'ml-m' : ''
+      }`}
+    >
+      {mobileView === 'list' ? 'Carte' : 'Liste'}
+    </button>
+  );
 
   // Every control re-navigates with the OTHER filters preserved (SSR refetch).
   const hrefWith = (patch: {
@@ -220,13 +248,19 @@ export function RechercheClient({
 
   return (
     <div
-      // ds-ignore: the list/map split ratio — a layout template, not a reusable token.
+      // ds-ignore: the list/map split ratio — a layout template, not a reusable token. The
+      // map stands beside the list from `lg`, and in a window wider than tall from `md`
+      // (B11.5): there the footer is taller than the screen, so a floating « Carte » left it.
+      // Every `md:landscape:` class here comes AFTER its `lg:` twin in the stylesheet, so in a
+      // landscape window from `lg` it is the one that applies: keep each pair the same value.
       // eslint-disable-next-line tailwindcss/no-arbitrary-value
-      className="lg:grid lg:grid-cols-[minmax(0,55%)_minmax(0,1fr)]"
+      className="md:landscape:grid md:landscape:grid-cols-[minmax(0,55%)_minmax(0,1fr)] lg:grid lg:grid-cols-[minmax(0,55%)_minmax(0,1fr)]"
     >
-      {/* LEFT — search header + chips + the results list (scrolls with the page). */}
+      {/* LEFT — search header + chips + the results list (scrolls with the page). No foot
+          padding where « Carte » is the column's last child: it then stops 48 above the footer's
+          rule, the footer's own `mt-xxl`, as it did from under the column (B11.5). */}
       <div
-        className={`px-m py-l lg:px-l ${mobileView === 'map' ? 'hidden lg:block' : ''}`}
+        className={`px-m pt-l md:landscape:pb-l lg:px-l lg:pb-l ${mobileView === 'map' ? 'hidden md:landscape:block lg:block' : ''}`}
       >
         <h1 className="text-headlineSmall font-semibold text-textPrimary">{title}</h1>
         <div className="mt-m">
@@ -287,71 +321,83 @@ export function RechercheClient({
           </h2>
         ) : null}
         {/* The list draws the lines between rows, so a card never doubles one. The empty
-            state is not inside the divide. */}
-        <div className={results.length === 0 ? 'mt-m' : 'mt-xs divide-y divide-divider'}>
-          {results.length === 0 ? (
-            <EmptyState
-              align="start"
-              icon="search"
-              title="Aucun salon trouvé"
-              description="Essayez une autre recherche ou une autre commune."
-            />
-          ) : (
-            results.map((p, i) => (
-              <div
-                key={p.id}
-                ref={(el) => {
-                  cardRefs.current[p.id] = el;
-                }}
-                role="presentation"
-                onMouseEnter={() => setHoveredId(p.id)}
-                onMouseLeave={() => setHoveredId(null)}
-                // §5: hover-only affordances must also work on focus — the card
-                // contains focusable children, so capture their focus/blur.
-                onFocus={() => setHoveredId(p.id)}
-                onBlur={() => setHoveredId(null)}
-                // Every row keeps its `py-m`, not `first:pt-0`: that put the first row's ring
-                // on its photo and its name. The offset keeps the ring off the photo's left
-                // edge, as the focus ring does. Square, like the row it marks.
-                className={`py-m ${
-                  selectedId === p.id ? 'ring-2 ring-primary ring-offset-2 ring-offset-surface' : ''
-                }`}
-              >
-                <ProviderCard
-                  provider={p}
-                  layout="row"
-                  // docs/design/web-swiss-cards.md §7: the first photo, which can be the
-                  // largest paint, fetched first. The same bytes either way.
-                  imagePriority={i === firstPhoto}
-                  favorite={favIds.has(p.id)}
-                  onToggleFavorite={() => toggleFavorite(p.id)}
-                  favoriteBusy={favRead === 'loading'}
-                  favoritePending={pending.has(p.id)}
-                />
-                {favErrors[p.id] ? (
-                  <p role="alert" className="mt-xs text-bodyMedium text-error">
-                    {favErrors[p.id]}
-                  </p>
-                ) : null}
-              </div>
-            ))
-          )}
-        </div>
+            state is not inside the divide. With no result « Carte » stands under the empty
+            state, in its own box, so it has nothing to ride over (B11.5). */}
+        {results.length === 0 ? (
+          <>
+            <div className="mt-m">
+              <EmptyState
+                align="start"
+                icon="search"
+                title="Aucun salon trouvé"
+                description="Essayez une autre recherche ou une autre commune."
+              />
+            </div>
+            {mobileView === 'list' ? (
+              <div className="mt-l md:landscape:hidden lg:hidden">{toggle(false)}</div>
+            ) : null}
+          </>
+        ) : (
+          // The rows and « Carte » share this box, which is what `sticky` may ride in.
+          <div className="mt-xs">
+            <div className="divide-y divide-divider">
+              {results.map((p, i) => (
+                <div
+                  key={p.id}
+                  ref={(el) => {
+                    cardRefs.current[p.id] = el;
+                  }}
+                  role="presentation"
+                  onMouseEnter={() => setHoveredId(p.id)}
+                  onMouseLeave={() => setHoveredId(null)}
+                  // §5: hover-only affordances must also work on focus — the card
+                  // contains focusable children, so capture their focus/blur.
+                  onFocus={() => setHoveredId(p.id)}
+                  onBlur={() => setHoveredId(null)}
+                  // Every row keeps its `py-m`, not `first:pt-0`: that put the first row's ring
+                  // on its photo and its name. The offset keeps the ring off the photo's left
+                  // edge, as the focus ring does. Square, like the row it marks.
+                  className={`py-m ${
+                    selectedId === p.id ? 'ring-2 ring-primary ring-offset-2 ring-offset-surface' : ''
+                  }`}
+                >
+                  <ProviderCard
+                    provider={p}
+                    layout="row"
+                    // docs/design/web-swiss-cards.md §7: the first photo, which can be the
+                    // largest paint, fetched first. The same bytes either way.
+                    imagePriority={i === firstPhoto}
+                    favorite={favIds.has(p.id)}
+                    onToggleFavorite={() => toggleFavorite(p.id)}
+                    favoriteBusy={favRead === 'loading'}
+                    favoritePending={pending.has(p.id)}
+                  />
+                  {favErrors[p.id] ? (
+                    <p role="alert" className="mt-xs text-bodyMedium text-error">
+                      {favErrors[p.id]}
+                    </p>
+                  ) : null}
+                </div>
+              ))}
+            </div>
+            {mobileView === 'list' ? toggle(false) : null}
+          </div>
+        )}
       </div>
 
       {/* RIGHT — the map, part of the screen: no frame, flush to the right
           edge, full viewport height once the (non-sticky) header scrolls by. */}
-      <div className={mobileView === 'map' ? 'block' : 'hidden lg:block'}>
+      <div className={mobileView === 'map' ? 'block' : 'hidden md:landscape:block lg:block'}>
         {/* In the mobile « Carte » view the left column — and with it the
             page's only h1 — is display:none. Keep a heading in the a11y
             tree; lg:hidden keeps it single at desktop, where the real h1
             is visible again. */}
-        <h1 className="sr-only lg:hidden">{title}</h1>
+        <h1 className="sr-only md:landscape:hidden lg:hidden">{title}</h1>
         <div
           // ds-ignore: viewport arithmetic (full height minus the header) — no token can express
           // a calc().
           // eslint-disable-next-line tailwindcss/no-arbitrary-value
-          className="h-[calc(100dvh-6.5rem)] lg:sticky lg:top-0 lg:h-screen"
+          className="h-[calc(100dvh-6.5rem)] md:landscape:sticky md:landscape:top-0 md:landscape:h-screen lg:sticky lg:top-0 lg:h-screen"
         >
           <ResultsMap
             items={mappable}
@@ -363,21 +409,10 @@ export function RechercheClient({
         </div>
       </div>
 
-      {/* Mobile floating toggle — the app's map tab, web-shaped. At the page's gutter, so
-          it sits over a row's photo column and off the card's text at normal text from
-          250 wide up. Sticky, not fixed: it rides the list at the screen's foot and stops
-          above the footer, because fixed it stood on the footer's last link and a press
-          there opened the map. Both are the owner's choices, and what it still covers is
-          listed in docs/design/web-swiss-cards.md §2.4 (decision 5). */}
-      <button
-        type="button"
-        onClick={toggleMobileView}
-        className="sticky bottom-l z-sticky ml-m flex min-h-12 w-fit items-center rounded-control bg-primary px-l text-labelLarge font-medium text-secondary shadow-lg lg:hidden"
-      >
-        {mobileView === 'list' ? 'Carte' : 'Liste'}
-      </button>
-      {/* The ♥'s announcement (B5.4) — centred, and lifted above the band the « Carte »
-          toggle holds at the screen's foot under lg. Toast.tsx says where they can meet. */}
+      {/* In the map view « Liste » stands under the map, where the single button stood. */}
+      {mobileView === 'map' ? toggle(true) : null}
+      {/* The ♥'s announcement (B5.4) — centred, and above « Carte » or « Liste » wherever
+          the button stands (Toast.tsx, B11.5). */}
       <Toast toast={toast} aboveFloatingControl />
     </div>
   );

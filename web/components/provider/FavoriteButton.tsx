@@ -101,8 +101,14 @@ export function FavoriteButton({
       ) : null}
       {/* Lifted above the salon page's booking bar under `lg`: at 24px it stood on the bar,
           and at 320 « Annuler » took a corner of « Réserver ». The lift is in rem, as the bar's
-          height is, so it stays clear with the browser's text at double size
-          (web-swiss-salon.md §1.4). */}
+          height is, so at rest it stays clear with the browser's font at 200 % (a 32px root;
+          web-swiss-salon.md §1.4), though not with Android's larger text, which grows the bar
+          and not the lift. That is the toast's home: the bar is a
+          `data-floating-control` (ProviderView), so where it still comes near the pill (at the
+          page's end, stopped above the footer, or with text enlarged otherwise) the toast is
+          measured against it and moved clear of it: just above it or just below it, whichever is
+          the shorter move (Toast.tsx, B11.5). Only a screen too short to hold both leaves
+          them meeting. */}
       <Toast toast={toast} aboveBookingBar />
     </>
   );
