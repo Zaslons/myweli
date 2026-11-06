@@ -123,15 +123,19 @@ in both doubled-text modes, plus normal text.
 | The price's computed `font-size` is 32 px | The vacuity guard: if a Chromium build ignored the emulation, every check below would pass about 16 px text. |
 | `innerWidth × innerHeight` equals 320 × 568 | A grown layout viewport is what put the bar and the toast off screen. This check doesn't depend on how the bar is built (#741 rebuilds the bar and the toast). |
 | `horizontalOverflow` is empty | The existing helper; it names the element that starts an overflow. |
-| No number in a price spans two line boxes | Measured with a text `Range`, not inferred from class names. |
+| Every price inside its row | A price can poke past its row without the page scrolling (§7). |
+| The longest price really wraps | The vacuity guard for the next check. |
+| No token of a price spans two line boxes | A token is a run between plain spaces: a number with its U+202F grouping, a word, the dash. This is amounts-that-fit.md §2's « whole ». Measured with a text `Range`, not inferred from class names. |
+| The five generic checks of the file | Spill, nowrap rows, vertical clipping, truncation. |
 | Normal text: each price sits on its service's line, at the right edge | The default look can't drift silently. |
 
-Watched red, each on a build of committed code:
+**The stub's prices are too short to test the rule**, so the second service
+shows `priceRange(150000, 250000)`, written into the page rather than the stub
+(other specs count on the stub's prices). See §7 for why.
 
-- the guard on main, before the fix (§7);
-- `whitespace-nowrap` put back on the fixed tree;
-- a price that always takes its own line (`basis-full`), for the normal-text check;
-- `break-all` on the price, for the whole-number check.
+Watched red, each on a fresh build of committed code (§7): main's
+`ServiceList`; `whitespace-nowrap` put back; a price that always takes its own
+line (`basis-full`); `break-all` on the price.
 
 Also checked:
 
@@ -156,4 +160,58 @@ Also checked:
 
 ## 7. What was measured
 
-*Filled in by the build; see the PR.*
+**Red on main first.** In the Android mode the guard read the viewport as
+`[441, 783]`; with the 200 % font, `horizontalOverflow` named
+`<p class="whitespace-nowrap text-textPrimary"> right 441 > 320`.
+
+**The first version of the guard let two mutations pass, and that is the
+finding of this build.**
+
+- **`whitespace-nowrap` put back** on the fixed layout. The price drops to
+  its own line, 301 px on a 288 px line, and ends at x 317: past its row,
+  inside a 320 screen, and invisible to every check.
+- **`break-all`.** At 32 px « 15 000 – 25 000 » still fits one line, so no
+  number was ever asked to break.
+
+The guard then gained the longest plausible price and the row-containment
+check. `break-all` passed again, cutting « F / CFA » instead of a number,
+until the token check took words as well as numbers. JavaScript's `\s`
+matches U+202F, so tokens are split on U+0020 only. This is the trap
+amounts-that-fit.md §1 recorded for Dart.
+
+**The final guard, each run on a fresh build:**
+
+| Run | Result |
+|---|---|
+| The fix | 4 passed |
+| Main's `ServiceList` | red: viewport `[459, 815]` · the page scrolls sideways (two prices named, right 441 and 459) |
+| `whitespace-nowrap` put back | red: viewport `[354, 629]` · scrolls sideways, right 354 |
+| Price always on its own line (`basis-full`) | red at 320 and 375: « 15 000 – 25 000 FCFA » left the line of « Tresses » |
+| `break-all` | red in both modes: a token breaks (« FCFA ») |
+
+**On #741's tree** (345c6b44, the cover update, stacked on #737): with this
+change cherry-picked, `type-overflow.spec.ts` and `provider.spec.ts` pass
+(122 tests). With #741's own `ServiceList`, the guard fails the same way as on
+main: `[459, 815]`. Both branches append to the end of
+`type-overflow.spec.ts`, so the second to merge resolves a keep-both conflict.
+
+**The five store-linked pages:**
+
+- The built CSS files are byte-identical, with the same hashed names.
+- Every element's computed style and box is identical at 375, 820 and 1280:
+  1,698 elements. The dump was stable across two runs on main, and the
+  comparator catches one planted property.
+- No changed file is in their import graph (56 files from nine roots). The
+  walker was checked against `lib/storeLinkedPages.ts` and
+  `styles/globals.css`, which it finds.
+
+**Suites:**
+
+- Unit: 195 files, 2,550 tests. Lint and typecheck clean.
+- `type-overflow`, `provider` and `axe` specs: 120 passed.
+- The full e2e suite is left to CI. Another session's e2e run held ports
+  3000/8787, so the local runs used a throwaway config on 3100/8887, and
+  `booking.spec.ts` and `served-html.spec.ts` hardwire 8787.
+
+**Not verified:** real phones. Every figure here is from Chromium's mobile
+emulation.
