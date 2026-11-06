@@ -66,7 +66,7 @@ test.describe('mobile web', () => {
     await expect(cta).toBeEnabled();
     await cta.click();
     await expect(
-      page.getByRole('heading', { name: 'Confirmation' }),
+      page.getByRole('heading', { level: 2, name: 'Confirmer', exact: true }),
     ).toBeVisible();
   });
 });

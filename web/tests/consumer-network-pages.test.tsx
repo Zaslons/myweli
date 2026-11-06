@@ -320,7 +320,7 @@ describe('Réserver — l’étape « Confirmation » (the session probe)', () =
       const { container } = await openConfirm(answer);
 
       expect(await screen.findByRole('alert')).toHaveTextContent(said);
-      expect(screen.getByRole('heading', { level: 2, name: 'Confirmation' })).toBeInTheDocument();
+      expect(screen.getByRole('heading', { level: 2, name: 'Confirmer' })).toBeInTheDocument();
       expect(screen.queryByText('Connectez-vous pour confirmer votre réservation.')).toBeNull();
       expectNotLoading(container);
 

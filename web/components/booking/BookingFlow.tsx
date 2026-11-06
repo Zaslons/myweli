@@ -82,12 +82,11 @@ const slotTime = (iso: string, tz?: string) =>
     new Date(iso),
   );
 
+/// « 15 000 – 25 000 FCFA »: a range prints its unit once (amounts-that-fit.md
+/// §2), like every other price on the site.
 function totalLabel(p: Provider, ids: string[]): string {
   const t = priceTotal(p, ids);
-  const cur = p.currency ?? undefined;
-  return t.max > t.min
-    ? `${formatFcfa(t.min, cur)} – ${formatFcfa(t.max, cur)}`
-    : formatFcfa(t.min, cur);
+  return priceRange(t.min, t.max, p.currency ?? undefined);
 }
 
 /// The booking HUB (K2 — docs/design/booking-capacity-web-hub.md §4): the
@@ -472,8 +471,10 @@ export function BookingFlow({
   if (s.phase === "confirm") {
     return (
       <section className="rounded-xl border border-border bg-secondary p-l">
+        {/* The app's title for this step; « Confirmation » is one word wider
+            than this card at 200 % text (web-funnel-doubled-text.md). */}
         <h2 className="text-titleLarge font-semibold text-textPrimary">
-          Confirmation
+          Confirmer
         </h2>
         <dl className="mt-m space-y-xs text-bodyMedium">
           <Recap label="Salon" value={provider.name} />
@@ -928,14 +929,16 @@ function SectionCard({
         expanded ? "border-primary" : "border-border"
       }`}
     >
+      {/* A value that cannot sit beside its title drops under it, on the
+          right edge — the salon price rule (web-funnel-doubled-text.md). */}
       <button
         type="button"
         onClick={onHeaderTap}
         aria-expanded={expanded}
-        className="flex w-full items-center justify-between gap-m text-left"
+        className="flex w-full flex-wrap items-center justify-between gap-x-m text-left"
       >
         <span className="font-semibold text-textPrimary">{title}</span>
-        <span className="text-bodyMedium text-textSecondary">{value}</span>
+        <span className="flex-1 text-right text-bodyMedium text-textSecondary">{value}</span>
       </button>
       {expanded ? <div className="mt-m">{children}</div> : null}
     </section>
@@ -944,9 +947,9 @@ function SectionCard({
 
 function Recap({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex justify-between gap-m">
+    <div className="flex flex-wrap justify-between gap-x-m">
       <dt className="text-textTertiary">{label}</dt>
-      <dd className="text-right text-textPrimary">{value}</dd>
+      <dd className="flex-1 text-right text-textPrimary">{value}</dd>
     </div>
   );
 }
