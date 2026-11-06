@@ -1003,9 +1003,14 @@ const DOUBLED_TEXT = [
 const PHONE_320 = { width: 320, height: 568 };
 
 /// « Services & tarifs », measured row by row: the service name's box, the
-/// price's box, the row's, the price's computed font size, and every number in
-/// the price that spans more than one line box. A number is found by what it
-/// says — digits and the no-break spaces that group them — in the price's text
+/// price's box, the row's, the price's computed font size, its line count, and
+/// every token of the price that spans more than one line box.
+///
+/// **A token is what may not break** (amounts-that-fit.md §2): a number with
+/// its grouping spaces, a word, the dash. The plain spaces between them are the
+/// only legal breaks, so a token is a run between U+0020 — NOT `\s`, which in
+/// JavaScript also matches the U+202F that groups « 250 000 », the same trap
+/// that blinded mobile's `expectNoMidWordBreak`. Found in the price's text
 /// nodes, so this holds whatever the price's markup becomes.
 async function priceRows(page: Page) {
   return page
@@ -1025,7 +1030,7 @@ async function priceRows(page: Page) {
         const broken: string[] = [];
         const walker = document.createTreeWalker(price, NodeFilter.SHOW_TEXT);
         for (let text = walker.nextNode(); text; text = walker.nextNode()) {
-          for (const m of (text.nodeValue ?? '').matchAll(/\d[\d  ]*\d|\d/g)) {
+          for (const m of (text.nodeValue ?? '').matchAll(/[^ ]+/g)) {
             const range = document.createRange();
             range.setStart(text, m.index!);
             range.setEnd(text, m.index! + m[0].length);
@@ -1051,7 +1056,9 @@ async function priceRows(page: Page) {
 /// 25 000 » still fits one 288px line, so no number is ever asked to break, and
 /// a price put back to `whitespace-nowrap` ends at x 317 — inside a 320 screen,
 /// past its row, and invisible to every check. Both mutations passed this guard
-/// until it measured a price that must wrap. So the second service is given the
+/// until it measured a price that must wrap — and `break-all` passed even then,
+/// cutting « F / CFA » rather than a number, until the check took words as
+/// tokens too (see `priceRows`). So the second service is given the
 /// longest range a salon here plausibly charges, written by the page's own
 /// formatter; in the page rather than in the stub, whose prices other specs
 /// count on.
@@ -1117,12 +1124,12 @@ test.describe('the salon page at doubled text (web-salon-price-reflow)', () => {
         }
         expect(
           rows[1].lines,
-          `« ${LONGEST_PRICE} » fits one line — the whole-number check below measures nothing`,
+          `« ${LONGEST_PRICE} » fits one line — the whole-token check below measures nothing`,
         ).toBeGreaterThan(1);
         for (const row of rows) {
           expect(
             row.broken,
-            `« ${row.price} » breaks a number across lines — a number may not break (SYSTEM.md §13.3)`,
+            `« ${row.price} » breaks inside a token — a number or a word may not break (amounts-that-fit.md §2)`,
           ).toEqual([]);
         }
         expect(await overflowingText(page), 'text spills out of its own box').toEqual([]);
