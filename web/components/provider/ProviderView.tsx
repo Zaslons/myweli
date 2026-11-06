@@ -18,7 +18,7 @@ import { BookingPanel } from './BookingPanel';
 import { Faq } from './Faq';
 import { FavoriteButton } from './FavoriteButton';
 import { Gallery } from './Gallery';
-import { ProviderHero } from './Hero';
+import { ProviderCover, ProviderHero } from './Hero';
 import { Hours } from './Hours';
 import { MapEmbed } from './MapEmbed';
 import { ReviewList } from './ReviewList';
@@ -96,6 +96,28 @@ function buildFaq(
   return items;
 }
 
+/// How wide the cover is drawn: the full width below `lg`; from `lg`, columns 1–8 of the
+/// site grid, ⅔ of the container less 40px; 984px once the container stops at 1536. Only
+/// `100vw` is a bare `vw`, and Next 14 counts only those, so the srcset keeps today's 640w
+/// and up: a `sizes` with no bare `vw` would list every width from 16w
+/// (docs/design/web-swiss-salon.md §1.9).
+export const COVER_SIZES =
+  '(min-width: 1536px) 984px, (min-width: 1024px) calc(66.67vw - 40px), 100vw';
+
+/// Below `lg`, whatever the keyboard focuses in the page's two columns stops 96px (`fab`)
+/// above the screen's foot, clear of the 65px booking bar: the browser scrolls a focused
+/// control just into view at the bottom, and it took no account of the bar, so the FAQ's
+/// questions and a gallery photo were hidden under it (WCAG 2.4.11). Page-scoped, on the
+/// columns and not the bar, whose own « Réserver » would chase its margin; `scroll-padding`
+/// on `<html>` would do it once, but that is CSS the five store-linked pages share
+/// (web-swiss-salon.md §1.4). At a doubled browser font the bar is 113px and up to 19px of a
+/// focused control can still sit under it: a px margin against a rem bar (WEB-SYSTEM §9).
+const CLEAR_OF_BAR = 'max-lg:[&_*]:scroll-mb-fab';
+
+/// The public salon page.
+/// Design: docs/design/web-swiss-salon.md §1 (the cover in 3:2 and, from `lg`, the name and
+/// the booking panel beside it).
+///
 /// `preview` = the owner's own pre-publish render (docs/design/
 /// pro-salon-lifecycle.md B4): no JSON-LD, no consumer favorite button,
 /// booking CTAs disabled — everything else EXACTLY as a client will see it.
@@ -121,7 +143,10 @@ export function ProviderView({
   const min = minActivePrice(p.services);
 
   return (
-    <main className="mx-auto max-w-5xl pb-xxl lg:pb-0">
+    // The site's container and twelve columns from `lg` (web-swiss-direction.md §6.1, §7.6):
+    // `SITE_CONTAINER` without its phone padding, since the cover runs edge to edge there and
+    // each section brings its own. The cover's x is the header logo's (site-look.spec.ts).
+    <main className="mx-auto max-w-screen-2xl lg:grid lg:grid-cols-12 lg:gap-x-l lg:px-l">
       {!preview ? (
         <>
           <JsonLd data={localBusinessJsonLd(p, url)} />
@@ -135,103 +160,109 @@ export function ProviderView({
         </>
       ) : null}
 
-      <ProviderHero provider={p} />
+      <ProviderCover provider={p} sizes={COVER_SIZES} className="lg:col-span-8" />
 
-      <div className="lg:grid lg:grid-cols-3 lg:gap-l">
-        <div className="lg:col-span-2">
-          <p className="max-w-content px-m pt-m text-bodyLarge text-textSecondary">
-            Réservez en ligne chez {p.name}, {cat} à {commune} ({country}).
-            Services, tarifs, horaires et avis — réservation 24/7, sans appel.
-          </p>
-
-          {!preview ? (
-            <div className="px-m pt-s">
-              <FavoriteButton providerId={p.id} slug={slug} />
-            </div>
-          ) : null}
-
-          <Gallery images={(p.imageUrls ?? []).slice(1)} />
-
-          <ServiceList services={p.services ?? []} currency={p.currency} />
-
-          <BeforeAfter pairs={p.beforeAfters ?? []} />
-
-          {artists.length > 0 ? (
-            <section className="px-m py-l">
-              <h2 className="text-titleLarge font-semibold text-textPrimary">Équipe</h2>
-              <ul className="mt-m flex flex-wrap gap-m text-bodyMedium">
-                {artists.map((a) => (
-                  <li key={a.id}>
-                    <span className="text-textPrimary">{a.name}</span>
-                    {a.specialization ? (
-                      <span className="text-textTertiary">
-                        {' '}
-                        · {a.specialization}
-                      </span>
-                    ) : null}
-                  </li>
-                ))}
-              </ul>
-            </section>
-          ) : null}
-
-          <Hours availability={p.availability} />
-
-          {/* Parity 2.7/2.8 — the signed-in client's bookings at this salon. */}
-          <SalonVisitsCard providerId={p.id} />
-
-          <ReviewList
-            reviews={p.reviews ?? []}
-            rating={p.rating}
-            reviewCount={p.reviewCount}
-            slug={p.slug ?? ''}
-            tz={p.timezone}
-          />
-
-          <MapEmbed
-            name={p.name}
-            category={p.category}
-            address={p.address}
-            commune={p.commune}
-            latitude={p.latitude}
-            longitude={p.longitude}
-          />
-
-          {/* Contact — desktop uses the sticky panel; shown here on mobile. */}
-          <section className="px-m py-l lg:hidden">
-            <h2 className="text-titleLarge font-semibold text-textPrimary">Contact</h2>
-            <div className="mt-m flex flex-wrap gap-s">
-              <a
-                href={`tel:${p.phoneNumber}`}
-                className="inline-flex min-h-12 items-center rounded-control border border-primary bg-secondary px-l text-labelLarge font-medium text-textPrimary"
-              >
-                Appeler
-              </a>
-              {p.whatsapp ? (
-                <a
-                  href={`https://wa.me/${p.whatsapp.replace(/[^0-9]/g, '')}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex min-h-12 items-center rounded-control border border-primary bg-secondary px-l text-labelLarge font-medium text-textPrimary"
-                >
-                  WhatsApp
-                </a>
-              ) : null}
-            </div>
-          </section>
-
-          <Faq items={faq} />
-        </div>
-
-        <aside className="hidden px-m pt-m lg:block">
-          <div className="sticky top-l">
-            <BookingPanel provider={p} slug={slug} disabled={preview} />
-          </div>
+      {/* Columns 9–12 from `lg`: the name, then the booking panel, which sticks while the
+          sections scroll. Before the sections in the DOM, so the panel is reached right
+          after the name; below `lg` the panel is hidden and the order is the phone's.
+          `CLEAR_OF_BAR` on this column and the next: see its comment. */}
+      <div className={`lg:col-span-4 lg:col-start-9 lg:row-span-2 ${CLEAR_OF_BAR}`}>
+        <ProviderHero provider={p} slug={slug} preview={preview} className="lg:px-0 lg:pt-0" />
+        <aside className="sticky top-l hidden lg:block">
+          <BookingPanel provider={p} slug={slug} disabled={preview} />
         </aside>
       </div>
 
-      {/* Mobile sticky booking bar */}
-      <div className="fixed inset-x-0 bottom-0 z-sticky flex items-center justify-between gap-m border-t border-divider bg-secondary px-m py-s lg:hidden">
+      <div className={`lg:col-span-8 ${CLEAR_OF_BAR}`}>
+        <p className="max-w-content px-m pt-m text-bodyLarge text-textSecondary">
+          Réservez en ligne chez {p.name}, {cat} à {commune} ({country}).
+          Services, tarifs, horaires et avis — réservation 24/7, sans appel.
+        </p>
+
+        {!preview ? (
+          <div className="px-m pt-s">
+            <FavoriteButton providerId={p.id} slug={slug} />
+          </div>
+        ) : null}
+
+        <Gallery images={(p.imageUrls ?? []).slice(1)} />
+
+        <ServiceList services={p.services ?? []} currency={p.currency} />
+
+        <BeforeAfter pairs={p.beforeAfters ?? []} />
+
+        {artists.length > 0 ? (
+          <section className="px-m py-l">
+            <h2 className="text-titleLarge font-semibold text-textPrimary">Équipe</h2>
+            <ul className="mt-m flex flex-wrap gap-m text-bodyMedium">
+              {artists.map((a) => (
+                <li key={a.id}>
+                  <span className="text-textPrimary">{a.name}</span>
+                  {a.specialization ? (
+                    <span className="text-textTertiary">
+                      {' '}
+                      · {a.specialization}
+                    </span>
+                  ) : null}
+                </li>
+              ))}
+            </ul>
+          </section>
+        ) : null}
+
+        <Hours availability={p.availability} />
+
+        {/* Parity 2.7/2.8 — the signed-in client's bookings at this salon. */}
+        <SalonVisitsCard providerId={p.id} />
+
+        <ReviewList
+          reviews={p.reviews ?? []}
+          rating={p.rating}
+          reviewCount={p.reviewCount}
+          slug={p.slug ?? ''}
+          tz={p.timezone}
+        />
+
+        <MapEmbed
+          name={p.name}
+          category={p.category}
+          address={p.address}
+          commune={p.commune}
+          latitude={p.latitude}
+          longitude={p.longitude}
+        />
+
+        {/* Contact — desktop uses the sticky panel; shown here on mobile. */}
+        <section className="px-m py-l lg:hidden">
+          <h2 className="text-titleLarge font-semibold text-textPrimary">Contact</h2>
+          <div className="mt-m flex flex-wrap gap-s">
+            <a
+              href={`tel:${p.phoneNumber}`}
+              className="inline-flex min-h-12 items-center rounded-control border border-primary bg-secondary px-l text-labelLarge font-medium text-textPrimary"
+            >
+              Appeler
+            </a>
+            {p.whatsapp ? (
+              <a
+                href={`https://wa.me/${p.whatsapp.replace(/[^0-9]/g, '')}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex min-h-12 items-center rounded-control border border-primary bg-secondary px-l text-labelLarge font-medium text-textPrimary"
+              >
+                WhatsApp
+              </a>
+            ) : null}
+          </div>
+        </section>
+
+        <Faq items={faq} />
+      </div>
+
+      {/* Mobile booking bar. Sticky, not fixed, and the last thing in `main`: it rides the
+          screen's foot while the page scrolls and stops above the footer, as « Carte » does
+          (web-swiss-cards.md §2.4, decision 5). Fixed, with the 48px « Réserver », it stood on
+          the footer's last link at the page's end. In the flow, so `main` needs no bottom padding. */}
+      <div className="sticky bottom-0 z-sticky flex items-center justify-between gap-m border-t border-divider bg-secondary px-m py-s lg:hidden">
         {min != null ? (
           <div className="text-bodyMedium">
             <span className="text-textTertiary">À partir de </span>

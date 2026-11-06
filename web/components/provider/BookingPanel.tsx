@@ -31,7 +31,7 @@ export function BookingPanel({
       <div className="mt-m flex gap-s">
         <a
           href={`tel:${provider.phoneNumber}`}
-          className="flex-1 rounded-control border border-primary bg-surface px-m py-s text-center text-bodyMedium text-textPrimary"
+          className="inline-flex min-h-12 flex-1 items-center justify-center rounded-control border border-primary bg-surface px-m text-bodyMedium text-textPrimary"
         >
           Appeler
         </a>
@@ -40,7 +40,7 @@ export function BookingPanel({
             href={`https://wa.me/${wa}`}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex-1 rounded-control border border-primary bg-surface px-m py-s text-center text-bodyMedium text-textPrimary"
+            className="inline-flex min-h-12 flex-1 items-center justify-center rounded-control border border-primary bg-surface px-m text-bodyMedium text-textPrimary"
           >
             WhatsApp
           </a>

@@ -115,6 +115,20 @@ test('provider page: Avant/Après, map, booking panel (M8.2)', async ({
   ).toHaveAttribute('href', '/beaute-divine/reserver');
 });
 
+test('a computer shows one « Réserver », the panel’s, beside the name (web-swiss-salon.md §1.2)', async ({
+  page,
+}) => {
+  // From `lg` the panel stands right under the name, so the hero's own « Réserver » goes:
+  // there were two on one screen before, 160px apart. The phone's bar is hidden there too.
+  // `getByRole` leaves out what is not displayed, so this counts what a visitor sees.
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.goto('/beaute-divine');
+  const cta = page.getByRole('link', { name: 'Réserver', exact: true });
+  await expect(cta).toHaveCount(1);
+  await expect(cta).toHaveAttribute('href', '/beaute-divine/reserver');
+  await expect(page.locator('main aside').getByRole('link', { name: 'Réserver', exact: true })).toBeVisible();
+});
+
 test('unknown slug → 404', async ({ page }) => {
   const res = await page.goto('/no-such-salon');
   expect(res?.status()).toBe(404);

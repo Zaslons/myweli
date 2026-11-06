@@ -973,3 +973,39 @@ test.describe('the « Semaine » tab at desktop widths (web-pro-week-view)', () 
     });
   }
 });
+
+/// docs/design/web-swiss-salon.md §1.3: the salon's name stands in a narrow column from `lg`
+/// (309px at 1024), and on a phone in 288px. A long name, next to « ✔ Vérifié » on one flex
+/// line, squeezed the chip into 54px on two lines. The `<h1>` wraps now, so the chip takes a
+/// line of its own and keeps its words together.
+///
+/// The name is the stub's own salon renamed in the page: the stub has one public salon on
+/// purpose (a new slug moves `served-html`'s and `provider`'s counts), and the layout reads
+/// the text it is given, wherever it came from.
+test.describe('a long salon name beside « ✔ Vérifié »', () => {
+  const LONG = 'Institut de beauté et coiffure afro Excellence Riviera Palmeraie';
+  for (const width of [320, 1024, 1280]) {
+    test(`at ${width} the chip keeps one line, and nothing spills`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 800 });
+      await page.goto('/beaute-divine');
+      const h1 = page.getByRole('heading', { level: 1 });
+      await expect(h1).toContainText('Beauté Divine');
+      await h1.evaluate((el, name) => {
+        el.firstChild!.textContent = name;
+      }, LONG);
+      await expect(h1).toContainText(LONG);
+      const read = await h1.evaluate((el) => {
+        const lines = (node: Node) => {
+          const range = document.createRange();
+          range.selectNodeContents(node);
+          return new Set([...range.getClientRects()].map((r) => Math.round(r.top))).size;
+        };
+        const chip = [...el.children].find((c) => c.textContent?.includes('Vérifié'))!;
+        return { name: lines(el.firstChild!), chip: lines(chip) };
+      });
+      expect(read.name, 'the name fits one line, so this proves nothing').toBeGreaterThan(1);
+      expect(read.chip, '« ✔ Vérifié » broke in two').toBe(1);
+      expect(await horizontalOverflow(page), `the page scrolls sideways at ${width}`).toEqual([]);
+    });
+  }
+});

@@ -78,6 +78,58 @@ test.describe('one left edge (§6.2)', () => {
   }
 });
 
+/// The salon page's cover (docs/design/web-swiss-salon.md §1.2): 3:2 at every width. From
+/// `lg` it takes columns 1–8 of the site's container, on the header logo's left edge, and the
+/// name block stands beside it in 9–12, level with its top. Below `lg` it runs edge to edge
+/// and the name comes under it. The `<h1>` not starting on the logo's x is this page's
+/// exception to the rule above (WEB-SYSTEM §16).
+test.describe('the salon page’s cover (web-swiss-salon.md §1.2)', () => {
+  const COVER = 'main img[alt="Salon Beauté Divine"]';
+  /// Next's candidates for a photo: what a screen at density 1 asks for is the smallest at or
+  /// above the width `sizes` names (§1.9).
+  const CANDIDATES = [640, 750, 828, 1080, 1200, 1920, 2048, 3840];
+
+  for (const [width, height] of [
+    [320, 568],
+    [390, 844],
+    [820, 1180],
+    [1023, 768],
+    [1024, 768],
+    [1280, 800],
+    [1920, 1080],
+  ] as const) {
+    test(`at ${width}: 3:2, drawn at the width it is asked for, and the name where it belongs`, async ({ page }) => {
+      await size(page, width, height);
+      await routeNextImages(page);
+      await page.goto('/beaute-divine');
+      const cover = await box(page, COVER);
+      expect(Math.abs(cover.width / cover.height - 1.5), `${cover.width}×${cover.height}`).toBeLessThanOrEqual(0.01);
+      const name = await box(page, 'main header');
+      const h1 = (await page.getByRole('heading', { level: 1 }).boundingBox())!;
+
+      // The width `sizes` names at this screen, and the box it was drawn in.
+      const slot = width < 1024 ? width : width >= 1536 ? 984 : 0.6667 * width - 40;
+      expect(Math.abs(cover.width - slot), `drawn ${cover.width} wide, asked for ${slot}`).toBeLessThanOrEqual(1);
+      const asked = await page.locator(COVER).evaluate(async (img: HTMLImageElement) => {
+        await img.decode().catch(() => undefined);
+        return Number(new URL(img.currentSrc).searchParams.get('w'));
+      });
+      expect(asked).toBe(CANDIDATES.find((w) => w >= slot));
+
+      if (width >= 1024) {
+        expect(Math.abs(cover.x - (await logoLeft(page))), 'the cover is off the logo’s edge').toBeLessThanOrEqual(1);
+        expect(h1.x, 'the name runs into the photo').toBeGreaterThanOrEqual(cover.x + cover.width + 23);
+        expect(Math.abs(name.y - cover.y), 'the name block is not level with the photo').toBeLessThanOrEqual(1);
+        // The category line above it: cover 49, `<h1>` 73 at 1280 (measured).
+        expect(Math.abs(h1.y - cover.y - 24), `the <h1> is ${h1.y - cover.y} below the photo’s top`).toBeLessThanOrEqual(1);
+      } else {
+        expect(cover.x).toBe(0);
+        expect(h1.y, 'the name is not under the photo').toBeGreaterThan(cover.y + cover.height);
+      }
+    });
+  }
+});
+
 test.describe('the pattern (§4.6)', () => {
   test('the home page shows exactly one: the band on a phone, the panel from lg', async ({ page }) => {
     await size(page, 375);
@@ -1030,8 +1082,10 @@ test.describe('the salon card', () => {
         await size(page, width);
         await routeNextImages(page);
         await page.goto('/salon-au-logo');
-        expect(await position(page.locator('header img[alt="Salon Beauté Divine"]'))).toBe('50% 20%');
-        expect(await position(page.locator('header img[alt="Logo Beauté Divine"]'))).toBe('50% 50%');
+        // In `main`, not the name block's `<header>`: the cover left it for its own column
+        // (web-swiss-salon.md §1.6).
+        expect(await position(page.locator('main img[alt="Salon Beauté Divine"]'))).toBe('50% 20%');
+        expect(await position(page.locator('main img[alt="Logo Beauté Divine"]'))).toBe('50% 50%');
         // With its number: a review's photo carries the same words with none, and held this
         // count up when the gallery was gone.
         const gallery = page.getByRole('button', { name: /^Agrandir la photo \d/ }).locator('img');
