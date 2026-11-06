@@ -1,8 +1,9 @@
 import { act, cleanup, render } from '@testing-library/react';
+import { useLayoutEffect, type ReactNode } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { BarClearance } from '../components/provider/BarClearance';
 
-/// BACKLOG 103 (web-swiss-salon.md §3.3, §3.9 U-B1–U-B5): below `lg` the salon page's booking bar
+/// BACKLOG 103 (web-swiss-salon.md §3.3, §3.9 U-B1–U-B7): below `lg` the salon page's booking bar
 /// is fixed, and `BarClearance`, rendered inside it, gives `<html>` a bottom padding as tall as
 /// the bar and a scroll padding of the bar plus `s`, keeps a visitor at the page's very end at
 /// the end when that room changes, and takes both off from `lg` and when the page goes. jsdom
@@ -23,14 +24,16 @@ const room = () => parseFloat(html.style.paddingBottom) || 0;
 const styles = () => [html.style.paddingBottom, html.style.scrollPaddingBottom];
 
 /// The bar is measured in the layout effect, which `render` runs before it returns, so the box
-/// is given first: the stub goes on the prototype, and only the bar has a height.
-function show() {
+/// is given first: the stub goes on the prototype, and only the bar has a height. `after` is
+/// rendered in the bar after `BarClearance`, as « Réserver » is before it.
+function show(after?: ReactNode) {
   vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (this: HTMLElement) {
     return this.dataset.testid === 'bar' ? box(BAR_H) : box(0);
   });
   const view = render(
     <div data-testid="bar">
       <BarClearance />
+      {after}
     </div>,
   );
   return { ...view, bar: view.getByTestId('bar') };
@@ -173,6 +176,43 @@ describe('BarClearance: the room the fixed booking bar is owed', () => {
     expect(scrolls).toEqual([3432 + 65]);
   });
 
+  // The tolerance is one pixel, not « near the end »: a visitor reading just above the footer's
+  // foot stays where they are when the room changes (found by the build's review: widening the
+  // tolerance to 70 px went unseen).
+  it('U-B4: 2 px above the very end is not the end: the bar grows and the visitor stays', () => {
+    show();
+    Y = html.scrollHeight - 568 - 2; // 3,495
+    BAR_H = 137;
+    resized();
+    expect(styles()).toEqual(['137px', '145px']);
+    expect(scrolls).toEqual([]);
+    expect(Y).toBe(3495);
+  });
+
+  // iOS Safari fires `resize` when its toolbar shows or hides, at the page's end too; a resize
+  // that leaves the bar's height alone changes no room, so it must not scroll a visitor who is
+  // there (the build's review: it did, on every resize).
+  it('U-B6: at the very end, a resize or an observer call that leaves the bar’s height alone scrolls no one', () => {
+    show();
+    Y = html.scrollHeight - 568; // 3,497
+    windowResized();
+    resized();
+    vi.stubGlobal('innerHeight', 618); // the toolbar hidden: a taller screen
+    windowResized();
+    expect(scrolls).toEqual([]);
+    expect(styles()).toEqual(['65px', '73px']);
+  });
+
+  it('U-B6: after such a resize, a change of the bar’s height is still measured, and still keeps the end', () => {
+    show();
+    windowResized();
+    Y = html.scrollHeight - 568; // 3,497
+    BAR_H = 113;
+    resized();
+    expect(styles()).toEqual(['113px', '121px']);
+    expect(scrolls).toEqual([3497 + 48]);
+  });
+
   it('U-B4: mid-page, the visitor is never scrolled', () => {
     Y = 1200;
     show();
@@ -204,6 +244,22 @@ describe('BarClearance: the room the fixed booking bar is owed', () => {
     BAR_H = 113;
     windowResized();
     expect(styles()).toEqual(['113px', '121px']);
+  });
+
+  // In the commit's layout phase, before the browser paints: a layout effect that runs after
+  // `BarClearance`'s already sees the room. Written in a passive effect (`useEffect`), the room
+  // would come after every layout effect, and after a paint (the build's review: that went
+  // unseen).
+  it('U-B7: the room is written in the layout phase, before a paint: a later layout effect sees it', () => {
+    let seen: string[] = [];
+    function After() {
+      useLayoutEffect(() => {
+        seen = styles();
+      }, []);
+      return null;
+    }
+    show(<After />);
+    expect(seen).toEqual(['65px', '73px']);
   });
 
   it('renders nothing a reader or the keyboard can reach: one hidden, empty span', () => {

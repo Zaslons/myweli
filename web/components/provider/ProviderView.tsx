@@ -261,11 +261,16 @@ export function ProviderView({
           in the footer, stops 8px above it (WCAG 2.4.11), at every text size. Taken off from
           `lg` and when the page goes; the five store-linked pages never mount it. Not printed:
           fixed, it would stand at the foot of every printed page.
+          As wide as the screen and never wider (`w-screen max-w-full`): a fixed box spans the
+          layout viewport, and with doubled text on Android a row wider than the screen (the
+          install banner's, 418px at 320) makes Chrome widen that viewport past the screen, so
+          `inset-x-0` alone put « Réserver » off its right edge. `100vw` is the screen's width
+          there; `max-w-full` keeps a window's classic scrollbar out of it.
           `data-floating-control` is how the favourite's toast finds it and moves clear of it
           (Toast.tsx, B11.5). */}
       <div
         data-floating-control=""
-        className="fixed inset-x-0 bottom-0 z-sticky flex items-center justify-between gap-m border-t border-divider bg-secondary px-m py-s print:hidden lg:hidden"
+        className="fixed inset-x-0 bottom-0 z-sticky flex w-screen max-w-full items-center justify-between gap-m border-t border-divider bg-secondary px-m py-s print:hidden lg:hidden"
       >
         {min != null ? (
           <div className="text-bodyMedium">

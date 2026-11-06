@@ -140,8 +140,9 @@ export function Toast({
   /// the bar: 80px at normal text, the same place as « Carte »'s, 15px clear of the bar; 160px
   /// at a 32px root, 47px clear. The px home left the pill over the bar there, and at 320 and
   /// 360 « Annuler » took a corner of « Réserver », so a press there undid the favourite. From
-  /// this home the pill is measured and moved as above, where the bar still comes near it: at
-  /// the page's end, where the bar stops above the footer, or with text enlarged otherwise.
+  /// this home the pill is measured and moved as above, where the bar still comes near it: with
+  /// text enlarged. Since decision 103 the bar is fixed and never stops above the footer, so at
+  /// the page's end the pill wears its resting move (web-swiss-salon.md §3.4).
   aboveBookingBar?: boolean;
 }) {
   const region = useRef<HTMLDivElement>(null);
