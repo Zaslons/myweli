@@ -145,4 +145,44 @@ the hyphen, since CI can't produce it.
 
 ## 7. What was measured
 
-*Filled in by the build; see the PR.*
+**The guard, each run on a fresh build of committed code** (stacked on #742):
+
+| Run | Result |
+|---|---|
+| The fix | 4 passed |
+| Main's `BookingFlow` | red in all four: Android viewport `[344, 611]` at the first step; « FCFA » printed twice in the other three |
+| Step header without `flex-wrap` | red: Android viewport grows at the first step |
+| Recap row without `flex-wrap` | red: Android viewport grows at the confirm step |
+| A header value that always drops (`basis-full`) | red at 320 and 375: « Choisir » left the line of « Prestations » |
+| The double-unit total | red in all four: « a total prints « FCFA » twice » |
+| « Confirmation » back | red: Android `<h2> "Confirmation" 260>238` spills its box; with the browser font, the « Confirmer » heading is not found |
+
+The first green run failed on the guard itself: the step-title check matched
+the recap's « Prestations » (a 14 px `dt`) by name. Rows now carry their kind.
+
+**A measurement trap, found while prototyping.** Chromium implements
+`text-size-adjust` through its text autosizer, which recomputes when the DOM
+changes. An element screenshot, or a text node edited in place, silently put
+the funnel back at normal size. The guard therefore checks the size at every
+step, including a confirm-step check on the recap's 14 px labels (28 in the
+Android mode). The plan's pictures are viewport screenshots, each checked
+at 32 px.
+
+**Two mutation runs timed out once** with « Timed out waiting 180000ms from
+config.webServer »: a macOS background burst (Contacts, Reminders, Siri)
+pushed the load average to 72. Rerun when it fell below 12, both went red.
+
+**Beyond the guard:**
+
+- **The funnel, walked step by step** at 320, 360 and 390 in both modes: the
+  viewport keeps the screen's size and nothing runs past the edge.
+- **The five store-linked pages:** the built CSS files are byte-identical to
+  main's. Every element's computed style and box is identical at 375, 820 and
+  1280 (1,698 elements).
+- **Suites** (this stacked PR gets no CI until #742 merges):
+  - the full e2e suite on the default ports: 429 passed;
+  - unit: 195 files, 2,550 tests;
+  - lint and typecheck clean.
+
+**Not verified:** real phones. Every figure here is from Chromium's mobile
+emulation.

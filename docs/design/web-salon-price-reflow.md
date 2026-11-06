@@ -149,8 +149,9 @@ Also checked:
 - **Seven more pages widen under Android-style doubled text** at 320 (the font
   200 % mode passes on all of them): `/` and `/recherche` 352 (the card's
   « Note ★ 4,8 » is `whitespace-nowrap`, and #737 rewrites that card),
-  `/beaute-divine/reserver` 344, the 404 336. Three are store-linked and
-  frozen while Apple reviews the Pro app: `/support` 352,
+  `/beaute-divine/reserver` 344 (fixed since, [web-funnel-doubled-text.md](web-funnel-doubled-text.md)),
+  the 404 336 (frozen too: its markup ships in every store-linked page). Three are
+  store-linked and frozen while Apple reviews the Pro app: `/support` 352,
   `/politique-confidentialite` 375, `/mentions-legales` 343
   (« support@myweli.com »). Register row 38.
 - At doubled text the booking bar takes 137 px of a 568 px screen
