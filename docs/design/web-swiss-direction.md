@@ -306,7 +306,7 @@ Same list and map, same filters, same mobile toggle. The map is untouched. Cards
 
 ### 7.6 Salon page
 
-- Phone: unchanged order, and the sticky booking bar stays. **Corrected 2026-11-06:** the cover is 3:2 here too, full width, and the bar is `sticky` and stops above the footer, as « Carte » does: with the 48px « Réserver » a fixed bar stood on the footer's last link ([web-swiss-salon.md](web-swiss-salon.md) §1.2, §1.4; BACKLOG 97).
+- Phone: unchanged order, and the sticky booking bar stays. **Corrected 2026-11-06:** the cover is 3:2 here too, full width, and the bar is `sticky` and stops above the footer, as « Carte » does: with the 48px « Réserver » a fixed bar stood on the footer's last link ([web-swiss-salon.md](web-swiss-salon.md) §1.2, §1.4; BACKLOG 97). **Changed again on 2026-11-06 (decision 103):** sticky, it left the screen at the page's very end, so it is fixed again, and the page gives `<html>` a room under the footer as tall as the measured bar, which keeps the footer's last link clear ([web-swiss-salon.md](web-swiss-salon.md) §3).
 - From `lg`: cover in columns 1–8 at 3:2. Columns 9–12: name, rating, `BookingPanel`, sticky. **Corrected 2026-11-06:** « sticky » means the panel alone, at `top-l`. The name and the rating scroll away, because a sticky column holding them could pass a 768-tall screen and hide its own foot ([web-swiss-salon.md](web-swiss-salon.md) §1.4).
 - **Added 2026-11-06:** from 640 to 1023 px wide the page is the phone's single column, the cover full width at 3:2, 427 to 682 tall. A 3.2:1 band would come back at 1023 otherwise ([web-swiss-salon.md](web-swiss-salon.md) §1.3).
 - Sections below get a structural rule and a larger `<h2>`.
