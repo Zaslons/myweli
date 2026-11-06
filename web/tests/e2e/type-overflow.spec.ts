@@ -3,6 +3,7 @@ import { expect, test, type Page } from '@playwright/test';
 import { signInConsumer, signInPro } from './_auth';
 import { asUnaskedBrowser } from './_push';
 import { serveStubImages } from './_pixel';
+import { priceRange } from '../../lib/format';
 
 /// B2b — the type scale must not overflow anything (WEB-SYSTEM §3).
 ///
@@ -970,6 +971,446 @@ test.describe('the « Semaine » tab at desktop widths (web-pro-week-view)', () 
       await expect(page.getByRole('button', { name: /— Sans artiste, Lun \d+ à 15:30$/ })).toBeVisible();
       expect(await horizontalOverflow(page), `the page scrolls sideways at ${width}`).toEqual([]);
       expect(await overflowingText(page), `text spills out of its own box at ${width}`).toEqual([]);
+    });
+  }
+});
+
+/// The salon page at doubled text (docs/design/web-salon-price-reflow.md).
+///
+/// Everything above renders text at its normal size, and that is how the salon
+/// page shipped 441px wide at 200 % text on a 320 phone: the price was
+/// `whitespace-nowrap`, and « 15 000 – 25 000 FCFA » at 32px could not fit
+/// beside « Tresses ». A phone doubles text in two ways, and they fail
+/// differently, so both run:
+///
+/// - **Android-style** (a touch phone, `text-size-adjust: 200%`): the browser
+///   grows the LAYOUT viewport to hold the overflow — 441×783 on a 320×568
+///   screen — so the fixed « Réserver » bar and the favourites toast are placed
+///   off screen. `horizontalOverflow` measures against that grown viewport and
+///   reads clean; the viewport's own size is the assertion that sees it.
+/// - **The browser font at 200 %** (a 32px root): the viewport stays 320 and the
+///   document scrolls sideways — `horizontalOverflow`'s case.
+const DOUBLED_TEXT = [
+  {
+    name: 'Android-style doubled text',
+    use: { isMobile: true, hasTouch: true, deviceScaleFactor: 2 },
+    // `!important` because preflight pins `-webkit-text-size-adjust: 100%` on
+    // `html`; this stands in for the phone's setting, which outranks the page.
+    css: 'html { -webkit-text-size-adjust: 200% !important; text-size-adjust: 200% !important; }',
+  },
+  {
+    name: 'the browser font at 200 %',
+    use: {},
+    // The preference sets the root size; nothing on the site sets its own.
+    css: 'html { font-size: 32px; }',
+  },
+] as const;
+
+/// The smallest phone screen 1.4.10 names, at a real phone's height.
+const PHONE_320 = { width: 320, height: 568 };
+
+/// « Services & tarifs », measured row by row: the service name's box, the
+/// price's box, the row's, the price's computed font size, its line count, and
+/// every token of the price that spans more than one line box.
+///
+/// **A token is what may not break** (amounts-that-fit.md §2): a number with
+/// its grouping spaces, a word, the dash. The plain spaces between them are the
+/// only legal breaks, so a token is a run between U+0020 — NOT `\s`, which in
+/// JavaScript also matches the U+202F that groups « 250 000 », the same trap
+/// that blinded mobile's `expectNoMidWordBreak`. Found in the price's text
+/// nodes, so this holds whatever the price's markup becomes.
+async function priceRows(page: Page) {
+  return page
+    .locator('section', { has: page.getByRole('heading', { name: 'Services & tarifs' }) })
+    .locator('li')
+    .evaluateAll((items) =>
+      items.map((li) => {
+        const name = li.querySelector<HTMLElement>(':scope > div > p')!;
+        const price = li.querySelector<HTMLElement>(':scope > p')!;
+        const box = (el: Element) => {
+          const r = el.getBoundingClientRect();
+          return { left: r.left, top: r.top, right: r.right, bottom: r.bottom };
+        };
+        const whole = document.createRange();
+        whole.selectNodeContents(price);
+        const lines = new Set(Array.from(whole.getClientRects(), (r) => Math.round(r.top))).size;
+        const broken: string[] = [];
+        const walker = document.createTreeWalker(price, NodeFilter.SHOW_TEXT);
+        for (let text = walker.nextNode(); text; text = walker.nextNode()) {
+          for (const m of (text.nodeValue ?? '').matchAll(/[^ ]+/g)) {
+            const range = document.createRange();
+            range.setStart(text, m.index!);
+            range.setEnd(text, m.index! + m[0].length);
+            const lines = new Set(Array.from(range.getClientRects(), (r) => Math.round(r.top)));
+            if (lines.size > 1) broken.push(m[0]);
+          }
+        }
+        return {
+          name: name.textContent ?? '',
+          price: price.textContent ?? '',
+          fontSize: parseFloat(getComputedStyle(price).fontSize),
+          nameBox: box(name),
+          priceBox: box(price),
+          row: box(li),
+          lines,
+          broken,
+        };
+      }),
+    );
+}
+
+/// **The stub's prices are too short to test the rule.** At 32px « 15 000 –
+/// 25 000 » still fits one 288px line, so no number is ever asked to break, and
+/// a price put back to `whitespace-nowrap` ends at x 317 — inside a 320 screen,
+/// past its row, and invisible to every check. Both mutations passed this guard
+/// until it measured a price that must wrap — and `break-all` passed even then,
+/// cutting « F / CFA » rather than a number, until the check took words as
+/// tokens too (see `priceRows`). So the second service is given the
+/// longest range a salon here plausibly charges, written by the page's own
+/// formatter; in the page rather than in the stub, whose prices other specs
+/// count on.
+const LONGEST_PRICE = priceRange(150000, 250000);
+
+async function withLongestPrice(page: Page) {
+  const shown = await page
+    .locator('section', { has: page.getByRole('heading', { name: 'Services & tarifs' }) })
+    .locator('li')
+    .nth(1)
+    .evaluate((li, text) => {
+      const price = li.querySelector(':scope > p')!;
+      price.textContent = text;
+      return price.textContent;
+    }, LONGEST_PRICE);
+  expect(shown, 'the second service\'s price was not replaced').toBe(LONGEST_PRICE);
+}
+
+test.describe('the salon page at doubled text (web-salon-price-reflow)', () => {
+  for (const mode of DOUBLED_TEXT) {
+    test.describe(mode.name, () => {
+      test.use({ viewport: PHONE_320, ...mode.use });
+
+      test(`${mode.name} — the page keeps the screen's size at 320×568`, async ({ page }) => {
+        await page.addInitScript((css) => {
+          const add = () => {
+            const style = document.createElement('style');
+            style.textContent = css;
+            document.head.appendChild(style);
+          };
+          if (document.head) add();
+          else document.addEventListener('DOMContentLoaded', add);
+        }, mode.css);
+        await serveStubImages(page);
+        await page.goto('/beaute-divine');
+        await expect(
+          page.getByRole('heading', { name: 'Beauté Divine' }).first(),
+          '/beaute-divine did not render its own page (wrong DOM — vacuous scan)',
+        ).toBeVisible();
+        await withLongestPrice(page);
+
+        const rows = await priceRows(page);
+        expect(rows.length, 'fewer than two service rows — nothing below would be measured').toBeGreaterThanOrEqual(2);
+        // The vacuity guard for the mode itself: a Chromium that ignored the
+        // emulation would pass every check below at 16px.
+        for (const row of rows) {
+          expect(row.fontSize, `« ${row.price} » is not doubled — the mode did not apply`).toBe(32);
+        }
+
+        expect(
+          await page.evaluate(() => [window.innerWidth, window.innerHeight]),
+          'the layout viewport grew past the screen — fixed bars and toasts are placed off it',
+        ).toEqual([PHONE_320.width, PHONE_320.height]);
+        expect(await horizontalOverflow(page), 'the page scrolls sideways').toEqual([]);
+        for (const row of rows) {
+          expect(
+            row.priceBox.right,
+            `« ${row.price} » runs past its row's right edge`,
+          ).toBeLessThanOrEqual(row.row.right + HAIR);
+          expect(row.priceBox.left, `« ${row.price} » starts before its row`).toBeGreaterThanOrEqual(
+            row.row.left - HAIR,
+          );
+        }
+        expect(
+          rows[1].lines,
+          `« ${LONGEST_PRICE} » fits one line — the whole-token check below measures nothing`,
+        ).toBeGreaterThan(1);
+        for (const row of rows) {
+          expect(
+            row.broken,
+            `« ${row.price} » breaks inside a token — a number or a word may not break (amounts-that-fit.md §2)`,
+          ).toEqual([]);
+        }
+        expect(await overflowingText(page), 'text spills out of its own box').toEqual([]);
+        expect(await overflowingFlexRows(page), 'a nowrap flex row does not fit its own container').toEqual([]);
+        expect(await verticalClipping(page), 'text is cut off the bottom of its own box').toEqual([]);
+        expect(await truncationLosses(page), 'text is being truncated away').toEqual([]);
+      });
+    });
+  }
+
+  /// The other half of the decision: at normal text the price never moves. It
+  /// leaves its service's line only when the two cannot share one, which at
+  /// 16px on the stub's services never happens — so a layout that always drops
+  /// the price, or pulls it off the right edge, goes red here.
+  for (const viewport of [PHONE_320, { width: 375, height: 812 }]) {
+    test.describe(`normal text at ${viewport.width}`, () => {
+      test.use({ viewport });
+
+      test(`normal text — each price stays beside its service at ${viewport.width}`, async ({ page }) => {
+        await serveStubImages(page);
+        await page.goto('/beaute-divine');
+        await expect(page.getByRole('heading', { name: 'Beauté Divine' }).first()).toBeVisible();
+        await withLongestPrice(page);
+
+        const rows = await priceRows(page);
+        expect(rows.length, 'fewer than two service rows — nothing below would be measured').toBeGreaterThanOrEqual(2);
+        for (const row of rows) {
+          expect(row.fontSize, `« ${row.price} » is not at its normal size`).toBe(16);
+          expect(
+            row.priceBox.top,
+            `« ${row.price} » left the line of « ${row.name} » at normal text`,
+          ).toBeLessThan(row.nameBox.bottom);
+          expect(
+            Math.abs(row.priceBox.right - row.row.right),
+            `« ${row.price} » is off the right edge of its row`,
+          ).toBeLessThanOrEqual(HAIR);
+        }
+      });
+    });
+  }
+});
+
+/// The booking funnel at doubled text (docs/design/web-funnel-doubled-text.md).
+///
+/// The same failure as the salon page, in two rows the funnel repeats: a step
+/// header (`SectionCard` — « Spécialiste » beside « Pas de préférence ») and a
+/// recap row (`Recap` — a `dt` beside its `dd`). At 2× neither side has a word
+/// short enough to give, so the row ran off its card and, at 320, the page grew
+/// to 344×611 — taking the fixed « Confirmer » bar off the screen. And
+/// « Confirmation » was one word wider than its card. The rule is the salon
+/// page's: a value that cannot sit beside its label moves under it, on the
+/// right edge.
+
+/// Every label/value row the funnel draws: the step headers (a button that
+/// opens its step, the title and the current choice) and the recap rows. For
+/// each: both boxes, the row's, and every token of either side that spans two
+/// line boxes — a token is a run between plain spaces (see `priceRows`), so a
+/// date, a time, a price or a salon's name broken mid-word reads here.
+async function funnelRows(page: Page) {
+  return page.evaluate(() => {
+    const rows = [
+      ...Array.from(document.querySelectorAll<HTMLElement>('section > button[aria-expanded]')),
+      ...Array.from(document.querySelectorAll<HTMLElement>('dl > div')),
+    ].filter((row) => row.children.length === 2);
+    const box = (el: Element) => {
+      const r = el.getBoundingClientRect();
+      return { left: r.left, top: r.top, right: r.right, bottom: r.bottom };
+    };
+    const brokenTokens = (el: Element) => {
+      const broken: string[] = [];
+      const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+      for (let text = walker.nextNode(); text; text = walker.nextNode()) {
+        for (const m of (text.nodeValue ?? '').matchAll(/[^ ]+/g)) {
+          const range = document.createRange();
+          range.setStart(text, m.index!);
+          range.setEnd(text, m.index! + m[0].length);
+          if (new Set(Array.from(range.getClientRects(), (r) => Math.round(r.top))).size > 1) {
+            broken.push(m[0]);
+          }
+        }
+      }
+      return broken;
+    };
+    return rows.map((row) => {
+      const [label, value] = Array.from(row.children);
+      return {
+        kind: row.tagName === 'BUTTON' ? ('step' as const) : ('recap' as const),
+        label: label.textContent?.trim() ?? '',
+        value: value.textContent?.trim() ?? '',
+        labelFont: parseFloat(getComputedStyle(label).fontSize),
+        labelBox: box(label),
+        valueBox: box(value),
+        row: box(row),
+        broken: [...brokenTokens(label), ...brokenTokens(value)],
+      };
+    });
+  });
+}
+
+/// The funnel, walked as `booking.spec.ts` walks it — a service, « Pas de
+/// préférence », the first slot, « Confirmer », the code — calling `at` with
+/// every step's rows in view.
+///
+/// **Clicks go through the DOM, and that is a recorded cost, not a shortcut.**
+/// At doubled text the fixed bar covers 34–57 % of the screen
+/// (web-funnel-doubled-text.md §6), so a pointer click on a control the page
+/// scrolled to lands on the bar. The bar's shape is the open follow-up; this
+/// file measures layout, and a pointer that cannot reach is not a layout fact.
+async function walkFunnel(page: Page, at: (step: string) => Promise<void>) {
+  const tap = (locator: ReturnType<Page['getByRole']>) =>
+    locator.evaluate((el) => (el as HTMLElement).click());
+  await page.goto('/beaute-divine/reserver');
+  await expect(page.getByRole('heading', { level: 1, name: /Réserver chez Beauté Divine/ })).toBeVisible();
+  await at('the steps, nothing chosen');
+  await tap(page.getByRole('checkbox').first());
+  await tap(page.getByRole('radio', { name: /Pas de préférence/ }));
+  await tap(page.getByRole('button', { name: /^\d{2}:\d{2}$/ }).first());
+  await expect(page.getByRole('button', { name: /^Date et heure/ })).toContainText(':');
+  await at('the steps, a service, a specialist and a time chosen');
+  await tap(page.getByRole('button', { name: 'Confirmer', exact: true }).last());
+  await page.getByLabel('Votre e-mail').fill('awa@example.com');
+  await tap(page.getByRole('button', { name: 'Continuer avec e-mail' }));
+  await page.getByLabel('Code à 6 chiffres').fill('123456');
+  await tap(page.getByRole('button', { name: 'Se connecter' }));
+  await expect(page.getByRole('button', { name: 'Confirmer la réservation' })).toBeVisible();
+  await at('the confirm step');
+}
+
+/// The double-unit total « 15 000 FCFA – 25 000 FCFA » that the bar, the side
+/// panel and the recap printed (amounts-that-fit.md §2: a range prints its unit
+/// once). Nothing else pins it.
+const DOUBLE_UNIT = /FCFA\s–/;
+
+/// The share of the screen the pinned bar may take (web-funnel-bar-fit.md §2):
+/// above it, the bar sheds its total and keeps « Confirmer ».
+const BAR_LIMIT = 0.25;
+
+/// The funnel's pinned bar, measured (web-funnel-bar-fit.md).
+///
+/// Found from what it does rather than how it is styled: the visible
+/// « Confirmer », then its first `sticky` or `fixed` ancestor. Reports the bar's
+/// share of the screen, whether a total is shown visibly in the bar or in the
+/// summary panel, and — after scrolling to the end of the page, then back —
+/// how many px of the footer's last link and of the last step card sit under
+/// it. The scroll is restored, so the walk continues where it was.
+async function pinnedBar(page: Page) {
+  return page.evaluate(() => {
+    const confirm = Array.from(document.querySelectorAll('button')).find(
+      (b) => b.textContent?.trim() === 'Confirmer' && b.checkVisibility(),
+    );
+    let bar: HTMLElement | null = confirm ?? null;
+    while (bar && !['sticky', 'fixed'].includes(getComputedStyle(bar).position)) bar = bar.parentElement;
+    if (!bar) return null;
+    const isTotal = (el: Element) => /^\d[\d\s]*( – \d[\d\s]*)? FCFA$/.test(el.textContent?.trim() ?? '');
+    const shown = (el: Element) => el.checkVisibility() && el.getBoundingClientRect().height > 0;
+    const inBar = Array.from(bar.querySelectorAll('*')).some((el) => isTotal(el) && shown(el));
+    const summary = bar.parentElement?.querySelector('aside');
+    const inSummary = !!summary && Array.from(summary.querySelectorAll('*')).some((el) => isTotal(el) && shown(el));
+    const share = bar.getBoundingClientRect().height / window.innerHeight;
+
+    const y = window.scrollY;
+    window.scrollTo(0, document.documentElement.scrollHeight);
+    const b = bar.getBoundingClientRect();
+    const under = (el: Element | null | undefined) => {
+      if (!el) return null;
+      const r = el.getBoundingClientRect();
+      return Math.max(0, Math.min(r.bottom, b.bottom) - Math.max(r.top, b.top));
+    };
+    const links = document.querySelectorAll('footer a');
+    const cards = Array.from(document.querySelectorAll('section')).filter((s) => s.querySelector(':scope > button[aria-expanded]'));
+    const ends = { footerLink: under(links[links.length - 1]), lastCard: under(cards[cards.length - 1]) };
+    window.scrollTo(0, y);
+    return { share, inBar, inSummary, ...ends };
+  });
+}
+
+/// The bar's checks, at every step that has one (the confirm step does not).
+async function expectBarFits(page: Page, step: string, normalText: boolean) {
+  const bar = await pinnedBar(page);
+  expect(bar, `${step}: no pinned bar holds the visible « Confirmer »`).not.toBeNull();
+  expect(bar!.share, `${step}: the bar takes ${Math.round(bar!.share * 100)} % of the screen`).toBeLessThanOrEqual(BAR_LIMIT);
+  expect(bar!.inBar || bar!.inSummary, `${step}: no total is shown, in the bar or in the summary`).toBe(true);
+  expect(bar!.footerLink, `${step}: at the page's end the footer's last link is under the bar`).toBe(0);
+  expect(bar!.lastCard, `${step}: at the page's end the last step is under the bar`).toBe(0);
+  if (normalText) expect(bar!.inBar, `${step}: at normal text the bar carries the total`).toBe(true);
+}
+
+test.describe('the booking funnel at doubled text (web-funnel-doubled-text)', () => {
+  for (const mode of DOUBLED_TEXT) {
+    test.describe(mode.name, () => {
+      test.use({ viewport: PHONE_320, ...mode.use });
+
+      test(`${mode.name} — every step keeps the screen's size at 320×568`, async ({ page }) => {
+        await page.addInitScript((css) => {
+          const add = () => {
+            const style = document.createElement('style');
+            style.textContent = css;
+            document.head.appendChild(style);
+          };
+          if (document.head) add();
+          else document.addEventListener('DOMContentLoaded', add);
+        }, mode.css);
+        await serveStubImages(page);
+
+        await walkFunnel(page, async (step) => {
+          const rows = await funnelRows(page);
+          expect(rows.length, `${step}: no label/value rows — nothing would be measured`).toBeGreaterThanOrEqual(3);
+          const headers = rows.filter((row) => row.kind === 'step');
+          for (const row of headers) {
+            expect(row.labelFont, `${step}: « ${row.label} » is not doubled — the mode did not apply`).toBe(32);
+          }
+          // The confirm step has no step titles, and it is where Chromium's
+          // text autosizer — which implements `text-size-adjust` — was seen to
+          // drop the doubling after the DOM changed. Its recap labels are the
+          // 14px `bodyMedium`: doubled by the Android mode, untouched by a
+          // larger root, whose px tokens do not follow it.
+          const salon = rows.find((row) => row.kind === 'recap' && row.label === 'Salon');
+          if (salon) {
+            expect(salon.labelFont, `${step}: the recap is not at this mode's size`).toBe(
+              'isMobile' in mode.use ? 28 : 14,
+            );
+          }
+          expect(headers.length + (salon ? 1 : 0), `${step}: nothing proves the mode applied here`).toBeGreaterThan(0);
+          expect(
+            await page.evaluate(() => [window.innerWidth, window.innerHeight]),
+            `${step}: the layout viewport grew past the screen — the bar is placed off it`,
+          ).toEqual([PHONE_320.width, PHONE_320.height]);
+          expect(await horizontalOverflow(page), `${step}: the page scrolls sideways`).toEqual([]);
+          for (const row of rows) {
+            for (const [side, b] of [['label', row.labelBox], ['value', row.valueBox]] as const) {
+              expect(b.right, `${step}: « ${row.label} »'s ${side} runs past its row`).toBeLessThanOrEqual(row.row.right + HAIR);
+              expect(b.left, `${step}: « ${row.label} »'s ${side} starts before its row`).toBeGreaterThanOrEqual(row.row.left - HAIR);
+            }
+            expect(row.broken, `${step}: « ${row.label} · ${row.value} » breaks inside a word`).toEqual([]);
+          }
+          expect(await overflowingText(page), `${step}: text spills out of its own box`).toEqual([]);
+          expect(await overflowingFlexRows(page), `${step}: a nowrap flex row does not fit its own container`).toEqual([]);
+          expect(await verticalClipping(page), `${step}: text is cut off the bottom of its own box`).toEqual([]);
+          expect(await truncationLosses(page), `${step}: text is being truncated away`).toEqual([]);
+          expect(
+            await page.getByText(DOUBLE_UNIT).count(),
+            `${step}: a total prints « FCFA » twice`,
+          ).toBe(0);
+          if (step !== 'the confirm step') await expectBarFits(page, step, false);
+        });
+        await expect(page.getByRole('heading', { level: 2, name: 'Confirmer' })).toBeVisible();
+      });
+    });
+  }
+
+  /// The other half: at normal text no value moves. Each sits on its label's
+  /// line, at the row's right edge — the date card at 320 included, whose value
+  /// wraps beside its title rather than under it.
+  for (const viewport of [PHONE_320, { width: 375, height: 812 }]) {
+    test.describe(`normal text at ${viewport.width}`, () => {
+      test.use({ viewport });
+
+      test(`normal text — every value stays beside its label at ${viewport.width}`, async ({ page }) => {
+        await serveStubImages(page);
+        await walkFunnel(page, async (step) => {
+          const rows = await funnelRows(page);
+          expect(rows.length, `${step}: no label/value rows — nothing would be measured`).toBeGreaterThanOrEqual(3);
+          for (const row of rows) {
+            expect(row.valueBox.top, `${step}: « ${row.value} » left the line of « ${row.label} »`).toBeLessThan(row.labelBox.bottom);
+            expect(
+              Math.abs(row.valueBox.right - row.row.right),
+              `${step}: « ${row.value} » is off the right edge of its row`,
+            ).toBeLessThanOrEqual(HAIR);
+          }
+          expect(await page.getByText(DOUBLE_UNIT).count(), `${step}: a total prints « FCFA » twice`).toBe(0);
+          if (step !== 'the confirm step') await expectBarFits(page, step, true);
+        });
+        await expect(page.getByText(priceRange(15000, 25000), { exact: true }).first()).toBeAttached();
+      });
     });
   }
 });

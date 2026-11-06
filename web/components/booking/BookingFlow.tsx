@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { chipLinkClasses } from "../Chip";
 import { ErrorState } from "../ErrorState";
 import { Loading } from "../Loading";
@@ -82,12 +82,20 @@ const slotTime = (iso: string, tz?: string) =>
     new Date(iso),
   );
 
+/// `useLayoutEffect` measures before the browser paints; the server has no
+/// layout to measure, and React warns about the hook there.
+const useIsoLayoutEffect =
+  typeof window === "undefined" ? useEffect : useLayoutEffect;
+
+/// The share of the screen the pinned bar may take before it sheds its total
+/// and keeps « Confirmer » alone (web-funnel-bar-fit.md §2).
+const BAR_SHARE = 0.25;
+
+/// « 15 000 – 25 000 FCFA »: a range prints its unit once (amounts-that-fit.md
+/// §2), like every other price on the site.
 function totalLabel(p: Provider, ids: string[]): string {
   const t = priceTotal(p, ids);
-  const cur = p.currency ?? undefined;
-  return t.max > t.min
-    ? `${formatFcfa(t.min, cur)} – ${formatFcfa(t.max, cur)}`
-    : formatFcfa(t.min, cur);
+  return priceRange(t.min, t.max, p.currency ?? undefined);
 }
 
 /// The booking HUB (K2 — docs/design/booking-capacity-web-hub.md §4): the
@@ -313,6 +321,40 @@ export function BookingFlow({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // The pinned bar's shape (web-funnel-bar-fit.md): the full bar while it takes
+  // at most BAR_SHARE of the screen, else « Confirmer » alone with the total in
+  // the summary panel. Measured on the FULL bar, before paint, once per screen
+  // size × total × duration × fonts: the key is what keeps a compact bar from
+  // ever being measured against itself.
+  const barRef = useRef<HTMLDivElement>(null);
+  const [screen, setScreen] = useState("");
+  const [fontsReady, setFontsReady] = useState(false);
+  useEffect(() => {
+    const read = () => setScreen(`${window.innerWidth}×${window.innerHeight}`);
+    read();
+    window.addEventListener("resize", read);
+    let live = true;
+    void document.fonts?.ready.then(() => {
+      if (live) setFontsReady(true);
+    });
+    return () => {
+      live = false;
+      window.removeEventListener("resize", read);
+    };
+  }, []);
+  const barKey = `${screen}|${totalLabel(provider, s.serviceIds)}|${duration}|${fontsReady}`;
+  const [barFit, setBarFit] = useState({ key: "", compact: false });
+  const barCompact = barFit.key === barKey && barFit.compact;
+  useIsoLayoutEffect(() => {
+    if (barFit.key === barKey || !barRef.current) return;
+    setBarFit({
+      key: barKey,
+      compact:
+        barRef.current.getBoundingClientRect().height >
+        BAR_SHARE * window.innerHeight,
+    });
+  });
+
   async function onToggleService(id: string) {
     selectionReq.current += 1;
     const next = toggleService(s, provider, id);
@@ -472,8 +514,10 @@ export function BookingFlow({
   if (s.phase === "confirm") {
     return (
       <section className="rounded-xl border border-border bg-secondary p-l">
+        {/* The app's title for this step; « Confirmation » is one word wider
+            than this card at 200 % text (web-funnel-doubled-text.md). */}
         <h2 className="text-titleLarge font-semibold text-textPrimary">
-          Confirmation
+          Confirmer
         </h2>
         <dl className="mt-m space-y-xs text-bodyMedium">
           <Recap label="Salon" value={provider.name} />
@@ -607,13 +651,11 @@ export function BookingFlow({
       // one `20rem`, is the drift the token exists to prevent — and the px half
       // stopped tracking the root font size while the content beside it did.
       //
-      // ds-ignore: clears the pinned bottom bar. 6rem, NOT 96px — `pb-24` was
-      // 6rem, and the bar it clears is TEXT-driven, so a px clearance stops
-      // tracking the root font size: raise it and the bar grows while the gap
-      // does not, and the bar covers the content (SYSTEM.md §13.3 — A5's
-      // lesson, on the web). 96 is off the rhythm scale, hence the exception.
-      // eslint-disable-next-line tailwindcss/no-arbitrary-value
-      className="pb-[6rem] lg:grid lg:grid-cols-desk lg:items-start lg:gap-l lg:pb-0"
+      // And the first one is gone too: the `pb-[6rem]` that cleared the pinned
+      // bar. The bar is sticky now and takes its own room in the flow, so no
+      // clearance can be guessed wrong — the doubled bar had outgrown 6rem
+      // (web-funnel-bar-fit.md).
+      className="lg:grid lg:grid-cols-desk lg:items-start lg:gap-l"
     >
       <div className="space-y-s">
         {/* PRESTATIONS */}
@@ -856,10 +898,14 @@ export function BookingFlow({
 
       {/* SUMMARY (sticky aside on desktop; the app's pinned bar on mobile —
           parity 2.11). */}
-      <aside className="hidden rounded-xl border border-border bg-secondary p-m lg:sticky lg:top-24 lg:block">
-        <div className="flex items-center justify-between gap-m">
+      {/* On a phone it shows only when the pinned bar is compact — the total
+          moves here, and « Confirmer » stays in the bar. */}
+      <aside
+        className={`${barCompact ? "mt-s block" : "hidden"} rounded-xl border border-border bg-secondary p-m lg:sticky lg:top-24 lg:mt-0 lg:block`}
+      >
+        <div className="flex flex-wrap items-center justify-between gap-x-m">
           <span className="font-semibold text-textPrimary">Total</span>
-          <span className="text-titleLarge font-semibold text-primary">
+          <span className="flex-1 text-right text-titleLarge font-semibold text-primary">
             {totalLabel(provider, s.serviceIds)}
           </span>
         </div>
@@ -873,7 +919,7 @@ export function BookingFlow({
             Spécialiste optionnel (vous pouvez laisser « Pas de préférence »)
           </p>
         ) : null}
-        <div className="mt-m">
+        <div className="mt-m hidden lg:block">
           <Button
             disabled={!canConfirm(s)}
             onClick={() => setS(goPhase(s, "confirm"))}
@@ -883,21 +929,32 @@ export function BookingFlow({
         </div>
       </aside>
 
-      {/* Mobile-web pinned bottom bar (parity 2.11 — the app's fixed
-          Total + « Confirmer »). */}
-      <div className="fixed inset-x-0 bottom-0 z-sticky border-t border-divider bg-secondary px-m py-s lg:hidden">
+      {/* Mobile-web pinned bottom bar (parity 2.11 — the app's pinned
+          Total + « Confirmer »). Sticky, not fixed, and the last thing in the
+          hub, as on the salon page: it rides the screen's foot while the page
+          scrolls and stops above the footer, which a fixed bar always covered.
+          `-mx-m` undoes `main`'s gutter so it spans a phone's width. Compact
+          when the full bar would take more than BAR_SHARE of the screen
+          (web-funnel-bar-fit.md). */}
+      <div
+        ref={barRef}
+        className="sticky bottom-0 z-sticky -mx-m border-t border-divider bg-secondary px-m py-s lg:hidden"
+      >
         <div className="mx-auto flex max-w-2xl items-center justify-between gap-m">
-          <div>
-            <p className="font-semibold text-textPrimary">
-              {totalLabel(provider, s.serviceIds)}
-            </p>
-            {duration > 0 ? (
-              <p className="text-bodySmall text-textSecondary">
-                Durée : {formatDuration(duration)}
+          {barCompact ? null : (
+            <div>
+              <p className="font-semibold text-textPrimary">
+                {totalLabel(provider, s.serviceIds)}
               </p>
-            ) : null}
-          </div>
+              {duration > 0 ? (
+                <p className="text-bodySmall text-textSecondary">
+                  Durée : {formatDuration(duration)}
+                </p>
+              ) : null}
+            </div>
+          )}
           <Button
+            className={barCompact ? "w-full" : ""}
             disabled={!canConfirm(s)}
             onClick={() => setS(goPhase(s, "confirm"))}
           >
@@ -928,14 +985,16 @@ function SectionCard({
         expanded ? "border-primary" : "border-border"
       }`}
     >
+      {/* A value that cannot sit beside its title drops under it, on the
+          right edge — the salon price rule (web-funnel-doubled-text.md). */}
       <button
         type="button"
         onClick={onHeaderTap}
         aria-expanded={expanded}
-        className="flex w-full items-center justify-between gap-m text-left"
+        className="flex w-full flex-wrap items-center justify-between gap-x-m text-left"
       >
         <span className="font-semibold text-textPrimary">{title}</span>
-        <span className="text-bodyMedium text-textSecondary">{value}</span>
+        <span className="flex-1 text-right text-bodyMedium text-textSecondary">{value}</span>
       </button>
       {expanded ? <div className="mt-m">{children}</div> : null}
     </section>
@@ -944,9 +1003,9 @@ function SectionCard({
 
 function Recap({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex justify-between gap-m">
+    <div className="flex flex-wrap justify-between gap-x-m">
       <dt className="text-textTertiary">{label}</dt>
-      <dd className="text-right text-textPrimary">{value}</dd>
+      <dd className="flex-1 text-right text-textPrimary">{value}</dd>
     </div>
   );
 }
