@@ -16,7 +16,7 @@ export function BookingCta({
         disabled
         title="Disponible après la mise en ligne"
         className={
-          'inline-flex cursor-not-allowed items-center justify-center rounded-control ' +
+          'inline-flex min-h-12 cursor-not-allowed items-center justify-center rounded-control ' +
           `bg-primary/40 px-l py-s text-labelLarge font-medium text-secondary ${className}`
         }
       >
@@ -28,7 +28,7 @@ export function BookingCta({
     <a
       href={`/${slug}/reserver`}
       className={
-        'inline-flex items-center justify-center rounded-control bg-primary px-l py-s ' +
+        'inline-flex min-h-12 items-center justify-center rounded-control bg-primary px-l py-s ' +
         `text-labelLarge font-medium text-secondary hover:bg-primaryHover ${className}`
       }
     >

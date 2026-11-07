@@ -1,6 +1,7 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
 
 import { signInConsumer } from './_auth';
+import { DOUBLED, type MessageScan, answerFavourites, hermetic, rootAt32, scanMessage } from './_message';
 import { PHOTO, PHOTO_COLOUR, paintedIn, routeNextImages } from './_pixel';
 import { zIndex } from '../../styles/tokens';
 
@@ -75,6 +76,76 @@ test.describe('one left edge (§6.2)', () => {
         }
       });
     }
+  }
+});
+
+/// The salon page's cover (docs/design/web-swiss-salon.md §1.2): 3:2 at every width. From
+/// `lg` it takes columns 1–8 of the site's container, on the header logo's left edge, and the
+/// name block stands beside it in 9–12, level with its top. Below `lg` it runs edge to edge
+/// and the name comes under it. The `<h1>` not starting on the logo's x is this page's
+/// exception to the rule above (WEB-SYSTEM §16).
+test.describe('the salon page’s cover (web-swiss-salon.md §1.2)', () => {
+  const COVER = 'main img[alt="Salon Beauté Divine"]';
+  /// Next's candidates for a photo: what a screen at density 1 asks for is the smallest at or
+  /// above the width `sizes` names (§1.9).
+  const CANDIDATES = [640, 750, 828, 1080, 1200, 1920, 2048, 3840];
+
+  for (const [width, height] of [
+    [320, 568],
+    [390, 844],
+    [820, 1180],
+    [1023, 768],
+    [1024, 768],
+    [1280, 800],
+    [1920, 1080],
+  ] as const) {
+    test(`at ${width}: 3:2, drawn at the width it is asked for, and the name where it belongs`, async ({ page }) => {
+      await size(page, width, height);
+      await routeNextImages(page);
+      await page.goto('/beaute-divine');
+      const cover = await box(page, COVER);
+      expect(Math.abs(cover.width / cover.height - 1.5), `${cover.width}×${cover.height}`).toBeLessThanOrEqual(0.01);
+      const name = await box(page, 'main header');
+      const h1 = (await page.getByRole('heading', { level: 1 }).boundingBox())!;
+
+      // The box it is drawn in, by the layout's arithmetic (§1.2), and the width the `<img>`'s
+      // own `sizes` names at this screen, read the way the browser reads it: the first media
+      // condition that matches, its length resolved on a probe. A `sizes` off the box inside
+      // one candidate's step would still fetch the same file, so the file alone cannot say.
+      const slot = width < 1024 ? width : width >= 1536 ? 984 : 0.6667 * width - 40;
+      expect(Math.abs(cover.width - slot), `drawn ${cover.width} wide, the layout gives ${slot}`).toBeLessThanOrEqual(1);
+      const named = await page.locator(COVER).evaluate((img: HTMLImageElement) => {
+        for (const part of img.sizes.split(/,(?![^(]*\))/).map((p) => p.trim())) {
+          const m = /^(\([^)]*\))\s+(.+)$/.exec(part);
+          if (m && !matchMedia(m[1]).matches) continue;
+          const probe = document.createElement('div');
+          probe.style.cssText = `position:absolute;visibility:hidden;width:${m ? m[2] : part}`;
+          document.body.append(probe);
+          const w = probe.getBoundingClientRect().width;
+          probe.remove();
+          return { part, w };
+        }
+        return null;
+      });
+      expect(named, 'no length in `sizes` applies').not.toBeNull();
+      expect(Math.abs(cover.width - named!.w), `drawn ${cover.width} wide, « ${named!.part} » names ${named!.w}`).toBeLessThanOrEqual(1);
+      const asked = await page.locator(COVER).evaluate(async (img: HTMLImageElement) => {
+        await img.decode().catch(() => undefined);
+        return Number(new URL(img.currentSrc).searchParams.get('w'));
+      });
+      expect(asked).toBe(CANDIDATES.find((w) => w >= slot));
+
+      if (width >= 1024) {
+        expect(Math.abs(cover.x - (await logoLeft(page))), 'the cover is off the logo’s edge').toBeLessThanOrEqual(1);
+        expect(h1.x, 'the name runs into the photo').toBeGreaterThanOrEqual(cover.x + cover.width + 23);
+        expect(Math.abs(name.y - cover.y), 'the name block is not level with the photo').toBeLessThanOrEqual(1);
+        // The category line above it: cover 49, `<h1>` 73 at 1280 (measured).
+        expect(Math.abs(h1.y - cover.y - 24), `the <h1> is ${h1.y - cover.y} below the photo’s top`).toBeLessThanOrEqual(1);
+      } else {
+        expect(cover.x).toBe(0);
+        expect(h1.y, 'the name is not under the photo').toBeGreaterThan(cover.y + cover.height);
+      }
+    });
   }
 });
 
@@ -786,14 +857,20 @@ test.describe('the salon card', () => {
         const rows = page.locator('main [role="presentation"]:has(h3)');
         expect(await rows.count(), 'the fixtures’ eight rows').toBe(8);
 
-        const atRest = (await toggle.boundingBox())!;
+        // Where it rides: 24px above the screen's foot (`bottom-l`). Not its box at load: as the
+        // list's last child (decision 99) it is not on a small phone's first screen, and at
+        // 320×568 its box at load stands at 572, below the screen, 76px lower than where it
+        // rides over the rows, so a row brought there met it with its lower edge only
+        // (web-swiss-salon.md §2.9).
+        const tall = (await toggle.boundingBox())!.height;
+        const riding = { y: height - 24 - tall, height: tall };
         let passedUnder = 0;
         for (let i = 0; i < 8; i++) {
           const row = rows.nth(i);
           const before = (await row.boundingBox())!;
           await page.evaluate(
             (top) => window.scrollBy({ top, behavior: 'instant' }),
-            before.y + before.height / 2 - (atRest.y + atRest.height / 2),
+            before.y + before.height / 2 - (riding.y + riding.height / 2),
           );
           const button = (await toggle.boundingBox())!;
           const rowBox = (await row.boundingBox())!;
@@ -804,7 +881,7 @@ test.describe('the salon card', () => {
           if (under) passedUnder++;
           // A row wholly above the button at the top of the page can never reach it. Any
           // other row must really have passed under it, or this proves nothing about it.
-          if (before.y + before.height > atRest.y) expect(under, `row ${i} never passed under the button`).toBe(true);
+          if (before.y + before.height > riding.y) expect(under, `row ${i} never passed under the button`).toBe(true);
           await page.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }));
         }
         expect(passedUnder, 'no row passed under the button').toBeGreaterThan(0);
@@ -859,7 +936,9 @@ test.describe('the salon card', () => {
       [640, 900],
       [768, 1024],
       [820, 1180],
-      [1023, 768],
+      // 1023 wide in a window taller than wide: a window wider than tall has the map beside
+      // the list from 768 (decision 101), which « the map beside the list » below holds.
+      [1023, 1100],
     ] as const;
     const toEnd = (page: Page) =>
       page.evaluate(() => window.scrollTo({ top: document.documentElement.scrollHeight, behavior: 'instant' }));
@@ -911,7 +990,7 @@ test.describe('the salon card', () => {
       // From far down a long list the page under the map is much shorter, so the browser held
       // it at its end: the footer alone, with the map and « Liste » above the screen. Read
       // before any press: Playwright's click scrolls its target into view by itself.
-      test(`at ${width}, pressed far down the list: the map opens whole, and « Liste » goes back to the same place`, async ({ page }) => {
+      test(`at ${width}, pressed far down the list: the map opens whole, « Liste » goes back to the same place, and the focus follows the press`, async ({ page }) => {
         await size(page, width, height);
         await page.route(/cartocdn\.com/, (r) => r.abort());
         await routeNextImages(page);
@@ -932,6 +1011,18 @@ test.describe('the salon card', () => {
         await liste.click();
         await expect(toggleOn(page)).toBeVisible();
         expect(await page.evaluate(() => window.scrollY), 'the list lost its place').toBe(from);
+
+        // With the keyboard. « Carte » and « Liste » are two buttons now, one under the list and
+        // one under the map (decision 99), so a press hands the focus to the one that appears;
+        // without that, the button pressed went and the focus with it (web-swiss-salon.md §2.4).
+        await toggleOn(page).focus();
+        await page.keyboard.press('Enter');
+        await expect(map, 'the map did not open, so this proves nothing').toBeVisible();
+        await expect(liste, 'Enter on « Carte » left the focus nowhere').toBeFocused();
+        await page.keyboard.press('Enter');
+        await expect(row, 'the list did not come back, so this proves nothing').toBeVisible();
+        await expect(toggleOn(page), 'Enter on « Liste » left the focus nowhere').toBeFocused();
+        expect(await page.evaluate(() => window.scrollY), 'the keyboard lost the list’s place').toBe(from);
       });
     }
 
@@ -965,49 +1056,401 @@ test.describe('the salon card', () => {
       await expect(toggleOn(page)).toBeVisible();
     });
 
-    // Where it has stopped, or rests under a short list, it can stand level with the toast.
-    // The toast is on top and at most half the screen wide at normal text, so it reaches the
-    // button's right padding and not its word, and a press there goes through to the button.
-    // At doubled text it does reach the word, and that is recorded in §2.4, not held here.
-    for (const [width, height] of SIZES.slice(0, 3)) {
-      test(`at ${width}, level with the toast: its word stays clear and a press still answers`, async ({ page }) => {
-        await size(page, width, height);
-        await routeNextImages(page);
-        await page.route('**/api/me/favorites**', (r) =>
-          r.request().method() === 'GET'
-            ? r.fulfill({ status: 200, contentType: 'application/json', body: '{"favorites":[]}' })
-            : r.fulfill({ status: 204 }),
-        );
-        await page.goto('/recherche?q=tresses');
-        const heart = page.getByRole('button', { name: 'Ajouter Beauté Divine aux favoris' });
-        await expect(heart).toBeEnabled();
-        await heart.click();
-        const pill = page.getByRole('status').filter({ hasText: 'Ajouté aux favoris' }).locator('div').first();
-        await expect(pill).toBeVisible();
-        const toast = (await pill.boundingBox())!;
-        const read = await toggleOn(page).evaluate((el, t) => {
-          const end = document.documentElement.scrollHeight - innerHeight;
-          for (let y = 0; y <= end; y += 2) {
-            window.scrollTo({ top: y, behavior: 'instant' });
-            const b = el.getBoundingClientRect();
-            if (b.left < t.x + t.width && t.x < b.right && b.top < t.y + t.height && t.y < b.bottom) {
-              const range = document.createRange();
-              range.selectNodeContents(el);
-              // Inside the part the toast covers, where a press has to reach the button.
-              const under = document.elementFromPoint(
-                (Math.max(b.left, t.x) + Math.min(b.right, t.x + t.width)) / 2,
-                (Math.max(b.top, t.y) + Math.min(b.bottom, t.y + t.height)) / 2,
-              );
-              return { wordEnd: range.getBoundingClientRect().right, answers: under === el };
+    // From 768, in a window wider than tall, the map stands beside the list as it does from
+    // `lg` (decision 101): below `lg` the footer stacks and is taller than such a window (927px
+    // at 1023), so « Carte », which stops 48px above it, had left the screen by the page's end
+    // (y −255 at 1023×768, −572 at 844×390). These are #741's four cases at 1023×768, rewritten
+    // for the split view, with nothing they held let go: every footer link still answers, the
+    // map is whole on the screen far down the list, and there is no button to press. « Carte »'s
+    // own four run at 1023×1100 above, where it still floats.
+    test.describe('a window wider than tall from 768: the map beside the list (decision 101)', () => {
+      for (const [width, height] of [
+        [1023, 768],
+        [844, 390],
+      ] as const) {
+        for (const path of ['/recherche?q=vitrine', '/recherche?q=vide']) {
+          test(`${path} at ${width}×${height}: no « Carte » to lose, and every footer link answers`, async ({ page }) => {
+            await hermetic(page);
+            await size(page, width, height);
+            await page.route(/cartocdn\.com/, (r) => r.abort());
+            await routeNextImages(page);
+            await page.goto(path);
+            await expect(page.locator('.maplibregl-map'), 'the map beside the list, or this proves nothing').toBeVisible();
+            await expect(toggleOn(page)).toBeHidden();
+            await toEnd(page);
+            const links = await page.locator('footer a').evaluateAll((els) =>
+              els.reverse().map((el) => {
+                el.scrollIntoView({ block: 'nearest', behavior: 'instant' });
+                const r = el.getBoundingClientRect();
+                const hit = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2);
+                return { name: el.textContent?.trim(), answers: !!hit && (hit === el || el.contains(hit)) };
+              }),
+            );
+            expect(links.map((l) => l.name), 'the link « Carte » used to stand on').toContain('Instagram');
+            expect(links.filter((l) => !l.answers)).toEqual([]);
+          });
+        }
+
+        test(`at ${width}×${height}: the map stands right of the list, one <h1>, and far down the list it is whole at the screen’s top`, async ({ page }) => {
+          await hermetic(page);
+          await size(page, width, height);
+          await page.route(/cartocdn\.com/, (r) => r.abort());
+          await routeNextImages(page);
+          await page.goto('/recherche?q=vitrine');
+          await expect(page.locator('main [role="presentation"]:has(h3)').first(), 'the list itself, or this proves nothing').toBeVisible();
+          const map = page.locator('.maplibregl-map');
+          await expect(map).toBeVisible();
+          await expect(toggleOn(page)).toBeHidden();
+          await expect(page.getByRole('button', { name: 'Liste', exact: true })).toBeHidden();
+          // The map view's screen-reader twin is hidden here, as from `lg`: one <h1> is read.
+          const h1 = page.getByRole('heading', { level: 1 });
+          await expect(h1).toHaveCount(1);
+          const list = (await h1.locator('..').boundingBox())!;
+          const beside = (await map.boundingBox())!;
+          expect(beside.x, 'the map is not right of the list').toBeGreaterThanOrEqual(list.x + list.width - 0.5);
+          await page.evaluate(() => window.scrollTo({ top: 900, behavior: 'instant' }));
+          expect(await page.evaluate(() => window.scrollY), 'not far enough down, so this proves nothing').toBe(900);
+          const far = (await map.boundingBox())!;
+          expect(Math.abs(far.y), 'the map does not stay at the screen’s top').toBeLessThanOrEqual(0.5);
+          expect(far.y + far.height, 'the map’s foot is off the screen').toBeLessThanOrEqual(height + 0.5);
+        });
+
+        test(`at ${width}×${height}: the <h1> stands on the header logo’s left edge`, async ({ page }) => {
+          await hermetic(page);
+          await size(page, width, height);
+          await page.route(/cartocdn\.com/, (r) => r.abort());
+          await page.goto('/recherche?q=vitrine');
+          const h1 = page.getByRole('heading', { level: 1 });
+          await expect(h1).toBeVisible();
+          expect((await h1.boundingBox())!.x).toBeCloseTo(await logoLeft(page), 0);
+        });
+      }
+    });
+  });
+
+  // Decision 99: « Carte » is the last child of the box that holds the rows, so a bottom-
+  // `sticky` box can ride over the rows only. As the root's last child it rode over everything
+  // from the <h1> down on a short screen (on #741 at 320×568, « Disponible aujourd’hui » for
+  // 28px of scrolling and « 8 salons » for 72), and with no result over the empty state.
+  // 320×492 and 360×564 are 320×568 and 360×640 less the install banner's 76px, which the e2e
+  // build never shows (it has no store URL). Sticky boxes are laid out, not placed by a script,
+  // so each step is read straight after the scroll; a read after a frame is compared every
+  // 200px, or this would prove nothing about what the screen shows.
+  test.describe('« Carte » floats over the salons only (decision 99)', () => {
+    for (const [width, height] of [
+      [320, 568],
+      [360, 640],
+      [320, 492],
+      [360, 564],
+      [390, 844],
+    ] as const) {
+      for (const q of ['vitrine', 'vide'] as const) {
+        test(`/recherche?q=${q} at ${width}×${height}: nothing above the list ever goes under it`, async ({ page }) => {
+          await hermetic(page);
+          await size(page, width, height);
+          await page.route(/cartocdn\.com/, (r) => r.abort());
+          await routeNextImages(page);
+          await page.goto(`/recherche?q=${q}`);
+          const toggle = page.getByRole('button', { name: 'Carte', exact: true });
+          await expect(toggle).toBeAttached();
+          if (q === 'vitrine') await expect(page.locator('main [role="presentation"]:has(h3)')).toHaveCount(8);
+          else await expect(page.getByText('Aucun salon trouvé')).toBeVisible();
+          const read = await toggle.evaluate(async (button) => {
+            const frame = () => new Promise<void>((done) => requestAnimationFrame(() => setTimeout(done, 0)));
+            const rows = [...document.querySelectorAll('main [role="presentation"]')].filter((r) => r.querySelector('h3'));
+            const column = document.querySelector('main h1')!.parentElement!;
+            window.scrollTo({ top: 0, behavior: 'instant' });
+            // Everything in the list's column that is not a row or the button: the <h1>, the
+            // search, the chips, « Trier », « Disponible aujourd’hui », « N salons », and the
+            // empty state's icon, title and sentence. In the page's own coordinates.
+            const above = [...column.querySelectorAll('h1, h2, a, button, select, input, label, p, svg')]
+              .filter((el) => !button.contains(el) && !el.contains(button) && !rows.some((r) => r.contains(el)))
+              .map((el) => ({ el, r: el.getBoundingClientRect() }))
+              .filter(({ el, r }) => r.width > 0 && r.height > 0 && getComputedStyle(el).visibility !== 'hidden')
+              .map(({ el, r }) => ({
+                name: (el.getAttribute('aria-label') || el.textContent || el.tagName).trim().slice(0, 40),
+                left: r.left,
+                right: r.right,
+                top: r.top + scrollY,
+                bottom: r.bottom + scrollY,
+              }));
+            const under = new Map<string, number>();
+            const lagged: number[] = [];
+            let rowsUnder = 0;
+            let onScreen = 0;
+            const end = document.documentElement.scrollHeight - innerHeight;
+            for (let s = 0; s <= end; s += 2) {
+              window.scrollTo({ top: s, behavior: 'instant' });
+              const b = button.getBoundingClientRect();
+              if (s % 200 === 0) {
+                await frame();
+                if (Math.abs(button.getBoundingClientRect().top - b.top) > 0.5) lagged.push(s);
+              }
+              if (b.bottom <= 0 || b.top >= innerHeight) continue;
+              onScreen++;
+              const top = b.top + scrollY;
+              const bottom = b.bottom + scrollY;
+              for (const t of above) {
+                if (t.left < b.right && b.left < t.right && t.top < bottom && top < t.bottom) {
+                  under.set(t.name, (under.get(t.name) ?? 0) + 2);
+                }
+              }
+              if (rows.some((r) => { const x = r.getBoundingClientRect(); return x.top < b.bottom && b.top < x.bottom; })) rowsUnder++;
             }
+            return {
+              above: above.length,
+              under: [...under].map(([name, px]) => `« ${name} » for ${px}px of scrolling`),
+              rowsUnder,
+              onScreen,
+              lagged,
+            };
+          });
+          expect(read.above, 'nothing above the list was found, so this proves nothing').toBeGreaterThan(5);
+          expect(read.under, 'what went under « Carte »').toEqual([]);
+          if (q === 'vitrine') expect(read.rowsUnder, 'no row passed under it, so this proves nothing').toBeGreaterThan(0);
+          else expect(read.onScreen, 'it was never on the screen, so this proves nothing').toBeGreaterThan(0);
+          expect(read.lagged, 'a read straight after the scroll differed from the frame after it').toEqual([]);
+        });
+      }
+    }
+  });
+
+  // Decision 100, which replaces decision 86's « the toast stays where it is »: the favourite's
+  // message is measured against « Carte » (and « Liste ») and moves out of its way: aside within
+  // the 16px gutters unless that newly covers another control's words, else the shorter of up
+  // and down, never nearer than 16px to an edge (web-swiss-salon.md §2.3). These replace « level
+  // with the toast: its word stays clear and a press still answers », which read the message
+  // where it stood once and could not see it move. Each scan is one frame per step, in the page
+  // (_message.ts), and its figures go into the test's annotations.
+  test.describe('the favourite’s message and « Carte » (decision 100)', () => {
+    test.describe.configure({ timeout: 120_000 });
+    type Text = 'normal' | 'doubled' | 'root32';
+
+    const open = async (page: Page, width: number, height: number, path: string, text: Text) => {
+      await hermetic(page);
+      await size(page, width, height);
+      await routeNextImages(page);
+      await answerFavourites(page);
+      if (text === 'root32') await rootAt32(page);
+      await page.goto(path);
+      await expect(page.locator('main button[aria-label$="favoris"]').first()).toBeEnabled();
+      if (text === 'root32') {
+        expect(
+          await page.evaluate(() => getComputedStyle(document.documentElement).fontSize),
+          'the root is not 32px, so this proves nothing',
+        ).toBe('32px');
+      }
+      if (text === 'doubled') {
+        const h1 = page.getByRole('heading', { level: 1 });
+        const before = (await h1.boundingBox())!.height;
+        await page.addStyleTag({ content: DOUBLED });
+        await expect
+          .poll(async () => (await h1.boundingBox())!.height, { message: 'the text did not double, so this proves nothing' })
+          .toBeGreaterThanOrEqual(before * 1.8);
+      }
+    };
+    const scan = async (page: Page, step: number) => {
+      const r = await scanMessage(page, { control: 'carte', heart: 'row', step, lastPx: null });
+      const { near: _near, glyphHits, offScreen, nearEdge, annulerCut, pressMisses, ...figures } = r;
+      test.info().annotations.push({
+        type: 'scan',
+        description: JSON.stringify({
+          ...figures,
+          glyphHits: glyphHits.length,
+          offScreen: offScreen.length,
+          nearEdge: nearEdge.length,
+          annulerCut: annulerCut.length,
+          pressMisses: pressMisses.length,
+        }),
+      });
+      return r;
+    };
+    const first = (steps: number[]) => `at scroll ${steps.slice(0, 5).join(', ')}${steps.length > 5 ? '…' : ''}`;
+
+    // What the plan's port measured with this rule (web-swiss-salon.md §2.6, §2.10; its scratch
+    // `vals.json`, `search.best.<setting>.<size>.<q>`, each page scanned in 2px steps): the
+    // largest slide, rise and drop, in px. Each is held as a ceiling 2px above it, a move the port
+    // saw is seen again, and a move it never saw stays unseen. So a change that slides less and
+    // rises more (a slide refused by a label misread, which jsdom cannot see), or that moves the
+    // message further than the owner was told (decision 100), goes red here even while the
+    // message still clears « Carte » (review of the build, B11.4).
+    type Moves = readonly [slide: number, rise: number, drop: number];
+    const MEASURED: Record<Text, Record<string, Record<'tresses' | 'vitrine', Moves>>> = {
+      normal: {
+        '320x568': { tresses: [29, 0, 0], vitrine: [29, 58, 0] },
+        '360x640': { tresses: [19, 0, 0], vitrine: [19, 0, 0] },
+        '390x844': { tresses: [11, 0, 0], vitrine: [11, 0, 0] },
+      },
+      doubled: {
+        '320x568': { tresses: [0, 135, 64], vitrine: [0, 135, 64] },
+        '360x640': { tresses: [0, 135, 64], vitrine: [0, 135, 64] },
+        '390x844': { tresses: [0, 135, 64], vitrine: [0, 135, 64] },
+      },
+      root32: {
+        '320x568': { tresses: [29, 54, 0], vitrine: [29, 54, 0] },
+        '360x640': { tresses: [19, 54, 0], vitrine: [19, 54, 0] },
+        '390x844': { tresses: [11, 0, 0], vitrine: [11, 0, 0] },
+      },
+    };
+    const asMeasured = (r: MessageScan, [slide, rise, drop]: Moves) => {
+      for (const [move, measured, steps, largest] of [
+        ['slide', slide, r.slid, r.maxSlide],
+        ['rise', rise, r.rose, r.maxRise],
+        ['drop', drop, r.dropped, r.maxDrop],
+      ] as const) {
+        if (measured === 0) {
+          expect(steps, `a ${move} (up to ${largest}px) where the port measured none`).toBe(0);
+        } else {
+          expect(steps, `no ${move} where the port measured one of ${measured}px`).toBeGreaterThan(0);
+          expect(largest, `the largest ${move}, against the port's ${measured}px`).toBeLessThanOrEqual(measured + 2);
+        }
+      }
+    };
+
+    for (const [text, label] of [
+      ['normal', 'at normal text'],
+      ['doubled', 'with doubled text (Android)'],
+      ['root32', 'with a 32px root (a computer’s font at 200 %)'],
+    ] as const) {
+      test.describe(label, () => {
+        if (text === 'doubled') test.use({ isMobile: true, hasTouch: true, deviceScaleFactor: 2 });
+
+        for (const [width, height] of [
+          [320, 568],
+          [360, 640],
+          [390, 844],
+        ] as const) {
+          for (const q of ['tresses', 'vitrine'] as const) {
+            test(`/recherche?q=${q} at ${width}×${height}: the message never comes within 8px of « Carte », a press at its centre answers it, and it moves as measured`, async ({ page }) => {
+              await open(page, width, height, `/recherche?q=${q}`, text);
+              const r = await scan(page, 4);
+              expect(r.crossed, '« Carte » never stood in the message’s way, so this proves nothing').toBeGreaterThan(0);
+              expect(r.nearCount, `within 8px: ${JSON.stringify(r.near)}`).toBe(0);
+              expect(r.pressMisses.length, `a press at « Carte »’s centre missed it ${first(r.pressMisses)}`).toBe(0);
+              asMeasured(r, MEASURED[text][`${width}x${height}`][q]);
+            });
           }
-          return null;
-        }, toast);
-        expect(read, 'they never stood level, so this proves nothing').not.toBeNull();
-        expect(read!.wordEnd).toBeLessThanOrEqual(toast.x);
-        expect(read!.answers).toBe(true);
+        }
+
+        // WEB-SYSTEM §9's reflow screen, and a phone held sideways: where the screen has no room
+        // the message stays whole on it, never moved nearer an edge than 16px, « Annuler » whole.
+        // At 320×256 with doubled text nothing clears, and the message still covers « Carte » for
+        // 96px of scrolling (accepted, decision 102): within 8px of it at 27 steps of 4px, held at
+        // 30 so the accepted overlap cannot grow unseen (review of the build, B11.4). Held
+        // sideways at 568×320, and at 320×256 with the 200 % font, it never meets it.
+        const short: (readonly [number, number, number])[] =
+          text === 'doubled' ? [[320, 256, 30], [568, 320, 0]] : text === 'root32' ? [[320, 256, 0]] : [];
+        for (const [width, height, nearAtMost] of short) {
+          test(`/recherche?q=tresses at ${width}×${height}: the message stays whole on the screen, 16px from its edges once moved, and « Annuler » with it`, async ({ page }) => {
+            await open(page, width, height, '/recherche?q=tresses', text);
+            const r = await scan(page, 4);
+            expect(r.moved, 'the message never moved, so this proves nothing').toBeGreaterThan(0);
+            expect(r.offScreen.length, `the message was cut by the screen ${first(r.offScreen)}`).toBe(0);
+            expect(r.nearEdge.length, `a move took it nearer an edge than 16px ${first(r.nearEdge)}`).toBe(0);
+            expect(r.annulerCut.length, `« Annuler » was cut by the screen ${first(r.annulerCut)}`).toBe(0);
+            expect(r.nearCount, `within 8px: ${JSON.stringify(r.near)}`).toBeLessThanOrEqual(nearAtMost);
+          });
+        }
+
+        // « Slide unless it hides » (decision 100): on a 320-wide phone with the 200 % font the
+        // slide beside « Carte » would cover the ♥ of the salon there (the rule of 6 November
+        // hid one wholly for 528px of scrolling), so the message rises instead. The ♥'s own text
+        // box, not its 48px tap area.
+        if (text === 'root32') {
+          test('/recherche?q=vitrine at 320×568: the message never covers a heart, and « Annuler » stays on the screen', async ({ page }) => {
+            await open(page, 320, 568, '/recherche?q=vitrine', text);
+            const r = await scan(page, 4);
+            expect(r.glyphHits.length, `the message covered a heart ${first(r.glyphHits)}`).toBe(0);
+            expect(r.annulerCut.length, `« Annuler » was cut by the screen ${first(r.annulerCut)}`).toBe(0);
+            expect(r.rose, 'no slide was refused, so this proves nothing').toBeGreaterThan(0);
+          });
+        }
       });
     }
+
+    // « Liste » after « Carte » at the top of the page: no scroll follows the press, so only the
+    // toast's watch on the page (its MutationObserver) can place the message again.
+    test('/recherche?q=tresses at 390×844: after « Carte » and after « Liste », the next frame shows the message clear of the button', async ({ page }) => {
+      await open(page, 390, 844, '/recherche?q=tresses', 'normal');
+      const r = await page.evaluate(async () => {
+        const frame = () => new Promise<void>((done) => requestAnimationFrame(() => setTimeout(done, 0)));
+        const meets = (a: DOMRect, b: DOMRect) =>
+          b.left - 8 < a.right && a.left < b.right + 8 && b.top - 8 < a.bottom && a.top < b.bottom + 8;
+        const button = (word: string) =>
+          [...document.querySelectorAll<HTMLButtonElement>('main button')].find((b) => b.textContent?.trim() === word);
+        document.querySelector<HTMLButtonElement>('main button[aria-label$="favoris"]')!.click();
+        await new Promise((done) => setTimeout(done, 450));
+        await frame();
+        const region = [...document.querySelectorAll('[role="status"]')].find((x) =>
+          (x.textContent ?? '').includes('Ajouté aux favoris'),
+        )!;
+        const pill = () => region.firstElementChild!.getBoundingClientRect();
+        const centred = () => Math.abs((pill().left + pill().right) / 2 - document.documentElement.clientWidth / 2) <= 1;
+        const read = (word: string) => {
+          const b = button(word)?.getBoundingClientRect();
+          return { word, there: !!b, clear: !!b && !meets(pill(), b), home: centred() };
+        };
+        const aside = !centred();
+        const after = [read('Carte')];
+        button('Carte')!.click();
+        await frame();
+        after.push(read('Liste'));
+        button('Liste')!.click();
+        await frame();
+        after.push(read('Carte'));
+        return { aside, after };
+      });
+      expect(r.aside, 'the message was not aside after the heart, so this proves nothing').toBe(true);
+      expect(r.after[0]).toEqual({ word: 'Carte', there: true, clear: true, home: false });
+      // In the map view « Liste » rides at the screen's foot, clear of the message's home: the
+      // move goes.
+      expect(r.after[1], 'after « Carte »').toEqual({ word: 'Liste', there: true, clear: true, home: true });
+      expect(r.after[2].clear, 'after « Liste », the message is where it was before the press').toBe(true);
+      expect(r.after[2].there).toBe(true);
+    });
+
+    // A window made shorter while the message shows, at the top of the page: no scroll follows,
+    // and neither the pill nor « Carte » changes size, so no observer sees it. Only the toast's
+    // `resize` listener can place the message again (review of the build, B11.4).
+    test('/recherche?q=tresses from 390×920 to 390×844, no scroll: the message is placed again, clear of « Carte » and aside', async ({ page }) => {
+      await open(page, 390, 920, '/recherche?q=tresses', 'normal');
+      const read = () =>
+        page.evaluate(async () => {
+          const frame = () => new Promise<void>((done) => requestAnimationFrame(() => setTimeout(done, 0)));
+          await frame();
+          await frame();
+          const region = [...document.querySelectorAll('[role="status"]')].find((x) =>
+            (x.textContent ?? '').includes('Ajouté aux favoris'),
+          );
+          const pill = region?.firstElementChild?.getBoundingClientRect();
+          const carte = [...document.querySelectorAll<HTMLButtonElement>('main button')]
+            .find((b) => b.textContent?.trim() === 'Carte')
+            ?.getBoundingClientRect();
+          if (!pill || !carte) return null;
+          return {
+            height: innerHeight,
+            scrollY,
+            clear: !(
+              carte.left - 8 < pill.right &&
+              pill.left < carte.right + 8 &&
+              carte.top - 8 < pill.bottom &&
+              pill.top < carte.bottom + 8
+            ),
+            home: Math.abs((pill.left + pill.right) / 2 - document.documentElement.clientWidth / 2) <= 1,
+          };
+        });
+      await page.locator('main button[aria-label$="favoris"]').first().click();
+      await expect(page.getByRole('status').filter({ hasText: 'Ajouté aux favoris' })).toBeVisible();
+      expect(await read(), 'at 920 tall « Carte » is not in the message’s way, or this proves nothing').toEqual({
+        height: 920,
+        scrollY: 0,
+        clear: true,
+        home: true,
+      });
+      await size(page, 390, 844);
+      await page.waitForFunction(() => innerHeight === 844);
+      expect(await read(), 'after the window was made shorter').toEqual({ height: 844, scrollY: 0, clear: true, home: false });
+    });
   });
 
   // Where a photo is cut in a fixed frame (web-swiss-cards.md §2.4, decisions 2 and 8), read
@@ -1030,8 +1473,10 @@ test.describe('the salon card', () => {
         await size(page, width);
         await routeNextImages(page);
         await page.goto('/salon-au-logo');
-        expect(await position(page.locator('header img[alt="Salon Beauté Divine"]'))).toBe('50% 20%');
-        expect(await position(page.locator('header img[alt="Logo Beauté Divine"]'))).toBe('50% 50%');
+        // In `main`, not the name block's `<header>`: the cover left it for its own column
+        // (web-swiss-salon.md §1.6).
+        expect(await position(page.locator('main img[alt="Salon Beauté Divine"]'))).toBe('50% 20%');
+        expect(await position(page.locator('main img[alt="Logo Beauté Divine"]'))).toBe('50% 50%');
         // With its number: a review's photo carries the same words with none, and held this
         // count up when the gallery was gone.
         const gallery = page.getByRole('button', { name: /^Agrandir la photo \d/ }).locator('img');
