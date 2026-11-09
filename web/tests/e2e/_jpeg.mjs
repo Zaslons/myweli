@@ -149,6 +149,48 @@ export function spliceAfterSoi(jpeg, segment) {
   return Buffer.concat([b.subarray(0, 2), Buffer.from(segment), b.subarray(2)]);
 }
 
+/// A little-endian TIFF header whose IFD0 holds only Orientation — a SHORT × 1
+/// unless `type`/`count` say otherwise (a LONG holds its value in 4 bytes).
+/// Used as is for a PNG `eXIf` chunk, and inside `orientationApp1`.
+export function orientationTiff(orientation, { type = 3, count = 1 } = {}) {
+  const t = Buffer.alloc(26);
+  t.write('II', 0, 'latin1');
+  t.writeUInt16LE(42, 2);
+  t.writeUInt32LE(8, 4);
+  t.writeUInt16LE(1, 8);
+  t.writeUInt16LE(0x0112, 10);
+  t.writeUInt16LE(type, 12);
+  t.writeUInt32LE(count, 14);
+  if (type === 4) t.writeUInt32LE(orientation, 18);
+  else t.writeUInt16LE(orientation, 18);
+  return t;
+}
+
+/// An APP1 Exif segment carrying only Orientation (see `orientationTiff`).
+export function orientationApp1(orientation, opts) {
+  const payload = Buffer.concat([Buffer.from('Exif\0\0', 'latin1'), orientationTiff(orientation, opts)]);
+  const head = Buffer.from([0xff, 0xe1, 0, 0]);
+  head.writeUInt16BE(payload.length + 2, 2);
+  return Buffer.concat([head, payload]);
+}
+
+/// `jpeg` with `segment` inserted right AFTER its frame header (SOFn), before
+/// the tables and the scan — where a browser still reads an Exif segment but
+/// a reader that stops at the frame header does not.
+export function spliceAfterFrameHeader(jpeg, segment) {
+  const b = Buffer.from(jpeg);
+  if (b[0] !== 0xff || b[1] !== 0xd8) throw new Error('not a JPEG');
+  for (let i = 2; i + 4 <= b.length && b[i] === 0xff; ) {
+    const m = b[i + 1];
+    const end = i + 2 + b.readUInt16BE(i + 2);
+    if (m >= 0xc0 && m <= 0xcf && m !== 0xc4 && m !== 0xc8 && m !== 0xcc) {
+      return Buffer.concat([b.subarray(0, end), Buffer.from(segment), b.subarray(end)]);
+    }
+    i = end;
+  }
+  throw new Error('no frame header');
+}
+
 /// A JPEG that is only a header: SOI, a frame of `width` × `height`, EOI. It
 /// says « 108 MP » without carrying a pixel — enough for a guard that must
 /// answer before decoding.

@@ -20,3 +20,6 @@ export declare function ijgLumaTable(quality: number): number[];
 export declare function exifApp1(opts: { orientation: number }): Buffer;
 export declare function spliceAfterSoi(jpeg: Uint8Array, segment: Uint8Array): Buffer;
 export declare function headerOnlyJpeg(width: number, height: number): Buffer;
+export declare function orientationTiff(orientation: number, opts?: { type?: number; count?: number }): Buffer;
+export declare function orientationApp1(orientation: number, opts?: { type?: number; count?: number }): Buffer;
+export declare function spliceAfterFrameHeader(jpeg: Uint8Array, segment: Uint8Array): Buffer;
