@@ -21,30 +21,43 @@ type SignResponse = {
 };
 
 /// Why a Pro photo did not upload. `unreadable` and `too_large` are the
-/// person's to fix by choosing another image, so each has its own sentence;
-/// `failed` keeps the sentence each surface already shows.
-export type ProUploadFailure = 'unreadable' | 'too_large' | 'failed';
+/// person's to fix by choosing another image, `blocked` by choosing another
+/// browser, so each has its own sentence; `failed` keeps the sentence each
+/// surface already shows. `aborted`: the page was left — nothing to say.
+export type ProUploadFailure = 'unreadable' | 'too_large' | 'blocked' | 'failed' | 'aborted';
 export type ProUpload = { ok: true; url: string } | { ok: false; reason: ProUploadFailure };
 
-/// The two sentences (web-pro-upload-resize.md §2.6). « image », not
+/// The sentences of §2.6 (web-pro-upload-resize.md). « image », not
 /// « photo », because the logo says the same.
 export const UPLOAD_UNREADABLE_MESSAGE =
   'Cette image n’a pas pu être lue. Choisissez une image JPEG, PNG ou WebP.';
 export const UPLOAD_TOO_LARGE_MESSAGE =
   'Cette image est trop grande pour être préparée ici. Choisissez une image plus petite.';
+/// The browser alters what a canvas gives back (anti-fingerprinting): the
+/// photo would arrive blank or as noise (web-pro-upload-resize.md §2.6).
+export const UPLOAD_BLOCKED_MESSAGE =
+  'Votre navigateur empêche de préparer cette image. Essayez avec un autre navigateur.';
 
-/// The sentence for a failed upload: one of the two above, else the
+/// The sentence for a failed upload: one of those above, else the
 /// surface's own (« Échec de l’envoi », « Échec de l’envoi du logo. »…).
 export function uploadFailureMessage(reason: ProUploadFailure, fallback: string): string {
   if (reason === 'unreadable') return UPLOAD_UNREADABLE_MESSAGE;
   if (reason === 'too_large') return UPLOAD_TOO_LARGE_MESSAGE;
+  if (reason === 'blocked') return UPLOAD_BLOCKED_MESSAGE;
   return fallback;
 }
 
 /// The app's `ImageCompressor` seam: tests inject a fake (jsdom has no canvas).
-export type ProUploadDeps = { compress?: (file: File) => Promise<PrepareResult> };
+/// `signal`: aborted when the page that asked is left — nothing is signed or
+/// sent after that (review F3: leaving Médias while a photo was being
+/// prepared still put it in the public gallery).
+export type ProUploadDeps = {
+  compress?: (file: File) => Promise<PrepareResult>;
+  signal?: AbortSignal;
+};
 
 const FAILED: ProUpload = { ok: false, reason: 'failed' };
+const ABORTED: ProUpload = { ok: false, reason: 'aborted' };
 
 /// The presign request, to the pro BFF (same origin). No answer — no network
 /// — is `null`, the failed upload every caller already shows, never a throw
@@ -69,7 +82,7 @@ async function requestSign(
 
 function reportPrepare(
   purpose: 'gallery' | 'logo',
-  reason: ProUploadFailure,
+  reason: 'unreadable' | 'too_large' | 'blocked' | 'failed',
   file: File,
   pixels: number | null,
 ): void {
@@ -84,9 +97,10 @@ function reportPrepare(
 async function uploadProImage(
   file: File,
   purpose: 'gallery' | 'logo',
-  compress: (file: File) => Promise<PrepareResult>,
+  { compress = compressForUpload, signal }: ProUploadDeps,
 ): Promise<ProUpload> {
   const prepared = await compress(file);
+  if (signal?.aborted) return ABORTED;
   if (!prepared.ok) {
     reportPrepare(purpose, prepared.reason, file, prepared.pixels);
     return { ok: false, reason: prepared.reason };
@@ -110,6 +124,8 @@ async function uploadProImage(
     reportPrepare(purpose, 'too_large', file, prepared.pixels);
     return { ok: false, reason: 'too_large' };
   }
+  // Left while the signature was out: the photo is not sent.
+  if (signal?.aborted) return ABORTED;
 
   // Raw PUT, not a multipart POST: Cloudflare R2 does not implement presigned
   // POST and answers one with 501 NotImplemented. The signature covers these
@@ -128,19 +144,13 @@ async function uploadProImage(
 /// The salon's brand mark — the gallery helper's shape with its OWN purpose
 /// (the purpose string is the storage namespace; salon-logo.md §5) and its
 /// own telemetry surface, so a CORS or signature failure names the feature.
-export function uploadLogoImage(
-  file: File,
-  { compress = compressForUpload }: ProUploadDeps = {},
-): Promise<ProUpload> {
-  return uploadProImage(file, 'logo', compress);
+export function uploadLogoImage(file: File, deps: ProUploadDeps = {}): Promise<ProUpload> {
+  return uploadProImage(file, 'logo', deps);
 }
 
 /// Médias photos (the first is the salon cover), before/after, staff photos.
-export function uploadGalleryImage(
-  file: File,
-  { compress = compressForUpload }: ProUploadDeps = {},
-): Promise<ProUpload> {
-  return uploadProImage(file, 'gallery', compress);
+export function uploadGalleryImage(file: File, deps: ProUploadDeps = {}): Promise<ProUpload> {
+  return uploadProImage(file, 'gallery', deps);
 }
 
 /// KYC document upload (docs/design/web-pro-kyc.md): same presign +

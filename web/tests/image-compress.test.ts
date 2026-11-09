@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import {
   compressForUpload,
+  type CompressDeps,
   type DecodedImage,
   type ImageHeader,
   megapixelBucket,
@@ -9,6 +10,7 @@ import {
   orientationTransform,
   orientedSize,
   parseImageHeader,
+  pixelsMatch,
   probeImageHeader,
   targetSize,
   UPLOAD_RULE,
@@ -166,24 +168,27 @@ function segment(marker: number, payload: number[]): number[] {
   return [0xff, marker, ...be16(payload.length + 2), ...payload];
 }
 
-/// APP1 Exif with one IFD0 entry: Orientation (0x0112, SHORT, 1).
-function exifApp1(orientation: number, little: boolean): number[] {
+/// A TIFF header with one IFD0 entry: Orientation (0x0112), SHORT × 1 unless
+/// told otherwise (a LONG holds its value in 4 bytes).
+function tiff(orientation: number, little: boolean, type = 3, count = 1): number[] {
   const w16 = little ? le16 : be16;
   const w32 = little ? le32 : be32;
-  const tiff = [
+  return [
     ...(little ? text('II') : text('MM')),
     ...w16(42),
     ...w32(8),
     ...w16(1),
     ...w16(0x0112),
-    ...w16(3),
-    ...w32(1),
-    ...w16(orientation),
-    0,
-    0,
+    ...w16(type),
+    ...w32(count),
+    ...(type === 4 ? w32(orientation) : [...w16(orientation), 0, 0]),
     ...w32(0),
   ];
-  return segment(0xe1, [...text('Exif\0\0'), ...tiff]);
+}
+
+/// APP1 Exif with one IFD0 entry: Orientation (0x0112, SHORT, 1).
+function exifApp1(orientation: number, little: boolean, type = 3, count = 1): number[] {
+  return segment(0xe1, [...text('Exif\0\0'), ...tiff(orientation, little, type, count)]);
 }
 
 function jpeg(opts: {
@@ -222,6 +227,22 @@ describe('parseImageHeader', () => {
     expect(parseImageHeader(b)).toMatchObject({ orientation: 1 });
   });
 
+  // The review of 2026-11-09 (F1), measured in Chromium: the FIRST Exif
+  // segment decides, and an Orientation that is not one SHORT is ignored.
+  it('two Exif segments: the first one decides (« 6 then 1 » is 6, « 1 then 6 » is 1)', () => {
+    const a = jpeg({ width: 3000, height: 2000, before: [exifApp1(6, true), exifApp1(1, true)] });
+    expect(parseImageHeader(a)).toMatchObject({ orientation: 6 });
+    const b = jpeg({ width: 3000, height: 2000, before: [exifApp1(1, true), exifApp1(6, true)] });
+    expect(parseImageHeader(b)).toMatchObject({ orientation: 1 });
+  });
+
+  it('an Orientation stored as a LONG, or with two values, is ignored', () => {
+    for (const [type, count] of [[4, 1], [3, 2]]) {
+      const b = jpeg({ width: 3000, height: 2000, before: [exifApp1(6, true, type, count)] });
+      expect(parseImageHeader(b), `type ${type} × ${count}`).toMatchObject({ orientation: 1 });
+    }
+  });
+
   it('a JPEG cut before its frame header: « more » while reading, null when that was all', () => {
     const b = jpeg({ width: 10, height: 20, before: [exifApp1(6, true)] });
     const cut = b.slice(0, 30);
@@ -235,6 +256,72 @@ describe('parseImageHeader', () => {
       ...be32(13), ...text('IHDR'), ...be32(1200), ...be32(900), 8, 6, 0, 0, 0,
     ]);
     expect(parseImageHeader(b)).toEqual({ format: 'png', width: 1200, height: 900, orientation: 1 });
+  });
+
+  const chunk = (type: string, data: number[]) => [...be32(data.length), ...text(type), ...data, 0, 0, 0, 0];
+  const png = (...chunks: number[][]) =>
+    Uint8Array.from([
+      0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a,
+      ...chunk('IHDR', [...be32(3000), ...be32(2000), 8, 6, 0, 0, 0]),
+      ...chunks.flat(),
+    ]);
+
+  it('PNG eXIf BEFORE the image data gives the orientation; after it, browsers ignore it', () => {
+    const before = png(chunk('eXIf', tiff(6, false)), chunk('IDAT', [1, 2, 3]), chunk('IEND', []));
+    expect(parseImageHeader(before)).toEqual({ format: 'png', width: 3000, height: 2000, orientation: 6 });
+    const after = png(chunk('IDAT', [1, 2, 3]), chunk('eXIf', tiff(8, true)), chunk('IEND', []));
+    expect(parseImageHeader(after)).toMatchObject({ orientation: 1 });
+  });
+
+  it('GIF: the logical screen (87a and 89a)', () => {
+    for (const v of ['GIF87a', 'GIF89a']) {
+      const b = Uint8Array.from([...text(v), ...le16(9000), ...le16(8000), 0, 0, 0]);
+      expect(parseImageHeader(b)).toEqual({ format: 'gif', width: 9000, height: 8000, orientation: 1 });
+    }
+  });
+
+  it('BMP: the core header (16 bits), the info header (32 bits), top-down (negative height)', () => {
+    const head = (dib: number[]) => Uint8Array.from([...text('BM'), ...le32(0), 0, 0, 0, 0, ...le32(54), ...dib]);
+    expect(parseImageHeader(head([...le32(12), ...le16(640), ...le16(480), 1, 0, 24, 0]))).toEqual({
+      format: 'bmp', width: 640, height: 480, orientation: 1,
+    });
+    expect(parseImageHeader(head([...le32(40), ...le32(9000), ...le32(8000), 1, 0, 24, 0]))).toMatchObject({
+      width: 9000, height: 8000,
+    });
+    expect(parseImageHeader(head([...le32(40), ...le32(3000), ...le32(-2000 >>> 0), 1, 0, 24, 0]))).toMatchObject({
+      width: 3000, height: 2000,
+    });
+  });
+
+  const box = (type: string, body: number[]) => [...be32(8 + body.length), ...text(type), ...body];
+  const fullBox = (type: string, body: number[]) => box(type, [0, 0, 0, 0, ...body]);
+  const ispe = (w: number, h: number) => fullBox('ispe', [...be32(w), ...be32(h)]);
+  const heif = (brand: string, compatible: string[], ipco: number[][], trailing: number[] = []) =>
+    Uint8Array.from([
+      ...box('ftyp', [...text(brand), ...be32(0), ...compatible.flatMap(text)]),
+      ...fullBox('meta', [
+        ...fullBox('hdlr', [0, 0, 0, 0, ...text('pict'), ...new Array(13).fill(0)]),
+        ...box('iprp', [...box('ipco', ipco.flat()), ...box('ipma', [0, 0, 0, 0])]),
+      ]),
+      ...trailing,
+    ]);
+
+  it('AVIF: the largest ispe — a grid picture is its canvas, not a tile', () => {
+    const b = heif('avif', ['mif1', 'miaf'], [ispe(512, 512), ispe(9000, 8000), fullBox('pixi', [3, 8, 8, 8])]);
+    expect(parseImageHeader(b)).toEqual({ format: 'avif', width: 9000, height: 8000, orientation: 1 });
+  });
+
+  it('HEIC (an iPhone’s heic / mif1 brands)', () => {
+    const b = heif('heic', ['mif1', 'heic'], [ispe(4032, 3024), box('irot', [1])]);
+    expect(parseImageHeader(b)).toEqual({ format: 'heic', width: 4032, height: 3024, orientation: 1 });
+  });
+
+  it('an ISO-BMFF file that is not a still picture (an MP4) is null; a meta past the bytes read is « more »', () => {
+    expect(parseImageHeader(heif('isom', ['mp41'], [ispe(1920, 1080)]))).toBeNull();
+    const full = heif('avif', ['mif1'], [ispe(9000, 8000)]);
+    const cut = full.slice(0, full.length - 10);
+    expect(parseImageHeader(cut, false)).toBe(NEED_MORE);
+    expect(parseImageHeader(cut, true)).toBeNull();
   });
 
   const riff = (fourcc: string, body: number[]) =>
@@ -256,8 +343,9 @@ describe('parseImageHeader', () => {
     expect(parseImageHeader(b)).toEqual({ format: 'webp', width: 12000, height: 9000, orientation: 1 });
   });
 
-  it('anything else is null: GIF, garbage, a renamed document, empty', () => {
-    expect(parseImageHeader(Uint8Array.from(text('GIF89a\x01\x00\x01\x00')))).toBeNull();
+  it('anything else is null: TIFF, SVG, garbage, a renamed document, empty', () => {
+    expect(parseImageHeader(Uint8Array.from([...text('II'), 42, 0, ...le32(8), 0, 0]))).toBeNull();
+    expect(parseImageHeader(Uint8Array.from(text('<svg xmlns="http://www.w3.org/2000/svg"/>')))).toBeNull();
     expect(parseImageHeader(Uint8Array.from(text('%PDF-1.7 hello')))).toBeNull();
     expect(parseImageHeader(Uint8Array.from([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]))).toBeNull();
     expect(parseImageHeader(new Uint8Array(0))).toBeNull();
@@ -344,7 +432,7 @@ describe('megapixelBucket — coarse bands only', () => {
   });
 });
 
-// ─── The flow, with fake decode / encode ─────────────────────────────────────
+// ─── The flow, with fake measure / decode / encode ──────────────────────────
 
 function fakeImage(width: number, height: number) {
   const release = vi.fn();
@@ -360,99 +448,182 @@ const header = (width: number, height: number, orientation = 1): ImageHeader => 
 });
 
 const picked = new File(['x'], 'IMG_0001.jpg', { type: 'image/jpeg' });
+const jpegOut = (bytes = 1) => new Blob([new Uint8Array(bytes)], { type: 'image/jpeg' });
+
+/// The browser's defaults replaced: it shows the picture as the header says,
+/// and its canvas works — each test overrides what it is about.
+function deps(over: CompressDeps): CompressDeps {
+  return {
+    measure: async (_file, h) => orientedSize(h),
+    canvasWorks: async () => true,
+    encode: async () => jpegOut(),
+    ...over,
+  };
+}
 
 describe('compressForUpload', () => {
   it('decodes AT the target size of the displayed picture, then encodes at that size', async () => {
     const { image, release } = fakeImage(1600, 2133);
     const decode = vi.fn(async () => image);
-    const out = new Blob([new Uint8Array(1000)], { type: 'image/jpeg' });
+    const out = jpegOut(1000);
     const encode = vi.fn(async () => out);
-    const r = await compressForUpload(picked, { probe: async () => header(4032, 3024, 6), decode, encode });
+    const r = await compressForUpload(picked, deps({ probe: async () => header(4032, 3024, 6), decode, encode }));
     expect(decode).toHaveBeenCalledWith(picked, header(4032, 3024, 6), { width: 1600, height: 2133 });
     expect(encode).toHaveBeenCalledWith(image, { width: 1600, height: 2133 });
     expect(r).toEqual({ ok: true, blob: out, width: 1600, height: 2133, pixels: 4032 * 3024 });
     expect(release).toHaveBeenCalledTimes(1);
   });
 
-  it('no header (GIF, BMP, AVIF…): decodes in full, then sizes from what was decoded', async () => {
-    const { image } = fakeImage(4000, 2250);
-    const decode = vi.fn(async () => image);
-    const encode = vi.fn(async () => new Blob(['j']));
-    const r = await compressForUpload(picked, { probe: async () => null, decode, encode });
-    expect(decode).toHaveBeenCalledWith(picked, null, null);
-    expect(encode).toHaveBeenCalledWith(image, { width: 2400, height: 1350 });
-    expect(r).toMatchObject({ ok: true, width: 2400, height: 1350, pixels: 9_000_000 });
+  // Review F1: two Exif segments, a LONG-typed tag, a PNG eXIf, an AVIF irot —
+  // wherever our reading and the browser's differ, the BROWSER decodes, so its
+  // reading must size the target, or the picture is squeezed into the other
+  // orientation's frame.
+  it('the browser’s reading of the displayed size wins over the header’s', async () => {
+    const decode = vi.fn(async () => fakeImage(2400, 1600).image);
+    const measure = vi.fn(async () => ({ width: 3000, height: 2000 }));
+    const r = await compressForUpload(picked, deps({ probe: async () => header(3000, 2000, 6), measure, decode }));
+    expect(measure).toHaveBeenCalledWith(picked, header(3000, 2000, 6));
+    expect(decode).toHaveBeenCalledWith(picked, header(3000, 2000, 6), { width: 2400, height: 1600 });
+    expect(r).toMatchObject({ ok: true, width: 2400, height: 1600 });
   });
 
-  it('over 64 MP by its header: too_large, and NOTHING is decoded', async () => {
+  // Review F2/F6: GIF, BMP, AVIF were decoded in full with no size known —
+  // the 64 MP ceiling did not hold for them — and a renamed document of any
+  // size went to the decoder whole.
+  it('no header: unreadable, and nothing is measured or decoded', async () => {
+    const measure = vi.fn();
     const decode = vi.fn();
-    const r = await compressForUpload(picked, { probe: async () => header(12000, 9000), decode, encode: vi.fn() });
+    const r = await compressForUpload(picked, deps({ probe: async () => null, measure, decode }));
+    expect(r).toEqual({ ok: false, reason: 'unreadable', pixels: null });
+    expect(measure).not.toHaveBeenCalled();
+    expect(decode).not.toHaveBeenCalled();
+  });
+
+  it('over 64 MP by its header: too_large, and NOTHING is measured or decoded', async () => {
+    const measure = vi.fn();
+    const decode = vi.fn();
+    const r = await compressForUpload(picked, deps({ probe: async () => header(12000, 9000), measure, decode }));
     expect(r).toEqual({ ok: false, reason: 'too_large', pixels: 108_000_000 });
+    expect(measure).not.toHaveBeenCalled();
+    expect(decode).not.toHaveBeenCalled();
+  });
+
+  it('over 64 MP as the browser sees it (a GIF frame larger than its screen): too_large, not decoded', async () => {
+    const decode = vi.fn();
+    const r = await compressForUpload(
+      picked,
+      deps({
+        probe: async () => ({ format: 'gif', width: 100, height: 100, orientation: 1 }),
+        measure: async () => ({ width: 9000, height: 8000 }),
+        decode,
+      }),
+    );
+    expect(r).toEqual({ ok: false, reason: 'too_large', pixels: 72_000_000 });
     expect(decode).not.toHaveBeenCalled();
   });
 
   it('exactly 64 MP is decoded (a 48 or 50 MP phone photo must pass)', async () => {
     const { image } = fakeImage(1600, 1600);
     const decode = vi.fn(async () => image);
-    const r = await compressForUpload(picked, {
-      probe: async () => header(8000, 8000),
-      decode,
-      encode: async () => new Blob(['j']),
-    });
+    const r = await compressForUpload(picked, deps({ probe: async () => header(8000, 8000), decode }));
     expect(decode).toHaveBeenCalled();
     expect(r.ok).toBe(true);
   });
 
+  it('the browser cannot show it (<img> refuses it): unreadable, and nothing is decoded', async () => {
+    const decode = vi.fn();
+    const r = await compressForUpload(
+      picked,
+      deps({
+        probe: async () => ({ format: 'heic', width: 4032, height: 3024, orientation: 1 }),
+        measure: async () => {
+          throw new Error('not an image');
+        },
+        decode,
+      }),
+    );
+    expect(r).toEqual({ ok: false, reason: 'unreadable', pixels: 4032 * 3024 });
+    expect(decode).not.toHaveBeenCalled();
+  });
+
+  // Review F4: a browser that blanks or randomises what a canvas gives back
+  // (Firefox's resistFingerprinting, Tor, Brave strict) would send a blank
+  // or noisy picture with no error at all.
+  it('a canvas that does not give back what was drawn: blocked, and nothing is decoded', async () => {
+    for (const canvasWorks of [async () => false, async () => Promise.reject(new Error('SecurityError'))]) {
+      const decode = vi.fn();
+      const r = await compressForUpload(picked, deps({ probe: async () => header(4032, 3024), canvasWorks, decode }));
+      expect(r).toEqual({ ok: false, reason: 'blocked', pixels: 4032 * 3024 });
+      expect(decode).not.toHaveBeenCalled();
+    }
+  });
+
   it('the decoder refuses it: unreadable, and nothing is encoded', async () => {
     const encode = vi.fn();
-    const r = await compressForUpload(picked, {
-      probe: async () => null,
-      decode: async () => {
-        throw new DOMException('The source image could not be decoded.', 'InvalidStateError');
-      },
-      encode,
-    });
-    expect(r).toEqual({ ok: false, reason: 'unreadable', pixels: null });
+    const r = await compressForUpload(
+      picked,
+      deps({
+        probe: async () => header(3000, 2000),
+        decode: async () => {
+          throw new DOMException('The source image could not be decoded.', 'InvalidStateError');
+        },
+        encode,
+      }),
+    );
+    expect(r).toEqual({ ok: false, reason: 'unreadable', pixels: 6_000_000 });
     expect(encode).not.toHaveBeenCalled();
   });
 
   it('the encoder gives nothing, or throws: failed — and the bitmap is still released', async () => {
     for (const encode of [async () => null, async () => Promise.reject(new Error('oom'))]) {
       const { image, release } = fakeImage(100, 100);
-      const r = await compressForUpload(picked, { probe: async () => header(100, 100), decode: async () => image, encode });
+      const r = await compressForUpload(picked, deps({ probe: async () => header(100, 100), decode: async () => image, encode }));
       expect(r).toEqual({ ok: false, reason: 'failed', pixels: 10_000 });
+      expect(release).toHaveBeenCalledTimes(1);
+    }
+  });
+
+  // Review F8: the canvas falls back to PNG for a type it cannot write; those
+  // bytes must never go out signed as JPEG.
+  it('the encoder gives something that is not a JPEG: failed, never sent as one', async () => {
+    for (const type of ['image/png', '']) {
+      const { image, release } = fakeImage(100, 100);
+      const r = await compressForUpload(
+        picked,
+        deps({ probe: async () => header(100, 100), decode: async () => image, encode: async () => new Blob(['p'], { type }) }),
+      );
+      expect(r, `type « ${type} »`).toEqual({ ok: false, reason: 'failed', pixels: 10_000 });
       expect(release).toHaveBeenCalledTimes(1);
     }
   });
 
   it('still over 5 MiB after preparing: too_large (never sent)', async () => {
     const { image } = fakeImage(2400, 1600);
-    const big = new Blob([new Uint8Array(5 * 1024 * 1024 + 1)]);
-    const r = await compressForUpload(picked, {
-      probe: async () => header(2400, 1600),
-      decode: async () => image,
-      encode: async () => big,
-    });
+    const r = await compressForUpload(
+      picked,
+      deps({ probe: async () => header(2400, 1600), decode: async () => image, encode: async () => jpegOut(5 * 1024 * 1024 + 1) }),
+    );
     expect(r).toEqual({ ok: false, reason: 'too_large', pixels: 2400 * 1600 });
-    const exactly = new Blob([new Uint8Array(5 * 1024 * 1024)]);
-    const ok = await compressForUpload(picked, {
-      probe: async () => header(2400, 1600),
-      decode: async () => fakeImage(2400, 1600).image,
-      encode: async () => exactly,
-    });
+    const ok = await compressForUpload(
+      picked,
+      deps({ probe: async () => header(2400, 1600), decode: async () => fakeImage(2400, 1600).image, encode: async () => jpegOut(5 * 1024 * 1024) }),
+    );
     expect(ok.ok).toBe(true);
   });
 
-  it('a probe that throws is a picture with no known header, not a crash', async () => {
-    const { image } = fakeImage(600, 800);
-    const r = await compressForUpload(picked, {
-      probe: async () => {
-        throw new Error('read failed');
-      },
-      decode: async () => image,
-      encode: async () => new Blob(['j']),
-    });
-    expect(r).toMatchObject({ ok: true, width: 600, height: 800 });
+  it('a probe that throws is a picture with no known header: unreadable, not a crash', async () => {
+    const decode = vi.fn();
+    const r = await compressForUpload(
+      picked,
+      deps({
+        probe: async () => {
+          throw new Error('read failed');
+        },
+        decode,
+      }),
+    );
+    expect(r).toEqual({ ok: false, reason: 'unreadable', pixels: null });
+    expect(decode).not.toHaveBeenCalled();
   });
 
   it('one at a time: a second picture waits for the first to finish', async () => {
@@ -461,30 +632,55 @@ describe('compressForUpload', () => {
     const firstDecoded = new Promise<void>((resolve) => {
       finishFirst = resolve;
     });
-    const first = compressForUpload(picked, {
-      probe: async () => {
-        order.push('probe 1');
-        return header(10, 10);
-      },
-      decode: async () => {
-        await firstDecoded;
-        order.push('decode 1');
-        return fakeImage(10, 10).image;
-      },
-      encode: async () => new Blob(['1']),
-    });
-    const second = compressForUpload(picked, {
-      probe: async () => {
-        order.push('probe 2');
-        return header(10, 10);
-      },
-      decode: async () => fakeImage(10, 10).image,
-      encode: async () => new Blob(['2']),
-    });
+    const first = compressForUpload(
+      picked,
+      deps({
+        probe: async () => {
+          order.push('probe 1');
+          return header(10, 10);
+        },
+        decode: async () => {
+          await firstDecoded;
+          order.push('decode 1');
+          return fakeImage(10, 10).image;
+        },
+      }),
+    );
+    const second = compressForUpload(
+      picked,
+      deps({
+        probe: async () => {
+          order.push('probe 2');
+          return header(10, 10);
+        },
+        decode: async () => fakeImage(10, 10).image,
+      }),
+    );
     await new Promise((r) => setTimeout(r, 20));
     expect(order).toEqual(['probe 1']);
     finishFirst();
     await Promise.all([first, second]);
     expect(order).toEqual(['probe 1', 'decode 1', 'probe 2']);
+  });
+});
+
+describe('pixelsMatch — the canvas check’s comparison', () => {
+  const swatches: [number, [number, number, number]][] = [
+    [0, [0, 0, 0]],
+    [1, [220, 20, 60]],
+    [2, [255, 184, 0]],
+    [3, [45, 53, 97]],
+  ];
+  const rgba = (rows: number[][]) => rows.flatMap(([r, g, b]) => [r, g, b, 255]);
+
+  it('the colours back through a JPEG, with a browser’s small anti-fingerprinting noise: a match', () => {
+    expect(pixelsMatch(rgba(swatches.map(([, c]) => c)), swatches)).toBe(true);
+    expect(pixelsMatch(rgba([[3, 2, 1], [217, 23, 57], [252, 187, 3], [48, 50, 100]]), swatches)).toBe(true);
+  });
+
+  it('a blank (white or black) or random read-back: no match', () => {
+    expect(pixelsMatch(rgba(new Array(4).fill([255, 255, 255])), swatches)).toBe(false);
+    expect(pixelsMatch(rgba(new Array(4).fill([0, 0, 0])), swatches)).toBe(false);
+    expect(pixelsMatch(rgba([[0, 0, 0], [20, 220, 60], [255, 184, 0], [45, 53, 97]]), swatches)).toBe(false);
   });
 });

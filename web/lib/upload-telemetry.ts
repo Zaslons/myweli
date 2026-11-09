@@ -2,7 +2,7 @@ import * as Sentry from '@sentry/nextjs';
 
 /// What a `prepare` report says (web-pro-upload-resize.md §6.4).
 export type PrepareFailureDetail = {
-  reason: 'unreadable' | 'too_large' | 'failed';
+  reason: 'unreadable' | 'too_large' | 'blocked' | 'failed';
   /// The picked file's `type` as the browser gave it; `uploadInputType` keeps
   /// it only when it is MIME-shaped.
   inputType: string;
@@ -43,6 +43,8 @@ export function uploadInputType(type: string): string {
 /// reason, the picked file's MIME type and its size in coarse megapixel bands —
 /// enough to learn whether HEIC actually arrives before buying a decoder, and
 /// nothing about the person: **never the file name**, never pixels or bytes.
+/// It is a `warning`, not an `error`: every HEIC picked in Chrome lands here,
+/// the person was told what to do, and nothing of ours broke (review F9).
 export function reportUploadFailure(
   stage: 'sign' | 'put' | 'response' | 'prepare',
   purpose: string,
@@ -52,7 +54,7 @@ export function reportUploadFailure(
   const likelyCors = stage === 'put' && status === undefined;
   const prepare = detail?.prepare;
   Sentry.captureMessage(`upload_failed:${purpose}:${stage}`, {
-    level: 'error',
+    level: stage === 'prepare' ? 'warning' : 'error',
     tags: {
       upload_stage: stage,
       upload_purpose: purpose,

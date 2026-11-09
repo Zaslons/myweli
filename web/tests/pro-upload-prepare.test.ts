@@ -8,6 +8,7 @@ const {
   uploadKycDocument,
   uploadLogoImage,
   uploadFailureMessage,
+  UPLOAD_BLOCKED_MESSAGE,
   UPLOAD_TOO_LARGE_MESSAGE,
   UPLOAD_UNREADABLE_MESSAGE,
 } = await import('../lib/pro/upload');
@@ -76,7 +77,7 @@ describe('a Pro photo is prepared, then signed as JPEG, then the PREPARED bytes 
 });
 
 describe('a photo that cannot be prepared spends no signature and says why', () => {
-  for (const reason of ['unreadable', 'too_large', 'failed'] as const) {
+  for (const reason of ['unreadable', 'too_large', 'blocked', 'failed'] as const) {
     it(`${reason}: no request at all, { ok: false, reason }, a « prepare » report`, async () => {
       const fetchMock = storage();
       const file = new File([new Uint8Array(10)], 'IMG_0042 chez Awa.heic', { type: 'image/heic' });
@@ -140,6 +141,54 @@ describe('the server’s maxBytes is the last guard before the PUT', () => {
   });
 });
 
+// The review of 2026-11-09 (F3): leaving Médias 41 ms after picking a photo
+// still signed it, sent it and saved the gallery with it about 3 s later.
+describe('the page was left: nothing is signed or sent after that', () => {
+  it('left while the photo was being prepared: no request at all, no report', async () => {
+    const fetchMock = storage();
+    const left = new AbortController();
+    const r = await uploadGalleryImage(new File(['x'], 'p.jpg', { type: 'image/jpeg' }), {
+      signal: left.signal,
+      compress: async () => {
+        left.abort();
+        return prepared();
+      },
+    });
+    expect(r).toEqual({ ok: false, reason: 'aborted' });
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(captureMessage).not.toHaveBeenCalled();
+  });
+
+  it('left while the signature was out: signed, but the photo is not sent', async () => {
+    const left = new AbortController();
+    const fetchMock = vi.fn(async (url: string) => {
+      if (url === '/api/pro/uploads/sign') {
+        left.abort();
+        return new Response(JSON.stringify(SIGNED), { status: 200 });
+      }
+      return new Response(null, { status: 200 });
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    const r = await uploadLogoImage(new File(['x'], 'l.png', { type: 'image/png' }), {
+      signal: left.signal,
+      compress: async () => prepared(),
+    });
+    expect(r).toEqual({ ok: false, reason: 'aborted' });
+    expect(fetchMock).toHaveBeenCalledTimes(1); // the sign, no PUT
+    expect(captureMessage).not.toHaveBeenCalled();
+  });
+
+  it('not left: the same flow goes through (the control)', async () => {
+    const fetchMock = storage();
+    const r = await uploadGalleryImage(new File(['x'], 'p.jpg'), {
+      signal: new AbortController().signal,
+      compress: async () => prepared(),
+    });
+    expect(r).toEqual({ ok: true, url: SIGNED.publicUrl });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+});
+
 describe('the sentences', () => {
   it('are the spec’s, typographic apostrophes, « vous »', () => {
     expect(UPLOAD_UNREADABLE_MESSAGE).toBe(
@@ -148,12 +197,18 @@ describe('the sentences', () => {
     expect(UPLOAD_TOO_LARGE_MESSAGE).toBe(
       'Cette image est trop grande pour être préparée ici. Choisissez une image plus petite.',
     );
-    expect(UPLOAD_UNREADABLE_MESSAGE).not.toContain("'");
+    expect(UPLOAD_BLOCKED_MESSAGE).toBe(
+      'Votre navigateur empêche de préparer cette image. Essayez avec un autre navigateur.',
+    );
+    for (const m of [UPLOAD_UNREADABLE_MESSAGE, UPLOAD_TOO_LARGE_MESSAGE, UPLOAD_BLOCKED_MESSAGE]) {
+      expect(m).not.toContain("'");
+    }
   });
 
-  it('unreadable and too_large have theirs; failed keeps the surface’s', () => {
+  it('unreadable, too_large and blocked have theirs; failed keeps the surface’s', () => {
     expect(uploadFailureMessage('unreadable', 'Échec de l’envoi')).toBe(UPLOAD_UNREADABLE_MESSAGE);
     expect(uploadFailureMessage('too_large', 'Échec de l’envoi')).toBe(UPLOAD_TOO_LARGE_MESSAGE);
+    expect(uploadFailureMessage('blocked', 'Échec de l’envoi')).toBe(UPLOAD_BLOCKED_MESSAGE);
     expect(uploadFailureMessage('failed', 'Échec de l’envoi du logo.')).toBe('Échec de l’envoi du logo.');
   });
 });

@@ -96,6 +96,24 @@ describe('the prepare stage', () => {
     expect(opts.extra).toEqual({ status: null });
   });
 
+  // Review F9: every HEIC picked in Chrome lands here — the person was told
+  // what to do and nothing of ours broke, so it must not page anyone as an
+  // error. Storage refusing us (sign, put, response) still does.
+  it('a prepare report is a warning; the other stages stay errors', () => {
+    reportUploadFailure('prepare', 'gallery', {
+      prepare: { reason: 'unreadable', inputType: 'image/heic', megapixels: 'unknown' },
+    });
+    reportUploadFailure('put', 'gallery', { status: 403 });
+    reportUploadFailure('sign', 'logo', { status: 500 });
+    reportUploadFailure('response', 'gallery');
+    expect(captureMessage.mock.calls.map(([, opts]) => (opts as { level: string }).level)).toEqual([
+      'warning',
+      'error',
+      'error',
+      'error',
+    ]);
+  });
+
   it('the other stages carry no prepare tags', () => {
     reportUploadFailure('sign', 'logo', { status: 429 });
     const [, opts] = captureMessage.mock.calls[0] as [string, any];
