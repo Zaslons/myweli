@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | **Approved 2026-11-09** — the owner answered the four questions of §11 the same day (decision 107). Building on `feat/web-pro-upload-resize`, from `main`; not merged. |
+| **Status** | **Built 2026-11-09** on `feat/web-pro-upload-resize` (from `main` 62547f91), **not merged** — approved the same day (the owner's four answers, §11, decision 107). The record is §13. |
 | **Owner** | Sadreddine |
 | **Last updated** | 2026-11-09 |
 | **Module** | pro salon profile / portfolio — the web Pro area (`/pro/medias`, `/pro/catalogue`, `/pro/profil`) |
@@ -640,14 +640,16 @@ This spec (status → Built in the record commit); the design index row;
 
 ## 10. Definition of done
 
-- [ ] `tsc` + lint clean (`--max-warnings=0` on touched files); unit + targeted e2e green.
-- [ ] Every mutation in §8.3 watched red on a copy of the committed tree, the unmutated copy green;
-      recorded in §13 and in the PR.
-- [ ] Five pages: walker + control re-run; stylesheet compared with `main` — recorded.
-- [ ] No new Tailwind class or arbitrary value; `Button.tsx` untouched; `gen:api` shows no drift.
-- [ ] Manual checks in §8.4 done or explicitly listed as not done.
-- [ ] Docs in §9.3; spec status → Built.
-- [ ] Feature branch + PR; authored as the owner; no AI attribution.
+- [x] `tsc` + lint clean (`--max-warnings=0` on touched files); unit + targeted e2e green (§13.2).
+- [x] Every mutation in §8.3 watched red on a copy of the committed tree, the unmutated copy green
+      (§13.3) — except `imageOrientation: 'none'`, which changes nothing in Chromium 149 and is
+      recorded as **no result**; the decoder-blind mutation stands in for it.
+- [x] Five pages: walker + control re-run; stylesheet and scripts compared with `main` (§13.2).
+- [x] No new Tailwind class or arbitrary value; `Button.tsx` untouched; `gen:api` shows no drift.
+- [ ] Manual checks in §8.4 — **not done** (no phone, Safari or Firefox was used; §13.4).
+- [x] Docs in §9.3; spec status → Built.
+- [ ] Feature branch ✓, authored as the owner with no AI attribution ✓; **the PR is not opened**
+      (the owner opens or asks for it).
 
 ## 11. Decisions (the owner, 2026-11-09 — decision 107)
 
@@ -712,7 +714,89 @@ Memory (peak Δ RSS, ×1): see §5.3. Long tasks: 0 in every run; control fired 
 iOS Safari's HEIC→JPEG conversion; whether `cdn.myweli.com` strips metadata; how many stored web
 uploads exist or carry GPS; the app's black-logo behaviour.
 
-## 13. Record — filled when built
+## 13. Record (2026-11-09)
 
-_Empty until the build's guards have been run: the commands, the results, and the red/green table
-of §8.3 go here, with each mutation applied to a copy of the committed tree._
+### 13.1 Commits
+
+On `feat/web-pro-upload-resize`, from `origin/main` 62547f91: `0f3f3467` the spec (docs first) ·
+`5c30f9b9` the code and tests · this record. Nothing pushed.
+
+### 13.2 What ran, on `5c30f9b9` (OBSERVED)
+
+- `tsc --noEmit`: exit 0. ESLint `--max-warnings=0` on every touched file: exit 0.
+- Unit (Vitest): the full suite, **199 files, 2,643 tests, green**; the upload files alone
+  (the mutation harness's set), 143 green.
+- E2E (Playwright 1.61.1, its headless Chromium; an untracked config on ports 3100/8887 — both
+  checked free first — with every host but 127.0.0.1/localhost unresolvable in the browser, on top
+  of the spec's own abort route; build telemetry off): `pro-upload.spec.ts` 6/6 and `pro.spec.ts`
+  41/41 — **47 passed**. The full e2e suite was not run here (`booking.spec.ts` and
+  `served-html.spec.ts` hard-wire 8787); CI runs it.
+- `npm run gen:api`: `lib/api/schema.ts` regenerated with **no diff** — no contract drift.
+- **The five store-linked pages.** The b114 walker (`import`/`export`/`import()`, `@/` and
+  relative paths), seeded with the root layout, `not-found`, `error`, `global-error` and the five
+  pages: **56 files on `main` and on the branch, the same list** (sha-256 of the list
+  `264b5f618d7fc60b…` on both); **no changed file is in it**; `components/Button.tsx` and
+  `styles/tokens.ts` are (both untouched). Control: the closure of the Médias, Profil and
+  Catalogue pages is 83 files on the branch and **reaches `lib/image/compress.ts`** (82 on `main`,
+  where the file does not exist). Then three production builds in **the same directory** —
+  `main`, `main` again, the branch: the nine entries' scripts (layout, the five pages, `not-found`,
+  `error`, `global-error`) are **byte-identical between `main` and the branch**; the two `main`
+  builds differ from each other only in Sentry's per-build debug IDs (the noise floor). The three
+  CSS files are byte-identical in all three builds; the Tailwind CLI output too (sha-256
+  `357e9a43…` on `main` and on `5c30f9b9`).
+- **Found by that comparison, before the record:** the first version of the code commit
+  (`97e5c179`, amended into `5c30f9b9` before any push) wrote « failing to shrink a Pro photo »
+  and « the canvas transform » in comments. Tailwind scans `lib/**`, comments included, so the
+  shared stylesheet gained `.shrink` and `.transform` (+242 bytes) — on every page, the five
+  store-linked ones included. Reworded (three more lines emitted classes the stylesheet already
+  had: « block », « resize » twice), and `tests/upload-no-css.test.ts` now requires the three
+  upload modules to emit **no** Tailwind class, with a control proving the probe sees one.
+
+### 13.3 Guards watched red
+
+Each mutation on a fresh `git archive 5c30f9b9 web` (node_modules cloned, the worktree never
+edited); a replacement that did not match exactly once aborted the run, and the mutated file was
+checked to differ. Unit = the eight upload test files plus `upload-no-css` (143 tests); e2e =
+`pro-upload.spec.ts` (6 tests) on a fresh production build of the mutated copy.
+**21 mutations: 20 red, 1 no result; the control green.**
+
+| Mutation | Unit | E2E | What fired |
+|---|---|---|---|
+| **Control — no edit** | **143 green** | **6 green** | — |
+| No resize (`targetSize` returns its input) | 17 red | 3 red | the table, the property test, « decodes AT the target size »; e2e frame size (Médias ×2, Avant/Après) |
+| Orientation ignored in the size (no quarter turn) | 2 red | 2 red | `orientedSize`, « decodes AT the target size »; e2e frame 2133×1600 |
+| Decoder told `imageOrientation: 'none'` | green | **green — no result** | Chromium 149 still applies EXIF orientation under `'none'`: the edit applied, the behaviour did not change |
+| Decoder blind to EXIF (the APP1 renamed before decoding) | green | 2 red | e2e corners: **top-left blue** (0,0,254) where red belongs — the size right, the pixels sideways |
+| EXIF kept (the original APP1 copied into the output) | 5 red¹ | 2 red | e2e `exif`, `makeMarker`, `gpsMarker` all true |
+| Encoder quality 0.92 (rule untouched) | green | 5 red | e2e luminance table ≠ IJG quality 80 (every upload) |
+| `UPLOAD_RULE.quality` 0.92 | 1 red | — | the pin |
+| Long-side cap removed | 7 red | — | the table (12000×3000 …), the property test |
+| Enlargement allowed | 10 red | 2 red | the table (1×1 …), the property test; e2e logo 1600×1600, staff 1600×2133 |
+| Step 2 rounds instead of truncating | 2 red | — | 4800×3400 → 2258×1600, the camera-size equality |
+| No white fill | green | 1 red | e2e logo corners not white |
+| 64 MP ceiling removed | 1 red | 1 red | « NOTHING is decoded »; e2e « trop grande » never shown (« pas pu être lue » instead) |
+| The 5 MiB guard in `compressForUpload` removed | 1 red | — | « still over 5 MiB after preparing » |
+| The sign's `maxBytes` guard removed | 1 red | — | « over the signed maxBytes is not sent » |
+| Not serialized | 1 red | — | « one at a time » |
+| The file name in the report's purpose | 5 red | — | the message pin and `not.toContain` |
+| The file name in the event's `extra` (message and tags unchanged) | 4 red | — | `not.toContain('IMG_0042')` itself |
+| MIME tag not sanitized | 1 red | — | `uploadInputType` |
+| Sign asks for the picked type (`file.type`) | 2 red | 2 red | the sign body; e2e logo and staff photo signed `image/png` |
+| The `File` PUT instead of the prepared blob | 3 red | 5 red | the PUT body; e2e frame size / Exif |
+| « shrink » back in a comment of `upload-telemetry.ts` | 1 red | — | `upload-no-css` |
+
+¹ For the wrong reason: jsdom's `File` has no `arrayBuffer`, so the mutated code throws and every
+fake-backed flow test fails; the e2e is the guard for this one.
+
+### 13.4 Not verified
+
+- Safari (macOS, iOS) and Firefox: decoding, `resizeWidth`/`resizeHeight`, EXIF orientation, HEIC
+  on Safari, iOS Safari's HEIC→JPEG hand-over. Any real phone: time, memory, tab kills, the 64 MP
+  ceiling (§8.4 — none of it done).
+- The last-resort canvas rotation (`orientationTransform` on a decoder that ignores EXIF) never
+  ran in a real engine: its matrices are unit-tested against EXIF's definition only. The `<img>`
+  path did run, in Chromium, with `createImageBitmap` removed.
+- The two sentences at 200 % text on a 320 px screen (no screenshot taken).
+- The full e2e suite (CI runs it); the CWV budget (no public page changed).
+- The stored photos' count (§11, answer 3): not run — it waits for GCP billing (reported closed on
+  2026-11-09, not re-checked here); this build used no production or cloud access.
