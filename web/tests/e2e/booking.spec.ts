@@ -49,9 +49,14 @@ test.describe('mobile web', () => {
   }) => {
     await page.goto('/beaute-divine/reserver');
     // The pinned bar is there from the start, disabled until services + time.
-    // Sticky since web-funnel-bar-fit.md: it stops above the footer.
-    const bar = page.locator('.sticky.bottom-0');
+    // Fixed at the screen's foot since decision 105 (web-funnel-bar-fit.md §6),
+    // with the page's measured room under the footer: the bar that holds
+    // « Confirmer », and fixed, not merely there.
+    const bar = page.locator('.fixed.bottom-0', {
+      has: page.getByRole('button', { name: 'Confirmer', exact: true }),
+    });
     await expect(bar).toBeVisible();
+    await expect(bar).toHaveCSS('position', 'fixed');
     await expect(
       bar.getByRole('button', { name: 'Confirmer', exact: true }),
     ).toBeDisabled();
