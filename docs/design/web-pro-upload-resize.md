@@ -851,7 +851,7 @@ uploads exist or carry GPS; the app's black-logo behaviour.
 On `feat/web-pro-upload-resize`, from `origin/main` 62547f91: `0f3f3467` the spec (docs first) ·
 `5c30f9b9` the code and tests · `106fb82d` this record. Then the review fixes (§13.5): `1c30d958`
 the pipeline · `3ad93153` the Pro surfaces · `dd5fcd6f` the toast · `0e941eb8` the e2e · the spec
-and doc corrections · the record of §13.5. Nothing pushed.
+and doc corrections · the record of §13.5 · the picture (§13.6). Nothing pushed.
 
 ### 13.2 What ran, on `5c30f9b9` (OBSERVED)
 
@@ -1046,3 +1046,27 @@ the mutated copy. **33 runs: the control green (188 / 13), the 32 mutations each
 - The cause of the build-to-build noise of §13.5.2.
 - The full e2e suite (CI runs it); the stored photos' count (§11, answer 3) — not run, no
   production or cloud access was used.
+
+### 13.6 Picture (2026-11-09)
+
+One sheet, [a Pro photo on Médias, before and after](assets/web-pro-upload-resize.png) (1760×2290,
+244 KB, 253 colours, no metadata): `main` (62547f91) against this branch at `efc779f0`, each a
+`next build` of a fresh `git archive`, served side by side on 127.0.0.1 against one stub — this
+branch's, which signs only JPEG, PNG and WebP as `upload_signing_service.dart` does and records what
+storage receives — in Playwright's Chromium 149.0.7827.55 at 390×844. Every other request was
+aborted (none was made), popups were blocked, and the Médias save was answered in the browser.
+Generated images only: the e2e's procedural photo (`sidewaysPhoto` 4032×3024 with
+`exifApp1({ orientation: 6 })`, 1,866,380 bytes) and flat grey placeholders for the seeded gallery.
+
+- **A phone photo added to « Photos ».** Before: storage received the picked file byte for byte —
+  1,866,380 bytes, 4032×3024 stored (shown 3024×4032 through EXIF), Exif, the camera marker and the
+  GPS IFD present, its own quality-92 table. After: 474,529 bytes (−74.6 %), 1600×2133 upright in
+  its pixels, no Exif, camera or GPS, the IJG quality-80 table, APP0 and APP2 only. Read by the
+  stub's `inspectJpeg`, then again by Pillow.
+- **A file the browser cannot read** (4,096 bytes Chromium cannot decode, named `IMG_0043.heic`,
+  `image/heic`). Before: one sign asked for `image/heic`, refused (400, `invalid_input`),
+  « Échec de l’envoi », the focus on `<body>`. After: no sign, `UPLOAD_UNREADABLE_MESSAGE`, the focus
+  back on « Ajouter une photo », the toast's pill 358 px wide against 153 px.
+- Every figure on the sheet is read from the shoot's record and asserted before the sheet is drawn;
+  the PNG was opened and checked against that record and against the e2e's own assertions (1600×2133,
+  no metadata, quality 80).
