@@ -824,7 +824,7 @@ row: the two toast residuals are registered there by the follow-up (§11 item 13
    1600 or long side over 2400, read from the JPEG frame header; « Exif » = an APP1 `Exif` segment
    before that header; « GPS » = a non-empty GPS IFD inside it — XMP and IPTC were not read (below).
    4 of the 5 gallery photos and 1 of the 3 logos carry at least one sign of not having been
-   prepared by the rule (too large, or Exif; these two are lower bounds, below). Production has no
+   prepared by the rule (too large, or Exif); these two « sign » counts are lower bounds (below). Production has no
    public salon (`GET /providers` answers a total of 0, BACKLOG decision 51 — reported to this
    record, not re-checked), so these are test or demo uploads (INFERRED). **Not established:** which
    client sent each file; the **XMP** (APP1 `http://ns.adobe.com/xap/1.0/`) and **IPTC** (APP13)
@@ -1292,3 +1292,16 @@ edge (y=−224), `h-9 overflow-hidden` red at its own height (86 > 36), the 12 o
 time; and only the « sign » counts are lower bounds, the Exif counts exact for an APP1 `Exif`
 segment before the frame header (the count script's `parse` read again) — corrected in §11
 answer 3, the roadmap entry and the row above.
+
+**After the review of `e50a5781`** (`b47517c4` the e2e, then this docs commit): the pill's own scroll
+width and height count no overflow to the top or the left, so a sentence pushed up out of a short
+`overflow-hidden` pill (`h-9 items-end`) passed: five of its six lines hidden, every assertion green
+(OBSERVED by the review on `e50a5781`). The test now also holds the sentence's own rectangle (a
+`Range` over the pill's contents) inside the pill's box on all four sides, half a pixel allowed for
+rounding. On a fresh archive and build of `b47517c4` each, `pro-upload.spec.ts` (13), OBSERVED: the
+commit 13 green; the short `items-end` pill red at the text's top (417 < 507.5; its own scroll height
+36 / 36, so the old line still passed); a `w-40 justify-end whitespace-nowrap overflow-hidden` pill
+red at the text's left (−333.3 < 79.5; its own scroll width 160 / 160); the 12 others green each
+time; `tsc` and ESLint `--max-warnings=0` on the spec exit 0; Node refused 6 `o1.ingest.sentry.io`
+lookups per build, the browser sink 0 requests. And §11 answer 3's « these two » now names the
+« sign » counts.
