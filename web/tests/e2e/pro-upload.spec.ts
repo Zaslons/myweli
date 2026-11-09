@@ -872,7 +872,17 @@ test('at 320 px the « trop grande » toast stays whole on the screen, its sente
     scrollHeight: el.scrollHeight,
     clientHeight: el.clientHeight,
   }));
-  const seen = `pill ${JSON.stringify(box)}, its own ${JSON.stringify(own)}, the page ${JSON.stringify(view)}`;
+  // The sentence's own box: scrollWidth/scrollHeight count no overflow to the
+  // top or the left, so a sentence pushed up out of an `overflow-hidden` pill
+  // (`items-end` on a short pill) passed them (§13.8). The text's rectangle
+  // must sit inside the pill's, on all four sides (half a pixel for rounding).
+  const text = await pill.evaluate((el) => {
+    const range = document.createRange();
+    range.selectNodeContents(el);
+    const r = range.getBoundingClientRect();
+    return { x: r.left, y: r.top, right: r.right, bottom: r.bottom };
+  });
+  const seen = `pill ${JSON.stringify(box)}, its own ${JSON.stringify(own)}, its text ${JSON.stringify(text)}, the page ${JSON.stringify(view)}`;
   expect({ width: view.width, height: view.height }, seen).toEqual(viewport);
   expect(box.x, seen).toBeGreaterThanOrEqual(0);
   expect(box.x + box.width, seen).toBeLessThanOrEqual(view.width);
@@ -881,6 +891,10 @@ test('at 320 px the « trop grande » toast stays whole on the screen, its sente
   expect(view.scrollWidth, seen).toBeLessThanOrEqual(view.width);
   expect(own.scrollWidth, seen).toBeLessThanOrEqual(own.clientWidth);
   expect(own.scrollHeight, seen).toBeLessThanOrEqual(own.clientHeight);
+  expect(text.x, seen).toBeGreaterThanOrEqual(box.x - 0.5);
+  expect(text.y, seen).toBeGreaterThanOrEqual(box.y - 0.5);
+  expect(text.right, seen).toBeLessThanOrEqual(box.x + box.width + 0.5);
+  expect(text.bottom, seen).toBeLessThanOrEqual(box.y + box.height + 0.5);
   // The KNOWN RESIDUAL, pinned so it cannot change unseen (§2.7, §11 item 13):
   // the region is centred by `left-1/2 -translate-x-1/2` with no width, so the
   // pill has at most half the screen to wrap in — 160 px here, normal text.
