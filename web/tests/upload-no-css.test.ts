@@ -18,7 +18,7 @@ import tailwindConfig from '../tailwind.config';
 /// `.shrink` and `.transform` (242 bytes) into a stylesheet that was otherwise
 /// byte-identical to `main`'s. These files style nothing, so they must emit
 /// nothing.
-const FILES = ['lib/image/compress.ts', 'lib/pro/upload.ts', 'lib/upload-telemetry.ts'];
+const FILES = ['lib/image/compress.ts', 'lib/pro/upload.ts', 'lib/pro/upload-hooks.ts', 'lib/upload-telemetry.ts'];
 
 async function utilitiesFrom(raw: string): Promise<string> {
   const config = { ...(tailwindConfig as object), content: [{ raw, extension: 'ts' }] };
