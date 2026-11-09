@@ -114,7 +114,13 @@ jobs:
 
   backend:
     name: Backend — Analyze & Test
-    runs-on: ubuntu-latest
+    # Pinned, NOT ubuntu-latest: this job tests against the PostgreSQL the
+    # runner image ships, and production is 16. ubuntu-24.04's image installs
+    # 16 (its toolset has said 16 since 2024-04-26); ubuntu-latest moved to
+    # 26.04, which installs 18, and the version guard in start-postgres.sh
+    # failed both backend jobs from 2026-11-07. The script says what to do when
+    # this label is retired.
+    runs-on: ubuntu-24.04
     defaults:
       run:
         working-directory: backend
@@ -150,7 +156,8 @@ jobs:
 
   backend-boot-smoke:
     name: Backend — boot smoke + funnel e2e
-    runs-on: ubuntu-latest
+    # Pinned for the same reason as `backend`: the image's PostgreSQL must be 16.
+    runs-on: ubuntu-24.04
     # The first job in this file to carry one, and it earns it: this job now
     # BOOTS a server, so a hang would burn the full runner limit instead of
     # failing. 12 min is ~3× the measured p95 budget (Q1 spec §7.1).
