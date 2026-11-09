@@ -56,6 +56,20 @@ describe('the cover is fetched at its exact width, first (§1.9)', () => {
     expect(cover).toHaveAttribute('fetchpriority', 'high');
     expect(cover).not.toHaveAttribute('loading', 'lazy');
   });
+
+  it('held sideways at 2.5 dppx and up, below lg, it names a 2× slot: the denser clause first, and no bare `vw` (decision 106)', () => {
+    // §1.9's one exception. The browser reads `sizes` part by part, at its top-level commas,
+    // and the first match wins: swapped, 892×412 at 3.5× would match the 2.5 dppx clause and
+    // ask for 3840w again. `calc(50vw)`, because a bare `50vw` would be Next's smallest counted
+    // `vw` and add 384w. Without either clause a sideways 3× or 3.5× phone asks for 3840w.
+    expect(COVER_SIZES.split(/,(?![^(]*\))/).map((part) => part.trim())).toEqual([
+      '(min-width: 1536px) 984px',
+      '(min-width: 1024px) calc(66.67vw - 40px)',
+      '(orientation: landscape) and (min-resolution: 3.25dppx) calc(50vw)',
+      '(orientation: landscape) and (min-resolution: 2.5dppx) 66.67vw',
+      '100vw',
+    ]);
+  });
 });
 
 describe('the order the grid and the Tab key follow (§1.4)', () => {

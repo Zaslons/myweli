@@ -90,6 +90,36 @@ test.describe('the salon page’s cover (web-swiss-salon.md §1.2)', () => {
   /// above the width `sizes` names (§1.9).
   const CANDIDATES = [640, 750, 828, 1080, 1200, 1920, 2048, 3840];
 
+  /// The part of the `<img>`'s own `sizes` that applies at this screen, read the way the
+  /// browser reads it: the parts in order, the first whose media condition matches. A part's
+  /// length is its last token, a `calc()` or a bare length, and everything before it, `and`
+  /// included, is the condition, handed to `matchMedia` whole: decision 106's clauses carry two
+  /// parentheses, and a reader of the first one alone took « and (min-resolution: …) … » for a
+  /// length (§1.10). The length is resolved on a probe.
+  const namedBySizes = (page: Page) =>
+    page.locator(COVER).evaluate((img: HTMLImageElement) => {
+      for (const part of img.sizes.split(/,(?![^(]*\))/).map((p) => p.trim())) {
+        const m = /^(.*?)\s*((?:calc|min|max|clamp)\(.*\)|[^\s()]+)$/.exec(part);
+        if (!m) return { part, length: '', w: Number.NaN };
+        const [, condition, length] = m;
+        if (condition && !matchMedia(condition).matches) continue;
+        const probe = document.createElement('div');
+        probe.style.cssText = `position:absolute;visibility:hidden;width:${length}`;
+        document.body.append(probe);
+        const w = probe.getBoundingClientRect().width;
+        probe.remove();
+        return { part, length, w };
+      }
+      return null;
+    });
+
+  /// The candidate the browser chose, from `currentSrc`'s `w=`.
+  const fileAsked = (page: Page) =>
+    page.locator(COVER).evaluate(async (img: HTMLImageElement) => {
+      await img.decode().catch(() => undefined);
+      return Number(new URL(img.currentSrc).searchParams.get('w'));
+    });
+
   for (const [width, height] of [
     [320, 568],
     [390, 844],
@@ -109,31 +139,15 @@ test.describe('the salon page’s cover (web-swiss-salon.md §1.2)', () => {
       const h1 = (await page.getByRole('heading', { level: 1 }).boundingBox())!;
 
       // The box it is drawn in, by the layout's arithmetic (§1.2), and the width the `<img>`'s
-      // own `sizes` names at this screen, read the way the browser reads it: the first media
-      // condition that matches, its length resolved on a probe. A `sizes` off the box inside
-      // one candidate's step would still fetch the same file, so the file alone cannot say.
+      // own `sizes` names at this screen (`namedBySizes`). A `sizes` off the box inside one
+      // candidate's step would still fetch the same file, so the file alone cannot say. At
+      // density 1 decision 106's sideways clauses never apply, so the box is named exactly.
       const slot = width < 1024 ? width : width >= 1536 ? 984 : 0.6667 * width - 40;
       expect(Math.abs(cover.width - slot), `drawn ${cover.width} wide, the layout gives ${slot}`).toBeLessThanOrEqual(1);
-      const named = await page.locator(COVER).evaluate((img: HTMLImageElement) => {
-        for (const part of img.sizes.split(/,(?![^(]*\))/).map((p) => p.trim())) {
-          const m = /^(\([^)]*\))\s+(.+)$/.exec(part);
-          if (m && !matchMedia(m[1]).matches) continue;
-          const probe = document.createElement('div');
-          probe.style.cssText = `position:absolute;visibility:hidden;width:${m ? m[2] : part}`;
-          document.body.append(probe);
-          const w = probe.getBoundingClientRect().width;
-          probe.remove();
-          return { part, w };
-        }
-        return null;
-      });
+      const named = await namedBySizes(page);
       expect(named, 'no length in `sizes` applies').not.toBeNull();
       expect(Math.abs(cover.width - named!.w), `drawn ${cover.width} wide, « ${named!.part} » names ${named!.w}`).toBeLessThanOrEqual(1);
-      const asked = await page.locator(COVER).evaluate(async (img: HTMLImageElement) => {
-        await img.decode().catch(() => undefined);
-        return Number(new URL(img.currentSrc).searchParams.get('w'));
-      });
-      expect(asked).toBe(CANDIDATES.find((w) => w >= slot));
+      expect(await fileAsked(page)).toBe(CANDIDATES.find((w) => w >= slot));
 
       if (width >= 1024) {
         expect(Math.abs(cover.x - (await logoLeft(page))), 'the cover is off the logo’s edge').toBeLessThanOrEqual(1);
@@ -145,6 +159,55 @@ test.describe('the salon page’s cover (web-swiss-salon.md §1.2)', () => {
         expect(cover.x).toBe(0);
         expect(h1.y, 'the name is not under the photo').toBeGreaterThan(cover.y + cover.height);
       }
+    });
+  }
+
+  /// Decision 106, §1.9's one written exception to « `sizes` exact to the box ». Below `lg`, a
+  /// screen held sideways at 2.5 dppx and up names a slot narrower than the box on purpose: ⅔ of
+  /// the width from 2.5 dppx, ½ from 3.25. So it asks for a « 2× » file, never the 3840w one,
+  /// which with the generated test photo was 552,790 B, painted at 7.5 s at 844×390 at 3× on a
+  /// throttled phone (measured, §1.9). An upright phone and a 2× computer keep the box, named
+  /// exactly, and today's file. Each file is the one both Chromium 149 and Chrome 156 chose in
+  /// decision 106's plan, before and after the clauses at the controls.
+  for (const { width, height, dpr, length, fraction, file } of [
+    { width: 844, height: 390, dpr: 3, length: '66.67vw', fraction: 2 / 3, file: 1920 },
+    { width: 892, height: 412, dpr: 3.5, length: 'calc(50vw)', fraction: 1 / 2, file: 1920 },
+    { width: 390, height: 844, dpr: 3, length: '100vw', fraction: 0, file: 1200 },
+    { width: 1280, height: 800, dpr: 2, length: 'calc(66.67vw - 40px)', fraction: 0, file: 1920 },
+  ]) {
+    test.describe(`at ${width}×${height}, density ${dpr}`, () => {
+      test.use({ viewport: { width, height }, deviceScaleFactor: dpr });
+
+      test(
+        fraction
+          ? `held sideways: « ${length} », a 2× file (${file}w), never 3840w (decision 106)`
+          : `the box named exactly, and today's file (${file}w) (decision 106's control)`,
+        async ({ page }) => {
+          await routeNextImages(page);
+          await page.goto('/beaute-divine');
+          expect(await page.evaluate(() => devicePixelRatio)).toBe(dpr);
+          const cover = await box(page, COVER);
+          const slot = width < 1024 ? width : width >= 1536 ? 984 : 0.6667 * width - 40;
+          expect(Math.abs(cover.width - slot), `drawn ${cover.width} wide, the layout gives ${slot}`).toBeLessThanOrEqual(1);
+
+          const named = await namedBySizes(page);
+          expect(named, 'no length in `sizes` applies').not.toBeNull();
+          expect(named!.length, `« ${named!.part} » applies`).toBe(length);
+          if (fraction) {
+            // The exception: narrower than the box it is drawn in, by design.
+            expect(
+              Math.abs(named!.w - fraction * width),
+              `« ${named!.part} » names ${named!.w}, not ${fraction * width}`,
+            ).toBeLessThanOrEqual(1);
+          } else {
+            expect(Math.abs(cover.width - named!.w), `drawn ${cover.width} wide, « ${named!.part} » names ${named!.w}`).toBeLessThanOrEqual(1);
+          }
+
+          const asked = await fileAsked(page);
+          expect(asked, 'the cover asks for the 3840w file').not.toBe(3840);
+          expect(asked).toBe(file);
+        },
+      );
     });
   }
 });
