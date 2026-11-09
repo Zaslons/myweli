@@ -272,13 +272,17 @@ test.describe('the booking funnel’s phone bar at the funnel’s end (decision 
 
   /// F3: the page's script can arrive after a visitor has reached the footer; the room then
   /// opens below the screen. Whoever is at the very end is kept at the end. The page's chunks
-  /// are held until the visitor is parked there, then let through.
-  for (const [width, height] of PHONES) {
-    test(`at ${width}×${height}, a visitor at the funnel’s very end before the page’s script runs is at the new end once it has, « Instagram » clear of the bar`, async ({ page }) => {
+  /// are held until the visitor is parked there, then let through. With the browser's font at
+  /// 200 % the bar is 113px, not 65, and « Instagram » is about 81px under it before the script
+  /// (the build's review): the move to the new end is the bar's measured height, which only a
+  /// large text setting tells from a guess of the normal bar's.
+  for (const [width, height, text] of [...PHONES.map(([w, h]) => [w, h, 'normal'] as const), [320, 568, 'root32'] as const]) {
+    test(`at ${width}×${height} ${TEXT[text]}, a visitor at the funnel’s very end before the page’s script runs is at the new end once it has, « Instagram » clear of the bar`, async ({ page }) => {
       await hermetic(page);
       await page.setViewportSize({ width, height });
       await serveStubImages(page);
       await routeNextImages(page);
+      if (text === 'root32') await rootAt32(page);
       let release = () => {};
       const held = new Promise<void>((done) => (release = done));
       await page.route('**/_next/static/chunks/**', async (r) => {
@@ -301,12 +305,14 @@ test.describe('the booking funnel’s phone bar at the funnel’s end (decision 
           max: document.documentElement.scrollHeight - innerHeight,
           room: document.documentElement.style.paddingBottom,
           instaUnder: i.getBoundingClientRect().bottom - b.top,
+          root: getComputedStyle(document.documentElement).fontSize,
         };
       }, await page.evaluateHandle(barInPage));
       test.info().annotations.push({ type: 'parked', description: JSON.stringify(parked) });
       expect(parked.y, 'the page did not scroll, so this proves nothing').toBeGreaterThan(0);
       expect(Math.abs(parked.y - parked.max), 'not at the very end, so this proves nothing').toBeLessThanOrEqual(1);
       expect(parked.room, 'the script had already run, so this proves nothing').toBe('');
+      expect(parked.root, 'the text setting is not on, so this proves nothing').toBe(text === 'root32' ? '32px' : '16px');
       expect(parked.instaUnder, '« Instagram » was clear before the script, so this proves nothing').toBeGreaterThan(0);
       release();
       await expect.poll(() => page.evaluate(() => document.documentElement.style.paddingBottom)).not.toBe('');
