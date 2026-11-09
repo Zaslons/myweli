@@ -893,8 +893,8 @@ On `feat/web-pro-upload-resize`, from `origin/main` 62547f91: `0f3f3467` the spe
 the pipeline · `3ad93153` the Pro surfaces · `dd5fcd6f` the toast · `0e941eb8` the e2e · the spec
 and doc corrections · the record of §13.5 · the picture (§13.6). Then the split (§13.7):
 `a23eda47` reverts `dd5fcd6f` and the one e2e test that held only with it — the shared toast is
-`main`'s again (§11 item 13) · the docs brought to that, with the stored photos' count (§11,
-answer 3). Nothing pushed.
+`main`'s again (§11 item 13) · `9d721459` the docs brought to that, with the stored photos' count
+(§11, answer 3) · the picture made again against `a23eda47` (§13.6). Nothing pushed.
 
 ### 13.2 What ran, on `5c30f9b9` (OBSERVED)
 
@@ -1101,30 +1101,38 @@ re-run on `a23eda47`). The targeted unit set is now 186 tests and `pro-upload.sp
 
 ### 13.6 Picture (2026-11-09)
 
-One sheet, [a Pro photo on Médias, before and after](assets/web-pro-upload-resize.png) (1760×2290,
-244 KB, 253 colours, no metadata) — **made before the split, so it still shows `dd5fcd6f`'s
-full-width toast, which `a23eda47` took out (§13.7); to be regenerated for the branch as it now
-stands**: `main` (62547f91) against this branch at `efc779f0`, each a
-`next build` of a fresh `git archive`, served side by side on 127.0.0.1 against one stub — this
-branch's, which signs only JPEG, PNG and WebP as `upload_signing_service.dart` does and records what
-storage receives — in Playwright's Chromium 149.0.7827.55 at 390×844. Every other request was
-aborted (none was made), popups were blocked, and the Médias save was answered in the browser.
-Generated images only: the e2e's procedural photo (`sidewaysPhoto` 4032×3024 with
-`exifApp1({ orientation: 6 })`, 1,866,380 bytes) and flat grey placeholders for the seeded gallery.
+One sheet, [a Pro photo on Médias, before and after](assets/web-pro-upload-resize.png) (1760×2351,
+248 KB, 254 colours, no metadata chunk): `main` (62547f91) against this branch's code at `a23eda47`
+— the commit that took the shared toast change out (§13.7) —, each a `next build` of a fresh
+`git archive`, served side by side on 127.0.0.1 against one stub — this branch's, which signs only
+JPEG, PNG and WebP as `upload_signing_service.dart` does and records what storage receives — in
+Playwright's Chromium 149.0.7827.55 at 390×844. Every Node process ran with the lookup refusal of
+§13.7 (its control run before each build, the servers and the shoot; the builds' only refused
+names, `o1.ingest.sentry.io` ×6 each); the browser with the same three locks, plus the shoot's own
+abort route: nothing was aborted and nothing reached the refusing proxy; popups were blocked, and
+the Médias save was answered in the browser. Generated images only: the e2e's procedural photo
+(`sidewaysPhoto` 4032×3024 with `exifApp1({ orientation: 6 })`, 1,866,380 bytes) and flat grey
+placeholders for the seeded gallery. It replaces the sheet made at `efc779f0`, which showed
+`dd5fcd6f`'s full-width toast (358 px wide there).
 
 - **A phone photo added to « Photos ».** Before: storage received the picked file byte for byte —
   1,866,380 bytes, 4032×3024 stored (shown 3024×4032 through EXIF), Exif, the camera marker and the
   GPS IFD present, its own quality-92 table. After: 474,529 bytes (−74.6 %), 1600×2133 upright in
   its pixels, no Exif, camera or GPS, the IJG quality-80 table, APP0 and APP2 only. Read by the
-  stub's `inspectJpeg`, then again by Pillow.
+  stub's `inspectJpeg`, then again by Pillow (sizes, Exif, camera make, GPS IFD, and the luminance
+  table compared with the one Pillow's own encoder writes at quality 80 and 92 — all agree).
 - **A file the browser cannot read** (4,096 bytes Chromium cannot decode, named `IMG_0043.heic`,
   `image/heic`). Before: one sign asked for `image/heic`, refused (400, `invalid_input`),
   « Échec de l’envoi », the focus on `<body>`. After: no sign, `UPLOAD_UNREADABLE_MESSAGE`, the focus
-  back on « Ajouter une photo », the toast's pill 358 px wide against 153 px at `efc779f0` — the
-  width `dd5fcd6f` gave it, no longer on this branch since `a23eda47`.
-- Every figure on the sheet is read from the shoot's record and asserted before the sheet is drawn;
-  the PNG was opened and checked against that record and against the e2e's own assertions (1600×2133,
-  no metadata, quality 80).
+  back on « Ajouter une photo ». **The toast is `main`'s on both sides** (the same region and pill
+  classes: `left-1/2 -translate-x-1/2`, no `inset-x-0`, no `max-w-xl`), so the 72-character
+  sentence wraps in a pill **195 px wide — half the 390 px screen — and 96 px tall**, where
+  « Échec de l’envoi » takes 153 × 36 px: §2.7's residual, seen at 390 px with normal text (§11
+  item 13).
+- Every figure on the sheet is read from the shoot's record and asserted before the sheet is drawn
+  — among them that both toasts carry `main`'s classes and that the after pill is half the screen
+  wide; a control gave the after toast `dd5fcd6f`'s classes in a copy of the record, and the sheet
+  refused to draw. The PNG was opened and each figure checked against the record.
 
 ### 13.7 The split (2026-11-09): the shared toast change leaves this PR
 
