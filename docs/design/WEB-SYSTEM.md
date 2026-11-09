@@ -631,8 +631,10 @@ outgrew.
   `ResizeObserver` and `resize`, taken off from `lg` and when the page goes;
   no rule in the shared stylesheet, so the five store-linked pages never
   carry it. Until the page's script runs, the bar has no room under it (the
-  footer's last link 33 px under it at the very end); once it runs, a
-  visitor at the end is kept at the end. It is not printed
+  footer's last link 33 px under it at the very end with normal text, up to
+  105.5 px with doubled text and about 81 px with the browser font at 200 %,
+  web-swiss-salon.md §3.3); once it runs, a visitor at the end is kept at
+  the end. It is not printed
   (`print:hidden`): a fixed bar would stand at the foot of every printed
   page. It is as wide as the screen and never wider (`w-screen max-w-full`):
   with Android's large text a row wider than the screen makes Chrome widen the

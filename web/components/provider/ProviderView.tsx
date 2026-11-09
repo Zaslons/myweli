@@ -104,9 +104,10 @@ function buildFaq(
 /// (docs/design/web-swiss-salon.md §1.9).
 ///
 /// Below `lg`, a screen held sideways at 2.5 dppx and up names a smaller slot than the box, on
-/// purpose (§1.9's one exception), so it asks for a 2× file and not the 3840w one: ⅔ of the
-/// width from 2.5 dppx (844 wide at 3× asks 1920w), half of it from 3.25 dppx (892 wide at
-/// 3.5× asks 1920w). Neither `66.67vw` nor `calc(50vw)` is a bare `vw` (a bare `50vw` would add
+/// purpose (§1.9's one exception), so at the densities measured it asks for a 2× file and not
+/// the 3840w one: ⅔ of the width from 2.5 dppx (844 wide at 3× asks 1920w), half of it from
+/// 3.25 dppx (892 wide at 3.5× asks 1920w). Between them, above 3× and under 3.25× on a screen
+/// about 950 wide and more, it still asks for 3840w, as before (§1.9 names the gaps). Neither `66.67vw` nor `calc(50vw)` is a bare `vw` (a bare `50vw` would add
 /// 384w), so the candidates stay 640w and up. Upright screens and 2× screens keep the box.
 export const COVER_SIZES =
   '(min-width: 1536px) 984px, (min-width: 1024px) calc(66.67vw - 40px), ' +
