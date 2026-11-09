@@ -611,8 +611,8 @@ quarter of the screen** (decisions 103–105; [web-swiss-salon.md](web-swiss-sal
 §3, [web-funnel-bar-fit.md](web-funnel-bar-fit.md) §6). Two bars hold a page's
 one action on a phone: the salon page's « Réserver » (decision 103; specified
 and built 2026-11-06 on the cover update's branch, not merged) and the booking
-funnel's « total + Confirmer » (decision 105; specified 2026-11-09 on its own
-branch, stacked on that one, not merged). Both are `fixed` at the screen's foot
+funnel's « total + Confirmer » (decision 105; specified and built 2026-11-09 on
+its own branch, stacked on that one, not merged). Both are `fixed` at the screen's foot
 below `lg`, so the action never leaves the screen, as the apps' never does, and
 both answer a fixed bar's fault, covering whatever ends the document, by
 measurement rather than by `sticky`:
