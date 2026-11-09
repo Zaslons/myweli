@@ -2,14 +2,14 @@
 
 | | |
 |---|---|
-| **Status** | **Built 2026-11-09** on `feat/web-pro-upload-resize` (from `main` 62547f91), **not merged** — approved the same day (the owner's four answers, §11, decision 107). The record is §13. |
+| **Status** | **Built 2026-11-09** on `feat/web-pro-upload-resize` (from `main` 62547f91), **not merged** — approved the same day (the owner's four answers, §11, decision 107). The record is §13. **Reviewed twice the same day; every real finding fixed (§13.5)** — the four answers unchanged; four new items for the owner (§11, items 10–13). |
 | **Owner** | Sadreddine |
 | **Last updated** | 2026-11-09 |
 | **Module** | pro salon profile / portfolio — the web Pro area (`/pro/medias`, `/pro/catalogue`, `/pro/profil`) |
 | **PRD ref / phase** | FR-PRO-MEDIA-001 (« client-side compression ») · NFR-DATA-001 (« Mobile-data thrift: compress uploads ») · PRD §« Expensive, intermittent data » · V1 |
 | **ROADMAP entry** | [2026-11-09-web-pro-upload-resize.md](../roadmap/entries/2026-11-09-web-pro-upload-resize.md) |
 | **BACKLOG** | Decision 107 lives in `docs/BACKLOG.md` on #741's branch (decisions 87–107 are on open branches); its « built » line is added there, not here. |
-| **Governs** | `web/lib/image/compress.ts` (new) · `web/lib/pro/upload.ts` · `web/lib/upload-telemetry.ts` · `web/components/pro/MediasClient.tsx` · `web/components/pro/CatalogueClient.tsx` · `web/components/pro/ProfilClient.tsx` · their tests · `web/tests/e2e/pro-upload.spec.ts` · `web/tests/e2e/_jpeg.mjs` · `web/tests/e2e/stub-api.mjs` |
+| **Governs** | `web/lib/image/compress.ts` (new) · `web/lib/pro/upload.ts` · `web/lib/pro/upload-hooks.ts` (new, the review) · `web/lib/upload-telemetry.ts` · `web/components/pro/MediasClient.tsx` · `web/components/pro/CatalogueClient.tsx` · `web/components/pro/ProfilClient.tsx` · `web/components/Toast.tsx` + `web/lib/useToast.ts` (the review's two toast findings) · their tests · `web/tests/e2e/pro-upload.spec.ts` · `web/tests/e2e/_jpeg.mjs` · `web/tests/e2e/stub-api.mjs` |
 | **App twin** | `mobile/lib/widgets/provider/image_picker_sheet.dart` (step 1) + `mobile/lib/services/api/api_image_upload_service.dart` (step 2) |
 | **Contract** | **None.** `POST /uploads/sign`, the claim-time size check and every route stay as they are. |
 | **Skills checked** | myweli-web-guardrails + myweli-verification-guardrails (invoked 2026-11-09). Design system read: WEB-SYSTEM §6, §7, §10; SYSTEM §15, §17. |
@@ -849,7 +849,9 @@ uploads exist or carry GPS; the app's black-logo behaviour.
 ### 13.1 Commits
 
 On `feat/web-pro-upload-resize`, from `origin/main` 62547f91: `0f3f3467` the spec (docs first) ·
-`5c30f9b9` the code and tests · this record. Nothing pushed.
+`5c30f9b9` the code and tests · `106fb82d` this record. Then the review fixes (§13.5): `1c30d958`
+the pipeline · `3ad93153` the Pro surfaces · `dd5fcd6f` the toast · `0e941eb8` the e2e · the spec
+and doc corrections · the record of §13.5. Nothing pushed.
 
 ### 13.2 What ran, on `5c30f9b9` (OBSERVED)
 
@@ -924,9 +926,123 @@ fake-backed flow test fails; the e2e is the guard for this one.
   on Safari, iOS Safari's HEIC→JPEG hand-over. Any real phone: time, memory, tab kills, the 64 MP
   ceiling (§8.4 — none of it done).
 - The last-resort canvas rotation (`orientationTransform` on a decoder that ignores EXIF) never
-  ran in a real engine: its matrices are unit-tested against EXIF's definition only. The `<img>`
-  path did run, in Chromium, with `createImageBitmap` removed.
-- The two sentences at 200 % text on a 320 px screen (no screenshot taken).
+  ran in an engine that really ignores EXIF; the pipeline review ran it in Chromium with the EXIF
+  removed before `<img>` decoded, and all eight orientations came out right (OBSERVED by the
+  review, not by this build). The `<img>` path did run, in Chromium, with `createImageBitmap`
+  removed.
+- The two sentences at 200 % text on a 320 px screen: measured by the UX review (no clipping; the
+  toast's half-width wrapping, fixed in §13.5); after the fix, measured at 320 px with normal text
+  only.
 - The full e2e suite (CI runs it); the CWV budget (no public page changed).
 - The stored photos' count (§11, answer 3): not run — it waits for GCP billing (reported closed on
   2026-11-09, not re-checked here); this build used no production or cloud access.
+
+### 13.5 The two reviews of 2026-11-09, and the fixes
+
+Two independent reviews of `106fb82d` — the pipeline, and the UX with the tests — found no
+BLOCKER, one MAJOR, eleven MINOR and nine NIT. **Each finding was checked before it was fixed**: on
+a production build of `106fb82d` running the new e2e specs (« reproduced on `106fb82d` » below), by
+a mutation that puts the old behaviour back (§13.5.3), or by reading the code. Commits: `1c30d958`
+the pipeline · `3ad93153` the Pro surfaces · `dd5fcd6f` the toast · `0e941eb8` the e2e · then the
+docs. **None of the owner's four answers changed**; what needs the owner is §11, items 10–13.
+
+#### 13.5.1 Finding by finding
+
+| Finding | Real? — how it was checked | Done | Commit |
+|---|---|---|---|
+| **F1** (pipeline, MINOR) the photo squeezed when the browser reads the orientation otherwise | **Real.** Reproduced on `106fb82d`: « two Exif segments, 6 then 1 », which Chromium shows 2000×3000, uploaded 2400×1600 | The browser's own size (`<img>` once loaded, header only) sizes the target; our reader aligned (first Exif, SHORT × 1, PNG `eXIf` before IDAT); five layouts in the e2e, one only the browser reads (§5.4) | `1c30d958` · `0e941eb8` |
+| **F2** (pipeline, MINOR) no 64 MP ceiling for GIF, BMP, AVIF, HEIC | **Real.** No size read for them at `106fb82d` (`compress.ts:87–91`, `:117`); on `106fb82d` a 9000×8000 GIF header never got « trop grande » (the review measured a 72 MP GIF and AVIF decoded whole) | Their sizes read (GIF screen, BMP header, the largest `ispe`), and the browser's size checked too | `1c30d958` |
+| **F3** (pipeline, MINOR) leaving the page does not cancel; §2.4 false | **Real.** Reproduced on `106fb82d`: Médias left while the photo was prepared (the decode slowed by 1.5 s) — a signature was still asked for | An `AbortSignal` per page, checked before the sign, before the PUT and before adding; §2.4 rewritten | `1c30d958` · `3ad93153` |
+| **F4** (pipeline, MINOR) a canvas that is blanked or randomised uploads a blank picture | **Real mechanism**, OBSERVED by simulation on `106fb82d`: every canvas painted white before encoding → the photo uploaded, (255,255,255) at all five places, where the input reads (49,124,91)… **Which real browsers do it: UNVERIFIED** (only Chromium here) | A canvas check once per session (§2.4) and the « navigateur » sentence — **proposed copy, §11 item 10** | `1c30d958` · `3ad93153` |
+| **F5** (pipeline, NIT) canvases never released; the queue keeps the last file | **Real** (code) | Canvases set to 0×0, the queue keeps no result, the fallback `<img>` drops its source. **No guard**: not observable from a test | `1c30d958` |
+| **F6** (pipeline, NIT) an unknown file of any size handed to the decoder | **Real**: `106fb82d`'s own test « no header (GIF, BMP, AVIF…): decodes in full » asserted it | Unknown → `unreadable`, nothing measured or decoded | `1c30d958` |
+| **F7** (pipeline, NIT) the engine check never resizes | **The literal claim is refuted**: an engine that applies the size before the rotation, simulated on `106fb82d` (the bitmap came back 2133×1600 when 1600×2133 was asked), still gave an upright 1600×2133 that matched the input within 1–2 levels at five places — the final draw into the target composes back to the right geometry (§5.3). **A neighbouring case is real**: an engine that drops the orientation when asked for a size — simulated on `106fb82d`, the photo came out sideways (top-left blue) | The check decodes a two-tone probe AT A SIZE and reads its pixels (§5.3) | `1c30d958` · `0e941eb8` |
+| **F8** (pipeline, NIT) the output type not checked | **Real** (code) | Anything but `image/jpeg` → `failed` | `1c30d958` |
+| **F9** (pipeline, NIT) every HEIC in Chrome an error-level event | **Real** (code: `level: 'error'`). Whether an alert rule would fire: **UNVERIFIED** (no Sentry access) | `prepare` → `warning` | `1c30d958` |
+| **F10** (pipeline, NIT) two spec inaccuracies | **Real**: two surfaces list JPEG/PNG/WebP, not « three of four inputs »; Android's `rotationDegrees` drops the mirror (disassembled, §5.2 item 5) | §5.4 and §5.2 corrected | docs |
+| Focus (UX, **MAJOR**) §2.7 says the focus stays; it goes to `<body>` | **Real.** Reproduced on `106fb82d`: the Médias photo input focused, the focus on `<body>` while busy and still there after | `useFocusBackAfter` on all four controls; §2.7 and WEB-SYSTEM §5 | `3ad93153` |
+| Avant / Après shows nothing while busy (UX, MINOR) | **Real** (code: `FilePick` had no busy state) | « Téléversement… » on the side on its way, both pickers disabled | `3ad93153` |
+| Catalogue's message below the fold at 320 px, doubled text (UX, MINOR) | **Real** by code (the shared alert after the hours block); the geometry is the review's (its screenshot), not re-measured | Its own alert under the photo button. Geometry after the fix: **UNVERIFIED** (INFERRED visible: it sits under the button) | `3ad93153` |
+| The toast a tall narrow column (UX, MINOR) | **Real.** On `106fb82d` at 320 px the « trop grande » pill measured 160 px wide | Full-width region in the gutter, the pill centred, `max-w-xl` (§2.7, §11 item 13) | `dd5fcd6f` |
+| A repeated sentence not re-announced (UX, MINOR) | **Real** (the review: 0 changes in the region). A screen reader: **UNVERIFIED** | The pill keyed on each `show` (WEB-SYSTEM §7) | `dd5fcd6f` |
+| Four guards green under their mutation, U2 U4 U7 U8 (UX, MINOR) | **Real** (the review's record) | New guards; the same four mutations now red (§13.5.3) | `3ad93153` |
+| The e2e blind to a photo short of its frame, E3 (UX, MINOR) | **Real** (the review's record) | Every upload compared with its input at five places; E3 now red in four tests | `0e941eb8` |
+| `pro-image-upload-pipeline.md:70` says multipart POST (UX, NIT) | **Real**: the app PUTs the raw bytes (`api_image_upload_service.dart`, `_client.put`) | Corrected | docs |
+| The app's « Image invalide » not named (UX, NIT) | **Real** (`api_image_upload_service.dart:106`, `:109`) | §2.6 | docs |
+| « préparée ici » assumes the person knows (UX, NIT) | A wording opinion on approved copy | **Not applied** — §11 item 11 | — |
+
+#### 13.5.2 What ran (OBSERVED)
+
+- `tsc --noEmit` exit 0; ESLint `--max-warnings=0` on the 24 touched web files, exit 0;
+  `npm run gen:api` left `lib/api/schema.ts` unchanged. Each intermediate commit on its own
+  (`git archive`): `tsc` exit 0 and the targeted unit files green (169, 186, 188 tests).
+- Vitest, the full suite: **199 files, 2,682 tests, green**; the targeted ten files, 188.
+- Playwright 1.61.1, its Chromium 149, an untracked config on 3100/8887 (both checked free; every
+  host but 127.0.0.1/localhost unresolvable, on top of the specs' abort route), a fresh production
+  build of the committed code: `pro-upload.spec.ts` 13, `pro.spec.ts` 41, `axe`, `discovery`,
+  `tap-targets`, `type-overflow`, `focus` — **205 passed**. `booking.spec.ts` and
+  `served-html.spec.ts` (hard-wired to 8787) and the rest of the suite: not run here.
+- **The reproduction run**: `106fb82d`'s app with the new specs and two probes: the seven new tests
+  red as above, the six original tests (now also comparing each upload with its input) green.
+- **The five store-linked pages.** The walker: 56 files, the same list as `main` (sha
+  `264b5f618d7fc60b`), none of the 24 changed files in it; `Toast.tsx`, `useToast.ts` and
+  `upload-hooks.ts` outside; the control (Médias, Profil, Catalogue) is 84 files and reaches
+  `compress.ts`. The Tailwind CLI output is byte-identical to `main`'s (sha `357e9a43…`); every
+  class the fixes use already existed. **Production builds**: built back to back in one directory,
+  `main` then the branch (`0e941eb8`): the nine entries' 17 script files byte-identical, the CSS
+  byte-identical; the three Pro entries differ (the control). **Build noise, found on the way**: in
+  an earlier session `main` and the branch differed on four of the nine entries — only the order of
+  two chunk ids in a dependency list, a minifier's parameter name, and the Sentry debug id derived
+  from them — and `main` rebuilt later from the same source differed from the first `main` on six
+  entries in exactly that way. So one comparison across sessions proves nothing either way; the
+  back-to-back pair is the evidence. The cause of that noise: **UNVERIFIED**.
+
+#### 13.5.3 Guards watched red
+
+Each mutation on a fresh `git archive 0e941eb8 web` (node_modules cloned; the worktree never
+edited); every replacement checked to match exactly once and to change the file. Unit = the ten
+targeted files (188 tests); e2e = `pro-upload.spec.ts` (13 tests) on a fresh production build of
+the mutated copy. **33 runs: the control green (188 / 13), the 32 mutations each red.**
+
+| Mutation | Unit | E2E | What fired |
+|---|---|---|---|
+| **Control — no edit** | **188 green** | **13 green** | — |
+| F1 the target from our header reading, not the browser's (`prepare`) | 3 red | 1 red | « the browser's reading wins »; e2e « Exif 6 after the frame header » 2400×1600 instead of 1600×2400 |
+| F1 the browser's default `measure` returns our reading | green | 1 red | the same e2e row |
+| F1 every Exif segment read, the last wins | 1 red | — | « the first one decides » |
+| F1 Orientation read whatever its type | 1 red | — | « a LONG, or two values, is ignored » |
+| F1 PNG `eXIf` not read | 1 red | — | « eXIf BEFORE the image data » |
+| F2 GIF / AVIF-HEIC / BMP size not read (three runs) | 1 / 3 / 1 red | 1 red each | the format's parser test; e2e « trop grande » never shown |
+| F2 the ceiling not applied to the browser's size | 1 red | — | « a GIF frame larger than its screen » |
+| F6 a file with no header goes on to the decoder | 2 red | — | « nothing is measured or decoded » |
+| F4 the canvas check's answer ignored | 1 red | 1 red | « blocked »; e2e: no « navigateur » sentence, a signature |
+| F4 the browser's canvas check always passes | green | 1 red | e2e « canvas comes back blank » |
+| F4 `pixelsMatch` accepts any colour | 1 red | — | « a blank or random read-back: no match » |
+| F7 the engine probe checks its shape only | green | 1 red | e2e: top-left (0,0,254), sideways |
+| F8 a non-JPEG output goes out | 1 red | — | « not a JPEG: failed » |
+| F9 `prepare` at level `error` | 1 red | — | « a warning; the other stages stay errors » |
+| F3 no check after preparing (`upload.ts`) | 1 red | 1 red | e2e: a signature after leaving |
+| F3 no check before the PUT | 1 red | 1 red | e2e: a PUT after leaving |
+| F3 Médias adds after it was left | 1 red | — | « nothing is saved » (the helper's checks still stop the e2e case) |
+| F3 leaving never aborts the signal | 3 red | 1 red | the three « left » unit tests; e2e |
+| Focus never given back | 4 red | 1 red | the four surfaces' unit tests; e2e at its first surface |
+| Avant / Après: no « Téléversement… » / pickers not disabled (two runs) | 1 red each | — | « while « Avant » is on its way » |
+| Catalogue's photo message back in the form's alert | 4 red | — | « right under the photo button » |
+| U7 Photos / U8 Catalogue: no busy state (two runs) | 3 / 1 red | — | the busy-state tests |
+| U2 Avant / Après: unreadable shows the generic sentence | 1 red | — | the Avant / Après `unreadable` row |
+| U4 Photos: the failure toast as `info` | 4 red | — | « as an error » (`bg-error`) |
+| The toast centred by `left-1/2` again | 1 red | 1 red | the classes; e2e pill 160 px wide |
+| The pill not keyed on each `show` | 1 red | — | « a NEW node in the region » |
+| E3 the photo drawn to 85 % of the frame height | green | 4 red | bottom-left (255,255,255) against the input's (182,195,113) |
+| « hidden » in a comment of `upload-hooks.ts` | 1 red | — | `upload-no-css` |
+
+#### 13.5.4 Not verified
+
+- Every browser but Chromium, and every real phone: whether a given browser alters its canvas
+  output (F4), whether `<img>` and `createImageBitmap` agree on the orientation outside Chromium
+  (§11 item 12), the toast and the Catalogue message at 320 px **with doubled text** after the
+  fixes, a screen reader's announcement of a repeated sentence.
+- Whether `load` decodes nothing in Safari or Firefox (INFERRED from Chromium's times only).
+- The cause of the build-to-build noise of §13.5.2.
+- The full e2e suite (CI runs it); the stored photos' count (§11, answer 3) — not run, no
+  production or cloud access was used.
