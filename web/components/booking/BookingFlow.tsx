@@ -653,9 +653,10 @@ export function BookingFlow({
       // stopped tracking the root font size while the content beside it did.
       //
       // And the first one is gone too: the `pb-[6rem]` that cleared the pinned
-      // bar. The bar is sticky now and takes its own room in the flow, so no
-      // clearance can be guessed wrong — the doubled bar had outgrown 6rem
-      // (web-funnel-bar-fit.md).
+      // bar. The bar is fixed since decision 105, and `BarClearance`, inside
+      // it, gives the page a room under the footer measured to the bar's own
+      // height, so no clearance can be guessed wrong — the doubled bar had
+      // outgrown 6rem (web-funnel-bar-fit.md §6.3).
       className="lg:grid lg:grid-cols-desk lg:items-start lg:gap-l"
     >
       <div className="space-y-s">
