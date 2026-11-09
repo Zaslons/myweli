@@ -644,8 +644,10 @@ outgrew.
   five under a quarter (inferred: about 73 px, 28.5 %, at 320×256 with
   doubled text; elsewhere the bar is already its button's height). Accepted
   and written down (decision 104). A fixed bar anywhere else needs its own
-  decision; whether « Confirmer » follows waits for decision 105's
-  measurement, and until then it stays sticky.
+  decision; « Confirmer » follows by decision 105 (measured, then answered
+  on 2026-11-09, « A2f, fixed bar »), in its own PR stacked on the cover
+  update's ([web-swiss-salon.md](web-swiss-salon.md) §4.3); until that PR
+  merges it stays sticky.
 
 **The unit contract, stated because it was an accident until B11.** The type
 scale (`styles/tokens.ts`) and the spacing scale are **px**; the sizing keys —

@@ -41,7 +41,11 @@ The owner approved the following as proposed (private plan with pictures).
    page gives `<html>` a room under the footer measured to the bar's height,
    so it never leaves the screen and the footer's last link stays clear.
    This funnel's choice stays sticky until « Confirmer » is measured the same
-   way and the owner answers (decision 105, open).
+   way and the owner answers (decision 105, open). **Measured, then answered
+   on 2026-11-09:** « A2f, fixed bar », this bar fixed with the salon page's
+   `BarClearance`, in its own PR stacked on the cover update's
+   ([web-swiss-salon.md](web-swiss-salon.md) §4.3); until it merges, the bar
+   stays sticky.
 2. **Compact above a quarter of the screen.** When the full bar would be
    taller than 25 % of the screen, it holds only « Confirmer », full width.
    The total and the duration move into the summary panel (the desktop side
@@ -81,7 +85,8 @@ Measured:
   True of a fixed bar with no room under the footer. On the salon page
   decision 103 answers it with a room measured to the bar's height
   (web-swiss-salon.md §3.3); whether that answer suits « Confirmer » is
-  decision 105's measurement, not yet made.
+  decision 105's measurement, not yet made. **Made, and answered on
+  2026-11-09:** it suits it (web-swiss-salon.md §4.1).
 
 ## 3. Build
 
