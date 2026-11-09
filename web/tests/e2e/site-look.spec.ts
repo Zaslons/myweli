@@ -167,8 +167,10 @@ test.describe('the salon page’s cover (web-swiss-salon.md §1.2)', () => {
   /// the width from 2.5 dppx, ½ from 3.25. So it asks for a « 2× » file, never the 3840w one,
   /// which with the generated test photo was 552,790 B, painted at 7.5 s at 844×390 at 3× on a
   /// throttled phone (measured, §1.9). An upright phone and a 2× computer keep the box, named
-  /// exactly, and today's file. Each file is the one both Chromium 149 and Chrome 156 chose in
-  /// decision 106's plan, before and after the clauses at the controls.
+  /// exactly, and today's file. The files are the ones Chromium 149 and Chrome 156 both chose in
+  /// decision 106's plan: 1920w sideways with the clauses (3840w without them), and at the two
+  /// controls today's file, which the clauses do not change. The file is read before the clause,
+  /// so a clause missing or out of order fails on the file it costs, not only on its text.
   for (const { width, height, dpr, length, fraction, file } of [
     { width: 844, height: 390, dpr: 3, length: '66.67vw', fraction: 2 / 3, file: 1920 },
     { width: 892, height: 412, dpr: 3.5, length: 'calc(50vw)', fraction: 1 / 2, file: 1920 },
@@ -190,6 +192,10 @@ test.describe('the salon page’s cover (web-swiss-salon.md §1.2)', () => {
           const slot = width < 1024 ? width : width >= 1536 ? 984 : 0.6667 * width - 40;
           expect(Math.abs(cover.width - slot), `drawn ${cover.width} wide, the layout gives ${slot}`).toBeLessThanOrEqual(1);
 
+          const asked = await fileAsked(page);
+          expect(asked, 'the cover asks for the 3840w file').not.toBe(3840);
+          expect(asked).toBe(file);
+
           const named = await namedBySizes(page);
           expect(named, 'no length in `sizes` applies').not.toBeNull();
           expect(named!.length, `« ${named!.part} » applies`).toBe(length);
@@ -202,10 +208,6 @@ test.describe('the salon page’s cover (web-swiss-salon.md §1.2)', () => {
           } else {
             expect(Math.abs(cover.width - named!.w), `drawn ${cover.width} wide, « ${named!.part} » names ${named!.w}`).toBeLessThanOrEqual(1);
           }
-
-          const asked = await fileAsked(page);
-          expect(asked, 'the cover asks for the 3840w file').not.toBe(3840);
-          expect(asked).toBe(file);
         },
       );
     });
