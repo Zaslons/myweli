@@ -836,3 +836,31 @@ test('the focus comes back to the control that was busy, on all four surfaces', 
   await expect(changePhoto).toBeVisible();
   await expect(changePhoto).toBeFocused();
 });
+
+// §2.7: at 320 px the 85-character « trop grande » sentence wraps inside the
+// toast pill and the pill stays whole on the screen. These three bounds hold
+// for `main`'s toast; a23eda47 had removed them together with the one bound
+// that only the full-width toast met (§13.8).
+test('at 320 px the « trop grande » toast stays on the screen, with no sideways scroll', async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 568 });
+  await openMedias(page);
+  await page.getByRole('button', { name: 'Avant / Après' }).click();
+  await page
+    .locator('label', { hasText: /^Avant/ })
+    .locator('input[type=file]')
+    .setInputFiles({ name: 'avant.jpg', mimeType: 'image/jpeg', buffer: headerOnlyJpeg(12000, 9000) });
+  const pill = page.getByRole('status').filter({ hasText: TOO_LARGE }).locator('> div');
+  await expect(pill).toBeVisible();
+  const box = (await pill.boundingBox())!;
+  const scrollWidth = await page.evaluate(() => document.documentElement.scrollWidth);
+  const seen = `pill ${JSON.stringify(box)}, scrollWidth ${scrollWidth}`;
+  expect(box.x, seen).toBeGreaterThanOrEqual(0);
+  expect(box.x + box.width, seen).toBeLessThanOrEqual(320);
+  expect(scrollWidth, seen).toBeLessThanOrEqual(320);
+  // The KNOWN RESIDUAL, pinned so it cannot change unseen (§2.7, §11 item 13):
+  // the region is centred by `left-1/2 -translate-x-1/2` with no width, so the
+  // pill has at most half the screen to wrap in — 160 px here, normal text.
+  // It flips with the follow-up that widens the shared toast, which changes
+  // this line, on the owner's word.
+  expect(box.width, seen).toBeLessThanOrEqual(161);
+});
