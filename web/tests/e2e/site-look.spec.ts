@@ -164,17 +164,24 @@ test.describe('the salon page’s cover (web-swiss-salon.md §1.2)', () => {
 
   /// Decision 106, §1.9's one written exception to « `sizes` exact to the box ». Below `lg`, a
   /// screen held sideways at 2.5 dppx and up names a slot narrower than the box on purpose: ⅔ of
-  /// the width from 2.5 dppx, ½ from 3.25. So it asks for a « 2× » file, never the 3840w one,
-  /// which with the generated test photo was 552,790 B, painted at 7.5 s at 844×390 at 3× on a
-  /// throttled phone (measured, §1.9). An upright phone and a 2× computer keep the box, named
-  /// exactly, and today's file. The files are the ones Chromium 149 and Chrome 156 both chose in
-  /// decision 106's plan: 1920w sideways with the clauses (3840w without them), and at the two
-  /// controls today's file, which the clauses do not change. The file is read before the clause,
-  /// so a clause missing or out of order fails on the file it costs, not only on its text.
+  /// the width from 2.5 dppx, ½ from 3.25. So, at the densities measured, it asks for a « 2× »
+  /// file, not the 3840w one, which with the generated test photo was 552,790 B, painted at 7.5 s
+  /// at 844×390 at 3× on a throttled phone (measured, §1.9); between them, from 3× to 3.25× on a
+  /// screen about 950 px wide and more, it still asks for 3840w, as before (§1.9). An upright
+  /// phone and a 2× computer keep the box, named exactly, and today's file. The files are the
+  /// ones Chromium 149 and Chrome 156 both chose in decision 106's plan and its build's review:
+  /// 1920w sideways with the clauses (3840w without them), and at the three controls today's
+  /// file, which the clauses do not change. Two screens sit at the clauses' edges: 915×412 at
+  /// 2.625×, just above the 2.5 dppx threshold, and 412×892 at 3.5×, upright past the 3.25 dppx
+  /// one, so a threshold raised or an orientation dropped fails on the file here, not only on the
+  /// unit test's pinned text. The file is read before the clause, so a clause missing or out of
+  /// order fails on the file it costs, not only on its text.
   for (const { width, height, dpr, length, fraction, file } of [
     { width: 844, height: 390, dpr: 3, length: '66.67vw', fraction: 2 / 3, file: 1920 },
     { width: 892, height: 412, dpr: 3.5, length: 'calc(50vw)', fraction: 1 / 2, file: 1920 },
+    { width: 915, height: 412, dpr: 2.625, length: '66.67vw', fraction: 2 / 3, file: 1920 },
     { width: 390, height: 844, dpr: 3, length: '100vw', fraction: 0, file: 1200 },
+    { width: 412, height: 892, dpr: 3.5, length: '100vw', fraction: 0, file: 1920 },
     { width: 1280, height: 800, dpr: 2, length: 'calc(66.67vw - 40px)', fraction: 0, file: 1920 },
   ]) {
     test.describe(`at ${width}×${height}, density ${dpr}`, () => {
