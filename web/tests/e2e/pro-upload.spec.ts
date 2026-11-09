@@ -838,11 +838,17 @@ test('the focus comes back to the control that was busy, on all four surfaces', 
 });
 
 // §2.7: at 320 px the 85-character « trop grande » sentence wraps inside the
-// toast pill and the pill stays whole on the screen. These three bounds hold
-// for `main`'s toast; a23eda47 had removed them together with the one bound
-// that only the full-width toast met (§13.8).
-test('at 320 px the « trop grande » toast stays on the screen, with no sideways scroll', async ({ page }) => {
-  await page.setViewportSize({ width: 320, height: 568 });
+// toast pill, none of it clipped, and the pill stays whole on the screen: its
+// four edges inside the viewport, no sideways scroll. These bounds hold for
+// `main`'s toast. a23eda47 had removed the side edges and the scroll width
+// together with the one bound that only the full-width toast met; the top and
+// bottom edges and the pill's own overflow came after a pill pushed below the
+// screen and a pill cut to one line had both passed (§13.8).
+test('at 320 px the « trop grande » toast stays whole on the screen, its sentence unclipped, with no sideways scroll', async ({
+  page,
+}) => {
+  const viewport = { width: 320, height: 568 };
+  await page.setViewportSize(viewport);
   await openMedias(page);
   await page.getByRole('button', { name: 'Avant / Après' }).click();
   await page
@@ -852,11 +858,29 @@ test('at 320 px the « trop grande » toast stays on the screen, with no sideway
   const pill = page.getByRole('status').filter({ hasText: TOO_LARGE }).locator('> div');
   await expect(pill).toBeVisible();
   const box = (await pill.boundingBox())!;
-  const scrollWidth = await page.evaluate(() => document.documentElement.scrollWidth);
-  const seen = `pill ${JSON.stringify(box)}, scrollWidth ${scrollWidth}`;
+  // The screen as the page has it — the edges below are measured against it.
+  const view = await page.evaluate(() => ({
+    width: window.innerWidth,
+    height: window.innerHeight,
+    scrollWidth: document.documentElement.scrollWidth,
+  }));
+  // The pill's own overflow: an `overflow-hidden` pill keeps any sentence
+  // inside its box, so the box alone cannot tell a cut sentence from a whole one.
+  const own = await pill.evaluate((el) => ({
+    scrollWidth: el.scrollWidth,
+    clientWidth: el.clientWidth,
+    scrollHeight: el.scrollHeight,
+    clientHeight: el.clientHeight,
+  }));
+  const seen = `pill ${JSON.stringify(box)}, its own ${JSON.stringify(own)}, the page ${JSON.stringify(view)}`;
+  expect({ width: view.width, height: view.height }, seen).toEqual(viewport);
   expect(box.x, seen).toBeGreaterThanOrEqual(0);
-  expect(box.x + box.width, seen).toBeLessThanOrEqual(320);
-  expect(scrollWidth, seen).toBeLessThanOrEqual(320);
+  expect(box.x + box.width, seen).toBeLessThanOrEqual(view.width);
+  expect(box.y, seen).toBeGreaterThanOrEqual(0);
+  expect(box.y + box.height, seen).toBeLessThanOrEqual(view.height);
+  expect(view.scrollWidth, seen).toBeLessThanOrEqual(view.width);
+  expect(own.scrollWidth, seen).toBeLessThanOrEqual(own.clientWidth);
+  expect(own.scrollHeight, seen).toBeLessThanOrEqual(own.clientHeight);
   // The KNOWN RESIDUAL, pinned so it cannot change unseen (§2.7, §11 item 13):
   // the region is centred by `left-1/2 -translate-x-1/2` with no width, so the
   // pill has at most half the screen to wrap in — 160 px here, normal text.
