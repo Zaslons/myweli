@@ -627,8 +627,12 @@ measurement rather than by `sticky`:
   and when the bar goes (the funnel's confirm step has none); no rule in the
   shared stylesheet, so the five store-linked pages never carry it. Until the
   page's script runs, the bar has no room under it (the footer's last link
-  about 33 px under it at the very end); once it runs, a visitor at the end is
-  kept at the end.
+  about 33 px under it at the very end with normal text, and further with
+  larger text: up to 81 px under the funnel's bar and 105.5 px under the
+  salon page's with doubled text, wholly under on a 320×568 phone, and about
+  81 px with the browser font at 200 %; web-funnel-bar-fit.md §6.3,
+  web-swiss-salon.md §3.3); once it runs, a visitor at the end is kept at
+  the end.
 - It is not printed (`print:hidden`): a fixed bar would stand at the foot of
   every printed page. It is as wide as the screen and never wider
   (`w-screen max-w-full`): with Android's large text a row wider than the
