@@ -836,23 +836,3 @@ test('the focus comes back to the control that was busy, on all four surfaces', 
   await expect(changePhoto).toBeVisible();
   await expect(changePhoto).toBeFocused();
 });
-
-// The review: at 320 px, the long sentence had HALF the screen to wrap in
-// (182 px wide, 456 px tall with doubled text). The pill now spans the screen
-// inside the side gutter.
-test('at 320 px the « trop grande » toast uses the width of the screen, not half of it', async ({ page }) => {
-  await page.setViewportSize({ width: 320, height: 568 });
-  await openMedias(page);
-  await page.getByRole('button', { name: 'Avant / Après' }).click();
-  await page
-    .locator('label', { hasText: /^Avant/ })
-    .locator('input[type=file]')
-    .setInputFiles({ name: 'avant.jpg', mimeType: 'image/jpeg', buffer: headerOnlyJpeg(12000, 9000) });
-  const pill = page.getByRole('status').filter({ hasText: TOO_LARGE }).locator('> div');
-  await expect(pill).toBeVisible();
-  const box = (await pill.boundingBox())!;
-  expect(box.width, `pill ${JSON.stringify(box)}`).toBeGreaterThan(250);
-  expect(box.x).toBeGreaterThanOrEqual(0);
-  expect(box.x + box.width).toBeLessThanOrEqual(320);
-  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(320);
-});

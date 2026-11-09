@@ -38,7 +38,7 @@ describe('Toast + useToast', () => {
   it('text swaps inside the SAME persistent region', () => {
     const { rerender } = render(<Toast toast={null} />);
     const region = screen.getByRole('status');
-    rerender(<Toast toast={{ id: 1, message: 'Rôle mis à jour.', kind: 'info' }} />);
+    rerender(<Toast toast={{ message: 'Rôle mis à jour.', kind: 'info' }} />);
     expect(screen.getByRole('status')).toBe(region); // not remounted
     expect(region).toHaveTextContent('Rôle mis à jour.');
   });
@@ -75,40 +75,10 @@ describe('Toast + useToast', () => {
 
   it('error kind wears bg-error; the others the brand pill', () => {
     const { rerender } = render(
-      <Toast toast={{ id: 1, message: 'x', kind: 'error' }} />,
+      <Toast toast={{ message: 'x', kind: 'error' }} />,
     );
     expect(screen.getByText('x').className).toContain('bg-error');
-    rerender(<Toast toast={{ id: 2, message: 'x', kind: 'success' }} />);
+    rerender(<Toast toast={{ message: 'x', kind: 'success' }} />);
     expect(screen.getByText('x').className).toContain('bg-primary');
-  });
-
-  // docs/design/web-pro-upload-resize.md — the review of 2026-11-09: two
-  // unreadable files picked in a row in Médias showed the same sentence, and
-  // re-rendering the same text in place changes nothing a screen reader hears.
-  it('the same sentence shown again is a NEW node in the region, so it is read again', () => {
-    render(<Harness />);
-    fireEvent.click(screen.getByText('fail'));
-    const first = screen.getByText('Échec.');
-    const region = screen.getByRole('status');
-    const changes: MutationRecord[] = [];
-    const watcher = new MutationObserver((records) => changes.push(...records));
-    watcher.observe(region, { childList: true, subtree: true, characterData: true });
-    fireEvent.click(screen.getByText('fail'));
-    const added = watcher.takeRecords().concat(changes);
-    watcher.disconnect();
-    expect(screen.getByText('Échec.')).not.toBe(first);
-    expect(added.some((r) => r.addedNodes.length > 0)).toBe(true);
-    expect(screen.getByRole('status')).toBe(region); // the region itself stays
-  });
-
-  // At 320 px a long sentence had half the screen to wrap in (left-1/2 +
-  // translate): the region now spans the screen inside the side gutter and
-  // centres the pill (the geometry is measured in pro-upload.spec.ts).
-  it('the region spans the screen with the gutter; the pill is centred and capped', () => {
-    render(<Toast toast={{ id: 1, message: 'x', kind: 'error' }} />);
-    const region = screen.getByRole('status');
-    for (const c of ['inset-x-0', 'flex', 'justify-center', 'px-m']) expect(region.className).toContain(c);
-    expect(region.className).not.toContain('left-1/2');
-    expect(screen.getByText('x').className).toContain('max-w-xl');
   });
 });

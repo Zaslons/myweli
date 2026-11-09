@@ -12,11 +12,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 /// toast is the only route back (docs/design/web-pro-medias-like-app.md).
 export type ToastKind = 'success' | 'info' | 'error';
 export type ToastAction = { label: string; onAction: () => void };
-/// `id` changes with every `show`, the same sentence included: `Toast` keys
-/// the pill on it, so a repeat is a NEW node in the live region and is read
-/// again (the same text re-rendered in place changes nothing a screen reader
-/// hears — two unreadable files picked in a row said nothing the second time).
-export type ToastState = { id: number; message: string; kind: ToastKind; action?: ToastAction } | null;
+export type ToastState = { message: string; kind: ToastKind; action?: ToastAction } | null;
 
 const ACTION_MS = 10000;
 
@@ -29,13 +25,11 @@ const DURATION_MS: Record<ToastKind, number> = {
 export function useToast() {
   const [toast, setToast] = useState<ToastState>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const shown = useRef(0);
 
   const show = useCallback(
     (message: string, kind: ToastKind = 'info', action?: ToastAction) => {
       if (timer.current) clearTimeout(timer.current);
-      shown.current += 1;
-      setToast({ id: shown.current, message, kind, action });
+      setToast({ message, kind, action });
       timer.current = setTimeout(
         () => setToast(null),
         action ? ACTION_MS : DURATION_MS[kind],

@@ -15,10 +15,6 @@ import type { ToastState } from '../lib/useToast';
 /// error = `bg-error` (#8B0000 — ~10.6:1 under `secondary` white text).
 /// Position: fixed bottom-center on `z-toast` — feedback is always on top (§9);
 /// the pre-B5 EquipeClient toast had no z token and painted on DOM-order luck.
-/// The region spans the screen with the page's side gutter and centres the
-/// pill in it: centred by `left-1/2 -translate-x-1/2` instead, a long sentence
-/// had half the screen to wrap in — 182 px wide and 456 px tall at 320 px with
-/// doubled text (docs/design/web-pro-upload-resize.md, review 2026-11-09).
 export function Toast({
   toast,
   aboveFloatingControl = false,
@@ -33,14 +29,13 @@ export function Toast({
     <div
       role="status"
       aria-live="polite"
-      className={`pointer-events-none fixed inset-x-0 z-toast flex justify-center px-m ${
+      className={`pointer-events-none fixed left-1/2 z-toast -translate-x-1/2 ${
         aboveFloatingControl ? 'bottom-xxxl pb-m lg:bottom-l lg:pb-0' : 'bottom-l'
       }`}
     >
       {toast ? (
         <div
-          key={toast.id}
-          className={`flex max-w-xl items-center gap-m rounded-lg px-l py-s text-bodyMedium text-secondary shadow-lg ${
+          className={`flex items-center gap-m rounded-lg px-l py-s text-bodyMedium text-secondary shadow-lg ${
             toast.kind === 'error' ? 'bg-error' : 'bg-primary'
           }`}
         >
