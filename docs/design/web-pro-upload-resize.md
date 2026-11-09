@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | **Built 2026-11-09** on `feat/web-pro-upload-resize` (from `main` 62547f91), **not merged** — approved the same day (the owner's four answers, §11, decision 107). The record is §13. **Reviewed twice the same day; every real finding fixed (§13.5) except the two toast findings**, which were fixed in `dd5fcd6f` and then moved out of this PR by `a23eda47` — the toast is shared with the consumer pages and collides with #737's « Carte » placement; they are a known residual here and a follow-up after #737 → #741 → #750 (§11 item 13). The four answers unchanged; four new items for the owner (§11, items 10–13). The stored photos were counted the same day (§11, answer 3). |
+| **Status** | **Built 2026-11-09** on `feat/web-pro-upload-resize` (from `main` 62547f91), **not merged** — approved the same day (the owner's four answers, §11, decision 107). The record is §13. **Reviewed twice the same day; every real finding fixed (§13.5) except the two toast findings**, which were fixed in `dd5fcd6f` and then moved out of this PR by `a23eda47` — the toast is shared with the consumer pages, and its full-width version collided with #737's « Carte » placement; they are a known residual here and a follow-up after #737 → #741 → #750, on their `Toast.tsx`, with the train's placement guards green and the owner's word on the toast's width (§11 item 13). **Gated and reviewed again after that split (§13.8):** the two toast rows left WEB-SYSTEM §15, where they made the branch conflict with #741 and #750, and the 320 px toast bounds that hold on `main` came back as an e2e. The four answers unchanged; four new items for the owner (§11, items 10–13). The stored photos were counted the same day (§11, answer 3). |
 | **Owner** | Sadreddine |
 | **Last updated** | 2026-11-09 |
 | **Module** | pro salon profile / portfolio — the web Pro area (`/pro/medias`, `/pro/catalogue`, `/pro/profil`) |
@@ -230,7 +230,10 @@ item 3). The web keeps its two longer sentences, because each says what to do ne
 
 ### 2.7 Accessibility
 
-- No new control, no new focus stop. WCAG 2.4.11: nothing new overlays anything.
+- No new control, no new focus stop. WCAG 2.4.11: nothing new overlays anything, except that the
+  toast's known residual (the half-width pill, below; §11 item 13) is larger with these sentences.
+  Whether a control given the focus back sits under that pill at 320 px with doubled text is
+  **UNVERIFIED**: the picture (§13.6) is 390 px at normal text, and no focus e2e runs at 320.
 - **The focus comes back to the control when its busy state ends.** The first version of this line
   said « focus stays where it is » and was **false** on three surfaces (the review's MAJOR,
   OBSERVED in Chromium at 390 px): the control is disabled while it works, and a control disabled
@@ -248,20 +251,23 @@ item 3). The web keeps its two longer sentences, because each says what to do ne
   time — INFERRED, none was run). It holds on `main` for any repeated toast. `dd5fcd6f` fixed it
   (an id per `show`, the pill keyed on it, so a repeat was a new node in the region); `a23eda47`
   took that change out of this PR again with the rest of the shared toast's: a follow-up
-  (§11 item 13; WEB-SYSTEM §15 row 40).
+  (§11 item 13), which also registers it in WEB-SYSTEM §15.
 - The busy state: `aria-busy` + disabled on the `Button`; Médias' inputs `disabled` while
   uploading, « Avant » / « Après » included since the review.
 - 200 % text: the three sentences (72, 85 and 83 characters) wrap inside their `<p>` and the toast
-  pill, nothing clipped. **The toast has half the screen to wrap in — a known residual of this
-  PR.** The region is centred by `left-1/2 -translate-x-1/2` with no width, so its box is capped
-  near half the screen: at 320 px with Android-style doubled text the « trop grande » toast
-  measured 182 px wide and ran from y=88 to y=544 — about 80 % of the 568 px screen — for 6 s
-  (OBSERVED by the review on `106fb82d`; 160 px wide with normal text). It holds on `main` for any
-  long toast; these longer sentences make it easier to hit. `dd5fcd6f` fixed it (the region
-  spanning the screen inside the side gutter, the pill centred and capped at `max-w-xl`);
+  pill, nothing clipped (the review's reading on `106fb82d`, at 320 px with doubled text). At 320 px
+  with normal text an e2e holds the « trop grande » pill inside the screen with no sideways scroll,
+  and pins its half width (§13.8: 160 × 136 px at x=80). **The toast has half the screen to wrap
+  in — a known residual of this PR.** The region is centred by `left-1/2 -translate-x-1/2` with no
+  width, so its box is capped near half the screen: at 320 px with Android-style doubled text the
+  « trop grande » toast measured 182 px wide and ran from y=88 to y=544 — about 80 % of the 568 px
+  screen — for 6 s (OBSERVED by the review on `106fb82d`; 160 px wide with normal text). It holds on
+  `main` for any long toast; these longer sentences make it easier to hit. `dd5fcd6f` fixed it (the
+  region spanning the screen inside the side gutter, the pill centred and capped at `max-w-xl`);
   `a23eda47` took it out of this PR again, because the shared toast also serves the consumer pages
-  and, merged with #737, covered the « Carte » label: a follow-up after #737 → #741 → #750
-  (§11 item 13; WEB-SYSTEM §15 row 39). The pill as it stands, at 390 px: §13.6.
+  and, merged with #737, covered the « Carte » label: a follow-up after #737 → #741 → #750, on their
+  `Toast.tsx`, with the train's placement guards green and the owner's word on the width
+  (§11 item 13), which also registers it in WEB-SYSTEM §15. The pill as it stands, at 390 px: §13.6.
 - 48 px targets: untouched.
 
 ### 2.8 Reuse
@@ -717,7 +723,9 @@ every surface, the error kind, the busy states, the focus, the alert's place; an
 odd EXIF layouts, an engine that drops the orientation when it scales, GIF / BMP / AVIF over
 64 MP, leaving Médias mid-upload, a blanked canvas, the focus on four surfaces, and a comparison of
 every upload with its input place by place. The toast's repeat (unit) and the toast at 320 px
-(e2e) were guarded too, and left with the toast change in `a23eda47` (§11 item 13).
+(e2e) were guarded too, and left with the toast change in `a23eda47` (§11 item 13); the 320 px
+e2e came back without its full-width bound — the pill inside the screen, no sideways scroll, and
+the half width pinned as the residual (§13.8).
 
 ### 8.4 Manual, before calling it done (UNVERIFIED today)
 
@@ -734,8 +742,19 @@ Firefox desktop; a transparent PNG logo on each.
 A new branch **from `main`** (`feat/web-pro-upload-resize`), its own PR, independent of #737, #741,
 #750 and #738, merged on the owner's word — possibly before Apple's decision, since none of the five
 store-linked pages' files change (§9.2). No feature flag: it is client-only and a revert is the
-rollback. #741 and #737 also edit `pro.spec.ts` and `stub-api.mjs`, in hunks far from the upload
-code; a clean merge is expected (INFERRED until both exist).
+rollback. #737, #741 and #750 also edit `stub-api.mjs`, the design index and `WEB-SYSTEM.md`, and
+#741 and #750 `pro.spec.ts` (OBSERVED: `git diff --name-only origin/main...<tip>`). What
+`git merge-tree --write-tree` shows against each open PR's tip after a `git fetch` (2026-11-09,
+OBSERVED; each pair on its own — the train's order was not replayed):
+
+- **Before §13.8's fixes** (at `aa9b9814`, the gate): clean with #737 (`83ce6ae9`) and #738
+  (`fe929194`); with #741 (`8e05eea5`) and #750 (`b79d0828`), **one conflict, in docs only** —
+  WEB-SYSTEM §15, where this branch's register rows 39 and 40 (the two toast findings) sat on the
+  lines right after row 38, which #741 and #750 both rewrite. Nothing in code: `Toast.tsx` no
+  longer conflicts with any of them since `a23eda47`.
+- **Since** (§13.8's record commit): the two rows left this PR — the follow-up registers them on
+  top of the train (§11 item 13) — and `merge-tree` is clean with all four, run on that commit
+  after it was made (§13.8). Its only change to `WEB-SYSTEM.md` is §5's focus bullet (§9.3).
 
 ### 9.2 The five store-linked pages (Apple)
 
@@ -754,7 +773,9 @@ This spec (status → Built in the record commit); the design index row;
 `web-pro-network-failure.md` §5 says what a failed Pro photo upload returns now and names the
 `prepare` stage; a roadmap entry. `docs/BACKLOG.md` is **not** edited here (decision 107 lives on
 #741). WEB.md and WEB-SYSTEM.md state no upload rule (OBSERVED: no match for an upload size,
-`uploads/sign` or `compress` in either), so neither changes.
+`uploads/sign` or `compress` in either), so neither gains one; WEB-SYSTEM §5 gains one bullet,
+the focus given back after a busy state (§2.7, added by the review fixes). WEB-SYSTEM §15 gains no
+row: the two toast residuals are registered there by the follow-up (§11 item 13, §13.8).
 
 ## 10. Definition of done
 
@@ -780,12 +801,16 @@ This spec (status → Built in the record commit); the design index row;
    one call each (§1.3).
 3. **Photos already stored — the owner's words: "the app is not yet launched and no real salons
    are in it, you can count the photos but keep that in mind".** A read-only count is approved;
-   stored photos are test/demo uploads only. A first attempt, on 2026-11-09 around 09:40 UTC, could
-   not reach the bucket (the GCP project's billing was closed). **The count ran on 2026-11-09
-   around 13:43 UTC**, once the owner had restored billing: a script that made only
-   `ListObjectsV2` and ranged `GET`s on the public bucket (the first 256 KiB of each object, 2 MiB
-   when the frame header lay further) and printed aggregates only — no key, id or secret. What it
-   read (OBSERVED by that script; its JSON result is the record, kept outside the repo):
+   stored photos are test/demo uploads only. A first attempt, on 2026-11-09 around 09:40 UTC, never
+   reached the bucket: Secret Manager refused it the R2 secrets while the GCP project's billing was
+   disabled (`BILLING_DISABLED` on `secretmanager.googleapis.com`). **The count ran on 2026-11-09
+   around 13:43 UTC**, once the owner had restored billing: a script that first read the four R2
+   secrets (`R2_ACCOUNT_ID`, `R2_BUCKET`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`) from Secret
+   Manager at the versions `infra/gcp/service.yaml` pins (`gcloud secrets versions access`,
+   read-only; held in memory, nothing printed), then made only `ListObjectsV2` and ranged `GET`s on
+   the public bucket (the first 256 KiB of each object, 2 MiB when the frame header lay further)
+   and printed aggregates only — no key, id or secret. What it read (OBSERVED by that script; its
+   JSON result is the record, kept outside the repo):
 
    | | Objects | Format | Bytes | Uploaded (storage time, UTC) | Beyond the app's rule | Exif | GPS |
    |---|---|---|---|---|---|---|---|
@@ -794,16 +819,20 @@ This spec (status → Built in the record commit); the design index row;
    | `pending/` | 0 | — | — | — | — | — | — |
 
    8 objects in the bucket, all of them in these two groups. « Beyond the rule » = short side over
-   1600 or long side over 2400, read from the JPEG frame header; « GPS » = a non-empty GPS IFD. 4 of
-   the 5 gallery photos and 1 of the 3 logos carry at least one sign of not having been prepared by
-   the rule (too large, or Exif). Production has no public salon (`GET /providers` answers a total
-   of 0, BACKLOG decision 51 — reported to this record, not re-checked), so these are test or demo
-   uploads (INFERRED). **Not established:** which client sent each file; which Exif fields the two
-   files with Exif hold besides GPS (a camera make or a date may remain — the script did not
-   classify them); whether `cdn.myweli.com` strips metadata on delivery (**UNVERIFIED**). Per the
-   owner, **nothing stored is re-encoded before launch**; a purge or re-encode of the test data, if
-   wanted, is a separate owner decision. This spec prevents new full-size, metadata-carrying web
-   uploads; it does nothing to what is already stored (verification-guardrails §8).
+   1600 or long side over 2400, read from the JPEG frame header; « Exif » = an APP1 `Exif` segment
+   before that header; « GPS » = a non-empty GPS IFD inside it — XMP and IPTC were not read (below).
+   4 of the 5 gallery photos and 1 of the 3 logos carry at least one sign of not having been
+   prepared by the rule (too large, or Exif; lower bounds, below). Production has no public salon
+   (`GET /providers` answers a total of 0, BACKLOG decision 51 — reported to this record, not
+   re-checked), so these are test or demo uploads (INFERRED). **Not established:** which client sent
+   each file; the **XMP** (APP1 `http://ns.adobe.com/xap/1.0/`) and **IPTC** (APP13) segments, which
+   the script skipped, so GPS or camera data there is not excluded — the Exif and « sign » counts
+   are lower bounds; which Exif fields the two files with Exif hold besides GPS (a camera make or a
+   date may remain — the script did not classify them); whether `cdn.myweli.com` strips metadata on
+   delivery (**UNVERIFIED**). Per the owner, **nothing stored is re-encoded before launch**; a purge
+   or re-encode of the test data, if wanted, is a separate owner decision. This spec prevents new
+   full-size, metadata-carrying web uploads; it does nothing to what is already stored
+   (verification-guardrails §8).
 4. **When — « Own PR from main ».** Independent of #737/#741/#750/#738, merged on the owner's word,
    possibly before Apple's decision since none of the five store-linked pages' files change.
 
@@ -844,14 +873,30 @@ Raised by the two reviews of 2026-11-09 (§13.5) — none changes the four answe
     (favourites, search, account — OBSERVED: `FavoriteButton`, `RechercheClient`, `AccountClient`
     import it on `main`); merged with #737 (`feat/web-swiss-cards` `83ce6ae9`), two of #737's
     tests in `web/tests/e2e/site-look.spec.ts`, « at 320/360, level with the toast », failed
-    because the full-width toast covered the « Carte » label (the label ends at 76.1 px; the toast
-    started at 43.6 px at 320 and at 63.6 px at 360 — OBSERVED by this branch's gate on that
-    merge, not re-run since); and #741 (`8e05eea5`) and #750 (`b79d0828`) conflict with it in one
-    block of `Toast.tsx`, where they carry `aboveBookingBar` and the toast-sliding code. Where the
-    toast sits next to « Carte » is the owner's Carte decisions 99–104. **The follow-up** is done
-    after the merge train #737 → #741 → #750, on top of their `Toast.tsx`, keeping #737's « Carte »
-    placement tests green; until then both are known residuals of this PR, registered in
-    WEB-SYSTEM §15 (rows 39 and 40).
+    because the full-width toast covered the « Carte » label (OBSERVED by this branch's gate on
+    that merge, and again by the gate of `aa9b9814` with `dd5fcd6f`'s classes put back in a copy:
+    the label ends at 76.14 px, the toast started at 43.59 px at 320 and at 63.59 px at 360; 390
+    green); and #741 (`8e05eea5`) and #750 (`b79d0828`) conflict with it in one block of
+    `Toast.tsx`, where they carry `aboveBookingBar` and the toast-sliding code. Where the toast
+    sits next to « Carte » is the owner's Carte decisions 99–104.
+
+    **The follow-up** is done after the merge train #737 → #741 → #750, on top of their
+    `Toast.tsx`, keeping the train tip's placement guards green: `site-look.spec.ts` « the
+    favourite’s message and « Carte » (decision 100) » — 24 tests, all green on the #750 merge in
+    the gate of `aa9b9814` — which replaced #737's « level with the toast » tests in #741's
+    `88a5c41d` (OBSERVED: « level with the toast » is on 2 lines of that file at `83ce6ae9` and on
+    none at `8e05eea5` or `b79d0828`, where the decision-100 block is). #737's two tests are
+    history here: the ones `dd5fcd6f`'s classes turned red. **A wider toast needs the owner's
+    word:** #737's `web-swiss-cards.md` §2.4 (its row « The toast and « Carte » ») builds on the
+    toast being at most half the screen wide at normal text, and its mutation Y-E20, « The toast
+    runs the screen’s width, over the word », must be red — so widening it changes what decisions
+    91 and 100 accepted. Until then both findings are known residuals of this PR, recorded here and
+    in §2.7, and the e2e « at 320 px the « trop grande » toast stays on the screen, with no
+    sideways scroll » pins the half width (the pill at most 161 px wide at 320 px, normal text):
+    the line the follow-up flips (§13.8). **They are not in WEB-SYSTEM §15 yet:** `9d721459`
+    registered them there as rows 39 and 40, right after row 38, which #741 and #750 rewrite, and
+    that made this branch conflict with both (§9.1); §13.8's record commit took them out, and the
+    follow-up adds them to §15 on top of the train.
 
 ---
 
@@ -881,8 +926,8 @@ Memory (peak Δ RSS, ×1): see §5.3. Long tasks: 0 in every run; control fired 
 
 **UNVERIFIED:** Safari (macOS/iOS) and Firefox behaviour; any real phone (time, memory, tab kills);
 iOS Safari's HEIC→JPEG conversion; whether `cdn.myweli.com` strips metadata; how many stored web
-uploads exist or carry GPS (counted since, without telling web from app uploads: §11, answer 3);
-the app's black-logo behaviour.
+uploads exist or carry GPS (counted since, without telling web from app uploads, GPS read in Exif
+only: §11, answer 3); the app's black-logo behaviour.
 
 ## 13. Record (2026-11-09)
 
@@ -894,7 +939,10 @@ the pipeline · `3ad93153` the Pro surfaces · `dd5fcd6f` the toast · `0e941eb8
 and doc corrections · the record of §13.5 · the picture (§13.6). Then the split (§13.7):
 `a23eda47` reverts `dd5fcd6f` and the one e2e test that held only with it — the shared toast is
 `main`'s again (§11 item 13) · `9d721459` the docs brought to that, with the stored photos' count
-(§11, answer 3) · the picture made again against `a23eda47` (§13.6). Nothing pushed.
+(§11, answer 3) · the picture made again against `a23eda47` (§13.6). Then the gate and the review
+of `aa9b9814` (§13.8): `85954e53` the 320 px toast bounds back as an e2e · the record of §13.8
+(rows 39 and 40 out of WEB-SYSTEM §15, the follow-up's condition, the count's wording). Nothing
+pushed.
 
 ### 13.2 What ran, on `5c30f9b9` (OBSERVED)
 
@@ -975,7 +1023,7 @@ fake-backed flow test fails; the e2e is the guard for this one.
   removed.
 - The two sentences at 200 % text on a 320 px screen: measured by the UX review (no clipping; the
   toast's half-width wrapping — fixed in `dd5fcd6f`, moved out by `a23eda47`, a known residual:
-  §11 item 13).
+  §11 item 13). The e2e of §13.8 reads 320 px at normal text only.
 - The full e2e suite (CI runs it); the CWV budget (no public page changed).
 - The stored photos' count (§11, answer 3) did not run in this build, which used no production or
   cloud access; it ran separately, read-only, later the same day.
@@ -1008,8 +1056,8 @@ changed**; what needs the owner is §11, items 10–13.
 | Focus (UX, **MAJOR**) §2.7 says the focus stays; it goes to `<body>` | **Real.** Reproduced on `106fb82d`: the Médias photo input focused, the focus on `<body>` while busy and still there after | `useFocusBackAfter` on all four controls; §2.7 and WEB-SYSTEM §5 | `3ad93153` |
 | Avant / Après shows nothing while busy (UX, MINOR) | **Real** (code: `FilePick` had no busy state) | « Téléversement… » on the side on its way, both pickers disabled | `3ad93153` |
 | Catalogue's message below the fold at 320 px, doubled text (UX, MINOR) | **Real** by code (the shared alert after the hours block); the geometry is the review's (its screenshot), not re-measured | Its own alert under the photo button. Geometry after the fix: **UNVERIFIED** (INFERRED visible: it sits under the button) | `3ad93153` |
-| The toast a tall narrow column (UX, MINOR) | **Real.** On `106fb82d` at 320 px the « trop grande » pill measured 160 px wide; with doubled text 182 px wide, y=88 to y=544 of 568 | Fixed by `dd5fcd6f` (full-width region in the gutter, the pill centred, `max-w-xl`), then **moved out by `a23eda47`**: open here, a follow-up after #737 → #741 → #750 (§2.7, §11 item 13, WEB-SYSTEM §15 row 39) | `dd5fcd6f`, reverted by `a23eda47` |
-| A repeated sentence not re-announced (UX, MINOR) | **Real** (the review: 0 changes in the region). A screen reader: **UNVERIFIED** | Fixed by `dd5fcd6f` (the pill keyed on each `show`), then **moved out by `a23eda47`**: open here, the same follow-up (§2.7, §11 item 13, WEB-SYSTEM §15 row 40) | `dd5fcd6f`, reverted by `a23eda47` |
+| The toast a tall narrow column (UX, MINOR) | **Real.** On `106fb82d` at 320 px the « trop grande » pill measured 160 px wide; with doubled text 182 px wide, y=88 to y=544 of 568 | Fixed by `dd5fcd6f` (full-width region in the gutter, the pill centred, `max-w-xl`), then **moved out by `a23eda47`**: open here, a follow-up after #737 → #741 → #750 (§2.7, §11 item 13) | `dd5fcd6f`, reverted by `a23eda47` |
+| A repeated sentence not re-announced (UX, MINOR) | **Real** (the review: 0 changes in the region). A screen reader: **UNVERIFIED** | Fixed by `dd5fcd6f` (the pill keyed on each `show`), then **moved out by `a23eda47`**: open here, the same follow-up (§2.7, §11 item 13) | `dd5fcd6f`, reverted by `a23eda47` |
 | Four guards green under their mutation, U2 U4 U7 U8 (UX, MINOR) | **Real** (the review's record) | New guards; the same four mutations now red (§13.5.3) | `3ad93153` |
 | The e2e blind to a photo short of its frame, E3 (UX, MINOR) | **Real** (the review's record) | Every upload compared with its input at five places; E3 now red in four tests | `0e941eb8` |
 | `pro-image-upload-pipeline.md:70` says multipart POST (UX, NIT) | **Real**: the app PUTs the raw bytes (`api_image_upload_service.dart`, `_client.put`) | Corrected | docs |
@@ -1086,7 +1134,9 @@ removed the guards that caught them (the two `toast.test.tsx` tests and the e2e 
 « trop grande » toast uses the width of the screen »): on the branch since, each mutation would be
 `main`'s toast itself. The other 30 mutations edit none of the reverted files, and none of them had
 a removed test as its only red, so they should still turn red (INFERRED from this table; not
-re-run on `a23eda47`). The targeted unit set is now 186 tests and `pro-upload.spec.ts` 12 (§13.7).
+re-run on `a23eda47`). The targeted unit set is now 186 tests, and `pro-upload.spec.ts` 12
+(§13.7), then 13 (§13.8) — whose new test is green under the first of these two mutations by
+design: it pins the half width that mutation puts back.
 
 #### 13.5.4 Not verified
 
@@ -1138,7 +1188,8 @@ placeholders for the seeded gallery. It replaces the sheet made at `efc779f0`, w
 
 Why: §11 item 13. `a23eda47` is `git revert dd5fcd6f` plus the removal of the one test that held
 only with it — the e2e « at 320 px the « trop grande » toast uses the width of the screen, not half
-of it », which required the pill to be wider than 250 px. After it, `git diff origin/main` on
+of it », which required the pill to be wider than 250 px; its three other bounds held on `main`'s
+toast too, and came back in §13.8. After it, `git diff origin/main` on
 `web/components/Toast.tsx`, `web/lib/useToast.ts` and `web/tests/toast.test.tsx` is **empty**
 (OBSERVED). Every other test that reads the toast stays: they find it by `role="status"` and its
 text, or the pill as `[role=status] > div`, as `main`'s toast renders them.
@@ -1146,8 +1197,9 @@ text, or the pill as `[role=status] > div`, as `main`'s toast renders them.
 What ran on a fresh `git archive a23eda47` (node_modules cloned; the worktree never edited),
 OBSERVED:
 
-- `tsc --noEmit` exit 0. ESLint `--max-warnings=0` on the commit's four files, and on the 20 web
-  files the branch touches: exit 0, no problem.
+- `tsc --noEmit` exit 0. ESLint `--max-warnings=0` on the commit's four files, and on the 20
+  lintable web files of the 21 the branch touches (`_jpeg.d.mts` is not linted): exit 0, no
+  problem.
 - Vitest, the full suite (`TZ=UTC`): **199 files, 2,680 tests, green** (2,682 before, less the two
   toast tests); the targeted ten files of §13.5.3, 186.
 - Playwright 1.61.1, its Chromium, an untracked config on 3100/8887 (both checked free), a fresh
@@ -1164,3 +1216,61 @@ OBSERVED:
   logs both; `window.open('http://example.net/')` opens nothing). Dropped during the run: 15 (14 to
   `cdn.stub`, 1 to `basemaps.cartocdn.com`). That nothing left the machine is INFERRED from those
   locks; no packet capture was made.
+
+### 13.8 The gate and the review of `aa9b9814` (2026-11-09), and the fixes
+
+The gate of `aa9b9814` — the branch after the split — passed every code check, the five
+store-linked pages byte-identical to `main`'s, and failed on one docs defect; its review found no
+BLOCKER and no MAJOR. **Each finding was checked before it was fixed**, against the open PRs' tips
+after a `git fetch` that moved none, or by reading the files; every real one is fixed. Commits:
+`85954e53` the e2e · the record commit (this section, rows 39 and 40 out of WEB-SYSTEM §15, and
+the docs below). Nothing in `web/` changed but `pro-upload.spec.ts`; `Toast.tsx`, `useToast.ts`
+and `toast.test.tsx` stay `main`'s.
+
+| Finding | Real? — how it was checked | Done | Commit |
+|---|---|---|---|
+| **Gate, MAJOR:** the branch conflicts with #741 and #750 in WEB-SYSTEM §15 | **Real.** `git merge-tree --write-tree` of `aa9b9814` with `8e05eea5` and with `b79d0828`: exit 1, `CONFLICT (content)` in `docs/design/WEB-SYSTEM.md` — rows 39 and 40 sat on the lines right after row 38, which both rewrite (#741's install-banner note); clean with #737 and #738 | Rows 39 and 40 out of §15 (the first of the gate's two options); the two residuals stay recorded in §2.7 and §11 item 13, and the follow-up registers them on top of the train; §9.1 says what `merge-tree` shows, before and since | record |
+| **Gate and review, MINOR:** the follow-up's condition names #737's « level with the toast » tests, which #741 replaced; #737's own design assumes the half-width toast | **Real.** « level with the toast » is on 2 lines of `site-look.spec.ts` at `83ce6ae9`, on none at `8e05eea5` or `b79d0828`, which hold « the favourite’s message and « Carte » (decision 100) »; replaced in `88a5c41d`, an ancestor of both. `web-swiss-cards.md` §2.4 (« The toast and « Carte » ») and mutation Y-E20, read at `83ce6ae9` | The condition rewritten wherever it is stated — the status row, §2.7, §11 item 13, the design index row, the roadmap entry: after the train, on their `Toast.tsx`, the decision-100 guards green, the owner's word on the width; #737's two tests kept as history | record |
+| **Review, MINOR:** the split removed the whole 320 px e2e, though three of its bounds held on `main` | **Real** (`git show a23eda47`: only `toBeGreaterThan(250)` needed the full-width toast) | The test back in `pro-upload.spec.ts` — `toast.test.tsx` stays `main`'s: left edge ≥ 0, right edge ≤ 320, `scrollWidth` ≤ 320, and the residual pinned, the pill at most 161 px wide: the line the follow-up flips | `85954e53` |
+| **Review, MINOR:** register row 40 cites a §7 rule that `9d721459` removed | **Real** at `aa9b9814`; moot once the row left | Row 40 out with row 39; the follow-up writes the rule with the row | record |
+| **Review, MINOR:** the French summaries say more about the count than was measured | **Real.** The script read again: GPS only from the Exif GPS IFD, XMP and IPTC skipped; « test » and the providers' total carry labels in §11 answer 3 that the summaries dropped | The design index and the roadmap: « sans doute de test ou de démonstration », « aucune position GPS dans l’Exif (XMP et IPTC non lus) », the providers' total « selon le relevé, non revérifié »; §11 answer 3's « Not established » gains XMP and IPTC (the Exif and « sign » counts are lower bounds) | record |
+| **Review, NIT:** the status row's present-tense « collides » | **Real**: `main`'s toast clears « Carte »'s word, `dd5fcd6f`'s did not | « its full-width version collided » | record |
+| **Review, NIT:** §13.7 says 20 web files; the branch touches 21 | **Real**: `_jpeg.d.mts` is not linted, so 20 lintable | « the 20 lintable web files of the 21 » | record |
+| **Review, NIT:** the count's record leaves out Secret Manager | **Real**: the script's `secret()` runs `gcloud secrets versions access` at the pinned versions; the 09:40 attempt's error reads `BILLING_DISABLED` on `secretmanager.googleapis.com` | §11 answer 3 says both | record |
+| **Review, NIT:** §2.7's « nothing new overlays anything » beside a residual this PR makes bigger | **Real** (the text). Whether a control given the focus back sits under the pill at 320 px with doubled text: **UNVERIFIED** | Qualified in §2.7; the question stays UNVERIFIED | record |
+
+**What ran on a fresh `git archive 85954e53`** (node_modules cloned; the worktree never edited),
+OBSERVED:
+
+- `tsc --noEmit` exit 0; ESLint `--max-warnings=0` on `pro-upload.spec.ts`, exit 0.
+- Playwright 1.61.1, its Chromium, an untracked config on 3100/8887 (both checked free), a fresh
+  production build: `pro-upload.spec.ts` 13 and `pro.spec.ts` 41 — **54 passed**, none failed or
+  flaky. The new test's pill, read on a copy whose pin was set to fail so the box prints: **160 ×
+  136 px at x=80, y=408**, `scrollWidth` 320.
+- **Watched red**, each on its own fresh archive and build, `pro-upload.spec.ts` (13 tests):
+  `whitespace-nowrap` on the pill → the new test red, the 12 others green: the pill 597.34 px wide
+  at x=−138.67, off both edges, while `scrollWidth` stayed 320 — a fixed pill adds no scroll, so the
+  edge bounds are the guard, not the scroll width; `dd5fcd6f`'s `Toast.tsx` and `useToast.ts` →
+  the new test red, the 12 others green: the pill 288 px wide at x=16, inside the screen,
+  `scrollWidth` 320, only the pin red (288 > 161) — the line the follow-up flips.
+- The locks of §13.7, each with its control first: before every run a Node lookup of
+  `example.com`, a promise lookup and a `fetch` failed; the browser guard's own check passed once
+  (a local page loads, `example.com` and `example.org` fail and the sink logs both,
+  `window.open` gives `null`). Refused during the control run: in Node 11 lookups (5 `cdn.stub`,
+  6 `o1.ingest.sentry.io`), at the browser's sink 15 requests (14 `cdn.stub`, 1
+  `basemaps.cartocdn.com`). That nothing left the machine is INFERRED from those locks; no packet
+  capture was made.
+
+**On this record commit, after it was made**, on a fresh `git archive` of it: `tsc` and ESLint on
+the spec, the full Vitest (`TZ=UTC`, the register pin included), a fresh build with the two specs
+on 3100/8887, the doc links against `main` with a planted-link control, the backend and mobile
+infra tests with one control each, `git merge-tree` with the four open PRs' tips after a
+`git fetch`, the paths of `git diff origin/main`, and the authorship of every commit. Their figures
+go with the PR, since a record cannot carry its own run; §9.1's « clean with all four » is that
+run's.
+
+**Not verified:** the train's order (#737 → #741 → #750 → this branch) was not replayed — each
+merge was read on its own; the #737 merge was not run again after the gate of `aa9b9814`; the new
+test reads 320 px at normal text only, so doubled text at 320 stays the review's reading on
+`106fb82d`; whether a control given the focus back sits under the pill there (§2.7); a screen
+reader; Safari, Firefox and real phones.
