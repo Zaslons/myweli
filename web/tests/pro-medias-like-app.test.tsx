@@ -3,9 +3,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const routerMock = { replace: vi.fn(), push: vi.fn(), refresh: vi.fn() };
 vi.mock('next/navigation', () => ({ useRouter: () => routerMock }));
-// jsdom has no R2: an upload answers this URL.
-vi.mock('../lib/pro/upload', () => ({
-  uploadGalleryImage: async () => 'https://cdn/new.jpg',
+// jsdom has no R2 (and no canvas): an upload answers this URL.
+vi.mock('../lib/pro/upload', async (importActual) => ({
+  ...(await importActual<typeof import('../lib/pro/upload')>()),
+  uploadGalleryImage: async () => ({ ok: true, url: 'https://cdn/new.jpg' }),
 }));
 
 import { MediasClient } from '../components/pro/MediasClient';

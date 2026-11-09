@@ -328,6 +328,9 @@ describe('pro deposit form', () => {
 
 describe('uploadLogoImage', () => {
   afterEach(() => vi.restoreAllMocks());
+  // jsdom has no canvas: the preparation is injected (web-pro-upload-resize.md).
+  const prepared = new Blob(['jpeg'], { type: 'image/jpeg' });
+  const compress = async () => ({ ok: true, blob: prepared, width: 1, height: 1, pixels: 1 }) as const;
 
   it('signs with purpose=logo → PUTs bytes → returns publicUrl', async () => {
     const fetchMock = vi
@@ -347,7 +350,10 @@ describe('uploadLogoImage', () => {
     vi.stubGlobal('fetch', fetchMock);
 
     const file = new File(['x'], 'l.jpg', { type: 'image/jpeg' });
-    expect(await uploadLogoImage(file)).toBe('https://cdn/logo/p1/1.jpg');
+    expect(await uploadLogoImage(file, { compress })).toEqual({
+      ok: true,
+      url: 'https://cdn/logo/p1/1.jpg',
+    });
     expect(String(fetchMock.mock.calls[0][0])).toContain('/api/pro/uploads/sign');
     // The purpose IS the storage namespace (salon-logo.md §5) — never gallery.
     expect(
@@ -355,7 +361,7 @@ describe('uploadLogoImage', () => {
     ).toBe('logo');
   });
 
-  it('returns null when the storage PUT fails', async () => {
+  it('fails when the storage PUT fails', async () => {
     const fetchMock = vi
       .fn()
       .mockResolvedValueOnce(
@@ -367,6 +373,6 @@ describe('uploadLogoImage', () => {
       .mockResolvedValueOnce(new Response(null, { status: 403 }));
     vi.stubGlobal('fetch', fetchMock);
     const file = new File(['x'], 'l.jpg', { type: 'image/jpeg' });
-    expect(await uploadLogoImage(file)).toBeNull();
+    expect(await uploadLogoImage(file, { compress })).toEqual({ ok: false, reason: 'failed' });
   });
 });

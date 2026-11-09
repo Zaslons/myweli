@@ -41,7 +41,7 @@ import {
   validateArtist,
   validateService,
 } from '../../lib/pro/catalogue';
-import { uploadGalleryImage } from '../../lib/pro/upload';
+import { uploadFailureMessage, uploadGalleryImage } from '../../lib/pro/upload';
 import { focusOnMount } from '../../lib/focusOnMount';
 import { Button } from '../Button';
 import { SkeletonRows } from '../Skeleton';
@@ -607,10 +607,13 @@ function ArtistFormCard({
               if (!file) return;
               setUploading(true);
               setErr(null);
-              const url = await uploadGalleryImage(file);
+              // Prepared as the app does (web-pro-upload-resize.md).
+              const upload = await uploadGalleryImage(file);
               setUploading(false);
-              if (!url) return setErr('Échec de l’envoi de la photo.');
-              setForm((f) => ({ ...f, imageUrl: url }));
+              if (!upload.ok) {
+                return setErr(uploadFailureMessage(upload.reason, 'Échec de l’envoi de la photo.'));
+              }
+              setForm((f) => ({ ...f, imageUrl: upload.url }));
             }}
           />
           <Button

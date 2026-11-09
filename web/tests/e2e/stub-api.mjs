@@ -3,6 +3,7 @@
 // Started by playwright.config.ts; serves one provider + the sitemap feed.
 import { createServer } from 'node:http';
 
+import { inspectJpeg } from './_jpeg.mjs';
 import {
   materialiseDates,
   stubDayKey,
@@ -799,8 +800,22 @@ function readJsonObject(req) {
 const keptBookings = new Map(); // key → the 201 body
 const bookingsByKey = new Map(); // key → how many bookings it created
 
+// docs/design/web-pro-upload-resize.md §8.2 — what storage actually received,
+// per object: a gallery/logo PUT goes to `/r2-upload/<key>`, and this keeps,
+// for the last 50 keys, the content type, length, JPEG frame size, whether
+// Exif or the fixture's camera/GPS markers survived, the luminance table and
+// the bytes (base64, so a spec can look at the pixels). Keyed, not « the last
+// upload », because two spec files can upload at the same time.
+// Read with GET /__stub/uploads?key=<key>.
+const receivedUploads = new Map();
+
 createServer(async (req, res) => {
   const url = new URL(req.url, `http://localhost:${port}`);
+  if (url.pathname === '/__stub/uploads') {
+    const record = receivedUploads.get(url.searchParams.get('key') ?? '');
+    res.writeHead(record ? 200 : 404, { 'content-type': 'application/json' });
+    return res.end(JSON.stringify(record ?? { error: 'not_found' }));
+  }
   if (url.pathname === '/__stub/bookings') {
     const key = url.searchParams.get('key') ?? '';
     return json(res, 200, { created: bookingsByKey.get(key) ?? 0 });
@@ -1826,15 +1841,23 @@ createServer(async (req, res) => {
         key: `kyc/acc1/${imgSeq++}.jpg`,
       });
     }
+    // Gallery and logo, as the server does them (upload_signing_service.dart):
+    // only JPEG/PNG/WebP are signed, and the signature pins the content type
+    // that was ASKED for — so a client that signs the picked file's type PUTs
+    // that type, and the record below shows it.
+    const ext = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' }[b.contentType];
+    if (!ext) return json(res, 400, { error: 'invalid_input' });
+    const key = `gallery/p1/${imgSeq++}.${ext}`;
     return json(res, 200, {
       method: 'PUT',
-      uploadUrl: `http://127.0.0.1:${port}/r2-upload`,
-      headers: { 'content-type': 'image/jpeg' },
-      key: `gallery/p1/${imgSeq}.jpg`,
-      publicUrl: `https://cdn.stub/gallery/p1/${imgSeq++}.jpg`,
+      uploadUrl: `http://127.0.0.1:${port}/r2-upload/${key}`,
+      headers: { 'content-type': b.contentType },
+      key,
+      publicUrl: `https://cdn.stub/${key}`,
+      maxBytes: 5 * 1024 * 1024,
     });
   }
-  if (url.pathname === '/r2-upload') {
+  if (url.pathname === '/r2-upload' || url.pathname.startsWith('/r2-upload/')) {
     // The browser PUTs bytes here directly, cross-origin. `content-type:
     // image/jpeg` is NOT a CORS-safelisted value, so the browser sends a
     // PREFLIGHT first — answering only the PUT would let this stub pass while
@@ -1848,6 +1871,20 @@ createServer(async (req, res) => {
         'access-control-max-age': '3600',
       });
       return res.end();
+    }
+    const key = url.pathname.slice('/r2-upload/'.length);
+    if (key) {
+      const chunks = [];
+      for await (const chunk of req) chunks.push(chunk);
+      const bytes = Buffer.concat(chunks);
+      receivedUploads.set(key, {
+        method: req.method,
+        contentType: req.headers['content-type'] ?? null,
+        length: bytes.length,
+        ...inspectJpeg(bytes),
+        base64: bytes.toString('base64'),
+      });
+      if (receivedUploads.size > 50) receivedUploads.delete(receivedUploads.keys().next().value);
     }
     res.writeHead(200, { 'access-control-allow-origin': '*' });
     return res.end();

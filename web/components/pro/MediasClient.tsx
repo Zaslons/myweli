@@ -15,7 +15,7 @@ import {
   removeAt,
   toCover,
 } from '../../lib/pro/medias';
-import { uploadGalleryImage } from '../../lib/pro/upload';
+import { uploadFailureMessage, uploadGalleryImage } from '../../lib/pro/upload';
 import { Button } from '../Button';
 import { Modal } from '../Modal';
 import { Toast } from '../Toast';
@@ -167,7 +167,7 @@ export function MediasClient() {
           onAdd={async (url) => {
             await writePhotos([...savedPhotos.current, url], 'Échec de l’envoi');
           }}
-          onUploadFailed={() => show('Échec de l’envoi', 'error')}
+          onUploadFailed={(message) => show(message, 'error')}
           onDelete={(index) => setConfirming({ kind: 'photo', index })}
         />
       ) : (
@@ -175,7 +175,7 @@ export function MediasClient() {
           pairs={pairs}
           busy={busy}
           onAdd={(pair) => writePairs([...savedPairs.current, pair], 'Échec de l’enregistrement')}
-          onUploadFailed={() => show('Échec de l’envoi', 'error')}
+          onUploadFailed={(message) => show(message, 'error')}
           onDelete={(index) => setConfirming({ kind: 'pair', index })}
         />
       )}
@@ -220,7 +220,7 @@ function PhotosTab({
   busy: boolean;
   onWrite: (next: string[], failure: string) => void;
   onAdd: (url: string) => Promise<void>;
-  onUploadFailed: () => void;
+  onUploadFailed: (message: string) => void;
   onDelete: (index: number) => void;
 }) {
   const [uploading, setUploading] = useState(false);
@@ -230,13 +230,14 @@ function PhotosTab({
     e.target.value = '';
     if (!file) return;
     setUploading(true);
-    const url = await uploadGalleryImage(file);
-    if (!url) {
+    // Prepared as the app does before it is sent (web-pro-upload-resize.md).
+    const upload = await uploadGalleryImage(file);
+    if (!upload.ok) {
       setUploading(false);
-      onUploadFailed();
+      onUploadFailed(uploadFailureMessage(upload.reason, 'Échec de l’envoi'));
       return;
     }
-    await onAdd(url);
+    await onAdd(upload.url);
     setUploading(false);
   }
 
@@ -330,7 +331,7 @@ function AvantApresTab({
   pairs: BeforeAfterPair[];
   busy: boolean;
   onAdd: (pair: BeforeAfterPair) => Promise<boolean>;
-  onUploadFailed: () => void;
+  onUploadFailed: (message: string) => void;
   onDelete: (index: number) => void;
 }) {
   const [before, setBefore] = useState<string | null>(null);
@@ -346,13 +347,13 @@ function AvantApresTab({
     e.target.value = '';
     if (!file) return;
     setUploading(true);
-    const url = await uploadGalleryImage(file);
+    const upload = await uploadGalleryImage(file);
     setUploading(false);
-    if (!url) {
-      onUploadFailed();
+    if (!upload.ok) {
+      onUploadFailed(uploadFailureMessage(upload.reason, 'Échec de l’envoi'));
       return;
     }
-    set(url);
+    set(upload.url);
   }
 
   async function addPair() {

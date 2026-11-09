@@ -23,7 +23,7 @@ import dynamic from 'next/dynamic';
 import { findCity } from '../../lib/localities';
 import { centerOf } from '../../lib/discovery/map';
 import { hasCap } from '../../lib/pro/team';
-import { uploadLogoImage } from '../../lib/pro/upload';
+import { uploadFailureMessage, uploadLogoImage } from '../../lib/pro/upload';
 import { useLocalities } from '../../lib/use-localities';
 import { Button } from '../Button';
 import { Loading } from '../Loading';
@@ -210,10 +210,14 @@ export function ProfilClient() {
               if (!file) return;
               setLogoUploading(true);
               setLogoError(null);
-              const url = await uploadLogoImage(file);
+              // Prepared as the app does — a transparent logo on white
+              // (web-pro-upload-resize.md §2.4).
+              const upload = await uploadLogoImage(file);
               setLogoUploading(false);
-              if (!url) return setLogoError('Échec de l’envoi du logo.');
-              set('logoUrl', url);
+              if (!upload.ok) {
+                return setLogoError(uploadFailureMessage(upload.reason, 'Échec de l’envoi du logo.'));
+              }
+              set('logoUrl', upload.url);
             }}
           />
           <Button
