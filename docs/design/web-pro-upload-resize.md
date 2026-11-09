@@ -256,9 +256,11 @@ item 3). The web keeps its two longer sentences, because each says what to do ne
   uploading, « Avant » / « Après » included since the review.
 - 200 % text: the three sentences (72, 85 and 83 characters) wrap inside their `<p>` and the toast
   pill, nothing clipped (the review's reading on `106fb82d`, at 320 px with doubled text). At 320 px
-  with normal text an e2e holds the « trop grande » pill inside the screen with no sideways scroll,
-  and pins its half width (§13.8: 160 × 136 px at x=80). **The toast has half the screen to wrap
-  in — a known residual of this PR.** The region is centred by `left-1/2 -translate-x-1/2` with no
+  with normal text an e2e holds the « trop grande » pill whole inside the screen — its four edges
+  within the viewport the page reports, its sentence not clipped (the pill's own scroll width and
+  height within its box) — with no sideways scroll, and pins its half width (§13.8: 160 × 136 px at
+  x=80, y=408). **The toast has half the screen to wrap in — a known residual of this PR.** The
+  region is centred by `left-1/2 -translate-x-1/2` with no
   width, so its box is capped near half the screen: at 320 px with Android-style doubled text the
   « trop grande » toast measured 182 px wide and ran from y=88 to y=544 — about 80 % of the 568 px
   screen — for 6 s (OBSERVED by the review on `106fb82d`; 160 px wide with normal text). It holds on
@@ -724,8 +726,8 @@ odd EXIF layouts, an engine that drops the orientation when it scales, GIF / BMP
 64 MP, leaving Médias mid-upload, a blanked canvas, the focus on four surfaces, and a comparison of
 every upload with its input place by place. The toast's repeat (unit) and the toast at 320 px
 (e2e) were guarded too, and left with the toast change in `a23eda47` (§11 item 13); the 320 px
-e2e came back without its full-width bound — the pill inside the screen, no sideways scroll, and
-the half width pinned as the residual (§13.8).
+e2e came back without its full-width bound — the pill whole inside the screen (its four edges),
+its sentence unclipped, no sideways scroll, and the half width pinned as the residual (§13.8).
 
 ### 8.4 Manual, before calling it done (UNVERIFIED today)
 
@@ -822,17 +824,18 @@ row: the two toast residuals are registered there by the follow-up (§11 item 13
    1600 or long side over 2400, read from the JPEG frame header; « Exif » = an APP1 `Exif` segment
    before that header; « GPS » = a non-empty GPS IFD inside it — XMP and IPTC were not read (below).
    4 of the 5 gallery photos and 1 of the 3 logos carry at least one sign of not having been
-   prepared by the rule (too large, or Exif; lower bounds, below). Production has no public salon
-   (`GET /providers` answers a total of 0, BACKLOG decision 51 — reported to this record, not
-   re-checked), so these are test or demo uploads (INFERRED). **Not established:** which client sent
-   each file; the **XMP** (APP1 `http://ns.adobe.com/xap/1.0/`) and **IPTC** (APP13) segments, which
-   the script skipped, so GPS or camera data there is not excluded — the Exif and « sign » counts
-   are lower bounds; which Exif fields the two files with Exif hold besides GPS (a camera make or a
-   date may remain — the script did not classify them); whether `cdn.myweli.com` strips metadata on
-   delivery (**UNVERIFIED**). Per the owner, **nothing stored is re-encoded before launch**; a purge
-   or re-encode of the test data, if wanted, is a separate owner decision. This spec prevents new
-   full-size, metadata-carrying web uploads; it does nothing to what is already stored
-   (verification-guardrails §8).
+   prepared by the rule (too large, or Exif; these two are lower bounds, below). Production has no
+   public salon (`GET /providers` answers a total of 0, BACKLOG decision 51 — reported to this
+   record, not re-checked), so these are test or demo uploads (INFERRED). **Not established:** which
+   client sent each file; the **XMP** (APP1 `http://ns.adobe.com/xap/1.0/`) and **IPTC** (APP13)
+   segments, which the script skipped, so GPS or camera data there is not excluded — the « sign »
+   counts are lower bounds (metadata in XMP or IPTC would be a sign too), while the Exif counts are
+   exact for what they name, an APP1 `Exif` segment before the frame header; which Exif fields the
+   two files with Exif hold besides GPS (a camera make or a date may remain — the script did not
+   classify them); whether `cdn.myweli.com` strips metadata on delivery (**UNVERIFIED**). Per the
+   owner, **nothing stored is re-encoded before launch**; a purge or re-encode of the test data, if
+   wanted, is a separate owner decision. This spec prevents new full-size, metadata-carrying web
+   uploads; it does nothing to what is already stored (verification-guardrails §8).
 4. **When — « Own PR from main ».** Independent of #737/#741/#750/#738, merged on the owner's word,
    possibly before Apple's decision since none of the five store-linked pages' files change.
 
@@ -891,8 +894,9 @@ Raised by the two reviews of 2026-11-09 (§13.5) — none changes the four answe
     toast being at most half the screen wide at normal text, and its mutation Y-E20, « The toast
     runs the screen’s width, over the word », must be red — so widening it changes what decisions
     91 and 100 accepted. Until then both findings are known residuals of this PR, recorded here and
-    in §2.7, and the e2e « at 320 px the « trop grande » toast stays on the screen, with no
-    sideways scroll » pins the half width (the pill at most 161 px wide at 320 px, normal text):
+    in §2.7, and the e2e « at 320 px the « trop grande » toast stays whole on the screen, its
+    sentence unclipped, with no sideways scroll » pins the half width (the pill at most 161 px
+    wide at 320 px, normal text):
     the line the follow-up flips (§13.8). **They are not in WEB-SYSTEM §15 yet:** `9d721459`
     registered them there as rows 39 and 40, right after row 38, which #741 and #750 rewrite, and
     that made this branch conflict with both (§9.1); §13.8's record commit took them out, and the
@@ -1233,7 +1237,7 @@ and `toast.test.tsx` stay `main`'s.
 | **Gate and review, MINOR:** the follow-up's condition names #737's « level with the toast » tests, which #741 replaced; #737's own design assumes the half-width toast | **Real.** « level with the toast » is on 2 lines of `site-look.spec.ts` at `83ce6ae9`, on none at `8e05eea5` or `b79d0828`, which hold « the favourite’s message and « Carte » (decision 100) »; replaced in `88a5c41d`, an ancestor of both. `web-swiss-cards.md` §2.4 (« The toast and « Carte » ») and mutation Y-E20, read at `83ce6ae9` | The condition rewritten wherever it is stated — the status row, §2.7, §11 item 13, the design index row, the roadmap entry: after the train, on their `Toast.tsx`, the decision-100 guards green, the owner's word on the width; #737's two tests kept as history | record |
 | **Review, MINOR:** the split removed the whole 320 px e2e, though three of its bounds held on `main` | **Real** (`git show a23eda47`: only `toBeGreaterThan(250)` needed the full-width toast) | The test back in `pro-upload.spec.ts` — `toast.test.tsx` stays `main`'s: left edge ≥ 0, right edge ≤ 320, `scrollWidth` ≤ 320, and the residual pinned, the pill at most 161 px wide: the line the follow-up flips | `85954e53` |
 | **Review, MINOR:** register row 40 cites a §7 rule that `9d721459` removed | **Real** at `aa9b9814`; moot once the row left | Row 40 out with row 39; the follow-up writes the rule with the row | record |
-| **Review, MINOR:** the French summaries say more about the count than was measured | **Real.** The script read again: GPS only from the Exif GPS IFD, XMP and IPTC skipped; « test » and the providers' total carry labels in §11 answer 3 that the summaries dropped | The design index and the roadmap: « sans doute de test ou de démonstration », « aucune position GPS dans l’Exif (XMP et IPTC non lus) », the providers' total « selon le relevé, non revérifié »; §11 answer 3's « Not established » gains XMP and IPTC (the Exif and « sign » counts are lower bounds) | record |
+| **Review, MINOR:** the French summaries say more about the count than was measured | **Real.** The script read again: GPS only from the Exif GPS IFD, XMP and IPTC skipped; « test » and the providers' total carry labels in §11 answer 3 that the summaries dropped | The design index and the roadmap: « sans doute de test ou de démonstration », « aucune position GPS dans l’Exif (XMP et IPTC non lus) », the providers' total « selon le relevé, non revérifié »; §11 answer 3's « Not established » gains XMP and IPTC (the « sign » counts are lower bounds; this cell first called the Exif counts lower bounds too, corrected after the review of `d604b2d8`, below) | record |
 | **Review, NIT:** the status row's present-tense « collides » | **Real**: `main`'s toast clears « Carte »'s word, `dd5fcd6f`'s did not | « its full-width version collided » | record |
 | **Review, NIT:** §13.7 says 20 web files; the branch touches 21 | **Real**: `_jpeg.d.mts` is not linted, so 20 lintable | « the 20 lintable web files of the 21 » | record |
 | **Review, NIT:** the count's record leaves out Secret Manager | **Real**: the script's `secret()` runs `gcloud secrets versions access` at the pinned versions; the 09:40 attempt's error reads `BILLING_DISABLED` on `secretmanager.googleapis.com` | §11 answer 3 says both | record |
@@ -1274,3 +1278,17 @@ merge was read on its own; the #737 merge was not run again after the gate of `a
 test reads 320 px at normal text only, so doubled text at 320 stays the review's reading on
 `106fb82d`; whether a control given the focus back sits under the pill there (§2.7); a screen
 reader; Safari, Firefox and real phones.
+
+**After the review of `d604b2d8`** (`f995946b` the e2e, then this docs commit): a pill pushed below
+the screen (`-bottom-56` on the region) and one cut to a line
+(`w-40 overflow-hidden whitespace-nowrap`) passed the 320 px e2e (OBSERVED on `d604b2d8`: the second
+here, the first by the previous run), which now also holds the top and bottom edges against the
+viewport the page reports (checked equal to the 320 × 568 it sets) and the pill's own scroll width
+and height within its box, the pin kept; on a fresh archive and build of `f995946b` each,
+`pro-upload.spec.ts` (13), OBSERVED: the commit 13 green (the pill 160 × 136 px at x=80, y=408, its
+own 160 / 160 wide and 136 / 136 high, on a probe copy), `-bottom-56` red at the bottom edge
+(y=656, 792 > 568), the cut line red at the pill's own width (597 > 160), `-top-56` red at the top
+edge (y=−224), `h-9 overflow-hidden` red at its own height (86 > 36), the 12 others green each
+time; and only the « sign » counts are lower bounds, the Exif counts exact for an APP1 `Exif`
+segment before the frame header (the count script's `parse` read again) — corrected in §11
+answer 3, the roadmap entry and the row above.
