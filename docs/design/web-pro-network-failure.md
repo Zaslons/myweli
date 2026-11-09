@@ -191,7 +191,9 @@ au BFF, même origine — un rejet là, c'est le réseau de la personne, pas le
 stockage ni un CORS, que la télémétrie existe pour trouver
 (`lib/upload-telemetry.ts`). Cette télémétrie a depuis une étape de plus,
 `prepare` : une photo Pro que le navigateur n'a pas pu préparer, signalée avec
-son type MIME et une tranche de mégapixels, jamais son nom de fichier.
+son type MIME et une tranche de mégapixels, jamais son nom de fichier — au
+niveau `warning`, pas `error` (la revue du 2026-11-09). Une page quittée pendant
+l'envoi rend `{ ok: false, reason: 'aborted' }`, sans rapport ni message.
 
 ## 6. UX
 

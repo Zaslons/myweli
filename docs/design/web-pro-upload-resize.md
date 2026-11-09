@@ -77,7 +77,8 @@ browser before anything is signed or sent. The person sees no new step; uploads 
 ### 1.3 Scope — the owner's answer 2 (2026-11-09): « Pro photos only »
 
 **In scope** — the four Pro photo surfaces in §1.1 (gallery + cover, before/after, staff photo,
-logo); a shared, injectable preparation module; two new failure sentences; telemetry for the new
+logo); a shared, injectable preparation module; two new failure sentences (a third added by the
+review fixes, §2.6); telemetry for the new
 stage; tests; the doc corrections in §9.3.
 
 **Out of scope, with reasons**
@@ -115,9 +116,11 @@ Unchanged: the four inputs in §1.1. Nothing new to click.
 ### 2.2 Happy path
 
 1. The person picks a photo (as today).
-2. **Prepare** (new, invisible): read the header → check it → decode at the target size → draw on
-   white → encode JPEG 0.80. About 0.1–0.2 s on a laptop (103–208 ms, 8–48 MP, §7); the existing
-   busy state already shows (« Téléversement… » in Médias, the button spinner in Catalogue/Profil).
+2. **Prepare** (new, invisible): read the header → check it → ask the browser at what size it
+   shows the picture → check, once, that its canvas gives back what is drawn → decode at the target
+   size → draw on white → encode JPEG 0.80. About 0.1–0.2 s on a laptop (103–208 ms, 8–48 MP, §7);
+   the busy state shows meanwhile (« Téléversement… » on Médias' pickers — « Avant » / « Après »
+   too since the review —, the button spinner in Catalogue/Profil).
 3. Sign with `contentType: 'image/jpeg'` and the same purpose as today.
 4. PUT the **prepared bytes** (not the `File`) with exactly the signed headers.
 5. The photo appears / the logo or staff photo is staged, as today.
@@ -130,21 +133,30 @@ be read therefore never spends a signature — which matters for the logo, signe
 
 | State | What the person sees | Change? |
 |---|---|---|
-| Loading (preparing + sending) | Médias: the add label reads « Téléversement… » and the input is disabled; Catalogue/Profil: `Button isLoading` (spinner, `aria-busy`, disabled) | **No change** |
+| Loading (preparing + sending) | Médias → Photos: the add label reads « Téléversement… » and the input is disabled; Médias → Avant / Après: the picker on its way reads « Téléversement… », **both** pickers and « Ajouter la paire » wait (**new**, the review: nothing showed before; the app shows « Envoi… » and holds its add button); Catalogue/Profil: `Button isLoading` (spinner, `aria-busy`, disabled). When it ends, the control gets the focus back (§2.7) | Avant / Après: new |
 | Success | The photo appears in the grid / the pair can be added / the thumbnail shows | No change |
 | Error — the image cannot be read | **New sentence** `UNREADABLE` (§2.6) on the surface's existing channel | New |
 | Error — the image is too large to prepare | **New sentence** `TOO_LARGE` (§2.6) | New |
+| Error — the browser alters what a canvas gives back (anti-fingerprinting) | **New sentence** `BLOCKED` (§2.6; the review's F4) | New |
 | Error — sign / PUT / network / preparation crash | The surface's existing sentence (« Échec de l’envoi », « Échec de l’envoi de la photo. », « Échec de l’envoi du logo. ») | No change |
 | Empty | n/a — the surfaces' empty states are untouched | No change |
 
-Channels (unchanged): Médias → the `Toast` (`role="status"`, `aria-live="polite"`, error kind
-6 s), for « Photos » and « Avant / Après » alike; Catalogue → `<p role="alert">`
-(`CatalogueClient.tsx:670`); Profil → `<p role="alert">` under the logo block.
+Channels: Médias → the `Toast` (`role="status"`, `aria-live="polite"`, error kind 6 s), for
+« Photos » and « Avant / Après » alike; Catalogue → **its own** `<p role="alert">` directly under
+the photo button (since the review: it shared the form's alert, placed after the hours block
+— `CatalogueClient.tsx:670` on `main` — and at 320 px with doubled text only « Cette image n’a »
+showed above the fold); Profil → `<p role="alert">` under the logo block.
 
 ### 2.4 Edge cases
 
 - **Sideways camera JPEG (EXIF orientation 6/8).** Comes out upright: OBSERVED in the draft on a
   4032×3024 stored / orientation 6 fixture → 1600×2133, the markers in place.
+- **Unusual EXIF layouts** (two Exif segments, an Orientation stored as a LONG, a PNG `eXIf`, an
+  Exif segment after the frame header, an AVIF `irot`). The browser decodes, so **the browser's
+  reading of the displayed size sizes the target** (`<img>` once loaded, header only) — never ours
+  alone. Before the review the target came from our reading and the decoder was forced to both
+  sides: where the two differed, the photo was squeezed into the other orientation's frame
+  (OBSERVED by the review on four layouts; fixed and pinned in real Chromium, §13.5).
 - **Panorama** 12000×3000 → 2400×600; **16:9** 4000×2250 → 2400×1350; **small** 600×800 → 600×800
   (never enlarged, still re-encoded so its metadata goes) — all OBSERVED in the draft.
 - **Transparent PNG logo.** Drawn on white (the `secondary` token, #FFFFFF) before encoding.
@@ -156,16 +168,31 @@ Channels (unchanged): Médias → the `Toast` (`role="status"`, `aria-live="poli
 - **Animated GIF/WebP** → the first frame (INFERRED: what a canvas draw of an image does).
 - **Wide-gamut (Display P3) photos** → converted to sRGB, as the app's iOS compressor does
   (`preferredRange = Standard` in flutter_image_compress's `UIImage+scale.m`, OBSERVED in source).
-- **Before + after picked back to back.** `FilePick` has no disabled state, so two preparations
-  could overlap and double the memory peak on a phone. **Preparations are serialized** (one at a
-  time, a module-level queue) — the second waits for the first.
+- **Before + after picked back to back.** Since the review both pickers are disabled while one
+  side is on its way; **preparations stay serialized** too (one at a time, a module-level queue)
+  — the second waits for the first, whatever started it.
 - **Very large sensors (108/200 MP modes).** Refused before decoding above **64 MP** with
   `TOO_LARGE` (§5.6): a renderer killed for memory loses the Profil form's unsaved edits (Médias
   saves each gesture at once). A deliberate, named deviation from the app (§5.2).
 - **HEIC on Chrome/Firefox/Android** → `UNREADABLE` (Chromium cannot decode HEIC: OBSERVED,
   `InvalidStateError: The source image could not be decoded.`). HEIC on Safari → works (INFERRED;
   UNVERIFIED here). iPhone Safari usually hands over a JPEG anyway (§5.4).
-- **Leaving the page while preparing** → nothing was signed or stored; nothing to clean up.
+- **Leaving the page while a photo is prepared or sent** → **nothing is signed, sent or added after
+  that.** Médias (the page — switching its tabs does not count), the staff form and Profil hand
+  their upload an `AbortSignal` aborted when they unmount; the helper checks it before the
+  signature and before the PUT, and the page before adding anything. The first version of this line
+  said « nothing was signed or stored » and was **false** (the review's F3, OBSERVED: leaving Médias
+  41 ms after picking a photo still signed it, sent it and saved the gallery with it ~3 s later — a
+  wrong photo « cancelled » by leaving went public). A PUT already in flight when the page is left
+  completes; its object stays under `pending/` and is never claimed.
+- **A browser that alters canvas output** (Firefox's `resistFingerprinting`, LibreWolf, Tor,
+  Mullvad, Brave's strict mode) → refused with `BLOCKED` before anything is decoded. Once per
+  session, four palette swatches go through the real path (canvas → JPEG → decode → read back) and
+  must come back within 48 per channel: the small per-pixel noise some browsers add passes, a blank
+  or random read-back does not. A pass is kept; a refusal is checked again at the next pick (a
+  canvas permission prompt may have been answered). The review's F4: without it the photo would
+  have been sent blank or as noise, with no error (INFERRED for those browsers — only Chromium was
+  run; the mechanism OBSERVED by simulation, §13.5).
 - **Slow network** → the PUT is ~10× smaller; failures keep today's handling and telemetry.
 
 ### 2.5 Progress and cancel — decided: neither is added
@@ -181,12 +208,14 @@ Channels (unchanged): Médias → the `Toast` (`role="status"`, `aria-live="poli
 
 ### 2.6 Copy (French)
 
-Two new sentences, exported as constants from `web/lib/pro/upload.ts` and pinned by a test:
+Two new sentences — three since the review fixes —, exported as constants from
+`web/lib/pro/upload.ts` and pinned by a test:
 
 | Key | Sentence | When |
 |---|---|---|
 | `UPLOAD_UNREADABLE_MESSAGE` | « Cette image n’a pas pu être lue. Choisissez une image JPEG, PNG ou WebP. » | the browser cannot decode the file (HEIC on Chrome, a corrupt file, a renamed document) |
-| `UPLOAD_TOO_LARGE_MESSAGE` | « Cette image est trop grande pour être préparée ici. Choisissez une image plus petite. » | over 64 MP by its header, or still over the 5 MiB cap after preparation |
+| `UPLOAD_TOO_LARGE_MESSAGE` | « Cette image est trop grande pour être préparée ici. Choisissez une image plus petite. » | over 64 MP by its header or as the browser shows it, or still over the 5 MiB cap after preparation |
+| `UPLOAD_BLOCKED_MESSAGE` | « Votre navigateur empêche de préparer cette image. Essayez avec un autre navigateur. » | the canvas check fails (§2.4). **Proposed copy, added by the review fixes — to confirm by the owner (§11, item 10)** |
 
 Why these and not the generic sentence: SYSTEM §17 keeps two sentences for « it failed » but lets
 a refusal with its own words keep them; both are the person's to fix by choosing another image,
@@ -194,16 +223,38 @@ which the generic « Une erreur est survenue. Réessayez. » would hide (retryin
 the same way). « image », not « photo », because the logo uses the same words. Typography per
 §17.1: `’`. Vouvoiement. Everything else keeps today's sentence.
 
+**Where the web's words differ from the app's** (named, not mirrored): for a file it cannot read the
+app says « Image invalide » (`api_image_upload_service.dart`, when its compressor throws or gives
+nothing), and it has **no** « trop grande »: it accepts any size (it subsamples on decode, §5.2
+item 3). The web keeps its two longer sentences, because each says what to do next.
+
 ### 2.7 Accessibility
 
-- No new control, no new focus stop; focus stays where it is (the input inside its label, or the
-  « Changer la photo / le logo » button). WCAG 2.4.11: nothing new overlays anything.
+- No new control, no new focus stop. WCAG 2.4.11: nothing new overlays anything.
+- **The focus comes back to the control when its busy state ends.** The first version of this line
+  said « focus stays where it is » and was **false** on three surfaces (the review's MAJOR,
+  OBSERVED in Chromium at 390 px): the control is disabled while it works, and a control disabled
+  while it holds the focus drops it to `<body>` — Médias' photo input, Catalogue's « Ajouter une
+  photo », Profil's « Ajouter un logo » (`main` already did this; preparation lengthened it).
+  `useFocusBackAfter` (`lib/pro/upload-hooks.ts`) gives it back when the busy state ends, unless the
+  person put the focus somewhere else meanwhile; « Avant » / « Après », disabled while busy since
+  the review, use it too. Pinned in Chromium: the loss is checked first, then the return, on all
+  four (§13.5).
 - Errors arrive on channels that already announce: `role="alert"` (inserted, assertive) in
   Catalogue/Profil; the always-mounted `role="status"` toast region in Médias (WEB-SYSTEM §7).
-- The busy state is unchanged: `aria-busy` + disabled on the `Button`; the Médias input is
-  `disabled` while uploading.
-- 200 % text: the two sentences (72 and 85 characters) wrap inside the existing `<p>` and the
-  toast pill — **UNVERIFIED** at 320 px with doubled text (no screenshot taken by this build).
+  **The same sentence twice is read twice** since the review: `useToast` gives every `show` an id
+  and `Toast` keys the pill on it, so a repeat is a new node in the region (two unreadable files
+  picked within 6 s re-rendered the same text in place — 0 changes in the region, OBSERVED by the
+  review; INFERRED silent for a screen reader, none was run).
+- The busy state: `aria-busy` + disabled on the `Button`; Médias' inputs `disabled` while
+  uploading, « Avant » / « Après » included since the review.
+- 200 % text: the three sentences (72, 85 and 83 characters) wrap inside their `<p>` and the toast
+  pill. **The toast used to have half the screen to wrap in** — centred by `left-1/2
+  -translate-x-1/2`, it measured 182 px wide and 456 px tall at 320 px with Android-style doubled
+  text (OBSERVED by the review). It now spans the screen inside the side gutter (`inset-x-0 px-m`,
+  the pill centred and capped at `max-w-xl`; every class already existed, so the shared stylesheet
+  is unchanged); at 320 px with normal text the « trop grande » pill is wider than 250 px (pinned,
+  §13.5). Doubled text at 320 px after the fix: **UNVERIFIED** (no screenshot taken).
 - 48 px targets: untouched.
 
 ### 2.8 Reuse
@@ -239,21 +290,31 @@ web/lib/image/compress.ts   (new — shared, no React, no Pro imports)
   UPLOAD_RULE                            { longSide 2400, shortSide 1600, quality 0.8,
                                            maxInputPixels 64_000_000, maxBytes 5 MiB }
   targetSize(width, height)              pure: the app's arithmetic (§5.2)
-  parseImageHeader(bytes, complete)      pure: stored size + EXIF orientation (JPEG), PNG, WebP; else null
-  probeImageHeader(blob)                 reads 256 KiB, up to 4 MiB when a JPEG's APP segments are long
+  parseImageHeader(bytes, complete)      pure: stored size of a JPEG (+ the FIRST Exif's Orientation,
+                                         SHORT × 1), PNG (+ an eXIf before IDAT), WebP, GIF, BMP,
+                                         AVIF/HEIC (the largest ispe); else null — never decoded
+  probeImageHeader(blob)                 reads 256 KiB, up to 4 MiB when the size lies further on
   orientationTransform(o, w, h)          pure: EXIF's eight cases, for the last-resort path
+  pixelsMatch(pixels, expected, tol)     pure: the canvas check's comparison (48 per channel)
   megapixelBucket(pixels)                pure: '<12' | '12-24' | '24-50' | '50-64' | '>64' | 'unknown'
   compressForUpload(file, deps?)         → { ok: true, blob, width, height, pixels }
-                                         | { ok: false, reason: 'unreadable' | 'too_large' | 'failed', pixels }
-  (deps: probe / decode / encode / maxBytes seams; defaults = the browser implementation in §5.3)
+                                         | { ok: false, reason: 'unreadable' | 'too_large' | 'blocked'
+                                                          | 'failed', pixels }
+  (deps: probe / measure / canvasWorks / decode / encode / maxBytes seams; defaults = the browser
+   implementation in §5.3; `measure` and `canvasWorks` added by the review fixes)
 
 web/lib/pro/upload.ts
-  uploadGalleryImage(file, { compress = compressForUpload } = {}) → ProUpload
-  uploadLogoImage(file,    { compress = compressForUpload } = {}) → ProUpload
-  type ProUpload = { ok: true; url: string } | { ok: false; reason: 'unreadable' | 'too_large' | 'failed' }
+  uploadGalleryImage(file, { compress = compressForUpload, signal } = {}) → ProUpload
+  uploadLogoImage(file,    { compress = compressForUpload, signal } = {}) → ProUpload
+  type ProUpload = { ok: true; url: string }
+                 | { ok: false; reason: 'unreadable' | 'too_large' | 'blocked' | 'failed' | 'aborted' }
   uploadFailureMessage(reason, fallback) → the sentence for the surface
-  UPLOAD_UNREADABLE_MESSAGE, UPLOAD_TOO_LARGE_MESSAGE
+  UPLOAD_UNREADABLE_MESSAGE, UPLOAD_TOO_LARGE_MESSAGE, UPLOAD_BLOCKED_MESSAGE
   uploadKycDocument — unchanged
+
+web/lib/pro/upload-hooks.ts   (new with the review fixes; React, client only)
+  useLeaveSignal()                       → () => AbortSignal, aborted when the component unmounts
+  useFocusBackAfter(busy, ref)           gives the focus back to `ref` when `busy` ends, if it was lost
 ```
 
 `lib/image/` rather than `lib/pro/`: the consumer helpers can adopt it later without importing
@@ -317,7 +378,13 @@ i.e. **the short side at most 1600 and the long side at most 2400, never enlarge
 4. **The JPEG encoder.** Chromium writes libjpeg's IJG-scaled tables (OBSERVED: the luminance table
    of quality 80) plus a 456-byte sRGB ICC profile (APP2); Android's libjpeg-turbo is the same
    scaling (INFERRED); iOS ImageIO maps 0.8 its own way. Byte sizes will differ by a few percent.
-5. **Exact arithmetic.** The plugins divide by a floating-point scale (Kotlin `Float` on Android,
+5. **Mirrored orientations (2, 4, 5, 7).** The web applies EXIF's full transform. The app's
+   Android compressor rotates by `ExifInterface.getRotationDegrees()` only (`Exif.kt:18` in
+   flutter_image_compress_common 1.1.1), which maps 2 → 0°, 4 → 180°, 5 → 270° and 7 → 90° and
+   **drops the mirror** (OBSERVED: disassembled from androidx exifinterface 1.4.2 in the local Gradle
+   cache). So on those four values the web differs from the Android app in the right direction.
+   The iOS compressor: not checked.
+6. **Exact arithmetic.** The plugins divide by a floating-point scale (Kotlin `Float` on Android,
    `float` on iOS), so on some sizes they land a pixel short — a short side of 1599 — and where
    step 1 lands on an exact half (12480×9529 → 1832.5) the plugin's `w / h` ratio can round the
    other way. The web computes the exact integers. Measured on 5,998 random sizes against a
@@ -352,33 +419,55 @@ loop on the same page registered one 120 ms task.)
   measured gain is −37 MiB at 12 MP (none at 48 MP) for a new bundling path, a new file type and a
   new test surface. Revisit if field telemetry (§6.4) shows trouble.
 - **Fallback chain** (feature-detected once, cached):
-  1. `createImageBitmap` present **and** it applies EXIF orientation — checked once with an
-     embedded 177-byte 2×1 JPEG tagged orientation 6, which must come back 1×2 → path B (or A when
-     the header probe returns `null`, e.g. GIF/BMP/AVIF/HEIC-on-Safari: decode full, then draw
-     scaled). If the resize options are refused, the same picture is decoded at full size (A).
+  1. `createImageBitmap` present **and** it applies EXIF orientation **when asked for a size**, the
+     way the pipeline calls it — checked once with an embedded 198-byte 16×8 JPEG tagged
+     orientation 6, black on the left and white on the right, decoded at 4×8: it must come back 4×8
+     **and** black above white (its pixels read back). → path B. If the resize options are refused,
+     the same picture is decoded at full size (A). (The review's F7: the first probe, a 2×1 decoded
+     at its own size, could not see an engine that drops the orientation only when it scales; one
+     simulated that way is now sent down path D, and the photo comes out upright — pinned, §13.5.)
   2. Otherwise `<img>` + `decode()` (D), which follows CSS `image-orientation: from-image`.
   3. If that does not orient either (very old engines), rotate on the canvas with the probe's own
      orientation value (`orientationTransform`, EXIF's eight cases).
+- **The displayed size is the browser's** (the review's F1): `<img>`'s `naturalWidth`/`Height` once
+  it has loaded — `load` needs the header only (measured in Chromium 149: 1 ms to `load` against
+  45 ms to `decode()` for a 48 MP JPEG, 17 ms to `load` a 43 MB 64 MP PNG), so no full decode
+  happens before the ceiling (INFERRED from those times). Used wherever `<img>` orients the probe;
+  on the last-resort path the header's own reading is used, and the rotation follows that same
+  reading, so the two agree by construction. The target is computed from it and only then the
+  decoder is asked for both sides.
+- **A canvas check, once** (the review's F4, §2.4): four palette swatches through canvas → JPEG →
+  decode → read back, within 48 per channel; else `blocked`.
 - Always `drawImage(source, 0, 0, w, h)` into a canvas of exactly the target size — so an engine
   that ignores `resizeWidth/resizeHeight` still produces the right file (INFERRED for Safari and
-  Firefox; **UNVERIFIED** — neither was run).
+  Firefox; **UNVERIFIED** — neither was run). The same draw makes an engine that applied the size
+  before the rotation (a bitmap of the target's sides swapped) come out with the right geometry: a
+  quarter turn and two axis scalings that end on the target's sides compose to the correct
+  mapping, at the cost of a second resample (reasoned; the review's F7 « stretch » claim is
+  refuted on that ground, §13.5).
+- The output must be a JPEG: a canvas that cannot write one falls back to PNG, and those bytes are
+  refused (`failed`), never sent as `image/jpeg` (the review's F8).
 - Encode with `OffscreenCanvas.convertToBlob` where present, else `HTMLCanvasElement.toBlob`.
 - **Never allocate a canvas at the source size** — only the target (≤ 3.84 MP, far under iOS
   Safari's canvas-area limit).
-- Release every `ImageBitmap` with `close()` in a `finally`; revoke every object URL.
+- Release every `ImageBitmap` with `close()` in a `finally`; revoke every object URL; set every
+  canvas to 0×0 once encoded and drop the fallback `<img>`'s source; the queue keeps the order,
+  never the last file (the review's F5).
 
 ### 5.4 Formats
 
 | Picked | Chromium (OBSERVED) | Safari | Result |
 |---|---|---|---|
 | JPEG, PNG, WebP | decodes | decodes (INFERRED) | JPEG |
-| GIF, BMP, AVIF | decodes (GIF OBSERVED by the e2e; BMP, AVIF INFERRED) | GIF/BMP yes, AVIF 16+ (INFERRED) | JPEG — formats the server refuses today now work |
-| HEIC / HEIF | **cannot decode** (`InvalidStateError`) | decodes (INFERRED, Safari 17+) | `UNREADABLE` on Chrome/Firefox/Android; JPEG on Safari |
-| SVG, PDF, anything else | fails | fails / varies | `UNREADABLE` (the server refuses them anyway) |
+| GIF, BMP, AVIF | decodes (GIF OBSERVED by the e2e; GIF, BMP and AVIF by the review) | GIF/BMP yes, AVIF 16+ (INFERRED) | JPEG — formats the server refuses today now work; their size is read first (GIF screen, BMP header, the largest AVIF `ispe`) so the ceiling applies (the review's F2) |
+| HEIC / HEIF | **cannot decode** (`InvalidStateError`) | decodes (INFERRED, Safari 17+) | `UNREADABLE` on Chrome/Firefox/Android; JPEG on Safari; its size is read from `ispe` |
+| TIFF, SVG, PDF, anything else | not decoded | not decoded | `UNREADABLE` **before decoding** since the review (F6): a file whose size cannot be read is never handed to the decoder — a renamed document of any size used to be. TIFF on Safari, which Safari could decode, is refused with the rest |
 
 **HEIC from iPhones**: iOS Safari converts a HEIC to JPEG when the input's `accept` does not list
-HEIC (INFERRED from WebKit's documented behaviour; **UNVERIFIED** here) — three of our four inputs
-list `image/jpeg,image/png,image/webp`, Médias lists `image/*`. Either way the file is then
+HEIC (INFERRED from WebKit's documented behaviour; **UNVERIFIED** here) — two of the four surfaces
+(Catalogue, Profil) list `image/jpeg,image/png,image/webp`; Médias' inputs (« Photos » and
+« Avant / Après ») list `image/*` (corrected by the review: this line said « three of our four
+inputs »). Either way the file is then
 decoded and shrunk. The real gap is **a HEIC carried to a computer and picked in Chrome**; the
 sentence tells the person what to pick instead. A WASM HEIC decoder (~1.5 MB) is not worth it
 before telemetry (§6.4) shows HEIC arriving.
@@ -386,10 +475,16 @@ before telemetry (§6.4) shows HEIC arriving.
 The `accept` attributes are **not changed**: widening them would invite files Chrome cannot read,
 narrowing Médias would remove GIF/BMP/AVIF that now work.
 
-**Orientation is read from JPEG EXIF only.** A PNG `eXIf` chunk or a WebP `EXIF` chunk carrying an
-orientation is not read by the probe; if an engine applied one, the decoded picture would be
-squeezed into the wrong proportions. Cameras write JPEG or HEIC, so this is a named residual, not
-a measured case (**UNVERIFIED**).
+**Orientation: the browser's reading wins.** The draft read JPEG EXIF only and sized the target
+from it; the review measured four layouts where Chromium read otherwise and the photo came out
+squeezed (a PNG `eXIf` before the image data; two Exif segments, either order; a LONG-typed
+Orientation). The displayed size now comes from the browser (§5.3), and our reader is aligned to
+Chromium for the last-resort path (first Exif wins, SHORT × 1 only, PNG `eXIf` before IDAT). Where
+Chromium ignores the tag (a PNG `eXIf` after the image data, a WebP `EXIF`) both agree. A layout no
+reader of ours sees — an Exif segment after the frame header, which Chromium applies — is the e2e's
+proof that the browser's reading is the one used (§13.5). An AVIF/HEIC whose `meta` box lies past
+the first 4 MiB (after its image data) cannot be sized and is refused as unreadable — a named
+residual (§11, item 12).
 
 ### 5.5 EXIF orientation and metadata
 
@@ -411,7 +506,7 @@ a measured case (**UNVERIFIED**).
 | JPEG quality | 0.80 | `UPLOAD_RULE.quality` (the app's `quality: 80`) |
 | Output bytes, before signing | ≤ 5 MiB, else not signed → `TOO_LARGE` | `compressForUpload` (`UPLOAD_RULE.maxBytes`) |
 | Output bytes, after signing | ≤ the sign response's `maxBytes` when present, else not sent → `TOO_LARGE` | `upload.ts` (the number is the server's; the claim-time check is authoritative) |
-| Input pixels | ≤ 64 MP (64,000,000) **when the header gives the size** (JPEG/PNG/WebP), else `TOO_LARGE` before decoding | `compressForUpload` — a phone-memory guard |
+| Input pixels | ≤ 64 MP (64,000,000) by the header **and** by the browser's own size, else `TOO_LARGE` before decoding; a picture whose size cannot be read is not decoded (`UNREADABLE`) | `compressForUpload` — a phone-memory guard (every format since the review's F2/F6) |
 | Input bytes | **no limit** (a 9 MB 48 MP JPEG is the case this fixes) | — |
 
 The output guards should never fire on a photo: the worst case measured — full-band random noise
@@ -420,8 +515,10 @@ They stay as backstops because the cap is the server's, not ours.
 
 The 64 MP threshold is INFERRED, not measured on a phone: 48 MP costs +266 MiB and 108 MP +575 MiB
 in desktop Chromium (path B); 48 MP iPhone shots and 50 MP Android full-resolution shots must pass.
-To revisit with a real low-end device (§11, build questions). A format whose header is not read
-(GIF, BMP, AVIF, HEIC on Safari) is decoded without that check — a named residual.
+To revisit with a real low-end device (§11, build questions). The draft's residual — GIF, BMP,
+AVIF and HEIC decoded without that check (a 72 MP GIF and AVIF were decoded whole, OBSERVED by the
+review) — is closed: their sizes are read, and the browser's size is checked as well (a GIF frame
+drawn larger than its logical screen).
 
 ---
 
@@ -451,8 +548,10 @@ from the website. Photos already stored: §11, answer 3.
 
 ### 6.4 Telemetry
 
-`reportUploadFailure` gains a `'prepare'` stage, reported for `unreadable`, `too_large` and a
-preparation `failed`, with three tags: `upload_prepare_reason`, `upload_input_type` (the picked
+`reportUploadFailure` gains a `'prepare'` stage, reported for `unreadable`, `too_large`, `blocked`
+and a preparation `failed` — at Sentry level **`warning`**, not `error` (the review's F9: every HEIC
+picked in Chrome lands here; the person was told what to do and nothing of ours broke; `sign`,
+`put` and `response` stay `error`). A page left mid-upload (`aborted`) reports nothing. Three tags: `upload_prepare_reason`, `upload_input_type` (the picked
 file's `type`, kept only when it is MIME-shaped, else `unknown`) and `upload_megapixels` (a coarse
 band: `<12`, `12-24`, `24-50`, `50-64`, `>64`, `unknown`) — **never the file name** (user content),
 never bytes or dimensions to the pixel. Purpose: learn whether HEIC actually arrives before buying a
@@ -601,6 +700,17 @@ app-uploaded portrait is today. Parity, named.
 | Sign content type left as the original (`file.type`) | unit; e2e logo signed/stored as PNG |
 | The `File` PUT instead of the prepared blob | unit; e2e |
 
+### 8.3b Added by the review fixes
+
+The guards each review finding gained, and the mutations that turned them red, are in §13.5: the
+parser cases (GIF, BMP, AVIF/HEIC, first Exif, SHORT only, PNG `eXIf` before/after IDAT); the flow
+cases (the browser's reading wins, no header → nothing decoded, the browser's size over the
+ceiling, `blocked`, a non-JPEG output, aborted before the sign / before the PUT); every reason on
+every surface, the error kind, the busy states, the focus, the alert's place, the toast's repeat;
+and in Chromium the odd EXIF layouts, an engine that drops the orientation when it scales, GIF /
+BMP / AVIF over 64 MP, leaving Médias mid-upload, a blanked canvas, the focus on four surfaces, the
+toast at 320 px, and a comparison of every upload with its input place by place.
+
 ### 8.4 Manual, before calling it done (UNVERIFIED today)
 
 A low-end Android phone (Tecno/Infinix class, Chrome) with 12 MP and 50 MP shots — time and no tab
@@ -683,6 +793,26 @@ For the build, smaller (decided above, open to the owner's override):
 8. A **server-side** dimension check or re-encode (§6.2) — a hardening idea, not proposed.
 9. **Follow-up:** consumer review photos and deposit proofs adopt `compressForUpload` (one call each,
    sign `image/jpeg`); KYC stays a separate decision.
+
+Raised by the two reviews of 2026-11-09 (§13.5) — none changes the four answers above:
+
+10. **The « navigateur » sentence is proposed copy.** « Votre navigateur empêche de préparer cette
+    image. Essayez avec un autre navigateur. » (83 characters) is new, written by the review fixes
+    for the canvas check (§2.4, §2.6). To confirm or reword before merging.
+11. **A wording suggestion for « trop grande », not applied.** The UX review found that « trop grande
+    pour être préparée ici » assumes the person knows the photo is « préparée », and suggested
+    « …trop grande pour être envoyée depuis le site » (and not to point to the app until it has a
+    store link). The sentence was in the approved spec, so it stays until the owner says otherwise.
+12. **Residuals of the format fixes, named.** An AVIF/HEIC whose `meta` box lies past the first
+    4 MiB cannot be sized and is refused as unreadable; TIFF, which Safari could decode, is refused
+    with every other format whose size is not read; an engine where `createImageBitmap` orients but
+    `<img>` does not would size the target from our own reading, where the review's F1 squeeze could
+    return (no such engine is known; Safari and Firefox were not run).
+13. **The toast change is site-wide.** The two toast findings (half-width wrapping, a repeated
+    sentence not re-read) were fixed in the shared `Toast` / `useToast`, which also serve the
+    consumer pages (favourites, search, account) — every class already existed, the shared
+    stylesheet is byte-identical, and the five store-linked pages do not import either file
+    (§13.5). It is its own commit, so it can leave this PR if the owner prefers it separate.
 
 ---
 

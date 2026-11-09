@@ -349,6 +349,11 @@ The fix is one base-layer rule, not 271 utilities — **shipped in B4**
 - Hover-only affordances (menus, tooltips) must also open on focus (the
   `/recherche` result-card ↔ map-pin highlight sync gained `onFocus`/`onBlur`
   in B4 for exactly this).
+- **A control disabled while it holds the focus drops it to `<body>`**
+  (Chromium), and the keyboard user starts again from the top of the page. When
+  its busy state ends, give the focus back to it — unless the person moved it
+  meanwhile: `useFocusBackAfter(busy, ref)` (`lib/pro/upload-hooks.ts`; first
+  callers, the four Pro photo controls — [web-pro-upload-resize.md](web-pro-upload-resize.md) §2.7).
 
 ## 6. Forms & ARIA
 
@@ -398,6 +403,12 @@ navigation must announce itself:
 - **Errors that interrupt** → `role="alert"` (assertive; use sparingly).
 - **Async results** ("12 salons trouvés") → a polite live region.
 - The region must exist in the DOM **before** the text lands, or nothing is read.
+- **The same text twice must be a new node**, or the second is not read: the
+  same sentence re-rendered in place changes nothing in the region. `useToast`
+  gives every `show` an id and `Toast` keys the pill on it (2026-11-09,
+  [web-pro-upload-resize.md](web-pro-upload-resize.md) §2.7). The toast region
+  spans the screen inside the side gutter and centres the pill (`max-w-xl`), so
+  a long sentence wraps across the screen, not across half of it.
 
 **Shipped in B5** — `components/Toast.tsx` + `lib/useToast.ts` is the single
 transient-feedback entry point (SYSTEM §15's kind/duration table: success/info
