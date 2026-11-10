@@ -613,11 +613,13 @@ void main() {
       // trial starts at its first successful publish (the companion path,
       // docs/design/pro-companion-path.md §3.1). An app that may not tell the
       // salon where to choose cannot be handed a step it cannot take.
-      expect(
-        (r.json['missing'] as List).cast<String>().toSet(),
-        {'profile', 'location', 'services', 'photos', 'availability'},
-        reason: 'the go-live checklist must stay server-authoritative',
-      );
+      expect((r.json['missing'] as List).cast<String>().toSet(), {
+        'profile',
+        'location',
+        'services',
+        'photos',
+        'availability',
+      }, reason: 'the go-live checklist must stay server-authoritative');
     });
 
     test('A12b …and an incomplete publish mints NO trial', () async {

@@ -51,7 +51,10 @@ class MessagingService {
           body: body,
         );
       }
-      return _outbox.append(
+      // `await`, not a bare return: a returned Future that fails does so
+      // after this `try` has exited, and the error would reach the caller —
+      // the "never throws" above would be false for every failed outbox write.
+      return await _outbox.append(
         id: _id(),
         recipientPhone: recipientPhone,
         channel: channel,

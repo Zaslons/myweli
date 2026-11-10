@@ -93,11 +93,10 @@ void main() {
         'pending/ba/p1/b1.jpg -> ba/p1/b1.jpg',
         'pending/ba/p1/a1.jpg -> ba/p1/a1.jpg',
       ]);
-      expect(
-        store.deleted,
-        ['pending/ba/p1/b1.jpg', 'pending/ba/p1/a1.jpg'],
-        reason: 'the object must LEAVE pending/, or the expiry still gets it',
-      );
+      expect(store.deleted, [
+        'pending/ba/p1/b1.jpg',
+        'pending/ba/p1/a1.jpg',
+      ], reason: 'the object must LEAVE pending/, or the expiry still gets it');
     });
 
     test(
@@ -219,11 +218,9 @@ void main() {
       final r = await save(url('pending/logo/provider1/l1.png'));
       expect(r.ok, isTrue, reason: r.error ?? '');
       expect((r.data! as Map)['logoUrl'], url('logo/provider1/l1.png'));
-      expect(
-        store.deleted,
-        ['pending/logo/provider1/l1.png'],
-        reason: 'the object must LEAVE pending/, or the expiry still gets it',
-      );
+      expect(store.deleted, [
+        'pending/logo/provider1/l1.png',
+      ], reason: 'the object must LEAVE pending/, or the expiry still gets it');
     });
 
     test('re-sending the stored value is a no-op, not a 400', () async {

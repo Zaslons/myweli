@@ -306,11 +306,9 @@ void main() {
 
       expect(r.ok, isFalse);
       expect(r.error, 'upload_too_large');
-      expect(
-        store.deleted,
-        ['pending/deposit/user1/huge.jpg'],
-        reason: 'refusing the claim must not leave the bytes we pay for',
-      );
+      expect(store.deleted, [
+        'pending/deposit/user1/huge.jpg',
+      ], reason: 'refusing the claim must not leave the bytes we pay for');
       // And the booking must be untouched — a rejected claim is not a
       // half-applied one.
       final after = await appts.byId('a-big');
@@ -368,11 +366,9 @@ void main() {
         'pending/deposit/user1/big.jpg',
       );
       expect(r.error, 'upload_too_large');
-      expect(
-        store.deleted,
-        ['pending/deposit/user1/big.jpg'],
-        reason: 'exactly the offending upload — never the live proof',
-      );
+      expect(store.deleted, [
+        'pending/deposit/user1/big.jpg',
+      ], reason: 'exactly the offending upload — never the live proof');
       expect(
         (await appts.byId('a-ref'))!['depositScreenshotUrl'],
         'deposit/user1/old.jpg',

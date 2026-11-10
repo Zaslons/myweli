@@ -312,12 +312,12 @@ jobs:
           UNPIN: ${{ github.event.inputs.unpin }}
 
       # **Production PROMOTES; it does not build.** The build step below already
-      # explains why — a rebuild ships an artifact staging never ran, from a
-      # mutable `FROM dart:stable` base — but that reasoning only protected a
-      # production deploy if the operator remembered to fill in `image_tag`,
-      # which defaults to empty. A dispatch that forgets it does the documented
-      # wrong thing SILENTLY: the run succeeds, every log line agrees, and
-      # production serves bytes nothing has ever booted.
+      # explains why — a rebuild ships an artifact staging never ran (a new
+      # build is new bytes, even from the pinned base) — but that reasoning
+      # only protected a production deploy if the operator remembered to fill
+      # in `image_tag`, which defaults to empty. A dispatch that forgets it
+      # does the documented wrong thing SILENTLY: the run succeeds, every log
+      # line agrees, and production serves bytes nothing has ever booted.
       #
       # Refusing is the whole fix. But refusing without saying WHICH tag just
       # moves the work, so the message resolves the digest staging is serving
@@ -455,9 +455,11 @@ jobs:
             fi
           fi
           # **Deploy the DIGEST, not the tag.** Artifact Registry tags are
-          # mutable and `backend/Dockerfile` builds `FROM dart:stable`, so
-          # `:${SHA}` at 09:00 and `:${SHA}` at 17:00 can be different bytes for
-          # the same commit. A production deploy that rebuilds rather than
+          # mutable, and a second build of one commit is a second artifact —
+          # and before the SDK pin `backend/Dockerfile` floated on `dart:stable`
+          # (it pins version + digest now: docs/design/backend-dart-sdk-pin.md),
+          # so `:${SHA}` at 09:00 and `:${SHA}` at 17:00 can be different bytes
+          # for the same commit. A production deploy that rebuilds rather than
           # promotes would then ship an artifact staging never ran, while every
           # log line agrees on the tag — and the verify step's image comparison
           # below would confirm the wrong thing, since it compares the string we

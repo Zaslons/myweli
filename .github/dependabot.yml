@@ -22,6 +22,21 @@ updates:
           - "firebase_*"
           - "_flutterfire_internals"
 
+  # The backend's build image. backend/Dockerfile pins
+  # `dart:X.Y.Z@sha256:<digest>` — the Dart SDK there is the TLS verifier
+  # production runs, and the base's /etc/ssl/certs is its root store, frozen
+  # until the digest moves. Pinned so a build cannot quietly regress; tracked
+  # here so a new patch release (or a refreshed digest) arrives as a PR rather
+  # than when someone remembers. Such a PR is RED on purpose until ci.yml's
+  # setup-dart `sdk:` follows in the same PR (backend/test/infra/
+  # dart_sdk_pin_test.dart; docs/design/backend-dart-sdk-pin.md §5).
+  - package-ecosystem: "docker"
+    directory: "/backend"
+    schedule:
+      interval: "weekly"
+    labels:
+      - "dependencies"
+
   # GitHub Actions used in CI
   - package-ecosystem: "github-actions"
     directory: "/"
