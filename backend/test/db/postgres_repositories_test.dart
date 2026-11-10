@@ -827,6 +827,28 @@ void main() {
       expect(await repo.updateGallery('nope', const []), isNull);
     });
 
+    // What the salon card stands on (web-swiss-cards.md §3). `GET /providers`
+    // reads through `query()` and the favourites through `byIds()`, each with
+    // its own SELECT, so the test above, which reads by id, says nothing about
+    // either. A route test over a mocked repository cannot see a SELECT at all.
+    test('query and byIds both carry the gallery and the logo', () async {
+      final repo = PostgresProvidersRepository(pool);
+      const gallery = ['https://cdn/p3-cover.jpg', 'https://cdn/p3-room.jpg'];
+      const logo = 'https://cdn/p3-logo.png';
+      await repo.updateGallery('provider3', gallery);
+      await repo.updateProfile('provider3', {'logoUrl': logo});
+
+      final listed = (await repo.query()).singleWhere(
+        (p) => p['id'] == 'provider3',
+      );
+      expect(listed['imageUrls'], gallery, reason: 'query: imageUrls');
+      expect(listed['logoUrl'], logo, reason: 'query: logoUrl');
+
+      final hydrated = (await repo.byIds(['provider3'])).single;
+      expect(hydrated['imageUrls'], gallery, reason: 'byIds: imageUrls');
+      expect(hydrated['logoUrl'], logo, reason: 'byIds: logoUrl');
+    });
+
     test(
       'updateBeforeAfters persists into data and survives re-read',
       () async {

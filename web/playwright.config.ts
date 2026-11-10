@@ -113,6 +113,10 @@ export default defineConfig({
         NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: '0',
         NEXT_PUBLIC_FIREBASE_VAPID_KEY: 'e2e-dummy-vapid',
         NEXT_PUBLIC_E2E_PUSH_TOKEN: 'e2e-push-token',
+        // Salon cards make this server fetch `cdn.stub`, which does not exist, on most
+        // pages. This fails that lookup at once instead of stalling CI's libuv pool
+        // (the file says why; docs/design/web-swiss-cards.md §8).
+        NODE_OPTIONS: '--require ./tests/e2e/_cdn-stub-dns.cjs',
         TZ: 'UTC',
       },
     },

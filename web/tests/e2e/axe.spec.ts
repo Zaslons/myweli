@@ -2,6 +2,7 @@ import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '@playwright/test';
 
 import { submitOtpLogin } from './_auth';
+import { hermetic } from './_message';
 import { keepSharedGallery } from './_gallery';
 import { asUnaskedBrowser } from './_push';
 import { stubDayKey } from './stub-clock.mjs';
@@ -186,6 +187,15 @@ test('/professionnels and the 404 at phone width are axe-clean', async ({ page }
   await scan(page, 'the 404 at 375', 'Page introuvable');
 });
 
+// docs/design/web-swiss-cards.md §8, §12. Every form a card can take: a photo, a failed
+// one, a logo, the letter, an unnamed salon, the rating with its count. There is no tag
+// filter above, so this is where `image-redundant-alt` gets its answer about a photo
+// whose alt is the name beside it. If it fires, the alt becomes "" and §12's line changes.
+test('/recherche with every kind of card is axe-clean', async ({ page }) => {
+  await page.goto('/recherche?q=vitrine');
+  await scan(page, '/recherche?q=vitrine', /Recherche : vitrine/);
+});
+
 test('public routes are axe-clean', async ({ page }) => {
   for (const [url, anchor] of PUBLIC_ROUTES) {
     await page.goto(url);
@@ -212,6 +222,17 @@ test('consumer account routes are axe-clean', async ({ page }) => {
     await page.goto(url);
     await scan(page, url, anchor, ready);
   }
+});
+
+// The account's route above waits for the bookings, not the favourites, which load
+// with them and now carry a photo, a heading and, for a stopped salon, no link.
+test('the favourites, signed in, are axe-clean, a stopped salon among them', async ({ page }) => {
+  await page.goto('/connexion');
+  await submitOtpLogin(page, 'client@example.com');
+  await page.waitForURL(/mon-compte|\/$/);
+  await page.goto('/mon-compte');
+  await expect(page.getByRole('heading', { level: 3, name: 'Salon Arrêté' })).toBeVisible();
+  await scan(page, '/mon-compte favourites', 'Mon compte');
 });
 
 test('pro routes are axe-clean', async ({ page }) => {
@@ -377,6 +398,37 @@ test('Médias — the delete question, then the undo toast — axe-clean (web-pr
   await expect(undo).toBeVisible();
   await expectNoViolations(page, '/pro/medias + undo toast');
   await undo.click();
+});
+
+/// Decision 100: the favourite's message moves out of a floating control's way, and the move is
+/// written on the live region's own style, so the region and what it announces do not change
+/// (web-swiss-salon.md §2.3). The scan above reads a toast that is never measured; this one reads
+/// the message moved aside, under the one salon of `?q=tresses`, where « Carte » rests level with
+/// its home.
+test('a MOVED toast is axe-clean, and still in its live region (decision 100)', async ({ page }) => {
+  await hermetic(page);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.route('**/api/me/favorites**', (r) =>
+    r.request().method() === 'GET'
+      ? r.fulfill({ status: 200, contentType: 'application/json', body: '{"favorites":[]}' })
+      : r.fulfill({ status: 204 }),
+  );
+  await page.goto('/recherche?q=tresses');
+  const heart = page.getByRole('button', { name: 'Ajouter Beauté Divine aux favoris' });
+  await expect(heart).toBeEnabled();
+  await heart.click();
+  const region = page.getByRole('status').filter({ hasText: 'Ajouté aux favoris' });
+  await expect(region).toBeVisible();
+  await expect(region).toHaveAttribute('aria-live', 'polite');
+  const offCentre = async () => {
+    const b = (await region.locator('div').first().boundingBox())!;
+    return Math.abs(b.x + b.width / 2 - 195);
+  };
+  await expect.poll(offCentre, { message: 'the message did not move, so this proves nothing' }).toBeGreaterThan(1);
+  await expectNoViolations(page, '/recherche + moved toast');
+  // The scan is only proof if the moved message survived it.
+  await expect(region).toBeVisible();
+  expect(await offCentre(), 'the message went back before the scan ended').toBeGreaterThan(1);
 });
 
 test('a VISIBLE toast is axe-clean', async ({ page }) => {

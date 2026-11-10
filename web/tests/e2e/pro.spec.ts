@@ -974,6 +974,10 @@ test('go-live: le brouillon complet se met en ligne (pro-salon-lifecycle B2)', a
   await expect(
     page.getByRole('button', { name: 'Réserver' }).first(),
   ).toBeDisabled();
+  // Every « Réserver » on the preview, not only the first: the hero's stayed a live link
+  // here while the panel's and the bar's were disabled (web-swiss-salon.md §1.4). A query
+  // for buttons could not see it, and nothing that books may be a link on a draft.
+  await expect(page.locator('main a[href$="/reserver"]')).toHaveCount(0);
   await page.getByRole('link', { name: '← Tableau de bord' }).click();
   await expect(page).toHaveURL(/\/pro(\/)?$/);
 

@@ -7,6 +7,7 @@ import { joinedSalonMessage, revokedAccessMessage, teamErrorMessage } from '../l
 import {
   UNNAMED_OWN_SALON,
   UNNAMED_SALON,
+  salonInitial,
   salonNameOr,
   staffPlanningTitle,
 } from '../lib/salon-name';
@@ -25,6 +26,26 @@ describe('salonNameOr', () => {
     for (const n of [null, undefined, '', '   ']) {
       expect(salonNameOr(n, UNNAMED_SALON)).toBe('Salon');
     }
+  });
+});
+
+/// The letter on a card with no photo and no logo (docs/design/web-swiss-cards.md §2.2).
+describe('salonInitial', () => {
+  it.each([
+    ['a plain name', 'Beauté Divine', 'B'],
+    ['a lower-case first letter', 'awa coiffure', 'A'],
+    ['an accent', 'Élégance', 'É'],
+    ['a lower-case accent', 'été', 'É'],
+    // « é » as e + U+0301: `charAt(0)` would give a bare E and lose its accent.
+    ['a decomposed accent', 'e\u0301te\u0301', 'É'],
+    ['a leading « «', '« Chez Awa »', 'C'],
+    ['a leading emoji', '💇 Awa', 'A'],
+    ['a digit', '2 Frères', '2'],
+    ['blank', '   ', 'S'],
+    ['empty', '', 'S'],
+    ['nothing a letter could come from', '!!!', 'S'],
+  ])('%s', (_what, name, letter) => {
+    expect(salonInitial(name)).toBe(letter);
   });
 });
 

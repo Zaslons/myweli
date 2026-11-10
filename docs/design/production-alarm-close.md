@@ -52,6 +52,8 @@
 
 **Today's run:** six of the seven checks passed. Only `privacy` failed, on the stale match #725 fixes.
 
+**Eight checks from B11.3's merge:** `cardphoto` joins them, and its comment on a close says what it means. It reads nothing until a public salon has a photo, and a green run then claims nothing about one: the run's log says which. With a photo it also asks for one transformation nobody has read, because the first photo's own file is cached for 31 days and cannot show a plan out of transformations ([web-swiss-cards.md](web-swiss-cards.md) §9).
+
 ---
 
 ## 3. The change
@@ -76,8 +78,8 @@ It sets `GH_REPO`, because it does not check out the repo, like `report`.
 
 | The run | What happens to the alarm |
 |---|---|
-| Scheduled, all seven passed, issue open | **Closed**, with a comment and a mention |
-| Scheduled, all seven passed, issue closed or missing | Nothing, and the job passes |
+| Scheduled, all eight passed, issue open | **Closed**, with a comment and a mention |
+| Scheduled, all eight passed, issue closed or missing | Nothing, and the job passes |
 | Scheduled, at least one failed | As today: reopened if closed, then a comment, now with a mention |
 | Scheduled, cancelled | Nothing: neither job runs |
 | Manual, all passed | **Nothing.** A manual run can measure another site through `target` |
@@ -118,7 +120,7 @@ The comment above `report` says every other alert reaches a person and this one 
 | `report` | **Closed** | **Reopens and comments with the mention.** This is the point of B9.16 |
 
 **The structure, derived rather than listed:**
-- `clear.needs` and `report.needs` each equal every other job in the file. An eighth check missing from `clear.needs` would let the alarm close while that check is red.
+- `clear.needs` and `report.needs` each equal every other job in the file. A new check missing from `clear.needs` would let the alarm close while that check is red.
 - `clear.if` and `report.if` are exactly as written. Changing when the alarm closes should be a deliberate edit.
 - No check job has `continue-on-error` or its own `if`, on the job or a step, since either could count an unpassed check as passed.
 - `clear` has no `permissions` block of its own, which would drop `issues: write`.

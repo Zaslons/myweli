@@ -1,6 +1,7 @@
 // Minimal stub of the Myweli API for hermetic web e2e — the Next server fetches
 // it server-side, so this replaces the dart_frog backend (no DB/network needed).
 // Started by playwright.config.ts; serves one provider + the sitemap feed.
+import { readFileSync } from 'node:fs';
 import { createServer } from 'node:http';
 
 import { inspectJpeg } from './_jpeg.mjs';
@@ -12,6 +13,14 @@ import {
 } from './stub-clock.mjs';
 
 const port = Number(process.env.STUB_PORT ?? 8787);
+
+/// Every form a salon card can take, for the reads below only, so Lighthouse and every
+/// other spec keep the single card (docs/design/web-swiss-cards.md §8). F7 is unnamed
+/// and F9 has no commune and no price. F5's photo is `absent.jpg`, which
+/// `routeNextImages` answers with a 404.
+const CARD_FIXTURES = JSON.parse(
+  readFileSync(new URL('./card-fixtures.json', import.meta.url), 'utf8'),
+);
 
 const provider = {
   id: 'p1',
@@ -106,6 +115,17 @@ const provider = {
 
 // Web KYC (web-pro-kyc.md) — mutable status + submitted docs.
 const kycState = { status: 'pending', documents: [], rejectionReason: null };
+
+// A salon page with a cover, a logo over it and a gallery, all three on one page, so a test
+// can see that a place set on the cover did not reach the other two. Its own slug, so
+// `beaute-divine`'s page stays as every other spec has it: a logo there changes that page's
+// bytes and no test's result (web-swiss-cards.md §8). In the sitemap because `dynamicParams`
+// is false: a slug that is not listed answers a 404.
+const LOGO_SALON = {
+  ...JSON.parse(JSON.stringify(provider)),
+  slug: 'salon-au-logo',
+  logoUrl: 'https://cdn.stub/p1-logo.png',
+};
 
 // K2: a deposit-required salon for the pay-later proof-upload journey.
 const depositProvider = {
@@ -821,7 +841,7 @@ createServer(async (req, res) => {
     return json(res, 200, { created: bookingsByKey.get(key) ?? 0 });
   }
   if (url.pathname === '/sitemap/providers') {
-    return json(res, 200, { items: [{ slug: 'beaute-divine' }] });
+    return json(res, 200, { items: [{ slug: 'beaute-divine' }, { slug: LOGO_SALON.slug }] });
   }
   if (url.pathname === '/localities') {
     res.writeHead(200, {
@@ -833,12 +853,41 @@ createServer(async (req, res) => {
   const m = url.pathname.match(/^\/providers\/by-slug\/(.+)$/);
   if (m) {
     if (m[1] === 'beaute-divine') return json(res, 200, provider);
+    if (m[1] === LOGO_SALON.slug) return json(res, 200, LOGO_SALON);
     if (m[1] === 'institut-acompte') return json(res, 200, depositProvider);
     return json(res, 404, { error: 'not_found' });
   }
   if (url.pathname === '/providers') {
     const category = url.searchParams.get('category');
     const commune = url.searchParams.get('commune');
+    const query = url.searchParams.get('q');
+    const listOf = (items) =>
+      json(res, 200, { items, page: 1, pageSize: 20, total: items.length });
+    if (query === 'vide') return listOf([]);
+    if (query === 'vitrine') return listOf(CARD_FIXTURES);
+    // A list that really starts without a photo, and one with none at all: the first photo
+    // is not the first card (web-swiss-cards.md §7). Their own reads, so the eight every
+    // other spec counts stay eight.
+    if (query === 'sans-photo-en-tete') {
+      return listOf(['f3', 'f4', 'f1', 'f2'].map((id) => CARD_FIXTURES.find((f) => f.id === id)));
+    }
+    if (query === 'sans-photo') {
+      return listOf(['f3', 'f4'].map((id) => CARD_FIXTURES.find((f) => f.id === id)));
+    }
+    // F9 again, with a commune: one word too long for the column beside the heart at
+    // 200% text, and no price to lift it out of the heart's band.
+    if (query === 'commune-longue') {
+      const rated = CARD_FIXTURES.find((f) => f.id === 'f9');
+      return listOf([
+        { ...rated, id: 'f10', slug: 'salon-lointain', name: 'Salon Lointain', commune: 'Yamoussoukro' },
+      ]);
+    }
+    // F1 to F6, and not F7: a landing's `ItemList` would carry an empty name
+    // (`TaxonomyLandingView.tsx`), today's behaviour for an unnamed public salon, filed
+    // in B11.5. So `/barbier/abidjan/marcory` stays empty.
+    if (commune === 'Marcory' && (!category || category === 'salon')) {
+      return listOf(CARD_FIXTURES.filter((f) => f.id !== 'f7' && f.id !== 'f9'));
+    }
     const matches =
       (!category || category === provider.category) &&
       (!commune || commune === provider.commune);

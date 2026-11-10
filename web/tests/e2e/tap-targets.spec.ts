@@ -88,6 +88,40 @@ test('public: buttons, links, chips and fields all reach the floor', async ({
   );
 });
 
+test('the salon card and the landings: the heart, chips, crumbs and the city index (web-swiss-cards §8)', async ({
+  page,
+}) => {
+  await page.goto('/recherche?q=vitrine');
+  await assertBox(
+    page.getByRole('button', { name: /Beauté Divine.*favoris/ }),
+    'the row’s heart',
+  );
+
+  await page.goto('/coiffure');
+  const crumbs = page.getByRole('navigation', { name: 'Fil d’Ariane' });
+  await assertBox(crumbs.getByRole('link', { name: 'Accueil' }), 'crumb « Accueil »', { minW: 0 });
+  await assertBox(
+    page.getByRole('link', { name: /Coiffure à Abidjan/ }),
+    'the city index',
+    { minW: 0 },
+  );
+
+  await page.goto('/coiffure/abidjan');
+  await assertBox(
+    page.getByRole('navigation', { name: 'Fil d’Ariane' }).getByRole('link', { name: 'Coiffure', exact: true }),
+    'crumb « Coiffure »',
+    { minW: 0 },
+  );
+  await assertBox(page.getByRole('link', { name: 'Cocody', exact: true }), 'landing chip', { minW: 0 });
+});
+
+test('« Retirer des favoris » reaches the floor, signed in (web-swiss-cards §8)', async ({ page }) => {
+  await signInConsumer(page);
+  const remove = page.getByRole('button', { name: 'Retirer des favoris' }).first();
+  await expect(remove).toBeVisible();
+  await assertBox(remove, '« Retirer des favoris »', { minW: 0 });
+});
+
 test('the new home page and footer: every link in them reaches the floor (web-swiss-direction §12)', async ({
   page,
 }) => {
@@ -131,6 +165,25 @@ test('salon page: the favourite ♥ is a 48px target', async ({ page }) => {
   const heart = page.getByRole('button', { name: /favoris/i }).first();
   await expect(heart).toBeVisible();
   await assertBox(heart, 'favourite ♥');
+});
+
+// docs/design/web-swiss-salon.md §1.1 item 3: « Réserver » was 36px everywhere, and the
+// panel's « Appeler » and « WhatsApp » 38px.
+test('salon page: « Réserver », « Appeler » and « WhatsApp » are 48px targets', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/beaute-divine');
+  // On a phone: the one under the name and the one in the bar.
+  const phone = page.getByRole('link', { name: 'Réserver', exact: true });
+  await expect(phone).toHaveCount(2);
+  await assertBox(phone.first(), '« Réserver » under the name', { minW: 0 });
+  await assertBox(phone.last(), '« Réserver » in the bar', { minW: 0 });
+
+  await page.setViewportSize({ width: 1280, height: 800 });
+  const panel = page.locator('main aside');
+  await expect(panel).toBeVisible();
+  await assertBox(panel.getByRole('link', { name: 'Réserver', exact: true }), '« Réserver » in the panel', { minW: 0 });
+  await assertBox(panel.getByRole('link', { name: 'Appeler' }), '« Appeler » in the panel', { minW: 0 });
+  await assertBox(panel.getByRole('link', { name: 'WhatsApp' }), '« WhatsApp » in the panel', { minW: 0 });
 });
 
 test('pro: « Alertes par e-mail » — the switch (salon-email-alerts)', async ({ page }) => {
