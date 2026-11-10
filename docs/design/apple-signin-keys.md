@@ -2,9 +2,9 @@
 
 | | |
 |---|---|
-| **Status** | Approved 2026-10-27 (owner: §11, Q1–Q4 answered as recommended) · **PR 1 (code) built**; the two keys exist (step 1); the pre-deploy probe measured useless and removed (§5, §9 step 2); the two secrets in Secret Manager (step 3, read back); **PR 2 (manifest) built** — the deploy remains |
+| **Status** | Approved 2026-10-27 (owner: §11, Q1–Q4 answered as recommended) · **PR 1 (code) built**; the two keys exist (step 1); the pre-deploy probe measured useless and removed (§5, §9 step 2); the two secrets in Secret Manager (step 3, read back); **PR 2 (manifest) built** · **Deployed 2026-11-10** (run `42731941335`, image `4e78e48`, revision `myweli-api-00048-9f4`, read back: §9 step 6) — **the real sign-ins per client and the real revocation (§9 step 7) remain**, with the owner's Apple ID |
 | **Owner** | Sadreddine Daher |
-| **Last updated** | 2026-10-27 |
+| **Last updated** | 2026-11-10 |
 | **PRD ref / phase** | Account deletion (App Store 5.1.1(v)) · V1 |
 | **BACKLOG** | B6.7 (built inactive in #679), the owner's « Sign in with Apple key » step |
 | **Related** | [backend-integrity-batch6.md](backend-integrity-batch6.md) §13 (the exchange and the revocation, as built) · [auth-social-email.md](auth-social-email.md) (Apple sign-in) · [web-pro-apple.md](web-pro-apple.md) (the web's Services ID) · [DEPLOYMENT.md](../DEPLOYMENT.md) Phase C · BACKEND.md T79 |
@@ -266,6 +266,19 @@ Unchanged: one extra call to Apple per Apple sign-in once active (bounded at
 6. **Deploy — after Apple's decision on 0.0.1** (BACKLOG B0.1: nothing the
    reviewer relies on changes during review; this adds a call to Apple inside
    every Apple sign-in), on the owner's go, with the merge's `image_tag`.
+   — ✅ **2026-11-10.** The owner's go, after releasing 0.0.1 the same day:
+   « I released the app, deploy the Apple keys now ». Before it, read only:
+   production served `myweli-api-00047-55v` (commit `a0ee1cd`) at 100 %,
+   no traffic pin; the backend runtime diff since `a0ee1cd2` was
+   `apple_tokens.dart`, `dependencies.dart` and `service.yaml`, no
+   migration, and `4e78e485..main` was empty there; `4e78e48` was the tag
+   `4e78e485`'s push run printed (« promote with image_tag=4e78e48 »),
+   resolving to `sha256:a9c536ea…` in Artifact Registry; main's CI green,
+   the six `apple_keys_manifest_test.dart` cases among its 2,231 tests;
+   `98-verify-secret-pins.sh`: both keys `v1`, enabled and current,
+   `myweli-run` the only accessor. **Dispatched at 00:55:08 UTC**,
+   `environment=production`, `image_tag=4e78e48`: run `42731941335`,
+   green in 1 min 24 s, `myweli-api-00047-55v` replaced by `myweli-api-00048-9f4`.
 7. **Read back — this is where the keys are tested:** the revision Ready at
    100 %; no `NOTICE` at boot; then **one real Apple sign-in per client** — the
    Pro app (`com.myweli.pro`, the Pro key), myweli.com (`com.myweli.signin`, the
@@ -276,6 +289,22 @@ Unchanged: one extra call to Apple per Apple sign-in once active (bounded at
    Apple account: the row is gone and the app has left their Settings → Apple
    ID list (owner-observed — `/auth/revoke` answers `200` even to a wrong key,
    §5, so its status proves nothing).
+   — ✅ **2026-11-10, the half that needs no person (~00:57 UTC):**
+   `status.traffic` names `myweli-api-00048-9f4` at 100 % (`latestRevision:
+   true`), `Ready`; its container image is `…/api@sha256:a9c536ea…`, label
+   `commit: 4e78e48`; its environment carries the five plain values and both
+   keys by `secretKeyRef` at `'1'`. **Its boot printed no Apple `NOTICE`** —
+   the control: `-00047-55v` printed « NOTICE: no APPLE_TEAM_ID … » at each
+   boot, the last at 00:25:52 UTC that day, and `-00048-9f4`'s boot printed
+   its other `NOTICE` (`ADMIN_PASSWORD was NOT applied`), so the channel
+   works. It started, so both keys read (a key that does not read refuses the
+   boot, §4). Through `api.myweli.com`: `/health`, `/localities` and
+   `/providers` 200 with `cf-ray`; the direct `run.app` door `403
+   origin_required`; no 5xx on the revision. « Production checks »,
+   dispatched: run `42732235069`, green, every job.
+   — **Not yet: the real sign-ins and the real revocation.** They need the
+   owner's Apple ID and devices; nothing above observes a key working with
+   Apple, only the server accepting both keys at boot.
 
 **Docs in PR 1:** DEPLOYMENT.md Phase C (the grouping sentence is wrong; the
 new steps), BACKEND.md T79, backend-integrity-batch6.md §13 (a pointer here),

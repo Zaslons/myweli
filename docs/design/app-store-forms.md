@@ -1726,6 +1726,7 @@ on renvoie. Rien n'est soumis sur un build non vérifié.
    qu'elle est vide ([LAUNCH.md](../LAUNCH.md) §5.3). Dans la console admin
    (prod rétablie), plateforme Pro iOS :
    `https://apps.apple.com/app/id6805272779` (Apple ID relu le 2026-10-05, §3).
+   *Dû depuis la publication du 2026-11-10 (BACKLOG B0.5), pas encore fait.*
 2. **Symboles Sentry** — sans eux, les plantages du premier build TestFlight
    arrivent mais restent illisibles. Le jeton est dans Secret Manager ;
    `sentry-cli` est installé depuis le 2026-10-10 hors de Homebrew (dont le
@@ -1775,6 +1776,16 @@ on renvoie. Rien n'est soumis sur un build non vérifié.
    par un).
 3. **Consigner** ici et dans [LAUNCH.md](../LAUNCH.md) §6.2 : Apple ID de
    l'app, numéro de build envoyé, date, résultat des vérifications du §11.6.
+   *0.0.1, build 719 — publiée le 2026-11-10.* *Selon le propriétaire :*
+   Apple a approuvé le build 719, puis la version a été publiée à la main
+   le 2026-11-10, sur la seule boutique de Côte d'Ivoire. *Lu ici, données
+   publiques seulement :* `itunes.apple.com/lookup?id=6805272779&country=ci`
+   renvoie MyWeli Pro, `com.myweli.pro`, version 0.0.1,
+   `currentVersionReleaseDate` 2026-11-10T00:22:17Z ; la même requête sur
+   `fr` ne renvoie rien (le témoin : une seule boutique) ;
+   `apps.apple.com/ci/app/id6805272779` répond 200, « MyWeli Pro ».
+   L'approbation elle-même n'a pas été lue ici. Le point 1 (`updateUrl`)
+   est dû depuis (BACKLOG B0.5).
 
 ---
 
