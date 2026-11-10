@@ -101,6 +101,29 @@ test('keyboard focus wears the ring; a clicked button does not', async ({
       .toBe(true);
 });
 
+// docs/design/web-swiss-cards.md §2.4: two stops, in order, siblings and never nested.
+test('a card with a heart: Tab goes to the link, then the heart, each wearing the ring', async ({
+  page,
+}) => {
+  await page.goto('/recherche?commune=Cocody');
+  const link = page.locator('main a[href="/beaute-divine"]');
+  const heart = page.getByRole('button', { name: /Beauté Divine.*favoris/ });
+  await expect(heart).toBeEnabled();
+  await page.getByRole('link', { name: 'Disponible aujourd’hui' }).focus();
+
+  await page.keyboard.press('Tab');
+  await expect(link).toBeFocused();
+  await expect.poll(() => outlineOf(link)).toEqual(RING);
+  const name = link.locator('h3 span').first();
+  await expect
+    .poll(() => name.evaluate((el) => getComputedStyle(el).textDecorationLine))
+    .toBe('underline');
+
+  await page.keyboard.press('Tab');
+  await expect(heart).toBeFocused();
+  await expect.poll(() => outlineOf(heart)).toEqual(RING);
+});
+
 test('a focused text field shows BOTH indicators — the border swap and the ring', async ({
   page,
 }) => {

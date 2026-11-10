@@ -21,7 +21,9 @@ export function ProviderHero({ provider }: { provider: Provider }) {
             fill
             priority
             sizes="100vw"
-            className="object-cover"
+            // The card's place, not the centre: this box is far wider than a phone photo, so
+            // centred it shows a mouth and a collar (docs/design/web-swiss-cards.md §11, decision 8).
+            className="object-cover object-subject"
           />
           {logo ? (
             // The salon's brand mark over its cover (salon-logo.md §5) —
