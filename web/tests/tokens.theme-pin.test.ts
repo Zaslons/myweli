@@ -304,6 +304,22 @@ describe('the tokens are actually WIRED, not just spelled', () => {
     expect(css).toContain('.after\\:content-initial::after {');
   });
 
+  // docs/design/web-swiss-salon.md §1.6: the salon page's cover, 3:2 at every width, beside
+  // `card` in `theme.extend` and not in `styles/tokens.ts`, which the five store-linked pages
+  // import through `Icon`. That the class is on the cover is hero-cover's to hold, for the
+  // reason the test above gives.
+  it('the cover’s 3:2 is wired, and emits the class the cover spells', async () => {
+    const resolved = resolveConfig(tailwindConfig as never);
+    const ratios = resolved.theme!.aspectRatio as Record<string, string>;
+    expect(ratios.cover).toBe('3 / 2');
+    expect(ratios.card, 'extended, not replaced').toBe('4 / 3');
+    const { css } = await postcss([tailwindcss(tailwindConfig as never)]).process(
+      '@tailwind utilities;',
+      { from: undefined },
+    );
+    expect(css).toMatch(/\.aspect-cover \{\s*aspect-ratio: 3 \/ 2;?\s*\}/);
+  });
+
   // Catches a typo'd token — `text-bodyMedum` — which Tailwind renders as nothing
   // at all. ESLint catches it on a `className=` attribute; it cannot see the four
   // bare `const`/default-param strings, and this can.

@@ -121,10 +121,11 @@ const config: Config = {
     }),
 
     extend: {
-      // A salon's photo on a card, 4:3 (docs/design/web-swiss-cards.md §2.2). Here, and
+      // A salon's photo on a card, 4:3 (docs/design/web-swiss-cards.md §2.2), and on its
+      // page's cover, 3:2 at every width (web-swiss-salon.md §1; BACKLOG 95 and 97). Here, and
       // not in `styles/tokens.ts`: `Icon.tsx` imports that file, and `Icon` is in the
-      // five store-linked pages' graph (§13). `cover` waits for its first user in S4.
-      aspectRatio: { card: '4 / 3' },
+      // five store-linked pages' graph (§13).
+      aspectRatio: { card: '4 / 3', cover: '3 / 2' },
       // Where a salon's photo is cut in a fixed frame: a little above the centre, because a
       // head sits high in an upright photo, and a room still reads as a room. The owner's
       // choice from pictures (§2.4, decision 2). `extend`, so `object-left-bottom` stays.

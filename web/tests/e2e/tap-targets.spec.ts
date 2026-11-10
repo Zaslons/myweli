@@ -167,6 +167,25 @@ test('salon page: the favourite ♥ is a 48px target', async ({ page }) => {
   await assertBox(heart, 'favourite ♥');
 });
 
+// docs/design/web-swiss-salon.md §1.1 item 3: « Réserver » was 36px everywhere, and the
+// panel's « Appeler » and « WhatsApp » 38px.
+test('salon page: « Réserver », « Appeler » and « WhatsApp » are 48px targets', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/beaute-divine');
+  // On a phone: the one under the name and the one in the bar.
+  const phone = page.getByRole('link', { name: 'Réserver', exact: true });
+  await expect(phone).toHaveCount(2);
+  await assertBox(phone.first(), '« Réserver » under the name', { minW: 0 });
+  await assertBox(phone.last(), '« Réserver » in the bar', { minW: 0 });
+
+  await page.setViewportSize({ width: 1280, height: 800 });
+  const panel = page.locator('main aside');
+  await expect(panel).toBeVisible();
+  await assertBox(panel.getByRole('link', { name: 'Réserver', exact: true }), '« Réserver » in the panel', { minW: 0 });
+  await assertBox(panel.getByRole('link', { name: 'Appeler' }), '« Appeler » in the panel', { minW: 0 });
+  await assertBox(panel.getByRole('link', { name: 'WhatsApp' }), '« WhatsApp » in the panel', { minW: 0 });
+});
+
 test('pro: « Alertes par e-mail » — the switch (salon-email-alerts)', async ({ page }) => {
   await signInPro(page);
   await page.goto('/pro/notifications');
