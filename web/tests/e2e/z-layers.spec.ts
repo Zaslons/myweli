@@ -101,9 +101,11 @@ test.describe(() => {
 
 // NO TEST for /recherche's `z-[1100]` → `z-sticky` remap, deliberately. One was
 // written and then deleted: mutation testing showed it passed with `z-base`, and
-// passed with the z-class removed entirely. The toggle is bottom-centre and
-// maplibre's own controls are in the corners, so at this viewport they never
-// overlap and the z-index is simply not load-bearing — the toggle wins on paint
-// order regardless. A test that cannot fail is not coverage, it is furniture.
+// passed with the z-class removed entirely. The toggle is bottom-left, and that
+// corner of the map is empty today: the zoom is top-left, « Autour de moi »
+// top-right, the attribution bottom-right. So at this viewport they never overlap
+// and the z-index is simply not load-bearing — the toggle wins on paint order
+// regardless. `site-look.spec.ts`'s map-view test is what would see a control
+// arriving there. A test that cannot fail is not coverage, it is furniture.
 // What actually holds that change: the pin (no arbitrary `z-` survives) and the
 // emitted-CSS diff.

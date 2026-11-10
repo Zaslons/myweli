@@ -41,9 +41,17 @@ export function FavoriteButton({
 
   // The button was disabled while the call was out, which can drop focus to
   // <body>: back on it once the answer is in — the failure, or the toast's
-  // success — never stolen from elsewhere.
+  // success — never stolen from elsewhere. Only after a call: on load nothing
+  // has run, and taking the focus then scrolled the salon page 317px at 320×568,
+  // off its cover (docs/design/web-swiss-salon.md §1.4).
+  const called = useRef(false);
   useEffect(() => {
-    if (busy) return;
+    if (busy) {
+      called.current = true;
+      return;
+    }
+    if (!called.current) return;
+    called.current = false;
     const active = document.activeElement;
     if (!active || active === document.body) buttonRef.current?.focus();
   }, [busy]);
@@ -91,7 +99,17 @@ export function FavoriteButton({
           {error}
         </p>
       ) : null}
-      <Toast toast={toast} />
+      {/* Lifted above the salon page's booking bar under `lg`: at 24px it stood on the bar,
+          and at 320 « Annuler » took a corner of « Réserver ». The lift is in rem, as the bar's
+          height is, so at rest it stays clear with the browser's font at 200 % (a 32px root;
+          web-swiss-salon.md §1.4), though not with Android's larger text, which grows the bar
+          and not the lift. That is the toast's home: the bar is a
+          `data-floating-control` (ProviderView), so where it still comes near the pill (at the
+          page's end, stopped above the footer, or with text enlarged otherwise) the toast is
+          measured against it and moved clear of it: just above it or just below it, whichever is
+          the shorter move (Toast.tsx, B11.5). Only a screen too short to hold both leaves
+          them meeting. */}
+      <Toast toast={toast} aboveBookingBar />
     </>
   );
 }

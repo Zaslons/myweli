@@ -411,6 +411,29 @@ five « Enregistré. » confirmations + the go-live banner onto persistent
 `role="status"` regions whose **text** toggles, and the two « Copié ✓ » label
 swaps onto sr-only status twins. « Chargement… » strings await B6's `Loading`.
 
+**A toast never covers a floating control where the screen has room** (specified
+2026-11-06 for B11.4's cover branch, [web-swiss-salon.md](web-swiss-salon.md)
+§2.3, not merged; BACKLOG 100, which replaces decision 86's « the toast stays
+where it is »). A page whose control floats at the screen's foot under `lg` marks
+it `data-floating-control` and gives `Toast` its home: `aboveFloatingControl`
+(« Carte », 80px, px like the band the button rides in) or `aboveBookingBar` (the
+salon page's bar, `bottom-20`, rem like the bar). From that home the pill is
+measured against every marked control on the screen, and where one comes within
+`s` (8px) it moves, in this fixed order: **aside**, within the `m` (16px) gutters,
+unless the slid pill would newly cover another control's label (the visible words
+of a link or button, such as a row's ♥, never its tap area, nor words only a
+screen reader reads, `sr-only`); **else up or down,
+whichever is the shorter move**, up on a tie, never nearer the screen's top or
+foot than `m`; **where neither clears**, it stays whole on the screen where it
+covers the control least. Moves are whole px, rounded so the `s` of air and the
+`m` edges stay whole, and are worn on the region's own inline style: `translate`
+aside, so the pill never re-wraps, `margin-bottom` up and down. It is placed again
+on scroll, on resize, on a `ResizeObserver` of the pill and the controls, and on a
+`MutationObserver` for a control that appears. Without the CSS `translate`
+property it only goes up or down, and without either observer it still places on
+scroll and resize. The region, its role and what it says do not change. **A toast
+with neither prop is never measured:** every other page's stays at `bottom-l`.
+
 ## 8. Dialogs
 
 Six hand-rolled modals, **zero** focus traps. A modal that doesn't trap focus lets
@@ -470,6 +493,24 @@ dashboard's nav is the reference: a persistent sidebar at `lg+`, an off-canvas
 in a slim top bar (B0; [web-pro-mobile-nav.md](web-pro-mobile-nav.md)). It used to
 be `w-60` with no breakpoint, eating 240px of a 375px phone on every `/pro` route.
 
+**One public layout reads the window's shape, not only its width: `/recherche`'s
+split view** (specified 2026-11-06 for B11.4's cover branch,
+[web-swiss-salon.md](web-swiss-salon.md) §2.5, not merged; BACKLOG 101). The map
+stands beside the list from `lg`, and from `md` in a window wider than tall: each
+`lg:` class of the split view has a `md:landscape:` twin (`landscape` is
+Tailwind's built-in orientation variant), except the list column's `lg:px-l`:
+below `lg` its gutter stays `m`, so the `<h1>` keeps the header logo's x. Why: below `lg` the footer stacks and is
+taller than such a window (927px at 1023 wide), so a floating « Carte » that stops
+above it had left the screen by the page's end (y −255 at 1023×768, −572 at
+844×390); beside the list there is no button to lose. Portrait windows keep the
+list and « Carte ». The apps' phones are portrait (Android's manifest, the
+iPhone's orientations; the iPad build turns), so this layout has no app twin.
+**The ordering trap:** Tailwind writes every `md:landscape:` rule after every
+`lg:` rule, so in a landscape window from `lg` the `md:landscape:` twin is the one
+that applies, and each pair must carry the same value. `RechercheClient`'s comment
+says so. Scoping the twins with `max-lg:` would remove the trap, at the cost of
+three-variant classes.
+
 ### z-index
 
 Arbitrary z-values (`z-[5]`, `z-[6]`, `z-[7]`, `z-[1100]`) are banned. The scale is
@@ -478,7 +519,7 @@ the layer, named:
 | Token | Value | Layer |
 |---|---|---|
 | `z-base` | 0 | Content |
-| `z-sticky` | 10 | Sticky headers, the map's floating controls |
+| `z-sticky` | 10 | Sticky headers, the map's floating controls, the pinned action bars |
 | `z-dropdown` | 20 | Menus, popovers |
 | `z-overlay` | 30 | Scrims |
 | `z-modal` | 40 | Dialogs, sheets |
@@ -542,6 +583,89 @@ design — there is one layout that has to survive less space.
    [web-b11-reflow.md](web-b11-reflow.md) §5: `DataTable`, the pro journal grid,
    the three map canvases, and `MonthCalendar`.
 
+**Doubled text is a second input, and 320 at normal size does not cover it.**
+The salon page passed every row of this gate and still went **441 px** wide at
+200 % text on a 320 phone: one `whitespace-nowrap` price
+([web-salon-price-reflow.md](web-salon-price-reflow.md)). A phone doubles text
+in two ways, and they fail differently:
+
+- With **Android-style text scaling** (`text-size-adjust: 200%` on a touch
+  phone), the browser grows the *layout viewport* to hold the overflow. Fixed
+  bars and toasts are then placed off the screen. The document does not scroll
+  sideways, so `horizontalOverflow`, which measures against that grown
+  viewport, reads clean. The assertion that sees it is the viewport's own
+  size: `innerWidth × innerHeight` must equal the screen's.
+- With the **browser font at 200 %** (a 32px root), the viewport stays 320 and
+  the page scrolls sideways.
+
+`type-overflow.spec.ts` runs the salon page and the booking funnel at 320×568
+in both modes, with a vacuity check that the text really is doubled. Six more
+pages widen in the Android mode and are not gated yet: §15 row 38. One trap,
+measured: Chromium implements `text-size-adjust` through its text autosizer,
+which recomputes when the DOM changes, so an element screenshot or a text
+edit can silently drop the doubling. Check the size at the moment you
+measure.
+
+**A pinned action bar is fixed, with measured room, and it takes at most a
+quarter of the screen** (decisions 103–105; [web-swiss-salon.md](web-swiss-salon.md)
+§3, [web-funnel-bar-fit.md](web-funnel-bar-fit.md) §6). Two bars hold a page's
+one action on a phone: the salon page's « Réserver » (decision 103; specified
+and built 2026-11-06 on the cover update's branch, not merged) and the booking
+funnel's « total + Confirmer » (decision 105; specified and built 2026-11-09 on
+its own branch, stacked on that one, not merged). Both are `fixed` at the screen's foot
+below `lg`, so the action never leaves the screen, as the apps' never does, and
+both answer a fixed bar's fault, covering whatever ends the document, by
+measurement rather than by `sticky`:
+
+- **`BarClearance`**, rendered inside the bar, gives `<html>` an inline
+  `padding-bottom` of the bar's measured height while the bar is mounted and
+  below `lg`, so the page ends below the footer and its last link stays clear
+  above the bar, and a `scroll-padding-bottom` of that height plus `s`, so
+  focus, anchors and find-in-page stop 8 px above it at every text size
+  (WCAG 2.4.11). Set before paint, kept in step by a `ResizeObserver` and
+  `resize` (a text size, a compact switch, a rotation), taken off from `lg`
+  and when the bar goes (the funnel's confirm step has none); no rule in the
+  shared stylesheet, so the five store-linked pages never carry it. Until the
+  page's script runs, the bar has no room under it (the footer's last link
+  about 33 px under it at the very end with normal text, and further with
+  larger text: up to 81 px under the funnel's bar and 105.5 px under the
+  salon page's with doubled text, wholly under on a 320×568 phone, and about
+  81 px with the browser font at 200 %; web-funnel-bar-fit.md §6.3,
+  web-swiss-salon.md §3.3); once it runs, a visitor at the end is kept at
+  the end.
+- It is not printed (`print:hidden`): a fixed bar would stand at the foot of
+  every printed page. It is as wide as the screen and never wider
+  (`w-screen max-w-full`): with Android's large text a row wider than the
+  screen makes Chrome widen the layout viewport past it (§15 row 38), and a
+  fixed box spans that viewport.
+- **Why not sticky.** From #744 to decision 105 this rule read « sticky, not
+  fixed »: a sticky bar, last in its flow, takes its own room and stops above
+  the footer, which a fixed bar with no room covered. But stopped above the
+  footer it has left the screen by the page's very end: up to 580, 616 and
+  1,060 px of scrolling back for « Réserver », and 604, 652 and 1,084 px for
+  « Confirmer », at normal text, doubled text and the browser font at 200 %
+  (plans 103 and 105); and the browser scrolls a focused control just into
+  view at the screen's foot, under a sticky bar as under a fixed one (91
+  controls wholly hidden under the funnel's, in 48 of 108 settings).
+- **« Carte » stays sticky** (web-swiss-cards.md decision 5; decision 91): it
+  is a floating control over `/recherche`'s list, not a page's action bar,
+  and it stops above the footer; from `md` in a window wider than tall the
+  map stands beside the list instead (above). A fixed bar anywhere else needs
+  its own decision.
+- **The quarter rule.** When the full bar would exceed 25 % of the screen, it
+  keeps its action and sheds the rest into the page; the page measures the
+  full bar before paint and doesn't branch on the text scale (the funnel's
+  compact rule, #744). It does not bring every setting under a quarter, and
+  both exceptions are written down. The salon page's bar takes more than
+  25 % at 5 of the 27 settings measured (320×256 at every text setting, 25.4,
+  53.5 and 44.1 %; 844×390 and 640×400 with the browser font at 200 %, 29.0
+  and 28.3 %), and the compact form would bring none of the five under a
+  quarter (inferred: about 73 px, 28.5 %, at 320×256 with doubled text;
+  elsewhere the bar is already its button's height); accepted (decision 104).
+  The funnel's compact bar takes more than 25 % at the same five (25.4, 28.5
+  and 44.1 %; 29.0 and 28.3 %), today as when it was sticky, and fixed it no
+  longer leaves the screen there; accepted (decision 105).
+
 **The unit contract, stated because it was an accident until B11.** The type
 scale (`styles/tokens.ts`) and the spacing scale are **px**; the sizing keys —
 `width`, `height`, `minWidth`, `minHeight`, `maxHeight`, `inset`, `translate` —
@@ -557,6 +681,12 @@ under a large browser font **the boxes grow and the type does not**.
   across at a 24px root), the journal's `top: 32` offsets against an `h-8`
   header, a duplicated `320px`/`20rem` grid rail, and a `48px` claiming to match
   `min-h-12`.
+- **A toast against a floating control is placed by measurement, not by an
+  offset** (§7; specified 2026-11-06, not merged). Its home may be px
+  (« Carte »'s, like the band the button rides in) or rem (the salon page's bar's,
+  like the bar), and from either it moves clear of the control's real box, so a px
+  home cannot drift into a rem control at a large root. The home is still a token
+  offset; the measuring is what keeps the two apart.
 
 **The honest limit: this contract does not make a browser font preference
 work.** Text stays px, so Chrome's Appearance → Font size still moves the boxes
@@ -730,6 +860,7 @@ Counted in the code as of 2026-07-14. Each burn-down PR drives a row to **0**.
 | 35 | Wire formats are the contract's, not the widget's | ~~2 directions broken~~ → **0** | **A salon that onboarded on the web could never set its opening hours, so it could never go live.** `openapi.yaml:4033-4036` types `TimeSlot.startTime` as `format: date-time` ("only the time-of-day is significant — placeholder date") and the server normalises every value to `2024-01-01T09:00:00.000Z`. The mobile app complies; the web did not, in **both** directions. WRITE: `toApi` sent `d.start` verbatim, and `d.start` falls back to `'09:00'` whenever the salon has no stored slots — the server validates with `DateTime.tryParse`, which answers null to `'09:00'` → 400 `invalid_input`. That fallback fires exactly during onboarding, and `availability` is one of the six publish-gate keys. READ: `toEditable` fed the server's ISO straight into an `<input type="time">`, which accepts only `HH:mm`, so the field rendered blank for any salon that DID have hours. Both now go through one seam (`timeOfDay`/`wireTime`), parsed with a regex rather than a `Date` — `new Date('2024-01-01T09:00:00.000Z').getHours()` is 4 in New York, which would move a salon's opening hour with the browser's timezone. **Why 559 green tests said nothing: every fixture in `pro-availability.test.ts` used the bare `'09:00'` form, so the suite asserted the round-trip of a format the server never sends or accepts.** And the API-level funnel smoke (Q1) **could not have caught it either** — it speaks the wire format correctly, so it stays green while a client mis-speaks it. That is the standing limit of an API-level gate, and the reason this row exists rather than a note in the spec | ✅ **Q1** (found while building the funnel e2e; fixed red-first) |
 | 36 | **The Google button said « Se connecter » while every other surface said « Continuer »** | **3 `renderButton` call sites** | the web half of [SYSTEM.md §21 row 87](SYSTEM.md#21). Google's button is painted by Google's script from an options object, and the three call sites had drifted apart with nothing to hold them together: two omitted `text`, so GIS fell back to `signin_with` and web read **« Se connecter avec Google » beside « Continuer avec Apple »** while both mobile apps said « Continuer avec »; a third omitted `locale: 'fr'`. Nothing failed and no test could fail — the button is a cross-origin iframe, so its label is not in our DOM and is unassertable from here. Only reading the three files together shows it, and they sit in three directories. Beside it, Apple was our `Button` at full container width against Google's fixed 320 × 40 — not a styling gap but a **structural** one, since Google's button cannot be restyled at all (its presets are the whole API, and it is the only source of the ID token the backend verifies) | ✅ **Closed.** `gisOptions(text)` in `components/auth/socialButton.ts` is one settled object; `social-buttons.test.ts` pins it and asserts **`text` is the only key permitted to vary**, which is the property that actually failed, tested at the only layer that can see it. `AppleSignInButton` matches the GIS silhouette in **px** — rem would drift from Google's absolutely-sized iframe the moment the root font size moves, which is row 31's problem arriving from the other direction. The 40px preset collides with `Button`'s pinned **48px** tap-target floor; resolved by **growing the target, not the glyph** — a 48px `<button>` wrapping a 40 × 320 painted `<span>` — so the floor and `button.test.tsx` both stand unweakened rather than being given an exception 🟢 |
 | 37 | **A fixture dated « today » made the overflow gate a verdict on the calendar** | ~~1~~ → **0** | the stub's last visit is today, and `type-overflow.spec.ts` measured the Pro client card with it: green through October, **red from 1 November on every pull request**, because « novembre » does not fit a half-width tile at 320. A real spill, found only because the month changed, and it would have gone green again in January. Fixed the way the app already had it: the short date (`formatDateCompactFr`) and one tile per row at the narrowest widths. **The longest values are now pinned whatever the date**: September and seven figures, plus the tiles' shape, since the text checks depend on the font. **Still blind:** other pages' dates from the same fixture, and any date a subject shows that is not the worst month | ✅ **2026-11-02** |
+| 38 | **Doubled text widens pages that pass at 320 with normal text** | ~~8 pages~~ → ~~7~~ → **6** in the Android mode · **0** with the browser font at 200 % | found 2026-11-06 on the salon page ([web-salon-price-reflow.md](web-salon-price-reflow.md)): a `whitespace-nowrap` price, « 15 000 – 25 000 FCFA » at 32px, made it **441px** wide on a 320 phone. Under Android-style text scaling (`text-size-adjust: 200%` on a touch phone) the browser grows the **layout viewport** to hold the overflow, so the « Réserver » bar and the favourites toast landed off screen while `horizontalOverflow`, measuring against that grown viewport, read clean (§9). The salon page is fixed and gated in both modes, and so is the booking funnel (344: its step headers and recap rows, [web-funnel-doubled-text.md](web-funnel-doubled-text.md)). **Left, at 320, Android mode only:** `/` and `/recherche` 352 (the card's « Note ★ 4,8 » is `whitespace-nowrap`, and #737 rewrites that card), the 404 336 (« introuvable », one word wider than its heading), and three store-linked pages. **The 404 is frozen with them**: `app/not-found.tsx` is every route's not-found boundary and its markup ships in all five store-linked pages' HTML, so its fix (hyphenation, specified in web-funnel-doubled-text.md §5) waits for Apple's decision too. The three store-linked pages, frozen while Apple reviews the Pro app: `/support` 352, `/politique-confidentialite` 375, `/mentions-legales` 343 (« support@myweli.com »). **Latent, found 2026-11-06 by #741's review:** once a store link is set (no e2e build sets one, so the banner never renders there), the install banner's « Télécharger ✕ » row does not wrap, and every page is laid out up to 418 px wide at 320, 360 and 390, the five store-linked pages included; `AppInstallBanner` is in their graph (through `SiteChrome`), so its fix waits for Apple's decision. The salon page's fixed bar keeps to the screen meanwhile (`w-screen max-w-full`, [web-swiss-salon.md](web-swiss-salon.md) §3.3), and so does the booking funnel's, in width, fixed since decision 105 ([web-funnel-bar-fit.md](web-funnel-bar-fit.md) §6.3, §6.4; on its own branch, not merged). Measured in Chromium's mobile emulation; real phones are not verified | ✅ the salon page · ✅ the booking funnel · the rest open (the 404, the three store-linked pages and the install banner wait for Apple's decision; `/` and `/recherche` for #737) |
 
 **Bold** slices are committed (the a11y tranche). *Italic* are specified and
 scheduled for re-evaluation after it.
@@ -743,15 +874,17 @@ Enforced by the `myweli-web-guardrails` skill.*
 
 ## 16. The public pages' look
 
-**Decided 2026-11-02, applied page by page from B11.1.** The full reasoning, the page-by-page plan and the pattern's rules are in [web-swiss-direction.md](web-swiss-direction.md); this is what a new public page has to follow. Task surfaces (`/connexion`, `/mon-compte/*`, booking, legal, `/pro/*`) take only the font, header and footer.
+**Decided 2026-11-02, applied page by page from B11.1.** The full reasoning, the page-by-page plan and the pattern's rules are in [web-swiss-direction.md](web-swiss-direction.md); this is what a new public page has to follow. Task surfaces (`/connexion`, `/mon-compte/*`, booking, legal, `/pro/*`) take only the font, header and footer. **One exception (2026-11-05):** the favourites on `/mon-compte` use the new salon card, in the columns and container they had, and the account's states stay as they are ([web-swiss-cards.md](web-swiss-cards.md), decision 3).
 
 - **One container, one left edge:** `mx-auto max-w-screen-2xl px-m lg:px-l`, as `SITE_CONTAINER` in `lib/siteGrid.ts`, so it cannot drift. The logo, the `<h1>` and the first section start at the same x, at every width, held by `tests/e2e/site-look.spec.ts`. `/recherche` runs full width with `SITE_EDGE`.
 - **A section** is `SiteSection`: the rule above it and the hanging heading come with it.
 - **Twelve columns from `lg`,** one below. Reading text stays capped at `max-w-content` (SYSTEM §10). From `lg`, a section's `<h2>` hangs in columns 1–3 and its content takes 4–12.
-- **Flush left**, empty states included.
+- **Flush left**, empty states included: `EmptyState align="start"`, on public pages only. Its default stays centred, for the Espace pro and the account.
 - **Rules instead of boxes.** A structural rule is 1px `border-primary`, a row rule 1px `border-divider`. The black rule is a **new, sanctioned use of `primary`**: on public pages as structure, and on every page as the line around a field or button. `Card` stays for real containers.
 - **Anything you type in or press is square, with a thin black line** (`rounded-control`, `border-primary`; [web-swiss-fields.md](web-swiss-fields.md), B11.6). It holds on every page, the Espace pro included. Filter chips keep their pill, Google and Apple keep their own shape, and what only holds content is unchanged. **Corrected 2026-11-02:** this line first said rounded corners stay on controls, so that the site and the app feel related. The owner chose otherwise from pictures.
 - **The search is one ruled bar** (`HomeSearch`): the form draws the box and the lines between.
-- **Colour comes from photos.** Same-ratio crops, no filters, no scrims, and **no AI-generated faces or results**.
+- **Colour comes from photos.** Same-ratio crops, one ratio per use: `aspect-card` (4:3) on the salon card and `aspect-cover` (3:2) on the salon page's cover (**added 2026-11-06** with B11.4's cover, [web-swiss-salon.md](web-swiss-salon.md), not merged). No filters, no scrims, and **no AI-generated faces or results**.
+- **A salon card is `ProviderCard`** ([web-swiss-cards.md](web-swiss-cards.md)): the salon's own photo at `aspect-card` (4:3), square and uncovered, with flush-left text and one thin rule at the foot of the media. `tile`, `row`, or `rowOnPhone`, which switches at `sm`, with `CARD_SIZES` for `sizes`. **`object-subject` (`50% 20%`) says where a salon's photo is cut in a fixed frame: a little above the centre, on the card and on the salon page's cover, and on nothing else, not a logo, a gallery or a before and after** (the owner chose it from pictures, web-swiss-cards.md §2.4). Lazy, except the first photo of a landing level or `/recherche`, which takes `imagePriority` from `firstPhotoIndex`, the card's own rule of what a photo is. With no photo, the logo in the bottom-left corner, otherwise the salon's letter; `content-initial` carries that letter on a photo that failed. The card's three tokens are in `tailwind.config.ts`, and the cover's `aspect-cover` joins them there (B11.4's cover, [web-swiss-salon.md](web-swiss-salon.md), not merged), never in `styles/tokens.ts`, because `Icon` imports that file and `Icon` is in the five store-linked pages' graph. Names wrap, never truncate. A list draws the rules between its rows, so a card never doubles one.
+- **The salon page** (`ProviderView`; [web-swiss-salon.md](web-swiss-salon.md) §1; **added 2026-11-06 for B11.4's cover, not merged**). From `lg`: the site's container without its phone padding, the cover in columns 1–8 at `aspect-cover`, cut at `object-subject`, and columns 9–12 for the name block and then `BookingPanel`. **Only the panel sticks,** at `top-l`. Below `lg`: one column in the app's order, the cover full width at 3:2, and the booking bar, the last thing in `main`, **fixed at the screen's foot with a measured room under the footer** (§9's written exception; BACKLOG 103; [web-swiss-salon.md](web-swiss-salon.md) §3, specified and built 2026-11-06, not merged): `BarClearance` writes `<html>`'s inline `padding-bottom` (the bar's height) and `scroll-padding-bottom` (the bar's height plus `s`) while the page is mounted, so the footer's last link stays clear and whatever the keyboard focuses, in the page or in the footer, stops 8 px above the bar at every text size, wherever it fits above it. It is page-scoped because it is an inline style the page writes and takes off, never a rule the five store-linked pages' stylesheet carries; its new rules there are Tailwind's `print:hidden` and `w-screen` (the bar is `w-screen max-w-full`, so it keeps to the screen when Android's large text widens the layout, §15 row 38), which they never match. It replaces #741's first answer: the bar `sticky bottom-0` (it stopped above the footer, as « Carte » does, and left the screen at the page's very end), and `max-lg:[&_*]:scroll-mb-fab` on the two columns, an arbitrary *variant* with a token value, the first in the code (web-swiss-salon.md §1.4). So the page has no arbitrary value or variant left. The heart's toast rises above the bar in rem, `Toast`'s `aboveBookingBar` (`bottom-20`), because the bar's height is rem (`min-h-12`); « Carte »'s home, `aboveFloatingControl`, stays px, and from either home the message is moved clear of the bar or « Carte » by measurement (§7; BACKLOG 100; specified 2026-11-06 in [web-swiss-salon.md](web-swiss-salon.md) §2, not merged). **Its exceptions, on the record:** the cover takes the left edge and the `<h1>` starts in column 9 by design, so on this page the logo and the `<h1>` do not share an x (the first rule of this section; direction §6.2). Until B11.4's sections take `SiteSection`, two more: the sections stay one 8-column block, because hanging headings (the `<h2>` in columns 1–3, the content in 4–12) cannot sit beside a rail in 9–12; and their text starts at x 40 where the cover starts at 24 at 1280, because each section keeps its own `px-m`.
 - **The pattern** (rows of plaits, black on white; `components/brand/Weave.tsx`): at most one visible per page, drawn on Home, `/professionnels` and 404 only, never behind text, `aria-hidden`, no animation, and it never replaces a salon's photo. **It keeps one scale:** it stops growing with the screen, because drawn large it stops being texture. Copy never calls it traditional or authentic. White on black is kept for a dark version. **« Drawn » and « visible » are the rule, not what the HTML holds:** Home and `/professionnels` carry both forms in their DOM, and the 404's band travels in every page's RSC payload ([web-swiss-direction.md](web-swiss-direction.md) §4.6).
 

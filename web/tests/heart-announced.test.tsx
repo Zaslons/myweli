@@ -374,6 +374,33 @@ describe('B5.4 — « Mon compte » says a favourite went (Q4)', () => {
     expectNothingAnnounced();
   });
 
+  // docs/design/web-swiss-cards.md, decision 3: `FavoritesService.add` refuses a hidden
+  // salon, so « Annuler » could only fail. The stub answers every write 204, so the e2e
+  // cannot see why; this says what the page offers.
+  it('a salon that stopped: « Retiré des favoris », with no « Annuler », and the live one keeps its own', async () => {
+    const { writes } = mockFetch({
+      'GET /api/me': { status: 200, body: ME },
+      'GET /api/appointments': { status: 200, body: { items: [] } },
+      'GET /api/me/favorites': {
+        status: 200,
+        body: { favorites: [{ ...P1, status: 'suspended' }, P2] },
+      },
+      'DELETE /api/me/favorites/p1': { status: 204 },
+      'DELETE /api/me/favorites/p2': { status: 204 },
+    });
+    render(<AccountClient />);
+    await waitFor(() => expect(favoriteNames()).toEqual(['p1', 'p2']));
+    fireEvent.click(screen.getAllByRole('button', { name: 'Retirer des favoris' })[0]);
+
+    expect((await screen.findByText(REMOVED)).closest('[role="status"]')).not.toBeNull();
+    await waitFor(() => expect(favoriteNames()).toEqual(['p2']));
+    expect(screen.queryByRole('button', { name: 'Annuler' })).toBeNull();
+    expect(writes('POST /api/me/favorites/p1')).toBe(0);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Retirer des favoris' }));
+    await expectAnnounced(REMOVED);
+  });
+
   it('a removal that failed announces nothing (its sentence is under the card)', async () => {
     accountReads({ 'DELETE /api/me/favorites/p1': { status: 500 } });
     render(<AccountClient />);

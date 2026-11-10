@@ -329,6 +329,12 @@ was never run — LAUNCH.md §4 stayed unticked because of them.
   served with their id in the URL. Now detached and erased, gated with a
   bystander. Recorded because the wrong answer was written down first, and
   confidently.
+- **Why review photos never go through the image optimizer (2026-11-05).** Salon
+  cards need `images.minimumCacheTTL` at 31 days, and it is global, so a resized
+  copy of a review photo could outlive this erasure by that long, at a URL holding
+  the erased client's id. `AvisClient` shows them `unoptimized`, and
+  `web/tests/optimizer-sources.test.ts` holds the list of files that can reach that
+  cache ([web-swiss-cards.md](web-swiss-cards.md) §6, decision 1).
 - **~~Should a consumer be blocked from deleting with future bookings?~~
   Answered: yes (L2).** The owner's call, and it matches the provider path — the
   consumer must cancel first. The gate runs **before the first erasure step**, so

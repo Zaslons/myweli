@@ -35,12 +35,12 @@ import { SkeletonRows } from '../Skeleton';
 import { TextField } from '../TextField';
 import { OpenInAppButton } from '../OpenInAppButton';
 import { PhoneField } from '../PhoneField';
-import { ProviderCard } from '../provider/ProviderCard';
+import { CARD_SIZES, ProviderCard } from '../provider/ProviderCard';
 import { AppointmentCard } from './AppointmentCard';
 import { Tabs } from '../Tabs';
 import { Toast } from '../Toast';
 import { useToast } from '../../lib/useToast';
-import { announceFavorite } from '../../lib/account/favorite-toast';
+import { announceFavorite, FAVORITE_REMOVED } from '../../lib/account/favorite-toast';
 
 const PROVIDER_LABELS: Record<string, string> = {
   google: 'Connecté via Google',
@@ -150,7 +150,13 @@ export function AccountClient() {
       // The card went in silence; the app's favourites row says it, with
       // « Annuler » (Q4, docs/design/web-client-polish.md §2.4).
       if (removed) {
-        announceFavorite(show, dismiss, false, () => void restoreFav(removed, index));
+        // No « Annuler » for a salon that stopped: `FavoritesService.add` refuses a
+        // hidden salon, so it could only fail (docs/design/web-swiss-cards.md, decision 3).
+        if (salonStoppedMessageFor(removed.status)) {
+          show(FAVORITE_REMOVED, 'success');
+        } else {
+          announceFavorite(show, dismiss, false, () => void restoreFav(removed, index));
+        }
       }
       return;
     }
@@ -487,7 +493,15 @@ export function AccountClient() {
               const stopped = salonStoppedMessageFor(f.status);
               return (
                 <div key={f.id}>
-                  <ProviderCard provider={f} />
+                  {/* Rows below `sm`, so support and account deletion move down 64px, not
+                      1186px; tiles from `sm`. A stopped salon is not a link: it would end on
+                      a 404 (docs/design/web-swiss-cards.md, decision 3). */}
+                  <ProviderCard
+                    provider={f}
+                    layout="rowOnPhone"
+                    imageSizes={CARD_SIZES.account}
+                    linked={!stopped}
+                  />
                   {stopped ? (
                     <p className="mt-xs text-bodySmall text-textSecondary">
                       {stopped}
@@ -500,7 +514,7 @@ export function AccountClient() {
                     }}
                     type="button"
                     onClick={() => removeFav(f.id)}
-                    className="mt-xs text-bodyMedium text-textTertiary underline"
+                    className="mt-xs inline-flex min-h-12 items-center text-bodyMedium text-textTertiary underline"
                   >
                     Retirer des favoris
                   </button>

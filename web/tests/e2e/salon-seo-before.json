@@ -1,0 +1,181 @@
+{
+  "h1": "Beauté Divine✔ Vérifié",
+  "title": "Beauté Divine — Salon de coiffure à Cocody · MyWeli",
+  "canonical": "http://127.0.0.1:3000/beaute-divine",
+  "description": "Beauté Divine : salon de coiffure à Cocody, Côte d'Ivoire. Réservez en ligne — services, tarifs, horaires et avis.",
+  "ogImage": "https://cdn.stub/p1.jpg",
+  "jsonLd": [
+    {
+      "@context": "https://schema.org",
+      "@type": "Organization",
+      "name": "MyWeli",
+      "url": "http://127.0.0.1:3000",
+      "logo": "http://127.0.0.1:3000/android-chrome-512.png",
+      "description": "MyWeli — réservation beauté & bien-être en Côte d’Ivoire : coiffure, barbier, onglerie, spa. Réservez votre salon en ligne, 24/7.",
+      "areaServed": {
+        "@type": "Country",
+        "name": "Côte d'Ivoire"
+      },
+      "sameAs": [
+        "https://www.instagram.com/myweli_/"
+      ]
+    },
+    {
+      "@context": "https://schema.org",
+      "@type": "HairSalon",
+      "name": "Beauté Divine",
+      "url": "http://127.0.0.1:3000/beaute-divine",
+      "description": "Salon de coiffure à Cocody.",
+      "image": [
+        "https://cdn.stub/p1.jpg",
+        "https://cdn.stub/p2.jpg"
+      ],
+      "telephone": "+2250700000000",
+      "address": {
+        "@type": "PostalAddress",
+        "streetAddress": "Rue des Jardins",
+        "addressLocality": "Cocody",
+        "addressCountry": "CI"
+      },
+      "openingHoursSpecification": [
+        {
+          "@type": "OpeningHoursSpecification",
+          "dayOfWeek": "Monday",
+          "opens": "09:00",
+          "closes": "18:00"
+        }
+      ],
+      "geo": {
+        "@type": "GeoCoordinates",
+        "latitude": 5.35,
+        "longitude": -3.99
+      },
+      "aggregateRating": {
+        "@type": "AggregateRating",
+        "ratingValue": 4.8,
+        "reviewCount": 2
+      },
+      "review": [
+        {
+          "@type": "Review",
+          "author": {
+            "@type": "Person",
+            "name": "Awa"
+          },
+          "reviewRating": {
+            "@type": "Rating",
+            "ratingValue": 5,
+            "bestRating": 5
+          },
+          "reviewBody": "Service impeccable.",
+          "datePublished": "2026-06-01T10:00:00.000Z"
+        }
+      ],
+      "makesOffer": [
+        {
+          "@type": "Offer",
+          "priceCurrency": "XOF",
+          "price": 15000,
+          "itemOffered": {
+            "@type": "Service",
+            "name": "Tresses"
+          }
+        },
+        {
+          "@type": "Offer",
+          "priceCurrency": "XOF",
+          "price": 5000,
+          "itemOffered": {
+            "@type": "Service",
+            "name": "Soin visage"
+          }
+        }
+      ],
+      "areaServed": "Cocody"
+    },
+    {
+      "@context": "https://schema.org",
+      "@type": "FAQPage",
+      "mainEntity": [
+        {
+          "@type": "Question",
+          "name": "Comment réserver chez Beauté Divine ?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Réservez en ligne sur MyWeli en quelques secondes : choisissez un service, un créneau, puis confirmez. Disponible 24/7, sans appel."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Où se trouve Beauté Divine ?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Beauté Divine est situé à Rue des Jardins, Cocody, Côte d'Ivoire."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Quels sont les tarifs de Beauté Divine ?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Les prestations démarrent à partir de 5 000 FCFA. Voir la liste complète des services et tarifs sur la page."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Faut-il payer un acompte ?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Non, aucun acompte n’est requis pour réserver chez Beauté Divine."
+          }
+        }
+      ]
+    },
+    {
+      "@context": "https://schema.org",
+      "@type": "BreadcrumbList",
+      "itemListElement": [
+        {
+          "@type": "ListItem",
+          "position": 1,
+          "name": "Accueil",
+          "item": "http://127.0.0.1:3000"
+        },
+        {
+          "@type": "ListItem",
+          "position": 2,
+          "name": "Beauté Divine",
+          "item": "http://127.0.0.1:3000/beaute-divine"
+        }
+      ]
+    }
+  ],
+  "h2": [
+    "Galerie",
+    "Services & tarifs",
+    "Avant / Après",
+    "Équipe",
+    "Horaires",
+    "Avis (2)",
+    "Localisation",
+    "Contact",
+    "Questions fréquentes"
+  ],
+  "meta": [
+    "charset=utf-8",
+    "content=Beauté Divine : salon de coiffure à Cocody, Côte d'Ivoire. Réservez en ligne — services, tarifs, horaires et avis. name=description",
+    "content=Beauté Divine : salon de coiffure à Cocody, Côte d'Ivoire. Réservez en ligne — services, tarifs, horaires et avis. name=twitter:description",
+    "content=Beauté Divine : salon de coiffure à Cocody, Côte d'Ivoire. Réservez en ligne — services, tarifs, horaires et avis. property=og:description",
+    "content=Beauté Divine — Salon de coiffure à Cocody name=twitter:title",
+    "content=Beauté Divine — Salon de coiffure à Cocody property=og:title",
+    "content=http://127.0.0.1:3000/beaute-divine property=og:url",
+    "content=https://cdn.stub/p1.jpg name=twitter:image",
+    "content=https://cdn.stub/p1.jpg property=og:image",
+    "content=summary_large_image name=twitter:card",
+    "content=width=device-width, initial-scale=1 name=viewport",
+    "name=next-size-adjust"
+  ],
+  "links": [
+    "href=http://127.0.0.1:3000/beaute-divine rel=canonical"
+  ]
+}

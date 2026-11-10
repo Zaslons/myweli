@@ -42,6 +42,26 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
+/// docs/design/web-swiss-cards.md §6, decision 1. Consumer erasure deletes these files,
+/// and `/suppression-compte` says so. A resized copy in the optimizer's cache would
+/// outlive the object by up to 31 days, so the page asks for the file itself.
+describe('AvisClient — a review photo stays out of the image cache', () => {
+  it('its `src` is the file’s own URL, not `/_next/image`', async () => {
+    const url = 'https://cdn.myweli.com/review/u1/photo.jpg';
+    stub({
+      items: [{ ...FIFTY_FIVES[0], photoUrls: [url] }],
+      page: 1,
+      pageSize: 50,
+      total: 1,
+      summary: { average: 5, count: 1, distribution: { '5': 1, '4': 0, '3': 0, '2': 0, '1': 0 } },
+    });
+    render(<AvisClient />);
+    const photo = await screen.findByAltText('Photo de l’avis');
+    expect(photo).toHaveAttribute('src', url);
+    expect(photo.hasAttribute('srcset')).toBe(false);
+  });
+});
+
 describe('AvisClient — the card is the whole salon’s', () => {
   it('the server’s average, count and bars — not the page’s', async () => {
     stub({
