@@ -19,11 +19,16 @@ import 'package:yaml/yaml.dart';
 /// today, ships the vulnerable verifier. Meanwhile CI compiled and tested with
 /// 3.10.7, so no test ever ran on the compiler that shipped.
 ///
-/// Three rules, each a defect when broken and none red on a legitimate bump:
+/// Four rules, each a defect when broken and none red on a legitimate bump:
 ///   1. the build stage names an exact `X.Y.Z` AND a digest — never a channel;
-///   2. that version is at or above the advisory floor;
+///   2. that version is at or above the floor, which lives in ONE place
+///      (`FLOOR=` in .github/scripts/verify-image-dart-sdk.sh) and may never
+///      drop below this advisory's 3.13.7;
 ///   3. every backend CI job sets up exactly that version, and builds with the
-///      same `dart_frog_cli`.
+///      same `dart_frog_cli`;
+///   4. the deploy reads the SDK out of the BUILT image before it deploys —
+///      because rules 1–2 read the tag, and Docker builds the digest: a 3.13.6
+///      digest under a 3.13.7 tag passes them. That script is what sees it.
 /// Bumping the Dockerfile and ci.yml together stays green. Bumping one alone —
 /// which is what a Dependabot docker PR does — goes red until the other
 /// follows, and the message says so.
@@ -31,16 +36,44 @@ void main() {
   // `dart test` runs from backend/ in CI (defaults.run.working-directory).
   final dockerfile = File('Dockerfile');
   final ci = File('../.github/workflows/ci.yml');
+  final deploy = File('../.github/workflows/deploy-backend.yml');
+  final checker = File('../.github/scripts/verify-image-dart-sdk.sh');
 
-  /// The lowest SDK this server may be built with. Raise it when a newer
-  /// advisory lands; never lower it.
-  const advisoryFloor = [3, 13, 7];
+  /// The first SDK that blocks the eMudhra intermediates. The working floor is
+  /// `FLOOR=` in [checker], which may rise past this but never fall below it.
+  const advisoryMinimum = [3, 13, 7];
   const advisory = 'GHSA-frr6-h895-5pxp';
 
   test('the files are where this test thinks they are', () {
-    expect(dockerfile.existsSync(), isTrue, reason: dockerfile.absolute.path);
-    expect(ci.existsSync(), isTrue, reason: ci.absolute.path);
+    for (final f in [dockerfile, ci, deploy, checker]) {
+      expect(f.existsSync(), isTrue, reason: f.absolute.path);
+    }
   });
+
+  int compare(List<int> a, List<int> b) {
+    for (var i = 0; i < 3; i++) {
+      final c = a[i].compareTo(b[i]);
+      if (c != 0) return c;
+    }
+    return 0;
+  }
+
+  List<int> parts(String v) => v.split('.').map(int.parse).toList();
+
+  /// `FLOOR="X.Y.Z"` in the checker, read from a line that is not a comment.
+  String scriptFloor() {
+    final floors = [
+      for (final line in checker.readAsLinesSync())
+        if (!line.trimLeft().startsWith('#'))
+          RegExp(r'^FLOOR="(\d+\.\d+\.\d+)"$').firstMatch(line.trim())?[1],
+    ].whereType<String>().toList();
+    expect(
+      floors,
+      hasLength(1),
+      reason: 'one FLOOR="X.Y.Z" in ${checker.path}',
+    );
+    return floors.single;
+  }
 
   /// The Dockerfile's instructions, comments removed and `\` continuations
   /// joined. Docker treats only a line whose first non-blank character is `#`
@@ -110,19 +143,79 @@ void main() {
       );
     });
 
-    test('at or above the TLS advisory floor', () {
-      final v = pinnedVersion().split('.').map(int.parse).toList();
-      var cmp = 0;
-      for (var i = 0; i < 3 && cmp == 0; i++) {
-        cmp = v[i].compareTo(advisoryFloor[i]);
-      }
+    test('the floor itself never drops below this advisory', () {
       expect(
-        cmp,
+        compare(parts(scriptFloor()), advisoryMinimum),
         greaterThanOrEqualTo(0),
         reason:
-            'Dart ${pinnedVersion()} is below ${advisoryFloor.join('.')}, the '
-            'first SDK that blocks the compromised eMudhra intermediates '
-            '($advisory).',
+            'FLOOR=${scriptFloor()} in ${checker.path} is below '
+            '${advisoryMinimum.join('.')}, the first SDK that blocks the '
+            'compromised eMudhra intermediates ($advisory).',
+      );
+    });
+
+    test('at or above the floor', () {
+      expect(
+        compare(parts(pinnedVersion()), parts(scriptFloor())),
+        greaterThanOrEqualTo(0),
+        reason:
+            'Dart ${pinnedVersion()} is below the floor ${scriptFloor()} '
+            '($advisory): its TLS verifier trusts the compromised eMudhra '
+            'intermediates.',
+      );
+    });
+  });
+
+  group('the deploy reads the SDK out of the built image', () {
+    final steps =
+        (((loadYaml(deploy.readAsStringSync()) as YamlMap)['jobs']
+                    as YamlMap)['deploy']
+                as YamlMap)['steps']
+            as YamlList;
+
+    String runOf(Object? step) => (((step as YamlMap)['run'] as String?) ?? '')
+        .split('\n')
+        .where((l) => !l.trimLeft().startsWith('#'))
+        .join('\n');
+
+    int indexWhere(bool Function(YamlMap) test, String what) {
+      final hits = [
+        for (var i = 0; i < steps.length; i++)
+          if (test(steps[i] as YamlMap)) i,
+      ];
+      expect(hits, hasLength(1), reason: 'exactly one step that $what');
+      return hits.single;
+    }
+
+    test('between the build and the deploy, on every path', () {
+      final build = indexWhere((s) => s['id'] == 'build', 'has id: build');
+      final check = indexWhere(
+        (s) =>
+            runOf(s).contains('bash .github/scripts/verify-image-dart-sdk.sh'),
+        'runs verify-image-dart-sdk.sh',
+      );
+      final replace = indexWhere(
+        (s) => runOf(s).contains('gcloud run services replace'),
+        'replaces the service',
+      );
+      expect(build, lessThan(check), reason: 'it reads what the build made');
+      expect(
+        check,
+        lessThan(replace),
+        reason: 'a check after the deploy reports what is already serving',
+      );
+      final step = steps[check] as YamlMap;
+      expect(
+        step.containsKey('if'),
+        isFalse,
+        reason:
+            'no `if:` — a promotion (image_tag) builds nothing, and this is '
+            'its only SDK check',
+      );
+      expect(
+        (step['env'] as YamlMap?)?['IMAGE_REF'],
+        r'${{ steps.build.outputs.image }}',
+        reason: 'it must read the digest the deploy will use',
       );
     });
   });

@@ -18,7 +18,9 @@
 #
 # The version must equal `sdk:` in .github/workflows/ci.yml (both backend jobs),
 # so the tests run on the compiler that ships, and must not go below the
-# advisory floor: test/infra/dart_sdk_pin_test.dart fails the PR otherwise. To
+# advisory floor: test/infra/dart_sdk_pin_test.dart fails the PR otherwise. The
+# tag is for humans, and Docker builds the digest, so the deploy also reads the
+# SDK out of the built binary (.github/scripts/verify-image-dart-sdk.sh). To
 # bump, change the tag, the digest and ci.yml together.
 # Design: docs/design/backend-dart-sdk-pin.md
 FROM dart:3.13.7@sha256:854f3c50b1cbd4a5a54c9fa67d4f5b6702ac49b4a26d21a80e7712a72528b215 AS build

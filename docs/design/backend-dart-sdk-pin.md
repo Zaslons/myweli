@@ -8,7 +8,7 @@
 | **PRD ref / phase** | Security, cross-cutting · V1 |
 | **ROADMAP entry** | [2026-11-10-backend-dart-sdk-pin.md](../roadmap/entries/2026-11-10-backend-dart-sdk-pin.md) |
 | **Skills checked** | myweli-backend-guardrails · myweli-verification-guardrails |
-| **Governs** | `backend/Dockerfile` · `.github/workflows/ci.yml` (both backend jobs) · `.github/dependabot.yml` · `backend/test/infra/dart_sdk_pin_test.dart` |
+| **Governs** | `backend/Dockerfile` · `.github/workflows/ci.yml` (both backend jobs) · `.github/workflows/deploy-backend.yml` (the image check) · `.github/scripts/verify-image-dart-sdk.sh` · `.github/dependabot.yml` · `backend/test/infra/dart_sdk_pin_test.dart` |
 
 Every claim below is marked **read** (observed, with how) or **inferred** (and
 from what). Nothing here was changed in the cloud. The investigation was
@@ -18,19 +18,23 @@ read-only, on 2026-11-10.
 
 **Goal.** The server is built by an SDK that cannot fall below the first
 release that blocks the compromised eMudhra intermediates. CI tests on that
-same SDK. A build that drifts from either rule fails a PR.
+same SDK. A build that drifts from either rule fails a PR. And nothing reaches
+Cloud Run through the deploy workflow without its binary having been read as at
+or above the floor.
 
 **In scope.**
 - Pin `backend/Dockerfile` to `dart:3.13.7@sha256:854f3c50…` and
   `dart_frog_cli 1.2.14`.
 - Move CI's backend jobs from 3.10.7 to 3.13.7.
-- A guard test, a Dependabot `docker` entry, and a rollback floor in
+- A guard test; a deploy step that reads the SDK out of the built image
+  (§8); a Dependabot `docker` entry; a rollback floor in
   [infra-rollback.md](infra-rollback.md).
 - The one defect 3.13.7's analyzer found (§6.2).
 
 **Out of scope, named in §11.** The Android apps (Flutter < 3.47.8 is
 affected). Removing eMudhra roots from the image's bundle. A monitor that reads
-the serving binary's SDK every day.
+the serving binary's SDK every day. Rehearsing the first OCI-index image on
+Cloud Run.
 
 ## 2. The advisory, read
 
@@ -250,25 +254,54 @@ attacker presents a forged certificate for Apple, Google, FCM, R2, Resend or
 Sentry. With it they can read or alter sign-in keys, push tokens, uploads and
 e-mail.
 
-`backend/test/infra/dart_sdk_pin_test.dart` parses the Dockerfile with
-comment lines stripped, as Docker reads it, and parses ci.yml as YAML. It
-enforces three rules:
+**Two guards, because the first one reads a tag and Docker builds a digest.**
+
+`backend/test/infra/dart_sdk_pin_test.dart` (on every PR) parses the
+Dockerfile with comment lines stripped, as Docker reads it, and parses the
+workflows as YAML. It enforces four rules:
 
 1. the single `FROM dart…` stage is `dart:X.Y.Z@sha256:<64 hex>`;
-2. `X.Y.Z ≥ 3.13.7`;
+2. `X.Y.Z ≥ FLOOR`. The floor lives in one place, `FLOOR=` in
+   `.github/scripts/verify-image-dart-sdk.sh`, and the floor itself may never
+   be below 3.13.7;
 3. every job whose `working-directory` is `backend` sets up exactly `X.Y.Z`,
    and `dart_frog_cli` is pinned in the image and equal to CI's. Both backend
-   jobs must exist, so the comparison cannot pass over an empty set.
+   jobs must exist, so the comparison cannot pass over an empty set;
+4. the deploy workflow runs the image check after `id: build` and before
+   `gcloud run services replace`, with no `if:`, on
+   `steps.build.outputs.image`.
 
-**Which event turns it red** (verification §15): a downgrade, a channel tag, a
-missing digest, an unpinned CLI, or one file bumped without the other. All of
-these are defects. Bumping both files together is the repair, and it stays
-green.
+**The blind spot of rules 1–2** (verification §12): `dart:3.13.7@sha256:<a
+3.13.6 digest>` satisfies both, and builds 3.13.6. Only the built bytes can
+see that. **`.github/scripts/verify-image-dart-sdk.sh`** (on every deploy run)
+works read-only. It fetches the image's manifest (an OCI index is resolved to
+its `linux/amd64` entry), streams the last layer, which is `/app/bin/server`,
+and greps the VM's version string. It refuses anything that is not
+`Dart X.Y.Z (stable)` with `X.Y.Z ≥ FLOOR`. It fails closed: an unreadable
+manifest, layer or version is a refusal. A promotion (`image_tag`) builds
+nothing, so this is its only SDK check, and it is what turns the rollback floor
+into a mechanism for [infra-rollback.md](infra-rollback.md) §4.3. A §4.1
+traffic pin still bypasses it.
+
+**It was run locally, read-only, against real images.** Results:
+`4e78e48` (production, plain Docker manifest) passed at 3.13.7.
+`eca4db6` (`00046`) was refused at 3.13.6. `45a5d0f` (the next promotion
+candidate, an **OCI index**) passed at 3.13.7. A bare tag, and a digest that
+does not exist, both failed closed. The first draft accepted image manifests
+only, and would have failed closed on **every** new build: the index case was
+found by running it against the newest image, not by reading it.
+
+**Which event turns them red** (verification §15): a downgrade, a channel tag,
+a missing digest, an unpinned CLI, one file bumped without the other, a floor
+lowered under 3.13.7, the check moved after the deploy or made conditional, or
+a built binary below the floor. All of these are defects. Bumping the
+Dockerfile and ci.yml together is the repair, and it stays green.
 
 ## 9. Testing — what was run
 
-- `dart_sdk_pin_test`: 7 green. **Mutations watched red** are listed in the
+- `dart_sdk_pin_test`: 9 green. **Mutations watched red** are listed in the
   commit message.
+- `verify-image-dart-sdk.sh`: five real cases, read-only (§8).
 - `messaging_test`: the new test red on the unfixed code, then 8/8 green.
 - Whole backend on **3.13.7**: format clean (433 files), analyze 0 issues,
   `dart test` 2073 passed and 10 skipped. The 10 are the Postgres-backed tests,
@@ -282,8 +315,10 @@ green.
 ## 10. Rollout
 
 - **Merging deploys nothing.** `infra/gcp/staging.state` reads `absent`, so
-  the push run builds and pushes an image and runs the pin checks, and that is
-  all. That run is also the first real build of the pinned Dockerfile.
+  the push run builds and pushes an image and runs the pin checks, now
+  including the image SDK check, and that is all. That run is also the first
+  real build of the pinned Dockerfile, and the first time the new step runs
+  with the deployer's credentials. Locally it ran with the owner's.
 - **Production needs no redeploy for this advisory.** It already serves
   3.13.7 (§3.1). Promoting the next image is a routine release, and per the
   standing rule it waits for the owner's yes.
@@ -295,8 +330,16 @@ green.
    `dart:io` traffic on Android is affected; iOS and web are not.
 2. **Drop the emSign roots from the image's bundle?** §4 gives the case for
    and against. Owner's call.
-3. **A monitor for the serving SDK.** The rollback floor is a sentence
-   (verification §9). A daily check could run §3.2 against the serving digest
-   and fail below the floor. It needs Artifact Registry read access for the
-   checks' service account, which is a cloud IAM change and the owner's to
-   make.
+3. **A monitor for the serving SDK.** For a §4.1 traffic pin the rollback
+   floor is still a sentence (verification §9). A daily check could run
+   `verify-image-dart-sdk.sh` against `status.traffic`'s digest. It needs
+   Artifact Registry read access for the checks' service account, which is a
+   cloud IAM change and the owner's to make.
+4. **The next promotion ships an image format production has never run.**
+   Merge builds since `ubuntu-latest` moved to 26.04 push an **OCI image
+   index** (the amd64 image plus a BuildKit attestation manifest); `4e78e48`,
+   which is serving, is a plain Docker v2 manifest. Cloud Run is expected to
+   resolve the index to its `linux/amd64` entry. **Unverified**: staging is
+   absent, so nothing has rehearsed it. The first production promotion of
+   `45a5d0f` or later is that rehearsal, unless the deploy job pins
+   `runs-on: ubuntu-24.04` or builds with `--provenance=false`. Owner's call.

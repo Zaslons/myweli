@@ -486,6 +486,24 @@ jobs:
           ENVIRONMENT: ${{ github.event.inputs.environment || 'staging' }}
           IMAGE_TAG: ${{ github.event.inputs.image_tag }}
 
+      # **The image's own Dart SDK, read from its bytes, before anything
+      # deploys.** The SDK compiled into /app/bin/server is the TLS verifier for
+      # every outbound call, and Dart < 3.13.7 trusts eight compromised eMudhra
+      # intermediates (GHSA-frr6-h895-5pxp). dart_sdk_pin_test checks what the
+      # Dockerfile SAYS. This checks what was BUILT, because the tag beside a
+      # digest is decoration. It is also the only check on a promotion
+      # (`image_tag`), which builds nothing: promoting a tag from before the
+      # floor is refused here.
+      #
+      # No `if:`, on purpose. It runs on staging-absent merges too, so a bad
+      # base is reported at the merge, not at the next production dispatch.
+      # Read-only: one layer is streamed, nothing is written to the registry.
+      # Design: docs/design/backend-dart-sdk-pin.md §8.
+      - name: The image's Dart SDK is at or above the TLS floor
+        run: bash .github/scripts/verify-image-dart-sdk.sh "${IMAGE_REF}"
+        env:
+          IMAGE_REF: ${{ steps.build.outputs.image }}
+
       # **Refuse to deploy a manifest whose pins are wrong.**
       #
       # Every secretKeyRef is pinned to a version number rather than `latest`,

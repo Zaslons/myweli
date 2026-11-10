@@ -54,9 +54,11 @@ older, since those revisions predate 3.13.7's release. `00047-55v` (image
 `a0ee1cd`) is the oldest revision read as **3.13.7**. The same floor applies to
 §4.3: an image tag built before `a0ee1cd` must not be promoted until its SDK has
 been read. [backend-dart-sdk-pin.md](backend-dart-sdk-pin.md) §3.2 has the
-read-only command. This is a sentence, not a mechanism. The control is that new
-builds cannot go below the floor (`dart_sdk_pin_test`); a hand pin to an old
-revision is still possible.
+read-only command. For §4.3 this is a **mechanism**: the deploy workflow reads
+the SDK out of every image it is about to deploy, promotions included, and
+refuses anything below the floor (`verify-image-dart-sdk.sh`). For the §4.1
+traffic pin it is only this sentence. A `gcloud run services update-traffic`
+to `00046-bzg` or older still works, and nothing stops it.
 
 ---
 
