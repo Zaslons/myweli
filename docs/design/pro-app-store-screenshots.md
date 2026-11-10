@@ -19,7 +19,8 @@ from.
 
 *(2026-10-13: the owner now wants an App Preview shown before these frames — proposed in [pro-app-preview.md](pro-app-preview.md), awaiting sign-off. 2026-10-14: chosen and uploaded. 2026-11-03: Apple refused its frame under 2.3.4; a full-bleed cut replaces it, in both slots since that night. These stills keep their frame: 2.3.3 allows it, and 2.3.4 concerns previews.)*
 Out of scope: an App Preview video, an iPad set, other locales (the app is
-French only and sold in Côte d'Ivoire only).
+French only and was set for Côte d'Ivoire only until 2026-11-10, its
+release day; since then, every country possible: BACKLOG decision 108).
 
 ## 2. What Apple requires (checked 2026-10-12)
 

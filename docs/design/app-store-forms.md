@@ -32,7 +32,7 @@ code est corrigé (§1) ; **il faut reconstruire** (§11). Ce qui reste bloquant
 | 3 | ~~**Fiche App Store Connect non vérifiée.** Le profil « iOS Team Store Provisioning Profile: com.myweli.pro » prouve que l'App ID existe dans le portail développeur, pas que la fiche App Store Connect existe. Rien dans le dépôt ne l'atteste ; sans fiche, l'envoi est refusé.~~ **Levé le 2026-10-05** : la fiche « MyWeli Pro » existe, relue en lecture seule dans App Store Connect (navigateur du propriétaire) — Apple ID **6805272779**, SKU `myweli-pro`, bundle `com.myweli.pro`, langue principale français, version iOS 1.0 « Prepare for Submission », aucun build dans TestFlight. Encore vides : catégorie, sous-titre, droits sur le contenu (§3). | owner | Fait. Reste à remplir les champs (§3, §4, §5, §9). |
 | 4 | ~~**Salon démo en production non vérifié.** Le propriétaire a curé « Salon Démo MyWeli » vers le 2026-08-26/27, sans que l'environnement (staging ou prod) ni la capture du snapshot en prod soient consignés ; le logo réel doit encore être téléversé **puis le snapshot recapturé** (sinon la remise à zéro de 7 jours l'annule). | owner | Une fois la prod revenue, **avant que quoi que ce soit ne touche la base staging** : se connecter en démo, vérifier, logo, `POST /admin/demo/snapshot`, consigner date + environnement dans [backend-demo-review-account.md](backend-demo-review-account.md) §9.~~ **Levé le 2026-10-11** : le salon démo vit en **production** ; renommé **« Maison Nala »**, logo réel téléversé et snapshot recapturé par le propriétaire (journal prod : connexion démo depuis l'iPhone 10:29 UTC, téléversement + deux `PATCH /providers/provider_1787778426683705` 10:29–10:30, `POST /admin/demo/snapshot` **200** à 10:37) ; la connexion démo marche sur le build TestFlight 555. Détail : [backend-demo-review-account.md](backend-demo-review-account.md) §9. |
 | 5 | ~~**Décision 3.1.1 ouverte** : le sélecteur d'offre et les incitations à choisir une offre sont encore dans l'app iOS (§2).~~ **Décidé le 2026-10-05** : voie (a) — app compagnon gratuite (3.1.3(f)) — sur **les deux** apps, iOS et Android, sans branche de plateforme (§2.4). Construite selon [pro-companion-path.md](pro-companion-path.md) le 2026-10-05 sur `feat/pro-companion-path` (backend, mobile, docs). La ligne SUBSCRIPTION des notes est en place (§8). **Fusionnée** (#551) **et en production** ; le build 587 la porte. | code + déploiement | La PR fusionnée ; le backend qui démarre l'essai à la première mise en ligne **déployé en production avant la soumission** : depuis « Accueil », le relecteur peut ouvrir « Configurer mon profil » et mettre son compte neuf en ligne. Sans ce backend, il lirait « …l’offre de votre salon n’est plus active. » pour une offre qui n'a jamais existé (spec §9.4). Feu vert du propriétaire pour la production. |
-| 6 | **Deux avis dans App Store Connect** (relevés le 2026-10-05). **Classification : faite le 2026-10-06** (4+, nouvelles questions répondues, §6). **Statut de professionnel UE : déclaré le 2026-10-06** (option 1, coordonnées vérifiées par code, certificat de résidence téléversé — « In Review » chez Apple, §9.1). Prix (gratuit), disponibilité (Côte d'Ivoire seule) et exclusion Mac / Vision Pro faits le même jour (§9). | Apple | Attendre la décision d'Apple sur la déclaration DSA (Business → Compliance) ; répondre à toute demande de pièce. *(2026-10-22 : l'issue ne se lit que dans App Store Connect — relue au lot 10.)* |
+| 6 | **Deux avis dans App Store Connect** (relevés le 2026-10-05). **Classification : faite le 2026-10-06** (4+, nouvelles questions répondues, §6). **Statut de professionnel UE : déclaré le 2026-10-06** (option 1, coordonnées vérifiées par code, certificat de résidence téléversé — « In Review » chez Apple, §9.1). Prix (gratuit), disponibilité (Côte d'Ivoire seule) et exclusion Mac / Vision Pro faits le même jour (§9) ; disponibilité étendue à tous les pays possibles le 2026-11-10 (décision 108). | Apple | Attendre la décision d'Apple sur la déclaration DSA (Business → Compliance) ; répondre à toute demande de pièce. *2026-11-10, rapporté par le propriétaire :* la demande de pièce (une preuve de nom et d'adresse) est arrivée début octobre ; réponse le 2026-11-10, en attente d'un nouveau lien de téléversement (§9.1). *(2026-10-22 : l'issue ne se lit que dans App Store Connect — relue au lot 10.)* |
 
 **Décision du propriétaire, 2026-09-24** : l'app Pro part **d'abord sur l'App
 Store d'Apple** — TestFlight et la revue maintenant ; la **publication
@@ -165,6 +165,7 @@ exceptions, vérifiées une à une par l'audit :
 | **3.1.3(f) app compagnon gratuite d'un outil web payant** | **Oui, à condition** qu'il n'y ait « no purchasing inside the app, or calls to action for purchase outside of the app ». *Lecture du 2026-10-05, trop large : voir la note du 2026-11-03 ci-dessous.* |
 | 3.1.3(b) multiplateforme | Non : exige que les mêmes offres soient aussi vendues en achat intégré. |
 | 3.1.3(c) entreprise | Non : les salons s'inscrivent eux-mêmes, rien n'est vendu à une organisation pour ses employés. |
+| Exception de lien du storefront US | Non : ne couvre pas la Côte d'Ivoire, et un binaire est relu pour tous les storefronts. *(2026-11-10, décision 108 : l'app est aussi sur le storefront US ; l'exception ne couvre toujours que lui, et le même binaire sert tous les autres.)* |
 
 > **2026-10-26 — ce que la revue a tranché en plus.** Apple a refusé la
 > 0.0.1 sous **3.1.1** : l'inscription d'une entreprise **dans l'app** est un
@@ -188,7 +189,6 @@ exceptions, vérifiées une à une par l'audit :
 > conteste : masquer « Mon abonnement » ou ouvrir l'achat intégré (§2.4 (b)), une
 > décision du propriétaire, à prendre à ce moment-là
 > ([app-review-round-2.md](app-review-round-2.md) §13).
-| Exception de lien du storefront US | Non : ne couvre pas la Côte d'Ivoire, et un binaire est relu pour tous les storefronts. |
 
 La question métier était ouverte depuis le début ([PRD.md](../PRD.md) OQ-3) ;
 **tranchée le 2026-10-05** par le propriétaire : voie (a), sur les deux apps
@@ -471,6 +471,14 @@ politique de confidentialité ne fixent aucun âge minimum — vérifié dans
 qu'Apple impose de refléter sinon) ; « Age Suitability URL » vide.
 **Résultat : 4+** dans 172 pays ou régions, avec les équivalents locaux
 Brésil « A6 », Corée « ALL », Vietnam « 00+ ».
+
+*2026-11-10 :* deux nouveaux descripteurs d'Apple, « Shared Location » et
+« Dating and Relationships », s'affichent dans le questionnaire à partir du
+2026-11-16 et doivent être déclarés avant le 2027-01-12 ; toute mise à jour
+soumise à partir du 2026-11-16, 0.0.2 comprise, y répond à la soumission
+([annonce d'Apple](https://developer.apple.com/news/?id=yxkh08us)). Ce
+tableau n'a pas encore leurs réponses : c'est le STOP ci-dessus (BACKLOG,
+décision 108).
 
 ---
 
@@ -821,7 +829,7 @@ reste celui de B0.6 : masquer le KYC et les acomptes sur iOS si Apple le cite.*
 | **Conformité export** | **déjà répondue par le binaire** : `ITSAppUsesNonExemptEncryption = false` (`Info.plist`, présent dans l'IPA) | HTTPS/TLS du système uniquement, plus un SHA-256 pour le nonce Apple ; App Store Connect ne pose pas la question à l'envoi ; aucune déclaration de chiffrement française à fournir |
 | **Droits sur le contenu** | « **Oui**, l'app contient, affiche ou accède à du contenu tiers, **et j'ai les droits nécessaires** » — **relu par l'API le 2026-10-28** (`USES_THIRD_PARTY_CONTENT`) | contenu publié par les salons et les clients sous les CGU (`/cgu`) ; tuiles de carte OSM/CARTO avec attribution |
 | **Prix** | **Gratuit** — **fait le 2026-10-06** (pays de base États-Unis, 0,00 $, 175 pays) ; **relu par l'API le 2026-10-28** (prix manuel 0,0 aux États-Unis) | aucun achat intégré (aucune dépendance StoreKit) |
-| **Disponibilité** | **Côte d'Ivoire uniquement** — **fait le 2026-10-06** (« Available on App Release », tous les autres pays « Not Available ») ; **relu par l'API le 2026-10-28** : la CIV seule `available` (`AVAILABLE_FOR_SALE_UNRELEASED_APP`), les 174 autres non | le périmètre réel : l'arbre des localités et le catalogue Mobile Money ne contiennent que la Côte d'Ivoire, donc un salon d'un autre pays ne peut pas choisir sa localité ni être publié ; le storefront CIV a le français par défaut, donc une fiche en français seul convient. **Ajouter un pays = un réglage ici, sans build ni revue**, une fois ses données saisies (vague 1 de [modules/multi-pays.md](../modules/multi-pays.md) : Sénégal, Mali, Burkina Faso, Togo) ; en retirer un après la sortie prive ses salons de l'app — d'où l'ordre « d'abord la CI » (décision du propriétaire, 2026-10-06). Les testeurs TestFlight ne sont pas concernés. |
+| **Disponibilité** | **Tous les pays possibles — décision 108 du propriétaire, le 2026-11-10**, réglée par lui dans App Store Connect après la sortie de 0.0.1 ; elle remplace « Côte d'Ivoire uniquement » (fait le 2026-10-06, relu par l'API le 2026-10-28 : la CIV seule `available`, les 174 autres non) et l'ordre « d'abord la CI » (décision du propriétaire, 2026-10-06). **Lu ici le 2026-11-10 vers 16 h 50 UTC, recherche publique d'Apple seulement** (`itunes.apple.com/lookup?id=6805272779&country=…`) : la version 0.0.1 est renvoyée sur `ci`, `us`, `gb`, `ca`, `sn`, `cm`, `ng`, `gh`, `ke`, `za`, `ma`, `tn`, `ae`, `br`, `jp`, `ru` et `cn` ; rien sur `fr` ni `de`. App Store Connect lui-même n'a pas été lu ici. **L'UE** (27 storefronts) n'apparaît qu'une fois le statut de professionnel vérifié (§9.1) ; c'est la raison la plus probable du vide sur `fr` et `de` : le 2026-10-28, l'API montrait déjà `TRADER_STATUS_NOT_PROVIDED` sur ces 27 pays (BACKLOG, lot 10), et, relue à 21 h 18 UTC, la recherche ne renvoie rien sur `fr`, `de` ni `it`, mais renvoie 0.0.1 sur `no`, `is` et `ch`, ce qui correspond à une porte propre à l'UE comme le DSA (INFERRED ; App Store Connect non lu). **La Chine** : la recherche renvoie l'app sur `cn`, et `apps.apple.com/cn/app/myweli-pro/id6805272779` répond 200 ; selon l'aide d'Apple, le MIIT exige un numéro de dépôt ICP pour *certaines* apps, et sans numéro l'app porte le statut « ICP Filing Number Missing » (« ICP Filing Number Invalid » s'il ne correspond pas au dépôt du MIIT) et n'est pas disponible en Chine continentale, ce numéro partant en revue avec la version suivante ; que MyWeli Pro en ait besoin, et qu'un téléchargement réel y soit possible, n'a pas été vérifié (UNVERIFIED). **Le Togo** n'a pas de storefront App Store, bien qu'il soit dans la vague 1 de [multi-pays](../modules/multi-pays.md). | L'ancien motif ne tient plus, et deux de ses phrases sont corrigées le 2026-11-10. **D'après le code**, « un salon d'un autre pays ne peut pas choisir sa localité ni être publié » n'est vrai qu'à moitié : il ne peut toujours pas choisir sa propre localité (l'arbre ne contient que 11 localités, toutes sous Abidjan : ses dix communes et Bingerville), **mais il peut aujourd'hui être publié sur le site**, en choisissant l'une d'elles. La zone est facultative à l'inscription (`backend/routes/auth/provider/register.dart`, `web/components/pro/ProRegisterClient.tsx`) ; un salon inscrit sans zone est créé « Abidjan / CI / XOF » (`backend/lib/src/providers_repository.dart`) ; un numéro de n'importe quel pays est accepté (l'API ne vérifie que sa forme internationale, plus 10 chiffres pour le +225 ; le site y ajoute le contrôle de longueur possible de libphonenumber) ; et rien dans la publication ne regarde le pays : côté lieu, elle ne vérifie qu'une de ces localités et une épingle n'importe où, le reste de la porte (description, adresse, 3 services, 3 photos, horaires, une offre en cours ou un premier essai) ne dit rien du lieu (`salon_provisioning_service.dart`, `provider_catalog_service.dart`). Un tel salon apparaît donc à Abidjan, à l'heure d'Abidjan et en FCFA. Une vraie garde est une modification du code, avec sa spec d'abord (BACKLOG, décision 108). **D'après l'aide d'Apple** (« Manage availability for your app on the App Store »), « en retirer un après la sortie prive ses salons de l'app » exagère : retirer un pays retire l'app de ce storefront, mais ceux qui l'y ont déjà téléchargée continuent de recevoir ses mises à jour et peuvent la retélécharger depuis leurs achats, tant que le contrat requis avec Apple reste actif ; un nouvel employé avec un compte Apple de ce pays ne pourrait plus l'installer. Toujours vrai : changer la liste ne demande ni build ni revue ; le storefront CIV a le français par défaut. Les testeurs TestFlight ne sont pas concernés. |
 | **Apps iPhone et iPad sur Mac (Apple silicon)** | **décoché le 2026-10-06** | jamais testé ; le profil rend l'app éligible par défaut |
 | **Apple Vision Pro** | **décoché le 2026-10-06** | idem (le profil liste iOS, xrOS, visionOS) |
 | **Publication de la version** | **« Publier manuellement cette version »** | l'approbation ne doit pas publier : la sortie publique attend la production rétablie et stable (§0) |
@@ -839,7 +847,10 @@ nouvelles apps **distribuées dans l'UE**. Deux options :
    seraient les coordonnées du propriétaire (INFERRED).
 2. **Ne pas distribuer dans l'UE** : garder les storefronts UE exclus dans
    *Tarifs et disponibilité* — ce que la ligne « Disponibilité » ci-dessus
-   prévoit déjà (Côte d'Ivoire uniquement).
+   prévoyait (Côte d'Ivoire uniquement) jusqu'à la décision 108 du
+   2026-11-10 (tous les pays possibles) ; depuis, l'UE reste absente de la
+   recherche publique, très probablement tant que le statut n'est pas vérifié
+   (INFERRED ; App Store Connect non lu, §9).
 
 **Décision du propriétaire, 2026-10-06 : l'option 1, professionnel.** La
 réponse vaut pour **tout le compte développeur** (les deux apps). Saisi le
@@ -852,6 +863,12 @@ par le propriétaire le 2026-10-06 (un certificat de résidence). **Constaté le
 même jour dans Business → Compliance : « Digital Services Act », 27 pays ou
 régions, « In Review »**, et le bandeau rouge a disparu. Reste la décision
 d'Apple ; une demande de pièce complémentaire arriverait par e-mail.
+
+*2026-11-10, rapporté par le propriétaire :* cette demande est arrivée début
+octobre (une preuve de nom et d'adresse, à téléverser par un lien sécurisé) ; le
+propriétaire a répondu le 2026-11-10 et attend un nouveau lien, l'ancien ayant
+expiré. Depuis la décision 108, c'est très probablement ce qui tient l'UE hors des
+storefronts (INFERRED : voir §9, « Disponibilité »).
 
 ---
 
@@ -1788,7 +1805,10 @@ on renvoie. Rien n'est soumis sur un build non vérifié.
    `fr` ne renvoie rien (le témoin : une seule boutique) ;
    `apps.apple.com/ci/app/id6805272779` répond 200, « MyWeli Pro ».
    L'approbation elle-même n'a pas été lue ici. Le point 1 (`updateUrl`)
-   a été fait le même jour (BACKLOG B0.5).
+   a été fait le même jour (BACKLOG B0.5). *Plus tard le même jour :* le
+   propriétaire a ouvert tous les pays possibles (décision 108, §9) ; la
+   recherche publique renvoie alors l'app aussi sur `us`, `gb`, `sn`, `ng`
+   et d'autres, toujours rien sur `fr`.
 
 ---
 
@@ -1870,7 +1890,8 @@ numéros).*
 14. [x] **Symboles Sentry** (§12.2). *Dart et natifs, builds 555, 560, 565, 569, 577, 579, 581, 587 et 698 ; 719 : symboles envoyés, 6 identifiants sur 6 relus (§12).*
 15. [x] **Captures** sur le salon démo — *8 captures légendées, 1206 × 2622 (obligatoire) et 1320 × 2868, faites le 2026-10-13 ([pro-app-store-screenshots.md](pro-app-store-screenshots.md)) ; **validées par le propriétaire et téléversées le 2026-10-13** — 16 images, traitées, dans l'ordre (§13.1).*
 16. [x] **Remplir App Store Connect** : informations sur l'app (§3, §5, §6,
-       §9), tarifs et disponibilité — Côte d'Ivoire seule, Mac et Vision Pro
+       §9), tarifs et disponibilité — Côte d'Ivoire seule (tous les pays possibles
+       depuis le 2026-11-10, décision 108), Mac et Vision Pro
        décochés (§9), confidentialité (§7), page 0.0.1 — captures, texte
        promotionnel, description, mots-clés, URL, copyright, **build**,
        publication **manuelle** (§4, §9, §10), informations pour la revue avec
@@ -1961,7 +1982,7 @@ Le relevé du 2026-11-04 est à la ligne « Soumettre pour la revue ».*
 | Catégories | vides | Business, puis Productivity | — |
 | Droits sur le contenu | vide | **vide** | **propriétaire** — c'est une déclaration (§9) |
 | Classification d'âge | remplie, 4+ | inchangée | — |
-| Prix, disponibilité | gratuit, Côte d'Ivoire seule | inchangés | à relire dans le site : l'API affiche `CANNOT_SELL` sur les 175 pays, sens inconnu avant une première sortie |
+| Prix, disponibilité | gratuit, Côte d'Ivoire seule | inchangés | ~~à relire dans le site : l'API affiche `CANNOT_SELL` sur les 175 pays, sens inconnu avant une première sortie~~ *2026-10-28 :* relu par l'API (BACKLOG, lot 10) ; *2026-11-10 :* tous les pays possibles (décision 108, §9) |
 | Confidentialité de l'app (l'étiquette) | illisible par l'API | **illisible par l'API** — **relue dans le site le 2026-10-28 : identique au §7**, publiée le 2026-10-14 | — |
 | Captures 1206 × 2622 et 1320 × 2868 | aucun jeu | **8 + 8**, toutes `COMPLETE`, dans l'ordre 01 → 08 ; dimensions, taille et somme MD5 de chaque fichier comparées aux fichiers validés | — |
 | Texte promotionnel, description, mots-clés | vides | ceux du §4 (144, 996 et 99 caractères — 100 octets pour les mots-clés) | *2026-11-03 :* ~~la description est à remplacer~~ **la description est remplacée** par celle du §4 (1 039 caractères, corrigée par la décision 79), en fr-FR, relue à l'identique. Inchangés : mots-clés, texte promotionnel, URL d'assistance, URL marketing (vide), langue |
