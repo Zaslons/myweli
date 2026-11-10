@@ -41,7 +41,8 @@ import {
   validateArtist,
   validateService,
 } from '../../lib/pro/catalogue';
-import { uploadGalleryImage } from '../../lib/pro/upload';
+import { uploadFailureMessage, uploadGalleryImage } from '../../lib/pro/upload';
+import { useFocusBackAfter, useLeaveSignal } from '../../lib/pro/upload-hooks';
 import { focusOnMount } from '../../lib/focusOnMount';
 import { Button } from '../Button';
 import { SkeletonRows } from '../Skeleton';
@@ -523,8 +524,16 @@ function ArtistFormCard({
   const [busy, setBusy] = useState(false);
   const [uploading, setUploading] = useState(false);
   const photoRef = useRef<HTMLInputElement>(null);
+  const photoButtonRef = useRef<HTMLButtonElement>(null);
+  // The photo's own message, under its button (§2.3): the form's `err` sits
+  // after the hours, below the fold on a small screen at doubled text.
+  const [photoErr, setPhotoErr] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  // Closing the form stops an upload in progress (§2.4); the button that was
+  // disabled while it worked gets the focus back (§2.7).
+  const leaving = useLeaveSignal();
+  useFocusBackAfter(uploading, photoButtonRef);
 
   async function save() {
     const v = validateArtist(form);
@@ -586,7 +595,10 @@ function ArtistFormCard({
               <button
                 type="button"
                 aria-label="Retirer la photo"
-                onClick={() => setForm((f) => ({ ...f, imageUrl: null }))}
+                onClick={() => {
+                  setForm((f) => ({ ...f, imageUrl: null }));
+                  setPhotoErr(null);
+                }}
                 className="absolute -right-s -top-s flex h-12 w-12 items-center justify-center"
               >
                 <span className="rounded-pill bg-primary px-xs text-iconXS text-secondary">
@@ -606,14 +618,20 @@ function ArtistFormCard({
               e.target.value = '';
               if (!file) return;
               setUploading(true);
-              setErr(null);
-              const url = await uploadGalleryImage(file);
+              setPhotoErr(null);
+              // Prepared as the app does (web-pro-upload-resize.md).
+              const signal = leaving();
+              const upload = await uploadGalleryImage(file, { signal });
+              if (signal.aborted) return; // the form was closed
               setUploading(false);
-              if (!url) return setErr('Échec de l’envoi de la photo.');
-              setForm((f) => ({ ...f, imageUrl: url }));
+              if (!upload.ok) {
+                return setPhotoErr(uploadFailureMessage(upload.reason, 'Échec de l’envoi de la photo.'));
+              }
+              setForm((f) => ({ ...f, imageUrl: upload.url }));
             }}
           />
           <Button
+            ref={photoButtonRef}
             variant="secondary"
             isLoading={uploading}
             onClick={() => photoRef.current?.click()}
@@ -621,6 +639,11 @@ function ArtistFormCard({
             {form.imageUrl ? 'Changer la photo' : 'Ajouter une photo'}
           </Button>
         </div>
+        {photoErr ? (
+          <p role="alert" className="text-bodyMedium text-error">
+            {photoErr}
+          </p>
+        ) : null}
 
         {/* Audit 3.4: per-staff hours — the capacity engine reads them
             (empty = inherits the salon's hours). */}

@@ -4,7 +4,7 @@ import { type Page, devices, expect, test } from '@playwright/test';
 
 import { signInPro } from './_auth';
 import { asGrantedBrowser, asUnaskedBrowser } from './_push';
-import { serveStubImages } from './_pixel';
+import { PIXEL, serveStubImages } from './_pixel';
 // A booking's day comes from the stub's clock, never a date in the file: the
 // dialog refuses a past instant against the browser's clock (`isFutureIso`), so
 // a fixed date fails these tests once it has passed. 2026-12-01 was one.
@@ -149,11 +149,13 @@ test('catalogue Employés: list fiches + add one', async ({ page }) => {
   await page.getByRole('button', { name: 'Ajouter un employé' }).click();
   await page.getByLabel('Nom').fill('Koffi');
   await page.getByLabel('Spécialisation (optionnel)').fill('Barbier');
-  // Audit 3.5: the avatar upload (gallery pipeline).
+  // Audit 3.5: the avatar upload (gallery pipeline). A picture that really
+  // decodes — the photo is prepared in the browser before it is sent, and
+  // fake bytes are now refused as unreadable (web-pro-upload-resize.md).
   await page.locator('input[aria-label="Photo de l’employé"]').setInputFiles({
-    name: 'avatar.jpg',
-    mimeType: 'image/jpeg',
-    buffer: Buffer.from('fake-avatar-bytes'),
+    name: 'avatar.gif',
+    mimeType: 'image/gif',
+    buffer: PIXEL,
   });
   await expect(
     page.getByRole('button', { name: 'Changer la photo' }),
@@ -300,14 +302,15 @@ test('médias: manage photos (remove + save) + upload a new one', async ({
   // Seeded with 3 photos → 3 images.
   await expect(page.locator('main img')).toHaveCount(3);
 
-  // Upload a new one (stubbed sign + R2 POST).
+  // Upload a new one (stubbed sign + R2 PUT). A picture that really decodes:
+  // it is prepared in the browser first (web-pro-upload-resize.md).
   await page
     .locator('input[type=file]')
     .first()
     .setInputFiles({
-      name: 'photo.jpg',
-      mimeType: 'image/jpeg',
-      buffer: Buffer.from('fake-jpeg-bytes'),
+      name: 'photo.gif',
+      mimeType: 'image/gif',
+      buffer: PIXEL,
     });
   await expect(page.locator('main img')).toHaveCount(4);
 

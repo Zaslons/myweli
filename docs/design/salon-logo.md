@@ -107,8 +107,12 @@ two requests and cost a route + path + BFF + service method for nothing.
 
 ## 7. Performance
 
-Nothing new: mobile compresses to ≤1600 px JPEG q80 before upload (existing
-pipeline); web sends the raw file (native type); rendering reuses
+Nothing new: mobile shrinks the photo before upload (existing pipeline) —
+**short side ≤ 1600 px and long side ≤ 2400 px**, never enlarged, JPEG q80,
+no metadata (corrected 2026-11-09; it read « ≤1600 px »). The web sent the raw
+file (native type) until decision 107: it now prepares the logo the same way,
+a transparent logo drawn on white ([web-pro-upload-resize.md](web-pro-upload-resize.md)).
+Rendering reuses
 `TimedCachedImage` / `next/image` with the R2 origin already allowlisted.
 
 ## 8. Testing plan

@@ -349,6 +349,11 @@ The fix is one base-layer rule, not 271 utilities — **shipped in B4**
 - Hover-only affordances (menus, tooltips) must also open on focus (the
   `/recherche` result-card ↔ map-pin highlight sync gained `onFocus`/`onBlur`
   in B4 for exactly this).
+- **A control disabled while it holds the focus drops it to `<body>`**
+  (Chromium), and the keyboard user starts again from the top of the page. When
+  its busy state ends, give the focus back to it — unless the person moved it
+  meanwhile: `useFocusBackAfter(busy, ref)` (`lib/pro/upload-hooks.ts`; first
+  callers, the four Pro photo controls — [web-pro-upload-resize.md](web-pro-upload-resize.md) §2.7).
 
 ## 6. Forms & ARIA
 
