@@ -1726,7 +1726,10 @@ on renvoie. Rien n'est soumis sur un build non vérifié.
    qu'elle est vide ([LAUNCH.md](../LAUNCH.md) §5.3). Dans la console admin
    (prod rétablie), plateforme Pro iOS :
    `https://apps.apple.com/app/id6805272779` (Apple ID relu le 2026-10-05, §3).
-   *Dû depuis la publication du 2026-11-10 (BACKLOG B0.5), pas encore fait.*
+   *Fait le 2026-11-10, après la publication (BACKLOG B0.5) : enregistré dans
+   la console admin, les deux seuils à 0 ; relu par `api.myweli.com`,
+   `build=-1` répond `update_required` avec ce lien (`ok` avant), `build=0`
+   et `build=719` répondent `ok`.*
 2. **Symboles Sentry** — sans eux, les plantages du premier build TestFlight
    arrivent mais restent illisibles. Le jeton est dans Secret Manager ;
    `sentry-cli` est installé depuis le 2026-10-10 hors de Homebrew (dont le
@@ -1785,7 +1788,7 @@ on renvoie. Rien n'est soumis sur un build non vérifié.
    `fr` ne renvoie rien (le témoin : une seule boutique) ;
    `apps.apple.com/ci/app/id6805272779` répond 200, « MyWeli Pro ».
    L'approbation elle-même n'a pas été lue ici. Le point 1 (`updateUrl`)
-   est dû depuis (BACKLOG B0.5).
+   a été fait le même jour (BACKLOG B0.5).
 
 ---
 
@@ -1888,7 +1891,7 @@ numéros).*
        informations pour la revue (§8).* *2026-10-22 : la version est
        **soumise** — App Store Connect n'en accepte pas sans ces champs ; ce
        qu'ils disent se relit au lot 10.*
-17. [ ] **`updateUrl` iOS** dans la console admin (§12.1).
+17. [x] **`updateUrl` iOS** dans la console admin (§12.1) — *2026-11-10, relu.*
 18. [x] **Porte d'entrée Cloudflare** : ne pas lancer la phase A pendant une
        revue ; si elle a été déployée avant, vérifier qu'un client non
        navigateur (l'app) n'est pas mis au défi par Browser Integrity Check /
