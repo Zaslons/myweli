@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Status** | Living document. Nothing here is done until its box is ticked **with evidence**. |
-| **Pro 0.0.1** | **2026-11-04: resubmitted at 00:02:00 UTC with build 719, in review (`WAITING_FOR_REVIEW`, release `MANUAL`, per the API); B0.1 applies. Still open: Apple's decision; a successful Apple sign-in on an iPad, unobserved; the production backend deploy after Apple's decision, the one that switches on the Apple keys; the release by hand after approval.** Closed later on 2026-11-04 ([app-review-round-2.md](design/app-review-round-2.md) §12): the green scheduled « Production checks » run, `41838514759`, which ran before #730's deploy, so the next one is the first against the new look; and the docs record, on `main` as `bb59b7de`. The record: §6.2 and [design/app-review-round-2.md](design/app-review-round-2.md) §12. |
+| **Pro 0.0.1** | **2026-11-10: approved, and released by the owner — Côte d'Ivoire only (owner-reported); Apple's public lookup lists 0.0.1 on `ci`, released 2026-11-10T00:22:17Z, and nothing on `fr` (read here). The Apple keys deployed the same night (`myweli-api-00048-9f4`); their real sign-in test passed the same day (the Pro app, myweli.com); B0.5's iOS update link set the same day, read back** (§6.2, BACKLOG B0.1, B0.5, B0.12). *Before that:* **2026-11-04: resubmitted at 00:02:00 UTC with build 719, in review (`WAITING_FOR_REVIEW`, release `MANUAL`, per the API); B0.1 applies. Still open: Apple's decision; a successful Apple sign-in on an iPad, unobserved; the production backend deploy after Apple's decision, the one that switches on the Apple keys; the release by hand after approval.** Closed later on 2026-11-04 ([app-review-round-2.md](design/app-review-round-2.md) §12): the green scheduled « Production checks » run, `41838514759`, which ran before #730's deploy, so the next one is the first against the new look; and the docs record, on `main` as `bb59b7de`. The record: §6.2 and [design/app-review-round-2.md](design/app-review-round-2.md) §12. |
 | **Order** | **Web first → iOS → Android last** (§3) — *amended 2026-09-24 (owner): the **Pro app goes to the Apple App Store first** — TestFlight and App Review now, the public release still behind production restored and stable (§3)* |
 | **Related** | [ROADMAP.md](ROADMAP.md) · [BACKLOG.md](BACKLOG.md) (what is left, and how we will solve it) · [DEPLOYMENT.md](DEPLOYMENT.md) · [BACKEND.md](BACKEND.md) · [design/mobile-store-submission.md](design/mobile-store-submission.md) |
 
@@ -156,7 +156,7 @@ consequences, all of which change how we work:
   still owed is the iOS `updateUrl`, which stays NULL until the App Store listing
   exists.
   *(2026-10-22: the listing exists — Apple ID 6805272779; setting the URL is
-  BACKLOG B0.5.)*
+  BACKLOG B0.5.)* *(2026-11-10: set after the release and read back — §5.3.)*
 
 ### 1.5 Feature flags — deploying without exposing
 
@@ -203,7 +203,7 @@ absent:
 | **Crash / error reporting** | §5.2 — four boxes, and §4 — "Crash reporting and error tracking" |
 | **Uptime alerting** | §4 — "Uptime alerting on `api.myweli.com`" |
 | **Outbound-email alerting** | §4 — "Outbound-email alerting" |
-| **Forced upgrade** | §5.3 — three boxes, plus the iOS `updateUrl` still owed |
+| **Forced upgrade** | §5.3 — three boxes, plus the iOS `updateUrl` (set 2026-11-10) |
 | **Production data hygiene** | §4 — "Production contains no seeded/demo data" |
 | **Backup / restore rehearsal** | §5.5, and §4 — "A database restore has actually been performed" |
 
@@ -849,7 +849,7 @@ post-launch item.
       ambiguity** so a flaky network never bricks a working app.
 - [x] Chosen deliberately: this is the only lever that works on a phone we
       cannot reach. **And it is set from the admin console**, not SQL.
-- [ ] **Still owed: the iOS `updateUrl`.** It stays NULL until the App Store
+- [x] **~~Still owed:~~ the iOS `updateUrl` — set 2026-11-10.** It stays NULL until the App Store
       Connect record mints an `adamId`, and the server refuses to block a
       platform it has nowhere to send — so the mechanism is safe today and the
       iOS half is inert until that listing exists. *Step and value for the Pro
@@ -857,7 +857,12 @@ post-launch item.
       (2026-09-24).* *2026-10-05: the Pro record exists — Apple ID
       6805272779 — so the value is known:
       https://apps.apple.com/app/id6805272779. Setting it needs production
-      back (the admin console); still unticked.*
+      back (the admin console); still unticked.* **Ticked 2026-11-10, after
+      the release:** the owner saved it in the admin console, both floors at
+      0 (owner-reported); read here through `api.myweli.com`, `build=-1`
+      answers `update_required` with that link (`ok` before), `build=0` and
+      `build=719` answer `ok` (both floors still 0), and Pro Android and
+      MyWeli iOS are unchanged (the controls) — BACKLOG B0.5.
 
 ### 5.4 Web previews DID write to production — ~~confirmed 2026-08-12~~ **fixed 2026-08-18**
 
@@ -1346,6 +1351,20 @@ checking rather than assuming:
 > **Closed later on 2026-11-04** ([app-review-round-2.md](design/app-review-round-2.md) §12): the green scheduled « Production checks » run, `41838514759`, at 13:29 UTC on
 > `bb59b7de`, before #730's deploy, so the next one is the first against the new look; and the docs record, on `main` as `bb59b7de`. That
 > merge started no deployment. GitHub reports #734 as closed, not merged. The comment there puts that down to a 502 from GitHub. It went out from the owner's GitHub account, but the owner neither wrote nor reported it: the working session that did the merge posted it and saw the 502s itself.
+>
+> **2026-11-10 — approved and released; the Apple keys deployed.** *Owner-reported:* Apple approved build 719, and the owner
+> released 0.0.1 by hand on 2026-11-10, Côte d'Ivoire storefront only. *Read here that night, public data only:* Apple's lookup
+> (`itunes.apple.com/lookup?id=6805272779&country=ci`) returns MyWeli Pro, `com.myweli.pro`, version 0.0.1,
+> `currentVersionReleaseDate` 2026-11-10T00:22:17Z; the same lookup on `fr` returns nothing (the control: one storefront);
+> `apps.apple.com/ci/app/id6805272779` answers 200, « MyWeli Pro ». The approval itself was not read here. B0.1's review
+> constraints end with the release. Then, on the owner's go (« deploy the Apple keys now »), the production backend deploy that
+> switches on the Apple keys: run `42731941335` at 00:55 UTC, `image_tag=4e78e48`, revision `myweli-api-00048-9f4` at 100 %, no Apple
+> `NOTICE` at its boot, `/health` 200 through `api.myweli.com`, « Production checks » green (run `42732235069`)
+> ([apple-signin-keys.md](design/apple-signin-keys.md) §9 steps 6–7). Later the same day, with the owner's Apple ID: a real
+> Apple sign-in on myweli.com and in the Pro app each kept a token (0 → 2, read here), and deleting the account in the Pro app
+> erased both (0) — the owner saw MyWeli Pro and MyWeli leave their Sign in with Apple list (B0.12). The iOS `updateUrl`, set
+> by the owner in the admin console, answers through `api.myweli.com` (B0.5, §5.3). **Still open:** the MyWeli app's own Apple
+> client, at its first build; a successful Apple sign-in on an iPad, unobserved.
 
 - [ ] Everything in [mobile-store-submission.md](design/mobile-store-submission.md) §5.
       Two of its claims are **stale as of 2026-08-18** and must be corrected

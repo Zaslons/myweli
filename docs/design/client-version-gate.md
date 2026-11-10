@@ -219,6 +219,9 @@ acceptable because the value being set is `0`.
 1. **iOS `updateUrl`** stays NULL until the App Store Connect record exists. The
    server-side "no URL ⇒ never block" rule means this is safe rather than
    pending, but it must be filled before an iOS floor can ever be raised.
+   — **Filled 2026-11-10 for MyWeli Pro** (`https://apps.apple.com/app/id6805272779`,
+   read back through `GET /client-version`, BACKLOG B0.5). MyWeli's iOS row stays
+   NULL until that app has a listing.
 2. **The Android `<queries>` fix is unverified on a device.** Whether
    `launchUrl(externalApplication)` currently fails without it is UNVERIFIED — no
    device run. The manifest entry landed in slice 2 regardless.
