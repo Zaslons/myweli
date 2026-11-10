@@ -133,7 +133,7 @@ the hyphen, since CI can't produce it.
 
 ## 6. Seen, not fixed here
 
-- **The bottom bar at doubled text** — *fixed since, in [web-funnel-bar-fit.md](web-funnel-bar-fit.md): sticky, and compact above a quarter of the screen.* It covered 42 % of a 360 or 390 screen
+- **The bottom bar at doubled text** — *fixed since, in [web-funnel-bar-fit.md](web-funnel-bar-fit.md): compact above a quarter of the screen; sticky from #744, then fixed with a measured room under the footer by decision 105 (§6 there).* It covered 42 % of a 360 or 390 screen
   before this change. After the fix it covers 57 % at 320; printing the unit
   once brings that to 48 % at 320 and 34 % at 360 and 390. Two follow-up
   options:

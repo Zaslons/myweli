@@ -519,7 +519,7 @@ the layer, named:
 | Token | Value | Layer |
 |---|---|---|
 | `z-base` | 0 | Content |
-| `z-sticky` | 10 | Sticky headers, the map's floating controls |
+| `z-sticky` | 10 | Sticky headers, the map's floating controls, the pinned action bars |
 | `z-dropdown` | 20 | Menus, popovers |
 | `z-overlay` | 30 | Scrims |
 | `z-modal` | 40 | Dialogs, sheets |
@@ -606,50 +606,65 @@ which recomputes when the DOM changes, so an element screenshot or a text
 edit can silently drop the doubling. Check the size at the moment you
 measure.
 
-**A pinned bar takes at most a quarter of the screen, and it is sticky, not
-fixed** ([web-funnel-bar-fit.md](web-funnel-bar-fit.md)). At doubled text the
-funnel's « total + Confirmer » bar took 48 % of a 320×568 screen. Because it
-was `fixed`, it also covered the footer's last link at the end of the page at
-every text size, and the page guessed its height with a `pb-[6rem]` it
-outgrew.
+**A pinned action bar is fixed, with measured room, and it takes at most a
+quarter of the screen** (decisions 103–105; [web-swiss-salon.md](web-swiss-salon.md)
+§3, [web-funnel-bar-fit.md](web-funnel-bar-fit.md) §6). Two bars hold a page's
+one action on a phone: the salon page's « Réserver » (decision 103; specified
+and built 2026-11-06 on the cover update's branch, not merged) and the booking
+funnel's « total + Confirmer » (decision 105; specified and built 2026-11-09 on
+its own branch, stacked on that one, not merged). Both are `fixed` at the screen's foot
+below `lg`, so the action never leaves the screen, as the apps' never does, and
+both answer a fixed bar's fault, covering whatever ends the document, by
+measurement rather than by `sticky`:
 
-- A sticky bar, last in its flow, takes its own room and stops above the
-  footer: « Carte » (web-swiss-cards.md decision 5) and the funnel's bar.
-- When the full bar would exceed 25 % of the screen, it keeps its action and
-  sheds the rest into the page. The page measures the full bar before paint;
-  it doesn't branch on the text scale.
-- **One written exception to both: the salon page's booking bar**
-  (decisions 103 and 104, 2026-11-06; [web-swiss-salon.md](web-swiss-salon.md)
-  §3; specified and built 2026-11-06, not merged). It is **fixed**, so « Réserver » never leaves
-  the screen, as the app's never does, and its fault as a fixed bar is
-  answered by measurement instead of `sticky`: while the page is mounted
-  and below `lg`, `BarClearance` gives `<html>` an inline `padding-bottom`
-  of the bar's measured height, so the page ends below the footer and its
-  last link stays clear above the bar, and a `scroll-padding-bottom` of that
-  height plus `s`, so focus, anchors and find-in-page stop 8 px above it at
-  every text size (WCAG 2.4.11). Set before paint, kept in step by a
-  `ResizeObserver` and `resize`, taken off from `lg` and when the page goes;
-  no rule in the shared stylesheet, so the five store-linked pages never
-  carry it. Until the page's script runs, the bar has no room under it (the
-  footer's last link 33 px under it at the very end with normal text, up to
-  105.5 px with doubled text and about 81 px with the browser font at 200 %,
+- **`BarClearance`**, rendered inside the bar, gives `<html>` an inline
+  `padding-bottom` of the bar's measured height while the bar is mounted and
+  below `lg`, so the page ends below the footer and its last link stays clear
+  above the bar, and a `scroll-padding-bottom` of that height plus `s`, so
+  focus, anchors and find-in-page stop 8 px above it at every text size
+  (WCAG 2.4.11). Set before paint, kept in step by a `ResizeObserver` and
+  `resize` (a text size, a compact switch, a rotation), taken off from `lg`
+  and when the bar goes (the funnel's confirm step has none); no rule in the
+  shared stylesheet, so the five store-linked pages never carry it. Until the
+  page's script runs, the bar has no room under it (the footer's last link
+  about 33 px under it at the very end with normal text, and further with
+  larger text: up to 81 px under the funnel's bar and 105.5 px under the
+  salon page's with doubled text, wholly under on a 320×568 phone, and about
+  81 px with the browser font at 200 %; web-funnel-bar-fit.md §6.3,
   web-swiss-salon.md §3.3); once it runs, a visitor at the end is kept at
-  the end. It is not printed
-  (`print:hidden`): a fixed bar would stand at the foot of every printed
-  page. It is as wide as the screen and never wider (`w-screen max-w-full`):
-  with Android's large text a row wider than the screen makes Chrome widen the
-  layout viewport past it (§15 row 38), and a fixed box spans that viewport.
-  **It is also excepted from the quarter rule:** it takes more than
-  25 % of the screen at 5 of the 27 settings measured (320×256 at every text
-  setting, 25.4, 53.5 and 44.1 %; 844×390 and 640×400 with the browser font
-  at 200 %, 29.0 and 28.3 %), and the compact form would bring none of the
-  five under a quarter (inferred: about 73 px, 28.5 %, at 320×256 with
-  doubled text; elsewhere the bar is already its button's height). Accepted
-  and written down (decision 104). A fixed bar anywhere else needs its own
-  decision; « Confirmer » follows by decision 105 (measured, then answered
-  on 2026-11-09, « A2f, fixed bar »), in its own PR stacked on the cover
-  update's ([web-swiss-salon.md](web-swiss-salon.md) §4.3); until that PR
-  merges it stays sticky.
+  the end.
+- It is not printed (`print:hidden`): a fixed bar would stand at the foot of
+  every printed page. It is as wide as the screen and never wider
+  (`w-screen max-w-full`): with Android's large text a row wider than the
+  screen makes Chrome widen the layout viewport past it (§15 row 38), and a
+  fixed box spans that viewport.
+- **Why not sticky.** From #744 to decision 105 this rule read « sticky, not
+  fixed »: a sticky bar, last in its flow, takes its own room and stops above
+  the footer, which a fixed bar with no room covered. But stopped above the
+  footer it has left the screen by the page's very end: up to 580, 616 and
+  1,060 px of scrolling back for « Réserver », and 604, 652 and 1,084 px for
+  « Confirmer », at normal text, doubled text and the browser font at 200 %
+  (plans 103 and 105); and the browser scrolls a focused control just into
+  view at the screen's foot, under a sticky bar as under a fixed one (91
+  controls wholly hidden under the funnel's, in 48 of 108 settings).
+- **« Carte » stays sticky** (web-swiss-cards.md decision 5; decision 91): it
+  is a floating control over `/recherche`'s list, not a page's action bar,
+  and it stops above the footer; from `md` in a window wider than tall the
+  map stands beside the list instead (above). A fixed bar anywhere else needs
+  its own decision.
+- **The quarter rule.** When the full bar would exceed 25 % of the screen, it
+  keeps its action and sheds the rest into the page; the page measures the
+  full bar before paint and doesn't branch on the text scale (the funnel's
+  compact rule, #744). It does not bring every setting under a quarter, and
+  both exceptions are written down. The salon page's bar takes more than
+  25 % at 5 of the 27 settings measured (320×256 at every text setting, 25.4,
+  53.5 and 44.1 %; 844×390 and 640×400 with the browser font at 200 %, 29.0
+  and 28.3 %), and the compact form would bring none of the five under a
+  quarter (inferred: about 73 px, 28.5 %, at 320×256 with doubled text;
+  elsewhere the bar is already its button's height); accepted (decision 104).
+  The funnel's compact bar takes more than 25 % at the same five (25.4, 28.5
+  and 44.1 %; 29.0 and 28.3 %), today as when it was sticky, and fixed it no
+  longer leaves the screen there; accepted (decision 105).
 
 **The unit contract, stated because it was an accident until B11.** The type
 scale (`styles/tokens.ts`) and the spacing scale are **px**; the sizing keys —
@@ -845,7 +860,7 @@ Counted in the code as of 2026-07-14. Each burn-down PR drives a row to **0**.
 | 35 | Wire formats are the contract's, not the widget's | ~~2 directions broken~~ → **0** | **A salon that onboarded on the web could never set its opening hours, so it could never go live.** `openapi.yaml:4033-4036` types `TimeSlot.startTime` as `format: date-time` ("only the time-of-day is significant — placeholder date") and the server normalises every value to `2024-01-01T09:00:00.000Z`. The mobile app complies; the web did not, in **both** directions. WRITE: `toApi` sent `d.start` verbatim, and `d.start` falls back to `'09:00'` whenever the salon has no stored slots — the server validates with `DateTime.tryParse`, which answers null to `'09:00'` → 400 `invalid_input`. That fallback fires exactly during onboarding, and `availability` is one of the six publish-gate keys. READ: `toEditable` fed the server's ISO straight into an `<input type="time">`, which accepts only `HH:mm`, so the field rendered blank for any salon that DID have hours. Both now go through one seam (`timeOfDay`/`wireTime`), parsed with a regex rather than a `Date` — `new Date('2024-01-01T09:00:00.000Z').getHours()` is 4 in New York, which would move a salon's opening hour with the browser's timezone. **Why 559 green tests said nothing: every fixture in `pro-availability.test.ts` used the bare `'09:00'` form, so the suite asserted the round-trip of a format the server never sends or accepts.** And the API-level funnel smoke (Q1) **could not have caught it either** — it speaks the wire format correctly, so it stays green while a client mis-speaks it. That is the standing limit of an API-level gate, and the reason this row exists rather than a note in the spec | ✅ **Q1** (found while building the funnel e2e; fixed red-first) |
 | 36 | **The Google button said « Se connecter » while every other surface said « Continuer »** | **3 `renderButton` call sites** | the web half of [SYSTEM.md §21 row 87](SYSTEM.md#21). Google's button is painted by Google's script from an options object, and the three call sites had drifted apart with nothing to hold them together: two omitted `text`, so GIS fell back to `signin_with` and web read **« Se connecter avec Google » beside « Continuer avec Apple »** while both mobile apps said « Continuer avec »; a third omitted `locale: 'fr'`. Nothing failed and no test could fail — the button is a cross-origin iframe, so its label is not in our DOM and is unassertable from here. Only reading the three files together shows it, and they sit in three directories. Beside it, Apple was our `Button` at full container width against Google's fixed 320 × 40 — not a styling gap but a **structural** one, since Google's button cannot be restyled at all (its presets are the whole API, and it is the only source of the ID token the backend verifies) | ✅ **Closed.** `gisOptions(text)` in `components/auth/socialButton.ts` is one settled object; `social-buttons.test.ts` pins it and asserts **`text` is the only key permitted to vary**, which is the property that actually failed, tested at the only layer that can see it. `AppleSignInButton` matches the GIS silhouette in **px** — rem would drift from Google's absolutely-sized iframe the moment the root font size moves, which is row 31's problem arriving from the other direction. The 40px preset collides with `Button`'s pinned **48px** tap-target floor; resolved by **growing the target, not the glyph** — a 48px `<button>` wrapping a 40 × 320 painted `<span>` — so the floor and `button.test.tsx` both stand unweakened rather than being given an exception 🟢 |
 | 37 | **A fixture dated « today » made the overflow gate a verdict on the calendar** | ~~1~~ → **0** | the stub's last visit is today, and `type-overflow.spec.ts` measured the Pro client card with it: green through October, **red from 1 November on every pull request**, because « novembre » does not fit a half-width tile at 320. A real spill, found only because the month changed, and it would have gone green again in January. Fixed the way the app already had it: the short date (`formatDateCompactFr`) and one tile per row at the narrowest widths. **The longest values are now pinned whatever the date**: September and seven figures, plus the tiles' shape, since the text checks depend on the font. **Still blind:** other pages' dates from the same fixture, and any date a subject shows that is not the worst month | ✅ **2026-11-02** |
-| 38 | **Doubled text widens pages that pass at 320 with normal text** | ~~8 pages~~ → ~~7~~ → **6** in the Android mode · **0** with the browser font at 200 % | found 2026-11-06 on the salon page ([web-salon-price-reflow.md](web-salon-price-reflow.md)): a `whitespace-nowrap` price, « 15 000 – 25 000 FCFA » at 32px, made it **441px** wide on a 320 phone. Under Android-style text scaling (`text-size-adjust: 200%` on a touch phone) the browser grows the **layout viewport** to hold the overflow, so the « Réserver » bar and the favourites toast landed off screen while `horizontalOverflow`, measuring against that grown viewport, read clean (§9). The salon page is fixed and gated in both modes, and so is the booking funnel (344: its step headers and recap rows, [web-funnel-doubled-text.md](web-funnel-doubled-text.md)). **Left, at 320, Android mode only:** `/` and `/recherche` 352 (the card's « Note ★ 4,8 » is `whitespace-nowrap`, and #737 rewrites that card), the 404 336 (« introuvable », one word wider than its heading), and three store-linked pages. **The 404 is frozen with them**: `app/not-found.tsx` is every route's not-found boundary and its markup ships in all five store-linked pages' HTML, so its fix (hyphenation, specified in web-funnel-doubled-text.md §5) waits for Apple's decision too. The three store-linked pages, frozen while Apple reviews the Pro app: `/support` 352, `/politique-confidentialite` 375, `/mentions-legales` 343 (« support@myweli.com »). **Latent, found 2026-11-06 by #741's review:** once a store link is set (no e2e build sets one, so the banner never renders there), the install banner's « Télécharger ✕ » row does not wrap, and every page is laid out up to 418 px wide at 320, 360 and 390, the five store-linked pages included; `AppInstallBanner` is in their graph (through `SiteChrome`), so its fix waits for Apple's decision. The salon page's fixed bar keeps to the screen meanwhile (`w-screen max-w-full`, [web-swiss-salon.md](web-swiss-salon.md) §3.3). Measured in Chromium's mobile emulation; real phones are not verified | ✅ the salon page · ✅ the booking funnel · the rest open (the 404, the three store-linked pages and the install banner wait for Apple's decision; `/` and `/recherche` for #737) |
+| 38 | **Doubled text widens pages that pass at 320 with normal text** | ~~8 pages~~ → ~~7~~ → **6** in the Android mode · **0** with the browser font at 200 % | found 2026-11-06 on the salon page ([web-salon-price-reflow.md](web-salon-price-reflow.md)): a `whitespace-nowrap` price, « 15 000 – 25 000 FCFA » at 32px, made it **441px** wide on a 320 phone. Under Android-style text scaling (`text-size-adjust: 200%` on a touch phone) the browser grows the **layout viewport** to hold the overflow, so the « Réserver » bar and the favourites toast landed off screen while `horizontalOverflow`, measuring against that grown viewport, read clean (§9). The salon page is fixed and gated in both modes, and so is the booking funnel (344: its step headers and recap rows, [web-funnel-doubled-text.md](web-funnel-doubled-text.md)). **Left, at 320, Android mode only:** `/` and `/recherche` 352 (the card's « Note ★ 4,8 » is `whitespace-nowrap`, and #737 rewrites that card), the 404 336 (« introuvable », one word wider than its heading), and three store-linked pages. **The 404 is frozen with them**: `app/not-found.tsx` is every route's not-found boundary and its markup ships in all five store-linked pages' HTML, so its fix (hyphenation, specified in web-funnel-doubled-text.md §5) waits for Apple's decision too. The three store-linked pages, frozen while Apple reviews the Pro app: `/support` 352, `/politique-confidentialite` 375, `/mentions-legales` 343 (« support@myweli.com »). **Latent, found 2026-11-06 by #741's review:** once a store link is set (no e2e build sets one, so the banner never renders there), the install banner's « Télécharger ✕ » row does not wrap, and every page is laid out up to 418 px wide at 320, 360 and 390, the five store-linked pages included; `AppInstallBanner` is in their graph (through `SiteChrome`), so its fix waits for Apple's decision. The salon page's fixed bar keeps to the screen meanwhile (`w-screen max-w-full`, [web-swiss-salon.md](web-swiss-salon.md) §3.3), and so does the booking funnel's, in width, fixed since decision 105 ([web-funnel-bar-fit.md](web-funnel-bar-fit.md) §6.3, §6.4; on its own branch, not merged). Measured in Chromium's mobile emulation; real phones are not verified | ✅ the salon page · ✅ the booking funnel · the rest open (the 404, the three store-linked pages and the install banner wait for Apple's decision; `/` and `/recherche` for #737) |
 
 **Bold** slices are committed (the a11y tranche). *Italic* are specified and
 scheduled for re-evaluation after it.
