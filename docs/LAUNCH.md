@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Status** | Living document. Nothing here is done until its box is ticked **with evidence**. |
-| **Pro 0.0.1** | **2026-11-10: approved, and released by the owner — Côte d'Ivoire only (owner-reported); Apple's public lookup lists 0.0.1 on `ci`, released 2026-11-10T00:22:17Z, and nothing on `fr` (read here). The Apple keys deployed the same night (`myweli-api-00048-9f4`); their real sign-in test and B0.5 are open** (§6.2, BACKLOG B0.1, B0.5, B0.12). *Before that:* **2026-11-04: resubmitted at 00:02:00 UTC with build 719, in review (`WAITING_FOR_REVIEW`, release `MANUAL`, per the API); B0.1 applies. Still open: Apple's decision; a successful Apple sign-in on an iPad, unobserved; the production backend deploy after Apple's decision, the one that switches on the Apple keys; the release by hand after approval.** Closed later on 2026-11-04 ([app-review-round-2.md](design/app-review-round-2.md) §12): the green scheduled « Production checks » run, `41838514759`, which ran before #730's deploy, so the next one is the first against the new look; and the docs record, on `main` as `bb59b7de`. The record: §6.2 and [design/app-review-round-2.md](design/app-review-round-2.md) §12. |
+| **Pro 0.0.1** | **2026-11-10: approved, and released by the owner — Côte d'Ivoire only (owner-reported); Apple's public lookup lists 0.0.1 on `ci`, released 2026-11-10T00:22:17Z, and nothing on `fr` (read here). The Apple keys deployed the same night (`myweli-api-00048-9f4`); their real sign-in test passed the same day (the Pro app, myweli.com); B0.5 is open** (§6.2, BACKLOG B0.1, B0.5, B0.12). *Before that:* **2026-11-04: resubmitted at 00:02:00 UTC with build 719, in review (`WAITING_FOR_REVIEW`, release `MANUAL`, per the API); B0.1 applies. Still open: Apple's decision; a successful Apple sign-in on an iPad, unobserved; the production backend deploy after Apple's decision, the one that switches on the Apple keys; the release by hand after approval.** Closed later on 2026-11-04 ([app-review-round-2.md](design/app-review-round-2.md) §12): the green scheduled « Production checks » run, `41838514759`, which ran before #730's deploy, so the next one is the first against the new look; and the docs record, on `main` as `bb59b7de`. The record: §6.2 and [design/app-review-round-2.md](design/app-review-round-2.md) §12. |
 | **Order** | **Web first → iOS → Android last** (§3) — *amended 2026-09-24 (owner): the **Pro app goes to the Apple App Store first** — TestFlight and App Review now, the public release still behind production restored and stable (§3)* |
 | **Related** | [ROADMAP.md](ROADMAP.md) · [BACKLOG.md](BACKLOG.md) (what is left, and how we will solve it) · [DEPLOYMENT.md](DEPLOYMENT.md) · [BACKEND.md](BACKEND.md) · [design/mobile-store-submission.md](design/mobile-store-submission.md) |
 
@@ -1355,9 +1355,11 @@ checking rather than assuming:
 > constraints end with the release. Then, on the owner's go (« deploy the Apple keys now »), the production backend deploy that
 > switches on the Apple keys: run `42731941335` at 00:55 UTC, `image_tag=4e78e48`, revision `myweli-api-00048-9f4` at 100 %, no Apple
 > `NOTICE` at its boot, `/health` 200 through `api.myweli.com`, « Production checks » green (run `42732235069`)
-> ([apple-signin-keys.md](design/apple-signin-keys.md) §9 steps 6–7). **Still open:** one real Apple sign-in per client and one
-> real revocation (B0.12, with the owner's Apple ID); the iOS `updateUrl` (B0.5, the owner in the admin console); a successful
-> Apple sign-in on an iPad, unobserved.
+> ([apple-signin-keys.md](design/apple-signin-keys.md) §9 steps 6–7). Later the same day, with the owner's Apple ID: a real
+> Apple sign-in on myweli.com and in the Pro app each kept a token (0 → 2, read here), and deleting the account in the Pro app
+> erased both (0) — the owner saw MyWeli Pro and MyWeli leave their Sign in with Apple list (B0.12). **Still open:** the MyWeli
+> app's own Apple client, at its first build; the iOS `updateUrl` (B0.5, the owner in the admin console); a successful Apple
+> sign-in on an iPad, unobserved.
 
 - [ ] Everything in [mobile-store-submission.md](design/mobile-store-submission.md) §5.
       Two of its claims are **stale as of 2026-08-18** and must be corrected

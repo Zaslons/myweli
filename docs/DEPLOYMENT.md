@@ -227,12 +227,13 @@ which is how the reminder cron came to be switched off without anyone noticing.
    old. On `JWT_SECRET` that is some instances signing with a key the others
    reject, with nothing in the logs saying why.
 
-   **Sign in with Apple's keys — deployed 2026-11-10 (B6.7, B0.12); the real
-   sign-ins that test them remain (step 6).** Account deletion revokes the
-   person's Apple authorization (App Store 5.1.1(v)) only once keys exist;
-   without them the server keeps and revokes nothing and says so at each boot
-   (`NOTICE: no Sign in with Apple key …`) — production printed that until
-   `myweli-api-00048-9f4`, whose boot does not. **MyWeli and MyWeli Pro are separate Sign in with Apple
+   **Sign in with Apple's keys — deployed 2026-11-10 (B6.7, B0.12) and
+   tested the same day with real sign-ins and a real revocation (step 6).**
+   Account deletion revokes the person's Apple authorization (App Store
+   5.1.1(v)) only once keys exist; without them the server keeps and revokes
+   nothing and says so at each boot (`NOTICE: no Sign in with Apple key …`) —
+   production printed that until `myweli-api-00048-9f4`, whose boot does
+   not. **MyWeli and MyWeli Pro are separate Sign in with Apple
    primaries** (read through the App Store Connect API, 2026-10-27), and Apple
    associates a key with one primary — so **one key per app**, the server
    choosing it by the token's client
@@ -272,8 +273,10 @@ which is how the reminder cron came to be switched off without anyone noticing.
       `image_tag=4e78e48`, revision `myweli-api-00048-9f4` at 100 %, no
       Apple `NOTICE` at its boot, read back
       ([apple-signin-keys.md](design/apple-signin-keys.md) §9 steps 6–7).
-      The real sign-ins per client and the real revocation are not done
-      yet.*
+      Tested the same day with the owner's Apple ID: a real sign-in on
+      myweli.com and in the Pro app each kept a token, and deleting the
+      account revoked both — the apps left the owner's Apple ID list. The
+      MyWeli app's own client is untested until that app ships.*
 
    **Changing a secret, in order:**
 

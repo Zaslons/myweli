@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | Approved 2026-10-27 (owner: §11, Q1–Q4 answered as recommended) · **PR 1 (code) built**; the two keys exist (step 1); the pre-deploy probe measured useless and removed (§5, §9 step 2); the two secrets in Secret Manager (step 3, read back); **PR 2 (manifest) built** · **Deployed 2026-11-10** (run `42731941335`, image `4e78e48`, revision `myweli-api-00048-9f4`, read back: §9 step 6) — **the real sign-ins per client and the real revocation (§9 step 7) remain**, with the owner's Apple ID |
+| **Status** | Approved 2026-10-27 (owner: §11, Q1–Q4 answered as recommended) · **PR 1 (code) built**; the two keys exist (step 1); the pre-deploy probe measured useless and removed (§5, §9 step 2); the two secrets in Secret Manager (step 3, read back); **PR 2 (manifest) built** · **Deployed 2026-11-10** (run `42731941335`, image `4e78e48`, revision `myweli-api-00048-9f4`, read back: §9 step 6) · **Tested 2026-11-10 with the owner's Apple ID** (§9 step 7): a real sign-in on myweli.com and in the Pro app each kept a token, and deleting the account revoked both — the apps left the owner's Apple ID list; **the MyWeli app's own client (`com.myweli.app`) stays untested until that app ships** |
 | **Owner** | Sadreddine Daher |
 | **Last updated** | 2026-11-10 |
 | **PRD ref / phase** | Account deletion (App Store 5.1.1(v)) · V1 |
@@ -302,9 +302,31 @@ Unchanged: one extra call to Apple per Apple sign-in once active (bounded at
    `/providers` 200 with `cf-ray`; the direct `run.app` door `403
    origin_required`; no 5xx on the revision. « Production checks »,
    dispatched: run `42732235069`, green, every job.
-   — **Not yet: the real sign-ins and the real revocation.** They need the
-   owner's Apple ID and devices; nothing above observes a key working with
-   Apple, only the server accepting both keys at boot.
+   — ✅ **2026-11-10, the half that needs a person** (the owner signed in and
+   deleted, with their own Apple ID and iPhone; the server was read here).
+   Before: `apple_tokens` held 0 rows (01:09:59 UTC, a read-only session
+   through the Cloud SQL Auth Proxy, counts only). The owner signed up a
+   throwaway salon on myweli.com/pro/inscription with « S'inscrire avec
+   Apple » (`POST /auth/provider/register` 201 at 13:35:16 UTC), then signed
+   in to the store's Pro app with « Continuer avec Apple », same Apple ID
+   (`POST /auth/provider/apple` 200 at 15:05:16 UTC). Read at 15:12:02 UTC:
+   2 rows — `provider | com.myweli.pro` 1, `provider | com.myweli.signin` 1
+   — one account between them, the newest created at 15:05:17 UTC. A row is
+   written only after Apple answers `200` with a refresh token to a request
+   signed with that client's key (`keepFromCode`), so **each row is Apple
+   accepting that key**: the Pro key for `com.myweli.pro`, the MyWeli key for
+   `com.myweli.signin`. No `apple_token` line since the deploy (the control:
+   the same `textPayload` filter finds `-00048-9f4`'s boot `NOTICE`), no
+   5xx. Then the owner deleted the account in the Pro app (`DELETE
+   /me/provider` 204 at 15:26:20 UTC): 0 rows at 15:26:47 UTC, no
+   `apple_revoke` line. **Owner-observed:** MyWeli Pro and MyWeli both left
+   their iPhone's Settings → Sign in with Apple list — the only evidence
+   that the revocation reached Apple, since its `200` proves nothing (§5).
+   — **Not yet: the MyWeli app's own client** (`com.myweli.app`, the MyWeli
+   key) — it has no build; its first real sign-in is its test. **Left
+   over:** the throwaway salon is still a hidden `draft` row (deleting an
+   account keeps its salon and erases the person); removing it needs the
+   owner's go.
 
 **Docs in PR 1:** DEPLOYMENT.md Phase C (the grouping sentence is wrong; the
 new steps), BACKEND.md T79, backend-integrity-batch6.md §13 (a pointer here),
@@ -315,7 +337,9 @@ new steps), BACKEND.md T79, backend-integrity-batch6.md §13 (a pointer here),
 Both keys exist and read; the server picks the key by client, every boot rule tested and
 watched red; the manifest pinned; deployed after Apple's decision; the boot
 `NOTICE` gone; one real exchange per client observed (no `invalid_client`), and
-one real revocation seen leave the owner's Apple ID list.
+one real revocation seen leave the owner's Apple ID list. — **2026-11-10: met
+for `com.myweli.pro` and `com.myweli.signin`, and the revocation seen; only
+`com.myweli.app` waits, for that app's first build (§9 step 7).**
 
 ## 11. Open questions — answered by the owner, 2026-10-27
 
