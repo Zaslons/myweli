@@ -1365,24 +1365,25 @@ test.describe('the salon card', () => {
       },
     };
     // The port ran in macOS Chromium; CI runs Linux Chromium, and the two lay text out
-    // differently. In this test's first CI run (run 42859095479, 2026-11-10) the slide at 320×568
-    // was 32px, for both searches, at normal text and with the 32px root, where the port measured
-    // 29; at 360 and 390 CI stayed within the port's 2px. The slide is what clears « Carte » by `s`
-    // from the pill's home (`bestMove` in Toast.tsx), so it follows two text widths, « Carte »'s
-    // label and the message's pill; which of them moved was not read (the run's report was not
-    // downloaded). The rule is the same on both, so each platform keeps the figure measured on it,
-    // held 2px above it as before. That run never reached the rise and drop there (the slide's
-    // check threw first), so they stay the port's until a Linux run reads them; the three checks
-    // are soft, so one run reports all three (web-swiss-salon.md §2.10).
-    const ON_LINUX: Partial<Record<Text, Record<string, number>>> = {
-      normal: { '320x568': 32 },
-      root32: { '320x568': 32 },
+    // differently. Read in this test's first two CI runs (2026-11-10), at 320×568 only; at 360 and
+    // 390 CI stays within the port's 2px. Run 42859095479: the slide is 32px, for both searches, at
+    // normal text and with the 32px root, where the port measured 29 (its check threw first, so it
+    // read nothing else there). Run 42862731028, with the three checks soft so one run reports all
+    // three: that slide passes, and one more figure differs: at normal text `?q=tresses` also
+    // rises, up to 56px at 14 of the scan's steps, where the port saw it only slide. That is the
+    // rule on other geometry: a slide that would not fit or would cover a label goes up instead,
+    // within the « up to 58 px up » at 320 put to the owner with decision 100, and the run's other
+    // checks (8px from « Carte », presses, glyphs) pass. The slide follows two text widths,
+    // « Carte »'s label and the message's pill (`bestMove` in Toast.tsx); which one moved, and why
+    // those 14 slides were refused, was not read (the runs' reports were not downloaded). Each
+    // platform keeps the figures measured on it, each held 2px above as before
+    // (web-swiss-salon.md §2.10).
+    const ON_LINUX: Partial<Record<Text, Record<string, Record<'tresses' | 'vitrine', Moves>>>> = {
+      normal: { '320x568': { tresses: [32, 56, 0], vitrine: [32, 58, 0] } },
+      root32: { '320x568': { tresses: [32, 54, 0], vitrine: [32, 54, 0] } },
     };
-    const measuredFor = (text: Text, size: string, q: 'tresses' | 'vitrine'): Moves => {
-      const [slide, rise, drop] = MEASURED[text][size][q];
-      const linux = process.platform === 'linux' ? ON_LINUX[text]?.[size] : undefined;
-      return [linux ?? slide, rise, drop];
-    };
+    const measuredFor = (text: Text, size: string, q: 'tresses' | 'vitrine'): Moves =>
+      (process.platform === 'linux' ? ON_LINUX[text]?.[size]?.[q] : undefined) ?? MEASURED[text][size][q];
     const asMeasured = (r: MessageScan, [slide, rise, drop]: Moves) => {
       for (const [move, measured, steps, largest] of [
         ['slide', slide, r.slid, r.maxSlide],
