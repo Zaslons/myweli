@@ -767,6 +767,12 @@ jobs:
       # `warn`, so none of the budgeted numbers could fail the build.
       - name: Lighthouse budgets (mobile, the WEB.md §7 numbers)
         run: npm run lhci
+        env:
+          # `/` now holds a salon card, so the page requests a photo the Next server
+          # cannot fetch: `cdn.stub` does not exist. This fails that lookup at once
+          # rather than stalling the server. LCP should stay the <h1> (inferred: the first
+          # CI run gets read for it, docs/design/web-swiss-cards.md §7, §8).
+          NODE_OPTIONS: --require ./tests/e2e/_cdn-stub-dns.cjs
 
   # A9-fix: NFR-PERF-002 sets <30 MB and PR-0 shipped it with no measured
   # number anywhere and no job checking it — unfalsifiable for the whole life

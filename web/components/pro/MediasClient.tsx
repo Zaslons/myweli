@@ -15,7 +15,8 @@ import {
   removeAt,
   toCover,
 } from '../../lib/pro/medias';
-import { uploadGalleryImage } from '../../lib/pro/upload';
+import { uploadFailureMessage, uploadGalleryImage } from '../../lib/pro/upload';
+import { useFocusBackAfter, useLeaveSignal } from '../../lib/pro/upload-hooks';
 import { Button } from '../Button';
 import { Modal } from '../Modal';
 import { Toast } from '../Toast';
@@ -56,6 +57,9 @@ export function MediasClient() {
   >(null);
   const cancelRef = useRef<HTMLButtonElement>(null);
   const { toast, show, dismiss } = useToast();
+  // Leaving Médias (not switching its tabs) stops an upload in progress:
+  // nothing is signed, sent or added after that (web-pro-upload-resize.md §2.4).
+  const leaving = useLeaveSignal();
 
   useEffect(() => {
     let active = true;
@@ -163,19 +167,21 @@ export function MediasClient() {
         <PhotosTab
           photos={photos}
           busy={busy}
+          leaving={leaving}
           onWrite={(next, failure) => void writePhotos(next, failure)}
           onAdd={async (url) => {
             await writePhotos([...savedPhotos.current, url], 'Échec de l’envoi');
           }}
-          onUploadFailed={() => show('Échec de l’envoi', 'error')}
+          onUploadFailed={(message) => show(message, 'error')}
           onDelete={(index) => setConfirming({ kind: 'photo', index })}
         />
       ) : (
         <AvantApresTab
           pairs={pairs}
           busy={busy}
+          leaving={leaving}
           onAdd={(pair) => writePairs([...savedPairs.current, pair], 'Échec de l’enregistrement')}
-          onUploadFailed={() => show('Échec de l’envoi', 'error')}
+          onUploadFailed={(message) => show(message, 'error')}
           onDelete={(index) => setConfirming({ kind: 'pair', index })}
         />
       )}
@@ -211,6 +217,7 @@ export function MediasClient() {
 function PhotosTab({
   photos,
   busy,
+  leaving,
   onWrite,
   onAdd,
   onUploadFailed,
@@ -218,25 +225,32 @@ function PhotosTab({
 }: {
   photos: string[];
   busy: boolean;
+  leaving: () => AbortSignal;
   onWrite: (next: string[], failure: string) => void;
   onAdd: (url: string) => Promise<void>;
-  onUploadFailed: () => void;
+  onUploadFailed: (message: string) => void;
   onDelete: (index: number) => void;
 }) {
   const [uploading, setUploading] = useState(false);
+  const pickRef = useRef<HTMLInputElement>(null);
+  // The input is disabled while it works; the focus comes back to it after.
+  useFocusBackAfter(uploading, pickRef);
 
   async function onPick(e: ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     e.target.value = '';
     if (!file) return;
     setUploading(true);
-    const url = await uploadGalleryImage(file);
-    if (!url) {
+    // Prepared as the app does before it is sent (web-pro-upload-resize.md).
+    const signal = leaving();
+    const upload = await uploadGalleryImage(file, { signal });
+    if (signal.aborted) return; // Médias was left: nothing is added
+    if (!upload.ok) {
       setUploading(false);
-      onUploadFailed();
+      onUploadFailed(uploadFailureMessage(upload.reason, 'Échec de l’envoi'));
       return;
     }
-    await onAdd(url);
+    await onAdd(upload.url);
     setUploading(false);
   }
 
@@ -305,6 +319,7 @@ function PhotosTab({
           <label className="cursor-pointer min-h-12 rounded-control border border-primary bg-surface p-m text-bodyMedium text-textPrimary focus-within:outline focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-borderFocus hover:bg-surfaceVariant">
             {uploading ? 'Téléversement…' : 'Ajouter une photo'}
             <input
+              ref={pickRef}
               type="file"
               accept="image/*"
               className="sr-only"
@@ -323,36 +338,43 @@ function PhotosTab({
 function AvantApresTab({
   pairs,
   busy,
+  leaving,
   onAdd,
   onUploadFailed,
   onDelete,
 }: {
   pairs: BeforeAfterPair[];
   busy: boolean;
+  leaving: () => AbortSignal;
   onAdd: (pair: BeforeAfterPair) => Promise<boolean>;
-  onUploadFailed: () => void;
+  onUploadFailed: (message: string) => void;
   onDelete: (index: number) => void;
 }) {
   const [before, setBefore] = useState<string | null>(null);
   const [after, setAfter] = useState<string | null>(null);
   const [caption, setCaption] = useState('');
-  const [uploading, setUploading] = useState(false);
+  // Which side is on its way: that picker says « Téléversement… » and both
+  // wait, as the app's add button does while it sends (§2.3).
+  const [uploading, setUploading] = useState<'before' | 'after' | null>(null);
 
   async function pick(
     e: ChangeEvent<HTMLInputElement>,
+    side: 'before' | 'after',
     set: (u: string | null) => void,
   ) {
     const file = e.target.files?.[0];
     e.target.value = '';
     if (!file) return;
-    setUploading(true);
-    const url = await uploadGalleryImage(file);
-    setUploading(false);
-    if (!url) {
-      onUploadFailed();
+    setUploading(side);
+    const signal = leaving();
+    const upload = await uploadGalleryImage(file, { signal });
+    if (signal.aborted) return; // Médias was left
+    setUploading(null);
+    if (!upload.ok) {
+      onUploadFailed(uploadFailureMessage(upload.reason, 'Échec de l’envoi'));
       return;
     }
-    set(url);
+    set(upload.url);
   }
 
   async function addPair() {
@@ -390,8 +412,18 @@ function AvantApresTab({
         <div className="mt-m rounded-xl border border-border bg-secondary p-m">
           <p className="text-bodyMedium text-textTertiary">Ajouter une paire</p>
           <div className="mt-s flex flex-wrap items-center gap-m">
-            <FilePick label={before ? 'Avant ✓' : 'Avant'} onChange={(e) => pick(e, setBefore)} />
-            <FilePick label={after ? 'Après ✓' : 'Après'} onChange={(e) => pick(e, setAfter)} />
+            <FilePick
+              label={before ? 'Avant ✓' : 'Avant'}
+              busy={uploading === 'before'}
+              disabled={uploading !== null}
+              onChange={(e) => pick(e, 'before', setBefore)}
+            />
+            <FilePick
+              label={after ? 'Après ✓' : 'Après'}
+              busy={uploading === 'after'}
+              disabled={uploading !== null}
+              onChange={(e) => pick(e, 'after', setAfter)}
+            />
             <TextField
               label="Légende (optionnelle)"
               hideLabel
@@ -402,7 +434,7 @@ function AvantApresTab({
             />
             <Button
               variant="secondary"
-              disabled={!before || !after || uploading || busy}
+              disabled={!before || !after || uploading !== null || busy}
               onClick={() => void addPair()}
             >
               Ajouter la paire
@@ -444,15 +476,29 @@ function IconBtn({
 
 function FilePick({
   label,
+  busy,
+  disabled,
   onChange,
 }: {
   label: string;
+  /// This side is being prepared and sent: « Téléversement… », as « Photos ».
+  busy: boolean;
+  disabled: boolean;
   onChange: (e: ChangeEvent<HTMLInputElement>) => void;
 }) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  useFocusBackAfter(busy, inputRef);
   return (
     <label className="cursor-pointer min-h-12 rounded-control border border-primary bg-surface p-m text-bodyMedium text-textPrimary focus-within:outline focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-borderFocus hover:bg-surfaceVariant">
-      {label}
-      <input type="file" accept="image/*" className="sr-only" onChange={onChange} />
+      {busy ? 'Téléversement…' : label}
+      <input
+        ref={inputRef}
+        type="file"
+        accept="image/*"
+        className="sr-only"
+        disabled={disabled}
+        onChange={onChange}
+      />
     </label>
   );
 }

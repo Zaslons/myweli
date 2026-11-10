@@ -195,6 +195,11 @@ export function AvisClient() {
                           <Image
                             key={url}
                             src={url}
+                            // Never through the optimizer: consumer erasure deletes this
+                            // file, and a resized copy in that cache would outlive it by
+                            // up to minimumCacheTTL, 31 days, against what
+                            // /suppression-compte says (docs/design/web-swiss-cards.md §6).
+                            unoptimized
                             alt="Photo de l’avis"
                             width={96}
                             height={96}

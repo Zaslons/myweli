@@ -70,6 +70,12 @@ type Route = {
 const PUBLIC_ROUTES: [name: string, url: string, anchor: string | RegExp][] = [
   ['the marketing home — all 15 of the h2s that grew 20 → 22px live here', '/', /Réservez beauté/],
   ['discovery', '/recherche?commune=Cocody', /Salons à Cocody/],
+  // web-swiss-cards.md §8: every form a card can take, in a row. A long name wraps now,
+  // so there is no declared loss left to protect this matrix from.
+  ['discovery with every kind of card', '/recherche?q=vitrine', /Recherche : vitrine/],
+  ['a root landing — the ruled index of cities', '/coiffure', /Coiffure en Côte d.Ivoire/],
+  ['an area landing — one tile, chips and crumbs', '/coiffure/abidjan/cocody', 'Coiffure à Cocody'],
+  ['an area landing with every kind of tile', '/coiffure/abidjan/marcory', 'Coiffure à Marcory'],
   // B8 caught this route VACUOUS: the stub's salon is `beaute-divine` and the
   // canonical path is `/{slug}` — `/salon/salon-excellence` had been scanning
   // the 404 page (which also doesn't overflow) since the slug scheme changed.
@@ -560,7 +566,8 @@ for (const vp of VIEWPORTS) {
         // guard — waiting on it beats `networkidle`, which never fires on the
         // image-bearing routes (the stub's salon photos point at an
         // unresolvable `cdn.stub`, so `next/image` keeps the network busy past
-        // the 30s timeout). B8 found the salon route had been silently scanning
+        // the 30s timeout; since B11.3 `_cdn-stub-dns.cjs` fails that lookup at once, so
+        // it settles, and the anchor stays for the vacuity it guards). B8 found the salon route had been silently scanning
         // the 404 page for months (a slug rename left it 404, and the 404 page
         // doesn't overflow either — a green gate measuring nothing); a heading
         // unique to the REAL page makes that vacuity loud.
@@ -964,6 +971,42 @@ test.describe('the « Semaine » tab at desktop widths (web-pro-week-view)', () 
       await expect(page.getByRole('button', { name: /— Sans artiste, Lun \d+ à 15:30$/ })).toBeVisible();
       expect(await horizontalOverflow(page), `the page scrolls sideways at ${width}`).toEqual([]);
       expect(await overflowingText(page), `text spills out of its own box at ${width}`).toEqual([]);
+    });
+  }
+});
+
+/// docs/design/web-swiss-salon.md §1.3: the salon's name stands in a narrow column from `lg`
+/// (309px at 1024), and on a phone in 288px. A long name, next to « ✔ Vérifié » on one flex
+/// line, squeezed the chip into 54px on two lines. The `<h1>` wraps now, so the chip takes a
+/// line of its own and keeps its words together.
+///
+/// The name is the stub's own salon renamed in the page: the stub has one public salon on
+/// purpose (a new slug moves `served-html`'s and `provider`'s counts), and the layout reads
+/// the text it is given, wherever it came from.
+test.describe('a long salon name beside « ✔ Vérifié »', () => {
+  const LONG = 'Institut de beauté et coiffure afro Excellence Riviera Palmeraie';
+  for (const width of [320, 1024, 1280]) {
+    test(`at ${width} the chip keeps one line, and nothing spills`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 800 });
+      await page.goto('/beaute-divine');
+      const h1 = page.getByRole('heading', { level: 1 });
+      await expect(h1).toContainText('Beauté Divine');
+      await h1.evaluate((el, name) => {
+        el.firstChild!.textContent = name;
+      }, LONG);
+      await expect(h1).toContainText(LONG);
+      const read = await h1.evaluate((el) => {
+        const lines = (node: Node) => {
+          const range = document.createRange();
+          range.selectNodeContents(node);
+          return new Set([...range.getClientRects()].map((r) => Math.round(r.top))).size;
+        };
+        const chip = [...el.children].find((c) => c.textContent?.includes('Vérifié'))!;
+        return { name: lines(el.firstChild!), chip: lines(chip) };
+      });
+      expect(read.name, 'the name fits one line, so this proves nothing').toBeGreaterThan(1);
+      expect(read.chip, '« ✔ Vérifié » broke in two').toBe(1);
+      expect(await horizontalOverflow(page), `the page scrolls sideways at ${width}`).toEqual([]);
     });
   }
 });

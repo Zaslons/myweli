@@ -1,8 +1,10 @@
 // Minimal stub of the Myweli API for hermetic web e2e — the Next server fetches
 // it server-side, so this replaces the dart_frog backend (no DB/network needed).
 // Started by playwright.config.ts; serves one provider + the sitemap feed.
+import { readFileSync } from 'node:fs';
 import { createServer } from 'node:http';
 
+import { inspectJpeg } from './_jpeg.mjs';
 import {
   materialiseDates,
   stubDayKey,
@@ -11,6 +13,14 @@ import {
 } from './stub-clock.mjs';
 
 const port = Number(process.env.STUB_PORT ?? 8787);
+
+/// Every form a salon card can take, for the reads below only, so Lighthouse and every
+/// other spec keep the single card (docs/design/web-swiss-cards.md §8). F7 is unnamed
+/// and F9 has no commune and no price. F5's photo is `absent.jpg`, which
+/// `routeNextImages` answers with a 404.
+const CARD_FIXTURES = JSON.parse(
+  readFileSync(new URL('./card-fixtures.json', import.meta.url), 'utf8'),
+);
 
 const provider = {
   id: 'p1',
@@ -105,6 +115,17 @@ const provider = {
 
 // Web KYC (web-pro-kyc.md) — mutable status + submitted docs.
 const kycState = { status: 'pending', documents: [], rejectionReason: null };
+
+// A salon page with a cover, a logo over it and a gallery, all three on one page, so a test
+// can see that a place set on the cover did not reach the other two. Its own slug, so
+// `beaute-divine`'s page stays as every other spec has it: a logo there changes that page's
+// bytes and no test's result (web-swiss-cards.md §8). In the sitemap because `dynamicParams`
+// is false: a slug that is not listed answers a 404.
+const LOGO_SALON = {
+  ...JSON.parse(JSON.stringify(provider)),
+  slug: 'salon-au-logo',
+  logoUrl: 'https://cdn.stub/p1-logo.png',
+};
 
 // K2: a deposit-required salon for the pay-later proof-upload journey.
 const depositProvider = {
@@ -799,14 +820,28 @@ function readJsonObject(req) {
 const keptBookings = new Map(); // key → the 201 body
 const bookingsByKey = new Map(); // key → how many bookings it created
 
+// docs/design/web-pro-upload-resize.md §8.2 — what storage actually received,
+// per object: a gallery/logo PUT goes to `/r2-upload/<key>`, and this keeps,
+// for the last 50 keys, the content type, length, JPEG frame size, whether
+// Exif or the fixture's camera/GPS markers survived, the luminance table and
+// the bytes (base64, so a spec can look at the pixels). Keyed, not « the last
+// upload », because two spec files can upload at the same time.
+// Read with GET /__stub/uploads?key=<key>.
+const receivedUploads = new Map();
+
 createServer(async (req, res) => {
   const url = new URL(req.url, `http://localhost:${port}`);
+  if (url.pathname === '/__stub/uploads') {
+    const record = receivedUploads.get(url.searchParams.get('key') ?? '');
+    res.writeHead(record ? 200 : 404, { 'content-type': 'application/json' });
+    return res.end(JSON.stringify(record ?? { error: 'not_found' }));
+  }
   if (url.pathname === '/__stub/bookings') {
     const key = url.searchParams.get('key') ?? '';
     return json(res, 200, { created: bookingsByKey.get(key) ?? 0 });
   }
   if (url.pathname === '/sitemap/providers') {
-    return json(res, 200, { items: [{ slug: 'beaute-divine' }] });
+    return json(res, 200, { items: [{ slug: 'beaute-divine' }, { slug: LOGO_SALON.slug }] });
   }
   if (url.pathname === '/localities') {
     res.writeHead(200, {
@@ -818,12 +853,41 @@ createServer(async (req, res) => {
   const m = url.pathname.match(/^\/providers\/by-slug\/(.+)$/);
   if (m) {
     if (m[1] === 'beaute-divine') return json(res, 200, provider);
+    if (m[1] === LOGO_SALON.slug) return json(res, 200, LOGO_SALON);
     if (m[1] === 'institut-acompte') return json(res, 200, depositProvider);
     return json(res, 404, { error: 'not_found' });
   }
   if (url.pathname === '/providers') {
     const category = url.searchParams.get('category');
     const commune = url.searchParams.get('commune');
+    const query = url.searchParams.get('q');
+    const listOf = (items) =>
+      json(res, 200, { items, page: 1, pageSize: 20, total: items.length });
+    if (query === 'vide') return listOf([]);
+    if (query === 'vitrine') return listOf(CARD_FIXTURES);
+    // A list that really starts without a photo, and one with none at all: the first photo
+    // is not the first card (web-swiss-cards.md §7). Their own reads, so the eight every
+    // other spec counts stay eight.
+    if (query === 'sans-photo-en-tete') {
+      return listOf(['f3', 'f4', 'f1', 'f2'].map((id) => CARD_FIXTURES.find((f) => f.id === id)));
+    }
+    if (query === 'sans-photo') {
+      return listOf(['f3', 'f4'].map((id) => CARD_FIXTURES.find((f) => f.id === id)));
+    }
+    // F9 again, with a commune: one word too long for the column beside the heart at
+    // 200% text, and no price to lift it out of the heart's band.
+    if (query === 'commune-longue') {
+      const rated = CARD_FIXTURES.find((f) => f.id === 'f9');
+      return listOf([
+        { ...rated, id: 'f10', slug: 'salon-lointain', name: 'Salon Lointain', commune: 'Yamoussoukro' },
+      ]);
+    }
+    // F1 to F6, and not F7: a landing's `ItemList` would carry an empty name
+    // (`TaxonomyLandingView.tsx`), today's behaviour for an unnamed public salon, filed
+    // in B11.5. So `/barbier/abidjan/marcory` stays empty.
+    if (commune === 'Marcory' && (!category || category === 'salon')) {
+      return listOf(CARD_FIXTURES.filter((f) => f.id !== 'f7' && f.id !== 'f9'));
+    }
     const matches =
       (!category || category === provider.category) &&
       (!commune || commune === provider.commune);
@@ -1826,15 +1890,23 @@ createServer(async (req, res) => {
         key: `kyc/acc1/${imgSeq++}.jpg`,
       });
     }
+    // Gallery and logo, as the server does them (upload_signing_service.dart):
+    // only JPEG/PNG/WebP are signed, and the signature pins the content type
+    // that was ASKED for — so a client that signs the picked file's type PUTs
+    // that type, and the record below shows it.
+    const ext = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' }[b.contentType];
+    if (!ext) return json(res, 400, { error: 'invalid_input' });
+    const key = `gallery/p1/${imgSeq++}.${ext}`;
     return json(res, 200, {
       method: 'PUT',
-      uploadUrl: `http://127.0.0.1:${port}/r2-upload`,
-      headers: { 'content-type': 'image/jpeg' },
-      key: `gallery/p1/${imgSeq}.jpg`,
-      publicUrl: `https://cdn.stub/gallery/p1/${imgSeq++}.jpg`,
+      uploadUrl: `http://127.0.0.1:${port}/r2-upload/${key}`,
+      headers: { 'content-type': b.contentType },
+      key,
+      publicUrl: `https://cdn.stub/${key}`,
+      maxBytes: 5 * 1024 * 1024,
     });
   }
-  if (url.pathname === '/r2-upload') {
+  if (url.pathname === '/r2-upload' || url.pathname.startsWith('/r2-upload/')) {
     // The browser PUTs bytes here directly, cross-origin. `content-type:
     // image/jpeg` is NOT a CORS-safelisted value, so the browser sends a
     // PREFLIGHT first — answering only the PUT would let this stub pass while
@@ -1848,6 +1920,20 @@ createServer(async (req, res) => {
         'access-control-max-age': '3600',
       });
       return res.end();
+    }
+    const key = url.pathname.slice('/r2-upload/'.length);
+    if (key) {
+      const chunks = [];
+      for await (const chunk of req) chunks.push(chunk);
+      const bytes = Buffer.concat(chunks);
+      receivedUploads.set(key, {
+        method: req.method,
+        contentType: req.headers['content-type'] ?? null,
+        length: bytes.length,
+        ...inspectJpeg(bytes),
+        base64: bytes.toString('base64'),
+      });
+      if (receivedUploads.size > 50) receivedUploads.delete(receivedUploads.keys().next().value);
     }
     res.writeHead(200, { 'access-control-allow-origin': '*' });
     return res.end();

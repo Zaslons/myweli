@@ -69,6 +69,7 @@ import { OpenInAppButton } from "../OpenInAppButton";
 import { PhoneField } from "../PhoneField";
 import { TextField } from "../TextField";
 import { DepositProof } from "./DepositProof";
+import { BarClearance } from "../provider/BarClearance";
 
 /// The contact phone's check — required (decision 2026-07-02), the shared rule
 /// (docs/design/phone-national-length.md). A module constant: useFieldErrors
@@ -652,9 +653,10 @@ export function BookingFlow({
       // stopped tracking the root font size while the content beside it did.
       //
       // And the first one is gone too: the `pb-[6rem]` that cleared the pinned
-      // bar. The bar is sticky now and takes its own room in the flow, so no
-      // clearance can be guessed wrong — the doubled bar had outgrown 6rem
-      // (web-funnel-bar-fit.md).
+      // bar. The bar is fixed since decision 105, and `BarClearance`, inside
+      // it, gives the page a room under the footer measured to the bar's own
+      // height, so no clearance can be guessed wrong — the doubled bar had
+      // outgrown 6rem (web-funnel-bar-fit.md §6.3).
       className="lg:grid lg:grid-cols-desk lg:items-start lg:gap-l"
     >
       <div className="space-y-s">
@@ -930,15 +932,17 @@ export function BookingFlow({
       </aside>
 
       {/* Mobile-web pinned bottom bar (parity 2.11 — the app's pinned
-          Total + « Confirmer »). Sticky, not fixed, and the last thing in the
-          hub, as on the salon page: it rides the screen's foot while the page
-          scrolls and stops above the footer, which a fixed bar always covered.
-          `-mx-m` undoes `main`'s gutter so it spans a phone's width. Compact
-          when the full bar would take more than BAR_SHARE of the screen
-          (web-funnel-bar-fit.md). */}
+          Total + « Confirmer »), fixed at the screen's foot below `lg`, as on
+          the salon page (decision 105, b120 private build A2f): « Confirmer »
+          never leaves the screen. `BarClearance` measures the bar and gives
+          `<html>` a bottom padding as tall as it and a scroll padding of it
+          plus `s`, so the footer's last link and every focused control stop
+          above it. As wide as the screen and never wider (`w-screen
+          max-w-full`), not printed. Compact when the full bar would take more
+          than BAR_SHARE of the screen (web-funnel-bar-fit.md). */}
       <div
         ref={barRef}
-        className="sticky bottom-0 z-sticky -mx-m border-t border-divider bg-secondary px-m py-s lg:hidden"
+        className="fixed inset-x-0 bottom-0 z-sticky w-screen max-w-full border-t border-divider bg-secondary px-m py-s print:hidden lg:hidden"
       >
         <div className="mx-auto flex max-w-2xl items-center justify-between gap-m">
           {barCompact ? null : (
@@ -961,6 +965,7 @@ export function BookingFlow({
             Confirmer
           </Button>
         </div>
+        <BarClearance />
       </div>
     </div>
   );

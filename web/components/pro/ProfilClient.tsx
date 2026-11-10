@@ -23,7 +23,8 @@ import dynamic from 'next/dynamic';
 import { findCity } from '../../lib/localities';
 import { centerOf } from '../../lib/discovery/map';
 import { hasCap } from '../../lib/pro/team';
-import { uploadLogoImage } from '../../lib/pro/upload';
+import { uploadFailureMessage, uploadLogoImage } from '../../lib/pro/upload';
+import { useFocusBackAfter, useLeaveSignal } from '../../lib/pro/upload-hooks';
 import { useLocalities } from '../../lib/use-localities';
 import { Button } from '../Button';
 import { Loading } from '../Loading';
@@ -70,8 +71,13 @@ export function ProfilClient() {
   // The logo uploader (salon-logo.md §5) — upload now, persist via
   // « Enregistrer » with the rest of the staged form.
   const logoRef = useRef<HTMLInputElement>(null);
+  const logoButtonRef = useRef<HTMLButtonElement>(null);
   const [logoUploading, setLogoUploading] = useState(false);
   const [logoError, setLogoError] = useState<string | null>(null);
+  // Leaving Profil stops a logo upload in progress (web-pro-upload-resize.md
+  // §2.4); the button disabled while it worked gets the focus back (§2.7).
+  const leaving = useLeaveSignal();
+  useFocusBackAfter(logoUploading, logoButtonRef);
   // The two phone numbers answer UNDER their fields (§14 rules 1/2 —
   // docs/design/phone-national-length.md); the rest stays form-level.
   const phones = useFieldErrors(profilePhoneChecks);
@@ -210,13 +216,20 @@ export function ProfilClient() {
               if (!file) return;
               setLogoUploading(true);
               setLogoError(null);
-              const url = await uploadLogoImage(file);
+              // Prepared as the app does — a transparent logo on white
+              // (web-pro-upload-resize.md §2.4).
+              const signal = leaving();
+              const upload = await uploadLogoImage(file, { signal });
+              if (signal.aborted) return; // Profil was left
               setLogoUploading(false);
-              if (!url) return setLogoError('Échec de l’envoi du logo.');
-              set('logoUrl', url);
+              if (!upload.ok) {
+                return setLogoError(uploadFailureMessage(upload.reason, 'Échec de l’envoi du logo.'));
+              }
+              set('logoUrl', upload.url);
             }}
           />
           <Button
+            ref={logoButtonRef}
             variant="secondary"
             isLoading={logoUploading}
             onClick={() => logoRef.current?.click()}

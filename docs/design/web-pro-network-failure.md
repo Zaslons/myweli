@@ -182,11 +182,18 @@ il faut une branche d'erreur.
 ## 5. Téléversement
 
 `lib/pro/upload.ts` : la demande de signature passe par un `fetch` qui ne lève
-pas ; un rejet → `null`, la branche que chaque appelant a déjà (« Échec de
-l'envoi de la photo. », « Le téléversement a échoué. »…). **Pas de rapport
-Sentry** pour ce cas : la signature est demandée au BFF, même origine — un
-rejet là, c'est le réseau de la personne, pas le stockage ni un CORS, que la
-télémétrie existe pour trouver (`lib/upload-telemetry.ts`).
+pas ; un rejet → un envoi raté, la branche que chaque appelant a déjà (« Échec
+de l'envoi de la photo. », « Le téléversement a échoué. »…) : `null` pour les
+pièces KYC, `{ ok: false, reason: 'failed' }` pour les photos Pro depuis
+qu'elles sont préparées avant l'envoi ([web-pro-upload-resize.md](web-pro-upload-resize.md),
+2026-11-09). **Pas de rapport Sentry** pour ce cas : la signature est demandée
+au BFF, même origine — un rejet là, c'est le réseau de la personne, pas le
+stockage ni un CORS, que la télémétrie existe pour trouver
+(`lib/upload-telemetry.ts`). Cette télémétrie a depuis une étape de plus,
+`prepare` : une photo Pro que le navigateur n'a pas pu préparer, signalée avec
+son type MIME et une tranche de mégapixels, jamais son nom de fichier — au
+niveau `warning`, pas `error` (la revue du 2026-11-09). Une page quittée pendant
+l'envoi rend `{ ok: false, reason: 'aborted' }`, sans rapport ni message.
 
 ## 6. UX
 

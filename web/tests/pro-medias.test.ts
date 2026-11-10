@@ -37,8 +37,11 @@ describe('pro medias helpers', () => {
 
 describe('uploadGalleryImage', () => {
   afterEach(() => vi.restoreAllMocks());
+  // jsdom has no canvas: the preparation is injected (web-pro-upload-resize.md).
+  const prepared = new Blob(['jpeg'], { type: 'image/jpeg' });
+  const compress = async () => ({ ok: true, blob: prepared, width: 1, height: 1, pixels: 1 }) as const;
 
-  it('signs → POSTs bytes → returns publicUrl', async () => {
+  it('signs → PUTs the prepared bytes → returns publicUrl', async () => {
     const fetchMock = vi
       .fn()
       .mockResolvedValueOnce(
@@ -56,14 +59,15 @@ describe('uploadGalleryImage', () => {
     vi.stubGlobal('fetch', fetchMock);
 
     const file = new File(['x'], 'p.jpg', { type: 'image/jpeg' });
-    const url = await uploadGalleryImage(file);
-    expect(url).toBe('https://cdn/p1/1.jpg');
+    const upload = await uploadGalleryImage(file, { compress });
+    expect(upload).toEqual({ ok: true, url: 'https://cdn/p1/1.jpg' });
     expect(fetchMock).toHaveBeenCalledTimes(2);
     expect(String(fetchMock.mock.calls[0][0])).toContain('/api/pro/uploads/sign');
     expect(String(fetchMock.mock.calls[1][0])).toBe('https://r2/upload');
+    expect(fetchMock.mock.calls[1][1]?.body).toBe(prepared);
   });
 
-  it('returns null when the storage POST fails', async () => {
+  it('fails when the storage PUT fails', async () => {
     const fetchMock = vi
       .fn()
       .mockResolvedValueOnce(
@@ -75,6 +79,6 @@ describe('uploadGalleryImage', () => {
       .mockResolvedValueOnce(new Response(null, { status: 500 }));
     vi.stubGlobal('fetch', fetchMock);
     const file = new File(['x'], 'p.jpg', { type: 'image/jpeg' });
-    expect(await uploadGalleryImage(file)).toBeNull();
+    expect(await uploadGalleryImage(file, { compress })).toEqual({ ok: false, reason: 'failed' });
   });
 });

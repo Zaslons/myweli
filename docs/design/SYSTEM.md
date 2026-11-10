@@ -1022,6 +1022,14 @@ for when the bar is the only way back (a deleted photo); otherwise the kind
 keeps its own duration. `SnackAction.isOnlyRouteBack` says which.
 *(A6 amendment.)*
 
+**A transient message never covers a floating control where the screen has
+room** (2026-11-06; BACKLOG 100). In the app, Flutter's `Scaffold` lifts a
+floating `SnackBar` above a `FloatingActionButton` (framework behaviour;
+UNVERIFIED in this app's screens). On the web, `Toast` measures the page's
+marked floating controls and moves clear of them by one fixed rule
+([WEB-SYSTEM.md §7](WEB-SYSTEM.md#7-announcements-live-regions);
+[web-swiss-salon.md](web-swiss-salon.md) §2.3, not merged).
+
 **Feedback raised while a dialog or sheet is open is NOT a snackbar.**
 `ModalBarrier` renders `BlockSemantics(ExcludeSemantics(…))`, so the bar is
 pruned from the semantics tree — a screen reader never hears it — and it paints
