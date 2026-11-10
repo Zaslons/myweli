@@ -49,8 +49,8 @@ itself back (§6).
 TLS verifier for every outbound call (Apple, Google, FCM, R2, Resend). SDKs
 before 3.13.7 trust eight compromised eMudhra intermediates
 (GHSA-frr6-h895-5pxp). Read on 2026-11-10 from the serving binaries:
-`myweli-api-00046-bzg` (created 2026-10-22) is **3.13.6**, and so is everything
-older, since those revisions predate 3.13.7's release. `00047-55v` (image
+`myweli-api-00046-bzg` (created 2026-10-22) is **3.13.6**, and everything older
+is 3.13.6 or below, since those revisions predate 3.13.7's release. `00047-55v` (image
 `a0ee1cd`) is the oldest revision read as **3.13.7**. The same floor applies to
 §4.3: an image tag built before `a0ee1cd` must not be promoted until its SDK has
 been read. [backend-dart-sdk-pin.md](backend-dart-sdk-pin.md) §3.2 has the

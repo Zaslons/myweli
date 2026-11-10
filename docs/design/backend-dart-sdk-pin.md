@@ -51,8 +51,8 @@ domain that chains through one of them.
 verifies chains with the BoringSSL compiled into the program. Web, iOS and
 macOS use the browser or Apple's `Security.framework` and are not affected.
 
-**What the fix is.** 3.13.7 is 3.13.6 plus exactly two commits (read with
-`gh api repos/dart-lang/sdk/compare/3.13.6...3.13.7`):
+**What the fix is.** 3.13.7 is 3.13.6 plus two commits and the version bump
+(read with `gh api repos/dart-lang/sdk/compare/3.13.6...3.13.7`):
 
 - `ecb2c83516` rolls BoringSSL to `c7eb007fd106`. That roll includes BoringSSL
   `dd682072baab`, « Block a handful of intermediate certificates », which adds
@@ -288,8 +288,12 @@ traffic pin still bypasses it.
 `eca4db6` (`00046`) was refused at 3.13.6. `45a5d0f` (the next promotion
 candidate, an **OCI index**) passed at 3.13.7. A bare tag, and a digest that
 does not exist, both failed closed. The first draft accepted image manifests
-only, and would have failed closed on **every** new build: the index case was
-found by running it against the newest image, not by reading it.
+only, and failed closed on the newest build: `45a5d0f`, built on
+`ubuntu-26.04`, is an index, while `4e78e48` and `a0ee1cd`, built on
+`ubuntu-24.04`, are plain manifests (runner image read from each run's log). So
+it would presumably have refused every build from the new runner. The index
+case was found by running the script against the newest image, not by reading
+it.
 
 **Which event turns them red** (verification §15): a downgrade, a channel tag,
 a missing digest, an unpinned CLI, one file bumped without the other, a floor
