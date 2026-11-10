@@ -4,7 +4,7 @@
 |---|---|
 | **Status** | **Built** (code, tests, docs, goldens Linux regardés) — reste l'essai sur appareil (§10) |
 | **Owner** | Sadreddine |
-| **Last updated** | 2026-10-12 |
+| **Last updated** | 2026-11-06 (lignes d'histoire sur le site, B11.4) |
 | **Module** | `online-booking` (la page salon de la marketplace) — [MODULES.md](../MODULES.md) |
 | **PRD ref / phase** | FR-DISC-006 (« Provider profile: hero gallery… ») · V1 |
 | **ROADMAP entry** | [2026-10-11-salon-cover-photo.md](../roadmap/entries/2026-10-11-salon-cover-photo.md) |
@@ -19,7 +19,7 @@ comme sur le site »*. Vérifié dans le code avant d'écrire une ligne :
 
 | | site (`web/components/provider/Hero.tsx`) | app (avant) |
 |---|---|---|
-| couverture | `imageUrls[0]` pleine largeur, `object-cover`, 224 px téléphone / 320 px dès `sm`, `priority` | **aucune** — `FlexibleSpaceBar.background` = `Container(color: AppColors.secondary)` ; l'en-tête ne lisait jamais `imageUrls` |
+| couverture | `imageUrls[0]` pleine largeur, `object-cover`, 224 px téléphone / 320 px dès `sm`, `priority` (le site d'alors ; avec B11.4, 3:2 à toutes les largeurs, coupé à 50 % 20 % : [web-swiss-salon.md](web-swiss-salon.md), non fusionné) | **aucune** — `FlexibleSpaceBar.background` = `Container(color: AppColors.secondary)` ; l'en-tête ne lisait jamais `imageUrls` |
 | logo | cercle 64 px cerclé de blanc, en bas à gauche **de la photo** ; absent sans logo | 72 dp à côté du nom ; pastille « magasin » sinon |
 | galerie | `imageUrls.slice(1)` — la couverture n'est pas répétée ; absente si vide | toutes les photos ; section toujours là |
 
@@ -43,7 +43,7 @@ SYSTEM §10/§22) ; le repli `via.placeholder.com` de `ProviderCard` (§11).
 De haut en bas :
 
 1. **La couverture** — `imageUrls[0]`, pleine largeur, **224 dp sous la barre
-   d'état** (le `h-56` du site), bord à bord : elle passe sous la barre d'état
+   d'état** (le `h-56` du site d'alors ; avec B11.4 le site passe en 3:2, [web-swiss-salon.md](web-swiss-salon.md), non fusionné, et l'app garde 224 dp jusqu'après la décision d'Apple, BACKLOG B12.13), bord à bord : elle passe sous la barre d'état
    et sous la barre d'outils. `BoxFit.cover` (l'`object-cover` du site).
 2. **Un dégradé en haut** — noir 60 % → transparent, sur la barre d'état + la
    barre d'outils. Le voile des stories (§19, `story_viewer.dart`, 0x99) : il
@@ -125,6 +125,11 @@ lignes. « Photos » garde « Aucune photo pour le moment. ».
   les trois largeurs par `salon_header_test.dart`.
 - **Photo claire** : le dégradé. **Photo très large / haute** : `cover` recadre
   au centre, comme le site.
+  **À la fusion de B11.3 :** le site ne recadre plus au centre : sa carte et sa
+  couverture coupent à 50 % 20 %, un peu au-dessus, sur le choix du propriétaire
+  ([web-swiss-cards.md](web-swiss-cards.md) §11, décisions 2 et 8). L'app reste au
+  centre jusqu'après la décision d'Apple sur 0.0.1 (BACKLOG B12.13), parce que tout
+  ce qui est sous `mobile/lib` part dans le prochain build Pro.
 - **`imageUrls[0] == ''`** : « pas de couverture » (la vérité JavaScript du
   site) ; la bande « Photos » montre alors toute la liste.
 
@@ -177,7 +182,7 @@ Tout dans `provider_detail_screen.dart` :
 nommée au point d'usage, cf. `ProviderCard._imageHeight`). Vérifié aussi : une
 nouvelle `static const double` d'`AppTheme` rougit le miroir web
 (`web/scripts/dart-tokens.mjs`, `unclaimedDoubles`) pour une valeur que le site
-porte déjà (`h-56`). D'où `_coverHeight = 224`, `_coverLogoSize = 64`,
+portait alors (`h-56`, jusqu'à la forme 3:2 de B11.4 : [web-swiss-salon.md](web-swiss-salon.md), non fusionné). D'où `_coverHeight = 224`, `_coverLogoSize = 64`,
 `_coverLogoRing = 2`. Le voile (`Colors.black` 60 % → `Colors.transparent`)
 est l'exception §19 « alpha-black … for scrims and overlays only ».
 
@@ -238,7 +243,7 @@ apps ; le site ne change pas. V1.
 
 ## 11. Open questions
 
-- **Tablette** : le site passe à 320 px dès 640 px ; 224 dp tant que l'app n'a
+- **Tablette** : le site passait à 320 px dès 640 px (avec B11.4 : 3:2 à toutes les largeurs, [web-swiss-salon.md](web-swiss-salon.md), non fusionné) ; 224 dp tant que l'app n'a
   pas de mise en page `medium`. **Titre replié** : refusé par §13.3.
 - **`memCacheWidth`** (Android bas de gamme) : à mesurer avec les autres images.
 - **Signalé, non corrigé** : `ProviderCard` remplace une liste de photos vide

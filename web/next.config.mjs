@@ -283,6 +283,12 @@ const nextConfig = {
     instrumentationHook: true,
   },
   images: {
+    // 31 days. Photos now appear on every list, and with Next's default of 60 s most
+    // views would be a billed transformation. Keys are random, so a replaced photo gets
+    // a new URL. **It is global:** a file erasure deletes must never enter this cache,
+    // which is why `AvisClient` shows review photos `unoptimized`
+    // (docs/design/web-swiss-cards.md §6, §7).
+    minimumCacheTTL: 2678400,
     // Hosts allowed for next/image. Salon photos come from the R2 public bucket
     // (R2_PUBLIC_BASE_URL = https://cdn.myweli.com at deploy); the R2 default
     // endpoint and the hermetic e2e stub host are allowed too.

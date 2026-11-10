@@ -112,6 +112,41 @@ jobs:
         env:
           PRIVACY_URL: ${{ github.event.inputs.target || 'https://myweli.com' }}
 
+  cardphoto:
+    name: Real domain — a salon card's photo, once there is one
+    runs-on: ubuntu-latest
+    # It installs packages and reads a public page, so it gets none of the workflow's
+    # issues or id-token rights.
+    permissions:
+      contents: read
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      # **It reads nothing until a public salon has a photo, and says so in the log.**
+      # No card, no photo through Vercel's optimizer and no 31-day cache could be read
+      # when B11.3 merged, because production has no public salon. This wakes by itself
+      # with the first one. It reads the first photo, and also asks for one transformation
+      # nobody has read, because that photo's file is cached for 31 days and cannot show a
+      # plan out of transformations: the next new photo would, as a tile with a letter on
+      # it, which nobody would report. The probe is that file under a source URL new each
+      # day, `?m=<epoch day>`, which is new under either billing model. What Vercel and R2
+      # do with it is unread until the first real run, so its log prints x-vercel-cache.
+      # Then B11.3's last line gets read and closed by hand.
+      # docs/design/web-swiss-cards.md §9.
+      - name: The first card photo on /recherche, if there is one
+        run: npm run check:card-photo
+        env:
+          PRIVACY_URL: ${{ github.event.inputs.target || 'https://myweli.com' }}
+
   retention:
     name: Real domain — the 30-day log retention we promise
     runs-on: ubuntu-latest
@@ -325,7 +360,7 @@ jobs:
   # docs/design/production-alarm-close.md
   report:
     name: Say so, if any check failed
-    needs: [cwv, privacy, legal, retention, attestation, secretpins, basemap]
+    needs: [cwv, privacy, legal, cardphoto, retention, attestation, secretpins, basemap]
     if: failure()
     runs-on: ubuntu-latest
     steps:
@@ -341,6 +376,7 @@ jobs:
           CWV: ${{ needs.cwv.result }}
           PRIVACY: ${{ needs.privacy.result }}
           LEGAL: ${{ needs.legal.result }}
+          CARDPHOTO: ${{ needs.cardphoto.result }}
           RETENTION: ${{ needs.retention.result }}
           ATTESTATION: ${{ needs.attestation.result }}
           SECRETPINS: ${{ needs.secretpins.result }}
@@ -361,14 +397,14 @@ jobs:
           BODY=$(printf '%s\n' \
             '@Zaslons The scheduled real-domain checks failed.' \
             '' \
-            "CWV: ${CWV} · privacy: ${PRIVACY} · legal: ${LEGAL} · retention: ${RETENTION} · attestation: ${ATTESTATION} · secret pins: ${SECRETPINS} · basemap: ${BASEMAP}" \
+            "CWV: ${CWV} · privacy: ${PRIVACY} · legal: ${LEGAL} · card photo: ${CARDPHOTO} · retention: ${RETENTION} · attestation: ${ATTESTATION} · secret pins: ${SECRETPINS} · basemap: ${BASEMAP}" \
             '' \
             "${RUN}" \
             '' \
-            'Four of these run against myweli.com — not a preview, not a' \
-            'stub — so if CWV, privacy, legal or retention failed, production' \
-            'is **already** wrong. There is no merge to block, which is why' \
-            'this is a monitor and not a gate.' \
+            'Five of these run against myweli.com — not a preview, not a' \
+            'stub — so if CWV, privacy, legal, card photo or retention failed,' \
+            'production is **already** wrong. There is no merge to block, which' \
+            'is why this is a monitor and not a gate.' \
             '' \
             'The CWV job asserts the docs/WEB.md §7 budgets. The privacy job' \
             'asserts that no page reaches an undisclosed third party before the' \
@@ -377,7 +413,16 @@ jobs:
             'legal job asserts the mentions légales and the privacy policy on' \
             'the live site still publish the registration status the manifest' \
             'records — a red row there usually means Vercel is serving an older' \
-            'deployment, since web/ has no deploy workflow of its own.' \
+            'deployment, since web/ has no deploy workflow of its own. The card' \
+            'photo job reads /recherche and, once a public salon has a photo, the' \
+            'first one. Red means one of four things, and the job log says which:' \
+            '/recherche answered neither a list nor an empty list; that photo did' \
+            'not load through the image optimizer, so visitors see a letter on a' \
+            'tile; its card is no longer 4:3; or a transformation nobody has read' \
+            'was refused. A 402 there means the plan ran out of transformations:' \
+            'new photos show a letter while cached ones still load. A 400 means the' \
+            'request was refused, by the config or as no image, and not the plan' \
+            '(docs/design/web-swiss-cards.md §7, §9).' \
             '' \
             '**The attestation job is different, and a failure there does NOT' \
             'mean production is wrong.** It asserts that somebody has confirmed' \
@@ -425,7 +470,7 @@ jobs:
   # delivery without a real failure. docs/design/production-alarm-close.md
   clear:
     name: Close the alarm, if every check passed
-    needs: [cwv, privacy, legal, retention, attestation, secretpins, basemap]
+    needs: [cwv, privacy, legal, cardphoto, retention, attestation, secretpins, basemap]
     if: github.event_name == 'schedule' && success()
     runs-on: ubuntu-latest
     steps:
@@ -458,6 +503,8 @@ jobs:
           BODY=$(printf '%s\n' \
             '@Zaslons Every check passed on this scheduled run, so this is closed.' \
             'The next failure reopens it.' \
+            'The card photo check reads nothing until a public salon has a photo;' \
+            "the run's log says which." \
             '' \
             "${RUN}")
 

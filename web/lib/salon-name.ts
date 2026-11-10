@@ -23,6 +23,15 @@ export function salonNameOr(name: string | null | undefined, unnamed: string): s
   return name && name.trim() ? name : unnamed;
 }
 
+/// The letter on a salon's card with no photo and no logo
+/// (docs/design/web-swiss-cards.md §2.2): the first letter or digit after NFC,
+/// upper-cased in French, and the unnamed word's first letter if there is none.
+/// So « 💇 Awa » gives A, « « Chez Awa » » gives C, and « !!! » gives S.
+export function salonInitial(name: string): string {
+  const first = name.normalize('NFC').match(/[\p{L}\p{N}]/u);
+  return (first ? first[0] : UNNAMED_SALON.charAt(0)).toLocaleUpperCase('fr-FR');
+}
+
 /// The Collaborateur's « Aujourd'hui » title: « {salon} — votre planning »,
 /// or « Votre planning » alone when the salon has no name.
 export function staffPlanningTitle(name: string | null | undefined): string {
