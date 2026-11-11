@@ -5,7 +5,7 @@
 | **Module** | release (mobile, Pro flavour `com.myweli.pro`; Play Console) |
 | **Status** | **Approved 2026-11-11** — the owner's « Valider tel quel » on the plan and on decisions 110–115 ([BACKLOG](../BACKLOG.md)). Decision 115's cost was understated when asked; told the corrected facts, the owner confirmed « Rester professionnel » the same day (§3.6). Nothing built, nothing typed in the console yet. |
 | **Last updated** | 2026-11-11 |
-| **BACKLOG items** | B0.10 (the Play forms and the closed test), B13.1 (#758), B13.3 (firebase), B13.9 (#759) |
+| **BACKLOG items** | B0.10 (the Play forms and the closed test), B13.1 (#758), B13.3 (firebase), B13.10 (#759) |
 | **PRD ref / phase** | V1 · NFR-PERF-002 (APK < 30 MB) · ROADMAP Part 6 (the reference low-end Android) |
 | **ROADMAP entry** | added when the production release ships (`docs/roadmap/entries/`) |
 | **Skills checked** | myweli-dev-guardrails · myweli-verification-guardrails |
