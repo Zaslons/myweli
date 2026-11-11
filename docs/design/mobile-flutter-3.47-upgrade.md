@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Module** | toolchain (cross-cutting: `mobile/`, CI, the golden baseline, the iOS build) |
-| **Status** | **Approved 2026-11-11** — the owner's answers: O1 **C**, O2 **validate with 0.0.2's first build**, O3 **the local clone**, O4 **after**; O5 only if the reformat is large (§8). Building on `chore/flutter-3.47.9`. |
+| **Status** | **Approved 2026-11-11** — the owner's answers: O1 **C**, O2 **validate with 0.0.2's first build**, O3 **the local clone**, O4 **after**; O5 only if the reformat is large (§8). **Built** on `chore/flutter-3.47.9`, #758 (draft, not merged); outcome in §11. |
 | **Last updated** | 2026-11-10 |
 | **Decision** | the owner, 2026-11-10: « Flutter 3.47.9 first » ([BACKLOG](../BACKLOG.md) decision 109) |
 | **BACKLOG items** | batch 13: B13.1 (this PR), B13.2 (headings), B13.3–B13.8 (what follows) |
@@ -513,19 +513,64 @@ No other pub bump can open until they close.
 
 ## 10. Definition of done
 
-- [ ] `flutter analyze --fatal-infos --fatal-warnings` = 0; `dart format` clean.
-- [ ] The full `flutter test` green; the web and backend parsers green if
-      touched.
-- [ ] Goldens regenerated on Linux, measured, and every changed PNG looked at.
-- [ ] Every new guard (pins, headings, the title widget if C) watched red.
+- [x] `flutter analyze --fatal-infos --fatal-warnings` = 0; `dart format` clean.
+- [x] The full `flutter test` green (after the helper fix, §11); the web and
+      backend parsers not touched.
+- [x] Goldens regenerated on Linux, measured, and every changed PNG looked at.
+- [x] Every new guard (pins, headings, the title widget if C) watched red.
 - [ ] Accessibility Inspector recorded: control on 3.44.9, absent on 3.47.9
-      without the fix, present with it (§6 step 10).
-- [ ] The APNs probe's three cases on 3.47.9 recorded (§6 step 9).
-- [ ] No framework whose binary `minos` is above its `MinimumOSVersion`, with
+      without the fix, present with it (§6 step 10). **Not done:** the tool
+      could not be driven (§11); VoiceOver on a device is the owner's.
+- [x] The APNs probe's three cases on 3.47.9 recorded (§6 step 9).
+- [x] No framework whose binary `minos` is above its `MinimumOSVersion`, with
       the 719 control (§6 step 9).
-- [ ] `ios/Podfile.lock` and both `Package.resolved` committed from one build.
-- [ ] CI fully green, APK MB recorded against 21.40.
-- [ ] Feature branch and PR, authored by the owner, with no Claude author or
+- [x] `ios/Podfile.lock` committed from the build; both `Package.resolved`
+      unchanged by it.
+- [x] CI fully green, APK 21.63 MB recorded against 21.40.
+- [x] Feature branch and PR, authored by the owner, with no Claude author or
       co-author.
 - [ ] After the merge: O2's validation recorded; this spec's status and
       outcome updated; the ROADMAP entry added; batch 13 updated.
+
+## 11. Outcome — built 2026-11-11 (#758, not merged)
+
+What the build found that the spec had not foreseen, and what each step
+measured. Observed unless marked.
+
+**Found by the new SDK:**
+
+- **A sign-in catch that could not catch** (`unawaited_return_in_try_block`,
+  a Dart 3.13 warning). The four social doors returned
+  `_loginFrom(res)` / `_providerLoginResultFrom(res)` unawaited inside `try`, so
+  a failure after the server's 200 — a body without its tokens, the keychain
+  refusing the session — escaped the catch and the sign-in threw instead of
+  saying « Connexion … impossible. ». `api_auth_late_failure_test.dart`: red
+  on the old code (8 red, 4 controls green), green with `await`. Fixed here,
+  as the 3.44 move fixed what its SDK surfaced.
+- **A test helper `IndexedStack` fooled.** 3.47 no longer wraps an
+  `IndexedStack`'s hidden children in a `Visibility`, so the a11y gates'
+  `_isPainted` read a hidden child as painted (`primitives_test.dart`, red on
+  3.47.9). It reads `Visibility.of` now.
+- **A fourth « Vous êtes invité(e) ».** The Pro login screen draws its own,
+  never marked as a heading; with `SectionHeading`, it is SYSTEM §21 row 98.
+
+**Measured, step by step:**
+
+| Step | Result |
+|---|---|
+| 1 Install | the local clone (O3 b); 3.47.9, Dart 3.13.7; the 3.44.9 SDK untouched. Its first run downloaded a 215 MB Dart SDK |
+| 2 Pins | 7 pins and the floor in one commit; the pin guard red on main's pubspec (no ceiling), on one pin changed, on one pin removed |
+| 3 Lockfile | exactly intl 0.20.3, matcher 0.12.20, meta 1.19.0, test_api 0.7.12, vector_math 2.4.4, and the `sdks:` block; `analysis_options.yaml` gains `android/**`, `ios/**`, `web/**`, `macos/**` |
+| 4 Formatter | 5 tracked files — under ten, so the usual squash (O5 did not arise); none read by a web or backend test |
+| 5 Analyze | 0, after the four `await`s |
+| 6 Headings | O1 = C: `ScreenTitle` on 60 bars in 56 files, the salon's name, three section titles; each test red before its fix; the guard red three times |
+| 7 Tests | 3130 passed, 58 skipped (goldens on the Mac), 1 failure — the helper above, fixed; `test/a11y` 484 and `test/infra` 183 green after |
+| 8 Goldens | run 42932801415: 33 of 58 byte-identical; 25 differ, none changes size; worst 0.382 %, 10,987 px in all, 7 past Δ100; every changed PNG looked at — only anti-aliased edges of rounded shapes, no text, title or salon name |
+| 9 iOS | the unsigned Pro release build: built, 26.9 MB; every framework's binary `minos` equals its `MinimumOSVersion` (15.0; Sentry 100.0) — the check passes on build 719 and fails on a copy with a lowered plist; Info.plist read; `Podfile.lock` committed (`Package.resolved` did not move). The APNs probe on 3.47.9: a real token on first launch, relaunch and the app's own launch path |
+| 10 Accessibility Inspector | **not observed.** Xcode 27 ships no `Simulator.app`, and Accessibility Inspector's target chooser refused to be driven, in the background or with full-screen control. What stands instead: the 3.47.9 engine sets the Header trait from `headingLevel > 0` (`SemanticsObject.mm:840`, read), and every heading is tested on its own node. VoiceOver on a device is left to the owner |
+
+| 11 CI | #758, all 12 checks green on 3.47.9 (run 42934421852), the Linux goldens and the iOS build included. **APK 21.63 MB** against main's 21.40 (+0.23 MB, +1.1 %), budget 30 MB |
+
+**Noted for later:** `add_2_calendar` has no Swift Package Manager support,
+and Flutter 3.47 warns this « will become an error in a future version of
+Flutter » (B13.9).
