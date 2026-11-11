@@ -125,6 +125,9 @@ nothing here should be handed credentials.
    `mobile/android/key.properties` with `storeFile`, `storePassword`,
    `keyAlias`, `keyPassword`. **Never commit it** (already gitignored), and back
    the keystore up — losing it means losing the ability to update the listing.
+   *(2026-11-11: no longer true since Play App Signing was enrolled
+   (2026-08-26). A lost upload key is replaced by Google's upload key reset;
+   updates stop until then. See android-play-release.md §11, O1.)*
 2. **Play Console** — create both apps (`com.myweli.app`, `com.myweli.pro`),
    enrol in Play App Signing, upload the `.aab`.
 3. **Apple certificates and profiles** — Distribution certificate, App Store

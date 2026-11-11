@@ -40,7 +40,8 @@ All three are out of date.
 - **Recorded 2026-08-26** ([signing-manifest.json](../../infra/mobile/signing-manifest.json),
   [roadmap entry](../roadmap/entries/2026-08-26-true-play-delivery-shas.md)):
   - the upload keystore exists, and the owner holds its passwords. Its
-    **backup** was never checked (§4, step 4);
+    **backup** was never checked (§4, step 4). On 2026-11-11 the owner did
+    not remember one, and none was found: §11, O1;
   - both apps exist in the Play Console, enrolled in Play App Signing
     (`"enrolled": true`);
   - the Pro app's Play signing certificate, `94be494a…`, was read from the
@@ -154,7 +155,7 @@ never a go-ahead for a console action.
 | 1 | Merge #758 (Flutter 3.47.9); then #759 (the TLS artifact gate), rebased | the owner merges; #759 belongs to its own session | yes | squash tree == PR tree |
 | 2 | B13.3: firebase_messaging 16.7.x, its own PR from `main`, lockfile regenerated on 3.47.9 | Claude | merge | the Android 13+ « never asked = denied » branch tested |
 | 3 | `version: 0.0.2+1` in `pubspec.yaml` (decision 111); the R8 PR (§6) | Claude | merge | the guards of §9 |
-| 4 | The upload key: the owner says where the backup is; the original and the copy are compared by `shasum -a 256`, nothing printed but the two hashes; `chmod 600 key.properties` on the owner's yes | the owner, with Claude | — | two equal hashes |
+| 4 | The upload key: **no backup is known** (§11, O1), so the owner makes one. `~/myweli-upload.jks` **and** its two passwords go somewhere off this Mac (a password-manager entry with the file attached, or an encrypted drive kept elsewhere). The original and the copy are compared by `shasum -a 256`, nothing printed but the two hashes. The owner then opens the copy with `keytool -list` in their own terminal, typing the password from the backup. `chmod 600 key.properties` on the owner's yes | the owner, with Claude | — | two equal hashes, and the copy opens with the backed-up password |
 | 5 | The AAB from `main`, in the main checkout: `./tool/release_build.sh android pro`. Then on the artifact: the TLS gate (#759), the R8 marker, `BUNDLE-METADATA/…/proguard.map` present or not, permissions with `aapt2`/`bundletool`, size; Sentry: Dart symbols + the mapping (§6) | Claude, on the owner's yes | yes | the script's lines, the reads |
 | 6 | Upload to the **internal** track, roll out to the owner; the device pass of §5 on the owner's phone and on the reference device | Claude in the browser pane (the owner signed in); the owner holds the phones | yes for the upload | §5's table filled in |
 | 7 | Re-read the Play dashboard (last read 2026-10-28). Type the listing text (decision 113). Fill in the location declaration (§7.1) and the trader declaration (§3.6, « trader », confirmed 2026-11-11) | Claude in the pane; the owner signed in | yes for each form | each form read back after saving |
@@ -313,8 +314,8 @@ they have, and LAUNCH §6.3's box stays open with the gap named.
 
 | # | Question | Who | State |
 |---|---|---|---|
-| O1 | Where is the upload key's backup? | the owner | open |
-| O2 | Is there an Android 9 phone with 2–3 GB of RAM? Otherwise, which is the oldest? | the owner | open |
+| O1 | Where is the upload key's backup? | the owner | **answered 2026-11-11: « I don't remember ».** Observed that day: Spotlight finds one copy, `~/myweli-upload.jks` (2,761 bytes, created 2026-08-26 01:25, mode `644`), the file `key.properties` points to; Time Machine has no destination. A USB drive, a password manager or an e-mail would not show here, so it is **treated as no backup** and step 4 makes one. Losing it would **not** end the listing: Google holds the app signing key, and a lost upload key is replaced by an « upload key reset » ([answer 9842756](https://support.google.com/googleplay/android-developer/answer/9842756?hl=en), read 2026-11-11: « you are not locked out of your app »). Google states no delay. Until the reset, no update ships, for either app: one key signs both apps' uploads (signing-manifest.json) |
+| O2 | Is there an Android 9 phone with 2–3 GB of RAM? Otherwise, which is the oldest? | the owner | **answered 2026-11-11: « an old Samsung ».** Model, Android version and RAM not known yet: read at step 6 with `adb` (`ro.product.model`, `ro.build.version.release`, `/proc/meminfo`) or by the owner in Settings › About phone. It must run Android 7.0 (API 24, the app's `minSdk`) or later, or Play will not offer the app on it |
 | O3 | Trader, with phone and address shown everywhere (§3.6): still « trader »? | the owner | **answered 2026-11-11: « Rester professionnel »** |
 | O4 | The location form: where it is, what it asks, whether it gates testing | read at step 7 | open |
 | O5 | Does `sentry_flutter` read `io.sentry.proguard-uuid` without the Gradle plugin? | step 6 | open |
