@@ -41,7 +41,7 @@ All three are out of date.
   [roadmap entry](../roadmap/entries/2026-08-26-true-play-delivery-shas.md)):
   - the upload keystore exists, and the owner holds its passwords. Its
     **backup** was never checked (§4, step 4). On 2026-11-11 the owner did
-    not remember one, and none was found: §11, O1;
+    not remember one and none was found, so they made one that day: §11, O1;
   - both apps exist in the Play Console, enrolled in Play App Signing
     (`"enrolled": true`);
   - the Pro app's Play signing certificate, `94be494a…`, was read from the
@@ -155,7 +155,7 @@ never a go-ahead for a console action.
 | 1 | Merge #758 (Flutter 3.47.9); then #759 (the TLS artifact gate), rebased | the owner merges; #759 belongs to its own session | yes | squash tree == PR tree |
 | 2 | B13.3: firebase_messaging 16.7.x, its own PR from `main`, lockfile regenerated on 3.47.9 | Claude | merge | the Android 13+ « never asked = denied » branch tested |
 | 3 | `version: 0.0.2+1` in `pubspec.yaml` (decision 111); the R8 PR (§6) | Claude | merge | the guards of §9 |
-| 4 | The upload key: **no backup is known** (§11, O1), so the owner makes one. `~/myweli-upload.jks` **and** its two passwords go somewhere off this Mac (a password-manager entry with the file attached, or an encrypted drive kept elsewhere). The original and the copy are compared by `shasum -a 256`, nothing printed but the two hashes. The owner then opens the copy with `keytool -list` in their own terminal, typing the password from the backup. `chmod 600 key.properties` on the owner's yes | the owner, with Claude | — | two equal hashes, and the copy opens with the backed-up password |
+| 4 | The upload key's backup: none was known (§11, O1), so the owner made one on 2026-11-11. **The file:** `~/myweli-upload.jks` is on the owner's Google Drive. It was downloaded back to this Mac and compared with the original: equal SHA-256 (`3aee730f…0be0e3`) and `cmp` 0. The download then went to the Trash. Because the copy is byte-identical, it opens wherever the original does, so `keytool -list` on it would prove nothing more. **The passwords:** in Apple Passwords, which iCloud Keychain syncs off this Mac (sync observed on). Still to do: the owner checks that the saved passwords are the ones `key.properties` holds, with a `getpass` comparison run in their own terminal that prints only « matches » or « is DIFFERENT ». `chmod 600 key.properties`: dropped by the owner, because this Mac has one account (§10) | the owner, with Claude | — | two equal hashes (done 2026-11-11); both passwords « matches » (open) |
 | 5 | The AAB from `main`, in the main checkout: `./tool/release_build.sh android pro`. Then on the artifact: the TLS gate (#759), the R8 marker, `BUNDLE-METADATA/…/proguard.map` present or not, permissions with `aapt2`/`bundletool`, size; Sentry: Dart symbols + the mapping (§6) | Claude, on the owner's yes | yes | the script's lines, the reads |
 | 6 | Upload to the **internal** track, roll out to the owner; the device pass of §5 on the owner's phone and on the reference device | Claude in the browser pane (the owner signed in); the owner holds the phones | yes for the upload | §5's table filled in |
 | 7 | Re-read the Play dashboard (last read 2026-10-28). Type the listing text (decision 113). Fill in the location declaration (§7.1) and the trader declaration (§3.6, « trader », confirmed 2026-11-11) | Claude in the pane; the owner signed in | yes for each form | each form read back after saving |
@@ -301,8 +301,16 @@ they have, and LAUNCH §6.3's box stays open with the gap named.
   the backup the owner types a folder or a medium in plain text, never
   attaches the file with « @ », which would read it into the chat. Hashes are
   the only output.
-- `key.properties` holds the passwords in clear. Mode `644` lets any account
-  on the Mac read it; `600` on the owner's yes.
+- `key.properties` holds the passwords in clear, at mode `644`. That would let
+  another account on the Mac read it, but there is none: the only account
+  with a UID of 500 or more is the owner's (`dscl`, 2026-11-11). So the owner
+  chose to leave it at `644`. Adding an account reopens this.
+- The Drive copy of the keystore is encrypted under the store password, and
+  the passwords live with a different provider, Apple Passwords. Someone who
+  got into the Google account would also need the Apple account. If that
+  Google account is the one that owns the Play Console, they could already
+  request an upload key reset there, so the copy gives them nothing new. Two
+  rules: the file is never shared, and no password is stored in Drive.
 - The demo code stays in Secret Manager (play-store-forms §2). It serves both
   stores, so a rotation updates both consoles the same day.
 - Testers' e-mail addresses live in the Google Group, never in the repo.
@@ -314,7 +322,7 @@ they have, and LAUNCH §6.3's box stays open with the gap named.
 
 | # | Question | Who | State |
 |---|---|---|---|
-| O1 | Where is the upload key's backup? | the owner | **answered 2026-11-11: « I don't remember ».** Observed that day: Spotlight finds one copy, `~/myweli-upload.jks` (2,761 bytes, created 2026-08-26 01:25, mode `644`), the file `key.properties` points to; Time Machine has no destination. A USB drive, a password manager or an e-mail would not show here, so it is **treated as no backup** and step 4 makes one. Losing it would **not** end the listing: Google holds the app signing key, and a lost upload key is replaced by an « upload key reset » ([answer 9842756](https://support.google.com/googleplay/android-developer/answer/9842756?hl=en), read 2026-11-11: « you are not locked out of your app »). Google states no delay. Until the reset, no update ships, for either app: one key signs both apps' uploads (signing-manifest.json) |
+| O1 | Where is the upload key's backup? | the owner | **answered 2026-11-11: « I don't remember ».** Observed that day: Spotlight finds one copy, `~/myweli-upload.jks` (2,761 bytes, created 2026-08-26 01:25, mode `644`), the file `key.properties` points to; Time Machine has no destination. A USB drive, a password manager or an e-mail would not show here, so it is **treated as no backup** and step 4 makes one. Losing it would **not** end the listing: Google holds the app signing key, and a lost upload key is replaced by an « upload key reset » ([answer 9842756](https://support.google.com/googleplay/android-developer/answer/9842756?hl=en), read 2026-11-11: « you are not locked out of your app »). Google states no delay. Until the reset, no update ships, for either app: one key signs both apps' uploads (signing-manifest.json). **The backup was made the same day** (§4, step 4): the file is on the owner's Google Drive, and its download proved byte-identical; the passwords are in Apple Passwords. Still open: checking that the saved passwords match `key.properties` |
 | O2 | Is there an Android 9 phone with 2–3 GB of RAM? Otherwise, which is the oldest? | the owner | **answered 2026-11-11: « an old Samsung ».** Model, Android version and RAM not known yet: read at step 6 with `adb` (`ro.product.model`, `ro.build.version.release`, `/proc/meminfo`) or by the owner in Settings › About phone. It must run Android 7.0 (API 24, the app's `minSdk`) or later, or Play will not offer the app on it |
 | O3 | Trader, with phone and address shown everywhere (§3.6): still « trader »? | the owner | **answered 2026-11-11: « Rester professionnel »** |
 | O4 | The location form: where it is, what it asks, whether it gates testing | read at step 7 | open |
@@ -323,4 +331,11 @@ they have, and LAUNCH §6.3's box stays open with the gap named.
 
 **Outcome log.** Each step adds a dated line here when it ends, with what was
 observed.
+
+- **2026-11-11, step 4 (the file).** The owner uploaded the key to Google
+  Drive, and the download back reached `~/Downloads` at 21:43. Its SHA-256
+  equals the original's (`3aee730f…0be0e3`) and `cmp` exited 0. As a control,
+  `cmp` on two files that differ exited 1. The download was moved to the
+  Trash. The original is unchanged: 2,761 bytes, modified 2026-08-26 01:25:33.
+  The password check is still open.
 

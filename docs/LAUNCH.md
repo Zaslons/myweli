@@ -1438,8 +1438,12 @@ checking rather than assuming:
 - [ ] **The AAB is built on Flutter ≥3.47.8** (GHSA-frr6-h895-5pxp: below it, `dart:io` on Android trusts eight compromised eMudhra CAs). So from `main` after BACKLOG B13.1 merges; no closed-test build before it. *(Added 2026-11-10, [design/mobile-flutter-3.47-upgrade.md](design/mobile-flutter-3.47-upgrade.md) §1(c).)*
 - [ ] Upload keystore created and **backed up** — losing it ends the listing.
       *(2026-11-11: created 2026-08-26, `infra/mobile/signing-manifest.json`. The
-      owner remembers no backup and none was found on this Mac, so step 4 of
-      android-play-release.md §4 makes one. « Losing it ends the listing »
+      owner remembered no backup and none was found on this Mac, so they made
+      one the same day. The file is on their Google Drive, and its download
+      proved byte-identical to the original. The passwords are in Apple
+      Passwords. The box stays open until the owner's check shows the saved
+      passwords match `key.properties` (android-play-release.md §4, step 4).
+      « Losing it ends the listing »
       stopped being true when Play App Signing was enrolled: Google holds the
       signing key, and a lost upload key is replaced by an upload key reset,
       with no update shipping meanwhile (android-play-release.md §11, O1).)*
