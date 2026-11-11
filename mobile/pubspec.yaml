@@ -83,7 +83,7 @@ dependencies:
   crypto: ^3.0.3
 
   # UI Components
-  cached_network_image: ^3.3.1
+  cached_network_image: ^4.0.6
   flutter_svg: ^2.0.9
   # Brand loader animations (Lottie): in-app loading (mark_loader) + app-open (loader_v2).
   lottie: ^3.6.1
