@@ -1349,7 +1349,7 @@ underneath it (until the `pumpApp()` migration, A3b).
 **Goldens are authored on Linux, and only on Linux.** Flutter rasterizes glyphs
 through CoreText on macOS and FreeType on Linux — same font, same Skia, different
 pixels — so a Mac-authored golden fails in CI on every PR, forever. CI (ubuntu,
-Flutter 3.44.9) therefore *is* the authority: the goldens run inside the existing
+Flutter 3.47.9) therefore *is* the authority: the goldens run inside the existing
 blocking `analyze-and-test` job. Everywhere else they **skip with a reason**, so
 `flutter test` on a Mac says so out loud instead of failing mysteriously.
 

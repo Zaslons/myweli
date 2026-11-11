@@ -12,15 +12,28 @@ version: 0.0.1+1
 #
 # It also decides the FORMATTER's style: below 3.7 `dart format` writes the old
 # short style, at 3.7+ the tall style. Raising this bound rewrote 392 of 480
-# files, and `ci.yml:44` runs `--set-exit-if-changed`, so that reformat is
-# mandatory rather than optional — see .git-blame-ignore-revs.
+# files, and ci.yml's format step runs `--set-exit-if-changed`, so that
+# reformat is mandatory rather than optional — see .git-blame-ignore-revs.
 #
-# Nothing could honour 3.0.0 anyway: CI pins **Flutter 3.44.9**
-# (.github/workflows/ci.yml:36, :471), which ships **Dart 3.12.2**.
+# CI pins **Flutter 3.47.9**, which ships **Dart 3.13.7**; every pin and this
+# floor are one string, kept so by backend/test/infra/flutter_pin_test.dart.
+# `sdk` stays ^3.12.0 on purpose: at language 3.13 the formatter adopts a new
+# style, a repo-wide reformat that is its own PR (BACKLOG B13.5).
 #
 # The `flutter` floor is the CI pin itself rather than a rounder number, because
-# 3.44.9 is the only Flutter this tree has been built or tested on and there is
-# no evidence for any claim below it. Do not lower either bound.
+# it is the only Flutter this tree has been built or tested on and there is no
+# evidence for any claim below it. Do not lower either bound.
+#
+# **The ceiling, `<3.48.0`** (docs/design/mobile-flutter-3.47-upgrade.md §2):
+# dependabot resolves its lockfiles on the newest stable Flutter that satisfies
+# this constraint. Without a ceiling that is whatever is newest, whose SDK pins
+# packages differently, and every pub PR fails `--enforce-lockfile` on the
+# Flutter CI runs — #745–#749 did. The next toolchain PR raises it.
+#
+# **Why the floor moved off 3.44.9**: dependabot #745–#749 (lottie 3.8.x,
+# cached_network_image 4.0.6, flutter_slidable 5.x need Flutter 3.47), and the
+# `dart:io` TLS fix GHSA-frr6-h895-5pxp (Flutter 3.47.8+) that every Android
+# build needs.
 #
 # **Why the floor moved off 3.38.6** (docs/design/mobile-flutter-3.44-upgrade.md):
 # the SDK is what pins `meta`, and `meta 1.18.0` first ships in Flutter 3.44.0.
@@ -78,8 +91,8 @@ dependencies:
   custom_refresh_indicator: ^4.0.2
   flutter_slidable: ^4.0.3
   # A9 (§9.1 of nothing — §17): the Material/Cupertino defaults, in French.
-  # Pins `intl: 0.20.2` and `path: 1.9.1` EXACTLY, which we already resolve to —
-  # so our effective intl constraint becomes =0.20.2 until the SDK bumps.
+  # From Flutter 3.47.9 it asks `intl: ^0.20.3` (a range; 3.44.9 pinned 0.20.2
+  # exactly), so intl moves with the lockfile again, not only with the SDK.
   flutter_localizations:
     sdk: flutter
   intl: ^0.20.2
