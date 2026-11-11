@@ -269,7 +269,7 @@ class ApiAuthService implements AuthServiceInterface {
         );
       }
       final res = await _post('/auth/google', {'idToken': idToken});
-      return _loginFrom(res);
+      return await _loginFrom(res);
     } on GoogleSignInException catch (e) {
       // **v7 turned the cancel into a throw.** `signIn()` used to return null
       // when the user closed the sheet; `authenticate()` returns a non-nullable
@@ -323,7 +323,7 @@ class ApiAuthService implements AuthServiceInterface {
         if (fullName.isNotEmpty) 'fullName': fullName,
         ..._appleCode(credential),
       });
-      return _loginFrom(res);
+      return await _loginFrom(res);
     } on SignInWithAppleAuthorizationException catch (e) {
       if (e.code == AuthorizationErrorCode.canceled) {
         return ApiResponse.error('', code: 'cancelled');
@@ -525,7 +525,7 @@ class ApiAuthService implements AuthServiceInterface {
       }
       final res = await _post('/auth/provider/google', {'idToken': idToken});
       // The very idToken just verified re-proves the identity on accept.
-      return _providerLoginResultFrom(
+      return await _providerLoginResultFrom(
         res,
         proof: GoogleInvitationProof(idToken),
       );
@@ -567,7 +567,7 @@ class ApiAuthService implements AuthServiceInterface {
         ..._appleCode(credential),
       });
       // No 202 bridge on the Apple route (contract) — never `.invited`.
-      return _providerLoginResultFrom(res);
+      return await _providerLoginResultFrom(res);
     } on SignInWithAppleAuthorizationException catch (e) {
       if (e.code == AuthorizationErrorCode.canceled) {
         return const ProviderLoginResult.failure('', code: 'cancelled');
