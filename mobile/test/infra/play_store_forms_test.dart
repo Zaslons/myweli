@@ -110,7 +110,8 @@ void main() {
       expect(
         full,
         appStore,
-        reason: 'Play and the App Store tell different stories — copy the '
+        reason:
+            'Play and the App Store tell different stories — copy the '
             'App Store text into play-store-forms §1 (decision 113)',
       );
     });
