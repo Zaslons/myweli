@@ -98,7 +98,9 @@ echo "    workloadIdentityUser for ${REPO}"
 # binding gives this identity getIamPolicy. The control in the same query,
 # logging.buckets.get, resolved to logBucketConfigReader.
 #
-# The two commands, run on the owner's yes:
+# The two commands, run on the owner's yes on 2026-11-11 (audit log:
+# CreateRole 21:14:39Z, SetIamPolicy 21:14:42Z). Read back: exactly this one
+# role–member pair added, nothing removed.
 #
 #   gcloud iam roles create projectIamPolicyReader --project=myweli --file=<the YAML below>
 #   gcloud projects add-iam-policy-binding myweli \

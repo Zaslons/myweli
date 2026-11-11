@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | **Built 2026-11-11.** Seen red on saved policies and against real Google; the live green as `myweli-checks` waits on the owner's yes to the grant (§6) |
+| **Status** | **Built 2026-11-11.** Seen red on saved policies and against real Google. The role was granted on the owner's yes the same evening (§6); **green against the live policy as `myweli-checks`**, run [43101801738](https://github.com/Zaslons/myweli/actions/runs/43101801738), dispatched on the branch |
 | **Owner** | Sadreddine Daher |
 | **Last updated** | 2026-11-11 |
 | **PRD ref / phase** | Operations, no product requirement · V1 |
@@ -76,9 +76,9 @@ The sibling jobs prove their boundary by watching a refused **read**. Here the d
 ## 6. Rollout
 
 1. Merge nothing yet. The branch carries the script, the job, the test and these docs.
-2. **The grant, on the owner's yes at that moment** (cloud mutation): create `projectIamPolicyReader` and bind it to `myweli-checks`, exactly as written in `41-iam-checks-sa.sh`. Read the policy back: only that one binding added.
-3. **The live green as `myweli-checks`**: dispatch `production-checks.yml` on the branch, and read the `iam` job, not just the run's conclusion.
-4. Merge. The next scheduled run is the first daily one.
+2. ~~**The grant, on the owner's yes at that moment.**~~ **Done 2026-11-11**: `CreateRole` at 21:14:39Z and `SetIamPolicy` at 21:14:42Z, by the owner's account (audit log), with the YAML in `41-iam-checks-sa.sh`. The policy read back before and after: exactly one role–member pair added, `projectIamPolicyReader` → `myweli-checks`, none removed, the other 19 unchanged, no condition anywhere. Policy Analyzer lagged a few minutes, then resolved `getIamPolicy` for the identity.
+3. ~~**The live green as `myweli-checks`.**~~ **Done 2026-11-11**, run [43101801738](https://github.com/Zaslons/myweli/actions/runs/43101801738), dispatched on the branch at commit `c9d2d866`. Read in the `iam` job's log, not only its conclusion: the control printed « it reads the policy and cannot change it », and the script read **19 bindings**, the count the owner's read gave after the grant, with no rehearsal banner.
+4. Merge. Until then the 06:00 schedule runs `main`'s file, which has no `iam` job; the first scheduled run after the merge is the first daily one.
 
 ## 7. Tests (`backend/test/infra/project_iam_test.dart`)
 

@@ -323,7 +323,8 @@ which is how the reminder cron came to be switched off without anyone noticing.
        `push_send_failed`, in `myweli-api`'s log.
    - **Undo**, if something does need one of them back:
      `gcloud projects add-iam-policy-binding myweli --member=<member> --role=<role> --condition=None`.
-   - **Re-checked daily since 2026-11-11.** Google automation added both
+   - **Re-checked every morning by `production-checks.yml`** (first run
+     against the live policy on 2026-11-11). Google automation added both
      grants, so a Firebase console change or an API enablement can add them
      back. The `iam` job of `production-checks.yml` runs
      `infra/gcp/43-verify-project-iam.sh` every morning as `myweli-checks`,
