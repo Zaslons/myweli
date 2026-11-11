@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Module** | toolchain (cross-cutting: `mobile/`, CI, the golden baseline, the iOS build) |
-| **Status** | **Draft — awaiting the owner's sign-off** on O1–O4 (§8; O5 only if the reformat is large). Nothing is built. |
+| **Status** | **Approved 2026-11-11** — the owner's answers: O1 **C**, O2 **validate with 0.0.2's first build**, O3 **the local clone**, O4 **after**; O5 only if the reformat is large (§8). Building on `chore/flutter-3.47.9`. |
 | **Last updated** | 2026-11-10 |
 | **Decision** | the owner, 2026-11-10: « Flutter 3.47.9 first » ([BACKLOG](../BACKLOG.md) decision 109) |
 | **BACKLOG items** | batch 13: B13.1 (this PR), B13.2 (headings), B13.3–B13.8 (what follows) |
@@ -427,7 +427,9 @@ screen. The order:
 Today the five red PRs also fill dependabot's `open-pull-requests-limit: 5`.
 No other pub bump can open until they close.
 
-## 8. Open questions for the owner
+## 8. Open questions for the owner — answered 2026-11-11
+
+**The answers:** O1 = **C**, the heading fix inside this PR. O2 = **validate with 0.0.2's first build**, no separate upload. O3 = **route (b)**, the local clone; the default moves after the merge. O4 = **after**: 0.0.2 is built on 3.47.9 and waits for this PR. Asked back by the owner on O2 and O4: « can't it still be 0.0.1? » No: a released version takes no new builds (its « train » is closed, per Apple's developer forums, not Apple's documentation, and not tried on this account), so the next store build carries 0.0.2, the label B0.3 step 1 already sets.
 
 - **O1. Screen titles as headings for VoiceOver** (§3.1). On 3.47 the live iOS
   app has no screen title a VoiceOver user can find, which fails WCAG 1.3.1
