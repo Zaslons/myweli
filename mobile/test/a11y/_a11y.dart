@@ -702,22 +702,17 @@ bool _isPainted(RenderObject o) {
     if (!n.paintsChild(child)) return false;
   }
 
-  // The widget half. It walks ELEMENTS, not render objects, because the render
-  // object `Visibility` creates is the private `_Visibility` — its
-  // `debugCreator` never names the public widget whose `visible` flag is the
-  // thing worth reading. `visitAncestorElements` sees the `Visibility` itself.
+  // The widget half: `Visibility.of`, which reads the scope both hiders set —
+  // a `Visibility(visible: false)` and, from Flutter 3.47, an `IndexedStack`'s
+  // unselected child. Up to 3.44.9 `IndexedStack` wrapped each child in a
+  // `Visibility`, so looking for that widget was enough; 3.47 wraps it in the
+  // private scope only, and `RenderIndexedStack` keeps answering `paintsChild`
+  // true, so a hidden child read as painted (primitives_test.dart's
+  // « ignores a laid-out branch that is never painted » went red on 3.47.9).
+  // It reads ELEMENTS, because the render objects are private.
   final creator = o.debugCreator;
-  if (creator is DebugCreator) {
-    var visible = true;
-    creator.element.visitAncestorElements((e) {
-      final w = e.widget;
-      if (w is Visibility && !w.visible) {
-        visible = false;
-        return false;
-      }
-      return true;
-    });
-    if (!visible) return false;
+  if (creator is DebugCreator && !Visibility.of(creator.element)) {
+    return false;
   }
   return true;
 }
