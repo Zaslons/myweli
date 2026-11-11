@@ -242,6 +242,22 @@ void main() {
   }
 
   group('« Accueil »', () {
+    // SYSTEM.md §13.4: the card's title is a section heading under the
+    // screen's own (docs/design/mobile-flutter-3.47-upgrade.md §3.1).
+    testWidgets('the card\'s title is a heading a phone reads, below '
+        '« Accueil »', (tester) async {
+      final handle = tester.ensureSemantics();
+      team.cards = [_invitation('i1', 'Beauté Divine')];
+      await pumpAccueil(tester);
+
+      int level(String text) =>
+          tester.getSemantics(find.text(text)).getSemanticsData().headingLevel;
+      expect(level('Accueil'), 1);
+      expect(level(_title), greaterThan(0));
+      expect(level(_title), greaterThan(level('Accueil')));
+      handle.dispose();
+    });
+
     testWidgets('no invitation → nothing at all, no title', (tester) async {
       await pumpAccueil(tester);
       expect(team.reads, greaterThan(0), reason: 'the list was never read');

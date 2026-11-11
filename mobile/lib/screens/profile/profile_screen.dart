@@ -11,6 +11,7 @@ import '../../providers/auth_provider.dart';
 import '../../widgets/common/app_button.dart';
 import '../../widgets/common/app_snack_bar.dart';
 import '../../widgets/common/confirm_dialog.dart';
+import '../../widgets/common/screen_title.dart';
 import '../../widgets/common/settings_tile.dart';
 import '../../widgets/common/timed_cached_image.dart';
 
@@ -21,7 +22,7 @@ class ProfileScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(title: const Text('Profil')),
+      appBar: AppBar(title: const ScreenTitle('Profil')),
       body: Consumer<AuthProvider>(
         builder: (context, authProvider, _) {
           final user = authProvider.user;

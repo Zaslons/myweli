@@ -17,6 +17,7 @@ import '../../../widgets/common/app_skeleton.dart';
 import '../../../widgets/common/app_snack_bar.dart';
 import '../../../widgets/common/confirm_dialog.dart';
 import '../../../widgets/common/empty_state.dart';
+import '../../../widgets/common/screen_title.dart';
 
 class ReviewsScreen extends StatefulWidget {
   const ReviewsScreen({super.key});
@@ -78,7 +79,7 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(title: const Text('Avis')),
+      appBar: AppBar(title: const ScreenTitle('Avis')),
       body: Consumer2<ProAuthProvider, ProReviewsProvider>(
         builder: (context, authProvider, reviewsProvider, _) {
           if (!authProvider.isAuthenticated) {

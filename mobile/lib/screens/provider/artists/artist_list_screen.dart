@@ -14,6 +14,7 @@ import '../../../widgets/common/app_async_view.dart';
 import '../../../widgets/common/app_card.dart';
 import '../../../widgets/common/app_skeleton.dart';
 import '../../../widgets/common/empty_state.dart';
+import '../../../widgets/common/screen_title.dart';
 
 class ArtistListScreen extends StatefulWidget {
   const ArtistListScreen({super.key});
@@ -47,7 +48,7 @@ class _ArtistListScreenState extends State<ArtistListScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(title: const Text('Employés')),
+      appBar: AppBar(title: const ScreenTitle('Employés')),
       floatingActionButton: FloatingActionButton(
         tooltip: 'Ajouter un employé',
         onPressed: () => context.push('/pro/artist/new'),

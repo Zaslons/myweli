@@ -383,7 +383,9 @@ d'équipe. » : le journal a une bande qui choisit un jour, et pas de vue semain
 la dernière phrase : le mot est à 0 dans le binaire, et dans `mobile/lib` seulement dans un commentaire.
 Aucun des deux refus ne les cite. *Avant ces corrections : 1 061 caractères, 1 102 octets.* **Google Play
 garde toujours l'ancien** : il a maintenant quatre changements de retard, et le test admet ces quatre-là,
-et rien d'autre. Le propriétaire n'a pas tranché pour Play.
+et rien d'autre. Le propriétaire n'a pas tranché pour Play. *2026-11-11, décision 113 : Play prend ce
+texte, mot pour mot ([play-store-forms.md](play-store-forms.md) §1), et le test n'admet plus d'écart.
+La console Play le reçoit à l'étape 7 d'[android-play-release.md](android-play-release.md).*
 
 ```text
 L'outil de gestion des salons de beauté de Côte d'Ivoire : recevez des réservations en ligne et pilotez votre activité au quotidien. MyWeli Pro s’adresse aux salons qui ont déjà un compte MyWeli et à leur équipe.
@@ -973,7 +975,10 @@ une **erreur** (Xcode 26, celui de la CI, n'en fait qu'un avertissement), et le
 puisqu'elle est Flutter lui-même. Le `post_install` du Podfile supprime ce
 réglage, qui hérite alors du 15.0 du projet Pods ; épinglé par
 `mobile/test/infra/ios_store_readiness_test.dart`, car la CI ne voit pas
-l'échec. Le binaire non signé de ce jour (`flutter build ios --release
+l'échec. *Depuis Flutter 3.47.0* (2026-11-11, mobile-flutter-3.47-upgrade.md
+§3.6), `podhelper` génère lui-même un `Flutter.podspec` à 15.0 et retire les
+cibles sous 15 de chaque pod ; le `post_install` reste comme garde pour un pod
+encore sous 15. Le binaire non signé de ce jour (`flutter build ios --release
 --flavor pro --target lib/main_pro.dart --no-codesign`) a été lu :
 `UIDeviceFamily` `[1]`, les trois phrases d'autorisation Pro résolues, aucune
 `$(…)` restante, `CFBundleLocalizations` `[fr]`, `MinimumOSVersion` 15.0,

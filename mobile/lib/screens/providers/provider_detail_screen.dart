@@ -1773,13 +1773,19 @@ class _SalonIdentity extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Flexible(
-              child: Text(
-                salon.name,
-                style: AppTextStyles.headlineMedium.copyWith(
-                  color: AppColors.textPrimary,
+              // The salon's name is this page's title (SYSTEM.md §13.4): its
+              // header is a title-less SliverAppBar, so nothing else names the
+              // page for a screen reader. Level 1, in both headers.
+              child: Semantics(
+                headingLevel: 1,
+                child: Text(
+                  salon.name,
+                  style: AppTextStyles.headlineMedium.copyWith(
+                    color: AppColors.textPrimary,
+                  ),
+                  maxLines: nameMaxLines,
+                  overflow: nameMaxLines == null ? null : TextOverflow.ellipsis,
                 ),
-                maxLines: nameMaxLines,
-                overflow: nameMaxLines == null ? null : TextOverflow.ellipsis,
               ),
             ),
             if (salon.verified) ...[

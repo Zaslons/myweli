@@ -30,6 +30,7 @@ import '../../../widgets/common/label_value_row.dart';
 import '../../../widgets/common/myweli_date_picker.dart';
 import '../../../widgets/common/myweli_time_picker.dart';
 import '../../../widgets/common/phone_number_field.dart';
+import '../../../widgets/common/screen_title.dart';
 
 class ProManualBookingScreen extends StatefulWidget {
   const ProManualBookingScreen({
@@ -268,7 +269,7 @@ class _ProManualBookingScreenState extends State<ProManualBookingScreen> {
       // « Nouvelle » lives on the three controls that open this screen — the
       // journal FAB, its empty state, and the client sheet — so the bar names
       // the object rather than repeating the act (A15, §13.3).
-      appBar: AppBar(title: const Text('Réservation')),
+      appBar: AppBar(title: const ScreenTitle('Réservation')),
       body: Consumer2<ProAuthProvider, ProServiceProvider>(
         builder: (context, auth, serviceProvider, _) {
           final providerId = auth.activeSalonId;

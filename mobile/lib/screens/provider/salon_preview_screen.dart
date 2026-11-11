@@ -7,6 +7,7 @@ import '../../core/utils/salon_id.dart';
 import '../../providers/provider_provider.dart';
 import '../../widgets/common/app_async_view.dart';
 import '../../widgets/common/app_skeleton.dart';
+import '../../widgets/common/screen_title.dart';
 import '../providers/provider_detail_screen.dart';
 
 /// « Aperçu de ma page » — the owner sees their salon as a client will.
@@ -94,7 +95,7 @@ class _SalonPreviewScreenState extends State<SalonPreviewScreen> {
       // §12's way out, and here a retry CAN succeed — the read is authenticated
       // and the usual cause is the network, not the salon's state.
       return Scaffold(
-        appBar: AppBar(title: const Text('Aperçu')),
+        appBar: AppBar(title: const ScreenTitle('Aperçu')),
         body: AppErrorView(message: error, onRetry: _load),
       );
     }

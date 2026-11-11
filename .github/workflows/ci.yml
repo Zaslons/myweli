@@ -50,16 +50,18 @@ jobs:
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: 3.44.9
+          flutter-version: 3.47.9
           channel: stable
           cache: true
 
       # --enforce-lockfile: install exactly what pubspec.lock says, or fail.
-      # Without it, a lockfile this Flutter (3.44.9) cannot honour is silently
+      # Without it, a lockfile this Flutter (3.47.9) cannot honour is silently
       # re-resolved and every later step tests a lockfile that is not in git —
-      # Dependabot resolves with a newer SDK and asked for intl 0.20.3, meta
-      # 1.19.0, … which 3.44.9 pins lower (#540, #601). Red here means: run
-      # `flutter pub get` locally on 3.44.9 and commit the lockfile it writes.
+      # Dependabot resolved with a newer SDK and asked for packages the pinned
+      # one could not give (#540, #601, #745–#749). Red here means: run
+      # `flutter pub get` locally on 3.47.9 and commit the lockfile it writes.
+      # A branch cut before the 3.47.9 move: rebase, then `flutter pub get` and
+      # `dart format .` on 3.47.9 (docs/design/mobile-flutter-3.47-upgrade.md).
       - name: Install dependencies
         run: flutter pub get --enforce-lockfile
 
@@ -813,7 +815,7 @@ jobs:
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: 3.44.9
+          flutter-version: 3.47.9
           channel: stable
           cache: true
 
@@ -852,7 +854,7 @@ jobs:
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: 3.44.9
+          flutter-version: 3.47.9
           channel: stable
           cache: true
 

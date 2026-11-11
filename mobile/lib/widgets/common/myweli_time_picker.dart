@@ -7,6 +7,7 @@ import '../../core/theme/colors.dart';
 import '../../core/theme/text_styles.dart';
 import '../../core/utils/formatters.dart';
 import 'app_button.dart';
+import 'screen_title.dart';
 
 /// The house time picker (A14b, `docs/design/mobile-a14-pickers.md` §8–§12).
 ///
@@ -272,7 +273,7 @@ class _MyweliTimePickerScreenState extends State<MyweliTimePickerScreen> {
           tooltip: 'Fermer',
           onPressed: () => Navigator.of(context).pop(),
         ),
-        title: Text(widget.helpText ?? 'Choisir une heure'),
+        title: ScreenTitle(widget.helpText ?? 'Choisir une heure'),
       ),
       body: SafeArea(
         child: Column(
@@ -510,7 +511,7 @@ class _MyweliTimeRangePickerScreenState
           tooltip: 'Fermer',
           onPressed: () => Navigator.of(context).pop(),
         ),
-        title: Text(widget.helpText ?? 'Choisir un horaire'),
+        title: ScreenTitle(widget.helpText ?? 'Choisir un horaire'),
       ),
       body: SafeArea(
         child: Column(

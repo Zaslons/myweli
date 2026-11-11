@@ -125,8 +125,11 @@ class _ProInvitationsCardState extends State<ProInvitationsCard> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          // A section under « Accueil » or « Ma journée »: level 2 (SYSTEM.md
+          // §13.4). `header: true` alone makes a heading on no phone since
+          // Flutter 3.47.
           Semantics(
-            header: true,
+            headingLevel: 2,
             child: Text(
               'Invitations d’équipe',
               style: AppTextStyles.titleLarge.copyWith(

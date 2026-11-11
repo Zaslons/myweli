@@ -22,6 +22,7 @@ import '../../widgets/common/app_snack_bar.dart';
 import '../../widgets/common/consumer_bottom_nav.dart';
 import '../../widgets/common/empty_state.dart';
 import '../../widgets/common/inline_feedback.dart';
+import '../../widgets/common/screen_title.dart';
 
 class MyBookingsScreen extends StatefulWidget {
   const MyBookingsScreen({super.key});
@@ -81,7 +82,7 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Text('Mes rendez-vous'),
+        title: const ScreenTitle('Mes rendez-vous'),
         bottom: TabBar(
           controller: _tabController,
           // §13.3's width twin — see otp_code_row.dart and

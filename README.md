@@ -57,7 +57,7 @@ Myweli uses a minimalistic black and white design:
 
 ### Prerequisites
 
-- Flutter SDK (3.0.0 or higher)
+- Flutter SDK 3.47.9 — the one CI pins; `mobile/pubspec.yaml` refuses others (`>=3.47.9 <3.48.0`)
 - Dart SDK
 - Android Studio / Xcode (for mobile development)
 

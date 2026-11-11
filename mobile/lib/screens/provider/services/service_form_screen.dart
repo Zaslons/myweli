@@ -16,6 +16,7 @@ import '../../../widgets/common/app_chip.dart';
 import '../../../widgets/common/app_snack_bar.dart';
 import '../../../widgets/common/app_text_field.dart';
 import '../../../widgets/common/confirm_dialog.dart';
+import '../../../widgets/common/screen_title.dart';
 
 const _durationPresets = [15, 30, 45, 60];
 
@@ -262,7 +263,7 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: Text(
+        title: ScreenTitle(
           widget.serviceId != null ? 'Modifier le service' : 'Nouveau service',
         ),
       ),

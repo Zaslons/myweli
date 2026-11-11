@@ -30,6 +30,7 @@ import '../../widgets/common/label_value_row.dart';
 import '../../widgets/common/legal_consent_text.dart';
 import '../../widgets/common/salon_time_hint.dart';
 import '../../widgets/common/salon_unavailable_view.dart';
+import '../../widgets/common/screen_title.dart';
 import '../../widgets/push/push_permission_sheet.dart';
 
 class BookingConfirmationScreen extends StatefulWidget {
@@ -223,7 +224,7 @@ class _BookingConfirmationScreenState extends State<BookingConfirmationScreen> {
       // Cards are `secondary` on `background` (SYSTEM §3.1): the step that
       // lifts them, now they have no shadow (B9.8 F2).
       backgroundColor: AppColors.background,
-      appBar: AppBar(title: const Text('Confirmer')),
+      appBar: AppBar(title: const ScreenTitle('Confirmer')),
       body: Consumer<ProviderProvider>(
         builder: (context, provider, _) {
           final p = provider.selectedProvider;

@@ -14,6 +14,7 @@ import '../../widgets/common/app_async_view.dart';
 import '../../widgets/common/app_card.dart';
 import '../../widgets/common/app_skeleton.dart';
 import '../../widgets/common/app_snack_bar.dart';
+import '../../widgets/common/screen_title.dart';
 import '../../widgets/push/push_blocked_banner.dart';
 
 /// Consumer notification preferences (FR-NOTIF-004): three opt-out toggles,
@@ -96,7 +97,7 @@ class _NotificationPreferencesScreenState
       // Cards are `secondary` on `background` (SYSTEM §3.1): the step that
       // lifts them, now they have no shadow (B9.8 F2).
       backgroundColor: AppColors.background,
-      appBar: AppBar(title: const Text('Préférences')),
+      appBar: AppBar(title: const ScreenTitle('Préférences')),
       body: Consumer<NotificationPreferencesProvider>(
         builder: (context, provider, _) {
           return AppAsyncView<NotificationPreferences>(

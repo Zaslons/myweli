@@ -15,6 +15,7 @@ import '../../widgets/common/app_button.dart';
 import '../../widgets/common/app_snack_bar.dart';
 import '../../widgets/common/legal_consent_text.dart';
 import '../../widgets/common/phone_number_field.dart';
+import '../../widgets/common/screen_title.dart';
 
 class PhoneLoginScreen extends StatefulWidget {
   final String? returnTo;
@@ -71,7 +72,7 @@ class _PhoneLoginScreenState extends State<PhoneLoginScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(title: const Text('Connexion')),
+      appBar: AppBar(title: const ScreenTitle('Connexion')),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(AppTheme.spacingL),

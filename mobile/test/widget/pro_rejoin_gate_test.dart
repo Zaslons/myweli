@@ -142,6 +142,22 @@ void main() {
 
   const banner = 'Votre accès à ce salon a été retiré.';
 
+  // SYSTEM.md §13.4 « Titles are headings »: what a phone reads is
+  // `headingLevel > 0` (docs/design/mobile-flutter-3.47-upgrade.md §3.1). The
+  // gate's title is level 1; « Vous êtes invité(e) » sits under it, level 2.
+  testWidgets('the gate\'s title and « Vous êtes invité(e) » are headings a '
+      'phone reads, the second below the first', (tester) async {
+    final handle = tester.ensureSemantics();
+    await reachGate(tester);
+
+    int level(String text) =>
+        tester.getSemantics(find.text(text)).getSemanticsData().headingLevel;
+    expect(level('Invitations'), 1);
+    expect(level('Vous êtes invité(e)'), greaterThan(0));
+    expect(level('Vous êtes invité(e)'), greaterThan(level('Invitations')));
+    handle.dispose();
+  });
+
   testWidgets('S11 — a revoked account with no invitation stays on the '
       'sign-in screen, the banner shown in place', (tester) async {
     revokeMember(kFatouRow);

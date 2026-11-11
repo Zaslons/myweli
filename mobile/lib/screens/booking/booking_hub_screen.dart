@@ -24,6 +24,7 @@ import '../../widgets/common/app_snack_bar.dart';
 import '../../widgets/common/inline_feedback.dart';
 import '../../widgets/common/label_value_row.dart';
 import '../../widgets/common/salon_unavailable_view.dart';
+import '../../widgets/common/screen_title.dart';
 
 class BookingDraft {
   final SalonId providerId;
@@ -416,7 +417,7 @@ class _BookingHubScreenState extends State<BookingHubScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(title: const Text('Réserver')),
+      appBar: AppBar(title: const ScreenTitle('Réserver')),
       body: Consumer2<ProviderProvider, AppointmentProvider>(
         builder: (context, providerProvider, appointmentProvider, _) {
           if (providerProvider.isLoading &&

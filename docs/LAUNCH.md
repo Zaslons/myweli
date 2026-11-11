@@ -231,6 +231,12 @@ absent:
 - **Android last.** It has the most outstanding work (no keystore, no Play
   account, R8 unproven) and the widest device variance, which is where the
   reference low-end Android in ROADMAP §6 has to be honoured.
+  *(2026-11-11: two of those three were out of date. The upload key and both
+  Play Console records, under Play App Signing, exist since 2026-08-26. R8 runs
+  in release builds: Flutter's Gradle plugin enables it unless told otherwise.
+  What
+  remains is [design/android-play-release.md](design/android-play-release.md),
+  approved that day as decisions 110–115.)*
 
 Each surface has a hard prerequisite: **the one before it is live and stable for
 at least a week**, with §5.2's monitoring proving it rather than our impression.
@@ -1429,10 +1435,29 @@ checking rather than assuming:
 
 ### 6.3 Android (last)
 
-- [ ] Upload keystore created and **backed up** — losing it ends the listing.
-- [ ] Play Console records for both apps; Play App Signing enrolled.
+- [ ] **The AAB is built on Flutter ≥3.47.8** (GHSA-frr6-h895-5pxp: below it, `dart:io` on Android trusts eight compromised eMudhra CAs). So from `main` after BACKLOG B13.1 merges; no closed-test build before it. *(Added 2026-11-10, [design/mobile-flutter-3.47-upgrade.md](design/mobile-flutter-3.47-upgrade.md) §1(c).)*
+- [x] Upload keystore created and **backed up** — losing it ends the listing.
+      *(2026-11-11: created 2026-08-26, `infra/mobile/signing-manifest.json`. The
+      owner remembered no backup and none was found on this Mac, so they made
+      one the same day. The file is on their Google Drive, and its download
+      proved byte-identical to the original. The passwords are in Apple
+      Passwords, and the owner's check found they match `key.properties`;
+      `keytool` opens the key with them (android-play-release.md §4, step 4).
+      « Losing it ends the listing »
+      stopped being true when Play App Signing was enrolled: Google holds the
+      signing key, and a lost upload key is replaced by an upload key reset,
+      with no update shipping meanwhile (android-play-release.md §11, O1).)*
+- [x] Play Console records for both apps; Play App Signing enrolled.
+      *(Recorded 2026-08-26: each app's Play signing certificate was read from
+      the bytes of the APK Play installed, and `signing-manifest.json` says
+      `"enrolled": true`. The console itself was not re-read for this tick;
+      android-play-release.md §2.)*
 - [ ] R8 decision made and, if enabled, verified on a device (§2 of the
       submission spec).
+      *(2026-11-11: R8 is on. Flutter's Gradle plugin enables it on release,
+      nothing in this repo turns it off, and a release APK built that day
+      carries the full-mode R8 marker; the submission spec said « off ». Decision 112 keeps it. The
+      box closes after the device pass, android-play-release.md §5.)*
 - [ ] Tested on the **reference low-end device** (2–3 GB RAM, Android 9), not
       only an emulator.
 - [ ] Staged rollout starting at a small percentage.
@@ -1450,6 +1475,15 @@ checking rather than assuming:
       Claude types it in the browser pane, the owner signed in (decision 53).
       Production waits for a 12-tester, 14-day closed test (decision 52).
       MyWeli is re-audited before its own submission.)*
+- [ ] **Play's precise-location declaration** (`ACCESS_FINE_LOCATION`),
+      mandatory from **2027-01-27** (Google's policy announcement of
+      2026-10-29). *(Added 2026-11-11: android-play-release.md §7.1,
+      play-store-forms §5.)*
+- [ ] **Play's trader status declaration**, for the account and then the app,
+      by **2027-02-01**. Without it, Google may block updates and remove the
+      app worldwide. *(Added 2026-11-11: decision 115, « trader », confirmed
+      by the owner that day with the corrected cost, android-play-release.md
+      §3.6.)*
 
 ---
 
