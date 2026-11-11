@@ -241,18 +241,17 @@ which is how the reminder cron came to be switched off without anyone noticing.
      it. A search by key id of Downloads, Desktop, Documents and the repo
      folder found no other copy on that date, no local `.env` sets
      `FCM_PRIVATE_KEY`, and GitHub holds no FCM or GCP secret.
-   - **What a copy of that file can do: open, not fixed.** The account holds
-     `roles/iam.serviceAccountTokenCreator` at **project** level, on top of
-     `roles/firebase.sdkAdminServiceAgent`. By that role's definition, the key
-     can mint tokens for every service account in `myweli`:
-     - `myweli-run`, which reads the secrets and connects to the database;
-     - `myweli-deployer`, which holds `run.admin`;
-     - the default compute account, which holds `roles/editor`.
-
-     This was not tried, since trying means using the key. In practice the file
-     is a production credential, not only a push one. Narrowing that grant is a
-     follow-up of its own, applied only on the owner's yes, with a real push
-     checked afterwards.
+   - **What a copy of that file can do: narrowed on 2026-11-11.** Until then
+     the account also held `roles/iam.serviceAccountTokenCreator` at
+     **project** level. By that role's definition, the key could mint tokens
+     for every service account in `myweli`, including `myweli-run` (secrets,
+     database) and `myweli-deployer` (`run.admin`). This was not tried, since
+     trying means using the key. That grant is now removed (« Project IAM »
+     below). The account keeps `roles/firebase.sdkAdminServiceAgent`: 194
+     permissions, none of them `iam.*`, covering FCM send and Firebase Auth,
+     Firestore and Cloud Storage admin. A copy of the file is still more than
+     a push credential, but it no longer reaches the secrets, the database or
+     the deploy.
    - **The other key file, also kept:**
      `~/Downloads/myweli-d7999-firebase-adminsdk-fbsvc-109d5c018b.json`
      (2026-06-28) belongs to `firebase-adminsdk-fbsvc@myweli-d7999`, and that
@@ -266,6 +265,69 @@ which is how the reminder cron came to be switched off without anyone noticing.
      [push-notifications-fcm.md](design/push-notifications-fcm.md#auth-failures-are-loud-added-after-a-months-long-silent-outage),
      but the version that held that key was destroyed on 2026-08-06, so this
      is UNVERIFIED.
+
+   **Project IAM: two broad default grants removed (2026-11-11, on the
+   owner's yes).** Google automation added both on 2026-08-05, and neither
+   was in use.
+   - **`roles/iam.serviceAccountTokenCreator` on `firebase-adminsdk-fbsvc`.**
+     Firebase's own service agent added it when the project joined Firebase.
+     Push never used it: `access_token_source.dart` signs a JWT with the key
+     and exchanges it at `oauth2.googleapis.com/token`, with no IAM
+     Credentials call. Measured with Monitoring's
+     `serviceruntime.googleapis.com/api/request_count` by credential: **0** IAM
+     Credentials calls by this account in 42 days. The control: the same
+     metric shows the calls that `myweli-checks` and `myweli-deployer` make,
+     so it does see that API. It does not see FCM at all, so it says nothing
+     about push.
+   - **`roles/editor` on `731308991240-compute@developer`.** Added by
+     `service-agent-manager` when the Compute API was enabled. Google's IAM
+     insight, refreshed 2026-10-28: **0 of 12 266** permissions used in the
+     83 days since. The same metric shows no call by this account in 42 days.
+     Nothing runs as it. The API runs as `myweli-run` and the three Scheduler
+     jobs as `myweli-scheduler`. There is no VM, App Engine app, Cloud
+     Function, Run job or bucket. Editor carried `actAs` and
+     `run.services.update`, enough to redeploy the API as `myweli-run`. The
+     account stays enabled, with no project role.
+   - **Applied** with `gcloud projects remove-iam-policy-binding`, one binding
+     each. The audit log shows the removals at 20:32:50Z and 20:32:58Z, by the
+     owner's account. Re-read afterwards: exactly those two role–member pairs
+     are gone and the other 19 are unchanged. Asset inventory found no other
+     binding naming either account, on a service account or on any other
+     resource.
+   - **Push afterwards: seen arriving on a device.** With no live salon,
+     nothing in the product sends a push. So, on the owner's yes,
+     production's own push code (`FcmV1PushProvider` with
+     `ServiceAccountTokenSource`, exactly as `dependencies.dart` builds it)
+     ran once from the owner's Mac at 20:40:43Z. It used `FCM_PRIVATE_KEY` v3,
+     read from Secret Manager into memory only. It sent to the single device
+     the owner had just signed in to MyWeli Pro (registered at 20:39:45Z, and
+     found by a read-only query through the Cloud SQL Auth Proxy that printed
+     no token). FCM answered `sent=1`, and **the owner saw the notification on
+     the iPhone**. `myweli-api` logged no `push_auth_failed` or
+     `push_send_failed` after the change. Read again at 20:41Z, the policy
+     still listed only the owner under these three roles, and no
+     `SetIamPolicy` had followed.
+   - **What could break, and where it would show.**
+     - **Cloud Build's default service account is the compute account**
+       (`gcloud builds get-default-service-account`). No build has ever run in
+       this project, because deploys build on the GitHub runner. A
+       `gcloud builds submit` or `gcloud run deploy --source` would now fail
+       on permissions. Give such a build its own service account; do not give
+       Editor back.
+     - Firebase features that sign through IAM without a key (Admin SDK
+       custom tokens, some Extensions) need Token Creator. We use none. If one
+       is ever added, grant the role on the account itself
+       (`gcloud iam service-accounts add-iam-policy-binding`), never on the
+       project.
+     - Broken push auth logs `push_auth_failed`, and a refused send logs
+       `push_send_failed`, in `myweli-api`'s log.
+   - **Undo**, if something does need one of them back:
+     `gcloud projects add-iam-policy-binding myweli --member=<member> --role=<role> --condition=None`.
+   - **Nothing re-checks this yet.** Google automation added both grants, so
+     read the policy again after any Firebase console change or API
+     enablement:
+     `gcloud projects get-iam-policy myweli --flatten=bindings --filter='bindings.role:(roles/editor OR roles/owner OR roles/iam.serviceAccountTokenCreator)' --format='table(bindings.role,bindings.members)'`
+     should print the owner under `roles/owner` and nothing else.
 
    **Every mount is pinned to a version number — never `latest`.** Cloud Run
    resolves a secret reference when the container starts, and production runs

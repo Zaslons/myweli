@@ -20,8 +20,9 @@ typedef CronAuthResult = ({bool ok, String? error});
 /// 1. **The secret is a literal header on the Cloud Scheduler job.** Cloud
 ///    Scheduler has no Secret Manager reference for headers, so `gcloud
 ///    scheduler jobs describe` prints it verbatim to anyone with
-///    `cloudscheduler.jobs.get` — which today includes the **default compute
-///    service account**, since it holds `roles/editor`.
+///    `cloudscheduler.jobs.get` — which then included the **default compute
+///    service account**, through `roles/editor` (removed from it on
+///    2026-11-11).
 /// 2. **It was also accepted as `?secret=`**, which writes a production
 ///    credential into access logs, load-balancer logs and anything that records
 ///    a URL. Removed outright: nothing legitimate used it.
