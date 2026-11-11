@@ -21,7 +21,7 @@ set -euo pipefail
 
 # Must match .github/workflows/ci.yml (subosito/flutter-action `flutter-version`).
 # If CI moves, move this in the same PR or the baseline silently rots.
-FLUTTER_VERSION="3.44.9"
+FLUTTER_VERSION="3.47.9"
 IMAGE="ghcr.io/cirruslabs/flutter:${FLUTTER_VERSION}"
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
