@@ -201,6 +201,11 @@ android-arm64` plus the two defines), in 139 s, at 27.4 MB.
 - **Its `libflutter.so` is stripped** (11.8 MB against the Maven jar's
   165 MB), and the verifier still reads `Dart 3.13.7 (stable), blocklist 8/8`.
   So stripping keeps both the version string and the table.
+- **The two other ABIs a release AAB carries were checked the same way**, from
+  their Maven engines. 3.47.9's `armeabi-v7a` and `x86_64` both read
+  `Dart 3.13.7 (stable), blocklist 8/8`, and 3.44.9's are both refused at
+  3.12.2. So B0.10's three-ABI bundle will not be refused for a format
+  difference between architectures.
 - **The APK is unsigned.** There is no upload key in a worktree, and CI's APK
   is unsigned the same way. To install it, a copy was zipaligned and signed
   with this Mac's standard Android debug key. Its `libflutter.so` has the same
