@@ -1473,8 +1473,9 @@ checking rather than assuming:
       play-store-forms §5.)*
 - [ ] **Play's trader status declaration**, for the account and then the app,
       by **2027-02-01**. Without it, Google may block updates and remove the
-      app worldwide. *(Added 2026-11-11: decision 115, which goes back to the
-      owner first, android-play-release.md §3.6.)*
+      app worldwide. *(Added 2026-11-11: decision 115, « trader », confirmed
+      by the owner that day with the corrected cost, android-play-release.md
+      §3.6.)*
 
 ---
 

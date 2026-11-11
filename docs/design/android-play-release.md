@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Module** | release (mobile, Pro flavour `com.myweli.pro`; Play Console) |
-| **Status** | **Approved 2026-11-11** — the owner's « Valider tel quel » on the plan and on decisions 110–115 ([BACKLOG](../BACKLOG.md)). Decision 115's cost was understated when asked (§3.6): it goes back to the owner before step 7. Nothing built, nothing typed in the console yet. |
+| **Status** | **Approved 2026-11-11** — the owner's « Valider tel quel » on the plan and on decisions 110–115 ([BACKLOG](../BACKLOG.md)). Decision 115's cost was understated when asked; told the corrected facts, the owner confirmed « Rester professionnel » the same day (§3.6). Nothing built, nothing typed in the console yet. |
 | **Last updated** | 2026-11-11 |
 | **BACKLOG items** | B0.10 (the Play forms and the closed test), B13.1 (#758), B13.3 (firebase), B13.9 (#759) |
 | **PRD ref / phase** | V1 · NFR-PERF-002 (APK < 30 MB) · ROADMAP Part 6 (the reference low-end Android) |
@@ -114,7 +114,7 @@ view, and « à domicile » is not in the Pro app. The guard becomes strict
 - **Production:** every country possible, like decision 108 on the App Store.
   The trader declaration (§3.6) comes first.
 
-### 3.6 Decision 115 — trader on Play — its cost was understated
+### 3.6 Decision 115 — trader on Play — confirmed with the corrected cost
 
 The owner chose « trader », as on Apple. **What they were told is wrong:** that
 their details would be published « in the EU, as at Apple ».
@@ -129,7 +129,10 @@ read 2026-11-11) says otherwise:
   « Offered by », and the self-certification is shown.
 
 So the owner's phone number and address would be on the listing worldwide.
-This goes back to the owner, in those words, before step 7.
+
+**Put back to the owner the same day, in those words, with the alternative
+below. Their answer, 2026-11-11: « Rester professionnel ».** So step 7
+declares trader for the account and then for MyWeli Pro.
 
 - **Google's criteria:** it determines nothing for you. A trader receives or
   intends to receive « remuneration for your apps » on a regular or commercial
@@ -154,7 +157,7 @@ never a go-ahead for a console action.
 | 4 | The upload key: the owner says where the backup is; the original and the copy are compared by `shasum -a 256`, nothing printed but the two hashes; `chmod 600 key.properties` on the owner's yes | the owner, with Claude | — | two equal hashes |
 | 5 | The AAB from `main`, in the main checkout: `./tool/release_build.sh android pro`. Then on the artifact: the TLS gate (#759), the R8 marker, `BUNDLE-METADATA/…/proguard.map` present or not, permissions with `aapt2`/`bundletool`, size; Sentry: Dart symbols + the mapping (§6) | Claude, on the owner's yes | yes | the script's lines, the reads |
 | 6 | Upload to the **internal** track, roll out to the owner; the device pass of §5 on the owner's phone and on the reference device | Claude in the browser pane (the owner signed in); the owner holds the phones | yes for the upload | §5's table filled in |
-| 7 | Re-read the Play dashboard (last read 2026-10-28). Type the listing text (decision 113). Fill in the location declaration (§7.1) and the trader declaration (§3.6, after the owner's renewed answer) | Claude in the pane; the owner signed in | yes for each form | each form read back after saving |
+| 7 | Re-read the Play dashboard (last read 2026-10-28). Type the listing text (decision 113). Fill in the location declaration (§7.1) and the trader declaration (§3.6, « trader », confirmed 2026-11-11) | Claude in the pane; the owner signed in | yes for each form | each form read back after saving |
 | 8 | The Google Group; the closed track (countries, decision 114; testers = the group); **promote the same release** from internal to closed; send it to Google's review | the owner and Claude | yes | the track's state read back |
 | 9 | The test salon, the invitations, play-store-forms §6.3–§6.5; 12 testers opted in for 14 days in a row | the owner | — | the console's tester count, day by day |
 | 10 | Apply for production access (Google usually answers in 7 days or less), then production at a staged rollout (§8) | the owner and Claude | yes | the rollout's state |
@@ -253,7 +256,8 @@ they have, and LAUNCH §6.3's box stays open with the gap named.
   - the account: « Manage account » → « Account details » → « About you »;
   - then each app: « Monitor and improve » → « Policy and programs » →
     « App content ».
-- **What is published:** §3.6. The owner answers again before step 7.
+- **What is published:** §3.6. The owner confirmed « trader » with those
+  facts on 2026-11-11.
 - **UNVERIFIED:** whether it gates the closed test.
 
 ## 8. The closed test and production
@@ -302,8 +306,8 @@ they have, and LAUNCH §6.3's box stays open with the gap named.
   stores, so a rotation updates both consoles the same day.
 - Testers' e-mail addresses live in the Google Group, never in the repo.
 - The trader declaration publishes the owner's personal phone number and
-  address (§3.6). That is their decision, and they make it again with the
-  right facts.
+  address (§3.6). That was their decision to make, and they made it with the
+  right facts on 2026-11-11.
 
 ## 11. Open questions and outcome
 
@@ -311,7 +315,7 @@ they have, and LAUNCH §6.3's box stays open with the gap named.
 |---|---|---|---|
 | O1 | Where is the upload key's backup? | the owner | open |
 | O2 | Is there an Android 9 phone with 2–3 GB of RAM? Otherwise, which is the oldest? | the owner | open |
-| O3 | Trader, with phone and address shown everywhere (§3.6): still « trader »? | the owner | open, before step 7 |
+| O3 | Trader, with phone and address shown everywhere (§3.6): still « trader »? | the owner | **answered 2026-11-11: « Rester professionnel »** |
 | O4 | The location form: where it is, what it asks, whether it gates testing | read at step 7 | open |
 | O5 | Does `sentry_flutter` read `io.sentry.proguard-uuid` without the Gradle plugin? | step 6 | open |
 | O6 | The rollout: 20 % for 48 h, then 100 %? | the owner, at step 10 | proposed |
