@@ -23,6 +23,7 @@ import '../../../widgets/common/confirm_dialog.dart';
 import '../../../widgets/common/myweli_date_picker.dart';
 import '../../../widgets/common/myweli_month_grid.dart' show CalendarDay;
 import '../../../widgets/common/myweli_time_picker.dart';
+import '../../../widgets/common/screen_title.dart';
 import '../../../widgets/provider/weekly_hours_editor.dart';
 
 class AvailabilityScreen extends StatefulWidget {
@@ -57,7 +58,7 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(title: const Text('Disponibilité')),
+      appBar: AppBar(title: const ScreenTitle('Disponibilité')),
       body: Consumer2<ProAuthProvider, ProAvailabilityProvider>(
         builder: (context, authProvider, availabilityProvider, _) {
           if (!authProvider.isAuthenticated) {
@@ -1027,7 +1028,7 @@ class _DayScheduleEditScreenState extends State<_DayScheduleEditScreen> {
         // and an ASCII hyphen (§17.1 would want « — », which is *wider*, so
         // that repair alone would have made it worse) saying what the screen
         // the user just tapped through already said.
-        title: Text(widget.dayName),
+        title: ScreenTitle(widget.dayName),
         actions: [
           IconButton(
             tooltip: 'Ajouter un créneau',

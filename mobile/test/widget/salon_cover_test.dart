@@ -185,6 +185,30 @@ void main() {
     expect(statusIcons(), Brightness.dark, reason: 'white header, dark icons');
   });
 
+  // SYSTEM.md §13.4 « Titles are headings »: the salon's name is this page's
+  // title, and its header is a title-less SliverAppBar, so the name carries
+  // the heading itself — in both headers (docs/design/mobile-flutter-3.47-
+  // upgrade.md §3.1). What a phone reads is `headingLevel > 0`.
+  for (final (label, salon) in [
+    ('with a cover', seed),
+    ('without a photo', seed.copyWith(imageUrls: const [])),
+  ]) {
+    testWidgets('$label: the salon\'s name is a heading a phone reads', (
+      tester,
+    ) async {
+      final handle = tester.ensureSemantics();
+      await pumpPreview(tester, salon);
+      expect(
+        tester
+            .getSemantics(find.text(seed.name).first)
+            .getSemanticsData()
+            .headingLevel,
+        1,
+      );
+      handle.dispose();
+    });
+  }
+
   testWidgets('status icons are light over the photo, dark once it fades', (
     tester,
   ) async {

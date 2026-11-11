@@ -5,6 +5,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/colors.dart';
 import '../../../core/theme/text_styles.dart';
 import '../../../widgets/common/coming_soon_scaffold.dart';
+import '../../../widgets/common/screen_title.dart';
 
 class InventoryManagementScreen extends StatelessWidget {
   const InventoryManagementScreen({super.key});
@@ -17,7 +18,7 @@ class InventoryManagementScreen extends StatelessWidget {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Text('Gestion des stocks'),
+        title: const ScreenTitle('Gestion des stocks'),
         actions: [IconButton(icon: const Icon(Icons.add), onPressed: () {})],
       ),
       body: SingleChildScrollView(

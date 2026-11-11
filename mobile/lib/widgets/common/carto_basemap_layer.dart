@@ -214,8 +214,11 @@ class _CartoCreditsBody extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // A sheet is its own route, so its title is level 1 (SYSTEM.md
+          // §13.4). `header: true` alone makes a heading on no phone since
+          // Flutter 3.47.
           Semantics(
-            header: true,
+            headingLevel: 1,
             child: Text(
               CartoAttribution.sheetTitle,
               style: AppTextStyles.titleMedium.copyWith(

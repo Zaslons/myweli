@@ -7,6 +7,7 @@ import '../../core/theme/app_theme.dart';
 import '../../core/theme/colors.dart';
 import '../../core/theme/text_styles.dart';
 import '../../core/utils/external_link.dart';
+import '../../widgets/common/screen_title.dart';
 import '../../widgets/common/settings_tile.dart';
 
 /// « À propos » — the app's legal surface (L1 — docs/design/legal-l1.md).
@@ -31,7 +32,7 @@ class AboutScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(title: const Text('À propos')),
+      appBar: AppBar(title: const ScreenTitle('À propos')),
       body: SafeArea(
         child: ListView(
           children: [

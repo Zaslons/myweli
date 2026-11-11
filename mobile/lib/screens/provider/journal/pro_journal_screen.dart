@@ -27,6 +27,7 @@ import '../../../widgets/common/brand_refresh.dart';
 import '../../../widgets/common/empty_state.dart';
 import '../../../widgets/common/myweli_date_picker.dart';
 import '../../../widgets/common/myweli_date_time_picker.dart';
+import '../../../widgets/common/screen_title.dart';
 import '../../../widgets/team/pro_invitations_card.dart';
 
 /// « Ma journée » — the pro-app day timeline (module `journal` J1b,
@@ -96,7 +97,7 @@ class _ProJournalScreenState extends State<ProJournalScreen> {
         // Excellence » fits and « Institut de Beauté Cocody Riviera » does not,
         // and the bar answers the difference with an ellipsis nobody sees. The
         // `overflow: ellipsis` that used to sit here was that answer.
-        title: Text(ownMode ? 'Votre planning' : 'Ma journée'),
+        title: ScreenTitle(ownMode ? 'Votre planning' : 'Ma journée'),
         actions: [
           if (!ownMode)
             IconButton(

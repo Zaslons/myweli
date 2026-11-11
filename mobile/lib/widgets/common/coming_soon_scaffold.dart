@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/theme/colors.dart';
 import 'empty_state.dart';
+import 'screen_title.dart';
 
 /// Placeholder shown in place of a feature that isn't available in this
 /// release (used to gate the V2/V3 provider feature screens behind
@@ -15,7 +16,7 @@ class ComingSoonScaffold extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(title: Text(title)),
+      appBar: AppBar(title: ScreenTitle(title)),
       body: const EmptyState(
         icon: Icons.rocket_launch_outlined,
         title: 'Bientôt disponible',

@@ -5,6 +5,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/colors.dart';
 import '../../../core/theme/text_styles.dart';
 import '../../../widgets/common/coming_soon_scaffold.dart';
+import '../../../widgets/common/screen_title.dart';
 
 class LoyaltyProgramsScreen extends StatelessWidget {
   const LoyaltyProgramsScreen({super.key});
@@ -16,7 +17,7 @@ class LoyaltyProgramsScreen extends StatelessWidget {
     }
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(title: const Text('Programmes de fidélité')),
+      appBar: AppBar(title: const ScreenTitle('Programmes de fidélité')),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(AppTheme.spacingM),
         child: Column(

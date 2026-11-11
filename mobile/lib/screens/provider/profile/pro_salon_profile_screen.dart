@@ -27,6 +27,7 @@ import '../../../widgets/common/carto_basemap_layer.dart';
 import '../../../widgets/common/commune_picker_sheet.dart';
 import '../../../widgets/common/empty_state.dart';
 import '../../../widgets/common/phone_number_field.dart';
+import '../../../widgets/common/screen_title.dart';
 import '../../../widgets/common/timed_cached_image.dart';
 import '../../../widgets/provider/image_picker_sheet.dart';
 import '../../../widgets/provider/mock_image_picker_sheet.dart';
@@ -274,7 +275,7 @@ class _ProSalonProfileScreenState extends State<ProSalonProfileScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(title: const Text('Profil du salon')),
+      appBar: AppBar(title: const ScreenTitle('Profil du salon')),
       body: Consumer<ProSalonProfileProvider>(
         builder: (context, profile, _) {
           if (_providerId == null) {

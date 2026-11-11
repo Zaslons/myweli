@@ -24,6 +24,7 @@ import '../../../widgets/common/brand_refresh.dart';
 import '../../../widgets/common/empty_state.dart';
 import '../../../widgets/common/inline_feedback.dart';
 import '../../../widgets/common/phone_number_field.dart';
+import '../../../widgets/common/screen_title.dart';
 
 /// The salon client base — « Clients » (module `clients` C1c,
 /// docs/design/clients-c1.md §5). Derived from bookings: search, tag chips,
@@ -108,7 +109,7 @@ class _ClientListScreenState extends State<ClientListScreen> {
     final clients = context.watch<ProClientsProvider>();
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(title: const Text('Clients')),
+      appBar: AppBar(title: const ScreenTitle('Clients')),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _openAddSheet,
         icon: const Icon(Icons.person_add),

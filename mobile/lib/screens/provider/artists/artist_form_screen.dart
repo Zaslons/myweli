@@ -17,6 +17,7 @@ import '../../../widgets/common/app_button.dart';
 import '../../../widgets/common/app_snack_bar.dart';
 import '../../../widgets/common/app_text_field.dart';
 import '../../../widgets/common/confirm_dialog.dart';
+import '../../../widgets/common/screen_title.dart';
 import '../../../widgets/common/timed_cached_image.dart';
 import '../../../widgets/provider/image_picker_sheet.dart';
 import '../../../widgets/provider/mock_image_picker_sheet.dart';
@@ -192,7 +193,7 @@ class _ArtistFormScreenState extends State<ArtistFormScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: Text(
+        title: ScreenTitle(
           widget.artistId != null ? 'Modifier l’employé' : 'Nouvel employé',
         ),
       ),

@@ -23,6 +23,7 @@ import '../../../widgets/common/app_chip.dart';
 import '../../../widgets/common/app_skeleton.dart';
 import '../../../widgets/common/app_snack_bar.dart';
 import '../../../widgets/common/confirm_dialog.dart';
+import '../../../widgets/common/screen_title.dart';
 import '../../../widgets/common/timed_cached_image.dart';
 
 class ProAppointmentDetailScreen extends StatefulWidget {
@@ -78,7 +79,7 @@ class _ProAppointmentDetailScreenState
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(title: const Text('Détails')),
+      appBar: AppBar(title: const ScreenTitle('Détails')),
       body: Consumer2<ProAuthProvider, ProAppointmentProvider>(
         builder: (context, authProvider, appointmentProvider, _) {
           // Collaborateur (access R4b §5.3): own bookings only reach this

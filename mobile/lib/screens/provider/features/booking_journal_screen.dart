@@ -8,6 +8,7 @@ import '../../../core/theme/text_styles.dart';
 import '../../../core/utils/salon_time.dart';
 import '../../../widgets/common/coming_soon_scaffold.dart';
 import '../../../widgets/common/myweli_month_grid.dart';
+import '../../../widgets/common/screen_title.dart';
 
 class BookingJournalScreen extends StatelessWidget {
   const BookingJournalScreen({super.key});
@@ -19,7 +20,7 @@ class BookingJournalScreen extends StatelessWidget {
     }
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(title: const Text('Journal de réservation')),
+      appBar: AppBar(title: const ScreenTitle('Journal de réservation')),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(AppTheme.spacingM),
         child: Column(

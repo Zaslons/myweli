@@ -7,6 +7,7 @@ import 'app_button.dart';
 import 'myweli_date_picker.dart';
 import 'myweli_month_grid.dart';
 import 'myweli_time_picker.dart';
+import 'screen_title.dart';
 
 /// A date and a time, in **one route** (A14b, §11.3).
 ///
@@ -216,7 +217,7 @@ class _MyweliDateTimePickerScreenState
         // « Choisir la date et… ». « Date et heure » fits at both scales, and a
         // title the user cannot finish reading is the same defect §13.3 names
         // everywhere else.
-        title: Text(widget.helpText ?? 'Date et heure'),
+        title: ScreenTitle(widget.helpText ?? 'Date et heure'),
       ),
       body: SafeArea(
         child: Column(

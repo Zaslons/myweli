@@ -6,6 +6,7 @@ import '../../../core/theme/colors.dart';
 import '../../../core/theme/text_styles.dart';
 import '../../../core/utils/formatters.dart';
 import '../../../widgets/common/coming_soon_scaffold.dart';
+import '../../../widgets/common/screen_title.dart';
 
 class ReportsAnalyticsScreen extends StatelessWidget {
   const ReportsAnalyticsScreen({super.key});
@@ -17,7 +18,7 @@ class ReportsAnalyticsScreen extends StatelessWidget {
     }
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(title: const Text('Rapports et analyses')),
+      appBar: AppBar(title: const ScreenTitle('Rapports et analyses')),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(AppTheme.spacingM),
         child: Column(

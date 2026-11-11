@@ -11,6 +11,7 @@ import '../../models/appointment.dart';
 import '../../widgets/booking/slot_picker.dart';
 import '../../widgets/common/app_button.dart';
 import '../../widgets/common/app_card.dart';
+import '../../widgets/common/screen_title.dart';
 
 /// Move an existing appointment to another free slot (A14c §19.2).
 ///
@@ -91,7 +92,7 @@ class _RescheduleScreenState extends State<RescheduleScreen> {
           tooltip: 'Fermer',
           onPressed: () => Navigator.of(context).pop(),
         ),
-        title: const Text('Reporter'),
+        title: const ScreenTitle('Reporter'),
       ),
       body: SafeArea(
         child: Column(

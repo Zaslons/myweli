@@ -14,6 +14,7 @@ import '../../../widgets/common/app_async_view.dart';
 import '../../../widgets/common/app_card.dart';
 import '../../../widgets/common/app_skeleton.dart';
 import '../../../widgets/common/empty_state.dart';
+import '../../../widgets/common/screen_title.dart';
 
 /// « Mon abonnement » — the salon's CURRENT offer, read-only: its status
 /// (trial / paid / grace / expired), its dates and its seats. Nothing else.
@@ -67,7 +68,7 @@ class _ProSubscriptionScreenState extends State<ProSubscriptionScreen> {
       // Cards are `secondary` on `background` (SYSTEM §3.1): the step that
       // lifts them, now they have no shadow (B9.8 F2).
       backgroundColor: AppColors.background,
-      appBar: AppBar(title: const Text('Mon abonnement')),
+      appBar: AppBar(title: const ScreenTitle('Mon abonnement')),
       body: providerId == null || !auth.can(ProCap.subscriptionManage)
           ? const EmptyState(
               icon: Icons.workspace_premium_outlined,

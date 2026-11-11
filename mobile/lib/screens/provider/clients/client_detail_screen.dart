@@ -28,6 +28,7 @@ import '../../../widgets/common/app_text_field.dart';
 import '../../../widgets/common/empty_state.dart';
 import '../../../widgets/common/inline_feedback.dart';
 import '../../../widgets/common/phone_number_field.dart';
+import '../../../widgets/common/screen_title.dart';
 
 /// The client card (module `clients` C1c, docs/design/clients-c1.md §5):
 /// identity + call/WhatsApp actions, tags, salon-scoped stats, upcoming
@@ -76,7 +77,7 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
     final clients = context.watch<ProClientsProvider>();
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(title: const Text('Fiche client')),
+      appBar: AppBar(title: const ScreenTitle('Fiche client')),
       body: _body(clients),
     );
   }

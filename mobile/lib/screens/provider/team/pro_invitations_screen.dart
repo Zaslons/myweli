@@ -16,6 +16,7 @@ import '../../../widgets/common/app_skeleton.dart';
 import '../../../widgets/common/app_snack_bar.dart';
 import '../../../widgets/common/empty_state.dart';
 import '../../../widgets/common/loading_indicator.dart';
+import '../../../widgets/common/screen_title.dart';
 import '../../../widgets/team/invitation_card.dart';
 import '../../../widgets/team/revoked_access_banner.dart';
 
@@ -223,7 +224,7 @@ class _ProInvitationsScreenState extends State<ProInvitationsScreen> {
       // lifts them, now they have no shadow (B9.8 F2).
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Text('Invitations'),
+        title: const ScreenTitle('Invitations'),
         // The gate has nowhere to go back to (§3) — only out.
         automaticallyImplyLeading: !_gate,
         actions: [
@@ -264,8 +265,10 @@ class _ProInvitationsScreenState extends State<ProInvitationsScreen> {
           RevokedAccessBanner(salonName: _lostSalon!),
           const SizedBox(height: AppTheme.spacingL),
         ],
+        // A section under the screen's title: level 2 (SYSTEM.md §13.4).
+        // `header: true` alone makes a heading on no phone since Flutter 3.47.
         Semantics(
-          header: true,
+          headingLevel: 2,
           child: Text(
             'Vous êtes invité(e)',
             style: AppTextStyles.headlineSmall,

@@ -15,6 +15,7 @@ import '../../../widgets/common/app_async_view.dart';
 import '../../../widgets/common/app_card.dart';
 import '../../../widgets/common/app_skeleton.dart';
 import '../../../widgets/common/empty_state.dart';
+import '../../../widgets/common/screen_title.dart';
 
 class ServiceListScreen extends StatefulWidget {
   const ServiceListScreen({super.key});
@@ -48,7 +49,7 @@ class _ServiceListScreenState extends State<ServiceListScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(title: const Text('Services')),
+      appBar: AppBar(title: const ScreenTitle('Services')),
       floatingActionButton: FloatingActionButton(
         tooltip: 'Ajouter un service',
         onPressed: () => context.push('/pro/service/new'),

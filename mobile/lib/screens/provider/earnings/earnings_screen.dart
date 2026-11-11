@@ -15,6 +15,7 @@ import '../../../services/interfaces/pro_service_interface.dart';
 import '../../../widgets/common/app_async_view.dart';
 import '../../../widgets/common/app_card.dart';
 import '../../../widgets/common/app_skeleton.dart';
+import '../../../widgets/common/screen_title.dart';
 
 class EarningsScreen extends StatefulWidget {
   const EarningsScreen({super.key});
@@ -112,7 +113,7 @@ class _EarningsScreenState extends State<EarningsScreen>
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Text('Revenus'),
+        title: const ScreenTitle('Revenus'),
         bottom: TabBar(
           controller: _tabController,
           onTap: _loadEarningsForTab,
