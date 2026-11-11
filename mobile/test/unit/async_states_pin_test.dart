@@ -57,15 +57,11 @@ void main() {
   });
 
   test('one load error: no hand-written « Réessayer » state', () {
-    expect(
-      counts((l) => l.contains("actionText: 'Réessayer'")),
-      {
-        // Not a page's failed read: it stands in for every page, and says
-        // why they wait (pro-app-salon-not-loaded.md §4).
-        'lib/widgets/provider/pro_salon_gate.dart': 1,
-      },
-      reason: 'a load error is AppAsyncView\'s, or AppErrorView',
-    );
+    expect(counts((l) => l.contains("actionText: 'Réessayer'")), {
+      // Not a page's failed read: it stands in for every page, and says
+      // why they wait (pro-app-salon-not-loaded.md §4).
+      'lib/widgets/provider/pro_salon_gate.dart': 1,
+    }, reason: 'a load error is AppAsyncView\'s, or AppErrorView');
   });
 
   test('the retired error titles and sentence are gone', () {
