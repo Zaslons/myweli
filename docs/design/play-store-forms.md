@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | **Ré-audité le 2026-10-28 (BACKLOG B0.10)** contre le binaire, la politique publiée, l'étiquette App Store relue ce jour-là et les règles Play en vigueur. **MyWeli Pro seule pour l'instant** (décision 51) ; la saisie se fait dans le volet navigateur, formulaire par formulaire, montré au propriétaire avant chaque enregistrement (décision 53) ; les images, que le volet ne peut pas joindre, importées dans Chrome. **Dans la console le 2026-10-28 : tout le « Contenu de l'application » et la fiche, images comprises, enregistrés et relus ; rien envoyé pour examen (§0.1).** Historique : rédigé 2026-08-28 ; corrigé 2026-09-24 (libellés de connexion, adresse et numéro Mobile Money) ; 2026-10-05 (plus de choix d'offre dans l'app Pro Android) ; 2026-10-13 (texte d'accès amendé, verrou de suppression du compte démo). |
+| **Status** | **2026-11-11 : mis à jour après la sortie iOS (décisions 110 à 115)** — l'ordre de la sortie Android, du build à la production, est dans [android-play-release.md](android-play-release.md) ; ce qui a changé ici est au §0.2. **Ré-audité le 2026-10-28 (BACKLOG B0.10)** contre le binaire, la politique publiée, l'étiquette App Store relue ce jour-là et les règles Play en vigueur. **MyWeli Pro seule pour l'instant** (décision 51) ; la saisie se fait dans le volet navigateur, formulaire par formulaire, montré au propriétaire avant chaque enregistrement (décision 53) ; les images, que le volet ne peut pas joindre, importées dans Chrome. **Dans la console le 2026-10-28 : tout le « Contenu de l'application » et la fiche, images comprises, enregistrés et relus ; rien envoyé pour examen (§0.1).** Historique : rédigé 2026-08-28 ; corrigé 2026-09-24 (libellés de connexion, adresse et numéro Mobile Money) ; 2026-10-05 (plus de choix d'offre dans l'app Pro Android) ; 2026-10-13 (texte d'accès amendé, verrou de suppression du compte démo). |
 | **Portée** | **MyWeli Pro** (`com.myweli.pro`) maintenant. MyWeli (`com.myweli.app`) au §8, à ré-auditer avant sa soumission. |
 | **Source de vérité** | La politique de confidentialité publiée (`/politique-confidentialite`) et le binaire — un formulaire qui les contredit est un rejet ET une exposition légale (LAUNCH.md §6.3) |
 | **Règle** | Chaque réponse ci-dessous est dérivée du code, du binaire ou de la politique, jamais inventée. En cas de doute en saisissant : STOP, on vérifie. |
@@ -119,7 +119,8 @@ d'être enregistré, puis relu.
   l'affiche « Prête à être envoyée pour examen ».
   - **Textes** : nom, description courte, description complète (29/30, 70/80,
     996/4000). Chacun est identique au §1, empreinte SHA-256 comparée dans la
-    page.
+    page. *(2026-11-11 : la description complète du §1 a changé, décision 113 ;
+    celle de la console est encore l'ancienne.)*
   - **Images** : l'icône, la bannière et les 8 captures du §1.2–§1.3,
     importées par Claude dans Chrome (le volet navigateur ne peut pas joindre
     de fichier), sur la demande du propriétaire.
@@ -153,6 +154,31 @@ d'être enregistré, puis relu.
      confirmer la version, puis l'envoyer à Google pour examen.
   5. Puis la demande d'accès à la production, après les 14 jours.
 
+## 0.2 · Le 2026-11-11 — après la sortie iOS
+
+Les décisions 110 à 115 du propriétaire (« Valider tel quel »), et ce qui était
+devenu faux depuis le 2026-10-28 :
+
+- **La description (§1)** est maintenant celle de l'App Store, mot pour mot
+  (décision 113), et le test n'admet plus d'écart. La console garde l'ancienne
+  jusqu'à l'étape 7 d'[android-play-release.md](android-play-release.md).
+- **Le code démo (§2)** : Apple a rendu sa décision ; la règle « aucune
+  rotation avant la décision d'Apple » est tombée. Le même code sert aux deux
+  stores.
+- **Deux déclarations nouvelles (§5)** : la localisation précise, obligatoire
+  le 2027-01-27, et le statut de professionnel, avant le 2027-02-01. « Aucune
+  déclaration de permission n'est due » était vrai le 2026-10-28 ; plus depuis
+  l'annonce de Google du 2026-10-29.
+- **Le compte d'organisation (§6)** : un compte personnel peut être converti.
+  Ce document disait le contraire.
+- **Les iPhone (§6.1)** : MyWeli Pro est sur l'App Store depuis le 2026-11-10.
+- **La clé d'importation et l'empreinte de Play (§6.2)** existent depuis le
+  2026-08-26 ; les étapes 3 et 4 deviennent des vérifications.
+- **Les pays (§6.2)** : le test fermé en Côte d'Ivoire et dans les pays des
+  testeurs ; la production dans tous les pays possibles (décision 114).
+- **L'audit du binaire (§0)** date du 2026-10-28, sur Flutter 3.44.9. Il est
+  refait sur l'AAB réel (étape 5 du même document).
+
 ## 1 · Fiche du Play Store (Store listing) — MyWeli Pro
 
 Limites de Play (aide Play, « Add product details ») : nom 30 caractères,
@@ -164,24 +190,25 @@ description courte 80, description complète 4 000. Le test les relit.
   `L'agenda, la clientèle et les réservations de votre salon, en une app.`
 - **Description complète** — la même que sur l'App Store, mot pour mot, en
   texte brut (Play n'interprète pas le Markdown : un `**` collé s'afficherait
-  tel quel). *2026-11-03 : l'App Store a changé sur quatre points, à la demande du
-  propriétaire, après le deuxième refus d'Apple : décision 74 (« sur myweli.com » retiré, une phrase
-  sur les salons qui ont déjà un compte) et décision 79 (« semaine » retiré de « Vue journée, semaine,
-  et par membre d'équipe. », et « à domicile, » de la dernière phrase :
-  [app-review-round-2.md](app-review-round-2.md) §7). Ce texte reste celui qui est enregistré
-  dans la console, et le test n'admet que ces quatre écarts. Les reporter ici et dans la console reste
-  au choix du propriétaire, qui n'a pas tranché pour Play.* :
+  tel quel). *2026-11-11, décision 113 : Play prend le texte publié sur l'App
+  Store, avec ses quatre changements du 2026-11-03 (décisions 74 et 79 :
+  « sur myweli.com » retiré, la phrase sur les salons qui ont déjà un compte,
+  « semaine » et « à domicile, » retirés ;
+  [app-review-round-2.md](app-review-round-2.md) §7). La console garde
+  l'ancien texte (996 caractères) jusqu'à l'étape 7
+  d'[android-play-release.md](android-play-release.md). Le test exige
+  l'égalité, sans écart.* :
 
 **Description complète** (coller tel quel) :
 
 ```text
-L'outil de gestion des salons de beauté de Côte d'Ivoire : recevez des réservations en ligne et pilotez votre activité au quotidien.
+L'outil de gestion des salons de beauté de Côte d'Ivoire : recevez des réservations en ligne et pilotez votre activité au quotidien. MyWeli Pro s’adresse aux salons qui ont déjà un compte MyWeli et à leur équipe.
 
 VOTRE AGENDA, TENU TOUT SEUL
-Les clients réservent sur vos créneaux réels ; vous ajoutez les rendez-vous pris au téléphone ou au comptoir en quelques gestes. Vue journée, semaine, et par membre d'équipe.
+Les clients réservent sur vos créneaux réels ; vous ajoutez les rendez-vous pris au téléphone ou au comptoir en quelques gestes. Vue journée et par membre d'équipe.
 
 VOTRE VITRINE EN LIGNE
-Photos, avant/après, logo, prestations et tarifs, horaires avec modèles prêts à l'emploi : votre page publique sur myweli.com se remplit depuis l'app.
+Photos, avant/après, logo, prestations et tarifs, horaires avec modèles prêts à l'emploi : votre page publique se remplit depuis l'app.
 
 VOTRE CLIENTÈLE, ENREGISTRÉE D'ELLE-MÊME
 Chaque réservation crée ou retrouve la fiche client — historique de visites, notes, étiquettes.
@@ -192,7 +219,7 @@ Le client paie l'acompte sur VOTRE Mobile Money et joint sa preuve ; vous confir
 VOTRE ÉQUIPE
 Invitez manager, réception et collaborateurs, chacun avec les accès de son rôle.
 
-Conçu pour les réalités d'ici : FCFA, communes, à domicile, réseaux lents et petits téléphones.
+Conçu pour les réalités d'ici : FCFA, communes, réseaux lents et petits téléphones.
 ```
 
 ### 1.1 Catégorie et coordonnées
@@ -267,8 +294,10 @@ ajouter des instructions :
   gcloud secrets versions access latest --secret=DEMO_PROVIDER_CODE --project=myweli
   ```
 
-  C'est **le même code que pour la revue Apple**. Aucune rotation tant
-  qu'Apple n'a pas rendu sa décision (B0.1).
+  C'est **le même code que pour la revue Apple**. *2026-11-11 : Apple a rendu
+  sa décision sur la 0.0.1 ; la règle « aucune rotation avant la décision »
+  (B0.1) vaut de nouveau pendant chaque revue, chez Apple comme chez Google.
+  Une rotation met à jour les deux consoles le même jour.*
 - **Ce que Google exige :** des identifiants qui marchent toujours, de
   partout, réutilisables, sans code à usage unique, en anglais. Le compte démo
   a un code **fixe qui n'expire pas** : c'est exactement ce que Google demande.
@@ -397,6 +426,8 @@ propre définition, et c'est voulu.
 | COVID-19 (si la console la propose encore) | **Non** | |
 | Informations de connexion | le §2 | |
 | Déclarations de permissions (photos, alarmes exactes, service au premier plan, localisation en arrière-plan…) | **aucune n'est due** | aucune de ces permissions dans le manifeste fusionné (§0) |
+| **Localisation précise** (`ACCESS_FINE_LOCATION`) — *nouvelle, obligatoire le 2027-01-27 (annonce de Google du 2026-10-29)* | **à remplir** à l'étape 7 d'[android-play-release.md](android-play-release.md), une fois le formulaire lu. La justification : « Utiliser ma position », dans « Profil du salon », est une action ponctuelle lancée par l'utilisateur ; le point devient la position publique du salon sur sa page et sa carte ; une position approximative le placerait à des kilomètres ; le bouton de localisation d'Android n'existe qu'à partir d'Android 17 | Google : l'app qui garde `ACCESS_FINE_LOCATION` doit justifier « why coarse location or the location button is insufficient » ; nous ciblons l'API 36. L'emplacement du formulaire et ses questions ne sont pas encore lus (même document, §7.1) |
+| **Statut de professionnel** (le compte, puis chaque app) — *avant le 2027-02-01* | **Professionnel** (décision 115), **à reconfirmer par le propriétaire avant la saisie** : pour un compte personnel, Google affiche alors son numéro de téléphone et son adresse, partout dans le monde, à partir du 2027-03-01 | aide Google 17594752 ; même document, §3.6 et §7.2. Sans déclaration : blocage des mises à jour et retrait du Play Store dans le monde entier |
 
 ---
 
@@ -423,11 +454,14 @@ Ce que cela veut dire pour MyWeli Pro :
    ce qu'on leur envoie : §6.1 à §6.5.
 
 **Une seule façon d'y échapper : un compte développeur d'organisation.** La
-règle ne vise que les comptes personnels (aide 14151465). Un compte personnel
-ne se convertit pas : il faudrait une société immatriculée, un numéro D-U-N-S,
-un nouveau compte Play d'organisation, puis le transfert de l'app. C'est plus
-long que les 14 jours, et l'immatriculation vient après le lancement. Le test
-fermé se fait donc maintenant. Le passage à un compte d'organisation reste à
+règle ne vise que les comptes personnels (aide 14151465). *Corrigé le
+2026-11-11 :* un compte personnel **peut** être converti en compte
+d'organisation (aide Google 16260648, relevée le 2026-11-01) : site Web
+vérifié de l'organisation, numéro D-U-N-S, profil de paiement
+d'organisation, parfois des documents. Aucune page de Google ne dit que la
+conversion dispense une app déjà créée du test des 12 testeurs. Et il faut
+une société immatriculée, ce qui vient après le lancement. Le test fermé se
+fait donc maintenant. Le passage à un compte d'organisation reste à
 envisager avant MyWeli (client) : la page de Google parle d'un test « pour
 leur appli », ce qui laisse penser qu'il en faudra un second pour elle.
 
@@ -439,8 +473,9 @@ leur appli », ce qui laisse penser qu'il en faudra un second pour elle.
   - Un utilisateur d'iPhone peut s'inscrire au test sur le Web, mais ne pourra
     jamais ouvrir l'app. Or Google demande, avant la production, si les
     testeurs ont utilisé l'app.
-  - Les salons sur iPhone passeront par TestFlight
-    ([mobile-external-testing.md](mobile-external-testing.md) §4.1).
+  - Les salons sur iPhone installent MyWeli Pro depuis l'App Store, où elle
+    est publiée depuis le 2026-11-10. *(Ce point disait « TestFlight »
+    jusqu'au 2026-11-11.)*
 - **Viser 15 à 20 personnes.** Au moment de la demande d'accès à la
   production, 12 doivent être inscrites depuis 14 jours sans interruption.
   Celle qui quitte le test ne compte plus.
@@ -483,17 +518,26 @@ d'ici : ils sont décrits, pas cités.
 2. **La piste de test fermé** (tableau de bord → « Tests fermés »).
    - **Pays** : par défaut, la piste reprend ceux de la production, qui n'en a
      aucun. Ajouter la Côte d'Ivoire, et les pays où vivent des testeurs
-     ([mobile-external-testing.md](mobile-external-testing.md) §4.1).
+     ([mobile-external-testing.md](mobile-external-testing.md) §4.1). La
+     production, elle, ira dans tous les pays possibles (décision 114), après
+     la déclaration de statut de professionnel (§5).
    - **Testeurs** : le groupe Google.
    - **Commentaires** : `support@myweli.com`, si la console demande une
      adresse.
    - **Le lien d'inscription** que la console affiche (de la forme
      `https://play.google.com/apps/testing/com.myweli.pro`) remplace
      `[LIEN DU TEST]` dans le guide.
-3. **La version** : la clé d'importation sauvegardée, l'AAB signé
-   (`tool/release_build.sh`, LAUNCH §6.3), la version créée dans la piste
-   fermée, puis envoyée à l'examen de Google.
-4. **L'empreinte SHA-1 de Play, avant toute invitation.** Play re-signe l'app
+3. **La version.** *2026-11-11 :* la clé d'importation existe depuis le
+   2026-08-26 ; sa sauvegarde est vérifiée à l'étape 4
+   d'[android-play-release.md](android-play-release.md). L'AAB signé
+   (`tool/release_build.sh`, LAUNCH §6.3) passe d'abord par le test interne
+   et la vérification sur téléphone (même document, §5). C'est **la même
+   version** qui est ensuite promue dans la piste fermée, puis envoyée à
+   l'examen de Google.
+4. **L'empreinte SHA-1 de Play, avant toute invitation.** *Fait le 2026-08-26 :
+   `94be494a…`, lue sur l'APK installé depuis Play
+   (`infra/mobile/signing-manifest.json`). C'est désormais une vérification,
+   que `release_build.sh` refait avant chaque build.* Play re-signe l'app
    avec sa propre clé. Tant que l'empreinte de cette clé n'est pas enregistrée
    sur le client OAuth Android de `com.myweli.pro`, « Continuer avec Google »
    répond « Connexion Google impossible. » sur l'app installée depuis Play.

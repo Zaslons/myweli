@@ -383,7 +383,9 @@ d'équipe. » : le journal a une bande qui choisit un jour, et pas de vue semain
 la dernière phrase : le mot est à 0 dans le binaire, et dans `mobile/lib` seulement dans un commentaire.
 Aucun des deux refus ne les cite. *Avant ces corrections : 1 061 caractères, 1 102 octets.* **Google Play
 garde toujours l'ancien** : il a maintenant quatre changements de retard, et le test admet ces quatre-là,
-et rien d'autre. Le propriétaire n'a pas tranché pour Play.
+et rien d'autre. Le propriétaire n'a pas tranché pour Play. *2026-11-11, décision 113 : Play prend ce
+texte, mot pour mot ([play-store-forms.md](play-store-forms.md) §1), et le test n'admet plus d'écart.
+La console Play le reçoit à l'étape 7 d'[android-play-release.md](android-play-release.md).*
 
 ```text
 L'outil de gestion des salons de beauté de Côte d'Ivoire : recevez des réservations en ligne et pilotez votre activité au quotidien. MyWeli Pro s’adresse aux salons qui ont déjà un compte MyWeli et à leur équipe.

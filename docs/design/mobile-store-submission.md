@@ -39,6 +39,14 @@ Verified: `flutter build appbundle --flavor consumer --release` succeeds without
 `key.properties`, and the resulting `.aab` contains **no** `META-INF/*.RSA` —
 unsigned, not debug-signed.
 
+*Corrected 2026-11-11: the paragraph below is wrong, and was from the day it was
+written. Flutter's Gradle plugin sets `isMinifyEnabled = true` on release unless
+the `shrink` property is false, and nothing here sets it, so release builds go
+through R8 (observed on a release APK of 2026-11-11: the full-mode R8 marker in
+its dex, and its mapping file).
+Decision 112 keeps it, explicitly:
+[android-play-release.md](android-play-release.md) §3.3, §6.*
+
 **R8 is deliberately still off.** Enabling `isMinifyEnabled` is right for a Play
 release and was reverted out of this slice: its failure mode is runtime-only —
 R8 strips a reflectively-reached class and push, or a plugin, stops working in
