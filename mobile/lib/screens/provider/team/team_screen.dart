@@ -19,6 +19,7 @@ import '../../../widgets/common/app_snack_bar.dart';
 import '../../../widgets/common/brand_refresh.dart';
 import '../../../widgets/common/confirm_dialog.dart';
 import '../../../widgets/common/empty_state.dart';
+import '../../../widgets/common/screen_title.dart';
 import '../../../widgets/team/team_role_chip.dart';
 import 'invite_member_sheet.dart';
 
@@ -104,7 +105,7 @@ class _TeamScreenState extends State<TeamScreen> {
     // (docs/design/r6-salon-id-pin.md).
     if (auth.activeSalonId == null || !auth.can(ProCap.membersManage)) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Équipe')),
+        appBar: AppBar(title: const ScreenTitle('Équipe')),
         body: const EmptyState(
           icon: Icons.group_outlined,
           title: 'Réservé au propriétaire',
@@ -120,7 +121,7 @@ class _TeamScreenState extends State<TeamScreen> {
       // Cards are `secondary` on `background` (SYSTEM §3.1): the step that
       // lifts them, now they have no shadow (B9.8 F2).
       backgroundColor: AppColors.background,
-      appBar: AppBar(title: const Text('Équipe')),
+      appBar: AppBar(title: const ScreenTitle('Équipe')),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _openInviteSheet,
         icon: const Icon(Icons.person_add),

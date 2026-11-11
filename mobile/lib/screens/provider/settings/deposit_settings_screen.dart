@@ -25,6 +25,7 @@ import '../../../widgets/common/app_snack_bar.dart';
 import '../../../widgets/common/inline_feedback.dart';
 import '../../../widgets/common/label_value_row.dart';
 import '../../../widgets/common/phone_number_field.dart';
+import '../../../widgets/common/screen_title.dart';
 
 /// The server's `operator_unavailable` (B6.5): an operator the country's
 /// catalogue no longer offers, with a deposit asked — under the chips.
@@ -202,7 +203,7 @@ class _DepositSettingsScreenState extends State<DepositSettingsScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(title: const Text('Acompte')),
+      appBar: AppBar(title: const ScreenTitle('Acompte')),
       body: Consumer<ProDepositSettingsProvider>(
         builder: (context, provider, _) {
           return AppAsyncView<ProDepositSettingsProvider>(

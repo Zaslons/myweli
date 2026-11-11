@@ -387,34 +387,32 @@ void main() {
     expect(find.text(_copyButton), findsNothing);
   }
 
-  testWidgets(
-    'CONTROL: every read answers → every section is filled',
-    (tester) async {
-      await pumpExport(tester);
+  testWidgets('CONTROL: every read answers → every section is filled', (
+    tester,
+  ) async {
+    await pumpExport(tester);
 
-      expect(find.text('Chargement impossible'), findsNothing);
-      final export = await copyExport(tester);
-      expect((export['salon'] as Map)['id'], 'provider1');
-      expect(export['services'], hasLength(1));
-      expect(export['artists'], hasLength(1));
-      expect(export['appointments'], hasLength(1));
-      expect(export['clients'], hasLength(3));
-      // B7.8: the sixth read, in the web's shape — a total and a COUNT.
-      expect(export['earnings'], {'totalEarnings': 1250000, 'transactions': 2});
-      expect(pro.earningsAsked.single, (
-        salon: 'provider1',
-        from: null,
-        to: null,
-      ), reason: 'the whole period, as the web asks');
-      expect(find.text('Revenus'), findsOneWidget);
-      expect(
-        find.text(Formatters.formatCurrency(1250000)),
-        findsOneWidget,
-        reason: 'the summary says what the file holds',
-      );
-    },
-    variant: bothPlatforms,
-  );
+    expect(find.text('Chargement impossible'), findsNothing);
+    final export = await copyExport(tester);
+    expect((export['salon'] as Map)['id'], 'provider1');
+    expect(export['services'], hasLength(1));
+    expect(export['artists'], hasLength(1));
+    expect(export['appointments'], hasLength(1));
+    expect(export['clients'], hasLength(3));
+    // B7.8: the sixth read, in the web's shape — a total and a COUNT.
+    expect(export['earnings'], {'totalEarnings': 1250000, 'transactions': 2});
+    expect(pro.earningsAsked.single, (
+      salon: 'provider1',
+      from: null,
+      to: null,
+    ), reason: 'the whole period, as the web asks');
+    expect(find.text('Revenus'), findsOneWidget);
+    expect(
+      find.text(Formatters.formatCurrency(1250000)),
+      findsOneWidget,
+      reason: 'the summary says what the file holds',
+    );
+  }, variant: bothPlatforms);
 
   group('a read that fails refuses the export, naming what is missing', () {
     final cases = <String, void Function()>{

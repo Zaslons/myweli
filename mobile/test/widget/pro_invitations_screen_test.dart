@@ -70,6 +70,25 @@ void main() {
     expect(find.text('Aucune invitation en attente'), findsOneWidget);
   });
 
+  // SYSTEM.md §13.4 « Titles are headings »: what a phone reads is
+  // `headingLevel > 0` (docs/design/mobile-flutter-3.47-upgrade.md §3.1).
+  // « Vous êtes invité(e) », the gate's heading, is pinned in
+  // pro_login_invitations_test.dart, the test that reaches the gate.
+  testWidgets('the screen title is a heading a phone reads', (tester) async {
+    final handle = tester.ensureSemantics();
+    await tester.pumpWidget(app());
+    await settle(tester);
+
+    expect(
+      tester
+          .getSemantics(find.text('Invitations'))
+          .getSemanticsData()
+          .headingLevel,
+      1,
+    );
+    handle.dispose();
+  });
+
   testWidgets('decline removes the card in place', (tester) async {
     await tester.pumpWidget(app());
     await settle(tester);

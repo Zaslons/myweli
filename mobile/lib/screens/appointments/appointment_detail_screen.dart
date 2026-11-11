@@ -28,6 +28,7 @@ import '../../widgets/common/app_snack_bar.dart';
 import '../../widgets/common/confirm_dialog.dart';
 import '../../widgets/common/inline_feedback.dart';
 import '../../widgets/common/salon_time_hint.dart';
+import '../../widgets/common/screen_title.dart';
 import '../../widgets/common/timed_cached_image.dart';
 import '../../widgets/review/submit_review_sheet.dart';
 import 'reschedule_screen.dart';
@@ -404,7 +405,7 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
       // Cards are `secondary` on `background` (SYSTEM §3.1): the step that
       // lifts them, now they have no shadow (B9.8 F2).
       backgroundColor: AppColors.background,
-      appBar: AppBar(title: const Text('Détails')),
+      appBar: AppBar(title: const ScreenTitle('Détails')),
       body: Consumer<AppointmentProvider>(
         builder: (context, provider, _) {
           // The provider's selection is app-wide and survives the screen: on

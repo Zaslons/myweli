@@ -7,6 +7,7 @@ import '../../core/utils/formatters.dart';
 import 'app_button.dart';
 import 'confirm_dialog.dart';
 import 'myweli_month_grid.dart';
+import 'screen_title.dart';
 
 /// The house date picker (A14, SYSTEM.md §21 row 73).
 ///
@@ -135,7 +136,7 @@ class MyweliDatePickerScreen extends StatelessWidget {
           tooltip: 'Fermer',
           onPressed: () => Navigator.of(context).pop(),
         ),
-        title: Text(helpText ?? 'Choisir une date'),
+        title: ScreenTitle(helpText ?? 'Choisir une date'),
       ),
       body: SafeArea(
         child: MyweliMonthNavigator(
@@ -303,7 +304,7 @@ class _MyweliMultiDatePickerScreenState
           // The FALLBACK, so it has to fit the narrowest bar this widget can
           // draw — close leading + reset action = 232dp. « Choisir des dates »
           // is 251 and every call site that matters passes its own `helpText`.
-          title: Text(widget.helpText ?? 'Choisir'),
+          title: ScreenTitle(widget.helpText ?? 'Choisir'),
           actions: [
             // Undoes THIS session's taps — never a bulk unblock of stored data.
             //

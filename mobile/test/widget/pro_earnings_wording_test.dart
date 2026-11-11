@@ -77,15 +77,11 @@ void main() {
     await openEarningsAll(tester);
 
     final texts = summaryCard(tester);
-    expect(
-      texts.map((t) => t.$1).toList(),
-      [
-        'Total réalisé',
-        matches(RegExp(r'\d')), // the amount, whatever the mock sums to
-        'Rendez-vous terminés',
-      ],
-      reason: 'label, figure, what the figure counts — in that order',
-    );
+    expect(texts.map((t) => t.$1).toList(), [
+      'Total réalisé',
+      matches(RegExp(r'\d')), // the amount, whatever the mock sums to
+      'Rendez-vous terminés',
+    ], reason: 'label, figure, what the figure counts — in that order');
     // Under the figure, not beside it.
     expect(texts[1].$2.top, greaterThanOrEqualTo(texts[0].$2.bottom));
     expect(texts[2].$2.top, greaterThanOrEqualTo(texts[1].$2.bottom));

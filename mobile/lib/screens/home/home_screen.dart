@@ -250,97 +250,114 @@ class _HomeScreenState extends State<HomeScreen> {
               // Recent bookings (only when authenticated) — placed AFTER “À la une”
               SliverToBoxAdapter(
                 child: Consumer3<AuthProvider, AppointmentProvider, ProviderProvider>(
-                  builder: (context, authProvider, appointmentProvider, providerProvider, _) {
-                    if (!authProvider.isAuthenticated) {
-                      return const SizedBox.shrink();
-                    }
+                  builder:
+                      (
+                        context,
+                        authProvider,
+                        appointmentProvider,
+                        providerProvider,
+                        _,
+                      ) {
+                        if (!authProvider.isAuthenticated) {
+                          return const SizedBox.shrink();
+                        }
 
-                    final recent =
-                        appointmentProvider.appointments
-                            .where(
-                              (a) => a.status != AppointmentStatus.cancelled,
-                            )
-                            .toList()
-                          ..sort(
-                            (a, b) =>
-                                b.appointmentDate.compareTo(a.appointmentDate),
-                          );
+                        final recent =
+                            appointmentProvider.appointments
+                                .where(
+                                  (a) =>
+                                      a.status != AppointmentStatus.cancelled,
+                                )
+                                .toList()
+                              ..sort(
+                                (a, b) => b.appointmentDate.compareTo(
+                                  a.appointmentDate,
+                                ),
+                              );
 
-                    if (recent.isEmpty) return const SizedBox.shrink();
+                        if (recent.isEmpty) return const SizedBox.shrink();
 
-                    final top = recent.take(3).toList();
+                        final top = recent.take(3).toList();
 
-                    return Padding(
-                      padding: const EdgeInsets.fromLTRB(
-                        AppTheme.spacingM,
-                        AppTheme.spacingM,
-                        AppTheme.spacingM,
-                        0,
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          SectionHeading(
-                            title: 'Derniers rendez-vous',
-                            action: TextButton(
-                              onPressed: () => context.push('/bookings'),
-                              child: const Text('Voir tout'),
-                            ),
+                        return Padding(
+                          padding: const EdgeInsets.fromLTRB(
+                            AppTheme.spacingM,
+                            AppTheme.spacingM,
+                            AppTheme.spacingM,
+                            0,
                           ),
-                          const SizedBox(height: AppTheme.spacingS),
-                          // At most 3 tiles, so there is nothing to virtualise —
-                          // and the tile's height grows SUPER-linearly with the
-                          // text scale (96 → 176 at 200%, because the title wraps),
-                          // so no computed bound is safe. An intrinsic strip needs
-                          // no arithmetic at all: IntrinsicHeight + stretch keeps
-                          // the tiles equal-height, and the strip tracks the
-                          // tallest one at every scale (§13.3).
-                          SingleChildScrollView(
-                            scrollDirection: Axis.horizontal,
-                            child: IntrinsicHeight(
-                              child: Row(
-                                crossAxisAlignment: CrossAxisAlignment.stretch,
-                                children: [
-                                  for (final (i, a) in top.indexed) ...[
-                                    if (i > 0)
-                                      const SizedBox(width: AppTheme.spacingS),
-                                    Builder(
-                                      builder: (context) {
-                                        final p = providerProvider.providers
-                                            .where((p) => p.id == a.providerId)
-                                            .firstOrNull;
-                                        final w = MediaQuery.of(
-                                          context,
-                                        ).size.width;
-                                        return SizedBox(
-                                          width: (w * 0.86).clamp(280.0, 360.0),
-                                          child: CompactAppointmentTile(
-                                            appointment: a,
-                                            providerName: salonNameOr(
-                                              p?.name,
-                                              kUnnamedSalon,
-                                            ),
-                                            providerImageUrl:
-                                                (p != null &&
-                                                    p.imageUrls.isNotEmpty)
-                                                ? p.imageUrls.first
-                                                : null,
-                                            onTap: () => context.push(
-                                              '/appointment/${a.id}',
-                                            ),
-                                          ),
-                                        );
-                                      },
-                                    ),
-                                  ],
-                                ],
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              SectionHeading(
+                                title: 'Derniers rendez-vous',
+                                action: TextButton(
+                                  onPressed: () => context.push('/bookings'),
+                                  child: const Text('Voir tout'),
+                                ),
                               ),
-                            ),
+                              const SizedBox(height: AppTheme.spacingS),
+                              // At most 3 tiles, so there is nothing to virtualise —
+                              // and the tile's height grows SUPER-linearly with the
+                              // text scale (96 → 176 at 200%, because the title wraps),
+                              // so no computed bound is safe. An intrinsic strip needs
+                              // no arithmetic at all: IntrinsicHeight + stretch keeps
+                              // the tiles equal-height, and the strip tracks the
+                              // tallest one at every scale (§13.3).
+                              SingleChildScrollView(
+                                scrollDirection: Axis.horizontal,
+                                child: IntrinsicHeight(
+                                  child: Row(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.stretch,
+                                    children: [
+                                      for (final (i, a) in top.indexed) ...[
+                                        if (i > 0)
+                                          const SizedBox(
+                                            width: AppTheme.spacingS,
+                                          ),
+                                        Builder(
+                                          builder: (context) {
+                                            final p = providerProvider.providers
+                                                .where(
+                                                  (p) => p.id == a.providerId,
+                                                )
+                                                .firstOrNull;
+                                            final w = MediaQuery.of(
+                                              context,
+                                            ).size.width;
+                                            return SizedBox(
+                                              width: (w * 0.86).clamp(
+                                                280.0,
+                                                360.0,
+                                              ),
+                                              child: CompactAppointmentTile(
+                                                appointment: a,
+                                                providerName: salonNameOr(
+                                                  p?.name,
+                                                  kUnnamedSalon,
+                                                ),
+                                                providerImageUrl:
+                                                    (p != null &&
+                                                        p.imageUrls.isNotEmpty)
+                                                    ? p.imageUrls.first
+                                                    : null,
+                                                onTap: () => context.push(
+                                                  '/appointment/${a.id}',
+                                                ),
+                                              ),
+                                            );
+                                          },
+                                        ),
+                                      ],
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
-                        ],
-                      ),
-                    );
-                  },
+                        );
+                      },
                 ),
               ),
 

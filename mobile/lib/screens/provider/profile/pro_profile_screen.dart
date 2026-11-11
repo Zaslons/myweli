@@ -24,6 +24,7 @@ import '../../../widgets/common/app_card.dart';
 import '../../../widgets/common/app_skeleton.dart';
 import '../../../widgets/common/app_snack_bar.dart';
 import '../../../widgets/common/confirm_dialog.dart';
+import '../../../widgets/common/screen_title.dart';
 import '../../../widgets/provider/salon_picker_sheet.dart';
 import '../../../widgets/team/team_role_chip.dart';
 
@@ -58,7 +59,7 @@ class _ProProfileScreenState extends State<ProProfileScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(title: const Text('Profil')),
+      appBar: AppBar(title: const ScreenTitle('Profil')),
       body: Consumer<ProAuthProvider>(
         builder: (context, authProvider, _) {
           if (!authProvider.isAuthenticated || authProvider.provider == null) {

@@ -22,6 +22,7 @@ import '../../widgets/common/app_snack_bar.dart';
 import '../../widgets/common/carto_basemap_layer.dart';
 import '../../widgets/common/consumer_bottom_nav.dart';
 import '../../widgets/common/salon_map_marker.dart';
+import '../../widgets/common/screen_title.dart';
 import '../../widgets/common/timed_cached_image.dart';
 
 class MapScreen extends StatefulWidget {
@@ -423,7 +424,7 @@ class _MapScreenState extends State<MapScreen> {
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(title: const Text('Carte')),
+      appBar: AppBar(title: const ScreenTitle('Carte')),
       body: Stack(
         children: [
           FlutterMap(

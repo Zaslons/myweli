@@ -19,6 +19,7 @@ import '../../services/mock/mock_auth_service.dart';
 import '../../widgets/common/app_button.dart';
 import '../../widgets/common/app_snack_bar.dart';
 import '../../widgets/common/otp_code_row.dart';
+import '../../widgets/common/screen_title.dart';
 
 class OtpVerifyScreen extends StatefulWidget {
   final String phoneNumber;
@@ -206,7 +207,7 @@ class _OtpVerifyScreenState extends State<OtpVerifyScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(title: const Text('Vérification')),
+      appBar: AppBar(title: const ScreenTitle('Vérification')),
       body: SafeArea(
         child: SingleChildScrollView(
           // spacingM, not spacingL, and it is load-bearing rather than

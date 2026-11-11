@@ -17,6 +17,7 @@ import '../../../widgets/common/app_button.dart';
 import '../../../widgets/common/app_card.dart';
 import '../../../widgets/common/app_skeleton.dart';
 import '../../../widgets/common/app_snack_bar.dart';
+import '../../../widgets/common/screen_title.dart';
 
 class ProOnboardingScreen extends StatefulWidget {
   const ProOnboardingScreen({super.key});
@@ -75,7 +76,7 @@ class _ProOnboardingScreenState extends State<ProOnboardingScreen> {
       // phrase — a `SettingsTile` has the width to say « Configurer mon
       // profil » and a 280dp bar does not (A15, §13.3). Same move as
       // « Préférences » / « Préférences de notification ».
-      appBar: AppBar(title: const Text('Configuration')),
+      appBar: AppBar(title: const ScreenTitle('Configuration')),
       body: Consumer2<ProAuthProvider, ProOnboardingProvider>(
         builder: (context, auth, onboarding, _) {
           final pro = auth.provider;

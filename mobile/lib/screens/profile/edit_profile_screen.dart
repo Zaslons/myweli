@@ -15,6 +15,7 @@ import '../../widgets/common/app_button.dart';
 import '../../widgets/common/app_snack_bar.dart';
 import '../../widgets/common/app_text_field.dart';
 import '../../widgets/common/phone_number_field.dart';
+import '../../widgets/common/screen_title.dart';
 import '../../widgets/common/timed_cached_image.dart';
 import '../../widgets/provider/image_picker_sheet.dart';
 import '../../widgets/provider/mock_image_picker_sheet.dart';
@@ -149,7 +150,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(title: const Text('Modifier le profil')),
+      appBar: AppBar(title: const ScreenTitle('Modifier le profil')),
       body: Consumer<AuthProvider>(
         builder: (context, authProvider, _) {
           final user = authProvider.user;

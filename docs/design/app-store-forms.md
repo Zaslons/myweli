@@ -973,7 +973,10 @@ une **erreur** (Xcode 26, celui de la CI, n'en fait qu'un avertissement), et le
 puisqu'elle est Flutter lui-même. Le `post_install` du Podfile supprime ce
 réglage, qui hérite alors du 15.0 du projet Pods ; épinglé par
 `mobile/test/infra/ios_store_readiness_test.dart`, car la CI ne voit pas
-l'échec. Le binaire non signé de ce jour (`flutter build ios --release
+l'échec. *Depuis Flutter 3.47.0* (2026-11-11, mobile-flutter-3.47-upgrade.md
+§3.6), `podhelper` génère lui-même un `Flutter.podspec` à 15.0 et retire les
+cibles sous 15 de chaque pod ; le `post_install` reste comme garde pour un pod
+encore sous 15. Le binaire non signé de ce jour (`flutter build ios --release
 --flavor pro --target lib/main_pro.dart --no-codesign`) a été lu :
 `UIDeviceFamily` `[1]`, les trois phrases d'autorisation Pro résolues, aucune
 `$(…)` restante, `CFBundleLocalizations` `[fr]`, `MinimumOSVersion` 15.0,

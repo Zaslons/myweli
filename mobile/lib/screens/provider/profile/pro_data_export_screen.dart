@@ -21,6 +21,7 @@ import '../../../widgets/common/app_button.dart';
 import '../../../widgets/common/app_skeleton.dart';
 import '../../../widgets/common/app_snack_bar.dart';
 import '../../../widgets/common/label_value_row.dart';
+import '../../../widgets/common/screen_title.dart';
 
 /// « Mes données » for salons (audit 11.5 — AUTH-005 for pros): assembles the
 /// account, the listing, the catalogue and the salon's own records into one
@@ -168,7 +169,7 @@ class _ProDataExportScreenState extends State<ProDataExportScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(title: const Text('Mes données')),
+      appBar: AppBar(title: const ScreenTitle('Mes données')),
       body: AppAsyncView<Map<String, dynamic>>(
         isLoading: _loading,
         // No session to read with is not a connection: the generic sentence,

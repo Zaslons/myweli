@@ -96,11 +96,11 @@ void main() {
         (rating.rating, rating.reviewCount),
     ];
 
-    expect(
-      cardsOf('provider1'),
-      [(0.0, 0), (0.0, 0), (0.0, 0)],
-      reason: 'the carousel, « Mes favoris » and the list — all three built',
-    );
+    expect(cardsOf('provider1'), [
+      (0.0, 0),
+      (0.0, 0),
+      (0.0, 0),
+    ], reason: 'the carousel, « Mes favoris » and the list — all three built');
     expect(cardsOf('provider2'), [(0.0, 0)], reason: 'the list alone');
     expect(find.text('Nouveau'), findsNWidgets(4));
 

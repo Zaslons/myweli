@@ -5,6 +5,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/colors.dart';
 import '../../../core/theme/text_styles.dart';
 import '../../../widgets/common/coming_soon_scaffold.dart';
+import '../../../widgets/common/screen_title.dart';
 
 class WhatsAppNotificationsScreen extends StatelessWidget {
   const WhatsAppNotificationsScreen({super.key});
@@ -17,7 +18,7 @@ class WhatsAppNotificationsScreen extends StatelessWidget {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Text('Notifications WhatsApp'),
+        title: const ScreenTitle('Notifications WhatsApp'),
         actions: [
           IconButton(icon: const Icon(Icons.settings), onPressed: () {}),
         ],

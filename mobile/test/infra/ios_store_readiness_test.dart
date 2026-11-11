@@ -385,11 +385,13 @@ void main() {
   });
 
   test('no pod target stays below iOS 15 (Xcode 27 refuses to build it)', () {
-    // The generated Flutter.podspec says 13.0 and podhelper skips the Flutter
-    // target itself, so on Xcode 27 every iOS build failed with « The iOS
-    // deployment target 'IPHONEOS_DEPLOYMENT_TARGET' is set to 13.0 » — an
-    // error there, a warning on the Xcode 26 CI runs. CI cannot see this
-    // failure, which is why the Podfile is pinned here.
+    // Up to Flutter 3.44.9 the generated Flutter.podspec said 13.0 and
+    // podhelper skipped the Flutter target itself, so on Xcode 27 every iOS
+    // build failed with « The iOS deployment target 'IPHONEOS_DEPLOYMENT_TARGET'
+    // is set to 13.0 » — an error there, a warning on the Xcode 26 CI runs.
+    // Flutter 3.47 fixes that inside podhelper; the Podfile's hook stays as the
+    // guard for any pod below 15, and CI still cannot see the failure, which
+    // is why the Podfile is pinned here.
     final podfile = File('ios/Podfile')
         .readAsStringSync()
         .split('\n')

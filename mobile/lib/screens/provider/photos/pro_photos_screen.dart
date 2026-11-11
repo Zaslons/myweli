@@ -15,6 +15,7 @@ import '../../../widgets/common/app_skeleton.dart';
 import '../../../widgets/common/app_snack_bar.dart';
 import '../../../widgets/common/confirm_dialog.dart';
 import '../../../widgets/common/empty_state.dart';
+import '../../../widgets/common/screen_title.dart';
 import '../../../widgets/common/timed_cached_image.dart';
 import '../../../widgets/provider/image_picker_sheet.dart';
 import '../../../widgets/provider/mock_image_picker_sheet.dart';
@@ -135,7 +136,7 @@ class _ProPhotosScreenState extends State<ProPhotosScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(title: const Text('Photos du salon')),
+      appBar: AppBar(title: const ScreenTitle('Photos du salon')),
       body: Consumer2<ProAuthProvider, ProGalleryProvider>(
         builder: (context, auth, gallery, _) {
           final providerId = auth.activeSalonId;

@@ -15,6 +15,7 @@ import '../../widgets/common/app_skeleton.dart';
 import '../../widgets/common/commune_picker_sheet.dart';
 import '../../widgets/common/commune_pill.dart';
 import '../../widgets/common/empty_state.dart';
+import '../../widgets/common/screen_title.dart';
 import '../../widgets/provider/provider_card.dart';
 
 class ProviderListScreen extends StatefulWidget {
@@ -64,7 +65,7 @@ class _ProviderListScreenState extends State<ProviderListScreen> {
       // give: it is a promise to *two* audiences, and « Salons » drops one of
       // them. The grid/list toggle moved into the results row instead, which is
       // where a control over the results belongs anyway.
-      appBar: AppBar(title: const Text('Salons & Barbiers')),
+      appBar: AppBar(title: const ScreenTitle('Salons & Barbiers')),
       body: Consumer<ProviderProvider>(
         builder: (context, provider, _) {
           return Column(

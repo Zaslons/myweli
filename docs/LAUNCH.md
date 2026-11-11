@@ -1429,6 +1429,7 @@ checking rather than assuming:
 
 ### 6.3 Android (last)
 
+- [ ] **The AAB is built on Flutter ≥3.47.8** (GHSA-frr6-h895-5pxp: below it, `dart:io` on Android trusts eight compromised eMudhra CAs). So from `main` after BACKLOG B13.1 merges; no closed-test build before it. *(Added 2026-11-10, [design/mobile-flutter-3.47-upgrade.md](design/mobile-flutter-3.47-upgrade.md) §1(c).)*
 - [ ] Upload keystore created and **backed up** — losing it ends the listing.
 - [ ] Play Console records for both apps; Play App Signing enrolled.
 - [ ] R8 decision made and, if enabled, verified on a device (§2 of the

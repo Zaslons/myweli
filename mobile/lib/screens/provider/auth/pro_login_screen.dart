@@ -22,6 +22,7 @@ import '../../../widgets/common/app_text_field.dart';
 import '../../../widgets/common/apple_logo.dart';
 import '../../../widgets/common/google_g_logo.dart';
 import '../../../widgets/common/inline_feedback.dart';
+import '../../../widgets/common/screen_title.dart';
 import '../../../widgets/common/session_ended_notice.dart';
 import '../../../widgets/team/invitation_card.dart';
 import '../../../widgets/team/revoked_access_banner.dart';
@@ -267,7 +268,7 @@ class _ProLoginScreenState extends State<ProLoginScreen> {
     final auth = context.watch<ProAuthProvider>();
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(title: const Text('Espace Pro')),
+      appBar: AppBar(title: const ScreenTitle('Espace Pro')),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(AppTheme.spacingL),

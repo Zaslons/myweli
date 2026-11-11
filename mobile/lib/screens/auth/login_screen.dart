@@ -22,6 +22,7 @@ import '../../widgets/common/google_g_logo.dart';
 import '../../widgets/common/inline_feedback.dart';
 import '../../widgets/common/legal_consent_text.dart';
 import '../../widgets/common/phone_number_field.dart';
+import '../../widgets/common/screen_title.dart';
 
 /// Consumer sign-in — Google + Apple (flag-hidden) + email OTP, replacing the
 /// phone-OTP login (auth overhaul P3; mirrors the web flow). After ANY
@@ -215,7 +216,7 @@ class _LoginScreenState extends State<LoginScreen> {
     final auth = context.watch<AuthProvider>();
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(title: const Text('Connexion')),
+      appBar: AppBar(title: const ScreenTitle('Connexion')),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(AppTheme.spacingL),

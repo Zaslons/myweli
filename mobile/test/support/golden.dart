@@ -30,9 +30,11 @@ export 'settle.dart' show settleMocks;
 ///
 /// Flutter rasterizes glyphs through CoreText on macOS and FreeType on Linux —
 /// same font, same Skia, different pixels. A golden authored on a Mac fails in
-/// CI forever. So **Linux is the sole authority**: CI (ubuntu, Flutter 3.38.6)
-/// runs and gates them; everywhere else they SKIP with a reason. Regenerate with
-/// `tool/update_goldens.sh` (the pinned Linux image).
+/// CI forever. So **Linux is the sole authority**: CI (ubuntu, the Flutter
+/// `backend/test/infra/flutter_pin_test.dart` keeps every pin on) runs and
+/// gates them; everywhere else they SKIP with a reason. Regenerate with the
+/// `goldens.yml` workflow, or `tool/update_goldens.sh` when its pinned Linux
+/// image exists.
 ///
 /// To eyeball a change locally without committing it, run with
 /// `MYWELI_GOLDEN_LOCAL=1` — but the committed bytes must come from Linux, and

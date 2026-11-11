@@ -226,6 +226,33 @@ void main() {
       }
     });
 
+    // SYSTEM.md §13.4: a sheet is its own route, so its title is level 1
+    // (docs/design/mobile-flutter-3.47-upgrade.md §3.1).
+    testWidgets('the sheet\'s title is a heading a phone reads', (
+      tester,
+    ) async {
+      final handle = tester.ensureSemantics();
+      runningAs('com.myweli.app');
+      await tester.pumpWidget(
+        map(
+          const CartoBasemapLayer(apiKey: 'k'),
+          attribution: const CartoAttribution.sheet(),
+        ),
+      );
+      await tester.pump();
+      await tester.tap(find.byTooltip('Crédits de la carte'));
+      await tester.pumpAndSettle();
+
+      expect(
+        tester
+            .getSemantics(find.text('Données cartographiques'))
+            .getSemanticsData()
+            .headingLevel,
+        1,
+      );
+      handle.dispose();
+    });
+
     testWidgets('the consumer « Carte » draws through it', (tester) async {
       runningAs('com.myweli.app');
       stubSecureStorage();

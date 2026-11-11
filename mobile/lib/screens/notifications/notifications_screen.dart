@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/theme/colors.dart';
 import '../../widgets/common/consumer_bottom_nav.dart';
+import '../../widgets/common/screen_title.dart';
 import '../../widgets/notifications/mark_all_read_button.dart';
 import '../../widgets/notifications/notifications_list.dart';
 
@@ -16,7 +17,7 @@ class NotificationsScreen extends StatelessWidget {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Text('Notifications'),
+        title: const ScreenTitle('Notifications'),
         actions: const [MarkAllReadButton()],
       ),
       body: const NotificationsList(),

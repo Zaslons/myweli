@@ -5,6 +5,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/colors.dart';
 import '../../../core/theme/text_styles.dart';
 import '../../../widgets/common/coming_soon_scaffold.dart';
+import '../../../widgets/common/screen_title.dart';
 
 class PayrollCalculationScreen extends StatelessWidget {
   const PayrollCalculationScreen({super.key});
@@ -17,7 +18,7 @@ class PayrollCalculationScreen extends StatelessWidget {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Text('Calcul des salaires'),
+        title: const ScreenTitle('Calcul des salaires'),
         actions: [
           IconButton(icon: const Icon(Icons.settings), onPressed: () {}),
         ],

@@ -5,6 +5,7 @@ import '../../../core/push/system_settings.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/colors.dart';
 import '../../../services/interfaces/push_notification_service_interface.dart';
+import '../../../widgets/common/screen_title.dart';
 import '../../../widgets/notifications/mark_all_read_button.dart';
 import '../../../widgets/notifications/notifications_list.dart';
 import '../../../widgets/push/push_blocked_banner.dart';
@@ -73,7 +74,7 @@ class _ProNotificationsScreenState extends State<ProNotificationsScreen>
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Text('Notifications'),
+        title: const ScreenTitle('Notifications'),
         actions: const [MarkAllReadButton()],
       ),
       body: Column(

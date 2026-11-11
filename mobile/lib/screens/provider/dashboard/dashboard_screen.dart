@@ -22,6 +22,7 @@ import '../../../widgets/common/app_async_view.dart';
 import '../../../widgets/common/app_card.dart';
 import '../../../widgets/common/app_skeleton.dart';
 import '../../../widgets/common/app_snack_bar.dart';
+import '../../../widgets/common/screen_title.dart';
 import '../../../widgets/common/update_nudge_slot.dart';
 import '../../../widgets/provider/salon_picker_sheet.dart';
 import '../../../widgets/push/push_permission_sheet.dart';
@@ -127,7 +128,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         // app, so removing it would strand the screen. So the title gives, to
         // the word the house already uses for a landing screen (§17.1 — the
         // consumer bottom nav says « Accueil » in five places).
-        title: const Text('Accueil'),
+        title: const ScreenTitle('Accueil'),
         actions: [
           Consumer<NotificationsProvider>(
             builder: (context, notifications, _) {

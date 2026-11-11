@@ -17,6 +17,7 @@ import '../../../widgets/common/app_button.dart';
 import '../../../widgets/common/app_card.dart';
 import '../../../widgets/common/app_skeleton.dart';
 import '../../../widgets/common/app_snack_bar.dart';
+import '../../../widgets/common/screen_title.dart';
 
 class ProKycScreen extends StatefulWidget {
   const ProKycScreen({super.key});
@@ -52,7 +53,7 @@ class _ProKycScreenState extends State<ProKycScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(title: const Text('Vérification')),
+      appBar: AppBar(title: const ScreenTitle('Vérification')),
       body: Consumer2<ProAuthProvider, ProKycProvider>(
         builder: (context, auth, kyc, _) {
           final pro = auth.provider;

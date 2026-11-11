@@ -20,6 +20,7 @@ import '../../../widgets/common/app_async_view.dart';
 import '../../../widgets/common/app_card.dart';
 import '../../../widgets/common/app_chip.dart';
 import '../../../widgets/common/app_skeleton.dart';
+import '../../../widgets/common/screen_title.dart';
 import 'appointment_calendar_view.dart';
 
 class AppointmentListScreen extends StatefulWidget {
@@ -131,7 +132,7 @@ class _AppointmentListScreenState extends State<AppointmentListScreen>
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Text('Rendez-vous'),
+        title: const ScreenTitle('Rendez-vous'),
         // **Deliberately NOT scrollable, unlike the four-tab bar below.**
         // Measured, not assumed: « Calendrier » + « Liste » is 257.8dp of strip
         // at 200% text, inside a 360dp bar — it fits at every width and scale

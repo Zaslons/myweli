@@ -16,6 +16,7 @@ import '../../../widgets/common/app_skeleton.dart';
 import '../../../widgets/common/app_snack_bar.dart';
 import '../../../widgets/common/confirm_dialog.dart';
 import '../../../widgets/common/empty_state.dart';
+import '../../../widgets/common/screen_title.dart';
 import '../../../widgets/common/timed_cached_image.dart';
 import '../../../widgets/provider/image_picker_sheet.dart';
 import '../../../widgets/provider/mock_image_picker_sheet.dart';
@@ -132,7 +133,7 @@ class _ProBeforeAfterScreenState extends State<ProBeforeAfterScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(title: const Text('Avant / Après')),
+      appBar: AppBar(title: const ScreenTitle('Avant / Après')),
       body: Consumer2<ProAuthProvider, ProBeforeAfterProvider>(
         builder: (context, auth, p, _) {
           final providerId = auth.activeSalonId;

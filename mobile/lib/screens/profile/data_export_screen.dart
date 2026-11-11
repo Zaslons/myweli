@@ -17,6 +17,7 @@ import '../../widgets/common/app_button.dart';
 import '../../widgets/common/app_card.dart';
 import '../../widgets/common/app_skeleton.dart';
 import '../../widgets/common/app_snack_bar.dart';
+import '../../widgets/common/screen_title.dart';
 
 /// « Mes données » (FR-AUTH-005): the profile, the appointments and the
 /// favourites, assembled on the device into one JSON the client can copy.
@@ -142,7 +143,7 @@ class _DataExportScreenState extends State<DataExportScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(title: const Text('Mes données')),
+      appBar: AppBar(title: const ScreenTitle('Mes données')),
       body: _buildBody(),
     );
   }

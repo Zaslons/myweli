@@ -21,7 +21,7 @@ set -euo pipefail
 
 # Must match .github/workflows/ci.yml (subosito/flutter-action `flutter-version`).
 # If CI moves, move this in the same PR or the baseline silently rots.
-FLUTTER_VERSION="3.44.9"
+FLUTTER_VERSION="3.47.9"
 IMAGE="ghcr.io/cirruslabs/flutter:${FLUTTER_VERSION}"
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -41,8 +41,9 @@ fi
 
 # cirruslabs publishes on its own schedule and LAGS behind Flutter stable — at
 # the time of the 3.44.9 move the 3.44 series stopped at `.0` while 3.41 already
-# went to `.9`. They lag, they do not skip, so this becomes available again on
-# its own.
+# went to `.9`, and at the 3.47.9 move (2026-11-11) it published no 3.47 tag at
+# all. They lag, they do not skip, so this becomes available again on its own;
+# until then `gh workflow run goldens.yml` is the path.
 #
 # Until it does, REFUSE rather than substitute. Falling back to a near-miss tag
 # would regenerate the baseline against a different Flutter than CI compares
