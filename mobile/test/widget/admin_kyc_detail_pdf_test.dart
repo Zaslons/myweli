@@ -32,9 +32,13 @@ void main() {
 
   /// The selfie carries no link by default: a network image keeps a loader
   /// spinning that no settle ends. [selfieUrl] gives it one.
+  ///
+  /// [pdf] false leaves the PDF out: the button tests must not depend on it
+  /// (on main it went through the image widget, whose loader never settles).
   Map<String, dynamic> detail({
     Object? awaitingReview = true,
     String? selfieUrl,
+    bool pdf = true,
   }) => {
     'id': 'acc1',
     'businessName': 'Salon Awa',
@@ -42,12 +46,13 @@ void main() {
     'phoneNumber': '+2250700000001',
     'verificationStatus': 'pending',
     'docs': [
-      {
-        'type': 'idCard',
-        'key': 'kyc/acc1/id.pdf',
-        'viewUrl': pdfUrl,
-        'format': 'pdf',
-      },
+      if (pdf)
+        {
+          'type': 'idCard',
+          'key': 'kyc/acc1/id.pdf',
+          'viewUrl': pdfUrl,
+          'format': 'pdf',
+        },
       {
         'type': 'selfie',
         'key': 'kyc/acc1/selfie.jpg',
@@ -237,7 +242,7 @@ void main() {
   testWidgets('no buttons on a file that does not await review', (t) async {
     final restore = AppClock.freeze(t0);
     addTearDown(restore);
-    await open(t, responses: [detail(awaitingReview: false)]);
+    await open(t, responses: [detail(awaitingReview: false, pdf: false)]);
 
     expect(find.text('Approuver'), findsNothing);
     expect(find.text('Rejeter'), findsNothing);
@@ -247,7 +252,7 @@ void main() {
   testWidgets('a backend without the field keeps the buttons', (t) async {
     final restore = AppClock.freeze(t0);
     addTearDown(restore);
-    await open(t, responses: [detail(awaitingReview: null)]);
+    await open(t, responses: [detail(awaitingReview: null, pdf: false)]);
 
     expect(find.text('Approuver'), findsOneWidget);
     expect(find.text('Rejeter'), findsOneWidget);
@@ -259,7 +264,10 @@ void main() {
     addTearDown(restore);
     final requests = await open(
       t,
-      responses: [detail(), detail(awaitingReview: false)],
+      responses: [
+        detail(pdf: false),
+        detail(awaitingReview: false, pdf: false),
+      ],
       approve: () => http.Response(jsonEncode({'error': 'invalid_state'}), 409),
     );
 
