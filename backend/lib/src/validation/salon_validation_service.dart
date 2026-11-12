@@ -73,7 +73,7 @@ class SalonValidationService {
   /// `provider_suspended`, `incomplete` (+ `missing`, `offer` among them for
   /// an offer row that is no longer live), `validation_not_pending` (another
   /// decision won, or the salon already went live), `no_owner`,
-  /// `invalid_state` (the salon is not a draft — §9.3's rollback case).
+  /// `invalid_state` (finishing a validation whose salon is not a draft).
   Future<AdminResult> approve(
     String providerId, {
     required Object? from,
@@ -124,6 +124,20 @@ class SalonValidationService {
         reason: null,
         metadata: {'from': from},
       ));
+      // §9.3: an older image (a rollback) flipped this salon public without
+      // a validation, and the admin validates it by hand. It must end
+      // validated AND live, but the going-live (step 4) takes a salon from
+      // `draft` — so the decision's winner hands it back as a draft first:
+      // a compare-and-set, overwriting nothing else, and the winner's alone,
+      // so it happens once. If a later step fails, the salon waits as any
+      // validation to finish does — unvalidated salons are not public.
+      if (provider['status'] == 'active') {
+        await _providers.compareAndSetStatus(
+          providerId,
+          from: 'active',
+          to: 'draft',
+        );
+      }
     }
 
     // 3. The trial (§3.6): insert-if-absent with the tier derived NOW — a

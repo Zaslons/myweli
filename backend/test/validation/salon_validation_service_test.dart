@@ -215,6 +215,55 @@ void main() {
       );
     });
 
+    test('§9.3: a salon an older image left ACTIVE, validated by hand → '
+        'validated AND live (went live), one rebuild, one notice', () async {
+      final s = await pending();
+      await w.providers.setStatus(s.id, 'active'); // the rollback's flip
+      final r = await w.service.approve(s.id, from: 'pending', adminId: 'a');
+      expect(r.ok, isTrue, reason: '${r.error}');
+      expect(await w.statusOf(s.id), 'active');
+      expect((await w.validations.get(s.id))!.wentLive, isTrue);
+      expect(w.rebuild.reasons, ['salon.approved']);
+      expect(w.pushes.sends, hasLength(1));
+    });
+
+    test('…and when its offer lapsed: 409 [offer], the salon is no longer '
+        'public, « Validation à terminer » — finished once paid', () async {
+      final s = await pending();
+      await w.subs.create(
+        providerId: s.id,
+        tier: 'pro',
+        trialEndsAt: w.now.add(const Duration(days: 1)),
+      );
+      await w.providers.setStatus(s.id, 'active'); // the rollback's flip
+      w.now = w.now.add(const Duration(days: 30)); // the offer lapsed
+      // The gate's offer check answers first, nothing written.
+      final first = await w.service.approve(
+        s.id,
+        from: 'pending',
+        adminId: 'a',
+      );
+      expect(first.error, 'incomplete');
+      expect((await w.validations.get(s.id))!.state, 'pending');
+
+      await w.subscriptions.markPaid(s.id, months: 1);
+      final r = await w.service.approve(s.id, from: 'pending', adminId: 'a');
+      expect(r.ok, isTrue, reason: '${r.error}');
+      expect(await w.statusOf(s.id), 'active');
+      expect((await w.validations.get(s.id))!.wentLive, isTrue);
+    });
+
+    test('…and with no owner left: 409 no_owner, and the salon is no longer '
+        'public — an unvalidated salon never stays online', () async {
+      final s = await pending();
+      await w.providers.setStatus(s.id, 'active'); // the rollback's flip
+      await w.members.deleteAllForAccount(s.ownerId);
+      final r = await w.service.approve(s.id, from: 'pending', adminId: 'a');
+      expect(r.error, 'no_owner');
+      expect(await w.isPublic(s.id), isFalse);
+      expect((await w.validations.get(s.id))!.wentLive, isFalse);
+    });
+
     test('bad input: an unknown `from` → invalid_input; an unknown salon → '
         'not_found', () async {
       final s = await pending();
