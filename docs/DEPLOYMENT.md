@@ -144,6 +144,17 @@ apps); what's left is console work. Specs:
    `infra/gcp/service.yaml`. Never in the repo.
 5. **Reminder cron** — Cloud Scheduler job `myweli-reminders`, `POST
    /internal/cron/reminders` every 15 min, OIDC-authenticated (Phase C step 6).
+   Since B0.18's decision 133 the same tick also sends the admin's
+   place-change summaries that are due (`placeChangeSummaries` in its answer;
+   [design/salon-go-live-approval.md](design/salon-go-live-approval.md) §5.1)
+   — no job of its own. They run even when the reminders fail (the tick still
+   fails). If the job stops, a salon's next save sends its summary once it is
+   30 minutes overdue (`place_notice … outcome=summary_overdue` in the log);
+   a salon that saves nothing more waits for the job. **No alert watches the
+   summaries yet** (`step=place_change_summaries outcome=failed`,
+   `outcome=summary_overdue`): the tick answers 200 whatever they do, and the
+   cron alert (`infra/gcp/86-cron-auth-alert.sh`) fires only on a status
+   ≥ 400.
 6. **Android smoke test — two real devices** (the first true end-to-end run
    **on device** — the backend funnel is proven in CI since Q1, but nothing had
    run on real hardware against a deployed API;
@@ -528,7 +539,8 @@ which is how the reminder cron came to be switched off without anyone noticing.
    well** — without it there is no URL to reconstruct and the webhook 404s
    (BACKEND.md §7 T19).
 6. **Crons are Cloud Scheduler jobs**, not dashboard entries: `myweli-reminders`
-   every 15 min, `myweli-subscriptions` daily at 03:00 UTC (the offers walk) and
+   every 15 min (the 24 h / 2 h reminders, then the admin's place-change
+   summaries — decision 133), `myweli-subscriptions` daily at 03:00 UTC (the offers walk) and
    `myweli-maintenance` daily at 03:30 UTC (the prunes and the demo reset —
    [design/infra-cron-maintenance.md](design/infra-cron-maintenance.md)), all
    authenticated with a Google-signed OIDC token (`myweli-scheduler@`), **all

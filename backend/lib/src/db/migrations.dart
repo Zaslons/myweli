@@ -1219,6 +1219,31 @@ CREATE TABLE IF NOT EXISTS salon_validation_events (
       kSalonValidationBackfill,
     ],
   ),
+  (
+    id: '0045_salon_place_notices',
+    statements: [
+      // B0.18, decision 133 (T82): the place-change e-mails to the admin are
+      // capped — at once only when none went for the salon in the last hour,
+      // the changes after it summed up in one e-mail once the hour has
+      // passed. One row per salon: the last e-mail's time, the place it
+      // reported (the four values the e-mail shows, phone included — so
+      // account erasure deletes the row), and the saves not yet e-mailed.
+      // Additive: an older image never reads it.
+      // docs/design/salon-go-live-approval.md §5.1.
+      '''
+CREATE TABLE IF NOT EXISTS salon_place_notices (
+  provider_id    text PRIMARY KEY REFERENCES providers(id) ON DELETE CASCADE,
+  last_sent_at   timestamptz,
+  reported       jsonb,
+  pending_count  int NOT NULL DEFAULT 0,
+  pending_since  timestamptz,
+  pending_fields jsonb NOT NULL DEFAULT '[]'::jsonb
+)''',
+      // The reminders cron's « due » read: only rows with saves pending.
+      'CREATE INDEX IF NOT EXISTS salon_place_notices_pending_idx '
+          'ON salon_place_notices (pending_since) WHERE pending_count > 0',
+    ],
+  ),
 ];
 
 /// The salons that count as validated and live without asking (§3.7):

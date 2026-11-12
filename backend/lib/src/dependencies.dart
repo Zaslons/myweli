@@ -65,6 +65,7 @@ import 'db/postgres_providers_repository.dart';
 import 'db/postgres_rate_limiter.dart';
 import 'db/postgres_reminder_log_repository.dart';
 import 'db/postgres_reviews_repository.dart';
+import 'db/postgres_salon_place_notice_repository.dart';
 import 'db/postgres_salon_subscription_repository.dart';
 import 'db/postgres_salon_validation_repository.dart';
 import 'db/postgres_send_budget.dart';
@@ -120,6 +121,8 @@ import 'subscription/subscription_scheduler.dart';
 import 'upload_signing_service.dart';
 import 'upload_verification_service.dart';
 import 'validation/salon_decision_notifier.dart';
+import 'validation/salon_place_notice_repository.dart';
+import 'validation/salon_place_notice_service.dart';
 import 'validation/salon_validation_repository.dart';
 import 'validation/salon_validation_service.dart';
 
@@ -659,9 +662,10 @@ final ProviderCatalogService providerCatalogService = ProviderCatalogService(
   localities: localitiesService,
   verifier: uploadVerificationService,
   publicBaseUrl: _r2PublicBase,
-  // B0.18 Q6: a validated salon's place change e-mails the admin.
+  // B0.18 Q6: a validated salon's place change tells the admin — capped,
+  // decision 133: at once for the first of a quiet hour, the rest summed up.
   validations: salonValidationRepository,
-  adminNotifier: adminNotifier,
+  placeNotices: salonPlaceNoticeService,
 );
 
 final UploadSigningService uploadSigningService = UploadSigningService(
@@ -709,6 +713,8 @@ final ProviderAccountService providerAccountService = ProviderAccountService(
   rebuild: siteRebuildNotifier,
   // B0.18 §3.4: a pending request leaves the queue; the notes are cleared.
   validations: salonValidationRepository,
+  // Decision 133: the place last reported to the admin goes with the person.
+  placeNotices: salonPlaceNoticeRepository,
 );
 
 /// The pricing pivot (R2a): salon offers + the daily warning/enforcement
@@ -871,6 +877,22 @@ final String? _adminEmail = _envOrNull('ADMIN_EMAIL');
 final AdminNotifier adminNotifier = AdminNotifier(
   emailProvider,
   adminEmail: _adminEmail,
+);
+
+/// B0.18, decision 133 — the cap on the place-change e-mails: one row per
+/// salon (migration 0045), the last e-mail and the saves since.
+final SalonPlaceNoticeRepository salonPlaceNoticeRepository = _pool == null
+    ? InMemorySalonPlaceNoticeRepository()
+    : PostgresSalonPlaceNoticeRepository(_pool!);
+
+/// The first place change of a quiet hour is e-mailed at once; the rest wait
+/// for one summary, sent by the reminders cron once the hour has passed
+/// (docs/design/salon-go-live-approval.md §5.1).
+final SalonPlaceNoticeService salonPlaceNoticeService = SalonPlaceNoticeService(
+  salonPlaceNoticeRepository,
+  providersRepository,
+  salonValidationRepository,
+  adminNotifier,
 );
 
 /// B0.18 §5.2 — the salon's notice on each decision: push, feed row and

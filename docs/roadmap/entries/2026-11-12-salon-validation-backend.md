@@ -1,11 +1,11 @@
-- 🟡 **Un salon n’est public qu’une fois validé par MyWeli : le backend (backend · 2026-11-12 — BACKLOG B0.18, décisions 120 et 123 à 132).** Non fusionné. Branche `feat/salon-validation-backend`, de `main` (`f36963a9`, la spec fusionnée par #774), selon [salon-go-live-approval.md](../../design/salon-go-live-approval.md), approuvé le 2026-11-12 ; c’est la PR 1 de son §9.1.
+- 🟡 **Un salon n’est public qu’une fois validé par MyWeli : le backend (backend · 2026-11-12 — BACKLOG B0.18, décisions 120 et 123 à 132).** Fusionné le 2026-11-12 (`a92e9c50`, #776). Branche `feat/salon-validation-backend`, de `main` (`f36963a9`, la spec fusionnée par #774), selon [salon-go-live-approval.md](../../design/salon-go-live-approval.md), approuvé le 2026-11-12 ; c’est la PR 1 de son §9.1.
   - **Ce qui change :**
     - « Mettre mon profil en ligne » ne met plus rien en ligne. `POST /providers/{id}/publish` enregistre une **demande** et répond 202 `{validation}` ; le salon reste un brouillon caché. Un double appui ne fait qu’une demande, et un seul e-mail à l’admin. Après un refus définitif (`outside_ci`, `test_salon`), la réponse est 409 `validation_refused_final`.
     - L’admin décide : la file `GET /admin/salon-validations` (la plus ancienne demande d’abord, sans les salons suspendus), le détail `GET /admin/salons/{id}/validation`, puis `POST …/validation/approve` `{from}` ou `…/refuse` `{code, note?}`. La décision est un compare-and-set à un seul gagnant ; la mise en ligne en est un second. Seul le gagnant écrit la ligne d’audit (`salon.approve`, ou `salon.refuse` avec le code, jamais la note).
     - L’essai de 90 jours démarre à la validation, sauf si le salon a choisi une offre sur le site avant : il a démarré à ce choix, et la validation garde son horloge (décision 126, « As today »).
     - Les autres chemins vers `active` exigent un salon validé et déjà en ligne : « Lever la suspension » (409 `not_suspended` hors suspension, sinon retour en brouillon avec sa raison), « Marquer payé » et la remise en ligne par le propriétaire du salon.
     - Les avis :
-      - à `ADMIN_EMAIL`, un e-mail à chaque nouvelle demande, et à chaque changement d’emplacement, d’adresse ou de téléphone d’un salon validé ;
+      - à `ADMIN_EMAIL`, un e-mail à chaque nouvelle demande, et, plafonné par la décision 133, à chaque changement d’emplacement, d’adresse ou de téléphone d’un salon validé (un tout de suite, puis un résumé par heure) ;
       - au salon, à chaque décision : une notification push, une ligne dans le fil et un e-mail ;
       - un e-mail ne part qu’à une adresse qui contient « @ ».
       - Les avis de facturation ne vont plus qu’aux salons validés et déjà en ligne.

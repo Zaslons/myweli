@@ -32,6 +32,7 @@ import 'package:myweli_backend/src/db/postgres_provider_audit_repository.dart';
 import 'package:myweli_backend/src/db/postgres_provider_auth_repository.dart';
 import 'package:myweli_backend/src/db/postgres_providers_repository.dart';
 import 'package:myweli_backend/src/db/postgres_reviews_repository.dart';
+import 'package:myweli_backend/src/db/postgres_salon_place_notice_repository.dart';
 import 'package:myweli_backend/src/db/postgres_salon_subscription_repository.dart';
 import 'package:myweli_backend/src/db/postgres_salon_validation_repository.dart';
 import 'package:myweli_backend/src/privacy/user_erasure_service.dart';
@@ -48,6 +49,7 @@ import '../access/ensure_owner_contract.dart';
 import '../access/invite_contract.dart';
 import '../auth/apple_token_repository_contract.dart';
 import '../idempotency/idempotency_contract.dart';
+import '../validation/salon_place_notice_contract.dart';
 import '../validation/salon_validation_contract.dart';
 import '../validation/validation_reads_contract.dart';
 
@@ -2268,6 +2270,122 @@ void main() {
         repo: () => PostgresProvidersRepository(pool),
         salon: (_) => freshSalon(withOwner: false),
       );
+    });
+
+    // Decision 133: the cap on the place-change e-mails (migration 0045).
+    group('salon_place_notices (0045)', () {
+      // The row's holder and its watcher on a pool of their own: they never
+      // wait behind the connections the racing calls hold (4 per pool).
+      late Pool<void> side;
+      setUpAll(() => side = createPool(url));
+      tearDownAll(() => side.close());
+
+      /// The sessions waiting on a lock in a statement on the cap's table.
+      Future<int> waitingOnTheTable() async {
+        final r = await side.execute(
+          'SELECT count(*)::int FROM pg_stat_activity '
+          "WHERE datname = current_database() AND wait_event_type = 'Lock' "
+          "AND query LIKE '%salon_place_notices%'",
+        );
+        return r.first.first! as int;
+      }
+
+      /// The contract's races on Postgres, made certain ([ContendedRace]):
+      /// the salon's row held `FOR UPDATE` by a transaction of [side], the
+      /// calls started, the lock released only once every call waits on it.
+      Future<List<T>> contended<T>(
+        String id,
+        List<Future<T> Function()> calls,
+      ) async {
+        late Future<List<T>> racing;
+        await side.runTx((tx) async {
+          final held = await tx.execute(
+            Sql.named(
+              'SELECT 1 FROM salon_place_notices WHERE provider_id = @p '
+              'FOR UPDATE',
+            ),
+            parameters: {'p': id},
+          );
+          expect(held, hasLength(1), reason: 'the race needs the row');
+          racing = Future.wait([for (final c in calls) c()]);
+          final deadline = DateTime.now().add(const Duration(seconds: 10));
+          while (await waitingOnTheTable() < calls.length) {
+            if (DateTime.now().isAfter(deadline)) {
+              racing.ignore();
+              fail('the ${calls.length} calls never all waited on the row');
+            }
+            await Future<void>.delayed(const Duration(milliseconds: 10));
+          }
+        });
+        return racing;
+      }
+
+      group('the twin contract', () {
+        salonPlaceNoticeContract(
+          repo: () => PostgresSalonPlaceNoticeRepository(pool),
+          salon: () => freshSalon(withOwner: false),
+          contended: contended,
+        );
+      });
+
+      Future<int> rows(String id) async {
+        final r = await pool.execute(
+          Sql.named(
+            'SELECT count(*)::int FROM salon_place_notices '
+            'WHERE provider_id = @id',
+          ),
+          parameters: {'id': id},
+        );
+        return r.first.first! as int;
+      }
+
+      Future<void> report(String id) =>
+          PostgresSalonPlaceNoticeRepository(pool).recordSave(
+            id,
+            DateTime.utc(2026, 11, 12, 9),
+            after: {'phone': '+2250700000045', 'address': 'Rue 45'},
+            fields: ['phone'],
+          );
+
+      test(
+        'a salon deleted takes its row with it (ON DELETE CASCADE)',
+        () async {
+          final id = await freshSalon(withOwner: false);
+          await report(id);
+          expect(await rows(id), 1);
+          await pool.execute(
+            Sql.named('DELETE FROM providers WHERE id = @id'),
+            parameters: {'id': id},
+          );
+          expect(await rows(id), 0);
+        },
+      );
+
+      test('account erasure deletes the place last reported — the salon row '
+          'stays, so no cascade would', () async {
+        final id = await freshSalon();
+        await report(id);
+        final owner = (await PostgresMembershipRepository(
+          pool,
+        ).listForProvider(id)).firstWhere((m) => m.role == 'owner');
+        final erased = await ProviderAccountService(
+          PostgresProviderAuthRepository(
+            pool,
+            tokens: tokens,
+            echoDevCode: true,
+          ),
+          PostgresProvidersRepository(pool),
+          PostgresAppointmentRepository(pool),
+          FakeStorageService(),
+          PostgresMembershipRepository(pool),
+          validations: PostgresSalonValidationRepository(pool),
+          placeNotices: PostgresSalonPlaceNoticeRepository(pool),
+          client: MockClient((_) async => http.Response('', 204)),
+        ).deleteAccount(owner.accountId!);
+        expect(erased.ok, isTrue, reason: '${erased.error}');
+        expect(await PostgresProvidersRepository(pool).byId(id), isNotNull);
+        expect(await rows(id), 0);
+      });
     });
 
     test(

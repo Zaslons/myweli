@@ -1,6 +1,5 @@
 import 'access/capabilities.dart';
 import 'access/membership_service.dart';
-import 'admin/admin_notifier.dart';
 import 'appointments/booking_window.dart';
 import 'auth/provider_auth_repository.dart';
 import 'email/salon_validation_emails.dart' show PlaceChange;
@@ -10,6 +9,7 @@ import 'localities/localities_service.dart';
 import 'providers_repository.dart';
 import 'storage/storage_service.dart';
 import 'upload_verification_service.dart';
+import 'validation/salon_place_notice_service.dart';
 import 'validation/salon_validation_repository.dart';
 import 'validators.dart';
 
@@ -33,13 +33,13 @@ class ProviderCatalogService {
     UploadVerificationService? verifier,
     String? publicBaseUrl,
     SalonValidationRepository? validations,
-    AdminNotifier? adminNotifier,
+    SalonPlaceNoticeService? placeNotices,
   }) : _allowedImageOrigins = allowedImageOrigins,
        _localities = localities,
        _verifier = verifier,
        _publicBaseUrl = publicBaseUrl,
        _validations = validations,
-       _adminNotifier = adminNotifier;
+       _placeNotices = placeNotices;
 
   final ProvidersRepository _providers;
   final ProviderAuthRepository _providerAuth;
@@ -61,12 +61,15 @@ class ProviderCatalogService {
   final String? _publicBaseUrl;
 
   /// B0.18 Q6 (docs/design/salon-go-live-approval.md §5.1): a save that
-  /// changes a VALIDATED salon's pin, address, commune or phone e-mails the
+  /// changes a VALIDATED salon's pin, address, commune or phone tells the
   /// admin, old and new values — decision 123's evidence moved after the
-  /// decision. The salon stays online. Both optional: without either, no
-  /// e-mail (`salon_validation_wiring_test.dart` pins the composition root).
+  /// decision. The salon stays online. Capped (decision 133): at once for the
+  /// first change of a quiet hour, the rest in one summary after it — the
+  /// notice service decides. Not for a suspended salon: the admin already
+  /// acted. Both optional: without either, nothing is told
+  /// (`salon_validation_wiring_test.dart` pins the composition root).
   final SalonValidationRepository? _validations;
-  final AdminNotifier? _adminNotifier;
+  final SalonPlaceNoticeService? _placeNotices;
 
   /// The profile keys that make a salon's place (Q6).
   static const _placeKeys = {
@@ -275,63 +278,58 @@ class ProviderCatalogService {
       return (ok: false, error: 'invalid_input', data: null);
     }
     // Q6: the place as it was, read only when this save touches it AND the
-    // salon is validated — every other save costs no extra read.
-    final before = await _placeBeforeIfValidated(providerId, changes);
+    // salon is validated and not suspended — every other save costs no
+    // extra read.
+    final before = await _placeBeforeIfReportable(providerId, changes);
     final updated = await _providers.updateProfile(providerId, changes);
     if (updated == null) return _notFound;
     if (before != null) {
       final diff = placeChanges(before, changes);
       if (diff.isNotEmpty) {
-        // Best effort inside the notifier: the save stands whatever happens.
-        await _adminNotifier!.salonPlaceChanged(
+        // Best effort inside the notice service: the save stands whatever
+        // happens.
+        await _placeNotices!.placeChanged(
           providerId: providerId,
           salonName:
               (changes['name'] as String?) ??
               (before['name'] as String?) ??
               providerId,
           changes: diff,
+          after: {...before, ...changes},
         );
       }
     }
     return (ok: true, error: null, data: updated);
   }
 
-  Future<Map<String, dynamic>?> _placeBeforeIfValidated(
+  Future<Map<String, dynamic>?> _placeBeforeIfReportable(
     String providerId,
     Map<String, dynamic> changes,
   ) async {
     final validations = _validations;
-    if (validations == null || _adminNotifier == null) return null;
+    if (validations == null || _placeNotices == null) return null;
     if (!changes.keys.any(_placeKeys.contains)) return null;
     final v = await validations.get(providerId);
     if (v?.state != ValidationStates.approved) return null;
     final doc = await _providers.byId(providerId);
+    if (!SalonPlaceNoticeService.reportable(v, doc)) return null;
     // A COPY: the in-memory twin hands back the live document, which the
     // write below mutates — « before » would read as « after ».
-    return doc == null ? null : Map<String, dynamic>.of(doc);
+    return Map<String, dynamic>.of(doc!);
   }
 
   /// What a save changes of a salon's place (Q6): the pin, the address, the
   /// commune (by name or by area) and the phone, each with its old and new
   /// value as the admin reads them. A key the save does not carry, or carries
-  /// unchanged, is no change.
+  /// unchanged, is no change. The values are spelled by the notice service's
+  /// helpers, the ones a summary compares (decision 133).
   static List<PlaceChange> placeChanges(
     Map<String, dynamic> before,
     Map<String, dynamic> changes,
   ) {
-    String? text(Object? v) {
-      final t = v is String ? v.trim() : v?.toString();
-      return (t == null || t.isEmpty) ? null : t;
-    }
-
-    String? pin(Object? lat, Object? lng) => (lat is num && lng is num)
-        // As doubles: a stored `5` and a sent `5.0` are the same pin.
-        ? '${lat.toDouble()}, ${lng.toDouble()}'
-        : null;
-    String? place(Map<String, dynamic> m) {
-      final parts = [?text(m['commune']), ?text(m['city'])];
-      return parts.isEmpty ? null : parts.join(', ');
-    }
+    const text = placeText;
+    const pin = placePin;
+    const place = placeArea;
 
     final out = <PlaceChange>[];
     if (changes.containsKey('latitude') || changes.containsKey('longitude')) {

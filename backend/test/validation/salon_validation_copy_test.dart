@@ -47,6 +47,98 @@ void main() {
     expect(refusedTitle('Salon Awa'), 'Mise en ligne de Salon Awa refusée');
   });
 
+  group('the admin\'s place-change e-mails (§5.1)', () {
+    test('the immediate one keeps its words under the cap (decision 133)', () {
+      final m = renderAdminPlaceChangedEmail(
+        providerId: 'p1',
+        salonName: 'Salon Awa',
+        changes: [
+          (field: 'phone', before: '+2250700000009', after: '+2250700000010'),
+          (field: 'location', before: null, after: '5.35, -3.99'),
+        ],
+      );
+      expect(m.subject, 'Salon Awa a modifié son emplacement et son téléphone');
+      expect(
+        m.text,
+        [
+          'Salon Awa, un salon validé, a modifié son emplacement et son '
+              'téléphone. Il reste en ligne ; vous pouvez le suspendre depuis '
+              'la console.',
+          'Emplacement : — → 5.35, -3.99',
+          'Téléphone : +2250700000009 → +2250700000010',
+          'https://admin.myweli.com/#/admin/providers/p1',
+          'MyWeli — console d’administration.',
+          'MyWeli Pro — votre salon, en ligne.',
+        ].join('\n\n'),
+      );
+    });
+
+    // Decision 133's summary: NEW copy, listed for the owner's approval in
+    // the PR — pinned here so any change to it is a visible diff.
+    Map<String, String?> place({String address = 'Rue des Jardins'}) => {
+      'location': '5.35, -3.99',
+      'address': address,
+      'commune': 'Cocody, Abidjan',
+      'phone': '+2250700000010',
+    };
+
+    test('the summary, word for word: the kinds, how many, since when in '
+        'Abidjan\'s time, last reported → now, a value back to the reported '
+        'one, the cap said', () {
+      final m = renderAdminPlaceSummaryEmail(
+        providerId: 'p1',
+        salonName: 'Salon Awa',
+        reported: place(),
+        current: place(address: 'Rue Neuve'),
+        fields: ['phone', 'address'],
+        saves: 2,
+        since: DateTime.utc(2026, 11, 12, 9, 10),
+      );
+      expect(
+        m.subject,
+        'Salon Awa a encore modifié son adresse et son téléphone',
+      );
+      expect(
+        m.text,
+        [
+          'Salon Awa, un salon validé, a encore modifié son adresse et son '
+              'téléphone : 2 modifications depuis le 12/11/2026 à 09:10 '
+              '(heure d’Abidjan). Il reste en ligne ; vous pouvez le '
+              'suspendre depuis la console.',
+          'Valeurs du dernier e-mail → valeurs actuelles :',
+          'Adresse : Rue des Jardins → Rue Neuve',
+          'Téléphone : +2250700000010 (identique au dernier e-mail)',
+          'Pour un même salon, ces e-mails sont regroupés : un au plus par '
+              'heure.',
+          'https://admin.myweli.com/#/admin/providers/p1',
+          'MyWeli — console d’administration.',
+          'MyWeli Pro — votre salon, en ligne.',
+        ].join('\n\n'),
+      );
+      expect(m.html, contains('>Voir le salon</a>'));
+    });
+
+    test('one save is « 1 modification »; a kind no save touched but whose '
+        'value moved (changed while suspended) is listed too', () {
+      final m = renderAdminPlaceSummaryEmail(
+        providerId: 'p1',
+        salonName: 'Salon Awa',
+        reported: place(),
+        current: {...place(), 'location': '14.69, -17.44'},
+        fields: ['phone'],
+        saves: 1,
+        since: DateTime.utc(2026, 11, 12, 23, 5),
+      );
+      expect(
+        m.subject,
+        'Salon Awa a encore modifié son emplacement et son téléphone',
+      );
+      expect(m.text, contains(': 1 modification depuis le 12/11/2026 à 23:05'));
+      expect(m.text, contains('Emplacement : 5.35, -3.99 → 14.69, -17.44'));
+      expect(m.text, isNot(contains('Adresse')));
+    });
+  });
+
   group('no « vérif » in the validation copy — that word is KYC\'s', () {
     final banned = RegExp('v[ée]rif', caseSensitive: false);
 
@@ -104,6 +196,18 @@ void main() {
             for (final field in kPlaceFieldLabels.keys)
               (field: field, before: 'avant', after: 'après'),
           ],
+        ),
+        renderAdminPlaceSummaryEmail(
+          providerId: 'p1',
+          salonName: 'Salon Awa',
+          reported: {for (final f in kPlaceFieldLabels.keys) f: 'avant'},
+          current: {
+            for (final f in kPlaceFieldLabels.keys)
+              f: f == 'phone' ? 'avant' : 'après',
+          },
+          fields: kPlaceFieldLabels.keys,
+          saves: 3,
+          since: DateTime.utc(2026, 11, 12, 9),
         ),
       ];
       for (final m in mails) {

@@ -11,6 +11,7 @@ import 'providers_repository.dart';
 import 'push/device_token_repository.dart';
 import 'site/site_rebuild_notifier.dart';
 import 'storage/storage_service.dart';
+import 'validation/salon_place_notice_repository.dart';
 import 'validation/salon_validation_repository.dart';
 
 /// Provider ACCOUNT lifecycle (audit 11.5 — threat T53): the deletion flow
@@ -33,13 +34,15 @@ class ProviderAccountService {
     http.Client? client,
     SiteRebuildNotifier? rebuild,
     SalonValidationRepository? validations,
+    SalonPlaceNoticeRepository? placeNotices,
   }) : _devices = devices,
        _notifications = notifications,
        _idempotency = idempotency,
        _apple = apple,
        _client = client ?? http.Client(),
        _rebuild = rebuild ?? NoopSiteRebuildNotifier(),
-       _validations = validations;
+       _validations = validations,
+       _placeNotices = placeNotices;
 
   final ProviderAuthRepository _auth;
   final ProvidersRepository _providers;
@@ -65,6 +68,10 @@ class ProviderAccountService {
   /// B0.18 §3.4 — optional for the same reason; wired in `dependencies.dart`
   /// (`salon_validation_wiring_test.dart` pins it).
   final SalonValidationRepository? _validations;
+
+  /// B0.18, decision 133 — optional for the same reason; wired in
+  /// `dependencies.dart` (`salon_place_notice_wiring_test.dart` pins it).
+  final SalonPlaceNoticeRepository? _placeNotices;
 
   /// Delete the account behind [accountId]. Error codes: `forbidden`
   /// (unknown account), `demo_account_locked` (the store-review demo
@@ -150,6 +157,10 @@ class ProviderAccountService {
       // salon keeps its validation: it stays with the salon, not the person.
       await _validations?.deletePending(providerId);
       await _validations?.clearNotes(providerId);
+      // Decision 133: the place last reported to the admin — the person's
+      // phone and address among it — and any summary still owed go too. The
+      // salon row stays, so its foreign key's cascade would not.
+      await _placeNotices?.forget(providerId);
     }
     // Once for the whole account, after the loop — one erasure, one build.
     if (anyWasActive) {

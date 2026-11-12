@@ -49,15 +49,16 @@ void main() {
     });
   }
 
-  test('the admin is told: publish and the catalogue get the admin notifier, '
-      'which reads ADMIN_EMAIL', () {
+  test('the admin is told: publish gets the admin notifier, the catalogue '
+      'the capped place notices (decision 133), and the notifier reads '
+      'ADMIN_EMAIL', () {
     expect(
       construction('SalonProvisioningService'),
       contains('adminNotifier: adminNotifier'),
     );
     expect(
       construction('ProviderCatalogService'),
-      contains('adminNotifier: adminNotifier'),
+      contains('placeNotices: salonPlaceNoticeService'),
     );
     expect(construction('AdminNotifier'), contains('adminEmail: _adminEmail'));
     expect(src, contains("_adminEmail = _envOrNull('ADMIN_EMAIL')"));
