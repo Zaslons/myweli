@@ -41,6 +41,7 @@ All under **`/admin/*`**, `role=admin` only (deny-by-default), every mutation au
 - `POST /admin/auth/refresh` `{refreshToken}` → rotated pair (reuse → revoke family, as elsewhere).
 
 **KYC queue** (FR-WEB-AD-001)
+> **Revised 2026-11-12 — [admin-kyc-queue-submitted.md](admin-kyc-queue-submitted.md):** the queue is the accounts **awaiting review** (`pending` with at least one document), oldest submission first, and `submittedAt` is the submission's time; approve/reject answer `409 invalid_state` for anything else; the detail adds `docs[].format` and `awaitingReview`. `pending` alone had listed every account ever made.
 - `GET /admin/kyc?status=pending&page=&pageSize=` → `{ items: [{accountId, businessName, businessType, submittedAt, docCount}], page, pageSize, total }`.
 - `GET /admin/kyc/{accountId}` → full account + `docs: [{type, key, viewUrl}]` (each `viewUrl` a signed-GET into the KYC bucket).
 - `POST /admin/kyc/{accountId}/approve` → `verificationStatus=verified`. Audited.
