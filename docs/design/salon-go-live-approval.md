@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | **Approved 2026-11-12** (the owner answered every question of §11: decisions 124–132). Not built. Reviewed twice by independent readers on 2026-11-12, every finding folded in: five readers (backend, admin console, apps, website, completeness) found 53; two found 26 on the rewrite |
+| **Status** | **Approved 2026-11-12** (the owner answered every question of §11: decisions 124–132). Not built. Reviewed twice by independent readers on 2026-11-12, every finding folded in: five readers (backend, admin console, apps, website, completeness) found 53; two found 26 on the rewrite. **Amended 2026-11-12** (decision 133, after the backend's review): the place-change e-mails to the admin are capped per salon — §5.1, §7, §8.1, §9.1, §11 |
 | **Owner** | Sadreddine Daher |
 | **Last updated** | 2026-11-12 |
 | **PRD ref / phase** | FR-PRO-ONB-001 (go live) · admin (FR-WEB-AD-*) · V1 |
@@ -518,14 +518,40 @@ for « Autre ». The salon reads:
   request into an error, and an unset address does nothing. The outcome is
   logged without the address.
 - **Plus the console's count** (§4.1).
-- **A validated salon that changes its place (Q6, 2026-11-12).** When a save
-  on a salon whose validation is `approved` changes its pin, address, commune
-  or phone, a second e-mail goes to the same address: « {Salon} a modifié son
-  emplacement » (or « son adresse », « son téléphone »), the old and new
-  values, and the link to the salon. The salon stays online; the owner can
-  suspend it. Where: the catalogue's profile update compares the saved values
-  with the new ones (`ProviderCatalogService`), best effort, class `warm`, one
-  e-mail per save that changes any of them.
+- **A validated salon that changes its place (Q6, 2026-11-12; capped by
+  decision 133 the same day).** When a save on a salon whose validation is
+  `approved` changes its pin, address, commune or phone, the admin hears of it
+  at the same address. The salon stays online; the owner can suspend it.
+  Where: the catalogue's profile update compares the saved values with the
+  new ones (`ProviderCatalogService`), best effort, class `warm`. Until
+  decision 133 it was one e-mail per save, so saving a value back and forth
+  filled the admin's inbox and spent the hourly `warm` budget every other
+  warm e-mail shares (T82). Now, per salon:
+  - **The first change of a quiet hour** (no such e-mail for that salon in
+    the last hour, nothing owed) is e-mailed at once, as Q6 wrote it:
+    « {Salon} a modifié son emplacement » (or « son adresse », « son
+    téléphone »), the old and new values of that save, and the link to the
+    salon.
+  - **The changes in the hour after it** are recorded, not e-mailed: how
+    many, since when, which kinds (`salon_place_notices`, migration 0045, one
+    row per salon).
+  - **Once that hour has passed, one summary** goes, sent by the existing
+    15-minute reminders cron (`POST /internal/cron/reminders`; no Scheduler
+    job of its own): « {Salon} a encore modifié … », the values the last
+    e-mail reported → the salon's values at that moment, how many changes
+    since when (Abidjan time), and a value back where it was says so. It
+    opens a new hour: a salon that keeps saving sends at most one e-mail an
+    hour. A change after the hour while a summary is still owed joins it.
+  - **A suspended salon's saves** record nothing and e-mail nothing: the
+    admin already acted. A summary owed by a salon suspended, no longer validated
+    or gone by the time it is due is dropped.
+  - **Single winner both ways:** two saves at once in a quiet hour send one
+    e-mail (the salon's row is locked), two ticks one summary (a conditional
+    claim) — Cloud Run runs several instances.
+  - **Never in the way:** when the cap cannot be read, the e-mail goes as it
+    did before the cap; a failed summary step never fails the reminders.
+    The row holds the phone and address last reported, so account erasure
+    deletes it.
 
 ### 5.2 To the salon, on each decision
 
@@ -660,7 +686,9 @@ gain the validation state and reason.
     - every `active` writer checks `approved` (restore, markPaid, submit's
       republish);
     - the demo lock first in submit;
-    - audit rows with the actor.
+    - audit rows with the actor;
+    - the place-change e-mails capped per salon (decision 133, §5.1): at
+      most one an hour, none for a suspended salon.
   - **T17:** gains validate/refuse and « Lever la suspension »'s
     preconditions.
   - **T50/T51:** pending and refused are `draft`, hidden by the same rule.
@@ -737,9 +765,20 @@ Each new guard is watched red once, and the commit says how.
 - **The « @ » guard:** a phone-registered owner gets the push and the feed row
   and no send, for this notice, `_notifyOwner` and `SalonNotifier`; watched
   red.
-- **The place-change e-mail (Q6):** a save on a validated salon that changes
-  the pin, address, commune or phone sends one; a save that changes nothing
-  of these, or on an unvalidated salon, sends none.
+- **The place-change e-mail (Q6, capped by decision 133):** a save on a
+  validated salon that changes the pin, address, commune or phone sends one
+  in a quiet hour; a save that changes nothing of these, or on an
+  unvalidated or a suspended salon, sends none and records nothing. The cap:
+  - the repository's contract on both twins: the first save of a quiet hour
+    sends, the hour after records, the window's edge, three saves at once →
+    one e-mail, two ticks at once → one summary, the claim opens a new hour,
+    drop and forget;
+  - the summary's words pinned literally, « identique au dernier e-mail »
+    for a value back where it was, at most one e-mail an hour over three
+    hours of saves, suspended / not validated / gone dropped;
+  - the reminders cron's new count, and a throwing summary step that leaves
+    the reminders' counts standing;
+  - erasure deletes the row; on Postgres, the cascade too.
 - **Q2 « As today »:** the offer choice before validation still starts the
   clock; validate keeps it.
 - **Migration 0044 and the dev-only boot backfill:**
@@ -837,6 +876,8 @@ Each new guard is watched red once, and the commit says how.
    - the bypasses;
    - the reads;
    - notifications, the place-change e-mail (Q6) and the « @ » helper;
+   - then, in its own PR on top of it, the place-change e-mails' cap
+     (decision 133);
    - the scheduler's check;
    - the contract, the threat model, the smoke.
 2. **Admin console:** the queue, the detail, the decision, the count, « Lever
@@ -937,7 +978,7 @@ Each new guard is watched red once, and the commit says how.
 
 ---
 
-## 11. The owner's answers (decisions 124–132)
+## 11. The owner's answers (decisions 124–133)
 
 **Answered on 2026-11-12** (the questions as asked; recorded as decisions
 124–132 in the BACKLOG):
@@ -968,6 +1009,14 @@ Each new guard is watched red once, and the commit says how.
 - **Q9. The words:** « Yes, use these words », the recommendation: §6.1's
   states and buttons, §4.3's reasons, §5.2's pushes, `/professionnels` step 3,
   as shown to the owner.
+- **Decision 133, an amendment (2026-11-12). The place-change e-mails:**
+  asked after the backend's review found that Q6's « one e-mail per save »
+  let an owner or a manager fill the admin's inbox, and spend the hourly
+  budget every other warm e-mail shares, by saving a value back and forth
+  (T82). The shape proposed: « a cap of a few place-change e-mails per salon
+  per hour, merged into one, skipped while the salon is suspended ». The
+  owner's answer: « yes cap the e-mails » (§5.1). The summary's words are new
+  and wait for the owner's approval in its PR.
 
 **Recommendations, taken (the owner did not object):**
 
