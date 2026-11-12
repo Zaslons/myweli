@@ -1,4 +1,4 @@
-- 🟡 **Un salon n’est public qu’une fois validé par MyWeli : le backend (backend · 2026-11-12 — BACKLOG B0.18, décisions 120 et 123 à 132).** Non fusionné. Branche `feat/salon-validation-backend`, de `main` (`8864b748`), selon [salon-go-live-approval.md](../../design/salon-go-live-approval.md), approuvé le 2026-11-12 ; c’est la PR 1 de son §9.1.
+- 🟡 **Un salon n’est public qu’une fois validé par MyWeli : le backend (backend · 2026-11-12 — BACKLOG B0.18, décisions 120 et 123 à 132).** Non fusionné. Branche `feat/salon-validation-backend`, de `main` (`b5636be8`), selon [salon-go-live-approval.md](../../design/salon-go-live-approval.md), approuvé le 2026-11-12 ; c’est la PR 1 de son §9.1.
   - **Ce qui change :**
     - « Mettre mon profil en ligne » ne met plus rien en ligne. `POST /providers/{id}/publish` enregistre une **demande** et répond 202 `{validation}` ; le salon reste un brouillon caché. Un double appui ne fait qu’une demande, et un seul e-mail à l’admin. Après un refus définitif (`outside_ci`, `test_salon`), la réponse est 409 `validation_refused_final`.
     - L’admin décide : la file `GET /admin/salon-validations` (la plus ancienne demande d’abord, sans les salons suspendus), le détail `GET /admin/salons/{id}/validation`, puis `POST …/validation/approve` `{from}` ou `…/refuse` `{code, note?}`. La décision est un compare-and-set à un seul gagnant ; la mise en ligne en est un second. Seul le gagnant écrit la ligne d’audit (`salon.approve`, ou `salon.refuse` avec le code, jamais la note).
@@ -10,18 +10,20 @@
       - un e-mail ne part qu’à une adresse qui contient « @ ».
       - Les avis de facturation ne vont plus qu’aux salons validés et déjà en ligne.
     - La migration 0044, additive : `salon_validations`, `salon_validation_events` et `providers.suspended_from`. Les salons actifs, et ceux dépubliés pour impayé, sont validés d’office.
-    - Les lectures : `validation` voyage à côté du salon sur `/me/provider` et `/me/salons`, jamais dans le document public. La vue d’ensemble admin gagne `providers.pendingValidation`.
+    - Les lectures : `validation` voyage à côté du salon sur `/me/provider` et `/me/salons`, jamais dans le document public. Le propriétaire lit tout ; un autre membre lit l’état, les dates et le code du refus, jamais la note de l’admin ni l’état de l’offre. La vue d’ensemble admin gagne `providers.pendingValidation`.
+    - Après un retour en arrière vers une image plus ancienne (§9.3), deux requêtes lancées à la main, jamais au démarrage, listent puis remettent dans la file les salons qu’elle a rendus publics sans validation. Valider l’un d’eux le repasse en brouillon, puis le met en ligne.
     - Les documents :
       - le contrat (`openapi.yaml`, et `schema.ts` régénéré) ;
       - le modèle de menaces : T82 (nouveau), et T17, T50, T51, T54, T55, T68 ;
       - le smoke du tunnel et sa spec ;
-      - le hook de reconstruction : `salon.approved` et `salon.republished` ; `salon.published` est retiré ;
+      - le hook de reconstruction : `salon.approved` et `salon.republished` ; `salon.published` est retiré. Deux raisons étroites ne servent qu’après un retour en arrière (§9.3) : `salon.refused` et `salon.handed_back` ;
       - DEPLOYMENT, et LAUNCH §6.4, dont la vérification du premier salon gagne l’étape de validation.
   - **Mesuré :**
-    - Les 262 tests de `test/validation/` et `test/contract/` sont verts, avec les tests voisins. L’analyse est à 0.
+    - La suite backend complète : 2386 tests réussis, 10 ignorés (8 demandent Postgres, 2 des identifiants R2), 0 échec. Le format et l’analyse sont à 0.
     - Le smoke du tunnel (64 cas) est vert contre un serveur local branché sur les dépôts en mémoire. Il passe par une demande (202), la validation par l’admin, puis un refus, une nouvelle demande et une validation sur le second salon.
     - Le smoke d’avant ce changement, lancé contre le nouveau serveur, échoue là où il le doit : A18 attend 200 et reçoit 202.
-    - Environ 110 mutations ont été vues rouges sur les quatre étapes, dont 13 sur le smoke, chacune avec le test qui échoue et sa sortie. Les gardes tenues par deux couches sont nommées comme telles.
+    - Environ 134 mutations ont été vues rouges : 110 sur les quatre étapes (dont 13 sur le smoke) et 24 sur les corrections de la relecture, chacune avec le test qui échoue et sa sortie. Les gardes tenues par deux couches sont nommées comme telles.
+    - Une relecture sous quatre angles (justesse, sécurité, contrat et tests, conformité à la spec) a relevé 21 constats, 16 distincts. 15 sont corrigés ; le dernier attend la décision du propriétaire : plafonner ou non les e-mails de changement d’emplacement (T82).
   - **Non vérifié ici :**
     - **Les tests Postgres ne tournent qu’en CI.** Aucune requête SQL de cette branche n’a tourné sur un vrai Postgres, et le smoke n’a tourné ni sur Postgres ni sur le binaire AOT : c’est le rôle du job `backend-boot-smoke`.
     - Le CLI `dart_frog` n’est pas installé sur cette machine. Les nouvelles routes sont donc générées pour la première fois par la CI.
