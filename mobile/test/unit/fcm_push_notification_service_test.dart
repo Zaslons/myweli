@@ -33,6 +33,18 @@ void main() {
       );
     });
 
+    // firebase_messaging 16.6+ (flutterfire #18101): on Android 13+, a user
+    // who denied twice reads deniedPermanently — the OS will not ask again.
+    // For us it is the same state as denied: the « disabled for the device »
+    // banner and its « open settings » path, never a prompt.
+    test('deniedPermanently → denied (Android 13+: the OS will not ask again, '
+        'so only the settings path is left)', () {
+      expect(
+        mapAuthorizationStatus(AuthorizationStatus.deniedPermanently),
+        PushPermissionStatus.denied,
+      );
+    });
+
     test('notDetermined → notDetermined (the one state that may prompt)', () {
       expect(
         mapAuthorizationStatus(AuthorizationStatus.notDetermined),
