@@ -218,7 +218,7 @@ app's start in a hidden pane, so no paint time is claimed.
   file other than `AdminRemoteImage` draws a network image
   (`TimedCachedImage`, cached_network_image, `Image.network`, `NetworkImage`,
   `SvgPicture.network`), or if the widget loses `prefer` or gains a header.
-  A walk that reaches fewer than 50 files, or misses the KYC, dispute and
+  A walk that reaches 50 files or fewer, or misses the KYC, dispute and
   salon request screens, fails. **Blind to:** an image a package draws from a URL we pass,
   and a provider built in a file the console does not import.
 - Mutations watched red: §8.3.
@@ -259,8 +259,8 @@ reloading the file fixes it.
 
 ### 8.3 Mutations
 
-Each applied to committed code (`480efb21`), asserted to have changed the
-file, run, and restored from git with a clean-tree check:
+Each applied to committed code (`480efb21`, #777 before its rebase), asserted
+to have changed the file, run, and restored from git with a clean-tree check:
 
 | Mutation | Expected | Went red |
 |---|---|---|
@@ -274,7 +274,7 @@ file, run, and restored from git with a clean-tree check:
 | M8 a `NetworkImage` in `brand_loader.dart`, a shared widget outside `screens/admin/` | red | the import walk |
 | M8c the same, in a comment only (control) | **green** | — |
 
-And for « Actualiser », on `724d651d`:
+And for « Actualiser », on `724d651d` (before the rebase):
 
 | Mutation | Expected | Went red |
 |---|---|---|
