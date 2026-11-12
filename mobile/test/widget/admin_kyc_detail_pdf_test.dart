@@ -284,9 +284,9 @@ void main() {
   });
 
   testWidgets('at 200 % text the tile and the labels still fit', (t) async {
-    // Only THIS screen's layout is judged: at 200 % the shared sidebar
-    // (`admin_scaffold.dart`) overflows already, on every console screen —
-    // recorded in admin-kyc-queue-submitted.md §12, not fixed here.
+    // The whole page is judged, the console's frame included: the shared
+    // sidebar (`widgets/admin_scaffold.dart`) overflowed at 200 % on every
+    // console screen until #779 fixed it (admin-kyc-queue-submitted.md §12).
     final errors = <FlutterErrorDetails>[];
     final previous = FlutterError.onError;
     FlutterError.onError = errors.add;
@@ -303,11 +303,7 @@ void main() {
     } finally {
       FlutterError.onError = previous;
     }
-    final mine = errors
-        .map((e) => e.toString())
-        .where((e) => e.contains('admin_kyc_detail_screen.dart'))
-        .toList();
-    expect(mine, isEmpty);
+    expect(errors.map((e) => e.toString()), isEmpty);
   });
 
   group('the queue', () {

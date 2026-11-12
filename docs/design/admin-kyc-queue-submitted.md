@@ -434,9 +434,12 @@ production holds no KYC document.
   clients hide the button once verified), and the badge only moves on approve
   or reject, so through the API a verified account can go back to `pending`
   with the « Vérifié » badge still on its salons and deposits refused.
-- **The console's sidebar overflows at 200 % text** (`admin_scaffold.dart:155`,
-  `:254`; 61, 27 and 14 px), on every console screen. Seen in this branch's
-  200 % test, which judges only the KYC detail's own layout.
+- **The console's sidebar overflowed at 200 % text** (61, 27 and 14 px,
+  `widgets/admin_scaffold.dart`), on every console screen. Fixed by #779
+  (`Flexible` name, reworked nav tile), merged into this branch on 2026-11-12:
+  the KYC detail at 200 % now reports no overflow at all, and its test judges
+  the whole page again, the console's frame included (a mutation of #779's
+  `Flexible` turns it red: 61 px).
 - **Other `jsonb` columns are double-encoded too** (§4.2): harmless while only
   Dart reads them, a trap for the next SQL that reads inside one. Migration
   0021's `UPDATE providers SET slug = data->>'slug'` would read NULL from a
