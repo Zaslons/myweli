@@ -11,7 +11,9 @@ import 'package:myweli_backend/src/validation/salon_place_notice_service.dart';
 /// due 24h/2h reminders. Idempotent per tick. Since B0.18's decision 133 it
 /// also sends the admin's place-change summaries that are due, AFTER the
 /// reminders and best effort (`runRemindersCron`): a failed summary step
-/// never fails the reminders. Each summary is claimed by one tick only.
+/// never fails the reminders, and a failed reminders step still fails the
+/// tick only once the summaries have run. Each summary is claimed by one
+/// tick only.
 ///
 /// Authenticated by `CronAuth`: the Google-signed OIDC token Scheduler already
 /// sends, and nothing else — the transitional `X-Cron-Secret` fallback was

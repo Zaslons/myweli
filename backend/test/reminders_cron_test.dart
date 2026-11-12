@@ -78,8 +78,9 @@ void main() {
       ]);
     });
 
-    test('a failing REMINDERS step still fails the tick, as before — and the '
-        'summaries do not run', () async {
+    test('a failing REMINDERS step still fails the tick, as before — but '
+        'only once the summaries have run: the cap never waits on the '
+        'reminders', () async {
       var summaries = 0;
       await expectLater(
         runRemindersCron(
@@ -87,9 +88,32 @@ void main() {
           placeChangeSummaries: (_) async => ++summaries,
           now: now,
         ),
-        throwsStateError,
+        throwsA(
+          isA<StateError>().having((e) => e.message, 'message', 'db down'),
+        ),
       );
-      expect(summaries, 0);
+      expect(summaries, 1, reason: 'the summaries ran');
+    });
+
+    test('BOTH STEPS FAILING: the tick fails with the reminders\' error, '
+        'the summaries\' failure is logged as its type', () async {
+      final logs = <String>[];
+      await expectLater(
+        runRemindersCron(
+          reminders: (_) async => throw StateError('db down'),
+          placeChangeSummaries: (_) async =>
+              throw ArgumentError('+2250700000009'),
+          now: now,
+          log: logs.add,
+        ),
+        throwsA(
+          isA<StateError>().having((e) => e.message, 'message', 'db down'),
+        ),
+      );
+      expect(logs, [
+        'cron_reminders step=place_change_summaries outcome=failed '
+            'error=ArgumentError',
+      ]);
     });
   });
 

@@ -9,15 +9,27 @@ import 'reminder_scheduler.dart';
 /// **The reminders come first and never depend on the summaries.** The
 /// summary step is best effort: if it throws, the tick still answers the
 /// reminders' counts with `placeChangeSummaries: 0`, and the failure is
-/// logged as its type only — no salon, no address. A reminders failure
-/// still fails the tick, exactly as before.
+/// logged as its type only — no salon, no address.
+///
+/// **Nor do the summaries depend on the reminders.** A reminders failure
+/// still fails the tick, exactly as before, but only once the summaries have
+/// run: the cap holds a salon's changes until a summary sends them, so a
+/// reminders step that keeps failing must not silence the admin.
 Future<Map<String, int>> runRemindersCron({
   required Future<ReminderTickResult> Function(DateTime now) reminders,
   required Future<int> Function(DateTime now) placeChangeSummaries,
   required DateTime now,
   void Function(String)? log,
 }) async {
-  final r = await reminders(now);
+  ReminderTickResult? r;
+  Object? failed;
+  StackTrace? trace;
+  try {
+    r = await reminders(now);
+  } catch (e, s) {
+    failed = e;
+    trace = s;
+  }
   var summaries = 0;
   try {
     summaries = await placeChangeSummaries(now);
@@ -27,8 +39,9 @@ Future<Map<String, int>> runRemindersCron({
       'error=${e.runtimeType}',
     );
   }
+  if (failed != null) Error.throwWithStackTrace(failed, trace!);
   return {
-    'reminder24h': r.reminder24h,
+    'reminder24h': r!.reminder24h,
     'reminder2h': r.reminder2h,
     'placeChangeSummaries': summaries,
   };
