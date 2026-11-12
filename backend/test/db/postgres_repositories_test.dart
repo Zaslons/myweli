@@ -47,6 +47,7 @@ import '../access/invite_contract.dart';
 import '../auth/apple_token_repository_contract.dart';
 import '../idempotency/idempotency_contract.dart';
 import '../validation/salon_validation_contract.dart';
+import '../validation/validation_reads_contract.dart';
 
 void main() {
   final url = Platform.environment['DATABASE_URL'];
@@ -2244,6 +2245,19 @@ void main() {
           members: PostgresMembershipRepository(pool),
         ),
         salon: (w, {withOwner = true}) => freshSalon(withOwner: withOwner),
+      );
+    });
+
+    group('the stage-2 reads — the twin contract', () {
+      validationReadsContract(
+        providers: () => PostgresProvidersRepository(pool),
+        members: () => PostgresMembershipRepository(pool),
+        accounts: () => PostgresProviderAuthRepository(
+          pool,
+          tokens: tokens,
+          echoDevCode: true,
+        ),
+        salon: ({withOwner = true}) => freshSalon(withOwner: withOwner),
       );
     });
 

@@ -745,6 +745,28 @@ class PostgresProvidersRepository implements ProvidersRepository {
   }
 
   @override
+  Future<Map<String, dynamic>?> compareAndSetStatus(
+    String providerId, {
+    required String from,
+    required String to,
+  }) async {
+    checkStatusSwap(from, to);
+    // The WHERE carries the status the caller expects: under a concurrent
+    // writer, Postgres re-reads the row it waited for, the WHERE no longer
+    // matches, and nothing is written. Neither status is `suspended`, so
+    // `suspended_from` has nothing to remember.
+    final r = await _pool.execute(
+      Sql.named(
+        'UPDATE providers SET status = @to, suspended_from = NULL '
+        'WHERE id = @id AND status = @from RETURNING id',
+      ),
+      parameters: {'id': providerId, 'from': from, 'to': to},
+    );
+    if (r.isEmpty) return null;
+    return byId(providerId);
+  }
+
+  @override
   Future<String?> suspendedFrom(String providerId) async {
     // Read through the status: an older image (a rollback) lifting a
     // suspension never heard of the column and leaves it set. Only a running

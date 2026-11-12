@@ -3,6 +3,7 @@ import '../auth/auth_repository.dart';
 import '../auth/provider_auth_repository.dart';
 import '../providers_repository.dart';
 import '../reviews_repository.dart';
+import '../validation/salon_validation_repository.dart';
 import 'admin_kyc_service.dart' show AdminResult;
 import 'disputes_repository.dart';
 
@@ -17,8 +18,9 @@ class AnalyticsService {
     this._auth,
     this._providerAuth,
     this._disputes,
-    this._reviews,
-  );
+    this._reviews, {
+    required SalonValidationRepository validations,
+  }) : _validations = validations;
 
   final AppointmentRepository _appointments;
   final ProvidersRepository _providers;
@@ -26,6 +28,10 @@ class AnalyticsService {
   final ProviderAuthRepository _providerAuth;
   final DisputesRepository _disputes;
   final ReviewsRepository _reviews;
+
+  /// B0.18 §3.5: « Salons à valider » — the queue's own count, so the
+  /// dashboard and the sidebar can never disagree.
+  final SalonValidationRepository _validations;
 
   Future<int> _users(String status) async =>
       (await _auth.listUsers(status: status, pageSize: 1)).total;
@@ -64,6 +70,9 @@ class AnalyticsService {
         'providers': {
           'active': await _providersWith('active'),
           'suspended': await _providersWith('suspended'),
+          // The admin queue's `total` for « En attente » — one definition
+          // (suspended salons left out).
+          'pendingValidation': await _validations.countPending(),
         },
         'verification': {
           'pending': await _verif('pending'),

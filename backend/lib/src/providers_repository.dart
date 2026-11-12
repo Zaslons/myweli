@@ -158,6 +158,21 @@ abstract interface class ProvidersRepository {
     required String to,
   });
 
+  /// A compare-and-set of the status between `draft` and `active` (B0.18 —
+  /// docs/design/salon-go-live-approval.md §3.1, §3.3, §3.4): [to] is written
+  /// only when the salon is [from], in one write. Null when there is no such
+  /// salon or it is not [from] — a suspension, or another writer, got there
+  /// first, and nothing is written over it.
+  ///
+  /// The validated republishes (submit's, « Marquer payé »'s) go through
+  /// this rather than [setStatus], which writes over anything — `suspended`
+  /// included.
+  Future<Map<String, dynamic>?> compareAndSetStatus(
+    String providerId, {
+    required String from,
+    required String to,
+  });
+
   /// Toggle homepage `featured` placement. Returns the updated provider, or null.
   Future<Map<String, dynamic>?> setFeatured(String providerId, bool featured);
 
@@ -168,6 +183,16 @@ abstract interface class ProvidersRepository {
     int page,
     int pageSize,
   });
+}
+
+/// The two statuses [ProvidersRepository.compareAndSetStatus] moves between;
+/// shared by both twins. A suspension has its own doors (`setStatus`,
+/// `liftSuspension`), which keep `suspended_from`.
+void checkStatusSwap(String from, String to) {
+  const allowed = {('draft', 'active'), ('active', 'draft')};
+  if (!allowed.contains((from, to))) {
+    throw ArgumentError('no status compare-and-set $from → $to');
+  }
 }
 
 /// The statuses a lifted suspension may land on (§3.4); shared by both twins.
@@ -484,6 +509,17 @@ class InMemoryProvidersRepository implements ProvidersRepository {
     if (p == null || p['status'] != 'suspended') return null;
     _writeStatus(p, to);
     return p;
+  }
+
+  @override
+  Future<Map<String, dynamic>?> compareAndSetStatus(
+    String providerId, {
+    required String from,
+    required String to,
+  }) async {
+    checkStatusSwap(from, to);
+    if (!compareAndSetStatusNow(providerId, from: from, to: to)) return null;
+    return byId(providerId);
   }
 
   // --- Synchronous reads/writes for another twin's critical section.

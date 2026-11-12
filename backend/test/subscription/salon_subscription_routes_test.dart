@@ -14,6 +14,7 @@ import 'package:myweli_backend/src/providers_repository.dart';
 import 'package:myweli_backend/src/salon_provisioning_service.dart';
 import 'package:myweli_backend/src/subscription/salon_subscription_repository.dart';
 import 'package:myweli_backend/src/subscription/salon_subscription_service.dart';
+import 'package:myweli_backend/src/validation/salon_validation_repository.dart';
 import 'package:test/test.dart';
 
 import '../../routes/admin/providers/[id]/subscription/paid.dart' as paid_route;
@@ -32,6 +33,7 @@ void main() {
   late InMemoryProvidersRepository providers;
   late InMemoryAuditLogRepository audit;
   late SalonSubscriptionService service;
+  late InMemorySalonValidationRepository validations;
   late String ownerId;
 
   setUp(() async {
@@ -40,6 +42,10 @@ void main() {
     subs = InMemorySalonSubscriptionRepository();
     providers = InMemoryProvidersRepository();
     audit = InMemoryAuditLogRepository();
+    validations = InMemorySalonValidationRepository(
+      providers: providers,
+      members: memberships,
+    );
     service = SalonSubscriptionService(
       subs,
       MembershipService(memberships, auth),
@@ -78,6 +84,7 @@ void main() {
         auth,
         memberships,
         subscriptions: service,
+        validations: validations,
       ),
     );
     when(() => c.read<AdminProviderService>()).thenReturn(
@@ -86,6 +93,8 @@ void main() {
         InMemoryAppointmentRepository(),
         audit,
         service,
+        validations: validations,
+        members: memberships,
       ),
     );
     return c;
@@ -329,27 +338,20 @@ void main() {
       );
     });
 
-    test(
-      'no choice + complete → 200 active; GET → trial on pro, 90 days',
-      () async {
-        await complete(salonId);
-        expect((await getSubscription()).statusCode, HttpStatus.notFound);
+    test('no choice + complete → the REQUEST is recorded: still draft, and '
+        'no trial — GET still 404 (B0.18: the trial starts at the '
+        'validation, §3.6)', () async {
+      await complete(salonId);
+      expect((await getSubscription()).statusCode, HttpStatus.notFound);
 
-        final res = await publish();
-        expect(res.statusCode, HttpStatus.ok);
-        expect((await res.json() as Map)['status'], 'active');
-
-        final got = await getSubscription();
-        expect(got.statusCode, HttpStatus.ok);
-        final state = await got.json() as Map;
-        expect(state['status'], 'trial');
-        expect(state['tier'], 'pro');
-        final hoursLeft = DateTime.parse(
-          state['trialEndsAt'] as String,
-        ).difference(DateTime.now().toUtc()).inHours;
-        expect(hoursLeft, inInclusiveRange(89 * 24, 90 * 24));
-      },
-    );
+      final res = await publish();
+      // The status code (202) is the route's, mapped in the next stage; the
+      // service's answer is pinned in test/validation/salon_submit_test.dart.
+      final body = await res.json() as Map;
+      expect((body['validation'] as Map)['state'], 'pending');
+      expect((await providers.byId(salonId))!['status'], 'draft');
+      expect((await getSubscription()).statusCode, HttpStatus.notFound);
+    });
 
     test('incomplete → 409 incomplete, `offer` NOT among the keys, GET '
         'still 404', () async {

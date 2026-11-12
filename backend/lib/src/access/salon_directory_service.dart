@@ -165,7 +165,7 @@ class SalonDirectoryService {
     );
     final id = salon['id'] as String;
     // No rebuild: the salon is created 'draft', which the prebuilt slug set
-    // excludes — publish() carries the fire. This service deliberately has no
+    // excludes — the validation carries the fire. This service has no
     // notifier at all, so a creation fire cannot come back by accident.
     // Multi-pays MP1: the route-validated locality pick stamps the derived
     // market facts (commune/city/timezone/currency — threat T57).

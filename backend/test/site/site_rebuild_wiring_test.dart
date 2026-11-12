@@ -45,13 +45,17 @@ void main() {
   }
 
   group('the composition root supplies the notifier', () {
-    // The five services whose status writes change the prebuilt slug set.
+    // The services whose status writes change the prebuilt slug set. B0.18
+    // added the validation (`salon.approved`, `salon.refused`); the
+    // provisioning service keeps its notifier for a validated salon's
+    // republish (`salon.republished`).
     for (final name in const [
       'SalonProvisioningService',
       'SalonSubscriptionService',
       'SubscriptionScheduler',
       'ProviderAccountService',
       'AdminProviderService',
+      'SalonValidationService',
     ]) {
       test('$name is constructed WITH one', () {
         expect(

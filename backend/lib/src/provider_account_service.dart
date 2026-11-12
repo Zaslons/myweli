@@ -11,6 +11,7 @@ import 'providers_repository.dart';
 import 'push/device_token_repository.dart';
 import 'site/site_rebuild_notifier.dart';
 import 'storage/storage_service.dart';
+import 'validation/salon_validation_repository.dart';
 
 /// Provider ACCOUNT lifecycle (audit 11.5 — threat T53): the deletion flow
 /// that the `/me/provider` route delegates to. Orchestrates the demo lock
@@ -31,12 +32,14 @@ class ProviderAccountService {
     AppleTokenService? apple,
     http.Client? client,
     SiteRebuildNotifier? rebuild,
+    SalonValidationRepository? validations,
   }) : _devices = devices,
        _notifications = notifications,
        _idempotency = idempotency,
        _apple = apple,
        _client = client ?? http.Client(),
-       _rebuild = rebuild ?? NoopSiteRebuildNotifier();
+       _rebuild = rebuild ?? NoopSiteRebuildNotifier(),
+       _validations = validations;
 
   final ProviderAuthRepository _auth;
   final ProvidersRepository _providers;
@@ -58,6 +61,10 @@ class ProviderAccountService {
   /// Sign in with Apple (B6.7) — optional for the same reason; wired in
   /// `dependencies.dart`.
   final AppleTokenService? _apple;
+
+  /// B0.18 §3.4 — optional for the same reason; wired in `dependencies.dart`
+  /// (`salon_validation_wiring_test.dart` pins it).
+  final SalonValidationRepository? _validations;
 
   /// Delete the account behind [accountId]. Error codes: `forbidden`
   /// (unknown account), `demo_account_locked` (the store-review demo
@@ -137,6 +144,12 @@ class ProviderAccountService {
       // docs/design/backend-integrity-batch6.md §2.3). A deposit without a
       // number is no deposit: off.
       await _providers.updateProfile(providerId, _erasedContact);
+      // B0.18 §3.4: a request waiting in the admin's queue goes — nobody is
+      // left to run the salon — and the admin's free-text notes go from the
+      // salon's validation and its history (the codes stay). A validated
+      // salon keeps its validation: it stays with the salon, not the person.
+      await _validations?.deletePending(providerId);
+      await _validations?.clearNotes(providerId);
     }
     // Once for the whole account, after the loop — one erasure, one build.
     if (anyWasActive) {

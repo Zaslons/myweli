@@ -11,6 +11,7 @@ import 'package:myweli_backend/src/providers_repository.dart';
 import 'package:myweli_backend/src/site/site_rebuild_notifier.dart';
 import 'package:myweli_backend/src/subscription/salon_subscription_repository.dart';
 import 'package:myweli_backend/src/subscription/salon_subscription_service.dart';
+import 'package:myweli_backend/src/validation/salon_validation_repository.dart';
 import 'package:test/test.dart';
 
 /// Records what it was asked to do, so a call site can be observed.
@@ -133,28 +134,38 @@ void main() {
     late _RecordingNotifier rebuild;
     late AdminProviderService svc;
     late SalonSubscriptionService subs;
+    late InMemorySalonSubscriptionRepository subRows;
+    late InMemoryMembershipRepository memberships;
+    late InMemorySalonValidationRepository validations;
     late String salonId;
 
     setUp(() async {
       providers = InMemoryProvidersRepository();
       rebuild = _RecordingNotifier();
-      final memberships = InMemoryMembershipRepository();
+      memberships = InMemoryMembershipRepository();
       final accounts = InMemoryProviderAuthRepository(
         tokens: TokenService(secret: 'test-secret'),
         echoDevCode: false,
       );
+      subRows = InMemorySalonSubscriptionRepository();
       subs = SalonSubscriptionService(
-        InMemorySalonSubscriptionRepository(),
+        subRows,
         MembershipService(memberships, accounts),
         memberships,
         providers,
         accounts,
+      );
+      validations = InMemorySalonValidationRepository(
+        providers: providers,
+        members: memberships,
       );
       svc = AdminProviderService(
         providers,
         InMemoryAppointmentRepository(),
         InMemoryAuditLogRepository(),
         subs,
+        validations: validations,
+        members: memberships,
         rebuild: rebuild,
       );
       final salon = await providers.createSalon(
@@ -166,6 +177,29 @@ void main() {
       salonId = salon['id'] as String;
     });
 
+    /// Validated, live, owned, on a live offer — what « back online » takes
+    /// since B0.18 (§3.4). Through the validation's own single-winner steps.
+    Future<void> liveAndValidated() async {
+      await memberships.ensureOwner(
+        providerId: salonId,
+        accountId: 'acc_owner',
+        email: 'owner@beaute.ci',
+      );
+      await subRows.create(
+        providerId: salonId,
+        tier: 'pro',
+        trialEndsAt: DateTime.now().toUtc().add(const Duration(days: 30)),
+      );
+      await validations.submit(salonId, DateTime.now().toUtc());
+      await validations.decide(
+        salonId,
+        from: 'pending',
+        to: 'approved',
+        adminId: 'admin_1',
+      );
+      expect(await validations.goLive(salonId), GoLiveOutcome.live);
+    }
+
     test(
       'SUSPEND asks for a rebuild — the slug leaves the listable set',
       () async {
@@ -175,14 +209,28 @@ void main() {
       },
     );
 
-    test('RESTORE asks for a rebuild — the slug rejoins it', () async {
+    test('RESTORE asks for a rebuild — the slug rejoins it (the active '
+        'branch only)', () async {
+      await liveAndValidated();
       await svc.suspend('admin_1', salonId, null);
       rebuild.reasons.clear();
       final r = await svc.restore('admin_1', salonId);
       expect(r.ok, isTrue);
+      expect((r.data! as Map)['status'], 'active');
       expect(rebuild.reasons, ['provider.restore']);
       // Without this, a restored salon's public page stays 404 until someone
       // deploys — the web prebuilds the slug set (`dynamicParams = false`).
+    });
+
+    test('a restore that lifts to DRAFT asks for nothing — no public byte '
+        'changed (B0.18 §3.4)', () async {
+      // Never validated: the suspension lifts, the salon stays offline.
+      await svc.suspend('admin_1', salonId, null);
+      rebuild.reasons.clear();
+      final r = await svc.restore('admin_1', salonId);
+      expect(r.ok, isTrue);
+      expect((r.data! as Map)['status'], 'draft');
+      expect(rebuild.reasons, isEmpty);
     });
 
     test('a FAILED status change asks for nothing', () async {
@@ -201,6 +249,8 @@ void main() {
         InMemoryAppointmentRepository(),
         InMemoryAuditLogRepository(),
         subs,
+        validations: validations,
+        members: memberships,
         rebuild: _BrokenNotifier(),
       );
       // The real notifier swallows its own errors; this proves the CALLER does
