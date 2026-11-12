@@ -536,7 +536,7 @@ widget; a third inline copy is a review failure.
 | `PhoneNumberField` | `onChanged, label, initialValue, initialCountryCode, errorText, enabled, focusNode` | Country picker (default CI, any country) + national digits. **The only way to take a phone number** — true on every screen since phone-national-length.md converted the last three free-text ones (Acompte, Profil du salon ×2, Ajouter un salon). Emits the **normalized** value: `''` while no national digit is typed, else `+<indicatif><chiffres>` without a separator, and re-emits on a country switch — what a screen checks is what it sends. A prefilled `+…` shows under **its** country (longest calling code). `autovalidateMode` stays `disabled`: the rule is `Validators.phoneNumber` / `optionalPhoneNumber` through `FieldErrors` (§14 rule 2). |
 | `LoadingIndicator` | `size, color` | The brand loader. The **only** spinner. |
 | `EmptyState` | `icon, title, description, actionText, onAction` | Icon at `iconXL`. Bounded height: it scrolls; unbounded (inside a list or a box sliver): it centres. **Not in a `SliverFillRemaining(hasScrollBody: false)`** — that sliver asks its child for an intrinsic height, which the `LayoutBuilder` cannot give; use a `SliverToBoxAdapter` (B7.4). |
-| `TimedCachedImage` | network + `asset:` + caching | The **only** way to show a remote image — **except in the admin console**, which draws them with `AdminRemoteImage` (§11.2). |
+| `TimedCachedImage` | network + `asset:` + caching | The **only** way to show a remote image — **except in the admin console**, which draws every one with `AdminRemoteImage` (§11.2, §19). |
 | `BrandLoader` / `BrandRefresh` | | Brand-mark loader + pull-to-refresh. |
 | `CommunePickerSheet` / `CommunePill` | | Locality selection (market data — §18). |
 | **`SalonMapMarker`** | `SalonMapMarker({required category, isFavorite})` + `salonCategoryIcon(category)` | A salon on a map — white disc, 2dp ring and icon in `categoryColor` (§3.6), heart badge when favourite. **The only salon pin**: « Carte » and the salon page's preview both draw it, and the web's `SalonPin` is the same drawing. Moved out of `map_screen.dart` (salon-location-map.md) |
@@ -555,7 +555,7 @@ widget; a third inline copy is a review failure.
 | `StatCard` | |
 | `StatusChip` | `StatusChip.forStatus(String)` → semantic kind + French label. Kind, not color, is the API. |
 | `showReasonDialog` | |
-| **`AdminRemoteImage`** | `AdminRemoteImage({required url, fit = cover, semanticLabel})` — **the only way the console draws an image from another origin** (a signed KYC or deposit link, a CDN photo). The browser draws it as a plain `<img>` (`WebHtmlElementStrategy.prefer`, no header), because R2 sends `admin.myweli.com` no CORS header and `TimedCachedImage` cannot load it there. Loading = `BrandLoader` on `surface`; error = « Image indisponible », plus « Actualiser » when the screen passes `onReload` (it reloads the record, which signs new links; never a retry of the same link). Gate: `test/infra/admin_remote_images_guard_test.dart` walks the console's imports ([admin-remote-images.md](admin-remote-images.md)) |
+| **`AdminRemoteImage`** | `AdminRemoteImage({required url, fit = cover, semanticLabel, onReload, placeholder, errorPlaceholder})` — **the only way the console draws an image from another origin**: a signed KYC or deposit link, B0.18's salon photos on the public bucket. The browser draws it as a plain `<img>` (`WebHtmlElementStrategy.prefer`, no header), because R2 sends `admin.myweli.com` no CORS header and `TimedCachedImage` cannot load it there. Loading = `BrandLoader` on `surface`, held by `frameBuilder` until the first frame (the `<img>` path reports no progress); error = « Image indisponible », plus « Actualiser » when the screen passes `onReload` (it reloads the record, which signs new links; never a retry of the same link). A tile with its own looks passes `placeholder` / `errorPlaceholder`, still tokens (the salon photos: `surfaceVariant`, « Photo indisponible » to a screen reader, no « Actualiser » on a public link); an `errorPlaceholder` replaces the whole failure, so it never comes with `onReload`. Gate: `test/infra/admin_remote_images_guard_test.dart` walks the console's imports ([admin-remote-images.md](admin-remote-images.md)) |
 
 ### 11.3 To build (the gaps this system creates work for)
 
@@ -1289,14 +1289,20 @@ Deliberate, bounded, **not** debt:
 - **Brand black** — the logo, the `BrandLoader` and the app icon stay `#000000`
   (§1). They are brand assets, not ink.
 - **`Colors.transparent`** and alpha-black/white **for scrims and overlays only**.
-- **The admin console's salon photos** (B0.18, « Salons à valider ») are
-  `Image.network(…, webHtmlElementStrategy: WebHtmlElementStrategy.prefer)`, not
-  `TimedCachedImage` (§11.1). The public bucket's CORS refuses a preflight from
-  `admin.myweli.com` (403, no `Access-Control-Allow-Origin`, checked
-  2026-11-12), so Flutter Web cannot fetch a photo's bytes there; an `<img>`
-  element needs no CORS. The placeholder and the error state stay tokens. Scoped
-  to `admin_salon_validation_detail_screen.dart`; the KYC documents are not
-  concerned ([salon-go-live-approval.md](salon-go-live-approval.md) §4.4).
+- **The admin console's remote images** — the KYC documents, the deposit
+  proofs and B0.18's salon photos (« Salons à valider ») — are drawn by
+  `AdminRemoteImage` (§11.2), not `TimedCachedImage` (§11.1). R2 sends
+  `admin.myweli.com` no CORS header on any bucket (the public one answers its
+  preflight 403 with no `Access-Control-Allow-Origin`, the private ones allow
+  it no GET; probed 2026-11-12), so Flutter Web cannot fetch the bytes there;
+  the widget has the browser draw a plain `<img>`, which needs none. **One
+  widget for the whole console, not one per screen**: the salon photos had
+  their own `Image.network(prefer)` until #777 was rebased onto them, and
+  `test/infra/admin_remote_images_guard_test.dart` now fails on any other way
+  to draw a network image in a file `lib/main_admin.dart` imports.
+  Placeholders and failure states stay tokens
+  ([admin-remote-images.md](admin-remote-images.md),
+  [salon-go-live-approval.md](salon-go-live-approval.md) §4.4).
 
 Everything else: no `Color(0x…)`, no named `Colors.<hue>`, no raw `fontSize:`.
 

@@ -497,10 +497,17 @@ for « Autre ». The salon reads:
   labels the four codes it renders raw today.
 - **The detail of a validation interrupted before going live** (§3.2) shows
   « Validation à terminer » and the same button.
-- **The photos.** Before building, one photo is opened in the live console.
-  The public bucket's CORS lists only `myweli.com`, and whether
-  `admin.myweli.com` renders its images is UNVERIFIED. If it does not, the fix
-  is a cloud change (the owner's yes) or the HTML image strategy, decided then.
+- **The photos.** The public bucket's CORS lists only `myweli.com`: it
+  answers a preflight from `admin.myweli.com` 403, with no
+  `Access-Control-Allow-Origin` (probed 2026-11-12). Decided: the HTML image
+  strategy, no cloud change — the browser draws each photo as a plain
+  `<img>`, which needs no CORS. #779 built it with its own `Image.network`;
+  since #777 the photos go through `AdminRemoteImage`, the console's one way
+  to draw a remote image (SYSTEM.md §11.2, §19), with the tile's own
+  placeholder and « Photo indisponible », and no « Actualiser »: the links are
+  public, so a re-read cannot give a new one
+  ([admin-remote-images.md](admin-remote-images.md) §4.1). Whether the live
+  console renders them is still UNVERIFIED (§11).
 
 ---
 

@@ -4,13 +4,13 @@
 |---|---|
 | **Module** | admin (console) — [MODULES.md](../MODULES.md) |
 | **BACKLOG** | B0.21 |
-| **Status** | **Proposed 2026-11-12, built the same day** on `fix/admin-remote-images`, stacked on #775 (`fix/admin-kyc-queue`). « Actualiser » on a failed image added the same day on the owner's yes (§4). Not merged, not deployed. The merge is the owner's yes. |
+| **Status** | **Proposed 2026-11-12, built the same day** on `fix/admin-remote-images` (#777), stacked on #775 (`fix/admin-kyc-queue`), then **rebased onto `main` after #775 (`<S775>`)**, where #779 had landed: B0.18's salon photos became the widget's third user (§3, §4.1). « Actualiser » on a failed image added the same day on the owner's yes (§4). Not merged, not deployed. The merge is the owner's yes. |
 | **Last updated** | 2026-11-12 |
 | **Found** | 2026-11-12: a CORS probe found `cdn.myweli.com` refusing `https://admin.myweli.com`; this spec follows it to the KYC and deposit documents |
 | **PRD ref / phase** | FR-WEB-AD-001 (KYC approval queue), the dispute view · V1 |
 | **ROADMAP entry** | [2026-11-12-admin-remote-images.md](../roadmap/entries/2026-11-12-admin-remote-images.md) |
 | **Skills checked** | myweli-dev-guardrails · myweli-verification-guardrails |
-| **Related** | [admin-kyc-queue-submitted.md](admin-kyc-queue-submitted.md) (#775, the PDF tile) · [salon-go-live-approval.md](salon-go-live-approval.md) §4.4 (B0.18's salon photos) · [web-pro-kyc.md](web-pro-kyc.md) · `infra/cloudflare/r2-manifest.json` |
+| **Related** | [admin-kyc-queue-submitted.md](admin-kyc-queue-submitted.md) (#775, the PDF tile) · [salon-go-live-approval.md](salon-go-live-approval.md) §4.4 (B0.18's salon photos, #779, drawn through this widget since the rebase) · [web-pro-kyc.md](web-pro-kyc.md) · `infra/cloudflare/r2-manifest.json` |
 
 How to read it: **observed** means probed or run here on 2026-11-12;
 **UNVERIFIED** means not.
@@ -84,13 +84,22 @@ UNVERIFIED.
   strategy is ignored: an ordinary network image.
 - The KYC tile's thumbnail and zoom, and `AdminEvidenceImage`'s thumbnail and
   zoom, use it. #775's PDF tile is untouched.
+- **B0.18's salon photos** (« Salons à valider »,
+  `admin_salon_validation_detail_screen.dart`, #779) use it too since the
+  rebase onto `main`. #779 had drawn them with its own
+  `Image.network(prefer)`, for the same reason (the public bucket refuses
+  `admin.myweli.com`, §1.1). Replayed onto it, the guard found that screen,
+  the one offender (observed red); the photos moved to the widget, and the
+  guard kept no exception for them: one way to draw a remote image in the
+  console. Their tile keeps its own looks through two optional parameters,
+  `placeholder` and `errorPlaceholder` (§4.1).
 - **Why it works with the tap and the zoom** (SDK, `_web_image_web.dart`): the
   framework gives its `<img>` `pointer-events: none`, so the
   `GestureDetector` around it still gets the tap; `RenderWebImage` applies
   `BoxFit`; a platform view takes the clip and the transform, so the rounded
   tile and `InteractiveViewer` behave as before (§8.2).
 - `TimedCachedImage` stays everywhere else (SYSTEM.md §11.1); the console is
-  the one exception (§11.2).
+  the one exception (§11.2, §19).
 
 ## 4. States and copy
 
@@ -104,10 +113,40 @@ UNVERIFIED.
 | Error, the tap | The tile's centre is its « Actualiser »; the rest of the tile still opens the zoom, as before |
 | No link | Unchanged: the tile's own placeholder |
 
+### 4.1 The third user: B0.18's salon photos
+
+Public objects on `cdn.myweli.com`, the logo first, then each photo, in a
+144 dp square clipped at `radiusMedium` (#779's tile, unchanged).
+
+| State | What shows |
+|---|---|
+| Loading | The tile's own, passed as `placeholder`: `surfaceVariant`, `image_outlined` (`iconL`, `textTertiary`). The same `frameBuilder` holds it, so the web's `<img>` path shows it from the first frame (#779's « a photo on its way » fix, which `loadingBuilder` could not give) |
+| Success | The photo, `cover`, named « Photo N du salon » or « Logo du salon » |
+| Error | The tile's own, passed as `errorPlaceholder`: `surfaceVariant`, `broken_image_outlined`, « Photo indisponible » to a screen reader. **No « Image indisponible » and no « Actualiser »** |
+| The ways out | « Ouvrir « Photo N » dans un nouvel onglet » under each photo (`url_launcher`, a 48 dp target), where the browser loads the link itself and shows why it fails; the app bar's « Rafraîchir », which reads the request again |
+
+**« Actualiser » on a salon photo: no.** The button reloads the *source* of
+the link, because for a KYC file or a dispute that signs a new one. The
+salon photo's source is the request (`AdminSalonValidationDetailProvider.load`),
+but its links are public and unsigned: a re-read returns the same URL, the
+`NetworkImage` compares equal (url, scale, strategy, headers), and
+`Image.didUpdateWidget` does not resolve it again. So the failed photo is not
+asked for again: observed in a widget test that counts the requests across a
+« Rafraîchir » (and red when the widget is made to re-request, §8.3 A12); the
+SDK path read in `widgets/image.dart` and `painting/_network_image_web.dart`.
+A button wired to that reload would do nothing visible, a way out that cannot
+help (SYSTEM.md §12). Retrying the same link would mean evicting it from the
+cache, the retry this spec refuses as a design. What a re-read does fix, a
+photo the salon replaced, comes back under a new URL that is asked for at
+once (same test): that is the app bar's « Rafraîchir », already there. So
+`onReload` stays null, and the widget asserts that an `errorPlaceholder`
+never comes with one.
+
 ## 5. Security
 
 - Nothing new is exposed: the same 5-minute signed links, to the same
-  authenticated admin. The `<img>` request is `no-cors`, without an `Origin`
+  authenticated admin. B0.18's salon photos are public objects the console
+  already showed (§4.1). The `<img>` request is `no-cors`, without an `Origin`
   header (observed, §8.2), and the page cannot read the bytes back.
 - The request carries a `Referer` of the console's origin (the browser's
   default `strict-origin-when-cross-origin`). Nothing secret is in that origin.
@@ -119,6 +158,9 @@ UNVERIFIED.
 
 Each image becomes a platform view, which Flutter calls suboptimal. The
 console shows at most four documents per KYC file and one proof per dispute.
+A salon request shows its logo and its photos: the gallery is capped at 20
+(`ProviderCatalogService._maxGalleryPhotos`), so 21 at most, as #779 already
+drew them.
 In the harness the request took 5 ms; the seconds before it went on the
 app's start in a hidden pane, so no paint time is claimed.
 
@@ -136,13 +178,25 @@ app's start in a hidden pane, so no paint time is claimed.
 - In `admin_remote_image_test.dart` too: « Actualiser » only when there is a
   reload, reachable and tapped at 1× and 2× in the tile, the tap-target and
   label guidelines, the deposit proof's zoom closing before the reload.
+- `test/widget/admin_salon_validation_detail_screen_test.dart` (#779's,
+  adapted): the photos are `AdminRemoteImage` (the URLs in order, their names,
+  no `onReload`, the rounded clip), each its `<img>` (`prefer`, no header),
+  the only images on the page; failed, the tile's placeholder with « Photo
+  indisponible », no « Image indisponible », no « Actualiser »; the logo
+  first, « Logo du salon », with its tab button (pinned for the first time);
+  on its way, the tile's placeholder inside the widget and no brand loader;
+  across « Rafraîchir », no link asked for again, and a replaced photo's new
+  link asked for once.
+- In `admin_remote_image_test.dart` too: `placeholder` and `errorPlaceholder`
+  shown, still `prefer` and no header; an `errorPlaceholder` with an
+  `onReload` is an assertion error.
 - `test/infra/admin_remote_images_guard_test.dart`: walks the import graph
   from `lib/main_admin.dart`, comments stripped, and fails if any reachable
   file other than `AdminRemoteImage` draws a network image
   (`TimedCachedImage`, cached_network_image, `Image.network`, `NetworkImage`,
   `SvgPicture.network`), or if the widget loses `prefer` or gains a header.
-  A walk that reaches fewer than 50 files, or misses the KYC and dispute
-  screens, fails. **Blind to:** an image a package draws from a URL we pass,
+  A walk that reaches fewer than 50 files, or misses the KYC, dispute and
+  salon request screens, fails. **Blind to:** an image a package draws from a URL we pass,
   and a provider built in a file the console does not import.
 - Mutations watched red: §8.3.
 
@@ -209,10 +263,40 @@ And for « Actualiser », on `724d651d`:
 | R6 the KYC thumbnail without its reload | red | the KYC reload test |
 | R7 the dispute view without its reload | red | the dispute test |
 
+And for the salon photos, on the committed adaptation after the rebase (the
+salon request's test, the widget test and the guard run each time; the tree
+checked clean after each restore):
+
+| Mutation | Expected | Went red |
+|---|---|---|
+| A1 the photos back to #779's own `Image.network(prefer)` | red | the guard's offenders check, the photos test, the logo test, the on-its-way test |
+| A2 no `placeholder` (the brand loader instead) | red | the on-its-way test |
+| A3 no `errorPlaceholder` (« Image indisponible » instead) | red | the photos test; the golden's scene renders differently on the Mac (§8.4) |
+| A4 the widget ignores `placeholder` | red | the widget's placeholder test, the on-its-way test |
+| A5 the widget ignores `errorPlaceholder` | red | the widget's placeholder test, the photos test |
+| A6 square corners | red | the photos test |
+| A7 no name passed | red | the photos test, the logo test |
+| A8 the logo last | red | the logo test |
+| A9 the assertion removed | red | the assertion test |
+| A10 the salon photos given « Actualiser » (the request's reload) | red | the photos test |
+| A11 a `User-Agent` header on the widget | red | the guard's widget check, both widget tests that read the provider, the photos test |
+| A12 a new `Image` on every build (a failed link asked for again on each re-read) | red | the « Rafraîchir » count test: the premise of §4.1 is held |
+
+### 8.4 The golden's scene (observed on the Mac, not the baseline)
+
+`admin_validation_detail.png` draws a request whose three photos fail
+(`flutter test` answers 400). Its scene, and the same with the photos on
+their way and a logo, were rendered by an uncommitted probe before and after
+the adaptation, on the Mac: **byte-identical** both times. Control: A3
+changes the render. The committed baseline is Linux's and was not run here:
+expected unchanged, UNVERIFIED until CI.
+
 ## 9. Rollout
 
-Merge after #775, which this is stacked on, then `deploy-admin.yml` (manual,
-the owner's go). No backend change, no cloud change.
+Rebased onto `main` after #775 (`<S775>`); the merge is the owner's yes.
+Then `deploy-admin.yml` (manual, the owner's go): with #779 and #775 on
+`main`, that is B0.18's step 2, one console deploy for the three. No backend
+change, no cloud change.
 
 ## 10. Not verified, and seen but left out
 
@@ -221,9 +305,13 @@ the owner's go). No backend change, no cloud change.
   same way (§8.2), not against R2 itself.
 - **WebKit and Gecko**: not run.
 - **B0.18's salon photos** come from `cdn.myweli.com`, which refuses the
-  console's origin too (the 2026-11-12 finding): they should use
-  `AdminRemoteImage`, and the guard will say so once they are imported.
-  `salon-go-live-approval.md` §4.4 is left for that slice to update.
+  console's origin too (the 2026-11-12 finding). The guard said so once
+  #779's screen was imported (the rebase), and they now use
+  `AdminRemoteImage` (§4.1); `salon-go-live-approval.md` §4.4 says so. **Not
+  run in a browser**, through the widget or before it (#779's own roadmap
+  entry lists its `<img>` photos as unverified there); the mechanism is the
+  one §8.2 observed. The web's path for « Rafraîchir » not re-requesting a
+  failed public link is read in the SDK, not run.
 - **The manifest cannot see the private buckets' PUT rule** the web's KYC and
   deposit uploads depend on (§1.1): `r2-manifest.json` checks CORS on the
   public bucket only. Its comment is corrected here; a check is a follow-up.
