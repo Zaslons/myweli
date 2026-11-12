@@ -7,7 +7,6 @@ import 'package:myweli_backend/src/appointments/appointment_repository.dart';
 import 'package:myweli_backend/src/provider_account_service.dart';
 import 'package:myweli_backend/src/push/device_token_repository.dart';
 import 'package:myweli_backend/src/storage/storage_service.dart';
-import 'package:myweli_backend/src/validation/salon_decision_notifier.dart';
 import 'package:myweli_backend/src/validation/salon_validation_copy.dart';
 import 'package:myweli_backend/src/validation/salon_validation_repository.dart';
 import 'package:test/test.dart';
@@ -732,7 +731,9 @@ void main() {
       expect(push.body, kRefusalSentences['photos']);
       expect(push.data['event'], 'salon.validation.refused');
       final row = (await w.feed.listForUser(s.ownerId)).single;
-      expect(row['type'], SalonDecisionNotifier.feedType);
+      // The literal the contract's Notification.type enum names — not the
+      // constant compared with itself.
+      expect(row['type'], 'salonValidation');
       expect(
         row['body'],
         '${kRefusalSentences['photos']}\nAjoutez la devanture.',

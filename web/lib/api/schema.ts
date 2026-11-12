@@ -3280,7 +3280,7 @@ export interface paths {
                     };
                 };
                 404: components["responses"]["NotFound"];
-                /** @description `incomplete` — the go-live gate failed, with the missing keys. `offer` appears only for a salon whose existing offer is no longer live (expired); a salon with no offer yet gets its trial at MyWeli's validation instead. `validation_refused_final` — MyWeli refused this salon for a final reason (`outside_ci`, `test_salon`): asking again changes nothing, and `missing` is absent. */
+                /** @description `incomplete` — the go-live gate failed, with the missing keys. `offer` — the salon's offer row is no longer live (expired), or a salon MyWeli already validated and took live once has no live offer row (the billing pointer: its republish needs one). A salon never validated and with no offer row is never refused for it: its trial starts at MyWeli's validation. `validation_refused_final` — MyWeli refused this salon for a final reason (`outside_ci`, `test_salon`): asking again changes nothing, and `missing` is absent. */
                 409: {
                     headers: {
                         [name: string]: unknown;
@@ -7509,8 +7509,11 @@ export interface components {
         /** @description In-app notification — mirrors the app's AppNotification. */
         Notification: {
             id: string;
-            /** @enum {string} */
-            type: "bookingConfirmed" | "depositReceived" | "reminder" | "reschedule" | "cancellation" | "reviewRequest" | "general";
+            /**
+             * @description `salonValidation` — MyWeli validated or refused the salon's request to go live (B0.18, salon-go-live-approval §5.2), to its owner only; the body carries the decision (a refusal's reason and the admin's note). Clients that predate it show an unknown type as `general`, with its body.
+             * @enum {string}
+             */
+            type: "bookingConfirmed" | "depositReceived" | "reminder" | "reschedule" | "cancellation" | "reviewRequest" | "general" | "salonValidation";
             title: string;
             body: string;
             /** Format: date-time */

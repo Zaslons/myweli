@@ -46,6 +46,12 @@ void main() {
       final conflict = described('/providers/{id}/publish', 'post', '409');
       expect(conflict, contains('incomplete'));
       expect(conflict, contains('validation_refused_final'));
+      // `offer` for BOTH of §3.1's cases: a row no longer live, and a salon
+      // validated and once live with no live row (the billing pointer) —
+      // the second is what `salon_submit_test.dart` pins as a 409.
+      expect(conflict, contains('no longer live'));
+      expect(conflict, contains('validated and took live once has no live'));
+      expect(conflict, isNot(contains('appears only')));
     });
 
     test('« the trial starts at the first publish » is gone from the whole '
@@ -282,6 +288,39 @@ void main() {
         'post',
         403,
       );
+    });
+
+    test('the decision\'s in-app feed rows are Notifications the contract '
+        'names — `salonValidation` is in its type enum', () async {
+      // GET /me/notifications returns the stored rows as they are.
+      final notification =
+          loadYaml(r"{$ref: '#/components/schemas/Notification'}") as YamlMap;
+      final approved = await pending();
+      await w.service.approve(approved.id, from: 'pending', adminId: 'admin_1');
+      final refused = await pending(name: 'Salon B');
+      await w.service.refuse(
+        refused.id,
+        code: 'other',
+        note: 'Une précision.',
+        adminId: 'admin_1',
+      );
+      for (final s in [approved, refused]) {
+        final row = (await w.feed.listForUser(s.ownerId)).single;
+        expect(row['type'], 'salonValidation');
+        // `userId` rides on every stored feed row and has never been in the
+        // contract — older than B0.18, every type alike. Everything else
+        // must conform.
+        expect(
+          shape
+              .check(row, notification)
+              .where(
+                (p) =>
+                    p != r'$.userId is sent, and the contract does not name it',
+              ),
+          isEmpty,
+          reason: '$row',
+        );
+      }
     });
 
     test('the queue: each tab, and its 400', () async {
