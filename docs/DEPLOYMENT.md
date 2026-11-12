@@ -147,7 +147,14 @@ apps); what's left is console work. Specs:
    Since B0.18's decision 133 the same tick also sends the admin's
    place-change summaries that are due (`placeChangeSummaries` in its answer;
    [design/salon-go-live-approval.md](design/salon-go-live-approval.md) §5.1)
-   — no job of its own.
+   — no job of its own. They run even when the reminders fail (the tick still
+   fails). If the job stops, a salon's next save sends its summary once it is
+   30 minutes overdue (`place_notice … outcome=summary_overdue` in the log);
+   a salon that saves nothing more waits for the job. **No alert watches the
+   summaries yet** (`step=place_change_summaries outcome=failed`,
+   `outcome=summary_overdue`): the tick answers 200 whatever they do, and the
+   cron alert (`infra/gcp/86-cron-auth-alert.sh`) fires only on a status
+   ≥ 400.
 6. **Android smoke test — two real devices** (the first true end-to-end run
    **on device** — the backend funnel is proven in CI since Q1, but nothing had
    run on real hardware against a deployed API;

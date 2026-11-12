@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | **Approved 2026-11-12** (the owner answered every question of §11: decisions 124–132). Not built. Reviewed twice by independent readers on 2026-11-12, every finding folded in: five readers (backend, admin console, apps, website, completeness) found 53; two found 26 on the rewrite. **Amended 2026-11-12** (decision 133, after the backend's review): the place-change e-mails to the admin are capped per salon — §5.1, §7, §8.1, §9.1, §11 |
+| **Status** | **Approved 2026-11-12** (the owner answered every question of §11: decisions 124–132). **Backend merged** (#776, 2026-11-12); the cap of decision 133 built, not merged; the console, the apps and the website not merged. Reviewed twice by independent readers on 2026-11-12, every finding folded in: five readers (backend, admin console, apps, website, completeness) found 53; two found 26 on the rewrite. **Amended 2026-11-12** (decision 133, after the backend's review): the place-change e-mails to the admin are capped per salon — §5.1, §7, §8.1, §9.1, §11 |
 | **Owner** | Sadreddine Daher |
 | **Last updated** | 2026-11-12 |
 | **PRD ref / phase** | FR-PRO-ONB-001 (go live) · admin (FR-WEB-AD-*) · V1 |
@@ -542,6 +542,9 @@ for « Autre ». The salon reads:
     since when (Abidjan time), and a value back where it was says so. It
     opens a new hour: a salon that keeps saving sends at most one e-mail an
     hour. A change after the hour while a summary is still owed joins it.
+    The claim is conditional on the saves the tick read before it read the
+    salon: a save landing in between waits for the next tick, so no summary
+    marks a value as reported without showing it.
   - **A suspended salon's saves** record nothing and e-mail nothing: the
     admin already acted. A summary owed by a salon suspended, no longer validated
     or gone by the time it is due is dropped.
@@ -549,9 +552,23 @@ for « Autre ». The salon reads:
     e-mail (the salon's row is locked), two ticks one summary (a conditional
     claim) — Cloud Run runs several instances.
   - **Never in the way:** when the cap cannot be read, the e-mail goes as it
-    did before the cap; a failed summary step never fails the reminders.
-    The row holds the phone and address last reported, so account erasure
-    deletes it.
+    did before the cap; a failed summary step never fails the reminders, and
+    a failed reminders step does not stop the summaries (the tick still
+    fails). The cron is not the only way out of the cap: a summary it has not
+    sent 30 minutes past its hour (the job paused, its door broken, the step
+    failing) is sent by the salon's next save. The row holds the phone and
+    address last reported, so account erasure deletes it.
+  - **What the cap does not report:**
+    - a change made while the salon is suspended, unless the next e-mail is
+      a summary (a change after the lift, within the hour of the last
+      e-mail): an immediate e-mail reports only its own save and takes the
+      salon's other values as reported, so the salon's place is read in the
+      console before « Lever la suspension ». The same holds for another save
+      landing in the instant before the one that sends it: a later summary
+      calls that value « identique au dernier e-mail »;
+    - while the cron is stopped, the pending changes of a salon that saves
+      nothing more, until the cron is back. Nothing alerts on the summaries
+      yet: the tick answers 200 whatever they do.
 
 ### 5.2 To the salon, on each decision
 
@@ -688,7 +705,8 @@ gain the validation state and reason.
     - the demo lock first in submit;
     - audit rows with the actor;
     - the place-change e-mails capped per salon (decision 133, §5.1): at
-      most one an hour, none for a suspended salon.
+      most one an hour, none for a suspended salon; the summaries never wait
+      on the cron alone.
   - **T17:** gains validate/refuse and « Lever la suspension »'s
     preconditions.
   - **T50/T51:** pending and refused are `draft`, hidden by the same rule.
@@ -771,13 +789,19 @@ Each new guard is watched red once, and the commit says how.
   unvalidated or a suspended salon, sends none and records nothing. The cap:
   - the repository's contract on both twins: the first save of a quiet hour
     sends, the hour after records, the window's edge, three saves at once →
-    one e-mail, two ticks at once → one summary, the claim opens a new hour,
-    drop and forget;
+    one e-mail (on a new row, and on an existing one — on Postgres under a
+    held lock, so the race happens every run), two ticks at once → one
+    summary (the same), the claim conditional on the saves its caller read,
+    the claim opens a new hour, a summary 30 minutes overdue answered as
+    such, drop and forget;
   - the summary's words pinned literally, « identique au dernier e-mail »
     for a value back where it was, at most one e-mail an hour over three
-    hours of saves, suspended / not validated / gone dropped;
-  - the reminders cron's new count, and a throwing summary step that leaves
-    the reminders' counts standing;
+    hours of saves, suspended / not validated / gone dropped, a save landing
+    between the tick's read and its claim sent by the next tick, the cron
+    stopped → the overdue summary sent by the next save;
+  - the reminders cron's new count, a throwing summary step that leaves
+    the reminders' counts standing, and a throwing reminders step that still
+    fails the tick once the summaries have run;
   - erasure deletes the row; on Postgres, the cascade too.
 - **Q2 « As today »:** the offer choice before validation still starts the
   clock; validate keeps it.
