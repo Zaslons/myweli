@@ -431,37 +431,41 @@ class _PdfTileState extends State<_PdfTile> {
   @override
   Widget build(BuildContext context) {
     final expired = _expired;
+    // The name sits ABOVE the InkWell and only the visible content is
+    // excluded: `excludeSemantics` on this node would also drop the InkWell's
+    // tap — a button a screen reader announces and cannot press.
     return Semantics(
       button: true,
       label: expired
           ? 'Lien expiré, actualiser : « ${widget.label} » (PDF)'
           : 'Ouvrir « ${widget.label} » (PDF) dans un nouvel onglet',
-      excludeSemantics: true,
       child: Material(
         color: AppColors.surfaceVariant,
         child: InkWell(
           onTap: _open,
           mouseCursor: SystemMouseCursors.click,
-          child: Padding(
-            padding: const EdgeInsets.all(AppTheme.spacingS),
-            child: Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    expired ? Icons.refresh : Icons.picture_as_pdf_outlined,
-                    size: AppTheme.iconL,
-                    color: AppColors.textSecondary,
-                  ),
-                  const SizedBox(height: AppTheme.spacingXS),
-                  Text(
-                    expired ? 'Lien expiré — Actualiser' : 'Document PDF',
-                    textAlign: TextAlign.center,
-                    style: AppTextStyles.bodySmall.copyWith(
+          child: ExcludeSemantics(
+            child: Padding(
+              padding: const EdgeInsets.all(AppTheme.spacingS),
+              child: Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      expired ? Icons.refresh : Icons.picture_as_pdf_outlined,
+                      size: AppTheme.iconL,
                       color: AppColors.textSecondary,
                     ),
-                  ),
-                ],
+                    const SizedBox(height: AppTheme.spacingXS),
+                    Text(
+                      expired ? 'Lien expiré — Actualiser' : 'Document PDF',
+                      textAlign: TextAlign.center,
+                      style: AppTextStyles.bodySmall.copyWith(
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
