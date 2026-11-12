@@ -19,6 +19,8 @@ import 'package:myweli_backend/src/subscription/salon_subscription_repository.da
 import 'package:myweli_backend/src/subscription/salon_subscription_service.dart';
 import 'package:myweli_backend/src/subscription/subscription_scheduler.dart';
 import 'package:myweli_backend/src/validation/salon_decision_notifier.dart';
+import 'package:myweli_backend/src/validation/salon_place_notice_repository.dart';
+import 'package:myweli_backend/src/validation/salon_place_notice_service.dart';
 import 'package:myweli_backend/src/validation/salon_validation_repository.dart';
 import 'package:myweli_backend/src/validation/salon_validation_service.dart';
 import 'package:test/test.dart';
@@ -172,6 +174,8 @@ class ValidationWorld {
   final feed = InMemoryNotificationsRepository();
   final audit = InMemoryAuditLogRepository();
   final adminLogs = <String>[];
+  final placeNotices = InMemorySalonPlaceNoticeRepository();
+  final placeLogs = <String>[];
   DateTime now = DateTime.utc(2026, 11, 12, 9);
 
   /// `ADMIN_EMAIL` as the composition root reads it.
@@ -190,6 +194,16 @@ class ValidationWorld {
 
   AdminNotifier get adminNotifier =>
       AdminNotifier(adminMail, adminEmail: adminAddress, log: adminLogs.add);
+
+  /// Decision 133's cap, on [placeNotices] and this world's clock.
+  SalonPlaceNoticeService get placeNoticeService => SalonPlaceNoticeService(
+    placeNotices,
+    providers,
+    validations,
+    adminNotifier,
+    clock: () => now,
+    log: placeLogs.add,
+  );
 
   SalonProvisioningService get provisioning => SalonProvisioningService(
     providers,

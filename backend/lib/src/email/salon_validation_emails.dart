@@ -12,6 +12,7 @@ library;
 
 import 'dart:convert';
 
+import '../salon_time.dart';
 import '../validation/salon_validation_copy.dart';
 
 const _text = HtmlEscape(HtmlEscapeMode.element);
@@ -136,27 +137,35 @@ const Map<String, String> _placeFieldWords = {
   'phone': 'son téléphone',
 };
 
-/// §5.1 (Q6): a validated salon changed its pin, address, commune or phone.
-/// One e-mail per save, with the old and new values. The salon stays
-/// online; the admin can suspend it.
+/// « son emplacement », « son adresse et son téléphone »… — what changed,
+/// for a subject and a first sentence. Each word once, in the e-mail's
+/// order; « sa fiche » when nothing is named.
+String _placeWhat(Iterable<String> fields) {
+  final words = <String>[];
+  for (final field in kPlaceFieldLabels.keys) {
+    final word = _placeFieldWords[field]!;
+    if (fields.contains(field) && !words.contains(word)) words.add(word);
+  }
+  return switch (words.length) {
+    0 => 'sa fiche',
+    1 => words.single,
+    _ => '${words.sublist(0, words.length - 1).join(', ')} et ${words.last}',
+  };
+}
+
+/// A place value as the e-mails print it: « — » for none.
+String _shown(String? v) => (v == null || v.trim().isEmpty) ? '—' : v.trim();
+
+/// §5.1 (Q6): a validated salon changed its pin, address, commune or phone,
+/// and no such e-mail went for it in the last hour (decision 133 — the
+/// changes after it wait for [renderAdminPlaceSummaryEmail]). The old and new
+/// values of that save. The salon stays online; the admin can suspend it.
 SalonValidationEmail renderAdminPlaceChangedEmail({
   required String providerId,
   required String salonName,
   required List<PlaceChange> changes,
 }) {
-  final words = <String>[];
-  for (final field in kPlaceFieldLabels.keys) {
-    final word = _placeFieldWords[field]!;
-    if (changes.any((c) => c.field == field) && !words.contains(word)) {
-      words.add(word);
-    }
-  }
-  final what = switch (words.length) {
-    0 => 'sa fiche',
-    1 => words.single,
-    _ => '${words.sublist(0, words.length - 1).join(', ')} et ${words.last}',
-  };
-  String shown(String? v) => (v == null || v.trim().isEmpty) ? '—' : v.trim();
+  final what = _placeWhat(changes.map((c) => c.field));
   final ordered = [
     for (final field in kPlaceFieldLabels.keys)
       ...changes.where((c) => c.field == field),
@@ -167,7 +176,60 @@ SalonValidationEmail renderAdminPlaceChangedEmail({
       '$salonName, un salon validé, a modifié $what. Il reste en ligne ; '
           'vous pouvez le suspendre depuis la console.',
       for (final c in ordered)
-        '${kPlaceFieldLabels[c.field]} : ${shown(c.before)} → ${shown(c.after)}',
+        '${kPlaceFieldLabels[c.field]} : ${_shown(c.before)} → ${_shown(c.after)}',
+    ],
+    button: 'Voir le salon',
+    link: adminSalonLink(providerId),
+    footer: _adminFooter,
+  );
+}
+
+/// §5.1, decision 133: the summary of the changes recorded in the hour
+/// after a place-change e-mail, sent once that hour has passed. [reported]
+/// is the place as the last e-mail left it, [current] the salon's place now
+/// (both by field key, as the e-mails show them); [fields] the kinds the
+/// recorded saves touched; [saves] how many; [since] the first one, shown
+/// in Abidjan's time — the admin's.
+///
+/// Lists every kind a save touched, and any other whose value differs from
+/// the one reported. A value back to the reported one says so rather than
+/// printing « X → X ».
+SalonValidationEmail renderAdminPlaceSummaryEmail({
+  required String providerId,
+  required String salonName,
+  required Map<String, String?> reported,
+  required Map<String, String?> current,
+  required Iterable<String> fields,
+  required int saves,
+  required DateTime since,
+}) {
+  final touched = fields.toSet();
+  final listed = [
+    for (final field in kPlaceFieldLabels.keys)
+      if (touched.contains(field) ||
+          _shown(reported[field]) != _shown(current[field]))
+        field,
+  ];
+  final what = _placeWhat(listed);
+  final w = salonWallClock(since, kDefaultSalonTz);
+  String two(int n) => n.toString().padLeft(2, '0');
+  final day = '${two(w.day)}/${two(w.month)}/${w.year}';
+  final time = '${two(w.hour)}:${two(w.minute)}';
+  final count = saves == 1 ? '1 modification' : '$saves modifications';
+  return _render(
+    subject: '$salonName a encore modifié $what',
+    paragraphs: [
+      '$salonName, un salon validé, a encore modifié $what : $count depuis '
+          'le $day à $time (heure d’Abidjan). Il reste en ligne ; vous '
+          'pouvez le suspendre depuis la console.',
+      'Valeurs du dernier e-mail → valeurs actuelles :',
+      for (final field in listed)
+        _shown(reported[field]) == _shown(current[field])
+            ? '${kPlaceFieldLabels[field]} : ${_shown(current[field])} '
+                  '(identique au dernier e-mail)'
+            : '${kPlaceFieldLabels[field]} : ${_shown(reported[field])} → '
+                  '${_shown(current[field])}',
+      'Pour un même salon, ces e-mails sont regroupés : un au plus par heure.',
     ],
     button: 'Voir le salon',
     link: adminSalonLink(providerId),

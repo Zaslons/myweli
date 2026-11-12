@@ -104,7 +104,7 @@ void main() {
           w.auth,
           MembershipService(w.members, w.auth),
           validations: w.validations,
-          adminNotifier: withNotifier ? w.adminNotifier : null,
+          placeNotices: withNotifier ? w.placeNoticeService : null,
         );
 
     Future<({String id, String ownerId})> validated() async {

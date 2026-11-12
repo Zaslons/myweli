@@ -4,8 +4,11 @@ import '../email/send_budget.dart';
 
 /// The platform owner's inbox (B0.18 — docs/design/salon-go-live-approval.md
 /// §5.1): an e-mail to `ADMIN_EMAIL` on each NEW request to go live, and on
-/// each save that changes a validated salon's place (Q6). Until this, nothing
-/// told the admin anything: the console's count was the only way to learn.
+/// a validated salon's place changes (Q6) — capped by
+/// `SalonPlaceNoticeService` to one e-mail per salon per hour, the changes
+/// in between summed up once the hour has passed (decision 133). Until this,
+/// nothing told the admin anything: the console's count was the only way to
+/// learn.
 ///
 /// **Never in the way.** Best effort: a send that fails, throws or is refused
 /// by the budget never turns a recorded request or a saved profile into an
@@ -50,7 +53,8 @@ class AdminNotifier {
   );
 
   /// §5.1 (Q6): a save changed a validated salon's pin, address, commune or
-  /// phone — one e-mail per save, the old and the new values.
+  /// phone — the old and the new values. Only the save that won a quiet hour
+  /// gets here (decision 133, `SalonPlaceNoticeService`).
   Future<void> salonPlaceChanged({
     required String providerId,
     required String salonName,
@@ -62,6 +66,31 @@ class AdminNotifier {
       providerId: providerId,
       salonName: salonName,
       changes: changes,
+    ),
+  );
+
+  /// §5.1, decision 133: the changes recorded in the hour after a
+  /// place-change e-mail, in one — sent by the reminders cron once that hour
+  /// has passed.
+  Future<void> salonPlaceSummary({
+    required String providerId,
+    required String salonName,
+    required Map<String, String?> reported,
+    required Map<String, String?> current,
+    required Iterable<String> fields,
+    required int saves,
+    required DateTime since,
+  }) => _send(
+    'salon_place_summary',
+    providerId,
+    () => renderAdminPlaceSummaryEmail(
+      providerId: providerId,
+      salonName: salonName,
+      reported: reported,
+      current: current,
+      fields: fields,
+      saves: saves,
+      since: since,
     ),
   );
 
