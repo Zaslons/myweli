@@ -5,7 +5,7 @@ import '../../../core/theme/colors.dart';
 import '../../../core/theme/text_styles.dart';
 import '../../../core/utils/formatters.dart';
 import '../../../core/utils/text_fit.dart';
-import '../../../widgets/common/timed_cached_image.dart';
+import 'admin_remote_image.dart';
 import 'status_chip.dart';
 
 /// Shared building blocks for the admin support views (salon / client detail).
@@ -247,14 +247,16 @@ class AdminEvidenceImage extends StatelessWidget {
                       builder: (_) => Dialog(
                         backgroundColor: Colors.transparent,
                         child: InteractiveViewer(
-                          child: TimedCachedImage(
-                            imageUrl: url!,
+                          child: AdminRemoteImage(
+                            url: url!,
                             fit: BoxFit.contain,
                           ),
                         ),
                       ),
                     ),
-                    child: TimedCachedImage(imageUrl: url!, fit: BoxFit.cover),
+                    // A signed deposit link on R2's origin, which sends the
+                    // console no CORS header (admin-remote-images.md).
+                    child: AdminRemoteImage(url: url!),
                   ),
           ),
         ),

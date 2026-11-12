@@ -14,7 +14,7 @@ import '../../widgets/common/app_async_view.dart';
 import '../../widgets/common/app_button.dart';
 import '../../widgets/common/app_skeleton.dart';
 import '../../widgets/common/app_snack_bar.dart';
-import '../../widgets/common/timed_cached_image.dart';
+import 'widgets/admin_remote_image.dart';
 import 'widgets/admin_scaffold.dart';
 import 'widgets/reason_dialog.dart';
 import 'widgets/status_chip.dart';
@@ -330,14 +330,16 @@ class _DocTile extends StatelessWidget {
                       builder: (_) => Dialog(
                         backgroundColor: Colors.transparent,
                         child: InteractiveViewer(
-                          child: TimedCachedImage(
-                            imageUrl: url!,
+                          child: AdminRemoteImage(
+                            url: url!,
                             fit: BoxFit.contain,
                           ),
                         ),
                       ),
                     ),
-                    child: TimedCachedImage(imageUrl: url!, fit: BoxFit.cover),
+                    // A signed link on R2's origin, which sends the console no
+                    // CORS header: drawn by the browser (admin-remote-images.md).
+                    child: AdminRemoteImage(url: url!),
                   ),
           ),
         ),

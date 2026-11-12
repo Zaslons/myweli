@@ -536,7 +536,7 @@ widget; a third inline copy is a review failure.
 | `PhoneNumberField` | `onChanged, label, initialValue, initialCountryCode, errorText, enabled, focusNode` | Country picker (default CI, any country) + national digits. **The only way to take a phone number** — true on every screen since phone-national-length.md converted the last three free-text ones (Acompte, Profil du salon ×2, Ajouter un salon). Emits the **normalized** value: `''` while no national digit is typed, else `+<indicatif><chiffres>` without a separator, and re-emits on a country switch — what a screen checks is what it sends. A prefilled `+…` shows under **its** country (longest calling code). `autovalidateMode` stays `disabled`: the rule is `Validators.phoneNumber` / `optionalPhoneNumber` through `FieldErrors` (§14 rule 2). |
 | `LoadingIndicator` | `size, color` | The brand loader. The **only** spinner. |
 | `EmptyState` | `icon, title, description, actionText, onAction` | Icon at `iconXL`. Bounded height: it scrolls; unbounded (inside a list or a box sliver): it centres. **Not in a `SliverFillRemaining(hasScrollBody: false)`** — that sliver asks its child for an intrinsic height, which the `LayoutBuilder` cannot give; use a `SliverToBoxAdapter` (B7.4). |
-| `TimedCachedImage` | network + `asset:` + caching | The **only** way to show a remote image — one sanctioned exception, the admin console's salon photos (§19). |
+| `TimedCachedImage` | network + `asset:` + caching | The **only** way to show a remote image — **except in the admin console**, which draws them with `AdminRemoteImage` (§11.2). |
 | `BrandLoader` / `BrandRefresh` | | Brand-mark loader + pull-to-refresh. |
 | `CommunePickerSheet` / `CommunePill` | | Locality selection (market data — §18). |
 | **`SalonMapMarker`** | `SalonMapMarker({required category, isFavorite})` + `salonCategoryIcon(category)` | A salon on a map — white disc, 2dp ring and icon in `categoryColor` (§3.6), heart badge when favourite. **The only salon pin**: « Carte » and the salon page's preview both draw it, and the web's `SalonPin` is the same drawing. Moved out of `map_screen.dart` (salon-location-map.md) |
@@ -555,6 +555,7 @@ widget; a third inline copy is a review failure.
 | `StatCard` | |
 | `StatusChip` | `StatusChip.forStatus(String)` → semantic kind + French label. Kind, not color, is the API. |
 | `showReasonDialog` | |
+| **`AdminRemoteImage`** | `AdminRemoteImage({required url, fit = cover, semanticLabel})` — **the only way the console draws an image from another origin** (a signed KYC or deposit link, a CDN photo). The browser draws it as a plain `<img>` (`WebHtmlElementStrategy.prefer`, no header), because R2 sends `admin.myweli.com` no CORS header and `TimedCachedImage` cannot load it there. Loading = `BrandLoader` on `surface`; error = « Image indisponible », no retry. Gate: `test/infra/admin_remote_images_guard_test.dart` walks the console's imports ([admin-remote-images.md](admin-remote-images.md)) |
 
 ### 11.3 To build (the gaps this system creates work for)
 
