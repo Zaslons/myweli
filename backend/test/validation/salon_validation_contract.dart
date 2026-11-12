@@ -125,7 +125,8 @@ void salonValidationContract({
         note: 'Plus de photos du salon.',
         at: at(5),
       );
-      final r = await w.validations.submit(id, at(10));
+      final seen = (await w.validations.get(id))!;
+      final r = await w.validations.submit(id, at(10), seen: seen);
       expect(r.recorded, isTrue);
       final v = r.validation!;
       expect(v.state, ValidationStates.pending);
@@ -142,6 +143,91 @@ void salonValidationContract({
       ]);
       expect(events[1].refusalCode, 'photos');
       expect(events[1].refusalNote, 'Plus de photos du salon.');
+    });
+
+    test('a request that read « never asked » never overwrites a row that '
+        'appeared since — not even a refusal (the slow second tap)', () async {
+      final w = world();
+      final id = await pendingSalon(w);
+      await w.validations.decide(
+        id,
+        from: ValidationStates.pending,
+        to: ValidationStates.refused,
+        adminId: admin,
+        code: 'photos',
+        at: at(5),
+      );
+      final r = await w.validations.submit(id, at(10));
+      expect(r.recorded, isFalse);
+      expect(r.validation!.state, ValidationStates.refused);
+      expect(r.validation!.refusalCode, 'photos');
+      expect((await w.validations.get(id))!.state, ValidationStates.refused);
+      expect(await w.validations.events(id), hasLength(2));
+    });
+
+    test('a request that read one refusal never reopens a NEWER one', () async {
+      final w = world();
+      final id = await pendingSalon(w);
+      await w.validations.decide(
+        id,
+        from: ValidationStates.pending,
+        to: ValidationStates.refused,
+        adminId: admin,
+        code: 'photos',
+        at: at(5),
+      );
+      final first = (await w.validations.get(id))!;
+      // Asked again, and refused again — a new decision.
+      expect(
+        (await w.validations.submit(id, at(10), seen: first)).recorded,
+        isTrue,
+      );
+      await w.validations.decide(
+        id,
+        from: ValidationStates.pending,
+        to: ValidationStates.refused,
+        adminId: admin,
+        code: 'unconfirmed',
+        at: at(20),
+      );
+      // A request still carrying the FIRST refusal arrives late.
+      final r = await w.validations.submit(id, at(30), seen: first);
+      expect(r.recorded, isFalse);
+      expect(r.validation!.state, ValidationStates.refused);
+      expect(r.validation!.refusalCode, 'unconfirmed');
+      expect(await w.validations.events(id), hasLength(4));
+    });
+
+    test('a request from any other state is a programming error, and writes '
+        'nothing', () async {
+      final w = world();
+      final id = await pendingSalon(w);
+      final pending = (await w.validations.get(id))!;
+      await expectLater(
+        w.validations.submit(id, at(10), seen: pending),
+        throwsArgumentError,
+      );
+      final other = await salon(w);
+      await w.validations.decide(
+        id,
+        from: ValidationStates.pending,
+        to: ValidationStates.refused,
+        adminId: admin,
+        code: 'test_salon',
+        at: at(5),
+      );
+      final finalRefusal = (await w.validations.get(id))!;
+      await expectLater(
+        w.validations.submit(id, at(10), seen: finalRefusal),
+        throwsArgumentError,
+      );
+      await expectLater(
+        w.validations.submit(other, at(10), seen: finalRefusal),
+        throwsArgumentError,
+        reason: 'another salon\'s validation',
+      );
+      expect(await w.validations.get(other), isNull);
+      expect(await w.validations.events(id), hasLength(2));
     });
 
     for (final code in kFinalRefusalCodes) {

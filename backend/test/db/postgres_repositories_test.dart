@@ -2184,7 +2184,7 @@ void main() {
   // ---- B0.18: a salon goes public only once MyWeli validates it ----------
   // Migration 0044 (docs/design/salon-go-live-approval.md §2, §3). The
   // in-memory twin proves the interface; only these prove the statements:
-  // the folded upsert, the compare-and-sets, and the going-live that must
+  // the two upserts, the compare-and-sets, and the going-live that must
   // roll back BOTH writes when any part fails.
   group('salon validation (0044)', () {
     final stamp = DateTime.now().microsecondsSinceEpoch;

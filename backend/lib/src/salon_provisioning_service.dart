@@ -314,8 +314,10 @@ class SalonProvisioningService {
       // Already asked: no new event, no second e-mail to the admin.
       return _accepted(current);
     }
-    // Never asked, or refused for a reason the salon could fix: a request.
-    final outcome = await validations.submit(providerId, _now());
+    // Never asked, or refused for a reason the salon could fix: a request —
+    // from the state just read, so a request still in flight when the admin
+    // decides (a double tap, a slow retry) can never reopen that decision.
+    final outcome = await validations.submit(providerId, _now(), seen: current);
     final v = outcome.validation;
     if (outcome.recorded && v != null) {
       // Only a row that came back is a NEW request (a double tap records

@@ -182,16 +182,29 @@ abstract interface class SalonValidationRepository {
   /// Salons without a row are absent from the map.
   Future<Map<String, SalonValidation>> getMany(Iterable<String> providerIds);
 
-  /// The owner asks to go live (§3.1). In one transaction:
+  /// The owner asks to go live (§3.1), from the validation the caller READ
+  /// — [seen] — so a request in flight can only act on the state it saw. In
+  /// one transaction:
   ///
-  /// - **no row:** a `pending` row — `INSERT … ON CONFLICT DO NOTHING`;
-  /// - **`refused` with a code that is not final:** back to `pending`, the
-  ///   refusal cleared from the state row — the same upsert's `DO UPDATE …
-  ///   WHERE state = 'refused'`;
-  /// - **anything else** (`pending`, `approved`, a final refusal): nothing;
+  /// - **[seen] null** (the caller read « never asked »): a `pending` row —
+  ///   `INSERT … ON CONFLICT DO NOTHING`. A row that appeared since — the
+  ///   other tap of a double tap, or that tap's request already REFUSED by
+  ///   the admin — is never overwritten: a slow second tap must not reopen a
+  ///   refusal the owner has just been told about;
+  /// - **[seen] a refusal that is not final:** back to `pending`, the
+  ///   refusal cleared from the state row — `INSERT … ON CONFLICT DO UPDATE …
+  ///   WHERE state = 'refused'`, the code still not final, and the refusal
+  ///   still the one the caller read (its `decided_at`): a newer refusal the
+  ///   owner has not read stands;
   ///
-  /// and a `submitted` event only when a row came back. See [SubmitOutcome].
-  Future<SubmitOutcome> submit(String providerId, DateTime at);
+  /// and a `submitted` event only when a row came back. [seen] in any other
+  /// state is a programming error ([ArgumentError]): the caller answers a
+  /// pending, validated or finally refused salon itself. See [SubmitOutcome].
+  Future<SubmitOutcome> submit(
+    String providerId,
+    DateTime at, {
+    SalonValidation? seen,
+  });
 
   /// The admin's decision (§3.2 step 2, §3.3): a compare-and-set on
   /// `state = from`, with its event, in one transaction. Null when no row
@@ -289,6 +302,23 @@ void checkDecision({
   }
 }
 
+/// [SalonValidationRepository.submit]'s argument check, shared by both
+/// twins: a request acts from « never asked » or from a refusal that is not
+/// final, of the same salon.
+void checkSubmitSeen(String providerId, SalonValidation? seen) {
+  if (seen == null) return;
+  if (seen.providerId != providerId) {
+    throw ArgumentError.value(seen.providerId, 'seen', 'another salon');
+  }
+  if (seen.state != ValidationStates.refused || seen.isFinalRefusal) {
+    throw ArgumentError.value(
+      seen.state,
+      'seen',
+      'a request acts only from « never asked » or a refusal that is not final',
+    );
+  }
+}
+
 /// Queue paging checks shared by both twins (the route clamps; this keeps a
 /// wrong caller from reading an unbounded or negative page).
 void checkQueueArgs(String state, int page, int pageSize) {
@@ -365,12 +395,23 @@ class InMemorySalonValidationRepository implements SalonValidationRepository {
   };
 
   @override
-  Future<SubmitOutcome> submit(String providerId, DateTime at) async {
+  Future<SubmitOutcome> submit(
+    String providerId,
+    DateTime at, {
+    SalonValidation? seen,
+  }) async {
+    checkSubmitSeen(providerId, seen);
     final when = at.toUtc();
     final current = _rows[providerId];
-    final asks =
-        current == null ||
-        (current.state == ValidationStates.refused && !current.isFinalRefusal);
+    // The Postgres twin's two upserts, spelled out: from « never asked »
+    // only while there is still no row; from a refusal only while it is
+    // still THAT refusal, and not final.
+    final asks = seen == null
+        ? current == null
+        : current != null &&
+              current.state == ValidationStates.refused &&
+              !current.isFinalRefusal &&
+              current.decidedAt == seen.decidedAt;
     if (!asks) return (recorded: false, validation: current);
     final row = SalonValidation(
       providerId: providerId,

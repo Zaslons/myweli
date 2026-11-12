@@ -57,29 +57,48 @@ class PostgresSalonValidationRepository implements SalonValidationRepository {
   }
 
   @override
-  Future<SubmitOutcome> submit(String providerId, DateTime at) async {
+  Future<SubmitOutcome> submit(
+    String providerId,
+    DateTime at, {
+    SalonValidation? seen,
+  }) async {
+    checkSubmitSeen(providerId, seen);
     final recorded = await _pool.runTx<SalonValidation?>((tx) async {
-      // §3.1's two upserts in one statement. No row: the INSERT. A row:
-      // `DO UPDATE` only `WHERE state = 'refused'` with a code that is not
-      // final — the request asked again; for any other row the WHERE is
-      // false and nothing is written, which is the first upsert's
-      // `DO NOTHING`. Either way RETURNING yields a row only when THIS
-      // statement recorded a request, so a double tap records once.
+      // §3.1's two upserts, chosen by what the caller READ. RETURNING yields
+      // a row only when THIS statement recorded a request, so a double tap
+      // records once.
       final r = await tx.execute(
         Sql.named(
-          'INSERT INTO salon_validations '
-          '(provider_id, state, submitted_at) '
-          "VALUES (@p, 'pending', @at) "
-          'ON CONFLICT (provider_id) DO UPDATE SET '
-          "state = 'pending', submitted_at = EXCLUDED.submitted_at, "
-          'decided_at = NULL, decided_by = NULL, '
-          'refusal_code = NULL, refusal_note = NULL '
-          "WHERE salon_validations.state = 'refused' "
-          'AND (salon_validations.refusal_code IS NULL '
-          'OR salon_validations.refusal_code NOT IN ($_finalCodesSql)) '
-          'RETURNING *',
+          seen == null
+              // Read « never asked »: insert, or nothing. A row that
+              // appeared since — the other tap's request, maybe already
+              // refused — is left exactly as it is.
+              ? 'INSERT INTO salon_validations '
+                    '(provider_id, state, submitted_at) '
+                    "VALUES (@p, 'pending', @at) "
+                    'ON CONFLICT (provider_id) DO NOTHING RETURNING *'
+              // Read a refusal that is not final: back to pending only
+              // while the row is STILL that refusal (its decision time),
+              // and still not final.
+              : 'INSERT INTO salon_validations '
+                    '(provider_id, state, submitted_at) '
+                    "VALUES (@p, 'pending', @at) "
+                    'ON CONFLICT (provider_id) DO UPDATE SET '
+                    "state = 'pending', submitted_at = EXCLUDED.submitted_at, "
+                    'decided_at = NULL, decided_by = NULL, '
+                    'refusal_code = NULL, refusal_note = NULL '
+                    "WHERE salon_validations.state = 'refused' "
+                    'AND (salon_validations.refusal_code IS NULL '
+                    'OR salon_validations.refusal_code NOT IN ($_finalCodesSql)) '
+                    'AND salon_validations.decided_at '
+                    'IS NOT DISTINCT FROM @seen:timestamptz '
+                    'RETURNING *',
         ),
-        parameters: {'p': providerId, 'at': at.toUtc()},
+        parameters: {
+          'p': providerId,
+          'at': at.toUtc(),
+          if (seen != null) 'seen': seen.decidedAt?.toUtc(),
+        },
       );
       if (r.isEmpty) return null;
       await _insertEvent(

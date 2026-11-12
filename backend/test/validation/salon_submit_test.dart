@@ -14,11 +14,15 @@ class _RacingValidations extends InMemorySalonValidationRepository {
   Future<void> Function()? beforeSubmit;
 
   @override
-  Future<SubmitOutcome> submit(String providerId, DateTime at) async {
+  Future<SubmitOutcome> submit(
+    String providerId,
+    DateTime at, {
+    SalonValidation? seen,
+  }) async {
     final hook = beforeSubmit;
     beforeSubmit = null;
     if (hook != null) await hook();
-    return super.submit(providerId, at);
+    return super.submit(providerId, at, seen: seen);
   }
 }
 
@@ -355,6 +359,62 @@ void main() {
         expect(r.ok, isTrue);
         expect(r.accepted, isFalse, reason: 'the real state is live');
         expect((r.data! as Map)['status'], 'active');
+        expect(w.adminMail.sent, isEmpty);
+      });
+
+      test('a SLOW SECOND TAP: it read « never asked », the first tap\'s '
+          'request was refused meanwhile → 202 with the REAL state '
+          '(refused); the refusal stands, no second admin e-mail', () async {
+        final s = await w.salon();
+        racing.beforeSubmit = () async {
+          // The first tap lands whole, then the admin refuses it — all
+          // while the second tap is between its read and its upsert.
+          final first = await w.provisioning.publish(s.id);
+          expect(first.accepted, isTrue);
+          final refused = await w.service.refuse(
+            s.id,
+            code: 'photos',
+            note: null,
+            adminId: 'a',
+          );
+          expect(refused.ok, isTrue, reason: '${refused.error}');
+        };
+        final second = await w.provisioning.publish(s.id);
+        expect(second.accepted, isTrue);
+        expect(validationOf(second)['state'], 'refused');
+        expect((validationOf(second)['refusal'] as Map)['code'], 'photos');
+        expect((await w.validations.get(s.id))!.state, 'refused');
+        expect((await w.validations.events(s.id)).map((e) => e.kind), [
+          'submitted',
+          'refused',
+        ]);
+        expect(w.adminMail.sent, hasLength(1));
+      });
+
+      test('a request that read one refusal never reopens a NEWER one the '
+          'owner has not read', () async {
+        final id = await refusedFor('photos');
+        racing.beforeSubmit = () async {
+          // Another device asks again, and the admin refuses that request
+          // too — a new decision, at a new time.
+          w.now = w.now.add(const Duration(hours: 1));
+          final again = await w.provisioning.publish(id);
+          expect(validationOf(again)['state'], 'pending');
+          w.now = w.now.add(const Duration(hours: 1));
+          final r = await w.service.refuse(
+            id,
+            code: 'unconfirmed',
+            note: null,
+            adminId: 'a',
+          );
+          expect(r.ok, isTrue, reason: '${r.error}');
+          w.adminMail.sent.clear();
+        };
+        final stale = await w.provisioning.publish(id);
+        expect(stale.accepted, isTrue);
+        expect(validationOf(stale)['state'], 'refused');
+        expect((validationOf(stale)['refusal'] as Map)['code'], 'unconfirmed');
+        expect((await w.validations.get(id))!.state, 'refused');
         expect(w.adminMail.sent, isEmpty);
       });
 
