@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | Built (§1–§5, #744) · **§6, decision 105: the bar fixed, with measured room. Specified on 2026-11-09 before the code, then built the same day on `feat/web-funnel-bar-fixed`, stacked on #741, each new guard watched red (§6.7); not merged** |
+| **Status** | Built (§1–§5, #744) · **§6, decision 105: the bar fixed, with measured room. Specified on 2026-11-09 before the code, then built the same day on `feat/web-funnel-bar-fixed`, stacked on #741, each new guard watched red (§6.7); merged 2026-11-10** (`dd8f312e`, #750), right after #741. Live: `myweli.com` serves the build of `9558c8ee`, which contains it (read 2026-11-12); not read on a page: with no public salon, the funnel redirects (307) to the salon's page |
 | **Owner** | Sadreddine Daher |
 | **Last updated** | 2026-11-09 |
 | **Governs** | the bottom bar, the summary panel and the hub's padding in `web/components/booking/BookingFlow.tsx` · the salon page's `BarClearance` (`web/components/provider/BarClearance.tsx`), which the bar renders since decision 105 · the bar checks in `web/tests/e2e/type-overflow.spec.ts` and `web/tests/e2e/funnel-bar.spec.ts` · `web/tests/funnel-bar.test.tsx` · the bar's lookup in `web/tests/e2e/booking.spec.ts` |
