@@ -598,12 +598,34 @@ void main() {
       kRouteMissingCode,
     ];
     final generic = AdminService.sentenceFor(null);
+    // The salon routes' answers are worded by salonSentenceFor (_typed).
     for (final c in codes) {
-      expect(AdminService.sentenceFor(c), isNot(generic), reason: c);
+      expect(AdminService.salonSentenceFor(c), isNot(generic), reason: c);
       expect(
-        AdminService.sentenceFor(c).toLowerCase(),
+        AdminService.salonSentenceFor(c).toLowerCase(),
         isNot(contains('vérif')),
         reason: '« vérification » is KYC\'s word (spec, Vocabulary): $c',
+      );
+    }
+  });
+
+  test('invalid_state: the salon routes word it for the salon; the shared '
+      'map keeps it neutral, for every other admin endpoint, the KYC '
+      'decisions included (admin-kyc-queue-submitted.md §4.5)', () {
+    expect(
+      AdminService.salonSentenceFor('invalid_state'),
+      'L’état du salon a changé entre-temps. Rechargez la page, puis '
+      'réessayez.',
+    );
+    expect(
+      AdminService.sentenceFor('invalid_state'),
+      'Cette action n’est plus possible.',
+    );
+    for (final c in ['not_found', 'no_owner', 'validation_not_pending']) {
+      expect(
+        AdminService.salonSentenceFor(c),
+        AdminService.sentenceFor(c),
+        reason: c,
       );
     }
   });

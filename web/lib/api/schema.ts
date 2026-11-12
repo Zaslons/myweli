@@ -5053,7 +5053,7 @@ export interface paths {
         };
         /**
          * KYC approval queue (B-admin, FR-WEB-AD-001)
-         * @description Providers awaiting verification (`verification_status=pending`), paginated.
+         * @description Accounts awaiting review: `verificationStatus` `pending` **and** at least one KYC document, **oldest submission first** (then by id), paginated. `pending` alone is every account never verified or refused — team members and salons that never sent a document included — so it is not the queue. Design: docs/design/admin-kyc-queue-submitted.md.
          */
         get: {
             parameters: {
@@ -5067,7 +5067,7 @@ export interface paths {
             };
             requestBody?: never;
             responses: {
-                /** @description Paginated pending accounts */
+                /** @description Paginated accounts awaiting review */
                 200: {
                     headers: {
                         [name: string]: unknown;
@@ -5078,8 +5078,11 @@ export interface paths {
                                 accountId?: string;
                                 businessName?: string;
                                 businessType?: string;
-                                /** Format: date-time */
-                                submittedAt?: string;
+                                /**
+                                 * Format: date-time
+                                 * @description The latest submission's time: the newest server-set `submittedAt` among the documents. Null only when no stored stamp parses. Never the account's creation time.
+                                 */
+                                submittedAt?: string | null;
                                 docCount?: number;
                             }[];
                             page?: number;
@@ -5109,7 +5112,7 @@ export interface paths {
         };
         /**
          * KYC submission detail with signed doc URLs (B-admin)
-         * @description Full provider account plus `docs[]`, each with a short-lived **signed-GET** `viewUrl` into the private KYC bucket (bytes never proxied through the API).
+         * @description Full provider account plus `docs[]`, each with a short-lived (5 min) **signed-GET** `viewUrl` into the private KYC bucket (bytes never proxied through the API) and `format` — `pdf` or `image`, from the server-built key's extension (a PDF cannot be drawn as an image). Plus `awaitingReview` (boolean): the queue's definition, so a client shows approve/reject only when it is true.
          */
         get: {
             parameters: {
@@ -5153,7 +5156,10 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Approve verification (B-admin) — audited */
+        /**
+         * Approve verification (B-admin) — audited
+         * @description Only an account awaiting review (`pending` with at least one document); anything else is `409 invalid_state`, with no audit row and no badge change.
+         */
         post: {
             parameters: {
                 query?: never;
@@ -5177,6 +5183,7 @@ export interface paths {
                 401: components["responses"]["Unauthorized"];
                 403: components["responses"]["Forbidden"];
                 404: components["responses"]["NotFound"];
+                409: components["responses"]["Conflict"];
             };
         };
         delete?: never;
@@ -5194,7 +5201,10 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Reject verification with a reason (B-admin) — audited */
+        /**
+         * Reject verification with a reason (B-admin) — audited
+         * @description Only an account awaiting review, as approve: a verified or refused account, or one that never submitted, is `409 invalid_state`. An empty reason is `400 invalid_input` first.
+         */
         post: {
             parameters: {
                 query?: never;
@@ -5225,6 +5235,7 @@ export interface paths {
                 401: components["responses"]["Unauthorized"];
                 403: components["responses"]["Forbidden"];
                 404: components["responses"]["NotFound"];
+                409: components["responses"]["Conflict"];
             };
         };
         delete?: never;
@@ -6859,7 +6870,7 @@ export interface paths {
         };
         /**
          * Marketplace-health KPI snapshot (B-admin, FR-WEB-AD-006)
-         * @description Read-only DB-derived KPIs: users (active/banned), providers (active/suspended, and `pendingValidation` — B0.18: the salons waiting for MyWeli's validation, the same number as `GET /admin/salon-validations?state=pending`'s `total`, suspended salons left out), provider verification (pending/verified/rejected), bookings by status, no-show + cancellation rates, open/total disputes, reported-reviews count. Event-based funnels (search→book) are deferred (need a product-analytics stack).
+         * @description Read-only DB-derived KPIs: users (active/banned), providers (active/suspended, and `pendingValidation` — B0.18: the salons waiting for MyWeli's validation, the same number as `GET /admin/salon-validations?state=pending`'s `total`, suspended salons left out), provider verification (pending/verified/rejected — `pending` is the KYC queue's total, accounts awaiting review), bookings by status, no-show + cancellation rates, open/total disputes, reported-reviews count. Event-based funnels (search→book) are deferred (need a product-analytics stack).
          */
         get: {
             parameters: {

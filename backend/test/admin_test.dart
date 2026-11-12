@@ -18,6 +18,8 @@ import 'package:test/test.dart';
 
 import '../routes/admin/_middleware.dart' as mw;
 import '../routes/admin/auth/login.dart' as login_route;
+import '../routes/admin/kyc/[accountId]/approve.dart' as approve_route;
+import '../routes/admin/kyc/[accountId]/reject.dart' as reject_route;
 
 class _MockRequestContext extends Mock implements RequestContext {}
 
@@ -166,6 +168,12 @@ void main() {
       // public listing (and reject flips it back off).
       final acct = (r.data! as Map)['providerId'] as String;
       expect((await listings.byId(acct))!['verified'], isTrue);
+      // Rejecting the verified account straight away is refused now
+      // (admin-kyc-queue-submitted.md §4.5); the badge turns off when a
+      // NEW submission is refused.
+      await providers.submitKyc(accountId, [
+        {'type': 'idCard', 'key': 'kyc/$accountId/again.jpg'},
+      ]);
       await svc.reject('admin_1', accountId, 'photos illisibles');
       expect((await listings.byId(acct))!['verified'], isFalse);
     });
@@ -219,10 +227,223 @@ void main() {
       expect((await listings.byId(secondId))!['verified'], isTrue);
       expect((await listings.byId(managedId))!['verified'], isNot(isTrue));
 
+      // A new submission, refused (a verified account cannot be rejected
+      // as such — admin-kyc-queue-submitted.md §4.5).
+      await providers.submitKyc(accountId, [
+        {'type': 'idCard', 'key': 'kyc/$accountId/again.jpg'},
+      ]);
       await svc.reject('admin_1', accountId, 'photos illisibles');
       expect((await listings.byId(linked))!['verified'], isFalse);
       expect((await listings.byId(secondId))!['verified'], isFalse);
       expect((await listings.byId(managedId))!['verified'], isNot(isTrue));
+    });
+
+    // --- docs/design/admin-kyc-queue-submitted.md --------------------------
+
+    /// A salon account with no KYC — `pending` by the column default.
+    Future<String> salon(String tag) async => (await providers.register(
+      email: '$tag@test.pro',
+      authProvider: 'google',
+      googleSub: 'sub-$tag',
+      phoneNumber: '+2250500000091',
+      businessName: 'Salon $tag',
+      businessType: 'salon',
+    )).provider!.id;
+
+    /// A submission whose documents carry [at] as their server stamp.
+    Future<void> submitAt(String id, DateTime at, {String ext = 'jpg'}) =>
+        providers.submitKyc(id, [
+          {
+            'type': 'idCard',
+            'key': 'kyc/$id/id.$ext',
+            'submittedAt': at.toUtc().toIso8601String(),
+          },
+          {
+            'type': 'selfie',
+            'key': 'kyc/$id/selfie.jpg',
+            'submittedAt': at.toUtc().toIso8601String(),
+          },
+        ]);
+
+    List<String> ids(Map<dynamic, dynamic> data) => [
+      for (final i in data['items'] as List) (i as Map)['accountId'] as String,
+    ];
+
+    test('the queue holds only submissions: a salon that never sent a '
+        'document and a bare team member are not in it', () async {
+      await salon('never');
+      await providers.createMemberAccount(
+        email: 'member@test.pro',
+        authProvider: 'google',
+        googleSub: 'sub-member',
+      );
+      final data = (await svc.queue()).data! as Map;
+      expect(ids(data), [accountId]);
+      expect(data['total'], 1);
+    });
+
+    test('oldest SUBMISSION first, whatever the account age; a document '
+        'with no stamp is last, with submittedAt null', () async {
+      final older = await salon('older');
+      final newer = await salon('newer');
+      // The older account submits first, the newer one later.
+      await submitAt(older, DateTime.utc(2030, 1, 1, 9));
+      await submitAt(newer, DateTime.utc(2030, 1, 2, 9));
+      final data = (await svc.queue()).data! as Map;
+      // setUp's submission carries no stamp → last.
+      expect(ids(data), [older, newer, accountId]);
+      final items = (data['items'] as List).cast<Map<String, dynamic>>();
+      expect(items[0]['submittedAt'], '2030-01-01T09:00:00.000Z');
+      expect(items[1]['submittedAt'], '2030-01-02T09:00:00.000Z');
+      expect(items[2]['submittedAt'], isNull);
+      expect(items[0]['docCount'], 2);
+    });
+
+    test(
+      'submittedAt is the submission time, not the account creation',
+      () async {
+        final id = await salon('stamp');
+        final created = (await providers.accountById(id))!.createdAt;
+        final at = DateTime.utc(2031, 3, 4, 5, 6, 7);
+        await submitAt(id, at);
+        final item = ((await svc.queue()).data! as Map)['items'] as List;
+        final mine = item.cast<Map<String, dynamic>>().firstWhere(
+          (i) => i['accountId'] == id,
+        );
+        expect(mine['submittedAt'], at.toIso8601String());
+        expect(mine['submittedAt'], isNot(created.toIso8601String()));
+      },
+    );
+
+    test('a resubmission after a refusal re-enters at its NEW time', () async {
+      // b's account is OLDER than a's, so account age alone would put a
+      // first (it did: newest account first) — only the submission times
+      // put b first.
+      final b = await salon('between');
+      final a = await salon('again');
+      await submitAt(a, DateTime.utc(2030, 1, 1));
+      await svc.reject('admin_1', a, 'illisible');
+      await submitAt(b, DateTime.utc(2030, 1, 2));
+      await submitAt(a, DateTime.utc(2030, 1, 3));
+      expect(ids((await svc.queue()).data! as Map), [b, a, accountId]);
+    });
+
+    test("the demo reset's empty `pending` leaves the queue", () async {
+      // demo_reset_service.dart erases a reviewer's KYC this way.
+      await providers.submitKyc(accountId, const []);
+      final data = (await svc.queue()).data! as Map;
+      expect(data['total'], 0);
+      expect(data['items'], isEmpty);
+    });
+
+    test('pagination: pages and total agree, no row twice', () async {
+      final a = await salon('p1');
+      final b = await salon('p2');
+      await submitAt(a, DateTime.utc(2030, 1, 1));
+      await submitAt(b, DateTime.utc(2030, 1, 2));
+      final p1 = (await svc.queue(pageSize: 2)).data! as Map;
+      final p2 = (await svc.queue(page: 2, pageSize: 2)).data! as Map;
+      expect(p1['total'], 3);
+      expect(p2['total'], 3);
+      expect([...ids(p1), ...ids(p2)], [a, b, accountId]);
+    });
+
+    test('approve and reject REFUSE an account that never submitted: '
+        'invalid_state, no audit row, no badge', () async {
+      final id = await salon('empty');
+      final listing = await listings.createSalon(
+        name: 'Salon Vide',
+        category: 'salon',
+        phoneNumber: '+2250700000044',
+      );
+      await providers.linkProvider(id, listing['id'] as String);
+
+      expect((await svc.approve('admin_1', id)).error, 'invalid_state');
+      expect((await svc.reject('admin_1', id, 'x')).error, 'invalid_state');
+      expect((await providers.accountById(id))!.verificationStatus, 'pending');
+      expect((await audit.list()).total, 0);
+      expect(
+        (await listings.byId(listing['id'] as String))!['verified'],
+        isNot(isTrue),
+      );
+    });
+
+    test('approve and reject refuse a verified or a refused account', () async {
+      expect((await svc.approve('admin_1', accountId)).ok, isTrue);
+      expect((await svc.approve('admin_1', accountId)).error, 'invalid_state');
+      expect(
+        (await svc.reject('admin_1', accountId, 'x')).error,
+        'invalid_state',
+      );
+
+      final other = await salon('refused');
+      await submitAt(other, DateTime.utc(2030));
+      expect((await svc.reject('admin_1', other, 'flou')).ok, isTrue);
+      expect((await svc.approve('admin_1', other)).error, 'invalid_state');
+      expect((await svc.reject('admin_1', other, 'x')).error, 'invalid_state');
+
+      // One approve + one reject: the refusals wrote nothing.
+      expect((await audit.list()).total, 2);
+    });
+
+    test('an empty reason is still invalid_input before the state check; '
+        'an unknown account still not_found', () async {
+      final id = await salon('reason');
+      expect((await svc.reject('admin_1', id, ' ')).error, 'invalid_input');
+      expect((await svc.reject('admin_1', 'nope', 'x')).error, 'not_found');
+    });
+
+    test('detail: each document says pdf or image; awaitingReview follows '
+        'the queue', () async {
+      final id = await salon('pdf');
+      await submitAt(id, DateTime.utc(2030), ext: 'pdf');
+      final d = (await svc.detail(id)).data! as Map;
+      final docs = (d['docs'] as List).cast<Map<String, dynamic>>();
+      expect(docs.map((x) => x['format']), ['pdf', 'image']);
+      expect(d['awaitingReview'], isTrue);
+
+      await svc.approve('admin_1', id);
+      expect(((await svc.detail(id)).data! as Map)['awaitingReview'], isFalse);
+      final never = await salon('nodoc');
+      final n = (await svc.detail(never)).data! as Map;
+      expect(n['awaitingReview'], isFalse);
+      expect(n['docs'], isEmpty);
+    });
+
+    group('routes', () {
+      RequestContext post(String path, Object? body) {
+        final c = _MockRequestContext();
+        final adminTok = tokens
+            .issueAccessToken(subject: 'admin_1', role: 'admin')
+            .token;
+        when(() => c.request).thenReturn(
+          Request.post(
+            Uri.parse('http://localhost$path'),
+            headers: {'Authorization': 'Bearer $adminTok'},
+            body: body == null ? null : jsonEncode(body),
+          ),
+        );
+        when(() => c.read<TokenService>()).thenReturn(tokens);
+        when(() => c.read<AdminKycService>()).thenReturn(svc);
+        return c;
+      }
+
+      test('approve / reject a never-submitted account → 409 invalid_state '
+          'in the standard envelope', () async {
+        final id = await salon('route');
+        final a = await approve_route.onRequest(
+          post('/admin/kyc/$id/approve', null),
+          id,
+        );
+        expect(a.statusCode, HttpStatus.conflict);
+        expect(jsonDecode(await a.body()), {'error': 'invalid_state'});
+        final r = await reject_route.onRequest(
+          post('/admin/kyc/$id/reject', {'reason': 'x'}),
+          id,
+        );
+        expect(r.statusCode, HttpStatus.conflict);
+        expect(jsonDecode(await r.body()), {'error': 'invalid_state'});
+      });
     });
   });
 

@@ -77,6 +77,64 @@ void main() {
     expect((data['disputes'] as Map)['open'], 1);
   });
 
+  test(
+    'verification.pending = the KYC queue: submissions awaiting review, '
+    'not every account never verified (admin-kyc-queue-submitted.md §4.4)',
+    () async {
+      final providerAuth = InMemoryProviderAuthRepository(
+        tokens: tokens,
+        echoDevCode: true,
+      );
+      Future<String> salon(String tag) async => (await providerAuth.register(
+        email: '$tag@test.pro',
+        authProvider: 'google',
+        googleSub: 'sub-$tag',
+        phoneNumber: '+2250500000092',
+        businessName: 'Salon $tag',
+        businessType: 'salon',
+      )).provider!.id;
+      final submitted = await salon('sent');
+      await salon('never');
+      await providerAuth.createMemberAccount(
+        email: 'member@test.pro',
+        authProvider: 'google',
+        googleSub: 'sub-member',
+      );
+      await providerAuth.submitKyc(submitted, [
+        {'type': 'idCard', 'key': 'kyc/$submitted/id.jpg'},
+      ]);
+      final verified = await salon('ok');
+      await providerAuth.submitKyc(verified, [
+        {'type': 'idCard', 'key': 'kyc/$verified/id.jpg'},
+      ]);
+      await providerAuth.setVerification(verified, status: 'verified');
+
+      final providers = InMemoryProvidersRepository();
+      final svc = AnalyticsService(
+        InMemoryAppointmentRepository(),
+        providers,
+        InMemoryAuthRepository(tokens: tokens, echoDevCode: true),
+        providerAuth,
+        InMemoryDisputesRepository(),
+        InMemoryReviewsRepository(),
+        validations: InMemorySalonValidationRepository(
+          providers: providers,
+          members: InMemoryMembershipRepository(),
+        ),
+      );
+      final data = (await svc.overview()).data! as Map;
+      final v = data['verification'] as Map;
+      expect(v['pending'], 1);
+      expect(v['verified'], 1);
+      expect(v['rejected'], 0);
+      expect(
+        (data['providers'] as Map)['pendingValidation'],
+        0,
+        reason: 'a KYC submission is not a request to go live (B0.18)',
+      );
+    },
+  );
+
   test('providers.pendingValidation is the queue\'s pending count — '
       'suspended salons left out, one definition (B0.18 §3.5)', () async {
     final providers = InMemoryProvidersRepository([]);
@@ -115,6 +173,13 @@ void main() {
       (data['providers'] as Map)['pendingValidation'],
       (await validations.queue('pending')).total,
       reason: 'the sidebar and the dashboard read one number',
+    );
+    expect(
+      (data['verification'] as Map)['pending'],
+      0,
+      reason:
+          'a request to go live is not a KYC submission '
+          '(admin-kyc-queue-submitted.md §4.4)',
     );
   });
 

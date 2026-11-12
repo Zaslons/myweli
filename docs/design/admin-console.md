@@ -41,6 +41,7 @@ All under **`/admin/*`**, `role=admin` only (deny-by-default), every mutation au
 - `POST /admin/auth/refresh` `{refreshToken}` → rotated pair (reuse → revoke family, as elsewhere).
 
 **KYC queue** (FR-WEB-AD-001)
+> **Revised 2026-11-12 — [admin-kyc-queue-submitted.md](admin-kyc-queue-submitted.md):** the queue is the accounts **awaiting review** (`pending` with at least one document), oldest submission first, and `submittedAt` is the submission's time; approve/reject answer `409 invalid_state` for anything else; the detail adds `docs[].format` and `awaitingReview`. `pending` alone had listed every account ever made.
 - `GET /admin/kyc?status=pending&page=&pageSize=` → `{ items: [{accountId, businessName, businessType, submittedAt, docCount}], page, pageSize, total }`.
 - `GET /admin/kyc/{accountId}` → full account + `docs: [{type, key, viewUrl}]` (each `viewUrl` a signed-GET into the KYC bucket).
 - `POST /admin/kyc/{accountId}/approve` → `verificationStatus=verified`. Audited.
@@ -150,7 +151,7 @@ All under `/admin/*` (role=admin, deny-by-default); every mutation audited with 
 | **Status** | **Built** — A5 (overview KPIs) · A5b (North Star by commune) |
 | **PRD** | FR-WEB-AD-006, §17. DB-derived only — the event-based funnels (search→book) need a product-analytics stack (Slice 4). |
 
-- **`GET /admin/analytics/overview`** — a KPI snapshot (read-only, role=admin): users (active/banned), providers (active/suspended), provider verification (pending/verified/rejected), bookings **by status**, **no-show rate** + **cancellation rate**, open/total **disputes**, **reported reviews** count.
+- **`GET /admin/analytics/overview`** — a KPI snapshot (read-only, role=admin): users (active/banned), providers (active/suspended), provider verification (pending/verified/rejected; `pending` = the KYC queue's total, accounts awaiting review — [admin-kyc-queue-submitted.md](admin-kyc-queue-submitted.md) §4.4), bookings **by status**, **no-show rate** + **cancellation rate**, open/total **disputes**, **reported reviews** count.
 - **`AnalyticsService`** composes existing repo `.total`s (listUsers / listForAdmin / listByVerificationStatus / disputes.list / listReportedReviews) + one new `AppointmentRepository.countsByStatus()` (InMemory iterate · Postgres `GROUP BY status`). No new table; on-the-fly aggregates (fine at V1 volume).
 - Read-only → no new mutations to audit; still behind the `/admin/*` guard.
 - **`GET /admin/analytics/north-star?weeks=12`** (A5b — built) — completed bookings per ISO week (Monday start) × commune. `AppointmentRepository.completedForAnalytics(from)` returns completed bookings since the window start; the service buckets by week **in Dart** (so both backends agree) and resolves commune from `providers.listForAdmin`. Output: `{weeks, fromWeek, totalCompleted, series:[{week, commune, completed}]}`.

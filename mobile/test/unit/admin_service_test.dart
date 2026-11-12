@@ -89,4 +89,25 @@ void main() {
     expect(res.success, isTrue);
     expect(res.data!['verificationStatus'], 'rejected');
   });
+
+  test(
+    'a 409 invalid_state has its own sentence, kept neutral: this map '
+    'serves every admin endpoint (admin-kyc-queue-submitted.md §4.5)',
+    () async {
+      final store = InMemorySessionStore();
+      await store.save(jsonEncode({'token': 'tok', 'refreshToken': 'r'}));
+      final svc = AdminService(
+        client: MockClient(
+          (_) async =>
+              http.Response(jsonEncode({'error': 'invalid_state'}), 409),
+        ),
+        baseUrl: 'http://x',
+        store: store,
+      );
+      final res = await svc.approveKyc('acc1');
+      expect(res.success, isFalse);
+      expect(res.code, 'invalid_state');
+      expect(res.error, 'Cette action n’est plus possible.');
+    },
+  );
 }

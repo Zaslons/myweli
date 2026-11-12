@@ -28,8 +28,12 @@ class _AdminKycQueueScreenState extends State<AdminKycQueueScreen> {
     );
   }
 
+  /// « — » when the server has no submission time (none should be missing;
+  /// it is never the account's creation time any more —
+  /// docs/design/admin-kyc-queue-submitted.md §4.3).
   String _date(Object? iso) {
     final s = iso?.toString() ?? '';
+    if (s.isEmpty) return '—';
     return s.length >= 10 ? s.substring(0, 10) : s;
   }
 

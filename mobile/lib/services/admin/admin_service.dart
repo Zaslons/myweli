@@ -420,7 +420,8 @@ class AdminService {
   /// not the server's JSON `not_found` — or any 404, for a route that never
   /// answers one ([anyNotFoundIsRouteMissing]) — which is
   /// [kRouteMissingCode]: a server from before B0.18 (dart_frog's plain-text
-  /// `Route not found`).
+  /// `Route not found`). Every caller is a salon route (B0.18), so a code is
+  /// worded by [salonSentenceFor].
   AdminResponse<T> _typed<T>(
     http.Response? res,
     T Function(Map<String, dynamic> json) parse, {
@@ -466,7 +467,7 @@ class AdminService {
         missing: missing,
       );
     }
-    return AdminResponse.failure(sentenceFor(code), code: code);
+    return AdminResponse.failure(salonSentenceFor(code), code: code);
   }
 
   static Map<String, dynamic>? _jsonObject(String body) {
@@ -513,6 +514,9 @@ class AdminService {
     'invalid_update_url' => 'Lien de mise à jour invalide.',
     'invalid_body' => 'Données invalides.',
     'not_found' => 'Introuvable.',
+    // Neutral on purpose: this map serves every admin endpoint. The KYC
+    // screen words its own case (AdminKycProvider).
+    'invalid_state' => 'Cette action n’est plus possible.',
     'invalid_input' => 'Données invalides.',
     'unauthorized' => 'Veuillez vous reconnecter.',
     // Salon validation (B0.18 §3.8, §4.3) — the four the spec words, verbatim;
@@ -523,9 +527,8 @@ class AdminService {
     'no_owner' =>
       'Ce salon n’a pas de propriétaire actif : il ne peut pas être mis '
           'en ligne.',
-    'invalid_state' =>
-      'L’état du salon a changé entre-temps. Rechargez la page, puis '
-          'réessayez.',
+    // `invalid_state` keeps the shared, neutral case above; the salon
+    // routes word it for the salon in [salonSentenceFor].
     'not_suspended' => 'Ce salon n’est pas suspendu.',
     'note_required' => 'Une note est obligatoire pour le motif « Autre ».',
     'note_too_long' => 'La note dépasse 500 caractères.',
@@ -535,6 +538,19 @@ class AdminService {
     kRouteMissingCode =>
       'Le serveur ne gère pas encore la validation des salons.',
     _ => 'Une erreur est survenue.',
+  };
+
+  /// [sentenceFor] on the salon routes (restore and validation, B0.18 §4.3):
+  /// there `invalid_state` can only mean the salon's state moved under the
+  /// decision (it left `draft` before the going-live), so it is worded for
+  /// the salon. The shared map keeps it neutral, since it serves every admin
+  /// endpoint, the KYC decisions included (admin-kyc-queue-submitted.md
+  /// §4.5).
+  static String salonSentenceFor(String? code) => switch (code) {
+    'invalid_state' =>
+      'L’état du salon a changé entre-temps. Rechargez la page, puis '
+          'réessayez.',
+    _ => sentenceFor(code),
   };
 }
 
