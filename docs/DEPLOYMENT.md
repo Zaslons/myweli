@@ -217,6 +217,56 @@ which is how the reminder cron came to be switched off without anyone noticing.
    `FCM_PRIVATE_KEY` is a secret. Migrations run at boot, serialised across
    instances behind a Postgres advisory lock, **before the port binds**.
 
+   **The FCM key: which one production uses, and where its copies are (read
+   2026-11-11).**
+   - **The key.** `FCM_PRIVATE_KEY` version `3` is the user-managed key
+     `7a84161dd6…` of `firebase-adminsdk-fbsvc@myweli`, created 2026-08-06.
+     It is the only user-managed key on that account, so **disabling it stops
+     push**. Make and deploy a replacement first (« Changing a secret » below).
+   - **How that was checked.** The serving revision `myweli-api-00048-9f4`
+     (100 %) mounts version `3`, read from the revision itself. The public key
+     derived from version `3` equals the one IAM publishes for `7a84…`. The
+     control, the account's system-managed key `196493eb29…`, does not match.
+   - **To check again without printing a value:** pipe
+     `gcloud secrets versions access <N> --secret=FCM_PRIVATE_KEY` through an
+     unescape of `\n`, then `openssl pkey -pubout -outform DER | shasum -a 256`.
+     Compare the result with the same hash of
+     `gcloud beta iam service-accounts keys get-public-key <KEY_ID> --type=pem`.
+     That command exists only in `beta`. Print only whether they match, and
+     treat the empty-input hash `e3b0c442…` as a failed pipe, not a key.
+   - **Copies on the owner's Mac.** The JSON downloaded when the key was made,
+     `~/Downloads/myweli-firebase-adminsdk-fbsvc-7a84161dd6.json`, holds the
+     same key: its `private_key_id` and its private key both match. **It stays
+     there by the owner's decision of 2026-11-11.** Production does not read
+     it. A search by key id of Downloads, Desktop, Documents and the repo
+     folder found no other copy on that date, no local `.env` sets
+     `FCM_PRIVATE_KEY`, and GitHub holds no FCM or GCP secret.
+   - **What a copy of that file can do: open, not fixed.** The account holds
+     `roles/iam.serviceAccountTokenCreator` at **project** level, on top of
+     `roles/firebase.sdkAdminServiceAgent`. By that role's definition, the key
+     can mint tokens for every service account in `myweli`:
+     - `myweli-run`, which reads the secrets and connects to the database;
+     - `myweli-deployer`, which holds `run.admin`;
+     - the default compute account, which holds `roles/editor`.
+
+     This was not tried, since trying means using the key. In practice the file
+     is a production credential, not only a push one. Narrowing that grant is a
+     follow-up of its own, applied only on the owner's yes, with a real push
+     checked afterwards.
+   - **The other key file, also kept:**
+     `~/Downloads/myweli-d7999-firebase-adminsdk-fbsvc-109d5c018b.json`
+     (2026-06-28) belongs to `firebase-adminsdk-fbsvc@myweli-d7999`, and that
+     account no longer exists. Google's public certificate endpoint
+     (`googleapis.com/service_accounts/v1/metadata/x509/<account>`) answers
+     `404` for it. The control, the `@myweli` account, answers `200` with
+     exactly the two keys IAM lists. The owner's account cannot see the
+     project `myweli-d7999` and has no project pending deletion. Nothing in
+     this repo or its history names it. It is probably the « retired Firebase
+     project » of
+     [push-notifications-fcm.md](design/push-notifications-fcm.md#auth-failures-are-loud-added-after-a-months-long-silent-outage),
+     but the version that held that key was destroyed on 2026-08-06, so this
+     is UNVERIFIED.
+
    **Every mount is pinned to a version number — never `latest`.** Cloud Run
    resolves a secret reference when the container starts, and production runs
    `minScale: '1'`; the logs show exactly one container start per revision,
