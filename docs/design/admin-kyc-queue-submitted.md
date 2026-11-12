@@ -459,6 +459,21 @@ production holds no KYC document.
   Dart reads them, a trap for the next SQL that reads inside one. Migration
   0021's `UPDATE providers SET slug = data->>'slug'` would read NULL from a
   string-form row (not checked against production).
+- **The image tile has no accessible name** (seen reviewing the merge with
+  #779, 2026-11-12). The image branch of `_DocTile` is a bare
+  `GestureDetector`, unchanged from `main`: `labeledTapTargetGuideline` fails
+  on it under #779's `consoleTheme` as macOS and Windows (a probe outside the
+  branch; the PDF tile passes, and every target here is ≥ 48 dp). The fix is a
+  `Semantics(button: true, label: 'Agrandir « … »')` above it, the image in
+  `ExcludeSemantics`, and that guideline in this screen's test. Its own small
+  change.
+- **A decision taken from a salon request lands on the KYC queue** (seen
+  reviewing the merge with #779). « Approuver » and « Rejeter » go to
+  `/admin/kyc` ([admin-console-ui.md](admin-console-ui.md) §3), written when
+  the queue was the only way in, so the admin loses the request they came from.
+  Popping back instead would show the request's old KYC status: its push is
+  not awaited and nothing re-reads it. Pop when possible and re-read the
+  request on return; an owner's UX call, not taken here.
 - **Approving a set that changed while the admin read it.** If a salon
   resubmits between the admin opening the file and pressing « Approuver », the
   new set is approved unseen. Closing it means approve carries the submission
