@@ -574,6 +574,10 @@ class SalonValidationDetail extends Equatable {
 }
 
 /// What a validation answers (200): the salon is `active`.
+///
+/// **Read, never assumed:** a 2xx without its `salonStatus` (an empty body,
+/// `[]`, `{}`) throws, which the service answers `bad_response` — never a
+/// « Salon validé : il est en ligne. » on a salon whose state is unknown.
 class SalonApproval extends Equatable {
   const SalonApproval({required this.salonStatus, this.validation});
 
@@ -581,9 +585,13 @@ class SalonApproval extends Equatable {
   final SalonValidation? validation;
 
   factory SalonApproval.fromJson(Map<String, dynamic> json) {
+    final status = json['salonStatus'];
+    if (status is! String) {
+      throw const FormatException('a validation answers its salonStatus');
+    }
     final v = json['validation'];
     return SalonApproval(
-      salonStatus: (json['salonStatus'] as String?) ?? 'active',
+      salonStatus: status,
       validation: v is Map
           ? SalonValidation.fromJson(v.cast<String, dynamic>())
           : null,
@@ -605,6 +613,11 @@ class SalonApproval extends Equatable {
 ///
 /// The `reason` KEY is the discriminator: the new server always sends it, as
 /// `null` when live; the salon document never has one.
+///
+/// **Read, never assumed:** a 2xx that is neither — no `status` string, or a
+/// B0.18 status other than `active`/`draft` — throws, which the service
+/// answers `bad_response`. An empty body used to read as the older server's
+/// salon and show « Salon remis en ligne » for a state nobody knew.
 class RestoreOutcome extends Equatable {
   const RestoreOutcome({
     required this.status,
@@ -622,14 +635,19 @@ class RestoreOutcome extends Equatable {
   bool get isLive => status == 'active';
 
   factory RestoreOutcome.fromJson(Map<String, dynamic> json) {
+    final status = json['status'];
     if (!json.containsKey('reason')) {
-      return RestoreOutcome(
-        status: (json['status'] as String?) ?? 'active',
-        legacy: true,
-      );
+      // The older server's salon carries its status, always.
+      if (status is! String) {
+        throw const FormatException('a lifted salon carries its status');
+      }
+      return RestoreOutcome(status: status, legacy: true);
+    }
+    if (status != 'active' && status != 'draft') {
+      throw const FormatException('a lift answers active or draft');
     }
     return RestoreOutcome(
-      status: (json['status'] as String?) ?? 'draft',
+      status: status as String,
       reason: json['reason'] as String?,
     );
   }

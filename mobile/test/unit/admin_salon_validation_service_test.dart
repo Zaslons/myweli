@@ -294,6 +294,19 @@ void main() {
       },
     );
 
+    test('a 2xx without its salonStatus is bad_response — never « Salon '
+        'validé » on a state nobody read', () async {
+      for (final body in ['', '[]', '{}', '{"validation": null}']) {
+        final res = await answering(
+          200,
+          body,
+        ).approveSalonValidation(p1, from: SalonValidationState.pending);
+        expect(res.success, isFalse, reason: body);
+        expect(res.code, 'bad_response', reason: body);
+        expect(res.data, isNull, reason: body);
+      }
+    });
+
     // §4.3 « Feedback » — the four sentences the spec words, verbatim.
     final spec409 = {
       'validation_not_pending': 'Cette demande a déjà été traitée.',
@@ -525,6 +538,23 @@ void main() {
       expect(o.isLive, isFalse);
       expect(o.status, 'draft');
       expect(o.reason, 'offer_not_live');
+    });
+
+    test('a 2xx that is neither server\'s answer is bad_response — never '
+        '« Salon remis en ligne » on a state nobody read', () async {
+      for (final body in [
+        '',
+        '[]',
+        '{}',
+        '{"id": "provider_1", "status": null}',
+        '{"reason": null}',
+        '{"status": "suspended", "reason": null}',
+      ]) {
+        final res = await restore(200, body);
+        expect(res.success, isFalse, reason: body);
+        expect(res.code, 'bad_response', reason: body);
+        expect(res.data, isNull, reason: body);
+      }
     });
 
     test('B0.18: 409 not_suspended is worded', () async {
