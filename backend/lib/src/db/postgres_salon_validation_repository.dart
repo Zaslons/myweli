@@ -145,71 +145,75 @@ class PostgresSalonValidationRepository implements SalonValidationRepository {
   @override
   Future<GoLiveOutcome> goLive(String providerId, {DateTime? at}) async {
     final when = (at ?? DateTime.now()).toUtc();
-    try {
-      return await _pool.runTx<GoLiveOutcome>((tx) async {
-        // 1. The single-winner step: only one call ever sets it.
-        final v = await tx.execute(
+    return _pool.runTx<GoLiveOutcome>((tx) async {
+      // 1. The single-winner step: only one call ever sets it.
+      final v = await tx.execute(
+        Sql.named(
+          'UPDATE salon_validations SET went_live_at = @at '
+          "WHERE provider_id = @p AND state = 'approved' "
+          'AND went_live_at IS NULL RETURNING provider_id',
+        ),
+        parameters: {'p': providerId, 'at': when},
+      );
+      if (v.isEmpty) {
+        // Nothing written yet; say why.
+        final row = await tx.execute(
           Sql.named(
-            'UPDATE salon_validations SET went_live_at = @at '
-            "WHERE provider_id = @p AND state = 'approved' "
-            'AND went_live_at IS NULL RETURNING provider_id',
-          ),
-          parameters: {'p': providerId, 'at': when},
-        );
-        if (v.isEmpty) {
-          // Nothing written yet; say why.
-          final row = await tx.execute(
-            Sql.named(
-              'SELECT state, went_live_at FROM salon_validations '
-              'WHERE provider_id = @p',
-            ),
-            parameters: {'p': providerId},
-          );
-          if (row.isEmpty) return GoLiveOutcome.notApproved;
-          final m = row.first.toColumnMap();
-          return m['state'] != ValidationStates.approved
-              ? GoLiveOutcome.notApproved
-              : GoLiveOutcome.alreadyLive;
-        }
-        // 2. Public only from `draft`: a salon suspended since the checks
-        //    stays suspended, and the step above is rolled back.
-        final p = await tx.execute(
-          Sql.named(
-            "UPDATE providers SET status = 'active' "
-            "WHERE id = @p AND status = 'draft' RETURNING id",
+            'SELECT state FROM salon_validations WHERE provider_id = @p',
           ),
           parameters: {'p': providerId},
         );
-        if (p.isEmpty) {
-          final s = await tx.execute(
-            Sql.named('SELECT status FROM providers WHERE id = @p'),
-            parameters: {'p': providerId},
-          );
-          final status = s.isEmpty ? null : s.first.toColumnMap()['status'];
-          throw _GoLiveRollback(
-            status == 'suspended'
-                ? GoLiveOutcome.suspended
-                : GoLiveOutcome.notDraft,
-          );
-        }
-        // 3. Someone can run it. FOR SHARE: an erasure deleting this row
-        //    waits for the commit instead of slipping between the check and
-        //    the commit.
-        final owner = await tx.execute(
-          Sql.named(
-            'SELECT 1 FROM provider_members '
-            "WHERE provider_id = @p AND role = 'owner' AND status = 'active' "
-            'AND account_id IS NOT NULL LIMIT 1 FOR SHARE',
-          ),
+        return row.isEmpty ||
+                row.first.toColumnMap()['state'] != ValidationStates.approved
+            ? GoLiveOutcome.notApproved
+            : GoLiveOutcome.alreadyLive;
+      }
+      // 2. Public only from `draft`: a salon suspended since the checks
+      //    stays suspended, and step 1 is rolled back.
+      final p = await tx.execute(
+        Sql.named(
+          "UPDATE providers SET status = 'active' "
+          "WHERE id = @p AND status = 'draft' RETURNING id",
+        ),
+        parameters: {'p': providerId},
+      );
+      if (p.isEmpty) {
+        final s = await tx.execute(
+          Sql.named('SELECT status FROM providers WHERE id = @p'),
           parameters: {'p': providerId},
         );
-        if (owner.isEmpty) throw const _GoLiveRollback(GoLiveOutcome.noOwner);
-        return GoLiveOutcome.live;
-      });
-    } on _GoLiveRollback catch (e) {
-      // `runTx` rolled the whole transaction back before rethrowing.
-      return e.outcome;
-    }
+        final suspended =
+            s.isNotEmpty && s.first.toColumnMap()['status'] == 'suspended';
+        return _rollBack(
+          tx,
+          suspended ? GoLiveOutcome.suspended : GoLiveOutcome.notDraft,
+        );
+      }
+      // 3. Someone can run it. FOR SHARE: an erasure deleting this row waits
+      //    for the commit instead of slipping between the check and it.
+      final owner = await tx.execute(
+        Sql.named(
+          'SELECT 1 FROM provider_members '
+          "WHERE provider_id = @p AND role = 'owner' AND status = 'active' "
+          'AND account_id IS NOT NULL LIMIT 1 FOR SHARE',
+        ),
+        parameters: {'p': providerId},
+      );
+      if (owner.isEmpty) return _rollBack(tx, GoLiveOutcome.noOwner);
+      return GoLiveOutcome.live;
+    });
+  }
+
+  /// Rolls [tx] back — both writes of [goLive] or neither — and answers
+  /// [outcome]. An explicit ROLLBACK rather than a thrown exception: `runTx`
+  /// then neither commits nor rethrows, and the pool keeps the connection,
+  /// which it discards after any exception.
+  static Future<GoLiveOutcome> _rollBack(
+    TxSession tx,
+    GoLiveOutcome outcome,
+  ) async {
+    await tx.rollback();
+    return outcome;
   }
 
   @override
@@ -351,12 +355,4 @@ class PostgresSalonValidationRepository implements SalonValidationRepository {
     refusalNote: r['refusal_note'] as String?,
     wentLiveAt: (r['went_live_at'] as DateTime?)?.toUtc(),
   );
-}
-
-/// Thrown inside [PostgresSalonValidationRepository.goLive]'s transaction to
-/// roll it back with a reason; `runTx` rolls back on any exception and
-/// rethrows, and the caller turns it into the outcome.
-class _GoLiveRollback implements Exception {
-  const _GoLiveRollback(this.outcome);
-  final GoLiveOutcome outcome;
 }
