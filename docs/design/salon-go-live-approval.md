@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | **Draft, for the owner's sign-off (§11): Q1–Q4, Q6, Q7 and « each salon » answered on 2026-11-12; Q8 and Q9 open.** Nothing is built before it. Reviewed twice by independent readers on 2026-11-12, every finding folded in: five readers (backend, admin console, apps, website, completeness) found 53; two found 26 on the rewrite |
+| **Status** | **Approved 2026-11-12** (the owner answered every question of §11: decisions 124–132). Not built. Reviewed twice by independent readers on 2026-11-12, every finding folded in: five readers (backend, admin console, apps, website, completeness) found 53; two found 26 on the rewrite |
 | **Owner** | Sadreddine Daher |
 | **Last updated** | 2026-11-12 |
 | **PRD ref / phase** | FR-PRO-ONB-001 (go live) · admin (FR-WEB-AD-*) · V1 |
@@ -937,10 +937,10 @@ Each new guard is watched red once, and the commit says how.
 
 ---
 
-## 11. The owner's answers, and what is still open
+## 11. The owner's answers (decisions 124–132)
 
-**Answered on 2026-11-12** (the questions as asked; recorded as decisions in
-B0.18's PR):
+**Answered on 2026-11-12** (the questions as asked; recorded as decisions
+124–132 in the BACKLOG):
 
 - **Q1. Refusal reasons:** « List + optional note », the recommendation
   (§4.3). « Hors Côte d'Ivoire » and « salon de test » are final.
@@ -960,19 +960,16 @@ B0.18's PR):
   recommendation (§5.1).
 - **Q7. The CGU:** « Add the sentence », the recommendation (§6.4).
 
-**Still open:**
+- **Q8. Old iOS builds after a request:** « Accept until the update », the
+  recommendation. Old builds show a generic error after a request that went
+  through, and « Complétez les étapes requises… » after a final refusal, until
+  an iOS build that knows the answers is live and the floor is raised (§9.2,
+  §9.3).
+- **Q9. The words:** « Yes, use these words », the recommendation: §6.1's
+  states and buttons, §4.3's reasons, §5.2's pushes, `/professionnels` step 3,
+  as shown to the owner.
 
-- **Q8. Old iOS builds after a request** (§3.1, §9.3): a generic error even
-  though the request went through, and « Complétez les étapes requises… »
-  after a final refusal.
-  - **Accept it until the iOS build that knows the answers is live and the
-    floor is raised (recommended).**
-  - Hold the backend change until that iOS build is live, which delays
-    Android's closed test.
-- **Q9. The words:** §6.1's states and buttons, §4.3's reasons, §5.1's and
-  §5.2's messages, `/professionnels` step 3.
-
-**Recommendations, taken unless the owner objects:**
+**Recommendations, taken (the owner did not object):**
 
 - **R1** `status` stays `draft` until validation, with a validation table
   beside it (§2).
