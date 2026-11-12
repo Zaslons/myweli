@@ -46,7 +46,8 @@ void main() {
 
   group('the composition root supplies the notifier', () {
     // The services whose status writes change the prebuilt slug set. B0.18
-    // added the validation (`salon.approved`, `salon.refused`); the
+    // added the validation (`salon.approved`, `salon.refused`,
+    // `salon.handed_back`); the
     // provisioning service keeps its notifier for a validated salon's
     // republish (`salon.republished`).
     for (final name in const [

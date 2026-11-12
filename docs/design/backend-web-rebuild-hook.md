@@ -73,11 +73,16 @@ caller can route around it), once per logical operation:
 | billing unpublish (`active → draft`) | `SubscriptionScheduler.tick` — **once per tick**, however many salons expired | `salon.unpublished` |
 | account erasure (`active → draft` per owned salon) | `ProviderAccountService.deleteAccount` — **once per account**, guarded on a prior `'active'` | `account.erased` |
 | refusal of a salon an older image left `active` (`active → draft`, B0.18 — a rollback only, salon-go-live-approval §9.3) | `SalonValidationService.refuse` | `salon.refused` |
+| a validation that handed such a salon back to `draft` to take it live, then could not finish (no owner, an offer no longer live, a crash) — `active → draft` with no `salon.approved` after it (B0.18, §9.3) | `SalonValidationService.approve` | `salon.handed_back` |
 
 Five transitions: going public by validation, the republish (two seams, one
 reason), billing unpublish, erasure, and suspend/restore (one service). The
-last row is a narrow sixth reason, not a sixth transition anyone performs on
-purpose: a normal refusal leaves a `draft` a `draft` and fires nothing.
+last two rows are narrow reasons, not transitions anyone performs on
+purpose — both only for a salon an older image (a rollback) left `active`: a
+normal refusal leaves a `draft` a `draft` and fires nothing, and a normal
+validation that fails before going live never had the salon in the set.
+Erasure also fires `account.erased` a second time when, after the identity
+delete, it hides again a salon a going-live took public while it ran.
 Salon **creation** is deliberately not an event: `SalonDirectoryService` no
 longer takes a notifier at all, so a creation fire is uncompilable rather
 than merely absent, and `salon_lifecycle_test.dart` pins that `ensureSalon`

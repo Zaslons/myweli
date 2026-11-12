@@ -1240,6 +1240,59 @@ WHERE p.status = 'active'
    OR (p.status = 'draft' AND s.unpublished_at IS NOT NULL)
 ON CONFLICT (provider_id) DO NOTHING''';
 
+/// §9.3's roll-forward, step 1 — run BY HAND after a rollback: the `active`
+/// salons with no validated-and-live row, i.e. every salon an older image
+/// (which publishes directly) may have taken public while it served.
+/// Read-only. Each line says what the admin does with it: no row or a
+/// refusal → [kSalonValidationRollForward] puts it in the queue; `pending` →
+/// it is in the queue already; `approved` never live → « Validation à
+/// terminer », which hands the salon back to `draft` before taking it live.
+const String kSalonValidationRollForwardList = '''
+SELECT p.id, p.name, v.state, v.went_live_at
+FROM providers p
+LEFT JOIN salon_validations v ON v.provider_id = p.id
+WHERE p.status = 'active'
+  AND (v.provider_id IS NULL OR v.state <> 'approved' OR v.went_live_at IS NULL)
+ORDER BY p.id''';
+
+/// §9.3's roll-forward, step 2 — run BY HAND, never a boot step (deciding is
+/// the admin's): every salon an older image left public without a
+/// validation joins the admin's queue, to be validated or refused like any
+/// request. Refusing hides it (`salon.refused`); validating hands it back to
+/// `draft`, then takes it live. Without this, a salon with no row had no way
+/// in: the queue reads only validation rows, approve and refuse are
+/// compare-and-sets on one, and the owner's publish answers an `active`
+/// salon « already live ».
+///
+/// Two kinds, both `active`:
+/// - **no validation row** (published by the older image without ever
+///   asking under this one): a `pending` row;
+/// - **a refusal** (refused, then published by the older image anyway): back
+///   to `pending`, the refusal cleared from the state row — the history
+///   keeps it.
+///
+/// Each gets a `submitted` event at the roll-forward's time: the older
+/// image's publish was the owner asking to go live. A `pending` salon is in
+/// the queue already, and an `approved` one is left as it is. Idempotent: a
+/// second run finds nothing.
+const String kSalonValidationRollForward = '''
+WITH requeued AS (
+  INSERT INTO salon_validations (provider_id, state, submitted_at)
+  SELECT p.id, 'pending', now()
+  FROM providers p
+  LEFT JOIN salon_validations v ON v.provider_id = p.id
+  WHERE p.status = 'active'
+    AND (v.provider_id IS NULL OR v.state = 'refused')
+  ON CONFLICT (provider_id) DO UPDATE SET
+    state = 'pending', submitted_at = EXCLUDED.submitted_at,
+    decided_at = NULL, decided_by = NULL,
+    refusal_code = NULL, refusal_note = NULL
+  WHERE salon_validations.state = 'refused'
+  RETURNING provider_id
+)
+INSERT INTO salon_validation_events (provider_id, kind, occurred_at)
+SELECT provider_id, 'submitted', now() FROM requeued''';
+
 /// How long a schema-setup statement may **wait for a lock** before giving up.
 ///
 /// Deliberately an order of magnitude below [kSchemaStatementTimeout]: a
@@ -1452,8 +1505,8 @@ Future<void> backfillSalonValidationsForDev(
       'backfillSalonValidationsForDev is dev-only and was called with '
       'ENV=${env.name}. Outside dev it would validate, with no admin, every '
       'salon an older image published during a rollback — those are '
-      'validated or refused by hand (docs/design/salon-go-live-approval.md '
-      '§9.3).',
+      'validated or refused by hand, after kSalonValidationRollForward puts '
+      'them in the queue (docs/design/salon-go-live-approval.md §9.3).',
     );
   }
   await pool.execute(kSalonValidationBackfill);

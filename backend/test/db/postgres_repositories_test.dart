@@ -2443,6 +2443,107 @@ void main() {
       );
     });
 
+    test('§9.3 the roll-forward, by hand after a rollback: the listing names '
+        'every salon an older image left public without a validation; the '
+        'requeue puts the ones with no row or a refusal in the queue; '
+        'nothing else moves; a second run finds nothing', () async {
+      final providers = PostgresProvidersRepository(pool);
+      final repo = PostgresSalonValidationRepository(pool);
+      final asked = DateTime.utc(2026, 11, 12);
+      // The seed's public salons are validated, as the dev boot does: the
+      // roll-forward acts on the whole table, and must find only ours.
+      await backfillSalonValidationsForDev(pool, env: Env.dev);
+
+      // Published by the older image without ever asking.
+      final noRow = await freshSalon();
+      await providers.setStatus(noRow, 'active');
+      // Refused, then published by the older image anyway.
+      final refusedLive = await freshSalon();
+      await repo.submit(refusedLive, asked);
+      await repo.decide(
+        refusedLive,
+        from: ValidationStates.pending,
+        to: ValidationStates.refused,
+        adminId: 'admin_1',
+        code: 'test_salon',
+        note: 'Salon de démonstration.',
+      );
+      await providers.setStatus(refusedLive, 'active');
+      // Asked, then published by the older image: in the queue already.
+      final pendingLive = await freshSalon();
+      await repo.submit(pendingLive, asked);
+      await providers.setStatus(pendingLive, 'active');
+      // Validated and live; a draft never asked; a refused draft: untouched.
+      final live = await freshSalon();
+      await repo.submit(live, asked);
+      await repo.decide(
+        live,
+        from: ValidationStates.pending,
+        to: ValidationStates.approved,
+        adminId: 'admin_1',
+      );
+      expect(await repo.goLive(live), GoLiveOutcome.live);
+      final draft = await freshSalon();
+      final refusedDraft = await freshSalon();
+      await repo.submit(refusedDraft, asked);
+      await repo.decide(
+        refusedDraft,
+        from: ValidationStates.pending,
+        to: ValidationStates.refused,
+        adminId: 'admin_1',
+        code: 'photos',
+      );
+
+      final listed = {
+        for (final r in await pool.execute(kSalonValidationRollForwardList))
+          r.toColumnMap()['id'],
+      };
+      expect(listed, containsAll([noRow, refusedLive, pendingLive]));
+      for (final id in [live, draft, refusedDraft]) {
+        expect(listed, isNot(contains(id)), reason: id);
+      }
+
+      await pool.execute(kSalonValidationRollForward);
+
+      for (final id in [noRow, refusedLive]) {
+        final v = (await repo.get(id))!;
+        expect(v.state, ValidationStates.pending, reason: id);
+        expect(v.submittedAt, isNotNull, reason: id);
+        expect(v.refusalCode, isNull, reason: id);
+        expect(v.refusalNote, isNull, reason: id);
+        expect(v.decidedBy, isNull, reason: id);
+      }
+      expect((await repo.events(noRow)).map((e) => e.kind), [
+        ValidationEventKinds.submitted,
+      ]);
+      final history = await repo.events(refusedLive);
+      expect(history.map((e) => e.kind), [
+        ValidationEventKinds.submitted,
+        ValidationEventKinds.refused,
+        ValidationEventKinds.submitted,
+      ]);
+      expect(history[1].refusalCode, 'test_salon', reason: 'history kept');
+      expect(await repo.events(pendingLive), hasLength(1));
+      expect((await repo.get(live))!.wentLive, isTrue);
+      expect(await repo.get(draft), isNull);
+      expect((await repo.get(refusedDraft))!.state, ValidationStates.refused);
+      // Status untouched: deciding is the admin's.
+      expect((await providers.byId(noRow))!['status'], 'active');
+
+      final queued = {
+        for (final v in (await repo.queue(
+          ValidationStates.pending,
+          pageSize: 1000,
+        )).items)
+          v.providerId,
+      };
+      expect(queued, containsAll([noRow, refusedLive, pendingLive]));
+
+      await pool.execute(kSalonValidationRollForward);
+      expect(await repo.events(noRow), hasLength(1));
+      expect(await repo.events(refusedLive), hasLength(3));
+    });
+
     group(
       'the backfill — migration 0044 and the dev-only boot step (§3.7)',
       () {
