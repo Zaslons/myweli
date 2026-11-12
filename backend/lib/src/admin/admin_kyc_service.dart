@@ -105,8 +105,9 @@ class AdminKycService {
   /// without this an admin could verify an account that never sent a
   /// document — badge on its salons, deposits unlocked
   /// (docs/design/admin-kyc-queue-submitted.md §1.2, §4.5). Checked before
-  /// the write, not in it: a concurrent double approve lands twice, as it
-  /// always has, and both rows are true.
+  /// the write, not in it: two admins acting on one file at the same instant
+  /// can both pass, as both always could before this check — the last write
+  /// stands and the audit log keeps both decisions.
   Future<String?> _refusal(String accountId) async {
     final current = await _providers.accountById(accountId);
     if (current == null) return 'not_found';
