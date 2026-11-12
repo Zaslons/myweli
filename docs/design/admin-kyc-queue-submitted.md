@@ -392,7 +392,8 @@ arrays. Four mutations watched red: the string branch removed, the cast without
 `pg_input_is_valid` (the test fails; the error itself not read), the writer back to
 `jsonEncode`, the stamp cast without the shape check (`'yesterday'` reorders,
 `'not a date'` raises 22007). **Full backend suite on that database: 2 317
-passed, 2 skipped.**
+passed, 2 skipped** (on `185565df`, before `main` was merged in; the merged
+tree's Postgres groups run in CI only).
 
 **Console (`mobile/test/widget/admin_kyc_detail_pdf_test.dart`,
 `mobile/test/unit/admin_service_test.dart`),** 9 of the 11 widget tests and the
@@ -426,7 +427,8 @@ production holds no KYC document.
 ## 11. Definition of done
 
 - [x] `dart analyze` / `flutter analyze` 0 · format clean · backend suite green
-      on Postgres 16 · each new test seen failing first. Mobile suite: §9.
+      on Postgres 16 (before `main` was merged in; the merged tree: CI) · each
+      new test seen failing first. Mobile suite: §9.
 - [x] Contract (+ regenerated web types), T17, [admin-console.md](admin-console.md)
       §3 pointer, roadmap entry; this spec → Built. BACKLOG **B0.20**, added
       once #773 had put B0.17–B0.19 and decisions 116–123 on `main`; the four
