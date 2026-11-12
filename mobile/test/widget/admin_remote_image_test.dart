@@ -83,7 +83,38 @@ void main() {
 
       expect(find.text(AdminRemoteImage.unavailableLabel), findsOneWidget);
       expect(find.byType(BrandLoader), findsNothing);
+      // Nothing to reload: no button that cannot help.
+      expect(find.text(AdminRemoteImage.reloadLabel), findsNothing);
       expect(t.takeException(), isNull);
+    });
+
+    testWidgets('with a way to reload, the failure offers « Actualiser » in a '
+        '220 × 160 tile at $scale×, reachable, and a tap reloads', (t) async {
+      var reloads = 0;
+      await pump(
+        t,
+        SizedBox(
+          width: 220,
+          height: 160,
+          child: AdminRemoteImage(url: url, onReload: () => reloads++),
+        ),
+        textScale: scale,
+      );
+      await t.runAsync(() => Future<void>.delayed(Duration.zero));
+      await t.pumpAndSettle();
+
+      expect(find.text(AdminRemoteImage.unavailableLabel), findsOneWidget);
+      expect(t.takeException(), isNull);
+      // At 2× the message and the button outgrow the tile: they scroll, and
+      // the button is still there to reach.
+      await t.ensureVisible(find.text(AdminRemoteImage.reloadLabel));
+      await t.pumpAndSettle();
+      await t.tap(find.text(AdminRemoteImage.reloadLabel));
+      expect(reloads, 1);
+      if (scale == 1) {
+        await expectLater(t, meetsGuideline(androidTapTargetGuideline));
+        await expectLater(t, meetsGuideline(labeledTapTargetGuideline));
+      }
     });
   }
 
@@ -114,6 +145,40 @@ void main() {
       ).webHtmlElementStrategy,
       WebHtmlElementStrategy.prefer,
     );
+  });
+
+  testWidgets('a failure in the zoom closes it, then reloads: the page under '
+      'it must not keep the dead link', (t) async {
+    var reloads = 0;
+    await pump(
+      t,
+      AdminEvidenceImage(
+        url: url,
+        caption: 'Preuve',
+        onReload: () => reloads++,
+      ),
+    );
+    await t.runAsync(() => Future<void>.delayed(Duration.zero));
+    await t.pumpAndSettle();
+
+    // The failed tile's centre is its « Actualiser » (a tap there reloads);
+    // the rest of the tile still opens the zoom.
+    await t.tapAt(
+      t.getTopLeft(find.byType(AdminRemoteImage)) + const Offset(12, 12),
+    );
+    await t.pumpAndSettle();
+    expect(find.byType(InteractiveViewer), findsOneWidget);
+    expect(reloads, 0);
+
+    await t.tap(
+      find.descendant(
+        of: find.byType(Dialog),
+        matching: find.text(AdminRemoteImage.reloadLabel),
+      ),
+    );
+    await t.pumpAndSettle();
+    expect(find.byType(InteractiveViewer), findsNothing);
+    expect(reloads, 1);
   });
 
   testWidgets('no link: the placeholder, no image at all', (t) async {

@@ -327,19 +327,26 @@ class _DocTile extends StatelessWidget {
                 : GestureDetector(
                     onTap: () => showDialog<void>(
                       context: context,
-                      builder: (_) => Dialog(
+                      builder: (dialogContext) => Dialog(
                         backgroundColor: Colors.transparent,
                         child: InteractiveViewer(
                           child: AdminRemoteImage(
                             url: url!,
                             fit: BoxFit.contain,
+                            // The file reloads under the zoom: close it first,
+                            // or it keeps the dead link.
+                            onReload: () {
+                              Navigator.of(dialogContext).pop();
+                              onRefresh();
+                            },
                           ),
                         ),
                       ),
                     ),
                     // A signed link on R2's origin, which sends the console no
                     // CORS header: drawn by the browser (admin-remote-images.md).
-                    child: AdminRemoteImage(url: url!),
+                    // A failure reloads the file, which signs new links.
+                    child: AdminRemoteImage(url: url!, onReload: onRefresh),
                   ),
           ),
         ),

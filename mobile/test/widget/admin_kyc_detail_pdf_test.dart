@@ -203,7 +203,9 @@ void main() {
     );
     expect(providerIn(thumb).headers ?? const {}, isEmpty);
 
-    await t.tap(thumb);
+    // The corner: once the image has failed, the tile's centre is its
+    // « Actualiser » (tested below).
+    await t.tapAt(t.getTopLeft(thumb) + const Offset(12, 12));
     await t.pump();
     await t.pump(const Duration(milliseconds: 300));
     final zoomed = find.descendant(
@@ -216,6 +218,46 @@ void main() {
       providerIn(zoomed).webHtmlElementStrategy,
       WebHtmlElementStrategy.prefer,
     );
+  });
+
+  testWidgets('a failed image offers « Actualiser », which reloads the file '
+      '(new signed links), from the tile and from the zoom', (t) async {
+    final restore = AppClock.freeze(t0);
+    addTearDown(restore);
+    final requests = await open(
+      t,
+      responses: [detail(selfieUrl: jpgUrl)],
+      settle: false,
+    );
+    // flutter_test answers the image's request 400: the refused link.
+    await t.runAsync(() => Future<void>.delayed(Duration.zero));
+    await t.pumpAndSettle();
+    int reads() => requests.where((r) => r == 'GET /admin/kyc/acc1').length;
+    expect(reads(), 1);
+    expect(find.text(AdminRemoteImage.unavailableLabel), findsOneWidget);
+
+    await t.tap(find.text(AdminRemoteImage.reloadLabel));
+    await t.runAsync(() => Future<void>.delayed(Duration.zero));
+    await t.pumpAndSettle();
+    expect(reads(), 2);
+
+    // The tile's corner still opens the zoom; its « Actualiser » closes it
+    // before reloading, so the page under it does not keep the dead link.
+    await t.tapAt(
+      t.getTopLeft(find.byType(AdminRemoteImage)) + const Offset(12, 12),
+    );
+    await t.pumpAndSettle();
+    expect(find.byType(InteractiveViewer), findsOneWidget);
+    await t.tap(
+      find.descendant(
+        of: find.byType(Dialog),
+        matching: find.text(AdminRemoteImage.reloadLabel),
+      ),
+    );
+    await t.runAsync(() => Future<void>.delayed(Duration.zero));
+    await t.pumpAndSettle();
+    expect(find.byType(InteractiveViewer), findsNothing);
+    expect(reads(), 3);
   });
 
   testWidgets('a click opens the signed link, through url_launcher', (t) async {

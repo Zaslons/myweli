@@ -34,6 +34,7 @@ class AdminRemoteImage extends StatelessWidget {
     required this.url,
     this.fit = BoxFit.cover,
     this.semanticLabel,
+    this.onReload,
   });
 
   final String url;
@@ -42,9 +43,18 @@ class AdminRemoteImage extends StatelessWidget {
   /// Null = decorative: the tile's own caption already names the document.
   final String? semanticLabel;
 
-  /// What the failure says. Not « Réessayer »: reloading the same signed link
-  /// cannot succeed once it is refused (SYSTEM.md §12).
+  /// Reloads what the link came from (the KYC file, the dispute), which signs
+  /// new links. Given, the failure offers [reloadLabel]; null, it only says
+  /// so. Never a retry of [url] itself: a signed link, once refused, stays
+  /// refused (SYSTEM.md §12). The web's deposit proof does the same with its
+  /// « Réessayer », which signs a fresh link (spec §4).
+  final VoidCallback? onReload;
+
+  /// What the failure says.
   static const unavailableLabel = 'Image indisponible';
+
+  /// The way out: the word #775's PDF tile uses for the same reload.
+  static const reloadLabel = 'Actualiser';
 
   @override
   Widget build(BuildContext context) {
@@ -58,7 +68,7 @@ class AdminRemoteImage extends StatelessWidget {
       // counts a `WebImageInfo` as a frame too.
       frameBuilder: (context, child, frame, _) =>
           frame == null ? const _Loading() : child,
-      errorBuilder: (context, error, stack) => const _Unavailable(),
+      errorBuilder: (context, error, stack) => _Unavailable(onReload: onReload),
     );
   }
 }
@@ -76,32 +86,58 @@ class _Loading extends StatelessWidget {
 }
 
 class _Unavailable extends StatelessWidget {
-  const _Unavailable();
+  const _Unavailable({required this.onReload});
+
+  final VoidCallback? onReload;
 
   @override
   Widget build(BuildContext context) {
     return ColoredBox(
       color: AppColors.surface,
-      child: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(AppTheme.spacingS),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(
-                Icons.broken_image_outlined,
-                size: AppTheme.iconM,
-                color: AppColors.textTertiary,
-              ),
-              const SizedBox(height: AppTheme.spacingXS),
-              Text(
-                AdminRemoteImage.unavailableLabel,
-                textAlign: TextAlign.center,
-                style: AppTextStyles.bodySmall.copyWith(
-                  color: AppColors.textSecondary,
+      // Centred while it fits; at 200 % text the message and the button can
+      // outgrow a 220 × 160 tile, and then they scroll instead of clipping
+      // the way out (SYSTEM.md §13.3).
+      child: LayoutBuilder(
+        builder: (context, box) => SingleChildScrollView(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              minWidth: box.maxWidth,
+              minHeight: box.hasBoundedHeight ? box.maxHeight : 0,
+            ),
+            child: Center(
+              child: Padding(
+                padding: const EdgeInsets.all(AppTheme.spacingS),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(
+                      Icons.broken_image_outlined,
+                      size: AppTheme.iconM,
+                      color: AppColors.textTertiary,
+                    ),
+                    const SizedBox(height: AppTheme.spacingXS),
+                    Text(
+                      AdminRemoteImage.unavailableLabel,
+                      textAlign: TextAlign.center,
+                      style: AppTextStyles.bodySmall.copyWith(
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                    if (onReload != null)
+                      TextButton(
+                        onPressed: onReload,
+                        style: TextButton.styleFrom(
+                          foregroundColor: AppColors.textPrimary,
+                        ),
+                        child: const Text(
+                          AdminRemoteImage.reloadLabel,
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                  ],
                 ),
               ),
-            ],
+            ),
           ),
         ),
       ),
