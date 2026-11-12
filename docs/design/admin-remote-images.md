@@ -123,7 +123,7 @@ Public objects on `cdn.myweli.com`, the logo first, then each photo, in a
 | Loading | The tile's own, passed as `placeholder`: `surfaceVariant`, `image_outlined` (`iconL`, `textTertiary`). The same `frameBuilder` holds it, so the web's `<img>` path shows it from the first frame (#779's « a photo on its way » fix, which `loadingBuilder` could not give) |
 | Success | The photo, `cover`, named « Photo N du salon » or « Logo du salon » |
 | Error | The tile's own, passed as `errorPlaceholder`: `surfaceVariant`, `broken_image_outlined`, « Photo indisponible » to a screen reader. **No « Image indisponible » and no « Actualiser »** |
-| The ways out | « Ouvrir « Photo N » dans un nouvel onglet » under each photo (`url_launcher`, a 48 dp target), where the browser loads the link itself and shows why it fails; the app bar's « Rafraîchir », which reads the request again |
+| The ways out | « Ouvrir « Photo N » dans un nouvel onglet » under each photo (`url_launcher`, a 48 dp target), where the browser loads the link itself and shows why it fails; the app bar's « Rafraîchir », which reads the request again and so brings a replaced photo under its new link, but does not ask for a failed one again (below); on the web, only a reload of the page does |
 
 **« Actualiser » on a salon photo: no.** The button reloads the *source* of
 the link, because for a KYC file or a dispute that signs a new one. The
@@ -135,12 +135,35 @@ asked for again: observed in a widget test that counts the requests across a
 « Rafraîchir » (and red when the widget is made to re-request, §8.3 A12); the
 SDK path read in `widgets/image.dart` and `painting/_network_image_web.dart`.
 A button wired to that reload would do nothing visible, a way out that cannot
-help (SYSTEM.md §12). Retrying the same link would mean evicting it from the
-cache, the retry this spec refuses as a design. What a re-read does fix, a
-photo the salon replaced, comes back under a new URL that is asked for at
-once (same test): that is the app bar's « Rafraîchir », already there. So
-`onReload` stays null, and the widget asserts that an `errorPlaceholder`
-never comes with one.
+help (SYSTEM.md §12). What a re-read does fix, a photo the salon replaced,
+comes back under a new URL that is asked for at once (same test): that is the
+app bar's « Rafraîchir », already there. So `onReload` stays null, and the
+widget asserts that an `errorPlaceholder` never comes with one.
+
+**A retry of the same link: a scope choice, not a rule.** Unlike a signed
+link, which once refused stays refused, a public link can load on a second
+try (a passing CDN failure), so SYSTEM.md §12 would allow a retry here. It is
+left out because the review needs only the tab button, which loads the photo
+in the browser or shows why it fails. An in-console retry would be
+`imageCache.evict(NetworkImage(url, webHtmlElementStrategy:
+WebHtmlElementStrategy.prefer))` plus a new key on the tile: the owner's call
+if ever wanted, not part of this change.
+
+**On the web, a failed photo stays failed for the life of the page** (read in
+the Flutter 3.47.9 SDK, not run in a browser). The web `NetworkImage` never
+evicts a key that failed (`painting/_network_image_web.dart`, `_loadAsync`:
+no `evict`), and the image cache only moves a pending image on when it
+succeeds (`painting/image_cache.dart`, `putIfAbsent`: its listener has no
+error callback), so the failed completer stays pending. A later resolve of
+the same URL gets that completer back, which replays its stored error
+(`painting/image_stream.dart`, `ImageStreamCompleter.addListener`). So
+neither « Rafraîchir », nor leaving and reopening the request, nor another
+request showing the same photo asks for it again: the tile stays in its
+error state until the page is reloaded; the tab button still shows the
+photo or why it fails. On the VM, where the widget tests run, a failed key is
+evicted (`painting/_network_image_io.dart`), so reopening does ask again
+there. Not a change from #779: its own `Image.network(prefer)` behaved the
+same.
 
 ## 5. Security
 
@@ -280,7 +303,7 @@ checked clean after each restore):
 | A9 the assertion removed | red | the assertion test |
 | A10 the salon photos given « Actualiser » (the request's reload) | red | the photos test |
 | A11 a `User-Agent` header on the widget | red | the guard's widget check, both widget tests that read the provider, the photos test |
-| A12 a new `Image` on every build (a failed link asked for again on each re-read) | red | the « Rafraîchir » count test: the premise of §4.1 is held |
+| A12 a new `Image` on every build (a failed link asked for again on each re-read) | red | the « Rafraîchir » count test: the premise of §4.1 is held. Its red relies on the VM evicting a failed key; on the web the same mutation would ask for nothing again (§4.1, read in the SDK) |
 
 ### 8.4 The golden's scene (observed on the Mac, not the baseline)
 
@@ -311,7 +334,11 @@ change, no cloud change.
   run in a browser**, through the widget or before it (#779's own roadmap
   entry lists its `<img>` photos as unverified there); the mechanism is the
   one §8.2 observed. The web's path for « Rafraîchir » not re-requesting a
-  failed public link is read in the SDK, not run.
+  failed public link is read in the SDK, not run. So is the rest of that
+  path (§4.1): on the web a failed photo stays failed for the life of the
+  page, since the web `NetworkImage` never evicts a failed key, so neither
+  « Rafraîchir » nor reopening the request asks for it again; the tab
+  button shows it, a reload of the page asks again.
 - **The manifest cannot see the private buckets' PUT rule** the web's KYC and
   deposit uploads depend on (§1.1): `r2-manifest.json` checks CORS on the
   public bucket only. Its comment is corrected here; a check is a follow-up.
