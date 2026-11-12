@@ -4,7 +4,7 @@
 |---|---|
 | **Module** | admin (console) — [MODULES.md](../MODULES.md) |
 | **BACKLOG** | B0.21 |
-| **Status** | **Proposed 2026-11-12, built the same day** on `fix/admin-remote-images`, stacked on #775 (`fix/admin-kyc-queue`). Not merged, not deployed. The merge is the owner's yes. |
+| **Status** | **Proposed 2026-11-12, built the same day** on `fix/admin-remote-images`, stacked on #775 (`fix/admin-kyc-queue`). « Actualiser » on a failed image added the same day on the owner's yes (§4). Not merged, not deployed. The merge is the owner's yes. |
 | **Last updated** | 2026-11-12 |
 | **Found** | 2026-11-12: a CORS probe found `cdn.myweli.com` refusing `https://admin.myweli.com`; this spec follows it to the KYC and deposit documents |
 | **PRD ref / phase** | FR-WEB-AD-001 (KYC approval queue), the dispute view · V1 |
@@ -98,7 +98,10 @@ UNVERIFIED.
 |---|---|
 | Loading | `surface` box, `BrandLoader` (`iconS`, fast), as `TimedCachedImage` did. `frameBuilder` holds it until the first frame, which the framework counts for an `<img>` too |
 | Success | The image, `cover` in the tile, `contain` in the zoom |
-| Error | `surface` box, `broken_image_outlined` (decorative) and **« Image indisponible »** (`bodySmall`, `textSecondary`). No « Réessayer »: the same signed link, once refused, stays refused (SYSTEM.md §12). The way out is reloading the file, which signs new links |
+| Error | `surface` box, `broken_image_outlined` (decorative), **« Image indisponible »** (`bodySmall`, `textSecondary`) and, when the screen can sign new links, **« Actualiser »** (`TextButton`, `textPrimary`). It reloads the record the link came from: the KYC file (#775's `onRefresh`) or the dispute (`depositScreenshotUrl` is signed per read). Never a retry of the same link, which once refused stays refused (SYSTEM.md §12); the web's deposit proof « Réessayer » and #775's PDF tile « Actualiser » do the same. Owner's yes, 2026-11-12 |
+| Error, in the zoom | The same; « Actualiser » **closes the zoom first**, then reloads, so the page under it does not keep the dead link |
+| Error, at 200 % text | The message and the button outgrow a 220 × 160 tile: they scroll inside it, centred while they fit, so the button stays reachable |
+| Error, the tap | The tile's centre is its « Actualiser »; the rest of the tile still opens the zoom, as before |
 | No link | Unchanged: the tile's own placeholder |
 
 ## 5. Security
@@ -126,7 +129,13 @@ app's start in a hidden pane, so no paint time is claimed.
   220 × 160 tile at 1× and 2×, no overflow; the deposit proof and its zoom go
   through it; no link, no image.
 - `test/widget/admin_kyc_detail_pdf_test.dart` (#775's): the image tile and its
-  zoom go through it, `prefer`, no header.
+  zoom go through it, `prefer`, no header; a failed image's « Actualiser »
+  reads the file again, from the tile and from the zoom, which closes first.
+- `test/widget/admin_dispute_detail_evidence_test.dart`: the proof goes
+  through it, and « Actualiser » reads the dispute again.
+- In `admin_remote_image_test.dart` too: « Actualiser » only when there is a
+  reload, reachable and tapped at 1× and 2× in the tile, the tap-target and
+  label guidelines, the deposit proof's zoom closing before the reload.
 - `test/infra/admin_remote_images_guard_test.dart`: walks the import graph
   from `lib/main_admin.dart`, comments stripped, and fails if any reachable
   file other than `AdminRemoteImage` draws a network image
@@ -188,6 +197,18 @@ file, run, and restored from git with a clean-tree check:
 | M8 a `NetworkImage` in `brand_loader.dart`, a shared widget outside `screens/admin/` | red | the import walk |
 | M8c the same, in a comment only (control) | **green** | — |
 
+And for « Actualiser », on `724d651d`:
+
+| Mutation | Expected | Went red |
+|---|---|---|
+| R1 the button never shown | red | the first try did not compile (no result); **R1b** (`&& 1 < 0`): the reload tests in all three files |
+| R2 a button even with nothing to call | red | the two « no reload, no button » tests |
+| R3 the scroll removed | red | the 2× reload test only (1× still fits: the pair discriminates) |
+| R4 the KYC zoom reloads without closing | red | the KYC reload test |
+| R5 the deposit proof's zoom reloads without closing | red | the zoom test |
+| R6 the KYC thumbnail without its reload | red | the KYC reload test |
+| R7 the dispute view without its reload | red | the dispute test |
+
 ## 9. Rollout
 
 Merge after #775, which this is stacked on, then `deploy-admin.yml` (manual,
@@ -209,11 +230,10 @@ the owner's go). No backend change, no cloud change.
 - **The image tiles are not reachable by keyboard or screen reader**: a
   `GestureDetector` with no `Semantics` (SYSTEM.md §13.4), before this change
   and after it.
-- **A failed image still opens the zoom**, to the same « Image indisponible »,
-  as `TimedCachedImage` did.
-- **The error has no way out in the tile** (SYSTEM.md §12). A retry of the
-  same link cannot succeed, but reloading the file signs new ones: the web's
-  deposit proof offers « Réessayer » that does exactly that
-  (`web/components/pro/ProDepositProof.tsx`), and #775's PDF tile
-  « Actualiser ». Giving the image tiles the same is a UX change, left for the
-  owner's yes.
+- **A failed image still opens the zoom** from the tile's edge, to the same
+  failure and its « Actualiser », as `TimedCachedImage` opened it to its icon.
+- **« Actualiser » was not run in a browser.** The error state it sits in was
+  (§8.2, case D); the button is plain Flutter, held by the widget tests.
+- **A missing object fails again after « Actualiser »**: the `<img>` does not
+  say why it failed, so an expired link and a deleted file look alike. The
+  new link fixes the first; the second keeps saying « Image indisponible ».

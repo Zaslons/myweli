@@ -555,7 +555,7 @@ widget; a third inline copy is a review failure.
 | `StatCard` | |
 | `StatusChip` | `StatusChip.forStatus(String)` → semantic kind + French label. Kind, not color, is the API. |
 | `showReasonDialog` | |
-| **`AdminRemoteImage`** | `AdminRemoteImage({required url, fit = cover, semanticLabel})` — **the only way the console draws an image from another origin** (a signed KYC or deposit link, a CDN photo). The browser draws it as a plain `<img>` (`WebHtmlElementStrategy.prefer`, no header), because R2 sends `admin.myweli.com` no CORS header and `TimedCachedImage` cannot load it there. Loading = `BrandLoader` on `surface`; error = « Image indisponible », no retry. Gate: `test/infra/admin_remote_images_guard_test.dart` walks the console's imports ([admin-remote-images.md](admin-remote-images.md)) |
+| **`AdminRemoteImage`** | `AdminRemoteImage({required url, fit = cover, semanticLabel})` — **the only way the console draws an image from another origin** (a signed KYC or deposit link, a CDN photo). The browser draws it as a plain `<img>` (`WebHtmlElementStrategy.prefer`, no header), because R2 sends `admin.myweli.com` no CORS header and `TimedCachedImage` cannot load it there. Loading = `BrandLoader` on `surface`; error = « Image indisponible », plus « Actualiser » when the screen passes `onReload` (it reloads the record, which signs new links; never a retry of the same link). Gate: `test/infra/admin_remote_images_guard_test.dart` walks the console's imports ([admin-remote-images.md](admin-remote-images.md)) |
 
 ### 11.3 To build (the gaps this system creates work for)
 
