@@ -8,9 +8,9 @@
 | **Last updated** | 2026-11-12 |
 | **Found** | 2026-11-12, while mapping the admin console for B0.18 (salon go-live approval); outside that slice |
 | **PRD ref / phase** | FR-WEB-AD-001 (KYC approval queue) · V1 |
-| **ROADMAP entry** | added when it ships (`docs/roadmap/entries/`) |
+| **ROADMAP entry** | [2026-11-12-admin-kyc-queue.md](../roadmap/entries/2026-11-12-admin-kyc-queue.md) |
 | **Skills checked** | myweli-backend-guardrails · myweli-dev-guardrails · myweli-verification-guardrails |
-| **Related** | [admin-console.md](admin-console.md) §3, §8, §13 · [admin-console-ui.md](admin-console-ui.md) §3 · [pro-kyc.md](pro-kyc.md) · [web-pro-kyc.md](web-pro-kyc.md) · [BACKEND.md](../BACKEND.md) §7 T15, T17 |
+| **Related** | [admin-console.md](admin-console.md) §3, §8, §13 · [admin-console-ui.md](admin-console-ui.md) §3 · [pro-kyc.md](pro-kyc.md) · [web-pro-kyc.md](web-pro-kyc.md) · [BACKEND.md](../BACKEND.md) §7 T15, T17 · [salon-go-live-approval.md](salon-go-live-approval.md) §4.3 |
 
 How to read it: every claim names where it was read. **Observed** means read
 in the code or run here on 2026-11-12. **UNVERIFIED** means it was not —
@@ -219,7 +219,9 @@ the list (read in a Postgres 16 test database). The app never noticed:
 `_kycDocs` decodes both forms. The first SQL to read inside the column, this
 queue, saw no documents at all. Most `:jsonb` writers in `backend/lib/src/db`
 pass `jsonEncode(…)` the same way (`providers.data` is a string too); only
-`salon_clients.tags`, the one column SQL already read inside, passes the List.
+`salon_clients.tags`, the one column SQL already read inside, passed the List
+(and, since #778 merged in, `salon_place_notices.reported` / `pending_fields`,
+migration 0045).
 So:
 
 - `submitKyc` now passes the List: new submissions are arrays.
@@ -256,8 +258,10 @@ refusal. The console:
   that every code an endpoint emits has a case), and in `AdminKycProvider` to
   « Ce dossier n’est plus en attente de vérification. », then reloads the file,
   which is stale. B0.18's salon routes, which also answer `invalid_state`,
-  word it for the salon in `AdminService.salonSentenceFor` (merged with #779,
-  2026-11-12); the shared case stays neutral;
+  word it for the salon in `AdminService.salonSentenceFor` (split out when
+  #779 was merged into this branch, 2026-11-12: #779 had worded
+  `invalid_state` for the salon in the shared map); the shared case stays
+  neutral;
 - shows the action bar only while the detail's `awaitingReview` is not `false`
   (an older backend without the field keeps today's bar), and « Aucune
   soumission en attente. » in its place otherwise.
@@ -321,12 +325,12 @@ commerce (RCCM) », « Justificatif d’adresse ».
 
 ## 5. API & contract (`docs/api/openapi.yaml`)
 
-- `GET /admin/kyc` (`:3457`): description → « accounts awaiting review
+- `GET /admin/kyc`: description → « accounts awaiting review
   (`pending` with at least one document), oldest submission first »;
   `submittedAt` → « the latest submission's time », nullable.
-- `GET /admin/kyc/{accountId}` (`:3490`): document `docs[].format` and
+- `GET /admin/kyc/{accountId}`: document `docs[].format` and
   `awaitingReview`.
-- `POST /admin/kyc/{accountId}/approve`, `/reject` (`:3510`, `:3527`): add
+- `POST /admin/kyc/{accountId}/approve`, `/reject`: add
   `409 invalid_state`.
 - `GET /admin/analytics/overview`: `verification.pending` described as the
   queue's total.
