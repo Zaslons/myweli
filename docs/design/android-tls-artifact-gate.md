@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | **Built 2026-11-11, not merged**, stacked on [#758](https://github.com/Zaslons/myweli/pull/758). Approved by the owner the same day (« Build the gaps after #758 »). |
+| **Status** | **Built 2026-11-11; merged 2026-11-12** (`f0708559`, #759), after [#758](https://github.com/Zaslons/myweli/pull/758) (`0d982e4e`). Approved by the owner the same day (« Build the gaps after #758 »). |
 | **Owner** | Sadreddine Daher |
 | **Last updated** | 2026-11-11 |
 | **PRD ref / phase** | Security, cross-cutting · V1 |
@@ -230,7 +230,7 @@ the user agent that ties those requests to this engine, and
 ## 7. Rollout
 
 - **Merging deploys nothing.**
-- **The PR is stacked on #758,** with its base set to `chore/flutter-3.47.9`.
+- **The PR is stacked on #758,** with its base set to `chore/flutter-3.47.9`. *(2026-11-12: rebased onto `main` once #758 merged. Its BACKLOG item became B13.10, because #758 had given B13.9 to `add_2_calendar`.)*
   CI runs only on PRs into `main`. So once #758 is squashed:
   1. `git rebase --onto origin/main <#758's tip> <this branch>`;
   2. retarget the base to `main` **before** pushing;

@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | **Built 2026-11-11.** Seen red on saved policies and against real Google. The role was granted on the owner's yes the same evening (§6); **green against the live policy as `myweli-checks`**, run [43101801738](https://github.com/Zaslons/myweli/actions/runs/43101801738), dispatched on the branch |
+| **Status** | **Built 2026-11-11; merged 2026-11-12** (`26c9d630`, #763). Seen red on saved policies and against real Google. The role was granted on the owner's yes the same evening (§6); **green against the live policy as `myweli-checks`**, run [43101801738](https://github.com/Zaslons/myweli/actions/runs/43101801738), dispatched on the branch |
 | **Owner** | Sadreddine Daher |
 | **Last updated** | 2026-11-11 |
 | **PRD ref / phase** | Operations, no product requirement · V1 |

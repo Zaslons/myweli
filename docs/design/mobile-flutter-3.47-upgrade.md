@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Module** | toolchain (cross-cutting: `mobile/`, CI, the golden baseline, the iOS build) |
-| **Status** | **Approved 2026-11-11** — the owner's answers: O1 **C**, O2 **validate with 0.0.2's first build**, O3 **the local clone**, O4 **after**; O5 only if the reformat is large (§8). **Built** on `chore/flutter-3.47.9`, #758 (draft, not merged); outcome in §11. |
+| **Status** | **Approved 2026-11-11** — the owner's answers: O1 **C**, O2 **validate with 0.0.2's first build**, O3 **the local clone**, O4 **after**; O5 only if the reformat is large (§8). **Built** on `chore/flutter-3.47.9`, #758, **merged 2026-11-11** (`0d982e4e`); outcome in §11. |
 | **Last updated** | 2026-11-10 |
 | **Decision** | the owner, 2026-11-10: « Flutter 3.47.9 first » ([BACKLOG](../BACKLOG.md) decision 109) |
 | **BACKLOG items** | batch 13: B13.1 (this PR), B13.2 (headings), B13.3–B13.8 (what follows) |
@@ -532,7 +532,7 @@ No other pub bump can open until they close.
 - [ ] After the merge: O2's validation recorded; this spec's status and
       outcome updated; the ROADMAP entry added; batch 13 updated.
 
-## 11. Outcome — built 2026-11-11 (#758, not merged)
+## 11. Outcome — built 2026-11-11 (#758, merged the same day as `0d982e4e`)
 
 What the build found that the spec had not foreseen, and what each step
 measured. Observed unless marked.

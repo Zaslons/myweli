@@ -341,4 +341,9 @@ observed.
   check reported both passwords as « matches ». `keytool` with
   `key.properties`' passwords opened the keystore and unlocked the `upload` key
   (created 2026-08-26). As a control, a wrong password was refused.
+- **2026-11-12, step 1. Done.** #758 was merged on 2026-11-11 (`0d982e4e`).
+  #759 was rebased onto `main` and merged on 2026-11-12 (`f0708559`). Its
+  BACKLOG item became B13.10, because #758 had given B13.9 to
+  `add_2_calendar`. Each merge's `main` tree equals the PR head CI tested.
+  The gate then ran on #763's APK: Dart 3.13.7, blocklist 8/8.
 
