@@ -8,6 +8,8 @@ import 'package:myweli/core/router/app_router.dart';
 import 'package:myweli/core/router/pro_router.dart';
 import 'package:myweli/providers/admin/admin_auth_provider.dart';
 
+import '../support/dart_source.dart';
+
 /// Every route a screen pushes exists in the router of every app that can
 /// reach that screen (docs/design/salon-location-map.md §8).
 ///
@@ -225,6 +227,35 @@ final u = _uri('/providers').replace(queryParameters: {'page': '1'});
       expect(routeTemplates(ProRouter.router), contains('/pro/apercu'));
       expect(routeTemplates(ProRouter.router), isNot(contains('/carte')));
     });
+  });
+
+  // « Salons à valider » (B0.18 — salon-go-live-approval.md §4.1, §8.2).
+  // The sidebar's entry is `context.go(item.path)` — a variable the scanner
+  // cannot read — and the request is opened from an e-mail, which no screen
+  // pushes: so both are asserted here, the e-mail's link read from the
+  // backend that builds it.
+  test('the console registers « Salons à valider » and the request the '
+      'admin e-mail links to', () {
+    final admin = routeTemplates(routers['admin']!);
+    expect(resolves('/admin/salon-validations', admin), isTrue);
+    expect(resolves('/admin/salon-validations/\u0000', admin), isTrue);
+    expect(
+      resolves('/admin/salon-validations', routeTemplates(ProRouter.router)),
+      isFalse,
+      reason: 'CONTROL: a router without it says so',
+    );
+
+    final emails = stripDartComments(
+      File(
+        '../backend/lib/src/email/salon_validation_emails.dart',
+      ).readAsStringSync(),
+    );
+    final link = RegExp(
+      r"'https://admin\.myweli\.com/#(/admin/[a-z-]+/)'\s*'\$\{Uri\.encodeComponent\(providerId\)\}'",
+    ).firstMatch(emails);
+    expect(link, isNotNull, reason: 'the backend builds the link here');
+    expect(link!.group(1), '/admin/salon-validations/');
+    expect(resolves('${link.group(1)}\u0000', admin), isTrue);
   });
 
   test('every pushed route exists in every app that can push it', () {

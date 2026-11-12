@@ -211,7 +211,9 @@ void main() {
       // A salon id carried by a link or a notification.
       'lib/core/router/app_router.dart':
           'a salon page, a booking, the map focus',
-      'lib/core/router/admin_router.dart': "the console's salon page",
+      'lib/core/router/admin_router.dart':
+          "the console's salon page and its validation request (the admin "
+          "e-mail's link)",
       'lib/core/router/pro_router.dart': 'the `?salon=` of a pushed booking',
       'lib/core/push/push_message_handler.dart':
           "the push payload's `providerId` or its route's `?salon=`",

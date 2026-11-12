@@ -35,6 +35,7 @@ class AdminSalonValidationDetailProvider extends ChangeNotifier {
 
   bool _isLoading = false;
   String? _error;
+  String? _errorCode;
   bool _unavailable = false;
   SalonValidationDetail? _detail;
   String? _actionError;
@@ -43,6 +44,11 @@ class AdminSalonValidationDetailProvider extends ChangeNotifier {
 
   bool get isLoading => _isLoading;
   String? get error => _error;
+
+  /// The load's failure code — `not_found` is a salon that does not exist
+  /// (a link to a deleted salon, a mistyped id): a state of its own on the
+  /// screen, where « Réessayer » could never succeed (SYSTEM §12).
+  String? get errorCode => _errorCode;
 
   /// The server predates B0.18 — its route is absent (a calm state, §9.2).
   bool get unavailable => _unavailable;
@@ -93,6 +99,7 @@ class AdminSalonValidationDetailProvider extends ChangeNotifier {
     final seq = ++_seq;
     _isLoading = true;
     _error = null;
+    _errorCode = null;
     _unavailable = false;
     notifyListeners();
     final res = await _service.salonValidationDetail(id);
@@ -104,6 +111,7 @@ class AdminSalonValidationDetailProvider extends ChangeNotifier {
       _detail = res.data;
     } else if (!res.routeMissing) {
       _error = res.error ?? 'Erreur lors du chargement';
+      _errorCode = res.code;
     }
     _isLoading = false;
     notifyListeners();

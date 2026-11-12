@@ -12,6 +12,8 @@ import '../../screens/admin/admin_login_screen.dart';
 import '../../screens/admin/admin_moderation_screen.dart';
 import '../../screens/admin/admin_provider_detail_screen.dart';
 import '../../screens/admin/admin_providers_screen.dart';
+import '../../screens/admin/admin_salon_validation_detail_screen.dart';
+import '../../screens/admin/admin_salon_validations_screen.dart';
 import '../../screens/admin/admin_user_detail_screen.dart';
 import '../../screens/admin/admin_users_screen.dart';
 import '../utils/salon_id.dart';
@@ -33,6 +35,19 @@ GoRouter createAdminRouter(AdminAuthProvider auth) => GoRouter(
     GoRoute(
       path: '/admin/dashboard',
       builder: (_, _) => const AdminDashboardScreen(),
+    ),
+    // « Salons à valider » (B0.18 — salon-go-live-approval.md §4.1). The
+    // request's path is the one the admin e-mail links to
+    // (`adminValidationLink`: `#/admin/salon-validations/{id}`).
+    GoRoute(
+      path: '/admin/salon-validations',
+      builder: (_, _) => const AdminSalonValidationsScreen(),
+    ),
+    GoRoute(
+      path: '/admin/salon-validations/:id',
+      builder: (_, state) => AdminSalonValidationDetailScreen(
+        id: SalonId(state.pathParameters['id']!),
+      ),
     ),
     GoRoute(path: '/admin/kyc', builder: (_, _) => const AdminKycQueueScreen()),
     GoRoute(
@@ -126,7 +141,7 @@ String? adminReturnTarget(String? from) {
     return null;
   }
   if (!from.startsWith('/admin/')) return null;
-  if (from.contains(r'\') || from.contains('//') || from.contains('#')) {
+  if (from.contains(_backslash) || from.contains('//') || from.contains('#')) {
     return null;
   }
   if (from.codeUnits.any((c) => c < 0x20 || c == 0x7f)) return null;
@@ -144,7 +159,7 @@ String? adminReturnTarget(String? from) {
     if (segment == '.' ||
         segment == '..' ||
         segment.contains('/') ||
-        segment.contains(r'\')) {
+        segment.contains(_backslash)) {
       return null;
     }
   }
@@ -155,3 +170,8 @@ String? adminReturnTarget(String? from) {
 
 /// Longer than any place in the console; a `from` past it is not one.
 const _maxFromLength = 2048;
+
+/// `\`, which browsers read as `/`. Spelled by its code point: the raw
+/// literal `r'\'` reads to the typography pin as an escaped apostrophe
+/// (design_system_pin_test.dart, « one apostrophe »).
+const _backslash = '\u005c';

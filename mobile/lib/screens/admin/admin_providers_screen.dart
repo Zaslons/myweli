@@ -15,6 +15,7 @@ import 'widgets/admin_scaffold.dart';
 import 'widgets/admin_search_field.dart';
 import 'widgets/admin_segmented_control.dart';
 import 'widgets/reason_dialog.dart';
+import 'widgets/restore_outcome.dart';
 import 'widgets/status_chip.dart';
 
 /// Salon (provider) management: filter + search + suspend/restore + featured.
@@ -51,10 +52,20 @@ class _AdminProvidersScreenState extends State<AdminProvidersScreen> {
     );
   }
 
-  Future<void> _restore(SalonId id) => _run(
-    () => context.read<AdminProvidersProvider>().restore(id),
-    'Salon réactivé',
-  );
+  /// « Lever la suspension » (B0.18 §4.4): the snackbar says where the salon
+  /// went — back online, or offline with the reason — from either server.
+  Future<void> _restore(SalonId id) async {
+    final p = context.read<AdminProvidersProvider>();
+    final messenger = ScaffoldMessenger.of(context);
+    final ok = await p.restore(id);
+    if (!mounted) return;
+    showRestoreOutcome(
+      messenger,
+      ok: ok,
+      outcome: p.lastRestore,
+      error: p.actionError,
+    );
+  }
 
   Future<void> _feature(SalonId id, bool featured) => _run(
     () => context.read<AdminProvidersProvider>().feature(id, featured),
@@ -172,15 +183,16 @@ class _AdminProvidersScreenState extends State<AdminProvidersScreen> {
           ),
           onPressed: acting ? null : () => _feature(id, !featured),
         ),
-        SizedBox(
-          width: 116,
-          child: AppButton(
-            text: suspended ? 'Réactiver' : 'Suspendre',
-            type: suspended ? AppButtonType.primary : AppButtonType.secondary,
-            onPressed: acting
-                ? null
-                : () => suspended ? _restore(id) : _suspend(id),
-          ),
+        // Its own width: « Lever la suspension » did not fit the 116dp the
+        // old « Réactiver » had, and a fixed box around a label clips it at
+        // 200 % text (SYSTEM.md §13.3).
+        AppButton(
+          text: suspended ? 'Lever la suspension' : 'Suspendre',
+          type: suspended ? AppButtonType.primary : AppButtonType.secondary,
+          isFullWidth: false,
+          onPressed: acting
+              ? null
+              : () => suspended ? _restore(id) : _suspend(id),
         ),
       ],
     );
