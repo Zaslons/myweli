@@ -13,7 +13,8 @@ import '../validation/salon_place_notice_repository.dart';
 /// transaction: two saves racing on a quiet hour serialise on the lock, and
 /// the second reads the first one's e-mail time. A summary's claim is one
 /// conditional UPDATE: a second tick waits on the same lock, re-reads the
-/// row, finds nothing pending and claims nothing.
+/// row, finds nothing pending and claims nothing; a save counted since the
+/// tick read the row changes `pending_count`, and the claim misses.
 class PostgresSalonPlaceNoticeRepository implements SalonPlaceNoticeRepository {
   PostgresSalonPlaceNoticeRepository(this._pool);
 
@@ -104,16 +105,18 @@ class PostgresSalonPlaceNoticeRepository implements SalonPlaceNoticeRepository {
     String providerId,
     DateTime now, {
     required Map<String, String?> current,
+    required int seenSaves,
   }) async {
     // The row as it was is read under the lock the UPDATE then takes over;
-    // the WHERE is re-checked on a row another tick just claimed, and
-    // matches nothing.
+    // the WHERE is re-checked on a row another tick just claimed, or a save
+    // just counted, and matches nothing.
     final r = await _pool.execute(
       Sql.named(
         'WITH was AS ('
         ' SELECT provider_id, reported, pending_count, pending_since, '
         ' pending_fields FROM salon_place_notices '
         ' WHERE provider_id = @p AND pending_count > 0 '
+        ' AND pending_count = @seen:int4 '
         ' AND (last_sent_at IS NULL OR last_sent_at <= @cutoff) '
         ' FOR UPDATE'
         ') '
@@ -130,6 +133,7 @@ class PostgresSalonPlaceNoticeRepository implements SalonPlaceNoticeRepository {
         'now': now.toUtc(),
         'cutoff': now.toUtc().subtract(kPlaceNoticeWindow),
         'current': current,
+        'seen': seenSaves,
       },
     );
     if (r.isEmpty) return null;

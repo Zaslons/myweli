@@ -146,7 +146,10 @@ void salonPlaceNoticeContract({
       final r = repo();
       final id = await owing(r);
       expect(await r.due(at(59)), isNot(contains(id)));
-      expect(await r.claimSummary(id, at(59), current: place('x')), isNull);
+      expect(
+        await r.claimSummary(id, at(59), current: place('x'), seenSaves: 2),
+        isNull,
+      );
       expect(await r.due(at(60)), contains(id));
     });
 
@@ -156,7 +159,7 @@ void salonPlaceNoticeContract({
       final r = repo();
       final id = await owing(r);
       final now = place('+2250700000002');
-      final c = (await r.claimSummary(id, at(75), current: now))!;
+      final c = (await r.claimSummary(id, at(75), current: now, seenSaves: 2))!;
       expect(c.reported, place('+2250700000001'));
       expect(c.saves, 2);
       expect(c.since, at(10));
@@ -174,14 +177,49 @@ void salonPlaceNoticeContract({
         'an hour later with nothing owed, one is e-mailed at once', () async {
       final r = repo();
       final id = await owing(r);
-      await r.claimSummary(id, at(75), current: place('y'));
+      await r.claimSummary(id, at(75), current: place('y'), seenSaves: 2);
       expect(await save(r, id, at(80)), PlaceNoticeTurn.recorded);
       expect(await r.due(at(134)), isNot(contains(id)));
       expect(await r.due(at(135)), contains(id));
 
       final quiet = await owing(r);
-      await r.claimSummary(quiet, at(75), current: place('y'));
+      await r.claimSummary(quiet, at(75), current: place('y'), seenSaves: 2);
       expect(await save(r, quiet, at(135)), PlaceNoticeTurn.sendNow);
+    });
+
+    test('the claim is CONDITIONAL on the saves its caller read: a save '
+        'counted since makes it miss, nothing cleared; a claim on the new '
+        'count takes it, that save in it', () async {
+      final r = repo();
+      final id = await owing(r);
+      final seen = (await r.get(id))!.pendingCount;
+      expect(
+        await save(r, id, at(61), phone: '+2250700000077'),
+        PlaceNoticeTurn.recorded,
+      );
+      expect(
+        await r.claimSummary(
+          id,
+          at(62),
+          current: place('+2250700000002'),
+          seenSaves: seen,
+        ),
+        isNull,
+        reason: 'the place read before that save may lack it',
+      );
+      final row = (await r.get(id))!;
+      expect(row.pendingCount, 3);
+      expect(row.lastSentAt, at(0));
+      expect(row.reported, place('+2250700000001'));
+
+      final c = (await r.claimSummary(
+        id,
+        at(62),
+        current: place('+2250700000077'),
+        seenSaves: 3,
+      ))!;
+      expect(c.saves, 3);
+      expect((await r.get(id))!.reported, place('+2250700000077'));
     });
 
     test('TWO TICKS AT ONCE → one summary; and a tick run again claims '
@@ -189,11 +227,14 @@ void salonPlaceNoticeContract({
       final r = repo();
       final id = await owing(r);
       final claims = await Future.wait([
-        r.claimSummary(id, at(60), current: place('a')),
-        r.claimSummary(id, at(60), current: place('b')),
+        r.claimSummary(id, at(60), current: place('a'), seenSaves: 2),
+        r.claimSummary(id, at(60), current: place('b'), seenSaves: 2),
       ]);
       expect(claims.whereType<PlaceSummaryClaim>(), hasLength(1));
-      expect(await r.claimSummary(id, at(61), current: place('c')), isNull);
+      expect(
+        await r.claimSummary(id, at(61), current: place('c'), seenSaves: 2),
+        isNull,
+      );
       expect(await r.due(at(61)), isNot(contains(id)));
     });
 

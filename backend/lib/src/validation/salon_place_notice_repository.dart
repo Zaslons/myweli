@@ -107,10 +107,17 @@ abstract interface class SalonPlaceNoticeRepository {
   /// gets it, the other null. In one step: the e-mail time set to [now],
   /// [current] recorded as reported (the summary shows it), the pending
   /// cleared. Null when nothing is due (claimed already, or not yet).
+  ///
+  /// **Conditional on what the caller read.** [seenSaves] is the pending
+  /// count the caller read ([get]) BEFORE it read the salon's place for
+  /// [current]. A save recorded since then may be missing from [current]:
+  /// the claim misses (null, nothing cleared) rather than mark that save
+  /// reported, and the next tick reads both again.
   Future<PlaceSummaryClaim?> claimSummary(
     String providerId,
     DateTime now, {
     required Map<String, String?> current,
+    required int seenSaves,
   });
 
   /// Clears a pending summary without sending it (the salon is suspended or
@@ -222,9 +229,11 @@ class InMemorySalonPlaceNoticeRepository implements SalonPlaceNoticeRepository {
     String providerId,
     DateTime now, {
     required Map<String, String?> current,
+    required int seenSaves,
   }) async {
     final row = _rows[providerId];
     if (row == null || !placeSummaryDue(row, now)) return null;
+    if (row.pendingCount != seenSaves) return null;
     _rows[providerId] = PlaceNoticeState(
       providerId: providerId,
       lastSentAt: now.toUtc(),

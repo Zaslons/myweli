@@ -34,11 +34,37 @@ class _FailingClaim extends InMemorySalonPlaceNoticeRepository {
     String providerId,
     DateTime now, {
     required Map<String, String?> current,
+    required int seenSaves,
   }) async {
     if (providerId == failing) {
       throw StateError('+2250700000009 Rue des Jardins admin@myweli.com');
     }
-    return super.claimSummary(providerId, now, current: current);
+    return super.claimSummary(
+      providerId,
+      now,
+      current: current,
+      seenSaves: seenSaves,
+    );
+  }
+}
+
+/// A save lands right after the tick read the salon: once [afterNextRead] is
+/// set, the next [byId] hands back a COPY of the salon as it was — Postgres
+/// hands back a copy, the in-memory twin the live document — then runs it.
+class _SaveLandsAfterRead extends InMemoryProvidersRepository {
+  _SaveLandsAfterRead() : super([]);
+
+  Future<void> Function()? afterNextRead;
+
+  @override
+  Future<Map<String, dynamic>?> byId(String id) async {
+    final hook = afterNextRead;
+    if (hook == null) return super.byId(id);
+    afterNextRead = null;
+    final doc = await super.byId(id);
+    final read = doc == null ? null : Map<String, dynamic>.of(doc);
+    await hook();
+    return read;
   }
 }
 
@@ -226,6 +252,48 @@ void main() {
       expect(row.pendingCount, 0);
       expect(row.reported['phone'], '+2250700000011');
       expect(row.reported['address'], 'Rue Neuve');
+    });
+
+    test('A SAVE LANDING BETWEEN THE TICK\'S READ AND ITS CLAIM is never '
+        'lost: the claim misses, nothing is cleared, and the next tick sends '
+        'it with the salon as it stands', () async {
+      final hooked = _SaveLandsAfterRead();
+      w = ValidationWorld(providers: hooked);
+      final s = await owing();
+      hooked.afterNextRead = () async {
+        final r = await catalog().updateProfile(s.ownerId, s.id, {
+          'phoneNumber': '+2250700000077',
+        });
+        expect(r.ok, isTrue, reason: '${r.error}');
+      };
+
+      expect(
+        await tick(60),
+        0,
+        reason: 'the salon was read before that save: no summary from it',
+      );
+      expect(w.adminMail.sent, isEmpty);
+      final row = (await w.placeNotices.get(s.id))!;
+      expect(row.pendingCount, 3, reason: 'that save counted, nothing cleared');
+      expect(row.lastSentAt, DateTime.utc(2026, 11, 12, 9));
+      expect(row.reported['phone'], '+2250700000010');
+
+      expect(await tick(75), 1);
+      final mail = w.adminMail.sent.single;
+      expect(
+        mail.text,
+        contains(
+          '3 modifications depuis le 12/11/2026 à 09:10 (heure d’Abidjan)',
+        ),
+      );
+      expect(
+        mail.text,
+        contains('Téléphone : +2250700000010 → +2250700000077'),
+      );
+      expect(
+        (await w.placeNotices.get(s.id))!.reported['phone'],
+        '+2250700000077',
+      );
     });
 
     test('a value saved back to the one last reported reads « identique au '

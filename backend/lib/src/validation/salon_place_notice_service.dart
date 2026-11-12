@@ -127,39 +127,57 @@ class SalonPlaceNoticeService {
     var sent = 0;
     for (final id in await _notices.due(when)) {
       try {
-        final salon = await _providers.byId(id);
-        if (salon == null) {
-          await _notices.forget(id);
-          _log('place_notice provider=$id outcome=dropped reason=gone');
-          continue;
-        }
-        final v = await _validations.get(id);
-        if (!reportable(v, salon)) {
-          await _notices.dropPending(id);
-          final reason = salon['status'] == 'suspended'
-              ? 'suspended'
-              : 'not_validated';
-          _log('place_notice provider=$id outcome=dropped reason=$reason');
-          continue;
-        }
-        final current = placeSnapshot(salon);
-        final claim = await _notices.claimSummary(id, when, current: current);
-        // Another tick took it first: it sends it.
-        if (claim == null) continue;
-        await _admin.salonPlaceSummary(
-          providerId: id,
-          salonName: placeText(salon['name']) ?? id,
-          reported: claim.reported,
-          current: current,
-          fields: claim.fields,
-          saves: claim.saves,
-          since: claim.since,
-        );
-        sent++;
+        if (await _summarise(id, when)) sent++;
       } catch (e) {
         _log('place_notice provider=$id outcome=failed error=${e.runtimeType}');
       }
     }
     return sent;
+  }
+
+  /// One salon's due summary, sent once; whether it went.
+  ///
+  /// **The row first, then the salon.** The claim is conditional on the
+  /// pending count read here: a save recorded after this read may be missing
+  /// from the place read next, so it makes the claim miss — never a summary
+  /// that marks a value as reported without showing it — and the next tick
+  /// reads both again.
+  Future<bool> _summarise(String id, DateTime when) async {
+    final seen = (await _notices.get(id))?.pendingCount ?? 0;
+    final salon = await _providers.byId(id);
+    if (salon == null) {
+      await _notices.forget(id);
+      _log('place_notice provider=$id outcome=dropped reason=gone');
+      return false;
+    }
+    final v = await _validations.get(id);
+    if (!reportable(v, salon)) {
+      await _notices.dropPending(id);
+      final reason = salon['status'] == 'suspended'
+          ? 'suspended'
+          : 'not_validated';
+      _log('place_notice provider=$id outcome=dropped reason=$reason');
+      return false;
+    }
+    final current = placeSnapshot(salon);
+    final claim = await _notices.claimSummary(
+      id,
+      when,
+      current: current,
+      seenSaves: seen,
+    );
+    // Another tick took it first, or a save landed since the row was read:
+    // the next tick sends it.
+    if (claim == null) return false;
+    await _admin.salonPlaceSummary(
+      providerId: id,
+      salonName: placeText(salon['name']) ?? id,
+      reported: claim.reported,
+      current: current,
+      fields: claim.fields,
+      saves: claim.saves,
+      since: claim.since,
+    );
+    return true;
   }
 }
