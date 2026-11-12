@@ -156,9 +156,10 @@ are none here, since the only client is the proxy.
    that line, set `CRON_OIDC_AUDIENCE` and `CRON_SERVICE_ACCOUNT`, confirm again,
    then strip the header from both jobs. Order matters: prove the new path
    returns 200 before removing the old one.
-2. **The default compute service account holds `roles/editor`**, which is what
-   makes the header readable by anything running as it. Worth narrowing
-   independently of the cron work.
+2. ~~**The default compute service account holds `roles/editor`**~~ **Removed
+   2026-11-11**, on the owner's yes: 0 of its 12 266 permissions had been used
+   since the grant, and nothing runs as that account. It now holds no project
+   role. [DEPLOYMENT.md](../DEPLOYMENT.md) § Phase C, « Project IAM ».
 3. ~~**Deploy.**~~ **Done 2026-08-12** — the first execution of
    `deploy-backend.yml` ever. Revision `myweli-api-00013-kmf` from `api:8bdfb9b`
    shipped all four backend fixes. **The run reported failure**: its
