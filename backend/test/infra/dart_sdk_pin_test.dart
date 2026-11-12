@@ -19,7 +19,7 @@ import 'package:yaml/yaml.dart';
 /// today, ships the vulnerable verifier. Meanwhile CI compiled and tested with
 /// 3.10.7, so no test ever ran on the compiler that shipped.
 ///
-/// Four rules, each a defect when broken and none red on a legitimate bump:
+/// Five rules, each a defect when broken:
 ///   1. the build stage names an exact `X.Y.Z` AND a digest — never a channel;
 ///   2. that version is at or above the floor, which lives in ONE place
 ///      (`FLOOR=` in .github/scripts/verify-image-dart-sdk.sh) and may never
@@ -28,16 +28,24 @@ import 'package:yaml/yaml.dart';
 ///      same `dart_frog_cli`;
 ///   4. the deploy reads the SDK out of the BUILT image before it deploys —
 ///      because rules 1–2 read the tag, and Docker builds the digest: a 3.13.6
-///      digest under a 3.13.7 tag passes them. That script is what sees it.
+///      digest under a 3.13.7 tag passes them. That script is what sees it;
+///   5. Dependabot's docker entry ignores dart pre-releases, with one
+///      `> X.Y.0, < X.Y.1` per minor from the pinned one through the next four,
+///      plus the next major's `.0`, and with no rule that also blocks a stable
+///      release. Dependabot's own pre-release heuristic switched itself off on
+///      2026-11-12 and proposed `3.15.0-118.1.beta` (#764). Design:
+///      docs/design/backend-dependabot-docker-stable.md.
 /// Bumping the Dockerfile and ci.yml together stays green. Bumping one alone —
 /// which is what a Dependabot docker PR does — goes red until the other
-/// follows, and the message says so.
+/// follows, and the message says so. Rule 5 goes red on a correct bump only
+/// when the pin outruns the ignored minors; the message names the line to add.
 void main() {
   // `dart test` runs from backend/ in CI (defaults.run.working-directory).
   final dockerfile = File('Dockerfile');
   final ci = File('../.github/workflows/ci.yml');
   final deploy = File('../.github/workflows/deploy-backend.yml');
   final checker = File('../.github/scripts/verify-image-dart-sdk.sh');
+  final dependabot = File('../.github/dependabot.yml');
 
   /// The first SDK that blocks the eMudhra intermediates. The working floor is
   /// `FLOOR=` in [checker], which may rise past this but never fall below it.
@@ -45,7 +53,7 @@ void main() {
   const advisory = 'GHSA-frr6-h895-5pxp';
 
   test('the files are where this test thinks they are', () {
-    for (final f in [dockerfile, ci, deploy, checker]) {
+    for (final f in [dockerfile, ci, deploy, checker, dependabot]) {
       expect(f.existsSync(), isTrue, reason: f.absolute.path);
     }
   });
@@ -294,6 +302,135 @@ void main() {
       }
       expect(inCi, isNotEmpty, reason: 'no CI job activates dart_frog_cli');
       expect(inCi.toSet(), equals({inImage.single}));
+    });
+  });
+
+  group('Dependabot proposes stable dart tags only', () {
+    // docs/design/backend-dependabot-docker-stable.md §4–§5. Dependabot reads
+    // an `ignore` `versions` entry as a RubyGems requirement, tested against
+    // the tag with `-` read as `.`: `3.15.0-118.1.beta` is 3.15.0.118.1.beta,
+    // strictly between 3.15.0 and 3.15.1. Dart publishes pre-releases only on
+    // X.Y.0, so `> X.Y.0, < X.Y.1` holds that minor's pre-releases and no
+    // stable release — proved with Dependabot's own classes by
+    // tool/dependabot_docker_ignore_probe.rb. Any other form is unproved.
+    const minorsAhead = 4;
+    final provenShape = RegExp(r'^> (\d+)\.(\d+)\.0, < (\d+)\.(\d+)\.1$');
+
+    YamlMap dockerEntry() {
+      final updates =
+          (loadYaml(dependabot.readAsStringSync()) as YamlMap)['updates']
+              as YamlList;
+      final hits = [
+        for (final u in updates.cast<YamlMap>())
+          if (u['package-ecosystem'] == 'docker' &&
+              (u['directory'] == '/backend' ||
+                  ((u['directories'] as YamlList?)?.contains('/backend') ??
+                      false)))
+            u,
+      ];
+      expect(
+        hits,
+        hasLength(1),
+        reason:
+            'exactly one `docker` entry covering /backend in '
+            '${dependabot.path}',
+      );
+      return hits.single;
+    }
+
+    /// The image Dependabot tracks: the build stage's reference before `:`.
+    String image() => dartBaseImages().single.split(':').first;
+
+    /// The `ignore` rules that apply to [image]. `dependency-name` is a glob
+    /// in which `*` matches any run of characters.
+    List<YamlMap> imageRules() {
+      final glob = RegExp(r'\*');
+      return [
+        for (final r
+            in ((dockerEntry()['ignore'] as YamlList?) ?? YamlList())
+                .cast<YamlMap>())
+          if (RegExp(
+            '^${'${r['dependency-name']}'.split(glob).map(RegExp.escape).join('.*')}\$',
+          ).hasMatch(image()))
+            r,
+      ];
+    }
+
+    List<String> ranges() => [
+      for (final r in imageRules())
+        for (final v in (r['versions'] as YamlList? ?? YamlList())) '$v',
+    ];
+
+    test("the docker entry ignores the image's pre-releases", () {
+      expect(
+        imageRules(),
+        isNotEmpty,
+        reason:
+            'the `docker` entry for /backend has no `ignore` rule for '
+            "`${image()}`. Dependabot's own pre-release filter switches itself "
+            'off whenever `latest` shares a digest with no X.Y.Z tag, and it '
+            'then proposes the newest beta (#764, 3.15.0-118.1.beta).',
+      );
+    });
+
+    test('with no rule that also blocks a stable release', () {
+      for (final r in imageRules()) {
+        expect(
+          r.containsKey('update-types'),
+          isFalse,
+          reason:
+              '`update-types` on `${r['dependency-name']}` also ignores '
+              'stable minors or majors, and Dart patches only its newest '
+              'minor: the pin would freeze below every future fix.',
+        );
+        final versions = r['versions'];
+        expect(
+          versions is YamlList && versions.isNotEmpty,
+          isTrue,
+          reason:
+              'an `ignore` rule for `${r['dependency-name']}` without '
+              '`versions` ignores EVERY version: no stable release would ever '
+              'be proposed.',
+        );
+      }
+    });
+
+    test('every range has the proven shape `> X.Y.0, < X.Y.1`', () {
+      for (final v in ranges()) {
+        final m = provenShape.firstMatch(v);
+        expect(
+          m != null && m[1] == m[3] && m[2] == m[4],
+          isTrue,
+          reason:
+              '`$v` is not `> X.Y.0, < X.Y.1` for one X.Y. Only that form is '
+              'proved to ignore pre-releases and no stable release: run '
+              'tool/dependabot_docker_ignore_probe.rb on any other form before '
+              'widening this test.',
+        );
+      }
+    });
+
+    test("from the pinned minor through the next $minorsAhead, and the next "
+        "major's .0", () {
+      final pin = parts(pinnedVersion());
+      final covered = {
+        for (final v in ranges())
+          if (provenShape.firstMatch(v) case final m?) '${m[1]}.${m[2]}',
+      };
+      final wanted = [
+        for (var i = 0; i <= minorsAhead; i++) '${pin[0]}.${pin[1] + i}',
+        '${pin[0] + 1}.0',
+      ];
+      final missing = wanted.where((w) => !covered.contains(w)).toList();
+      expect(
+        missing,
+        isEmpty,
+        reason:
+            'Dart ${pinnedVersion()} is pinned, so the `${image()}` ignore '
+            'must cover ${wanted.join(', ')}: their betas sort above the '
+            'pin. Add to `versions` in ${dependabot.path}:\n'
+            '${missing.map((w) => '          - "> $w.0, < $w.1"').join('\n')}',
+      );
     });
   });
 }
