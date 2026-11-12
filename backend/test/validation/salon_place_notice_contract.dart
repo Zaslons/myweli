@@ -13,12 +13,23 @@ import 'package:test/test.dart';
 ///
 /// [repo] builds the repository under test; [salon] makes a fresh salon (a
 /// `providers` row — Postgres's foreign key) and owns its cleanup.
+/// [contended], when given (Postgres), runs the races on an existing row
+/// under contention every time — see [ContendedRace]; without it they run
+/// with `Future.wait`.
 void salonPlaceNoticeContract({
   required SalonPlaceNoticeRepository Function() repo,
   required Future<String> Function() salon,
+  ContendedRace? contended,
 }) {
   final t0 = DateTime.utc(2026, 11, 12, 9);
   DateTime at(int minutes) => t0.add(Duration(minutes: minutes));
+
+  Future<List<T>> atOnce<T>(String id, List<Future<T> Function()> calls) {
+    final held = contended;
+    return held == null
+        ? Future.wait([for (final c in calls) c()])
+        : held<T>(id, calls);
+  }
 
   Map<String, String?> place(String phone) => {
     'location': '5.35, -3.99',
@@ -109,6 +120,9 @@ void salonPlaceNoticeContract({
       expect(row.pendingSince, at(30));
     });
 
+    // On Postgres a NEW row serialises these by itself: the insert of the
+    // first waits out the others' pre-check. The lock is tested on an
+    // existing row, below.
     test('TWO SAVES AT ONCE in a quiet hour → exactly one e-mail; the other '
         'is recorded', () async {
       final r = repo();
@@ -120,6 +134,23 @@ void salonPlaceNoticeContract({
       ]);
       expect(turns.where((t) => t == PlaceNoticeTurn.sendNow), hasLength(1));
       expect((await r.get(id))!.pendingCount, 2);
+    });
+
+    test('SAVES AT ONCE on a salon already e-mailed, its hour over → '
+        'exactly one e-mail, the others recorded — the row exists, only its '
+        'lock decides', () async {
+      final r = repo();
+      final id = await salon();
+      expect(await save(r, id, at(0)), PlaceNoticeTurn.sendNow);
+      final turns = await atOnce(id, [
+        () => save(r, id, at(60)),
+        () => save(r, id, at(60), phone: '+2250700000002'),
+        () => save(r, id, at(60), phone: '+2250700000003'),
+      ]);
+      expect(turns.where((t) => t == PlaceNoticeTurn.sendNow), hasLength(1));
+      final row = (await r.get(id))!;
+      expect(row.pendingCount, 2);
+      expect(row.lastSentAt, at(60));
     });
 
     test('each salon has its own hour', () async {
@@ -226,9 +257,9 @@ void salonPlaceNoticeContract({
         'nothing (idempotent)', () async {
       final r = repo();
       final id = await owing(r);
-      final claims = await Future.wait([
-        r.claimSummary(id, at(60), current: place('a'), seenSaves: 2),
-        r.claimSummary(id, at(60), current: place('b'), seenSaves: 2),
+      final claims = await atOnce(id, [
+        () => r.claimSummary(id, at(60), current: place('a'), seenSaves: 2),
+        () => r.claimSummary(id, at(60), current: place('b'), seenSaves: 2),
       ]);
       expect(claims.whereType<PlaceSummaryClaim>(), hasLength(1));
       expect(
@@ -279,3 +310,14 @@ void salonPlaceNoticeContract({
     });
   });
 }
+
+/// Runs [calls] at once while another transaction holds the salon's row
+/// `FOR UPDATE`, and lets go only once every call waits on that lock: the
+/// race then happens on every run, not when the timing allows. Code that
+/// read the row without the lock has read it before any call writes, and
+/// loses the race every time. Postgres only; the row must exist.
+typedef ContendedRace =
+    Future<List<T>> Function<T>(
+      String providerId,
+      List<Future<T> Function()> calls,
+    );
