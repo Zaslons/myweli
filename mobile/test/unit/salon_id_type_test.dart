@@ -166,6 +166,10 @@ void main() {
         'restoreProvider(SalonId id)',
         'featureProvider(\n    SalonId id,',
         'markSubscriptionPaid(\n    SalonId id,',
+        // « Salons à valider » (B0.18).
+        'salonValidationDetail(\n    SalonId id,',
+        'approveSalonValidation(\n    SalonId id, {',
+        'refuseSalonValidation(\n    SalonId id, {',
       ]) {
         expect(admin, contains(m), reason: m);
       }
@@ -196,6 +200,8 @@ void main() {
       'lib/models/team_invitation.dart': 'fromJson: an invitation salon',
       'lib/models/salon_market.dart': "fromJson: the acting salon's market",
       'lib/models/salon_facts.dart': "fromJson: the acting salon's card",
+      'lib/models/admin_salon_validation.dart':
+          "fromJson: a validation request's salon, its owner's other salons",
       'lib/models/provider_session.dart':
           'fromJson: the persisted R6 selection',
       'lib/services/api/api_favorites_service.dart':

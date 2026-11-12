@@ -1,16 +1,25 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 
 import '../../core/utils/salon_id.dart';
+import '../../models/admin_salon_validation.dart';
 import '../../models/api_response.dart';
 import '../../services/admin/admin_service.dart';
+import 'admin_salon_validation_count_provider.dart';
 
 /// Salon (provider) management state: filterable/searchable list + suspend /
 /// restore / feature. Design: docs/design/admin-console-ui.md §3.
 class AdminProvidersProvider extends ChangeNotifier {
-  AdminProvidersProvider({AdminService? service})
+  AdminProvidersProvider({AdminService? service, this._validationCount})
     : _service = service ?? adminService;
 
   final AdminService _service;
+
+  /// « Salons à valider » counts pending requests of salons that are NOT
+  /// suspended (B0.18 §3.5): a suspension takes one out, a lift brings it
+  /// back — so both re-read the sidebar's count.
+  final AdminSalonValidationCountProvider? _validationCount;
 
   static const _statuses = [null, 'active', 'suspended']; // Tous/Actifs/Susp.
 
@@ -28,6 +37,12 @@ class AdminProvidersProvider extends ChangeNotifier {
   int get filter => _filter;
   bool get acting => _acting;
   String? get actionError => _actionError;
+
+  /// What the last successful « Lever la suspension » answered — the
+  /// snackbar's words (`ValidationLabels.restoreMessage`): live, or offline
+  /// with its reason (B0.18 §4.4).
+  RestoreOutcome? _lastRestore;
+  RestoreOutcome? get lastRestore => _lastRestore;
 
   Future<void> load() async {
     _isLoading = true;
@@ -55,17 +70,35 @@ class AdminProvidersProvider extends ChangeNotifier {
     load();
   }
 
-  Future<bool> suspend(SalonId id, String reason) =>
-      _act(_service.suspendProvider(id, reason), id);
+  Future<bool> suspend(SalonId id, String reason) async {
+    final ok = await _act(_service.suspendProvider(id, reason), id, _whole);
+    if (ok) unawaited(_validationCount?.load());
+    return ok;
+  }
 
-  Future<bool> restore(SalonId id) => _act(_service.restoreProvider(id), id);
+  /// « Lever la suspension » (B0.18 §4.4). Only the returned `status` enters
+  /// the row: the B0.18 answer is `{ status, reason }`, and a `reason` key
+  /// spread into a salon row is a field no salon has.
+  Future<bool> restore(SalonId id) async {
+    _lastRestore = null;
+    final ok = await _act(_service.restoreProvider(id), id, (outcome) {
+      _lastRestore = outcome;
+      return {'status': outcome.status};
+    });
+    if (ok) unawaited(_validationCount?.load());
+    return ok;
+  }
 
   Future<bool> feature(SalonId id, bool featured) =>
-      _act(_service.featureProvider(id, featured), id);
+      _act(_service.featureProvider(id, featured), id, _whole);
 
-  Future<bool> _act(
-    Future<ApiResponse<Map<String, dynamic>>> call,
+  static Map<String, dynamic> _whole(Map<String, dynamic> updated) => updated;
+
+  /// [patch] turns the answer into the fields the row takes.
+  Future<bool> _act<T extends Object>(
+    Future<ApiResponse<T>> call,
     String id,
+    Map<String, dynamic> Function(T data) patch,
   ) async {
     _acting = true;
     _actionError = null;
@@ -75,7 +108,7 @@ class AdminProvidersProvider extends ChangeNotifier {
       if (res.success && res.data != null) {
         // Replace the row with the returned (updated) provider; drop it if the
         // active status filter no longer matches.
-        final updated = res.data!;
+        final updated = patch(res.data as T);
         final keep =
             _statuses[_filter] == null ||
             updated['status'] == _statuses[_filter];
