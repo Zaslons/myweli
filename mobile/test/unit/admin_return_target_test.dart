@@ -63,6 +63,10 @@ void main() {
         '/admin/kyc\u0000',
         '/admin/kyc%zz',
         '/admin/kyc%',
+        // Escapes that are not UTF-8: refused, never thrown.
+        '/admin/%ff',
+        '/admin/kyc%c3',
+        '/admin/%e2%82',
         // Longer than any place in the console.
         '/admin/${'a' * 2048}',
       ]) {
@@ -103,6 +107,12 @@ void main() {
       );
     });
 
+    test('signed out at a place whose escape is not UTF-8: the login, '
+        'without it — never go_router\'s error page', () {
+      expect(redirect('/admin/%ff'), '/admin');
+      expect(redirect('/admin/kyc%c3'), '/admin');
+    });
+
     test('signed out at the dashboard, or at the login: no `from`', () {
       expect(redirect('/admin/dashboard'), '/admin');
       expect(redirect('/admin'), isNull);
@@ -124,6 +134,7 @@ void main() {
         '%2F%2Fevil.example',
         '%2Fadmin%2F..%2Fx',
         '%2Fadmin',
+        '%2Fadmin%2F%25ff',
       ]) {
         expect(
           redirect('/admin?from=$from', signedIn: true),

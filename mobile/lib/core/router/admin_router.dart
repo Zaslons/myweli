@@ -134,7 +134,8 @@ const _home = '/admin/dashboard';
 /// read RAW: `Uri.parse` removes dot segments, so `/admin/../x` would
 /// already read `/x` there and `/admin/../admin/kyc` would pass as
 /// `/admin/kyc`. An encoded slash or backslash inside a segment, or a
-/// malformed escape, is refused too. Everything else is refused whole:
+/// malformed escape (`%zz`, or bytes that are not UTF-8: `%ff`), is refused
+/// too — never thrown, which go_router turned into its error page. Everything else is refused whole:
 /// never repaired.
 String? adminReturnTarget(String? from) {
   if (from == null || from.isEmpty || from.length > _maxFromLength) {
@@ -155,6 +156,8 @@ String? adminReturnTarget(String? from) {
       segment = Uri.decodeComponent(raw);
     } on ArgumentError {
       return null; // a malformed escape: `%zz`, a lone `%`
+    } on FormatException {
+      return null; // an escape that is not UTF-8: `%ff`, a cut `%c3`
     }
     if (segment == '.' ||
         segment == '..' ||
