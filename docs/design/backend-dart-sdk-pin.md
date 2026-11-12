@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | Built, not merged. Production is **not** redeployed by this change (§10). |
+| **Status** | Built; **merged 2026-11-12** (`af30cb18`, #757). Production is **not** redeployed by this change (§10). |
 | **Owner** | Sadreddine Daher |
 | **Last updated** | 2026-11-10 |
 | **PRD ref / phase** | Security, cross-cutting · V1 |
