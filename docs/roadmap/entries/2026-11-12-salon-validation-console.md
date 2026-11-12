@@ -6,8 +6,8 @@
     - La demande : les photos, les services et leurs prix, les horaires, la position avec « Ouvrir dans OpenStreetMap », le téléphone et son indicatif, l’offre, le propriétaire (sa KYC et ses autres salons), l’historique. La barre du bas envoie `from` (`pending`, `refused`, ou `approved` pour « Validation à terminer ») ; « Valider » est désactivé pour un salon suspendu, avec la raison écrite ; chaque 409 affiche sa phrase.
     - La boîte de refus : un motif obligatoire, une note obligatoire pour « Autre », 500 caractères au plus avec un compteur, ses règles écrites sous le champ ; les motifs définitifs sont signalés. Ni Échap ni un clic à côté ne la ferment pendant l’envoi.
     - « Réactiver » devient « Lever la suspension », sur la liste et sur la fiche du salon, avec un message par résultat et par raison.
-    - Les photos sont dessinées en `<img>` (`WebHtmlElementStrategy.prefer`) : le bucket public refuse le CORS à admin.myweli.com.
-    - Toute la console garde des cibles de 48 dp dans un navigateur de bureau (`AppTheme.consoleTheme()`, au lieu de 40) ; SYSTEM.md §13.2 et §19 le disent.
+    - Les photos sont dessinées en `<img>` (`WebHtmlElementStrategy.prefer`) : le bucket public refuse le CORS à admin.myweli.com (SYSTEM.md §19). Depuis #777, par `AdminRemoteImage`, la seule façon de la console de dessiner une image distante (SYSTEM.md §11.2, [admin-remote-images.md](../../design/admin-remote-images.md) §4.1).
+    - Toute la console garde des cibles de 48 dp dans un navigateur de bureau (`AppTheme.consoleTheme()`, au lieu de 40) ; SYSTEM.md §13.2 le dit.
     - Une décision demandée sur un salon pendant que celle d’un autre est en cours attend sa réponse, puis part ; avant, elle se perdait.
   - **Mesuré :**
     - La suite mobile complète : 3414 tests réussis, 60 ignorés (les goldens, qui ne tournent que sous Linux), 0 échec. Le format et l’analyse sont à 0.
