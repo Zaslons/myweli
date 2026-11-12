@@ -5,6 +5,7 @@ import 'dart:io' show HttpClient, HttpClientRequest;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
 import 'package:myweli/core/utils/salon_id.dart';
 import 'package:myweli/screens/admin/admin_salon_validation_detail_screen.dart';
 import 'package:myweli/screens/admin/admin_salon_validations_screen.dart';
@@ -142,6 +143,26 @@ void main() {
     await t.pumpAndSettle();
     expect(find.text('Beauté Divine'), _salonAndBusiness);
     expect(find.text('Salon Ancien'), findsNothing);
+  });
+
+  testWidgets('from one request to another in the same tab, the second is '
+      'read — the route keeps its State, so didUpdateWidget is what loads it', (
+    t,
+  ) async {
+    final server = FakeAdminServer()
+      ..detail['provider_2'] = jsonResponse(
+        detailJson(id: 'provider_2', name: 'Salon Deux'),
+      );
+    await pumpConsole(t, server, location: path);
+    final screen = find.byType(AdminSalonValidationDetailScreen);
+    final before = t.state(screen);
+    // A second admin e-mail's link, or the URL edited.
+    GoRouter.of(t.element(screen)).go('/admin/salon-validations/provider_2');
+    await t.pumpAndSettle();
+    expect(t.state(screen), same(before), reason: 'no initState this time');
+    expect(find.text('Salon Deux'), findsOneWidget);
+    expect(server.to('/admin/salons/provider_2/validation'), hasLength(1));
+    expect(find.byType(SkeletonDetail), findsNothing);
   });
 
   group('the salon (left)', () {
