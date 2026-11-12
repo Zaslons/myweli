@@ -78,6 +78,46 @@ Response resultResponse({
   }
 }
 
+/// The admin's salon-validation answers (B0.18 —
+/// docs/design/salon-go-live-approval.md §3.2–§3.4, §3.8): the queue, the
+/// detail, validate, refuse, and « Lever la suspension ».
+///
+/// Its own mapping, not [resultResponse]'s, because that one answers every
+/// unknown code 400 — and every refusal here that is not about the request
+/// itself is a **409**: the salon's state is in the way (another decision
+/// won, a suspension, the gate, an offer), never the admin's input. The
+/// gate's 409 carries `missing`, as the owner's publish does.
+///
+/// - 404 `not_found`;
+/// - 409 `validation_not_pending`, `validation_refused_final`,
+///   `not_suspended`, `provider_suspended`, `incomplete` (+ `missing`),
+///   `no_owner`, `invalid_state`;
+/// - 400 `note_required`, `note_too_long`, `invalid_input`, `invalid_body`,
+///   and any code not listed (the input was refused).
+Response salonValidationResponse(({bool ok, String? error, Object? data}) r) {
+  if (r.ok) return Response.json(body: r.data);
+  final error = r.error ?? 'invalid_input';
+  switch (error) {
+    case 'not_found':
+      return jsonError(HttpStatus.notFound, 'not_found');
+    case 'incomplete':
+      final missing = r.data is Map ? (r.data! as Map)['missing'] : null;
+      return Response.json(
+        statusCode: HttpStatus.conflict,
+        body: {'error': 'incomplete', 'missing': missing ?? const <String>[]},
+      );
+    case 'validation_not_pending':
+    case 'validation_refused_final':
+    case 'not_suspended':
+    case 'provider_suspended':
+    case 'no_owner':
+    case 'invalid_state':
+      return jsonError(HttpStatus.conflict, error);
+    default:
+      return jsonError(HttpStatus.badRequest, error);
+  }
+}
+
 /// Shapes a login outcome as the **AuthSession** contract
 /// (`{ tokens: {...}, user }` — every login endpoint returns this exact
 /// nesting; drift here broke the web BFF once). Failures:

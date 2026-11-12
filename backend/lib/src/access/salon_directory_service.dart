@@ -4,6 +4,8 @@ import '../localities/localities_service.dart';
 import '../providers_repository.dart';
 import '../salon_provisioning_service.dart';
 import '../subscription/salon_subscription_service.dart';
+import '../validation/salon_validation_repository.dart';
+import '../validation/salon_validation_view.dart';
 import '../validators.dart';
 import 'membership_repository.dart';
 import 'membership_service.dart';
@@ -20,8 +22,9 @@ class SalonDirectoryService {
     this._memberService,
     this._providers,
     this._subscriptions,
-    this._accounts,
-  );
+    this._accounts, {
+    SalonValidationRepository? validations,
+  }) : _validations = validations;
 
   final MembershipRepository _members;
   final MembershipService _memberService;
@@ -29,13 +32,22 @@ class SalonDirectoryService {
   final SalonSubscriptionService _subscriptions;
   final ProviderAuthRepository _accounts;
 
+  /// B0.18 (docs/design/salon-go-live-approval.md §3.5): each entry carries
+  /// its salon's `validation`, so the picker can say « En cours de
+  /// validation » or « Mise en ligne refusée » on the row. Optional so the
+  /// existing constructions compile — absent, every entry says `null`
+  /// (never asked); `salon_validation_wiring_test.dart` pins the
+  /// composition root.
+  final SalonValidationRepository? _validations;
+
   /// Anti-abuse bound on « Ajouter un salon » (threat T55): no legitimate
   /// pre-launch network needs more; raise deliberately when one does.
   static const int maxOwnedSalons = 20;
 
   /// The picker payload: ACTIVE memberships joined with the salon rows,
   /// owned first then salonName (case-insensitive). Revoked and pending
-  /// invitations are excluded (invitations have their own surface).
+  /// invitations are excluded (invitations have their own surface). Each
+  /// entry's `validation` (B0.18 §3.5) comes from one bulk read.
   Future<List<Map<String, dynamic>>> listForAccount(String accountId) async {
     // Self-heal first: a legacy linked owner without a membership row yet
     // must still see its salon in the list (mirrors memberOf's heal).
@@ -57,6 +69,16 @@ class SalonDirectoryService {
         'verified': salon['verified'] == true,
         'imageUrl': _thumbOf(salon),
       });
+    }
+    final validations = _validations;
+    final views = validations == null
+        ? const <String, Map<String, dynamic>>{}
+        : await salonValidationViews(validations, _subscriptions, {
+            for (final e in entries)
+              e['salonId'] as String: e['salonStatus'] as String,
+          });
+    for (final e in entries) {
+      e['validation'] = views[e['salonId']];
     }
     entries.sort((a, b) {
       final aOwner = a['role'] == 'owner' ? 0 : 1;
@@ -92,9 +114,10 @@ class SalonDirectoryService {
   /// « Ajouter un salon » (R6): create an ADDITIONAL draft salon under the
   /// caller's account. Never touches `account.providerId` (the scalar stays
   /// the default salon); no subscription row (fresh SETUP — its own offer,
-  /// its own trial, its own publish gate; the trial starts at its first
-  /// publish, on Réseau — docs/design/pro-companion-path.md §3.1). The
-  /// verified badge is inherited from the account's KYC (T52).
+  /// its own trial, its own publish gate; without an offer choice the
+  /// trial starts when MyWeli validates it, on Réseau while the owner's
+  /// other Réseau offer is live then — docs/design/salon-go-live-approval.md
+  /// §3.6). The verified badge is inherited from the account's KYC (T52).
   Future<DirectoryResult> addSalon(
     String accountId, {
     required Object? businessName,
@@ -192,6 +215,8 @@ class SalonDirectoryService {
         'salonStatus': 'draft',
         'verified': account.verificationStatus == 'verified',
         'imageUrl': null,
+        // A new salon never asked to go live (B0.18 §3.5).
+        'validation': null,
       },
     );
   }

@@ -283,8 +283,9 @@ void main() {
   });
 
   /// The companion path over the route (docs/design/pro-companion-path.md
-  /// §3.1): publish starts the trial when the salon has no offer row.
-  group('POST /providers/{id}/publish — the trial starts at publish', () {
+  /// §3.1), since B0.18 (docs/design/salon-go-live-approval.md §3.6):
+  /// publish is a request, and the trial starts at MyWeli's validation.
+  group('POST /providers/{id}/publish — a request: no trial there', () {
     late String salonId;
 
     Future<void> complete(String id) => providers.updateProfile(id, {
@@ -345,8 +346,7 @@ void main() {
       expect((await getSubscription()).statusCode, HttpStatus.notFound);
 
       final res = await publish();
-      // The status code (202) is the route's, mapped in the next stage; the
-      // service's answer is pinned in test/validation/salon_submit_test.dart.
+      expect(res.statusCode, HttpStatus.accepted);
       final body = await res.json() as Map;
       expect((body['validation'] as Map)['state'], 'pending');
       expect((await providers.byId(salonId))!['status'], 'draft');

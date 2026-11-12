@@ -811,6 +811,8 @@ final SalonDirectoryService salonDirectoryService = SalonDirectoryService(
   providersRepository,
   salonSubscriptionService,
   providerAuthRepository,
+  // B0.18 §3.5: each « Mes salons » entry carries its validation.
+  validations: salonValidationRepository,
 );
 
 final bool subscriptionEnforcement =

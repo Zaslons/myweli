@@ -269,9 +269,8 @@ void main() {
         ctx(post(id, token: tok('acc1', 'provider'))),
         id,
       );
-      // The 202 is the route's to map (the next stage); the body is the
-      // service's, and so is everything below.
-      expect(res.statusCode, isNot(HttpStatus.conflict));
+      // 202, never 200: every client reads a 200 as « en ligne » (Q8).
+      expect(res.statusCode, HttpStatus.accepted);
       final body = (await res.json()) as Map;
       expect((body['validation'] as Map)['state'], 'pending');
       expect((await providers.byId(id))!['status'], 'draft');
@@ -288,10 +287,11 @@ void main() {
             'notifier cooldown window — the validation fires',
       );
 
-      await publish_route.onRequest(
+      final again = await publish_route.onRequest(
         ctx(post(id, token: tok('acc1', 'provider'))),
         id,
       );
+      expect(again.statusCode, HttpStatus.accepted);
       expect(await validations.events(id), hasLength(1));
       expect(rebuild.reasons, isEmpty);
     });

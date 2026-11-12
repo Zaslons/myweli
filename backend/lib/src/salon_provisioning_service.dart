@@ -9,6 +9,7 @@ import 'site/site_rebuild_notifier.dart';
 import 'subscription/salon_subscription_service.dart';
 import 'validation/salon_validation_dto.dart';
 import 'validation/salon_validation_repository.dart';
+import 'validation/salon_validation_view.dart';
 
 /// What [SalonProvisioningService.publish] — the owner's request to go live
 /// (B0.18, docs/design/salon-go-live-approval.md §3.1) — answered:
@@ -436,4 +437,22 @@ class SalonProvisioningService {
     error: 'validation_refused_final',
     data: null,
   );
+
+  /// The `validation` `GET /me/provider` carries for [providerId] (§3.5),
+  /// or null when the salon never asked — or when this construction has no
+  /// validation record (legacy tests; `salon_validation_wiring_test.dart`
+  /// pins the composition root). [salonStatus] is the salon's status as the
+  /// caller just read it: `offerLive` is said only for a validated salon
+  /// that is not live.
+  Future<Map<String, dynamic>?> validationFor(
+    String providerId, {
+    required String? salonStatus,
+  }) async {
+    final validations = _validations;
+    if (validations == null) return null;
+    final views = await salonValidationViews(validations, _subscriptions, {
+      providerId: salonStatus,
+    });
+    return views[providerId];
+  }
 }

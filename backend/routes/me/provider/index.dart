@@ -12,7 +12,10 @@ import 'package:myweli_backend/src/salon_provisioning_service.dart';
 
 /// `GET /me/provider` — the signed-in provider's own account + the salon it
 /// acts in + the caller's MEMBERSHIP (role, server-computed capabilities,
-/// staff artist link — module `access` R4a). The salon DEFAULTS from the
+/// staff artist link — module `access` R4a) + the salon's `validation` by
+/// MyWeli (B0.18 — docs/design/salon-go-live-approval.md §3.5: `{state,
+/// submittedAt?, decidedAt?, wentLive, offerLive?, refusal?}`, or null when
+/// the salon never asked to go live). The salon DEFAULTS from the
 /// account (owner) or the active membership (member); R6: an explicit
 /// `?salonId=` selects among the caller's ACTIVE memberships — any invalid
 /// selection (never-member, revoked-there, unknown) is a uniform 403
@@ -119,6 +122,12 @@ Future<Response> onRequest(RequestContext context) async {
     }
   }
 
+  // B0.18 §3.5: the salon's validation, BESIDE the salon — never inside
+  // `provider`, which is also the public schema. Null: never asked.
+  final validation = await context
+      .read<SalonProvisioningService>()
+      .validationFor(providerId, salonStatus: provider['status'] as String?);
+
   return Response.json(
     body: {
       'account': account.toJson(),
@@ -129,6 +138,7 @@ Future<Response> onRequest(RequestContext context) async {
         if (member.artistId != null) 'artistId': member.artistId,
         if (artistName != null) 'artistName': artistName,
       },
+      'validation': validation,
     },
   );
 }

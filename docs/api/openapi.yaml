@@ -151,7 +151,9 @@ paths:
         same door as the reminders cron: the Google-signed OIDC token only;
         404 when the OIDC pair is unconfigured, 403 otherwise. Idempotent per
         tick. The trial warnings (J-14/J-7/J-1), the grace notice and — only
-        with `SUBSCRIPTION_ENFORCEMENT` on — the past-grace unpublish. Nothing
+        with `SUBSCRIPTION_ENFORCEMENT` on — the past-grace unpublish; the
+        notices go only to salons MyWeli validated and took live (B0.18
+        R10: a salon waiting for its validation was never public). Nothing
         else since docs/design/infra-cron-maintenance.md: the housekeeping that
         rode here is `/internal/cron/maintenance`.
       parameters:
@@ -547,13 +549,16 @@ paths:
         clients shape by role. Non-provider or unlinked account → 403
         `forbidden`; a REVOKED member on the NO-PARAM path (memberships
         exist, none active) → 403 `not_a_member` — the revoked-mid-session
-        signal (a per-salon denial never signs out the whole session).
+        signal (a per-salon denial never signs out the whole session). B0.18:
+        a fourth key, `validation`, says where the salon stands with MyWeli's
+        validation (docs/design/salon-go-live-approval.md §3.5) — beside
+        `provider`, never inside it (`Provider` is also the public schema).
       security: [{ bearerAuth: [] }]
       parameters:
         - { $ref: '#/components/parameters/SalonSelector' }
       responses:
         '200':
-          description: The provider account + its salon + the caller's membership
+          description: The provider account + its salon + the caller's membership + the salon's validation
           content:
             application/json:
               schema:
@@ -563,6 +568,13 @@ paths:
                   account: { $ref: '#/components/schemas/ProviderUser' }
                   provider: { $ref: '#/components/schemas/Provider' }
                   membership: { $ref: '#/components/schemas/Membership' }
+                  validation:
+                    allOf: [{ $ref: '#/components/schemas/SalonValidation' }]
+                    nullable: true
+                    description: >-
+                      Always sent by this server: null while the salon never
+                      asked to go live. A server before B0.18 omits it — a
+                      client reading both treats absent as today's screens.
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403':
           description: >-
@@ -1085,8 +1097,9 @@ paths:
       summary: "« Mes salons » — every ACTIVE membership + the add-salon gate (access R6)"
       description: >
         Provider-only. Every salon the caller holds an ACTIVE membership in
-        (owned first, then salonName), each with the caller's role there and
-        the salon's status/badge — the switcher payload. `canAddSalon` is
+        (owned first, then salonName), each with the caller's role there,
+        the salon's status/badge and its `validation` by MyWeli (B0.18) —
+        the switcher payload. `canAddSalon` is
         SERVER-computed (≥1 owned salon on a live Réseau offer, under the
         salon cap, never for the store-review demo account — clients never
         derive rights). A bare account gets `{items: [], canAddSalon: false}`.
@@ -1119,8 +1132,9 @@ paths:
         `areaId` still answers 400 first — and `GET`'s `canAddSalon` is false
         for it).
         Creates a DRAFT salon (own setup state — its own offer, its own
-        trial, its own publish gate; no subscription row — its trial starts
-        at its first publish: on Réseau while the owner's other Réseau offer
+        trial, its own publish gate and its own validation by MyWeli; no
+        subscription row — without an offer choice its trial starts when
+        MyWeli validates it: on Réseau while the owner's other Réseau offer
         is still live then, else on Pro) plus the owner membership row; the
         account's default salon link is untouched. The « Vérifié » badge is
         inherited when the account's KYC is approved (T52). `phoneNumber`
@@ -1197,8 +1211,11 @@ paths:
       summary: LEGACY plan status (compat shape; the real model is per-salon)
       description: >
         Provider-role, self-scoped; derived from the acting salon's offer
-        (fallback: the account-age derivation). R6: `?salonId=` selects
-        among the caller's ACTIVE memberships (invalid → 403 `forbidden`).
+        (fallback, while the salon has no offer row: the old account-age
+        derivation — not the salon's trial, which starts when MyWeli
+        validates it or at the first offer choice; no current client reads
+        this). R6: `?salonId=` selects among the caller's ACTIVE memberships
+        (invalid → 403 `forbidden`).
       security: [{ bearerAuth: [] }]
       parameters:
         - { $ref: '#/components/parameters/SalonSelector' }
@@ -1287,8 +1304,9 @@ paths:
         (email OTP via /auth/provider/email/otp/request). The contact
         `phoneNumber` is REQUIRED. Returns a live ProviderSession (201).
         Also provisions the account's linked DRAFT salon (publicly invisible
-        until `POST /providers/{id}/publish` — pro-salon-lifecycle; legacy
-        salon-less accounts self-heal on `GET /me/provider`). The salon is
+        until its owner asks to go live — `POST /providers/{id}/publish` —
+        and MyWeli validates it: pro-salon-lifecycle, salon-go-live-approval;
+        legacy salon-less accounts self-heal on `GET /me/provider`). The salon is
         ALWAYS a new one: no field links an existing salon (T72 — a
         `providerId` here used to make the caller that salon's owner;
         docs/design/backend-register-salon-link.md).
@@ -2144,63 +2162,100 @@ paths:
   /providers/{id}/publish:
     post:
       tags: [providers]
-      summary: Take the salon live (pro-salon-lifecycle)
+      summary: Ask MyWeli to put the salon online (B0.18 — salon-go-live-approval)
       description: >
-        Owner-only (the token's account must own {id} — T50). Flips the salon
-        from `draft` to `active` when the server-computed go-live gate passes
-        (PRD FR-PRO-ONB-001): profile (description + address + commune), map
-        pin, ≥3 active services, ≥3 photos, at least one open weekday, and a
-        live offer. Incomplete → 409 `incomplete` with the missing checklist
-        keys. **The trial starts here when no offer exists**
-        (docs/design/pro-companion-path.md §3.1): a salon with NO
-        subscription row is never refused for `offer` — once every other key
-        passes, the server creates its ONE 3-month trial (tier `reseau` when
-        the owner already owns another salon on a live Réseau offer, else
-        `pro`; insert-if-absent, so an offer chosen first on the web keeps
-        its tier and its clock) and then publishes. `offer` is reported only
-        when a row exists and is no longer live (`expired`) — never a second
-        trial. Idempotent for an already-active salon. Drafts are invisible
-        on every public surface (discovery, by-slug, sitemap) and refuse
-        bookings (T51). The store-review demo account is refused outright —
-        403 `demo_account_locked` (T69): its credential is public, so its
-        salon may never enter the public set. A salon an admin SUSPENDED is
-        refused too — 403 `provider_suspended` (T17): only the audited admin
-        restore lifts a suspension, and the refusal comes before the gate,
-        so a suspended salon never gets a trial here.
+        Owner-only (`salon.publish`; the token's account must own {id} —
+        T50). **A request, not a publication** (B0.18, decision 120 —
+        docs/design/salon-go-live-approval.md §3.1): every salon goes public
+        only once MyWeli validates it (`POST
+        /admin/salons/{id}/validation/approve`), so this records the owner's
+        request and the salon stays `draft` — invisible on every public
+        surface (discovery, by-slug, sitemap) and refusing bookings (T51) —
+        until the admin decides. The server-computed go-live gate must pass
+        first (PRD FR-PRO-ONB-001): profile (description + address + a
+        commune from the locality list), map pin, ≥3 active services, ≥3
+        photos, at least one open weekday — incomplete → 409 `incomplete`
+        with the missing checklist keys. `offer` is reported only when an
+        offer row exists and is no longer live (`expired`); a salon with no
+        offer row is never refused for it. **No trial starts here:** without
+        an earlier offer choice on the website, the salon's ONE 3-month
+        trial starts when MyWeli validates it (§3.6). Then, by the
+        validation's state: never asked, or refused for a reason the salon
+        can fix → the request is recorded → **202**; already `pending` →
+        **202**, the same body, no second request (a double tap tells the
+        admin once); validated but not yet live (the admin's validation is
+        finishing) → **202**; already `active` → **200**, idempotent;
+        validated and live once, back to `draft` since (an unpaid offer, a
+        lifted suspension) → **200** live again when its offer row is live
+        (the republish), else 409 `incomplete` with `offer`; refused with a
+        FINAL code (`outside_ci`, `test_salon`) → 409
+        `validation_refused_final` — only the admin can still validate it.
+        The store-review demo account is refused outright — 403
+        `demo_account_locked` (T69): its credential is public, so its salon
+        may never enter the public set, nor the admin's queue. A salon an
+        admin SUSPENDED is refused too — 403 `provider_suspended` (T17):
+        only the audited admin restore lifts a suspension, and the refusal
+        comes before the gate, so a suspended salon asks for nothing here.
       security: [{ bearerAuth: [] }]
       parameters:
         - { in: path, name: id, required: true, schema: { type: string } }
       responses:
         '200':
-          description: The (now) active provider
+          description: >-
+            The salon is live: it already was, or a validated salon came
+            back online (the republish).
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Provider' }
+        '202':
+          description: >-
+            The request is recorded (or already was, or the admin's
+            validation is finishing): the salon stays `draft` until MyWeli
+            decides, and the owner is told by push, feed row and e-mail.
+            `validation.state` is `pending` — `approved` (`wentLive` false)
+            while the validation finishes, `refused` when MyWeli refused at
+            that very moment (a new request would erase a decision the owner
+            has not read). `validation` is null only when the request
+            vanished meanwhile (the owner's account was erased).
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [validation]
+                properties:
+                  validation:
+                    allOf: [{ $ref: '#/components/schemas/SalonValidation' }]
+                    nullable: true
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403':
           description: >-
             Not the salon's owner (`forbidden`), the store-review demo
             account's salon (`demo_account_locked`, T69), or a salon an admin
             suspended (`provider_suspended`, T17 — lifted only by the admin
-            restore).
+            restore). Nothing is recorded.
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Error' }
         '404': { $ref: '#/components/responses/NotFound' }
         '409':
           description: >-
-            The go-live gate failed. `offer` appears only for a salon whose
-            existing offer is no longer live (expired); a salon with no offer
-            yet gets its trial at this publish instead.
+            `incomplete` — the go-live gate failed, with the missing keys.
+            `offer` appears only for a salon whose existing offer is no
+            longer live (expired); a salon with no offer yet gets its trial
+            at MyWeli's validation instead. `validation_refused_final` —
+            MyWeli refused this salon for a final reason (`outside_ci`,
+            `test_salon`): asking again changes nothing, and `missing` is
+            absent.
           content:
             application/json:
               schema:
                 type: object
-                required: [error, missing]
+                required: [error]
                 properties:
-                  error: { type: string, enum: [incomplete] }
+                  error: { type: string, enum: [incomplete, validation_refused_final] }
                   missing:
                     type: array
+                    description: Sent with `incomplete` only.
                     items:
                       type: string
                       enum: [profile, location, services, photos, availability, offer]
@@ -2333,9 +2388,9 @@ paths:
       summary: The salon's offer state (pricing pivot — R2a)
       description: >
         Owner-only (`subscription.manage`, threat T54). 404 while the salon
-        is in the free setup state — no offer yet: the trial starts at the
-        first publish or at the first choice, whichever comes first
-        (docs/design/pro-companion-path.md §3.1). Status lifecycle:
+        is in the free setup state — no offer yet: the trial starts when
+        MyWeli validates the salon or at the first choice, whichever comes
+        first (docs/design/salon-go-live-approval.md §3.6). Status lifecycle:
         `trial` → (`paid`)* → `grace` (7 days) → `expired`; expiry leads to
         UNPUBLISH (draft, T51) — never a data lockout.
       security: [{ bearerAuth: [] }]
@@ -2350,7 +2405,7 @@ paths:
         '404':
           description: >-
             Setup state — the salon has no offer yet (`not_found`); its trial
-            starts at its first publish or its first choice.
+            starts at MyWeli's validation or at its first choice.
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Error' }
@@ -2359,7 +2414,9 @@ paths:
       summary: Choose or switch the salon's offer (3 mois offerts)
       description: >
         Owner-only. The FIRST choice starts the salon's ONE 3-month trial —
-        unless its first publish already did, in which case this is a switch;
+        before MyWeli validates the salon if it comes first (decision 68
+        stands, B0.18 Q2) — unless the validation already did, in which case
+        this is a switch;
         switches keep the clock; once `expired`, re-choosing → 409
         `trial_used` (payment is manual — « Nous contacter », admin-recorded).
         Offers are chosen on the web only — the Pro app shows the state and
@@ -3551,6 +3608,257 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
 
+  /admin/salon-validations:
+    get:
+      tags: [admin]
+      summary: « Salons à valider » — the salon validation queue (B0.18)
+      description: >
+        docs/design/salon-go-live-approval.md §3.5, §4.2. One tab of the
+        queue, paginated. `pending` (the default) is oldest request first and
+        leaves suspended salons out — they come back when the suspension is
+        lifted — so its `total` is the console's badge and equals the
+        overview's `providers.pendingValidation` (one definition).
+        `refused` and `approved` are the latest decision first. Each item
+        carries the salon's name and place, the owner's contact (the e-mail,
+        or the phone when there is none) and the number of KYC documents
+        sent. Unknown `state` → 400 `invalid_input`.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { in: query, name: state, schema: { type: string, enum: [pending, refused, approved], default: pending } }
+        - { in: query, name: page, schema: { type: integer, minimum: 1 } }
+        - { in: query, name: pageSize, schema: { type: integer, minimum: 1, maximum: 100, default: 50 } }
+      responses:
+        '200':
+          description: One page of the tab
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, page, pageSize, total]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: '#/components/schemas/SalonValidationQueueItem' }
+                  page: { type: integer }
+                  pageSize: { type: integer }
+                  total: { type: integer }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /admin/salons/{id}/validation:
+    parameters:
+      - { in: path, name: id, required: true, schema: { type: string } }
+    get:
+      tags: [admin]
+      summary: A salon's validation request, with what is needed to judge it (B0.18)
+      description: >
+        docs/design/salon-go-live-approval.md §3.5, §4.3. The salon as the
+        admin provider detail reads it (photos, services, hours, address,
+        area, country, pin, phone — any status), its offer (null in the setup
+        state), its owner (null when no active owner exists), the validation
+        (null when the salon never asked) with the admin who decided — the
+        console only, never a salon — and its history, oldest first.
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: The request's detail
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [salon, offer, owner, validation, events]
+                properties:
+                  salon:
+                    type: object
+                    additionalProperties: true
+                    description: The full salon document as stored (the admin provider read), any status.
+                  offer:
+                    allOf: [{ $ref: '#/components/schemas/SalonSubscription' }]
+                    nullable: true
+                  owner:
+                    type: object
+                    nullable: true
+                    required: [accountId, contact, kycDocCount, otherSalons]
+                    properties:
+                      accountId: { type: string }
+                      name: { type: string, nullable: true }
+                      businessName: { type: string, nullable: true }
+                      email: { type: string, nullable: true }
+                      phone: { type: string, nullable: true }
+                      contact: { type: string, nullable: true, description: The e-mail, or the phone when there is none. }
+                      createdAt: { type: string, format: date-time, nullable: true }
+                      accountAgeDays: { type: integer, nullable: true }
+                      kycStatus: { type: string, nullable: true, description: Almost every account reads `pending` without having sent anything — read `kycDocCount`. }
+                      kycDocCount: { type: integer }
+                      otherSalons:
+                        type: array
+                        items:
+                          type: object
+                          required: [id, name, status]
+                          properties:
+                            id: { type: string }
+                            name: { type: string }
+                            status: { type: string, enum: [draft, active, suspended] }
+                  validation:
+                    nullable: true
+                    allOf:
+                      - { $ref: '#/components/schemas/SalonValidation' }
+                      - type: object
+                        properties:
+                          decidedBy: { type: string, nullable: true, description: The admin who decided (console only). }
+                  events:
+                    type: array
+                    items:
+                      type: object
+                      required: [kind, at]
+                      properties:
+                        kind: { type: string, enum: [submitted, approved, refused] }
+                        at: { type: string, format: date-time }
+                        by: { type: string, nullable: true, description: The admin, for a decision. }
+                        refusalCode: { type: string, nullable: true }
+                        refusalNote: { type: string, nullable: true, description: Cleared on the owner's account erasure. }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /admin/salons/{id}/validation/approve:
+    parameters:
+      - { in: path, name: id, required: true, schema: { type: string } }
+    post:
+      tags: [admin]
+      summary: « Valider la mise en ligne » — the salon goes public (B0.18) — audited
+      description: >
+        docs/design/salon-go-live-approval.md §3.2. `from` is the state the
+        admin saw: `pending`; `refused` — correcting a refusal, from
+        « Refusés »; `approved` — « Validation à terminer », finishing a
+        validation interrupted before it went live (it skips the decision).
+        First the checks, each a 409 with nothing written: not suspended,
+        the go-live gate re-run now, no offer row that is no longer live.
+        Then two single-winner compare-and-sets: the decision (a refuse that
+        landed first, or a second click, gets 409 `validation_not_pending`;
+        the winner alone is audited as `salon.approve`), the trial
+        (insert-if-absent — a salon that chose an offer on the website keeps
+        its clock: the 3 months start HERE only without that choice), then
+        the going-live (the salon `active`; only its winner rebuilds the
+        site and tells the owner by push, feed row and e-mail).
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [from]
+              properties:
+                from: { type: string, enum: [pending, refused, approved] }
+      responses:
+        '200':
+          description: Validated and live
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [salonStatus, validation]
+                properties:
+                  salonStatus: { type: string, enum: [active] }
+                  validation:
+                    allOf: [{ $ref: '#/components/schemas/SalonValidation' }]
+                    nullable: true
+        '400':
+          description: >-
+            `invalid_body` — the body is not a JSON object. `invalid_input` —
+            `from` is missing or not one of the three states.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: >-
+            Nothing is public. `provider_suspended` — lift the suspension
+            first. `incomplete` + `missing` — the salon is no longer complete
+            (the gate's keys), or `offer`: its offer is no longer live (« Marquer
+            payé », then validate). `validation_not_pending` — another
+            decision won, or the salon already went live. `no_owner` — no
+            active owner to take it live. `invalid_state` — finishing a
+            validation whose salon is not a draft.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [error]
+                properties:
+                  error:
+                    type: string
+                    enum: [provider_suspended, incomplete, validation_not_pending, no_owner, invalid_state]
+                  missing:
+                    type: array
+                    description: Sent with `incomplete` only.
+                    items:
+                      type: string
+                      enum: [profile, location, services, photos, availability, offer]
+
+  /admin/salons/{id}/validation/refuse:
+    parameters:
+      - { in: path, name: id, required: true, schema: { type: string } }
+    post:
+      tags: [admin]
+      summary: « Refuser » — refuse the request with a reason (B0.18) — audited
+      description: >
+        docs/design/salon-go-live-approval.md §3.3, §4.3. A compare-and-set
+        from `pending` only. The code comes from a closed list; the note is
+        trimmed, at most 500 code points, required for `other`, plain text —
+        no personal data, never a payment instruction — and is never copied
+        into the audit log (`salon.refuse` keeps the code only); the owner's
+        account erasure clears it. `status` stays `draft` (an older image
+        that left it `active` is put back to `draft`). The owner is told by
+        push, feed row and e-mail. `outside_ci` and `test_salon` are final:
+        the salon cannot ask again, only MyWeli can still validate it.
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [code]
+              properties:
+                code:
+                  type: string
+                  enum: [incomplete_info, photos, unconfirmed, outside_ci, test_salon, other]
+                note: { type: string, maxLength: 500 }
+      responses:
+        '200':
+          description: Refused
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [validation]
+                properties:
+                  validation: { $ref: '#/components/schemas/SalonValidation' }
+        '400':
+          description: >-
+            `invalid_body` — the body is not a JSON object. `invalid_input` —
+            a code outside the list, or a note that is not text.
+            `note_required` — `other` without a note. `note_too_long` — over
+            500 code points.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: >-
+            `validation_not_pending` — the request is not pending (another
+            decision won, or the salon never asked); nothing is written.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
   /admin/audit:
     get:
       tags: [admin]
@@ -3845,8 +4153,9 @@ paths:
       summary: Record a manual subscription payment (audited — T54)
       description: >
         Extends `paidUntil` by `months` (1–24) from max(now, current);
-        republishes a billing-unpublished salon when the publish gate passes;
-        reopens the warning cycle.
+        republishes a billing-unpublished salon when the publish gate passes
+        AND MyWeli validated it and took it live once (B0.18 §3.4 — never an
+        unvalidated or a suspended salon); reopens the warning cycle.
       security: [{ bearerAuth: [] }]
       requestBody:
         required: true
@@ -3894,15 +4203,52 @@ paths:
   /admin/providers/{id}/restore:
     post:
       tags: [admin]
-      summary: Lift a provider suspension (B-admin) — audited
+      summary: « Lever la suspension » — lift a suspension (B-admin) — audited
+      description: >
+        B0.18 (docs/design/salon-go-live-approval.md §3.4): lifting a
+        suspension never publishes a salon MyWeli did not validate. The salon
+        goes back to `active` only when the suspension interrupted a live
+        salon (`suspended_from = active`), its validation is `approved` and
+        went live, an active owner exists, its offer row is live and it is
+        not unpublished for non-payment; otherwise to `draft`, with the first
+        reason that held it back. A salon suspended before migration 0044
+        has no recorded prior state → `draft`, `unknown_prior`. The site
+        rebuild fires only for `active`. Audited as `provider.restore` with
+        the status and reason.
       security: [{ bearerAuth: [] }]
       parameters:
         - { in: path, name: id, required: true, schema: { type: string } }
       responses:
-        '200': { description: The restored provider }
+        '200':
+          description: The status the salon was lifted to, and why it stays offline when it does
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status, reason]
+                properties:
+                  status: { type: string, enum: [active, draft] }
+                  reason:
+                    type: string
+                    nullable: true
+                    enum: [not_validated, no_owner, offer_not_live, unpaid, unknown_prior, null]
+                    description: >-
+                      Null for `active`. `not_validated` — never validated,
+                      or never taken live by its validation; `no_owner` — no
+                      active owner (an erased account); `offer_not_live` — no
+                      live offer row; `unpaid` — unpublished for non-payment;
+                      `unknown_prior` — the salon was not live when it was
+                      suspended, or was suspended before 0044.
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: >-
+            `not_suspended` — the salon is not suspended (nothing is
+            written): the route never sets `active` over a draft.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
 
   /admin/providers/{id}/feature:
     post:
@@ -4226,7 +4572,10 @@ paths:
       summary: Marketplace-health KPI snapshot (B-admin, FR-WEB-AD-006)
       description: >
         Read-only DB-derived KPIs: users (active/banned), providers
-        (active/suspended), provider verification (pending/verified/rejected),
+        (active/suspended, and `pendingValidation` — B0.18: the salons waiting
+        for MyWeli's validation, the same number as `GET
+        /admin/salon-validations?state=pending`'s `total`, suspended salons
+        left out), provider verification (pending/verified/rejected),
         bookings by status, no-show + cancellation rates, open/total disputes,
         reported-reviews count. Event-based funnels (search→book) are deferred
         (need a product-analytics stack).
@@ -4236,7 +4585,55 @@ paths:
           description: KPI snapshot
           content:
             application/json:
-              schema: { type: object }
+              schema:
+                type: object
+                required: [users, providers, verification, bookings, guardrails, disputes, reportedReviews]
+                properties:
+                  users:
+                    type: object
+                    required: [active, banned]
+                    properties:
+                      active: { type: integer }
+                      banned: { type: integer }
+                  providers:
+                    type: object
+                    required: [active, suspended, pendingValidation]
+                    properties:
+                      active: { type: integer }
+                      suspended: { type: integer }
+                      pendingValidation:
+                        type: integer
+                        description: « Salons à valider » — the validation queue's pending total (B0.18).
+                  verification:
+                    type: object
+                    required: [pending, verified, rejected]
+                    properties:
+                      pending: { type: integer }
+                      verified: { type: integer }
+                      rejected: { type: integer }
+                  bookings:
+                    type: object
+                    required: [pending, confirmed, completed, cancelled, noShow, total]
+                    properties:
+                      pending: { type: integer }
+                      confirmed: { type: integer }
+                      completed: { type: integer }
+                      cancelled: { type: integer }
+                      noShow: { type: integer }
+                      total: { type: integer }
+                  guardrails:
+                    type: object
+                    required: [noShowRate, cancellationRate]
+                    properties:
+                      noShowRate: { type: number }
+                      cancellationRate: { type: number }
+                  disputes:
+                    type: object
+                    required: [open, total]
+                    properties:
+                      open: { type: integer }
+                      total: { type: integer }
+                  reportedReviews: { type: integer }
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
 
@@ -4512,6 +4909,95 @@ components:
         salonStatus: { type: string, enum: [draft, active, suspended] }
         verified: { type: boolean }
         imageUrl: { type: string, nullable: true }
+        validation:
+          allOf: [{ $ref: '#/components/schemas/SalonValidation' }]
+          nullable: true
+          description: >-
+            The salon's validation by MyWeli (B0.18 §3.5), the same object as
+            `GET /me/provider`'s — so the switcher row can say « En cours de
+            validation » or « Mise en ligne refusée ». Always sent by this
+            server (null: never asked); absent from a server before B0.18.
+
+    SalonValidation:
+      type: object
+      description: >
+        Where a salon stands with MyWeli's validation (B0.18, decision 120 —
+        docs/design/salon-go-live-approval.md §2.3, §3.5). Travels ONLY on
+        authenticated reads (`GET /me/provider`, `GET /me/salons`, the
+        publish 202, the admin routes) — never in `Provider`, the public
+        payload. The admin who decided is never in it. `status` stays `draft`
+        until the validation takes the salon live, so every public door stays
+        closed for `pending` and `refused` salons (T51).
+      required: [state, wentLive]
+      properties:
+        state:
+          type: string
+          enum: [pending, approved, refused]
+          description: >-
+            `pending` — waiting for MyWeli. `approved` — validated; final for
+            validation (it survives a billing unpublish and a suspension).
+            `refused` — with a reason in `refusal`.
+        submittedAt:
+          type: string
+          format: date-time
+          description: The last request. Absent on a salon validated by the 0044 backfill.
+        decidedAt: { type: string, format: date-time }
+        wentLive:
+          type: boolean
+          description: >-
+            The validation took the salon live at least once. `approved`
+            without it is a validation still finishing (« En cours de
+            validation »); with it, a salon that is not `active` now was
+            live before (« Plus en ligne »).
+        offerLive:
+          type: boolean
+          description: >-
+            Sent only for an `approved` salon that is not `active` now: true
+            → « Remettre en ligne » (the publish answers 200); false → the
+            offer lapsed (« Plus en ligne : impayé », the billing pointer).
+        refusal:
+          type: object
+          description: Sent only while `state` is `refused`.
+          required: [code, final]
+          properties:
+            code:
+              type: string
+              enum: [incomplete_info, photos, unconfirmed, outside_ci, test_salon, other]
+              description: The clients word each code (§4.3); `other` is the note alone.
+            note:
+              type: string
+              maxLength: 500
+              description: The admin's note (≤ 500 code points), plain text; required for `other`.
+            final:
+              type: boolean
+              description: >-
+                `outside_ci` and `test_salon` — asking again answers 409
+                `validation_refused_final`; only MyWeli can still validate it.
+
+    SalonValidationQueueItem:
+      type: object
+      description: >
+        One row of « Salons à valider » (B0.18 §3.5, §4.2): the salon, its
+        place, the owner's contact and whether identity documents were sent.
+        The salon fields are null only when the salon row is gone.
+      required: [providerId, validation, kycDocCount]
+      properties:
+        providerId: { type: string }
+        name: { type: string, nullable: true }
+        commune: { type: string, nullable: true }
+        city: { type: string, nullable: true }
+        countryCode: { type: string, nullable: true }
+        salonStatus:
+          type: string
+          nullable: true
+          enum: [draft, active, suspended]
+          description: Null only when the salon row is gone.
+        validation: { $ref: '#/components/schemas/SalonValidation' }
+        ownerContact:
+          type: string
+          nullable: true
+          description: The owner's e-mail, or their phone when there is none; null without an active owner.
+        kycDocCount: { type: integer, description: KYC documents sent (0 → « aucun »). }
 
     TeamMember:
       type: object
@@ -5403,8 +5889,10 @@ components:
           type: string
           enum: [draft, active, suspended]
           description: >
-            Server-owned lifecycle (pro-salon-lifecycle): `draft` until the
-            owner publishes.
+            Server-owned lifecycle (pro-salon-lifecycle): `draft` until
+            MyWeli validates the owner's request to go live
+            (salon-go-live-approval — the validation itself is never part of
+            this schema; it travels beside it on `GET /me/provider`).
             **Every public read serves `active` only** — `GET /providers`,
             `GET /providers/{id}`, `by-slug`, `/providers/{id}/reviews`,
             `/availability`, the landings and the sitemap — so on a public

@@ -38,6 +38,8 @@ void main() {
     'ProviderCatalogService',
     'AdminProviderService',
     'AnalyticsService',
+    // Stage 3 (§3.5): the « Mes salons » entries say each salon's state.
+    'SalonDirectoryService',
   ]) {
     test('$name is constructed WITH the validation repository', () {
       expect(
