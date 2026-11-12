@@ -63,6 +63,45 @@ void main() {
     expect(src, contains("_adminEmail = _envOrNull('ADMIN_EMAIL')"));
   });
 
+  test('the dev boot validates the seed\'s salons: right AFTER the seed, '
+      'inside the same dev-only block, and nowhere else (§3.7)', () {
+    // Nothing behavioural catches its removal: every seeded salon stays
+    // public (the seed writes `active`), so only a restore or a republish
+    // would notice it reads « never validated ».
+    const seed = 'seedProvidersIfEmpty(pool, env: _env)';
+    const backfill = 'backfillSalonValidationsForDev(pool, env: _env)';
+    final seedAt = src.indexOf(seed);
+    expect(seedAt, isNonNegative, reason: 'the dev seed is called');
+    // The `if (_env == Env.dev) {` block that holds the seed, to its
+    // matching brace.
+    final opening = RegExp(
+      r'if\s*\(\s*_env\s*==\s*Env\.dev\s*\)\s*\{',
+    ).allMatches(src).where((m) => m.end <= seedAt).lastOrNull;
+    expect(opening, isNotNull, reason: 'the seed sits in a dev-only block');
+    var depth = 1;
+    var end = opening!.end;
+    while (depth > 0 && end < src.length) {
+      if (src[end] == '{') depth++;
+      if (src[end] == '}') depth--;
+      end++;
+    }
+    final block = src.substring(opening.end, end);
+    expect(block, contains(seed), reason: 'the seed is inside that block');
+    expect(block, contains(backfill), reason: 'the backfill runs there too');
+    expect(
+      block.indexOf(backfill),
+      greaterThan(block.indexOf(seed)),
+      reason: 'after the seed, which inserts the active salons',
+    );
+    expect(
+      'backfillSalonValidationsForDev('.allMatches(src),
+      hasLength(1),
+      reason:
+          'never outside dev: in production it would validate whatever '
+          'an older image published during a rollback (§9.3)',
+    );
+  });
+
   test('the admin seed reads the SAME variable — one read of ADMIN_EMAIL', () {
     expect(
       RegExp(r"_envOrNull\('ADMIN_EMAIL'\)").allMatches(src),

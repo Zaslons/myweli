@@ -36,7 +36,9 @@ import 'package:myweli_backend/src/db/postgres_salon_subscription_repository.dar
 import 'package:myweli_backend/src/db/postgres_salon_validation_repository.dart';
 import 'package:myweli_backend/src/privacy/user_erasure_service.dart';
 import 'package:myweli_backend/src/provider_account_service.dart';
+import 'package:myweli_backend/src/salon_provisioning_service.dart';
 import 'package:myweli_backend/src/salon_time.dart';
+import 'package:myweli_backend/src/salon_visibility.dart';
 import 'package:myweli_backend/src/storage/storage_service.dart';
 import 'package:myweli_backend/src/validation/salon_validation_repository.dart';
 import 'package:postgres/postgres.dart';
@@ -2332,6 +2334,112 @@ void main() {
           parameters: {'id': id},
         ),
         throwsA(isA<ServerException>()),
+      );
+    });
+
+    test('P1 on the real schema: a pending and a refused salon stay out of '
+        'discovery and the sitemap, and by-slug reads them hidden; a '
+        'validated one is in', () async {
+      final providers = PostgresProvidersRepository(pool);
+      final repo = PostgresSalonValidationRepository(pool);
+      final pendingId = await freshSalon();
+      await repo.submit(pendingId, DateTime.utc(2026, 11, 12));
+      final refusedId = await freshSalon();
+      await repo.submit(refusedId, DateTime.utc(2026, 11, 12));
+      await repo.decide(
+        refusedId,
+        from: ValidationStates.pending,
+        to: ValidationStates.refused,
+        adminId: 'admin_1',
+        code: 'photos',
+      );
+      final liveId = await freshSalon();
+      await repo.submit(liveId, DateTime.utc(2026, 11, 12));
+      await repo.decide(
+        liveId,
+        from: ValidationStates.pending,
+        to: ValidationStates.approved,
+        adminId: 'admin_1',
+      );
+      expect(await repo.goLive(liveId), GoLiveOutcome.live);
+
+      final listed = {for (final p in await providers.query()) p['id']};
+      expect(listed, contains(liveId));
+      for (final id in [pendingId, refusedId]) {
+        expect(listed, isNot(contains(id)), reason: id);
+        final slug = (await providers.byId(id))!['slug'] as String;
+        expect(isPublicSalon(await providers.bySlug(slug)), isFalse);
+      }
+    });
+
+    test('the self-heal is followed by a RE-READ on the real schema: a legacy '
+        'salon whose catalogue lives in its tables asks — 202, never a false '
+        'incomplete (§3.1 step 3)', () async {
+      final providers = PostgresProvidersRepository(pool);
+      final id = await freshSalon();
+      for (var i = 1; i <= 3; i++) {
+        await providers.addService(id, {
+          'id': 'svc_${id}_$i',
+          'name': 'Prestation $i',
+          'description': '',
+          'price': 5000.0,
+          'priceMax': null,
+          'durationMinutes': 30,
+          'durationVariants': const <String, dynamic>{},
+          'artistIds': const <String>[],
+          'active': true,
+        });
+      }
+      await providers.replaceAvailability(id, {
+        'providerId': id,
+        'weeklySchedule': {
+          '0': [
+            {
+              'startTime': '2024-01-01T08:00:00.000Z',
+              'endTime': '2024-01-01T18:00:00.000Z',
+              'isAvailable': true,
+            },
+          ],
+        },
+        'breaks': const <String, dynamic>{},
+        'blockedDates': const <String>[],
+        'bufferMinutes': 0,
+      });
+      await providers.updateGallery(id, const [
+        'https://img.test/a.jpg',
+        'https://img.test/b.jpg',
+        'https://img.test/c.jpg',
+      ]);
+      // The rest of the profile, with a LEGACY commune by name: no areaId.
+      final blob = await providers.updateProfile(id, {
+        'description': 'Salon complet à Cocody.',
+        'address': 'Rue des Jardins',
+        'commune': 'Cocody',
+        'latitude': 5.35,
+        'longitude': -3.99,
+      });
+      expect((await providers.byId(id))!['areaId'], isNull);
+      // Setup, and the bug this pins: what updateProfile hands back is the
+      // raw blob, without the catalogue's tables — gating it says
+      // « services » is missing.
+      expect(SalonProvisioningService.publishGate(blob!), contains('services'));
+      expect(
+        SalonProvisioningService.publishGate((await providers.byId(id))!),
+        isEmpty,
+      );
+
+      final r = await SalonProvisioningService(
+        providers,
+        PostgresProviderAuthRepository(pool, tokens: tokens, echoDevCode: true),
+        PostgresMembershipRepository(pool),
+        validations: PostgresSalonValidationRepository(pool),
+      ).publish(id);
+      expect(r.error, isNull, reason: '${r.data}');
+      expect(r.accepted, isTrue);
+      expect((await providers.byId(id))!['areaId'], 'cocody');
+      expect(
+        (await PostgresSalonValidationRepository(pool).get(id))!.state,
+        ValidationStates.pending,
       );
     });
 
