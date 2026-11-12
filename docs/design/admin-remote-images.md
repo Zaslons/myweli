@@ -173,10 +173,20 @@ reloading the file fixes it.
 
 ### 8.3 Mutations
 
-Each applied to committed code, asserted to have changed the file, run, and
-restored from git:
+Each applied to committed code (`480efb21`), asserted to have changed the
+file, run, and restored from git with a clean-tree check:
 
-*(filled in by the build commit)*
+| Mutation | Expected | Went red |
+|---|---|---|
+| M1 `prefer` → `never` | red | the widget test, the deposit proof's, #775's image tile, the guard's widget check |
+| M2 a `User-Agent` header added | red | the same four |
+| M3 the deposit proof's thumbnail back to `TimedCachedImage` | red | the deposit-proof test, the import walk |
+| M4 only the KYC zoom back to `TimedCachedImage` | red | #775's image tile (its zoom half), the import walk |
+| M5 `errorBuilder` removed | red | all five widget tests (the 400 becomes an uncaught image error) |
+| M6 the loader never shown | red | the loader test |
+| M7 the walk skips relative imports | red | « the walk reaches the console »; the offenders check stays green on the empty walk, which is why the reach check exists |
+| M8 a `NetworkImage` in `brand_loader.dart`, a shared widget outside `screens/admin/` | red | the import walk |
+| M8c the same, in a comment only (control) | **green** | — |
 
 ## 9. Rollout
 
