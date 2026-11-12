@@ -217,6 +217,81 @@ void main() {
       expect(asked, ['1', '2', '1']);
     });
 
+    test(
+      'a decision on a page with more after it re-reads that page '
+      'quietly — « Suivant » never skips the request that moved up',
+      () async {
+        final waiting = [for (var i = 1; i <= 51; i++) 'provider_$i'];
+        final asked = <String>[];
+        final q = AdminSalonValidationsProvider(
+          service: svc(
+            MockClient((req) async {
+              final page = int.parse(req.url.queryParameters['page']!);
+              asked.add('$page');
+              const size = AdminSalonValidationsProvider.pageSize;
+              return json(
+                queuePage(
+                  total: waiting.length,
+                  page: page,
+                  items: [
+                    for (final id in waiting.skip((page - 1) * size).take(size))
+                      queueItem(id: id),
+                  ],
+                ),
+              );
+            }),
+          ),
+        );
+        await q.load();
+        expect(q.items, hasLength(50));
+
+        waiting.remove('provider_1'); // validated
+        q.applyDecision(p1, null);
+        expect(q.items, hasLength(49), reason: 'the row leaves at once');
+        expect(q.isLoading, isFalse, reason: 'quietly: the rows stay shown');
+        await pumpEventQueue();
+        expect(asked, ['1', '1']);
+        expect(q.items, hasLength(50));
+        expect(q.items.last.providerId, 'provider_51', reason: 'moved up');
+        expect(q.total, 50);
+
+        // The last page: nothing after it moves up — nothing to re-read.
+        waiting.remove('provider_2');
+        q.applyDecision(SalonId('provider_2'), null);
+        await pumpEventQueue();
+        expect(asked, ['1', '1']);
+        expect(q.items, hasLength(49));
+      },
+    );
+
+    test('a quiet re-read that fails changes nothing shown', () async {
+      var fail = false;
+      final q = AdminSalonValidationsProvider(
+        service: svc(
+          MockClient((_) async {
+            if (fail) return http.Response('{}', 503);
+            return json(
+              queuePage(
+                total: 51,
+                items: [
+                  queueItem(),
+                  queueItem(id: 'provider_2'),
+                ],
+              ),
+            );
+          }),
+        ),
+      );
+      await q.load();
+      fail = true;
+      q.applyDecision(p1, null);
+      await pumpEventQueue();
+      expect(q.items.single.providerId, 'provider_2');
+      expect(q.total, 50);
+      expect(q.error, isNull);
+      expect(q.isLoading, isFalse);
+    });
+
     test('a page past the last — others decided meanwhile — reads the last '
         'page that holds some, never a false « Aucun salon »', () async {
       var total = 60;

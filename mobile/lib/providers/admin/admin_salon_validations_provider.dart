@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 
 import '../../core/utils/salon_id.dart';
@@ -53,20 +55,26 @@ class AdminSalonValidationsProvider extends ChangeNotifier {
   /// « En attente ».
   int _seq = 0;
 
-  Future<void> load() async {
+  Future<void> load() => _read(quiet: false);
+
+  /// One read of the tab's page. [quiet] keeps what is shown while it is out
+  /// — no loading state, and a failure changes nothing: the re-read after a
+  /// decision, under rows that are already right but for the one that left.
+  Future<void> _read({required bool quiet}) async {
     final seq = ++_seq;
     final tab = _tab;
     final page = _page;
-    _isLoading = true;
-    _error = null;
-    notifyListeners();
+    if (!quiet) {
+      _isLoading = true;
+      _error = null;
+      notifyListeners();
+    }
     final res = await _service.salonValidationQueue(
       state: tab,
       page: page,
       pageSize: pageSize,
     );
     if (seq != _seq) return;
-    _unavailable = res.routeMissing;
     final data = res.data;
     if (res.success && data != null) {
       // A page past the last: requests were decided meanwhile (by another
@@ -77,12 +85,14 @@ class AdminSalonValidationsProvider extends ChangeNotifier {
         final last = (data.total - 1) ~/ pageSize + 1;
         if (last < page) {
           _page = last;
-          return load();
+          return _read(quiet: quiet);
         }
       }
+      _unavailable = false;
       _items = data.items;
       _total = data.total;
-    } else {
+    } else if (!quiet) {
+      _unavailable = res.routeMissing;
       _items = const [];
       _total = 0;
       _error = res.routeMissing
@@ -122,7 +132,10 @@ class AdminSalonValidationsProvider extends ChangeNotifier {
   /// total. Nothing to do when the row is not on this page.
   ///
   /// A page emptied this way past the first steps back one page, so the tab
-  /// never reads « Aucun salon » while earlier pages hold some.
+  /// never reads « Aucun salon » while earlier pages hold some. A page with
+  /// more after it is re-read quietly: on the server the next request has
+  /// moved up into it, and without the re-read « Suivant » would skip it —
+  /// or, its total lowered, not be offered at all.
   void applyDecision(SalonId id, SalonValidation? now) {
     final i = _items.indexWhere((r) => r.providerId == id);
     if (i < 0) return;
@@ -137,6 +150,7 @@ class AdminSalonValidationsProvider extends ChangeNotifier {
       for (final r in _items)
         if (r.providerId != id) r,
     ]);
+    final before = _total;
     _total = _total > 0 ? _total - 1 : 0;
     if (_items.isEmpty && _page > 1) {
       _page--;
@@ -144,5 +158,6 @@ class AdminSalonValidationsProvider extends ChangeNotifier {
       return;
     }
     notifyListeners();
+    if (before > _page * pageSize) unawaited(_read(quiet: true));
   }
 }
