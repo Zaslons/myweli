@@ -502,8 +502,22 @@ void main() {
       // Two stamps in the same second: the fraction decides.
       await stamped(later, '2030-01-01T09:00:00.500Z');
       await stamped(earlier, '2030-01-01T09:00:00.100Z');
-      // A stamp no writer produces: listed, last, and no cast attempted.
-      await stamped(unstamped, 'yesterday');
+      // Stamps no writer produces: listed, last, and never cast. Postgres
+      // would ACCEPT 'yesterday' (a special timestamp input) where Dart
+      // refuses it — the backends would disagree — and would THROW on
+      // 'not a date', failing the whole queue.
+      await r.submitKyc(unstamped, [
+        {
+          'type': 'idCard',
+          'key': 'kyc/$unstamped/a.jpg',
+          'submittedAt': 'yesterday',
+        },
+        {
+          'type': 'selfie',
+          'key': 'kyc/$unstamped/b.jpg',
+          'submittedAt': 'not a date',
+        },
+      ]);
       // kyc_docs that is not an array at all: not listed, no error.
       await pool.execute(
         Sql.named(
