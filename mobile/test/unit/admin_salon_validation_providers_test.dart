@@ -1016,6 +1016,55 @@ void main() {
       await pumpEventQueue();
       expect(countReads, 1);
     });
+
+    test('a suspension from the salons list re-reads the count', () async {
+      var countReads = 0;
+      final service = svc(
+        MockClient((req) async {
+          if (req.url.path == '/admin/salon-validations') {
+            countReads++;
+            return json(queuePage());
+          }
+          if (req.url.path == '/admin/providers') {
+            return json({
+              'items': [salonRow('active')],
+              'total': 1,
+            });
+          }
+          return json(salonRow('suspended'));
+        }),
+      );
+      final list = AdminProvidersProvider(
+        service: service,
+        validationCount: AdminSalonValidationCountProvider(service: service),
+      );
+      await list.load();
+      expect(await list.suspend(p1, 'raison'), isTrue);
+      await pumpEventQueue();
+      expect(countReads, 1);
+    });
+
+    test('a lift from a salon\'s page re-reads the count', () async {
+      var countReads = 0;
+      final service = svc(
+        MockClient((req) async {
+          if (req.url.path == '/admin/salon-validations') {
+            countReads++;
+            return json(queuePage());
+          }
+          if (req.method == 'GET') return json(salonRow('suspended'));
+          return json({'status': 'draft', 'reason': 'not_validated'});
+        }),
+      );
+      final p = AdminProviderDetailProvider(
+        service: service,
+        validationCount: AdminSalonValidationCountProvider(service: service),
+      );
+      await p.load(p1);
+      expect(await p.restore(p1), isTrue);
+      await pumpEventQueue();
+      expect(countReads, 1);
+    });
   });
 
   group('the dashboard\'s « Salons à valider » (§4.1)', () {
