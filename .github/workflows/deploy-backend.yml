@@ -312,12 +312,12 @@ jobs:
           UNPIN: ${{ github.event.inputs.unpin }}
 
       # **Production PROMOTES; it does not build.** The build step below already
-      # explains why — a rebuild ships an artifact staging never ran, from a
-      # mutable `FROM dart:stable` base — but that reasoning only protected a
-      # production deploy if the operator remembered to fill in `image_tag`,
-      # which defaults to empty. A dispatch that forgets it does the documented
-      # wrong thing SILENTLY: the run succeeds, every log line agrees, and
-      # production serves bytes nothing has ever booted.
+      # explains why — a rebuild ships an artifact staging never ran (a new
+      # build is new bytes, even from the pinned base) — but that reasoning
+      # only protected a production deploy if the operator remembered to fill
+      # in `image_tag`, which defaults to empty. A dispatch that forgets it
+      # does the documented wrong thing SILENTLY: the run succeeds, every log
+      # line agrees, and production serves bytes nothing has ever booted.
       #
       # Refusing is the whole fix. But refusing without saying WHICH tag just
       # moves the work, so the message resolves the digest staging is serving
@@ -455,9 +455,11 @@ jobs:
             fi
           fi
           # **Deploy the DIGEST, not the tag.** Artifact Registry tags are
-          # mutable and `backend/Dockerfile` builds `FROM dart:stable`, so
-          # `:${SHA}` at 09:00 and `:${SHA}` at 17:00 can be different bytes for
-          # the same commit. A production deploy that rebuilds rather than
+          # mutable, and a second build of one commit is a second artifact —
+          # and before the SDK pin `backend/Dockerfile` floated on `dart:stable`
+          # (it pins version + digest now: docs/design/backend-dart-sdk-pin.md),
+          # so `:${SHA}` at 09:00 and `:${SHA}` at 17:00 can be different bytes
+          # for the same commit. A production deploy that rebuilds rather than
           # promotes would then ship an artifact staging never ran, while every
           # log line agrees on the tag — and the verify step's image comparison
           # below would confirm the wrong thing, since it compares the string we
@@ -483,6 +485,24 @@ jobs:
         env:
           ENVIRONMENT: ${{ github.event.inputs.environment || 'staging' }}
           IMAGE_TAG: ${{ github.event.inputs.image_tag }}
+
+      # **The image's own Dart SDK, read from its bytes, before anything
+      # deploys.** The SDK compiled into /app/bin/server is the TLS verifier for
+      # every outbound call, and Dart < 3.13.7 trusts eight compromised eMudhra
+      # intermediates (GHSA-frr6-h895-5pxp). dart_sdk_pin_test checks what the
+      # Dockerfile SAYS. This checks what was BUILT, because the tag beside a
+      # digest is decoration. It is also the only check on a promotion
+      # (`image_tag`), which builds nothing: promoting a tag from before the
+      # floor is refused here.
+      #
+      # No `if:`, on purpose. It runs on staging-absent merges too, so a bad
+      # base is reported at the merge, not at the next production dispatch.
+      # Read-only: one layer is streamed, nothing is written to the registry.
+      # Design: docs/design/backend-dart-sdk-pin.md §8.
+      - name: The image's Dart SDK is at or above the TLS floor
+        run: bash .github/scripts/verify-image-dart-sdk.sh "${IMAGE_REF}"
+        env:
+          IMAGE_REF: ${{ steps.build.outputs.image }}
 
       # **Refuse to deploy a manifest whose pins are wrong.**
       #

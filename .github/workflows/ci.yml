@@ -136,10 +136,14 @@ jobs:
       - name: Start PostgreSQL (the runner's own — no image pull)
         run: ${{ github.workspace }}/.github/scripts/start-postgres.sh myweli_test
 
+      # The SDK the server ships with: equal to backend/Dockerfile's pinned
+      # `FROM dart:<version>@sha256:…`, in this job and in the boot smoke —
+      # test/infra/dart_sdk_pin_test.dart fails when they differ, or when either
+      # goes below the TLS advisory floor (docs/design/backend-dart-sdk-pin.md).
       - name: Set up Dart
         uses: dart-lang/setup-dart@v1
         with:
-          sdk: 3.10.7
+          sdk: 3.13.7
 
       - name: Install dependencies
         run: dart pub get
@@ -201,7 +205,7 @@ jobs:
       - name: Set up Dart
         uses: dart-lang/setup-dart@v1
         with:
-          sdk: 3.10.7
+          sdk: 3.13.7 # = backend/Dockerfile (dart_sdk_pin_test)
 
       - name: Install dependencies
         run: dart pub get

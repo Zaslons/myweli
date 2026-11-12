@@ -826,11 +826,9 @@ void main() {
         date: date,
         durationMinutes: 30,
       );
-      expect(
-        short.slots!.map(_minuteOf),
-        [for (var m = 9 * 60; m < 18 * 60; m += 30) m],
-        reason: 'nine open hours are eighteen half-hour starts, not one',
-      );
+      expect(short.slots!.map(_minuteOf), [
+        for (var m = 9 * 60; m < 18 * 60; m += 30) m,
+      ], reason: 'nine open hours are eighteen half-hour starts, not one');
 
       final long = await svc.availableSlots(
         providerId: 'p',

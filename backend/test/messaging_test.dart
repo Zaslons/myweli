@@ -26,6 +26,36 @@ class _FakeProvider implements MessagingProvider {
   }
 }
 
+/// An outbox whose write fails the way a database write does: asynchronously,
+/// as a Future that completes with an error.
+class _FailingOutbox implements MessagingOutboxRepository {
+  @override
+  Future<Map<String, dynamic>> append({
+    required String id,
+    required String recipientPhone,
+    required MessageChannel channel,
+    required MessageTemplate template,
+    required Map<String, String> params,
+    required String body,
+    required DeliveryStatus status,
+    String? providerMessageId,
+  }) async {
+    throw StateError('outbox write failed');
+  }
+
+  @override
+  Future<Map<String, dynamic>?> updateStatus(
+    String providerMessageId,
+    DeliveryStatus status,
+  ) => throw UnimplementedError();
+
+  @override
+  Future<({List<Map<String, dynamic>> items, int total})> list({
+    int page = 1,
+    int pageSize = 20,
+  }) => throw UnimplementedError();
+}
+
 void main() {
   late InMemoryMessagingOutboxRepository outbox;
   late InMemoryMessagingPrefsRepository prefs;
@@ -86,6 +116,23 @@ void main() {
       params: {'provider': 'X', 'date': '15/06'},
     );
     expect(row!['status'], 'failed');
+  });
+
+  test('an outbox that fails to record returns null — it never throws', () async {
+    // The contract on sendTemplate: "returns the stored row, or null when
+    // skipped/failed-to-record (never throws)". The row used to be RETURNED
+    // un-awaited from inside the `try`, so a failed write — a Future that
+    // completes with an error — left the function after the `catch` had
+    // already been passed, and reached the caller. Found by Dart 3.13's
+    // `unawaited_return_in_try_block` (docs/design/backend-dart-sdk-pin.md §6).
+    final p = _FakeProvider();
+    final row = await MessagingService(p, _FailingOutbox(), prefs).sendTemplate(
+      recipientPhone: '+2250700000000',
+      template: MessageTemplate.bookingConfirmed,
+      params: {'provider': 'X', 'date': '15/06', 'time': '14:30'},
+    );
+    expect(row, isNull);
+    expect(p.sent, hasLength(1), reason: 'the message itself did go out');
   });
 
   test('sendOtp sends over SMS and never persists the code', () async {

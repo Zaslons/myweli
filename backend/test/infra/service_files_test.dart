@@ -784,8 +784,9 @@ void main() {
 
     test('a production dispatch with no image_tag is REFUSED', () {
       // The build step has always explained why a production rebuild is wrong
-      // — it ships an artifact staging never ran, from a mutable
-      // `FROM dart:stable` base. But the explanation only protected anything
+      // — it ships an artifact staging never ran (from a `FROM dart:stable`
+      // base that floated until the SDK pin; a rebuild is new bytes even from
+      // a pinned one). But the explanation only protected anything
       // if the operator remembered to fill in `image_tag`, which defaults to
       // empty, and forgetting it does the documented wrong thing SILENTLY:
       // the run succeeds and every log line agrees.

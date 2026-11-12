@@ -27,11 +27,9 @@ void main() {
       ).verify(['deposit/u1/big.jpg'], bucket: StorageBucket.deposit).then((r) {
         expect(r.ok, isFalse);
         expect(r.error, 'upload_too_large');
-        expect(
-          store.deleted,
-          ['deposit/u1/big.jpg'],
-          reason: 'the offending object must not survive the rejection',
-        );
+        expect(store.deleted, [
+          'deposit/u1/big.jpg',
+        ], reason: 'the offending object must not survive the rejection');
       });
     });
 

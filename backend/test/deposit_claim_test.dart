@@ -94,11 +94,9 @@ void main() {
       expect(store.copied, [
         'pending/deposit/$uid/x.jpg -> deposit/$uid/x.jpg',
       ]);
-      expect(
-        store.deleted,
-        ['pending/deposit/$uid/x.jpg'],
-        reason: 'the object must LEAVE pending/, or the daily expiry gets it',
-      );
+      expect(store.deleted, [
+        'pending/deposit/$uid/x.jpg',
+      ], reason: 'the object must LEAVE pending/, or the daily expiry gets it');
       // And it is what was persisted, not just what was echoed back.
       final stored = await appts.byId(r.appointment!['id'] as String);
       expect(stored!['depositScreenshotUrl'], 'deposit/$uid/x.jpg');
