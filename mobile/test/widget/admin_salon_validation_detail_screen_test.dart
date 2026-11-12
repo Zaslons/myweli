@@ -127,6 +127,11 @@ void main() {
         server.hold(detailPath, gate.future);
       },
     );
+    // The FIRST frame — before this screen's own load has even started,
+    // the provider still holds A whole.
+    expect(find.text('Salon Ancien'), findsNothing);
+    expect(find.text('Valider la mise en ligne'), findsNothing);
+    expect(find.byType(SkeletonDetail), findsOneWidget);
     await t.pump();
     await t.pump();
     expect(find.text('Salon Ancien'), findsNothing);

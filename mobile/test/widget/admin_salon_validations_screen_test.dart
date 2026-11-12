@@ -270,6 +270,40 @@ void main() {
       handle.dispose();
     });
 
+    testWidgets('every entry is a ≥ 48dp target, measured — the tap-target '
+        'guideline cannot see the sidebar', (t) async {
+      // `androidTapTargetGuideline` skips a node touching the edge of a
+      // scrollable or of the view (flutter_test accessibility.dart,
+      // `_isAtBoundary`), and every sidebar entry starts at x = 0 inside its
+      // ListView: a 44dp entry passes it. So the floor is measured here.
+      await pumpConsole(t, FakeAdminServer(), location: queuePath);
+      for (final label in [
+        'Vue d’ensemble',
+        'KYC',
+        'Avis',
+        'Salons',
+        'Clients',
+        'Litiges',
+        'Journal',
+        'Versions client',
+      ]) {
+        final tile = find
+            .ancestor(
+              of: find.text(label).first,
+              matching: find.byType(InkWell),
+            )
+            .first;
+        expect(t.getSize(tile).height, greaterThanOrEqualTo(48), reason: label);
+      }
+      final entry = find
+          .ancestor(
+            of: find.text('Salons à valider').first,
+            matching: find.byType(InkWell),
+          )
+          .first;
+      expect(t.getSize(entry).height, greaterThanOrEqualTo(48));
+    });
+
     testWidgets('no badge without the provider — a console, or a test, '
         'built without it still renders its sidebar', (t) async {
       final server = FakeAdminServer();
