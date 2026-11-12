@@ -94,8 +94,13 @@ class AdminSalonValidationDetailProvider extends ChangeNotifier {
     if (id != _id) {
       _id = id;
       _detail = null;
-      _clearAction();
     }
+    // A read shows the request as it is now: the last decision's answer — a
+    // 409's sentence, its way to the salon's page — was about what was read
+    // before, and could contradict this read (« Rafraîchir » after the fix,
+    // the same request opened again). The re-read right after a decision
+    // keeps it: that is [_refresh], not this.
+    _clearAction();
     final seq = ++_seq;
     _isLoading = true;
     _error = null;

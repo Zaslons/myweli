@@ -665,6 +665,29 @@ void main() {
       expect(c.count.count, 0);
     });
 
+    test('a read of the same request drops the last decision\'s answer — '
+        'the re-read right after it keeps it', () async {
+      final c = await console((req) async {
+        if (req.method == 'POST') {
+          return json({
+            'error': 'incomplete',
+            'missing': ['photos', 'offer'],
+          }, 409);
+        }
+        if (req.url.path == '/admin/salon-validations') {
+          return json(queuePage());
+        }
+        return json(detailJson());
+      });
+      expect(await c.detail.approve(p1), isFalse);
+      await pumpEventQueue();
+      expect(c.detail.actionCode, 'incomplete', reason: 'kept by the re-read');
+      await c.detail.load(p1); // « Rafraîchir », or the request opened again
+      expect(c.detail.actionError, isNull);
+      expect(c.detail.actionCode, isNull);
+      expect(c.detail.actionMissing, isEmpty);
+    });
+
     test('a decision still out for A does not busy B\'s bar, and blocks a '
         'second one', () async {
       final answer = Completer<http.Response>();

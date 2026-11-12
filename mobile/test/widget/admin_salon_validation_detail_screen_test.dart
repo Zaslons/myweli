@@ -582,6 +582,29 @@ void main() {
       );
       expect(find.text('Ouvrir la fiche du salon'), findsOneWidget);
     });
+
+    testWidgets('« Rafraîchir » after a 409: the request as it is now — the '
+        'last answer\'s sentence and its link do not outlive it', (t) async {
+      // Suspended between the read and the click, then lifted elsewhere.
+      final server = serving(detail())
+        ..approve = jsonResponse({'error': 'provider_suspended'}, 409);
+      await pumpConsole(t, server, location: path);
+      await t.tap(find.text('Valider la mise en ligne'));
+      await t.pumpAndSettle();
+      expect(
+        find.text('Salon suspendu : levez d’abord la suspension.'),
+        findsOneWidget,
+      );
+      expect(find.text('Ouvrir la fiche du salon'), findsOneWidget);
+      await t.tap(find.byTooltip('Rafraîchir'));
+      await t.pumpAndSettle();
+      expect(
+        find.text('Salon suspendu : levez d’abord la suspension.'),
+        findsNothing,
+      );
+      expect(find.text('Ouvrir la fiche du salon'), findsNothing);
+      expect(enabled(t, 'Valider la mise en ligne'), isTrue);
+    });
   });
 
   group('refusing', () {
