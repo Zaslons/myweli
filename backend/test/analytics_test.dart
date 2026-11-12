@@ -71,6 +71,53 @@ void main() {
     expect((data['disputes'] as Map)['open'], 1);
   });
 
+  test(
+    'verification.pending = the KYC queue: submissions awaiting review, '
+    'not every account never verified (admin-kyc-queue-submitted.md §4.4)',
+    () async {
+      final providerAuth = InMemoryProviderAuthRepository(
+        tokens: tokens,
+        echoDevCode: true,
+      );
+      Future<String> salon(String tag) async => (await providerAuth.register(
+        email: '$tag@test.pro',
+        authProvider: 'google',
+        googleSub: 'sub-$tag',
+        phoneNumber: '+2250500000092',
+        businessName: 'Salon $tag',
+        businessType: 'salon',
+      )).provider!.id;
+      final submitted = await salon('sent');
+      await salon('never');
+      await providerAuth.createMemberAccount(
+        email: 'member@test.pro',
+        authProvider: 'google',
+        googleSub: 'sub-member',
+      );
+      await providerAuth.submitKyc(submitted, [
+        {'type': 'idCard', 'key': 'kyc/$submitted/id.jpg'},
+      ]);
+      final verified = await salon('ok');
+      await providerAuth.submitKyc(verified, [
+        {'type': 'idCard', 'key': 'kyc/$verified/id.jpg'},
+      ]);
+      await providerAuth.setVerification(verified, status: 'verified');
+
+      final svc = AnalyticsService(
+        InMemoryAppointmentRepository(),
+        InMemoryProvidersRepository(),
+        InMemoryAuthRepository(tokens: tokens, echoDevCode: true),
+        providerAuth,
+        InMemoryDisputesRepository(),
+        InMemoryReviewsRepository(),
+      );
+      final v = ((await svc.overview()).data! as Map)['verification'] as Map;
+      expect(v['pending'], 1);
+      expect(v['verified'], 1);
+      expect(v['rejected'], 0);
+    },
+  );
+
   test('northStar buckets completed bookings by week × commune', () async {
     final appts = InMemoryAppointmentRepository();
     final providers = InMemoryProvidersRepository();

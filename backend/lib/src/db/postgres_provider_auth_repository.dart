@@ -467,7 +467,14 @@ class PostgresProviderAuthRepository implements ProviderAuthRepository {
         "verification_status = 'pending', rejection_reason = NULL "
         "WHERE id = @id RETURNING *",
       ),
-      parameters: {'id': accountId, 'docs': jsonEncode(docs)},
+      // The LIST, not `jsonEncode(docs)`: a String given to a `:jsonb`
+      // parameter is encoded again, so the column held a jsonb STRING whose
+      // text was the list — invisible to the app (`_kycDocs` decodes both) and
+      // to nothing else until SQL read inside it (the KYC queue). Rows written
+      // that way stay; the queue's SQL reads both forms
+      // (docs/design/admin-kyc-queue-submitted.md §4.2). `salon_clients.tags`
+      // is written the same way, for the same reason.
+      parameters: {'id': accountId, 'docs': docs},
     );
     if (rows.isEmpty) return null;
     return _toAccount(rows.first.toColumnMap());
@@ -500,22 +507,33 @@ class PostgresProviderAuthRepository implements ProviderAuthRepository {
     );
   }
 
-  /// « Awaiting review » in SQL — [ProviderAccount.awaitsKycReview]. `CASE` is
-  /// the one construct whose evaluation order Postgres guarantees, so
-  /// `jsonb_array_length` never sees a non-array (it would throw, and one odd
-  /// row would turn the whole queue into a 500).
+  /// `kyc_docs` as a jsonb ARRAY, or NULL when it holds no list. Rows written
+  /// before 2026-11-12 hold the list double-encoded — a jsonb STRING whose
+  /// text is the JSON (see [submitKyc]) — and old revisions keep writing that
+  /// form until the deploy completes, so both are read. Nested `CASE`s because
+  /// `CASE` is the one construct whose evaluation order Postgres guarantees:
+  /// the cast only ever sees text `pg_input_is_valid` accepted (Postgres 16,
+  /// as CI and Cloud SQL), and nothing downstream sees a non-array — one odd
+  /// row must not turn the whole queue into a 500.
+  static const _kycDocsArray =
+      "(CASE jsonb_typeof(kyc_docs) WHEN 'array' THEN kyc_docs "
+      "WHEN 'string' THEN CASE WHEN pg_input_is_valid(kyc_docs #>> '{}', "
+      "'jsonb') THEN CASE WHEN jsonb_typeof((kyc_docs #>> '{}')::jsonb) = "
+      "'array' THEN (kyc_docs #>> '{}')::jsonb END END END)";
+
+  /// « Awaiting review » in SQL — [ProviderAccount.awaitsKycReview].
   static const _awaitsKycReview =
-      "verification_status = 'pending' AND CASE WHEN jsonb_typeof(kyc_docs) = "
-      "'array' THEN jsonb_array_length(kyc_docs) > 0 ELSE false END";
+      "verification_status = 'pending' AND "
+      'COALESCE(jsonb_array_length($_kycDocsArray), 0) > 0';
 
   /// [kycSubmittedAt] in SQL: the newest stamp, cast only when it has the
   /// server's shape ([kycStampPattern] — the same pattern, so both backends
-  /// agree), again behind a `CASE` so a malformed stamp cannot throw.
+  /// agree on which stamps count), again behind a `CASE`.
   static final _kycSubmittedAt =
       "(SELECT max(CASE WHEN d->>'submittedAt' ~ "
       "'${kycStampPattern.pattern}' "
       "THEN (d->>'submittedAt')::timestamptz END) "
-      'FROM jsonb_array_elements(kyc_docs) d)';
+      'FROM jsonb_array_elements($_kycDocsArray) d)';
 
   @override
   Future<({List<ProviderAccount> items, int total})> listKycQueue({

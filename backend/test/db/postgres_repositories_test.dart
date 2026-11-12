@@ -469,6 +469,109 @@ void main() {
       expect(reread!.kycDocs.single['key'], 'kyc/$id/a.jpg');
       expect(await r.submitKyc('nope', const []), isNull);
     });
+
+    // docs/design/admin-kyc-queue-submitted.md §4.2 — the SQL twin of
+    // `ProviderAccount.awaitsKycReview` + `kycSubmittedAt`.
+    test('listKycQueue: pending WITH documents only, oldest submission first; '
+        'odd rows neither listed first nor able to break the query', () async {
+      final r = repo();
+      var n = 0;
+      Future<String> account() async => (await r.register(
+        email: 'q${++n}@test.pro',
+        authProvider: 'google',
+        googleSub: 'q-sub-$n',
+        phoneNumber: provPhone,
+        businessName: 'Q$n',
+        businessType: 'salon',
+      )).provider!.id;
+      Future<void> stamped(String id, String stamp) => r.submitKyc(id, [
+        {'type': 'idCard', 'key': 'kyc/$id/a.jpg', 'submittedAt': stamp},
+      ]);
+
+      await account(); // never submitted: `pending`, `[]`
+      await r.createMemberAccount(
+        email: 'qmember@test.pro',
+        authProvider: 'google',
+        googleSub: 'q-sub-member',
+      );
+      final later = await account();
+      final earlier = await account();
+      final unstamped = await account();
+      final odd = await account();
+      final verified = await account();
+      // Two stamps in the same second: the fraction decides.
+      await stamped(later, '2030-01-01T09:00:00.500Z');
+      await stamped(earlier, '2030-01-01T09:00:00.100Z');
+      // A stamp no writer produces: listed, last, and no cast attempted.
+      await stamped(unstamped, 'yesterday');
+      // kyc_docs that is not an array at all: not listed, no error.
+      await pool.execute(
+        Sql.named(
+          "UPDATE provider_users SET kyc_docs = '{\"x\": 1}'::jsonb "
+          'WHERE id = @id',
+        ),
+        parameters: {'id': odd},
+      );
+      await stamped(verified, '2029-01-01T00:00:00.000Z');
+      await r.setVerification(verified, status: 'verified');
+
+      // The form every submission had before this change, and old revisions
+      // write until the deploy completes: a jsonb STRING holding the list's
+      // JSON. A valid one is in the queue; invalid JSON and an old-style
+      // empty `"[]"` (the demo reset) are not, and break nothing.
+      Future<void> legacy(String id, String text) => pool.execute(
+        Sql.named(
+          'UPDATE provider_users SET kyc_docs = to_jsonb(@t::text) '
+          'WHERE id = @id',
+        ),
+        parameters: {'id': id, 't': text},
+      );
+      final old = await account();
+      await legacy(
+        old,
+        jsonEncode([
+          {
+            'type': 'idCard',
+            'key': 'kyc/$old/a.jpg',
+            'submittedAt': '2030-01-01T08:00:00.000Z',
+          },
+        ]),
+      );
+      await legacy(await account(), 'not json [');
+      await legacy(await account(), '[]');
+
+      // New writes are real arrays now.
+      final types = await pool.execute(
+        Sql.named(
+          'SELECT jsonb_typeof(kyc_docs) FROM provider_users '
+          'WHERE id = @id',
+        ),
+        parameters: {'id': later},
+      );
+      expect(types.first[0], 'array');
+      expect(
+        (await r.accountById(old))!.kycDocs.single['key'],
+        'kyc/$old/a.jpg',
+      );
+
+      final all = await r.listKycQueue();
+      expect(all.items.map((a) => a.id), [old, earlier, later, unstamped]);
+      expect(all.total, 4);
+
+      final p1 = await r.listKycQueue(pageSize: 3);
+      final p2 = await r.listKycQueue(page: 2, pageSize: 3);
+      expect(p1.items.map((a) => a.id), [old, earlier, later]);
+      expect(p2.items.map((a) => a.id), [unstamped]);
+      expect(p2.total, 4);
+
+      // The demo reset's empty `pending` leaves it.
+      await r.submitKyc(earlier, const []);
+      expect((await r.listKycQueue()).items.map((a) => a.id), [
+        old,
+        later,
+        unstamped,
+      ]);
+    });
   });
 
   group('PostgresProvidersRepository', () {
