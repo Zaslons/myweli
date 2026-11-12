@@ -78,6 +78,15 @@ class _FormDialogState extends State<FormDialog> {
 
   @override
   Widget build(BuildContext context) {
+    // While the submit is out, no way out at all — not « Annuler » (disabled
+    // below), and not Escape nor a click on the scrim either, which both pop
+    // through `Navigator.maybePop`. A dismissal there read as a cancel while
+    // the request still landed: a salon refused that the admin believed
+    // spared, with no word of it (B0.18).
+    return PopScope(canPop: !_submitting, child: _dialog(context));
+  }
+
+  Widget _dialog(BuildContext context) {
     return AlertDialog(
       // Measured on ConfirmDialog and true here for the same reason: a form at
       // 200% text overflows its own Column and paints over the buttons.

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -280,6 +282,30 @@ void main() {
       expect(find.byType(SnackBar), findsNothing);
       expect(find.text('Une note'), findsOneWidget);
       expect(result, isNull);
+    });
+
+    testWidgets('while the refusal is out, neither Escape nor a click outside '
+        'closes the dialog — it closes on the answer, refused', (t) async {
+      final answer = Completer<RefusalAnswer>();
+      await open(t, (code, note) {
+        calls.add((code, note));
+        return answer.future;
+      });
+      await t.tap(find.text('Photos insuffisantes'));
+      await t.tap(submit());
+      await t.pump();
+      expect(calls, hasLength(1));
+      await t.sendKeyEvent(LogicalKeyboardKey.escape);
+      await t.pump();
+      expect(find.text(kRefusalDialogTitle), findsOneWidget, reason: 'Escape');
+      await t.tapAt(const Offset(4, 4)); // the scrim
+      await t.pump();
+      expect(find.text(kRefusalDialogTitle), findsOneWidget, reason: 'scrim');
+      expect(result, isNull);
+      answer.complete(ok);
+      await t.pumpAndSettle();
+      expect(result, RefusalDialogResult.refused);
+      expect(find.text(kRefusalDialogTitle), findsNothing);
     });
 
     testWidgets('« Annuler »: nothing sent', (t) async {
