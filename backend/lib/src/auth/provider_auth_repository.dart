@@ -188,6 +188,11 @@ abstract interface class ProviderAuthRepository {
   /// authorize pro actions (resolve the account → the Provider it manages).
   Future<ProviderAccount?> accountById(String id);
 
+  /// [accountById] for a set, in ONE round trip — the admin validation
+  /// queue's owner contact and KYC count (B0.18 §3.5), which would otherwise
+  /// read one account per row. Unknown ids are absent from the map.
+  Future<Map<String, ProviderAccount>> accountsByIds(Iterable<String> ids);
+
   /// The account behind [email] (trimmed, case-insensitive), or null.
   Future<ProviderAccount?> accountByEmail(String email);
 
@@ -307,6 +312,14 @@ class InMemoryProviderAuthRepository implements ProviderAuthRepository {
 
   @override
   Future<ProviderAccount?> accountById(String id) async => _byId[id];
+
+  @override
+  Future<Map<String, ProviderAccount>> accountsByIds(
+    Iterable<String> ids,
+  ) async => {
+    for (final id in ids)
+      if (_byId[id] != null) id: _byId[id]!,
+  };
 
   @override
   Future<ProviderAccount?> accountByEmail(String email) async =>

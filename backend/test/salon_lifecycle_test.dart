@@ -10,6 +10,7 @@ import 'package:myweli_backend/src/auth/tokens.dart';
 import 'package:myweli_backend/src/providers_repository.dart';
 import 'package:myweli_backend/src/salon_provisioning_service.dart';
 import 'package:myweli_backend/src/site/site_rebuild_notifier.dart';
+import 'package:myweli_backend/src/validation/salon_validation_repository.dart';
 import 'package:test/test.dart';
 
 import '../routes/providers/[id]/publish.dart' as publish_route;
@@ -170,17 +171,23 @@ void main() {
     late SalonProvisioningService service;
     late _RecordingNotifier rebuild;
     late InMemoryMembershipRepository memberships;
+    late InMemorySalonValidationRepository validations;
 
     setUp(() async {
       providers = InMemoryProvidersRepository([]);
       auth = _MockProviderAuth();
       rebuild = _RecordingNotifier();
       memberships = InMemoryMembershipRepository();
+      validations = InMemorySalonValidationRepository(
+        providers: providers,
+        members: memberships,
+      );
       service = SalonProvisioningService(
         providers,
         auth,
         memberships,
         rebuild: rebuild,
+        validations: validations,
       );
     });
 
@@ -249,45 +256,45 @@ void main() {
       );
     });
 
-    test(
-      'complete → 200 active + discoverable; re-publish idempotent',
-      () async {
-        final salon = await makeDraft();
-        final id = salon['id'] as String;
-        await complete(salon);
-        when(
-          () => auth.accountById('acc1'),
-        ).thenAnswer((_) async => _account('acc1', providerId: id));
+    test('complete → the request is RECORDED: still draft, still hidden, '
+        'no rebuild; asking again changes nothing (B0.18 §3.1)', () async {
+      final salon = await makeDraft();
+      final id = salon['id'] as String;
+      await complete(salon);
+      when(
+        () => auth.accountById('acc1'),
+      ).thenAnswer((_) async => _account('acc1', providerId: id));
 
-        final res = await publish_route.onRequest(
-          ctx(post(id, token: tok('acc1', 'provider'))),
-          id,
-        );
-        expect(res.statusCode, HttpStatus.ok);
-        expect(((await res.json()) as Map)['status'], 'active');
-        expect(await providers.query(), hasLength(1)); // now discoverable
-        expect(
-          rebuild.reasons,
-          ['salon.published'],
-          reason:
-              'the prebuilt slug set just grew — without this fire the '
-              'salon 404s until an unrelated deploy (dynamicParams = false)',
-        );
+      final res = await publish_route.onRequest(
+        ctx(post(id, token: tok('acc1', 'provider'))),
+        id,
+      );
+      // 202, never 200: every client reads a 200 as « en ligne » (Q8).
+      expect(res.statusCode, HttpStatus.accepted);
+      final body = (await res.json()) as Map;
+      expect((body['validation'] as Map)['state'], 'pending');
+      expect((await providers.byId(id))!['status'], 'draft');
+      expect(
+        await providers.query(),
+        isEmpty,
+        reason: 'a request is not a publication — MyWeli validates first',
+      );
+      expect(
+        rebuild.reasons,
+        isEmpty,
+        reason:
+            'a request changes no public byte, so it must not consume the '
+            'notifier cooldown window — the validation fires',
+      );
 
-        final again = await publish_route.onRequest(
-          ctx(post(id, token: tok('acc1', 'provider'))),
-          id,
-        );
-        expect(again.statusCode, HttpStatus.ok);
-        expect(
-          rebuild.reasons,
-          hasLength(1),
-          reason:
-              'an idempotent re-publish changes nothing and must not '
-              'consume the notifier cooldown window',
-        );
-      },
-    );
+      final again = await publish_route.onRequest(
+        ctx(post(id, token: tok('acc1', 'provider'))),
+        id,
+      );
+      expect(again.statusCode, HttpStatus.accepted);
+      expect(await validations.events(id), hasLength(1));
+      expect(rebuild.reasons, isEmpty);
+    });
 
     test('a gate-blocked publish asks for NO rebuild', () async {
       final salon = await makeDraft(); // incomplete on purpose
@@ -351,17 +358,39 @@ void main() {
       // site_rebuild_notifier_test.dart: callers rely on the notifier's own
       // never-throws contract rather than guarding. If that posture ever
       // changes, change it deliberately — this test is the tripwire.
+      //
+      // Since B0.18 publish fires only on a VALIDATED salon's republish, so
+      // the salon here was validated and went live, then fell back to draft.
+      final salon = await makeDraft();
+      final id = salon['id'] as String;
+      await complete(salon);
+      await memberships.ensureOwner(
+        providerId: id,
+        accountId: 'acc1',
+        email: 'awa@salon.ci',
+      );
+      await validations.submit(id, DateTime.now().toUtc());
+      await validations.decide(
+        id,
+        from: 'pending',
+        to: 'approved',
+        adminId: 'admin_1',
+      );
+      expect(await validations.goLive(id), GoLiveOutcome.live);
+      await providers.setStatus(id, 'draft');
+
       final broken = SalonProvisioningService(
         providers,
         auth,
-        InMemoryMembershipRepository(),
+        memberships,
         rebuild: _ThrowingNotifier(),
+        validations: validations,
       );
-      final salon = await makeDraft();
-      await complete(salon);
-      await expectLater(
-        broken.publish(salon['id'] as String),
-        throwsA(isA<StateError>()),
+      await expectLater(broken.publish(id), throwsA(isA<StateError>()));
+      expect(
+        (await providers.byId(id))!['status'],
+        'active',
+        reason: 'the write landed before the fire threw',
       );
     });
 

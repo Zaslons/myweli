@@ -1,3 +1,4 @@
+import 'package:myweli_backend/src/access/membership_repository.dart';
 import 'package:myweli_backend/src/admin/analytics_service.dart';
 import 'package:myweli_backend/src/admin/disputes_repository.dart';
 import 'package:myweli_backend/src/appointments/appointment_repository.dart';
@@ -6,6 +7,7 @@ import 'package:myweli_backend/src/auth/provider_auth_repository.dart';
 import 'package:myweli_backend/src/auth/tokens.dart';
 import 'package:myweli_backend/src/providers_repository.dart';
 import 'package:myweli_backend/src/reviews_repository.dart';
+import 'package:myweli_backend/src/validation/salon_validation_repository.dart';
 import 'package:test/test.dart';
 
 void main() {
@@ -52,6 +54,10 @@ void main() {
       providerAuth,
       disputes,
       reviews,
+      validations: InMemorySalonValidationRepository(
+        providers: providers,
+        members: InMemoryMembershipRepository(),
+      ),
     );
     final data = (await svc.overview()).data! as Map;
 
@@ -103,20 +109,79 @@ void main() {
       ]);
       await providerAuth.setVerification(verified, status: 'verified');
 
+      final providers = InMemoryProvidersRepository();
       final svc = AnalyticsService(
         InMemoryAppointmentRepository(),
-        InMemoryProvidersRepository(),
+        providers,
         InMemoryAuthRepository(tokens: tokens, echoDevCode: true),
         providerAuth,
         InMemoryDisputesRepository(),
         InMemoryReviewsRepository(),
+        validations: InMemorySalonValidationRepository(
+          providers: providers,
+          members: InMemoryMembershipRepository(),
+        ),
       );
-      final v = ((await svc.overview()).data! as Map)['verification'] as Map;
+      final data = (await svc.overview()).data! as Map;
+      final v = data['verification'] as Map;
       expect(v['pending'], 1);
       expect(v['verified'], 1);
       expect(v['rejected'], 0);
+      expect(
+        (data['providers'] as Map)['pendingValidation'],
+        0,
+        reason: 'a KYC submission is not a request to go live (B0.18)',
+      );
     },
   );
+
+  test('providers.pendingValidation is the queue\'s pending count — '
+      'suspended salons left out, one definition (B0.18 §3.5)', () async {
+    final providers = InMemoryProvidersRepository([]);
+    final validations = InMemorySalonValidationRepository(
+      providers: providers,
+      members: InMemoryMembershipRepository(),
+    );
+    Future<String> asked() async {
+      final s = await providers.createSalon(
+        name: 'Salon ${DateTime.now().microsecondsSinceEpoch}',
+        category: 'salon',
+        phoneNumber: '+2250700000009',
+      );
+      final id = s['id'] as String;
+      await validations.submit(id, DateTime.utc(2026, 11, 12));
+      return id;
+    }
+
+    await asked();
+    await asked();
+    final suspended = await asked();
+    await providers.setStatus(suspended, 'suspended');
+
+    final svc = AnalyticsService(
+      InMemoryAppointmentRepository(),
+      providers,
+      InMemoryAuthRepository(tokens: tokens, echoDevCode: true),
+      InMemoryProviderAuthRepository(tokens: tokens, echoDevCode: true),
+      InMemoryDisputesRepository(),
+      InMemoryReviewsRepository(),
+      validations: validations,
+    );
+    final data = (await svc.overview()).data! as Map;
+    expect((data['providers'] as Map)['pendingValidation'], 2);
+    expect(
+      (data['providers'] as Map)['pendingValidation'],
+      (await validations.queue('pending')).total,
+      reason: 'the sidebar and the dashboard read one number',
+    );
+    expect(
+      (data['verification'] as Map)['pending'],
+      0,
+      reason:
+          'a request to go live is not a KYC submission '
+          '(admin-kyc-queue-submitted.md §4.4)',
+    );
+  });
 
   test('northStar buckets completed bookings by week × commune', () async {
     final appts = InMemoryAppointmentRepository();
@@ -167,6 +232,10 @@ void main() {
       providerAuth,
       disputes,
       reviews,
+      validations: InMemorySalonValidationRepository(
+        providers: providers,
+        members: InMemoryMembershipRepository(),
+      ),
     );
     final data = (await svc.northStar(weeks: 4)).data! as Map;
 

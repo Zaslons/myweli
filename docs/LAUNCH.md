@@ -1589,18 +1589,31 @@ salon exists. This is the list for that day.
 `dynamicParams = false` — the only mechanism that makes Next serve a real 404 in
 the HTML rather than a 44-character blank page — so the set of salon slugs is
 **fixed at build time**. The backend therefore asks Vercel to rebuild on every
-transition that changes the public set — **publish** (the one the first salon
-exercises), republish-on-payment, billing unpublish, erasure, and admin
+transition that changes the public set — **MyWeli's validation** (the one the
+first salon exercises), the republish, billing unpublish, erasure, and admin
 suspend/restore. *(Until 2026-08-25 this paragraph said "whenever a salon is
 created" — creation makes a `draft`, which the slug set excludes, and the
 publish transition fired nothing, so this checklist could pass while the page
-404s.)* Every link in that chain is verified except the last one: *does Cloud
-Run actually reach Vercel*.
+404s. Until B0.18 (2026-11-12) the transition was the owner's publish: it is
+now a request, which changes nothing public, and the validation takes the
+salon live — [salon-go-live-approval.md](design/salon-go-live-approval.md).)*
+Every link in that chain is verified except the last one: *does Cloud Run
+actually reach Vercel*.
 
-- [ ] **The rebuild fired.** Within seconds of the salon being PUBLISHED
-      (« Mettre en ligne » — not merely created), a deployment starts in
-      Vercel, and the backend log carries
-      `site_rebuild sent reason=salon.published status=201`:
+- [ ] **The request reached the admin, and MyWeli validated it.** The owner's
+      « Demander la mise en ligne » answers 202 and the salon stays a draft —
+      **no rebuild yet, and none is expected**. The request arrives in the
+      `ADMIN_EMAIL` inbox (« Nouveau salon à valider : {Salon} ») and in the
+      console's « Salons à valider ». Open it, check the pin, the phone's
+      country prefix and the photos (decision 123: a salon outside Côte
+      d'Ivoire is refused with `outside_ci`), then « Valider la mise en
+      ligne ». The answer is the salon `active`; a 409 names what is in the
+      way (incomplete, offer no longer live, suspended, no owner).
+
+- [ ] **The rebuild fired.** Within seconds of the VALIDATION (not the
+      request, and not the creation), a deployment starts in Vercel, and the
+      backend log carries
+      `site_rebuild sent reason=salon.approved status=201`:
 
       ```bash
       gcloud logging read 'resource.type="cloud_run_revision" AND textPayload=~"site_rebuild (sent|FAILED|skipped)"' --project=myweli --limit=20 --freshness=1h --format='value(timestamp,textPayload)'
@@ -1632,11 +1645,15 @@ Run actually reach Vercel*.
       removed on 2026-08-21 — that rule had quietly made the entire site
       unindexable.
 
-- [ ] **Suspend and restore it once**, in the admin console, and confirm each
-      transition produces its own `site_rebuild sent` line. Publish is the only
-      one the first salon exercises by itself, and suspension is the transition
-      that matters most later: a departed salon whose page keeps serving is a
-      worse failure than a new one whose page is late. (Two transitions inside
+- [ ] **Suspend and lift the suspension once**, in the admin console, and
+      confirm each transition produces its own `site_rebuild sent` line. The
+      validation is the only one the first salon exercises by itself, and
+      suspension is the transition that matters most later: a departed salon
+      whose page keeps serving is a worse failure than a new one whose page is
+      late. « Lever la suspension » puts the salon back online — and fires
+      `provider.restore` — only because it was validated, went live, has its
+      owner and a live offer; otherwise it lifts to a draft, says why, and
+      fires nothing (B0.18). (Two transitions inside
       60 s log `skipped cause=cooldown` for the second, then a trailing `sent`
       at window expiry — deferred, not lost.)
 

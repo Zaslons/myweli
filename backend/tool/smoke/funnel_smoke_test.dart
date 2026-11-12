@@ -155,8 +155,15 @@ const String _fakeStorageOrigin = 'https://fake-storage.local';
 int _photoSeq = 0;
 String _photoNonce() => 'smoke-${_photoSeq++}';
 
-/// Admin credentials, seeded by `dependencies.dart:750-752` when set. Phase 7
-/// needs them; they are fake and non-secret by construction.
+/// Admin credentials, seeded by `initializeDatabase` (`dependencies.dart`) when
+/// set; they are fake and non-secret by construction in CI.
+///
+/// **Phase 2 needs them now, not only Phase 7.** Since B0.18 a salon goes
+/// public only once MyWeli validates it (docs/design/salon-go-live-approval.md):
+/// publish records a REQUEST (202) and the admin's approve takes the salon
+/// live. So the admin signs in before A18 (A41 moved there), and every
+/// assertion downstream of a live salon — the public door, discovery, the whole
+/// booking funnel — rests on that validation.
 final String adminEmail = Platform.environment['ADMIN_EMAIL'] ?? '';
 final String adminPassword = Platform.environment['ADMIN_PASSWORD'] ?? '';
 
@@ -385,7 +392,10 @@ void main() {
   // Shared across phases: the funnel is one story, not 47 independent cases.
   late String salon; // the salon that goes live
   late String proToken;
-  late String companion; // live WITHOUT a plan choice (A21a–A21d)
+  late String adminToken; // A41 — MyWeli's validation needs it before A18
+  // Validated WITHOUT a plan choice, after one refusal and a resubmission
+  // (A21a–A21d, A21r1–A21r3, A21v).
+  late String companion;
   late String bystanderSalon; // a second salon, left DRAFT on purpose
   late String bystanderToken;
   late String consumerToken;
@@ -509,8 +519,8 @@ void main() {
       // Same fixture caveat as A2: `provider1` is the dev seed and exists
       // nowhere else. Against a deployed target the equivalent read happens in
       // Phase 2 (A20) on the salon this harness built itself, which is a
-      // stronger test of the same door — it is `active` because we published
-      // it, not because a seeder did.
+      // stronger test of the same door — it is `active` because its owner
+      // asked and MyWeli validated it (A18–A18c), not because a seeder did.
       if (!hasDevFixture) return;
       final r = await get('/providers/provider1');
       expectStatus(r, 200, 'A2b seeded salon detail read');
@@ -610,9 +620,10 @@ void main() {
       // mode, and `contains` cannot see it.
       //
       // No `offer`: a salon with no offer row is never refused for one — its
-      // trial starts at its first successful publish (the companion path,
-      // docs/design/pro-companion-path.md §3.1). An app that may not tell the
-      // salon where to choose cannot be handed a step it cannot take.
+      // trial starts when MyWeli validates it (B0.18, salon-go-live-approval
+      // §3.6; the companion path, docs/design/pro-companion-path.md §3.1). An
+      // app that may not tell the salon where to choose cannot be handed a
+      // step it cannot take.
       expect((r.json['missing'] as List).cast<String>().toSet(), {
         'profile',
         'location',
@@ -624,8 +635,9 @@ void main() {
 
     test('A12b …and an incomplete publish mints NO trial', () async {
       final r = await get('/providers/$salon/subscription', token: proToken);
-      // The pair for A21c: a trial costs a complete salon, so the refused
-      // publish above must have left the setup state (404) behind it.
+      // The pair for A21d: a trial costs a complete AND validated salon (or
+      // a web choice, A17), so the refused publish above must have left the
+      // setup state (404) behind it.
       expectError(r, 404, 'not_found', 'A12b setup state after a refusal');
     });
 
@@ -741,16 +753,19 @@ void main() {
       },
     );
 
-    // A17–A19 are THE WEB PATH: the offer is chosen before the first publish
-    // (the web dashboard keeps its picker). The app's path — publish with no
-    // choice at all — is A21a–A21d on a salon of its own.
+    // A17–A19 are THE WEB PATH: the offer is chosen before the request (the
+    // web dashboard keeps its picker, and that choice starts the 90 days at
+    // once, validated or not — decision 126, « As today »). The app's path —
+    // a request with no choice at all, the trial starting at the validation
+    // — is Phase 2b, on a salon of its own.
     late String webTrialEndsAt;
+    late String requestedAt;
 
     test(
       'A17 the web path: the offer is chosen first, and the trial starts',
       () async {
-        // `business`, not the default: if the publish below overwrote the row
-        // with its own default, A19 could not tell `pro` from `pro`.
+        // `business`, not the default: if the validation below overwrote the
+        // row with its own default, A19 could not tell `pro` from `pro`.
         final r = await put(
           '/providers/$salon/subscription',
           token: proToken,
@@ -767,29 +782,137 @@ void main() {
       },
     );
 
-    test('A18 the salon goes live', () async {
-      final r = await post('/providers/$salon/publish', token: proToken);
-      expectStatus(r, 200, 'A18 publish');
-      steps++;
-      expect(r.json['status'], 'active');
-    });
-
-    test('A19 …and the publish KEPT the web choice — tier and clock', () async {
-      final r = await get('/providers/$salon/subscription', token: proToken);
-      expectStatus(r, 200, 'A19 subscription after publish');
+    test('A41 staff can log in — before A18, because MyWeli validates every '
+        'salon', () async {
+      // Moved from Phase 7 (B0.18): the validation below needs the admin, and
+      // so does everything a live salon unlocks after it.
       steps++;
       expect(
-        r.json['tier'],
-        'business',
+        adminEmail,
+        isNotEmpty,
         reason:
-            'a publish must leave an existing offer alone — the trial start '
-            'fires only when NO row exists, and never with the default tier '
-            'over a web choice (the concurrent half of that rule is proven '
-            'in-process and on Postgres: postgres_repositories_test.dart)',
+            'ADMIN_EMAIL must reach the harness: the validation (A18c) and '
+            'Phase 7 both need the admin',
       );
-      steps++;
-      expect(r.json['trialEndsAt'], webTrialEndsAt, reason: 'one trial');
+      final r = await post(
+        '/admin/auth/login',
+        body: {'email': adminEmail, 'password': adminPassword},
+      );
+      expectStatus(r, 200, 'A41 admin login');
+      adminToken = r.json['accessToken'] as String;
     });
+
+    test(
+      'A18 the owner ASKS to go live: 202, a request, not a publication',
+      () async {
+        // B0.18 §3.1: a complete salon's publish records a request and answers
+        // 202 — never the 200 every client reads as « en ligne ».
+        final r = await post('/providers/$salon/publish', token: proToken);
+        expectStatus(r, 202, 'A18 publish (the request)');
+        final v = r.json['validation'] as Map<String, dynamic>?;
+        steps++;
+        expect(v?['state'], 'pending', reason: 'body was ${r.raw}');
+        steps++;
+        expect(v?['wentLive'], isFalse);
+        requestedAt = v?['submittedAt'] as String? ?? '';
+        steps++;
+        expect(DateTime.tryParse(requestedAt), isNotNull);
+      },
+    );
+
+    test(
+      'A18a …and the salon is still a DRAFT, hidden like any draft (T50/T51)',
+      () async {
+        // The owner reads the request beside the salon, never inside it: the
+        // `provider` document is also the public schema.
+        final me = await get('/me/provider', token: proToken);
+        expectStatus(me, 200, 'A18a /me/provider while pending');
+        steps++;
+        expect((me.json['provider'] as Map)['status'], 'draft');
+        steps++;
+        expect((me.json['validation'] as Map?)?['state'], 'pending');
+        steps++;
+        expect(
+          (me.json['provider'] as Map).containsKey('validation'),
+          isFalse,
+          reason: 'the validation never rides the public salon document',
+        );
+        // The same 404 as A8: a request opens no door.
+        final read = await get('/providers/$salon');
+        expectError(read, 404, 'not_found', 'A18a pending detail read');
+      },
+    );
+
+    test(
+      'A18b a second tap records nothing new: 202, the same request',
+      () async {
+        // Only a row that came back is a new request (one event, one e-mail to
+        // the admin) — a double tap must not ask twice.
+        final r = await post('/providers/$salon/publish', token: proToken);
+        expectStatus(r, 202, 'A18b publish again while pending');
+        steps++;
+        expect(
+          (r.json['validation'] as Map?)?['submittedAt'],
+          requestedAt,
+          reason: 'a second request was recorded over the first',
+        );
+      },
+    );
+
+    test('A18c MyWeli validates it: the salon goes live', () async {
+      // The CI-seeded admin (ADMIN_EMAIL) approves the state it saw.
+      final r = await post(
+        '/admin/salons/$salon/validation/approve',
+        token: adminToken,
+        body: {'from': 'pending'},
+      );
+      expectStatus(r, 200, 'A18c validate');
+      steps++;
+      expect(r.json['salonStatus'], 'active');
+      final v = r.json['validation'] as Map<String, dynamic>?;
+      steps++;
+      expect(v?['state'], 'approved', reason: 'body was ${r.raw}');
+      steps++;
+      expect(v?['wentLive'], isTrue);
+    });
+
+    test(
+      'A18d a replayed validation is refused, and changes nothing (T82)',
+      () async {
+        // The decision is a single-winner compare-and-set: a second click, a
+        // second tab or a replayed request loses here, writing nothing more.
+        final r = await post(
+          '/admin/salons/$salon/validation/approve',
+          token: adminToken,
+          body: {'from': 'pending'},
+        );
+        expectError(r, 409, 'validation_not_pending', 'A18d validate again');
+      },
+    );
+
+    test(
+      'A19 …and the validation KEPT the web choice — tier and clock',
+      () async {
+        final r = await get('/providers/$salon/subscription', token: proToken);
+        expectStatus(r, 200, 'A19 subscription after the validation');
+        steps++;
+        expect(
+          r.json['tier'],
+          'business',
+          reason:
+              'a validation must leave an existing offer alone — the trial '
+              'start fires only when NO row exists, and never with the default '
+              'tier over a web choice (decision 126; the concurrent half is '
+              'proven in-process and on Postgres: postgres_repositories_test.dart)',
+        );
+        steps++;
+        expect(
+          r.json['trialEndsAt'],
+          webTrialEndsAt,
+          reason: 'one trial: the clock started at the choice (T54)',
+        );
+      },
+    );
 
     test('A20 …and the public door opens (the pair for A8)', () async {
       final r = await get('/providers/$salon');
@@ -815,13 +938,17 @@ void main() {
   });
 
   // -------------------------------------------------------------------------
-  group('Phase 2b — the companion path: live WITHOUT a choice', () {
+  group('Phase 2b — the companion path: refused, asked again, validated '
+      'WITHOUT a choice', () {
     // The Pro app never offers a plan choice (App Store 3.1.3(f) —
     // docs/design/pro-companion-path.md): a salon built entirely in the app
-    // must still go live, with the server starting its trial at the publish.
-    // Its own salon, so Phase 2's web path stays intact; suspended in Phase 7
-    // so a deployed target does not collect live smoke salons.
+    // must still go live, with the server starting its trial when MyWeli
+    // validates it (B0.18 §3.6). It also carries the refusal path: refused
+    // with a reason the owner reads, asked again, then validated (§3.1,
+    // §3.3). Its own salon, so Phase 2's web path stays intact; suspended in
+    // Phase 7 so a deployed target does not collect live smoke salons.
     late String companionToken;
+    const refusalNote = 'Ajoutez une photo de la devanture.';
 
     test('A21a a second salon, built complete, with NO offer', () async {
       final s = await registerSalon('companion');
@@ -888,27 +1015,125 @@ void main() {
         '/providers/$companion/subscription',
         token: companionToken,
       );
-      expectError(r, 404, 'not_found', 'A21b setup state before publish');
+      expectError(r, 404, 'not_found', 'A21b setup state before the request');
     });
 
-    test('A21c publish WITHOUT a choice → live', () async {
+    test('A21c a request WITHOUT a choice → 202, and NO trial yet', () async {
       final r = await post(
         '/providers/$companion/publish',
         token: companionToken,
       );
-      expectStatus(r, 200, 'A21c publish without a choice');
+      expectStatus(r, 202, 'A21c publish without a choice (the request)');
       steps++;
-      expect(r.json['status'], 'active');
+      expect((r.json['validation'] as Map?)?['state'], 'pending');
+      // §3.1: no trial on a request. Before B0.18 this publish started it.
+      final sub = await get(
+        '/providers/$companion/subscription',
+        token: companionToken,
+      );
+      expectError(sub, 404, 'not_found', 'A21c no trial at the request');
+    });
+
+    test('A21r1 MyWeli refuses it, with a code and a note', () async {
+      final r = await post(
+        '/admin/salons/$companion/validation/refuse',
+        token: adminToken,
+        body: {'code': 'photos', 'note': refusalNote},
+      );
+      expectStatus(r, 200, 'A21r1 refuse');
+      final v = r.json['validation'] as Map<String, dynamic>?;
+      steps++;
+      expect(v?['state'], 'refused', reason: 'body was ${r.raw}');
+      final refusal = v?['refusal'] as Map<String, dynamic>?;
+      steps++;
+      expect(refusal?['code'], 'photos');
+      steps++;
+      expect(refusal?['final'], isFalse, reason: '`photos` is not final');
     });
 
     test(
-      'A21d …and the trial started at that publish: trial, pro, 90 days',
+      'A21r2 …the owner reads the reason, and the salon stays hidden',
+      () async {
+        final me = await get('/me/provider', token: companionToken);
+        expectStatus(me, 200, 'A21r2 /me/provider after the refusal');
+        steps++;
+        expect((me.json['provider'] as Map)['status'], 'draft');
+        final refusal =
+            (me.json['validation'] as Map?)?['refusal']
+                as Map<String, dynamic>?;
+        steps++;
+        expect(refusal?['code'], 'photos', reason: 'body was ${me.raw}');
+        steps++;
+        expect(refusal?['note'], refusalNote);
+        // A refused salon is a draft: the same 404 as A8 (T51).
+        final read = await get('/providers/$companion');
+        expectError(read, 404, 'not_found', 'A21r2 refused detail read');
+        // …and a refusal mints no trial either.
+        final sub = await get(
+          '/providers/$companion/subscription',
+          token: companionToken,
+        );
+        expectError(sub, 404, 'not_found', 'A21r2 no trial at the refusal');
+      },
+    );
+
+    test('A21r3 the owner asks again → 202, pending, and the history holds '
+        'both requests', () async {
+      final r = await post(
+        '/providers/$companion/publish',
+        token: companionToken,
+      );
+      expectStatus(r, 202, 'A21r3 publish again after a refusal');
+      final v = r.json['validation'] as Map<String, dynamic>?;
+      steps++;
+      expect(v?['state'], 'pending', reason: 'body was ${r.raw}');
+      steps++;
+      expect(
+        v?.containsKey('refusal'),
+        isFalse,
+        reason: 'the new request carries no stale refusal',
+      );
+      // The admin's detail keeps the whole story, in order.
+      final detail = await get(
+        '/admin/salons/$companion/validation',
+        token: adminToken,
+      );
+      expectStatus(detail, 200, 'A21r3 admin detail');
+      steps++;
+      expect(
+        [
+          for (final e in detail.json['events'] as List? ?? const [])
+            (e as Map)['kind'],
+        ],
+        ['submitted', 'refused', 'submitted'],
+        reason: 'body was ${detail.raw}',
+      );
+    });
+
+    test(
+      'A21v MyWeli validates the request it was sent again → live',
+      () async {
+        final r = await post(
+          '/admin/salons/$companion/validation/approve',
+          token: adminToken,
+          body: {'from': 'pending'},
+        );
+        expectStatus(r, 200, 'A21v validate');
+        steps++;
+        expect(r.json['salonStatus'], 'active');
+        final read = await get('/providers/$companion');
+        expectStatus(read, 200, 'A21v public detail read');
+      },
+    );
+
+    test(
+      'A21d …and the trial started at the VALIDATION: trial, pro, 90 days',
       () async {
         final r = await get(
           '/providers/$companion/subscription',
           token: companionToken,
         );
-        expectStatus(r, 200, 'A21d subscription after publish');
+        expectStatus(r, 200, 'A21d subscription after the validation');
         steps++;
         expect(r.json['status'], 'trial');
         steps++;
@@ -1228,23 +1453,8 @@ void main() {
 
   // -------------------------------------------------------------------------
   group('Phase 7 — the salon is suspended', () {
-    late String adminToken;
-
-    test('A41 staff can log in', () async {
-      steps++;
-      expect(
-        adminEmail,
-        isNotEmpty,
-        reason: 'ADMIN_EMAIL must reach the harness for Phase 7',
-      );
-      final r = await post(
-        '/admin/auth/login',
-        body: {'email': adminEmail, 'password': adminPassword},
-      );
-      expectStatus(r, 200, 'A41 admin login');
-      adminToken = r.json['accessToken'] as String;
-    });
-
+    // The admin signed in before A18 (A41): MyWeli's validation needs them
+    // there, and this phase reuses the same session.
     test('A42 suspend', () async {
       final r = await post(
         '/admin/providers/$salon/suspend',
@@ -1255,7 +1465,7 @@ void main() {
     });
 
     test('A42b the companion salon is suspended too', () async {
-      // Housekeeping with an assertion: A21c left a second LIVE salon, and a
+      // Housekeeping with an assertion: A21v left a second LIVE salon, and a
       // deployed target must not collect public smoke salons run after run.
       final r = await post(
         '/admin/providers/$companion/suspend',
@@ -1329,9 +1539,11 @@ void main() {
     );
 
     test('A46b the owner cannot lift the suspension by publishing', () async {
-      // T17: only the audited admin restore lifts it. Publish flipped every
-      // non-active status to `active`, so one owner call undid A42 — and
-      // since the companion path it would also mint a trial.
+      // T17: only the audited admin restore lifts it. Publish once flipped
+      // every non-active status to `active`, so one owner call undid A42.
+      // Since B0.18 the order is the demo lock, then this refusal, then the
+      // request — so a suspended salon cannot even ASK (403, nothing
+      // recorded), and its validation stays as the admin left it.
       final r = await post('/providers/$salon/publish', token: proToken);
       expectError(r, 403, 'provider_suspended', 'A46b publish while suspended');
       final read = await get('/providers/$salon');
@@ -1363,15 +1575,61 @@ void main() {
         expectStatus(r, 201, 'A47 manual on a DRAFT salon must succeed');
       },
     );
+
+    test('A47b « Lever la suspension » cannot publish a never-validated draft '
+        '(T82)', () async {
+      // B0.18 §3.4: restore used to set `active` unconditionally — a direct
+      // POST on a draft made it public with no validation. It now answers
+      // 409 unless the salon is suspended.
+      final r = await post(
+        '/admin/providers/$bystanderSalon/restore',
+        token: adminToken,
+      );
+      expectError(r, 409, 'not_suspended', 'A47b restore a draft');
+      final read = await get('/providers/$bystanderSalon');
+      expectError(read, 404, 'not_found', 'A47b still hidden after it');
+    });
+
+    test('A47c …nor by suspend → restore: it lifts to DRAFT, with its reason '
+        '(T82)', () async {
+      // The other half of the bypass: suspending a draft and lifting the
+      // suspension. The salon goes back to what it was, never to `active`
+      // without a validation, and the answer says why.
+      final s = await post(
+        '/admin/providers/$bystanderSalon/suspend',
+        token: adminToken,
+        body: {'reason': 'Q1 smoke (B0.18 restore guard)'},
+      );
+      expectStatus(s, 200, 'A47c suspend the draft');
+      final r = await post(
+        '/admin/providers/$bystanderSalon/restore',
+        token: adminToken,
+      );
+      expectStatus(r, 200, 'A47c lift the suspension');
+      steps++;
+      expect(r.json['status'], 'draft', reason: 'body was ${r.raw}');
+      steps++;
+      expect(r.json['reason'], 'not_validated');
+      final read = await get('/providers/$bystanderSalon');
+      expectError(read, 404, 'not_found', 'A47c still hidden after it');
+    });
   });
 
   // -------------------------------------------------------------------------
   test('A48 the suite actually ran (anti-vacuity)', () {
     // A suite cannot pass by not running. If an early phase throws and the rest
     // never execute, this is short and the run is red.
+    //
+    // **The floor is the measured total, not a round number.** A green run
+    // counted 198 on dev (2026-11-12, B0.18); A2b's two are dev-only, so a
+    // deployed target counts 196. The old floor (60) sat far below the real
+    // count, so a silently skipped phase — an early `return` like A2b's, a
+    // phase whose setUp swallowed its failure — could pass it. Adding
+    // assertions needs no change here; removing one means lowering this on
+    // purpose.
     expect(
       steps,
-      greaterThanOrEqualTo(60),
+      greaterThanOrEqualTo(hasDevFixture ? 198 : 196),
       reason:
           'only $steps assertions executed — phases were skipped or swallowed',
     );

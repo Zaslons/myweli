@@ -255,7 +255,9 @@ refusal. The console:
   n’est plus possible. » (that map serves every admin endpoint, and its rule is
   that every code an endpoint emits has a case), and in `AdminKycProvider` to
   « Ce dossier n’est plus en attente de vérification. », then reloads the file,
-  which is stale;
+  which is stale. B0.18's salon routes, which also answer `invalid_state`,
+  word it for the salon in `AdminService.salonSentenceFor` (merged with #779,
+  2026-11-12); the shared case stays neutral;
 - shows the action bar only while the detail's `awaitingReview` is not `false`
   (an older backend without the field keeps today's bar), and « Aucune
   soumission en attente. » in its place otherwise.

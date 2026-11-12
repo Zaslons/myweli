@@ -134,7 +134,44 @@ abstract interface class ProvidersRepository {
   // --- Admin marketplace management — design: docs/design/admin-console.md §12
   /// Set a provider's `status` (`active`/`suspended`). Suspended → excluded from
   /// discovery + new bookings. Returns the updated provider, or null.
+  ///
+  /// **[suspendedFrom] rides along** (B0.18, migration 0044 —
+  /// docs/design/salon-go-live-approval.md §3.4). Moving a salon INTO
+  /// `suspended` records the status the suspension interrupted, and only when
+  /// it was not already suspended: a second suspension keeps the first value.
+  /// Any other status clears it — whatever wrote that status ended the
+  /// suspension, so the memory would be stale.
   Future<Map<String, dynamic>?> setStatus(String providerId, String status);
+
+  /// The status a running suspension interrupted (`active` | `draft`), or
+  /// null: not suspended, suspended before migration 0044 (unknown — lifting
+  /// it goes to `draft`), or no such salon. Never part of the provider
+  /// document: that is the public payload.
+  Future<String?> suspendedFrom(String providerId);
+
+  /// Lift a suspension: a compare-and-set from `suspended` to [to] (`active`
+  /// or `draft` — the caller decides which, §3.4), clearing [suspendedFrom],
+  /// in one write. Null when there is no such salon or it is not suspended —
+  /// never a status written over a salon that is not.
+  Future<Map<String, dynamic>?> liftSuspension(
+    String providerId, {
+    required String to,
+  });
+
+  /// A compare-and-set of the status between `draft` and `active` (B0.18 —
+  /// docs/design/salon-go-live-approval.md §3.1, §3.3, §3.4): [to] is written
+  /// only when the salon is [from], in one write. Null when there is no such
+  /// salon or it is not [from] — a suspension, or another writer, got there
+  /// first, and nothing is written over it.
+  ///
+  /// The validated republishes (submit's, « Marquer payé »'s) go through
+  /// this rather than [setStatus], which writes over anything — `suspended`
+  /// included.
+  Future<Map<String, dynamic>?> compareAndSetStatus(
+    String providerId, {
+    required String from,
+    required String to,
+  });
 
   /// Toggle homepage `featured` placement. Returns the updated provider, or null.
   Future<Map<String, dynamic>?> setFeatured(String providerId, bool featured);
@@ -146,6 +183,27 @@ abstract interface class ProvidersRepository {
     int page,
     int pageSize,
   });
+}
+
+/// The two statuses [ProvidersRepository.compareAndSetStatus] moves between;
+/// shared by both twins. A suspension has its own doors (`setStatus`,
+/// `liftSuspension`), which keep `suspended_from`.
+void checkStatusSwap(String from, String to) {
+  const allowed = {('draft', 'active'), ('active', 'draft')};
+  if (!allowed.contains((from, to))) {
+    throw ArgumentError('no status compare-and-set $from → $to');
+  }
+}
+
+/// The statuses a lifted suspension may land on (§3.4); shared by both twins.
+void checkLiftTarget(String to) {
+  if (to != 'active' && to != 'draft') {
+    throw ArgumentError.value(
+      to,
+      'to',
+      'a suspension lifts to active or draft',
+    );
+  }
 }
 
 class InMemoryProvidersRepository implements ProvidersRepository {
@@ -417,9 +475,89 @@ class InMemoryProvidersRepository implements ProvidersRepository {
   ) async {
     final p = await byId(providerId);
     if (p == null) return null;
-    p['status'] = status;
+    _writeStatus(p, status);
     return p;
   }
+
+  /// The status write and its [suspendedFrom] bookkeeping, synchronously —
+  /// the one place both happen, as one statement does it in Postgres.
+  void _writeStatus(Map<String, dynamic> p, String status) {
+    final id = p['id'] as String;
+    final current = (p['status'] as String?) ?? 'active';
+    if (status == 'suspended') {
+      if (current != 'suspended') _suspendedFrom[id] = current;
+    } else {
+      _suspendedFrom.remove(id);
+    }
+    p['status'] = status;
+  }
+
+  /// Outside the documents on purpose: a document is the public payload.
+  final Map<String, String> _suspendedFrom = {};
+
+  @override
+  Future<String?> suspendedFrom(String providerId) async =>
+      statusNow(providerId) == 'suspended' ? _suspendedFrom[providerId] : null;
+
+  @override
+  Future<Map<String, dynamic>?> liftSuspension(
+    String providerId, {
+    required String to,
+  }) async {
+    checkLiftTarget(to);
+    final p = await byId(providerId);
+    if (p == null || p['status'] != 'suspended') return null;
+    _writeStatus(p, to);
+    return p;
+  }
+
+  @override
+  Future<Map<String, dynamic>?> compareAndSetStatus(
+    String providerId, {
+    required String from,
+    required String to,
+  }) async {
+    checkStatusSwap(from, to);
+    if (!compareAndSetStatusNow(providerId, from: from, to: to)) return null;
+    return byId(providerId);
+  }
+
+  // --- Synchronous reads/writes for another twin's critical section.
+  // The salon validation twin (B0.18) checks and writes with no `await` in
+  // between, the single-winner rule its Postgres twin gets from one
+  // transaction; these give it this repository's state on the same terms.
+
+  /// The salon's stored status, or null when there is no such salon. A seed
+  /// document without `status` reads `active`, like the column default.
+  String? statusNow(String providerId) {
+    for (final p in _all) {
+      if (p['id'] == providerId) return (p['status'] as String?) ?? 'active';
+    }
+    return null;
+  }
+
+  /// Compare-and-set of the status, synchronously: true when the salon was
+  /// [from] and is now [to].
+  bool compareAndSetStatusNow(
+    String providerId, {
+    required String from,
+    required String to,
+  }) {
+    for (final p in _all) {
+      if (p['id'] != providerId) continue;
+      if (((p['status'] as String?) ?? 'active') != from) return false;
+      _writeStatus(p, to);
+      return true;
+    }
+    return false;
+  }
+
+  /// The ids of every `active` salon — what the validation twin seeds as
+  /// validated and live (the dev boot backfill's in-memory mirror).
+  List<String> activeIdsNow() => [
+    for (final p in _all)
+      if (((p['status'] as String?) ?? 'active') == 'active') p['id'] as String,
+  ];
 
   @override
   Future<Map<String, dynamic>?> setFeatured(

@@ -2,12 +2,15 @@ import 'access/capabilities.dart';
 import 'access/membership_service.dart';
 import 'appointments/booking_window.dart';
 import 'auth/provider_auth_repository.dart';
+import 'email/salon_validation_emails.dart' show PlaceChange;
 import 'http/body_fields.dart';
 import 'localities/localities_repository.dart';
 import 'localities/localities_service.dart';
 import 'providers_repository.dart';
 import 'storage/storage_service.dart';
 import 'upload_verification_service.dart';
+import 'validation/salon_place_notice_service.dart';
+import 'validation/salon_validation_repository.dart';
 import 'validators.dart';
 
 /// Outcome of a catalogue operation. [data] is the affected resource (a service,
@@ -29,10 +32,14 @@ class ProviderCatalogService {
     LocalitiesService? localities,
     UploadVerificationService? verifier,
     String? publicBaseUrl,
+    SalonValidationRepository? validations,
+    SalonPlaceNoticeService? placeNotices,
   }) : _allowedImageOrigins = allowedImageOrigins,
        _localities = localities,
        _verifier = verifier,
-       _publicBaseUrl = publicBaseUrl;
+       _publicBaseUrl = publicBaseUrl,
+       _validations = validations,
+       _placeNotices = placeNotices;
 
   final ProvidersRepository _providers;
   final ProviderAuthRepository _providerAuth;
@@ -52,6 +59,27 @@ class ProviderCatalogService {
   /// allowlist above.
   final UploadVerificationService? _verifier;
   final String? _publicBaseUrl;
+
+  /// B0.18 Q6 (docs/design/salon-go-live-approval.md §5.1): a save that
+  /// changes a VALIDATED salon's pin, address, commune or phone tells the
+  /// admin, old and new values — decision 123's evidence moved after the
+  /// decision. The salon stays online. Capped (decision 133): at once for the
+  /// first change of a quiet hour, the rest in one summary after it — the
+  /// notice service decides. Not for a suspended salon: the admin already
+  /// acted. Both optional: without either, nothing is told
+  /// (`salon_validation_wiring_test.dart` pins the composition root).
+  final SalonValidationRepository? _validations;
+  final SalonPlaceNoticeService? _placeNotices;
+
+  /// The profile keys that make a salon's place (Q6).
+  static const _placeKeys = {
+    'latitude',
+    'longitude',
+    'address',
+    'commune',
+    'areaId',
+    'phoneNumber',
+  };
 
   Future<CatalogResult> listServices(
     String accountId,
@@ -249,9 +277,99 @@ class ProviderCatalogService {
     if (changes.isEmpty) {
       return (ok: false, error: 'invalid_input', data: null);
     }
+    // Q6: the place as it was, read only when this save touches it AND the
+    // salon is validated and not suspended — every other save costs no
+    // extra read.
+    final before = await _placeBeforeIfReportable(providerId, changes);
     final updated = await _providers.updateProfile(providerId, changes);
     if (updated == null) return _notFound;
+    if (before != null) {
+      final diff = placeChanges(before, changes);
+      if (diff.isNotEmpty) {
+        // Best effort inside the notice service: the save stands whatever
+        // happens.
+        await _placeNotices!.placeChanged(
+          providerId: providerId,
+          salonName:
+              (changes['name'] as String?) ??
+              (before['name'] as String?) ??
+              providerId,
+          changes: diff,
+          after: {...before, ...changes},
+        );
+      }
+    }
     return (ok: true, error: null, data: updated);
+  }
+
+  Future<Map<String, dynamic>?> _placeBeforeIfReportable(
+    String providerId,
+    Map<String, dynamic> changes,
+  ) async {
+    final validations = _validations;
+    if (validations == null || _placeNotices == null) return null;
+    if (!changes.keys.any(_placeKeys.contains)) return null;
+    final v = await validations.get(providerId);
+    if (v?.state != ValidationStates.approved) return null;
+    final doc = await _providers.byId(providerId);
+    if (!SalonPlaceNoticeService.reportable(v, doc)) return null;
+    // A COPY: the in-memory twin hands back the live document, which the
+    // write below mutates — « before » would read as « after ».
+    return Map<String, dynamic>.of(doc!);
+  }
+
+  /// What a save changes of a salon's place (Q6): the pin, the address, the
+  /// commune (by name or by area) and the phone, each with its old and new
+  /// value as the admin reads them. A key the save does not carry, or carries
+  /// unchanged, is no change. The values are spelled by the notice service's
+  /// helpers, the ones a summary compares (decision 133).
+  static List<PlaceChange> placeChanges(
+    Map<String, dynamic> before,
+    Map<String, dynamic> changes,
+  ) {
+    const text = placeText;
+    const pin = placePin;
+    const place = placeArea;
+
+    final out = <PlaceChange>[];
+    if (changes.containsKey('latitude') || changes.containsKey('longitude')) {
+      final was = pin(before['latitude'], before['longitude']);
+      final now = pin(
+        changes['latitude'] ?? before['latitude'],
+        changes['longitude'] ?? before['longitude'],
+      );
+      if (was != now) out.add((field: 'location', before: was, after: now));
+    }
+    if (changes.containsKey('address') &&
+        text(before['address']) != text(changes['address'])) {
+      out.add((
+        field: 'address',
+        before: text(before['address']),
+        after: text(changes['address']),
+      ));
+    }
+    final areaMoved =
+        changes.containsKey('areaId') &&
+        text(before['areaId']) != text(changes['areaId']);
+    final communeMoved =
+        changes.containsKey('commune') &&
+        text(before['commune']) != text(changes['commune']);
+    if (areaMoved || communeMoved) {
+      out.add((
+        field: 'commune',
+        before: place(before),
+        after: place({...before, ...changes}),
+      ));
+    }
+    if (changes.containsKey('phoneNumber') &&
+        text(before['phoneNumber']) != text(changes['phoneNumber'])) {
+      out.add((
+        field: 'phone',
+        before: text(before['phoneNumber']),
+        after: text(changes['phoneNumber']),
+      ));
+    }
+    return out;
   }
 
   /// Seed-list fallback for legacy test wiring without a LocalitiesService.

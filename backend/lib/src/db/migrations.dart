@@ -1167,7 +1167,156 @@ CREATE TABLE IF NOT EXISTS momo_operators (
     // docs/design/hygiene-batch9.md §2.11 (B9.12).
     statements: ['DROP TABLE IF EXISTS provider_otp_codes'],
   ),
+  (
+    id: '0044_salon_validations',
+    statements: [
+      // B0.18 (decision 120): a salon goes public only once MyWeli validates
+      // it. `providers.status` stays `draft` until then, and the validation
+      // sits BESIDE it — a new status value would fail open wherever the
+      // hide-set is spelled out, and an older image would publish every
+      // waiting salon. Never in `providers.data`: that blob is the public
+      // payload. docs/design/salon-go-live-approval.md §2.
+      //
+      // The current state, one row per salon. `went_live_at` is set once, by
+      // the single winner that took the salon public (§3.2 step 4).
+      '''
+CREATE TABLE IF NOT EXISTS salon_validations (
+  provider_id   text PRIMARY KEY REFERENCES providers(id) ON DELETE CASCADE,
+  state         text NOT NULL
+                CHECK (state IN ('pending', 'approved', 'refused')),
+  submitted_at  timestamptz,
+  decided_at    timestamptz,
+  decided_by    text,
+  refusal_code  text,
+  refusal_note  text,
+  went_live_at  timestamptz
+)''',
+      // The admin queue: pending, oldest request first.
+      'CREATE INDEX IF NOT EXISTS salon_validations_queue_idx '
+          'ON salon_validations (state, submitted_at)',
+      // The history the admin detail shows. `occurred_at` and `by_admin` are
+      // the design's « at » and « by », spelled so that neither is an SQL key
+      // word. The id is the insertion order, the tie-break on equal times.
+      '''
+CREATE TABLE IF NOT EXISTS salon_validation_events (
+  id            bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  provider_id   text NOT NULL REFERENCES providers(id) ON DELETE CASCADE,
+  kind          text NOT NULL
+                CHECK (kind IN ('submitted', 'approved', 'refused')),
+  occurred_at   timestamptz NOT NULL,
+  by_admin      text,
+  refusal_code  text,
+  refusal_note  text
+)''',
+      'CREATE INDEX IF NOT EXISTS salon_validation_events_provider_idx '
+          'ON salon_validation_events (provider_id, occurred_at)',
+      // The status a suspension interrupted (§3.4), so lifting it can go back
+      // to `active` only for a salon that was live. NULL on every salon
+      // suspended before this migration: unknown, which lifts to `draft`.
+      'ALTER TABLE providers ADD COLUMN IF NOT EXISTS suspended_from text',
+      // Already public, or unpublished only for non-payment: validated and
+      // live, with no notification, no rebuild, trials untouched (§3.7).
+      kSalonValidationBackfill,
+    ],
+  ),
+  (
+    id: '0045_salon_place_notices',
+    statements: [
+      // B0.18, decision 133 (T82): the place-change e-mails to the admin are
+      // capped — at once only when none went for the salon in the last hour,
+      // the changes after it summed up in one e-mail once the hour has
+      // passed. One row per salon: the last e-mail's time, the place it
+      // reported (the four values the e-mail shows, phone included — so
+      // account erasure deletes the row), and the saves not yet e-mailed.
+      // Additive: an older image never reads it.
+      // docs/design/salon-go-live-approval.md §5.1.
+      '''
+CREATE TABLE IF NOT EXISTS salon_place_notices (
+  provider_id    text PRIMARY KEY REFERENCES providers(id) ON DELETE CASCADE,
+  last_sent_at   timestamptz,
+  reported       jsonb,
+  pending_count  int NOT NULL DEFAULT 0,
+  pending_since  timestamptz,
+  pending_fields jsonb NOT NULL DEFAULT '[]'::jsonb
+)''',
+      // The reminders cron's « due » read: only rows with saves pending.
+      'CREATE INDEX IF NOT EXISTS salon_place_notices_pending_idx '
+          'ON salon_place_notices (pending_since) WHERE pending_count > 0',
+    ],
+  ),
 ];
+
+/// The salons that count as validated and live without asking (§3.7):
+/// every `active` salon, and every `draft` whose offer row says it was
+/// unpublished for non-payment (it was live). Suspended salons get no row —
+/// lifting their suspension takes them to `draft` (§3.4).
+///
+/// `submitted_at` stays null (no request was ever made) and so does
+/// `decided_by` (no admin decided): only the time is recorded. Insert-only
+/// (`ON CONFLICT DO NOTHING`), so it never overwrites a decision and running
+/// it again changes nothing. Shared by migration 0044 and the dev-only boot
+/// step [backfillSalonValidationsForDev], so the two cannot drift.
+const String kSalonValidationBackfill = '''
+INSERT INTO salon_validations (provider_id, state, decided_at, went_live_at)
+SELECT p.id, 'approved', now(), now()
+FROM providers p
+LEFT JOIN provider_subscriptions s ON s.provider_id = p.id
+WHERE p.status = 'active'
+   OR (p.status = 'draft' AND s.unpublished_at IS NOT NULL)
+ON CONFLICT (provider_id) DO NOTHING''';
+
+/// §9.3's roll-forward, step 1 — run BY HAND after a rollback: the `active`
+/// salons with no validated-and-live row, i.e. every salon an older image
+/// (which publishes directly) may have taken public while it served.
+/// Read-only. Each line says what the admin does with it: no row or a
+/// refusal → [kSalonValidationRollForward] puts it in the queue; `pending` →
+/// it is in the queue already; `approved` never live → « Validation à
+/// terminer », which hands the salon back to `draft` before taking it live.
+const String kSalonValidationRollForwardList = '''
+SELECT p.id, p.name, v.state, v.went_live_at
+FROM providers p
+LEFT JOIN salon_validations v ON v.provider_id = p.id
+WHERE p.status = 'active'
+  AND (v.provider_id IS NULL OR v.state <> 'approved' OR v.went_live_at IS NULL)
+ORDER BY p.id''';
+
+/// §9.3's roll-forward, step 2 — run BY HAND, never a boot step (deciding is
+/// the admin's): every salon an older image left public without a
+/// validation joins the admin's queue, to be validated or refused like any
+/// request. Refusing hides it (`salon.refused`); validating hands it back to
+/// `draft`, then takes it live. Without this, a salon with no row had no way
+/// in: the queue reads only validation rows, approve and refuse are
+/// compare-and-sets on one, and the owner's publish answers an `active`
+/// salon « already live ».
+///
+/// Two kinds, both `active`:
+/// - **no validation row** (published by the older image without ever
+///   asking under this one): a `pending` row;
+/// - **a refusal** (refused, then published by the older image anyway): back
+///   to `pending`, the refusal cleared from the state row — the history
+///   keeps it.
+///
+/// Each gets a `submitted` event at the roll-forward's time: the older
+/// image's publish was the owner asking to go live. A `pending` salon is in
+/// the queue already, and an `approved` one is left as it is. Idempotent: a
+/// second run finds nothing.
+const String kSalonValidationRollForward = '''
+WITH requeued AS (
+  INSERT INTO salon_validations (provider_id, state, submitted_at)
+  SELECT p.id, 'pending', now()
+  FROM providers p
+  LEFT JOIN salon_validations v ON v.provider_id = p.id
+  WHERE p.status = 'active'
+    AND (v.provider_id IS NULL OR v.state = 'refused')
+  ON CONFLICT (provider_id) DO UPDATE SET
+    state = 'pending', submitted_at = EXCLUDED.submitted_at,
+    decided_at = NULL, decided_by = NULL,
+    refusal_code = NULL, refusal_note = NULL
+  WHERE salon_validations.state = 'refused'
+  RETURNING provider_id
+)
+INSERT INTO salon_validation_events (provider_id, kind, occurred_at)
+SELECT provider_id, 'submitted', now() FROM requeued''';
 
 /// How long a schema-setup statement may **wait for a lock** before giving up.
 ///
@@ -1355,6 +1504,37 @@ Future<void> seedProvidersIfEmpty(Pool<void> pool, {required Env env}) async {
       },
     );
   }
+}
+
+/// Marks the dev seed's public salons validated and live: the statement
+/// migration 0044 ran once ([kSalonValidationBackfill]), run again right after
+/// the seed (docs/design/salon-go-live-approval.md §3.7).
+///
+/// **Why the migration alone is not enough in dev.** The seed inserts ACTIVE
+/// salons after the migrations, so on a fresh dev database 0044 found nothing
+/// to backfill — and the CI funnel smoke boots exactly such a database. Every
+/// seeded salon would be public with no validation, which every later reader
+/// (restore, the republish) takes for « never validated ».
+///
+/// **Dev only, and it enforces that itself**, as [seedProvidersIfEmpty] does.
+/// In production it would silently validate whatever an older image published
+/// during a rollback (§9.3) — those are decided by hand. The check runs
+/// before any query, so calling it on a production pool touches nothing.
+/// Idempotent: insert-only.
+Future<void> backfillSalonValidationsForDev(
+  Pool<void> pool, {
+  required Env env,
+}) async {
+  if (env != Env.dev) {
+    throw StateError(
+      'backfillSalonValidationsForDev is dev-only and was called with '
+      'ENV=${env.name}. Outside dev it would validate, with no admin, every '
+      'salon an older image published during a rollback — those are '
+      'validated or refused by hand, after kSalonValidationRollForward puts '
+      'them in the queue (docs/design/salon-go-live-approval.md §9.3).',
+    );
+  }
+  await pool.execute(kSalonValidationBackfill);
 }
 
 /// Moves embedded `services` + `availability` out of each provider's `data`

@@ -166,6 +166,22 @@ class AppTheme {
   /// platform's system font (SF Pro on iOS, Roboto on Android) — unchanged.
   static ThemeData get lightTheme => themeData();
 
+  /// The admin console's theme (`main_admin.dart`): [themeData] at the touch
+  /// platforms' density on every host.
+  ///
+  /// The console runs in a desktop browser, where Flutter Web reports the
+  /// host's OS (macOS, Windows) as the platform, and [ThemeData] then defaults
+  /// to [VisualDensity.compact] (every button 8dp shorter) and
+  /// [MaterialTapTargetSize.shrinkWrap] (no 48dp area around an icon button):
+  /// every 48dp target of the theme measured 40 there, against SYSTEM.md
+  /// §13.2 — while `flutter test`, on Android, measured 48. Pinned here, the
+  /// console is what its tests measure.
+  static ThemeData consoleTheme({String? fontFamily}) =>
+      themeData(fontFamily: fontFamily).copyWith(
+        visualDensity: VisualDensity.standard,
+        materialTapTargetSize: MaterialTapTargetSize.padded,
+      );
+
   /// [fontFamily] pins the typeface for every text style the theme sets.
   ///
   /// `ThemeData(fontFamily:)` alone would NOT be enough: the styles below are

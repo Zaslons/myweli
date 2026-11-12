@@ -4,9 +4,11 @@ import 'package:test/test.dart';
 import 'package:yaml/yaml.dart';
 
 /// The companion path's contract (docs/design/pro-companion-path.md §3):
-/// the two new demo refusals and the publish-time trial start are part of
-/// the API, so the document has to say so — the handler tests prove the
-/// server answers them, this proves a client reading the contract can know.
+/// the two new demo refusals and where the trial starts are part of the
+/// API, so the document has to say so — the handler tests prove the server
+/// answers them, this proves a client reading the contract can know. Since
+/// B0.18 (docs/design/salon-go-live-approval.md §3.6) the trial starts at
+/// MyWeli's validation, not at the owner's request.
 void main() {
   final doc = loadYaml(File('../docs/api/openapi.yaml').readAsStringSync());
   final paths = (doc as YamlMap)['paths'] as YamlMap;
@@ -40,14 +42,18 @@ void main() {
     );
   });
 
-  test('publish says the trial starts there, and when `offer` still '
-      'appears', () {
+  test('publish says NO trial starts there — it starts at the validation '
+      '— and when `offer` still appears', () {
     final description =
         op('/providers/{id}/publish', 'post')['description'] as String;
-    expect(description, contains('The trial starts here when no offer exists'));
+    expect(description, contains('No trial starts here'));
+    expect(
+      description,
+      contains("the salon's ONE 3-month trial starts when MyWeli validates it"),
+    );
     expect(
       response('/providers/{id}/publish', 'post', '409'),
-      contains('expired'),
+      allOf(contains('expired'), contains("at MyWeli's validation")),
     );
   });
 
@@ -69,11 +75,11 @@ void main() {
     );
   });
 
-  test('the subscription GET 404 is the setup state, ended by the first '
-      'publish or the first choice', () {
+  test('the subscription GET 404 is the setup state, ended by MyWeli\'s '
+      'validation or the first choice', () {
     expect(
       response('/providers/{id}/subscription', 'get', '404'),
-      contains('first publish'),
+      allOf(contains("MyWeli's validation"), contains('first choice')),
     );
   });
 }

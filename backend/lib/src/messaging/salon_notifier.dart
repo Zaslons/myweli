@@ -118,7 +118,9 @@ class SalonNotifier {
         // accepted nothing: the e-mail, unless they turned it off. A member
         // the app reaches never gets both. A browser does not count: FCM
         // accepts a push to a closed one (web-pro-browser-push.md Q1).
-        if (delivered.app == 0 && prefs.emailAlerts && email.isNotEmpty) {
+        // Only to an address (B0.18 §5.2): a phone-registered owner's
+        // membership holds a phone number in `email`.
+        if (delivered.app == 0 && prefs.emailAlerts && email != null) {
           await _sendEmail(
             to: email,
             event: event,
@@ -176,13 +178,14 @@ class SalonNotifier {
   /// ([Cap.journalViewAll] — owner/manager/reception); an own-scope member
   /// (Collaborateur) only when the booking is assigned to THEIR artist. An
   /// unassigned booking therefore reaches view-all members only. Deduped by
-  /// account; each carries the address of their membership (the e-mail's).
-  Future<List<({String accountId, String email})>> _recipients(
+  /// account; each carries the address of their membership (the e-mail's),
+  /// or null when that is no address ([Member.emailOrNull]).
+  Future<List<({String accountId, String? email})>> _recipients(
     String providerId,
     String? artistId,
   ) async {
     final rows = await _members.listForProvider(providerId);
-    final out = <({String accountId, String email})>[];
+    final out = <({String accountId, String? email})>[];
     for (final m in rows) {
       final accountId = m.accountId;
       if (m.status != 'active' || accountId == null) continue;
@@ -193,7 +196,7 @@ class SalonNotifier {
           artistId != null &&
           m.artistId == artistId;
       if ((viewAll || ownMatch) && !out.any((r) => r.accountId == accountId)) {
-        out.add((accountId: accountId, email: m.email));
+        out.add((accountId: accountId, email: m.emailOrNull));
       }
     }
     return out;

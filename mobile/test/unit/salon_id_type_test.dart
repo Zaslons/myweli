@@ -166,6 +166,10 @@ void main() {
         'restoreProvider(SalonId id)',
         'featureProvider(\n    SalonId id,',
         'markSubscriptionPaid(\n    SalonId id,',
+        // « Salons à valider » (B0.18).
+        'salonValidationDetail(\n    SalonId id,',
+        'approveSalonValidation(\n    SalonId id, {',
+        'refuseSalonValidation(\n    SalonId id, {',
       ]) {
         expect(admin, contains(m), reason: m);
       }
@@ -196,6 +200,8 @@ void main() {
       'lib/models/team_invitation.dart': 'fromJson: an invitation salon',
       'lib/models/salon_market.dart': "fromJson: the acting salon's market",
       'lib/models/salon_facts.dart': "fromJson: the acting salon's card",
+      'lib/models/admin_salon_validation.dart':
+          "fromJson: a validation request's salon, its owner's other salons",
       'lib/models/provider_session.dart':
           'fromJson: the persisted R6 selection',
       'lib/services/api/api_favorites_service.dart':
@@ -205,7 +211,9 @@ void main() {
       // A salon id carried by a link or a notification.
       'lib/core/router/app_router.dart':
           'a salon page, a booking, the map focus',
-      'lib/core/router/admin_router.dart': "the console's salon page",
+      'lib/core/router/admin_router.dart':
+          "the console's salon page and its validation request (the admin "
+          "e-mail's link)",
       'lib/core/router/pro_router.dart': 'the `?salon=` of a pushed booking',
       'lib/core/push/push_message_handler.dart':
           "the push payload's `providerId` or its route's `?salon=`",

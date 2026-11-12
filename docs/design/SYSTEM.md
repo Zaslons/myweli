@@ -536,7 +536,7 @@ widget; a third inline copy is a review failure.
 | `PhoneNumberField` | `onChanged, label, initialValue, initialCountryCode, errorText, enabled, focusNode` | Country picker (default CI, any country) + national digits. **The only way to take a phone number** — true on every screen since phone-national-length.md converted the last three free-text ones (Acompte, Profil du salon ×2, Ajouter un salon). Emits the **normalized** value: `''` while no national digit is typed, else `+<indicatif><chiffres>` without a separator, and re-emits on a country switch — what a screen checks is what it sends. A prefilled `+…` shows under **its** country (longest calling code). `autovalidateMode` stays `disabled`: the rule is `Validators.phoneNumber` / `optionalPhoneNumber` through `FieldErrors` (§14 rule 2). |
 | `LoadingIndicator` | `size, color` | The brand loader. The **only** spinner. |
 | `EmptyState` | `icon, title, description, actionText, onAction` | Icon at `iconXL`. Bounded height: it scrolls; unbounded (inside a list or a box sliver): it centres. **Not in a `SliverFillRemaining(hasScrollBody: false)`** — that sliver asks its child for an intrinsic height, which the `LayoutBuilder` cannot give; use a `SliverToBoxAdapter` (B7.4). |
-| `TimedCachedImage` | network + `asset:` + caching | The **only** way to show a remote image. |
+| `TimedCachedImage` | network + `asset:` + caching | The **only** way to show a remote image — one sanctioned exception, the admin console's salon photos (§19). |
 | `BrandLoader` / `BrandRefresh` | | Brand-mark loader + pull-to-refresh. |
 | `CommunePickerSheet` / `CommunePill` | | Locality selection (market data — §18). |
 | **`SalonMapMarker`** | `SalonMapMarker({required category, isFavorite})` + `salonCategoryIcon(category)` | A salon on a map — white disc, 2dp ring and icon in `categoryColor` (§3.6), heart badge when favourite. **The only salon pin**: « Carte » and the salon page's preview both draw it, and the web's `SalonPin` is the same drawing. Moved out of `map_screen.dart` (salon-location-map.md) |
@@ -667,6 +667,11 @@ between the glyph and the target edge is free; the target is what the finger get
   better, don't hand-roll.
 - Targets that are *adjacent* need ≥8px between them, or a fat finger hits the
   wrong one.
+- **The admin console runs on `AppTheme.consoleTheme()`** (B0.18): in a desktop
+  browser Flutter Web reports the host OS as the platform, and `ThemeData`'s
+  desktop defaults — `VisualDensity.compact`, `MaterialTapTargetSize.shrinkWrap`
+  — measured every 48dp target at 40. The console theme pins `standard` and
+  `padded`; its tap-target tests run on macOS and Windows as well as Android.
 - **`leadingWidth: 48` on the app bar is legal, and free** (A15) precisely
     because of the first bullet: a `BackButton` lays out at exactly 48 under
     `MaterialTapTargetSize.padded`, so the theme is asking for the floor rather
@@ -1283,6 +1288,14 @@ Deliberate, bounded, **not** debt:
 - **Brand black** — the logo, the `BrandLoader` and the app icon stay `#000000`
   (§1). They are brand assets, not ink.
 - **`Colors.transparent`** and alpha-black/white **for scrims and overlays only**.
+- **The admin console's salon photos** (B0.18, « Salons à valider ») are
+  `Image.network(…, webHtmlElementStrategy: WebHtmlElementStrategy.prefer)`, not
+  `TimedCachedImage` (§11.1). The public bucket's CORS refuses a preflight from
+  `admin.myweli.com` (403, no `Access-Control-Allow-Origin`, checked
+  2026-11-12), so Flutter Web cannot fetch a photo's bytes there; an `<img>`
+  element needs no CORS. The placeholder and the error state stay tokens. Scoped
+  to `admin_salon_validation_detail_screen.dart`; the KYC documents are not
+  concerned ([salon-go-live-approval.md](salon-go-live-approval.md) §4.4).
 
 Everything else: no `Color(0x…)`, no named `Colors.<hue>`, no raw `fontSize:`.
 

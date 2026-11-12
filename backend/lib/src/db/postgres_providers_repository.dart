@@ -720,9 +720,80 @@ class PostgresProvidersRepository implements ProvidersRepository {
     String providerId,
     String status,
   ) async {
+    // One statement each, so the status and its `suspended_from` can never
+    // disagree. In an UPDATE every right-hand side reads the row as it was,
+    // so the CASE sees the status BEFORE this write: a salon already
+    // suspended keeps the first value (§3.4), anything else records itself.
+    // Under a concurrent suspension, Postgres re-reads the row it waited for
+    // and re-evaluates the CASE on it, so the second of two suspensions keeps
+    // the first one's value there too.
     final r = await _pool.execute(
-      Sql.named('UPDATE providers SET status = @s WHERE id = @id RETURNING id'),
-      parameters: {'id': providerId, 's': status},
+      Sql.named(
+        status == 'suspended'
+            ? 'UPDATE providers SET suspended_from = CASE '
+                  "WHEN status = 'suspended' THEN suspended_from "
+                  'ELSE status END, '
+                  "status = 'suspended' "
+                  'WHERE id = @id RETURNING id'
+            : 'UPDATE providers SET status = @s, suspended_from = NULL '
+                  'WHERE id = @id RETURNING id',
+      ),
+      parameters: {'id': providerId, if (status != 'suspended') 's': status},
+    );
+    if (r.isEmpty) return null;
+    return byId(providerId);
+  }
+
+  @override
+  Future<Map<String, dynamic>?> compareAndSetStatus(
+    String providerId, {
+    required String from,
+    required String to,
+  }) async {
+    checkStatusSwap(from, to);
+    // The WHERE carries the status the caller expects: under a concurrent
+    // writer, Postgres re-reads the row it waited for, the WHERE no longer
+    // matches, and nothing is written. Neither status is `suspended`, so
+    // `suspended_from` has nothing to remember.
+    final r = await _pool.execute(
+      Sql.named(
+        'UPDATE providers SET status = @to, suspended_from = NULL '
+        'WHERE id = @id AND status = @from RETURNING id',
+      ),
+      parameters: {'id': providerId, 'from': from, 'to': to},
+    );
+    if (r.isEmpty) return null;
+    return byId(providerId);
+  }
+
+  @override
+  Future<String?> suspendedFrom(String providerId) async {
+    // Read through the status: an older image (a rollback) lifting a
+    // suspension never heard of the column and leaves it set. Only a running
+    // suspension's value means anything.
+    final r = await _pool.execute(
+      Sql.named(
+        "SELECT CASE WHEN status = 'suspended' THEN suspended_from END "
+        'AS f FROM providers WHERE id = @id',
+      ),
+      parameters: {'id': providerId},
+    );
+    if (r.isEmpty) return null;
+    return r.first.toColumnMap()['f'] as String?;
+  }
+
+  @override
+  Future<Map<String, dynamic>?> liftSuspension(
+    String providerId, {
+    required String to,
+  }) async {
+    checkLiftTarget(to);
+    final r = await _pool.execute(
+      Sql.named(
+        'UPDATE providers SET status = @to, suspended_from = NULL '
+        "WHERE id = @id AND status = 'suspended' RETURNING id",
+      ),
+      parameters: {'id': providerId, 'to': to},
     );
     if (r.isEmpty) return null;
     return byId(providerId);

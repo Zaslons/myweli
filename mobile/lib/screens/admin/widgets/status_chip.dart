@@ -4,6 +4,8 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/colors.dart';
 import '../../../core/theme/text_styles.dart';
 import '../../../core/utils/status_labels.dart';
+import '../../../core/utils/validation_labels.dart';
+import '../../../models/salon_validation.dart';
 
 /// Semantic meaning of a status pill.
 enum AdminChipKind { ok, pending, danger, neutral }
@@ -40,6 +42,24 @@ class StatusChip extends StatelessWidget {
     // reached a user.
     return StatusChip(label: StatusLabels.ofRaw(status) ?? '—', kind: kind);
   }
+
+  /// A salon's validation (B0.18 — docs/design/salon-go-live-approval.md
+  /// §4.4), in its own words ([ValidationLabels]) — never [StatusLabels]'s,
+  /// which reads `pending` as the booking's « En attente ».
+  ///
+  /// Waiting on MyWeli — a request, or a validation still to finish — is
+  /// `pending`; validated and taken live is `ok`; refused is `danger`; never
+  /// asked, or a state this build does not know (« — »), is `neutral`.
+  factory StatusChip.forValidation(SalonValidation? v) => StatusChip(
+    label: ValidationLabels.of(v) ?? '—',
+    kind: switch (v?.state) {
+      SalonValidationState.pending => AdminChipKind.pending,
+      SalonValidationState.approved =>
+        v!.wentLive ? AdminChipKind.ok : AdminChipKind.pending,
+      SalonValidationState.refused => AdminChipKind.danger,
+      SalonValidationState.unknown || null => AdminChipKind.neutral,
+    },
+  );
 
   @override
   Widget build(BuildContext context) {

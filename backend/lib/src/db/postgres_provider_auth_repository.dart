@@ -447,6 +447,22 @@ class PostgresProviderAuthRepository implements ProviderAuthRepository {
   }
 
   @override
+  Future<Map<String, ProviderAccount>> accountsByIds(
+    Iterable<String> ids,
+  ) async {
+    final wanted = ids.toSet().toList();
+    if (wanted.isEmpty) return const {};
+    final rows = await _pool.execute(
+      Sql.named('SELECT * FROM provider_users WHERE id = ANY(@ids)'),
+      parameters: {'ids': wanted},
+    );
+    return {
+      for (final r in rows)
+        r.toColumnMap()['id'] as String: _toAccount(r.toColumnMap()),
+    };
+  }
+
+  @override
   Future<ProviderAccount?> accountByEmail(String email) async {
     final rows = await _pool.execute(
       Sql.named('SELECT * FROM provider_users WHERE lower(email) = @e'),

@@ -19,8 +19,8 @@ class SalonSubscriptionRow {
   final String tier;
 
   /// The ONE trial per salon: set when the row is created — at the first
-  /// `chooseOffer`, or at the first successful publish when no offer was
-  /// ever chosen (`startDefaultTrial`) — and never reset.
+  /// `chooseOffer`, or when MyWeli validates the salon if no offer was ever
+  /// chosen (`startDefaultTrial`, B0.18 §3.6) — and never reset.
   final DateTime trialEndsAt;
 
   /// Manual billing (« Nous contacter ») — extended only by the audited
@@ -62,9 +62,9 @@ abstract interface class SalonSubscriptionRepository {
 
   /// Insert-if-absent: creates the row only when the salon has none, and
   /// returns whichever row now exists — an existing one is NEVER replaced
-  /// (not its tier, not its clock). The publish-time trial start writes
+  /// (not its tier, not its clock). The validation-time trial start writes
   /// through this, so a web choice that lands first keeps its tier and a
-  /// racing publish cannot overwrite it, which [create]'s Postgres upsert
+  /// racing validation cannot overwrite it, which [create]'s Postgres upsert
   /// would. Design: docs/design/pro-companion-path.md §3.1.
   Future<SalonSubscriptionRow> createIfAbsent({
     required String providerId,
