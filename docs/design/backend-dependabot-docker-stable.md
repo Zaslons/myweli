@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | Built on branch `fix/dependabot-docker-stable-dart`; not merged. The filter takes effect only once it is on `main` (§7). |
+| **Status** | Built; PR #767 (`fix/dependabot-docker-stable-dart`), not merged. The filter takes effect only once it is on `main` (§7). |
 | **Owner** | Sadreddine Daher |
 | **Last updated** | 2026-11-12 |
 | **PRD ref / phase** | Security, cross-cutting (CI / supply chain) · V1 |
