@@ -295,13 +295,23 @@ void main() {
       await t.tap(submit());
       await t.pump();
       expect(calls, hasLength(1));
+      // Past any closing transition — its ticker starts on the frame after
+      // the pop — and the frame that removes a closed route (the loader
+      // spins: no pumpAndSettle).
+      Future<void> pastClosing() async {
+        await t.pump();
+        await t.pump(const Duration(seconds: 1));
+        await t.pump();
+      }
+
       await t.sendKeyEvent(LogicalKeyboardKey.escape);
-      await t.pump();
+      await pastClosing();
       expect(find.text(kRefusalDialogTitle), findsOneWidget, reason: 'Escape');
+      expect(result, isNull, reason: 'Escape is not a cancel');
       await t.tapAt(const Offset(4, 4)); // the scrim
-      await t.pump();
+      await pastClosing();
       expect(find.text(kRefusalDialogTitle), findsOneWidget, reason: 'scrim');
-      expect(result, isNull);
+      expect(result, isNull, reason: 'the scrim is not a cancel');
       answer.complete(ok);
       await t.pumpAndSettle();
       expect(result, RefusalDialogResult.refused);
