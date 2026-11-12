@@ -16,6 +16,12 @@ library;
 /// else goes for that salon until it has passed.
 const Duration kPlaceNoticeWindow = Duration(hours: 1);
 
+/// How long past its hour a summary may wait for the reminders cron — every
+/// 15 minutes, so two missed ticks — before the salon's next save sends it
+/// itself ([PlaceNoticeTurn.summaryOverdue]). The cron sends the summaries;
+/// it is never the only way out of the cap.
+const Duration kPlaceSummaryGrace = Duration(minutes: 30);
+
 /// The four kinds of place change, in the order the e-mails list them —
 /// [PlaceNoticeState.reported] and [PlaceNoticeState.pendingFields] use
 /// these keys.
@@ -64,6 +70,12 @@ enum PlaceNoticeTurn {
   /// An e-mail went in the last hour, or a summary is owed: the save is
   /// counted, and the summary will carry it.
   recorded,
+
+  /// Recorded, and the summary it joins is [kPlaceSummaryGrace] past its
+  /// hour: the reminders cron has not sent it (paused, failing). The caller
+  /// sends that summary now, this save in it — the cap never silences the
+  /// admin.
+  summaryOverdue,
 }
 
 /// What [SalonPlaceNoticeRepository.claimSummary] hands its single winner:
@@ -90,7 +102,9 @@ abstract interface class SalonPlaceNoticeRepository {
   /// - **Otherwise:** [PlaceNoticeTurn.recorded]; one more pending save, its
   ///   kinds added, the first one's time kept. A save after the hour while a
   ///   summary is still owed joins that summary (the next tick sends it): an
-  ///   immediate e-mail then would report from the wrong « before ».
+  ///   immediate e-mail then would report from the wrong « before ». When
+  ///   that summary is [kPlaceSummaryGrace] past its hour, the same row with
+  ///   [PlaceNoticeTurn.summaryOverdue].
   Future<PlaceNoticeTurn> recordSave(
     String providerId,
     DateTime now, {
@@ -163,16 +177,19 @@ List<String> orderedPlaceFields(Iterable<String> fields) {
       turn: PlaceNoticeTurn.sendNow,
     );
   }
+  // The summary this save joins was due [kPlaceSummaryGrace] ago, and the
+  // cron has not sent it.
+  final overdue = placeSummaryDue(row!, when.subtract(kPlaceSummaryGrace));
   return (
     next: PlaceNoticeState(
       providerId: providerId,
       lastSentAt: last,
-      reported: row!.reported,
+      reported: row.reported,
       pendingCount: row.pendingCount + 1,
       pendingSince: row.pendingSince ?? when,
       pendingFields: orderedPlaceFields([...row.pendingFields, ...fields]),
     ),
-    turn: PlaceNoticeTurn.recorded,
+    turn: overdue ? PlaceNoticeTurn.summaryOverdue : PlaceNoticeTurn.recorded,
   );
 }
 

@@ -24,4 +24,9 @@ void main() {
   test('the window is one hour', () {
     expect(kPlaceNoticeWindow, const Duration(hours: 1));
   });
+
+  test('a summary waits for the cron 30 minutes past its hour — two missed '
+      'ticks — before a save sends it', () {
+    expect(kPlaceSummaryGrace, const Duration(minutes: 30));
+  });
 }

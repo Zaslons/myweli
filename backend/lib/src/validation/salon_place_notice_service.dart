@@ -49,7 +49,11 @@ Map<String, String?> placeSnapshot(Map<String, dynamic> doc) => {
 ///   e-mail an hour;
 /// - **a suspended salon** records nothing and is sent nothing: the admin
 ///   already acted. A summary owed by a salon suspended (or no longer
-///   validated, or gone) by the time it is due is dropped.
+///   validated, or gone) by the time it is due is dropped;
+/// - **a summary the cron has not sent** [kPlaceSummaryGrace] past its hour
+///   (the job paused, its door broken, the step failing) is sent by the
+///   salon's next save: the cron is how the summaries go, never the only way
+///   out of the cap.
 ///
 /// Both sides are single-winner in the repository: two saves racing on a
 /// quiet hour send one e-mail, two ticks send one summary.
@@ -92,11 +96,12 @@ class SalonPlaceNoticeService {
     required Map<String, dynamic> after,
   }) async {
     if (changes.isEmpty) return;
+    final now = _clock().toUtc();
     PlaceNoticeTurn turn;
     try {
       turn = await _notices.recordSave(
         providerId,
-        _clock().toUtc(),
+        now,
         after: placeSnapshot(after),
         fields: changes.map((c) => c.field),
       );
@@ -109,6 +114,20 @@ class SalonPlaceNoticeService {
     }
     if (turn == PlaceNoticeTurn.recorded) {
       _log('place_notice provider=$providerId outcome=recorded');
+      return;
+    }
+    if (turn == PlaceNoticeTurn.summaryOverdue) {
+      // The cron has not sent the summary this save joined: the save sends
+      // it — the same summary, single winner against a late tick.
+      _log('place_notice provider=$providerId outcome=summary_overdue');
+      try {
+        await _summarise(providerId, now);
+      } catch (e) {
+        _log(
+          'place_notice provider=$providerId outcome=failed '
+          'error=${e.runtimeType}',
+        );
+      }
       return;
     }
     // Best effort inside the notifier: it never throws.

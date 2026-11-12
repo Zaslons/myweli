@@ -120,6 +120,21 @@ void salonPlaceNoticeContract({
       expect(row.pendingSince, at(30));
     });
 
+    test('a summary owed and kPlaceSummaryGrace past its hour — the cron has '
+        'not sent it: the save is counted AND told so, the caller sends it; '
+        'a minute short of that, only counted', () async {
+      final r = repo();
+      final id = await salon();
+      await save(r, id, at(0));
+      await save(r, id, at(10));
+      expect(await save(r, id, at(89)), PlaceNoticeTurn.recorded);
+      expect(await save(r, id, at(90)), PlaceNoticeTurn.summaryOverdue);
+      final row = (await r.get(id))!;
+      expect(row.pendingCount, 3, reason: 'the summary carries this save');
+      expect(row.pendingSince, at(10));
+      expect(row.lastSentAt, at(0));
+    });
+
     // On Postgres a NEW row serialises these by itself: the insert of the
     // first waits out the others' pre-check. The lock is tested on an
     // existing row, below.

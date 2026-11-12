@@ -339,6 +339,47 @@ void main() {
       expect(sentAt, hasLength(4), reason: '09:00, 10:00, 11:00, 12:00');
     });
 
+    test('THE CRON STOPPED: once the summary owed is 30 minutes past its '
+        'hour, the salon\'s next save sends it — one summary, that save in '
+        'it; a minute before, the save is only recorded', () async {
+      final s = await validated();
+      await save(s, {'phoneNumber': '+2250700000010'});
+      await save(s, {'address': 'Rue Neuve'}, atMinute: 10);
+      w.adminMail.sent.clear();
+
+      await save(s, {'phoneNumber': '+2250700000011'}, atMinute: 89);
+      expect(w.adminMail.sent, isEmpty, reason: 'not overdue yet');
+
+      await save(s, {'phoneNumber': '+2250700000012'}, atMinute: 90);
+      final mail = w.adminMail.sent.single;
+      expect(
+        mail.subject,
+        'Salon Awa a encore modifié son adresse et son téléphone',
+      );
+      expect(
+        mail.text,
+        contains(
+          '3 modifications depuis le 12/11/2026 à 09:10 (heure d’Abidjan)',
+        ),
+      );
+      expect(mail.text, contains('Adresse : Rue des Jardins → Rue Neuve'));
+      expect(
+        mail.text,
+        contains('Téléphone : +2250700000010 → +2250700000012'),
+      );
+      expect(
+        w.placeLogs,
+        contains('place_notice provider=${s.id} outcome=summary_overdue'),
+      );
+      final row = (await w.placeNotices.get(s.id))!;
+      expect(row.pendingCount, 0);
+      expect(row.lastSentAt, DateTime.utc(2026, 11, 12, 10, 30));
+      expect(row.reported['phone'], '+2250700000012');
+
+      expect(await tick(105), 0, reason: 'a late tick finds it sent');
+      expect(w.adminMail.sent, hasLength(1));
+    });
+
     test('a salon SUSPENDED by the time its summary is due → dropped, not '
         'sent', () async {
       final s = await owing();
