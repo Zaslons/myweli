@@ -135,10 +135,11 @@ class _AdminSalonValidationsScreenState
           },
         ),
         // Whenever there is a page to go to — an empty page past the first
-        // keeps « Précédent », the way out.
-        if (!p.isLoading &&
-            p.error == null &&
-            (p.items.isNotEmpty || p.hasPrev || p.hasNext))
+        // keeps « Précédent », the way out. Kept while the next page loads:
+        // unmounting it took the focus from the « Suivant » just pressed, and
+        // a keyboard admin started again from the sidebar on every page. A
+        // page asked for meanwhile wins (the provider's sequence).
+        if (p.error == null && (p.items.isNotEmpty || p.hasPrev || p.hasNext))
           _Pager(provider: p),
       ],
     );

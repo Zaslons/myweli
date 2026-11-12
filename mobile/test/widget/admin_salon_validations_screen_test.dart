@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:myweli/screens/admin/admin_salon_validation_detail_screen.dart';
 import 'package:myweli/screens/admin/widgets/admin_segmented_control.dart';
@@ -219,6 +220,30 @@ void main() {
       await t.pumpAndSettle();
       expect(p.queue.page, 1);
       expect(find.text('Beauté Divine'), findsOneWidget);
+    });
+
+    testWidgets('« Suivant » by keyboard keeps the focus while the next page '
+        'loads, and after (§13.5)', (t) async {
+      final server = FakeAdminServer();
+      server.queue['pending'] = jsonResponse(queuePage(total: 120));
+      await pumpConsole(t, server, location: queuePath);
+      final next = Focus.of(t.element(find.byIcon(Icons.chevron_right)));
+      next.requestFocus();
+      await t.pump();
+      expect(FocusManager.instance.primaryFocus, same(next));
+
+      final gate = Completer<void>();
+      server.hold(queuePath, gate.future);
+      await t.sendKeyEvent(LogicalKeyboardKey.enter);
+      await t.pump();
+      expect(server.to(queuePath).last.url.queryParameters['page'], '2');
+      expect(find.byTooltip('Suivant'), findsOneWidget, reason: 'kept');
+      expect(FocusManager.instance.primaryFocus, same(next));
+
+      gate.complete();
+      await t.pumpAndSettle();
+      expect(find.text('Page 2'), findsOneWidget);
+      expect(FocusManager.instance.primaryFocus, same(next));
     });
   });
 
