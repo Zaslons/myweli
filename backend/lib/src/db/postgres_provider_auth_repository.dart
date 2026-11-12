@@ -6,7 +6,11 @@ import 'package:postgres/postgres.dart';
 import '../auth/auth_repository.dart'
     show OtpRequestResult, RefreshResult, TokenPair;
 import '../auth/provider_auth_repository.dart'
-    show ProviderAccount, ProviderAuthRepository, ProviderVerifyResult;
+    show
+        ProviderAccount,
+        ProviderAuthRepository,
+        ProviderVerifyResult,
+        kycStampPattern;
 import '../auth/tokens.dart';
 import 'refresh_exchange.dart';
 
@@ -489,6 +493,49 @@ class PostgresProviderAuthRepository implements ProviderAuthRepository {
         'ORDER BY created_at DESC LIMIT @ps OFFSET @off',
       ),
       parameters: {'s': status, 'ps': pageSize, 'off': (page - 1) * pageSize},
+    );
+    return (
+      items: rows.map((r) => _toAccount(r.toColumnMap())).toList(),
+      total: total,
+    );
+  }
+
+  /// « Awaiting review » in SQL — [ProviderAccount.awaitsKycReview]. `CASE` is
+  /// the one construct whose evaluation order Postgres guarantees, so
+  /// `jsonb_array_length` never sees a non-array (it would throw, and one odd
+  /// row would turn the whole queue into a 500).
+  static const _awaitsKycReview =
+      "verification_status = 'pending' AND CASE WHEN jsonb_typeof(kyc_docs) = "
+      "'array' THEN jsonb_array_length(kyc_docs) > 0 ELSE false END";
+
+  /// [kycSubmittedAt] in SQL: the newest stamp, cast only when it has the
+  /// server's shape ([kycStampPattern] — the same pattern, so both backends
+  /// agree), again behind a `CASE` so a malformed stamp cannot throw.
+  static final _kycSubmittedAt =
+      "(SELECT max(CASE WHEN d->>'submittedAt' ~ "
+      "'${kycStampPattern.pattern}' "
+      "THEN (d->>'submittedAt')::timestamptz END) "
+      'FROM jsonb_array_elements(kyc_docs) d)';
+
+  @override
+  Future<({List<ProviderAccount> items, int total})> listKycQueue({
+    int page = 1,
+    int pageSize = 20,
+  }) async {
+    final count = await _pool.execute(
+      Sql.named(
+        'SELECT COUNT(*)::int FROM provider_users WHERE $_awaitsKycReview',
+      ),
+    );
+    final total = count.first[0]! as int;
+    // `id COLLATE "C"`: code-unit order, as the in-memory `compareTo`.
+    final rows = await _pool.execute(
+      Sql.named(
+        'SELECT * FROM provider_users WHERE $_awaitsKycReview '
+        'ORDER BY $_kycSubmittedAt ASC NULLS LAST, id COLLATE "C" ASC '
+        'LIMIT @ps OFFSET @off',
+      ),
+      parameters: {'ps': pageSize, 'off': (page - 1) * pageSize},
     );
     return (
       items: rows.map((r) => _toAccount(r.toColumnMap())).toList(),

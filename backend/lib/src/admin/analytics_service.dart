@@ -66,7 +66,11 @@ class AnalyticsService {
           'suspended': await _providersWith('suspended'),
         },
         'verification': {
-          'pending': await _verif('pending'),
+          // The KYC queue's own total — it was every `pending` account, i.e.
+          // every account never verified or refused, documents or not, so
+          // « KYC en attente » counted accounts, not files to review
+          // (docs/design/admin-kyc-queue-submitted.md §4.4).
+          'pending': (await _providerAuth.listKycQueue(pageSize: 1)).total,
           'verified': await _verif('verified'),
           'rejected': await _verif('rejected'),
         },

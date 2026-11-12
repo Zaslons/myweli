@@ -7,10 +7,12 @@ import 'audit_log_repository.dart';
 /// Outcome of an admin operation; [data] is the response body on success.
 typedef AdminResult = ({bool ok, String? error, Object? data});
 
-/// Admin KYC review (design: docs/design/admin-console.md). Lists pending
-/// provider accounts, issues short-lived **signed-GET** URLs to view their
-/// private ID documents, and approves/rejects verification — every decision
-/// written to the audit log.
+/// Admin KYC review (design: docs/design/admin-console.md). Lists the
+/// accounts awaiting review, issues short-lived **signed-GET** URLs to view
+/// their private ID documents, and approves/rejects verification — every
+/// decision written to the audit log. « Awaiting review » = `pending` with at
+/// least one document, oldest submission first; approve and reject refuse
+/// anything else (docs/design/admin-kyc-queue-submitted.md).
 class AdminKycService {
   AdminKycService(
     this._providers,
@@ -35,11 +37,7 @@ class AdminKycService {
   static const _docTtl = Duration(minutes: 5);
 
   Future<AdminResult> queue({int page = 1, int pageSize = 20}) async {
-    final r = await _providers.listByVerificationStatus(
-      'pending',
-      page: page,
-      pageSize: pageSize,
-    );
+    final r = await _providers.listKycQueue(page: page, pageSize: pageSize);
     return (
       ok: true,
       error: null,
@@ -50,7 +48,10 @@ class AdminKycService {
               'accountId': a.id,
               'businessName': a.businessName,
               'businessType': a.businessType,
-              'submittedAt': a.createdAt.toIso8601String(),
+              // The submission's own time — it was the ACCOUNT's createdAt,
+              // so « Soumis le » showed the day the account was made. Null
+              // only when no stored stamp parses (none should).
+              'submittedAt': kycSubmittedAt(a.kycDocs)?.toIso8601String(),
               'docCount': a.kycDocs.length,
             },
         ],
@@ -69,18 +70,53 @@ class AdminKycService {
         {
           'type': d['type'],
           'key': d['key'],
-          if (d['key'] is String)
+          if (d['key'] is String) ...{
             'viewUrl': _storage.presignGet(
               key: d['key'] as String,
               bucket: StorageBucket.kyc,
               ttl: _docTtl,
             ),
+            'format': _formatOf(d['key'] as String),
+          },
         },
     ];
-    return (ok: true, error: null, data: {...a.toJson(), 'docs': docs});
+    return (
+      ok: true,
+      error: null,
+      data: {
+        ...a.toJson(),
+        'docs': docs,
+        // The server's definition, so the console never re-derives it: it
+        // shows « Approuver / Rejeter » only when this is true.
+        'awaitingReview': a.awaitsKycReview,
+      },
+    );
+  }
+
+  /// `pdf` or `image`, from the key's extension — chosen by the SERVER at
+  /// signing (`upload_signing_service.dart`, `_kycTypes`), with the content
+  /// type pinned by the signed policy, so the client never parses keys. A PDF
+  /// cannot be drawn as an image: Flutter's decoder and the browser's both
+  /// refuse its bytes (docs/design/admin-kyc-queue-submitted.md §1.3).
+  static String _formatOf(String key) =>
+      key.toLowerCase().endsWith('.pdf') ? 'pdf' : 'image';
+
+  /// Approve and reject act on a submission awaiting review, nothing else:
+  /// without this an admin could verify an account that never sent a
+  /// document — badge on its salons, deposits unlocked
+  /// (docs/design/admin-kyc-queue-submitted.md §1.2, §4.5). Checked before
+  /// the write, not in it: a concurrent double approve lands twice, as it
+  /// always has, and both rows are true.
+  Future<String?> _refusal(String accountId) async {
+    final current = await _providers.accountById(accountId);
+    if (current == null) return 'not_found';
+    if (!current.awaitsKycReview) return 'invalid_state';
+    return null;
   }
 
   Future<AdminResult> approve(String adminId, String accountId) async {
+    final refusal = await _refusal(accountId);
+    if (refusal != null) return (ok: false, error: refusal, data: null);
     final updated = await _providers.setVerification(
       accountId,
       status: 'verified',
@@ -106,6 +142,8 @@ class AdminKycService {
     if (reason is! String || reason.trim().isEmpty) {
       return (ok: false, error: 'invalid_input', data: null);
     }
+    final refusal = await _refusal(accountId);
+    if (refusal != null) return (ok: false, error: refusal, data: null);
     final updated = await _providers.setVerification(
       accountId,
       status: 'rejected',

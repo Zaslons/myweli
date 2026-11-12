@@ -59,6 +59,14 @@ class ProviderAccount {
   String? providerId;
   List<Map<String, dynamic>> kycDocs;
 
+  /// The admin KYC queue's one definition (docs/design/admin-kyc-queue-submitted.md
+  /// §4.1): `pending` **and** at least one document. `pending` alone is every
+  /// account ever made — the column defaults to it, neither INSERT sets it,
+  /// and the demo reset writes it with an empty list — so the queue used to
+  /// list team members and salons that never sent a thing.
+  bool get awaitsKycReview =>
+      verificationStatus == 'pending' && kycDocs.isNotEmpty;
+
   Map<String, dynamic> toJson() => {
     'id': id,
     'phoneNumber': phoneNumber,
@@ -74,6 +82,31 @@ class ProviderAccount {
     'createdAt': createdAt.toIso8601String(),
     'providerId': providerId,
   };
+}
+
+/// A server-written KYC stamp: `DateTime.toUtc().toIso8601String()`
+/// (`kyc_service.dart`). The Postgres queue's `ORDER BY` uses the SAME pattern
+/// to decide what it casts, so both backends agree on which stamps count.
+final RegExp kycStampPattern = RegExp(
+  r'^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$',
+);
+
+/// When the account last submitted its KYC: the newest `submittedAt` among
+/// [docs]. Every document of one submission is stamped in the same loop, kept
+/// ones included, so this is the latest submission's time; a resubmission
+/// after a refusal moves it. Null when no document carries a parsable stamp —
+/// never the account's creation time, which is what the queue used to show as
+/// « Soumis le » (docs/design/admin-kyc-queue-submitted.md §4.1, §4.3).
+DateTime? kycSubmittedAt(List<Map<String, dynamic>> docs) {
+  DateTime? latest;
+  for (final d in docs) {
+    final raw = d['submittedAt'];
+    if (raw is! String || !kycStampPattern.hasMatch(raw)) continue;
+    final t = DateTime.tryParse(raw);
+    if (t == null) continue;
+    if (latest == null || t.isAfter(latest)) latest = t;
+  }
+  return latest;
 }
 
 /// Verify outcome: the provider account + a freshly issued token pair (access
@@ -166,10 +199,21 @@ abstract interface class ProviderAuthRepository {
     List<Map<String, dynamic>> docs,
   );
 
-  /// Admin: accounts with the given verification [status] (e.g. `pending`),
-  /// newest-first, paginated. (Design: docs/design/admin-console.md.)
+  /// Admin: accounts with the given verification [status], newest-first,
+  /// paginated. (Design: docs/design/admin-console.md.) **Not the KYC queue:**
+  /// `pending` here is every account that was never verified or refused,
+  /// documents or not — use [listKycQueue] for « awaiting review ».
   Future<({List<ProviderAccount> items, int total})> listByVerificationStatus(
     String status, {
+    int page,
+    int pageSize,
+  });
+
+  /// Admin KYC queue: the accounts that [ProviderAccount.awaitsKycReview] —
+  /// `pending` with at least one document — **oldest submission first**
+  /// ([kycSubmittedAt]; no parsable stamp → last), then by id. Paginated.
+  /// (Design: docs/design/admin-kyc-queue-submitted.md §4.2.)
+  Future<({List<ProviderAccount> items, int total})> listKycQueue({
     int page,
     int pageSize,
   });
@@ -291,6 +335,31 @@ class InMemoryProviderAuthRepository implements ProviderAuthRepository {
     final all =
         _byId.values.where((a) => a.verificationStatus == status).toList()
           ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    final start = (page - 1) * pageSize;
+    final items = start >= all.length
+        ? <ProviderAccount>[]
+        : all.sublist(start, (start + pageSize).clamp(0, all.length));
+    return (items: items, total: all.length);
+  }
+
+  @override
+  Future<({List<ProviderAccount> items, int total})> listKycQueue({
+    int page = 1,
+    int pageSize = 20,
+  }) async {
+    final all = _byId.values.where((a) => a.awaitsKycReview).toList()
+      ..sort((a, b) {
+        final ta = kycSubmittedAt(a.kycDocs);
+        final tb = kycSubmittedAt(b.kycDocs);
+        // Postgres' `ASC NULLS LAST`, then `id ASC`.
+        if (ta != null && tb != null) {
+          final byTime = ta.compareTo(tb);
+          if (byTime != 0) return byTime;
+        } else if (ta != null || tb != null) {
+          return ta == null ? 1 : -1;
+        }
+        return a.id.compareTo(b.id);
+      });
     final start = (page - 1) * pageSize;
     final items = start >= all.length
         ? <ProviderAccount>[]
