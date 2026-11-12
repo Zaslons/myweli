@@ -421,7 +421,10 @@ both measured in `flutter_test` only.
   **`myweli_loader_mixed_white.json` still has it** (M/W 100 % → 0 over 53→54,
   `redraw` in at 54) — unused today; fix it the same way (hold M/W to 54) the
   day dark mode wires it, and extend `open_animation_asset_test`'s hand-off
-  render to it.
+  render to it. *2026-11-12, lottie 3.8.2 (B13.3):* the blank no longer
+  shows — 3.8.1 draws index 54 at 54.0, not 53.996, where `redraw` is in
+  (rendered frame by frame on 3.6.1 and 3.8.2: frame 54 blank, then drawn). The
+  file's keyframes still carry the defect, so the fix above still applies.
 - **The boot length** (§7): every open now costs ≥ 5.46 s (consumer) / 6.18 s
   (Pro) before the first usable screen, by the owner's decision. If that proves
   too long in use, the lever is the file (a shorter wordmark hold or spin), not
