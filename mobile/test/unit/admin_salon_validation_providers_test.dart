@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io' show File;
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
@@ -17,6 +18,7 @@ import 'package:myweli/services/admin/admin_service.dart';
 import 'package:myweli/services/interfaces/session_store.dart';
 
 import '../support/admin_salon_validation_fixtures.dart';
+import '../support/dart_source.dart';
 
 /// docs/design/salon-go-live-approval.md §4.1–§4.4, §8.2 — the console's
 /// state for « Salons à valider »: the queue (tabs, 50 per page, a row that
@@ -904,6 +906,32 @@ void main() {
       expect(reads, 2);
       expect(c.count, 3);
       c.dispose();
+    });
+
+    test('the console registers it on the auth provider, not lazily — what '
+        'loads it at sign-in in production — on its 48dp theme', () {
+      final src = stripDartComments(
+        File('lib/main_admin.dart').readAsStringSync(),
+      );
+      const ctor = 'AdminSalonValidationCountProvider(';
+      expect(ctor.allMatches(src), hasLength(1), reason: 'registered once');
+      // The ChangeNotifierProvider(…) around it, by its parentheses.
+      final start = src.lastIndexOf(
+        'ChangeNotifierProvider(',
+        src.indexOf(ctor),
+      );
+      var depth = 0;
+      var end = src.indexOf('(', start);
+      do {
+        if (src[end] == '(') depth++;
+        if (src[end] == ')') depth--;
+        end++;
+      } while (depth > 0);
+      final registration = src.substring(start, end);
+      expect(registration, contains(ctor));
+      expect(registration, contains('lazy: false'));
+      expect(registration, contains('auth: ctx.read<AdminAuthProvider>()'));
+      expect(src, contains('theme: AppTheme.consoleTheme()'));
     });
 
     test('an answer that lands after the sign-out is dropped', () async {
