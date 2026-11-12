@@ -411,8 +411,12 @@ production holds no KYC document.
 
 - One branch and PR from `main` (backend + console + contract + this spec).
 - Backend deploy = the manual dispatch with an `image_tag`; console deploy =
-  `deploy-admin.yml`, also manual. **Both on your go**, in either order: the
-  console falls back to today's image tile when `format` is absent.
+  `deploy-admin.yml`, also manual. **Both on your go.** On their own they
+  could go in either order (the console falls back to today's image tile when
+  `format` is absent). Merged after #776 and #779, they ship inside B0.18's
+  backend and console, so they follow its order
+  ([salon-go-live-approval.md](salon-go-live-approval.md) §9.2: website 4a →
+  admin console → backend).
 - No flag: an admin-only read and two refusals.
 
 ## 11. Definition of done
