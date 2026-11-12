@@ -1,6 +1,6 @@
 """A small, exact Skia player for the Pro app's opening Lottie.
 
-It draws what the app draws — lottie-flutter 3.5.1 (mobile/pubspec.lock), the
+It draws what the app draws — lottie-flutter 3.8.2 (mobile/pubspec.lock), the
 package behind ``Lottie.asset`` in pro_splash_screen.dart:212-219 — at any
 continuous composition time, so the film can retime the animation and blur
 it over sub-frames. Every rule below is lottie-flutter's, cited by file under
@@ -49,24 +49,31 @@ _JOIN = {
     'bevel': skia.Paint.kBevel_Join,
 }
 
-# lottie-flutter's LottieComposition.roundProgress adds this many frames to
-# the duration so the controller's end (1.0) lands just inside the out point.
+# lottie-flutter's composition ends 0.01 frame before the file's op
+# (parser/lottie_composition_parser.dart:46: endFrame = op - 0.01);
+# LottieComposition.roundProgress adds it back to count whole frames, with an
+# epsilon for the float error of doing so (composition.dart:277-281, 3.8.2).
 _FLUTTER_END_OFFSET = 0.01
+_FLUTTER_FRAME_EPSILON = 1e-6
 
 
 def device_frame(controller_value: float, fps: float, in_frame: float, out_frame: float) -> float:
-    """The composition time lottie-flutter draws for an ``AnimationController`` value.
+    """The composition time lottie-flutter 3.8.2 draws for an ``AnimationController`` value.
 
-    The app's ``Lottie`` uses ``FrameRate.composition``: progress is floored
-    to whole frames of the file's own rate (25 fps), over a duration padded
-    by 0.01 frame (``composition.dart`` ``roundProgress``). The end of a pass
-    (1.0) therefore draws 141.990, not 142 — still inside the ``redraw``
-    layer's [72, 142) — which is why the app rests on the finished mark.
+    The app's ``Lottie`` uses ``FrameRate.composition``: the progress is
+    floored to a whole frame of the file's own rate (25 fps) over
+    ``durationFrames + 0.01`` and drawn at exactly that frame, capped at the
+    end frame op - 0.01 (``composition.dart`` ``roundProgress``; 3.8.1
+    « sample the exact frame »). Comp 25 is drawn at 25.0 (3.6.1 drew 24.998);
+    the end of a pass (1.0) at 141.99 — still inside the ``redraw`` layer's
+    [72, 142) — which is why the app rests on the finished mark.
     """
-    duration = out_frame - in_frame
+    duration = out_frame - _FLUTTER_END_OFFSET - in_frame  # durationFrames
     total_frames = (duration + _FLUTTER_END_OFFSET) / fps * fps
-    frame_index = int(total_frames * controller_value)
-    return in_frame + frame_index / total_frames * duration
+    frame_index = int(total_frames * controller_value + _FLUTTER_FRAME_EPSILON)
+    # fps is the file's own rate, so frame == frameIndex; min() is
+    # min(frame / durationFrames, 1.0) expressed in frames.
+    return in_frame + min(float(frame_index), duration)
 
 
 def _rect(value: RectLike) -> skia.Rect:

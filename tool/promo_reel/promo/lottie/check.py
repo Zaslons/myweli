@@ -4,7 +4,7 @@ The goldens (mobile/test/golden/pro_splash_golden_test.dart) photograph the
 Pro splash on Flutter's test surface at the two frames that carry meaning:
 
 * ``pro_splash_wordmark`` — reduced motion's still: the middle of the
-  ``wordmark`` marker, controller (12 + 38) / 2 / 142 → comp 25 (drawn 24.998);
+  ``wordmark`` marker, controller (12 + 38) / 2 / 142 → comp 25 (drawn 25.000);
 * ``pro_splash_end`` — the end of the first pass, controller 1.0 → comp 142
   (drawn 141.990, the finished mark).
 

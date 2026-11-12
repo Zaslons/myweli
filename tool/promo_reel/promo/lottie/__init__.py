@@ -4,7 +4,7 @@
     player = Player(PRO_OPEN_ANIMATION)
     player.render(canvas, comp_frame=25.0, dst_rect=player.dst_rect((540, 680), 900))
 
-See ``player.py`` for the rendering rules (lottie-flutter 3.5.1's, cited) and
+See ``player.py`` for the rendering rules (lottie-flutter 3.8.2's, cited) and
 ``model.py`` for the feature contract; ``check.py`` holds the golden
 acceptance; ``python -m promo.lottie --help`` for the command line.
 """
