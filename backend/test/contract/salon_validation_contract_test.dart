@@ -372,6 +372,60 @@ void main() {
       );
     });
 
+    test('approve: EVERY 409 code is in the documented enum — suspended, '
+        'no owner, a finish on a salon that is not a draft', () async {
+      const path = '/admin/salons/{id}/validation/approve';
+      final codes = <Object?>{};
+      Future<void> conflict(String id, String from) async {
+        final body = await conforms(
+          await routes.approve(id, json: {'from': from}),
+          path,
+          'post',
+          409,
+        );
+        codes.add(body['error']);
+      }
+
+      final suspended = await pending();
+      await w.providers.setStatus(suspended.id, 'suspended');
+      await conflict(suspended.id, 'pending');
+
+      final created = await w.providers.createSalon(
+        name: 'Sans propriétaire',
+        category: 'salon',
+        phoneNumber: '+2250700000009',
+      );
+      final ownerless = created['id'] as String;
+      await w.providers.updateProfile(ownerless, completeProfile);
+      await w.validations.submit(ownerless, w.now);
+      await conflict(ownerless, 'pending');
+
+      final finishing = await pending();
+      await w.validations.decide(
+        finishing.id,
+        from: 'pending',
+        to: 'approved',
+        adminId: 'admin_1',
+      );
+      await w.providers.setStatus(finishing.id, 'active');
+      await conflict(finishing.id, 'approved');
+
+      final expired = await pending();
+      await w.subs.create(
+        providerId: expired.id,
+        tier: 'pro',
+        trialEndsAt: w.now.subtract(const Duration(days: 100)),
+      );
+      await conflict(expired.id, 'pending');
+
+      expect(codes, {
+        'provider_suspended',
+        'no_owner',
+        'invalid_state',
+        'incomplete',
+      });
+    });
+
     test('refuse: 200 (with and without a note), 400, 409, 404', () async {
       const path = '/admin/salons/{id}/validation/refuse';
       final a = await pending();
