@@ -407,6 +407,31 @@ void main() {
       expect(server.to('/admin/providers/provider_1'), isNotEmpty);
     });
 
+    testWidgets('back from the salon’s page, the request is read again — the '
+        'suspension lifted there, « Valider » is enabled here', (t) async {
+      final server = serving(
+        detail(salonStatus: 'suspended'),
+      )..restore = jsonResponse({'status': 'draft', 'reason': 'not_validated'});
+      await pumpConsole(t, server, location: path);
+      expect(enabled(t, 'Valider la mise en ligne'), isFalse);
+      await t.tap(find.text('Ouvrir la fiche du salon'));
+      await t.pumpAndSettle();
+      // What the server holds once the suspension is lifted.
+      server.detail['provider_1'] = jsonResponse(detail());
+      await t.tap(find.text('Lever la suspension'));
+      await t.pumpAndSettle();
+      await t.tap(find.byTooltip('Retour'));
+      await t.pumpAndSettle();
+      expect(find.byType(AdminSalonValidationDetailScreen), findsOneWidget);
+      expect(server.to(detailPath), hasLength(2), reason: 'read again');
+      expect(enabled(t, 'Valider la mise en ligne'), isTrue);
+      expect(
+        find.text('Salon suspendu : levez d’abord la suspension.'),
+        findsNothing,
+      );
+      expect(find.text('Ouvrir la fiche du salon'), findsNothing);
+    });
+
     testWidgets('a validation that did not take the salon live: « Validation '
         'à terminer », the same button, sent from `approved`', (t) async {
       final server = serving(

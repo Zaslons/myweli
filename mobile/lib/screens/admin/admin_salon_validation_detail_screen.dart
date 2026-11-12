@@ -153,8 +153,14 @@ class _AdminSalonValidationDetailScreenState
     }
   }
 
-  void _openSalonPage() =>
-      context.push('/admin/providers/${Uri.encodeComponent(widget.id)}');
+  /// The fix is on the salon's page — « Lever la suspension », « Marquer
+  /// payé ». Back from it, the request is read again: this screen's State
+  /// waited under the pushed page (no initState), and nothing there re-reads
+  /// it, so « Valider » stayed disabled on what the admin had just fixed.
+  Future<void> _openSalonPage() async {
+    await context.push('/admin/providers/${Uri.encodeComponent(widget.id)}');
+    if (mounted) _load();
+  }
 
   @override
   Widget build(BuildContext context) {
