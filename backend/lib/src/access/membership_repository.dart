@@ -193,6 +193,19 @@ class InMemoryMembershipRepository implements MembershipRepository {
   final List<Member> _rows = [];
   int _seq = 0;
 
+  /// Whether the salon has an active owner, read synchronously — for another
+  /// twin's critical section: the salon validation twin's going-live (B0.18,
+  /// docs/design/salon-go-live-approval.md §3.2 step 4) checks it and writes
+  /// with no `await` in between, as its Postgres twin does in one
+  /// transaction.
+  bool hasActiveOwnerNow(String providerId) => _rows.any(
+    (m) =>
+        m.providerId == providerId &&
+        m.role == MemberRoleNames.owner &&
+        m.status == 'active' &&
+        m.accountId != null,
+  );
+
   @override
   Future<Member?> activeMember(String accountId, String providerId) async {
     for (final m in _rows) {

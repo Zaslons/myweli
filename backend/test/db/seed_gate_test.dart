@@ -69,4 +69,26 @@ void main() {
       );
     });
   });
+
+  // B0.18 §3.7: the same backfill as migration 0044, run again after the dev
+  // seed. In production it would silently validate whatever an older image
+  // published during a rollback (§9.3) — so it guards itself, as the seed
+  // does, and before any query.
+  group('backfillSalonValidationsForDev refuses outside dev', () {
+    for (final env in [Env.prod, Env.staging]) {
+      test('${env.name} is refused, before touching the database', () {
+        expect(
+          () => backfillSalonValidationsForDev(pool(), env: env),
+          throwsA(
+            isA<StateError>().having(
+              (e) => e.message,
+              'message',
+              allOf(contains('dev-only'), contains(env.name)),
+            ),
+          ),
+          reason: 'a connection error here would mean the guard runs too late',
+        );
+      });
+    }
+  });
 }

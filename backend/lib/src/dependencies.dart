@@ -65,6 +65,7 @@ import 'db/postgres_rate_limiter.dart';
 import 'db/postgres_reminder_log_repository.dart';
 import 'db/postgres_reviews_repository.dart';
 import 'db/postgres_salon_subscription_repository.dart';
+import 'db/postgres_salon_validation_repository.dart';
 import 'db/postgres_send_budget.dart';
 import 'demo/demo_reset_service.dart';
 import 'demo/demo_snapshot_repository.dart';
@@ -117,6 +118,7 @@ import 'subscription/salon_subscription_service.dart';
 import 'subscription/subscription_scheduler.dart';
 import 'upload_signing_service.dart';
 import 'upload_verification_service.dart';
+import 'validation/salon_validation_repository.dart';
 
 /// Composition root: process-wide singletons built from env
 /// (docs/BACKEND.md §3.5), provided into request context by
@@ -707,6 +709,18 @@ final ProviderAccountService providerAccountService = ProviderAccountService(
 final SalonSubscriptionRepository salonSubscriptionRepository = _pool == null
     ? InMemorySalonSubscriptionRepository()
     : PostgresSalonSubscriptionRepository(_pool!);
+
+/// B0.18 — a salon goes public only once MyWeli validates it: the validation
+/// record beside `providers.status` (docs/design/salon-go-live-approval.md
+/// §2). The in-memory twin reads the providers and the memberships through
+/// their twins, synchronously, for its single-winner going-live — and seeds
+/// every active salon as validated and live, the dev boot backfill's mirror.
+final SalonValidationRepository salonValidationRepository = _pool == null
+    ? InMemorySalonValidationRepository(
+        providers: providersRepository as InMemoryProvidersRepository,
+        members: membershipRepository as InMemoryMembershipRepository,
+      )
+    : PostgresSalonValidationRepository(_pool!);
 
 final SalonSubscriptionService salonSubscriptionService =
     SalonSubscriptionService(
@@ -1365,7 +1379,15 @@ Future<void> initializeDatabase() async {
       // namespaced ids (docs/design/infra-staging.md §2.1), because these rows
       // carry FIXED ids and identical primary keys across environments make
       // every later log line ambiguous about where it came from.
-      if (_env == Env.dev) await seedProvidersIfEmpty(pool, env: _env);
+      if (_env == Env.dev) {
+        await seedProvidersIfEmpty(pool, env: _env);
+        // B0.18 §3.7: the seed's active salons are validated and live. The
+        // seed runs after migration 0044's backfill, so the same statement
+        // runs again here — and only here, where the seed runs: in
+        // production it would validate whatever an older image published
+        // during a rollback (docs/design/salon-go-live-approval.md §9.3).
+        await backfillSalonValidationsForDev(pool, env: _env);
+      }
       // Move services/availability out of the provider JSONB into the
       // normalized catalogue tables (single source of truth). Migration 0005.
       await backfillCatalogueIfNeeded(pool);

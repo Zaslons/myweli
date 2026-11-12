@@ -33,10 +33,12 @@ import 'package:myweli_backend/src/db/postgres_provider_auth_repository.dart';
 import 'package:myweli_backend/src/db/postgres_providers_repository.dart';
 import 'package:myweli_backend/src/db/postgres_reviews_repository.dart';
 import 'package:myweli_backend/src/db/postgres_salon_subscription_repository.dart';
+import 'package:myweli_backend/src/db/postgres_salon_validation_repository.dart';
 import 'package:myweli_backend/src/privacy/user_erasure_service.dart';
 import 'package:myweli_backend/src/provider_account_service.dart';
 import 'package:myweli_backend/src/salon_time.dart';
 import 'package:myweli_backend/src/storage/storage_service.dart';
+import 'package:myweli_backend/src/validation/salon_validation_repository.dart';
 import 'package:postgres/postgres.dart';
 import 'package:test/test.dart';
 
@@ -44,6 +46,7 @@ import '../access/ensure_owner_contract.dart';
 import '../access/invite_contract.dart';
 import '../auth/apple_token_repository_contract.dart';
 import '../idempotency/idempotency_contract.dart';
+import '../validation/salon_validation_contract.dart';
 
 void main() {
   final url = Platform.environment['DATABASE_URL'];
@@ -2175,6 +2178,238 @@ void main() {
       expect(chosen.tier, 'business');
       expect(chosen.trialEndsAt.toUtc(), t1);
     });
+  });
+
+  // ---- B0.18: a salon goes public only once MyWeli validates it ----------
+  // Migration 0044 (docs/design/salon-go-live-approval.md §2, §3). The
+  // in-memory twin proves the interface; only these prove the statements:
+  // the folded upsert, the compare-and-sets, and the going-live that must
+  // roll back BOTH writes when any part fails.
+  group('salon validation (0044)', () {
+    final stamp = DateTime.now().microsecondsSinceEpoch;
+    var n = 0;
+
+    /// A fresh `draft` salon, its rows removed on the way out: the members
+    /// and the offer first (their foreign keys have no cascade), then the
+    /// salon, which takes its validation and its history with it (ON DELETE
+    /// CASCADE). `setUp` does not truncate `providers` (the seed must
+    /// survive), so each test owns its deletes.
+    Future<String> freshSalon({bool withOwner = true}) async {
+      n++;
+      final created = await PostgresProvidersRepository(pool).createSalon(
+        name: 'Salon Validation $stamp $n',
+        category: 'salon',
+        phoneNumber: '+2250700000044',
+      );
+      final id = created['id'] as String;
+      addTearDown(() async {
+        for (final sql in const [
+          'DELETE FROM provider_members WHERE provider_id = @id',
+          'DELETE FROM provider_subscriptions WHERE provider_id = @id',
+          'DELETE FROM providers WHERE id = @id',
+        ]) {
+          await pool.execute(Sql.named(sql), parameters: {'id': id});
+        }
+      });
+      if (withOwner) {
+        final email = 'owner-$stamp-$n@validation.pro';
+        final reg =
+            await PostgresProviderAuthRepository(
+              pool,
+              tokens: tokens,
+              echoDevCode: true,
+            ).register(
+              email: email,
+              authProvider: 'google',
+              googleSub: 'sub-validation-$stamp-$n',
+              phoneNumber:
+                  '+22505000044${(n % 100).toString().padLeft(2, '0')}',
+              businessName: 'Validation',
+              businessType: 'salon',
+            );
+        await PostgresMembershipRepository(pool).ensureOwner(
+          providerId: id,
+          accountId: reg.provider!.id,
+          email: email,
+        );
+      }
+      return id;
+    }
+
+    group('the twin contract', () {
+      salonValidationContract(
+        world: () => (
+          validations: PostgresSalonValidationRepository(pool),
+          providers: PostgresProvidersRepository(pool),
+          members: PostgresMembershipRepository(pool),
+        ),
+        salon: (w, {withOwner = true}) => freshSalon(withOwner: withOwner),
+      );
+    });
+
+    group('providers.suspended_from — the twin contract', () {
+      suspendedFromContract(
+        repo: () => PostgresProvidersRepository(pool),
+        salon: (_) => freshSalon(withOwner: false),
+      );
+    });
+
+    test(
+      'suspended_from is a column, not a key of the public document',
+      () async {
+        final id = await freshSalon(withOwner: false);
+        await PostgresProvidersRepository(pool).setStatus(id, 'suspended');
+        final r = await pool.execute(
+          Sql.named(
+            'SELECT suspended_from, data FROM providers WHERE id = @id',
+          ),
+          parameters: {'id': id},
+        );
+        final m = r.first.toColumnMap();
+        expect(m['suspended_from'], 'draft');
+        final data = m['data'];
+        final doc = data is String ? jsonDecode(data) : data;
+        expect((doc as Map).keys, isNot(contains('suspendedFrom')));
+      },
+    );
+
+    test(
+      'an older image lifting a suspension leaves the column set; the read '
+      'goes through the status, so it means nothing once not suspended',
+      () async {
+        final id = await freshSalon(withOwner: false);
+        final providers = PostgresProvidersRepository(pool);
+        await providers.setStatus(id, 'suspended');
+        // What an image from before 0044 runs: it has never heard of the
+        // column.
+        await pool.execute(
+          Sql.named("UPDATE providers SET status = 'active' WHERE id = @id"),
+          parameters: {'id': id},
+        );
+        expect(await providers.suspendedFrom(id), isNull);
+        await providers.setStatus(id, 'suspended');
+        expect(
+          await providers.suspendedFrom(id),
+          'active',
+          reason: 'the stale value is overwritten by the next suspension',
+        );
+      },
+    );
+
+    test('the event table refuses an unknown kind, the state table an unknown '
+        'state (the CHECKs)', () async {
+      final id = await freshSalon(withOwner: false);
+      await expectLater(
+        pool.execute(
+          Sql.named(
+            'INSERT INTO salon_validations (provider_id, state) '
+            "VALUES (@id, 'live')",
+          ),
+          parameters: {'id': id},
+        ),
+        throwsA(isA<ServerException>()),
+      );
+      await expectLater(
+        pool.execute(
+          Sql.named(
+            'INSERT INTO salon_validation_events '
+            "(provider_id, kind, occurred_at) VALUES (@id, 'deleted', now())",
+          ),
+          parameters: {'id': id},
+        ),
+        throwsA(isA<ServerException>()),
+      );
+    });
+
+    group(
+      'the backfill — migration 0044 and the dev-only boot step (§3.7)',
+      () {
+        /// Clears whatever row [ids] hold, so the backfill below is the one
+        /// that writes — a salon created after the migration has none anyway;
+        /// this keeps the test true if one ever does.
+        Future<void> clear(List<String> ids) => pool.execute(
+          Sql.named(
+            'DELETE FROM salon_validations WHERE provider_id = ANY(@ids)',
+          ),
+          parameters: {'ids': ids},
+        );
+
+        test('active, and unpublished for non-payment, are validated and live; '
+            'nothing else is', () async {
+          final providers = PostgresProvidersRepository(pool);
+          final subs = PostgresSalonSubscriptionRepository(pool);
+          final active = await freshSalon(withOwner: false);
+          await providers.setStatus(active, 'active');
+          final unpaid = await freshSalon(withOwner: false);
+          await subs.createIfAbsent(
+            providerId: unpaid,
+            tier: 'pro',
+            trialEndsAt: DateTime.utc(2026, 1, 1),
+          );
+          await subs.update(unpaid, unpublishedAt: DateTime.utc(2026, 2, 1));
+          // A draft with a running offer (a website choice before any
+          // validation): never public, so never validated by the backfill.
+          final chose = await freshSalon(withOwner: false);
+          await subs.createIfAbsent(
+            providerId: chose,
+            tier: 'pro',
+            trialEndsAt: DateTime.utc(2027, 1, 1),
+          );
+          final draft = await freshSalon(withOwner: false);
+          final suspended = await freshSalon(withOwner: false);
+          await providers.setStatus(suspended, 'suspended');
+          await clear([active, unpaid, chose, draft, suspended]);
+
+          await backfillSalonValidationsForDev(pool, env: Env.dev);
+
+          final repo = PostgresSalonValidationRepository(pool);
+          for (final id in [active, unpaid]) {
+            final v = (await repo.get(id))!;
+            expect(v.state, ValidationStates.approved, reason: id);
+            expect(v.wentLive, isTrue, reason: id);
+            expect(v.submittedAt, isNull, reason: 'never asked');
+            expect(v.decidedBy, isNull, reason: 'no admin decided');
+          }
+          for (final id in [chose, draft, suspended]) {
+            expect(await repo.get(id), isNull, reason: id);
+          }
+          expect(
+            await repo.events(active),
+            isEmpty,
+            reason: 'no history made up',
+          );
+        });
+
+        test('idempotent, and it never overwrites a decision', () async {
+          final providers = PostgresProvidersRepository(pool);
+          final repo = PostgresSalonValidationRepository(pool);
+          final live = await freshSalon(withOwner: false);
+          await providers.setStatus(live, 'active');
+          // An active salon whose row is a refusal (§9.3: an older image
+          // published it; the admin refused it by hand): the backfill must
+          // not turn that into a validation.
+          final refused = await freshSalon(withOwner: false);
+          await repo.submit(refused, DateTime.utc(2026, 11, 12));
+          await repo.decide(
+            refused,
+            from: ValidationStates.pending,
+            to: ValidationStates.refused,
+            adminId: 'admin_1',
+            code: 'test_salon',
+          );
+          await providers.setStatus(refused, 'active');
+          await clear([live]);
+
+          await backfillSalonValidationsForDev(pool, env: Env.dev);
+          final first = (await repo.get(live))!;
+          await backfillSalonValidationsForDev(pool, env: Env.dev);
+          final second = (await repo.get(live))!;
+          expect(second.wentLiveAt, first.wentLiveAt, reason: 'insert-only');
+          expect(second.decidedAt, first.decidedAt);
+          expect((await repo.get(refused))!.state, ValidationStates.refused);
+        });
+      },
+    );
   });
 
   // ---- Client account deletion on the REAL schema (B6.10) -----------------
