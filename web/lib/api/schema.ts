@@ -161,7 +161,7 @@ export interface paths {
         put?: never;
         /**
          * Reminder cron tick — dispatch due 24h/2h reminders (internal)
-         * @description Hit by Cloud Scheduler (~every 15 min). Authenticated ONLY by the Google-signed OIDC token in `Authorization: Bearer`, verified against `CRON_OIDC_AUDIENCE` with the principal pinned to `CRON_SERVICE_ACCOUNT`. 404 when that pair is unconfigured (the surface does not exist), 403 otherwise. Idempotent per tick. The transitional `X-Cron-Secret` header was retired on 2026-08-18, and the `?secret=` query form before it — see docs/design/infra-cron-oidc-evidence.md.
+         * @description Hit by Cloud Scheduler (~every 15 min). Authenticated ONLY by the Google-signed OIDC token in `Authorization: Bearer`, verified against `CRON_OIDC_AUDIENCE` with the principal pinned to `CRON_SERVICE_ACCOUNT`. 404 when that pair is unconfigured (the surface does not exist), 403 otherwise. Idempotent per tick. The transitional `X-Cron-Secret` header was retired on 2026-08-18, and the `?secret=` query form before it — see docs/design/infra-cron-oidc-evidence.md. After the reminders, the same tick sends the admin's place-change summaries that are due (B0.18, decision 133 — docs/design/salon-go-live-approval.md §5.1): a validated salon's changes recorded in the hour after a place-change e-mail, in one e-mail once that hour has passed. Each summary is claimed by one tick only. Best effort: a failed summary step answers `placeChangeSummaries: 0` and never fails the reminders.
          */
         post: {
             parameters: {
@@ -181,8 +181,10 @@ export interface paths {
                     };
                     content: {
                         "application/json": {
-                            reminder24h?: number;
-                            reminder2h?: number;
+                            reminder24h: number;
+                            reminder2h: number;
+                            /** @description Place-change summaries claimed and handed to the admin notifier this tick (decision 133). */
+                            placeChangeSummaries: number;
                         };
                     };
                 };
