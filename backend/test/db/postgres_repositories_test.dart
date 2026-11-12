@@ -575,6 +575,13 @@ void main() {
         (await r.accountById(old))!.kycDocs.single['key'],
         'kyc/$old/a.jpg',
       );
+      // B0.18's salon validation counts the owner's documents (`kycDocCount`)
+      // through accountsByIds, not accountById: the same decoder must read
+      // the legacy string, the new array, and a non-array as none.
+      final byIds = await r.accountsByIds([old, later, odd]);
+      expect(byIds[old]!.kycDocs.single['key'], 'kyc/$old/a.jpg');
+      expect(byIds[later]!.kycDocs.single['key'], 'kyc/$later/a.jpg');
+      expect(byIds[odd]!.kycDocs, isEmpty);
 
       final all = await r.listKycQueue();
       expect(all.items.map((a) => a.id), [old, earlier, later, unstamped]);
