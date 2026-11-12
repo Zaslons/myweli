@@ -168,6 +168,14 @@ void main() {
         'address': 'Rue des Jardins',
       });
       expect(w.adminMail.sent, isEmpty);
+
+      // A pin stored as integers and sent again as doubles is the same pin.
+      await w.providers.updateProfile(s.id, {'latitude': 5, 'longitude': -4});
+      await catalog().updateProfile(s.ownerId, s.id, {
+        'latitude': 5.0,
+        'longitude': -4.0,
+      });
+      expect(w.adminMail.sent, isEmpty);
     });
 
     test('an UNVALIDATED salon (never asked, or pending) moving its pin → '

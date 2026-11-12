@@ -277,6 +277,19 @@ void main() {
       expect(w.ownerMail.sent.single.subject, contains('14 jours'));
     });
 
+    test('a salon an older image published (active, never validated — '
+        '§9.3) is unpublished by enforcement WITHOUT the notice', () async {
+      final s = await w.salon();
+      await w.subscriptions.chooseOffer(s.ownerId, s.id, 'pro');
+      await w.providers.setStatus(s.id, 'active'); // the rollback's flip
+      w.now = w.now.add(const Duration(days: 120)); // past grace
+      final r = await w.scheduler(enforce: true).tick(w.now);
+      expect(r.unpublished, 1);
+      expect(r.notices, 0);
+      expect(w.ownerMail.sent, isEmpty);
+      expect(w.pushes.sends, isEmpty);
+    });
+
     test('a refused salon gets none either', () async {
       final s = await w.salon();
       await w.subscriptions.chooseOffer(s.ownerId, s.id, 'pro');
