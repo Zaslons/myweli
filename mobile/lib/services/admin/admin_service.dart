@@ -321,6 +321,9 @@ class AdminService {
     'invalid_update_url' => 'Lien de mise à jour invalide.',
     'invalid_body' => 'Données invalides.',
     'not_found' => 'Introuvable.',
+    // Neutral on purpose: this map serves every admin endpoint. The KYC
+    // screen words its own case (AdminKycProvider).
+    'invalid_state' => 'Cette action n’est plus possible.',
     'invalid_input' => 'Données invalides.',
     'unauthorized' => 'Veuillez vous reconnecter.',
     _ => 'Une erreur est survenue.',
