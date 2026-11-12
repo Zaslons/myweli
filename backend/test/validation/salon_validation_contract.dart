@@ -774,19 +774,21 @@ void suspendedFromContract({
     expect(await r.liftSuspension('no_such_salon', to: 'draft'), isNull);
   });
 
-  test(
-    'any other status write ends the suspension and clears the memory',
-    () async {
-      final r = repo();
-      final id = await salon(r);
-      await r.setStatus(id, 'active');
-      await r.setStatus(id, 'suspended');
-      await r.setStatus(id, 'draft'); // e.g. account erasure
-      expect(await r.suspendedFrom(id), isNull);
-      await r.setStatus(id, 'suspended');
-      expect(await r.suspendedFrom(id), 'draft', reason: 'recorded afresh');
-    },
-  );
+  test('any other status write ends the suspension: nothing is remembered, and '
+      'the next suspension records afresh', () async {
+    // Two layers hold this, so neither alone turns it red: the write
+    // clears the memory, and the read goes through the status — which also
+    // covers an older image's write, which cannot clear a column it has
+    // never heard of (the Postgres group pins that case).
+    final r = repo();
+    final id = await salon(r);
+    await r.setStatus(id, 'active');
+    await r.setStatus(id, 'suspended');
+    await r.setStatus(id, 'draft'); // e.g. account erasure
+    expect(await r.suspendedFrom(id), isNull);
+    await r.setStatus(id, 'suspended');
+    expect(await r.suspendedFrom(id), 'draft', reason: 'recorded afresh');
+  });
 
   test('never in the provider document — that is the public payload', () async {
     final r = repo();
