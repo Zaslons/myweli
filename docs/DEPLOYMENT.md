@@ -323,11 +323,28 @@ which is how the reminder cron came to be switched off without anyone noticing.
        `push_send_failed`, in `myweli-api`'s log.
    - **Undo**, if something does need one of them back:
      `gcloud projects add-iam-policy-binding myweli --member=<member> --role=<role> --condition=None`.
-   - **Nothing re-checks this yet.** Google automation added both grants, so
-     read the policy again after any Firebase console change or API
-     enablement:
-     `gcloud projects get-iam-policy myweli --flatten=bindings --filter='bindings.role:(roles/editor OR roles/owner OR roles/iam.serviceAccountTokenCreator)' --format='table(bindings.role,bindings.members)'`
-     should print the owner under `roles/owner` and nothing else.
+   - **Re-checked every morning by `production-checks.yml`** (first run
+     against the live policy on 2026-11-11). Google automation added both
+     grants, so a Firebase console change or an API enablement can add them
+     back. The `iam` job of `production-checks.yml` runs
+     `infra/gcp/43-verify-project-iam.sh` every morning as `myweli-checks`,
+     and fails when the policy grants `roles/owner` or `roles/editor` to
+     anyone but the owner, or `roles/iam.serviceAccountTokenCreator` or
+     `roles/iam.serviceAccountUser` on the whole project. A conditional
+     binding counts. A failure mentions the owner on the tracking issue, and
+     the job log names the member and the role. It cannot see a grant made on
+     one service account rather than the project, or a role it does not name:
+     [infra-iam-drift-check.md](design/infra-iam-drift-check.md) §8.
+     - **Its identity** reads the policy through `projectIamPolicyReader`,
+       one permission (`resourcemanager.projects.getIamPolicy`), from
+       `infra/gcp/41-iam-checks-sa.sh`. Before reading, the job asks Google
+       (`testIamPermissions`, which changes nothing) whether that identity
+       holds `setIamPolicy` or `iam.roles.update`, and fails if it does.
+     - **To read it by hand**, as the owner, without waiting for the morning:
+       `bash infra/gcp/43-verify-project-iam.sh`.
+     - **To rehearse a red**, without touching the policy: save it with
+       `gcloud projects get-iam-policy myweli --format=json`, add a binding
+       to the file, and run the script with `PROJECT_IAM_POLICY_FILE=<file>`.
 
    **Every mount is pinned to a version number — never `latest`.** Cloud Run
    resolves a secret reference when the container starts, and production runs

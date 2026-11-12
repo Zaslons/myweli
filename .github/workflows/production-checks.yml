@@ -266,6 +266,87 @@ jobs:
       - name: Every pinned version is enabled and current
         run: bash infra/gcp/98-verify-secret-pins.sh
 
+  iam:
+    name: Real project — no broad IAM grant has come back
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      # A THIRD custom role on the same identity, for the reason the second one
+      # gives above: each control names the role it is about.
+      # `projectIamPolicyReader` holds one permission,
+      # resourcemanager.projects.getIamPolicy. Provisioned by
+      # infra/gcp/41-iam-checks-sa.sh.
+      - uses: google-github-actions/auth@v3
+        with:
+          workload_identity_provider: projects/731308991240/locations/global/workloadIdentityPools/github/providers/myweli-repo
+          service_account: myweli-checks@myweli.iam.gserviceaccount.com
+
+      - uses: google-github-actions/setup-gcloud@v3
+
+      # **The negative control: it can read the policy and cannot change it.**
+      #
+      # Asked, not attempted. The siblings above watch a refused READ. Here the
+      # dangerous thing is a write, and a refused write is a write on the day the
+      # control fails. testIamPermissions returns the subset of the named
+      # permissions the caller holds, and changes nothing.
+      #
+      # getIamPolicy has to come back. That is what makes an answer of « holds
+      # nothing dangerous » mean something: the same question sees the grant the
+      # next step needs, so it reached this project as this identity.
+      # backend/test/infra/project_iam_test.dart runs this script against a
+      # stand-in curl, both ways.
+      - name: It CANNOT change the policy — asked, not attempted
+        run: |
+          set -uo pipefail
+          if ! token=$(gcloud auth print-access-token 2>&1); then
+            echo "::error::no access token, so nothing was measured: ${token}"
+            exit 1
+          fi
+          if ! out=$(curl -sS --max-time 30 --retry 3 --retry-delay 5 \
+                       -X POST \
+                       -H "Authorization: Bearer ${token}" \
+                       -H 'Content-Type: application/json' \
+                       -d '{"permissions":["resourcemanager.projects.getIamPolicy","resourcemanager.projects.setIamPolicy","iam.roles.update"]}' \
+                       -w '\n%{http_code}' \
+                       https://cloudresourcemanager.googleapis.com/v1/projects/myweli:testIamPermissions 2>&1); then
+            # The network, not IAM: this says nothing about the identity.
+            echo "::error::could not ask Google, so nothing was measured: ${out}"
+            exit 1
+          fi
+          code=${out##*$'\n'}
+          body=${out%$'\n'*}
+          if [ "$code" != 200 ]; then
+            echo "::error::testIamPermissions answered ${code}, so nothing was measured: ${body}"
+            exit 1
+          fi
+          # An answer holding none of them is `{}`, so an empty list is valid
+          # here; the getIamPolicy test below is what turns it red.
+          if ! held=$(jq -r 'if type == "object" then (.permissions // [])[]
+                             else error("not an object") end' <<<"$body" 2>&1); then
+            echo "::error::not a testIamPermissions answer, so nothing was measured: ${body}"
+            exit 1
+          fi
+          if ! grep -qx 'resourcemanager.projects.getIamPolicy' <<<"$held"; then
+            echo "::error::this identity does not hold resourcemanager.projects.getIamPolicy."
+            echo "::error::projectIamPolicyReader is gone, or the question reached the wrong place."
+            exit 1
+          fi
+          bad=0
+          for p in resourcemanager.projects.setIamPolicy iam.roles.update; do
+            if grep -qx "$p" <<<"$held"; then
+              echo "::error::this identity holds ${p}, so CI could change what it checks."
+              bad=1
+            fi
+          done
+          [ "$bad" = 0 ] || exit 1
+          echo "it reads the policy and cannot change it, as designed"
+
+      # PROJECT_IAM_POLICY_FILE is deliberately NOT set here; project_iam_test
+      # fails if it ever appears in a workflow.
+      - name: No broad grant in the live policy
+        run: bash infra/gcp/43-verify-project-iam.sh
+
   basemap:
     name: CARTO — do the web maps still load without a key?
     runs-on: ubuntu-latest
@@ -360,7 +441,7 @@ jobs:
   # docs/design/production-alarm-close.md
   report:
     name: Say so, if any check failed
-    needs: [cwv, privacy, legal, cardphoto, retention, attestation, secretpins, basemap]
+    needs: [cwv, privacy, legal, cardphoto, retention, attestation, secretpins, iam, basemap]
     if: failure()
     runs-on: ubuntu-latest
     steps:
@@ -380,6 +461,7 @@ jobs:
           RETENTION: ${{ needs.retention.result }}
           ATTESTATION: ${{ needs.attestation.result }}
           SECRETPINS: ${{ needs.secretpins.result }}
+          IAM: ${{ needs.iam.result }}
           BASEMAP: ${{ needs.basemap.result }}
         run: |
           set -euo pipefail
@@ -397,7 +479,7 @@ jobs:
           BODY=$(printf '%s\n' \
             '@Zaslons The scheduled real-domain checks failed.' \
             '' \
-            "CWV: ${CWV} · privacy: ${PRIVACY} · legal: ${LEGAL} · card photo: ${CARDPHOTO} · retention: ${RETENTION} · attestation: ${ATTESTATION} · secret pins: ${SECRETPINS} · basemap: ${BASEMAP}" \
+            "CWV: ${CWV} · privacy: ${PRIVACY} · legal: ${LEGAL} · card photo: ${CARDPHOTO} · retention: ${RETENTION} · attestation: ${ATTESTATION} · secret pins: ${SECRETPINS} · IAM: ${IAM} · basemap: ${BASEMAP}" \
             '' \
             "${RUN}" \
             '' \
@@ -436,6 +518,15 @@ jobs:
             'flipping the flag alone turns every open PR red. If it has not' \
             'completed: move `attestedOn` to today, and that IS one line.' \
             '' \
+            '**The IAM job reads the GCP project, not myweli.com.** Red there' \
+            'means project myweli grants roles/owner or roles/editor to someone' \
+            'other than the owner, or roles/iam.serviceAccountTokenCreator or' \
+            'roles/iam.serviceAccountUser on the whole project. Google added two of' \
+            'those by itself in August, and they were removed on 2026-11-11. The job' \
+            'log names the member and the role. Removing it is your decision:' \
+            'docs/DEPLOYMENT.md § Phase C, « Project IAM ». Red in its first step' \
+            'instead means the checking identity lost its read, or gained a write.' \
+            '' \
             '**The basemap job asks CARTO, not myweli.com.** Red there means a' \
             'KEYLESS CARTO vector tile is no longer served, and the web maps run' \
             'keyless by decision (docs/design/map-basemap-key.md §7) — so they' \
@@ -470,7 +561,7 @@ jobs:
   # delivery without a real failure. docs/design/production-alarm-close.md
   clear:
     name: Close the alarm, if every check passed
-    needs: [cwv, privacy, legal, cardphoto, retention, attestation, secretpins, basemap]
+    needs: [cwv, privacy, legal, cardphoto, retention, attestation, secretpins, iam, basemap]
     if: github.event_name == 'schedule' && success()
     runs-on: ubuntu-latest
     steps:
