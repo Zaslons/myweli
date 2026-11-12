@@ -257,6 +257,28 @@ its own cache with no request. Which one R2's headers give is UNVERIFIED; at
 worst the zoom of a file left open more than 5 minutes shows no image, and
 reloading the file fixes it.
 
+**The salon request's photos, after the rebase (observed 2026-11-12, the same
+pane).** A release build of `lib/main_admin.dart` from the rebased branch
+(`main`, #775 and this PR together), its API a local fake, the photos from a
+server that sends no CORS header and, for one photo, from a control that sends
+`*`:
+
+| Case | Result | Request log |
+|---|---|---|
+| The logo and photos 1, 2, 3, 6 (no CORS) | each image, rounded corners | `no-cors`/`image`, no `Origin` |
+| Photo 4 (404) | the grey placeholder | `no-cors`/`image` |
+| Photo 5 (CORS, the control) | the image | `no-cors`/`image` |
+| A photo scrolled under the decision bar | the bar is drawn over it, the edge clean | |
+| The request's link opened signed out | the login, then the request | |
+| The KYC tile and its zoom, on this build | the image, the zoom over a dimmed page | `no-cors`/`image` |
+| « Ouvrir « Photo 2 » dans un nouvel onglet » | the photo, **in the same tab** | `navigate`/`document` |
+
+The last row does not show a defect. In this pane a plain
+`window.open(url, '_blank', 'noopener,noreferrer')` typed into the page also
+replaces the current tab (the control), and the console asks for `_blank`
+through `url_launcher`. So whether a new tab opens is left to a real browser,
+UNVERIFIED here.
+
 ### 8.3 Mutations
 
 Each applied to committed code (`480efb21`, #777 before its rebase), asserted
