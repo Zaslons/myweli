@@ -134,7 +134,11 @@ class _AdminSalonValidationsScreenState
             );
           },
         ),
-        if (!p.isLoading && p.error == null && p.items.isNotEmpty)
+        // Whenever there is a page to go to — an empty page past the first
+        // keeps « Précédent », the way out.
+        if (!p.isLoading &&
+            p.error == null &&
+            (p.items.isNotEmpty || p.hasPrev || p.hasNext))
           _Pager(provider: p),
       ],
     );

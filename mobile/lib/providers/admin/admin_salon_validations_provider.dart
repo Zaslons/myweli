@@ -67,9 +67,21 @@ class AdminSalonValidationsProvider extends ChangeNotifier {
     );
     if (seq != _seq) return;
     _unavailable = res.routeMissing;
-    if (res.success && res.data != null) {
-      _items = res.data!.items;
-      _total = res.data!.total;
+    final data = res.data;
+    if (res.success && data != null) {
+      // A page past the last: requests were decided meanwhile (by another
+      // admin, or refused salons asked again), and the provider keeps its
+      // page across visits. The last page that holds some is read instead —
+      // never « Aucun salon en attente » while the total says otherwise.
+      if (data.items.isEmpty && page > 1 && data.total > 0) {
+        final last = (data.total - 1) ~/ pageSize + 1;
+        if (last < page) {
+          _page = last;
+          return load();
+        }
+      }
+      _items = data.items;
+      _total = data.total;
     } else {
       _items = const [];
       _total = 0;

@@ -216,6 +216,43 @@ void main() {
       expect(q.page, 1);
       expect(asked, ['1', '2', '1']);
     });
+
+    test('a page past the last — others decided meanwhile — reads the last '
+        'page that holds some, never a false « Aucun salon »', () async {
+      var total = 60;
+      final asked = <String>[];
+      final q = AdminSalonValidationsProvider(
+        service: svc(
+          MockClient((req) async {
+            final page = int.parse(req.url.queryParameters['page']!);
+            asked.add('$page');
+            // The server's OFFSET: a page past the end is empty, with the
+            // real total.
+            final start = (page - 1) * AdminSalonValidationsProvider.pageSize;
+            return json(
+              queuePage(
+                total: total,
+                page: page,
+                items: [if (start < total) queueItem(id: 'provider_$page')],
+              ),
+            );
+          }),
+        ),
+      );
+      await q.load();
+      q.nextPage();
+      await pumpEventQueue();
+      expect(q.page, 2);
+      expect(q.items, isNotEmpty);
+
+      total = 45; // 15 decided by another admin
+      await q.load(); // « Rafraîchir », or back through the sidebar
+      expect(q.page, 1);
+      expect(q.items.single.providerId, 'provider_1');
+      expect(q.total, 45);
+      expect(q.hasPrev, isFalse);
+      expect(asked, ['1', '2', '2', '1']);
+    });
   });
 
   group('AdminSalonValidationDetailProvider — the request', () {

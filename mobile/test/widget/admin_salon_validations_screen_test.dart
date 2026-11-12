@@ -192,6 +192,34 @@ void main() {
       await t.pumpAndSettle();
       expect(server.to(queuePath).last.url.queryParameters['page'], '1');
     });
+
+    testWidgets('an empty page past the first keeps « Précédent » — the way '
+        'out is never hidden', (t) async {
+      final server = FakeAdminServer();
+      server.queue['pending'] = jsonResponse(queuePage(total: 51));
+      final p = await pumpConsole(t, server, location: queuePath);
+      // Page 2's one request was decided between the total and the rows.
+      server.queue['pending'] = jsonResponse(
+        queuePage(total: 51, page: 2, items: []),
+      );
+      await t.tap(find.byTooltip('Suivant'));
+      await t.pumpAndSettle();
+      expect(p.queue.page, 2);
+      expect(find.text('Aucun salon en attente.'), findsOneWidget);
+      expect(
+        t
+            .widget<IconButton>(
+              find.widgetWithIcon(IconButton, Icons.chevron_left),
+            )
+            .onPressed,
+        isNotNull,
+      );
+      server.queue['pending'] = jsonResponse(queuePage(total: 51));
+      await t.tap(find.byTooltip('Précédent'));
+      await t.pumpAndSettle();
+      expect(p.queue.page, 1);
+      expect(find.text('Beauté Divine'), findsOneWidget);
+    });
   });
 
   testWidgets('a row opens the request — the path the admin e-mail links to', (
