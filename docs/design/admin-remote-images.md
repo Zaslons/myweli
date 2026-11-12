@@ -211,3 +211,9 @@ the owner's go). No backend change, no cloud change.
   and after it.
 - **A failed image still opens the zoom**, to the same « Image indisponible »,
   as `TimedCachedImage` did.
+- **The error has no way out in the tile** (SYSTEM.md §12). A retry of the
+  same link cannot succeed, but reloading the file signs new ones: the web's
+  deposit proof offers « Réessayer » that does exactly that
+  (`web/components/pro/ProDepositProof.tsx`), and #775's PDF tile
+  « Actualiser ». Giving the image tiles the same is a UX change, left for the
+  owner's yes.
