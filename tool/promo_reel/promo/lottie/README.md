@@ -29,7 +29,7 @@ expressions, hold keyframes, spatial tangents, dashes, other shapes, trim « ind
 paths; non-zero fills; strokes with butt/round caps and round joins; one simultaneous trim
 (the `redraw` erase/redraw); layer opacity fades; one easing, cubic-bezier(0.4, 0, 0.2, 1).
 
-**How it stays exact.** Each rule is lottie-flutter 3.5.1's (`mobile/pubspec.lock`), read from
+**How it stays exact.** Each rule is lottie-flutter 3.8.2's (`mobile/pubspec.lock`), read from
 its source and cited in `player.py`: layer order and `[ip, op)` visibility, paint order, path
 construction, the trim (first contour, « within 1 % = untrimmed », start = end → nothing, the
 integer `floorMod`), byte colours, `roundProgress`. One rule is Flutter's engine:
@@ -45,10 +45,10 @@ app draws them (390 × 844, DPR 1, Lottie 220 px wide, centred) and compares wit
 
 | golden | comp (drawn) | mean abs err | max abs err | IoU of ink | centroid shift |
 |---|---|---|---|---|---|
-| `pro_splash_wordmark` | 25 (24.998) | 0.0015 / 255 | 2 / 255 | 0.9993 | 0.003 px |
+| `pro_splash_wordmark` | 25 (25.000) | 0.0015 / 255 | 2 / 255 | 0.9993 | 0.003 px |
 | `pro_splash_end` | 142 (141.990) | 0.0002 / 255 | 1 / 255 | 1.0000 | 0.000 px |
 
-Same ink bounding boxes in both. `python -m promo.lottie filmstrip --out strip.png` draws every
+Same ink bounding boxes in both. *Re-read for lottie-flutter 3.8.2 (2026-11-12, B13.3):* only the time the wordmark golden is drawn at moved (24.998 → 25.000, 3.8.1's « sample the exact frame »; `device_frame` follows it). Every animated value of the visible layers is constant across that gap, so the picture, and these figures, are those of the earlier render; the check was not re-run (its pinned venv is not on the Mac that made the change). The app's goldens did not move: all 58 byte-identical on 3.8.2. `python -m promo.lottie filmstrip --out strip.png` draws every
 10th frame; `python -m promo.lottie frame --at 60 --width 900 --out f.png` one frame.
 
 **Third-party players** (tried in a throwaway venv, not used): `rlottie-python` 1.3.8 renders

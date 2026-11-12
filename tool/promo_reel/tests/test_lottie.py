@@ -62,11 +62,12 @@ class FileContractTest(unittest.TestCase):
         self.assertEqual(m_stroke.rgb, (17, 17, 17))  # 0.0667 × 255, a byte
 
     def test_device_frames(self) -> None:
-        # FrameRate.composition floors to 25 fps over 142.01 frames.
-        self.assertAlmostEqual(self.player.device_frame(1.0), 142 * 142 / 142.01, places=9)
-        self.assertAlmostEqual(self.player.device_frame(25 / 142), 25 * 142 / 142.01, places=9)
+        # FrameRate.composition floors to 25 fps and, since lottie-flutter
+        # 3.8.1, draws the whole frame itself, capped at op - 0.01.
+        self.assertAlmostEqual(self.player.device_frame(1.0), 141.99, places=9)
+        self.assertEqual(self.player.device_frame(25 / 142), 25.0)
         self.assertEqual(self.player.device_frame(0.0), 0.0)
-        self.assertAlmostEqual(self.player.last_frame, 141.990000704, places=6)
+        self.assertAlmostEqual(self.player.last_frame, 141.99, places=9)
         redraw = self.player.composition.layers[0]
         self.assertTrue(redraw.visible_at(self.player.last_frame))
         self.assertFalse(redraw.visible_at(142.0))  # Lottie's out point is exclusive
@@ -257,7 +258,7 @@ class RenderTest(unittest.TestCase):
                 self.assertLess(abs(comparison.centroid_shift[0]), 0.02)
                 self.assertLess(abs(comparison.centroid_shift[1]), 0.02)
                 self.assertEqual(comparison.bbox_ours, comparison.bbox_golden)
-        self.assertAlmostEqual(results['pro_splash_wordmark'][1], 24.998239560594325, places=9)
+        self.assertEqual(results['pro_splash_wordmark'][1], 25.0)
 
     def test_frame_zero_is_blank(self) -> None:
         picture = self._render(0.0)
