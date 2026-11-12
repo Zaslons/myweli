@@ -98,6 +98,8 @@ void main() {
         'screens/admin/admin_kyc_detail_screen.dart',
         'screens/admin/admin_dispute_detail_screen.dart',
         'screens/admin/widgets/admin_detail_widgets.dart',
+        // B0.18's salon photos, on the public bucket (spec §4).
+        'screens/admin/admin_salon_validation_detail_screen.dart',
         widget,
       ]),
     );

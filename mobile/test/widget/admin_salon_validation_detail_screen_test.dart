@@ -1,16 +1,19 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:io' show HttpClient, HttpClientRequest;
+import 'dart:io' show HttpClient, HttpClientRequest, SocketException;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
+import 'package:myweli/core/theme/app_theme.dart';
 import 'package:myweli/core/utils/salon_id.dart';
 import 'package:myweli/screens/admin/admin_salon_validation_detail_screen.dart';
 import 'package:myweli/screens/admin/admin_salon_validations_screen.dart';
+import 'package:myweli/screens/admin/widgets/admin_remote_image.dart';
 import 'package:myweli/widgets/common/app_button.dart';
 import 'package:myweli/widgets/common/app_skeleton.dart';
+import 'package:myweli/widgets/common/brand_loader.dart';
 
 import '../support/admin_console.dart';
 import '../support/admin_salon_validation_fixtures.dart';
@@ -191,14 +194,45 @@ void main() {
       expect(find.text('Fermé'), findsNWidgets(6));
     });
 
-    testWidgets('the photos are <img> elements — the public bucket refuses '
-        'admin.myweli.com a CORS fetch — with a placeholder when one fails', (
-      t,
-    ) async {
+    testWidgets('the photos are <img> elements, drawn by AdminRemoteImage — '
+        'the public bucket refuses admin.myweli.com a CORS fetch — with a '
+        'placeholder when one fails, and no « Actualiser »', (t) async {
       final handle = t.ensureSemantics();
       await pumpConsole(t, serving(detail()), location: path);
+      // The console's one way to draw a remote image (SYSTEM.md §11.2),
+      // named, and with nothing to sign again: the links are public
+      // (admin-remote-images.md §4).
+      final tiles = t
+          .widgetList<AdminRemoteImage>(find.byType(AdminRemoteImage))
+          .toList();
+      expect(tiles.map((w) => w.url), [
+        'https://cdn.myweli.com/a.jpg',
+        'https://cdn.myweli.com/b.jpg',
+        'https://cdn.myweli.com/c.jpg',
+      ]);
+      expect(tiles.map((w) => w.semanticLabel), [
+        'Photo 1 du salon',
+        'Photo 2 du salon',
+        'Photo 3 du salon',
+      ]);
+      expect(tiles.map((w) => w.onReload), everyElement(isNull));
+      // Each one the rounded tile clips.
+      for (final e in find.byType(AdminRemoteImage).evaluate()) {
+        expect(
+          e.findAncestorWidgetOfExactType<ClipRRect>()?.borderRadius,
+          BorderRadius.circular(AppTheme.radiusMedium),
+        );
+      }
+      // The <img> it asks for, with no header — the only images on the page.
       final images = t.widgetList<Image>(find.byType(Image)).toList();
       expect(images, hasLength(3));
+      expect(
+        find.descendant(
+          of: find.byType(AdminRemoteImage),
+          matching: find.byType(Image),
+        ),
+        findsNWidgets(3),
+      );
       for (final image in images) {
         final provider = image.image as NetworkImage;
         expect(
@@ -206,22 +240,88 @@ void main() {
           WebHtmlElementStrategy.prefer,
           reason: provider.url,
         );
+        expect(provider.headers ?? const {}, isEmpty, reason: provider.url);
         expect(image.errorBuilder, isNotNull);
       }
-      expect(
-        (images.first.image as NetworkImage).url,
-        'https://cdn.myweli.com/a.jpg',
-      );
+      expect(images.map((i) => i.semanticLabel), [
+        'Photo 1 du salon',
+        'Photo 2 du salon',
+        'Photo 3 du salon',
+      ]);
       // flutter_test answers every HTTP request 400: each photo fails, and
-      // shows the tokenised placeholder, said in words.
+      // shows the tile's tokenised placeholder, said in words — not the
+      // widget's « Image indisponible », and no « Actualiser ».
       expect(find.byIcon(Icons.broken_image_outlined), findsNWidgets(3));
       expect(find.bySemanticsLabel('Photo indisponible'), findsNWidgets(3));
+      expect(find.text(AdminRemoteImage.unavailableLabel), findsNothing);
+      expect(find.text(AdminRemoteImage.reloadLabel), findsNothing);
       expect(find.text('Photo 1'), findsOneWidget);
       expect(
         find.byTooltip('Ouvrir « Photo 3 » dans un nouvel onglet'),
         findsOneWidget,
       );
       handle.dispose();
+    });
+
+    testWidgets('the logo comes first, named « Logo du salon », with its own '
+        'tab button', (t) async {
+      await pumpConsole(
+        t,
+        serving(detail(salon: {'logoUrl': 'https://cdn.myweli.com/logo.jpg'})),
+        location: path,
+      );
+      final tiles = t
+          .widgetList<AdminRemoteImage>(find.byType(AdminRemoteImage))
+          .toList();
+      expect(tiles, hasLength(4));
+      expect(tiles.first.url, 'https://cdn.myweli.com/logo.jpg');
+      expect(tiles.first.semanticLabel, 'Logo du salon');
+      expect(
+        t.widgetList<Image>(find.byType(Image)).first.semanticLabel,
+        'Logo du salon',
+      );
+      expect(find.text('Logo'), findsOneWidget);
+      expect(
+        find.byTooltip('Ouvrir « Logo » dans un nouvel onglet'),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('why a failed photo has no « Actualiser »: re-reading the '
+        'request does not ask for the same URL again; a photo the salon '
+        'replaced comes back under its new one', (t) async {
+      final asked = <String>[];
+      debugNetworkImageHttpClientProvider = () => _RefusingHttpClient(asked);
+      try {
+        final server = serving(detail());
+        await pumpConsole(t, server, location: path);
+        expect(find.byIcon(Icons.broken_image_outlined), findsNWidgets(3));
+        expect(asked, hasLength(3));
+
+        // « Rafraîchir » (the app bar): the same request, the same links.
+        await t.tap(find.byTooltip('Rafraîchir'));
+        await t.pumpAndSettle();
+        expect(server.to(detailPath), hasLength(2));
+        expect(asked, hasLength(3), reason: 'no link was asked for again');
+        expect(find.byIcon(Icons.broken_image_outlined), findsNWidgets(3));
+
+        // The salon replaced its photos: the new link is asked for.
+        server.detail['provider_1'] = jsonResponse(
+          detail(
+            salon: {
+              'imageUrls': ['https://cdn.myweli.com/new.jpg'],
+            },
+          ),
+        );
+        await t.tap(find.byTooltip('Rafraîchir'));
+        await t.pumpAndSettle();
+        expect(asked.skip(3), ['https://cdn.myweli.com/new.jpg']);
+      } finally {
+        debugNetworkImageHttpClientProvider = null;
+        imageCache
+          ..clear()
+          ..clearLiveImages();
+      }
     });
 
     testWidgets('a photo still on its way shows the tokenised placeholder — '
@@ -244,6 +344,16 @@ void main() {
         );
         expect(find.byIcon(Icons.image_outlined), findsOneWidget);
         expect(find.byIcon(Icons.broken_image_outlined), findsNothing);
+        // The tile's own placeholder, held by AdminRemoteImage — not its
+        // brand loader.
+        expect(
+          find.descendant(
+            of: find.byType(AdminRemoteImage),
+            matching: find.byIcon(Icons.image_outlined),
+          ),
+          findsOneWidget,
+        );
+        expect(find.byType(BrandLoader), findsNothing);
       } finally {
         debugNetworkImageHttpClientProvider = null;
         imageCache
@@ -785,6 +895,23 @@ class _HeldHttpClient implements HttpClient {
   @override
   Future<HttpClientRequest> getUrl(Uri url) =>
       Completer<HttpClientRequest>().future;
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+/// An HTTP client that refuses every request, and writes down what it was
+/// asked for.
+class _RefusingHttpClient implements HttpClient {
+  _RefusingHttpClient(this.asked);
+
+  final List<String> asked;
+
+  @override
+  Future<HttpClientRequest> getUrl(Uri url) {
+    asked.add('$url');
+    return Future.error(const SocketException('refused'));
+  }
 
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);

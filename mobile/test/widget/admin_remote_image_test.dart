@@ -118,6 +118,49 @@ void main() {
     });
   }
 
+  testWidgets('a tile with its own placeholders (B0.18\'s salon photos) shows '
+      'them — until the first frame, and on the failure, which then carries '
+      'no « Image indisponible » and no « Actualiser »', (t) async {
+    const loading = Icon(Icons.image_outlined);
+    const failed = Icon(Icons.broken_image_outlined);
+    Widget tile() => const SizedBox(
+      width: 144,
+      height: 144,
+      child: AdminRemoteImage(
+        url: url,
+        placeholder: loading,
+        errorPlaceholder: failed,
+      ),
+    );
+    await pump(t, tile());
+    expect(find.byIcon(Icons.image_outlined), findsOneWidget);
+    expect(find.byType(BrandLoader), findsNothing);
+    // Still the <img>, with no header.
+    final provider = providerOf(t, find.byType(Image));
+    expect(provider.webHtmlElementStrategy, WebHtmlElementStrategy.prefer);
+    expect(provider.headers ?? const {}, isEmpty);
+
+    // flutter_test answers every HTTP request 400.
+    await t.runAsync(() => Future<void>.delayed(Duration.zero));
+    await t.pumpAndSettle();
+    expect(find.byIcon(Icons.broken_image_outlined), findsOneWidget);
+    expect(find.byIcon(Icons.image_outlined), findsNothing);
+    expect(find.text(AdminRemoteImage.unavailableLabel), findsNothing);
+    expect(find.text(AdminRemoteImage.reloadLabel), findsNothing);
+  });
+
+  test('a failure of its own never comes with a reload: the button would be '
+      'replaced with it', () {
+    expect(
+      () => AdminRemoteImage(
+        url: url,
+        errorPlaceholder: const SizedBox(),
+        onReload: () {},
+      ),
+      throwsAssertionError,
+    );
+  });
+
   testWidgets('the deposit proof (AdminEvidenceImage) draws through it, and '
       'its zoom too', (t) async {
     await pump(t, const AdminEvidenceImage(url: url, caption: 'Preuve'));

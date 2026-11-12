@@ -35,7 +35,13 @@ class AdminRemoteImage extends StatelessWidget {
     this.fit = BoxFit.cover,
     this.semanticLabel,
     this.onReload,
-  });
+    this.placeholder,
+    this.errorPlaceholder,
+  }) : assert(
+         errorPlaceholder == null || onReload == null,
+         'an errorPlaceholder replaces the whole failure, « Actualiser » '
+         'included: a screen that can reload keeps the default',
+       );
 
   final String url;
   final BoxFit fit;
@@ -49,6 +55,16 @@ class AdminRemoteImage extends StatelessWidget {
   /// refused (SYSTEM.md §12). The web's deposit proof does the same with its
   /// « Réessayer », which signs a fresh link (spec §4).
   final VoidCallback? onReload;
+
+  /// Shown until the first frame instead of the brand loader, for a tile
+  /// that has its own (B0.18's salon photos, spec §4). Still held by
+  /// `frameBuilder`, so the web's `<img>` path shows it too.
+  final Widget? placeholder;
+
+  /// Shown on a failure instead of « Image indisponible », for a tile that
+  /// has its own, said in words to a screen reader (B0.18's salon photos).
+  /// It replaces the whole failure, so it never comes with [onReload].
+  final Widget? errorPlaceholder;
 
   /// What the failure says.
   static const unavailableLabel = 'Image indisponible';
@@ -67,8 +83,9 @@ class AdminRemoteImage extends StatelessWidget {
       // `frame` stays null until the first frame, on both paths: the framework
       // counts a `WebImageInfo` as a frame too.
       frameBuilder: (context, child, frame, _) =>
-          frame == null ? const _Loading() : child,
-      errorBuilder: (context, error, stack) => _Unavailable(onReload: onReload),
+          frame == null ? placeholder ?? const _Loading() : child,
+      errorBuilder: (context, error, stack) =>
+          errorPlaceholder ?? _Unavailable(onReload: onReload),
     );
   }
 }

@@ -25,6 +25,7 @@ import '../../widgets/common/app_snack_bar.dart';
 import '../../widgets/common/empty_state.dart';
 import '../../widgets/common/inline_feedback.dart';
 import '../../widgets/common/label_value_row.dart';
+import 'widgets/admin_remote_image.dart';
 import 'widgets/admin_scaffold.dart';
 import 'widgets/refusal_dialog.dart';
 import 'widgets/status_chip.dart';
@@ -367,22 +368,28 @@ class _SalonColumn extends StatelessWidget {
 
 /// The photos, in the salon's order, with the logo first when there is one.
 ///
-/// **`Image.network` with [WebHtmlElementStrategy.prefer], not
-/// `TimedCachedImage`** (SYSTEM.md §19). The public bucket's CORS answers a
-/// preflight from `https://admin.myweli.com` with 403 and no
-/// `Access-Control-Allow-Origin` (checked 2026-11-12), so the console's
-/// Flutter Web cannot FETCH a photo's bytes; an `<img>` element needs no
-/// CORS. Off the web the parameter is accepted and ignored. The KYC
-/// documents are signed URLs on another bucket and are not touched.
+/// **Drawn by [AdminRemoteImage], the console's one way to draw a remote
+/// image** (SYSTEM.md §11.2, docs/design/admin-remote-images.md). The public
+/// bucket's CORS answers a preflight from `https://admin.myweli.com` with 403
+/// and no `Access-Control-Allow-Origin` (checked 2026-11-12), so the
+/// console's Flutter Web cannot FETCH a photo's bytes; the widget has the
+/// browser draw a plain `<img>`, which needs no CORS.
 ///
 /// A photo opens in a new tab from the button under it — a named, focusable
 /// target with its tooltip (§13.4) — rather than from a tap on the picture.
 ///
-/// **The placeholder shows until the first frame** ([Image.frameBuilder]).
-/// `loadingBuilder` would never show it on the web: the `<img>` path reports
-/// no progress (it waits for the element's decode, then sends one frame), so
-/// its progress stays null and the slot stayed an empty box until the photo
-/// arrived.
+/// **The placeholder shows until the first frame**: the widget holds its
+/// [AdminRemoteImage.placeholder] in `frameBuilder`. `loadingBuilder` would
+/// never show it on the web: the `<img>` path reports no progress (it waits
+/// for the element's decode, then sends one frame), so its progress stays
+/// null and the slot stayed an empty box until the photo arrived.
+///
+/// **No « Actualiser » on a failed photo** (admin-remote-images.md §4): the
+/// link is public, not signed, so re-reading the request gives the same URL,
+/// which the framework does not ask for again (the same `NetworkImage`).
+/// The ways out are the tab button, where the browser says why, and the
+/// app bar's « Rafraîchir », which brings a photo the salon replaced under
+/// its new URL.
 class _Photos extends StatelessWidget {
   const _Photos({required this.salon});
 
@@ -437,17 +444,11 @@ class _Photo extends StatelessWidget {
             borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
             child: SizedBox.square(
               dimension: _side,
-              child: Image.network(
-                url,
-                width: _side,
-                height: _side,
-                fit: BoxFit.cover,
+              child: AdminRemoteImage(
+                url: url,
                 semanticLabel: semanticLabel,
-                webHtmlElementStrategy: WebHtmlElementStrategy.prefer,
-                frameBuilder: (context, child, frame, sync) =>
-                    frame == null && !sync ? const _PhotoPlaceholder() : child,
-                errorBuilder: (context, error, stack) =>
-                    const _PhotoPlaceholder(failed: true),
+                placeholder: const _PhotoPlaceholder(),
+                errorPlaceholder: const _PhotoPlaceholder(failed: true),
               ),
             ),
           ),
