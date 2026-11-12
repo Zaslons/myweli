@@ -375,8 +375,14 @@ class _SalonColumn extends StatelessWidget {
 /// CORS. Off the web the parameter is accepted and ignored. The KYC
 /// documents are signed URLs on another bucket and are not touched.
 ///
-/// A photo opens in a new tab from the button under it, not by a tap on the
-/// picture: an `<img>` platform view takes the browser's pointer events.
+/// A photo opens in a new tab from the button under it — a named, focusable
+/// target with its tooltip (§13.4) — rather than from a tap on the picture.
+///
+/// **The placeholder shows until the first frame** ([Image.frameBuilder]).
+/// `loadingBuilder` would never show it on the web: the `<img>` path reports
+/// no progress (it waits for the element's decode, then sends one frame), so
+/// its progress stays null and the slot stayed an empty box until the photo
+/// arrived.
 class _Photos extends StatelessWidget {
   const _Photos({required this.salon});
 
@@ -438,8 +444,8 @@ class _Photo extends StatelessWidget {
                 fit: BoxFit.cover,
                 semanticLabel: semanticLabel,
                 webHtmlElementStrategy: WebHtmlElementStrategy.prefer,
-                loadingBuilder: (context, child, progress) =>
-                    progress == null ? child : const _PhotoPlaceholder(),
+                frameBuilder: (context, child, frame, sync) =>
+                    frame == null && !sync ? const _PhotoPlaceholder() : child,
                 errorBuilder: (context, error, stack) =>
                     const _PhotoPlaceholder(failed: true),
               ),

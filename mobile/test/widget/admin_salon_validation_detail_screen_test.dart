@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io' show HttpClient, HttpClientRequest;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -200,6 +201,34 @@ void main() {
         findsOneWidget,
       );
       handle.dispose();
+    });
+
+    testWidgets('a photo still on its way shows the tokenised placeholder — '
+        'from the frame, not from a progress the <img> path never reports', (
+      t,
+    ) async {
+      // The photo's request never answers: it has not arrived yet.
+      debugNetworkImageHttpClientProvider = _HeldHttpClient.new;
+      try {
+        await pumpConsole(
+          t,
+          serving(
+            detail(
+              salon: {
+                'imageUrls': ['https://cdn.myweli.com/on-its-way.jpg'],
+              },
+            ),
+          ),
+          location: path,
+        );
+        expect(find.byIcon(Icons.image_outlined), findsOneWidget);
+        expect(find.byIcon(Icons.broken_image_outlined), findsNothing);
+      } finally {
+        debugNetworkImageHttpClientProvider = null;
+        imageCache
+          ..clear()
+          ..clearLiveImages();
+      }
     });
 
     testWidgets('no photo, no service, no hours: each says so', (t) async {
@@ -729,3 +758,13 @@ void main() {
 
 /// The salon's name, and the owner's business of the same name.
 final _salonAndBusiness = findsNWidgets(2);
+
+/// An HTTP client whose every request is still on its way.
+class _HeldHttpClient implements HttpClient {
+  @override
+  Future<HttpClientRequest> getUrl(Uri url) =>
+      Completer<HttpClientRequest>().future;
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
