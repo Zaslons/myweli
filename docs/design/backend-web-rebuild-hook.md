@@ -26,7 +26,18 @@ the **five status transitions** that change the listable set (§2, corrected
 2026-08-25). **Out of scope:** per-page on-demand revalidation
 (`revalidatePath` cannot add params to a closed set), and any read path.
 
-## 2. The events — corrected 2026-08-25
+## 2. The events — corrected 2026-08-25, and again for B0.18 (2026-11-12)
+
+> **B0.18 — a salon goes public only once MyWeli validates it**
+> ([salon-go-live-approval.md](salon-go-live-approval.md) §3, §7 T68). The
+> owner's publish now records a **request** (202): the salon stays `draft`, so
+> the set does not change and nothing fires. The transition that grows the set
+> is the admin's **validation**, which fires `salon.approved`.
+> **`salon.published` is retired**: no code emits it any more. The publish
+> keeps one `draft → active` branch — a salon validated and once live, back
+> from `draft` with a live offer — and it fires `salon.republished`, the
+> reason « Marquer payé » already used. Still five transitions; the table
+> below is the current one, and the struck sentences are kept as history.
 
 ~~`/sitemap/providers` returns `query()`, which lists non-suspended providers.
 So the set changes on exactly three transitions, and all three are already
@@ -41,10 +52,11 @@ CREATED `'draft'`. Two consequences, both real in production until
 - the "salon created" fires built **nothing** — the new row was not in the
   set — while consuming the cooldown window, where they could swallow a real
   publish's fire seconds later;
-- the transition that actually grows the set, **publish** (`draft → active`),
-  fired nothing at all, so a salon that published got a public page that
-  404s until an unrelated deploy — while `/recherche` (force-dynamic) linked
-  to it and the sitemap advertised it to Google.
+- the transition that actually grew the set then, **publish** (`draft →
+  active`), fired nothing at all, so a salon that published got a public
+  page that 404s until an unrelated deploy — while `/recherche`
+  (force-dynamic) linked to it and the sitemap advertised it to Google.
+  *(Since B0.18 that transition is MyWeli's validation, below.)*
 
 The set changes on exactly **five** transitions, each fired inside the
 service that writes the status (the `BudgetedEmailProvider` placement — no
@@ -52,17 +64,25 @@ caller can route around it), once per logical operation:
 
 | transition | seam | reason string |
 |---|---|---|
-| publish (`draft → active`) | `SalonProvisioningService.publish` | `salon.published` |
-| admin suspend | `AdminProviderService._setStatus` | `provider.suspend` |
-| admin restore | `AdminProviderService._setStatus` | `provider.restore` |
-| republish on payment (`draft → active`) | `SalonSubscriptionService.markPaid` | `salon.republished` |
+| **MyWeli validates** (`draft → active`, B0.18) — only the single winner of the going-live | `SalonValidationService.approve` | `salon.approved` |
+| ~~publish (`draft → active`)~~ — retired by B0.18: a publish is a request (202), which changes nothing public | ~~`SalonProvisioningService.publish`~~ | ~~`salon.published`~~ |
+| admin suspend | `AdminProviderService.suspend` | `provider.suspend` |
+| admin restore — **only when the lift ends `active`** (B0.18: a salon not validated-and-live lifts to `draft`, which changes nothing public) | `AdminProviderService.restore` | `provider.restore` |
+| republish on payment (`draft → active`) — a salon validated and once live | `SalonSubscriptionService.markPaid` | `salon.republished` |
+| republish by the owner (`draft → active`, B0.18) — validated, once live, back from `draft` with a live offer | `SalonProvisioningService.publish` (its republish branch) | `salon.republished` |
 | billing unpublish (`active → draft`) | `SubscriptionScheduler.tick` — **once per tick**, however many salons expired | `salon.unpublished` |
 | account erasure (`active → draft` per owned salon) | `ProviderAccountService.deleteAccount` — **once per account**, guarded on a prior `'active'` | `account.erased` |
+| refusal of a salon an older image left `active` (`active → draft`, B0.18 — a rollback only, salon-go-live-approval §9.3) | `SalonValidationService.refuse` | `salon.refused` |
 
-(Six rows because suspend/restore share a seam.) Salon **creation** is
-deliberately not an event: `SalonDirectoryService` no longer takes a notifier
-at all, so a creation fire is uncompilable rather than merely absent, and
-`salon_lifecycle_test.dart` pins that `ensureSalon` fires nothing.
+Five transitions: going public by validation, the republish (two seams, one
+reason), billing unpublish, erasure, and suspend/restore (one service). The
+last row is a narrow sixth reason, not a sixth transition anyone performs on
+purpose: a normal refusal leaves a `draft` a `draft` and fires nothing.
+Salon **creation** is deliberately not an event: `SalonDirectoryService` no
+longer takes a notifier at all, so a creation fire is uncompilable rather
+than merely absent, and `salon_lifecycle_test.dart` pins that `ensureSalon`
+fires nothing. **A request** (`publish` → 202) is not one either, and
+`salon_validation_routes_test.dart` pins that a 202 fires nothing.
 
 KYC approval deliberately does **not** fire: `query()` does not filter on
 verification, so approving a salon does not change the listable set.
@@ -72,8 +92,10 @@ verification, so approving a salon does not change the listable set.
 until 2026-08-25 — an optional param whose omission compiles clean and logs
 nothing, so its fire had never once run in production.
 `test/site/site_rebuild_wiring_test.dart` now greps the composition root
-(comments stripped) for `rebuild: siteRebuildNotifier` on all five
-constructions, and for its absence on `SalonDirectoryService`.
+(comments stripped) for `rebuild: siteRebuildNotifier` on every construction
+that fires — `SalonValidationService` joined them with B0.18, and
+`SalonProvisioningService` stays for its republish branch — and for its
+absence on `SalonDirectoryService`.
 
 ## 3. Contract
 
@@ -126,12 +148,17 @@ would.
 
 ## 7. Testing plan — revised 2026-08-25
 
-- fires on publish, republish-on-payment, billing unpublish (once per tick,
-  proven with a two-salon fixture), erasure (once per account, guarded on a
-  prior `'active'`), suspend, restore
-- does **not** fire on: creation (`ensureSalon`), a gate-blocked publish, an
-  idempotent re-publish, a markPaid whose gate fails (stays draft), an
-  enforcement-off tick, an all-draft erasure, KYC approval
+- fires on the validation (B0.18; the single going-live winner only — a
+  double validate or two « finish » calls fire once), the republish (markPaid,
+  and the publish's republish branch since B0.18), billing unpublish (once per
+  tick, proven with a two-salon fixture), erasure (once per account, guarded
+  on a prior `'active'`), suspend, restore **when it lifts to `active`**, and
+  a refusal that hides a rollback-public salon
+- does **not** fire on: creation (`ensureSalon`), a request (a publish
+  answering 202, B0.18), a refusal of a draft, a restore that lifts to
+  `draft`, a gate-blocked publish, an idempotent re-publish, a markPaid whose
+  gate fails (stays draft), an enforcement-off tick, an all-draft erasure,
+  KYC approval
 - an exception from the hook does not propagate to the caller (posture pinned
   for both `AdminProviderService` and `publish`)
 - in-window events coalesce into ONE trailing fire carrying the last reason
@@ -160,7 +187,8 @@ not the `??=`).
 The last row cannot be closed until a real salon exists — production holds zero,
 so nothing can be created, suspended or restored. *(2026-08-25: the transition
 that will actually close it is the first salon's PUBLISH — creation no longer
-fires at all, per §2.)* Two things cover it:
+fires at all, per §2. 2026-11-12, B0.18: it is now the first salon's
+VALIDATION by MyWeli — `salon.approved`; the owner's request fires nothing.)* Two things cover it:
 
 - the **alert** `infra/gcp/96-rebuild-hook-alert.sh`, which fires on
   `site_rebuild FAILED`. The notifier fails open, so a failure is otherwise
@@ -175,6 +203,7 @@ system, and a checklist nobody re-reads is a wish.
 ## 8. Open questions
 
 - **Build cost at scale.** One rebuild per approval is fine at tens-to-hundreds
-  of salons, where approvals are manual and rare. If salon signup ever becomes
+  of salons, where approvals are manual and rare (since B0.18 they are, by
+  construction: every salon goes public by MyWeli's validation). If salon signup ever becomes
   self-serve and high-volume, this needs batching (a debounce window measured in
   minutes) or a move to on-demand ISR with an open param set.

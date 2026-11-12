@@ -858,10 +858,16 @@ the HTTP notifier from the silent no-op.
 **One hop is still unexercised, and saying so is the point.** Nothing has proven
 that *Cloud Run reaches Vercel* on a real salon change: production holds zero
 salons, so there is nothing to create, suspend or restore. The first real salon
-exercises it at PUBLISH — success logs
-`site_rebuild sent reason=salon.published status=201`,
+exercises it when **MyWeli validates it** in the admin console (B0.18 —
+[salon-go-live-approval.md](design/salon-go-live-approval.md); the owner's
+« Demander la mise en ligne » is a request and fires nothing) — success logs
+`site_rebuild sent reason=salon.approved status=201`,
 and a blocked egress would log `site_rebuild FAILED` while the salon is still
-published, because the notifier fails open.
+live, because the notifier fails open. A salon validated and once live that
+comes back from `draft` — « Marquer payé », or its owner's « Remettre en
+ligne » — logs `site_rebuild sent reason=salon.republished status=201`.
+`salon.published` is retired: no build since B0.18 emits it, so a log line
+carrying it comes from an older image.
 
 **Confirming that last hop:** suspend a salon in the admin console and a deployment
 starts in Vercel within seconds; the backend logs

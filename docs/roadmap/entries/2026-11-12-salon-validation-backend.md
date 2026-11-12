@@ -1,0 +1,34 @@
+- 🟡 **Un salon n’est public qu’une fois validé par MyWeli : le backend (backend · 2026-11-12 — BACKLOG B0.18, décisions 120 et 123 à 132).** Non fusionné. Branche `feat/salon-validation-backend`, de `main` (`8864b748`), selon [salon-go-live-approval.md](../../design/salon-go-live-approval.md), approuvé le 2026-11-12 ; c’est la PR 1 de son §9.1.
+  - **Ce qui change :**
+    - « Mettre mon profil en ligne » ne met plus rien en ligne. `POST /providers/{id}/publish` enregistre une **demande** et répond 202 `{validation}` ; le salon reste un brouillon caché. Un double appui ne fait qu’une demande, et un seul e-mail à l’admin. Après un refus définitif (`outside_ci`, `test_salon`), la réponse est 409 `validation_refused_final`.
+    - L’admin décide : la file `GET /admin/salon-validations` (la plus ancienne demande d’abord, sans les salons suspendus), le détail `GET /admin/salons/{id}/validation`, puis `POST …/validation/approve` `{from}` ou `…/refuse` `{code, note?}`. La décision est un compare-and-set à un seul gagnant ; la mise en ligne en est un second. Seul le gagnant écrit la ligne d’audit (`salon.approve`, ou `salon.refuse` avec le code, jamais la note).
+    - L’essai de 90 jours démarre à la validation, sauf si le salon a choisi une offre sur le site avant : il a démarré à ce choix, et la validation garde son horloge (décision 126, « As today »).
+    - Les autres chemins vers `active` exigent un salon validé et déjà en ligne : « Lever la suspension » (409 `not_suspended` hors suspension, sinon retour en brouillon avec sa raison), « Marquer payé » et la remise en ligne par le propriétaire du salon.
+    - Les avis :
+      - à `ADMIN_EMAIL`, un e-mail à chaque nouvelle demande, et à chaque changement d’emplacement, d’adresse ou de téléphone d’un salon validé ;
+      - au salon, à chaque décision : une notification push, une ligne dans le fil et un e-mail ;
+      - un e-mail ne part qu’à une adresse qui contient « @ ».
+      - Les avis de facturation ne vont plus qu’aux salons validés et déjà en ligne.
+    - La migration 0044, additive : `salon_validations`, `salon_validation_events` et `providers.suspended_from`. Les salons actifs, et ceux dépubliés pour impayé, sont validés d’office.
+    - Les lectures : `validation` voyage à côté du salon sur `/me/provider` et `/me/salons`, jamais dans le document public. La vue d’ensemble admin gagne `providers.pendingValidation`.
+    - Les documents :
+      - le contrat (`openapi.yaml`, et `schema.ts` régénéré) ;
+      - le modèle de menaces : T82 (nouveau), et T17, T50, T51, T54, T55, T68 ;
+      - le smoke du tunnel et sa spec ;
+      - le hook de reconstruction : `salon.approved` et `salon.republished` ; `salon.published` est retiré ;
+      - DEPLOYMENT, et LAUNCH §6.4, dont la vérification du premier salon gagne l’étape de validation.
+  - **Mesuré :**
+    - Les 262 tests de `test/validation/` et `test/contract/` sont verts, avec les tests voisins. L’analyse est à 0.
+    - Le smoke du tunnel (64 cas) est vert contre un serveur local branché sur les dépôts en mémoire. Il passe par une demande (202), la validation par l’admin, puis un refus, une nouvelle demande et une validation sur le second salon.
+    - Le smoke d’avant ce changement, lancé contre le nouveau serveur, échoue là où il le doit : A18 attend 200 et reçoit 202.
+    - Environ 110 mutations ont été vues rouges sur les quatre étapes, dont 13 sur le smoke, chacune avec le test qui échoue et sa sortie. Les gardes tenues par deux couches sont nommées comme telles.
+  - **Non vérifié ici :**
+    - **Les tests Postgres ne tournent qu’en CI.** Aucune requête SQL de cette branche n’a tourné sur un vrai Postgres, et le smoke n’a tourné ni sur Postgres ni sur le binaire AOT : c’est le rôle du job `backend-boot-smoke`.
+    - Le CLI `dart_frog` n’est pas installé sur cette machine. Les nouvelles routes sont donc générées pour la première fois par la CI.
+    - **La réception du courrier à `ADMIN_EMAIL`** : une vraie demande sera relue en 202, et l’e-mail reçu, au déploiement du backend.
+  - **Ordre de déploiement, chaque étape sur le oui du propriétaire :**
+    1. le site, partie 4a ;
+    2. la console admin, pour qu’une demande ait un écran où être décidée ;
+    3. le backend. Avant lui, relire les comptes du jour : salons publics, brouillons, brouillons avec une offre.
+    - Ensuite seulement, le site 4b, et l’étape 8 du test fermé Android.
+    - Les builds Pro publiés (iOS 0.0.1 et 0.0.2) montrent une erreur générique pour un 202, alors que la demande est bien enregistrée. Cela dure jusqu’au relèvement du plancher iOS (Q8).
