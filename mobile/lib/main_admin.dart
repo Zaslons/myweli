@@ -22,6 +22,9 @@ import 'providers/admin/admin_kyc_provider.dart';
 import 'providers/admin/admin_moderation_provider.dart';
 import 'providers/admin/admin_provider_detail_provider.dart';
 import 'providers/admin/admin_providers_provider.dart';
+import 'providers/admin/admin_salon_validation_count_provider.dart';
+import 'providers/admin/admin_salon_validation_detail_provider.dart';
+import 'providers/admin/admin_salon_validations_provider.dart';
 import 'providers/admin/admin_user_detail_provider.dart';
 import 'providers/admin/admin_users_provider.dart';
 
@@ -74,13 +77,43 @@ class MyweliAdminApp extends StatelessWidget {
       create: (_) => AdminAuthProvider()..restore(),
       child: MultiProvider(
         providers: [
+          // « Salons à valider » (B0.18 — salon-go-live-approval.md §4.1).
+          // FIRST, because the providers below read it in their `create`.
+          // Not lazy: it loads at sign-in (a restored session or a login),
+          // which it hears from the auth provider, not at the first screen
+          // that happens to read it.
+          ChangeNotifierProvider(
+            lazy: false,
+            create: (ctx) => AdminSalonValidationCountProvider(
+              auth: ctx.read<AdminAuthProvider>(),
+            ),
+          ),
+          ChangeNotifierProvider(
+            create: (_) => AdminSalonValidationsProvider(),
+          ),
+          ChangeNotifierProvider(
+            create: (ctx) => AdminSalonValidationDetailProvider(
+              queue: ctx.read<AdminSalonValidationsProvider>(),
+              count: ctx.read<AdminSalonValidationCountProvider>(),
+            ),
+          ),
           ChangeNotifierProvider(create: (_) => AdminDashboardProvider()),
           ChangeNotifierProvider(create: (_) => AdminClientVersionProvider()),
           ChangeNotifierProvider(create: (_) => AdminKycProvider()),
           ChangeNotifierProvider(create: (_) => AdminModerationProvider()),
-          ChangeNotifierProvider(create: (_) => AdminProvidersProvider()),
+          // A suspension takes a pending request out of the count, a lift
+          // brings it back.
+          ChangeNotifierProvider(
+            create: (ctx) => AdminProvidersProvider(
+              validationCount: ctx.read<AdminSalonValidationCountProvider>(),
+            ),
+          ),
           ChangeNotifierProvider(create: (_) => AdminUsersProvider()),
-          ChangeNotifierProvider(create: (_) => AdminProviderDetailProvider()),
+          ChangeNotifierProvider(
+            create: (ctx) => AdminProviderDetailProvider(
+              validationCount: ctx.read<AdminSalonValidationCountProvider>(),
+            ),
+          ),
           ChangeNotifierProvider(create: (_) => AdminUserDetailProvider()),
           ChangeNotifierProvider(create: (_) => AdminDisputesProvider()),
           ChangeNotifierProvider(create: (_) => AdminDisputeDetailProvider()),
@@ -111,7 +144,8 @@ class MyweliAdminApp extends StatelessWidget {
                 supportedLocales: const [Locale('fr', 'FR')],
                 title: 'MyWeli Admin',
                 debugShowCheckedModeBanner: false,
-                theme: AppTheme.lightTheme,
+                // 48dp targets on a desktop browser too (SYSTEM.md §13.2).
+                theme: AppTheme.consoleTheme(),
                 routerConfig: createAdminRouter(auth),
               ),
             );

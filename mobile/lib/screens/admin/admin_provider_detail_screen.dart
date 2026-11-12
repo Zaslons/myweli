@@ -16,6 +16,7 @@ import '../../widgets/common/app_snack_bar.dart';
 import 'widgets/admin_detail_widgets.dart';
 import 'widgets/admin_scaffold.dart';
 import 'widgets/reason_dialog.dart';
+import 'widgets/restore_outcome.dart';
 
 /// Salon support view: profile + recent bookings + suspend/restore/feature.
 /// Design: docs/design/admin-console-ui.md §3.
@@ -57,10 +58,22 @@ class _AdminProviderDetailScreenState extends State<AdminProviderDetailScreen> {
     );
   }
 
-  Future<void> _restore() => _run(
-    () => context.read<AdminProviderDetailProvider>().restore(widget.id),
-    'Salon réactivé',
-  );
+  /// « Lever la suspension » (B0.18 §4.4): the snackbar says where the salon
+  /// went — back online, or offline with the reason — from either server.
+  Future<void> _restore() async {
+    final p = context.read<AdminProviderDetailProvider>();
+    final list = context.read<AdminProvidersProvider>();
+    final messenger = ScaffoldMessenger.of(context);
+    final ok = await p.restore(widget.id);
+    if (!mounted) return;
+    showRestoreOutcome(
+      messenger,
+      ok: ok,
+      outcome: p.lastRestore,
+      error: p.actionError,
+    );
+    if (ok) unawaited(list.load());
+  }
 
   Future<void> _feature(bool featured) => _run(
     () => context.read<AdminProviderDetailProvider>().feature(
@@ -204,32 +217,26 @@ class _AdminProviderDetailScreenState extends State<AdminProviderDetailScreen> {
     final suspended = s['status'] == 'suspended';
     return AdminActionBar(
       children: [
-        SizedBox(
-          width: 220,
-          child: AppButton(
-            text: featured ? 'Retirer la mise en avant' : 'Mettre en avant',
-            type: AppButtonType.secondary,
-            onPressed: acting ? null : () => _feature(!featured),
-          ),
+        // Each button its own width, in a bar that wraps (`AdminActionBar`):
+        // « Lever la suspension » outgrew the 160dp « Réactiver » had.
+        AppButton(
+          text: featured ? 'Retirer la mise en avant' : 'Mettre en avant',
+          type: AppButtonType.secondary,
+          isFullWidth: false,
+          onPressed: acting ? null : () => _feature(!featured),
         ),
-        const SizedBox(width: AppTheme.spacingM),
-        SizedBox(
-          width: 160,
-          child: AppButton(
-            text: suspended ? 'Réactiver' : 'Suspendre',
-            type: suspended ? AppButtonType.primary : AppButtonType.secondary,
-            isLoading: acting,
-            onPressed: acting ? null : (suspended ? _restore : _suspend),
-          ),
+        AppButton(
+          text: suspended ? 'Lever la suspension' : 'Suspendre',
+          type: suspended ? AppButtonType.primary : AppButtonType.secondary,
+          isFullWidth: false,
+          isLoading: acting,
+          onPressed: acting ? null : (suspended ? _restore : _suspend),
         ),
-        const SizedBox(width: AppTheme.spacingM),
-        SizedBox(
-          width: 160,
-          child: AppButton(
-            text: 'Marquer payé',
-            type: AppButtonType.secondary,
-            onPressed: acting ? null : _markPaid,
-          ),
+        AppButton(
+          text: 'Marquer payé',
+          type: AppButtonType.secondary,
+          isFullWidth: false,
+          onPressed: acting ? null : _markPaid,
         ),
       ],
     );

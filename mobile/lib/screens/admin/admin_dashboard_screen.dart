@@ -52,10 +52,14 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         loading: const SkeletonDetail(sections: 3),
         empty: const SizedBox.shrink(),
         onRetry: () => context.read<AdminDashboardProvider>().load(),
-        builder: _overview,
+        builder: (context, o) => _overview(context, o, p.pendingValidation),
       );
 
-  Widget _overview(BuildContext context, Map<String, dynamic> o) {
+  Widget _overview(
+    BuildContext context,
+    Map<String, dynamic> o,
+    int? pendingValidation,
+  ) {
     Map<String, dynamic> m(String k) =>
         (o[k] as Map?)?.cast<String, dynamic>() ?? const {};
     final users = m('users');
@@ -78,6 +82,16 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             spacing: AppTheme.spacingM,
             runSpacing: AppTheme.spacingM,
             children: [
+              // « Salons à valider » (B0.18 §4.1). Absent, not « 0 », when the
+              // server predates B0.18 and its overview has no such key
+              // (§9.2): a zero would say nobody is waiting.
+              if (pendingValidation != null)
+                StatCard(
+                  label: 'Salons à valider',
+                  value: '$pendingValidation',
+                  accent: true,
+                  onTap: () => context.go('/admin/salon-validations'),
+                ),
               StatCard(
                 label: 'KYC en attente',
                 value: '${verif['pending'] ?? 0}',

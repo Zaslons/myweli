@@ -646,6 +646,19 @@ const _reviewedProviderIdReads = <String, ({int reads, String why})>{
     reads: 1,
     why: 'the salon to re-read after a posted review',
   ),
+  // A queued salon's own id (SalonValidationQueueItem.providerId) in the
+  // admin console's « Salons à valider » (B0.18): the console has no
+  // signed-in salon, each row names the salon its request is for.
+  'lib/providers/admin/admin_salon_validations_provider.dart · r': (
+    reads: 3,
+    why:
+        'the queue row a validate or refuse answered — found, updated '
+        'in place, or dropped from its tab (B0.18)',
+  ),
+  'lib/screens/admin/admin_salon_validations_screen.dart · item': (
+    reads: 1,
+    why: 'the request a queue row opens (B0.18)',
+  ),
 };
 
 /// The reviewed salon-id slots fed by an `.id` — each the id of a SALON

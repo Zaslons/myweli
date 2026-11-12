@@ -17,6 +17,17 @@ class AdminDashboardProvider extends ChangeNotifier {
   String? get error => _error;
   Map<String, dynamic>? get overview => _overview;
 
+  /// « Salons à valider » on the dashboard (B0.18 §4.1): the overview's
+  /// `providers.pendingValidation` — or null when the server predates B0.18
+  /// and sends no such key (§9.2). Null hides the card; `?? 0` would claim
+  /// that nobody is waiting.
+  int? get pendingValidation {
+    final providers = _overview?['providers'];
+    if (providers is! Map) return null;
+    final n = providers['pendingValidation'];
+    return n is num ? n.toInt() : null;
+  }
+
   Future<void> load() async {
     _isLoading = true;
     _error = null;

@@ -264,6 +264,11 @@ class AdminEvidenceImage extends StatelessWidget {
 }
 
 /// The sticky bottom action bar shared by the support views.
+///
+/// A `Wrap`, end-aligned, with the gap between its buttons: a `Row` of
+/// fixed-width buttons ran off a narrow window (the salon's three needed
+/// 604dp of the 599 a 840dp console gives), and a label that grows at 200 %
+/// text took its bar with it. The buttons move to a second line instead.
 class AdminActionBar extends StatelessWidget {
   const AdminActionBar({super.key, required this.children});
 
@@ -277,7 +282,13 @@ class AdminActionBar extends StatelessWidget {
         color: AppColors.secondary,
         border: Border(top: BorderSide(color: AppColors.divider)),
       ),
-      child: Row(mainAxisAlignment: MainAxisAlignment.end, children: children),
+      child: Wrap(
+        alignment: WrapAlignment.end,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        spacing: AppTheme.spacingM,
+        runSpacing: AppTheme.spacingS,
+        children: children,
+      ),
     );
   }
 }

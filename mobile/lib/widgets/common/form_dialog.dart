@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 
 import '../../core/theme/app_theme.dart';
+import '../../core/theme/colors.dart';
 import 'app_button.dart';
+import 'brand_loader.dart';
 
 /// The one **editing** dialog — a form in a modal, submitted in place.
 ///
@@ -37,6 +39,7 @@ class FormDialog extends StatefulWidget {
     required this.child,
     required this.onSubmit,
     this.cancelLabel = 'Annuler',
+    this.isDestructive = false,
   });
 
   final String title;
@@ -51,6 +54,11 @@ class FormDialog extends StatefulWidget {
   /// Returns `true` to close. `false` keeps it open — the failure case, where
   /// the caller has just attached a fault to one of its fields.
   final Future<bool> Function() onSubmit;
+
+  /// `true` → the submit is drawn `error`, as [ConfirmDialog]'s destructive
+  /// confirm is (§15): a form whose outcome is a refusal — the console's
+  /// « Refuser » of a salon's request (B0.18) — must not look like a save.
+  final bool isDestructive;
 
   @override
   State<FormDialog> createState() => _FormDialogState();
@@ -70,6 +78,15 @@ class _FormDialogState extends State<FormDialog> {
 
   @override
   Widget build(BuildContext context) {
+    // While the submit is out, no way out at all — not « Annuler » (disabled
+    // below), and not Escape nor a click on the scrim either, which both pop
+    // through `Navigator.maybePop`. A dismissal there read as a cancel while
+    // the request still landed: a salon refused that the admin believed
+    // spared, with no word of it (B0.18).
+    return PopScope(canPop: !_submitting, child: _dialog(context));
+  }
+
+  Widget _dialog(BuildContext context) {
     return AlertDialog(
       // Measured on ConfirmDialog and true here for the same reason: a form at
       // 200% text overflows its own Column and paints over the buttons.
@@ -87,11 +104,19 @@ class _FormDialogState extends State<FormDialog> {
         ),
         Padding(
           padding: const EdgeInsets.only(left: AppTheme.spacingS),
-          child: AppButton(
-            text: widget.submitLabel,
-            isLoading: _submitting,
-            onPressed: _submitting ? null : _submit,
-          ),
+          child: widget.isDestructive
+              ? TextButton(
+                  style: TextButton.styleFrom(foregroundColor: AppColors.error),
+                  onPressed: _submitting ? null : _submit,
+                  child: _submitting
+                      ? const BrandLoader(size: AppTheme.iconS, fast: true)
+                      : Text(widget.submitLabel),
+                )
+              : AppButton(
+                  text: widget.submitLabel,
+                  isLoading: _submitting,
+                  onPressed: _submitting ? null : _submit,
+                ),
         ),
       ],
     );
@@ -113,6 +138,7 @@ Future<bool?> showFormDialog({
   required Widget child,
   required Future<bool> Function() onSubmit,
   String cancelLabel = 'Annuler',
+  bool isDestructive = false,
 }) => showDialog<bool>(
   context: context,
   builder: (_) => FormDialog(
@@ -120,6 +146,7 @@ Future<bool?> showFormDialog({
     submitLabel: submitLabel,
     cancelLabel: cancelLabel,
     onSubmit: onSubmit,
+    isDestructive: isDestructive,
     child: child,
   ),
 );

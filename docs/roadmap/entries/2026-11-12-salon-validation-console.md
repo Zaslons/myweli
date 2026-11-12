@@ -1,0 +1,21 @@
+- 🟡 **« Salons à valider » dans la console admin : la file, la demande, la décision, le compteur, « Lever la suspension » (console admin · 2026-11-12 — BACKLOG B0.18, décisions 124 à 132).** Non fusionné. Branche `feat/salon-validation-console`, de `main` (le backend de #776 et le plafond de #778), selon [salon-go-live-approval.md](../../design/salon-go-live-approval.md) §4, approuvé le 2026-11-12 ; c’est la PR 2 de son §9.1.
+  - **Ce qui change :**
+    - La barre latérale gagne « Salons à valider », sous « Modération », avec le nombre de demandes en attente. Le badge n’apparaît pas à zéro, en cas d’erreur, ni face à l’ancien serveur. La carte du tableau de bord n’apparaît que si la vue d’ensemble porte `pendingValidation` : elle n’annonce jamais « 0 » à tort.
+    - Les routes `#/admin/salon-validations` et `#/admin/salon-validations/:id` sont exactement le lien de l’e-mail à l’admin ; un test lit ce lien dans le code du backend. Le `?from=` de la connexion ne suit que les chemins `/admin/…` : les segments `..` et les échappements non UTF-8 sont refusés.
+    - La file : trois onglets (en attente, refusés, validés), six colonnes, 50 demandes par page, les quatre états. Elle passe sur une colonne quand la fenêtre est trop étroite. Une demande décidée quitte son onglet aussitôt, et la page est relue en silence quand d’autres pages suivent ; la file ne reste jamais après la dernière page.
+    - La demande : les photos, les services et leurs prix, les horaires, la position avec « Ouvrir dans OpenStreetMap », le téléphone et son indicatif, l’offre, le propriétaire (sa KYC et ses autres salons), l’historique. La barre du bas envoie `from` (`pending`, `refused`, ou `approved` pour « Validation à terminer ») ; « Valider » est désactivé pour un salon suspendu, avec la raison écrite ; chaque 409 affiche sa phrase.
+    - La boîte de refus : un motif obligatoire, une note obligatoire pour « Autre », 500 caractères au plus avec un compteur, ses règles écrites sous le champ ; les motifs définitifs sont signalés. Ni Échap ni un clic à côté ne la ferment pendant l’envoi.
+    - « Réactiver » devient « Lever la suspension », sur la liste et sur la fiche du salon, avec un message par résultat et par raison.
+    - Les photos sont dessinées en `<img>` (`WebHtmlElementStrategy.prefer`) : le bucket public refuse le CORS à admin.myweli.com.
+    - Toute la console garde des cibles de 48 dp dans un navigateur de bureau (`AppTheme.consoleTheme()`, au lieu de 40) ; SYSTEM.md §13.2 et §19 le disent.
+    - Une décision demandée sur un salon pendant que celle d’un autre est en cours attend sa réponse, puis part ; avant, elle se perdait.
+  - **Mesuré :**
+    - La suite mobile complète : 3414 tests réussis, 60 ignorés (les goldens, qui ne tournent que sous Linux), 0 échec. Le format et l’analyse sont à 0.
+    - Les deux nouveaux goldens (`admin_validation_queue.png`, `admin_validation_detail.png`) ont été produits par `goldens.yml` sous Linux (run 43304029899) et regardés un par un ; les 58 autres sont restés identiques octet pour octet.
+    - 93 mutations ont été vues rouges sur une assertion, pas sur une erreur de compilation : 21 sur les données, 46 sur les écrans, 26 sur les corrections de la relecture.
+    - Une relecture sous quatre angles a relevé 18 constats ; tous sont corrigés, chacun avec un test vu rouge.
+    - En CI, sur le contenu poussé : la compilation web de la console (« Mobile — admin console builds ») est verte.
+  - **Non vérifié ici :**
+    - Dans un vrai navigateur : les photos `<img>` (coins arrondis, sous la barre du bas, leurs boutons « ouvrir »), l’ouverture d’un nouvel onglet, la réponse 404 de l’ancien serveur à travers le Worker, et le `#` du lien après une nouvelle authentification Cloudflare Access. Une vraie demande sera ouverte dans la console déployée.
+    - L’historique affiche « par admin_… » : l’API ne donne pas le nom de l’admin.
+  - **Déploiement :** `deploy-admin.yml`, sur le oui du propriétaire, **avant** le backend (§9.2) : face à l’ancien serveur, la file affiche « Validation des salons pas encore active » et le badge reste caché.
