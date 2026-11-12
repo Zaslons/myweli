@@ -202,6 +202,26 @@ class ProviderAccountService {
     // auto-create a salon for a staff account.
     // docs/design/backend-provider-deletion-member-fk.md
     await _memberships.deleteAllForAccount(accountId);
+
+    // B0.18 §3.2: the owner rows are gone now, so no going-live can win any
+    // more — it needs an active owner. One may have won in the window
+    // above, between hiding the salons and deleting the identity (the KYC
+    // deletes and the Apple revoke are network calls): a validation decided
+    // before `deletePending` ran, its going-live landing after the hide,
+    // takes the salon public with its contact wiped and nobody to run it —
+    // and nothing later hides it. So hide again, now that nothing can undo
+    // it: a compare-and-set from `active`, touching only a salon that came
+    // back, and the prebuilt set shrinks once more.
+    var cameBack = false;
+    for (final providerId in owned) {
+      final hidden = await _providers.compareAndSetStatus(
+        providerId,
+        from: 'active',
+        to: 'draft',
+      );
+      if (hidden != null) cameBack = true;
+    }
+    if (cameBack) await _rebuild.requestRebuild('account.erased');
     return (ok: true, error: null);
   }
 }

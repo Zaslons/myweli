@@ -1,7 +1,12 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:myweli_backend/src/admin/admin_kyc_service.dart'
     show AdminResult;
+import 'package:myweli_backend/src/appointments/appointment_repository.dart';
+import 'package:myweli_backend/src/provider_account_service.dart';
+import 'package:myweli_backend/src/push/device_token_repository.dart';
+import 'package:myweli_backend/src/storage/storage_service.dart';
 import 'package:myweli_backend/src/validation/salon_decision_notifier.dart';
 import 'package:myweli_backend/src/validation/salon_validation_copy.dart';
 import 'package:myweli_backend/src/validation/salon_validation_repository.dart';
@@ -40,6 +45,20 @@ class _GoLiveHooks extends InMemorySalonValidationRepository {
     before = null;
     if (hook != null) await hook();
     return super.goLive(providerId, at: at);
+  }
+}
+
+/// Runs [onDelete] when account erasure reaches the devices — a moment
+/// between the erasure hiding the salons and deleting the identity.
+class _HookedDevices extends InMemoryDeviceTokenRepository {
+  _HookedDevices(this.onDelete);
+
+  final Future<void> Function() onDelete;
+
+  @override
+  Future<void> deleteForUser(String userId) async {
+    await onDelete();
+    return super.deleteForUser(userId);
   }
 }
 
@@ -542,6 +561,49 @@ void main() {
         expect(await w.isPublic(s.id), isTrue);
         expect(w.rebuild.reasons, ['salon.approved']);
         expect(w.pushes.sends, hasLength(1));
+      });
+
+      test('the owner ERASES their account while the going-live is in '
+          'flight → the salon ends hidden, and the prebuilt set shrinks '
+          'again — never a live salon with nobody to run it', () async {
+        final s = await pending();
+        // The approve passes its checks, its decision and the trial, then
+        // waits at the going-live…
+        final reached = Completer<void>();
+        final release = Completer<void>();
+        hooks.before = () async {
+          reached.complete();
+          await release.future;
+        };
+        final approving = w.service.approve(
+          s.id,
+          from: 'pending',
+          adminId: 'a',
+        );
+        await reached.future;
+        // …while the erasure hides the salon, finds no PENDING request to
+        // delete (it is approved), and — between the hide and the identity
+        // delete — lets the going-live land, the owner row still there.
+        final erasure = ProviderAccountService(
+          w.auth,
+          w.providers,
+          InMemoryAppointmentRepository(),
+          FakeStorageService(),
+          w.members,
+          devices: _HookedDevices(() async {
+            release.complete();
+            final won = await approving;
+            expect(won.ok, isTrue, reason: 'the going-live won the window');
+            expect(await w.statusOf(s.id), 'active');
+          }),
+          rebuild: w.rebuild,
+          validations: w.validations,
+        );
+        final r = await erasure.deleteAccount(s.ownerId);
+        expect(r.ok, isTrue, reason: '${r.error}');
+        expect(await w.statusOf(s.id), 'draft');
+        expect(await w.isPublic(s.id), isFalse);
+        expect(w.rebuild.reasons, ['salon.approved', 'account.erased']);
       });
 
       test('suspended between the checks and the going-live → 409 '
