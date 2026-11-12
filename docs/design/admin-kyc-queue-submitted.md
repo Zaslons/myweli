@@ -265,9 +265,14 @@ refusal. The console:
 Revoking a verified salon is not this; if ops ever needs it, it is its own,
 deliberate action. **Found while building:** `admin_test.dart` rejected a
 salon right after approving it, to prove the badge turns off. No screen ever
-offered that (the detail is reached from the queue only), and the guard now
-refuses it; the tests prove the badge turns off through approve → resubmit →
-reject instead.
+offered that (the detail was reached from the queue or by URL), and the guard
+now refuses it; the tests prove the badge turns off through approve → resubmit
+→ reject instead. **Since #779** (merged into this branch on 2026-11-12) the
+detail is also opened from a salon request's « Ouvrir le dossier KYC », shown
+whenever the owner has a document, whatever their KYC status: an owner already
+verified or refused arrives there too. The guard and the hidden bar cover that
+path; without them, « Rejeter » would have been one click from revoking a
+verified owner's badge.
 
 ### 4.6 PDF documents (O3)
 

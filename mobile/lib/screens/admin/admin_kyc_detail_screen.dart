@@ -235,7 +235,8 @@ class _AdminKycDetailScreenState extends State<AdminKycDetailScreen> {
   }
 
   /// In place of the buttons when the file does not await review (reached by
-  /// URL, or acted on meanwhile): the server would refuse them (409).
+  /// URL or from a salon request's KYC link, or acted on meanwhile): the
+  /// server would refuse them (409).
   Widget _notPendingBar() {
     return Container(
       width: double.infinity,
