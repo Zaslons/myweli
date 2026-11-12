@@ -32,6 +32,7 @@ import 'package:myweli_backend/src/db/postgres_provider_audit_repository.dart';
 import 'package:myweli_backend/src/db/postgres_provider_auth_repository.dart';
 import 'package:myweli_backend/src/db/postgres_providers_repository.dart';
 import 'package:myweli_backend/src/db/postgres_reviews_repository.dart';
+import 'package:myweli_backend/src/db/postgres_salon_place_notice_repository.dart';
 import 'package:myweli_backend/src/db/postgres_salon_subscription_repository.dart';
 import 'package:myweli_backend/src/db/postgres_salon_validation_repository.dart';
 import 'package:myweli_backend/src/privacy/user_erasure_service.dart';
@@ -48,6 +49,7 @@ import '../access/ensure_owner_contract.dart';
 import '../access/invite_contract.dart';
 import '../auth/apple_token_repository_contract.dart';
 import '../idempotency/idempotency_contract.dart';
+import '../validation/salon_place_notice_contract.dart';
 import '../validation/salon_validation_contract.dart';
 import '../validation/validation_reads_contract.dart';
 
@@ -2268,6 +2270,75 @@ void main() {
         repo: () => PostgresProvidersRepository(pool),
         salon: (_) => freshSalon(withOwner: false),
       );
+    });
+
+    // Decision 133: the cap on the place-change e-mails (migration 0045).
+    group('salon_place_notices (0045)', () {
+      group('the twin contract', () {
+        salonPlaceNoticeContract(
+          repo: () => PostgresSalonPlaceNoticeRepository(pool),
+          salon: () => freshSalon(withOwner: false),
+        );
+      });
+
+      Future<int> rows(String id) async {
+        final r = await pool.execute(
+          Sql.named(
+            'SELECT count(*)::int FROM salon_place_notices '
+            'WHERE provider_id = @id',
+          ),
+          parameters: {'id': id},
+        );
+        return r.first.first! as int;
+      }
+
+      Future<void> report(String id) =>
+          PostgresSalonPlaceNoticeRepository(pool).recordSave(
+            id,
+            DateTime.utc(2026, 11, 12, 9),
+            after: {'phone': '+2250700000045', 'address': 'Rue 45'},
+            fields: ['phone'],
+          );
+
+      test(
+        'a salon deleted takes its row with it (ON DELETE CASCADE)',
+        () async {
+          final id = await freshSalon(withOwner: false);
+          await report(id);
+          expect(await rows(id), 1);
+          await pool.execute(
+            Sql.named('DELETE FROM providers WHERE id = @id'),
+            parameters: {'id': id},
+          );
+          expect(await rows(id), 0);
+        },
+      );
+
+      test('account erasure deletes the place last reported — the salon row '
+          'stays, so no cascade would', () async {
+        final id = await freshSalon();
+        await report(id);
+        final owner = (await PostgresMembershipRepository(
+          pool,
+        ).listForProvider(id)).firstWhere((m) => m.role == 'owner');
+        final erased = await ProviderAccountService(
+          PostgresProviderAuthRepository(
+            pool,
+            tokens: tokens,
+            echoDevCode: true,
+          ),
+          PostgresProvidersRepository(pool),
+          PostgresAppointmentRepository(pool),
+          FakeStorageService(),
+          PostgresMembershipRepository(pool),
+          validations: PostgresSalonValidationRepository(pool),
+          placeNotices: PostgresSalonPlaceNoticeRepository(pool),
+          client: MockClient((_) async => http.Response('', 204)),
+        ).deleteAccount(owner.accountId!);
+        expect(erased.ok, isTrue, reason: '${erased.error}');
+        expect(await PostgresProvidersRepository(pool).byId(id), isNotNull);
+        expect(await rows(id), 0);
+      });
     });
 
     test(
