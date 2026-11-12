@@ -322,7 +322,7 @@ Future<ConsoleProviders> pumpConsole(
     wrapApp(
       providers: p.list(withCount: withCount),
       routerConfig: router,
-      theme: AppTheme.themeData(fontFamily: kRealFont),
+      theme: AppTheme.consoleTheme(fontFamily: kRealFont),
     ),
   );
   if (settle) await tester.pumpAndSettle();

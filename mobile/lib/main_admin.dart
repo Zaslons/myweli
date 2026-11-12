@@ -144,7 +144,8 @@ class MyweliAdminApp extends StatelessWidget {
                 supportedLocales: const [Locale('fr', 'FR')],
                 title: 'MyWeli Admin',
                 debugShowCheckedModeBanner: false,
-                theme: AppTheme.lightTheme,
+                // 48dp targets on a desktop browser too (SYSTEM.md §13.2).
+                theme: AppTheme.consoleTheme(),
                 routerConfig: createAdminRouter(auth),
               ),
             );

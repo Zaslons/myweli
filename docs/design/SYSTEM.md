@@ -667,6 +667,11 @@ between the glyph and the target edge is free; the target is what the finger get
   better, don't hand-roll.
 - Targets that are *adjacent* need ≥8px between them, or a fat finger hits the
   wrong one.
+- **The admin console runs on `AppTheme.consoleTheme()`** (B0.18): in a desktop
+  browser Flutter Web reports the host OS as the platform, and `ThemeData`'s
+  desktop defaults — `VisualDensity.compact`, `MaterialTapTargetSize.shrinkWrap`
+  — measured every 48dp target at 40. The console theme pins `standard` and
+  `padded`; its tap-target tests run on macOS and Windows as well as Android.
 - **`leadingWidth: 48` on the app bar is legal, and free** (A15) precisely
     because of the first bullet: a `BackButton` lays out at exactly 48 under
     `MaterialTapTargetSize.padded`, so the theme is asking for the floor rather

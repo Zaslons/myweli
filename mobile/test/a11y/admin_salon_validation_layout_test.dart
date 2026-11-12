@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -306,6 +307,27 @@ void main() {
         await expectLater(t, meetsGuideline(labeledTapTargetGuideline));
         handle.dispose();
       });
+
+      // Where the console runs: a desktop browser, whose OS Flutter Web
+      // reports as the platform — compact density and shrink-wrapped targets
+      // by default, which `flutter test` (Android) never renders.
+      for (final platform in [TargetPlatform.macOS, TargetPlatform.windows]) {
+        testWidgets('$name — on ${platform.name}, as in a desktop browser', (
+          t,
+        ) async {
+          final handle = t.ensureSemantics();
+          debugDefaultTargetPlatformOverride = platform;
+          try {
+            await pumpConsole(t, FakeAdminServer(), location: location);
+            await then?.call(t);
+            await expectLater(t, meetsGuideline(androidTapTargetGuideline));
+            await expectLater(t, meetsGuideline(labeledTapTargetGuideline));
+          } finally {
+            debugDefaultTargetPlatformOverride = null;
+          }
+          handle.dispose();
+        });
+      }
     }
   });
 }
