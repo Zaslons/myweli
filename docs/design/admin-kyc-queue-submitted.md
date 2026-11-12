@@ -3,6 +3,7 @@
 | | |
 |---|---|
 | **Module** | admin (console + `/admin/kyc*`), with the Pro KYC data it reads ([MODULES.md](../MODULES.md)) |
+| **BACKLOG** | B0.20 |
 | **Status** | **Approved 2026-11-12** — the owner's answers: O1 **B**, O2 **guard both**, O3 **« Document PDF » tile, new tab**, O4 **read-only now** (§13). **Built the same day** on `fix/admin-kyc-queue`, not merged, not deployed; what building found is in §4.2, §4.5, §4.6 and §12. |
 | **Last updated** | 2026-11-12 |
 | **Found** | 2026-11-12, while mapping the admin console for B0.18 (salon go-live approval); outside that slice |
@@ -412,9 +413,9 @@ production holds no KYC document.
 - [x] `dart analyze` / `flutter analyze` 0 · format clean · backend suite green
       on Postgres 16 · each new test seen failing first. Mobile suite: §9.
 - [x] Contract (+ regenerated web types), T17, [admin-console.md](admin-console.md)
-      §3 pointer, roadmap entry; this spec → Built. **No BACKLOG line:** batch 0's
-      B0.17/B0.18 and decisions 116–123 sit in open PRs, and a line here would
-      collide with them; the owner's four answers are recorded in §13.
+      §3 pointer, roadmap entry; this spec → Built. BACKLOG **B0.20**, added
+      once #773 had put B0.17–B0.19 and decisions 116–123 on `main`; the four
+      answers stay in §13, unnumbered, so B0.18's spec takes the next numbers.
 - [x] `docs/design/admin-kyc-queue-submitted.md` named in the code it governs.
 - [ ] Feature branch + PR, CI green, no Claude attribution.
 
