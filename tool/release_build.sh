@@ -269,7 +269,29 @@ if [[ "$PLATFORM" == ios ]]; then
   fi
 else
   echo "→ flutter build appbundle --flavor $FLAVOUR --target $ENTRY --build-number $BUILD_NUMBER (DSN + basemap key injected, not shown)"
+  AAB="build/app/outputs/bundle/${FLAVOUR}Release/app-$FLAVOUR-release.aab"
+  # Removed first, so the bundle read below can only be the one THIS run wrote.
+  rm -f "$AAB" "$AAB.refused"
   flutter build appbundle "${COMMON[@]}"
+  if [[ ! -f "$AAB" ]]; then
+    echo "::error:: flutter build appbundle left no mobile/$AAB." >&2
+    exit 1
+  fi
+  # **The AAB is read before anything says how to ship it** (GHSA-frr6-h895-5pxp,
+  # docs/design/android-tls-artifact-gate.md). On Android, `dart:io` verifies
+  # TLS with the BoringSSL inside libflutter.so: an engine older than Flutter
+  # 3.47.8 trusts eight compromised eMudhra CAs on every API call this app
+  # makes. Configuration says which Flutter SHOULD have built it; this reads
+  # which one did — every ABI's libflutter.so must carry Dart >= 3.13.7 and
+  # the blocklist. A refused bundle is renamed so it cannot be uploaded by
+  # mistake, and nothing after this point is printed.
+  echo "→ python3 -I tool/verify_android_tls.py mobile/$AAB"
+  if ! python3 -I "$REPO/tool/verify_android_tls.py" "$AAB"; then
+    mv "$AAB" "$AAB.refused"
+    echo "::error:: the AAB's Flutter engine does not block the eMudhra CAs (above)." >&2
+    echo "          Renamed to mobile/$AAB.refused. Build again on Flutter >= 3.47.8." >&2
+    exit 1
+  fi
 fi
 
 # **What is left for the operator**, for THIS build — its symbols, its release,

@@ -866,6 +866,19 @@ jobs:
       - name: Build release APK (consumer, arm64)
         run: flutter build apk --release --flavor consumer --target-platform android-arm64
 
+      # GHSA-frr6-h895-5pxp. On Android, `dart:io` verifies TLS with the
+      # BoringSSL inside libflutter.so, so the pins above prove nothing about
+      # what was built. This reads the APK: Dart >= 3.13.7 AND the eight
+      # blocked eMudhra key hashes, in every libflutter.so it contains.
+      # The self-test runs first, so the refusal paths are exercised on every PR
+      # and cannot rot unseen. docs/design/android-tls-artifact-gate.md.
+      # Guarded: backend/test/infra/android_tls_gate_test.dart.
+      - name: Android TLS gate — the verifier's own verdicts
+        run: python3 -I ../tool/verify_android_tls.py --self-test
+
+      - name: Android TLS gate — the APK's engine blocks the eMudhra CAs
+        run: python3 -I ../tool/verify_android_tls.py build/app/outputs/flutter-apk/app-consumer-release.apk
+
       - name: Enforce the <30 MB budget (NFR-PERF-002)
         run: |
           APK=build/app/outputs/flutter-apk/app-consumer-release.apk

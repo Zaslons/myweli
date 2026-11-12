@@ -479,6 +479,69 @@ void main() {
     });
   });
 
+  // GHSA-frr6-h895-5pxp — docs/design/android-tls-artifact-gate.md §5. Run for
+  // real: the stub `flutter` writes an AAB through the verifier's own
+  // --write-fixture, and the REAL tool/verify_android_tls.py judges it.
+  group('Android: the AAB is read before anything says how to ship it', () {
+    late _ReleaseRepo repo;
+    setUp(() => repo = _ReleaseRepo());
+    tearDown(() => repo.dispose());
+
+    String out(ProcessResult r) => '${r.stdout}${r.stderr}';
+    File aab(String flavour) => File(
+      '${repo.work.path}/mobile/build/app/outputs/bundle/'
+      '${flavour}Release/app-$flavour-release.aab',
+    );
+
+    test('a bundle from a fixed engine passes, and the notes follow', () {
+      final r = repo.run('android', 'pro');
+      final o = out(r);
+      expect(r.exitCode, 0, reason: o);
+      expect(o, contains('carries the eMudhra blocklist'));
+      expect(o, contains('base/lib/arm64-v8a/libflutter.so: Dart 3.13.7'));
+      expect(o, contains('debug-files upload'));
+      expect(aab('pro').existsSync(), isTrue);
+    });
+
+    test('a bundle from a vulnerable engine is refused, renamed, and nothing '
+        'after it is printed', () {
+      final r = repo.run('android', 'pro', env: {'STUB_AAB': 'vulnerable'});
+      final o = out(r);
+      expect(r.exitCode, 1, reason: o);
+      expect(o, contains('REFUSED'));
+      expect(o, contains('Dart 3.12.2 < 3.13.7'));
+      expect(o, isNot(contains('debug-files upload')));
+      expect(o, isNot(contains('set-commits')));
+      expect(aab('pro').existsSync(), isFalse, reason: 'left uploadable');
+      expect(File('${aab('pro').path}.refused').existsSync(), isTrue);
+    });
+
+    test('a build that wrote no bundle is refused by the check', () {
+      final r = repo.run('android', 'consumer', env: {'STUB_AAB': 'none'});
+      expect(r.exitCode, 1, reason: out(r));
+      expect(out(r), contains('left no mobile/build/app/outputs/bundle'));
+      expect(out(r), isNot(contains('debug-files upload')));
+    });
+
+    test('a bundle left by an EARLIER run is never read as this one', () {
+      // A good AAB from yesterday, then a build that writes nothing: without
+      // the removal before the build, the verifier would bless the old file.
+      aab('consumer').parent.createSync(recursive: true);
+      final wrote = Process.runSync('python3', [
+        '-I',
+        '${repo.work.path}/tool/verify_android_tls.py',
+        '--write-fixture',
+        'fixed',
+        aab('consumer').path,
+      ]);
+      expect(wrote.exitCode, 0, reason: '${wrote.stderr}');
+      expect(aab('consumer').existsSync(), isTrue, reason: 'the premise');
+      final r = repo.run('android', 'consumer', env: {'STUB_AAB': 'none'});
+      expect(r.exitCode, 1, reason: out(r));
+      expect(out(r), isNot(contains('carries the eMudhra blocklist')));
+    });
+  });
+
   group('the premise: the two entry points are different apps', () {
     /// If these ever converged, `--target` would stop mattering and the test
     /// above would be pinning a flag with no consequence. Stating the reason
@@ -527,6 +590,11 @@ class _ReleaseRepo {
     File(
       '${work.path}/tool/release_build.sh',
     ).writeAsStringSync(File('../tool/release_build.sh').readAsStringSync());
+    // The real verifier, not a stub: the Android cases run it against an AAB
+    // the stub `flutter` writes with its own --write-fixture.
+    File('${work.path}/tool/verify_android_tls.py').writeAsStringSync(
+      File('../tool/verify_android_tls.py').readAsStringSync(),
+    );
     Directory('${work.path}/mobile').createSync();
     File(
       '${work.path}/mobile/pubspec.yaml',
@@ -576,6 +644,18 @@ case "$*" in
       mkdir -p build/ios/archive/Runner.xcarchive/dSYMs
     fi
     printf 'ipa' > build/ios/ipa/MyWeli.ipa
+    ;;
+  *"build appbundle"*)
+    prev=''
+    for a in "$@"; do
+      [ "$prev" = '--flavor' ] && flavor="$a"
+      prev="$a"
+    done
+    if [ "${STUB_AAB:-fixed}" != none ]; then
+      python3 -I ../tool/verify_android_tls.py --write-fixture \
+        "${STUB_AAB:-fixed}" \
+        "build/app/outputs/bundle/${flavor}Release/app-$flavor-release.aab"
+    fi
     ;;
 esac
 ''');
