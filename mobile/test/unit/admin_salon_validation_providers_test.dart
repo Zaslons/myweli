@@ -571,6 +571,9 @@ void main() {
       expect(c.detail.detail!.canRefuse, isFalse);
       expect(await c.detail.refuse(p1, code: 'photos'), isFalse);
       expect(c.asked, isEmpty);
+      // Never silent: the dialog closes as a conflict, and the bar says why.
+      expect(c.detail.actionCode, 'validation_not_pending');
+      expect(c.detail.actionError, 'Cette demande a déjà été traitée.');
     });
 
     test('the note is capped in CODE POINTS of the trimmed note, as the '
@@ -688,28 +691,149 @@ void main() {
       expect(c.detail.actionMissing, isEmpty);
     });
 
-    test('a decision still out for A does not busy B\'s bar, and blocks a '
-        'second one', () async {
+    test(
+      'a decision still out for A does not busy B\'s bar; B\'s own waits '
+      'for A\'s answer, then is sent — and A\'s answer never lands on B',
+      () async {
+        final answers = {
+          'a': Completer<http.Response>(),
+          'b': Completer<http.Response>(),
+        };
+        final posts = <String>[];
+        final p = AdminSalonValidationDetailProvider(
+          service: svc(
+            MockClient((req) {
+              final id = req.url.pathSegments[2];
+              if (req.method == 'POST') {
+                posts.add(id);
+                return answers[id]!.future;
+              }
+              return Future.value(json(detailJson(id: id)));
+            }),
+          ),
+        );
+        await p.load(SalonId('a'));
+        final first = p.approve(SalonId('a'));
+        expect(p.acting, isTrue);
+        await p.load(SalonId('b'));
+        expect(p.acting, isFalse, reason: 'B\'s bar');
+
+        final second = p.approve(SalonId('b'));
+        expect(p.acting, isTrue, reason: 'B\'s decision waits its turn');
+        await pumpEventQueue();
+        expect(posts, ['a'], reason: 'one at a time');
+
+        answers['a']!.complete(
+          json({'salonStatus': 'active', 'validation': null}),
+        );
+        expect(await first, isTrue);
+        await pumpEventQueue(); // A's answer, and its re-read, have landed
+        expect(p.detail!.salon.id, 'b', reason: 'A\'s answer never lands on B');
+        expect(posts, ['a', 'b'], reason: 'B\'s, sent once A answered');
+        expect(p.acting, isTrue, reason: 'B\'s own is out now');
+
+        answers['b']!.complete(
+          json({'salonStatus': 'active', 'validation': null}),
+        );
+        expect(await second, isTrue);
+        expect(p.acting, isFalse);
+      },
+    );
+
+    test('a decision waiting its turn is dropped when the admin leaves its '
+        'request', () async {
       final answer = Completer<http.Response>();
+      final posts = <String>[];
       final p = AdminSalonValidationDetailProvider(
         service: svc(
           MockClient((req) {
-            if (req.method == 'POST') return answer.future;
             final id = req.url.pathSegments[2];
+            if (req.method == 'POST') {
+              posts.add(id);
+              return answer.future;
+            }
             return Future.value(json(detailJson(id: id)));
           }),
         ),
       );
       await p.load(SalonId('a'));
       final first = p.approve(SalonId('a'));
-      expect(p.acting, isTrue);
       await p.load(SalonId('b'));
-      expect(p.acting, isFalse, reason: 'B\'s bar');
-      expect(await p.approve(SalonId('b')), isFalse, reason: 'one at a time');
+      final second = p.approve(SalonId('b'));
+      await p.load(SalonId('c'));
+      expect(p.acting, isFalse, reason: 'C\'s bar');
       answer.complete(json({'salonStatus': 'active', 'validation': null}));
       expect(await first, isTrue);
-      expect(p.detail!.salon.id, 'b', reason: 'A\'s answer never lands on B');
+      expect(await second, isFalse);
+      expect(posts, ['a']);
+      expect(p.acting, isFalse);
     });
+
+    test('a decision for a request this detail no longer holds sends '
+        'nothing, and says nothing in the bar shown', () async {
+      final posts = <String>[];
+      final p = AdminSalonValidationDetailProvider(
+        service: svc(
+          MockClient((req) async {
+            if (req.method == 'POST') {
+              posts.add(req.url.path);
+              return json({'salonStatus': 'active', 'validation': null});
+            }
+            return json(detailJson(id: req.url.pathSegments[2]));
+          }),
+        ),
+      );
+      await p.load(SalonId('a'));
+      await p.load(SalonId('b'));
+      expect(p.detail!.salon.id, 'b', reason: 'B\'s detail, read whole');
+      expect(await p.approve(SalonId('a')), isFalse);
+      expect(await p.refuse(SalonId('a'), code: 'photos'), isFalse);
+      expect(posts, isEmpty);
+      expect(p.actionError, isNull);
+    });
+
+    test(
+      'a read started while the re-read after a decision is out wins',
+      () async {
+        final reread = Completer<http.Response>();
+        var decided = false;
+        var held = false;
+        final p = AdminSalonValidationDetailProvider(
+          service: svc(
+            MockClient((req) {
+              if (req.method == 'POST') {
+                decided = true;
+                return Future.value(
+                  json({
+                    'salonStatus': 'active',
+                    'validation': validationJson(
+                      state: 'approved',
+                      wentLive: true,
+                    ),
+                  }),
+                );
+              }
+              if (decided && !held) {
+                held = true;
+                return reread.future;
+              }
+              return Future.value(
+                json(detailJson(name: decided ? 'Après' : 'Avant')),
+              );
+            }),
+          ),
+        );
+        await p.load(p1);
+        expect(await p.approve(p1), isTrue);
+        await pumpEventQueue(); // the re-read is out, held
+        expect(held, isTrue);
+        await p.load(p1); // « Rafraîchir »
+        expect(p.detail!.salon.name, 'Après');
+        reread.complete(json(detailJson(name: 'Périmé')));
+        await pumpEventQueue();
+        expect(p.detail!.salon.name, 'Après', reason: 'the late re-read');
+      },
+    );
   });
 
   group('AdminSalonValidationCountProvider — the sidebar\'s count', () {

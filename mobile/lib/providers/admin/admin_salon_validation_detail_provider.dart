@@ -54,13 +54,20 @@ class AdminSalonValidationDetailProvider extends ChangeNotifier {
   bool get unavailable => _unavailable;
   SalonValidationDetail? get detail => _detail;
 
-  /// The salon whose decision is out, or null. One at a time: a second
-  /// decision — on this request or another — waits for the first answer.
+  /// The salon whose decision is out, or null, and the answer it waits for.
+  /// One at a time: a decision asked for while another request's is still
+  /// out waits for that answer, then is sent — never dropped, never sent
+  /// beside it.
   SalonId? _actingOn;
+  Future<void>? _settled;
 
-  /// A decision on THIS request is out (the bar's buttons wait). A decision
-  /// still out for a request the admin left does not busy this one's bar.
-  bool get acting => _actingOn != null && _actingOn == _id;
+  /// The salon whose decision waits for [_actingOn]'s answer.
+  SalonId? _waitingOn;
+
+  /// A decision on THIS request is out, or waiting its turn (the bar's
+  /// buttons wait). A decision still out for a request the admin left does
+  /// not busy this one's bar until this one asks for its own.
+  bool get acting => _id != null && (_actingOn == _id || _waitingOn == _id);
 
   /// The last decision's failure, worded — shown in the sticky bar (a 409),
   /// or on the dialog's field ([actionCode] `note_required`/`note_too_long`).
@@ -138,35 +145,25 @@ class AdminSalonValidationDetailProvider extends ChangeNotifier {
   /// « Valider la mise en ligne », or « Validation à terminer »: sends the
   /// state this detail READ as `from` (§3.2). False without a request when
   /// there is nothing to validate here ([SalonValidationDetail.canApprove]),
-  /// when [id] is not this detail's, or while a decision is out.
-  Future<bool> approve(SalonId id) async {
-    final d = _detail;
-    final from = d?.approveFrom;
-    if (_actingOn != null ||
-        id != _id ||
-        d == null ||
-        from == null ||
-        !d.canApprove) {
-      return false;
-    }
-    return _decide(
-      id,
-      _service.approveSalonValidation(id, from: from),
-      (approval) => (approval.validation, approval.salonStatus),
-    );
-  }
+  /// or when [id] is not this detail's.
+  Future<bool> approve(SalonId id) => _decide(
+    id,
+    ready: (d) => d.canApprove,
+    send: (d) => _service.approveSalonValidation(id, from: d.approveFrom!),
+    outcome: (approval) => (approval.validation, approval.salonStatus),
+  );
 
   /// « Refuser » with a code from §4.3's list and, for `other`, a note
   /// (≤ 500 code points, counted as the server counts them). An input the
   /// server would refuse is refused here first, on the field, with the
-  /// server's own code and sentence — the server still checks it again.
+  /// server's own code and sentence — the server still checks it again. A
+  /// request that is no longer pending as read (decided meanwhile) answers
+  /// `validation_not_pending`, the server's own code: the dialog closes as
+  /// a conflict, and the bar says why.
   Future<bool> refuse(SalonId id, {required String code, String? note}) async {
-    final d = _detail;
-    if (_actingOn != null || id != _id || d == null || !d.canRefuse) {
-      return false;
-    }
     final invalid = refusalInputError(code: code, note: note ?? '');
     if (invalid != null) {
+      if (id != _id) return false;
       _actionCode = invalid;
       _actionError = AdminService.sentenceFor(invalid);
       _actionMissing = const [];
@@ -175,21 +172,50 @@ class AdminSalonValidationDetailProvider extends ChangeNotifier {
     }
     return _decide(
       id,
-      _service.refuseSalonValidation(id, code: code, note: note),
-      (validation) => (validation, null),
+      ready: (d) => d.canRefuse,
+      notReady: 'validation_not_pending',
+      send: (_) => _service.refuseSalonValidation(id, code: code, note: note),
+      outcome: (validation) => (validation, null),
     );
   }
 
+  /// One decision on [id]. Waits first for another request's decision still
+  /// out; then sends [send] when this detail is [id]'s and [ready] — both read
+  /// AFTER the wait, since the admin may have left, or the detail moved on.
+  /// Not ready: false, with [notReady]'s sentence in the bar when given.
   Future<bool> _decide<T extends Object>(
-    SalonId id,
-    Future<AdminResponse<T>> call,
-    (SalonValidation?, String?) Function(T data) outcome,
-  ) async {
+    SalonId id, {
+    required bool Function(SalonValidationDetail d) ready,
+    required Future<AdminResponse<T>> Function(SalonValidationDetail d) send,
+    required (SalonValidation?, String?) Function(T data) outcome,
+    String? notReady,
+  }) async {
+    while (_settled != null) {
+      // Not this screen's request, or its own decision is already out or
+      // waiting: nothing more to send.
+      if (id != _id || acting) return false;
+      _waitingOn = id;
+      notifyListeners();
+      await _settled;
+      if (_waitingOn == id) _waitingOn = null;
+    }
+    final d = _detail;
+    if (id != _id || d == null || !ready(d)) {
+      if (id == _id && d != null && notReady != null) {
+        _actionCode = notReady;
+        _actionError = AdminService.sentenceFor(notReady);
+        _actionMissing = const [];
+      }
+      notifyListeners();
+      return false;
+    }
+    final settled = Completer<void>();
     _actingOn = id;
+    _settled = settled.future;
     _clearAction();
     notifyListeners();
     try {
-      final res = await call;
+      final res = await send(d);
       final data = res.data;
       if (res.success && data != null) {
         final (validation, salonStatus) = outcome(data);
@@ -214,6 +240,8 @@ class AdminSalonValidationDetailProvider extends ChangeNotifier {
       return false;
     } finally {
       _actingOn = null;
+      _settled = null;
+      settled.complete();
       notifyListeners();
     }
   }
