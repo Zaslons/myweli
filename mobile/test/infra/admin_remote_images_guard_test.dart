@@ -14,9 +14,10 @@ import '../support/dart_source.dart';
 /// cached_network_image, a bare `Image.network` or `NetworkImage`, an
 /// `SvgPicture.network`) reads the bytes through `<img crossorigin>` or
 /// `fetch`, which needs `Access-Control-Allow-Origin` for the console's
-/// origin. R2 sends none: probed 2026-11-12, the private buckets allow a PUT
-/// from `myweli.com` only and the public one a GET from `myweli.com` only
-/// (docs/design/admin-remote-images.md §1). Each such image would show the
+/// origin. R2 sends none: probed 2026-11-12, `admin.myweli.com` is on no
+/// bucket's list (the private buckets allow only a PUT, from `myweli.com` and
+/// `www`; the public one GET and PUT from `myweli.com`;
+/// docs/design/admin-remote-images.md §1). Each such image would show the
 /// « image not available » icon, on the console only, and no test on the VM
 /// can see it.
 ///

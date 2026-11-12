@@ -13,10 +13,10 @@ import '../../../widgets/common/brand_loader.dart';
 /// There, cached_network_image hands the URL to the engine, which loads it
 /// through `<img crossorigin="anonymous">` and then `fetch`. Both need the
 /// storage to answer with `Access-Control-Allow-Origin` for the console's
-/// origin, and R2 never does for `admin.myweli.com`: the private buckets allow
-/// a PUT from `myweli.com` only, the public bucket a GET from `myweli.com`
-/// only (probed 2026-11-12, spec §1). Every document showed the « image not
-/// available » icon.
+/// origin, and R2 never does for `admin.myweli.com`: it is on no bucket's
+/// list (the private buckets allow only a PUT, from `myweli.com` and `www`;
+/// the public one GET and PUT from `myweli.com`; probed 2026-11-12, spec §1).
+/// Every document showed the « image not available » icon.
 ///
 /// [WebHtmlElementStrategy.prefer] has the browser draw a plain `<img>` in a
 /// platform view, and a plain `<img>` needs no CORS. Flutter gives that `<img>`

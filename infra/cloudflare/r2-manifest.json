@@ -47,7 +47,7 @@
     "expireAfterDays": 1
   },
   "cors": {
-    "$comment": "Checked on the public bucket only. The PRIVATE buckets, probed 2026-11-12 (docs/design/admin-remote-images.md §1.1): each carries a PUT-only rule for myweli.com and www, which the web's KYC and deposit uploads need and which this manifest does NOT check; no bucket allows a GET from any origin but the public one's myweli.com, and admin.myweli.com is on no list. Browsers read private objects only as a plain <img> on a signed link, which needs no CORS (the console's AdminRemoteImage, the web's deposit proof), never through fetch or a canvas. The methods are what a presigned-PUT upload from the web app performs; the content-type header is what the presign SIGNS, so a bucket that strips it turns every browser upload into a 403 from storage.",
+    "$comment": "Checked on the public bucket only. The PRIVATE buckets, probed 2026-11-12 (docs/design/admin-remote-images.md §1.1): each carries a PUT-only rule for myweli.com and www, which the web's KYC and deposit uploads need and which this manifest does NOT check; no bucket allows a GET from admin.myweli.com, which is on no list. Browsers read private objects only as a plain <img> or a new-tab navigation on a signed link, neither of which needs CORS (the console's AdminRemoteImage and PDF tile, the web's deposit proof and « Voir ma capture »), never through fetch or a canvas. The methods are what a presigned-PUT upload from the web app performs; the content-type header is what the presign SIGNS, so a bucket that strips it turns every browser upload into a 403 from storage.",
     "requiredMethods": ["GET", "PUT"],
     "requiredHeader": "content-type"
   }
