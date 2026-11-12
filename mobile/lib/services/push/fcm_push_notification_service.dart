@@ -101,6 +101,9 @@ PushPermissionStatus mapAuthorizationStatus(AuthorizationStatus status) {
     case AuthorizationStatus.provisional:
       return PushPermissionStatus.granted;
     case AuthorizationStatus.denied:
+    // Android 13+ after a second « no » (firebase_messaging 16.6+): the OS
+    // will not ask again, so for us it is denied — the settings path only.
+    case AuthorizationStatus.deniedPermanently:
       return PushPermissionStatus.denied;
     case AuthorizationStatus.notDetermined:
       return PushPermissionStatus.notDetermined;
