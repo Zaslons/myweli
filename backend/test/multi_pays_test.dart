@@ -24,6 +24,7 @@ import 'package:myweli_backend/src/provider_earnings_service.dart';
 import 'package:myweli_backend/src/providers_repository.dart';
 import 'package:myweli_backend/src/salon_provisioning_service.dart';
 import 'package:myweli_backend/src/slug.dart';
+import 'package:myweli_backend/src/validation/salon_validation_repository.dart';
 import 'package:test/test.dart';
 
 import '../routes/localities/index.dart' as localities_route;
@@ -391,10 +392,15 @@ void main() {
 
     setUp(() {
       providers = InMemoryProvidersRepository([]);
+      final members = InMemoryMembershipRepository();
       provisioning = SalonProvisioningService(
         providers,
         InMemoryProviderAuthRepository(tokens: tokens, echoDevCode: true),
-        InMemoryMembershipRepository(),
+        members,
+        validations: InMemorySalonValidationRepository(
+          providers: providers,
+          members: members,
+        ),
       );
     });
 
@@ -422,10 +428,12 @@ void main() {
             ..remove('slug'),
         );
         final r = await provisioning.publish(id);
-        expect(r.ok, isTrue);
+        expect(r.ok, isTrue, reason: '${r.error} ${r.data}');
+        // B0.18: the request is recorded; MyWeli's validation takes it live.
+        expect(r.accepted, isTrue);
         final after = await providers.byId(id);
         expect(after!['areaId'], 'cocody'); // self-healed before gating
-        expect(after['status'], 'active');
+        expect(after['status'], 'draft');
       },
     );
   });

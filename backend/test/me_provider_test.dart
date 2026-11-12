@@ -344,6 +344,10 @@ void main() {
       when(
         () => providers.setStatus('p1', 'draft'),
       ).thenAnswer((_) async => {'id': 'p1', 'status': 'draft'});
+      // B0.18: the re-hide after the identity delete — nothing came back.
+      when(
+        () => providers.compareAndSetStatus('p1', from: 'active', to: 'draft'),
+      ).thenAnswer((_) async => null);
       // B6.3: the salon's numbers and address go with its owner.
       when(
         () => providers.updateProfile('p1', any()),
@@ -537,6 +541,10 @@ void main() {
       when(
         () => providers.setStatus('p1', 'draft'),
       ).thenAnswer((_) async => {'id': 'p1', 'status': 'draft'});
+      // B0.18: the re-hide after the identity delete — nothing came back.
+      when(
+        () => providers.compareAndSetStatus('p1', from: 'active', to: 'draft'),
+      ).thenAnswer((_) async => null);
       // B6.3: the salon's numbers and address go with its owner.
       when(
         () => providers.updateProfile('p1', any()),
@@ -580,6 +588,10 @@ void main() {
       when(
         () => providers.setStatus('p1', 'draft'),
       ).thenAnswer((_) async => {'id': 'p1', 'status': 'draft'});
+      // B0.18: the re-hide after the identity delete — nothing came back.
+      when(
+        () => providers.compareAndSetStatus('p1', from: 'active', to: 'draft'),
+      ).thenAnswer((_) async => null);
       // B6.3: the salon's numbers and address go with its owner.
       when(
         () => providers.updateProfile('p1', any()),

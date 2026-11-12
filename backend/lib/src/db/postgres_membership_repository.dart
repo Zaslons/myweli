@@ -48,6 +48,29 @@ class PostgresMembershipRepository implements MembershipRepository {
   }
 
   @override
+  Future<Map<String, Member>> activeOwnersOf(
+    Iterable<String> providerIds,
+  ) async {
+    final ids = providerIds.toSet().toList();
+    if (ids.isEmpty) return const {};
+    // `DISTINCT ON` keeps the earliest invited owner row per salon — the
+    // in-memory twin's `putIfAbsent` after its sort.
+    final r = await _pool.execute(
+      Sql.named(
+        'SELECT DISTINCT ON (provider_id) * FROM provider_members '
+        "WHERE provider_id = ANY(@ids) AND role = 'owner' "
+        "AND status = 'active' AND account_id IS NOT NULL "
+        'ORDER BY provider_id, invited_at',
+      ),
+      parameters: {'ids': ids},
+    );
+    return {
+      for (final row in r)
+        row.toColumnMap()['provider_id'] as String: _fromRow(row.toColumnMap()),
+    };
+  }
+
+  @override
   Future<List<Member>> listForProvider(String providerId) async {
     final r = await _pool.execute(
       Sql.named(

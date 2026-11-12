@@ -9,6 +9,7 @@ import 'access/team_service.dart';
 import 'admin/admin_auth_repository.dart';
 import 'admin/admin_client_version_service.dart';
 import 'admin/admin_kyc_service.dart';
+import 'admin/admin_notifier.dart';
 import 'admin/admin_provider_service.dart';
 import 'admin/admin_user_service.dart';
 import 'admin/analytics_service.dart';
@@ -65,6 +66,7 @@ import 'db/postgres_rate_limiter.dart';
 import 'db/postgres_reminder_log_repository.dart';
 import 'db/postgres_reviews_repository.dart';
 import 'db/postgres_salon_subscription_repository.dart';
+import 'db/postgres_salon_validation_repository.dart';
 import 'db/postgres_send_budget.dart';
 import 'demo/demo_reset_service.dart';
 import 'demo/demo_snapshot_repository.dart';
@@ -117,6 +119,9 @@ import 'subscription/salon_subscription_service.dart';
 import 'subscription/subscription_scheduler.dart';
 import 'upload_signing_service.dart';
 import 'upload_verification_service.dart';
+import 'validation/salon_decision_notifier.dart';
+import 'validation/salon_validation_repository.dart';
+import 'validation/salon_validation_service.dart';
 
 /// Composition root: process-wide singletons built from env
 /// (docs/BACKEND.md §3.5), provided into request context by
@@ -654,6 +659,9 @@ final ProviderCatalogService providerCatalogService = ProviderCatalogService(
   localities: localitiesService,
   verifier: uploadVerificationService,
   publicBaseUrl: _r2PublicBase,
+  // B0.18 Q6: a validated salon's place change e-mails the admin.
+  validations: salonValidationRepository,
+  adminNotifier: adminNotifier,
 );
 
 final UploadSigningService uploadSigningService = UploadSigningService(
@@ -699,6 +707,8 @@ final ProviderAccountService providerAccountService = ProviderAccountService(
   apple: appleTokenService,
   // Erasure unpublishes every owned salon — the prebuilt slug set shrank.
   rebuild: siteRebuildNotifier,
+  // B0.18 §3.4: a pending request leaves the queue; the notes are cleared.
+  validations: salonValidationRepository,
 );
 
 /// The pricing pivot (R2a): salon offers + the daily warning/enforcement
@@ -707,6 +717,18 @@ final ProviderAccountService providerAccountService = ProviderAccountService(
 final SalonSubscriptionRepository salonSubscriptionRepository = _pool == null
     ? InMemorySalonSubscriptionRepository()
     : PostgresSalonSubscriptionRepository(_pool!);
+
+/// B0.18 — a salon goes public only once MyWeli validates it: the validation
+/// record beside `providers.status` (docs/design/salon-go-live-approval.md
+/// §2). The in-memory twin reads the providers and the memberships through
+/// their twins, synchronously, for its single-winner going-live — and seeds
+/// every active salon as validated and live, the dev boot backfill's mirror.
+final SalonValidationRepository salonValidationRepository = _pool == null
+    ? InMemorySalonValidationRepository(
+        providers: providersRepository as InMemoryProvidersRepository,
+        members: membershipRepository as InMemoryMembershipRepository,
+      )
+    : PostgresSalonValidationRepository(_pool!);
 
 final SalonSubscriptionService salonSubscriptionService =
     SalonSubscriptionService(
@@ -717,6 +739,8 @@ final SalonSubscriptionService salonSubscriptionService =
       providerAuthRepository,
       // markPaid can republish a billing-unpublished salon — a set change.
       rebuild: siteRebuildNotifier,
+      // …and only a salon MyWeli validated that went live (B0.18 §3.4).
+      validations: salonValidationRepository,
     );
 
 /// The demo salon's snapshot + weekly reset (T69,
@@ -787,6 +811,8 @@ final SalonDirectoryService salonDirectoryService = SalonDirectoryService(
   providersRepository,
   salonSubscriptionService,
   providerAuthRepository,
+  // B0.18 §3.5: each « Mes salons » entry carries its validation.
+  validations: salonValidationRepository,
 );
 
 final bool subscriptionEnforcement =
@@ -801,6 +827,8 @@ final SubscriptionScheduler subscriptionScheduler = SubscriptionScheduler(
   enforce: subscriptionEnforcement,
   // A billing unpublish removes slugs from the prebuilt set.
   rebuild: siteRebuildNotifier,
+  // R10 (B0.18 §3.6): billing notices only to validated salons that went live.
+  validations: salonValidationRepository,
 );
 
 /// Module `access` R2b: invitations + Equipe mutations (owner-gated,
@@ -827,8 +855,48 @@ final SalonProvisioningService salonProvisioningService =
       // the Noop default and its rebuild call had never fired in production —
       // an optional param whose omission compiles clean and logs nothing.
       // `site_rebuild_wiring_test.dart` now pins all five constructions.
+      // Since B0.18 it fires only for a validated salon's republish.
       rebuild: siteRebuildNotifier,
+      // B0.18 §3.1: publish records the owner's request; MyWeli decides.
+      validations: salonValidationRepository,
+      adminNotifier: adminNotifier,
     );
+
+/// B0.18 §5.1 — the platform owner's inbox: an e-mail to `ADMIN_EMAIL` on
+/// each new request to go live, and on each place change of a validated
+/// salon. Unset → nothing is sent (dev, CI). Read once, here, beside the
+/// admin seed's read of the same variable (`initializeDatabase`).
+final String? _adminEmail = _envOrNull('ADMIN_EMAIL');
+
+final AdminNotifier adminNotifier = AdminNotifier(
+  emailProvider,
+  adminEmail: _adminEmail,
+);
+
+/// B0.18 §5.2 — the salon's notice on each decision: push, feed row and
+/// e-mail, to the owner only.
+final SalonDecisionNotifier salonDecisionNotifier = SalonDecisionNotifier(
+  membershipRepository,
+  providersRepository,
+  pushService,
+  notificationsRepository,
+  email: emailProvider,
+);
+
+/// B0.18 — MyWeli validates each salon before it goes public
+/// (docs/design/salon-go-live-approval.md §3.2–§3.5): the admin's queue,
+/// detail and decisions. Validating takes a salon public — the prebuilt slug
+/// set grows — so it fires the rebuild (`salon.approved`).
+final SalonValidationService salonValidationService = SalonValidationService(
+  salonValidationRepository,
+  providersRepository,
+  salonSubscriptionService,
+  membershipRepository,
+  providerAuthRepository,
+  auditLogRepository,
+  notice: salonDecisionNotifier,
+  rebuild: siteRebuildNotifier,
+);
 
 final DepositService depositService = DepositService(
   appointmentRepository,
@@ -894,6 +962,9 @@ final AdminProviderService adminProviderService = AdminProviderService(
   appointmentRepository,
   auditLogRepository,
   salonSubscriptionService,
+  // B0.18 §3.4: « Lever la suspension » publishes only a validated salon.
+  validations: salonValidationRepository,
+  members: membershipRepository,
   rebuild: siteRebuildNotifier,
 );
 
@@ -935,6 +1006,7 @@ final AnalyticsService analyticsService = AnalyticsService(
   providerAuthRepository,
   disputesRepository,
   reviewsRepository,
+  validations: salonValidationRepository,
 );
 
 final ProviderDashboardService providerDashboardService =
@@ -1365,7 +1437,15 @@ Future<void> initializeDatabase() async {
       // namespaced ids (docs/design/infra-staging.md §2.1), because these rows
       // carry FIXED ids and identical primary keys across environments make
       // every later log line ambiguous about where it came from.
-      if (_env == Env.dev) await seedProvidersIfEmpty(pool, env: _env);
+      if (_env == Env.dev) {
+        await seedProvidersIfEmpty(pool, env: _env);
+        // B0.18 §3.7: the seed's active salons are validated and live. The
+        // seed runs after migration 0044's backfill, so the same statement
+        // runs again here — and only here, where the seed runs: in
+        // production it would validate whatever an older image published
+        // during a rollback (docs/design/salon-go-live-approval.md §9.3).
+        await backfillSalonValidationsForDev(pool, env: _env);
+      }
       // Move services/availability out of the provider JSONB into the
       // normalized catalogue tables (single source of truth). Migration 0005.
       await backfillCatalogueIfNeeded(pool);
@@ -1378,7 +1458,7 @@ Future<void> initializeDatabase() async {
   }
   // Seed the super-admin from env (idempotent), after migrations so the table
   // exists. Runs in both modes; no-op when ADMIN_EMAIL/ADMIN_PASSWORD are unset.
-  final adminEmail = _envOrNull('ADMIN_EMAIL');
+  final adminEmail = _adminEmail;
   final adminPassword = _envOrNull('ADMIN_PASSWORD');
   if (adminEmail != null && adminPassword != null) {
     final seeded = await adminAuthRepository.ensureSeedAdmin(

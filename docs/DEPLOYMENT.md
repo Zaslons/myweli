@@ -730,7 +730,7 @@ production is serving something bad and you do not want to wait for a build:
 gcloud run services update-traffic myweli-api --region europe-west9 --to-revisions <previous-revision>=100
 ```
 
-Five things about that command are worth knowing *before* you need it:
+Six things about that command are worth knowing *before* you need it:
 
 - **It does not move ingress, and since 2026-10-07 that matters.** Ingress is
   a *service*-level annotation in `service.yaml`, not part of a revision, so
@@ -761,6 +761,17 @@ Five things about that command are worth knowing *before* you need it:
   backend/lib/src/db/migrations.dart` is the 2am answer. `0026` is the one
   to watch — it is the most recent of the five and the failure lands on the
   booking path.
+- **It brings back the publish that skips MyWeli's validation (B0.18).** An
+  image older than the validation flips a salon live on the owner's tap, and
+  ignores the validation tables. After rolling FORWARD again, run by hand (Cloud
+  SQL Studio) `kSalonValidationRollForwardList` from
+  `backend/lib/src/db/migrations.dart` — the `active` salons with no
+  validated-and-live row — then `kSalonValidationRollForward`, which puts
+  those with no row or a refusal in « Salons à valider ». Each is then
+  validated or refused in the console (refusing hides it; validating hands
+  it back to `draft`, then takes it live); an `approved` one never live is
+  finished by « Validation à terminer ». Never a boot step: the decisions
+  are the admin's ([salon-go-live-approval.md](design/salon-go-live-approval.md) §9.3).
 - **It rolls secrets back too, which is usually right and occasionally
   blocking.** The old revision starts a new container and re-resolves *its own*
   pinned versions — the ones it was deployed with, not today's. So a rollback
@@ -858,10 +869,19 @@ the HTTP notifier from the silent no-op.
 **One hop is still unexercised, and saying so is the point.** Nothing has proven
 that *Cloud Run reaches Vercel* on a real salon change: production holds zero
 salons, so there is nothing to create, suspend or restore. The first real salon
-exercises it at PUBLISH — success logs
-`site_rebuild sent reason=salon.published status=201`,
+exercises it when **MyWeli validates it** in the admin console (B0.18 —
+[salon-go-live-approval.md](design/salon-go-live-approval.md); the owner's
+« Demander la mise en ligne » is a request and fires nothing) — success logs
+`site_rebuild sent reason=salon.approved status=201`,
 and a blocked egress would log `site_rebuild FAILED` while the salon is still
-published, because the notifier fails open.
+live, because the notifier fails open. A salon validated and once live that
+comes back from `draft` — « Marquer payé », or its owner's « Remettre en
+ligne » — logs `site_rebuild sent reason=salon.republished status=201`.
+`salon.published` is retired: no build since B0.18 emits it, so a log line
+carrying it comes from an older image. Two narrow reasons belong to a
+rollback's aftermath only: `salon.refused` (MyWeli refused a salon an older
+image left live) and `salon.handed_back` (a validation handed such a salon
+back to `draft` and could not finish).
 
 **Confirming that last hop:** suspend a salon in the admin console and a deployment
 starts in Vercel within seconds; the backend logs

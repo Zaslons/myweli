@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:myweli_backend/src/access/membership_repository.dart';
 import 'package:myweli_backend/src/access/membership_service.dart';
 import 'package:myweli_backend/src/admin/admin_provider_service.dart';
@@ -10,6 +12,7 @@ import 'package:myweli_backend/src/auth/tokens.dart';
 import 'package:myweli_backend/src/providers_repository.dart';
 import 'package:myweli_backend/src/subscription/salon_subscription_repository.dart';
 import 'package:myweli_backend/src/subscription/salon_subscription_service.dart';
+import 'package:myweli_backend/src/validation/salon_validation_repository.dart';
 import 'package:test/test.dart';
 
 void main() {
@@ -17,27 +20,44 @@ void main() {
   late InMemoryAppointmentRepository appts;
   late InMemoryAuditLogRepository audit;
   late InMemoryProviderAuthRepository providerAuthStub;
+  late InMemoryMembershipRepository members;
+  late InMemorySalonSubscriptionRepository subs;
   late AdminProviderService svc;
 
   setUp(() {
-    providers = InMemoryProvidersRepository();
+    // A copy of the seed, never the shared mutable `seedProviders`: a
+    // suspension left behind by one test would be a re-suspension in the
+    // next, which keeps no `suspended_from` (B0.18 §3.4).
+    providers = InMemoryProvidersRepository(
+      (jsonDecode(jsonEncode(seedProviders)) as List)
+          .cast<Map<String, dynamic>>(),
+    );
     appts = InMemoryAppointmentRepository();
     audit = InMemoryAuditLogRepository();
     providerAuthStub = InMemoryProviderAuthRepository(
       tokens: TokenService(secret: 'test-secret'),
       echoDevCode: true,
     );
+    members = InMemoryMembershipRepository();
+    subs = InMemorySalonSubscriptionRepository();
     svc = AdminProviderService(
       providers,
       appts,
       audit,
       SalonSubscriptionService(
-        InMemorySalonSubscriptionRepository(),
-        MembershipService(InMemoryMembershipRepository(), providerAuthStub),
-        InMemoryMembershipRepository(),
+        subs,
+        MembershipService(members, providerAuthStub),
+        members,
         providers,
         providerAuthStub,
       ),
+      // The seed's active salons are validated and live (§3.7's in-memory
+      // mirror of the dev backfill).
+      validations: InMemorySalonValidationRepository(
+        providers: providers,
+        members: members,
+      ),
+      members: members,
     );
   });
 
@@ -76,9 +96,25 @@ void main() {
     },
   );
 
-  test('restore lifts the suspension', () async {
+  test('restore lifts the suspension — of a validated, live salon with an '
+      'owner and a live offer (B0.18 §3.4)', () async {
+    // What « back online » now takes: an active owner and a live offer row
+    // beside the seed's validation. Without them restore lifts to draft —
+    // salon_validation_bypasses_test.dart has each reason.
+    await members.ensureOwner(
+      providerId: 'provider1',
+      accountId: 'acc_owner_1',
+      email: 'owner@beaute-divine.ci',
+    );
+    await subs.create(
+      providerId: 'provider1',
+      tier: 'pro',
+      trialEndsAt: DateTime.now().toUtc().add(const Duration(days: 30)),
+    );
     await svc.suspend('admin_1', 'provider1', 'x');
-    await svc.restore('admin_1', 'provider1');
+    final r = await svc.restore('admin_1', 'provider1');
+    expect(r.ok, isTrue, reason: '${r.error}');
+    expect(r.data, {'status': 'active', 'reason': null});
     expect(
       (await providers.query()).map((p) => p['id']),
       contains('provider1'),

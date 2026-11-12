@@ -12,7 +12,7 @@
 |---|---|
 | **Status** | **Draft** — needs sign-off before any code |
 | **Owner** | Sadreddine |
-| **Last updated** | 2026-10-05 — the companion path changes Phase 2 and adds Phase 2b (note below) · 2026-08-04 |
+| **Last updated** | 2026-11-12 — B0.18: a publish is a request, MyWeli validates (note below) · 2026-10-05 — the companion path changes Phase 2 and adds Phase 2b · 2026-08-04 |
 | **PRD ref / phase** | Cross-cutting launch readiness (§1.8 🟣 Quality) · V1 |
 | **ROADMAP entry** | `docs/ROADMAP.md:191` (the false sentence) · `:373` (the boot-smoke bullet) · `:425` (the backend test-pyramid row) |
 | **Skills checked** | myweli-dev-guardrails · myweli-backend-guardrails |
@@ -40,6 +40,44 @@
 >
 > The harness has **54** `test()` cases; `main` had 47. The observed-red
 > ledger (§4.5) is the 2026-08 run, kept as it was, with a dated note.
+
+> **2026-11-12 — B0.18: a salon goes public only once MyWeli validates it**
+> ([salon-go-live-approval.md](salon-go-live-approval.md) §3, §8.1). A
+> complete salon's publish now records a **request** (202) and the salon stays
+> a hidden `draft`; the admin's `POST /admin/salons/{id}/validation/approve`
+> takes it live, and starts its trial when no offer choice started it first.
+> The smoke follows, and the step tables below are updated in place:
+> - **A41** (the admin login) **moves from Phase 7 to Phase 2, before A18**:
+>   everything a live salon unlocks rests on the validation. Phase 7 reuses
+>   the same session.
+> - **A17** stays: the web path's offer choice before validation still starts
+>   the clock (decision 126, « As today »).
+> - **A18** is rewritten: the publish answers **202** `{validation: pending}`.
+>   **A18a** (new): still a `draft` on `/me/provider`, with the validation
+>   beside the salon and never inside it, and the same 404 as A8. **A18b**
+>   (new): a second tap is the same request (same `submittedAt`). **A18c**
+>   (new): the CI-seeded admin validates (`from: pending`) → `active`,
+>   `wentLive`. **A18d** (new): the same validation replayed → 409
+>   `validation_not_pending`.
+> - **A19** checks the **validation** kept A17's tier and clock.
+> - **Phase 2b** gains the refuse → resubmit path, on its salon: **A21c**
+>   (rewritten) is a request → 202 that mints **no** trial; **A21r1** the admin
+>   refuses (`photos`, a note); **A21r2** the owner reads the code and the note
+>   on `/me/provider`, the salon answers A8's 404, and still no trial;
+>   **A21r3** the owner asks again → 202 `pending` with no stale refusal, and
+>   the admin detail's history reads `submitted, refused, submitted`; **A21v**
+>   the admin validates → live. **A21d** (rewritten) reads the trial started
+>   at the **validation**: `trial` / `pro` / 88–90 days.
+> - **A47b, A47c** (new, Phase 7): « Lever la suspension » cannot publish the
+>   bystander's never-validated draft — a direct restore → 409
+>   `not_suspended`; suspend → restore → 200 `draft` with the reason
+>   `not_validated`; it stays 404 to the public either way.
+> - **A48**'s floor becomes the measured count (198 on dev, 196 elsewhere),
+>   not 60.
+>
+> The harness has **64** `test()` cases. Its reds for this change were
+> watched against a **local in-memory** server (§4.5, the B0.18 note); the
+> Postgres + AOT run is CI's.
 
 ---
 
@@ -78,7 +116,10 @@ before any of it is switched on. That is exactly the surface Q1 covers.
 - The **anonymous** platform reads (health, discovery, localities).
 - The **pro** half: register → the go-live gate refuses → complete the salon →
   offer → publish. *(2026-10-05: and a second salon that publishes with no
-  offer, its trial started by the server — Phase 2b.)*
+  offer, its trial started by the server — Phase 2b.)* *(2026-11-12, B0.18:
+  the publish is a request (202); MyWeli's validation, by the CI-seeded
+  admin, takes each salon live — and the second salon is refused once, reads
+  the reason, and asks again before it is validated.)*
 - The **consumer** half: availability → book → the slot is consumed → double-book
   refused.
 - The **salon's** answer: list → accept → the state machine holds.
@@ -110,7 +151,9 @@ schema conformance.
 questions 2, 5 and 6, and all three were taken): suspension + the admin console's
 login, AOT parity, and the full ROADMAP hygiene pass. The admin console's own
 surfaces remain out of scope — only `login` and `suspend` are touched, and only
-as instruments.
+as instruments. *(2026-11-12, B0.18: also the validation's `approve`, `refuse`
+and detail, and `restore` — each as an instrument of the salon's own story,
+never the console's screens.)*
 
 ### 1.5 Architecture — no product surface, and the seam question answered
 
@@ -266,8 +309,13 @@ smoke registers (§6). All emails/phones carry a per-run nonce.
 | A15 | `PUT /providers/{SALON}/gallery` `{imageUrls: [3 urls]}` | 200 | `imageUrls.length == 3` | Photos cannot be attached; the publish gate is unsatisfiable and the listing is blank. |
 | A16 | `PUT /providers/{SALON}/availability` `{weeklySchedule "0".."6" 09:00–18:00, bufferMinutes 0, blockedDates []}` | 200 | re-`GET` returns 7 open days and `bookingHorizonDays`/`minimumNoticeMinutes` at their defaults (365/60) | Hours do not persist, or the allow-list at `provider_catalog_service.dart:279-291` silently drops a key and answers 200 anyway — the failure mode that file's own comment warns about. |
 | A17 *(rewritten 2026-10-05 — the web path)* | `PUT /providers/{SALON}/subscription` `{tier:"business"}` | 200 | `status == "trial"`; `tier == "business"`; a `trialEndsAt` in the future, kept for A19 | The web choice no longer starts the one trial. `business`, not the default `pro`, so a publish that overwrote the row would show in A19. *(Was: a publish → 409 `missing == ["offer"]` exactly.)* |
-| A18 *(2026-10-05)* | `POST /providers/{SALON}/publish` | **200** | `status == "active"` | Nobody can ever go live. The single most expensive possible bug in the pro funnel. *(Was A19.)* |
-| A19 *(2026-10-05)* | `GET /providers/{SALON}/subscription` | 200 | `tier == "business"`; `trialEndsAt` == A17's | The publish replaced a web choice with its default tier, or restarted the clock: one trial per salon is broken, and a racing publish can overwrite what the owner chose. The concurrent half is proven in process and on Postgres (`postgres_repositories_test.dart`). |
+| A41 *(moved here 2026-11-12, B0.18; was Phase 7)* | `POST /admin/auth/login` `{email: $ADMIN_EMAIL, password: $ADMIN_PASSWORD}` | 200 | an admin token, kept for A18c–A18d, Phase 2b and Phase 7 | The staff door is shut — and since B0.18 **no salon can ever go public**, since only MyWeli's validation takes one live. |
+| A18 *(rewritten 2026-11-12, B0.18)* | `POST /providers/{SALON}/publish` | **202** | `validation.state == "pending"`; `wentLive == false`; a parseable `submittedAt`, kept for A18b | A request is answered 200, which every client reads as « en ligne » — a waiting salon told it is online. *(Was: 200 + `status == "active"`.)* |
+| A18a *(2026-11-12)* | `GET /me/provider` (pro bearer), then `GET /providers/{SALON}` (anonymous) | 200, then **404** | `provider.status == "draft"`; top-level `validation.state == "pending"`; `provider` carries **no** `validation` key; then exactly `{"error":"not_found"}` | A request opened a public door (a pending salon is a draft, T50/T51), or the validation leaked into the public salon document (§2.2). |
+| A18b *(2026-11-12)* | `POST /providers/{SALON}/publish` again | **202** | `validation.submittedAt` == A18's | A double tap records a second request — and sends the admin a second e-mail. |
+| A18c *(2026-11-12)* | `POST /admin/salons/{SALON}/validation/approve` `{from: "pending"}` (admin bearer) | **200** | `salonStatus == "active"`; `validation.state == "approved"`; `wentLive == true` | Nobody can ever go live. The single most expensive possible bug in the pro funnel, now on the admin's side of it. |
+| A18d *(2026-11-12)* | the same approve again | **409** | `error == "validation_not_pending"` | A decision can be replayed or doubled: two audit rows, two notices, two rebuilds (T82). |
+| A19 *(2026-10-05; the validation since 2026-11-12)* | `GET /providers/{SALON}/subscription` | 200 | `tier == "business"`; `trialEndsAt` == A17's | The validation replaced a web choice with its default tier, or restarted the clock: one trial per salon is broken (T54, decision 126). The concurrent half is proven in process and on Postgres (`postgres_repositories_test.dart`). |
 | A20 | `GET /providers/{SALON}` (anonymous) | **200** | `id == SALON`; `name` matches; `reviews` is an array | Paired with A8: publication does not actually open the public door. **A8 and A20 falsify each other** — a server that 404s everything passes A8 and fails A20; one that 200s everything does the reverse. |
 | A21 | `GET /providers?q=<unique salon name>` | 200 | `items` contains `SALON` | The salon is readable by direct link but invisible in discovery — i.e. the list filter and the detail gate disagree (they are two different spellings of the same rule: `postgres_providers_repository.dart:35` vs `salon_visibility.dart:42-43`). |
 
@@ -277,13 +325,19 @@ The Pro app never offers a plan choice (App Store 3.1.3(f),
 [pro-companion-path.md](pro-companion-path.md)), so a salon built entirely in
 the app must still go live, with the server starting its trial at the
 publish. It runs on a salon of its own, so Phase 2's web path stays intact.
+*(2026-11-12, B0.18: the trial starts at MyWeli's validation, and this salon
+also carries the refuse → resubmit path before it is validated.)*
 
 | # | Request | Status | Body invariant | A failure in production means |
 |---|---|---|---|---|
 | A21a | register a second salon; `PATCH` profile + location, 3 services, 3 photos, one open day | 201 / 200 each | — (arrange) | The fixture is broken, not the product. Every later 2b case would then fail for the wrong reason. |
 | A21b | `GET /providers/{SALON2}/subscription` | **404** | `error == "not_found"` | A salon got an offer row it never asked for, before going live. |
-| A21c | `POST /providers/{SALON2}/publish` (no choice ever made) | **200** | `status == "active"` | **An iPhone-only salon can never go live**, and the app may not tell it where to go. This is the defect the companion path exists to prevent. |
-| A21d | `GET /providers/{SALON2}/subscription` | 200 | `status == "trial"`; `tier == "pro"`; `trialEndsAt` − now in **88–90** whole days (a window: the harness and the server do not share a clock) | The salon is live with no offer row: free forever, invisible to the notices and to enforcement. |
+| A21c *(rewritten 2026-11-12)* | `POST /providers/{SALON2}/publish` (no choice ever made), then `GET /providers/{SALON2}/subscription` | **202**, then **404** | `validation.state == "pending"`; then `error == "not_found"` | A request minted the trial (the rule before B0.18): the clock would run while the salon waits, or for a salon MyWeli refuses. *(Was: 200 + `status == "active"`.)* |
+| A21r1 *(2026-11-12)* | `POST /admin/salons/{SALON2}/validation/refuse` `{code: "photos", note}` (admin bearer) | 200 | `validation.state == "refused"`; `refusal.code == "photos"`; `refusal.final == false` | MyWeli cannot refuse, or a fixable refusal is recorded as final. |
+| A21r2 *(2026-11-12)* | `GET /me/provider` (SALON2's bearer); `GET /providers/{SALON2}` (anonymous); `GET /providers/{SALON2}/subscription` | 200, **404**, **404** | `provider.status == "draft"`; `validation.refusal.code == "photos"` and `.note` == the note sent; then `{"error":"not_found"}`; then `not_found` | The owner cannot read why (the note is the instruction to fix), a refused salon is public (T51), or a refusal mints a trial. |
+| A21r3 *(2026-11-12)* | `POST /providers/{SALON2}/publish` again, then `GET /admin/salons/{SALON2}/validation` (admin) | **202**, then 200 | `validation.state == "pending"` with no `refusal` key; the history's kinds are exactly `[submitted, refused, submitted]` | A salon refused for a fixable reason can never ask again (R6), or its new request carries the old refusal, or the history loses a step. |
+| A21v *(2026-11-12)* | `POST /admin/salons/{SALON2}/validation/approve` `{from: "pending"}`, then `GET /providers/{SALON2}` (anonymous) | 200, then **200** | `salonStatus == "active"` | **An iPhone-only salon can never go live**, and the app may not tell it where to go. This is the defect the companion path exists to prevent. |
+| A21d *(rewritten 2026-11-12)* | `GET /providers/{SALON2}/subscription` | 200 | `status == "trial"`; `tier == "pro"`; `trialEndsAt` − now in **88–90** whole days (a window: the harness and the server do not share a clock) | The salon is live with no offer row — free forever, invisible to the notices and to enforcement — or its trial started earlier than its validation. |
 
 ### Phase 3 — the consumer books
 
@@ -333,7 +387,7 @@ publish. It runs on a salon of its own, so Phase 2's web path stays intact.
 | A37 | `POST /appointments/{id}/cancel` (consumer bearer) | 200 | `status == "cancelled"` | Clients cannot cancel; every no-show becomes a manual phone call. |
 | A38 | `GET /availability` (same args as A22) | 200 | `slots` contains `s0` again | A cancelled booking keeps holding the slot (`slot_service.dart:398` skips cancelled) — the salon's day silently fills with ghosts. |
 | A39 | `POST /appointments/{id}/cancel` again | **409** | `error == "invalid_state"` | Terminal states are not terminal. |
-| A40 | harness self-check | — | `stepsCompleted == 39` | See §4.4 — the anti-vacuity guard. |
+| A40 | harness self-check | — | `stepsCompleted == 39` | See §4.4 — the anti-vacuity guard. *(Built as A48; since 2026-11-12 its floor is the measured count: ≥ 198 on dev, ≥ 196 elsewhere.)* |
 
 ### Phase 7 — the salon is suspended (extra, taken)
 
@@ -342,15 +396,17 @@ executes the fourth, and proves the asymmetry Decision A turns on.
 
 | # | Request | Status | Body invariant | A failure in production means |
 |---|---|---|---|---|
-| A41 | `POST /admin/auth/login` `{email: $ADMIN_EMAIL, password: $ADMIN_PASSWORD}` | 200 | an admin token pair | The staff door is shut, so nothing below can run — and no salon can ever be suspended, which is the platform's only lever against a bad actor. |
+| ~~A41~~ | *moved to Phase 2, before A18 (2026-11-12, B0.18): the validation needs the admin first. This phase reuses that session.* | | | The staff door is shut, so nothing below can run — and no salon can ever be suspended, which is the platform's only lever against a bad actor. |
 | A42 | `POST /admin/providers/{SALON}/suspend` `{reason}` (admin bearer) | 200 | the salon's `status == "suspended"` | Suspension is not enforceable: a salon the platform has decided to stop keeps taking money. |
-| A42b *(2026-10-05)* | `POST /admin/providers/{SALON2}/suspend` `{reason}` | 200 | — | Housekeeping with an assertion: A21c left a second live salon, and a deployed target must not collect public smoke salons run after run. |
+| A42b *(2026-10-05)* | `POST /admin/providers/{SALON2}/suspend` `{reason}` | 200 | — | Housekeeping with an assertion: A21v left a second live salon, and a deployed target must not collect public smoke salons run after run. |
 | A43 | `GET /providers/{SALON}` (anonymous) | **404** | body exactly `{"error":"not_found"}` | A suspended salon stays publicly readable — the same T51 oracle A8 guards, reached from the other direction (draft never-published vs live-then-stopped). |
 | A44 | `POST /appointments` `{providerId: SALON, …}` (consumer bearer) | **409** | `error == "provider_suspended"` — **not** `provider_not_published` | The client is told the salon "has not published yet" about a salon that traded yesterday. Row 82 exists because one code carried both states and every client said the wrong thing. |
 | A45 | `POST /appointments` with `providerId` = the **bystander's draft** salon | **409** | `error == "provider_not_published"` | Paired with A44: a server that answers one code for everything passes one of these and fails the other. This is what makes A44 non-degenerate. |
 | A46 | `POST /appointments/manual` (pro bearer of the **suspended** salon) | **409** | `error == "provider_suspended"` | **Decision A, half one.** A suspended salon must not write its own calendar either — suspension that only stops clients is not suspension. |
-| A46b *(2026-10-05)* | `POST /providers/{SALON}/publish` (pro bearer of the **suspended** salon), then `GET /providers/{SALON}` (anonymous) | **403**, then **404** | `error == "provider_suspended"`; then exactly `{"error":"not_found"}` | The owner undoes an admin suspension in one call. Only the audited admin restore may lift it (T17). Since the companion path, that call would also mint a trial. |
+| A46b *(2026-10-05)* | `POST /providers/{SALON}/publish` (pro bearer of the **suspended** salon), then `GET /providers/{SALON}` (anonymous) | **403**, then **404** | `error == "provider_suspended"`; then exactly `{"error":"not_found"}` | The owner undoes an admin suspension in one call. Only the audited admin restore may lift it (T17). *(Since B0.18 the publish is a request, and a suspended salon cannot even ask: nothing is recorded.)* |
 | A47 | `POST /appointments/manual` (pro bearer of the **bystander's draft** salon) | **2xx** | the booking is created | **Decision A, half two, and the one that makes A46 mean something.** A salon that has not published yet *owns its calendar*. If this reddens, someone folded the two states together and quietly took the calendar away from every salon still onboarding. |
+| A47b *(2026-11-12, B0.18)* | `POST /admin/providers/{BYSTANDER}/restore` (admin bearer; the salon is a never-validated draft), then `GET /providers/{BYSTANDER}` | **409**, then **404** | `error == "not_suspended"`; then `{"error":"not_found"}` | « Lever la suspension » publishes a salon MyWeli never validated with one direct POST — it used to set `active` unconditionally (T17, T82). |
+| A47c *(2026-11-12, B0.18)* | `POST /admin/providers/{BYSTANDER}/suspend`, then `…/restore`, then `GET /providers/{BYSTANDER}` | 200, **200**, **404** | the restore answers `status == "draft"`, `reason == "not_validated"` | The same bypass by suspend → restore: the lift must go back to `draft` for a salon that was never validated and live, and say why. |
 
 > A46 + A47 are the executable form of `salon_visibility.dart:74-78`'s comment —
 > « `bookManual` deliberately does NOT call this » — which is today asserted only
@@ -363,6 +419,10 @@ the companion path: the build added A2b, A7b and A48 (the self-check, in
 place of A40) and merged A5–A7 into one case. The companion path adds A12b,
 A21a–A21d, A42b and A46b. There are 6 identities: a second pro, the
 companion salon of Phase 2b.*
+*2026-11-12 (B0.18): **64** `test()` cases — A18a–A18d, A21r1–A21r3, A21v,
+A47b and A47c are new, and A41 moved before A18. Still 6 identities: the
+admin's session is now opened in Phase 2 instead of Phase 7. A green run
+counts 198 assertions on dev, 196 elsewhere.*
 
 ---
 
@@ -431,7 +491,11 @@ Two belts:
 
 1. **A40**: the harness counts completed steps and asserts the total. A harness
    that early-returns, or whose arrange phase silently skipped the funnel, fails
-   here rather than passing with three assertions.
+   here rather than passing with three assertions. *(2026-11-12: built as A48
+   with a floor of 60, far under the real count, so a silently skipped phase
+   could still pass it. The floor is now the measured count, 198 on dev — where
+   A2b's two dev-fixture assertions run — and 196 elsewhere; watched red with
+   A2b skipped on dev: `Expected: … >= <198> Actual: <196>`.)*
 2. **Fail-closed on configuration.** The harness reads `SMOKE_BASE_URL` and
    **throws** when it is absent. It does **not** use the `skip:` pattern of
    `backend/test/db/postgres_repositories_test.dart:23-31`, because
@@ -479,6 +543,42 @@ starts the trial instead. Two consequences:
   funnel, because no funnel salon reaches an expired offer. That half is
   guarded in process: `salon_subscription_test.dart` « an EXPIRED offer →
   incomplete [offer]; never a second trial ».
+
+*2026-11-12 — B0.18, the validation, watched red over real HTTP.* The
+harness was run against a **local server on the in-memory repositories**
+(`ENV=dev`, no `DATABASE_URL`, JIT), not against Postgres and not against the
+AOT binary: this machine has no Postgres server and no `dart_frog` CLI, so a
+throwaway entry point (gitignored `backend/.dart_frog/`) mounted every route
+behind its directory's middlewares, exactly as `dart_frog build` nests them,
+and called `main.dart`'s `run`. A fresh server per mutation; the baseline
+green before and after (64 cases, 198 assertions); each mutation one change to
+a committed file, restored with `git checkout --`, the tree clean after every
+run. **The unchanged harness against the new server** went red where B0.18
+says it should: A18 `Expected: <200> Actual: <202>`, then A20, A21, A21c, A21d
+and the booking phases that need a live salon (21 cases).
+
+| Mutation (production code, one change) | Observed red |
+|---|---|
+| publish route answers 200 for a request | A18, A18b, A21c, A21r3 (`Expected: <202> Actual: <200>`) |
+| a request flips the salon `active` | A18a (`Expected: 'draft' Actual: 'active'`), A18b |
+| a request mints the trial (the rule before B0.18) | A21c, A21r2 (`A21c no trial at the request — expected 404, got 200`) |
+| the service's « already pending » check dropped, **alone** | **nothing — correctly.** The repository's upsert records nothing for a pending row, and the answer follows the re-read: two layers hold it |
+| …and the repository's check dropped too | A18b (`submittedAt` differs: a second request recorded) |
+| approve answers `active` but never goes live | A18c (`wentLive` false), A20 (`expected 200, got 404`), A21, A21v, the booking phases |
+| the validation overwrites the web choice (`createIfAbsent` → `create`) | A19 (`Expected: 'business' Actual: 'pro'`) |
+| `validation_not_pending` mapped to 400 | A18d (`Expected: <409> Actual: <400>`) |
+| every refusal treated as final | A21r3 (`expected 202, got 409`), A21v, A21d |
+| the refusal note left out of the owner's read | A21r2 (`Expected: 'Ajoutez une photo…' Actual: <null>`) |
+| restore lifts every suspension to `active` | A47c (`Expected: 'draft' Actual: 'active'`) |
+| `not_suspended` mapped to 400 | A47b (`Expected: <409> Actual: <400>`) |
+| a request records no `submitted` event | A21r3 (`Actual: ['refused']`) |
+| *(harness)* A2b skipped silently on dev | A48 (`>= <198> Actual: <196>`) |
+
+The decision's own compare-and-set is not in this list: a replayed approve is
+held by the decision's CAS **and** by the going-live's (`went_live_at IS
+NULL`), so a one-layer mutation stays green; each layer is watched red
+in-process (`test/validation/`). **Postgres and the AOT binary are first
+exercised by CI's `backend-boot-smoke` job.**
 
 Separately verified one at a time, before the re-run: `health.dart` → A1;
 the `AUTH_METHODS` gate deleted → A4; `_isProd → true` (the `devCode` withheld)
@@ -655,7 +755,11 @@ reasons, in order of force:
    fresh database: the grandfather migration runs before the seed. So the
    companion path does not refuse it for an offer, and it would **start a
    trial** the day the salon passed the gate. That is one more reason never
-   to publish a seeded salon.)*
+   to publish a seeded salon.)* *(2026-11-12, B0.18: no publish starts a
+   trial any more — the validation does. The seeded salons are `active` and
+   validated by the dev-only boot backfill, so a publish that passed the gate
+   would answer the idempotent 200, and still nothing would be asked of the
+   admin.)*
 3. **Draft is where row 82 lives.** A freshly registered salon is `draft`
    (`providers_repository.dart:700-748`), which hands us A8/A9/A11 for free.
 
@@ -674,8 +778,8 @@ Phase 2b.)*
 | 3 services | `POST …/services` ×3 | Threshold is `< 3` (`salon_provisioning_service.dart:114`) |
 | 3 photos | `PUT …/gallery` | `_allowedImageOrigins` is empty when `R2_PUBLIC_BASE_URL` is unset → any URL is accepted in CI (`provider_catalog_service.dart:336-339`) |
 | Hours | `PUT …/availability`, **all seven days open** | Deliberately unlike the seed (Mon–Sat): opening `"0".."6"` removes the Sunday-closed trap from every date calculation for good |
-| Offer | `PUT …/subscription {tier:"business"}` (A17, the web path) | Starts the salon's one trial on the chosen tier. *2026-10-05: without it, the publish starts the trial itself on the default tier (Phase 2b); `missing:["offer"]` is left for an expired offer only.* *(Was `{tier:"pro"}`; without it, publish returned `missing:["offer"]`.)* |
-| **Not** needed | `ADMIN_EMAIL` / `ADMIN_PASSWORD` | No admin hop in Q1 → suspension is out of scope (§8). Adding them is Open Question 2. |
+| Offer | `PUT …/subscription {tier:"business"}` (A17, the web path) | Starts the salon's one trial on the chosen tier. *2026-10-05: without it, the publish starts the trial itself on the default tier (Phase 2b); `missing:["offer"]` is left for an expired offer only.* *2026-11-12 (B0.18): without it, MyWeli's validation starts it (A21d); with it, the validation keeps it (A19).* *(Was `{tier:"pro"}`; without it, publish returned `missing:["offer"]`.)* |
+| Admin | `ADMIN_EMAIL` / `ADMIN_PASSWORD` → `POST /admin/auth/login` (A41) | ~~**Not** needed — no admin hop in Q1.~~ Needed since Phase 7 was taken (Open Question 2), and **before A18 since B0.18**: only the admin's validation takes a salon live, so without these nothing past Phase 2 can pass. Fake and non-secret in CI (`ci.yml`), and `@myweli.test`, an address the e-mail wrapper never sends to — the new-request e-mail to `ADMIN_EMAIL` goes nowhere. |
 | **Not** needed | KYC | Only `depositRequired: true` needs a verified account (`provider_catalog_service.dart:554-558`); Q1 leaves deposits off. |
 
 ### 6.4 Data hygiene
@@ -764,9 +868,15 @@ Stating this precisely is part of the deliverable, because the ROADMAP rewrite
    `seedProvidersIfEmpty`/`backfillCatalogueIfNeeded` take their *first-boot*
    branches. The risk that actually bites a deploy — a migration meeting a
    populated table — is untested here.
-4. **Not the `suspended` state**, and no admin routes at all (no `ADMIN_EMAIL`).
+4. ~~**Not the `suspended` state**, and no admin routes at all (no `ADMIN_EMAIL`).
    `provider_suspended` stays covered in-process only
-   (`backend/test/appointments/salon_state_refusal_test.dart`).
+   (`backend/test/appointments/salon_state_refusal_test.dart`).~~ *Covered since
+   Phase 7 was taken, and since B0.18 the validation's admin routes (approve,
+   refuse, detail) and restore are driven too. Still not covered here: the
+   validation queue and its count, the « Validation à terminer » finish
+   (`from: approved`), a final refusal (409 `validation_refused_final`), the
+   races, the notices (push, feed, e-mail — never asserted, §7.2) and the
+   place-change e-mail; all are in-process (`backend/test/validation/`).*
 5. **Not deposits, KYC, reviews, favourites, artists, team invitations,
    multi-salon, clients/notes, earnings, dashboard, journal, notifications,
    uploads, cron.**

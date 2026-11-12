@@ -5,6 +5,7 @@ import '../email/subscription_emails.dart';
 import '../providers_repository.dart';
 import '../push/push_service.dart';
 import '../site/site_rebuild_notifier.dart';
+import '../validation/salon_validation_repository.dart';
 import 'salon_subscription_repository.dart';
 import 'salon_subscription_service.dart';
 
@@ -25,8 +26,10 @@ class SubscriptionScheduler {
     this._push, {
     required bool enforce,
     SiteRebuildNotifier? rebuild,
+    SalonValidationRepository? validations,
   }) : _enforce = enforce,
-       _rebuild = rebuild ?? NoopSiteRebuildNotifier();
+       _rebuild = rebuild ?? NoopSiteRebuildNotifier(),
+       _validations = validations;
 
   final SalonSubscriptionRepository _subscriptions;
   final MembershipRepository _memberships;
@@ -36,15 +39,37 @@ class SubscriptionScheduler {
   final bool _enforce;
   final SiteRebuildNotifier _rebuild;
 
+  /// R10 (B0.18 — docs/design/salon-go-live-approval.md §3.6): billing
+  /// notices go only to salons MyWeli validated that went live. A salon
+  /// waiting with a running trial (an offer chosen on the website first)
+  /// would otherwise read « Votre salon reste visible pendant 7 jours » — false
+  /// for a salon never public. It still sees its countdown in « Mon
+  /// abonnement ». Optional so test constructions compile; absent, no notice
+  /// is sent (fail closed) — `salon_validation_wiring_test.dart` pins the
+  /// composition root.
+  final SalonValidationRepository? _validations;
+
   Future<SubscriptionTickResult> tick(DateTime now) async {
     var notices = 0;
     var unpublished = 0;
 
-    for (final row in await _subscriptions.all()) {
+    final rows = await _subscriptions.all();
+    // ONE read for the whole walk, not one per salon.
+    final validated =
+        await _validations?.getMany([for (final r in rows) r.providerId]) ??
+        const <String, SalonValidation>{};
+    bool notifiable(String providerId) {
+      final v = validated[providerId];
+      return v != null && v.state == ValidationStates.approved && v.wentLive;
+    }
+
+    for (final row in rows) {
       final paidCovers = row.paidUntil != null && now.isBefore(row.paidUntil!);
       if (paidCovers) continue;
 
-      final kind = _kindFor(row, now);
+      // Checked BEFORE the notice is marked sent: a waiting salon's notice
+      // is not burnt, so once validated and live it gets the current one.
+      final kind = notifiable(row.providerId) ? _kindFor(row, now) : null;
       if (kind != null &&
           await _subscriptions.markNoticeIfNew(row.providerId, kind)) {
         await _notifyOwner(row.providerId, kind);
@@ -59,10 +84,11 @@ class SubscriptionScheduler {
         if (provider != null && provider['status'] == 'active') {
           await _providers.setStatus(row.providerId, 'draft');
           await _subscriptions.update(row.providerId, unpublishedAt: now);
-          if (await _subscriptions.markNoticeIfNew(
-            row.providerId,
-            SubscriptionNotice.unpublished,
-          )) {
+          if (notifiable(row.providerId) &&
+              await _subscriptions.markNoticeIfNew(
+                row.providerId,
+                SubscriptionNotice.unpublished,
+              )) {
             await _notifyOwner(row.providerId, SubscriptionNotice.unpublished);
             notices++;
           }
@@ -102,7 +128,9 @@ class SubscriptionScheduler {
       : row.trialEndsAt;
 
   /// Email + best-effort push to the salon's OWNER (the membership row
-  /// carries both the account id and the email).
+  /// carries both the account id and the email). The e-mail only to an
+  /// address ([Member.emailOrNull]): a phone-registered owner's row holds a
+  /// phone number there, and gets the push alone.
   Future<void> _notifyOwner(String providerId, String kind) async {
     final members = await _memberships.listForProvider(providerId);
     Member? owner;
@@ -117,12 +145,13 @@ class SubscriptionScheduler {
     final provider = await _providers.byId(providerId);
     final salonName = (provider?['name'] as String?) ?? 'votre salon';
 
-    if (owner.email.isNotEmpty) {
+    final to = owner.emailOrNull;
+    if (to != null) {
       await _email.send(
         // WARM: a notice to a salon about its own subscription. Starving
         // these is the availability attack the split exists to prevent.
         classification: EmailClass.warm,
-        to: owner.email,
+        to: to,
         subject: subscriptionNoticeSubject(kind),
         text: renderSubscriptionNoticeText(kind, salonName),
         html: renderSubscriptionNoticeHtml(kind, salonName),

@@ -76,6 +76,16 @@ void main() {
     when(
       () => providers.byId(any()),
     ).thenAnswer((_) async => {'id': 'p1', 'status': 'active'});
+    // B0.18: after the identity delete the erasure hides again any owned
+    // salon a going-live took public in the window (a compare-and-set from
+    // `active`). Nothing came back by default: null.
+    when(
+      () => providers.compareAndSetStatus(
+        any(),
+        from: any(named: 'from'),
+        to: any(named: 'to'),
+      ),
+    ).thenAnswer((_) async => null);
   });
 
   Future<String> registerWithKyc({required List<String> keys}) async {

@@ -129,6 +129,7 @@ void main() {
 Future<void> _setup(Pool<void> pool) => withSchemaLock(pool, () async {
   await runMigrations(pool);
   await seedProvidersIfEmpty(pool, env: Env.dev);
+  await backfillSalonValidationsForDev(pool, env: Env.dev);
   await backfillCatalogueIfNeeded(pool);
   await seedLocalitiesIfEmpty(pool);
   await backfillSalonMarketIfNeeded(pool);
@@ -147,6 +148,7 @@ Future<Map<String, int>> _snapshot(Pool<void> pool) async => {
     'providers',
     'provider_services',
     'provider_working_hours',
+    'salon_validations',
     'countries',
     'cities',
     'areas',

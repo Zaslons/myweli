@@ -1,18 +1,27 @@
 import 'package:mocktail/mocktail.dart';
 import 'package:myweli_backend/src/access/membership_repository.dart';
 import 'package:myweli_backend/src/access/membership_service.dart';
+import 'package:myweli_backend/src/admin/admin_kyc_service.dart'
+    show AdminResult;
+import 'package:myweli_backend/src/admin/audit_log_repository.dart';
 import 'package:myweli_backend/src/auth/demo_seam.dart';
 import 'package:myweli_backend/src/auth/provider_auth_repository.dart';
 import 'package:myweli_backend/src/auth/tokens.dart';
 import 'package:myweli_backend/src/email/email_provider.dart';
 import 'package:myweli_backend/src/email/send_budget.dart';
+import 'package:myweli_backend/src/notifications/notifications_repository.dart';
 import 'package:myweli_backend/src/providers_repository.dart';
+import 'package:myweli_backend/src/push/device_token_repository.dart';
+import 'package:myweli_backend/src/push/push_provider.dart';
 import 'package:myweli_backend/src/push/push_service.dart';
 import 'package:myweli_backend/src/salon_provisioning_service.dart';
 import 'package:myweli_backend/src/site/site_rebuild_notifier.dart';
 import 'package:myweli_backend/src/subscription/salon_subscription_repository.dart';
 import 'package:myweli_backend/src/subscription/salon_subscription_service.dart';
 import 'package:myweli_backend/src/subscription/subscription_scheduler.dart';
+import 'package:myweli_backend/src/validation/salon_decision_notifier.dart';
+import 'package:myweli_backend/src/validation/salon_validation_repository.dart';
+import 'package:myweli_backend/src/validation/salon_validation_service.dart';
 import 'package:test/test.dart';
 
 class _MockPush extends Mock implements PushService {}
@@ -51,6 +60,7 @@ void main() {
   late InMemoryProvidersRepository providers;
   late MembershipService memberService;
   late _RecordingNotifier rebuild;
+  late InMemorySalonValidationRepository validations;
   DateTime now = DateTime.utc(2026, 7, 11, 12);
 
   SalonSubscriptionService service() => SalonSubscriptionService(
@@ -61,6 +71,7 @@ void main() {
     auth,
     clock: () => now,
     rebuild: rebuild,
+    validations: validations,
   );
 
   setUp(() {
@@ -70,8 +81,25 @@ void main() {
     providers = InMemoryProvidersRepository();
     memberService = MembershipService(memberships, auth);
     rebuild = _RecordingNotifier();
+    validations = InMemorySalonValidationRepository(
+      providers: providers,
+      members: memberships,
+    );
     now = DateTime.utc(2026, 7, 11, 12);
   });
+
+  /// B0.18: validated by MyWeli and taken live through the validation's own
+  /// single-winner steps (the salon must be a draft with an active owner).
+  Future<void> validatedLive(String id) async {
+    await validations.submit(id, now);
+    await validations.decide(
+      id,
+      from: 'pending',
+      to: 'approved',
+      adminId: 'admin_1',
+    );
+    expect(await validations.goLive(id, at: now), GoLiveOutcome.live);
+  }
 
   Future<String> registerOwner({String providerId = 'p1'}) async {
     final reg = await auth.register(
@@ -201,6 +229,9 @@ void main() {
           },
         },
       });
+      // Validated and live (B0.18 §3.4: « Marquer payé » republishes only
+      // such a salon), then unpublished for non-payment.
+      await validatedLive(realId);
       await providers.setStatus(realId, 'draft');
       await subs.update(realId, unpublishedAt: now);
       await subs.markNoticeIfNew(realId, 'grace');
@@ -241,8 +272,11 @@ void main() {
         email: 'owner@x.pro',
       );
       await service().chooseOffer(owner, id, 'pro');
-      // Billing-unpublished, and INCOMPLETE: the bare createSalon doc fails
-      // the publish gate (no description, no photos, no schedule).
+      // Validated and live once, then billing-unpublished — and INCOMPLETE:
+      // the bare createSalon doc fails the publish gate (no description, no
+      // photos, no schedule). Validated, so the gate is what holds it.
+      await validatedLive(id);
+      await providers.setStatus(id, 'draft');
       await subs.update(id, unpublishedAt: now);
 
       final r = await service().markPaid(id, months: 1);
@@ -345,6 +379,7 @@ void main() {
           push,
           enforce: enforce,
           rebuild: rebuild,
+          validations: validations,
         );
 
     setUp(() {
@@ -373,7 +408,9 @@ void main() {
         accountId: owner,
         email: 'owner@x.pro',
       );
-      await providers.setStatus(id, 'active');
+      // Live through MyWeli's validation (R10: notices only reach validated
+      // salons that went live).
+      await validatedLive(id);
       await service().chooseOffer(owner, id, 'pro');
       return id;
     }
@@ -462,7 +499,7 @@ void main() {
         accountId: owner2,
         email: 'owner2@x.pro',
       );
-      await providers.setStatus(b, 'active');
+      await validatedLive(b);
       await service().chooseOffer(owner2, b, 'pro');
 
       now = now.add(const Duration(days: 100));
@@ -503,10 +540,11 @@ void main() {
     });
   });
 
-  /// The companion path (docs/design/pro-companion-path.md §3.1, §8): the
-  /// Pro app no longer offers a choice, so a salon's ONE trial starts at its
-  /// first successful publish when no offer row exists.
-  group('publish starts the trial (companion path)', () {
+  /// The companion path (docs/design/pro-companion-path.md §3.1, §8), moved
+  /// by B0.18 (docs/design/salon-go-live-approval.md §3.6): a salon's ONE
+  /// trial starts when MyWeli VALIDATES it if no offer row exists — no longer
+  /// at the owner's request (`publish`), which mints nothing.
+  group('the validation starts the trial (B0.18 — was: publish)', () {
     late String owner;
 
     SalonProvisioningService provisioning() => SalonProvisioningService(
@@ -515,7 +553,34 @@ void main() {
       memberships,
       subscriptions: service(),
       rebuild: rebuild,
+      validations: validations,
+      clock: () => now,
     );
+
+    SalonValidationService validation() => SalonValidationService(
+      validations,
+      providers,
+      service(),
+      memberships,
+      auth,
+      InMemoryAuditLogRepository(),
+      notice: SalonDecisionNotifier(
+        memberships,
+        providers,
+        PushService(LogPushProvider(), InMemoryDeviceTokenRepository()),
+        InMemoryNotificationsRepository(),
+        email: _RecordingEmail(),
+      ),
+      rebuild: rebuild,
+      clock: () => now,
+    );
+
+    /// The owner's request, then MyWeli's validation.
+    Future<AdminResult> validate(String id) async {
+      final asked = await provisioning().publish(id);
+      expect(asked.accepted, isTrue, reason: '${asked.error} ${asked.data}');
+      return validation().approve(id, from: 'pending', adminId: 'admin_1');
+    }
 
     const completeProfile = <String, dynamic>{
       'description': 'desc',
@@ -564,36 +629,54 @@ void main() {
       owner = await registerOwner();
     });
 
-    test('no offer row + complete → active, ONE trial on pro for 90 days, '
-        'one rebuild', () async {
-      final id = await ownedSalon(owner);
-      expect(await subs.byProvider(id), isNull, reason: 'setup state');
-
-      final r = await provisioning().publish(id);
-      expect(r.ok, isTrue, reason: '${r.error} ${r.data}');
-      expect((r.data! as Map)['status'], 'active');
-      final row = (await subs.byProvider(id))!;
-      expect(row.tier, 'pro');
-      expect(row.trialEndsAt, now.add(const Duration(days: 90)));
-      final state = (await service().stateFor(id))!;
-      expect(state['status'], 'trial');
-      expect(rebuild.reasons, ['salon.published']);
-    });
-
     test(
-      'a re-publish is idempotent: no second trial, no second rebuild',
+      'the REQUEST mints nothing; the validation, days later, starts ONE '
+      'trial on pro for 90 days FROM THE VALIDATION, and one rebuild',
       () async {
         final id = await ownedSalon(owner);
-        await provisioning().publish(id);
-        final firstEnd = (await subs.byProvider(id))!.trialEndsAt;
+        final asked = await provisioning().publish(id);
+        expect(asked.accepted, isTrue);
+        expect(await subs.byProvider(id), isNull, reason: 'no trial at submit');
+        expect(rebuild.reasons, isEmpty, reason: 'no rebuild on a 202');
 
-        now = now.add(const Duration(days: 10));
-        final again = await provisioning().publish(id);
-        expect(again.ok, isTrue);
-        expect((await subs.byProvider(id))!.trialEndsAt, firstEnd);
-        expect(rebuild.reasons, hasLength(1));
+        now = now.add(const Duration(days: 5)); // the admin decides later
+        final r = await validation().approve(
+          id,
+          from: 'pending',
+          adminId: 'admin_1',
+        );
+        expect(r.ok, isTrue, reason: '${r.error} ${r.data}');
+        expect((await providers.byId(id))!['status'], 'active');
+        final row = (await subs.byProvider(id))!;
+        expect(row.tier, 'pro');
+        expect(row.trialEndsAt, now.add(const Duration(days: 90)));
+        expect((await service().stateFor(id))!['status'], 'trial');
+        expect(rebuild.reasons, ['salon.approved']);
       },
     );
+
+    test('a second validation is refused: no second trial, no second '
+        'rebuild', () async {
+      final id = await ownedSalon(owner);
+      expect((await validate(id)).ok, isTrue);
+      final firstEnd = (await subs.byProvider(id))!.trialEndsAt;
+
+      now = now.add(const Duration(days: 10));
+      final again = await validation().approve(
+        id,
+        from: 'pending',
+        adminId: 'admin_1',
+      );
+      expect(again.error, 'validation_not_pending');
+      final finish = await validation().approve(
+        id,
+        from: 'approved',
+        adminId: 'admin_1',
+      );
+      expect(finish.error, 'validation_not_pending');
+      expect((await subs.byProvider(id))!.trialEndsAt, firstEnd);
+      expect(rebuild.reasons, hasLength(1));
+    });
 
     test('no offer row + INCOMPLETE → incomplete WITHOUT `offer`, and no '
         'trial is minted', () async {
@@ -608,7 +691,7 @@ void main() {
         isNot(contains('offer')),
         reason:
             'the app may not send a setup salon anywhere to choose — the '
-            'trial starts at publish, so `offer` is not a missing step',
+            'trial starts at the validation, so `offer` is not a missing step',
       );
       expect(
         await subs.byProvider(id),
@@ -618,62 +701,94 @@ void main() {
       expect(rebuild.reasons, isEmpty);
     });
 
-    test(
-      'an EXPIRED offer → incomplete [offer]; never a second trial',
-      () async {
-        final id = await ownedSalon(owner);
-        await service().chooseOffer(owner, id, 'business');
-        final before = (await subs.byProvider(id))!;
+    test('a salon that became INCOMPLETE while waiting → the validation '
+        'answers incomplete; no trial, still draft', () async {
+      final id = await ownedSalon(owner);
+      expect((await provisioning().publish(id)).accepted, isTrue);
+      await providers.updateProfile(id, {'imageUrls': <String>[]});
 
-        now = now.add(const Duration(days: 100)); // past trial + grace
-        final r = await provisioning().publish(id);
-        expect(r.ok, isFalse);
-        expect(r.error, 'incomplete');
-        expect((r.data! as Map)['missing'], ['offer']);
-        final after = (await subs.byProvider(id))!;
-        expect(after.tier, 'business');
-        expect(after.trialEndsAt, before.trialEndsAt, reason: 'one trial');
-        expect((await providers.byId(id))!['status'], 'draft');
-        expect(rebuild.reasons, isEmpty);
-      },
-    );
+      final r = await validation().approve(
+        id,
+        from: 'pending',
+        adminId: 'admin_1',
+      );
+      expect(r.error, 'incomplete');
+      expect((r.data! as Map)['missing'], ['photos']);
+      expect(await subs.byProvider(id), isNull);
+      expect((await validations.get(id))!.state, 'pending');
+      expect((await providers.byId(id))!['status'], 'draft');
+    });
 
-    test(
-      'a web choice made FIRST is untouched — its tier and its clock',
-      () async {
-        final id = await ownedSalon(owner);
-        await service().chooseOffer(owner, id, 'business');
-        final chosen = (await subs.byProvider(id))!;
+    test('an EXPIRED offer → incomplete [offer] at the request AND at the '
+        'validation; never a second trial', () async {
+      final id = await ownedSalon(owner);
+      await service().chooseOffer(owner, id, 'business');
+      final before = (await subs.byProvider(id))!;
 
-        now = now.add(const Duration(days: 3));
-        final r = await provisioning().publish(id);
-        expect(r.ok, isTrue);
-        final row = (await subs.byProvider(id))!;
-        expect(row.tier, 'business');
-        expect(row.trialEndsAt, chosen.trialEndsAt);
-      },
-    );
+      now = now.add(const Duration(days: 100)); // past trial + grace
+      final r = await provisioning().publish(id);
+      expect(r.ok, isFalse);
+      expect(r.error, 'incomplete');
+      expect((r.data! as Map)['missing'], ['offer']);
 
-    test("a Réseau owner's SECOND salon starts on reseau", () async {
+      // A request recorded before the offer lapsed: the admin is told too.
+      await validations.submit(id, now);
+      final v = await validation().approve(
+        id,
+        from: 'pending',
+        adminId: 'admin_1',
+      );
+      expect(v.error, 'incomplete');
+      expect((v.data! as Map)['missing'], ['offer']);
+
+      final after = (await subs.byProvider(id))!;
+      expect(after.tier, 'business');
+      expect(after.trialEndsAt, before.trialEndsAt, reason: 'one trial');
+      expect((await providers.byId(id))!['status'], 'draft');
+      expect(rebuild.reasons, isEmpty);
+    });
+
+    test('Q2 « As today »: an offer chosen on the website FIRST starts the '
+        'clock then, and the validation keeps it — tier and clock', () async {
+      final id = await ownedSalon(owner);
+      await service().chooseOffer(owner, id, 'business');
+      final chosen = (await subs.byProvider(id))!;
+
+      now = now.add(const Duration(days: 3));
+      final r = await validate(id);
+      expect(r.ok, isTrue);
+      final row = (await subs.byProvider(id))!;
+      expect(row.tier, 'business');
+      expect(row.trialEndsAt, chosen.trialEndsAt);
+    });
+
+    test("a Réseau owner's SECOND salon starts on reseau — derived at the "
+        'validation', () async {
       final first = await ownedSalon(owner);
       await service().chooseOffer(owner, first, 'reseau');
       final second = await ownedSalon(owner);
 
-      final r = await provisioning().publish(second);
+      final r = await validate(second);
       expect(r.ok, isTrue);
       final row = (await subs.byProvider(second))!;
       expect(row.tier, 'reseau');
       expect(row.trialEndsAt, now.add(const Duration(days: 90)));
     });
 
-    test('the Réseau default needs the OWNER\'s other salon on a LIVE '
-        'Réseau offer — expired → pro', () async {
+    test('the Réseau tier is derived when the admin VALIDATES, not when the '
+        'owner asked: a Réseau offer that lapsed in between → pro', () async {
       final first = await ownedSalon(owner);
       await service().chooseOffer(owner, first, 'reseau');
-      now = now.add(const Duration(days: 100)); // first's offer expired
       final second = await ownedSalon(owner);
+      expect((await provisioning().publish(second)).accepted, isTrue);
 
-      await provisioning().publish(second);
+      now = now.add(const Duration(days: 100)); // first's offer expired
+      final r = await validation().approve(
+        second,
+        from: 'pending',
+        adminId: 'admin_1',
+      );
+      expect(r.ok, isTrue, reason: '${r.error}');
       expect((await subs.byProvider(second))!.tier, 'pro');
     });
 
@@ -682,7 +797,7 @@ void main() {
       await service().chooseOffer(owner, first, 'business');
       final second = await ownedSalon(owner);
 
-      await provisioning().publish(second);
+      await validate(second);
       expect((await subs.byProvider(second))!.tier, 'pro');
     });
 
@@ -702,7 +817,7 @@ void main() {
         await service().chooseOffer(owner2, theirs, 'reseau');
         final mine = await ownedSalon(owner);
 
-        await provisioning().publish(mine);
+        await validate(mine);
         expect((await subs.byProvider(mine))!.tier, 'pro');
       },
     );
@@ -737,7 +852,7 @@ void main() {
       );
       final mine = await ownedSalon(owner);
 
-      await provisioning().publish(mine);
+      await validate(mine);
       expect((await subs.byProvider(mine))!.tier, 'pro');
     });
 
@@ -773,7 +888,7 @@ void main() {
       );
       final second = await ownedSalon(legacy, email: 'legacy@x.pro');
 
-      final r = await provisioning().publish(second);
+      final r = await validate(second);
       expect(r.ok, isTrue);
       expect((await subs.byProvider(second))!.tier, 'reseau');
     });
@@ -788,34 +903,27 @@ void main() {
       await memberships.revoke(ownerRow.id);
       final second = await ownedSalon(owner);
 
-      await provisioning().publish(second);
+      await validate(second);
       expect((await subs.byProvider(second))!.tier, 'pro');
     });
 
-    test(
-      'an ALREADY-ACTIVE salon with no offer row gets its trial at '
-      'publish — and asks for no rebuild (the public set is unchanged)',
-      () async {
-        // A legacy salon live before the pricing pivot: the first successful
-        // publish is the start, whatever the status was (spec §3.1).
-        final id = await ownedSalon(owner);
-        await providers.setStatus(id, 'active');
+    test('an ALREADY-ACTIVE salon asking again: answered live, NO trial '
+        'minted, no rebuild — the request is not where trials start '
+        'any more', () async {
+      final id = await ownedSalon(owner);
+      await providers.setStatus(id, 'active');
 
-        final r = await provisioning().publish(id);
-        expect(r.ok, isTrue);
-        final row = (await subs.byProvider(id))!;
-        expect(row.tier, 'pro');
-        expect(row.trialEndsAt, now.add(const Duration(days: 90)));
-        expect((await providers.byId(id))!['status'], 'active');
-        expect(rebuild.reasons, isEmpty);
-      },
-    );
+      final r = await provisioning().publish(id);
+      expect(r.ok, isTrue);
+      expect(r.accepted, isFalse, reason: 'live: the 200, not the 202');
+      expect(await subs.byProvider(id), isNull);
+      expect((await providers.byId(id))!['status'], 'active');
+      expect(rebuild.reasons, isEmpty);
+    });
 
     test('A SUSPENDED salon with no offer row → provider_suspended: no '
-        'trial, still suspended, no rebuild', () async {
-      // T17: only the audited admin restore lifts a suspension. Publish
-      // flipped every non-active status to `active`, so one owner call undid
-      // it — and since the companion path would also have minted a trial.
+        'trial, no request, still suspended, no rebuild', () async {
+      // T17: only the audited admin restore lifts a suspension.
       final id = await ownedSalon(owner);
       await providers.setStatus(id, 'suspended');
 
@@ -827,6 +935,7 @@ void main() {
         isNull,
         reason: 'a suspended salon writes no billing state',
       );
+      expect(await validations.get(id), isNull, reason: 'nor a request');
       expect((await providers.byId(id))!['status'], 'suspended');
       expect(rebuild.reasons, isEmpty);
     });
@@ -843,24 +952,24 @@ void main() {
       expect(rebuild.reasons, isEmpty);
     });
 
-    test('THE DEMO SALON: its lock answers BEFORE the trial start — no row, '
-        'still draft, no rebuild', () async {
-      // T69 + T54: the publish-time start runs only after the demo lock. A
-      // lock moved below the start would refuse the publish but leave a
-      // trial behind on the public-credential salon.
+    test('THE DEMO SALON: its lock answers BEFORE anything — no request, no '
+        'row, still draft, no rebuild', () async {
+      // T69: the demo salon can never be pending, so the validation never
+      // meets it — which is why the validation needs no lock of its own.
       final id = await ownedSalon('acc-demo', email: kDemoProviderEmail);
       expect(await subs.byProvider(id), isNull);
 
       final r = await provisioning().publish(id);
       expect(r.ok, isFalse);
       expect(r.error, 'demo_account_locked');
+      expect(await validations.get(id), isNull, reason: 'never pending');
       expect(await subs.byProvider(id), isNull, reason: 'no trial minted');
       expect((await providers.byId(id))!['status'], 'draft');
       expect(rebuild.reasons, isEmpty);
     });
 
     test('insert-if-absent under a race: a web choice that lands between '
-        "publish's read and its insert keeps its tier", () async {
+        "the validation's read and its insert keeps its tier", () async {
       final racing = _RacingSubscriptions();
       subs = racing;
       final id = await ownedSalon(owner);
@@ -869,16 +978,16 @@ void main() {
         trialEndsAt: now.add(const Duration(days: 90)),
       );
 
-      final r = await provisioning().publish(id);
-      expect(r.ok, isTrue);
+      final r = await validate(id);
+      expect(r.ok, isTrue, reason: '${r.error}');
       expect((await subs.byProvider(id))!.tier, 'business');
     });
 
     test('…and the row that won is RE-CHECKED: a non-live winner keeps the '
-        'salon draft', () async {
+        'salon draft — validated, « Validation à terminer »', () async {
       // Not reachable through today's writers (a new row is always a fresh
       // trial) — which is exactly why the re-check needs its own test: a
-      // publish that assumed its insert won would go live on a row it
+      // validation that assumed its insert won would go live on a row it
       // never wrote.
       final racing = _RacingSubscriptions();
       subs = racing;
@@ -888,10 +997,13 @@ void main() {
         trialEndsAt: now.subtract(const Duration(days: 30)),
       );
 
-      final r = await provisioning().publish(id);
+      final r = await validate(id);
       expect(r.ok, isFalse);
       expect((r.data! as Map)['missing'], ['offer']);
       expect((await providers.byId(id))!['status'], 'draft');
+      final v = (await validations.get(id))!;
+      expect(v.state, 'approved');
+      expect(v.wentLive, isFalse);
       expect(rebuild.reasons, isEmpty);
     });
   });
@@ -948,8 +1060,8 @@ void main() {
   });
 }
 
-/// Simulates another request (a web choice) inserting the row between
-/// publish's `stateFor` read and its `createIfAbsent` — the window the
+/// Simulates another request (a web choice) inserting the row between the
+/// validation's `stateFor` read and its `createIfAbsent` — the window the
 /// insert-if-absent write exists for.
 class _RacingSubscriptions extends InMemorySalonSubscriptionRepository {
   ({String tier, DateTime trialEndsAt})? racer;

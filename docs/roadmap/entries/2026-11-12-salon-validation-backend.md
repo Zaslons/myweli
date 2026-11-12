@@ -1,0 +1,36 @@
+- 🟡 **Un salon n’est public qu’une fois validé par MyWeli : le backend (backend · 2026-11-12 — BACKLOG B0.18, décisions 120 et 123 à 132).** Non fusionné. Branche `feat/salon-validation-backend`, de `main` (`f36963a9`, la spec fusionnée par #774), selon [salon-go-live-approval.md](../../design/salon-go-live-approval.md), approuvé le 2026-11-12 ; c’est la PR 1 de son §9.1.
+  - **Ce qui change :**
+    - « Mettre mon profil en ligne » ne met plus rien en ligne. `POST /providers/{id}/publish` enregistre une **demande** et répond 202 `{validation}` ; le salon reste un brouillon caché. Un double appui ne fait qu’une demande, et un seul e-mail à l’admin. Après un refus définitif (`outside_ci`, `test_salon`), la réponse est 409 `validation_refused_final`.
+    - L’admin décide : la file `GET /admin/salon-validations` (la plus ancienne demande d’abord, sans les salons suspendus), le détail `GET /admin/salons/{id}/validation`, puis `POST …/validation/approve` `{from}` ou `…/refuse` `{code, note?}`. La décision est un compare-and-set à un seul gagnant ; la mise en ligne en est un second. Seul le gagnant écrit la ligne d’audit (`salon.approve`, ou `salon.refuse` avec le code, jamais la note).
+    - L’essai de 90 jours démarre à la validation, sauf si le salon a choisi une offre sur le site avant : il a démarré à ce choix, et la validation garde son horloge (décision 126, « As today »).
+    - Les autres chemins vers `active` exigent un salon validé et déjà en ligne : « Lever la suspension » (409 `not_suspended` hors suspension, sinon retour en brouillon avec sa raison), « Marquer payé » et la remise en ligne par le propriétaire du salon.
+    - Les avis :
+      - à `ADMIN_EMAIL`, un e-mail à chaque nouvelle demande, et à chaque changement d’emplacement, d’adresse ou de téléphone d’un salon validé ;
+      - au salon, à chaque décision : une notification push, une ligne dans le fil et un e-mail ;
+      - un e-mail ne part qu’à une adresse qui contient « @ ».
+      - Les avis de facturation ne vont plus qu’aux salons validés et déjà en ligne.
+    - La migration 0044, additive : `salon_validations`, `salon_validation_events` et `providers.suspended_from`. Les salons actifs, et ceux dépubliés pour impayé, sont validés d’office.
+    - Les lectures : `validation` voyage à côté du salon sur `/me/provider` et `/me/salons`, jamais dans le document public. Le propriétaire lit tout ; un autre membre lit l’état, les dates et le code du refus, jamais la note de l’admin ni l’état de l’offre. La vue d’ensemble admin gagne `providers.pendingValidation`.
+    - Après un retour en arrière vers une image plus ancienne (§9.3), deux requêtes lancées à la main, jamais au démarrage, listent puis remettent dans la file les salons qu’elle a rendus publics sans validation. Valider l’un d’eux le repasse en brouillon, puis le met en ligne.
+    - Les documents :
+      - le contrat (`openapi.yaml`, et `schema.ts` régénéré) ;
+      - le modèle de menaces : T82 (nouveau), et T17, T50, T51, T54, T55, T68 ;
+      - le smoke du tunnel et sa spec ;
+      - le hook de reconstruction : `salon.approved` et `salon.republished` ; `salon.published` est retiré. Deux raisons étroites ne servent qu’après un retour en arrière (§9.3) : `salon.refused` et `salon.handed_back` ;
+      - DEPLOYMENT, et LAUNCH §6.4, dont la vérification du premier salon gagne l’étape de validation.
+  - **Mesuré :**
+    - La suite backend complète : 2386 tests réussis, 10 ignorés (8 demandent Postgres, 2 des identifiants R2), 0 échec. Le format et l’analyse sont à 0.
+    - Le smoke du tunnel (64 cas) est vert contre un serveur local branché sur les dépôts en mémoire. Il passe par une demande (202), la validation par l’admin, puis un refus, une nouvelle demande et une validation sur le second salon.
+    - Le smoke d’avant ce changement, lancé contre le nouveau serveur, échoue là où il le doit : A18 attend 200 et reçoit 202.
+    - Environ 134 mutations ont été vues rouges : 110 sur les quatre étapes (dont 13 sur le smoke) et 24 sur les corrections de la relecture, chacune avec le test qui échoue et sa sortie. Les gardes tenues par deux couches sont nommées comme telles.
+    - Une relecture sous quatre angles (justesse, sécurité, contrat et tests, conformité à la spec) a relevé 21 constats, 16 distincts. 15 sont corrigés. Pour le dernier, le propriétaire a décidé le 2026-11-12 de plafonner les e-mails de changement d’emplacement (T82) : c’est la PR suivante.
+  - **Non vérifié ici :**
+    - **Ici, sur cette machine, rien n’a tourné sur Postgres.** La CI l’a fait (run 43269625210) : les 62 tests Postgres de la validation (0044) sont verts, dont `handBack`, les deux requêtes de la demande, la reprise du §9.3, P1 et le self-heal ; le smoke du tunnel est vert sur le binaire AOT et Postgres, étapes A18 à A18d, A21c à A21d, A47b et A47c comprises.
+    - Le CLI `dart_frog` n’est pas installé sur cette machine. Les nouvelles routes sont donc générées pour la première fois par la CI.
+    - **La réception du courrier à `ADMIN_EMAIL`** : une vraie demande sera relue en 202, et l’e-mail reçu, au déploiement du backend.
+  - **Ordre de déploiement, chaque étape sur le oui du propriétaire :**
+    1. le site, partie 4a ;
+    2. la console admin, pour qu’une demande ait un écran où être décidée ;
+    3. le backend. Avant lui, relire les comptes du jour : salons publics, brouillons, brouillons avec une offre.
+    - Ensuite seulement, le site 4b, et l’étape 8 du test fermé Android.
+    - Les builds Pro publiés (iOS 0.0.1 et 0.0.2) montrent une erreur générique pour un 202, alors que la demande est bien enregistrée. Cela dure jusqu’au relèvement du plancher iOS (Q8).

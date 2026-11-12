@@ -50,6 +50,17 @@ class Member {
   /// Invitation resend budget (the email-OTP model).
   final int resendsLeft;
 
+  /// [email] when it is an address, else null — the ONE read every sender
+  /// goes through (B0.18, docs/design/salon-go-live-approval.md §5.2).
+  ///
+  /// The owner row's three writers store `account.email ??
+  /// account.phoneNumber`, so a phone-registered owner's [email] holds a
+  /// phone number. The subscription notices, the salon alerts and the
+  /// validation notice all « e-mailed » whatever was there: a send that
+  /// failed at the provider after spending warm budget. An address has an
+  /// « @ »; a phone number never does.
+  String? get emailOrNull => email.contains('@') ? email : null;
+
   bool get isExpiredInvitation =>
       status == 'invited' &&
       expiresAt != null &&
@@ -109,6 +120,13 @@ abstract interface class MembershipRepository {
 
   /// The salon's member rows, owner first (any status; R2 lists pending too).
   Future<List<Member>> listForProvider(String providerId);
+
+  /// The ACTIVE owner row (linked to an account) of each salon in
+  /// [providerIds], in ONE round trip — the admin validation queue's owner
+  /// column (B0.18 §3.5), which would otherwise read one salon at a time.
+  /// A salon with none is absent; with several (never by design), the
+  /// earliest invited wins, [listForProvider]'s order.
+  Future<Map<String, Member>> activeOwnersOf(Iterable<String> providerIds);
 
   /// Idempotently ensure the salon's OWNER row for [accountId]/[email]
   /// (registration + provisioning self-heal + the 0027 backfill's runtime
@@ -193,6 +211,19 @@ class InMemoryMembershipRepository implements MembershipRepository {
   final List<Member> _rows = [];
   int _seq = 0;
 
+  /// Whether the salon has an active owner, read synchronously — for another
+  /// twin's critical section: the salon validation twin's going-live (B0.18,
+  /// docs/design/salon-go-live-approval.md §3.2 step 4) checks it and writes
+  /// with no `await` in between, as its Postgres twin does in one
+  /// transaction.
+  bool hasActiveOwnerNow(String providerId) => _rows.any(
+    (m) =>
+        m.providerId == providerId &&
+        m.role == MemberRoleNames.owner &&
+        m.status == 'active' &&
+        m.accountId != null,
+  );
+
   @override
   Future<Member?> activeMember(String accountId, String providerId) async {
     for (final m in _rows) {
@@ -218,6 +249,26 @@ class InMemoryMembershipRepository implements MembershipRepository {
     for (final m in _rows)
       if (m.accountId == accountId) m,
   ];
+
+  @override
+  Future<Map<String, Member>> activeOwnersOf(
+    Iterable<String> providerIds,
+  ) async {
+    final wanted = providerIds.toSet();
+    final out = <String, Member>{};
+    final owners = [
+      for (final m in _rows)
+        if (wanted.contains(m.providerId) &&
+            m.role == MemberRoleNames.owner &&
+            m.status == 'active' &&
+            m.accountId != null)
+          m,
+    ]..sort((a, b) => a.invitedAt.compareTo(b.invitedAt));
+    for (final m in owners) {
+      out.putIfAbsent(m.providerId, () => m);
+    }
+    return out;
+  }
 
   @override
   Future<List<Member>> listForProvider(String providerId) async {

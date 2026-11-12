@@ -6,13 +6,15 @@ import '../auth/provider_auth_repository.dart';
 import '../providers_repository.dart';
 import '../salon_provisioning_service.dart';
 import '../site/site_rebuild_notifier.dart';
+import '../validation/salon_validation_repository.dart';
 import 'salon_subscription_repository.dart';
 import 'subscription.dart';
 
 /// The pricing pivot's server core (docs/design/team-access-r2a-offers.md):
 /// offers hang on the SALON — Pro/Business/Réseau, ONE 3-month trial per
-/// salon starting at the first offer choice or, when none was made, at the
-/// first successful publish (docs/design/pro-companion-path.md §3.1), then
+/// salon starting at the first offer choice or, when none was made, when
+/// MyWeli validates the salon (B0.18 — docs/design/salon-go-live-approval.md
+/// §3.6; before it, the first successful publish), then
 /// manual billing (« Nous contacter », admin-confirmed), a 7-day grace
 /// window, and unpublish-not-lockout on expiry (threat T54).
 class SalonSubscriptionService {
@@ -24,8 +26,10 @@ class SalonSubscriptionService {
     this._providerAuth, {
     DateTime Function()? clock,
     SiteRebuildNotifier? rebuild,
+    SalonValidationRepository? validations,
   }) : _now = clock ?? (() => DateTime.now().toUtc()),
-       _rebuild = rebuild ?? NoopSiteRebuildNotifier();
+       _rebuild = rebuild ?? NoopSiteRebuildNotifier(),
+       _validations = validations;
 
   final SalonSubscriptionRepository _subscriptions;
   final MembershipService _memberService;
@@ -39,6 +43,12 @@ class SalonSubscriptionService {
   /// is not (the omission compiles clean and logs nothing, which is exactly
   /// how the provisioning service ran with the Noop for a week).
   final SiteRebuildNotifier _rebuild;
+
+  /// B0.18 §3.4: « Marquer payé » republishes only a salon MyWeli validated
+  /// and that went live. Optional so the existing test constructions keep
+  /// compiling; absent, nothing is republished (fail closed) — and
+  /// `salon_validation_wiring_test.dart` fails if `dependencies.dart` omits it.
+  final SalonValidationRepository? _validations;
 
   /// Seats per tier — the ONE place tier entitlements live server-side
   /// (display copy/prices stay client-side + « à confirmer »).
@@ -74,9 +84,12 @@ class SalonSubscriptionService {
 
   /// The companion path (docs/design/pro-companion-path.md §3.1): the Pro
   /// app no longer offers a choice (App Store 3.1.3(f)), so a salon that
-  /// never chose gets its ONE trial at its first successful publish. Called
-  /// only by `SalonProvisioningService.publish`, after the full publish gate
-  /// and the demo lock — minting a trial still takes a complete salon.
+  /// never chose gets its ONE trial when MyWeli validates it (B0.18 §3.6;
+  /// it was the first successful publish). Called only by
+  /// `SalonValidationService.approve`, after its checks (the gate re-run, the
+  /// suspension) and the decision — minting a trial still takes a complete,
+  /// validated salon; the demo salon can never be pending, so never reaches
+  /// it.
   ///
   /// Insert-if-absent: a web choice that landed first keeps its tier and its
   /// clock, and an existing row (even an expired one) is never replaced —
@@ -122,8 +135,9 @@ class SalonSubscriptionService {
   }
 
   /// Owner-only (`subscription.manage`): pick or switch the offer. The FIRST
-  /// choice starts the salon's ONE trial (unless a publish already did —
-  /// then it is a switch); switches keep the clock; once `expired`, choosing
+  /// choice starts the salon's ONE trial (unless a validation already did —
+  /// then it is a switch), validated or not: Q2 « As today », decision 68
+  /// stands (B0.18 §3.6); switches keep the clock; once `expired`, choosing
   /// again does not restart it (409 `trial_used` — payment goes through
   /// « Nous contacter »).
   Future<({bool ok, String? error, Map<String, dynamic>? data})> chooseOffer(
@@ -171,7 +185,8 @@ class SalonSubscriptionService {
   /// Admin-only path (the route/service layer enforces the admin role and
   /// audits): record a manual payment of [months] months. Reopens the
   /// notice cycle and republishes a billing-unpublished salon when the
-  /// publish gate passes.
+  /// publish gate passes — and, since B0.18 (§3.4), only one MyWeli
+  /// validated that went live, never a suspended one.
   Future<({bool ok, String? error, Map<String, dynamic>? data})> markPaid(
     String providerId, {
     required int months,
@@ -192,22 +207,49 @@ class SalonSubscriptionService {
     );
     await _subscriptions.clearNotices(providerId);
 
-    if (updated!.unpublishedAt != null) {
+    if (updated!.unpublishedAt != null &&
+        await _validatedAndWentLive(providerId)) {
       final provider = await _providers.byId(providerId);
       if (provider != null &&
+          provider['status'] == 'draft' &&
           SalonProvisioningService.publishGate(provider).isEmpty) {
-        await _providers.setStatus(providerId, 'active');
-        updated = await _subscriptions.update(
+        // A compare-and-set from `draft`: a suspension that lands meanwhile
+        // holds — the old unconditional write lifted it (B0.18 §3.4).
+        final republished = await _providers.compareAndSetStatus(
           providerId,
-          clearUnpublished: true,
+          from: 'draft',
+          to: 'active',
         );
-        // The slug just re-entered the prebuilt set. Here rather than in the
-        // admin route that happens to be today's only caller, so a future
-        // payments webhook calling markPaid inherits the fire.
-        await _rebuild.requestRebuild('salon.republished');
+        if (republished != null) {
+          updated = await _subscriptions.update(
+            providerId,
+            clearUnpublished: true,
+          );
+          // The slug just re-entered the prebuilt set. Here rather than in
+          // the admin route that happens to be today's only caller, so a
+          // future payments webhook calling markPaid inherits the fire.
+          await _rebuild.requestRebuild('salon.republished');
+        }
       }
     }
     return (ok: true, error: null, data: await _derive(updated!));
+  }
+
+  /// Submit's republish (B0.18 §3.1) clears the billing unpublish as
+  /// [markPaid] does, so the scheduler can unpublish the salon again when its
+  /// offer next lapses. A no-op without a row or without the mark.
+  Future<void> clearUnpublished(String providerId) async {
+    final row = await _subscriptions.byProvider(providerId);
+    if (row?.unpublishedAt == null) return;
+    await _subscriptions.update(providerId, clearUnpublished: true);
+  }
+
+  /// Validated by MyWeli AND taken live at least once (B0.18 §3.4) — the
+  /// condition every republish outside the admin's own going-live checks.
+  /// No repository (a legacy construction) reads as not validated.
+  Future<bool> _validatedAndWentLive(String providerId) async {
+    final v = await _validations?.get(providerId);
+    return v != null && v.state == ValidationStates.approved && v.wentLive;
   }
 
   /// The legacy `/me/subscription` bridge — keeps the app/web/e2e-stub
