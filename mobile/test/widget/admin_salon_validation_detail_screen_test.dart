@@ -637,6 +637,40 @@ void main() {
       );
       expect(find.byType(AppButton), findsWidgets);
     });
+
+    testWidgets('…nor what the server answered inside the dialog', (t) async {
+      final server = serving(detail())
+        ..refuse = jsonResponse({'error': 'internal_error'}, 500);
+      await pumpConsole(t, server, location: path);
+      await t.tap(find.text('Refuser'));
+      await t.pumpAndSettle();
+      await t.tap(find.text('Photos insuffisantes'));
+      await t.tap(find.widgetWithText(TextButton, 'Refuser'));
+      await t.pumpAndSettle();
+      expect(find.text('Une erreur est survenue.'), findsOneWidget);
+      await t.tap(find.text('Annuler'));
+      await t.pumpAndSettle();
+      expect(server.to('$detailPath/refuse'), hasLength(1));
+      expect(find.text('Une erreur est survenue.'), findsNothing);
+    });
+
+    testWidgets('the server’s refusal of the note is the dialog’s, never '
+        'the bar’s behind it', (t) async {
+      const tooLong = 'La note dépasse 500 caractères.';
+      final server = serving(detail())
+        ..refuse = jsonResponse({'error': 'note_too_long'}, 400);
+      await pumpConsole(t, server, location: path);
+      await t.tap(find.text('Refuser'));
+      await t.pumpAndSettle();
+      await t.tap(find.text('Photos insuffisantes'));
+      await t.enterText(find.byType(TextField), 'Une note');
+      await t.tap(find.widgetWithText(TextButton, 'Refuser'));
+      await t.pumpAndSettle();
+      // Once: under the note. The bar behind the barrier says nothing.
+      expect(find.text(tooLong), findsOneWidget);
+      final decorator = t.widget<InputDecorator>(find.byType(InputDecorator));
+      expect(decorator.decoration.errorText, tooLong);
+    });
   });
 }
 

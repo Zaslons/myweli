@@ -118,10 +118,15 @@ class _AdminSalonValidationDetailScreenState
     context.go('/admin/salon-validations');
   }
 
+  /// The refusal dialog is open: what a submit answers is the dialog's to
+  /// say (§14, §15), not the bar's behind the barrier.
+  bool _refusing = false;
+
   Future<void> _refuse() async {
     final p = context.read<AdminSalonValidationDetailProvider>();
     final messenger = ScaffoldMessenger.of(context);
     p.clearActionError();
+    setState(() => _refusing = true);
     final result = await showRefusalDialog(
       context,
       refuse: (code, note) async {
@@ -130,6 +135,7 @@ class _AdminSalonValidationDetailScreenState
       },
     );
     if (!mounted) return;
+    setState(() => _refusing = false);
     switch (result) {
       case RefusalDialogResult.refused:
         AppSnackBar.showOn(
@@ -240,7 +246,9 @@ class _AdminSalonValidationDetailScreenState
         _DecisionBar(
           detail: d,
           acting: p.acting,
-          message: _barMessage(p),
+          // A conflict is said here once the dialog has closed; a cancel
+          // took what the dialog said with it.
+          message: _refusing ? null : p.actionError,
           offerLapsed: p.actionMissing.contains('offer'),
           suspendedAnswer: p.actionCode == 'provider_suspended',
           onApprove: _approve,
@@ -250,14 +258,6 @@ class _AdminSalonValidationDetailScreenState
       ],
     );
   }
-
-  /// The last decision's failure, for the bar — never the note's faults,
-  /// which belong to the refusal dialog's field (§14).
-  static String? _barMessage(AdminSalonValidationDetailProvider p) =>
-      switch (p.actionCode) {
-        'note_required' || 'note_too_long' => null,
-        _ => p.actionError,
-      };
 
   /// The OS text size, as a factor: the stacking width grows with it.
   static double _textScale(BuildContext context) {
