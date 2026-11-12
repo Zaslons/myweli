@@ -506,6 +506,85 @@ void salonValidationContract({
     });
   });
 
+  group(
+    'handBack (§9.3) — only an approved validation that never went live',
+    () {
+      test(
+        'approved, never live, the salon an older image left active: '
+        'handed back to draft — then the going-live takes it public',
+        () async {
+          final w = world();
+          final id = await approvedSalon(w);
+          await w.providers.setStatus(id, 'active'); // the rollback's flip
+          expect(await w.validations.handBack(id), isTrue);
+          expect(await statusOf(w, id), 'draft');
+          expect(await w.validations.goLive(id), GoLiveOutcome.live);
+          expect(await statusOf(w, id), 'active');
+        },
+      );
+
+      test('a validation that already went live: false — a stale « finish » '
+          'never hides a live salon', () async {
+        final w = world();
+        final id = await approvedSalon(w);
+        expect(await w.validations.goLive(id), GoLiveOutcome.live);
+        expect(await w.validations.handBack(id), isFalse);
+        expect(await statusOf(w, id), 'active');
+      });
+
+      test(
+        'a going-live and a hand-back at once: the salon ends public',
+        () async {
+          final w = world();
+          final id = await approvedSalon(w);
+          final results = await Future.wait([
+            w.validations.goLive(id),
+            w.validations.handBack(id),
+          ]);
+          // Either order: the hand-back first finds a draft (false) and the
+          // going-live wins; or the going-live first, and the hand-back finds it
+          // went live (false). Never a live validation with a hidden salon.
+          expect(results.last, isFalse);
+          expect(results.first, GoLiveOutcome.live);
+          expect(await statusOf(w, id), 'active');
+        },
+      );
+
+      test(
+        'pending, refused, never asked: false, the status untouched',
+        () async {
+          final w = world();
+          final pending = await pendingSalon(w);
+          final refused = await pendingSalon(w);
+          await w.validations.decide(
+            refused,
+            from: ValidationStates.pending,
+            to: ValidationStates.refused,
+            adminId: admin,
+            code: 'photos',
+          );
+          final never = await salon(w);
+          for (final id in [pending, refused, never]) {
+            await w.providers.setStatus(id, 'active');
+            expect(await w.validations.handBack(id), isFalse, reason: id);
+            expect(await statusOf(w, id), 'active', reason: id);
+          }
+        },
+      );
+
+      test('approved, never live, already a draft (or suspended): false, '
+          'nothing written', () async {
+        final w = world();
+        final id = await approvedSalon(w);
+        expect(await w.validations.handBack(id), isFalse);
+        expect(await statusOf(w, id), 'draft');
+        await w.providers.setStatus(id, 'suspended');
+        expect(await w.validations.handBack(id), isFalse);
+        expect(await statusOf(w, id), 'suspended');
+      });
+    },
+  );
+
   group('queue and count (§3.5)', () {
     test('pending: oldest request first; a suspended salon is left out of '
         'the queue AND the count, and comes back once lifted', () async {

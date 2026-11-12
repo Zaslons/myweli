@@ -225,6 +225,18 @@ abstract interface class SalonValidationRepository {
   /// and the salon's notice.
   Future<GoLiveOutcome> goLive(String providerId, {DateTime? at});
 
+  /// §9.3: an older image (a rollback) left this salon `active` without the
+  /// validation taking it live. Hands it back to `draft`, so [goLive] — which
+  /// starts from `draft` — can take it public through the validation, and so
+  /// a validation that cannot finish leaves it hidden.
+  ///
+  /// Only while the validation is `approved` and never went live, and that
+  /// is checked under the validation row's lock — the lock [goLive]'s
+  /// single-winner step takes — so the two serialise: a stale « finish »
+  /// (a second click, a second tab) can never hide a salon another call just
+  /// took live. True when the salon was handed back.
+  Future<bool> handBack(String providerId);
+
   /// The admin queue (§3.5), `{ items, total }` for one [state]:
   ///
   /// - `pending`: oldest request first (`submitted_at`), **suspended salons
@@ -425,6 +437,23 @@ class InMemorySalonValidationRepository implements SalonValidationRepository {
       wentLiveAt: (at ?? DateTime.now()).toUtc(),
     );
     return GoLiveOutcome.live;
+  }
+
+  @override
+  Future<bool> handBack(String providerId) async {
+    // One synchronous critical section, as [goLive]'s: the check and the
+    // write cannot be split by another call.
+    final current = _rows[providerId];
+    if (current == null ||
+        current.state != ValidationStates.approved ||
+        current.wentLive) {
+      return false;
+    }
+    return _providers.compareAndSetStatusNow(
+      providerId,
+      from: 'active',
+      to: 'draft',
+    );
   }
 
   /// The queue's definition of a row, shared with [countPending].

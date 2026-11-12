@@ -204,6 +204,33 @@ class PostgresSalonValidationRepository implements SalonValidationRepository {
     });
   }
 
+  @override
+  Future<bool> handBack(String providerId) => _pool.runTx<bool>((tx) async {
+    // The validation row first, FOR UPDATE: the row [goLive]'s first
+    // statement locks. A going-live in flight makes this wait, and the
+    // re-read then sees `went_live_at` set and matches nothing — so a
+    // stale « finish » never hides a salon another call just took live.
+    // Same lock order as [goLive] (validation, then provider): no
+    // deadlock between the two.
+    final v = await tx.execute(
+      Sql.named(
+        'SELECT 1 FROM salon_validations '
+        "WHERE provider_id = @p AND state = 'approved' "
+        'AND went_live_at IS NULL FOR UPDATE',
+      ),
+      parameters: {'p': providerId},
+    );
+    if (v.isEmpty) return false;
+    final p = await tx.execute(
+      Sql.named(
+        "UPDATE providers SET status = 'draft', suspended_from = NULL "
+        "WHERE id = @p AND status = 'active' RETURNING id",
+      ),
+      parameters: {'p': providerId},
+    );
+    return p.isNotEmpty;
+  });
+
   /// Rolls [tx] back — both writes of [goLive] or neither — and answers
   /// [outcome]. An explicit ROLLBACK rather than a thrown exception: `runTx`
   /// then neither commits nor rethrows, and the pool keeps the connection,

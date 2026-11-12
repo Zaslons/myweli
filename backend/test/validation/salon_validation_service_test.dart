@@ -1,5 +1,7 @@
 import 'dart:convert';
 
+import 'package:myweli_backend/src/admin/admin_kyc_service.dart'
+    show AdminResult;
 import 'package:myweli_backend/src/validation/salon_decision_notifier.dart';
 import 'package:myweli_backend/src/validation/salon_validation_copy.dart';
 import 'package:myweli_backend/src/validation/salon_validation_repository.dart';
@@ -15,6 +17,18 @@ class _GoLiveHooks extends InMemorySalonValidationRepository {
 
   bool crashOnce = false;
   Future<void> Function()? before;
+
+  /// Run once, just before the hand-back — « a second finish landed in
+  /// between ».
+  Future<void> Function()? beforeHandBack;
+
+  @override
+  Future<bool> handBack(String providerId) async {
+    final hook = beforeHandBack;
+    beforeHandBack = null;
+    if (hook != null) await hook();
+    return super.handBack(providerId);
+  }
 
   @override
   Future<GoLiveOutcome> goLive(String providerId, {DateTime? at}) async {
@@ -262,6 +276,96 @@ void main() {
       expect(r.error, 'no_owner');
       expect(await w.isPublic(s.id), isFalse);
       expect((await w.validations.get(s.id))!.wentLive, isFalse);
+      // It left the public set, and nothing else will say so: the rebuild a
+      // success fires (`salon.approved`) never comes (T68).
+      expect(w.rebuild.reasons, ['salon.handed_back']);
+    });
+
+    test('« Validation à terminer » on a salon that ALREADY WENT LIVE → 409 '
+        'validation_not_pending, and NO trial minted on the way', () async {
+      // Validated and taken live, then back to `draft` with no offer row (a
+      // salon the 0044 backfill validated, say): the owner's request answers
+      // the billing pointer, never a second clock.
+      final s = await w.salon();
+      await w.validations.submit(s.id, w.now);
+      await w.validations.decide(
+        s.id,
+        from: 'pending',
+        to: 'approved',
+        adminId: 'a',
+      );
+      expect(await w.validations.goLive(s.id), GoLiveOutcome.live);
+      await w.providers.setStatus(s.id, 'draft');
+      expect(await w.subs.byProvider(s.id), isNull);
+
+      // A stale « Validation à terminer » tab, or a direct POST.
+      final r = await w.service.approve(s.id, from: 'approved', adminId: 'a');
+      expect(r.error, 'validation_not_pending');
+      expect(
+        await w.subs.byProvider(s.id),
+        isNull,
+        reason: 'a 409 writes nothing — no 90 days nobody granted',
+      );
+      expect(await w.statusOf(s.id), 'draft');
+      expect(w.rebuild.reasons, isEmpty);
+      expect(w.pushes.sends, isEmpty);
+      // …so the owner's next tap still answers the billing pointer.
+      final ask = await w.provisioning.publish(s.id);
+      expect(ask.error, 'incomplete');
+      expect((ask.data! as Map)['missing'], ['offer']);
+    });
+
+    test('« Validation à terminer » on a salon an older image left ACTIVE '
+        '(decided, then interrupted before the hand-back) → finished: '
+        'validated AND live, one rebuild, one notice', () async {
+      final s = await pending();
+      await w.providers.setStatus(s.id, 'active'); // the rollback's flip
+      // The decision committed, then the process died before the hand-back.
+      await w.validations.decide(
+        s.id,
+        from: 'pending',
+        to: 'approved',
+        adminId: 'a',
+      );
+
+      final r = await w.service.approve(s.id, from: 'approved', adminId: 'a');
+      expect(r.ok, isTrue, reason: '${r.error}');
+      expect(await w.statusOf(s.id), 'active');
+      expect((await w.validations.get(s.id))!.wentLive, isTrue);
+      expect(w.rebuild.reasons, ['salon.approved']);
+      expect(w.pushes.sends, hasLength(1));
+    });
+
+    test('a salon the scheduler unpublished while an older image had it '
+        'live, paid, then validated → live AND its unpublish mark cleared: '
+        'the scheduler can take it down again', () async {
+      final s = await w.salon();
+      // An offer chosen on the website long ago; an older image published
+      // the salon; the scheduler unpublished it for the lapsed offer.
+      await w.subs.createIfAbsent(
+        providerId: s.id,
+        tier: 'pro',
+        trialEndsAt: w.now.subtract(const Duration(days: 30)),
+      );
+      await w.providers.setStatus(s.id, 'active');
+      final t1 = await w.scheduler(enforce: true).tick(w.now);
+      expect(t1.unpublished, 1);
+      expect((await w.subs.byProvider(s.id))!.unpublishedAt, isNotNull);
+      // The admin's path for a lapsed waiting salon: « Marquer payé », then
+      // validate. « Marquer payé » leaves the mark (never validated).
+      await w.subscriptions.markPaid(s.id, months: 1);
+      expect((await w.provisioning.publish(s.id)).accepted, isTrue);
+
+      final r = await w.service.approve(s.id, from: 'pending', adminId: 'a');
+      expect(r.ok, isTrue, reason: '${r.error}');
+      expect(await w.statusOf(s.id), 'active');
+      expect((await w.subs.byProvider(s.id))!.unpublishedAt, isNull);
+
+      // The paid month and its grace long over: unpublished again.
+      w.now = w.now.add(const Duration(days: 120));
+      final t2 = await w.scheduler(enforce: true).tick(w.now);
+      expect(t2.unpublished, 1);
+      expect(await w.statusOf(s.id), 'draft');
     });
 
     test('bad input: an unknown `from` → invalid_input; an unknown salon → '
@@ -385,6 +489,59 @@ void main() {
           hasLength(1),
           reason: 'the decision was audited once, before the crash',
         );
+      });
+
+      test('a salon an older image left ACTIVE: a failure after the '
+          'hand-back → hidden, and the prebuilt set shrinks; finished by '
+          'from: approved', () async {
+        final s = await pending();
+        await w.providers.setStatus(s.id, 'active'); // the rollback's flip
+        hooks.crashOnce = true;
+        await expectLater(
+          w.service.approve(s.id, from: 'pending', adminId: 'a'),
+          throwsA(isA<StateError>()),
+        );
+        expect(await w.isPublic(s.id), isFalse);
+        expect(w.rebuild.reasons, ['salon.handed_back']);
+
+        final done = await w.service.approve(
+          s.id,
+          from: 'approved',
+          adminId: 'a',
+        );
+        expect(done.ok, isTrue, reason: '${done.error}');
+        expect(await w.isPublic(s.id), isTrue);
+        expect(w.rebuild.reasons, ['salon.handed_back', 'salon.approved']);
+      });
+
+      test('two « finish » calls on a salon an older image left ACTIVE, the '
+          'second landing after the first went live → the second never '
+          'hides it', () async {
+        final s = await pending();
+        await w.providers.setStatus(s.id, 'active'); // the rollback's flip
+        await w.validations.decide(
+          s.id,
+          from: 'pending',
+          to: 'approved',
+          adminId: 'a',
+        );
+        // The second click read « active, never live » — then, before its
+        // hand-back, the first click finished the whole validation.
+        AdminResult? first;
+        hooks.beforeHandBack = () async {
+          first = await w.service.approve(s.id, from: 'approved', adminId: 'a');
+        };
+        final second = await w.service.approve(
+          s.id,
+          from: 'approved',
+          adminId: 'a',
+        );
+        expect(first?.ok, isTrue, reason: '${first?.error}');
+        expect(second.error, 'validation_not_pending');
+        expect(await w.statusOf(s.id), 'active');
+        expect(await w.isPublic(s.id), isTrue);
+        expect(w.rebuild.reasons, ['salon.approved']);
+        expect(w.pushes.sends, hasLength(1));
       });
 
       test('suspended between the checks and the going-live → 409 '

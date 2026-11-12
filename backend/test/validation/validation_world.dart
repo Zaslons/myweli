@@ -92,6 +92,26 @@ class RecordingPushProvider implements PushProvider {
   }
 }
 
+/// An older image's publish (a rollback, §9.3) landing between the hand-back
+/// and the going-live: once [armed], the salon leaves `draft` under the
+/// validation's feet just before [goLive] runs.
+class OlderImagePublishRacing extends InMemorySalonValidationRepository {
+  OlderImagePublishRacing({required super.providers, required super.members})
+    : _salons = providers;
+
+  final InMemoryProvidersRepository _salons;
+  bool armed = false;
+
+  @override
+  Future<GoLiveOutcome> goLive(String providerId, {DateTime? at}) async {
+    if (armed) {
+      armed = false;
+      _salons.compareAndSetStatusNow(providerId, from: 'draft', to: 'active');
+    }
+    return super.goLive(providerId, at: at);
+  }
+}
+
 /// A publish-ready profile (the go-live gate's thresholds). `Cocody` matches
 /// a seeded area, so a request self-heals its market facts.
 const Map<String, dynamic> completeProfile = {

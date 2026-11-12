@@ -498,8 +498,8 @@ void main() {
       expect(await w.isPublic(id), isFalse);
     });
 
-    test('409 invalid_state — finishing a validation whose salon is not a '
-        'draft', () async {
+    test('200 — « Validation à terminer » on a salon an older image left '
+        'active: handed back, then taken live by the validation', () async {
       final s = await pending();
       await w.validations.decide(
         s.id,
@@ -509,8 +509,33 @@ void main() {
       );
       await w.providers.setStatus(s.id, 'active');
       final res = await routes.approve(s.id, json: {'from': 'approved'});
+      expect(res.statusCode, HttpStatus.ok);
+      expect((await w.validations.get(s.id))!.wentLive, isTrue);
+      expect(await w.statusOf(s.id), 'active');
+    });
+
+    test('409 invalid_state — the salon left draft between the hand-back '
+        "and the going-live (an older image's publish racing it)", () async {
+      late OlderImagePublishRacing racing;
+      w = ValidationWorld(
+        validationsOf: (providers, members) => racing = OlderImagePublishRacing(
+          providers: providers,
+          members: members,
+        ),
+      );
+      routes = ValidationRoutes(w);
+      final s = await pending();
+      await w.validations.decide(
+        s.id,
+        from: 'pending',
+        to: 'approved',
+        adminId: 'admin_1',
+      );
+      racing.armed = true;
+      final res = await routes.approve(s.id, json: {'from': 'approved'});
       expect(res.statusCode, HttpStatus.conflict);
       expect(await bodyOf(res), {'error': 'invalid_state'});
+      expect((await w.validations.get(s.id))!.wentLive, isFalse);
     });
   });
 

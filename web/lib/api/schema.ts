@@ -5383,7 +5383,7 @@ export interface paths {
         put?: never;
         /**
          * « Valider la mise en ligne » — the salon goes public (B0.18) — audited
-         * @description docs/design/salon-go-live-approval.md §3.2. `from` is the state the admin saw: `pending`; `refused` — correcting a refusal, from « Refusés »; `approved` — « Validation à terminer », finishing a validation interrupted before it went live (it skips the decision). First the checks, each a 409 with nothing written: not suspended, the go-live gate re-run now, no offer row that is no longer live. Then two single-winner compare-and-sets: the decision (a refuse that landed first, or a second click, gets 409 `validation_not_pending`; the winner alone is audited as `salon.approve`), the trial (insert-if-absent — a salon that chose an offer on the website keeps its clock: the 3 months start HERE only without that choice), then the going-live (the salon `active`; only its winner rebuilds the site and tells the owner by push, feed row and e-mail).
+         * @description docs/design/salon-go-live-approval.md §3.2. `from` is the state the admin saw: `pending`; `refused` — correcting a refusal, from « Refusés »; `approved` — « Validation à terminer », finishing a validation interrupted before it went live (it skips the decision; a salon that already went live answers 409 `validation_not_pending` before anything is written). First the checks, each a 409 with nothing written: not suspended, the go-live gate re-run now, no offer row that is no longer live. Then two single-winner compare-and-sets: the decision (a refuse that landed first, or a second click, gets 409 `validation_not_pending`; the winner alone is audited as `salon.approve`), the trial (insert-if-absent — a salon that chose an offer on the website keeps its clock: the 3 months start HERE only without that choice), then the going-live (the salon `active`; only its winner rebuilds the site and tells the owner by push, feed row and e-mail). A salon an older image (a rollback) left `active` is handed back to `draft` first, by the decision's winner or by the finish, so the validation is what takes it live; if a later step fails it stays hidden.
          */
         post: {
             parameters: {
@@ -5428,7 +5428,7 @@ export interface paths {
                 401: components["responses"]["Unauthorized"];
                 403: components["responses"]["Forbidden"];
                 404: components["responses"]["NotFound"];
-                /** @description Nothing is public. `provider_suspended` — lift the suspension first. `incomplete` + `missing` — the salon is no longer complete (the gate's keys), or `offer`: its offer is no longer live (« Marquer payé », then validate). `validation_not_pending` — another decision won, or the salon already went live. `no_owner` — no active owner to take it live. `invalid_state` — finishing a validation whose salon is not a draft. */
+                /** @description Nothing is public. `provider_suspended` — lift the suspension first. `incomplete` + `missing` — the salon is no longer complete (the gate's keys), or `offer`: its offer is no longer live (« Marquer payé », then validate). `validation_not_pending` — another decision won, or the salon already went live. `no_owner` — no active owner to take it live. `invalid_state` — the salon left `draft` between the hand-back and the going-live (an older image's publish racing it). */
                 409: {
                     headers: {
                         [name: string]: unknown;

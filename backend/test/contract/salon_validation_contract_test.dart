@@ -386,6 +386,15 @@ void main() {
         codes.add(body['error']);
       }
 
+      late OlderImagePublishRacing racing;
+      w = ValidationWorld(
+        validationsOf: (providers, members) => racing = OlderImagePublishRacing(
+          providers: providers,
+          members: members,
+        ),
+      );
+      routes = ValidationRoutes(w);
+
       final suspended = await pending();
       await w.providers.setStatus(suspended.id, 'suspended');
       await conflict(suspended.id, 'pending');
@@ -400,6 +409,8 @@ void main() {
       await w.validations.submit(ownerless, w.now);
       await conflict(ownerless, 'pending');
 
+      // The salon leaves `draft` between the hand-back and the going-live
+      // (an older image's publish racing the finish): `invalid_state`.
       final finishing = await pending();
       await w.validations.decide(
         finishing.id,
@@ -407,7 +418,7 @@ void main() {
         to: 'approved',
         adminId: 'admin_1',
       );
-      await w.providers.setStatus(finishing.id, 'active');
+      racing.armed = true;
       await conflict(finishing.id, 'approved');
 
       final expired = await pending();

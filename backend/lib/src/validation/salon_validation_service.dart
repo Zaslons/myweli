@@ -72,8 +72,14 @@ class SalonValidationService {
   /// Errors: `invalid_input` (400); `not_found` (404); 409s —
   /// `provider_suspended`, `incomplete` (+ `missing`, `offer` among them for
   /// an offer row that is no longer live), `validation_not_pending` (another
-  /// decision won, or the salon already went live), `no_owner`,
-  /// `invalid_state` (finishing a validation whose salon is not a draft).
+  /// decision won, or the salon already went live — answered before any
+  /// write, the trial included), `no_owner`, `invalid_state` (the salon left
+  /// `draft` between the hand-back and the going-live: an older image's
+  /// publish racing it).
+  ///
+  /// A salon an older image left `active` is handed back to `draft` first
+  /// ([SalonValidationRepository.handBack]); when a later step then fails,
+  /// the prebuilt set shrinks (`salon.handed_back`, T68).
   Future<AdminResult> approve(
     String providerId, {
     required Object? from,
@@ -101,8 +107,16 @@ class SalonValidationService {
 
     // 2. The decision — skipped when finishing one already taken.
     if (from == ValidationStates.approved) {
+      // « Validation à terminer » finishes a validation interrupted before
+      // it went live (§3.2), and nothing else. A salon that already went
+      // live has nothing to finish, and says so HERE, before step 3: a 409
+      // that minted a trial on its way would hand a salon validated long
+      // ago a 90-day clock nobody granted — and the scheduler's notices
+      // with it.
       final current = await _validations.get(providerId);
-      if (current == null || current.state != ValidationStates.approved) {
+      if (current == null ||
+          current.state != ValidationStates.approved ||
+          current.wentLive) {
         return _fail('validation_not_pending');
       }
     } else {
@@ -124,22 +138,40 @@ class SalonValidationService {
         reason: null,
         metadata: {'from': from},
       ));
-      // §9.3: an older image (a rollback) flipped this salon public without
-      // a validation, and the admin validates it by hand. It must end
-      // validated AND live, but the going-live (step 4) takes a salon from
-      // `draft` — so the decision's winner hands it back as a draft first:
-      // a compare-and-set, overwriting nothing else, and the winner's alone,
-      // so it happens once. If a later step fails, the salon waits as any
-      // validation to finish does — unvalidated salons are not public.
-      if (provider['status'] == 'active') {
-        await _providers.compareAndSetStatus(
-          providerId,
-          from: 'active',
-          to: 'draft',
-        );
-      }
     }
 
+    // §9.3: an older image (a rollback) flipped this salon public without
+    // the validation taking it live, and the admin validates it by hand. It
+    // must end validated AND live, but the going-live (step 4) takes a
+    // salon from `draft` — so it is handed back as a draft first: by the
+    // decision's winner, or by the « finish » of a decision interrupted
+    // before this point (else that finish could never complete: the
+    // going-live would answer « not a draft » forever). [handBack] acts only
+    // while the validation is approved and never went live, serialised with
+    // the going-live, so a stale finish cannot hide a salon another call
+    // just took live.
+    final handedBack =
+        provider['status'] == 'active' &&
+        await _validations.handBack(providerId);
+    if (!handedBack) return _takeLive(providerId);
+    // Handed back, the salon left the public set. If a later step fails it
+    // waits as any validation to finish does — unvalidated salons are not
+    // public — and the prebuilt set must shrink with it (T68): the rebuild
+    // that a success fires (`salon.approved`) will not come.
+    try {
+      final r = await _takeLive(providerId);
+      if (!r.ok) await _rebuild.requestRebuild('salon.handed_back');
+      return r;
+    } catch (_) {
+      await _rebuild.requestRebuild('salon.handed_back');
+      rethrow;
+    }
+  }
+
+  /// §3.2 steps 3–5, for a validation that is `approved` and never went
+  /// live: the trial, the single-winner going-live, then — for its winner
+  /// only — the rebuild and the salon's notice.
+  Future<AdminResult> _takeLive(String providerId) async {
     // 3. The trial (§3.6): insert-if-absent with the tier derived NOW — a
     // salon that chose an offer on the website keeps its row and its clock
     // (T54) — then the liveness re-check on whichever row exists.
@@ -167,6 +199,16 @@ class SalonValidationService {
       case GoLiveOutcome.notDraft:
         return _fail('invalid_state');
     }
+
+    // The going-live is a `draft → public` transition, as the republish and
+    // « Marquer payé » are, and clears the billing unpublish mark as they
+    // do. A salon an older image published, which the scheduler then
+    // unpublished for its lapsed offer, carries that mark; « Marquer payé »
+    // leaves it (the salon was never validated), and kept, it would stop
+    // the scheduler — which unpublishes only an unmarked row — from ever
+    // taking this salon down again, and make a later restore read
+    // « unpaid ».
+    await _subscriptions.clearUnpublished(providerId);
 
     // 5. Only the winner of step 4 gets here: the rebuild, then the notice.
     // The rebuild swallows its own failures; the notice is best effort.
