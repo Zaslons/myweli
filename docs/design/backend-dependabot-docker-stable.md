@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | Built; PR #767 (`fix/dependabot-docker-stable-dart`), not merged. The filter takes effect only once it is on `main` (§7). |
+| **Status** | **Merged 2026-11-12** (`9ff96905`, #767). Read back on GitHub the same day (§7): the first run on the merged config loaded the nine ranges, and proposed no beta while the `latest` heuristic was still broken. #764 closed by Dependabot. |
 | **Owner** | Sadreddine Daher |
 | **Last updated** | 2026-11-12 |
 | **PRD ref / phase** | Security, cross-cutting (CI / supply chain) · V1 |
@@ -166,6 +166,10 @@ The control reproduces the logged pick. That shows the replay can tell the two
 cases apart. Without it, a « 3.14.0 » answer could simply mean a replay that
 never sees betas.
 
+The replay picks which version would be chosen. It leaves out
+`apply_cooldown`, which **delays** a pick: by default, a release is not
+proposed until three days after it appears (§7, read after the merge).
+
 **The horizon.** The filter must cover every minor whose betas can sort above
 the pin. Docker Hub carries betas one minor beyond the newest stable (read
 2026-11-12: stable 3.14, beta 3.15). The
@@ -229,29 +233,49 @@ with the existing helpers:
   --fatal-infos --fatal-warnings` 0 issues, `dart test` 2137 passed and 10
   skipped (the Postgres-backed tests, which need `DATABASE_URL`).
 
-## 7. Rollout
+## 7. Rollout — read back after the merge
 
-- **Merging changes no running system.** Dependabot reads `dependabot.yml`
-  from the default branch only. So the filter does nothing until it is on
-  `main`, and nothing on this branch can show it working on GitHub.
-  **Unverified until the first `docker` run after the merge.** Read that run's
-  log (`gh run list --event dynamic`): it should contain `"ignore-conditions"`
-  with the `dart` ranges, and a « Latest version is » line that is a stable
-  tag.
-- **What that run should propose (inferred from the replay):** `dart`
-  3.13.7 → **3.14.0**, whatever state the `latest` heuristic is in. That PR is
-  red by design until ci.yml's `sdk:` follows (backend-dart-sdk-pin.md §5).
-  Moving to 3.14 is its own decision (§8).
-- **#764 is the owner's call.** Merging this PR does not touch it.
-  Dependabot may close it as superseded once it opens the 3.14.0 PR.
-  **Unverified:** the pages read do not say whether a PR for a *lower*
-  version supersedes an open one. Nor do they say what a plain close does.
-  With the filter on `main`, `3.15.0-118.1.beta` is ignored either way.
-  **Do not** answer #764 with `@dependabot ignore this minor version`. That
-  stores a central ignore for the whole 3.15 minor, outside this file and this
-  guard, and it would also block the stable 3.15.x releases (comment-commands
-  reference: « prevents Dependabot from creating any more pull requests for
-  this minor version »).
+**Merged on 2026-11-12 at 09:49:50Z** (`9ff96905`, #767). Dependabot reads
+`dependabot.yml` from the default branch only, so this is the first moment the
+filter could act. Everything below was read on GitHub, nothing changed.
+
+- **#764 closed by Dependabot itself at 09:49:57Z**, seven seconds after the
+  merge, with « Looks like dart is no longer being updated by Dependabot, so
+  this is no longer needed. » That wording is broader than what happened:
+  dart **is** still checked (next bullet). **Inferred:** the service closed
+  the PR because its version, `3.15.0-118.1.beta`, now falls in an ignored
+  range.
+- **The first `docker` run on the merged config,**
+  [43194938363](https://github.com/Zaslons/myweli/actions/runs/43194938363)
+  (base `9ff96905`, updater `950f027f`):
+  - its job definition carries all nine `dart` ranges as
+    `"ignore-conditions"`, and it logs them under « Ignored versions: »;
+  - « Checking if dart 3.13.7 needs updating »: the image is still tracked;
+  - « …dependabot is treating `3.13.7` as a pre-release »: the `latest`
+    heuristic was **still broken**, so this was the case the filter exists
+    for. **No beta was proposed.**
+  - « Skipping tag 3.14.0 due to cooldown period », then « No update needed
+    for dart 3.13.7 ».
+- **The prediction this note made was wrong about the timing.** The replay
+  (§4) leaves out `apply_cooldown`. GitHub's options reference says Dependabot
+  applies « a **default cooldown period of 3 days** to version updates, even
+  when `cooldown` is not configured ». Dart 3.14.0 appeared on Docker Hub at
+  2026-11-11T19:53Z, so it cannot be proposed before about 2026-11-14T19:53Z.
+  The reference gives Monday as the weekly default, but this repo's scheduled
+  runs have fallen on Saturdays near 21:21Z (2026-10-24, 10-31 and 11-07).
+  **Inferred, not verified:** the run of 2026-11-14 is the first that can
+  propose 3.14.0. One more unknown: dependabot-core takes the cooldown date
+  from the registry's `Last-Modified` header (`73dc4be`, « the only cooldown
+  date source »). If the `3.14.0` index is republished when its riscv64 build
+  lands, that date moves, and the wait restarts.
+- **That 3.14.0 PR will be red by design** until ci.yml's `sdk:` follows
+  ([backend-dart-sdk-pin.md](backend-dart-sdk-pin.md) §5). Moving to 3.14 is
+  its own decision (§8).
+- **Still worth knowing for later:** never answer a Dependabot `dart` PR with
+  `@dependabot ignore this minor version`. That stores a central ignore for the
+  whole minor, outside this file and this guard, and it would also block that
+  minor's stable releases (comment-commands reference: « prevents Dependabot
+  from creating any more pull requests for this minor version »).
 
 ## 8. Open questions & follow-ups
 
@@ -265,3 +289,9 @@ with the existing helpers:
    pre-release. Any multi-arch image whose arches publish at different times
    would hit it. Opening an issue upstream publishes content, so it is the
    owner's call.
+3. **The labels `dependencies` and `ci` do not exist in the repository**
+   (read: `gh label list`). Every entry in `dependabot.yml` asks for them, so
+   every Dependabot PR arrives unlabelled (#746–#749 and #764). Dependabot
+   says so in a comment on each: « The following labels could not be found:
+   `dependencies`. » Creating the two labels is a change to the repository,
+   so it is the owner's call.
