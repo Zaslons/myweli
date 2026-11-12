@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | **Draft, for the owner's sign-off (§11).** Nothing is built before it. Reviewed once by five independent readers (backend, admin console, apps, website, completeness) on 2026-11-12; their 53 findings are folded in |
+| **Status** | **Draft, for the owner's sign-off (§11): Q1–Q4, Q6, Q7 and « each salon » answered on 2026-11-12; Q8 and Q9 open.** Nothing is built before it. Reviewed twice by independent readers on 2026-11-12, every finding folded in: five readers (backend, admin console, apps, website, completeness) found 53; two found 26 on the rewrite |
 | **Owner** | Sadreddine Daher |
 | **Last updated** | 2026-11-12 |
 | **PRD ref / phase** | FR-PRO-ONB-001 (go live) · admin (FR-WEB-AD-*) · V1 |
@@ -21,7 +21,8 @@ Asked again with that fact, the owner chose:
 
 - **every salon, on iOS, Android and the website, goes public only once the
   owner validates it, or the owner refuses it with a reason;**
-- **the 90-day trial starts at the validation;**
+- **the 90-day trial starts at the validation** (refined by Q2: unless the
+  salon chose an offer on the website first, which starts it then, as today);
 - **it is built before the closed test.**
 
 Decision 123 makes this validation the guard against salons outside Côte
@@ -42,7 +43,8 @@ already means customer reviews here (`reviews`, `/admin/reviews`,
 **What.** A salon owner asks to go live. The platform owner (the admin) sees the
 request in the admin console, with what is needed to judge it, and either:
 
-- **validates it:** the salon becomes public and its 90-day trial starts;
+- **validates it:** the salon becomes public, and its 90-day trial starts if
+  no offer choice started it earlier;
 - **refuses it,** with a reason the salon reads.
 
 The salon can fix its page and ask again, except after a final refusal
@@ -64,8 +66,8 @@ reviewers) never public.
   a counter.
 - **The Pro app** (iOS and Android) and **the website's Pro space:** every
   salon state, the submit wording, the refusal reason.
-- **The website's offer page and « Équipe » before validation;**
-  `/professionnels` step 3; a CGU clause (owner's call).
+- **The website's public pages:** `/professionnels` step 3 and a CGU clause.
+  « Mon abonnement » and « Équipe » keep their sentences (Q2).
 - **The paperwork:** the contract, the threat model, the smoke test, and the
   docs that say « publish is immediate ».
 
@@ -122,7 +124,8 @@ salon_validations (                          -- the current state, one row per s
   decided_at    timestamptz,
   decided_by    text,                        -- the admin id; never shown to a salon
   refusal_code  text,                        -- §4.3's codes
-  refusal_note  text                         -- ≤ 500 code points; cleared on account erasure
+  refusal_note  text,                        -- ≤ 500 code points; cleared on account erasure
+  went_live_at  timestamptz                  -- set once, by the single winner that took it public (§3.2)
 )
 + index (state, submitted_at)                -- the queue, oldest first
 
@@ -157,9 +160,11 @@ providers.suspended_from text NULL           -- the status a suspension interrup
 | `draft` | `pending` | none | waiting for the admin | no |
 | `draft` | `pending` or `refused` | **exists** | chose an offer on the website before this ships; its clock runs (§3.6) | no |
 | `draft` | `refused` | — | refused, with a reason; can ask again unless the code is final | no |
+| `draft` | `approved`, never live (`went_live_at` null) | any | a validation interrupted before it took the salon public; a retry finishes it | no |
 | `active` | `approved` | live | live | **yes** |
-| `draft` | `approved` | lapsed, `unpublished_at` set | was live, unpublished for non-payment | no |
-| `draft` | `approved` | — | its owner deleted their account | no |
+| `draft` | `approved`, was live | lapsed, `unpublished_at` set | unpublished for non-payment | no |
+| `draft` | `approved`, was live | live | back to `draft` after a suspension was lifted for another reason (§3.4) | no |
+| `draft` | `approved`, was live | — | its owner deleted their account | no |
 | `suspended` | any | — | suspended by the admin | no |
 
 ---
@@ -184,7 +189,9 @@ The route and its authorization stay. The service splits today's `publish` into
 
    | State | What happens | Answer |
    |---|---|---|
-   | `approved` + `draft` | **republish** (unpublished for non-payment, offer live again): flip to `active`, clear `unpublished_at` (as `markPaid` does, so the scheduler can unpublish it again later), fire the rebuild with reason `salon.republished` | **200** with the salon |
+   | `approved`, was live, `draft`, a **live offer row** | **republish**: a conditional `UPDATE providers SET status='active' WHERE id=@id AND status='draft'`, clear `unpublished_at` (as `markPaid` does, so the scheduler can unpublish it again), the rebuild `salon.republished` | **200** with the salon |
+   | `approved`, was live, `draft`, no live row | none | **409** `offer` (the billing pointer) |
+   | `approved`, never live | none: the admin's validation is finishing (§3.2) | **202**, the validation's state |
    | already `active` | idempotent | **200** |
    | none | `INSERT … ON CONFLICT (provider_id) DO NOTHING RETURNING` | **202** |
    | `refused`, code not final | `INSERT … ON CONFLICT (provider_id) DO UPDATE … WHERE state = 'refused' RETURNING` | **202** |
@@ -194,53 +201,69 @@ The route and its authorization stay. The service splits today's `publish` into
    **The 202 body:** `{ "validation": { "state": "pending", "submittedAt": … } }`.
    Only a row that came back means a new request. That request is recorded as a
    `submitted` event and notifies the admin (§5.1), so a double tap cannot send
-   the admin two e-mails.
+   the admin two e-mails. **When an upsert returns no row** (the admin decided
+   at that very moment), the validation is re-read and the answer follows its
+   real state: 200 when live, 202 when pending.
 
 **No trial on submit; the rebuild only on the republish branch.**
-`SalonProvisioningService` stays in the rebuild wiring list for that branch.
+`SalonProvisioningService` stays in the rebuild wiring list for that branch,
+whose reason is now `salon.republished` (markPaid's). `salon.published` is
+retired; `salon.approved` replaces it (§7, T68).
 
 **What released builds show for a 202 (Q8).** The released Pro app (0.0.1, and
 0.0.2, built before this ships: decision 119) treats only a 200 as success,
 then says « 🎉 Votre profil est en ligne ! ». A 200 for a request would tell a
 waiting salon it is online. So these builds show their generic « Une erreur
 est survenue. Réessayez. » instead. The request is in fact recorded, and the
-decision reaches them (§5.2). This lasts until the Pro floor is raised for an
-iOS build that knows 202 (§9.2).
+decision reaches them (§5.2). After a final refusal, a new tap answers 409,
+which these builds word as « Complétez les étapes requises avant la mise en
+ligne. »; the feed row and the e-mail carry the real reason. This lasts until
+the Pro floor is raised for an iOS build that knows the new answers (§9.2).
 
 ### 3.2 Validating: `POST /admin/salons/{id}/validation/approve` (admin)
 
-1. **The precondition, as a compare-and-set:** `UPDATE salon_validations SET
-   state = 'approved', decided_at = now(), decided_by = @admin WHERE
-   provider_id = @id AND state IN ('pending','refused') RETURNING`. No row →
-   409 `validation_not_pending`.
-   - **Refused is allowed,** so the admin can correct a refusal from the
-     « Refusés » tab.
-   - **The retry case is allowed too:** an `approved` + `draft` salon with no
-     `unpublished_at` and an active owner. That is a validation interrupted
-     after this step, and it continues at step 3.
-2. **The checks before the write**, each a 409 with nothing changed:
+The body carries the state the admin saw: `{ "from": "pending" | "refused" }`.
+Validating takes two single-winner steps, each a compare-and-set.
+
+1. **The checks,** each a 409 with nothing written:
    - not `suspended` (`provider_suspended`);
    - the gate re-run now, since the salon may have changed while waiting
      (`incomplete` + `missing`);
    - an offer row that exists but is no longer live (`offer`).
 
-   They run before the compare-and-set, and again inside it through the
-   `WHERE`.
+   They run before the writes. The gate is Dart code over several tables, so a
+   window remains in which the owner could edit; the decision stands on what
+   the admin and the checks saw.
+2. **The decision, one transaction:** `UPDATE salon_validations SET state =
+   'approved', decided_at = now(), decided_by = @admin WHERE provider_id = @id
+   AND state = @from RETURNING`, then the `approved` event. No row → 409
+   `validation_not_pending`. A refuse that landed first, or a second click,
+   loses here. The winner alone appends the audit row `salon.approve`.
+   - **From « Refusés »** (`from: refused`): the admin corrects a refusal.
 3. **`startDefaultTrial`:** insert-if-absent, the tier derived now (pro, or
    réseau when the owner has a live Réseau salon), then the liveness re-check.
-4. **`status` → `active`.**
-5. **The record:** the `approved` event, and the audit row `salon.approve`.
-6. **The rebuild,** reason `salon.approved`.
-7. **The salon's notice** (§5.2).
+   A salon that chose an offer on the website already has its row and keeps
+   its clock (§3.6).
+4. **Going live, one transaction:** `UPDATE salon_validations SET went_live_at
+   = now() WHERE provider_id = @id AND state = 'approved' AND went_live_at IS
+   NULL RETURNING`, with `UPDATE providers SET status = 'active' WHERE id = @id
+   AND status = 'draft'` and a check that an active owner exists. If either
+   update returns no row, the transaction rolls back and the call answers 409
+   with the reason (suspended meanwhile, no owner).
+5. **Only the winner of step 4** fires the rebuild (`salon.approved`) and the
+   salon's notice (§5.2).
 
 **Two clicks, two tabs, a crash.**
 
-- **Concurrent decisions:** a double click or a race against a refuse gets one
-  winner and a 409. The loser writes nothing: no second audit row, no second
-  notice.
-- **A crash after step 1** leaves `approved` + `draft`, which is not public; a
-  retry finishes it.
-- **The trial insert and the status write are idempotent.**
+- **A double click or a race against a refuse:** one winner at step 2, a 409
+  for the other, which writes nothing more.
+- **A crash between step 2 and step 4** leaves `approved` with `went_live_at`
+  null: not public. The detail page then shows « Validation à terminer » and
+  the same button, which calls `approve` with `from: approved`, a third
+  allowed value that skips step 2 and runs steps 3–5.
+- **A crash after step 4** leaves the salon live without its rebuild and
+  notice. The next rebuild (any later one, or the next deploy) adds its page;
+  the notice is lost. Named, rare.
 
 ### 3.3 Refusing: `POST /admin/salons/{id}/validation/refuse` (admin)
 
@@ -253,32 +276,37 @@ iOS build that knows 202 (§9.2).
   - `note_too_long` beyond 500 code points.
 - **What it writes:** `refused`, the code, the note, the `refused` event, and
   the audit row `salon.refuse`, with the code only.
-- **Then:** the salon's notice (§5.2). `status` stays `draft`.
+- **Then:** the salon's notice (§5.2). `status` stays `draft`; if a rollback
+  ever left it `active` (§9.3), refuse sets `draft` conditionally and requests
+  a rebuild, so a refused salon is never public.
 
 ### 3.4 Every other way to `active`, closed to unvalidated salons
 
 | Path | Today | After |
 |---|---|---|
-| **« Réactiver » → « Lever la suspension »** (`AdminProviderService.restore`) | sets `active` unconditionally, with no precondition. A never-validated draft, a salon unpublished for non-payment or an erased owner's salon becomes public by suspend → restore, or by a direct POST | **Refused** (409 `not_suspended`) unless the salon is `suspended`. Suspend records `suspended_from`. Restore goes back to `active` only when `suspended_from` is `active`, the validation is `approved`, the offer is live, `unpublished_at` is null, and an active owner exists. Otherwise it goes to `draft`. Unknown (salons suspended before 0044) → `draft`. The rebuild fires only on `active` |
+| **« Réactiver » → « Lever la suspension »** (`AdminProviderService.restore`) | sets `active` unconditionally, with no precondition. A never-validated draft, a salon unpublished for non-payment or an erased owner's salon becomes public by suspend → restore, or by a direct POST | **Refused** (409 `not_suspended`) unless the salon is `suspended`. Suspend records `suspended_from`, only when the salon is not already suspended (a second suspend keeps the first value). Restore goes back to `active` only when `suspended_from` is `active`, the validation is `approved` and went live, a live offer row exists, `unpublished_at` is null, and an active owner exists. Otherwise it goes to `draft`; unknown (salons suspended before 0044) → `draft`. It answers with the result and its **reason** (not validated, offer not live, unpaid, no owner, earlier state unknown), which the console words (§4.4). The rebuild fires only on `active` |
 | **« Marquer payé »** (`markPaid`) republish | republishes a salon unpublished for non-payment when the gate passes; it checks neither suspension nor anything else | only when the validation is `approved` and the salon is not `suspended` |
-| **Submit's republish branch** (§3.1) | — | `approved` + `draft` with a live offer; clears `unpublished_at` |
+| **Submit's republish branch** (§3.1) | — | `approved`, was live, `draft`, a live offer row; conditional on `status='draft'`; clears `unpublished_at` |
 | **Account erasure** | owned salons → `draft` | also deletes a `pending` validation, and clears `refusal_note` in both tables (the code stays). An `approved` validation stays with the salon |
 
 ### 3.5 Reads
 
 - **`GET /me/provider`:** a fourth top-level key, `validation`, beside
   `account`, `provider` and `membership`. It is
-  `{ state, submittedAt?, decidedAt?, refusal?: { code, note?, final } }`, or
-  `null` when never asked. **`Provider` is unchanged:** it is also the public
-  schema.
+  `{ state, submittedAt?, decidedAt?, wentLive, offerLive?, refusal?: { code,
+  note?, final } }`, or `null` when never asked. `wentLive` tells « finishing »
+  from « was live »; `offerLive` (for a validated salon not live) tells « Plus
+  en ligne : impayé » from « Remettre en ligne » (§6.1). **`Provider` is
+  unchanged:** it is also the public schema.
 - **`GET /me/salons`:** each `SalonMembership` gains the same `validation`.
 - **The admin queue:** `GET /admin/salon-validations?state=pending|refused|approved&page&pageSize`
   → `{ items, page, pageSize, total }`.
   - **Order:** `pending` oldest first, by `submitted_at`.
-  - **Each item:** the salon id, name, commune and city, country code, status
-    (a suspended pending salon shows as such), submitted or decided time, the
-    owner's contact (e-mail, or phone when there is none), and the number of
-    KYC documents sent.
+  - **Suspended salons are left out** of « En attente » and of its count; they
+    come back when the suspension is lifted. The salon list still shows them.
+  - **Each item:** the salon id, name, commune and city, country code,
+    submitted or decided time, the owner's contact (e-mail, or phone when there
+    is none), and the number of KYC documents sent.
 - **The admin detail:** `GET /admin/salons/{id}/validation` returns:
   - **the salon** as the admin provider detail reads it: photos, services,
     hours, address, area, country, pin, phone;
@@ -286,46 +314,41 @@ iOS build that knows 202 (§9.2).
     document count, other salons owned;
   - **the validation and its events.**
 - **The overview:** `GET /admin/analytics/overview` gains
-  `providers.pendingValidation`, which excludes suspended salons.
+  `providers.pendingValidation`, the same number as the queue's `total` (one
+  definition for the sidebar and the dashboard).
 - **`/me/subscription`'s legacy bridge** (a trial counted from account age) is
   called by no client; only its stale text is corrected.
 
-### 3.6 The trial at validation, and the offer choice before it (Q2)
+### 3.6 The trial: at validation, or at an earlier offer choice (Q2: « As today »)
 
-`startDefaultTrial` moves from submit to validate: **the 90 days start when the
-admin validates.** Two other writers must agree with that.
+`startDefaultTrial` moves from submit to validate: **when a salon never chose
+an offer, its 90 days start when the admin validates it.**
 
-**The website's offer choice** (`PUT /providers/{id}/subscription`, « Choisir
-cette offre ») creates the offer row and starts the clock at the choice
-(decision 68). Q2 decides what it does before validation:
+**The website's offer choice stays as it is** (owner's answer to Q2,
+2026-11-12; decision 68 stands). « Choisir cette offre » (`PUT
+/providers/{id}/subscription`) creates the offer row and starts the 90 days at
+the choice, before validation if the salon chooses first. Team invitations and
+« Ajouter un salon » (Réseau) need a live offer, so they open with that choice,
+validated or not. The owner accepted the cost, said with the question: the
+trial can run out while the salon waits.
 
-1. **The choice opens after validation (recommended).** Creating a row before
-   validation answers 409 `validation_required`; switching an existing row
-   stays allowed. The cost: no team and no Réseau before validation, and
-   decision 60's friends' test salon (choose Business, never publish, invite
-   Managers) cannot exist without being validated, which makes it public.
-   Decision 68's concern (choose, invite a team, never open) cannot arise.
-2. **The choice is recorded, and the clock starts at validation.** This needs
-   new storage for a chosen tier before any row. Invitations must stay closed
-   until validation, or decision 68's risk returns.
-3. **As today:** the choice starts the clock. Decision 68 stands, and the 90
-   days can start before validation.
+So:
 
-**Rows that exist already** keep their clock: a salon that chose before this
-ships. `trial_ends_at` is never rewritten (T54's invariant). Two more rules
-apply to them:
-
-- **The scheduler sends billing notices only to `approved` salons.** Without
-  this, a waiting salon would receive « Votre salon reste visible pendant 7
-  jours », false for a salon never public. `_kindFor` gains the check.
-- **A trial that lapses while waiting:** submit and validate answer 409
-  `offer`. The admin's path is « Marquer payé », then validate, and the console
+- **Validate keeps an existing row's clock.** `trial_ends_at` is never
+  rewritten (T54's invariant).
+- **The scheduler sends billing notices only to validated salons that went
+  live** (R10). Without this, a waiting salon with a running trial would read
+  « Votre salon reste visible pendant 7 jours », false for a salon never
+  public. Such a salon still sees its countdown in « Mon abonnement ».
+- **A trial that runs out while waiting:** submit and validate answer 409
+  `offer`. The admin's path is « Marquer payé », then validate; the console
   says so (§4.3). The day of the deploy, the number of drafts holding an offer
   row is read.
-
-Team invitations already need a live offer (`offer_required`). With option 1,
-a waiting salon invites its team after validation. The app's sentence for that
-is already « Vous pourrez inviter votre équipe une fois votre salon en ligne. ».
+- **The website's sentences stay true:** « Votre essai de 3 mois démarre dès
+  que vous choisissez une offre ou, sans choix, à la mise en ligne de votre
+  salon. » (« la mise en ligne » is now the validation), « Pour inviter votre
+  équipe, choisissez votre offre : vos 3 mois d’essai démarrent à ce
+  moment-là. », and `true-sentences.test.tsx`'s ban.
 
 ### 3.7 Backfill, and seeds
 
@@ -336,10 +359,13 @@ is already « Vous pourrez inviter votre équipe une fois votre salon en ligne. 
   - no rebuild;
   - trials untouched.
 - **Suspended salons get no row** and lift to `draft` (§3.4).
-- **The same backfill runs as an idempotent boot step after the dev seed,**
-  following the `backfillSalonMarketIfNeeded` pattern: the seed inserts
-  `active` salons after the migrations run, and the CI smoke runs on it. The
-  in-memory repository seeds `approved` rows for its seeded active salons.
+- **The backfill marks them `approved` with `went_live_at` set.**
+- **The same backfill also runs as a boot step, only where the dev seed runs**
+  (`Env.dev`, right after it): the seed inserts `active` salons after the
+  migrations, and the CI smoke runs on it. It is not a production boot step:
+  there it would silently validate whatever an older image published during a
+  rollback (§9.3). The in-memory repository seeds validated rows for its seeded
+  active salons.
 - **The day of the deploy,** the counts are read again: public salons
   (`GET /providers`), drafts, and drafts with offer rows.
 
@@ -347,8 +373,8 @@ is already « Vous pourrez inviter votre équipe une fois votre salon en ligne. 
 
 **New codes:**
 
-- `validation_not_pending`, `validation_refused_final`, `validation_required`
-  (Q2), `not_suspended`: all 409;
+- `validation_not_pending`, `validation_refused_final`, `not_suspended`: all
+  409;
 - `note_required`, `note_too_long`: both 400.
 
 **`docs/api/openapi.yaml`** changes in the same PR:
@@ -357,7 +383,6 @@ is already « Vous pourrez inviter votre équipe une fois votre salon en ligne. 
 - the top-level `validation` on `/me/provider`, and `SalonMembership.validation`;
 - the admin routes, and restore's 409;
 - the overview key;
-- `PUT …/subscription`'s 409;
 - every « the trial starts at the first publish » text (publish, the
   subscription 404, `POST /me/salons`, register).
 
@@ -379,10 +404,13 @@ Both generated clients are regenerated; the web's `schema.ts` is diffed in CI.
     deploy. Existing widget tests that pump a screen without it keep passing.
 - **Dashboard:** a « Salons à valider » stat card that opens the queue.
 - **Routes:** `/admin/salon-validations` and `/admin/salon-validations/:id`
-  (the console's paths are English). The login keeps a `from` target, so a
-  link from the e-mail lands on the request after sign-in. That link is in
-  hash form, `#/admin/salon-validations/{id}`, because the console uses hash
-  URLs.
+  (the console's paths are English).
+- **A link from the e-mail lands on the request.** The console uses hash URLs,
+  so the link is `#/admin/salon-validations/{id}`. **New work:** the login
+  redirect carries `?from=` (only `/admin/...` paths are accepted), and the
+  post-login redirect honours it; today it always goes to `/admin/dashboard`.
+  Whether a Cloudflare Access re-authentication keeps the fragment is checked
+  once with a real link (UNVERIFIED).
 
 ### 4.2 The queue
 
@@ -391,7 +419,7 @@ Both generated clients are regenerated; the web's `schema.ts` is diffed in CI.
   pattern).
 - **Rows** (`AdminDataTable`): Salon · Commune, ville · Pays · Demandé le ·
   Propriétaire (e-mail ou téléphone) · Documents KYC (« aucun » or a count).
-  A suspended salon carries a « Suspendu » chip.
+  Suspended salons are not in « En attente » (§3.5).
 - **The four states:** loading; empty (« Aucun salon en attente. »); error with
   « Réessayer »; the list.
 - **After a decision,** the row leaves the tab at once, and the count reloads.
@@ -457,12 +485,18 @@ for « Autre ». The salon reads:
 ### 4.4 Elsewhere in the console
 
 - **« Réactiver » becomes « Lever la suspension »** (list and detail). Its
-  snackbar follows the returned status: « Salon remis en ligne » or
-  « Suspension levée — le salon reste hors ligne (non validé) ». The audit
-  label changes too.
-- **Status labels:** « En attente de validation », « Validé », « Refusé » join
-  `status_labels.dart`, with their tests. `kAuditActions` gains `salon.approve`
-  and `salon.refuse`, and labels the four codes it renders raw today.
+  snackbar follows the returned status and reason: « Salon remis en ligne »,
+  or « Suspension levée — le salon reste hors ligne : » followed by « non
+  validé », « offre inactive », « dépublié pour impayé », « sans
+  propriétaire » or « état antérieur inconnu ». The audit label changes too.
+- **Validation labels** have their own mapping (`ValidationLabels`): « En
+  attente de validation », « Validé », « Refusé », with chip kinds. The shared
+  `StatusLabels` resolves `pending` through the booking enum first, so it
+  cannot carry them, and they must not relabel every KYC and booking « En
+  attente ». `kAuditActions` gains `salon.approve` and `salon.refuse`, and
+  labels the four codes it renders raw today.
+- **The detail of a validation interrupted before going live** (§3.2) shows
+  « Validation à terminer » and the same button.
 - **The photos.** Before building, one photo is opened in the live console.
   The public bucket's CORS lists only `myweli.com`, and whether
   `admin.myweli.com` renders its images is UNVERIFIED. If it does not, the fix
@@ -472,11 +506,11 @@ for « Autre ». The salon reads:
 
 ## 5. Notifications
 
-### 5.1 To the admin, on each new request
+### 5.1 To the admin: each new request, and each change to a validated salon's place
 
 - **The e-mail:** sent to `ADMIN_EMAIL`, already in production's environment,
-  where today it only seeds the admin account. Q3: is it an inbox the owner
-  reads, or should a separate `ADMIN_NOTIFY_EMAIL` be added?
+  where today it only seeds the admin account. The owner confirmed it is an
+  inbox they read (Q3, 2026-11-12).
 - **Content:** « Nouveau salon à valider : {Salon} », the commune, the country,
   and the hash link (§4.1).
 - **When:** class `warm`, sent only for a new request (§3.1).
@@ -484,6 +518,14 @@ for « Autre ». The salon reads:
   request into an error, and an unset address does nothing. The outcome is
   logged without the address.
 - **Plus the console's count** (§4.1).
+- **A validated salon that changes its place (Q6, 2026-11-12).** When a save
+  on a salon whose validation is `approved` changes its pin, address, commune
+  or phone, a second e-mail goes to the same address: « {Salon} a modifié son
+  emplacement » (or « son adresse », « son téléphone »), the old and new
+  values, and the link to the salon. The salon stays online; the owner can
+  suspend it. Where: the catalogue's profile update compares the saved values
+  with the new ones (`ProviderCatalogService`), best effort, class `warm`, one
+  e-mail per save that changes any of them.
 
 ### 5.2 To the salon, on each decision
 
@@ -497,10 +539,12 @@ To the owner (the `salon.publish` holder) only:
 
 **Rules:**
 
-- **An e-mail is sent only to an address containing « @ ».** The owner
-  membership's `email` falls back to a phone number today, and the scheduler
-  and `SalonNotifier` « e-mail » it. That guard is new here, and is applied to
-  `_notifyOwner` in passing.
+- **An e-mail is sent only to an address containing « @ ».** The membership's
+  `email` is written as `account.email ?? account.phoneNumber` in three places,
+  and the scheduler and `SalonNotifier` « e-mail » whatever is there. One
+  helper at the membership read (`emailOrNull`) serves every sender
+  (`_notifyOwner`, `SalonNotifier`, this notice) and the admin queue's contact
+  column.
 - **The trial and the app.** The e-mail may name the trial. The app and the
   push never promote it (pro-companion-path §2.1).
 - **« The four events » sentences** (the push prompt, the blocked-push banner,
@@ -516,11 +560,12 @@ To the owner (the `salon.publish` holder) only:
 | State | Badge / row line | Banner title | Banner text | Button |
 |---|---|---|---|---|
 | never asked | « Brouillon — pas encore en ligne » | — | the checklist; the hint « Complétez les étapes essentielles pour demander la mise en ligne. » | « Demander la mise en ligne » (enabled when the checklist is complete) |
-| `pending` | « En cours de validation » | « En cours de validation » | « Nous examinons votre salon avant sa mise en ligne. Nous vous préviendrons dès que c’est fait. » (Q4: a delay or none) | none: « Demande envoyée le {date} » |
+| `pending`, or `approved` not yet live (the admin's validation finishing) | « En cours de validation » | « En cours de validation » | « Nous examinons votre salon avant sa mise en ligne. Nous vous préviendrons dès que c’est fait. » (no delay promised: Q4) | none: « Demande envoyée le {date} » |
 | `refused`, not final | « Mise en ligne refusée » | « Mise en ligne refusée » | the code's sentence; the note on its own line; « Modifiez votre salon, puis renvoyez-le pour validation. » | « Renvoyer pour validation » |
 | `refused`, final | « Mise en ligne refusée » | « Mise en ligne refusée » | the code's sentence; the note | none |
 | live | « En ligne » | — | as today | none |
-| `approved`, unpublished for non-payment | « Plus en ligne » | « Votre salon n’est plus en ligne » | the billing sentence of « Mon abonnement » | « Remettre en ligne » (200), or the billing pointer when the offer is lapsed |
+| `approved`, was live, offer lapsed (`offerLive` false) | « Plus en ligne » | « Votre salon n’est plus en ligne » | the billing sentence of « Mon abonnement » | the billing pointer |
+| `approved`, was live, offer live (`offerLive` true) | « Plus en ligne » | « Votre salon n’est plus en ligne » | « Vous pouvez le remettre en ligne. » | « Remettre en ligne » (200) |
 | `suspended` | « Suspendu » | « Votre salon est suspendu » | « Contactez MyWeli pour en savoir plus. » (the existing sentence) | none |
 
 - **After a request:** « Demande envoyée. Nous vous préviendrons de la
@@ -536,7 +581,7 @@ To the owner (the `salon.publish` holder) only:
 | Home | the « Configurer mon profil » card's subtitle follows the state (live: « Votre salon est en ligne ») | `AujourdhuiClient`: the card for `draft`, branching inside |
 | Salon switcher | the picker row: **the state on its own line**, because at 200% text a « role · state » line cuts the state off | the sidebar badge |
 | Preview | unchanged (« Réserver (après la mise en ligne) » stays true) | `/pro/apercu`'s banner gains the states |
-| Notice tap | `/pro/onboarding?salon={id}`: the screen switches salon first, as the booking detail does (a failed switch lands on « Accueil ») | `proWebRouteFor` maps it to `/pro?salon={id}`, which switches. The service worker learns the `salon.validation.*` events and opens `/pro?salon={id}`. The dashboard re-reads on a push |
+| Notice tap | `/pro/onboarding?salon={id}`: the screen switches salon first and checks the result; on a refused or offline switch it goes to « Accueil ». (The booking detail ignores that result, so it is not copied as is; the feed-row path is tested apart from the push path, which has its own fallback.) | **New work:** `/pro` reads `?salon=` and switches once, with the booking detail's once-only guard and its refused and offline messages; `proWebRouteFor` maps the route to it; the service worker learns the `salon.validation.*` events and their URL pattern; the dashboard re-reads on a push |
 
 **Refresh points.** The state comes from `/me/provider` (`validation`) and
 `/me/salons`. They are re-read:
@@ -559,32 +604,27 @@ The server also wants a commune from the list (`validArea`). The button could
 be enabled, then refused with every row ticked. Both surfaces read the
 server's rule.
 
-### 6.4 The website beyond the Pro space, after the backend deploy (PR 4b)
+### 6.4 The website's public pages, after the backend deploy (PR 4b)
 
-- **« Mon abonnement » before validation (Q2 option 1):**
-  - the offers are shown, and « Choisir cette offre » becomes « Vous choisirez
-    votre offre une fois votre salon en ligne. »;
-  - the headline is no longer an order (« Nos offres — 3 mois offerts »);
-  - the setup sentence: « Votre essai de 3 mois démarre à la mise en ligne de
-    votre salon, après sa validation. »;
-  - `validation_required` gets a sentence, in the website and the app;
-  - `true-sentences.test.tsx`'s ban flips: it now bans the claim that the
-    trial starts at the choice.
-- **« Équipe » before validation:** « Vous pourrez inviter votre équipe une
-  fois votre salon en ligne. » (the app's sentence).
+With Q2 answered « As today », « Mon abonnement » and « Équipe » keep their
+sentences, which stay true (§3.6). Only two public pages change, and only once
+the backend deploy has been read live:
+
 - **`/professionnels` step 3** (owner-approved word for word on 2026-10-19):
   « Demandez la mise en ligne : une fois votre salon validé, vos clients
   peuvent réserver » (Q9).
-- **CGU §7 (Q7):** « Avant sa mise en ligne, chaque salon est validé par
-  MyWeli, qui peut refuser de le publier, notamment s’il n’est pas situé en
-  Côte d’Ivoire. ».
+- **CGU §7 (Q7, answered: add it):** « Avant sa mise en ligne, chaque salon
+  est validé par MyWeli, qui peut refuser de le publier, notamment s’il n’est
+  pas situé en Côte d’Ivoire. ».
   - Its neighbours say that identity documents serve « uniquement à vérifier
     votre compte », hence « validé », not « vérifié ».
   - `LEGAL_UPDATED_AT` and `infra/legal/registration-manifest.json` move
     together (a test pins them equal).
   - None of the five pages' word bans is hit.
-- **Exports:** the app's and the website's Pro data exports gain the
-  validation state and reason.
+  - Not while a store review freezes the five pages.
+
+**In 4a with the Pro space:** the app's and the website's Pro data exports
+gain the validation state and reason.
 
 ### 6.5 Mock world
 
@@ -593,7 +633,7 @@ server's rule.
 - submit → pending;
 - a test hook stands in for the admin: validating starts the mock trial;
   refusing takes a code and a note;
-- a no-account and a refused fixture;
+- a never-asked, a pending, a refused and a finishing fixture;
 - the mock's publish no longer starts the trial.
 
 ---
@@ -602,8 +642,9 @@ server's rule.
 
 - **AuthZ.** Submit is for the owner (`salon.publish`), unchanged. Validate and
   refuse live under `/admin/*`: deny by default, `role == admin`, covered by
-  path. Every transition is a compare-and-set, so a decision cannot be
-  replayed, doubled or crossed.
+  path. The decision and the going-live are each a single-winner
+  compare-and-set (§3.2), so a decision cannot be replayed, doubled or
+  crossed.
 - **Input.** The code comes from a closed list; the note is trimmed, capped at
   500 code points, escaped in every e-mail (T73), and plain text in the apps.
 - **The note.** No personal data and no payment instruction; the dialog says
@@ -623,9 +664,11 @@ server's rule.
   - **T17:** gains validate/refuse and « Lever la suspension »'s
     preconditions.
   - **T50/T51:** pending and refused are `draft`, hidden by the same rule.
-  - **T54:** the trial starts at validation.
-  - **T68:** a sixth seam, `salon.approved`; submit's republish keeps
-    `salon.republished`.
+  - **T54:** the trial starts at validation, unless an offer choice started it
+    earlier (decision 68 stands).
+  - **T68:** `salon.published` is retired; `salon.approved` (validate)
+    replaces it; submit's republish now uses `salon.republished`, as markPaid
+    does. Five seams, as today.
   - **T69:** unchanged.
 - **The admin credential.** Validation now gates every salon behind one
   password, with no second factor on the API (Cloudflare Access covers only
@@ -648,22 +691,29 @@ Each new guard is watched red once, and the commit says how.
 - **Submit:**
   - none → 202 and an event; a double submit → one event and one admin e-mail;
   - refused → pending; a final code → 409;
-  - `approved` + `draft` → 200 live, `unpublished_at` cleared, and later
-    unpublished again by the scheduler;
+  - `approved`, was live, `draft`, live offer → 200 live, `unpublished_at`
+    cleared, and later unpublished again by the scheduler; no live row → 409
+    `offer`; `approved` never live → 202 (finishing);
+  - an upsert that returns no row because the admin decided at that moment →
+    the answer follows the real state;
   - active → 200;
   - the demo 403 first; suspended 403; the gate's 409;
   - no trial and no rebuild on a 202;
   - the re-read after the self-heal (the stale-blob case, on Postgres).
 - **Validate:**
   - each 409;
-  - the trial starts at validation (`trialEndsAt` = validation + 90 days, the
+  - with no offer row, the trial starts at validation (`trialEndsAt` =
+    validation + 90 days, the
     tier derived then);
   - status active; rebuild `salon.approved`; one audit row; one notice;
   - a refused salon validated from « Refusés »;
-  - **races:** validate + refuse together → one winner; double validate → one
-    audit row and one notice;
-  - a failure injected after the compare-and-set → not public, then finished
-    by a retry;
+  - **races:** validate + refuse together → one winner (the `from` state);
+    double validate → one audit row and one notice; two « finish » calls → one
+    going-live, one rebuild, one notice;
+  - a failure injected between the decision and the going-live → not public,
+    « Validation à terminer », finished by `from: approved`;
+  - a salon suspended between the checks and the going-live → 409, nothing
+    public;
   - non-admin 403; no token 401.
 - **Refuse:**
   - every code; `note_required`, `note_too_long`;
@@ -671,24 +721,35 @@ Each new guard is watched red once, and the commit says how.
   - the notice;
   - a note with markup escaped in the e-mail.
 - **The bypasses:**
-  - restore on a non-suspended salon → 409;
-  - restore → `draft` for a never-validated salon, a salon unpublished for
-    non-payment, an erased owner's salon, and a salon suspended before 0044;
-  - validated + active → suspend → restore → active;
+  - restore on a non-suspended salon → 409; a second suspend keeps the first
+    `suspended_from`;
+  - restore → `draft`, with its reason, for a never-validated salon, a salon
+    unpublished for non-payment, an erased owner's salon, and a salon
+    suspended before 0044;
+  - validated + live + offer + owner → suspend → restore → active;
+  - the two existing tests rewritten: `admin_provider_test`'s « restore lifts
+    the suspension » (its `provider1` gains an owner and an offer row) and
+    `site_rebuild_notifier_test`'s « RESTORE asks for a rebuild » (asserted on
+    the active branch only);
   - markPaid does not republish an unvalidated or a suspended salon;
   - erasure deletes a pending validation and clears notes.
-- **The scheduler** sends no notice to an unvalidated salon.
-- **Q2:** creating an offer before validation → 409 `validation_required`;
-  switching an existing row → 200.
-- **Migration 0044 and the boot backfill:**
-  - `active` and unpublished-for-non-payment salons are approved, nothing else;
-  - idempotent after the dev seed;
+- **The scheduler** sends no notice to a salon not validated-and-live.
+- **The « @ » guard:** a phone-registered owner gets the push and the feed row
+  and no send, for this notice, `_notifyOwner` and `SalonNotifier`; watched
+  red.
+- **The place-change e-mail (Q6):** a save on a validated salon that changes
+  the pin, address, commune or phone sends one; a save that changes nothing
+  of these, or on an unvalidated salon, sends none.
+- **Q2 « As today »:** the offer choice before validation still starts the
+  clock; validate keeps it.
+- **Migration 0044 and the dev-only boot backfill:**
+  - `active` and unpublished-for-non-payment salons are validated and marked
+    live, nothing else;
+  - the boot step runs only where the seed runs, and is idempotent;
   - the reversibility test passes.
-- **Suites whose fixtures choose an offer to get a live row** gain an
-  `approved` row: `salon_subscription_test` (its « publish starts the trial »
-  group moves to validate, Réseau derivation and race included),
-  `salon_subscription_routes_test`, `access/salon_directory_test`,
-  `team_routes_test`, `subscription_test`, `team_service_test`.
+- **`salon_subscription_test`'s « publish starts the trial » group** moves to
+  validate (the Réseau tier derived at validation; the race is now validate
+  against a choice).
 - **Wiring and contract:**
   - `site_rebuild_wiring_test` gains `SalonValidationService` and keeps
     `SalonProvisioningService`;
@@ -698,7 +759,8 @@ Each new guard is watched red once, and the commit says how.
   - submit → 202;
   - the CI-seeded admin validates;
   - live, with the trial (A18 and A21c–A21d rewritten);
-  - A17/A19's offer choice moves after validation (Q2);
+  - A17's offer choice before validation stays (Q2 « As today »), and A19
+    checks validate kept that clock;
   - a refuse → resubmit path.
 
 ### 8.2 Admin console
@@ -714,8 +776,10 @@ Each new guard is watched red once, and the commit says how.
 - **Bookkeeping:**
   - routes in `route_literals_test`;
   - the `SalonId` birth-pin allowlist;
-  - status labels and audit labels;
-  - « Lever la suspension »'s two snackbars.
+  - `ValidationLabels` and audit labels, without touching the shared
+    `pending` label;
+  - « Lever la suspension »'s snackbars, one per reason;
+  - the login's `from` target (only `/admin/...`), and the e-mail's hash link.
 - **Goldens:** the queue and the detail (Linux).
 
 ### 8.3 Pro app
@@ -730,7 +794,8 @@ Each new guard is watched red once, and the commit says how.
   - the two button labels;
   - the picker row, with no truncation (the existing predicate).
 - **A two-salon owner** taps a notice for the inactive salon → it switches,
-  then shows the decision.
+  then shows the decision; a refused or offline switch → « Accueil ». The
+  feed-row path and the push path are tested apart.
 - **The provider:** keeps `validation`, resets it on a switch; the refresh
   after submit.
 - **The mock lifecycle.** The tests that pinned « publish starts the trial »
@@ -746,18 +811,18 @@ Each new guard is watched red once, and the commit says how.
 - **Unit:**
   - `GoLiveCard`'s branches; a new dashboard test for every state (none exists
     today); the sidebar badge; the preview banner;
-  - « Mon abonnement » and « Équipe » before validation; `validation_required`'s
-    sentence;
-  - the `profile` rule; `true-sentences` flipped;
-  - the notification route mapping;
+  - the `profile` rule;
+  - the notification route mapping, and `/pro?salon=` switching once, with a
+    two-salon case;
   - `pro-api-network.test.ts`'s table gains every new wrapper;
   - the legal date and manifest.
 - **E2E on the stub** (port 8787, shared across sessions):
   - publish answers 202 and no longer mints a trial;
-  - PUT before validation → `validation_required`;
-  - `p1` is seeded `approved`;
-  - a control route stands in for the admin (validate, refuse, seed `refused`);
-  - submit → pending; the refused-by-country path on the Gabon fixture `p3`;
+  - `p1` stays never-asked, so the go-live e2e reads submit → 202 → pending;
+  - a control route stands in for the admin (validate, refuse, seed a state,
+    reset);
+  - the refused-by-country path on a fixture no other spec asserts (not `p3`,
+    which `salons.spec.ts` expects as a draft), reset after;
   - axe on the pending and refused cards.
 
 ---
@@ -767,26 +832,26 @@ Each new guard is watched red once, and the commit says how.
 ### 9.1 PRs
 
 1. **Backend:**
-   - migration 0044 and the boot backfill;
+   - migration 0044 and the dev-only boot backfill;
    - submit, validate and refuse;
    - the bypasses;
    - the reads;
-   - notifications and the « @ » guard;
+   - notifications, the place-change e-mail (Q6) and the « @ » helper;
    - the scheduler's check;
    - the contract, the threat model, the smoke.
 2. **Admin console:** the queue, the detail, the decision, the count, « Lever
-   la suspension ».
+   la suspension », the login's `from` target.
 3. **Pro app:** the states, the copy, the routes, the mock, R8, the tests, on
    both platforms. It merges **before android-play-release's step 5**, so the
    closed test's AAB carries it.
 4. **Website, in two parts:**
    - **4a,** ships first: the client branches that read both servers (200 =
-     live, 202 = pending), the Pro space's states, the routes, R8. It makes no
-     new claim.
+     live, 202 = pending), the Pro space's states keyed on a `validation` value
+     only the new server sends (absent → today's screens), `/pro?salon=`, the
+     service worker, R8, the exports. It makes no new claim.
    - **4b,** merged only once the backend deploy has been read live (and not
-     while a store review freezes the five pages): the CGU, `/professionnels`,
-     « Mon abonnement », « Équipe », the `true-sentences` flip, the offer
-     choice's change.
+     while a store review freezes the five pages): the CGU clause and
+     `/professionnels` step 3.
 5. **Docs** (§9.4).
 
 ### 9.2 Deploys, each on the owner's yes
@@ -809,11 +874,17 @@ Each new guard is watched red once, and the commit says how.
 ### 9.3 Named residuals
 
 - **Old Pro builds** (iOS 0.0.1, 0.0.2) show a generic error on a request that
-  did go through, until step 6 (Q8). The decision still reaches them by push,
-  feed row (with the reason) and e-mail.
+  did go through, and « Complétez les étapes requises… » after a final
+  refusal, until step 6 (Q8). The decision still reaches them by push, feed
+  row (with the reason) and e-mail.
 - **Rollback.** An older backend image ignores the new tables, and its publish
   flips a draft live directly. A rollback is therefore a decision, taken with
-  this named.
+  this named. After a roll-forward, one query lists `active` salons with no
+  validated-and-live row; each is validated or refused by hand (refuse puts it
+  back to `draft`, §3.3).
+- **A crash right after going live** loses that salon's notice (§3.2).
+- **A waiting salon whose website trial runs out** gets no billing notice
+  (R10) and needs « Marquer payé » before it can be validated (§3.6).
 - **Test salons** in the queue are refused with `test_salon` (final), which
   keeps the count meaning real requests.
 
@@ -822,13 +893,15 @@ Each new guard is watched red once, and the commit says how.
 - **Product records:**
   - **PRD:** FR-PRO-ONB-001's validation step; an admin validation requirement;
     OQ-3 and the pricing note's trial start.
-  - **BACKLOG:** decision 68 superseded (if Q2 = 1); decision 60's recipe noted.
+  - **BACKLOG:** the answers to Q1–Q9; decision 68 stands (Q2), and decision
+    120's trial wording is refined to « at validation, unless an offer choice
+    started it earlier ».
   - **MODULES:** §15's trust scope; §9's trial.
   - **`modules/access.md`:** `salon.publish` = ask to go live.
 - **Design specs:**
   - pro-salon-lifecycle; salon-state-and-refusals;
-  - pro-companion-path (its Q2, re-decided: at validation);
-  - web-true-sentences;
+  - pro-companion-path (its Q2, re-decided: at validation when no offer was
+    chosen);
   - admin-console and admin-console-ui;
   - backend-web-rebuild-hook (the table: `salon.approved`, `salon.republished`);
   - backend-q1-funnel-smoke.
@@ -839,11 +912,11 @@ Each new guard is watched red once, and the commit says how.
   - **app-store-forms:** §2.4, §11.1. The review notes' « …when the salon goes
     live » stays true, since going live is now the validation.
   - **play-store-forms:** the guide says test salons are refused as such; §6.2
-    step 5's friends' salon (decision 60) under Q2.
+    step 5's friends' salon (decision 60) still works (Q2 « As today »).
 - **android-play-release:** step 5 (B0.18's app part merged), step 8 (the
   backend and console deployed, a 202 read back), step 9.
 - **pro-android-signup:**
-  - « Mettre mon profil en ligne » → « Demander la mise en ligne » in §2.7, §6.5
+  - « Mettre mon profil en ligne » → « Demander la mise en ligne » in §2.7, §6.2
     and P12;
   - its §9.1/§9.4 « B0.18 built » → deployed;
   - the order of B0.17 PR 4 (Play texts) against this PR 3.
@@ -864,50 +937,48 @@ Each new guard is watched red once, and the commit says how.
 
 ---
 
-## 11. Open questions for the owner
+## 11. The owner's answers, and what is still open
 
-- **Q1. Refusal reasons.**
-  - **§4.3's list plus an optional note (recommended).** « Outside Côte
-    d'Ivoire » and « test salon » are final: no resend button.
-  - **Free text only.**
-- **Q2. The website's offer choice before validation** (§3.6, with each
-  option's cost):
-  - **after validation only (recommended);**
-  - recorded now, with the clock starting at validation;
-  - as today.
-- **Q3. How you hear of a new request.**
-  - **E-mail plus the console's count (recommended).** Is `ADMIN_EMAIL` (your
-    admin login) an inbox you read, or should a separate address be set?
-  - The console only.
-- **Q4. The delay told to waiting salons.**
-  - **None (recommended).**
-  - « sous 48 h ».
-  - « sous 2 jours ouvrés ».
-- **Q5.** Folded into R11: there are no public salons today, so the backfill
-  is only a safety net.
-- **Q6. A validated salon that changes its pin, address or phone.** With no
-  re-validation, a salon validated in Abidjan could move its pin abroad unseen,
-  which weakens decision 123.
-  - **An e-mail to you on such a change (recommended):** you can then suspend.
-  - Nothing.
-  - A new validation, the salon going offline meanwhile.
-- **Q7. The CGU.**
-  - **Add §6.4's clause (recommended).**
-  - No change.
-- **Q8. Old iOS builds' generic error after a request** (§3.1).
-  - **Accept it until the iOS build that knows the answer is live and the
+**Answered on 2026-11-12** (the questions as asked; recorded as decisions in
+B0.18's PR):
+
+- **Q1. Refusal reasons:** « List + optional note », the recommendation
+  (§4.3). « Hors Côte d'Ivoire » and « salon de test » are final.
+- **Per salon:** asked after the owner's question « someone that choose the
+  reseau offre will need to do the validation for each salon? ». Answer:
+  « Each salon », the recommendation. A Réseau owner's every salon waits for
+  validation.
+- **Q2. The offer choice before validation:** **« As today »** (over « Choose
+  after validation », the recommendation, and « Record now, clock at
+  validation »). Decision 68 stands: a choice starts the 90 days, before
+  validation if it comes first, and opens team invitations and « Ajouter un
+  salon ». Without a choice, the 90 days start at validation (§3.6).
+- **Q3. New requests:** « Yes, use my admin e-mail », the recommendation:
+  `ADMIN_EMAIL` is an inbox the owner reads.
+- **Q4. The delay:** « No delay promised », the recommendation.
+- **Q6. Changes after validation:** « E-mail me on such changes », the
+  recommendation (§5.1).
+- **Q7. The CGU:** « Add the sentence », the recommendation (§6.4).
+
+**Still open:**
+
+- **Q8. Old iOS builds after a request** (§3.1, §9.3): a generic error even
+  though the request went through, and « Complétez les étapes requises… »
+  after a final refusal.
+  - **Accept it until the iOS build that knows the answers is live and the
     floor is raised (recommended).**
   - Hold the backend change until that iOS build is live, which delays
     Android's closed test.
-- **Q9. The words:** §6.1's states and buttons, §4.3's reasons, §5.2's
-  notices, `/professionnels` step 3.
+- **Q9. The words:** §6.1's states and buttons, §4.3's reasons, §5.1's and
+  §5.2's messages, `/professionnels` step 3.
 
-**Recommendations taken unless the owner says otherwise:**
+**Recommendations, taken unless the owner objects:**
 
 - **R1** `status` stays `draft` until validation, with a validation table
   beside it (§2).
-- **R2** Every transition is a compare-and-set; validation is written first;
-  a retry finishes an interrupted one (§3.2).
+- **R2** The decision and the going-live are each a single-winner
+  compare-and-set; « Validation à terminer » finishes an interrupted one
+  (§3.2).
 - **R3** Validate re-runs the gate; refuse needs a code; the admin can
   validate a refused salon (§3.2–§3.3).
 - **R4** « Lever la suspension » and « Marquer payé » never publish an
@@ -920,8 +991,8 @@ Each new guard is watched red once, and the commit says how.
   the website (§6.3).
 - **R9** The console shows the pin's coordinates with an OpenStreetMap link,
   not a map (no key on the web).
-- **R10** The scheduler sends billing notices only to validated salons
-  (§3.6).
+- **R10** The scheduler sends billing notices only to salons validated and
+  live (§3.6).
 - **R11** Salons already public on the deploy day (0 today) are validated
   automatically by the backfill (§3.7).
 
@@ -929,7 +1000,8 @@ Each new guard is watched red once, and the commit says how.
 
 - the production counts on the deploy day (0 public today; drafts and offer
   rows not read);
-- that `ADMIN_EMAIL` is a mailbox the owner reads (Q3);
+- that mail to `ADMIN_EMAIL` arrives (the owner says they read it; read back
+  at the deploy, §9.2);
 - whether the live console renders the salon's photos (CORS, §4.4);
 - which admin console build is live today;
 - the production value of `SUBSCRIPTION_ENFORCEMENT` (default off);
