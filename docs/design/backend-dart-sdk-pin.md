@@ -4,7 +4,7 @@
 |---|---|
 | **Status** | Built; **merged 2026-11-12** (`af30cb18`, #757). Production is **not** redeployed by this change (§10). |
 | **Owner** | Sadreddine Daher |
-| **Last updated** | 2026-11-10 |
+| **Last updated** | 2026-11-12 |
 | **PRD ref / phase** | Security, cross-cutting · V1 |
 | **ROADMAP entry** | [2026-11-10-backend-dart-sdk-pin.md](../roadmap/entries/2026-11-10-backend-dart-sdk-pin.md) |
 | **Skills checked** | myweli-backend-guardrails · myweli-verification-guardrails |
@@ -184,6 +184,11 @@ now changes only when the digest does.
 - **Such a PR is red on purpose** until ci.yml's `sdk:` follows in the same PR.
   `dart_sdk_pin_test` says exactly that in its failure message. This is the
   price of rule 3 in §8.
+- **Stable tags only (2026-11-12).** The entry's first run proposed
+  `3.15.0-118.1.beta` (#764). Dependabot's own pre-release heuristic had
+  switched itself off: `latest` shared a digest with no `X.Y.Z` tag. An
+  `ignore` range per minor now holds dart's pre-releases, and rule 5 in §8
+  keeps it there. [backend-dependabot-docker-stable.md](backend-dependabot-docker-stable.md).
 
 ## 6. CI alignment, and what 3.13.7 found
 
@@ -269,7 +274,11 @@ workflows as YAML. It enforces four rules:
    jobs must exist, so the comparison cannot pass over an empty set;
 4. the deploy workflow runs the image check after `id: build` and before
    `gcloud run services replace`, with no `if:`, on
-   `steps.build.outputs.image`.
+   `steps.build.outputs.image`;
+5. (since 2026-11-12) Dependabot's `docker` entry ignores dart pre-releases
+   with one `> X.Y.0, < X.Y.1` per minor, from the pinned minor through the
+   next four plus the next major's `.0`, and no rule blocks a stable release
+   ([backend-dependabot-docker-stable.md](backend-dependabot-docker-stable.md) §5).
 
 **The blind spot of rules 1–2** (verification §12): `dart:3.13.7@sha256:<a
 3.13.6 digest>` satisfies both, and builds 3.13.6. Only the built bytes can
