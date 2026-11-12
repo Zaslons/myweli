@@ -1621,14 +1621,15 @@ void main() {
     // never execute, this is short and the run is red.
     //
     // **The floor is the measured total, not a round number.** A green run
-    // counted 198 on dev (2026-11-12, B0.18); A2b's two are dev-only, so 196
-    // holds on every target. The old floor (60) sat far below the real count,
-    // so a silently skipped phase — an early `return` like A2b's, a phase
-    // whose setUp swallowed its failure — could pass it. Adding assertions
-    // needs no change here; removing one means lowering this on purpose.
+    // counted 198 on dev (2026-11-12, B0.18); A2b's two are dev-only, so a
+    // deployed target counts 196. The old floor (60) sat far below the real
+    // count, so a silently skipped phase — an early `return` like A2b's, a
+    // phase whose setUp swallowed its failure — could pass it. Adding
+    // assertions needs no change here; removing one means lowering this on
+    // purpose.
     expect(
       steps,
-      greaterThanOrEqualTo(196),
+      greaterThanOrEqualTo(hasDevFixture ? 198 : 196),
       reason:
           'only $steps assertions executed — phases were skipped or swallowed',
     );
