@@ -123,10 +123,17 @@ Future<Response> onRequest(RequestContext context) async {
   }
 
   // B0.18 §3.5: the salon's validation, BESIDE the salon — never inside
-  // `provider`, which is also the public schema. Null: never asked.
+  // `provider`, which is also the public schema. Null: never asked. The
+  // full view (`offerLive`, the admin's note) only for a caller who may
+  // publish — the owner; every other member reads the state.
+  final capabilities = capabilitiesFor(member.role);
   final validation = await context
       .read<SalonProvisioningService>()
-      .validationFor(providerId, salonStatus: provider['status'] as String?);
+      .validationFor(
+        providerId,
+        salonStatus: provider['status'] as String?,
+        publisher: capabilities.contains(Cap.salonPublish),
+      );
 
   return Response.json(
     body: {
@@ -134,7 +141,7 @@ Future<Response> onRequest(RequestContext context) async {
       'provider': provider,
       'membership': {
         'role': member.role,
-        'capabilities': capabilitiesFor(member.role).toList()..sort(),
+        'capabilities': capabilities.toList()..sort(),
         if (member.artistId != null) 'artistId': member.artistId,
         if (artistName != null) 'artistName': artistName,
       },

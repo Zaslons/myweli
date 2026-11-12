@@ -6,6 +6,9 @@
 /// { code, note?, final } }`. The admin's id ([SalonValidation.decidedBy]) is
 /// never in it: a salon never sees who decided. Authenticated reads only —
 /// never `providers.data`, which is the public payload (§2.2).
+///
+/// [withNote] false leaves the admin's note out — the view a member who is
+/// not the owner reads (`salonValidationViews`).
 library;
 
 import 'salon_validation_repository.dart';
@@ -13,6 +16,7 @@ import 'salon_validation_repository.dart';
 Map<String, dynamic> salonValidationJson(
   SalonValidation v, {
   bool? offerLive,
+  bool withNote = true,
 }) => {
   'state': v.state,
   if (v.submittedAt != null) 'submittedAt': v.submittedAt!.toIso8601String(),
@@ -26,7 +30,7 @@ Map<String, dynamic> salonValidationJson(
   if (v.state == ValidationStates.refused && v.refusalCode != null)
     'refusal': {
       'code': v.refusalCode,
-      'note': ?v.refusalNote,
+      if (withNote) 'note': ?v.refusalNote,
       'final': v.isFinalRefusal,
     },
 };

@@ -42,6 +42,35 @@ void main() {
   String owner(({String id, String ownerId}) s) =>
       routes.token(s.ownerId, 'provider');
 
+  var staffCount = 0;
+
+  /// A fresh account that is an active MANAGER of [salonId] — a member who
+  /// does not hold `salon.publish` — and its token.
+  Future<({String token, String accountId})> managerOf(String salonId) async {
+    staffCount++;
+    final email = 'manager$staffCount@salon.pro';
+    final reg = await w.auth.register(
+      businessName: 'Équipe',
+      businessType: 'salon',
+      phoneNumber: '+22501000099${staffCount.toString().padLeft(2, '0')}',
+      email: email,
+      authProvider: 'google',
+      googleSub: 'sub-manager-$staffCount',
+    );
+    final invited = await w.members.invite(
+      providerId: salonId,
+      email: email,
+      role: 'manager',
+      expiresAt: DateTime.now().toUtc().add(const Duration(days: 7)),
+    );
+    final active = await w.members.activate(invited!.id, reg.provider!.id);
+    expect(active?.status, 'active');
+    return (
+      token: routes.token(reg.provider!.id, 'provider'),
+      accountId: reg.provider!.id,
+    );
+  }
+
   group('POST /providers/{id}/publish — a REQUEST, mapped', () {
     test('never asked → 202 {validation: pending}; asking again → 202, the '
         'same body, ONE event; no trial, no rebuild, still draft', () async {
@@ -707,6 +736,52 @@ void main() {
       expect(v.containsKey('offerLive'), isFalse);
     });
 
+    test('a member who is NOT the owner (a manager) reads the state — never '
+        'the admin\'s note, nor whether the offer lapsed', () async {
+      final s = await pending();
+      await w.service.refuse(
+        s.id,
+        code: 'other',
+        note: 'Envoyez une photo de la façade.',
+        adminId: 'admin_1',
+      );
+      final res = await routes.meProvider(
+        bearer: (await managerOf(s.id)).token,
+        salonId: s.id,
+      );
+      expect(res.statusCode, HttpStatus.ok);
+      final body = await bodyOf(res);
+      expect((body['membership'] as Map)['role'], 'manager');
+      expect(body['validation'], {
+        'state': 'refused',
+        'submittedAt': w.now.toIso8601String(),
+        'decidedAt': w.now.toIso8601String(),
+        'wentLive': false,
+        'refusal': {'code': 'other', 'final': false},
+      });
+      // The owner, the note's reader, still has it.
+      expect(
+        (((await read(s))['validation'] as Map)['refusal'] as Map)['note'],
+        'Envoyez une photo de la façade.',
+      );
+
+      // Validated, not live: billing state is the owner's to read.
+      final t = await live();
+      await w.providers.setStatus(t.id, 'draft');
+      final v =
+          (await bodyOf(
+                await routes.meProvider(
+                  bearer: (await managerOf(t.id)).token,
+                  salonId: t.id,
+                ),
+              ))['validation']
+              as Map;
+      expect(v['state'], 'approved');
+      expect(v['wentLive'], isTrue);
+      expect(v.containsKey('offerLive'), isFalse);
+      expect(((await read(t))['validation'] as Map)['offerLive'], isTrue);
+    });
+
     test('validated, not live: offerLive tells « Remettre en ligne » from '
         '« impayé »', () async {
       final s = await live();
@@ -743,6 +818,63 @@ void main() {
       expect((byId[b.id]!['validation'] as Map)['state'], 'pending');
       expect(byId[c.id]!.containsKey('validation'), isTrue);
       expect(byId[c.id]!['validation'], isNull);
+    });
+
+    test('a salon where the caller is a MANAGER: the state, without the '
+        'admin\'s note or the offer\'s liveness; the owner\'s rows keep '
+        'both', () async {
+      final refused = await pending();
+      await w.service.refuse(
+        refused.id,
+        code: 'photos',
+        note: 'Ajoutez la devanture.',
+        adminId: 'admin_1',
+      );
+      final offline = await live();
+      await w.providers.setStatus(offline.id, 'draft');
+      final manager = await managerOf(refused.id);
+      final invited = await w.members.invite(
+        providerId: offline.id,
+        email: 'manager$staffCount@salon.pro',
+        role: 'manager',
+        expiresAt: DateTime.now().toUtc().add(const Duration(days: 7)),
+      );
+      await w.members.activate(invited!.id, manager.accountId);
+
+      final items =
+          ((await bodyOf(await routes.meSalons(bearer: manager.token)))['items']
+                  as List)
+              .cast<Map<String, dynamic>>();
+      final byId = {for (final i in items) i['salonId']: i};
+      expect(byId[refused.id]!['role'], 'manager');
+      expect(byId[refused.id]!['validation'], {
+        'state': 'refused',
+        'submittedAt': w.now.toIso8601String(),
+        'decidedAt': w.now.toIso8601String(),
+        'wentLive': false,
+        'refusal': {'code': 'photos', 'final': false},
+      });
+      final v = byId[offline.id]!['validation'] as Map;
+      expect(v['state'], 'approved');
+      expect(v.containsKey('offerLive'), isFalse);
+
+      // The owners' own lists carry both.
+      Future<Map<String, dynamic>> ownRow(
+        ({String id, String ownerId}) s,
+      ) async {
+        final own =
+            ((await bodyOf(await routes.meSalons(bearer: owner(s))))['items']
+                    as List)
+                .cast<Map<String, dynamic>>();
+        return own.singleWhere((i) => i['salonId'] == s.id)['validation']
+            as Map<String, dynamic>;
+      }
+
+      expect(
+        ((await ownRow(refused))['refusal'] as Map)['note'],
+        'Ajoutez la devanture.',
+      );
+      expect((await ownRow(offline))['offerLive'], isTrue);
     });
   });
 }

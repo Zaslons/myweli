@@ -445,16 +445,22 @@ class SalonProvisioningService {
   /// validation record (legacy tests; `salon_validation_wiring_test.dart`
   /// pins the composition root). [salonStatus] is the salon's status as the
   /// caller just read it: `offerLive` is said only for a validated salon
-  /// that is not live.
+  /// that is not live. [publisher]: the caller holds `salon.publish` there —
+  /// only then does the view carry `offerLive` and the admin's note
+  /// ([salonValidationViews]).
   Future<Map<String, dynamic>?> validationFor(
     String providerId, {
     required String? salonStatus,
+    required bool publisher,
   }) async {
     final validations = _validations;
     if (validations == null) return null;
-    final views = await salonValidationViews(validations, _subscriptions, {
-      providerId: salonStatus,
-    });
+    final views = await salonValidationViews(
+      validations,
+      _subscriptions,
+      {providerId: salonStatus},
+      publisherOf: {if (publisher) providerId},
+    );
     return views[providerId];
   }
 }

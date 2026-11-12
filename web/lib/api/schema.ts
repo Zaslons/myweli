@@ -7066,7 +7066,7 @@ export interface components {
             /** @description The salon's validation by MyWeli (B0.18 §3.5), the same object as `GET /me/provider`'s — so the switcher row can say « En cours de validation » or « Mise en ligne refusée ». Always sent by this server (null: never asked); absent from a server before B0.18. */
             validation?: components["schemas"]["SalonValidation"] | null;
         };
-        /** @description Where a salon stands with MyWeli's validation (B0.18, decision 120 — docs/design/salon-go-live-approval.md §2.3, §3.5). Travels ONLY on authenticated reads (`GET /me/provider`, `GET /me/salons`, the publish 202, the admin routes) — never in `Provider`, the public payload. The admin who decided is never in it. `status` stays `draft` until the validation takes the salon live, so every public door stays closed for `pending` and `refused` salons (T51). */
+        /** @description Where a salon stands with MyWeli's validation (B0.18, decision 120 — docs/design/salon-go-live-approval.md §2.3, §3.5). Travels ONLY on authenticated reads (`GET /me/provider`, `GET /me/salons`, the publish 202, the admin routes) — never in `Provider`, the public payload. The admin who decided is never in it. `status` stays `draft` until the validation takes the salon live, so every public door stays closed for `pending` and `refused` salons (T51). On `/me/provider` and `/me/salons`, `offerLive` and `refusal.note` go only to a caller who holds `salon.publish` in that salon (the owner); every other member reads the state, its times and the refusal's code. */
         SalonValidation: {
             /**
              * @description `pending` — waiting for MyWeli. `approved` — validated; final for validation (it survives a billing unpublish and a suspension). `refused` — with a reason in `refusal`.
@@ -7082,7 +7082,7 @@ export interface components {
             decidedAt?: string;
             /** @description The validation took the salon live at least once. `approved` without it is a validation still finishing (« En cours de validation »); with it, a salon that is not `active` now was live before (« Plus en ligne »). */
             wentLive: boolean;
-            /** @description Sent only for an `approved` salon that is not `active` now: true → « Remettre en ligne » (the publish answers 200); false → the offer lapsed (« Plus en ligne : impayé », the billing pointer). */
+            /** @description Sent only for an `approved` salon that is not `active` now, and only to a caller who holds `salon.publish` there: true → « Remettre en ligne » (the publish answers 200); false → the offer lapsed (« Plus en ligne : impayé », the billing pointer). */
             offerLive?: boolean;
             /** @description Sent only while `state` is `refused`. */
             refusal?: {
@@ -7091,7 +7091,7 @@ export interface components {
                  * @enum {string}
                  */
                 code: "incomplete_info" | "photos" | "unconfirmed" | "outside_ci" | "test_salon" | "other";
-                /** @description The admin's note (≤ 500 code points), plain text; required for `other`. */
+                /** @description The admin's note (≤ 500 code points), plain text; required for `other`. Sent to the owner (`salon.publish`) only. */
                 note?: string;
                 /** @description `outside_ci` and `test_salon` — asking again answers 409 `validation_refused_final`; only MyWeli can still validate it. */
                 final: boolean;

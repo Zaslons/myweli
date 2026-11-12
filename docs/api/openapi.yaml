@@ -4932,7 +4932,10 @@ components:
         publish 202, the admin routes) — never in `Provider`, the public
         payload. The admin who decided is never in it. `status` stays `draft`
         until the validation takes the salon live, so every public door stays
-        closed for `pending` and `refused` salons (T51).
+        closed for `pending` and `refused` salons (T51). On `/me/provider` and
+        `/me/salons`, `offerLive` and `refusal.note` go only to a caller who
+        holds `salon.publish` in that salon (the owner); every other member
+        reads the state, its times and the refusal's code.
       required: [state, wentLive]
       properties:
         state:
@@ -4957,8 +4960,9 @@ components:
         offerLive:
           type: boolean
           description: >-
-            Sent only for an `approved` salon that is not `active` now: true
-            → « Remettre en ligne » (the publish answers 200); false → the
+            Sent only for an `approved` salon that is not `active` now, and
+            only to a caller who holds `salon.publish` there: true →
+            « Remettre en ligne » (the publish answers 200); false → the
             offer lapsed (« Plus en ligne : impayé », the billing pointer).
         refusal:
           type: object
@@ -4972,7 +4976,9 @@ components:
             note:
               type: string
               maxLength: 500
-              description: The admin's note (≤ 500 code points), plain text; required for `other`.
+              description: >-
+                The admin's note (≤ 500 code points), plain text; required
+                for `other`. Sent to the owner (`salon.publish`) only.
             final:
               type: boolean
               description: >-

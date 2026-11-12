@@ -7,6 +7,7 @@ import '../subscription/salon_subscription_service.dart';
 import '../validation/salon_validation_repository.dart';
 import '../validation/salon_validation_view.dart';
 import '../validators.dart';
+import 'capabilities.dart';
 import 'membership_repository.dart';
 import 'membership_service.dart';
 
@@ -73,10 +74,23 @@ class SalonDirectoryService {
     final validations = _validations;
     final views = validations == null
         ? const <String, Map<String, dynamic>>{}
-        : await salonValidationViews(validations, _subscriptions, {
-            for (final e in entries)
-              e['salonId'] as String: e['salonStatus'] as String,
-          });
+        : await salonValidationViews(
+            validations,
+            _subscriptions,
+            {
+              for (final e in entries)
+                e['salonId'] as String: e['salonStatus'] as String,
+            },
+            // The full view (offerLive, the note) only where this account
+            // may publish — the owner's rows.
+            publisherOf: {
+              for (final e in entries)
+                if (capabilitiesFor(
+                  e['role'] as String,
+                ).contains(Cap.salonPublish))
+                  e['salonId'] as String,
+            },
+          );
     for (final e in entries) {
       e['validation'] = views[e['salonId']];
     }
