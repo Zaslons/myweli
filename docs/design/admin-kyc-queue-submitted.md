@@ -10,7 +10,7 @@
 | **PRD ref / phase** | FR-WEB-AD-001 (KYC approval queue) · V1 |
 | **ROADMAP entry** | [2026-11-12-admin-kyc-queue.md](../roadmap/entries/2026-11-12-admin-kyc-queue.md) |
 | **Skills checked** | myweli-backend-guardrails · myweli-dev-guardrails · myweli-verification-guardrails |
-| **Related** | [admin-console.md](admin-console.md) §3, §8, §13 · [admin-console-ui.md](admin-console-ui.md) §3 · [pro-kyc.md](pro-kyc.md) · [web-pro-kyc.md](web-pro-kyc.md) · [BACKEND.md](../BACKEND.md) §7 T15, T17 · [salon-go-live-approval.md](salon-go-live-approval.md) §4.3 |
+| **Related** | [admin-console.md](admin-console.md) §3, §8, §13 · [admin-console-ui.md](admin-console-ui.md) §3 · [pro-kyc.md](pro-kyc.md) · [web-pro-kyc.md](web-pro-kyc.md) · [BACKEND.md](../BACKEND.md) §7 T15, T17 · [salon-go-live-approval.md](salon-go-live-approval.md) §4.3 · [admin-remote-images.md](admin-remote-images.md) (#777, B0.21: how the console draws an image document) |
 
 How to read it: every claim names where it was read. **Observed** means read
 in the code or run here on 2026-11-12. **UNVERIFIED** means it was not —
@@ -78,11 +78,15 @@ verify one: the « Vérifié » badge fans out to its salons and deposits unlock
   the website's too (`web/lib/pro/kyc.ts:60`). The object key ends in `.pdf`,
   chosen by the server (`upload_signing_service.dart:182`), and the signed
   upload pins the content type.
-- The console draws every document with `TimedCachedImage`
-  (`mobile/lib/screens/admin/admin_kyc_detail_screen.dart:239-281`), a
-  `CachedNetworkImage` whose `errorWidget` is a grey box with
+- The console drew every document with `TimedCachedImage`
+  (`mobile/lib/screens/admin/admin_kyc_detail_screen.dart:239-281` at the
+  time), a `CachedNetworkImage` whose `errorWidget` is a grey box with
   `Icons.image_not_supported` (`mobile/lib/widgets/common/timed_cached_image.dart:111-116, 193`).
-  The tap-to-zoom dialog draws the same widget.
+  The tap-to-zoom dialog drew the same widget. Since #777 an image document
+  and its zoom go through `AdminRemoteImage` instead
+  ([admin-remote-images.md](admin-remote-images.md), B0.21): R2 sends the
+  console no CORS header, so `TimedCachedImage` could not draw a photo there
+  either.
 - **Probes run here (2026-11-12), a valid one-page PDF beside a PNG control:**
   - Flutter's engine decoder (`flutter test`, `ui.instantiateImageCodec`):
     PNG decoded 643×1024; PDF threw `Exception: Invalid image data`.
