@@ -671,6 +671,20 @@ These block everything. None is surface-specific.
       and `api.myweli.com` was deliberately DNS-only so Google could validate
       its certificate *(proxied once the 2026-09 front door lands; Access
       still fronts only the console)*.
+      **It covered the custom domain only, until 2026-11-13.** Checked while
+      deploying the console that day: an anonymous
+      `GET https://myweli-admin.pages.dev/main.dart.js` answered `200` with
+      the whole bundle (5.17 MB), and so did every deploy's preview address.
+      Nobody could sign in from there (the API's preflight for that origin
+      carries no `Access-Control-Allow-Origin`), but the console's code and its
+      admin routes were public. On the owner's yes, the Access application
+      « Myweli Admin » gained `myweli-admin.pages.dev` and
+      `*.myweli-admin.pages.dev`. Read back the same day, anonymously: all
+      three hostnames, `main.dart.js` and the preview
+      `3749e1e1.myweli-admin.pages.dev` included, answer `302` to
+      `blue-base-1ad1.cloudflareaccess.com/cdn-cgi/access/login/<host>`. The
+      first fetch right after saving still answered `200`; the change took
+      about a minute to reach the edge.
 
 - [x] **The per-identity limits are deployed to PRODUCTION.** **Enforcing since
       2026-08-19** — revision `myweli-api-00022-t9x`, commit `34d55c0`, which

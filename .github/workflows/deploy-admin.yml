@@ -6,7 +6,10 @@ name: Deploy admin console
 # in WEB_ORIGINS — which lives in infra/gcp/service.yaml, not render.yaml; the
 # Render Blueprint was superseded by the GCP migration. Restrict the Pages site
 # with Cloudflare Access (email allowlist) — the backend also enforces admin
-# authz.
+# authz. Access must cover all three hostnames: admin.myweli.com,
+# myweli-admin.pages.dev and *.myweli-admin.pages.dev (each deploy's preview
+# address). Until 2026-11-13 only the first was covered, and the console's
+# bundle was public at the other two (docs/LAUNCH.md, the Access box).
 #
 # Required repo secrets:
 #   CLOUDFLARE_API_TOKEN  — a token with the "Cloudflare Pages: Edit" permission
