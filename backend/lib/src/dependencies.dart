@@ -682,6 +682,9 @@ final UploadSigningService uploadSigningService = UploadSigningService(
 final KycService kycService = KycService(
   providerAuthRepository,
   verifier: uploadVerificationService,
+  // B0.22: a re-submit deletes the documents it replaced
+  // (docs/design/pro-deletion-erase-gaps.md §3.2; kyc_wiring_test.dart).
+  storage: storageService,
 );
 
 /// Salon lifecycle (docs/design/pro-salon-lifecycle.md): draft creation at

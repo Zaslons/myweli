@@ -48,6 +48,7 @@ import 'package:test/test.dart';
 import '../access/ensure_owner_contract.dart';
 import '../access/invite_contract.dart';
 import '../auth/apple_token_repository_contract.dart';
+import '../auth/kyc_write_contract.dart';
 import '../idempotency/idempotency_contract.dart';
 import '../validation/salon_place_notice_contract.dart';
 import '../validation/salon_validation_contract.dart';
@@ -462,20 +463,74 @@ void main() {
       );
       final id = reg.provider!.id;
 
-      final updated = await r.submitKyc(id, [
+      final updated = (await r.submitKyc(id, [
         {
           'type': 'idCard',
           'fileName': 'id.jpg',
           'key': 'kyc/$id/a.jpg',
           'submittedAt': '2030-06-26T09:00:00.000Z',
         },
-      ]);
+      ])).account;
       expect(updated!.verificationStatus, 'pending');
       expect(updated.kycDocs.single['type'], 'idCard');
 
       final reread = await r.accountById(id);
       expect(reread!.kycDocs.single['key'], 'kyc/$id/a.jpg');
-      expect(await r.submitKyc('nope', const []), isNull);
+      final unknown = await r.submitKyc('nope', const []);
+      expect(unknown.account, isNull);
+      expect(unknown.refused, isFalse);
+    });
+
+    // B0.22 §3.2 — the compare under the row lock, the same contract as the
+    // in-memory twin (kyc_test.dart). docs/design/pro-deletion-erase-gaps.md
+    group('submitKyc — the twin contract', () {
+      var n = 0;
+      kycWriteContract(
+        repo: repo,
+        account: (r) async => (await r.register(
+          email: 'kycw${++n}@test.pro',
+          authProvider: 'google',
+          googleSub: 'kycw-sub-$n',
+          phoneNumber: provPhone,
+          businessName: 'X',
+          businessType: 'salon',
+        )).provider!.id,
+      );
+
+      test('the lock reads the OLD string form too: a pass-through key '
+          'stored that way is still stored', () async {
+        final r = repo();
+        final id = (await r.register(
+          email: 'kycw-legacy@test.pro',
+          authProvider: 'google',
+          googleSub: 'kycw-sub-legacy',
+          phoneNumber: provPhone,
+          businessName: 'X',
+          businessType: 'salon',
+        )).provider!.id;
+        final a = 'kyc/$id/a.jpg';
+        await pool.execute(
+          Sql.named(
+            'UPDATE provider_users SET kyc_docs = to_jsonb(@t::text) '
+            'WHERE id = @id',
+          ),
+          parameters: {
+            'id': id,
+            't': jsonEncode([
+              {'type': 'idCard', 'key': a},
+            ]),
+          },
+        );
+        final w = await r.submitKyc(
+          id,
+          [
+            {'type': 'idCard', 'key': a},
+          ],
+          passThrough: {a},
+        );
+        expect(w.refused, isFalse);
+        expect(w.lockedKeys, [a]);
+      });
     });
 
     // docs/design/admin-kyc-queue-submitted.md §4.2 — the SQL twin of

@@ -12,8 +12,12 @@ typedef KycResult = ({bool ok, String? error, Map<String, dynamic>? data});
 /// to `pending`. The server is the authority on `verificationStatus` /
 /// `rejectionReason` (only the future admin flips them).
 class KycService {
-  KycService(this._providerAuth, {UploadVerificationService? verifier})
-    : _verifier = verifier;
+  KycService(
+    this._providerAuth, {
+    UploadVerificationService? verifier,
+    StorageService? storage,
+  }) : _verifier = verifier,
+       _storage = storage;
 
   final ProviderAuthRepository _providerAuth;
 
@@ -21,6 +25,12 @@ class KycService {
   /// working; when absent no size check runs, which is why the composition root
   /// always supplies it in production.
   final UploadVerificationService? _verifier;
+
+  /// Deletes the documents a re-submit replaced (B0.22 — design:
+  /// docs/design/pro-deletion-erase-gaps.md §3.2). Optional for the same
+  /// reason; without it nothing is deleted, which is why `dependencies.dart`
+  /// wires it (`kyc_wiring_test.dart` pins it).
+  final StorageService? _storage;
 
   static const _docTypes = {
     'idCard',
@@ -109,9 +119,72 @@ class KycService {
       }
     }
 
-    final updated = await _providerAuth.submitKyc(accountId, docs);
-    if (updated == null) return (ok: false, error: 'forbidden', data: null);
+    // B0.22 §3.2 — compared AFTER the promotion, so a re-sent pending key
+    // already maps to its stored form. A final key in `stored` was passed
+    // through on the strength of the read above; any other one this request
+    // just promoted. The write re-checks the pass-through keys under the row
+    // lock: a concurrent re-submit may have replaced — and deleted — one
+    // since. docs/design/pro-deletion-erase-gaps.md
+    final keys = [for (final d in docs) d['key'] as String];
+    final passThrough = {
+      for (final k in keys)
+        if (stored.contains(k)) k,
+    };
+    final write = await _providerAuth.submitKyc(
+      accountId,
+      docs,
+      passThrough: passThrough,
+    );
+    final updated = write.account;
+    if (write.refused || updated == null) {
+      // Lost the race (or the account went meanwhile). This request's fresh
+      // copies would sit unreferenced in a retained bucket — but NOT one the
+      // locked list holds: a promoted key is a pure function of its pending
+      // key, so a winner that carried the same upload committed that very
+      // object. Nothing old is deleted. A refusal is the contract's existing
+      // 400 (« one this account no longer holds »).
+      final locked = write.lockedKeys.toSet();
+      await _deleteOwn(accountId, {
+        for (final k in keys)
+          if (!passThrough.contains(k) && !locked.contains(k)) k,
+      });
+      return (
+        ok: false,
+        error: write.refused ? 'invalid_input' : 'forbidden',
+        data: null,
+      );
+    }
+
+    // Written: the documents the new list leaves out are referenced by
+    // nothing now, and the account's deletion would no longer list them —
+    // so they go here, after the transaction, never inside the lock.
+    final kept = keys.toSet();
+    await _deleteOwn(accountId, {
+      for (final k in write.lockedKeys)
+        if (!kept.contains(k)) k,
+    });
     return (ok: true, error: null, data: _statusDto(updated));
+  }
+
+  /// Delete [keys] from the KYC bucket — only this account's own
+  /// `kyc/{accountId}/…` objects (never a `pending/` key, never another
+  /// prefix: the filter of the account deletion), sequentially (the lists
+  /// are capped at [_maxDocuments]) and **best effort**, as the deletion is.
+  /// A survivor is
+  /// private, uuid-named and referenced by nothing; a storage failure never
+  /// turns a stored submit into an error. Nothing is logged.
+  Future<void> _deleteOwn(String accountId, Iterable<String> keys) async {
+    final storage = _storage;
+    if (storage == null) return;
+    final own = 'kyc/$accountId/';
+    for (final key in keys) {
+      if (!key.startsWith(own)) continue;
+      try {
+        await storage.deleteObject(key: key, bucket: StorageBucket.kyc);
+      } catch (_) {
+        // Tolerated: see above.
+      }
+    }
   }
 
   Map<String, dynamic> _statusDto(ProviderAccount a) => {

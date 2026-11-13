@@ -111,6 +111,29 @@ DateTime? kycSubmittedAt(List<Map<String, dynamic>> docs) {
 
 /// Verify outcome: the provider account + a freshly issued token pair (access
 /// JWT role `provider` + a rotating opaque refresh token).
+/// What [ProviderAuthRepository.submitKyc] did (B0.22 — design:
+/// docs/design/pro-deletion-erase-gaps.md §3.2).
+///
+/// - [account]: the updated account; null when the account is unknown or the
+///   write was [refused].
+/// - [refused]: a pass-through key was no longer in the row under the lock,
+///   so nothing was written.
+/// - [lockedKeys]: the keys the row held under the lock — the PREVIOUS list
+///   after a write, the CURRENT one after a refusal; empty for an unknown
+///   account. The caller deletes from it after the transaction, never inside.
+typedef KycWrite = ({
+  ProviderAccount? account,
+  bool refused,
+  List<String> lockedKeys,
+});
+
+/// The keys of a stored KYC list, in order — entries without a string key
+/// (never written by the service) are skipped, as every reader skips them.
+List<String> kycKeysOf(List<Map<String, dynamic>> docs) => [
+  for (final d in docs)
+    if (d['key'] is String) d['key'] as String,
+];
+
 typedef ProviderVerifyResult = ({
   bool ok,
   String? error,
@@ -197,12 +220,21 @@ abstract interface class ProviderAuthRepository {
   Future<ProviderAccount?> accountByEmail(String email);
 
   /// Store submitted KYC [docs] for the account and reset verification to
-  /// `pending` (clearing any prior rejection). Returns the updated account, or
-  /// null if it doesn't exist. (Design: docs/design/pro-kyc.md.)
-  Future<ProviderAccount?> submitKyc(
+  /// `pending` (clearing any prior rejection). (Design: docs/design/pro-kyc.md.)
+  ///
+  /// **A compare under a row lock** (B0.22 — design:
+  /// docs/design/pro-deletion-erase-gaps.md §3.2): in one step the row's
+  /// current keys are read under a lock; if any key of [passThrough] — the
+  /// stored keys the request re-sent rather than just promoted — is no longer
+  /// among them, nothing is written and the result is [KycWrite.refused].
+  /// Otherwise the list is replaced and the PREVIOUS keys come back, for the
+  /// caller to delete the ones the new list leaves out. An empty
+  /// [passThrough] (the demo reset, the tests) is never refused.
+  Future<KycWrite> submitKyc(
     String accountId,
-    List<Map<String, dynamic>> docs,
-  );
+    List<Map<String, dynamic>> docs, {
+    Set<String> passThrough = const {},
+  });
 
   /// Admin: accounts with the given verification [status], newest-first,
   /// paginated. (Design: docs/design/admin-console.md.) **Not the KYC queue:**
@@ -326,17 +358,26 @@ class InMemoryProviderAuthRepository implements ProviderAuthRepository {
       _byEmail[email.trim().toLowerCase()];
 
   @override
-  Future<ProviderAccount?> submitKyc(
+  Future<KycWrite> submitKyc(
     String accountId,
-    List<Map<String, dynamic>> docs,
-  ) async {
+    List<Map<String, dynamic>> docs, {
+    Set<String> passThrough = const {},
+  }) async {
     final account = _byId[accountId];
-    if (account == null) return null;
+    if (account == null) {
+      return (account: null, refused: false, lockedKeys: const <String>[]);
+    }
+    // The twin of Postgres's `FOR UPDATE`: no `await` between this read and
+    // the write below, so no other submit can land in between.
+    final locked = kycKeysOf(account.kycDocs);
+    if (!passThrough.every(locked.contains)) {
+      return (account: null, refused: true, lockedKeys: locked);
+    }
     account
       ..kycDocs = List<Map<String, dynamic>>.from(docs)
       ..verificationStatus = 'pending'
       ..rejectionReason = null;
-    return account;
+    return (account: account, refused: false, lockedKeys: locked);
   }
 
   @override

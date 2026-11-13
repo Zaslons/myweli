@@ -7,9 +7,11 @@ import '../auth/auth_repository.dart'
     show OtpRequestResult, RefreshResult, TokenPair;
 import '../auth/provider_auth_repository.dart'
     show
+        KycWrite,
         ProviderAccount,
         ProviderAuthRepository,
         ProviderVerifyResult,
+        kycKeysOf,
         kycStampPattern;
 import '../auth/tokens.dart';
 import 'refresh_exchange.dart';
@@ -473,27 +475,51 @@ class PostgresProviderAuthRepository implements ProviderAuthRepository {
   }
 
   @override
-  Future<ProviderAccount?> submitKyc(
+  Future<KycWrite> submitKyc(
     String accountId,
-    List<Map<String, dynamic>> docs,
-  ) async {
-    final rows = await _pool.execute(
-      Sql.named(
-        "UPDATE provider_users SET kyc_docs = @docs:jsonb, "
-        "verification_status = 'pending', rejection_reason = NULL "
-        "WHERE id = @id RETURNING *",
-      ),
-      // The LIST, not `jsonEncode(docs)`: a String given to a `:jsonb`
-      // parameter is encoded again, so the column held a jsonb STRING whose
-      // text was the list — invisible to the app (`_kycDocs` decodes both) and
-      // to nothing else until SQL read inside it (the KYC queue). Rows written
-      // that way stay; the queue's SQL reads both forms
-      // (docs/design/admin-kyc-queue-submitted.md §4.2). `salon_clients.tags`
-      // is written the same way, for the same reason.
-      parameters: {'id': accountId, 'docs': docs},
-    );
-    if (rows.isEmpty) return null;
-    return _toAccount(rows.first.toColumnMap());
+    List<Map<String, dynamic>> docs, {
+    Set<String> passThrough = const {},
+  }) {
+    // B0.22 §3.2: a compare under the row lock, in ONE transaction. Without
+    // it, a submit that validated a stored key before a concurrent re-submit
+    // replaced (and deleted) it would write that key back — the row pointing
+    // at a deleted object. docs/design/pro-deletion-erase-gaps.md
+    return _pool.runTx<KycWrite>((tx) async {
+      final locked = await tx.execute(
+        Sql.named(
+          'SELECT kyc_docs FROM provider_users WHERE id = @id FOR UPDATE',
+        ),
+        parameters: {'id': accountId},
+      );
+      if (locked.isEmpty) {
+        return (account: null, refused: false, lockedKeys: const <String>[]);
+      }
+      // The same decoder as every read, so the old string form counts too.
+      final keys = kycKeysOf(_kycDocs(locked.first.toColumnMap()['kyc_docs']));
+      if (!passThrough.every(keys.contains)) {
+        return (account: null, refused: true, lockedKeys: keys);
+      }
+      final rows = await tx.execute(
+        Sql.named(
+          "UPDATE provider_users SET kyc_docs = @docs:jsonb, "
+          "verification_status = 'pending', rejection_reason = NULL "
+          "WHERE id = @id RETURNING *",
+        ),
+        // The LIST, not `jsonEncode(docs)`: a String given to a `:jsonb`
+        // parameter is encoded again, so the column held a jsonb STRING whose
+        // text was the list — invisible to the app (`_kycDocs` decodes both)
+        // and to nothing else until SQL read inside it (the KYC queue). Rows
+        // written that way stay; the queue's SQL reads both forms
+        // (docs/design/admin-kyc-queue-submitted.md §4.2).
+        // `salon_clients.tags` is written the same way, for the same reason.
+        parameters: {'id': accountId, 'docs': docs},
+      );
+      return (
+        account: _toAccount(rows.first.toColumnMap()),
+        refused: false,
+        lockedKeys: keys,
+      );
+    });
   }
 
   @override
