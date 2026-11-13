@@ -329,9 +329,9 @@ void main() {
 
   group('publish (pro-salon-lifecycle B3)', () {
     test('success → true, no error, loading toggles', () async {
-      when(
-        () => pro.publishSalon(SalonId('p1')),
-      ).thenAnswer((_) async => ApiResponse.success(true, message: 'ok'));
+      when(() => pro.publishSalon(SalonId('p1'))).thenAnswer(
+        (_) async => ApiResponse.success(const PublishOutcome.live()),
+      );
       final p = ProOnboardingProvider();
       final ok = await p.publish(SalonId('p1'));
       expect(ok, isTrue);

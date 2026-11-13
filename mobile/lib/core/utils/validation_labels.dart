@@ -1,5 +1,6 @@
 import '../../models/admin_salon_validation.dart';
 import '../../models/salon_validation.dart';
+import '../constants/salon_validation_copy.dart';
 
 /// The admin console's words for a salon's validation (B0.18 —
 /// docs/design/salon-go-live-approval.md §4.3, §4.4).
@@ -59,20 +60,9 @@ class ValidationLabels {
   /// What the salon reads for each code — the owner's approved words
   /// (decision 132), the server's `kRefusalSentences`
   /// (salon_validation_copy.dart). `other` has none: the salon reads the note
-  /// alone.
-  static const Map<String, String?> salonSentences = {
-    'incomplete_info':
-        'Certaines informations du salon sont incomplètes ou peu claires.',
-    'photos':
-        'Les photos ne montrent pas assez clairement le salon et son travail.',
-    'unconfirmed': 'Nous n’avons pas pu confirmer l’existence de ce salon.',
-    'outside_ci':
-        'MyWeli n’est pas encore disponible dans votre pays. Si votre salon '
-        'est en Côte d’Ivoire, écrivez-nous depuis « Aide & Support ».',
-    'test_salon':
-        'Ce salon est un salon de test : il ne sera pas mis en ligne.',
-    'other': null,
-  };
+  /// alone. ONE source with the Pro app's banner: [SalonValidationCopy].
+  static const Map<String, String?> salonSentences =
+      SalonValidationCopy.refusalSentences;
 
   /// The admin name of a code, or the code itself when this build does not
   /// know it (the console is an internal tool; a raw code is information).

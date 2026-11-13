@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 import '../../core/config/app_config.dart';
+import '../../core/constants/salon_validation_copy.dart';
 import '../../core/utils/salon_id.dart';
 import '../../core/utils/salon_time.dart';
 import '../../core/utils/team_error_messages.dart';
@@ -18,6 +19,7 @@ import '../../models/provider_session.dart';
 import '../../models/review.dart';
 import '../../models/review_summary.dart';
 import '../../models/salon_membership_info.dart';
+import '../../models/salon_validation.dart';
 import '../../models/service.dart';
 import '../interfaces/pro_service_interface.dart';
 import '../interfaces/session_store.dart';
@@ -267,7 +269,7 @@ class ApiProService implements ProServiceInterface {
   }
 
   @override
-  Future<ApiResponse<bool>> publishSalon(SalonId providerId) async {
+  Future<ApiResponse<PublishOutcome>> publishSalon(SalonId providerId) async {
     if (await _authed.accessToken() == null) {
       return ApiResponse.error('Non connecté');
     }
@@ -278,22 +280,46 @@ class ApiProService implements ProServiceInterface {
       ),
     );
     if (res == null) return networkError();
+    // B0.18 (salon-go-live-approval §3.1): 200 is live, 202 a request.
+    // Before, every status but 200 was a refusal, and a 202 read « Une
+    // erreur est survenue. Réessayez. » for a request the server had
+    // recorded (§3.1, Q8).
+    if (res.statusCode == 200) {
+      return ApiResponse.success(
+        const PublishOutcome.live(),
+        message: 'Votre salon est en ligne',
+      );
+    }
+    if (res.statusCode == 202) {
+      return ApiResponse.success(_requested(res.body));
+    }
     if (res.statusCode == 409) {
-      // The gate's `missing` keys — `offer` gets its own code. The server
-      // starts the trial at the first publish, so only an EXPIRED offer
-      // lands here: the sentence states that and points nowhere (App Store
-      // 3.1.1 — docs/design/pro-companion-path.md §2.2). The screen
-      // carries the same sentence and falls back to this one elsewhere.
-      List<dynamic> missing = const [];
+      Object? body;
       try {
-        missing =
-            (jsonDecode(res.body) as Map<String, dynamic>)['missing']
-                as List<dynamic>? ??
-            const [];
+        body = jsonDecode(res.body);
       } catch (_) {
         /* keep the generic message */
       }
-      if (missing.contains('offer')) {
+      final json = body is Map<String, dynamic>
+          ? body
+          : const <String, dynamic>{};
+      // The code first: a final refusal carries no `missing`, and read as
+      // the gate it said « Complétez les étapes requises… » to a salon
+      // MyWeli refused for good (decision 136 item 2 — the screen then
+      // re-reads and shows the refusal's reason).
+      if (json['error'] == 'validation_refused_final') {
+        return ApiResponse.error(
+          SalonValidationCopy.refusedFinalMessage,
+          code: 'validation_refused_final',
+        );
+      }
+      // The gate's `missing` keys — `offer` gets its own code: an EXPIRED
+      // offer, or a validated salon back to `draft` with no live offer. The
+      // sentence states that and points nowhere (App Store 3.1.1 —
+      // docs/design/pro-companion-path.md §2.2). The screen carries the same
+      // sentence and falls back to this one elsewhere.
+      final missing = json['missing'];
+      if (missing is List && missing.contains('offer')) {
         return ApiResponse.error(
           publishOfferInactiveMessage,
           code: 'offer_required',
@@ -304,8 +330,31 @@ class ApiProService implements ProServiceInterface {
         code: 'incomplete',
       );
     }
-    if (res.statusCode != 200) return _refused(res);
-    return ApiResponse.success(true, message: 'Votre salon est en ligne');
+    return _refused(res);
+  }
+
+  /// A 202's body, `{ validation: SalonValidation | null }`. One the app
+  /// cannot read is still a request the server recorded:
+  /// [PublishOutcome.requestedUnread], never a failure.
+  PublishOutcome _requested(String raw) {
+    Object? body;
+    try {
+      body = jsonDecode(raw);
+    } catch (_) {
+      return const PublishOutcome.requestedUnread();
+    }
+    if (body is! Map<String, dynamic>) {
+      return const PublishOutcome.requestedUnread();
+    }
+    if (!body.containsKey('validation')) {
+      return const PublishOutcome.requestedUnread();
+    }
+    final v = body['validation'];
+    if (v == null) return const PublishOutcome.requested(null);
+    if (v is! Map) return const PublishOutcome.requestedUnread();
+    return PublishOutcome.requested(
+      SalonValidation.fromJson(v.cast<String, dynamic>()),
+    );
   }
 
   @override
@@ -404,9 +453,14 @@ class ApiProService implements ProServiceInterface {
         'salonId': salonMap['id'],
         'salonName': salonMap['name'],
       });
+      // B0.18's fourth key — absent on a server from before B0.18, which
+      // keeps today's screens (decision 136 item 10).
+      final validation = readSalonValidationKey(body);
       return MyProviderInfo(
         salon: Provider.fromJson(salonMap),
         membership: membership,
+        validation: validation.validation,
+        validationSent: validation.sent,
       );
     });
   }
@@ -852,8 +906,7 @@ class ApiProService implements ProServiceInterface {
       // A draft salon never reaches here — Decision A lets it book its own
       // calendar.
       case 'provider_suspended':
-        return 'Votre salon est suspendu. Contactez MyWeli pour le réactiver '
-            '— vos rendez-vous sont intacts.';
+        return salonSuspendedMessage;
       // Not row 82, shipped with it: this is the most likely manual-booking
       // refusal and it read « Une erreur est survenue. », while
       // `pro_manual_booking_screen.dart` commented that the refusal « here is a

@@ -1,3 +1,5 @@
+import 'package:equatable/equatable.dart';
+
 import '../../core/utils/salon_id.dart';
 import '../../models/api_response.dart';
 import '../../models/appointment.dart';
@@ -9,6 +11,7 @@ import '../../models/pro_membership.dart';
 import '../../models/provider.dart';
 import '../../models/review_summary.dart';
 import '../../models/salon_membership_info.dart';
+import '../../models/salon_validation.dart';
 import '../../models/service.dart';
 
 // Dashboard stats model. The revenue fields are NULLABLE: the server
@@ -46,10 +49,98 @@ class DashboardStats {
 /// GET /me/provider (team access R4b): the acting salon + the caller's
 /// membership — how the app learns WHO it is inside the salon.
 class MyProviderInfo {
-  const MyProviderInfo({required this.salon, required this.membership});
+  const MyProviderInfo({
+    required this.salon,
+    required this.membership,
+    this.validation,
+    this.validationSent = false,
+  }) : assert(
+         validation == null || validationSent,
+         'a validation is always a sent key',
+       );
 
   final Provider salon;
   final ProMembership membership;
+
+  /// The fourth top-level key (B0.18 — docs/design/salon-go-live-approval.md
+  /// §3.5): where the salon stands with MyWeli's validation, null while it
+  /// never asked. The full view (`offerLive`, the refusal's note) only for a
+  /// `salon.publish` holder.
+  final SalonValidation? validation;
+
+  /// The server sent the `validation` key. False on a server from before
+  /// B0.18 (a rollback): the app keeps today's screens (decision 136 item 10;
+  /// [readSalonValidationKey]).
+  final bool validationSent;
+
+  /// The same read with [salon] or [membership] replaced — the validation
+  /// kept as it came.
+  MyProviderInfo copyWith({Provider? salon, ProMembership? membership}) =>
+      MyProviderInfo(
+        salon: salon ?? this.salon,
+        membership: membership ?? this.membership,
+        validation: validation,
+        validationSent: validationSent,
+      );
+}
+
+/// What `POST /providers/{id}/publish` answered when it succeeded (B0.18 —
+/// docs/design/salon-go-live-approval.md §3.1, openapi publish):
+///
+/// - **200, live** ([PublishOutcome.live]): the salon is online — it already
+///   was, or a validated salon came back (the republish). The only answer
+///   that may say « 🎉 Votre profil est en ligne ! ».
+/// - **202, a request** ([PublishOutcome.requested]): recorded, or already
+///   waiting, or the admin's validation finishing. The salon stays `draft`
+///   until MyWeli decides. Its body's `validation` is `pending` (or
+///   `approved` not yet live), `refused` when MyWeli refused at that very
+///   moment, or `null` when the request vanished (the owner's account
+///   erased).
+/// - **202 with a body this build cannot read**
+///   ([PublishOutcome.requestedUnread]): the request IS recorded; the screen
+///   re-reads the state.
+class PublishOutcome extends Equatable {
+  const PublishOutcome.live()
+    : isLive = true,
+      validationRead = false,
+      validation = null;
+
+  const PublishOutcome.requested(this.validation)
+    : isLive = false,
+      validationRead = true;
+
+  const PublishOutcome.requestedUnread()
+    : isLive = false,
+      validationRead = false,
+      validation = null;
+
+  /// A 200: the salon is online.
+  final bool isLive;
+
+  /// A 202 whose body was read ([validation] is then the server's word,
+  /// `null` included).
+  final bool validationRead;
+
+  /// The 202's `validation` — null on a 200, on an unreadable body, and when
+  /// the request vanished.
+  final SalonValidation? validation;
+
+  /// Whether to say « Demande envoyée. Nous vous préviendrons de la
+  /// décision. » (decision 136 item 7, as the website —
+  /// `AujourdhuiClient.onPublished`): for a request now waiting (pending, or
+  /// the validation finishing) and for a body that could not be read (the
+  /// request is recorded) — never for a refusal MyWeli decided at that very
+  /// moment, nor for a request that vanished (`null`). Those just show the
+  /// state.
+  bool get saysRequestSent {
+    if (isLive) return false;
+    if (!validationRead) return true;
+    final v = validation;
+    return v != null && v.state != SalonValidationState.refused;
+  }
+
+  @override
+  List<Object?> get props => [isLive, validationRead, validation];
 }
 
 // Earnings data model
@@ -172,10 +263,20 @@ abstract class ProServiceInterface {
   /// success the salon is unpublished and every session dies.
   Future<ApiResponse<void>> deleteProviderAccount();
 
-  /// Take the salon live (docs/design/pro-salon-lifecycle.md): flips the
-  /// DRAFT listing to active once the server-side go-live gate passes.
-  /// Incomplete → error code `incomplete`.
-  Future<ApiResponse<bool>> publishSalon(SalonId providerId);
+  /// Ask MyWeli to put the salon online (B0.18 —
+  /// docs/design/salon-go-live-approval.md §3.1): a REQUEST, not a
+  /// publication. The server re-checks the go-live gate, then answers by the
+  /// validation's state — see [PublishOutcome] for the 200 (live) and the
+  /// 202 (a request). No trial starts here: without an earlier offer choice
+  /// on the website, the salon's one trial starts when MyWeli validates it.
+  ///
+  /// Refusals, by code: `incomplete` (the gate's other steps),
+  /// `offer_required` (the gate's `offer`: an expired offer row, or a
+  /// validated salon that went live once and has no live offer to come back
+  /// on), `validation_refused_final` (MyWeli refused it for a final reason —
+  /// asking again changes nothing), `demo_account_locked`,
+  /// `provider_suspended`, `forbidden`.
+  Future<ApiResponse<PublishOutcome>> publishSalon(SalonId providerId);
 
   /// Update the salon's editable public profile (pro-salon-lifecycle L2 —
   /// the app twin of web 7.3e-i): name/description/address/city/commune/

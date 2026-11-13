@@ -6,6 +6,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/colors.dart';
 import '../../../core/theme/text_styles.dart';
 import '../../../core/utils/formatters.dart';
+import '../../../core/utils/team_error_messages.dart';
 import '../../../models/pro_membership.dart';
 import '../../../models/salon_subscription.dart';
 import '../../../providers/pro_auth_provider.dart';
@@ -194,8 +195,7 @@ class _StatusBanner extends StatelessWidget {
         Icons.error_outline,
         salon.unpublishedForBilling ? 'Salon dépublié' : 'Offre expirée',
         salon.unpublishedForBilling
-            ? 'Votre salon n’est plus visible des clients. '
-                  'Vos données sont intactes.'
+            ? salonUnpublishedForBillingMessage
             : 'Vos données sont intactes.',
       ),
     };

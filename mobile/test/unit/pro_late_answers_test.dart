@@ -935,7 +935,7 @@ void main() {
 
       group('ProOnboardingProvider', () {
         test('publish', () async {
-          final held = Completer<ApiResponse<bool>>();
+          final held = Completer<ApiResponse<PublishOutcome>>();
           when(() => pro.publishSalon(any())).thenAnswer((_) => held.future);
           await expectIgnored(
             'publish',

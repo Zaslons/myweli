@@ -128,6 +128,14 @@ class Formatters {
     return DateFormat('EEEE d MMMM yyyy', 'fr_FR').format(date);
   }
 
+  /// A date without its weekday: « 13 novembre 2026 » — the website's
+  /// `formatDateFr`, for a sentence that names a day already past (« Demande
+  /// envoyée le 13 novembre 2026 », B0.18 decision 136 item 6), where the
+  /// weekday [formatDate] adds says nothing the reader needs.
+  static String formatDayMonthYear(DateTime date) {
+    return DateFormat('d MMMM yyyy', 'fr_FR').format(date);
+  }
+
   /// A compact date for a narrow slot: « 13 oct. 2026 » — every break falls
   /// BETWEEN words, so a quarter-width tile wraps it as « 13 oct. / 2026 »
   /// where [formatDate]'s « mardi 13 octobre 2026 » broke as « dimanch / e »

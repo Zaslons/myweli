@@ -499,7 +499,7 @@ class MockProService implements ProServiceInterface {
   }
 
   @override
-  Future<ApiResponse<bool>> publishSalon(SalonId providerId) async {
+  Future<ApiResponse<PublishOutcome>> publishSalon(SalonId providerId) async {
     await Future<void>.delayed(const Duration(milliseconds: 300));
     // The server's offer rule, mirrored (docs/design/pro-companion-path.md
     // §3.1): NO offer row → the first publish starts the salon's one trial
@@ -527,7 +527,10 @@ class MockProService implements ProServiceInterface {
         code: sub.code,
       );
     }
-    return ApiResponse.success(true, message: 'Votre salon est en ligne');
+    return ApiResponse.success(
+      const PublishOutcome.live(),
+      message: 'Votre salon est en ligne',
+    );
   }
 
   /// The server's default trial tier: `reseau` when the owner already owns

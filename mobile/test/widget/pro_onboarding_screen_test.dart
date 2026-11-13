@@ -29,25 +29,25 @@ import '../support/sign_in.dart';
 /// stays disabled and no refusal can be reached) and a scripted publish
 /// answer. `publishAnswer == null` runs the real mock publish.
 class _ScenarioProService extends MockProService {
-  ApiResponse<bool>? publishAnswer;
+  ApiResponse<PublishOutcome>? publishAnswer;
 
   @override
   Future<ApiResponse<MyProviderInfo>> getMyProvider({SalonId? salonId}) async {
     final res = await super.getMyProvider(salonId: salonId);
     final data = res.data;
     if (data == null) return res;
+    // `copyWith` keeps the read's validation as it came (B0.18).
     return ApiResponse.success(
-      MyProviderInfo(
+      data.copyWith(
         salon: data.salon.copyWith(
           imageUrls: [...data.salon.imageUrls, 'asset:third.png'],
         ),
-        membership: data.membership,
       ),
     );
   }
 
   @override
-  Future<ApiResponse<bool>> publishSalon(SalonId providerId) async =>
+  Future<ApiResponse<PublishOutcome>> publishSalon(SalonId providerId) async =>
       publishAnswer ?? super.publishSalon(providerId);
 }
 
