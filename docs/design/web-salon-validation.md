@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | **Approved 2026-11-13**: the web details [salon-go-live-approval.md](salon-go-live-approval.md) §6 leaves open, written before the code; the owner answered §9's three questions the same day (each recommendation taken). **Built 2026-11-13** on `feat/web-salon-validation-4a`; reviewed by five independent readers (17 findings confirmed, all low, all folded in — §4.5–§4.7); not merged |
+| **Status** | **Approved 2026-11-13**: the web details [salon-go-live-approval.md](salon-go-live-approval.md) §6 leaves open, written before the code; the owner answered §9's three questions the same day (each recommendation taken). **Built 2026-11-13** on `feat/web-salon-validation-4a`; reviewed by five independent readers (17 findings confirmed, all low, all folded in — §4.5–§4.7). **Merged 2026-11-13** (#782, `03ffc953`; tree identical to the branch head) and **deployed by Vercel the same day**, read back live: the served `/pro` code carries the new words, `/pro/push-sw.js` is the new worker, and production's backend is still pre-B0.18, so the live Pro space keeps today's screens until the backend deploy |
 | **Owner** | Sadreddine Daher |
 | **Last updated** | 2026-11-13 |
 | **PRD ref / phase** | FR-PRO-ONB-001 (go live) · V1 |
