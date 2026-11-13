@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | Approved 2026-11-13 (owner: « Web + server ») · Merged 2026-11-13 (#784, `ea6297c1`) · backend deploy on the owner's yes |
+| **Status** | Approved 2026-11-13 (owner: « Web + server ») · Built on `fix/upload-resave-stale-pending` · **merged 2026-11-13** (#784, `ea6297c1`) · **backend deployed to production 2026-11-13** on the owner's yes (`deploy-backend.yml` run 43480154725, image `ea6297c`, revision `myweli-api-00050-xfr`) |
 | **Owner** | Sadreddine |
 | **Last updated** | 2026-11-13 |
 | **PRD ref / phase** | Storage / uploads (T61) · V1 · production incident of 2026-11-13 |
