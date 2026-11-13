@@ -18,6 +18,7 @@ function load() {
   const posted: unknown[] = [];
   const opened: string[] = [];
   const navigated: string[] = [];
+  const navigatedFrom: string[] = [];
   let windows: { url: string; focused?: boolean }[] = [];
   const self = {
     addEventListener: (type: string, fn: Listener) => {
@@ -41,6 +42,7 @@ function load() {
           }),
           navigate: vi.fn(async (u: string) => {
             navigated.push(u);
+            navigatedFrom.push(w.url);
             return null;
           }),
         })),
@@ -67,6 +69,7 @@ function load() {
     posted,
     opened,
     navigated,
+    navigatedFrom,
     setWindows: (w: { url: string }[]) => {
       windows = w;
     },
@@ -189,6 +192,27 @@ describe('the Pro service worker', () => {
       // One per salon: a second decision replaces the first, never stacks.
       expect(n.options.tag, event).toBe('salon.validation:p3');
     }
+  });
+
+  it('a decision replacing another alerts again; a booking’s repeat stays quiet, as before', async () => {
+    await sw.push(DECISION('salon.validation.approved', 'p3'));
+    expect(sw.shown[0].options.renotify).toBe(true);
+    sw = load();
+    await sw.push(MESSAGE);
+    expect(sw.shown[0].options.renotify).toBe(false);
+    // renotify without a tag throws in a browser: never set without one.
+    sw = load();
+    await sw.push(DECISION('salon.validation.refused', '../x'));
+    expect(sw.shown[0].options.tag).toBeUndefined();
+    expect(sw.shown[0].options.renotify).toBe(false);
+  });
+
+  it('a click prefers a tab this worker controls (`/pro/…`) over « Aujourd’hui » itself', async () => {
+    // `/pro` lies outside the `/pro/` scope: navigate() rejects it.
+    sw.setWindows([{ url: 'https://myweli.com/pro' }, { url: 'https://myweli.com/pro/clients' }]);
+    await sw.click({ url: '/pro?salon=p3' });
+    expect(sw.navigated).toEqual(['/pro?salon=p3']);
+    expect(sw.navigatedFrom).toEqual(['https://myweli.com/pro/clients']);
   });
 
   it('a decision without a usable salon id opens « Aujourd’hui », never the route', async () => {

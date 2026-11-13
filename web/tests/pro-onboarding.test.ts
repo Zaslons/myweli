@@ -238,12 +238,16 @@ describe('R8 — the profile step follows the server’s commune list', () => {
     expect(canPublish(items)).toBe(true);
   });
 
-  it('a field missing: to do, without the commune line', () => {
-    const items = publishChecklist(provider({ areaId: null, description: '' }), {
-      ...ALL,
-      localities: TREE,
-    });
-    expect(byKey(items, 'profile').status).toBe('todo');
-    expect(byKey(items, 'profile').sublabel).toBeUndefined();
+  it('a field missing, even with an unknown commune: to do, without the commune line', () => {
+    // The commune line is about the commune alone: say it only once the rest
+    // is filled, or the owner fixes the commune and still finds the step to do.
+    for (const missing of [{ description: '' }, { address: '' }]) {
+      const items = publishChecklist(
+        provider({ areaId: null, commune: 'Riviera Golf', ...missing }),
+        { ...ALL, localities: TREE },
+      );
+      expect(byKey(items, 'profile').status, JSON.stringify(missing)).toBe('todo');
+      expect(byKey(items, 'profile').sublabel, JSON.stringify(missing)).toBeUndefined();
+    }
   });
 });

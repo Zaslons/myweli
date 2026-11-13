@@ -1,13 +1,7 @@
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { useState } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-/// The router: `replace('/pro')` drops `?salon=` — as Next re-renders the page
-/// with no `salon`, the harness below re-renders the client without it.
-let dropSalonParam: (() => void) | null = null;
-const replace = vi.fn((url: string) => {
-  if (url === '/pro') dropSalonParam?.();
-});
+const replace = vi.fn();
 const routerMock = { replace };
 vi.mock('next/navigation', () => ({
   useRouter: () => routerMock,
@@ -142,10 +136,11 @@ function serve(
 
 /// « Aujourd’hui » under the real membership provider, as the dashboard
 /// layout mounts it — the provider re-keys the page on a switch. [salon] is
-/// the page's `?salon=`, dropped when the client calls `replace('/pro')`.
-function Harness({ salon: initial }: { salon?: string }) {
-  const [salon, setSalon] = useState(initial);
-  dropSalonParam = () => setSalon(undefined);
+/// the page's `?salon=` prop and, like Next's cached page payload, it is NEVER
+/// dropped: a re-key remounts the page with it still set. The live address
+/// (window.location) is what the page empties.
+function Harness({ salon }: { salon?: string }) {
+  if (salon !== undefined) window.history.replaceState(null, '', `/pro?salon=${salon}`);
   return (
     <ProMembershipProvider>
       <AujourdhuiClient salon={salon} />
@@ -166,13 +161,14 @@ function SwitchButton() {
 
 beforeEach(() => {
   resetLocalitiesClientCache();
+  window.history.replaceState(null, '', '/pro');
 });
 afterEach(() => {
   cleanup();
   vi.unstubAllGlobals();
   replace.mockClear();
-  dropSalonParam = null;
 });
+const addressSalon = () => new URLSearchParams(window.location.search).get('salon');
 
 const heading = () => screen.findByRole('heading', { level: 1, name: 'Aujourd’hui' });
 
@@ -268,10 +264,16 @@ describe('« Aujourd’hui » — after the publish', () => {
       },
     });
     render(<Harness />);
-    fireEvent.click(await screen.findByRole('button', { name: 'Demander la mise en ligne' }));
+    const button = await screen.findByRole('button', { name: 'Demander la mise en ligne' });
+    // The page's live region is there, empty, BEFORE the text lands (WEB-SYSTEM §7).
+    const region = button
+      .closest('div.xl\\:col-start-2')!
+      .querySelector('p[role="status"]') as HTMLElement;
+    expect(region).not.toBeNull();
+    expect(region.textContent).toBe('');
+    fireEvent.click(button);
     const said = await screen.findByText('Demande envoyée. Nous vous préviendrons de la décision.');
-    // In the page's live region, there before the text (WEB-SYSTEM §7).
-    expect(said.closest('[role="status"]')).not.toBeNull();
+    expect(said).toBe(region);
     expect(await screen.findByText('En cours de validation')).toBeTruthy();
     expect(screen.queryByText(/🎉/)).toBeNull();
     // Re-read after the submit (§4.6): /me and « Mes salons ».
@@ -303,12 +305,34 @@ describe('« Aujourd’hui » — after the publish', () => {
 
   it('202 that comes back refused (decided that very moment): no « Demande envoyée »', async () => {
     const refusedNow = { state: 'refused', wentLive: false, refusal: { code: 'photos', final: false } };
-    serve({ p1: profile('p1', 'Beauté Divine', 'draft', null) }, {
-      publish: () => new Response(JSON.stringify({ validation: refusedNow }), { status: 202 }),
+    let decided = false;
+    const { count } = serve({ p1: profile('p1', 'Beauté Divine', 'draft', null) }, {
+      me: () =>
+        new Response(
+          JSON.stringify(profile('p1', 'Beauté Divine', 'draft', decided ? refusedNow : null)),
+          { status: 200 },
+        ),
+      publish: () => {
+        decided = true;
+        return new Response(JSON.stringify({ validation: refusedNow }), { status: 202 });
+      },
     });
     render(<Harness />);
     fireEvent.click(await screen.findByRole('button', { name: 'Demander la mise en ligne' }));
+    // After the re-read too, not only on the frame the 202 drew.
+    await waitFor(() => expect(count('GET /api/pro/me')).toBeGreaterThanOrEqual(3));
     expect(await screen.findByText('Mise en ligne refusée')).toBeTruthy();
+    expect(await screen.findByRole('button', { name: 'Renvoyer pour validation' })).toBeTruthy();
+    expect(screen.queryByText(/Demande envoyée/)).toBeNull();
+  });
+
+  it('202 whose request vanished (`validation: null`) claims nothing', async () => {
+    const { count } = serve({ p1: profile('p1', 'Beauté Divine', 'draft', null) }, {
+      publish: () => new Response(JSON.stringify({ validation: null }), { status: 202 }),
+    });
+    render(<Harness />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Demander la mise en ligne' }));
+    await waitFor(() => expect(count('GET /api/pro/me')).toBeGreaterThanOrEqual(3));
     expect(screen.queryByText(/Demande envoyée/)).toBeNull();
   });
 
@@ -353,6 +377,8 @@ describe('« Aujourd’hui » — after the publish', () => {
       await screen.findByText('Ce salon est un salon de test : il ne sera pas mis en ligne.'),
     ).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Renvoyer pour validation' })).toBeNull();
+    // Said, not silent (a write never fails in silence).
+    expect(screen.getByRole('alert')).toHaveTextContent('Mise en ligne refusée');
   });
 });
 
@@ -394,6 +420,51 @@ describe('« Aujourd’hui » — a decision’s push re-reads the state (§4.6)
     expect(screen.getByRole('heading', { level: 1, name: 'Aujourd’hui' })).toBeTruthy();
   });
 
+  it('202, then the decision’s push: « Demande envoyée » goes, emptied — not said again', async () => {
+    let stage: 'asked' | 'refused' | null = null;
+    const refusedNow = { state: 'refused', wentLive: false, refusal: { code: 'photos', final: false } };
+    serve({ p1: profile('p1', 'Beauté Divine', 'draft', null) }, {
+      me: () =>
+        new Response(
+          JSON.stringify(
+            profile('p1', 'Beauté Divine', 'draft', stage === 'refused' ? refusedNow : stage ? PENDING : null),
+          ),
+          { status: 200 },
+        ),
+      publish: () => {
+        stage = 'asked';
+        return new Response(JSON.stringify({ validation: PENDING }), { status: 202 });
+      },
+    });
+    render(<Harness />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Demander la mise en ligne' }));
+    const region = await screen.findByText('Demande envoyée. Nous vous préviendrons de la décision.');
+    await screen.findByText('En cours de validation');
+    stage = 'refused';
+    await post({ type: 'myweli-pro-push', event: 'salon.validation.refused' });
+    expect(await screen.findByText('Mise en ligne refusée')).toBeTruthy();
+    await waitFor(() => expect(region.textContent).toBe(''));
+    expect(region.isConnected).toBe(true);
+  });
+
+  it('a re-read that answers ANOTHER salon reloads the day for it — never grafts its state', async () => {
+    const salons = {
+      p1: profile('p1', 'Beauté Divine', 'draft', PENDING),
+      p3: profile('p3', 'Institut Belle Vue', 'draft', { state: 'refused', wentLive: false, refusal: { code: 'photos', final: false } }),
+    };
+    const { state, count } = serve(salons);
+    render(<Harness />);
+    await screen.findByText('En cours de validation');
+    const dayReads = count('GET /api/pro/appointments');
+    // Another tab switched the shared selection.
+    state.selected = 'p3';
+    await post({ type: 'myweli-pro-push', event: 'salon.validation.refused' });
+    expect(await screen.findByText('Institut Belle Vue')).toBeTruthy();
+    // The DAY is re-read for it — a graft would keep p1's bookings under
+    // p3's name.
+    await waitFor(() => expect(count('GET /api/pro/appointments')).toBe(dayReads + 1));
+  });
+
   it('a booking’s push, or an old worker’s bare message, re-reads nothing here', async () => {
     const { count } = serve({ p1: profile('p1', 'Beauté Divine', 'draft', PENDING) });
     render(<Harness />);
@@ -418,10 +489,11 @@ describe('« Aujourd’hui » — `/pro?salon=` switches once (§4.5)', () => {
   it('another salon of the account → switched, its day shown, the address dropped', async () => {
     const { calls } = serve(two());
     render(<Harness salon="p3" />);
+    // Out of the address at once — before any read answered.
+    expect(addressSalon()).toBeNull();
     expect(await screen.findByText('Institut Belle Vue')).toBeTruthy();
     expect(await screen.findByText('En cours de validation')).toBeTruthy();
     expect(selects(calls)).toBe(1);
-    await waitFor(() => expect(replace).toHaveBeenCalledWith('/pro', { scroll: false }));
     expect(screen.queryByRole('alert')).toBeNull();
   });
 
@@ -429,7 +501,7 @@ describe('« Aujourd’hui » — `/pro?salon=` switches once (§4.5)', () => {
     const { calls } = serve(two(), { selected: 'p3' });
     render(<Harness salon="p3" />);
     expect(await screen.findByText('En cours de validation')).toBeTruthy();
-    await waitFor(() => expect(replace).toHaveBeenCalledWith('/pro', { scroll: false }));
+    expect(addressSalon()).toBeNull();
     expect(selects(calls)).toBe(0);
   });
 
@@ -443,7 +515,7 @@ describe('« Aujourd’hui » — `/pro?salon=` switches once (§4.5)', () => {
     );
     expect(screen.getByText('Beauté Divine')).toBeTruthy();
     expect(selects(calls)).toBe(1);
-    await waitFor(() => expect(replace).toHaveBeenCalledWith('/pro', { scroll: false }));
+    expect(addressSalon()).toBeNull();
   });
 
   it('no answer → « Pas de connexion. Réessayez. » over the current salon’s day', async () => {
@@ -477,15 +549,41 @@ describe('« Aujourd’hui » — `/pro?salon=` switches once (§4.5)', () => {
 
   it('after landing, a switch from « Mes salons » is not pulled back to the notice’s salon', async () => {
     const { calls, state } = serve(two());
+    // The page's prop keeps `p3` through every re-key (as Next's cached page does).
     render(<Harness salon="p3" />);
     await screen.findByText('En cours de validation');
-    await waitFor(() => expect(replace).toHaveBeenCalledWith('/pro', { scroll: false }));
     fireEvent.click(screen.getByRole('button', { name: 'test: passer à p1' }));
     await waitFor(() => expect(screen.queryByText('Institut Belle Vue')).toBeNull());
     expect(await screen.findByText('Beauté Divine')).toBeTruthy();
     await new Promise((r) => setTimeout(r, 50));
     expect(state.selected).toBe('p1');
     expect(selects(calls)).toBe(2);
+    expect(screen.queryByRole('alert')).toBeNull();
+  });
+
+  it('the first read fails, then a switch from « Mes salons »: not pulled back, no false alert', async () => {
+    const salons = two();
+    let firstPageRead = true;
+    const { calls, state } = serve(salons, {
+      // The PAGE's first read (the child's effect runs first) fails; the
+      // provider's own probe answers.
+      me: () => {
+        const n = calls.filter((c) => c === 'GET /api/pro/me').length;
+        if (n === 1 && firstPageRead) {
+          firstPageRead = false;
+          return new Response('{}', { status: 500 });
+        }
+        return new Response(JSON.stringify(salons[state.selected as 'p1' | 'p3']), { status: 200 });
+      },
+    });
+    render(<Harness salon="p3" />);
+    await screen.findByRole('button', { name: 'Réessayer' });
+    fireEvent.click(screen.getByRole('button', { name: 'test: passer à p1' }));
+    expect(await screen.findByText('Beauté Divine')).toBeTruthy();
+    await new Promise((r) => setTimeout(r, 50));
+    expect(state.selected).toBe('p1');
+    expect(selects(calls)).toBe(1);
+    expect(screen.queryByText(/Changement impossible/)).toBeNull();
   });
 
   it('anything but a salon id in the address is ignored', async () => {
@@ -494,7 +592,6 @@ describe('« Aujourd’hui » — `/pro?salon=` switches once (§4.5)', () => {
     await screen.findByText('Beauté Divine');
     await new Promise((r) => setTimeout(r, 30));
     expect(selects(calls)).toBe(0);
-    expect(replace).not.toHaveBeenCalled();
   });
 
   it('signed out → the login, carrying the salon', async () => {

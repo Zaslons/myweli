@@ -22,6 +22,7 @@ import {
   LEGACY_HINT,
   PUBLISH_LABEL,
   REQUEST_HINT,
+  STATE_LINE,
   type SalonValidation,
   type StateBanner,
   goLiveState,
@@ -73,7 +74,7 @@ export function GoLiveCard({
     return (
       <Card as="section" className="mt-m">
         <SalonStateBanner banner={stateBanner(state, profile.validation)} />
-        <PreviewLink className="mt-m inline-block" />
+        <PreviewLink className="mt-m" />
       </Card>
     );
   }
@@ -153,8 +154,10 @@ function ChecklistCard({
       return;
     }
     if (r.status === 409 && r.error === 'validation_refused_final') {
-      // The card was older than the decision: the page re-reads, and the
-      // banner then says the final refusal and its reason.
+      // The card was older than the decision: said here (a write never fails
+      // in silence, even if the re-read fails), and the page re-reads — the
+      // banner then gives the final refusal's reason.
+      setError(STATE_LINE.refusedFinal);
       onStale?.();
       return;
     }
@@ -297,11 +300,12 @@ export function SalonStateBanner({ banner }: { banner: StateBanner | null }) {
   );
 }
 
+/// 48px tall (SYSTEM §13): on the suspended card it is the only control.
 function PreviewLink({ className = '' }: { className?: string }) {
   return (
     <Link
       href="/pro/apercu"
-      className={`text-bodyMedium text-textPrimary underline ${className}`}
+      className={`inline-flex min-h-12 items-center text-bodyMedium text-textPrimary underline ${className}`}
     >
       Aperçu de ma page
     </Link>

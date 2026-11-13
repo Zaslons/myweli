@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | **Approved 2026-11-13**: the web details [salon-go-live-approval.md](salon-go-live-approval.md) §6 leaves open, written before the code; the owner answered §9's three questions the same day (each recommendation taken) |
+| **Status** | **Approved 2026-11-13**: the web details [salon-go-live-approval.md](salon-go-live-approval.md) §6 leaves open, written before the code; the owner answered §9's three questions the same day (each recommendation taken). **Built 2026-11-13** on `feat/web-salon-validation-4a`; reviewed by five independent readers (17 findings confirmed, all low, all folded in — §4.5–§4.7); not merged |
 | **Owner** | Sadreddine Daher |
 | **Last updated** | 2026-11-13 |
 | **PRD ref / phase** | FR-PRO-ONB-001 (go live) · V1 |
@@ -143,7 +143,7 @@ with the new server, while it is `suspended` (§9 Q2): the banner alone. Layout,
 |---|---|
 | 200 | `onPublished('live')`: today's « 🎉 » line; the salon `active` |
 | 202 | `onPublished('requested', validation)`: the card takes the body's `validation`; the line says « Demande envoyée… » when that state is `pending` (or finishing); then both reads (§4.6) |
-| 409 `validation_refused_final` | re-read `/me/provider`: the card shows the final refusal and its reason (the button was stale) |
+| 409 `validation_refused_final` | « Mise en ligne refusée » in the alert line (said even if the re-read fails), then re-read `/me/provider`: the card shows the final refusal and its reason (the button was stale) |
 | 409 `incomplete` + `offer` | today's offer line |
 | 409 `incomplete` | today's « Certaines étapes… » line |
 | 403, 0, 5xx | today's `salonRefusalMessage` lines |
@@ -193,9 +193,19 @@ e-mail opens `https://myweli.com/pro?salon={id}`.
 - **`proWebRouteFor`:** `/pro/onboarding?salon={s}` → `/pro?salon={s}`;
   `/pro/onboarding` → `/pro`. The feed row becomes a link.
 - **`/pro` reads `?salon=`** (the page passes it to `AujourdhuiClient`) and
-  switches once, with the booking detail's guard: a module-level set of the
-  salons this page already tried, so a server that does not take the switch
-  cannot send the page round in circles.
+  switches once.
+  - **The address loses it at once**, before any read
+    (`history.replaceState(null, '', '/pro')`; Next 14.2 keeps its router in
+    step), and it becomes a one-shot *ask*. The page **takes** the ask on its
+    first read, whatever that read says. Next re-renders the page from its
+    cached payload — the old `salon` prop included — when « Mes salons » re-keys
+    it, so only an ask the live address still carries counts: a stale prop can
+    never pull a later switch back, and a failed first read leaves no ask
+    behind (found by the review of 2026-11-13; the first version dropped the
+    address only after a successful load).
+  - The ask outlives the one remount its own switch causes (`tried`), so that
+    remount checks it landed: a server that answers the switch but keeps the
+    old salon gets « Changement impossible… » once, never a loop.
   - Already on that salon → nothing to switch.
   - `switched` → the shell re-keys; the page loads under that salon.
   - Refused or no answer → the page loads the **current** salon's day, with
@@ -203,9 +213,6 @@ e-mail opens `https://myweli.com/pro?salon={id}`.
     votre accès à ce salon a peut-être été retiré. », or « Pas de connexion.
     Réessayez. ». The app goes to « Accueil » on a failed switch; on the web
     `/pro` is « Accueil ».
-  - **Then the `?salon=` is dropped from the address** (`router.replace('/pro')`).
-    Without this, a later switch from the sidebar would remount the page under
-    the old address and switch back.
 - **Signed out:** the page's 401 goes to `/pro/connexion?salon={s}`; the login
   reads `?salon=` (only `[A-Za-z0-9_-]{1,128}`, never text) and lands on
   `/pro?salon={s}`. A two-salon owner who opens the e-mail on a signed-out
@@ -220,7 +227,10 @@ e-mail opens `https://myweli.com/pro?salon={id}`.
 - when « Aujourd’hui » loads (`/me/salons` only; the page reads `/me` anyway);
 - when a `salon.validation.*` push arrives while « Aujourd’hui » is open: the
   service worker's message now carries the push's `event`, and the page re-reads
-  both, quietly (no skeleton);
+  both, quietly (no skeleton). « Demande envoyée » goes once the salon no
+  longer waits (the region stays, emptied). A re-read that answers **another**
+  salon (the selection changed in another tab) reloads the whole day for it,
+  never grafts its state onto this one;
 - on a notice tap (it lands on `/pro?salon=`, which loads).
 
 « Ajouter un salon » needed no change: it lands on `/pro`, whose load now
@@ -235,7 +245,13 @@ read from `route` (browser-push §5):
 - `salon.validation.approved` / `.refused` with a `providerId` matching the id
   pattern → `/pro?salon={providerId}`; without one → `/pro`.
 - Tag `salon.validation:{providerId}`, so a second decision on a salon replaces
-  the first (approved after refused included).
+  the first (approved after refused included), and `renotify` so it alerts
+  again (only with a tag: without one a browser throws).
+- A click prefers a tab the worker controls (`/pro/…`). « Aujourd’hui » itself
+  (`/pro`) lies outside the `/pro/` scope, so `navigate()` rejects it: with only
+  a `/pro` tab open, the click opens a new tab (as a booking's click already
+  did). Named, not fixed: widening the scope to `/pro` would also cover
+  `/professionnels`.
 - The click guard accepts `/pro?salon={id}` and `/pro` besides the booking
   links; anything else still opens the bookings list.
 - Every push posts `{ type: 'myweli-pro-push', event }` to the open tabs

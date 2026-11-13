@@ -77,6 +77,9 @@ self.addEventListener('push', function (event) {
         body: n.body || '',
         icon: '/android-chrome-192.png',
         tag: tag,
+        // A decision replacing an earlier one on the same salon alerts again
+        // (renotify needs a tag, or showNotification throws).
+        renotify: !!tag && isValidationEvent(data),
         data: { url: bookingUrl(data) },
       }),
       // An open tab re-reads the feed now, not in its next 60 s — and, told
@@ -103,15 +106,24 @@ self.addEventListener('notificationclick', function (event) {
       : LIST;
   event.waitUntil(
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(function (tabs) {
-      var pro = tabs.find(function (tab) {
+      var pathOf = function (tab) {
         try {
-          // The Pro area, not /professionnels.
-          var path = new URL(tab.url).pathname;
-          return path === '/pro' || path.indexOf('/pro/') === 0;
+          return new URL(tab.url).pathname;
         } catch (e) {
-          return false;
+          return '';
         }
-      });
+      };
+      // A tab this worker controls first (`/pro/…`): « Aujourd'hui » itself
+      // (`/pro`) lies outside the `/pro/` scope, and navigate() rejects an
+      // uncontrolled tab — it then still gets the new tab below. The Pro
+      // area, not /professionnels.
+      var pro =
+        tabs.find(function (tab) {
+          return pathOf(tab).indexOf('/pro/') === 0;
+        }) ||
+        tabs.find(function (tab) {
+          return pathOf(tab) === '/pro';
+        });
       if (!pro) return self.clients.openWindow(url);
       return pro
         .focus()

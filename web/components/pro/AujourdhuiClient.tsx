@@ -36,17 +36,17 @@ import { ProInvitationsCard } from './ProInvitationsCard';
 import { type SwitchOutcome, useOptionalProMembership } from './ProMembershipContext';
 import { staffPlanningTitle } from '../../lib/salon-name';
 
-/// The salons a `?salon=` already switched this page to, so a server that
-/// does not take the switch cannot send the page round in circles (each
-/// switch remounts it) — the booking detail's guard
-/// (docs/design/web-salon-validation.md §4.5). Cleared once the page loads
-/// under that salon, or once the switch failed.
-const triedSalons = new Set<string>();
+/// A notice's ask — switch to this salon, once (docs/design/web-salon-validation.md
+/// §4.5). Module-level because it must outlive the one remount the switch
+/// itself causes (`tried`: the remount checks it landed, and says so if not —
+/// a server that does not take the switch cannot send the page round in
+/// circles). The page TAKES it on its first read, whatever that read says, so
+/// no later remount (a switch from « Mes salons », a retry) can find a stale one.
+let ask: { salon: string; tried: boolean } | null = null;
 
 /// « Aujourd’hui ». [salon] — `?salon=` from a notice about one of the
 /// account's salons (B0.18: the decision's push, feed row and e-mail land on
-/// `/pro?salon={id}`): the page switches to it once, then drops it from the
-/// address, so a later switch from « Mes salons » is not pulled back.
+/// `/pro?salon={id}`): the page switches to it once.
 export function AujourdhuiClient({ salon }: { salon?: string } = {}) {
   const router = useRouter();
   const membershipCtx = useOptionalProMembership();
@@ -62,50 +62,51 @@ export function AujourdhuiClient({ salon }: { salon?: string } = {}) {
   const [error, setError] = useState<LoadFailure | false>(false);
   const [switchError, setSwitchError] = useState<LoadFailure | false>(false);
 
-  // The `?salon=` this mount was asked for — read ONCE: dropping it from the
-  // address re-renders the page with no `salon`, which must not reload it.
-  // A later navigation to `/pro?salon=…` (same mounted page) is a new ask.
-  const wantedSalon = useRef<string | null>(validSalonParam(salon));
+  // `?salon=` becomes an ask and leaves the address AT ONCE, before any read
+  // (Next keeps its router in step with `history.replaceState`). Only an ask
+  // the live address still carries counts: Next re-renders this page from its
+  // cached payload — `salon` and all — when « Mes salons » re-keys it, and that
+  // stale prop must never pull the salon back.
+  const askRead = useRef(false);
   useEffect(() => {
-    const next = validSalonParam(salon);
-    if (next && next !== wantedSalon.current) {
-      wantedSalon.current = next;
-      setReloadKey((k) => k + 1);
-    }
+    const s = validSalonParam(salon);
+    if (!s || new URLSearchParams(window.location.search).get('salon') !== s) return;
+    ask = { salon: s, tried: false };
+    window.history.replaceState(null, '', '/pro');
+    // Mounted already (a link to `/pro?salon=…` from `/pro`): load for it.
+    if (askRead.current) setReloadKey((k) => k + 1);
   }, [salon]);
 
   useEffect(() => {
     let active = true;
     (async () => {
+      askRead.current = true;
       const me = await getMyProvider();
-      const wanted = wantedSalon.current;
+      if (!active) return;
+      // Taken on this first read, whatever it says.
+      const a = ask;
+      ask = null;
       if (me.status === 401) {
         // The salon rides through the login (§4.5): a two-salon owner who
         // opens the decision's e-mail signed out still lands on it.
-        router.replace(
-          wanted ? `/pro/connexion?salon=${encodeURIComponent(wanted)}` : '/pro/connexion',
-        );
+        router.replace(a ? `/pro/connexion?salon=${a.salon}` : '/pro/connexion');
         return;
       }
-      if (!active) return;
-      if (wanted && me.status === 200 && me.profile) {
-        if (me.profile.provider.id !== wanted && switchSalon) {
-          // Already switched once and still elsewhere: the server did not
-          // take it — say so rather than switch again.
-          let outcome: SwitchOutcome = 'failed';
-          if (!triedSalons.has(wanted)) {
-            triedSalons.add(wanted);
-            outcome = await switchSalon(wanted);
-            // Switched: the shell re-keys and this page loads again, under it.
-            if (outcome === 'switched' || !active) return;
-          }
-          // Refused, or no answer: « Accueil » of the current salon, saying
-          // why — the app goes to « Accueil » too.
-          setSwitchError(outcome as LoadFailure);
+      if (a && switchSalon && me.status === 200 && me.profile && me.profile.provider.id !== a.salon) {
+        // Already switched once and still elsewhere: the server did not take
+        // it — say so rather than switch again.
+        let outcome: SwitchOutcome = 'failed';
+        if (!a.tried) {
+          ask = { salon: a.salon, tried: true };
+          outcome = await switchSalon(a.salon);
+          // Switched: the shell re-keys; the page reads again under it.
+          if (outcome === 'switched') return;
+          ask = null;
+          if (!active) return;
         }
-        triedSalons.delete(wanted);
-        wantedSalon.current = null;
-        router.replace('/pro', { scroll: false });
+        // Refused, or no answer: « Accueil » of the current salon, saying why
+        // — the app goes to « Accueil » too.
+        setSwitchError(outcome as LoadFailure);
       }
       const appts = await listProAppointments();
       if (!active) return;
@@ -139,10 +140,25 @@ export function AujourdhuiClient({ salon }: { salon?: string } = {}) {
   // A quiet re-read of the salon's state (§4.6): after a publish, and when a
   // decision's push arrives. A failed read keeps what is shown — it never
   // turns the day into an error.
+  const shownSalon = useRef<string | null>(null);
+  shownSalon.current = profile?.provider.id ?? null;
   const refreshState = useCallback(async () => {
     const me = await getMyProvider();
-    if (me.status === 200 && me.profile) setProfile(me.profile);
     void refreshSalons?.();
+    if (me.status !== 200 || !me.profile) return;
+    // Another salon now (the selection changed in another tab): reload the
+    // whole day for it rather than graft its state onto this one.
+    if (shownSalon.current && me.profile.provider.id !== shownSalon.current) {
+      setReloadKey((k) => k + 1);
+      return;
+    }
+    const next = me.profile;
+    setProfile(next);
+    // « Demande envoyée » is about a request still waiting: gone once MyWeli
+    // decided (the region stays, emptied — nothing is said).
+    if (goLiveState(next.provider.status, next.validation) !== 'pending') {
+      setNotice((n) => (n === 'requested' ? null : n));
+    }
   }, [refreshSalons]);
 
   // The service worker tells open tabs of each push, with its event: a
@@ -168,12 +184,12 @@ export function AujourdhuiClient({ salon }: { salon?: string } = {}) {
       if (outcome.validation !== undefined) {
         setProfile({ ...profile, validation: outcome.validation });
       }
-      // « Demande envoyée » only for a request now waiting — not for a
-      // refusal MyWeli decided at that very moment.
+      // « Demande envoyée » only for a request now waiting (or a body that
+      // could not be read — the request IS recorded) — not for a refusal
+      // MyWeli decided at that very moment, nor for a request that vanished
+      // (`null`: the account was erased).
       const v = outcome.validation;
-      setNotice(
-        v === undefined || v === null || v.state !== 'refused' ? 'requested' : null,
-      );
+      setNotice(v === undefined || (v !== null && v.state !== 'refused') ? 'requested' : null);
     }
     void refreshState();
   }

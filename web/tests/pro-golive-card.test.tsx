@@ -331,7 +331,8 @@ describe('GoLiveCard — B0.18, each state of §6.1', () => {
     expect(screen.getByText('Contactez MyWeli pour en savoir plus.')).toBeInTheDocument();
     expect(screen.queryByRole('progressbar')).toBeNull();
     expect(screen.queryByRole('button')).toBeNull();
-    expect(screen.getByRole('link', { name: 'Aperçu de ma page' })).toBeInTheDocument();
+    // Its only control: on the 48px floor (SYSTEM §13).
+    expect(screen.getByRole('link', { name: 'Aperçu de ma page' }).className).toMatch(/\bmin-h-12\b/);
     await new Promise((r) => setTimeout(r, 20));
     expect(calls).toEqual([]);
   });
@@ -389,14 +390,15 @@ describe('GoLiveCard — B0.18, what the publish answered', () => {
     await waitFor(() => expect(onPublished).toHaveBeenCalledWith({ kind: 'live' }));
   });
 
-  it('409 validation_refused_final → the page re-reads (the card was older than the decision)', async () => {
+  it('409 validation_refused_final → said, and the page re-reads (the card was older than the decision)', async () => {
     const { onPublished, onStale } = await tap(withState(REFUSED('photos')), {
       status: 409,
       body: { error: 'validation_refused_final' },
     });
     await waitFor(() => expect(onStale).toHaveBeenCalledTimes(1));
     expect(onPublished).not.toHaveBeenCalled();
-    expect(screen.queryByRole('alert')).toBeNull();
+    // Said even if the re-read never lands: a write never fails in silence.
+    expect(screen.getByRole('alert')).toHaveTextContent('Mise en ligne refusée');
   });
 
   it('409 incomplete keeps today’s line', async () => {
