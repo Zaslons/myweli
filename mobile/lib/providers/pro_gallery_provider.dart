@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import '../core/access/pro_salon_scope.dart';
 import '../core/constants/failure_messages.dart';
 import '../core/di/dependency_injection.dart';
+import '../core/utils/gallery_batch.dart';
 import '../core/utils/salon_id.dart';
 import '../services/interfaces/image_upload_service_interface.dart';
 import '../services/interfaces/pro_service_interface.dart';
@@ -29,8 +30,19 @@ class ProGalleryProvider extends ChangeNotifier implements SalonScoped {
   /// waits for it — on the first frame it showed the defaults.
   bool get loaded => _loaded;
   bool _loaded = false;
-  bool get isUploading => _isUploading;
+
+  /// True from the first photo of a pick to the last — between two photos of a
+  /// batch too, so the add tile never comes back mid-way.
+  bool get isUploading => _isUploading || _inBatch;
   double get uploadProgress => _uploadProgress;
+
+  /// Where a pick of several stands — « Envoi 2 sur 5… »; (0, 0) otherwise.
+  int get batchAt => _batchAt;
+  int get batchOf => _batchOf;
+  bool _inBatch = false;
+  bool _stopBatch = false;
+  int _batchAt = 0;
+  int _batchOf = 0;
   String? get error => _error;
   List<String> get photos => _photos;
 
@@ -102,6 +114,58 @@ class ProGalleryProvider extends ChangeNotifier implements SalonScoped {
       }
     }
   }
+
+  /// Several photos picked at once (docs/design/gallery-multi-select.md): the
+  /// first ones up to the room left under [kMaxGalleryPhotos], ONE AFTER
+  /// ANOTHER through [addPhoto] — the same upload and the same save, so each
+  /// photo is kept at the address the server stored and shows as it lands.
+  /// One at a time because each is decoded and compressed on the phone, and
+  /// several at once is how a 2–3 GB Android runs out of memory.
+  ///
+  /// Stops before the next photo when [stopBatch] is called (the screen was
+  /// left) or the salon changes; the photo on its way finishes, as a single
+  /// add always has.
+  Future<({int total, int added, int dropped, bool stopped})> addPhotos(
+    SalonId providerId,
+    List<String> sources,
+  ) async {
+    final scope = _scope;
+    final fit = fitInGallery(sources, _photos.length);
+    _inBatch = true;
+    _stopBatch = false;
+    _batchOf = fit.kept.length;
+    _batchAt = 0;
+    var added = 0;
+    var stopped = false;
+    try {
+      for (final source in fit.kept) {
+        if (_stopBatch || scope != _scope) {
+          stopped = true;
+          break;
+        }
+        _batchAt++;
+        notifyListeners();
+        if (await addPhoto(providerId, source)) added++;
+      }
+    } finally {
+      if (scope == _scope) {
+        _inBatch = false;
+        _batchAt = 0;
+        _batchOf = 0;
+        notifyListeners();
+      }
+    }
+    return (
+      total: fit.kept.length,
+      added: added,
+      dropped: fit.dropped,
+      stopped: stopped || scope != _scope,
+    );
+  }
+
+  /// The screen was left: the photo on its way finishes; the rest of the pick
+  /// is not sent.
+  void stopBatch() => _stopBatch = true;
 
   /// Reorder (audit 3.6 — the first photo is the listing cover): swap the
   /// photo with its neighbour and persist through the same gallery PUT.
@@ -211,6 +275,10 @@ class ProGalleryProvider extends ChangeNotifier implements SalonScoped {
     _loadFailed = false;
     _isUploading = false;
     _uploadProgress = 0;
+    _inBatch = false;
+    _stopBatch = true;
+    _batchAt = 0;
+    _batchOf = 0;
     _error = null;
     _photos = const [];
     notifyListeners();

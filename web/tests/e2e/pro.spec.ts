@@ -328,7 +328,7 @@ test('médias: manage photos (remove + save) + upload a new one', async ({
       { name: 'photo3.gif', mimeType: 'image/gif', buffer: PIXEL },
     ]);
   await expect(page.locator('main img')).toHaveCount(6);
-  await expect(page.getByRole('status')).toContainText('2 photos ajoutées.');
+  await expect(page.getByRole('status').filter({ hasText: '2 photos ajoutées.' })).toBeVisible();
   const srcs = await page.locator('main img').evaluateAll((imgs) =>
     imgs.map((i) => i.getAttribute('src') ?? ''),
   );
