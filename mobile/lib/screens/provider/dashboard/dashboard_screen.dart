@@ -10,6 +10,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/colors.dart';
 import '../../../core/theme/text_styles.dart';
 import '../../../core/utils/formatters.dart';
+import '../../../core/utils/salon_go_live.dart';
 import '../../../core/utils/salon_id.dart';
 import '../../../core/utils/text_fit.dart';
 import '../../../models/pro_membership.dart';
@@ -283,14 +284,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
             const ProInvitationsCard(),
             // Go-live is owner-only (salon.publish, sign-off) — the
             // card hides for members; the server 403s regardless.
+            // Its subtitle follows where the salon stands with MyWeli's
+            // validation (B0.18, decision 136 item 1); not read yet (an
+            // offline cold start) it keeps today's words.
             if (authProvider.can(ProCap.salonPublish)) ...[
               AppCard(
                 padding: EdgeInsets.zero,
                 child: ListTile(
                   leading: const Icon(Icons.checklist_rounded),
                   title: const Text('Configurer mon profil'),
-                  subtitle: const Text(
-                    'Complétez les étapes pour aller en ligne',
+                  subtitle: Text(
+                    homeCardSubtitle(authProvider.salonGoLiveState),
                   ),
                   trailing: const Icon(Icons.chevron_right),
                   onTap: () => context.push('/pro/onboarding'),

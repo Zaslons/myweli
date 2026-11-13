@@ -133,6 +133,9 @@ class _ProDataExportScreenState extends State<ProDataExportScreen> {
         appointments: appointments,
         clients: clients,
         earnings: earnings,
+        // B0.18 §6.4: the salon's validation, from the same read.
+        validationSent: info?.validationSent ?? false,
+        validation: info?.validation,
       );
     } catch (_) {
       setState(() {

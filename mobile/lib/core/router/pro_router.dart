@@ -232,7 +232,17 @@ class ProRouter {
       GoRoute(
         path: '/pro/onboarding',
         name: 'pro-onboarding',
-        builder: (context, state) => const ProOnboardingScreen(),
+        // `?salon=` — MyWeli's decision on a salon (B0.18 — salon-go-live-
+        // approval §5.2, §6.2: the push and the feed row both carry
+        // `/pro/onboarding?salon={id}`) may be about another of the
+        // account's salons; the screen switches to it ONCE before loading.
+        builder: (context, state) {
+          final salonId = switch (state.uri.queryParameters['salon']) {
+            final String id when id.isNotEmpty => SalonId(id),
+            _ => null,
+          };
+          return ProOnboardingScreen(salonId: salonId);
+        },
       ),
       GoRoute(
         path: '/pro/earnings',

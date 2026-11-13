@@ -83,6 +83,14 @@ const String salonSuspendedMessage =
     'Votre salon est suspendu. Contactez MyWeli pour le réactiver — vos '
     'rendez-vous sont intacts.';
 
+/// A salon switch the server refused (`SalonSwitchOutcome.refused` — revoked
+/// there, the salon gone): the salon picker's sentence, and the one a notice
+/// tap says on « Accueil » when it cannot switch to the salon it names
+/// (B0.18, decision 136 item 3). No answer at all is [kNoConnectionMessage]
+/// instead (docs/design/web-pro-no-connection-copy.md §5).
+const String salonSwitchRefusedMessage =
+    'Changement impossible — votre accès à ce salon a peut-être été retiré.';
+
 /// The demo account's 403 (`demo_account_locked`) — the sentence the App
 /// Review notes promise. Its credential is public, so the server refuses the
 /// actions that would outlive the weekly reset; the list — account deletion

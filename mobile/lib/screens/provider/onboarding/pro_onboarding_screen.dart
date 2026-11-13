@@ -11,6 +11,7 @@ import '../../../core/theme/colors.dart';
 import '../../../core/theme/text_styles.dart';
 import '../../../core/utils/formatters.dart';
 import '../../../core/utils/onboarding.dart';
+import '../../../core/utils/salon_go_live.dart';
 import '../../../core/utils/salon_id.dart';
 import '../../../core/utils/team_error_messages.dart';
 import '../../../models/provider_user.dart';
@@ -23,23 +24,80 @@ import '../../../widgets/common/app_card.dart';
 import '../../../widgets/common/app_skeleton.dart';
 import '../../../widgets/common/app_snack_bar.dart';
 import '../../../widgets/common/screen_title.dart';
+import '../../../widgets/common/status_banner.dart';
 
 class ProOnboardingScreen extends StatefulWidget {
-  const ProOnboardingScreen({super.key});
+  const ProOnboardingScreen({super.key, this.salonId});
+
+  /// The salon a notice names (`/pro/onboarding?salon={id}` — MyWeli's
+  /// decision on it, B0.18 salon-go-live-approval §5.2, §6.2). Null → the
+  /// acting salon.
+  final SalonId? salonId;
 
   @override
   State<ProOnboardingScreen> createState() => _ProOnboardingScreenState();
 }
 
 class _ProOnboardingScreenState extends State<ProOnboardingScreen> {
+  /// The notice's switch has been asked — ONCE for this screen, whatever it
+  /// answered (web-salon-validation.md §4.5 found the loop: a server that
+  /// answers the switch but keeps the old salon pulled the page back to
+  /// switching again).
+  bool _switchAsked = false;
+
+  /// The notice's switch is out.
+  bool _switching = false;
+
+  /// Nothing of a salon on screen until the notice's switch has answered:
+  /// the checklist's store is the app's, and may still hold the salon the
+  /// owner was on — its state would show under the notice about the other.
+  bool _awaitingSwitch(ProAuthProvider auth) {
+    final wanted = widget.salonId;
+    return _switching ||
+        (wanted != null && !_switchAsked && wanted != auth.activeSalonId);
+  }
+
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      final auth = context.read<ProAuthProvider>();
-      final pro = auth.provider;
-      if (pro != null) _load(pro, auth.activeSalonId);
-    });
+    WidgetsBinding.instance.addPostFrameCallback((_) => _enter());
+  }
+
+  /// A notice about another of the account's salons switches to it first
+  /// (§6.2), and checks the answer — the booking detail ignores it, and is
+  /// not copied: a switch that did not happen goes to « Accueil » and says
+  /// why, in the salon picker's words (decision 136 item 3). Already on that
+  /// salon — the push path switched before opening this route
+  /// (`main_pro.dart` `ensureSalon`) — nothing to switch.
+  Future<void> _enter() async {
+    if (!mounted) return;
+    final auth = context.read<ProAuthProvider>();
+    final wanted = widget.salonId;
+    if (wanted != null && !_switchAsked && wanted != auth.activeSalonId) {
+      _switchAsked = true;
+      setState(() => _switching = true);
+      final messenger = ScaffoldMessenger.of(context);
+      final router = GoRouter.maybeOf(context);
+      final outcome = await auth.switchSalonOutcome(wanted);
+      if (!mounted) return;
+      setState(() => _switching = false);
+      // « Switched » to a salon the answer does not describe — a server that
+      // kept the old one — is no switch either, and is said once.
+      final landed = auth.activeSalon?.id == wanted;
+      if (outcome != SalonSwitchOutcome.switched || !landed) {
+        router?.go(auth.isStaff ? '/pro/staff' : '/pro/dashboard');
+        AppSnackBar.showOn(
+          messenger,
+          outcome == SalonSwitchOutcome.offline
+              ? kNoConnectionMessage
+              : salonSwitchRefusedMessage,
+          kind: SnackKind.error,
+        );
+        return;
+      }
+    }
+    final pro = auth.provider;
+    if (pro != null) unawaited(_load(pro, auth.activeSalonId));
   }
 
   /// The checklist's six reads, and — beside them, on its own clock —
@@ -47,14 +105,27 @@ class _ProOnboardingScreenState extends State<ProOnboardingScreen> {
   /// its areas). The tree is a nullable lookup: absent from the widget tree,
   /// unread or failed, the profile step keeps today's three-field rule and
   /// the server decides (docs/design/salon-go-live-approval.md §6.3).
-  void _load(ProviderUser pro, SalonId? salonId) {
+  ///
+  /// « Configuration » loading is one of §6.2's refresh points for the
+  /// session's two copies of the salon's state: « Mes salons » is re-read
+  /// (its rows say the state), and the home card's copy only when this
+  /// screen's own GET /me/provider says something else — MyWeli decided
+  /// since, or the card never knew (an offline cold start). No second
+  /// /me/provider when the two agree.
+  Future<void> _load(ProviderUser pro, SalonId? salonId) async {
+    final auth = context.read<ProAuthProvider>();
+    final onboarding = context.read<ProOnboardingProvider>();
     final areas = context.read<LocalityProvider?>();
     if (areas != null) unawaited(areas.ensureLoaded());
-    context.read<ProOnboardingProvider>().load(
-      pro,
-      salonId: salonId,
-      areas: areas,
-    );
+    unawaited(auth.loadMySalons());
+    await onboarding.load(pro, salonId: salonId, areas: areas);
+    if (!mounted) return;
+    final read = onboarding.salonGoLiveState;
+    if (read != null &&
+        auth.activeSalonId == salonId &&
+        read != auth.salonGoLiveState) {
+      unawaited(auth.refreshMembership());
+    }
   }
 
   Future<void> _goLive() async {
@@ -113,6 +184,7 @@ class _ProOnboardingScreenState extends State<ProOnboardingScreen> {
           if (pro == null) {
             return const Center(child: Text('Veuillez vous connecter'));
           }
+          if (_awaitingSwitch(auth)) return const SkeletonTileList(count: 7);
           return AppAsyncView<ProOnboardingProvider>(
             isLoading: onboarding.isLoading,
             error: onboarding.loadFailed
@@ -129,74 +201,168 @@ class _ProOnboardingScreenState extends State<ProOnboardingScreen> {
             loading: const SkeletonTileList(count: 7),
             empty: const SizedBox.shrink(),
             onRetry: () => _load(pro, auth.activeSalonId),
-            builder: (context, o) => _buildList(o),
+            builder: (context, o) => _buildList(o, auth),
           );
         },
       ),
     );
   }
 
-  Widget _buildList(ProOnboardingProvider onboarding) {
+  Widget _buildList(ProOnboardingProvider onboarding, ProAuthProvider auth) {
+    // Not read yet, no salon to read, or a server from before B0.18 (no
+    // `validation` key — decision 136 item 10): today's screen and words.
+    final state = onboarding.salonGoLiveState ?? GoLiveState.legacy;
+    final banner = goLiveBanner(state, onboarding.validation);
     final progress = onboarding.progress;
     final ratio = progress.total == 0 ? 0.0 : progress.done / progress.total;
 
     return ListView(
       padding: const EdgeInsets.all(AppTheme.spacingM),
       children: [
-        Text(
-          '${Formatters.count(progress.done, 'étape', 'étapes')} sur '
-          '${progress.total} '
-          '${Formatters.plural(progress.done, 'terminée', 'terminées')}',
-          style: AppTextStyles.bodySmall.copyWith(
-            color: AppColors.textSecondary,
+        // Above the steps, the KYC banner's pattern (§6.2).
+        if (banner != null) _GoLiveStatusBanner(banner),
+        // Suspended: the banner alone — no checklist, no button; MyWeli's
+        // restore decides (decision 136 item 9, as the website).
+        if (state != GoLiveState.suspended) ...[
+          if (banner != null) const SizedBox(height: AppTheme.spacingL),
+          Text(
+            '${Formatters.count(progress.done, 'étape', 'étapes')} sur '
+            '${progress.total} '
+            '${Formatters.plural(progress.done, 'terminée', 'terminées')}',
+            style: AppTextStyles.bodySmall.copyWith(
+              color: AppColors.textSecondary,
+            ),
           ),
-        ),
-        const SizedBox(height: AppTheme.spacingS),
-        ClipRRect(
-          borderRadius: BorderRadius.circular(AppTheme.radiusPill),
-          child: LinearProgressIndicator(
-            value: ratio,
-            minHeight: 6,
-            backgroundColor: AppColors.surface,
-            valueColor: const AlwaysStoppedAnimation<Color>(AppColors.primary),
+          const SizedBox(height: AppTheme.spacingS),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(AppTheme.radiusPill),
+            child: LinearProgressIndicator(
+              value: ratio,
+              minHeight: 6,
+              backgroundColor: AppColors.surface,
+              valueColor: const AlwaysStoppedAnimation<Color>(
+                AppColors.primary,
+              ),
+            ),
           ),
-        ),
-        const SizedBox(height: AppTheme.spacingL),
-        for (final step in onboarding.steps)
-          _StepRow(
-            step: step,
-            communeFromList:
-                step.key == OnboardingStepKey.profile &&
-                onboarding.communeNotInList,
+          const SizedBox(height: AppTheme.spacingL),
+          // Every step stays editable in every state — a request waiting
+          // included: MyWeli reads the salon as it is when it decides (§6.2).
+          for (final step in onboarding.steps)
+            _StepRow(
+              step: step,
+              communeFromList:
+                  step.key == OnboardingStepKey.profile &&
+                  onboarding.communeNotInList,
+            ),
+          const SizedBox(height: AppTheme.spacingL),
+          // See the salon exactly as a client will, before going live (B5).
+          OutlinedButton(
+            onPressed: () => context.push('/pro/apercu'),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: AppColors.textPrimary,
+              side: const BorderSide(color: AppColors.borderStrong),
+              padding: const EdgeInsets.symmetric(vertical: AppTheme.spacingM),
+            ),
+            child: const Text('Aperçu de ma page'),
           ),
-        const SizedBox(height: AppTheme.spacingL),
-        // See the salon exactly as a client will, before going live (B5).
-        OutlinedButton(
-          onPressed: () => context.push('/pro/apercu'),
-          style: OutlinedButton.styleFrom(
-            foregroundColor: AppColors.textPrimary,
-            side: const BorderSide(color: AppColors.borderStrong),
-            padding: const EdgeInsets.symmetric(vertical: AppTheme.spacingM),
-          ),
-          child: const Text('Aperçu de ma page'),
-        ),
+          ..._action(state, onboarding, auth),
+        ],
+      ],
+    );
+  }
+
+  /// The state's action under « Aperçu de ma page » (§6.1 « Button »): the
+  /// publish under the state's own name, enabled when the checklist is
+  /// complete, with its hint while it is not; « Demande envoyée le … » while
+  /// the request waits; « Mon abonnement » for a salon its lapsed offer took
+  /// offline; nothing for a final refusal, a live salon, or a member who is
+  /// not the owner.
+  List<Widget> _action(
+    GoLiveState state,
+    ProOnboardingProvider onboarding,
+    ProAuthProvider auth,
+  ) {
+    final label = publishButtonLabel(state);
+    if (label != null) {
+      final hint = onboarding.readyToGoLive ? null : publishHint(state);
+      return [
         const SizedBox(height: AppTheme.spacingS),
         AppButton(
-          text: 'Mettre mon profil en ligne',
+          text: label,
           isLoading: onboarding.isPublishing,
           onPressed: onboarding.readyToGoLive ? _goLive : null,
         ),
-        if (!onboarding.readyToGoLive) ...[
+        if (hint != null) ...[
           const SizedBox(height: AppTheme.spacingS),
           Text(
-            'Complétez les étapes essentielles pour mettre votre profil en ligne.',
+            hint,
             textAlign: TextAlign.center,
             style: AppTextStyles.bodySmall.copyWith(
               color: AppColors.textTertiary,
             ),
           ),
         ],
-      ],
+      ];
+    }
+    switch (state) {
+      case GoLiveState.pending:
+        // The day in the salon's clock, no weekday (decision 136 item 6);
+        // nothing when the request carries no time.
+        final sent = requestSentLine(
+          onboarding.validation?.submittedAt,
+          tz: auth.salonTimezone,
+        );
+        if (sent == null) return const [];
+        return [
+          const SizedBox(height: AppTheme.spacingM),
+          Text(
+            sent,
+            textAlign: TextAlign.center,
+            style: AppTextStyles.bodyMedium.copyWith(
+              color: AppColors.textSecondary,
+            ),
+          ),
+        ];
+      case GoLiveState.offlineUnpaid:
+        // A pointer to « Mon abonnement », the status screen — never a
+        // choice of offer (decision 136 item 5; App Store 3.1.1).
+        return [
+          const SizedBox(height: AppTheme.spacingS),
+          AppButton(
+            text: SalonValidationCopy.billingPointer,
+            type: AppButtonType.secondary,
+            onPressed: () => context.push('/pro/subscription'),
+          ),
+        ];
+      default:
+        return const [];
+    }
+  }
+}
+
+/// The validation's banner on « Configuration » (§6.1), on the shared
+/// [StatusBanner]. Tones as the website (web-salon-validation.md §4.1): a
+/// request waiting is neutral, a refusal and a suspension are errors, a
+/// salon no longer online a warning — each with its glyph, so the state
+/// survives greyscale (SYSTEM.md §13.6) beside its title.
+class _GoLiveStatusBanner extends StatelessWidget {
+  const _GoLiveStatusBanner(this.banner);
+
+  final GoLiveBanner banner;
+
+  @override
+  Widget build(BuildContext context) {
+    final (color, icon) = switch (banner.tone) {
+      GoLiveTone.neutral => (AppColors.textSecondary, Icons.schedule),
+      GoLiveTone.error => (AppColors.error, Icons.error_outline),
+      GoLiveTone.warning => (AppColors.warning, Icons.warning_amber),
+    };
+    return StatusBanner(
+      color: color,
+      icon: icon,
+      title: banner.title,
+      lines: banner.lines,
     );
   }
 }

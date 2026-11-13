@@ -6,6 +6,7 @@ import 'package:myweli/models/availability.dart';
 import 'package:myweli/models/provider.dart' as models;
 import 'package:myweli/models/provider_user.dart';
 import 'package:myweli/models/salon_client.dart';
+import 'package:myweli/models/salon_validation.dart';
 import 'package:myweli/models/user.dart';
 import 'package:myweli/services/interfaces/pro_service_interface.dart';
 
@@ -271,6 +272,138 @@ void main() {
         'Impossible de charger votre profil, vos rendez-vous et vos favoris. '
         '$tail',
       );
+    });
+  });
+
+  // B0.18 (salon-go-live-approval §6.4; the website's shape,
+  // web-salon-validation.md §6 and web/lib/pro/salon-validation.ts
+  // `validationForExport`): where the salon stands with MyWeli's validation.
+  group('the salon\'s validation', () {
+    Map<String, dynamic> salonExport({
+      bool validationSent = false,
+      SalonValidation? validation,
+    }) => buildProviderDataExport(
+      account: ProviderUser(
+        id: 'pu1',
+        phoneNumber: '+2250700000000',
+        businessName: 'Salon X',
+        businessType: BusinessType.salon,
+        createdAt: DateTime(2026),
+        providerId: SalonId('p1'),
+      ),
+      salon: const models.Provider(
+        id: SalonId('p1'),
+        name: 'Salon X',
+        description: 'desc',
+        address: 'Cocody',
+        imageUrls: [],
+        rating: 4.5,
+        reviewCount: 3,
+        services: [],
+        availability: Availability(
+          providerId: SalonId('p1'),
+          weeklySchedule: {},
+          blockedDates: [],
+        ),
+        phoneNumber: '+22500',
+        category: 'salon',
+      ),
+      services: const [],
+      artists: const [],
+      appointments: const [],
+      clients: const [],
+      earnings: const EarningsData(totalEarnings: 0, transactions: []),
+      validationSent: validationSent,
+      validation: validation,
+      generatedAt: DateTime.utc(2026, 11, 13),
+    );
+
+    test('a server from before B0.18 (no key): no `validation` at all — '
+        'null would claim « never asked »', () {
+      expect(salonExport().containsKey('validation'), isFalse);
+    });
+
+    test('never asked: `validation: null`, beside `salon`', () {
+      final export = salonExport(validationSent: true);
+      expect(export.containsKey('validation'), isTrue);
+      expect(export['validation'], isNull);
+      final keys = export.keys.toList();
+      expect(keys.indexOf('validation'), keys.indexOf('salon') + 1);
+    });
+
+    test('refused: the wire\'s values, the refusal with its code, final, '
+        'note and the sentence the salon reads — no `offerLive`', () {
+      final export = salonExport(
+        validationSent: true,
+        validation: SalonValidation(
+          state: SalonValidationState.refused,
+          wentLive: false,
+          submittedAt: DateTime.utc(2026, 11, 12, 9),
+          decidedAt: DateTime.utc(2026, 11, 13, 10),
+          offerLive: false,
+          refusal: const SalonRefusal(
+            code: 'photos',
+            isFinal: false,
+            note: 'La façade, de jour.',
+          ),
+        ),
+      );
+      expect(export['validation'], {
+        'state': 'refused',
+        'submittedAt': '2026-11-12T09:00:00.000Z',
+        'decidedAt': '2026-11-13T10:00:00.000Z',
+        'wentLive': false,
+        'refusal': {
+          'code': 'photos',
+          'final': false,
+          'note': 'La façade, de jour.',
+          'reason':
+              'Les photos ne montrent pas assez clairement le salon et son '
+              'travail.',
+        },
+      });
+    });
+
+    test('refused for `other`: the note is the reason — `reason` null', () {
+      final v =
+          salonExport(
+                validationSent: true,
+                validation: const SalonValidation(
+                  state: SalonValidationState.refused,
+                  wentLive: false,
+                  refusal: SalonRefusal(
+                    code: 'other',
+                    isFinal: false,
+                    note: 'Voir.',
+                  ),
+                ),
+              )['validation']
+              as Map;
+      expect(v['refusal'], {
+        'code': 'other',
+        'final': false,
+        'note': 'Voir.',
+        'reason': null,
+      });
+      expect(v['submittedAt'], isNull);
+    });
+
+    test('validated and live once, offer live: no refusal, and the billing '
+        'flag stays out', () {
+      final v =
+          salonExport(
+                validationSent: true,
+                validation: const SalonValidation(
+                  state: SalonValidationState.approved,
+                  wentLive: true,
+                  offerLive: true,
+                ),
+              )['validation']
+              as Map;
+      expect(v.containsKey('offerLive'), isFalse);
+      expect(v['refusal'], isNull);
+      expect(v['wentLive'], isTrue);
+      expect(v['state'], 'approved');
     });
   });
 }
