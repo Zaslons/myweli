@@ -125,8 +125,8 @@ export function legalRoute(slug: string): LegalRoute {
 /// the processors' « protection au moins équivalente » (App Store 5.1.1(i));
 /// each app's export path; and Cloudflare's second role in the hosts below.
 export const LEGAL_UPDATED_AT = {
-  iso: '2026-10-26',
-  label: '26 octobre 2026',
+  iso: '2026-11-13',
+  label: '13 novembre 2026',
 } as const;
 
 export const COMPANY = {

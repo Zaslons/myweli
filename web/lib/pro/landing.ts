@@ -47,8 +47,10 @@ export const PRO_LANDING = {
     'Créez votre compte',
     'Ajoutez vos prestations, vos horaires et vos photos',
     // Not « vos 3 mois commencent »: a salon that chose an offer has already
-    // started them (web-true-sentences.md §2).
-    'Mettez votre salon en ligne\u00a0: vos clients peuvent réserver',
+    // started them (web-true-sentences.md §2). Since B0.18 a salon ASKS to go
+    // live and MyWeli validates it first (salon-go-live-approval.md §6.4, Q9:
+    // owner-approved word for word).
+    'Demandez la mise en ligne\u00a0: une fois votre salon validé, vos clients peuvent réserver',
   ],
   faqTitle: 'Questions fréquentes',
   faq: [

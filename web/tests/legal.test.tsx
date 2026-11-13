@@ -30,6 +30,30 @@ const PAGES = [
   ['suppression de compte', SuppressionPage],
 ] as const;
 
+/// B0.18 (docs/design/salon-go-live-approval.md §6.4, Q7 « Add the sentence »):
+/// the CGU says, word for word as the owner approved it, that every salon is
+/// validated before it goes live. « validé », not « vérifié »: that word is the
+/// identity documents' (« uniquement à vérifier votre compte », the item above).
+describe('CGU §7 — MyWeli validates every salon before it goes live', () => {
+  const CLAUSE =
+    'Avant sa mise en ligne, chaque salon est validé par MyWeli, qui peut refuser de le publier, notamment s’il n’est pas situé en Côte d’Ivoire.';
+
+  it('the approved sentence, word for word, in §7', () => {
+    const { container } = render(<CguPage />);
+    // The JSX wraps the sentence over several lines: compare its rendered text,
+    // whitespace collapsed as a browser does.
+    const paragraphs = Array.from(container.querySelectorAll('p')).map((p) =>
+      (p.textContent ?? '').replace(/\s+/g, ' ').trim(),
+    );
+    expect(paragraphs).toContain(CLAUSE);
+    // In §7, after « Pour les professionnels », before « Disponibilité ».
+    const text = (container.textContent ?? '').replace(/\s+/g, ' ');
+    const at = text.indexOf(CLAUSE);
+    expect(at).toBeGreaterThan(text.indexOf('7. Pour les professionnels'));
+    expect(at).toBeLessThan(text.indexOf('8. Disponibilité'));
+  });
+});
+
 describe('the legal documents', () => {
   for (const [name, Page] of PAGES) {
     it(`${name} renders one h1 and the shared date`, () => {
