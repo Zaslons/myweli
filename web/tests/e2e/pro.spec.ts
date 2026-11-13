@@ -318,11 +318,17 @@ test('médias: manage photos (remove + save) + upload a new one', async ({
   // moves each new photo out of `pending/` and the page must keep the moved
   // address. Keeping its own re-sent a pending address whose object the API
   // had deleted — refused in production for every add after the first.
+  // …and TWO in one pick (gallery-multi-select.md): one after another, each
+  // saved as it lands, one summary.
   await page
     .locator('input[type=file]')
     .first()
-    .setInputFiles({ name: 'photo2.gif', mimeType: 'image/gif', buffer: PIXEL });
-  await expect(page.locator('main img')).toHaveCount(5);
+    .setInputFiles([
+      { name: 'photo2.gif', mimeType: 'image/gif', buffer: PIXEL },
+      { name: 'photo3.gif', mimeType: 'image/gif', buffer: PIXEL },
+    ]);
+  await expect(page.locator('main img')).toHaveCount(6);
+  await expect(page.getByRole('status').filter({ hasText: '2 photos ajoutées.' })).toBeVisible();
   const srcs = await page.locator('main img').evaluateAll((imgs) =>
     imgs.map((i) => i.getAttribute('src') ?? ''),
   );
@@ -331,15 +337,15 @@ test('médias: manage photos (remove + save) + upload a new one', async ({
   // Saved at once, as in the app (web-pro-medias-like-app.md): a reload
   // still has them.
   await page.reload();
-  await expect(page.locator('main img')).toHaveCount(5);
+  await expect(page.locator('main img')).toHaveCount(6);
 
   // Deleting asks, then can be taken back.
   await page.getByRole('button', { name: 'Supprimer' }).last().click();
   const dialog = page.getByRole('dialog', { name: 'Supprimer cette photo ?' });
   await dialog.getByRole('button', { name: 'Supprimer la photo' }).click();
-  await expect(page.locator('main img')).toHaveCount(4);
-  await page.getByRole('status').getByRole('button', { name: 'Annuler' }).click();
   await expect(page.locator('main img')).toHaveCount(5);
+  await page.getByRole('status').getByRole('button', { name: 'Annuler' }).click();
+  await expect(page.locator('main img')).toHaveCount(6);
 });
 
 test('clients: list → search → card → note → tags (module clients C1b)', async ({

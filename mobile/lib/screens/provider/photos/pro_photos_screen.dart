@@ -7,6 +7,7 @@ import '../../../core/constants/failure_messages.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/colors.dart';
 import '../../../core/theme/text_styles.dart';
+import '../../../core/utils/gallery_batch.dart';
 import '../../../core/utils/salon_id.dart';
 import '../../../providers/pro_auth_provider.dart';
 import '../../../providers/pro_gallery_provider.dart';
@@ -28,6 +29,23 @@ class ProPhotosScreen extends StatefulWidget {
 }
 
 class _ProPhotosScreenState extends State<ProPhotosScreen> {
+  /// Held for [dispose]: leaving the screen stops a pick of several before
+  /// its next photo (gallery-multi-select.md §2.3) — `context.read` is not
+  /// safe once the element is deactivated.
+  ProGalleryProvider? _galleryForDispose;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _galleryForDispose = context.read<ProGalleryProvider>();
+  }
+
+  @override
+  void dispose() {
+    _galleryForDispose?.stopBatch();
+    super.dispose();
+  }
+
   @override
   void initState() {
     super.initState();
@@ -45,7 +63,43 @@ class _ProPhotosScreenState extends State<ProPhotosScreen> {
     // in demo (mock) mode so previews still render without a device file.
     final String? source;
     if (AppConfig.useApiBackend) {
-      source = await showImagePicker(context);
+      // « Galerie » takes several at once (gallery-multi-select.md); the
+      // camera still one.
+      final sources = await showImagesPicker(
+        context,
+        limit: kMaxGalleryPhotos - gallery.photos.length,
+      );
+      if (sources.isEmpty) return;
+      if (sources.length > 1) {
+        final r = await gallery.addPhotos(providerId, sources);
+        if (r.stopped) return; // the screen was left, or the salon changed
+        if (r.total == 1 && r.added == 0) {
+          AppSnackBar.showOn(
+            messenger,
+            gallery.error ?? 'Échec de l’envoi',
+            kind: SnackKind.error,
+          );
+          return;
+        }
+        final summary = gallerySummary(
+          total: r.total,
+          added: r.added,
+          dropped: r.dropped,
+        );
+        if (summary != null) {
+          AppSnackBar.showOn(
+            messenger,
+            summary.message,
+            kind: summary.isError
+                ? SnackKind.error
+                : r.total > 1
+                ? SnackKind.success
+                : SnackKind.info,
+          );
+        }
+        return;
+      }
+      source = sources.single;
     } else {
       source = await showMockImagePicker(context);
     }
@@ -206,12 +260,19 @@ class _ProPhotosScreenState extends State<ProPhotosScreen> {
                     : null,
               ),
             if (gallery.isUploading)
-              _UploadingTile(progress: gallery.uploadProgress),
-            _AddTile(
-              onTap: gallery.isUploading
-                  ? null
-                  : () => _addPhoto(providerId, gallery),
-            ),
+              _UploadingTile(
+                progress: gallery.uploadProgress,
+                at: gallery.batchAt,
+                of: gallery.batchOf,
+              ),
+            // At the server's cap the tile goes: a 21st photo was refused
+            // AFTER its upload (gallery-multi-select.md §2.3).
+            if (gallery.photos.length < kMaxGalleryPhotos)
+              _AddTile(
+                onTap: gallery.isUploading
+                    ? null
+                    : () => _addPhoto(providerId, gallery),
+              ),
           ],
         ),
       ],
@@ -371,7 +432,11 @@ class _PhotoTile extends StatelessWidget {
 class _UploadingTile extends StatelessWidget {
   final double progress;
 
-  const _UploadingTile({required this.progress});
+  /// Which photo of a pick of several — « Envoi 2 sur 5… »; [of] is 0 for one.
+  final int at;
+  final int of;
+
+  const _UploadingTile({required this.progress, this.at = 0, this.of = 0});
 
   @override
   Widget build(BuildContext context) {
@@ -406,7 +471,9 @@ class _UploadingTile extends StatelessWidget {
           ),
           const SizedBox(height: AppTheme.spacingS),
           Text(
-            'Envoi… ${(progress * 100).round()}%',
+            of > 1
+                ? 'Envoi $at sur $of… ${(progress * 100).round()}%'
+                : 'Envoi… ${(progress * 100).round()}%',
             style: AppTextStyles.labelSmall.copyWith(
               color: AppColors.textTertiary,
             ),
