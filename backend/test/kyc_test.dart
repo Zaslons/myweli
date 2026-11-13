@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:dart_frog/dart_frog.dart';
@@ -30,6 +31,27 @@ class _DeleteFails extends FakeStorageService {
   }
 }
 
+/// Storage that HANGS on every delete of a promoted `kyc/` object — R2 not
+/// answering rather than erroring. The promotion's own `pending/` deletes
+/// still complete, so only the post-write deletes meet the hang.
+class _KycDeleteHangs extends FakeStorageService {
+  _KycDeleteHangs() : super(defaultSize: 10);
+
+  final attempted = <String>[];
+
+  @override
+  Future<void> deleteObject({
+    required String key,
+    required StorageBucket bucket,
+  }) {
+    if (!key.startsWith('kyc/')) {
+      return super.deleteObject(key: key, bucket: bucket);
+    }
+    attempted.add(key);
+    return Completer<void>().future;
+  }
+}
+
 /// Storage whose copies fail: the promotion answers `storage_unavailable`.
 class _CopyFails extends FakeStorageService {
   _CopyFails() : super(defaultSize: 10);
@@ -52,6 +74,25 @@ class _WinnerLandsAfterRead extends InMemoryProviderAuthRepository {
 
   /// Instead of a winner's submit, the account's deletion lands there.
   bool deletedAfterRead = false;
+
+  /// A THIRD submit, landing right after a refusal commits — after the
+  /// refused request's lock is gone, before its deletes run.
+  List<Map<String, dynamic>>? afterRefusal;
+
+  @override
+  Future<KycWrite> submitKyc(
+    String accountId,
+    List<Map<String, dynamic>> docs, {
+    Set<String> passThrough = const {},
+  }) async {
+    final w = await super.submitKyc(accountId, docs, passThrough: passThrough);
+    final third = afterRefusal;
+    if (w.refused && third != null) {
+      afterRefusal = null;
+      await super.submitKyc(accountId, third);
+    }
+    return w;
+  }
 
   @override
   Future<ProviderAccount?> accountById(String id) async {
@@ -299,6 +340,28 @@ void main() {
       );
     });
 
+    test('7b. a storage delete that never answers is cut off: the stored '
+        'submit still answers 200 with the new list', () async {
+      final hangs = _KycDeleteHangs();
+      final service = KycService(
+        providerAuth,
+        verifier: UploadVerificationService(storage: hangs),
+        storage: hangs,
+        deleteBudget: const Duration(milliseconds: 50),
+      );
+      await seed(service);
+
+      final r = await service.submit(accountId, [
+        {'type': 'idCard', 'key': pending('id-v2.jpg')},
+        {'type': 'selfie', 'key': promoted('selfie.jpg')},
+      ]);
+      expect(r.ok, isTrue, reason: '${r.error}');
+      final now = [promoted('id-v2.jpg'), promoted('selfie.jpg')];
+      expect(answered(r), now);
+      expect(await rowKeys(providerAuth, accountId), now);
+      expect(hangs.attempted, [promoted('id.jpg')]);
+    }, timeout: const Timeout(Duration(seconds: 10)));
+
     group('8. a refused submit deletes nothing old', () {
       final stored = <Map<String, dynamic>>[];
 
@@ -337,6 +400,52 @@ void main() {
           promoted('id.jpg'),
           promoted('selfie.jpg'),
         ]);
+      });
+
+      // The one refusal where deleting an old document does harm: the lock
+      // refuses a request that REPLACED a document, and the winner kept it.
+      // Both refusals above return before any delete could run; this one
+      // reaches the write, so « delete before the write » turns it red.
+      test('refused by the lock after replacing a document: the replaced '
+          'document, which the winner kept, is not deleted', () async {
+        final repo = _WinnerLandsAfterRead(tokens: tokens);
+        final id = (await repo.register(
+          email: 'replaced@test.pro',
+          authProvider: 'google',
+          googleSub: 'replaced-sub',
+          phoneNumber: '+2250500000074',
+          businessName: 'X',
+          businessType: 'salon',
+        )).provider!.id;
+        final k1 = 'kyc/$id/k1.jpg';
+        final k2 = 'kyc/$id/k2.jpg';
+        await repo.submitKyc(id, [
+          {'type': 'idCard', 'key': k1},
+          {'type': 'selfie', 'key': k2},
+        ]);
+        // The winner, landing after this request's read, dropped k1 and
+        // kept k2.
+        repo.winner = [
+          {'type': 'selfie', 'key': k2},
+          {'type': 'idCard', 'key': 'kyc/$id/kx.jpg'},
+        ];
+
+        final r = await over(repo, store).submit(id, [
+          {'type': 'idCard', 'key': k1}, // pass-through
+          {'type': 'selfie', 'key': 'pending/kyc/$id/p3.jpg'}, // replaces k2
+        ]);
+        expect(r.error, 'invalid_input');
+        expect(await rowKeys(repo, id), [
+          k2,
+          'kyc/$id/kx.jpg',
+        ], reason: 'the winner\'s row stands');
+        expect(
+          store.deleted.where((k) => k.startsWith('kyc/')),
+          ['kyc/$id/p3.jpg'],
+          reason:
+              'only this request\'s own fresh copy; k2 is the winner\'s '
+              'document, k1 was the winner\'s to delete',
+        );
       });
     });
 
@@ -411,6 +520,50 @@ void main() {
       expect(store.deleted.where((k) => k.startsWith('kyc/')), [
         'kyc/$id/p1.jpg',
       ]);
+    });
+
+    test('9c. three concurrent submits: a third that commits the shared '
+        'upload\'s copy after the refusal keeps it — the refused request '
+        're-reads the row before each delete', () async {
+      final repo = _WinnerLandsAfterRead(tokens: tokens);
+      final id = (await repo.register(
+        email: 'third@test.pro',
+        authProvider: 'google',
+        googleSub: 'third-sub',
+        phoneNumber: '+2250500000075',
+        businessName: 'X',
+        businessType: 'salon',
+      )).provider!.id;
+      await repo.submitKyc(id, [
+        {'type': 'idCard', 'key': 'kyc/$id/k1.jpg'},
+      ]);
+      // A commits [k3] after this request's read; C, carrying the same
+      // pending upload p2 as this request, commits [promotedKey(p2)] once
+      // this request has been refused and its lock is gone.
+      repo
+        ..winner = [
+          {'type': 'idCard', 'key': 'kyc/$id/k3.jpg'},
+        ]
+        ..afterRefusal = [
+          {'type': 'selfie', 'key': 'kyc/$id/p2.jpg'},
+        ];
+
+      final r = await over(repo, store).submit(id, [
+        {'type': 'idCard', 'key': 'kyc/$id/k1.jpg'}, // pass-through
+        {'type': 'selfie', 'key': 'pending/kyc/$id/p2.jpg'},
+      ]);
+      expect(r.error, 'invalid_input');
+      expect(await rowKeys(repo, id), [
+        'kyc/$id/p2.jpg',
+      ], reason: 'setup: C\'s row stands');
+      expect(
+        store.deleted.where((k) => k.startsWith('kyc/')),
+        isEmpty,
+        reason:
+            'p2 was this request\'s own fresh copy under the lock, but C '
+            'has committed it since: deleting it would leave C\'s row '
+            'pointing at a deleted object',
+      );
     });
   });
 

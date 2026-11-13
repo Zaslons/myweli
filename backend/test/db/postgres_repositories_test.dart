@@ -10,6 +10,8 @@ import 'package:myweli_backend/src/access/membership_service.dart';
 import 'package:myweli_backend/src/auth/apple_tokens.dart';
 import 'package:myweli_backend/src/auth/auth_repository.dart'
     show RefreshOutcome, RefreshResult, TokenPair, kRefreshReuseGrace;
+import 'package:myweli_backend/src/auth/provider_auth_repository.dart'
+    show KycWrite, kycKeysOf;
 import 'package:myweli_backend/src/auth/tokens.dart';
 import 'package:myweli_backend/src/boot_config.dart';
 import 'package:myweli_backend/src/clients/clients_repository.dart'
@@ -530,6 +532,82 @@ void main() {
         );
         expect(w.refused, isFalse);
         expect(w.lockedKeys, [a]);
+      });
+
+      // The contract above runs one call at a time, so it cannot tell the
+      // lock from its absence. Here a concurrent winner holds the row,
+      // uncommitted, while the submit starts. With `FOR UPDATE` the submit's
+      // read waits and then sees the winner's list: refused. Without it, the
+      // read sees the old list at once, the UPDATE waits behind the winner,
+      // and then writes k1 back — the row pointing at a deleted object.
+      test('the row lock is real: a submit started while a concurrent write '
+          'holds the row waits for it, then is refused', () async {
+        final r = repo();
+        final id = (await r.register(
+          email: 'kycw-lock@test.pro',
+          authProvider: 'google',
+          googleSub: 'kycw-sub-lock',
+          phoneNumber: provPhone,
+          businessName: 'X',
+          businessType: 'salon',
+        )).provider!.id;
+        Map<String, dynamic> doc(String key) => {
+          'type': 'idCard',
+          'key': key,
+          'submittedAt': '2030-06-26T09:00:00.000Z',
+        };
+        final k1 = 'kyc/$id/k1.jpg';
+        final k2 = 'kyc/$id/k2.jpg';
+        final kx = 'kyc/$id/kx.jpg';
+        await r.submitKyc(id, [doc(k1)]);
+
+        // The winner and the watcher on a pool of their own, so neither
+        // waits behind the submit's connection.
+        final side = createPool(url);
+        addTearDown(side.close);
+        late Future<KycWrite> loser;
+        await side.runTx((tx) async {
+          final holder =
+              (await tx.execute('SELECT pg_backend_pid()')).first.first! as int;
+          await tx.execute(
+            Sql.named(
+              'UPDATE provider_users SET kyc_docs = @docs:jsonb WHERE id = @id',
+            ),
+            parameters: {
+              'id': id,
+              'docs': [doc(kx)],
+            },
+          );
+          // Some session waits on the winner: the submit, at its locked
+          // read (with the lock) or at its UPDATE (without it).
+          Future<bool> submitWaits() async =>
+              (await side.execute(
+                'SELECT count(*)::int FROM pg_stat_activity '
+                'WHERE $holder = ANY(pg_blocking_pids(pid))',
+              )).first.first! !=
+              0;
+
+          loser = r.submitKyc(id, [doc(k1), doc(k2)], passThrough: {k1});
+          final deadline = DateTime.now().add(const Duration(seconds: 10));
+          while (!await submitWaits()) {
+            if (DateTime.now().isAfter(deadline)) {
+              loser.ignore();
+              fail('the submit never waited on the winner\'s row');
+            }
+            await Future<void>.delayed(const Duration(milliseconds: 10));
+          }
+        });
+
+        final w = await loser;
+        expect(
+          w.refused,
+          isTrue,
+          reason: 'k1 left the row while the submit waited for it',
+        );
+        expect(w.lockedKeys, [kx], reason: 'the winner\'s committed list');
+        expect(kycKeysOf((await r.accountById(id))!.kycDocs), [
+          kx,
+        ], reason: 'the winner\'s row stands');
       });
     });
 
@@ -1093,10 +1171,56 @@ void main() {
       );
       final id = salon['id'] as String;
       deleteOnTearDown(id);
+
+      // The read a production check must use. `data` is stored as a jsonb
+      // STRING whose text is the document: `updateProfile` hands
+      // `jsonEncode(data)` to `@data:jsonb`, which encodes it again (the
+      // double encoding `submitKyc`'s comment describes for `kyc_docs`). So
+      // `data->'latitude'` reads SQL NULL on every runtime-written salon,
+      // erased or not. Read through the scalar, the pin is a number before
+      // and a JSON null after.
+      Future<({String? form, String? naive, String? pin})> readBack() async {
+        final r = (await pool.execute(
+          Sql.named(
+            'SELECT jsonb_typeof(data) AS form, '
+            "jsonb_typeof(data -> 'latitude') AS naive, "
+            'jsonb_typeof((CASE jsonb_typeof(data) '
+            "WHEN 'string' THEN (data #>> '{}')::jsonb ELSE data END) "
+            "-> 'latitude') AS pin "
+            'FROM providers WHERE id = @id',
+          ),
+          parameters: {'id': id},
+        )).single.toColumnMap();
+        return (
+          form: r['form'] as String?,
+          naive: r['naive'] as String?,
+          pin: r['pin'] as String?,
+        );
+      }
+
       await repo.updateProfile(id, {'latitude': 5.35, 'longitude': -3.99});
       expect((await repo.byId(id))!['latitude'], 5.35, reason: 'setup');
+      final before = await readBack();
+      expect(
+        before.form,
+        'string',
+        reason:
+            'the stored form a read-back must decode; if this turns '
+            'red, the double encoding was fixed — update the read-back',
+      );
+      expect(
+        before.naive,
+        isNull,
+        reason: "data->'latitude' cannot see a pin on this form",
+      );
+      expect(before.pin, 'number', reason: 'the read-back sees the pin');
 
       await repo.updateProfile(id, {'latitude': null, 'longitude': null});
+      expect(
+        (await readBack()).pin,
+        'null',
+        reason: 'the read-back sees the erased pin: a JSON null',
+      );
 
       final row = (await pool.execute(
         Sql.named('SELECT data, address FROM providers WHERE id = @id'),

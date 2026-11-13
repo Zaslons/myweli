@@ -109,8 +109,6 @@ DateTime? kycSubmittedAt(List<Map<String, dynamic>> docs) {
   return latest;
 }
 
-/// Verify outcome: the provider account + a freshly issued token pair (access
-/// JWT role `provider` + a rotating opaque refresh token).
 /// What [ProviderAuthRepository.submitKyc] did (B0.22 — design:
 /// docs/design/pro-deletion-erase-gaps.md §3.2).
 ///
@@ -134,6 +132,8 @@ List<String> kycKeysOf(List<Map<String, dynamic>> docs) => [
     if (d['key'] is String) d['key'] as String,
 ];
 
+/// Verify outcome: the provider account + a freshly issued token pair (access
+/// JWT role `provider` + a rotating opaque refresh token).
 typedef ProviderVerifyResult = ({
   bool ok,
   String? error,
