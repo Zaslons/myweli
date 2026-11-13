@@ -178,6 +178,7 @@ describe('Médias keeps what the server STORED — never its own pending address
       expect(gallery.stored).toEqual([A, `${CDN}/gallery/p1/n1.jpg`, `${CDN}/gallery/p1/n2.jpg`]),
     );
     expect(screen.queryByText('Échec de l’envoi')).toBeNull();
+    expect(meCalls, 'the answer carried the list: no second read').toBe(1);
   });
 
   it('the just-added thumbnail shows the stored address, not the deleted pending object', async () => {
@@ -242,6 +243,7 @@ describe('Médias keeps what the server STORED — never its own pending address
     });
     await waitFor(() => expect(storedPairs).toHaveLength(3));
     expect(screen.queryByText('Échec de l’enregistrement')).toBeNull();
+    expect(meCalls, 'the answer carried the pairs: no second read').toBe(1);
   });
 });
 
