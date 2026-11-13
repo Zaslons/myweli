@@ -222,7 +222,8 @@ void main() {
       final id = created['id'] as String;
       await w.notice.refused(id, code: 'photos');
       expect(w.noticeLogs, [
-        for (final c in SalonDecisionNotifier.channels)
+        // Written out, not read from `channels`: the order is pinned here.
+        for (final c in ['push', 'feed', 'email'])
           line('refused', id, c, 'skipped reason=no_owner'),
       ]);
       expect(w.pushes.sends, isEmpty);
@@ -242,7 +243,7 @@ void main() {
       );
       await n.refused(s.id, code: 'photos');
       expect(w.noticeLogs, [
-        for (final c in SalonDecisionNotifier.channels)
+        for (final c in ['push', 'feed', 'email'])
           line('refused', s.id, c, 'failed reason=lookup error=StateError'),
       ]);
       expect(w.pushes.sends, isEmpty);
