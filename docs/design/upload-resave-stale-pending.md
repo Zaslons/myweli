@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | Draft — awaiting the owner's sign-off |
+| **Status** | Approved 2026-11-13 (owner: « Web + server ») · Built on `fix/upload-resave-stale-pending` · backend deploy on the owner's yes |
 | **Owner** | Sadreddine |
 | **Last updated** | 2026-11-13 |
 | **PRD ref / phase** | Storage / uploads (T61) · V1 · production incident of 2026-11-13 |
@@ -83,7 +83,7 @@ re-sent the `pending/` address of a photo the server has already moved.
 | Before/after pairs | **broken** (same code) | correct | — |
 | KYC documents | **broken** — keeps pending keys after a submit; a 2nd submit in the same visit is refused | **broken** — same (`ProKycProvider.submit`) | — |
 | Artist photo | correct — reloads after save | correct | — |
-| Salon logo | (no web upload) | correct | — |
+| Salon logo | **broken** — Profil always re-sends `logoUrl`, so any save after a new logo in the same visit (a name change) was refused. *Missed by the first sweep, found while building.* | correct | — |
 | Review photos | correct — form closes | — | correct |
 | Avatar | (no web upload) | — | correct |
 
@@ -99,7 +99,8 @@ re-sent the `pending/` address of a photo the server has already moved.
   (`verifyAndPromote`, i.e. deposits and bookings) passes an empty
   `alreadyStored` and is therefore unchanged.
 - **B. Clients adopt what the server stored.** Website: Médias (gallery,
-  before/after) and Vérification (KYC) replace their local list with the
+  before/after), Vérification (KYC) and Profil (the logo) replace their local
+  value with the
   server's response after every successful write — the way the Pro app already
   does for the gallery. Pro app: `ProKycProvider.submit` refills its documents
   from the response, as `load()` does. A covers the old builds; B makes the
@@ -126,6 +127,8 @@ No new screens or copy. What changes for the salon:
   refused in the same way.
 - Website Vérification and Pro app KYC: submitting again in the same visit (for
   example after replacing one document) no longer fails.
+- Website Profil: saving again after a new logo (a name change, say) no longer
+  fails, and the logo preview shows the stored address.
 - Undo (« Annuler ») after a delete stays broken until §11.1.
 
 ## 3. API & contract
@@ -146,9 +149,15 @@ None.
   `promoteNewUrls`), plus `FakeStorageService.deleteObject`. No route or
   repository change.
 - **Website:** `lib/api/pro.ts` — `saveGallery` / `saveBeforeAfters` return the
-  stored list from the body; `MediasClient` and `VerificationClient` adopt it. A
-  200 without a usable list re-reads the page rather than keeping local
+  stored list from the body (`stored`), `updateProviderProfile` the stored
+  `logoUrl`; `MediasClient`, `VerificationClient` and `ProfilClient` adopt it. A
+  200 without a usable value reads the salon back rather than keeping local
   addresses: keeping them is the bug.
+- **The e2e stub** (`web/tests/e2e/stub-api.mjs`) signed outside `pending/`,
+  stored whatever came and answered before/after with the bare list instead of
+  `{ beforeAfters }` — so no e2e could tell a page that kept its own pending
+  address. It now signs under `pending/` and moves the address on every image
+  save (gallery, before/after, logo, artist), like the API.
 - **Pro app:** `ProKycProvider.submit` refills `_documents` from
   `res.data!.documents`.
 
@@ -186,11 +195,15 @@ untouched.
     through; the claim form still refuses a deleted pending key;
   - every existing test re-run against the forgetting fake, and any that
     depended on a deleted key still "existing" fixed or explained.
-- **Website** (Vitest + RTL): the mocked BFF answers like the real one
-  (promoted list in the body). Two adds in a row → the second PUT carries the
-  first photo's **promoted** address and the thumbnail shows it; the same for
-  before/after; Vérification submitted twice → the second POST carries the
-  promoted keys; a 200 without a list re-reads.
+- **Website** (Vitest + RTL, `tests/pro-stored-urls.test.tsx`): a mock server
+  as strict as production was — it moves a pending address once and refuses it
+  if it comes back. Two adds in a row → the second PUT carries the first
+  photo's **promoted** address and the thumbnail shows it; a move after an
+  add; the same for before/after; Vérification submitted twice; Profil saved
+  twice after a new logo; a 200 without a list re-reads. The existing Médias
+  mocks answered `{}` and now answer the stored list, like the API.
+- **e2e:** `pro.spec.ts` « médias » adds a second photo in the same visit and
+  asserts no `<img>` points under `/pending/`.
 - **Pro app:** `ProKycProvider` — after `submit`, `documents` are the server's,
   and a second submit sends them.
 - **Mutation pass:** remove the server pass-through; check membership by shape
