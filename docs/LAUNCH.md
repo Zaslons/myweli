@@ -1629,6 +1629,11 @@ actually reach Vercel*.
       d'Ivoire is refused with `outside_ci`), then « Valider la mise en
       ligne ». The answer is the salon `active`; a 409 names what is in the
       way (incomplete, offer no longer live, suspended, no owner).
+      *Exercised up to the request on 2026-11-13, with the owner's test
+      salon after the backend deploy: 202 at 12:37 UTC, still a draft, the
+      queue counting 1, and the e-mail received. The validation itself, and
+      the rebuild below, wait for the first real salon (the test request is
+      refused as « Salon de test »).*
 
 - [ ] **The rebuild fired.** Within seconds of the VALIDATION (not the
       request, and not the creation), a deployment starts in Vercel, and the
