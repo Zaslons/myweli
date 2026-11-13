@@ -327,10 +327,12 @@ describe('Profil keeps the logo the server STORED', () => {
       logoUrl: null as string | null,
     };
     const patches: Record<string, unknown>[] = [];
+    let salonReads = 0;
     vi.stubGlobal(
       'fetch',
       vi.fn(async (url: string, init?: RequestInit) => {
         if (url === '/api/pro/me') {
+          salonReads += 1;
           return json(200, { account: { id: 'acc-1', verificationStatus: 'verified' }, provider });
         }
         if (url === '/api/localities') return json(200, fixtureTree);
@@ -364,6 +366,8 @@ describe('Profil keeps the logo the server STORED', () => {
     expect(patches[1].logoUrl).toBe(`${CDN}/logo/p1/l1.png`);
     await waitFor(() => expect(provider.name).toBe('Beauté Divine 2'));
     expect(screen.queryByText('L’enregistrement a échoué. Réessayez.')).toBeNull();
+    // The answer's logo is used as it is: no second read when it has one.
+    expect(salonReads).toBe(answer === 'provider' ? 1 : 3);
   }
 
   it('a second save in the same visit (a name change) carries the stored logo, and is accepted', () =>
