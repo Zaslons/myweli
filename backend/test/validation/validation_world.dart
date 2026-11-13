@@ -176,6 +176,12 @@ class ValidationWorld {
   final adminLogs = <String>[];
   final placeNotices = InMemorySalonPlaceNoticeRepository();
   final placeLogs = <String>[];
+
+  /// The salon's decision notices, as logged (`salon_notice …`).
+  final noticeLogs = <String>[];
+
+  /// Where [notice] logs: [noticeLogs], unless a test swaps the sink.
+  late void Function(String) noticeLog = noticeLogs.add;
   DateTime now = DateTime.utc(2026, 11, 12, 9);
 
   /// `ADMIN_EMAIL` as the composition root reads it.
@@ -216,8 +222,14 @@ class ValidationWorld {
     clock: () => now,
   );
 
-  SalonDecisionNotifier get notice =>
-      SalonDecisionNotifier(members, providers, push, feed, email: ownerMail);
+  SalonDecisionNotifier get notice => SalonDecisionNotifier(
+    members,
+    providers,
+    push,
+    feed,
+    email: ownerMail,
+    log: noticeLog,
+  );
 
   SalonValidationService get service => SalonValidationService(
     validations,

@@ -4,7 +4,7 @@
 |---|---|
 | **Status** | **Approved 2026-11-12** (the owner answered every question of §11: decisions 124–132). **Backend merged** (#776, 2026-11-12); the cap of decision 133 merged (#778, `5139f401`, 2026-11-12); the console merged (#779, `8d43009b`, 2026-11-12) and **deployed 2026-11-13** (`deploy-admin.yml`, run 43405932321, `27ecbecc`), before the backend as §9.2 orders; **the website's 4a merged and deployed 2026-11-13** (#782, `03ffc953`; its web details: [web-salon-validation.md](web-salon-validation.md), approved by the owner the same day); **the backend deployed 2026-11-13** on the owner's yes (12:12 UTC, run 43422983978, image `0f53e66`, revision `myweli-api-00049-hq6` at 100 %; migrations 0044 and 0045 recorded). The day's counts were read first, read-only: 5 salons, all drafts, 0 public, 1 draft holding an offer row, 0 for the backfill. It was read back on the owner's test salon: the request answered 202 at 12:37 UTC, was recorded `pending` with its `submitted` event, the salon stayed a draft, the queue counted 1, the log said `admin_notice kind=salon_request … outcome=sent`, and the owner received the e-mail; **the website's 4b merged** (#785, `8825ba60`, 2026-11-13) and read live the same day (`/professionnels` step 3, the CGU clause, the legal date); the apps not built. Reviewed twice by independent readers on 2026-11-12, every finding folded in: five readers (backend, admin console, apps, website, completeness) found 53; two found 26 on the rewrite. **Amended 2026-11-12** (decision 133, after the backend's review): the place-change e-mails to the admin are capped per salon — §5.1, §7, §8.1, §9.1, §11 |
 | **Owner** | Sadreddine Daher |
-| **Last updated** | 2026-11-12 |
+| **Last updated** | 2026-11-13 (§5.2 « What the log says »: the salon's notice logged per channel, and the alert proposed) |
 | **PRD ref / phase** | FR-PRO-ONB-001 (go live) · admin (FR-WEB-AD-*) · V1 |
 | **BACKLOG** | B0.18 (decisions 120 and 123, recorded in PR #773) |
 | **Related** | [pro-salon-lifecycle.md](pro-salon-lifecycle.md) (draft → publish, T50/T51) · [pro-companion-path.md](pro-companion-path.md) (the trial at first publish, no selling in the app) · [salon-state-and-refusals.md](salon-state-and-refusals.md) (the three meanings of `draft`) · [admin-console.md](admin-console.md) · [admin-console-ui.md](admin-console-ui.md) · [pro-kyc.md](pro-kyc.md) (the one admin review that exists) · [backend-web-rebuild-hook.md](backend-web-rebuild-hook.md) · [web-true-sentences.md](web-true-sentences.md) (decision 68) · [pro-android-signup.md](pro-android-signup.md) (B0.17, which feeds salons into this) · [android-play-release.md](android-play-release.md) (the closed test this must precede) |
@@ -601,6 +601,103 @@ To the owner (the `salon.publish` holder) only:
   the feed's empty state) **do not change.** They are shown to every member,
   while this news goes to owners only, and they do not become false.
 
+#### What the log says (added 2026-11-13)
+
+**Why.** The first refusal in production (18:51:45 UTC on 2026-11-13, a
+test request) answered 200, and the log said nothing about the salon's
+notice: the notifier logged nothing on success and swallowed every failure
+(`catch (_) {}`). Nobody could tell whether a refused salon ever learned why.
+The admin's own notice already logged a line (`admin_notice … outcome=sent`,
+§5.1).
+
+**The line.** Every notice — each refusal, and each validation that takes
+the salon live — writes exactly **three** lines, one per channel, in this
+order (`SalonDecisionNotifier`):
+
+```
+salon_notice kind=refused provider=p_1 channel=push outcome=sent app=1 web=0
+salon_notice kind=refused provider=p_1 channel=feed outcome=sent
+salon_notice kind=refused provider=p_1 channel=email outcome=failed error=resend_500
+```
+
+| `channel` | `outcome` |
+|---|---|
+| `push` | `sent app=N web=M` (at least one device took it; the app and browsers apart, since a browser's count never stands for « the app reached them », web-pro-browser-push §4) · `undelivered app=0 web=0` (no device; or the provider refused, which `PushService` logs on its own `WARNING: push to user failed` line; or an error `PushService` swallows with no line of its own — the device read failing, or a prune after a send, which can even turn a push already accepted into 0. So an `undelivered` with no WARNING line is not proof of « no device ».) · `failed error=<Type>` (only if `PushService` breaks its no-throw contract: the belt) |
+| `feed` | `sent` · `failed error=<Type>` |
+| `email` | `sent` (the provider accepted it — a 2xx from Resend, not a delivery) · `skipped reason=no_address` (a phone-registered owner, the « @ » guard) · `failed error=<code>` (the provider's answer: `unroutable`, `send_budget_exhausted`, `resend_<status>`, `resend_unreachable`) · `failed error=<Type>` (it threw) |
+| all three | `skipped reason=no_owner` (no active owner linked to an account) · `failed reason=lookup error=<Type>` (the owner or the salon could not be read: nothing was sent) |
+
+- **Three lines per notice, always.** A query on one channel sees every
+  notice, and a missing line is itself a defect the tests catch. A
+  validation that does not go live (§3.2: interrupted, or stopped by the
+  going-live's checks) sends no notice and writes no line; « Validation à
+  terminer » sends both when it takes the salon live.
+- **Nothing anyone typed.** Ids, codes, counts and error TYPES only — never
+  the note, the address, the salon's name, the title or body, or a token
+  (BACKEND §3.6). A thrown error is logged by its type, never its message (a
+  Postgres error can carry row values). A provider error that is not a code
+  (`[a-z0-9_]`, 64 at most) is logged `error=unknown`: free text could carry
+  the address, or a space could forge a field. The refusal's code is not
+  logged either: the audit row holds it (§3.3).
+- **Each `channel=… outcome=…` is a literal in the code**, never assembled
+  from parts: an alert's filter must be a string the code prints, and the
+  guards look for it in the source (below).
+- **Still best effort.** The log call itself is guarded: a sink that throws
+  stops no channel and never fails the decision, which is already written.
+
+**An alert on `channel=email outcome=failed`: worth it — proposed, not
+created** (a cloud change, on the owner's yes). One log-match policy, as
+`infra/gcp/88-email-budget-alert.sh` builds them, on **`myweli-api` only**:
+`textPayload:"salon_notice"` AND `textPayload:"channel=email outcome=failed"`
+AND NOT `textPayload:"unroutable"`, to the « Owner email » channel, at most
+one notification per 30 minutes.
+
+- **Why yes:**
+  - **Nothing else would tell.** The decision answers 200 and the console
+    shows it done; no alert watches the e-mail provider itself (88 watches the
+    send budget, not Resend).
+  - **No noise to budget.** Every match is one salon, at the admin's own pace:
+    decisions are made by hand, a handful a day.
+  - **It arrives when Resend is the cause.** Cloud Monitoring sends its own
+    e-mail; it does not go through the provider that failed.
+  - **The worst case matches too.** `reason=lookup` writes
+    `channel=email outcome=failed`: that salon was told nothing at all.
+- **What the operator does.** The notification does not name the salon, and
+  one notification can stand for several (the 30-minute limit). So the
+  runbook carries the query that lists them, for example
+  `gcloud logging read 'resource.type="cloud_run_revision" AND resource.labels.service_name="myweli-api" AND textPayload:"channel=email outcome=failed"' --freshness=2h --format='value(textPayload)'`;
+  for each `provider=`, the salon's detail in the console, its `push` line
+  (`app=`), then the salon's phone. Not the queue's contact column: for an
+  owner with an address, it shows the address that just failed.
+- **Its limits, named:**
+  - **A failed e-mail is not « the salon never learned ».** The push and the
+    feed row may have reached the owner, and the website's Pro space reads
+    the decision itself (§6). The apps do not read it yet (not built): there,
+    the push and the feed row are the only traces. An alert on « no channel
+    reached » would need the three lines put together, which a log match
+    cannot do.
+  - **`sent` is not delivered.** It is Resend's acceptance: a bounce or a
+    spam folder stays invisible (no delivery webhook exists).
+  - **Production only.** Staging's Resend key cannot deliver, by design
+    (`infra/gcp/90-staging.sh`): every staging decision would fire.
+  - **`unroutable` left out.** A `.test` address (the demo identity's) can
+    never receive mail; the send budget refuses it before any send.
+  - **`send_budget_exhausted` also fires 88's EXHAUSTED alarm.** Two e-mails
+    for one cause, each at most once per 30 minutes. Accepted.
+  - **Push and feed failures are not alerted.** A push that reaches no device
+    is ordinary (the e-mail and the feed cover it), and a feed write failure is
+    a database failure, which fails far more than this.
+- **To build it, on the owner's yes:** a script in `infra/gcp/` beside 88.
+  Every `textPayload:"…"` string of its filter must be printed by code under
+  `backend/lib`, outside comments, or two guards fail it:
+  `backend/test/infra/alert_runbooks_test.dart` in CI, and
+  `infra/gcp/95-emitter-lag.sh` after a deploy. All three are today:
+  `salon_notice` and `channel=email outcome=failed` in the notifier (a test
+  in `salon_decision_notice_log_test.dart` pins the second as a literal on
+  every e-mail failure path), `unroutable` in `email_provider.dart`. The
+  runbook text carries the query above, with no angle brackets (88's
+  lesson).
+
 ---
 
 ## 6. The Pro app (iOS and Android) and the website's Pro space
@@ -773,6 +870,19 @@ Each new guard is watched red once, and the commit says how.
   - the audit row holds the code only;
   - the notice;
   - a note with markup escaped in the e-mail.
+- **The notice's log (§5.2, « What the log says »)**,
+  `salon_decision_notice_log_test.dart`: the three lines asserted whole, in
+  order, for a validation and a refusal (nothing typed in them: the note,
+  the address, the salon's name, the copy, a token); a browser-only push; no
+  device; a phone-registered owner; the e-mail answering `ok: false`,
+  throwing, or answering free text (`error=unknown`); the push and the feed
+  throwing (the next channels still go); no owner; the owner read and the
+  salon read throwing; a refusal whose e-mail fails still 200 and
+  `refused`; a log sink that throws, counted on all six lines of a refusal
+  and a validation, fails no channel and neither decision;
+  `channel=email outcome=failed` a literal in the source on all three
+  e-mail failure paths (the alert guards' rule). Each assertion watched red
+  by a mutation.
 - **The bypasses:**
   - restore on a non-suspended salon → 409; a second suspend keeps the first
     `suspended_from`;
