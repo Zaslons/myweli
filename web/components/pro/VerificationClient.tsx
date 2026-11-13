@@ -100,6 +100,17 @@ export function VerificationClient() {
     }
     setStatus(r.kyc.status);
     setRejectionReason(r.kyc.rejectionReason ?? null);
+    // The documents the server STORED, never the ones we sent: a new document
+    // went up under `pending/…`, and the submit moved it and deleted that
+    // object. Keeping ours made a second submit in the same visit re-send a
+    // dead key (docs/design/upload-resave-stale-pending.md).
+    if (Array.isArray(r.kyc.documents)) {
+      setDocs(
+        r.kyc.documents.map((d) => ({ type: d.type, fileName: d.fileName, key: d.key })),
+      );
+    } else {
+      void load();
+    }
     show('Documents soumis pour vérification', 'success');
   }
 

@@ -42,13 +42,16 @@ beforeEach(() => {
           { status: 200 },
         );
       }
+      // Answered as the API does: the STORED list (upload-resave-stale-pending.md).
       if (url === '/api/pro/medias/gallery') {
-        gallery.push(JSON.parse(String(init?.body)).imageUrls);
-        return new Response('{}', { status: galleryStatus });
+        const imageUrls = JSON.parse(String(init?.body)).imageUrls;
+        gallery.push(imageUrls);
+        return new Response(JSON.stringify({ imageUrls }), { status: galleryStatus });
       }
       if (url === '/api/pro/medias/before-after') {
-        pairs.push(JSON.parse(String(init?.body)).beforeAfters);
-        return new Response('{}', { status: 200 });
+        const beforeAfters = JSON.parse(String(init?.body)).beforeAfters;
+        pairs.push(beforeAfters);
+        return new Response(JSON.stringify({ beforeAfters }), { status: 200 });
       }
       return new Response('{}', { status: 404 });
     }),

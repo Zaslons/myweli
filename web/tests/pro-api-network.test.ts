@@ -112,7 +112,12 @@ const ROWS: Row[] = [
   },
   { name: 'chooseOffer', kind: 'write', payload: ['offer'], call: () => pro.chooseOffer('p1', 'pro') },
   { name: 'deleteProAccount', kind: 'write', call: () => pro.deleteProAccount() },
-  { name: 'updateProviderProfile', kind: 'write', call: () => pro.updateProviderProfile('p1', {}) },
+  {
+    name: 'updateProviderProfile',
+    kind: 'write',
+    payload: ['logoUrl'],
+    call: () => pro.updateProviderProfile('p1', {}),
+  },
   {
     name: 'saveDepositPolicy',
     kind: 'write',
@@ -123,8 +128,13 @@ const ROWS: Row[] = [
         cancellationWindowHours: 24,
       } as Parameters<typeof pro.saveDepositPolicy>[1]),
   },
-  { name: 'saveGallery', kind: 'write', call: () => pro.saveGallery('p1', []) },
-  { name: 'saveBeforeAfters', kind: 'write', call: () => pro.saveBeforeAfters('p1', []) },
+  { name: 'saveGallery', kind: 'write', payload: ['stored'], call: () => pro.saveGallery('p1', []) },
+  {
+    name: 'saveBeforeAfters',
+    kind: 'write',
+    payload: ['stored'],
+    call: () => pro.saveBeforeAfters('p1', []),
+  },
   { name: 'logoutPro', kind: 'logout', call: () => pro.logoutPro() },
   { name: 'loginProWithGoogle', kind: 'write', noStatus: true, call: () => pro.loginProWithGoogle('t') },
   {
@@ -444,5 +454,36 @@ describe('publishSalon — 200 is live, 202 is a request', () => {
       status: 409,
       error: 'validation_refused_final',
     });
+  });
+});
+
+/// docs/design/upload-resave-stale-pending.md — a Médias save hands back what
+/// the server STORED (the promoted addresses), and only a well-formed list.
+describe('saveGallery / saveBeforeAfters read the stored list', () => {
+  it('a 200 carries the stored list', async () => {
+    stubFetch(
+      () => new Response(JSON.stringify({ imageUrls: ['https://cdn/g/a.jpg'] }), { status: 200 }),
+    );
+    expect(await pro.saveGallery('p1', ['https://cdn/pending/g/a.jpg'])).toEqual({
+      ok: true,
+      status: 200,
+      stored: ['https://cdn/g/a.jpg'],
+    });
+    const pair = { before: 'https://cdn/b.jpg', after: 'https://cdn/a.jpg', caption: 'x' };
+    stubFetch(() => new Response(JSON.stringify({ beforeAfters: [pair] }), { status: 200 }));
+    expect((await pro.saveBeforeAfters('p1', [])).stored).toEqual([pair]);
+  });
+
+  it('a list of the wrong shape is no list — the page reads the salon back', async () => {
+    for (const body of [{}, { imageUrls: 'x' }, { imageUrls: [1] }, []]) {
+      stubFetch(() => new Response(JSON.stringify(body), { status: 200 }));
+      const r = await pro.saveGallery('p1', []);
+      expect(r.ok).toBe(true);
+      expect(r.stored, JSON.stringify(body)).toBeUndefined();
+    }
+    for (const body of [{ beforeAfters: [{ before: 'x' }] }, { imageUrls: [] }]) {
+      stubFetch(() => new Response(JSON.stringify(body), { status: 200 }));
+      expect((await pro.saveBeforeAfters('p1', [])).stored).toBeUndefined();
+    }
   });
 });

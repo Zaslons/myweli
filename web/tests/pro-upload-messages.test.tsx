@@ -70,7 +70,7 @@ beforeEach(() => {
   hold = null;
   vi.stubGlobal(
     'fetch',
-    vi.fn(async (url: string) => {
+    vi.fn(async (url: string, init?: RequestInit) => {
       if (url === '/api/pro/me') {
         return new Response(
           JSON.stringify({
@@ -89,7 +89,11 @@ beforeEach(() => {
           { status: 200 },
         );
       }
-      if (url === '/api/pro/medias/gallery') return new Response('{}', { status: 200 });
+      if (url === '/api/pro/medias/gallery') {
+        // As the API answers: the stored list (upload-resave-stale-pending.md).
+        const { imageUrls } = JSON.parse(String(init?.body ?? '{}')) as { imageUrls?: string[] };
+        return new Response(JSON.stringify({ imageUrls: imageUrls ?? [] }), { status: 200 });
+      }
       return new Response('{}', { status: 404 });
     }),
   );

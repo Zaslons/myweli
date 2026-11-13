@@ -169,6 +169,19 @@ export function ProfilClient() {
       else setError(writeFailureMessage(r.status, 'L’enregistrement a échoué. Réessayez.'));
       return;
     }
+    // The logo the server STORED, never the address we sent: a new logo went
+    // up under `pending/…`, the save moved it and deleted that object, and the
+    // next save re-sends `logoUrl` whatever changed
+    // (docs/design/upload-resave-stale-pending.md).
+    if (r.logoUrl !== undefined) {
+      set('logoUrl', r.logoUrl);
+    } else {
+      const me = await getMyProvider();
+      // Read exactly as the page's load reads it.
+      if (me.status === 200 && me.profile) {
+        set('logoUrl', profileToForm(me.profile.provider).logoUrl);
+      }
+    }
     setSaved(true);
   }
 

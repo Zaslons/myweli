@@ -1,6 +1,7 @@
 import { type APIRequestContext, type Page, expect, test } from '@playwright/test';
 
 import { signInPro } from './_auth';
+import { storedGallery } from './_gallery';
 import {
   exifApp1,
   headerOnlyJpeg,
@@ -266,7 +267,11 @@ function expectPrepared(last: Recorded, width: number, height: number) {
 /// expect it. The sign and the PUT still go to the stub.
 async function openMedias(page: Page) {
   await page.route('**/api/pro/medias/gallery', (route) =>
-    route.fulfill({ status: 200, contentType: 'application/json', body: '{}' }),
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: storedGallery(route.request().postData()),
+    }),
   );
   await signInPro(page);
   await page.goto('/pro/medias');
@@ -690,7 +695,11 @@ test('Médias left while a photo is prepared or signed: nothing is signed, sent 
   let saves = 0;
   await page.route('**/api/pro/medias/gallery', (route) => {
     saves += 1;
-    return route.fulfill({ status: 200, contentType: 'application/json', body: '{}' });
+    return route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: storedGallery(route.request().postData()),
+    });
   });
   const puts: string[] = [];
   page.on('request', (req) => {

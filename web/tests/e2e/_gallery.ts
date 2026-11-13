@@ -15,11 +15,23 @@ import type { Page } from '@playwright/test';
 export async function keepSharedGallery(page: Page): Promise<void> {
   await page.route('**/api/pro/medias/gallery', async (route) => {
     if (route.request().method() !== 'PUT') return route.continue();
-    const sent = JSON.parse(route.request().postData() ?? '{}') as { imageUrls?: string[] };
     return route.fulfill({
       status: 200,
       contentType: 'application/json',
-      body: JSON.stringify({ imageUrls: sent.imageUrls ?? [] }),
+      body: storedGallery(route.request().postData()),
     });
+  });
+}
+
+/// The API's answer to a gallery save: the list it STORED, a just-uploaded
+/// `pending/` address moved out of that prefix — what the page must keep
+/// (docs/design/upload-resave-stale-pending.md). `{}` here would send the page
+/// back to read the salon, which these in-browser answers never changed.
+export function storedGallery(postData: string | null): string {
+  const sent = JSON.parse(postData ?? '{}') as { imageUrls?: string[] };
+  return JSON.stringify({
+    imageUrls: (sent.imageUrls ?? []).map((u) =>
+      u.replace('https://cdn.stub/pending/', 'https://cdn.stub/'),
+    ),
   });
 }

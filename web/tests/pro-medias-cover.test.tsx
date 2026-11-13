@@ -38,7 +38,8 @@ function mockFetch() {
           imageUrls?: string[];
         };
         sent.push(body.imageUrls ?? []);
-        return new Response('{}', { status: 200 });
+        // As the API answers: the stored list (upload-resave-stale-pending.md).
+        return new Response(JSON.stringify({ imageUrls: body.imageUrls ?? [] }), { status: 200 });
       }
       return new Response('{}', { status: 404 });
     }),

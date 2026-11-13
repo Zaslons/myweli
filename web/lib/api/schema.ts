@@ -710,7 +710,7 @@ export interface paths {
                         name?: string;
                         /** @description Empty string clears it. Changing it resets emailVerified. */
                         email?: string;
-                        /** @description Either a URL just returned by `POST /uploads/sign` (still under `pending/`) — which the server PROMOTES, storing and returning the promoted URL — or **exactly** the avatar currently stored, which passes through unchanged so an edit that only renames still works. Anything else → 400 `invalid_input`. Uploads that are never promoted are deleted by the `pending/` lifecycle rule (T61). */
+                        /** @description Either a URL just returned by `POST /uploads/sign` (still under `pending/`) — which the server PROMOTES, storing and returning the promoted URL — or **exactly** the avatar currently stored, which passes through unchanged so an edit that only renames still works. Anything else → 400 `invalid_input`. Uploads that are never promoted are deleted by the `pending/` lifecycle rule (T61). Re-sending the `pending/` URL of the avatar already promoted is the same photo: it is accepted as the stored URL (docs/design/upload-resave-stale-pending.md). */
                         avatarUrl?: string;
                         /** @description Contact phone (E.164, no separators; a +225 number has exactly 10 digits after the code — anything else → 400 `invalid_phone`). Empty string clears it. Setting a new value resets phoneVerified (verified later via SMS). */
                         phone?: string;
@@ -1320,7 +1320,7 @@ export interface paths {
          * Submit KYC documents (B-kyc)
          * @description Provider-only, at most 8 documents. Sets `verificationStatus` to `pending` and clears any prior rejection.
          *
-         *     **The list is the complete set, so a resubmit re-sends the documents that have not changed.** Each `key` must therefore be either one the caller has just uploaded via `POST /uploads/sign?purpose=kyc` — i.e. `pending/kyc/{accountId}/…` under the caller's own prefix — or **exactly** a key already stored on this account, which passes through untouched. A new key is size-verified and PROMOTED, and the promoted key is what is stored and returned by `GET /me/kyc`. Anything else, including a promoted-looking key belonging to another account or one this account no longer holds, → 400 `invalid_input`.
+         *     **The list is the complete set, so a resubmit re-sends the documents that have not changed.** Each `key` must therefore be either one the caller has just uploaded via `POST /uploads/sign?purpose=kyc` — i.e. `pending/kyc/{accountId}/…` under the caller's own prefix — or **exactly** a key already stored on this account, which passes through untouched. A new key is size-verified and PROMOTED, and the promoted key is what is stored and returned by `GET /me/kyc`. Anything else, including a promoted-looking key belonging to another account or one this account no longer holds, → 400 `invalid_input`. Re-sending the `pending/` key of a document this account already holds (its promoted form is stored) is that document: it is accepted as the stored key — a second submit in the same visit, or a retry after a lost answer (docs/design/upload-resave-stale-pending.md).
          */
         post: {
             parameters: {
@@ -2524,7 +2524,7 @@ export interface paths {
                         longitude?: number;
                         /** @enum {string} */
                         category?: "salon" | "barber" | "spa" | "nails" | "massage";
-                        /** @description The salon's brand mark. A fresh value must be a URL this deployment issued via `purpose=logo` (it is promoted out of `pending/` on save); re-sending the stored value is a no-op; the empty string clears it to null (docs/design/salon-logo.md). */
+                        /** @description The salon's brand mark. A fresh value must be a URL this deployment issued via `purpose=logo` (it is promoted out of `pending/` on save); re-sending the stored value — or the `pending/` URL it was promoted from — is a no-op; the empty string clears it to null (docs/design/salon-logo.md, docs/design/upload-resave-stale-pending.md). */
                         logoUrl?: string | null;
                     };
                 };
@@ -3051,7 +3051,7 @@ export interface paths {
          * Replace a salon's gallery wholesale (B-gallery)
          * @description Validated: a list of non-empty URL strings, at most 20, each ≤ 2048 chars, origin-allowlisted when public delivery is configured.
          *
-         *     **Wholesale means re-sending the photos you already have** — which is what add, reorder, restore and remove all do. A URL from `POST /uploads/sign` (under `pending/`) is size-verified and PROMOTED, and the promoted URL is stored and returned; a URL already stored for this salon passes through unchanged. Anything else → 400 `invalid_input`. Order is preserved: `imageUrls[0]` is the listing cover. An upload that is never promoted is deleted by the `pending/` lifecycle rule (T61).
+         *     **Wholesale means re-sending the photos you already have** — which is what add, reorder, restore and remove all do. A URL from `POST /uploads/sign` (under `pending/`) is size-verified and PROMOTED, and the promoted URL is stored and returned; a URL already stored for this salon passes through unchanged, and so does the `pending/` URL of a photo this salon already holds (accepted as the stored URL — a client that kept its own list, or a retry after a lost answer). Anything else → 400 `invalid_input`. Order is preserved: `imageUrls[0]` is the listing cover. An upload that is never promoted is deleted by the `pending/` lifecycle rule (T61). Keep the RETURNED list: it is the one the next save must send (docs/design/upload-resave-stale-pending.md).
          */
         put: {
             parameters: {
@@ -3132,7 +3132,7 @@ export interface paths {
          * Replace a salon's before/after pairs wholesale (FR-DISC-006)
          * @description Validated: ≤ 12 pairs; each `before`/`after` a non-empty URL ≤ 2048 chars (origin-allowlisted when public delivery is configured); optional `caption` ≤ 120 chars.
          *
-         *     Wholesale means re-sending the pairs you already have. A URL from `POST /uploads/sign` (under `pending/`) is PROMOTED and the promoted URL is stored and returned; a URL already stored for this salon passes through unchanged. Anything else → 400 `invalid_input`. An upload that is never promoted is deleted by the `pending/` lifecycle rule (T61).
+         *     Wholesale means re-sending the pairs you already have. A URL from `POST /uploads/sign` (under `pending/`) is PROMOTED and the promoted URL is stored and returned; a URL already stored for this salon passes through unchanged, and so does the `pending/` URL of one already promoted (accepted as the stored URL). Anything else → 400 `invalid_input`. An upload that is never promoted is deleted by the `pending/` lifecycle rule (T61). Keep the RETURNED pairs (docs/design/upload-resave-stale-pending.md).
          */
         put: {
             parameters: {
@@ -4514,7 +4514,7 @@ export interface paths {
         put?: never;
         /**
          * Review a completed appointment (B-reviews)
-         * @description Consumer-only. The appointment must be the caller's own and `completed` (→ 403 `forbidden`/`not_completed`). The server derives provider, artist, service, reviewer, and `verified` from it; only `rating`/`text`/ `photoUrls` are taken from the body. One review per appointment (resubmit replaces). Recomputes the provider's + artist's rating.
+         * @description Consumer-only. The appointment must be the caller's own and `completed` (→ 403 `forbidden`/`not_completed`). The server derives provider, artist, service, reviewer, and `verified` from it; only `rating`/`text`/ `photoUrls` are taken from the body. One review per appointment (resubmit replaces). Recomputes the provider's + artist's rating. A new photo URL (under `pending/`) is promoted; a URL already stored on this review passes through, as does the `pending/` URL it was promoted from (docs/design/upload-resave-stale-pending.md).
          */
         post: {
             parameters: {
@@ -7389,7 +7389,7 @@ export interface components {
         ArtistInput: {
             name?: string;
             specialization?: string | null;
-            /** @description A URL from `POST /uploads/sign` (under `pending/`) — promoted on save, and the PROMOTED url is stored and returned — or exactly the url currently stored for THIS artist, which passes through. Another artist's url, a foreign origin or an invented path → 400 `invalid_input` (T61). */
+            /** @description A URL from `POST /uploads/sign` (under `pending/`) — promoted on save, and the PROMOTED url is stored and returned — or exactly the url currently stored for THIS artist, which passes through — as does the `pending/` url it was promoted from. Another artist's url, a foreign origin or an invented path → 400 `invalid_input` (T61, docs/design/upload-resave-stale-pending.md). */
             imageUrl?: string | null;
             workingHours?: {
                 [key: string]: components["schemas"]["TimeSlot"][];

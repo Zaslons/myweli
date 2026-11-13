@@ -89,18 +89,52 @@ export function MediasClient() {
     };
   }, [router, reloadKey]);
 
+  /// What the server STORED becomes what the page holds — never `next`.
+  ///
+  /// `next` carries a just-uploaded photo at its `pending/…` address; the save
+  /// moves it and deletes that object. Keeping `next` made the following save
+  /// re-send a dead address, refused in production on 2026-11-13 for every add
+  /// after the first (docs/design/upload-resave-stale-pending.md). A 2xx that
+  /// did not carry the list reads the salon back instead.
+  async function adoptStored(
+    stored: { photos?: string[]; pairs?: BeforeAfterPair[] },
+  ): Promise<void> {
+    if (stored.photos) {
+      savedPhotos.current = stored.photos;
+      setPhotos(stored.photos);
+      return;
+    }
+    if (stored.pairs) {
+      savedPairs.current = stored.pairs;
+      setPairs(stored.pairs);
+      return;
+    }
+    const me = await getMyProvider();
+    if (me.status !== 200 || !me.profile) {
+      // Neither answer is usable: the full reload shows the page's own error.
+      setLoading(true);
+      setReloadKey((k) => k + 1);
+      return;
+    }
+    savedPhotos.current = me.profile.provider.imageUrls ?? [];
+    savedPairs.current = me.profile.provider.beforeAfters ?? [];
+    setPhotos(savedPhotos.current);
+    setPairs(savedPairs.current);
+  }
+
   /// One write at a time: the controls wait while it is out.
   async function writePhotos(next: string[], failure: string): Promise<boolean> {
     setBusy(true);
     setPhotos(next);
     const r = await saveGallery(providerId, next);
-    setBusy(false);
     if (!r.ok) {
+      setBusy(false);
       setPhotos(savedPhotos.current);
       show(failure, 'error');
       return false;
     }
-    savedPhotos.current = next;
+    await adoptStored(r.stored ? { photos: r.stored } : {});
+    setBusy(false);
     return true;
   }
 
@@ -108,13 +142,14 @@ export function MediasClient() {
     setBusy(true);
     setPairs(next);
     const r = await saveBeforeAfters(providerId, next);
-    setBusy(false);
     if (!r.ok) {
+      setBusy(false);
       setPairs(savedPairs.current);
       show(failure, 'error');
       return false;
     }
-    savedPairs.current = next;
+    await adoptStored(r.stored ? { pairs: r.stored } : {});
+    setBusy(false);
     return true;
   }
 
