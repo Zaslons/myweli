@@ -54,6 +54,12 @@ export const ROLE_SUMMARIES: Record<TeamRoleInput, string> = {
 export const DEMO_ACCOUNT_LOCKED_MESSAGE =
   'Compte de démonstration — cette action est désactivée.';
 
+/// The sentence « Mes salons » says when a salon switch is refused — the
+/// app's (salon_picker_sheet.dart); also the booking detail's and
+/// « Aujourd’hui »'s, when a notice's `?salon=` cannot be followed.
+export const SALON_SWITCH_REFUSED =
+  'Changement impossible — votre accès à ce salon a peut-être été retiré.';
+
 /// A refusal of « Mettre en ligne » or of an offer change, worded
 /// (docs/design/web-pro-truthful-failure.md §2.3): the demo account and a
 /// suspended salon say why — a « réessayez » they cannot act on had the

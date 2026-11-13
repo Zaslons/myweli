@@ -116,6 +116,63 @@ describe('ProSidebar — the « Mes salons » switcher', () => {
   });
 });
 
+/// B0.18 (docs/design/web-salon-validation.md §4.3): with the new server each
+/// row says where its salon stands with MyWeli's validation, on its OWN line
+/// under the role — the app's picker (at 200% text a « role · state » line
+/// cuts the state off). A server before B0.18 keeps « Propriétaire · Brouillon ».
+describe('ProSidebar — each salon’s validation state (B0.18)', () => {
+  const row = (salonId: string, salonStatus: string, validation: unknown) => ({
+    salonId,
+    salonName: `Salon ${salonId}`,
+    role: 'owner',
+    salonStatus,
+    verified: false,
+    validation,
+  });
+
+  it('one line per state, under the role — never joined to it', async () => {
+    mockFetch(
+      [
+        { ...row('p1', 'active', { state: 'approved', wentLive: true }), salonName: 'Beauté Divine' },
+        row('p2', 'draft', null),
+        row('p3', 'draft', { state: 'pending', wentLive: false }),
+        row('p4', 'draft', { state: 'refused', wentLive: false, refusal: { code: 'photos', final: false } }),
+        row('p5', 'draft', { state: 'approved', wentLive: true }),
+        row('p6', 'suspended', null),
+      ],
+      false,
+    );
+    host();
+    fireEvent.click(await screen.findByRole('button', { name: 'Changer de salon' }));
+    // The row's text block: its name, then one span per line.
+    const lineOf = (name: string) => {
+      const rowButton = screen
+        .getAllByRole('button')
+        .find((b) => b.querySelector('span.min-w-0')?.firstElementChild?.textContent === name);
+      expect(rowButton, name).toBeTruthy();
+      return Array.from(
+        rowButton!.querySelectorAll('span.min-w-0 > span'),
+      ).map((e) => e.textContent);
+    };
+    expect(lineOf('Beauté Divine')).toEqual(['Beauté Divine', 'Propriétaire', 'En ligne']);
+    expect(lineOf('Salon p2')).toEqual(['Salon p2', 'Propriétaire', 'Brouillon — pas encore en ligne']);
+    expect(lineOf('Salon p3')).toEqual(['Salon p3', 'Propriétaire', 'En cours de validation']);
+    expect(lineOf('Salon p4')).toEqual(['Salon p4', 'Propriétaire', 'Mise en ligne refusée']);
+    expect(lineOf('Salon p5')).toEqual(['Salon p5', 'Propriétaire', 'Plus en ligne']);
+    expect(lineOf('Salon p6')).toEqual(['Salon p6', 'Propriétaire', 'Suspendu']);
+    expect(screen.queryByText(/·/)).toBeNull();
+  });
+
+  it('a server before B0.18 (no `validation` key) keeps today’s rows', async () => {
+    mockFetch(TWO_SALONS, false);
+    host();
+    fireEvent.click(await screen.findByRole('button', { name: 'Changer de salon' }));
+    expect(screen.getByText('Propriétaire · Brouillon')).toBeTruthy();
+    expect(screen.queryByText('Brouillon — pas encore en ligne')).toBeNull();
+    expect(screen.queryByText('En ligne')).toBeNull();
+  });
+});
+
 /// docs/design/web-pro-no-connection-copy.md §5 — a switch that did not
 /// happen says why. Before: every failure, a dropped connection included,
 /// read « Changement impossible — votre accès à ce salon a peut-être été

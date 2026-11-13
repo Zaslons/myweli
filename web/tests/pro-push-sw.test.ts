@@ -116,9 +116,17 @@ describe('the Pro service worker', () => {
     expect(n.options.tag).toBe('new_booking:a1');
   });
 
-  it('an open MyWeli tab is told to re-read the feed at once', async () => {
+  it('an open MyWeli tab is told to re-read the feed at once — with the push’s event', async () => {
     sw.setWindows([{ url: 'https://myweli.com/pro/notifications' }]);
     await sw.push(MESSAGE);
+    // B0.18 (web-salon-validation.md §4.7): the event rides along, so
+    // « Aujourd’hui » can tell a salon's decision from a booking.
+    expect(sw.posted).toEqual([{ type: 'myweli-pro-push', event: 'new_booking' }]);
+  });
+
+  it('a push with no event string tells the tab without one', async () => {
+    sw.setWindows([{ url: 'https://myweli.com/pro' }]);
+    await sw.push({ notification: { title: 'T', body: 'B' }, data: { event: 42 } });
     expect(sw.posted).toEqual([{ type: 'myweli-pro-push' }]);
   });
 
@@ -158,6 +166,58 @@ describe('the Pro service worker', () => {
     sw.setWindows([{ url: 'https://myweli.com/' }]);
     await sw.click({ url: '/pro/rendez-vous/a1?salon=p1' });
     expect(sw.opened).toEqual(['/pro/rendez-vous/a1?salon=p1']);
+  });
+
+  // --- B0.18: MyWeli's decision on a salon's request (§4.7) ---------------
+
+  const DECISION = (event: string, providerId?: unknown) => ({
+    notification: { title: 'Institut Belle Vue est en ligne', body: 'Vos clients…' },
+    data: {
+      event,
+      ...(providerId === undefined ? {} : { providerId }),
+      route: `/pro/onboarding?salon=${String(providerId)}`,
+    },
+  });
+
+  it('a decision opens « Aujourd’hui » on its salon — built from providerId', async () => {
+    for (const event of ['salon.validation.approved', 'salon.validation.refused']) {
+      sw = load();
+      await sw.push(DECISION(event, 'p3'));
+      const [n] = sw.shown;
+      expect(n.title).toBe('Institut Belle Vue est en ligne');
+      expect(n.options.data, event).toEqual({ url: '/pro?salon=p3' });
+      // One per salon: a second decision replaces the first, never stacks.
+      expect(n.options.tag, event).toBe('salon.validation:p3');
+    }
+  });
+
+  it('a decision without a usable salon id opens « Aujourd’hui », never the route', async () => {
+    for (const providerId of [undefined, 'p3?evil=1', '../admin', 'https://evil.example', 42]) {
+      sw = load();
+      await sw.push(DECISION('salon.validation.refused', providerId));
+      expect((sw.shown[0].options.data as { url: string }).url, String(providerId)).toBe('/pro');
+      expect(sw.shown[0].options.tag, String(providerId)).toBeUndefined();
+    }
+  });
+
+  it('an unknown event with no booking still opens the list (not « Aujourd’hui »)', async () => {
+    await sw.push({ notification: { title: 'T', body: 'B' }, data: { event: 'salon.other', providerId: 'p3' } });
+    expect((sw.shown[0].options.data as { url: string }).url).toBe('/pro/rendez-vous');
+  });
+
+  it('a decision’s click takes the Pro tab to « Aujourd’hui » on that salon', async () => {
+    sw.setWindows([{ url: 'https://myweli.com/pro/clients' }]);
+    await sw.click({ url: '/pro?salon=p3' });
+    await sw.click({ url: '/pro' });
+    expect(sw.navigated).toEqual(['/pro?salon=p3', '/pro']);
+  });
+
+  it('a click on a look-alike of « Aujourd’hui » opens the list', async () => {
+    for (const url of ['/pro?salon=p3&x=1', '/pro?salon=../x', '/pro?other=p3', '/pro/', '//evil.example/pro']) {
+      sw = load();
+      await sw.click({ url });
+      expect(sw.opened, url).toEqual(['/pro/rendez-vous']);
+    }
   });
 
   it('a click whose data is not ours opens the list, nowhere else', async () => {

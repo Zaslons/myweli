@@ -5,9 +5,9 @@ import { ErrorState } from '../ErrorState';
 import { Loading } from '../Loading';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
-import { salonStoppedMessageFor } from '../../lib/account/appointments';
 import type { Provider } from '../../lib/api/providers';
 import { getMyProvider } from '../../lib/api/pro';
+import { type SalonValidation, previewBanner } from '../../lib/pro/salon-validation';
 import { loadFailure, loadFailureMessage, type LoadFailure } from '../../lib/api/load-failure';
 import { ProviderView } from '../provider/ProviderView';
 
@@ -18,6 +18,8 @@ import { ProviderView } from '../provider/ProviderView';
 export function SalonPreviewClient() {
   const router = useRouter();
   const [provider, setProvider] = useState<Provider | null>(null);
+  /// B0.18 — beside the provider; absent from a server before it (§4.4).
+  const [validation, setValidation] = useState<SalonValidation | null | undefined>(undefined);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<LoadFailure | false>(false);
 
@@ -37,6 +39,7 @@ export function SalonPreviewClient() {
     // The /me/provider payload IS the full provider document; ProProfile is
     // only a narrowed view of it.
     setProvider(me.profile.provider as unknown as Provider);
+    setValidation(me.profile.validation);
     setLoading(false);
   }, [router]);
 
@@ -68,7 +71,6 @@ export function SalonPreviewClient() {
   // « Voir la page publique » link — to a page that 404s once Decision C
   // lands. What the banner is really asking is « is this page live? ».
   const live = !provider.status || provider.status === 'active';
-  const stopped = salonStoppedMessageFor(provider.status);
 
   return (
     <div>
@@ -79,13 +81,10 @@ export function SalonPreviewClient() {
         className="border-b border-border bg-primary px-m py-s text-bodyMedium text-secondary"
       >
         <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-s">
-          <span>
-            {provider.status === 'suspended'
-              ? 'Votre salon est suspendu. Contactez MyWeli pour le réactiver — vos rendez-vous sont intacts.'
-              : live
-                ? 'Votre salon est en ligne — ceci est votre page publique.'
-                : 'Aperçu — votre salon n’est pas encore en ligne. Voici ce que verront vos clients.'}
-          </span>
+          {/* Today's three sentences for a server before B0.18; with it,
+              the validation's state (owner, 2026-11-13 —
+              docs/design/web-salon-validation.md §4.4). */}
+          <span>{previewBanner(provider.status, validation)}</span>
           <span className="flex gap-m">
             {live && provider.slug ? (
               <Link href={`/${provider.slug}`} className="underline">

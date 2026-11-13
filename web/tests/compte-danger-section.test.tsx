@@ -600,6 +600,34 @@ describe('CompteDangerSection — the export refuses instead of shipping holes',
     fireEvent.click(exportButton());
     await waitFor(() => expect(out.createObjectURL).toHaveBeenCalledTimes(1));
     expect(out.anchorClick).toHaveBeenCalledTimes(1);
+    // The fixture's profile came from a server before B0.18: no key.
+    expect(doc).not.toHaveProperty('validation');
+  });
+
+  it('B0.18 — the file carries the salon’s validation and its reason (web-salon-validation.md §6)', async () => {
+    exportReads();
+    const out = watchOutputs();
+    const refused = {
+      ...profile,
+      validation: {
+        state: 'refused',
+        submittedAt: '2026-11-12T09:00:00Z',
+        decidedAt: '2026-11-13T09:00:00Z',
+        wentLive: false,
+        refusal: { code: 'outside_ci', final: true, note: 'Pin à Dakar.' },
+      },
+    } as unknown as ProProfile;
+    render(<CompteDangerSection profile={refused} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Copier' }));
+
+    await waitFor(() => expect(out.writeText).toHaveBeenCalledTimes(1));
+    const doc = JSON.parse(out.writeText.mock.calls[0][0]);
+    expect(doc.validation).toMatchObject({
+      state: 'refused',
+      refusal: { code: 'outside_ci', final: true, note: 'Pin à Dakar.' },
+    });
+    expect(doc.validation.refusal.reason).toMatch(/^MyWeli n’est pas encore disponible dans votre pays/);
   });
 });
 

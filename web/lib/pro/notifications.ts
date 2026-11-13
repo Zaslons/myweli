@@ -23,13 +23,23 @@ export function salonOf(route: string | null | undefined): string | null {
   return parse(route)?.query.get('salon') || null;
 }
 
+/// A salon id as the service worker checks it (`push-sw.js`'s `ID`): only
+/// such an id is ever put in an address.
+export const SALON_ID_PATTERN = /^[A-Za-z0-9_-]{1,128}$/;
+
 /// The routes `SalonNotifier` writes (the pro APP's paths) → the web's
 /// (§3.5). The salon rides along: the detail switches to it first (§3.4).
-/// Anything else → no link.
+/// B0.18: the decision on a salon's request (`SalonDecisionNotifier`,
+/// `/pro/onboarding?salon={id}`) → « Aujourd’hui », which switches to it
+/// (docs/design/web-salon-validation.md §4.5). Anything else → no link.
 export function proWebRouteFor(route: string | null | undefined): string | null {
   const parsed = parse(route);
   if (!parsed) return null;
   if (parsed.path === '/pro/appointments') return '/pro/rendez-vous';
+  if (parsed.path === '/pro/onboarding') {
+    const salon = parsed.query.get('salon');
+    return salon && SALON_ID_PATTERN.test(salon) ? `/pro?salon=${salon}` : '/pro';
+  }
   const m = /^\/pro\/appointment\/([^/]+)$/.exec(parsed.path);
   if (!m) return null;
   const id = encodeURIComponent(m[1]);
@@ -37,6 +47,20 @@ export function proWebRouteFor(route: string | null | undefined): string | null 
   return salon
     ? `/pro/rendez-vous/${id}?salon=${encodeURIComponent(salon)}`
     : `/pro/rendez-vous/${id}`;
+}
+
+/// The service worker's message to open tabs about a push
+/// (`{ type: 'myweli-pro-push', event }`) — is it MyWeli's decision on a
+/// salon's request (`salon.validation.approved` / `.refused`)? Then
+/// « Aujourd’hui » re-reads the salon's state (§4.6).
+export function isValidationPush(data: unknown): boolean {
+  if (typeof data !== 'object' || data === null) return false;
+  const { type, event } = data as { type?: unknown; event?: unknown };
+  return (
+    type === 'myweli-pro-push' &&
+    typeof event === 'string' &&
+    event.startsWith('salon.validation.')
+  );
 }
 
 /// The badge: the number, capped.

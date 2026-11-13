@@ -7,6 +7,7 @@ import type { ProProfile } from '../api/pro';
 import type { SalonClientList, SalonClientListItem } from './clients';
 import type { EarningsData } from './earnings';
 import type { ProAppointment } from './today';
+import { validationForExport } from './salon-validation';
 
 export function buildProviderDataExport({
   profile,
@@ -39,6 +40,14 @@ export function buildProviderDataExport({
       commune: provider.commune ?? null,
       category: provider.category ?? null,
     },
+    // B0.18 (salon-go-live-approval.md §6.4, web-salon-validation.md §6):
+    // where the salon stands with MyWeli's validation — beside the salon, as
+    // /me/provider puts it beside the provider. `null`: never asked. Left
+    // OUT when the server sent no key (a server before B0.18): writing null
+    // there would claim « never asked » for a salon nobody asked about.
+    ...(profile.validation !== undefined
+      ? { validation: validationForExport(profile.validation) }
+      : {}),
     services: (provider.services ?? []).map((s) => ({
       name: s.name,
       price: s.price ?? null,

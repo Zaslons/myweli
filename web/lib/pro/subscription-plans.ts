@@ -89,6 +89,11 @@ export const SETUP_SUBLINE = `Votre essai de ${TRIAL_MONTHS} mois démarre dès 
 /// Équipe, no offer yet: choosing is what starts the clock, so it says so first.
 export const TEAM_NEEDS_OFFER = `Pour inviter votre équipe, choisissez votre offre\u00a0: vos ${TRIAL_MONTHS} mois d’essai démarrent à ce moment-là.`;
 
+/// A salon unpublished for non-payment — « Mon abonnement »'s sentence, also
+/// the « Plus en ligne » banner's (docs/design/web-salon-validation.md §3.1).
+export const SALON_UNPUBLISHED_FOR_BILLING =
+  'Votre salon n’est plus visible des clients. Contactez-nous pour réactiver — vos données sont intactes.';
+
 /// The billing-state banner (tokens only: grace = warning, expired = error).
 export function offerBanner(offer: SalonOffer): {
   kind: 'trial' | 'paid' | 'grace' | 'expired';
@@ -133,7 +138,7 @@ export function offerBanner(offer: SalonOffer): {
         kind: 'expired',
         title: offer.unpublishedForBilling ? 'Salon dépublié' : 'Offre expirée',
         subtitle: offer.unpublishedForBilling
-          ? 'Votre salon n’est plus visible des clients. Contactez-nous pour réactiver — vos données sont intactes.'
+          ? SALON_UNPUBLISHED_FOR_BILLING
           : 'Contactez-nous pour réactiver votre offre.',
         urgent: true,
       };

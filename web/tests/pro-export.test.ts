@@ -81,6 +81,58 @@ describe('buildProviderDataExport (audit 11.5 — AUTH-005 for pros)', () => {
   });
 });
 
+/// B0.18 (salon-go-live-approval.md §6.4, web-salon-validation.md §6): the
+/// file says where the salon stands with MyWeli's validation — beside the
+/// salon, only when the server sent the key.
+describe('buildProviderDataExport — the validation (B0.18)', () => {
+  const build = (validation?: unknown) =>
+    buildProviderDataExport({
+      profile: {
+        account: { id: 'acc1', businessName: 'X', phoneNumber: '+22500' },
+        provider: { id: 'p1', name: 'X' },
+        ...(validation === undefined ? {} : { validation }),
+      } as Parameters<typeof buildProviderDataExport>[0]['profile'],
+      appointments: [],
+      clients: [],
+      earnings: null,
+    });
+
+  it('a server before B0.18 (no key): no `validation` — never a claimed « never asked »', () => {
+    expect(build()).not.toHaveProperty('validation');
+  });
+
+  it('never asked → null', () => {
+    expect(build(null)).toHaveProperty('validation', null);
+  });
+
+  it('refused → the state, the times, the code, the note and the sentence the salon reads', () => {
+    const doc = build({
+      state: 'refused',
+      submittedAt: '2026-11-12T09:00:00Z',
+      decidedAt: '2026-11-13T09:00:00Z',
+      wentLive: false,
+      refusal: { code: 'photos', final: false, note: 'Plus de lumière.' },
+    });
+    expect(doc.validation).toEqual({
+      state: 'refused',
+      submittedAt: '2026-11-12T09:00:00Z',
+      decidedAt: '2026-11-13T09:00:00Z',
+      wentLive: false,
+      refusal: {
+        code: 'photos',
+        final: false,
+        note: 'Plus de lumière.',
+        reason: 'Les photos ne montrent pas assez clairement le salon et son travail.',
+      },
+    });
+  });
+
+  it('sits beside the salon, in the file’s order', () => {
+    const keys = Object.keys(build(null));
+    expect(keys.indexOf('validation')).toBe(keys.indexOf('salon') + 1);
+  });
+});
+
 /// docs/design/web-pro-export-completeness.md §4 — the refusal names every
 /// missing section, in the file's order, whatever order they failed in.
 describe('exportFailureMessage', () => {
