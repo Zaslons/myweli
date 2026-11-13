@@ -1,7 +1,10 @@
+import 'dart:io';
+
 import 'package:myweli_backend/src/access/membership_repository.dart';
 import 'package:myweli_backend/src/email/email_provider.dart';
 import 'package:myweli_backend/src/email/send_budget.dart';
 import 'package:myweli_backend/src/notifications/notifications_repository.dart';
+import 'package:myweli_backend/src/providers_repository.dart';
 import 'package:myweli_backend/src/push/push_service.dart';
 import 'package:myweli_backend/src/validation/salon_decision_notifier.dart';
 import 'package:test/test.dart';
@@ -128,10 +131,12 @@ void main() {
         final s = await w.salon();
         w.ownerMail.fail = true;
         await w.notice.refused(s.id, code: 'photos');
-        expect(
-          w.noticeLogs.last,
+        // The whole list: a `sent` line before the `failed` one is a lie.
+        expect(w.noticeLogs, [
+          line('refused', s.id, 'push', 'sent app=1 web=0'),
+          line('refused', s.id, 'feed', 'sent'),
           line('refused', s.id, 'email', 'failed error=provider_down'),
-        );
+        ]);
       },
     );
 
@@ -140,10 +145,11 @@ void main() {
       final s = await w.salon();
       w.ownerMail.explode = true;
       await w.notice.approved(s.id);
-      expect(
-        w.noticeLogs.last,
+      expect(w.noticeLogs, [
+        line('approved', s.id, 'push', 'sent app=1 web=0'),
+        line('approved', s.id, 'feed', 'sent'),
         line('approved', s.id, 'email', 'failed error=StateError'),
-      );
+      ]);
       expect(w.noticeLogs.last, isNot(contains('smtp is down')));
     });
 
@@ -161,10 +167,11 @@ void main() {
           log: w.noticeLogs.add,
         );
         await n.refused(s.id, code: 'photos');
-        expect(
-          w.noticeLogs.last,
+        expect(w.noticeLogs, [
+          line('refused', s.id, 'push', 'sent app=1 web=0'),
+          line('refused', s.id, 'feed', 'sent'),
           line('refused', s.id, 'email', 'failed error=unknown'),
-        );
+        ]);
         for (final l in w.noticeLogs) {
           expect(l, isNot(contains(address)));
         }
@@ -222,7 +229,7 @@ void main() {
       final id = created['id'] as String;
       await w.notice.refused(id, code: 'photos');
       expect(w.noticeLogs, [
-        // Written out, not read from `channels`: the order is pinned here.
+        // Written out: the order is pinned here, not read from the code.
         for (final c in ['push', 'feed', 'email'])
           line('refused', id, c, 'skipped reason=no_owner'),
       ]);
@@ -249,6 +256,26 @@ void main() {
       expect(w.pushes.sends, isEmpty);
       expect(w.ownerMail.sent, isEmpty);
     });
+
+    test('the owner is found but the SALON read throws → the same three '
+        'lines; nothing sent', () async {
+      final s = await w.salon();
+      final n = SalonDecisionNotifier(
+        w.members,
+        _ExplodingSalonRead(),
+        w.push,
+        w.feed,
+        email: w.ownerMail,
+        log: w.noticeLogs.add,
+      );
+      await n.approved(s.id);
+      expect(w.noticeLogs, [
+        for (final c in ['push', 'feed', 'email'])
+          line('approved', s.id, c, 'failed reason=lookup error=StateError'),
+      ]);
+      expect(w.pushes.sends, isEmpty);
+      expect(w.ownerMail.sent, isEmpty);
+    });
   });
 
   group('the decision is already written — the log never undoes it', () {
@@ -271,35 +298,62 @@ void main() {
       );
     });
 
-    test('a log sink that THROWS fails neither the notice nor the decision '
-        '(refuse, then validate)', () async {
-      w.noticeLog = (_) => throw StateError('log sink down');
-      final refused = await w.salon();
-      await w.provisioning.publish(refused.id);
-      final r = await w.service.refuse(
-        refused.id,
-        code: 'photos',
-        note: null,
-        adminId: 'admin_1',
-      );
-      expect(r.ok, isTrue, reason: '${r.error}');
-      expect(
-        w.ownerMail.sent,
-        hasLength(1),
-        reason: 'a throwing log line stops no channel',
-      );
-      expect(await w.feed.listForUser(refused.ownerId), hasLength(1));
+    test(
+      'a log sink that THROWS fails neither the notice nor the decision '
+      '(refuse, then validate a phone-registered owner: a skip line)',
+      () async {
+        var calls = 0;
+        w.noticeLog = (_) {
+          calls++;
+          throw StateError('log sink down');
+        };
+        final refused = await w.salon();
+        await w.provisioning.publish(refused.id);
+        final r = await w.service.refuse(
+          refused.id,
+          code: 'photos',
+          note: null,
+          adminId: 'admin_1',
+        );
+        expect(r.ok, isTrue, reason: '${r.error}');
+        expect(
+          w.ownerMail.sent,
+          hasLength(1),
+          reason: 'a throwing log line stops no channel',
+        );
+        expect(await w.feed.listForUser(refused.ownerId), hasLength(1));
 
-      final approved = await w.salon();
-      await w.provisioning.publish(approved.id);
-      final a = await w.service.approve(
-        approved.id,
-        from: 'pending',
-        adminId: 'admin_1',
-      );
-      expect(a.ok, isTrue, reason: '${a.error}');
-      expect(await w.statusOf(approved.id), 'active');
-      expect(w.ownerMail.sent, hasLength(2));
+        final approved = await w.salon(phoneOwner: true);
+        await w.provisioning.publish(approved.id);
+        final a = await w.service.approve(
+          approved.id,
+          from: 'pending',
+          adminId: 'admin_1',
+        );
+        expect(a.ok, isTrue, reason: '${a.error}');
+        expect(await w.statusOf(approved.id), 'active');
+        expect(await w.feed.listForUser(approved.ownerId), hasLength(1));
+        expect(w.ownerMail.sent, hasLength(1), reason: 'no address, no send');
+        expect(calls, 6, reason: 'the sink was called for every line');
+      },
+    );
+  });
+
+  group('the proposed alert can be built (§5.2)', () {
+    // An alert's filter must be a string the code PRINTS, outside comments:
+    // `test/infra/alert_runbooks_test.dart` and `infra/gcp/95-emitter-lag.sh`
+    // look for each one in the source. A line assembled from parts prints the
+    // right text and still fails them.
+    test('`channel=email outcome=failed` is a literal in the notifier, outside '
+        'comments, on every e-mail failure path', () {
+      final code = File('lib/src/validation/salon_decision_notifier.dart')
+          .readAsStringSync()
+          .split('\n')
+          .where((l) => !l.trimLeft().startsWith('//'))
+          .join('\n');
+      final literal = RegExp(r"'channel=email outcome=failed[ ']");
+      // The lookup branch, ok:false, and a throw.
+      expect(literal.allMatches(code), hasLength(3), reason: code);
     });
   });
 
@@ -371,5 +425,14 @@ class _ExplodingFeed extends InMemoryNotificationsRepository {
 class _ExplodingMembers extends InMemoryMembershipRepository {
   @override
   Future<List<Member>> listForProvider(String providerId) =>
+      throw StateError('db is down');
+}
+
+/// The salon read throws; everything else is the world's.
+class _ExplodingSalonRead extends InMemoryProvidersRepository {
+  _ExplodingSalonRead() : super([]);
+
+  @override
+  Future<Map<String, dynamic>?> byId(String id) =>
       throw StateError('db is down');
 }

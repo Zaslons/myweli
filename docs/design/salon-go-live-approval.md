@@ -610,8 +610,9 @@ notice: the notifier logged nothing on success and swallowed every failure
 The admin's own notice already logged a line (`admin_notice … outcome=sent`,
 §5.1).
 
-**The line.** Every decision writes exactly **three** lines, one per channel,
-in this order (`SalonDecisionNotifier`):
+**The line.** Every notice — each refusal, and each validation that takes
+the salon live — writes exactly **three** lines, one per channel, in this
+order (`SalonDecisionNotifier`):
 
 ```
 salon_notice kind=refused provider=p_1 channel=push outcome=sent app=1 web=0
@@ -621,13 +622,16 @@ salon_notice kind=refused provider=p_1 channel=email outcome=failed error=resend
 
 | `channel` | `outcome` |
 |---|---|
-| `push` | `sent app=N web=M` (at least one device took it; the app and browsers apart, since a browser's count never stands for « the app reached them », web-pro-browser-push §4) · `undelivered app=0 web=0` (no device, or the provider refused, which `PushService` logs on its own `WARNING: push to user failed` line) · `failed error=<Type>` |
+| `push` | `sent app=N web=M` (at least one device took it; the app and browsers apart, since a browser's count never stands for « the app reached them », web-pro-browser-push §4) · `undelivered app=0 web=0` (no device; or the provider refused, which `PushService` logs on its own `WARNING: push to user failed` line; or an error `PushService` swallows with no line of its own — the device read failing, or a prune after a send, which can even turn a push already accepted into 0. So an `undelivered` with no WARNING line is not proof of « no device ».) · `failed error=<Type>` (only if `PushService` breaks its no-throw contract: the belt) |
 | `feed` | `sent` · `failed error=<Type>` |
-| `email` | `sent` · `skipped reason=no_address` (a phone-registered owner, the « @ » guard) · `failed error=<code>` (the provider's answer: `unroutable`, `send_budget_exhausted`, `resend_<status>`, `resend_unreachable`) · `failed error=<Type>` (it threw) |
+| `email` | `sent` (the provider accepted it — a 2xx from Resend, not a delivery) · `skipped reason=no_address` (a phone-registered owner, the « @ » guard) · `failed error=<code>` (the provider's answer: `unroutable`, `send_budget_exhausted`, `resend_<status>`, `resend_unreachable`) · `failed error=<Type>` (it threw) |
 | all three | `skipped reason=no_owner` (no active owner linked to an account) · `failed reason=lookup error=<Type>` (the owner or the salon could not be read: nothing was sent) |
 
-- **Three lines, always.** A query on one channel sees every decision, and a
-  missing line is itself a defect the tests catch.
+- **Three lines per notice, always.** A query on one channel sees every
+  notice, and a missing line is itself a defect the tests catch. A
+  validation that does not go live (§3.2: interrupted, or stopped by the
+  going-live's checks) sends no notice and writes no line; « Validation à
+  terminer » sends both when it takes the salon live.
 - **Nothing anyone typed.** Ids, codes, counts and error TYPES only — never
   the note, the address, the salon's name, the title or body, or a token
   (BACKEND §3.6). A thrown error is logged by its type, never its message (a
@@ -635,6 +639,9 @@ salon_notice kind=refused provider=p_1 channel=email outcome=failed error=resend
   (`[a-z0-9_]`, 64 at most) is logged `error=unknown`: free text could carry
   the address, or a space could forge a field. The refusal's code is not
   logged either: the audit row holds it (§3.3).
+- **Each `channel=… outcome=…` is a literal in the code**, never assembled
+  from parts: an alert's filter must be a string the code prints, and the
+  guards look for it in the source (below).
 - **Still best effort.** The log call itself is guarded: a sink that throws
   stops no channel and never fails the decision, which is already written.
 
@@ -642,38 +649,54 @@ salon_notice kind=refused provider=p_1 channel=email outcome=failed error=resend
 created** (a cloud change, on the owner's yes). One log-match policy, as
 `infra/gcp/88-email-budget-alert.sh` builds them, on **`myweli-api` only**:
 `textPayload:"salon_notice"` AND `textPayload:"channel=email outcome=failed"`
-AND NOT `textPayload:"error=unroutable"`, to the « Owner email » channel, at
-most one notification per 30 minutes.
+AND NOT `textPayload:"unroutable"`, to the « Owner email » channel, at most
+one notification per 30 minutes.
 
 - **Why yes:**
   - **Nothing else would tell.** The decision answers 200 and the console
     shows it done; no alert watches the e-mail provider itself (88 watches the
     send budget, not Resend).
   - **No noise to budget.** Every match is one salon, at the admin's own pace:
-    decisions are made by hand, a handful a day. Each match has one action:
-    the queue's contact column, and a call.
+    decisions are made by hand, a handful a day.
   - **It arrives when Resend is the cause.** Cloud Monitoring sends its own
     e-mail; it does not go through the provider that failed.
   - **The worst case matches too.** `reason=lookup` writes
     `channel=email outcome=failed`: that salon was told nothing at all.
+- **What the operator does.** The notification does not name the salon, and
+  one notification can stand for several (the 30-minute limit). So the
+  runbook carries the query that lists them, for example
+  `gcloud logging read 'resource.type="cloud_run_revision" AND resource.labels.service_name="myweli-api" AND textPayload:"channel=email outcome=failed"' --freshness=2h --format='value(textPayload)'`;
+  for each `provider=`, the salon's detail in the console, its `push` line
+  (`app=`), then the salon's phone. Not the queue's contact column: for an
+  owner with an address, it shows the address that just failed.
 - **Its limits, named:**
   - **A failed e-mail is not « the salon never learned ».** The push and the
-    feed row may have reached the owner, and the app and the website read the
-    decision itself (§6). The operator reads the same decision's `push` line
-    (`app=`) before calling. An alert on « no channel reached » would need the
-    three lines put together, which a log match cannot do.
+    feed row may have reached the owner, and the website's Pro space reads
+    the decision itself (§6). The apps do not read it yet (not built): there,
+    the push and the feed row are the only traces. An alert on « no channel
+    reached » would need the three lines put together, which a log match
+    cannot do.
+  - **`sent` is not delivered.** It is Resend's acceptance: a bounce or a
+    spam folder stays invisible (no delivery webhook exists).
   - **Production only.** Staging's Resend key cannot deliver, by design
     (`infra/gcp/90-staging.sh`): every staging decision would fire.
-  - **`error=unroutable` left out.** A `.test` address (the demo identity's)
-    can never receive mail; the send budget refuses it before any send.
+  - **`unroutable` left out.** A `.test` address (the demo identity's) can
+    never receive mail; the send budget refuses it before any send.
   - **`send_budget_exhausted` also fires 88's EXHAUSTED alarm.** Two e-mails
     for one cause, each at most once per 30 minutes. Accepted.
   - **Push and feed failures are not alerted.** A push that reaches no device
     is ordinary (the e-mail and the feed cover it), and a feed write failure is
     a database failure, which fails far more than this.
-- **To build it, on the owner's yes:** a script in `infra/gcp/` beside 88,
-  with a test that fails if the notifier's words change without the filter
-  following (as `send_budget_test.dart` pins 88's).
+- **To build it, on the owner's yes:** a script in `infra/gcp/` beside 88.
+  Every `textPayload:"…"` string of its filter must be printed by code under
+  `backend/lib`, outside comments, or two guards fail it:
+  `backend/test/infra/alert_runbooks_test.dart` in CI, and
+  `infra/gcp/95-emitter-lag.sh` after a deploy. All three are today:
+  `salon_notice` and `channel=email outcome=failed` in the notifier (a test
+  in `salon_decision_notice_log_test.dart` pins the second as a literal on
+  every e-mail failure path), `unroutable` in `email_provider.dart`. The
+  runbook text carries the query above, with no angle brackets (88's
+  lesson).
 
 ---
 
@@ -848,14 +871,18 @@ Each new guard is watched red once, and the commit says how.
   - the notice;
   - a note with markup escaped in the e-mail.
 - **The notice's log (§5.2, « What the log says »)**,
-  `salon_decision_notice_log_test.dart`: the three lines asserted whole, for
-  a validation and a refusal (nothing typed in them: the note, the address,
-  the salon's name, the copy, a token); a browser-only push; no device; a
-  phone-registered owner; the e-mail answering `ok: false`, throwing, or
-  answering free text (`error=unknown`); the push and the feed throwing (the
-  next channels still go); no owner; the lookup throwing; a refusal whose
-  e-mail fails still 200 and `refused`; a log sink that throws fails no
-  channel and neither decision. Each assertion watched red by a mutation.
+  `salon_decision_notice_log_test.dart`: the three lines asserted whole, in
+  order, for a validation and a refusal (nothing typed in them: the note,
+  the address, the salon's name, the copy, a token); a browser-only push; no
+  device; a phone-registered owner; the e-mail answering `ok: false`,
+  throwing, or answering free text (`error=unknown`); the push and the feed
+  throwing (the next channels still go); no owner; the owner read and the
+  salon read throwing; a refusal whose e-mail fails still 200 and
+  `refused`; a log sink that throws, counted on all six lines of a refusal
+  and a validation, fails no channel and neither decision;
+  `channel=email outcome=failed` a literal in the source on all three
+  e-mail failure paths (the alert guards' rule). Each assertion watched red
+  by a mutation.
 - **The bypasses:**
   - restore on a non-suspended salon → 409; a second suspend keeps the first
     `suspended_from`;

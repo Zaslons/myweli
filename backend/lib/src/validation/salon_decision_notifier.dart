@@ -26,18 +26,24 @@ import 'salon_validation_copy.dart';
 /// Best effort, each channel on its own: a failure never undoes the
 /// decision, and never stops the next channel.
 ///
-/// **Said in the log, one line per channel** (§5.2, « Ce que dit le
-/// journal »): every decision writes exactly three lines, push, feed and
-/// e-mail in that order, so a query on any one channel sees every decision —
+/// **Said in the log, one line per channel** (§5.2, « What the log says »):
+/// every notice — each refusal, and each validation that takes the salon
+/// live — writes exactly three lines, push, feed and e-mail in that order,
+/// so a query on any one channel sees every notice —
 ///
 ///     salon_notice kind=refused provider=p_1 channel=email outcome=failed error=resend_500
 ///
-/// `outcome` is `sent`, `undelivered` (push only: no device took it),
+/// `outcome` is `sent`, `undelivered` (push only: nothing reached a device),
 /// `skipped` (with a `reason`) or `failed` (with an `error`: a provider's
 /// code, or a thrown error's TYPE, never its message). Only ids, codes,
 /// counts and types: never the note, the address, the salon's name, the
-/// title or body, or a token (BACKEND §3.6). The proposed alert matches
-/// `channel=email outcome=failed`: keep those two fields side by side.
+/// title or body, or a token (BACKEND §3.6).
+///
+/// **Each `channel=… outcome=…` is a literal here, never assembled.** An
+/// alert's filter must be a string the code prints, and the guards
+/// (`test/infra/alert_runbooks_test.dart`, `infra/gcp/95-emitter-lag.sh`)
+/// look for it in the source: the proposed alert matches
+/// `channel=email outcome=failed`, which only a literal can satisfy.
 class SalonDecisionNotifier {
   SalonDecisionNotifier(
     this._members,
@@ -60,9 +66,6 @@ class SalonDecisionNotifier {
   final void Function(String) _log;
 
   static const feedType = 'salonValidation';
-
-  /// The channels, in the order they are tried and logged.
-  static const channels = ['push', 'feed', 'email'];
 
   static String routeFor(String providerId) =>
       '/pro/onboarding?salon=${Uri.encodeComponent(providerId)}';
@@ -112,10 +115,8 @@ class SalonDecisionNotifier {
     required String feedBody,
     required SalonValidationEmail Function(String salonName, String? tz) email,
   }) async {
-    void say(String channel, String outcome) => _say(
-      'salon_notice kind=$kind provider=$providerId '
-      'channel=$channel outcome=$outcome',
-    );
+    void say(String fields) =>
+        _say('salon_notice kind=$kind provider=$providerId $fields');
 
     final Member? owner;
     final Map<String, dynamic>? salon;
@@ -125,15 +126,16 @@ class SalonDecisionNotifier {
     } catch (e) {
       // Best effort: nothing to tell them with. Nothing was sent, on any
       // channel — so each channel says so.
-      for (final c in channels) {
-        say(c, 'failed reason=lookup error=${e.runtimeType}');
-      }
+      final why = 'reason=lookup error=${e.runtimeType}';
+      say('channel=push outcome=failed $why');
+      say('channel=feed outcome=failed $why');
+      say('channel=email outcome=failed $why');
       return;
     }
     if (owner == null) {
-      for (final c in channels) {
-        say(c, 'skipped reason=no_owner');
-      }
+      say('channel=push outcome=skipped reason=no_owner');
+      say('channel=feed outcome=skipped reason=no_owner');
+      say('channel=email outcome=skipped reason=no_owner');
       return;
     }
     final salonName = (salon?['name'] as String?) ?? 'votre salon';
@@ -144,21 +146,25 @@ class SalonDecisionNotifier {
 
     try {
       // By kind: a browser's count never stands for « the app reached
-      // them » (web-pro-browser-push §4, Q1). 0 and 0 is no device, or a
-      // provider refusal, which `PushService` logs on its own line.
+      // them » (web-pro-browser-push §4, Q1). 0 and 0 is no device; or a
+      // provider refusal, which `PushService` logs on its own WARNING line;
+      // or an error `PushService` swallows WITHOUT a line (the device read,
+      // a prune after a send). `PushService` never throws, so `failed`
+      // below is the belt, not a path production takes.
       final d = await _push.sendToUserByKind(
         accountId,
         title: heading,
         body: pushBody,
         data: {'event': event, 'providerId': providerId, 'route': route},
       );
+      final counts = 'app=${d.app} web=${d.web}';
       say(
-        'push',
-        '${d.app + d.web > 0 ? 'sent' : 'undelivered'} '
-            'app=${d.app} web=${d.web}',
+        d.app + d.web > 0
+            ? 'channel=push outcome=sent $counts'
+            : 'channel=push outcome=undelivered $counts',
       );
     } catch (e) {
-      say('push', 'failed error=${e.runtimeType}');
+      say('channel=push outcome=failed error=${e.runtimeType}');
     }
     try {
       await _notifications.add(
@@ -168,13 +174,13 @@ class SalonDecisionNotifier {
         body: feedBody,
         route: route,
       );
-      say('feed', 'sent');
+      say('channel=feed outcome=sent');
     } catch (e) {
-      say('feed', 'failed error=${e.runtimeType}');
+      say('channel=feed outcome=failed error=${e.runtimeType}');
     }
     final to = owner.emailOrNull;
     if (to == null) {
-      say('email', 'skipped reason=no_address');
+      say('channel=email outcome=skipped reason=no_address');
       return;
     }
     try {
@@ -187,9 +193,13 @@ class SalonDecisionNotifier {
         text: mail.text,
         html: mail.html,
       );
-      say('email', r.ok ? 'sent' : 'failed error=${errorCode(r.error)}');
+      say(
+        r.ok
+            ? 'channel=email outcome=sent'
+            : 'channel=email outcome=failed error=${errorCode(r.error)}',
+      );
     } catch (e) {
-      say('email', 'failed error=${e.runtimeType}');
+      say('channel=email outcome=failed error=${e.runtimeType}');
     }
   }
 
