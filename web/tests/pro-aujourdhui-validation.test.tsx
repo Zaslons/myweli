@@ -306,12 +306,18 @@ describe('« Aujourd’hui » — after the publish', () => {
   it('202 that comes back refused (decided that very moment): no « Demande envoyée »', async () => {
     const refusedNow = { state: 'refused', wentLive: false, refusal: { code: 'photos', final: false } };
     let decided = false;
+    // The re-read is held open: between the 202 and it, the page must already
+    // say nothing (a re-read empties a wrong line, after the region spoke).
+    let release: () => void = () => {};
+    const held = new Promise<void>((r) => {
+      release = r;
+    });
+    const refusedProfile = profile('p1', 'Beauté Divine', 'draft', refusedNow);
     const { count } = serve({ p1: profile('p1', 'Beauté Divine', 'draft', null) }, {
       me: () =>
-        new Response(
-          JSON.stringify(profile('p1', 'Beauté Divine', 'draft', decided ? refusedNow : null)),
-          { status: 200 },
-        ),
+        decided
+          ? (held.then(() => new Response(JSON.stringify(refusedProfile), { status: 200 })) as unknown as Response)
+          : new Response(JSON.stringify(profile('p1', 'Beauté Divine', 'draft', null)), { status: 200 }),
       publish: () => {
         decided = true;
         return new Response(JSON.stringify({ validation: refusedNow }), { status: 202 });
@@ -319,20 +325,42 @@ describe('« Aujourd’hui » — after the publish', () => {
     });
     render(<Harness />);
     fireEvent.click(await screen.findByRole('button', { name: 'Demander la mise en ligne' }));
-    // After the re-read too, not only on the frame the 202 drew.
+    expect(await screen.findByText('Mise en ligne refusée')).toBeTruthy();
+    expect(screen.queryByText(/Demande envoyée/)).toBeNull();
+    release();
+    // After the re-read too.
     await waitFor(() => expect(count('GET /api/pro/me')).toBeGreaterThanOrEqual(3));
     expect(await screen.findByText('Mise en ligne refusée')).toBeTruthy();
     expect(await screen.findByRole('button', { name: 'Renvoyer pour validation' })).toBeTruthy();
     expect(screen.queryByText(/Demande envoyée/)).toBeNull();
   });
 
-  it('202 whose request vanished (`validation: null`) claims nothing', async () => {
-    const { count } = serve({ p1: profile('p1', 'Beauté Divine', 'draft', null) }, {
-      publish: () => new Response(JSON.stringify({ validation: null }), { status: 202 }),
+  it('202 whose request vanished (`validation: null`) claims nothing — not even until the re-read', async () => {
+    // The re-read is held open: the line must not be said in the meantime
+    // (a re-read would empty it, but a live region would already have spoken).
+    let release: () => void = () => {};
+    const held = new Promise<void>((r) => {
+      release = r;
+    });
+    let published = false;
+    const salons = { p1: profile('p1', 'Beauté Divine', 'draft', null) };
+    serve(salons, {
+      me: () =>
+        published
+          ? (held.then(() => new Response(JSON.stringify(salons.p1), { status: 200 })) as unknown as Response)
+          : new Response(JSON.stringify(salons.p1), { status: 200 }),
+      publish: () => {
+        published = true;
+        return new Response(JSON.stringify({ validation: null }), { status: 202 });
+      },
     });
     render(<Harness />);
     fireEvent.click(await screen.findByRole('button', { name: 'Demander la mise en ligne' }));
-    await waitFor(() => expect(count('GET /api/pro/me')).toBeGreaterThanOrEqual(3));
+    await waitFor(() => expect(published).toBe(true));
+    await new Promise((r) => setTimeout(r, 30));
+    expect(screen.queryByText(/Demande envoyée/)).toBeNull();
+    release();
+    await new Promise((r) => setTimeout(r, 30));
     expect(screen.queryByText(/Demande envoyée/)).toBeNull();
   });
 
