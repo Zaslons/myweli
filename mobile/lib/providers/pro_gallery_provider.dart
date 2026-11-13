@@ -275,8 +275,8 @@ class ProGalleryProvider extends ChangeNotifier implements SalonScoped {
     _loadFailed = false;
     _isUploading = false;
     _uploadProgress = 0;
+    // A pick of several stops on its own: its loop sees the salon changed.
     _inBatch = false;
-    _stopBatch = true;
     _batchAt = 0;
     _batchOf = 0;
     _error = null;

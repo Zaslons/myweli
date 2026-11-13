@@ -119,6 +119,10 @@ void main() {
       () async {
         final g = await loaded();
         holds['c.jpg'] = Completer<void>();
+        // Every change the screen hears: busy from the first photo to the last,
+        // BETWEEN two photos too — or the add tile comes back mid-pick.
+        final heard = <bool>[];
+        g.addListener(() => heard.add(g.isUploading));
         final run = g.addPhotos(id, ['b.jpg', 'c.jpg', 'd.jpg']);
         await pumpEventQueue();
         expect(uploads, ['b.jpg', 'c.jpg'], reason: 'd waits for c');
@@ -127,6 +131,12 @@ void main() {
         expect(g.photos, contains('$cdn/gallery/p1/b.jpg'));
         holds['c.jpg']!.complete();
         await run;
+        expect(heard.last, isFalse, reason: 'free at the end');
+        expect(
+          heard.sublist(0, heard.length - 1),
+          everyElement(isTrue),
+          reason: 'never free mid-pick: $heard',
+        );
         expect((g.batchAt, g.batchOf), (0, 0));
       },
     );
