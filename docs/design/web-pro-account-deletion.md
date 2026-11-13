@@ -3,11 +3,11 @@
 | | |
 |---|---|
 | **Module** | web — one public, static page for salon accounts: `/pro/suppression-compte`, the URL Play's Data safety form takes as « URL de suppression » for MyWeli Pro |
-| **Status** | **Approved 2026-11-13 (decisions 137–140); the French copy of §5 awaits the owner's sign-off sentence by sentence.** The answers are folded into §5–§12; the copy itself is **not** approved yet, and S1 is not opened before it is. Nothing is built. Review findings folded in 2026-11-13 (Review log, end) |
+| **Status** | **Approved 2026-11-13 (decisions 137–140); the French copy of §5 awaits the owner's sign-off sentence by sentence.** The answers are folded into §5–§12; the copy itself is **not** approved yet, and S1 is not opened before it is. Nothing is built. Review findings folded in 2026-11-13, then a second review's the same day (Review log, end); four questions it raised wait for the owner (§12, R1–R4) |
 | **Owner** | the project owner: the sign-off on §5 sentence by sentence, every merge and every production or console step |
 | **Last updated** | 2026-11-13 |
 | **PRD ref / phase** | FR-AUTH-005 [V1] « Account deletion & data export request (store-policy + data-law compliance) » (`docs/PRD.md:344`) · V1 · Android release, before android-play-release step 7 |
-| **BACKLOG item** | B0.19 · decisions 137–140 · its two gates: B0.22 (the backend erase gaps, [pro-deletion-erase-gaps.md](pro-deletion-erase-gaps.md)) and B0.23 (the privacy policy's correction) · filed: B0.24–B0.28 · R8 of [pro-android-signup.md](pro-android-signup.md) (§6.3 `:573-588`, R8 `:953`, §9.2 row `:828`) · bounded by decision 73 |
+| **BACKLOG item** | B0.19 · decisions 137–140 · its two gates: B0.22 (the backend erase gaps, [pro-deletion-erase-gaps.md](pro-deletion-erase-gaps.md)) and B0.23 (the privacy policy's correction) · filed: B0.24–B0.28 · R8 of [pro-android-signup.md](pro-android-signup.md) (§6.3 `:586-600`, R8 `:1000`, §9.2 row `:859`, at docs PR 0b's head) · bounded by decision 73 |
 | **ROADMAP entry** | [2026-11-13-pro-account-deletion-spec.md](../roadmap/entries/2026-11-13-pro-account-deletion-spec.md) |
 | **Related** | [play-store-forms.md](play-store-forms.md) §0.1 `:111`, §1 `:187`, §4 `:358-362`, §7.3 `:642-645` · [android-play-release.md](android-play-release.md) §4 step 7 · [pro-deletion-erase-gaps.md](pro-deletion-erase-gaps.md) (B0.22, the backend half of decision 137) · [pro-account-deletion-export.md](pro-account-deletion-export.md) (the deletion it documents) · [demo-account-deletion-lock.md](demo-account-deletion-lock.md) · [legal-l1.md](legal-l1.md) (`LegalPage`) · [app-review-round-2.md](app-review-round-2.md) §5 (the five pages) · [web-pro-access.md](web-pro-access.md) (`ProAuthHeader`) · the read-only audit of 2026-11-13 (session notes, not in the repo) |
 | **Skills checked** | myweli-web-guardrails (invoked for this spec) · [WEB.md](../WEB.md) · [WEB-SYSTEM.md](WEB-SYSTEM.md) §4, §9, §12–§15 · [SYSTEM.md](SYSTEM.md) §12, §13.2, §13.3, §17 · myweli-verification-guardrails' marking rule applied (not invoked) |
@@ -15,8 +15,9 @@
 **Legend.** OBSERVED = read in the code at `main` `d19655bd` for this spec. INFERRED = reasoned from
 what was read. UNVERIFIED = not readable from here. Every audit fact this spec relies on was
 re-read; the audit's two summarizing reads of Play's help page were not repeated (no network).
-Every `file:line` is at `d19655bd`; the BACKLOG, which this spec's own PR edits, is cited by item
-and decision number instead.
+Every `file:line` is at `d19655bd`, except `pro-android-signup.md`, which docs PR 0b edits and
+which is cited at 0b's head (`docs/play-release-order`, `287c701f`); the BACKLOG, which this
+spec's own PR edits, is cited by item and decision number instead.
 
 ## 1. Goal & scope
 
@@ -79,21 +80,27 @@ lands on `/pro` or `/pro?salon=`, never back on Profil (`ProConnexionClient.tsx:
    address, WhatsApp, Mobile Money number and operator cleared, deposit off (`:82-89,153`); a
    pending validation request deleted and admin notes cleared (`:158-159`); the last reported
    place forgotten (`:163`). **Not cleared:** the map pin (`latitude`, `longitude`), `commune`,
-   `city` and `areaId`. `_erasedContact` (`:82-89`) holds none of them, although decision 123's
-   « place » is exactly `latitude, longitude, address, commune, areaId, phoneNumber`
-   (`provider_catalog_service.dart:75-82`) and the pin is an editable salon field
-   (`:192-204`). Play's Data safety declares the pin as « Position exacte », public
+   `city` and `areaId`. `_erasedContact` (`:82-89`) holds none of them, although the salon's
+   « place » of decision 129 (salon-go-live Q6, capped by decision 133) is exactly `latitude,
+   longitude, address, commune, areaId, phoneNumber` (`provider_catalog_service.dart:74-82`,
+   « (Q6) ») and the pin is an editable salon field (`:192-204`). Play's Data safety declares the pin as « Position exacte », public
    (`play-store-forms.md:383`). OBSERVED. **Decision 137:** B0.22 adds the pin to
-   `_erasedContact`; the commune, the city and `areaId` stay, and the page says so.
+   `_erasedContact`. *Engineering consequence, not part of the answer:* nothing else joins it, so
+   the commune, the city and `areaId` stay, and the page says the commune and the city are kept.
 4. KYC objects deleted, best effort, **only the keys listed in `kyc_docs` at that moment**
    (`:174-183`). A re-submit (supported after a rejection) replaces the list
    (`kyc_service.dart:69-72,96-112`; `postgres_provider_auth_repository.dart:480-484`) and
    deletes only the `pending/` copies (`upload_verification_service.dart:176-180`), never the
-   superseded `kyc/{accountId}/…` object. The KYC bucket's only lifecycle rule covers `pending/`
-   (`infra/cloudflare/r2-manifest.json:44-48`). So a document replaced before the deletion
-   outlives it, with no limit (OBSERVED). Production held 0 KYC documents on 2026-11-12
-   (B0.20's read-only count), so nothing is orphaned yet (INFERRED). **Decision 137:** B0.22
-   deletes the superseded objects at the re-submit.
+   superseded `kyc/{accountId}/…` object. The R2 manifest requires a lifecycle rule on `pending/`
+   only (`infra/cloudflare/r2-manifest.json:44-48`); it is a floor, never a copy of the live
+   configuration (`:11-12`), so whether the live bucket holds any other rule is UNVERIFIED
+   (`95-verify-r2.sh` would read it, on the owner's yes). No rule the repo requires collects a
+   replaced document: it outlives the deletion, with no limit known (OBSERVED in code; the live
+   rules UNVERIFIED). Production held 0 KYC documents on 2026-11-12 (B0.20's read-only count),
+   so nothing is orphaned yet (INFERRED). **Decision 137:** B0.22
+   deletes the superseded objects at the re-submit, best effort: a delete that fails there (or a
+   lost race's promoted copy whose delete fails) leaves an unreferenced private object that the
+   later account deletion no longer lists. The page's KYC caveat covers both moments (§5.1).
    Device tokens, notifications and idempotency keys deleted (`:189-191`). Apple authorization
    revoked, never blocking (`:197`).
 5. One transaction deletes the refresh tokens, the e-mail codes and the `provider_users` row
@@ -104,7 +111,10 @@ lands on `/pro` or `/pro?salon=`, never back on Profil (`ProConnexionClient.tsx:
 
 **Kept (INFERRED from what the code does not touch):** the owned salon rows and everything under
 them (services, hours, staff, photos, appointments, client file, reviews, subscription, a decided
-validation), the commune and the city included, and the pin until B0.22 is live (step 3).
+validation), the commune and the city included, and the pin until B0.22 is live (step 3). That
+includes the salon's free-text **description**: editable (`provider_catalog_service.dart:192-204`),
+it may hold a phone number or a first name, and `_erasedContact` (`:82-89`) does not touch it
+(OBSERVED).
 
 - **The photo files stay public.** Gallery and logo uploads go to `StorageBucket.public` under the
   salon id (`upload_signing_service.dart:158-173`). Play declares gallery, logo, before/after and
@@ -126,6 +136,21 @@ validation), the commune and the city included, and the pin until B0.22 is live 
   0038's cascade follows `account_id` only (`migrations.dart:1076-1080`). So another salon's
   unaccepted invitation keeps the address until that salon withdraws it (withdrawing deletes such
   a row: `postgres_membership_repository.dart:289-295`). OBSERVED.
+- **The admin `audit_log`** (`migrations.dart:307-317`, « Append-only record of every privileged
+  admin action », with a free-text `reason`) outlives the deletion, keyed to the deleted ids.
+  `kyc.reject` stores the admin's written reason about the person's identity documents
+  (`admin/admin_kyc_service.dart:155-162`: `targetType 'provider_account'`, `reason:
+  reason.trim()`), the same reason that goes from `provider_users.rejection_reason`
+  (`migrations.dart:110`) with the row. `provider.suspend` stores a suspension's reason against
+  the salon (`admin/admin_provider_service.dart:111-120`). B0.18 logs only the code of a salon
+  refusal for exactly this reason (`validation/salon_validation_service.dart:269-270`); KYC
+  rejections were not changed. OBSERVED. The page lists it as kept with no limit set (decision
+  138's wording), and B0.24's scope covers it.
+- **A member's collaborator profile.** A member can be linked to one of the salon's collaborators
+  (`access/team_service.dart:82,208`, `artistId`). That profile (name, photo; team photos are
+  public, `play-store-forms.md:384`) belongs to the salon: the deletion removes the membership,
+  never the salon's collaborators, so on a member-only salon it stays public until the salon
+  removes it (INFERRED: member-only salons are never touched, `provider_account_service.dart:116-122`).
 
 **No purge exists:** « purge » appears in `backend/lib` only in `security/origin_front_door.dart`
 (OBSERVED, grep -i). **Decision 138:** the page says no retention limit is set yet; B0.24 decides
@@ -143,7 +168,12 @@ runtime read is not done here (no network).
 (`infra/gcp/logging-manifest.json:42-47`; `backend/test/infra/log_retention_test.dart:50-100`).
 Cloud SQL backups « 7 retained » + 7-day PITR exist only as prose (`docs/DEPLOYMENT.md:66-67`),
 UNVERIFIED in production; **decision 140:** not stated on the page; B0.28 states them after a
-read-only describe and a manifest. Sentry and Resend retention: UNVERIFIED.
+read-only describe and a manifest. **Copies outside the database:** the place-change e-mails
+already sent to MyWeli's admin inbox (decisions 127, 129, 133) carry a validated salon's address,
+phone and pin, before and after (`validation/salon_place_notice_service.dart:27-32`,
+`email/salon_validation_emails.dart:159-175`), and stay in that inbox; the page discloses them.
+The e-mail provider's send logs (Resend) and Sentry's events: retention UNVERIFIED, so the page
+states neither, as decision 140 treats the backups; raised to the owner (§12, R4).
 
 **Three facts that shape the copy:** no admin route erases a Pro account (`backend/routes/admin/`
 holds only `users/[id]/erase.dart`, consumer: its `:8`); the e-mail code reaches any Pro
@@ -162,6 +192,24 @@ the page sends them to support@myweli.com, each request handled by hand in produ
 owner's yes; the admin erase tool (B0.25) and « Supprimer mon compte » on the revoked path (B0.26)
 are filed.
 
+**The by-hand erase (decision 139): what it must reproduce.** No written procedure exists (grep of
+`docs/`: none), and every step below lives only in `ProviderAccountService.deleteAccount`
+(`provider_account_service.dart:91-236`). A plain SQL delete would skip most of them, and the
+person would get an erase that differs from the one « Ce qui est supprimé » describes. So a
+support erase **runs that method itself for the account id**, with production's wiring, never
+SQL by hand. In order: the demo lock (`:112`); the bookings gate on owned salons (`:116-135`; a
+refused request is answered with the refusal sentence); for each owned salon, `draft`,
+`_erasedContact` (the pin too once B0.22 is live), the pending validation and the admin notes,
+the place notice (`:145-164`); the web rebuild (`:166-168`); the KYC objects (`:174-183`); device
+tokens, notifications and idempotency keys (`:189-191`); the Apple revoke (`:197`); the
+identity's transaction (refresh tokens, e-mail codes, the row, `:199`); the memberships (`:215`);
+the re-hide (`:225-235`). Before it, the requester is verified as the account's holder: a
+request from the account's own address, or, for a person who lost that address, the check the
+« can't sign in » answer promises (§5.1), which the procedure defines. **How it is run** (for example a one-off entrypoint in the
+production image, or B0.25's tool) is written as a procedure and approved by the owner **before
+S1 merges** (§11 step 5), because the page promises this erase from its first day. An
+engineering consequence of decision 139, raised to the owner (§12, R1).
+
 ### 2.4 Found while specifying (not B0.19)
 
 - The privacy policy (one of the five) tells Pros too « sur le web, depuis Mon compte »
@@ -176,21 +224,31 @@ are filed.
   so no `/pro…` href (decision 73) and no `SALON_WORDS` text, « Espace pro » included
   (`web/tests/e2e/store-linked-pages.spec.ts:19,57-58`); it is frozen during Apple reviews; and a
   substantive change bumps `LEGAL_UPDATED_AT` under its rule (`web/lib/legal.ts:100-130`).
-  · `web/public/llms.txt:32` says « no crash reporting »; the policy discloses Sentry.
-  · `android-play-release.md` never mentions the Data safety deletion URL (grep: no hit).
+  · `web/public/llms.txt:32` says « no crash reporting »; the policy discloses Sentry
+  (`politique-confidentialite/page.tsx:100-110`). S1 edits the same file (decision 140), so this
+  is put to the owner in S1's scope (§12, R3), not left beside the new line.
+  · *True at `d19655bd`, fixed by docs PR 0b:* `android-play-release.md` did not mention the Data
+  safety deletion URL; 0b added it to step 7 (`android-play-release.md:169`), and this PR adds
+  B0.22, B0.23 and decisions 138 and 140 to steps 7, 8 and 10 (§11).
+  · The product name has two casings on this very page: the copy's « Espace Pro » (the h1 of
+  `/pro/connexion`, `app/pro/connexion/page.tsx:20`, which the CTA opens) beside « Espace pro » in
+  its header (`ProAuthHeader.tsx:26`) and footer (« Connexion Espace pro », `FooterGroups.tsx:13`),
+  as in the consumer `Header.tsx:44`. The copy keeps « Espace Pro » (§5.2); harmonizing the three
+  components is a one-word web fix of its own, not B0.19's (the header and footer render beyond
+  this page).
 
 ## 3. Google Play's requirement
 
 **Recorded in the repo (OBSERVED):** the page must name the app or the developer exactly as the
 listing does (`play-store-forms.md:642-645`); the listing's name is `MyWeli Pro — Gestion de
 salon` (`:187`); the account is personal (`:25`) and the developer name is
-UNVERIFIED (`pro-android-signup.md:586-587,975`); Data safety edits are typed at step 7
-(`pro-android-signup.md:828,831-832`); the demo account's deletion is refused by design
+UNVERIFIED (`pro-android-signup.md:599-600,1022`); Data safety edits are typed at step 7
+(`pro-android-signup.md:859,862-863`); the demo account's deletion is refused by design
 (`play-store-forms.md:320`).
 
 **Help 13327111** — read by the audit on 2026-11-13 through a summarizing fetch, not re-read here:
 its wording is UNVERIFIED (the owner re-reads it in a browser before step 7,
-`pro-android-signup.md:570`). As summarized: it applies when an account can be created in the app
+`pro-android-signup.md:583`). As summarized: it applies when an account can be created in the app
 (on Android it can, B0.17); the page loads, references the app or developer name, features the
 deletion path prominently, lets the user request deletion (a link, « a customer service email or a
 form »), outlines prior steps, does not send the user back to the app, and discloses data kept for
@@ -268,8 +326,8 @@ One `h1`, `h2` only (`LegalPage.tsx:93-101`), lists as `<ol>`/`<ul>`, one `<main
   at normal size does not cover it ». Register row 38 measured LegalPage pages widening past 320
   in the Android mode: `/politique-confidentialite` at 375, and `/mentions-legales` at 343 because
   of « support@myweli.com » (`mentions-legales/page.tsx:57`, `<A href={supportMailto()}>{SUPPORT.email}</A>`).
-  This page prints that address twice (decision 139: the « can't sign in » and the revoked
-  paths) the same way, in the same `max-w-content px-m` column (INFERRED: same widening). So the page joins `type-overflow.spec.ts`'s doubled-text run at
+  This page prints that address three times (decision 139: the « can't sign in » and the revoked
+  paths, and the first FAQ's visible answer) the same way, in the same `max-w-content px-m` column (INFERRED: same widening). So the page joins `type-overflow.spec.ts`'s doubled-text run at
   320×568 in both modes (`DOUBLED_TEXT`, `PHONE_320`, `:1030-1045`). The address is printed by a
   new `Email` element in `LegalPage.tsx`, used only by this page, whose text carries a break point
   after « @ » (`<wbr>`). The shared `A` is **not** changed: it renders on the frozen
@@ -282,7 +340,9 @@ One `h1`, `h2` only (`LegalPage.tsx:93-101`), lists as `<ol>`/`<ul>`, one `<main
 ones. The owner has **not** approved them yet: each sentence of §5.1 waits for their sign-off, and
 S1 is not opened before it (§11).
 
-**Rules.** Vouvoiement; `’` and `…` (SYSTEM §17.1); `&nbsp;` before `; : ? !` as the five do. A
+**Rules.** Vouvoiement; `’` and `…` (SYSTEM §17.1); `&nbsp;` before `; : ? !` and inside « », as
+the five do (`politique-confidentialite/page.tsx:107,245,255`: «&nbsp;?&nbsp;», «&nbsp;Continuer
+avec Google&nbsp;»). A
 label in bold is quoted exactly as on screen (table 5.2). Nothing promises what the server does not
 do: no delay that does not exist, no « nous ne pouvons rien restaurer » (backups exist, §2.3), no
 « abonnement », offer, trial or price (decision 138), no backup duration (decision 140). (R) = live
@@ -298,9 +358,9 @@ wording reused.
 >
 > **Lead** — Cette page concerne l’application **MyWeli Pro — Gestion de salon** et l’Espace Pro de myweli.com. Vous pouvez supprimer votre compte vous-même, sur le web, sans l’application et sans nous écrire. Si vous ne pouvez plus ouvrir l’Espace Pro, voyez plus bas.
 >
-> **Client pointer** — Vous avez aussi un compte client MyWeli, sur myweli.com&nbsp;? Votre compte client est un compte distinct&nbsp;: supprimer l’un ne supprime pas l’autre. Il se supprime depuis une autre page, [Supprimer votre compte](/suppression-compte), celle du lien « Supprimer mon compte » en bas de page.
+> **Client pointer** — Vous avez aussi un compte client MyWeli, sur myweli.com&nbsp;? Votre compte client est un compte distinct&nbsp;: supprimer l’un ne supprime pas l’autre. Il se supprime depuis une autre page, [Supprimer votre compte](/suppression-compte), celle du lien «&nbsp;Supprimer mon compte&nbsp;» en bas de page.
 >
-> **Callout** — **Propriétaire d’un salon&nbsp;: terminez ou annulez d’abord ses rendez-vous à venir.** Tant qu’un rendez-vous confirmé ou en attente est à venir dans un salon dont vous êtes propriétaire, la suppression est refusée et vous lisez&nbsp;: « Terminez ou annulez vos rendez-vous à venir avant de supprimer votre compte. » Nous ne voulons pas annuler d’office les réservations de vos clients (R).
+> **Callout** — **Propriétaire d’un salon&nbsp;: terminez ou annulez d’abord ses rendez-vous à venir.** Tant qu’un rendez-vous confirmé ou en attente est à venir dans un salon dont vous êtes propriétaire, la suppression est refusée et vous lisez&nbsp;: «&nbsp;Terminez ou annulez vos rendez-vous à venir avant de supprimer votre compte.&nbsp;» Nous ne voulons pas annuler d’office les réservations de vos clients (R).
 >
 > **H2 — Sur le web, sans l’application**
 > 1. Connectez-vous à l’Espace Pro avec la même méthode que dans l’application&nbsp;: **Continuer avec Google**, **Continuer avec Apple** ou **Continuer avec e-mail**. *(Google and Apple printed only when the shared helper says `/pro/connexion` shows them; see the note below the copy.)*
@@ -311,7 +371,7 @@ wording reused.
 >
 > La suppression est immédiate et définitive&nbsp;: vous êtes aussitôt déconnecté.
 >
-> **H2 — Dans l’application MyWeli Pro** — Ouvrez **Profil**, puis choisissez **Supprimer mon compte** en bas de l’écran. Tapez **SUPPRIMER** et confirmez avec **Supprimer définitivement**.
+> **H2 — Dans l’application MyWeli Pro** — Ouvrez **Profil**&nbsp;: l’icône de compte en haut de l’**Accueil**, ou l’onglet **Profil**. Puis choisissez **Supprimer mon compte** en bas de l’écran. Tapez **SUPPRIMER** et confirmez avec **Supprimer définitivement**.
 >
 > **Callout** — **Propriétaire d’un salon&nbsp;? Pensez à exporter vos données avant** (R)&nbsp;: dans l’application, **Profil → Mes données**&nbsp;; sur le web, **Profil → Compte → Exporter (JSON)**.
 >
@@ -321,23 +381,26 @@ wording reused.
 > - votre place dans chaque équipe dont vous faisiez partie&nbsp;;
 > - les identifiants de vos appareils — **vos notifications s’arrêtent** — et votre historique de notifications (R)&nbsp;;
 > - si vous utilisiez Apple, l’autorisation de connexion donnée à MyWeli Pro&nbsp;: nous demandons à Apple de la révoquer&nbsp;;
-> - vos pièces d’identité et justificatifs envoyés pour la vérification du compte. Leur effacement est fait **au mieux**&nbsp;: si notre stockage est indisponible à cet instant précis, la suppression aboutit quand même, et un fichier peut subsister (R).
+> - vos pièces d’identité et justificatifs envoyés pour la vérification du compte. Leur effacement est fait **au mieux**&nbsp;: si notre stockage est indisponible lors de la suppression, ou lorsque vous avez remplacé ou renvoyé un document, un fichier peut subsister dans notre stockage privé, jamais publié (R, widened).
 >
-> **H2 — Ce que devient votre salon** — Chaque salon dont vous êtes propriétaire est retiré du public&nbsp;: il n’apparaît plus dans les recherches et ne peut plus être réservé. Il est **dépublié** plutôt que détruit, pour que les réservations, avis et fiches passés continuent de se résoudre (R). Chaque salon garde son nom et son historique&nbsp;; ses numéros de téléphone, WhatsApp et Mobile Money, son adresse et son point sur la carte sont effacés, et l’acompte est désactivé. Une demande de mise en ligne « En cours de validation » est retirée. Les autres membres de son équipe gardent leur accès au salon dans MyWeli Pro, selon leur rôle. Les salons dont vous êtes seulement membre de l’équipe ne changent pas.
+> **H2 — Ce que devient votre salon** — Chaque salon dont vous êtes propriétaire est retiré du public en quelques minutes&nbsp;: il n’apparaît plus dans les recherches et ne peut plus être réservé. Il est **dépublié** plutôt que détruit, pour que les réservations, avis et fiches passés continuent de se résoudre (R). Chaque salon garde son nom et son historique&nbsp;; ses numéros de téléphone, WhatsApp et Mobile Money, son adresse et son point sur la carte sont effacés, et l’acompte est désactivé. Une demande de mise en ligne «&nbsp;En cours de validation&nbsp;» est retirée. Les autres membres de son équipe gardent leur accès au salon dans MyWeli Pro, selon leur rôle. Les salons dont vous êtes seulement membre de l’équipe ne changent pas.
 >
 > **H2 — Ce qui est conservé, et combien de temps**
-> - l’historique de chaque salon dont vous étiez propriétaire — son nom, ses prestations, ses horaires, son équipe, ses rendez-vous, son fichier clients et ses avis — reste dans notre base, caché du public, et les membres de son équipe y gardent accès. Aucune durée de conservation n’est fixée à ce jour&nbsp;: il n’est pas effacé automatiquement&nbsp;;
+> - l’historique de chaque salon dont vous étiez propriétaire — son nom, sa description, ses prestations, ses horaires, son équipe, ses rendez-vous, son fichier clients et ses avis — reste dans notre base, caché du public, et les membres de son équipe y gardent accès. Aucune durée de conservation n’est fixée à ce jour&nbsp;: il n’est pas effacé automatiquement&nbsp;;
 > - sa commune et sa ville restent avec lui, cachées du public&nbsp;;
-> - ses photos (galerie, logo, avant/après, photos de l’équipe) ne sont plus affichées sur MyWeli, mais restent accessibles à leur adresse existante pour qui la connaît. Aucune durée n’est fixée à ce jour&nbsp;;
+> - ses photos (galerie, logo, avant/après, photos de l’équipe) ne sont plus affichées au public sur MyWeli (les membres de l’équipe les voient toujours dans MyWeli Pro), mais restent accessibles à leur adresse existante pour qui la connaît. Aucune durée n’est fixée à ce jour&nbsp;;
 > - le journal des actions de l’équipe garde des identifiants techniques, les rôles, la date de chaque action et les recherches faites dans **Clients**, sans votre nom ni votre adresse e-mail. Aucune durée n’est fixée à ce jour&nbsp;;
+> - le journal des décisions de notre équipe sur votre compte et vos salons — vérification d’identité acceptée ou refusée, avec le motif écrit d’un refus, suspension d’un salon avec son motif. Aucune durée n’est fixée à ce jour&nbsp;;
+> - les e-mails reçus par notre équipe lorsqu’un salon validé a changé d’adresse, de téléphone ou de point sur la carte restent dans notre messagerie. Aucune durée n’est fixée à ce jour&nbsp;;
+> - votre fiche de collaborateur dans l’équipe d’un salon dont vous êtes seulement membre (nom, photo) appartient à ce salon et reste affichée tant qu’il ne la retire pas&nbsp;;
 > - les invitations qu’un autre salon vous avait envoyées et que vous n’aviez pas acceptées restent dans sa liste, avec votre adresse e-mail, jusqu’à ce que ce salon les retire&nbsp;;
 > - les journaux de requêtes de notre hébergeur sont supprimés automatiquement au bout de **30 jours** (R).
 >
-> **H2 — Vous ne pouvez plus vous connecter avec Google ou Apple&nbsp;?** — Choisissez **Continuer avec e-mail** et saisissez l’adresse e-mail de votre compte&nbsp;: nous vous y envoyons un code à 6 chiffres. Si vous n’avez plus accès à cette adresse, écrivez-nous à [support@myweli.com](mailto:support@myweli.com) avec le nom de votre salon&nbsp;: nous vous répondrons pour vérifier qu’il s’agit bien de votre compte.
+> **H2 — Vous ne pouvez plus vous connecter avec Google ou Apple&nbsp;?** — Saisissez l’adresse e-mail de votre compte dans **Votre e-mail**, puis choisissez **Continuer avec e-mail**&nbsp;: nous envoyons un code à 6 chiffres à cette adresse. Si vous n’avez plus accès à cette adresse, écrivez-nous à [support@myweli.com](mailto:support@myweli.com) avec le nom de votre salon&nbsp;: nous vous répondrons pour vérifier qu’il s’agit bien de votre compte.
 >
-> **H2 — Votre accès à l’équipe d’un salon a été retiré&nbsp;?** — Sans accès à un salon, l’Espace Pro vous déconnecte avant que vous ne puissiez ouvrir **Profil**. Écrivez-nous à [support@myweli.com](mailto:support@myweli.com) depuis l’adresse e-mail de votre compte&nbsp;: nous vous répondrons pour confirmer la suppression.
+> **H2 — Votre accès à l’équipe d’un salon a été retiré&nbsp;?** — Sans accès à un salon, l’Espace Pro vous déconnecte (ou ne vous montre que vos invitations) avant que vous ne puissiez ouvrir **Profil**. Écrivez-nous à [support@myweli.com](mailto:support@myweli.com) depuis l’adresse e-mail de votre compte&nbsp;: nous vous répondrons pour confirmer la suppression.
 >
-> **H2 (FAQ) — Puis-je supprimer mon compte MyWeli Pro sans l’application&nbsp;?** — Oui. Connectez-vous à l’Espace Pro sur myweli.com, ouvrez Profil, puis Supprimer mon compte en bas de la page.
+> **H2 (FAQ) — Puis-je supprimer mon compte MyWeli Pro sans l’application&nbsp;?** — Oui, si vous pouvez vous connecter à l’Espace Pro&nbsp;: sur myweli.com, ouvrez Profil, puis Supprimer mon compte en bas de la page. Sinon, écrivez-nous à support@myweli.com.
 >
 > **H2 (FAQ) — Pourquoi la suppression de mon compte est-elle refusée&nbsp;?** — Parce qu’un rendez-vous confirmé ou en attente est encore à venir dans un salon dont vous êtes propriétaire. Terminez-le ou annulez-le, puis recommencez.
 >
@@ -346,13 +409,30 @@ wording reused.
 **Notes on the words (not page text).**
 - The KYC bullet and the pin in « Ce que devient votre salon » are true only once **B0.22** is live
   ([pro-deletion-erase-gaps.md](pro-deletion-erase-gaps.md)): the pin then goes with the address,
-  and a replaced document is deleted at the re-submit, so « vos pièces d’identité et justificatifs
-  envoyés » are all erased, best effort. §11's rule: the page merges only after B0.22 is live, so
-  these are the only wordings that ship.
+  and a replaced document is deleted at the re-submit, best effort. So the caveat names **both**
+  moments a file can survive: the deletion (a failed delete, `provider_account_service.dart:174-183`),
+  and a re-submit (a failed delete of the replaced document, or of a refused racing submit's own
+  copies, erase-gaps §3.2). Such a file is private, unreferenced, and collected by no rule the
+  repo requires (§2.3 step 4). « (R, widened) »: the live caveat (`suppression-compte/page.tsx:125-128`)
+  names the first moment only. §11's rule: the page merges only after B0.22 is live, so these are
+  the only wordings that ship.
 - The salon sentence reuses `/suppression-compte`'s (`page.tsx:183-185`) with « son point sur la
   carte » added (decision 137). `legal.test.tsx:340-354` pins the original on the two existing
   pages; this page gets its own pin (§10 #11).
-- Both support addresses render through `Email` (`supportMailto()`, its fixed subject, §4.4, §7).
+- Every support address renders through `Email` (§4.4, §7): `supportMailto()` with **no subject**,
+  as `/mentions-legales` calls it (`mentions-legales/page.tsx:57`), so no subject line goes out
+  that §5.1's sign-off has not covered. The first FAQ's answer names the address too: the FAQ
+  array keeps plain text for the JSON-LD, and the visible answer prints the address through
+  `Email`, so §10 #14's doubled-text run covers all three.
+- « en quelques minutes »: the funnel and the search close at once, but the salon's marketing page
+  keeps serving from the ISR cache for up to 300 s (`app/[slug]/page.tsx:21-33`, plus the image
+  cache) until it expires or the rebuild lands. « immédiate et définitive » is about the account.
+- « Ouvrez Profil » in the app: an owner sees no « Profil » label, only Accueil's account icon,
+  whose tooltip is « Profil » (`dashboard_screen.dart:151-154`); staff have the tab
+  (`staff_home_screen.dart:55`). The sentence names both.
+- The first FAQ answers « Oui, si… » because it feeds the `FAQPage` JSON-LD that search snippets
+  show: revoked members and people without their address have no self-service path (§2.3). Its
+  question, and so the h2, is unchanged.
 - Step 2 follows decision 140's `?suite=profil`: the CTA lands on Profil; the menu line covers a
   sign-in made another way.
 
@@ -382,8 +462,10 @@ the app, so it does not depend on the helper.
 | On the page | Website | App |
 |---|---|---|
 | Continuer avec Google / Apple / e-mail | `GoogleSignInButton.tsx:143` · `AppleSignInButton.tsx:26` · `ProLoginOptions.tsx:336` | `pro_login_screen.dart:314,322,358` |
-| code à 6 chiffres | « Code à 6 chiffres » `ProLoginOptions.tsx:213` | — |
-| Espace Pro | h1 `app/pro/connexion/page.tsx:20` | — |
+| Votre e-mail (the field, before « Continuer avec e-mail ») | `ProLoginOptions.tsx:323` (then the button `:336`) | `pro_login_screen.dart:349` (then `:358`) |
+| code à 6 chiffres | « Code à 6 chiffres » `ProLoginOptions.tsx:213` | `pro_login_screen.dart:416` |
+| Espace Pro | h1 `app/pro/connexion/page.tsx:20`, the page the CTA opens; also `ProSignOutRetry.tsx:44`, `web/lib/pro/landing.ts:60`. **Mismatch on this page:** its header prints « Espace pro » (`ProAuthHeader.tsx:26`) and its footer « Connexion Espace pro » (`FooterGroups.tsx:13`); the copy keeps « Espace Pro » throughout, and harmonizing the components is outside B0.19 (§2.4) | — |
+| Accueil (the owner's account icon, tooltip « Profil ») | — | `dashboard_screen.dart:131` (title), `:151-154` (the icon) |
 | le menu · Profil | « Ouvrir le menu » `ProShell.tsx:103` · `nav.ts:35`, h1 `ProfilClient.tsx:122,190` | `pro_profile_screen.dart:62` · `dashboard_screen.dart:153` · `staff_home_screen.dart:55` |
 | Compte | `CompteDangerSection.tsx:179` | — |
 | Supprimer mon compte | `CompteDangerSection.tsx:223` | `pro_profile_screen.dart:362` |
@@ -404,8 +486,11 @@ deleted `:174-215`; the salon `:148-163` and `_erasedContact` `:82-89`, which B0
 pin (the commune and the city stay);
 members keep access `index.dart:80-113`; photos `upload_signing_service.dart:158-173`; the audit
 log `clients_service.dart:96-104`; invitations `postgres_membership_repository.dart:300-305`;
-replaced KYC: deleted at the re-submit by B0.22 (kept today, `kyc_service.dart:69-72,96-112`);
-revoked members `ProMembershipContext.tsx:341-342`;
+replaced KYC: deleted at the re-submit by B0.22, best effort (kept today, `kyc_service.dart:69-72,96-112`);
+revoked members `ProMembershipContext.tsx:341-342`, the invitations gate `:304-310`;
+« en quelques minutes » `app/[slug]/page.tsx:21-33`; the description `provider_catalog_service.dart:192-204`;
+the admin decisions `admin_kyc_service.dart:155-162`, `admin_provider_service.dart:111-120`;
+the admin e-mails `salon_place_notice_service.dart:27-32`; the collaborator profile `team_service.dart:82,208`;
 kept: no purge; 30 days: the manifest.
 
 ## 6. SEO / metadata
@@ -453,8 +538,8 @@ kept: no purge; 30 days: the manifest.
 - No session, cookie, API or BFF read; no form; no PII rendered; nothing reveals whether an e-mail
   has an account (nor does the code request, §2.3). `?suite=` is a fixed code compared for
   equality, never a URL: no open redirect.
-- The support link is `supportMailto()` (`web/lib/support.ts:41-44`), the published address with a
-  fixed subject. The developer's personal name is not printed (decision 140, Q8 (a)).
+- The support link is `supportMailto()` (`web/lib/support.ts:41-44`), the published address with
+  no subject (its subject is optional; the page passes none, as `/mentions-legales` does). The developer's personal name is not printed (decision 140, Q8 (a)).
 - The Pro service worker has no `fetch` handler (`web/public/pro/push-sw.js:54-100`: install,
   activate, push, notificationclick), so it cannot serve a stale copy under `/pro/`.
 - Headers and CSP unchanged (`next.config.mjs:247`, all paths). No new endpoint, so no new STRIDE row.
@@ -500,10 +585,10 @@ Each is watched red once on committed code, by the mutation named, before it is 
 | 8 | same: durations | every « N jours » on the page is the manifest's `maxRetentionDays` (read from `infra/gcp/logging-manifest.json`); no other figure, so no 7-day backup line (decision 140) | set the manifest to 14; add « 7 jours » |
 | 9 | same: words | no `abonnement|offre|essai|tarif|FCFA` (decision 138) | add « abonnement » |
 | 10 | same: no `className` in the page file | the closed-theme defence | add one |
-| 11 | `web/tests/legal.test.tsx`: add the page to the glued-word scan (`:298`). The deleted-owner pin (`:340`) stays as is for the two existing pages. The new page gets its own pin for the choices made (decisions 137–139): the salon sentence with « son adresse et son point sur la carte sont effacés », the commune-and-city bullet, the photos sentence (Q12 (d)), the KYC bullet in (a)'s wording (the page merges after B0.22 is live, §11) and the absence of (b)'s « au moment de la suppression », the no-limit sentence of decision 138, the audit-log bullet (« recherches faites dans Clients »), the invitations bullet, the members-keep-access sentence, and the two support paths | spacing; each pinned sentence | glue a `<strong>`; edit any pinned sentence |
+| 11 | `web/tests/legal.test.tsx`: add the page to the glued-word scan (`:298`), and, for the new page's file, a **spacing scan**: a « followed, or a » preceded, by a plain space or a line break fails, and so does a plain space before `; : ? !` (the five's convention, §5 rules). The deleted-owner pin (`:340`) stays as is for the two existing pages. The new page gets its own pin for the choices made (decisions 137–139, and the 2026-11-13 review): the salon sentence with « retiré du public en quelques minutes » and « son adresse et son point sur la carte sont effacés »; the history bullet with « sa description »; the commune-and-city bullet; the photos sentence (Q12 (d)) with « au public » and « les membres de l’équipe les voient toujours »; the KYC bullet in (a)'s widened wording (« lors de la suppression, ou lorsque vous avez remplacé ou renvoyé un document », the page merging after B0.22 is live, §11) and the absence of (b)'s « enregistrés sur votre compte au moment de la suppression » and « n’est pas effacé »; the no-limit sentence of decision 138; the audit-log bullet (« recherches faites dans Clients »); the admin-decisions bullet (« avec le motif écrit d’un refus »); the admin e-mails bullet; the collaborator bullet; the invitations bullet; the members-keep-access sentence; the app sentence (« l’icône de compte en haut de l’Accueil »); the e-mail path in order (« dans Votre e-mail, puis choisissez Continuer avec e-mail »); the revoked sentence (« ne vous montre que vos invitations »); the first FAQ (« Oui, si vous pouvez vous connecter »); and the two support paths | spacing, guillemets included; each pinned sentence | glue a `<strong>`; put a plain space inside « »; edit any pinned sentence |
 | 12 | `web/tests/site-chrome.test.tsx`, and `pro-access.test.tsx` P4 (`:93-103`) with the new path added to its list | `ProAuthHeader` on the exact path (banner, `MyWeli — accueil` → `/`, « Espace pro », no « Mon compte »); consumer header elsewhere | remove the path from `PRO_AUTH` |
 | 13 | `web/tests/e2e/pro-account-deletion.spec.ts` (new) | 200 signed out at 375 px; one h1; listing name before the first h2; CTA visible, ≥ 48 px, right href; canonical; JSON-LD parses (WebPage, BreadcrumbList, FAQPage); footer has the salons' group and the four legal links. **JS off** (`javaScriptEnabled: false`): h1 and CTA present, and the **header** checked inside its landmark: `getByRole('banner')` exists, contains « Espace pro » and has the `MyWeli — accueil` link to `/`. On raw HTML, check the `<header>` element, not the document: the footer's « Connexion Espace pro » (`FooterGroups.tsx:13`, shown here because `:32`'s `withSalons` is true) would satisfy a document-wide substring check | serve the page without `PRO_AUTH` (`SiteChrome.tsx:20-21` then renders no header); remove the CTA |
-| 14 | `axe.spec.ts` (`:155-169` matrix), `type-overflow.spec.ts` (`:90` matrix, normal text), `controls-shape.spec.ts` (`:79`); **and** `type-overflow.spec.ts`'s doubled-text run (`DOUBLED_TEXT`, `PHONE_320`, `:1030-1045`) at 320×568 in both modes (Android `text-size-adjust: 200%`, and the 32 px root): `innerWidth × innerHeight` equals the screen's, no `horizontalOverflow`, and the vacuity check that the text really is doubled | a11y; reflow at 375/320; reflow at 200 % text; control shape | an unlabeled link; a `whitespace-nowrap` CTA; remove the `<wbr>` from `Email` (both support paths print the address, decision 139) |
+| 14 | `axe.spec.ts` (`:155-169` matrix), `type-overflow.spec.ts` (`:90` matrix, normal text), `controls-shape.spec.ts` (`:79`); **and** `type-overflow.spec.ts`'s doubled-text run (`DOUBLED_TEXT`, `PHONE_320`, `:1030-1045`) at 320×568 in both modes (Android `text-size-adjust: 200%`, and the 32 px root): `innerWidth × innerHeight` equals the screen's, no `horizontalOverflow`, and the vacuity check that the text really is doubled | a11y; reflow at 375/320; reflow at 200 % text; control shape | an unlabeled link; a `whitespace-nowrap` CTA; remove the `<wbr>` from `Email` (three places print the address: the two support paths, decision 139, and the first FAQ's visible answer) |
 | 15 | `e2e/store-linked-pages.spec.ts`: a **separate** constant `PRO_DELETION = '/pro/suppression-compte'`, checked only in the five's raw-HTML loop (`:57-58`). `SALON_PATHS` (`:18`) is **not** touched: the controls require `/` and `/recherche` to contain every entry (`:95`) and the footer group's hrefs to equal it (`:108-110`, `FooterGroups.tsx:10-14`), so adding the path there turns the job red on its own | the five's raw HTML, RSC payload included, never names the path, even as text. The anchor checks already reject any `/pro/…` link (`:31,74`; `store-linked-pages.test.tsx:55-56,213-217`). The controls `:92-120` stay as they are | write the path as plain text on `/suppression-compte` |
 | 16 | indexed (decision 140), so **two new tests** (the existing `served-html.spec.ts` check reads only three-segment URLs, `:29,62`, so it would never see this two-segment path): a unit test in the `tests/sitemap-professionnels.test.ts:27-30` style asserting the `/pro/suppression-compte` row; and an e2e test that takes that exact `<loc>` from `/sitemap.xml`, fetches its path, and asserts 200 and no `robots` `noindex` meta (the `:65-69` regex) | listed, answers, indexable | drop the sitemap row; add `robots: { index: false }` to the page |
 | 17 | `lighthouserc.json`, `tool/lighthouse-production.json`, `tests/cwv-budget.test.ts` (§9) | the client patterns anchored; a dedicated `/pro/suppression-compte$` block (SEO as an error: indexed); each collected URL matched by exactly one block, in both files | delete the new block (zero matches → red); unanchor the client pattern again (two → red) |
@@ -525,7 +610,11 @@ Plus a one-off check recorded in the PR: the four legal pages and `/support` ren
    are not. The sign-off also covers the « Before B0.22 is live » sentences, although they ship
    only if the owner overrides the rule below.
 3. **B0.22 — the backend PR, then its production deploy**, each on the owner's yes, read back as
-   [pro-deletion-erase-gaps.md](pro-deletion-erase-gaps.md) §9 says.
+   [pro-deletion-erase-gaps.md](pro-deletion-erase-gaps.md) §9 says. The read-back cannot see
+   storage, so **also before S1**: O2's read-only R2 listing of `kyc/` against the stored keys, on
+   the owner's yes, or the owner's confirmation that no KYC submission was rejected and
+   re-submitted before the deploy (erase-gaps §10, O2). A document replaced before the deploy is
+   outside B0.22 and would make the KYC bullet false for that account.
 4. **B0.23 — the policy PR**, text only, on `/politique-confidentialite`:
    - Pros are no longer sent to the client « Mon compte » on the web.
    - « Conservation » names a deleted owner's salon, kept with no limit set yet (decision 138),
@@ -535,7 +624,17 @@ Plus a one-off check recorded in the PR: the four legal pages and `/support` ren
    - Its French words go to the owner for sign-off in that PR.
    - The same PR corrects `play-store-forms.md:386` (decision 137): the Clients search text is also
      kept in `provider_audit_log`, with no limit.
+   - **An open question for the owner's sign-off in that PR** (§12, R2): the policy's « Vos droits »
+     says, for everyone, « Vous pouvez à tout moment … supprimer vos données, sans nous écrire »
+     (`politique-confidentialite/page.tsx:284-286`). Under decision 139, Pros who cannot sign in
+     and members whose access was removed must write to support@myweli.com. Does « sans nous
+     écrire » stay unconditional for Pros? Not decided here; the policy, Data safety and this page
+     must tell the same story (`play-store-forms.md:404-406`).
 5. **S1 — the page PR** (`feat/web-pro-account-deletion`): §7 and §10, red first, CI green.
+   - **Before it merges, the by-hand erase procedure** (§2.3, decision 139): how
+     `ProviderAccountService.deleteAccount` is run for one account id in production, written and
+     approved by the owner, with whatever it needs built. The page's support paths promise that
+     erase from its first day (§12, R1).
    - The live `/pro/connexion` read confirms the sign-in helper's methods (§5.1).
    - The page's doc comment links this spec.
    - Updated in the same PR: WEB-SYSTEM §13 (the install-push exception), §14 (the Lighthouse row
@@ -561,31 +660,45 @@ B0.22 gates step 7 too. If the owner overrides the rule and merges the page firs
 under « Before B0.22 is live » (§5.1) ship word for word, and a follow-up PR swaps them back once
 B0.22 is live.
 
-**Merge order:** S0 → sign-off → B0.22 (merge, then deploy) → B0.23 → S1. B0.23 and S1 do not
-depend on each other in code. B0.23 goes first so the policy and the page tell the same story
-from the page's first day (`play-store-forms.md:404-406`).
+**Merge order:** S0 → sign-off → B0.22 (merge, then deploy, then O2) → B0.23 → the by-hand
+procedure → S1. B0.23 and S1 do not depend on each other in code. B0.23 goes first so the policy
+and the page tell the same story from the page's first day (`play-store-forms.md:404-406`).
 
-**The Apple-review constraint.** iOS 0.0.2 will be submitted after B0.18's Pro-app PR and the
-0.0.2 bump (decision 134; android-play-release §4 step 3).
-- B0.23 changes one of the five pages, and the five do not change during an Apple review (B0.1).
-- S1 changes `LegalPage.tsx`, the shell four of the five render through, and the Pro sign-in
-  (`ProConnexionClient`, `ProLoginOptions` through the helper).
-- So **B0.23 and S1 merge before iOS 0.0.2 enters Apple review, or wait until that review ends.**
-- B0.22's deploy keeps to the same window, since nothing the reviewer relies on changes during a
-  review (B0.1).
-- No review is recorded as active at `d19655bd` (INFERRED); the owner confirms at each merge.
+**The two iOS windows.** iOS 0.0.2 will be submitted after B0.18's Pro-app PR and the 0.0.2 bump
+(decision 134; android-play-release §4 step 3).
+- **The merge hold** (android-play-release step 3 (c), `android-play-release.md:164`): from the
+  bump's merge until the iOS 0.0.2 IPA is built, nothing merges, since `release_build.sh` builds
+  `origin/main`'s head and decision 119 ships iOS 0.0.2 from the commit right after the bump.
+  **B0.22's merge, B0.23 and S1 avoid it.**
+- **The Apple review** (B0.1: nothing the reviewer relies on changes during a review). B0.23
+  changes one of the five pages; S1 changes `LegalPage.tsx`, the shell four of the five render
+  through, and the Pro sign-in (`ProConnexionClient`, `ProLoginOptions` through the helper). So
+  **B0.23 and S1 merge before iOS 0.0.2 enters Apple review, or wait until that review ends**,
+  and **B0.22 deploys outside any Apple review**: the same rule, worded the same way in
+  [pro-deletion-erase-gaps.md](pro-deletion-erase-gaps.md) §9.
+- No review and no hold is recorded as active at `d19655bd` (INFERRED); the owner confirms at
+  each merge and at the deploy.
 
 **Google's review (decision 140, Q7).** From step 8 (the closed release sent to Google's review)
-until Google's decision, this page is frozen, as the five are during Apple's reviews.
+until Google's decision, this page is frozen, as the five are during Apple's reviews. Written into
+android-play-release step 8 by this PR.
+
+**Later text changes (B0.24, B0.27, B0.28).** Once a purge is built (B0.24), or the photos are
+deleted at the deletion (B0.27), or the backups are stated (B0.28), this page, the policy's
+« Conservation » (with `LEGAL_UPDATED_AT` under its rule) and play-store-forms' Data safety change
+together, in text PRs that keep out of the merge hold, the Apple review (the policy) and Google's
+review (this page).
 
 | Document | Today | After |
 |---|---|---|
 | `play-store-forms.md:5,9` | no B0.19 | dated status line; the new web test as a guard |
-| `play-store-forms.md:111` (§0.1, a dated record) | the old URL | a dated note, not a rewrite (`pro-android-signup.md:824`) |
+| `play-store-forms.md:111` (§0.1, a dated record) | the old URL | a dated note, not a rewrite (`pro-android-signup.md:855`, at 0b) |
 | `play-store-forms.md:358-362` (§4) | « …suppression-compte, qui répond 200 et couvre les comptes professionnels » | the new URL, read on {date}; the in-app line stays |
 | `play-store-forms.md:642-645` (§7.3) | « Elle dit « MyWeli » » | it names « MyWeli Pro — Gestion de salon » + the developer name read at step 7 |
-| `pro-android-signup.md:579-588,828,953` | R8 open | done, with the URL and PR |
-| `android-play-release.md` §4 step 7 | B0.19's page live and its URL typed (added 2026-11-13) | also B0.22 deployed and B0.23 merged, read live |
+| `pro-android-signup.md:592-600,859,1000` (at 0b) | R8 open | done, with the URL and PR |
+| `android-play-release.md` §4 step 7 | B0.19's page live and its URL typed (docs PR 0b); B0.22 deployed and read back, O2 settled, B0.23 merged (this PR, dated 2026-11-13) | each ticked with its PR, deploy and live read |
+| `android-play-release.md` §4 step 8 | the page frozen from the release sent to review until Google's decision (decision 140, this PR) | the freeze's start and end recorded |
+| `android-play-release.md` §4 step 10 | B0.24's purge decided before applying (decision 138, this PR) | B0.24's decision, and its text PRs (above) |
 | BACKLOG B0.19, B0.22, B0.23 | open | status, PRs, deploys, the live reads |
 | `play-store-forms.md:386` (Data safety, « Historique des recherches ») | « gardé 30 jours dans les journaux de requêtes » | corrected in B0.23's PR (decision 137): the Clients search text is **also** in `provider_audit_log`, with no limit (§2.3) |
 | `play-store-forms.md:383-384` (« Position exacte », « Photos ») | public | after a deletion: the pin erased with the address (B0.22); the photos reachable at their addresses (decision 137) |
@@ -614,9 +727,18 @@ French copy of §5 is **not** part of these answers: it still awaits the sign-of
 | Q9 | `/suppression-compte` | (a) untouched | 140 |
 | Q10 | A revoked member's deletion | (a) support@myweli.com, handled by hand, on the owner's yes; the admin tool (B0.25) does **not** gate step 7; (b) « Supprimer mon compte » on the revoked path, filed for later (B0.26) | 139 |
 | Q11 | Correct the privacy policy before step 7 | (a) yes: B0.23, a text-only web PR, gating step 7 (§11 step 4) | 137 |
-| Q12 | The pin and the photos | (a) the pin erased with the address (B0.22, gating step 7); the commune and the city stay, said as kept; (d) the photos said reachable at their address; (c), deleting them at the deletion, filed (B0.27) | 137 |
+| Q12 | The pin and the photos | (a) the pin erased with the address (B0.22, gating step 7); (d) the photos said reachable at their address; (c), deleting them at the deletion, filed (B0.27). *Engineering consequence, not part of the answer:* the commune and the city are not erased, so the page says they are kept (Q12's original option text is not in the repo) | 137 |
 | Q13 | Replaced KYC documents | (a) deleted at the re-submit (B0.22, gating step 7); §11's rule decides which wording ships | 137 |
 | Q14 | The footer's « Supprimer mon compte » | (a) accepted as a limit; the client pointer says so | 140 |
+
+**Raised by the second review (2026-11-13), for the owner — not answered, not decisions.**
+
+| # | The question | Where | Recommendation |
+|---|---|---|---|
+| R1 | The by-hand erase procedure (how `deleteAccount` runs for one account id in production) gates S1. An engineering consequence of decision 139, which keeps the admin tool B0.25 off step 7's path, not a change to it | §2.3, §11 step 5 | yes; the procedure can be lighter than B0.25 |
+| R2 | Does the policy's « sans nous écrire » (« Vos droits ») stay unconditional for Pros, given decision 139? | §11 step 4, B0.23 | asked in B0.23's PR, with its French words |
+| R3 | `web/public/llms.txt:32` says « no crash reporting »; the policy discloses Sentry. S1 edits that file | §2.4 | S1 corrects that sentence to match the policy |
+| R4 | The e-mail provider's send logs (Resend) and Sentry's events: retention UNVERIFIED, so not stated, as the backups | §2.3 | a read-only read with B0.28, on the owner's yes |
 
 **Filed, not built by B0.19** (BACKLOG batch 0): B0.24 the purge decision, before step 10; B0.25
 the admin « erase a Pro account » tool; B0.26 « Supprimer mon compte » on the revoked path; B0.27 a
@@ -635,9 +757,11 @@ Cloud SQL describe and a manifest.
 - [ ] `app/pro/suppression-compte/page.tsx`'s doc comment links this spec; this spec's status
       updated (Built, then Live with the date of the live read).
 - [ ] WEB-SYSTEM §13, §14 and §15 row 27, and WEB.md:195, updated in the same PR (§11).
-- [ ] B0.22 deployed and read back, and B0.23 merged and read live, **before** S1 merges; the
+- [ ] B0.22 deployed and read back, O2 settled (the R2 listing or the owner's confirmation), the
+      by-hand erase procedure approved, and B0.23 merged and read live, **before** S1 merges; the
       live read of §11 step 6 done and recorded.
-- [ ] B0.23 and S1 merged outside any Apple review (§11).
+- [ ] B0.22's merge, B0.23 and S1 outside the step 3 (c) merge hold; B0.23 and S1 merged, and
+      B0.22 deployed, outside any Apple review (§11).
 - [ ] Feature branch and PR; CI green; no Claude attribution; one roadmap entry file.
 
 ## Review log
@@ -674,3 +798,23 @@ Q4's backup bullet is dropped. Step 2 follows `?suite=profil`. §11 now gives th
 sign-off → B0.22 → B0.23 → S1), the KYC and pin wording rule and the Apple-review window. §12
 became « Decisions ». B0.22's spec, [pro-deletion-erase-gaps.md](pro-deletion-erase-gaps.md), was
 written beside this one. The French copy itself is still a draft until the owner signs it off.
+
+**2026-11-13, a second review (26 findings across this spec, B0.22's, the BACKLOG and
+android-play-release), each checked in the code before folding.** Fixed here: the KYC caveat names
+both moments a file can survive (the deletion, a re-submit); the admin `audit_log` (a KYC
+refusal's written reason, a suspension's reason), the salon's description, a member's
+collaborator profile and the admin place-change e-mails are listed as kept (§2.3, §5.1); the
+by-hand erase must run `deleteAccount` itself, and its procedure gates S1 (§2.3, §11, R1); the
+e-mail path in the screen's order (« Votre e-mail », then « Continuer avec e-mail »); the photos
+« au public », members still see them; the app's Profil reached by Accueil's icon or the tab;
+`supportMailto()` with no subject; `&nbsp;` inside « » and a spacing scan (§10 #11); « Espace
+Pro » kept, the header and footer mismatch recorded (§2.4, §5.2); O2 settled before S1; the
+first FAQ conditioned (« Oui, si… »); « en quelques minutes » for the public salon; the
+invitations gate in the revoked sentence; android-play-release steps 7, 8 and 10 dated (this PR);
+the merge hold of step 3 (c) beside the Apple review, one wording with B0.22's spec; §2.4's stale
+bullet dated and the pro-android-signup cites moved to 0b's head; B0.23's « sans nous écrire »
+question (R2); the follow-up text PRs of B0.24, B0.27 and B0.28 (§11); `llms.txt` (R3); the
+manifest read as a floor (live R2 rules UNVERIFIED); decision 129, not 123, for the place keys;
+decision 137's commune-and-city clause moved to an engineering consequence. In B0.22's spec: a
+refused submit deletes only its promoted keys that the locked list does not hold (test 9). None
+was rejected.
