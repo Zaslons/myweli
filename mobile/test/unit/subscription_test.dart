@@ -18,8 +18,9 @@ class _MockSubscriptionService extends Mock
     implements SubscriptionServiceInterface {}
 
 /// Team access R3 (docs/design/team-access-r3-app.md §2.4): the salon offer
-/// model, the mock's setup → first-publish trial arc (ONE trial per salon,
-/// insert-if-absent — docs/design/pro-companion-path.md §3.1), grace/expired
+/// model, the mock's setup → trial arc (ONE trial per salon, insert-if-absent
+/// — docs/design/pro-companion-path.md §3.1; started by MyWeli's validation
+/// since B0.18, salon-go-live-approval §3.6), grace/expired
 /// states and the API path/status mapping. The app reads the offer and never
 /// writes it: the choose/switch tests left with the picker.
 void main() {
@@ -113,7 +114,7 @@ void main() {
 
     test('startTrialIfAbsent never replaces a row: a web choice, a running '
         'trial or an EXPIRED offer stays exactly as it is', () async {
-      // A web choice (Business) made before the first publish.
+      // A web choice (Business) made before MyWeli's validation.
       final chosen = MockSubscriptionService(
         initial: sample(tier: SalonTier.business),
       );

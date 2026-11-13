@@ -453,8 +453,9 @@ void main() {
   testWidgets('offer_required while the offer state FAILED to load, on an '
       'ONLINE salon: its offer expired — never « une fois votre salon en '
       'ligne » to a salon that is online', (tester) async {
-    // Publishing creates the row, so an online salon refused by the offer
-    // gate has an expired one — and with enforcement off it stays online.
+    // Going live creates the row (MyWeli's validation since B0.18, the
+    // first publish before), so an online salon refused by the offer gate
+    // has an expired one — and with enforcement off it stays online.
     useOffer(
       MockSubscriptionService(
         initial: offer(tier: SalonTier.pro, status: SalonOfferStatus.expired),

@@ -2,9 +2,9 @@
 
 | | |
 |---|---|
-| **Status** | **Approved 2026-11-12** (the owner answered every question of §11: decisions 124–132). **Backend merged** (#776, 2026-11-12); the cap of decision 133 merged (#778, `5139f401`, 2026-11-12); the console merged (#779, `8d43009b`, 2026-11-12) and **deployed 2026-11-13** (`deploy-admin.yml`, run 43405932321, `27ecbecc`), before the backend as §9.2 orders; **the website's 4a merged and deployed 2026-11-13** (#782, `03ffc953`; its web details: [web-salon-validation.md](web-salon-validation.md), approved by the owner the same day); **the backend deployed 2026-11-13** on the owner's yes (12:12 UTC, run 43422983978, image `0f53e66`, revision `myweli-api-00049-hq6` at 100 %; migrations 0044 and 0045 recorded). The day's counts were read first, read-only: 5 salons, all drafts, 0 public, 1 draft holding an offer row, 0 for the backfill. It was read back on the owner's test salon: the request answered 202 at 12:37 UTC, was recorded `pending` with its `submitted` event, the salon stayed a draft, the queue counted 1, the log said `admin_notice kind=salon_request … outcome=sent`, and the owner received the e-mail; **the website's 4b merged** (#785, `8825ba60`, 2026-11-13) and read live the same day (`/professionnels` step 3, the CGU clause, the legal date); the apps not built. Reviewed twice by independent readers on 2026-11-12, every finding folded in: five readers (backend, admin console, apps, website, completeness) found 53; two found 26 on the rewrite. **Amended 2026-11-12** (decision 133, after the backend's review): the place-change e-mails to the admin are capped per salon — §5.1, §7, §8.1, §9.1, §11 |
+| **Status** | **Approved 2026-11-12** (the owner answered every question of §11: decisions 124–132). **Backend merged** (#776, 2026-11-12); the cap of decision 133 merged (#778, `5139f401`, 2026-11-12); the console merged (#779, `8d43009b`, 2026-11-12) and **deployed 2026-11-13** (`deploy-admin.yml`, run 43405932321, `27ecbecc`), before the backend as §9.2 orders; **the website's 4a merged and deployed 2026-11-13** (#782, `03ffc953`; its web details: [web-salon-validation.md](web-salon-validation.md), approved by the owner the same day); **the backend deployed 2026-11-13** on the owner's yes (12:12 UTC, run 43422983978, image `0f53e66`, revision `myweli-api-00049-hq6` at 100 %; migrations 0044 and 0045 recorded). The day's counts were read first, read-only: 5 salons, all drafts, 0 public, 1 draft holding an offer row, 0 for the backfill. It was read back on the owner's test salon: the request answered 202 at 12:37 UTC, was recorded `pending` with its `submitted` event, the salon stayed a draft, the queue counted 1, the log said `admin_notice kind=salon_request … outcome=sent`, and the owner received the e-mail; **the website's 4b merged** (#785, `8825ba60`, 2026-11-13) and read live the same day (`/professionnels` step 3, the CGU clause, the legal date); **the Pro app (PR 3) built 2026-11-13, not merged** (branch `feat/pro-salon-validation-app`, stacked on the docs PR `docs/play-release-order`; its two `pro_dashboard*` goldens are regenerated on Linux after the push; decision 134 has it merge before the 0.0.2 bump). Reviewed twice by independent readers on 2026-11-12, every finding folded in: five readers (backend, admin console, apps, website, completeness) found 53; two found 26 on the rewrite. **Amended 2026-11-12** (decision 133, after the backend's review): the place-change e-mails to the admin are capped per salon — §5.1, §7, §8.1, §9.1, §11 |
 | **Owner** | Sadreddine Daher |
-| **Last updated** | 2026-11-13 (§5.2 « What the log says »: the salon's notice logged per channel, and the alert proposed) |
+| **Last updated** | 2026-11-13 (PR 3, the Pro app: the status line, §5.2's « the apps do not read it yet », §6.2's refresh points as built, §6.3's citations, §9.4's app-side items; before it the same day, §5.2 « What the log says ») |
 | **PRD ref / phase** | FR-PRO-ONB-001 (go live) · admin (FR-WEB-AD-*) · V1 |
 | **BACKLOG** | B0.18 (decisions 120 and 123, recorded in PR #773) |
 | **Related** | [pro-salon-lifecycle.md](pro-salon-lifecycle.md) (draft → publish, T50/T51) · [pro-companion-path.md](pro-companion-path.md) (the trial at first publish, no selling in the app) · [salon-state-and-refusals.md](salon-state-and-refusals.md) (the three meanings of `draft`) · [admin-console.md](admin-console.md) · [admin-console-ui.md](admin-console-ui.md) · [pro-kyc.md](pro-kyc.md) (the one admin review that exists) · [backend-web-rebuild-hook.md](backend-web-rebuild-hook.md) · [web-true-sentences.md](web-true-sentences.md) (decision 68) · [pro-android-signup.md](pro-android-signup.md) (B0.17, which feeds salons into this) · [android-play-release.md](android-play-release.md) (the closed test this must precede) |
@@ -681,8 +681,11 @@ one notification per 30 minutes.
 - **Its limits, named:**
   - **A failed e-mail is not « the salon never learned ».** The push and the
     feed row may have reached the owner, and the website's Pro space reads
-    the decision itself (§6). The apps do not read it yet (not built): there,
-    the push and the feed row are the only traces. An alert on « no channel
+    the decision itself (§6). The Pro app reads it from PR 3 on (2026-11-13:
+    built, not merged): « Configuration », the home card and « Mes salons »
+    show the state and the reason. A build without PR 3 (iOS 0.0.1 today)
+    does not: there, the push and the feed row are the only traces. An alert
+    on « no channel
     reached » would need the three lines put together, which a log match
     cannot do.
   - **`sent` is not delivered.** It is Resend's acceptance: a bounce or a
@@ -748,6 +751,34 @@ one notification per 30 minutes.
 
 When unknown (an offline cold start), the card keeps its draft subtitle.
 
+*As built in the Pro app (PR 3, 2026-11-13, not merged).* Two holders, kept
+in step by re-reads: the session (`ProAuthProvider`: the home card, and
+« Mes salons »'s rows) and « Configuration » (`ProOnboardingProvider`, from
+its own `/me/provider`, one of its six reads). Neither is cached on the
+phone.
+
+- **After a submit:** `ProOnboardingProvider.publish` is the one place. It
+  takes a 202's `validation` at once, then re-reads both session copies
+  through `SalonStateRefresh` (`rereadMembership`, `rereadMySalons`), after a
+  200, a 202, or a 409 `validation_refused_final` (whose « Mise en ligne
+  refusée » is followed by « Configuration »'s own quiet re-read, decision
+  136 item 2). Each re-read waits for a read already out and then reads once
+  more, so an answer sent before the submit cannot win. Other refusals
+  re-read nothing.
+- **When « Configuration » loads:** « Mes salons » is re-read every time;
+  the session's `/me/provider` only when « Configuration »'s own read says
+  another state (MyWeli decided since, or the card never knew).
+- **On a notice tap:** `/pro/onboarding?salon={id}` switches once
+  (`switchSalonOutcome`), showing a skeleton, never the other salon's state,
+  until the switch answers; then it loads. A refused switch, no connection,
+  or a switch that kept the old salon goes to « Accueil » with the picker's
+  sentence (decision 136 item 3). The push path switches before the route
+  opens (`PushMessageHandler`'s `ensureSalon`); when that switch is refused,
+  it lands on « Accueil » with no sentence, as every salon push does today:
+  a named residual, not changed by PR 3.
+- **A server from before B0.18** (no `validation` key): today's screens and
+  words (decision 136 item 10).
+
 **Who sees it.** Owners (`salon.publish`), as today's go-live card. Every new
 field is reset on a salon switch. Every step stays editable while pending; the
 decision reads the salon as it is then.
@@ -759,6 +790,15 @@ The app (`pro_onboarding_provider.dart:137-145`) and the website
 The server also wants a commune from the list (`validArea`). The button could
 be enabled, then refused with every row ticked. Both surfaces read the
 server's rule.
+
+*2026-11-13:* the line numbers above are those read before the fix. The
+website reads the rule since 4a (`communeIsKnown`, `web/lib/pro/onboarding.ts`);
+the Pro app in PR 3 (`communeIsKnown`, `mobile/lib/core/utils/onboarding.dart`,
+on a twin of the backend's `slugify` in `mobile/lib/core/utils/slug.dart`,
+pinned to it by `slug_twin_test`). A commune the list does not know leaves
+« Profil de l’entreprise » to do, with « Choisissez la commune dans la liste »
+(decision 136 item 4). While the area list is unread or failed, the app keeps
+the three-field rule and the server decides.
 
 ### 6.4 The website's public pages, after the backend deploy (PR 4b)
 
@@ -1150,6 +1190,14 @@ Each new guard is watched red once, and the commit says how.
   - the order of B0.17 PR 4 (Play texts) against this PR 3.
 - **BACKEND §7:** T17, T50, T51, T54, T68, T82.
 - **The design index.**
+
+*2026-11-13, PR 3 (the Pro app, not merged):* its app-side items, corrected
+in that PR. **pro-android-signup:** « Demander la mise en ligne » in §2.7,
+§6.2's R7 path and P12. **pro-companion-path:** a dated note, the trial
+starts at the validation (Q2 re-decided). **app-store-forms:** a dated note
+in §2.4, and the device checklist of §11.6 for a build that carries PR 3.
+In this spec: the status line, §5.2's sentence on the apps, and the dated
+notes of §6.2 and §6.3. PR 3 touches no other item of this list.
 
 ---
 

@@ -26,9 +26,11 @@ import '../../../widgets/common/screen_title.dart';
 /// no price, no trial promotion, no entitlement list, and no pointer — web,
 /// support, e-mail — to where an offer is obtained. This screen used to be the
 /// offer picker; choosing now happens on the web, and the app never says so.
-/// The salon's trial starts at its first publish, server-side, so a salon
-/// never needs this screen to go live. Same on iOS and Android — there is no
-/// platform branch to keep in step.
+/// The salon's trial starts server-side when MyWeli validates the salon
+/// (B0.18, salon-go-live-approval §3.6 — its first publish before), so a
+/// salon never needs this screen to go live. « Votre offre démarre à la mise
+/// en ligne de votre salon. » stays true: going live is now the validation.
+/// Same on iOS and Android — there is no platform branch to keep in step.
 ///
 /// General help stays where every screen's help lives: Profil → « Aide &
 /// Support ». Design: docs/design/pro-companion-path.md §2.2.

@@ -2,9 +2,9 @@
 
 | | |
 |---|---|
-| **Status** | Approved 2026-10-05 (owner: §11 Q1–Q4, every recommended option). **Its product decisions stand. Its reading of 3.1.3(f) was too wide: see the note in §1 (2026-11-03)** |
+| **Status** | Approved 2026-10-05 (owner: §11 Q1–Q4, every recommended option). **Its product decisions stand. Its reading of 3.1.3(f) was too wide: see the note in §1 (2026-11-03)**. **Noted 2026-11-13 (B0.18, [salon-go-live-approval.md](salon-go-live-approval.md) §3.6, decided 2026-11-12): the trial no longer starts at the publish.** The publish is a request; the trial starts when MyWeli validates the salon, unless an offer chosen on the website started it first (Q2 re-decided, decision 120 refined by that spec's Q2). Dated notes at §1, §2's happy path, §3.1 and §11 Q2; the rest stands. |
 | **Owner** | Sadreddine Daher |
-| **Last updated** | 2026-11-03 |
+| **Last updated** | 2026-11-13 (B0.18's Pro-app PR: the trial starts at MyWeli's validation — dated notes) |
 | **PRD ref / phase** | PRD §6.2 (salon offers), OQ-3 (store billing) · V1 |
 | **ROADMAP entry** | [2026-10-05-pro-companion-path](../roadmap/entries/2026-10-05-pro-companion-path.md) (parent: [2026-09-24-pro-app-store-readiness](../roadmap/entries/2026-09-24-pro-app-store-readiness.md)) |
 | **Skills checked** | myweli-dev-guardrails · myweli-backend-guardrails · myweli-verification-guardrails |
@@ -40,6 +40,10 @@ salon's one 3-month trial starts (`chooseOffer`, the only writer of
 picker and an iPhone-only salon can never go live, and the app may not tell it
 where to go. So the trial must start **without a choice**: the server starts
 it at the salon's first successful publish (§3.1).
+
+*2026-11-13 (B0.18):* still without a choice, but at MyWeli's validation:
+the publish records a request (202), and the validation creates the row
+when there is none (salon-go-live-approval §3.6). The app still never sells.
 
 **Both apps (§11 Q3).** The rule is not a platform branch: the Flutter Pro app
 stops offering plan choice on iOS **and** Android (Google Play's payments
@@ -154,6 +158,12 @@ publish + 90 days, and the app counts whole days left, truncated
 second later gives 89. It gives 90 only if the phone's clock runs behind the
 server's.)*
 
+*2026-11-13 (B0.18):* the button is « Demander la mise en ligne », and the
+tap is a request (« Demande envoyée. Nous vous préviendrons de la
+décision. »). « Mon abonnement » stays in its setup state until MyWeli
+validates the salon, which starts the trial and takes it live
+(salon-go-live-approval §3.6, §6.1); the 90 days run from that moment.
+
 **Trial ends.** The existing J-14/J-7/J-1/grace e-mails and pushes run (they
 are outside the binary or state-only). In the app: the grace then expired
 states above, with no button. The salon pays through the existing « Nous
@@ -179,6 +189,11 @@ on the chosen tier; the app shows it.
 ## 3. API & contract
 
 ### 3.1 Publish starts the trial when no offer exists
+
+*2026-11-13 (B0.18): history.* `startDefaultTrial` moved from the publish to
+MyWeli's validation (salon-go-live-approval §3.6): insert-if-absent, one trial
+per salon and the default tier are unchanged; the publish starts none.
+
 `POST /providers/{id}/publish` — after the demo lock and the publish gate:
 - every gate key passes **and** the salon has **no** subscription row →
   create the row (default tier, `trialEndsAt = now + 90 days`), then flip to
@@ -370,7 +385,10 @@ Answered by the owner on 2026-10-05 — every recommended option:
 
 - **Q1 → merged.** PR #550 squash-merged as `f6ffb585`; this work branches
   from it (`feat/pro-companion-path`).
-- **Q2 → at the first publish.** (Alternatives were:
+- **Q2 → at the first publish.** *Re-decided 2026-11-12 (B0.18, decision
+  120 and that spec's Q2), noted here 2026-11-13: at MyWeli's validation
+  when no offer was chosen (salon-go-live-approval §3.6).* (Alternatives
+  were:
   at salon creation (burns trial days during setup; e-mails abandoned drafts)
   · only through support (iPhone-only salons hit a wall the app cannot
   explain).)

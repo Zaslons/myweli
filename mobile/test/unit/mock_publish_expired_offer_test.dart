@@ -9,7 +9,8 @@ import 'package:myweli/services/mock/mock_subscription_service.dart';
 /// (docs/design/pro-companion-path.md §3.1, §5) — the EXPIRED half, which
 /// needs its own isolate: `serviceLocator.subscriptionService` is late-final,
 /// and here it is seeded with an offer that already ran out. (The no-row half,
-/// where publishing starts the trial, lives in `multi_salon_test.dart`.)
+/// where MyWeli's validation starts the trial and the request starts none —
+/// B0.18, salon-go-live-approval §3.6 — lives in `multi_salon_test.dart`.)
 void main() {
   final expiredAt = DateTime.now().subtract(const Duration(days: 30));
   final subs = MockSubscriptionService(

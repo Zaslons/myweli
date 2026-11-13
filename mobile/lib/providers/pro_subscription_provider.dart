@@ -10,8 +10,9 @@ import '../services/interfaces/subscription_service_interface.dart';
 /// Drives « Mon abonnement » (pricing pivot, team access R3): the salon's
 /// offer state — SETUP (no offer yet, `no_offer`) or trial/paid/grace/
 /// expired. Read-only: the Pro app never chooses or switches an offer (the
-/// server starts the trial at the first publish; offers are chosen on the
-/// web). Design: docs/design/pro-companion-path.md §2.2.
+/// server starts the trial when MyWeli validates the salon — B0.18,
+/// salon-go-live-approval §3.6; offers are chosen on the web). Design:
+/// docs/design/pro-companion-path.md §2.2.
 class ProSubscriptionProvider extends ChangeNotifier implements SalonScoped {
   final SubscriptionServiceInterface _service =
       serviceLocator.subscriptionService;
@@ -25,7 +26,7 @@ class ProSubscriptionProvider extends ChangeNotifier implements SalonScoped {
   SalonSubscription? get salon => _salon;
 
   /// True when the salon has no offer row yet (the free setup state, until
-  /// the first publish starts the trial).
+  /// MyWeli's validation starts the trial — B0.18 §3.6).
   bool get isSetup => _isSetup;
   bool get isLoading => _isLoading;
   bool get loadFailed => _loadFailed;

@@ -4,7 +4,7 @@
 |---|---|
 | **Status** | **Approved 2026-11-12 (the owner answered §11's six questions: decisions 116–123).** Not built. Reviewed three times by independent readers on 2026-11-12, every finding folded in: six readers (code, architecture, backend, design system, store documents, completeness) found 61; three found 26 on the revision; two found 18 on the third. **A prerequisite came out of the answers:** salons now wait for the owner's approval before going public (decision 120), a new feature with its own spec (B0.18), built before the closed test |
 | **Owner** | Sadreddine Daher |
-| **Last updated** | 2026-11-13 (dated notes: decisions 132, 134 and 135 at §2.7, §9.1, §9.4 and §11; decision 117 at §9.3; the audit's correction at §5.5) |
+| **Last updated** | 2026-11-13 (dated notes: decisions 132, 134 and 135 at §2.7, §9.1, §9.4 and §11; decision 117 at §9.3; the audit's correction at §5.5; then B0.18's Pro-app PR: « Demander la mise en ligne » at §2.7, §6.2 and P12) |
 | **PRD ref / phase** | FR-PRO-AUTH-001 (Pro sign-in and sign-up) · V1 |
 | **BACKLOG** | B0.10 (the Android release); this spec's decisions are 116 and up (§11) |
 | **Related** | [pro-app-login-only.md](pro-app-login-only.md) (decisions 38–43: sign-in only, both platforms) · [app-review-round-2.md](app-review-round-2.md) (decision 71: the website link went) · [android-play-release.md](android-play-release.md) (decisions 110–115: the release order this slice enters) · [play-store-forms.md](play-store-forms.md) (the listing, Data safety, the closed test) · [app-store-forms.md](app-store-forms.md) §11.3 (the iOS pre-upload read) · [pro-companion-path.md](pro-companion-path.md) (the app never sells, on either platform) · [web-pro-registration.md](web-pro-registration.md) (the website's sign-up) · [pro-auth-social.md](pro-auth-social.md) · [team-access-r3-app.md](team-access-r3-app.md) (the invitations bridge) |
@@ -318,14 +318,15 @@ All of this exists today for salons created on the website:
 
 - the « Configurer mon profil » card;
 - the 8-step checklist;
-- « Mettre mon profil en ligne ».
+- « Demander la mise en ligne ».
 
 *2026-11-13:* B0.18's Pro-app PR renames that button « Demander la mise en
 ligne » (decision 132), and it merges before the 0.0.2 bump (decision 134), so
-before any of this spec's PRs unless that decision's fallback is taken. Where
-this spec quotes « Mettre mon profil en ligne » for the app after B0.18 (here,
-§6.2's R7 path, P12), read « Demander la mise en ligne » once that PR is on
-`main`; §11's quote, in decision 120, is history.
+before any of this spec's PRs unless that decision's fallback is taken. That
+PR (salon-go-live-approval §9.1 item 3, built 2026-11-13) writes the new name
+here, in §6.2's R7 path and in P12; the button was « Mettre mon profil en
+ligne » before it, and still is on a server from before B0.18 (decision 136
+item 10). §11's quote, in decision 120, is history.
 
 **Two facts the person meets:**
 
@@ -574,7 +575,7 @@ as part of those flows ». In the Android flow:
   of your app, you are free to communicate with your users about alternative
   purchase options » (help 10281818).
 - **One risk accepted with the decision (R7).** A salon's path to a running
-  90-day trial starts in the app: sign-up → « Mettre mon profil en ligne » →
+  90-day trial starts in the app: sign-up → « Demander la mise en ligne » →
   the owner's approval (B0.18) → `startDefaultTrial`. Only payment happens
   elsewhere. Google's pages do not address this (UNVERIFIED how review treats
   it). Today's version, the trial started by the publish itself, shipped on
@@ -684,7 +685,7 @@ commit records how. Source scans strip comments before matching.
 | P9 | `release_build_test` (entry by flavour); its `flutter` stub logs nothing | `android pro` → `lib/main_pro_android.dart`, `ios pro` → `lib/main_pro.dart`. The stub is changed to log its arguments, so the target is observed | 1 |
 | P10 | `route_literals_test` (the `main()` files equal its entries; pushed routes exist) | Gains `main_pro_android.dart` (PR 1). A table from `ProRouter.build(androidExtensions)` contains `/pro/register` (PR 3) | 1, 3 |
 | P11 | `pro_subscription_no_pricing_test` (scans `lib/`; bans choosing or activating offers) | Plus a ban list over the fenced directory: gratuit, essai, offre, offert, FCFA, prix, tarif, abonnement, `/mois`, myweli.com (**red:** plant one). The comments that call any platform branch a defect are reworded to « no selling, on any platform ». The consent links come from a shared widget through `AppConfig`, so this pin does not see them; decision 122 keeps them | 3 |
-| P12 | `play_store_forms_test`: the description equal to the App Store's (lines 102–117); the reviewer sign-in text ≤ 500 characters (lines 181–188); §6's pinned numbers (« les N jours d'essai gratuit », « valable N jours », « expire au bout de N jours », « N places, vous compris », « donc N invités au plus »); `onScreen()` reading only `pro_login_screen.dart` and `invitation_card.dart` | The description follows decision 121, admitting exactly that one named difference. The sign-in text stays ≤ 500 under the new line. Each §6 number stays pinned while its text stays; text that goes is deleted with its pin, the pin watched red first. `onScreen()` reads every fenced file, plus `pro_onboarding_screen.dart` if « Mettre mon profil en ligne » is quoted | 4 |
+| P12 | `play_store_forms_test`: the description equal to the App Store's (lines 102–117); the reviewer sign-in text ≤ 500 characters (lines 181–188); §6's pinned numbers (« les N jours d'essai gratuit », « valable N jours », « expire au bout de N jours », « N places, vous compris », « donc N invités au plus »); `onScreen()` reading only `pro_login_screen.dart` and `invitation_card.dart` | The description follows decision 121, admitting exactly that one named difference. The sign-in text stays ≤ 500 under the new line. Each §6 number stays pinned while its text stays; text that goes is deleted with its pin, the pin watched red first. `onScreen()` reads every fenced file, plus, if « Demander la mise en ligne » is quoted, the file that holds it: `mobile/lib/core/constants/salon_validation_copy.dart` since B0.18's Pro-app PR (`pro_onboarding_screen.dart` held « Mettre mon profil en ligne » before it) | 4 |
 | P13 | `app_review_notes_test` reads app-store-forms §11.3's lists through `scriptList()` | §11.3 gains `gone_android_signup`: §2.6 (a), `/pro/register` and `/auth/provider/register`, **in the same PR as the test**. The test reads it and checks it does not overlap the witnesses (the strings that must stay present). The expected-count row (« 14 phrases à 0, 6 témoins présents ») grows | 3 |
 | P14 | `motion_test`, `content_width_test` and `default_status_bar_style_test` find every `lib/main*.dart` and require `ReduceMotionObserver`, `ContentWidthCap` and `DefaultStatusBarStyle(` in its own source | A root whose `main()` only calls another root's `runProApp` is checked through that root. Each test asserts the delegation (`import 'main_pro.dart' show runProApp` and a `runProApp(` call) | 1 |
 | P15 | Source pins on `lib/main_pro.dart`: `pro_salon_not_loaded_test` (builder regex), `pro_cold_start_deep_link_test` (`isSignedIn`), `pro_salon_scope_booking_created_test` (`ProSalonScope.track` count), `route_literals_test:206` and `release_build_test:550-555` (`ProRouter.router`), `pro_reads_own_salon_test` | Unchanged, since the wiring stays in `main_pro.dart`. Each is run against PR 1 to see that it still finds what it pins | 1 |

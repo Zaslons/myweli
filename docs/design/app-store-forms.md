@@ -256,6 +256,12 @@ l'accompagnement (support, web). Android et le web gardent le flux actuel.
   configuration), ni par le support. Palier par défaut : Réseau si le
   propriétaire possède déjà un salon à offre Réseau en cours, sinon Pro. Un
   salon dont l'offre a expiré n'obtient jamais un second essai (spec §3.1).
+  *2026-11-13 (B0.18, [salon-go-live-approval.md](salon-go-live-approval.md)
+  §3.6) : la mise en ligne est désormais la validation de MyWeli. Le bouton
+  de l'app (« Demander la mise en ligne », à partir du build qui porte l'app
+  de B0.18) envoie une demande, qui ne démarre aucun essai ; l'essai démarre
+  à la validation, avec le même palier par défaut et toujours un seul par
+  salon. La phrase des notes « …when the salon goes live » reste vraie.*
 - **Les invitations d'équipe** restent liées à une offre en cours ; l'app le
   dit par une phrase neutre (« Vous pourrez inviter votre équipe une fois
   votre salon en ligne. »), sans bouton.
@@ -1706,12 +1712,26 @@ l'identique. Fait par Claude, sur le feu vert du propriétaire (§11.5).
       celle du serveur). Le salon est
       alors public sur myweli.com jusqu'à la suppression du compte (INFERRED :
       c'est ce que fait une publication) — d'où la suppression juste après.
+      *2026-11-13, sur un build qui porte l'app de B0.18 (la 0.0.2 selon la
+      décision 134, sauf si son repli est pris) :* le bouton est « Demander
+      la mise en ligne ». L'appui affiche « Demande envoyée. Nous vous
+      préviendrons de la décision. », puis la bannière « En cours de
+      validation » et « Demande envoyée le {date} » ; le salon reste un
+      brouillon, et « Mon abonnement » reste « Pas encore d’offre active ».
+      Rien n'est public, et aucun essai ne démarre, avant la décision dans
+      la console (« Salons à valider »). Un salon de test y est refusé avec
+      `test_salon` ([salon-go-live-approval.md](salon-go-live-approval.md)
+      §9.3) : l'app affiche alors « Mise en ligne refusée », le motif, et
+      plus de bouton.
 - [ ] **Refus démo à l'écran** (compte démo) : Profil → « Équipe » →
       « Inviter un membre » → une adresse à vous → « Continuer » →
       « Manager » → « Envoyer l’invitation » ; et « Mettre mon profil en
       ligne » si le bouton est actif. Les deux affichent alors « Compte de
       démonstration — cette action est désactivée. », sans bouton ajouté —
-      la phrase que les notes promettent (§8).
+      la phrase que les notes promettent (§8). *2026-11-13, sur un build qui
+      porte l'app de B0.18 :* le bouton porte le nom de l'état du salon démo
+      (« Demander la mise en ligne », « Renvoyer pour validation » ou
+      « Remettre en ligne ») ; un salon démo en ligne n'en a aucun.
 - [ ] **Invite de position** : Profil → « Profil du salon » → « Utiliser ma
       position » → l'alerte affiche le texte Pro du §1.3, boutons en français.
 - [ ] **Appareil photo / photos** : Photos du salon → alerte avec le texte Pro.

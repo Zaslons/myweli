@@ -9,8 +9,9 @@ import 'mock_data.dart';
 
 /// Demo offer state (pricing pivot). Defaults to the SETUP state (no offer
 /// row) so the full arc — onboarding → the request → MyWeli validates and
-/// the trial starts → team invites — is demo-able offline. The `initial` knob reaches the
-/// trial/paid/grace/expired scenarios for tests and manual QA.
+/// the trial starts → team invites — is demo-able offline. The `initial`
+/// knob reaches the trial/paid/grace/expired scenarios for tests and manual
+/// QA.
 ///
 /// R6 multi-salons: state is keyed PER SALON (each salon has its own offer
 /// and its own single trial). The `initial` seed lands on the FIRST salon
@@ -45,10 +46,11 @@ class MockSubscriptionService implements SubscriptionServiceInterface {
   }
 
   /// The server's trial start at validation (`startDefaultTrial`, §3.6 —
-  /// it was the publish's before B0.18): **insert-if-absent**. A salon with no offer row gets its one 90-day
-  /// trial on [tier]; a salon that already has a row — a choice made on the
-  /// web, a running trial, an expired offer — is left exactly as it is, so a
-  /// trial is never granted twice and a web choice is never overwritten.
+  /// it was the publish's before B0.18): **insert-if-absent**. A salon with
+  /// no offer row gets its one 90-day trial on [tier]; a salon that already
+  /// has a row — a choice made on the web, a running trial, an expired offer
+  /// — is left exactly as it is, so a trial is never granted twice and a web
+  /// choice is never overwritten.
   /// True when it created the row.
   ///
   /// The caller picks the default tier the way the server does: `reseau`

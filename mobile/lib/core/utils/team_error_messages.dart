@@ -46,8 +46,9 @@ String teamErrorMessage(String? code, {String? fallback}) => switch (code) {
 /// The invite refused by the offer gate (`offer_required`). The server sends
 /// one code for two different salons, and they need different sentences:
 ///
-/// - **no offer row** (setup — the trial starts at the first publish): the
-///   invites open once the salon is online;
+/// - **no offer row** (setup — the trial starts when MyWeli validates the
+///   salon, B0.18, salon-go-live-approval §3.6): the invites open once the
+///   salon is online;
 /// - **a row that is no longer live** (expired): the invites are unavailable.
 ///
 /// Neither names a way to get an offer (pro-companion-path §2.2, §11 Q4).
