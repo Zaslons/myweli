@@ -252,6 +252,7 @@ describe('Vérification keeps the documents the server STORED', () => {
     const kyc = strictServer<string>([]);
     let docs: { type: string; fileName?: string; key: string }[] = [];
     const posts: { type: string; key: string }[][] = [];
+    let statusReads = 0;
     vi.stubGlobal(
       'fetch',
       vi.fn(async (url: string, init?: RequestInit) => {
@@ -270,6 +271,7 @@ describe('Vérification keeps the documents the server STORED', () => {
           return json(200, answer === 'documents' ? { status: 'pending', documents: docs } : { status: 'pending' });
         }
         if (url === '/api/pro/kyc') {
+          statusReads += 1;
           return json(200, { status: posts.length ? 'pending' : 'rejected', documents: docs });
         }
         return json(404, {});
@@ -296,6 +298,8 @@ describe('Vérification keeps the documents the server STORED', () => {
       expect(docs.map((d) => d.key).sort()).toEqual(['kyc/acc-1/d1.jpg', 'kyc/acc-1/d3.jpg']),
     );
     expect(screen.queryByText('L’envoi a échoué. Réessayez.')).toBeNull();
+    // The answer's documents are used as they are: no second read when it has them.
+    expect(statusReads).toBe(answer === 'documents' ? 1 : 3);
   }
 
   it('a second submit in the same visit carries the stored keys, and is accepted', () =>
