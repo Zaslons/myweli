@@ -216,11 +216,23 @@ class FakeStorageService implements StorageService {
     required StorageBucket bucket,
   }) async => sizes[key] ?? (missing.contains(key) ? null : defaultSize);
 
+  /// **A deleted key is GONE afterwards**, as it is in R2.
+  ///
+  /// It used to be recorded and nothing else, so a deleted object went on
+  /// stat-ing at [defaultSize] — and no test could see the 2026-11-13 incident:
+  /// a client re-sent the `pending/` url of a photo the server had already
+  /// promoted (and therefore deleted), and production answered
+  /// `upload_not_found` while every test said 200.
+  /// docs/design/upload-resave-stale-pending.md.
   @override
   Future<void> deleteObject({
     required String key,
     required StorageBucket bucket,
-  }) async => deleted.add(key);
+  }) async {
+    deleted.add(key);
+    sizes.remove(key);
+    missing.add(key);
+  }
 
   @override
   Future<void> copyObject({
@@ -228,8 +240,15 @@ class FakeStorageService implements StorageService {
     required String toKey,
     required StorageBucket bucket,
   }) async {
+    // R2 answers CopyObject on an absent source with a 404, which
+    // `R2StorageService.copyObject` turns into a throw.
+    if (missing.contains(fromKey) && !sizes.containsKey(fromKey)) {
+      throw StateError('copyObject failed: HTTP 404');
+    }
     copied.add('$fromKey -> $toKey');
-    // Carry the size across so a promoted object still stats correctly.
+    // Carry the size across so a promoted object still stats correctly, and
+    // the destination exists from now on even if it was deleted before.
+    missing.remove(toKey);
     final n = sizes[fromKey];
     if (n != null) sizes[toKey] = n;
   }

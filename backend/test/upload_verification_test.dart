@@ -484,6 +484,215 @@ void main() {
       );
     });
   });
+
+  // ---------------------------------------------------------------------------
+  // docs/design/upload-resave-stale-pending.md — the 2026-11-13 incident.
+  //
+  // The website kept a photo's `pending/` url after a save the server had
+  // already promoted, so the NEXT save re-sent it. Promotion had deleted that
+  // object; `verify()` HEADed it five times over ~2.4 s and refused the whole
+  // save with `upload_not_found`. The pending form of a stored photo IS that
+  // photo — `promotedKey` is a pure function — so it passes through as the
+  // stored value, matched by MEMBERSHIP of the promoted form, never by shape.
+  // ---------------------------------------------------------------------------
+  group('a re-sent pending upload is the photo already stored', () {
+    const base = 'https://cdn.myweli.com';
+    String url(String key) => '$base/$key';
+
+    test(
+      'urls: the website sequence — promote A, then re-send it with B',
+      () async {
+        final store = _CountingStorage();
+        final first = await svc(store).promoteNewUrls(
+          [url('pending/g/p1/a.jpg')],
+          publicBaseUrl: base,
+          alreadyStored: const {},
+          bucket: StorageBucket.public,
+        );
+        expect(first.urls, [url('g/p1/a.jpg')]);
+        expect(
+          await store.objectSize(
+            key: 'pending/g/p1/a.jpg',
+            bucket: StorageBucket.public,
+          ),
+          isNull,
+          reason: 'promotion deleted the pending object, as R2 does',
+        );
+        store
+          ..heads.clear()
+          ..copied.clear()
+          ..deleted.clear();
+
+        // Exactly what MediasClient sent: its own list, still holding pendingA.
+        final r = await svc(store).promoteNewUrls(
+          [url('pending/g/p1/a.jpg'), url('pending/g/p1/b.jpg')],
+          publicBaseUrl: base,
+          alreadyStored: first.urls.toSet(),
+          bucket: StorageBucket.public,
+        );
+        expect(r.ok, isTrue, reason: 'error was ${r.error}');
+        expect(r.urls, [url('g/p1/a.jpg'), url('g/p1/b.jpg')]);
+        expect(store.heads, [
+          'pending/g/p1/b.jpg',
+        ], reason: 'A is not looked up');
+        expect(store.copied, ['pending/g/p1/b.jpg -> g/p1/b.jpg']);
+        expect(store.deleted, ['pending/g/p1/b.jpg']);
+      },
+    );
+
+    test(
+      'keys: a KYC re-submit with the first submit\'s pending keys',
+      () async {
+        final store = _CountingStorage()..missing.add('pending/kyc/a1/id.jpg');
+        final r = await svc(store).promoteNewKeys(
+          ['pending/kyc/a1/id.jpg', 'pending/kyc/a1/selfie-v2.jpg'],
+          alreadyStored: const {'kyc/a1/id.jpg'},
+          bucket: StorageBucket.kyc,
+        );
+        expect(r.ok, isTrue, reason: 'error was ${r.error}');
+        expect(r.keys, ['kyc/a1/id.jpg', 'kyc/a1/selfie-v2.jpg']);
+        expect(store.heads, ['pending/kyc/a1/selfie-v2.jpg']);
+        expect(store.copied, [
+          'pending/kyc/a1/selfie-v2.jpg -> kyc/a1/selfie-v2.jpg',
+        ]);
+      },
+    );
+
+    test(
+      'a save of ONLY re-sent pending urls touches storage not at all',
+      () async {
+        final store = _CountingStorage()..missing.add('pending/g/p1/a.jpg');
+        final r = await svc(store).promoteNewUrls(
+          [url('pending/g/p1/a.jpg')],
+          publicBaseUrl: base,
+          alreadyStored: {url('g/p1/a.jpg')},
+          bucket: StorageBucket.public,
+        );
+        expect(r.ok, isTrue);
+        expect(r.urls, [url('g/p1/a.jpg')]);
+        expect(store.heads, isEmpty);
+        expect(store.copied, isEmpty);
+        expect(store.deleted, isEmpty);
+      },
+    );
+
+    test('order survives: a re-sent url keeps its slot', () async {
+      final store = _CountingStorage()..missing.add('pending/g/p1/b.jpg');
+      final r = await svc(store).promoteNewUrls(
+        [
+          url('pending/g/p1/c.jpg'),
+          url('pending/g/p1/b.jpg'),
+          url('g/p1/a.jpg'),
+        ],
+        publicBaseUrl: '$base/',
+        alreadyStored: {url('g/p1/a.jpg'), url('g/p1/b.jpg')},
+        bucket: StorageBucket.public,
+      );
+      expect(r.urls, [url('g/p1/c.jpg'), url('g/p1/b.jpg'), url('g/p1/a.jpg')]);
+    });
+
+    test('MEMBERSHIP, not shape: the pending form of a photo NOT in this set '
+        'is not passed through', () async {
+      // `g/p2/x.jpg` is stored — for ANOTHER salon. Its pending form is
+      // well-formed, but this caller's set does not hold the promoted url,
+      // so it takes the normal path and is refused once the object is gone.
+      final store = _CountingStorage()..missing.add('pending/g/p2/x.jpg');
+      final r = await svc(store).promoteNewUrls(
+        [url('pending/g/p2/x.jpg')],
+        publicBaseUrl: base,
+        alreadyStored: {url('g/p1/a.jpg')},
+        bucket: StorageBucket.public,
+      );
+      expect(r.ok, isFalse);
+      expect(r.error, 'upload_not_found');
+      expect(store.heads, ['pending/g/p2/x.jpg']);
+
+      // The key-shaped twin: account a2's id document, already promoted (so
+      // its pending object is gone), re-sent by account a1.
+      store.missing.add('pending/kyc/a2/id.jpg');
+      final k = await svc(store).promoteNewKeys(
+        ['pending/kyc/a2/id.jpg'],
+        alreadyStored: const {'kyc/a1/id.jpg'},
+        bucket: StorageBucket.kyc,
+      );
+      expect(k.ok, isFalse, reason: 'another account\'s key is not ours');
+      expect(k.error, 'upload_not_found');
+    });
+
+    test(
+      'the CLAIM form is unchanged: a deleted pending key is refused',
+      () async {
+        // Deposits and bookings claim with `verifyAndPromote`, which is
+        // `promoteNewKeys(alreadyStored: {})` — nothing to match, so a re-sent
+        // deposit proof still needs a live object.
+        final store = _CountingStorage();
+        final first = await svc(store).verifyAndPromote([
+          'pending/deposit/u1/p.jpg',
+        ], bucket: StorageBucket.deposit);
+        expect(first.ok, isTrue);
+        final again = await svc(store).verifyAndPromote([
+          'pending/deposit/u1/p.jpg',
+        ], bucket: StorageBucket.deposit);
+        expect(again.ok, isFalse);
+        expect(again.error, 'upload_not_found');
+      },
+    );
+  });
+
+  group('FakeStorageService forgets what it deletes, as R2 does', () {
+    test('a deleted key stats as absent and cannot be copied', () async {
+      final store = FakeStorageService(sizes: {'pending/x.jpg': 7});
+      await store.deleteObject(
+        key: 'pending/x.jpg',
+        bucket: StorageBucket.public,
+      );
+      expect(
+        await store.objectSize(
+          key: 'pending/x.jpg',
+          bucket: StorageBucket.public,
+        ),
+        isNull,
+      );
+      await expectLater(
+        store.copyObject(
+          fromKey: 'pending/x.jpg',
+          toKey: 'x.jpg',
+          bucket: StorageBucket.public,
+        ),
+        throwsStateError,
+      );
+    });
+
+    test('a copy brings a previously deleted destination back', () async {
+      final store = FakeStorageService(defaultSize: 3)..missing.add('x.jpg');
+      await store.copyObject(
+        fromKey: 'pending/x.jpg',
+        toKey: 'x.jpg',
+        bucket: StorageBucket.public,
+      );
+      expect(
+        await store.objectSize(key: 'x.jpg', bucket: StorageBucket.public),
+        3,
+      );
+    });
+  });
+}
+
+/// The forgetting fake, recording every size lookup — "no storage I/O" is
+/// asserted, not assumed.
+class _CountingStorage extends FakeStorageService {
+  _CountingStorage() : super(defaultSize: 10);
+
+  final List<String> heads = [];
+
+  @override
+  Future<int?> objectSize({
+    required String key,
+    required StorageBucket bucket,
+  }) {
+    heads.add(key);
+    return super.objectSize(key: key, bucket: bucket);
+  }
 }
 
 /// Storage whose every call throws — the fail-closed fixture.

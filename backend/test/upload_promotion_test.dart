@@ -569,6 +569,108 @@ void main() {
       expect(r.ok, isTrue);
       expect(await stored(), isEmpty);
     });
+
+    // upload-resave-stale-pending.md — the 2026-11-13 production refusals.
+    // Every test above re-sends what the SERVER handed back, which is what the
+    // Pro app does. The website re-sent its OWN list, still holding the pending
+    // url promotion had already deleted, and every add after the first in a
+    // page visit was refused (400 upload_not_found after ~2.4 s).
+    test('the WEBSITE sequence: a second add re-sending the first photo\'s '
+        'pending url is accepted', () async {
+      await seedOne(); // promoted a.jpg, and deleted its pending object
+      final r = await save([
+        url('pending/gallery/provider1/a.jpg'), // the website's stale entry
+        url('pending/gallery/provider1/b.jpg'), // the new upload
+      ]);
+      expect(r.ok, isTrue, reason: 'error was ${r.error}');
+      expect(await stored(), [
+        url('gallery/provider1/a.jpg'),
+        url('gallery/provider1/b.jpg'),
+      ], reason: 'the stored, promoted url — never the pending one');
+      expect(store.copied, [
+        'pending/gallery/provider1/b.jpg -> gallery/provider1/b.jpg',
+      ], reason: 'a is already promoted: nothing to copy');
+    });
+
+    test(
+      'a stale pending url from ANOTHER salon still refuses the save',
+      () async {
+        await seedOne();
+        store.missing.add('pending/gallery/provider2/theirs.jpg');
+        final r = await save([
+          url('pending/gallery/provider2/theirs.jpg'),
+          url('pending/gallery/provider1/b.jpg'),
+        ]);
+        expect(r.ok, isFalse);
+        expect(r.error, 'upload_not_found');
+        expect(await stored(), [url('gallery/provider1/a.jpg')]);
+      },
+    );
+  });
+
+  group('before/after — the website re-sent its own pending urls', () {
+    late _PublicStorage store;
+    late ProviderCatalogService catalog;
+    late String accountId;
+
+    setUp(() async {
+      final providerAuth = InMemoryProviderAuthRepository(
+        tokens: TokenService(secret: 'test-secret'),
+        echoDevCode: true,
+      );
+      store = _PublicStorage();
+      catalog = ProviderCatalogService(
+        InMemoryProvidersRepository(_freshSeed()),
+        providerAuth,
+        MembershipService(InMemoryMembershipRepository(), providerAuth),
+        allowedImageOrigins: const [base],
+        verifier: UploadVerificationService(storage: store),
+        publicBaseUrl: base,
+      );
+      final reg = await providerAuth.register(
+        email: 'ba2@test.pro',
+        authProvider: 'google',
+        googleSub: 'ba2-sub',
+        phoneNumber: '+2250500000031',
+        businessName: 'X',
+        businessType: 'salon',
+        providerId: 'provider1',
+      );
+      accountId = reg.provider!.id;
+    });
+
+    test(
+      'a second pair re-sending the first pair as pending is accepted',
+      () async {
+        Future<CatalogResult> save(List<Map<String, dynamic>> pairs) =>
+            catalog.updateBeforeAfters(accountId, 'provider1', {
+              'beforeAfters': pairs,
+            });
+        final p1 = {
+          'before': url('pending/ba/p1/b1.jpg'),
+          'after': url('pending/ba/p1/a1.jpg'),
+        };
+        expect((await save([p1])).ok, isTrue);
+        store.copied.clear();
+
+        final r = await save([
+          p1, // MediasClient's own entry, never replaced by the response
+          {
+            'before': url('pending/ba/p1/b2.jpg'),
+            'after': url('pending/ba/p1/a2.jpg'),
+          },
+        ]);
+        expect(r.ok, isTrue, reason: 'error was ${r.error}');
+        final saved = (r.data! as Map)['beforeAfters'] as List;
+        expect((saved[0] as Map)['before'], url('ba/p1/b1.jpg'));
+        expect((saved[0] as Map)['after'], url('ba/p1/a1.jpg'));
+        expect((saved[1] as Map)['after'], url('ba/p1/a2.jpg'));
+        expect(store.copied, [
+          'pending/ba/p1/b2.jpg -> ba/p1/b2.jpg',
+          'pending/ba/p1/a2.jpg -> ba/p1/a2.jpg',
+        ]);
+      },
+    );
   });
 
   group('KYC could not be PARTIALLY resubmitted', () {
@@ -699,6 +801,25 @@ void main() {
         );
       },
     );
+
+    test('a re-submit with the FIRST submit\'s pending keys is accepted — '
+        'what the website and the Pro app both sent', () async {
+      // Both clients kept `_documents` / `docs` from before the submit, so a
+      // second submit in the same visit re-sent keys promotion had deleted.
+      await seed();
+      await reject();
+      final r = await submit([
+        {'type': 'idCard', 'key': pending('id-v2.jpg')}, // replaced
+        {'type': 'selfie', 'key': pending('selfie.jpg')}, // stale entry
+      ]);
+      expect(r.ok, isTrue, reason: 'error was ${r.error}');
+      final docs = r.data!['documents']! as List;
+      expect((docs[0] as Map)['key'], promoted('id-v2.jpg'));
+      expect((docs[1] as Map)['key'], promoted('selfie.jpg'));
+      expect(store.copied, [
+        '${pending('id-v2.jpg')} -> ${promoted('id-v2.jpg')}',
+      ]);
+    });
 
     test('an unbounded document list is refused', () async {
       expect(
