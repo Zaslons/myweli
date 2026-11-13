@@ -218,12 +218,17 @@ describe('« Aujourd’hui » — the card in every state (owner)', () => {
     expect(screen.getByText('Contactez MyWeli pour en savoir plus.')).toBeTruthy();
   });
 
-  it('suspended, old server: nothing, as today', async () => {
+  it('suspended, old server: no card at all, as today', async () => {
     serve({ p1: profile('p1', 'Beauté Divine', 'suspended') });
     render(<Harness />);
     await heading();
     await screen.findByText('Rendez-vous du jour');
+    // Not the suspended banner — and not today's draft card either (the old
+    // server's suspended salon never had one).
     expect(screen.queryByText(/suspendu/)).toBeNull();
+    expect(screen.queryByText('Votre salon n’est pas encore en ligne')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Mettre en ligne' })).toBeNull();
+    expect(screen.queryByRole('link', { name: 'Aperçu de ma page' })).toBeNull();
   });
 
   it('live: no card', async () => {
@@ -454,9 +459,15 @@ describe('« Aujourd’hui » — `/pro?salon=` switches once (§4.5)', () => {
 
   it('a server that answers the switch but keeps the old salon → asked ONCE, then why', async () => {
     const salons = two();
+    let asked = 0;
     const { calls } = serve(salons, {
       // The select says yes; /me stays on p1 (the selection did not stick).
-      select: () => new Response(JSON.stringify(salons.p3), { status: 200 }),
+      // A SECOND ask is refused, so a page without the guard fails this test
+      // (two selects) instead of switching for ever.
+      select: () =>
+        ++asked === 1
+          ? new Response(JSON.stringify(salons.p3), { status: 200 })
+          : new Response(JSON.stringify({ error: 'forbidden' }), { status: 403 }),
     });
     render(<Harness salon="p3" />);
     expect(await screen.findByRole('alert')).toHaveTextContent('Changement impossible');
