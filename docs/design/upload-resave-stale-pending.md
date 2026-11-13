@@ -210,6 +210,32 @@ untouched.
   instead of on the stored set; remove each client adoption. Every one must
   turn a test red.
 
+### 8.1 What was measured (2026-11-13)
+
+- **Red first, for the production reason:** the three backend surface tests
+  failed with `upload_not_found`; the six first website tests failed because
+  the old pages re-sent `…/pending/…`; the two app tests on the pending key.
+- **Mutations — backend 9/9 killed:** pass-through removed (keys, urls), shape
+  instead of membership (keys, urls), the pending value returned instead of
+  the stored one (keys, urls), and the fake's three behaviours (forget on
+  delete, refuse a copy from an absent source, a copy restores its
+  destination).
+- **Website 14/14 killed — five only after a test was added.** W5, W9, W11,
+  W12 and W14 first survived because the read-back fallback repaired a page
+  that skipped the answer, or a page that always read back. Each got a test:
+  "no second read when the answer carries the list" (Médias, Vérification,
+  Profil), the profile answer's `logoUrl` (string / null / not said), and the
+  Vérification read-back.
+- **App 2/3 killed;** the third (refilling without `clear()`) is equivalent:
+  documents are keyed by type and the server stores exactly the submitted set.
+- **The e2e guard, red:** `pro.spec.ts` « médias » against the old Médias page
+  fails on the new assertion — two `cdn.stub/pending/…` thumbnails.
+- **Suites, on the final code:** backend 2503 passed / 10 skipped (Postgres
+  tests skip locally — CI runs them), format + analyze clean; website Vitest
+  3023 passed, typecheck, lint, no contract drift; app `flutter analyze` 0 and
+  `test/unit` 1634 passed; e2e `pro.spec.ts` + `pro-upload.spec.ts` 54 passed,
+  `next build` included.
+
 ## 9. Rollout
 
 1. PR → CI green → owner merges.
