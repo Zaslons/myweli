@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | **Approved and built 2026-11-13** (owner: « add the daily check »), on `ci/console-access-daily-check`, **not merged**. 16 mutations watched red; green against production from the owner's Mac; **not yet run on GitHub** |
+| **Status** | **Approved and built 2026-11-13** (owner: « add the daily check »), on `ci/console-access-daily-check`, **not merged** (this line, the index row and the roadmap entry are set to merged, with the PR number and SHA, after the merge: §10). 25 mutations watched red (16 at build, 9 after the review); green against production from the owner's Mac; **not yet run on GitHub** |
 | **Owner** | Sadreddine Daher |
 | **Last updated** | 2026-11-13 |
 | **PRD ref / phase** | Operations, no product requirement · V1 |
@@ -25,7 +25,7 @@
 - A test that runs the real script against a local server, both ways, and holds the job's wiring (§7).
 
 **Out of scope, and why:**
-- **Managing Access as code** (Terraform or the API). It would need a Cloudflare token with Access rights in CI, and CI holds no Cloudflare identity on purpose (infra/cloudflare/README.md). An anonymous read needs no identity at all.
+- **Managing Access as code** (Terraform or the API). It would need a Cloudflare token with Access rights in CI. CI's only Cloudflare token is `deploy-admin.yml`'s `CLOUDFLARE_API_TOKEN`, documented there as « Cloudflare Pages: Edit » (its real scope is visible only in the dashboard); giving CI one that can edit Access is what this avoids. An anonymous read needs no identity at all.
 - **Fixing what it finds.** The fix is a dashboard edit by the owner; the message names it.
 - **The API.** `api.myweli.com` is not behind Access, by design: its admin routes are guarded by the backend's own admin authentication (T66). This check is about the console's pages and code only.
 
@@ -35,7 +35,7 @@ No screen, endpoint, contract or table changes. The only « user » is the perso
 
 ## 3. What it asserts (`infra/cloudflare/98-verify-console-access.sh`)
 
-For each URL, **one** anonymous `GET`, redirects **not** followed (`curl -sS -o /dev/null --max-time 20 --retry 2 --retry-delay 5`; `--retry` covers timeouts and 408/429/5xx only, never a refused connection).
+For each URL, **one** anonymous `GET`, redirects **not** followed (`curl -sS -o /dev/null --max-time 20 --retry 2 --retry-delay 5`; `--retry` covers timeouts, a failed DNS lookup (seen with curl 8.7.1) and 408, 429, 500, 502, 503, 504, never a refused connection). `-w` reads the status, the resolved `Location` and the `cf-mitigated` header, one per line (`%header{}` needs curl 7.84; `ubuntu-latest` has 8.5).
 
 **Green for a URL only if both hold:**
 1. the status is a redirect: `301`, `302`, `303`, `307` or `308`;
@@ -66,11 +66,14 @@ The team host defaults to `blue-base-1ad1.cloudflareaccess.com`, the Zero Trust 
 |---|---|
 | `2xx` | « the console is PUBLIC at `<url>` », then the fix (§5) |
 | a redirect to anywhere but the sign-in for this host | the code, where it pointed (query removed) and where it should have pointed, then the fix. If the path is right and only the host is a different `*.cloudflareaccess.com`, it adds that the team domain may have been renamed, and that the default in the script needs the new one |
-| a redirect with no `Location` | the code and « no Location » |
-| any other status (`404`, `403`, `5xx` after retries) | « answered `<code>` instead of sending the visitor to the Access sign-in: Access is not answering for `<host>` », then the fix |
+| a redirect with no `Location` | the code and « no Location », then the fix |
+| `404` on the probe | « Pages does not know this made-up address, so Access no longer answers before Pages there — the wildcard `*.myweli-admin.pages.dev` is gone, and every preview address is public », then the fix |
+| any other status (`403`, `5xx` after retries, a `404` on another address) | « answered `<code>`: neither the Access sign-in nor the console. Red, but it does not show the console is public », then a look by hand (open the address in a private window, read « Myweli Admin », add the hostname back only if it is missing) and **no** « Fix: » line. When Cloudflare marked the answer `cf-mitigated`, it says so: a challenge of the machine running the check, not of the console's visitors |
 | no answer at all (curl's `000`) | « could not reach `<url>` — nothing measured » with curl's error. **Red**: a check that measured nothing is not green (the `basemap` job's rule) |
 
-**If the wildcard goes**, the probe gets whatever Pages answers for an alias it does not know, a `404` per the 2026-11-13 notes. The check does not depend on which: anything but the Access redirect is red, and §5 says what a `404` on the probe means.
+**The fix names the hostname Access is configured with.** For the probe, that is the wildcard: « Fix: add `*.myweli-admin.pages.dev` back … », followed by « every preview address is public without `*.myweli-admin.pages.dev` » and « Do not put the probe's own name … in the application: that would turn this check green with every preview still public ». Adding `zz-access-probe.myweli-admin.pages.dev` itself to « Myweli Admin » would make Access redirect the probe to its own sign-in (green) while every real `<hash>.myweli-admin.pages.dev` stayed public. That is the one path by which following the check's own output could leave the console public with the check green, which is why the probe's fix never names the probe.
+
+**If the wildcard goes**, the probe gets whatever Pages answers for an alias it does not know: a `404`, per the 2026-11-13 notes and per `https://zz-access-probe.cloudflare-docs.pages.dev/`, a Pages project with no Access, read the same day. The check does not depend on which: anything but the Access redirect is red, and §5 says what a `404` on the probe means.
 
 **The rehearsal seam.** `CONSOLE_ACCESS_URLS` (URLs separated by spaces or newlines) and `CONSOLE_ACCESS_TEAM_HOST` replace the list and the team host, and the script says so on its first line. They exist so the test can reach every red branch against a local server; reaching them against production means removing Access. Set but empty, either one is refused rather than swapped for the default or read as « nothing failed ». No workflow may set either (§7).
 
@@ -84,10 +87,11 @@ It is a monitor, not a gate: Access changes in a dashboard, not on a merge.
 
 ## 5. What red means, and the fix
 
-**Red means the console's code is public at that address right now**, or, for `000`, that nothing could be read. The paragraph in the alarm issue, and each error line, say:
+**Red means an address did not answer with the Access sign-in for itself.** Usually the console is public there; a `403`, a `5xx` or a `404` off the probe shows nothing public, and says so; `000` means nothing could be read. The paragraph in the alarm issue, and each error line, say:
 
 - **A `200` (or any `2xx`):** the console is public at that address. Add the hostname back to the Access application « Myweli Admin » in the Cloudflare dashboard (Zero Trust → Access → Applications), policy « Admins » unchanged — [DEPLOYMENT.md](../DEPLOYMENT.md) « Restrict ». Then re-run the job.
-- **A `404` on `zz-access-probe`:** the wildcard `*.myweli-admin.pages.dev` is gone from the application, so every real preview address is public. Same fix.
+- **A `404` (or a `2xx`) on `zz-access-probe`:** the wildcard `*.myweli-admin.pages.dev` is gone from the application, so every real preview address is public. Add `*.myweli-admin.pages.dev` back, **never the probe's own name**: that would turn this check green with every preview still public.
+- **A `403`, a `5xx`, or a `404` on another address:** neither the console nor the sign-in answered. Not proof of exposure: open the address in a private window and read « Myweli Admin » before editing Access, and add the hostname back only if it is missing. A `403` marked `cf-mitigated` is Cloudflare challenging the machine that ran the check (§8).
 - **A redirect to another `*.cloudflareaccess.com`, right path:** the team domain was renamed. Nothing is public; update the default team host in the script, in a PR.
 - **`000`:** re-run the job. If it stays red, look at the address by hand.
 
@@ -101,11 +105,12 @@ It is a monitor, not a gate: Access changes in a dashboard, not on a merge.
 
 It runs the **real** script with `bash`, against a local `HttpServer` (`dart:io`) through the two overrides, with only `PATH` from outside, and asynchronously (a synchronous spawn would block the server it calls):
 - **Green:** a `302` to `https://<team>/cdn-cgi/access/login/127.0.0.1?…`, and the same for `301`, `303`, `307`, `308`.
-- **Red, each with its line:** `200` (« PUBLIC », « Myweli Admin », « Restrict »); `404`; `403`; a redirect to another host; Pages' own relative redirect; the team host but another hostname's sign-in; a login path that only starts with the right hostname; a look-alike host; a userinfo host; plain `http`; a renamed team domain (and its hint); a redirect with no `Location`; a closed port (« nothing measured »).
+- **Red, each with its line:** `200` (« PUBLIC », « Myweli Admin », « Restrict », the fix naming that very hostname and no probe note); a redirect to another host; Pages' own relative redirect; the team host but another hostname's sign-in; a login path that only starts with the right hostname; a look-alike host; a userinfo host; plain `http`; a renamed team domain (and its hint); a redirect with no `Location`; a closed port (« nothing measured »).
+- **Red, nothing shown public:** a `404` and a `403` from the local server say « neither the Access sign-in nor the console », « does not show the console is public » and « Look by hand », with no « Fix: » line; a `403` with `cf-mitigated: challenge`, read through the real curl, is named as a challenge.
 - **All are checked:** a bad URL first, then good ones, then a second bad one: exit `1`, both bad named, both good reported, « 2 of 4 ».
 - **Vacuity:** a list of spaces only is refused, an empty team host too, and either variable set but empty is refused with no request made (never swapped for the production list).
-- **The default list, against a stand-in `curl`** that logs each call and answers as Access does: with no override, the script asks for exactly the six URLs of §3, in that order, never with `-L`, and is green; the same stand-in answering `200` for `myweli-admin.pages.dev` turns it red. This holds the list and the default team host without touching production.
-- **Wired:** the job exists, checks out before it runs exactly `bash infra/cloudflare/98-verify-console-access.sh`, holds `contents: read` only, sets no env; no workflow assigns either override; the job's result is in `report`'s env and status line, and the body names the fix. The script is executable and names no credential.
+- **The default list, against a stand-in `curl`** that logs each call and answers as Access does: with no override, the script asks for exactly the six URLs of §3, in that order, never with `-L`, and is green; the same stand-in answering `200` for `myweli-admin.pages.dev` turns it red, with that hostname's fix and no wildcard. Answering `404` or `200` for the probe, the fix names `*.myweli-admin.pages.dev`, says every preview is public, warns off the probe's own name and never says « add zz-access-probe »; a `404` there says the wildcard is gone; a `403` there asks for a look by hand at the wildcard. This holds the list, the default team host and the probe's fix without touching production.
+- **Wired:** the job exists, checks out before it runs exactly `bash infra/cloudflare/98-verify-console-access.sh`, holds `contents: read` only, sets no env; no workflow assigns either override; the job's result is in `report`'s env and status line, and the body, read as the issue reads it, names the fix, the wildcard rather than the made-up name, that a `403`, a `5xx` or a `404` elsewhere shows nothing public, and `cf-mitigated`. The script is executable and names no credential.
 
 `production_alarm_test.dart` already derives `report.needs` and `clear.needs` from the jobs in the file, and `web/tests/production-alarm-status.test.ts` derives the status line, so both hold the new job with no edit.
 
@@ -118,7 +123,7 @@ Stated so nobody reads it as more (verification guardrails §12):
 - **A new address.** A second Pages project, a new custom domain, or the bundle copied anywhere else is not on the list.
 - **Other paths.** It reads `/` and `/main.dart.js`. A Bypass policy on, say, `/assets/*` would not show. The bundle is the part that matters, and it is read.
 - **The hours between runs.** Once a day: a hostname removed at 06:05 UTC is public until the next morning.
-- **Whether GitHub's network gets the same answer as a laptop.** Measured from the owner's Mac only until the first run on GitHub. If Cloudflare ever challenges GitHub's addresses, the job goes red with a `403`, which is red for the wrong reason and says so.
+- **Whether GitHub's network gets the same answer as a laptop.** Measured from the owner's Mac only until the first run on GitHub. If Cloudflare ever challenges GitHub's addresses, the job goes red with a `403`. That is red for the wrong reason, and the log says so: it shows nothing public, asks for a look by hand before any Access edit, and names the challenge when Cloudflare marks the answer `cf-mitigated`. A challenge without that header reads as any other `403`.
 
 ## 9. Rollout
 
@@ -133,26 +138,40 @@ Stated so nobody reads it as more (verification guardrails §12):
    | `000` read as green | « no answer at all », « a bad one first… » |
    | stop after the first failure | « a bad one first… », « a public address in the production list » |
    | the wildcard probe dropped from the defaults | the three default-list tests |
-   | `access` removed from `clear.needs` | `production_alarm_test` « clear hears from every other job », « a red run reaches the alarm » |
+   | `access` removed from `clear.needs` | `production_alarm_test` « clear hears from every other job in the file »; `console_access_check_test` « a red run reaches the alarm » |
    | `-L` added to curl | 16 tests, green and red |
    | a plain-`http` `Location` accepted | « plain http to the team host » |
    | `Location` printed with its query | the five cases whose `Location` carries one |
    | `:-` instead of `-` for the list | « a variable set but empty is refused » |
    | `myweli-admin.pages.dev/main.dart.js` dropped from the defaults | the three default-list tests |
    | the job overrides the list inline | « runs exactly the script », « sets no variable » |
-   | `access` removed from `report.needs` | `production_alarm_test` « report hears from every other job », « a red run reaches the alarm » |
+   | `access` removed from `report.needs` | `production_alarm_test` « report hears from every other job in the file »; `console_access_check_test` « a red run reaches the alarm » |
    | « console access » dropped from the status line | « a red run reaches the alarm » |
    | the job's `permissions` block removed | « holds contents: read and nothing else » |
-3. ~~Live, from the owner's Mac~~ **Done 2026-11-13, 10:35 UTC**: the defaults all six green, each `302` to the sign-in of its own hostname; the list overridden to `https://myweli.com/` → red « the console is PUBLIC at https://myweli.com/ » (200); to `https://cloudflare-docs.pages.dev/` → red, « answered 404 »; to `https://127.0.0.1:9/` → red, « could not reach … — nothing measured » (curl 7).
-4. Merge. Until then the 06:00 schedule runs `main`'s file, which has no `access` job; the first scheduled run after the merge is the first daily one. A `workflow_dispatch` on the branch before merging would read it from GitHub's network, on the owner's say.
+
+   **After the review, 2026-11-13: 9 of 9 red** on `31d55c21`, in `console_access_check_test`, each restored and the tree read back clean:
+
+   | Mutation (one edit) | Fell |
+   |---|---|
+   | the probe's fix built from the probe's own name, not the wildcard | the four probe tests (`404`, `200`, `403`, « says the wildcard is gone ») |
+   | a `404` on the probe read like any other `404` | the probe `404` tests |
+   | the « add back » fix printed again for a `403`, a `5xx` or a `404` elsewhere | « 404 on an address that is not the probe », « 403 », the challenge, the probe `403` |
+   | `cf-mitigated` no longer read by curl | « a Cloudflare challenge of the runner is named as one » |
+   | the probe note (every preview, never the probe's name) dropped | the probe `404` and `200` tests |
+   | the probe note printed for every hostname | « 200 on a real hostname: its fix names that hostname, no probe note » |
+   | every hostname mapped to a wildcard | five tests, among them « a public address in the production list » |
+   | the alarm paragraph naming the probe as the fix | « a red run reaches the alarm » |
+   | the alarm paragraph calling a `403`, a `5xx` or a `404` elsewhere proof of exposure | « a red run reaches the alarm » |
+3. ~~Live, from the owner's Mac~~ **Done 2026-11-13, 10:35 UTC**: the defaults all six green, each `302` to the sign-in of its own hostname; the list overridden to `https://myweli.com/` → red « the console is PUBLIC at https://myweli.com/ » (200); to `https://cloudflare-docs.pages.dev/` → red, « answered 404 »; to `https://127.0.0.1:9/` → red, « could not reach … — nothing measured » (curl 7). **Again after the review, 10:59 UTC**: the defaults all six green; `https://cloudflare-docs.pages.dev/` → red, « answered 404: neither the Access sign-in nor the console », the look by hand and no « Fix: » line; `https://zz-access-probe.cloudflare-docs.pages.dev/` → red, « the wildcard `*.cloudflare-docs.pages.dev` is gone » and « Fix: add `*.cloudflare-docs.pages.dev` back ».
+4. Merge. Until then the 06:00 schedule runs `main`'s file, which has no `access` job; the first scheduled run after the merge is the first daily one. A `workflow_dispatch` on the branch before merging would read it from GitHub's network, on the owner's say. **Merging it starts `deploy-backend.yml`**, because the new test lives under `backend/`, one of its push paths. With `infra/gcp/staging.state` at `absent`, that run builds and pushes an image tagged with the merge SHA and runs the pin and emitter checks against production; it deploys nothing. The production promotion names its `image_tag` on purpose, so the new tag changes nothing there.
 
 ## 10. Definition of done
 
-- [x] `dart format` clean · `dart analyze --fatal-infos --fatal-warnings` = 0 · `backend/test/infra/` green · the whole backend suite green.
-- [x] Every mutation of §9 step 2 watched red.
+- [x] `dart format` clean · `dart analyze --fatal-infos --fatal-warnings` = 0 · `backend/test/infra/` green · the whole backend suite green (at `83b30945`; after the review fixes, `backend/test/infra/` only).
+- [x] Every mutation of §9 step 2 watched red, the review's nine included.
 - [x] LAUNCH.md (the Access box), DEPLOYMENT.md « Restrict », `deploy-admin.yml`'s header, `infra/cloudflare/README.md`, the spec index and a roadmap entry ([2026-11-13](../roadmap/entries/2026-11-13-console-access-daily-check.md)) updated in the same PR.
 - [ ] Feature branch + PR; CI green; no Claude attribution.
-- [ ] After merge: the first scheduled run read in the job log, not only its conclusion.
+- [ ] After merge: the first scheduled run read in the job log, not only its conclusion; and the « not merged » status lines (this spec's Status, the row in [README.md](README.md), the roadmap entry's first line) set to merged, with the PR number and SHA.
 
 ## 11. Open questions
 

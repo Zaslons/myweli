@@ -846,10 +846,17 @@ serves rather than failing silently in the browser).
   `/main.dart.js` (the wildcard through the made-up
   `zz-access-probe.myweli-admin.pages.dev`) must redirect an anonymous visitor
   to `https://blue-base-1ad1.cloudflareaccess.com/cdn-cgi/access/login/<that
-  host>`. Red opens the alarm issue and names the address; the fix is to add
-  the hostname back to « Myweli Admin » here. If the Zero Trust team domain is
-  ever renamed, the script's `TEAM_HOST_DEFAULT` needs the new one
-  ([design/infra-console-access-check.md](design/infra-console-access-check.md)).
+  host>`. Red opens the alarm issue and names the address, what came back and
+  what to do. A `200` means the console is public there: add that hostname
+  back to « Myweli Admin » here. For the probe, the hostname to add back is
+  the wildcard `*.myweli-admin.pages.dev`, never
+  `zz-access-probe.myweli-admin.pages.dev` itself: that name would turn the
+  check green with every preview address still public. A `403`, a `5xx` or a
+  `404` on another address shows nothing public: look by hand before editing
+  Access (a `403` marked `cf-mitigated` is Cloudflare challenging GitHub's
+  runner). If the Zero Trust team domain is ever renamed, the script's
+  `TEAM_HOST_DEFAULT` needs the new one
+  ([design/infra-console-access-check.md](design/infra-console-access-check.md) §5).
   The backend also enforces admin authz +
   the seeded `ADMIN_EMAIL`/`ADMIN_PASSWORD` login, but Access keeps the console
   unreachable to the public.
