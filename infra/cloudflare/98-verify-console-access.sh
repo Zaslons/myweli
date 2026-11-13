@@ -24,11 +24,20 @@
 #   - the status is 301, 302, 303, 307 or 308, AND
 #   - the Location is https://<team host>/cdn-cgi/access/login/<requested host>,
 #     its query ignored (kid, meta and redirect_url change on every request).
-# Anything else is red: a 2xx means the console is public there; a 404, a 403,
-# a redirect elsewhere or the sign-in of ANOTHER hostname means Access did not
-# answer for this one. No answer at all (curl's 000) is red too: a check that
-# measured nothing is not green. Every URL is read before the exit, so one red
-# line never hides a second.
+# Anything else is red, and says what it shows:
+#   - a 2xx: the console is public there. The fix names the hostname to add
+#     back, and for the probe that is the WILDCARD, never the probe's own name;
+#   - a redirect elsewhere, or to the sign-in of ANOTHER hostname: Access did
+#     not answer for this one;
+#   - a 404 on the probe: Pages does not know the made-up alias, so Access no
+#     longer answers before it: the wildcard is gone;
+#   - any other status (a 403, a 5xx, a 404 elsewhere): neither the sign-in nor
+#     the console. Red, but nothing shown public, so no fix to apply blind: a
+#     look by hand, and a 403 Cloudflare marks cf-mitigated is named as a
+#     challenge of the machine running the check.
+# No answer at all (curl's 000) is red too: a check that measured nothing is
+# not green. Every URL is read before the exit, so one red line never hides a
+# second.
 #
 # ## The rehearsal seam
 #
@@ -57,6 +66,11 @@ https://myweli-admin.pages.dev/main.dart.js
 https://zz-access-probe.myweli-admin.pages.dev/
 https://zz-access-probe.myweli-admin.pages.dev/main.dart.js
 '
+
+# The made-up label above. It stands for every preview address, so its fix
+# names the wildcard: the probe's own name in Access would turn this check
+# green with every real preview still public.
+PROBE_LABEL=zz-access-probe
 
 lower() { printf '%s' "$1" | tr '[:upper:]' '[:lower:]'; }
 
@@ -90,6 +104,14 @@ echo
 fails=0
 red() { echo "::error::$*"; }
 
+# The fix for $host, as Access names it: for the probe, the wildcard.
+say_fix() {
+  red "Fix: add ${access_host} back to the Access application « Myweli Admin » in the Cloudflare dashboard (Zero Trust → Access → Applications; the policy « Admins » stays as it is) — docs/DEPLOYMENT.md « Restrict »."
+  if [ -n "$probe_parent" ]; then
+    red "${host} is made up: it stands for every preview address (<hash>.${probe_parent}), and every preview address is public without ${access_host}. Do not put the probe's own name, ${host}, in the application: that would turn this check green with every preview still public."
+  fi
+}
+
 for url in "${urls[@]}"; do
   case "$url" in
     http://*|https://*) ;;
@@ -107,15 +129,25 @@ for url in "${urls[@]}"; do
   host=${host##*@}
   host=$(lower "${host%%:*}")
   expected="https://${TEAM_HOST}/cdn-cgi/access/login/${host}"
-  fix="Fix: add ${host} back to the Access application « Myweli Admin » in the Cloudflare dashboard (Zero Trust → Access → Applications; the policy « Admins » stays as it is) — docs/DEPLOYMENT.md « Restrict »."
+  probe_parent=''
+  access_host=$host
+  case "$host" in
+    "$PROBE_LABEL".*)
+      probe_parent=${host#"$PROBE_LABEL".}
+      access_host="*.${probe_parent}"
+      ;;
+  esac
 
-  # --retry covers timeouts, 408, 429 and 5xx only; a refused connection is
-  # not retried. No -L: the redirect itself is what is being read.
+  # --retry covers timeouts, a failed DNS lookup and 408, 429, 500, 502, 503,
+  # 504; a refused connection is not retried. -w is written once, for the last
+  # attempt. No -L: the redirect itself is what is being read. One field per
+  # line: a header value never holds a newline, so none can bleed into another.
+  # %header{} needs curl 7.84 (ubuntu-latest has 8.5).
   meta=$(curl -sS -o /dev/null --max-time 20 --retry 2 --retry-delay 5 \
-           -w '%{http_code} %{redirect_url}' "$url" 2>"$errfile")
-  code=${meta%% *}
-  location=${meta#"$code"}
-  location=${location# }
+           -w '%{http_code}\n%{redirect_url}\n%header{cf-mitigated}' \
+           "$url" 2>"$errfile")
+  code='' location='' mitigated=''
+  { IFS= read -r code; IFS= read -r location; IFS= read -r mitigated; } <<<"$meta"
   case "$code" in ''|*[!0-9]*) code=000 ;; esac
   # Printed without its query: Access puts kid and meta there.
   shown=${location%%\?*}
@@ -130,7 +162,7 @@ for url in "${urls[@]}"; do
     2??)
       echo "  ✗ ${url} → ${code}"
       red "the console is PUBLIC at ${url}: it answered ${code} to an anonymous request, without the Access sign-in."
-      red "$fix"
+      say_fix
       fails=$((fails + 1))
       ;;
     301|302|303|307|308)
@@ -143,7 +175,7 @@ for url in "${urls[@]}"; do
       if [ -z "$location" ]; then
         echo "  ✗ ${url} → ${code}, no Location"
         red "${url} answered ${code} with no Location, not a redirect to the Access sign-in for ${host} (${expected})."
-        red "$fix"
+        say_fix
         fails=$((fails + 1))
       elif [ "$loc_rest" != "$location" ] && [ "$loc_host" = "$TEAM_HOST" ] \
            && [ "$loc_path" = "/cdn-cgi/access/login/${host}" ]; then
@@ -157,15 +189,25 @@ for url in "${urls[@]}"; do
           # under a different team domain. Nothing is public; the default is old.
           red "Only the team domain differs: if it was renamed in Zero Trust, put the new one in TEAM_HOST_DEFAULT in infra/cloudflare/98-verify-console-access.sh, in a PR."
         else
-          red "$fix"
+          say_fix
         fi
         fails=$((fails + 1))
       fi
       ;;
     *)
       echo "  ✗ ${url} → ${code}"
-      red "${url} answered ${code} instead of sending the visitor to the Access sign-in: Access is not answering for ${host}."
-      red "$fix"
+      if [ -n "$probe_parent" ] && [ "$code" = 404 ]; then
+        # What Pages answers an alias it does not know: Access no longer
+        # answers first.
+        red "${url} answered 404: Pages does not know this made-up address, so Access no longer answers before Pages there — the wildcard ${access_host} is gone, and every preview address is public."
+        say_fix
+      else
+        red "${url} answered ${code}: neither the Access sign-in nor the console. Red, but it does not show the console is public: do not edit Access on this line alone."
+        if [ -n "$mitigated" ]; then
+          red "Cloudflare marked that answer « cf-mitigated: ${mitigated} »: it challenged the machine running this check (on the daily job, GitHub's runner), not the console's visitors. Re-run the job; if it stays, a Cloudflare security setting is challenging GitHub's network — docs/design/infra-console-access-check.md §8."
+        fi
+        red "Look by hand first: open ${url} in a private window, and read « Myweli Admin » in Zero Trust → Access → Applications. Only if ${access_host} is missing from it, add it back — docs/DEPLOYMENT.md « Restrict »."
+      fi
       fails=$((fails + 1))
       ;;
   esac

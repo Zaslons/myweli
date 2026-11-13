@@ -77,6 +77,11 @@ void main() {
             res.statusCode = 404;
           case '/refused':
             res.statusCode = 403;
+          case '/challenged':
+            // What Cloudflare sends a client it challenges: the runner, not a
+            // visitor of the console.
+            res.statusCode = 403;
+            res.headers.set('cf-mitigated', 'challenge');
           case '/pages-redirect':
             // Pages' own redirect: relative, to the same host.
             redirect(308, '/public');
@@ -190,11 +195,6 @@ void main() {
     });
 
     final cases = <String, (String, String)>{
-      '404, which is what the wildcard probe gets once the wildcard is gone': (
-        '/missing',
-        'answered 404 instead of sending the visitor to the Access sign-in',
-      ),
-      '403': ('/refused', 'answered 403 instead'),
       "Pages' own relative redirect": (
         '/pages-redirect',
         // The server's address is known only once it listens.
@@ -249,6 +249,16 @@ void main() {
       });
     });
 
+    test(
+      '200 on a real hostname: its fix names that hostname, no probe note',
+      () async {
+        final r = await verify(['$base/public']);
+        expect(r.out, contains('Fix: add 127.0.0.1 back'));
+        expect(r.out, isNot(contains('*.')));
+        expect(r.out, isNot(contains('made up')));
+      },
+    );
+
     test('a renamed team domain: red, and it says that is all it is', () async {
       final r = await verify(['$base/renamed']);
       expect(r.exitCode, 1, reason: r.out);
@@ -273,6 +283,47 @@ void main() {
       final r = await verify(['admin.myweli.com/']);
       expect(r.exitCode, 1, reason: r.out);
       expect(r.out, contains('not an http(s) URL'));
+    });
+  });
+
+  group('red, but what came back shows nothing public: it says so', () {
+    // Neither the console nor the sign-in: a 404 off the probe, a 403, a 5xx.
+    // « Add it back » would send the owner to the dashboard to add a hostname
+    // that may still be there (spec §5), so no fix line, a look by hand.
+    for (final (name, path, code) in [
+      ('404 on an address that is not the probe', '/missing', 404),
+      ('403', '/refused', 403),
+    ]) {
+      test(name, () async {
+        final r = await verify(['$base$path']);
+        expect(r.exitCode, 1, reason: r.out);
+        expect(r.out, contains('✗ $base$path → $code'));
+        expect(
+          r.out,
+          contains(
+            'answered $code: neither the Access sign-in nor the console',
+          ),
+        );
+        expect(r.out, contains('does not show the console is public'));
+        expect(r.out, contains('Look by hand first: open $base$path'));
+        expect(r.out, contains('Only if 127.0.0.1 is missing from it'));
+        expect(r.out, isNot(contains('Fix: add')));
+        expect(r.out, isNot(contains('PUBLIC')));
+        expect(r.out, isNot(contains('cf-mitigated')));
+      });
+    }
+
+    test('a Cloudflare challenge of the runner is named as one', () async {
+      final r = await verify(['$base/challenged']);
+      expect(r.exitCode, 1, reason: r.out);
+      expect(r.out, contains('answered 403: neither the Access sign-in'));
+      expect(
+        r.out,
+        contains('Cloudflare marked that answer « cf-mitigated: challenge »'),
+      );
+      expect(r.out, contains('does not show the console is public'));
+      expect(r.out, isNot(contains('Fix: add')));
+      expect(r.out, isNot(contains('PUBLIC')));
     });
   });
 
@@ -326,7 +377,9 @@ void main() {
       dir = Directory.systemTemp.createTempSync('console_access_');
       // Logs each call, then answers as Access did on 2026-11-13: a 302 to the
       // sign-in of the requested host on the real team domain, written in the
-      // format the script's own -w asks for. $FAKE_PUBLIC_HOST answers 200.
+      // format the script's own -w asks for, `\n` turned into a newline as
+      // curl does. $FAKE_HOST answers $FAKE_CODE instead, with no Location and
+      // $FAKE_MITIGATED as its cf-mitigated header.
       File('${dir.path}/curl').writeAsStringSync(r'''#!/usr/bin/env bash
 { printf '%s\037' "$@"; printf '\036'; } >> "$CURL_LOG"
 fmt='' url=''
@@ -341,9 +394,14 @@ rest=${url#*://}
 host=${rest%%/*}
 code=302
 loc="https://blue-base-1ad1.cloudflareaccess.com/cdn-cgi/access/login/${host}?kid=k"
-if [ "$host" = "${FAKE_PUBLIC_HOST:-}" ]; then code=200; loc=''; fi
+mitigated=''
+if [ "$host" = "${FAKE_HOST:-}" ]; then
+  code=$FAKE_CODE loc='' mitigated=${FAKE_MITIGATED:-}
+fi
 out=${fmt//'%{http_code}'/$code}
 out=${out//'%{redirect_url}'/$loc}
+out=${out//'%header{cf-mitigated}'/$mitigated}
+out=${out//'\n'/$'\n'}
 printf '%s' "$out"
 ''');
       Process.runSync('chmod', ['+x', '${dir.path}/curl']);
@@ -352,7 +410,8 @@ printf '%s' "$out"
     tearDown(() => dir.deleteSync(recursive: true));
 
     Future<({int exitCode, String out, List<List<String>> calls})> defaults({
-      String? publicHost,
+      String? host,
+      int code = 200,
       Map<String, String> extra = const {},
     }) async {
       final log = File('${dir.path}/curl.log')..writeAsStringSync('');
@@ -363,7 +422,7 @@ printf '%s' "$out"
         environment: {
           'PATH': '${dir.path}:${Platform.environment['PATH']}',
           'CURL_LOG': log.path,
-          'FAKE_PUBLIC_HOST': ?publicHost,
+          if (host != null) ...{'FAKE_HOST': host, 'FAKE_CODE': '$code'},
           ...extra,
         },
       );
@@ -438,7 +497,7 @@ printf '%s' "$out"
     });
 
     test('a public address in the production list turns it red', () async {
-      final r = await defaults(publicHost: 'myweli-admin.pages.dev');
+      final r = await defaults(host: 'myweli-admin.pages.dev');
       expect(r.exitCode, 1, reason: r.out);
       expect(
         r.out,
@@ -451,6 +510,55 @@ printf '%s' "$out"
         ),
       );
       expect(r.out, contains('2 of 6 console addresses'));
+      expect(r.out, contains('Fix: add myweli-admin.pages.dev back'));
+      expect(r.out, isNot(contains('*.myweli-admin.pages.dev')));
+    });
+
+    // The probe is a made-up name that stands for the wildcard. Adding THAT
+    // name to Access turns the check green and leaves every real preview
+    // (<hash>.myweli-admin.pages.dev) public, so the fix must name the
+    // wildcard and warn off the probe's own name (spec §5).
+    const probe = 'zz-access-probe.myweli-admin.pages.dev';
+    for (final (code, why) in [
+      (404, 'what Pages gives an alias it does not know: the wildcard is gone'),
+      (200, 'something served there without Access'),
+    ]) {
+      test('the probe answering $code ($why): the fix names the wildcard, '
+          'never the probe', () async {
+        final r = await defaults(host: probe, code: code);
+        expect(r.exitCode, 1, reason: r.out);
+        expect(r.out, contains('2 of 6 console addresses'));
+        expect(
+          r.out,
+          contains(
+            'Fix: add *.myweli-admin.pages.dev back to the Access application',
+          ),
+        );
+        expect(r.out, contains('every preview address'));
+        expect(
+          r.out,
+          contains(
+            "Do not put the probe's own name, $probe, in the application",
+          ),
+        );
+        expect(r.out, isNot(contains('add zz-access-probe')));
+        expect(r.out, isNot(contains('add $probe')));
+      });
+    }
+
+    test('the probe answering 404 says the wildcard is gone', () async {
+      final r = await defaults(host: probe, code: 404);
+      expect(r.out, contains('the wildcard *.myweli-admin.pages.dev is gone'));
+      expect(r.out, isNot(contains('neither the Access sign-in')));
+    });
+
+    test('the probe answering 403: a look by hand, at the wildcard', () async {
+      final r = await defaults(host: probe, code: 403);
+      expect(r.exitCode, 1, reason: r.out);
+      expect(r.out, contains('does not show the console is public'));
+      expect(r.out, contains('Only if *.myweli-admin.pages.dev is missing'));
+      expect(r.out, isNot(contains('Fix: add')));
+      expect(r.out, isNot(contains('add zz-access-probe')));
     });
 
     test('a variable set but empty is refused, never swapped for the production '
@@ -531,8 +639,17 @@ printf '%s' "$out"
           .split('\n')
           .singleWhere((l) => l.contains(r'CWV: ${CWV}'));
       expect(statusLine, contains('\${$name}'));
-      for (final words in [fixApp, restrict, 'zz-access-probe']) {
-        expect(script, contains(words));
+      // The body is printf arguments, one per line; joined as the issue reads.
+      final body = script.replaceAll(RegExp(r"'\s*\\\n\s*'"), ' ');
+      for (final words in [
+        fixApp,
+        restrict,
+        'zz-access-probe',
+        'Add *.myweli-admin.pages.dev back, never the made-up name itself',
+        'does not show the console is public',
+        'cf-mitigated',
+      ]) {
+        expect(body, contains(words));
       }
     });
   });

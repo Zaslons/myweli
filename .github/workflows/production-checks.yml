@@ -568,16 +568,21 @@ jobs:
             'CARTO_BASEMAPS_WEB_KEY, then redeploy (§9 step 3).' \
             '' \
             '**The console access job asks Cloudflare, as nobody.** Red there means' \
-            'an address of the admin console no longer sends an anonymous visitor' \
-            'to the Cloudflare Access sign-in, and the job log names the address and' \
-            'what came back. A 200 means the console is public at that address right' \
-            'now: add the hostname back to the Access application « Myweli Admin »' \
-            'in the Cloudflare dashboard (Zero Trust → Access → Applications), the' \
-            'policy « Admins » unchanged — docs/DEPLOYMENT.md « Restrict ». It reads' \
-            'admin.myweli.com, myweli-admin.pages.dev and *.myweli-admin.pages.dev,' \
-            'the last through the made-up address zz-access-probe, so a 404 there' \
-            'means the wildcard is gone and every preview address is public. No' \
-            'answer at all is red too, because nothing was measured: re-run the job' \
+            'an address of the admin console did not send an anonymous visitor to' \
+            'the Cloudflare Access sign-in; the job log names the address, what' \
+            'came back and what to do. A 200 means the console is public at that' \
+            'address right now: add the hostname back to the Access application' \
+            '« Myweli Admin » in the Cloudflare dashboard (Zero Trust → Access →' \
+            'Applications), the policy « Admins » unchanged — docs/DEPLOYMENT.md' \
+            '« Restrict ». zz-access-probe.myweli-admin.pages.dev is a made-up' \
+            'address that stands for every preview address: a 200 or a 404 there' \
+            'means the wildcard is gone and every preview is public. Add' \
+            '*.myweli-admin.pages.dev back, never the made-up name itself, which' \
+            'would turn this check green with every preview still public. A 403, a' \
+            '5xx or a 404 on another address does not show the console is public:' \
+            'look by hand before editing Access. A 403 marked cf-mitigated is' \
+            'Cloudflare challenging the GitHub runner, not a visitor. No answer at' \
+            'all is red too, because nothing was measured: re-run the job' \
             '(docs/design/infra-console-access-check.md §5).')
 
           if [ -n "$NUM" ]; then
