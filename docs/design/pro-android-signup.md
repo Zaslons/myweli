@@ -4,7 +4,7 @@
 |---|---|
 | **Status** | **Approved 2026-11-12 (the owner answered §11's six questions: decisions 116–123).** Not built. Reviewed three times by independent readers on 2026-11-12, every finding folded in: six readers (code, architecture, backend, design system, store documents, completeness) found 61; three found 26 on the revision; two found 18 on the third. **A prerequisite came out of the answers:** salons now wait for the owner's approval before going public (decision 120), a new feature with its own spec (B0.18), built before the closed test |
 | **Owner** | Sadreddine Daher |
-| **Last updated** | 2026-11-12 |
+| **Last updated** | 2026-11-13 (dated notes for decisions 134–136: §2.7, §5.5, §9.1, §9.3, §9.4, §11) |
 | **PRD ref / phase** | FR-PRO-AUTH-001 (Pro sign-in and sign-up) · V1 |
 | **BACKLOG** | B0.10 (the Android release); this spec's decisions are 116 and up (§11) |
 | **Related** | [pro-app-login-only.md](pro-app-login-only.md) (decisions 38–43: sign-in only, both platforms) · [app-review-round-2.md](app-review-round-2.md) (decision 71: the website link went) · [android-play-release.md](android-play-release.md) (decisions 110–115: the release order this slice enters) · [play-store-forms.md](play-store-forms.md) (the listing, Data safety, the closed test) · [app-store-forms.md](app-store-forms.md) §11.3 (the iOS pre-upload read) · [pro-companion-path.md](pro-companion-path.md) (the app never sells, on either platform) · [web-pro-registration.md](web-pro-registration.md) (the website's sign-up) · [pro-auth-social.md](pro-auth-social.md) · [team-access-r3-app.md](team-access-r3-app.md) (the invitations bridge) |
@@ -320,6 +320,13 @@ All of this exists today for salons created on the website:
 - the 8-step checklist;
 - « Mettre mon profil en ligne ».
 
+*2026-11-13:* B0.18's Pro-app PR renames that button « Demander la mise en
+ligne » (decision 132), and it merges before the 0.0.2 bump (decision 134), so
+before any of this spec's PRs unless that decision's fallback is taken. Where
+this spec quotes « Mettre mon profil en ligne » for the app after B0.18 (here,
+§6.2's R7 path, P12), read « Demander la mise en ligne » once that PR is on
+`main`; §11's quote, in decision 120, is history.
+
 **Two facts the person meets:**
 
 - **Team invitations wait for go-live:** « Vous pourrez inviter votre équipe
@@ -497,7 +504,13 @@ The deleted screen (`9f8a724a:mobile/lib/screens/provider/auth/pro_register_scre
 4. It used `AuthSwitchPrompt`, deleted by #731.
 5. It had no sign-in check.
 
-A revert would also restore « S’inscrire sur myweli.com ».
+A revert would also restore « S’inscrire sur myweli.com ». *Corrected
+2026-11-13: it would not.* #711 (`54b02dac`) **added** that link, and #731
+removed it. A revert of #711 would restore « S’inscrire », « Créer un compte »
+and « Ajouter un salon » (`/pro/salons/nouveau`), on iOS too: the in-app
+registration Apple refused under 3.1.1 on build 587. It does not even apply:
+a dry run (`git apply --check -R`) against `main` at `d19655bd` fails on 17
+files.
 
 ### 5.6 Dev runs and the Xcode trap
 
@@ -815,6 +828,24 @@ two stores' different build numbers are both valid.
 approves them) has its own spec and is built before the closed test's
 step 8.
 
+**2026-11-13: three PRs, and the order around them (decisions 134, 135).**
+
+- **Three PRs, not four** (an engineering choice, not an owner question):
+  - **A** = PR 1, the fence with null extensions, no behaviour change;
+  - **B** = PRs 2 and 3: the service, provider and mock methods, the screens,
+    the copy and the goldens (it may still be reviewed in two commits);
+  - **C** = PR 4, the documents and the Play texts (P12). C is needed at
+    **step 7**, not step 5: it waits for B0.18's button rename (« Demander la
+    mise en ligne ») and B0.19's URL. So « Before step 5 » above means A and B.
+- **The order on `main`:** B0.18's Pro-app PR → the 0.0.2 bump → a merge hold
+  → the iOS 0.0.2 IPA (decision 119, unchanged, so it now carries B0.18's app)
+  → the R8 (shrinker) PR (decision 135) → A → B; C after B0.19. So **A waits
+  for the iOS 0.0.2 build**, which follows B0.18's app and the bump. A's P9
+  reuses the `flutter` stub's argument log the R8 PR adds.
+- **Fallback the owner accepted:** if B0.18's app PR stalls, the bump ships
+  alone first; then iOS 0.0.2 predates B0.18, and B0.18's app still merges
+  before step 5. (android-play-release §4, steps 3 and 3a.)
+
 ### 9.2 Play texts and declarations that change (play-store-forms)
 
 | Where | Today | After |
@@ -841,7 +872,15 @@ typed at step 7.
   stay empty.
 - **Production rows.** Each tester creates a real draft salon. The marker is
   Testers Community's e-mail list. After the test, salons stay as unpublished
-  drafts; any purge or suspension asks the owner first.
+  drafts; any purge or suspension asks the owner first. *Corrected
+  2026-11-13: there is no such list.* Decision 117 (2) says so: testers join
+  through Testers Community's Google Group, and their salons are recognised at
+  validation (B0.18) and refused « Salon de test » (`test_salon`, final).
+  Testers who never ask to go live carry **no marker**. How to recognise them
+  (for example a « TEST » prefix in the salon name, asked in the guide, or the
+  sign-up window) is for the testers plan, owed before step 8 with Testers
+  Community's answers. The countries are decided too: every available one,
+  decision 117 (1).
 - **Publishing:** a tester's salon may ask to go live; the owner does not
   approve it, so it stays private (decision 120, B0.18).
 - **E-mail budget:** 60 per hour, shared (§6.4).
@@ -867,6 +906,12 @@ typed at step 7.
   - §5 rows 11–16;
   - the iOS smoke pass;
   - the iOS 0.0.2 build before PR 1.
+  - *2026-11-13:* the docs PR of decisions 134–136 already did step 3a, the
+    iOS 0.0.2 build before A, step 7's B0.19 precondition and step 8's
+    « deployed » (done that day), with pointers to rows 11–16. PR C keeps the
+    rest: §1's « Not a feature », step 5's `libapp.so` read and size, step
+    7's help pages re-read, step 9, rows 11–16 themselves and the iOS smoke
+    pass.
 - **BACKEND.md §7:** the T35 row (register with an inline identity) gains
   « Android Pro calls register directly ».
 - **play-store-forms.md:** §9.2.
@@ -966,7 +1011,7 @@ typed at step 7.
 - the path `/pro/register`;
 - the check and register run by one service call, with one proof;
 - sign-up outcomes kept out of the sign-in's error state;
-- a hand port in four PRs.
+- a hand port in four PRs (three since 2026-11-13, §9.1).
 
 **UNVERIFIED, named:**
 

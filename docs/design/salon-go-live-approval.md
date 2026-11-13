@@ -220,6 +220,15 @@ which these builds word as « Complétez les étapes requises avant la mise en
 ligne. »; the feed row and the e-mail carry the real reason. This lasts until
 the Pro floor is raised for an iOS build that knows the new answers (§9.2).
 
+*2026-11-13 (decision 134, « B0.18 first »): 0.0.2 is no longer « built before
+this ships ».* PR 3, the Pro app (§9.1), merges **before** the 0.0.2 version
+bump. So the iOS 0.0.2 IPA, still built from the commit right after the bump
+(decision 119, unchanged), knows the 202 and the 409
+`validation_refused_final`, and the builds this paragraph describes are iOS
+0.0.1 only. The iOS floor can then be raised once iOS 0.0.2 is live on the
+App Store (§9.2, item 6). **Fallback the owner accepted:** if PR 3 stalls, the
+bump ships alone first, and this paragraph holds for 0.0.2 as written.
+
 ### 3.2 Validating: `POST /admin/salons/{id}/validation/approve` (admin)
 
 The body carries the state the admin saw: `{ "from": "pending" | "refused" }`.
@@ -783,6 +792,39 @@ gain the validation state and reason.
 - a never-asked, a pending, a refused and a finishing fixture;
 - the mock's publish no longer starts the trial.
 
+### 6.6 The Pro app's open items (decision 136, 2026-11-13)
+
+This spec left ten points of the app open. The owner answered all ten on
+2026-11-13 « as the website »
+([web-salon-validation.md](web-salon-validation.md)), the recommendation:
+
+1. **Home card « Configurer mon profil », its subtitle per state:** never
+   asked « Complétez les étapes pour aller en ligne » (today's); pending (and
+   approved-not-yet-live) « En cours de validation »; refused « Mise en ligne
+   refusée »; offline « Plus en ligne »; suspended « Suspendu »; live « Votre
+   salon est en ligne » (§6.2).
+2. **A stale button hit by a 409 `validation_refused_final`:** the message
+   « Mise en ligne refusée », then the screen re-reads and shows the refused
+   banner.
+3. **A notice tap for a salon the app cannot switch to:** go to « Accueil »
+   with the salon picker's existing sentence « Changement impossible — votre
+   accès à ce salon a peut-être été retiré. » (or the existing no-connection
+   sentence when offline).
+4. **A commune typed by hand that matches no area (R8, the area rule of
+   §6.3):** the sub-line « Choisissez la commune dans la liste » under
+   « Profil de l’entreprise » (same words as the website).
+5. **The unpaid banner's pointer:** « Mon abonnement » (opens the « Mon
+   abonnement » screen; a pointer, never a choice of offer).
+6. **The date:** « Demande envoyée le 13 novembre 2026 » (no weekday, as the
+   website).
+7. **A 202 whose validation is refused or null:** no « Demande envoyée… »
+   message, just show the state.
+8. **Salon switcher:** every row shows its state on its own line, including
+   salons the user does not own (« Plus en ligne » when the offer is unknown).
+9. **Suspended salon:** the banner only, no checklist (on « Configuration »).
+10. **A server without validation (a rollback to before B0.18):** the app
+    keeps today's screens (keyed on the validation key's presence).
+
 ---
 
 ## 7. Security & the threat model
@@ -1058,7 +1100,11 @@ Each new guard is watched red once, and the commit says how.
 - **Old Pro builds** (iOS 0.0.1, 0.0.2) show a generic error on a request that
   did go through, and « Complétez les étapes requises… » after a final
   refusal, until step 6 (Q8). The decision still reaches them by push, feed
-  row (with the reason) and e-mail.
+  row (with the reason) and e-mail. *2026-11-13 (decision 134):* iOS 0.0.1
+  only, once 0.0.2 carries PR 3; step 6 is then the owner raising the iOS
+  floor in the admin console once iOS 0.0.2 is live on the App Store, a step
+  with no slot yet (android-play-release §4, step 11's iOS neighbour). If the
+  fallback is taken (the bump before PR 3), 0.0.2 stays in this list.
 - **Rollback.** An older backend image ignores the new tables, and its publish
   flips a draft live directly. A rollback is therefore a decision, taken with
   this named. After a roll-forward, one query lists `active` salons with no
