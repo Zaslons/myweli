@@ -120,6 +120,34 @@ class _WinnerLandsAfterRead extends InMemoryProviderAuthRepository {
   }
 }
 
+/// Test 9d's lens on the same race: counts the row re-reads a refused
+/// submit makes before its deletes. The locked list is subtracted first, so
+/// the winner's key never even reaches the re-read: the re-read alone would
+/// keep it too, which is why only this count can tell the two apart.
+class _CountsRereadsAfterRefusal extends _WinnerLandsAfterRead {
+  _CountsRereadsAfterRefusal({required super.tokens});
+
+  bool _refused = false;
+  int rereadsAfterRefusal = 0;
+
+  @override
+  Future<KycWrite> submitKyc(
+    String accountId,
+    List<Map<String, dynamic>> docs, {
+    Set<String> passThrough = const {},
+  }) async {
+    final w = await super.submitKyc(accountId, docs, passThrough: passThrough);
+    if (w.refused) _refused = true;
+    return w;
+  }
+
+  @override
+  Future<ProviderAccount?> accountById(String id) async {
+    if (_refused) rereadsAfterRefusal++;
+    return super.accountById(id);
+  }
+}
+
 void main() {
   late InMemoryProviderAuthRepository providerAuth;
   late KycService service;
@@ -496,6 +524,44 @@ void main() {
             'p3 is this request\'s alone; p2 is the winner\'s stored '
             'document; k1 was the winner\'s to delete',
       );
+    });
+    test('9d. a refused submit subtracts the locked list BEFORE any re-read: '
+        'the winner\'s key is never re-read nor deleted, only this request\'s '
+        'own copy is', () async {
+      final repo = _CountsRereadsAfterRefusal(tokens: tokens);
+      final reg = await repo.register(
+        email: 'race-d@test.pro',
+        authProvider: 'google',
+        googleSub: 'race-d-sub',
+        phoneNumber: '+2250500000074',
+        businessName: 'X',
+        businessType: 'salon',
+      );
+      final id = reg.provider!.id;
+      await repo.submitKyc(id, [
+        {'type': 'idCard', 'key': 'kyc/$id/k1.jpg'},
+      ]);
+      repo.winner = [
+        {'type': 'selfie', 'key': 'kyc/$id/p2.jpg'},
+        {'type': 'idCard', 'key': 'kyc/$id/kx.jpg'},
+      ];
+
+      final r = await over(repo, store).submit(id, [
+        {'type': 'idCard', 'key': 'kyc/$id/k1.jpg'}, // pass-through
+        {'type': 'selfie', 'key': 'pending/kyc/$id/p2.jpg'},
+        {'type': 'addressProof', 'key': 'pending/kyc/$id/p3.jpg'},
+      ]);
+      expect(r.error, 'invalid_input', reason: 'setup: the race is lost');
+      expect(
+        repo.rereadsAfterRefusal,
+        1,
+        reason:
+            'one re-read, for p3 alone: p2 is in the locked list, so it is '
+            'filtered out before the re-read and the delete',
+      );
+      expect(store.deleted.where((k) => k.startsWith('kyc/')), [
+        'kyc/$id/p3.jpg',
+      ]);
     });
     test('9b. the account deleted between the read and the write: forbidden, '
         'and this request\'s promoted copies deleted — they would otherwise '
