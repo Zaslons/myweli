@@ -25,6 +25,7 @@ import type { ProAppointment } from '../pro/today';
 import type { EarningsData } from '../pro/earnings';
 import { wholeClientBase } from '../pro/export';
 import type { AppNotification } from '../account/notifications';
+import type { SalonValidation } from '../pro/salon-validation';
 
 export type DashboardStats = {
   todayAppointments?: number;
@@ -86,6 +87,11 @@ export type ProProfile = {
   };
   /// Team access R4a/R5: the caller's role + server-computed capabilities.
   membership?: Membership;
+  /// B0.18 — where the salon stands with MyWeli's validation, BESIDE
+  /// `provider` (which is also the public schema). `null`: never asked.
+  /// **Absent** (`undefined`): a server before B0.18 → today's screens
+  /// (docs/design/web-salon-validation.md §1). Never default it to `null`.
+  validation?: SalonValidation | null;
 };
 
 export async function getMyProvider(): Promise<{
@@ -284,21 +290,36 @@ export async function listProAppointments(): Promise<{
     : { status: 0, items: [] };
 }
 
-/// Take the salon live (docs/design/pro-salon-lifecycle.md). 409 returns the
-/// server's missing checklist keys.
+/// Ask to go live (B0.18 — docs/design/salon-go-live-approval.md §3.1,
+/// web-salon-validation.md §4.1). The server says which it was:
+/// - **200** — the salon IS live (it already was; a validated salon came back
+///   online; or a server before B0.18, whose publish goes live at once);
+/// - **202** — a REQUEST, recorded: the salon stays `draft` until MyWeli
+///   decides. Its body's `validation` (null only when the request vanished)
+///   rides back; an unreadable 202 body is still a recorded request
+///   (`validation` undefined), and the caller re-reads.
+/// 409 returns the server's missing checklist keys, or
+/// `validation_refused_final`.
 export async function publishSalon(providerId: string): Promise<{
   ok: boolean;
   status: number;
   missing?: string[];
-  /// The refusal's code — `demo_account_locked`, `provider_suspended` — so the
-  /// card can name it (docs/design/web-pro-truthful-failure.md §2.3).
+  /// The refusal's code — `demo_account_locked`, `provider_suspended`,
+  /// `validation_refused_final` — so the card can name it
+  /// (docs/design/web-pro-truthful-failure.md §2.3).
   error?: string;
+  /// A 202's body: the request's validation.
+  validation?: SalonValidation | null;
 }> {
   const res = await send('/api/pro/publish', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ providerId }),
   });
+  if (res.status === 202) {
+    const body = await readJson<{ validation?: SalonValidation | null }>(res);
+    return { ok: true, status: 202, validation: body?.validation };
+  }
   if (res.ok) return { ok: true, status: res.status };
   const body = (await res.json().catch(() => ({}))) as {
     missing?: string[];

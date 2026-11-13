@@ -11,7 +11,10 @@
 
 import type { ProProfile } from '../api/pro';
 import { countFr, pluralFr } from '../format';
+import { allAreas, type LocalityTree } from '../localities';
+import { slugify } from '../slug';
 import type { KycStatus } from './kyc';
+import { COMMUNE_FROM_LIST } from './salon-validation';
 
 export type StepKey =
   | 'profile'
@@ -43,7 +46,32 @@ export type ChecklistExtras = {
   businessType?: string | null;
   depositConfigured: boolean;
   kyc: Pick<KycStatus, 'status' | 'documents'> | null;
+  /// The localities tree (`useLocalities`), for R8. `null`/absent = not read
+  /// (loading, failed): the profile step then keeps the rule without the
+  /// commune list, and the server decides.
+  localities?: LocalityTree | null;
 };
+
+/// R8 (docs/design/salon-go-live-approval.md §6.3, web-salon-validation.md
+/// §5): the server's `validArea` (`SalonProvisioningService.publishGate`) —
+/// an `areaId` (the server only ever stores a resolved one), or a commune that
+/// names one of MyWeli's areas by slug, as `seedAreaForCommuneName` matches it
+/// (`slug == slugify(commune)` or `slugify(name) == slugify(commune)`; the
+/// web's `slugify` is the backend's twin). `null` — the list was not read, so
+/// this side cannot tell.
+export function communeIsKnown(
+  provider: Pick<ProProfile['provider'], 'areaId' | 'commune'>,
+  tree: LocalityTree | null | undefined,
+): boolean | null {
+  if (provider.areaId != null) return true;
+  const commune = provider.commune?.trim() ?? '';
+  if (!commune) return false;
+  if (!tree || tree.countries.length === 0) return null;
+  const wanted = slugify(commune);
+  return allAreas(tree).some(
+    ({ area }) => area.slug === wanted || slugify(area.name) === wanted,
+  );
+}
 
 const MIN_SERVICES = 3;
 const MIN_PHOTOS = 3;
@@ -52,11 +80,14 @@ export function publishChecklist(
   provider: ProProfile['provider'],
   extras: ChecklistExtras,
 ): ChecklistItem[] {
-  const profileDone = Boolean(
+  const profileFilled = Boolean(
     provider.description?.trim() &&
       provider.address?.trim() &&
       provider.commune?.trim(),
   );
+  // R8: filled AND an area the server knows. An unread list never blocks.
+  const areaKnown = communeIsKnown(provider, extras.localities);
+  const profileDone = profileFilled && areaKnown !== false;
   // ACTIVE services, as the server counts them.
   const services = (provider.services ?? []).filter(
     (s) => s.active !== false,
@@ -98,7 +129,14 @@ export function publishChecklist(
   });
 
   return [
-    step('profile', 'Profil de l’entreprise', '/pro/profil', doneIf(profileDone), true),
+    step(
+      'profile',
+      'Profil de l’entreprise',
+      '/pro/profil',
+      doneIf(profileDone),
+      true,
+      profileFilled && areaKnown === false ? COMMUNE_FROM_LIST : undefined,
+    ),
     step(
       'location',
       'Position sur la carte',

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   arrivalAnnouncement,
   badgeLabel,
+  isValidationPush,
   newUnreadIds,
   proWebRouteFor,
   salonOf,
@@ -44,8 +45,41 @@ describe('proWebRouteFor — the routes SalonNotifier writes → the web (§3.5)
   });
 
   it('anything else → no link', () => {
-    for (const r of [null, undefined, '', '/bookings', '/pro/profile', 'https://evil.test/pro/appointments']) {
+    for (const r of [null, undefined, '', '/bookings', '/pro/profile', 'https://evil.test/pro/appointments', '//evil.test/pro/onboarding?salon=p1']) {
       expect(proWebRouteFor(r)).toBeNull();
+    }
+  });
+
+  // B0.18 (docs/design/web-salon-validation.md §4.5): MyWeli's decision on a
+  // salon's request — SalonDecisionNotifier writes `/pro/onboarding?salon={id}`.
+  it('a salon’s decision → « Aujourd’hui » on that salon, which switches to it', () => {
+    expect(proWebRouteFor('/pro/onboarding?salon=p3')).toBe('/pro?salon=p3');
+    expect(proWebRouteFor('/pro/onboarding?salon=prov_A-1')).toBe('/pro?salon=prov_A-1');
+  });
+
+  it('a decision without a usable salon id → « Aujourd’hui » as it is', () => {
+    for (const r of ['/pro/onboarding', '/pro/onboarding?salon=', '/pro/onboarding?salon=p3%3Fevil%3D1', '/pro/onboarding?salon=../x']) {
+      expect(proWebRouteFor(r), r).toBe('/pro');
+    }
+  });
+});
+
+describe('isValidationPush — the worker’s message about a salon’s decision (§4.6)', () => {
+  it('a decision', () => {
+    expect(isValidationPush({ type: 'myweli-pro-push', event: 'salon.validation.approved' })).toBe(true);
+    expect(isValidationPush({ type: 'myweli-pro-push', event: 'salon.validation.refused' })).toBe(true);
+  });
+  it('anything else', () => {
+    for (const d of [
+      null,
+      undefined,
+      'myweli-pro-push',
+      { type: 'myweli-pro-push' },
+      { type: 'myweli-pro-push', event: 'new_booking' },
+      { type: 'myweli-pro-push', event: 42 },
+      { type: 'other', event: 'salon.validation.approved' },
+    ]) {
+      expect(isValidationPush(d), JSON.stringify(d)).toBe(false);
     }
   });
 });

@@ -6,7 +6,7 @@ import { useEffect, useRef, useState } from 'react';
 import { navForMembership } from '../../lib/pro/nav';
 import { unreadLabel } from '../../lib/pro/notifications';
 import { loadFailureMessage, type LoadFailure } from '../../lib/api/load-failure';
-import { ROLE_LABELS, type TeamRole } from '../../lib/pro/team';
+import { ROLE_LABELS, SALON_SWITCH_REFUSED, type TeamRole } from '../../lib/pro/team';
 import { useIsDesktop } from '../../lib/pro/use-is-desktop';
 import { Skeleton } from '../Skeleton';
 import { ProLogoutButton } from './ProLogoutButton';
@@ -15,6 +15,15 @@ import { useProMembership } from './ProMembershipContext';
 import { useOptionalProNotifications } from './ProNotificationsContext';
 import { UnreadBadge } from './UnreadBadge';
 import { UNNAMED_SALON, salonNameOr } from '../../lib/salon-name';
+import { STATE_LINE, goLiveState } from '../../lib/pro/salon-validation';
+import type { SalonMembership } from '../../lib/pro/team';
+
+/// A « Mes salons » row's state line (docs/design/web-salon-validation.md
+/// §4.3), or null for a server before B0.18 (no `validation` key).
+function stateLineOf(s: SalonMembership): string | null {
+  const state = goLiveState(s.salonStatus, s.validation);
+  return state === 'legacy' ? null : STATE_LINE[state];
+}
 
 /// Whether the nav's active-route highlight should light up for [href].
 /// « Aujourd'hui » (/pro) matches exactly; every other entry also stays active
@@ -199,8 +208,20 @@ export function ProSidebar({
                           </span>
                           <span className="block text-bodySmall text-textTertiary">
                             {ROLE_LABELS[s.role as TeamRole]}
-                            {s.salonStatus === 'draft' ? ' · Brouillon' : ''}
+                            {/* A server before B0.18 (no `validation`):
+                                today's suffix. */}
+                            {stateLineOf(s) === null && s.salonStatus === 'draft'
+                              ? ' · Brouillon'
+                              : ''}
                           </span>
+                          {/* B0.18: the state on its OWN line, as the app's
+                              picker — at 200% text a « role · state » line
+                              cuts the state off (salon-go-live-approval §6.2). */}
+                          {stateLineOf(s) ? (
+                            <span className="block text-bodySmall text-textTertiary">
+                              {stateLineOf(s)}
+                            </span>
+                          ) : null}
                         </span>
                         {active ? (
                           <span aria-hidden="true" className="shrink-0">
@@ -228,10 +249,7 @@ export function ProSidebar({
                 <p role="alert" className="mt-xs text-bodySmall text-error">
                   {/* No answer names the network; a refusal keeps the
                       sentence the app says (salon_picker_sheet.dart). */}
-                  {loadFailureMessage(
-                    switchError,
-                    'Changement impossible — votre accès à ce salon a peut-être été retiré.',
-                  )}
+                  {loadFailureMessage(switchError, SALON_SWITCH_REFUSED)}
                 </p>
               ) : null}
             </div>

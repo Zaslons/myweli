@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | **Approved 2026-11-12** (the owner answered every question of §11: decisions 124–132). **Backend merged** (#776, 2026-11-12); the cap of decision 133 merged (#778, `5139f401`, 2026-11-12); the console merged (#779, `8d43009b`, 2026-11-12) and **deployed 2026-11-13** (`deploy-admin.yml`, run 43405932321, `27ecbecc`), before the backend as §9.2 orders; the apps and the website not built. Reviewed twice by independent readers on 2026-11-12, every finding folded in: five readers (backend, admin console, apps, website, completeness) found 53; two found 26 on the rewrite. **Amended 2026-11-12** (decision 133, after the backend's review): the place-change e-mails to the admin are capped per salon — §5.1, §7, §8.1, §9.1, §11 |
+| **Status** | **Approved 2026-11-12** (the owner answered every question of §11: decisions 124–132). **Backend merged** (#776, 2026-11-12); the cap of decision 133 merged (#778, `5139f401`, 2026-11-12); the console merged (#779, `8d43009b`, 2026-11-12) and **deployed 2026-11-13** (`deploy-admin.yml`, run 43405932321, `27ecbecc`), before the backend as §9.2 orders; **the website's 4a built 2026-11-13** (its web details: [web-salon-validation.md](web-salon-validation.md), approved by the owner the same day; not merged); the apps and the website's 4b not built. Reviewed twice by independent readers on 2026-11-12, every finding folded in: five readers (backend, admin console, apps, website, completeness) found 53; two found 26 on the rewrite. **Amended 2026-11-12** (decision 133, after the backend's review): the place-change e-mails to the admin are capped per salon — §5.1, §7, §8.1, §9.1, §11 |
 | **Owner** | Sadreddine Daher |
 | **Last updated** | 2026-11-12 |
 | **PRD ref / phase** | FR-PRO-ONB-001 (go live) · admin (FR-WEB-AD-*) · V1 |
@@ -616,7 +616,7 @@ To the owner (the `salon.publish` holder) only:
 | live | « En ligne » | — | as today | none |
 | `approved`, was live, offer lapsed (`offerLive` false) | « Plus en ligne » | « Votre salon n’est plus en ligne » | the billing sentence of « Mon abonnement » | the billing pointer |
 | `approved`, was live, offer live (`offerLive` true) | « Plus en ligne » | « Votre salon n’est plus en ligne » | « Vous pouvez le remettre en ligne. » | « Remettre en ligne » (200) |
-| `suspended` | « Suspendu » | « Votre salon est suspendu » | « Contactez MyWeli pour en savoir plus. » (the existing sentence) | none |
+| `suspended` | « Suspendu » | « Votre salon est suspendu » | « Contactez MyWeli pour en savoir plus. » (new: the existing sentence is « …Contactez MyWeli pour le réactiver — vos rendez-vous sont intacts. », which the surfaces of a server before B0.18 keep — corrected 2026-11-13, web-salon-validation.md §3.1) | none |
 
 - **After a request:** « Demande envoyée. Nous vous préviendrons de la
   décision. ». Today's « 🎉 Votre profil est en ligne ! » (app) and « 🎉 Votre

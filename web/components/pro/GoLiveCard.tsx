@@ -15,33 +15,94 @@ import {
   progressLabel,
   publishChecklist,
 } from '../../lib/pro/onboarding';
-import { Button } from '../Button';
+import {
+  BANNER_TONE_CLASS,
+  BILLING_POINTER,
+  type GoLiveState,
+  LEGACY_HINT,
+  PUBLISH_LABEL,
+  REQUEST_HINT,
+  STATE_LINE,
+  type SalonValidation,
+  type StateBanner,
+  goLiveState,
+  requestSentLine,
+  stateBanner,
+} from '../../lib/pro/salon-validation';
+import { useLocalities } from '../../lib/use-localities';
+import { Button, buttonClasses } from '../Button';
 import { SkeletonRows } from '../Skeleton';
 
-/// The draft banner + go-live checklist (docs/design/pro-salon-lifecycle.md
-/// B2): shown on the pro home while the salon is a DRAFT. « Mettre en ligne »
-/// calls the server-authoritative publish gate. **No offer step** — the web
-/// kept one until 2026-10-19 and it started the trial at the choice; now, as
-/// in the app, the server starts it at the first publish
-/// (docs/design/web-pro-access.md §12, pro-companion-path.md §5). The
-/// `needsOffer` branch below remains for the one case the server still
-/// refuses: a salon whose offer EXISTS and is no longer live.
+/// What the publish answered, for the page: 200 = the salon IS live; 202 = a
+/// request MyWeli will decide (B0.18 — docs/design/web-salon-validation.md
+/// §4.1), with the 202 body's validation (undefined when unreadable).
+export type PublishOutcome =
+  | { kind: 'live' }
+  | { kind: 'requested'; validation: SalonValidation | null | undefined };
+
+/// The owner's go-live card on « Aujourd’hui » (docs/design/pro-salon-lifecycle.md
+/// B2; the app's eight steps since web-pro-golive-signup-like-app.md), and,
+/// since B0.18, where the salon stands with MyWeli's validation
+/// (salon-go-live-approval.md §6.1–§6.2; web-salon-validation.md §4.1).
 ///
-/// **The app's eight steps** since docs/design/web-pro-golive-signup-like-app.md
-/// (owner decision): its labels, its bar and « N étapes sur T terminées »; the
-/// team, the deposit and the KYC are shown and never block — only the server's
-/// five do. The deposit and KYC steps each take one read, as in the app; a
-/// read that fails leaves its step « à faire ».
+/// **Two servers.** `profile.validation` absent — a server before B0.18 — is
+/// `legacy`: today's card, words and « Mettre en ligne », whose publish goes
+/// live at once. Present, the card has one branch per state: a banner for
+/// pending, refused, offline and suspended; the checklist in every draft state
+/// (each step stays editable while pending); the state's action. The publish
+/// answer decides what happened, whatever the card was loaded from: a 202
+/// reaching a `legacy` card (the backend deployed in between) is a request.
+///
+/// The team, the deposit and the KYC are shown and never block — only the
+/// server's five do. R8: « Profil de l’entreprise » reads the commune list the
+/// server reads (`communeIsKnown`).
 export function GoLiveCard({
   profile,
   onPublished,
+  onStale,
 }: {
   profile: ProProfile;
-  onPublished: () => void;
+  onPublished: (outcome: PublishOutcome) => void;
+  /// The card's state was older than the server's (409
+  /// `validation_refused_final`): the page re-reads `/me/provider`.
+  onStale?: () => void;
+}) {
+  const state = goLiveState(profile.provider.status, profile.validation);
+  if (state === 'suspended') {
+    // The owner's dashboard says it (owner, 2026-11-13 — §9 Q2): no
+    // checklist and no button under it, the admin's restore decides.
+    return (
+      <Card as="section" className="mt-m">
+        <SalonStateBanner banner={stateBanner(state, profile.validation)} />
+        <PreviewLink className="mt-m" />
+      </Card>
+    );
+  }
+  return (
+    <ChecklistCard
+      profile={profile}
+      state={state}
+      onPublished={onPublished}
+      onStale={onStale}
+    />
+  );
+}
+
+function ChecklistCard({
+  profile,
+  state,
+  onPublished,
+  onStale,
+}: {
+  profile: ProProfile;
+  state: GoLiveState;
+  onPublished: (outcome: PublishOutcome) => void;
+  onStale?: () => void;
 }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [needsOffer, setNeedsOffer] = useState(false);
+  const localities = useLocalities();
 
   const [extras, setExtras] = useState<{
     depositConfigured: boolean;
@@ -71,9 +132,12 @@ export function GoLiveCard({
     businessType: profile.account.businessType,
     depositConfigured: extras?.depositConfigured ?? false,
     kyc: extras?.kyc ?? null,
+    // An unread list never blocks: the server decides (R8, §5).
+    localities: localities.loading || localities.error ? null : localities.tree,
   });
   const ready = canPublish(items);
   const progress = checklistProgress(items);
+  const banner = stateBanner(state, profile.validation);
 
   async function publish() {
     setBusy(true);
@@ -81,31 +145,57 @@ export function GoLiveCard({
     setNeedsOffer(false);
     const r = await publishSalon(profile.provider.id);
     setBusy(false);
-    if (!r.ok) {
-      if (r.status === 409 && r.missing?.includes('offer')) {
-        setNeedsOffer(true);
-        setError('Choisissez votre offre avant la mise en ligne.');
-        return;
-      }
-      setError(
-        r.status === 409
-          ? 'Certaines étapes ne sont pas terminées. Vérifiez la liste.'
-          : salonRefusalMessage(r.status, r.error, 'La mise en ligne a échoué. Réessayez.'),
+    if (r.ok) {
+      onPublished(
+        r.status === 202
+          ? { kind: 'requested', validation: r.validation }
+          : { kind: 'live' },
       );
       return;
     }
-    onPublished();
+    if (r.status === 409 && r.error === 'validation_refused_final') {
+      // The card was older than the decision: said here (a write never fails
+      // in silence, even if the re-read fails), and the page re-reads — the
+      // banner then gives the final refusal's reason.
+      setError(STATE_LINE.refusedFinal);
+      onStale?.();
+      return;
+    }
+    if (r.status === 409 && r.missing?.includes('offer')) {
+      setNeedsOffer(true);
+      setError('Choisissez votre offre avant la mise en ligne.');
+      return;
+    }
+    setError(
+      r.status === 409
+        ? 'Certaines étapes ne sont pas terminées. Vérifiez la liste.'
+        : salonRefusalMessage(r.status, r.error, 'La mise en ligne a échoué. Réessayez.'),
+    );
   }
+
+  const label = publishLabel(state);
+  const hint =
+    state === 'legacy' ? LEGACY_HINT : state === 'neverAsked' || state === 'refused' ? REQUEST_HINT : null;
+  const sentLine =
+    state === 'pending'
+      ? requestSentLine(profile.validation?.submittedAt, profile.provider.timezone)
+      : null;
 
   return (
     <Card as="section" className="mt-m">
-      <p className="font-semibold text-textPrimary">
-        Votre salon n’est pas encore en ligne
-      </p>
-      <p className="mt-xs text-bodyLarge text-textSecondary">
-        Complétez votre profil pour apparaître dans les recherches et recevoir
-        des réservations.
-      </p>
+      {banner ? (
+        <SalonStateBanner banner={banner} />
+      ) : (
+        <>
+          <p className="font-semibold text-textPrimary">
+            Votre salon n’est pas encore en ligne
+          </p>
+          <p className="mt-xs text-bodyLarge text-textSecondary">
+            Complétez votre profil pour apparaître dans les recherches et recevoir
+            des réservations.
+          </p>
+        </>
+      )}
       {extras ? (
         <>
           <p id={progressId} className="mt-m text-bodySmall text-textSecondary">
@@ -136,20 +226,31 @@ export function GoLiveCard({
         <SkeletonRows count={4} className="mt-m" />
       )}
       <div className="mt-m flex flex-wrap items-center gap-m">
-        <Button disabled={!ready || busy} onClick={publish}>
-          {busy ? 'Mise en ligne…' : 'Mettre en ligne'}
-        </Button>
+        {state === 'legacy' ? (
+          // Today's button, word for word: against a server before B0.18 the
+          // publish does put the salon online.
+          <Button disabled={!ready || busy} onClick={publish}>
+            {busy ? 'Mise en ligne…' : PUBLISH_LABEL.legacy}
+          </Button>
+        ) : label ? (
+          <Button disabled={!ready} isLoading={busy} onClick={publish}>
+            {label}
+          </Button>
+        ) : null}
+        {sentLine ? <p className="text-bodyMedium text-textSecondary">{sentLine}</p> : null}
+        {state === 'offlineUnpaid' ? (
+          // The billing pointer (§6.1): payment is manual, from « Mon abonnement ».
+          <Link href="/pro/abonnement" className={buttonClasses('primary')}>
+            {BILLING_POINTER}
+          </Link>
+        ) : null}
         {/* See the salon exactly as a client will, before going live (B4). */}
-        <Link href="/pro/apercu" className="text-bodyMedium text-textPrimary underline">
-          Aperçu de ma page
-        </Link>
+        <PreviewLink />
       </div>
       <div>
-        {!ready ? (
+        {label && !ready && hint ? (
           // The app's sentence: not every step above is needed to go live.
-          <p className="mt-xs text-bodySmall text-textTertiary">
-            Complétez les étapes essentielles pour mettre votre profil en ligne.
-          </p>
+          <p className="mt-xs text-bodySmall text-textTertiary">{hint}</p>
         ) : null}
         {error ? <p role="alert" className="mt-xs text-bodyMedium text-error">{error}</p> : null}
         {needsOffer ? (
@@ -162,6 +263,52 @@ export function GoLiveCard({
         ) : null}
       </div>
     </Card>
+  );
+}
+
+/// The state's button — none while pending, after a final refusal, offline
+/// unpaid (the billing pointer instead) or suspended.
+function publishLabel(state: GoLiveState): string | null {
+  switch (state) {
+    case 'legacy':
+      return PUBLISH_LABEL.legacy;
+    case 'neverAsked':
+      return PUBLISH_LABEL.neverAsked;
+    case 'refused':
+      return PUBLISH_LABEL.refused;
+    case 'offlineRepublish':
+      return PUBLISH_LABEL.offlineRepublish;
+    default:
+      return null;
+  }
+}
+
+/// The state's banner — the KYC page's (`VerificationClient`): a tinted box,
+/// its title, then each line (a refusal's note on its own line, plain text —
+/// React escapes it; a long word wraps).
+export function SalonStateBanner({ banner }: { banner: StateBanner | null }) {
+  if (!banner) return null;
+  return (
+    <div className={`rounded-xl border p-m ${BANNER_TONE_CLASS[banner.tone]}`}>
+      <p className="font-semibold">{banner.title}</p>
+      {banner.lines.map((line, i) => (
+        <p key={i} className="mt-xs whitespace-pre-line break-words text-bodyLarge">
+          {line}
+        </p>
+      ))}
+    </div>
+  );
+}
+
+/// 48px tall (SYSTEM §13): on the suspended card it is the only control.
+function PreviewLink({ className = '' }: { className?: string }) {
+  return (
+    <Link
+      href="/pro/apercu"
+      className={`inline-flex min-h-12 items-center text-bodyMedium text-textPrimary underline ${className}`}
+    >
+      Aperçu de ma page
+    </Link>
   );
 }
 

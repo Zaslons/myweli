@@ -47,7 +47,10 @@ test('the sidebar switcher lists both salons; picking the second reshapes '
   await openSwitcher(page);
   const secondRow = page.getByRole('button', { name: /Institut Belle Vue/ });
   await expect(secondRow).toBeVisible();
-  await expect(secondRow).toContainText('Propriétaire · Brouillon');
+  await expect(secondRow).toContainText('Propriétaire');
+  // B0.18 (web-salon-validation.md §4.3): the stub is a B0.18 server — the
+  // state on its own line.
+  await expect(secondRow).toContainText('Brouillon — pas encore en ligne');
 
   // Switch to the draft second salon.
   await page.getByRole('button', { name: /Institut Belle Vue/ }).click();

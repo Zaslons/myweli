@@ -71,7 +71,8 @@ const ROWS: Row[] = [
     call: () => pro.addSalon({ businessName: 'B', businessType: 'salon' }),
   },
   { name: 'selectSalon', kind: 'write', payload: ['profile'], call: () => pro.selectSalon('s1') },
-  { name: 'publishSalon', kind: 'write', call: () => pro.publishSalon('p1') },
+  // B0.18: a 202's body carries the request's validation.
+  { name: 'publishSalon', kind: 'write', call: () => pro.publishSalon('p1'), payload: ['validation'] },
   { name: 'markProNotificationRead', kind: 'write', call: () => pro.markProNotificationRead('n1') },
   { name: 'markAllProNotificationsRead', kind: 'write', call: () => pro.markAllProNotificationsRead() },
   { name: 'setProEmailAlerts', kind: 'write', payload: ['prefs'], call: () => pro.setProEmailAlerts(false) },
@@ -401,6 +402,47 @@ describe('lib/api/pro.ts — a 200 without its shape is a failed read', () => {
     expect(await pro.getEarnings('p1', null)).toEqual({
       status: 200,
       earnings: { totalEarnings: 0, currency: 'XOF', transactions: [] },
+    });
+  });
+});
+
+/// B0.18 (docs/design/web-salon-validation.md §4.1): the publish says which it
+/// was — 200 the salon IS live (a server before B0.18 too), 202 a request MyWeli
+/// will decide. Before, any 2xx was « live » and a 202's body was never read.
+describe('publishSalon — 200 is live, 202 is a request', () => {
+  const answer = (status: number, body: string) => () =>
+    new Response(body, { status, headers: { 'content-type': 'application/json' } });
+
+  it('202 → the request, with its validation', async () => {
+    stubFetch(answer(202, '{"validation":{"state":"pending","wentLive":false}}'));
+    expect(await pro.publishSalon('p1')).toEqual({
+      ok: true,
+      status: 202,
+      validation: { state: 'pending', wentLive: false },
+    });
+  });
+
+  it('202 with `validation: null` (the request vanished) keeps the null', async () => {
+    stubFetch(answer(202, '{"validation":null}'));
+    expect(await pro.publishSalon('p1')).toEqual({ ok: true, status: 202, validation: null });
+  });
+
+  it('202 whose body is lost → still ok, still 202 (the request IS recorded), no validation', async () => {
+    stubFetch(answer(202, '<html>'));
+    expect(await pro.publishSalon('p1')).toEqual({ ok: true, status: 202, validation: undefined });
+  });
+
+  it('200 → live, and nothing read as a validation', async () => {
+    stubFetch(answer(200, '{"id":"p1","status":"active","validation":{"state":"pending"}}'));
+    expect(await pro.publishSalon('p1')).toEqual({ ok: true, status: 200 });
+  });
+
+  it('409 validation_refused_final → its code', async () => {
+    stubFetch(answer(409, '{"error":"validation_refused_final"}'));
+    expect(await pro.publishSalon('p1')).toMatchObject({
+      ok: false,
+      status: 409,
+      error: 'validation_refused_final',
     });
   });
 });

@@ -4,9 +4,11 @@ import {
   type ChecklistExtras,
   canPublish,
   checklistProgress,
+  communeIsKnown,
   progressLabel,
   publishChecklist,
 } from '../lib/pro/onboarding';
+import type { LocalityTree } from '../lib/localities';
 
 /// The go-live checklist — the app's eight steps on the web
 /// (docs/design/web-pro-golive-signup-like-app.md, owner decision), its
@@ -168,5 +170,84 @@ describe('the progress line — the app’s', () => {
     });
     // The deposit not chosen is optional — not counted (B7.7).
     expect(checklistProgress(items)).toEqual({ done: 5, total: 7 });
+  });
+});
+
+/// R8 (docs/design/salon-go-live-approval.md §6.3, web-salon-validation.md §5):
+/// « Profil de l’entreprise » reads the server's `validArea` — an `areaId`, or a
+/// commune naming one of MyWeli's areas by slug (`seedAreaForCommuneName`).
+/// Before, the step ticked on any commune text, and the button could be
+/// enabled and then refused with every row ticked.
+describe('R8 — the profile step follows the server’s commune list', () => {
+  const TREE = {
+    countries: [
+      {
+        code: 'CI',
+        name: 'Côte d’Ivoire',
+        cities: [
+          {
+            slug: 'abidjan',
+            name: 'Abidjan',
+            areas: [
+              { id: 'a1', slug: 'cocody', name: 'Cocody', labelKind: 'commune' },
+              { id: 'a2', slug: 'port-bouet', name: 'Port-Bouët', labelKind: 'commune' },
+            ],
+          },
+        ],
+      },
+    ],
+  } as unknown as LocalityTree;
+
+  it('communeIsKnown: the server’s match — slug, or slugified name', () => {
+    expect(communeIsKnown({ areaId: null, commune: 'Cocody' }, TREE)).toBe(true);
+    expect(communeIsKnown({ areaId: null, commune: 'cocody' }, TREE)).toBe(true);
+    expect(communeIsKnown({ areaId: null, commune: 'Port Bouet' }, TREE)).toBe(true);
+    expect(communeIsKnown({ areaId: null, commune: 'Port-Bouët' }, TREE)).toBe(true);
+    expect(communeIsKnown({ areaId: null, commune: 'Riviera Golf' }, TREE)).toBe(false);
+  });
+
+  it('an areaId is known whatever the text — the server only stores a resolved one', () => {
+    expect(communeIsKnown({ areaId: 'a9', commune: 'Texte libre' }, TREE)).toBe(true);
+    expect(communeIsKnown({ areaId: 'a9', commune: 'Texte libre' }, null)).toBe(true);
+  });
+
+  it('no commune → not known; the list unread (or empty) → cannot tell', () => {
+    expect(communeIsKnown({ areaId: null, commune: '  ' }, TREE)).toBe(false);
+    expect(communeIsKnown({ areaId: null, commune: 'Riviera Golf' }, null)).toBeNull();
+    expect(communeIsKnown({ areaId: null, commune: 'Riviera Golf' }, undefined)).toBeNull();
+    expect(
+      communeIsKnown({ areaId: null, commune: 'Riviera Golf' }, { countries: [] } as LocalityTree),
+    ).toBeNull();
+  });
+
+  it('a commune not in the list: the step stays to do, says why, and blocks', () => {
+    const items = publishChecklist(provider({ areaId: null, commune: 'Riviera Golf' }), {
+      ...ALL,
+      localities: TREE,
+    });
+    expect(byKey(items, 'profile')).toMatchObject({
+      status: 'todo',
+      sublabel: 'Choisissez la commune dans la liste',
+    });
+    expect(canPublish(items)).toBe(false);
+  });
+
+  it('the list unread: today’s rule — the server decides', () => {
+    const items = publishChecklist(provider({ areaId: null, commune: 'Riviera Golf' }), ALL);
+    expect(byKey(items, 'profile').status).toBe('done');
+    expect(canPublish(items)).toBe(true);
+  });
+
+  it('a field missing, even with an unknown commune: to do, without the commune line', () => {
+    // The commune line is about the commune alone: say it only once the rest
+    // is filled, or the owner fixes the commune and still finds the step to do.
+    for (const missing of [{ description: '' }, { address: '' }]) {
+      const items = publishChecklist(
+        provider({ areaId: null, commune: 'Riviera Golf', ...missing }),
+        { ...ALL, localities: TREE },
+      );
+      expect(byKey(items, 'profile').status, JSON.stringify(missing)).toBe('todo');
+      expect(byKey(items, 'profile').sublabel, JSON.stringify(missing)).toBeUndefined();
+    }
   });
 });

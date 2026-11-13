@@ -22,7 +22,7 @@ import {
   actionsForMembership,
   hasStarted,
 } from "../../lib/pro/lifecycle";
-import { hasCap } from "../../lib/pro/team";
+import { SALON_SWITCH_REFUSED, hasCap } from "../../lib/pro/team";
 import {
   loadFailure,
   loadFailureMessage,
@@ -51,9 +51,6 @@ import { ProDepositProof } from "./ProDepositProof";
 /// it). Cleared once the page loads under that salon.
 const switchedFor = new Set<string>();
 
-/// The sentence « Mes salons » says when a switch is refused.
-const SWITCH_REFUSED =
-  "Changement impossible — votre accès à ce salon a peut-être été retiré.";
 
 /// [salon] — `?salon=` from a notification about ANOTHER of the account's
 /// salons (R6): the page switches to it before loading, the app's flow
@@ -212,7 +209,7 @@ export function ProAppointmentDetailClient({
     return (
       <ErrorState
         title="Rendez-vous"
-        message={loadFailureMessage(switchError, SWITCH_REFUSED)}
+        message={loadFailureMessage(switchError, SALON_SWITCH_REFUSED)}
         onRetry={load}
       />
     );

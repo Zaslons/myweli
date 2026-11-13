@@ -939,9 +939,12 @@ test('« Vérification » : upload des documents KYC → soumission (web-pro-kyc
   ).toBeVisible();
 });
 
-test('go-live: le brouillon complet se met en ligne (pro-salon-lifecycle B2)', async ({
+test('go-live: le brouillon complet demande sa mise en ligne (pro-salon-lifecycle B2, B0.18)', async ({
   page,
+  request,
 }) => {
+  // B0.18: p1 asks, the stub answers 202, p1 waits — then goes back to
+  // « never asked » for the next run's specs (web-salon-validation.md §7).
   await signInPro(page);
 
   // The draft banner + checklist, everything done (complete stub salon).
@@ -981,14 +984,29 @@ test('go-live: le brouillon complet se met en ligne (pro-salon-lifecycle B2)', a
   await page.getByRole('link', { name: '← Tableau de bord' }).click();
   await expect(page).toHaveURL(/\/pro(\/)?$/);
 
-  const btn = page.getByRole('button', { name: 'Mettre en ligne' });
+  // B0.18: a REQUEST — the salon waits for MyWeli (202), it is not live.
+  const btn = page.getByRole('button', { name: 'Demander la mise en ligne' });
   await expect(btn).toBeEnabled();
-  await btn.click();
-
-  await expect(page.getByText(/Votre salon est en ligne/)).toBeVisible();
-  await expect(
-    page.getByText('Votre salon n’est pas encore en ligne'),
-  ).toHaveCount(0);
+  try {
+    await btn.click();
+    await expect(
+      page.getByText('Demande envoyée. Nous vous préviendrons de la décision.'),
+    ).toBeVisible();
+    await expect(page.getByText('En cours de validation').first()).toBeVisible();
+    await expect(page.getByText(/^Demande envoyée le \d{1,2} \S+ \d{4}$/)).toBeVisible();
+    await expect(page.getByText(/Votre salon est en ligne/)).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Demander la mise en ligne' })).toHaveCount(0);
+    // « Mes salons » re-read after the request: p1's line says it too.
+    await page.getByRole('button', { name: 'Changer de salon' }).click();
+    await expect(
+      page.getByRole('button', { name: /Beauté Divine/ }).filter({ hasText: 'En cours de validation' }),
+    ).toBeVisible();
+  } finally {
+    const stubPort = process.env.STUB_PORT ?? '8787';
+    await request.post(`http://127.0.0.1:${stubPort}/__stub/validation`, {
+      data: { salonId: 'p1', action: 'reset' },
+    });
+  }
 });
 
 test('revenus: total + ledger + period tabs (parity 9.1)', async ({ page }) => {

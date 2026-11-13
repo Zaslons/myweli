@@ -824,12 +824,16 @@ describe('« Aujourd’hui » — accepting while already a member', () => {
       </ProMembershipProvider>,
     );
     await screen.findByText(/invite comme Réception/);
+    // The provider's mount and the page's load (B0.18 §4.6: « Mes salons »
+    // carries each salon's state) have each read the list once by now; the
+    // join must read it ONE more time.
+    const before = count('GET /api/pro/salons');
     fireEvent.click(screen.getByRole('button', { name: 'Rejoindre' }));
 
     expect(
       await screen.findByText('Vous avez rejoint Institut Belle Vue'),
     ).toBeTruthy();
-    await waitFor(() => expect(count('GET /api/pro/salons')).toBe(2));
+    await waitFor(() => expect(count('GET /api/pro/salons')).toBe(before + 1));
     expect(replace).not.toHaveBeenCalled();
   });
 });
