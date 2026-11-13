@@ -107,6 +107,15 @@ export default function Page() {
           qu’à la relation avec eux, et jamais être cédées.
         </Li>
       </Ul>
+      {/* B0.18 (salon-go-live-approval.md §6.4, Q7): the owner's sentence, word
+          for word — « validé », never « vérifié », which is the identity
+          documents' word just above. A paragraph of its own: the list above is
+          the pro's commitments, in lower-case fragments. */}
+      <P>
+        Avant sa mise en ligne, chaque salon est validé par MyWeli, qui peut
+        refuser de le publier, notamment s’il n’est pas situé en Côte
+        d’Ivoire.
+      </P>
 
       <H2>8. Disponibilité</H2>
       <P>
