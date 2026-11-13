@@ -246,7 +246,9 @@ describe('Médias keeps what the server STORED — never its own pending address
 });
 
 describe('Vérification keeps the documents the server STORED', () => {
-  it('a second submit in the same visit carries the stored keys, and is accepted', async () => {
+  /// `answer`: the submit's answer carries the stored documents, or says
+  /// nothing of them (the page must then read the status back).
+  async function twoSubmits(answer: 'documents' | 'nothing') {
     const kyc = strictServer<string>([]);
     let docs: { type: string; fileName?: string; key: string }[] = [];
     const posts: { type: string; key: string }[][] = [];
@@ -265,9 +267,11 @@ describe('Vérification keeps the documents the server STORED', () => {
           const r = kyc.save(sent.map((d) => d.key));
           if (r.status !== 200) return json(r.status, r.body);
           docs = sent.map((d, i) => ({ ...d, key: r.out![i] }));
-          return json(200, { status: 'pending', documents: docs });
+          return json(200, answer === 'documents' ? { status: 'pending', documents: docs } : { status: 'pending' });
         }
-        if (url === '/api/pro/kyc') return json(200, { status: 'rejected', documents: [] });
+        if (url === '/api/pro/kyc') {
+          return json(200, { status: posts.length ? 'pending' : 'rejected', documents: docs });
+        }
         return json(404, {});
       }),
     );
@@ -275,23 +279,30 @@ describe('Vérification keeps the documents the server STORED', () => {
     render(<VerificationClient />);
     pick(await screen.findByLabelText('Pièce d’identité (CNI / passeport)'));
     pick(await screen.findByLabelText('Photo du visage'));
-    const submit = screen.getByRole('button', { name: 'Soumettre pour vérification' });
-    await waitFor(() => expect(submit).toBeEnabled());
-    fireEvent.click(submit);
+    // Re-queried each time: reading the status back redraws the page.
+    const submit = () => screen.getByRole('button', { name: 'Soumettre pour vérification' });
+    await waitFor(() => expect(submit()).toBeEnabled());
+    fireEvent.click(submit());
     await waitFor(() => expect(posts).toHaveLength(1));
     await screen.findByText('Documents soumis pour vérification');
 
     // Replace the selfie, submit again — what the rejection banner invites.
-    pick(screen.getByLabelText('Photo du visage'));
-    await waitFor(() => expect(submit).toBeEnabled());
-    fireEvent.click(submit);
+    pick(await screen.findByLabelText('Photo du visage'));
+    await waitFor(() => expect(submit()).toBeEnabled());
+    fireEvent.click(submit());
     await waitFor(() => expect(posts).toHaveLength(2));
     expect(posts[1].find((d) => d.type === 'idCard')?.key).toBe('kyc/acc-1/d1.jpg');
     await waitFor(() =>
       expect(docs.map((d) => d.key).sort()).toEqual(['kyc/acc-1/d1.jpg', 'kyc/acc-1/d3.jpg']),
     );
     expect(screen.queryByText('L’envoi a échoué. Réessayez.')).toBeNull();
-  });
+  }
+
+  it('a second submit in the same visit carries the stored keys, and is accepted', () =>
+    twoSubmits('documents'));
+
+  it('an answer without the documents reads the status back — never keeps the pending keys', () =>
+    twoSubmits('nothing'));
 });
 
 describe('Profil keeps the logo the server STORED', () => {
