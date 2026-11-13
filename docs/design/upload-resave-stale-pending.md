@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | Approved 2026-11-13 (owner: « Web + server ») · Built on `fix/upload-resave-stale-pending` · backend deploy on the owner's yes |
+| **Status** | Approved 2026-11-13 (owner: « Web + server ») · Merged 2026-11-13 (#784, `ea6297c1`) · backend deploy on the owner's yes |
 | **Owner** | Sadreddine |
 | **Last updated** | 2026-11-13 |
 | **PRD ref / phase** | Storage / uploads (T61) · V1 · production incident of 2026-11-13 |

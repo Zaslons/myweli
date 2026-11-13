@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | Draft — awaiting the owner's sign-off |
+| **Status** | Approved 2026-11-13 (owner: « Yes, build it » — §9 answered with the recommendations) · Built on `feat/gallery-multi-select` |
 | **Owner** | Sadreddine |
 | **Last updated** | 2026-11-13 |
 | **PRD ref / phase** | Pro gallery (pro-gallery.md) · V1 |
@@ -56,7 +56,8 @@ No backend change: the gallery save already takes the whole list (max 20,
 
 Everything else on the page stays usable between photos, as during a single
 upload today (move, cover, delete): each save re-sends the list the server last
-returned, so a move in between is kept.
+returned, so a move in between is kept. In the app the add tile stays visible
+and waits (disabled), between two photos of a pick too.
 
 ### 2.2 Pro app — « Photos »
 
@@ -76,11 +77,11 @@ title unchanged.
 | Case | What happens |
 |---|---|
 | One photo picked | Exactly as today — no new copy, no success toast. |
-| Gallery already full (20) | Unchanged: « Maximum atteint. » (web), add tile hidden (app). |
+| Gallery already full (20) | Web unchanged: « Maximum atteint. ». **App: the add tile now goes at 20** — before, it stayed, and a 21st photo was refused by the server only after its upload (found while building). |
 | More picked than room | First ones kept; « 20 photos maximum : 3 photos n’ont pas été ajoutées. » |
 | One photo fails (unreadable, too large, network) | It is skipped, the others continue; counted in the summary. |
 | A save is refused | That photo is not added; the batch continues with the list the server last accepted. |
-| Page left / app screen left mid-batch | The photo being prepared is dropped, the rest are not sent; the ones already saved stay. |
+| Page left / app screen left mid-batch | Website: the photo being prepared is dropped (the existing leave signal). App: the photo on its way finishes, as a single add always has. Either way the rest are not sent and the ones already saved stay. A salon switch in the app stops it the same way. |
 | Upload ceiling (60 gallery signatures / hour / account) | Three full galleries' worth; a refusal counts as a failed photo. No special copy. |
 | Picker cancelled | Nothing happens. |
 
@@ -88,10 +89,10 @@ title unchanged.
 
 | When | Message | Kind |
 |---|---|---|
-| Batch ≥ 2, all added | « 5 photos ajoutées » | success |
-| Batch ≥ 2, some failed | « 3 photos ajoutées sur 5. Les autres n’ont pas pu être envoyées. » | error |
-| Batch ≥ 2, all failed | « Aucune photo n’a pu être envoyée. » + the specific reason when every failure shares one (« Choisissez des images JPEG, PNG ou WebP. ») | error |
-| More picked than room | « 20 photos maximum : 3 photos n’ont pas été ajoutées. » (shown first; the summary follows) | info |
+| Batch ≥ 2, all added | « 5 photos ajoutées. » | success |
+| Batch ≥ 2, some failed | « 3 photos ajoutées sur 5. 2 n’ont pas pu être envoyées. » (« 1 n’a pas pu être envoyée. ») | error |
+| Batch ≥ 2, all failed | « Aucune photo n’a pu être envoyée. » + on the website, the specific hint when every failure shares one (« Choisissez des images JPEG, PNG ou WebP. » / « … plus petites. » / « Essayez avec un autre navigateur. »). The app has no typed reasons, so no hint. | error |
+| More picked than room | « 20 photos maximum : 3 photos n’ont pas été ajoutées. » — on the website at once, and repeated at the end of the summary (one toast at a time, so the first may be replaced); in the app, in the end snackbar | info |
 | Batch of 1 | Today's messages, unchanged | — |
 
 ## 3. API & contract
@@ -142,9 +143,34 @@ cost as N single adds today.
 - **Mutations:** parallel instead of sequential, cap off by one, summary
   counts, leave signal ignored, `multiple` removed.
 
-## 9. Rollout & open questions
+### 8.1 What was measured (2026-11-13)
+
+- **Red first:** the website's nine behaviour tests failed on the old page
+  (one file at a time, no `multiple`); the app tests failed to compile before
+  `gallery_batch.dart` existed.
+- **Mutations — website 14/14 killed:** uploads in parallel, no cap, cap off
+  by one, the LAST ones kept instead of the first, no over-cap notice, the
+  leave signal ignored, stop at the first failure, a refused save counted as
+  added, `multiple` removed, no progress label, a summary for one photo, the
+  hint when the reasons differ, no cap note in the summary, a single failure
+  silent.
+- **App 13/13 killed — two only after a change.** A5 (the salon check removed)
+  survived because the salon reset ALSO set the stop flag: the reset no longer
+  does, so each guard has one job and its own test. A6 (not busy between two
+  photos) survived because nothing listened between photos: the test now
+  records `isUploading` on every change of a batch. A1 (in parallel) was first
+  killed by a compile error only; rewritten to compile, it is killed by the
+  test.
+
+## 9. Rollout & decisions
+
+Answered by the owner with the recommendations: **save after each photo**;
+over the room left, **keep the first ones picked**; desktop drag-and-drop
+**later**.
 
 Website ships on merge; the app with the next store build; no backend deploy.
+
+The questions as they were asked, kept for the record:
 
 1. **Save after each photo (recommended) or once at the end?** After each:
    photos appear as they land, a left page loses nothing, and a failure costs
