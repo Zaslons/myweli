@@ -685,6 +685,12 @@ These block everything. None is surface-specific.
       `blue-base-1ad1.cloudflareaccess.com/cdn-cgi/access/login/<host>`. The
       first fetch right after saving still answered `200`; the change took
       about a minute to reach the edge.
+      **Re-checked every morning, from the first scheduled run after its
+      merge,** by the `access` job of `production-checks.yml`
+      (`infra/cloudflare/98-verify-console-access.sh`,
+      `docs/design/infra-console-access-check.md`): the three hostnames, at
+      `/` and at `/main.dart.js`, must each redirect to the Access sign-in for
+      that hostname, or the alarm issue opens.
 
 - [x] **The per-identity limits are deployed to PRODUCTION.** **Enforcing since
       2026-08-19** — revision `myweli-api-00022-t9x`, commit `34d55c0`, which

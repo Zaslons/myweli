@@ -839,7 +839,18 @@ serves rather than failing silently in the browser).
   and an anonymous `GET https://myweli-admin.pages.dev/main.dart.js` answered
   `200` with the whole console. The API never trusted that origin (its
   preflight answers without `Access-Control-Allow-Origin`), so nothing could
-  sign in from there, but the code and its admin routes were public. The backend also enforces admin authz +
+  sign in from there, but the code and its admin routes were public.
+  **Re-checked every morning** by the `access` job of
+  `.github/workflows/production-checks.yml`, which runs
+  `infra/cloudflare/98-verify-console-access.sh`: each hostname at `/` and at
+  `/main.dart.js` (the wildcard through the made-up
+  `zz-access-probe.myweli-admin.pages.dev`) must redirect an anonymous visitor
+  to `https://blue-base-1ad1.cloudflareaccess.com/cdn-cgi/access/login/<that
+  host>`. Red opens the alarm issue and names the address; the fix is to add
+  the hostname back to « Myweli Admin » here. If the Zero Trust team domain is
+  ever renamed, the script's `TEAM_HOST_DEFAULT` needs the new one
+  ([design/infra-console-access-check.md](design/infra-console-access-check.md)).
+  The backend also enforces admin authz +
   the seeded `ADMIN_EMAIL`/`ADMIN_PASSWORD` login, but Access keeps the console
   unreachable to the public.
 - **Rotating the admin password is NOT done by changing the secret.**

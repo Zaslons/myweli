@@ -2,11 +2,12 @@
 
 | | |
 |---|---|
-| **Status** | **Approved 2026-11-13** (owner: « add the daily check »). Building on `ci/console-access-daily-check`, not merged |
+| **Status** | **Approved and built 2026-11-13** (owner: « add the daily check »), on `ci/console-access-daily-check`, **not merged**. 16 mutations watched red; green against production from the owner's Mac; **not yet run on GitHub** |
 | **Owner** | Sadreddine Daher |
 | **Last updated** | 2026-11-13 |
 | **PRD ref / phase** | Operations, no product requirement · V1 |
 | **Module** | `infra/cloudflare/98-verify-console-access.sh`, the `access` job of `.github/workflows/production-checks.yml`, `backend/test/infra/console_access_check_test.dart` |
+| **ROADMAP entry** | [2026-11-13-console-access-daily-check.md](../roadmap/entries/2026-11-13-console-access-daily-check.md) |
 | **Origin** | [LAUNCH.md](../LAUNCH.md), the box « Cloudflare Access is configured on the `myweli-admin` Pages project »; [DEPLOYMENT.md](../DEPLOYMENT.md) § Phase E, « Restrict »; [entry of 2026-11-13](../roadmap/entries/2026-11-13-admin-console-deployed-access-pages-dev.md) |
 | **Skills checked** | myweli-dev-guardrails ✓ · myweli-backend-guardrails ✓ · myweli-verification-guardrails ✓ · no app, web, API or contract change |
 
@@ -71,7 +72,7 @@ The team host defaults to `blue-base-1ad1.cloudflareaccess.com`, the Zero Trust 
 
 **If the wildcard goes**, the probe gets whatever Pages answers for an alias it does not know, a `404` per the 2026-11-13 notes. The check does not depend on which: anything but the Access redirect is red, and §5 says what a `404` on the probe means.
 
-**The rehearsal seam.** `CONSOLE_ACCESS_URLS` (URLs separated by spaces or newlines) and `CONSOLE_ACCESS_TEAM_HOST` replace the list and the team host, and the script says so on its first line. They exist so the test can reach every red branch against a local server; reaching them against production means removing Access. Set but empty, the list is refused rather than read as « nothing failed ». No workflow may set either (§7).
+**The rehearsal seam.** `CONSOLE_ACCESS_URLS` (URLs separated by spaces or newlines) and `CONSOLE_ACCESS_TEAM_HOST` replace the list and the team host, and the script says so on its first line. They exist so the test can reach every red branch against a local server; reaching them against production means removing Access. Set but empty, either one is refused rather than swapped for the default or read as « nothing failed ». No workflow may set either (§7).
 
 **Read-only and anonymous by construction.** `curl` with `GET` and nothing else: no method flag, no body, no header, no cookie. A credential would let the request through Access and hide exactly what this asks.
 
@@ -102,13 +103,13 @@ It runs the **real** script with `bash`, against a local `HttpServer` (`dart:io`
 - **Green:** a `302` to `https://<team>/cdn-cgi/access/login/127.0.0.1?…`, and the same for `301`, `303`, `307`, `308`.
 - **Red, each with its line:** `200` (« PUBLIC », « Myweli Admin », « Restrict »); `404`; `403`; a redirect to another host; Pages' own relative redirect; the team host but another hostname's sign-in; a login path that only starts with the right hostname; a look-alike host; a userinfo host; plain `http`; a renamed team domain (and its hint); a redirect with no `Location`; a closed port (« nothing measured »).
 - **All are checked:** a bad URL first, then good ones, then a second bad one: exit `1`, both bad named, both good reported, « 2 of 4 ».
-- **Vacuity:** an override of spaces only is refused.
+- **Vacuity:** a list of spaces only is refused, an empty team host too, and either variable set but empty is refused with no request made (never swapped for the production list).
 - **The default list, against a stand-in `curl`** that logs each call and answers as Access does: with no override, the script asks for exactly the six URLs of §3, in that order, never with `-L`, and is green; the same stand-in answering `200` for `myweli-admin.pages.dev` turns it red. This holds the list and the default team host without touching production.
 - **Wired:** the job exists, checks out before it runs exactly `bash infra/cloudflare/98-verify-console-access.sh`, holds `contents: read` only, sets no env; no workflow assigns either override; the job's result is in `report`'s env and status line, and the body names the fix. The script is executable and names no credential.
 
 `production_alarm_test.dart` already derives `report.needs` and `clear.needs` from the jobs in the file, and `web/tests/production-alarm-status.test.ts` derives the status line, so both hold the new job with no edit.
 
-**Watched red** before merge: each mutation listed in §9 step 2, one line at a time, on committed code.
+**Watched red** before merge: each mutation listed in §9 step 2, on committed code, restored with `git checkout` and the tree read back clean after each.
 
 ## 8. What it cannot see
 
@@ -122,15 +123,34 @@ Stated so nobody reads it as more (verification guardrails §12):
 ## 9. Rollout
 
 1. The branch carries the script, the job, the test and these docs.
-2. Mutations on committed code, each watched red on the intended test: `200` accepted as green; the `Location` host check dropped; the path check dropped; `000` read as green; stop after the first failure; the wildcard probe dropped from the defaults; `access` removed from `clear.needs`.
-3. Live, from the owner's Mac: the defaults green against production; the list overridden to a public site (`https://myweli.com/`, red « PUBLIC »), to a `404` (`https://cloudflare-docs.pages.dev/`) and to a closed port (red « nothing measured »).
+2. ~~Mutations on committed code~~ **Done 2026-11-13: 16 of 16 red**, each on the test it was aimed at:
+
+   | Mutation (one edit) | Fell |
+   |---|---|
+   | `2xx` read as green | « 200: the console is PUBLIC there », « a bad one first… », « a public address in the production list » |
+   | the `Location` host check dropped | look-alike, userinfo, port, foreign host, renamed team |
+   | the path check dropped | another hostname's sign-in, a prefix, a longer path |
+   | `000` read as green | « no answer at all », « a bad one first… » |
+   | stop after the first failure | « a bad one first… », « a public address in the production list » |
+   | the wildcard probe dropped from the defaults | the three default-list tests |
+   | `access` removed from `clear.needs` | `production_alarm_test` « clear hears from every other job », « a red run reaches the alarm » |
+   | `-L` added to curl | 16 tests, green and red |
+   | a plain-`http` `Location` accepted | « plain http to the team host » |
+   | `Location` printed with its query | the five cases whose `Location` carries one |
+   | `:-` instead of `-` for the list | « a variable set but empty is refused » |
+   | `myweli-admin.pages.dev/main.dart.js` dropped from the defaults | the three default-list tests |
+   | the job overrides the list inline | « runs exactly the script », « sets no variable » |
+   | `access` removed from `report.needs` | `production_alarm_test` « report hears from every other job », « a red run reaches the alarm » |
+   | « console access » dropped from the status line | « a red run reaches the alarm » |
+   | the job's `permissions` block removed | « holds contents: read and nothing else » |
+3. ~~Live, from the owner's Mac~~ **Done 2026-11-13, 10:35 UTC**: the defaults all six green, each `302` to the sign-in of its own hostname; the list overridden to `https://myweli.com/` → red « the console is PUBLIC at https://myweli.com/ » (200); to `https://cloudflare-docs.pages.dev/` → red, « answered 404 »; to `https://127.0.0.1:9/` → red, « could not reach … — nothing measured » (curl 7).
 4. Merge. Until then the 06:00 schedule runs `main`'s file, which has no `access` job; the first scheduled run after the merge is the first daily one. A `workflow_dispatch` on the branch before merging would read it from GitHub's network, on the owner's say.
 
 ## 10. Definition of done
 
-- [ ] `dart format` clean · `dart analyze --fatal-infos --fatal-warnings` = 0 · `backend/test/infra/` green · the whole backend suite green.
-- [ ] Every mutation of §9 step 2 watched red.
-- [ ] LAUNCH.md (the Access box), DEPLOYMENT.md « Restrict », `deploy-admin.yml`'s header, `infra/cloudflare/README.md`, the spec index and a roadmap entry updated in the same PR.
+- [x] `dart format` clean · `dart analyze --fatal-infos --fatal-warnings` = 0 · `backend/test/infra/` green · the whole backend suite green.
+- [x] Every mutation of §9 step 2 watched red.
+- [x] LAUNCH.md (the Access box), DEPLOYMENT.md « Restrict », `deploy-admin.yml`'s header, `infra/cloudflare/README.md`, the spec index and a roadmap entry ([2026-11-13](../roadmap/entries/2026-11-13-console-access-daily-check.md)) updated in the same PR.
 - [ ] Feature branch + PR; CI green; no Claude attribution.
 - [ ] After merge: the first scheduled run read in the job log, not only its conclusion.
 
