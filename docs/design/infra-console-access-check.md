@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | **Approved and built 2026-11-13** (owner: « add the daily check »), on `ci/console-access-daily-check`, **not merged** (this line, the index row and the roadmap entry are set to merged, with the PR number and SHA, after the merge: §10). 25 mutations watched red (16 at build, 9 after the review); green against production from the owner's Mac; **not yet run on GitHub** |
+| **Status** | **Approved and built 2026-11-13** (owner: « add the daily check »), on `ci/console-access-daily-check`, **merged 2026-11-13** (#781, `0f53e663`). 25 mutations watched red (16 at build, 9 after the review); green against production from the owner's Mac; **green on GitHub** in its first run (production-checks run 43422200006, 2026-11-13, dispatched on `03ffc953`): the job log shows all six addresses answering 302 to their own host's Access sign-in from GitHub's network |
 | **Owner** | Sadreddine Daher |
 | **Last updated** | 2026-11-13 |
 | **PRD ref / phase** | Operations, no product requirement · V1 |
@@ -171,7 +171,7 @@ Stated so nobody reads it as more (verification guardrails §12):
 - [x] Every mutation of §9 step 2 watched red, the review's nine included.
 - [x] LAUNCH.md (the Access box), DEPLOYMENT.md « Restrict », `deploy-admin.yml`'s header, `infra/cloudflare/README.md`, the spec index and a roadmap entry ([2026-11-13](../roadmap/entries/2026-11-13-console-access-daily-check.md)) updated in the same PR.
 - [ ] Feature branch + PR; CI green; no Claude attribution.
-- [ ] After merge: the first scheduled run read in the job log, not only its conclusion; and the « not merged » status lines (this spec's Status, the row in [README.md](README.md), the roadmap entry's first line) set to merged, with the PR number and SHA.
+- [x] After merge: the first run read in the job log, not only its conclusion (run 43422200006, a dispatch, 2026-11-13: six 302s to the right sign-in); and the « not merged » status lines (this spec's Status, the row in [README.md](README.md), the roadmap entry's first line) set to merged, with the PR number and SHA.
 
 ## 11. Open questions
 
