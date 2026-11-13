@@ -3,8 +3,8 @@
 | | |
 |---|---|
 | **Module** | release (mobile, Pro flavour `com.myweli.pro`; Play Console) |
-| **Status** | **Approved 2026-11-11** — the owner's « Valider tel quel » on the plan and on decisions 110–115 ([BACKLOG](../BACKLOG.md)). Decision 115's cost was understated when asked; told the corrected facts, the owner confirmed « Rester professionnel » the same day (§3.6). Nothing built, nothing typed in the console yet. **Amended 2026-11-13** (decisions 134 and 135, after a read-only audit of the path to Play): the order inside step 3, a step 3a, preconditions and reads at steps 5–8, step 11's iOS neighbour, §5 row 3 and a row 17, §6, §9 and O5. |
-| **Last updated** | 2026-11-13 (decisions 134–135: §2, §4, §5, §6, §9, §11, the outcome log) |
+| **Status** | **Approved 2026-11-11** — the owner's « Valider tel quel » on the plan and on decisions 110–115 ([BACKLOG](../BACKLOG.md)). Decision 115's cost was understated when asked; told the corrected facts, the owner confirmed « Rester professionnel » the same day (§3.6). Nothing built, nothing typed in the console yet. **Amended 2026-11-13** for decisions 134 and 135 and for the findings of a read-only audit of the path to Play: the order inside step 3, a step 3a, preconditions and reads at steps 5–8, step 11's iOS neighbour, §2, §5 row 3 and a row 17, §6, §9, O5 and O7. Two of the audit's proposals are **not** decisions: the owner has not answered them yet (O8 « Publication gérée » at step 8, O9 the `/client-version` read at step 5). |
+| **Last updated** | 2026-11-13 (decisions 134–135 and the audit's findings: §2, §4, §5, §6, §9, §11, the outcome log) |
 | **BACKLOG items** | B0.10 (the Play forms and the closed test), B13.1 (#758), B13.3 (firebase), B13.10 (#759) |
 | **PRD ref / phase** | V1 · NFR-PERF-002 (APK < 30 MB) · ROADMAP Part 6 (the reference low-end Android) |
 | **ROADMAP entry** | added when the production release ships (`docs/roadmap/entries/`) |
@@ -164,10 +164,10 @@ never a go-ahead for a console action.
 | 3 | `version: 0.0.2+1` in `pubspec.yaml` (decision 111); the R8 PR (§6). **2026-11-13 (decisions 134, 135), the order inside this step:** (a) B0.18's Pro-app PR ([salon-go-live-approval.md](salon-go-live-approval.md) §9.1 item 3), so the iOS 0.0.2 IPA knows publish's 202 and the 409 `validation_refused_final`; (b) the bump, alone; (c) **a merge hold** from the bump's merge until the iOS 0.0.2 IPA is built: `release_build.sh` builds `origin/main`'s head only (`tool/release_build.sh:56-67`), so anything merged in between ships in iOS 0.0.2 (no PR was open on 2026-11-13); (d) the iOS 0.0.2 IPA, `./tool/release_build.sh ios pro` in the main checkout after `git pull --ff-only` (as step 5), decision 119 unchanged; its upload waits for the owner's yes and for Apple's two new age-rating answers (BACKLOG, decision 108); (e) the R8 (shrinker) PR (§6, decision 135), after the IPA so that its Dart change stays out of iOS 0.0.2, and before step 3a's PR A, whose P9 reuses the `flutter` stub's argument log it adds. **Fallback the owner accepted:** if (a) stalls, (b) ships alone first and (a) follows, still before step 5 | Claude; the owner merges | merge; the IPA built on the owner's go | the guards of §9; the IPA's app-store-forms §11.3 read |
 | 3a | *Added 2026-11-13.* B0.17, the Android sign-up ([pro-android-signup.md](pro-android-signup.md) §9.1), in **three PRs**: **A** the fence (null extensions, no behaviour change), after the R8 PR; **B** the service, provider and mock methods, the screens, the copy and the goldens; **C** the documents and the Play texts, after B0.18's button rename and B0.19's URL. A and B merge before step 5; C before step 7 | Claude; the owner merges | merge | pro-android-signup §8's guards; the iOS strings read at the first iOS build that carries A (decision 119) |
 | 4 | The upload key's backup: none was known (§11, O1), so the owner made one on 2026-11-11. **The file:** `~/myweli-upload.jks` is on the owner's Google Drive. It was downloaded back to this Mac and compared with the original: equal SHA-256 (`3aee730f…0be0e3`) and `cmp` 0. The download then went to the Trash. Because the copy is byte-identical, it opens wherever the original does, so `keytool -list` on it would prove nothing more. **The passwords:** in Apple Passwords, which iCloud Keychain syncs off this Mac (sync observed on). The owner compared the saved passwords with the ones `key.properties` holds, using a `getpass` comparison in their own terminal that prints only « matches » or « is DIFFERENT ». They reported **both « matches »** (that terminal's output is not visible here). Then, on this Mac: `key.properties`' store password opens the keystore, and it unlocks the private key under alias `upload`. `keytool -list` and `-certreq` both exit 0, with the passwords passed through the environment and nothing printed; as a control, a wrong password exits 1. The key password equals the store password, which PKCS12 requires. `chmod 600 key.properties`: dropped by the owner, because this Mac has one account (§10) | the owner, with Claude | — | **done 2026-11-11:** two equal hashes; both passwords « matches »; `keytool` opens the key with them |
-| 5 | The AAB from `main`, in the main checkout: `./tool/release_build.sh android pro`. Then on the artifact: the TLS gate (#759), the R8 marker, `BUNDLE-METADATA/…/proguard.map` present or not, permissions with `aapt2`/`bundletool`, size; Sentry: Dart symbols + the mapping (§6). **Added 2026-11-13:** (a) first, on the owner's go, `git pull --ff-only` in the main checkout: on 2026-11-13 it was 14 commits behind `origin/main` (`f36963a9` against `d19655bd`), a state the script refuses (`tool/release_build.sh:62-66`); (b) the 16 KB page size, Google's rule for apps targeting Android 15 and up (its page not re-read here: UNVERIFIED): `bundletool build-apks`, then `zipalign -c -P 16 -v 4` on the arm64 split, or an ELF read of `libapp.so`'s LOAD alignment. The audit read the engine's `libflutter.so` at 65536 and sentry-native's libraries at 16384 in local caches; `libapp.so` was not read; (c) the mapping **inside** the AAB, at `BUNDLE-METADATA/com.android.tools.build.obfuscation/proguard.map`: AGP 8.11.1 adds it whenever a mapping exists (OBSERVED in AGP's bytecode; no AAB read yet); (d) before the upload, a read of `GET /client-version?app=pro&platform=android&build=<N>`, `<N>` the AAB's build number, so that a floor set earlier does not block it: a production read, on the owner's go. Play may warn that native code has no debug symbols: expected, not a failure (INFERRED) | Claude, on the owner's yes | yes | the script's lines, the reads |
+| 5 | The AAB from `main`, in the main checkout: `./tool/release_build.sh android pro`. Then on the artifact: the TLS gate (#759), the R8 marker, `BUNDLE-METADATA/…/proguard.map` present or not, permissions with `aapt2`/`bundletool`, size; Sentry: Dart symbols + the mapping (§6). **Added 2026-11-13:** (a) first, on the owner's go, `git pull --ff-only` in the main checkout: on 2026-11-13 it was 14 commits behind `origin/main` (`f36963a9` against `d19655bd`), a state the script refuses (`tool/release_build.sh:62-66`); (b) the 16 KB page size, Google's rule for apps targeting Android 15 and up (its page not re-read here: UNVERIFIED): `bundletool build-apks`, then `zipalign -c -P 16 -v 4` on the arm64 split, or an ELF read of `libapp.so`'s LOAD alignment. The audit read the engine's `libflutter.so` at 65536 and sentry-native's libraries at 16384 in local caches; `libapp.so` was not read; (c) the mapping **inside** the AAB, at `BUNDLE-METADATA/com.android.tools.build.obfuscation/proguard.map`: AGP 8.11.1 adds it whenever a mapping exists (OBSERVED in AGP's bytecode; no AAB read yet); (d) *an audit proposal (Q-L) the owner has not answered yet (O9):* before the upload, a read of `GET /client-version?app=com.myweli.pro&platform=android&build=<N>`, `<N>` the AAB's build number, so that a floor set earlier does not block it. It must answer `ok` (or `update_available`), never `update_required`. `app` is the package name, as the app sends it (`client_version_gate.dart:125`): an unknown value such as `pro` finds no floor row and answers `ok` whatever the floor (`client_version_service.dart:55-56`), so it would prove nothing. A production read, on the owner's go. Play may warn that native code has no debug symbols: expected, not a failure (INFERRED) | Claude, on the owner's yes | yes | the script's lines, the reads |
 | 6 | Upload to the **internal** track, roll out to the owner; the device pass of §5 on the owner's phone and on the reference device | Claude in the browser pane (the owner signed in); the owner holds the phones. *Corrected 2026-11-13:* the built-in pane cannot attach files (play-store-forms §0.1: « le volet navigateur ne peut pas joindre de fichier »), so the AAB upload is done in the owner's Chrome (Claude in Chrome) on their yes, or by the owner | yes for the upload | §5's table filled in |
 | 7 | Re-read the Play dashboard (last read 2026-10-28). Type the listing text (decision 113). Fill in the location declaration (§7.1) and the trader declaration (§3.6, « trader », confirmed 2026-11-11). *Precondition added 2026-11-13:* B0.19's Pro deletion page live, and its URL typed in Data safety as the deletion URL; step 3a's PR C merged, so play-store-forms holds the texts to type | Claude in the pane; the owner signed in | yes for each form | each form read back after saving |
-| 8 | The Google Group; the closed track (countries, decision 114; testers = the group); **promote the same release** from internal to closed; send it to Google's review. *Added 2026-11-13:* precondition, B0.18's admin console and backend deployed, with a 202 read back: **done 2026-11-13** (salon-go-live-approval §9.2); the group is Testers Community's and the countries every available one (decision 117). After Google approves the closed release, and before step 10: « Publication gérée » turned **on** (off today, play-store-forms §0.1), on the owner's yes, so that production goes out on their click | the owner and Claude | yes | the track's state read back |
+| 8 | The Google Group; the closed track (countries, decision 114; testers = the group); **promote the same release** from internal to closed; send it to Google's review. *Added 2026-11-13:* precondition, B0.18's admin console and backend deployed, with a 202 read back: **done 2026-11-13** (salon-go-live-approval's status line; its §9.2 item 5 sets the precondition); the group is Testers Community's and the countries every available one (decision 117). *An audit proposal (Q-I) the owner has not answered yet (O8):* after Google approves the closed release, and before step 10, « Publication gérée » turned **on** (off when last read, 2026-10-28, play-store-forms §0.1), on the owner's yes, so that production goes out on their click | the owner and Claude | yes | the track's state read back |
 | 9 | The test salon, the invitations, play-store-forms §6.3–§6.5; 12 testers opted in for 14 days in a row | the owner | — | the console's tester count, day by day |
 | 10 | Apply for production access (Google usually answers in 7 days or less), then production at a staged rollout (§8) | the owner and Claude | yes | the rollout's state |
 | 11 | The Pro **Android** `updateUrl` in the admin console, once the store page is public (as B0.5 did for iOS). *Its iOS neighbour (decision 134, 2026-11-13):* once an iOS 0.0.2 that carries B0.18's app is live on the App Store, the owner raises the iOS floor (the admin console's client-version minimum for iOS), which ends decision 131's residual (salon-go-live-approval §9.2, item 6). No slot is set for it yet | the owner | — | `GET /client-version?…platform=android&build=-1` read back |
@@ -220,6 +220,18 @@ they have, and LAUNCH §6.3's box stays open with the gap named.
     Sentry CLI ». The manual route puts a UUID in the manifest as
     `<meta-data android:name="io.sentry.proguard-uuid" …/>` and uploads with
     `sentry-cli upload-proguard --uuid <uuid> <mapping.txt>`.
+  - *Approved 2026-11-11, superseded 2026-11-13 by decision 135 (below), kept
+    as the record:*
+    - ~~**Recommended: the manual route.** `release_build.sh` makes one UUID
+      per build and passes it to Gradle as a manifest placeholder. It then
+      prints the upload command, as it already does for the symbols. The
+      script never holds the Sentry token, and the Gradle plugin would need it
+      at build time.~~
+    - ~~**UNVERIFIED:** whether `sentry_flutter`'s Android side reads that
+      manifest key without the Gradle plugin. Sentry's pages do not say.
+      Checked at step 6 by reading one event's `debug_meta` in Sentry. If it
+      is absent, the Gradle plugin is the fallback, in its own PR.~~ Answered
+      2026-11-13 from the code (O5): read, then erased.
   - **The manifest route does not work here** (O5, answered 2026-11-13 from
     the code; the runtime proof is §5 row 17). sentry-android 8.51.0 does read
     the manifest key (`ManifestMetadataReader.applyMetadata`). Then
@@ -268,6 +280,10 @@ they have, and LAUNCH §6.3's box stays open with the gap named.
   AGP 8.11.1 adds it as
   `BUNDLE-METADATA/com.android.tools.build.obfuscation/proguard.map` whenever
   a mapping exists, OBSERVED in its bytecode; step 5 reads the real AAB.)*
+- ~~**The R8 PR** (step 3) writes `isMinifyEnabled = true` explicitly,
+  replaces the false comment, adds the UUID placeholder, and prints the
+  mapping upload from `release_build.sh`. Its guard is in §9.~~ *(Approved
+  2026-11-11; the placeholder superseded 2026-11-13 by decision 135.)*
 - **The R8 PR** (step 3) carries decision 135's design above, and the `flutter`
   stub's argument log in `release_build_test.dart`, which B0.17's PR A (P9)
   reuses. It merges **after** the iOS 0.0.2 IPA, so that iOS 0.0.2 carries
@@ -339,12 +355,20 @@ they have, and LAUNCH §6.3's box stays open with the gap named.
   equal the App Store **word for word** (decision 113). Watched red: the four
   old phrasings put back one at a time, each fails. The doc comment's
   paragraph 1 says so.
+- ~~**The R8 PR** (step 3): a test reads `app/build.gradle.kts`, comments
+  stripped, and requires `isMinifyEnabled = true` in the release block and the
+  proguard UUID placeholder. It also reads `release_build.sh`, prose and
+  `echo` lines stripped, and requires the mapping path in the printed upload
+  command. Each assertion is watched red by deleting its line.~~ *(Approved
+  2026-11-11; superseded 2026-11-13 by decision 135, below.)*
 - **The R8 PR** (step 3; *rewritten 2026-11-13 for decision 135*, the
   manifest placeholder dropped):
   - **`build.gradle.kts`**, comments stripped, the `release { … }` block found
     inside `buildTypes`: `isMinifyEnabled = true` and `isShrinkResources = true`
     in **release**; no `isMinifyEnabled = false` anywhere; a commented line
-    does not count; the old « deliberately NOT enabled » comment gone.
+    does not count. One assertion reads the **raw** file instead, since the
+    stripped text never holds a comment: the old « deliberately NOT enabled »
+    comment is gone.
   - **`release_build.sh`, run for real** in `release_build_test.dart`'s
     throwaway repo, the `flutter` stub now logging its arguments: `android pro`
     prints `upload-proguard`, `--uuid <U>` and the mapping path, and `<U>` is
@@ -398,6 +422,8 @@ they have, and LAUNCH §6.3's box stays open with the gap named.
 | O5 | Does `sentry_flutter` read `io.sentry.proguard-uuid` without the Gradle plugin? | step 6 | **answered 2026-11-13, from the code: read, then erased.** sentry-android 8.51.0's `ManifestMetadataReader.applyMetadata` sets it; sentry_flutter 9.26.0's options callback, which runs after, sets it back to `options.proguardUuid`, `null` in this app (`sentry_native_java_init.dart:218-219`); only the Gradle plugin's asset refills a `null`, and there is none. So the carrier is the Dart option (decision 135, §6). The runtime proof stays at step 6 (§5 row 17) |
 | O6 | The rollout: 20 % for 48 h, then 100 %? | the owner, at step 10 | proposed |
 | O7 | *Added 2026-11-13.* Does Sentry register a second upload of a byte-identical `mapping.txt` under a new `--uuid`? | step 5, the per-build check (§6) | open (UNVERIFIED). If it does not, the Gradle plugin is the fallback |
+| O8 | *Added 2026-11-13, the audit's Q-I.* Turn « Publication gérée » on after Google approves the closed release, before step 10, so that production goes out on the owner's click (step 8)? | the owner, before step 10 | **proposed, not answered** (the audit recommends yes). Off when last read, 2026-10-28 (play-store-forms §0.1) |
+| O9 | *Added 2026-11-13, the audit's Q-L.* A production read of `GET /client-version?app=com.myweli.pro&platform=android&build=<N>` before the upload, to see that no floor blocks the AAB's build number (step 5 (d))? | the owner, at step 5 | **proposed, not answered** (the audit recommends yes, read-only). The Android row's floors are UNVERIFIED |
 
 **Outcome log.** Each step adds a dated line here when it ends, with what was
 observed.
@@ -421,10 +447,11 @@ observed.
   installed or sent, no cloud or console read. Observed: `pubspec.yaml:4`
   still `0.0.1+1`; `build.gradle.kts:101` still says R8 « is deliberately NOT
   enabled »; no B0.17 code, B0.18's Pro app and B0.19 not built; no Android
-  device attached (`adb devices`); the main checkout 14 commits behind
-  `origin/main` (`f36963a9`); `gh pr list` returned no open PR; sentry_flutter
-  erases the manifest's proguard UUID (O5); sentry-cli 3.8.0 hides `--uuid`;
-  the Pro app's Google endpoint is `/auth/provider/google`; the pane cannot
-  attach files. The owner answered decisions 134–136 the same day
-  (BACKLOG), and this spec was amended for them.
+  device attached (`adb devices`); the main checkout at `f36963a9`, 14 commits
+  behind `origin/main` (`d19655bd`); `gh pr list` returned no open PR;
+  sentry_flutter erases the manifest's proguard UUID (O5); sentry-cli 3.8.0
+  hides `--uuid`; the Pro app's Google endpoint is `/auth/provider/google`;
+  the pane cannot attach files. The owner answered decisions 134–136 the same
+  day (BACKLOG), and this spec was amended for them and for the audit's
+  findings; two of its proposals wait for the owner (O8, O9).
 

@@ -4,7 +4,7 @@
 |---|---|
 | **Status** | **Approved 2026-11-12 (the owner answered §11's six questions: decisions 116–123).** Not built. Reviewed three times by independent readers on 2026-11-12, every finding folded in: six readers (code, architecture, backend, design system, store documents, completeness) found 61; three found 26 on the revision; two found 18 on the third. **A prerequisite came out of the answers:** salons now wait for the owner's approval before going public (decision 120), a new feature with its own spec (B0.18), built before the closed test |
 | **Owner** | Sadreddine Daher |
-| **Last updated** | 2026-11-13 (dated notes for decisions 134–136: §2.7, §5.5, §9.1, §9.3, §9.4, §11) |
+| **Last updated** | 2026-11-13 (dated notes: decisions 132, 134 and 135 at §2.7, §9.1, §9.4 and §11; decision 117 at §9.3; the audit's correction at §5.5) |
 | **PRD ref / phase** | FR-PRO-AUTH-001 (Pro sign-in and sign-up) · V1 |
 | **BACKLOG** | B0.10 (the Android release); this spec's decisions are 116 and up (§11) |
 | **Related** | [pro-app-login-only.md](pro-app-login-only.md) (decisions 38–43: sign-in only, both platforms) · [app-review-round-2.md](app-review-round-2.md) (decision 71: the website link went) · [android-play-release.md](android-play-release.md) (decisions 110–115: the release order this slice enters) · [play-store-forms.md](play-store-forms.md) (the listing, Data safety, the closed test) · [app-store-forms.md](app-store-forms.md) §11.3 (the iOS pre-upload read) · [pro-companion-path.md](pro-companion-path.md) (the app never sells, on either platform) · [web-pro-registration.md](web-pro-registration.md) (the website's sign-up) · [pro-auth-social.md](pro-auth-social.md) · [team-access-r3-app.md](team-access-r3-app.md) (the invitations bridge) |
@@ -878,9 +878,11 @@ typed at step 7.
   validation (B0.18) and refused « Salon de test » (`test_salon`, final).
   Testers who never ask to go live carry **no marker**. How to recognise them
   (for example a « TEST » prefix in the salon name, asked in the guide, or the
-  sign-up window) is for the testers plan, owed before step 8 with Testers
-  Community's answers. The countries are decided too: every available one,
-  decision 117 (1).
+  sign-up window) is an **open question for the owner** (the audit's Q-F and
+  Q-G, not asked yet): asked before android-play-release step 8, with Testers
+  Community's answers, and its answer goes into the English tester guide
+  (play-store-forms §6.5, decision 117 (3)). The countries are decided: every
+  available one, decision 117 (1).
 - **Publishing:** a tester's salon may ask to go live; the owner does not
   approve it, so it stays private (decision 120, B0.18).
 - **E-mail budget:** 60 per hour, shared (§6.4).
