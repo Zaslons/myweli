@@ -121,7 +121,11 @@ ordinateur » dans les mots.
   de cache, pas d'interception de requêtes (aucun risque de page périmée).
   Le lien du clic est **construit** à partir d'`appointmentId` et
   `providerId` (identifiants vérifiés par motif) — jamais une adresse lue
-  telle quelle dans le message.
+  telle quelle dans le message. **B0.18** ([web-salon-validation.md](web-salon-validation.md)
+  §4.7) : la décision de MyWeli sur un salon (`salon.validation.approved` /
+  `.refused`, sans `appointmentId`) ouvre `/pro?salon={providerId}`, une
+  notification par salon ; le message aux onglets ouverts porte l'`event`,
+  pour qu'« Aujourd’hui » relise l'état du salon.
 - **BFF** : `POST`/`DELETE /api/pro/devices` → `/me/devices` avec la session
   Pro ; la plateforme est **fixée à `web` par le BFF**, le jeton borné
   (4 096 caractères, comme le serveur).

@@ -657,7 +657,7 @@ const ownedSalons = new Map([
   ['p3', secondSalon],
 ]);
 function salonEntryOf(id, role) {
-  const salon = ownedSalons.get(id);
+  const salon = ownedSalons.get(id) ?? (id === VALIDATION_SALON_ID ? validationSalon : undefined);
   return {
     salonId: id,
     salonName: salon.name,
@@ -665,7 +665,79 @@ function salonEntryOf(id, role) {
     salonStatus: salon.status ?? 'active',
     verified: salon.verified === true,
     imageUrl: salon.imageUrls?.[0] ?? null,
+    // B0.18: the B0.18 server always sends the key (null: never asked).
+    ...validationKey(id, role),
   };
+}
+
+// --- B0.18: MyWeli validates a salon before it goes public -----------------
+// docs/design/salon-go-live-approval.md §3, docs/design/web-salon-validation.md
+// §7. This stub is a B0.18 server: `/me/provider`, `/me/salons` and the publish
+// carry `validation`; the publish of a salon never validated is a REQUEST (202,
+// no trial minted); `POST /__stub/validation` stands in for the admin.
+//
+// p1 and p3 (and created salons) start never asked (`null`). The refusal and
+// approval journeys run on their OWN identity and salon (`pv1`, signed in as
+// VALIDATION_EMAIL), so no other spec sees a salon refused or taken live under
+// it while workers share this stub; p1's go-live only submits (pending), and
+// the spec resets it after.
+const VALIDATION_EMAIL = 'validation.salon@salon.test';
+const VALIDATION_SALON_ID = 'pv1';
+const isValidationOwner = (req) =>
+  (req.headers.authorization || '').includes('pro-validation');
+// Snapshotted at start: p1's document changes under other specs (photos and
+// services come and go), and a reset must not inherit that.
+const VALIDATION_SALON_SEED = (() => {
+  const salon = JSON.parse(JSON.stringify(proProvider));
+  salon.id = VALIDATION_SALON_ID;
+  salon.slug = 'salon-en-validation';
+  salon.name = 'Salon Validation';
+  salon.status = 'draft';
+  return JSON.stringify(salon);
+})();
+const freshValidationSalon = () => JSON.parse(VALIDATION_SALON_SEED);
+let validationSalon = freshValidationSalon();
+const FINAL_REFUSALS = new Set(['outside_ci', 'test_salon']);
+/// salonId → its validation (`null`: never asked). A salon in `legacySalons`
+/// answers as a server BEFORE B0.18: no key, and its publish goes live (200).
+const salonValidations = new Map([
+  ['p1', null],
+  ['p3', null],
+  [VALIDATION_SALON_ID, null],
+]);
+const legacySalons = new Set();
+const offerIsLive = (o) =>
+  Boolean(o) && (o.status === 'trial' || o.status === 'paid' || o.status === 'grace');
+function salonDocOf(id) {
+  if (id === VALIDATION_SALON_ID) return validationSalon;
+  return ownedSalons.get(id) ?? proProvider;
+}
+/// The validation as the server shapes it per caller
+/// (salon_validation_view.dart): `offerLive` and the note go to the owner
+/// (`salon.publish`) only; `offerLive` only for a validated salon not active.
+function validationViewOf(id, role) {
+  const v = salonValidations.get(id) ?? null;
+  if (v === null) return null;
+  const owner = role === 'owner';
+  const out = { state: v.state, wentLive: v.wentLive === true };
+  if (v.submittedAt) out.submittedAt = v.submittedAt;
+  if (v.decidedAt) out.decidedAt = v.decidedAt;
+  if (owner && v.state === 'approved' && (salonDocOf(id).status ?? 'active') !== 'active') {
+    out.offerLive = offerIsLive(salonOffers.get(id));
+  }
+  if (v.state === 'refused' && v.refusal) {
+    out.refusal = {
+      code: v.refusal.code,
+      final: FINAL_REFUSALS.has(v.refusal.code),
+      ...(owner && v.refusal.note ? { note: v.refusal.note } : {}),
+    };
+  }
+  return out;
+}
+/// The `validation` key, or none for a salon answering as an older server.
+function validationKey(id, role) {
+  if (legacySalons.has(id)) return {};
+  return { validation: validationViewOf(id, role) };
 }
 
 // --- team access R5a: the salon roster, offer & pending invitations --------
@@ -835,6 +907,65 @@ createServer(async (req, res) => {
     const record = receivedUploads.get(url.searchParams.get('key') ?? '');
     res.writeHead(record ? 200 : 404, { 'content-type': 'application/json' });
     return res.end(JSON.stringify(record ?? { error: 'not_found' }));
+  }
+  // B0.18 — the admin's stand-in (docs/design/web-salon-validation.md §7).
+  // { salonId, action: 'approve' | 'refuse' | 'seed' | 'reset', code?, note?,
+  //   validation?, legacy?, status?, offer? }
+  if (url.pathname === '/__stub/validation' && req.method === 'POST') {
+    const b = await readBody(req);
+    const id = b.salonId;
+    if (!['p1', 'p3', VALIDATION_SALON_ID].includes(id) && !ownedSalons.has(id)) {
+      return json(res, 404, { error: 'not_found' });
+    }
+    const doc = salonDocOf(id);
+    const prev = salonValidations.get(id) ?? null;
+    const now = new Date().toISOString();
+    switch (b.action) {
+      case 'approve':
+        // Validate, start the trial when no offer row exists, go live.
+        salonValidations.set(id, {
+          state: 'approved',
+          submittedAt: prev?.submittedAt,
+          decidedAt: now,
+          wentLive: true,
+        });
+        if (!salonOffers.has(id)) salonOffers.set(id, liveOffer());
+        doc.status = 'active';
+        break;
+      case 'refuse':
+        salonValidations.set(id, {
+          state: 'refused',
+          submittedAt: prev?.submittedAt ?? now,
+          decidedAt: now,
+          wentLive: false,
+          refusal: { code: b.code, note: b.note },
+        });
+        break;
+      case 'seed':
+        if (b.legacy === true) legacySalons.add(id);
+        else {
+          legacySalons.delete(id);
+          salonValidations.set(id, b.validation ?? null);
+        }
+        if (b.status) doc.status = b.status;
+        if (b.offer === 'live') salonOffers.set(id, liveOffer());
+        if (b.offer === 'expired') salonOffers.set(id, { ...liveOffer(), status: 'expired' });
+        if (b.offer === 'none') salonOffers.delete(id);
+        break;
+      case 'reset':
+        legacySalons.delete(id);
+        salonValidations.set(id, null);
+        if (id === VALIDATION_SALON_ID) {
+          validationSalon = freshValidationSalon();
+          salonOffers.delete(id);
+        } else {
+          doc.status = 'draft';
+        }
+        break;
+      default:
+        return json(res, 400, { error: 'invalid_input' });
+    }
+    return json(res, 200, { validation: validationViewOf(id, 'owner'), status: doc.status });
   }
   if (url.pathname === '/__stub/bookings') {
     const key = url.searchParams.get('key') ?? '';
@@ -1110,6 +1241,14 @@ createServer(async (req, res) => {
         },
         accessToken: `pro-former-${former.key}-access`,
         refreshToken: `pro-former-${former.key}-refresh`,
+        expiresAt: '2099-01-01T00:00:00.000Z',
+      });
+    }
+    if (b.email === VALIDATION_EMAIL) {
+      return json(res, 200, {
+        provider: { id: 'acc-validation', businessName: 'Salon Validation', providerId: VALIDATION_SALON_ID },
+        accessToken: 'pro-validation-access',
+        refreshToken: 'pro-validation-refresh',
         expiresAt: '2099-01-01T00:00:00.000Z',
       });
     }
@@ -1451,6 +1590,27 @@ createServer(async (req, res) => {
       return res.end();
     }
     const role = roleOf(req);
+    // B0.18: the validation identity owns pv1 alone.
+    if (isValidationOwner(req)) {
+      const selected = url.searchParams.get('salonId');
+      if (selected && selected !== VALIDATION_SALON_ID) {
+        return json(res, 403, { error: 'forbidden' });
+      }
+      return json(res, 200, {
+        account: {
+          id: 'acc-validation',
+          businessName: 'Salon Validation',
+          businessType: 'other',
+          phoneNumber: '+2250700000009',
+          email: VALIDATION_EMAIL,
+          verificationStatus: 'pending',
+          providerId: VALIDATION_SALON_ID,
+        },
+        provider: validationSalon,
+        membership: { role: 'owner', capabilities: ROLE_CAPS.owner },
+        ...validationKey(VALIDATION_SALON_ID, 'owner'),
+      });
+    }
     // Team access R5b: a REVOKED member's probe → the distinct 403 that
     // drives the web sign-out (+ ?motif=acces-retire banner).
     if (role === 'revoked') {
@@ -1487,11 +1647,19 @@ createServer(async (req, res) => {
           ? { artistId: 'artist-a', artistName: 'Awa' }
           : {}),
       },
+      // B0.18: beside the provider, never in it.
+      ...validationKey(servedSalon.id, role),
     });
   }
   // --- team access R6c: « Mes salons » -----------------------------------
   if (url.pathname === '/me/salons') {
     const role = roleOf(req);
+    if (isValidationOwner(req) && req.method !== 'POST') {
+      return json(res, 200, {
+        items: [salonEntryOf(VALIDATION_SALON_ID, 'owner')],
+        canAddSalon: false,
+      });
+    }
     // As the backend does (routes/me/salons/index.dart): an account with no
     // active membership lists nothing — a 200, not a not_a_member. The rejoin
     // gate keeps such a session alive, and « Mes salons » loads at mount.
@@ -1521,6 +1689,7 @@ createServer(async (req, res) => {
       created.artists = [];
       created.imageUrls = [];
       ownedSalons.set(id, created);
+      salonValidations.set(id, null);
       return json(res, 201, { salon: salonEntryOf(id, 'owner') });
     }
     // GET: owners see the whole owned fleet; members see their one salon.
@@ -1815,24 +1984,51 @@ createServer(async (req, res) => {
       totalAppointments: 1,
     });
   }
-  // go-live (pro-salon-lifecycle.md B2) — flips the draft to active. The
-  // server's rule since the companion path (salon_provisioning_service.dart):
-  // NO offer row → the trial starts here; a row that is no longer live → 409
-  // missing:['offer'] (web-pro-access.md §12 aligned the web to it).
+  // go-live — B0.18 (salon_provisioning_service.dart `publish`,
+  // docs/design/salon-go-live-approval.md §3.1): a REQUEST. The salon stays
+  // `draft` until MyWeli decides (`/__stub/validation` stands in for the
+  // admin); no trial starts here. A row that is no longer live → 409
+  // `incomplete` + missing:['offer']. A salon in `legacySalons` answers as the
+  // server before B0.18 did: live at once (200), the trial minted then.
   const pubM = url.pathname.match(/^\/providers\/([^/]+)\/publish$/);
   if (pubM) {
-    const pubOffer = salonOffers.get(pubM[1]);
-    if (
-      pubOffer &&
-      !(pubOffer.status === 'trial' || pubOffer.status === 'paid' || pubOffer.status === 'grace')
-    ) {
-      return json(res, 409, { error: 'not_ready', missing: ['offer'] });
+    const id = pubM[1];
+    const target = salonDocOf(id);
+    if (target.status === 'suspended') {
+      return json(res, 403, { error: 'provider_suspended' });
     }
-    // No row yet: the trial starts at this publish, on the default tier.
-    if (!pubOffer) salonOffers.set(pubM[1], liveOffer());
-    const target = ownedSalons.get(pubM[1]) ?? proProvider;
-    target.status = 'active';
-    return json(res, 200, target);
+    const pubOffer = salonOffers.get(id);
+    if (pubOffer && !offerIsLive(pubOffer)) {
+      return json(res, 409, { error: 'incomplete', missing: ['offer'] });
+    }
+    if (target.status === 'active') return json(res, 200, target);
+    if (legacySalons.has(id)) {
+      if (!pubOffer) salonOffers.set(id, liveOffer());
+      target.status = 'active';
+      return json(res, 200, target);
+    }
+    const role = isValidationOwner(req) ? 'owner' : roleOf(req);
+    const v = salonValidations.get(id) ?? null;
+    if (v && v.state === 'approved') {
+      if (!v.wentLive) return json(res, 202, { validation: validationViewOf(id, role) });
+      // The republish: validated and live once, its offer live → live again.
+      if (!offerIsLive(pubOffer)) {
+        return json(res, 409, { error: 'incomplete', missing: ['offer'] });
+      }
+      target.status = 'active';
+      return json(res, 200, target);
+    }
+    if (v && v.state === 'refused' && FINAL_REFUSALS.has(v.refusal?.code)) {
+      return json(res, 409, { error: 'validation_refused_final' });
+    }
+    if (!(v && v.state === 'pending')) {
+      salonValidations.set(id, {
+        state: 'pending',
+        submittedAt: new Date().toISOString(),
+        wentLive: false,
+      });
+    }
+    return json(res, 202, { validation: validationViewOf(id, role) });
   }
   // revenus (parity 9.1) — realized ledger, optional inclusive range.
   if (url.pathname.match(/^\/providers\/[^/]+\/earnings$/)) {

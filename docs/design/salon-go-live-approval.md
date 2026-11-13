@@ -616,7 +616,7 @@ To the owner (the `salon.publish` holder) only:
 | live | « En ligne » | — | as today | none |
 | `approved`, was live, offer lapsed (`offerLive` false) | « Plus en ligne » | « Votre salon n’est plus en ligne » | the billing sentence of « Mon abonnement » | the billing pointer |
 | `approved`, was live, offer live (`offerLive` true) | « Plus en ligne » | « Votre salon n’est plus en ligne » | « Vous pouvez le remettre en ligne. » | « Remettre en ligne » (200) |
-| `suspended` | « Suspendu » | « Votre salon est suspendu » | « Contactez MyWeli pour en savoir plus. » (the existing sentence) | none |
+| `suspended` | « Suspendu » | « Votre salon est suspendu » | « Contactez MyWeli pour en savoir plus. » (new: the existing sentence is « …Contactez MyWeli pour le réactiver — vos rendez-vous sont intacts. », which the surfaces of a server before B0.18 keep — corrected 2026-11-13, web-salon-validation.md §3.1) | none |
 
 - **After a request:** « Demande envoyée. Nous vous préviendrons de la
   décision. ». Today's « 🎉 Votre profil est en ligne ! » (app) and « 🎉 Votre

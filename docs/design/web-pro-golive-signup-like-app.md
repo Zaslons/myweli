@@ -10,6 +10,7 @@
 | **Origine** | [parity-audit-web-pro-2026-10.md](parity-audit-web-pro-2026-10.md) §4 (P2) : « inscription : adresse obligatoire dans l'app, facultative sur le web » ; « la liste de mise en ligne : 6 étapes contre 8, sans barre ; GoLiveCard dit « mirrors the app » — faux » |
 | **Dépend de** | #642 (la carte sans étape d'offre, l'inscription réécrite) — cette branche part de la sienne |
 | **Skills checked** | myweli-web-guardrails ✓ · myweli-dev-guardrails ✓ · aucun changement serveur |
+| **Suite (B0.18, 2026-11-13)** | La carte suit la validation de MyWeli : avec le serveur B0.18, « Demander la mise en ligne » (plus « Mettre en ligne »), une bannière par état, et l'étape « Profil de l’entreprise » lit la liste des communes du serveur (R8) — [web-salon-validation.md](web-salon-validation.md). Avec un serveur d'avant B0.18, cette page reste vraie telle quelle |
 
 ## 1. Le constat
 

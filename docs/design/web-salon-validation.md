@@ -223,9 +223,9 @@ e-mail opens `https://myweli.com/pro?salon={id}`.
   both, quietly (no skeleton);
 - on a notice tap (it lands on `/pro?salon=`, which loads).
 
-« Ajouter un salon » also refreshes `/me/salons` after it creates the salon.
-Today it does not, so the new salon's row (and now its line) is missing until
-a reload.
+« Ajouter un salon » needed no change: it lands on `/pro`, whose load now
+re-reads `/me/salons`. Before, it never did, so the new salon's row (and now
+its line) was missing from « Mes salons » until a reload.
 
 ### 4.7 The service worker
 
@@ -234,7 +234,8 @@ read from `route` (browser-push §5):
 
 - `salon.validation.approved` / `.refused` with a `providerId` matching the id
   pattern → `/pro?salon={providerId}`; without one → `/pro`.
-- Tag `{event}:{providerId}`, so a second decision replaces the first.
+- Tag `salon.validation:{providerId}`, so a second decision on a salon replaces
+  the first (approved after refused included).
 - The click guard accepts `/pro?salon={id}` and `/pro` besides the booking
   links; anything else still opens the bookings list.
 - Every push posts `{ type: 'myweli-pro-push', event }` to the open tabs

@@ -184,6 +184,12 @@ sorted the same way as the dates.
   web one also leaves its appointments and favourites reads unchecked.
   Verify both, then apply the same treatment.
 
+**Since B0.18 (2026-11-13):** the file gains a top-level `validation` beside
+`salon` — the state, its times and a refusal's code, note and sentence — only
+when the server sends the key ([web-salon-validation.md](web-salon-validation.md) §6).
+It comes from the profile Profil already read: no new read, so §3's refusal
+and §4's sections are unchanged.
+
 ## 9. Rollout
 
 - **No contract change.** The list's shape is the same; only the order of

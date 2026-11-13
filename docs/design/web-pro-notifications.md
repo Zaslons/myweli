@@ -103,6 +103,7 @@ aussi pour un lien ouvert dans un nouvel onglet.
 |---|---|
 | `/pro/appointment/{id}?salon={s}` | `/pro/rendez-vous/{id}?salon={s}` |
 | `/pro/appointments` | `/pro/rendez-vous` |
+| `/pro/onboarding?salon={s}` (B0.18 : la décision de MyWeli sur la demande de mise en ligne) | `/pro?salon={s}` — « Aujourd’hui » bascule une fois sur ce salon ; sans identifiant valable, `/pro` ([web-salon-validation.md](web-salon-validation.md) §4.5) |
 | autre / absente | pas de lien (la ligne se marque lue au clic, sans navigation) |
 
 ## 4. Les états et le texte
