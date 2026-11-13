@@ -659,7 +659,7 @@ test('GIF, BMP and AVIF over 64 MP are refused before decoding too', async ({ pa
   for (const file of files) {
     await page.locator('input[type=file]').first().setInputFiles(file);
     await expect(page.getByRole('status').filter({ hasText: TOO_LARGE }), file.name).toBeVisible();
-    await expect(page.getByText('Ajouter une photo')).toBeVisible();
+    await expect(page.getByText('Ajouter des photos')).toBeVisible();
   }
   expect(signs).toEqual([]);
 });

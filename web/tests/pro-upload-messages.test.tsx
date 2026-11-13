@@ -143,7 +143,7 @@ describe('Médias → Photos: the toast', () => {
     expect(await screen.findByText('Téléversement…')).toBeInTheDocument();
     expect(input).toBeDisabled();
     await act(async () => done());
-    await waitFor(() => expect(screen.getByText('Ajouter une photo')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText('Ajouter des photos')).toBeInTheDocument());
     expect(document.querySelector('input[type=file]')).not.toBeDisabled();
   });
 
@@ -205,7 +205,7 @@ describe('Médias → Photos: the toast', () => {
     const tab = screen.getByRole('button', { name: 'Avant / Après' });
     tab.focus();
     await act(async () => done());
-    await screen.findByText('Ajouter une photo');
+    await screen.findByText('Ajouter des photos');
     expect(document.activeElement).toBe(tab);
   });
 });

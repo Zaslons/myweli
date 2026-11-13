@@ -7,11 +7,15 @@ import { type ChangeEvent, useEffect, useRef, useState } from 'react';
 import { getMyProvider, saveBeforeAfters, saveGallery } from '../../lib/api/pro';
 import { loadFailure, loadFailureMessage, type LoadFailure } from '../../lib/api/load-failure';
 import {
+  type BatchFailure,
   type BeforeAfterPair,
+  batchSummary,
   canAddPair,
   canAddPhoto,
+  fitInGallery,
   insertAt,
   moveItem,
+  overCapMessage,
   removeAt,
   toCover,
 } from '../../lib/pro/medias';
@@ -204,10 +208,9 @@ export function MediasClient() {
           busy={busy}
           leaving={leaving}
           onWrite={(next, failure) => void writePhotos(next, failure)}
-          onAdd={async (url) => {
-            await writePhotos([...savedPhotos.current, url], 'Échec de l’envoi');
-          }}
+          onAdd={(url) => writePhotos([...savedPhotos.current, url], 'Échec de l’envoi')}
           onUploadFailed={(message) => show(message, 'error')}
+          onNotice={(message, kind) => show(message, kind)}
           onDelete={(index) => setConfirming({ kind: 'photo', index })}
         />
       ) : (
@@ -256,37 +259,67 @@ function PhotosTab({
   onWrite,
   onAdd,
   onUploadFailed,
+  onNotice,
   onDelete,
 }: {
   photos: string[];
   busy: boolean;
   leaving: () => AbortSignal;
   onWrite: (next: string[], failure: string) => void;
-  onAdd: (url: string) => Promise<void>;
+  /// Saves one more photo; true when the server took it.
+  onAdd: (url: string) => Promise<boolean>;
   onUploadFailed: (message: string) => void;
+  /// The over-the-room note and the end-of-batch summary (§2.4).
+  onNotice: (message: string, kind: 'success' | 'info' | 'error') => void;
   onDelete: (index: number) => void;
 }) {
   const [uploading, setUploading] = useState(false);
+  /// Where a pick of several stands — « Téléversement 2 sur 5… ».
+  const [step, setStep] = useState<{ at: number; of: number } | null>(null);
   const pickRef = useRef<HTMLInputElement>(null);
   // The input is disabled while it works; the focus comes back to it after.
   useFocusBackAfter(uploading, pickRef);
 
+  /// Several photos in one pick (docs/design/gallery-multi-select.md): the
+  /// first ones up to the room left, ONE AFTER ANOTHER — preparing decodes a
+  /// whole camera picture on a canvas, and several at once is how a low-end
+  /// phone's tab gets killed — each saved as it lands, so it shows at once
+  /// and a page left mid-way loses nothing already in.
   async function onPick(e: ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
+    const picked = Array.from(e.target.files ?? []);
     e.target.value = '';
-    if (!file) return;
+    if (picked.length === 0) return;
+    const { kept, dropped } = fitInGallery(picked, photos.length);
+    if (dropped > 0) onNotice(overCapMessage(dropped), 'info');
+    if (kept.length === 0) return;
     setUploading(true);
     // Prepared as the app does before it is sent (web-pro-upload-resize.md).
     const signal = leaving();
-    const upload = await uploadGalleryImage(file, { signal });
-    if (signal.aborted) return; // Médias was left: nothing is added
-    if (!upload.ok) {
-      setUploading(false);
-      onUploadFailed(uploadFailureMessage(upload.reason, 'Échec de l’envoi'));
-      return;
+    let added = 0;
+    const failures: BatchFailure[] = [];
+    for (let i = 0; i < kept.length; i++) {
+      if (kept.length > 1) setStep({ at: i + 1, of: kept.length });
+      const upload = await uploadGalleryImage(kept[i], { signal });
+      if (signal.aborted) return; // Médias was left: nothing more is sent or added
+      if (!upload.ok) {
+        if (kept.length === 1) {
+          // One photo: today's message, unchanged.
+          setUploading(false);
+          onUploadFailed(uploadFailureMessage(upload.reason, 'Échec de l’envoi'));
+          return;
+        }
+        failures.push(upload.reason === 'aborted' ? 'failed' : upload.reason);
+        continue;
+      }
+      // A refused save says so itself (`writePhotos`); the batch goes on.
+      if (await onAdd(upload.url)) added += 1;
+      else failures.push('failed');
     }
-    await onAdd(upload.url);
     setUploading(false);
+    setStep(null);
+    // Null for one photo: no summary, as before.
+    const summary = batchSummary({ total: kept.length, added, failures, dropped });
+    if (summary) onNotice(summary.message, summary.kind);
   }
 
   return (
@@ -352,11 +385,18 @@ function PhotosTab({
           // keyboard user could not upload at all. sr-only keeps it a real
           // tab stop; §5's ring projects onto the label via focus-within.
           <label className="cursor-pointer min-h-12 rounded-control border border-primary bg-surface p-m text-bodyMedium text-textPrimary focus-within:outline focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-borderFocus hover:bg-surfaceVariant">
-            {uploading ? 'Téléversement…' : 'Ajouter une photo'}
+            {uploading
+              ? step
+                ? `Téléversement ${step.at} sur ${step.of}…`
+                : 'Téléversement…'
+              : 'Ajouter des photos'}
             <input
               ref={pickRef}
               type="file"
               accept="image/*"
+              // Several at once (gallery-multi-select.md): a phone opens its
+              // photo library with multi-select.
+              multiple
               className="sr-only"
               disabled={busy || uploading}
               onChange={onPick}
