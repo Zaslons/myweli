@@ -1023,6 +1023,44 @@ void main() {
         expect(await repo.updateDepositPolicy('nope', const {}), isNull);
       },
     );
+
+    // B0.22 §3.1 and §5 (docs/design/pro-deletion-erase-gaps.md): the erased
+    // owner's pin is two JSON nulls in `data` — no column, no migration —
+    // and writing them leaves the synced `address` column alone.
+    test('updateProfile with a null pin stores JSON nulls and leaves the '
+        'address column untouched', () async {
+      final repo = PostgresProvidersRepository(pool);
+      final salon = await repo.createSalon(
+        name: 'Salon B022 Pin',
+        category: 'salon',
+        phoneNumber: '+2250700002201',
+        address: 'Rue des Jardins',
+      );
+      final id = salon['id'] as String;
+      deleteOnTearDown(id);
+      await repo.updateProfile(id, {'latitude': 5.35, 'longitude': -3.99});
+      expect((await repo.byId(id))!['latitude'], 5.35, reason: 'setup');
+
+      await repo.updateProfile(id, {'latitude': null, 'longitude': null});
+
+      final row = (await pool.execute(
+        Sql.named('SELECT data, address FROM providers WHERE id = @id'),
+        parameters: {'id': id},
+      )).single.toColumnMap();
+      final raw = row['data'];
+      final data = Map<String, dynamic>.from(
+        (raw is String ? jsonDecode(raw) : raw) as Map,
+      );
+      expect(data.containsKey('latitude'), isTrue, reason: 'a stored key');
+      expect(data['latitude'], isNull, reason: 'a JSON null, not 0');
+      expect(data.containsKey('longitude'), isTrue, reason: 'a stored key');
+      expect(data['longitude'], isNull, reason: 'a JSON null, not 0');
+      expect(row['address'], 'Rue des Jardins', reason: 'the column');
+      final reread = (await repo.byId(id))!;
+      expect(reread['latitude'], isNull);
+      expect(reread['longitude'], isNull);
+      expect(reread['address'], 'Rue des Jardins');
+    });
   });
 
   group('PostgresAuthRepository', () {
@@ -3161,6 +3199,9 @@ void main() {
         'name': 'Chez Awa B63',
         'address': 'Rue des Jardins, Cocody',
         'whatsapp': '+2250500006302',
+        // B0.22 §3.1: the pin goes with the address.
+        'latitude': 5.35,
+        'longitude': -3.99,
       });
       await providers.updateDepositPolicy(o.salonId, {
         'depositRequired': true,
@@ -3188,6 +3229,8 @@ void main() {
       expect(doc['depositMobileMoneyNumber'], isNull, reason: 'the number');
       expect(doc['depositMobileMoneyOperator'], isNull, reason: 'the operator');
       expect(doc['depositRequired'], isFalse, reason: 'no deposit, no number');
+      expect(doc['latitude'], isNull, reason: 'the pin (B0.22)');
+      expect(doc['longitude'], isNull, reason: 'the pin (B0.22)');
     });
 
     test('a salon owner with a team is erased — the production path, end to '
