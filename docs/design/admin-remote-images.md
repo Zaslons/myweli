@@ -4,7 +4,7 @@
 |---|---|
 | **Module** | admin (console) — [MODULES.md](../MODULES.md) |
 | **BACKLOG** | B0.21 |
-| **Status** | **Proposed 2026-11-12, built the same day** on `fix/admin-remote-images` (#777), stacked on #775 (`fix/admin-kyc-queue`), then **rebased onto `main` after #775 (`<S775>`)**, where #779 had landed: B0.18's salon photos became the widget's third user (§3, §4.1). « Actualiser » on a failed image added the same day on the owner's yes (§4). Not merged, not deployed. The merge is the owner's yes. |
+| **Status** | **Proposed 2026-11-12, built the same day** on `fix/admin-remote-images` (#777), stacked on #775 (`fix/admin-kyc-queue`), then **rebased onto `main` after #775 (`4c2626cf`)**, where #779 had landed: B0.18's salon photos became the widget's third user (§3, §4.1). « Actualiser » on a failed image added the same day on the owner's yes (§4). Not merged, not deployed. The merge is the owner's yes. |
 | **Last updated** | 2026-11-12 |
 | **Found** | 2026-11-12: a CORS probe found `cdn.myweli.com` refusing `https://admin.myweli.com`; this spec follows it to the KYC and deposit documents |
 | **PRD ref / phase** | FR-WEB-AD-001 (KYC approval queue), the dispute view · V1 |
@@ -338,7 +338,7 @@ expected unchanged, UNVERIFIED until CI.
 
 ## 9. Rollout
 
-Rebased onto `main` after #775 (`<S775>`); the merge is the owner's yes.
+Rebased onto `main` after #775 (`4c2626cf`); the merge is the owner's yes.
 Then `deploy-admin.yml` (manual, the owner's go): with #779 and #775 on
 `main`, that is B0.18's step 2, one console deploy for the three. No backend
 change, no cloud change.

@@ -4,7 +4,7 @@
 |---|---|
 | **Module** | admin (console + `/admin/kyc*`), with the Pro KYC data it reads ([MODULES.md](../MODULES.md)) |
 | **BACKLOG** | B0.20 |
-| **Status** | **Approved 2026-11-12** — the owner's answers: O1 **B**, O2 **guard both**, O3 **« Document PDF » tile, new tab**, O4 **read-only now** (§13). **Built the same day** on `fix/admin-kyc-queue`, merged (#775, `<S775>`), not deployed; what building found is in §4.2, §4.5, §4.6 and §12. |
+| **Status** | **Approved 2026-11-12** — the owner's answers: O1 **B**, O2 **guard both**, O3 **« Document PDF » tile, new tab**, O4 **read-only now** (§13). **Built the same day** on `fix/admin-kyc-queue`, merged (#775, `4c2626cf`), not deployed; what building found is in §4.2, §4.5, §4.6 and §12. |
 | **Last updated** | 2026-11-12 |
 | **Found** | 2026-11-12, while mapping the admin console for B0.18 (salon go-live approval); outside that slice |
 | **PRD ref / phase** | FR-WEB-AD-001 (KYC approval queue) · V1 |
