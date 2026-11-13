@@ -487,3 +487,21 @@ describe('saveGallery / saveBeforeAfters read the stored list', () => {
     }
   });
 });
+
+describe('updateProviderProfile reads the stored logo', () => {
+  it('a string, null (cleared) or nothing said — three different answers', async () => {
+    stubFetch(() => new Response(JSON.stringify({ id: 'p1', logoUrl: 'https://cdn/logo/a.png' }), { status: 200 }));
+    expect(await pro.updateProviderProfile('p1', {})).toEqual({
+      ok: true,
+      status: 200,
+      logoUrl: 'https://cdn/logo/a.png',
+    });
+    stubFetch(() => new Response(JSON.stringify({ id: 'p1', logoUrl: null }), { status: 200 }));
+    expect(await pro.updateProviderProfile('p1', {})).toEqual({ ok: true, status: 200, logoUrl: null });
+    for (const body of [{ id: 'p1' }, { logoUrl: 3 }]) {
+      stubFetch(() => new Response(JSON.stringify(body), { status: 200 }));
+      const r = await pro.updateProviderProfile('p1', {});
+      expect('logoUrl' in r, JSON.stringify(body)).toBe(false);
+    }
+  });
+});

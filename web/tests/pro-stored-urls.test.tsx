@@ -295,7 +295,9 @@ describe('Vérification keeps the documents the server STORED', () => {
 });
 
 describe('Profil keeps the logo the server STORED', () => {
-  it('a second save in the same visit (a name change) carries the stored logo, and is accepted', async () => {
+  /// `answer`: what the profile PATCH answers — the stored provider, or `{}`
+  /// (an answer that says nothing, so the page must read the salon back).
+  async function twoSaves(answer: 'provider' | 'nothing') {
     const logo = strictServer<string>([]);
     let provider = {
       id: 'p1',
@@ -326,7 +328,7 @@ describe('Profil keeps the logo the server STORED', () => {
             stored = r.out![0];
           }
           provider = { ...provider, name: String(sent.name), logoUrl: stored };
-          return json(200, provider);
+          return json(200, answer === 'provider' ? provider : {});
         }
         return json(404, {});
       }),
@@ -345,5 +347,11 @@ describe('Profil keeps the logo the server STORED', () => {
     expect(patches[1].logoUrl).toBe(`${CDN}/logo/p1/l1.png`);
     await waitFor(() => expect(provider.name).toBe('Beauté Divine 2'));
     expect(screen.queryByText('L’enregistrement a échoué. Réessayez.')).toBeNull();
-  });
+  }
+
+  it('a second save in the same visit (a name change) carries the stored logo, and is accepted', () =>
+    twoSaves('provider'));
+
+  it('an answer that says nothing reads the salon back — never keeps the pending logo', () =>
+    twoSaves('nothing'));
 });
