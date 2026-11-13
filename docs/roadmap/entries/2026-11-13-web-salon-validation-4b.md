@@ -1,0 +1,10 @@
+- 🟡 **`/professionnels` et les CGU disent que MyWeli valide chaque salon avant sa mise en ligne (site public · 2026-11-13 — BACKLOG B0.18, partie 4b).** Non fusionné (#785). Branche `feat/web-salon-validation-4b`, de `main` (`8cf1aa02`), selon [salon-go-live-approval.md](../../design/salon-go-live-approval.md) §6.4. C’est la PR 4b de son §9.1, construite seulement après la lecture en retour du backend déployé : une vraie demande en 202, et l’e-mail reçu.
+  - **Ce qui change, mot pour mot comme le propriétaire l’a approuvé :**
+    - L’étape 3 de `/professionnels` (Q9) devient « Demandez la mise en ligne : une fois votre salon validé, vos clients peuvent réserver ». Avant : « Mettez votre salon en ligne : vos clients peuvent réserver », faux depuis le déploiement.
+    - Les CGU, §7 (Q7), gagnent « Avant sa mise en ligne, chaque salon est validé par MyWeli, qui peut refuser de le publier, notamment s’il n’est pas situé en Côte d’Ivoire. ». C’est un paragraphe à part après la liste des engagements du professionnel, rédigée en fragments en minuscules. Le mot est « validé », jamais « vérifié », qui désigne les pièces d’identité juste au-dessus.
+    - `LEGAL_UPDATED_AT` et `legalUpdatedAtWhenPending` du manifeste passent ensemble au 2026-11-13.
+  - **Mesuré :**
+    - **Unitaires :** 3 024 verts. Un nouveau test fige la phrase des CGU mot pour mot et à sa place, entre « 7. Pour les professionnels » et « 8. Disponibilité ».
+    - **Mutations :** 5 vues rouges sur du code commité, dans une copie propre : l’étape 3 remise à l’ancienne, « vérifié » à la place de « validé », la phrase retirée, la phrase déplacée au §8, et la date changée sans le manifeste.
+    - **Interdits :** aucun mot banni des cinq pages n’est touché.
+  - **Déploiement :** la fusion déploie le site, sur le oui du propriétaire, et pas pendant l’examen d’une version par Apple ou Google. Aucun examen n’est en cours d’après les documents : 0.0.1 est publiée, et 0.0.2 n’est pas soumise.

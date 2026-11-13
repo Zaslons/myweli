@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | **Approved 2026-11-12** (the owner answered every question of §11: decisions 124–132). **Backend merged** (#776, 2026-11-12); the cap of decision 133 merged (#778, `5139f401`, 2026-11-12); the console merged (#779, `8d43009b`, 2026-11-12) and **deployed 2026-11-13** (`deploy-admin.yml`, run 43405932321, `27ecbecc`), before the backend as §9.2 orders; **the website's 4a merged and deployed 2026-11-13** (#782, `03ffc953`; its web details: [web-salon-validation.md](web-salon-validation.md), approved by the owner the same day); the apps and the website's 4b not built. Reviewed twice by independent readers on 2026-11-12, every finding folded in: five readers (backend, admin console, apps, website, completeness) found 53; two found 26 on the rewrite. **Amended 2026-11-12** (decision 133, after the backend's review): the place-change e-mails to the admin are capped per salon — §5.1, §7, §8.1, §9.1, §11 |
+| **Status** | **Approved 2026-11-12** (the owner answered every question of §11: decisions 124–132). **Backend merged** (#776, 2026-11-12); the cap of decision 133 merged (#778, `5139f401`, 2026-11-12); the console merged (#779, `8d43009b`, 2026-11-12) and **deployed 2026-11-13** (`deploy-admin.yml`, run 43405932321, `27ecbecc`), before the backend as §9.2 orders; **the website's 4a merged and deployed 2026-11-13** (#782, `03ffc953`; its web details: [web-salon-validation.md](web-salon-validation.md), approved by the owner the same day); **the backend deployed 2026-11-13** on the owner's yes (12:12 UTC, run 43422983978, image `0f53e66`, revision `myweli-api-00049-hq6` at 100 %; migrations 0044 and 0045 recorded). The day's counts were read first, read-only: 5 salons, all drafts, 0 public, 1 draft holding an offer row, 0 for the backfill. It was read back on the owner's test salon: the request answered 202 at 12:37 UTC, was recorded `pending` with its `submitted` event, the salon stayed a draft, the queue counted 1, the log said `admin_notice kind=salon_request … outcome=sent`, and the owner received the e-mail; **the website's 4b built** (#785, not merged); the apps not built. Reviewed twice by independent readers on 2026-11-12, every finding folded in: five readers (backend, admin console, apps, website, completeness) found 53; two found 26 on the rewrite. **Amended 2026-11-12** (decision 133, after the backend's review): the place-change e-mails to the admin are capped per salon — §5.1, §7, §8.1, §9.1, §11 |
 | **Owner** | Sadreddine Daher |
 | **Last updated** | 2026-11-12 |
 | **PRD ref / phase** | FR-PRO-ONB-001 (go live) · admin (FR-WEB-AD-*) · V1 |
@@ -1075,10 +1075,11 @@ Each new guard is watched red once, and the commit says how.
 
 **UNVERIFIED, named:**
 
-- the production counts on the deploy day (0 public today; drafts and offer
-  rows not read);
-- that mail to `ADMIN_EMAIL` arrives (the owner says they read it; read back
-  at the deploy, §9.2);
+- ~~the production counts on the deploy day~~ — read 2026-11-13 before the
+  deploy: 5 salons, all drafts, 0 public, 1 draft holding an offer row, 0 for
+  the backfill;
+- ~~that mail to `ADMIN_EMAIL` arrives~~ — read back 2026-11-13: the owner
+  received « Nouveau salon à valider » for their test salon's request;
 - whether the live console renders the salon's photos (CORS, §4.4);
 - which admin console build is live today;
 - the production value of `SUBSCRIPTION_ENFORCEMENT` (default off);

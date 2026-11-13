@@ -209,7 +209,12 @@ describe('B12.4 /pro/connexion never sends a new salon round in a circle', () =>
 
 describe('B12.1 the trial’s start, said one way', () => {
   it('step 3 of /professionnels does not say the trial starts there', () => {
-    expect(PRO_LANDING.steps[2]).toBe('Mettez votre salon en ligne : vos clients peuvent réserver');
+    // B0.18 (salon-go-live-approval.md §6.4, Q9): the salon ASKS; MyWeli
+    // validates first. Owner-approved word for word (a no-break space before
+    // the colon, as the site writes French).
+    expect(PRO_LANDING.steps[2]).toBe(
+      'Demandez la mise en ligne : une fois votre salon validé, vos clients peuvent réserver',
+    );
   });
 
   // The clock starts at the first choice, or at go-live with no choice
