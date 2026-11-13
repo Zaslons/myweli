@@ -1,4 +1,7 @@
+import 'package:flutter/foundation.dart';
+
 import '../../core/constants/app_constants.dart';
+import '../../core/constants/salon_validation_copy.dart';
 import '../../core/di/dependency_injection.dart';
 import '../../core/utils/app_clock.dart';
 import '../../core/utils/salon_id.dart';
@@ -16,6 +19,7 @@ import '../../models/provider_user.dart';
 import '../../models/review_summary.dart';
 import '../../models/salon_membership_info.dart';
 import '../../models/salon_subscription.dart';
+import '../../models/salon_validation.dart';
 import '../../models/service.dart';
 import '../../models/team_member.dart';
 import '../interfaces/pro_service_interface.dart';
@@ -180,23 +184,84 @@ class MockProService implements ProServiceInterface {
     }
     final salonId0 = resolvedSalonId;
 
-    final salon = MockData.providers.firstWhere(
+    final listed = MockData.providers.firstWhere(
       (p) => p.id == salonId0,
       orElse: () => MockData.providers.first,
     );
+    // The salon's lifecycle, as the server holds it (B0.18): a seeded salon
+    // carries no status (null reads `active`); a draft or a suspension comes
+    // from the store `GET /me/salons` reads too.
+    final salon = listed.copyWith(status: MockData.salonStatuses[listed.id]);
+    final capabilities = presetCapabilitiesFor(role);
     return ApiResponse.success(
       MyProviderInfo(
         salon: salon,
         membership: ProMembership(
           role: role,
-          capabilities: presetCapabilitiesFor(role),
+          capabilities: capabilities,
           artistId: artistId,
           artistName: artistName,
           salonId: salon.id,
           salonName: salon.name,
         ),
+        // A B0.18 server always sends the key — null while never asked.
+        validation: await _validationView(
+          salon.id,
+          publisher: capabilities.contains(ProCap.salonPublish),
+        ),
+        validationSent: true,
       ),
     );
+  }
+
+  /// The salon side's `validation`, as the server builds it
+  /// (`salonValidationViews`, backend salon_validation_view.dart): the full
+  /// view — `offerLive` and the admin's note — only for a `salon.publish`
+  /// holder; every other member reads the state, its times and the
+  /// refusal's code. `offerLive` only for a validated salon that is not live
+  /// now. Null while the salon never asked.
+  Future<SalonValidation?> _validationView(
+    SalonId id, {
+    required bool publisher,
+  }) async {
+    final v = MockData.salonValidations[id];
+    if (v == null) return null;
+    final notLive = (MockData.salonStatuses[id] ?? 'active') != 'active';
+    final offerLive =
+        publisher && v.state == SalonValidationState.approved && notLive
+        ? await _hasLiveOffer(id)
+        : null;
+    final refusal = v.refusal;
+    return SalonValidation(
+      state: v.state,
+      submittedAt: v.submittedAt,
+      decidedAt: v.decidedAt,
+      wentLive: v.wentLive,
+      offerLive: offerLive,
+      refusal: refusal == null
+          ? null
+          : SalonRefusal(
+              code: refusal.code,
+              isFinal: refusal.isFinal,
+              note: publisher ? refusal.note : null,
+            ),
+    );
+  }
+
+  /// The salon holds an offer row that is live (trial, paid, grace) — the
+  /// server's `hasLiveOffer`. Null when the offer cannot be read (the
+  /// locator not wired in an isolated test): unsaid, as the server leaves it
+  /// with no subscription service.
+  Future<bool?> _hasLiveOffer(SalonId id) async {
+    try {
+      final sub = await serviceLocator.subscriptionService.getSalonSubscription(
+        id,
+      );
+      if (sub.success && sub.data != null) return sub.data!.isLive;
+      return sub.code == 'no_offer' ? false : null;
+    } catch (_) {
+      return null;
+    }
   }
 
   /// Salons the account OWNS in the mock world: the scalar link ∪ active
@@ -249,12 +314,21 @@ class MockProService implements ProServiceInterface {
     for (final id in ids) {
       final salon = MockData.providers.where((p) => p.id == id).firstOrNull;
       if (salon == null) continue;
+      final role = roleById[id] ?? TeamRole.staff;
       items.add(
         SalonMembershipInfo(
           salonId: id,
           salonName: salon.name,
-          role: roleById[id] ?? TeamRole.staff,
-          salonStatus: MockData.draftSalonIds.contains(id) ? 'draft' : 'active',
+          role: role,
+          salonStatus: MockData.salonStatuses[id] ?? 'active',
+          // B0.18: every row, the owner's full view only on its own salons.
+          validation: await _validationView(
+            id,
+            publisher: presetCapabilitiesFor(
+              role,
+            ).contains(ProCap.salonPublish),
+          ),
+          validationSent: true,
           verified: salon.verified,
           // The server prefers the logo over the first gallery photo
           // (salon_directory_service._thumbOf) — mirror it, or the picker
@@ -498,15 +572,42 @@ class MockProService implements ProServiceInterface {
     return ApiResponse.success(merged, message: 'Profil enregistré');
   }
 
+  /// The server's publish, mirrored (B0.18 — salon-go-live-approval §3.1):
+  /// a REQUEST. In the server's order: a suspension refuses it; the gate's
+  /// `offer` key (an offer row that is no longer live) refuses it; then the
+  /// validation's state decides —
+  ///
+  /// | State | Answer |
+  /// |---|---|
+  /// | already `active` | 200, idempotent |
+  /// | never asked, or refused for a reason the salon can fix | the request recorded: `pending` → 202 |
+  /// | already `pending` | 202, the same body |
+  /// | `approved`, never live (finishing) | 202 |
+  /// | `approved`, was live, a live offer row | the republish → `active`, 200 |
+  /// | `approved`, was live, no live offer row | 409 `offer` |
+  /// | refused for a final reason | 409 `validation_refused_final` |
+  ///
+  /// **No trial starts here** (§3.6): without an earlier offer choice, the
+  /// salon's one trial starts when MyWeli validates it —
+  /// [validateSalonForTests] stands in for the admin. The mock does not run
+  /// the gate's other steps (it never did): the screen's checklist is the
+  /// client's mirror of them.
   @override
   Future<ApiResponse<PublishOutcome>> publishSalon(SalonId providerId) async {
     await Future<void>.delayed(const Duration(milliseconds: 300));
-    // The server's offer rule, mirrored (docs/design/pro-companion-path.md
-    // §3.1): NO offer row → the first publish starts the salon's one trial
-    // on the default tier; a row that is no longer live (expired) →
-    // `offer_required`, never a second trial; a live row → publish.
+    final status = MockData.salonStatuses[providerId] ?? 'active';
+    if (status == 'suspended') {
+      return ApiResponse.error(
+        salonSuspendedMessage,
+        code: 'provider_suspended',
+      );
+    }
+    // The gate's offer rule (pro-companion-path §3.1): a row that is no
+    // longer live (expired) → `offer_required`; no row is never refused for
+    // it; a live row passes.
     final subs = serviceLocator.subscriptionService;
     final sub = await subs.getSalonSubscription(providerId);
+    final bool offerRowLive;
     if (sub.success && sub.data != null) {
       if (!sub.data!.isLive) {
         return ApiResponse.error(
@@ -514,23 +615,161 @@ class MockProService implements ProServiceInterface {
           code: 'offer_required',
         );
       }
+      offerRowLive = true;
     } else if (sub.code == 'no_offer') {
-      if (subs is MockSubscriptionService) {
-        subs.startTrialIfAbsent(
-          providerId,
-          tier: await _defaultTrialTier(providerId, subs),
-        );
-      }
+      offerRowLive = false;
     } else {
       return ApiResponse.error(
         sub.error ?? 'La mise en ligne a échoué',
         code: sub.code,
       );
     }
-    return ApiResponse.success(
-      const PublishOutcome.live(),
-      message: 'Votre salon est en ligne',
+
+    if (status == 'active') {
+      return ApiResponse.success(
+        const PublishOutcome.live(),
+        message: 'Votre salon est en ligne',
+      );
+    }
+    final current = MockData.salonValidations[providerId];
+    switch (current?.state) {
+      case null:
+        return _recordRequest(providerId);
+      case SalonValidationState.refused:
+        if (current!.refusal?.isFinal == true) {
+          return ApiResponse.error(
+            SalonValidationCopy.refusedFinalMessage,
+            code: 'validation_refused_final',
+          );
+        }
+        return _recordRequest(providerId);
+      case SalonValidationState.approved when current!.wentLive:
+        if (!offerRowLive) {
+          // The billing pointer: a republish needs a live offer row.
+          return ApiResponse.error(
+            publishOfferInactiveMessage,
+            code: 'offer_required',
+          );
+        }
+        MockData.salonStatuses.remove(providerId); // the republish: active
+        return ApiResponse.success(
+          const PublishOutcome.live(),
+          message: 'Votre salon est en ligne',
+        );
+      case SalonValidationState.pending ||
+          SalonValidationState.approved ||
+          SalonValidationState.unknown:
+        // Already waiting, or the admin's validation finishing: no second
+        // request, the same body.
+        return ApiResponse.success(
+          PublishOutcome.requested(
+            await _validationView(providerId, publisher: true),
+          ),
+        );
+    }
+  }
+
+  /// A new request: `pending` from now — the server's upsert, which also
+  /// clears a refusal the salon has answered.
+  Future<ApiResponse<PublishOutcome>> _recordRequest(SalonId providerId) async {
+    MockData.salonValidations[providerId] = SalonValidation(
+      state: SalonValidationState.pending,
+      wentLive: false,
+      submittedAt: AppClock.now(),
     );
+    return ApiResponse.success(
+      PublishOutcome.requested(
+        await _validationView(providerId, publisher: true),
+      ),
+    );
+  }
+
+  /// **Test hook: the admin validates** (`POST
+  /// /admin/salons/{id}/validation/approve`, §3.2), from `pending`, from
+  /// `refused` (« Refusés »), or to finish an interrupted validation. In the
+  /// server's order: a suspension refuses it (`provider_suspended`); an offer
+  /// row that is no longer live refuses it (`offer_required`); the decision;
+  /// the salon's one trial if it has no offer row — insert-if-absent, on the
+  /// tier derived now (`reseau` when the owner has another salon on a live
+  /// Réseau offer), so a website choice keeps its clock (§3.6); then the
+  /// salon goes live. Anything else answers `validation_not_pending`.
+  @visibleForTesting
+  Future<ApiResponse<SalonValidation>> validateSalonForTests(
+    SalonId providerId,
+  ) async {
+    final current = MockData.salonValidations[providerId];
+    final waiting =
+        current != null &&
+        (current.state == SalonValidationState.pending ||
+            current.state == SalonValidationState.refused ||
+            (current.state == SalonValidationState.approved &&
+                !current.wentLive));
+    if (!waiting) {
+      return ApiResponse.error('', code: 'validation_not_pending');
+    }
+    if (MockData.salonStatuses[providerId] == 'suspended') {
+      return ApiResponse.error('', code: 'provider_suspended');
+    }
+    final subs = serviceLocator.subscriptionService;
+    final sub = await subs.getSalonSubscription(providerId);
+    if (sub.success && sub.data != null && !sub.data!.isLive) {
+      return ApiResponse.error('', code: 'offer_required');
+    }
+    if (subs is MockSubscriptionService) {
+      subs.startTrialIfAbsent(
+        providerId,
+        tier: await _defaultTrialTier(providerId, subs),
+      );
+    }
+    final now = AppClock.now();
+    final validated = SalonValidation(
+      state: SalonValidationState.approved,
+      submittedAt: current.submittedAt,
+      decidedAt: current.state == SalonValidationState.approved
+          ? current.decidedAt
+          : now,
+      wentLive: true,
+    );
+    MockData.salonValidations[providerId] = validated;
+    MockData.salonStatuses.remove(providerId); // live: `active`
+    return ApiResponse.success(validated);
+  }
+
+  /// **Test hook: the admin refuses** (`POST
+  /// /admin/salons/{id}/validation/refuse`, §3.3), from `pending` only
+  /// (`validation_not_pending` otherwise), with the server's input checks
+  /// (`invalid_input`, `note_required`, `note_too_long`). The salon stays a
+  /// draft — a live one is taken back to `draft`, as the server does after
+  /// a rollback.
+  @visibleForTesting
+  Future<ApiResponse<SalonValidation>> refuseSalonForTests(
+    SalonId providerId, {
+    required String code,
+    String? note,
+  }) async {
+    final inputError = refusalInputError(code: code, note: note ?? '');
+    if (inputError != null) return ApiResponse.error('', code: inputError);
+    final current = MockData.salonValidations[providerId];
+    if (current == null || current.state != SalonValidationState.pending) {
+      return ApiResponse.error('', code: 'validation_not_pending');
+    }
+    final trimmed = note?.trim();
+    final refused = SalonValidation(
+      state: SalonValidationState.refused,
+      submittedAt: current.submittedAt,
+      decidedAt: AppClock.now(),
+      wentLive: current.wentLive,
+      refusal: SalonRefusal(
+        code: code,
+        note: trimmed == null || trimmed.isEmpty ? null : trimmed,
+        isFinal: kFinalSalonRefusalCodes.contains(code),
+      ),
+    );
+    MockData.salonValidations[providerId] = refused;
+    if ((MockData.salonStatuses[providerId] ?? 'active') == 'active') {
+      MockData.salonStatuses[providerId] = 'draft';
+    }
+    return ApiResponse.success(refused);
   }
 
   /// The server's default trial tier: `reseau` when the owner already owns

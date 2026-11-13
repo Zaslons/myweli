@@ -136,11 +136,13 @@ void main() {
   });
 
   test('there is no offer step, and go-live never waits for an offer — the '
-      'server starts the trial at the first publish (pro-companion-path)', () {
+      'server starts the trial at MyWeli\'s validation (B0.18 §3.6)', () {
     // The checklist used to end on « Choisissez votre offre » / « 3 mois
     // offerts » and block « Mettre mon profil en ligne » until a choice was
     // made. The Pro app no longer offers a choice (App Store 3.1.1), so a
-    // gate on one would be a dead end it could not explain.
+    // gate on one would be a dead end it could not explain. The trial moved
+    // from the first publish to MyWeli's validation (B0.18); the checklist
+    // waits for neither.
     final steps = build();
     expect(
       steps.map((s) => s.key.name),

@@ -8,8 +8,8 @@ import '../interfaces/subscription_service_interface.dart';
 import 'mock_data.dart';
 
 /// Demo offer state (pricing pivot). Defaults to the SETUP state (no offer
-/// row) so the full arc — onboarding → first publish starts the trial →
-/// team invites — is demo-able offline. The `initial` knob reaches the
+/// row) so the full arc — onboarding → the request → MyWeli validates and
+/// the trial starts → team invites — is demo-able offline. The `initial` knob reaches the
 /// trial/paid/grace/expired scenarios for tests and manual QA.
 ///
 /// R6 multi-salons: state is keyed PER SALON (each salon has its own offer
@@ -18,8 +18,9 @@ import 'mock_data.dart';
 /// drives.
 ///
 /// Nothing here chooses an offer: the app never does (App Store 3.1.1).
-/// The one write is [startTrialIfAbsent], the server's publish-time trial
-/// start mirrored for `MockProService.publishSalon`.
+/// The one write is [startTrialIfAbsent], the server's trial start at
+/// MyWeli's validation (B0.18 — salon-go-live-approval §3.6), mirrored for
+/// `MockProService.validateSalonForTests`. The publish starts none.
 /// Design: docs/design/pro-companion-path.md §3.1 / §5.
 class MockSubscriptionService implements SubscriptionServiceInterface {
   MockSubscriptionService({SalonSubscription? initial}) : _seed = initial;
@@ -43,8 +44,8 @@ class MockSubscriptionService implements SubscriptionServiceInterface {
     if (seed != null) _byId[providerId] = seed;
   }
 
-  /// The server's publish-time trial start (pro-companion-path §3.1):
-  /// **insert-if-absent**. A salon with no offer row gets its one 90-day
+  /// The server's trial start at validation (`startDefaultTrial`, §3.6 —
+  /// it was the publish's before B0.18): **insert-if-absent**. A salon with no offer row gets its one 90-day
   /// trial on [tier]; a salon that already has a row — a choice made on the
   /// web, a running trial, an expired offer — is left exactly as it is, so a
   /// trial is never granted twice and a web choice is never overwritten.
@@ -52,7 +53,7 @@ class MockSubscriptionService implements SubscriptionServiceInterface {
   ///
   /// The caller picks the default tier the way the server does: `reseau`
   /// when the owner already owns another salon on a live Réseau offer, else
-  /// `pro` (`MockProService.publishSalon`).
+  /// `pro` (`MockProService.validateSalonForTests`).
   bool startTrialIfAbsent(
     SalonId providerId, {
     SalonTier tier = SalonTier.pro,

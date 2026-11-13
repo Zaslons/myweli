@@ -11,8 +11,10 @@ import 'package:myweli/models/provider_session.dart';
 import 'package:myweli/models/provider_user.dart';
 import 'package:myweli/models/salon_membership_info.dart';
 import 'package:myweli/models/salon_subscription.dart';
+import 'package:myweli/models/salon_validation.dart';
 import 'package:myweli/models/team_member.dart';
 import 'package:myweli/providers/pro_auth_provider.dart';
+import 'package:myweli/services/interfaces/pro_service_interface.dart';
 import 'package:myweli/services/mock/mock_auth_service.dart';
 import 'package:myweli/services/mock/mock_data.dart';
 import 'package:myweli/services/mock/mock_device_registration_service.dart';
@@ -234,9 +236,16 @@ void main() {
     });
   });
 
+  // B0.18 (salon-go-live-approval §3.1, §3.6, §6.5): the publish is a
+  // REQUEST and starts no trial; MyWeli's validation starts the salon's one
+  // trial — insert-if-absent, on the tier derived then. These replace the
+  // pins of « publish starts the trial » (pro-companion-path §3.1), watched
+  // red on the new mock first: the trial they expected read null.
+  MockProService mock() => serviceLocator.proService as MockProService;
+
   group('« Ajouter un salon » (mock world)', () {
-    test('the new salon\'s FIRST publish starts its own trial — on Réseau, the '
-        'offer it was added under (pro-companion-path §3.1)', () async {
+    test('the new salon\'s request starts no trial; MyWeli\'s validation '
+        'starts its own — on Réseau, the offer it was added under', () async {
       final auth = await signInOwner();
       final subs =
           serviceLocator.subscriptionService as MockSubscriptionService;
@@ -246,69 +255,105 @@ void main() {
 
       final published = await serviceLocator.proService.publishSalon(created);
       expect(published.success, isTrue);
+      expect(published.data!.isLive, isFalse);
+      expect(published.data!.validation!.state, SalonValidationState.pending);
+      expect(
+        (await subs.getSalonSubscription(created)).code,
+        'no_offer',
+        reason: 'a request starts no trial (§3.6)',
+      );
+
+      expect((await mock().validateSalonForTests(created)).success, isTrue);
       final offer = await subs.getSalonSubscription(created);
       expect(offer.data!.status, SalonOfferStatus.trial);
       expect(offer.data!.tier, SalonTier.reseau);
     });
   });
 
-  group(
-    'publish starts the trial (mock mirror of pro-companion-path §3.1)',
-    () {
-      test('no offer row → publish succeeds and starts the ONE trial on Pro; '
-          'per salon', () async {
-        await signInOwner();
-        final subs =
-            serviceLocator.subscriptionService as MockSubscriptionService;
+  group('the trial starts at MyWeli\'s validation, never at the request '
+      '(mock mirror of salon-go-live-approval §3.6)', () {
+    test('no offer row → the request starts nothing; the validation starts '
+        'the ONE trial on Pro; per salon', () async {
+      await signInOwner();
+      final subs =
+          serviceLocator.subscriptionService as MockSubscriptionService;
+      MockData.seedNeverAsked(SalonId('provider1'));
+      MockData.seedNeverAsked(SalonId('provider2'));
 
-        final res = await serviceLocator.proService.publishSalon(
+      final res = await serviceLocator.proService.publishSalon(
+        SalonId('provider1'),
+      );
+      expect(res.success, isTrue);
+      expect(res.data!.saysRequestSent, isTrue);
+      expect(
+        (await subs.getSalonSubscription(SalonId('provider1'))).code,
+        'no_offer',
+      );
+
+      await mock().validateSalonForTests(SalonId('provider1'));
+      final first = (await subs.getSalonSubscription(
+        SalonId('provider1'),
+      )).data!;
+      expect(first.status, SalonOfferStatus.trial);
+      expect(first.tier, SalonTier.pro);
+
+      // Salon 2 gets its OWN fresh trial at its own validation; salon 1's is
+      // untouched.
+      await serviceLocator.proService.publishSalon(SalonId('provider2'));
+      expect(
+        (await subs.getSalonSubscription(SalonId('provider2'))).code,
+        'no_offer',
+      );
+      await mock().validateSalonForTests(SalonId('provider2'));
+      expect(
+        (await subs.getSalonSubscription(SalonId('provider2'))).data!.status,
+        SalonOfferStatus.trial,
+      );
+      expect(
+        (await subs.getSalonSubscription(
           SalonId('provider1'),
-        );
-        expect(res.success, isTrue);
-        final first = (await subs.getSalonSubscription(
-          SalonId('provider1'),
-        )).data!;
-        expect(first.status, SalonOfferStatus.trial);
-        expect(first.tier, SalonTier.pro);
+        )).data!.trialEndsAt,
+        first.trialEndsAt,
+      );
+    });
 
-        // Salon 2 gets its OWN fresh trial; salon 1's is untouched.
-        expect(
-          (await serviceLocator.proService.publishSalon(
-            SalonId('provider2'),
-          )).success,
-          isTrue,
-        );
-        expect(
-          (await subs.getSalonSubscription(SalonId('provider2'))).data!.status,
-          SalonOfferStatus.trial,
-        );
-        expect(
-          (await subs.getSalonSubscription(
-            SalonId('provider1'),
-          )).data!.trialEndsAt,
-          first.trialEndsAt,
-        );
-      });
+    test('an offer chosen on the web before the validation keeps its tier '
+        'and its clock (§3.6, Q2)', () async {
+      await signInOwner();
+      final subs =
+          serviceLocator.subscriptionService as MockSubscriptionService;
+      subs.startTrialIfAbsent(SalonId('provider1'), tier: SalonTier.business);
+      final chosen = (await subs.getSalonSubscription(
+        SalonId('provider1'),
+      )).data!;
+      MockData.seedNeverAsked(SalonId('provider1'));
 
-      test('a live offer (e.g. chosen on the web) is kept as it is', () async {
-        await signInOwner();
-        final subs =
-            serviceLocator.subscriptionService as MockSubscriptionService;
-        subs.startTrialIfAbsent(SalonId('provider1'), tier: SalonTier.business);
+      await serviceLocator.proService.publishSalon(SalonId('provider1'));
+      await mock().validateSalonForTests(SalonId('provider1'));
+      final after = (await subs.getSalonSubscription(
+        SalonId('provider1'),
+      )).data!;
+      expect(after.tier, SalonTier.business);
+      expect(after.trialEndsAt, chosen.trialEndsAt);
+    });
 
-        expect(
-          (await serviceLocator.proService.publishSalon(
-            SalonId('provider1'),
-          )).success,
-          isTrue,
-        );
-        expect(
-          (await subs.getSalonSubscription(SalonId('provider1'))).data!.tier,
-          SalonTier.business,
-        );
-      });
-    },
-  );
+    test('CONTROL: a live salon\'s publish answers 200 and touches no offer '
+        '(a live offer, e.g. chosen on the web, is kept as it is)', () async {
+      await signInOwner();
+      final subs =
+          serviceLocator.subscriptionService as MockSubscriptionService;
+      subs.startTrialIfAbsent(SalonId('provider1'), tier: SalonTier.business);
+
+      final res = await serviceLocator.proService.publishSalon(
+        SalonId('provider1'),
+      );
+      expect(res.data, const PublishOutcome.live());
+      expect(
+        (await subs.getSalonSubscription(SalonId('provider1'))).data!.tier,
+        SalonTier.business,
+      );
+    });
+  });
 
   // The R6 sweep pin (docs/design/r6-salon-id-pin.md). It used to grep
   // lib/screens for the strings `provider?.providerId` / `provider!.providerId`,

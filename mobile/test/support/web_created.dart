@@ -13,7 +13,8 @@ import 'package:myweli/services/mock/mock_ids.dart';
 /// or a second salon seeds what the web made, then the app signs in — the
 /// real sequence. These mirror the mock's former `registerProviderWith…` and
 /// `addSalon`, which mirrored the server: a DRAFT salon, empty and at a 0 %
-/// deposit (hygiene-batch9.md §2.5), its owner linked.
+/// deposit (hygiene-batch9.md §2.5), its owner linked — and a salon that
+/// never asked MyWeli to put it online (B0.18: no validation row).
 
 /// A salon signed up on the web (`POST /auth/provider/register…`): its draft
 /// salon and its owner account. Not signed in — the app does that.
@@ -34,6 +35,7 @@ ProviderUser seedWebSignUp({
       address: address,
     ),
   );
+  MockData.seedNeverAsked(salonId);
   final account = ProviderUser(
     id: MockIds.next('provider'),
     phoneNumber: phoneNumber,
@@ -68,7 +70,7 @@ SalonId seedWebAddedSalon(
       verified: owner.verificationStatus == VerificationStatus.verified,
     ),
   );
-  MockData.draftSalonIds.add(id);
+  MockData.seedNeverAsked(id);
   MockData.teamMembers.add(
     TeamMember(
       id: 'mem_add_$id',

@@ -5,6 +5,7 @@ import 'package:myweli/core/push/push_registration.dart';
 import 'package:myweli/core/utils/salon_id.dart';
 import 'package:myweli/models/api_response.dart';
 import 'package:myweli/models/salon_subscription.dart';
+import 'package:myweli/models/salon_validation.dart';
 import 'package:myweli/providers/pro_auth_provider.dart';
 import 'package:myweli/providers/pro_onboarding_provider.dart';
 import 'package:myweli/screens/provider/onboarding/pro_onboarding_screen.dart';
@@ -162,18 +163,40 @@ void main() {
     expect(find.text('Facultatif'), findsNothing);
   });
 
-  testWidgets('the first publish goes live and the mock starts the trial — '
-      'the server rule mirrored (§3.1)', (tester) async {
+  // B0.18 (salon-go-live-approval §3.1, §3.6, §6.5): the publish is a
+  // request — it starts no trial; MyWeli's validation starts the salon's one
+  // trial. Replaces « the first publish goes live and the mock starts the
+  // trial », watched red on the new mock first (the trial read null).
+  testWidgets('a salon that never asked: the request records it as pending '
+      'and starts no trial; MyWeli\'s validation starts the trial on Pro and '
+      'takes the salon live (§3.1, §3.6)', (tester) async {
+    MockData.seedNeverAsked(SalonId('provider1'));
     await pumpScreen(tester);
     await goLive(tester);
 
-    expect(find.text('🎉 Votre profil est en ligne !'), findsOneWidget);
+    expect(
+      MockData.salonValidations[SalonId('provider1')]?.state,
+      SalonValidationState.pending,
+    );
+    expect(MockData.salonStatuses[SalonId('provider1')], 'draft');
     late ApiResponse<SalonSubscription> offer;
     await tester.runAsync(() async {
       offer = await subs.getSalonSubscription(SalonId('provider1'));
     });
+    expect(offer.code, 'no_offer', reason: 'a request starts no trial');
+
+    // The admin validates.
+    await tester.runAsync(() async {
+      expect(
+        (await pro.validateSalonForTests(SalonId('provider1'))).success,
+        isTrue,
+      );
+      offer = await subs.getSalonSubscription(SalonId('provider1'));
+    });
     expect(offer.data?.status, SalonOfferStatus.trial);
     expect(offer.data?.tier, SalonTier.pro);
+    expect(MockData.salonStatuses[SalonId('provider1')], isNull);
+    expect(MockData.salonValidations[SalonId('provider1')]?.wentLive, isTrue);
   }, variant: bothPlatforms);
 
   testWidgets('a publish refused by the offer gate (EXPIRED offer): the '

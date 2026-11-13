@@ -107,9 +107,10 @@ void main() {
 
   test('every publish gate met → ready to go live WITHOUT an offer — the '
       'checklist never reads one (pro-companion-path §2.2)', () async {
-    // The server starts the trial at the first publish, so the client gate
-    // has no offer key and no offer read. A salon with no offer row used to
-    // stay stuck behind « Choisissez votre offre ».
+    // The server starts the trial when MyWeli validates the salon (B0.18
+    // §3.6 — it was the first publish before), so the client gate has no
+    // offer key and no offer read. A salon with no offer row used to stay
+    // stuck behind « Choisissez votre offre ».
     final salon = MockData.providers.first.copyWith(
       imageUrls: const ['a.jpg', 'b.jpg', 'c.jpg'],
     );
