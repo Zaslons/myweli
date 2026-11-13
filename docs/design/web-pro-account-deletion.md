@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Module** | web — one public, static page for salon accounts: `/pro/suppression-compte`, the URL Play's Data safety form takes as « URL de suppression » for MyWeli Pro |
-| **Status** | **Approved 2026-11-13 (decisions 137–140); the French copy of §5 awaits the owner's sign-off sentence by sentence.** The answers are folded into §5–§12; the copy itself is **not** approved yet, and S1 is not opened before it is. Nothing is built. Review findings folded in 2026-11-13, then a second review's the same day (Review log, end); four questions it raised wait for the owner (§12, R1–R4) |
+| **Status** | **Approved 2026-11-13 (decisions 137–140); the French copy of §5.1 approved by the owner as written on 2026-11-13 (« Approve as written », after reading it in full).** The answers are folded into §5–§12. Nothing is built. Review findings folded in 2026-11-13, then a second review's the same day (Review log, end); four questions it raised wait for the owner (§12, R1–R4) |
 | **Owner** | the project owner: the sign-off on §5 sentence by sentence, every merge and every production or console step |
 | **Last updated** | 2026-11-13 |
 | **PRD ref / phase** | FR-AUTH-005 [V1] « Account deletion & data export request (store-policy + data-law compliance) » (`docs/PRD.md:344`) · V1 · Android release, before android-play-release step 7 |
@@ -334,7 +334,7 @@ One `h1`, `h2` only (`LegalPage.tsx:93-101`), lists as `<ol>`/`<ul>`, one `<main
   `/mentions-legales`. §10 #14.
 - Focus: the global `:focus-visible` ring, DOM tab order, the skip link first (WEB-SYSTEM §5).
 
-## 5. Copy — DRAFT, awaiting the owner's sign-off sentence by sentence
+## 5. Copy — approved by the owner as written (2026-11-13)
 
 **Status of the words.** Decisions 137–140 chose every variant; the sentences below are the chosen
 ones. The owner has **not** approved them yet: each sentence of §5.1 waits for their sign-off, and
@@ -798,6 +798,8 @@ Q4's backup bullet is dropped. Step 2 follows `?suite=profil`. §11 now gives th
 sign-off → B0.22 → B0.23 → S1), the KYC and pin wording rule and the Apple-review window. §12
 became « Decisions ». B0.22's spec, [pro-deletion-erase-gaps.md](pro-deletion-erase-gaps.md), was
 written beside this one. The French copy itself is still a draft until the owner signs it off.
+
+**2026-11-13, later:** the owner read §5.1 in full and answered « Approve as written ». The copy is frozen; a change to it is a new sign-off.
 
 **2026-11-13, a second review (26 findings across this spec, B0.22's, the BACKLOG and
 android-play-release), each checked in the code before folding.** Fixed here: the KYC caveat names
