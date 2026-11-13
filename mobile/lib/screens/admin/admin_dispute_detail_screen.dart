@@ -135,7 +135,13 @@ class _AdminDisputeDetailScreenState extends State<AdminDisputeDetailScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        AdminEvidenceImage(url: url, caption: 'Preuve — capture de l’acompte'),
+        AdminEvidenceImage(
+          url: url,
+          caption: 'Preuve — capture de l’acompte',
+          // Reading the dispute again signs a new link (admin-remote-images.md).
+          onReload: () =>
+              context.read<AdminDisputeDetailProvider>().load(widget.id),
+        ),
         const SizedBox(height: AppTheme.spacingS),
         SizedBox(
           width: 240,

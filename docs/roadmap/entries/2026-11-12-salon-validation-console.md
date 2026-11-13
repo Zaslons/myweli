@@ -6,8 +6,8 @@
     - La demande : les photos, les services et leurs prix, les horaires, la position avec « Ouvrir dans OpenStreetMap », le téléphone et son indicatif, l’offre, le propriétaire (sa KYC et ses autres salons), l’historique. La barre du bas envoie `from` (`pending`, `refused`, ou `approved` pour « Validation à terminer ») ; « Valider » est désactivé pour un salon suspendu, avec la raison écrite ; chaque 409 affiche sa phrase.
     - La boîte de refus : un motif obligatoire, une note obligatoire pour « Autre », 500 caractères au plus avec un compteur, ses règles écrites sous le champ ; les motifs définitifs sont signalés. Ni Échap ni un clic à côté ne la ferment pendant l’envoi.
     - « Réactiver » devient « Lever la suspension », sur la liste et sur la fiche du salon, avec un message par résultat et par raison.
-    - Les photos sont dessinées en `<img>` (`WebHtmlElementStrategy.prefer`) : le bucket public refuse le CORS à admin.myweli.com.
-    - Toute la console garde des cibles de 48 dp dans un navigateur de bureau (`AppTheme.consoleTheme()`, au lieu de 40) ; SYSTEM.md §13.2 et §19 le disent.
+    - Les photos sont dessinées en `<img>` (`WebHtmlElementStrategy.prefer`) : le bucket public refuse le CORS à admin.myweli.com (SYSTEM.md §19). Depuis #777, par `AdminRemoteImage`, la seule façon de la console de dessiner une image distante (SYSTEM.md §11.2, [admin-remote-images.md](../../design/admin-remote-images.md) §4.1).
+    - Toute la console garde des cibles de 48 dp dans un navigateur de bureau (`AppTheme.consoleTheme()`, au lieu de 40) ; SYSTEM.md §13.2 le dit.
     - Une décision demandée sur un salon pendant que celle d’un autre est en cours attend sa réponse, puis part ; avant, elle se perdait.
   - **Mesuré :**
     - La suite mobile complète : 3414 tests réussis, 60 ignorés (les goldens, qui ne tournent que sous Linux), 0 échec. Le format et l’analyse sont à 0.
@@ -16,6 +16,7 @@
     - Une relecture sous quatre angles a relevé 18 constats ; tous sont corrigés, chacun avec un test vu rouge.
     - En CI, sur le contenu poussé : la compilation web de la console (« Mobile — admin console builds ») est verte.
   - **Non vérifié ici :**
-    - Dans un vrai navigateur : les photos `<img>` (coins arrondis, sous la barre du bas, leurs boutons « ouvrir »), l’ouverture d’un nouvel onglet, la réponse 404 de l’ancien serveur à travers le Worker, et le `#` du lien après une nouvelle authentification Cloudflare Access. Une vraie demande sera ouverte dans la console déployée.
+    - **Vu depuis, le 2026-11-12, dans un navigateur (Chromium, le panneau de l’app de bureau)**, sur un build release de la console (main, #775 et #777 réunis) branché sur une fausse API locale, avec des photos servies sans en-tête CORS, comme R2 : chaque photo arrive en `<img>` (`no-cors`, sans `Origin`), avec ses coins arrondis ; une photo en 404 montre son carré gris ; la barre du bas passe au-dessus d’une photo qui défile dessous ; le lien de la demande ouvert déconnecté revient à la demande après la connexion. Voir [admin-remote-images.md](../../design/admin-remote-images.md) §8.2.
+    - Toujours non vus : un **nouvel onglet** (dans ce panneau, même un `window.open('_blank')` écrit à la main remplace l’onglet courant, donc il ne peut pas trancher ; la console demande bien `_blank` par `url_launcher`), la réponse 404 de l’ancien serveur à travers le Worker, le `#` du lien après une nouvelle authentification Cloudflare Access, et de vraies photos R2. Une vraie demande sera ouverte dans la console déployée.
     - L’historique affiche « par admin_… » : l’API ne donne pas le nom de l’admin.
   - **Déploiement :** `deploy-admin.yml`, sur le oui du propriétaire, **avant** le backend (§9.2) : face à l’ancien serveur, la file affiche « Validation des salons pas encore active » et le badge reste caché.

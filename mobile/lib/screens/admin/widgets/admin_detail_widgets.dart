@@ -5,7 +5,7 @@ import '../../../core/theme/colors.dart';
 import '../../../core/theme/text_styles.dart';
 import '../../../core/utils/formatters.dart';
 import '../../../core/utils/text_fit.dart';
-import '../../../widgets/common/timed_cached_image.dart';
+import 'admin_remote_image.dart';
 import 'status_chip.dart';
 
 /// Shared building blocks for the admin support views (salon / client detail).
@@ -212,10 +212,19 @@ class AdminBookingsCard extends StatelessWidget {
 }
 
 class AdminEvidenceImage extends StatelessWidget {
-  const AdminEvidenceImage({super.key, required this.url, this.caption});
+  const AdminEvidenceImage({
+    super.key,
+    required this.url,
+    this.caption,
+    this.onReload,
+  });
 
   final String? url;
   final String? caption;
+
+  /// Reloads the record the signed [url] came from, which signs a new one:
+  /// the failed image's way out (AdminRemoteImage.onReload).
+  final VoidCallback? onReload;
 
   @override
   Widget build(BuildContext context) {
@@ -244,17 +253,27 @@ class AdminEvidenceImage extends StatelessWidget {
                 : GestureDetector(
                     onTap: () => showDialog<void>(
                       context: context,
-                      builder: (_) => Dialog(
+                      builder: (dialogContext) => Dialog(
                         backgroundColor: Colors.transparent,
                         child: InteractiveViewer(
-                          child: TimedCachedImage(
-                            imageUrl: url!,
+                          child: AdminRemoteImage(
+                            url: url!,
                             fit: BoxFit.contain,
+                            // The page reloads under the zoom: close it first,
+                            // or it keeps the dead link.
+                            onReload: onReload == null
+                                ? null
+                                : () {
+                                    Navigator.of(dialogContext).pop();
+                                    onReload!();
+                                  },
                           ),
                         ),
                       ),
                     ),
-                    child: TimedCachedImage(imageUrl: url!, fit: BoxFit.cover),
+                    // A signed deposit link on R2's origin, which sends the
+                    // console no CORS header (admin-remote-images.md).
+                    child: AdminRemoteImage(url: url!, onReload: onReload),
                   ),
           ),
         ),

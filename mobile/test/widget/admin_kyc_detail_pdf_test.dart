@@ -11,9 +11,9 @@ import 'package:myweli/providers/admin/admin_auth_provider.dart';
 import 'package:myweli/providers/admin/admin_kyc_provider.dart';
 import 'package:myweli/screens/admin/admin_kyc_detail_screen.dart';
 import 'package:myweli/screens/admin/admin_kyc_queue_screen.dart';
+import 'package:myweli/screens/admin/widgets/admin_remote_image.dart';
 import 'package:myweli/services/admin/admin_service.dart';
 import 'package:myweli/services/interfaces/session_store.dart';
-import 'package:myweli/widgets/common/timed_cached_image.dart';
 import 'package:provider/provider.dart';
 
 import '../support/golden.dart';
@@ -163,7 +163,7 @@ void main() {
     expect(find.text('Document PDF'), findsOneWidget);
     // The PDF used to go through the image widget, and show « image not
     // available »; the selfie here has no link, so none is left.
-    expect(find.byType(TimedCachedImage), findsNothing);
+    expect(find.byType(AdminRemoteImage), findsNothing);
     expect(find.text('Pièce d’identité (CNI / passeport)'), findsOneWidget);
     expect(find.text('Photo du visage'), findsOneWidget);
     expect(find.text('idCard'), findsNothing);
@@ -178,16 +178,86 @@ void main() {
     );
   });
 
-  testWidgets('an image keeps its thumbnail (the image path is unchanged)', (
-    t,
-  ) async {
+  testWidgets('an image keeps its thumbnail and its zoom, both drawn by the '
+      'browser (admin-remote-images.md)', (t) async {
     final restore = AppClock.freeze(t0);
     addTearDown(restore);
     await open(t, responses: [detail(selfieUrl: jpgUrl)], settle: false);
-    expect(find.byType(TimedCachedImage), findsOneWidget);
     expect(find.text('Document PDF'), findsOneWidget);
-    // Dispose before the image's own 12 s timer outlives the test.
-    await t.pumpWidget(const SizedBox());
+
+    // R2 sends the console no CORS header, so the signed link is drawn as a
+    // plain <img>: the strategy asked for, and no header (spec §1, §3).
+    NetworkImage providerIn(Finder f) =>
+        t
+                .widget<Image>(
+                  find.descendant(of: f, matching: find.byType(Image)),
+                )
+                .image
+            as NetworkImage;
+    final thumb = find.byType(AdminRemoteImage);
+    expect(thumb, findsOneWidget);
+    expect(providerIn(thumb).url, jpgUrl);
+    expect(
+      providerIn(thumb).webHtmlElementStrategy,
+      WebHtmlElementStrategy.prefer,
+    );
+    expect(providerIn(thumb).headers ?? const {}, isEmpty);
+
+    // The corner: once the image has failed, the tile's centre is its
+    // « Actualiser » (tested below).
+    await t.tapAt(t.getTopLeft(thumb) + const Offset(12, 12));
+    await t.pump();
+    await t.pump(const Duration(milliseconds: 300));
+    final zoomed = find.descendant(
+      of: find.byType(InteractiveViewer),
+      matching: find.byType(AdminRemoteImage),
+    );
+    expect(zoomed, findsOneWidget);
+    expect(t.widget<AdminRemoteImage>(zoomed).fit, BoxFit.contain);
+    expect(
+      providerIn(zoomed).webHtmlElementStrategy,
+      WebHtmlElementStrategy.prefer,
+    );
+  });
+
+  testWidgets('a failed image offers « Actualiser », which reloads the file '
+      '(new signed links), from the tile and from the zoom', (t) async {
+    final restore = AppClock.freeze(t0);
+    addTearDown(restore);
+    final requests = await open(
+      t,
+      responses: [detail(selfieUrl: jpgUrl)],
+      settle: false,
+    );
+    // flutter_test answers the image's request 400: the refused link.
+    await t.runAsync(() => Future<void>.delayed(Duration.zero));
+    await t.pumpAndSettle();
+    int reads() => requests.where((r) => r == 'GET /admin/kyc/acc1').length;
+    expect(reads(), 1);
+    expect(find.text(AdminRemoteImage.unavailableLabel), findsOneWidget);
+
+    await t.tap(find.text(AdminRemoteImage.reloadLabel));
+    await t.runAsync(() => Future<void>.delayed(Duration.zero));
+    await t.pumpAndSettle();
+    expect(reads(), 2);
+
+    // The tile's corner still opens the zoom; its « Actualiser » closes it
+    // before reloading, so the page under it does not keep the dead link.
+    await t.tapAt(
+      t.getTopLeft(find.byType(AdminRemoteImage)) + const Offset(12, 12),
+    );
+    await t.pumpAndSettle();
+    expect(find.byType(InteractiveViewer), findsOneWidget);
+    await t.tap(
+      find.descendant(
+        of: find.byType(Dialog),
+        matching: find.text(AdminRemoteImage.reloadLabel),
+      ),
+    );
+    await t.runAsync(() => Future<void>.delayed(Duration.zero));
+    await t.pumpAndSettle();
+    expect(find.byType(InteractiveViewer), findsNothing);
+    expect(reads(), 3);
   });
 
   testWidgets('a click opens the signed link, through url_launcher', (t) async {
