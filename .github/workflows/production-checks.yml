@@ -399,6 +399,38 @@ jobs:
           echo "::error::Set NEXT_PUBLIC_CARTO_BASEMAPS_KEY in Vercel, Production only, to Secret Manager CARTO_BASEMAPS_WEB_KEY, then redeploy — docs/design/map-basemap-key.md §9 step 3."
           exit 1
 
+  access:
+    name: Cloudflare Access — is every admin console address still behind the sign-in?
+    runs-on: ubuntu-latest
+    # It reads public addresses with curl, so it gets none of the workflow's
+    # issues or id-token rights, and no secret.
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+
+      # **A control that lives only in a dashboard.** Cloudflare Access — the
+      # application « Myweli Admin », policy « Admins » — is set by hand, and no
+      # file in this repository describes it. Until 2026-11-13 it covered
+      # admin.myweli.com alone, and an anonymous GET of
+      # https://myweli-admin.pages.dev/main.dart.js answered 200 with the whole
+      # console. Nothing here could notice; the owner added the two pages.dev
+      # hostnames by hand that day, and a hand edit can be undone the same way.
+      #
+      # So this asks, daily and as nobody, three hostnames at / and at
+      # /main.dart.js — the wildcard through a made-up preview label, since
+      # Access answers before Pages — and is green only on a redirect to the
+      # Access sign-in for that very hostname. A 200 is red, and so is no
+      # answer: a check that measured nothing is not green.
+      #
+      # Not a gate: Access changes in a dashboard, not on a merge.
+      # CONSOLE_ACCESS_URLS and CONSOLE_ACCESS_TEAM_HOST are deliberately NOT
+      # set here; console_access_check_test fails if any workflow sets them,
+      # and runs this very script against a local server, both ways.
+      # docs/design/infra-console-access-check.md
+      - name: Every console address sends an anonymous visitor to the Access sign-in
+        run: bash infra/cloudflare/98-verify-console-access.sh
+
   attestation:
     name: The registration claim — has anyone confirmed it lately?
     runs-on: ubuntu-latest
@@ -441,7 +473,7 @@ jobs:
   # docs/design/production-alarm-close.md
   report:
     name: Say so, if any check failed
-    needs: [cwv, privacy, legal, cardphoto, retention, attestation, secretpins, iam, basemap]
+    needs: [cwv, privacy, legal, cardphoto, retention, attestation, secretpins, iam, basemap, access]
     if: failure()
     runs-on: ubuntu-latest
     steps:
@@ -463,6 +495,7 @@ jobs:
           SECRETPINS: ${{ needs.secretpins.result }}
           IAM: ${{ needs.iam.result }}
           BASEMAP: ${{ needs.basemap.result }}
+          ACCESS: ${{ needs.access.result }}
         run: |
           set -euo pipefail
           TITLE='Production checks are failing'
@@ -479,7 +512,7 @@ jobs:
           BODY=$(printf '%s\n' \
             '@Zaslons The scheduled real-domain checks failed.' \
             '' \
-            "CWV: ${CWV} · privacy: ${PRIVACY} · legal: ${LEGAL} · card photo: ${CARDPHOTO} · retention: ${RETENTION} · attestation: ${ATTESTATION} · secret pins: ${SECRETPINS} · IAM: ${IAM} · basemap: ${BASEMAP}" \
+            "CWV: ${CWV} · privacy: ${PRIVACY} · legal: ${LEGAL} · card photo: ${CARDPHOTO} · retention: ${RETENTION} · attestation: ${ATTESTATION} · secret pins: ${SECRETPINS} · IAM: ${IAM} · basemap: ${BASEMAP} · console access: ${ACCESS}" \
             '' \
             "${RUN}" \
             '' \
@@ -532,7 +565,25 @@ jobs:
             'keyless by decision (docs/design/map-basemap-key.md §7) — so they' \
             'are blank or watermarked right now. Set NEXT_PUBLIC_CARTO_BASEMAPS_KEY' \
             'in Vercel, Production only, to the value of Secret Manager' \
-            'CARTO_BASEMAPS_WEB_KEY, then redeploy (§9 step 3).')
+            'CARTO_BASEMAPS_WEB_KEY, then redeploy (§9 step 3).' \
+            '' \
+            '**The console access job asks Cloudflare, as nobody.** Red there means' \
+            'an address of the admin console did not send an anonymous visitor to' \
+            'the Cloudflare Access sign-in; the job log names the address, what' \
+            'came back and what to do. A 200 means the console is public at that' \
+            'address right now: add the hostname back to the Access application' \
+            '« Myweli Admin » in the Cloudflare dashboard (Zero Trust → Access →' \
+            'Applications), the policy « Admins » unchanged — docs/DEPLOYMENT.md' \
+            '« Restrict ». zz-access-probe.myweli-admin.pages.dev is a made-up' \
+            'address that stands for every preview address: a 200 or a 404 there' \
+            'means the wildcard is gone and every preview is public. Add' \
+            '*.myweli-admin.pages.dev back, never the made-up name itself, which' \
+            'would turn this check green with every preview still public. A 403, a' \
+            '5xx or a 404 on another address does not show the console is public:' \
+            'look by hand before editing Access. A 403 marked cf-mitigated is' \
+            'Cloudflare challenging the GitHub runner, not a visitor. No answer at' \
+            'all is red too, because nothing was measured: re-run the job' \
+            '(docs/design/infra-console-access-check.md §5).')
 
           if [ -n "$NUM" ]; then
             STATE=$(gh issue view "$NUM" --json state --jq .state)
@@ -561,7 +612,7 @@ jobs:
   # delivery without a real failure. docs/design/production-alarm-close.md
   clear:
     name: Close the alarm, if every check passed
-    needs: [cwv, privacy, legal, cardphoto, retention, attestation, secretpins, iam, basemap]
+    needs: [cwv, privacy, legal, cardphoto, retention, attestation, secretpins, iam, basemap, access]
     if: github.event_name == 'schedule' && success()
     runs-on: ubuntu-latest
     steps:

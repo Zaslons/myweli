@@ -10,6 +10,7 @@ name: Deploy admin console
 # myweli-admin.pages.dev and *.myweli-admin.pages.dev (each deploy's preview
 # address). Until 2026-11-13 only the first was covered, and the console's
 # bundle was public at the other two (docs/LAUNCH.md, the Access box).
+# Re-checked daily by production-checks.yml's `access` job (docs/design/infra-console-access-check.md).
 #
 # Required repo secrets:
 #   CLOUDFLARE_API_TOKEN  — a token with the "Cloudflare Pages: Edit" permission
