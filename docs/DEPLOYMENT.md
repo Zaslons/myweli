@@ -832,7 +832,14 @@ serves rather than failing silently in the browser).
 - **Domain:** in the Pages project → Custom domains → add `admin.myweli.com`
   (Cloudflare auto-creates the DNS record since the zone is on Cloudflare).
 - **Restrict:** put **Cloudflare Access** (Zero Trust) in front of the Pages site —
-  email-allowlist to your address(es). The backend also enforces admin authz +
+  email-allowlist to your address(es). **All three hostnames, not only the custom
+  domain:** the Access application « Myweli Admin » (policy « Admins ») covers
+  `admin.myweli.com`, `myweli-admin.pages.dev` and `*.myweli-admin.pages.dev`
+  (every deploy's preview address). Until 2026-11-13 it covered the first only,
+  and an anonymous `GET https://myweli-admin.pages.dev/main.dart.js` answered
+  `200` with the whole console. The API never trusted that origin (its
+  preflight answers without `Access-Control-Allow-Origin`), so nothing could
+  sign in from there, but the code and its admin routes were public. The backend also enforces admin authz +
   the seeded `ADMIN_EMAIL`/`ADMIN_PASSWORD` login, but Access keeps the console
   unreachable to the public.
 - **Rotating the admin password is NOT done by changing the secret.**
