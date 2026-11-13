@@ -113,8 +113,16 @@ class UploadVerificationService {
         result[i] = key; // unchanged, and provably ours
         continue;
       }
-      if (promotedKey(key) == null) {
+      final promoted = promotedKey(key);
+      if (promoted == null) {
         return (ok: false, error: 'invalid_input', keys: <String>[]);
+      }
+      if (alreadyStored.contains(promoted)) {
+        // A RE-SENT upload: its pending object was deleted when it was
+        // promoted, so looking it up again is a guaranteed 404.
+        // See [promoteNewUrls] — same rule, key-shaped.
+        result[i] = promoted;
+        continue;
       }
       toPromote.add(key);
       slots.add(i);
@@ -234,9 +242,32 @@ class UploadVerificationService {
         continue;
       }
       final key = keyFromPublicUrl(url, publicBaseUrl: publicBaseUrl);
-      if (key == null || promotedKey(key) == null) {
+      final promoted = key == null ? null : promotedKey(key);
+      if (key == null || promoted == null) {
         // Not ours, or not pending and not previously stored.
         return (ok: false, error: 'invalid_input', urls: <String>[]);
+      }
+      // ## A re-sent upload is the photo already stored
+      //
+      // The pending url of an upload this resource has ALREADY promoted. The
+      // 2026-11-13 production refusals: the website kept each photo's pending
+      // url after a successful save and sent it again on the next one.
+      // Promotion had deleted that object, so `verify()` HEADed it five times
+      // over ~2.4 s and refused the whole save with `upload_not_found` — and a
+      // client retrying after a lost response hits the same wall.
+      //
+      // `promotedKey` is a pure function, so this pending url and the stored
+      // promoted one name the same photo. It is passed through as the STORED
+      // value, and only when that value is a member of [alreadyStored] — the
+      // same membership rule as the line above, applied to the promoted form,
+      // never to the shape. Another tenant's photo is not in this caller's set
+      // and takes the normal path. The claim form ([verifyAndPromote]) passes
+      // an empty set, so a deposit or booking still needs a live object.
+      // docs/design/upload-resave-stale-pending.md.
+      final promotedUrl = '$base$promoted';
+      if (alreadyStored.contains(promotedUrl)) {
+        result[i] = promotedUrl;
+        continue;
       }
       toPromote.add(key);
       slots.add(i);

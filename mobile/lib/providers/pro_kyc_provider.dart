@@ -171,6 +171,21 @@ class ProKycProvider extends ChangeNotifier implements AccountScoped {
         _status = res.data!.status;
         _rejectionReason = res.data!.rejectionReason;
         _error = null;
+        // The documents the server STORED, never the ones we sent: a new
+        // document went up under `pending/…`, and the submit moved it and
+        // deleted that object. Keeping ours made a second submit in the same
+        // visit re-send a dead key — refused with `upload_not_found`
+        // (docs/design/upload-resave-stale-pending.md). A successful submit
+        // always stores at least one document, so an empty list means the
+        // answer did not carry them: read the status back, as on open.
+        if (res.data!.documents.isNotEmpty) {
+          _documents
+            ..clear()
+            ..addEntries(res.data!.documents.map((d) => MapEntry(d.type, d)));
+        } else {
+          _isSubmitting = false;
+          await load(providerUserId);
+        }
         return true;
       }
       _error = res.error ?? 'Erreur lors de l’envoi';

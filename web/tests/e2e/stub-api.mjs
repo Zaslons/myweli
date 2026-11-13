@@ -901,6 +901,15 @@ const bookingsByKey = new Map(); // key → how many bookings it created
 // Read with GET /__stub/uploads?key=<key>.
 const receivedUploads = new Map();
 
+/// A save MOVES a just-uploaded image out of `pending/`, as the API does
+/// (`UploadVerificationService.promoteNewUrls`): the page gets the moved
+/// address back and must keep THAT one. The stub used to sign outside
+/// `pending/` and store whatever came, so no e2e could tell a page that kept
+/// its own pending address — the 2026-11-13 production refusals
+/// (docs/design/upload-resave-stale-pending.md).
+const promoted = (u) =>
+  typeof u === 'string' ? u.replace('https://cdn.stub/pending/', 'https://cdn.stub/') : u;
+
 createServer(async (req, res) => {
   const url = new URL(req.url, `http://localhost:${port}`);
   if (url.pathname === '/__stub/uploads') {
@@ -2092,7 +2101,10 @@ createServer(async (req, res) => {
     // that type, and the record below shows it.
     const ext = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' }[b.contentType];
     if (!ext) return json(res, 400, { error: 'invalid_input' });
-    const key = `gallery/p1/${imgSeq++}.${ext}`;
+    // Under `pending/`, as upload_signing_service.dart signs it: a save MOVES
+    // it (see `promoted` below), and a page that kept this address after the
+    // save is the 2026-11-13 production bug (upload-resave-stale-pending.md).
+    const key = `pending/gallery/p1/${imgSeq++}.${ext}`;
     return json(res, 200, {
       method: 'PUT',
       uploadUrl: `http://127.0.0.1:${port}/r2-upload/${key}`,
@@ -2199,7 +2211,7 @@ createServer(async (req, res) => {
   if (url.pathname.match(/^\/providers\/[^/]+\/gallery$/)) {
     if (req.method === 'PUT') {
       const body = await readBody(req);
-      proProvider.imageUrls = body.imageUrls ?? [];
+      proProvider.imageUrls = (body.imageUrls ?? []).map(promoted);
       return json(res, 200, { imageUrls: proProvider.imageUrls });
     }
     return json(res, 200, { imageUrls: proProvider.imageUrls ?? [] });
@@ -2207,8 +2219,13 @@ createServer(async (req, res) => {
   if (url.pathname.match(/^\/providers\/[^/]+\/before-after$/)) {
     if (req.method === 'PUT') {
       const body = await readBody(req);
-      proProvider.beforeAfters = body.beforeAfters ?? [];
-      return json(res, 200, proProvider.beforeAfters);
+      proProvider.beforeAfters = (body.beforeAfters ?? []).map((p) => ({
+        ...p,
+        before: promoted(p.before),
+        after: promoted(p.after),
+      }));
+      // `{ beforeAfters }`, as the API answers (it was the bare list here).
+      return json(res, 200, { beforeAfters: proProvider.beforeAfters });
     }
     return json(res, 200, proProvider.beforeAfters ?? []);
   }
@@ -2238,6 +2255,7 @@ createServer(async (req, res) => {
     proProvider.artists = proProvider.artists ?? [];
     if (req.method === 'POST') {
       const body = await readBody(req);
+      if (typeof body.imageUrl === 'string') body.imageUrl = promoted(body.imageUrl);
       const created = { id: `art${++artSeq}`, providerId: 'p1', ...body };
       proProvider.artists.push(created);
       return json(res, 201, created);
@@ -2246,6 +2264,7 @@ createServer(async (req, res) => {
       const body = await readBody(req);
       const a = proProvider.artists.find((x) => x.id === aid);
       if (!a) return json(res, 404, { error: 'not_found' });
+      if (typeof body.imageUrl === 'string') body.imageUrl = promoted(body.imageUrl);
       Object.assign(a, body);
       return json(res, 200, a);
     }
@@ -2376,6 +2395,9 @@ createServer(async (req, res) => {
   if (provMatch) {
     if (req.method === 'PATCH') {
       const body = await readBody(req);
+      if (typeof body.logoUrl === 'string') {
+        body.logoUrl = body.logoUrl === '' ? null : promoted(body.logoUrl);
+      }
       Object.assign(proProvider, body);
       return json(res, 200, proProvider);
     }

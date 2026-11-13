@@ -632,11 +632,30 @@ export async function getEarnings(
 
 // --- profil + acompte (7.3e-i) ----------------------------------------------
 
-export function updateProviderProfile(
+/// The profile save, with the logo address the server STORED — `undefined`
+/// when its answer did not say (docs/design/upload-resave-stale-pending.md).
+///
+/// The payload always carries `logoUrl`, and a new logo goes up under
+/// `pending/…`: the save moves it and deletes that object. A form that kept the
+/// pending address re-sent it on its next save — a name change, say — and the
+/// whole save was refused (`upload_not_found`).
+export async function updateProviderProfile(
   providerId: string,
   fields: Record<string, unknown>,
-): Promise<MutationResult> {
-  return mutate('/api/pro/profil', 'PATCH', { providerId, profile: fields });
+): Promise<MutationResult & { logoUrl?: string | null }> {
+  const res = await send('/api/pro/profil', {
+    method: 'PATCH',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ providerId, profile: fields }),
+  });
+  if (!res.ok) {
+    const b = (await res.json().catch(() => ({}))) as { error?: string };
+    return { ok: false, status: res.status, error: b.error };
+  }
+  const logo = (await readJson<{ logoUrl?: unknown }>(res))?.logoUrl;
+  return typeof logo === 'string' || logo === null
+    ? { ok: true, status: res.status, logoUrl: logo }
+    : { ok: true, status: res.status };
 }
 
 export async function getDepositPolicy(
@@ -659,21 +678,69 @@ export function saveDepositPolicy(
 
 // --- médias (7.3e-ii) -------------------------------------------------------
 
+/// A Médias save, with what the server STORED (docs/design/upload-resave-stale-pending.md).
+///
+/// A new photo goes up under `pending/…`; the save moves it to its final
+/// address, deletes the pending object and answers with the stored list. The
+/// caller keeps THAT list — never the one it sent. Keeping its own is the
+/// 2026-11-13 production bug: the next save re-sent a pending address whose
+/// object was gone, and every add after the first was refused
+/// (`upload_not_found`), while the thumbnail pointed at the deleted object.
+///
+/// `stored` is undefined when a 2xx did not carry a usable list; the caller
+/// then reads the salon back rather than fall back on its own addresses.
+export type MediasSaveResult<T> = MutationResult & { stored?: T };
+
+async function saveMedias<T>(
+  url: string,
+  body: unknown,
+  pick: (answer: unknown) => T | undefined,
+): Promise<MediasSaveResult<T>> {
+  const res = await send(url, {
+    method: 'PUT',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    const b = (await res.json().catch(() => ({}))) as { error?: string };
+    return { ok: false, status: res.status, error: b.error };
+  }
+  return { ok: true, status: res.status, stored: pick(await readJson<unknown>(res)) };
+}
+
+function storedList<T>(
+  answer: unknown,
+  field: string,
+  isItem: (x: unknown) => x is T,
+): T[] | undefined {
+  if (typeof answer !== 'object' || answer === null) return undefined;
+  const list = (answer as Record<string, unknown>)[field];
+  return Array.isArray(list) && list.every(isItem) ? list : undefined;
+}
+
+const isUrl = (x: unknown): x is string => typeof x === 'string';
+const isPair = (x: unknown): x is BeforeAfterPair =>
+  typeof x === 'object' &&
+  x !== null &&
+  typeof (x as BeforeAfterPair).before === 'string' &&
+  typeof (x as BeforeAfterPair).after === 'string';
+
 export function saveGallery(
   providerId: string,
   imageUrls: string[],
-): Promise<MutationResult> {
-  return mutate('/api/pro/medias/gallery', 'PUT', { providerId, imageUrls });
+): Promise<MediasSaveResult<string[]>> {
+  return saveMedias('/api/pro/medias/gallery', { providerId, imageUrls }, (a) =>
+    storedList(a, 'imageUrls', isUrl),
+  );
 }
 
 export function saveBeforeAfters(
   providerId: string,
   beforeAfters: BeforeAfterPair[],
-): Promise<MutationResult> {
-  return mutate('/api/pro/medias/before-after', 'PUT', {
-    providerId,
-    beforeAfters,
-  });
+): Promise<MediasSaveResult<BeforeAfterPair[]>> {
+  return saveMedias('/api/pro/medias/before-after', { providerId, beforeAfters }, (a) =>
+    storedList(a, 'beforeAfters', isPair),
+  );
 }
 
 /// What a logout call came to. The session is two httpOnly cookies that only

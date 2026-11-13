@@ -314,18 +314,32 @@ test('médias: manage photos (remove + save) + upload a new one', async ({
     });
   await expect(page.locator('main img')).toHaveCount(4);
 
+  // A SECOND add in the same visit (upload-resave-stale-pending.md): the save
+  // moves each new photo out of `pending/` and the page must keep the moved
+  // address. Keeping its own re-sent a pending address whose object the API
+  // had deleted — refused in production for every add after the first.
+  await page
+    .locator('input[type=file]')
+    .first()
+    .setInputFiles({ name: 'photo2.gif', mimeType: 'image/gif', buffer: PIXEL });
+  await expect(page.locator('main img')).toHaveCount(5);
+  const srcs = await page.locator('main img').evaluateAll((imgs) =>
+    imgs.map((i) => i.getAttribute('src') ?? ''),
+  );
+  expect(srcs.filter((s) => s.includes('/pending/'))).toEqual([]);
+
   // Saved at once, as in the app (web-pro-medias-like-app.md): a reload
-  // still has it.
+  // still has them.
   await page.reload();
-  await expect(page.locator('main img')).toHaveCount(4);
+  await expect(page.locator('main img')).toHaveCount(5);
 
   // Deleting asks, then can be taken back.
   await page.getByRole('button', { name: 'Supprimer' }).last().click();
   const dialog = page.getByRole('dialog', { name: 'Supprimer cette photo ?' });
   await dialog.getByRole('button', { name: 'Supprimer la photo' }).click();
-  await expect(page.locator('main img')).toHaveCount(3);
-  await page.getByRole('status').getByRole('button', { name: 'Annuler' }).click();
   await expect(page.locator('main img')).toHaveCount(4);
+  await page.getByRole('status').getByRole('button', { name: 'Annuler' }).click();
+  await expect(page.locator('main img')).toHaveCount(5);
 });
 
 test('clients: list → search → card → note → tags (module clients C1b)', async ({
