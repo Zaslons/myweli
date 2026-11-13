@@ -25,6 +25,19 @@ import 'salon_validation_copy.dart';
 ///
 /// Best effort, each channel on its own: a failure never undoes the
 /// decision, and never stops the next channel.
+///
+/// **Said in the log, one line per channel** (§5.2, « Ce que dit le
+/// journal »): every decision writes exactly three lines, push, feed and
+/// e-mail in that order, so a query on any one channel sees every decision —
+///
+///     salon_notice kind=refused provider=p_1 channel=email outcome=failed error=resend_500
+///
+/// `outcome` is `sent`, `undelivered` (push only: no device took it),
+/// `skipped` (with a `reason`) or `failed` (with an `error`: a provider's
+/// code, or a thrown error's TYPE, never its message). Only ids, codes,
+/// counts and types: never the note, the address, the salon's name, the
+/// title or body, or a token (BACKEND §3.6). The proposed alert matches
+/// `channel=email outcome=failed`: keep those two fields side by side.
 class SalonDecisionNotifier {
   SalonDecisionNotifier(
     this._members,
@@ -32,7 +45,9 @@ class SalonDecisionNotifier {
     this._push,
     this._notifications, {
     required EmailProvider email,
-  }) : _email = email;
+    void Function(String)? log,
+  }) : _email = email,
+       _log = log ?? print;
 
   final MembershipRepository _members;
   final ProvidersRepository _providers;
@@ -42,8 +57,12 @@ class SalonDecisionNotifier {
   /// Required, not defaulted, as `SalonNotifier`'s: a forgotten wiring must
   /// not quietly leave the salons without the app with nothing.
   final EmailProvider _email;
+  final void Function(String) _log;
 
   static const feedType = 'salonValidation';
+
+  /// The channels, in the order they are tried and logged.
+  static const channels = ['push', 'feed', 'email'];
 
   static String routeFor(String providerId) =>
       '/pro/onboarding?salon=${Uri.encodeComponent(providerId)}';
@@ -52,6 +71,7 @@ class SalonDecisionNotifier {
   /// on one — is named in the e-mail only.
   Future<void> approved(String providerId, {DateTime? trialEndsAt}) => _notify(
     providerId,
+    kind: 'approved',
     event: 'salon.validation.approved',
     title: approvedTitle,
     pushBody: kApprovedBody,
@@ -70,6 +90,7 @@ class SalonDecisionNotifier {
     String? note,
   }) => _notify(
     providerId,
+    kind: 'refused',
     event: 'salon.validation.refused',
     title: refusedTitle,
     pushBody: refusedPushBody(code, note),
@@ -84,21 +105,37 @@ class SalonDecisionNotifier {
 
   Future<void> _notify(
     String providerId, {
+    required String kind,
     required String event,
     required String Function(String salonName) title,
     required String pushBody,
     required String feedBody,
     required SalonValidationEmail Function(String salonName, String? tz) email,
   }) async {
+    void say(String channel, String outcome) => _say(
+      'salon_notice kind=$kind provider=$providerId '
+      'channel=$channel outcome=$outcome',
+    );
+
     final Member? owner;
     final Map<String, dynamic>? salon;
     try {
       owner = await _owner(providerId);
       salon = owner == null ? null : await _providers.byId(providerId);
-    } catch (_) {
-      return; // best effort: nobody to tell, or nothing to tell them with.
+    } catch (e) {
+      // Best effort: nothing to tell them with. Nothing was sent, on any
+      // channel — so each channel says so.
+      for (final c in channels) {
+        say(c, 'failed reason=lookup error=${e.runtimeType}');
+      }
+      return;
     }
-    if (owner == null) return;
+    if (owner == null) {
+      for (final c in channels) {
+        say(c, 'skipped reason=no_owner');
+      }
+      return;
+    }
     final salonName = (salon?['name'] as String?) ?? 'votre salon';
     final tz = salon?['timezone'] as String?;
     final accountId = owner.accountId!;
@@ -106,13 +143,23 @@ class SalonDecisionNotifier {
     final heading = title(salonName);
 
     try {
-      await _push.sendToUser(
+      // By kind: a browser's count never stands for « the app reached
+      // them » (web-pro-browser-push §4, Q1). 0 and 0 is no device, or a
+      // provider refusal, which `PushService` logs on its own line.
+      final d = await _push.sendToUserByKind(
         accountId,
         title: heading,
         body: pushBody,
         data: {'event': event, 'providerId': providerId, 'route': route},
       );
-    } catch (_) {}
+      say(
+        'push',
+        '${d.app + d.web > 0 ? 'sent' : 'undelivered'} '
+            'app=${d.app} web=${d.web}',
+      );
+    } catch (e) {
+      say('push', 'failed error=${e.runtimeType}');
+    }
     try {
       await _notifications.add(
         userId: accountId,
@@ -121,12 +168,18 @@ class SalonDecisionNotifier {
         body: feedBody,
         route: route,
       );
-    } catch (_) {}
+      say('feed', 'sent');
+    } catch (e) {
+      say('feed', 'failed error=${e.runtimeType}');
+    }
     final to = owner.emailOrNull;
-    if (to == null) return;
+    if (to == null) {
+      say('email', 'skipped reason=no_address');
+      return;
+    }
     try {
       final mail = email(salonName, tz);
-      await _email.send(
+      final r = await _email.send(
         // WARM: a decision about the salon's own listing, to its owner.
         classification: EmailClass.warm,
         to: to,
@@ -134,6 +187,25 @@ class SalonDecisionNotifier {
         text: mail.text,
         html: mail.html,
       );
+      say('email', r.ok ? 'sent' : 'failed error=${errorCode(r.error)}');
+    } catch (e) {
+      say('email', 'failed error=${e.runtimeType}');
+    }
+  }
+
+  /// A provider's `error` as it may be logged: a code (`unroutable`,
+  /// `send_budget_exhausted`, `resend_422`, `resend_unreachable`). Anything
+  /// else — free text that could carry an address, or a space that would
+  /// forge a field of the line — is `unknown`.
+  static String errorCode(String? error) =>
+      error != null && RegExp(r'^[a-z0-9_]{1,64}$').hasMatch(error)
+      ? error
+      : 'unknown';
+
+  /// The log never fails the decision: it is already written.
+  void _say(String line) {
+    try {
+      _log(line);
     } catch (_) {}
   }
 

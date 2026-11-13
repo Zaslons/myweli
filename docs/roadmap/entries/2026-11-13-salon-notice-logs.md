@@ -1,0 +1,17 @@
+- 🟡 **Ce que la validation dit au salon se lit maintenant dans le journal : une ligne `salon_notice` par canal — push, fil, e-mail — à chaque décision, sans rien de ce que personne a tapé (backend · 2026-11-13 — BACKLOG B0.18).** Non fusionné : branche `feat/salon-notice-logs`, créée depuis `main` (`a03da1ed`). Selon [salon-go-live-approval.md](../../design/salon-go-live-approval.md) §5.2, « What the log says » (ajouté par cette branche).
+  - **Pourquoi :** le 2026-11-13 à 18:51:45 UTC, le propriétaire refuse une demande de test. `POST /admin/salons/{id}/validation/refuse` répond 200, et le journal de Cloud Run ne dit rien de l’avis envoyé au salon. `SalonDecisionNotifier` ne journalisait rien en cas de succès, et ses quatre `try` finissaient par `catch (_) {}`. Un push, une ligne du fil ou un e-mail en échec ne laissait aucune trace : personne ne pouvait dire si un salon refusé avait appris pourquoi. L’avis à l’admin, lui, écrivait déjà `admin_notice … outcome=sent`.
+  - **Ce qui change :** chaque décision écrit exactement trois lignes, dans l’ordre push, fil, e-mail : `salon_notice kind=approved|refused provider=<id du salon> channel=push|feed|email outcome=…`.
+    - **Push :** `sent app=N web=M` (l’app et le navigateur à part) ou `undelivered app=0 web=0` (aucun appareil, ou un refus du fournisseur, que `PushService` écrit sur sa propre ligne).
+    - **E-mail :** `skipped reason=no_address` pour un propriétaire inscrit par téléphone ; `failed error=<code>` quand le fournisseur répond `ok: false`.
+    - **Un appel qui lève une erreur :** `failed error=<son type>`.
+    - **Sans propriétaire :** trois lignes `skipped reason=no_owner`.
+    - **Une lecture impossible :** trois lignes `failed reason=lookup` ; rien n’est envoyé, et jusqu’ici ce cas se taisait aussi.
+  - **Rien de tapé dans le journal :**
+    - Jamais la note, l’adresse, le nom du salon, le titre ou le texte, ni un jeton (BACKEND §3.6). Le code du refus non plus : l’audit le garde.
+    - Une erreur levée est écrite par son type, jamais par son message.
+    - Une erreur du fournisseur qui n’est pas un code (`[a-z0-9_]`, 64 au plus) devient `error=unknown` : un texte libre pourrait porter l’adresse, une espace forger un champ.
+  - **Toujours au mieux :** l’appel au journal est protégé. Un journal qui lève une erreur n’arrête aucun canal et ne fait jamais échouer la décision, déjà écrite.
+  - **L’alerte, proposée, pas créée :** une alerte Cloud Monitoring sur `channel=email outcome=failed` en vaut la peine, sur la production seulement et sans `error=unroutable`. Les raisons et les limites sont dans la spec, §5.2. La créer est un changement dans le cloud : **sur le oui du propriétaire**.
+  - **Mesuré :** à compléter.
+  - **Non vu :** la production. Il faut d’abord le déploiement du backend, puis une décision lue en retour dans le journal.
+  - **Reste :** la fusion, puis le déploiement du backend, **chacun sur le oui du propriétaire** ; l’alerte, sur son oui.
