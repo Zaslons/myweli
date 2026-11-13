@@ -4,8 +4,10 @@ import 'package:myweli/core/di/dependency_injection.dart';
 import 'package:myweli/core/push/push_registration.dart';
 import 'package:myweli/core/utils/salon_id.dart';
 import 'package:myweli/models/api_response.dart';
+import 'package:myweli/models/provider.dart' as model;
 import 'package:myweli/models/salon_subscription.dart';
 import 'package:myweli/models/salon_validation.dart';
+import 'package:myweli/providers/locality_provider.dart';
 import 'package:myweli/providers/pro_auth_provider.dart';
 import 'package:myweli/providers/pro_onboarding_provider.dart';
 import 'package:myweli/screens/provider/onboarding/pro_onboarding_screen.dart';
@@ -13,6 +15,7 @@ import 'package:myweli/services/interfaces/pro_service_interface.dart';
 import 'package:myweli/services/mock/mock_auth_service.dart';
 import 'package:myweli/services/mock/mock_data.dart';
 import 'package:myweli/services/mock/mock_device_registration_service.dart';
+import 'package:myweli/services/mock/mock_locality_service.dart';
 import 'package:myweli/services/mock/mock_pro_artist_service.dart';
 import 'package:myweli/services/mock/mock_pro_kyc_service.dart';
 import 'package:myweli/services/mock/mock_pro_service.dart';
@@ -72,6 +75,7 @@ void main() {
     serviceLocator.proArtistService = MockProArtistService();
     serviceLocator.proKycService = MockProKycService();
     serviceLocator.subscriptionService = subs;
+    serviceLocator.localityService = MockLocalityService();
     serviceLocator.proPushRegistration = PushRegistration(
       push: MockPushNotificationService(),
       devices: MockDeviceRegistrationService(),
@@ -84,7 +88,10 @@ void main() {
     pro.publishAnswer = null;
   });
 
-  Future<void> pumpScreen(WidgetTester tester) async {
+  /// [withAreas]: MyWeli's area tree in the widget tree, as the app has it
+  /// (`main_pro.dart`) — R8's lookup. Without it the profile step keeps the
+  /// three-field rule.
+  Future<void> pumpScreen(WidgetTester tester, {bool withAreas = false}) async {
     final auth = await signInPro(tester);
     // The sign-in's « Mes salons » load, landed in real time: a publish's
     // re-read waits for a load already out (B0.18 §6.2), and that one's
@@ -95,11 +102,14 @@ void main() {
         providers: [
           ChangeNotifierProvider<ProAuthProvider>.value(value: auth),
           ChangeNotifierProvider(create: (_) => ProOnboardingProvider()),
+          if (withAreas)
+            ChangeNotifierProvider(create: (_) => LocalityProvider()),
         ],
         home: const ProOnboardingScreen(),
       ),
     );
-    // services → staff → hours → deposit → listing → KYC: six mock calls.
+    // services → staff → hours → deposit → listing → KYC: six mock calls
+    // (the tree, when there is one, beside them).
     await settleMocks(tester, rounds: 7);
   }
 
@@ -242,4 +252,75 @@ void main() {
     );
     expectNoOfferChoice();
   }, variant: bothPlatforms);
+  // R8 (salon-go-live-approval §6.3, decision 136 item 4): the server takes
+  // a commune typed by hand only when it names one of MyWeli's areas.
+  group('R8 — « Profil de l’entreprise » and a commune typed by hand', () {
+    const fromList = 'Choisissez la commune dans la liste';
+
+    /// provider1 as a legacy row: no area, a commune of no area.
+    void handTypedCommune(String commune) {
+      final i = MockData.providers.indexWhere((p) => p.id == 'provider1');
+      final original = MockData.providers[i];
+      MockData.providers[i] = model.Provider.fromJson({
+        ...original.toJson(),
+        'areaId': null,
+        'commune': commune,
+      });
+      addTearDown(() => MockData.providers[i] = original);
+    }
+
+    ElevatedButton publishButton(WidgetTester tester) =>
+        tester.widget<ElevatedButton>(
+          find.ancestor(
+            of: find.text('Mettre mon profil en ligne'),
+            matching: find.byType(ElevatedButton),
+          ),
+        );
+
+    testWidgets('a commune of no area: the sub-line under the step, the step '
+        'to do, the button off', (tester) async {
+      handTypedCommune('Quartier des Artistes');
+      await pumpScreen(tester, withAreas: true);
+
+      final row = find.ancestor(
+        of: find.text('Profil de l’entreprise'),
+        matching: find.byType(ListTile),
+      );
+      expect(
+        find.descendant(of: row, matching: find.text(fromList)),
+        findsOneWidget,
+      );
+      await tester.scrollUntilVisible(
+        find.text('Mettre mon profil en ligne'),
+        200,
+      );
+      expect(publishButton(tester).onPressed, isNull);
+    }, variant: bothPlatforms);
+
+    testWidgets('CONTROL — a legacy commune that names an area (« cocody »): '
+        'done, no sub-line', (tester) async {
+      handTypedCommune('cocody');
+      await pumpScreen(tester, withAreas: true);
+
+      expect(find.text(fromList), findsNothing);
+      await tester.scrollUntilVisible(
+        find.text('Mettre mon profil en ligne'),
+        200,
+      );
+      expect(publishButton(tester).onPressed, isNotNull);
+    });
+
+    testWidgets('CONTROL — no tree in the widget tree: today\'s three-field '
+        'rule, the server decides', (tester) async {
+      handTypedCommune('Quartier des Artistes');
+      await pumpScreen(tester);
+
+      expect(find.text(fromList), findsNothing);
+      await tester.scrollUntilVisible(
+        find.text('Mettre mon profil en ligne'),
+        200,
+      );
+      expect(publishButton(tester).onPressed, isNotNull);
+    });
+  });
 }

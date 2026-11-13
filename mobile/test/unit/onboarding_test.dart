@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:myweli/core/utils/onboarding.dart';
+import 'package:myweli/models/locality.dart';
 import 'package:myweli/models/provider_user.dart';
 
 void main() {
@@ -189,5 +190,57 @@ void main() {
     // verification, photos (staff optional for a freelancer; no offer step).
     expect(p.total, 7);
     expect(p.done, 6); // photos still todo
+  });
+  // R8 — the server's `validArea` (SalonProvisioningService.publishGate +
+  // seedAreaForCommuneName), as the website's `communeIsKnown`.
+  group('communeIsKnown (R8)', () {
+    const areas = [
+      LocalityArea(
+        id: 'port-bouet',
+        slug: 'port-bouet',
+        name: 'Port-Bouët',
+        labelKind: 'commune',
+      ),
+      // An area whose slug is not its name's: matched either way.
+      LocalityArea(
+        id: 'ci-abj-plateau',
+        slug: 'le-plateau',
+        name: 'Plateau',
+        labelKind: 'commune',
+      ),
+    ];
+
+    bool? known({String? areaId, String? commune, bool read = true}) =>
+        communeIsKnown(
+          areaId: areaId,
+          commune: commune,
+          areas: read ? areas : null,
+        );
+
+    test('an areaId is enough — the server stores only resolved ones', () {
+      expect(known(areaId: 'x', commune: 'Nulle part'), isTrue);
+      expect(known(areaId: 'x', commune: 'Nulle part', read: false), isTrue);
+    });
+
+    test('no commune → no', () {
+      expect(known(commune: null), isFalse);
+      expect(known(commune: '   '), isFalse);
+      expect(known(commune: '', read: false), isFalse);
+    });
+
+    test('the tree unread → null: this side cannot tell', () {
+      expect(known(commune: 'Nulle part', read: false), isNull);
+    });
+
+    test('by the area\'s slug, or by its name\'s', () {
+      expect(known(commune: 'PORT BOUET'), isTrue);
+      expect(known(commune: 'le plateau'), isTrue);
+      expect(known(commune: 'Plateau'), isTrue);
+    });
+
+    test('a name of no area → no; nothing left to slug → no', () {
+      expect(known(commune: 'Bouaké'), isFalse);
+      expect(known(commune: '!!!'), isFalse);
+    });
   });
 }

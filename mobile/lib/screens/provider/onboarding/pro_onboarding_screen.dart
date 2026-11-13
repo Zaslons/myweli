@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
@@ -11,6 +13,8 @@ import '../../../core/utils/formatters.dart';
 import '../../../core/utils/onboarding.dart';
 import '../../../core/utils/salon_id.dart';
 import '../../../core/utils/team_error_messages.dart';
+import '../../../models/provider_user.dart';
+import '../../../providers/locality_provider.dart';
 import '../../../providers/pro_auth_provider.dart';
 import '../../../providers/pro_onboarding_provider.dart';
 import '../../../widgets/common/app_async_view.dart';
@@ -34,13 +38,23 @@ class _ProOnboardingScreenState extends State<ProOnboardingScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final auth = context.read<ProAuthProvider>();
       final pro = auth.provider;
-      if (pro != null) {
-        context.read<ProOnboardingProvider>().load(
-          pro,
-          salonId: auth.activeSalonId,
-        );
-      }
+      if (pro != null) _load(pro, auth.activeSalonId);
     });
+  }
+
+  /// The checklist's six reads, and — beside them, on its own clock —
+  /// MyWeli's area tree for R8 (a commune typed by hand that names none of
+  /// its areas). The tree is a nullable lookup: absent from the widget tree,
+  /// unread or failed, the profile step keeps today's three-field rule and
+  /// the server decides (docs/design/salon-go-live-approval.md §6.3).
+  void _load(ProviderUser pro, SalonId? salonId) {
+    final areas = context.read<LocalityProvider?>();
+    if (areas != null) unawaited(areas.ensureLoaded());
+    context.read<ProOnboardingProvider>().load(
+      pro,
+      salonId: salonId,
+      areas: areas,
+    );
   }
 
   Future<void> _goLive() async {
@@ -114,7 +128,7 @@ class _ProOnboardingScreenState extends State<ProOnboardingScreen> {
             isEmpty: (_) => false,
             loading: const SkeletonTileList(count: 7),
             empty: const SizedBox.shrink(),
-            onRetry: () => onboarding.load(pro, salonId: auth.activeSalonId),
+            onRetry: () => _load(pro, auth.activeSalonId),
             builder: (context, o) => _buildList(o),
           );
         },
@@ -148,7 +162,13 @@ class _ProOnboardingScreenState extends State<ProOnboardingScreen> {
           ),
         ),
         const SizedBox(height: AppTheme.spacingL),
-        for (final step in onboarding.steps) _StepRow(step: step),
+        for (final step in onboarding.steps)
+          _StepRow(
+            step: step,
+            communeFromList:
+                step.key == OnboardingStepKey.profile &&
+                onboarding.communeNotInList,
+          ),
         const SizedBox(height: AppTheme.spacingL),
         // See the salon exactly as a client will, before going live (B5).
         OutlinedButton(
@@ -184,7 +204,11 @@ class _ProOnboardingScreenState extends State<ProOnboardingScreen> {
 class _StepRow extends StatelessWidget {
   final OnboardingStep step;
 
-  const _StepRow({required this.step});
+  /// R8 (decision 136 item 4): the profile is filled, and its commune is
+  /// the one thing the server would refuse.
+  final bool communeFromList;
+
+  const _StepRow({required this.step, this.communeFromList = false});
 
   @override
   Widget build(BuildContext context) {
@@ -259,6 +283,7 @@ class _StepRow extends StatelessWidget {
   }
 
   String? _sublabel(OnboardingStep step) {
+    if (communeFromList) return SalonValidationCopy.communeFromList;
     if (step.key == OnboardingStepKey.staff &&
         step.status == OnboardingStepStatus.optional) {
       return 'Optionnel pour les indépendants';

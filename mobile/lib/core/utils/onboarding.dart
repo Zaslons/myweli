@@ -1,4 +1,6 @@
+import '../../models/locality.dart';
 import '../../models/provider_user.dart';
+import 'slug.dart';
 
 enum OnboardingStepKey {
   profile,
@@ -24,6 +26,33 @@ class OnboardingStep {
 
 const int kMinServices = 3;
 const int kMinPhotos = 3;
+
+/// R8 — the server's `validArea` (`SalonProvisioningService.publishGate`;
+/// docs/design/salon-go-live-approval.md §6.3, web-salon-validation.md §5,
+/// the website's `communeIsKnown`): whether the salon's commune is one the
+/// publish gate takes.
+///
+/// - an [areaId] → yes (the server only ever stores a resolved one);
+/// - no commune → no (the profile is not filled anyway);
+/// - [areas] null — MyWeli's area tree not read (loading, failed) → null:
+///   this side cannot tell, and the server decides. Blocking a valid salon
+///   on a failed read would be worse than its 409;
+/// - else the commune must name an area the way `seedAreaForCommuneName`
+///   matches it: `slugify(commune)` equals the area's `slug`, or `slugify`
+///   of its name ([slugify] is the backend's twin).
+bool? communeIsKnown({
+  required String? areaId,
+  required String? commune,
+  required Iterable<LocalityArea>? areas,
+}) {
+  if (areaId != null) return true;
+  final name = (commune ?? '').trim();
+  if (name.isEmpty) return false;
+  if (areas == null) return null;
+  final wanted = slugify(name);
+  if (wanted.isEmpty) return false;
+  return areas.any((a) => a.slug == wanted || slugify(a.name) == wanted);
+}
 
 /// Builds the ordered onboarding checklist from the provider's current data.
 /// Pure and deterministic so it can be unit-tested.
@@ -79,20 +108,23 @@ List<OnboardingStep> buildOnboardingChecklist({
     OnboardingStep(OnboardingStepKey.verification, verificationStep()),
     // The upload pipeline shipped — photos gate go-live like the server does.
     OnboardingStep(OnboardingStepKey.photos, doneIf(photoCount >= kMinPhotos)),
-    // No offer step. The server starts the salon's trial at its first
-    // successful publish, so a salon with no offer goes live like any other
-    // — and the Pro app never asks for a choice it may not offer (App Store
-    // 3.1.1, docs/design/pro-companion-path.md §2.2).
+    // No offer step. The server starts the salon's trial when MyWeli
+    // validates it (B0.18 §3.6 — the first publish before), so a salon with
+    // no offer asks like any other — and the Pro app never asks for a choice
+    // it may not offer (App Store 3.1.1, docs/design/pro-companion-path.md
+    // §2.2).
   ];
 }
 
-/// The steps that gate « Mettre mon profil en ligne » — the MIRROR of the
-/// server's publish gate (docs/design/pro-salon-lifecycle.md): profile +
-/// location + ≥3 services + hours + ≥3 photos. Deposit and verification are
-/// shown and recommended but never block (matching the server). The offer is
-/// not a step: the server starts the trial when the salon first publishes,
-/// and refuses (`offer_required`) only a salon whose offer EXPIRED — a state
-/// the checklist cannot fix (docs/design/pro-companion-path.md §3.1).
+/// The steps that gate the publish button (« Demander la mise en ligne »,
+/// « Mettre mon profil en ligne » on a server from before B0.18) — the
+/// MIRROR of the server's publish gate (docs/design/pro-salon-lifecycle.md):
+/// profile (its commune one of MyWeli's — R8, [communeIsKnown]) + location +
+/// ≥3 services + hours + ≥3 photos. Deposit and verification are shown and
+/// recommended but never block (matching the server). The offer is not a
+/// step: the server starts the trial when MyWeli validates the salon (B0.18
+/// §3.6), and refuses (`offer_required`) only a salon whose offer EXPIRED — a
+/// state the checklist cannot fix (docs/design/pro-companion-path.md §3.1).
 const Set<OnboardingStepKey> _goLiveKeys = {
   OnboardingStepKey.profile,
   OnboardingStepKey.location,

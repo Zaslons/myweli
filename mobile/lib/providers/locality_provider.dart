@@ -75,6 +75,17 @@ class LocalityProvider extends ChangeNotifier {
     return null;
   }
 
+  /// Every area of every city of every country — what the server's publish
+  /// gate matches a hand-typed commune against (R8,
+  /// `communeIsKnown`). Null while the tree is not read (loading, failed):
+  /// the caller cannot tell, and must not guess.
+  List<LocalityArea>? get knownAreas => isLoaded
+      ? [
+          for (final country in _countries)
+            for (final city in country.cities) ...city.areas,
+        ]
+      : null;
+
   /// Every pickable area (Wave 0: Abidjan's communes), city order preserved.
   List<LocalityArea> areasOf({String? countryCode, String? citySlug}) {
     final country = countryOf(countryCode);

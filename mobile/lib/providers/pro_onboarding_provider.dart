@@ -13,6 +13,13 @@ import '../models/availability.dart';
 import '../models/provider_user.dart';
 import '../models/salon_validation.dart';
 import '../services/interfaces/pro_service_interface.dart';
+import 'locality_provider.dart';
+
+/// What « Profil de l’entreprise » needs from the salon: the three fields
+/// filled, and where its commune comes from (R8).
+typedef _Profile = ({bool filled, String? areaId, String? commune});
+
+const _Profile _noProfile = (filled: false, areaId: null, commune: null);
 
 /// Loads the inputs each onboarding step depends on (services, staff,
 /// availability, deposit policy, listing photos, KYC) and exposes the computed
@@ -21,7 +28,19 @@ class ProOnboardingProvider extends ChangeNotifier implements SalonScoped {
   bool _isLoading = false;
   bool _loadFailed = false;
   String? _error;
-  List<OnboardingStep> _steps = const [];
+
+  /// The checklist as the last settled load read it, given whether the
+  /// profile step is done — built on demand ([steps]) rather than once at
+  /// the load, because R8's half of that step depends on MyWeli's area tree,
+  /// which the screen reads on its own clock ([_areas]): it counts the
+  /// moment it lands, and the load never waits for it nor fails with it.
+  List<OnboardingStep> Function(bool profileComplete)? _checklist;
+  _Profile _profile = _noProfile;
+
+  /// R8's lookup: the screen's tree of MyWeli's areas, handed to [load] —
+  /// never read there. Null, or not read yet, or failed: today's three-field
+  /// rule (the server decides — `communeIsKnown`).
+  LocalityProvider? _areas;
 
   bool get isLoading => _isLoading;
   bool get loadFailed => _loadFailed;
@@ -32,9 +51,49 @@ class ProOnboardingProvider extends ChangeNotifier implements SalonScoped {
   bool get loaded => _loaded;
   bool _loaded = false;
   String? get error => _error;
-  List<OnboardingStep> get steps => _steps;
-  bool get readyToGoLive => canGoLive(_steps);
-  ({int done, int total}) get progress => onboardingProgress(_steps);
+  List<OnboardingStep> get steps {
+    final checklist = _checklist;
+    if (checklist == null) return const [];
+    return checklist(_profile.filled && _communeKnown != false);
+  }
+
+  bool get readyToGoLive => canGoLive(steps);
+  ({int done, int total}) get progress => onboardingProgress(steps);
+
+  /// R8 (docs/design/salon-go-live-approval.md §6.3): the salon's commune
+  /// as the server's `validArea` reads it — null while the tree is unread.
+  bool? get _communeKnown => communeIsKnown(
+    areaId: _profile.areaId,
+    commune: _profile.commune,
+    areas: _areas?.knownAreas,
+  );
+
+  /// « Profil de l’entreprise » is filled, and its commune is the ONE thing
+  /// the server would refuse: typed by hand, it names none of MyWeli's
+  /// areas. The step's sub-line then says « Choisissez la commune dans la
+  /// liste » (decision 136 item 4) — and only then: an unread tree, a
+  /// missing field, a commune from the list say nothing of the kind.
+  bool get communeNotInList =>
+      _checklist != null && _profile.filled && _communeKnown == false;
+
+  /// The tree moved (it landed, failed, was read again): the profile step
+  /// may have with it.
+  void _areasMoved() {
+    if (_checklist != null) notifyListeners();
+  }
+
+  void _watchAreas(LocalityProvider? areas) {
+    if (identical(areas, _areas)) return;
+    _areas?.removeListener(_areasMoved);
+    _areas = areas;
+    areas?.addListener(_areasMoved);
+  }
+
+  @override
+  void dispose() {
+    _areas?.removeListener(_areasMoved);
+    super.dispose();
+  }
 
   bool _isPublishing = false;
   bool get isPublishing => _isPublishing;
@@ -203,7 +262,16 @@ class ProOnboardingProvider extends ChangeNotifier implements SalonScoped {
   /// salon's services, team, hours and deposit under the new salon's name
   /// (docs/design/r6-salon-id-pin.md). [proUser] stays for what is the
   /// account's own: its KYC and its business type.
-  Future<void> load(ProviderUser proUser, {required SalonId? salonId}) async {
+  ///
+  /// [areas] is the screen's tree of MyWeli's areas, for R8 — kept, never
+  /// read here: the load's six reads stay six, and a tree that fails cannot
+  /// fail the checklist ([communeNotInList]).
+  Future<void> load(
+    ProviderUser proUser, {
+    required SalonId? salonId,
+    LocalityProvider? areas,
+  }) async {
+    _watchAreas(areas);
     final scope = _scope;
     _isLoading = true;
     _loadFailed = false;
@@ -228,7 +296,7 @@ class ProOnboardingProvider extends ChangeNotifier implements SalonScoped {
       var availabilitySet = false;
       var depositConfigured = false;
       var photoCount = 0;
-      var profileComplete = false;
+      var profile = _noProfile;
       var locationSet = false;
       MyProviderInfo? state;
 
@@ -277,13 +345,19 @@ class ProOnboardingProvider extends ChangeNotifier implements SalonScoped {
         state = listing;
         photoCount = listing?.salon.imageUrls.length ?? 0;
         // Mirror the server's publish gate (pro-salon-lifecycle):
-        // profile = description + address + commune; location = the map pin.
+        // profile = description + address + commune, the commune one of
+        // MyWeli's (R8 — judged on demand against the tree, [steps]);
+        // location = the map pin.
         final l = listing?.salon;
-        profileComplete =
-            l != null &&
-            l.description.trim().isNotEmpty &&
-            l.address.trim().isNotEmpty &&
-            (l.commune ?? '').trim().isNotEmpty;
+        profile = (
+          filled:
+              l != null &&
+              l.description.trim().isNotEmpty &&
+              l.address.trim().isNotEmpty &&
+              (l.commune ?? '').trim().isNotEmpty,
+          areaId: l?.areaId,
+          commune: l?.commune,
+        );
         locationSet = l?.latitude != null && l?.longitude != null;
         // No offer read: the offer is not a step — the server starts the
         // trial when MyWeli validates the salon (B0.18 §3.6; it was the
@@ -302,7 +376,9 @@ class ProOnboardingProvider extends ChangeNotifier implements SalonScoped {
       final verificationStatus = kyc?.status ?? proUser.verificationStatus;
       final hasSubmittedKyc = kyc?.documents.isNotEmpty ?? false;
 
-      _steps = buildOnboardingChecklist(
+      final businessType = proUser.businessType;
+      _profile = profile;
+      _checklist = (profileComplete) => buildOnboardingChecklist(
         profileComplete: profileComplete,
         locationSet: locationSet,
         serviceCount: serviceCount,
@@ -312,7 +388,7 @@ class ProOnboardingProvider extends ChangeNotifier implements SalonScoped {
         photoCount: photoCount,
         verificationStatus: verificationStatus,
         hasSubmittedKyc: hasSubmittedKyc,
-        businessType: proUser.businessType,
+        businessType: businessType,
       );
       if (state != null) _takeState(state);
       _loaded = true;
@@ -349,7 +425,8 @@ class ProOnboardingProvider extends ChangeNotifier implements SalonScoped {
     _isLoading = false;
     _loadFailed = false;
     _error = null;
-    _steps = const [];
+    _checklist = null;
+    _profile = _noProfile;
     _isPublishing = false;
     _publishErrorCode = null;
     _salonStatus = null;
