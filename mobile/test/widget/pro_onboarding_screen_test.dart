@@ -86,6 +86,10 @@ void main() {
 
   Future<void> pumpScreen(WidgetTester tester) async {
     final auth = await signInPro(tester);
+    // The sign-in's « Mes salons » load, landed in real time: a publish's
+    // re-read waits for a load already out (B0.18 §6.2), and that one's
+    // timer is not the test clock's.
+    await tester.runAsync(auth.rereadMySalons);
     await tester.pumpWidget(
       wrapApp(
         providers: [
@@ -103,7 +107,10 @@ void main() {
     final button = find.text('Mettre mon profil en ligne');
     await tester.scrollUntilVisible(button, 200);
     await tester.tap(button);
-    await settleMocks(tester, rounds: 2);
+    // The publish and its offer read; then, on a success, the session's two
+    // re-reads (B0.18 §6.2: /me/provider and /me/salons, side by side) —
+    // one more for the validation view's offer read on some fixtures.
+    await settleMocks(tester, rounds: 4);
   }
 
   /// What the checklist and its feedback may never say or offer (§2.1).

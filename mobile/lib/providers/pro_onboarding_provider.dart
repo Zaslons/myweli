@@ -1,14 +1,18 @@
 import 'package:flutter/foundation.dart';
 
 import '../core/access/pro_salon_scope.dart';
+import '../core/access/salon_state_refresh.dart';
 import '../core/constants/failure_messages.dart';
 import '../core/di/dependency_injection.dart';
 import '../core/utils/deposit.dart';
 import '../core/utils/onboarding.dart';
+import '../core/utils/salon_go_live.dart';
 import '../core/utils/salon_id.dart';
 import '../models/api_response.dart';
 import '../models/availability.dart';
 import '../models/provider_user.dart';
+import '../models/salon_validation.dart';
+import '../services/interfaces/pro_service_interface.dart';
 
 /// Loads the inputs each onboarding step depends on (services, staff,
 /// availability, deposit policy, listing photos, KYC) and exposes the computed
@@ -36,27 +40,161 @@ class ProOnboardingProvider extends ChangeNotifier implements SalonScoped {
   bool get isPublishing => _isPublishing;
 
   /// Machine code of the last publish failure (`offer_required` → the
-  /// screen's neutral « l’offre n’est plus active » sentence, no action).
+  /// screen's neutral « l’offre n’est plus active » sentence, no action;
+  /// `validation_refused_final` → « Mise en ligne refusée », the state
+  /// re-read).
   String? _publishErrorCode;
   String? get publishErrorCode => _publishErrorCode;
 
-  /// Take the salon live (docs/design/pro-salon-lifecycle.md B3). The server
-  /// re-checks the gate; `incomplete` surfaces its message. True on success.
-  Future<bool> publish(SalonId providerId) async {
+  // ---- Where the salon stands with MyWeli's validation (B0.18) -------------
+  //
+  // « Configuration »'s copy of the salon's state — from its load's own GET
+  // /me/provider, then from each publish's answer — never the session's: the
+  // home card's copy lives in `ProAuthProvider`, and the two stay in step
+  // because [publish] makes both re-read (see [SalonStateRefresh]).
+
+  /// The salon's `status` as last read (`Provider.status`; null reads
+  /// `active`, as seeded documents carry none).
+  String? _salonStatus;
+  SalonValidation? _validation;
+  bool _validationSent = false;
+
+  /// A read (or a publish's answer) has said where the salon stands.
+  bool _stateKnown = false;
+
+  /// The salon's validation as last read — the refusal's code and note, and
+  /// the request's date (« Demande envoyée le … »).
+  SalonValidation? get validation => _validation;
+
+  /// What « Configuration » shows (the website's derivation, `goLiveState`):
+  /// null until a read answered — before the load, and for a pro with no
+  /// salon yet (nothing to read). [GoLiveState.legacy] on a server from
+  /// before B0.18: today's screen (decision 136 item 10).
+  GoLiveState? get salonGoLiveState => _stateKnown
+      ? goLiveState(
+          status: _salonStatus,
+          validationSent: _validationSent,
+          validation: _validation,
+        )
+      : null;
+
+  /// The re-reads the last [publish] started, done — for the tests; the
+  /// screen never waits on them (the snackbar is said at the answer).
+  @visibleForTesting
+  Future<void> get publishSettled => _publishSettled ?? Future<void>.value();
+  Future<void>? _publishSettled;
+
+  /// Ask MyWeli to put the salon online — or take it back online (B0.18 —
+  /// docs/design/salon-go-live-approval.md §3.1): the outcome on success
+  /// (200 live, 202 a request), null on a refusal ([error] and
+  /// [publishErrorCode] say why; the server re-checks the gate).
+  ///
+  /// **The ONE place a submit refreshes the salon's state (§6.2).**
+  /// « Configuration » takes the answer at once: a 200 is `active`; a 202
+  /// readable body is the request's `validation` (decision 136 item 7: a
+  /// `refused` or `null` one is just shown, the screen says no « Demande
+  /// envoyée »). Then [session] re-reads its two copies — the home card's
+  /// (`refreshMembership`) and « Mes salons »' (`loadMySalons`), each after
+  /// any read already out — so the card, the picker and this screen say the
+  /// same thing. Where the answer does not carry the state — a 202 whose
+  /// body this build could not read, a 409 `validation_refused_final` (a
+  /// stale button, decision 136 item 2) — « Configuration » re-reads its own
+  /// too, quietly (no skeleton). None of it is awaited here;
+  /// [publishSettled] is.
+  Future<PublishOutcome?> publish(
+    SalonId providerId, {
+    required SalonStateRefresh session,
+  }) async {
     final scope = _scope;
     _isPublishing = true;
     _error = null;
     _publishErrorCode = null;
     notifyListeners();
-    final res = await serviceLocator.proService.publishSalon(providerId);
-    if (scope != _scope) return res.success;
+    final ApiResponse<PublishOutcome> res;
+    try {
+      res = await serviceLocator.proService.publishSalon(providerId);
+    } catch (_) {
+      // The services answer failures; a throw is a bug — said as one, and
+      // the button comes back.
+      if (scope != _scope) return null;
+      _isPublishing = false;
+      _error = kGenericErrorMessage;
+      notifyListeners();
+      return null;
+    }
+    // Another salon or account since: its screen shows nothing of this one.
+    if (scope != _scope) return res.success ? res.data : null;
     _isPublishing = false;
-    if (!res.success) {
+    final outcome = res.success ? res.data : null;
+    if (outcome == null) {
       _error = res.error ?? 'La mise en ligne a échoué';
       _publishErrorCode = res.code;
+      notifyListeners();
+      if (res.code == 'validation_refused_final') {
+        _settleAfterPublish(providerId, session, rereadOwn: true);
+      }
+      return null;
+    }
+    if (outcome.isLive) {
+      _salonStatus = 'active';
+      _stateKnown = true;
+    } else if (outcome.validationRead) {
+      // A 202 is only ever a draft's: an active salon answers 200, a
+      // suspended one 403 (§3.1).
+      _salonStatus = 'draft';
+      _validation = outcome.validation;
+      _validationSent = true;
+      _stateKnown = true;
     }
     notifyListeners();
-    return res.success;
+    _settleAfterPublish(
+      providerId,
+      session,
+      rereadOwn: !outcome.isLive && !outcome.validationRead,
+    );
+    return outcome;
+  }
+
+  void _settleAfterPublish(
+    SalonId providerId,
+    SalonStateRefresh session, {
+    required bool rereadOwn,
+  }) {
+    _publishSettled =
+        Future.wait<void>([
+          session.rereadMembership(),
+          session.rereadMySalons(),
+          if (rereadOwn) _rereadState(providerId),
+        ]).then<void>(
+          (_) {},
+          // Each one keeps what it had on a failure, by itself; nothing to
+          // say here.
+          onError: (Object _) {},
+        );
+  }
+
+  /// GET /me/provider for the salon's state alone — quiet: the checklist
+  /// stays on screen. Written only for [providerId], in the same scope.
+  Future<void> _rereadState(SalonId providerId) async {
+    final scope = _scope;
+    try {
+      final res = await serviceLocator.proService.getMyProvider();
+      final info = res.data;
+      if (scope != _scope || !res.success || info == null) return;
+      if (info.salon.id != providerId) return;
+      _takeState(info);
+      notifyListeners();
+    } catch (_) {
+      /* the state stays as it was; the next load reads it again */
+    }
+  }
+
+  /// The salon's state, from a GET /me/provider answer.
+  void _takeState(MyProviderInfo info) {
+    _salonStatus = info.salon.status;
+    _validation = info.validation;
+    _validationSent = info.validationSent;
+    _stateKnown = true;
   }
 
   /// [salonId] is the ACTING salon (`ProAuthProvider.activeSalonId`), never
@@ -92,6 +230,7 @@ class ProOnboardingProvider extends ChangeNotifier implements SalonScoped {
       var photoCount = 0;
       var profileComplete = false;
       var locationSet = false;
+      MyProviderInfo? state;
 
       // A brand-new pro has no public listing yet — counts stay 0.
       if (providerId != null && providerId.isNotEmpty) {
@@ -133,6 +272,9 @@ class ProOnboardingProvider extends ChangeNotifier implements SalonScoped {
         // rendered a plausible all-todo checklist with no error at all.
         final listing = read(await pro.getMyProvider());
         if (scope != _scope) return;
+        // The same answer says where the salon stands with MyWeli's
+        // validation (B0.18): no read of its own.
+        state = listing;
         photoCount = listing?.salon.imageUrls.length ?? 0;
         // Mirror the server's publish gate (pro-salon-lifecycle):
         // profile = description + address + commune; location = the map pin.
@@ -144,7 +286,8 @@ class ProOnboardingProvider extends ChangeNotifier implements SalonScoped {
             (l.commune ?? '').trim().isNotEmpty;
         locationSet = l?.latitude != null && l?.longitude != null;
         // No offer read: the offer is not a step — the server starts the
-        // trial at the first publish (docs/design/pro-companion-path.md).
+        // trial when MyWeli validates the salon (B0.18 §3.6; it was the
+        // first publish before — docs/design/pro-companion-path.md).
       }
 
       final kyc = read(
@@ -171,6 +314,7 @@ class ProOnboardingProvider extends ChangeNotifier implements SalonScoped {
         hasSubmittedKyc: hasSubmittedKyc,
         businessType: proUser.businessType,
       );
+      if (state != null) _takeState(state);
       _loaded = true;
       _loadFailed = false;
     } catch (e) {
@@ -208,6 +352,11 @@ class ProOnboardingProvider extends ChangeNotifier implements SalonScoped {
     _steps = const [];
     _isPublishing = false;
     _publishErrorCode = null;
+    _salonStatus = null;
+    _validation = null;
+    _validationSent = false;
+    _stateKnown = false;
+    _publishSettled = null;
     notifyListeners();
   }
 }

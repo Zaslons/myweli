@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/constants/failure_messages.dart';
+import '../../../core/constants/salon_validation_copy.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/colors.dart';
 import '../../../core/theme/text_styles.dart';
@@ -44,27 +45,42 @@ class _ProOnboardingScreenState extends State<ProOnboardingScreen> {
 
   Future<void> _goLive() async {
     final messenger = ScaffoldMessenger.of(context);
-    final providerId =
-        context.read<ProAuthProvider>().activeSalonId ?? SalonId.none;
+    final auth = context.read<ProAuthProvider>();
+    final providerId = auth.activeSalonId ?? SalonId.none;
     final onboarding = context.read<ProOnboardingProvider>();
-    final ok = await onboarding.publish(providerId);
+    // The provider re-reads the session's copies of the state (the home
+    // card, « Mes salons ») after the answer — the one place it is done.
+    final outcome = await onboarding.publish(providerId, session: auth);
     if (!mounted) return;
-    // The server starts the trial at the first publish, so `offer_required`
-    // now means the salon's offer EXPIRED. The bar states that and carries
-    // NO action: it used to open the offer picker (« Choisir »), which the
-    // Pro app no longer has (App Store 3.1.1 — docs/design/
-    // pro-companion-path.md §2.2). Any other refusal — the demo account's
-    // lock included — shows the service's sentence.
-    final offerInactive =
-        !ok && onboarding.publishErrorCode == 'offer_required';
+    if (outcome != null) {
+      // « 🎉 » for a 200 only: a 202 is a request, the salon still a draft
+      // (B0.18 §6.1). And a 202 MyWeli refused at that very moment, or whose
+      // request vanished, says nothing — the screen shows the state
+      // (decision 136 item 7).
+      final said = outcome.isLive
+          ? SalonValidationCopy.wentLive
+          : outcome.saysRequestSent
+          ? SalonValidationCopy.requestSent
+          : null;
+      if (said != null) {
+        AppSnackBar.showOn(messenger, said, kind: SnackKind.success);
+      }
+      return;
+    }
+    // A salon with no offer row is never refused for it (its trial starts
+    // when MyWeli validates it), so `offer_required` means the salon's offer
+    // EXPIRED. The bar states that and carries NO action: it used to open the
+    // offer picker (« Choisir »), which the Pro app no longer has (App Store
+    // 3.1.1 — docs/design/pro-companion-path.md §2.2). Any other refusal —
+    // the demo account's lock, a final refusal's « Mise en ligne refusée »
+    // (decision 136 item 2) included — shows the service's sentence.
+    final offerInactive = onboarding.publishErrorCode == 'offer_required';
     AppSnackBar.showOn(
       messenger,
-      ok
-          ? '🎉 Votre profil est en ligne !'
-          : offerInactive
+      offerInactive
           ? publishOfferInactiveMessage
           : (onboarding.error ?? 'La mise en ligne a échoué'),
-      kind: ok ? SnackKind.success : SnackKind.error,
+      kind: SnackKind.error,
     );
   }
 

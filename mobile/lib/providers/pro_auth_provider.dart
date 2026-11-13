@@ -6,10 +6,12 @@ import 'package:go_router/go_router.dart';
 import '../core/access/account_scope.dart';
 import '../core/access/pro_access_guard.dart';
 import '../core/access/pro_salon_scope.dart';
+import '../core/access/salon_state_refresh.dart';
 import '../core/constants/failure_messages.dart';
 import '../core/constants/unnamed_salon.dart';
 import '../core/di/dependency_injection.dart';
 import '../core/router/pro_router.dart';
+import '../core/utils/salon_go_live.dart';
 import '../core/utils/salon_id.dart';
 import '../models/pro_membership.dart';
 import '../models/provider.dart';
@@ -19,6 +21,7 @@ import '../models/provider_user.dart';
 import '../models/salon_facts.dart';
 import '../models/salon_market.dart';
 import '../models/salon_membership_info.dart';
+import '../models/salon_validation.dart';
 import '../models/team_invitation.dart';
 import '../models/team_member.dart';
 import '../services/interfaces/auth_service_interface.dart';
@@ -29,7 +32,7 @@ import '../services/interfaces/pro_service_interface.dart';
 /// server's refusal (revoked there, salon gone; a 5xx too).
 enum SalonSwitchOutcome { switched, offline, refused }
 
-class ProAuthProvider extends ChangeNotifier {
+class ProAuthProvider extends ChangeNotifier implements SalonStateRefresh {
   final AuthServiceInterface _authService = serviceLocator.authService;
 
   ProviderUser? _provider;
@@ -101,6 +104,51 @@ class ProAuthProvider extends ChangeNotifier {
   String? get salonCountryCode => _actingMarket?.countryCode;
   String? get salonAreaId => _actingMarket?.areaId;
 
+  // ---- The salon's go-live state (B0.18) -------------------------------------
+
+  /// Where [_activeSalon] stands with MyWeli's validation: the fourth key of
+  /// the SAME GET /me/provider answer, taken with it in [_applyShape] (B0.18 —
+  /// docs/design/salon-go-live-approval.md §3.5, §6.2). Live only, NEVER
+  /// cached: a state the server has moved since would outlive a restart, and
+  /// §6.2 wants the unknown state at an offline cold start (the card then
+  /// keeps its draft subtitle).
+  SalonValidation? _validation;
+
+  /// The server sent the `validation` key (false on a server from before
+  /// B0.18 — decision 136 item 10).
+  bool _validationSent = false;
+
+  /// The salon the session ACTS in, as its last live read answered it — never
+  /// another's: after an R6 fallback whose refetch failed, [_activeSalon] is
+  /// still the lost selection's (as [_actingMarket] guards its facts).
+  Provider? get _actingSalon {
+    final salon = _activeSalon;
+    return salon != null && salon.id == activeSalonId ? salon : null;
+  }
+
+  /// The acting salon's validation, as the last live read answered it; null
+  /// while that salon never asked, on a server from before B0.18, and while
+  /// no live read has answered for it.
+  SalonValidation? get salonValidation =>
+      _actingSalon == null ? null : _validation;
+
+  /// The acting salon's go-live state (`goLiveState`, the website's
+  /// derivation) — what the home card's subtitle follows (decision 136 item
+  /// 1). Null = not known: no live read answered for the acting salon yet (an
+  /// offline cold start, a sign-in still out, an R6 fallback whose refetch
+  /// failed). Every switch replaces it with the new salon's
+  /// ([switchSalonOutcome] takes the whole shape); every way out of the
+  /// session clears it.
+  GoLiveState? get salonGoLiveState {
+    final salon = _actingSalon;
+    if (salon == null) return null;
+    return goLiveState(
+      status: salon.status,
+      validationSent: _validationSent,
+      validation: _validation,
+    );
+  }
+
   /// Takes the shape GET /me/provider answered — the membership, the salon,
   /// its market facts — then caches it for the next cold start. The ONE
   /// place a /me answer lands, so no path can take the salon and forget its
@@ -116,6 +164,18 @@ class ProAuthProvider extends ChangeNotifier {
     _membership = info.membership;
     _activeSalon = info.salon;
     _market = SalonMarket.of(info.salon);
+    // With the salon it describes, replaced whole: a read with no
+    // `validation` key (a server from before B0.18) or a `null` one (never
+    // asked) must not keep the previous salon's.
+    _validation = info.validation;
+    _validationSent = info.validationSent;
+  }
+
+  /// What the session forgets of the acting salon's go-live state — with
+  /// [_activeSalon], wherever that is dropped.
+  void _clearValidation() {
+    _validation = null;
+    _validationSent = false;
   }
 
   /// One write after the other: each read-modify-writes the same session
@@ -176,15 +236,21 @@ class ProAuthProvider extends ChangeNotifier {
 
   bool _loadingSalons = false;
 
+  /// The load out, done — what [rereadMySalons] waits for.
+  Future<void>? _salonsLoad;
+
   /// A join landed while a load was out ([acceptInvitation]): that load may
   /// have been answered before the join, so one more runs after it.
   bool _salonsAgain = false;
 
   /// Refresh « Mes salons » (best-effort — the switcher opens on cached
-  /// data and refreshes in place).
+  /// data and refreshes in place). Each row carries its salon's go-live
+  /// state (B0.18).
   Future<void> loadMySalons() async {
     if (_provider == null || _loadingSalons) return;
     _loadingSalons = true;
+    final done = Completer<void>();
+    _salonsLoad = done.future;
     try {
       final res = await serviceLocator.proService.getMySalons();
       if (res.success && res.data != null) {
@@ -195,6 +261,8 @@ class ProAuthProvider extends ChangeNotifier {
       /* keep the cached list */
     } finally {
       _loadingSalons = false;
+      _salonsLoad = null;
+      done.complete();
       if (_salonsAgain) {
         _salonsAgain = false;
         unawaited(loadMySalons());
@@ -309,12 +377,33 @@ class ProAuthProvider extends ChangeNotifier {
   /// rejoin rule decides between « Invitations » and the « accès retiré »
   /// sign-out ([_onNotAMember]). R6: a `forbidden` on a SELECTED salon is a
   /// per-salon denial — the selection silently falls back to the default
-  /// salon, never a sign-out.
+  /// salon, never a sign-out. B0.18: the answer brings the acting salon's
+  /// go-live state too ([salonGoLiveState]).
   Future<void> refreshMembership() {
     if (_provider == null) return Future<void>.value();
     return _membershipRefresh ??= _refreshMembership().whenComplete(() {
       _membershipRefresh = null;
     });
+  }
+
+  /// [refreshMembership] AFTER any refresh already out (B0.18 — a submit,
+  /// [SalonStateRefresh]): joining that one would take an answer the server
+  /// may have given BEFORE the change the caller just made, and the home
+  /// card would keep the old state.
+  @override
+  Future<void> rereadMembership() async {
+    final out = _membershipRefresh;
+    if (out != null) await out;
+    await refreshMembership();
+  }
+
+  /// [loadMySalons] AFTER any load already out, for the same reason
+  /// ([rereadMembership]): today's guard returns at once while one is out.
+  @override
+  Future<void> rereadMySalons() async {
+    final out = _salonsLoad;
+    if (out != null) await out;
+    await loadMySalons();
   }
 
   Future<void> _refreshMembership() async {
@@ -413,6 +502,7 @@ class ProAuthProvider extends ChangeNotifier {
     _revokedNotice = notice;
     _membership = null;
     _activeSalon = null;
+    _clearValidation();
     _keptFacts = null;
     await logout();
     _router.go('/pro/login');
@@ -527,6 +617,7 @@ class ProAuthProvider extends ChangeNotifier {
     _rejoinLostSalon = (lostSalon?.isNotEmpty ?? false) ? lostSalon : null;
     _membership = null;
     _activeSalon = null;
+    _clearValidation();
     _market = null;
     _keptFacts = null;
     _salons = const [];
@@ -764,6 +855,7 @@ class ProAuthProvider extends ChangeNotifier {
     _setProvider(null);
     _membership = null;
     _activeSalon = null;
+    _clearValidation();
     _market = null;
     _keptFacts = null;
     _selectedSalonId = null;

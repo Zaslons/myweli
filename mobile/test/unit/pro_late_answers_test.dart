@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:myweli/core/access/pro_salon_scope.dart';
+import 'package:myweli/core/access/salon_state_refresh.dart';
 import 'package:myweli/core/di/dependency_injection.dart';
 import 'package:myweli/core/utils/salon_id.dart';
 import 'package:myweli/models/api_response.dart';
@@ -14,11 +15,13 @@ import 'package:myweli/models/before_after_pair.dart';
 import 'package:myweli/models/journal_day.dart';
 import 'package:myweli/models/kyc_document.dart';
 import 'package:myweli/models/payment.dart';
+import 'package:myweli/models/pro_membership.dart';
 import 'package:myweli/models/provider.dart';
 import 'package:myweli/models/provider_user.dart';
 import 'package:myweli/models/review_summary.dart';
 import 'package:myweli/models/salon_client.dart';
 import 'package:myweli/models/salon_subscription.dart';
+import 'package:myweli/models/salon_validation.dart';
 import 'package:myweli/models/service.dart';
 import 'package:myweli/models/team_invitation.dart';
 import 'package:myweli/models/team_member.dart';
@@ -69,6 +72,16 @@ class _Ear implements HearsBookingChanges {
   void bookingChanged(BookingChange change) => heard.add(change.appointmentId);
   @override
   void resetForSalonSwitch() {}
+}
+
+/// The session's re-reads after a publish — none here: each case is about
+/// the store's own writes.
+class _NoSession implements SalonStateRefresh {
+  @override
+  Future<void> rereadMembership() async {}
+
+  @override
+  Future<void> rereadMySalons() async {}
 }
 
 /// Which way the held call lands in the current group — see [_Land].
@@ -147,6 +160,8 @@ List<Object?> fingerprint(Object s) => switch (s) {
     s.error,
     s.isPublishing,
     s.publishErrorCode,
+    s.salonGoLiveState,
+    s.validation,
   ],
   ProReviewsProvider s => [
     s.reviews.length,
@@ -941,8 +956,75 @@ void main() {
             'publish',
             ProOnboardingProvider(),
             salonReset,
-            (s) => s.publish(const SalonId('p1')),
+            (s) => s.publish(const SalonId('p1'), session: _NoSession()),
             () => held.land(refused()),
+          );
+        });
+
+        // B0.18: a request (202) carries the salon's new state — the
+        // previous salon's must not land on the next.
+        test('publish answering a request (202)', () async {
+          final held = Completer<ApiResponse<PublishOutcome>>();
+          when(() => pro.publishSalon(any())).thenAnswer((_) => held.future);
+          await expectIgnored(
+            'publish 202',
+            ProOnboardingProvider(),
+            salonReset,
+            (s) => s.publish(const SalonId('p1'), session: _NoSession()),
+            () => held.land(
+              ApiResponse.success(
+                const PublishOutcome.requested(
+                  SalonValidation(
+                    state: SalonValidationState.pending,
+                    wentLive: false,
+                  ),
+                ),
+              ),
+            ),
+          );
+        });
+
+        // The quiet re-read a 202 with an unreadable body (or a final
+        // refusal) starts after the answer: out at the reset, it writes
+        // nothing.
+        test('publish\'s re-read of the state', () async {
+          when(() => pro.publishSalon(any())).thenAnswer(
+            (_) async =>
+                ApiResponse.success(const PublishOutcome.requestedUnread()),
+          );
+          final held = Completer<ApiResponse<MyProviderInfo>>();
+          when(
+            () => pro.getMyProvider(salonId: any(named: 'salonId')),
+          ).thenAnswer((_) => held.future);
+          final store = ProOnboardingProvider();
+          await expectIgnored(
+            'publish re-read',
+            store,
+            salonReset,
+            (s) => s
+                .publish(const SalonId('p1'), session: _NoSession())
+                .then((_) => s.publishSettled),
+            () => held.land(
+              ApiResponse.success(
+                MyProviderInfo(
+                  salon: MockData.providers.first.copyWith(
+                    id: const SalonId('p1'),
+                    status: 'draft',
+                  ),
+                  membership: const ProMembership(
+                    role: TeamRole.owner,
+                    capabilities: {},
+                    salonId: SalonId('p1'),
+                    salonName: 'Salon',
+                  ),
+                  validation: const SalonValidation(
+                    state: SalonValidationState.pending,
+                    wentLive: false,
+                  ),
+                  validationSent: true,
+                ),
+              ),
+            ),
           );
         });
 
