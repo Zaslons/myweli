@@ -400,6 +400,15 @@ describe('B0.23 — the policy tells a Pro the truth about deletion', () => {
     const nodes = nodesOf(container, /vos droits/i);
     const text = flat(nodes);
     expect(text).toContain('nous vous répondrons pour vérifier');
+    // Decision 145: the check comes from the account's own address, and the
+    // confirmation only after it — never promised to someone who lost it.
+    expect(text).toContain(
+      'pour vérifier, depuis l’adresse e-mail de votre compte, qu’il s’agit bien de votre compte',
+    );
+    expect(text).toContain(
+      'cette vérification faite, nous confirmerons sa suppression',
+    );
+    expect(text).not.toContain('de votre compte et confirmer sa suppression');
     expect(text).toContain(
       'aux mêmes conditions que si vous la faisiez vous-même',
     );

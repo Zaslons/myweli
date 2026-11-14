@@ -303,8 +303,9 @@ export default function Page() {
         Si vous ne pouvez plus vous connecter à votre compte, ou si votre accès
         à l’équipe d’un salon vous a été retiré, écrivez-nous depuis la page{' '}
         <A href="/support">Aide &amp; Support</A>&nbsp;: nous vous répondrons
-        pour vérifier qu’il s’agit bien de votre compte et confirmer sa
-        suppression, aux mêmes conditions que si vous la faisiez vous-même.
+        pour vérifier, depuis l’adresse e-mail de votre compte, qu’il s’agit
+        bien de votre compte&nbsp;; cette vérification faite, nous confirmerons
+        sa suppression, aux mêmes conditions que si vous la faisiez vous-même.
       </P>
       <P>
         La page <A href="/suppression-compte">Supprimer votre compte</A> décrit
