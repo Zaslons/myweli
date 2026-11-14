@@ -78,7 +78,10 @@ class ProviderAccountService {
   /// identity, T69 — answered first, nothing is written), `future_bookings`
   /// (settle the agenda first).
   /// What an erased owner's salons lose (B6.3): the contact numbers, the
-  /// address, and the deposit that needed the Mobile Money number.
+  /// address, and the deposit that needed the Mobile Money number — and,
+  /// since B0.22 (decision 137), the map pin with the address: the null pin
+  /// of a new salon, which every reader already draws. The commune, the city
+  /// and `areaId` stay. Design: docs/design/pro-deletion-erase-gaps.md §3.1.
   static const Map<String, dynamic> _erasedContact = {
     'phoneNumber': '',
     'address': '',
@@ -86,6 +89,8 @@ class ProviderAccountService {
     'depositMobileMoneyNumber': null,
     'depositMobileMoneyOperator': null,
     'depositRequired': false,
+    'latitude': null,
+    'longitude': null,
   };
 
   Future<({bool ok, String? error})> deleteAccount(String accountId) async {

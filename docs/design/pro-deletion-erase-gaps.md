@@ -3,9 +3,9 @@
 | | |
 |---|---|
 | **Module** | backend — `ProviderAccountService` (`DELETE /me/provider`) and `KycService` (`POST /me/kyc`) |
-| **Status** | **Draft 2026-11-13.** The change is decided (decision 137: Q12 (a) and Q13 (a) of [web-pro-account-deletion.md](web-pro-account-deletion.md)); this spec's details and O1–O2 await the owner's review. Not built. A second review's findings folded the same day (§2, §3.2 points 2 and 4, test 9, §9, O2) |
+| **Status** | **Draft 2026-11-13.** The change is decided (decision 137: Q12 (a) and Q13 (a) of [web-pro-account-deletion.md](web-pro-account-deletion.md)); this spec's details and O1–O2 await the owner's review. ~~Not built.~~ **Built on #791 (not merged, not deployed). O1 answered 2026-11-14: the count is 0 (§10).** A second review's findings folded the same day (§2, §3.2 points 2 and 4, test 9, §9, O2) |
 | **Owner** | the project owner: the review, the merge, the production deploy and any production read |
-| **Last updated** | 2026-11-13 |
+| **Last updated** | 2026-11-14 |
 | **PRD ref / phase** | FR-AUTH-005 [V1] (`docs/PRD.md:344`) · V1 · gates android-play-release step 7 |
 | **BACKLOG item** | B0.22 · decision 137 |
 | **ROADMAP entry** | [2026-11-13-pro-account-deletion-spec.md](../roadmap/entries/2026-11-13-pro-account-deletion-spec.md) |
@@ -186,8 +186,12 @@ The existing contract tests stay green.
      no deletion and no re-submit there. The evidence is the tests above.
    - *Optional, on the owner's yes, as B0.12's test was (2026-11-10):* the owner signs up a
      throwaway salon, sets its pin, submits a KYC document, replaces it, then deletes the account.
-     Two read-only reads follow: that salon's `data->'latitude'` (Cloud SQL) and the listing of
-     `kyc/{id}/` in the private bucket (R2). Both should be empty.
+     Two read-only reads follow: that salon's pin in Cloud SQL, read **through the stored string**
+     (`jsonb_typeof((CASE jsonb_typeof(data) WHEN 'string' THEN (data #>> '{}')::jsonb ELSE data END) -> 'latitude')`:
+     `number` before, `null` after — test 3's `readBack` in `postgres_repositories_test.dart`; `data` holds the document as
+     a jsonb string, so `data->'latitude'` is SQL NULL on every salon, erased or not, and would pass
+     whatever happened), and the listing of
+     `kyc/{id}/` in the private bucket (R2). The pin should read `null`, and the listing be empty.
 5. Docs: this spec → Built, then Live with the deploy's date; B0.22 ticked in BACKLOG.
 
 ## 10. Open questions
@@ -201,6 +205,11 @@ The existing contract tests stay green.
   ([web-privacy-pro-deletion.md](web-privacy-pro-deletion.md) §2). Under (b), the sentence that would be
   false for them is the policy's; B0.19's page, whose copy speaks of a deletion made after this deploy,
   keeps its approved words (web spec §11 step 3).)*
+  **✅ Counted 2026-11-14 at 11:34 UTC, on the owner's yes, read-only: 0.** Production held 6 salons,
+  all drafts: 2 with a pin, both still owned (one is the owner's test salon); 3 with no owner left,
+  none with a pin. Nothing to erase; no gap to accept. The count read the document through the
+  stored string, with two controls: all 6 documents unpacked, and the test salon showed its pin (a
+  first count through `data->>'latitude'` had said 0 for the wrong reason).
 - **O2 — Superseded objects from before the deploy.** Production held 0 KYC documents on
   2026-11-12, so none is expected, but any rejection followed by a re-submit between that count
   and the deploy leaves one, and §9's read-back cannot see storage. Should a read-only R2 listing

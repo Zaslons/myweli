@@ -612,7 +612,11 @@ paths:
         untouched; the
         account row, its KYC documents (rows AND the private storage
         objects), OTP state and every refresh token are erased — all
-        sessions die. Threat T53.
+        sessions die. Each owned salon loses its owner's contact: its phone,
+        WhatsApp and Mobile Money deposit numbers (the deposit is switched
+        off), its address and its map pin (`latitude` and `longitude` become
+        null), while its name, commune and city stay (B6.3, B0.22 —
+        docs/design/pro-deletion-erase-gaps.md). Threat T53.
 
 
         The store-review demo account cannot delete itself — 403
@@ -973,7 +977,9 @@ paths:
         `pending/` key of a document this account already holds (its promoted
         form is stored) is that document: it is accepted as the stored key —
         a second submit in the same visit, or a retry after a lost answer
-        (docs/design/upload-resave-stale-pending.md).
+        (docs/design/upload-resave-stale-pending.md). A stored document the
+        new list leaves out is deleted from storage once the new list is
+        written (B0.22 — docs/design/pro-deletion-erase-gaps.md).
       security: [{ bearerAuth: [] }]
       requestBody:
         required: true

@@ -508,6 +508,9 @@ void main() {
 
       final r = await service.deleteAccount(id);
       expect(r.ok, isTrue);
+      // B0.22 (decision 137): the map pin goes with the address — the
+      // salon's exact position is the person's as much as the street is.
+      // Design: docs/design/pro-deletion-erase-gaps.md §3.1.
       const erased = <String, dynamic>{
         'phoneNumber': '',
         'address': '',
@@ -515,10 +518,53 @@ void main() {
         'depositMobileMoneyNumber': null,
         'depositMobileMoneyOperator': null,
         'depositRequired': false,
+        'latitude': null,
+        'longitude': null,
       };
       verify(() => providers.updateProfile('p1', erased)).called(1);
       verify(() => providers.updateProfile('p2', erased)).called(1);
       verifyNever(() => providers.updateProfile('p_managed', any()));
+    });
+
+    // B0.22 §3.1, end to end on the in-memory catalogue: what a reader of
+    // the salon sees afterwards, not only what the service asked for.
+    test('an owned salon with a pin, its owner deleted, reads no pin — its '
+        'commune, city and areaId stay', () async {
+      final catalogue = InMemoryProvidersRepository([
+        {
+          'id': 'p1',
+          'status': 'active',
+          'name': 'Chez Awa',
+          'address': 'Rue des Jardins',
+          'phoneNumber': '+2250700000070',
+          'commune': 'Cocody',
+          'city': 'Abidjan',
+          'areaId': 'cocody',
+          'latitude': 5.35,
+          'longitude': -3.99,
+        },
+      ]);
+      final id = await registerWithKyc(keys: []);
+      final r = await ProviderAccountService(
+        auth,
+        catalogue,
+        appointments,
+        FakeStorageService(),
+        memberships,
+        client: MockClient((req) async => http.Response('', 204)),
+      ).deleteAccount(id);
+      expect(r.ok, isTrue, reason: '${r.error}');
+
+      final salon = (await catalogue.byId('p1'))!;
+      expect(salon.containsKey('latitude'), isTrue);
+      expect(salon['latitude'], isNull, reason: 'the pin goes');
+      expect(salon.containsKey('longitude'), isTrue);
+      expect(salon['longitude'], isNull, reason: 'the pin goes');
+      expect(salon['address'], '', reason: 'with the address');
+      expect(salon['commune'], 'Cocody', reason: 'the commune stays');
+      expect(salon['city'], 'Abidjan', reason: 'the city stays');
+      expect(salon['areaId'], 'cocody', reason: 'the area stays');
+      expect(salon['name'], 'Chez Awa', reason: 'the name stays');
     });
   });
 
