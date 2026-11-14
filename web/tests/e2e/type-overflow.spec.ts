@@ -1513,7 +1513,44 @@ test.describe('the Pro account-deletion page at doubled text', () => {
         expect(await overflowingFlexRows(page), 'a nowrap flex row does not fit its own container').toEqual([]);
         expect(await verticalClipping(page), 'text is cut off the bottom of its own box').toEqual([]);
         expect(await truncationLosses(page), 'text is being truncated away').toEqual([]);
+
+        // The five cannot see a number that sticks out to the LEFT: it makes
+        // no sideways scroll. A browser `::marker` outside the text grows with
+        // the text while the list's padding does not, so at doubled text
+        // « 1. » landed in the 16px gutter, 6px from the screen's edge.
+        const steps = await stepNumbersPastTheColumn(page);
+        expect(steps.count, 'the four web steps (wrong DOM — vacuous check)').toBe(4);
+        expect(steps.outside, 'a step number starts left of the text column').toEqual([]);
       });
     });
   }
 });
+
+/// Where each step number of `main > ol` starts, against `<main>`'s content
+/// edge (its left padding: the page's 16px gutter). A number drawn as an
+/// element is measured as one. A browser marker has no box, so its left is the
+/// item's left minus the marker's text (« 1. », with the space the browser
+/// adds) measured in the marker's own font, which is what lays it out.
+async function stepNumbersPastTheColumn(page: Page) {
+  return page.evaluate(() => {
+    const main = document.querySelector('main') as HTMLElement;
+    const edge = main.getBoundingClientRect().left + parseFloat(getComputedStyle(main).paddingLeft);
+    const ctx = document.createElement('canvas').getContext('2d')!;
+    const items = [...document.querySelectorAll<HTMLElement>('main > ol > li')];
+    const outside: string[] = [];
+    items.forEach((li) => {
+      const n = [...li.parentElement!.children].indexOf(li) + 1;
+      const s = getComputedStyle(li);
+      let left: number;
+      if (s.display === 'list-item' && s.listStyleType !== 'none' && s.listStylePosition === 'outside') {
+        const m = getComputedStyle(li, '::marker');
+        ctx.font = `${m.fontStyle} ${m.fontWeight} ${m.fontSize} ${m.fontFamily}`;
+        left = li.getBoundingClientRect().left - ctx.measureText(`${n}. `).width;
+      } else {
+        left = (li.firstElementChild ?? li).getBoundingClientRect().left;
+      }
+      if (left < edge - 0.5) outside.push(`step ${n}: its number starts at ${left.toFixed(1)}px, the column at ${edge}px`);
+    });
+    return { count: items.length, outside };
+  });
+}

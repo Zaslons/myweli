@@ -609,7 +609,12 @@ that the text really is doubled. The Pro page's first run was red: a list item's
 text is a flex item that cannot shrink below its longest word, and
 « automatiquement&nbsp;; » at 32px grew the page to 335px. Its items (`Item` in
 `LegalPage.tsx`) hyphenate, with `break-words` as the fallback — the 404's remedy
-(web-funnel-doubled-text.md §5); `Li` stays as it is on the five. Six more
+(web-funnel-doubled-text.md §5); `Li` stays as it is on the five. Its numbered
+steps (`Ol`) draw their number in the same flex shape: the browser's
+`list-decimal` marker grows with the text while the list's padding does not, so
+« 1. » sat in the 16px gutter, 6px from the screen's edge, with no sideways
+scroll to give it away. The run now checks that each step's number starts
+inside the column (a review of S1, 2026-11-14). Six more
 pages widen in the Android mode and are not gated yet: §15 row 38. One trap,
 measured: Chromium implements `text-size-adjust` through its text autosizer,
 which recomputes when the DOM changes, so an element screenshot or a text

@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import type { ReactNode } from 'react';
+import { Children, type ReactNode } from 'react';
 import {
   type DocumentDate,
   type DocumentRoute,
@@ -201,19 +201,36 @@ export function Callout({ children }: { children: ReactNode }) {
   );
 }
 
-/// A numbered list of steps (`/pro/suppression-compte`'s « Sur le web »). The
-/// browser's own numbers, outside the text (`list-outside`, the default), so a
-/// step that wraps keeps its number in the margin; `pl-l` makes the room.
+/// A numbered list of steps (`/pro/suppression-compte`'s « Sur le web »), each
+/// `Step` one item. The number is drawn, in `Item`'s shape (a flex row, the
+/// number where the dash is, the text free to shrink: `min-w-0`), and `Ol`
+/// writes it from the step's place, so it cannot drift from the order. No
+/// `hyphens-auto`, unlike `Item`: the steps name the buttons to press, and
+/// « Conti-nuer avec Google » is harder to find on screen. `break-words` breaks
+/// a word only when it cannot fit a line at all.
+///
+/// Not the browser's `list-decimal` marker: that marker grows with the text
+/// while a list's padding does not, so at doubled text (Android, 320) « 1. »
+/// stuck out of its 24px `pl-l` into the 16px gutter, 6px from the screen's
+/// edge, and no sideways scroll gave it away (`type-overflow.spec.ts`, the
+/// page's doubled-text run). Hidden from a screen reader, as on
+/// `/professionnels`: the `<ol>` gives the count and the order.
 export function Ol({ children }: { children: ReactNode }) {
   return (
-    <ol className="mt-m flex list-decimal flex-col gap-s pl-l text-bodyLarge text-textSecondary">
-      {children}
+    <ol className="mt-m flex flex-col gap-s text-bodyLarge text-textSecondary">
+      {Children.toArray(children).map((step, i) => (
+        <li key={i} className="flex gap-s">
+          <span aria-hidden>{i + 1}.</span>
+          <div className="min-w-0 break-words">{step}</div>
+        </li>
+      ))}
     </ol>
   );
 }
 
+/// One step of an `Ol`, which draws its item and its number.
 export function Step({ children }: { children: ReactNode }) {
-  return <li>{children}</li>;
+  return <>{children}</>;
 }
 
 /// The one action a document may carry: a link that looks like a button

@@ -287,12 +287,13 @@ describe('#10 — no className in the page file', () => {
 });
 
 describe('#19 — step 1 names a social button exactly when this build draws it', () => {
-  /// Step 1's sentence, without the CTA below it.
+  /// Step 1's sentence, without its drawn number before it or the CTA below it.
   const step1 = (c: HTMLElement) => {
-    // `main > ol`: the breadcrumb is an <ol> too, inside its <nav>.
-    const li = c.querySelector('main > ol > li')!.cloneNode(true) as HTMLElement;
-    li.querySelectorAll('div').forEach((d) => d.remove());
-    return text(li);
+    // `main > ol`: the breadcrumb is an <ol> too, inside its <nav>. `Ol` draws
+    // each item as the number, then the step's own `<div>`.
+    const body = c.querySelector('main > ol > li > div')!.cloneNode(true) as HTMLElement;
+    body.querySelectorAll('div').forEach((d) => d.remove());
+    return text(body);
   };
   it.each([
     ['both', 'g.apps.googleusercontent.com', 'com.myweli.signin'],
