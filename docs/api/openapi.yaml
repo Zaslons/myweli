@@ -4510,6 +4510,121 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/Error' }
 
+  /admin/provider-accounts/{id}/erase:
+    delete:
+      tags: [admin]
+      summary: Erase a Pro account on a support request (B0.25) — audited, irreversible
+      description: |
+        Runs **`ProviderAccountService.deleteAccount` itself**, through the
+        same singleton as `DELETE /me/provider` (threats T53, T83): the
+        store-review demo account is refused first, then the future-bookings
+        gate over every owned salon, then every step of the Pro's own
+        deletion — each owned salon to `draft` with its numbers, address and
+        deposit cleared, the KYC objects, devices, notifications, the Apple
+        authorization, the identity and every session, the memberships.
+        Member-only salons are untouched. No override of either refusal.
+
+        For a Pro who cannot reach « Profil » (no sign-in possible, or a
+        member whose access was removed), once verified by the written support
+        procedure (docs/design/admin-pro-account-erase.md §10).
+
+        `confirmEmail` must equal the address stored on the account (trimmed,
+        case-insensitive): a guard against a wrongly copied id, not against an
+        attacker — `POST /admin/provider-accounts/lookup` reads it. `reason`
+        is a closed code and `caseRef` the case number: no free text, since
+        the audit log is kept with no limit. Every field is checked before
+        anything is read or written.
+
+        Audited **after** success only, as `provider_account.erase` (the
+        closed reason; metadata `{caseRef}`; no e-mail, no name). A repeat
+        after success answers 404 and writes nothing.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { in: path, name: id, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AdminProviderAccountEraseRequest' }
+      responses:
+        '204': { description: Erased }
+        '400':
+          description: >-
+            `invalid_body` — the body is missing or not a JSON object, or a
+            field arrived as another JSON type than string. `invalid_input` —
+            a field missing or empty, `reason` outside the set, `caseRef` off
+            its pattern. Nothing is written.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403':
+          description: >-
+            Not an admin (`forbidden`); or the store-review demo account
+            (`demo_account_locked`, T69 — nothing is written).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '404':
+          description: >-
+            `not_found` — no account with that id: never one, erased already,
+            or erased by a concurrent call. Nothing is written.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '409':
+          description: >-
+            `confirmation_mismatch` — `confirmEmail` is not the stored address,
+            or the account has none; nothing is written. `future_bookings` — a
+            pending or confirmed booking in the future in a salon the account
+            owns; nothing is written, and there is no override.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+  /admin/provider-accounts/lookup:
+    post:
+      tags: [admin]
+      summary: Find the Pro account behind one exact address (B0.25) — read-only
+      description: |
+        The read before a support erase: one account, matched on the exact
+        address (trimmed, case-insensitive) — never a prefix, never a list.
+        **POST, with the address in the body:** in a query string it would
+        land in the platform's request log. Answers only what the procedure
+        needs: the id the erase takes, the stored address (the challenge goes
+        there, and it is the erase's `confirmEmail`), the creation time, the
+        salons the erase would hide — computed as `deleteAccount` computes
+        them — and every membership row. No name, phone, address, KYC
+        document or verification state. Not audited, like every read-only
+        admin view (threat T83).
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AdminProviderAccountLookupRequest' }
+      responses:
+        '200':
+          description: The account
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminProviderAccountLookup' }
+        '400':
+          description: >-
+            `invalid_body` — the body is missing or not a JSON object, or
+            `email` is not a string. `invalid_input` — `email`, trimmed, is not
+            3–254 characters with exactly one `@`.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404':
+          description: '`not_found` — no Pro account at that address.'
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
   /admin/users/{id}/ban:
     post:
       tags: [admin]
@@ -5073,6 +5188,77 @@ components:
           nullable: true
           description: The owner's e-mail, or their phone when there is none; null without an active owner.
         kycDocCount: { type: integer, description: KYC documents sent (0 → « aucun »). }
+
+    AdminProviderAccountEraseRequest:
+      type: object
+      description: >
+        The body of a support erase (B0.25, docs/design/admin-pro-account-erase.md
+        §3.1). No free text anywhere: the audit row keeps the reason and the
+        case number with no limit.
+      required: [confirmEmail, reason, caseRef]
+      additionalProperties: false
+      properties:
+        confirmEmail:
+          type: string
+          description: The address stored on the account, as the lookup returns it (compared trimmed, case-insensitively).
+        reason:
+          type: string
+          enum: [support_no_sign_in, support_access_removed]
+          description: The support path — the person cannot sign in, or a member's access was removed.
+        caseRef:
+          type: string
+          pattern: '^MWP-[A-Z0-9]{6}$'
+          description: The case number of the owner's case record. Not personal data.
+
+    AdminProviderAccountLookupRequest:
+      type: object
+      required: [email]
+      properties:
+        email:
+          type: string
+          minLength: 3
+          maxLength: 254
+          description: One exact address (trimmed, case-insensitive); exactly one `@`.
+
+    AdminProviderAccountLookup:
+      type: object
+      description: >
+        What a support erase needs, and nothing more (B0.25,
+        docs/design/admin-pro-account-erase.md §3.2): no name, phone, address,
+        KYC document or verification state.
+      required: [accountId, email, createdAt, ownedSalons, memberships]
+      properties:
+        accountId: { type: string, description: The id the erase takes. }
+        email: { type: string, description: The address stored on the account. }
+        createdAt: { type: string, format: date-time }
+        ownedSalons:
+          type: array
+          description: >
+            The salons the erase would hide — the account's linked salon plus
+            every salon where it holds an active owner row, as `deleteAccount`
+            computes them.
+          items:
+            type: object
+            required: [id, name, status]
+            properties:
+              id: { type: string }
+              name: { type: string, nullable: true, description: Null only when the salon row is gone. }
+              status:
+                type: string
+                nullable: true
+                enum: [draft, active, suspended]
+                description: Null only when the salon row is gone.
+        memberships:
+          type: array
+          description: Every membership row of the account, any status — a revoked member is matched by the salon they name.
+          items:
+            type: object
+            required: [providerId, salonName, role, status]
+            properties:
+              providerId: { type: string }
+              salonName: { type: string, nullable: true, description: Null only when the salon row is gone. }
+              role: { type: string, enum: [owner, manager, reception, staff] }
+              status: { type: string, enum: [invited, active, revoked] }
 
     TeamMember:
       type: object
