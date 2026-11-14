@@ -23,6 +23,7 @@ import { LegalConsentText } from '../LegalConsentText';
 import { AppleSignInButton } from '../auth/AppleSignInButton';
 import { appleIdentity } from '../../lib/auth/apple';
 import { forgetSalon } from '../../lib/pro/remembered-salon';
+import { signInMethods } from '../../lib/pro/signInMethods';
 import { type SignInRefusal, codeRefusal, sendRefusal } from '../../lib/auth/otp-failure';
 import { UNNAMED_SALON_AT_SENTENCE_START, salonNameOr } from '../../lib/salon-name';
 
@@ -39,10 +40,11 @@ type InviteProof =
 /// A 202 {invitations} login lands on the « Invitations » step (team access
 /// R5a). Design: docs/design/pro-auth-social.md · web-team-access-r5.md §2.2.
 export function ProLoginOptions({ onSuccess }: { onSuccess: () => void }) {
-  const googleClientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
-  // Apple renders only when its public client id is configured — the client
-  // sign-in's rule (docs/design/web-pro-apple.md).
-  const appleClientId = process.env.NEXT_PUBLIC_APPLE_CLIENT_ID;
+  // Each social button renders only when its public client id is configured —
+  // the client sign-in's rule (docs/design/web-pro-apple.md). Read through the
+  // helper `/pro/suppression-compte` reads too, so that page names a button
+  // exactly when this build draws it (web-pro-account-deletion.md §7).
+  const { google: googleClientId, apple: appleClientId } = signInMethods();
   const [step, setStep] = useState<'options' | 'code' | 'invitations'>(
     'options',
   );
