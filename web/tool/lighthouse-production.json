@@ -4,7 +4,8 @@
       "url": [
         "https://myweli.com/",
         "https://myweli.com/connexion",
-        "https://myweli.com/suppression-compte"
+        "https://myweli.com/suppression-compte",
+        "https://myweli.com/pro/suppression-compte"
       ],
       "numberOfRuns": 3,
       "settings": {
@@ -71,7 +72,7 @@
           "aggregationMethod": "median"
         },
         {
-          "matchingUrlPattern": ".*/suppression-compte",
+          "matchingUrlPattern": "https://myweli\\.com/suppression-compte$",
           "assertions": {
             "largest-contentful-paint": [
               "error",
@@ -113,7 +114,55 @@
           "aggregationMethod": "median"
         },
         {
-          "matchingUrlPattern": ".*/connexion",
+          "matchingUrlPattern": "https://myweli\\.com/pro/suppression-compte$",
+          "assertions": {
+            "largest-contentful-paint": [
+              "error",
+              {
+                "maxNumericValue": 2500
+              }
+            ],
+            "cumulative-layout-shift": [
+              "error",
+              {
+                "maxNumericValue": 0.1
+              }
+            ],
+            "total-blocking-time": [
+              "error",
+              {
+                "maxNumericValue": 200
+              }
+            ],
+            "categories:accessibility": [
+              "error",
+              {
+                "minScore": 0.95
+              }
+            ],
+            "categories:seo": [
+              "error",
+              {
+                "minScore": 0.9
+              }
+            ],
+            "categories:best-practices": [
+              "warn",
+              {
+                "minScore": 0.9
+              }
+            ],
+            "resource-summary:script:size": [
+              "error",
+              {
+                "maxNumericValue": 179200
+              }
+            ]
+          },
+          "aggregationMethod": "median"
+        },
+        {
+          "matchingUrlPattern": "https://myweli\\.com/connexion$",
           "assertions": {
             "largest-contentful-paint": [
               "error",
