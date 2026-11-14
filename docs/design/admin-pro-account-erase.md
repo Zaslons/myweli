@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Module** | backend — `DELETE /admin/provider-accounts/{id}/erase` and a read-only `POST /admin/provider-accounts/lookup`; and the written support procedure that uses them (§10) |
-| **Status** | **Approved 2026-11-13 (decisions 141, 142) — ~~not built~~ built 2026-11-14 on `feat/admin-pro-account-erase`; not merged, not deployed** (Build log, end). Built from option 1b of the R1 draft (session notes, not in the repo; a review's 15 findings folded in before the owner read it). The French replies of §10.3 are drafts, signed off by the owner in the backend PR. A review of this branch on 2026-11-14 tightened the check, the procedure and the replies (Review log, end); the owner's answers are unchanged |
+| **Status** | **Approved 2026-11-13 (decisions 141, 142) — ~~not built~~ built 2026-11-14 on `feat/admin-pro-account-erase`; not merged, not deployed** (Build log, end). Built from option 1b of the R1 draft (session notes, not in the repo; a review's 15 findings folded in before the owner read it). The French replies of §10.3 were approved by the owner as written on 2026-11-14 (decision 147), in the backend PR (#793). A review of this branch on 2026-11-14 tightened the check, the procedure and the replies (Review log, end); the owner's answers are unchanged |
 | **Owner** | the project owner: the merge, the production deploy, the procedure's approval, and every support erase, each on the owner's yes |
 | **Last updated** | 2026-11-14 |
 | **PRD ref / phase** | FR-AUTH-005 [V1] (`docs/PRD.md:344`) · V1 · gates B0.19's page (S1), and so android-play-release step 7 (decision 141) |
@@ -376,7 +376,7 @@ Then the full backend suite, `dart format`, `dart analyze --fatal-infos --fatal-
    or with T2's « sous peu » sentence for a salon still served (§10.3). **Close** the case record. In the
    repo, only a dated count (« n effacements Pro sur demande au support le … »), no name, no address.
 
-### 10.3 The replies — DRAFT — owner sign-off at the PR
+### 10.3 The replies — approved as written 2026-11-14 (decision 147)
 
 French, vouvoiement. The sendable text (the `>` lines) already holds a non-breaking space (U+00A0,
 invisible here) before `: ; ? !` and inside « », as the five pages write it: copy it from this file,
@@ -384,7 +384,7 @@ never retype it. `{…}` marks a value or a paragraph to fill; the notes under a
 and are never sent. `{CASE}` may appear anywhere, `{CODE}` only in T1. The pin sentence holds once B0.22
 is live and its O1 settled, which §9 precedes.
 
-**T0 — Accusé de réception** (DRAFT — owner sign-off at the PR; to the sender's address)
+**T0 — Accusé de réception** (approved 2026-11-14, decision 147; to the sender's address)
 > Objet : Votre demande de suppression de compte MyWeli Pro — réf. {CASE}
 >
 > Bonjour,
@@ -393,7 +393,7 @@ is live and its O1 settled, which §9 precedes.
 >
 > L’équipe MyWeli
 
-**T1 — Confirmation, à l’adresse enregistrée sur le compte** (DRAFT — owner sign-off at the PR)
+**T1 — Confirmation, à l’adresse enregistrée sur le compte** (approved 2026-11-14, decision 147)
 > Objet : Confirmez la suppression de votre compte MyWeli Pro — réf. {CASE}
 >
 > Bonjour,
@@ -416,7 +416,7 @@ Before S1, only once B0.23 has merged:
 
 Before both, that paragraph is left out.
 
-**T2 — Suppression faite** (DRAFT — owner sign-off at the PR; to the stored address)
+**T2 — Suppression faite** (approved 2026-11-14, decision 147; to the stored address)
 > Objet : Votre compte MyWeli Pro est supprimé — réf. {CASE}
 >
 > Bonjour,
@@ -441,7 +441,7 @@ while step 8 (f) still finds its page:
 `{LIEN}`, under T1's conditions, with T1's link; left out before both:
 > Ce que nous conservons, et combien de temps, est décrit ici : {le même lien que T1}
 
-**T3 — Refus : rendez-vous à venir** (DRAFT — owner sign-off at the PR; to the stored address)
+**T3 — Refus : rendez-vous à venir** (approved 2026-11-14, decision 147; to the stored address)
 > Objet : Votre demande de suppression — rendez-vous à venir — réf. {CASE}
 >
 > Bonjour,
@@ -455,7 +455,7 @@ while step 8 (f) still finds its page:
 *Notes, not sent.* `{SUSPENDRE}`, only if the person cannot open their agenda; otherwise left out:
 > Nous pouvons suspendre le salon : il est retiré du public et ne reçoit plus de nouvelles réservations. Nous ferons ensuite la suppression après le dernier rendez-vous prévu, le {date}, au plus tard 30 jours après cette date. Répondez « SUSPENDRE » si vous le souhaitez.
 
-**T4 — Vérification impossible** (DRAFT — owner sign-off at the PR; to the sender's address; never says whether an account exists)
+**T4 — Vérification impossible** (approved 2026-11-14, decision 147; to the sender's address; never says whether an account exists)
 > Objet : Votre demande de suppression de compte MyWeli Pro — réf. {CASE}
 >
 > Bonjour,
@@ -476,7 +476,7 @@ their access to a salon's team was removed:
 and, after (b), only once S1 is live (check its date before sending):
 > Le détail : https://myweli.com/pro/suppression-compte
 
-**T5 — Aucun compte Pro à cette adresse** (DRAFT — owner sign-off at the PR; to the sender's address; only when the sender's own address is the only thing given, §10.1)
+**T5 — Aucun compte Pro à cette adresse** (approved 2026-11-14, decision 147; to the sender's address; only when the sender's own address is the only thing given, §10.1)
 > Objet : Votre demande de suppression de compte MyWeli Pro — réf. {CASE}
 >
 > Bonjour,
@@ -495,7 +495,8 @@ and, after (b), only once S1 is live (check its date before sending):
 - [x] The contract, `schema.ts`, T83 and the T17/T53/T69 deltas, and the label in the same PR; `// Design:` links (on the branch, 2026-11-14).
 - [ ] Merged outside the merge hold and any Apple review; deployed on the owner's yes; §9 step 4's read-back recorded.
 - [ ] §10 and its French replies signed off after §9 step 4's read-back, then in `docs/DEPLOYMENT.md`, before
-      B0.23 merges.
+      B0.23 merges. *(2026-11-14: the replies are approved, decision 147; the procedure itself waits for the
+      read-back.)*
 - [x] demo-account-deletion-lock.md §6.3 (the row on other deleting routes) and §6.4 updated in the same PR (§9 step 2; on the branch, 2026-11-14).
 - [ ] Feature branch and PR; no Claude attribution; one roadmap entry file.
 
