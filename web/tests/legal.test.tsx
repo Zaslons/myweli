@@ -487,6 +487,12 @@ describe('B0.23 — the policy tells a Pro the truth about deletion', () => {
       expect(p).toContain('Aucune durée de conservation n’est fixée à ce jour');
     }
   });
+
+  it('the shared date moved with the text (a floor, so the merge day can only be later)', () => {
+    // B0.23 is a substantive change under legal.ts's rule. The PR sets the date
+    // to its merge day; a later merge raises it, and this floor still holds.
+    expect(LEGAL_UPDATED_AT.iso >= '2026-11-14').toBe(true);
+  });
 });
 
 describe('lib/legal.ts is the single source of truth', () => {
