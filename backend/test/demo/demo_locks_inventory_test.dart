@@ -221,6 +221,12 @@ void main() {
         // §2.2).
         'routes/me/provider/index.dart',
         'routes/auth/provider/invitations/accept.dart',
+        // The support erase (B0.25's server half, threat T83): its one call
+        // is on the ProviderAccountService singleton it is given, never on
+        // the repository — this inventory works per FILE, so that is pinned
+        // by `admin_provider_account_test.dart` (test 11), not here
+        // (docs/design/admin-pro-account-erase.md §6).
+        'lib/src/admin/admin_provider_account_service.dart',
       },
       reason:
           'a new caller of deleteAccount( — it must go through '

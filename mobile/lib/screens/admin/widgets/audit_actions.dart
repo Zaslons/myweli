@@ -25,6 +25,8 @@ const Map<String, String> kAuditActions = {
   'user.ban': 'Client banni',
   'user.unban': 'Client réactivé',
   'user.erase': 'Compte client effacé',
+  // B0.25's server half — admin-pro-account-erase.md §4.1.
+  'provider_account.erase': 'Compte Pro effacé',
   'dispute.open': 'Litige ouvert',
   'dispute.resolve': 'Litige résolu',
   'client_floor.set': 'Version minimale modifiée',

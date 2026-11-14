@@ -10,6 +10,7 @@ import 'admin/admin_auth_repository.dart';
 import 'admin/admin_client_version_service.dart';
 import 'admin/admin_kyc_service.dart';
 import 'admin/admin_notifier.dart';
+import 'admin/admin_provider_account_service.dart';
 import 'admin/admin_provider_service.dart';
 import 'admin/admin_user_service.dart';
 import 'admin/analytics_service.dart';
@@ -1012,6 +1013,22 @@ final AdminUserService adminUserService = AdminUserService(
   auditLogRepository,
   userErasureService,
 );
+
+/// B0.25's server half — a support erase of a Pro account, and its lookup
+/// (docs/design/admin-pro-account-erase.md §4.1, threat T83). Constructed
+/// WITH the [providerAccountService] singleton, never a fresh
+/// `ProviderAccountService`: its optional dependencies default to nothing,
+/// so a second one would compile and silently skip devices, notifications,
+/// the Apple revoke, the validations, the place notices and the rebuild
+/// (`admin_provider_account_test.dart` pins it).
+final AdminProviderAccountService adminProviderAccountService =
+    AdminProviderAccountService(
+      providerAccountService,
+      providerAuthRepository,
+      membershipRepository,
+      providersRepository,
+      auditLogRepository,
+    );
 
 final DisputesRepository disputesRepository = _pool == null
     ? InMemoryDisputesRepository()
