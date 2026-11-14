@@ -772,10 +772,12 @@ phone.
   (`switchSalonOutcome`), showing a skeleton, never the other salon's state,
   until the switch answers; then it loads. A refused switch, no connection,
   or a switch that kept the old salon goes to « Accueil » with the picker's
-  sentence (decision 136 item 3). The push path switches before the route
-  opens (`PushMessageHandler`'s `ensureSalon`); when that switch is refused,
-  it lands on « Accueil » with no sentence, as every salon push does today:
-  a named residual, not changed by PR 3.
+  sentence (decision 136 item 3). A tapped push takes the same path: its
+  handler opens this route as it came, without switching first
+  (`ProRouter.switchesSalonItself`, wired in `main_pro.dart`'s
+  `proPushHandler`), so one implementation serves both ways in. Every other
+  salon push (a booking's) still switches before its route opens and, when
+  that switch is refused, lands on « Accueil » with no sentence, as today.
 - **A server from before B0.18** (no `validation` key): today's screens and
   words (decision 136 item 10).
 

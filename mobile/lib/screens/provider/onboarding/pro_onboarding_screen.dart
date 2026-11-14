@@ -66,9 +66,11 @@ class _ProOnboardingScreenState extends State<ProOnboardingScreen> {
   /// A notice about another of the account's salons switches to it first
   /// (§6.2), and checks the answer — the booking detail ignores it, and is
   /// not copied: a switch that did not happen goes to « Accueil » and says
-  /// why, in the salon picker's words (decision 136 item 3). Already on that
-  /// salon — the push path switched before opening this route
-  /// (`main_pro.dart` `ensureSalon`) — nothing to switch.
+  /// why, in the salon picker's words (decision 136 item 3). Both ways in
+  /// arrive here unswitched — the feed row, and a tapped push, whose handler
+  /// leaves this route's switch to this screen
+  /// (`ProRouter.switchesSalonItself`). Already on that salon: nothing to
+  /// switch.
   Future<void> _enter() async {
     if (!mounted) return;
     final auth = context.read<ProAuthProvider>();

@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:provider/single_child_widget.dart';
 
@@ -126,6 +127,9 @@ void main() {
 /// is signed in on ANOTHER salon switches first — `switchSalon` also resets
 /// every salon-scoped provider (R6). A refused switch (revoked, unknown)
 /// lands on the dashboard rather than a booking the active scope can't load.
+/// MyWeli's notice on a salon (B0.18) is the exception: « Configuration »
+/// switches itself and says why a switch did not happen
+/// (`ProRouter.switchesSalonItself`).
 ///
 /// A tap that launched the app replays once signed in AND past the splash /
 /// sign-in screens — replayed any earlier, their `go` replaced it
@@ -135,18 +139,28 @@ void main() {
 /// behind it, where the tap's salon switch is refused. A tap held there
 /// replays once the person has joined a salon (pro-rejoin-gate.md S10).
 Future<void> _startPush(ProAuthProvider auth) async {
-  final handler = landedPushHandler(
-    router: ProRouter.router,
-    session: auth,
-    isSignedIn: () => auth.isAuthenticated && !auth.rejoinPending,
-    launchPaths: ProRouter.launchPaths,
-    allowedRoutePrefixes: kProRoutePrefixes,
-    ensureSalon:
-        auth.switchSalon, // returns true immediately when already there
-    salonSwitchFallbackRoute: '/pro/dashboard',
-  );
+  final handler = proPushHandler(auth, router: ProRouter.router);
   await FcmMessageBridge(handler).init();
 }
+
+/// The Pro app's push handler, as [_startPush] wires it. A function rather
+/// than inline so the tests drive the exact wiring the app runs
+/// (test/widget/pro_onboarding_screen_test.dart), as [proAppProviders].
+PushMessageHandler proPushHandler(
+  ProAuthProvider auth, {
+  required GoRouter router,
+}) => landedPushHandler(
+  router: router,
+  session: auth,
+  isSignedIn: () => auth.isAuthenticated && !auth.rejoinPending,
+  launchPaths: ProRouter.launchPaths,
+  allowedRoutePrefixes: kProRoutePrefixes,
+  ensureSalon: auth.switchSalon, // returns true immediately when already there
+  salonSwitchFallbackRoute: '/pro/dashboard',
+  // MyWeli's notice switches on its own screen, which says why a switch
+  // did not happen (B0.18 decision 136 item 3) — as the feed row.
+  routeSwitchesSalon: ProRouter.switchesSalonItself,
+);
 
 /// The Pro app's stores, above every route and alive for the whole app.
 /// A function rather than a list inline in [MyweliProApp] so the tests mount

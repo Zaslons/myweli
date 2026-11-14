@@ -80,7 +80,8 @@ SalonId? providerIdFromPushData(Map<String, Object?> data) {
 ///    booking's. [ensureSalon] switches first (which also resets every
 ///    salon-scoped provider), and a failed switch lands on
 ///    [salonSwitchFallbackRoute] instead of a booking the active scope cannot
-///    resolve.
+///    resolve — unless [routeSwitchesSalon] says the route's own screen
+///    switches, checks and says why (B0.18's notice).
 /// 3. **Trust.** Routes are prefix-allowlisted ([routeFromPushData]).
 class PushMessageHandler {
   PushMessageHandler({
@@ -89,6 +90,7 @@ class PushMessageHandler {
     this.ensureSalon,
     this.isAuthenticated,
     this.salonSwitchFallbackRoute,
+    this.routeSwitchesSalon,
   });
 
   /// Pushes the route (the app's router — injected so this class stays pure).
@@ -106,6 +108,14 @@ class PushMessageHandler {
 
   /// Where to land when [ensureSalon] fails (pro: `/pro/dashboard`).
   final String? salonSwitchFallbackRoute;
+
+  /// Pro only: true for a route whose screen switches to [providerId]
+  /// ITSELF — once, checking the answer, and saying why on « Accueil » when
+  /// the switch does not happen. Such a route is opened as it came, without
+  /// [ensureSalon], so the push and the in-app feed row take one path (B0.18
+  /// decision 136 item 3: MyWeli's notice, `/pro/onboarding?salon={id}` —
+  /// `ProRouter.switchesSalonItself`). Every other route switches first.
+  final bool Function(String route, SalonId providerId)? routeSwitchesSalon;
 
   Map<String, Object?>? _pending;
 
@@ -131,7 +141,10 @@ class PushMessageHandler {
 
       final providerId = providerIdFromPushData(data);
       final switcher = ensureSalon;
-      if (providerId != null && switcher != null) {
+      final switchesItself =
+          providerId != null &&
+          (routeSwitchesSalon?.call(route, providerId) ?? false);
+      if (providerId != null && switcher != null && !switchesItself) {
         final ok = await switcher(providerId);
         if (!ok) {
           final fallback = salonSwitchFallbackRoute;

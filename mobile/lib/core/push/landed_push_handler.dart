@@ -33,6 +33,7 @@ PushMessageHandler landedPushHandler({
   required List<String> allowedRoutePrefixes,
   Future<bool> Function(SalonId providerId)? ensureSalon,
   String? salonSwitchFallbackRoute,
+  bool Function(String route, SalonId providerId)? routeSwitchesSalon,
 }) {
   bool landed() {
     final at = router.routerDelegate.currentConfiguration;
@@ -54,6 +55,7 @@ PushMessageHandler landedPushHandler({
     isAuthenticated: ready,
     ensureSalon: ensureSalon,
     salonSwitchFallbackRoute: salonSwitchFallbackRoute,
+    routeSwitchesSalon: routeSwitchesSalon,
   );
 
   void replay() {

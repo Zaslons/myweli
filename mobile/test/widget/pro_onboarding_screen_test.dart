@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
@@ -7,12 +5,12 @@ import 'package:myweli/core/access/pro_salon_scope.dart';
 import 'package:myweli/core/constants/failure_messages.dart';
 import 'package:myweli/core/constants/salon_validation_copy.dart';
 import 'package:myweli/core/di/dependency_injection.dart';
-import 'package:myweli/core/push/push_message_handler.dart';
 import 'package:myweli/core/push/push_registration.dart';
 import 'package:myweli/core/router/pro_router.dart';
 import 'package:myweli/core/theme/colors.dart';
 import 'package:myweli/core/utils/salon_id.dart';
 import 'package:myweli/core/utils/team_error_messages.dart';
+import 'package:myweli/main_pro.dart' show proPushHandler;
 import 'package:myweli/models/api_response.dart';
 import 'package:myweli/models/provider.dart' as model;
 import 'package:myweli/models/salon_subscription.dart';
@@ -750,8 +748,9 @@ void main() {
 
   // The notice (salon-go-live-approval §5.2) carries
   // `/pro/onboarding?salon={id}`. Two paths reach it, tested apart (§8.3):
-  // the feed row pushes the route as it came; a tapped push switches FIRST
-  // (`ensureSalon`, main_pro.dart) and falls back on its own.
+  // the feed row pushes the route as it came; a tapped push goes through
+  // main_pro.dart's handler (`proPushHandler`), which opens this route as it
+  // came too — the screen switches for both (decision 136 item 3).
   group('the notice tap (?salon=)', () {
     testWidgets('the feed row, for the salon the owner is NOT on: it '
         'switches once, shows nothing of the other salon meanwhile, then '
@@ -895,21 +894,22 @@ void main() {
       }, variant: bothPlatforms);
     }
 
-    testWidgets('a tapped push: `ensureSalon` switches before the route '
-        'opens, and the screen does not switch again', (tester) async {
+    // The push path (decision 136 item 3, as the feed row): the notice's
+    // own route is opened as it came — `proPushHandler`, main_pro.dart's
+    // wiring — and « Configuration » switches, checks and says why, ONE
+    // implementation for both paths. Every other salon push still switches
+    // first (`ensureSalon`; push_message_handler_test).
+    testWidgets('a tapped push, for the salon the owner is NOT on: '
+        '« Configuration » switches once, then shows MyWeli\'s decision', (
+      tester,
+    ) async {
       MockData.seedRefused(_p2, code: 'unconfirmed');
       final (:auth, :router) = await pumpScreen(
         tester,
         at: '/pro/dashboard',
         rounds: 1,
       );
-      final handler = PushMessageHandler(
-        // main_pro.dart's wiring (`landedPushHandler`).
-        navigate: (route) async => unawaited(router.push<void>(route)),
-        allowedRoutePrefixes: kProRoutePrefixes,
-        ensureSalon: auth.switchSalon,
-        salonSwitchFallbackRoute: '/pro/dashboard',
-      );
+      final handler = proPushHandler(auth, router: router);
 
       final handled = handler.handleData({
         'event': 'salon.validation.refused',
@@ -921,7 +921,13 @@ void main() {
       await settleMocks(tester, rounds: 10);
 
       expect(auth.activeSalonId, _p2);
-      expect(pro.switchProbes, [_p2], reason: 'the push switched; not twice');
+      expect(pro.switchProbes, [_p2], reason: 'one switch, not two');
+      expect(
+        tester
+            .widget<ProOnboardingScreen>(find.byType(ProOnboardingScreen))
+            .salonId,
+        _p2,
+      );
       expect(find.text(SalonValidationCopy.refusedTitle), findsOneWidget);
       expect(
         find.text(SalonValidationCopy.refusalSentences['unconfirmed']!),
@@ -929,35 +935,50 @@ void main() {
       );
     }, variant: bothPlatforms);
 
-    testWidgets('a tapped push whose switch is refused: its own fallback, '
-        '« Accueil » — « Configuration » never opens', (tester) async {
-      pro.switchFault = _SwitchFault.refused;
-      final (:auth, :router) = await pumpScreen(
+    for (final (fault, sentence) in [
+      (_SwitchFault.refused, salonSwitchRefusedMessage),
+      (_SwitchFault.network, kNoConnectionMessage),
+      (_SwitchFault.keepsOld, salonSwitchRefusedMessage),
+    ]) {
+      testWidgets('a tapped push whose switch does not happen '
+          '(${fault.name}): « Accueil », with « $sentence », once', (
         tester,
-        at: '/pro/staff',
-        rounds: 1,
-      );
-      final handler = PushMessageHandler(
-        navigate: (route) async => unawaited(router.push<void>(route)),
-        allowedRoutePrefixes: kProRoutePrefixes,
-        ensureSalon: auth.switchSalon,
-        salonSwitchFallbackRoute: '/pro/dashboard',
-      );
+      ) async {
+        MockData.seedPendingRequest(_p1);
+        pro.switchFault = fault;
+        final (:auth, :router) = await pumpScreen(
+          tester,
+          at: '/pro/dashboard',
+          rounds: 1,
+        );
+        final handler = proPushHandler(auth, router: router);
 
-      final handled = handler.handleData({
-        'event': 'salon.validation.approved',
-        'providerId': 'provider2',
-        'route': '/pro/onboarding?salon=provider2',
-      });
-      await settleMocks(tester, rounds: 3);
-      await handled;
-      await settleMocks(tester, rounds: 3);
+        final handled = handler.handleData({
+          'event': 'salon.validation.approved',
+          'providerId': 'provider2',
+          'route': '/pro/onboarding?salon=provider2',
+        });
+        await settleMocks(tester, rounds: 3);
+        await handled;
+        await settleMocks(tester, rounds: 10);
 
-      expect(find.text('stub home'), findsOneWidget);
-      expect(find.byType(ProOnboardingScreen), findsNothing);
-      expect(pro.switchProbes, [_p2]);
-      expect(auth.activeSalonId, _p1);
-    });
+        expect(where(router), '/pro/dashboard');
+        expect(find.text('stub home'), findsOneWidget);
+        expect(find.text(sentence), findsOneWidget);
+        expect(find.byType(ProOnboardingScreen), findsNothing);
+        expect(
+          find.text(SalonValidationCopy.pendingTitle, skipOffstage: false),
+          findsNothing,
+          reason: 'provider1\'s state, under the notice about provider2',
+        );
+        expect(pro.switchProbes, [_p2], reason: 'never a loop');
+        if (fault != _SwitchFault.keepsOld) {
+          expect(auth.activeSalonId, _p1);
+        }
+        await settleMocks(tester, rounds: 3);
+        expect(pro.switchProbes, [_p2]);
+      }, variant: bothPlatforms);
+    }
   });
 
   testWidgets('a salon that never chose its deposit reads « Facultatif » on '

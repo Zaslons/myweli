@@ -44,6 +44,20 @@ class ProRouter {
   /// docs/design/pro-app-login-only.md).
   static const Set<String> launchPaths = {'/pro/splash', '/pro/login'};
 
+  /// MyWeli's notice on [salon] (B0.18 — `/pro/onboarding?salon={id}`, the
+  /// push's and the feed row's route): « Configuration » switches to the
+  /// salon itself, once, checks the answer and, when the switch does not
+  /// happen, goes to « Accueil » with the salon picker's sentence (decision
+  /// 136 item 3). A tapped push opens it as it came (`proPushHandler`,
+  /// main_pro.dart) — switching first, as for a booking, would drop that
+  /// sentence. Only when the route's `?salon=` IS the push's salon.
+  static bool switchesSalonItself(String route, SalonId salon) {
+    final uri = Uri.tryParse(route);
+    return uri != null &&
+        uri.path == '/pro/onboarding' &&
+        uri.queryParameters['salon'] == salon.value;
+  }
+
   static final GoRouter router = GoRouter(
     initialLocation: '/pro/splash',
     routes: [
