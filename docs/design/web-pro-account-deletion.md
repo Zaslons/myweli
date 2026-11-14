@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Module** | web — one public, static page for salon accounts: `/pro/suppression-compte`, the URL Play's Data safety form takes as « URL de suppression » for MyWeli Pro |
-| **Status** | **Approved 2026-11-13 (decisions 137–140); the French copy of §5.1 approved by the owner as written on 2026-11-13 (« Approve as written », after reading it in full).** The answers are folded into §5–§12. **Built 2026-11-14** on `feat/web-pro-account-deletion` (S1, stacked on this spec's docs PR, #790); not merged — §11's order holds. Review findings folded in 2026-11-13, then a second review's the same day (Review log, end); of the four questions it raised (§12), **R1 and R2 were answered on 2026-11-13 (decisions 141–143)**, and decision 144 (the App Store label's « Search History ») came from the same drafts; R3 and R4 stay open |
+| **Status** | **Approved 2026-11-13 (decisions 137–140); the French copy of §5.1 approved by the owner as written on 2026-11-13 (« Approve as written », after reading it in full).** The answers are folded into §5–§12. **Built 2026-11-14** on `feat/web-pro-account-deletion` (S1, stacked on this spec's docs PR, #790); not merged — §11's order holds. Review findings folded in 2026-11-13, then a second review's the same day (Review log, end); of the four questions it raised (§12), **R1 and R2 were answered on 2026-11-13 (decisions 141–143)**, and decision 144 (the App Store label's « Search History ») came from the same drafts; **R3 is asked in S1's PR and answered before it merges** (§12); R4 stays open |
 | **Owner** | the project owner: the sign-off on §5 sentence by sentence, every merge and every production or console step |
 | **Last updated** | 2026-11-14 |
 | **PRD ref / phase** | FR-AUTH-005 [V1] « Account deletion & data export request (store-policy + data-law compliance) » (`docs/PRD.md:344`) · V1 · Android release, before android-play-release step 7 |
@@ -340,8 +340,9 @@ One `h1`, `h2` only (`LegalPage.tsx:93-101`), lists as `<ol>`/`<ul>`, one `<main
 ## 5. Copy — approved by the owner as written (2026-11-13)
 
 **Status of the words.** Decisions 137–140 chose every variant; the sentences below are the chosen
-ones. The owner has **not** approved them yet: each sentence of §5.1 waits for their sign-off, and
-S1 is not opened before it (§11).
+ones. The owner read §5.1 in full and approved it as written on 2026-11-13 (« Approve as written »,
+Review log), before S1 was opened (§11 step 2). The copy is frozen: a change to any sentence is a
+new sign-off.
 
 **Rules.** Vouvoiement; `’` and `…` (SYSTEM §17.1); `&nbsp;` before `; : ? !` and inside « », as
 the five do (`politique-confidentialite/page.tsx:107,245,255`: «&nbsp;?&nbsp;», «&nbsp;Continuer
@@ -609,9 +610,9 @@ Plus a one-off check recorded in the PR: the four legal pages and `/support` ren
 1. **S0 — this spec**, in a docs PR (`docs/pro-account-deletion-page`, stacked on
    `docs/play-release-order`). B0.22's spec ([pro-deletion-erase-gaps.md](pro-deletion-erase-gaps.md))
    and the BACKLOG items ride along. A docs merge can deploy the website (B0.1), so the owner merges.
-2. **The owner's sign-off on §5.1, sentence by sentence.** The answers are in (§12); the words
-   are not. The sign-off also covers the « Before B0.22 is live » sentences, although they ship
-   only if the owner overrides the rule below.
+2. **The owner's sign-off on §5.1, sentence by sentence.** *Done 2026-11-13:* the owner read §5.1
+   in full and answered « Approve as written » (Review log), after the answers of §12. The
+   « Before B0.22 is live » sentences still ship only if the owner overrides the rule below.
 3. **B0.22 — the backend PR, then its production deploy**, each on the owner's yes, read back as
    [pro-deletion-erase-gaps.md](pro-deletion-erase-gaps.md) §9 says. The read-back cannot see
    storage, so **also before S1**: O2's read-only R2 listing of `kyc/` against the stored keys, on
@@ -654,6 +655,9 @@ Plus a one-off check recorded in the PR: the four legal pages and `/support` ren
      approved by the owner, with whatever it needs built. The page's support paths promise that
      erase from its first day (§12, R1). *(2026-11-13, decisions 141–142: done by step 3a — the
      admin erase command deployed and its procedure approved — before B0.23, so before this PR.)*
+   - **Before it merges, R3 answered** (§12): S1 rewrites `llms.txt`'s crash-reporting sentence,
+     public words the owner has not approved yet. The answer and its decision number go in the R3
+     row and the Status; a « no » reverts that sentence and its test only.
    - The live `/pro/connexion` read confirms the sign-in helper's methods (§5.1).
    - The page's doc comment links this spec.
    - Updated in the same PR: WEB-SYSTEM §13 (the install-push exception), §14 (the Lighthouse row
@@ -734,7 +738,8 @@ review (this page).
 ## 12. Decisions
 
 The owner answered on 2026-11-13, each with the recommendation (BACKLOG decisions 137–140). The
-French copy of §5 is **not** part of these answers: it still awaits the sign-off.
+French copy of §5 is **not** part of these answers: the owner approved it separately, as written,
+the same day (§5, Review log).
 
 | Q | The question | The answer | Decision |
 |---|---|---|---|
@@ -754,13 +759,14 @@ French copy of §5 is **not** part of these answers: it still awaits the sign-of
 | Q14 | The footer's « Supprimer mon compte » | (a) accepted as a limit; the client pointer says so | 140 |
 
 **Raised by the second review (2026-11-13), for the owner.** R1 and R2 were answered the same day,
-each with the recommendation of its draft (decisions 141–143); R3 and R4 are not answered.
+each with the recommendation of its draft (decisions 141–143); R3 and R4 are not answered. R3 is
+asked in S1's PR, and S1 merges only once it is answered (§11 step 5).
 
 | # | The question | Where | Recommendation |
 |---|---|---|---|
 | R1 | The by-hand erase procedure (how `deleteAccount` runs for one account id in production) gates S1. An engineering consequence of decision 139, which keeps the admin tool B0.25 off step 7's path, not a change to it | §2.3, §11 step 5 | yes; the procedure can be lighter than B0.25. **✅ Answered 2026-11-13, decisions 141–142:** « Build it first » — B0.25's server half (`DELETE /admin/provider-accounts/{id}/erase` and a read-only lookup), which **amends decision 139**: that half now gates S1 and step 7; and « Approve this check » — a one-time code to the stored address, CONFIRMER, no phone callback ([admin-pro-account-erase.md](admin-pro-account-erase.md); §11 step 3a) |
 | R2 | Does the policy's « sans nous écrire » (« Vos droits ») stay unconditional for Pros, given decision 139? | §11 step 4, B0.23 | asked in B0.23's PR, with its French words. **✅ Answered 2026-11-13, decision 143:** (b), it stays, and a sentence sends locked-out people to « Aide & Support », promising a reply; with options A and B ([web-privacy-pro-deletion.md](web-privacy-pro-deletion.md)) |
-| R3 | `web/public/llms.txt:32` says « no crash reporting »; the policy discloses Sentry. S1 edits that file | §2.4 | S1 corrects that sentence to match the policy. *2026-11-14: S1 does so (`web/public/llms.txt`, held by `tests/legal.test.tsx` « llms.txt does not deny what we ship either »); the owner's answer to R3 is not recorded here* |
+| R3 | `web/public/llms.txt:32` says « no crash reporting »; the policy discloses Sentry. S1 edits that file | §2.4 | S1 corrects that sentence to match the policy. *2026-11-14: S1 carries the change, **not yet answered**: it is asked in S1's PR and S1 does not merge before the answer is recorded here and in the Status, with its decision number. The sentence asked about, replacing « Myweli runs no analytics, no crash reporting and no advertising SDK, sets only »:* « Myweli runs no analytics and no advertising SDK. When something fails, an error report goes to Sentry (servers in Germany) with the visitor's identity, cookies and input removed; nothing is sent when nothing fails. Myweli sets only » *(the policy's Sentry paragraph, `politique-confidentialite/page.tsx:100-114`, and `web/sentry.{client,server,edge}.config.ts`: `tracesSampleRate: 0`, `sendDefaultPii: false`). Held by `tests/legal.test.tsx` « llms.txt does not deny what we ship either ». If the owner declines, only that sentence and that test are reverted; the `/pro/suppression-compte` line stays (§6)* |
 | R4 | The e-mail provider's send logs (Resend) and Sentry's events: retention UNVERIFIED, so not stated, as the backups | §2.3 | a read-only read with B0.28, on the owner's yes |
 
 **Filed, not built by B0.19** (BACKLOG batch 0): B0.24 the purge decision, before step 10; B0.25
