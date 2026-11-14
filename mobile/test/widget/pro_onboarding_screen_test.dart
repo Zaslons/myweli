@@ -850,6 +850,51 @@ void main() {
       }, variant: bothPlatforms);
     }
 
+    // While the page leaves after a switch that did not happen, it keeps
+    // its skeleton: the app-wide store still holds the salon the owner
+    // stayed on, and its state must never show under the notice about the
+    // other (§6.2) — not for the one frame of the page's way out either.
+    for (final fault in _SwitchFault.values) {
+      testWidgets('the feed row, a switch that does not happen '
+          '(${fault.name}): the page leaves on its skeleton, never the other '
+          'salon\'s state', (tester) async {
+        MockData.seedPendingRequest(_p1);
+        pro.switchFault = fault;
+        final (:auth, router: _) = await pumpScreen(
+          tester,
+          at: '/pro/notifications',
+          notice: '/pro/onboarding?salon=provider2',
+          rounds: 1,
+        );
+        final store = Provider.of<ProOnboardingProvider>(
+          tester.element(find.text('the notice row')),
+          listen: false,
+        );
+        await tester.runAsync(() => store.load(auth.provider!, salonId: _p1));
+        expect(store.salonGoLiveState?.name, 'pending');
+
+        await tester.tap(find.text('the notice row'));
+        var framesWithPage = 0;
+        for (var i = 0; i < 150; i++) {
+          await tester.pump(const Duration(milliseconds: 16));
+          if (find.byType(ProOnboardingScreen).evaluate().isEmpty) continue;
+          framesWithPage++;
+          expect(
+            find.text(SalonValidationCopy.pendingTitle, skipOffstage: false),
+            findsNothing,
+            reason: 'frame $i: provider1\'s banner under the notice',
+          );
+          expect(
+            find.textContaining('étape', skipOffstage: false),
+            findsNothing,
+            reason: 'frame $i: a checklist under the notice',
+          );
+        }
+        expect(framesWithPage, greaterThan(0));
+        expect(find.text('stub home'), findsOneWidget);
+      }, variant: bothPlatforms);
+    }
+
     testWidgets('a tapped push: `ensureSalon` switches before the route '
         'opens, and the screen does not switch again', (tester) async {
       MockData.seedRefused(_p2, code: 'unconfirmed');

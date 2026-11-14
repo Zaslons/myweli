@@ -80,11 +80,14 @@ class _ProOnboardingScreenState extends State<ProOnboardingScreen> {
       final router = GoRouter.maybeOf(context);
       final outcome = await auth.switchSalonOutcome(wanted);
       if (!mounted) return;
-      setState(() => _switching = false);
       // « Switched » to a salon the answer does not describe — a server that
       // kept the old one — is no switch either, and is said once.
       final landed = auth.activeSalon?.id == wanted;
       if (outcome != SalonSwitchOutcome.switched || !landed) {
+        // The page leaves on its skeleton (`_switching` stays true): a
+        // refused or offline switch reset nothing, so the store still holds
+        // the salon the owner stayed on — never shown under this notice,
+        // not for the frames of the page's way out either.
         router?.go(auth.isStaff ? '/pro/staff' : '/pro/dashboard');
         AppSnackBar.showOn(
           messenger,
@@ -95,6 +98,7 @@ class _ProOnboardingScreenState extends State<ProOnboardingScreen> {
         );
         return;
       }
+      setState(() => _switching = false);
     }
     final pro = auth.provider;
     if (pro != null) unawaited(_load(pro, auth.activeSalonId));
