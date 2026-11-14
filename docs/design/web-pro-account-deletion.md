@@ -7,7 +7,7 @@
 | **Owner** | the project owner: the sign-off on §5 sentence by sentence, every merge and every production or console step |
 | **Last updated** | 2026-11-14 |
 | **PRD ref / phase** | FR-AUTH-005 [V1] « Account deletion & data export request (store-policy + data-law compliance) » (`docs/PRD.md:344`) · V1 · Android release, before android-play-release step 7 |
-| **BACKLOG item** | B0.19 · decisions 137–140 · its two gates: B0.22 (the backend erase gaps, [pro-deletion-erase-gaps.md](pro-deletion-erase-gaps.md)) and B0.23 (the privacy policy's correction) · filed: B0.24–B0.28 · R8 of [pro-android-signup.md](pro-android-signup.md) (§6.3 `:586-600`, R8 `:1000`, §9.2 row `:859`, at docs PR 0b's head) · bounded by decision 73 |
+| **BACKLOG item** | B0.19 · decisions 137–140 · its two gates: B0.22 (the backend erase gaps, [pro-deletion-erase-gaps.md](pro-deletion-erase-gaps.md)) and B0.23 (the privacy policy's correction) · since decision 141, also B0.25's server half ([admin-pro-account-erase.md](admin-pro-account-erase.md)) · filed: B0.24–B0.28 · R8 of [pro-android-signup.md](pro-android-signup.md) (§6.3 `:586-600`, R8 `:1000`, §9.2 row `:859`, at docs PR 0b's head) · bounded by decision 73 |
 | **ROADMAP entry** | [2026-11-13-pro-account-deletion-spec.md](../roadmap/entries/2026-11-13-pro-account-deletion-spec.md) |
 | **Related** | [play-store-forms.md](play-store-forms.md) §0.1 `:111`, §1 `:187`, §4 `:358-362`, §7.3 `:642-645` · [android-play-release.md](android-play-release.md) §4 step 7 · [pro-deletion-erase-gaps.md](pro-deletion-erase-gaps.md) (B0.22, the backend half of decision 137) · [pro-account-deletion-export.md](pro-account-deletion-export.md) (the deletion it documents) · [demo-account-deletion-lock.md](demo-account-deletion-lock.md) · [legal-l1.md](legal-l1.md) (`LegalPage`) · [app-review-round-2.md](app-review-round-2.md) §5 (the five pages) · [web-pro-access.md](web-pro-access.md) (`ProAuthHeader`) · the read-only audit of 2026-11-13 (session notes, not in the repo) |
 | **Skills checked** | myweli-web-guardrails (invoked for this spec) · [WEB.md](../WEB.md) · [WEB-SYSTEM.md](WEB-SYSTEM.md) §4, §9, §12–§15 · [SYSTEM.md](SYSTEM.md) §12, §13.2, §13.3, §17 · myweli-verification-guardrails' marking rule applied (not invoked) |
@@ -36,7 +36,8 @@ decision 73 does not bind it (it is not one of the five store-linked pages) and 
 **Out of scope:** any backend change in this PR. The erase gaps are B0.22 (decision 137,
 [pro-deletion-erase-gaps.md](pro-deletion-erase-gaps.md)), a backend PR and a deploy of their own
 that gate this page's merge and android-play-release step 7 (§11). Filed, not built here: a purge
-decision (B0.24, decision 138), an admin « erase a Pro account » tool (B0.25, decision 139),
+decision (B0.24, decision 138), an admin « erase a Pro account » tool (B0.25, decision 139; *2026-11-13:*
+its server half gates this page since decision 141, §11 step 3a),
 « Supprimer mon compte » on the revoked path (B0.26, decision 139), deleting a salon's photos at
 the deletion (B0.27, decision 137), stating the backups (B0.28, decision 140). Also out: the Pro
 app and its five getters; any edit to the five pages in this PR (the policy's correction is B0.23,
@@ -618,12 +619,18 @@ Plus a one-off check recorded in the PR: the four legal pages and `/support` ren
    re-submitted before the deploy (erase-gaps §10, O2). A document replaced before the deploy is
    outside B0.22 and would make the KYC bullet false for that account. *(2026-11-13, decision 143:
    **O1** is settled here too — a read-only count, then those pins erased once on the owner's yes,
-   or the gap accepted in writing — because the page's and the policy's pin sentences depend on it.)*
+   or the gap accepted in writing — because the policy's pin sentences depend on it. Under (b), S1's
+   page keeps its approved copy: each of its sentences describes a deletion made from it, after B0.22 is
+   live (the rule below), when the pin goes; the policy, which also speaks for owners deleted before the
+   deploy, carries the variant ([web-privacy-pro-deletion.md](web-privacy-pro-deletion.md) §2). A
+   rewording of the page would be a new sign-off.)*
    - **3a. R1 — the admin erase command** ([admin-pro-account-erase.md](admin-pro-account-erase.md),
      decisions 141–142; B0.25's server half). Its backend PR from `main` merges **before B0.22's** if it
      is ready, and B0.22's deploy then carries both (rolling it back removes both); if not, B0.22 does
      not wait, and R1 deploys alone later. Then its read-back, and **the procedure (its §10) approved
-     by the owner, before step 4.**
+     by the owner, before step 4.** *(Engineering consequence, not part of decision 143: R1's deploy and
+     read-back come before step 4 too, so the procedure is approved against routes that answer, and
+     B0.23's sentence 2 sends people to support from its first day.)*
 4. **B0.23 — the policy PR**, text only, on `/politique-confidentialite`:
    - Pros are no longer sent to the client « Mon compte » on the web.
    - « Conservation » names a deleted owner's salon, kept with no limit set yet (decision 138),
@@ -773,8 +780,9 @@ Cloud SQL describe and a manifest.
 - [ ] `app/pro/suppression-compte/page.tsx`'s doc comment links this spec; this spec's status
       updated (Built, then Live with the date of the live read).
 - [ ] WEB-SYSTEM §13, §14 and §15 row 27, and WEB.md:195, updated in the same PR (§11).
-- [ ] B0.22 deployed and read back, O1 and O2 settled (the R2 listing or the owner's confirmation),
-      the admin erase command deployed and its procedure approved (decisions 141–142), and B0.23
+- [ ] B0.22 deployed and read back, O1 settled (a count, then those pins erased once or the gap accepted
+      in writing) and O2 settled (the R2 listing or the owner's confirmation), the admin erase command
+      deployed and read back and its procedure approved (decisions 141–142), and B0.23
       merged and read live, **before** S1 merges; the
       live read of §11 step 6 done and recorded.
 - [ ] B0.22's merge, B0.23 and S1 outside the step 3 (c) merge hold; B0.23 and S1 merged, and
@@ -837,3 +845,10 @@ manifest read as a floor (live R2 rules UNVERIFIED); decision 129, not 123, for 
 decision 137's commune-and-city clause moved to an engineering consequence. In B0.22's spec: a
 refused submit deletes only its promoted keys that the locked list does not hold (test 9). None
 was rejected.
+
+**2026-11-14, a review of this branch (19 findings; 3 on this spec), each checked before folding; none
+rejected.** The header and §1 name B0.25's server half as a gate (decision 141). §11 step 3 says what S1's
+page says under O1 (b): its approved copy, since it speaks of a deletion made after B0.22 is live; the
+policy carries the variant. Step 3a records R1's deploy and read-back before B0.23 as an engineering
+consequence, the rule the merge order already gave; BACKLOG, the policy's spec and the roadmap entry now
+say the same. The DoD names O1's settlement apart from O2's.

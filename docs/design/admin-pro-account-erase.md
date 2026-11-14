@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Module** | backend — `DELETE /admin/provider-accounts/{id}/erase` and a read-only `POST /admin/provider-accounts/lookup`; and the written support procedure that uses them (§10) |
-| **Status** | **Approved 2026-11-13 (decisions 141, 142) — not built.** Built from option 1b of the R1 draft (session notes, not in the repo; a review's 15 findings folded in before the owner read it). The French replies of §10.3 are drafts, signed off by the owner in the backend PR |
+| **Status** | **Approved 2026-11-13 (decisions 141, 142) — not built.** Built from option 1b of the R1 draft (session notes, not in the repo; a review's 15 findings folded in before the owner read it). The French replies of §10.3 are drafts, signed off by the owner in the backend PR. A review of this branch on 2026-11-14 tightened the check, the procedure and the replies (Review log, end); the owner's answers are unchanged |
 | **Owner** | the project owner: the merge, the production deploy, the procedure's approval, and every support erase, each on the owner's yes |
 | **Last updated** | 2026-11-14 |
 | **PRD ref / phase** | FR-AUTH-005 [V1] (`docs/PRD.md:344`) · V1 · gates B0.19's page (S1), and so android-play-release step 7 (decision 141) |
@@ -81,7 +81,8 @@ DELETE on a sub-path, as the precedent (`erase.dart:15-18`). Body **required**:
 | Outcome | Status | `error` |
 |---|---|---|
 | erased | **204** | — |
-| body missing or not JSON, a field missing, `reason` outside the set, `caseRef` off pattern | 400 | `invalid_input` — nothing read, nothing written |
+| body missing or not a JSON object, or a field of the wrong JSON type | 400 | `invalid_body` — the code every admin route gives a non-object body, and the one `observabilityMiddleware` gives a field read through `optionalString` (`docs/BACKEND.md` §2, `backend/lib/src/http/body_fields.dart:40`); nothing written |
+| a field missing or empty, `reason` outside the set, `caseRef` off pattern | 400 | `invalid_input` — every field read before any is acted on; nothing written |
 | no token / not an admin | 401 / 403 | `unauthorized` / `forbidden` (the gate) |
 | unknown id; or `deleteAccount` answered `forbidden` (a concurrent call won, §4.3) | 404 | `not_found` |
 | `confirmEmail` ≠ the stored e-mail, or no e-mail on file | 409 | `confirmation_mismatch` — nothing written |
@@ -95,7 +96,8 @@ a status that reads « not found ». Each code gets its own arm.
 ### 3.2 `POST /admin/provider-accounts/lookup`
 
 Read-only. **POST, the address in the body**: a `GET ?email=` would put it in Cloud Run's request log. Body
-`{"email": "<address>"}`, trimmed, 3–254 characters, one `@`, else 400 `invalid_input`. **Exact match only**
+`{"email": "<address>"}`: not a JSON object, or `email` not a string → 400 `invalid_body`; trimmed,
+3–254 characters, one `@`, else 400 `invalid_input`. **Exact match only**
 (`accountByEmail`): one account or 404 `not_found`, never a prefix, never a list. 200 answers
 `{accountId, email, createdAt, ownedSalons: [{id, name, status}], memberships: [{providerId, salonName, role, status}]}`.
 
@@ -110,7 +112,8 @@ audited**, like every read-only admin support view (`admin_user_service.dart:42-
 `backend/lib/src/admin/admin_provider_service.dart:89-98`).
 
 **Also in the PR:** three schemas (`AdminProviderAccountEraseRequest`, `AdminProviderAccountLookupRequest`,
-`AdminProviderAccountLookup`) and `web/lib/api/schema.ts` regenerated (`web/package.json:15`, `gen:api`).
+`AdminProviderAccountLookup`), the 400 of both paths listing `invalid_body` and `invalid_input`, and
+`web/lib/api/schema.ts` regenerated (`web/package.json:15`, `gen:api`).
 That file is the website's, so the merge also deploys the website, types only (B0.1).
 
 ## 4. Architecture
@@ -119,7 +122,9 @@ That file is the website's, so the merge also deploys the website, types only (B
 - **`backend/lib/src/admin/admin_provider_account_service.dart`** (new): `lookup(email)` and
   `erase(adminId, id, {confirmEmail, reason, caseRef})`, returning `AdminResult`
   (`backend/lib/src/admin/admin_kyc_service.dart:8`). It holds a `ProviderAccountService` it is **given**,
-  plus the auth, membership, providers and audit repositories. No `dart_frog`, no SQL (BACKEND.md §1).
+  plus the auth, membership, providers and audit repositories. It reaches `deleteAccount` only through
+  that service: one `deleteAccount(` in the file, on the `ProviderAccountService` field, never on the auth
+  repository (test 11). No `dart_frog`, no SQL (BACKEND.md §1).
 - **`backend/routes/admin/provider-accounts/[id]/erase.dart`** and **`…/provider-accounts/lookup.dart`**
   (new), thin: verb, body validation, `principalOf(context)!.userId` (the gate guarantees an admin, as
   `erase.dart:31`), delegate, map. No `deleteAccount(` text in either.
@@ -155,10 +160,10 @@ No migration. One row per erase in `audit_log` (`backend/lib/src/db/migrations.d
 
 | Row | Delta written in the backend PR |
 |---|---|
-| **T83 (new)** — support erase of a Pro account (`DELETE /admin/provider-accounts/{id}/erase` · `POST /admin/provider-accounts/lookup`) | **S/T/E/I** — a forged request gets someone else's account erased; a stolen admin token erases any Pro; a wrong id erases the wrong person; the lookup leaks addresses. **Mitigations:** identity proven by a one-time code sent only to the stored address (§10, decision 142); the T17 gate; `confirmEmail` against a wrong id; the demo lock and the bookings gate with no override; audited after success with a closed reason and a case number, no PII; the lookup exact-match, POST-bodied, minimal. **Residuals:** one `admin` role; a stolen 15-minute token can erase, as it can already erase a consumer and suspend a salon; no step-up yet (B0.25); a 5xx after the identity delete leaves no row |
+| **T83 (new)** — support erase of a Pro account (`DELETE /admin/provider-accounts/{id}/erase` · `POST /admin/provider-accounts/lookup`) | **S/T/E/I** — a forged request gets someone else's account erased; a stolen admin token erases any Pro; a wrong id erases the wrong person; the lookup leaks addresses. **Mitigations:** identity proven by a one-time code sent only to the stored address and confirmed from it (§10.1, decision 142); the T17 gate; `confirmEmail` against a wrong id; the demo lock and the bookings gate with no override; audited after success with a closed reason and a case number, no PII; the lookup exact-match, POST-bodied, minimal. **Residuals:** one `admin` role; a stolen 15-minute token can erase, as it can already erase a consumer and suspend a salon; no step-up yet (B0.25); a 5xx after the identity delete leaves no row; whoever can read the stored mailbox (for example a salon inbox shared with staff) can confirm |
 | **T17** | its audited mutations gain `provider_account.erase` (closed reason, `caseRef`); its read-only views gain the lookup |
 | **T53** | a second caller, the admin path, through the same `providerAccountService` singleton (test 11) |
-| **T69** | the inventory's expected set gains `lib/src/admin/admin_provider_account_service.dart` |
+| **T69** | the inventory's expected set gains `lib/src/admin/admin_provider_account_service.dart`; that file's one call is on the service, never on the repository (test 11, since the inventory works per file) |
 
 **Abuse and rate.** No public surface: both routes sit behind the admin gate, which the per-IP limit does
 not cover and need not: the token is the control. The lookup answers one exact address; walking it means
@@ -184,12 +189,12 @@ the shape of `backend/test/admin_user_test.dart:78-113`):
 | 3 | 204; `accountById` null; each owned salon `draft`, phone, address, WhatsApp and Mobile Money cleared (the pin too once B0.22 is in); a **member-only salon untouched** | a hand-written subset instead of `deleteAccount` |
 | 4 | one `provider_account.erase` row with that id, that code and `{caseRef}`; its JSON holds neither the e-mail nor the name | `confirmEmail` into `metadata` |
 | 5 | another address → 409 `confirmation_mismatch`, nothing written, no row; a case variant of the right one passes | compare without lower-casing |
-| 6 | no body, an unknown `reason`, a `caseRef` off pattern → 400 `invalid_input`, nothing written | `caseRef` optional |
+| 6 | no body, a non-object body, `{"confirmEmail": 5, …}` → 400 `invalid_body`; a missing field, an unknown `reason`, a `caseRef` off pattern → 400 `invalid_input`; the lookup likewise with `email`; nothing written | `caseRef` optional; a field read with a cast (a 500) |
 | 7 | unknown id → 404 `not_found`, no row | answer 403 like `/me/provider` |
 | 8 | a future booking → 409 `future_bookings`, the salon still `active`, no row | append before `deleteAccount` |
 | 9 | the demo identity → 403 `demo_account_locked`, nothing written, no row | the precedent's catch-all (404) |
 | 10 | a second call → 404, still one row | append before step 1 |
-| 11 | wiring, the `salon_validation_wiring_test.dart` idiom (comments stripped): the service's construction passes `providerAccountService`; `dependencies.dart` holds one `ProviderAccountService(` | construct a fresh one |
+| 11 | wiring, the `salon_validation_wiring_test.dart` idiom (comments stripped): the service's construction passes `providerAccountService`; `dependencies.dart` holds one `ProviderAccountService(`; in `admin_provider_account_service.dart`, exactly one `deleteAccount(`, on the `ProviderAccountService` field, and none on a `ProviderAuthRepository`-typed one | construct a fresh one; call `_auth.deleteAccount(id)` in the service |
 | 12 | lookup: 200 with exactly §3.2's keys (no `name`, `phoneNumber`, `kycDocs`); a case-insensitive match; 404 otherwise; `ownedSalons` = the salons test 3 sees hidden | return `account.toJson()` |
 | 13 | T69 inventory red until the service file joins its set, with a comment | — (red by construction) |
 | 14 | `validation_labels_test.dart` red until the label lands | — (red by construction) |
@@ -202,17 +207,25 @@ Then the full backend suite, `dart format`, `dart analyze --fatal-infos --fatal-
 
 1. This spec, in docs PR #790. The procedure (§10) and its French replies go to the owner with the backend PR.
 2. **The backend PR from `main`** (`feat/admin-pro-account-erase`): code, tests, contract, `schema.ts`, the
-   T-rows, the label, `// Design:` links. CI green; the owner merges **outside the merge hold** of
+   T-rows, the label, `// Design:` links, and [demo-account-deletion-lock.md](demo-account-deletion-lock.md)
+   §6.3's row « another route that deletes … a provider account? » and §6.4, which say no admin route
+   deletes one: they name this route (through the service, so the lock holds) and the invitation-accept
+   caller the row already misses (`routes/auth/provider/invitations/accept.dart`). CI green; the owner
+   merges **outside the merge hold** of
    android-play-release step 3 (c) and outside any Apple review (the merge deploys the website's types).
 3. **The production deploy, on the owner's yes** (`deploy-backend.yml`, `image_tag` = a merge commit),
    outside any Apple review. If it merged before B0.22, **B0.22's deploy carries both**; B0.22 never waits
-   for it. **A shared deploy has a shared rollback:** rolling it back removes both, and while rolled back
+   for it; if it is not ready by then, it deploys alone later, still before B0.23. **A shared deploy has a
+   shared rollback:** rolling it back removes both, and while rolled back
    no pin is erased and no support erase can run.
 4. **Read-back, nothing mutated:** the revision at 100 %; `/health` 200; with an admin token, an erase of a
    made-up id with a valid body → the route's JSON 404 `not_found` (not the router's); a lookup of
    `personne@myweli.test` → 404. *Optional, on the owner's yes:* a throwaway Pro account with a salon and
    a pin, erased through the route and read back as §10.2 step 8.
-5. **The procedure approved** by the owner, **before B0.23 merges** (decision 143), then copied into
+5. **The procedure approved** by the owner, after step 4's read-back and **before B0.23 merges** (decision
+   143). *Engineering consequence, not part of the answer:* the deploy and its read-back come before B0.23
+   too, so the procedure is approved against routes that answer, and B0.23's sentence 2 sends people to
+   support from its first day. Then copied into
    `docs/DEPLOYMENT.md` as « Effacer un compte Pro sur demande au support ». Then S1 (web spec §11).
 6. Docs: this spec → Built, then Live; BACKLOG B0.25's server half ticked.
 
@@ -222,51 +235,94 @@ Then the full backend suite, `dart format`, `dart analyze --fatal-infos --fatal-
 - **Who.** The owner, the only admin. Claude may draft a reply or a case summary **from the account id
   and the outcome only**; nobody pastes the person's address, name or messages into a Claude session.
 - **Where.** Steps 2–8 in a separate terminal app (Terminal or iTerm), **not** the Claude app's terminal
-  panel, which a Claude session can read. Clear its scrollback at the end.
-- **The check.** Every message is a **new** message, never « Répondre », so a `Reply-To:` is never used.
-  The challenge goes only to the address **stored on the account**, read from the lookup, never to the
-  sender's. Two values per case: `CASE` (`MWP-` + 6 random characters, not secret, in every subject) and
-  `CODE` (8 random characters, fresh per case, never derived from `CASE`, written only in T1 and the case
-  record). Proof: a reply **in T1's thread** carrying `CODE` and CONFIRMER within 14 days. Second check,
-  once it is confirmed readable in Outlook: the reply's `Authentication-Results` shows `dmarc=pass` or
-  `compauth=pass`; a `fail` stops the case. **No phone callback.** A person who lost the stored mailbox
-  gets T4, and nothing is erased.
-- **Delays** (the owner's call; no legal deadline claimed): a first reply within 2 business days; the
-  deletion done within 30 days of the confirmation.
+  panel, which a Claude session can read. Clear its scrollback after each lookup (steps 3 and 5) and at
+  the end.
+- **Escalate** (used below): the case leaves these steps; the owner decides it by hand and writes the
+  decision, and why, in the case record. Nothing is erased on an escalated case without that line, and
+  T0's « au plus tard dans 14 jours » still holds.
+- **Two values per case.** `CASE` (`MWP-` + 6 random characters, not secret, in every subject) and `CODE`
+  (8 random characters, fresh per case, never derived from `CASE`, written only in T1 and the case
+  record), each made in that terminal, never typed by hand:
+  ```zsh
+  echo "MWP-$(LC_ALL=C tr -dc 'A-HJ-NP-Z2-9' </dev/urandom | head -c 6)"   # CASE
+  LC_ALL=C tr -dc 'A-HJ-NP-Z2-9' </dev/urandom | head -c 8; echo            # CODE
+  ```
+- **Who receives what.** Every message is a **new** message, never « Répondre », so a `Reply-To:` is never
+  used. The challenge (T1) goes only to the address **stored on the account**, read from the lookup, never
+  to the sender's. The acknowledgement (T0) and a « could not verify » (T4) or « no account » (T5) answer
+  go to the sender's address, as new messages; T2 and T3 go to the stored address.
+- **No account oracle.** Steps 1–4 run the same day. When the sender's own address is the only thing
+  given: T1 to it if it holds an account, else T5. When the person names another address, or a salon:
+  T1 goes to the stored address if an account is found, and nothing goes anywhere if none is; either way
+  the sender's next message is T4, 14 days after the request that named it (T0's day when it was the
+  first), unless the stored address has confirmed by then (T2 then closes the case). Neither the reply
+  nor its timing tells the sender whether an account, or a hidden salon, exists.
+- **The proof** needs all three: (a) the reply's `From:` is the lookup's `email`, compared
+  case-insensitively; (b) it is in T1's thread and carries `CODE` and CONFIRMER, within 14 days of T1;
+  (c) once the header is confirmed readable in Outlook, its `Authentication-Results` shows `dmarc=pass`
+  or `compauth=pass` **for that address's domain**. Until then, (a) and (b) are the proof, which holds
+  because `CODE` went only to the stored mailbox. (b) alone says nothing about the sender: Outlook groups
+  messages by subject, and `CASE`, in T0's subject, reached the sender. A reply that misses (a) or (b) is
+  not a proof, and the window keeps running. Header results: `fail` → the case is marked forged, nothing
+  is erased, and the sender gets T4 when the window closes; `none`, `softfail`, `bestguesspass`, or no
+  result for that domain → escalate. **No phone callback.** A person who lost the stored mailbox gets
+  T4, and nothing is erased. **Accepted:** whoever can read the stored mailbox (for example a salon inbox
+  shared with staff) can confirm.
+- **Delays** (the owner's call; no legal deadline claimed): a first reply (T0) within 2 business days;
+  every sender hears from us within 14 days of T0, as T0 says; the deletion done within 30 days of the
+  confirmation, or, on T3's suspension path, within 30 days of the last appointment.
 - **The case record.** Kept by the owner outside the mailbox, **never in git**, with no name and no address:
   `CASE`, dates, the account id, the path (no sign-in / access removed), the proof (« CODE confirmé dans le
-  fil de T1 le … — en-tête : pass | non lisible »), the owner's yes, the outcome, the audit row's time. How
-  long the mailbox thread is kept stays the owner's to decide.
+  fil de T1 le …, depuis l’adresse enregistrée — en-tête : pass | non lisible »), the owner's yes, the
+  outcome, the audit row's time. How long the mailbox thread is kept stays the owner's to decide; T1 and
+  T2 tell the person that the thread stays.
 - **Once, before the first case.** Whether `support@myweli.com` reaches Apple private-relay addresses (a
   read in Apple's developer account, on the owner's yes; until then a bounce is escalated and nothing is
   erased); whether `Authentication-Results` is readable in Outlook.
 
 ### 10.2 Steps
-1. **Receive.** Open a case. Move the thread into a « Suppressions Pro » folder. Within 2 business days,
-   send **T0** to the sender's address, as a new message. It never says whether an account exists.
-2. **Sign in as admin** (zsh; nothing echoed, nothing in the history; stop unless « OK: signed in »; the
-   token lasts about 15 minutes):
+1. **Receive.** Open a case and make `CASE` (§10.1). Move the thread into a « Suppressions Pro » folder.
+   Within 2 business days, send **T0** to the sender's address, as a new message. It never says whether
+   an account exists. Steps 2–4 follow the same day.
+2. **Sign in as admin** (zsh; nothing echoed, nothing in the history; the password never in a command's
+   arguments: `printf` is a builtin, so it reaches `jq` through a pipe; stop unless « OK: signed in »;
+   the token lasts about 15 minutes):
    ```zsh
    API=https://api.myweli.com
    read -r 'AE?Admin e-mail: '; read -rs 'AP?Admin password: '; echo
-   TOKEN=$(jq -n --arg e "$AE" --arg p "$AP" '{email:$e,password:$p}' \
+   TOKEN=$(printf '%s' "$AP" | jq -Rs --arg e "$AE" '{email:$e,password:.}' \
      | curl -sS -X POST "$API/admin/auth/login" -H 'content-type: application/json' --data @- \
      | jq -r '.accessToken // empty'); unset AP
    [[ -n $TOKEN ]] && echo 'OK: signed in' || echo 'STOP: sign-in failed'
    ```
-3. **Locate** by the sender's address, or one the person names; by a salon name, `GET $API/admin/providers?q=…`
-   → the salon → `GET $API/admin/salons/<id>/validation` → the owner's `email`, then this lookup on it:
+3. **Locate** by the sender's address, or one the person names:
    ```zsh
    read -r 'EM?Address to look up: '
    jq -n --arg e "$EM" '{email:$e}' | curl -sS -X POST "$API/admin/provider-accounts/lookup" \
      -H "authorization: Bearer $TOKEN" -H 'content-type: application/json' --data @- | jq .
    ```
-   **Stop:** no account at the sender's address and no salon named → T5; a salon name matching nothing →
-   T4; `revue@myweli.test`, an account with no e-mail, or a member asking for the salon's own data → escalate.
-4. **Challenge.** Make `CODE`; send **T1** as a new message to the lookup's `email`. A wrong code, a `fail`
-   header, or no reply within 14 days → T4, close.
-5. **The owner's yes.** The case record lists the owned salons and their status from the lookup, then
-   gains « Oui — <date> — <accountId> — CODE confirmé dans le fil de T1 le <date> ». Without it, no step 6.
+   By a salon name, each read filtered, never printed whole (the validation view carries the owner's
+   name, phone, contact and KYC status, and the salon's address, phone and pin,
+   `backend/lib/src/validation/salon_validation_service.dart:370-437`):
+   `GET $API/admin/providers?q=…` `| jq '.items[] | {id, name, status}'` → the salon →
+   `GET $API/admin/salons/<id>/validation` `| jq '.owner | {accountId, email}'` → this lookup on that
+   `email`. The case record takes what it needs; then clear the scrollback.
+   **Stop:**
+   - the sender's own address is the only thing given, and it holds no account → T5;
+   - another address or a salon named → §10.1's « no account oracle »: T1 only if an account is found,
+     and T4 to the sender on day 14 whatever was found, a salon name matching nothing included;
+   - by a salon name: the validation view shows one active owner only (`activeOwnersOf`, the earliest
+     invited, `backend/lib/src/access/membership_repository.dart:125-129`), so a requester who says they
+     are not that owner (a member, or one of several owners) → escalate, and no T1 to the owner shown;
+   - `revue@myweli.test`, an account with no e-mail, or a member asking for the salon's own data → escalate.
+4. **Challenge.** Make `CODE` (§10.1); send **T1** as a new message to the lookup's `email`. Only §10.1's
+   proof counts. No proof within 14 days → T4 to the sender, close; a `fail` header → marked forged, T4
+   when the window closes; `none`, `softfail` or `bestguesspass` → escalate.
+5. **The owner's yes,** right before step 6: sign in again (step 2) and look the stored address up again
+   (step 3), since the token lasts minutes and the owned salons may have changed since the challenge.
+   The case record lists the owned salons and their status from **this** lookup (then clear the
+   scrollback), and gains « Oui — <date> — <accountId> — CODE confirmé dans le fil de T1 le <date>, depuis
+   l’adresse enregistrée — en-tête : pass | non lisible ». Without it, no step 6.
 6. **Run:**
    ```zsh
    read -r 'ID?Account id: '; read -r 'RS?Reason (support_no_sign_in | support_access_removed): '
@@ -277,96 +333,135 @@ Then the full backend suite, `dart format`, `dart analyze --fatal-infos --fatal-
          -H "authorization: Bearer $TOKEN" -H 'content-type: application/json' --data @-
    fi
    ```
-   **204** → step 8. **409 `future_bookings`** → T3; on the owner's yes, the admin suspension
-   (`provider.suspend`, no free-text reason) stops new bookings; run again after the last one. **409
-   `confirmation_mismatch`** → back to step 3. **403 `demo_account_locked`** → stop. **404** → gone already,
-   or a wrong id: look up again. **400** → fix the value. **5xx** → step 7.
+   **204** → step 8. **401** → the token expired: step 2, then step 6 again. **409 `future_bookings`** →
+   T3; on the owner's yes, the admin suspension (`provider.suspend`, no free-text reason) hides the salon
+   from discovery, refuses new bookings and starts the website rebuild
+   (`backend/lib/src/admin/admin_provider_service.dart:100-110`); run again after the last appointment,
+   within 30 days of it. **409 `confirmation_mismatch`** → back to step 3. **403 `demo_account_locked`** →
+   stop. **404** → gone already, or a wrong id: look up again. **400** → fix the value. **5xx** → step 7.
 7. **After a 5xx,** run the lookup. Still there → retry later (the method converges). 404 → erased **with no
    audit row**: the case record says « effacé ; 5xx à HH:MM ; aucune ligne d’audit ». A retry cannot
    re-fire the website rebuild once the salons read `draft` (`:144-148`); step 8 (f) checks the page.
 8. **Read back:** (a) the same DELETE → 404; (b) the lookup → 404; (c) each owned salon,
-   `GET $API/admin/providers/<id>` → `draft`, phone and address empty, the pin null once B0.22 is live,
-   deposit off; (d) `GET $API/admin/audit?action=provider_account.erase&pageSize=5` → one row with that
-   id, code and `caseRef`, no e-mail (none in step 7's case); (e) public `GET $API/providers/<id>` → 404;
-   (f) after about 5 minutes, `https://myweli.com/<slug>` → 404 (prebuilt pages, `revalidate = 300`,
-   `web/app/[slug]/page.tsx:33`; still there after 10 minutes → record it, check after the next build).
-   Not observable here: the KYC objects, the Apple revoke, the device tokens. Then
-   `unset TOKEN EM ID RS CR AE` and clear the scrollback.
-9. **Reply** with **T2**, a new message to the stored address. **Close** the case record. In the repo,
-   only a dated count (« n effacements Pro sur demande au support le … »), no name, no address.
+   `GET $API/admin/providers/<id>` `| jq '{status, phoneNumber, address, whatsapp, latitude, longitude, depositRequired}'`
+   (never unfiltered: it carries `recentAppointments`, 20 bookings with clients' names and phone numbers,
+   `backend/lib/src/admin/admin_provider_service.dart:89-98`) → `draft`, phone and address empty, the pin
+   null once B0.22 is live, deposit off; (d) `GET $API/admin/audit?action=provider_account.erase&pageSize=5`
+   → one row with that id, code and `caseRef`, no e-mail (none in step 7's case); (e) public
+   `GET $API/providers/<id>` → 404; (f) after about 5 minutes, `https://myweli.com/<slug>` → 404 (prebuilt
+   pages, `revalidate = 300`, `web/app/[slug]/page.tsx:33`; still there after 10 minutes → record it,
+   check after the next build). Not observable here: the KYC objects, the Apple revoke, the device
+   tokens. Then `unset TOKEN EM ID RS CR AE` and clear the scrollback.
+9. **Reply** with **T2**, a new message to the stored address, once (f) has passed for each owned salon,
+   or with T2's « sous peu » sentence for a salon still served (§10.3). **Close** the case record. In the
+   repo, only a dated count (« n effacements Pro sur demande au support le … »), no name, no address.
 
 ### 10.3 The replies — DRAFT — owner sign-off at the PR
 
-French, vouvoiement; a non-breaking space before `: ; ? !` when typed. `{CASE}` may appear anywhere,
-`{CODE}` only in T1. The pin sentence holds once B0.22 is live and its O1 settled, which §9 precedes.
+French, vouvoiement. The sendable text (the `>` lines) already holds a non-breaking space (U+00A0,
+invisible here) before `: ; ? !` and inside « », as the five pages write it: copy it from this file,
+never retype it. `{…}` marks a value or a paragraph to fill; the notes under a template are for the owner
+and are never sent. `{CASE}` may appear anywhere, `{CODE}` only in T1. The pin sentence holds once B0.22
+is live and its O1 settled, which §9 precedes.
 
 **T0 — Accusé de réception** (DRAFT — owner sign-off at the PR; to the sender's address)
-> Objet : Votre demande de suppression de compte MyWeli Pro — réf. {CASE}
+> Objet : Votre demande de suppression de compte MyWeli Pro — réf. {CASE}
 >
 > Bonjour,
 >
-> Nous avons bien reçu votre demande de suppression de compte MyWeli Pro. Pour protéger les comptes de nos utilisateurs, nous vérifions d’abord qu’elle vient bien du titulaire du compte. Nous revenons vers vous à ce sujet dans les prochains jours. Rien n’est supprimé sans cette vérification.
+> Nous avons bien reçu votre demande de suppression de compte MyWeli Pro. Pour protéger les comptes de nos utilisateurs, nous vérifions d’abord qu’elle vient bien du titulaire du compte. Vous aurez une réponse de notre part au plus tard dans 14 jours. Rien n’est supprimé sans cette vérification.
 >
 > L’équipe MyWeli
 
 **T1 — Confirmation, à l’adresse enregistrée sur le compte** (DRAFT — owner sign-off at the PR)
-> Objet : Confirmez la suppression de votre compte MyWeli Pro — réf. {CASE}
+> Objet : Confirmez la suppression de votre compte MyWeli Pro — réf. {CASE}
 >
 > Bonjour,
 >
-> Nous avons reçu une demande de suppression du compte MyWeli Pro associé à cette adresse e-mail. Si elle vient de vous, répondez à ce message en y recopiant le code de confirmation {CODE} et le mot CONFIRMER. Ce code n’est envoyé qu’à cette adresse : ne le communiquez à personne, pas même à quelqu’un qui dirait travailler pour MyWeli. Sans réponse de votre part dans les 14 jours, la demande est close et rien n’est supprimé.
+> Nous avons reçu une demande de suppression du compte MyWeli Pro associé à cette adresse e-mail. Si elle vient de vous, répondez à ce message depuis cette adresse, en y recopiant le code de confirmation {CODE} et le mot CONFIRMER. Ce code n’est envoyé qu’à cette adresse. Ne le communiquez à personne d’autre, pas même à quelqu’un qui dirait travailler pour MyWeli : recopiez-le seulement dans votre réponse à ce message. Sans réponse de votre part dans les 14 jours, la demande est close et rien n’est supprimé.
 >
-> La suppression est définitive. Votre compte (votre nom, votre adresse e-mail, le lien avec votre compte Google ou Apple), vos sessions, votre place dans chaque équipe et les identifiants de vos appareils sont supprimés. Si vous êtes propriétaire d’un salon, il est retiré du public ; ses numéros de téléphone, WhatsApp et Mobile Money, son adresse et son point sur la carte sont effacés. Tant qu’un rendez-vous confirmé ou en attente est à venir dans ce salon, la suppression est refusée. Après votre confirmation, nous supprimons votre compte au plus tard sous 30 jours.
+> La suppression est définitive. Votre compte (votre nom, votre adresse e-mail, le lien avec votre compte Google ou Apple), vos sessions, votre place dans chaque équipe et les identifiants de vos appareils sont supprimés. Si vous êtes propriétaire d’un salon, il est retiré du public ; ses numéros de téléphone, WhatsApp et Mobile Money, son adresse et son point sur la carte sont effacés. Tant qu’un rendez-vous confirmé ou en attente est à venir dans ce salon, la suppression est refusée. Après votre confirmation, nous supprimons votre compte au plus tard sous 30 jours, si aucun rendez-vous n’est alors à venir dans un salon dont vous êtes propriétaire. Nos échanges au sujet de cette demande restent dans notre messagerie.
 >
-> Ce qui est supprimé et ce qui est conservé est décrit ici : {https://myweli.com/pro/suppression-compte, une fois la page en ligne ; avant, https://myweli.com/politique-confidentialite}
+> {LIEN}
 >
-> Si vous n’avez rien demandé, ignorez ce message : votre compte reste tel quel.
+> Si vous n’avez rien demandé, ignorez ce message : votre compte reste tel quel.
 >
 > L’équipe MyWeli
 
+*Notes, not sent.* `{LIEN}`, once S1 is live (check its date before sending):
+> Ce qui est supprimé et ce qui est conservé est décrit ici : https://myweli.com/pro/suppression-compte
+
+Before S1, only once B0.23 has merged:
+> Ce qui est supprimé et ce qui est conservé est décrit ici : https://myweli.com/politique-confidentialite
+
+Before both, that paragraph is left out.
+
 **T2 — Suppression faite** (DRAFT — owner sign-off at the PR; to the stored address)
-> Objet : Votre compte MyWeli Pro est supprimé — réf. {CASE}
+> Objet : Votre compte MyWeli Pro est supprimé — réf. {CASE}
 >
 > Bonjour,
 >
-> Comme vous l’avez demandé et confirmé, nous avons supprimé votre compte MyWeli Pro le {date}. Toutes vos sessions sont fermées, dans l’application comme sur le web.{ Le salon {nom du salon} est retiré du public.}
+> Comme vous l’avez demandé et confirmé, nous avons supprimé votre compte MyWeli Pro le {date}. Toutes vos sessions sont fermées, dans l’application comme sur le web. {SALON}
 >
-> Ce que nous conservons, et combien de temps, est décrit ici : {le même lien que T1}
+> Nos échanges au sujet de cette demande restent dans notre messagerie.
+>
+> {LIEN}
 >
 > Ce message clôt votre demande.
 >
 > L’équipe MyWeli
 
+*Notes, not sent.* `{SALON}`, one sentence per owned salon, nothing for an account that owned none; once
+step 8 (f) has passed for it:
+> Le salon {nom du salon} est retiré du public.
+
+while step 8 (f) still finds its page:
+> Le salon {nom du salon} sera retiré du public sous peu.
+
+`{LIEN}`, under T1's conditions, with T1's link; left out before both:
+> Ce que nous conservons, et combien de temps, est décrit ici : {le même lien que T1}
+
 **T3 — Refus : rendez-vous à venir** (DRAFT — owner sign-off at the PR; to the stored address)
-> Objet : Votre demande de suppression — rendez-vous à venir — réf. {CASE}
+> Objet : Votre demande de suppression — rendez-vous à venir — réf. {CASE}
 >
 > Bonjour,
 >
-> Nous n’avons pas pu supprimer votre compte : un rendez-vous confirmé ou en attente est encore à venir dans un salon dont vous êtes propriétaire. Nous ne voulons pas annuler d’office les réservations de vos clients. Terminez ou annulez ces rendez-vous, puis répondez à ce message : nous ferons alors la suppression.
+> Nous n’avons pas pu supprimer votre compte : un rendez-vous confirmé ou en attente est encore à venir dans un salon dont vous êtes propriétaire. Nous ne voulons pas annuler d’office les réservations de vos clients. Terminez ou annulez ces rendez-vous, puis répondez à ce message : nous ferons alors la suppression.
 >
-> *(Seulement si vous ne pouvez pas ouvrir votre agenda)* Nous pouvons suspendre le salon pour qu’il ne reçoive plus de nouvelles réservations, puis faire la suppression après le dernier rendez-vous prévu, le {date}. Répondez « SUSPENDRE » si vous le souhaitez.
+> {SUSPENDRE}
 >
 > L’équipe MyWeli
 
+*Notes, not sent.* `{SUSPENDRE}`, only if the person cannot open their agenda; otherwise left out:
+> Nous pouvons suspendre le salon : il est retiré du public et ne reçoit plus de nouvelles réservations. Nous ferons ensuite la suppression après le dernier rendez-vous prévu, le {date}, au plus tard 30 jours après cette date. Répondez « SUSPENDRE » si vous le souhaitez.
+
 **T4 — Vérification impossible** (DRAFT — owner sign-off at the PR; to the sender's address; never says whether an account exists)
-> Objet : Votre demande de suppression de compte MyWeli Pro — réf. {CASE}
+> Objet : Votre demande de suppression de compte MyWeli Pro — réf. {CASE}
 >
 > Bonjour,
 >
 > Nous n’avons pas pu vérifier que cette demande vient du titulaire du compte. Pour protéger les comptes de nos utilisateurs, nous ne supprimons aucun compte sans cette vérification.
 >
-> **(a) La personne dit que son accès à l’équipe d’un salon a été retiré :** Si vous retrouvez l’accès à l’adresse e-mail de votre compte, écrivez-nous depuis cette adresse : nous vous répondrons pour confirmer la suppression.
->
-> **(b) Tous les autres cas :** Si vous retrouvez l’accès à l’adresse e-mail de votre compte, vous pouvez le supprimer vous-même : sur myweli.com, connectez-vous à l’Espace Pro avec « Continuer avec e-mail » (nous envoyons un code à 6 chiffres à cette adresse), puis ouvrez Profil et choisissez « Supprimer mon compte ».{ Le détail : https://myweli.com/pro/suppression-compte — seulement une fois la page en ligne (S1) ; vérifier la date avant d’envoyer.}
+> {SUITE}
 >
 > L’équipe MyWeli
 
-**T5 — Aucun compte Pro à cette adresse** (DRAFT — owner sign-off at the PR; to the sender's address)
-> Objet : Votre demande de suppression de compte MyWeli Pro — réf. {CASE}
+*Notes, not sent.* `{SUITE}` follows what the person wrote, never what the lookup found. (a) They say
+their access to a salon's team was removed:
+> Si vous retrouvez l’accès à l’adresse e-mail de votre compte, écrivez-nous depuis cette adresse : nous vous répondrons pour confirmer la suppression.
+
+(b) Every other case:
+> Si vous retrouvez l’accès à l’adresse e-mail de votre compte, vous pouvez le supprimer vous-même : sur myweli.com, connectez-vous à l’Espace Pro avec « Continuer avec e-mail » (nous envoyons un code à 6 chiffres à cette adresse), puis ouvrez Profil et choisissez « Supprimer mon compte ».
+
+and, after (b), only once S1 is live (check its date before sending):
+> Le détail : https://myweli.com/pro/suppression-compte
+
+**T5 — Aucun compte Pro à cette adresse** (DRAFT — owner sign-off at the PR; to the sender's address; only when the sender's own address is the only thing given, §10.1)
+> Objet : Votre demande de suppression de compte MyWeli Pro — réf. {CASE}
 >
 > Bonjour,
 >
-> Aucun compte MyWeli Pro n’est associé à l’adresse depuis laquelle vous nous écrivez. Si votre compte utilise une autre adresse, écrivez-nous depuis celle-ci. Si vous vous étiez connecté avec Apple en masquant votre adresse, votre compte utilise une adresse fournie par Apple, depuis laquelle vous ne pouvez pas nous écrire : connectez-vous avec Apple dans l’application MyWeli Pro ou sur myweli.com, puis supprimez votre compte depuis Profil ; si vous n’y parvenez pas, répondez à ce message en indiquant le nom du salon. Si vous avez un compte client MyWeli, il se supprime depuis une autre page : https://myweli.com/suppression-compte
+> Aucun compte MyWeli Pro n’est associé à l’adresse depuis laquelle vous nous écrivez. Si votre compte utilise une autre adresse, écrivez-nous depuis celle-ci. Si vous vous étiez connecté avec Apple en masquant votre adresse, votre compte utilise une adresse fournie par Apple, depuis laquelle vous ne pouvez pas nous écrire : connectez-vous avec Apple dans l’application MyWeli Pro ou sur myweli.com, puis supprimez votre compte depuis Profil ; si vous n’y parvenez pas, répondez à ce message en indiquant le nom du salon. Si vous avez un compte client MyWeli, il se supprime depuis une autre page : https://myweli.com/suppression-compte
 >
 > L’équipe MyWeli
 
@@ -379,5 +474,25 @@ French, vouvoiement; a non-breaking space before `: ; ? !` when typed. `{CASE}` 
 - [ ] §8's tests, each watched red once by its mutation; the full suite, format and analyze clean.
 - [ ] The contract, `schema.ts`, T83 and the T17/T53/T69 deltas, and the label in the same PR; `// Design:` links.
 - [ ] Merged outside the merge hold and any Apple review; deployed on the owner's yes; §9 step 4's read-back recorded.
-- [ ] §10 and its French replies signed off, then in `docs/DEPLOYMENT.md`, before B0.23 merges.
+- [ ] §10 and its French replies signed off after §9 step 4's read-back, then in `docs/DEPLOYMENT.md`, before
+      B0.23 merges.
+- [ ] demo-account-deletion-lock.md §6.3 (the row on other deleting routes) and §6.4 updated in the same PR (§9 step 2).
 - [ ] Feature branch and PR; no Claude attribution; one roadmap entry file.
+
+## Review log
+
+**2026-11-14, a review of this branch (19 findings, 11 of them on this spec), each checked in the code at
+`d19655bd` before folding; none rejected.** The proof now needs the reply's `From:` to be the stored
+address and the DMARC or compauth pass to be for that address's domain, as the R1 draft had it, with
+`none`, `softfail` and `bestguesspass` escalated (§10.1); the shared salon mailbox is a named residual
+(T83). The sender gets the same reply on the same schedule whatever the lookup finds once another address or a
+salon is named, so no reply tells whether an account exists (§10.1, step 3). A body that is not an object,
+or a field of the wrong type, is `invalid_body`, as BACKEND.md §2 says (§3, test 6). Test 11 pins the
+service's one `deleteAccount(` call to the service field. Every salon-name and salon read is filtered with
+`jq`, and a requester who is not the owner the validation view shows is escalated (step 3, step 8). The
+yes rests on a fresh sign-in and lookup; 401 has its arm; `CASE` and `CODE` come from a generator; the
+password reaches `jq` through a pipe (steps 2, 5, 6). The replies: T3 says the suspended salon leaves
+public view; T1 and T2 say the thread stays; T2's salon sentence waits for step 8 (f); T1's policy link
+waits for B0.23; T1's 30 days hold only with no appointment ahead, T3's run from the last one, and T0
+promises a reply within 14 days; the non-breaking spaces are in the text, and the owner's notes are out of
+it (§10.3). §9 step 2 and §12 update demo-account-deletion-lock.md.

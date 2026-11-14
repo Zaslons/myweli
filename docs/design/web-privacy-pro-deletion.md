@@ -125,8 +125,9 @@ B0.23 merges only when all hold (decision 143):
    not 0, those pins erased once on the owner's yes, or the gap accepted in writing (then §2's variant).
 3. **B0.22's O2 settled:** the read-only R2 listing of `kyc/`, or the owner's word that no submission was
    rejected and re-submitted before the deploy.
-4. **The support procedure approved** (decisions 141, 142; [admin-pro-account-erase.md](admin-pro-account-erase.md)
-   §9 step 5, which follows its deploy's read-back), because sentence 2 sends people to it from day one.
+4. **R1 deployed and read back, and the support procedure approved** (decisions 141, 142;
+   [admin-pro-account-erase.md](admin-pro-account-erase.md) §9 steps 3–5; the deploy's place before B0.23 is
+   an engineering consequence, not part of decision 143), because sentence 2 sends people to it from day one.
 5. **Outside the merge hold** of android-play-release step 3 (c) **and outside any Apple review**: the
    merge changes four of the five pages. Then S1 (web spec §11).
 

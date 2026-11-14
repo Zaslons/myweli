@@ -196,7 +196,11 @@ The existing contract tests stay green.
   count, on the owner's yes: salons with no `provider_users.provider_id` link, no active owner
   membership and a non-null pin. Then (a) erase those pins once, by hand, each on the owner's yes;
   or (b) leave them, which makes the page's sentence false for them. **Rec: (a) if the count is
-  not 0.**
+  not 0.** *(2026-11-13, decision 143: settled before B0.23 — the count, then those pins erased once on
+  the owner's yes, or the gap accepted in writing, and then the policy says those pins are kept
+  ([web-privacy-pro-deletion.md](web-privacy-pro-deletion.md) §2). Under (b), the sentence that would be
+  false for them is the policy's; B0.19's page, whose copy speaks of a deletion made after this deploy,
+  keeps its approved words (web spec §11 step 3).)*
 - **O2 — Superseded objects from before the deploy.** Production held 0 KYC documents on
   2026-11-12, so none is expected, but any rejection followed by a re-submit between that count
   and the deploy leaves one, and §9's read-back cannot see storage. Should a read-only R2 listing
