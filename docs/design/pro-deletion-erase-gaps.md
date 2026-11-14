@@ -177,6 +177,8 @@ The existing contract tests stay green.
    commit), **outside any Apple review**, since nothing the reviewer relies on may change during
    a review (B0.1); the web spec §11 says the same, in the same words. It gates
    android-play-release step 7, and B0.19's page merges only after it (web spec §11).
+   *(2026-11-13, decision 141: if R1's admin erase command ([admin-pro-account-erase.md](admin-pro-account-erase.md))
+   merged first, this deploy carries it too, and rolling it back removes both; B0.22 never waits for it.)*
 4. **The read-back.**
    - *What can be observed:* the revision serving 100 % with that image; `/health` 200 through
      `api.myweli.com`; « Production checks » green; no new error in the logs after the switch.

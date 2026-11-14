@@ -565,6 +565,41 @@ déjà déclarés.
 > La réponse publiée n'est pas changée ici : c'est la décision 55, exclure
 > ces entrées des journaux ou déclarer « Search History ».
 
+> **2026-11-13 — décision 144 : « Search History » est déclaré.** Exclure
+> ces entrées ne suffirait plus : le serveur garde aussi le texte cherché
+> dans « Clients » dans `provider_audit_log` (action `clients.list`), **sans
+> durée fixée**, lié au compte qui cherche (`actor_account_id`), y compris
+> après la suppression du compte. C'est voulu : c'est le journal d'accès aux
+> fiches clients (T39, T46 ; [clients-c1.md](clients-c1.md) ;
+> `backend/lib/src/clients/clients_service.dart:96-104`,
+> `backend/lib/src/db/migrations.dart:616-624`). L'exclusion de la décision
+> 55 devient facultative (pour les journaux seuls).
+>
+> **Ce qu'on déclare**, App Store Connect → App Privacy → **Search History** :
+> - **Collecté : oui** — le texte part au serveur et y reste au-delà de la
+>   requête.
+> - **Lié à l'utilisateur : oui** — chaque ligne du journal porte le compte
+>   qui a cherché.
+> - **Suivi : non** — aucun partage, aucune publicité.
+> - **Finalité : « App Functionality » seule.** La définition d'Apple de
+>   cette finalité cite « prevent fraud, implement security measures » à
+>   côté du fonctionnement de l'app (définition non relue dans cette
+>   session) : elle couvre la recherche elle-même et le journal d'accès, qui
+>   sert à savoir qui a consulté quel client. Ni « Analytics » (aucune
+>   mesure de comportement) ni « Other Purposes ». C'est la règle du §7
+>   (« App Functionality » partout). Play, dont les catégories séparent les
+>   deux, ajoute « Prévention des fraudes, sécurité et conformité »
+>   (play-store-forms §4, B0.23).
+>
+> **L'étape du propriétaire** : la saisir, puis publier l'étiquette.
+> **UNVERIFIED** : qu'une réponse App Privacy se modifie et se publie sans
+> nouveau build ; on le saura en le faisant. Une fois publiée et relue, une
+> ligne « Search History » rejoint le §7.1 et quitte la liste « non »
+> ci-dessus, et `mobile/test/infra/play_store_forms_test.dart` passe à 14
+> types, avec « Search History » → « Historique des recherches via une
+> appli » dans `toPlay`, dans la même PR. D'ici là, les tableaux décrivent
+> l'étiquette publiée, qui dit encore « non ».
+
 L'étiquette **consommateur** sera différente (sa position ne quitte pas
 l'appareil) — ne pas la dériver de ce tableau.
 

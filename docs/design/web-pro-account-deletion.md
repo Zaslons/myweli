@@ -3,9 +3,9 @@
 | | |
 |---|---|
 | **Module** | web — one public, static page for salon accounts: `/pro/suppression-compte`, the URL Play's Data safety form takes as « URL de suppression » for MyWeli Pro |
-| **Status** | **Approved 2026-11-13 (decisions 137–140); the French copy of §5.1 approved by the owner as written on 2026-11-13 (« Approve as written », after reading it in full).** The answers are folded into §5–§12. Nothing is built. Review findings folded in 2026-11-13, then a second review's the same day (Review log, end); four questions it raised wait for the owner (§12, R1–R4) |
+| **Status** | **Approved 2026-11-13 (decisions 137–140); the French copy of §5.1 approved by the owner as written on 2026-11-13 (« Approve as written », after reading it in full).** The answers are folded into §5–§12. Nothing is built. Review findings folded in 2026-11-13, then a second review's the same day (Review log, end); of the four questions it raised (§12), **R1 and R2 were answered on 2026-11-13 (decisions 141–143)**, and decision 144 (the App Store label's « Search History ») came from the same drafts; R3 and R4 stay open |
 | **Owner** | the project owner: the sign-off on §5 sentence by sentence, every merge and every production or console step |
-| **Last updated** | 2026-11-13 |
+| **Last updated** | 2026-11-14 |
 | **PRD ref / phase** | FR-AUTH-005 [V1] « Account deletion & data export request (store-policy + data-law compliance) » (`docs/PRD.md:344`) · V1 · Android release, before android-play-release step 7 |
 | **BACKLOG item** | B0.19 · decisions 137–140 · its two gates: B0.22 (the backend erase gaps, [pro-deletion-erase-gaps.md](pro-deletion-erase-gaps.md)) and B0.23 (the privacy policy's correction) · filed: B0.24–B0.28 · R8 of [pro-android-signup.md](pro-android-signup.md) (§6.3 `:586-600`, R8 `:1000`, §9.2 row `:859`, at docs PR 0b's head) · bounded by decision 73 |
 | **ROADMAP entry** | [2026-11-13-pro-account-deletion-spec.md](../roadmap/entries/2026-11-13-pro-account-deletion-spec.md) |
@@ -208,7 +208,9 @@ request from the account's own address, or, for a person who lost that address, 
 « can't sign in » answer promises (§5.1), which the procedure defines. **How it is run** (for example a one-off entrypoint in the
 production image, or B0.25's tool) is written as a procedure and approved by the owner **before
 S1 merges** (§11 step 5), because the page promises this erase from its first day. An
-engineering consequence of decision 139, raised to the owner (§12, R1).
+engineering consequence of decision 139, raised to the owner (§12, R1). *(2026-11-13, decisions
+141–142: B0.25's server half, [admin-pro-account-erase.md](admin-pro-account-erase.md), and its
+written procedure, approved before B0.23.)*
 
 ### 2.4 Found while specifying (not B0.19)
 
@@ -614,7 +616,14 @@ Plus a one-off check recorded in the PR: the four legal pages and `/support` ren
    storage, so **also before S1**: O2's read-only R2 listing of `kyc/` against the stored keys, on
    the owner's yes, or the owner's confirmation that no KYC submission was rejected and
    re-submitted before the deploy (erase-gaps §10, O2). A document replaced before the deploy is
-   outside B0.22 and would make the KYC bullet false for that account.
+   outside B0.22 and would make the KYC bullet false for that account. *(2026-11-13, decision 143:
+   **O1** is settled here too — a read-only count, then those pins erased once on the owner's yes,
+   or the gap accepted in writing — because the page's and the policy's pin sentences depend on it.)*
+   - **3a. R1 — the admin erase command** ([admin-pro-account-erase.md](admin-pro-account-erase.md),
+     decisions 141–142; B0.25's server half). Its backend PR from `main` merges **before B0.22's** if it
+     is ready, and B0.22's deploy then carries both (rolling it back removes both); if not, B0.22 does
+     not wait, and R1 deploys alone later. Then its read-back, and **the procedure (its §10) approved
+     by the owner, before step 4.**
 4. **B0.23 — the policy PR**, text only, on `/politique-confidentialite`:
    - Pros are no longer sent to the client « Mon compte » on the web.
    - « Conservation » names a deleted owner's salon, kept with no limit set yet (decision 138),
@@ -629,12 +638,15 @@ Plus a one-off check recorded in the PR: the four legal pages and `/support` ren
      (`politique-confidentialite/page.tsx:284-286`). Under decision 139, Pros who cannot sign in
      and members whose access was removed must write to support@myweli.com. Does « sans nous
      écrire » stay unconditional for Pros? Not decided here; the policy, Data safety and this page
-     must tell the same story (`play-store-forms.md:404-406`).
+     must tell the same story (`play-store-forms.md:404-406`). *(2026-11-13, decision 143: answered —
+     (b), « sans nous écrire » stays and a sentence sends locked-out people to « Aide & Support »,
+     with options A and B; the words and tests are [web-privacy-pro-deletion.md](web-privacy-pro-deletion.md).)*
 5. **S1 — the page PR** (`feat/web-pro-account-deletion`): §7 and §10, red first, CI green.
    - **Before it merges, the by-hand erase procedure** (§2.3, decision 139): how
      `ProviderAccountService.deleteAccount` is run for one account id in production, written and
      approved by the owner, with whatever it needs built. The page's support paths promise that
-     erase from its first day (§12, R1).
+     erase from its first day (§12, R1). *(2026-11-13, decisions 141–142: done by step 3a — the
+     admin erase command deployed and its procedure approved — before B0.23, so before this PR.)*
    - The live `/pro/connexion` read confirms the sign-in helper's methods (§5.1).
    - The page's doc comment links this spec.
    - Updated in the same PR: WEB-SYSTEM §13 (the install-push exception), §14 (the Lighthouse row
@@ -660,8 +672,11 @@ B0.22 gates step 7 too. If the owner overrides the rule and merges the page firs
 under « Before B0.22 is live » (§5.1) ship word for word, and a follow-up PR swaps them back once
 B0.22 is live.
 
-**Merge order:** S0 → sign-off → B0.22 (merge, then deploy, then O2) → B0.23 → the by-hand
-procedure → S1. B0.23 and S1 do not depend on each other in code. B0.23 goes first so the policy
+**Merge order** *(re-ordered 2026-11-13, decisions 141–143)*: S0 → sign-off → R1's backend PR
+(before B0.22's merge if ready; B0.22 never waits) → B0.22 (merge, then deploy, shared with R1 if R1
+merged first, then O1 and O2) → R1 deployed and read back, its procedure approved → B0.23 → S1. The
+order approved first was « … → B0.22 → B0.23 → the by-hand procedure → S1 ». B0.23 and S1 do not
+depend on each other in code. B0.23 goes first so the policy
 and the page tell the same story from the page's first day (`play-store-forms.md:404-406`).
 
 **The two iOS windows.** iOS 0.0.2 will be submitted after B0.18's Pro-app PR and the 0.0.2 bump
@@ -725,18 +740,19 @@ French copy of §5 is **not** part of these answers: it still awaits the sign-of
 | Q7 | Freeze the page during Google's review | yes: from step 8 to Google's decision, as the five are during Apple's | 140 |
 | Q8 | The developer name | (a) the page names the app as listed; the developer name is only compared at step 7 | 140 |
 | Q9 | `/suppression-compte` | (a) untouched | 140 |
-| Q10 | A revoked member's deletion | (a) support@myweli.com, handled by hand, on the owner's yes; the admin tool (B0.25) does **not** gate step 7; (b) « Supprimer mon compte » on the revoked path, filed for later (B0.26) | 139 |
+| Q10 | A revoked member's deletion | (a) support@myweli.com, handled by hand, on the owner's yes; the admin tool (B0.25) does **not** gate step 7 (*amended 2026-11-13 by decision 141: its server half does*); (b) « Supprimer mon compte » on the revoked path, filed for later (B0.26) | 139 |
 | Q11 | Correct the privacy policy before step 7 | (a) yes: B0.23, a text-only web PR, gating step 7 (§11 step 4) | 137 |
 | Q12 | The pin and the photos | (a) the pin erased with the address (B0.22, gating step 7); (d) the photos said reachable at their address; (c), deleting them at the deletion, filed (B0.27). *Engineering consequence, not part of the answer:* the commune and the city are not erased, so the page says they are kept (Q12's original option text is not in the repo) | 137 |
 | Q13 | Replaced KYC documents | (a) deleted at the re-submit (B0.22, gating step 7); §11's rule decides which wording ships | 137 |
 | Q14 | The footer's « Supprimer mon compte » | (a) accepted as a limit; the client pointer says so | 140 |
 
-**Raised by the second review (2026-11-13), for the owner — not answered, not decisions.**
+**Raised by the second review (2026-11-13), for the owner.** R1 and R2 were answered the same day,
+each with the recommendation of its draft (decisions 141–143); R3 and R4 are not answered.
 
 | # | The question | Where | Recommendation |
 |---|---|---|---|
-| R1 | The by-hand erase procedure (how `deleteAccount` runs for one account id in production) gates S1. An engineering consequence of decision 139, which keeps the admin tool B0.25 off step 7's path, not a change to it | §2.3, §11 step 5 | yes; the procedure can be lighter than B0.25 |
-| R2 | Does the policy's « sans nous écrire » (« Vos droits ») stay unconditional for Pros, given decision 139? | §11 step 4, B0.23 | asked in B0.23's PR, with its French words |
+| R1 | The by-hand erase procedure (how `deleteAccount` runs for one account id in production) gates S1. An engineering consequence of decision 139, which keeps the admin tool B0.25 off step 7's path, not a change to it | §2.3, §11 step 5 | yes; the procedure can be lighter than B0.25. **✅ Answered 2026-11-13, decisions 141–142:** « Build it first » — B0.25's server half (`DELETE /admin/provider-accounts/{id}/erase` and a read-only lookup), which **amends decision 139**: that half now gates S1 and step 7; and « Approve this check » — a one-time code to the stored address, CONFIRMER, no phone callback ([admin-pro-account-erase.md](admin-pro-account-erase.md); §11 step 3a) |
+| R2 | Does the policy's « sans nous écrire » (« Vos droits ») stay unconditional for Pros, given decision 139? | §11 step 4, B0.23 | asked in B0.23's PR, with its French words. **✅ Answered 2026-11-13, decision 143:** (b), it stays, and a sentence sends locked-out people to « Aide & Support », promising a reply; with options A and B ([web-privacy-pro-deletion.md](web-privacy-pro-deletion.md)) |
 | R3 | `web/public/llms.txt:32` says « no crash reporting »; the policy discloses Sentry. S1 edits that file | §2.4 | S1 corrects that sentence to match the policy |
 | R4 | The e-mail provider's send logs (Resend) and Sentry's events: retention UNVERIFIED, so not stated, as the backups | §2.3 | a read-only read with B0.28, on the owner's yes |
 
@@ -757,8 +773,9 @@ Cloud SQL describe and a manifest.
 - [ ] `app/pro/suppression-compte/page.tsx`'s doc comment links this spec; this spec's status
       updated (Built, then Live with the date of the live read).
 - [ ] WEB-SYSTEM §13, §14 and §15 row 27, and WEB.md:195, updated in the same PR (§11).
-- [ ] B0.22 deployed and read back, O2 settled (the R2 listing or the owner's confirmation), the
-      by-hand erase procedure approved, and B0.23 merged and read live, **before** S1 merges; the
+- [ ] B0.22 deployed and read back, O1 and O2 settled (the R2 listing or the owner's confirmation),
+      the admin erase command deployed and its procedure approved (decisions 141–142), and B0.23
+      merged and read live, **before** S1 merges; the
       live read of §11 step 6 done and recorded.
 - [ ] B0.22's merge, B0.23 and S1 outside the step 3 (c) merge hold; B0.23 and S1 merged, and
       B0.22 deployed, outside any Apple review (§11).

@@ -389,6 +389,17 @@ façon éphémère seulement.
 | Infos et performances des applis → **Diagnostics** | Obligatoire | **Analyses** | les blocages (app hangs) que Sentry envoie quand il en survient |
 | Appareil ou autres ID → **Appareil ou autres ID** | Obligatoire | Fonctionnalités de l'appli | l'ID d'installation Firebase et le jeton FCM (`device_tokens`) — le SDK FCM crée l'ID d'installation à l'initialisation |
 
+> **2026-11-13 — la ligne « Historique des recherches » est incomplète**
+> (décisions 137 et 143). Le texte cherché dans « Clients » est aussi
+> enregistré dans `provider_audit_log` (action `clients.list`), le journal
+> d'accès aux fiches clients (T39, T46), lié au compte qui cherche, **sans
+> durée fixée**, y compris après la suppression du compte. La PR de B0.23
+> réécrit la ligne et lui ajoute la finalité « Prévention des fraudes,
+> sécurité et conformité »
+> ([web-privacy-pro-deletion.md](web-privacy-pro-deletion.md) §5) : la
+> réponse de la console gagne cette finalité à l'étape 7. L'étiquette App
+> Store déclare la même donnée (décision 144, app-store-forms §7.3).
+
 **Non collectées**, et pourquoi :
 
 - **Position approximative** : « Près de moi » choisit la commune **sur
