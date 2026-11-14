@@ -63,3 +63,47 @@ describe('ProConnexionClient — a notice’s salon rides through the login', ()
     }
   });
 });
+
+/// B0.19, decision 140 (docs/design/web-pro-account-deletion.md §7, §10 #18):
+/// `/pro/suppression-compte`'s « Se connecter à l’Espace Pro » opens
+/// `/pro/connexion?suite=profil`, and the sign-in lands on Profil, where
+/// « Supprimer mon compte » is. `suite` is a fixed code compared for equality,
+/// never a URL: any other value is today's landing, so it is no open redirect.
+describe('ProConnexionClient — ?suite=profil lands on Profil', () => {
+  it('?suite=profil → /pro/profil', async () => {
+    params = { suite: 'profil' };
+    signedIn();
+    render(<ProConnexionClient />);
+    await waitFor(() => expect(replace).toHaveBeenCalledWith('/pro/profil'));
+  });
+
+  it('any other suite → « Aujourd’hui », never the text', async () => {
+    for (const suite of ['https://evil.example', '/pro/profil', '//evil.example', 'Profil', 'profil ', 'profil/x', '']) {
+      params = { suite };
+      signedIn();
+      render(<ProConnexionClient />);
+      await waitFor(() => expect(replace).toHaveBeenCalledWith('/pro'));
+      if (suite) expect(replace.mock.calls.flat().join(' '), suite).not.toContain(suite);
+      expect(replace, suite).not.toHaveBeenCalledWith('/pro/profil');
+      cleanup();
+      replace.mockReset();
+    }
+  });
+
+  it('?salon= is unchanged beside it', async () => {
+    params = { salon: 'p3', suite: 'autre' };
+    signedIn();
+    render(<ProConnexionClient />);
+    await waitFor(() => expect(replace).toHaveBeenCalledWith('/pro?salon=p3'));
+  });
+
+  it('the sign-in itself lands there too, not only the already-signed-in forward', async () => {
+    // The forward above is `getMyProvider` → 200; a fresh sign-in calls
+    // `onSuccess`, which must use the same destination.
+    const src = (await import('node:fs')).readFileSync(
+      (await import('node:path')).join(__dirname, '..', 'components/pro/ProConnexionClient.tsx'),
+      'utf8',
+    );
+    expect(src).toMatch(/onSuccess=\{\(\) => router\.replace\(home\)\}/);
+  });
+});
