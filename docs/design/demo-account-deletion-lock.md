@@ -4,7 +4,7 @@
 |---|---|
 | **Status** | **Approved** (owner, 2026-10-13: the recommendation of [app-store-forms.md](app-store-forms.md) §13.1 point 3 — a server-side refusal for the demo identity) — **built 2026-10-13** on `fix/demo-account-deletion-lock`, then reviewed and corrected the same day (§9.2). ~~Not merged, not deployed.~~ **Merged 2026-10-13 (#585); deployed to production 2026-10-14 01:06 UTC with the owner's explicit go; the check of §10.1 passed at 01:09 UTC** — on the demo account, with five upcoming confirmed bookings in place, the app answered « Compte de démonstration — cette action est désactivée. » and nothing was deleted ([app-store-forms.md](app-store-forms.md) §8 has the record). ~~**Not checked in production**: that an ordinary account still deletes (§10.1 step 6 needs a fresh account).~~ **Checked 2026-10-14 23:00:15 UTC**: it did NOT at first — every salon owner's deletion answered 500 (a different defect, [backend-provider-deletion-member-fk.md](backend-provider-deletion-member-fk.md)); after that fix, an ordinary account's `DELETE /me/provider` → 204. What was run and what was not: §9.1. The amended review notes are valid only once production serves the lock (§10); until a dated line says so, the notes in force stay the paste-ready block ([app-store-forms.md](app-store-forms.md) §8). |
 | **Owner** | Sadreddine Daher |
-| **Last updated** | 2026-10-13 |
+| **Last updated** | 2026-11-14 (§6.3, §6.4: the admin support erase) |
 | **PRD ref / phase** | Store submission (App Review 5.1.1(v) — account deletion; guideline 2.1 — a working demo account) · V1 |
 | **ROADMAP entry** | [2026-10-13-demo-account-deletion-lock](../roadmap/entries/2026-10-13-demo-account-deletion-lock.md) |
 | **Related** | [backend-demo-review-account.md](backend-demo-review-account.md) (the demo account, threat T69) · [pro-account-deletion-export.md](pro-account-deletion-export.md) (the deletion flow, threat T53) · [app-store-forms.md](app-store-forms.md) §8, §14 · [play-store-forms.md](play-store-forms.md) §2 |
@@ -206,10 +206,10 @@ is the curated salon, not the room.
 |---|---|
 | Can the demo account's e-mail be changed, which would make `isDemoIdentity` false? | **No.** `ProviderAuthRepository` has no verb that writes `email` after creation. Every `UPDATE provider_users` in `backend/lib` sets `provider_id`, `google_sub` / `apple_sub` with `email_verified`, `email_verified`, `kyc_docs` or `verification_status` — never `email` (`db/postgres_provider_auth_repository.dart:21, 165, 215, 532, 577`). No route patches a provider account. |
 | Can an Apple or Google identity be linked to it, or merged with it? | Linking exists (`loginWithSocial`): it attaches a `sub` to the account whose e-mail the identity provider reports as **verified**. It never rewrites `email`, so the lock would hold even then. And no provider can verify `revue@myweli.test` — a `.test` address cannot receive the confirmation mail. |
-| Is there another route that deletes or anonymises a provider account? | **No.** `ProviderAccountService.deleteAccount` is the only caller of `ProviderAuthRepository.deleteAccount`, and `DELETE /me/provider` is its only caller. The admin console has no provider-account deletion (it can suspend and restore a *salon*). |
+| Is there another route that deletes or anonymises a provider account? | ~~**No.** `ProviderAccountService.deleteAccount` is the only caller of `ProviderAuthRepository.deleteAccount`, and `DELETE /me/provider` is its only caller. The admin console has no provider-account deletion (it can suspend and restore a *salon*).~~ **Yes, two more since — both through the service, so the lock holds (2026-11-14).** `ProviderAccountService.deleteAccount` is still the only caller of `ProviderAuthRepository.deleteAccount`. Its callers are `DELETE /me/provider`; the public invitation accept (`routes/auth/provider/invitations/accept.dart`), which discards the bare account it has just made when the invitation died in between (since B6.2, [backend-integrity-batch6.md](backend-integrity-batch6.md) §2.2 — a caller this row missed); and the admin support erase `DELETE /admin/provider-accounts/{id}/erase` (B0.25's server half, [admin-pro-account-erase.md](admin-pro-account-erase.md), threat T83), through the same `providerAccountService` singleton. On the demo identity the admin erase answers 403 `demo_account_locked` and writes nothing — no audit row either. `test/demo/demo_locks_inventory_test.dart` lists all three files; `test/admin_provider_account_test.dart` pins the admin one's call to the service, never the repository. The admin console still has no screen for it (B0.25, later). |
 | Consumer `DELETE /me` with a provider token? | 403 `forbidden` — the route requires role `user` (`routes/me/index.dart`). |
 | Admin `DELETE /admin/users/{id}/erase` with a provider account id? | 404 — `UserErasureService` loads a consumer `users` row first and stops when there is none. |
-| Data-export or erasure endpoints? | The Pro export is assembled client-side from scoped reads; there is no server erasure endpoint other than the two above. |
+| Data-export or erasure endpoints? | The Pro export is assembled client-side from scoped reads; there is no server erasure endpoint other than the two above — and, since 2026-11-14, the admin Pro erase named in the row on other deleting routes (through the service: the lock holds). |
 | Can the demo owner drop its own owner membership? | No — 403 `owner_protected` (`TeamService`). |
 | What does the weekly reset do if the identity is missing? | It keeps resetting the orphaned salon and never recreates the identity (§2). A capture answers `demo_account_missing`. |
 | Once the identity is lost, can someone else take it? | **Yes, by registering it** — the register route honours the demo code and the address is free again (§2). Not a way around the lock: it needs the identity to be gone first, and the new account is locked the same way. Recorded in T69 as a residual. |
@@ -218,10 +218,15 @@ Nothing in this class was found that needed a fix beyond the lock itself.
 
 ### 6.4 What an admin can still do
 
-The admin console never deleted provider accounts, and still does not. It
-can suspend or restore the demo salon (audited), record a payment, review its
-KYC, and capture the demo snapshot. To take the demo account out of service
-on purpose there are two ways, both untouched by this lock: unset
+~~The admin console never deleted provider accounts, and still does not.~~
+**2026-11-14:** the admin API can erase a Pro account on a support request
+(`DELETE /admin/provider-accounts/{id}/erase`, B0.25's server half,
+[admin-pro-account-erase.md](admin-pro-account-erase.md)) — but only through
+`ProviderAccountService.deleteAccount`, so the demo identity is refused there
+too (403 `demo_account_locked`), with no override; the console has no screen
+for it yet. The admin can also suspend or restore the demo salon (audited),
+record a payment, review its KYC, and capture the demo snapshot. To take the
+demo account out of service on purpose there are two ways, both untouched by this lock: unset
 `DEMO_PROVIDER_CODE` (nobody can sign in; reversible — the designed off
 switch), or a deliberate database operation by the owner. There is no
 « force » parameter on the route: an override reachable with the public

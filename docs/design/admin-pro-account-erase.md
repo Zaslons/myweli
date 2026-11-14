@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Module** | backend — `DELETE /admin/provider-accounts/{id}/erase` and a read-only `POST /admin/provider-accounts/lookup`; and the written support procedure that uses them (§10) |
-| **Status** | **Approved 2026-11-13 (decisions 141, 142) — not built.** Built from option 1b of the R1 draft (session notes, not in the repo; a review's 15 findings folded in before the owner read it). The French replies of §10.3 are drafts, signed off by the owner in the backend PR. A review of this branch on 2026-11-14 tightened the check, the procedure and the replies (Review log, end); the owner's answers are unchanged |
+| **Status** | **Approved 2026-11-13 (decisions 141, 142) — ~~not built~~ built 2026-11-14 on `feat/admin-pro-account-erase`; not merged, not deployed** (Build log, end). Built from option 1b of the R1 draft (session notes, not in the repo; a review's 15 findings folded in before the owner read it). The French replies of §10.3 are drafts, signed off by the owner in the backend PR. A review of this branch on 2026-11-14 tightened the check, the procedure and the replies (Review log, end); the owner's answers are unchanged |
 | **Owner** | the project owner: the merge, the production deploy, the procedure's approval, and every support erase, each on the owner's yes |
 | **Last updated** | 2026-11-14 |
 | **PRD ref / phase** | FR-AUTH-005 [V1] (`docs/PRD.md:344`) · V1 · gates B0.19's page (S1), and so android-play-release step 7 (decision 141) |
@@ -472,11 +472,11 @@ and, after (b), only once S1 is live (check its date before sending):
 
 ## 12. Definition of done
 - [ ] §8's tests, each watched red once by its mutation; the full suite, format and analyze clean.
-- [ ] The contract, `schema.ts`, T83 and the T17/T53/T69 deltas, and the label in the same PR; `// Design:` links.
+- [x] The contract, `schema.ts`, T83 and the T17/T53/T69 deltas, and the label in the same PR; `// Design:` links (on the branch, 2026-11-14).
 - [ ] Merged outside the merge hold and any Apple review; deployed on the owner's yes; §9 step 4's read-back recorded.
 - [ ] §10 and its French replies signed off after §9 step 4's read-back, then in `docs/DEPLOYMENT.md`, before
       B0.23 merges.
-- [ ] demo-account-deletion-lock.md §6.3 (the row on other deleting routes) and §6.4 updated in the same PR (§9 step 2).
+- [x] demo-account-deletion-lock.md §6.3 (the row on other deleting routes) and §6.4 updated in the same PR (§9 step 2; on the branch, 2026-11-14).
 - [ ] Feature branch and PR; no Claude attribution; one roadmap entry file.
 
 ## Review log
@@ -496,3 +496,41 @@ public view; T1 and T2 say the thread stays; T2's salon sentence waits for step 
 waits for B0.23; T1's 30 days hold only with no appointment ahead, T3's run from the last one, and T0
 promises a reply within 14 days; the non-breaking spaces are in the text, and the owner's notes are out of
 it (§10.3). §9 step 2 and §12 update demo-account-deletion-lock.md.
+
+## Build log
+
+**2026-11-14, `feat/admin-pro-account-erase`** (stacked on `docs/pro-account-deletion-page`; not merged, not
+deployed). Three commits: the code and its tests, the contract, the documents.
+
+- **Built as specified:** both routes, the service, the wiring (one `AdminProviderAccountService`, given
+  `providerAccountService`), the `Compte Pro effacé` label, the contract and `web/lib/api/schema.ts`
+  (`npm run gen:api`, openapi-typescript 7.13.0 from the lockfile: additions only, `tsc --noEmit` green),
+  T83 and the T17/T53/T69 deltas, demo-account-deletion-lock.md §6.3 and §6.4.
+- **Tests, red first.** Against stubs (the service throwing, the routes answering 501), 54 of the then 57
+  cases of `admin_provider_account_test.dart` were red; the 3 green were the two gate tests (the existing
+  `/admin` gate already covers the paths — red only under the mutation) and « neither route names
+  `deleteAccount` » (vacuous on a stub). Test 13 (the T69 inventory) went red when the service file gained
+  its call; test 14 (`validation_labels_test.dart`) red until the label; the contract test (16) red, all 6,
+  before the OpenAPI paths. Test 15 (Postgres) compiles and is skipped here: no `DATABASE_URL` on the Mac,
+  so it runs in CI only.
+- **Mutations, on committed code:** 19 on the code (§8's column, plus the closed reason, the one-`@` rule,
+  the `forbidden` → 404 mapping, owned = every membership, an audited lookup) and 4 on the contract — 23,
+  all red. One contract mutation survived its first run: `memberships` dropped from the view's `required`
+  (the test read the property names only); the test now pins `required`, and the mutation is red.
+- **Choices the spec left open, or where the build differs:**
+  - the route checks JSON **types** (`optionalString`, so a wrong type is the outermost middleware's
+    400 `invalid_body`); the service checks **values** (`invalid_input`) before any read — so no caller can
+    skip them. Both happen before anything is acted on, as §3.1 says;
+  - the lookup reads the named salons in **one** `byIds` call, not one per membership (§7; BACKEND.md §4);
+  - a salon row that is gone reads `name: null, status: null` in the view (nullable in the contract);
+  - `caseRef` is matched strictly, untrimmed (the procedure generates it);
+  - a service code no arm maps is **thrown** (a reported 500), never a catch-all;
+  - one test beyond §8: **10b**, the loser of two concurrent calls (`deleteAccount` answers `forbidden`)
+    → 404 and no row (§4.3);
+  - test 3 checks no map pin: B0.22 is not in. It gains that line with B0.22;
+  - **no runbook file**: the procedure stays in §10 and moves to `docs/DEPLOYMENT.md` only once approved
+    (§9 step 5).
+- **Not run here:** the full backend suite (targeted tests only on this branch: the new files, the T69
+  inventory, every test that reads the contract, `test/http`, `test/security`; the full suite is CI's), the
+  Postgres test, any deployed read-back (§9 step 4).
+
