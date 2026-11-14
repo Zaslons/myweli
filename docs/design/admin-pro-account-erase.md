@@ -69,6 +69,7 @@ Every non-2xx is the standard envelope `{error, message?}` (`backend/lib/src/res
 
 DELETE on a sub-path, as the precedent (`erase.dart:15-18`). Body **required**:
 `{"confirmEmail": "<stored address>", "reason": "support_no_sign_in" | "support_access_removed", "caseRef": "MWP-7K2Q9D"}`.
+Any other key is ignored and stored nowhere: the schema is open, as every request body in the contract is.
 
 - `confirmEmail` — compared trimmed and case-insensitively with the stored e-mail. An **operator-error**
   guard against a wrongly copied id (the 2026-08-18 near-miss), not an attacker guard: any admin reads the
@@ -103,7 +104,8 @@ Read-only. **POST, the address in the body**: a `GET ?email=` would put it in Cl
 
 **Why these fields and no others.** `accountId` is what the erase takes; `email` is the **stored** address
 the challenge goes to and the `confirmEmail` value; `ownedSalons` is exactly what the erase hides, computed
-as `deleteAccount` computes it (`:118-122`), so the owner sees the blast radius before the yes;
+by `deleteAccount`'s own rule (`:118-122`; since the review, one method both call,
+`ProviderAccountService.ownedSalonIds`), so the owner sees the blast radius before the yes;
 `memberships` let a revoked member be matched by the salon they name; `createdAt` tells a fresh account from
 an old one. **Left out:** the account's name, phone, address, KYC documents and verification state: the
 procedure needs none, and every field returned lands in the owner's terminal. **No « has future bookings »
@@ -170,7 +172,10 @@ not cover and need not: the token is the control. The lookup answers one exact a
 guessing addresses one by one, and an admin can already read a salon owner's `email` through
 `GET /admin/salons/{id}/validation`. The app logs nothing new; the platform log sees an opaque id in the
 erase's path and no body. **Secrets:** none added; the admin password and token live only in the owner's
-terminal (§10.2 step 2), never in Claude's.
+terminal (§10.2 step 2), never in Claude's, and never in a command's arguments: `ps` shows every
+process's arguments to every process of the same macOS user, a Claude session on that Mac included. So
+the token and the person's address reach `curl` and `jq` only from builtins, through process substitution
+and pipes (§10.1, « Nothing in a command's arguments »).
 
 ## 7. Performance
 The lookup: one read by e-mail, one membership read, one salon read per membership (a handful). The
@@ -185,20 +190,20 @@ the shape of `backend/test/admin_user_test.dart:78-113`):
 | # | Test | Mutation that turns it red |
 |---|---|---|
 | 1 | erase: 405 on GET, POST, PUT, PATCH; lookup: 405 on GET, DELETE | accept any verb |
-| 2 | no token → 401; a provider and a consumer token → 403, per route | exempt the new paths in the gate |
+| 2 | no token, an expired admin token, an admin token signed with another secret → 401; a provider and a consumer token → 403, per route; the same hand-built admin token unexpired passes (the control) | exempt the new paths in the gate; skip the expiry check; skip the signature check |
 | 3 | 204; `accountById` null; each owned salon `draft`, phone, address, WhatsApp and Mobile Money cleared (the pin too once B0.22 is in); a **member-only salon untouched** | a hand-written subset instead of `deleteAccount` |
 | 4 | one `provider_account.erase` row with that id, that code and `{caseRef}`; its JSON holds neither the e-mail nor the name | `confirmEmail` into `metadata` |
 | 5 | another address → 409 `confirmation_mismatch`, nothing written, no row; a case variant of the right one passes | compare without lower-casing |
-| 6 | no body, a non-object body, `{"confirmEmail": 5, …}` → 400 `invalid_body`; a missing field, an unknown `reason`, a `caseRef` off pattern → 400 `invalid_input`; the lookup likewise with `email`; nothing written | `caseRef` optional; a field read with a cast (a 500) |
+| 6 | no body, a non-object body, `{"confirmEmail": 5, …}` → 400 `invalid_body`; a missing field, an unknown `reason`, a `caseRef` off pattern → 400 `invalid_input`; the lookup likewise with `email`; nothing written; an unknown key, free text included, is ignored and stored nowhere (the contract's body is open) | `caseRef` optional; a field read with a cast (a 500) |
 | 7 | unknown id → 404 `not_found`, no row | answer 403 like `/me/provider` |
 | 8 | a future booking → 409 `future_bookings`, the salon still `active`, no row | append before `deleteAccount` |
 | 9 | the demo identity → 403 `demo_account_locked`, nothing written, no row | the precedent's catch-all (404) |
 | 10 | a second call → 404, still one row | append before step 1 |
 | 11 | wiring, the `salon_validation_wiring_test.dart` idiom (comments stripped): the service's construction passes `providerAccountService`; `dependencies.dart` holds one `ProviderAccountService(`; in `admin_provider_account_service.dart`, exactly one `deleteAccount(`, on the `ProviderAccountService` field, and none on a `ProviderAuthRepository`-typed one | construct a fresh one; call `_auth.deleteAccount(id)` in the service |
-| 12 | lookup: 200 with exactly §3.2's keys (no `name`, `phoneNumber`, `kycDocs`); a case-insensitive match; 404 otherwise; `ownedSalons` = the salons test 3 sees hidden | return `account.toJson()` |
+| 12 | lookup: 200 with exactly §3.2's keys (no `name`, `phoneNumber`, `kycDocs`); a case-insensitive match; 404 otherwise; `ownedSalons` = the salons test 3 sees hidden, a salon linked by the scalar field alone included (no owner row); both read `ProviderAccountService.ownedSalonIds`, the one definition | return `account.toJson()`; drop the scalar link |
 | 13 | T69 inventory red until the service file joins its set, with a comment | — (red by construction) |
 | 14 | `validation_labels_test.dart` red until the label lands | — (red by construction) |
-| 15 | `test/db` (Postgres, `DATABASE_URL` in CI): the erase through the route on a real database, 0038's cascade included (`:202-214`) | — |
+| 15 | `test/db` (Postgres, `DATABASE_URL` in CI): the erase through the route on a real database, 0038's cascade included (`:202-214`), in **its own database**, created and dropped by the file: on the shared one, `postgres_repositories_test.dart`'s per-test `TRUNCATE … CASCADE` races it | the sibling's `TRUNCATE` in the window (a 404) |
 | 16 | contract: both paths, statuses and schemas match the routes | drop the 409 from the contract |
 
 Then the full backend suite, `dart format`, `dart analyze --fatal-infos --fatal-warnings` = 0.
@@ -218,7 +223,8 @@ Then the full backend suite, `dart format`, `dart analyze --fatal-infos --fatal-
    for it; if it is not ready by then, it deploys alone later, still before B0.23. **A shared deploy has a
    shared rollback:** rolling it back removes both, and while rolled back
    no pin is erased and no support erase can run.
-4. **Read-back, nothing mutated:** the revision at 100 %; `/health` 200; with an admin token, an erase of a
+4. **Read-back, nothing mutated:** the revision at 100 %; `/health` 200; with an admin token (§10.2 step 2's
+   sign-in and `adm`), an erase of a
    made-up id with a valid body → the route's JSON 404 `not_found` (not the router's); a lookup of
    `personne@myweli.test` → 404. *Optional, on the owner's yes:* a throwaway Pro account with a salon and
    a pin, erased through the route and read back as §10.2 step 8.
@@ -237,6 +243,16 @@ Then the full backend suite, `dart format`, `dart analyze --fatal-infos --fatal-
 - **Where.** Steps 2–8 in a separate terminal app (Terminal or iTerm), **not** the Claude app's terminal
   panel, which a Claude session can read. Clear its scrollback after each lookup (steps 3 and 5) and at
   the end.
+- **Nothing in a command's arguments.** A separate terminal hides the screen, not the processes: while a
+  command runs, `ps -axww` shows its arguments to every process of the same macOS user, a Claude session
+  on the same Mac included. So the token and the person's address are never in one. The token goes as a
+  header that curl reads from a builtin through process substitution (`adm`, step 2:
+  `-H @<(printf …)`, curl ≥ 7.55); the address goes into `jq` through a pipe
+  (`printf '%s' "$EM" | jq -Rs …`); every authenticated call goes through `adm`, never a hand-typed
+  `-H "authorization: Bearer $TOKEN"`. None of the values is exported, since `ps -E` shows a process's
+  environment too. Checked on this Mac on 2026-11-14 against a local listener with dummy values: the old
+  form's token was in `curl`'s arguments and the address in `jq`'s, and the forms below show neither and
+  send the same request.
 - **Escalate** (used below): the case leaves these steps; the owner decides it by hand and writes the
   decision, and why, in the case record. Nothing is erased on an escalated case without that line, and
   T0's « au plus tard dans 14 jours » still holds.
@@ -286,7 +302,8 @@ Then the full backend suite, `dart format`, `dart analyze --fatal-infos --fatal-
    an account exists. Steps 2–4 follow the same day.
 2. **Sign in as admin** (zsh; nothing echoed, nothing in the history; the password never in a command's
    arguments: `printf` is a builtin, so it reaches `jq` through a pipe; stop unless « OK: signed in »;
-   the token lasts about 15 minutes):
+   the token lasts about 15 minutes; `adm` is `curl` with the token as a header it reads from a builtin,
+   so the token is never in an argument either, §10.1):
    ```zsh
    API=https://api.myweli.com
    read -r 'AE?Admin e-mail: '; read -rs 'AP?Admin password: '; echo
@@ -294,18 +311,19 @@ Then the full backend suite, `dart format`, `dart analyze --fatal-infos --fatal-
      | curl -sS -X POST "$API/admin/auth/login" -H 'content-type: application/json' --data @- \
      | jq -r '.accessToken // empty'); unset AP
    [[ -n $TOKEN ]] && echo 'OK: signed in' || echo 'STOP: sign-in failed'
+   adm() { curl -sS -H @<(printf 'authorization: Bearer %s\n' "$TOKEN") "$@"; }
    ```
 3. **Locate** by the sender's address, or one the person names:
    ```zsh
    read -r 'EM?Address to look up: '
-   jq -n --arg e "$EM" '{email:$e}' | curl -sS -X POST "$API/admin/provider-accounts/lookup" \
-     -H "authorization: Bearer $TOKEN" -H 'content-type: application/json' --data @- | jq .
+   printf '%s' "$EM" | jq -Rs '{email:.}' | adm -X POST "$API/admin/provider-accounts/lookup" \
+     -H 'content-type: application/json' --data @- | jq .
    ```
-   By a salon name, each read filtered, never printed whole (the validation view carries the owner's
-   name, phone, contact and KYC status, and the salon's address, phone and pin,
+   By a salon name, each read through `adm` and filtered, never printed whole (the validation view carries
+   the owner's name, phone, contact and KYC status, and the salon's address, phone and pin,
    `backend/lib/src/validation/salon_validation_service.dart:370-437`):
-   `GET $API/admin/providers?q=…` `| jq '.items[] | {id, name, status}'` → the salon →
-   `GET $API/admin/salons/<id>/validation` `| jq '.owner | {accountId, email}'` → this lookup on that
+   `adm "$API/admin/providers?q=…" | jq '.items[] | {id, name, status}'` → the salon →
+   `adm "$API/admin/salons/<id>/validation" | jq '.owner | {accountId, email}'` → this lookup on that
    `email`. The case record takes what it needs; then clear the scrollback.
    **Stop:**
    - the sender's own address is the only thing given, and it holds no account → T5;
@@ -328,9 +346,9 @@ Then the full backend suite, `dart format`, `dart analyze --fatal-infos --fatal-
    read -r 'ID?Account id: '; read -r 'RS?Reason (support_no_sign_in | support_access_removed): '
    read -r 'CR?Case reference (MWP-XXXXXX): '
    if [[ -z $TOKEN || -z $ID || -z $EM || -z $RS || -z $CR ]]; then echo 'STOP: a value is empty'; else
-     jq -n --arg e "$EM" --arg r "$RS" --arg c "$CR" '{confirmEmail:$e, reason:$r, caseRef:$c}' \
-       | curl -sS -o /dev/stderr -w '%{http_code}\n' -X DELETE "$API/admin/provider-accounts/$ID/erase" \
-         -H "authorization: Bearer $TOKEN" -H 'content-type: application/json' --data @-
+     printf '%s' "$EM" | jq -Rs --arg r "$RS" --arg c "$CR" '{confirmEmail:., reason:$r, caseRef:$c}' \
+       | adm -o /dev/stderr -w '%{http_code}\n' -X DELETE "$API/admin/provider-accounts/$ID/erase" \
+         -H 'content-type: application/json' --data @-
    fi
    ```
    **204** → step 8. **401** → the token expired: step 2, then step 6 again. **409 `future_bookings`** →
@@ -343,15 +361,17 @@ Then the full backend suite, `dart format`, `dart analyze --fatal-infos --fatal-
    audit row**: the case record says « effacé ; 5xx à HH:MM ; aucune ligne d’audit ». A retry cannot
    re-fire the website rebuild once the salons read `draft` (`:144-148`); step 8 (f) checks the page.
 8. **Read back:** (a) the same DELETE → 404; (b) the lookup → 404; (c) each owned salon,
-   `GET $API/admin/providers/<id>` `| jq '{status, phoneNumber, address, whatsapp, latitude, longitude, depositRequired}'`
+   `adm "$API/admin/providers/<id>" | jq '{slug, status, phoneNumber, address, whatsapp, latitude, longitude, depositRequired}'`
    (never unfiltered: it carries `recentAppointments`, 20 bookings with clients' names and phone numbers,
    `backend/lib/src/admin/admin_provider_service.dart:89-98`) → `draft`, phone and address empty, the pin
-   null once B0.22 is live, deposit off; (d) `GET $API/admin/audit?action=provider_account.erase&pageSize=5`
+   null once B0.22 is live, deposit off, and the `slug` (f) needs: the salon row and its slug outlive the
+   erase, and no other read in these steps gives it; (d)
+   `adm "$API/admin/audit?action=provider_account.erase&pageSize=5"`
    → one row with that id, code and `caseRef`, no e-mail (none in step 7's case); (e) public
-   `GET $API/providers/<id>` → 404; (f) after about 5 minutes, `https://myweli.com/<slug>` → 404 (prebuilt
-   pages, `revalidate = 300`, `web/app/[slug]/page.tsx:33`; still there after 10 minutes → record it,
-   check after the next build). Not observable here: the KYC objects, the Apple revoke, the device
-   tokens. Then `unset TOKEN EM ID RS CR AE` and clear the scrollback.
+   `GET $API/providers/<id>` → 404; (f) after about 5 minutes, `https://myweli.com/<slug>`, with (c)'s
+   `slug` → 404 (prebuilt pages, `revalidate = 300`, `web/app/[slug]/page.tsx:33`; still there after 10
+   minutes → record it, check after the next build). Not observable here: the KYC objects, the Apple
+   revoke, the device tokens. Then `unset TOKEN EM ID RS CR AE; unfunction adm` and clear the scrollback.
 9. **Reply** with **T2**, a new message to the stored address, once (f) has passed for each owned salon,
    or with T2's « sous peu » sentence for a salon still served (§10.3). **Close** the case record. In the
    repo, only a dated count (« n effacements Pro sur demande au support le … »), no name, no address.
@@ -534,3 +554,34 @@ deployed). Three commits: the code and its tests, the contract, the documents.
   inventory, every test that reads the contract, `test/http`, `test/security`; the full suite is CI's), the
   Postgres test, any deployed read-back (§9 step 4).
 
+**Review, 2026-11-14 (7 findings, each checked in the code first; none rejected).**
+- **The procedure kept the token and the address in process arguments.** `curl -H "authorization: Bearer
+  $TOKEN"` and `jq --arg e "$EM"` put both where `ps -axww` shows them to every process of the same user.
+  Seen on this Mac against a local `nc` with dummy values: the token in `curl`'s arguments, the address
+  in `jq`'s. Now `adm` (step 2) sends the header from a builtin's process substitution, the address goes
+  through a pipe, and the rule is in §6 and §10.1; the same check shows neither, and `nc` received the
+  same request. The admin's own e-mail at sign-in still goes as `--arg e "$AE"`: it is not the person's
+  address and not a secret, and it was not in the finding.
+- **Step 8 (f) needed a slug no allowed read gave.** (c)'s filter now keeps `slug`. The admin detail is the
+  salon's `data`, which carries it (`draftSalonDocument`, `providers_repository.dart:867`); the erase
+  keeps the salon row and leaves its slug as it is.
+- **Test 15 raced its neighbour on the shared CI database.** Run here for the first time, on a throwaway
+  local Postgres 16 container. Committed, it passed alone. With `postgres_repositories_test.dart` at
+  `-j 2` it failed 3 runs in 3, a 404 for the 204; the sibling's `TRUNCATE` placed in the window gave the
+  same 404 every time. The other direction was worse: on an empty database, test 15's two salons made
+  the sibling's `seedProvidersIfEmpty` skip the seed, and 35 of its 190 tests went red. Now the file makes
+  its own database and drops it (the `migration_concurrency_test.dart` precedent): 3 concurrent runs in 3
+  green (191), the sibling green after it, the shared database left with nothing of it, and the same
+  `TRUNCATE`, sent to the shared database inside the window, no longer reaches it.
+- **Test 15 left two salons behind.** Fixed by the same change: the dropped database is its cleanup.
+- **No expired or forged admin token was tested.** Test 2 gains both, per route (401 `unauthorized`,
+  nothing written), plus a control: the same hand-built token, unexpired, passes. Red under « the expiry
+  not checked » (2 of 4) and « the signature not checked » (4 of 4).
+- **The lookup held a second copy of the owned rule.** Now `ProviderAccountService.ownedSalonIds`, one
+  static method that `deleteAccount` and the lookup both call. Test 12 gains a salon linked by the
+  scalar field alone: red when the lookup dropped the scalar link, before the change, and red when the
+  shared method drops it, after.
+- **The contract's erase body claimed `additionalProperties: false`;** the route ignores an unknown key, as
+  the other routes do. The schema is now open and says so; the contract test pins that, red against the
+  closed schema; test 6 pins that a free-text extra key answers 204 and lands nowhere. `schema.ts`
+  regenerated: the description only.

@@ -7302,7 +7302,7 @@ export interface components {
             /** @description KYC documents sent (0 → « aucun »). */
             kycDocCount: number;
         };
-        /** @description The body of a support erase (B0.25, docs/design/admin-pro-account-erase.md §3.1). No free text anywhere: the audit row keeps the reason and the case number with no limit. */
+        /** @description The body of a support erase (B0.25, docs/design/admin-pro-account-erase.md §3.1). No free text anywhere: the audit row keeps the reason and the case number with no limit. Any other key is ignored and stored nowhere. */
         AdminProviderAccountEraseRequest: {
             /** @description The address stored on the account, as the lookup returns it (compared trimmed, case-insensitively). */
             confirmEmail: string;

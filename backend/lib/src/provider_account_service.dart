@@ -93,6 +93,21 @@ class ProviderAccountService {
     'longitude': null,
   };
 
+  /// R6 (T53): every salon [account] OWNS — the scalar link plus its active
+  /// owner rows among [rows] (its memberships). Member-only salons are never
+  /// touched. The one definition: [deleteAccount] hides exactly these, and
+  /// the support lookup (`AdminProviderAccountService.lookup`) shows them to
+  /// the owner before the yes, so the two can never disagree. Pure: the
+  /// caller reads [rows].
+  static Set<String> ownedSalonIds(
+    ProviderAccount account,
+    Iterable<Member> rows,
+  ) => {
+    if (account.providerId != null) account.providerId!,
+    for (final m in rows)
+      if (m.role == 'owner' && m.status == 'active') m.providerId,
+  };
+
   Future<({bool ok, String? error})> deleteAccount(String accountId) async {
     final account = await _auth.accountById(accountId);
     if (account == null) return (ok: false, error: 'forbidden');
@@ -118,13 +133,10 @@ class ProviderAccountService {
       return (ok: false, error: 'demo_account_locked');
     }
 
-    // R6 (T53): every salon the account OWNS — the scalar link plus active
-    // owner membership rows. Member-only salons are never touched.
-    final owned = <String>{
-      if (account.providerId != null) account.providerId!,
-      for (final m in await _memberships.listForAccount(accountId))
-        if (m.role == 'owner' && m.status == 'active') m.providerId,
-    };
+    final owned = ownedSalonIds(
+      account,
+      await _memberships.listForAccount(accountId),
+    );
     // Every owned salon settles its agenda first — no surprise
     // mass-cancellations anywhere in the fleet.
     final now = DateTime.now().toUtc();

@@ -75,14 +75,10 @@ class AdminProviderAccountService {
     if (account == null) return (ok: false, error: 'not_found', data: null);
 
     final rows = await _memberships.listForAccount(account.id);
-    // OWNED exactly as `deleteAccount` computes it — the scalar link plus
-    // the active owner rows — so the owner sees the erase's blast radius
-    // before the yes, never a second definition of it.
-    final owned = <String>{
-      if (account.providerId != null) account.providerId!,
-      for (final m in rows)
-        if (m.role == 'owner' && m.status == 'active') m.providerId,
-    };
+    // OWNED by `deleteAccount`'s own definition — the scalar link plus the
+    // active owner rows — so the owner sees the erase's blast radius before
+    // the yes, and no second copy can drift from it.
+    final owned = ProviderAccountService.ownedSalonIds(account, rows);
     // One read for every salon named (BACKEND.md §4: no N+1).
     final salons = {
       for (final s in await _providers.byIds(

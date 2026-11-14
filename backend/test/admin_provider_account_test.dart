@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:dart_frog/dart_frog.dart';
+import 'package:dart_jsonwebtoken/dart_jsonwebtoken.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:mocktail/mocktail.dart';
@@ -298,6 +299,49 @@ void main() {
         expect(await r.json(), {'error': 'forbidden'});
       }
     });
+
+    // An ADMIN's token the gate must refuse as if there were none: one
+    // whose `exp` has passed — §10.2 step 6 reads a 401 as « the token
+    // expired » and sends the owner back to sign in — and one signed with
+    // another key. Built as test/auth/tokens_test.dart builds them.
+    int epoch(Duration fromNow) =>
+        DateTime.now().add(fromNow).millisecondsSinceEpoch ~/ 1000;
+    String handBuilt(Duration expiresIn) => JWT({
+      'role': 'admin',
+      'exp': epoch(expiresIn),
+    }, subject: 'admin_1').sign(SecretKey('test-secret'));
+    final refused = {
+      'an expired admin token': handBuilt(const Duration(hours: -1)),
+      'an admin token signed with another secret': TokenService(
+        secret: 'another-secret',
+      ).issueAccessToken(subject: 'admin_1', role: 'admin').token,
+    };
+    for (final MapEntry(key: what, value: token) in refused.entries) {
+      test('erase, $what → 401 unauthorized, nothing erased', () async {
+        final id = await owner();
+        final r = await erase(id, body: eraseBody(), bearer: token);
+        expect(r.statusCode, HttpStatus.unauthorized);
+        expect(await r.json(), {'error': 'unauthorized'});
+        await expectNothingWritten(id);
+      });
+
+      test('lookup, $what → 401 unauthorized — no address read back', () async {
+        await owner();
+        final r = await lookup(body: {'email': ownerEmail}, bearer: token);
+        expect(r.statusCode, HttpStatus.unauthorized);
+        expect(await r.json(), {'error': 'unauthorized'});
+      });
+    }
+
+    test('the control: the same hand-built admin token, unexpired, passes '
+        'the gate — so the 401s above are the expiry and the key', () async {
+      await owner();
+      final r = await lookup(
+        body: {'email': ownerEmail},
+        bearer: handBuilt(const Duration(minutes: 10)),
+      );
+      expect(r.statusCode, HttpStatus.ok);
+    });
   });
 
   // ---- 3, 4. The erase, and its audit row ---------------------------------
@@ -454,6 +498,22 @@ void main() {
         await expectNothingWritten(id);
       });
     }
+
+    test('erase: an unknown key, free text included, is ignored — 204, and '
+        'it is stored nowhere (the contract\'s body is open)', () async {
+      final id = await owner();
+      final r = await erase(
+        id,
+        body: {...eraseBody(), 'note': 'Demande de Mme Koné, 07 00 00 01 04'},
+      );
+      expect(r.statusCode, HttpStatus.noContent);
+      final row = (await auditRows()).single;
+      expect(row['metadata'], {'caseRef': caseRef});
+      final serialised = jsonEncode(row);
+      for (final typed in ['note', 'Koné', '07 00 00 01 04']) {
+        expect(serialised, isNot(contains(typed)), reason: typed);
+      }
+    });
 
     test('erase: a bad body on an UNKNOWN id is still the 400 — the body is '
         'read first', () async {
@@ -727,6 +787,56 @@ void main() {
           status == 'draft',
           owned.contains(s),
           reason: '$s: hidden iff the lookup listed it as owned',
+        );
+      }
+    });
+
+    test('a salon linked by the scalar field ONLY — no owner row, as a '
+        'provisioning that stopped between its two writes leaves it — is '
+        'owned: the lookup lists it, and the erase hides it', () async {
+      // `salon_provisioning_service.dart` calls `linkProvider`, then
+      // `_ensureOwnerRow`: two writes, no transaction. `owner()` gives s1
+      // both links, so there the scalar one never decides anything.
+      final reg = await auth.register(
+        businessName: 'Salon Awa',
+        businessType: 'salon',
+        phoneNumber: '+2250700000100',
+        email: ownerEmail,
+        authProvider: 'google',
+        googleSub: 'sub-scalar',
+        providerId: 's1',
+      );
+      final id = reg.provider!.id;
+      await members.ensureOwner(
+        providerId: 's2',
+        accountId: id,
+        email: ownerEmail,
+      );
+      expect(
+        [for (final m in await members.listForAccount(id)) m.providerId],
+        ['s2'],
+        reason: 'the fixture: no row for s1',
+      );
+
+      final r = await lookup(body: {'email': ownerEmail});
+      expect(r.statusCode, HttpStatus.ok);
+      final body = await r.json() as Map<String, dynamic>;
+      expect(
+        {for (final s in body['ownedSalons'] as List) (s as Map)['id']},
+        {'s1', 's2'},
+        reason: 's1 is owned through the scalar link alone',
+      );
+
+      expect(
+        (await erase(id, body: eraseBody())).statusCode,
+        HttpStatus.noContent,
+      );
+      for (final s in ['s1', 's2', 's3', 'sd']) {
+        final status = (await providers.byId(s))!['status'];
+        expect(
+          status,
+          s == 's1' || s == 's2' ? 'draft' : 'active',
+          reason: '$s: hidden iff owned',
         );
       }
     });

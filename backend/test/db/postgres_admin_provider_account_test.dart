@@ -39,6 +39,18 @@ class _MockRequestContext extends Mock implements RequestContext {}
 /// So the admin path is driven here through its routes, the `/admin` gate and
 /// the outermost middleware, over Postgres: 0038's cascade included, the
 /// audit row read back from `audit_log`.
+///
+/// **Its OWN database, made here and dropped at the end — never the shared
+/// one.** CI runs a bare `dart test`, so the test files run CONCURRENTLY
+/// against one `DATABASE_URL`, and `postgres_repositories_test.dart` runs
+/// `TRUNCATE … provider_users … CASCADE` before every one of its tests: on
+/// the shared database that wipe landed between this test's register and its
+/// erase (404 for the expected 204, three runs in three, 2026-11-14), and,
+/// the other way round, the two salons written here before that file's
+/// `seedProvidersIfEmpty` ran made it skip the seed — 35 of its tests red.
+/// Dropping the database is also this file's cleanup (BACKEND.md §5): it
+/// leaves nothing in the shared one. The precedent:
+/// `migration_concurrency_test.dart`.
 void main() {
   final url = Platform.environment['DATABASE_URL'];
   if (url == null || url.isEmpty) {
@@ -52,17 +64,27 @@ void main() {
   }
 
   late Pool<void> pool;
+  final ownDbName = 'myweli_pae_${DateTime.now().microsecondsSinceEpoch}';
   final tokens = TokenService(secret: 'test-secret');
   final adminToken = tokens
       .issueAccessToken(subject: 'admin_pg', role: 'admin')
       .token;
 
   setUpAll(() async {
-    pool = createPool(url);
+    final admin = createPool(url);
+    await admin.execute('CREATE DATABASE $ownDbName');
+    await admin.close();
+    pool = createPool(_withDatabase(url, ownDbName));
     await withSchemaLock(pool, () => runMigrations(pool));
   });
 
-  tearDownAll(() async => pool.close());
+  tearDownAll(() async {
+    await pool.close();
+    final admin = createPool(url);
+    // FORCE: the pool's sessions may not have fully drained yet.
+    await admin.execute('DROP DATABASE IF EXISTS $ownDbName WITH (FORCE)');
+    await admin.close();
+  });
 
   PostgresProviderAuthRepository authRepo() =>
       PostgresProviderAuthRepository(pool, tokens: tokens, echoDevCode: true);
@@ -96,7 +118,7 @@ void main() {
     return r.first.first! as int;
   }
 
-  /// A fresh suffix per run: the suite is re-runnable against one database.
+  /// A fresh suffix per run: unique names, addresses and case numbers.
   final run = DateTime.now().microsecondsSinceEpoch;
 
   /// An owner as production makes one: a salon, the account linked to it,
@@ -249,4 +271,10 @@ void main() {
     ).list(action: 'provider_account.erase', pageSize: 100)).items;
     expect(after.where((row) => row['targetId'] == o.id), hasLength(1));
   });
+}
+
+/// Swap the database name in a Postgres URL, keeping host/credentials/query.
+String _withDatabase(String url, String db) {
+  final u = Uri.parse(url);
+  return u.replace(path: '/$db').toString();
 }

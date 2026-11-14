@@ -114,7 +114,14 @@ void main() {
       });
       final props = s['properties'] as YamlMap;
       expect(props.keys.toSet(), {'confirmEmail', 'reason', 'caseRef'});
-      expect(s['additionalProperties'], isFalse);
+      // Open, as every other request body in the document is: the route reads
+      // its three fields and ignores any other key, which is never stored
+      // (test 6). A closed schema here claimed a refusal the route never makes.
+      expect(
+        s.containsKey('additionalProperties'),
+        isFalse,
+        reason: 'the route accepts and ignores an unknown key',
+      );
       expect(
         ((props['reason'] as YamlMap)['enum'] as YamlList).toSet(),
         AdminProviderAccountService.reasons,
