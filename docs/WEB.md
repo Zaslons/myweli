@@ -192,7 +192,12 @@ web/
 - **Pro session (M7.0):** the provider dashboard uses a **separate** cookie pair
   (`myweli_pro_at`/`_rt`) + its own pro BFF (`app/api/pro/*`, `callApiPro` in
   `lib/bff-pro.ts`) refreshing via `/auth/provider/refresh` — consumer and provider
-  sessions never collide. `/pro/*` is `noindex`; consumer chrome is hidden there.
+  sessions never collide. `/pro/*` is `noindex`, **except `/pro/suppression-compte`**
+  (B0.19, decision 140): indexed, in the sitemap and `llms.txt`, because a salon
+  that uninstalled the app finds how to delete its account by searching, the only
+  door besides Google Play ([web-pro-account-deletion.md](design/web-pro-account-deletion.md)
+  §6). Consumer chrome is hidden on `/pro/*`; the sign-in pages and that page wear
+  `ProAuthHeader` (`SiteChrome`'s `PRO_AUTH`).
 
 ## 4.1 Error boundaries & reporting
 
