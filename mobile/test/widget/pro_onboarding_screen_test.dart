@@ -70,6 +70,10 @@ class _ScenarioProService extends MockProService {
   /// Every salon a switch probed (`getMyProvider(salonId:)`).
   final List<SalonId> switchProbes = [];
 
+  /// The unscoped GET /me/provider reads (the session's and the
+  /// checklist's own).
+  int meReads = 0;
+
   void reset() {
     publishAnswer = null;
     publishHeld = null;
@@ -77,10 +81,12 @@ class _ScenarioProService extends MockProService {
     legacyServer = false;
     switchFault = null;
     switchProbes.clear();
+    meReads = 0;
   }
 
   @override
   Future<ApiResponse<MyProviderInfo>> getMyProvider({SalonId? salonId}) async {
+    if (salonId == null) meReads++;
     if (salonId != null) {
       switchProbes.add(salonId);
       switch (switchFault) {
@@ -299,6 +305,33 @@ void main() {
     expect(banner.icon, icon);
   }
 
+  /// No banner: the list back at its top, where the banner sits, then
+  /// nothing in the tree. Asserted where the list stood at its action, the
+  /// absence was vacuous: the banner was « offstage » to a default finder —
+  /// or, past the list's cache, not built at all, which even
+  /// `skipOffstage: false` cannot see (a forced banner stayed green).
+  Future<void> expectNoBanner(WidgetTester tester) async {
+    final list = find.byType(ListView);
+    if (list.evaluate().isNotEmpty) {
+      await tester.drag(list.first, const Offset(0, 4000));
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 1));
+    }
+    expect(find.byType(StatusBanner, skipOffstage: false), findsNothing);
+    for (final title in [
+      SalonValidationCopy.pendingTitle,
+      SalonValidationCopy.refusedTitle,
+      SalonValidationCopy.offlineTitle,
+      SalonValidationCopy.suspendedTitle,
+    ]) {
+      expect(
+        find.text(title, skipOffstage: false),
+        findsNothing,
+        reason: title,
+      );
+    }
+  }
+
   /// What the checklist and its feedback may never say or offer (§2.1).
   void expectNoOfferChoice() {
     for (final f in [
@@ -335,14 +368,7 @@ void main() {
         find.text(SalonValidationCopy.requestHint, skipOffstage: false),
         findsNothing,
       );
-      for (final title in [
-        SalonValidationCopy.pendingTitle,
-        SalonValidationCopy.refusedTitle,
-        SalonValidationCopy.offlineTitle,
-        SalonValidationCopy.suspendedTitle,
-      ]) {
-        expect(find.text(title), findsNothing, reason: title);
-      }
+      await expectNoBanner(tester);
       expectNoOfferChoice();
     }, variant: bothPlatforms);
 
@@ -483,8 +509,7 @@ void main() {
       expect(find.text('Profil de l’entreprise'), findsOneWidget);
       await tester.scrollUntilVisible(find.text('Aperçu de ma page'), 200);
       await expectOnlyButton(tester, null);
-      expect(find.text(SalonValidationCopy.offlineTitle), findsNothing);
-      expect(find.text(SalonValidationCopy.refusedTitle), findsNothing);
+      await expectNoBanner(tester);
     }, variant: bothPlatforms);
 
     testWidgets('no longer online, its offer lapsed: « Mon abonnement »\'s '
@@ -524,7 +549,7 @@ void main() {
 
       expect(find.text(SalonValidationCopy.wentLive), findsOneWidget);
       expect(find.text(SalonValidationCopy.requestSent), findsNothing);
-      expect(find.text(SalonValidationCopy.offlineTitle), findsNothing);
+      await expectNoBanner(tester);
       await expectOnlyButton(tester, null);
     }, variant: bothPlatforms);
 
@@ -573,7 +598,37 @@ void main() {
         find.text(SalonValidationCopy.requestHint, skipOffstage: false),
         findsNothing,
       );
-      expect(find.text(SalonValidationCopy.pendingTitle), findsNothing);
+      await expectNoBanner(tester);
+    }, variant: bothPlatforms);
+
+    testWidgets('CONTROL — a server from before B0.18, every gate met: '
+        '« Mettre mon profil en ligne » enabled, no hint; its 200 says '
+        '« 🎉 », never « Demande envoyée » (decision 136 item 10)', (
+      tester,
+    ) async {
+      MockData.seedNeverAsked(_p1);
+      pro.legacyServer = true;
+      // A server from before B0.18 answers the publish 200: live.
+      pro.publishAnswer = ApiResponse.success(const PublishOutcome.live());
+      await pumpScreen(tester);
+
+      await tester.scrollUntilVisible(
+        find.text(SalonValidationCopy.legacyButton),
+        200,
+      );
+      await expectOnlyButton(tester, SalonValidationCopy.legacyButton);
+      expect(
+        buttonOf(tester, SalonValidationCopy.legacyButton)?.onPressed,
+        isNotNull,
+      );
+      expect(
+        find.text(SalonValidationCopy.legacyHint, skipOffstage: false),
+        findsNothing,
+      );
+
+      await tapButton(tester, SalonValidationCopy.legacyButton);
+      expect(find.text(SalonValidationCopy.wentLive), findsOneWidget);
+      expect(find.text(SalonValidationCopy.requestSent), findsNothing);
     }, variant: bothPlatforms);
   });
 
@@ -821,6 +876,7 @@ void main() {
     await tester.runAsync(auth.rereadMySalons);
     expect(auth.salonGoLiveState?.name, 'pending');
     MockData.seedRefused(_p1, code: 'photos');
+    pro.meReads = 0;
 
     await tester.pumpWidget(
       wrapApp(
@@ -837,7 +893,35 @@ void main() {
     expect(auth.salonGoLiveState?.name, 'refused', reason: 'the card');
     final row = auth.salons.firstWhere((s) => s.salonId == _p1);
     expect(row.validation?.state, SalonValidationState.refused);
-  });
+    expect(
+      pro.meReads,
+      2,
+      reason: '« Configuration »\'s own read, then the session\'s',
+    );
+  }, variant: bothPlatforms);
+
+  testWidgets('CONTROL — the session already knows the state: /me/provider '
+      'is read once, by « Configuration » alone (§6.2)', (tester) async {
+    MockData.seedPendingRequest(_p1);
+    final auth = await signInPro(tester);
+    await tester.runAsync(auth.rereadMySalons);
+    expect(auth.salonGoLiveState?.name, 'pending');
+    pro.meReads = 0;
+
+    await tester.pumpWidget(
+      wrapApp(
+        providers: [
+          ChangeNotifierProvider<ProAuthProvider>.value(value: auth),
+          ChangeNotifierProvider(create: (_) => ProOnboardingProvider()),
+        ],
+        routerConfig: routerAt('/pro/onboarding'),
+      ),
+    );
+    await settleMocks(tester, rounds: 10);
+
+    expect(find.text(SalonValidationCopy.pendingTitle), findsOneWidget);
+    expect(pro.meReads, 1);
+  }, variant: bothPlatforms);
 
   // The notice (salon-go-live-approval §5.2) carries
   // `/pro/onboarding?salon={id}`. Two paths reach it, tested apart (§8.3):

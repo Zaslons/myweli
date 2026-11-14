@@ -9,14 +9,19 @@ import 'package:myweli/core/utils/team_error_messages.dart';
 import 'package:myweli/models/api_response.dart';
 import 'package:myweli/models/salon_subscription.dart';
 import 'package:myweli/models/team_member.dart';
+import 'package:myweli/providers/notifications_provider.dart';
 import 'package:myweli/providers/pro_auth_provider.dart';
+import 'package:myweli/providers/pro_dashboard_provider.dart';
 import 'package:myweli/providers/pro_onboarding_provider.dart';
+import 'package:myweli/providers/pro_team_provider.dart';
+import 'package:myweli/screens/provider/dashboard/dashboard_screen.dart';
 import 'package:myweli/screens/provider/onboarding/pro_onboarding_screen.dart';
 import 'package:myweli/services/interfaces/pro_service_interface.dart';
 import 'package:myweli/services/mock/mock_auth_service.dart';
 import 'package:myweli/services/mock/mock_data.dart';
 import 'package:myweli/services/mock/mock_device_registration_service.dart';
 import 'package:myweli/services/mock/mock_locality_service.dart';
+import 'package:myweli/services/mock/mock_notification_service.dart';
 import 'package:myweli/services/mock/mock_pro_artist_service.dart';
 import 'package:myweli/services/mock/mock_pro_kyc_service.dart';
 import 'package:myweli/services/mock/mock_pro_service.dart';
@@ -33,20 +38,29 @@ import '_a11y.dart';
 
 /// The mock with the seeded salon's third photo (≥3 is a publish gate), so
 /// every button these subjects carry is ENABLED — a disabled button is no
-/// tap target, and the 48dp guideline would measure nothing.
+/// tap target, and the 48dp guideline would measure nothing. [third] off
+/// leaves a step to do: the button disabled, and its hint beside it.
+/// [legacy]: a server from before B0.18 (no `validation` key).
 class _ThreePhotos extends MockProService {
+  bool third = true;
+  bool legacy = false;
+
   @override
   Future<ApiResponse<MyProviderInfo>> getMyProvider({SalonId? salonId}) async {
     final res = await super.getMyProvider(salonId: salonId);
     final data = res.data;
     if (data == null) return res;
-    return ApiResponse.success(
-      data.copyWith(
-        salon: data.salon.copyWith(
-          imageUrls: [...data.salon.imageUrls, 'asset:third.png'],
-        ),
-      ),
-    );
+    final salon = third
+        ? data.salon.copyWith(
+            imageUrls: [...data.salon.imageUrls, 'asset:third.png'],
+          )
+        : data.salon;
+    if (legacy) {
+      return ApiResponse.success(
+        MyProviderInfo(salon: salon, membership: data.membership),
+      );
+    }
+    return ApiResponse.success(data.copyWith(salon: salon));
   }
 }
 
@@ -71,12 +85,18 @@ const _longNote =
 ///  that landed on another state would measure its padding green.
 void main() {
   final subs = MockSubscriptionService();
+  final pro = _ThreePhotos();
+  // §8.3: both platforms — no platform branch may exist.
+  final bothPlatforms = TargetPlatformVariant(const {
+    TargetPlatform.android,
+    TargetPlatform.iOS,
+  });
 
   setUpAll(() async {
     await loadRealFonts();
     SharedPreferences.setMockInitialValues({});
     serviceLocator.authService = MockAuthService();
-    serviceLocator.proService = _ThreePhotos();
+    serviceLocator.proService = pro;
     serviceLocator.proArtistService = MockProArtistService();
     serviceLocator.proKycService = MockProKycService();
     serviceLocator.subscriptionService = subs;
@@ -91,6 +111,9 @@ void main() {
     MockData.resetTeam();
     ProSalonScope.clear();
     subs.resetForTests();
+    pro
+      ..third = true
+      ..legacy = false;
     await serviceLocator.authService.logoutProvider();
   });
 
@@ -105,6 +128,7 @@ void main() {
           ['Profil de l’entreprise'],
           SalonValidationCopy.requestButton,
         ),
+        ('live', () {}, ['Profil de l’entreprise', 'Aperçu de ma page'], null),
         (
           'pending',
           () => MockData.seedPendingRequest(
@@ -163,6 +187,7 @@ void main() {
           [
             SalonValidationCopy.suspendedTitle,
             SalonValidationCopy.suspendedText,
+            'Aperçu de ma page',
           ],
           null,
         ),
@@ -219,7 +244,123 @@ void main() {
       } finally {
         handle.dispose();
       }
-    });
+    }, variant: bothPlatforms);
+  }
+
+  // The hint beside a DISABLED button (§6.1 « Button »): the subjects above
+  // keep every button enabled on purpose, so none of them measures it.
+  for (final (name, legacy, button, hint) in <(String, bool, String, String)>[
+    (
+      'never asked, a step still to do',
+      false,
+      SalonValidationCopy.requestButton,
+      SalonValidationCopy.requestHint,
+    ),
+    (
+      'a server from before B0.18, a step still to do',
+      true,
+      SalonValidationCopy.legacyButton,
+      SalonValidationCopy.legacyHint,
+    ),
+  ]) {
+    testWidgets('« Configuration », $name, at 360dp × 200%: the hint '
+        'whole beside the disabled button', (tester) async {
+      MockData.seedNeverAsked(_p1);
+      pro
+        ..third = false
+        ..legacy = legacy;
+      final auth = await signInPro(tester);
+      await tester.runAsync(auth.rereadMySalons);
+      await pumpAtWidth(
+        tester,
+        width: 360,
+        scale: 2,
+        height: 3600,
+        home: const ProOnboardingScreen(),
+        providers: [
+          ChangeNotifierProvider<ProAuthProvider>.value(value: auth),
+          ChangeNotifierProvider(create: (_) => ProOnboardingProvider()),
+        ],
+        rounds: 9,
+      );
+
+      expect(tester.takeException(), isNull, reason: 'A — $name');
+      final label = find.text(hint);
+      await tester.scrollUntilVisible(label, 300);
+      expect(label, findsOneWidget, reason: 'C — « $hint »');
+      final b = find.ancestor(
+        of: find.text(button),
+        matching: find.byWidgetPredicate((w) => w is ButtonStyleButton),
+      );
+      expect(
+        tester.widget<ButtonStyleButton>(b).onPressed,
+        isNull,
+        reason: 'C — « $button » disabled',
+      );
+      expectNoUndeclaredTruncation(
+        tester,
+        ellipsisIsFine: false,
+        within: label,
+        context: 'B — « $hint »',
+      );
+      expectNoUndeclaredTruncation(tester, context: 'B — $name');
+      expectNoVerticalClip(tester, context: 'D — $name');
+    }, variant: bothPlatforms);
+  }
+
+  // « Accueil »'s « Configurer mon profil » card, its two longest new
+  // subtitles (decision 136 item 1) — the w360_x2 golden shows only « Votre
+  // salon est en ligne ».
+  for (final (seed, words) in <(void Function(), String)>[
+    (
+      () => MockData.seedRefused(_p1, code: 'photos'),
+      SalonValidationCopy.lineRefused,
+    ),
+    (() => MockData.seedPendingRequest(_p1), SalonValidationCopy.linePending),
+  ]) {
+    testWidgets('« Accueil »\'s card at 360dp × 200%: « $words » whole', (
+      tester,
+    ) async {
+      seed();
+      final auth = await signInPro(tester);
+      await tester.runAsync(auth.rereadMySalons);
+      await pumpAtWidth(
+        tester,
+        width: 360,
+        scale: 2,
+        height: 3600,
+        home: const DashboardScreen(),
+        providers: [
+          ChangeNotifierProvider<ProAuthProvider>.value(value: auth),
+          ChangeNotifierProvider(create: (_) => ProDashboardProvider()),
+          ChangeNotifierProvider(
+            create: (_) =>
+                NotificationsProvider(service: MockNotificationService()),
+          ),
+          ChangeNotifierProvider(create: (_) => ProTeamProvider()),
+        ],
+        rounds: 5,
+      );
+
+      expect(tester.takeException(), isNull, reason: 'A — « $words »');
+      final subtitle = find.descendant(
+        of: find.ancestor(
+          of: find.text('Configurer mon profil'),
+          matching: find.byType(ListTile),
+        ),
+        matching: find.text(words),
+      );
+      await tester.scrollUntilVisible(subtitle, 300);
+      expect(subtitle, findsOneWidget, reason: 'C — « $words »');
+      expectNoUndeclaredTruncation(
+        tester,
+        ellipsisIsFine: false,
+        within: subtitle,
+        context: 'B — « $words »',
+      );
+      expectNoVerticalClip(tester, context: 'D — « $words »');
+      await tester.pump(const Duration(seconds: 2));
+    }, variant: bothPlatforms);
   }
 
   // §6.2: « the state on its own line, because at 200% text a « role ·
@@ -288,5 +429,5 @@ void main() {
     }
     expectNoUndeclaredTruncation(tester, context: 'the sheet');
     await tester.pump(const Duration(seconds: 2));
-  });
+  }, variant: bothPlatforms);
 }

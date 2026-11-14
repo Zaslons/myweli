@@ -63,6 +63,11 @@ void main() {
   final auth = MockAuthService();
   final pro = _Pro();
   final subs = MockSubscriptionService();
+  // §8.3: every state on both platforms — no platform branch may exist.
+  final bothPlatforms = TargetPlatformVariant(const {
+    TargetPlatform.android,
+    TargetPlatform.iOS,
+  });
 
   setUpAll(() async {
     await initializeDateFormatting('fr_FR', null);
@@ -193,7 +198,7 @@ void main() {
       await settle(tester);
 
       expect(subtitle(words), findsOneWidget);
-    });
+    }, variant: bothPlatforms);
   }
 
   testWidgets('a server from before B0.18 (no validation key): today\'s '
@@ -207,7 +212,7 @@ void main() {
 
     expect(subtitle(SalonValidationCopy.homeSetUp), findsOneWidget);
     expect(find.text(SalonValidationCopy.homeLive), findsNothing);
-  });
+  }, variant: bothPlatforms);
 
   testWidgets('an offline cold start knows no state: the card keeps today\'s '
       'words — never a state the session cached (§6.2)', (tester) async {
@@ -228,5 +233,5 @@ void main() {
 
     expect(subtitle(SalonValidationCopy.homeSetUp), findsOneWidget);
     expect(find.text(SalonValidationCopy.linePending), findsNothing);
-  });
+  }, variant: bothPlatforms);
 }

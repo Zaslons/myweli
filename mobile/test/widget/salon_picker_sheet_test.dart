@@ -371,7 +371,7 @@ void main() {
       ]);
       expectRow(tester, 'Spa Relax', ['Manager', 'Plus en ligne']);
       await drain(tester);
-    });
+    }, variant: _bothPlatforms);
 
     testWidgets('live, refused, suspended', (tester) async {
       jeanManagesSpaRelax();
@@ -387,7 +387,7 @@ void main() {
       ]);
       expectRow(tester, 'Spa Relax', ['Manager', 'Suspendu']);
       await drain(tester);
-    });
+    }, variant: _bothPlatforms);
 
     testWidgets('a server from before B0.18: today\'s words — a draft says '
         'so, a live salon says nothing (decision 136 item 10)', (tester) async {
@@ -402,6 +402,13 @@ void main() {
         'Brouillon — pas encore en ligne',
       ]);
       await drain(tester);
-    });
+    }, variant: _bothPlatforms);
   });
 }
+
+/// §8.3: the picker's state lines on both platforms — no platform branch may
+/// exist.
+final _bothPlatforms = TargetPlatformVariant(const {
+  TargetPlatform.android,
+  TargetPlatform.iOS,
+});
