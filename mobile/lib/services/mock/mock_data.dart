@@ -850,13 +850,33 @@ class MockData {
   static final Map<String, List<TeamInvitation>> teamInvitations =
       _seedTeamInvitations();
 
-  /// Each salon's lifecycle `status` where it is not live (`draft`,
-  /// `suspended`) — the server's `providers.status`. A salon absent from it
-  /// is `active`, as a seeded document with no status reads on the server.
-  /// `GET /me/provider` and `GET /me/salons` both read it, so the switcher
-  /// and « Configuration » can never disagree (they did: a salon added on
-  /// the web read `draft` in « Mes salons » and live on `/me/provider`).
+  /// Each salon's stored lifecycle `status` — the server's
+  /// `providers.status`. Read it through [salonStatusOf], never directly:
+  /// a salon absent from it is a SEEDED salon's `active` (a seeded document
+  /// carries no status) or a run-time salon's `draft`. `GET /me/provider`
+  /// and `GET /me/salons` both read it, so the switcher and « Configuration »
+  /// can never disagree (they did: a salon added on the web read `draft` in
+  /// « Mes salons » and live on `/me/provider`).
   static final Map<SalonId, String> salonStatuses = {};
+
+  /// A salon's lifecycle `status` as the server holds it: the stored one;
+  /// else null — `active` — for a seeded salon, and `draft` for a salon made
+  /// at run time. A run-time salon is a draft on the server until MyWeli's
+  /// validation takes it live, so it never reads live here because nothing
+  /// was stored: a mock register that forgets [seedNeverAsked], or a salon
+  /// an earlier test left after [resetTeam] cleared the statuses (B0.18).
+  static String? salonStatusOf(SalonId id) =>
+      salonStatuses[id] ?? (seededSalonIds.contains(id) ? null : 'draft');
+
+  /// The salon goes live (MyWeli's validation, a republish): a seeded salon
+  /// back to no stored status, any other stored `active`.
+  static void markLive(SalonId id) {
+    if (seededSalonIds.contains(id)) {
+      salonStatuses.remove(id);
+    } else {
+      salonStatuses[id] = 'active';
+    }
+  }
 
   /// The seeded salons — live, and validated by the 0044 backfill's mirror.
   static const Set<SalonId> seededSalonIds = {

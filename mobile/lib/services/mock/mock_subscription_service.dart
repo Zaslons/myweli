@@ -8,10 +8,15 @@ import '../interfaces/subscription_service_interface.dart';
 import 'mock_data.dart';
 
 /// Demo offer state (pricing pivot). Defaults to the SETUP state (no offer
-/// row) so the full arc — onboarding → the request → MyWeli validates and
-/// the trial starts → team invites — is demo-able offline. The `initial`
-/// knob reaches the trial/paid/grace/expired scenarios for tests and manual
-/// QA.
+/// row). Since B0.18 the trial starts at MyWeli's validation, which only
+/// the admin gives: offline, the arc onboarding → the request → the
+/// validation and its trial → team invites needs the test hook
+/// (`MockProService.validateSalonForTests`) — nothing in a mock build
+/// calls it — or the `initial` knob, which reaches the trial/paid/grace/
+/// expired scenarios for tests and manual QA. Until then the seeded salons,
+/// live with no offer row, are refused every invitation (`offer_required`)
+/// in a mock build — before B0.18 a publish of a live salon started the
+/// trial and opened them.
 ///
 /// R6 multi-salons: state is keyed PER SALON (each salon has its own offer
 /// and its own single trial). The `initial` seed lands on the FIRST salon

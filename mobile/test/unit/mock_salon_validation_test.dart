@@ -26,9 +26,34 @@ import '../support/web_created.dart';
 /// `/me/provider` and `/me/salons` read ONE store — they disagreed before, a
 /// salon added on the web reading `draft` in « Mes salons » and live on
 /// `/me/provider`.
+/// The mock offers, with salons whose offer row has EXPIRED on demand (the
+/// validation's offer rule, §3.2).
+class _Subs extends MockSubscriptionService {
+  final Set<SalonId> expired = {};
+
+  @override
+  Future<ApiResponse<SalonSubscription>> getSalonSubscription(
+    SalonId providerId,
+  ) async {
+    if (!expired.contains(providerId)) {
+      return super.getSalonSubscription(providerId);
+    }
+    final ended = DateTime.utc(2026, 1, 1);
+    return ApiResponse.success(
+      SalonSubscription(
+        tier: SalonTier.pro,
+        status: SalonOfferStatus.expired,
+        trialEndsAt: ended,
+        graceEndsAt: ended.add(const Duration(days: 7)),
+        seats: const SalonSeats(cap: 0, used: 0),
+      ),
+    );
+  }
+}
+
 void main() {
   final pro = MockProService();
-  final subs = MockSubscriptionService();
+  final subs = _Subs();
 
   setUpAll(() {
     serviceLocator.authService = MockAuthService();
@@ -44,6 +69,7 @@ void main() {
     MockData.resetTeam();
     ProSalonScope.clear();
     subs.resetForTests(); // SETUP: no offer row anywhere
+    subs.expired.clear();
     await serviceLocator.authService.logoutProvider();
   });
 
@@ -104,6 +130,37 @@ void main() {
       expect(r.salonStatus, 'draft');
       expect(r.validationSent, isTrue);
       expect(r.validation, isNull);
+    });
+
+    // A salon made at run time is a draft on the server whatever the mock
+    // remembered — a mock register that forgets `seedNeverAsked`, or a salon
+    // an earlier test left after `resetTeam` cleared the statuses, must not
+    // read LIVE (no request, no trial path: the R7 path would vanish).
+    test('a salon made at run time whose lifecycle no one seeded reads a '
+        'draft that never asked — on BOTH reads', () async {
+      final account = seedWebSignUp(email: 'oubli@myweli.test');
+      final made = account.providerId!;
+      MockData.salonStatuses.remove(made); // the register that forgot
+      await signIn('oubli@myweli.test');
+      final info = await me(made);
+      expect(info.salon.status, 'draft');
+      expect(info.validation, isNull);
+      expect((await row(made)).salonStatus, 'draft');
+    });
+
+    test('… and still a draft after resetTeam (a leftover of an earlier '
+        'test); validated, it reads live', () async {
+      final account = seedWebSignUp(email: 'reste@myweli.test');
+      final made = account.providerId!;
+      MockData.resetTeam();
+      await signIn('reste@myweli.test');
+      expect((await me(made)).salon.status, 'draft');
+      expect((await row(made)).salonStatus, 'draft');
+
+      MockData.seedPendingRequest(made);
+      expect((await pro.validateSalonForTests(made)).success, isTrue);
+      expect((await me(made)).salon.status, 'active');
+      expect((await row(made)).salonStatus, 'active');
     });
 
     test('resetTeam clears every status and restores the seeded '
@@ -274,6 +331,32 @@ void main() {
         MockData.salonValidations[p1]!.state,
         SalonValidationState.pending,
       );
+
+      // An offer row that is no longer live: the server's 409 `incomplete`
+      // (`missing: ['offer']`) — nothing written, no trial.
+      final p2 = const SalonId('provider2');
+      MockData.seedPendingRequest(p2);
+      subs.expired.add(p2);
+      expect((await pro.validateSalonForTests(p2)).code, 'incomplete');
+      expect(
+        MockData.salonValidations[p2]!.state,
+        SalonValidationState.pending,
+      );
+      expect(MockData.salonStatuses[p2], 'draft');
+    });
+
+    test('validate checks in the server\'s order: a suspension, then the '
+        'offer, before « not waiting »', () async {
+      await signInOwner();
+      // Live and validated, AND suspended: the server answers the
+      // suspension first.
+      MockData.seedSuspended(p1);
+      expect((await pro.validateSalonForTests(p1)).code, 'provider_suspended');
+      // Never asked, with a lapsed offer: the offer first.
+      final p2 = const SalonId('provider2');
+      MockData.seedNeverAsked(p2);
+      subs.expired.add(p2);
+      expect((await pro.validateSalonForTests(p2)).code, 'incomplete');
     });
 
     test('refuse a pending request: the code, the trimmed note, final by '
