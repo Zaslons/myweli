@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Module** | web — one public, static page for salon accounts: `/pro/suppression-compte`, the URL Play's Data safety form takes as « URL de suppression » for MyWeli Pro |
-| **Status** | **Approved 2026-11-13 (decisions 137–140); the French copy of §5.1 approved by the owner as written on 2026-11-13 (« Approve as written », after reading it in full).** The answers are folded into §5–§12. **Built 2026-11-14** on `feat/web-pro-account-deletion` (S1, stacked on this spec's docs PR, #790); not merged. **§11's gates before it, all met on 2026-11-14:** B0.22 and R1 deployed together (`d3d47c0`, revision `myweli-api-00052-94d`) and read back as each spec's §9 says (B0.22's optional throwaway-salon test not run); O1 = 0 and O2 = 0; R1's procedure approved (decision 148); B0.23 merged (#794, `94df8135`) and read live. Review findings folded in 2026-11-13, then a second review's the same day (Review log, end); of the four questions it raised (§12), **R1 and R2 were answered on 2026-11-13 (decisions 141–143)**, and decision 144 (the App Store label's « Search History ») came from the same drafts; **R3 was asked in S1's PR and answered on 2026-11-14, decision 146: « Yes, use it »** (§12); R4 stays open |
+| **Status** | **Approved 2026-11-13 (decisions 137–140); the French copy of §5.1 approved by the owner as written on 2026-11-13 (« Approve as written », after reading it in full).** The answers are folded into §5–§12. **Built 2026-11-14** on `feat/web-pro-account-deletion` (S1, stacked on this spec's docs PR, #790); **merged in #795 (`81320705`) at 16:07 UTC and read live at about 16:20 UTC (§11 step 6)**. **§11's gates before it, all met on 2026-11-14:** B0.22 and R1 deployed together (`d3d47c0`, revision `myweli-api-00052-94d`) and read back as each spec's §9 says (B0.22's optional throwaway-salon test not run); O1 = 0 and O2 = 0; R1's procedure approved (decision 148); B0.23 merged (#794, `94df8135`) and read live. Review findings folded in 2026-11-13, then a second review's the same day (Review log, end); of the four questions it raised (§12), **R1 and R2 were answered on 2026-11-13 (decisions 141–143)**, and decision 144 (the App Store label's « Search History ») came from the same drafts; **R3 was asked in S1's PR and answered on 2026-11-14, decision 146: « Yes, use it »** (§12); R4 stays open |
 | **Owner** | the project owner: the sign-off on §5 sentence by sentence, every merge and every production or console step |
 | **Last updated** | 2026-11-14 |
 | **PRD ref / phase** | FR-AUTH-005 [V1] « Account deletion & data export request (store-policy + data-law compliance) » (`docs/PRD.md:344`) · V1 · Android release, before android-play-release step 7 |
@@ -668,6 +668,16 @@ Plus a one-off check recorded in the PR: the four legal pages and `/support` ren
    the CTA reaches `/pro/connexion?suite=profil` and then Profil, the canonical, an indexable
    `robots`, and the sitemap row. **The control:** the five fetched raw, with zero
    `/pro/suppression-compte`, zero `/pro/` href, and their footers unchanged.
+   *✅ Read 2026-11-14 at about 16:20 UTC, signed out, after #795's Vercel deploy (16:09 UTC):* 200,
+   served prerendered; the h1 « Supprimer votre compte MyWeli Pro »; the listing name « MyWeli Pro —
+   Gestion de salon »; the date « 14 novembre 2026 »; the canonical `https://myweli.com/pro/suppression-compte`;
+   `robots` `index, follow`; the sitemap row; the FAQPage JSON-LD. **JS on**, in a browser at 1280 and
+   375 px: no sideways scroll (the CTA 48 px high at 375), and a click on it lands on
+   `/pro/connexion?suite=profil`. **JS off** stands on the raw HTML, which already carries the CTA's
+   `href`; no browser was run with JS disabled. **Not observed:** « and then Profil », which needs a
+   sign-in. The page names Google, Apple and e-mail, and `/pro/connexion` offers the same three.
+   **The control:** the five fetched raw: zero `/pro/suppression-compte`, zero `/pro/` href, their
+   footers and their `<main>` text unchanged since B0.23's live read.
 7. **S2 — the docs PR** (the table below), with the live read's date.
 8. **Android-play-release step 7, on the owner's yes, in the pane.** In Data safety, the deletion
    URL `https://myweli.com/pro/suppression-compte` is typed, saved and read back. The developer

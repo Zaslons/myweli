@@ -2,11 +2,11 @@
 
 | | |
 |---|---|
-| **Status** | **2026-11-11 : mis à jour après la sortie iOS (décisions 110 à 115)** — l'ordre de la sortie Android, du build à la production, est dans [android-play-release.md](android-play-release.md) ; ce qui a changé ici est au §0.2. **Ré-audité le 2026-10-28 (BACKLOG B0.10)** contre le binaire, la politique publiée, l'étiquette App Store relue ce jour-là et les règles Play en vigueur. **MyWeli Pro seule pour l'instant** (décision 51) ; la saisie se fait dans le volet navigateur, formulaire par formulaire, montré au propriétaire avant chaque enregistrement (décision 53) ; les images, que le volet ne peut pas joindre, importées dans Chrome. **Dans la console le 2026-10-28 : tout le « Contenu de l'application » et la fiche, images comprises, enregistrés et relus ; rien envoyé pour examen (§0.1).** Historique : rédigé 2026-08-28 ; corrigé 2026-09-24 (libellés de connexion, adresse et numéro Mobile Money) ; 2026-10-05 (plus de choix d'offre dans l'app Pro Android) ; 2026-10-13 (texte d'accès amendé, verrou de suppression du compte démo). |
+| **Status** | **2026-11-11 : mis à jour après la sortie iOS (décisions 110 à 115)** — l'ordre de la sortie Android, du build à la production, est dans [android-play-release.md](android-play-release.md) ; ce qui a changé ici est au §0.2. **Ré-audité le 2026-10-28 (BACKLOG B0.10)** contre le binaire, la politique publiée, l'étiquette App Store relue ce jour-là et les règles Play en vigueur. **MyWeli Pro seule pour l'instant** (décision 51) ; la saisie se fait dans le volet navigateur, formulaire par formulaire, montré au propriétaire avant chaque enregistrement (décision 53) ; les images, que le volet ne peut pas joindre, importées dans Chrome. **Dans la console le 2026-10-28 : tout le « Contenu de l'application » et la fiche, images comprises, enregistrés et relus ; rien envoyé pour examen (§0.1).** Historique : rédigé 2026-08-28 ; corrigé 2026-09-24 (libellés de connexion, adresse et numéro Mobile Money) ; 2026-10-05 (plus de choix d'offre dans l'app Pro Android) ; 2026-10-13 (texte d'accès amendé, verrou de suppression du compte démo) ; **2026-11-14 (B0.19) : l'URL de suppression devient `https://myweli.com/pro/suppression-compte`, en ligne et lue ce jour-là (§4) ; rien n'est encore saisi dans la console, c'est l'étape 7 d'android-play-release.** |
 | **Portée** | **MyWeli Pro** (`com.myweli.pro`) maintenant. MyWeli (`com.myweli.app`) au §8, à ré-auditer avant sa soumission. |
 | **Source de vérité** | La politique de confidentialité publiée (`/politique-confidentialite`) et le binaire — un formulaire qui les contredit est un rejet ET une exposition légale (LAUNCH.md §6.3) |
 | **Règle** | Chaque réponse ci-dessous est dérivée du code, du binaire ou de la politique, jamais inventée. En cas de doute en saisissant : STOP, on vérifie. |
-| **Garde-fous** | `mobile/test/infra/play_store_forms_test.dart` (longueurs du §1 contre les limites de Play ; le texte de connexion du §2 sous les 500 caractères que compte la console, et ses libellés contre l'écran de connexion Pro) · `mobile/test/infra/app_review_notes_test.dart` (la phrase du compte démo, le verrou de suppression) · le même test, §6 : les libellés cités aux testeurs (écran de connexion Pro, carte d'invitation), et la version d'Android, les jours d'invitation et d'essai, les places, lus dans le code |
+| **Garde-fous** | `mobile/test/infra/play_store_forms_test.dart` (longueurs du §1 contre les limites de Play ; le texte de connexion du §2 sous les 500 caractères que compte la console, et ses libellés contre l'écran de connexion Pro) · `mobile/test/infra/app_review_notes_test.dart` (la phrase du compte démo, le verrou de suppression) · le même test, §6 : les libellés cités aux testeurs (écran de connexion Pro, carte d'invitation), et la version d'Android, les jours d'invitation et d'essai, les places, lus dans le code · `web/tests/pro-account-deletion-page.test.tsx` et `web/tests/e2e/pro-account-deletion.spec.ts` (la page de l'URL de suppression du §4) |
 
 Ordre conseillé dans la console : **Fiche du Play Store → Contenu de
 l'application (§2 à §5) → Test fermé (§6)**.
@@ -109,6 +109,9 @@ d'être enregistré, puis relu.
       « OAuth » ; Google compte aussi un compte créé sur le Web vers lequel
       l'app renvoie.
     - L'URL de suppression : `https://myweli.com/suppression-compte`.
+      *(Note du 2026-11-14, sans réécrire ce relevé : cette page est celle des
+      comptes clients ; l'URL à saisir pour MyWeli Pro est désormais
+      `https://myweli.com/pro/suppression-compte` (B0.19, §4), à l'étape 7.)*
     - Aperçu relu : « Aucune donnée partagée avec des tiers ».
 - **Paramètres de la fiche** : catégorie **Professionnel**, e-mail
   `support@myweli.com`, site `https://myweli.com`, pas de téléphone.
@@ -357,8 +360,13 @@ sur les deux stores, cohérente avec « Achats numériques : Non ».
   passe en HTTPS.
 - **Les utilisateurs peuvent-ils demander la suppression de leurs données ?**
   **Oui**.
-  - URL : `https://myweli.com/suppression-compte`, qui répond 200 et couvre
-    les comptes professionnels (lu le 2026-10-28).
+  - URL : `https://myweli.com/pro/suppression-compte` (B0.19, décisions 137
+    à 140), la page d'un compte MyWeli Pro : supprimer son compte sur le web,
+    sans l'app, ce qui est supprimé, ce que devient le salon, ce qui est
+    conservé, et support@myweli.com pour qui ne peut plus se connecter. Lue en
+    ligne le 2026-11-14 : 200, indexée. ~~`https://myweli.com/suppression-compte`,
+    qui répond 200 et couvre les comptes professionnels (lu le 2026-10-28)~~ :
+    elle renvoie au « Mon compte » des clients.
   - Dans l'app : Profil → « Supprimer mon compte ».
 - **« Partagées » au sens de Play** (transférées à un tiers pour SES fins) :
   **Non, pour toutes les données.** Google Cloud, Firebase, Sentry, Resend et

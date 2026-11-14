@@ -611,7 +611,9 @@ within your app ».
   say it « couvre les comptes professionnels ».
 - **Recommendation R8:** a Pro deletion page that the app never opens. It can
   lead to the Pro sign-in and Profil. It is a web slice before step 7, on the
-  critical path (§9.1).
+  critical path (§9.1). *(✅ Done 2026-11-14: B0.19, `https://myweli.com/pro/suppression-compte`,
+  merged in #795 and read live the same day; play-store-forms §4 names it. Typing it in Data
+  safety is android-play-release step 7.)*
 - **The name.** If the Play developer name is not « MyWeli », the page names
   « MyWeli Pro » (play-store-forms §7.3; the developer name is UNVERIFIED).
 
@@ -1013,7 +1015,8 @@ typed at step 7.
   go public.
 - **R7** Accept that a salon's path to a running trial starts in the app
   (§6.2).
-- **R8** A Pro deletion page for Play, as a web slice before step 7 (§6.3).
+- **R8** A Pro deletion page for Play, as a web slice before step 7 (§6.3). *(✅ Done 2026-11-14:
+  `/pro/suppression-compte`, #795.)*
 - **R9** The website follow-ups, each its own slice:
   - the sign-in check and the carried code on `/pro/inscription`, matching the
     app;

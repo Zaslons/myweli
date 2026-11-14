@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Module** | backend — `ProviderAccountService` (`DELETE /me/provider`) and `KycService` (`POST /me/kyc`) |
-| **Status** | **Draft 2026-11-13.** The change is decided (decision 137: Q12 (a) and Q13 (a) of [web-pro-account-deletion.md](web-pro-account-deletion.md)); this spec's details and O1–O2 await the owner's review. ~~Not built.~~ **Built on #791 (not merged, not deployed). O1 answered 2026-11-14: the count is 0 (§10).** A second review's findings folded the same day (§2, §3.2 points 2 and 4, test 9, §9, O2) |
+| **Status** | **Draft 2026-11-13.** The change is decided (decision 137: Q12 (a) and Q13 (a) of [web-pro-account-deletion.md](web-pro-account-deletion.md)); this spec's details and O1–O2 await the owner's review. ~~Not built.~~ ~~Built on #791 (not merged, not deployed).~~ **Live 2026-11-14:** merged in #791 (`7d2c6432`), deployed with R1 at 13:16 UTC (image `d3d47c0`, revision `myweli-api-00052-94d`) and read back as §9 step 4 lists (the revision at 100 % with that image, the deploy's checks, « Production checks » green, no error in the logs; the optional throwaway-salon test not run). **O1 and O2 answered 2026-11-14: both counts are 0 (§10).** A second review's findings folded the same day (§2, §3.2 points 2 and 4, test 9, §9, O2) |
 | **Owner** | the project owner: the review, the merge, the production deploy and any production read |
 | **Last updated** | 2026-11-14 |
 | **PRD ref / phase** | FR-AUTH-005 [V1] (`docs/PRD.md:344`) · V1 · gates android-play-release step 7 |
@@ -217,3 +217,7 @@ The existing contract tests stay green.
   once.** Either way it is now **a condition of B0.19's page** (web spec §11 step 3): that listing,
   or the owner's confirmation that no KYC submission was rejected and re-submitted before the
   deploy.
+  **✅ Listed 2026-11-14 at 13:20 UTC, on the owner's yes, read-only, after the deploy: 0.** The
+  database held 3 Pro accounts and 0 stored KYC keys; the private bucket held 0 objects in all
+  (`kyc/` 0, `pending/` 0). The control: the public bucket, listed the same way, held 16. Nothing
+  superseded to delete.
