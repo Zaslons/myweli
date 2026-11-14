@@ -28,7 +28,11 @@ MyWeli app. Mobile-first; native apps on Android & iOS plus the web.
 - Legal notice: /mentions-legales
 - Account deletion — how to delete, and exactly what is erased, anonymised or
   kept: /suppression-compte
+- Account deletion for MyWeli Pro (salon accounts), on the web:
+  /pro/suppression-compte
 
-Myweli runs no analytics, no crash reporting and no advertising SDK, sets only
+Myweli runs no analytics and no advertising SDK. When something fails, an error
+report goes to Sentry (servers in Germany) with the visitor's identity, cookies
+and input removed; nothing is sent when nothing fails. Myweli sets only
 strictly-necessary session cookies, and never holds funds: deposits are paid
 directly to the salon by Mobile Money.

@@ -167,6 +167,9 @@ const PUBLIC_ROUTES: [url: string, anchor: string | RegExp][] = [
   ['/cgu', 'Conditions générales d’utilisation'],
   ['/mentions-legales', 'Mentions légales'],
   ['/suppression-compte', 'Supprimer votre compte'],
+  // B0.19: the Pro deletion page Play links for salon accounts — the legal
+  // shell with the Pro header, a CTA and three printed addresses.
+  ['/pro/suppression-compte', 'Supprimer votre compte MyWeli Pro'],
 ];
 
 // The route list above runs at the default desktop width, where the home page's

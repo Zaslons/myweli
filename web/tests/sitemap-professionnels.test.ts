@@ -28,4 +28,18 @@ describe('sitemap', () => {
     const urls = (await sitemap()).map((e) => e.url);
     expect(urls).toContain(`${siteUrl}/professionnels`);
   });
+
+  // B0.19, decision 140 (docs/design/web-pro-account-deletion.md §6, §10 #16):
+  // the Pro deletion page is indexed — the one /pro page a crawler is told
+  // about — beside the legal documents, yearly, 0.3. It is not in LEGAL_ROUTES,
+  // so it needs its own row; the e2e half fetches that row's <loc>.
+  it('lists /pro/suppression-compte, as the legal documents are listed', async () => {
+    const row = (await sitemap()).find((e) => e.url === `${siteUrl}/pro/suppression-compte`);
+    expect(row, 'the Pro deletion page is not in the sitemap').toBeTruthy();
+    expect(row!.changeFrequency).toBe('yearly');
+    expect(row!.priority).toBe(0.3);
+    // And it is the only /pro URL there: every other /pro page is noindex.
+    const pro = (await sitemap()).map((e) => new URL(e.url).pathname).filter((p) => p === '/pro' || p.startsWith('/pro/'));
+    expect(pro).toEqual(['/pro/suppression-compte']);
+  });
 });

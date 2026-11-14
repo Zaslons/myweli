@@ -149,3 +149,56 @@ describe('the real-domain CWV gate enforces the documented budget', () => {
     }
   });
 });
+
+/// **Exactly one block per collected URL** (B0.19, docs/design/web-pro-account-
+/// deletion.md §9; WEB-SYSTEM §15 row 27).
+///
+/// « > 0 » above was the trap the Pro deletion page would have fallen into:
+/// the client page's pattern was `.*/suppression-compte`, unanchored at the
+/// start, so it ALSO matched `…/pro/suppression-compte` — a page with no block
+/// of its own would have read as covered, by another page's budget. With every
+/// pattern anchored, a URL is asserted by its own block and by nothing else:
+/// zero is a page measured and ignored, two is a page measured against a
+/// budget written for another one.
+describe('each collected URL is asserted by exactly one block', () => {
+  const configs = [
+    ['the blocking localhost gate (lighthouserc.json)', local],
+    ['the real-domain gate (tool/lighthouse-production.json)', production],
+  ] as const;
+
+  for (const [name, config] of configs) {
+    describe(name, () => {
+      const matrices = config.ci.assert.assertMatrix as unknown as Matrix[];
+      for (const url of config.ci.collect.url) {
+        it(url, () => {
+          const covering = matrices.filter((m) => new RegExp(m.matchingUrlPattern).test(url));
+          expect(
+            covering.map((m) => m.matchingUrlPattern),
+            `${url} must be asserted by exactly one block`,
+          ).toHaveLength(1);
+        });
+      }
+
+      it('every pattern is anchored at its end, so a longer path cannot borrow it', () => {
+        for (const m of matrices) expect(m.matchingUrlPattern, m.matchingUrlPattern).toMatch(/\$$/);
+      });
+
+      /// The page is indexed (decision 140), so SEO is an error, as on the
+      /// client page; the script budget is the client page's 175 KB.
+      it('/pro/suppression-compte is collected, with its own block: CWV, a11y 0.95, SEO 0.9, 175 KB of script, all errors', () => {
+        const url = config.ci.collect.url.find((u) => new URL(u).pathname === '/pro/suppression-compte');
+        expect(url, 'the Pro deletion page is not collected').toBeTruthy();
+        const [block] = matrices.filter((m) => new RegExp(m.matchingUrlPattern).test(url!));
+        expect(block.matchingUrlPattern).toMatch(/pro\/suppression-compte\$$/);
+        const a = block.assertions;
+        expect(a['largest-contentful-paint']).toEqual(['error', { maxNumericValue: WEB_MD_LCP_MS }]);
+        expect(a['cumulative-layout-shift']).toEqual(['error', { maxNumericValue: WEB_MD_CLS }]);
+        expect(a['total-blocking-time']).toEqual(['error', { maxNumericValue: 200 }]);
+        expect(a['categories:accessibility']).toEqual(['error', { minScore: 0.95 }]);
+        expect(a['categories:seo']).toEqual(['error', { minScore: 0.9 }]);
+        expect(a['resource-summary:script:size']).toEqual(['error', { maxNumericValue: 179200 }]);
+        expect(block.aggregationMethod).toBe('median');
+      });
+    });
+  }
+});

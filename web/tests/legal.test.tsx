@@ -1,10 +1,12 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { cleanup, render, screen } from '@testing-library/react';
+import ts from 'typescript';
 import { afterEach, describe, expect, it } from 'vitest';
 import CguPage from '../app/cgu/page';
 import MentionsPage from '../app/mentions-legales/page';
 import ConfidentialitePage from '../app/politique-confidentialite/page';
+import ProSuppressionPage from '../app/pro/suppression-compte/page';
 import SuppressionPage from '../app/suppression-compte/page';
 import pkg from '../package.json';
 import { COMPANY, LEGAL_ROUTES, LEGAL_UPDATED_AT } from '../lib/legal';
@@ -300,6 +302,8 @@ describe('no word is glued to its neighbour by a JSX line break', () => {
     'app/cgu/page.tsx',
     'app/mentions-legales/page.tsx',
     'app/suppression-compte/page.tsx',
+    // B0.19: not a legal route, but the same shell and the same JSX habit.
+    'app/pro/suppression-compte/page.tsx',
   ];
 
   it('no text line runs into an inline element on the next line, or back', () => {
@@ -575,5 +579,190 @@ describe('lib/legal.ts is the single source of truth', () => {
       '/politique-confidentialite',
       '/suppression-compte',
     ]);
+  });
+});
+
+// B0.19 (docs/design/web-pro-account-deletion.md §10 #11): /pro/suppression-compte.
+//
+// **Spacing, as the five write it.** `&nbsp;` before « ; : ? ! » and inside « »
+// (SYSTEM §17.1). A plain space there lets the browser break the line before a
+// colon or leave a guillemet alone at a line's end. Read from the page's copy —
+// its JSX text and its string literals, through the TypeScript AST, so code
+// (`a ? b : c`, `{ key: value }`) is never mistaken for French — and again on
+// the rendered page, where a JSX line break shows up as the plain space it becomes.
+//
+// **The pins hold the choices the owner made** (decisions 137–139 and the
+// 2026-11-13 reviews): each is a sentence a well-meant edit could soften.
+describe('B0.19 — /pro/suppression-compte: spacing and the pinned choices', () => {
+  const FILE = 'app/pro/suppression-compte/page.tsx';
+
+  /// The copy of a TSX file: JSX text (entities decoded) and string literals,
+  /// imports and attribute values left out, each with its line.
+  const copyOf = (file: string) => {
+    const src = readFileSync(join(__dirname, '..', file), 'utf8');
+    const sf = ts.createSourceFile(file, src, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+    const out: { line: number; text: string }[] = [];
+    const add = (n: ts.Node, text: string) =>
+      out.push({ line: sf.getLineAndCharacterOfPosition(n.getStart(sf)).line + 1, text });
+    const visit = (n: ts.Node) => {
+      if (ts.isJsxText(n)) {
+        add(n, n.getFullText(sf).replace(/&nbsp;/g, '\u00a0').replace(/&amp;/g, '&'));
+      } else if (
+        (ts.isStringLiteral(n) || ts.isNoSubstitutionTemplateLiteral(n) || ts.isTemplateLiteralToken(n)) &&
+        !ts.isImportDeclaration(n.parent) &&
+        !ts.isJsxAttribute(n.parent)
+      ) {
+        add(n, n.text);
+      }
+      ts.forEachChild(n, visit);
+    };
+    visit(sf);
+    return out;
+  };
+
+  /// What breaks the five's convention in one piece of copy.
+  const badSpacing = (text: string) => [
+    ...(/ [;:?!]/.test(text) ? ['a plain space before ; : ? !'] : []),
+    ...(/\n[ \t]*[;:?!]/.test(text) ? ['a line break before ; : ? !'] : []),
+    ...(/«[ \n]/.test(text) ? ['a plain space or a line break after «'] : []),
+    ...(/[ \n]»/.test(text) ? ['a plain space or a line break before »'] : []),
+  ];
+
+  it('the scan reads the copy, and only the copy', () => {
+    const copy = copyOf(FILE).map((c) => c.text).join(' ');
+    expect(copy).toContain('Supprimer définitivement');
+    expect(copy).toContain('Puis-je supprimer mon compte MyWeli Pro');
+    expect(copy).not.toContain('../../../components/legal/LegalPage');
+    // The rule catches each of its four shapes.
+    expect(badSpacing('compte :')).toHaveLength(1);
+    expect(badSpacing('lisez\n:')).toHaveLength(1);
+    expect(badSpacing('« Supprimer')).toHaveLength(1);
+    expect(badSpacing('compte. »')).toHaveLength(1);
+    expect(badSpacing('compte\u00a0: «\u00a0Supprimer\u00a0»')).toEqual([]);
+  });
+
+  it('the page’s copy: no plain space before ; : ? ! and none inside « »', () => {
+    const found = copyOf(FILE).flatMap((c) => badSpacing(c.text).map((why) => `${FILE}:${c.line} ${why}`));
+    expect(found).toEqual([]);
+  });
+
+  it('the rendered page: every ; : ? ! follows a no-break space, and « » hold one', () => {
+    const { container } = render(<ProSuppressionPage />);
+    // The shell's own « Dernière mise à jour : » line is the four legal pages'
+    // too, and they must render byte-identical: the scan starts after it.
+    const date = [...container.querySelectorAll('main > p')].find((p) =>
+      (p.textContent ?? '').startsWith('Dernière mise à jour'),
+    );
+    expect(date, 'the date line').toBeTruthy();
+    let text = '';
+    for (let n = date!.nextElementSibling; n; n = n.nextElementSibling) text += `\n${n.textContent ?? ''}`;
+    expect(text.length).toBeGreaterThan(1000);
+    const bad = [...text.matchAll(/(.{0,24})(?:[^\u00a0\n]([;:?!])|«[^\u00a0]|[^\u00a0]»)/g)].map((m) => m[0]);
+    expect(bad).toEqual([]);
+  });
+
+  const page = () => {
+    const { container } = render(<ProSuppressionPage />);
+    return (container.textContent ?? '').replace(/[ \t\n\r]+/g, ' ');
+  };
+  const section = (title: RegExp) => {
+    const { container } = render(<ProSuppressionPage />);
+    const h = [...container.querySelectorAll('h2')].find((e) => title.test(e.textContent ?? ''));
+    expect(h, `the « ${title.source} » heading`).toBeTruthy();
+    let out = '';
+    for (let n = h!.nextElementSibling; n && n.tagName !== 'H2' && !n.querySelector('h2'); n = n.nextElementSibling) {
+      out += ` ${n.textContent ?? ''}`;
+    }
+    return out.replace(/[ \t\n\r]+/g, ' ');
+  };
+
+  it('the salon: hidden in minutes, its address and its pin erased, its team kept in (decision 137)', () => {
+    const text = section(/^Ce que devient votre salon$/);
+    expect(text).toContain('est retiré du public en quelques minutes');
+    expect(text).toContain(
+      'ses numéros de téléphone, WhatsApp et Mobile Money, son adresse et son point sur la carte sont effacés',
+    );
+    expect(text).toContain(
+      'Les autres membres de son équipe gardent leur accès au salon dans MyWeli Pro, selon leur rôle.',
+    );
+  });
+
+  it('what is kept: the history with its description, the commune and the city, no limit set (decision 138)', () => {
+    const text = section(/^Ce qui est conservé/);
+    expect(text).toContain('son nom, sa description, ses prestations');
+    expect(text).toContain(
+      'Aucune durée de conservation n’est fixée à ce jour\u00a0: il n’est pas effacé automatiquement',
+    );
+    expect(text).toContain('sa commune et sa ville restent avec lui, cachées du public');
+  });
+
+  it('the photos: off the public pages, still at their address, still seen by the team (Q12 (d))', () => {
+    const text = section(/^Ce qui est conservé/);
+    expect(text).toContain('ne sont plus affichées au public sur MyWeli');
+    expect(text).toContain('les membres de l’équipe les voient toujours dans MyWeli Pro');
+    expect(text).toContain('restent accessibles à leur adresse existante pour qui la connaît');
+  });
+
+  it('the documents: (a)’s widened caveat ships, (b)’s never does (§11’s rule)', () => {
+    const text = section(/^Ce qui est supprimé$/);
+    expect(text).toContain(
+      'si notre stockage est indisponible lors de la suppression, ou lorsque vous avez remplacé ou renvoyé un document',
+    );
+    expect(text).not.toContain('enregistrés sur votre compte au moment de la suppression');
+    expect(text).not.toContain('n’est pas effacé');
+    expect(page()).not.toContain('enregistrés sur votre compte au moment de la suppression');
+  });
+
+  it('the logs and the copies that stay: the team’s actions, our decisions, the e-mails, the profile, the invitations', () => {
+    const text = section(/^Ce qui est conservé/);
+    for (const phrase of [
+      'les recherches faites dans Clients, sans votre nom ni votre adresse e-mail',
+      'vérification d’identité acceptée ou refusée, avec le motif écrit d’un refus',
+      'les e-mails reçus par notre équipe lorsqu’un salon validé a changé d’adresse, de téléphone ou de point sur la carte restent dans notre messagerie',
+      'votre fiche de collaborateur dans l’équipe d’un salon dont vous êtes seulement membre (nom, photo) appartient à ce salon et reste affichée tant qu’il ne la retire pas',
+      'les invitations qu’un autre salon vous avait envoyées et que vous n’aviez pas acceptées restent dans sa liste, avec votre adresse e-mail',
+    ]) {
+      expect(text).toContain(phrase);
+    }
+  });
+
+  it('the app’s path names Accueil’s icon; the e-mail path follows the screen’s order', () => {
+    expect(section(/^Dans l’application MyWeli Pro$/)).toContain('l’icône de compte en haut de l’Accueil, ou l’onglet Profil');
+    expect(section(/^Vous ne pouvez plus vous connecter/)).toContain(
+      'dans Votre e-mail, puis choisissez Continuer avec e-mail',
+    );
+  });
+
+  it('the two support paths, and the first FAQ’s « Oui, si… » (decision 139)', () => {
+    const cannot = section(/^Vous ne pouvez plus vous connecter/);
+    expect(cannot).toContain(
+      'Si vous n’avez plus accès à cette adresse, écrivez-nous à support@myweli.com avec le nom de votre salon\u00a0: nous vous répondrons pour vérifier qu’il s’agit bien de votre compte.',
+    );
+    const revoked = section(/^Votre accès à l’équipe d’un salon a été retiré/);
+    expect(revoked).toContain('(ou ne vous montre que vos invitations)');
+    expect(revoked).toContain(
+      'Écrivez-nous à support@myweli.com depuis l’adresse e-mail de votre compte\u00a0: nous vous répondrons pour confirmer la suppression.',
+    );
+    expect(page()).toContain('Oui, si vous pouvez vous connecter à l’Espace Pro\u00a0:');
+  });
+});
+
+/// docs/design/web-pro-account-deletion.md §12, R3: `llms.txt` said « no crash
+/// reporting » while the policy discloses Sentry — the stale denial the block
+/// « the privacy policy does not deny what we actually ship » exists for, in
+/// the file AI engines read instead of the page.
+describe('llms.txt does not deny what we ship either', () => {
+  const llms = readFileSync(join(__dirname, '..', 'public/llms.txt'), 'utf8').replace(/\s+/g, ' ');
+  const deps = Object.keys(pkg.dependencies ?? {});
+
+  it('Sentry ships, so llms.txt says error reports go to it, and never « no crash reporting »', () => {
+    expect(deps.some((d) => d.includes('sentry'))).toBe(true);
+    expect(llms).not.toMatch(/no crash report/i);
+    expect(llms).toMatch(/error reports?[^.]*Sentry/i);
+  });
+
+  it('still denies analytics and advertising, as the policy does', () => {
+    expect(llms).toMatch(/no analytics/i);
+    expect(llms).toMatch(/no advertising SDK/i);
   });
 });

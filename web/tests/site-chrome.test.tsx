@@ -94,6 +94,41 @@ describe('SiteChrome gives /recherche a full-width header, and only it', () => {
   });
 });
 
+/// B0.19 (docs/design/web-pro-account-deletion.md §4.2, §7, §10 #12):
+/// `/pro/suppression-compte` is a `/pro/…` path, so without its `PRO_AUTH`
+/// entry `SiteChrome` renders NO header at all. It gets the Pro sign-in's: the
+/// lockup home and « Espace pro », never the client's « Mon compte », and no
+/// install banner (a person leaving is not pushed to install — WEB-SYSTEM §13).
+describe('/pro/suppression-compte wears the Pro sign-in’s header', () => {
+  beforeEach(() => {
+    // A store link set, so a banner WOULD render on a consumer page.
+    vi.spyOn(appStore, 'appStoreUrl').mockReturnValue('https://apps.apple.com/app/x');
+  });
+
+  it('the exact path: the banner landmark, the lockup home, « Espace pro », no « Mon compte », no install banner', () => {
+    nav.pathname = '/pro/suppression-compte';
+    const { container } = render(<SiteChrome />);
+    const banner = screen.getByRole('banner');
+    expect(banner.querySelector('a[aria-label="MyWeli — accueil"]')).toHaveAttribute('href', '/');
+    expect(banner).toHaveTextContent('Espace pro');
+    expect(screen.queryByRole('link', { name: 'Mon compte' })).toBeNull();
+    expect(container.querySelector('aside')).toBeNull();
+    expect(screen.queryByText(/téléchargez l’app MyWeli/)).toBeNull();
+  });
+
+  it.each(['/suppression-compte', '/', '/professionnels'])('%s keeps the consumer header', (path) => {
+    nav.pathname = path;
+    render(<SiteChrome />);
+    expect(screen.getByRole('link', { name: 'Mon compte' })).toBeInTheDocument();
+  });
+
+  it.each(['/pro/suppression-compte/x', '/pro/suppression'])('%s is not the page: the dashboard rule (no header)', (path) => {
+    nav.pathname = path;
+    const { container } = render(<SiteChrome />);
+    expect(container).toBeEmptyDOMElement();
+  });
+});
+
 describe('the install banner starts on the same left edge as the logo', () => {
   beforeEach(() => {
     vi.spyOn(appStore, 'appStoreUrl').mockReturnValue('https://apps.apple.com/app/x');

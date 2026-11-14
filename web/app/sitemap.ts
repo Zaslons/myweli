@@ -7,6 +7,7 @@ import {
 } from '../lib/api/providers';
 import { buildTaxonomyPath } from '../lib/landing';
 import { LEGAL_ROUTES } from '../lib/legal';
+import { PRO_ACCOUNT_DELETION } from '../lib/proAccountDeletion';
 import { SUPPORT } from '../lib/support';
 import { siteUrl } from '../lib/seo/jsonld';
 import { taxonomyRootSlugs } from '../lib/taxonomy';
@@ -69,6 +70,15 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       changeFrequency: 'yearly' as const,
       priority: 0.3,
     })),
+    // B0.19 (decision 140): the Pro deletion page is indexed — the one `/pro`
+    // page that is — so a salon without the app finds it by searching. Not a
+    // legal route (no footer link, not one of the five), so its own row.
+    {
+      url: `${siteUrl}${PRO_ACCOUNT_DELETION.slug}`,
+      lastModified,
+      changeFrequency: 'yearly' as const,
+      priority: 0.3,
+    },
   ];
   // The three landing levels come from the LOCALITY TREE, not the catalogue.
   //

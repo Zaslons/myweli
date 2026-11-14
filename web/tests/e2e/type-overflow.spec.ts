@@ -88,6 +88,9 @@ const PUBLIC_ROUTES: [name: string, url: string, anchor: string | RegExp][] = [
   // guard this file's own header demands — a wrong URL scans the 404 page,
   // which also does not overflow.
   ['the account-deletion page — the one a reviewer opens on a phone', '/suppression-compte', /Supprimer votre compte/i],
+  // B0.19: the Pro deletion page Play links for salon accounts — a CTA inside a
+  // numbered step, three printed addresses. Its doubled-text run is below.
+  ['the Pro account-deletion page — Play’s link for salon accounts', '/pro/suppression-compte', 'Supprimer votre compte MyWeli Pro'],
   // web-pro-access.md §4: the salons' page — the longest h1 on the public
   // site, two buttons side by side, six benefit cards.
   ['the not-found page', '/page-qui-nexiste-pas', 'Page introuvable'],
@@ -1450,3 +1453,104 @@ test.describe('the booking funnel at doubled text (web-funnel-doubled-text)', ()
     });
   }
 });
+
+/// `/pro/suppression-compte` at doubled text (B0.19,
+/// docs/design/web-pro-account-deletion.md §4.4, §10 #14).
+///
+/// The page prints « support@myweli.com » three times, in the same 720px
+/// column as `/mentions-legales` — which that one address widens to 343px on a
+/// 320 phone in the Android mode (WEB-SYSTEM §15 row 38). Here the address goes
+/// through `Email`, which lets it break after « @ » (`<wbr>`), and the CTA is a
+/// `ButtonLink` with no `nowrap`. Both modes, as the salon page runs them.
+test.describe('the Pro account-deletion page at doubled text', () => {
+  for (const mode of DOUBLED_TEXT) {
+    test.describe(mode.name, () => {
+      test.use({ viewport: PHONE_320, ...mode.use });
+
+      test(`${mode.name} — /pro/suppression-compte keeps the screen's size at 320×568`, async ({ page }) => {
+        await page.addInitScript((css) => {
+          const add = () => {
+            const style = document.createElement('style');
+            style.textContent = css;
+            document.head.appendChild(style);
+          };
+          if (document.head) add();
+          else document.addEventListener('DOMContentLoaded', add);
+        }, mode.css);
+        await page.goto('/pro/suppression-compte');
+        await expect(
+          page.getByRole('heading', { level: 1, name: 'Supprimer votre compte MyWeli Pro' }),
+          'the page did not render its own h1 (wrong DOM — vacuous scan)',
+        ).toBeVisible();
+        expect(await page.getByRole('link', { name: 'support@myweli.com' }).count(), 'the three addresses').toBe(3);
+
+        // The vacuity guard for the mode itself. The reading copy is the 16px
+        // `bodyLarge`: the Android mode doubles it; a 32px root does not move a
+        // px token (WEB-SYSTEM §15 row 31) but does move every rem box, the
+        // CTA's 48px floor among them.
+        const read = await page.evaluate(() => {
+          const p = document.querySelector('main > p:not(:first-of-type)') as HTMLElement;
+          const cta = [...document.querySelectorAll('main a')].find((a) => a.textContent === 'Se connecter à l’Espace Pro') as HTMLElement;
+          return {
+            body: parseFloat(getComputedStyle(p).fontSize),
+            root: parseFloat(getComputedStyle(document.documentElement).fontSize),
+            ctaMin: parseFloat(getComputedStyle(cta).minHeight),
+          };
+        });
+        if ('isMobile' in mode.use) {
+          expect(read.body, 'the reading copy is not doubled — the mode did not apply').toBe(32);
+        } else {
+          expect(read.root, 'the root is not 32px — the mode did not apply').toBe(32);
+          expect(read.ctaMin, 'the CTA’s rem floor did not follow the root').toBe(96);
+        }
+
+        expect(
+          await page.evaluate(() => [window.innerWidth, window.innerHeight]),
+          'the layout viewport grew past the screen — the page is wider than the phone',
+        ).toEqual([PHONE_320.width, PHONE_320.height]);
+        expect(await horizontalOverflow(page), 'the page scrolls sideways').toEqual([]);
+        expect(await overflowingText(page), 'text spills out of its own box').toEqual([]);
+        expect(await overflowingFlexRows(page), 'a nowrap flex row does not fit its own container').toEqual([]);
+        expect(await verticalClipping(page), 'text is cut off the bottom of its own box').toEqual([]);
+        expect(await truncationLosses(page), 'text is being truncated away').toEqual([]);
+
+        // The five cannot see a number that sticks out to the LEFT: it makes
+        // no sideways scroll. A browser `::marker` outside the text grows with
+        // the text while the list's padding does not, so at doubled text
+        // « 1. » landed in the 16px gutter, 6px from the screen's edge.
+        const steps = await stepNumbersPastTheColumn(page);
+        expect(steps.count, 'the four web steps (wrong DOM — vacuous check)').toBe(4);
+        expect(steps.outside, 'a step number starts left of the text column').toEqual([]);
+      });
+    });
+  }
+});
+
+/// Where each step number of `main > ol` starts, against `<main>`'s content
+/// edge (its left padding: the page's 16px gutter). A number drawn as an
+/// element is measured as one. A browser marker has no box, so its left is the
+/// item's left minus the marker's text (« 1. », with the space the browser
+/// adds) measured in the marker's own font, which is what lays it out.
+async function stepNumbersPastTheColumn(page: Page) {
+  return page.evaluate(() => {
+    const main = document.querySelector('main') as HTMLElement;
+    const edge = main.getBoundingClientRect().left + parseFloat(getComputedStyle(main).paddingLeft);
+    const ctx = document.createElement('canvas').getContext('2d')!;
+    const items = [...document.querySelectorAll<HTMLElement>('main > ol > li')];
+    const outside: string[] = [];
+    items.forEach((li) => {
+      const n = [...li.parentElement!.children].indexOf(li) + 1;
+      const s = getComputedStyle(li);
+      let left: number;
+      if (s.display === 'list-item' && s.listStyleType !== 'none' && s.listStylePosition === 'outside') {
+        const m = getComputedStyle(li, '::marker');
+        ctx.font = `${m.fontStyle} ${m.fontWeight} ${m.fontSize} ${m.fontFamily}`;
+        left = li.getBoundingClientRect().left - ctx.measureText(`${n}. `).width;
+      } else {
+        left = (li.firstElementChild ?? li).getBoundingClientRect().left;
+      }
+      if (left < edge - 0.5) outside.push(`step ${n}: its number starts at ${left.toFixed(1)}px, the column at ${edge}px`);
+    });
+    return { count: items.length, outside };
+  });
+}

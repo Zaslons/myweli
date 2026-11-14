@@ -18,6 +18,12 @@ const CONTROLS = ['/', '/recherche'];
 const SALON_PATHS = ['/professionnels', '/pro/inscription', '/pro/connexion'];
 const SALON_WORDS = ['Espace pro', 'Inscrire mon salon', 'Connexion Espace pro', 'MyWeli Pro pour les salons'];
 const LEGAL = ['Politique de confidentialité', 'Conditions d’utilisation', 'Mentions légales', 'Supprimer mon compte'];
+/// B0.19 (docs/design/web-pro-account-deletion.md §10 #15): the Pro deletion
+/// page is a salons' page, so none of the five may name it — not even as text.
+/// A constant of its own, read only by the raw-HTML loop: `SALON_PATHS` also
+/// drives the controls below, which require `/` to name every entry and the
+/// footer group to equal it, and this page is in neither.
+const PRO_DELETION = '/pro/suppression-compte';
 
 /// An iPad Air 11-inch in portrait, where Apple's reviewer sat and the header's link
 /// shows, and a phone, where it did not show but was still in the HTML.
@@ -57,6 +63,7 @@ for (const path of FIVE) {
     for (const s of [...SALON_PATHS, ...SALON_WORDS]) {
       expect(html, s).not.toContain(s);
     }
+    expect(html, PRO_DELETION).not.toContain(PRO_DELETION);
     expect(html).not.toMatch(/facturation|abonnement|FCFA/i);
   });
 

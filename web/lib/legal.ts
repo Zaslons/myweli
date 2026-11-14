@@ -28,7 +28,10 @@
 /// (which must contain all four, or a salon can take `/cgu` and be shadowed by
 /// the static route).
 
-export type LegalRoute = {
+/// What `components/legal/LegalPage.tsx`'s `DocumentPage` shell needs to render
+/// a document: the four below, and `/pro/suppression-compte`
+/// (`lib/proAccountDeletion.ts`), which is not one of them and has no footer link.
+export type DocumentRoute = {
   /// Absolute path, leading slash, no trailing slash.
   readonly slug: string;
   /// The page's `<h1>` — its core entity (WEB-SYSTEM §4).
@@ -36,6 +39,15 @@ export type LegalRoute = {
   /// The `<title>`, which `defaultMetadata`'s template suffixes with « · MyWeli ».
   readonly title: string;
   readonly description: string;
+};
+
+/// A document's « Dernière mise à jour » and its JSON-LD `dateModified`.
+export type DocumentDate = {
+  readonly iso: string;
+  readonly label: string;
+};
+
+export type LegalRoute = DocumentRoute & {
   /// Shown in the footer, where « Politique de confidentialité » is too long to
   /// sit beside three siblings on a 375px phone.
   readonly footerLabel: string;
