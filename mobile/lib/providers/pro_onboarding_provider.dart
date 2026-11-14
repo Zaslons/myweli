@@ -137,9 +137,10 @@ class ProOnboardingProvider extends ChangeNotifier implements SalonScoped {
         )
       : null;
 
-  /// The re-reads the last [publish] started, done — for the tests; the
-  /// screen never waits on them (the snackbar is said at the answer).
-  @visibleForTesting
+  /// The re-reads the last [publish] started, done. The snackbar is said at
+  /// the answer, never after them; the screen waits on them only to bring
+  /// a 409 `validation_refused_final`'s reason on screen once its own
+  /// re-read has drawn it (decision 136 item 2).
   Future<void> get publishSettled => _publishSettled ?? Future<void>.value();
   Future<void>? _publishSettled;
 

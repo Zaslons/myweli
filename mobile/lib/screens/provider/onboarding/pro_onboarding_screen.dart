@@ -4,10 +4,12 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
+import '../../../core/a11y/reduce_motion.dart';
 import '../../../core/constants/failure_messages.dart';
 import '../../../core/constants/salon_validation_copy.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/colors.dart';
+import '../../../core/theme/motion.dart';
 import '../../../core/theme/text_styles.dart';
 import '../../../core/utils/formatters.dart';
 import '../../../core/utils/onboarding.dart';
@@ -47,6 +49,15 @@ class _ProOnboardingScreenState extends State<ProOnboardingScreen> {
 
   /// The notice's switch is out.
   bool _switching = false;
+
+  /// The validation's banner, for bringing it on screen ([_revealBanner]).
+  final GlobalKey _bannerKey = GlobalKey();
+
+  /// A publish changed the state and said nothing (decision 136 item 7): the
+  /// banner is a live region, read out as it lands — the mechanism both
+  /// platforms support (SYSTEM.md §13.4, §15). Never as the screen opens:
+  /// a banner read on load is not news.
+  bool _announceBanner = false;
 
   /// Nothing of a salon on screen until the notice's switch has answered:
   /// the checklist's store is the app's, and may still hold the salon the
@@ -139,15 +150,20 @@ class _ProOnboardingScreenState extends State<ProOnboardingScreen> {
     final auth = context.read<ProAuthProvider>();
     final providerId = auth.activeSalonId ?? SalonId.none;
     final onboarding = context.read<ProOnboardingProvider>();
+    if (_announceBanner) setState(() => _announceBanner = false);
     // The provider re-reads the session's copies of the state (the home
     // card, « Mes salons ») after the answer — the one place it is done.
     final outcome = await onboarding.publish(providerId, session: auth);
     if (!mounted) return;
+    // Another salon since (a tapped push switched while the answer was
+    // out): the answer is about the salon the owner left, and nothing of it
+    // is said over the next — success or failure.
+    if (auth.activeSalonId != providerId) return;
     if (outcome != null) {
       // « 🎉 » for a 200 only: a 202 is a request, the salon still a draft
       // (B0.18 §6.1). And a 202 MyWeli refused at that very moment, or whose
       // request vanished, says nothing — the screen shows the state
-      // (decision 136 item 7).
+      // (decision 136 item 7): brought on screen, and read out.
       final said = outcome.isLive
           ? SalonValidationCopy.wentLive
           : outcome.saysRequestSent
@@ -155,8 +171,17 @@ class _ProOnboardingScreenState extends State<ProOnboardingScreen> {
           : null;
       if (said != null) {
         AppSnackBar.showOn(messenger, said, kind: SnackKind.success);
+      } else {
+        setState(() => _announceBanner = true);
+        _revealBanner();
       }
       return;
+    }
+    if (onboarding.publishErrorCode == 'validation_refused_final') {
+      // The snackbar says « Mise en ligne refusée »; the reason lands with
+      // the re-read, at the top of the list — brought on screen, not read
+      // out a second time.
+      unawaited(onboarding.publishSettled.then((_) => _revealBanner()));
     }
     // A salon with no offer row is never refused for it (its trial starts
     // when MyWeli validates it), so `offer_required` means the salon's offer
@@ -173,6 +198,26 @@ class _ProOnboardingScreenState extends State<ProOnboardingScreen> {
           : (onboarding.error ?? 'La mise en ligne a échoué'),
       kind: SnackKind.error,
     );
+  }
+
+  /// The banner on screen, after the frame that draws it: a publish that
+  /// changed the state with the user at the list's end, by its button
+  /// (§6.1). The app moves the page here, not the user — reduced motion
+  /// jumps (SYSTEM.md §9, A8).
+  void _revealBanner() {
+    if (!mounted) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final banner = _bannerKey.currentContext;
+      if (!mounted || banner == null) return;
+      unawaited(
+        Scrollable.ensureVisible(
+          banner,
+          duration: reduceMotionOf(context) ? Duration.zero : AppMotion.slow,
+          curve: AppMotion.slowCurve,
+        ),
+      );
+    });
+    WidgetsBinding.instance.ensureVisualUpdate();
   }
 
   @override
@@ -222,14 +267,35 @@ class _ProOnboardingScreenState extends State<ProOnboardingScreen> {
     final progress = onboarding.progress;
     final ratio = progress.total == 0 ? 0.0 : progress.done / progress.total;
 
+    // See the salon exactly as a client will, before going live (B5) — in
+    // every state, as the website's card (web-salon-validation.md §4.1).
+    final preview = OutlinedButton(
+      onPressed: () => context.push('/pro/apercu'),
+      style: OutlinedButton.styleFrom(
+        foregroundColor: AppColors.textPrimary,
+        side: const BorderSide(color: AppColors.borderStrong),
+        padding: const EdgeInsets.symmetric(vertical: AppTheme.spacingM),
+      ),
+      child: const Text('Aperçu de ma page'),
+    );
+
     return ListView(
       padding: const EdgeInsets.all(AppTheme.spacingM),
       children: [
         // Above the steps, the KYC banner's pattern (§6.2).
-        if (banner != null) _GoLiveStatusBanner(banner),
-        // Suspended: the banner alone — no checklist, no button; MyWeli's
-        // restore decides (decision 136 item 9, as the website).
-        if (state != GoLiveState.suspended) ...[
+        if (banner != null)
+          _GoLiveStatusBanner(
+            banner,
+            key: _bannerKey,
+            announce: _announceBanner,
+          ),
+        // Suspended: the banner and « Aperçu de ma page » — no checklist, no
+        // button; MyWeli's restore decides (decision 136 item 9, as the
+        // website's suspended card).
+        if (state == GoLiveState.suspended) ...[
+          const SizedBox(height: AppTheme.spacingL),
+          preview,
+        ] else ...[
           if (banner != null) const SizedBox(height: AppTheme.spacingL),
           Text(
             '${Formatters.count(progress.done, 'étape', 'étapes')} sur '
@@ -262,16 +328,7 @@ class _ProOnboardingScreenState extends State<ProOnboardingScreen> {
                   onboarding.communeNotInList,
             ),
           const SizedBox(height: AppTheme.spacingL),
-          // See the salon exactly as a client will, before going live (B5).
-          OutlinedButton(
-            onPressed: () => context.push('/pro/apercu'),
-            style: OutlinedButton.styleFrom(
-              foregroundColor: AppColors.textPrimary,
-              side: const BorderSide(color: AppColors.borderStrong),
-              padding: const EdgeInsets.symmetric(vertical: AppTheme.spacingM),
-            ),
-            child: const Text('Aperçu de ma page'),
-          ),
+          preview,
           ..._action(state, onboarding, auth),
         ],
       ],
@@ -353,9 +410,13 @@ class _ProOnboardingScreenState extends State<ProOnboardingScreen> {
 /// salon no longer online a warning — each with its glyph, so the state
 /// survives greyscale (SYSTEM.md §13.6) beside its title.
 class _GoLiveStatusBanner extends StatelessWidget {
-  const _GoLiveStatusBanner(this.banner);
+  const _GoLiveStatusBanner(this.banner, {super.key, this.announce = false});
 
   final GoLiveBanner banner;
+
+  /// A live region: read out as it lands (`_announceBanner`). Here, not in
+  /// [StatusBanner], so KYC's banner stays as it drew.
+  final bool announce;
 
   @override
   Widget build(BuildContext context) {
@@ -364,12 +425,15 @@ class _GoLiveStatusBanner extends StatelessWidget {
       GoLiveTone.error => (AppColors.error, Icons.error_outline),
       GoLiveTone.warning => (AppColors.warning, Icons.warning_amber),
     };
-    return StatusBanner(
+    final box = StatusBanner(
       color: color,
       icon: icon,
       title: banner.title,
       lines: banner.lines,
     );
+    return announce
+        ? Semantics(container: true, liveRegion: true, child: box)
+        : box;
   }
 }
 

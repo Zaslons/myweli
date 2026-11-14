@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
@@ -58,6 +60,9 @@ enum _SwitchFault {
 /// and the notice tap's switch probe — counted, and failing on demand.
 class _ScenarioProService extends MockProService {
   ApiResponse<PublishOutcome>? publishAnswer;
+
+  /// A publish whose answer the test lands when it chooses.
+  Completer<ApiResponse<PublishOutcome>>? publishHeld;
   bool thirdPhoto = true;
   bool legacyServer = false;
   _SwitchFault? switchFault;
@@ -67,6 +72,7 @@ class _ScenarioProService extends MockProService {
 
   void reset() {
     publishAnswer = null;
+    publishHeld = null;
     thirdPhoto = true;
     legacyServer = false;
     switchFault = null;
@@ -114,7 +120,7 @@ class _ScenarioProService extends MockProService {
 
   @override
   Future<ApiResponse<PublishOutcome>> publishSalon(SalonId providerId) async =>
-      publishAnswer ?? super.publishSalon(providerId);
+      publishHeld?.future ?? publishAnswer ?? super.publishSalon(providerId);
 }
 
 const _p1 = SalonId('provider1');
@@ -522,18 +528,33 @@ void main() {
       await expectOnlyButton(tester, null);
     }, variant: bothPlatforms);
 
-    testWidgets('suspended: the banner alone — no checklist, no preview, no '
-        'button (decision 136 item 9)', (tester) async {
+    testWidgets('suspended: the banner, and « Aperçu de ma page » its only '
+        'control — no checklist, no button (decision 136 item 9, as the '
+        'website: GoLiveCard\'s suspended card)', (tester) async {
       MockData.seedSuspended(_p1);
       await pumpScreen(tester);
 
       expect(find.text(SalonValidationCopy.suspendedTitle), findsOneWidget);
       expect(find.text(SalonValidationCopy.suspendedText), findsOneWidget);
       expectBannerTone(tester, AppColors.error, Icons.error_outline);
-      expect(find.text('Profil de l’entreprise'), findsNothing);
-      expect(find.textContaining('étape'), findsNothing);
-      expect(find.text('Aperçu de ma page'), findsNothing);
+      expect(
+        find.text('Profil de l’entreprise', skipOffstage: false),
+        findsNothing,
+      );
+      expect(find.textContaining('étape', skipOffstage: false), findsNothing);
       await expectOnlyButton(tester, null);
+      expect(find.text('Aperçu de ma page'), findsOneWidget);
+      expect(
+        tester.getTopLeft(find.text('Aperçu de ma page')).dy,
+        greaterThan(
+          tester.getTopLeft(find.text(SalonValidationCopy.suspendedTitle)).dy,
+        ),
+        reason: 'under the banner',
+      );
+
+      await tester.tap(find.text('Aperçu de ma page'));
+      await tester.pumpAndSettle();
+      expect(find.text('stub apercu'), findsOneWidget);
     }, variant: bothPlatforms);
 
     testWidgets('a server from before B0.18 (no validation key): today\'s '
@@ -631,23 +652,43 @@ void main() {
           ),
         ),
       );
+      final semantics = tester.ensureSemantics();
       await pumpScreen(tester);
       await tapButton(tester, SalonValidationCopy.requestButton);
 
       expect(find.byType(SnackBar), findsNothing);
-      await tester.scrollUntilVisible(
-        find.text(SalonValidationCopy.refusedTitle),
-        -200,
-      );
+      // Nothing is said, so the state is brought to the eye and the ear:
+      // the list back at its banner — on screen, no scroll of the test's
+      // own — and the banner a live region, read out as it lands (SYSTEM.md
+      // §13.4, §15: the mechanism both platforms support).
+      expect(find.text(SalonValidationCopy.refusedTitle), findsOneWidget);
       expect(
         find.text(SalonValidationCopy.refusalSentences['photos']!),
         findsOneWidget,
       );
+      expect(
+        tester.getSemantics(find.text(SalonValidationCopy.refusedTitle)),
+        isSemantics(isLiveRegion: true),
+      );
+      semantics.dispose();
       await tester.scrollUntilVisible(
         find.text(SalonValidationCopy.resubmitButton),
         200,
       );
       await expectOnlyButton(tester, SalonValidationCopy.resubmitButton);
+    }, variant: bothPlatforms);
+
+    testWidgets('CONTROL — a banner read as « Configuration » opens is no '
+        'live region: never read out unasked', (tester) async {
+      MockData.seedRefused(_p1, code: 'photos', note: _note);
+      final semantics = tester.ensureSemantics();
+      await pumpScreen(tester);
+
+      expect(
+        tester.getSemantics(find.text(SalonValidationCopy.refusedTitle)),
+        isNot(isSemantics(isLiveRegion: true)),
+      );
+      semantics.dispose();
     }, variant: bothPlatforms);
 
     testWidgets('a 202 whose request vanished (`validation: null`): nothing '
@@ -679,13 +720,65 @@ void main() {
         ),
         findsOneWidget,
       );
-      await tester.scrollUntilVisible(
+      // The re-read's reason, brought on screen; the snackbar already spoke,
+      // so the banner is no second live region (SYSTEM.md §15, A6).
+      expect(
         find.text(SalonValidationCopy.refusalSentences['outside_ci']!),
-        -200,
+        findsOneWidget,
       );
       expect(find.text(_note), findsOneWidget);
+      final semantics = tester.ensureSemantics();
+      await tester.pump();
+      expect(
+        tester.getSemantics(
+          find.text(SalonValidationCopy.refusalSentences['outside_ci']!),
+        ),
+        isNot(isSemantics(isLiveRegion: true)),
+      );
+      semantics.dispose();
       await expectOnlyButton(tester, null);
     }, variant: bothPlatforms);
+
+    // An answer that lands after a salon switch (a tapped push, say) is
+    // about the salon the owner left: nothing of it is said over the next.
+    for (final (name, answer) in <(String, ApiResponse<PublishOutcome>)>[
+      (
+        'a request (202)',
+        ApiResponse.success(
+          PublishOutcome.requested(
+            SalonValidation(
+              state: SalonValidationState.pending,
+              wentLive: false,
+              submittedAt: DateTime.utc(2026, 11, 13, 9),
+            ),
+          ),
+        ),
+      ),
+      ('live (200)', ApiResponse.success(const PublishOutcome.live())),
+      (
+        'a refusal',
+        ApiResponse.error('Une erreur est survenue', code: 'internal_error'),
+      ),
+    ]) {
+      testWidgets('$name answered after a salon switch: nothing said about '
+          'the salon left', (tester) async {
+        MockData.seedNeverAsked(_p1);
+        final held = Completer<ApiResponse<PublishOutcome>>();
+        pro.publishHeld = held;
+        final (:auth, router: _) = await pumpScreen(tester);
+        final button = find.text(SalonValidationCopy.requestButton);
+        await tester.scrollUntilVisible(button, 200);
+        await tester.tap(button);
+        await tester.pump();
+
+        await tester.runAsync(() => auth.switchSalon(_p2));
+        expect(auth.activeSalonId, _p2);
+        held.complete(answer);
+        await settleMocks(tester, rounds: 5);
+
+        expect(find.byType(SnackBar), findsNothing);
+      }, variant: bothPlatforms);
+    }
 
     testWidgets('a publish refused by the offer gate (EXPIRED offer): the '
         'neutral sentence and NO action', (tester) async {
