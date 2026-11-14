@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Module** | web — text only, `web/app/politique-confidentialite/page.tsx` (one of the five store-linked pages), `web/lib/legal.ts` `LEGAL_UPDATED_AT`, `infra/legal/registration-manifest.json`; and one internal row of [play-store-forms.md](play-store-forms.md) |
-| **Status** | **Approved 2026-11-13 (decision 143). Built 2026-11-14 on `fix/web-privacy-pro-deletion` (stacked on this spec's docs PR, #790); not merged, gated by §7.** The owner approved the eight sentences of the B0.23 draft (session notes, not in the repo; a review's 14 findings folded in before the owner read it), with R2 (b), options A and B, « en détail », and the identity documents named in full |
+| **Status** | **Approved 2026-11-13 (decision 143). Built 2026-11-14 on `fix/web-privacy-pro-deletion` (stacked on this spec's docs PR, #790); not merged, gated by §7, which since a review of the branch (2026-11-14) includes one question back to the owner on sentence 2's wording (§7, item 6).** The owner approved the eight sentences of the B0.23 draft (session notes, not in the repo; a review's 14 findings folded in before the owner read it), with R2 (b), options A and B, « en détail », and the identity documents named in full |
 | **Owner** | the project owner: the merge (a production deploy of the website), on the day `LEGAL_UPDATED_AT` names |
 | **Last updated** | 2026-11-14 |
 | **PRD ref / phase** | FR-AUTH-005 [V1] (`docs/PRD.md:344`) · V1 · gates android-play-release step 7 (decision 137) |
@@ -130,6 +130,24 @@ B0.23 merges only when all hold (decision 143):
    an engineering consequence, not part of decision 143), because sentence 2 sends people to it from day one.
 5. **Outside the merge hold** of android-play-release step 3 (c) **and outside any Apple review**: the
    merge changes four of the five pages. Then S1 (web spec §11).
+6. **The owner's answer on sentence 2's wording** (raised by a review of the built branch,
+   2026-11-14; the words are decision 143's, so only the owner changes them). Sentence 2 tells
+   anyone who « ne pouvez plus vous connecter » that we will reply « pour vérifier qu’il s’agit bien
+   de votre compte et confirmer sa suppression, aux mêmes conditions que si vous la faisiez
+   vous-même ». A Pro who can still read the account's address signs in with « Continuer avec
+   e-mail », so a Pro who cannot sign in has, in practice, lost that mailbox, and R1 erases nothing
+   without a code confirmed from it ([admin-pro-account-erase.md](admin-pro-account-erase.md)
+   §10.1, « No phone callback »: that person gets T4 and nothing is erased). For a lost address,
+   `/pro/suppression-compte` promises only a reply « pour vérifier qu’il s’agit bien de votre
+   compte »; for a removed access, a reply « pour confirmer la suppression ». The choices:
+   (a) keep sentence 2 as approved; (b) *(recommended)* « Si vous ne pouvez plus vous connecter à
+   votre compte, ou si votre accès à l’équipe d’un salon vous a été retiré, écrivez-nous depuis la
+   page Aide & Support : nous vous répondrons pour vérifier, depuis l’adresse e-mail de votre
+   compte, qu’il s’agit bien de votre compte ; cette vérification faite, nous confirmerons sa
+   suppression, aux mêmes conditions que si vous la faisiez vous-même. »; (c) two sentences, as the
+   Pro page has them: a removed access gets « confirmer », a lost sign-in « vérifier » only. Until
+   the answer, the page keeps the approved words. A changed sentence updates §2's quote, the B0.23
+   pin of `web/tests/legal.test.tsx` and the page in this PR, each watched red first.
 
 Then the live read: the policy fetched raw shows the new sentences and date, zero `/pro` href, zero
 `SALON_WORDS`; `/cgu`, `/mentions-legales` and `/suppression-compte` differ by the date only.
