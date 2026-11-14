@@ -124,9 +124,24 @@ export function legalRoute(slug: string): LegalRoute {
 /// Cloudflare's address, not the visitor's — the policy said the opposite;
 /// the processors' « protection au moins équivalente » (App Store 5.1.1(i));
 /// each app's export path; and Cloudflare's second role in the hosts below.
+///
+/// **Bumped 2026-11-13** (BACKLOG B0.18, website 4b, #785): the CGU's §7 says
+/// MyWeli validates every salon before it goes live (salon-go-live-approval.md
+/// §6.4, Q7). That PR moved the date and the manifest but left this note out;
+/// B0.23 writes it.
+///
+/// **Bumped 2026-11-14** (BACKLOG B0.23, decision 143,
+/// docs/design/web-privacy-pro-deletion.md): the privacy policy tells a Pro the
+/// truth about deletion — « Profil → Compte » on the web, « Aide & Support » for
+/// whoever cannot sign in, the verification documents named in full and a
+/// replaced one erased, a deleted owner's salon kept and hidden with no limit
+/// set, its photos still reachable, MyWeli's decision log and the salon team's
+/// action log. **This date is the merge day** (that spec, §4): if the PR merges
+/// later, `iso`, `label` and the manifest's `legalUpdatedAtWhenPending` are set
+/// again, together, in its last commit.
 export const LEGAL_UPDATED_AT = {
-  iso: '2026-11-13',
-  label: '13 novembre 2026',
+  iso: '2026-11-14',
+  label: '14 novembre 2026',
 } as const;
 
 export const COMPANY = {

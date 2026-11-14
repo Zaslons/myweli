@@ -160,14 +160,21 @@ export default function Page() {
       </P>
       <P>
         <strong>Si vous êtes professionnel</strong>, vous nous transmettez en
-        outre des pièces d’identité et d’immatriculation. Elles sont stockées dans
-        un espace privé et séparé, ne sont jamais publiées, et ne sont
-        consultables que par un administrateur MyWeli au moyen d’un lien signé
-        valable cinq minutes. Chaque consultation est journalisée. Si vous
-        supprimez votre compte, votre salon est retiré de MyWeli. Son nom et son
-        historique — rendez-vous et avis — restent, pour vos clients&nbsp;; ses
-        numéros de téléphone, WhatsApp et Mobile Money et son adresse sont
-        effacés.
+        outre des documents de vérification&nbsp;: des pièces d’identité et
+        d’immatriculation, une photo de votre visage et un justificatif
+        d’adresse. Ils sont stockés dans un espace privé et séparé, ne sont
+        jamais publiés, et ne sont consultables que par un administrateur MyWeli
+        au moyen d’un lien signé valable cinq minutes. Chaque consultation est
+        journalisée. Ils sont effacés si vous supprimez votre compte, et un
+        document que vous remplacez l’est dès son remplacement. Cet effacement
+        est fait <strong>au mieux</strong>&nbsp;: si notre stockage est
+        indisponible lors de la suppression, ou lorsque vous remplacez ou
+        renvoyez un document, un fichier peut subsister dans notre stockage
+        privé, jamais publié. Si vous supprimez votre compte, chaque salon dont
+        vous êtes propriétaire est retiré du public. Son nom et son historique —
+        rendez-vous et avis — restent, pour vos clients&nbsp;; ses numéros de
+        téléphone, WhatsApp et Mobile Money et son adresse sont effacés, ainsi
+        que son point sur la carte.
       </P>
 
       <P>
@@ -288,11 +295,21 @@ export default function Page() {
         l’application MyWeli Pro, le propriétaire du salon depuis{' '}
         <strong>Profil → Mes données</strong>, et chacun depuis{' '}
         <strong>Profil → Supprimer mon compte</strong>&nbsp;; sur le web,
-        depuis <A href="/mon-compte">Mon compte</A>.
+        depuis <A href="/mon-compte">Mon compte</A> pour un compte client, et
+        depuis <strong>Profil → Compte</strong> une fois connecté avec votre
+        compte professionnel (l’export y est réservé au propriétaire du salon).
+      </P>
+      <P>
+        Si vous ne pouvez plus vous connecter à votre compte, ou si votre accès
+        à l’équipe d’un salon vous a été retiré, écrivez-nous depuis la page{' '}
+        <A href="/support">Aide &amp; Support</A>&nbsp;: nous vous répondrons
+        pour vérifier, depuis l’adresse e-mail de votre compte, qu’il s’agit
+        bien de votre compte&nbsp;; cette vérification faite, nous confirmerons
+        sa suppression, aux mêmes conditions que si vous la faisiez vous-même.
       </P>
       <P>
         La page <A href="/suppression-compte">Supprimer votre compte</A> décrit
-        poste par poste ce qui est supprimé, ce qui est anonymisé et ce qui est
+        en détail ce qui est supprimé, ce qui est anonymisé et ce qui est
         conservé — parce qu’une suppression décrite en une phrase serait
         inexacte. Une seule condition&nbsp;: annulez vos rendez-vous à venir
         avant, pour ne pas laisser un salon avec un créneau qu’il ne peut plus
@@ -308,6 +325,34 @@ export default function Page() {
         continue de vous protéger&nbsp;; et les étiquettes et notes qu’un salon a
         rédigées sur sa fiche client, qui lui appartiennent et restent attachées
         à une fiche désormais anonyme. La page ci-dessus les énumère.
+      </P>
+      <P>
+        <strong>Si vous supprimez un compte professionnel</strong>, chaque salon
+        dont vous étiez propriétaire reste dans notre base, caché du
+        public&nbsp;: son nom, sa description, ses prestations, ses horaires, son
+        équipe, ses rendez-vous, son fichier clients et ses avis, ainsi que sa
+        commune et sa ville. Les membres de son équipe y gardent accès. Ses
+        photos — galerie, logo, avant/après, photos de l’équipe — ne sont plus
+        affichées au public sur MyWeli, mais restent accessibles à leur adresse
+        existante pour qui la connaît. Le journal des décisions de notre équipe
+        sur ce compte et ses salons — vérification d’identité acceptée ou
+        refusée, avec le motif écrit d’un refus, suspension d’un salon avec son
+        motif — est conservé de même. Restent aussi, jusqu’à ce qu’ils soient
+        retirés&nbsp;: les e-mails reçus par notre équipe lorsqu’un salon validé
+        a changé d’adresse, de téléphone ou de point sur la carte, dans notre
+        messagerie&nbsp;; une invitation qu’un autre salon vous avait envoyée et
+        que vous n’aviez pas acceptée, avec votre adresse e-mail&nbsp;; votre
+        fiche de collaborateur dans l’équipe d’un salon dont vous étiez
+        seulement membre (nom, photo).{' '}
+        <strong>Aucune durée de conservation n’est fixée à ce jour</strong>&nbsp;:
+        ces informations ne sont pas effacées automatiquement.
+      </P>
+      <P>
+        Le journal des actions de l’équipe d’un salon garde des identifiants
+        techniques, les rôles, la date de chaque action et les recherches faites
+        dans sa liste de clients. Aucune durée de conservation n’est fixée à ce
+        jour, et il n’est pas effacé à la suppression d’un compte. Le texte
+        recherché peut être le nom ou le numéro d’un client.
       </P>
 
       <H2>Nous contacter</H2>
