@@ -90,7 +90,9 @@ describe('the chrome, by route', () => {
   });
 
   it('P4 — the Pro sign-in pages lead back to the site, without the client’s account', () => {
-    for (const p of ['/pro/connexion', '/pro/inscription']) {
+    // B0.19: the Pro deletion page is a `/pro/…` path reached signed out, and
+    // gets the same header (web-pro-account-deletion.md §10 #12).
+    for (const p of ['/pro/connexion', '/pro/inscription', '/pro/suppression-compte']) {
       pathname = p;
       render(<SiteChrome />);
       const banner = screen.getByRole('banner');
