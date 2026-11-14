@@ -191,7 +191,7 @@ the shape of `backend/test/admin_user_test.dart:78-113`):
 |---|---|---|
 | 1 | erase: 405 on GET, POST, PUT, PATCH; lookup: 405 on GET, DELETE | accept any verb |
 | 2 | no token, an expired admin token, an admin token signed with another secret → 401; a provider and a consumer token → 403, per route; the same hand-built admin token unexpired passes (the control) | exempt the new paths in the gate; skip the expiry check; skip the signature check |
-| 3 | 204; `accountById` null; each owned salon `draft`, phone, address, WhatsApp and Mobile Money cleared (the pin too once B0.22 is in); a **member-only salon untouched** | a hand-written subset instead of `deleteAccount` |
+| 3 | 204; `accountById` null; each owned salon `draft`, phone, address, WhatsApp and Mobile Money cleared, and the pin (B0.22, merged 2026-11-14 in #791); a **member-only salon untouched** | a hand-written subset instead of `deleteAccount` |
 | 4 | one `provider_account.erase` row with that id, that code and `{caseRef}`; its JSON holds neither the e-mail nor the name | `confirmEmail` into `metadata` |
 | 5 | another address → 409 `confirmation_mismatch`, nothing written, no row; a case variant of the right one passes | compare without lower-casing |
 | 6 | no body, a non-object body, `{"confirmEmail": 5, …}` → 400 `invalid_body`; a missing field, an unknown `reason`, a `caseRef` off pattern → 400 `invalid_input`; the lookup likewise with `email`; nothing written; an unknown key, free text included, is ignored and stored nowhere (the contract's body is open) | `caseRef` optional; a field read with a cast (a 500) |
@@ -548,7 +548,8 @@ deployed). Three commits: the code and its tests, the contract, the documents.
   - a service code no arm maps is **thrown** (a reported 500), never a catch-all;
   - one test beyond §8: **10b**, the loser of two concurrent calls (`deleteAccount` answers `forbidden`)
     → 404 and no row (§4.3);
-  - test 3 checks no map pin: B0.22 is not in. It gains that line with B0.22;
+  - test 3 checked no map pin while B0.22 was not in. *(2026-11-14, after #791 merged: the fixture's salons carry a pin, and
+    test 3 checks the owned salons lose it and the member-only salon keeps it.)*
   - **no runbook file**: the procedure stays in §10 and moves to `docs/DEPLOYMENT.md` only once approved
     (§9 step 5).
 - **Not run here:** the full backend suite (targeted tests only on this branch: the new files, the T69

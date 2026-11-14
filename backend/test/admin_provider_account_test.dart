@@ -67,7 +67,7 @@ void main() {
   const ownerEmail = 'owner@salon.test';
 
   /// A salon as an owner's erasure finds it: public, with the PERSON's
-  /// numbers and address on it, and a deposit that needs the number.
+  /// numbers, address and map pin on it, and a deposit that needs the number.
   Map<String, dynamic> salon(String id) => {
     'id': id,
     'slug': 'salon-$id',
@@ -75,6 +75,8 @@ void main() {
     'status': 'active',
     'phoneNumber': '+2250700000101',
     'address': 'Rue des Jardins, Cocody',
+    'latitude': 5.3599,
+    'longitude': -3.9876,
     'whatsapp': '+2250700000102',
     'depositRequired': true,
     'depositMobileMoneyNumber': '+2250700000103',
@@ -363,6 +365,9 @@ void main() {
         expect(doc['name'], 'Salon $s', reason: '$s keeps its name');
         expect(doc['phoneNumber'], '', reason: '$s phone');
         expect(doc['address'], '', reason: '$s address');
+        // B0.22: the pin goes with the address (pro-deletion-erase-gaps §3.1).
+        expect(doc['latitude'], isNull, reason: '$s pin latitude');
+        expect(doc['longitude'], isNull, reason: '$s pin longitude');
         expect(doc['whatsapp'], isNull, reason: '$s WhatsApp');
         expect(doc['depositMobileMoneyNumber'], isNull, reason: '$s MoMo');
         expect(doc['depositMobileMoneyOperator'], isNull, reason: '$s op');
@@ -372,6 +377,8 @@ void main() {
       expect(kept['status'], 'active', reason: 'member-only: untouched');
       expect(kept['phoneNumber'], '+2250700000101');
       expect(kept['address'], 'Rue des Jardins, Cocody');
+      expect(kept['latitude'], 5.3599, reason: 'member-only: pin kept');
+      expect(kept['longitude'], -3.9876);
       expect(kept['whatsapp'], '+2250700000102');
       expect(
         await members.listForAccount(id),
