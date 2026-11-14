@@ -353,6 +353,118 @@ describe('a deleted salon owner: the salon keeps its name, loses its numbers', (
   }
 });
 
+// B0.23 (docs/design/web-privacy-pro-deletion.md, decision 143): the policy
+// tells a Pro the truth about deletion. It sent Pros to the client « Mon compte »
+// on the web, said nothing of a deleted owner's salon, its photos or the team's
+// log, and called /suppression-compte an itemised list. The eight sentences are
+// the owner's, word for word; these pins hold the ones a later edit could undo.
+//
+// Each section is read from its h2 to the next one, because `section()` in the
+// B0.4 block joins every sibling up to the next h2: a check written as « not
+// followed by a full stop » must be unanchored, or it would pass on a page that
+// still sends Pros to « Mon compte ».
+describe('B0.23 — the policy tells a Pro the truth about deletion', () => {
+  const nodesOf = (container: HTMLElement, title: RegExp): Element[] => {
+    const h = [...container.querySelectorAll('h2')].find((e) =>
+      title.test(e.textContent ?? ''),
+    );
+    expect(h, `the « ${title.source} » heading`).toBeTruthy();
+    const out: Element[] = [];
+    for (let n = h!.nextElementSibling; n && n.tagName !== 'H2'; n = n.nextElementSibling) {
+      out.push(n);
+    }
+    return out;
+  };
+  const flat = (nodes: Element[]) =>
+    nodes
+      .map((n) => n.textContent ?? '')
+      .join(' ')
+      .replace(/\s+/g, ' ');
+  const sectionText = (title: RegExp) => {
+    const { container } = render(<ConfidentialitePage />);
+    return flat(nodesOf(container, title));
+  };
+
+  it('« Vos droits » sends a Pro to Profil → Compte, not to the client « Mon compte »', () => {
+    const text = sectionText(/vos droits/i);
+    expect(text).toContain('Mon compte pour un compte client');
+    expect(text).toContain(
+      'Profil → Compte une fois connecté avec votre compte professionnel',
+    );
+    expect(text).toContain('l’export y est réservé au propriétaire du salon');
+    expect(text).not.toMatch(/sur le web, depuis Mon compte\./);
+  });
+
+  it('« Vos droits » sends a locked-out person to « Aide & Support » (R2 (b))', () => {
+    const { container } = render(<ConfidentialitePage />);
+    const nodes = nodesOf(container, /vos droits/i);
+    const text = flat(nodes);
+    expect(text).toContain('nous vous répondrons pour vérifier');
+    expect(text).toContain(
+      'aux mêmes conditions que si vous la faisiez vous-même',
+    );
+    // A link to the page, never the address: printing it widens the page at
+    // 200 % text (WEB-SYSTEM §15 row 38).
+    const support = nodes.flatMap((n) => [...n.querySelectorAll('a')]).filter(
+      (a) => a.getAttribute('href') === '/support',
+    );
+    expect(support.map((a) => a.textContent)).toEqual(['Aide & Support']);
+    // « sans nous écrire » stays: R2 (b) adds a path, it does not take one away.
+    expect(text).toContain('sans nous écrire');
+  });
+
+  it('« Vos droits » no longer calls /suppression-compte an itemised list', () => {
+    const text = sectionText(/vos droits/i);
+    expect(text).not.toMatch(/poste par poste/);
+    expect(text).toContain('décrit en détail ce qui est supprimé');
+  });
+
+  it('the Pro paragraph names the documents, the replacement and a deleted owner’s salon', () => {
+    const { container } = render(<ConfidentialitePage />);
+    const p = [...container.querySelectorAll('p')].find((e) =>
+      (e.textContent ?? '').startsWith('Si vous êtes professionnel'),
+    );
+    expect(p, 'the « Si vous êtes professionnel » paragraph').toBeTruthy();
+    const text = (p!.textContent ?? '').replace(/\s+/g, ' ');
+    for (const phrase of [
+      'des pièces d’identité et d’immatriculation, une photo de votre visage et un justificatif d’adresse',
+      'un document que vous remplacez l’est dès son remplacement',
+      'Cet effacement est fait au mieux',
+      'ou lorsque vous remplacez ou renvoyez un document',
+      'chaque salon dont vous êtes propriétaire est retiré du public',
+      'ainsi que son point sur la carte',
+    ]) {
+      expect(text).toContain(phrase);
+    }
+  });
+
+  it('« Conservation » names what a deleted Pro leaves behind, with no limit set (options A and B)', () => {
+    const text = sectionText(/conservation/i);
+    for (const phrase of [
+      // the salon, kept and hidden (decision 138)
+      'chaque salon dont vous étiez propriétaire reste dans notre base, caché du public',
+      'ainsi que sa commune et sa ville',
+      'Les membres de son équipe y gardent accès',
+      // its photos (Q12 (d))
+      'restent accessibles à leur adresse existante',
+      // option A
+      'Le journal des décisions de notre équipe',
+      'avec le motif écrit d’un refus',
+      'Restent aussi, jusqu’à ce qu’ils soient retirés',
+      'une invitation qu’un autre salon vous avait envoyée',
+      'votre fiche de collaborateur dans l’équipe d’un salon dont vous étiez seulement membre',
+      // sentence 7, and option B at its end
+      'recherches faites dans sa liste de clients',
+      'il n’est pas effacé à la suppression d’un compte',
+      'Le texte recherché peut être le nom ou le numéro d’un client',
+      // decision 138, said of both
+      'Aucune durée de conservation n’est fixée à ce jour',
+    ]) {
+      expect(text).toContain(phrase);
+    }
+  });
+});
+
 describe('lib/legal.ts is the single source of truth', () => {
   it('declares exactly the four routes, each with a leading slash', () => {
     expect(LEGAL_ROUTES).toHaveLength(4);

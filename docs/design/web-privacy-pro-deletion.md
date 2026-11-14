@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Module** | web — text only, `web/app/politique-confidentialite/page.tsx` (one of the five store-linked pages), `web/lib/legal.ts` `LEGAL_UPDATED_AT`, `infra/legal/registration-manifest.json`; and one internal row of [play-store-forms.md](play-store-forms.md) |
-| **Status** | **Approved 2026-11-13 (decision 143) — not built.** The owner approved the eight sentences of the B0.23 draft (session notes, not in the repo; a review's 14 findings folded in before the owner read it), with R2 (b), options A and B, « en détail », and the identity documents named in full |
+| **Status** | **Approved 2026-11-13 (decision 143). Built 2026-11-14 on `fix/web-privacy-pro-deletion` (stacked on this spec's docs PR, #790); not merged, gated by §7.** The owner approved the eight sentences of the B0.23 draft (session notes, not in the repo; a review's 14 findings folded in before the owner read it), with R2 (b), options A and B, « en détail », and the identity documents named in full |
 | **Owner** | the project owner: the merge (a production deploy of the website), on the day `LEGAL_UPDATED_AT` names |
 | **Last updated** | 2026-11-14 |
 | **PRD ref / phase** | FR-AUTH-005 [V1] (`docs/PRD.md:344`) · V1 · gates android-play-release step 7 (decision 137) |

@@ -383,22 +383,23 @@ façon éphémère seulement.
 | Position → **Position exacte** | Facultatif | Fonctionnalités de l'appli | le point du salon (« Utiliser ma position ») — latitude et longitude envoyées et **publiques** |
 | Photos et vidéos → **Photos** | Facultatif | Fonctionnalités de l'appli · Prévention des fraudes, sécurité et conformité | galerie, logo, avant/après, photos d'équipe (publiques) ; images KYC (privées) |
 | Fichiers et documents → **Fichiers et documents** | Facultatif | Fonctionnalités de l'appli · Prévention des fraudes, sécurité et conformité | les pièces KYC envoyées en PDF (`pro_kyc_screen.dart` accepte jpg, png, webp et **pdf**) — *ajouté le 2026-10-28* |
-| Activité dans les applis → **Historique des recherches via une appli** | Facultatif | Fonctionnalités de l'appli | le texte cherché dans « Clients » (`?query=`), gardé 30 jours dans les journaux de requêtes de Google Cloud — *ajouté le 2026-10-28* |
+| Activité dans les applis → **Historique des recherches via une appli** | Facultatif | Fonctionnalités de l'appli · Prévention des fraudes, sécurité et conformité | le texte cherché dans « Clients » (`?query=`) : gardé 30 jours dans les journaux de requêtes de Google Cloud, **et** enregistré dans le journal des actions de l'équipe du salon (`provider_audit_log`, action `clients.list`, avec le filtre d'étiquette et la page), qui sert à savoir qui a consulté quel client (T39, T46), **sans durée fixée à ce jour**, y compris après la suppression du compte (décision 138 ; une purge sera décidée par B0.24) — *ajouté le 2026-10-28 ; corrigé le 2026-11-14 (B0.23, décisions 137 et 143)* |
 | Activité dans les applis → **Autre contenu généré par l'utilisateur** | Facultatif | Fonctionnalités de l'appli | prestations et tarifs, descriptions, horaires, notes clients, notes de réservation |
 | Infos et performances des applis → **Journaux de plantage** | Obligatoire | **Analyses** | Sentry — utilisateur, fil d'Ariane, requête et extras retirés avant envoi (`beforeSend`) |
 | Infos et performances des applis → **Diagnostics** | Obligatoire | **Analyses** | les blocages (app hangs) que Sentry envoie quand il en survient |
 | Appareil ou autres ID → **Appareil ou autres ID** | Obligatoire | Fonctionnalités de l'appli | l'ID d'installation Firebase et le jeton FCM (`device_tokens`) — le SDK FCM crée l'ID d'installation à l'initialisation |
 
-> **2026-11-13 — la ligne « Historique des recherches » est incomplète**
+> **2026-11-13 — la ligne « Historique des recherches » était incomplète**
 > (décisions 137 et 143). Le texte cherché dans « Clients » est aussi
 > enregistré dans `provider_audit_log` (action `clients.list`), le journal
 > d'accès aux fiches clients (T39, T46), lié au compte qui cherche, **sans
-> durée fixée**, y compris après la suppression du compte. La PR de B0.23
-> réécrit la ligne et lui ajoute la finalité « Prévention des fraudes,
-> sécurité et conformité »
-> ([web-privacy-pro-deletion.md](web-privacy-pro-deletion.md) §5) : la
-> réponse de la console gagne cette finalité à l'étape 7. L'étiquette App
-> Store déclare la même donnée (décision 144, app-store-forms §7.3).
+> durée fixée**, y compris après la suppression du compte. **2026-11-14 : la
+> ligne ci-dessus est réécrite par la PR de B0.23**, finalité « Prévention des
+> fraudes, sécurité et conformité » comprise
+> ([web-privacy-pro-deletion.md](web-privacy-pro-deletion.md) §5). **La
+> console garde l'ancienne réponse** : elle gagne cette finalité à l'étape 7,
+> sur le oui du propriétaire. L'étiquette App Store déclare la même donnée
+> (décision 144, app-store-forms §7.3).
 
 **Non collectées**, et pourquoi :
 
