@@ -77,6 +77,7 @@ const PUBLIC = [
   '/professionnels',
   '/support',
   '/suppression-compte',
+  '/pro/suppression-compte',
   '/page-qui-nexiste-pas',
 ];
 const CONSUMER = ['/mon-compte', '/mon-compte/appt2', '/mon-compte/favoris'];

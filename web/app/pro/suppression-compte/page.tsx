@@ -6,8 +6,8 @@ import {
   DocumentPage,
   Email,
   H2,
+  Item,
   Lead,
-  Li,
   Ol,
   P,
   Step,
@@ -190,28 +190,28 @@ export default function Page() {
 
       <H2>Ce qui est supprimé</H2>
       <Ul>
-        <Li>
+        <Item>
           votre compte MyWeli Pro&nbsp;: votre nom, votre adresse e-mail et le
           lien avec votre compte Google ou Apple&nbsp;;
-        </Li>
-        <Li>toutes vos sessions et vos codes de connexion&nbsp;;</Li>
-        <Li>votre place dans chaque équipe dont vous faisiez partie&nbsp;;</Li>
-        <Li>
+        </Item>
+        <Item>toutes vos sessions et vos codes de connexion&nbsp;;</Item>
+        <Item>votre place dans chaque équipe dont vous faisiez partie&nbsp;;</Item>
+        <Item>
           les identifiants de vos appareils —{' '}
           <strong>vos notifications s’arrêtent</strong> — et votre historique de
           notifications&nbsp;;
-        </Li>
-        <Li>
+        </Item>
+        <Item>
           si vous utilisiez Apple, l’autorisation de connexion donnée à MyWeli
           Pro&nbsp;: nous demandons à Apple de la révoquer&nbsp;;
-        </Li>
-        <Li>
+        </Item>
+        <Item>
           vos pièces d’identité et justificatifs envoyés pour la vérification du
           compte. Leur effacement est fait <strong>au mieux</strong>&nbsp;: si
           notre stockage est indisponible lors de la suppression, ou lorsque vous
           avez remplacé ou renvoyé un document, un fichier peut subsister dans
           notre stockage privé, jamais publié.
-        </Li>
+        </Item>
       </Ul>
 
       <H2>Ce que devient votre salon</H2>
@@ -231,53 +231,53 @@ export default function Page() {
 
       <H2>Ce qui est conservé, et combien de temps</H2>
       <Ul>
-        <Li>
+        <Item>
           l’historique de chaque salon dont vous étiez propriétaire — son nom, sa
           description, ses prestations, ses horaires, son équipe, ses
           rendez-vous, son fichier clients et ses avis — reste dans notre base,
           caché du public, et les membres de son équipe y gardent accès. Aucune
           durée de conservation n’est fixée à ce jour&nbsp;: il n’est pas effacé
           automatiquement&nbsp;;
-        </Li>
-        <Li>sa commune et sa ville restent avec lui, cachées du public&nbsp;;</Li>
-        <Li>
+        </Item>
+        <Item>sa commune et sa ville restent avec lui, cachées du public&nbsp;;</Item>
+        <Item>
           ses photos (galerie, logo, avant/après, photos de l’équipe) ne sont
           plus affichées au public sur MyWeli (les membres de l’équipe les voient
           toujours dans MyWeli Pro), mais restent accessibles à leur adresse
           existante pour qui la connaît. Aucune durée n’est fixée à ce
           jour&nbsp;;
-        </Li>
-        <Li>
+        </Item>
+        <Item>
           le journal des actions de l’équipe garde des identifiants techniques,
           les rôles, la date de chaque action et les recherches faites dans{' '}
           <strong>Clients</strong>, sans votre nom ni votre adresse e-mail.
           Aucune durée n’est fixée à ce jour&nbsp;;
-        </Li>
-        <Li>
+        </Item>
+        <Item>
           le journal des décisions de notre équipe sur votre compte et vos
           salons — vérification d’identité acceptée ou refusée, avec le motif
           écrit d’un refus, suspension d’un salon avec son motif. Aucune durée
           n’est fixée à ce jour&nbsp;;
-        </Li>
-        <Li>
+        </Item>
+        <Item>
           les e-mails reçus par notre équipe lorsqu’un salon validé a changé
           d’adresse, de téléphone ou de point sur la carte restent dans notre
           messagerie. Aucune durée n’est fixée à ce jour&nbsp;;
-        </Li>
-        <Li>
+        </Item>
+        <Item>
           votre fiche de collaborateur dans l’équipe d’un salon dont vous êtes
           seulement membre (nom, photo) appartient à ce salon et reste affichée
           tant qu’il ne la retire pas&nbsp;;
-        </Li>
-        <Li>
+        </Item>
+        <Item>
           les invitations qu’un autre salon vous avait envoyées et que vous
           n’aviez pas acceptées restent dans sa liste, avec votre adresse e-mail,
           jusqu’à ce que ce salon les retire&nbsp;;
-        </Li>
-        <Li>
+        </Item>
+        <Item>
           les journaux de requêtes de notre hébergeur sont supprimés
           automatiquement au bout de <strong>30 jours</strong>.
-        </Li>
+        </Item>
       </Ul>
 
       <H2>Vous ne pouvez plus vous connecter avec Google ou Apple&nbsp;?</H2>

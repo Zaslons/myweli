@@ -164,6 +164,26 @@ export function Li({ children }: { children: ReactNode }) {
   </li>;
 }
 
+/// `Li` for `/pro/suppression-compte`, the one document gated at doubled text
+/// on a 320 phone (web-pro-account-deletion.md §4.4, §10 #14). In `Li` the
+/// text is a flex item, so its width can never fall below its longest word:
+/// at 32px « automatiquement&nbsp;; » is 277px beside a 248px column, and the
+/// Android mode grew the page to 335px. Here the text may shrink (`min-w-0`)
+/// and the word hyphenates (`hyphens-auto`, `lang="fr"`), or breaks where a
+/// browser has no French hyphenation (`break-words`) — the 404's remedy in
+/// web-funnel-doubled-text.md §5. `Li` itself is unchanged: it renders on the
+/// frozen five.
+export function Item({ children }: { children: ReactNode }) {
+  return (
+    <li className="flex gap-s">
+      <span aria-hidden className="text-textTertiary">
+        —
+      </span>
+      <span className="min-w-0 break-words hyphens-auto">{children}</span>
+    </li>
+  );
+}
+
 export function A({ href, children }: { href: string; children: ReactNode }) {
   return (
     <Link href={href} className="underline hover:text-textPrimary">
