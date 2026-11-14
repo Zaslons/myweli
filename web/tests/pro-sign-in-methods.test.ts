@@ -35,10 +35,17 @@ describe('signInMethods()', () => {
 
   it('reads the variables literally, so Next inlines them into the build', () => {
     // `process.env[name]` is not inlined in a client bundle: the button would
-    // vanish in production while every test here stayed green.
-    const src = readFileSync(join(__dirname, '..', 'lib/pro/signInMethods.ts'), 'utf8');
-    expect(src).toContain('process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID');
-    expect(src).toContain('process.env.NEXT_PUBLIC_APPLE_CLIENT_ID');
+    // vanish in production while every test here stayed green. The code only:
+    // the helper's comment names the literal form, and a fuller comment would
+    // keep a bare `toContain` green over a dynamic read.
+    const code = readFileSync(join(__dirname, '..', 'lib/pro/signInMethods.ts'), 'utf8')
+      .replace(/^\s*\/\/.*$/gm, '');
+    expect(code).toContain('process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID');
+    expect(code).toContain('process.env.NEXT_PUBLIC_APPLE_CLIENT_ID');
+    // Every read of `process.env` is one of the two literals: no
+    // `process.env[name]`, no `const { … } = process.env`, no alias.
+    expect(code).not.toMatch(/process\.env\[/);
+    expect(code.match(/process\.env(?!\.NEXT_PUBLIC_(GOOGLE|APPLE)_CLIENT_ID\b)/g) ?? []).toEqual([]);
   });
 });
 
