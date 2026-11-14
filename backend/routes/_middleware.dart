@@ -5,6 +5,7 @@ import 'package:myweli_backend/src/access/team_service.dart';
 import 'package:myweli_backend/src/admin/admin_auth_repository.dart';
 import 'package:myweli_backend/src/admin/admin_client_version_service.dart';
 import 'package:myweli_backend/src/admin/admin_kyc_service.dart';
+import 'package:myweli_backend/src/admin/admin_provider_account_service.dart';
 import 'package:myweli_backend/src/admin/admin_provider_service.dart';
 import 'package:myweli_backend/src/admin/admin_user_service.dart';
 import 'package:myweli_backend/src/admin/analytics_service.dart';
@@ -126,6 +127,11 @@ Handler middleware(Handler handler) {
       .use(provider<ModerationService>((_) => moderationService))
       .use(provider<AdminProviderService>((_) => adminProviderService))
       .use(provider<AdminUserService>((_) => adminUserService))
+      .use(
+        provider<AdminProviderAccountService>(
+          (_) => adminProviderAccountService,
+        ),
+      )
       .use(provider<ClientVersionService>((_) => clientVersionService))
       .use(
         provider<AdminClientVersionService>((_) => adminClientVersionService),
