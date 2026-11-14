@@ -780,6 +780,18 @@ phone.
   that switch is refused, lands on « Accueil » with no sentence, as today.
 - **A server from before B0.18** (no `validation` key): today's screens and
   words (decision 136 item 10).
+- *Review, 2026-11-14:*
+  - **Suspended:** the banner and « Aperçu de ma page », no checklist and no
+    button. Item 9 was answered « as the website », and the website's
+    suspended card keeps the preview link as its only control
+    (web-salon-validation §4.1).
+  - **A 202 that says nothing** (item 7): the list brings its banner on
+    screen, and the banner is read out (a live region) for that change
+    only. A 409 `validation_refused_final`'s reason is brought on screen
+    once the re-read lands; the snackbar has already said « Mise en ligne
+    refusée ».
+  - **An answer that lands after a salon switch** says nothing over the
+    next salon.
 
 **Who sees it.** Owners (`salon.publish`), as today's go-live card. Every new
 field is reset on a salon switch. Every step stays editable while pending; the

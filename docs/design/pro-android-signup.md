@@ -464,6 +464,21 @@ Android branch, so its guards could not fire.
 | `MockAuthService` (fidelity) | latency, the three check answers, `provider_exists`, `invalid_phone`, `invalid_area`, code faults, success. **A settable Google e-mail**: today the only mock Google identity has a seeded invitation and always answers 202, so tests and mock builds choose a no-account identity. **Its register creates the draft salon and OWNER membership**, so `getMyProvider` resolves after a mock sign-up |
 | `lib/providers/pro_auth_provider.dart` | `signUpSalonWithGoogle(fields)`, `signUpSalonWithEmail(email, code, fields)`, and `createOwnSalonInstead(fields)`, which uses the retained invitation proof. **Created or signed in:** clear `error` and `errorCode`, then `_setProvider` → `_syncPush` → `refreshMembership` → `loadMySalons`. Return « signed in » only if `_provider != null` afterwards, which is S3b's distinction. **On `createOwnSalonInstead`'s 201,** also drop `_pendingInvitations` and `_invitationProof`; `logout` does not clear them. **Invited:** clear `error` and `errorCode`, then hold the invitations and their proof exactly as the sign-in's bridge does; accept and decline keep their meaning. **Failure:** returned to the screen. **`clearFeedback()`:** new, for the sign-in's reset. The sign-up drops held invitations and proof on Back (in `PopScope`) or on success, never in `dispose`, where a notify would hit a locked tree |
 
+*2026-11-14, from B0.18's Pro-app PR (review):* that PR leaves four things
+this table meets.
+
+- The `/pro/onboarding` route reads `?salon=` (MyWeli's notice), and
+  `pro_onboarding_screen_test` takes that route from the global
+  `ProRouter.router`. With PR 1 it takes it from `ProRouter.build(null)`.
+- `ProRouter.switchesSalonItself(route, salon)` is a pure static: `build`
+  and `install` leave it as it is.
+- `main_pro.dart`'s push wiring is `proPushHandler(auth, router:)`, which
+  `_startPush` calls with `ProRouter.router`. `runProApp` keeps that call
+  after `install`, so the installed router is the one it reads.
+- The mock register cannot leave its salon live by forgetting
+  `MockData.seedNeverAsked`: `MockData.salonStatusOf` reads every salon made
+  at run time as `draft` until MyWeli's validation (`markLive`).
+
 **Why the account-creation methods can live in shared files.** Their only
 callers are in the fenced directory. The iOS program never calls them, so the
 compiler's whole-program tree shaking drops them. That is ordinary dead-code
