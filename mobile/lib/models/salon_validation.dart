@@ -124,9 +124,20 @@ class SalonValidation extends Equatable {
     this.offerLive,
     this.refusal,
     this.decidedBy,
+    this.unknownState,
   });
 
   final SalonValidationState state;
+
+  /// The state as the server sent it, when this build does not know it
+  /// ([SalonValidationState.unknown]); null for a known state. Kept so that
+  /// what the app writes back — the salon's data export, whose values are
+  /// the wire's (web-salon-validation.md §6) — is the server's word, never
+  /// `unknown`.
+  final String? unknownState;
+
+  /// The state as it travels: [state]'s, or the one this build did not know.
+  String get stateOnWire => unknownState ?? state.wire;
 
   /// The last request. Absent on a salon the 0044 backfill validated.
   final DateTime? submittedAt;
@@ -155,8 +166,13 @@ class SalonValidation extends Equatable {
   factory SalonValidation.fromJson(Map<String, dynamic> json) {
     final refusal = json['refusal'];
     final offerLive = json['offerLive'];
+    final rawState = json['state'];
+    final state = SalonValidationState.fromWire(rawState);
     return SalonValidation(
-      state: SalonValidationState.fromWire(json['state']),
+      state: state,
+      unknownState: state == SalonValidationState.unknown && rawState is String
+          ? rawState
+          : null,
       submittedAt: _instant(json['submittedAt']),
       decidedAt: _instant(json['decidedAt']),
       wentLive: json['wentLive'] == true,
@@ -169,10 +185,11 @@ class SalonValidation extends Equatable {
   }
 
   /// The wire shape (`salon_validation_dto.dart`): every optional key only
-  /// when it has a value. An [SalonValidationState.unknown] state writes
-  /// `unknown`, which reads back as itself.
+  /// when it has a value. An [SalonValidationState.unknown] state writes the
+  /// value the server sent ([stateOnWire]; `unknown` when it sent none),
+  /// which reads back as itself.
   Map<String, dynamic> toJson() => {
-    'state': state.wire,
+    'state': stateOnWire,
     'submittedAt': ?submittedAt?.toIso8601String(),
     'decidedAt': ?decidedAt?.toIso8601String(),
     'wentLive': wentLive,
@@ -190,6 +207,7 @@ class SalonValidation extends Equatable {
     offerLive,
     refusal,
     decidedBy,
+    unknownState,
   ];
 }
 

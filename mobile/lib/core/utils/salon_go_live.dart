@@ -72,7 +72,7 @@ enum GoLiveState {
 ///
 /// [status] is the salon's `status` (`Provider.status`, where null reads
 /// `active` — seeded documents carry none; or « Mes salons »'
-/// `salonStatus`).
+/// `salonStatus`). Empty reads as none, as the website's `!status`.
 GoLiveState goLiveState({
   required String? status,
   required bool validationSent,
@@ -80,7 +80,11 @@ GoLiveState goLiveState({
 }) {
   if (!validationSent) return GoLiveState.legacy;
   if (status == 'suspended') return GoLiveState.suspended;
-  if (status == null || status == 'active') return GoLiveState.live;
+  // The website's `!status || status === 'active'`: an empty status is
+  // « no status » there, so it is here (row 3, row for row).
+  if (status == null || status.isEmpty || status == 'active') {
+    return GoLiveState.live;
+  }
   if (validation == null) return GoLiveState.neverAsked;
   switch (validation.state) {
     case SalonValidationState.pending:

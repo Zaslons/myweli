@@ -78,6 +78,9 @@ void main() {
         'row says (a rollback)', () {
       expect(s('active', null), GoLiveState.live);
       expect(s(null, null), GoLiveState.live);
+      // The website's `!status` — an empty status is « no status » there.
+      expect(s('', null), GoLiveState.live);
+      expect(s('', v(SalonValidationState.pending)), GoLiveState.live);
       expect(
         s('active', v(SalonValidationState.refused, refusal: outside)),
         GoLiveState.live,
@@ -410,6 +413,14 @@ void main() {
       final bare = v(SalonValidationState.pending);
       expect(bare.toJson(), {'state': 'pending', 'wentLive': false});
       expect(SalonValidation.fromJson(bare.toJson()), bare);
+      // A state this build does not know keeps the server's word.
+      final unknown = SalonValidation.fromJson(const {
+        'state': 'archived',
+        'wentLive': false,
+      });
+      expect(unknown.state, SalonValidationState.unknown);
+      expect(unknown.toJson()['state'], 'archived');
+      expect(SalonValidation.fromJson(unknown.toJson()), unknown);
       expect(const SalonRefusal(code: 'outside_ci', isFinal: true).toJson(), {
         'code': 'outside_ci',
         'final': true,

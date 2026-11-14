@@ -230,7 +230,7 @@ Map<String, dynamic>? validationForExport(SalonValidation? validation) {
   if (validation == null) return null;
   final refusal = validation.refusal;
   return {
-    'state': validation.state.wire,
+    'state': validation.stateOnWire,
     'submittedAt': validation.submittedAt?.toIso8601String(),
     'decidedAt': validation.decidedAt?.toIso8601String(),
     'wentLive': validation.wentLive,

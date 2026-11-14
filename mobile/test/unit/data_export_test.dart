@@ -405,5 +405,22 @@ void main() {
       expect(v['wentLive'], isTrue);
       expect(v['state'], 'approved');
     });
+
+    // The website writes `validation.state` as sent; a state this build does
+    // not know is still the server's word in the file, never `unknown`.
+    test(
+      'a state this build does not know: exported as the server sent it',
+      () {
+        final read = SalonValidation.fromJson(const {
+          'state': 'archived',
+          'wentLive': true,
+        });
+        expect(read.state, SalonValidationState.unknown);
+        final v =
+            salonExport(validationSent: true, validation: read)['validation']
+                as Map;
+        expect(v['state'], 'archived');
+      },
+    );
   });
 }
