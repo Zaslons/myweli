@@ -1,5 +1,9 @@
+import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:myweli/core/push/push_message_handler.dart';
+import 'package:myweli/core/router/pro_router.dart';
+import 'package:myweli/core/utils/salon_id.dart';
 
 /// The push routing brain (docs/design/push-notifications-app.md): what a
 /// tapped notification does — including the two hard cases, a cold-start tap
@@ -98,6 +102,49 @@ void main() {
     });
   });
 
+  // The widget tests drive `proPushHandler` (pro_onboarding_screen_test);
+  // the app must run that same wiring, not a copy beside it.
+  test('main_pro.dart starts push on proPushHandler, which passes the '
+      'notice predicate', () {
+    final src = File('lib/main_pro.dart').readAsStringSync();
+    final start = src.indexOf('Future<void> _startPush(');
+    final startBody = src.substring(start, src.indexOf('\n}\n', start));
+    expect(
+      startBody,
+      contains('proPushHandler(auth, router: ProRouter.router)'),
+    );
+    final wiring = src.substring(
+      src.indexOf('PushMessageHandler proPushHandler('),
+    );
+    expect(
+      wiring.substring(0, wiring.indexOf(');\n')),
+      contains('routeSwitchesSalon: ProRouter.switchesSalonItself'),
+    );
+  });
+
+  group('ProRouter.switchesSalonItself', () {
+    test('MyWeli\'s notice route, for its own salon only', () {
+      const p2 = SalonId('p2');
+      expect(
+        ProRouter.switchesSalonItself('/pro/onboarding?salon=p2', p2),
+        isTrue,
+      );
+      for (final route in [
+        '/pro/onboarding?salon=p3', // another salon than the push's
+        '/pro/onboarding', // no salon named
+        '/pro/appointment/a1?salon=p2', // a booking: switch first
+        '/pro/onboardingx?salon=p2',
+        '/pro/onboarding/x?salon=p2',
+      ]) {
+        expect(
+          ProRouter.switchesSalonItself(route, p2),
+          isFalse,
+          reason: route,
+        );
+      }
+    });
+  });
+
   group('PushMessageHandler.handleData', () {
     late List<String> routes;
 
@@ -119,6 +166,8 @@ void main() {
       allowedRoutePrefixes: kProRoutePrefixes,
       isAuthenticated: () => authed,
       salonSwitchFallbackRoute: '/pro/dashboard',
+      // main_pro.dart's predicate (`proPushHandler`).
+      routeSwitchesSalon: ProRouter.switchesSalonItself,
       ensureSalon: (id) async {
         if (id == activeSalon) return true; // already there
         switched?.add(id);
@@ -177,6 +226,58 @@ void main() {
         'providerId': 'p2',
         'route': '/pro/appointment/a9?salon=p2',
       });
+      expect(routes, ['/pro/dashboard']);
+    });
+
+    // B0.18 decision 136 item 3: MyWeli's notice is opened as it came —
+    // « Configuration » switches, checks and says why a switch did not
+    // happen, as for the feed row. A switch here first would land on the
+    // fallback with no sentence.
+    test('MyWeli\'s notice on ANOTHER salon: no switch here, the route as '
+        'it came — its screen switches itself', () async {
+      final switched = <String>[];
+      await pro(activeSalon: 'p1', switched: switched).handleData({
+        'event': 'salon.validation.refused',
+        'providerId': 'p2',
+        'route': '/pro/onboarding?salon=p2',
+      });
+      expect(switched, isEmpty);
+      expect(routes, ['/pro/onboarding?salon=p2']);
+    });
+
+    test('MyWeli\'s notice whose switch would fail: still the route, never '
+        'the fallback — its screen says why', () async {
+      await pro(
+        activeSalon: 'p1',
+        switchSucceeds: false,
+      ).handleData({'providerId': 'p2', 'route': '/pro/onboarding?salon=p2'});
+      expect(routes, ['/pro/onboarding?salon=p2']);
+    });
+
+    test('CONTROL — a notice route naming ANOTHER salon than the push\'s: '
+        'today\'s switch first', () async {
+      final switched = <String>[];
+      await pro(
+        activeSalon: 'p1',
+        switched: switched,
+      ).handleData({'providerId': 'p2', 'route': '/pro/onboarding?salon=p3'});
+      expect(switched, ['p2']);
+      expect(routes, ['/pro/onboarding?salon=p3']);
+    });
+
+    test('CONTROL — with no predicate (the consumer app, older wiring), '
+        'every salon route switches first', () async {
+      final switched = <String>[];
+      await PushMessageHandler(
+        navigate: (r) async => routes.add(r),
+        allowedRoutePrefixes: kProRoutePrefixes,
+        salonSwitchFallbackRoute: '/pro/dashboard',
+        ensureSalon: (id) async {
+          switched.add(id.value);
+          return false;
+        },
+      ).handleData({'providerId': 'p2', 'route': '/pro/onboarding?salon=p2'});
+      expect(switched, ['p2']);
       expect(routes, ['/pro/dashboard']);
     });
 

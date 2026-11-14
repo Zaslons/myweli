@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:myweli/core/utils/onboarding.dart';
+import 'package:myweli/models/locality.dart';
 import 'package:myweli/models/provider_user.dart';
 
 void main() {
@@ -136,11 +137,13 @@ void main() {
   });
 
   test('there is no offer step, and go-live never waits for an offer — the '
-      'server starts the trial at the first publish (pro-companion-path)', () {
+      'server starts the trial at MyWeli\'s validation (B0.18 §3.6)', () {
     // The checklist used to end on « Choisissez votre offre » / « 3 mois
     // offerts » and block « Mettre mon profil en ligne » until a choice was
     // made. The Pro app no longer offers a choice (App Store 3.1.1), so a
-    // gate on one would be a dead end it could not explain.
+    // gate on one would be a dead end it could not explain. The trial moved
+    // from the first publish to MyWeli's validation (B0.18); the checklist
+    // waits for neither.
     final steps = build();
     expect(
       steps.map((s) => s.key.name),
@@ -187,5 +190,57 @@ void main() {
     // verification, photos (staff optional for a freelancer; no offer step).
     expect(p.total, 7);
     expect(p.done, 6); // photos still todo
+  });
+  // R8 — the server's `validArea` (SalonProvisioningService.publishGate +
+  // seedAreaForCommuneName), as the website's `communeIsKnown`.
+  group('communeIsKnown (R8)', () {
+    const areas = [
+      LocalityArea(
+        id: 'port-bouet',
+        slug: 'port-bouet',
+        name: 'Port-Bouët',
+        labelKind: 'commune',
+      ),
+      // An area whose slug is not its name's: matched either way.
+      LocalityArea(
+        id: 'ci-abj-plateau',
+        slug: 'le-plateau',
+        name: 'Plateau',
+        labelKind: 'commune',
+      ),
+    ];
+
+    bool? known({String? areaId, String? commune, bool read = true}) =>
+        communeIsKnown(
+          areaId: areaId,
+          commune: commune,
+          areas: read ? areas : null,
+        );
+
+    test('an areaId is enough — the server stores only resolved ones', () {
+      expect(known(areaId: 'x', commune: 'Nulle part'), isTrue);
+      expect(known(areaId: 'x', commune: 'Nulle part', read: false), isTrue);
+    });
+
+    test('no commune → no', () {
+      expect(known(commune: null), isFalse);
+      expect(known(commune: '   '), isFalse);
+      expect(known(commune: '', read: false), isFalse);
+    });
+
+    test('the tree unread → null: this side cannot tell', () {
+      expect(known(commune: 'Nulle part', read: false), isNull);
+    });
+
+    test('by the area\'s slug, or by its name\'s', () {
+      expect(known(commune: 'PORT BOUET'), isTrue);
+      expect(known(commune: 'le plateau'), isTrue);
+      expect(known(commune: 'Plateau'), isTrue);
+    });
+
+    test('a name of no area → no; nothing left to slug → no', () {
+      expect(known(commune: 'Bouaké'), isFalse);
+      expect(known(commune: '!!!'), isFalse);
+    });
   });
 }

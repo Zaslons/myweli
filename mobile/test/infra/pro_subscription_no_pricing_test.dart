@@ -23,8 +23,9 @@ import '../support/dart_source.dart';
 /// keep honest. This file used to pin « Choisir » as something that MUST stay,
 /// because choosing was the only way a salon's trial started and a salon
 /// without an offer could not go live. That is no longer true: the server
-/// starts the trial at the salon's first successful publish, so removing the
-/// picker breaks nothing, and the pin now says the opposite.
+/// starts the trial at the salon's first successful publish — and, since
+/// B0.18, when MyWeli validates the salon (salon-go-live-approval §3.6) — so
+/// removing the picker breaks nothing, and the pin now says the opposite.
 /// Design: docs/design/pro-companion-path.md §2.1 (the rule), §11 (decision).
 ///
 /// ## What it reads
@@ -125,8 +126,9 @@ void main() {
     });
 
     test('the app never writes an offer — the PUT is the web\'s alone', () {
-      // The trial starts server-side at the first publish; choosing or
-      // switching happens on the web. A write path back in the app is the
+      // The trial starts server-side when MyWeli validates the salon
+      // (B0.18 §3.6; the first publish before); choosing or switching
+      // happens on the web. A write path back in the app is the
       // picker coming back, whatever its copy says.
       final code = readCode();
       final hits = [

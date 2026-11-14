@@ -1,6 +1,8 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:myweli/core/constants/salon_validation_copy.dart';
+import 'package:myweli/core/utils/salon_go_live.dart';
 import 'package:myweli/core/utils/status_labels.dart';
 import 'package:myweli/core/utils/validation_labels.dart';
 import 'package:myweli/models/admin_salon_validation.dart';
@@ -314,7 +316,7 @@ void main() {
   });
 
   test('no « vérif » in the validation\'s words — that word is KYC\'s '
-      '(spec, Vocabulary)', () {
+      '(spec, Vocabulary) — the console\'s and the Pro app\'s (B0.18 §6.1)', () {
     final words = [
       ValidationLabels.pending,
       ValidationLabels.approved,
@@ -330,6 +332,23 @@ void main() {
       for (final k in ValidationEventKind.values) ValidationLabels.eventKind(k),
       for (final c in ['salon.approve', 'salon.refuse', 'provider.restore'])
         auditActionLabel(c),
+      // The Pro app's words (salon-go-live-approval §6.1, decision 136): every
+      // state's line, banner, button, hint and subtitle, and the rest.
+      for (final state in GoLiveState.values) ...[
+        ?goLiveLine(state),
+        homeCardSubtitle(state),
+        ?publishButtonLabel(state),
+        ?publishHint(state),
+        ?goLiveBanner(state, null)?.title,
+        ...?goLiveBanner(state, null)?.lines,
+      ],
+      SalonValidationCopy.resubmit,
+      SalonValidationCopy.billingPointer,
+      SalonValidationCopy.requestSent,
+      SalonValidationCopy.wentLive,
+      SalonValidationCopy.refusedFinalMessage,
+      SalonValidationCopy.communeFromList,
+      SalonValidationCopy.requestSentOn('13 novembre 2026'),
     ];
     for (final w in words) {
       expect(w.toLowerCase(), isNot(contains('vérif')), reason: w);
@@ -338,6 +357,8 @@ void main() {
       'lib/core/utils/validation_labels.dart',
       'lib/models/salon_validation.dart',
       'lib/models/admin_salon_validation.dart',
+      'lib/core/constants/salon_validation_copy.dart',
+      'lib/core/utils/salon_go_live.dart',
     ]) {
       expect(
         stripDartComments(File(f).readAsStringSync()).toLowerCase(),

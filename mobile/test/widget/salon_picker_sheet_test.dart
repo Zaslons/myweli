@@ -5,7 +5,9 @@ import 'package:myweli/core/di/dependency_injection.dart';
 import 'package:myweli/core/push/push_registration.dart';
 import 'package:myweli/core/utils/salon_id.dart';
 import 'package:myweli/models/api_response.dart';
+import 'package:myweli/models/salon_membership_info.dart';
 import 'package:myweli/models/salon_subscription.dart';
+import 'package:myweli/models/team_member.dart';
 import 'package:myweli/providers/pro_auth_provider.dart';
 import 'package:myweli/services/interfaces/pro_service_interface.dart';
 import 'package:myweli/services/mock/mock_auth_service.dart';
@@ -37,6 +39,33 @@ enum _Fault {
 /// fields are set once per file, so the fault is a field, not a new service.
 class _FaultyProService extends MockProService {
   _Fault? fault;
+
+  /// « Mes salons » as a server from before B0.18 answers it: no
+  /// `validation` key on any row.
+  bool legacyServer = false;
+
+  @override
+  Future<ApiResponse<MySalonsResult>> getMySalons() async {
+    final res = await super.getMySalons();
+    final data = res.data;
+    if (!legacyServer || data == null) return res;
+    return ApiResponse.success(
+      MySalonsResult(
+        canAddSalon: data.canAddSalon,
+        items: [
+          for (final s in data.items)
+            SalonMembershipInfo(
+              salonId: s.salonId,
+              salonName: s.salonName,
+              role: s.role,
+              salonStatus: s.salonStatus,
+              verified: s.verified,
+              imageUrl: s.imageUrl,
+            ),
+        ],
+      ),
+    );
+  }
 
   @override
   Future<ApiResponse<MyProviderInfo>> getMyProvider({SalonId? salonId}) async {
@@ -78,6 +107,7 @@ void main() {
 
   setUp(() async {
     pro.fault = null;
+    pro.legacyServer = false;
     MockData.resetTeam();
     ProSalonScope.clear();
     (serviceLocator.subscriptionService as MockSubscriptionService)
@@ -281,4 +311,104 @@ void main() {
     });
     expect(auth.activeSalonId, 'provider1');
   });
+
+  // B0.18 (salon-go-live-approval §6.1 « Badge / row line », §6.2; decision
+  // 136 item 8): the state on a line of its own, under the role, on EVERY
+  // row — at 200% text a « role · state » line cut the state off
+  // (test/a11y/salon_validation_layout_test.dart measures that).
+  group('each row says where its salon stands', () {
+    /// Jean manages Spa Relax too: a salon he does not own.
+    void jeanManagesSpaRelax() => MockData.teamMembers.add(
+      TeamMember(
+        id: 'tm_jean_provider3',
+        providerId: SalonId('provider3'),
+        email: 'jean@salon-excellence.test',
+        role: TeamRole.manager,
+        status: TeamMemberStatus.active,
+        invitedAt: DateTime(2026, 7, 1),
+        accountId: 'provider_user1',
+        acceptedAt: DateTime(2026, 7, 2),
+      ),
+    );
+
+    /// The row of [salonName] says [lines], in that order, each its own
+    /// `Text`, and nothing else.
+    void expectRow(WidgetTester tester, String salonName, List<String> lines) {
+      final row = find.ancestor(
+        of: find.text(salonName),
+        matching: find.byType(ListTile),
+      );
+      final subtitle = tester.widget<ListTile>(row).subtitle!;
+      final said = [
+        for (final t
+            in find
+                .descendant(
+                  of: find.byWidget(subtitle),
+                  matching: find.byType(Text),
+                )
+                .evaluate())
+          (t.widget as Text).data,
+      ];
+      expect(said, lines, reason: salonName);
+    }
+
+    testWidgets('owned or not: the role, then the state — « Plus en ligne » '
+        'where the offer is not the account\'s to read', (tester) async {
+      jeanManagesSpaRelax();
+      MockData.seedPendingRequest(SalonId('provider1'));
+      MockData.seedNeverAsked(SalonId('provider2'));
+      MockData.seedOffline(SalonId('provider3'));
+      final auth = await signInOwner(tester);
+      await pumpPicker(tester, auth);
+
+      expectRow(tester, 'Salon Excellence', [
+        'Propriétaire',
+        'En cours de validation',
+      ]);
+      expectRow(tester, 'Beauté Divine', [
+        'Propriétaire',
+        'Brouillon — pas encore en ligne',
+      ]);
+      expectRow(tester, 'Spa Relax', ['Manager', 'Plus en ligne']);
+      await drain(tester);
+    }, variant: _bothPlatforms);
+
+    testWidgets('live, refused, suspended', (tester) async {
+      jeanManagesSpaRelax();
+      MockData.seedRefused(SalonId('provider2'), code: 'outside_ci');
+      MockData.seedSuspended(SalonId('provider3'));
+      final auth = await signInOwner(tester);
+      await pumpPicker(tester, auth);
+
+      expectRow(tester, 'Salon Excellence', ['Propriétaire', 'En ligne']);
+      expectRow(tester, 'Beauté Divine', [
+        'Propriétaire',
+        'Mise en ligne refusée',
+      ]);
+      expectRow(tester, 'Spa Relax', ['Manager', 'Suspendu']);
+      await drain(tester);
+    }, variant: _bothPlatforms);
+
+    testWidgets('a server from before B0.18: today\'s words — a draft says '
+        'so, a live salon says nothing (decision 136 item 10)', (tester) async {
+      MockData.seedNeverAsked(SalonId('provider2'));
+      pro.legacyServer = true;
+      final auth = await signInOwner(tester);
+      await pumpPicker(tester, auth);
+
+      expectRow(tester, 'Salon Excellence', ['Propriétaire']);
+      expectRow(tester, 'Beauté Divine', [
+        'Propriétaire',
+        'Brouillon — pas encore en ligne',
+      ]);
+      await drain(tester);
+    }, variant: _bothPlatforms);
+  });
 }
+
+/// §8.3: the picker's state lines on both platforms — no platform branch may
+/// exist.
+final _bothPlatforms = TargetPlatformVariant(const {
+  TargetPlatform.android,
+  TargetPlatform.iOS,
+});

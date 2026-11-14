@@ -150,16 +150,18 @@ class _InviteMemberSheetState extends State<InviteMemberSheet> {
   ///
   /// - an offer row is KNOWN to exist (`salon != null`) yet the server says
   ///   it is not live → it expired: « …n’est plus active » ;
-  /// - the salon is ONLINE → it has a row (publishing creates one when there
-  ///   is none — pro-companion-path §3.1), so a refusal by the offer gate
+  /// - the salon is ONLINE → it has a row (going live creates one when there
+  ///   is none: MyWeli's validation since B0.18, salon-go-live-approval §3.6;
+  ///   the first publish before), so a refusal by the offer gate
   ///   means that row expired: the same sentence. This is what keeps it true
   ///   when the offer state has not loaded or failed to: with
   ///   `SUBSCRIPTION_ENFORCEMENT` off an expired salon is never unpublished,
   ///   and the setup sentence « …une fois votre salon en ligne » would be
   ///   said to a salon that is already online — a promise that cannot come
-  ///   true, since the trial starts at a publish that already happened;
-  /// - otherwise — a draft salon (no row: the trial starts at the first
-  ///   publish) — the setup sentence, which the service already produced.
+  ///   true, since the trial starts at a go-live that already happened;
+  /// - otherwise — a draft salon (no row: the trial starts when MyWeli
+  ///   validates it) — the setup sentence, which the service already
+  ///   produced.
   String? _inviteFeedback(
     ProTeamProvider team,
     ProSubscriptionProvider subscription, {

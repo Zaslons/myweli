@@ -8,8 +8,12 @@ import 'package:myweli/core/utils/team_error_messages.dart';
 import 'package:myweli/models/api_response.dart';
 import 'package:myweli/models/appointment.dart';
 import 'package:myweli/models/availability.dart';
+import 'package:myweli/models/salon_membership_info.dart';
+import 'package:myweli/models/salon_validation.dart';
 import 'package:myweli/services/api/api_pro_service.dart';
+import 'package:myweli/services/interfaces/pro_service_interface.dart';
 import 'package:myweli/services/interfaces/session_store.dart';
+import 'package:myweli/services/mock/mock_data.dart';
 
 Map<String, dynamic> _svcJson({bool active = false}) => {
   'id': 'svc1',
@@ -86,6 +90,15 @@ Map<String, dynamic> _apptJson({String status = 'pending'}) => {
   'balanceDue': 15000,
   'createdAt': DateTime.utc(2026).toIso8601String(),
 };
+
+/// A response whose body may hold any character (« ’ », « 🎉 »): `http`
+/// encodes a String body in Latin-1 unless told otherwise, and throws on the
+/// rest — which the service reads as no answer at all.
+http.Response _utf8(String body, int status) => http.Response.bytes(
+  utf8.encode(body),
+  status,
+  headers: {'content-type': 'application/json; charset=utf-8'},
+);
 
 /// An ApiProService backed by a provider session (token + refresh token).
 ApiProService _service(MockClient client, {String? refresh = 'r1'}) {
@@ -760,8 +773,9 @@ void main() {
       return (error: res.error, code: res.code);
     }
 
-    test('409 missing offer (an EXPIRED offer — the server starts the trial '
-        'otherwise): the neutral sentence, code offer_required', () async {
+    test('409 missing offer (an EXPIRED offer, or a validated salon with no '
+        'live offer to come back on): the neutral sentence, code '
+        'offer_required', () async {
       final res = await publish(409, {
         'error': 'incomplete',
         'missing': ['offer'],
@@ -794,6 +808,282 @@ void main() {
         res.error,
         'Compte de démonstration — cette action est désactivée.',
       );
+    });
+  });
+
+  // B0.18 — docs/design/salon-go-live-approval.md §3.1, openapi publish:
+  // 200 is live, 202 a request. Before, every status but 200 was a refusal: a
+  // 202 read « Une erreur est survenue. Réessayez. » for a request the server
+  // had recorded, and a 409 `validation_refused_final` (no `missing`) read
+  // « Complétez les étapes requises… ».
+  group('publish — 200 is live, 202 a request (B0.18)', () {
+    Future<ApiResponse<PublishOutcome>> publish(int status, String body) {
+      final client = MockClient((req) async {
+        expect(req.method, 'POST');
+        expect(req.url.path, '/providers/provider1/publish');
+        return _utf8(body, status);
+      });
+      return _linked(client).publishSalon(SalonId('provider1'));
+    }
+
+    Future<ApiResponse<PublishOutcome>> accepted(Object? validation) =>
+        publish(202, jsonEncode({'validation': validation}));
+
+    test('200 → live, and only a 200 says so', () async {
+      final res = await publish(
+        200,
+        jsonEncode(MockData.providers.first.toJson()),
+      );
+      expect(res.success, isTrue);
+      expect(res.data, const PublishOutcome.live());
+      expect(res.data!.isLive, isTrue);
+      expect(res.data!.saysRequestSent, isFalse);
+    });
+
+    test('202 pending → a request, its validation read, « Demande '
+        'envoyée » said', () async {
+      final res = await accepted({
+        'state': 'pending',
+        'submittedAt': '2026-11-13T09:30:00.000Z',
+        'wentLive': false,
+      });
+      expect(res.success, isTrue, reason: 'a 202 is not a refusal');
+      expect(res.error, isNull);
+      final out = res.data!;
+      expect(out.isLive, isFalse);
+      expect(out.validationRead, isTrue);
+      expect(out.validation!.state, SalonValidationState.pending);
+      expect(out.validation!.submittedAt, DateTime.utc(2026, 11, 13, 9, 30));
+      expect(out.saysRequestSent, isTrue);
+    });
+
+    test('202 approved, never live (the admin\'s validation finishing) → a '
+        'request, said as one', () async {
+      final out = (await accepted({
+        'state': 'approved',
+        'wentLive': false,
+      })).data!;
+      expect(out.isLive, isFalse);
+      expect(out.validation!.isFinishing, isTrue);
+      expect(out.saysRequestSent, isTrue);
+    });
+
+    test('202 refused (MyWeli decided at that very moment) → the state, no '
+        '« Demande envoyée » (decision 136 item 7)', () async {
+      final res = await accepted({
+        'state': 'refused',
+        'wentLive': false,
+        'refusal': {'code': 'photos', 'note': 'Floues', 'final': false},
+      });
+      expect(res.success, isTrue);
+      final out = res.data!;
+      expect(out.validation!.state, SalonValidationState.refused);
+      expect(
+        out.validation!.refusal,
+        const SalonRefusal(code: 'photos', note: 'Floues', isFinal: false),
+      );
+      expect(out.saysRequestSent, isFalse);
+    });
+
+    test('202 with a null validation (the request vanished) → read, null, '
+        'no « Demande envoyée »', () async {
+      final out = (await accepted(null)).data!;
+      expect(out.isLive, isFalse);
+      expect(out.validationRead, isTrue);
+      expect(out.validation, isNull);
+      expect(out.saysRequestSent, isFalse);
+    });
+
+    test('202 with a body this build cannot read → still a request (it IS '
+        'recorded), never the generic error', () async {
+      for (final body in [
+        'pas du JSON',
+        '[]',
+        '{}',
+        jsonEncode({'validation': 'pending'}),
+        '',
+      ]) {
+        final res = await publish(202, body);
+        expect(res.success, isTrue, reason: body);
+        expect(res.data, const PublishOutcome.requestedUnread(), reason: body);
+        expect(res.data!.saysRequestSent, isTrue, reason: body);
+      }
+    });
+
+    test('409 validation_refused_final (no `missing`) → « Mise en ligne '
+        'refusée », its own code — not the gate\'s sentence', () async {
+      final res = await publish(
+        409,
+        jsonEncode({'error': 'validation_refused_final'}),
+      );
+      expect(res.success, isFalse);
+      expect(res.code, 'validation_refused_final');
+      expect(res.error, 'Mise en ligne refusée');
+    });
+
+    test('CONTROL: the gate\'s 409s are unchanged — `incomplete` and the '
+        'offer', () async {
+      final gate = await publish(
+        409,
+        jsonEncode({
+          'error': 'incomplete',
+          'missing': ['profile'],
+        }),
+      );
+      expect(gate.code, 'incomplete');
+      expect(
+        gate.error,
+        'Complétez les étapes requises avant la mise en ligne.',
+      );
+      final offer = await publish(
+        409,
+        jsonEncode({
+          'error': 'incomplete',
+          'missing': ['offer'],
+        }),
+      );
+      expect(offer.code, 'offer_required');
+      final unreadable = await publish(409, 'pas du JSON');
+      expect(unreadable.code, 'incomplete');
+    });
+
+    test('403 provider_suspended → today\'s sentence (a server before B0.18 '
+        'and this one say it alike)', () async {
+      final res = await publish(
+        403,
+        jsonEncode({'error': 'provider_suspended'}),
+      );
+      expect(res.success, isFalse);
+      expect(res.code, 'provider_suspended');
+      expect(
+        res.error,
+        'Votre salon est suspendu. Contactez MyWeli pour le réactiver — vos '
+        'rendez-vous sont intacts.',
+      );
+    });
+  });
+
+  // B0.18 — the `validation` key, kept apart from its value: absent is a
+  // server before B0.18 (today's screens, decision 136 item 10), null is a
+  // salon that never asked.
+  group('/me/provider and /me/salons carry the validation (B0.18)', () {
+    Map<String, dynamic> meProvider(Map<String, dynamic> extra) => {
+      'account': {'id': 'acc1'},
+      'provider': MockData.providers.first.toJson(),
+      'membership': {
+        'role': 'owner',
+        'capabilities': ['salon.publish'],
+      },
+      ...extra,
+    };
+
+    Future<MyProviderInfo> readMe(Map<String, dynamic> body) async {
+      final client = MockClient((req) async {
+        expect(req.url.path, '/me/provider');
+        return _utf8(jsonEncode(body), 200);
+      });
+      final res = await _service(client).getMyProvider();
+      expect(res.success, isTrue, reason: res.error);
+      return res.data!;
+    }
+
+    test(
+      '/me/provider without the key (a server before B0.18) → not sent',
+      () async {
+        final me = await readMe(meProvider(const {}));
+        expect(me.validationSent, isFalse);
+        expect(me.validation, isNull);
+      },
+    );
+
+    test('/me/provider with `validation: null` → sent, never asked', () async {
+      final me = await readMe(meProvider({'validation': null}));
+      expect(me.validationSent, isTrue);
+      expect(me.validation, isNull);
+    });
+
+    test('/me/provider with a validation → sent and read, the owner\'s full '
+        'view', () async {
+      final me = await readMe(
+        meProvider({
+          'validation': {
+            'state': 'approved',
+            'submittedAt': '2026-11-01T08:00:00.000Z',
+            'decidedAt': '2026-11-02T08:00:00.000Z',
+            'wentLive': true,
+            'offerLive': false,
+          },
+        }),
+      );
+      expect(me.validationSent, isTrue);
+      expect(me.validation!.state, SalonValidationState.approved);
+      expect(me.validation!.wentLive, isTrue);
+      expect(me.validation!.offerLive, isFalse);
+      expect(me.salon.id, MockData.providers.first.id);
+    });
+
+    test('/me/provider with a validation this build cannot read → sent, no '
+        'state claimed; the rest of the read survives', () async {
+      final me = await readMe(meProvider({'validation': 'pending'}));
+      expect(me.validationSent, isTrue);
+      expect(me.validation, isNull);
+      final typed = await readMe(
+        meProvider({
+          'validation': {
+            'state': 'refused',
+            'wentLive': false,
+            'offerLive': 'yes',
+            'refusal': {'code': 7, 'note': 3, 'final': true},
+          },
+        }),
+      );
+      expect(typed.validation!.offerLive, isNull);
+      expect(typed.validation!.refusal!.code, '');
+      expect(typed.validation!.refusal!.note, isNull);
+      expect(typed.validation!.refusal!.isFinal, isTrue);
+    });
+
+    Future<List<SalonMembershipInfo>> readSalons(
+      List<Map<String, dynamic>> items,
+    ) async {
+      final client = MockClient((req) async {
+        expect(req.url.path, '/me/salons');
+        return _utf8(jsonEncode({'items': items, 'canAddSalon': false}), 200);
+      });
+      final res = await _service(client).getMySalons();
+      expect(res.success, isTrue, reason: res.error);
+      return res.data!.items;
+    }
+
+    Map<String, dynamic> row(String id, Map<String, dynamic> extra) => {
+      'salonId': id,
+      'salonName': 'Salon $id',
+      'role': 'owner',
+      'salonStatus': 'draft',
+      'verified': false,
+      ...extra,
+    };
+
+    test('/me/salons: each row keeps « absent », « null » and a validation '
+        'apart', () async {
+      final rows = await readSalons([
+        row('a', const {}),
+        row('b', {'validation': null}),
+        row('c', {
+          'validation': {
+            'state': 'refused',
+            'wentLive': false,
+            'refusal': {'code': 'outside_ci', 'final': true},
+          },
+        }),
+      ]);
+      expect(rows[0].validationSent, isFalse);
+      expect(rows[0].validation, isNull);
+      expect(rows[1].validationSent, isTrue);
+      expect(rows[1].validation, isNull);
+      expect(rows[2].validationSent, isTrue);
+      expect(rows[2].validation!.refusal!.isFinal, isTrue);
+      expect(rows[2].validation!.refusal!.note, isNull);
     });
   });
 

@@ -3,9 +3,11 @@ import '../../models/artist.dart';
 import '../../models/provider.dart';
 import '../../models/provider_user.dart';
 import '../../models/salon_client.dart';
+import '../../models/salon_validation.dart';
 import '../../models/service.dart';
 import '../../models/user.dart';
 import '../../services/interfaces/pro_service_interface.dart';
+import '../constants/salon_validation_copy.dart';
 import 'app_clock.dart';
 
 /// Builds the user's data-export document (JSON-ready) from already-loaded
@@ -84,6 +86,13 @@ const String kDataExportCopyFailed = 'La copie a échoué. Réessayez.';
 /// Builds the SALON's data-export document (audit 11.5 — AUTH-005 for pros):
 /// the account identity, the public listing, the catalogue and the salon's
 /// own records (bookings + client base). Pure and deterministic.
+///
+/// [validation] is where the salon stands with MyWeli's validation (B0.18 —
+/// salon-go-live-approval §6.4; the website's shape, web-salon-validation.md
+/// §6), from the same GET /me/provider the salon came from — no read of its
+/// own. A top-level `validation` beside `salon`, as the read puts it beside
+/// `provider`, ONLY when the server sent the key ([validationSent]): `null`
+/// says « never asked », and a server from before B0.18 asked nobody.
 Map<String, dynamic> buildProviderDataExport({
   required ProviderUser account,
   required Provider salon,
@@ -92,6 +101,8 @@ Map<String, dynamic> buildProviderDataExport({
   required List<Appointment> appointments,
   required List<SalonClient> clients,
   required EarningsData earnings,
+  bool validationSent = false,
+  SalonValidation? validation,
   DateTime? generatedAt,
 }) {
   return {
@@ -114,6 +125,7 @@ Map<String, dynamic> buildProviderDataExport({
       'rating': salon.rating,
       'reviewCount': salon.reviewCount,
     },
+    if (validationSent) 'validation': validationForExport(validation),
     'services': services
         .map(
           (x) => {
@@ -205,4 +217,30 @@ List<SalonClient>? wholeClientBase(List<SalonClientsPage> pages) {
     }
   }
   return byId.length == total ? byId.values.toList() : null;
+}
+
+/// The salon's validation as its data export carries it (web-salon-
+/// validation.md §6, the website's `validationForExport`): the wire's
+/// values — state, the request's and the decision's times, whether it went
+/// live — and the refusal with its code, whether it is final, the admin's
+/// note, and `reason`, the one French value: the sentence the salon reads
+/// (null for `other`, whose note is the reason). `offerLive` is billing
+/// state and stays out. Null: never asked.
+Map<String, dynamic>? validationForExport(SalonValidation? validation) {
+  if (validation == null) return null;
+  final refusal = validation.refusal;
+  return {
+    'state': validation.stateOnWire,
+    'submittedAt': validation.submittedAt?.toIso8601String(),
+    'decidedAt': validation.decidedAt?.toIso8601String(),
+    'wentLive': validation.wentLive,
+    'refusal': refusal == null
+        ? null
+        : {
+            'code': refusal.code,
+            'final': refusal.isFinal,
+            'note': refusal.note,
+            'reason': SalonValidationCopy.refusalSentences[refusal.code],
+          },
+  };
 }

@@ -8,6 +8,7 @@ import '../../models/before_after_pair.dart';
 import '../../models/provider.dart';
 import '../../models/provider_user.dart';
 import '../../models/review.dart';
+import '../../models/salon_validation.dart';
 import '../../models/service.dart';
 import '../../models/team_invitation.dart';
 import '../../models/team_member.dart';
@@ -849,9 +850,128 @@ class MockData {
   static final Map<String, List<TeamInvitation>> teamInvitations =
       _seedTeamInvitations();
 
-  /// R6: mock salons created via « Ajouter un salon » — rendered as DRAFT
-  /// in « Mes salons » (the Provider model carries no status client-side).
-  static final Set<SalonId> draftSalonIds = {};
+  /// Each salon's stored lifecycle `status` — the server's
+  /// `providers.status`. Read it through [salonStatusOf], never directly:
+  /// a salon absent from it is a SEEDED salon's `active` (a seeded document
+  /// carries no status) or a run-time salon's `draft`. `GET /me/provider`
+  /// and `GET /me/salons` both read it, so the switcher and « Configuration »
+  /// can never disagree (they did: a salon added on the web read `draft` in
+  /// « Mes salons » and live on `/me/provider`).
+  static final Map<SalonId, String> salonStatuses = {};
+
+  /// A salon's lifecycle `status` as the server holds it: the stored one;
+  /// else null — `active` — for a seeded salon, and `draft` for a salon made
+  /// at run time. A run-time salon is a draft on the server until MyWeli's
+  /// validation takes it live, so it never reads live here because nothing
+  /// was stored: a mock register that forgets [seedNeverAsked], or a salon
+  /// an earlier test left after [resetTeam] cleared the statuses (B0.18).
+  static String? salonStatusOf(SalonId id) =>
+      salonStatuses[id] ?? (seededSalonIds.contains(id) ? null : 'draft');
+
+  /// The salon goes live (MyWeli's validation, a republish): a seeded salon
+  /// back to no stored status, any other stored `active`.
+  static void markLive(SalonId id) {
+    if (seededSalonIds.contains(id)) {
+      salonStatuses.remove(id);
+    } else {
+      salonStatuses[id] = 'active';
+    }
+  }
+
+  /// The seeded salons — live, and validated by the 0044 backfill's mirror.
+  static const Set<SalonId> seededSalonIds = {
+    SalonId('provider1'),
+    SalonId('provider2'),
+    SalonId('provider3'),
+    SalonId('provider4'),
+  };
+
+  /// Each salon's validation by MyWeli (B0.18 — salon-go-live-approval §2.3,
+  /// §6.5), the server's `salon_validations` row. A salon absent from it
+  /// never asked (`validation: null` on the reads). Seeded salons are live
+  /// and `approved` with `wentLive`, as migration 0044 marked every active
+  /// salon (§3.7): no queue flood, no trial touched. A salon the web made at
+  /// run time is a draft that never asked.
+  ///
+  /// Written by `MockProService.publishSalon` (the request) and its two test
+  /// hooks standing in for the admin (`validateSalonForTests`,
+  /// `refuseSalonForTests`); the fixtures below seed the other states.
+  static final Map<SalonId, SalonValidation> salonValidations =
+      _seedValidations();
+
+  static Map<SalonId, SalonValidation> _seedValidations() => {
+    for (final id in seededSalonIds)
+      id: const SalonValidation(
+        state: SalonValidationState.approved,
+        wentLive: true,
+      ),
+  };
+
+  // --- B0.18 fixtures (salon-go-live-approval §6.5): a salon in each state.
+  // Each also makes the salon a `draft`, as the server holds every one of
+  // them; [resetTeam] undoes them all.
+
+  /// Never asked: a draft with no validation (`validation: null`).
+  static void seedNeverAsked(SalonId id) {
+    salonStatuses[id] = 'draft';
+    salonValidations.remove(id);
+  }
+
+  /// Waiting for MyWeli since [submittedAt] (default: now).
+  static void seedPendingRequest(SalonId id, {DateTime? submittedAt}) {
+    salonStatuses[id] = 'draft';
+    salonValidations[id] = SalonValidation(
+      state: SalonValidationState.pending,
+      wentLive: false,
+      submittedAt: submittedAt ?? AppClock.now(),
+    );
+  }
+
+  /// Refused for [code] (final for `outside_ci` and `test_salon`), with the
+  /// admin's [note].
+  static void seedRefused(SalonId id, {String code = 'photos', String? note}) {
+    final now = AppClock.now();
+    salonStatuses[id] = 'draft';
+    salonValidations[id] = SalonValidation(
+      state: SalonValidationState.refused,
+      wentLive: false,
+      submittedAt: now.subtract(const Duration(days: 1)),
+      decidedAt: now,
+      refusal: SalonRefusal(
+        code: code,
+        note: note,
+        isFinal: kFinalSalonRefusalCodes.contains(code),
+      ),
+    );
+  }
+
+  /// Validated, never live: the admin's validation interrupted before it
+  /// took the salon public (§3.2) — the salon reads « En cours de
+  /// validation », and a retry finishes it.
+  static void seedFinishing(SalonId id) {
+    final now = AppClock.now();
+    salonStatuses[id] = 'draft';
+    salonValidations[id] = SalonValidation(
+      state: SalonValidationState.approved,
+      wentLive: false,
+      submittedAt: now.subtract(const Duration(days: 1)),
+      decidedAt: now,
+    );
+  }
+
+  /// Validated and live once, back to `draft` (an unpaid offer, a lifted
+  /// suspension): « Remettre en ligne » with a live offer, the billing
+  /// pointer without one.
+  static void seedOffline(SalonId id) {
+    salonStatuses[id] = 'draft';
+    salonValidations[id] = const SalonValidation(
+      state: SalonValidationState.approved,
+      wentLive: true,
+    );
+  }
+
+  /// Suspended by an admin; its validation is left as it is.
+  static void seedSuspended(SalonId id) => salonStatuses[id] = 'suspended';
 
   /// A salon made at run time (registration, « Ajouter un salon »), the way
   /// the server makes one (`draftSalonDocument`, backend
@@ -911,14 +1031,7 @@ class MockData {
   static void resetCatalogue() {
     for (var i = 0; i < providers.length; i++) {
       final id = providers[i].id;
-      if (!const {
-        'provider1',
-        'provider2',
-        'provider3',
-        'provider4',
-      }.contains(id)) {
-        continue;
-      }
+      if (!seededSalonIds.contains(id)) continue;
       providers[i] = providers[i].copyWith(
         services: getServicesForProvider(id),
         artists: getArtistsForProvider(id),
@@ -941,11 +1054,15 @@ class MockData {
           .length;
 
   /// Restore the seeded roster/cards (tests: call in setUp), the day's
-  /// invitation counters and the seeded catalogues ([resetCatalogue]). Also
+  /// invitation counters, the seeded catalogues ([resetCatalogue]) and every
+  /// salon's lifecycle — its status and its validation (B0.18). Also
   /// re-seeds the member ACCOUNTS (the R4b role demos and the former member)
   /// if a test stripped them.
   static void resetTeam() {
-    draftSalonIds.clear();
+    salonStatuses.clear();
+    salonValidations
+      ..clear()
+      ..addAll(_seedValidations());
     inviteBuckets.clear();
     resetCatalogue();
     teamMembers

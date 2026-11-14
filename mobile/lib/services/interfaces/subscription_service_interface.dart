@@ -6,8 +6,10 @@ import '../../models/salon_subscription.dart';
 /// Owner-scoped — the offer hangs on the SALON, not the account.
 ///
 /// Read-only in the app. Nothing here chooses or switches an offer: the
-/// server starts the salon's one trial at its first successful publish, and
-/// offers are chosen on the web — the Pro app never sells (App Store 3.1.1).
+/// server starts the salon's one trial when MyWeli validates the salon
+/// (B0.18, salon-go-live-approval §3.6 — its first successful publish
+/// before), and offers are chosen on the web — the Pro app never sells (App
+/// Store 3.1.1).
 /// Design: docs/design/pro-companion-path.md §3.1.
 abstract class SubscriptionServiceInterface {
   /// The current offer state. The SETUP state (no offer row yet) is a 404

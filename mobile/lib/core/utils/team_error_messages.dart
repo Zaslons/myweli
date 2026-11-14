@@ -46,8 +46,9 @@ String teamErrorMessage(String? code, {String? fallback}) => switch (code) {
 /// The invite refused by the offer gate (`offer_required`). The server sends
 /// one code for two different salons, and they need different sentences:
 ///
-/// - **no offer row** (setup — the trial starts at the first publish): the
-///   invites open once the salon is online;
+/// - **no offer row** (setup — the trial starts when MyWeli validates the
+///   salon, B0.18, salon-go-live-approval §3.6): the invites open once the
+///   salon is online;
 /// - **a row that is no longer live** (expired): the invites are unavailable.
 ///
 /// Neither names a way to get an offer (pro-companion-path §2.2, §11 Q4).
@@ -56,13 +57,40 @@ String inviteOfferRequiredMessage({required bool offerExists}) => offerExists
           'plus active.'
     : 'Vous pourrez inviter votre équipe une fois votre salon en ligne.';
 
-/// Publish refused by the offer gate (`missing: ['offer']`). Since the server
-/// starts the trial at the first publish, only a salon whose offer EXPIRED
-/// reaches this — so it states that, and offers no way out to a purchase.
-/// Shared by the API and mock publish and by the onboarding screen.
+/// Publish refused by the offer gate (`missing: ['offer']`). A salon with no
+/// offer row is never refused for it (its trial starts when MyWeli validates
+/// it — B0.18, salon-go-live-approval §3.6), so only a salon whose offer
+/// EXPIRED reaches this, or a validated salon back to `draft` with no live
+/// offer to come back on — so it states that, and offers no way out to a
+/// purchase. Shared by the API and mock publish and by the onboarding screen.
 const String publishOfferInactiveMessage =
     'La mise en ligne est indisponible : l’offre de votre salon n’est plus '
     'active.';
+
+/// « Mon abonnement »'s sentence for a salon its lapsed offer took offline
+/// (`unpublishedForBilling`). Also the text of the validation banner « Votre
+/// salon n’est plus en ligne » when the offer lapsed (B0.18 —
+/// salon-go-live-approval §6.1: « the billing sentence of « Mon
+/// abonnement » »), so the two can never say different things.
+const String salonUnpublishedForBillingMessage =
+    'Votre salon n’est plus visible des clients. Vos données sont intactes.';
+
+/// A salon an admin suspended (`provider_suspended`, row 82's pro sentence):
+/// the API's refusal wording and the mock publish's, one sentence. Not the
+/// client's — an owner whose salon was stopped is not shopping for another
+/// one, and the « intacts » clause is the reassurance
+/// `pro_subscription_screen.dart` established.
+const String salonSuspendedMessage =
+    'Votre salon est suspendu. Contactez MyWeli pour le réactiver — vos '
+    'rendez-vous sont intacts.';
+
+/// A salon switch the server refused (`SalonSwitchOutcome.refused` — revoked
+/// there, the salon gone): the salon picker's sentence, and the one a notice
+/// tap says on « Accueil » when it cannot switch to the salon it names
+/// (B0.18, decision 136 item 3). No answer at all is [kNoConnectionMessage]
+/// instead (docs/design/web-pro-no-connection-copy.md §5).
+const String salonSwitchRefusedMessage =
+    'Changement impossible — votre accès à ce salon a peut-être été retiré.';
 
 /// The demo account's 403 (`demo_account_locked`) — the sentence the App
 /// Review notes promise. Its credential is public, so the server refuses the

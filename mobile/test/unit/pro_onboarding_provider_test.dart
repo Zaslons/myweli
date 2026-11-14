@@ -1,18 +1,26 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
+import 'package:myweli/core/access/salon_state_refresh.dart';
 import 'package:myweli/core/constants/failure_messages.dart';
 import 'package:myweli/core/di/dependency_injection.dart';
 import 'package:myweli/core/utils/onboarding.dart';
+import 'package:myweli/core/utils/salon_go_live.dart';
 import 'package:myweli/core/utils/salon_id.dart';
+import 'package:myweli/core/utils/slug.dart';
 import 'package:myweli/models/api_response.dart';
 import 'package:myweli/models/availability.dart';
 import 'package:myweli/models/kyc_document.dart';
+import 'package:myweli/models/locality.dart';
 import 'package:myweli/models/payment.dart';
 import 'package:myweli/models/pro_membership.dart';
+import 'package:myweli/models/provider.dart';
 import 'package:myweli/models/provider_user.dart';
+import 'package:myweli/models/salon_validation.dart';
 import 'package:myweli/models/service.dart';
 import 'package:myweli/models/team_member.dart';
+import 'package:myweli/providers/locality_provider.dart';
 import 'package:myweli/providers/pro_onboarding_provider.dart';
+import 'package:myweli/services/interfaces/locality_service_interface.dart';
 import 'package:myweli/services/interfaces/pro_artist_service_interface.dart';
 import 'package:myweli/services/interfaces/pro_kyc_service_interface.dart';
 import 'package:myweli/services/interfaces/pro_service_interface.dart';
@@ -24,10 +32,25 @@ class _MockProService extends Mock implements ProServiceInterface {}
 
 class _MockProArtistService extends Mock implements ProArtistServiceInterface {}
 
+class _MockLocalityService extends Mock implements LocalityServiceInterface {}
+
+/// The session's two copies of the salon's state, counted.
+class _Session implements SalonStateRefresh {
+  int memberships = 0;
+  int salons = 0;
+
+  @override
+  Future<void> rereadMembership() async => memberships++;
+
+  @override
+  Future<void> rereadMySalons() async => salons++;
+}
+
 void main() {
   late _MockProKycService kyc;
   late _MockProService pro;
   late _MockProArtistService artists;
+  late _MockLocalityService localities;
 
   // `serviceLocator.subscriptionService` is deliberately NEVER assigned in
   // this file: it is `late final`, so a read throws — and `load` would turn
@@ -39,12 +62,15 @@ void main() {
     serviceLocator.proService = pro;
     artists = _MockProArtistService();
     serviceLocator.proArtistService = artists;
+    localities = _MockLocalityService();
+    serviceLocator.localityService = localities;
   });
 
   setUp(() {
     reset(kyc);
     reset(pro);
     reset(artists);
+    reset(localities);
   });
 
   ProviderUser newPro() => ProviderUser(
@@ -107,9 +133,10 @@ void main() {
 
   test('every publish gate met → ready to go live WITHOUT an offer — the '
       'checklist never reads one (pro-companion-path §2.2)', () async {
-    // The server starts the trial at the first publish, so the client gate
-    // has no offer key and no offer read. A salon with no offer row used to
-    // stay stuck behind « Choisissez votre offre ».
+    // The server starts the trial when MyWeli validates the salon (B0.18
+    // §3.6 — it was the first publish before), so the client gate has no
+    // offer key and no offer read. A salon with no offer row used to stay
+    // stuck behind « Choisissez votre offre ».
     final salon = MockData.providers.first.copyWith(
       imageUrls: const ['a.jpg', 'b.jpg', 'c.jpg'],
     );
@@ -328,19 +355,19 @@ void main() {
   });
 
   group('publish (pro-salon-lifecycle B3)', () {
-    test('success → true, no error, loading toggles', () async {
-      when(
-        () => pro.publishSalon(SalonId('p1')),
-      ).thenAnswer((_) async => ApiResponse.success(true, message: 'ok'));
+    test('success → the outcome, no error, loading toggles', () async {
+      when(() => pro.publishSalon(SalonId('p1'))).thenAnswer(
+        (_) async => ApiResponse.success(const PublishOutcome.live()),
+      );
       final p = ProOnboardingProvider();
-      final ok = await p.publish(SalonId('p1'));
-      expect(ok, isTrue);
+      final outcome = await p.publish(SalonId('p1'), session: _Session());
+      expect(outcome, const PublishOutcome.live());
       expect(p.error, isNull);
       expect(p.isPublishing, isFalse);
       verify(() => pro.publishSalon(SalonId('p1'))).called(1);
     });
 
-    test('incomplete → false + the server message surfaces', () async {
+    test('incomplete → null + the server message surfaces', () async {
       when(() => pro.publishSalon(SalonId('p1'))).thenAnswer(
         (_) async => ApiResponse.error(
           'Complétez les étapes requises avant la mise en ligne.',
@@ -348,7 +375,7 @@ void main() {
         ),
       );
       final p = ProOnboardingProvider();
-      expect(await p.publish(SalonId('p1')), isFalse);
+      expect(await p.publish(SalonId('p1'), session: _Session()), isNull);
       expect(p.error, contains('Complétez les étapes'));
     });
 
@@ -362,8 +389,375 @@ void main() {
         ),
       );
       final p = ProOnboardingProvider();
-      expect(await p.publish(SalonId('p1')), isFalse);
+      expect(await p.publish(SalonId('p1'), session: _Session()), isNull);
       expect(p.publishErrorCode, 'offer_required');
+    });
+  });
+
+  // B0.18 — docs/design/salon-go-live-approval.md §6.1, §6.2, §8.3 « The
+  // provider: keeps `validation`, resets it on a switch; the refresh after
+  // submit »; decision 136 items 2, 7 and 10.
+  group('the salon\'s go-live state (B0.18)', () {
+    final pending = SalonValidation(
+      state: SalonValidationState.pending,
+      wentLive: false,
+      submittedAt: DateTime.utc(2026, 11, 13, 9),
+    );
+    const refusedFinal = SalonValidation(
+      state: SalonValidationState.refused,
+      wentLive: false,
+      refusal: SalonRefusal(code: 'outside_ci', isFinal: true),
+    );
+
+    /// /me/provider for p1 in [status], carrying [validation] when [sent].
+    MyProviderInfo me({
+      String? status = 'draft',
+      SalonValidation? validation,
+      bool sent = true,
+      String id = 'p1',
+    }) {
+      final salon = MockData.providers.first.copyWith(
+        id: SalonId(id),
+        status: status,
+        imageUrls: const ['a.jpg', 'b.jpg', 'c.jpg'],
+      );
+      return MyProviderInfo(
+        salon: salon,
+        membership: ProMembership(
+          role: TeamRole.owner,
+          capabilities: presetCapabilitiesFor(TeamRole.owner),
+          salonId: SalonId(id),
+          salonName: salon.name,
+        ),
+        validation: validation,
+        validationSent: sent,
+      );
+    }
+
+    /// The load's six reads, its /me/provider answering [info].
+    Future<ProOnboardingProvider> loaded(MyProviderInfo info) async {
+      when(() => pro.getProviderServices(SalonId('p1'))).thenAnswer(
+        (_) async => ApiResponse.success(
+          MockData.getServicesForProvider(SalonId('provider1')),
+        ),
+      );
+      when(() => artists.getArtists(SalonId('p1'))).thenAnswer(
+        (_) async => ApiResponse.success(
+          MockData.getArtistsForProvider(SalonId('provider1')),
+        ),
+      );
+      when(() => pro.getProviderAvailability(SalonId('p1'))).thenAnswer(
+        (_) async => ApiResponse.success(MockData.providers.first.availability),
+      );
+      when(() => pro.getDepositPolicy(SalonId('p1'))).thenAnswer(
+        (_) async => ApiResponse.success(
+          const DepositPolicy(depositRequired: false, depositPercentage: 0),
+        ),
+      );
+      when(
+        () => pro.getMyProvider(),
+      ).thenAnswer((_) async => ApiResponse.success(info));
+      when(() => kyc.getKycStatus(any())).thenAnswer(
+        (_) async => ApiResponse.success(
+          const KycStatus(status: VerificationStatus.verified),
+        ),
+      );
+      final p = ProOnboardingProvider();
+      await p.load(
+        ProviderUser(
+          id: 'pu1',
+          phoneNumber: '+2250700000000',
+          businessName: 'Salon X',
+          businessType: BusinessType.salon,
+          createdAt: DateTime(2026),
+          providerId: SalonId('p1'),
+        ),
+        salonId: SalonId('p1'),
+      );
+      expect(p.loadFailed, isFalse, reason: '${p.error}');
+      return p;
+    }
+
+    void answerPublish(ApiResponse<PublishOutcome> answer) => when(
+      () => pro.publishSalon(SalonId('p1')),
+    ).thenAnswer((_) async => answer);
+
+    group('the load keeps it, from its own /me/provider read', () {
+      test('before any load: unknown (null), no validation', () {
+        final p = ProOnboardingProvider();
+        expect(p.salonGoLiveState, isNull);
+        expect(p.validation, isNull);
+      });
+
+      test(
+        'a pending request: the state AND the validation (its date)',
+        () async {
+          final p = await loaded(me(validation: pending));
+          expect(p.salonGoLiveState, GoLiveState.pending);
+          expect(p.validation, pending);
+          verify(() => pro.getMyProvider()).called(1);
+        },
+      );
+
+      test('a key sent null on a draft: never asked', () async {
+        final p = await loaded(me());
+        expect(p.salonGoLiveState, GoLiveState.neverAsked);
+      });
+
+      test('no key (a server from before B0.18): legacy — today\'s screen '
+          '(decision 136 item 10)', () async {
+        final p = await loaded(me(sent: false));
+        expect(p.salonGoLiveState, GoLiveState.legacy);
+      });
+
+      test('a pro with no salon yet reads nothing: unknown', () async {
+        when(() => kyc.getKycStatus(any())).thenAnswer(
+          (_) async => ApiResponse.success(
+            const KycStatus(status: VerificationStatus.pending),
+          ),
+        );
+        final p = ProOnboardingProvider();
+        await p.load(newPro(), salonId: null);
+        expect(p.loaded, isTrue);
+        expect(p.salonGoLiveState, isNull);
+      });
+
+      test('a failed load writes no state', () async {
+        when(() => pro.getProviderServices(SalonId('p1'))).thenAnswer(
+          (_) async => ApiResponse<List<Service>>.error(kNoConnectionMessage),
+        );
+        when(() => artists.getArtists(SalonId('p1'))).thenAnswer(
+          (_) async => ApiResponse.success(
+            MockData.getArtistsForProvider(SalonId('provider1')),
+          ),
+        );
+        when(() => pro.getProviderAvailability(SalonId('p1'))).thenAnswer(
+          (_) async =>
+              ApiResponse.success(MockData.providers.first.availability),
+        );
+        when(() => pro.getDepositPolicy(SalonId('p1'))).thenAnswer(
+          (_) async => ApiResponse.success(
+            const DepositPolicy(depositRequired: false, depositPercentage: 0),
+          ),
+        );
+        when(
+          () => pro.getMyProvider(),
+        ).thenAnswer((_) async => ApiResponse.success(me(validation: pending)));
+        when(() => kyc.getKycStatus(any())).thenAnswer(
+          (_) async => ApiResponse.success(
+            const KycStatus(status: VerificationStatus.verified),
+          ),
+        );
+        final p = ProOnboardingProvider();
+        await p.load(
+          ProviderUser(
+            id: 'pu1',
+            phoneNumber: '+2250700000000',
+            businessName: 'Salon X',
+            businessType: BusinessType.salon,
+            createdAt: DateTime(2026),
+            providerId: SalonId('p1'),
+          ),
+          salonId: SalonId('p1'),
+        );
+        expect(p.loadFailed, isTrue);
+        expect(p.salonGoLiveState, isNull);
+      });
+
+      test('a salon switch drops it — the next salon never shows this '
+          'one\'s state', () async {
+        final p = await loaded(me(validation: pending));
+        expect(p.salonGoLiveState, GoLiveState.pending);
+
+        p.resetForSalonSwitch();
+
+        expect(p.salonGoLiveState, isNull);
+        expect(p.validation, isNull);
+      });
+    });
+
+    group('publish takes the answer, then the session re-reads (§6.2)', () {
+      test('200 → live at once; the card and « Mes salons » re-read; no '
+          'read of its own', () async {
+        final p = await loaded(me());
+        answerPublish(ApiResponse.success(const PublishOutcome.live()));
+        final session = _Session();
+
+        final outcome = await p.publish(SalonId('p1'), session: session);
+        await p.publishSettled;
+
+        expect(outcome?.isLive, isTrue);
+        expect(p.salonGoLiveState, GoLiveState.live);
+        expect(session.memberships, 1, reason: 'the home card re-reads');
+        expect(session.salons, 1, reason: '« Mes salons » re-reads');
+        verify(() => pro.getMyProvider()).called(1); // the load's, only
+      });
+
+      test('202 pending → the request\'s validation at once (« Demande '
+          'envoyée le … » has its date); the session re-reads', () async {
+        final p = await loaded(me());
+        expect(p.salonGoLiveState, GoLiveState.neverAsked);
+        answerPublish(ApiResponse.success(PublishOutcome.requested(pending)));
+        final session = _Session();
+        var heard = 0;
+        p.addListener(() => heard++);
+
+        final outcome = await p.publish(SalonId('p1'), session: session);
+
+        // Before the re-reads land: the screen already shows the request.
+        expect(outcome?.saysRequestSent, isTrue);
+        expect(p.salonGoLiveState, GoLiveState.pending);
+        expect(p.validation, pending);
+        expect(heard, greaterThan(0));
+        await p.publishSettled;
+        expect(session.memberships, 1);
+        expect(session.salons, 1);
+        verify(() => pro.getMyProvider()).called(1); // the load's, only
+      });
+
+      test(
+        '202 the validation finishing (approved, not yet live) → pending',
+        () async {
+          final p = await loaded(me());
+          answerPublish(
+            ApiResponse.success(
+              const PublishOutcome.requested(
+                SalonValidation(
+                  state: SalonValidationState.approved,
+                  wentLive: false,
+                ),
+              ),
+            ),
+          );
+          final outcome = await p.publish(SalonId('p1'), session: _Session());
+          expect(outcome?.saysRequestSent, isTrue);
+          expect(p.salonGoLiveState, GoLiveState.pending);
+        },
+      );
+
+      test('202 refused at that very moment → shown, and NO « Demande '
+          'envoyée » (decision 136 item 7)', () async {
+        final p = await loaded(me());
+        answerPublish(
+          ApiResponse.success(const PublishOutcome.requested(refusedFinal)),
+        );
+        final session = _Session();
+        final outcome = await p.publish(SalonId('p1'), session: session);
+        await p.publishSettled;
+
+        expect(outcome?.saysRequestSent, isFalse);
+        expect(p.salonGoLiveState, GoLiveState.refusedFinal);
+        expect(p.validation?.refusal?.code, 'outside_ci');
+        expect(session.memberships, 1);
+      });
+
+      test('202 whose request vanished (null) → never asked, NO « Demande '
+          'envoyée » (decision 136 item 7)', () async {
+        final p = await loaded(me(validation: pending));
+        answerPublish(
+          ApiResponse.success(const PublishOutcome.requested(null)),
+        );
+        final outcome = await p.publish(SalonId('p1'), session: _Session());
+        expect(outcome?.saysRequestSent, isFalse);
+        expect(p.salonGoLiveState, GoLiveState.neverAsked);
+        expect(p.validation, isNull);
+      });
+
+      test('202 with a body this build cannot read → « Demande envoyée » '
+          '(it IS recorded), and « Configuration » re-reads its own', () async {
+        final p = await loaded(me());
+        answerPublish(
+          ApiResponse.success(const PublishOutcome.requestedUnread()),
+        );
+        // The re-read answers the request.
+        when(
+          () => pro.getMyProvider(),
+        ).thenAnswer((_) async => ApiResponse.success(me(validation: pending)));
+        final session = _Session();
+
+        final outcome = await p.publish(SalonId('p1'), session: session);
+        expect(outcome?.saysRequestSent, isTrue);
+        await p.publishSettled;
+
+        expect(p.salonGoLiveState, GoLiveState.pending);
+        expect(p.validation, pending);
+        // The load's, then the re-read.
+        verify(() => pro.getMyProvider()).called(2);
+        expect(session.memberships, 1);
+        expect(session.salons, 1);
+      });
+
+      test('409 validation_refused_final (a stale button) → « Mise en ligne '
+          'refusée », then the state is re-read: the refused banner '
+          '(decision 136 item 2)', () async {
+        final p = await loaded(me());
+        answerPublish(
+          ApiResponse.error(
+            'Mise en ligne refusée',
+            code: 'validation_refused_final',
+          ),
+        );
+        when(() => pro.getMyProvider()).thenAnswer(
+          (_) async => ApiResponse.success(me(validation: refusedFinal)),
+        );
+        final session = _Session();
+
+        expect(await p.publish(SalonId('p1'), session: session), isNull);
+        // Said at the answer, before (and whatever) the re-read answers.
+        expect(p.error, 'Mise en ligne refusée');
+        expect(p.publishErrorCode, 'validation_refused_final');
+        await p.publishSettled;
+
+        expect(p.salonGoLiveState, GoLiveState.refusedFinal);
+        expect(p.validation?.refusal?.isFinal, isTrue);
+        expect(session.memberships, 1, reason: 'the card was stale too');
+        expect(session.salons, 1);
+      });
+
+      test('a re-read that fails keeps the state it had', () async {
+        final p = await loaded(me());
+        answerPublish(
+          ApiResponse.error(
+            'Mise en ligne refusée',
+            code: 'validation_refused_final',
+          ),
+        );
+        when(() => pro.getMyProvider()).thenAnswer(
+          (_) async => ApiResponse<MyProviderInfo>.error(kNoConnectionMessage),
+        );
+        await p.publish(SalonId('p1'), session: _Session());
+        await p.publishSettled;
+        expect(p.salonGoLiveState, GoLiveState.neverAsked);
+        expect(p.error, 'Mise en ligne refusée');
+      });
+
+      test('a re-read answering ANOTHER salon is not taken', () async {
+        final p = await loaded(me());
+        answerPublish(
+          ApiResponse.success(const PublishOutcome.requestedUnread()),
+        );
+        when(() => pro.getMyProvider()).thenAnswer(
+          (_) async =>
+              ApiResponse.success(me(id: 'p2', validation: refusedFinal)),
+        );
+        await p.publish(SalonId('p1'), session: _Session());
+        await p.publishSettled;
+        expect(p.salonGoLiveState, GoLiveState.neverAsked);
+      });
+
+      for (final code in ['incomplete', 'offer_required', 'forbidden']) {
+        test('CONTROL — a refusal ($code) moves nothing: no re-read', () async {
+          final p = await loaded(me());
+          answerPublish(ApiResponse.error('Refus', code: code));
+          final session = _Session();
+          expect(await p.publish(SalonId('p1'), session: session), isNull);
+          await p.publishSettled;
+          expect(session.memberships, 0);
+          expect(session.salons, 0);
+          verify(() => pro.getMyProvider()).called(1); // the load's, only
+          expect(p.salonGoLiveState, GoLiveState.neverAsked);
+        });
+      }
     });
   });
 
@@ -463,4 +857,246 @@ void main() {
       });
     },
   );
+  // R8 — docs/design/salon-go-live-approval.md §6.3, web-salon-validation.md
+  // §5, decision 136 item 4: « Profil de l’entreprise » follows the server's
+  // `validArea` — an `areaId`, or a commune that names one of MyWeli's areas
+  // by slug. The tree is the screen's (`LocalityProvider`), never read by the
+  // load; unread or failed, today's three-field rule holds.
+  group('R8 — « Profil de l’entreprise » wants a commune from the list', () {
+    /// MyWeli's areas, as GET /localities answers them.
+    final tree = [
+      LocalityCountry(
+        code: 'CI',
+        name: 'Côte d’Ivoire',
+        currency: 'XOF',
+        phonePrefix: '+225',
+        operators: const [],
+        cities: [
+          LocalityCity(
+            id: 'abidjan',
+            slug: 'abidjan',
+            name: 'Abidjan',
+            timezone: 'Africa/Abidjan',
+            areas: [
+              for (final name in ['Cocody', 'Port-Bouët', 'Attécoubé'])
+                LocalityArea(
+                  id: slugify(name),
+                  slug: slugify(name),
+                  name: name,
+                  labelKind: 'commune',
+                ),
+            ],
+          ),
+        ],
+      ),
+    ];
+
+    void treeAnswers() => when(
+      () => localities.getLocalities(),
+    ).thenAnswer((_) async => ApiResponse.success(tree));
+
+    /// The tree, read (or not: [read] false leaves it unread).
+    Future<LocalityProvider> areas({bool read = true}) async {
+      treeAnswers();
+      final p = LocalityProvider();
+      if (read) await p.ensureLoaded();
+      return p;
+    }
+
+    /// Every other gate met; the profile filled with [commune], [areaId].
+    Future<ProOnboardingProvider> loadWith({
+      required String? commune,
+      String? areaId,
+      String description = 'Un salon.',
+      LocalityProvider? tree,
+    }) async {
+      final salon = MockData.providers.first.copyWith(
+        imageUrls: const ['a.jpg', 'b.jpg', 'c.jpg'],
+        description: description,
+        address: 'Rue 12',
+      );
+      // `copyWith` keeps a null as « unchanged »: build the two fields R8
+      // reads from the wire shape.
+      final json = salon.toJson()
+        ..['areaId'] = areaId
+        ..['commune'] = commune;
+      final info = MyProviderInfo(
+        salon: Provider.fromJson(json),
+        membership: ProMembership(
+          role: TeamRole.owner,
+          capabilities: presetCapabilitiesFor(TeamRole.owner),
+          salonId: SalonId('p1'),
+          salonName: salon.name,
+        ),
+      );
+      when(() => pro.getProviderServices(SalonId('p1'))).thenAnswer(
+        (_) async => ApiResponse.success(
+          MockData.getServicesForProvider(SalonId('provider1')),
+        ),
+      );
+      when(() => artists.getArtists(SalonId('p1'))).thenAnswer(
+        (_) async => ApiResponse.success(
+          MockData.getArtistsForProvider(SalonId('provider1')),
+        ),
+      );
+      when(
+        () => pro.getProviderAvailability(SalonId('p1')),
+      ).thenAnswer((_) async => ApiResponse.success(salon.availability));
+      when(() => pro.getDepositPolicy(SalonId('p1'))).thenAnswer(
+        (_) async => ApiResponse.success(
+          const DepositPolicy(depositRequired: false, depositPercentage: 0),
+        ),
+      );
+      when(
+        () => pro.getMyProvider(),
+      ).thenAnswer((_) async => ApiResponse.success(info));
+      when(() => kyc.getKycStatus(any())).thenAnswer(
+        (_) async => ApiResponse.success(
+          const KycStatus(status: VerificationStatus.verified),
+        ),
+      );
+      final p = ProOnboardingProvider();
+      await p.load(
+        ProviderUser(
+          id: 'pu1',
+          phoneNumber: '+2250700000000',
+          businessName: 'Salon X',
+          businessType: BusinessType.salon,
+          createdAt: DateTime(2026),
+          providerId: SalonId('p1'),
+        ),
+        salonId: SalonId('p1'),
+        areas: tree,
+      );
+      expect(p.loadFailed, isFalse, reason: '${p.error}');
+      return p;
+    }
+
+    test('an areaId → done, whatever the commune\'s words', () async {
+      final p = await loadWith(
+        commune: 'Quartier des Artistes',
+        areaId: 'cocody',
+        tree: await areas(),
+      );
+      expect(statusOf(p, OnboardingStepKey.profile), OnboardingStepStatus.done);
+      expect(p.communeNotInList, isFalse);
+      expect(p.readyToGoLive, isTrue);
+    });
+
+    for (final legacy in [
+      'Cocody',
+      '  port bouet ',
+      'ATTÉCOUBÉ',
+      'attecoube',
+    ]) {
+      test('a legacy commune typed by hand that names an area (« $legacy ») '
+          '→ done: the server self-heals it', () async {
+        final p = await loadWith(commune: legacy, tree: await areas());
+        expect(
+          statusOf(p, OnboardingStepKey.profile),
+          OnboardingStepStatus.done,
+        );
+        expect(p.communeNotInList, isFalse);
+        expect(p.readyToGoLive, isTrue);
+      });
+    }
+
+    test('a commune that names no area → to do, with the sub-line; the '
+        'button stays off (the server would refuse it)', () async {
+      final p = await loadWith(
+        commune: 'Quartier des Artistes',
+        tree: await areas(),
+      );
+      expect(statusOf(p, OnboardingStepKey.profile), OnboardingStepStatus.todo);
+      expect(p.communeNotInList, isTrue);
+      expect(p.readyToGoLive, isFalse);
+      verifyNever(() => pro.publishSalon(any()));
+    });
+
+    test('the tree not read → today\'s rule: done, no sub-line — the server '
+        'decides', () async {
+      final unread = await areas(read: false);
+      final p = await loadWith(commune: 'Quartier des Artistes', tree: unread);
+      expect(statusOf(p, OnboardingStepKey.profile), OnboardingStepStatus.done);
+      expect(p.communeNotInList, isFalse);
+      expect(p.readyToGoLive, isTrue);
+      verifyNever(() => localities.getLocalities());
+    });
+
+    test('no tree at all (none in the widget tree) → today\'s rule', () async {
+      final p = await loadWith(commune: 'Quartier des Artistes');
+      expect(statusOf(p, OnboardingStepKey.profile), OnboardingStepStatus.done);
+      expect(p.communeNotInList, isFalse);
+    });
+
+    test('a tree that failed → today\'s rule, and the load never failed '
+        'with it', () async {
+      when(() => localities.getLocalities()).thenAnswer(
+        (_) async =>
+            ApiResponse<List<LocalityCountry>>.error(kNoConnectionMessage),
+      );
+      final failed = LocalityProvider();
+      await failed.ensureLoaded();
+      expect(failed.error, isNotNull, reason: 'the scenario');
+
+      final p = await loadWith(commune: 'Quartier des Artistes', tree: failed);
+      expect(p.loadFailed, isFalse);
+      expect(statusOf(p, OnboardingStepKey.profile), OnboardingStepStatus.done);
+    });
+
+    test('the tree landing AFTER the load counts at once — and says so to '
+        'the screen', () async {
+      final later = await areas(read: false);
+      final p = await loadWith(commune: 'Quartier des Artistes', tree: later);
+      expect(statusOf(p, OnboardingStepKey.profile), OnboardingStepStatus.done);
+      var heard = 0;
+      p.addListener(() => heard++);
+
+      await later.ensureLoaded();
+
+      expect(heard, greaterThan(0));
+      expect(statusOf(p, OnboardingStepKey.profile), OnboardingStepStatus.todo);
+      expect(p.communeNotInList, isTrue);
+    });
+
+    test('the load never reads the tree: still six reads', () async {
+      final unread = await areas(read: false);
+      await loadWith(commune: 'Cocody', tree: unread);
+      verifyNever(() => localities.getLocalities());
+    });
+
+    test('the sub-line only when the commune is THE reason: a missing '
+        'description says nothing of the commune', () async {
+      final p = await loadWith(
+        commune: 'Quartier des Artistes',
+        description: '  ',
+        tree: await areas(),
+      );
+      expect(statusOf(p, OnboardingStepKey.profile), OnboardingStepStatus.todo);
+      expect(p.communeNotInList, isFalse);
+    });
+
+    test(
+      'an empty commune is a missing field, not « from the list »',
+      () async {
+        final p = await loadWith(commune: '', tree: await areas());
+        expect(
+          statusOf(p, OnboardingStepKey.profile),
+          OnboardingStepStatus.todo,
+        );
+        expect(p.communeNotInList, isFalse);
+      },
+    );
+
+    test('a salon switch forgets the profile with the rest', () async {
+      final p = await loadWith(
+        commune: 'Quartier des Artistes',
+        tree: await areas(),
+      );
+      expect(p.communeNotInList, isTrue);
+      p.resetForSalonSwitch();
+      expect(p.communeNotInList, isFalse);
+      expect(p.steps, isEmpty);
+    });
+  });
 }

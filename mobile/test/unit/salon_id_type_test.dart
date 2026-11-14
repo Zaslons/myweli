@@ -116,7 +116,7 @@ void main() {
 
   group('H2 — the public salon too: no salon id is a bare String', () {
     // Any declaration NAMED as a salon id — `providerId`, `salonId`,
-    // `focusProviderId`, `draftSalonIds`, a list of them — anywhere in
+    // `focusProviderId`, `seededSalonIds`, a list of them — anywhere in
     // `lib/` but the V2/V3 screens. A salon's CLIENT (`salonClientId`) is
     // not a salon and is not matched.
     final named = RegExp(

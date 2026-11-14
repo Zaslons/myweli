@@ -18,6 +18,7 @@ import '../../../widgets/common/app_card.dart';
 import '../../../widgets/common/app_skeleton.dart';
 import '../../../widgets/common/app_snack_bar.dart';
 import '../../../widgets/common/screen_title.dart';
+import '../../../widgets/common/status_banner.dart';
 
 class ProKycScreen extends StatefulWidget {
   const ProKycScreen({super.key});
@@ -231,6 +232,8 @@ class _ProKycScreenState extends State<ProKycScreen> {
   }
 }
 
+/// KYC's state, on the shared [StatusBanner] (moved there unchanged — B0.18;
+/// test/widget/pro_kyc_banner_parity_test.dart).
 class _StatusBanner extends StatelessWidget {
   final VerificationStatus status;
   final String? rejectionReason;
@@ -265,35 +268,11 @@ class _StatusBanner extends StatelessWidget {
         break;
     }
 
-    return Container(
-      padding: const EdgeInsets.all(AppTheme.spacingM),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(icon, color: color, size: AppTheme.iconM),
-          const SizedBox(width: AppTheme.spacingSM),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: AppTextStyles.titleSmall.copyWith(color: color),
-                ),
-                const SizedBox(height: AppTheme.spacingXS),
-                Text(
-                  subtitle,
-                  style: AppTextStyles.bodySmall.copyWith(color: color),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
+    return StatusBanner(
+      color: color,
+      icon: icon,
+      title: title,
+      lines: [subtitle],
     );
   }
 }

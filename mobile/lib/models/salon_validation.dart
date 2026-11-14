@@ -94,11 +94,22 @@ class SalonRefusal extends Equatable {
   /// `outside_ci` and `test_salon`: the salon cannot ask again.
   final bool isFinal;
 
+  /// Tolerant, as [SalonValidation.fromJson]: a field of the wrong type is
+  /// left out, never a throw — one cell lost, not the whole read (a salon's
+  /// « Mes salons » list carries one validation per row).
   factory SalonRefusal.fromJson(Map<String, dynamic> json) => SalonRefusal(
-    code: (json['code'] as String?) ?? '',
-    note: json['note'] as String?,
+    code: _string(json['code']) ?? '',
+    note: _string(json['note']),
     isFinal: json['final'] == true,
   );
+
+  /// The wire shape (`salon_validation_dto.dart`): `note` only when there is
+  /// one.
+  Map<String, dynamic> toJson() => {
+    'code': code,
+    'note': ?note,
+    'final': isFinal,
+  };
 
   @override
   List<Object?> get props => [code, note, isFinal];
@@ -113,9 +124,20 @@ class SalonValidation extends Equatable {
     this.offerLive,
     this.refusal,
     this.decidedBy,
+    this.unknownState,
   });
 
   final SalonValidationState state;
+
+  /// The state as the server sent it, when this build does not know it
+  /// ([SalonValidationState.unknown]); null for a known state. Kept so that
+  /// what the app writes back — the salon's data export, whose values are
+  /// the wire's (web-salon-validation.md §6) — is the server's word, never
+  /// `unknown`.
+  final String? unknownState;
+
+  /// The state as it travels: [state]'s, or the one this build did not know.
+  String get stateOnWire => unknownState ?? state.wire;
 
   /// The last request. Absent on a salon the 0044 backfill validated.
   final DateTime? submittedAt;
@@ -139,20 +161,42 @@ class SalonValidation extends Equatable {
   /// public — « Validation à terminer » in the console (§3.2, §4.4).
   bool get isFinishing => state == SalonValidationState.approved && !wentLive;
 
+  /// Tolerant: a field of the wrong type is left out, never a throw (see
+  /// [_instant]).
   factory SalonValidation.fromJson(Map<String, dynamic> json) {
     final refusal = json['refusal'];
+    final offerLive = json['offerLive'];
+    final rawState = json['state'];
+    final state = SalonValidationState.fromWire(rawState);
     return SalonValidation(
-      state: SalonValidationState.fromWire(json['state']),
+      state: state,
+      unknownState: state == SalonValidationState.unknown && rawState is String
+          ? rawState
+          : null,
       submittedAt: _instant(json['submittedAt']),
       decidedAt: _instant(json['decidedAt']),
       wentLive: json['wentLive'] == true,
-      offerLive: json['offerLive'] as bool?,
+      offerLive: offerLive is bool ? offerLive : null,
       refusal: refusal is Map
           ? SalonRefusal.fromJson(refusal.cast<String, dynamic>())
           : null,
-      decidedBy: json['decidedBy'] as String?,
+      decidedBy: _string(json['decidedBy']),
     );
   }
+
+  /// The wire shape (`salon_validation_dto.dart`): every optional key only
+  /// when it has a value. An [SalonValidationState.unknown] state writes the
+  /// value the server sent ([stateOnWire]; `unknown` when it sent none),
+  /// which reads back as itself.
+  Map<String, dynamic> toJson() => {
+    'state': stateOnWire,
+    'submittedAt': ?submittedAt?.toIso8601String(),
+    'decidedAt': ?decidedAt?.toIso8601String(),
+    'wentLive': wentLive,
+    'offerLive': ?offerLive,
+    'refusal': ?refusal?.toJson(),
+    'decidedBy': ?decidedBy,
+  };
 
   @override
   List<Object?> get props => [
@@ -163,10 +207,43 @@ class SalonValidation extends Equatable {
     offerLive,
     refusal,
     decidedBy,
+    unknownState,
   ];
+}
+
+/// A read's `validation` key, kept apart from its value (B0.18, decision 136
+/// item 10 — docs/design/web-salon-validation.md §1).
+///
+/// The salon side's reads (`GET /me/provider`, each « Mes salons » entry of
+/// `GET /me/salons`) carry the key on a B0.18 server, `null` while the salon
+/// never asked; a server from before B0.18 (a rollback) sends no key at all,
+/// and the app then keeps today's screens. So « absent » and « null » are two
+/// different answers, and only the KEY's presence opens the new states.
+///
+/// - absent → `sent: false` (a server before B0.18);
+/// - `null` → `sent: true`, no validation (never asked);
+/// - an object → `sent: true`, the validation;
+/// - anything else → `sent: true`, no validation: a value this build cannot
+///   read never claims a state, and lands where the website's derivation
+///   lands it (`goLiveState`'s default: never asked).
+({bool sent, SalonValidation? validation}) readSalonValidationKey(
+  Map<String, dynamic> json, {
+  String key = 'validation',
+}) {
+  if (!json.containsKey(key)) return (sent: false, validation: null);
+  final raw = json[key];
+  return (
+    sent: true,
+    validation: raw is Map
+        ? SalonValidation.fromJson(raw.cast<String, dynamic>())
+        : null,
+  );
 }
 
 /// An ISO-8601 instant off the wire, or null — never a throw: a malformed
 /// date costs one cell, not the whole answer.
 DateTime? _instant(Object? raw) =>
     raw is String ? DateTime.tryParse(raw) : null;
+
+/// A string off the wire, or null when it is anything else — never a throw.
+String? _string(Object? raw) => raw is String ? raw : null;

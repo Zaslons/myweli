@@ -2,10 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/constants/failure_messages.dart';
+import '../../core/constants/salon_validation_copy.dart';
 import '../../core/constants/unnamed_salon.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/colors.dart';
 import '../../core/theme/text_styles.dart';
+import '../../core/utils/salon_go_live.dart';
+import '../../core/utils/team_error_messages.dart';
 import '../../models/salon_membership_info.dart';
 import '../../models/team_member.dart';
 import '../../providers/pro_auth_provider.dart';
@@ -157,12 +160,26 @@ class _SalonTile extends StatelessWidget {
   /// Reports a failed switch up to the sheet, which renders it inline.
   final ValueChanged<String> onFailed;
 
+  /// The salon's state, for its own line (B0.18 — salon-go-live-approval
+  /// §6.1 « Badge / row line », decision 136 item 8): every row says it, a
+  /// salon the account does not own included (« Plus en ligne » there when
+  /// its offer is not the account's to read). A server from before B0.18
+  /// keeps today's words: a draft says so, nothing else does (item 10).
+  String? get _stateLine {
+    final state = goLiveState(
+      status: salon.salonStatus,
+      validationSent: salon.validationSent,
+      validation: salon.validation,
+    );
+    if (state == GoLiveState.legacy) {
+      return salon.isDraft ? SalonValidationCopy.lineNeverAsked : null;
+    }
+    return goLiveLine(state);
+  }
+
   @override
   Widget build(BuildContext context) {
-    final subtitleParts = <String>[
-      teamRoleLabel(salon.role),
-      if (salon.isDraft) 'Brouillon — pas encore en ligne',
-    ];
+    final stateLine = _stateLine;
     return ListTile(
       // The salon's mark, at last: `imageUrl` (the server prefers logoUrl,
       // falling back to the first gallery photo) was parsed and thrown away
@@ -214,11 +231,18 @@ class _SalonTile extends StatelessWidget {
           ],
         ],
       ),
-      subtitle: Text(
-        subtitleParts.join(' · '),
-        style: AppTextStyles.bodySmall,
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
+      // The role, and the state on a line of its own: at 200% text a
+      // « role · state » line in one ellipsized `Text` cut the state off —
+      // the very word the row is there to say (§6.2). Neither line is cut;
+      // each wraps.
+      subtitle: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(teamRoleLabel(salon.role), style: AppTextStyles.bodySmall),
+          if (stateLine != null)
+            Text(stateLine, style: AppTextStyles.bodySmall),
+        ],
       ),
       trailing: isActive
           ? const Icon(Icons.check, color: AppColors.textPrimary)
@@ -238,8 +262,7 @@ class _SalonTile extends StatelessWidget {
           onFailed(
             outcome == SalonSwitchOutcome.offline
                 ? kNoConnectionMessage
-                : 'Changement impossible — votre accès à ce salon a '
-                      'peut-être été retiré.',
+                : salonSwitchRefusedMessage,
           );
           return;
         }

@@ -807,14 +807,42 @@ void expectNoVerticalClip(WidgetTester tester, {String? context}) {
 ///
 /// [ellipsisIsFine] declares that clipping is intentional (SYSTEM.md §13.3
 /// allows a declared ellipsis); pass `false` only to audit those too.
+///
+/// [within] scopes the walk to the paragraphs under what it finds (B0.18):
+/// the audit with `ellipsisIsFine: false` on ONE line — the salon picker's
+/// state — without reddening the row's own declared ellipsis beside it (the
+/// salon's name), as the app-bar gate scopes it to the bar. A scope that
+/// finds nothing is a caller error, not a pass.
 void expectNoUndeclaredTruncation(
   WidgetTester tester, {
   bool ellipsisIsFine = true,
   String? context,
+  Finder? within,
 }) {
   final cut = <String>[];
+  final Iterable<RenderParagraph> paragraphs;
+  if (within == null) {
+    paragraphs = tester.allRenderObjects.whereType<RenderParagraph>();
+  } else {
+    final scoped = <RenderParagraph>[];
+    void collect(RenderObject o) {
+      if (o is RenderParagraph) scoped.add(o);
+      o.visitChildren(collect);
+    }
 
-  for (final p in tester.allRenderObjects.whereType<RenderParagraph>()) {
+    for (final e in within.evaluate()) {
+      final o = e.renderObject;
+      if (o != null) collect(o);
+    }
+    expect(
+      scoped,
+      isNotEmpty,
+      reason: '$within holds no text — the scope measured nothing',
+    );
+    paragraphs = scoped;
+  }
+
+  for (final p in paragraphs) {
     final why = _truncationReason(p, ellipsisIsFine: ellipsisIsFine);
     if (why == null) continue;
     cut.add('  · « ${_label(p)} » — $why (overflow: ${p.overflow.name})');
