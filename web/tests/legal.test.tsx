@@ -457,10 +457,25 @@ describe('B0.23 — the policy tells a Pro the truth about deletion', () => {
       'recherches faites dans sa liste de clients',
       'il n’est pas effacé à la suppression d’un compte',
       'Le texte recherché peut être le nom ou le numéro d’un client',
-      // decision 138, said of both
-      'Aucune durée de conservation n’est fixée à ce jour',
     ]) {
       expect(text).toContain(phrase);
+    }
+  });
+
+  it('« Conservation » says no limit is set of the salon and of the team log, each in its own paragraph (decision 138)', () => {
+    // Pinned per paragraph: the phrase is written twice, so one check against
+    // the whole section stayed green when either copy was deleted.
+    const { container } = render(<ConfidentialitePage />);
+    const paragraphs = nodesOf(container, /conservation/i).map((n) =>
+      (n.textContent ?? '').replace(/\s+/g, ' ').trim(),
+    );
+    for (const opening of [
+      'Si vous supprimez un compte professionnel',
+      'Le journal des actions de l’équipe d’un salon',
+    ]) {
+      const p = paragraphs.find((t) => t.startsWith(opening));
+      expect(p, `the « ${opening} » paragraph`).toBeTruthy();
+      expect(p).toContain('Aucune durée de conservation n’est fixée à ce jour');
     }
   });
 });
