@@ -506,6 +506,11 @@ These block everything. None is surface-specific.
         it (`250`) and rejects a made-up address (`550 5.4.1`).
       - **Someone reads it:** the owner's test e-mail arrived where they read
         mail (owner-reported).
+      - **2026-11-17, a mailbox of its own** (owner-reported): `support@myweli.com`
+        is a Microsoft 365 shared mailbox, and answers leave from it; until then it
+        was an extra address on the owner's mailbox, so answers left from the
+        owner's own address. Apple's relay delivers it to hidden addresses
+        (DEPLOYMENT.md, « Effacer un compte Pro sur demande au support », 10.1).
       - BACKLOG batch 10.
 - [x] **Rate limiting** verified on the auth and booking routes against a real
       hostile pattern, not a unit test. **All three probed against deployed

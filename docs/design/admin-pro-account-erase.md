@@ -5,7 +5,7 @@
 | **Module** | backend — `DELETE /admin/provider-accounts/{id}/erase` and a read-only `POST /admin/provider-accounts/lookup`; and the written support procedure that uses them (§10) |
 | **Status** | **Approved 2026-11-13 (decisions 141, 142) — ~~not built~~ ~~built 2026-11-14 on `feat/admin-pro-account-erase`; not merged, not deployed~~ **Live 2026-11-14:** merged in #793 (`d3d47c0c`), deployed with B0.22 at 13:16 UTC (image `d3d47c0`, revision `myweli-api-00052-94d`), read back signed in (§9 step 4: both calls answer the route's JSON 404 `not_found`), and the procedure approved as written (decision 148) and copied into `docs/DEPLOYMENT.md`** (Build log, end). Built from option 1b of the R1 draft (session notes, not in the repo; a review's 15 findings folded in before the owner read it). The French replies of §10.3 were approved by the owner as written on 2026-11-14 (decision 147), in the backend PR (#793). A review of this branch on 2026-11-14 tightened the check, the procedure and the replies (Review log, end); the owner's answers are unchanged |
 | **Owner** | the project owner: the merge, the production deploy, the procedure's approval, and every support erase, each on the owner's yes |
-| **Last updated** | 2026-11-14 |
+| **Last updated** | 2026-11-17 (§10's note: the « Once » checks done, recorded in DEPLOYMENT.md). Before that, 2026-11-14 |
 | **PRD ref / phase** | FR-AUTH-005 [V1] (`docs/PRD.md:344`) · V1 · gates B0.19's page (S1), and so android-play-release step 7 (decision 141) |
 | **BACKLOG item** | B0.25, its server half — decision 141 amends decision 139's « does not gate step 7 » for this half · decision 142 (the check and the procedure) · R1 of [web-pro-account-deletion.md](web-pro-account-deletion.md) §12 |
 | **ROADMAP entry** | [2026-11-13-pro-account-deletion-spec.md](../roadmap/entries/2026-11-13-pro-account-deletion-spec.md) |
@@ -240,7 +240,9 @@ Then the full backend suite, `dart format`, `dart analyze --fatal-infos --fatal-
 > **Approved as written by the owner on 2026-11-14 (decision 148)**, after §9 step 4's signed-in
 > read-back and before B0.23 merged. Copied into [DEPLOYMENT.md](../DEPLOYMENT.md), « Effacer un compte
 > Pro sur demande au support », the copy support follows and the one to change from now on. This section
-> stays as the approved text.
+> stays as the approved text. *(2026-11-17: the two « Once » checks are done, `support@myweli.com` became
+> a shared mailbox every message leaves from, and the proof's (c) is now required. Recorded in
+> DEPLOYMENT.md only; the text below is unchanged.)*
 
 ### 10.1 Rules
 - **Who.** The owner, the only admin. Claude may draft a reply or a case summary **from the account id

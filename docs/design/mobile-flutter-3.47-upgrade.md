@@ -4,7 +4,7 @@
 |---|---|
 | **Module** | toolchain (cross-cutting: `mobile/`, CI, the golden baseline, the iOS build) |
 | **Status** | **Approved 2026-11-11** — the owner's answers: O1 **C**, O2 **validate with 0.0.2's first build**, O3 **the local clone**, O4 **after**; O5 only if the reformat is large (§8). **Built** on `chore/flutter-3.47.9`, #758, **merged 2026-11-11** (`0d982e4e`); outcome in §11. |
-| **Last updated** | 2026-11-10 |
+| **Last updated** | 2026-11-17 (O2's validation, §11's last paragraph). Before that, 2026-11-10 |
 | **Decision** | the owner, 2026-11-10: « Flutter 3.47.9 first » ([BACKLOG](../BACKLOG.md) decision 109) |
 | **BACKLOG items** | batch 13: B13.1 (this PR), B13.2 (headings), B13.3–B13.8 (what follows) |
 | **PRD ref / phase** | none (toolchain); NFR-PERF-002 for the APK budget |
@@ -531,6 +531,7 @@ No other pub bump can open until they close.
       co-author.
 - [ ] After the merge: O2's validation recorded; this spec's status and
       outcome updated; the ROADMAP entry added; batch 13 updated.
+      *(2026-11-17: O2's validation recorded, §11's last paragraph.)*
 
 ## 11. Outcome — built 2026-11-11 (#758, merged the same day as `0d982e4e`)
 
@@ -574,3 +575,10 @@ measured. Observed unless marked.
 **Noted for later:** `add_2_calendar` has no Swift Package Manager support,
 and Flutter 3.47 warns this « will become an error in a future version of
 Flutter » (B13.9).
+
+**After the merge — O2, 2026-11-14:** build 781 (0.0.2, `main` at `29daa5ed`) is the first signed
+store build on 3.47.9. Its `Flutter.framework` carries engine `89c39edfdfae`, the one
+`bin/internal/engine.version` names in the 3.47.9 SDK, where build 719's carries `5a2a6a42cce6` (the
+control), and `MinimumOSVersion` 15.0 where 719's says 13.0. `altool --validate-app`: « VERIFY
+SUCCEEDED with no errors », so no ITMS-90208. Not uploaded yet: Apple's processing after the upload
+can still e-mail an ITMS, read then ([app-store-forms.md](app-store-forms.md) §11.5).
