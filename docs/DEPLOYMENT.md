@@ -1004,8 +1004,9 @@ again** with a small Actions spending limit (or accept the monthly quota).
 > [admin-pro-account-erase.md](design/admin-pro-account-erase.md) §10, which keeps the approved text as its
 > record. **This copy is the one to follow, and the one to change**, on the owner's yes. « §10.1 », « §10.2 »
 > and « §10.3 » below are this section's parts; every other « § » is that spec's. The French replies
-> (10.3) are copied from here, never retyped. Before the first real case, the two « Once » checks of
-> 10.1 are the owner's.
+> (10.3) are copied from here, never retyped. The two « Once » checks of 10.1 are done (2026-11-15 to
+> 2026-11-17). **Changed on 2026-11-17, in the records PR the owner asked for:** the « Sent from » rule
+> and the support mailbox (10.1, step 1), the proof's (c) now required, the case record's header line.
 
 ### 10.1 Rules
 - **Who.** The owner, the only admin. Claude may draft a reply or a case summary **from the account id
@@ -1037,6 +1038,12 @@ again** with a small Actions spending limit (or accept the monthly quota).
   used. The challenge (T1) goes only to the address **stored on the account**, read from the lookup, never
   to the sender's. The acknowledgement (T0) and a « could not verify » (T4) or « no account » (T5) answer
   go to the sender's address, as new messages; T2 and T3 go to the stored address.
+- **Sent from.** Every message, T0 to T5, leaves from the « MyWeli Support » mailbox as
+  `support@myweli.com`, never from the owner's own address: check the **From** line before sending. The
+  case's thread, its « Suppressions Pro » folder and the sent copies stay in that mailbox. Since
+  2026-11-17 `support@myweli.com` is a Microsoft 365 shared mailbox, which the owner opens as a member
+  (Full Access and Send As); until then it was an extra address on the owner's own mailbox, so answers
+  left from the owner's address.
 - **No account oracle.** Steps 1–4 run the same day. When the sender's own address is the only thing
   given: T1 to it if it holds an account, else T5. When the person names another address, or a salon:
   T1 goes to the stored address if an account is found, and nothing goes anywhere if none is; either way
@@ -1045,9 +1052,8 @@ again** with a small Actions spending limit (or accept the monthly quota).
   nor its timing tells the sender whether an account, or a hidden salon, exists.
 - **The proof** needs all three: (a) the reply's `From:` is the lookup's `email`, compared
   case-insensitively; (b) it is in T1's thread and carries `CODE` and CONFIRMER, within 14 days of T1;
-  (c) once the header is confirmed readable in Outlook, its `Authentication-Results` shows `dmarc=pass`
-  or `compauth=pass` **for that address's domain**. Until then, (a) and (b) are the proof, which holds
-  because `CODE` went only to the stored mailbox. (b) alone says nothing about the sender: Outlook groups
+  (c) its `Authentication-Results` header, readable in Outlook since 2026-11-17 (« Once », below), shows
+  `dmarc=pass` or `compauth=pass` **for that address's domain**. (b) alone says nothing about the sender: Outlook groups
   messages by subject, and `CASE`, in T0's subject, reached the sender. A reply that misses (a) or (b) is
   not a proof, and the window keeps running. Header results: `fail` → the case is marked forged, nothing
   is erased, and the sender gets T4 when the window closes; `none`, `softfail`, `bestguesspass`, or no
@@ -1059,15 +1065,34 @@ again** with a small Actions spending limit (or accept the monthly quota).
   confirmation, or, on T3's suspension path, within 30 days of the last appointment.
 - **The case record.** Kept by the owner outside the mailbox, **never in git**, with no name and no address:
   `CASE`, dates, the account id, the path (no sign-in / access removed), the proof (« CODE confirmé dans le
-  fil de T1 le …, depuis l’adresse enregistrée — en-tête : pass | non lisible »), the owner's yes, the
+  fil de T1 le …, depuis l’adresse enregistrée — en-tête : pass »), the owner's yes, the
   outcome, the audit row's time. How long the mailbox thread is kept stays the owner's to decide; T1 and
   T2 tell the person that the thread stays.
-- **Once, before the first case.** Whether `support@myweli.com` reaches Apple private-relay addresses (a
-  read in Apple's developer account, on the owner's yes; until then a bounce is escalated and nothing is
-  erased); whether `Authentication-Results` is readable in Outlook.
+- **Once, before the first case — done, 2026-11-15 to 2026-11-17** (owner-reported: Apple's developer
+  account and Outlook are not readable from here):
+  - **Apple's relay.** In Certificates, Identifiers & Profiles → Services → Sign in with Apple for Email
+    Communication, the Email Sources are the domains `myweli.com` (Microsoft 365: `support@` and every
+    other `@myweli.com` mailbox) and `send.myweli.com` (Resend's return address for the backend's
+    `no-reply@myweli.com`), and no single address. Both passed Apple's SPF check on 2026-11-15. On
+    2026-11-17 a new message from `support@myweli.com` reached the owner's own MyWeli hidden address,
+    once before the shared mailbox existed and once from it. Apple's rule: the return address's domain
+    is registered and passes SPF, or the DKIM domain equals the `From:` domain and is registered
+    ([Apple's help](https://developer.apple.com/help/account/capabilities/configure-private-email-relay-service/)).
+    Read in public DNS on 2026-11-17: `myweli.com`'s SPF reaches Microsoft through
+    `include:secureserver.net`, `send.myweli.com`'s is `include:amazonses.com`, and Resend signs as
+    `myweli.com` (`resend._domainkey`). **A new sending service or sending domain is registered there
+    before its first message**, or Apple bounces what it sends to hidden addresses; leave Apple's bounce
+    notices on (that page's Settings).
+  - **The header.** `Authentication-Results` is readable in Outlook: a message from an outside address
+    showed a pass (2026-11-17). UNVERIFIED: a reply that comes back through Apple's relay; if its header
+    shows no pass for the relay's domain, the case escalates, and nothing is erased.
+  - **The mailbox.** Mail to `support@myweli.com` lands in « MyWeli Support » and no longer in the
+    owner's mailbox; a new message and a reply both left as `support@myweli.com`, and their copies are
+    in its Sent Items (2026-11-17).
 
 ### 10.2 Steps
-1. **Receive.** Open a case and make `CASE` (§10.1). Move the thread into a « Suppressions Pro » folder.
+1. **Receive.** Open a case and make `CASE` (§10.1). Move the thread into the « Suppressions Pro » folder
+   of the « MyWeli Support » mailbox (created there the first time).
    Within 2 business days, send **T0** to the sender's address, as a new message. It never says whether
    an account exists. Steps 2–4 follow the same day.
 2. **Sign in as admin** (zsh; nothing echoed, nothing in the history; the password never in a command's

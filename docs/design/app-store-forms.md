@@ -1507,6 +1507,35 @@ Ce build remplace le 698 pour la revue de la 0.0.1. L'écran de connexion ne pro
 *Écrit dans App Store Connect pour le 719 le 2026-11-03 (1 010 caractères), relu à l'identique : ce
 bloc reste tel quel. Ce que le propriétaire ajoute à la passe est au §11.6, hors de ce bloc.*
 
+**Build 781** (2026-11-14, depuis `main` à `29daa5ed`, la montée #797) — **version 0.0.2** (décisions
+111, 119 et 134 : la 0.0.1 est publiée, et Apple ne prend plus de build d'une version publiée). Il porte
+ce que `main` a reçu depuis le 719, dont l'app Pro de B0.18 (#792), Flutter 3.47.9 (#758) et l'ajout de
+plusieurs photos à la fois (#786). Construit vers 19 h 13 UTC par `release_build.sh` dans la copie
+principale, propre et à `origin/main` ; le numéro est `git rev-list --count HEAD`, lu dans l'IPA. IPA
+relue au §11.3 avec les commandes de ce paragraphe, d'abord rejouées sur le 719 (mêmes résultats que le
+2026-11-03) : **0.0.2 (781)**, `com.myweli.pro` ; l'`Info.plist` ne diffère du 719 que par
+`CFBundleShortVersionString` et `CFBundleVersion` ; `Base` et `fr` seuls ; 35 manifestes ;
+DKImagePickerController 0 ; entitlements de production (`aps-environment` production, Sign in with
+Apple, `get-task-allow` faux, `beta-reports-active` vrai) ; voie compagnon `OK` (22 phrases à 0,
+9 témoins), connexion seule `OK` (14 phrases à 0, 6 témoins) ; « Demander la mise en ligne » et « En
+cours de validation » présents, « Mettre mon profil en ligne » aussi, voulu (l'app ne le montre qu'avec
+un serveur d'avant B0.18 ; la production a B0.18 depuis le 13 novembre) ; `/pro/register` et
+`/auth/provider/register` absents ; clé d'app CARTO une fois et DSN Sentry mobile deux fois (comparés
+sans les afficher), comme le 719. Le moteur de `Flutter.framework` est `89c39edfdfae`, celui de 3.47.9
+(le 719 : `5a2a6a42cce6`), `MinimumOSVersion` 15.0 (le 719 : 13.0). `git diff 713114a5 29daa5ed` sur
+`mobile/ios`, `mobile/android`, `mobile/pubspec.yaml`, `mobile/pubspec.lock` et `mobile/assets` : **six
+fichiers, pas vide**, comme annoncé ci-dessus — `pubspec.yaml` (la version, Flutter
+`>=3.47.9 <3.48.0`, geolocator 14.1.2, lottie 3.8.2, cupertino_icons 2.0.0, firebase_core 4.15.2,
+firebase_messaging 16.7.1, flutter_local_notifications 22.3.3, app_settings 9.0.1, package_info_plus
+10.2.2), `pubspec.lock`, le `Podfile` (un commentaire), le `Podfile.lock` et les deux
+`Package.resolved` ; `mobile/android` et `mobile/assets` inchangés. `altool --validate-app` : « VERIFY
+SUCCEEDED with no errors », donc pas d'ITMS-90208 (O2 de
+[mobile-flutter-3.47-upgrade.md](mobile-flutter-3.47-upgrade.md)). IPA de 27 700 855 octets, archive
+`Runner-pro-781.xcarchive`. **Pas envoyé** : l'envoi à App Store Connect, puis les symboles et la
+release Sentry (§12), attendent le oui du propriétaire ; la soumission aussi, avec les deux questions
+de classification par âge, la déclaration « Search History », les « Nouveautés » et le « What to Test ».
+La passe du §11.6 sur ce build est aussi la première de Flutter 3.47.9 sur un appareil.
+
 *Un envoi peut sembler fait sans l'être* : la validation crée déjà un
 enregistrement d'envoi, qui reste `AWAITING_UPLOAD` tant que rien n'est
 parti, et la liste des builds reste vide jusque-là. C'est
