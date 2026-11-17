@@ -17,6 +17,22 @@ const String _environment = String.fromEnvironment(
   defaultValue: 'development',
 );
 
+/// The R8 mapping this Android build was made with
+/// (docs/design/android-play-release.md §6, decision 135).
+///
+/// `tool/release_build.sh` gives every Android store build its own UUID and
+/// prints the `sentry-cli upload-proguard` line that files the build's
+/// `mapping.txt` under it. sentry_flutter copies this value into the Android
+/// SDK on every start (`sentry_native_java_init.dart:219`, sentry_flutter
+/// 9.26.0) — unconditionally, so a manifest key would be erased by it — and
+/// Sentry uses it to read Java and Kotlin frames that R8 renamed. Empty on
+/// iOS, in debug runs and in every test.
+const String _proguardUuid = String.fromEnvironment('SENTRY_PROGUARD_UUID');
+
+/// `null` when no UUID was compiled in, never `""`: an empty string would
+/// name a mapping that does not exist. Public so a test can hold both halves.
+String? proguardUuidFrom(String define) => define.isEmpty ? null : define;
+
 /// Starts error reporting and hands [AppLogger] somewhere to send errors
 /// (docs/design/observability-error-reporting.md §6).
 ///
@@ -54,10 +70,19 @@ Future<void> initErrorReporting() async {
 /// verified by nothing: the same shape as the missing Apple entitlement and the
 /// inert DSN, a promise with no mechanism behind it.
 /// Held by `test/unit/error_reporting_test.dart`.
-void configureSentry(SentryFlutterOptions options) {
+///
+/// [proguardUuid] is the compiled-in define; a test passes one to see that it
+/// reaches the options, which a run without the define cannot show (absent and
+/// unwired both read `null`).
+void configureSentry(
+  SentryFlutterOptions options, {
+  String proguardUuid = _proguardUuid,
+}) {
   options
     ..dsn = _dsn
     ..environment = _environment
+    // Android store builds only; null everywhere else (see [proguardUuidFrom]).
+    ..proguardUuid = proguardUuidFrom(proguardUuid)
     // `release` is deliberately NOT set. SentryFlutter reads it from the
     // platform package info and produces `package@version+build` — exactly
     // the shape wanted, and the number LAUNCH.md §1.4's staged rollout is
