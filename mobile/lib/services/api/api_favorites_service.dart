@@ -22,11 +22,10 @@ import 'refreshing_http_client.dart';
 /// docs/design/consumer-favorites.md.
 class ApiFavoritesService implements FavoritesServiceInterface {
   ApiFavoritesService({
-    http.Client? client,
+    required this._client,
     String? baseUrl,
     SessionStore? sessionStore,
-  }) : _client = client ?? http.Client(),
-       _baseUrl = baseUrl ?? AppConfig.apiBaseUrl,
+  }) : _baseUrl = baseUrl ?? AppConfig.apiBaseUrl,
        _sessionStore = sessionStore ?? InMemorySessionStore();
 
   final http.Client _client;

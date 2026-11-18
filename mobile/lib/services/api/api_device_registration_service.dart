@@ -22,12 +22,11 @@ import 'refreshing_http_client.dart';
 class ApiDeviceRegistrationService
     implements DeviceRegistrationServiceInterface {
   ApiDeviceRegistrationService({
-    http.Client? client,
+    required this._client,
     String? baseUrl,
     SessionStore? sessionStore,
     this.refreshPath = '/auth/refresh',
-  }) : _client = client ?? http.Client(),
-       _baseUrl = baseUrl ?? AppConfig.apiBaseUrl,
+  }) : _baseUrl = baseUrl ?? AppConfig.apiBaseUrl,
        _sessionStore = sessionStore ?? InMemorySessionStore();
 
   final http.Client _client;

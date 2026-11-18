@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:go_router/go_router.dart';
+import 'package:http/http.dart' as http;
 import 'package:provider/provider.dart';
 import 'package:provider/single_child_widget.dart';
 
@@ -11,6 +12,7 @@ import 'core/access/account_scope.dart';
 import 'core/access/pro_salon_scope.dart';
 import 'core/config/build_config_guard.dart';
 import 'core/di/dependency_injection.dart';
+import 'core/net/app_http_transport.dart';
 import 'core/observability/error_reporting.dart';
 import 'core/pro_app_extensions.dart';
 import 'core/push/firebase_bootstrap.dart';
@@ -61,8 +63,14 @@ void main() => runProApp();
 void runProApp({ProAppExtensions? extensions}) {
   // Run inside a guarded zone so framework errors and uncaught async errors
   // both funnel through AppLogger (the single seam a crash reporter plugs into).
+  //
+  // And inside `runWithClient`: a package that builds its own `http.Client()`
+  // gets the app's shared one too. Only the backstop — every service, the
+  // image cache and the map are handed the client explicitly, since Flutter
+  // does not promise which zone a callback runs in
+  // (docs/design/android-http3-transport.md §4.1).
   runZonedGuarded(
-    () async {
+    () => http.runWithClient(() async {
       WidgetsFlutterBinding.ensureInitialized();
       // The router with this app's routes, BEFORE anything reads it —
       // `ProAuthProvider`, `_startPush` and the app root all do; a read first
@@ -85,7 +93,7 @@ void runProApp({ProAppExtensions? extensions}) {
       // failed request on every launch. The gate itself no longer makes this
       // decision — it was untestable when it did.
       final versionGate = ClientVersionGate.enabledForThisBuild
-          ? const ClientVersionGate().check()
+          ? ClientVersionGate(client: AppHttpTransport.client).check()
           : Future.value(kClientVersionAllowed);
 
       // Error reporting BEFORE anything that can fail, so a failure during
@@ -130,7 +138,7 @@ void runProApp({ProAppExtensions? extensions}) {
       }
 
       runApp(MyweliProApp(auth: proAuth, loginExtras: extensions?.login));
-    },
+    }, () => AppHttpTransport.client),
     (error, stack) =>
         AppLogger.error('Uncaught zone error', error: error, stackTrace: stack),
   );

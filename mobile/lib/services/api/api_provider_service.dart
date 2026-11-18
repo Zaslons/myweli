@@ -15,9 +15,8 @@ import 'api_errors.dart';
 /// method surface is identical to `MockProviderService`, so screens/providers
 /// are unchanged — the swap is purely in DI.
 class ApiProviderService implements ProviderServiceInterface {
-  ApiProviderService({http.Client? client, String? baseUrl})
-    : _client = client ?? http.Client(),
-      _baseUrl = baseUrl ?? AppConfig.apiBaseUrl;
+  ApiProviderService({required this._client, String? baseUrl})
+    : _baseUrl = baseUrl ?? AppConfig.apiBaseUrl;
 
   final http.Client _client;
   final String _baseUrl;

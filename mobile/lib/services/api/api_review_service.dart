@@ -19,11 +19,10 @@ import 'refreshing_http_client.dart';
 /// Design: docs/design/consumer-reviews.md.
 class ApiReviewService implements ReviewServiceInterface {
   ApiReviewService({
-    http.Client? client,
+    required this._client,
     String? baseUrl,
     SessionStore? sessionStore,
-  }) : _client = client ?? http.Client(),
-       _baseUrl = baseUrl ?? AppConfig.apiBaseUrl,
+  }) : _baseUrl = baseUrl ?? AppConfig.apiBaseUrl,
        _sessionStore = sessionStore ?? InMemorySessionStore();
 
   final http.Client _client;

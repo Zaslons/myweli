@@ -10,9 +10,8 @@ import 'api_errors.dart';
 /// (multi-pays MP1; public, cacheable). Wired by [setupDependencyInjection]
 /// when `AppConfig.useApiBackend` is true.
 class ApiLocalityService implements LocalityServiceInterface {
-  ApiLocalityService({http.Client? client, String? baseUrl})
-    : _client = client ?? http.Client(),
-      _baseUrl = baseUrl ?? AppConfig.apiBaseUrl;
+  ApiLocalityService({required this._client, String? baseUrl})
+    : _baseUrl = baseUrl ?? AppConfig.apiBaseUrl;
 
   final http.Client _client;
   final String _baseUrl;

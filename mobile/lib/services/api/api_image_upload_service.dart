@@ -23,7 +23,7 @@ typedef ImageCompressor = Future<Uint8List?> Function(String source);
 /// CDN URL the caller saves to the gallery.
 class ApiImageUploadService implements ImageUploadServiceInterface {
   ApiImageUploadService({
-    http.Client? client,
+    required this._client,
     String? baseUrl,
     // **Named `providerSessionStore` until it wasn't one.** This pipeline is
     // shared by pro AND consumer uploads, and the old name made a registration
@@ -39,8 +39,7 @@ class ApiImageUploadService implements ImageUploadServiceInterface {
     // instance is a 403 at best and a foreign prefix at worst.
     this._purpose = 'gallery',
     String refreshPath = '/auth/provider/refresh',
-  }) : _client = client ?? http.Client(),
-       _baseUrl = baseUrl ?? AppConfig.apiBaseUrl,
+  }) : _baseUrl = baseUrl ?? AppConfig.apiBaseUrl,
        _compress = compressor ?? _defaultCompress,
        _sessionStore = sessionStore ?? InMemorySessionStore() {
     _authed = RefreshingHttpClient(

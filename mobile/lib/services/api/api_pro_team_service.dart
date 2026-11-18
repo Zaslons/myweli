@@ -21,11 +21,10 @@ import 'refreshing_http_client.dart';
 /// `?salonId=` on the members family (invitations stay email-keyed).
 class ApiProTeamService implements ProTeamServiceInterface {
   ApiProTeamService({
-    http.Client? client,
+    required this._client,
     String? baseUrl,
     SessionStore? providerSessionStore,
-  }) : _client = client ?? http.Client(),
-       _baseUrl = baseUrl ?? AppConfig.apiBaseUrl,
+  }) : _baseUrl = baseUrl ?? AppConfig.apiBaseUrl,
        _providerSessionStore = providerSessionStore ?? InMemorySessionStore() {
     _authed = RefreshingHttpClient(
       client: _client,

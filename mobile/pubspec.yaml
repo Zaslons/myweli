@@ -71,6 +71,11 @@ dependencies:
 
   # HTTP Client
   http: ^1.2.0
+  # Android's transport: Chrome's network stack from Play Services, with HTTP/3,
+  # which reaches our Cloudflare hosts on networks where dart:io's TLS over TCP
+  # cannot. Android only; other platforms keep dart:io. Used solely by
+  # lib/core/net/ (docs/design/android-http3-transport.md §4).
+  cronet_http: ^1.10.1
 
   # Local Storage
   flutter_secure_storage: ^11.2.0

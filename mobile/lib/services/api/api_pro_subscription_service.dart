@@ -20,11 +20,10 @@ import 'refreshing_http_client.dart';
 /// docs/design/pro-companion-path.md.
 class ApiProSubscriptionService implements SubscriptionServiceInterface {
   ApiProSubscriptionService({
-    http.Client? client,
+    required this._client,
     String? baseUrl,
     SessionStore? providerSessionStore,
-  }) : _client = client ?? http.Client(),
-       _baseUrl = baseUrl ?? AppConfig.apiBaseUrl,
+  }) : _baseUrl = baseUrl ?? AppConfig.apiBaseUrl,
        _providerSessionStore = providerSessionStore ?? InMemorySessionStore() {
     _authed = RefreshingHttpClient(
       client: _client,

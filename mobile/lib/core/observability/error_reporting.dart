@@ -1,5 +1,8 @@
+import 'dart:async';
+
 import 'package:sentry_flutter/sentry_flutter.dart';
 
+import '../net/app_http_transport.dart';
 import '../utils/logger.dart';
 
 /// Build-time Sentry configuration, supplied via `--dart-define`.
@@ -57,9 +60,53 @@ Future<void> initErrorReporting() async {
         withScope: (scope) => scope.setTag('logger_message', message),
       );
     };
+
+    // Which network stack this process uses, on every event from here on —
+    // and one message the first time Android falls back to dart:io
+    // (docs/design/android-http3-transport.md §4.7).
+    AppHttpTransport.instance.whenSettled(reportNetTransport);
   } catch (_) {
     // Reporting is best-effort. An app that will not start because its
     // telemetry failed to initialise is a worse outcome than a silent one.
+  }
+}
+
+/// The tags every event carries once the transport has settled: `net.transport`
+/// is `cronet` or `dartio`, and `net.fallback` names what made Cronet fail —
+/// a class name, never a message or a URL. Public so a test can hold them.
+Map<String, String> netTransportTags(NetTransportOutcome outcome) => {
+  'net.transport': outcome.transport.name,
+  'net.fallback': ?outcome.fallbackReason,
+};
+
+/// Sets [netTransportTags] on the scope, which sentry_flutter copies to the
+/// native SDKs too, so a Java or native crash carries them as well. On a
+/// fallback, also sends one message: it is how phones without Play Services,
+/// or with a Cronet that fails to load, become visible (spec §4.7). Called once
+/// per process, by [AppHttpTransport.whenSettled].
+void reportNetTransport(NetTransportOutcome outcome) {
+  final tags = netTransportTags(outcome);
+  unawaited(
+    Future.sync(
+      () => Sentry.configureScope((scope) {
+        for (final tag in tags.entries) {
+          scope.setTag(tag.key, tag.value);
+        }
+      }),
+    ),
+  );
+  if (outcome.isFallback) {
+    unawaited(
+      Sentry.captureMessage(
+        'Android network fell back to dart:io',
+        level: SentryLevel.warning,
+        withScope: (scope) {
+          for (final tag in tags.entries) {
+            scope.setTag(tag.key, tag.value);
+          }
+        },
+      ),
+    );
   }
 }
 

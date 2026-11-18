@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 
 import '../../core/config/app_config.dart';
 import '../../core/constants/failure_messages.dart';
+import '../../core/net/app_http_transport.dart';
 import '../../core/utils/salon_id.dart';
 import '../../core/utils/validation_labels.dart';
 import '../../models/admin_salon_validation.dart';
@@ -20,9 +21,8 @@ import 'admin_response.dart';
 /// with the consumer/provider sessions; data calls carry the admin bearer via
 /// [RefreshingHttpClient] (silent refresh on 401 at `/admin/auth/refresh`).
 class AdminService {
-  AdminService({http.Client? client, String? baseUrl, SessionStore? store})
-    : _client = client ?? http.Client(),
-      _baseUrl = baseUrl ?? AppConfig.apiBaseUrl,
+  AdminService({required this._client, String? baseUrl, SessionStore? store})
+    : _baseUrl = baseUrl ?? AppConfig.apiBaseUrl,
       _store = store ?? SecureSessionStore(key: 'myweli_admin_session') {
     _authed = RefreshingHttpClient(
       client: _client,
@@ -555,4 +555,4 @@ class AdminService {
 }
 
 /// Process-wide instance for the admin console entrypoint.
-final AdminService adminService = AdminService();
+final AdminService adminService = AdminService(client: AppHttpTransport.client);

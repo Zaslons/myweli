@@ -221,6 +221,8 @@ void main() {
       expect(stored['token'], 'prov-123');
       expect(stored['refreshToken'], 'prov-refresh-123');
       final restored = await ApiAuthService(
+        // Restoring reads the store only; any request here is a defect.
+        client: MockClient((req) async => fail('unexpected request: $req')),
         baseUrl: 'http://x',
         providerSessionStore: store,
       ).getCurrentProvider();

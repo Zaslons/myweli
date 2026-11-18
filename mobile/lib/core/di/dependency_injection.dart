@@ -52,6 +52,7 @@ import '../../services/mock/mock_subscription_service.dart';
 import '../../services/push/fcm_push_notification_service.dart';
 import '../../services/secure_session_store.dart';
 import '../config/app_config.dart';
+import '../net/app_http_transport.dart';
 import '../push/push_registration.dart';
 
 /// Service Locator for Dependency Injection.
@@ -101,6 +102,7 @@ class ServiceLocator {
     // overwrites the consumer session on a shared device.
     authService = AppConfig.useApiBackend
         ? ApiAuthService(
+            client: AppHttpTransport.client,
             sessionStore: SecureSessionStore(),
             providerSessionStore: SecureSessionStore(
               key: 'myweli_provider_session',
@@ -109,29 +111,39 @@ class ServiceLocator {
         : MockAuthService(sessionStore: SecureSessionStore());
     // Provider reads are the first slice swapped to the real backend (B1).
     providerService = AppConfig.useApiBackend
-        ? ApiProviderService()
+        ? ApiProviderService(client: AppHttpTransport.client)
         : MockProviderService();
     // The locality reference tree (multi-pays MP2) — public, cacheable.
     localityService = AppConfig.useApiBackend
-        ? ApiLocalityService()
+        ? ApiLocalityService(client: AppHttpTransport.client)
         : MockLocalityService();
     // Appointments (book/list/cancel/reschedule/slots) — B-appt slice.
     appointmentService = AppConfig.useApiBackend
-        ? ApiAppointmentService(sessionStore: SecureSessionStore())
+        ? ApiAppointmentService(
+            client: AppHttpTransport.client,
+            sessionStore: SecureSessionStore(),
+          )
         : MockAppointmentService();
     // Favorites move from on-device prefs to the account (consumer session +
     // silent refresh) when the backend is on.
     favoritesService = AppConfig.useApiBackend
-        ? ApiFavoritesService(sessionStore: SecureSessionStore())
+        ? ApiFavoritesService(
+            client: AppHttpTransport.client,
+            sessionStore: SecureSessionStore(),
+          )
         : MockFavoritesService();
     notificationService = AppConfig.useApiBackend
-        ? ApiNotificationService(sessionStore: SecureSessionStore())
+        ? ApiNotificationService(
+            client: AppHttpTransport.client,
+            sessionStore: SecureSessionStore(),
+          )
         : MockNotificationService();
     // The SAME feed under the provider session: /me/notifications is
     // role-agnostic, so a salon account reads its team's notifications
     // (docs/design/push-notifications-fcm.md §10 — the pro bell).
     proNotificationService = AppConfig.useApiBackend
         ? ApiNotificationService(
+            client: AppHttpTransport.client,
             sessionStore: SecureSessionStore(key: 'myweli_provider_session'),
             refreshPath: '/auth/provider/refresh',
           )
@@ -140,6 +152,7 @@ class ServiceLocator {
     // real backend with provider silent refresh; the rest delegates to mock.
     proService = AppConfig.useApiBackend
         ? ApiProService(
+            client: AppHttpTransport.client,
             providerSessionStore: SecureSessionStore(
               key: 'myweli_provider_session',
             ),
@@ -149,6 +162,7 @@ class ServiceLocator {
     // refresh) when the backend is on.
     proArtistService = AppConfig.useApiBackend
         ? ApiProArtistService(
+            client: AppHttpTransport.client,
             providerSessionStore: SecureSessionStore(
               key: 'myweli_provider_session',
             ),
@@ -158,6 +172,7 @@ class ServiceLocator {
     // reads audited server-side.
     proClientsService = AppConfig.useApiBackend
         ? ApiProClientsService(
+            client: AppHttpTransport.client,
             providerSessionStore: SecureSessionStore(
               key: 'myweli_provider_session',
             ),
@@ -167,6 +182,7 @@ class ServiceLocator {
     // (provider session + silent refresh).
     proKycService = AppConfig.useApiBackend
         ? ApiProKycService(
+            client: AppHttpTransport.client,
             providerSessionStore: SecureSessionStore(
               key: 'myweli_provider_session',
             ),
@@ -175,6 +191,7 @@ class ServiceLocator {
     // The salon's offer & billing state (pricing pivot, team access R3).
     subscriptionService = AppConfig.useApiBackend
         ? ApiProSubscriptionService(
+            client: AppHttpTransport.client,
             providerSessionStore: SecureSessionStore(
               key: 'myweli_provider_session',
             ),
@@ -184,6 +201,7 @@ class ServiceLocator {
     // seat gates against the mock subscription so the demo mirrors prod.
     proTeamService = AppConfig.useApiBackend
         ? ApiProTeamService(
+            client: AppHttpTransport.client,
             providerSessionStore: SecureSessionStore(
               key: 'myweli_provider_session',
             ),
@@ -193,6 +211,7 @@ class ServiceLocator {
     // silent refresh; mock echoes the source in demo mode.
     imageUploadService = AppConfig.useApiBackend
         ? ApiImageUploadService(
+            client: AppHttpTransport.client,
             sessionStore: SecureSessionStore(key: 'myweli_provider_session'),
             refreshPath: '/auth/provider/refresh',
           )
@@ -201,6 +220,7 @@ class ServiceLocator {
     // `purpose=review` (public, review/{userId}-scoped server-side).
     reviewImageUploadService = AppConfig.useApiBackend
         ? ApiImageUploadService(
+            client: AppHttpTransport.client,
             sessionStore: SecureSessionStore(),
             purpose: 'review',
             refreshPath: '/auth/refresh',
@@ -217,6 +237,7 @@ class ServiceLocator {
     // it ever reached the network.
     avatarImageUploadService = AppConfig.useApiBackend
         ? ApiImageUploadService(
+            client: AppHttpTransport.client,
             sessionStore: SecureSessionStore(),
             purpose: 'avatar',
             refreshPath: '/auth/refresh',
@@ -225,6 +246,7 @@ class ServiceLocator {
     // The salon logo — provider session + its own purpose. salon-logo.md.
     logoImageUploadService = AppConfig.useApiBackend
         ? ApiImageUploadService(
+            client: AppHttpTransport.client,
             sessionStore: SecureSessionStore(key: 'myweli_provider_session'),
             purpose: 'logo',
             refreshPath: '/auth/provider/refresh',
@@ -233,7 +255,10 @@ class ServiceLocator {
     // Reviews on the real backend (consumer session for submit; the list is
     // public) when the backend is on.
     reviewService = AppConfig.useApiBackend
-        ? ApiReviewService(sessionStore: SecureSessionStore())
+        ? ApiReviewService(
+            client: AppHttpTransport.client,
+            sessionStore: SecureSessionStore(),
+          )
         : MockReviewService();
     messagingService = MockMessagingService();
     // Push (FR-NOTIF-001, app side — docs/design/push-notifications-app.md).
@@ -250,7 +275,10 @@ class ServiceLocator {
         ? FcmPushNotificationService()
         : MockPushNotificationService();
     deviceRegistrationService = AppConfig.useApiBackend
-        ? ApiDeviceRegistrationService(sessionStore: SecureSessionStore())
+        ? ApiDeviceRegistrationService(
+            client: AppHttpTransport.client,
+            sessionStore: SecureSessionStore(),
+          )
         : MockDeviceRegistrationService();
     pushRegistration = PushRegistration(
       push: pushNotificationService,
@@ -262,6 +290,7 @@ class ServiceLocator {
     // refused refresh ends the session (session-refresh.md).
     proDeviceRegistrationService = AppConfig.useApiBackend
         ? ApiDeviceRegistrationService(
+            client: AppHttpTransport.client,
             sessionStore: SecureSessionStore(key: 'myweli_provider_session'),
             refreshPath: '/auth/provider/refresh',
           )

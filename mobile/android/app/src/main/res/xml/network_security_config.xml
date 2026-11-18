@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Who the app trusts for myweli.com and its subdomains, on every Android
+  version: only the roots Cloudflare's certificates for our zone can chain to,
+  bundled in the app. Not the phone's own store.
+
+  Why: the app talks to our hosts through Cronet, which checks certificates
+  against Android's store, and on Android 7 to 9 that store still trusts AAA
+  Certificate Services, the root six of the compromised eMudhra intermediates
+  are cross-signed to (GHSA-frr6-h895-5pxp). AAA Certificate Services and
+  every emSign root are deliberately NOT here.
+  docs/design/android-http3-transport.md §5.2
+
+  Held by test/infra/android_http_transport_guard_test.dart: the domain, this
+  exact list, each file's SHA-256, and the debug copy of this block. The
+  production-checks workflow's `appchain` job verifies daily that the chain
+  served for api.myweli.com and cdn.myweli.com ends in one of these files.
+  Every other host keeps Android's defaults.
+-->
+<network-security-config>
+    <domain-config>
+        <domain includeSubdomains="true">myweli.com</domain>
+        <trust-anchors>
+            <!-- Google Trust Services (today's chain: WE1 → GTS Root R4) -->
+            <certificates src="@raw/gts_root_r1" />
+            <certificates src="@raw/gts_root_r3" />
+            <certificates src="@raw/gts_root_r4" />
+            <!-- Let's Encrypt -->
+            <certificates src="@raw/isrg_root_x1" />
+            <certificates src="@raw/isrg_root_x2" />
+            <!-- SSL.com, and Certum, its cross-signer -->
+            <certificates src="@raw/ssl_com_tls_ecc_root_ca_2022" />
+            <certificates src="@raw/ssl_com_tls_rsa_root_ca_2022" />
+            <certificates src="@raw/ssl_com_root_ca_ecc" />
+            <certificates src="@raw/ssl_com_root_ca_rsa" />
+            <certificates src="@raw/certum_trusted_network_ca" />
+            <!-- Sectigo — Cloudflare's backup certificates can come from it (spec §5.2, Q8) -->
+            <certificates src="@raw/usertrust_ecc_ca" />
+            <certificates src="@raw/usertrust_rsa_ca" />
+            <certificates src="@raw/sectigo_public_server_auth_root_e46" />
+            <certificates src="@raw/sectigo_public_server_auth_root_r46" />
+        </trust-anchors>
+    </domain-config>
+</network-security-config>
