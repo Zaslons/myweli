@@ -597,7 +597,13 @@ Each report is posted only on the owner's yes, with no personal data:
 Each of these is either read in §7's device pass or stays stated here:
 - That Play Services' Cronet uses the platform trust store, like open-source
   Cronet. Inferred from Chromium's build flags; §5.2's red-first read proves it
-  for our case.
+  for our case. *Read 2026-11-18 on an emulator (Android 16, Play services
+  25.26.35), release builds of the consumer app with R8: with a config that
+  trusts only ISRG Root X1 for `myweli.com`, the home says « Chargement
+  impossible — Pas de connexion »; with the real config, « Aucun salon
+  trouvé », a real empty answer. `dart:io` ignores this config, so the
+  failure shows both that the requests go through Cronet and that Cronet obeys
+  the list. Android 7–9 is still read at the device pass.*
 - How Google's eMudhra update reached Android 7–9, and whether Sectigo revoked
   the cross-signs.
 - Why `www.google.com` and R2's upload host succeed over `dart:io` on this
