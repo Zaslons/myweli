@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
 import 'package:myweli/screens/provider/android/pro_android_extensions.dart';
 
 import '../support/app_roots.dart';
@@ -116,5 +117,14 @@ void main() {
         expect(proAndroidExtensionsFor(platform), isNull);
       });
     }
+  });
+
+  test('Android gets the sign-up: its route and the sign-in\'s block (P5)', () {
+    final android = proAndroidExtensionsFor(TargetPlatform.android);
+    expect(android, isNotNull);
+    expect(android!.routes.whereType<GoRoute>().map((r) => r.path), [
+      '/pro/register',
+    ]);
+    expect(android.login, isNotNull);
   });
 }

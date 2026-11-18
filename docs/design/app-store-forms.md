@@ -1137,11 +1137,12 @@ def n(p):
     return sum(b.count(x) for x in found)
 gone_b011 = ["Inscription Pro", "S’inscrire avec", "Ajouter un salon", "Inscrivez-vous", "Créez votre compte", "Compte introuvable. Créez"]
 gone_round2 = ["S’inscrire sur myweli.com", "S’inscrire", "S\x27inscrire", "Pas encore de compte", "/pro/inscription", "/pro/connexion", "/pro/salons/nouveau", "/professionnels"]
+gone_android_signup = ["Créer le compte de mon salon", "Créer mon compte", "Votre identité de connexion", "Elle vous servira à vous connecter à votre espace pro.", "Utiliser une autre adresse", "Nom de l’entreprise", "Type d’entreprise", "Salon de beauté", "Institut de manucure", "Téléphone du salon", "Commune (optionnel)", "Ex : Salon de Beauté Marie", "Le numéro que vos clients appellent.", "Rue, quartier, repère", "120 caractères au plus.", "Choisissez le type d’entreprise.", "Vous aviez déjà un compte MyWeli Pro", "Cette adresse a reçu une invitation.", "Créer plutôt mon propre salon", "Ce code n’est plus valable.", "Vérifiez les informations du salon", "Un compte existe déjà pour cette identité.", "Choisissez une commune dans la liste.", "En créant votre compte professionnel", "/pro/register", "/auth/provider/register"]
 witnesses_round2 = ["Aucun compte MyWeli Pro n’est associé à cette adresse", "/politique-confidentialite", "/cgu", "/mentions-legales", "/suppression-compte", "/support"]
 pages = {m.decode() for m in re.findall(rb"https://myweli\.com[/a-z-]*", b)}
-bad = [p for p in gone_b011 + gone_round2 if n(p)] + ["manque : " + p for p in witnesses_round2 if not n(p)]
+bad = [p for p in gone_b011 + gone_round2 + gone_android_signup if n(p)] + ["manque : " + p for p in witnesses_round2 if not n(p)]
 bad += ["page de trop : " + p for p in sorted(pages - {"https://myweli.com" + w for w in witnesses_round2 if w.startswith("/")})]
-print("ÉCHEC :", bad) if bad else print("OK :", len(gone_b011) + len(gone_round2), "phrases à 0,", len(witnesses_round2), "témoins présents")
+print("ÉCHEC :", bad) if bad else print("OK :", len(gone_b011) + len(gone_round2) + len(gone_android_signup), "phrases à 0,", len(witnesses_round2), "témoins présents")
 '
 ```
 
@@ -1159,6 +1160,16 @@ Vérifié le 2026-11-03, avec ses deux sens :
   lien vers elle, résolu depuis `AppConfig.supportUrl`, passait les tests et ce script. Lu sur un instantané AOT
   *product* de `main_pro.dart`, pas sur un build iOS : `OK : 14 phrases à 0, 6 témoins présents` sur la branche, et
   `ÉCHEC : ['/pro/salons/nouveau']` quand ce lien y est compilé.
+
+*Ajouté le 2026-11-18 — l'inscription Android, absente du binaire iOS*
+([pro-android-signup.md](pro-android-signup.md) §2.6, §8.3 ; B0.17 PR B). L'app Android inscrit de
+nouveau les salons ; l'app iOS ne doit rien en porter. `gone_android_signup` en est la liste : les 24
+phrases que seul le code Android dit, puis `/pro/register` et `/auth/provider/register`. Le premier
+chemin vit dans le code Android ; le second est l'appel d'inscription du service partagé, que le code de
+l'app iOS contient sans jamais l'appeler, et que seul le binaire peut montrer retiré. Le compte attendu
+passe donc de **14 à 40 phrases à 0** ; les builds jusqu'au 781 (avant B0.17) ont été lus avec l'ancienne
+liste. `mobile/test/support/android_sign_up_copy.dart` tient la même liste pour les tests du code
+(`app_review_notes_test` vérifie que les deux sont égales).
 
 **Ce n'était pas l'IPA signée. La lecture qui compte est faite, le 2026-11-03, sur l'IPA du build 719**
 (§11.5), depuis `713114a5` : **0.0.1 (719)**, `com.myweli.pro`, `CFBundleName` `MyWeli Pro`, `UIDeviceFamily`
@@ -1184,7 +1195,7 @@ occurrence et le DSN Sentry mobile deux, comparés sans les afficher.
 | `ITSAppUsesNonExemptEncryption` | `false` |
 | DK… | **0** occurrence |
 | phrases de la voie compagnon | `OK : 22 phrases à 0, 9 témoins présents` |
-| phrases de la connexion seule (2026-11-03) | `OK : 14 phrases à 0, 6 témoins présents` |
+| phrases de la connexion seule (2026-11-03 ; avec l'inscription Android, 2026-11-18) | `OK : 40 phrases à 0, 6 témoins présents` (14 jusqu'au build 781) |
 | droits (entitlements) | `aps-environment = production`, `com.apple.developer.applesignin`, `get-task-allow = false`, `beta-reports-active = true` |
 
 Un seul écart : on ne l'envoie pas.

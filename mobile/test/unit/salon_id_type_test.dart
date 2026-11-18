@@ -222,6 +222,8 @@ void main() {
       'lib/services/mock/mock_session.dart': "the mock's default salon",
       'lib/services/mock/mock_favorites_service.dart':
           'the favourites kept on the device',
+      'lib/services/mock/mock_auth_service.dart':
+          "the mock register's new draft salon (pro-android-signup.md §5.2)",
     };
 
     test('`SalonId(` is written only where a salon id is born', () {

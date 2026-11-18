@@ -12,6 +12,14 @@ import '../interfaces/locality_service_interface.dart';
 /// ONLY remaining consumer — the live app reads GET /localities), each id and
 /// slug by the backend's `slugify` (its twin, `core/utils/slug.dart`).
 class MockLocalityService implements LocalityServiceInterface {
+  /// The communes' ids, as the tree below names them — what a mock write
+  /// that takes an `areaId` checks it against (the mock register,
+  /// docs/design/pro-android-signup.md §2.5 S6), so the seed stays the one
+  /// reader of the historical constants.
+  static final Set<String> areaIds = {
+    for (final c in abidjanCommunes) slugify(c.name),
+  };
+
   @override
   Future<ApiResponse<List<LocalityCountry>>> getLocalities() async {
     await Future.delayed(AppConstants.mockDelay);

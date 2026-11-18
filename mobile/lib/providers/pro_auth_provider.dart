@@ -14,9 +14,11 @@ import '../core/router/pro_router.dart';
 import '../core/utils/salon_go_live.dart';
 import '../core/utils/salon_id.dart';
 import '../models/pro_membership.dart';
+import '../models/pro_sign_up_fields.dart';
 import '../models/provider.dart';
 import '../models/provider_login_result.dart';
 import '../models/provider_session.dart';
+import '../models/provider_sign_up_result.dart';
 import '../models/provider_user.dart';
 import '../models/salon_facts.dart';
 import '../models/salon_market.dart';
@@ -1079,7 +1081,6 @@ class ProAuthProvider extends ChangeNotifier implements SalonStateRefresh {
     }
   }
 
-  /// Back/« Changer d'e-mail » from the invitations step.
   /// The sign-in's reset when Android's sign-up page comes back
   /// (docs/design/pro-android-signup.md §2.2): its last refusal forgotten.
   /// Not the held invitations, not the session notices.
@@ -1090,6 +1091,8 @@ class ProAuthProvider extends ChangeNotifier implements SalonStateRefresh {
     notifyListeners();
   }
 
+  /// Back/« Changer d'e-mail » from the invitations step — and Back from
+  /// Android's sign-up, which drops what its check surfaced (§2.4 row 1).
   void clearPendingInvitations() {
     _pendingInvitations = const [];
     _invitationProof = null;
@@ -1131,6 +1134,101 @@ class ProAuthProvider extends ChangeNotifier implements SalonStateRefresh {
 
   Future<bool> verifyEmailOtp(String email, String code) =>
       _bridgedLogin(() => _authService.verifyProviderEmailOtp(email, code));
+
+  // ---- B0.17: Android's sign-up (docs/design/pro-android-signup.md §2.5) ---
+  //
+  // Only the fenced Android screen calls these (`pro_login_only_test` pins
+  // it), so the iOS program drops them. The outcome goes back to that screen,
+  // which words it: a sign-up never writes the sign-in's `error`.
+
+  /// « Continuer avec Google » on the sign-up: the sign-in check with that
+  /// identity, then register (§2.1).
+  Future<ProviderSignUpResult> signUpSalonWithGoogle(ProSignUpFields fields) =>
+      _signUp(() => _authService.signUpProviderWithGoogle(fields));
+
+  /// « Créer mon compte » with an e-mail code: the verify, then register.
+  Future<ProviderSignUpResult> signUpSalonWithEmail(
+    String email,
+    String code,
+    ProSignUpFields fields,
+  ) => _signUp(() => _authService.signUpProviderWithEmail(email, code, fields));
+
+  /// S4's « Créer plutôt mon propre salon »: register only, with the proof
+  /// the check's 202 left here — or [proof], a new code for that same
+  /// identity once the held one is spent (§2.5 S4, « with the held proof or
+  /// a new code »). Its 201 drops the held invitations, which stay pending on
+  /// the server; its refusals keep them, so the choice can be made again.
+  Future<ProviderSignUpResult> createOwnSalonInstead(
+    ProSignUpFields fields, {
+    InvitationProof? proof,
+  }) {
+    final held = proof ?? _invitationProof;
+    if (held == null) {
+      return Future.value(
+        const ProviderSignUpFailure(
+          kGenericErrorMessage,
+          stage: ProSignUpStage.register,
+        ),
+      );
+    }
+    return _signUp(
+      () => _authService.registerProvider(held, fields),
+      keepHeld: true,
+    );
+  }
+
+  /// One sign-up call. [keepHeld] is register-only: it starts on what the
+  /// last check left; a check replaces it (the 202 bridge's rule).
+  ///
+  /// Created or signed in: a sign-in's success steps — the sign-in's
+  /// feedback cleared, [_setProvider] (it resets ProSalonScope and
+  /// AccountScope), push, the membership, the salons. A refresh that ended
+  /// the session (S3b) is [ProviderSignUpEnded], not a success.
+  Future<ProviderSignUpResult> _signUp(
+    Future<ProviderSignUpResult> Function() run, {
+    bool keepHeld = false,
+  }) async {
+    _isLoading = true;
+    if (!keepHeld) {
+      _pendingInvitations = const [];
+      _invitationProof = null;
+    }
+    notifyListeners();
+    try {
+      final result = await run();
+      switch (result) {
+        case ProviderSignUpCreated(:final provider) ||
+            ProviderSignUpSignedIn(:final provider):
+          _error = null;
+          _errorCode = null;
+          _pendingInvitations = const [];
+          _invitationProof = null;
+          _setProvider(provider);
+          _syncPush();
+          await refreshMembership();
+          unawaited(loadMySalons());
+          return _provider != null ? result : const ProviderSignUpEnded();
+        case ProviderSignUpInvited(:final invitations, :final proof):
+          _error = null;
+          _errorCode = null;
+          _pendingInvitations = invitations;
+          _invitationProof = proof;
+          return result;
+        case ProviderSignUpFailure() || ProviderSignUpEnded():
+          return result;
+      }
+    } catch (_) {
+      // In doubt, the answer may have been lost after the account was made
+      // (S12): register's stage lets a later 200 land as created.
+      return const ProviderSignUpFailure(
+        kGenericErrorMessage,
+        stage: ProSignUpStage.register,
+      );
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
 
   /// Best-effort: register this device under the provider session if push
   /// permission is already granted. Never throws into the auth flow.

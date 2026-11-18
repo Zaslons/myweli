@@ -20,6 +20,7 @@ import 'package:myweli/widgets/common/inline_feedback.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../support/android_sign_up_copy.dart';
 import '../support/dart_source.dart';
 import '../support/pro_closure.dart';
 import '../support/pump_app.dart';
@@ -96,6 +97,39 @@ void main() {
       );
     });
 
+    test('the Android sign-up\'s calls stay in the shared files that define '
+        'them: nothing in the iOS app calls one (pro-android-signup.md '
+        '§8.1, P2)', () {
+      // Their only callers are behind the fence, so the iOS program never
+      // reaches them and its compiler drops them (§5.2) — the binary read
+      // measures that (`/auth/provider/register` at 0, §8.3).
+      final calls = RegExp(
+        r'\b(signUp(Provider|Salon)With(Google|Email)|registerProvider|'
+        r'createOwnSalonInstead)\s*\(',
+      );
+      const defining = {
+        'lib/services/interfaces/auth_service_interface.dart',
+        'lib/services/api/api_auth_service.dart',
+        'lib/services/mock/mock_auth_service.dart',
+        'lib/providers/pro_auth_provider.dart',
+      };
+      final closure = code();
+      // Vacuity: the scan reaches the definitions, and the regex finds them.
+      for (final file in defining) {
+        expect(closure.keys, contains(file));
+        expect(calls.hasMatch(closure[file]!), isTrue, reason: file);
+      }
+      final found = <String>[
+        for (final e in closure.entries)
+          if (!defining.contains(e.key) && calls.hasMatch(e.value)) e.key,
+      ];
+      expect(
+        found,
+        isEmpty,
+        reason: 'only lib/screens/provider/android/ may call them',
+      );
+    });
+
     test('no copy offers to sign up or to add a salon', () {
       // `Créer un compte` is not in the list: the CONSUMER app registers its
       // clients, and that is not what Apple named.
@@ -112,6 +146,25 @@ void main() {
             if (e.value.contains(phrase)) '${e.key}: « $phrase »',
       ];
       expect(hits, isEmpty);
+    });
+
+    test('none of the Android sign-up\'s words is in the iOS app — and each '
+        'is in the Android app\'s, or this proves nothing '
+        '(pro-android-signup.md §2.6 a, §8.1 P2)', () {
+      final android = proClosure('lib/main_pro_android.dart');
+      final missing = [
+        for (final phrase in androidSignUpOnlyCopy)
+          if (!android.values.any((c) => asCopy(c).contains(asCopy(phrase))))
+            phrase,
+      ];
+      expect(missing, isEmpty, reason: 'a phrase the Android app never says');
+      final hits = <String>[
+        for (final e in code().entries)
+          for (final phrase in androidSignUpOnlyCopy)
+            if (asCopy(e.value).contains(asCopy(phrase)))
+              '${e.key}: « $phrase »',
+      ];
+      expect(hits, isEmpty, reason: 'the iOS binary would carry them');
     });
 
     test('the Pro surfaces never say « Créer un compte »', () {

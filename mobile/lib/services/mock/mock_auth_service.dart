@@ -7,10 +7,13 @@ import '../../core/constants/app_constants.dart';
 import '../../core/constants/failure_messages.dart';
 import '../../core/utils/app_clock.dart';
 import '../../core/utils/salon_id.dart';
+import '../../core/utils/validators.dart';
 import '../../models/api_response.dart';
 import '../../models/appointment.dart';
 import '../../models/pro_membership.dart';
+import '../../models/pro_sign_up_fields.dart';
 import '../../models/provider_login_result.dart';
+import '../../models/provider_sign_up_result.dart';
 import '../../models/provider_user.dart';
 import '../../models/salon_facts.dart';
 import '../../models/salon_market.dart';
@@ -22,6 +25,7 @@ import '../interfaces/auth_service_interface.dart';
 import '../interfaces/session_store.dart';
 import 'mock_data.dart';
 import 'mock_ids.dart';
+import 'mock_locality_service.dart';
 
 /// Per-phone OTP state the mock uses to emulate real SMS-OTP behaviour: a code
 /// with an expiry, a wrong-attempt budget, and a resend budget.
@@ -409,6 +413,13 @@ class MockAuthService implements AuthServiceInterface {
   /// Mock salon Google identity — LOGIN-ONLY (no auto-create).
   static const String mockProGoogleEmail = 'mock.google@salon.test';
 
+  /// The identity Google's sheet answers with, here. [mockProGoogleEmail] by
+  /// default, which has a seeded invitation, so its sign-in and its Android
+  /// sign-up both meet the 202 bridge; a test or a mock build sets a fresh
+  /// address to reach the no-account answer (docs/design/pro-android-signup.md
+  /// §5.2, « A settable Google e-mail »).
+  String proGoogleEmail = mockProGoogleEmail;
+
   /// Mock salon Apple identity — the twin of [mockProGoogleEmail]. It was an
   /// inline literal in `signInProviderWithApple` until registration needed the
   /// same value in two places.
@@ -460,7 +471,7 @@ class MockAuthService implements AuthServiceInterface {
   Future<ProviderLoginResult> signInProviderWithGoogle() async {
     await Future.delayed(AppConstants.mockDelay);
     return _providerLogin(
-      mockProGoogleEmail,
+      proGoogleEmail,
       const GoogleInvitationProof('mock-google-id-token'),
     );
   }
@@ -503,7 +514,7 @@ class MockAuthService implements AuthServiceInterface {
   /// The email code is validated WITHOUT being consumed (accept consumes it
   /// on success — mirrors the backend, T37).
   String? _provenEmail(InvitationProof proof) => switch (proof) {
-    GoogleInvitationProof() => mockProGoogleEmail,
+    GoogleInvitationProof() => proGoogleEmail,
     EmailOtpInvitationProof(:final email, :final code) =>
       _providerEmailOtpStore[email.trim().toLowerCase()] == code
           ? email.trim().toLowerCase()
@@ -585,6 +596,138 @@ class MockAuthService implements AuthServiceInterface {
     MockData.teamMembers.removeWhere((m) => m.id == invitationId);
     return ApiResponse.success(true);
   }
+
+  // ---- Android sign-up (docs/design/pro-android-signup.md §2.1, §5.2) -------
+  //
+  // The real service's shape: the sign-in check with the identity first, then
+  // register with the same proof on `provider_not_found` only. Sentences come
+  // from the shared table and the sign-in's own — no sign-up copy here (§5.2).
+
+  @override
+  Future<ProviderSignUpResult> signUpProviderWithGoogle(
+    ProSignUpFields fields,
+  ) async {
+    await Future.delayed(AppConstants.mockDelay);
+    const proof = GoogleInvitationProof('mock-google-id-token');
+    return _signUpWith(_providerLogin(proGoogleEmail, proof), proof, fields);
+  }
+
+  @override
+  Future<ProviderSignUpResult> signUpProviderWithEmail(
+    String email,
+    String code,
+    ProSignUpFields fields,
+  ) async {
+    await Future.delayed(AppConstants.mockDelay);
+    final key = email.trim().toLowerCase();
+    if (_providerEmailOtpStore[key] != code) {
+      return const ProviderSignUpFailure(
+        'Code incorrect.',
+        code: 'otp_invalid',
+        stage: ProSignUpStage.check,
+      );
+    }
+    final proof = EmailOtpInvitationProof(key, code);
+    final login = _providerLogin(key, proof);
+    // A sign-in consumes the code; a 404 or a 202 leaves it usable.
+    if (login.signedIn) _providerEmailOtpStore.remove(key);
+    return _signUpWith(login, proof, fields);
+  }
+
+  Future<ProviderSignUpResult> _signUpWith(
+    ProviderLoginResult login,
+    InvitationProof proof,
+    ProSignUpFields fields,
+  ) async {
+    final provider = login.provider;
+    if (provider != null) return ProviderSignUpSignedIn(provider);
+    final held = login.proof;
+    if (login.hasInvitations && held != null) {
+      return ProviderSignUpInvited(login.invitations, held);
+    }
+    if (login.code != 'provider_not_found') {
+      return ProviderSignUpFailure(
+        login.error ?? kGenericErrorMessage,
+        code: login.code,
+        stage: ProSignUpStage.check,
+      );
+    }
+    // A second call, with its own latency — as on the server.
+    return registerProvider(proof, fields);
+  }
+
+  @override
+  Future<ProviderSignUpResult> registerProvider(
+    InvitationProof proof,
+    ProSignUpFields fields,
+  ) async {
+    await Future.delayed(AppConstants.mockDelay);
+    return _register(proof, fields);
+  }
+
+  /// `POST /auth/provider/register`, the server's order: the salon's fields
+  /// first (so their faults leave the code usable), then the identity, then
+  /// the account with its DRAFT salon and OWNER link (salon provisioning).
+  ProviderSignUpResult _register(
+    InvitationProof proof,
+    ProSignUpFields fields,
+  ) {
+    ProviderSignUpFailure refused(String message, String code) =>
+        ProviderSignUpFailure(
+          message,
+          code: code,
+          stage: ProSignUpStage.register,
+        );
+    final name = fields.businessName.trim();
+    if (name.isEmpty || name.runes.length > _maxBusinessNameChars) {
+      return refused('Numéro ou code invalide.', 'invalid_input');
+    }
+    if (Validators.phoneNumber(fields.phoneNumber) != null) {
+      return refused('Numéro ou code invalide.', 'invalid_phone');
+    }
+    final areaId = fields.areaId;
+    if (areaId != null && !MockLocalityService.areaIds.contains(areaId)) {
+      return refused(kGenericErrorMessage, 'invalid_area');
+    }
+    final email = _provenEmail(proof);
+    if (email == null) return refused('Code incorrect.', 'otp_invalid');
+    if (_providerByEmail(email) != null) {
+      return refused(
+        'Un compte existe déjà pour ce numéro. Connectez-vous.',
+        'provider_exists',
+      );
+    }
+    _providerEmailOtpStore.remove(email);
+    // A run-time salon reads `draft` until MyWeli's validation
+    // (`MockData.salonStatusOf`): never live from here.
+    final salonId = SalonId(MockIds.next('provider_reg'));
+    MockData.providers.add(
+      MockData.newSalon(
+        id: salonId,
+        name: name,
+        businessType: fields.businessType,
+        phoneNumber: fields.phoneNumber,
+        address: fields.address,
+      ),
+    );
+    final account = ProviderUser(
+      id: MockIds.next('provider'),
+      phoneNumber: fields.phoneNumber,
+      businessName: name,
+      businessType: fields.businessType,
+      email: email,
+      address: fields.address,
+      createdAt: AppClock.now(),
+      providerId: salonId,
+    );
+    MockData.providerUsers.add(account);
+    _currentProvider = account;
+    return ProviderSignUpCreated(account);
+  }
+
+  /// The server's cap (`SalonProvisioningService.maxBusinessNameChars`), in
+  /// code points as it counts them.
+  static const int _maxBusinessNameChars = 120;
 
   ProMembership? _cachedMembership;
 

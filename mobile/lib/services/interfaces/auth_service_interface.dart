@@ -1,7 +1,9 @@
 import '../../core/utils/salon_id.dart';
 import '../../models/api_response.dart';
 import '../../models/pro_membership.dart';
+import '../../models/pro_sign_up_fields.dart';
 import '../../models/provider_login_result.dart';
+import '../../models/provider_sign_up_result.dart';
 import '../../models/provider_user.dart';
 import '../../models/salon_facts.dart';
 import '../../models/salon_market.dart';
@@ -63,6 +65,29 @@ abstract class AuthServiceInterface {
   Future<ApiResponse<bool>> declineProviderInvitation(
     String invitationId,
     InvitationProof proof,
+  );
+
+  /// The Android Pro app's sign-up (docs/design/pro-android-signup.md §2.1,
+  /// §5.2). Only the fenced Android code calls these, so the iOS program
+  /// never does and its compiler drops them; the iOS binary read measures
+  /// that (`/auth/provider/register` at 0, §8.3).
+  ///
+  /// Each runs the sign-in check with the identity first, then — only on
+  /// `provider_not_found` — registers with **the same** proof:
+  /// [ProviderSignUpSignedIn] on 200, [ProviderSignUpInvited] on 202,
+  /// [ProviderSignUpCreated] on register's 201.
+  Future<ProviderSignUpResult> signUpProviderWithGoogle(ProSignUpFields fields);
+  Future<ProviderSignUpResult> signUpProviderWithEmail(
+    String email,
+    String code,
+    ProSignUpFields fields,
+  );
+
+  /// Register only, with a proof already held: S4's « create my own salon
+  /// instead » after the check surfaced invitations.
+  Future<ProviderSignUpResult> registerProvider(
+    InvitationProof proof,
+    ProSignUpFields fields,
   );
 
   Future<ProviderUser?> getCurrentProvider();

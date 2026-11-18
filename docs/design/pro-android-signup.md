@@ -2,9 +2,9 @@
 
 | | |
 |---|---|
-| **Status** | **Approved 2026-11-12 (the owner answered §11's six questions: decisions 116–123).** Not built. Reviewed three times by independent readers on 2026-11-12, every finding folded in: six readers (code, architecture, backend, design system, store documents, completeness) found 61; three found 26 on the revision; two found 18 on the third. **A prerequisite came out of the answers:** salons now wait for the owner's approval before going public (decision 120), a new feature with its own spec (B0.18), built before the closed test. *(2026-11-18: **PR A built** on `feat/pro-android-fence`, not merged — §12.)* |
+| **Status** | **Approved 2026-11-12 (the owner answered §11's six questions: decisions 116–123).** Not built. Reviewed three times by independent readers on 2026-11-12, every finding folded in: six readers (code, architecture, backend, design system, store documents, completeness) found 61; three found 26 on the revision; two found 18 on the third. **A prerequisite came out of the answers:** salons now wait for the owner's approval before going public (decision 120), a new feature with its own spec (B0.18), built before the closed test. *(2026-11-18: **PR A merged** in #806 (`d0b2c85a`); **PR B built** on `feat/pro-android-signup`, not merged — §12.)* |
 | **Owner** | Sadreddine Daher |
-| **Last updated** | 2026-11-18 (§12: PR A built). Before that, 2026-11-13 (dated notes: decisions 132, 134 and 135 at §2.7, §9.1, §9.4 and §11; decision 117 at §9.3; the audit's correction at §5.5; then B0.18's Pro-app PR: « Demander la mise en ligne » at §2.7, §6.2 and P12) |
+| **Last updated** | 2026-11-18 (§12: PR A built, then merged in #806; PR B built). Before that, 2026-11-13 (dated notes: decisions 132, 134 and 135 at §2.7, §9.1, §9.4 and §11; decision 117 at §9.3; the audit's correction at §5.5; then B0.18's Pro-app PR: « Demander la mise en ligne » at §2.7, §6.2 and P12) |
 | **PRD ref / phase** | FR-PRO-AUTH-001 (Pro sign-in and sign-up) · V1 |
 | **BACKLOG** | B0.10 (the Android release); this spec's decisions are 116 and up (§11) |
 | **Related** | [pro-app-login-only.md](pro-app-login-only.md) (decisions 38–43: sign-in only, both platforms) · [app-review-round-2.md](app-review-round-2.md) (decision 71: the website link went) · [android-play-release.md](android-play-release.md) (decisions 110–115: the release order this slice enters) · [play-store-forms.md](play-store-forms.md) (the listing, Data safety, the closed test) · [app-store-forms.md](app-store-forms.md) §11.3 (the iOS pre-upload read) · [pro-companion-path.md](pro-companion-path.md) (the app never sells, on either platform) · [web-pro-registration.md](web-pro-registration.md) (the website's sign-up) · [pro-auth-social.md](pro-auth-social.md) · [team-access-r3-app.md](team-access-r3-app.md) (the invitations bridge) |
@@ -1048,7 +1048,7 @@ typed at step 7.
 ## 12. Build log
 
 **2026-11-18, PR A — the fence with nothing behind it** (`feat/pro-android-fence`, from `main` at
-`a866bf08`, after the R8 PR #805; not merged). No behaviour change on either app.
+`a866bf08`, after the R8 PR #805; merged the same day in #806 as `d0b2c85a`, its tree the tested head's). No behaviour change on either app.
 
 - **Built as §5.1–§5.3 and §9.1 say:**
   - `lib/main_pro.dart`: `main()` → `runProApp({extensions})`, today's body, `ProRouter.install(extensions)`
@@ -1091,3 +1091,58 @@ typed at step 7.
   6 witnesses** — build 781's numbers, read the same way the same day; `/pro/register` and
   `/auth/provider/register` 0, as on 781. The reads' control: an empty binary fails them.
 
+**2026-11-18, PR B — Android's sign-up** (`feat/pro-android-signup`, from `main` at `d0b2c85a`, after PR A merged
+in #806; not merged). Android signs salons up; the iOS app does not change.
+
+- **Built as §2–§5 say, in three commits:**
+  - **The calls** (shared, called only from the fence): `ProSignUpFields`, `ProviderSignUpResult` (created ·
+    signed in · invited · failure with its stage · ended, the provider's S3b); `AuthServiceInterface` +
+    `ApiAuthService` `signUpProviderWithGoogle` / `WithEmail` (the check, then register with the same proof, on
+    `provider_not_found` only) and `registerProvider` (a held proof); the mock in the server's order, with a
+    settable Google identity and its draft salon + OWNER link; `ProAuthProvider` `signUpSalonWithGoogle` /
+    `WithEmail` / `createOwnSalonInstead` (the held proof, or a new code for the same choice), success through
+    `_setProvider`, a failure never writing the sign-in's `error`. PR A's doc line put back above
+    `clearPendingInvitations`.
+  - **The fenced screens:** `pro_android_extensions.dart` (the `/pro/register` route, S15's redirect, E3's
+    pair as `extra`; null off Android), `pro_sign_up_entry.dart` (E1/E2/E3, pushed, the reset on return),
+    `pro_sign_up_screen.dart` (§2.4's rows, S1–S15). The mock's sign-up calls its public `registerProvider`
+    (two calls, two latencies, as on the server).
+  - **The proofs:** the absence list once (`test/support/android_sign_up_copy.dart`), app-store-forms §11.3's
+    `gone_android_signup` (14 → 40 phrases at 0), five goldens.
+- **Not as written, and why:**
+  - **Five goldens, not four:** `pro_sign_up_w360_x2` is the empty form and `pro_sign_up_faults_w360_x2` the one
+    with every field's fault (§8.2 named both states under one name).
+  - **E2's sentence « scrolled into view »:** at 360dp × 200% it is taller than the screen (640px for 584), so
+    it is brought to the top, where it starts in view; the test asserts that.
+  - **Where S4 shows:** in place of the form, like S3 (§2.5 says the form « comes back »), the fields kept
+    behind it.
+  - **The consent line:** once, under the identity section's sub-line, above every button that can create the
+    account on all three identity shapes.
+  - **Seen, not changed:** at 200% text the shared `PhoneNumberField` cuts its floating label (« Téléphone … »)
+    until focused, as on every phone field of the app; a shared-widget matter, out of this PR.
+  - **Seen, not changed:** at 360dp × 200%, « Pas encore de compte ? » breaks before its « ? »: a plain space,
+    and SYSTEM §17.1 leaves the no-break space before « ? » as a decision not taken yet.
+- **Pins:** P2 (the calls, then the copy: one shared list, absent from the iOS closure and present in the Android
+  one), P4 (`pro_login_android_test`), P5's Android half, P6 over both closures, P7's twin, P8 (11 / 5 / 5 / 5),
+  P10 (the Android route table), P11 (the fenced folder's ban list), P13 (`gone_android_signup` equals the shared
+  list; the table's count is the lists' sum), P16 (S3 with a salon that does not answer). P3 and P15 untouched and
+  green. **Beyond §8:** `api_pro_sign_up_test` (18), `pro_auth_sign_up_test` (16), `pro_sign_up_screen_test` (32),
+  `pro_sign_up_layout_test` (12: 360, 375, 390 × 1×, 2×), a `pro_account_scope_test` case.
+- **Red:** the code came before most tests this time, so every new behaviour is held by a breakage instead:
+  **40 mutations on committed code, all red.** One survived its first run — B14, the block going to the sign-up
+  instead of pushing it: P16's first case (a created sign-up keeping its form while the salon loads) could not
+  tell the two apart, because the provider sends no update between « signed in » and « salon loaded ». P16 was
+  rewritten around S3 with a salon that does not answer, and B14 went red.
+- **Run here:** `flutter analyze --fatal-infos --fatal-warnings` 0; `dart format` clean; the full `flutter test`
+  **3,897 passed, 65 skipped** (the goldens, Linux only). Its first run found two pins the mock register tripped
+  (only the locality seed imports the communes; a new `SalonId(` is a birth the pin lists), fixed in `1964dff3`.
+- **Goldens** (Linux, `goldens.yml` run 44283509343 on `2847b05f`): the five new ones looked at one by one; the 60
+  existing ones came out byte-identical, `pro_login_w360_x2` included.
+- **The iOS rehearsal (§8.3):** an unsigned `flutter build ios --release --no-codesign --flavor pro -t
+  lib/main_pro.dart` with the API defines and `--obfuscate`, in this worktree, `com.myweli.pro` 0.0.2:
+  **`OK : 22 phrases à 0, 9 témoins présents`; `OK : 40 phrases à 0, 6 témoins présents`; `/pro/register` and
+  `/auth/provider/register` 0.** Build 781 reads the same 40 / 6 with the new list.
+- **The control, watched red:** the same build from `lib/main_pro_android.dart`, the platform check bypassed, in a
+  private copy (§5.6; at `2847b05f`, never committed): **`ÉCHEC` on all 27 entries** (the 26 of
+  `gone_android_signup` and « Pas encore de compte »), both paths at 1. Every listed string shows in a binary
+  when it is compiled in, and the shared register call is dropped from the iOS program: tree shaking, measured.
