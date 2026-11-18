@@ -4,11 +4,9 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 
 import '../../core/constants/app_constants.dart';
-import '../../core/constants/communes.dart';
 import '../../core/constants/failure_messages.dart';
 import '../../core/utils/app_clock.dart';
 import '../../core/utils/salon_id.dart';
-import '../../core/utils/slug.dart';
 import '../../core/utils/validators.dart';
 import '../../models/api_response.dart';
 import '../../models/appointment.dart';
@@ -27,6 +25,7 @@ import '../interfaces/auth_service_interface.dart';
 import '../interfaces/session_store.dart';
 import 'mock_data.dart';
 import 'mock_ids.dart';
+import 'mock_locality_service.dart';
 
 /// Per-phone OTP state the mock uses to emulate real SMS-OTP behaviour: a code
 /// with an expiry, a wrong-attempt budget, and a resend budget.
@@ -687,7 +686,7 @@ class MockAuthService implements AuthServiceInterface {
       return refused('Numéro ou code invalide.', 'invalid_phone');
     }
     final areaId = fields.areaId;
-    if (areaId != null && !_mockAreaIds.contains(areaId)) {
+    if (areaId != null && !MockLocalityService.areaIds.contains(areaId)) {
       return refused(kGenericErrorMessage, 'invalid_area');
     }
     final email = _provenEmail(proof);
@@ -729,11 +728,6 @@ class MockAuthService implements AuthServiceInterface {
   /// The server's cap (`SalonProvisioningService.maxBusinessNameChars`), in
   /// code points as it counts them.
   static const int _maxBusinessNameChars = 120;
-
-  /// The mock locality tree's commune ids (`MockLocalityService`).
-  static final Set<String> _mockAreaIds = {
-    for (final c in abidjanCommunes) slugify(c.name),
-  };
 
   ProMembership? _cachedMembership;
 

@@ -20,10 +20,8 @@ import 'package:myweli/services/mock/mock_push_notification_service.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import '../support/fonts.dart';
 import '../support/frozen_clock.dart';
 import '../support/golden.dart';
-import '../support/settle.dart';
 
 /// Android's sign-in and sign-up, photographed at the floor — 360dp, 200%
 /// text, where a chip, a heading or a button runs out of room first
