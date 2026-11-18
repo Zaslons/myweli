@@ -155,6 +155,23 @@ void main() {
     );
   });
 
+  testWidgets('a new code drops the pair: the block is not handed a code '
+      'the e-mail no longer goes with', (tester) async {
+    await tester.pumpWidget(app(login: extras()));
+    await settle(tester);
+    await codeRefused(tester);
+
+    await tester.tap(find.text('Changer d’e-mail'));
+    await settle(tester);
+    await tester.enterText(input('Votre e-mail'), 'autre@myweli.test');
+    await tester.tap(find.text('Continuer avec e-mail'));
+    await settle(tester);
+
+    expect(find.text('Code à 6 chiffres'), findsOneWidget, reason: 'premise');
+    expect(block('noAccount=false - -'), findsOneWidget);
+    expect(find.textContaining('personne@myweli.test'), findsNothing);
+  });
+
   testWidgets('without extras the same refusal keeps its red sentence — '
       'the iOS screen, unchanged', (tester) async {
     await tester.pumpWidget(app());
