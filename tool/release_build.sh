@@ -159,8 +159,19 @@ cd "$(dirname "$0")/../mobile"
 # you find out when you open it. `main.dart` mounts `AppRouter`, `main_pro.dart`
 # mounts `ProRouter`, and nothing branches on the flavour at runtime, so there is
 # no later chance to notice.
-ENTRY="lib/main.dart"
-[[ "$FLAVOUR" == pro ]] && ENTRY="lib/main_pro.dart"
+#
+# **And for Pro, the PLATFORM picks the app** (B0.17,
+# docs/design/pro-android-signup.md §5.1). Android's Pro app may sign salons
+# up; the iOS one must not even carry it (App Store 3.1.1 refused 0.0.1 for
+# it). So two entries: main_pro_android.dart, the only file outside
+# lib/screens/provider/android/ that imports it, and main_pro.dart, which
+# never reaches it. An `ios pro` built from the Android entry would ship what
+# Apple refused; an `android pro` from the iOS one, no sign-up.
+case "$FLAVOUR/$PLATFORM" in
+  pro/android) ENTRY="lib/main_pro_android.dart" ;;
+  pro/ios) ENTRY="lib/main_pro.dart" ;;
+  *) ENTRY="lib/main.dart" ;;
+esac
 
 # **The build number is the identity of a release here, and it was frozen at 1.**
 #

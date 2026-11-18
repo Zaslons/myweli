@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
@@ -11,6 +12,8 @@ import '../../../core/constants/app_constants.dart';
 import '../../../core/constants/unnamed_salon.dart';
 import '../../../core/forms/field_errors.dart';
 import '../../../core/forms/sign_in_refusal.dart';
+import '../../../core/pro_app_extensions.dart';
+import '../../../core/router/pro_landing.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/colors.dart';
 import '../../../core/theme/text_styles.dart';
@@ -35,6 +38,12 @@ import '../../../widgets/team/revoked_access_banner.dart';
 /// `access` R3): the « Invitations » step lets the invitee join. A salon
 /// signs up on the web, and this screen does not point there: Apple refused
 /// that link on build 698, and it left both platforms (the owner's call).
+///
+/// **On Android only, one block at the bottom** (B0.17,
+/// docs/design/pro-android-signup.md §2.2): the app may sign salons up there,
+/// and the block comes from behind the fence through [ProLoginExtras]. With
+/// none — iOS, and every test that mounts none — this screen is exactly the
+/// one above.
 /// Designs: docs/design/app-review-round-2.md §4 ·
 /// docs/design/pro-app-login-only.md · docs/design/pro-auth-social.md ·
 /// docs/design/team-access-r3-app.md §2.2.
@@ -63,9 +72,20 @@ class _ProLoginScreenState extends State<ProLoginScreen> {
   /// consumed once, like the revoked notice.
   bool _sessionEnded = false;
 
+  /// The e-mail and code a verify used when it answered
+  /// `provider_not_found` (E3, pro-android-signup.md §2.2): what the block's
+  /// sign-up continues with. Kept from the call, not read from the field,
+  /// which stays editable.
+  String? _refusedEmail;
+  String? _refusedCode;
+
+  late final ProAuthProvider _auth;
+  ModalRoute<Object?>? _route;
+
   @override
   void initState() {
     super.initState();
+    _auth = context.read<ProAuthProvider>()..addListener(_onAuthChanged);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final auth = context.read<ProAuthProvider>();
       final notice = auth.consumeRevokedNotice();
@@ -92,7 +112,58 @@ class _ProLoginScreenState extends State<ProLoginScreen> {
       FeatureFlags.appleSignIn && defaultTargetPlatform == TargetPlatform.iOS;
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _route = ModalRoute.of(context);
+  }
+
+  /// An « accès retiré » notice set while ANOTHER page sits above this one —
+  /// Android's pushed sign-up, whose membership refresh found nothing left
+  /// (S3b, pro-android-signup.md §5.2). This State outlives the provider's
+  /// `go('/pro/login')`, and neither its initState nor [_land] ran for that
+  /// sign-in, so the notice is picked up here, at notify time, with [_land]'s
+  /// rule: the options step and the banner. While the sign-in is the top
+  /// page its own flows read the notice, as before; on iOS nothing is pushed
+  /// above it.
+  void _onAuthChanged() {
+    if (!mounted || (_route?.isCurrent ?? true)) return;
+    final notice = _auth.consumeRevokedNotice();
+    if (notice == null) return;
+    void show() {
+      if (!mounted) return;
+      setState(() {
+        _revokedSalon = notice;
+        _step = _Step.options;
+      });
+    }
+
+    // A notify can land mid-build; the banner then waits for the frame.
+    if (SchedulerBinding.instance.schedulerPhase ==
+        SchedulerPhase.persistentCallbacks) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => show());
+    } else {
+      show();
+    }
+  }
+
+  /// The sign-in shown fresh when the block's page comes back (§2.2): the
+  /// options step, nothing in hand, the provider's last refusal cleared. The
+  /// banners stay — S3b's is why the page came back.
+  void _reset() {
+    if (!mounted) return;
+    setState(() {
+      _step = _Step.options;
+      _refusedEmail = null;
+      _refusedCode = null;
+      _errors.set('email', null);
+      _errors.set('code', null);
+    });
+    _auth.clearFeedback();
+  }
+
+  @override
   void dispose() {
+    _auth.removeListener(_onAuthChanged);
     _cooldownTimer?.cancel();
     _emailController.dispose();
     _codeController.dispose();
@@ -101,21 +172,10 @@ class _ProLoginScreenState extends State<ProLoginScreen> {
     super.dispose();
   }
 
-  void _finish() {
-    final auth = context.read<ProAuthProvider>();
-    // A former member re-invited: signed in, no salon — the session waits on
-    // its invitations (docs/design/pro-rejoin-gate.md §2). Checked FIRST: the
-    // session is live, so everything below would open a salon it has lost.
-    if (auth.rejoinPending) {
-      context.go('/pro/invitations');
-      return;
-    }
-    // A Collaborateur lands on their shell; returnTo may point at owner
-    // surfaces they can't use (access R4b).
-    context.go(
-      auth.isStaff ? '/pro/staff' : (widget.returnTo ?? '/pro/dashboard'),
-    );
-  }
+  /// The rule is [proLandingRoute]'s, shared with Android's sign-up (S3).
+  void _finish() => context.go(
+    proLandingRoute(context.read<ProAuthProvider>(), widget.returnTo),
+  );
 
   /// Where a sign-in lands. Signed in → [_finish]; the 202 bridge → the
   /// « Invitations » step; otherwise, a revocation that ended the session
@@ -219,6 +279,8 @@ class _ProLoginScreenState extends State<ProLoginScreen> {
         _codeController.clear();
         // A new code: the last one's fault is not this one's.
         _errors.set('code', null);
+        _refusedEmail = null;
+        _refusedCode = null;
         _step = _Step.code;
       });
       _startCooldown();
@@ -235,8 +297,10 @@ class _ProLoginScreenState extends State<ProLoginScreen> {
 
   /// What the form says under itself: the refusal, unless it belongs to a
   /// field on screen (sign_in_refusal.dart — the web's table).
-  String? _formFault(ProAuthProvider auth) {
+  String? _formFault(ProAuthProvider auth, ProLoginExtras? extras) {
     final code = auth.errorCode;
+    // The block says this one, on Android (§2.2): not twice.
+    if (extras != null && code == 'provider_not_found') return null;
     if (_step == _Step.code && codeFieldFault(code) != null) return null;
     if (_step == _Step.options && emailFieldFault(code) != null) return null;
     return auth.error;
@@ -249,11 +313,14 @@ class _ProLoginScreenState extends State<ProLoginScreen> {
       return;
     }
     final auth = context.read<ProAuthProvider>();
-    final ok = await auth.verifyEmailOtp(
-      _emailController.text.trim(),
-      _codeController.text.trim(),
-    );
+    final email = _emailController.text.trim();
+    final code = _codeController.text.trim();
+    final ok = await auth.verifyEmailOtp(email, code);
     if (!mounted) return;
+    // E3's pair: this call's, whatever the field says next.
+    final noAccount = !ok && auth.errorCode == 'provider_not_found';
+    _refusedEmail = noAccount ? email : null;
+    _refusedCode = noAccount ? code : null;
     // « Code incorrect. » is the code's: under the code (SYSTEM §14 rule 1).
     final fault = ok ? null : codeFieldFault(auth.errorCode);
     if (fault != null) {
@@ -266,6 +333,9 @@ class _ProLoginScreenState extends State<ProLoginScreen> {
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<ProAuthProvider>();
+    // Android's block (B0.17); null without a provider — iOS, and every
+    // test that mounts none.
+    final extras = Provider.of<ProLoginExtras?>(context, listen: false);
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(title: const ScreenTitle('Espace Pro')),
@@ -459,7 +529,19 @@ class _ProLoginScreenState extends State<ProLoginScreen> {
               ],
               // §14 rule 3 + §15: a server OUTCOME is form-level, and
               // `InlineFeedback` is a live region — a red Text never was.
-              InlineFeedback(_formFault(auth)),
+              InlineFeedback(_formFault(auth, extras)),
+              // The Android block, at the bottom (§2.2) — never on the
+              // « Invitations » step, whose cards are the way in.
+              if (extras != null && _step != _Step.invitations) ...[
+                const SizedBox(height: AppTheme.spacingL),
+                extras.block(
+                  context,
+                  noAccount: auth.errorCode == 'provider_not_found',
+                  email: _step == _Step.code ? _refusedEmail : null,
+                  code: _step == _Step.code ? _refusedCode : null,
+                  onReturned: _reset,
+                ),
+              ],
             ],
           ),
         ),

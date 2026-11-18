@@ -1,12 +1,14 @@
 import 'dart:io';
 import 'dart:math';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:myweli/core/router/admin_router.dart';
 import 'package:myweli/core/router/app_router.dart';
 import 'package:myweli/core/router/pro_router.dart';
 import 'package:myweli/providers/admin/admin_auth_provider.dart';
+import 'package:myweli/screens/provider/android/pro_android_extensions.dart';
 
 import '../support/dart_source.dart';
 
@@ -55,6 +57,9 @@ void main() {
   final entries = {
     'consumer': 'lib/main.dart',
     'pro': 'lib/main_pro.dart',
+    // The Android Pro app (pro-android-signup.md §5.1, P10): the iOS app's
+    // wiring plus the fenced extensions, with its own router.
+    'pro_android': 'lib/main_pro_android.dart',
     'admin': 'lib/main_admin.dart',
   };
 
@@ -65,6 +70,9 @@ void main() {
     routers = {
       'consumer': AppRouter.router,
       'pro': ProRouter.router,
+      'pro_android': ProRouter.build(
+        proAndroidExtensionsFor(TargetPlatform.android),
+      ),
       'admin': createAdminRouter(AdminAuthProvider()),
     };
   });
@@ -90,7 +98,9 @@ void main() {
               : resolves(nav.target, templates);
           if (ok) continue;
           final shown = nav.shown;
-          if (_exempt[app]?[file]?.containsKey(shown) ?? false) {
+          // The Android app runs the iOS app's screens: the same excuses.
+          final excused = _exempt[app == 'pro_android' ? 'pro' : app];
+          if (excused?[file]?.containsKey(shown) ?? false) {
             used.add('$app · $file · $shown');
             continue;
           }
@@ -193,6 +203,7 @@ final u = _uri('/providers').replace(queryParameters: {'page': '1'});
       // reachable files. A scanner that lost a call shape drops below these.
       expect(count('consumer'), greaterThan(40));
       expect(count('pro'), greaterThan(55));
+      expect(count('pro_android'), greaterThanOrEqualTo(count('pro')));
       expect(count('admin'), greaterThan(5));
       expect(reach['consumer'], contains('lib/screens/map/map_screen.dart'));
       expect(reach['pro'], isNot(contains('lib/screens/map/map_screen.dart')));
@@ -206,6 +217,9 @@ final u = _uri('/providers').replace(queryParameters: {'page': '1'});
     test('each entry point is the one its router belongs to', () {
       expect(source['lib/main.dart'], contains('AppRouter.router'));
       expect(source['lib/main_pro.dart'], contains('ProRouter.router'));
+      // It hands over to main_pro.dart's runProApp, which installs the
+      // router with its extensions.
+      expect(source['lib/main_pro_android.dart'], contains('runProApp('));
       expect(source['lib/main_admin.dart'], contains('createAdminRouter('));
       final mains = source.entries
           .where(

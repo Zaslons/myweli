@@ -36,13 +36,29 @@ import '../support/pump_app.dart';
 /// nowhere: this file pins that, and `test/infra/pro_site_links_test.dart` pins
 /// the links the Pro app has left.
 void main() {
-  /// Every Dart file under `lib/`, comments removed — the comments here and
-  /// in the code quote the removed copy to explain it.
-  Map<String, String> code() => {
-    for (final f in Directory('lib').listSync(recursive: true))
-      if (f is File && f.path.endsWith('.dart'))
-        f.path: stripDartComments(f.readAsStringSync()),
-  };
+  /// What the iOS Pro app is made of — `lib/main_pro.dart`'s closure —
+  /// comments removed (the comments here and in the code quote the removed
+  /// copy to explain it).
+  ///
+  /// **The closure, not all of `lib/`** (pro-android-signup.md §8.1, P2): the
+  /// Android app signs salons up again (Google Play allows it, Apple does
+  /// not), and its sign-up lives behind the fence in
+  /// `lib/screens/provider/android/`, which the iOS app never reaches
+  /// (`pro_android_fence_test.dart`). What Apple refused is what the iOS
+  /// binary carries, and that is what this scope reads.
+  Map<String, String> code() {
+    final closure = proClosure();
+    // Vacuity: a closure that stopped reaching these reads nothing.
+    for (final f in [
+      'lib/core/router/pro_router.dart',
+      'lib/screens/provider/auth/pro_login_screen.dart',
+    ]) {
+      if (!closure.containsKey(f)) {
+        throw StateError('the iOS closure no longer reaches $f');
+      }
+    }
+    return closure;
+  }
 
   group('nothing in the app signs a business up', () {
     test('the routes are gone', () {

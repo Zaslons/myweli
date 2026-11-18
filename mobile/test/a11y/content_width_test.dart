@@ -6,6 +6,7 @@ import 'package:myweli/core/theme/app_theme.dart';
 import 'package:myweli/core/theme/colors.dart';
 import 'package:myweli/widgets/common/content_width_cap.dart';
 
+import '../support/app_roots.dart';
 import '../support/fonts.dart';
 import '../support/pump_app.dart';
 import '../support/surface.dart';
@@ -276,8 +277,9 @@ void main() {
             'set BEFORE this filter',
       );
 
+      // Through the root it delegates to, if any (app_roots.dart, P14).
       final missing = capping
-          .where((f) => !codeOf(f).contains('ContentWidthCap'))
+          .where((f) => !codeOf(appRootSource(f)).contains('ContentWidthCap'))
           .map((f) => f.path)
           .toList();
 
