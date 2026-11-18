@@ -12,6 +12,7 @@ import 'core/access/pro_salon_scope.dart';
 import 'core/config/build_config_guard.dart';
 import 'core/di/dependency_injection.dart';
 import 'core/observability/error_reporting.dart';
+import 'core/pro_app_extensions.dart';
 import 'core/push/firebase_bootstrap.dart';
 import 'core/push/landed_push_handler.dart';
 import 'core/push/push_message_handler.dart';
@@ -48,12 +49,25 @@ import 'widgets/common/content_width_cap.dart';
 import 'widgets/common/default_status_bar_style.dart';
 import 'widgets/provider/pro_salon_gate.dart';
 
-void main() {
+/// The iOS Pro app — and the whole Pro app's wiring, which the Android entry
+/// (`main_pro_android.dart`) runs too, with its extensions.
+void main() => runProApp();
+
+/// The Pro app, as both entries start it (docs/design/pro-android-signup.md
+/// §5.1): iOS with no [extensions] — today's app exactly — and Android with
+/// what lives behind the fence in `lib/screens/provider/android/`, which this
+/// file never imports (`pro_android_fence_test.dart`), so none of it reaches
+/// the iOS binary.
+void runProApp({ProAppExtensions? extensions}) {
   // Run inside a guarded zone so framework errors and uncaught async errors
   // both funnel through AppLogger (the single seam a crash reporter plugs into).
   runZonedGuarded(
     () async {
       WidgetsFlutterBinding.ensureInitialized();
+      // The router with this app's routes, BEFORE anything reads it —
+      // `ProAuthProvider`, `_startPush` and the app root all do; a read first
+      // makes this throw (ProRouter.install).
+      ProRouter.install(extensions);
       // Refuse a release build compiled without the backend defines, BEFORE any
       // startup work — it would otherwise run on mocks and look healthy
       // (docs/design/infra-staging.md §1.3).
@@ -115,7 +129,7 @@ void main() {
         return;
       }
 
-      runApp(MyweliProApp(auth: proAuth));
+      runApp(MyweliProApp(auth: proAuth, loginExtras: extensions?.login));
     },
     (error, stack) =>
         AppLogger.error('Uncaught zone error', error: error, stackTrace: stack),
@@ -165,8 +179,17 @@ PushMessageHandler proPushHandler(
 /// The Pro app's stores, above every route and alive for the whole app.
 /// A function rather than a list inline in [MyweliProApp] so the tests mount
 /// the exact wiring the app runs (test/widget/pro_account_switch_test.dart).
-List<SingleChildWidget> proAppProviders(ProAuthProvider auth) => [
+///
+/// [loginExtras] is the sign-in's block (Android, B0.17): provided only when
+/// there is one, so the iOS app's tree is exactly today's — the sign-in reads
+/// it as `ProLoginExtras?`, which is null without a provider.
+List<SingleChildWidget> proAppProviders(
+  ProAuthProvider auth, {
+  ProLoginExtras? loginExtras,
+}) => [
   ChangeNotifierProvider.value(value: auth),
+  if (loginExtras case final extras?)
+    Provider<ProLoginExtras?>.value(value: extras),
   // Consumer listing data — read-only, powers « Aperçu de ma page »
   // (docs/design/pro-salon-lifecycle.md B5).
   ChangeNotifierProvider(create: (_) => ProviderProvider()),
@@ -232,14 +255,17 @@ List<SingleChildWidget> proAppProviders(ProAuthProvider auth) => [
 ];
 
 class MyweliProApp extends StatelessWidget {
-  const MyweliProApp({super.key, required this.auth});
+  const MyweliProApp({super.key, required this.auth, this.loginExtras});
 
   final ProAuthProvider auth;
+
+  /// The sign-in's block (Android, B0.17) — see [proAppProviders].
+  final ProLoginExtras? loginExtras;
 
   @override
   Widget build(BuildContext context) {
     return MultiProvider(
-      providers: proAppProviders(auth),
+      providers: proAppProviders(auth, loginExtras: loginExtras),
       // Above MaterialApp so the whole tree rebuilds when iOS Reduce Motion is
       // toggled mid-session — nothing in the framework reads that flag (§9, A8).
       child: ReduceMotionObserver(

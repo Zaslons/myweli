@@ -1080,6 +1080,16 @@ class ProAuthProvider extends ChangeNotifier implements SalonStateRefresh {
   }
 
   /// Back/« Changer d'e-mail » from the invitations step.
+  /// The sign-in's reset when Android's sign-up page comes back
+  /// (docs/design/pro-android-signup.md §2.2): its last refusal forgotten.
+  /// Not the held invitations, not the session notices.
+  void clearFeedback() {
+    if (_error == null && _errorCode == null) return;
+    _error = null;
+    _errorCode = null;
+    notifyListeners();
+  }
+
   void clearPendingInvitations() {
     _pendingInvitations = const [];
     _invitationProof = null;

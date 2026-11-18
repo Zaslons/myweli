@@ -33,6 +33,7 @@ import '../../screens/provider/staff/staff_home_screen.dart';
 import '../../screens/provider/subscription/pro_subscription_screen.dart';
 import '../../screens/provider/team/pro_invitations_screen.dart';
 import '../../screens/provider/team/team_screen.dart';
+import '../pro_app_extensions.dart';
 import '../utils/salon_id.dart';
 
 class ProRouter {
@@ -40,8 +41,10 @@ class ProRouter {
   /// after a login. A page pushed above one of them is replaced by that `go`,
   /// so a buffered notification tap waits until the router has left them
   /// (`landedPushHandler`, docs/design/pro-open-animation.md §2.6). There is
-  /// no sign-up screen: salons sign up on the web (App Store 3.1.1,
-  /// docs/design/pro-app-login-only.md).
+  /// no sign-up screen on iOS: salons sign up on the web there (App Store
+  /// 3.1.1, docs/design/pro-app-login-only.md). Android's (B0.17,
+  /// pro-android-signup.md §5.4) is always PUSHED above `/pro/login`, so the
+  /// router reports `/pro/login` while it is open: it needs no entry here.
   static const Set<String> launchPaths = {'/pro/splash', '/pro/login'};
 
   /// MyWeli's notice on [salon] (B0.18 — `/pro/onboarding?salon={id}`, the
@@ -58,7 +61,37 @@ class ProRouter {
         uri.queryParameters['salon'] == salon.value;
   }
 
-  static final GoRouter router = GoRouter(
+  /// The app's router: the one [install] put in place, or — when nothing
+  /// was installed (every test) — [build]`(null)`, today's routes.
+  ///
+  /// Read by the app root, the salon gate, the push handler and
+  /// `ProAuthProvider`; the first read fixes it (docs/design/
+  /// pro-android-signup.md §5.2).
+  static GoRouter get router => _router ??= build(null);
+  static GoRouter? _router;
+
+  /// **Production only** — `runProApp`, before anything reads [router]: the
+  /// router with [extensions]' routes (Android's `/pro/register`, B0.17 PR B),
+  /// or today's when there are none (iOS).
+  ///
+  /// Refuses once [router] has been read or installed. A reader holding the
+  /// router without the extensions' routes would push paths that do not
+  /// exist; this fails at startup instead, where the zone reports it.
+  /// Tests never call it: they use [build].
+  static void install(ProAppExtensions? extensions) {
+    if (_router != null) {
+      throw StateError(
+        'ProRouter.install after ProRouter.router was read: the reader holds '
+        'a router without the extensions (pro-android-signup.md §5.2)',
+      );
+    }
+    _router = build(extensions);
+  }
+
+  /// A new router: every route the Pro app has, then [extensions]' routes.
+  /// Pure — it never touches [router] — so tests build the Android shape
+  /// without installing it.
+  static GoRouter build(ProAppExtensions? extensions) => GoRouter(
     initialLocation: '/pro/splash',
     routes: [
       GoRoute(
@@ -290,6 +323,8 @@ class ProRouter {
         name: 'pro-reviews',
         builder: (context, state) => const ReviewsScreen(),
       ),
+      // Android's, after every shared one (B0.17; none on iOS).
+      ...?extensions?.routes,
     ],
   );
 }

@@ -14,6 +14,7 @@ import 'package:myweli/services/mock/mock_provider_service.dart';
 import 'package:myweli/widgets/common/default_status_bar_style.dart';
 import 'package:provider/provider.dart';
 
+import '../support/app_roots.dart';
 import '../support/pump_app.dart';
 import '../support/surface.dart';
 
@@ -163,8 +164,11 @@ void main() {
         .where((l) => !l.trimLeft().startsWith('//'))
         .join('\n');
 
+    // Through the root it delegates to, if any (app_roots.dart, P14).
     final missing = roots
-        .where((f) => !codeOf(f).contains('DefaultStatusBarStyle('))
+        .where(
+          (f) => !codeOf(appRootSource(f)).contains('DefaultStatusBarStyle('),
+        )
         .map((f) => f.path)
         .toList();
     expect(

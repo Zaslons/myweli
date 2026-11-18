@@ -97,6 +97,7 @@ void main() {
       // A hardcoded `--target lib/main.dart` would satisfy the test above and
       // reintroduce the whole defect.
       expect(code, contains('lib/main_pro.dart'));
+      expect(code, contains('lib/main_pro_android.dart'));
       expect(code, contains('lib/main.dart'));
       expect(
         RegExp(r'--target\s+"?\$').hasMatch(code),
@@ -111,6 +112,7 @@ void main() {
       // silently wrong again, and renames are how the first defect arrived.
       expect(File('lib/main.dart').existsSync(), isTrue);
       expect(File('lib/main_pro.dart').existsSync(), isTrue);
+      expect(File('lib/main_pro_android.dart').existsSync(), isTrue);
     });
 
     test('Android produces an app bundle, not an APK', () {
@@ -667,6 +669,40 @@ void main() {
       });
     },
   );
+
+  // docs/design/pro-android-signup.md §5.1, §8.1 P9. Run for real, the
+  // target read from what the stub `flutter` was given: the Android Pro app
+  // signs salons up and the iOS one must not carry it, so the Pro flavour's
+  // entry depends on the PLATFORM too. An `android pro` built from
+  // main_pro.dart ships without its sign-up; an `ios pro` built from
+  // main_pro_android.dart ships what Apple refused (3.1.1).
+  group('the Pro entry is chosen by platform as well as flavour (P9)', () {
+    late _ReleaseRepo repo;
+    setUp(() => repo = _ReleaseRepo());
+    tearDown(() => repo.dispose());
+
+    String targetOf(String platform, String flavour) {
+      final r = repo.run(platform, flavour);
+      expect(r.exitCode, 0, reason: '${r.stdout}${r.stderr}');
+      final call = repo.flutterCalls.lastWhere((c) => c.contains('build '));
+      final target = RegExp(r'--target (\S+)').firstMatch(call)?.group(1);
+      expect(target, isNotNull, reason: call);
+      return target!;
+    }
+
+    test('android pro → lib/main_pro_android.dart', () {
+      expect(targetOf('android', 'pro'), 'lib/main_pro_android.dart');
+    });
+
+    test('ios pro → lib/main_pro.dart', () {
+      expect(targetOf('ios', 'pro'), 'lib/main_pro.dart');
+    });
+
+    test('consumer → lib/main.dart, on both', () {
+      expect(targetOf('android', 'consumer'), 'lib/main.dart');
+      expect(targetOf('ios', 'consumer'), 'lib/main.dart');
+    });
+  });
 
   group('the premise: the two entry points are different apps', () {
     /// If these ever converged, `--target` would stop mattering and the test

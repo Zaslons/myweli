@@ -15,6 +15,7 @@ import 'package:myweli/services/mock/mock_auth_service.dart';
 import 'package:myweli/widgets/common/brand_loader.dart';
 import 'package:provider/provider.dart';
 
+import '../support/app_roots.dart';
 import '../support/pro_splash.dart';
 import '../support/pump_app.dart';
 import '../support/surface.dart';
@@ -223,8 +224,14 @@ void main() {
             'wrong directory and would pass on an empty set',
       );
 
+      // A root that hands over to another's `runProApp` is checked through
+      // it (main_pro_android.dart → main_pro.dart; app_roots.dart, P14).
       final missing = roots
-          .where((f) => !f.readAsStringSync().contains('ReduceMotionObserver'))
+          .where(
+            (f) => !appRootSource(
+              f,
+            ).readAsStringSync().contains('ReduceMotionObserver'),
+          )
           .map((f) => f.path)
           .toList();
 
