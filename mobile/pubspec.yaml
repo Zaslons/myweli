@@ -67,7 +67,7 @@ dependencies:
   geolocator: ^14.1.2
 
   # Image caching (direct dep; used by TimedCachedImage)
-  flutter_cache_manager: ^3.4.5
+  flutter_cache_manager: ^3.5.0
 
   # HTTP Client
   http: ^1.2.0
