@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:myweli/widgets/common/brand_refresh.dart';
@@ -7,6 +8,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/colors.dart';
 import '../../../core/theme/text_styles.dart';
 import '../../../core/utils/salon_id.dart';
+import '../../../core/utils/timeout_cache_manager.dart';
 import '../../../models/artist.dart';
 import '../../../providers/pro_artist_provider.dart';
 import '../../../providers/pro_auth_provider.dart';
@@ -128,7 +130,14 @@ class _ArtistCard extends StatelessWidget {
               radius: 28,
               backgroundColor: AppColors.primary.withValues(alpha: 0.2),
               backgroundImage: artist.imageUrl != null
-                  ? NetworkImage(artist.imageUrl!)
+                  // Through the app's image cache and transport, like every
+                  // other photo: `NetworkImage` uses dart:io directly, which
+                  // fails on Android where the app's transport does not
+                  // (docs/design/android-http3-transport.md §4.4).
+                  ? CachedNetworkImageProvider(
+                      artist.imageUrl!,
+                      cacheManager: TimeoutCacheManager.images,
+                    )
                   : null,
               child: artist.imageUrl == null
                   ? Text(

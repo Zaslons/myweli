@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | **Approved 2026-11-18** — the owner answered §10 « Yes, as recommended »: every question as §10 recommends (the answers are under §10). The upload read V-U ran the same day and passed (R10), so the relay the draft proposed is not built. Built in §8's order. Drafted the same day on the owner's « Yes, write it ». |
+| **Status** | **Approved 2026-11-18** — the owner answered §10 « Yes, as recommended »: every question as §10 recommends (the answers are under §10). The upload read V-U ran the same day and passed (R10), so the relay the draft proposed is not built. Built in §8's order. Drafted the same day on the owner's « Yes, write it ». **Amended the same day while building PR 2:** the trust list of §5.2 gains Sectigo (Q8) and loses two roots no longer trusted for websites; §4.1 records what the build added. |
 | **Owner** | Sadreddine Daher |
 | **Last updated** | 2026-11-18 |
 | **PRD ref / phase** | Reliability and security, cross-cutting · V1 (it blocks the Play release) |
@@ -172,6 +172,28 @@ holds **one shared client** for the process:
    guarantee which zone a callback runs in, and recommends passing the client
    ([client.dart](https://github.com/dart-lang/http/blob/master/pkgs/http/lib/src/client.dart)).
    R4 used the zone alone and worked, but the design does not rely on it.
+
+*As built in PR 2 (read in the code on `main` `8486451a`):*
+- **The shared client cannot be closed.** It is a wrapper whose `close()`
+  does nothing. cronet_http refuses every request once its client is closed
+  (`cronet_client.dart`, 1.10.1), and a package reached through the zone
+  could close the client it was handed. flutter_map closes only a client it
+  created itself.
+- **`client` is now required** by every `Api*Service`, `AdminService` and
+  `ClientVersionGate`. Their own `http.Client()` defaults are gone, so a
+  construction that forgets the shared client no longer compiles.
+- **The Cronet code sits behind a conditional import** (`dart.library.ffi`).
+  The admin console is a web build and never compiles `cronet_http` or `jni`.
+- **The map tiles** are built in `widgets/common/carto_basemap_layer.dart`
+  (`core/map/carto_basemap.dart` only shapes the request). The tile provider
+  gets `RetryClient` around the shared client, which keeps flutter_map's
+  retries of today.
+- **The user agent** is `MyWeli/<version>+<build> (<package>; Android)`, or
+  `MyWeli (Android)` if the package info cannot be read.
+- **The telemetry** of §4.7 goes through one listener that error reporting
+  registers after Sentry starts. The first request can come before Sentry
+  starts (the version gate), so the transport keeps its outcome and hands it
+  over when the listener arrives.
 
 ### 4.2 The hinted hosts
 
@@ -366,14 +388,46 @@ a step back from today's `dart:io`, and the advisory is rated High.
 **Proposed fix: trust anchors for our own domains** (§10, Q6, recommended).
 Add a `domain-config` to the Android network security config for `myweli.com`
 and its subdomains:
-- **Trust only** the roots that Cloudflare's Universal SSL issues from, bundled
-  in the app:
-  - Google Trust Services (GTS Root R1–R4, and GlobalSign Root CA for the
-    cross-sign served today, R9);
-  - Let's Encrypt (ISRG Root X1, X2);
-  - SSL.com, with its Certum cross-sign
-    ([Cloudflare's CA list](https://developers.cloudflare.com/ssl/reference/certificate-authorities/)).
-- **Leave out** AAA Certificate Services and the emSign roots.
+- **Trust only** the roots that Cloudflare's certificates for our zone can
+  chain to, bundled in the app. *The list as built, amended in PR 2 on the
+  owner's answer of 2026-11-18 (§10, Q8):*
+
+  | CA | Roots bundled (`res/raw/`) |
+  |----|----------------------------|
+  | Google Trust Services | GTS Root R1, R3, R4 |
+  | Let's Encrypt | ISRG Root X1, X2 |
+  | SSL.com | SSL.com TLS ECC and RSA Root CA 2022; SSL.com Root Certification Authority ECC and RSA; Certum Trusted Network CA (its cross-sign) |
+  | Sectigo | USERTrust ECC and RSA Certification Authority; Sectigo Public Server Authentication Root E46 and R46 |
+
+  - **Why Sectigo, which the draft left out.** Cloudflare issues a *backup*
+    certificate for every Universal SSL certificate, from a different CA
+    (Google, Let's Encrypt, Sectigo or SSL.com). It deploys it on its own if
+    the primary is revoked or its key compromised, and only Enterprise can
+    opt out
+    ([backup certificates](https://developers.cloudflare.com/ssl/edge-certificates/backup-certificates/),
+    [CA list](https://developers.cloudflare.com/ssl/reference/certificate-authorities/),
+    read 2026-11-18). Without Sectigo, that switch would cut every Android
+    user off until an app update. The daily check below cannot see a backup
+    certificate before it is deployed.
+  - **Why trusting Sectigo keeps the eMudhra path closed.** The disclosure's
+    own lists (`roots.json`, `impacted-intermediates.json`, read 2026-11-18)
+    name sixteen compromised certificates. Every one is issued by emSign Root
+    TLS CA - G3, emSign Root CS CA - G3 or AAA Certificate Services. None is
+    issued by a bundled root.
+  - **Two roots of the draft dropped: GTS Root R2 and GlobalSign Root CA.**
+    Mozilla's root program no longer trusts either for websites (CCADB,
+    « Email » only, read 2026-11-18). The chain served today (R9) verifies
+    with GTS Root R4 alone: `openssl verify` against the bundle, with no
+    system store, says OK for both hosts, and fails once R4 is taken out.
+  - **Where the files come from.** Each is the copy in macOS's system root
+    store, and its SHA-256 equals the copy in Mozilla's CCADB report. The test
+    of §7 holds every fingerprint.
+- **Leave out** AAA Certificate Services and every emSign root. The test of
+  §7 refuses their fingerprints.
+- **Debug builds** keep the same block, and also allow plain HTTP to
+  `10.0.2.2`, `localhost` and `127.0.0.1`, for a backend run on the Mac
+  (`app_config.dart`). Cronet, unlike `dart:io`, obeys Android's cleartext
+  rule. Release builds allow no plain HTTP at all.
 - **The platform applies it per hostname,** for Cronet as for the system
   (inferred: Cronet verifies through
   `X509TrustManagerExtensions.checkServerTrusted(chain, authType, host)`, which
@@ -394,7 +448,13 @@ Android users can no longer connect, and the `dart:io` fallback does not help.
 Two guards cover it:
 - **A daily CI check,** like the existing Access check, that the chain served
   for `api.myweli.com` and `cdn.myweli.com` ends in a bundled root. It goes red
-  before a switch is likely to matter.
+  before a switch is likely to matter. *As built:*
+  `infra/cloudflare/98-verify-app-trust-chain.sh`, the `appchain` job of
+  `production-checks.yml`. It runs `openssl verify` on the served chain
+  against exactly the bundled files, with no system store, and is red when a
+  host cannot be read. `mobile/test/infra/app_trust_chain_check_test.dart`
+  runs the real script against a local TLS server, both ways (in `mobile/`,
+  since any file under `backend/` redeploys staging on merge).
 - **Optionally, a fixed CA.** An Advanced Certificate with a chosen CA (about
   $10 a month) makes the list one CA family. This is not recommended now; the
   daily check is enough to start.
@@ -526,12 +586,24 @@ Each report is posted only on the owner's yes, with no personal data:
 - **Q6:** yes. The trust anchors and the daily chain check ship in PR 2.
 - **Q7:** yes, if V-U failed. It passed, so there is no relay and no PR 3.
 
+**Asked while building PR 2, 2026-11-18:**
+- **Q8.** Cloudflare can deploy a backup certificate from Sectigo, which the
+  draft's list left out. Which list should PR 2 ship? **Answer: add Sectigo**
+  (« Add Sectigo (Recommended) »). AAA Certificate Services and every emSign
+  root stay out. §5.2 holds the list as built.
+
 ## 11. Not confirmed
 
 Each of these is either read in §7's device pass or stays stated here:
 - That Play Services' Cronet uses the platform trust store, like open-source
   Cronet. Inferred from Chromium's build flags; §5.2's red-first read proves it
-  for our case.
+  for our case. *Read 2026-11-18 on an emulator (Android 16, Play services
+  25.26.35), release builds of the consumer app with R8: with a config that
+  trusts only ISRG Root X1 for `myweli.com`, the home says « Chargement
+  impossible — Pas de connexion »; with the real config, « Aucun salon
+  trouvé », a real empty answer. `dart:io` ignores this config, so the
+  failure shows both that the requests go through Cronet and that Cronet obeys
+  the list. Android 7–9 is still read at the device pass.*
 - How Google's eMudhra update reached Android 7–9, and whether Sectigo revoked
   the cross-signs.
 - Why `www.google.com` and R2's upload host succeed over `dart:io` on this

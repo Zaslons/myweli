@@ -32,12 +32,11 @@ typedef ImageCompressor = Future<Uint8List?> Function(String source);
 /// `AppConfig.useApiBackend` is true; the app is otherwise on the mock.
 class ApiAppointmentService implements AppointmentServiceInterface {
   ApiAppointmentService({
-    http.Client? client,
+    required this._client,
     String? baseUrl,
     SessionStore? sessionStore,
     ImageCompressor? compressor,
-  }) : _client = client ?? http.Client(),
-       _baseUrl = baseUrl ?? AppConfig.apiBaseUrl,
+  }) : _baseUrl = baseUrl ?? AppConfig.apiBaseUrl,
        _sessionStore = sessionStore ?? InMemorySessionStore(),
        _compress = compressor ?? _defaultCompress;
 

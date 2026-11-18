@@ -431,6 +431,36 @@ jobs:
       - name: Every console address sends an anonymous visitor to the Access sign-in
         run: bash infra/cloudflare/98-verify-console-access.sh
 
+  appchain:
+    name: Android trust list — does the chain served for the app still end in a bundled root?
+    runs-on: ubuntu-latest
+    # It reads two public hostnames with openssl, so it gets none of the
+    # workflow's issues or id-token rights, and no secret.
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+
+      # **A list in the app that Cloudflare can make wrong on its own.** The
+      # Android app trusts only the roots bundled in
+      # mobile/android/app/src/main/res/raw/ for myweli.com and its subdomains,
+      # not the phone's store: that closes the eMudhra path on Android 7 to 9
+      # (GHSA-frr6-h895-5pxp). Cloudflare chooses our certificate's CA and can
+      # change it without notice; outside the list, every Android user fails to
+      # connect while every test stays green.
+      #
+      # So this reads, daily, the chain api.myweli.com and cdn.myweli.com
+      # serve, and verifies it with openssl against exactly the bundled files.
+      # Red when it ends elsewhere, and red when nothing could be read.
+      #
+      # Not a gate: Cloudflare changes certificates on its own schedule.
+      # APP_CHAIN_HOSTS and APP_CHAIN_ANCHORS_DIR are deliberately NOT set
+      # here; app_trust_chain_check_test fails if any workflow sets them, and
+      # runs this very script against a local TLS server, both ways.
+      # docs/design/android-http3-transport.md §5.2
+      - name: The chain served for api and cdn ends in a root the Android app bundles
+        run: bash infra/cloudflare/98-verify-app-trust-chain.sh
+
   attestation:
     name: The registration claim — has anyone confirmed it lately?
     runs-on: ubuntu-latest
@@ -473,7 +503,7 @@ jobs:
   # docs/design/production-alarm-close.md
   report:
     name: Say so, if any check failed
-    needs: [cwv, privacy, legal, cardphoto, retention, attestation, secretpins, iam, basemap, access]
+    needs: [cwv, privacy, legal, cardphoto, retention, attestation, secretpins, iam, basemap, access, appchain]
     if: failure()
     runs-on: ubuntu-latest
     steps:
@@ -496,6 +526,7 @@ jobs:
           IAM: ${{ needs.iam.result }}
           BASEMAP: ${{ needs.basemap.result }}
           ACCESS: ${{ needs.access.result }}
+          APPCHAIN: ${{ needs.appchain.result }}
         run: |
           set -euo pipefail
           TITLE='Production checks are failing'
@@ -512,7 +543,7 @@ jobs:
           BODY=$(printf '%s\n' \
             '@Zaslons The scheduled real-domain checks failed.' \
             '' \
-            "CWV: ${CWV} · privacy: ${PRIVACY} · legal: ${LEGAL} · card photo: ${CARDPHOTO} · retention: ${RETENTION} · attestation: ${ATTESTATION} · secret pins: ${SECRETPINS} · IAM: ${IAM} · basemap: ${BASEMAP} · console access: ${ACCESS}" \
+            "CWV: ${CWV} · privacy: ${PRIVACY} · legal: ${LEGAL} · card photo: ${CARDPHOTO} · retention: ${RETENTION} · attestation: ${ATTESTATION} · secret pins: ${SECRETPINS} · IAM: ${IAM} · basemap: ${BASEMAP} · console access: ${ACCESS} · Android trust list: ${APPCHAIN}" \
             '' \
             "${RUN}" \
             '' \
@@ -583,7 +614,19 @@ jobs:
             'look by hand before editing Access. A 403 marked cf-mitigated is' \
             'Cloudflare challenging the GitHub runner, not a visitor. No answer at' \
             'all is red too, because nothing was measured: re-run the job' \
-            '(docs/design/infra-console-access-check.md §5).')
+            '(docs/design/infra-console-access-check.md §5).' \
+            '' \
+            '**The Android trust list job asks Cloudflare, with openssl.** Red' \
+            'there means the certificate chain served for api.myweli.com or' \
+            'cdn.myweli.com ends in no root the Android app bundles, so Android' \
+            'users cannot connect right now: Cloudflare moved our certificate to' \
+            'another CA, or deployed a backup one. The job log names the host and' \
+            'the issuer. Android users stay cut off until Cloudflare is back on a' \
+            'listed CA, or until a build that trusts the new root ships: add it to' \
+            'mobile/android/app/src/main/res/raw/ and network_security_config.xml,' \
+            'which android_http_transport_guard_test.dart holds. No chain read at' \
+            'all is red too, because nothing was measured: re-run the job' \
+            '(docs/design/android-http3-transport.md §5.2).')
 
           if [ -n "$NUM" ]; then
             STATE=$(gh issue view "$NUM" --json state --jq .state)
@@ -612,7 +655,7 @@ jobs:
   # delivery without a real failure. docs/design/production-alarm-close.md
   clear:
     name: Close the alarm, if every check passed
-    needs: [cwv, privacy, legal, cardphoto, retention, attestation, secretpins, iam, basemap, access]
+    needs: [cwv, privacy, legal, cardphoto, retention, attestation, secretpins, iam, basemap, access, appchain]
     if: github.event_name == 'schedule' && success()
     runs-on: ubuntu-latest
     steps:

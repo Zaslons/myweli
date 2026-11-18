@@ -22,11 +22,10 @@ import 'refreshing_http_client.dart';
 /// Design: docs/design/pro-artists.md.
 class ApiProArtistService implements ProArtistServiceInterface {
   ApiProArtistService({
-    http.Client? client,
+    required this._client,
     String? baseUrl,
     SessionStore? providerSessionStore,
-  }) : _client = client ?? http.Client(),
-       _baseUrl = baseUrl ?? AppConfig.apiBaseUrl,
+  }) : _baseUrl = baseUrl ?? AppConfig.apiBaseUrl,
        _providerSessionStore = providerSessionStore ?? InMemorySessionStore() {
     _authed = RefreshingHttpClient(
       client: _client,

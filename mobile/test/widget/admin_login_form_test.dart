@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:http/testing.dart';
 import 'package:myweli/models/api_response.dart';
 import 'package:myweli/providers/admin/admin_auth_provider.dart';
 import 'package:myweli/screens/admin/admin_login_screen.dart';
@@ -110,7 +111,11 @@ void main() {
 
 /// No network: counts the sign-ins that reached it and refuses each one.
 class _SpyAdmin extends AdminService {
-  _SpyAdmin() : super(store: InMemorySessionStore());
+  _SpyAdmin()
+    : super(
+        client: MockClient((req) async => fail('unexpected request: $req')),
+        store: InMemorySessionStore(),
+      );
 
   int logins = 0;
 

@@ -3,11 +3,14 @@ import 'dart:async';
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 import 'package:http/http.dart' as http;
 
+import '../net/app_http_transport.dart';
+
 /// CacheManager that enforces an HTTP timeout so downloads don't hang forever.
 class TimeoutCacheManager extends CacheManager {
   TimeoutCacheManager({
     required String cacheKey,
     required Duration requestTimeout,
+    required http.Client client,
     Duration stalePeriod = const Duration(days: 7),
     int maxNrOfCacheObjects = 200,
   }) : super(
@@ -15,21 +18,24 @@ class TimeoutCacheManager extends CacheManager {
            cacheKey,
            stalePeriod: stalePeriod,
            maxNrOfCacheObjects: maxNrOfCacheObjects,
-           fileService: _TimeoutHttpFileService(requestTimeout),
+           fileService: _TimeoutHttpFileService(requestTimeout, client),
          ),
        );
 
   static final TimeoutCacheManager images = TimeoutCacheManager(
     cacheKey: 'myweliImageCache',
     requestTimeout: const Duration(seconds: 12),
+    // Every photo in the app, through the app's one transport
+    // (docs/design/android-http3-transport.md §4.1).
+    client: AppHttpTransport.client,
   );
 }
 
 class _TimeoutHttpFileService extends FileService {
-  _TimeoutHttpFileService(this._timeout);
+  _TimeoutHttpFileService(this._timeout, this._client);
 
   final Duration _timeout;
-  final http.Client _client = http.Client();
+  final http.Client _client;
 
   @override
   Future<FileServiceResponse> get(

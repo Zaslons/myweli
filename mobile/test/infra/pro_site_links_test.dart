@@ -291,7 +291,19 @@ void _scan(
       // Exact, not « empty », because this line is the proof that the scan
       // reads strings at all. A list, because a second base spelled the same
       // would disappear into a Set. The domain changing turns it red; say so here.
-      expect(hits, ['$config: https://myweli.com']);
+      //
+      // The second line is not a page: the photos' host, told to the Android
+      // network stack that it speaks HTTP/3. Nothing opens it; the app reads
+      // photo URLs the server sends (android-http3-transport.md §4.2).
+      // Unordered: each app's closure lists its files in its own order; a
+      // duplicate still counts twice.
+      expect(
+        hits,
+        unorderedEquals([
+          'lib/core/net/net_settings.dart: cdn.myweli.com',
+          '$config: https://myweli.com',
+        ]),
+      );
     });
 
     test(
@@ -325,6 +337,12 @@ void _scan(
         '.swift',
         '.kt',
       };
+      // Android's trust list for our domains names the domain it applies to,
+      // and nothing else may: that one element, and XML comments, which the
+      // resource compiler drops from the app (android-http3-transport.md §5.2).
+      const trustDomain =
+          '<domain includesubdomains="true">myweli.com</domain>';
+      final trustLists = <String>[];
       final read = <String>[];
       final hits = <String>[];
       for (final root in ['ios/Runner', 'android/app/src']) {
@@ -332,14 +350,21 @@ void _scan(
           if (f is! File) continue;
           if (!text.any(f.path.endsWith)) continue;
           read.add(f.path);
-          if (f.readAsStringSync().toLowerCase().contains('myweli.com')) {
-            hits.add(f.path);
+          var body = f.readAsStringSync().toLowerCase();
+          if (f.path.endsWith('/res/xml/network_security_config.xml')) {
+            body = body.replaceAll(RegExp(r'<!--.*?-->', dotAll: true), '');
+            if (trustDomain.allMatches(body).length == 1) {
+              trustLists.add(f.path);
+              body = body.replaceFirst(trustDomain, '');
+            }
           }
+          if (body.contains('myweli.com')) hits.add(f.path);
         }
       }
       // A scan that read nothing would pass: it must have seen these two.
       expect(read, contains('ios/Runner/Info.plist'));
       expect(read, contains('android/app/src/main/AndroidManifest.xml'));
+      expect(trustLists, hasLength(2));
       expect(hits, isEmpty);
     });
   });

@@ -1,10 +1,12 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
+import 'package:http/retry.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
 import '../../core/config/app_config.dart';
 import '../../core/map/carto_basemap.dart';
+import '../../core/net/app_http_transport.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/colors.dart';
 import '../../core/theme/text_styles.dart';
@@ -83,6 +85,10 @@ class _CartoBasemapLayerState extends State<CartoBasemapLayer> {
     setState(() {
       _appId = id;
       _provider = NetworkTileProvider(
+        // The app's one transport, with the retries flutter_map adds to the
+        // client it would otherwise build itself. flutter_map never closes a
+        // client it was given (docs/design/android-http3-transport.md §4.1).
+        httpClient: RetryClient(AppHttpTransport.client),
         headers: _request().headers,
         cachingProvider: const CartoWatermarkRefusingCache(),
       );

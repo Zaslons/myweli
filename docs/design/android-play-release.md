@@ -188,8 +188,8 @@ observed. A line nobody could observe stays UNVERIFIED in the outcome (§11).
 | # | Check | Observed by |
 |---|---|---|
 | 1 | Cold start reaches « Espace Pro » with no crash | screen; no new Sentry issue for `com.myweli.pro@0.0.2+N` |
-| 2 | E-mail code sign-in on a real salon account | the server log: the code-verify request answered 200 with the **Dart** user agent |
-| 3 | « Continuer avec Google », on an existing salon account | `/auth/provider/google` 200 with the Dart user agent; a web sign-in gives `node`. *Corrected 2026-11-13:* this row said `/auth/google`, the client app's endpoint, which the Pro app never calls (`api_auth_service.dart:526`; §2) |
+| 2 | E-mail code sign-in on a real salon account | the server log: the code-verify request answered 200 with the **app's** user agent, `MyWeli/0.0.2+N (com.myweli.pro; Android)`. *Corrected 2026-11-18:* this said the Dart user agent, which the Android app no longer sends since it talks through Cronet ([android-http3-transport.md](android-http3-transport.md) §4.1); with the fallback of that spec it is still Dart's |
+| 3 | « Continuer avec Google », on an existing salon account | `/auth/provider/google` 200 with the app's user agent (row 2); a web sign-in gives `node`. *Corrected 2026-11-13:* this row said `/auth/google`, the client app's endpoint, which the Pro app never calls (`api_auth_service.dart:526`; §2) |
 | 4 | Notifications: the system prompt appears once (Android 13+, after B13.3), the token is registered, a push arrives in the background and in the foreground, a tap opens its screen | the screen, plus the device-token row or its request in the server log |
 | 5 | The map tiles show streets, not « API KEY REQUIRED » | screen |
 | 6 | « Utiliser ma position » in « Profil du salon »: the permission prompt; the « approximate only » choice; denial | screen |
@@ -198,6 +198,16 @@ observed. A line nobody could observe stays UNVERIFIED in the outcome (§11).
 | 9 | External links (support, privacy) open in the browser | screen |
 | 10 | The reference device: Android 9, 2–3 GB of RAM (ROADMAP Part 6). Cold start over 5 runs (`adb shell am start -W`, budget p95 < 3.5 s), the journal scroll (`adb shell dumpsys gfxinfo`, janky frames), no crash after 10 minutes of use | the commands' output |
 | 17 | *Added 2026-11-13.* The R8 (shrinker) mapping reaches Sentry at run time: one Java/Kotlin event of this build whose `debug_meta` carries `{type: proguard, uuid: <U>}`, `<U>` the UUID `release_build.sh` printed for this AAB (§6, decision 135). It is the only runtime proof of the carrier; §6's chain is read from the code. Which event serves (an ANR, a plugin's Java exception) is chosen at step 6: none may happen on its own (UNVERIFIED) | the event's JSON in Sentry |
+
+*Rows 18–22 added 2026-11-18* by [android-http3-transport.md](android-http3-transport.md) §7, the « Pas de connexion » fix. Its trust list for our domains is §5.2 there.
+
+| # | Check | Observed by |
+|---|---|---|
+| 18 | On the owner's Orange CI fibre Wi-Fi, the network of « Pas de connexion »: the first screen loads; sign-in with `revue@myweli.test`; the dashboard and its photos; the map's tiles | screen; the server log shows the app's user agent (row 2) |
+| 19 | On the same Wi-Fi, one gallery photo upload on the review salon: a production write, asked first | the object in R2, read by size |
+| 20 | A Sentry test event carries `net.transport=cronet` | the event's tags in Sentry |
+| 21 | Row 18 again on mobile data, where a phone has a data SIM, and on the old Samsung, whose Android version decides how much the trust list matters there | screen |
+| 22 | An iPhone smoke pass: only Sentry moved on iOS | screen; one Sentry event from the iPhone |
 
 **Rows 11–16** are the Android sign-up's ([pro-android-signup.md](pro-android-signup.md)
 §8.4): a Google sign-up, an e-mail sign-up, an address that already has an

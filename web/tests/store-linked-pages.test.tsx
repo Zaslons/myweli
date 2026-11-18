@@ -326,6 +326,7 @@ describe('the app and this list: every page of ours the app holds, and no other'
   });
 
   it('no other file of the app builds a link to the site', () => {
+    const NOT_PAGES = new Set(['api.myweli.com', 'cdn.myweli.com']);
     const files = dartFiles(LIB);
     // A pin whose walk finds nothing is green about nothing.
     expect(files.length).toBeGreaterThan(300);
@@ -335,8 +336,10 @@ describe('the app and this list: every page of ours the app holds, and no other'
       const source = stripDartComments(readFileSync(file, 'utf-8'));
       if (/siteBaseUrl/.test(source)) offenders.push(`${relative(LIB, file)}: siteBaseUrl`);
       for (const host of hostsOfTheSite(source)) {
-        // The API's host, which no one reads as a page.
-        if (host !== 'api.myweli.com') offenders.push(`${relative(LIB, file)}: ${host}`);
+        // Hosts no one reads as a page: the API's, and the photos' — which the
+        // Android app tells its network stack speaks HTTP/3
+        // (docs/design/android-http3-transport.md §4.2).
+        if (!NOT_PAGES.has(host)) offenders.push(`${relative(LIB, file)}: ${host}`);
       }
     }
     expect(offenders).toEqual([]);

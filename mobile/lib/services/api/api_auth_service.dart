@@ -56,14 +56,13 @@ typedef AppleCredentialProvider =
 
 class ApiAuthService implements AuthServiceInterface {
   ApiAuthService({
-    http.Client? client,
+    required this._client,
     String? baseUrl,
     SessionStore? sessionStore,
     SessionStore? providerSessionStore,
     GoogleIdTokenProvider? googleIdToken,
     AppleCredentialProvider? appleCredential,
-  }) : _client = client ?? http.Client(),
-       _baseUrl = baseUrl ?? AppConfig.apiBaseUrl,
+  }) : _baseUrl = baseUrl ?? AppConfig.apiBaseUrl,
        _sessionStore = sessionStore ?? InMemorySessionStore(),
        _providerSessionStore = providerSessionStore ?? InMemorySessionStore(),
        _googleIdToken = googleIdToken ?? _nativeGoogleIdToken,

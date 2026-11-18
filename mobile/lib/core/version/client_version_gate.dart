@@ -75,9 +75,17 @@ const ClientVersionResult kClientVersionAllowed = (
 ClientVersionResult clientVersionResult = kClientVersionAllowed;
 
 class ClientVersionGate {
-  const ClientVersionGate({this._client, this._packageInfo, this._platform});
+  const ClientVersionGate({
+    required this._client,
+    this._packageInfo,
+    this._platform,
+  });
 
-  final http.Client? _client;
+  /// The app's shared client in production (`AppHttpTransport.client`), a
+  /// fake in tests. Required: a gate that built its own `http.Client()` went
+  /// around the transport, and on Android that is the « Pas de connexion »
+  /// of docs/design/android-http3-transport.md.
+  final http.Client _client;
   final PackageInfo? _packageInfo;
 
   /// Test seam. Production passes nothing and the platform is read from
@@ -129,8 +137,7 @@ class ClientVersionGate {
         },
       );
 
-      final client = _client ?? http.Client();
-      final res = await client.get(uri).timeout(deadline);
+      final res = await _client.get(uri).timeout(deadline);
       if (res.statusCode != 200) return _allow;
 
       final body = jsonDecode(res.body);

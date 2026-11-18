@@ -18,11 +18,10 @@ import 'refreshing_http_client.dart';
 /// audited server-side. Mirrors the ApiProArtistService idiom.
 class ApiProClientsService implements ProClientsServiceInterface {
   ApiProClientsService({
-    http.Client? client,
+    required this._client,
     String? baseUrl,
     SessionStore? providerSessionStore,
-  }) : _client = client ?? http.Client(),
-       _baseUrl = baseUrl ?? AppConfig.apiBaseUrl,
+  }) : _baseUrl = baseUrl ?? AppConfig.apiBaseUrl,
        _providerSessionStore = providerSessionStore ?? InMemorySessionStore() {
     _authed = RefreshingHttpClient(
       client: _client,
