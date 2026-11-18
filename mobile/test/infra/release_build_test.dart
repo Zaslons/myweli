@@ -542,6 +542,132 @@ void main() {
     });
   });
 
+  // docs/design/android-play-release.md §6, §9 — decision 135. Run for real:
+  // the stub `flutter` logs what it was given and leaves a mapping.txt where
+  // AGP writes one, unless STUB_MAPPING=none.
+  //
+  // Java and Kotlin frames reach Sentry minified by R8. Sentry reads them only
+  // with the mapping, and only if the app says which mapping it was built
+  // with: `proguardUuid`, which sentry_flutter copies into the Android SDK
+  // (sentry_native_java_init.dart:219 — null unless the app sets it, and it
+  // erases the manifest's key). So each Android build gets its own UUID as a
+  // define, and the printed upload must name that same UUID.
+  group(
+    'Android: each bundle names its R8 mapping, and the mapping is its own',
+    () {
+      late _ReleaseRepo repo;
+      setUp(() => repo = _ReleaseRepo());
+      tearDown(() => repo.dispose());
+
+      String out(ProcessResult r) => '${r.stdout}${r.stderr}';
+      String? definedUuid(String call) => RegExp(
+        r'--dart-define=SENTRY_PROGUARD_UUID=(\S*)',
+      ).firstMatch(call)?.group(1);
+      String bundleCall() =>
+          repo.flutterCalls.singleWhere((c) => c.contains('build appbundle'));
+      String uploadLines(String o) => o
+          .split('\n')
+          .skipWhile((l) => !l.contains('upload-proguard'))
+          .take(2)
+          .join(' ');
+      File mapping(String flavour) => File(
+        '${repo.work.path}/mobile/build/app/outputs/mapping/'
+        '${flavour}Release/mapping.txt',
+      );
+      File aab(String flavour) => File(
+        '${repo.work.path}/mobile/build/app/outputs/bundle/'
+        '${flavour}Release/app-$flavour-release.aab',
+      );
+
+      test('the printed upload names the UUID THIS build was given, and its '
+          'mapping', () {
+        final r = repo.run('android', 'pro');
+        final o = out(r);
+        expect(r.exitCode, 0, reason: o);
+        final uuid = definedUuid(bundleCall());
+        expect(
+          uuid,
+          matches(
+            RegExp(
+              r'^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}'
+              r'-[0-9a-f]{12}$',
+            ),
+          ),
+          reason: bundleCall(),
+        );
+        final upload = uploadLines(o);
+        expect(upload, contains('sentry-cli upload-proguard'));
+        expect(upload, contains('--uuid $uuid'));
+        expect(
+          upload,
+          contains('mobile/build/app/outputs/mapping/proRelease/mapping.txt'),
+        );
+      });
+
+      test('two builds, two UUIDs — never a constant', () {
+        final first = repo.run('android', 'pro');
+        expect(first.exitCode, 0, reason: out(first));
+        final second = repo.run('android', 'pro');
+        expect(second.exitCode, 0, reason: out(second));
+        final uuids = repo.flutterCalls
+            .where((c) => c.contains('build appbundle'))
+            .map(definedUuid)
+            .toList();
+        expect(uuids, hasLength(2));
+        expect(uuids.first, isNotNull);
+        expect(uuids.first, isNot(uuids.last));
+      });
+
+      test('a build that leaves no mapping is refused, renamed, and prints no '
+          'upload — R8 did not run', () {
+        final r = repo.run('android', 'pro', env: {'STUB_MAPPING': 'none'});
+        final o = out(r);
+        expect(r.exitCode, 1, reason: o);
+        expect(o, contains('left no R8 mapping'));
+        expect(o, isNot(contains('upload-proguard')));
+        expect(o, isNot(contains('debug-files upload')));
+        expect(aab('pro').existsSync(), isFalse, reason: 'left uploadable');
+        expect(File('${aab('pro').path}.refused').existsSync(), isTrue);
+      });
+
+      test('a mapping left by an EARLIER run is never read as this one', () {
+        mapping('pro').parent.createSync(recursive: true);
+        mapping('pro').writeAsStringSync('# yesterday\n');
+        final r = repo.run('android', 'pro', env: {'STUB_MAPPING': 'none'});
+        expect(r.exitCode, 1, reason: out(r));
+        expect(out(r), isNot(contains('upload-proguard')));
+      });
+
+      test('a bundle the TLS gate refuses prints no mapping upload', () {
+        final r = repo.run('android', 'pro', env: {'STUB_AAB': 'vulnerable'});
+        expect(r.exitCode, 1, reason: out(r));
+        expect(out(r), isNot(contains('upload-proguard')));
+      });
+
+      test('iOS: no UUID is passed and no mapping upload is printed', () {
+        final r = repo.run('ios', 'pro');
+        expect(r.exitCode, 0, reason: out(r));
+        final ipa = repo.flutterCalls.singleWhere(
+          (c) => c.contains('build ipa'),
+        );
+        expect(ipa, isNot(contains('SENTRY_PROGUARD_UUID')));
+        expect(out(r), isNot(contains('upload-proguard')));
+      });
+
+      test('the define the script passes is the very name the app reads', () {
+        final r = repo.run('android', 'consumer');
+        expect(r.exitCode, 0, reason: out(r));
+        expect(definedUuid(bundleCall()), isNotNull, reason: bundleCall());
+        expect(
+          File(
+            'lib/core/observability/error_reporting.dart',
+          ).readAsStringSync(),
+          contains("String.fromEnvironment('SENTRY_PROGUARD_UUID')"),
+        );
+      });
+    },
+  );
+
   group('the premise: the two entry points are different apps', () {
     /// If these ever converged, `--target` would stop mattering and the test
     /// above would be pinning a flag with no consequence. Stating the reason
@@ -634,8 +760,12 @@ esac
 echo STUB_NODE_REACHED
 exit "${STUB_NODE_EXIT:-0}"
 ''');
+    // Logs its arguments, one call per line, so a test can read what a build
+    // was GIVEN (`flutterCalls`) — the R8 mapping's UUID, and B0.17's PR A
+    // (pro-android-signup.md P9) after it.
     _stub('flutter', r'''
 echo STUB_FLUTTER_REACHED
+echo "$*" >> "$STUB_LOG/flutter"
 case "$*" in
   *"build ipa"*)
     sleep 1
@@ -655,6 +785,11 @@ case "$*" in
       python3 -I ../tool/verify_android_tls.py --write-fixture \
         "${STUB_AAB:-fixed}" \
         "build/app/outputs/bundle/${flavor}Release/app-$flavor-release.aab"
+    fi
+    # What R8 leaves behind, at AGP's path for the flavour's release.
+    if [ "${STUB_MAPPING:-yes}" != none ]; then
+      mkdir -p "build/app/outputs/mapping/${flavor}Release"
+      printf '# R8 mapping\n' > "build/app/outputs/mapping/${flavor}Release/mapping.txt"
     fi
     ;;
 esac
@@ -685,6 +820,7 @@ exit "${STUB_VALIDATE_EXIT:-0}"
 
   List<String> get gcloudCalls => _log('gcloud');
   List<String> get xcrunCalls => _log('xcrun');
+  List<String> get flutterCalls => _log('flutter');
 
   void commit(String message) {
     File(

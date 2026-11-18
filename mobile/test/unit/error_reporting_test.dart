@@ -125,6 +125,39 @@ void main() {
     );
   });
 
+  // docs/design/android-play-release.md §6 (decision 135). sentry_flutter
+  // copies `proguardUuid` into the Android SDK on every start
+  // (sentry_native_java_init.dart:219), so this field is what tells Sentry
+  // which R8 mapping reads this build's Java and Kotlin frames.
+  // `tool/release_build.sh` passes one per Android build as
+  // SENTRY_PROGUARD_UUID; this suite runs without it.
+  group('the R8 mapping this build was made with', () {
+    test('no define → proguardUuid stays null, never ""', () {
+      final o = SentryFlutterOptions();
+      configureSentry(o);
+      expect(
+        o.proguardUuid,
+        isNull,
+        reason:
+            'an empty string would name a mapping that does not exist; null '
+            'is « none », which is the truth of every iOS and debug build',
+      );
+    });
+
+    test('a UUID given → the options carry that UUID', () {
+      const u = '3f2b8c1e-5d4a-4b6f-9a7e-1c2d3e4f5a6b';
+      final o = SentryFlutterOptions();
+      configureSentry(o, proguardUuid: u);
+      expect(o.proguardUuid, u);
+    });
+
+    test('an empty define is null, a UUID is that UUID', () {
+      expect(proguardUuidFrom(''), isNull);
+      const u = '3f2b8c1e-5d4a-4b6f-9a7e-1c2d3e4f5a6b';
+      expect(proguardUuidFrom(u), u);
+    });
+  });
+
   test('the scrubber drops user, breadcrumbs and request', () {
     // The security-critical half, and the least visible: if it is wrong,
     // names and phone numbers go to a third party and NOTHING notices.

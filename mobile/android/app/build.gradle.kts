@@ -98,13 +98,21 @@ android {
             // alternative was an artifact indistinguishable from a shippable
             // one that the Play Console rejects.
             signingConfig = if (hasUploadKey) signingConfigs.getByName("upload") else null
-            // R8 (`isMinifyEnabled`) is deliberately NOT enabled here. It is the
-            // right thing for a Play release, but its failure mode is runtime —
-            // R8 strips a class reached only reflectively and push, or a plugin,
-            // silently stops working in RELEASE builds only. No gate in this
-            // repo can see that, and it is not something to switch on in a
-            // signing change. Its own slice, with a device run.
-            // docs/design/mobile-store-submission.md §6.
+            // R8 minifies and shrinks every release build (decision 112,
+            // docs/design/android-play-release.md §3.3, §6). Flutter's Gradle
+            // plugin already turns both on, with its own keep rules, unless
+            // `--no-shrink` is passed (FlutterPlugin.kt 216–219 in 3.47.9) —
+            // every Play build so far was R8'd. Written here so a plugin change
+            // cannot turn them off silently; this block runs after the plugin
+            // applies, so it is what wins. Java and Kotlin crash frames are
+            // then renamed: tool/release_build.sh gives each build a mapping
+            // UUID (SENTRY_PROGUARD_UUID) and refuses a build that left no
+            // mapping.txt. Held by test/infra/android_release_r8_test.dart.
+            // R8's risk is at runtime (a class reached only by reflection),
+            // which is why the internal track's device pass covers push and
+            // the plugins (android-play-release.md §5).
+            isMinifyEnabled = true
+            isShrinkResources = true
         }
     }
 }
