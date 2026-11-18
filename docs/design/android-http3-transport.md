@@ -2,14 +2,14 @@
 
 | | |
 |---|---|
-| **Status** | **Draft 2026-11-18** — written on the owner's « Yes, write it ». Nothing is built from it: no code, no dependency change, no console action until the owner answers §10. |
+| **Status** | **Approved 2026-11-18** — the owner answered §10 « Yes, as recommended »: every question as §10 recommends (the answers are under §10). The upload read V-U ran the same day and passed (R10), so the relay the draft proposed is not built. Built in §8's order. Drafted the same day on the owner's « Yes, write it ». |
 | **Owner** | Sadreddine Daher |
 | **Last updated** | 2026-11-18 |
 | **PRD ref / phase** | Reliability and security, cross-cutting · V1 (it blocks the Play release) |
-| **Module** | `mobile/` networking on Android, both apps (Pro and consumer); the Android network security config; the API front-door Worker if §4.5's relay is chosen |
+| **Module** | `mobile/` networking on Android, both apps (Pro and consumer); the Android network security config |
 | **Found by** | Step 6 of [android-play-release.md](android-play-release.md) §4: build 785 from the internal track, on the owner's Galaxy, over the owner's Wi-Fi (Orange CI fibre), 2026-11-18 |
 | **Builds on** | [android-play-release.md](android-play-release.md) · [android-tls-artifact-gate.md](android-tls-artifact-gate.md) (GHSA-frr6-h895-5pxp) · [mobile-flutter-3.47-upgrade.md](mobile-flutter-3.47-upgrade.md) · [backend-r2-presigned-put.md](backend-r2-presigned-put.md) (the upload path) |
-| **Skills checked** | myweli-dev-guardrails · myweli-verification-guardrails · myweli-backend-guardrails (only for §4.5's relay) |
+| **Skills checked** | myweli-dev-guardrails · myweli-verification-guardrails |
 
 Every claim is **read** (observed, with how and when), **sourced** (a link),
 or **inferred** (and from what). Times are UTC, which is also the owner's local
@@ -30,7 +30,8 @@ beyond the Sentry upgrade (§4.6).
 **In scope:**
 - one HTTP transport for both Android apps (§4.1–§4.3);
 - the one place on Android that bypasses it (§4.4);
-- the upload path to R2 (§4.5), confirmed by a device read first;
+- the upload path to R2 (§4.5), read on the device (R10): it works, and
+  nothing in it changes;
 - Sentry 9 → 10, which the transport needs (§4.6);
 - telemetry and guards, so that a fallback or a bypass is seen (§4.7, §7);
 - the certificate-trust gap that moving off `dart:io` opens on Android 7–9
@@ -41,7 +42,8 @@ beyond the Sentry upgrade (§4.6).
   `cupertino_http` (Apple's URLSession, which also speaks HTTP/3) is a
   follow-up with its own spec (§10, Q5).
 - **The website's pages.** Browsers already use HTTP/3 to Cloudflare (R5). Its
-  photo uploads share §4.5's exposure; the relay, if built, serves them too.
+  photo uploads go to the same R2 host, which this network reaches over TCP
+  (R10).
 
 ## 2. What was measured
 
@@ -60,6 +62,7 @@ committed) and a separate probe app; `adb logcat` was read live.
 | R7 | The Mac, a 1,500-byte packet with « don't fragment » to Cloudflare (188.114.96.2, 1.1.1.1) and to 8.8.8.8 | the Orange box (192.168.1.1) answers « frag needed and DF set (MTU 1460) » for every destination; 1,460-byte packets pass. The phone's own probe had learned a path MTU of 1,460 to Cloudflare |
 | R8 | The hosts the apps use (`curl -I`, `dig`, the code on `main` `1854bfc5`) | see the table below |
 | R9 | The certificate chain served (`openssl s_client`) | `api.myweli.com` and `cdn.myweli.com`: leaf → Google Trust Services WE1 → GTS Root R4 → cross-signed by GlobalSign Root CA |
+| R10 | V-U (§4.5), 15:39: a probe app sends a 1 MB `PUT` with an invalid signature to the real upload host, twice through each of the spec's Cronet engine, Cronet over TCP and `dart:io`; first a control call to the API through Cronet and `dart:io` | the controls: Cronet `http/3`, `X25519MLKEM768`, 730 ms; `dart:io` `HandshakeException` after 15.3 s, so the network was failing as in R1. Every `PUT`: R2 answered `400 InvalidArgument`, in 86 to 284 ms, for all three |
 
 The hosts the apps use (R8):
 
@@ -67,7 +70,7 @@ The hosts the apps use (R8):
 |------|-----------------|------|
 | `api.myweli.com` | the API | Cloudflare; `alt-svc: h3` |
 | `cdn.myweli.com` | photos (R2's public bucket) | Cloudflare; no `alt-svc`, but it answered HTTP/3 when hinted (R4) |
-| `<account>.r2.cloudflarestorage.com` | uploads | Cloudflare; answers HTTP/1.1; no `alt-svc` |
+| `<account>.r2.cloudflarestorage.com` | uploads | Cloudflare; answers HTTP/1.1; no `alt-svc`; reached over TCP from this network by all three stacks (R10) |
 | `basemaps.cartocdn.com` | map tiles (CARTO) | Varnish, not Cloudflare |
 | `ingest.de.sentry.io` | crash reports | not Cloudflare |
 
@@ -98,7 +101,9 @@ on it):
 - Apple's network stack recovers, slowly (R6). Android's does not, before
   Cloudflare gives up on the handshake (R1, R3).
 - Why Google's servers work with the same ClientHello (R2) is **not
-  established**.
+  established**. Nor why R2's upload host does (R10), when our proxied
+  hostnames, `api.myweli.com` and `cdn.myweli.com`, do not (R1, R3). The
+  failure is not « every Cloudflare host ».
 
 **What does not depend on the mechanism:**
 - QUIC works on this network (R4, R5), measured end to end in the real app.
@@ -213,7 +218,7 @@ On `main` `1854bfc5` there are two uses:
   `build.gradle.kts` has `consumer` and `pro` only). It stays, allowed by name
   in the guard of §7.
 
-### 4.5 Uploads to R2 — HTTP/3 will not reach them
+### 4.5 Uploads to R2 — read on the device: they work
 
 Gallery photos, KYC documents and deposit screenshots go up as a presigned
 `PUT` straight to `<account>.r2.cloudflarestorage.com` (read:
@@ -223,52 +228,36 @@ Gallery photos, KYC documents and deposit screenshots go up as a presigned
 - **No HTTP/3.** It answered HTTP/1.1 with no `alt-svc` (R8). A QUIC handshake
   to `r2.cloudflarestorage.com` did not complete, while `www.cloudflare.com`'s
   did (research probe).
-- **Post-quantum over TCP.** It agreed to X25519MLKEM768 over TCP: the
-  handshake that fails on this network.
+- **Post-quantum over TCP.** It agreed to X25519MLKEM768 over TCP, from the
+  Mac.
 - **No other host.** Presigned URLs work only on that S3 API host, not on a
   custom domain such as `cdn.myweli.com`
   ([R2 docs](https://developers.cloudflare.com/r2/api/s3/presigned-urls/)).
 
-So an upload from Android on this network is **expected to fail**, with Cronet
-as with `dart:io`. The website's uploads from a phone on the same Wi-Fi may
-fail too. This is inferred, not measured.
+The draft of this spec therefore expected uploads to fail on this network,
+with Cronet as with `dart:io`, and planned a relay. **The read V-U (R10) says
+otherwise:**
+- A probe app on the Galaxy, on the owner's Wi-Fi, sent a 1 MB `PUT` with a
+  deliberately invalid signature to the real upload host, into a bucket that
+  does not exist. R2 refused every one, so nothing was stored.
+- It sent it twice through each transport: the spec's own Cronet engine
+  (§4.1–§4.2; the upload host is not hinted, so Cronet uses TCP), Cronet with
+  QUIC off, and `dart:io`.
+- Every one came back `400 InvalidArgument` in 86 to 284 ms. A refusal from R2
+  means the TLS handshake and the request went through.
+- In the same run, the control call to the API failed through `dart:io` after
+  15.3 s and succeeded through Cronet over HTTP/3. The network was failing as
+  in R1.
 
-**First, the read (V-U):**
-- A probe build on the Galaxy, on the owner's Wi-Fi, sends a `PUT` of about
-  1 MB with a deliberately invalid signature to the real upload host. R2
-  refuses it with a 403, so nothing is stored.
-- It sends it twice: through Cronet and through `dart:io`.
-- A 403 means the transport works. A timeout or handshake failure confirms the
-  expectation.
+So **uploads need no change**. With PR 2 they travel through the shared Cronet
+client over TCP, the path V-U measured. The relay that the draft proposed
+(through the API's front-door Worker) is not built, and Q7 falls away (§10).
 
-**Then, if it fails, a relay on the API's front door (recommended):**
+What V-U does not show: whether R2 read the whole megabyte before it answered.
+The failing step on this network is the handshake (R1, R3), and it passed.
+§7's device row 5 makes one real upload.
 
-`PUT https://api.myweli.com/_upload/<bucket>/<key>?<signed query>` is served
-by the existing Worker (`infra/cloudflare/worker/api-front-door`), which:
-- forwards the request to the fixed R2 host, signature and signed headers
-  unchanged;
-- accepts only `PUT` and only our three buckets;
-- adds no credentials, so R2's signature check stays the only authority;
-- holds no R2 secret.
-
-The app reaches the relay over HTTP/3 (§4.2: the API host is already hinted),
-and the Worker reaches R2 inside Cloudflare. The backend's upload ticket gives
-the relay URL. The cost and limits fit:
-- the body streams through, so the Worker's 10 ms of CPU does not cover the
-  wait;
-- the request body limit is 100 MB on our plan
-  ([limits](https://developers.cloudflare.com/workers/platform/limits/)).
-
-The alternative is a Worker with an R2 binding (`env.BUCKET.put`). It needs an
-upload token of our own, because a binding cannot check a presigned signature.
-That means a new secret and new authorisation code, so it is not recommended.
-
-**The relay is its own addendum** to this spec — backend, Worker and the
-website's uploads with their CORS — built only on the owner's OK after V-U
-(§10, Q7). Until it ships, uploads on this kind of network stay broken. The
-rest of the app works.
-
-Two upload details hold either way:
+Two upload details hold under Cronet:
 - **The whole body is held in memory.** cronet_http reads a request body fully
   before sending it ([source](https://github.com/dart-lang/http/blob/23495b011f/pkgs/cronet_http/lib/src/cronet_client.dart)).
   The upload services already hold the compressed bytes, so nothing changes.
@@ -460,8 +449,8 @@ these rows. On the Galaxy, over Orange fibre, with the internal-track build:
 2. sign-in with `revue@myweli.test`;
 3. the dashboard and photos load;
 4. the map shows tiles with the real key;
-5. after the relay, one gallery upload on the review salon (a production
-   write: asked first);
+5. one gallery upload on the review salon (a production write: asked
+   first);
 6. a Sentry test event arrives tagged `net.transport=cronet`.
 
 Then the same on mobile data where a SIM exists, and on the old Samsung, whose
@@ -473,20 +462,18 @@ fails, and the real config connects.
 
 ## 8. Rollout
 
-1. **The owner answers §10.**
-2. **The read V-U** (§4.5): a probe build on the Galaxy, on the owner's yes.
+1. **The owner answers §10.** Done 2026-11-18.
+2. **The read V-U** (§4.5). Done 2026-11-18: uploads work (R10), so there is
+   no relay and no PR 3.
 3. **PR 1 — Sentry ≥ 10.4.** Both platforms, a clean build of each, the iOS
    release build read (§4.6).
-4. **PR 2 — the transport.** The image fix, the trust anchors (if Q6 is yes),
-   the daily chain check and the guards.
-5. **The relay addendum, then PR 3,** if V-U fails and Q7 is yes.
-6. **The next AAB** (0.0.2, the next build number), built by
-   `tool/release_build.sh android pro` from `main` with every read of step 5.
-   Then the internal track on the owner's yes, and the device pass.
-   - PR 3 can follow in a later build: the rest of the app works without it.
-   - The closed test (step 7) waits for it. A salon that cannot add a photo is
-     a failed test.
-7. **The consumer app** gets the same transport through `main.dart`, and ships
+4. **PR 2 — the transport.** The image fix, the trust anchors (Q6), the daily
+   chain check and the guards.
+5. **The next AAB** (0.0.2, the next build number), built by
+   `tool/release_build.sh android pro` from `main` with every read of step 5
+   of [android-play-release.md](android-play-release.md). Then the internal
+   track on the owner's yes, and the device pass (§7).
+6. **The consumer app** gets the same transport through `main.dart`, and ships
    it with its own first Android build.
 
 Each PR reverts on its own; reverting PR 2 restores today's behaviour.
@@ -524,6 +511,18 @@ Each report is posted only on the owner's yes, with no personal data:
 - **Q7.** If V-U fails, the upload relay on the API's front door (§4.5).
   Recommended: yes, as an addendum before PR 3.
 
+**The owner's answers, 2026-11-18: « Yes, as recommended ».**
+- **Q1:** yes. The design is approved as written.
+- **Q2:** yes. V-U ran the same day (R10): uploads work on this network.
+- **Q3:** yes, both reports. Each text is still shown to the owner before it
+  is posted: one is a public comment, the other a ticket from the owner's
+  Cloudflare account.
+- **Q4:** yes. Devices without Play Services keep `dart:io`, and the telemetry
+  counts them.
+- **Q5:** later. The iPhone spec waits until after the Play release.
+- **Q6:** yes. The trust anchors and the daily chain check ship in PR 2.
+- **Q7:** yes, if V-U failed. It passed, so there is no relay and no PR 3.
+
 ## 11. Not confirmed
 
 Each of these is either read in §7's device pass or stays stated here:
@@ -532,12 +531,10 @@ Each of these is either read in §7's device pass or stays stated here:
   for our case.
 - How Google's eMudhra update reached Android 7–9, and whether Sectigo revoked
   the cross-signs.
-- Whether the real `<account>.r2.cloudflarestorage.com` host behaves like the
-  bare one probed. V-U reads it.
-- That Workers can forward a presigned `PUT` to the S3 API host unchanged. The
-  relay addendum's first test reads it.
-- Why `www.google.com` succeeds over `dart:io` on this network while Cloudflare
-  fails.
+- Why `www.google.com` and R2's upload host succeed over `dart:io` on this
+  network while our proxied hostnames fail.
+- That R2 reads a whole upload body on this network (V-U's answer came early).
+  §7's device row 5 makes one real upload.
 - Whether the native Sentry SDKs' own traffic is affected on this network.
   Inferred no (not Cloudflare); the device pass's test event reads it.
 - Embedded Cronet's size per ABI at the current version.
