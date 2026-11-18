@@ -13,8 +13,10 @@ import '../../core/utils/logger.dart';
 import '../../core/utils/salon_id.dart';
 import '../../models/api_response.dart';
 import '../../models/pro_membership.dart';
+import '../../models/pro_sign_up_fields.dart';
 import '../../models/provider_login_result.dart';
 import '../../models/provider_session.dart';
+import '../../models/provider_sign_up_result.dart';
 import '../../models/provider_user.dart';
 import '../../models/salon_facts.dart';
 import '../../models/salon_market.dart';
@@ -658,6 +660,124 @@ class ApiAuthService implements AuthServiceInterface {
       'code': code,
     },
   };
+
+  // ---- Android sign-up (docs/design/pro-android-signup.md §2.1, §5.2) -------
+  //
+  // Called only from the fenced Android code: the iOS program never reaches
+  // these, so its compiler drops them (§5.2, measured by the iOS read, §8.3).
+  // `_messageFor` is not changed: a refusal keeps the sign-in's sentence, and
+  // the sign-up screen words the codes that are its own.
+
+  @override
+  Future<ProviderSignUpResult> signUpProviderWithGoogle(
+    ProSignUpFields fields,
+  ) async {
+    try {
+      final idToken = await _googleIdToken();
+      if (idToken == null) {
+        return const ProviderSignUpFailure(
+          'Connexion Google impossible.',
+          code: 'no_id_token',
+          stage: ProSignUpStage.check,
+        );
+      }
+      // One token, both calls: an ID token has no replay cache (§2.1).
+      return await _signUpWith(
+        GoogleInvitationProof(idToken),
+        fields,
+        () => _post('/auth/provider/google', {'idToken': idToken}),
+      );
+    } on GoogleSignInException catch (e) {
+      if (e.code == GoogleSignInExceptionCode.canceled) {
+        return const ProviderSignUpFailure(
+          '',
+          code: 'cancelled',
+          stage: ProSignUpStage.check,
+        );
+      }
+      _reportSignInFailure('google', e.code.name);
+      return const ProviderSignUpFailure(
+        'Connexion Google impossible.',
+        code: 'google_failed',
+        stage: ProSignUpStage.check,
+      );
+    } catch (_) {
+      _reportSignInFailure('google', 'non_plugin_error');
+      return const ProviderSignUpFailure(
+        'Connexion Google impossible.',
+        code: 'google_failed',
+        stage: ProSignUpStage.check,
+      );
+    }
+  }
+
+  @override
+  Future<ProviderSignUpResult> signUpProviderWithEmail(
+    String email,
+    String code,
+    ProSignUpFields fields,
+  ) => _signUpWith(
+    EmailOtpInvitationProof(email, code),
+    fields,
+    // A verify with a correct code and no account answers 404 and leaves the
+    // code usable; register consumes it only when it inserts the account.
+    () => _post('/auth/provider/email/otp/verify', {
+      'email': email,
+      'code': code,
+    }),
+  );
+
+  /// The sign-in check with [proof], then — on `provider_not_found` only —
+  /// register with the same [proof].
+  Future<ProviderSignUpResult> _signUpWith(
+    InvitationProof proof,
+    ProSignUpFields fields,
+    Future<http.Response?> Function() check,
+  ) async {
+    final login = await _providerLoginResultFrom(await check(), proof: proof);
+    final provider = login.provider;
+    if (provider != null) return ProviderSignUpSignedIn(provider);
+    final held = login.proof;
+    if (login.hasInvitations && held != null) {
+      return ProviderSignUpInvited(login.invitations, held);
+    }
+    if (login.code != 'provider_not_found') {
+      return ProviderSignUpFailure(
+        login.error ?? kGenericErrorMessage,
+        code: login.code,
+        stage: ProSignUpStage.check,
+      );
+    }
+    return registerProvider(proof, fields);
+  }
+
+  @override
+  Future<ProviderSignUpResult> registerProvider(
+    InvitationProof proof,
+    ProSignUpFields fields,
+  ) async {
+    final res = await _post('/auth/provider/register', {
+      ...fields.toJson(),
+      ..._proofBody(proof),
+    });
+    if (res == null) {
+      return const ProviderSignUpFailure(
+        kNoConnectionMessage,
+        code: 'network',
+        stage: ProSignUpStage.register,
+      );
+    }
+    if (res.statusCode == 201) {
+      final provider = await _adoptProviderSession(_decode(res.body));
+      return ProviderSignUpCreated(provider);
+    }
+    final refused = _refused<void>(res);
+    return ProviderSignUpFailure(
+      refused.error ?? kGenericErrorMessage,
+      code: refused.code,
+      stage: ProSignUpStage.register,
+    );
+  }
 
   @override
   Future<ProviderUser?> getCurrentProvider() async {

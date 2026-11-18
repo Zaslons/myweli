@@ -8,6 +8,9 @@ import 'package:myweli/core/di/dependency_injection.dart';
 import 'package:myweli/core/push/push_registration.dart';
 import 'package:myweli/core/router/pro_router.dart';
 import 'package:myweli/core/utils/salon_id.dart';
+import 'package:myweli/models/pro_sign_up_fields.dart';
+import 'package:myweli/models/provider_sign_up_result.dart';
+import 'package:myweli/models/provider_user.dart';
 import 'package:myweli/providers/pro_auth_provider.dart';
 import 'package:myweli/services/mock/mock_auth_service.dart';
 import 'package:myweli/services/mock/mock_data.dart';
@@ -116,6 +119,28 @@ void main() {
 
     expect(salon.resets, greaterThan(before.$1));
     expect(account.resets, before.$2 + 1);
+  });
+
+  test('an Android sign-up resets them too: it goes through _setProvider '
+      '(docs/design/pro-android-signup.md §8.2)', () async {
+    final pro = await signedInAs('jean@salon-excellence.test');
+    await pro.logout();
+    final before = (salon.resets, account.resets);
+    auth.proGoogleEmail = 'scope.signup@salon.test';
+    addTearDown(() => auth.proGoogleEmail = MockAuthService.mockProGoogleEmail);
+
+    final result = await pro.signUpSalonWithGoogle(
+      const ProSignUpFields(
+        businessName: 'Salon Neuf',
+        businessType: BusinessType.barber,
+        phoneNumber: '+2250707010101',
+        address: 'Rue 12',
+      ),
+    );
+
+    expect(result, isA<ProviderSignUpCreated>());
+    expect(salon.resets, greaterThan(before.$1));
+    expect(account.resets, greaterThan(before.$2));
   });
 
   test(
