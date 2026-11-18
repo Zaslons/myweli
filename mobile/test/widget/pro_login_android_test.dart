@@ -1,11 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/date_symbol_data_local.dart';
+import 'package:myweli/core/constants/app_constants.dart';
 import 'package:myweli/core/constants/failure_messages.dart';
 import 'package:myweli/core/di/dependency_injection.dart';
 import 'package:myweli/core/push/push_registration.dart';
+import 'package:myweli/core/utils/salon_id.dart';
+import 'package:myweli/models/api_response.dart';
 import 'package:myweli/models/provider.dart';
 import 'package:myweli/models/provider_user.dart';
+import 'package:myweli/services/interfaces/pro_service_interface.dart';
 import 'package:myweli/services/mock/mock_auth_service.dart';
 import 'package:myweli/services/mock/mock_data.dart';
 import 'package:myweli/services/mock/mock_device_registration_service.dart';
@@ -27,9 +31,22 @@ import '../support/rejoin.dart';
 /// §2.2, §8.1 P4, P7's twin, P16). The iOS sign-in — no block — stays held by
 /// `pro_login_only_test`, `pro_login_invitations_test` and the
 /// `pro_login_w360_x2` golden.
+/// The mock, with a salon that can stop answering (P16).
+class _ScriptedPro extends MockProService {
+  bool salonDown = false;
+
+  @override
+  Future<ApiResponse<MyProviderInfo>> getMyProvider({SalonId? salonId}) async {
+    if (!salonDown) return super.getMyProvider(salonId: salonId);
+    await Future<void>.delayed(AppConstants.mockDelay);
+    return ApiResponse.error(kNoConnectionMessage, code: 'network');
+  }
+}
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   final mock = ScriptedSignUpAuth();
+  final pro = _ScriptedPro();
   final h = SignUpHarness();
   late final List<ProviderUser> seededAccounts;
   late final List<Provider> seededSalons;
@@ -41,7 +58,7 @@ void main() {
     seededSalons = List.of(MockData.providers);
     serviceLocator
       ..authService = mock
-      ..proService = MockProService()
+      ..proService = pro
       ..proTeamService = MockProTeamService()
       ..proPushRegistration = PushRegistration(
         push: MockPushNotificationService(),
@@ -61,6 +78,7 @@ void main() {
       ..clear()
       ..addAll(seededSalons);
     mock.reset();
+    pro.salonDown = false;
     mock.proGoogleEmail = freshEmail();
     await mock.logoutProvider();
   });
@@ -303,29 +321,28 @@ void main() {
   });
 
   testWidgets('P16: the sign-up is pushed, so the salon gate reads the '
-      'sign-in and keeps the form while the new salon loads', (tester) async {
+      'sign-in — S3\'s notice shows even while the salon cannot be loaded', (
+    tester,
+  ) async {
     tall(tester);
+    mock.proGoogleEmail = 'jean@salon-excellence.test';
     await start(tester, gate: true);
     await openSignUp(tester);
     await fill(tester);
+    // The account exists; its salon does not answer.
+    pro.salonDown = true;
 
     await tapOn(tester, find.text('Continuer avec Google'));
-    var sawGate = false;
-    for (var i = 0; i < 40; i++) {
-      await tester.pump(const Duration(milliseconds: 50));
-      if (find.byType(ProSalonUnavailableScreen).evaluate().isNotEmpty) {
-        sawGate = true;
-      }
-      if (find.text('ACCUEIL').evaluate().isNotEmpty) break;
-      expect(
-        find.text('Nom de l’entreprise'),
-        findsOneWidget,
-        reason: 'the form stays until « Accueil »',
-      );
-    }
     await settle(tester);
 
-    expect(sawGate, isFalse);
-    expect(find.text('ACCUEIL'), findsOneWidget);
+    expect(h.auth.isAuthenticated, isTrue, reason: 'the premise: signed in');
+    expect(h.auth.needsSalon, isTrue, reason: 'the premise: salon unknown');
+    // Gone to, the page's own path is not a launch page: the gate would
+    // stand in for it with « Impossible de charger votre salon ».
+    expect(find.byType(ProSalonUnavailableScreen), findsNothing);
+    expect(
+      find.textContaining('Le salon saisi n’a pas été créé.'),
+      findsOneWidget,
+    );
   });
 }
