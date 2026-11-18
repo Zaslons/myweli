@@ -13,13 +13,16 @@ void main() {
   const api = 'https://api.myweli.com';
 
   /// A client that answers 200 and counts what it served.
+  /// Like cronet_http's client, it refuses every request once closed.
   ({http.Client client, List<Uri> served}) recording(String name) {
     final served = <Uri>[];
     return (
-      client: MockClient((req) async {
-        served.add(req.url);
-        return http.Response(name, 200);
-      }),
+      client: _ClosableClient(
+        MockClient((req) async {
+          served.add(req.url);
+          return http.Response(name, 200);
+        }),
+      ),
       served: served,
     );
   }
@@ -219,6 +222,8 @@ void main() {
     final t = transport(isAndroid: true, buildCronet: (_) => cronet.client)
       ..sharedClient.close();
     expect(await get(t.sharedClient), 'cronet');
+    // After the engine exists too: a close passed on would end the app's
+    // network, as it ends cronet_http's.
     t.sharedClient.close();
     expect(await get(t.sharedClient), 'cronet');
   });
@@ -292,6 +297,25 @@ void main() {
       );
     });
   });
+}
+
+/// A client that, like `CronetClient`, refuses every request once closed.
+class _ClosableClient extends http.BaseClient {
+  _ClosableClient(this._inner);
+
+  final http.Client _inner;
+  bool _closed = false;
+
+  @override
+  Future<http.StreamedResponse> send(http.BaseRequest request) {
+    if (_closed) {
+      throw http.ClientException('Client is already closed.', request.url);
+    }
+    return _inner.send(request);
+  }
+
+  @override
+  void close() => _closed = true;
 }
 
 /// Stands in for jni's JThrowable, whose text is the Java exception's.
