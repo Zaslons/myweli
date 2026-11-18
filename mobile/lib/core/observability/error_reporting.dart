@@ -23,8 +23,9 @@ const String _environment = String.fromEnvironment(
 /// `tool/release_build.sh` gives every Android store build its own UUID and
 /// prints the `sentry-cli upload-proguard` line that files the build's
 /// `mapping.txt` under it. sentry_flutter copies this value into the Android
-/// SDK on every start (`sentry_native_java_init.dart:219`, sentry_flutter
-/// 9.26.0) — unconditionally, so a manifest key would be erased by it — and
+/// SDK on every start (`sentry_native_java_init.dart:237`, sentry_flutter
+/// 10.5.0; line 219 in 9.26.0) — unconditionally, so a manifest key would be
+/// erased by it — and
 /// Sentry uses it to read Java and Kotlin frames that R8 renamed. Empty on
 /// iOS, in debug runs and in every test.
 const String _proguardUuid = String.fromEnvironment('SENTRY_PROGUARD_UUID');
@@ -101,9 +102,9 @@ void configureSentry(
     // someone's name and phone number. Set explicitly rather than trusting
     // a default that could change.
     ..attachScreenshot = false
-    // Experimental in the SDK; the risk it guards against is not. Kept
-    // explicit rather than trusting a default.
-    // ignore: experimental_member_use
+    // Off by default in the SDK, and set anyway: a default can change, and
+    // the risk it guards against does not. (No longer marked experimental
+    // since sentry_flutter 10.)
     ..attachViewHierarchy = false
     // **No release-health sessions.** The SDK defaults this to true, which
     // sends a session envelope on EVERY launch — data leaving the phone when

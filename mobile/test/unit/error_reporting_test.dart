@@ -127,7 +127,7 @@ void main() {
 
   // docs/design/android-play-release.md §6 (decision 135). sentry_flutter
   // copies `proguardUuid` into the Android SDK on every start
-  // (sentry_native_java_init.dart:219), so this field is what tells Sentry
+  // (sentry_native_java_init.dart:237, 10.5.0), so this field tells Sentry
   // which R8 mapping reads this build's Java and Kotlin frames.
   // `tool/release_build.sh` passes one per Android build as
   // SENTRY_PROGUARD_UUID; this suite runs without it.

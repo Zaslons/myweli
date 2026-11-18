@@ -91,7 +91,8 @@ pinning.
 **Not `dart:io`:**
 - **Sentry.** sentry_flutter 9.26.0 hands envelopes to sentry-android through
   `FileSystemTransport` (read). That sentry-android then uses Android's own
-  stack is inferred.
+  stack is inferred. *Still so in 10.5.0 (`sentry_flutter.dart:154`, re-read
+  2026-11-18).*
 - **FCM and Google sign-in** are native, but the Google ID token is then sent
   to our API (first row).
 - **url_launcher** opens the browser.

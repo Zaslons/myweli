@@ -551,8 +551,8 @@ void main() {
   // Java and Kotlin frames reach Sentry minified by R8. Sentry reads them only
   // with the mapping, and only if the app says which mapping it was built
   // with: `proguardUuid`, which sentry_flutter copies into the Android SDK
-  // (sentry_native_java_init.dart:219 — null unless the app sets it, and it
-  // erases the manifest's key). So each Android build gets its own UUID as a
+  // (sentry_native_java_init.dart:237 in 10.5.0 — null unless the app sets
+  // it, and it erases the manifest's key). So each Android build gets its own UUID as a
   // define, and the printed upload must name that same UUID.
   group(
     'Android: each bundle names its R8 mapping, and the mapping is its own',

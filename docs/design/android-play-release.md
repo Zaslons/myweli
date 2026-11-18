@@ -245,7 +245,10 @@ they have, and LAUNCH §6.3's box stays open with the gap named.
     Gradle plugin writes, fills a `null` back afterwards, and this app has no
     such plugin. So Java and Kotlin events would carry no proguard image.
   - **Decided 2026-11-13 (decision 135, « Build setting »): the Dart option
-    carries the UUID.** It is the very value line 219 copies.
+    carries the UUID.** It is the very value line 219 copies. *Re-read
+    2026-11-18 for sentry_flutter 10.5.0
+    ([android-http3-transport.md](android-http3-transport.md) §4.6): the same
+    unconditional call is now line 237, so the decision holds.*
     - `tool/release_build.sh`, **Android branch only**: one UUID per build;
       `--dart-define=SENTRY_PROGUARD_UUID=<uuid>` on the
       `flutter build appbundle` line, never in `COMMON`, which iOS shares; any

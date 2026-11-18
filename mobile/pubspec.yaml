@@ -135,7 +135,10 @@ dependencies:
   flutter_local_notifications: ^22.3.3
   # The re-enable path when notifications are denied at the OS level.
   app_settings: ^9.0.1
-  sentry_flutter: ^9.0.0
+  # 10.4 is the floor: cronet_http needs jni ^1.1 (sentry_flutter 10.2+), and
+  # 10.4 lowers Android's minSdk back to our 24. On iOS it comes through Swift
+  # Package Manager, as 9 already did. docs/design/android-http3-transport.md §4.6.
+  sentry_flutter: ^10.5.0
   package_info_plus: ^10.2.2
 
 dev_dependencies:
