@@ -6,6 +6,7 @@ import 'package:myweli/core/config/app_config.dart';
 import 'package:myweli/core/constants/failure_messages.dart';
 import 'package:myweli/core/utils/team_error_messages.dart';
 
+import '../support/android_sign_up_copy.dart';
 import '../support/dart_source.dart';
 
 /// The review notes — the texts the owner pastes into App Store Connect
@@ -511,6 +512,38 @@ void main() {
       ]) {
         expect(witnesses, contains(Uri.parse(url).path), reason: url);
       }
+    });
+
+    test('the IPA check expects Android\'s sign-up absent — the same list as '
+        'the code\'s pins (pro-android-signup.md §8.1, P13)', () {
+      final gone = scriptList('gone_android_signup');
+      expect(gone, [...androidSignUpOnlyCopy, ...androidSignUpOnlyPaths]);
+      // What must be absent is never what must be present.
+      for (final witnesses in [
+        scriptList('witnesses_round2'),
+        scriptList('new'),
+      ]) {
+        expect(gone.toSet().intersection(witnesses.toSet()), isEmpty);
+      }
+      // The list is read, and counted: a list the script ignores passes.
+      final check = RegExp(
+        r'^bad = \[p for p in (.*) if n\(p\)\]',
+        multiLine: true,
+      ).allMatches(doc).map((m) => m.group(1)).toList();
+      expect(check, contains('gone_b011 + gone_round2 + gone_android_signup'));
+      final total =
+          scriptList('gone_b011').length +
+          scriptList('gone_round2').length +
+          gone.length;
+      expect(
+        doc,
+        contains(
+          '| phrases de la connexion seule (2026-11-03 ; avec l\'inscription '
+          'Android, 2026-11-18) | `OK : $total phrases à 0, 6 témoins '
+          'présents`',
+        ),
+        reason: 'the expected count in §11.3\'s table',
+      );
     });
 
     test('the reply says the film ends on a frame that is not a capture', () {

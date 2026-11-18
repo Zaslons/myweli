@@ -20,6 +20,7 @@ import 'package:myweli/widgets/common/inline_feedback.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../support/android_sign_up_copy.dart';
 import '../support/dart_source.dart';
 import '../support/pro_closure.dart';
 import '../support/pump_app.dart';
@@ -145,6 +146,25 @@ void main() {
             if (e.value.contains(phrase)) '${e.key}: « $phrase »',
       ];
       expect(hits, isEmpty);
+    });
+
+    test('none of the Android sign-up\'s words is in the iOS app — and each '
+        'is in the Android app\'s, or this proves nothing '
+        '(pro-android-signup.md §2.6 a, §8.1 P2)', () {
+      final android = proClosure('lib/main_pro_android.dart');
+      final missing = [
+        for (final phrase in androidSignUpOnlyCopy)
+          if (!android.values.any((c) => asCopy(c).contains(asCopy(phrase))))
+            phrase,
+      ];
+      expect(missing, isEmpty, reason: 'a phrase the Android app never says');
+      final hits = <String>[
+        for (final e in code().entries)
+          for (final phrase in androidSignUpOnlyCopy)
+            if (asCopy(e.value).contains(asCopy(phrase)))
+              '${e.key}: « $phrase »',
+      ];
+      expect(hits, isEmpty, reason: 'the iOS binary would carry them');
     });
 
     test('the Pro surfaces never say « Créer un compte »', () {
