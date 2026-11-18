@@ -2,9 +2,9 @@
 
 | | |
 |---|---|
-| **Status** | **Approved 2026-11-12 (the owner answered §11's six questions: decisions 116–123).** Not built. Reviewed three times by independent readers on 2026-11-12, every finding folded in: six readers (code, architecture, backend, design system, store documents, completeness) found 61; three found 26 on the revision; two found 18 on the third. **A prerequisite came out of the answers:** salons now wait for the owner's approval before going public (decision 120), a new feature with its own spec (B0.18), built before the closed test |
+| **Status** | **Approved 2026-11-12 (the owner answered §11's six questions: decisions 116–123).** Not built. Reviewed three times by independent readers on 2026-11-12, every finding folded in: six readers (code, architecture, backend, design system, store documents, completeness) found 61; three found 26 on the revision; two found 18 on the third. **A prerequisite came out of the answers:** salons now wait for the owner's approval before going public (decision 120), a new feature with its own spec (B0.18), built before the closed test. *(2026-11-18: **PR A built** on `feat/pro-android-fence`, not merged — §12.)* |
 | **Owner** | Sadreddine Daher |
-| **Last updated** | 2026-11-13 (dated notes: decisions 132, 134 and 135 at §2.7, §9.1, §9.4 and §11; decision 117 at §9.3; the audit's correction at §5.5; then B0.18's Pro-app PR: « Demander la mise en ligne » at §2.7, §6.2 and P12) |
+| **Last updated** | 2026-11-18 (§12: PR A built). Before that, 2026-11-13 (dated notes: decisions 132, 134 and 135 at §2.7, §9.1, §9.4 and §11; decision 117 at §9.3; the audit's correction at §5.5; then B0.18's Pro-app PR: « Demander la mise en ligne » at §2.7, §6.2 and P12) |
 | **PRD ref / phase** | FR-PRO-AUTH-001 (Pro sign-in and sign-up) · V1 |
 | **BACKLOG** | B0.10 (the Android release); this spec's decisions are 116 and up (§11) |
 | **Related** | [pro-app-login-only.md](pro-app-login-only.md) (decisions 38–43: sign-in only, both platforms) · [app-review-round-2.md](app-review-round-2.md) (decision 71: the website link went) · [android-play-release.md](android-play-release.md) (decisions 110–115: the release order this slice enters) · [play-store-forms.md](play-store-forms.md) (the listing, Data safety, the closed test) · [app-store-forms.md](app-store-forms.md) §11.3 (the iOS pre-upload read) · [pro-companion-path.md](pro-companion-path.md) (the app never sells, on either platform) · [web-pro-registration.md](web-pro-registration.md) (the website's sign-up) · [pro-auth-social.md](pro-auth-social.md) · [team-access-r3-app.md](team-access-r3-app.md) (the invitations bridge) |
@@ -1042,3 +1042,52 @@ typed at step 7.
 - the testers' countries (§9.3);
 - whether Play's robot can pass a Google sign-in (§6.5);
 - the snapshot's growth (§7).
+
+---
+
+## 12. Build log
+
+**2026-11-18, PR A — the fence with nothing behind it** (`feat/pro-android-fence`, from `main` at
+`a866bf08`, after the R8 PR #805; not merged). No behaviour change on either app.
+
+- **Built as §5.1–§5.3 and §9.1 say:**
+  - `lib/main_pro.dart`: `main()` → `runProApp({extensions})`, today's body, `ProRouter.install(extensions)`
+    first; the sign-in's extras go into `proAppProviders(auth, loginExtras:)`, only when there are some.
+  - `lib/main_pro_android.dart`: `runProApp(extensions: proAndroidExtensionsFor(defaultTargetPlatform))`.
+  - `lib/screens/provider/android/pro_android_extensions.dart`: **null on every platform in PR A**; PR B
+    returns Android's routes and block (P5's Android half, PR B).
+  - `lib/core/pro_app_extensions.dart`: `ProAppExtensions`, `ProLoginExtras` (one block builder), shapes only.
+  - `ProRouter`: `build(extensions)` (pure), `install(extensions)` (`StateError` after a read or a second
+    install), `router` (installed, or `build(null)`); `launchPaths` unchanged.
+  - `lib/core/router/pro_landing.dart`: `proLandingRoute(auth, returnTo)`, `_finish`'s rule moved out.
+  - The sign-in: the slot at the bottom (never on « Invitations »); the pair a `provider_not_found`
+    verify used, kept from the call, dropped by a new code; `_formFault` silent on that code when a
+    block shows it; the reset (options step, `clearFeedback()`, banners kept); the revoked-notice
+    pickup at notify time while another page is on top (S3b).
+  - `tool/release_build.sh`: `pro/android` → `lib/main_pro_android.dart`, `pro/ios` → `lib/main_pro.dart`.
+- **Pins:** P1 (`pro_android_fence_test.dart`, with `proClosure(entry)`), P2's scope (the iOS closure, with
+  a vacuity check), P5's iOS half, P9 (run for real, the target read from the `flutter` stub's log that
+  #805 added), P10 (`route_literals_test` knows `pro_android`, which shares `pro`'s exemptions), P14
+  (`test/support/app_roots.dart`: a root that delegates to `runProApp` is checked through `main_pro.dart`),
+  P15 untouched and green. **Beyond §8:** `pro_router_install_test`, `pro_landing_route_test` (each landing
+  resolves on the real router, since the scanner no longer sees them), `pro_login_slot_test` (8 cases on a
+  test block), `pro_app_extensions_wiring_test` (the stores carry the block; `runProApp` installs before
+  `ProAuthProvider()`, `_startPush` and `runApp`).
+- **Red first:** every new behaviour test failed on stubs before the code (21 failures); the cases green on
+  the stubs are held by mutations. **Mutations on committed code: 21, all red** — the fence imported from
+  `pro_router.dart` (the spec's own red), extensions on iOS, the Android entry building its own app,
+  `install` accepting a second call, `build` dropping the routes, `install` after the provider, the block
+  dropped by `runProApp` or the stores, each platform given the other's entry, staff before rejoin,
+  `_finish` hard-coded, the block on « Invitations », the red sentence repeated, the pair read from the
+  field, the reset keeping the refusal or the code step, no pickup, `clearFeedback` forgetting nothing, a
+  sign-up phrase in a shared file. One survived its first run — a new code kept the old pair (A19) — and
+  got its test.
+- **Run here:** `flutter analyze --fatal-infos --fatal-warnings` 0; `dart format` clean; the full
+  `flutter test` 3,782 passed, 60 skipped (goldens, Linux only — `pro_login_w360_x2` is CI's to compare,
+  and must stay byte-identical).
+- **The baseline iOS read (§9.1, PR 1's proof):** an unsigned `flutter build ios --release --no-codesign
+  --flavor pro -t lib/main_pro.dart` with the API defines, in this worktree (§5.6), `com.myweli.pro` 0.0.2;
+  app-store-forms §11.3's two lists on its `App.framework/App`: **22 phrases at 0, 9 witnesses; 14 at 0,
+  6 witnesses** — build 781's numbers, read the same way the same day; `/pro/register` and
+  `/auth/provider/register` 0, as on 781. The reads' control: an empty binary fails them.
+
