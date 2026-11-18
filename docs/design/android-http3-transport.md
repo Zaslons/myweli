@@ -287,9 +287,12 @@ What 10 changes for us
   and a `beforeSend` that throws drops the event.
 - **iOS changes too.** Deployment target 15.0, which ours already is (read:
   `project.pbxproj`, `Podfile`). Sentry Cocoa moves to v9. **sentry_flutter
-  ships through Swift Package Manager only.** Our iOS project uses CocoaPods
-  for everything else, so PR 1 must prove an iOS release build, and its
-  binary reads (app-store-forms §11.3), before it merges.
+  10 ships through Swift Package Manager only.** Ours already comes that way:
+  9.26.0 has a `Package.swift`, the Runner project links
+  `FlutterGeneratedPluginSwiftPackage`, and `Podfile.lock` holds only
+  `add_2_calendar` and Flutter (read 2026-11-18). PR 1 still proves an iOS
+  release build, and its binary reads (app-store-forms §11.3), before it
+  merges.
 - **Crash reports do not use the Dart client.** On Android and iOS, events go
   to the native SDK (`FileSystemTransport`), not through `http.Client`
   ([source](https://github.com/getsentry/sentry-dart/blob/10.4.0/packages/flutter/lib/src/sentry_flutter.dart)).
