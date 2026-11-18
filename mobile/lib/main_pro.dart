@@ -179,8 +179,17 @@ PushMessageHandler proPushHandler(
 /// The Pro app's stores, above every route and alive for the whole app.
 /// A function rather than a list inline in [MyweliProApp] so the tests mount
 /// the exact wiring the app runs (test/widget/pro_account_switch_test.dart).
-List<SingleChildWidget> proAppProviders(ProAuthProvider auth) => [
+///
+/// [loginExtras] is the sign-in's block (Android, B0.17): provided only when
+/// there is one, so the iOS app's tree is exactly today's — the sign-in reads
+/// it as `ProLoginExtras?`, which is null without a provider.
+List<SingleChildWidget> proAppProviders(
+  ProAuthProvider auth, {
+  ProLoginExtras? loginExtras,
+}) => [
   ChangeNotifierProvider.value(value: auth),
+  if (loginExtras case final extras?)
+    Provider<ProLoginExtras?>.value(value: extras),
   // Consumer listing data — read-only, powers « Aperçu de ma page »
   // (docs/design/pro-salon-lifecycle.md B5).
   ChangeNotifierProvider(create: (_) => ProviderProvider()),
@@ -250,19 +259,13 @@ class MyweliProApp extends StatelessWidget {
 
   final ProAuthProvider auth;
 
-  /// The sign-in's block (Android, B0.17). Provided only when there is one,
-  /// so the iOS app's tree is exactly today's; the sign-in reads it as
-  /// `ProLoginExtras?`, which is null without a provider.
+  /// The sign-in's block (Android, B0.17) — see [proAppProviders].
   final ProLoginExtras? loginExtras;
 
   @override
   Widget build(BuildContext context) {
     return MultiProvider(
-      providers: [
-        ...proAppProviders(auth),
-        if (loginExtras case final extras?)
-          Provider<ProLoginExtras?>.value(value: extras),
-      ],
+      providers: proAppProviders(auth, loginExtras: loginExtras),
       // Above MaterialApp so the whole tree rebuilds when iOS Reduce Motion is
       // toggled mid-session — nothing in the framework reads that flag (§9, A8).
       child: ReduceMotionObserver(
