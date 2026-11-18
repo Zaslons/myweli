@@ -233,6 +233,23 @@ final u = _uri('/providers').replace(queryParameters: {'page': '1'});
       expect(mains, entries.values.toSet());
     });
 
+    test('the Android router holds the sign-up; the iOS one does not '
+        '(pro-android-signup.md §8.1, P10)', () {
+      expect(
+        routeTemplates(routers['pro_android']!),
+        contains('/pro/register'),
+      );
+      expect(
+        routeTemplates(ProRouter.router),
+        isNot(contains('/pro/register')),
+      );
+      expect(
+        resolves('/pro/register', routeTemplates(routers['pro']!)),
+        isFalse,
+        reason: 'CONTROL: the iOS app has no sign-up',
+      );
+    });
+
     test('the routers are read whole, nested routes included', () {
       expect(
         routeTemplates(AppRouter.router),

@@ -45,7 +45,31 @@ import '../support/pro_closure.dart';
 /// - A new package that opens a page by itself. The `url_launcher` importers and
 ///   the `webview` check see those two; the next one has another name.
 void main() {
-  final closure = proClosure();
+  _scan('the iOS app (lib/main_pro.dart)', proClosure());
+  // pro-android-signup.md §8.1, P6: the Android app — the iOS app plus the
+  // fenced sign-up — under the same bans, still only the five pages. Its
+  // sign-up's consent line reads two of them through the shared widget.
+  _scan(
+    'the Android app (lib/main_pro_android.dart)',
+    proClosure('lib/main_pro_android.dart'),
+    extraReads: const {
+      'privacyUrl': ['lib/widgets/common/legal_consent_text.dart'],
+      'termsUrl': ['lib/widgets/common/legal_consent_text.dart'],
+    },
+    extraCalls: const {
+      'lib/widgets/common/legal_consent_text.dart': 1, // the two documents
+    },
+  );
+}
+
+/// Every pin below, over one app's closure. [extraReads] and [extraCalls] are
+/// what that app reads or opens beyond the iOS app's.
+void _scan(
+  String app,
+  Map<String, String> closure, {
+  Map<String, List<String>> extraReads = const {},
+  Map<String, int> extraCalls = const {},
+}) => group(app, () {
   const config = 'lib/core/config/app_config.dart';
   const login = 'lib/screens/provider/auth/pro_login_screen.dart';
 
@@ -182,7 +206,7 @@ void main() {
             }
           }
         }
-        return files;
+        return {for (final e in files.entries) e.key: e.value..sort()};
       }
 
       const about = 'lib/screens/profile/about_screen.dart';
@@ -193,7 +217,10 @@ void main() {
         'accountDeletionUrl': [about],
         'supportUrl': ['lib/screens/provider/profile/pro_profile_screen.dart'],
       };
-      expect(found(appConfigRead), expected, reason: 'where each one is read');
+      expect(found(appConfigRead), {
+        for (final e in expected.entries)
+          e.key: [...e.value, ...?extraReads[e.key]]..sort(),
+      }, reason: 'where each one is read');
       expect(found(open), expected, reason: 'what is done with it');
     });
 
@@ -336,6 +363,7 @@ void main() {
         'lib/screens/providers/provider_detail_screen.dart': 1, // wa.me
         'lib/screens/update/update_required_app.dart': 1, // the store
         'lib/widgets/common/update_available_banner.dart': 1, // the store
+        ...extraCalls,
       });
     });
 
@@ -367,4 +395,4 @@ void main() {
       );
     });
   });
-}
+});

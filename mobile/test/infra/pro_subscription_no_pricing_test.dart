@@ -18,9 +18,10 @@ import '../support/dart_source.dart';
 /// **Then, the choice itself.** The owner decided on 2026-10-05 that
 /// MyWeli Pro ships as a « free stand-alone companion app to a paid web based
 /// tool »: no purchasing, and no call to action to purchase outside the app.
-/// So the offer picker left the app — on iOS AND Android, because Google Play's
-/// payments policy has the same steering rule and one behaviour is one thing to
-/// keep honest. This file used to pin « Choisir » as something that MUST stay,
+/// So the offer picker left the app — no selling, on any platform: Google
+/// Play's payments policy has the same steering rule. (Platforms may differ in
+/// other ways: Android signs salons up, iOS does not — never in what they sell;
+/// docs/design/pro-android-signup.md §6.2.) This file used to pin « Choisir » as something that MUST stay,
 /// because choosing was the only way a salon's trial started and a salon
 /// without an offer could not go live. That is no longer true: the server
 /// starts the trial at the salon's first successful publish — and, since
@@ -146,8 +147,8 @@ void main() {
     });
 
     test('the store-policy branch is gone, not just unused', () {
-      // The fix is no plan choice on EITHER platform, so a platform switch
-      // has nothing left to decide — its return would mean one store sells.
+      // No selling, on any platform: a switch on what is sold has nothing
+      // left to decide — its return would mean one store sells.
       expect(File('lib/core/config/store_policy.dart').existsSync(), isFalse);
       final hits = [
         for (final f in Directory('lib').listSync(recursive: true))
@@ -158,6 +159,46 @@ void main() {
       ];
       expect(hits, isEmpty, reason: '$hits');
     });
+  });
+
+  test('the Android sign-up names no money, no offer and no site '
+      '(pro-android-signup.md §6.2, R4; §8.1 P11)', () {
+    // Google Play forbids sign-up flows that lead to a payment outside Play:
+    // nothing from E1 to « Accueil » may speak of one. The consent line's two
+    // links come from a shared widget through AppConfig, so they are not
+    // here (decision 122 keeps them; pro_site_links_test holds them).
+    const fence = 'lib/screens/provider/android/';
+    final fenced = {
+      for (final e in readCode().entries)
+        if (e.key.startsWith(fence)) e.key: asCopy(e.value).toLowerCase(),
+    };
+    expect(
+      fenced.keys,
+      containsAll([
+        '${fence}pro_android_extensions.dart',
+        '${fence}pro_sign_up_entry.dart',
+        '${fence}pro_sign_up_screen.dart',
+      ]),
+      reason: 'the scan no longer reads the fenced files',
+    );
+    const banned = [
+      'gratuit',
+      'essai',
+      'offre',
+      'offert',
+      'fcfa',
+      'prix',
+      'tarif',
+      'abonnement',
+      '/mois',
+      'myweli.com',
+    ];
+    final hits = [
+      for (final e in fenced.entries)
+        for (final word in banned)
+          if (e.value.contains(word)) '${e.key}: « $word »',
+    ];
+    expect(hits, isEmpty);
   });
 
   group('the comment stripper', () {

@@ -653,7 +653,8 @@ class MockAuthService implements AuthServiceInterface {
         stage: ProSignUpStage.check,
       );
     }
-    return _register(proof, fields);
+    // A second call, with its own latency — as on the server.
+    return registerProvider(proof, fields);
   }
 
   @override
