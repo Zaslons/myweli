@@ -59,7 +59,7 @@ dependencies:
   provider: ^6.1.1
 
   # Navigation
-  go_router: ^17.5.0
+  go_router: ^18.1.4
 
   # Maps & Location
   flutter_map: ^8.3.2
