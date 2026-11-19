@@ -4,7 +4,7 @@
 |---|---|
 | **Status** | **Approved 2026-11-18** — the owner answered §10 « Yes, as recommended »: every question as §10 recommends (the answers are under §10). The upload read V-U ran the same day and passed (R10), so the relay the draft proposed is not built. Built in §8's order. Drafted the same day on the owner's « Yes, write it ». **Amended the same day while building PR 2:** the trust list of §5.2 gains Sectigo (Q8) and loses two roots no longer trusted for websites; §4.1 records what the build added. *(2026-11-19: the spec merged in #808 (`b859067a`), PR 1 in #809 (`8486451a`) and PR 2 in #810 (`e8ec333c`), all on 2026-11-18. Build 788 carries them, on the internal track; on the owner's Galaxy over Orange fibre, §7's device reads passed except the Sentry event, which waits for a first one (§8, step 5).)* |
 | **Owner** | Sadreddine Daher |
-| **Last updated** | 2026-11-19 (§8: steps 3 to 5 done; §11: the uploads read on the device). Before that, 2026-11-18 |
+| **Last updated** | 2026-11-19 (§5.2: the chain check's first scheduled run). Also 2026-11-19 (§8: steps 3 to 5 done; §11: the uploads read on the device). Before that, 2026-11-18 |
 | **PRD ref / phase** | Reliability and security, cross-cutting · V1 (it blocks the Play release) |
 | **Module** | `mobile/` networking on Android, both apps (Pro and consumer); the Android network security config |
 | **Found by** | Step 6 of [android-play-release.md](android-play-release.md) §4: build 785 from the internal track, on the owner's Galaxy, over the owner's Wi-Fi (Orange CI fibre), 2026-11-18 |
@@ -454,7 +454,10 @@ Two guards cover it:
   against exactly the bundled files, with no system store, and is red when a
   host cannot be read. `mobile/test/infra/app_trust_chain_check_test.dart`
   runs the real script against a local TLS server, both ways (in `mobile/`,
-  since any file under `backend/` redeploys staging on merge).
+  since any file under `backend/` redeploys staging on merge). *2026-11-19,
+  its first scheduled run* (run 44549038281, 14:55 UTC, on `f17270ea`):
+  `api.myweli.com` and `cdn.myweli.com` both « OK — issued by … CN=WE1, ends
+  in … CN=GTS Root R4 », against the 14 bundled roots.
 - **Optionally, a fixed CA.** An Advanced Certificate with a chosen CA (about
   $10 a month) makes the list one CA family. This is not recommended now; the
   daily check is enough to start.

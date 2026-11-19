@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | **2026-11-19 : l'inscription revient dans l'app Android (B0.17, décisions 116 à 123)** — la description, les instructions des relecteurs, la sécurité des données et le test fermé ; ce qui a changé est au §0.3. **2026-11-11 : mis à jour après la sortie iOS (décisions 110 à 115)** — l'ordre de la sortie Android, du build à la production, est dans [android-play-release.md](android-play-release.md) ; ce qui a changé ici est au §0.2. **Ré-audité le 2026-10-28 (BACKLOG B0.10)** contre le binaire, la politique publiée, l'étiquette App Store relue ce jour-là et les règles Play en vigueur. **MyWeli Pro seule pour l'instant** (décision 51) ; la saisie se fait dans le volet navigateur, formulaire par formulaire, montré au propriétaire avant chaque enregistrement (décision 53) ; les images, que le volet ne peut pas joindre, importées dans Chrome. **Dans la console le 2026-10-28 : tout le « Contenu de l'application » et la fiche, images comprises, enregistrés et relus ; rien envoyé pour examen (§0.1).** Historique : rédigé 2026-08-28 ; corrigé 2026-09-24 (libellés de connexion, adresse et numéro Mobile Money) ; 2026-10-05 (plus de choix d'offre dans l'app Pro Android) ; 2026-10-13 (texte d'accès amendé, verrou de suppression du compte démo) ; **2026-11-14 (B0.19) : l'URL de suppression devient `https://myweli.com/pro/suppression-compte`, en ligne et lue ce jour-là (§4) ; rien n'est encore saisi dans la console, c'est l'étape 7 d'android-play-release.** |
+| **Status** | **2026-11-19, dans la console (l'étape 7 d'[android-play-release.md](android-play-release.md)) : la description, les instructions des relecteurs et la Sécurité des données enregistrées et relues ; le statut de professionnel déclaré pour le compte, puis pour MyWeli Pro et MyWeli ; l'e-mail public du développeur devient `support@myweli.com` ; rien n'est envoyé pour examen (§0.4).** **2026-11-19 : l'inscription revient dans l'app Android (B0.17, décisions 116 à 123)** — la description, les instructions des relecteurs, la sécurité des données et le test fermé ; ce qui a changé est au §0.3. **2026-11-11 : mis à jour après la sortie iOS (décisions 110 à 115)** — l'ordre de la sortie Android, du build à la production, est dans [android-play-release.md](android-play-release.md) ; ce qui a changé ici est au §0.2. **Ré-audité le 2026-10-28 (BACKLOG B0.10)** contre le binaire, la politique publiée, l'étiquette App Store relue ce jour-là et les règles Play en vigueur. **MyWeli Pro seule pour l'instant** (décision 51) ; la saisie se fait dans le volet navigateur, formulaire par formulaire, montré au propriétaire avant chaque enregistrement (décision 53) ; les images, que le volet ne peut pas joindre, importées dans Chrome. **Dans la console le 2026-10-28 : tout le « Contenu de l'application » et la fiche, images comprises, enregistrés et relus ; rien envoyé pour examen (§0.1).** Historique : rédigé 2026-08-28 ; corrigé 2026-09-24 (libellés de connexion, adresse et numéro Mobile Money) ; 2026-10-05 (plus de choix d'offre dans l'app Pro Android) ; 2026-10-13 (texte d'accès amendé, verrou de suppression du compte démo) ; **2026-11-14 (B0.19) : l'URL de suppression devient `https://myweli.com/pro/suppression-compte`, en ligne et lue ce jour-là (§4) ; rien n'est encore saisi dans la console, c'est l'étape 7 d'android-play-release.** |
 | **Portée** | **MyWeli Pro** (`com.myweli.pro`) maintenant. MyWeli (`com.myweli.app`) au §8, à ré-auditer avant sa soumission. |
 | **Source de vérité** | La politique de confidentialité publiée (`/politique-confidentialite`) et le binaire — un formulaire qui les contredit est un rejet ET une exposition légale (LAUNCH.md §6.3) |
 | **Règle** | Chaque réponse ci-dessous est dérivée du code, du binaire ou de la politique, jamais inventée. En cas de doute en saisissant : STOP, on vérifie. |
@@ -114,6 +114,7 @@ d'être enregistré, puis relu.
       *(Note du 2026-11-14, sans réécrire ce relevé : cette page est celle des
       comptes clients ; l'URL à saisir pour MyWeli Pro est désormais
       `https://myweli.com/pro/suppression-compte` (B0.19, §4), à l'étape 7.)*
+      *(Saisie le 2026-11-19, §0.4.)*
     - Aperçu relu : « Aucune donnée partagée avec des tiers ».
 - **Paramètres de la fiche** : catégorie **Professionnel**, e-mail
   `support@myweli.com`, site `https://myweli.com`, pas de téléphone.
@@ -125,7 +126,8 @@ d'être enregistré, puis relu.
   - **Textes** : nom, description courte, description complète (29/30, 70/80,
     996/4000). Chacun est identique au §1, empreinte SHA-256 comparée dans la
     page. *(2026-11-11 : la description complète du §1 a changé, décision 113 ;
-    celle de la console est encore l'ancienne.)*
+    celle de la console est encore l'ancienne.)* *(Remplacée dans la console
+    le 2026-11-19, §0.4.)*
   - **Images** : l'icône, la bannière et les 8 captures du §1.2–§1.3,
     importées par Claude dans Chrome (le volet navigateur ne peut pas joindre
     de fichier), sur la demande du propriétaire.
@@ -205,7 +207,94 @@ connexion seule. Ce qui change ici (la PR C de cette spec, §9.2 là-bas) :
 
 **La console garde les anciennes réponses** jusqu'à l'étape 7
 d'[android-play-release.md](android-play-release.md), sur le oui du
-propriétaire.
+propriétaire. *(Saisies le 2026-11-19, §0.4.)*
+
+## 0.4 · Dans la console, le 2026-11-19 — l'étape 7
+
+Saisi dans le volet navigateur, le propriétaire connecté, sur son oui pour
+chaque formulaire. Chaque formulaire est relu après rechargement de la page.
+Avant la première saisie, le propriétaire a dit avoir relu les deux pages
+d'aide de Play que demande l'étape 7 (la politique des paiements et l'aide
+10281818).
+
+- **La fiche (fr-FR), description complète** : le texte du §1, 1 100
+  caractères (996 avant), SHA-256 `f06e5d7e…35335bdf`, identique au §1 de
+  `main` (`f17270ea`). La « Déclaration relative aux éléments d'IA », reposée
+  à l'enregistrement : « Ne pas signaler les éléments » (décision 59).
+- **Informations de connexion** : le texte du §2, 478 caractères sur 500 (463
+  avant), SHA-256 `93a54201…c4cbcdd0`, identique au §2. L'identifiant, le mot
+  de passe (jamais lu), la case « accès complet » et les tests automatiques ne
+  changent pas.
+- **Sécurité des données** : quatre changements, chacun relu dans sa fenêtre :
+  1. l'URL de suppression devient `https://myweli.com/pro/suppression-compte` ;
+  2. « Adresse » devient obligatoire ;
+  3. « Numéro de téléphone » devient obligatoire et gagne « Gestion des
+     comptes » ;
+  4. « Historique des recherches » gagne « Prévention des fraudes, sécurité et
+     conformité », et reste facultatif.
+  - **L'aperçu de Play, relu ligne à ligne** : les 15 types du §4, « Aucune
+    donnée partagée avec des tiers », le chiffrement en transit, la
+    suppression possible.
+  - **Relu à côté des deux pages en ligne**, `/politique-confidentialite` et
+    `/pro/suppression-compte` (200 toutes deux, mises à jour le 14 novembre) :
+    les trois racontent la même histoire. Rien n'est vendu ni loué, et
+    aucun tiers ne reçoit de données pour ses propres fins ; le téléphone
+    sert à créer et sécuriser le compte ; les recherches faites dans « Clients » restent
+    dans le journal de l'équipe, sans durée fixée ; la page de suppression
+    nomme « MyWeli Pro — Gestion de salon », le nom de la fiche (§7).
+  - « Contenu de l'application » affiche la Sécurité des données « Prête à
+    être envoyée pour examen », modifiée le 19 nov. 2026.
+- **L'e-mail public du développeur devient `support@myweli.com`**
+  (décision 149). Il se règle dans Détails du compte → « Coordonnées » →
+  « Adresse e-mail du développeur » : c'est la seule coordonnée de cet onglet
+  que les utilisateurs voient, le nom, l'e-mail et le téléphone de contact
+  restant privés. Google a envoyé un code à cette adresse, saisi par le
+  propriétaire. Relu sur une page rechargée : `support@myweli.com`,
+  « Adresse e-mail validée ». Avant l'enregistrement, la même lecture montrait
+  encore l'ancienne adresse.
+- **Le statut de professionnel du compte : « Professionnel »** (décision 115).
+  - Le parcours : Détails du compte → « À propos de vous » → « Déclarez votre
+    statut de professionnel » → « Il s'agit d'un compte professionnel » → un
+    écran qui fait valider par SMS le téléphone à afficher (le numéro et le
+    code, saisis par le propriétaire) → l'écran de relecture.
+  - **L'écran de relecture** : le statut, le nom légal et l'adresse du profil
+    de paiement Google, `support@myweli.com`, le téléphone (+225). Deux cases,
+    cochées par le propriétaire : l'autorisation d'afficher ces informations
+    (avec le retrait possible du profil et des apps si Google ne peut pas le
+    valider) et l'engagement à ne proposer que des produits ou services
+    conformes aux lois locales. **Aucun document n'est demandé**, ni registre
+    du commerce ni pièce : l'aide 17594752 dit cette déclaration distincte de
+    la vérification d'identité du compte.
+  - « Enregistrer » : « Statut de professionnel enregistré ». Relu après
+    rechargement : « Professionnel », et le bandeau « Déclarez votre statut »
+    a disparu.
+  - **Ce qui sera affiché**, selon cet écran : partout, sous « Assistance
+    pour l'appli », le nom légal, l'e-mail, l'adresse et le téléphone ; dans
+    l'EEE et au Royaume-Uni seulement, sous « À propos du fournisseur », le
+    statut et l'engagement. À partir du 2027-03-01, selon l'aide 17594752.
+- **Le statut de professionnel de chaque app** (« Contenu de l'application »
+  → « Statut de professionnel et conditions d'utilisation au niveau de
+  l'appli »), **pour MyWeli Pro et pour MyWeli** (décision 150) : « Oui, mon
+  statut de professionnel s'applique à cette appli », déjà choisi par héritage
+  du compte, et les conditions d'utilisation `https://myweli.com/cgu`. Chacun
+  relu après rechargement.
+  - `/cgu` est en ligne (200, mise à jour le 14 novembre) et a une section
+    « 7. Pour les professionnels ». L'écran d'inscription Android de l'app Pro
+    y renvoie (`LegalConsentText`, `AppConfig.termsUrl`). La page nomme
+    « l'application et le site MyWeli », jamais « MyWeli Pro ».
+- **La localisation précise : toujours aucun formulaire** dans le « Contenu
+  de l'application » de MyWeli Pro, avec le build 788 sur la piste interne
+  (§5).
+- **Rien n'est envoyé pour examen.** Après chaque enregistrement, la console
+  propose « Vue d'ensemble de la publication » ; réponse : « Pas maintenant ».
+  - MyWeli Pro : « Envoyer 9 modifications pour examen », les 8 d'avant et le
+    statut de professionnel de l'app ; non cliqué. Le statut de chaque app
+    part donc avec la première demande d'examen (étape 8).
+  - MyWeli : deux modifications attendent, la fiche et le statut de
+    professionnel ; « Envoyer l'appli pour examen » reste verrouillé par son
+    tableau de bord.
+- **Pas encore lu** : « Validation des développeurs Android », listé dans
+  « Gérer le compte ».
 
 ## 1 · Fiche du Play Store (Store listing) — MyWeli Pro
 
@@ -449,7 +538,8 @@ façon éphémère seulement.
 > ([web-privacy-pro-deletion.md](web-privacy-pro-deletion.md) §5). **La
 > console garde l'ancienne réponse** : elle gagne cette finalité à l'étape 7,
 > sur le oui du propriétaire. L'étiquette App Store déclare la même donnée
-> (décision 144, app-store-forms §7.3).
+> (décision 144, app-store-forms §7.3). *(2026-11-19 : la console a cette
+> finalité, avec les trois autres changements de ce jour, §0.4.)*
 
 **Non collectées**, et pourquoi :
 
@@ -493,8 +583,8 @@ crée : elle reste vraie (relue dans le code de la page le 2026-11-19).
 | COVID-19 (si la console la propose encore) | **Non** | |
 | Informations de connexion | le §2 | |
 | Déclarations de permissions (photos, alarmes exactes, service au premier plan, localisation en arrière-plan…) | **aucune n'est due** | aucune de ces permissions dans le manifeste fusionné (§0) |
-| **Localisation précise** (`ACCESS_FINE_LOCATION`) — *nouvelle, obligatoire le 2027-01-27 (annonce de Google du 2026-10-29)* | **à remplir** à l'étape 7 d'[android-play-release.md](android-play-release.md), une fois le formulaire lu. La justification : « Utiliser ma position », dans « Profil du salon », est une action ponctuelle lancée par l'utilisateur ; le point devient la position publique du salon sur sa page et sa carte ; une position approximative le placerait à des kilomètres ; le bouton de localisation d'Android n'existe qu'à partir d'Android 17 | Google : l'app qui garde `ACCESS_FINE_LOCATION` doit justifier « why coarse location or the location button is insufficient » ; nous ciblons l'API 36. L'emplacement du formulaire et ses questions ne sont pas encore lus (même document, §7.1) |
-| **Statut de professionnel** (le compte, puis chaque app) — *avant le 2027-02-01* | **Professionnel** (décision 115), **confirmé par le propriétaire le 2026-11-11** (« Rester professionnel »), en sachant que, pour un compte personnel, Google affiche alors son numéro de téléphone et son adresse, partout dans le monde, à partir du 2027-03-01 | aide Google 17594752 ; même document, §3.6 et §7.2. Sans déclaration : blocage des mises à jour et retrait du Play Store dans le monde entier |
+| **Localisation précise** (`ACCESS_FINE_LOCATION`) — *nouvelle, obligatoire le 2027-01-27 (annonce de Google du 2026-10-29)* | **à remplir** à l'étape 7 d'[android-play-release.md](android-play-release.md), une fois le formulaire lu. La justification : « Utiliser ma position », dans « Profil du salon », est une action ponctuelle lancée par l'utilisateur ; le point devient la position publique du salon sur sa page et sa carte ; une position approximative le placerait à des kilomètres ; le bouton de localisation d'Android n'existe qu'à partir d'Android 17 | Google : l'app qui garde `ACCESS_FINE_LOCATION` doit justifier « why coarse location or the location button is insufficient » ; nous ciblons l'API 36. L'emplacement du formulaire et ses questions ne sont pas encore lus (même document, §7.1). *2026-11-19 : toujours aucun formulaire dans la console (§0.4).* |
+| **Statut de professionnel** (le compte, puis chaque app) — *avant le 2027-02-01* | **Professionnel** (décision 115), **confirmé par le propriétaire le 2026-11-11** (« Rester professionnel »), en sachant que, pour un compte personnel, Google affiche alors son numéro de téléphone et son adresse, partout dans le monde, à partir du 2027-03-01. **Déclaré le 2026-11-19 (§0.4)** : le compte, puis MyWeli Pro et MyWeli (décision 150), avec les conditions d'utilisation `https://myweli.com/cgu` ; l'e-mail affiché est `support@myweli.com` (décision 149) | aide Google 17594752 ; même document, §3.6 et §7.2. Sans déclaration : blocage des mises à jour et retrait du Play Store dans le monde entier |
 
 ---
 
@@ -769,10 +859,17 @@ Feedback or a bug? Write to support@myweli.com (English is fine), or leave priva
 1. Chaque formulaire est relu à l'écran avant d'être enregistré ; à la fin,
    l'aperçu de la Sécurité des données est relu contre la politique.
 2. LAUNCH §6.3 : « Data safety form completed » se coche alors, avec la date.
+   *(2026-11-19 : le formulaire est rempli et relu (§0.4). La case reste
+   ouverte : elle dit aussi « consistent with the iOS privacy answers ». Or
+   l'étiquette App Store ne déclare « Search History » qu'après l'étape du
+   propriétaire de la décision 144 (app-store-forms §7.3), qu'aucune lecture
+   n'a encore constatée.)*
 3. **La page de suppression de compte doit nommer l'app ou le développeur
    exactement comme la fiche** (aide Play 13327111). Elle dit « MyWeli » et
    couvre les professionnels. Le nom de développeur du compte Play est à
-   comparer pendant la saisie.
+   comparer pendant la saisie. *(2026-11-19 : l'URL saisie est désormais
+   `/pro/suppression-compte`, qui nomme « MyWeli Pro — Gestion de salon »,
+   le nom de la fiche mot pour mot (§0.4).)*
 
 ---
 

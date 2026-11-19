@@ -1,0 +1,28 @@
+- 🟡 **MyWeli Pro dans la console Play : les textes, la Sécurité des données et le statut de professionnel saisis et relus ; rien n’est envoyé pour examen (documentation · console Play · 2026-11-19 — BACKLOG B0.10 ; décisions 149 et 150).** Non fusionné : branche `docs/step7-console-records`, créée depuis `main` (`f17270ea`). Cette PR ne fait que consigner : aucun code ne change, rien n’est construit ni déployé. Ce qu’elle consigne a été saisi dans la console Play le même jour, l’étape 7 d’[android-play-release.md](../../design/android-play-release.md).
+  - **Comment :** dans le volet navigateur, le propriétaire connecté. Chaque formulaire est montré au propriétaire, enregistré sur son oui, puis relu après rechargement de la page.
+  - **Ce qui est saisi** ([play-store-forms.md](../../design/play-store-forms.md) §0.4) :
+    - **la description de la fiche** (1 100 caractères) et **les instructions des relecteurs** (478 sur 500), chacune identique au texte du document, comparée par empreinte SHA-256 ;
+    - **la Sécurité des données**, quatre changements :
+      - l’adresse de la page de suppression des comptes Pro ;
+      - l’adresse et le téléphone deviennent obligatoires ;
+      - l’historique des recherches gagne la finalité « Prévention des fraudes, sécurité et conformité » ;
+      - l’aperçu de Play est relu à côté de la politique de confidentialité et de la page de suppression en ligne ;
+    - **l’e-mail public du développeur** devient `support@myweli.com` (décision 149). Le statut de professionnel aurait publié l’adresse Gmail personnelle du propriétaire, ce que la décision 115 n’avait pas dit ;
+    - **le statut de professionnel** :
+      - le compte est déclaré « Professionnel », sans document demandé ;
+      - MyWeli Pro et MyWeli le confirment, avec les conditions `https://myweli.com/cgu` (décision 150).
+  - **Ce qui ne bouge pas :**
+    - rien n’est envoyé pour examen : MyWeli Pro attend à « Envoyer 9 modifications pour examen » ;
+    - la déclaration de localisation précise n’a toujours pas de formulaire dans la console.
+  - **Le même jour :** le contrôle quotidien de la chaîne de certificats de l’app Android (#810) a tourné pour la première fois à l’heure prévue, vert : `api.myweli.com` et `cdn.myweli.com` finissent sur une racine que l’app embarque.
+  - **Les documents :**
+    - play-store-forms §0.4, et des notes datées aux §0.1, §0.3, §4, §5 et §7 ;
+    - android-play-release : l’étape 7, les §3.6, §7.1, §7.2 et §10, O4 et le journal du §11 ;
+    - android-http3-transport §5.2 ;
+    - LAUNCH §6.3 : les trois cases Play restent ouvertes, chacune avec la raison ;
+    - le BACKLOG (B0.10, décisions 149 et 150), l’index des specs ;
+    - l’entrée de #813 passe au vert.
+  - **Reste :**
+    - la déclaration de localisation précise, dès que la console la propose (avant le 2027-01-27) ;
+    - l’étape 8, le test fermé et la première demande d’examen, sur un autre oui du propriétaire ;
+    - une phrase des conditions d’utilisation qui nomme MyWeli Pro, sur le site ; elle ne bloque rien.
