@@ -1542,10 +1542,52 @@ firebase_messaging 16.7.1, flutter_local_notifications 22.3.3, app_settings 9.0.
 `Package.resolved` ; `mobile/android` et `mobile/assets` inchangés. `altool --validate-app` : « VERIFY
 SUCCEEDED with no errors », donc pas d'ITMS-90208 (O2 de
 [mobile-flutter-3.47-upgrade.md](mobile-flutter-3.47-upgrade.md)). IPA de 27 700 855 octets, archive
-`Runner-pro-781.xcarchive`. **Pas envoyé** : l'envoi à App Store Connect, puis les symboles et la
+`Runner-pro-781.xcarchive`. ~~**Pas envoyé**~~ *(envoyé le 2026-11-17 : le paragraphe suivant)* : l'envoi à App Store Connect, puis les symboles et la
 release Sentry (§12), attendent le oui du propriétaire ; la soumission aussi, avec les deux questions
 de classification par âge, la déclaration « Search History », les « Nouveautés » et le « What to Test ».
 La passe du §11.6 sur ce build est aussi la première de Flutter 3.47.9 sur un appareil.
+
+**Le 781 envoyé, le 2026-11-17**, sur le « Yes, upload build 781 » du propriétaire : delivery
+`49d2d967-39b6-4b6e-9ac3-51e32f9a4ee6`, qui est aussi l'identifiant du build, `uploadedDate` 23:06:55 UTC.
+Relu par l'API : traité **`VALID`**, **`buildBundles.locales = ["fr"]`**, chiffrement non exempt `false`,
+iOS 15.0 au minimum. *`altool` a journalisé des connexions refusées (-1004) pendant l'attente, comme pour
+le 719 : l'état final est celui lu ensuite par l'API.* Sentry (§12) : les symboles qui manquaient,
+envoyés ; le serveur liste les cinq identifiants de débogage iOS (App, Runner, Flutter, add_2_calendar,
+objective_c) ; la release `com.myweli.pro@0.0.2+781`, créée avec ses commits jusqu'à `29daa5ed`. Puis, sur
+le « Yes, as written » du propriétaire : le « What to Test » fr-FR écrit depuis le bloc ci-dessous
+(2 708 caractères), relu à l'identique ; « Équipe MyWeli » ne contient plus que le 781 (le 719 retiré),
+`IN_BETA_TESTING` ; **pas** ajouté à « Testeurs externes » (`READY_FOR_BETA_SUBMISSION`). **Pas soumis** :
+la passe du §11.6 sur un iPhone d'abord (le propriétaire : « later »), puis les deux questions de
+classification par âge, la déclaration « Search History » et les « Nouveautés ».
+
+**What to Test du 781** (fr-FR, approuvé par le propriétaire le 2026-11-17 ; remplace celui du 719) :
+
+```text
+Ce build est la 0.0.2 (781), sur Flutter 3.47.9. Profil → « À propos » : « Version 0.0.2 (781) ». Contre la production, dans cet ordre.
+
+Nouveau dans la 0.0.2
+1. Ouverture : « MyWeli Pro », un tour complet du logo, puis l’app. Le chargeur (listes, tirer pour actualiser) joue sans saut.
+2. VoiceOver : le titre de chaque écran est annoncé comme en-tête.
+3. Compte neuf : sur myweli.com/pro/inscription, s’inscrire avec Apple (« Masquer mon adresse e-mail »), puis « Continuer avec Apple » dans l’app → « Accueil ». Remplir la fiche, le point sur la carte, 3 prestations, les horaires. « Acompte & annulation » : activer, enregistrer, puis désactiver, enregistrer.
+4. Galerie : Photos du salon → « Ajouter » → « Galerie » → 4 photos d’un coup : « Envoi 2 sur 4… », puis « 4 photos ajoutées. ».
+5. KYC : Profil → « Vérification » → une image, puis un PDF.
+6. « Demander la mise en ligne » : « Demande envoyée. Nous vous préviendrons de la décision. », puis « En cours de validation » et « Demande envoyée le … ». Le salon reste un brouillon ; « Mon abonnement » : « Pas encore d’offre active ».
+7. Console, « Salons à valider » : refuser avec « Salon de test ». Sur l’iPhone, la notification « Mise en ligne de … refusée » ; dans l’app, « Mise en ligne refusée », « Ce salon est un salon de test : il ne sera pas mis en ligne. », et plus de bouton. Un e-mail de MyWeli arrive aussi, par l’adresse masquée.
+8. Supprimer ce compte : Profil → « Supprimer mon compte » → SUPPRIMER.
+
+Compte démo
+9. Le bouton de mise en ligne porte l’état du salon (aucun s’il est en ligne). Équipe → « Inviter un membre » → « Envoyer l’invitation » : « Compte de démonstration — cette action est désactivée. »
+10. Push, l’app fermée : réserver chez « Maison Nala » sur myweli.com avec un compte client ; toucher la notification ouvre le rendez-vous. Puis annuler la réservation.
+11. Tourner le téléphone : l’app reste en portrait.
+12. Un numéro de 9 chiffres (par ex. un nouveau client) : « Le numéro doit comporter 10 chiffres après +225. » ; 10 chiffres passent.
+13. En mode avion : « Exporter mes données » s’arrête sur « Export interrompu… » ; « Tout marquer comme lu » : les notifications redeviennent non lues, « Pas de connexion. Réessayez. ».
+14. Lancer l’app en mode avion : « Chargement impossible », puis réessayer avec le réseau.
+15. Clients → un client → « Appeler », et « Aperçu de ma page » → « Appeler » : l’appel s’ouvre.
+16. Comme sur le 698 : rester connecté plus de 15 min, les alertes de position et de photos, les cartes, « Ma journée », la fiche client.
+17. Changer de salon hors ligne puis en ligne, retirer puis réinviter un membre : il faut deux salons et une équipe en ligne ; sinon, noter « non testé ».
+```
+
+*Écrit dans App Store Connect pour le 781 le 2026-11-17 (2 708 caractères), relu à l'identique.*
 
 *Un envoi peut sembler fait sans l'être* : la validation crée déjà un
 enregistrement d'envoi, qui reste `AWAITING_UPLOAD` tant que rien n'est
@@ -1702,7 +1744,10 @@ la création du build et a été réécrit par `PATCH` — l'inscription sur
 myweli.com, plus de « Créer un compte ». *2026-11-03 :* le **719** remplace le
 698 (relu : un seul build, 719, `IN_BETA_TESTING` ; pas dans « Testeurs externes »,
 `READY_FOR_BETA_SUBMISSION`) ; son « What to Test » fr-FR est celui du §11.5, 1 010 caractères, relu à
-l'identique. Fait par Claude, sur le feu vert du propriétaire (§11.5).
+l'identique. Fait par Claude, sur le feu vert du propriétaire (§11.5). *2026-11-17 :* le **781**
+remplace le 719 (relu : un seul build, 781, `IN_BETA_TESTING` ; pas dans « Testeurs externes ») ; son
+« What to Test » fr-FR est celui du 781 au §11.5, 2 708 caractères, relu à l'identique. Fait par Claude,
+sur le « Yes, as written » du propriétaire. La passe sur l'iPhone n'a pas encore eu lieu.
 
 - [ ] **Connexion démo** : `revue@myweli.test` + le code, exactement comme les
       notes du §8 le décrivent — c'est aussi le test « le code n'a pas expiré ».

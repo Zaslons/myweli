@@ -2,9 +2,9 @@
 
 | | |
 |---|---|
-| **Status** | **Approved 2026-11-12 (the owner answered §11's six questions: decisions 116–123).** Not built. Reviewed three times by independent readers on 2026-11-12, every finding folded in: six readers (code, architecture, backend, design system, store documents, completeness) found 61; three found 26 on the revision; two found 18 on the third. **A prerequisite came out of the answers:** salons now wait for the owner's approval before going public (decision 120), a new feature with its own spec (B0.18), built before the closed test. *(2026-11-18: **PR A merged** in #806 (`d0b2c85a`); **PR B built** on `feat/pro-android-signup`, not merged — §12.)* |
+| **Status** | **Approved 2026-11-12 (the owner answered §11's six questions: decisions 116–123).** Not built. Reviewed three times by independent readers on 2026-11-12, every finding folded in: six readers (code, architecture, backend, design system, store documents, completeness) found 61; three found 26 on the revision; two found 18 on the third. **A prerequisite came out of the answers:** salons now wait for the owner's approval before going public (decision 120), a new feature with its own spec (B0.18), built before the closed test. *(2026-11-18: **PR A merged** in #806 (`d0b2c85a`); **PR B built** on `feat/pro-android-signup`, then merged the same day in #807 (`1854bfc5`) — §12. PR C is left, before step 7 of android-play-release.)* |
 | **Owner** | Sadreddine Daher |
-| **Last updated** | 2026-11-18 (§12: PR A built, then merged in #806; PR B built). Before that, 2026-11-13 (dated notes: decisions 132, 134 and 135 at §2.7, §9.1, §9.4 and §11; decision 117 at §9.3; the audit's correction at §5.5; then B0.18's Pro-app PR: « Demander la mise en ligne » at §2.7, §6.2 and P12) |
+| **Last updated** | 2026-11-19 (§12: PR B merged in #807; §8.3 (2), the positive control, read in build 785; §7's size). Before that, 2026-11-18 (§12: PR A built, then merged in #806; PR B built). Before that, 2026-11-13 (dated notes: decisions 132, 134 and 135 at §2.7, §9.1, §9.4 and §11; decision 117 at §9.3; the audit's correction at §5.5; then B0.18's Pro-app PR: « Demander la mise en ligne » at §2.7, §6.2 and P12) |
 | **PRD ref / phase** | FR-PRO-AUTH-001 (Pro sign-in and sign-up) · V1 |
 | **BACKLOG** | B0.10 (the Android release); this spec's decisions are 116 and up (§11) |
 | **Related** | [pro-app-login-only.md](pro-app-login-only.md) (decisions 38–43: sign-in only, both platforms) · [app-review-round-2.md](app-review-round-2.md) (decision 71: the website link went) · [android-play-release.md](android-play-release.md) (decisions 110–115: the release order this slice enters) · [play-store-forms.md](play-store-forms.md) (the listing, Data safety, the closed test) · [app-store-forms.md](app-store-forms.md) §11.3 (the iOS pre-upload read) · [pro-companion-path.md](pro-companion-path.md) (the app never sells, on either platform) · [web-pro-registration.md](web-pro-registration.md) (the website's sign-up) · [pro-auth-social.md](pro-auth-social.md) · [team-access-r3-app.md](team-access-r3-app.md) (the invitations bridge) |
@@ -676,7 +676,9 @@ refuse a salon outside Côte d'Ivoire.
 - **One route, two screens' worth of widgets and two models**, with no images
   or lists. That is plausibly tens of KB in the Android Dart snapshot,
   measured on the AAB at step 5 against the 30 MB budget (UNVERIFIED until
-  then).
+  then). *2026-11-18: Play gives build 785, the first with the sign-up, a
+  12.3 MB download for a new install, 199 KB less than build 535. The sign-up's own share is not
+  measured apart.*
 - **Cold start is unchanged:** the extensions are plain objects.
 - **Requests:** 2 or 3 per sign-up (§3).
 
@@ -775,6 +777,8 @@ commit records how. Source scans strip comments before matching.
      without `--target-os ios`.
 2. **Android: present, the positive control.** The same strings in the AAB's
    `lib/arm64-v8a/libapp.so`, each ≥ 1, at step 5 next to the TLS gate.
+   *Read 2026-11-18 in build 785 (android-play-release §11's outcome log): all
+   26 present.*
 3. **What the two prove together:** tree shaking removed the shared
    account-creation methods from iOS, measured.
 
@@ -1092,7 +1096,7 @@ typed at step 7.
   `/auth/provider/register` 0, as on 781. The reads' control: an empty binary fails them.
 
 **2026-11-18, PR B — Android's sign-up** (`feat/pro-android-signup`, from `main` at `d0b2c85a`, after PR A merged
-in #806; not merged). Android signs salons up; the iOS app does not change.
+in #806; merged the same day in #807 as `1854bfc5`, its tree the tested head's). Android signs salons up; the iOS app does not change.
 
 - **Built as §2–§5 say, in three commits:**
   - **The calls** (shared, called only from the fence): `ProSignUpFields`, `ProviderSignUpResult` (created ·
