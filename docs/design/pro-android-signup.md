@@ -1150,3 +1150,50 @@ in #806; merged the same day in #807 as `1854bfc5`, its tree the tested head's).
   private copy (§5.6; at `2847b05f`, never committed): **`ÉCHEC` on all 27 entries** (the 26 of
   `gone_android_signup` and « Pas encore de compte »), both paths at 1. Every listed string shows in a binary
   when it is compiled in, and the shared register call is dropped from the iOS program: tree shaking, measured.
+
+**2026-11-19, PR C — the documents and the Play texts** (`docs/pro-android-signup-pr-c`, from `main` at
+`db41c47b`; not merged). No app code changes; the iOS binary cannot move.
+
+- **The Play texts (§9.2), in play-store-forms:**
+  - §0.3, a dated summary; §0.1 keeps its record, with a note;
+  - §1: decision 121's sentence, Play only;
+  - §2: « Please use this demo account; do not create a salon. » as the first line (R6). The text is 478
+    characters, against 463 before: the line it replaces said what steps 1–3 already say. « Three actions
+    are disabled… publishing » stays true: `SalonProvisioningService.publish` still refuses the demo account
+    (`demo_account_locked`);
+  - §4: account creation in the Android app and on the web, with the methods recorded on 2026-10-28; phone
+    and address **Obligatoire**, the phone with « Gestion du compte »; the one difference with the App Store
+    label named. The privacy policy needs no change: it describes the salon's data without saying where an
+    account is created (read in its code);
+  - §6: salons sign up in the app; Testers Community's paid testers and their group (decision 117); every
+    available country; the test salon optional; a paragraph saying a paid tester's salon is refused at
+    validation and stays a private draft; the French guide's step 4; an **English guide** (decision 117 (3))
+    that asks testers to start their salon's name with « TEST » (the audit's Q-F/Q-G, chosen by the owner
+    with this PR's plan).
+- **P12, as §8 says:** the description equals the App Store's with exactly decision 121's sentence swapped;
+  the R6 line pinned; the labels of all four texts read against the sign-in, the invitation card and every
+  fenced file (plus `salon_validation_copy.dart` when « Demander la mise en ligne » is quoted); both guides
+  tell a salon to create its account in the app; the English guide's « TEST » and Android version pinned.
+  §6's numbers are unchanged, so no pin goes.
+- **The documents (§9.4):** dated notes in PRD FR-PRO-AUTH-001, LAUNCH, pro-app-login-only,
+  app-review-round-2 §14, app-store-forms (the 2026-10-26 table note and the first reply), BACKEND T35,
+  web-pro-registration (its « Adresse (optional) » drifted: the page requires it); android-play-release
+  §1, steps 7 and 9, §5's rows 11–16 and the iPhone side. Rows 11–12 here said « Dart user agent »: since
+  the « Pas de connexion » fix the Android app sends its own, so both specs say so now.
+- **The dev commands (§5.6):** `mobile/scripts/run_pro.sh <device> [entry] [args…]` asks
+  `flutter devices --machine` for the device's platform and runs `lib/main_pro_android.dart` on Android,
+  `lib/main_pro.dart` elsewhere, with `--flavor pro` (it had neither the Android entry nor the flavour).
+  `run_pro_script_test.dart` runs it against a stubbed `flutter`: 7 cases, **all red on the old script**.
+  `build.gradle.kts`' comment and DEPLOYMENT's three Android lines name the Android entry.
+- **Mutations on committed code (`fc1f0f96`): 16, all red, and one control green:** Play keeping the App
+  Store's sentence; another word changed; the App Store text losing its sentence; the R6 line dropped; the
+  instructions over 500; a French label not on screen; the « TEST » line dropped; the English guide's
+  Android version wrong; the English guide gone; `onScreen()` without the fenced files; the code renaming
+  « Créer le compte de mon salon »; « Demander la mise en ligne » quoted without its file (the same quote
+  with it: green, the control); `run_pro.sh` running `main_pro.dart` on Android, without `--flavor pro`,
+  dropping the extra arguments, or running on an unknown device.
+- **Run here:** `flutter analyze --fatal-infos --fatal-warnings` 0, `dart format` clean, the full `flutter test`
+  3,964 passed and 65 skipped (main: 3,954; 10 new); the tests that read these documents, backend and web
+  included, green.
+- **Not in this PR:** typing the texts in the console (android-play-release step 7, on the owner's yes);
+  rows 11–16 on the Galaxy (real production rows: the owner names the addresses first); the iPhone side.

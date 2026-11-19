@@ -1,0 +1,28 @@
+- 🟡 **L’inscription Android dans les textes Play et dans les documents, et un script qui lance la bonne entrée de l’app Pro (documentation · app · 2026-11-19 — BACKLOG B0.17, la PR C ; décisions 116, 117 et 121).** Non fusionné : branche `docs/pro-android-signup-pr-c`, créée depuis `main` (`db41c47b`). La dernière des trois PR de [pro-android-signup.md](../../design/pro-android-signup.md) §9.1, avant l’étape 7 d’[android-play-release.md](../../design/android-play-release.md).
+  - **Pourquoi :** depuis #806 et #807, l’app Pro Android crée le compte d’un salon ; l’app iPhone reste en connexion seule. Les textes à saisir dans la console Play et plusieurs documents disaient encore « l’inscription se fait sur le site ».
+  - **Les textes Play** ([play-store-forms.md](../../design/play-store-forms.md)) :
+    - **la description :** une phrase propre à Play (décision 121). L’App Store garde celle qu’Apple a approuvée ;
+    - **les relecteurs :** il leur est demandé d’utiliser le compte démo et de ne pas créer de salon (478 caractères sur 500) ;
+    - **la sécurité des données :** le compte se crée dans l’app Android et sur le site ; le téléphone et l’adresse deviennent obligatoires ;
+    - **le test fermé :**
+      - les salons s’inscrivent dans l’app ;
+      - les testeurs payés de Testers Community, dans tous les pays (décision 117) ;
+      - le salon d’essai des proches devient facultatif ;
+      - le salon d’un testeur payé reste privé, refusé à la validation ;
+      - le guide français dit comment créer son compte dans l’app ;
+      - un guide en anglais demande aux testeurs de commencer le nom de leur salon par « TEST ».
+  - **Le test P12 :**
+    - la description ne diffère de celle de l’App Store que par cette phrase ;
+    - la consigne aux relecteurs est épinglée ;
+    - chaque libellé cité dans les deux guides existe sur l’écran qu’il nomme, écrans d’inscription Android compris.
+  - **Les documents :** des notes datées dans le PRD, LAUNCH, BACKEND (T35), DEPLOYMENT et six specs. Les lignes 11 à 16 du passage sur appareil rejoignent android-play-release §5, avec l’agent de l’app, que Cronet envoie.
+  - **Le script :** `mobile/scripts/run_pro.sh` lance l’entrée Android (`lib/main_pro_android.dart`) sur un appareil Android et l’entrée iPhone ailleurs, avec la saveur Pro. Un test le lance contre un faux `flutter` : 7 cas, tous rouges sur l’ancien script.
+  - **Ce qui a été lu :**
+    - `flutter analyze` à 0 ;
+    - les tests qui lisent ces documents passent (mobile, backend, site) ;
+    - 16 mutations sur le code validé, toutes rouges, et un témoin vert.
+  - **Ce qui ne change pas :** le code des deux apps (le binaire iPhone ne peut pas bouger), le backend, le contrat, le site.
+  - **Reste :**
+    - saisir ces textes dans la console, à l’étape 7, sur le oui du propriétaire ;
+    - les lignes 11 à 16 sur le Galaxy, avec des adresses de test nommées par le propriétaire ;
+    - le volet iPhone, au prochain build iOS.
