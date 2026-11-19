@@ -61,9 +61,13 @@ android {
     }
 
     // Two published apps from one codebase (PRD §427): the consumer app
-    // (lib/main.dart) and the pro app (lib/main_pro.dart). Build/run with:
+    // (lib/main.dart) and the pro app. On Android the pro app's entry is
+    // lib/main_pro_android.dart, which carries the salon sign-up
+    // (docs/design/pro-android-signup.md §5.6); lib/main_pro.dart is the
+    // iOS entry, sign-in only. Build/run with:
     //   flutter run --flavor consumer -t lib/main.dart
-    //   flutter run --flavor pro      -t lib/main_pro.dart
+    //   flutter run --flavor pro      -t lib/main_pro_android.dart
+    // or mobile/scripts/run_pro.sh <device>, which picks the entry.
     flavorDimensions += "app"
     productFlavors {
         create("consumer") {

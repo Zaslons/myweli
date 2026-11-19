@@ -2,9 +2,9 @@
 
 | | |
 |---|---|
-| **Status** | **Approved 2026-11-12 (the owner answered §11's six questions: decisions 116–123).** Not built. Reviewed three times by independent readers on 2026-11-12, every finding folded in: six readers (code, architecture, backend, design system, store documents, completeness) found 61; three found 26 on the revision; two found 18 on the third. **A prerequisite came out of the answers:** salons now wait for the owner's approval before going public (decision 120), a new feature with its own spec (B0.18), built before the closed test. *(2026-11-18: **PR A merged** in #806 (`d0b2c85a`); **PR B built** on `feat/pro-android-signup`, then merged the same day in #807 (`1854bfc5`) — §12. PR C is left, before step 7 of android-play-release.)* |
+| **Status** | **Approved 2026-11-12 (the owner answered §11's six questions: decisions 116–123).** Not built. Reviewed three times by independent readers on 2026-11-12, every finding folded in: six readers (code, architecture, backend, design system, store documents, completeness) found 61; three found 26 on the revision; two found 18 on the third. **A prerequisite came out of the answers:** salons now wait for the owner's approval before going public (decision 120), a new feature with its own spec (B0.18), built before the closed test. *(2026-11-18: **PR A merged** in #806 (`d0b2c85a`); **PR B built** on `feat/pro-android-signup`, then merged the same day in #807 (`1854bfc5`) — §12. PR C is left, before step 7 of android-play-release.)* *(2026-11-19: **PR C built** on `docs/pro-android-signup-pr-c`: the Play texts of §9.2, the documents of §9.4, P12 — §12.)* |
 | **Owner** | Sadreddine Daher |
-| **Last updated** | 2026-11-19 (§12: PR B merged in #807; §8.3 (2), the positive control, read in build 785; §7's size). Before that, 2026-11-18 (§12: PR A built, then merged in #806; PR B built). Before that, 2026-11-13 (dated notes: decisions 132, 134 and 135 at §2.7, §9.1, §9.4 and §11; decision 117 at §9.3; the audit's correction at §5.5; then B0.18's Pro-app PR: « Demander la mise en ligne » at §2.7, §6.2 and P12) |
+| **Last updated** | 2026-11-19 (§12: PR C built; §8.4 rows 11–12's user agent). Also 2026-11-19 (§12: PR B merged in #807; §8.3 (2), the positive control, read in build 785; §7's size). Before that, 2026-11-18 (§12: PR A built, then merged in #806; PR B built). Before that, 2026-11-13 (dated notes: decisions 132, 134 and 135 at §2.7, §9.1, §9.4 and §11; decision 117 at §9.3; the audit's correction at §5.5; then B0.18's Pro-app PR: « Demander la mise en ligne » at §2.7, §6.2 and P12) |
 | **PRD ref / phase** | FR-PRO-AUTH-001 (Pro sign-in and sign-up) · V1 |
 | **BACKLOG** | B0.10 (the Android release); this spec's decisions are 116 and up (§11) |
 | **Related** | [pro-app-login-only.md](pro-app-login-only.md) (decisions 38–43: sign-in only, both platforms) · [app-review-round-2.md](app-review-round-2.md) (decision 71: the website link went) · [android-play-release.md](android-play-release.md) (decisions 110–115: the release order this slice enters) · [play-store-forms.md](play-store-forms.md) (the listing, Data safety, the closed test) · [app-store-forms.md](app-store-forms.md) §11.3 (the iOS pre-upload read) · [pro-companion-path.md](pro-companion-path.md) (the app never sells, on either platform) · [web-pro-registration.md](web-pro-registration.md) (the website's sign-up) · [pro-auth-social.md](pro-auth-social.md) · [team-access-r3-app.md](team-access-r3-app.md) (the invitations bridge) |
@@ -790,8 +790,8 @@ Android 14) and on the oldest device available.
 
 | # | Check | Observed by |
 |---|---|---|
-| 11 | Google sign-up, fresh account | the server log: `/auth/provider/google` 404, then `/auth/provider/register` 201, Dart user agent; « Accueil » |
-| 12 | E-mail sign-up from E3 with the carried code; then one from E1 | verify 404, register 201, Dart user agent |
+| 11 | Google sign-up, fresh account | the server log: `/auth/provider/google` 404, then `/auth/provider/register` 201, the app's user agent (*corrected 2026-11-19:* it said Dart's, which the Android app no longer sends since the « Pas de connexion » fix, [android-http3-transport.md](android-http3-transport.md)); « Accueil » |
+| 12 | E-mail sign-up from E3 with the carried code; then one from E1 | verify 404, register 201, the app's user agent (*corrected 2026-11-19*, as row 11) |
 | 13 | Sign-up with an address that already has an account | S3, no new salon |
 | 14 | No Apple button anywhere | screen |
 | 15 | The fresh account: « Configurer mon profil » opens the checklist; « Mon abonnement » says « Pas encore d’offre active » | screen |
@@ -1150,3 +1150,50 @@ in #806; merged the same day in #807 as `1854bfc5`, its tree the tested head's).
   private copy (§5.6; at `2847b05f`, never committed): **`ÉCHEC` on all 27 entries** (the 26 of
   `gone_android_signup` and « Pas encore de compte »), both paths at 1. Every listed string shows in a binary
   when it is compiled in, and the shared register call is dropped from the iOS program: tree shaking, measured.
+
+**2026-11-19, PR C — the documents and the Play texts** (`docs/pro-android-signup-pr-c`, from `main` at
+`db41c47b`; not merged). No app code changes; the iOS binary cannot move.
+
+- **The Play texts (§9.2), in play-store-forms:**
+  - §0.3, a dated summary; §0.1 keeps its record, with a note;
+  - §1: decision 121's sentence, Play only;
+  - §2: « Please use this demo account; do not create a salon. » as the first line (R6). The text is 478
+    characters, against 463 before: the line it replaces said what steps 1–3 already say. « Three actions
+    are disabled… publishing » stays true: `SalonProvisioningService.publish` still refuses the demo account
+    (`demo_account_locked`);
+  - §4: account creation in the Android app and on the web, with the methods recorded on 2026-10-28; phone
+    and address **Obligatoire**, the phone with « Gestion du compte »; the one difference with the App Store
+    label named. The privacy policy needs no change: it describes the salon's data without saying where an
+    account is created (read in its code);
+  - §6: salons sign up in the app; Testers Community's paid testers and their group (decision 117); every
+    available country; the test salon optional; a paragraph saying a paid tester's salon is refused at
+    validation and stays a private draft; the French guide's step 4; an **English guide** (decision 117 (3))
+    that asks testers to start their salon's name with « TEST » (the audit's Q-F/Q-G, chosen by the owner
+    with this PR's plan).
+- **P12, as §8 says:** the description equals the App Store's with exactly decision 121's sentence swapped;
+  the R6 line pinned; the labels of all four texts read against the sign-in, the invitation card and every
+  fenced file (plus `salon_validation_copy.dart` when « Demander la mise en ligne » is quoted); both guides
+  tell a salon to create its account in the app; the English guide's « TEST » and Android version pinned.
+  §6's numbers are unchanged, so no pin goes.
+- **The documents (§9.4):** dated notes in PRD FR-PRO-AUTH-001, LAUNCH, pro-app-login-only,
+  app-review-round-2 §14, app-store-forms (the 2026-10-26 table note and the first reply), BACKEND T35,
+  web-pro-registration (its « Adresse (optional) » drifted: the page requires it); android-play-release
+  §1, steps 7 and 9, §5's rows 11–16 and the iPhone side. Rows 11–12 here said « Dart user agent »: since
+  the « Pas de connexion » fix the Android app sends its own, so both specs say so now.
+- **The dev commands (§5.6):** `mobile/scripts/run_pro.sh <device> [entry] [args…]` asks
+  `flutter devices --machine` for the device's platform and runs `lib/main_pro_android.dart` on Android,
+  `lib/main_pro.dart` elsewhere, with `--flavor pro` (it had neither the Android entry nor the flavour).
+  `run_pro_script_test.dart` runs it against a stubbed `flutter`: 7 cases, **all red on the old script**.
+  `build.gradle.kts`' comment and DEPLOYMENT's three Android lines name the Android entry.
+- **Mutations on committed code (`fc1f0f96`): 16, all red, and one control green:** Play keeping the App
+  Store's sentence; another word changed; the App Store text losing its sentence; the R6 line dropped; the
+  instructions over 500; a French label not on screen; the « TEST » line dropped; the English guide's
+  Android version wrong; the English guide gone; `onScreen()` without the fenced files; the code renaming
+  « Créer le compte de mon salon »; « Demander la mise en ligne » quoted without its file (the same quote
+  with it: green, the control); `run_pro.sh` running `main_pro.dart` on Android, without `--flavor pro`,
+  dropping the extra arguments, or running on an unknown device.
+- **Run here:** `flutter analyze --fatal-infos --fatal-warnings` 0, `dart format` clean, the full `flutter test`
+  3,964 passed and 65 skipped (main: 3,954; 10 new); the tests that read these documents, backend and web
+  included, green.
+- **Not in this PR:** typing the texts in the console (android-play-release step 7, on the owner's yes);
+  rows 11–16 on the Galaxy (real production rows: the owner names the addresses first); the iPhone side.

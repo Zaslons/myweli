@@ -15,9 +15,14 @@ import 'package:flutter_test/flutter_test.dart';
 ///    Decisions 74 and 79 (Apple's second refusal, 2026-11-03) edited the App
 ///    Store's text only, and this test admitted Play behind by those four
 ///    edits until the owner chose; decision 113 (2026-11-11) brought Play to
-///    the App Store's text, so no difference is admitted any more
-///    (docs/design/android-play-release.md §3.4).
-///    **And the sign-in instructions fit their field.** No help page of
+///    the App Store's text (docs/design/android-play-release.md §3.4).
+///    Decision 121 (2026-11-12, built 2026-11-19) admits exactly one
+///    difference: the Android app creates a salon's account, so Play's
+///    sentence on who the app is for says so, and the App Store keeps the
+///    sentence Apple approved (docs/design/pro-android-signup.md §9.2).
+///    **And the sign-in instructions fit their field**, while still asking
+///    reviewers to use the demo account and not to create a salon (R6: on
+///    Android a reviewer could create a real production salon). No help page of
 ///    Google's states a limit; the console does — « 0/500 » under « Toute
 ///    autre information requise pour accéder à votre appli », 60 for the
 ///    set's name (read in the form on 2026-10-28). The first English draft
@@ -34,7 +39,9 @@ import 'package:flutter_test/flutter_test.dart';
 /// 4. **What testers are told is what the code does** (§6.3–§6.5). A tester
 ///    who looks for a button that does not exist reports the app as broken,
 ///    and that report is what Google reads before production. Every « … » in
-///    the three texts is a literal of the Pro sign-in or the invitation card;
+///    the four texts (the English guide for paid testers since 2026-11-19) is
+///    a literal of the Pro sign-in, the invitation card or the Android
+///    sign-up's fenced screens;
 ///    the Android version, the invitation's lifetime, the trial and the seats
 ///    are read from the files that set them; and every [placeholder] has a
 ///    line in §6.2 saying what replaces it.
@@ -99,8 +106,17 @@ void main() {
       expect(full.runes.length, lessThanOrEqualTo(4000));
     });
 
-    test('the full description is the App Store one, word for word '
-        '(decision 113)', () {
+    test('the full description is the App Store one, but for decision '
+        '121\'s one sentence', () {
+      // The App Store's sentence (Apple approved it; iOS signs in only) and
+      // Play's (the Android app creates a salon's account), decision 121.
+      const appStoreSentence =
+          'MyWeli Pro s’adresse aux salons qui ont déjà un compte MyWeli et '
+          'à leur équipe.';
+      const playSentence =
+          'MyWeli Pro s’adresse aux salons et à leur équipe : créez le compte '
+          'de votre salon dans l’application, ou rejoignez l’équipe qui vous '
+          'invite.';
       final full = fencedAfter(
         listing(),
         '**Description complète** (coller tel quel)',
@@ -108,11 +124,17 @@ void main() {
       final appStore = fencedAfter(section(ios, '## 4 · '), '**Description**');
       expect(appStore, isNotEmpty, reason: 'anti-vacuity: the App Store text');
       expect(
+        appStore.split(appStoreSentence),
+        hasLength(2),
+        reason: 'the App Store text holds its sentence exactly once',
+      );
+      expect(
         full,
-        appStore,
+        appStore.replaceFirst(appStoreSentence, playSentence),
         reason:
-            'Play and the App Store tell different stories — copy the '
-            'App Store text into play-store-forms §1 (decision 113)',
+            'Play and the App Store differ by more than decision 121\'s '
+            'sentence — copy the App Store text into play-store-forms §1 and '
+            'swap that one sentence',
       );
     });
 
@@ -189,6 +211,17 @@ void main() {
       );
       final name = codeSpanAfter(section(play, '## 2 · '), '**Nom** de');
       expect(name.runes.length, inInclusiveRange(1, 60), reason: name);
+    });
+
+    test('reviewers are asked to use the demo account and not to create a '
+        'salon (R6)', () {
+      expect(
+        instructions().first,
+        startsWith('Please use this demo account; do not create a salon.'),
+        reason:
+            'on Android a reviewer can create a real salon in production; '
+            'the first line asks them not to',
+      );
     });
 
     test('the username typed in the steps is the one in the form', () {
@@ -270,14 +303,17 @@ void main() {
   });
 
   group('§6 — what testers and salons are told is what the code does', () {
-    /// The three texts sent as they are (§6.3, §6.4, §6.5).
+    /// The four texts sent as they are (§6.3, §6.4, §6.5 in French and, for
+    /// the paid testers of decision 117, in English).
     const anchors = [
       '**Message aux salons** (coller tel quel)',
       '**Message aux proches** (coller tel quel)',
       '**Guide du testeur** (coller tel quel)',
+      '**Guide du testeur, en anglais** (coller tel quel)',
     ];
     String closedTest() => section(play, '## 6 · ');
     String guide() => fencedAfter(closedTest(), anchors[2]);
+    String englishGuide() => fencedAfter(closedTest(), anchors[3]);
     String salons() => fencedAfter(closedTest(), anchors[0]);
     String checklist() {
       final s = closedTest();
@@ -287,12 +323,24 @@ void main() {
     }
 
     /// The string literals of the screens a tester goes through — the Pro
-    /// sign-in, and the invitation card it shows — comments removed.
-    Set<String> onScreen() {
+    /// sign-in, the invitation card it shows, and every fenced file of the
+    /// Android sign-up (`lib/screens/provider/android/`) — comments removed.
+    /// A quoted « Demander la mise en ligne » also reads the file that holds
+    /// it since B0.18 (pro-android-signup.md §8, P12).
+    Set<String> onScreen({bool goLive = false}) {
+      final fenced = Directory('lib/screens/provider/android')
+          .listSync()
+          .whereType<File>()
+          .map((f) => f.path)
+          .where((p) => p.endsWith('.dart'))
+          .toList();
+      expect(fenced, isNotEmpty, reason: 'anti-vacuity: the fenced files');
       final out = <String>{};
       for (final path in [
         'lib/screens/provider/auth/pro_login_screen.dart',
         'lib/widgets/team/invitation_card.dart',
+        ...fenced,
+        if (goLive) 'lib/core/constants/salon_validation_copy.dart',
       ]) {
         final code = File(path)
             .readAsStringSync()
@@ -322,14 +370,18 @@ void main() {
           ).allMatches(fencedAfter(closedTest(), a)))
             m.group(1)!,
       ];
-      // Anti-vacuity: the guide names the sign-in's five labels, « Rejoindre »
-      // and « Renvoyer le code ».
+      // Anti-vacuity: the guides name the sign-in's labels, the sign-up's
+      // (« Pas encore de compte ? », « Créer le compte de mon salon »,
+      // « Votre salon », « Téléphone du salon », « Créer mon compte »),
+      // « Rejoindre » and « Renvoyer le code ».
       expect(
         labels.toSet(),
-        hasLength(greaterThanOrEqualTo(7)),
+        hasLength(greaterThanOrEqualTo(12)),
         reason: labels.join(' | '),
       );
-      final screens = onScreen();
+      final screens = onScreen(
+        goLive: labels.contains('Demander la mise en ligne'),
+      );
       for (final label in labels) {
         expect(
           screens,
@@ -339,6 +391,19 @@ void main() {
               'sign-in or the invitation card',
         );
       }
+    });
+
+    test('both guides tell a salon to create its account in the app '
+        '(decision 116)', () {
+      for (final g in [guide(), englishGuide()]) {
+        expect(g, contains('« Créer le compte de mon salon »'));
+        expect(g, contains('« Créer mon compte »'));
+      }
+    });
+
+    test('the English guide asks paid testers for the « TEST » prefix, '
+        'how their salons are recognised at validation', () {
+      expect(englishGuide(), contains("Start the salon's name with TEST"));
     });
 
     test('the Android version in the guide is the app\'s minimum', () {
@@ -362,6 +427,16 @@ void main() {
       );
       expect(
         said,
+        android[api],
+        reason: 'minSdk $api is Android ${android[api]}',
+      );
+      final saidEn = numberIn(
+        englishGuide(),
+        RegExp(r'Android phone \(version (\d+) or later\)'),
+        'Android version in the English guide',
+      );
+      expect(
+        saidEn,
         android[api],
         reason: 'minSdk $api is Android ${android[api]}',
       );

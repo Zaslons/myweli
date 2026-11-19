@@ -1295,6 +1295,9 @@ checking rather than assuming:
 > sur myweli.com » opens the web sign-up — a link the owner keeps knowingly,
 > one widget to remove if App Review objects. The review notes and the
 > Resolution Center reply say so plainly (app-store-forms §8, §13.2).
+> *(2026-11-19: no longer true of Android. Decision 116 brought the sign-up
+> back into the Android app, built in #806 and #807; iOS stays sign-in only,
+> and its binary carries none of it. [design/pro-android-signup.md](design/pro-android-signup.md).)*
 >
 > **2026-10-26 — build 698, the resubmission, is in TestFlight.** From
 > `main` at `54b02dac` (#711, with every app fix since 587): built by

@@ -174,6 +174,10 @@ exceptions, vérifiées une à une par l'audit :
 > pas pour l'inscription : l'app Pro ne fait plus que connecter les salons
 > (iOS et Android), l'inscription et l'ajout de salons restent sur le web
 > ([pro-app-login-only.md](pro-app-login-only.md), BACKLOG B0.11).
+> *2026-11-19 : vrai pour iOS seulement. L'app Android crée de nouveau le
+> compte d'un salon (décision 116, [pro-android-signup.md](pro-android-signup.md)) ;
+> l'app iPhone ne fait toujours que connecter, et son binaire n'en porte rien
+> (§11.3, `gone_android_signup`).*
 >
 > **2026-11-03 — 3.1.3(f) ne couvre pas un outil de salon.** Le tableau ne cite
 > que la fin de la règle. Son début réserve l'exception à un outil web « for VoIP,
@@ -2261,6 +2265,10 @@ Sadreddine Daher
 
 *Envoyée le 2026-10-26 avec `<BUILD>` = 698, selon le propriétaire* — le
 fil du Resolution Center n'a pas d'API : rien d'ici ne l'observe.
+*2026-11-19 : son « on iOS and Android » n'est plus vrai pour Android. L'app
+Android crée de nouveau le compte d'un salon (décision 116,
+[pro-android-signup.md](pro-android-signup.md)) ; l'app iPhone, celle
+qu'Apple relit, ne crée toujours aucun compte.*
 
 *Si le relecteur objecte au lien* : le retirer est un seul widget
 (`AuthSwitchPrompt` de `pro_login_screen.dart`) et une ligne d'essai ; le

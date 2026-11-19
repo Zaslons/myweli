@@ -2,11 +2,11 @@
 
 | | |
 |---|---|
-| **Status** | **2026-11-11 : mis à jour après la sortie iOS (décisions 110 à 115)** — l'ordre de la sortie Android, du build à la production, est dans [android-play-release.md](android-play-release.md) ; ce qui a changé ici est au §0.2. **Ré-audité le 2026-10-28 (BACKLOG B0.10)** contre le binaire, la politique publiée, l'étiquette App Store relue ce jour-là et les règles Play en vigueur. **MyWeli Pro seule pour l'instant** (décision 51) ; la saisie se fait dans le volet navigateur, formulaire par formulaire, montré au propriétaire avant chaque enregistrement (décision 53) ; les images, que le volet ne peut pas joindre, importées dans Chrome. **Dans la console le 2026-10-28 : tout le « Contenu de l'application » et la fiche, images comprises, enregistrés et relus ; rien envoyé pour examen (§0.1).** Historique : rédigé 2026-08-28 ; corrigé 2026-09-24 (libellés de connexion, adresse et numéro Mobile Money) ; 2026-10-05 (plus de choix d'offre dans l'app Pro Android) ; 2026-10-13 (texte d'accès amendé, verrou de suppression du compte démo) ; **2026-11-14 (B0.19) : l'URL de suppression devient `https://myweli.com/pro/suppression-compte`, en ligne et lue ce jour-là (§4) ; rien n'est encore saisi dans la console, c'est l'étape 7 d'android-play-release.** |
+| **Status** | **2026-11-19 : l'inscription revient dans l'app Android (B0.17, décisions 116 à 123)** — la description, les instructions des relecteurs, la sécurité des données et le test fermé ; ce qui a changé est au §0.3. **2026-11-11 : mis à jour après la sortie iOS (décisions 110 à 115)** — l'ordre de la sortie Android, du build à la production, est dans [android-play-release.md](android-play-release.md) ; ce qui a changé ici est au §0.2. **Ré-audité le 2026-10-28 (BACKLOG B0.10)** contre le binaire, la politique publiée, l'étiquette App Store relue ce jour-là et les règles Play en vigueur. **MyWeli Pro seule pour l'instant** (décision 51) ; la saisie se fait dans le volet navigateur, formulaire par formulaire, montré au propriétaire avant chaque enregistrement (décision 53) ; les images, que le volet ne peut pas joindre, importées dans Chrome. **Dans la console le 2026-10-28 : tout le « Contenu de l'application » et la fiche, images comprises, enregistrés et relus ; rien envoyé pour examen (§0.1).** Historique : rédigé 2026-08-28 ; corrigé 2026-09-24 (libellés de connexion, adresse et numéro Mobile Money) ; 2026-10-05 (plus de choix d'offre dans l'app Pro Android) ; 2026-10-13 (texte d'accès amendé, verrou de suppression du compte démo) ; **2026-11-14 (B0.19) : l'URL de suppression devient `https://myweli.com/pro/suppression-compte`, en ligne et lue ce jour-là (§4) ; rien n'est encore saisi dans la console, c'est l'étape 7 d'android-play-release.** |
 | **Portée** | **MyWeli Pro** (`com.myweli.pro`) maintenant. MyWeli (`com.myweli.app`) au §8, à ré-auditer avant sa soumission. |
 | **Source de vérité** | La politique de confidentialité publiée (`/politique-confidentialite`) et le binaire — un formulaire qui les contredit est un rejet ET une exposition légale (LAUNCH.md §6.3) |
 | **Règle** | Chaque réponse ci-dessous est dérivée du code, du binaire ou de la politique, jamais inventée. En cas de doute en saisissant : STOP, on vérifie. |
-| **Garde-fous** | `mobile/test/infra/play_store_forms_test.dart` (longueurs du §1 contre les limites de Play ; le texte de connexion du §2 sous les 500 caractères que compte la console, et ses libellés contre l'écran de connexion Pro) · `mobile/test/infra/app_review_notes_test.dart` (la phrase du compte démo, le verrou de suppression) · le même test, §6 : les libellés cités aux testeurs (écran de connexion Pro, carte d'invitation), et la version d'Android, les jours d'invitation et d'essai, les places, lus dans le code · `web/tests/pro-account-deletion-page.test.tsx` et `web/tests/e2e/pro-account-deletion.spec.ts` (la page de l'URL de suppression du §4) |
+| **Garde-fous** | `mobile/test/infra/play_store_forms_test.dart` (longueurs du §1 contre les limites de Play ; le texte de connexion du §2 sous les 500 caractères que compte la console, et ses libellés contre l'écran de connexion Pro) · `mobile/test/infra/app_review_notes_test.dart` (la phrase du compte démo, le verrou de suppression) · le même test, §1 : la seule phrase qui diffère de l'App Store (décision 121) ; §2 : la consigne « do not create a salon » ; §6 : les libellés cités aux testeurs (écran de connexion Pro, carte d'invitation, écrans d'inscription Android), dans les deux guides, et la version d'Android, les jours d'invitation et d'essai, les places, lus dans le code · `web/tests/pro-account-deletion-page.test.tsx` et `web/tests/e2e/pro-account-deletion.spec.ts` (la page de l'URL de suppression du §4) |
 
 Ordre conseillé dans la console : **Fiche du Play Store → Contenu de
 l'application (§2 à §5) → Test fermé (§6)**.
@@ -107,7 +107,9 @@ d'être enregistré, puis relu.
       fraudes, sécurité et conformité ».
     - Création de compte : « Nom d'utilisateur et autre authentification » et
       « OAuth » ; Google compte aussi un compte créé sur le Web vers lequel
-      l'app renvoie.
+      l'app renvoie. *(Note du 2026-11-19, sans réécrire ce relevé : le
+      compte se crée désormais aussi dans l'app Android, avec les mêmes
+      méthodes, §4 et §0.3.)*
     - L'URL de suppression : `https://myweli.com/suppression-compte`.
       *(Note du 2026-11-14, sans réécrire ce relevé : cette page est celle des
       comptes clients ; l'URL à saisir pour MyWeli Pro est désormais
@@ -182,6 +184,29 @@ devenu faux depuis le 2026-10-28 :
 - **L'audit du binaire (§0)** date du 2026-10-28, sur Flutter 3.44.9. Il est
   refait sur l'AAB réel (étape 5 du même document).
 
+## 0.3 · Le 2026-11-19 — l'inscription revient dans l'app Android
+
+L'app Pro Android crée de nouveau le compte d'un salon (B0.17, décisions 116
+à 123, [pro-android-signup.md](pro-android-signup.md)) ; l'app iPhone reste en
+connexion seule. Ce qui change ici (la PR C de cette spec, §9.2 là-bas) :
+
+- **La description (§1)** prend une phrase propre à Play (décision 121).
+  L'App Store garde le texte qu'Apple a approuvé, et le test admet cette seule
+  différence.
+- **Les instructions des relecteurs (§2)** leur demandent d'utiliser le
+  compte démo et de ne pas créer de salon (R6).
+- **La sécurité des données (§4)** : le compte se crée dans l'app Android et
+  sur le Web ; le téléphone et l'adresse deviennent obligatoires, comme
+  l'inscription les demande.
+- **Le test fermé (§6)** : les salons s'inscrivent dans l'app ; des testeurs
+  payés de Testers Community (décision 117), dans tous les pays disponibles ;
+  le salon d'essai des proches devient facultatif ; le guide a une version
+  anglaise.
+
+**La console garde les anciennes réponses** jusqu'à l'étape 7
+d'[android-play-release.md](android-play-release.md), sur le oui du
+propriétaire.
+
 ## 1 · Fiche du Play Store (Store listing) — MyWeli Pro
 
 Limites de Play (aide Play, « Add product details ») : nom 30 caractères,
@@ -200,12 +225,15 @@ description courte 80, description complète 4 000. Le test les relit.
   [app-review-round-2.md](app-review-round-2.md) §7). La console garde
   l'ancien texte (996 caractères) jusqu'à l'étape 7
   d'[android-play-release.md](android-play-release.md). Le test exige
-  l'égalité, sans écart.* :
+  l'égalité, sans écart.* *2026-11-19, décision 121 : une phrase diffère.
+  Sur l'App Store, « MyWeli Pro s’adresse aux salons qui ont déjà un compte MyWeli et à leur équipe. » ; sur
+  Play, où l'app Android crée le compte d'un salon : « MyWeli Pro s’adresse aux salons et à leur équipe : créez le compte de votre salon dans l’application, ou rejoignez l’équipe qui vous invite. » Le test
+  admet cette seule différence.* :
 
 **Description complète** (coller tel quel) :
 
 ```text
-L'outil de gestion des salons de beauté de Côte d'Ivoire : recevez des réservations en ligne et pilotez votre activité au quotidien. MyWeli Pro s’adresse aux salons qui ont déjà un compte MyWeli et à leur équipe.
+L'outil de gestion des salons de beauté de Côte d'Ivoire : recevez des réservations en ligne et pilotez votre activité au quotidien. MyWeli Pro s’adresse aux salons et à leur équipe : créez le compte de votre salon dans l’application, ou rejoignez l’équipe qui vous invite.
 
 VOTRE AGENDA, TENU TOUT SEUL
 Les clients réservent sur vos créneaux réels ; vous ajoutez les rendez-vous pris au téléphone ou au comptoir en quelques gestes. Vue journée et par membre d'équipe.
@@ -307,9 +335,9 @@ ajouter des instructions :
 
 - **Nom** de l'ensemble (60 caractères au plus) : `Demo salon (shared review account)`
 
-**Instructions supplémentaires** (coller tel quel — en anglais, comme Google le demande ; dans « Toute autre information requise pour accéder à votre appli », **500 caractères au plus**, retours à la ligne compris — celui-ci en fait 463) :
+**Instructions supplémentaires** (coller tel quel — en anglais, comme Google le demande ; dans « Toute autre information requise pour accéder à votre appli », **500 caractères au plus**, retours à la ligne compris — celui-ci en fait 478 ; 463 avant le 2026-11-19) :
 
-> Sign-in is an e-mail and a 6-digit code. The demo code is FIXED and never expires: it is the password above.
+> Please use this demo account; do not create a salon. The 6-digit code is FIXED and never expires: it is the password above.
 > 1. On « Espace Pro », type revue@myweli.test in « Votre e-mail ».
 > 2. Tap « Continuer avec e-mail ». No e-mail is sent.
 > 3. Type the code in « Code à 6 chiffres », tap « Se connecter ».
@@ -320,6 +348,14 @@ App Store (paiements, pièces d'identité, modération, position) ne tient pas
 dans 500 caractères. Il n'est pas nécessaire pour se connecter, et le reste du
 formulaire le dit.
 
+- **Pourquoi « do not create a salon »** (R6, 2026-11-19) : sur Android,
+  l'app crée de nouveau le compte d'un salon ([pro-android-signup.md](pro-android-signup.md)).
+  Un salon créé par un relecteur serait une vraie ligne en production. Il ne
+  deviendrait jamais public, parce que MyWeli valide chaque salon avant sa
+  mise en ligne (B0.18), et ses lignes ne sont supprimées que sur le mot du
+  propriétaire. La première ligne a été raccourcie pour tenir dans les 500
+  caractères : les étapes 1 à 3 disent déjà que la connexion est un e-mail
+  puis un code.
 - **Pourquoi « trois actions »** : la suppression du compte démo est bloquée
   en production depuis le 2026-10-14. C'est la ligne datée d'app-store-forms
   §8, que `app_review_notes_test.dart` relit.
@@ -368,6 +404,12 @@ sur les deux stores, cohérente avec « Achats numériques : Non ».
     qui répond 200 et couvre les comptes professionnels (lu le 2026-10-28)~~ :
     elle renvoie au « Mon compte » des clients.
   - Dans l'app : Profil → « Supprimer mon compte ».
+- **La création de compte** (*écrite le 2026-11-19*, §0.3) : un compte MyWeli
+  Pro se crée **dans l'app Android** (« Créer le compte de mon salon », sous
+  « Espace Pro ») **et sur le Web** (`/pro/inscription`), par Google ou par un
+  code reçu par e-mail. Les méthodes à cocher ne changent pas : « Nom
+  d'utilisateur et autre authentification » et « OAuth » (§0.1). L'app iPhone
+  ne crée pas de compte.
 - **« Partagées » au sens de Play** (transférées à un tiers pour SES fins) :
   **Non, pour toutes les données.** Google Cloud, Firebase, Sentry, Resend et
   Cloudflare traitent pour notre compte, sur nos instructions : Play les
@@ -384,8 +426,8 @@ façon éphémère seulement.
 | Informations personnelles → **Nom** | Obligatoire | Fonctionnalités de l'appli · Gestion du compte | le nom du pro (Google, Apple, profil) ; les noms des clients saisis par le salon |
 | Informations personnelles → **Adresse e-mail** | Obligatoire | Fonctionnalités de l'appli · Gestion du compte | l'e-mail de connexion ; l'e-mail des membres invités |
 | Informations personnelles → **ID utilisateur** | Obligatoire | Fonctionnalités de l'appli · Gestion du compte | l'identifiant du compte (le `sub` du jeton) — *ajouté le 2026-10-28* |
-| Informations personnelles → **Adresse** | Facultatif | Fonctionnalités de l'appli | l'adresse du salon, saisie dans « Profil du salon », publiée sur sa page |
-| Informations personnelles → **Numéro de téléphone** | Facultatif | Fonctionnalités de l'appli | « Téléphone du salon », WhatsApp, les téléphones des clients saisis par le salon |
+| Informations personnelles → **Adresse** | Obligatoire | Fonctionnalités de l'appli | l'adresse du salon, demandée à l'inscription (dans l'app Android et sur le Web) et modifiable dans « Profil du salon », publiée sur sa page — *Facultatif jusqu'au 2026-11-19* |
+| Informations personnelles → **Numéro de téléphone** | Obligatoire | Fonctionnalités de l'appli · Gestion du compte | « Téléphone du salon », demandé à l'inscription (dans l'app Android et sur le Web) ; WhatsApp ; les téléphones des clients saisis par le salon — *Facultatif, sans « Gestion du compte », jusqu'au 2026-11-19* |
 | Informations personnelles → **Autres infos** | Facultatif | Fonctionnalités de l'appli · Prévention des fraudes, sécurité et conformité | pièces KYC — identité, photo du visage, RCCM, justificatif d'adresse : stockage privé, jamais publiées, lues par un administrateur |
 | Informations financières → **Autres infos financières** | Facultatif | Fonctionnalités de l'appli | le numéro **Mobile Money de réception** des acomptes, publié sur la page du salon |
 | Position → **Position exacte** | Facultatif | Fonctionnalités de l'appli | le point du salon (« Utiliser ma position ») — latitude et longitude envoyées et **publiques** |
@@ -426,7 +468,12 @@ de `/politique-confidentialite` et de l'étiquette App Store relue le
 2026-10-28 (app-store-forms §7) : les trois doivent raconter la même histoire.
 Les deux taxonomies ne se recoupent pas une pour une. Apple range les
 plantages sous « App Functionality », Google sous « Analyses ». Chacun suit sa
-propre définition, et c'est voulu.
+propre définition, et c'est voulu. *2026-11-19 : une seule différence de fond,
+voulue elle aussi :* l'app Android crée le compte d'un salon, l'app iPhone non
+(décision 116). Le téléphone et l'adresse sont donc demandés **dans l'app**
+sur Android seulement. La politique de confidentialité décrit ces données
+(la fiche du salon : nom, adresse, téléphone…) sans dire où le compte se
+crée : elle reste vraie (relue dans le code de la page le 2026-11-19).
 
 ---
 
@@ -467,11 +514,12 @@ Ce que cela veut dire pour MyWeli Pro :
    test interne en est dispensé) : les §2 à §5 se remplissent avant.
 2. **Un build signé** (AAB, `tool/release_build.sh`) et la clé d'importation
    **sauvegardée** (LAUNCH §6.3) précèdent le premier envoi.
-3. **Les 12 testeurs, c'est toi qui les trouves.** Ce sont 12 comptes Google
-   qui installent et gardent l'app 14 jours. Idéalement des salons : ils ont
-   un compte MyWeli Pro (inscription sur myweli.com) ou une invitation
-   d'équipe. Le compte démo reste réservé aux relecteurs. Où les trouver, et
-   ce qu'on leur envoie : §6.1 à §6.5.
+3. **Les 12 testeurs.** Ce sont 12 comptes Google qui installent et gardent
+   l'app 14 jours. *Depuis le 2026-11-19 (décision 117, §0.3) :* des testeurs
+   payés de Testers Community, et des salons si tu en trouves. Un salon crée
+   son compte **dans l'app** sur Android, ou sur myweli.com ; un membre
+   d'équipe arrive par son invitation. Le compte démo reste réservé aux
+   relecteurs. Où les trouver, et ce qu'on leur envoie : §6.1 à §6.5.
 
 **Une seule façon d'y échapper : un compte développeur d'organisation.** La
 règle ne vise que les comptes personnels (aide 14151465). *Corrigé le
@@ -500,29 +548,44 @@ leur appli », ce qui laisse penser qu'il en faudra un second pour elle.
   production, 12 doivent être inscrites depuis 14 jours sans interruption.
   Celle qui quitte le test ne compte plus.
 - **D'abord des salons**, les futurs clients de MyWeli Pro.
-  - Ils créent leur compte sur `myweli.com/pro/inscription` et utilisent l'app
-    pour leur vrai salon.
+  - Ils créent leur compte dans l'app (« Créer le compte de mon salon », sous
+    « Espace Pro ») ou sur `myweli.com/pro/inscription`, et utilisent l'app
+    pour leur vrai salon. *(Jusqu'au 2026-11-19 : sur le site seulement.)*
   - C'est l'usage que Google demande de décrire : toutes les fonctionnalités
     utilisées, un usage qui ressemble à celui de vrais utilisateurs, un résumé
     des retours et la façon de les recueillir (aide 14151465).
-- **Puis des proches, dans l'équipe d'un salon d'essai** (décision 60), pas
-  dans le salon démo :
+- **Puis des proches, dans l'équipe d'un salon d'essai** (décision 60),
+  *facultatif depuis la décision 117*, pas dans le salon démo :
   - le salon démo est celui où travaillent les relecteurs d'Apple et de
     Google. Ce que des proches y changeraient resterait sous leurs yeux
     jusqu'à la réinitialisation des 7 jours ;
   - tous partageraient un seul compte, donc ses plafonds horaires (rendez-vous,
     clients, catalogue), au risque de bloquer un relecteur ;
   - et l'invitation d'équipe y est désactivée.
-- **Pas de testeurs achetés.** Des installations payées ne répondent pas aux
+- ~~**Pas de testeurs achetés.** Des installations payées ne répondent pas aux
   questions de Google sur l'usage. Les groupes d'échange de tests (on teste
   leurs apps, ils testent la nôtre) peuvent compléter le nombre, sans
-  remplacer les salons.
+  remplacer les salons.~~ **Des testeurs payés** (décision 117, 2026-11-12) :
+  Testers Community. Ses testeurs rejoignent la piste par son groupe Google,
+  `testers-community@googlegroups.com`, et vivent dans plusieurs pays. Ils
+  reçoivent le guide en anglais (§6.5). **Le risque accepté :** les questions
+  de Google sur l'usage réel, avant la production, seront peut-être plus
+  difficiles à remplir avec eux (NON VÉRIFIÉ).
+- **Le salon d'un testeur payé reste privé.** Il crée un vrai salon, en
+  production, et peut demander sa mise en ligne. MyWeli ne le valide pas : il
+  le refuse avec « Salon de test » (B0.18), et le salon ne devient jamais
+  public. Il ne reçoit pas non plus les 90 jours d'essai, qui partent de la
+  validation (décision 120). Ses lignes restent en brouillon ; rien n'est
+  supprimé sans le mot du propriétaire. Pour les reconnaître, le guide anglais
+  leur demande de commencer le nom du salon par « TEST » (choix du
+  propriétaire, 2026-11-19, en approuvant le plan de la PR C).
 - **Les retours** (décision 61) : par e-mail à `support@myweli.com`, ou en
   avis privé sur la page Play de l'app (la console les montre sous
   « Commentaires des testeurs »).
 - **Ce qu'on promet aux salons** (décision 62) : l'accès avant la sortie, et
   les 90 jours d'essai gratuit que tout salon reçoit. Aucun prix, aucune autre
-  promesse.
+  promesse. *2026-11-19 :* l'essai démarre quand MyWeli valide le salon
+  (décision 120), et le message le dit.
 
 ### 6.2 Avant le premier message — à faire par le propriétaire, dans l'ordre
 
@@ -535,12 +598,19 @@ d'ici : ils sont décrits, pas cités.
      piste fermée.
    - Son lien `https://groups.google.com/g/…` remplace `[LIEN DU GROUPE]`
      dans le guide (§6.5).
+   - *2026-11-19 (décision 117) :* ajouter aussi, dans la liste des testeurs
+     de la piste fermée, le groupe de Testers Community,
+     `testers-community@googlegroups.com`. Le nôtre reste pour les salons et
+     les proches ; les testeurs payés ne le rejoignent pas.
 2. **La piste de test fermé** (tableau de bord → « Tests fermés »).
    - **Pays** : par défaut, la piste reprend ceux de la production, qui n'en a
      aucun. Ajouter la Côte d'Ivoire, et les pays où vivent des testeurs
      ([mobile-external-testing.md](mobile-external-testing.md) §4.1). La
      production, elle, ira dans tous les pays possibles (décision 114), après
-     la déclaration de statut de professionnel (§5).
+     la déclaration de statut de professionnel (§5). *2026-11-19 (décision
+     117 (1)) : la piste fermée aussi, dans tous les pays disponibles. Un
+     testeur hors de ses pays ne peut pas installer l'app, et ceux de Testers
+     Community vivent dans plusieurs pays.*
    - **Testeurs** : le groupe Google.
    - **Commentaires** : `support@myweli.com`, si la console demande une
      adresse.
@@ -563,12 +633,15 @@ d'ici : ils sont décrits, pas cités.
    répond « Connexion Google impossible. » sur l'app installée depuis Play.
    La connexion par e-mail, elle, marche sans
    ([mobile-external-testing.md](mobile-external-testing.md) §5.1).
-5. **Le salon d'essai des proches** (décision 60).
+5. **Le salon d'essai des proches** (décision 60). *Facultatif depuis la
+   décision 117 : seulement si des proches testent.*
    - Une adresse e-mail dédiée que vous lisez, pas celle de votre futur vrai
      salon : hors offre Réseau, un compte ne tient qu'un salon.
    - Sur `myweli.com/pro/inscription` : un nom (par exemple Salon d'essai
      MyWeli), un téléphone, une adresse, et l'inscription **par e-mail**
-     (« Recevoir un code », puis « S’inscrire »).
+     (« Recevoir un code », puis « S’inscrire »). *Depuis le 2026-11-19, ou
+     dans l'app sur Android : « Créer le compte de mon salon », puis
+     l'inscription par e-mail.*
    - **C'est aussi l'essai de l'e-mail.** Rien d'ici ne prouve que les codes
      arrivent : la demande répond 202 dans tous les cas, et l'envoi n'est pas
      journalisé (lu le 2026-10-28). Le code doit arriver dans la boîte de
@@ -600,9 +673,9 @@ Je lance MyWeli Pro, une application pour gérer votre salon : l'agenda et les r
 
 Avant sa sortie sur le Play Store, je cherche quelques salons pour la tester pendant 2 semaines sur un téléphone Android. Vous l'utiliseriez pour votre vrai salon, et vos remarques m'aideront à l'améliorer.
 
-Ce que vous y gagnez : l'accès avant tout le monde, et les 90 jours d'essai gratuit que reçoit chaque salon.
+Ce que vous y gagnez : l'accès avant tout le monde, et les 90 jours d'essai gratuit que reçoit chaque salon, à partir de sa validation par MyWeli.
 
-Pour commencer, créez le compte de votre salon sur https://myweli.com/pro/inscription. Je vous envoie juste après le guide pour installer l'app.
+Je vous envoie juste après le guide : vous installez l'app, puis vous créez le compte de votre salon directement dedans.
 
 Merci !
 ```
@@ -642,14 +715,51 @@ Il vous faut un téléphone Android (version 7 ou plus récente) avec le Play St
 
 3. Installez MyWeli Pro depuis la page Play Store indiquée par ce lien. Si l'app n'apparaît pas tout de suite, réessayez un peu plus tard.
 
-4. Connectez-vous.
-- Pour votre salon : comme lors de l'inscription sur myweli.com. Avec Google : « Continuer avec Google ». Par e-mail : « Votre e-mail », « Continuer avec e-mail », le code reçu dans « Code à 6 chiffres », puis « Se connecter ».
+4. Ouvrez l'app.
+- Votre salon n'a pas encore de compte : sous « Pas encore de compte ? », touchez « Créer le compte de mon salon ». Remplissez « Votre salon », puis « Continuer avec Google », ou « Votre e-mail », « Continuer avec e-mail », le code reçu dans « Code à 6 chiffres », et « Créer mon compte ».
+- Votre salon a déjà un compte, créé sur myweli.com : connectez-vous. Avec Google : « Continuer avec Google ». Par e-mail : « Votre e-mail », « Continuer avec e-mail », le code reçu dans « Code à 6 chiffres », puis « Se connecter ».
 - Invité(e) dans une équipe : avec l'adresse qui a reçu l'invitation. « Votre e-mail », « Continuer avec e-mail », le code, « Se connecter », puis « Rejoindre ». L'invitation est valable 7 jours.
 Pas de code ? Regardez dans les spams, puis touchez « Renvoyer le code ».
 
 5. Utilisez l'app pendant 14 jours : ajoutez des rendez-vous, ouvrez la fiche d'un client, modifiez une prestation ou des horaires. Ne quittez pas le test et gardez l'app jusqu'à la fin.
 
 Une remarque, un bug ? Écrivez à support@myweli.com, ou laissez un avis privé sur la page Play Store de l'app. Merci !
+```
+
+*2026-11-19 :* l'étape 4 dit comment créer le compte d'un salon dans l'app
+(décision 116) ; la connexion d'un salon déjà inscrit reste la deuxième ligne.
+
+**Le guide en anglais, pour les testeurs payés** (décision 117 (3)). L'app et
+le guide français sont en français ; ceux de Testers Community lisent celui-ci.
+Les libellés restent en français, entre guillemets, tels qu'à l'écran : le
+test les vérifie comme ceux du guide français. Remplacer `[LIEN DU TEST]`
+(§6.2) ; ces testeurs n'ont pas de `[LIEN DU GROUPE]`, ils arrivent par le
+groupe de Testers Community.
+
+**Guide du testeur, en anglais** (coller tel quel) :
+
+```text
+MyWeli Pro: test the app in 5 steps
+
+MyWeli Pro is a management app for beauty salons in Côte d'Ivoire. The app is in French: this guide quotes each button in French, exactly as it appears on screen.
+
+You need an Android phone (version 7 or later) with the Play Store, and your Google account.
+
+1. Accept the test with the Google account on your phone: [LIEN DU TEST]
+
+2. Install MyWeli Pro from the Play Store page that link opens. If the app does not appear yet, try again a little later.
+
+3. Create a test salon in the app. On the first screen, under « Pas encore de compte ? », tap « Créer le compte de mon salon ».
+- Start the salon's name with TEST, for example: TEST Salon Awa.
+- Fill in « Votre salon ». In « Téléphone du salon », you can pick your country. The commune can stay empty.
+- Then tap « Continuer avec Google ». Or type your e-mail in « Votre e-mail », tap « Continuer avec e-mail », type the code you receive in « Code à 6 chiffres », and tap « Créer mon compte ».
+No code? Check your spam folder, then tap « Renvoyer le code ».
+
+4. Use the app for 14 days: complete your salon's profile, add services and opening hours, add appointments, open a client's record. Your test salon stays private: MyWeli does not publish test salons.
+
+5. Do not leave the test, and keep the app installed until the end.
+
+Feedback or a bug? Write to support@myweli.com (English is fine), or leave private feedback on the app's Play Store page. Thank you!
 ```
 
 ---

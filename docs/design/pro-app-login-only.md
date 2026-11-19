@@ -2,9 +2,9 @@
 
 | | |
 |---|---|
-| **Status** | Approved 2026-10-26 (owner: §9, every question answered). **Apple objected to the link of Q5 and §4.1 on 2026-11-03 (build 698), and it leaves the app on both platforms: [app-review-round-2.md](app-review-round-2.md).** The login-only rule, the sentence of §4.2 and the invitations stand. Where this spec describes the link, a dated note says it is gone; what was true on 2026-10-26 stays as written |
+| **Status** | Approved 2026-10-26 (owner: §9, every question answered). **Apple objected to the link of Q5 and §4.1 on 2026-11-03 (build 698), and it leaves the app on both platforms: [app-review-round-2.md](app-review-round-2.md).** The login-only rule, the sentence of §4.2 and the invitations stand. Where this spec describes the link, a dated note says it is gone; what was true on 2026-10-26 stays as written. **2026-11-12 (decision 116): Android signs salons up again; iOS stays sign-in only.** On Android this spec's login-only rule is superseded by [pro-android-signup.md](pro-android-signup.md), built 2026-11-18 (#806, #807) |
 | **Owner** | Sadreddine Daher |
-| **Last updated** | 2026-11-03 |
+| **Last updated** | 2026-11-19 (a dated note in the status: decision 116). Before that, 2026-11-03 |
 | **PRD ref / phase** | FR-PRO-AUTH-001 (registration moves to the web), access R6 (« Ajouter un salon ») · V1 |
 | **BACKLOG** | B0.11 (batch 0, the release track) |
 | **Related** | [app-review-round-2.md](app-review-round-2.md) (the second refusal: the link goes) · [pro-companion-path.md](pro-companion-path.md) (the app never sells) · [app-store-forms.md](app-store-forms.md) (review notes, §2 3.1.1 analysis) · [pro-auth-social.md](pro-auth-social.md) (login-only sign-in) · [team-access-r6-multi-salons.md](team-access-r6-multi-salons.md) (« Ajouter un salon ») |
