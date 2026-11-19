@@ -297,6 +297,11 @@ Each question has a recommendation. Answers unblock the item named in brackets.
 
 148. The written procedure for a support erase (R1's §10)? [B0.19, B0.25] — ✅ **Answered (2026-11-14): « Approve as written »**, the recommendation. [admin-pro-account-erase.md](design/admin-pro-account-erase.md) §10 as merged in #793: the rules (a separate terminal app, never the Claude panel; nothing in a command's arguments; the two values per case; who receives what; no account oracle; the proof; the delays; the case record), the nine steps, and the six replies of decision 147. Approved at about 13:45 UTC, after R1's signed-in read-back and before #794 merged (13:59 UTC), as its §9 step 5 asks. Copied byte for byte into [DEPLOYMENT.md](DEPLOYMENT.md), « Effacer un compte Pro sur demande au support », the copy support follows and changes from now on. **Two checks stay yours before the first real case** (§10.1 « Once »): whether support@myweli.com reaches Apple's private-relay addresses, and whether Outlook shows `Authentication-Results`.
 
+**Play's trader declaration (batch 0, B0.10)** — asked on 2026-11-19 at step 7, in the Play console ([play-store-forms.md](design/play-store-forms.md) §0.4).
+
+149. The trader declaration publishes the developer email too, and it was your personal Gmail. Switch it to `support@myweli.com` first? [B0.10] — ✅ **Answered (2026-11-19): « Yes, switch it »**, the recommendation. Decision 115's cost, put to you on 2026-11-11, named the phone and the address, not the email. `support@myweli.com` is now the « Adresse e-mail du développeur », validated by a code sent to that mailbox, saved and read back; the private contact details are unchanged.
+150. Each app's trader form, « Oui » with the terms `https://myweli.com/cgu`: MyWeli Pro only, or both apps? [B0.10] — ✅ **Answered (2026-11-19): « Yes, both apps »**, rather than the recommendation, MyWeli Pro only. Both saved and read back. MyWeli (`com.myweli.app`) is still in internal testing only (decision 51); its answer waits in its publishing overview with its listing.
+
 ---
 
 ## 3. The batches
@@ -433,6 +438,13 @@ Each question has a recommendation. Answers unblock the item named in brackets.
     - 788 on the internal track. On the owner's Galaxy, rows 1, 2, 5 to 9, 18 and 19 of the device pass work;
     - left in the pass: Google sign-in, a push arriving, the old Samsung, mobile data, the iPhone, the sign-up rows (with PR C), and two rows that wait for a first Sentry event;
     - next: PR C, then step 7, the console forms. *(PR C merged the same day, #812; step 7 is next.)*
+  - **2026-11-19 — step 7 in the console** ([play-store-forms.md](design/play-store-forms.md) §0.4). Typed in the browser pane, each form on your yes, each read back after a reload:
+    - **the listing's description** and **the sign-in text**, equal by SHA-256 to play-store-forms §1 and §2;
+    - **Data safety:** the Pro deletion URL; address and phone required; the fraud-prevention purpose on search history. The preview matches §4, the live privacy policy and the live Pro deletion page;
+    - **the public developer email** is now `support@myweli.com` (decision 149);
+    - **the trader declaration:** the account is « Professionnel », with no document asked for; MyWeli Pro and MyWeli each confirm it, with the terms `https://myweli.com/cgu` (decision 150);
+    - **no precise-location form** in the console yet;
+    - **nothing sent for review:** MyWeli Pro waits at « Envoyer 9 modifications pour examen ».
   - **MyWeli (client):** later (decision 51); play-store-forms §8 lists what to re-audit then.
   - **Order:** Android is last (LAUNCH §3).
 - **B0.15 Search text kept 30 days in Google Cloud's request logs (P2 · S · decision 55, open).**

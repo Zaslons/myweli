@@ -1507,15 +1507,26 @@ checking rather than assuming:
       Claude types it in the browser pane, the owner signed in (decision 53).
       Production waits for a 12-tester, 14-day closed test (decision 52).
       MyWeli is re-audited before its own submission.)*
+      *(2026-11-19, step 7: MyWeli Pro's form is completed in the console
+      and read back, its preview read beside the live privacy policy and the
+      live Pro deletion page (play-store-forms §0.4). The box stays open on
+      its second half: the App Store label declares « Search History » only
+      after the owner's step for decision 144, which nobody has read back
+      yet.)*
 - [ ] **Play's precise-location declaration** (`ACCESS_FINE_LOCATION`),
       mandatory from **2027-01-27** (Google's policy announcement of
       2026-10-29). *(Added 2026-11-11: android-play-release.md §7.1,
-      play-store-forms §5.)*
+      play-store-forms §5.)* *(2026-11-19: no form in the console yet.)*
 - [ ] **Play's trader status declaration**, for the account and then the app,
       by **2027-02-01**. Without it, Google may block updates and remove the
       app worldwide. *(Added 2026-11-11: decision 115, « trader », confirmed
       by the owner that day with the corrected cost, android-play-release.md
-      §3.6.)*
+      §3.6.)* *(2026-11-19: the account is declared « Professionnel » and
+      read back, with `support@myweli.com` as the public email (decision 149).
+      MyWeli Pro and MyWeli each confirm it (decision 150), and each app's
+      answer waits in its publishing overview until that app's first review
+      request (step 8, for MyWeli Pro). The box closes then for MyWeli Pro.
+      play-store-forms §0.4.)*
 
 ---
 
