@@ -3,8 +3,8 @@
 | | |
 |---|---|
 | **Module** | release (mobile, Pro flavour `com.myweli.pro`; Play Console) |
-| **Status** | **Approved 2026-11-11** — the owner's « Valider tel quel » on the plan and on decisions 110–115 ([BACKLOG](../BACKLOG.md)). Decision 115's cost was understated when asked; told the corrected facts, the owner confirmed « Rester professionnel » the same day (§3.6). Nothing built, nothing typed in the console yet. **Amended 2026-11-13** for decisions 134 and 135 and for the findings of a read-only audit of the path to Play: the order inside step 3, a step 3a, preconditions and reads at steps 5–8, step 11's iOS neighbour, §2, §5 row 3 and a row 17, §6, §9, O5 and O7. Two of the audit's proposals are **not** decisions: the owner has not answered them yet (O8 « Publication gérée » at step 8, O9 the `/client-version` read at step 5). |
-| **Last updated** | 2026-11-18 (step 6: the device pass stopped at sign-in on Orange fibre, see [android-http3-transport.md](android-http3-transport.md)); also 2026-11-18 (step 3 (e): the R8 PR built, §6, §11; step 3a: PR A built, then merged in #806, and PR B built). Before that, 2026-11-17 (step 3: (b) merged, the hold (c) over, (d) built), and before that, 2026-11-14 (step 3: (a) merged, (b) built), and 2026-11-13 (decisions 134–135 and the audit's findings: §2, §4, §5, §6, §9, §11, the outcome log) |
+| **Status** | **Approved 2026-11-11** — the owner's « Valider tel quel » on the plan and on decisions 110–115 ([BACKLOG](../BACKLOG.md)). Decision 115's cost was understated when asked; told the corrected facts, the owner confirmed « Rester professionnel » the same day (§3.6). Nothing built, nothing typed in the console yet. **Amended 2026-11-13** for decisions 134 and 135 and for the findings of a read-only audit of the path to Play: the order inside step 3, a step 3a, preconditions and reads at steps 5–8, step 11's iOS neighbour, §2, §5 row 3 and a row 17, §6, §9, O5 and O7. Two of the audit's proposals are **not** decisions: the owner has not answered them yet (O8 « Publication gérée » at step 8, O9 the `/client-version` read at step 5). *(2026-11-18: O9 answered, « Yes, as recommended »; O8 still open.)* |
+| **Last updated** | 2026-11-19 (steps 5 and 6 recorded for builds 785 and 788: the AAB, the internal track, the device pass on 788; step 3a's PR B merged; O7 and O9; §11's outcome log). Before that, 2026-11-18 (step 6: the device pass stopped at sign-in on Orange fibre, see [android-http3-transport.md](android-http3-transport.md)); also 2026-11-18 (step 3 (e): the R8 PR built, §6, §11; step 3a: PR A built, then merged in #806, and PR B built). Before that, 2026-11-17 (step 3: (b) merged, the hold (c) over, (d) built), and before that, 2026-11-14 (step 3: (a) merged, (b) built), and 2026-11-13 (decisions 134–135 and the audit's findings: §2, §4, §5, §6, §9, §11, the outcome log) |
 | **BACKLOG items** | B0.10 (the Play forms and the closed test), B13.1 (#758), B13.3 (firebase), B13.10 (#759) |
 | **PRD ref / phase** | V1 · NFR-PERF-002 (APK < 30 MB) · ROADMAP Part 6 (the reference low-end Android) |
 | **ROADMAP entry** | added when the production release ships (`docs/roadmap/entries/`) |
@@ -163,10 +163,10 @@ never a go-ahead for a console action.
 | 1 | Merge #758 (Flutter 3.47.9); then #759 (the TLS artifact gate), rebased | the owner merges; #759 belongs to its own session | yes | squash tree == PR tree |
 | 2 | B13.3: firebase_messaging 16.7.x, its own PR from `main`, lockfile regenerated on 3.47.9 | Claude | merge | the Android 13+ « never asked = denied » branch tested |
 | 3 | `version: 0.0.2+1` in `pubspec.yaml` (decision 111); the R8 PR (§6). **2026-11-13 (decisions 134, 135), the order inside this step:** (a) B0.18's Pro-app PR ([salon-go-live-approval.md](salon-go-live-approval.md) §9.1 item 3), so the iOS 0.0.2 IPA knows publish's 202 and the 409 `validation_refused_final`; (b) the bump, alone; (c) **a merge hold** from the bump's merge until the iOS 0.0.2 IPA is built: `release_build.sh` builds `origin/main`'s head only (`tool/release_build.sh:56-67`), so anything merged in between ships in iOS 0.0.2 (no PR was open on 2026-11-13); (d) the iOS 0.0.2 IPA, `./tool/release_build.sh ios pro` in the main checkout after `git pull --ff-only` (as step 5), decision 119 unchanged; its upload waits for the owner's yes and for Apple's two new age-rating answers (BACKLOG, decision 108); (e) the R8 (shrinker) PR (§6, decision 135), after the IPA so that its Dart change stays out of iOS 0.0.2, and before step 3a's PR A, whose P9 reuses the `flutter` stub's argument log it adds. **Fallback the owner accepted:** if (a) stalls, (b) ships alone first and (a) follows, still before step 5. *(2026-11-14:)* (a) merged in #792 (`a3f90348`), so the fallback is not needed; (b) built on `chore/version-0.0.2`, not merged: `pubspec.yaml`'s `0.0.1+1` → `0.0.2+1` and nothing else, the `+1` kept for `release_build.sh` and its test. The merge hold (c) starts at its merge. *(2026-11-14, evening:)* (b) merged in #797 (`29daa5ed`, 19:07 UTC); (d) built from that commit as build 781, validated and read at app-store-forms §11.3 (recorded in §11.5), so the hold (c) ended about 19:15 UTC with nothing merged in between. Not uploaded: that waits for the owner's yes. (e) is next. *(2026-11-18:)* (e) built on `chore/r8-proguard-uuid`, then merged in #805 (`a866bf08`, 2026-11-18); its real-artifact checks are step 5's (§6, O7). | Claude; the owner merges | merge; the IPA built on the owner's go | the guards of §9; the IPA's app-store-forms §11.3 read |
-| 3a | *Added 2026-11-13.* B0.17, the Android sign-up ([pro-android-signup.md](pro-android-signup.md) §9.1), in **three PRs**: **A** the fence (null extensions, no behaviour change), after the R8 PR; **B** the service, provider and mock methods, the screens, the copy and the goldens; **C** the documents and the Play texts, after B0.18's button rename and B0.19's URL. A and B merge before step 5; C before step 7 *(2026-11-18:)* **A merged** in #806 (`d0b2c85a`); **B built** on `feat/pro-android-signup`, not merged (pro-android-signup §12) | Claude; the owner merges | merge | pro-android-signup §8's guards; the iOS strings read at the first iOS build that carries A (decision 119) |
+| 3a | *Added 2026-11-13.* B0.17, the Android sign-up ([pro-android-signup.md](pro-android-signup.md) §9.1), in **three PRs**: **A** the fence (null extensions, no behaviour change), after the R8 PR; **B** the service, provider and mock methods, the screens, the copy and the goldens; **C** the documents and the Play texts, after B0.18's button rename and B0.19's URL. A and B merge before step 5; C before step 7 *(2026-11-18:)* **A merged** in #806 (`d0b2c85a`); **B built** on `feat/pro-android-signup`, then **merged** in #807 (`1854bfc5`, the same day); C is left, before step 7 (pro-android-signup §12) | Claude; the owner merges | merge | pro-android-signup §8's guards; the iOS strings read at the first iOS build that carries A (decision 119) |
 | 4 | The upload key's backup: none was known (§11, O1), so the owner made one on 2026-11-11. **The file:** `~/myweli-upload.jks` is on the owner's Google Drive. It was downloaded back to this Mac and compared with the original: equal SHA-256 (`3aee730f…0be0e3`) and `cmp` 0. The download then went to the Trash. Because the copy is byte-identical, it opens wherever the original does, so `keytool -list` on it would prove nothing more. **The passwords:** in Apple Passwords, which iCloud Keychain syncs off this Mac (sync observed on). The owner compared the saved passwords with the ones `key.properties` holds, using a `getpass` comparison in their own terminal that prints only « matches » or « is DIFFERENT ». They reported **both « matches »** (that terminal's output is not visible here). Then, on this Mac: `key.properties`' store password opens the keystore, and it unlocks the private key under alias `upload`. `keytool -list` and `-certreq` both exit 0, with the passwords passed through the environment and nothing printed; as a control, a wrong password exits 1. The key password equals the store password, which PKCS12 requires. `chmod 600 key.properties`: dropped by the owner, because this Mac has one account (§10) | the owner, with Claude | — | **done 2026-11-11:** two equal hashes; both passwords « matches »; `keytool` opens the key with them |
-| 5 | The AAB from `main`, in the main checkout: `./tool/release_build.sh android pro`. Then on the artifact: the TLS gate (#759), the R8 marker, `BUNDLE-METADATA/…/proguard.map` present or not, permissions with `aapt2`/`bundletool`, size; Sentry: Dart symbols + the mapping (§6). **Added 2026-11-13:** (a) first, on the owner's go, `git pull --ff-only` in the main checkout: on 2026-11-13 it was 14 commits behind `origin/main` (`f36963a9` against `d19655bd`), a state the script refuses (`tool/release_build.sh:62-66`); (b) the 16 KB page size, Google's rule for apps targeting Android 15 and up (its page not re-read here: UNVERIFIED): `bundletool build-apks`, then `zipalign -c -P 16 -v 4` on the arm64 split, or an ELF read of `libapp.so`'s LOAD alignment. The audit read the engine's `libflutter.so` at 65536 and sentry-native's libraries at 16384 in local caches; `libapp.so` was not read; (c) the mapping **inside** the AAB, at `BUNDLE-METADATA/com.android.tools.build.obfuscation/proguard.map`: AGP 8.11.1 adds it whenever a mapping exists (OBSERVED in AGP's bytecode; no AAB read yet); (d) *an audit proposal (Q-L) the owner has not answered yet (O9):* before the upload, a read of `GET /client-version?app=com.myweli.pro&platform=android&build=<N>`, `<N>` the AAB's build number, so that a floor set earlier does not block it. It must answer `ok` (or `update_available`), never `update_required`. `app` is the package name, as the app sends it (`client_version_gate.dart:125`): an unknown value such as `pro` finds no floor row and answers `ok` whatever the floor (`client_version_service.dart:55-56`), so it would prove nothing. A production read, on the owner's go. Play may warn that native code has no debug symbols: expected, not a failure (INFERRED) | Claude, on the owner's yes | yes | the script's lines, the reads |
-| 6 | Upload to the **internal** track, roll out to the owner; the device pass of §5 on the owner's phone and on the reference device | Claude in the browser pane (the owner signed in); the owner holds the phones. *Corrected 2026-11-13:* the built-in pane cannot attach files (play-store-forms §0.1: « le volet navigateur ne peut pas joindre de fichier »), so the AAB upload is done in the owner's Chrome (Claude in Chrome) on their yes, or by the owner | yes for the upload | §5's table filled in. *2026-11-18: build 785 was published to the internal track and installed from Play; the pass stopped at sign-in, « Pas de connexion. Réessayez. » over the owner's Orange CI fibre Wi-Fi. Cause and fix: [android-http3-transport.md](android-http3-transport.md) (draft). The pass resumes on the first AAB that carries that fix.* |
+| 5 | The AAB from `main`, in the main checkout: `./tool/release_build.sh android pro`. Then on the artifact: the TLS gate (#759), the R8 marker, `BUNDLE-METADATA/…/proguard.map` present or not, permissions with `aapt2`/`bundletool`, size; Sentry: Dart symbols + the mapping (§6). **Added 2026-11-13:** (a) first, on the owner's go, `git pull --ff-only` in the main checkout: on 2026-11-13 it was 14 commits behind `origin/main` (`f36963a9` against `d19655bd`), a state the script refuses (`tool/release_build.sh:62-66`); (b) the 16 KB page size, Google's rule for apps targeting Android 15 and up (its page not re-read here: UNVERIFIED): `bundletool build-apks`, then `zipalign -c -P 16 -v 4` on the arm64 split, or an ELF read of `libapp.so`'s LOAD alignment. The audit read the engine's `libflutter.so` at 65536 and sentry-native's libraries at 16384 in local caches; `libapp.so` was not read; (c) the mapping **inside** the AAB, at `BUNDLE-METADATA/com.android.tools.build.obfuscation/proguard.map`: AGP 8.11.1 adds it whenever a mapping exists (OBSERVED in AGP's bytecode; no AAB read yet); (d) *an audit proposal (Q-L) the owner has not answered yet (O9):* before the upload, a read of `GET /client-version?app=com.myweli.pro&platform=android&build=<N>`, `<N>` the AAB's build number, so that a floor set earlier does not block it. It must answer `ok` (or `update_available`), never `update_required`. `app` is the package name, as the app sends it (`client_version_gate.dart:125`): an unknown value such as `pro` finds no floor row and answers `ok` whatever the floor (`client_version_service.dart:55-56`), so it would prove nothing. A production read, on the owner's go. Play may warn that native code has no debug symbols: expected, not a failure (INFERRED). *2026-11-18: done twice, each on the owner's yes: build 785 from `1854bfc5`, then build 788 from `e8ec333c`, which carries the « Pas de connexion » fix. Every read above passed both times, and (d) answered `ok` (§11, O9 and the outcome log). Play gave no warning about native symbols.* | Claude, on the owner's yes | yes | the script's lines, the reads |
+| 6 | Upload to the **internal** track, roll out to the owner; the device pass of §5 on the owner's phone and on the reference device | Claude in the browser pane (the owner signed in); the owner holds the phones. *Corrected 2026-11-13:* the built-in pane cannot attach files (play-store-forms §0.1: « le volet navigateur ne peut pas joindre de fichier »), so the AAB upload is done in the owner's Chrome (Claude in Chrome) on their yes, or by the owner | yes for the upload | §5's table filled in. *2026-11-18: build 785 was published to the internal track and installed from Play; the pass stopped at sign-in, « Pas de connexion. Réessayez. » over the owner's Orange CI fibre Wi-Fi. Cause and fix: [android-http3-transport.md](android-http3-transport.md), approved and built the same day. The pass resumes on the first AAB that carries that fix.* *2026-11-18, evening: build 788 carries it. Published to the internal track and installed from Play on the Galaxy; over the same Wi-Fi, rows 1, 2, 5 to 9, 18 and 19 passed, on 2026-11-18 and 19. Rows 3, 10, 11–16, 21 and 22 are not run yet, nor row 4's push; rows 17 and 20 wait for a first Sentry event (§11's outcome log).* |
 | 7 | Re-read the Play dashboard (last read 2026-10-28). Type the listing text (decision 113). Fill in the location declaration (§7.1) and the trader declaration (§3.6, « trader », confirmed 2026-11-11). *Precondition added 2026-11-13:* B0.19's Pro deletion page live, and its URL typed in Data safety as the deletion URL; step 3a's PR C merged, so play-store-forms holds the texts to type. *Added 2026-11-13 (decision 137, [web-pro-account-deletion.md](web-pro-account-deletion.md) §11):* before that page merges, B0.22 (the map pin and replaced KYC documents erased) deployed and read back, with O2 settled, and B0.23 (the privacy policy's correction) merged and read live (that merge's other conditions are in its §11); the Data safety preview read beside the corrected policy and the page. *(2026-11-13, decisions 141–143:)* also B0.25's server half ([admin-pro-account-erase.md](admin-pro-account-erase.md)) deployed and read back, and its procedure approved, before B0.23; and B0.22's O1 settled beside O2. *(2026-11-14, met:)* ✅ B0.22 merged (#791) and deployed with B0.25's server half (#793), revision `myweli-api-00052-94d`, both read back; ✅ O1 = 0 and O2 = 0; ✅ the procedure approved (decision 148); ✅ B0.23 merged (#794) and read live; ✅ B0.19's page merged (#795) and read live at `https://myweli.com/pro/suppression-compte`. **Still open for this step:** step 3a's PR C, the URL typed in Data safety, and the preview read beside the policy and the page | Claude in the pane; the owner signed in | yes for each form | each form read back after saving |
 | 8 | The Google Group; the closed track (countries, decision 114; testers = the group); **promote the same release** from internal to closed; send it to Google's review. *Added 2026-11-13:* precondition, B0.18's admin console and backend deployed, with a 202 read back: **done 2026-11-13** (salon-go-live-approval's status line; its §9.2 item 5 sets the precondition); the group is Testers Community's and the countries every available one (decision 117). *An audit proposal (Q-I) the owner has not answered yet (O8):* after Google approves the closed release, and before step 10, « Publication gérée » turned **on** (off when last read, 2026-10-28, play-store-forms §0.1), on the owner's yes, so that production goes out on their click. *Added 2026-11-13 (decision 140):* from the release sent to Google's review until Google's decision, `/pro/suppression-compte` is frozen, as the five pages are during Apple's reviews | the owner and Claude | yes | the track's state read back |
 | 9 | The test salon, the invitations, play-store-forms §6.3–§6.5; 12 testers opted in for 14 days in a row | the owner | — | the console's tester count, day by day |
@@ -208,6 +208,8 @@ observed. A line nobody could observe stays UNVERIFIED in the outcome (§11).
 | 20 | A Sentry test event carries `net.transport=cronet` | the event's tags in Sentry |
 | 21 | Row 18 again on mobile data, where a phone has a data SIM, and on the old Samsung, whose Android version decides how much the trust list matters there | screen |
 | 22 | An iPhone smoke pass: only Sentry moved on iOS | screen; one Sentry event from the iPhone |
+
+*2026-11-19: the first pass, on build 788, is in §11's outcome log, row by row.*
 
 **Rows 11–16** are the Android sign-up's ([pro-android-signup.md](pro-android-signup.md)
 §8.4): a Google sign-up, an e-mail sign-up, an address that already has an
@@ -441,9 +443,9 @@ they have, and LAUNCH §6.3's box stays open with the gap named.
 | O4 | The location form: where it is, what it asks, whether it gates testing | read at step 7 | open |
 | O5 | Does `sentry_flutter` read `io.sentry.proguard-uuid` without the Gradle plugin? | step 6 | **answered 2026-11-13, from the code: read, then erased.** sentry-android 8.51.0's `ManifestMetadataReader.applyMetadata` sets it; sentry_flutter 9.26.0's options callback, which runs after, sets it back to `options.proguardUuid`, `null` in this app (`sentry_native_java_init.dart:218-219`); only the Gradle plugin's asset refills a `null`, and there is none. So the carrier is the Dart option (decision 135, §6). The runtime proof stays at step 6 (§5 row 17) |
 | O6 | The rollout: 20 % for 48 h, then 100 %? | the owner, at step 10 | proposed |
-| O7 | *Added 2026-11-13.* Does Sentry register a second upload of a byte-identical `mapping.txt` under a new `--uuid`? | step 5, the per-build check (§6) | open (UNVERIFIED). If it does not, the Gradle plugin is the fallback |
+| O7 | *Added 2026-11-13.* Does Sentry register a second upload of a byte-identical `mapping.txt` under a new `--uuid`? | step 5, the per-build check (§6) | open (UNVERIFIED). If it does not, the Gradle plugin is the fallback. *2026-11-18: not exercised yet. Build 785 uploaded the first mapping, and 788's differs from it (25,726,708 bytes against 21,880,516: Cronet's classes). Sentry lists each build's UUID.* |
 | O8 | *Added 2026-11-13, the audit's Q-I.* Turn « Publication gérée » on after Google approves the closed release, before step 10, so that production goes out on the owner's click (step 8)? | the owner, before step 10 | **proposed, not answered** (the audit recommends yes). Off when last read, 2026-10-28 (play-store-forms §0.1) |
-| O9 | *Added 2026-11-13, the audit's Q-L.* A production read of `GET /client-version?app=com.myweli.pro&platform=android&build=<N>` before the upload, to see that no floor blocks the AAB's build number (step 5 (d))? | the owner, at step 5 | **proposed, not answered** (the audit recommends yes, read-only). The Android row's floors are UNVERIFIED |
+| O9 | *Added 2026-11-13, the audit's Q-L.* A production read of `GET /client-version?app=com.myweli.pro&platform=android&build=<N>` before the upload, to see that no floor blocks the AAB's build number (step 5 (d))? | the owner, at step 5 | ~~proposed, not answered~~ **answered 2026-11-18, « Yes, as recommended ».** Read in production before each AAB: `ok` for build 785, for build 788 and for build 1, so no floor is set for the Pro app on Android; iOS build 781 also answered `ok` |
 
 **Outcome log.** Each step adds a dated line here when it ends, with what was
 observed.
@@ -490,4 +492,103 @@ observed.
   `error_reporting_test.dart` (3 cases). Mutations on the committed code: 18 mutations, all red (the Gradle settings deleted, false, moved to debug, commented out, the old comment back; the UUID hard-coded, the mapping check or its removal dropped, the define in COMMON, the upload printed before the TLS gate or for iOS, the define renamed on either side or dropped; the app's wiring removed, hard-coded, its parameter ignored, an empty define kept).
   Not observable here: a real AAB (step 5), Sentry registering the UUID
   (O7, step 5) and a Java event carrying it (§5 row 17).
-
+- **2026-11-18, steps 3 (e) and 3a. Merged.** #805 (the R8 PR, `a866bf08`,
+  00:24 UTC), #806 (PR A, `d0b2c85a`, 08:37) and #807 (PR B, `1854bfc5`,
+  11:10; one CI job re-run after the runner failed to download Kotlin's
+  Gradle plugin). Each merge's `main` tree equals the PR head CI tested.
+  PR C is left, before step 7.
+- **2026-11-18, step 5: build 785.** On the owner's « Yes, as recommended »:
+  no Dependabot PR rides in the bundle, O9 is read, Sentry is filled with the
+  build. From `1854bfc5` in the main checkout: `app-pro-release.aab`,
+  66,238,627 bytes, SHA-256 `d6bedfbe…3e76d904`.
+  - **The bundle:** the TLS gate passed on the three ABIs (Dart 3.13.7,
+    blocklist 8/8); 0.0.2 (785), minSdk 24, targetSdk 36; the R8 marker;
+    `BUNDLE-METADATA/…/proguard.map` equal to `mapping.txt` (21,880,516
+    bytes); the delivered `libapp.so` has no debug section.
+  - **16 KB:** every arm64 library is aligned to 0x4000 or more.
+  - **The signature:** the upload key (SHA-1 `4F:27…65:D1`).
+  - **The sign-up:** pro-android-signup §8.3 (2), the positive control: the
+    26 sign-up phrases present in the arm64 `libapp.so`.
+  - **Sentry:** the Dart symbols, the mapping under its UUID and the release
+    `com.myweli.pro@0.0.2+785` with its commits, all found on the server.
+  - **O9:** `ok` for 785 and for build 1.
+- **2026-11-18, step 6: build 785. Published, then stopped.** The owner
+  dragged the AAB into the console in their Chrome; Claude in Chrome cannot
+  attach a 66 MB file.
+  - **Play:** one warning, 27 devices dropped (tablets 7, TV 3, car 17;
+    phones unchanged at 12,542). The portrait lock (#682) implies
+    `android.hardware.screen.portrait`, so this is expected.
+  - **Published** to the internal track on the owner's « Yes, publish it »,
+    for the testers' list « OG TESTER » (one user).
+  - **On the owner's Galaxy A73** (Android 14), installed from Play: « Pas de
+    connexion. Réessayez. » at sign-in, over their Orange CI fibre Wi-Fi.
+    Cause and fix: [android-http3-transport.md](android-http3-transport.md),
+    then #808 (the spec), #809 and #810, all merged the same day.
+- **2026-11-18, step 5: build 788.** On the owner's « Yes, build it », from
+  `e8ec333c`, which holds the fix: 66,900,365 bytes, SHA-256
+  `23437698…dacfbeb9`.
+  - **The bundle:** the TLS gate's « carries the eMudhra blocklist » line;
+    R8 UUID `18030865-b161-4556-a230-6759cdeb8073`; `proguard.map` equal to
+    `mapping.txt` (25,726,708 bytes); the same permissions as 785, read the
+    same way on both; the R8 marker; `libapp.so` with no debug section;
+    16 KB aligned; the upload key.
+  - **The fix in the bundle:** the manifest names the network security
+    config, the 14 roots of the trust list are in `res/raw`, and Cronet's
+    classes are in the dex.
+  - **Sentry:** the three ABIs' Dart symbols, the mapping and the release
+    `com.myweli.pro@0.0.2+788` with its commits, all found on the server.
+  - **O9:** `ok` for 788 and for build 1.
+- **2026-11-18, step 6: build 788. Published.** The owner uploaded it.
+  - **Play:** « La release est prête », no warning. No device lost or gained
+    (phones 12,542, tablets 6,844, TV 4, car 13, Chromebook 77, XR 2). A new
+    install downloads 12.4 MB (+92.6 KB on 785), an update 3.5 MB.
+  - **Published** on the owner's « Yes, publish it »; 785 is no longer in the
+    release.
+  - **The Galaxy:** the two test apps sideloaded during the diagnosis were
+    removed first, on the owner's yes.
+- **2026-11-18 and 19, the device pass on build 788** (§5). On the Galaxy A73,
+  Android 14, installed from Play, over the owner's Orange CI fibre Wi-Fi, the
+  network of « Pas de connexion ». Times are UTC.
+  - **The transport:** the phone's log shows Cronet 158.0.8127.22, from Play
+    services, loaded in the app. The server's log shows every request of the
+    pass with the app's user agent, `MyWeli/0.0.2+788 (com.myweli.pro;
+    Android)`, which only the Cronet client sends, and none with Dart's.
+  - **Passed:**
+    - **Row 1:** a cold start reaches « Espace Pro » with no crash. Sentry
+      lists no issue for the release (read on Sentry's page, 22:52).
+    - **Row 2:** e-mail code sign-in with `revue@myweli.test`, the review
+      account in production: `otp/request` 202, then `verify` 200 (22:41:07 and 22:41:11).
+    - **Rows 5 and 18:** the dashboard, the salon's photos and the map with
+      streets (the owner).
+    - **Row 19, and row 7's photo:** one gallery photo on the review salon,
+      asked first. `/uploads/sign` 200, then the gallery `PUT` 200 in 679 ms
+      (22:44). The server reads the object's size in R2 when the photo is
+      claimed and refuses a missing one, so that 200 is the size read; R2 was
+      not read from here.
+    - **Row 7's PDF:** a one-page dummy PDF (961 bytes, « pas une vraie pièce
+      »), asked first, on the three required KYC rows of the review account.
+      Three `/uploads/sign` 200, then `POST /me/kyc` 200 in 1.5 s (00:17), the
+      same size read. The weekly demo reset erases these files.
+    - **Row 6:** « Utiliser ma position »: the prompt, « approximate », then a
+      denial; the profile was not saved (the owner; the position never
+      reaches the server).
+    - **Row 8:** an expired access token renewed (one 401, the refresh 200,
+      the retry 200, 00:07). Two reopenings still signed in (00:09, 00:10).
+      « Se déconnecter » removed the push registration (`DELETE /me/devices`
+      200), and signing back in restored it.
+    - **Row 9:** « Support » and « Politique de confidentialité » open in the
+      browser (the owner).
+  - **Partly, row 4:** the prompt appeared once (the owner), and Android shows
+    the permission as granted by the user. The token was registered (`POST
+    /me/devices` 200, 22:41). No push has reached the phone yet: there is no
+    way to send one without a real event, such as a booking.
+  - **Not run yet:**
+    - row 3 (Google sign-in);
+    - rows 10 and 21: the old Samsung (O2), and mobile data, since the Galaxy
+      has no data SIM;
+    - rows 11–16, the sign-up, which join with PR C;
+    - row 22, the iPhone.
+  - **UNVERIFIED, rows 17 and 20:** no Android event has reached Sentry for
+    785 or 788 (Sentry's issues page, 22:52), because nothing failed and
+    handled errors are not sent. Both wait for a first event. The transport
+    is observed all the same: only Cronet sends the app's user agent.

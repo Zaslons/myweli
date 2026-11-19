@@ -2,9 +2,9 @@
 
 | | |
 |---|---|
-| **Status** | **Approved 2026-11-18** — the owner answered §10 « Yes, as recommended »: every question as §10 recommends (the answers are under §10). The upload read V-U ran the same day and passed (R10), so the relay the draft proposed is not built. Built in §8's order. Drafted the same day on the owner's « Yes, write it ». **Amended the same day while building PR 2:** the trust list of §5.2 gains Sectigo (Q8) and loses two roots no longer trusted for websites; §4.1 records what the build added. |
+| **Status** | **Approved 2026-11-18** — the owner answered §10 « Yes, as recommended »: every question as §10 recommends (the answers are under §10). The upload read V-U ran the same day and passed (R10), so the relay the draft proposed is not built. Built in §8's order. Drafted the same day on the owner's « Yes, write it ». **Amended the same day while building PR 2:** the trust list of §5.2 gains Sectigo (Q8) and loses two roots no longer trusted for websites; §4.1 records what the build added. *(2026-11-19: the spec merged in #808 (`b859067a`), PR 1 in #809 (`8486451a`) and PR 2 in #810 (`e8ec333c`), all on 2026-11-18. Build 788 carries them, on the internal track; on the owner's Galaxy over Orange fibre, §7's device reads passed except the Sentry event, which waits for a first one (§8, step 5).)* |
 | **Owner** | Sadreddine Daher |
-| **Last updated** | 2026-11-18 |
+| **Last updated** | 2026-11-19 (§8: steps 3 to 5 done; §11: the uploads read on the device). Before that, 2026-11-18 |
 | **PRD ref / phase** | Reliability and security, cross-cutting · V1 (it blocks the Play release) |
 | **Module** | `mobile/` networking on Android, both apps (Pro and consumer); the Android network security config |
 | **Found by** | Step 6 of [android-play-release.md](android-play-release.md) §4: build 785 from the internal track, on the owner's Galaxy, over the owner's Wi-Fi (Orange CI fibre), 2026-11-18 |
@@ -529,13 +529,19 @@ fails, and the real config connects.
 2. **The read V-U** (§4.5). Done 2026-11-18: uploads work (R10), so there is
    no relay and no PR 3.
 3. **PR 1 — Sentry ≥ 10.4.** Both platforms, a clean build of each, the iOS
-   release build read (§4.6).
+   release build read (§4.6). *Merged 2026-11-18 in #809 (`8486451a`): Sentry
+   10.5.*
 4. **PR 2 — the transport.** The image fix, the trust anchors (Q6), the daily
-   chain check and the guards.
+   chain check and the guards. *Merged 2026-11-18 in #810 (`e8ec333c`).*
 5. **The next AAB** (0.0.2, the next build number), built by
    `tool/release_build.sh android pro` from `main` with every read of step 5
    of [android-play-release.md](android-play-release.md). Then the internal
-   track on the owner's yes, and the device pass (§7).
+   track on the owner's yes, and the device pass (§7). *Done 2026-11-18 and
+   19 with build 788, recorded row by row in android-play-release §11's
+   outcome log. On the Galaxy (Android 14) over Orange fibre, §7's reads 1 to
+   5 passed, and every request carried the app's user agent, which only
+   Cronet sends. Read 6 is UNVERIFIED: no Sentry event exists yet. Mobile
+   data, the old Samsung and the iPhone smoke pass are not run yet.*
 6. **The consumer app** gets the same transport through `main.dart`, and ships
    it with its own first Android build.
 
@@ -609,7 +615,11 @@ Each of these is either read in §7's device pass or stays stated here:
 - Why `www.google.com` and R2's upload host succeed over `dart:io` on this
   network while our proxied hostnames fail.
 - That R2 reads a whole upload body on this network (V-U's answer came early).
-  §7's device row 5 makes one real upload.
+  §7's device row 5 makes one real upload. *Read 2026-11-18 and 19 on build
+  788 over this network: one gallery photo, then three one-page PDFs for KYC.
+  Each claim answered 200, and the server reads the object's size in R2 when
+  it is claimed, refusing a missing one.*
 - Whether the native Sentry SDKs' own traffic is affected on this network.
-  Inferred no (not Cloudflare); the device pass's test event reads it.
+  Inferred no (not Cloudflare); the device pass's test event reads it. *Still
+  unread on 2026-11-19: no event has been sent.*
 - Embedded Cronet's size per ABI at the current version.

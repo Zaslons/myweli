@@ -427,6 +427,12 @@ Each question has a recommendation. Answers unblock the item named in brackets.
     - **R8 has always been on** (decision 112);
     - **two new Play declarations:** precise location by 2027-01-27, trader status by 2027-02-01 (§7 there);
     - **the order:** #758 → B13.3 → 0.0.2 and the R8 PR → the AAB → the internal track and the device pass → the console forms → the closed test (the same release, promoted) → 14 days → production, staged.
+  - **2026-11-19 — where it stands** ([android-play-release.md](design/android-play-release.md) §11's outcome log):
+    - the R8 PR and B0.17's PRs A and B merged (#805–#807);
+    - the AAB built twice: 785, then 788, which carries the « Pas de connexion » fix ([android-http3-transport.md](design/android-http3-transport.md), #808–#810);
+    - 788 on the internal track. On the owner's Galaxy, rows 1, 2, 5 to 9, 18 and 19 of the device pass work;
+    - left in the pass: Google sign-in, a push arriving, the old Samsung, mobile data, the iPhone, the sign-up rows (with PR C), and two rows that wait for a first Sentry event;
+    - next: PR C, then step 7, the console forms.
   - **MyWeli (client):** later (decision 51); play-store-forms §8 lists what to re-audit then.
   - **Order:** Android is last (LAUNCH §3).
 - **B0.15 Search text kept 30 days in Google Cloud's request logs (P2 · S · decision 55, open).**
