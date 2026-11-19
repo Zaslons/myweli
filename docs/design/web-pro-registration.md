@@ -34,7 +34,10 @@ Se connecter ou créer un compte ») — fixed in this slice.
   registers identity + salon atomically): Nom de l'entreprise (required) ·
   Type (select: salon/barbier/spa/manucure/massage/autre) · **Téléphone du
   salon (required, international input — the C1/booking dedupe + contact
-  key)** · Adresse (optional).
+  key)** · Adresse (optional). *(Drift, noted 2026-11-19: the page now
+  requires the address, « Saisissez l’adresse de l’entreprise. »
+  (`web/components/pro/ProRegisterClient.tsx`), and the Android app's sign-up
+  requires it too ([pro-android-signup.md](pro-android-signup.md) §2.4, R2).)*
 - **Identity section** « Votre identité de connexion »:
   - **S'inscrire avec Google** (GIS button, env-gated like login) → POST
     register `{idToken, …fields}`;

@@ -162,13 +162,18 @@ apps); what's left is console work. Specs:
    ```sh
    cd mobile
    flutter build apk --debug --flavor consumer -t lib/main.dart   # must build
-   flutter build apk --debug --flavor pro      -t lib/main_pro.dart
+   flutter build apk --debug --flavor pro      -t lib/main_pro_android.dart
 
    flutter run --flavor consumer -t lib/main.dart \
      --dart-define=USE_API_BACKEND=true --dart-define=API_BASE_URL=https://api.myweli.com
-   flutter run --flavor pro -t lib/main_pro.dart \
+   flutter run --flavor pro -t lib/main_pro_android.dart \
      --dart-define=USE_API_BACKEND=true --dart-define=API_BASE_URL=https://api.myweli.com
    ```
+   *2026-11-19:* on Android the Pro app's entry is `lib/main_pro_android.dart`,
+   which carries the salon sign-up; `lib/main_pro.dart` is the iOS entry, and
+   on Android it shows no sign-up ([pro-android-signup.md](design/pro-android-signup.md)
+   §5.6). `mobile/scripts/run_pro.sh <device>` picks the entry by the
+   device's platform.
    Then walk the story:
    - Book from the consumer → the **pro** device gets « Nouvelle réservation »
      (named channel « Notifications Myweli », `ic_stat_myweli` in the status
@@ -960,7 +965,8 @@ the write that triggered it already succeeded. Design:
    and shows « API KEY REQUIRED » on every map. For a local check or reference
    only: `flutter build appbundle --flavor consumer -t lib/main.dart
    --dart-define=USE_API_BACKEND=true --dart-define=API_BASE_URL=https://api.myweli.com`
-   (and `--flavor pro -t lib/main_pro.dart`).
+   (and `--flavor pro -t lib/main_pro_android.dart`, the Pro app's Android
+   entry; `lib/main_pro.dart` for iOS).
    Store artifacts are built by **`tool/release_build.sh <ios|android>
    <consumer|pro>`**, which reads its secrets from Secret Manager (project
    `myweli`, never printed) and refuses to build without them:

@@ -4,7 +4,7 @@
 |---|---|
 | **Status** | Approved 2026-11-03 (owner: §3, five decisions) · build, upload and resubmission are the owner's go (§12). **The app's half (§4, §10), the web's half (§5), the texts for Apple (§6, §7), the film's storyboard (§8) and the record are merged (#731, squash `713114a5`, 2026-11-03). The web is live and read. Build 719 is built, read, uploaded, `VALID` and in TestFlight** (§12). **That night, in App Store Connect: the full-screen film in both slots, the description, 719 attached, the notes; version 0.0.1 moved from `REJECTED` to `PREPARE_FOR_SUBMISSION`, release `MANUAL`, as it stood then. The owner reports that the focused pass passed on their iPhone (§11).** **2026-11-04: resubmitted at 00:02:00 UTC with build 719, in review (`WAITING_FOR_REVIEW`, release `MANUAL`, per the API); B0.1 applies. Still open: Apple's decision; a successful Apple sign-in on an iPad, unobserved; the production backend deploy after Apple's decision, the one that switches on the Apple keys; the release by hand after approval.** Closed later on 2026-11-04 (§12): the green scheduled « Production checks » run, `41838514759`, which ran before #730's deploy, so the next one is the first against the new look; and the docs record, on `main` as `bb59b7de`. #732, the `%2F` and `%5C` spellings, was merged and deployed before the submission, and its rendered read is done for one address (§5.1). *Owner-reported on 2026-11-04:* the iPad's demo sign-in and no-account address passed, on a simulator and a debug build, not signed 719 (§11); Media Manager checked and the reply sent, with no order stated against the submission (§12). The backend is not deployed. The owner approved the notes, the description and the reply on 2026-11-03 (decision 77), corrected the description the same day (decision 79), and delegated one clause of the notes (decision 81) |
 | **Owner** | Sadreddine Daher |
-| **Last updated** | 2026-11-04 |
+| **Last updated** | 2026-11-19 (§14: decision 116). Before that, 2026-11-04 |
 | **PRD ref / phase** | FR-PRO-AUTH-001 (registration on the web only) · V1 |
 | **BACKLOG** | B0.1, B0.2, B0.3, B0.11 (batch 0, the release track) |
 | **Related** | [pro-app-login-only.md](pro-app-login-only.md) (round 1; its §8 and Q1 pre-agreed this removal) · [app-store-forms.md](app-store-forms.md) (§8 notes, §11.3 IPA check, §11.6 device checks, §13.2 reply) · [pro-app-preview.md](pro-app-preview.md) (the film) · [web-pro-access.md](web-pro-access.md) (P1 header door, P2 footer group, the two things §5 narrows) · [pro-companion-path.md](pro-companion-path.md) |
@@ -796,7 +796,7 @@ The audit's overkill list. Each was considered and left out on purpose:
 - **A privacy link on the login screen.** The very screen Apple just cited; reachable after sign-in has not been cited.
 - **A second disposable reviewer account.** Backend work and a deploy decision 47 forbids.
 - **Never-rendered strings (`trial_used`, `reseau_required`) and the dead `openWhatsApp`.** Unreachable.
-- **An iOS-only branch.** One behaviour on both platforms; Google did not ask, and the owner chose.
+- **An iOS-only branch.** One behaviour on both platforms; Google did not ask, and the owner chose. *(2026-11-12: amended by decision 116. Android signs salons up again, iOS stays sign-in only, and the iOS binary carries none of the sign-up: [pro-android-signup.md](pro-android-signup.md), built 2026-11-18.)*
 
 ## 15. Definition of done
 
