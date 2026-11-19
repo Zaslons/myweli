@@ -1,0 +1,31 @@
+- 🟡 **Le verrou portrait ne cache plus les apps Android aux appareils sans portrait (des tablettes, des TV, des voitures) : `android.hardware.screen.portrait` déclarée facultative (app · Android · Play · 2026-11-19 — BACKLOG B7.9, B0.10).** Non fusionné : branche `fix/android-portrait-optional`, créée depuis `main` (`d7e40407`). Rien n’est envoyé à Play ; la correction part avec le prochain AAB, avant la production (étape 10 d’[android-play-release.md](../../design/android-play-release.md)).
+  - **Le défaut :**
+    - le verrou portrait de `MainActivity` (#682, décision 26) fait déduire à Play une fonctionnalité **obligatoire**, `android.hardware.screen.portrait` ;
+    - Play cache alors l’app aux appareils qui ne la déclarent pas : 27 appareils perdus au build 785 ;
+    - au build 788, le contrôle de la piste fermée l’a signalé pour les téléphones, les tablettes, les ordinateurs et Android XR. Le propriétaire l’a accepté pour le test fermé, à corriger avant la production.
+  - **La correction :**
+    - une ligne au niveau du manifeste, `<uses-feature android:name="android.hardware.screen.portrait" android:required="false" />` ;
+    - le verrou reste : sur un téléphone, rien ne change ;
+    - les deux apps partagent le manifeste, donc MyWeli en profite aussi.
+  - **Ce qui a été lu sur l’artefact, pas supposé** (`aapt2 dump badging`, sur deux APK de production de l’app Pro, non signés et jamais envoyés) :
+    - **avant** la correction : la fonctionnalité est « implicite », pour la raison « one or more activities have specified a portrait orientation » ;
+    - **après** : `uses-feature-not-required`, et plus rien d’autre pour elle. Le reste de la lecture est identique, et le verrou est toujours là (`screenOrientation=1`).
+  - **Les gardes, chacune vue rouge :**
+    - le test du manifeste source (`android_orientation_test.dart`), commentaires retirés : la déclaration, une seule fois, facultative, hors de `<application>` ;
+    - un script qui lit le manifeste **fusionné** de l’APK construit (`tool/verify_android_portrait_optional.sh`). La CI le lance sur chaque PR, après la construction de l’APK de production. Le test source ne peut pas voir un manifeste de plugin qui remettrait l’obligation ;
+    - un test côté serveur fait tourner les refus du script sur des lectures réelles, et fixe l’étape de la CI ;
+    - **14 mutations vues rouges**, chacune vérifiée appliquée. Le script refuse l’APK d’avant (code 1) et accepte celui d’après (code 0).
+  - **Un défaut trouvé en route, dans la correction elle-même :** la première version du script refusait le bon APK. aapt2 décale les fonctionnalités de deux espaces dans un `feature-group`. C’est la lecture du vrai APK qui l’a montré, pas les tests.
+  - **Sur une tablette émulée** (Pixel Tablet, Android 16) :
+    - Android ignore le verrou, comme prévu ;
+    - l’app Pro (connexion, « Accueil », « Ma journée », « Profil ») et l’accueil de l’app client restent utilisables en paysage et en portrait ;
+    - elles passent de l’un à l’autre sans redémarrer, sans débordement ni exception au journal.
+  - **Les documents :**
+    - android-play-release : l’étape 5 (e), la condition de l’étape 10, les §8 et §9, O10 et le journal du §11 ;
+    - pro-app-batch7 §2.9 ;
+    - ios-language-and-orientation, corrigé : il disait encore qu’Android ne fixait aucune orientation ;
+    - le BACKLOG (B7.9).
+  - **Reste :**
+    - lire les comptes d’appareils de Play au prochain envoi (téléphones, tablettes, Chromebook, XR) : c’est l’observation qui clôt le sujet ;
+    - O10 : la production demande un nouvel AAB, puisque le 788 n’a pas la correction. Comment le vérifier avant, et ce que cela change aux 14 jours, est la décision du propriétaire ;
+    - une tablette ou un Chromebook sous Android 15 ou avant n’a pas été essayé.

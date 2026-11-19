@@ -17,6 +17,16 @@
          requestPermission() raises the dialog; without this it can't.
          Design: docs/design/push-notifications-app.md -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+    <!-- The portrait lock on MainActivity (below) makes Play infer this
+         feature as REQUIRED, and Play then hides the app from every device
+         that does not report it: 27 devices at build 785, and the closed
+         track's check named phones, tablets, desktop and Android XR. Declared
+         optional, the lock stays and the devices come back
+         (docs/design/android-play-release.md §11, 2026-11-19). CI reads the
+         built APK for it: tool/verify_android_portrait_optional.sh. -->
+    <uses-feature
+        android:name="android.hardware.screen.portrait"
+        android:required="false" />
     <application
         android:label="@string/app_name"
         android:name="${applicationName}"

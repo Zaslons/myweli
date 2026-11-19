@@ -176,12 +176,12 @@ never a go-ahead for a console action.
 | 3 | `version: 0.0.2+1` in `pubspec.yaml` (decision 111); the R8 PR (§6). **2026-11-13 (decisions 134, 135), the order inside this step:** (a) B0.18's Pro-app PR ([salon-go-live-approval.md](salon-go-live-approval.md) §9.1 item 3), so the iOS 0.0.2 IPA knows publish's 202 and the 409 `validation_refused_final`; (b) the bump, alone; (c) **a merge hold** from the bump's merge until the iOS 0.0.2 IPA is built: `release_build.sh` builds `origin/main`'s head only (`tool/release_build.sh:56-67`), so anything merged in between ships in iOS 0.0.2 (no PR was open on 2026-11-13); (d) the iOS 0.0.2 IPA, `./tool/release_build.sh ios pro` in the main checkout after `git pull --ff-only` (as step 5), decision 119 unchanged; its upload waits for the owner's yes and for Apple's two new age-rating answers (BACKLOG, decision 108); (e) the R8 (shrinker) PR (§6, decision 135), after the IPA so that its Dart change stays out of iOS 0.0.2, and before step 3a's PR A, whose P9 reuses the `flutter` stub's argument log it adds. **Fallback the owner accepted:** if (a) stalls, (b) ships alone first and (a) follows, still before step 5. *(2026-11-14:)* (a) merged in #792 (`a3f90348`), so the fallback is not needed; (b) built on `chore/version-0.0.2`, not merged: `pubspec.yaml`'s `0.0.1+1` → `0.0.2+1` and nothing else, the `+1` kept for `release_build.sh` and its test. The merge hold (c) starts at its merge. *(2026-11-14, evening:)* (b) merged in #797 (`29daa5ed`, 19:07 UTC); (d) built from that commit as build 781, validated and read at app-store-forms §11.3 (recorded in §11.5), so the hold (c) ended about 19:15 UTC with nothing merged in between. Not uploaded: that waits for the owner's yes. (e) is next. *(2026-11-18:)* (e) built on `chore/r8-proguard-uuid`, then merged in #805 (`a866bf08`, 2026-11-18); its real-artifact checks are step 5's (§6, O7). | Claude; the owner merges | merge; the IPA built on the owner's go | the guards of §9; the IPA's app-store-forms §11.3 read |
 | 3a | *Added 2026-11-13.* B0.17, the Android sign-up ([pro-android-signup.md](pro-android-signup.md) §9.1), in **three PRs**: **A** the fence (null extensions, no behaviour change), after the R8 PR; **B** the service, provider and mock methods, the screens, the copy and the goldens; **C** the documents and the Play texts, after B0.18's button rename and B0.19's URL. A and B merge before step 5; C before step 7 *(2026-11-18:)* **A merged** in #806 (`d0b2c85a`); **B built** on `feat/pro-android-signup`, then **merged** in #807 (`1854bfc5`, the same day); C is left, before step 7 (pro-android-signup §12) *(2026-11-19:)* **C merged** in #812 (`b275edcd`); step 3a is done | Claude; the owner merges | merge | pro-android-signup §8's guards; the iOS strings read at the first iOS build that carries A (decision 119) |
 | 4 | The upload key's backup: none was known (§11, O1), so the owner made one on 2026-11-11. **The file:** `~/myweli-upload.jks` is on the owner's Google Drive. It was downloaded back to this Mac and compared with the original: equal SHA-256 (`3aee730f…0be0e3`) and `cmp` 0. The download then went to the Trash. Because the copy is byte-identical, it opens wherever the original does, so `keytool -list` on it would prove nothing more. **The passwords:** in Apple Passwords, which iCloud Keychain syncs off this Mac (sync observed on). The owner compared the saved passwords with the ones `key.properties` holds, using a `getpass` comparison in their own terminal that prints only « matches » or « is DIFFERENT ». They reported **both « matches »** (that terminal's output is not visible here). Then, on this Mac: `key.properties`' store password opens the keystore, and it unlocks the private key under alias `upload`. `keytool -list` and `-certreq` both exit 0, with the passwords passed through the environment and nothing printed; as a control, a wrong password exits 1. The key password equals the store password, which PKCS12 requires. `chmod 600 key.properties`: dropped by the owner, because this Mac has one account (§10) | the owner, with Claude | — | **done 2026-11-11:** two equal hashes; both passwords « matches »; `keytool` opens the key with them |
-| 5 | The AAB from `main`, in the main checkout: `./tool/release_build.sh android pro`. Then on the artifact: the TLS gate (#759), the R8 marker, `BUNDLE-METADATA/…/proguard.map` present or not, permissions with `aapt2`/`bundletool`, size; Sentry: Dart symbols + the mapping (§6). **Added 2026-11-13:** (a) first, on the owner's go, `git pull --ff-only` in the main checkout: on 2026-11-13 it was 14 commits behind `origin/main` (`f36963a9` against `d19655bd`), a state the script refuses (`tool/release_build.sh:62-66`); (b) the 16 KB page size, Google's rule for apps targeting Android 15 and up (its page not re-read here: UNVERIFIED): `bundletool build-apks`, then `zipalign -c -P 16 -v 4` on the arm64 split, or an ELF read of `libapp.so`'s LOAD alignment. The audit read the engine's `libflutter.so` at 65536 and sentry-native's libraries at 16384 in local caches; `libapp.so` was not read; (c) the mapping **inside** the AAB, at `BUNDLE-METADATA/com.android.tools.build.obfuscation/proguard.map`: AGP 8.11.1 adds it whenever a mapping exists (OBSERVED in AGP's bytecode; no AAB read yet); (d) *an audit proposal (Q-L) the owner has not answered yet (O9):* before the upload, a read of `GET /client-version?app=com.myweli.pro&platform=android&build=<N>`, `<N>` the AAB's build number, so that a floor set earlier does not block it. It must answer `ok` (or `update_available`), never `update_required`. `app` is the package name, as the app sends it (`client_version_gate.dart:125`): an unknown value such as `pro` finds no floor row and answers `ok` whatever the floor (`client_version_service.dart:55-56`), so it would prove nothing. A production read, on the owner's go. Play may warn that native code has no debug symbols: expected, not a failure (INFERRED). *2026-11-18: done twice, each on the owner's yes: build 785 from `1854bfc5`, then build 788 from `e8ec333c`, which carries the « Pas de connexion » fix. Every read above passed both times, and (d) answered `ok` (§11, O9 and the outcome log). Play gave no warning about native symbols.* | Claude, on the owner's yes | yes | the script's lines, the reads |
+| 5 | The AAB from `main`, in the main checkout: `./tool/release_build.sh android pro`. Then on the artifact: the TLS gate (#759), the R8 marker, `BUNDLE-METADATA/…/proguard.map` present or not, permissions with `aapt2`/`bundletool`, size; Sentry: Dart symbols + the mapping (§6). **Added 2026-11-13:** (a) first, on the owner's go, `git pull --ff-only` in the main checkout: on 2026-11-13 it was 14 commits behind `origin/main` (`f36963a9` against `d19655bd`), a state the script refuses (`tool/release_build.sh:62-66`); (b) the 16 KB page size, Google's rule for apps targeting Android 15 and up (its page not re-read here: UNVERIFIED): `bundletool build-apks`, then `zipalign -c -P 16 -v 4` on the arm64 split, or an ELF read of `libapp.so`'s LOAD alignment. The audit read the engine's `libflutter.so` at 65536 and sentry-native's libraries at 16384 in local caches; `libapp.so` was not read; (c) the mapping **inside** the AAB, at `BUNDLE-METADATA/com.android.tools.build.obfuscation/proguard.map`: AGP 8.11.1 adds it whenever a mapping exists (OBSERVED in AGP's bytecode; no AAB read yet); (d) *an audit proposal (Q-L) the owner has not answered yet (O9):* before the upload, a read of `GET /client-version?app=com.myweli.pro&platform=android&build=<N>`, `<N>` the AAB's build number, so that a floor set earlier does not block it. It must answer `ok` (or `update_available`), never `update_required`. `app` is the package name, as the app sends it (`client_version_gate.dart:125`): an unknown value such as `pro` finds no floor row and answers `ok` whatever the floor (`client_version_service.dart:55-56`), so it would prove nothing. A production read, on the owner's go. Play may warn that native code has no debug symbols: expected, not a failure (INFERRED). *2026-11-18: done twice, each on the owner's yes: build 785 from `1854bfc5`, then build 788 from `e8ec333c`, which carries the « Pas de connexion » fix. Every read above passed both times, and (d) answered `ok` (§11, O9 and the outcome log). Play gave no warning about native symbols.* *Added 2026-11-19:* (e) Play's device filter, on an APK from the AAB (`bundletool build-apks --mode=universal`): `tool/verify_android_portrait_optional.sh <apk>` prints `OK`, meaning the badging names `android.hardware.screen.portrait` once, as `uses-feature-not-required`. CI runs the same script on every PR, on the consumer release APK (§9). After the upload, Play's device counts (phones, tablets, Chromebook, XR) are read against 788's (§11, 2026-11-19). | Claude, on the owner's yes | yes | the script's lines, the reads |
 | 6 | Upload to the **internal** track, roll out to the owner; the device pass of §5 on the owner's phone and on the reference device | Claude in the browser pane (the owner signed in); the owner holds the phones. *Corrected 2026-11-13:* the built-in pane cannot attach files (play-store-forms §0.1: « le volet navigateur ne peut pas joindre de fichier »), so the AAB upload is done in the owner's Chrome (Claude in Chrome) on their yes, or by the owner | yes for the upload | §5's table filled in. *2026-11-18: build 785 was published to the internal track and installed from Play; the pass stopped at sign-in, « Pas de connexion. Réessayez. » over the owner's Orange CI fibre Wi-Fi. Cause and fix: [android-http3-transport.md](android-http3-transport.md), approved and built the same day. The pass resumes on the first AAB that carries that fix.* *2026-11-18, evening: build 788 carries it. Published to the internal track and installed from Play on the Galaxy; over the same Wi-Fi, rows 1, 2, 5 to 9, 18 and 19 passed, on 2026-11-18 and 19. Rows 3, 10, 11–16, 21 and 22 are not run yet, nor row 4's push; rows 17 and 20 wait for a first Sentry event (§11's outcome log).* |
 | 7 | Re-read the Play dashboard (last read 2026-10-28). Type the listing text (decision 113). Fill in the location declaration (§7.1) and the trader declaration (§3.6, « trader », confirmed 2026-11-11). *Precondition added 2026-11-13:* B0.19's Pro deletion page live, and its URL typed in Data safety as the deletion URL; step 3a's PR C merged, so play-store-forms holds the texts to type. *Added 2026-11-13 (decision 137, [web-pro-account-deletion.md](web-pro-account-deletion.md) §11):* before that page merges, B0.22 (the map pin and replaced KYC documents erased) deployed and read back, with O2 settled, and B0.23 (the privacy policy's correction) merged and read live (that merge's other conditions are in its §11); the Data safety preview read beside the corrected policy and the page. *(2026-11-13, decisions 141–143:)* also B0.25's server half ([admin-pro-account-erase.md](admin-pro-account-erase.md)) deployed and read back, and its procedure approved, before B0.23; and B0.22's O1 settled beside O2. *(2026-11-14, met:)* ✅ B0.22 merged (#791) and deployed with B0.25's server half (#793), revision `myweli-api-00052-94d`, both read back; ✅ O1 = 0 and O2 = 0; ✅ the procedure approved (decision 148); ✅ B0.23 merged (#794) and read live; ✅ B0.19's page merged (#795) and read live at `https://myweli.com/pro/suppression-compte`. **Still open for this step:** step 3a's PR C, the URL typed in Data safety, and the preview read beside the policy and the page. *Added 2026-11-19 (pro-android-signup §6.2, §9.4):* before the texts are typed, the owner re-reads in a browser the two Play help pages the sign-up leans on, the Payments policy (9858738, §4) and help 10281818; they were read here through a summarizing fetch on 2026-11-12. *(2026-11-19: PR C built, on `docs/pro-android-signup-pr-c`.)* *(2026-11-19, done except the location declaration, which has no form in the console yet: the description, the sign-in text, Data safety's four changes and the trader declaration, each on the owner's yes and read back after a reload; nothing sent for review. play-store-forms §0.4, §11's outcome log.)* | Claude in the pane; the owner signed in | yes for each form | each form read back after saving |
 | 8 | The Google Group; the closed track (countries, decision 114; testers = the group); **promote the same release** from internal to closed; send it to Google's review. *Added 2026-11-13:* precondition, B0.18's admin console and backend deployed, with a 202 read back: **done 2026-11-13** (salon-go-live-approval's status line; its §9.2 item 5 sets the precondition); the group is Testers Community's and the countries every available one (decision 117). *An audit proposal (Q-I) the owner has not answered yet (O8):* after Google approves the closed release, and before step 10, « Publication gérée » turned **on** (off when last read, 2026-10-28, play-store-forms §0.1), on the owner's yes, so that production goes out on their click. *Added 2026-11-13 (decision 140):* from the release sent to Google's review until Google's decision, `/pro/suppression-compte` is frozen, as the five pages are during Apple's reviews | the owner and Claude | yes | the track's state read back |
 | 9 | The test salon, the invitations, play-store-forms §6.3–§6.5; 12 testers opted in for 14 days in a row. *Corrected 2026-11-19 (decisions 116, 117):* testers create their salon in the app themselves (play-store-forms §6.5, in French and in English); the test salon for friends and family is optional, and paid testers' salons are refused at validation, never published | the owner | — | the console's tester count, day by day |
-| 10 | Apply for production access (Google usually answers in 7 days or less), then production at a staged rollout (§8). *Added 2026-11-13 (decision 138):* before applying, B0.24 decides a purge of a deleted owner's salon history (BACKLOG); once one is built, the deletion page, the policy and Data safety change in text PRs | the owner and Claude | yes | the rollout's state |
+| 10 | Apply for production access (Google usually answers in 7 days or less), then production at a staged rollout (§8). *Added 2026-11-13 (decision 138):* before applying, B0.24 decides a purge of a deleted owner's salon history (BACKLOG); once one is built, the deletion page, the policy and Data safety change in text PRs. *Added 2026-11-19:* precondition, the AAB that goes to production declares `android.hardware.screen.portrait` optional (§11, 2026-11-19), read at step 5 (e). Build 788, on the closed track, does not, so production is a new AAB from a `main` that holds the fix, not 788 promoted (§8, O10) | the owner and Claude | yes | the rollout's state |
 | 11 | The Pro **Android** `updateUrl` in the admin console, once the store page is public (as B0.5 did for iOS). *Its iOS neighbour (decision 134, 2026-11-13):* once an iOS 0.0.2 that carries B0.18's app is live on the App Store, the owner raises the iOS floor (the admin console's client-version minimum for iOS), which ends decision 131's residual (salon-go-live-approval §9.2, item 6). No slot is set for it yet | the owner | — | `GET /client-version?…platform=android&build=-1` read back |
 
 **Earliest production:** about three weeks after step 8, which is 14 days of
@@ -402,6 +402,9 @@ they have, and LAUNCH §6.3's box stays open with the gap named.
 - **Promoting rather than rebuilding:** the build on the closed track is the
   same release that passed §5 on the internal track. Play offers « promote
   release »; a new upload would be a new, unchecked artifact.
+  *2026-11-19:* build 788 cannot go to production as it is. It lacks the
+  portrait declaration, and the owner chose to fix that before production
+  (§11). So production is a new AAB; how it is checked first is O10.
 - **Production access:** after 14 days with 12 testers. Google asks how the
   app was tested and what changed; the answers come from the feedback
   (support@myweli.com and Play's private feedback) and §11 of this spec.
@@ -451,6 +454,32 @@ they have, and LAUNCH §6.3's box stays open with the gap named.
 - **On the artifact** (step 5, not a test): the TLS gate (#759), the R8
   marker, the permission list. A unit test cannot see a build that has not
   happened.
+- **Play's device filter** (*2026-11-19*, the portrait declaration, §11):
+  - **`android_orientation_test.dart`** reads the source manifest, with its
+    comments stripped. It requires one `uses-feature` named
+    `android.hardware.screen.portrait`, with `android:required="false"`,
+    outside `<application>`; the lock and the single activity stay pinned.
+  - **`tool/verify_android_portrait_optional.sh`** reads the **merged**
+    manifest of a built APK with `aapt2 dump badging`. It passes only when
+    the feature appears once, as `uses-feature-not-required`. CI's
+    `apk-size` job runs it after the release build, so a plugin's manifest
+    that brought the requirement back would fail the PR. The source pin
+    cannot see that.
+  - **`backend/test/infra/android_portrait_optional_test.dart`** runs the
+    script on badging lines copied from real APKs (before and after the
+    declaration), so its refusals run on every PR. It also pins CI's step:
+    after the build, on the APK, no `if`, no `continue-on-error`, no
+    `|| true`.
+  - **Watched red:** 14 mutations, each confirmed to change its file:
+    - the declaration deleted, `required="true"`, `required` dropped, moved
+      inside `<application>`, commented out, and the lock removed;
+    - in the script: the comparison always passing, the indent not stripped,
+      the package-line check removed;
+    - in CI: the step deleted, moved before the build, given `|| true` or
+      `continue-on-error`, its `run` commented out.
+
+    The script itself refused the before APK (exit 1) and accepted the after
+    APK (exit 0).
 
 ## 10. Security
 
@@ -489,6 +518,7 @@ they have, and LAUNCH §6.3's box stays open with the gap named.
 | O7 | *Added 2026-11-13.* Does Sentry register a second upload of a byte-identical `mapping.txt` under a new `--uuid`? | step 5, the per-build check (§6) | open (UNVERIFIED). If it does not, the Gradle plugin is the fallback. *2026-11-18: not exercised yet. Build 785 uploaded the first mapping, and 788's differs from it (25,726,708 bytes against 21,880,516: Cronet's classes). Sentry lists each build's UUID.* |
 | O8 | *Added 2026-11-13, the audit's Q-I.* Turn « Publication gérée » on after Google approves the closed release, before step 10, so that production goes out on the owner's click (step 8)? | the owner, before step 10 | **proposed, not answered** (the audit recommends yes). Off when last read, 2026-10-28 (play-store-forms §0.1) |
 | O9 | *Added 2026-11-13, the audit's Q-L.* A production read of `GET /client-version?app=com.myweli.pro&platform=android&build=<N>` before the upload, to see that no floor blocks the AAB's build number (step 5 (d))? | the owner, at step 5 | ~~proposed, not answered~~ **answered 2026-11-18, « Yes, as recommended ».** Read in production before each AAB: `ok` for build 785, for build 788 and for build 1, so no floor is set for the Pro app on Android; iOS build 781 also answered `ok` |
+| O10 | *Added 2026-11-19.* Production needs a new AAB, since 788 lacks the portrait declaration (§8, §11's log). The proposal: the internal track first, with the step-5 reads, then §5's rows 1 and 2 on the Galaxy and Play's device counts read; then the same release promoted through the closed track to production. Does a new build on the closed track touch the 14-day count? | the owner, before step 10 | proposed. The effect on the 14 days is UNVERIFIED: Google's page was not read here |
 
 **Outcome log.** Each step adds a dated line here when it ends, with what was
 observed.
@@ -561,6 +591,8 @@ observed.
   - **Play:** one warning, 27 devices dropped (tablets 7, TV 3, car 17;
     phones unchanged at 12,542). The portrait lock (#682) implies
     `android.hardware.screen.portrait`, so this is expected.
+    *(2026-11-19: no longer accepted. The feature is declared optional;
+    see the line of that date below.)*
   - **Published** to the internal track on the owner's « Yes, publish it »,
     for the testers' list « OG TESTER » (one user).
   - **On the owner's Galaxy A73** (Android 14), installed from Play: « Pas de
@@ -671,3 +703,50 @@ observed.
     `api.myweli.com` and `cdn.myweli.com` end in GTS Root R4, one of the 14
     bundled roots ([android-http3-transport.md](android-http3-transport.md)
     §5.2).
+- **2026-11-19, between steps 8 and 10: Play's device filter.**
+  - **Reported by the session that ran step 8, not read here:** build 788,
+    promoted to « Tests fermés - Alpha », met Play's pre-review check
+    « Les déclarations de fonctionnalités matérielles requises limitent la
+    disponibilité de votre appli ». It named
+    `android.hardware.screen.portrait`, for phones, tablets, desktop and
+    Android XR.
+    - The owner accepted it for the closed test (phones), to be fixed in the
+      next build, before production.
+    - The check was dismissed with « La résolution de ce problème est déjà
+      prévue ».
+  - **The cause, observed:** `aapt2 dump badging` (build-tools 36.0.0) on a
+    release APK of the Pro app built from `d7e40407` prints
+    `uses-implied-feature: name='android.hardware.screen.portrait'
+    reason='one or more activities have specified a portrait orientation'`.
+    That is the portrait lock of #682. Build 788 has the same lock, so it
+    carries the same line (INFERRED; Play's check says so).
+  - **The fix** (`fix/android-portrait-optional`):
+    - a manifest-level `<uses-feature
+      android:name="android.hardware.screen.portrait"
+      android:required="false" />`; the lock stays;
+    - the guards of §9;
+    - step 5 (e) and step 10's precondition.
+  - **Read on the artifact:** the same APK built with the fix.
+    - Its badging names the feature once, as
+      `uses-feature-not-required`. No other line of the badging changes.
+    - `dump xmltree` still shows `screenOrientation=1` (portrait) on
+      `MainActivity`.
+    - The script refuses the first APK (exit 1) and accepts the second
+      (exit 0).
+    - These APKs are unsigned and were never uploaded.
+  - **On a tablet emulator** (Pixel Tablet, 2560 × 1600 at 320 dpi,
+    800 dp smallest width, Android 16, debug, mocks):
+    - Android reports `ignoreOrientationRequest=true`, and the app opens in
+      landscape.
+    - Pro: sign-in, the invitation card, « Accueil », « Ma journée » and
+      « Profil » are usable in landscape, in a centred column. Turned to
+      portrait (`ROTATION_90`), they re-lay out without a restart.
+    - The consumer app's home is usable both ways.
+    - Neither run logged an overflow or an exception.
+    - The PR describes each screen.
+  - **Not covered:**
+    - A tablet or Chromebook on Android 15 or earlier, where the lock
+      applies. Only an API 36 image is installed here.
+    - Android XR.
+    - **Play's device counts after the next upload are the observation that
+      closes this** (step 5 (e)).
