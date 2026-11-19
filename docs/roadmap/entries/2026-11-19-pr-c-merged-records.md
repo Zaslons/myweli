@@ -1,0 +1,12 @@
+- 🟡 **La PR C de l’inscription Android consignée comme fusionnée ; l’étape 3a est faite (documentation · 2026-11-19 — BACKLOG B0.10, B0.17).** Non fusionné : branche `docs/records-pr-c-merged`, créée depuis `main` (`b275edcd`). Documentation seule : aucun code ne change, rien n’est construit, déployé ni saisi dans une console.
+  - **Ce qui s’est passé :** #811 (les comptes rendus du build 788) fusionnée à 00:58 UTC, puis #812 (la PR C) à 08:41 UTC, chacune sur le mot du propriétaire. Pour chacune, le contenu de `main` est identique à celui de la PR qu’a testé la CI. Sur `main`, la CI et le build iOS passent après #812.
+  - **Ce qui change :**
+    - les entrées de #811 et #812 passent au vert ;
+    - [pro-android-signup.md](../../design/pro-android-signup.md) : son statut et son §12 disent la PR C fusionnée, donc les trois PR de B0.17 ;
+    - [android-play-release.md](../../design/android-play-release.md) : l’étape 3a est faite, et le journal du §11 le dit ;
+    - le BACKLOG (B0.10, B0.17) et l’index des specs.
+  - **Reste :**
+    - l’étape 7, la saisie des textes Play dans la console, sur le oui du propriétaire, après sa relecture des deux pages d’aide de Play ;
+    - les lignes 11 à 16 sur un téléphone, avec des adresses de test nommées par le propriétaire ;
+    - la lecture iOS, au prochain build iPhone ;
+    - la première lecture planifiée du contrôle de chaîne (`appchain`) : prévue à 06:00 UTC, GitHub l’a lancée entre 13 h 10 et 15 h 11 UTC les quatre derniers jours.
