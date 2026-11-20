@@ -1,0 +1,22 @@
+- 🟡 **La spec de la purge du salon d’un propriétaire supprimé : combien de temps, ce qui part, qui perd quoi, et comment la faire tourner sans risque sur les vraies données (documentation · backend · 2026-11-20 — BACKLOG B0.24, décision 138).** Branche `docs/deleted-owner-salon-purge-spec`, créée depuis `main` (`be2c44b3`). Spec : [deleted-owner-salon-purge.md](../../design/deleted-owner-salon-purge.md). Aucun code, aucune migration, aucun déploiement ; six questions posées au propriétaire.
+  - **Pourquoi :**
+    - aujourd’hui, le salon d’un propriétaire qui supprime son compte est caché et gardé sans limite, avec son agenda, son fichier clients, ses avis, ses photos et le journal de son équipe ;
+    - `/pro/suppression-compte` le dit (décision 138, « Say it, decide later ») ;
+    - l’étape 10 d’android-play-release (l’accès à la production) attend que la purge soit décidée.
+  - **Ce que la spec a lu dans le code** (`main` `be2c44b3`) :
+    - les 22 tables liées à un salon, le salon compris, avec ce que ferait la suppression du salon pour chacune. Trois la refusent : `provider_members`, `provider_subscriptions` et `subscription_notices` ;
+    - les fichiers R2 du salon (`gallery/{id}/` et `logo/{id}/`), plus les photos d’avis et les preuves d’acompte des clients. Une photo retirée de la galerie n’est jamais supprimée du stockage, et un salon peut référencer le fichier d’un autre ;
+    - les motifs écrits du journal admin sur le compte et ses salons : un refus KYC, une suspension, un litige, un avis masqué ;
+    - **la suppression n’enregistre ni date ni propriétaire**, et un salon est aussi sans propriétaire un instant pendant sa création ;
+    - **supprimer les lignes d’un membre lui ferait créer un nouveau salon vide** à sa connexion suivante (l’auto-réparation de `GET /me/provider`). La spec révoque donc ces lignes, invitations à un compte comprises, ce qui donne le 403 `not_a_member` existant.
+  - **Ce qu’elle propose :**
+    - 90 jours. Le compte à rebours ne démarre qu’une fois la purge réelle activée, et aucune date n’est promise avant ;
+    - une tâche quotidienne sur le cron de maintenance. Chaque nuit, d’abord, elle répète la vraie purge dans une transaction toujours annulée ; la purge réelle vient sur le oui du propriétaire, limitée à un salon la première fois ;
+    - une transaction par salon, idempotente, plus une seconde passe le lendemain ;
+    - deux contrôles indépendants (la requête SQL, puis une relecture des lignes verrouillées) : s’ils trouvent un salon en ligne ou qui a un propriétaire, tout s’arrête et le cron répond 500 ;
+    - un fichier qu’un autre salon référence n’est jamais supprimé ;
+    - un e-mail aux membres au démarrage du compte à rebours, puis un rappel 7 jours avant ;
+    - les trois textes (`/pro/suppression-compte`, « Conservation », Data safety) seulement une fois la purge réelle en marche.
+  - **Une revue indépendante**, menée contre le code, a trouvé 7 problèmes dans le premier jet. Chacun a été relu dans le code, puis intégré (§13 de la spec). Le plus grave : un salon pris dans l’instant de sa création restait dans la file, si bien qu’il aurait pu être purgé avec un propriétaire.
+  - **Les questions Q1 à Q6** : la durée, le mécanisme, les rendez-vous et avis des clients, l’e-mail aux membres, le texte cherché dans les salons en ligne, le journal des décisions de MyWeli.
+  - **Non vu :** la production. Le dernier compte connu date du 2026-11-14 : 6 salons, dont 3 sans propriétaire. Le relire, en lecture seule, est la première étape après les réponses, sur le oui du propriétaire.
