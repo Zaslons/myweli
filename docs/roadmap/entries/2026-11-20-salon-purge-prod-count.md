@@ -1,0 +1,17 @@
+- 🟡 **Le compte en lecture seule de la production pour la purge du salon d’un propriétaire supprimé : 3 salons sans propriétaire, aucun membre, aucun fichier partagé ; #820 et #821 consignées comme fusionnées (documentation · backend · 2026-11-20 — BACKLOG B0.24 ; décisions 153 à 158).** Non fusionné : branche `docs/salon-purge-prod-count`, créée depuis `main` (`9e167b9f`). Spec : [deleted-owner-salon-purge.md](../../design/deleted-owner-salon-purge.md) §6.6 étape 1. Rien n’est écrit en production, rien n’est construit ni déployé.
+  - **Comment :** le 2026-11-20 à 23:26 UTC, sur le oui du propriétaire.
+    - **La base :** par le Cloud SQL Auth Proxy, dans une session `default_transaction_read_only=on` et une transaction `BEGIN READ ONLY … ROLLBACK`. Une écriture d’essai y a été refusée ; la même passait sur une base locale sans ce réglage.
+    - **R2 :** uniquement des `ListObjectsV2`, avec la clé de l’API aux versions épinglées, gardée en mémoire. Rien d’affiché que des totaux.
+    - **Le SQL** a d’abord tourné sur une base locale jetable, à la migration 0045, avec un cas en forme de production. Chaque total y était celui attendu.
+  - **Ce qui a été lu :**
+    - **8 salons, tous brouillons** (6 le 2026-11-14), dont 5 avec un propriétaire (le salon de démo compris) et 3 sans, comme le 2026-11-14 ;
+    - **deux des trois** n’ont que leur ligne de salon ;
+    - **le troisième** a ses horaires (6 lignes), 5 pauses, une ligne du journal de l’équipe et une photo, la seule sous ses préfixes ;
+    - **aucun des trois n’a de membre,** ni actif, ni invité, ni révoqué : l’e-mail de la décision 156 n’atteindrait personne pour eux ;
+    - **aucun** n’a de rendez-vous, d’avis, de litige, de fiche client ni d’abonnement, et le journal admin n’a aucun motif à effacer ;
+    - **le texte cherché dans « Clients » :** 10 lignes, aucune de plus de 90 jours ;
+    - **les fichiers :** 14 référencés, aucun par deux salons ; 20 objets dans le seau public et 0 dans celui des acomptes.
+  - **Ce que la PR backend en retient :**
+    - `audit_log.metadata` est stocké comme une chaîne JSON (14 lignes sur 14) : les lectures de la répétition et du `salon.purge` la décodent d’abord ;
+    - `provider_audit_log.meta` est un objet (106 sur 106) : l’effacement du texte cherché fonctionne sur les lignes d’aujourd’hui, et un nouveau test (24) épingle cet encodage.
+  - **Consignées comme fusionnées :** #821 (`9e167b9f`) et #820 (`be2c44b3`). Pour chacune, le contenu de `main` est identique à celui de la PR que la CI a testé ; leurs entrées passent au vert.

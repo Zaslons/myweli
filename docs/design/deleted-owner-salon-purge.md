@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Module** | backend — a salon purge on the daily maintenance cron (`POST /internal/cron/maintenance`), a stamp in `ProviderAccountService.deleteAccount`, migration `0046`; then three text PRs (web, privacy policy, Play's Data safety record) |
-| **Status** | **Approved 2026-11-20: the owner answered Q1–Q6 « Approve as recommended », decisions 153–158 (§11).** Nothing built, nothing migrated, nothing deployed; each next step waits for the owner's yes (§10, §12). An independent review against the code found 7 problems in the first draft, all folded in (§13). Decision 138 filed this item; android-play-release step 10 needs it **decided** (this spec answered), not built |
+| **Status** | **Approved 2026-11-20: the owner answered Q1–Q6 « Approve as recommended », decisions 153–158 (§11).** Nothing built, nothing migrated, nothing deployed; each next step waits for the owner's yes (§10, §12). *2026-11-20: production counted read-only (§6.6 step 1): 3 salons with no owner, no member row and no shared file.* An independent review against the code found 7 problems in the first draft, all folded in (§13). Decision 138 filed this item; android-play-release step 10 needs it **decided** (this spec answered), not built |
 | **Owner** | the project owner: the answers, the merge, every production read, the deploy, and the switch from rehearsals to real purges, each on the owner's yes |
 | **Last updated** | 2026-11-20 |
 | **PRD ref / phase** | FR-AUTH-005 [V1] (`docs/PRD.md:344`, account deletion) · V1 · gates android-play-release step 10 (decided, not built) |
@@ -175,7 +175,8 @@ Three facts the purge must respect:
   calls « tolerable » (`routes/auth/provider/register.dart:197-199`); the self-heal then creates another
   salon. Such an orphan was never owned, and is empty (INFERRED).
 - **Production, last read 2026-11-14** (B0.22's O1, read-only, `pro-deletion-erase-gaps.md:208-212`):
-  6 salons, all drafts, 3 with no owner left. UNVERIFIED today.
+  6 salons, all drafts, 3 with no owner left. *2026-11-20: read again, 8 salons, all drafts, still 3
+  with no owner (§6.6 step 1).*
 
 ## 3. How long — the options
 
@@ -558,6 +559,70 @@ Each step is on the owner's yes; every read is read-only.
    - the `audit_log` reasons that §4.2 would erase;
    - the files that two salons both reference. This read lists the URLs in `providers.data`, and the R2
      prefixes with `95-verify-r2.sh`'s read access.
+
+   **✅ Counted 2026-11-20 at 23:26 UTC, on the owner's yes, read-only** (results below, OBSERVED by that
+   read).
+
+   *How it read:*
+   - **The database:** through the Cloud SQL Auth Proxy on the owner's gcloud login, in a session with
+     `default_transaction_read_only=on`, inside `BEGIN READ ONLY … ROLLBACK`.
+   - **The control:** a probe write in the same session was refused (« read-only transaction »). The same
+     probe went through on a local database without the setting.
+   - **R2:** `95-verify-r2.sh` cannot list objects, since wrangler has no object listing. The read
+     therefore used the API's own R2 key at the versions `service.yaml` pins, as on 2026-11-09
+     (web-pro-upload-resize §11), making only `ListObjectsV2` GET calls. Secrets stayed in memory and
+     nothing was printed but aggregates.
+   - **The SQL was dry-run first** on a throwaway local database at migration 0045, seeded with a
+     production-shaped case. Every count came out as expected, among them a cross-salon photo and a
+     search-text row stored as a JSON string.
+
+   **The salons:**
+
+   | | Salons | Status |
+   |---|---|---|
+   | In all | 8 (6 on 2026-11-14) | all `draft` |
+   | With an owner | 5, each with both the link and an active owner row | — |
+   | The demo salon | 1 of those 5 (it has an owner) | — |
+   | **With no owner** | **3** (as on 2026-11-14) | none suspended, featured or with a `suspended_from` |
+
+   **The 3 ownerless salons**, numbered by `ORDER BY id`:
+   - **#1 and #3** hold their salon row only. Every table of §2.2 and §2.3 reads 0 for them, and their
+     documents reference no file.
+   - **#2** holds 1 availability row, 6 working-hours rows, 5 breaks, 1 team-log row, and a document
+     that references 1 photo. That photo is the only object under its two prefixes (55,991 B).
+   - **None of them has a member row of any kind,** active, invited or revoked. So Q4's e-mails would
+     reach nobody for these three, and §4.2's revocation finds nothing to revoke.
+   - **None of them has** a booking, a review, a dispute, a client card, a subscription, a validation, a
+     favourite or a member notification.
+
+   **The admin `audit_log`:** 14 rows in all, none with a written reason. 0 rows target one of the three
+   salons, their bookings, disputes or reviews, and 0 deleted-account rows have a reason. §4.2 would
+   erase nothing today.
+
+   **The Clients search text (Q5):** 81 `clients.list` rows in all salons, 10 of them with a non-empty
+   query, none older than 90 days. The oldest `clients.list` row is from 2026-08-26, so no query can
+   reach 90 days before 2026-11-24.
+
+   **The files:**
+   - the salons' documents reference 14 distinct keys. None is referenced by two salons, and none sits
+     under another salon's prefix. `keptShared` would be empty today;
+   - the public bucket holds 20 objects (`gallery/` 17, `logo/` 3; 16 on 2026-11-14). At least 6 of them
+     are referenced by no document, all outside the three salons' prefixes (B0.27's photos, INFERRED:
+     20 objects against 14 keys);
+   - the deposit bucket holds 0 objects.
+
+   **The control:** an owned salon read through the same columns showed 5 services, 6 working-hours
+   rows, 1 active member, 1 subscription and 5 bookings.
+
+   **What the backend PR takes from this:**
+   - **`audit_log.metadata` is a JSON string in all 14 rows.** `->`, `?` and `-` read nothing on a string.
+     So the rehearsal reads and the `salon.purge` read-back (steps 3 and 5) decode it first, with
+     `#>> '{}'`, as `providers.data` already needs.
+   - **`provider_audit_log.meta` is an object in all 106 rows,** so §6.3 step 8's `meta ? 'query'` and
+     `meta - 'query'` work on today's rows. A row stored as a string would escape both silently, as the
+     local dry run showed. So the PR adds a test that pins the writer's encoding (§9).
+   - **Step 3's rehearsal counts must equal the per-salon counts above,** for the salons still without
+     an owner.
 2. **In CI**, a production-shaped fixture on real Postgres. It holds:
    - a live salon, an owned draft, and an orphan from a failed sign-up;
    - a suspended salon with no owner, and the demo salon;
@@ -656,6 +721,7 @@ Each step is on the owner's yes; every read is read-only.
 | 21 | an invitation deleted between `accept`'s two reads → no 500 | restore the `!` |
 | 22 | wiring: the tick runs the purge last; production wires the repository and storage | remove the task |
 | 23 | the fingerprint fixture (§6.6 step 2, Postgres in CI) | any extra `WHERE`-less delete |
+| 24 | *Added 2026-11-20 (§6.6 step 1's count):* `clients.list`'s writer stores `meta` as a JSON object on real Postgres (`jsonb_typeof = 'object'`), so test 19's scrub reaches it | store `meta` as a string |
 
 Then:
 - the full backend suite;
