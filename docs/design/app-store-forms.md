@@ -352,7 +352,7 @@ il sert à `altool --build-status` (§11) et à l'`updateUrl` iOS (§12).
 ## 4 · Textes de la fiche — comptés au caractère et à l'octet
 
 Recomptés le 2026-09-24 avec `python3` (`len(s)` et `len(s.encode())`) ; la
-description, le 2026-11-03.
+description, le 2026-11-20.
 Apple compte les **mots-clés en octets** (é = 2 octets) et le reste en
 caractères.
 
@@ -365,7 +365,7 @@ caractères.
 | **Mots-clés** | **100 octets** | `coiffure,coiffeur,tresses,barbier,onglerie,spa,institut,beauté,planning,rendez-vous,acompte,abidjan` | 99 | **100** (pile la limite) |
 | ↳ repli si le champ refuse | 100 octets | la même liste **sans** `,abidjan` | 91 | 92 |
 | **Texte promotionnel** | 170 car. | `Recevez des réservations en ligne et tenez agenda, équipe et fichier clients au même endroit — pensé pour les salons de beauté de Côte d'Ivoire.` | 144 | 152 |
-| **Description** | 4000 car. | ci-dessous | 1 039 | 1 079 |
+| **Description** | 4000 car. | ci-dessous | 1 228 | 1 273 |
 
 Règles suivies pour les mots-clés : virgules sans espace ; aucun mot déjà
 dans le nom ou le sous-titre (vérifié : intersection vide) ; aucune marque ni
@@ -397,8 +397,19 @@ et rien d'autre. Le propriétaire n'a pas tranché pour Play. *2026-11-11, déci
 texte, mot pour mot ([play-store-forms.md](play-store-forms.md) §1), et le test n'admet plus d'écart.
 La console Play le reçoit à l'étape 7 d'[android-play-release.md](android-play-release.md).*
 
+*2026-11-20, décision 152 (« Both stores », « Yes, as written ») :* un bloc « POUR VOTRE MÉTIER »
+suit le premier paragraphe. Il nomme les cinq catégories de salon de l'app (`salon_categories.dart`,
+la liste du serveur), plus « tresses » et « instituts de beauté ». Play cherche dans la description, et
+elle ne nommait aucun métier hormis « salons de beauté » ; ici, les mots-clés ci-dessus nomment déjà
+les métiers, et le bloc garde les deux stores sur un seul texte. **Pas encore dans App Store Connect** :
+la description ne change qu'avec une nouvelle version, donc elle part avec la soumission de la 0.0.2.
+*Avant : 1 039 caractères, 1 079 octets.*
+
 ```text
 L'outil de gestion des salons de beauté de Côte d'Ivoire : recevez des réservations en ligne et pilotez votre activité au quotidien. MyWeli Pro s’adresse aux salons qui ont déjà un compte MyWeli et à leur équipe.
+
+POUR VOTRE MÉTIER
+Salons de coiffure et de tresses, barbiers, onglerie, instituts de beauté, spas, massage et bien-être : créez vos propres prestations, avec leurs tarifs et leurs durées.
 
 VOTRE AGENDA, TENU TOUT SEUL
 Les clients réservent sur vos créneaux réels ; vous ajoutez les rendez-vous pris au téléphone ou au comptoir en quelques gestes. Vue journée et par membre d'équipe.
@@ -418,7 +429,7 @@ Invitez manager, réception et collaborateurs, chacun avec les accès de son rô
 Conçu pour les réalités d'ici : FCFA, communes, réseaux lents et petits téléphones.
 ```
 
-(1 039 caractères / 1 079 octets, 18 lignes, sans la ligne vide finale.)
+(1 228 caractères / 1 273 octets, 21 lignes, sans la ligne vide finale.)
 
 ---
 
@@ -1562,7 +1573,8 @@ le « Yes, as written » du propriétaire : le « What to Test » fr-FR écrit d
 (2 708 caractères), relu à l'identique ; « Équipe MyWeli » ne contient plus que le 781 (le 719 retiré),
 `IN_BETA_TESTING` ; **pas** ajouté à « Testeurs externes » (`READY_FOR_BETA_SUBMISSION`). **Pas soumis** :
 la passe du §11.6 sur un iPhone d'abord (le propriétaire : « later »), puis les deux questions de
-classification par âge, la déclaration « Search History » et les « Nouveautés ».
+classification par âge, la déclaration « Search History » et les « Nouveautés ». *2026-11-20 : et la
+description du §4, qui gagne le bloc « POUR VOTRE MÉTIER » (décision 152).*
 
 **What to Test du 781** (fr-FR, approuvé par le propriétaire le 2026-11-17 ; remplace celui du 719) :
 
