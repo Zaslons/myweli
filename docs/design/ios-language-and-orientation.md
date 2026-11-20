@@ -46,6 +46,12 @@ deux n'a été essayée en paysage.
 
 - **Android** : le manifeste ne fixe aucune orientation (`screenOrientation`
   absent). Même défaut de qualité, autre magasin, autre décision — §11.
+  *Corrigé le 2026-11-19 : vrai à l'écriture, faux depuis #682.* Android est
+  verrouillé en portrait depuis le lot 7 (décision 26,
+  [pro-app-batch7.md](pro-app-batch7.md) §2.9). Depuis le 2026-11-19, la
+  fonctionnalité `android.hardware.screen.portrait` est aussi déclarée
+  facultative, pour que Play ne cache pas l'app aux tablettes
+  ([android-play-release.md](android-play-release.md) §11).
 - **iPad** (l'app consommateur seule ; Pro est iPhone seul) :
   `UISupportedInterfaceOrientations~ipad` garde ses quatre orientations. Le
   multitâche iPad les exige toutes, sauf à déclarer `UIRequiresFullScreen`.
@@ -146,7 +152,8 @@ et celle sur le paysage retirées du registre des points ouverts.
 
 1. **Android en paysage** — même verrou à poser dans le manifeste
    (`android:screenOrientation`), ou une passe en paysage ? Non décidé ; rien
-   ne change sur Android ici.
+   ne change sur Android ici. *Tranché le 2026-10-22 (décision 26) : le
+   verrou, posé par #682 ([pro-app-batch7.md](pro-app-batch7.md) §2.9).*
 2. **L'app consommateur est verrouillée elle aussi sur iPhone**, par
    construction (un seul `Info.plist`). C'est cohérent — elle n'a pas été
    essayée en paysage non plus — mais la décision du propriétaire portait sur

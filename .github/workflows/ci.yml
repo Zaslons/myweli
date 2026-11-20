@@ -879,6 +879,17 @@ jobs:
       - name: Android TLS gate — the APK's engine blocks the eMudhra CAs
         run: python3 -I ../tool/verify_android_tls.py build/app/outputs/flutter-apk/app-consumer-release.apk
 
+      # Play's device filter. MainActivity's portrait lock makes Play infer a
+      # REQUIRED android.hardware.screen.portrait, which hides the app from
+      # every device that does not report it (27 at build 785: tablets, TV,
+      # cars); the manifest declares it optional.
+      # This reads the MERGED manifest of the built APK, what Play reads, which
+      # the source pin (mobile/test/infra/android_orientation_test.dart) cannot
+      # see. Both flavours share the manifest. docs/design/android-play-release.md
+      # §9. Guarded: backend/test/infra/android_portrait_optional_test.dart.
+      - name: Play device filter — portrait is optional in the APK
+        run: bash ../tool/verify_android_portrait_optional.sh build/app/outputs/flutter-apk/app-consumer-release.apk
+
       - name: Enforce the <30 MB budget (NFR-PERF-002)
         run: |
           APK=build/app/outputs/flutter-apk/app-consumer-release.apk

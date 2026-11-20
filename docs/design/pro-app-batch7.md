@@ -221,6 +221,24 @@ rapport au BACKLOG :
     verrou.
   - **L'iPad** reste tel quel : verrouiller exigerait `UIRequiresFullScreen`,
     qui retire le multitâche.
+- **Note du 2026-11-19 — le verrou ne doit coûter aucun appareil.**
+  - **Le défaut** : le verrou fait déduire à Play une fonctionnalité
+    **obligatoire**, `android.hardware.screen.portrait`. Play cache alors
+    l'app aux appareils qui ne la déclarent pas : 27 appareils perdus au
+    build 785 (tablettes, TV, voitures). Le contrôle de la piste fermée l'a
+    signalé au build 788 pour les téléphones, les tablettes, les ordinateurs
+    et Android XR ([android-play-release.md](android-play-release.md) §11).
+  - **La correction** : le manifeste déclare la fonctionnalité
+    **facultative** (`<uses-feature … android:required="false" />`, au
+    niveau du manifeste). Le verrou reste : sur un téléphone, rien ne change.
+  - **Les gardes** : le test d'infrastructure exige aussi cette déclaration,
+    et la CI lit l'APK construit (`tool/verify_android_portrait_optional.sh`).
+  - **Sur une tablette émulée** (Pixel Tablet, Android 16) : Android ignore
+    le verrou, comme prévu plus haut. Les deux apps restent utilisables en
+    paysage et en portrait, et passent de l'un à l'autre sans redémarrer.
+  - **Pas essayé** : une tablette ou un Chromebook sous Android 15 ou
+    avant, où le verrou s'applique (l'app y resterait en portrait,
+    INFÉRÉ).
 
 ### 2.10 Les grands montants à grand texte (B7.10)
 - **Les jeux de test** reçoivent des montants à 7 chiffres :
