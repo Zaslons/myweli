@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | **2026-11-19, dans la console (l'étape 7 d'[android-play-release.md](android-play-release.md)) : la description, les instructions des relecteurs et la Sécurité des données enregistrées et relues ; le statut de professionnel déclaré pour le compte, puis pour MyWeli Pro et MyWeli ; l'e-mail public du développeur devient `support@myweli.com` ; rien n'est envoyé pour examen (§0.4).** **2026-11-19 : l'inscription revient dans l'app Android (B0.17, décisions 116 à 123)** — la description, les instructions des relecteurs, la sécurité des données et le test fermé ; ce qui a changé est au §0.3. **2026-11-11 : mis à jour après la sortie iOS (décisions 110 à 115)** — l'ordre de la sortie Android, du build à la production, est dans [android-play-release.md](android-play-release.md) ; ce qui a changé ici est au §0.2. **Ré-audité le 2026-10-28 (BACKLOG B0.10)** contre le binaire, la politique publiée, l'étiquette App Store relue ce jour-là et les règles Play en vigueur. **MyWeli Pro seule pour l'instant** (décision 51) ; la saisie se fait dans le volet navigateur, formulaire par formulaire, montré au propriétaire avant chaque enregistrement (décision 53) ; les images, que le volet ne peut pas joindre, importées dans Chrome. **Dans la console le 2026-10-28 : tout le « Contenu de l'application » et la fiche, images comprises, enregistrés et relus ; rien envoyé pour examen (§0.1).** Historique : rédigé 2026-08-28 ; corrigé 2026-09-24 (libellés de connexion, adresse et numéro Mobile Money) ; 2026-10-05 (plus de choix d'offre dans l'app Pro Android) ; 2026-10-13 (texte d'accès amendé, verrou de suppression du compte démo) ; **2026-11-14 (B0.19) : l'URL de suppression devient `https://myweli.com/pro/suppression-compte`, en ligne et lue ce jour-là (§4) ; rien n'est encore saisi dans la console, c'est l'étape 7 d'android-play-release.** |
+| **Status** | **2026-11-19 et 20, l'étape 8 : le test fermé est actif.** La piste « Tests fermés - Alpha » vise 178 pays et régions, ses testeurs sont le groupe de Testers Community, et la version 788 y est promue ; envoyée à l'examen, elle est publiée le 19 novembre, « Disponible pour certains testeurs » (§0.5). **2026-11-19, dans la console (l'étape 7 d'[android-play-release.md](android-play-release.md)) : la description, les instructions des relecteurs et la Sécurité des données enregistrées et relues ; le statut de professionnel déclaré pour le compte, puis pour MyWeli Pro et MyWeli ; l'e-mail public du développeur devient `support@myweli.com` ; rien n'est envoyé pour examen (§0.4).** **2026-11-19 : l'inscription revient dans l'app Android (B0.17, décisions 116 à 123)** — la description, les instructions des relecteurs, la sécurité des données et le test fermé ; ce qui a changé est au §0.3. **2026-11-11 : mis à jour après la sortie iOS (décisions 110 à 115)** — l'ordre de la sortie Android, du build à la production, est dans [android-play-release.md](android-play-release.md) ; ce qui a changé ici est au §0.2. **Ré-audité le 2026-10-28 (BACKLOG B0.10)** contre le binaire, la politique publiée, l'étiquette App Store relue ce jour-là et les règles Play en vigueur. **MyWeli Pro seule pour l'instant** (décision 51) ; la saisie se fait dans le volet navigateur, formulaire par formulaire, montré au propriétaire avant chaque enregistrement (décision 53) ; les images, que le volet ne peut pas joindre, importées dans Chrome. **Dans la console le 2026-10-28 : tout le « Contenu de l'application » et la fiche, images comprises, enregistrés et relus ; rien envoyé pour examen (§0.1).** Historique : rédigé 2026-08-28 ; corrigé 2026-09-24 (libellés de connexion, adresse et numéro Mobile Money) ; 2026-10-05 (plus de choix d'offre dans l'app Pro Android) ; 2026-10-13 (texte d'accès amendé, verrou de suppression du compte démo) ; **2026-11-14 (B0.19) : l'URL de suppression devient `https://myweli.com/pro/suppression-compte`, en ligne et lue ce jour-là (§4) ; rien n'est encore saisi dans la console, c'est l'étape 7 d'android-play-release.** |
 | **Portée** | **MyWeli Pro** (`com.myweli.pro`) maintenant. MyWeli (`com.myweli.app`) au §8, à ré-auditer avant sa soumission. |
 | **Source de vérité** | La politique de confidentialité publiée (`/politique-confidentialite`) et le binaire — un formulaire qui les contredit est un rejet ET une exposition légale (LAUNCH.md §6.3) |
 | **Règle** | Chaque réponse ci-dessous est dérivée du code, du binaire ou de la politique, jamais inventée. En cas de doute en saisissant : STOP, on vérifie. |
@@ -295,6 +295,64 @@ d'aide de Play que demande l'étape 7 (la politique des paiements et l'aide
     tableau de bord.
 - **Pas encore lu** : « Validation des développeurs Android », listé dans
   « Gérer le compte ».
+
+## 0.5 · Dans la console, le 2026-11-19 et le 20 — l'étape 8, le test fermé
+
+Dans le volet navigateur, sur le oui du propriétaire pour chaque action ;
+chaque formulaire relu après rechargement de la page.
+
+- **La piste « Tests fermés - Alpha »** existait déjà : inactive, sans
+  version, sans pays, sans testeurs.
+- **Pays/Régions** : les 178 lignes, soit 177 pays (Côte d'Ivoire comprise)
+  et « Reste du monde » (décision 117). Relu : « Ciblé(s) (178) ».
+- **Testeurs** :
+  - **les deux modes s'excluent** : « Listes de diffusion » ou « Groupes ».
+    D'abord la liste « OG TESTER » (le propriétaire seul), en attente ; puis
+    « Groupes » → `testers-community@googlegroups.com`, comme le demande la
+    page de Testers Community que le propriétaire a collée (« under Google
+    Groups on the Testers tab, not Email lists »). L'adresse du §6.1 est donc
+    confirmée ;
+  - **commentaires** : `support@myweli.com` (décision 61) ;
+  - **les liens de participation** : sur Android
+    `https://play.google.com/store/apps/details?id=com.myweli.pro`, sur le Web
+    `https://play.google.com/apps/testing/com.myweli.pro`. C'est lui qui
+    remplace `[LIEN DU TEST]` (§6.2, §6.5) ;
+  - **changer les testeurs est une modification à envoyer à Google**, comme
+    le reste. Un groupe à nous, pour des salons ou des proches, s'ajoute dans
+    le même champ « Groupes », puis part à l'examen.
+- **Testers Community** : commandé par le propriétaire (l'offre Pro, 20 $),
+  et leur formulaire envoyé par lui avant l'envoi à l'examen (rapporté par
+  le propriétaire ; le lien qu'il y a mis n'est pas relu ici).
+- **La version** : la 788 (0.0.2), promue depuis le test interne
+  (« Promouvoir la release » → « Tests fermés » → « Tests fermés - Alpha » ;
+  ce sous-menu ne s'ouvre qu'avec la flèche droite du clavier). Le même app
+  bundle : API 24 et plus, cible 36, 3 ABI ; nom « 788 (0.0.2) » ; pas de
+  notes de version, comme en test interne ; 12,4 Mo à installer ; aucune
+  erreur à l'écran de vérification de la version.
+- **La vérification rapide de Play a bloqué l'envoi** : « Les déclarations de
+  fonctionnalités matérielles requises limitent la disponibilité de votre
+  appli », pour `android.hardware.screen.portrait` (le verrou portrait de
+  #682). Sur la décision du propriétaire (décision 151), le problème est
+  ignoré avec la seule raison « La résolution de ce problème est déjà
+  prévue ». Corrigé depuis dans #815, pour le prochain AAB.
+- **« Envoyer 16 modifications pour examen »** : les 9 de l'étape 7, les
+  réglages de la piste et la version. La console a demandé confirmation
+  (« Habituellement, l'examen est effectué sous sept jours »).
+  - Les vérifications rapides sont passées, puis « Vos modifications sont en
+    cours d'examen ».
+  - **Lu le 2026-11-20 à 00:14 UTC : publié.** La vue d'ensemble dit
+    « Dernière publication le 19 novembre 2026 », sans modification en
+    attente. La piste est « Actif », 178 pays/régions, et la 788 « Disponible
+    pour certains testeurs », sortie le « 19 nov. 23:16 ». Le bandeau du nom
+    temporaire (« com.myweli.pro (unreviewed) ») a disparu.
+  - « Publication gérée » est désactivée : l'approbation a publié aussitôt.
+- **Le gel de la décision 140** : `/pro/suppression-compte` n'a pas changé
+  pendant l'examen ; aucune PR ouverte ne touchait le site.
+- **La suite, l'étape 9** : 12 testeurs inscrits sans interruption pendant
+  14 jours. L'aide 14151465, relue le 2026-11-20, vise les comptes
+  **personnels** créés après le 13 novembre 2023. Le statut de professionnel
+  n'y change rien : le type de compte reste « Personnel » (relu le même
+  jour).
 
 ## 1 · Fiche du Play Store (Store listing) — MyWeli Pro
 
@@ -657,7 +715,8 @@ leur appli », ce qui laisse penser qu'il en faudra un second pour elle.
   leurs apps, ils testent la nôtre) peuvent compléter le nombre, sans
   remplacer les salons.~~ **Des testeurs payés** (décision 117, 2026-11-12) :
   Testers Community. Ses testeurs rejoignent la piste par son groupe Google,
-  `testers-community@googlegroups.com`, et vivent dans plusieurs pays. Ils
+  `testers-community@googlegroups.com` *(confirmée le 2026-11-19 par leur
+  page, §0.5)*, et vivent dans plusieurs pays. Ils
   reçoivent le guide en anglais (§6.5). **Le risque accepté :** les questions
   de Google sur l'usage réel, avant la production, seront peut-être plus
   difficiles à remplir avec eux (NON VÉRIFIÉ).
@@ -706,7 +765,8 @@ d'ici : ils sont décrits, pas cités.
      adresse.
    - **Le lien d'inscription** que la console affiche (de la forme
      `https://play.google.com/apps/testing/com.myweli.pro`) remplace
-     `[LIEN DU TEST]` dans le guide.
+     `[LIEN DU TEST]` dans le guide. *(2026-11-19 : c'est exactement ce lien ;
+     la piste est configurée et publiée, §0.5.)*
 3. **La version.** *2026-11-11 :* la clé d'importation existe depuis le
    2026-08-26 ; sa sauvegarde est vérifiée à l'étape 4
    d'[android-play-release.md](android-play-release.md). L'AAB signé

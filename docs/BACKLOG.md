@@ -302,6 +302,10 @@ Each question has a recommendation. Answers unblock the item named in brackets.
 149. The trader declaration publishes the developer email too, and it was your personal Gmail. Switch it to `support@myweli.com` first? [B0.10] — ✅ **Answered (2026-11-19): « Yes, switch it »**, the recommendation. Decision 115's cost, put to you on 2026-11-11, named the phone and the address, not the email. `support@myweli.com` is now the « Adresse e-mail du développeur », validated by a code sent to that mailbox, saved and read back; the private contact details are unchanged.
 150. Each app's trader form, « Oui » with the terms `https://myweli.com/cgu`: MyWeli Pro only, or both apps? [B0.10] — ✅ **Answered (2026-11-19): « Yes, both apps »**, rather than the recommendation, MyWeli Pro only. Both saved and read back. MyWeli (`com.myweli.app`) is still in internal testing only (decision 51); its answer waits in its publishing overview with its listing.
 
+**Play's pre-review check (batch 0, B0.10)** — asked on 2026-11-19 at step 8, when Play blocked the send ([play-store-forms.md](design/play-store-forms.md) §0.5).
+
+151. Play's check « Les déclarations de fonctionnalités matérielles requises limitent la disponibilité de votre appli » (`android.hardware.screen.portrait`, from #682's portrait lock) on build 788: send it to the closed test now and fix it in the next build, or fix it first? [B0.10, B7.9] — ✅ **Answered (2026-11-19): « Yes, continue »**, the recommendation. Dismissed in Play with « La résolution de ce problème est déjà prévue ». The fix is #815 (merged 2026-11-20, `316f8776`): the feature declared optional, the lock kept; it ships in the next AAB, before production (android-play-release step 10, O10).
+
 ---
 
 ## 3. The batches
@@ -445,6 +449,12 @@ Each question has a recommendation. Answers unblock the item named in brackets.
     - **the trader declaration:** the account is « Professionnel », with no document asked for; MyWeli Pro and MyWeli each confirm it, with the terms `https://myweli.com/cgu` (decision 150);
     - **no precise-location form** in the console yet;
     - **nothing sent for review:** MyWeli Pro waits at « Envoyer 9 modifications pour examen ».
+  - **2026-11-19 and 20 — step 8, the closed test is live** ([play-store-forms.md](design/play-store-forms.md) §0.5), each action on your yes:
+    - **the closed track:** 178 countries and regions; Testers Community's Google Group as testers; feedback to `support@myweli.com`;
+    - **Testers Community** ordered and their form sent by you;
+    - **build 788 promoted** from internal testing; Play's portrait check dismissed for now (decision 151), fixed in #815 for the next build;
+    - **16 changes sent** and **published the same evening**: 788 is « Disponible pour certains testeurs » (read 2026-11-20);
+    - **next, step 9:** 12 testers opted in for 14 days in a row. It still applies: the account type is « Personnel », whatever the trader status.
   - **MyWeli (client):** later (decision 51); play-store-forms §8 lists what to re-audit then.
   - **Order:** Android is last (LAUNCH §3).
 - **B0.15 Search text kept 30 days in Google Cloud's request logs (P2 · S · decision 55, open).**
