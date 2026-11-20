@@ -455,6 +455,13 @@ Each question has a recommendation. Answers unblock the item named in brackets.
     - **build 788 promoted** from internal testing; Play's portrait check dismissed for now (decision 151), fixed in #815 for the next build;
     - **16 changes sent** and **published the same evening**: 788 is « Disponible pour certains testeurs » (read 2026-11-20);
     - **next, step 9:** 12 testers opted in for 14 days in a row. It still applies: the account type is « Personnel », whatever the trader status.
+  - **2026-11-20 — build 794, the AAB for production (android-play-release O10, §11)**, each step on your yes:
+    - **built** from `c4bf8c63`, with #815: the portrait feature is optional, and the check that refuses 788 accepts 794; every other read passed, as for 788;
+    - **Sentry:** the symbols, the mapping and the release, read back; O7 is answered, a mapping identical to 788's is still registered under the new UUID;
+    - **published to the internal track:** Play counts 27 more devices than 788 (tablets, TV, car) and none fewer;
+    - **rows 1 and 2 passed** on the Galaxy, read in the server's log; Sentry lists no issue for 794;
+    - **an event on 788 from Google's test emulator** (a push token it could not get): not a user, no action;
+    - **the closed test still serves 788**; production is 794 promoted, later, on your yes.
   - **MyWeli (client):** later (decision 51); play-store-forms §8 lists what to re-audit then.
   - **Order:** Android is last (LAUNCH §3).
 - **B0.15 Search text kept 30 days in Google Cloud's request logs (P2 · S · decision 55, open).**
