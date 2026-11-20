@@ -64,7 +64,13 @@ for (const path of FIVE) {
       expect(html, s).not.toContain(s);
     }
     expect(html, PRO_DELETION).not.toContain(PRO_DELETION);
-    expect(html).not.toMatch(/facturation|abonnement|FCFA/i);
+    // « FCFA » as a whole word. This HTML also names the build's files, and their hex
+    // hashes change with every commit: Sentry's build plugin writes the commit's SHA into
+    // one of them. #817's commit built `main-app-3fb1cfcfa6b6aa30.js`, which failed here.
+    // A boundary leaves no hash of more than four characters able to match. The other two
+    // words hold letters a hex hash never has. The rendered text keeps the bare substring:
+    // tests/store-linked-pages.test.tsx.
+    expect(html).not.toMatch(/facturation|abonnement|\bFCFA\b/i);
   });
 
   for (const [name, width, height] of WIDTHS) {
