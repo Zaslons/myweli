@@ -1517,7 +1517,7 @@ checking rather than assuming:
       mandatory from **2027-01-27** (Google's policy announcement of
       2026-10-29). *(Added 2026-11-11: android-play-release.md §7.1,
       play-store-forms §5.)* *(2026-11-19: no form in the console yet.)*
-- [ ] **Play's trader status declaration**, for the account and then the app,
+- [x] **Play's trader status declaration**, for the account and then the app,
       by **2027-02-01**. Without it, Google may block updates and remove the
       app worldwide. *(Added 2026-11-11: decision 115, « trader », confirmed
       by the owner that day with the corrected cost, android-play-release.md
@@ -1527,6 +1527,10 @@ checking rather than assuming:
       answer waits in its publishing overview until that app's first review
       request (step 8, for MyWeli Pro). The box closes then for MyWeli Pro.
       play-store-forms §0.4.)*
+      *(2026-11-20: closed. MyWeli Pro's answer went with step 8's review
+      and was published on 2026-11-19; the publishing overview holds nothing
+      pending (play-store-forms §0.5). MyWeli's own answer still waits for
+      that app's first review request.)*
 
 ---
 

@@ -1,0 +1,20 @@
+- 🟡 **Le test fermé de MyWeli Pro est actif sur Google Play : la piste réglée, la version 788 promue, envoyée à l’examen et publiée le 19 novembre (documentation · console Play · 2026-11-20 — BACKLOG B0.10 ; décision 151).** Non fusionné : branche `docs/step8-closed-test-records`, créée depuis `main` (`316f8776`). Cette PR ne fait que consigner : aucun code ne change. Ce qu’elle consigne a été fait dans la console Play, l’étape 8 d’[android-play-release.md](../../design/android-play-release.md).
+  - **Comment :** dans le volet navigateur, chaque action sur le oui du propriétaire, chaque formulaire relu après rechargement.
+  - **Ce qui est fait** ([play-store-forms.md](../../design/play-store-forms.md) §0.5) :
+    - **la piste « Tests fermés - Alpha »** : 178 pays et régions ; les testeurs sont le groupe Google de Testers Community, confirmé par leur page ; les commentaires vont à `support@myweli.com` ;
+    - **Testers Community** : commandé par le propriétaire, et leur formulaire envoyé par lui (rapporté par le propriétaire) ;
+    - **la version 788** promue depuis le test interne, sans notes de version ;
+    - **la vérification rapide de Play** sur le verrou portrait : ignorée pour le test fermé, sur décision du propriétaire (décision 151). La correction est #815, pour le prochain AAB ;
+    - **16 modifications envoyées à l’examen**, puis publiées le même soir : la 788 est « Disponible pour certains testeurs ».
+  - **Avant l’envoi :** l’API répond, `/client-version` accepte le build 788, la page de suppression Pro répond, et aucune PR ouverte ne touchait le site (le gel de la décision 140).
+  - **Les documents :**
+    - play-store-forms §0.5, et des notes datées aux §6.1 et §6.2 ;
+    - android-play-release : l’étape 8 et le journal du §11 ;
+    - LAUNCH §6.3 : la case du statut de professionnel est cochée, pour le compte et pour MyWeli Pro ;
+    - le BACKLOG (B0.10, décision 151), l’index des specs ;
+    - les entrées de #814 et de #815 passent au vert.
+  - **Reste :**
+    - l’étape 9 : 12 testeurs inscrits 14 jours de suite. La règle vaut toujours : le compte est de type « Personnel », quel que soit le statut de professionnel ;
+    - un nouvel AAB, avec #815, avant la production (étape 10, O10) ;
+    - la déclaration de localisation précise, dès que la console la propose (avant le 2027-01-27) ;
+    - O8, « Publication gérée », avant l’étape 10.
