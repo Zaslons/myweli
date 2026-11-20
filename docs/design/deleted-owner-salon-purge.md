@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Module** | backend — a salon purge on the daily maintenance cron (`POST /internal/cron/maintenance`), a stamp in `ProviderAccountService.deleteAccount`, migration `0046`; then three text PRs (web, privacy policy, Play's Data safety record) |
-| **Status** | **Draft 2026-11-20, awaiting the owner's answers to Q1–Q6 (§11).** Nothing built, nothing migrated, nothing deployed. An independent review against the code found 7 problems in the first draft, all folded in (§13). Decision 138 filed this item; android-play-release step 10 needs it **decided** (this spec answered), not built |
+| **Status** | **Approved 2026-11-20: the owner answered Q1–Q6 « Approve as recommended », decisions 153–158 (§11).** Nothing built, nothing migrated, nothing deployed; each next step waits for the owner's yes (§10, §12). An independent review against the code found 7 problems in the first draft, all folded in (§13). Decision 138 filed this item; android-play-release step 10 needs it **decided** (this spec answered), not built |
 | **Owner** | the project owner: the answers, the merge, every production read, the deploy, and the switch from rehearsals to real purges, each on the owner's yes |
 | **Last updated** | 2026-11-20 |
 | **PRD ref / phase** | FR-AUTH-005 [V1] (`docs/PRD.md:344`, account deletion) · V1 · gates android-play-release step 10 (decided, not built) |
@@ -666,7 +666,8 @@ Then:
 ## 10. Rollout, and the text PRs that follow
 
 1. **This spec**, on the owner's answers (§11). The answers become decisions in BACKLOG, B0.24 is
-   updated, and android-play-release step 10's B0.24 condition is met (decided).
+   updated, and android-play-release step 10's B0.24 condition is met (decided). *Done 2026-11-20:
+   decisions 153–158, in PR #821.*
 2. **The read-only count** (§6.6 step 1), on the owner's yes.
 3. **The backend PR**, from `main`. It holds:
    - the code, migration 0046 and the tests;
@@ -730,6 +731,10 @@ Then:
 
 Each has a recommendation; « Approve as recommended » answers all six.
 
+**Answered 2026-11-20: « Approve as recommended », all six** (BACKLOG §2): Q1 → decision 153, Q2 → 154,
+Q3 → 155, Q4 → 156, Q5 → 157, Q6 → 158. The « Under Q3 (b) » notes elsewhere in this spec describe the
+option not taken. Q4's wording (§5.1) is still signed off in the backend PR.
+
 | # | Question | Options | Recommended |
 |---|---|---|---|
 | **Q1** | How long is a deleted owner's salon kept? | (a) 30 days · (b) 90 days · (c) 1 year · (d) no limit (no purge) | **(b) 90 days**, counted from the owner's deletion. For a salon whose owner left before real purges are on, it is counted from the day they are switched on (§3) |
@@ -741,7 +746,8 @@ Each has a recommendation; « Approve as recommended » answers all six.
 
 ## 12. Definition of done (for the build, after the answers)
 
-- [ ] Decisions recorded in BACKLOG; B0.24 and android-play-release step 10 updated; this spec → Approved.
+- [x] Decisions recorded in BACKLOG; B0.24 and android-play-release step 10 updated; this spec → Approved
+      (2026-11-20, decisions 153–158, PR #821).
 - [ ] Backend PR: the tests of §9 red first then green, `dart analyze` = 0, format clean, the contract
       sentence, T84 and T53, the admin label, `// Design:` links.
 - [ ] The production count, the deploy, the rehearsal reads, `execute` limited to 1, the first purge read
