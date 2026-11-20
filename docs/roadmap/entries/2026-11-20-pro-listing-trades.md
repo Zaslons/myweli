@@ -1,4 +1,4 @@
-- 🟡 **La fiche de MyWeli Pro nomme ses métiers : un bloc « POUR VOTRE MÉTIER » dans la description, sur les deux stores (documentation · fiches Play et App Store · 2026-11-20 — BACKLOG B0.10 ; décision 152).** Non fusionné : branche `docs/pro-listing-trades`, créée depuis `main` (`c4bf8c63`). Rien n’est tapé dans une console.
+- 🟢 **La fiche de MyWeli Pro nomme ses métiers : un bloc « POUR VOTRE MÉTIER » dans la description, sur les deux stores (documentation · fiches Play et App Store · 2026-11-20 — BACKLOG B0.10 ; décision 152).** Fusionné le 2026-11-20 (`9d6b1b97`, #819) ; le contenu de `main` est identique à celui de la PR qu’a testé la CI. Branche `docs/pro-listing-trades`, créée depuis `main` (`c4bf8c63`), puis remise sur `main` après #817 (`718bcd96`). Rien n’est tapé dans une console.
   - **Pourquoi :**
     - Play cherche dans la description, et celle de MyWeli Pro ne nommait aucun métier hormis « salons de beauté » ;
     - un spa, une onglerie ou un barbier qui cherche un outil n’y trouvait pas son mot ;

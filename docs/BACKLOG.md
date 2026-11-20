@@ -465,7 +465,9 @@ Each question has a recommendation. Answers unblock the item named in brackets.
     - **published to the internal track:** Play counts 27 more devices than 788 (tablets, TV, car) and none fewer;
     - **rows 1 and 2 passed** on the Galaxy, read in the server's log; Sentry lists no issue for 794;
     - **an event on 788 from Google's test emulator** (a push token it could not get): not a user, no action;
-    - **the closed test still serves 788**; production is 794 promoted, later, on your yes.
+    - **the closed test still serves 788**; production is 794 promoted, later, on your yes;
+    - **its records merged** in #817 (`718bcd96`), after #818 (`fe09ad1f`) fixed a site test that its CI failed on: a file name held « fcfa ».
+  - **2026-11-20 — decision 152, merged in #819 (`9d6b1b97`):** the Pro description names its trades. Typed in neither console yet, each on your yes: Play before production (step 10), App Store Connect with the 0.0.2 submission.
   - **MyWeli (client):** later (decision 51); play-store-forms §8 lists what to re-audit then.
   - **Order:** Android is last (LAUNCH §3).
 - **B0.15 Search text kept 30 days in Google Cloud's request logs (P2 · S · decision 55, open).**
