@@ -20,6 +20,9 @@ import 'package:flutter_test/flutter_test.dart';
 ///    difference: the Android app creates a salon's account, so Play's
 ///    sentence on who the app is for says so, and the App Store keeps the
 ///    sentence Apple approved (docs/design/pro-android-signup.md §9.2).
+///    Decision 152 (2026-11-20) adds the same « POUR VOTRE MÉTIER » block to
+///    both texts. Play searches the description, and the block must name
+///    every salon category of `salon_categories.dart`, no more, no fewer.
 ///    **And the sign-in instructions fit their field**, while still asking
 ///    reviewers to use the demo account and not to create a salon (R6: on
 ///    Android a reviewer could create a real production salon). No help page of
@@ -145,6 +148,71 @@ void main() {
       );
       expect(full, isNot(contains('**')));
       expect(full, isNot(contains('> ')));
+    });
+
+    test('the « POUR VOTRE MÉTIER » block names every salon category of the '
+        'app, on both stores (decision 152)', () {
+      // The word that names each category key in the block. Play searches
+      // the description, so the block is how a trade finds the app; it must
+      // not promise a trade the app has dropped, nor miss one it has added.
+      // A key added to or removed from salon_categories.dart turns this red
+      // until the block, and this map, follow.
+      const words = {
+        'salon': 'coiffure',
+        'barber': 'barbiers',
+        'spa': 'spas',
+        'nails': 'onglerie',
+        'massage': 'massage',
+      };
+      // Comments removed: a category left in a comment is not offered.
+      final code = File('lib/core/constants/salon_categories.dart')
+          .readAsStringSync()
+          .replaceAll(RegExp(r'/\*[\s\S]*?\*/'), '')
+          .split('\n')
+          .map((l) => l.replaceFirst(RegExp(r'(^|\s)//.*$'), ''))
+          .join('\n');
+      final keys = {
+        for (final m in RegExp(r"\(\s*'([a-z]+)'\s*,\s*'").allMatches(code))
+          m.group(1)!,
+      };
+      expect(keys, isNotEmpty, reason: 'anti-vacuity: no category read');
+      expect(
+        keys,
+        words.keys.toSet(),
+        reason:
+            'salon_categories.dart and the listing disagree — name the '
+            'trade in the « POUR VOTRE MÉTIER » block of both descriptions '
+            '(play-store-forms §1, app-store-forms §4), then in this map',
+      );
+
+      /// The block's text: from its heading to the next blank line.
+      String block(String description) {
+        const heading = 'POUR VOTRE MÉTIER\n';
+        final at = description.indexOf(heading);
+        expect(at, isNonNegative, reason: 'no « POUR VOTRE MÉTIER » block');
+        final end = description.indexOf('\n\n', at);
+        return description
+            .substring(at + heading.length, end == -1 ? null : end)
+            .toLowerCase();
+      }
+
+      final stores = {
+        'Play': fencedAfter(
+          listing(),
+          '**Description complète** (coller tel quel)',
+        ),
+        'App Store': fencedAfter(section(ios, '## 4 · '), '**Description**'),
+      };
+      for (final MapEntry(key: store, value: description) in stores.entries) {
+        final text = block(description);
+        for (final MapEntry(key: category, value: word) in words.entries) {
+          expect(
+            text,
+            contains(word),
+            reason: '$store: the block does not name « $word » ($category)',
+          );
+        }
+      }
     });
   });
 

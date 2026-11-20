@@ -306,6 +306,10 @@ Each question has a recommendation. Answers unblock the item named in brackets.
 
 151. Play's check « Les déclarations de fonctionnalités matérielles requises limitent la disponibilité de votre appli » (`android.hardware.screen.portrait`, from #682's portrait lock) on build 788: send it to the closed test now and fix it in the next build, or fix it first? [B0.10, B7.9] — ✅ **Answered (2026-11-19): « Yes, continue »**, the recommendation. Dismissed in Play with « La résolution de ce problème est déjà prévue ». The fix is #815 (merged 2026-11-20, `316f8776`): the feature declared optional, the lock kept; it ships in the next AAB, before production (android-play-release step 10, O10).
 
+**The Pro listing's trades (batch 0, B0.10)** — asked on 2026-11-20, after Testers Community's ASO report asked for one search term; you keep « gestion de salon », the app's Play name ([play-store-forms.md](design/play-store-forms.md) §1).
+
+152. The Pro description names no trade but « salons de beauté », and Play searches the description. Add a « POUR VOTRE MÉTIER » block that names the trades: on both stores, or on Play only? [B0.10] — ✅ **Answered (2026-11-20): « Both stores », and « Yes, as written » for the wording**, the recommendations. The block follows the opening paragraph: « Salons de coiffure et de tresses, barbiers, onglerie, instituts de beauté, spas, massage et bien-être : créez vos propres prestations, avec leurs tarifs et leurs durées. » It names the app's five salon categories (`salon_categories.dart`, the server's list), plus « tresses » and « instituts de beauté ». The two texts stay identical but for decision 121's sentence. **Typed nowhere yet**, each on your yes: the Play console before production (step 10), App Store Connect with the 0.0.2 submission. `play_store_forms_test.dart` fails if a category is added or removed and the block does not follow.
+
 ---
 
 ## 3. The batches

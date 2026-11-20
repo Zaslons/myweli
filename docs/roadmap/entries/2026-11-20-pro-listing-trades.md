@@ -1,0 +1,17 @@
+- 🟡 **La fiche de MyWeli Pro nomme ses métiers : un bloc « POUR VOTRE MÉTIER » dans la description, sur les deux stores (documentation · fiches Play et App Store · 2026-11-20 — BACKLOG B0.10 ; décision 152).** Non fusionné : branche `docs/pro-listing-trades`, créée depuis `main` (`c4bf8c63`). Rien n’est tapé dans une console.
+  - **Pourquoi :**
+    - Play cherche dans la description, et celle de MyWeli Pro ne nommait aucun métier hormis « salons de beauté » ;
+    - un spa, une onglerie ou un barbier qui cherche un outil n’y trouvait pas son mot ;
+    - le mot-clé du rapport ASO de Testers Community reste « gestion de salon », le nom de l’app sur Play.
+  - **Le bloc**, après le premier paragraphe : « Salons de coiffure et de tresses, barbiers, onglerie, instituts de beauté, spas, massage et bien-être : créez vos propres prestations, avec leurs tarifs et leurs durées. »
+    - il nomme les cinq catégories de salon de l’app (`salon_categories.dart`, la même liste que le serveur), plus « tresses » et « instituts de beauté » ;
+    - « tarifs » et « durées » : le formulaire d’une prestation les demande ;
+    - le même texte sur les deux stores, donc Play et l’App Store ne diffèrent toujours que par la phrase de la décision 121.
+  - **La garde :** `play_store_forms_test.dart` lit les catégories dans le code, commentaires retirés, et exige que chacune ait son mot dans le bloc, sur les deux stores. Une catégorie ajoutée ou retirée sans que le bloc suive la fait échouer.
+    - **8 mutations vues rouges**, chacune vérifiée appliquée : un mot retiré du bloc (sur Play seul, puis sur les deux), une catégorie ajoutée, retirée ou mise en commentaire dans le code, l’intertitre renommé, la liste du code illisible, un mot sorti du bloc ;
+    - **7 des 8 passent le test d’égalité entre les deux stores** : sans cette garde, elles passaient inaperçues ;
+    - **un oubli rattrapé par une garde existante** : la ligne de comptes sous le texte de l’App Store (`app_review_notes_test.dart`).
+  - **Les longueurs :** 1 289 caractères sur Play et 1 228 sur l’App Store (1 273 octets), pour une limite de 4 000.
+  - **Reste**, chaque fois sur le oui du propriétaire :
+    - taper le texte dans la console Play avant la production (étape 10) ; elle garde celui de l’étape 7 ;
+    - dans App Store Connect, avec la soumission de la 0.0.2 : la description ne change qu’avec une nouvelle version.
