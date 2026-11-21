@@ -1,0 +1,14 @@
+- 🟡 **La purge du salon d’un propriétaire supprimé tourne en production, en répétition : déployée le 2026-11-21 après un premier envoi refusé (#824), ses répétitions pas encore lisibles ; #822 et #823 consignées comme fusionnées (documentation · infra · 2026-11-21 — BACKLOG B0.24 ; décisions 153 à 158).** Non fusionné : branche `docs/records-822-823-824`, créée depuis `main` (`2a4aa3cc`). Documentation seule : aucun code ne change, rien n’est déployé par cette PR.
+  - **Le déploiement, sur le oui du propriétaire, en deux envois :**
+    - **le premier** (run 44905142877, 12:41 UTC) a été refusé à « Deploy the service » : le SHA court `80e6518`, écrit sans guillemets dans le manifeste, est un nombre pour YAML (l’infini). Rien n’a atteint la production : aucune révision créée, `00052-94d` gardait 100 % ;
+    - **#824** (`2a4aa3cc`, fusionnée sur le mot du propriétaire, 12 contrôles sur 12) met la release entre guillemets dans les deux manifestes. Un test les rend avec `80e6518`, `1234567` et d’autres ; il a été vu rouge (« Infinity ») ;
+    - **le second** (run 44909134381, 13:31 UTC) a réussi : la révision `myweli-api-00053-5ls` sert 100 %, avec l’image testée par #823, l’étiquette `commit` `'80e6518'` et `SALON_PURGE_MODE=rehearse`.
+  - **Relu après le déploiement :**
+    - `/health` répond 200 sur api.myweli.com ;
+    - les contrôles du déploiement passent (l’image, `ENV=prod`, la base) ;
+    - les « Production checks » lancés juste après passent, 11 sur 11 (run 44909404118) ;
+    - aucune ligne de journal d’avertissement depuis le démarrage, hormis la mention habituelle de la connexion de démo.
+    - La migration 0046 est déduite appliquée, pas observée : la révision a démarré et sert la base, et les migrations tournent avant l’ouverture du port.
+  - **Ce qui manque :** les répétitions ne se lisent pas encore. Cloud Run ne garde, de chaque nuit, que le statut et la taille de la réponse (200 et 356 octets le 2026-11-21 à 03:30) ; la purge ne journalise que ses échecs. Il faut une ligne de résumé par nuit, identifiants et nombres seulement : un changement backend et un déploiement, chacun sur le oui du propriétaire.
+  - **Consignées comme fusionnées :** #822 (`c5da841b`) et #823 (`80e65185`) ; pour chacune, le contenu de `main` est identique à celui de la PR qu’a testé la CI, et leurs entrées passent au vert.
+  - **Mis à jour :** la spec (le statut, l’approbation des e-mails au §5.1, le déploiement au §10, le manque au §6.6, la définition de fini), BACKLOG B0.24, la ligne T84 de BACKEND.md, l’index des specs, et DEPLOYMENT.md, qui gagne l’élément 9 : comment la purge se bascule, dans le manifeste et jamais à la main.

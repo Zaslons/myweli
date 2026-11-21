@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Module** | backend — a salon purge on the daily maintenance cron (`POST /internal/cron/maintenance`), a stamp in `ProviderAccountService.deleteAccount`, migration `0046`; then three text PRs (web, privacy policy, Play's Data safety record) |
-| **Status** | **Approved 2026-11-20: the owner answered Q1–Q6 « Approve as recommended », decisions 153–158 (§11). Built 2026-11-21 on `feat/salon-purge` (§6.8): not merged, not deployed, nothing migrated in production;** each next step waits for the owner's yes (§10, §12). *2026-11-20: production counted read-only (§6.6 step 1): 3 salons with no owner, no member row and no shared file.* An independent review against the code found 7 problems in the first draft, all folded in (§13). Decision 138 filed this item; android-play-release step 10 needs it **decided** (this spec answered), not built |
+| **Status** | **Approved 2026-11-20: the owner answered Q1–Q6 « Approve as recommended », decisions 153–158 (§11). Built (§6.8), merged 2026-11-21 (#823, `80e65185`) and deployed the same day: revision `myweli-api-00053-5ls`, image `80e6518`, `SALON_PURGE_MODE=rehearse` (§10 step 4). Real purges are off;** each next step waits for the owner's yes (§10, §12). **The rehearsals cannot be read yet:** the run's answer is logged nowhere (§6.6 step 3). *2026-11-20: production counted read-only (§6.6 step 1): 3 salons with no owner, no member row and no shared file.* An independent review against the code found 7 problems in the first draft, all folded in (§13). Decision 138 filed this item; android-play-release step 10 needs it **decided** (this spec answered), not built |
 | **Owner** | the project owner: the answers, the merge, every production read, the deploy, and the switch from rehearsals to real purges, each on the owner's yes |
 | **Last updated** | 2026-11-20 |
 | **PRD ref / phase** | FR-AUTH-005 [V1] (`docs/PRD.md:344`, account deletion) · V1 · gates android-play-release step 10 (decided, not built) |
@@ -351,6 +351,8 @@ The draft (French, for sign-off in the backend PR):
 
 **The reminder:** « {Salon} sera supprimé dans 7 jours », with the same body.
 
+*2026-11-21: both e-mails approved by the owner as written, on #823, with the reminder's count of the days really left (§6.8).*
+
 **Who receives them:**
 - only the salon's **active** members, and only at an e-mail address: a phone-registered owner's row
   holds a phone in `email` (`salon_notifier.dart:121-122`);
@@ -633,6 +635,16 @@ Each step is on the owner's yes; every read is read-only.
    Only the due salon may change. Every other salon's fingerprint (each table's rows for it, hashed) is
    identical before and after, and so is the shared photo.
 3. **After the deploy,** at least 7 nightly rehearsals are read.
+
+   *2026-11-21, after the deploy: the rehearsals cannot be read yet.*
+   - **What is missing:** the run's answer is logged nowhere. Cloud Scheduler keeps only the attempt's
+     status, and Cloud Run's request log keeps the status and the response size (200 and 356 bytes at
+     03:30 on 2026-11-21, before the purge existed). The purge logs only its failures and its tripwire.
+     This step said « read » with nothing to read.
+   - **What it needs:** one summary line per run, ids and counts only. That is a backend change and a
+     deploy, each on the owner's yes.
+   - **Until then:** the response size growing from the next night on, with a 200, shows the purge ran
+     and answered, and that migration 0046's table exists. It does not show what the purge counted.
    - Each one's `rehearsed` counts must equal step 1's count for the same salons.
    - A read-only fingerprint of every salon, taken before and after one rehearsal, must be unchanged,
      which proves the rollback.
@@ -828,6 +840,22 @@ Then:
    - the revision at 100 %;
    - « Production checks » green;
    - the next maintenance run's response holds `salonPurge` in `rehearse`.
+
+   *Done 2026-11-21, on the owner's yes, in two dispatches:*
+   - **The first** (run 44905142877, 12:41 UTC) was refused at « Deploy the service ». The short SHA
+     `80e6518` was written unquoted into the manifest, where YAML reads it as a number (infinity).
+     Nothing reached production: no revision was created, and `00052-94d` kept 100 %.
+   - **The fix** is #824 (`2a4aa3cc`): the release is quoted in both manifests, and a test renders them
+     with such SHAs.
+   - **The second** (run 44909134381, 13:31 UTC) succeeded. Revision `myweli-api-00053-5ls` serves 100 %,
+     with image `sha256:94c59eb6…` (the one CI tested with #823), the `commit` label `'80e6518'` and
+     `SALON_PURGE_MODE=rehearse`.
+   - **Read back:** `/health` answers 200 on api.myweli.com, and the deploy's own checks passed (the image,
+     `ENV=prod`, the database). « Production checks », dispatched after the deploy (run 44909404118),
+     passed 11 of 11. No log line at warning level since boot, but the standing demo sign-in notice.
+   - **Migration 0046 is inferred applied, not observed:** the revision booted and serves the database,
+     and migrations run before the port binds.
+   - **The next run's `salonPurge`** cannot be read (step 3 of §6.6).
 5. **The rehearsal reads**, then `execute` limited to 1, then the first purge read back, then the limit
    raised (§6.6 steps 3–5), each on the owner's yes.
 6. **The text PRs.** They come only once `execute` is on, since a page never promises a purge that is not
@@ -900,7 +928,9 @@ option not taken. Q4's wording (§5.1) is still signed off in the backend PR.
       the contract sentence, T84 and T53, the admin label, the design links (2026-11-21,
       `feat/salon-purge`).
 - [ ] The production count, the deploy, the rehearsal reads, `execute` limited to 1, the first purge read
-      back: each on the owner's yes, each recorded.
+      back: each on the owner's yes, each recorded. *2026-11-21: the count (2026-11-20) and the deploy
+      done. The rehearsal reads wait for a summary log line (§6.6 step 3); `execute` and the first purge
+      wait for them.*
 - [ ] The three text PRs, after `execute` is on, outside the freezes.
 - [ ] Feature branches and PRs; CI green; no Claude attribution.
 

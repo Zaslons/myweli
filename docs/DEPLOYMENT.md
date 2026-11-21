@@ -579,6 +579,18 @@ which is how the reminder cron came to be switched off without anyone noticing.
    pushes the image and runs the pin and emitter checks, deploys nothing, and
    prints `promote with image_tag=<sha>`.
 
+9. **The salon purge (B0.24) is switched in the manifest, never by hand.**
+   `SALON_PURGE_MODE` in `infra/gcp/service.yaml`:
+   - **`rehearse`** (since 2026-11-21) runs every purge statement nightly, in a transaction that is always
+     rolled back;
+   - **`execute`** purges for real, with `SALON_PURGE_MAX_PER_RUN=1` the first time;
+   - **`off`** stops it.
+
+   Each switch is a PR and a deploy, on the owner's yes, after the rehearsals are read
+   ([design/deleted-owner-salon-purge.md](design/deleted-owner-salon-purge.md) §6.6). A value the code
+   does not read runs as `rehearse` and is logged at boot; `salon_purge_wiring_test.dart` refuses it in
+   the PR.
+
 ### Staging retired for cost (2026-10-07) — the switch, and the way back
 
 **Owner decision, 2026-10-07:** delete staging while there are no users
