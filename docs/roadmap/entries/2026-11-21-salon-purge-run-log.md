@@ -1,0 +1,9 @@
+- 🟡 **La purge du salon d’un propriétaire supprimé écrit une ligne de résumé par nuit, pour que ses répétitions se lisent ; #825 consignée comme fusionnée (backend · 2026-11-21 — BACKLOG B0.24 ; décisions 153 à 158).** Non fusionné : branche `feat/salon-purge-run-log`, créée depuis `main` (`dfc4385f`), sur le oui du propriétaire. Non déployé : le déploiement est son oui. Spec : [deleted-owner-salon-purge.md](../../design/deleted-owner-salon-purge.md) §6.9.
+  - **Pourquoi :** la réponse de la tâche de nuit n’allait qu’à Cloud Scheduler, qui n’en garde que le statut. Les sept répétitions à lire (§6.6 étape 3) n’avaient rien à lire.
+  - **La ligne :** à la fin de chaque passage, `salon_purge summary ` suivi de la réponse en JSON, sur une seule ligne. C’est la même réponse, sans rien ajouter ni retirer : des identifiants et des nombres, jamais un nom, une adresse ou un téléphone (T84).
+    - **dans chaque mode,** `off` compris : une nuit sans ligne est un passage qui n’a pas fini, jamais une purge coupée ;
+    - **aucune ligne quand le passage lève une erreur** (le fil-piège, la base) : le 500 et l’alerte de la tâche sont le signal de cette nuit-là ;
+    - **la commande de lecture** est dans la spec et dans DEPLOYMENT.md (élément 9). Lire la production reste le oui du propriétaire.
+  - **Les tests :** la ligne relue comme JSON égale la réponse, en `off`, en `rehearse` et en `execute` ; une nuit de fil-piège n’écrit que la ligne du fil-piège ; aucun nom ni adresse dans la ligne ; la construction de production ne remplace pas `print` ; les deux commandes documentées filtrent sur le préfixe du code.
+  - **Consignée comme fusionnée :** #825 (`dfc4385f`). Le contenu de `main` est identique à celui de la PR qu’a testé la CI ; son entrée passe au vert.
+  - **Mis à jour :** la spec (§6.9, l’étape 3 du §6.6, la définition de fini), la ligne T84 de BACKEND.md, l’élément 9 de DEPLOYMENT.md et BACKLOG B0.24.

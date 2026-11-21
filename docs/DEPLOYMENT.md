@@ -591,6 +591,11 @@ which is how the reminder cron came to be switched off without anyone noticing.
    does not read runs as `rehearse` and is logged at boot; `salon_purge_wiring_test.dart` refuses it in
    the PR.
 
+   **Reading a night** (a production read, so on the owner's yes): every finished run logs one line, its
+   answer as JSON, in every mode (`off` too). A night with no line is a run that did not finish (the spec's §6.9):
+
+   `gcloud logging read 'resource.type="cloud_run_revision" AND resource.labels.service_name="myweli-api" AND textPayload:"salon_purge summary "' --freshness=8d --format='value(timestamp,textPayload)'`
+
 ### Staging retired for cost (2026-10-07) — the switch, and the way back
 
 **Owner decision, 2026-10-07:** delete staging while there are no users
