@@ -188,15 +188,19 @@ paths:
   /internal/cron/maintenance:
     post:
       tags: [messaging]
-      summary: The daily housekeeping — security prunes, kept answers, demo reset (internal)
+      summary: The daily housekeeping — security prunes, kept answers, demo reset, salon purge (internal)
       description: >
         Hit by Cloud Scheduler (`myweli-maintenance`, daily 03:30 UTC). The
         same door as the other crons: the Google-signed OIDC token only; 404
         when the OIDC pair is unconfigured, 403 otherwise. Idempotent per tick:
         every prune is, and the demo reset is due-gated (every 7 days). A
         prune that failed is `null` in the answer (and one `*_prune_failed`
-        log line), never a guess; a demo reset that fails is a 500.
-        Design: docs/design/infra-cron-maintenance.md.
+        log line), never a guess; a demo reset that fails is a 500. Since
+        B0.24 a fifth task runs last: the purge of a deleted owner's salon
+        (decisions 153–158); its tripwire's throw — a salon live, linked,
+        owned or the demo reaching a purge — is a 500 too.
+        Design: docs/design/infra-cron-maintenance.md,
+        docs/design/deleted-owner-salon-purge.md.
       parameters:
         - { in: header, name: Authorization, schema: { type: string } }
       responses:
@@ -207,7 +211,7 @@ paths:
               schema:
                 type: object
                 required:
-                  [throttleRowsPruned, rateLimitWindowsPruned, idempotencyKeysPruned, demoReset]
+                  [throttleRowsPruned, rateLimitWindowsPruned, idempotencyKeysPruned, demoReset, salonPurge]
                 properties:
                   throttleRowsPruned:
                     type: integer
@@ -233,6 +237,25 @@ paths:
                       that said `false` for both « not the day » and
                       « refused » (docs/design/backend-integrity-batch6.md
                       §2.9, B6.9).
+                  salonPurge:
+                    type: object
+                    description: >
+                      B0.24 — what the salon purge did, by `SALON_PURGE_MODE`:
+                      `{mode: off}`; or, rehearsing (the default), `rehearsed`
+                      [{id, counts}] with the `would*` counts, nothing written;
+                      or, executing, `purged` [{id, counts}], `recorded`,
+                      `clocksStarted`, `reminded`, `objectsDeleted`,
+                      `reasonsErased`, `queriesScrubbed`. Always `unqueued`,
+                      `postponed` [{id, reason}], `skipped`, `keptShared`,
+                      `objectsLeft`, `listFailed`, `stragglers`, `budgetHit`.
+                      Ids and counts only — never a name, an e-mail or a phone
+                      (T84). docs/design/deleted-owner-salon-purge.md §6.3.
+                    required: [mode]
+                    properties:
+                      mode:
+                        type: string
+                        enum: [off, rehearse, execute]
+                    additionalProperties: true
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
 
@@ -616,7 +639,11 @@ paths:
         WhatsApp and Mobile Money deposit numbers (the deposit is switched
         off), its address and its map pin (`latitude` and `longitude` become
         null), while its name, commune and city stay (B6.3, B0.22 —
-        docs/design/pro-deletion-erase-gaps.md). Threat T53.
+        docs/design/pro-deletion-erase-gaps.md). Each owned salon is then
+        queued for its purge, 90 days after its clock starts; the clock
+        starts, and the salon's active members are e-mailed the day, only
+        once real purges are on (B0.24, decisions 153–158 —
+        docs/design/deleted-owner-salon-purge.md). Threat T53.
 
 
         The store-review demo account cannot delete itself — 403

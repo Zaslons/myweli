@@ -6,7 +6,11 @@ import 'package:myweli_backend/src/appointments/appointment_repository.dart';
 import 'package:myweli_backend/src/auth/demo_seam.dart';
 import 'package:myweli_backend/src/auth/provider_auth_repository.dart';
 import 'package:myweli_backend/src/auth/tokens.dart';
+import 'package:myweli_backend/src/email/email_provider.dart';
+import 'package:myweli_backend/src/email/send_budget.dart';
 import 'package:myweli_backend/src/idempotency/idempotency_store.dart';
+import 'package:myweli_backend/src/maintenance/salon_purge_repository.dart';
+import 'package:myweli_backend/src/maintenance/salon_purge_service.dart';
 import 'package:myweli_backend/src/notifications/notifications_repository.dart';
 import 'package:myweli_backend/src/provider_account_service.dart';
 import 'package:myweli_backend/src/providers_repository.dart';
@@ -818,4 +822,136 @@ void main() {
       expect(r.error, 'forbidden');
     });
   });
+
+  // B0.24 (decisions 153–158) — docs/design/deleted-owner-salon-purge.md
+  // §6.2, test 15: each OWNED salon is queued; its clock starts, and its
+  // team is told, only while real purges are on.
+  group('B0.24 — the deletion queues each owned salon for the purge', () {
+    late InMemoryMembershipRepository memberships;
+    late InMemorySalonPurgeRepository queue;
+    late _PurgeMail mail;
+
+    ProviderAccountService serviceWith(
+      SalonPurgeMode mode, {
+      ProviderAuthRepository? identity,
+    }) => ProviderAccountService(
+      identity ?? auth,
+      providers,
+      appointments,
+      FakeStorageService(),
+      memberships,
+      client: MockClient((req) async => http.Response('', 204)),
+      purgeQueue: queue,
+      purgeNotifier: SalonPurgeNotifier(memberships, providers, mail),
+      purgeMode: mode,
+    );
+
+    setUp(() async {
+      memberships = InMemoryMembershipRepository();
+      queue = InMemorySalonPurgeRepository();
+      mail = _PurgeMail();
+    });
+
+    /// The owner of p1 (link) and p2 (owner row), a member of p3, with a
+    /// colleague left active in p2.
+    Future<String> ownerOfTwo({ProviderAuthRepository? identity}) async {
+      final id = await registerWithKyc(keys: []);
+      await memberships.ensureOwner(
+        providerId: 'p2',
+        accountId: id,
+        email: 'del@test.pro',
+      );
+      final colleague = await memberships.invite(
+        providerId: 'p2',
+        email: 'colleague@x.com',
+        role: 'staff',
+        expiresAt: DateTime.now().toUtc().add(const Duration(days: 7)),
+      );
+      await memberships.activate(colleague!.id, 'acct_colleague');
+      final p3 = await memberships.invite(
+        providerId: 'p3',
+        email: 'del@test.pro',
+        role: 'staff',
+        expiresAt: DateTime.now().toUtc().add(const Duration(days: 7)),
+      );
+      await memberships.activate(p3!.id, id);
+      return id;
+    }
+
+    test('rehearsing: both owned salons queued with NO clock; the member-only '
+        'salon untouched; no e-mail', () async {
+      final id = await ownerOfTwo();
+      final r = await serviceWith(SalonPurgeMode.rehearse).deleteAccount(id);
+      expect(r.ok, isTrue);
+      expect(
+        queue.stamps,
+        unorderedEquals([
+          (id: 'p1', startClock: false),
+          (id: 'p2', startClock: false),
+        ]),
+      );
+      expect(queue.queue.containsKey('p3'), isFalse);
+      expect(mail.sent, isEmpty);
+    });
+
+    test('real purges on: the clock starts and the remaining team is told, '
+        'once per salon', () async {
+      final id = await ownerOfTwo();
+      final r = await serviceWith(SalonPurgeMode.execute).deleteAccount(id);
+      expect(r.ok, isTrue);
+      expect(
+        queue.stamps,
+        unorderedEquals([
+          (id: 'p1', startClock: true),
+          (id: 'p2', startClock: true),
+        ]),
+      );
+      expect(queue.queue['p2']!.clockStartedAt, isNotNull);
+      expect(mail.sent, [
+        'colleague@x.com',
+      ], reason: 'the owner is gone; p1 has nobody left');
+    });
+
+    test(
+      'a failed stamp never fails the deletion, nor the next salon\'s',
+      () async {
+        final id = await ownerOfTwo();
+        queue.stampThrows = StateError('queue down');
+        final r = await serviceWith(SalonPurgeMode.execute).deleteAccount(id);
+        expect(r.ok, isTrue);
+        expect(mail.sent, isEmpty, reason: 'no clock, no e-mail');
+      },
+    );
+
+    test('a failed identity delete stamps nothing', () async {
+      final failing = _IdentityFailsOnce(tokens: tokens);
+      auth = failing;
+      final id = await ownerOfTwo();
+      await expectLater(
+        serviceWith(
+          SalonPurgeMode.execute,
+          identity: failing,
+        ).deleteAccount(id),
+        throwsStateError,
+      );
+      expect(queue.stamps, isEmpty);
+      expect(mail.sent, isEmpty);
+    });
+  });
+}
+
+class _PurgeMail implements EmailProvider {
+  final sent = <String>[];
+
+  @override
+  Future<EmailSendResult> send({
+    required String to,
+    required String subject,
+    required String text,
+    required EmailClass classification,
+    String? html,
+  }) async {
+    sent.add(to);
+    return (ok: true, providerMessageId: 'm', error: null);
+  }
 }

@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Module** | backend — a salon purge on the daily maintenance cron (`POST /internal/cron/maintenance`), a stamp in `ProviderAccountService.deleteAccount`, migration `0046`; then three text PRs (web, privacy policy, Play's Data safety record) |
-| **Status** | **Approved 2026-11-20: the owner answered Q1–Q6 « Approve as recommended », decisions 153–158 (§11).** Nothing built, nothing migrated, nothing deployed; each next step waits for the owner's yes (§10, §12). *2026-11-20: production counted read-only (§6.6 step 1): 3 salons with no owner, no member row and no shared file.* An independent review against the code found 7 problems in the first draft, all folded in (§13). Decision 138 filed this item; android-play-release step 10 needs it **decided** (this spec answered), not built |
+| **Status** | **Approved 2026-11-20: the owner answered Q1–Q6 « Approve as recommended », decisions 153–158 (§11). Built 2026-11-21 on `feat/salon-purge` (§6.8): not merged, not deployed, nothing migrated in production;** each next step waits for the owner's yes (§10, §12). *2026-11-20: production counted read-only (§6.6 step 1): 3 salons with no owner, no member row and no shared file.* An independent review against the code found 7 problems in the first draft, all folded in (§13). Decision 138 filed this item; android-play-release step 10 needs it **decided** (this spec answered), not built |
 | **Owner** | the project owner: the answers, the merge, every production read, the deploy, and the switch from rehearsals to real purges, each on the owner's yes |
 | **Last updated** | 2026-11-20 |
 | **PRD ref / phase** | FR-AUTH-005 [V1] (`docs/PRD.md:344`, account deletion) · V1 · gates android-play-release step 10 (decided, not built) |
@@ -667,6 +667,74 @@ Each step is on the owner's yes; every read is read-only.
 - **The admin console's label** `'salon.purge': 'Salon purgé'`, in `mobile/lib/screens/admin/widgets/audit_actions.dart`.
   `validation_labels_test.dart` reads the backend's writers. The label reaches the console with the next
   admin deploy, which is the owner's step; until then the console shows the raw code.
+
+### 6.8 As built (2026-11-21)
+
+Where the code differs from §6.2–§6.7, and why. Each was decided at build, inside decisions 153–158; none
+changes what the owner approved.
+
+- **The in-memory twin is scripted, not a replica** (§6.7 said « over the in-memory repositories »).
+  - **Why:** copying every purge statement over fifteen in-memory repositories would prove nothing
+    about the SQL. The twins have no foreign keys, no locks and no transactions, and the purge rests
+    on all three.
+  - **So:** the SQL is proven on real Postgres, in a database of its own
+    (`test/db/postgres_salon_purge_test.dart`). The twin drives the service's logic in
+    `test/maintenance/salon_purge_service_test.dart`. Built empty, as in dev, it finds no salon and
+    the job answers zeros.
+- **Step 1 records and starts a clock in one statement** (`recordAndStartClock`): an insert, or a
+  clock on a queued row that has none, `ON CONFLICT … DO UPDATE … WHERE clock_started_at IS NULL`. It is
+  the same two sub-steps, and a clock starts once.
+- **An `active` salon is never recorded,** nor given a clock or a reminder, though the candidate query
+  alone excluded it. An ownerless `active` salon is an anomaly the tripwire stops; its team must not be
+  e-mailed a date first.
+- **The reminder never names a day already past.** It is claimed only while the due day is ahead, and
+  its subject counts the days really left: « dans 7 jours » on a normal night, « dans 3 jours » after
+  missed nights, « demain » for the last.
+- **The rehearsal's answer names what it would do:** `wouldRecord`, `wouldStartClocks`,
+  `objectsWouldDelete`, `reasonsWouldErase` and `queriesWouldScrub`, where `execute` says `recorded`,
+  `clocksStarted`, `objectsDeleted`, `reasonsErased` and `queriesScrubbed`. Step 0 only counts while
+  rehearsing, so a rehearsal writes nothing at all (§6.4).
+- **`listFailed` and `skipped` are in the answer too.** A listing that fails while rehearsing is
+  reported, never the run's 500: only the tripwire stops a run.
+- **The tripwire's « active owner » is stricter than the membership repository's:** any active `owner`
+  row counts, with or without an account. A salon in doubt is treated as owned.
+- **The feed rows are matched as an exact suffix** (`right(route, n) = '?salon={id}'`, with the
+  encoded id too), never with `LIKE`: production's salon ids hold `_`, a `LIKE` wildcard.
+- **`salon.purge`'s `metadata` is stored as an object,** `{counts: {…}}`. The admin reader takes either
+  form; the other writers' rows stay strings (§6.6 step 1).
+- **Each salon's transaction sets `lock_timeout = 5s` and `statement_timeout = 30s`** (`SET LOCAL`): a
+  lock that cannot be had fails that salon's purge, and the next night retries it, rather than holding
+  the cron past its deadline.
+- **`SALON_PURGE_MODE: rehearse` is declared in both manifests,** so the switch to `execute` is a
+  reviewed change to `service.yaml`. `salon_purge_wiring_test.dart` fails on a value the code does not
+  read.
+- **The web's generated API types** (`web/lib/api/schema.ts`) were regenerated from the contract, with
+  the lockfile's `openapi-typescript` 7.13.0. As a control, the same generator reproduced `main`'s file
+  byte for byte first.
+
+**The tests of §9, where they are:**
+
+| # | File | Test |
+|---|---|---|
+| 1 | postgres_salon_purge_test | « test 1 — a due salon is purged » |
+| 2 | postgres_salon_purge_test | « test 2 — the retention, strictly » (89 d, exactly 90 d, 90 d + 1 min) |
+| 3–6 | salon_purge_service_test, postgres_salon_purge_test | the tripwire with a widened candidate query (each of the four facts, and while rehearsing); the SQL excluding all four; the tripwire's inputs read from locked rows, its throw committing nothing |
+| 7 | both | « an open dispute postpones; nothing else does » |
+| 8 | postgres_salon_purge_test | « the rehearsal writes nothing, and counts what execute does » (fingerprints of 17 tables) |
+| 9 | postgres_salon_purge_test | « two runs at once purge once » |
+| 10 | salon_purge_service_test | « storage down after the rows → the next run deletes the files and, a run later, the queue row » |
+| 11 | postgres_salon_purge_test | « a revoked member gets « not a member » » (the two reads `GET /me/provider` makes) |
+| 12–13 | both | files: the four prefixes, `..` refused, `gallery/s10/` not under `gallery/s1/`; a shared photo kept |
+| 14 | postgres_salon_purge_test | « a creation's ownerless instant » |
+| 15 | provider_account_service_test | « B0.24 — the deletion queues each owned salon for the purge » |
+| 16 | salon_purge_service_test, postgres_salon_purge_test | the e-mails; the reminder's claim on the real queue |
+| 17 | both | « the next-day pass » |
+| 18 | postgres_salon_purge_test | « the deleted accounts' reasons » |
+| 19, 24 | postgres_salon_purge_test | « the Clients search text » (the writer's `jsonb_typeof = 'object'`) |
+| 20 | salon_purge_service_test | « the limit and the time budget » |
+| 21 | team_service_test | « accept, B0.24 » |
+| 22 | salon_purge_wiring_test, maintenance_tick_test | the wiring, the manifests, the tick's order |
+| 23 | postgres_salon_purge_test | the fingerprints, in test 8 and in the guards' tests |
 
 ## 7. Security — threat model ([BACKEND.md](../BACKEND.md) §7)
 

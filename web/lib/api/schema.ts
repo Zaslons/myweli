@@ -254,8 +254,8 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * The daily housekeeping — security prunes, kept answers, demo reset (internal)
-         * @description Hit by Cloud Scheduler (`myweli-maintenance`, daily 03:30 UTC). The same door as the other crons: the Google-signed OIDC token only; 404 when the OIDC pair is unconfigured, 403 otherwise. Idempotent per tick: every prune is, and the demo reset is due-gated (every 7 days). A prune that failed is `null` in the answer (and one `*_prune_failed` log line), never a guess; a demo reset that fails is a 500. Design: docs/design/infra-cron-maintenance.md.
+         * The daily housekeeping — security prunes, kept answers, demo reset, salon purge (internal)
+         * @description Hit by Cloud Scheduler (`myweli-maintenance`, daily 03:30 UTC). The same door as the other crons: the Google-signed OIDC token only; 404 when the OIDC pair is unconfigured, 403 otherwise. Idempotent per tick: every prune is, and the demo reset is due-gated (every 7 days). A prune that failed is `null` in the answer (and one `*_prune_failed` log line), never a guess; a demo reset that fails is a 500. Since B0.24 a fifth task runs last: the purge of a deleted owner's salon (decisions 153–158); its tripwire's throw — a salon live, linked, owned or the demo reaching a purge — is a 500 too. Design: docs/design/infra-cron-maintenance.md, docs/design/deleted-owner-salon-purge.md.
          */
         post: {
             parameters: {
@@ -286,6 +286,13 @@ export interface paths {
                              * @enum {string}
                              */
                             demoReset: "ran" | "not_due" | "no_snapshot" | "refused:not_demo_owned";
+                            /** @description B0.24 — what the salon purge did, by `SALON_PURGE_MODE`: `{mode: off}`; or, rehearsing (the default), `rehearsed` [{id, counts}] with the `would*` counts, nothing written; or, executing, `purged` [{id, counts}], `recorded`, `clocksStarted`, `reminded`, `objectsDeleted`, `reasonsErased`, `queriesScrubbed`. Always `unqueued`, `postponed` [{id, reason}], `skipped`, `keptShared`, `objectsLeft`, `listFailed`, `stragglers`, `budgetHit`. Ids and counts only — never a name, an e-mail or a phone (T84). docs/design/deleted-owner-salon-purge.md §6.3. */
+                            salonPurge: {
+                                /** @enum {string} */
+                                mode: "off" | "rehearse" | "execute";
+                            } & {
+                                [key: string]: unknown;
+                            };
                         };
                     };
                 };
@@ -789,7 +796,7 @@ export interface paths {
         post?: never;
         /**
          * Delete the provider ACCOUNT (audit 11.5 — AUTH-004 for pros)
-         * @description Self-scoped and irreversible. Future pending/confirmed bookings in ANY owned salon block the deletion (409 `future_bookings` — settle every agenda first; R6). EVERY salon the account owns is unpublished (`status → draft`, hidden from every public surface by T51) while bookings/reviews/CRM keep resolving; member-only salons are untouched; the account row, its KYC documents (rows AND the private storage objects), OTP state and every refresh token are erased — all sessions die. Each owned salon loses its owner's contact: its phone, WhatsApp and Mobile Money deposit numbers (the deposit is switched off), its address and its map pin (`latitude` and `longitude` become null), while its name, commune and city stay (B6.3, B0.22 — docs/design/pro-deletion-erase-gaps.md). Threat T53.
+         * @description Self-scoped and irreversible. Future pending/confirmed bookings in ANY owned salon block the deletion (409 `future_bookings` — settle every agenda first; R6). EVERY salon the account owns is unpublished (`status → draft`, hidden from every public surface by T51) while bookings/reviews/CRM keep resolving; member-only salons are untouched; the account row, its KYC documents (rows AND the private storage objects), OTP state and every refresh token are erased — all sessions die. Each owned salon loses its owner's contact: its phone, WhatsApp and Mobile Money deposit numbers (the deposit is switched off), its address and its map pin (`latitude` and `longitude` become null), while its name, commune and city stay (B6.3, B0.22 — docs/design/pro-deletion-erase-gaps.md). Each owned salon is then queued for its purge, 90 days after its clock starts; the clock starts, and the salon's active members are e-mailed the day, only once real purges are on (B0.24, decisions 153–158 — docs/design/deleted-owner-salon-purge.md). Threat T53.
          *
          *     The store-review demo account cannot delete itself — 403 `demo_account_locked` (T69): its credential is public, and nothing recreates a lost identity automatically (it can only be registered again by hand, into a new empty salon). The refusal is evaluated right after the account is loaded and before the future-bookings gate, so the answer is the same whether or not the demo salon has upcoming bookings, and nothing is read or written past it. Design: docs/design/demo-account-deletion-lock.md.
          */

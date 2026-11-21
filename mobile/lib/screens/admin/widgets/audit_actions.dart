@@ -27,6 +27,9 @@ const Map<String, String> kAuditActions = {
   'user.erase': 'Compte client effacé',
   // B0.25's server half — admin-pro-account-erase.md §4.1.
   'provider_account.erase': 'Compte Pro effacé',
+  // B0.24 — deleted-owner-salon-purge.md §6.7: the system purges a deleted
+  // owner's salon 90 days after its clock starts (decision 153).
+  'salon.purge': 'Salon purgé',
   'dispute.open': 'Litige ouvert',
   'dispute.resolve': 'Litige résolu',
   'client_floor.set': 'Version minimale modifiée',

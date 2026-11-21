@@ -68,6 +68,17 @@ class _RevokedMidAccept extends InMemoryMembershipRepository {
   }
 }
 
+/// The salon purge (B0.24) deletes an invitation to an address with no
+/// account between `accept`'s check and its re-read: the second read finds
+/// nothing (deleted-owner-salon-purge.md §6.7).
+class _DeletedMidAccept extends InMemoryMembershipRepository {
+  var _reads = 0;
+
+  @override
+  Future<Member?> byId(String memberId) async =>
+      _reads++ == 0 ? super.byId(memberId) : null;
+}
+
 /// The owner changes the invitation's role between `accept`'s read and its
 /// write (« Changer le rôle » while the invitee presses « Rejoindre »).
 class _RoleChangedMidAccept extends InMemoryMembershipRepository {
@@ -1013,6 +1024,36 @@ void main() {
 
       expect(r.error, 'not_found');
       expect((await racing.byId(inv.id))!.status, 'revoked');
+    });
+  });
+
+  group('accept, B0.24', () {
+    test('an invitation the salon purge deleted mid-accept answers not_found, '
+        'never a 500', () async {
+      final now = DateTime.utc(2026, 11, 21);
+      final racing = _DeletedMidAccept();
+      final t = TeamService(
+        racing,
+        MembershipService(racing, auth),
+        providers,
+        subscriptions,
+        email,
+        audit,
+        clock: () => now,
+      );
+      final inv = (await racing.invite(
+        providerId: 'p1',
+        email: 'gone@b.com',
+        role: 'staff',
+        expiresAt: now.add(const Duration(days: 7)),
+      ))!;
+      final r = await t.accept(
+        inv.id,
+        accountId: 'acc-gone',
+        accountEmail: 'gone@b.com',
+      );
+      expect(r.ok, isFalse);
+      expect(r.error, 'not_found');
     });
   });
 

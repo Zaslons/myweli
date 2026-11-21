@@ -1,6 +1,6 @@
 /// The daily housekeeping (`POST /internal/cron/maintenance`, job
 /// `myweli-maintenance` at 03:30 UTC): two security prunes, the kept answers'
-/// prune and the demo-salon reset. They rode the subscriptions cron until a
+/// prune, the demo-salon reset and, since B0.24, the salon purge. They rode the subscriptions cron until a
 /// fourth arrived — the rule its comment set — and moved here together
 /// (docs/design/infra-cron-maintenance.md).
 ///
@@ -13,6 +13,7 @@ class MaintenanceTick {
     required this.pruneRateLimits,
     required this.pruneIdempotency,
     required this.demoReset,
+    required this.salonPurge,
   });
 
   /// `admin_login_throttle` (migration 0035). **A security parameter**, not
@@ -38,19 +39,28 @@ class MaintenanceTick {
   /// subscriptions cron.
   final Future<String> Function(DateTime now) demoReset;
 
-  /// Runs the four, in the order they ran before the move, and answers each
-  /// count as it came: **a prune nobody can see is the shape this repo keeps
-  /// finding**, so every outcome is in the response, not only in a log.
+  /// The purge of a deleted owner's salon (B0.24,
+  /// docs/design/deleted-owner-salon-purge.md §6.3): **last**, so a failure
+  /// never stops the four above. Its tripwire throws on a wrong predicate,
+  /// and the throw is left to escape — a 500 the cron alert sees.
+  final Future<Map<String, Object?>> Function(DateTime now) salonPurge;
+
+  /// Runs the five, the four in the order they ran before the move and the
+  /// purge last, and answers each count as it came: **a prune nobody can see
+  /// is the shape this repo keeps finding**, so every outcome is in the
+  /// response, not only in a log.
   Future<Map<String, Object?>> run(DateTime now) async {
     final throttle = await pruneThrottle();
     final windows = await pruneRateLimits();
     final keys = await pruneIdempotency();
     final demo = await demoReset(now);
+    final purge = await salonPurge(now);
     return {
       'throttleRowsPruned': throttle,
       'rateLimitWindowsPruned': windows,
       'idempotencyKeysPruned': keys,
       'demoReset': demo,
+      'salonPurge': purge,
     };
   }
 }
