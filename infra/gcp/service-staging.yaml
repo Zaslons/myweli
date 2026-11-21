@@ -68,7 +68,9 @@ spec:
         #
         #   gcloud run services describe myweli-api --region europe-west9 \
         #     --format='value(spec.template.metadata.labels.commit)'
-        commit: __RELEASE__
+        # QUOTED: a short SHA such as `80e6518` or `1234567` is a YAML number
+        # unquoted, and a label must be a string (run 44905142877, 2026-11-21).
+        commit: '__RELEASE__'
       annotations:
         # Its OWN instance, not a second database on production's. The arithmetic
         # is the reason: myweli-db carries no `databaseFlags` at all, so it runs
@@ -453,7 +455,8 @@ spec:
             # then groups staging and production errors from the same build under
             # one release, which is what makes "it worked in staging" checkable.
             - name: RELEASE
-              value: __RELEASE__
+              # Quoted for the same reason as the `commit` label above.
+              value: '__RELEASE__'
             # Separate credentials, because this is the account that can suspend
             # salons and read KYC — and staging is where we hand it out.
             # STAGING_ADMIN_PASSWORD is BOOTSTRAP ONLY: the seeder is

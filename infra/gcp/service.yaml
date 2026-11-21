@@ -69,7 +69,9 @@ spec:
         #
         #   gcloud run services describe myweli-api --region europe-west9 \
         #     --format='value(spec.template.metadata.labels.commit)'
-        commit: __RELEASE__
+        # QUOTED: a short SHA such as `80e6518` or `1234567` is a YAML number
+        # unquoted, and a label must be a string (run 44905142877, 2026-11-21).
+        commit: '__RELEASE__'
       annotations:
         # The Cloud SQL instance the proxy sidecar may reach.
         run.googleapis.com/cloudsql-instances: myweli:europe-west9:myweli-db
@@ -411,7 +413,8 @@ spec:
             # Found in the event's "Event Processing Errors" panel, not by
             # anything failing.
             - name: RELEASE
-              value: __RELEASE__
+              # Quoted for the same reason as the `commit` label above.
+              value: '__RELEASE__'
             - name: FCM_PROJECT_ID
               value: myweli
             - name: FCM_CLIENT_EMAIL
