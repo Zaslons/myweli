@@ -798,6 +798,14 @@ status. This section is the fix, `feat/salon-purge-run-log`. It is built, not de
   mode. It also checks that a tripwire night logs the tripwire's line and nothing else. The wiring test
   fails if production's construction hands in a `log:` of its own, which would replace `print`, and if
   this spec's read command or `docs/DEPLOYMENT.md`'s stops matching the code's prefix.
+- **Watched red, on committed code** (2026-11-21, the same harness as §6.8): 11 mutations, each red
+  under its tests. They were:
+  - no line; the answer printed as Dart's `toString` rather than JSON; the JSON pretty-printed over
+    several lines;
+  - `off` silent; the line logged twice; a line logged even when the run throws (in a `finally`);
+  - a salon's name appended to the line;
+  - the prefix renamed in the code only; a `log: (_) {}` in production's construction; each document's
+    read command drifting from the prefix.
 - **Not covered, seen while building:** the maintenance cron's four other tasks log their failures but
   not their counts, so `maintenance_tick.dart`'s « every outcome is in the response » is read by nobody
   either. That is out of this change's scope.
