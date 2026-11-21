@@ -764,6 +764,54 @@ void main() {
       }
     });
 
+    // 2026-11-21: run 44905142877 refused production's deploy of `80e6518`
+    // — « Expected type <class 'str'> for field value, found inf ». Unquoted,
+    // the short SHA the workflow seds in is a YAML NUMBER when it is digits,
+    // `e`, digits (80 × 10^6518 → inf) or digits alone, and a label or an env
+    // value must be a string. `4e78e48` had passed only because of its second
+    // `e`. Rendered here exactly as the workflow renders it (sed of the raw
+    // file), then parsed.
+    test('the short SHA renders as a STRING wherever it lands', () {
+      for (final name in ['service.yaml', 'service-staging.yaml']) {
+        final raw = File('$root/infra/gcp/$name').readAsStringSync();
+        for (final sha in [
+          '80e6518',
+          '1234567',
+          '0e00000',
+          '4e78e48',
+          'deadbee',
+        ]) {
+          final rendered = raw
+              .replaceAll('__RELEASE__', sha)
+              .replaceAll(
+                '__IMAGE__',
+                'europe-west9-docker.pkg.dev/x/y/api@sha256:00',
+              );
+          final svc = loadYaml(rendered) as YamlMap;
+          final template = svc['spec']['template'] as YamlMap;
+          final commit = (template['metadata'] as YamlMap)['labels']['commit'];
+          expect(
+            commit,
+            isA<String>(),
+            reason: '$name, $sha: the commit label',
+          );
+          expect(commit, sha, reason: '$name, $sha: the commit label');
+          final releases = [
+            for (final c
+                in (template['spec'] as YamlMap)['containers'] as YamlList)
+              for (final e
+                  in ((c as YamlMap)['env'] as YamlList?) ?? YamlList())
+                if ((e as YamlMap)['name'] == 'RELEASE') e['value'],
+          ];
+          expect(releases, isNotEmpty, reason: '$name: RELEASE is declared');
+          for (final v in releases) {
+            expect(v, isA<String>(), reason: '$name, $sha: the RELEASE value');
+            expect(v, sha, reason: '$name, $sha: the RELEASE value');
+          }
+        }
+      }
+    });
+
     test('there is no THIRD placeholder nobody substitutes', () {
       // A `__SOMETHING__` the workflow does not know about deploys verbatim.
       final known = {'__IMAGE__', '__RELEASE__'};
