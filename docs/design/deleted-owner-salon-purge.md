@@ -736,6 +736,20 @@ changes what the owner approved.
 | 22 | salon_purge_wiring_test, maintenance_tick_test | the wiring, the manifests, the tick's order |
 | 23 | postgres_salon_purge_test | the fingerprints, in test 8 and in the guards' tests |
 
+**Watched red, on committed code** (2026-11-21, a harness that refuses a dirty tree, asserts each
+mutation changed its file and restores it from the commit): 38 mutations, each red under its tests.
+Among them are every « mutation that turns it red » of §9's table, plus the listing's prefix, path and
+pages, the e-mail's escaping and timezone, and `parse` with an unknown mode. Two first missed their
+pattern after `dart format` rewrapped the line. They reported « no result », never a pass, and went red
+once fixed.
+
+**Measured, not red: test 9 with only `SKIP LOCKED` removed stays green**, three runs in three. The
+second run then waits on the queue row's lock instead of skipping it, and the lock's re-check
+(`rows_purged_at IS NULL`) finds the row already purged. So the purge's correctness rests on the row
+lock and its re-check, and `SKIP LOCKED` only spares the wait. The guard does fire when the
+serialisation goes: with both the queue lock and the salon row's `FOR UPDATE` removed, the two runs
+purged the same salon, three runs in three.
+
 ## 7. Security — threat model ([BACKEND.md](../BACKEND.md) §7)
 
 | Row | Delta written in the backend PR |
@@ -882,8 +896,9 @@ option not taken. Q4's wording (§5.1) is still signed off in the backend PR.
 
 - [x] Decisions recorded in BACKLOG; B0.24 and android-play-release step 10 updated; this spec → Approved
       (2026-11-20, decisions 153–158, PR #821).
-- [ ] Backend PR: the tests of §9 red first then green, `dart analyze` = 0, format clean, the contract
-      sentence, T84 and T53, the admin label, `// Design:` links.
+- [x] Backend PR: the tests of §9 green and each watched red (§6.8), `dart analyze` = 0, format clean,
+      the contract sentence, T84 and T53, the admin label, the design links (2026-11-21,
+      `feat/salon-purge`).
 - [ ] The production count, the deploy, the rehearsal reads, `execute` limited to 1, the first purge read
       back: each on the owner's yes, each recorded.
 - [ ] The three text PRs, after `execute` is on, outside the freezes.
