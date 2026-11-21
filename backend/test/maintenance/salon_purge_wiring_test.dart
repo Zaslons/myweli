@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:myweli_backend/src/maintenance/salon_purge_repository.dart';
+import 'package:myweli_backend/src/maintenance/salon_purge_service.dart';
 import 'package:test/test.dart';
 import 'package:yaml/yaml.dart';
 
@@ -67,6 +68,28 @@ void main() {
       reason: 'the budgeted provider, as every send',
     );
   });
+
+  // §6.9: the summary line is the only way a night can be read. A `log:`
+  // handed in here would replace `print`, and a no-op one would swallow it
+  // with every test still green.
+  test('production keeps the summary line: no log override, so print', () {
+    expect(construction('SalonPurgeService'), isNot(contains('log:')));
+  });
+
+  // The rehearsal reads filter on the line's prefix. A rename in the code
+  // alone would leave the documented command reading nothing — a silence
+  // that looks exactly like a purge that never ran.
+  for (final path in [
+    '../docs/design/deleted-owner-salon-purge.md',
+    '../docs/DEPLOYMENT.md',
+  ]) {
+    test('$path reads the summary line by the prefix the code prints', () {
+      expect(
+        File(path).readAsStringSync(),
+        contains('textPayload:"${SalonPurgeService.kSummaryPrefix}"'),
+      );
+    });
+  }
 
   test('the tick runs it, last', () {
     final tick = construction('MaintenanceTick');

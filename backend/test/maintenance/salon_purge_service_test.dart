@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:myweli_backend/src/access/membership_repository.dart';
 import 'package:myweli_backend/src/email/email_provider.dart';
 import 'package:myweli_backend/src/email/send_budget.dart';
@@ -440,19 +442,82 @@ void main() {
     });
   });
 
-  test(
-    'the answer carries ids and counts only — no name, no address (T84)',
-    () async {
-      repo.salons['s1'] = FakePurgeSalon('s1');
-      members.rows['s1'] = [_member('s1', 'a@x.com')];
-      due('s2');
+  group('the summary line (§6.9) — the answer, logged, so a night can be '
+      'read', () {
+    /// The run's one summary line, parsed back. One line exactly: a second
+    /// would double-count a night, and a newline would split it into several
+    /// log entries.
+    Map<String, Object?> summary() {
+      final lines = logs
+          .where((l) => l.startsWith(SalonPurgeService.kSummaryPrefix))
+          .toList();
+      expect(lines, hasLength(1), reason: 'one summary line per run');
+      expect(lines.single, isNot(contains('\n')));
+      return jsonDecode(
+            lines.single.substring(SalonPurgeService.kSummaryPrefix.length),
+          )
+          as Map<String, Object?>;
+    }
+
+    test('off logs that it is off — silence never means off', () async {
+      due('s1');
+      await service(SalonPurgeMode.off).run(now);
+      expect(logs, ['salon_purge summary {"mode":"off"}']);
+    });
+
+    test('rehearse: the line parses back to the answer, ids and counts '
+        'included', () async {
+      repo.salons['s1'] = FakePurgeSalon(
+        's1',
+        counts: {'services': 2, 'breaks': 5},
+        objects: [(bucket: StorageBucket.public, key: 'gallery/s1/a.jpg')],
+      );
+      repo.salons['s2'] = FakePurgeSalon('s2', openDisputes: 1);
+      storage.listable[StorageBucket.public] = {'gallery/s1/a.jpg'};
+      final body = await service(SalonPurgeMode.rehearse).run(now);
+      expect(body['rehearsed'], isNotEmpty, reason: 'a case with content');
+      expect(body['postponed'], isNotEmpty);
+      expect(summary(), body);
+    });
+
+    test('execute: the line parses back to the answer', () async {
+      due('s1', counts: {'appointments': 3});
+      repo.salons['s3'] = FakePurgeSalon('s3');
       final body = await service(SalonPurgeMode.execute).run(now);
-      final text = body.toString();
+      expect(body['purged'], isNotEmpty, reason: 'a case with content');
+      expect(body['recorded'], ['s3']);
+      expect(summary(), body);
+    });
+
+    test('a tripwire night logs the tripwire line and no summary: its 500 '
+        'is the signal', () async {
+      repo.salons['s1'] = FakePurgeSalon('s1', linked: true);
+      final svc = SalonPurgeService(
+        _ForcedCandidates(repo, ['s1']),
+        storage,
+        SalonPurgeNotifier(members, InMemoryProvidersRepository([]), mail),
+        mode: SalonPurgeMode.rehearse,
+        log: logs.add,
+      );
+      await expectLater(svc.run(now), throwsA(isA<SalonPurgeTripwire>()));
+      expect(logs, [startsWith('salon_purge_tripwire id=s1 ')]);
+    });
+  });
+
+  test('the answer and its logged line carry ids and counts only — no name, no '
+      'address (T84)', () async {
+    repo.salons['s1'] = FakePurgeSalon('s1');
+    members.rows['s1'] = [_member('s1', 'a@x.com')];
+    due('s2');
+    final body = await service(SalonPurgeMode.execute).run(now);
+    expect(mail.sent, isNotEmpty, reason: 'the names were in reach');
+    for (final text in [body.toString(), ...logs]) {
       expect(text, isNot(contains('Awa')));
       expect(text, isNot(contains('Salon Deux')));
       expect(text, isNot(contains('@')));
-    },
-  );
+    }
+    expect(logs, isNotEmpty);
+  });
 
   test(
     'SalonPurgeMode.parse: unset and unknown are rehearse, never execute',

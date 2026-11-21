@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import '../access/membership_repository.dart';
 import '../email/email_provider.dart';
 import '../email/salon_purge_emails.dart';
@@ -47,6 +49,11 @@ class SalonPurgeService {
   /// The actor of the `salon.purge` audit row.
   static const kActor = 'system:salon-purge';
 
+  /// What every finished run's line starts with (§6.9). The rehearsal reads
+  /// filter on it, so the spec's and DEPLOYMENT.md's read commands are pinned
+  /// to it by `salon_purge_wiring_test.dart`.
+  static const kSummaryPrefix = 'salon_purge summary ';
+
   final SalonPurgeRepository _repo;
   final StorageService _storage;
   final SalonPurgeNotifier _notifier;
@@ -60,7 +67,19 @@ class SalonPurgeService {
 
   /// One run, at [now]. Ids and counts only in the answer — never a name,
   /// an e-mail or a phone (T84).
+  ///
+  /// The answer is also logged, as one line of JSON after [kSummaryPrefix]
+  /// (§6.9): the cron's response reaches only Cloud Scheduler, which keeps
+  /// the status, so without the line a rehearsal could not be read. Every
+  /// mode logs it, `off` too, so a night without one is a run that did not
+  /// finish. A run that throws logs none: its 500 is that night's signal.
   Future<Map<String, Object?>> run(DateTime now) async {
+    final answer = await _run(now);
+    _log('$kSummaryPrefix${jsonEncode(answer)}');
+    return answer;
+  }
+
+  Future<Map<String, Object?>> _run(DateTime now) async {
     if (mode == SalonPurgeMode.off) return {'mode': 'off'};
     final execute = mode == SalonPurgeMode.execute;
     final watch = Stopwatch()..start();

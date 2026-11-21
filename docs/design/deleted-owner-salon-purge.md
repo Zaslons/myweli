@@ -642,7 +642,7 @@ Each step is on the owner's yes; every read is read-only.
      03:30 on 2026-11-21, before the purge existed). The purge logs only its failures and its tripwire.
      This step said « read » with nothing to read.
    - **What it needs:** one summary line per run, ids and counts only. That is a backend change and a
-     deploy, each on the owner's yes.
+     deploy, each on the owner's yes. *Built 2026-11-21 on the owner's yes (§6.9), not deployed.*
    - **Until then:** the response size growing from the next night on, with a 200, shows the purge ran
      and answered, and that migration 0046's table exists. It does not show what the purge counted.
    - Each one's `rehearsed` counts must equal step 1's count for the same salons.
@@ -761,6 +761,54 @@ second run then waits on the queue row's lock instead of skipping it, and the lo
 lock and its re-check, and `SKIP LOCKED` only spares the wait. The guard does fire when the
 serialisation goes: with both the queue lock and the salon row's `FOR UPDATE` removed, the two runs
 purged the same salon, three runs in three.
+
+### 6.9 The nightly summary line (2026-11-21, on the owner's yes)
+
+§6.6 step 3 found nothing to read: the run's answer went to Cloud Scheduler, which keeps only the
+status. This section is the fix, `feat/salon-purge-run-log`. It is built, not deployed.
+
+- **The line.** Every run ends by printing one line: `salon_purge summary ` and then the run's answer as
+  JSON. The JSON is the same map the cron answers under `salonPurge`, with nothing added and nothing
+  left out. For example (ids replaced here), a rehearsal of today's three salons:
+
+  `salon_purge summary {"mode":"rehearse","unqueued":0,"wouldRecord":["<#1>","<#2>","<#3>"],"wouldStartClocks":3,"reminded":0,"rehearsed":[{"id":"<#1>","counts":{…}},…],"postponed":[],"skipped":[],"objectsWouldDelete":1,"keptShared":0,"objectsLeft":0,"stragglers":0,"reasonsWouldErase":0,"queriesWouldScrub":0,"listFailed":0,"budgetHit":false}`
+- **In every mode, `off` included:** `salon_purge summary {"mode":"off"}`. A night with no line is
+  therefore a night the purge did not finish, never a purge switched off.
+- **No line when the run throws** (the tripwire, or the database). That night's signals are the 500,
+  which the cron alert sees, and, for the tripwire, its own line `salon_purge_tripwire id=… hits`. In
+  `execute`, a salon purged before the throw has its `salon.purge` row in `audit_log`.
+- **What it carries:** ids and counts only, like the answer (T84). The service test that keeps names and
+  addresses out of the answer now checks the logged line too.
+- **How it lands:** a bare `print`, like every backend line. Cloud Run keeps it as a one-line
+  `textPayload` at INFO, kept 30 days (the retention the privacy policy promises).
+- **Its size** is bounded by the answer. It holds at most `SALON_PURGE_MAX_PER_RUN` salons with their
+  counts. While rehearsing, `wouldRecord` also lists every ownerless salon not yet queued: 3 today. A log
+  entry holds 256 KB (Google's documented limit, INFERRED), which at about 30 bytes an id is about 8,000
+  such salons.
+- **Reading it** is a production read, so on the owner's yes, read-only:
+
+  `gcloud logging read 'resource.type="cloud_run_revision" AND resource.labels.service_name="myweli-api" AND textPayload:"salon_purge summary "' --freshness=8d --format='value(timestamp,textPayload)'`
+
+  For step 3, each night's line must show:
+  - `mode` `rehearse`;
+  - `rehearsed` naming exactly the salons still without an owner;
+  - each one's `counts` equal to step 1's per-salon counts;
+  - `skipped` empty, `listFailed` 0 and `budgetHit` false.
+- **Pinned:** the service test parses the logged line back and compares it with the answer in each
+  mode. It also checks that a tripwire night logs the tripwire's line and nothing else. The wiring test
+  fails if production's construction hands in a `log:` of its own, which would replace `print`, and if
+  this spec's read command or `docs/DEPLOYMENT.md`'s stops matching the code's prefix.
+- **Watched red, on committed code** (2026-11-21, the same harness as §6.8): 11 mutations, each red
+  under its tests. They were:
+  - no line; the answer printed as Dart's `toString` rather than JSON; the JSON pretty-printed over
+    several lines;
+  - `off` silent; the line logged twice; a line logged even when the run throws (in a `finally`);
+  - a salon's name appended to the line;
+  - the prefix renamed in the code only; a `log: (_) {}` in production's construction; each document's
+    read command drifting from the prefix.
+- **Not covered, seen while building:** the maintenance cron's four other tasks log their failures but
+  not their counts, so `maintenance_tick.dart`'s « every outcome is in the response » is read by nobody
+  either. That is out of this change's scope.
 
 ## 7. Security — threat model ([BACKEND.md](../BACKEND.md) §7)
 
@@ -930,7 +978,7 @@ option not taken. Q4's wording (§5.1) is still signed off in the backend PR.
 - [ ] The production count, the deploy, the rehearsal reads, `execute` limited to 1, the first purge read
       back: each on the owner's yes, each recorded. *2026-11-21: the count (2026-11-20) and the deploy
       done. The rehearsal reads wait for a summary log line (§6.6 step 3); `execute` and the first purge
-      wait for them.*
+      wait for them. The line is built (§6.9); its deploy is the owner's yes.*
 - [ ] The three text PRs, after `execute` is on, outside the freezes.
 - [ ] Feature branches and PRs; CI green; no Claude attribution.
 
