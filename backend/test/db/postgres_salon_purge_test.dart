@@ -701,6 +701,10 @@ void main() {
       await queue('e_late', now.subtract(const Duration(days: 80)));
       await salon('e_past');
       await queue('e_past', now.subtract(const Duration(days: 95)));
+      // Due soon, but owned again since: re-checked in the claim itself.
+      await salon('e_owned');
+      await account('e_owner', providerId: 'e_owned');
+      await queue('e_owned', now.subtract(const Duration(days: 84)));
       final first = await repo.claimReminders(
         now,
         retention: kSalonPurgeRetention,
