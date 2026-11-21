@@ -111,6 +111,18 @@ abstract interface class StorageService {
     required String toKey,
     required StorageBucket bucket,
   });
+
+  /// Every key under [prefix] in [bucket] — an S3 `ListObjectsV2`, all pages.
+  ///
+  /// Exists for the salon purge (B0.24, deleted-owner-salon-purge.md §4.4): a
+  /// photo removed from a gallery is never deleted from storage, so only a
+  /// listing finds every file under a purged salon's prefixes. Network I/O;
+  /// throws on transport failure, so the caller keeps the files pending
+  /// rather than reading « nothing there ».
+  Future<List<String>> listKeys({
+    required String prefix,
+    required StorageBucket bucket,
+  });
 }
 
 /// Which origins the gallery will accept an image URL from, derived from the
@@ -172,6 +184,12 @@ class FakeStorageService implements StorageService {
   /// `from -> to` pairs passed to [copyObject], so promotion is provable.
   final List<String> copied = [];
 
+  /// The keys [listKeys] finds, by bucket. A deleted key leaves it.
+  final Map<StorageBucket, Set<String>> listable = {};
+
+  /// Thrown by [listKeys] and [deleteObject] while set — storage down.
+  Object? ioThrows;
+
   @override
   PresignedUpload presignPut({
     required String key,
@@ -229,9 +247,23 @@ class FakeStorageService implements StorageService {
     required String key,
     required StorageBucket bucket,
   }) async {
+    if (ioThrows != null) throw ioThrows!;
     deleted.add(key);
     sizes.remove(key);
     missing.add(key);
+    listable[bucket]?.remove(key);
+  }
+
+  @override
+  Future<List<String>> listKeys({
+    required String prefix,
+    required StorageBucket bucket,
+  }) async {
+    if (ioThrows != null) throw ioThrows!;
+    return [
+      for (final k in listable[bucket] ?? const <String>{})
+        if (k.startsWith(prefix)) k,
+    ]..sort();
   }
 
   @override
@@ -450,6 +482,67 @@ class R2StorageService implements StorageService {
     }
   }
 
+  @override
+  Future<List<String>> listKeys({
+    required String prefix,
+    required StorageBucket bucket,
+  }) async {
+    final keys = <String>[];
+    String? token;
+    // Bounded: 1,000 keys a page, 100 pages. A salon's two prefixes hold a
+    // handful; a loop that never ends is a defect, not a big salon.
+    for (var page = 0; page < 100; page++) {
+      final res = await _client.get(
+        Uri.parse(
+          _presignUrl(
+            method: 'GET',
+            key: '',
+            bucket: bucket,
+            ttl: _ioTtl,
+            bucketRoot: true,
+            extraQuery: {
+              'list-type': '2',
+              'prefix': prefix,
+              'max-keys': '1000',
+              if (token != null) 'continuation-token': token,
+            },
+          ),
+        ),
+      );
+      if (res.statusCode >= 400) {
+        throw StateError('listKeys failed: HTTP ${res.statusCode}');
+      }
+      final body = res.body;
+      for (final m in _xmlKey.allMatches(body)) {
+        keys.add(_xmlUnescape(m[1]!));
+      }
+      final truncated = _xmlTruncated.firstMatch(body)?[1] == 'true';
+      if (!truncated) return keys;
+      token = _xmlNextToken.firstMatch(body)?[1];
+      if (token == null) {
+        throw StateError('listKeys: truncated page without a continuation');
+      }
+      token = _xmlUnescape(token);
+    }
+    throw StateError('listKeys: more than 100 pages under $prefix');
+  }
+
+  static final _xmlKey = RegExp(r'<Contents>.*?<Key>(.*?)</Key>', dotAll: true);
+  static final _xmlTruncated = RegExp(
+    r'<IsTruncated>(true|false)</IsTruncated>',
+  );
+  static final _xmlNextToken = RegExp(
+    r'<NextContinuationToken>(.*?)</NextContinuationToken>',
+  );
+
+  static String _xmlUnescape(String s) => s
+      .replaceAll('&lt;', '<')
+      .replaceAll('&gt;', '>')
+      .replaceAll('&quot;', '"')
+      .replaceAll('&apos;', "'")
+      .replaceAll('&#39;', "'")
+      .replaceAll('&amp;', '&');
+
   static const _ioTtl = Duration(minutes: 1);
 
   @override
@@ -479,6 +572,8 @@ class R2StorageService implements StorageService {
     required StorageBucket bucket,
     required Duration ttl,
     Map<String, String> signedHeaders = const {},
+    bool bucketRoot = false,
+    Map<String, String> extraQuery = const {},
   }) {
     final now = _clock().toUtc();
     final amzDate = _amzDate(now);
@@ -486,8 +581,11 @@ class R2StorageService implements StorageService {
     final credential = '$_accessKeyId/$dateStamp/$region/s3/aws4_request';
     final host = Uri.parse(endpoint).host;
     // Path-style, on the target private bucket; each segment URI-encoded.
-    final canonicalUri =
-        '/${[_bucketFor(bucket), ...key.split('/')].map(_uriEncode).join('/')}';
+    // A listing (`listKeys`) targets the bucket itself: `/{bucket}`, the
+    // operation in the query, which the signature covers.
+    final canonicalUri = bucketRoot
+        ? '/${_uriEncode(_bucketFor(bucket))}'
+        : '/${[_bucketFor(bucket), ...key.split('/')].map(_uriEncode).join('/')}';
 
     // One sorted map drives all three places SigV4 needs the header set:
     // the canonical headers block, the signed-headers list in the canonical
@@ -502,6 +600,7 @@ class R2StorageService implements StorageService {
     final signedHeaderList = headerNames.join(';');
 
     final query = <String, String>{
+      ...extraQuery,
       'X-Amz-Algorithm': 'AWS4-HMAC-SHA256',
       'X-Amz-Credential': credential,
       'X-Amz-Date': amzDate,

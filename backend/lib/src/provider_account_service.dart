@@ -6,6 +6,8 @@ import 'auth/apple_tokens.dart';
 import 'auth/demo_seam.dart';
 import 'auth/provider_auth_repository.dart';
 import 'idempotency/idempotency_store.dart';
+import 'maintenance/salon_purge_repository.dart';
+import 'maintenance/salon_purge_service.dart';
 import 'notifications/notifications_repository.dart';
 import 'providers_repository.dart';
 import 'push/device_token_repository.dart';
@@ -35,6 +37,9 @@ class ProviderAccountService {
     SiteRebuildNotifier? rebuild,
     SalonValidationRepository? validations,
     SalonPlaceNoticeRepository? placeNotices,
+    SalonPurgeRepository? purgeQueue,
+    SalonPurgeNotifier? purgeNotifier,
+    SalonPurgeMode purgeMode = SalonPurgeMode.rehearse,
   }) : _devices = devices,
        _notifications = notifications,
        _idempotency = idempotency,
@@ -42,7 +47,10 @@ class ProviderAccountService {
        _client = client ?? http.Client(),
        _rebuild = rebuild ?? NoopSiteRebuildNotifier(),
        _validations = validations,
-       _placeNotices = placeNotices;
+       _placeNotices = placeNotices,
+       _purgeQueue = purgeQueue,
+       _purgeNotifier = purgeNotifier,
+       _purgeMode = purgeMode;
 
   final ProviderAuthRepository _auth;
   final ProvidersRepository _providers;
@@ -72,6 +80,15 @@ class ProviderAccountService {
   /// B0.18, decision 133 — optional for the same reason; wired in
   /// `dependencies.dart` (`salon_place_notice_wiring_test.dart` pins it).
   final SalonPlaceNoticeRepository? _placeNotices;
+
+  /// B0.24 (decisions 153–158) — optional for the same reason; wired in
+  /// `dependencies.dart` (`salon_purge_wiring_test.dart` pins it). Each owned
+  /// salon is queued for the purge; its clock starts, and its active members
+  /// are e-mailed, only while real purges are on
+  /// (docs/design/deleted-owner-salon-purge.md §6.2).
+  final SalonPurgeRepository? _purgeQueue;
+  final SalonPurgeNotifier? _purgeNotifier;
+  final SalonPurgeMode _purgeMode;
 
   /// Delete the account behind [accountId]. Error codes: `forbidden`
   /// (unknown account), `demo_account_locked` (the store-review demo
@@ -250,6 +267,30 @@ class ProviderAccountService {
       if (hidden != null) cameBack = true;
     }
     if (cameBack) await _rebuild.requestRebuild('account.erased');
+
+    // B0.24 §6.2: the deletion stamps each owned salon — after the identity,
+    // so a failed delete stamps nothing. It OVERWRITES a row a creation's
+    // ownerless instant left. Best effort: the job's step 1 records any salon
+    // a failed stamp missed, the night it sees it.
+    final startClock = _purgeMode == SalonPurgeMode.execute;
+    for (final providerId in owned) {
+      try {
+        await _purgeQueue?.stampDeletion(
+          providerId,
+          now,
+          startClock: startClock,
+        );
+      } catch (_) {
+        continue;
+      }
+      // Decision 156: told the day their clock starts, never before.
+      if (startClock) {
+        await _purgeNotifier?.clockStarted(
+          providerId,
+          now.add(kSalonPurgeRetention),
+        );
+      }
+    }
     return (ok: true, error: null);
   }
 }

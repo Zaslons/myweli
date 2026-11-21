@@ -280,6 +280,8 @@ void main() {
       for (final dir in [
         'lib/src/admin',
         'lib/src/validation',
+        // B0.24: the salon purge writes `salon.purge` to the admin log.
+        'lib/src/maintenance',
         'routes/admin',
       ]) {
         for (final f in Directory(
@@ -308,6 +310,7 @@ void main() {
           'demo.snapshot',
           'admin.password_changed',
           'user.ban',
+          'salon.purge',
         ]),
         reason: 'the scan itself must see the writers',
       );

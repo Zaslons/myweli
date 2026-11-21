@@ -67,6 +67,7 @@ import 'db/postgres_rate_limiter.dart';
 import 'db/postgres_reminder_log_repository.dart';
 import 'db/postgres_reviews_repository.dart';
 import 'db/postgres_salon_place_notice_repository.dart';
+import 'db/postgres_salon_purge_repository.dart';
 import 'db/postgres_salon_subscription_repository.dart';
 import 'db/postgres_salon_validation_repository.dart';
 import 'db/postgres_send_budget.dart';
@@ -83,6 +84,8 @@ import 'kyc_service.dart';
 import 'localities/localities_repository.dart';
 import 'localities/localities_service.dart';
 import 'maintenance/maintenance_tick.dart';
+import 'maintenance/salon_purge_repository.dart';
+import 'maintenance/salon_purge_service.dart';
 import 'messaging/booking_notifier.dart';
 import 'messaging/messaging_outbox_repository.dart';
 import 'messaging/messaging_prefs_repository.dart';
@@ -719,6 +722,54 @@ final ProviderAccountService providerAccountService = ProviderAccountService(
   validations: salonValidationRepository,
   // Decision 133: the place last reported to the admin goes with the person.
   placeNotices: salonPlaceNoticeRepository,
+  // B0.24: each owned salon is queued for the purge, its team told once
+  // real purges are on.
+  purgeQueue: salonPurgeRepository,
+  purgeNotifier: salonPurgeNotifier,
+  purgeMode: salonPurgeMode,
+);
+
+/// B0.24 (decisions 153–158) — the purge of a deleted owner's salon, the
+/// maintenance cron's fifth task. docs/design/deleted-owner-salon-purge.md.
+///
+/// **`SALON_PURGE_MODE`**: `rehearse` when unset — and when mistyped, which
+/// is logged at boot, never `execute`. Real purges need the manifest to say
+/// `execute`, on the owner's yes (§6.6 step 4).
+final SalonPurgeMode salonPurgeMode = () {
+  final raw = _envOrNull('SALON_PURGE_MODE');
+  final mode = SalonPurgeMode.parse(raw);
+  if (raw != null && raw.trim().toLowerCase() != mode.name) {
+    // ignore: avoid_print — boot diagnostics go to the container log.
+    print(
+      'WARNING: SALON_PURGE_MODE="$raw" is not off|rehearse|execute — the '
+      'salon purge runs as ${mode.name}',
+    );
+  }
+  return mode;
+}();
+
+/// At most this many salons a night (§6.3): 10 unless the manifest says
+/// otherwise — 1 for the first real run.
+final int salonPurgeMaxPerRun =
+    int.tryParse(_envOrNull('SALON_PURGE_MAX_PER_RUN') ?? '') ??
+    SalonPurgeService.kDefaultMaxPerRun;
+
+final SalonPurgeRepository salonPurgeRepository = _pool == null
+    ? InMemorySalonPurgeRepository()
+    : PostgresSalonPurgeRepository(_pool!);
+
+final SalonPurgeNotifier salonPurgeNotifier = SalonPurgeNotifier(
+  membershipRepository,
+  providersRepository,
+  emailProvider,
+);
+
+final SalonPurgeService salonPurgeService = SalonPurgeService(
+  salonPurgeRepository,
+  storageService,
+  salonPurgeNotifier,
+  mode: salonPurgeMode,
+  maxPerRun: salonPurgeMaxPerRun,
 );
 
 /// The pricing pivot (R2a): salon offers + the daily warning/enforcement
@@ -767,6 +818,8 @@ final MaintenanceTick maintenanceTick = MaintenanceTick(
   pruneRateLimits: () => pruneRateLimitWindows(kRateLimitRetention),
   pruneIdempotency: () => pruneIdempotencyKeys(kIdempotencyWindow),
   demoReset: (now) async => (await demoResetService.tickIfDue(now)).outcome,
+  // B0.24 — last; its tripwire's throw is the cron's 500.
+  salonPurge: salonPurgeService.run,
 );
 
 final DemoResetService demoResetService = DemoResetService(

@@ -135,6 +135,14 @@ spec:
             # variable never serves traffic (BACKEND.md §3.2.2).
             - name: WEB_ORIGINS
               value: https://myweli.com,https://www.myweli.com,https://admin.myweli.com
+            # B0.24, decisions 153–158 (docs/design/deleted-owner-salon-purge.md
+            # §6.6): the salon purge on the maintenance cron. `rehearse` runs
+            # every statement against the real rows in a transaction that is
+            # always rolled back. `execute` purges for real — only on the
+            # owner's yes, after the rehearsals are read, and with
+            # SALON_PURGE_MAX_PER_RUN=1 for the first real run.
+            - name: SALON_PURGE_MODE
+              value: rehearse
             # **Every secret is pinned to a version, never `latest`.**
             #
             # Cloud Run resolves a secret reference when the CONTAINER STARTS,

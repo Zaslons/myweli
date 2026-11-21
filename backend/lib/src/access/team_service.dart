@@ -389,7 +389,12 @@ class TeamService {
       accountEmail: accountEmail,
     );
     if (!check.ok) return check;
-    final member = (await _members.byId(invitationId))!;
+    // Re-read, and tolerate its absence: the salon purge (B0.24) deletes an
+    // invitation to an address with no account, and it can land between the
+    // check above and this read — « not found », never a 500
+    // (docs/design/deleted-owner-salon-purge.md §6.7).
+    final member = await _members.byId(invitationId);
+    if (member == null) return (ok: false, error: 'not_found', data: null);
     final activated = await _members.activate(invitationId, accountId);
     if (activated == null) {
       // The row stopped being a valid invitation between the read above and

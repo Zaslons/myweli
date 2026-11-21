@@ -1,0 +1,17 @@
+- 🟡 **La purge du salon d’un propriétaire supprimé est construite : 90 jours après le démarrage du compte à rebours, sur le cron de maintenance, livrée en répétition nocturne qui ne garde rien (backend · 2026-11-21 — BACKLOG B0.24 ; décisions 153 à 158).** Non fusionné : branche `feat/salon-purge`, créée depuis `main` (`c5da841b`). Spec : [deleted-owner-salon-purge.md](../../design/deleted-owner-salon-purge.md), §6.8 pour ce qui a été construit. Rien n’est déployé, rien n’est migré en production.
+  - **Ce qui est construit :**
+    - **la migration 0046 :** la file `salon_purge_queue`, la clé de `provider_members` sur le salon retirée (les membres sont révoqués, pas supprimés) et l’index du nettoyage du texte cherché ;
+    - **la tâche, cinquième et dernière du cron de maintenance,** en trois modes : `off`, `rehearse` (par défaut : chaque instruction tourne sur les vraies lignes, dans une transaction toujours annulée) et `execute` ;
+    - **une transaction par salon,** avec `SKIP LOCKED` et une seconde passe le lendemain ;
+    - **le garde-fou :** il relit les lignes verrouillées et, s’il trouve un salon en ligne, rattaché, qui a un propriétaire ou le salon de démo, il lève une erreur. Rien n’est gardé et le cron répond 500. Un litige ouvert reporte la purge ;
+    - **les fichiers :** les deux dossiers du salon, plus les photos d’avis et les preuves d’acompte des lignes supprimées. Un fichier qu’un autre salon référence est gardé ;
+    - **la suppression du compte** met chaque salon possédé dans la file. Le compte à rebours ne démarre, et l’équipe n’est prévenue, qu’en `execute` ;
+    - **les deux e-mails** de la décision 156, aux mots approuvés : « {Salon} sera supprimé le {date} », puis le rappel ;
+    - **le reste :** les motifs écrits des comptes supprimés et le texte cherché dans « Clients », après 90 jours ;
+    - **à côté :** `listKeys` pour R2, `accept` qui répond « introuvable » au lieu d’un 500, le libellé admin « Salon purgé », `SALON_PURGE_MODE=rehearse` dans les deux manifestes, le contrat, T84 et T53.
+  - **Prouvé :**
+    - toute la suite backend avec Postgres : 2 939 tests passent, 2 sautés (R2 réel) ;
+    - les tests Postgres de la purge, dans leur propre base ;
+    - chaque garde-fou vu rouge sous sa mutation, sur le code commité (la liste est dans la PR).
+  - **Écart avec la spec, consigné au §6.8 :** le jumeau en mémoire est scripté, pas une copie. Le SQL est prouvé sur Postgres, la logique sur le jumeau.
+  - **Ensuite, chaque étape sur le oui du propriétaire :** la fusion, le déploiement, sept répétitions nocturnes relues, `execute` limité à un salon, puis les trois textes.

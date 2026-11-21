@@ -1244,6 +1244,43 @@ CREATE TABLE IF NOT EXISTS salon_place_notices (
           'ON salon_place_notices (pending_since) WHERE pending_count > 0',
     ],
   ),
+  (
+    id: '0046_salon_purge',
+    statements: [
+      // B0.24, decisions 153–158: a deleted owner's salon is purged 90 days
+      // after its clock starts (docs/design/deleted-owner-salon-purge.md §6.2).
+      // One row per salon with no owner. No foreign key: the row outlives the
+      // salon until its files are gone. `clock_started_at` stays NULL while
+      // the job only rehearses, so no date is ever promised before real
+      // purges are on. No owner id is kept (§4.2). Additive: an older image
+      // never reads it.
+      '''
+CREATE TABLE IF NOT EXISTS salon_purge_queue (
+  provider_id      text PRIMARY KEY,
+  owner_erased_at  timestamptz NOT NULL,
+  clock_started_at timestamptz,
+  reminder_sent_at timestamptz,
+  rows_purged_at   timestamptz,
+  pending_objects  jsonb NOT NULL DEFAULT '[]'::jsonb
+)''',
+      // The purge REVOKES the members' rows and then deletes the salon
+      // (§4.2): deleting them would leave a member with no membership, and
+      // GET /me/provider would auto-create an empty salon for them. A revoked
+      // row keeps its `provider_id`, which this key would refuse (23503).
+      // The name is the one 0027's inline REFERENCES produced, read from a
+      // real schema (`pg_constraint`, 2026-11-21). Widening, not narrowing:
+      // an older image never deletes a salon.
+      'ALTER TABLE provider_members '
+          'DROP CONSTRAINT IF EXISTS provider_members_provider_id_fkey',
+      // Decision 157: the Clients search text is erased after 90 days in
+      // every salon; the daily scrub reads by date, not by salon. The
+      // writer stores `meta` as an object (PostgresProviderAuditRepository),
+      // which `?` needs — pinned by postgres_salon_purge_test.dart.
+      'CREATE INDEX IF NOT EXISTS provider_audit_log_query_scrub_idx '
+          "ON provider_audit_log (created_at) WHERE action = 'clients.list' "
+          "AND meta ? 'query'",
+    ],
+  ),
 ];
 
 /// The salons that count as validated and live without asking (§3.7):

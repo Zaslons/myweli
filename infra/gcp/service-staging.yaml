@@ -169,6 +169,14 @@ spec:
             # exact-match allowlist covers them before this value is final.
             - name: WEB_ORIGINS
               value: http://localhost:3000
+            # B0.24, decisions 153–158 (docs/design/deleted-owner-salon-purge.md
+            # §6.6): the salon purge on the maintenance cron. `rehearse` runs
+            # every statement against the real rows in a transaction that is
+            # always rolled back. `execute` purges for real — only on the
+            # owner's yes, after the rehearsals are read, and with
+            # SALON_PURGE_MAX_PER_RUN=1 for the first real run.
+            - name: SALON_PURGE_MODE
+              value: rehearse
             # -- SECRETS ------------------------------------------------------
             # `STAGING_*` twins, one per production secret, EXCEPT the four
             # marked SHARED below. Every one of these is boot-fatal
