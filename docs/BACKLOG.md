@@ -487,6 +487,7 @@ Each question has a recommendation. Answers unblock the item named in brackets.
     - **the 14 days go on:** Google counts each tester's opt-in, not builds (INFERRED from its pages: O10);
     - production is 794 promoted from there, at step 10.
   - **2026-11-22 — decision 159 (O8):** « Publication gérée » is turned on just before step 10, on your go at that moment. Records: #829 merged (`eff1cc0b`).
+  - **2026-11-22 — the two reports of the « Pas de connexion » fix sent** ([android-http3-transport.md](design/android-http3-transport.md) §9), on your « post them », each text shown first: a comment on dart-lang/sdk#63670 from your GitHub account; for Cloudflare, no ticket (the Free plan opens none), a post on their forum from your account, waiting for a moderator. Records: #830 merged (`8f1362a5`).
   - **MyWeli (client):** later (decision 51); play-store-forms §8 lists what to re-audit then.
   - **Order:** Android is last (LAUNCH §3).
 - **B0.15 Search text kept 30 days in Google Cloud's request logs (P2 · S · decision 55, open).**
