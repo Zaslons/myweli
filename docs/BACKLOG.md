@@ -474,9 +474,14 @@ Each question has a recommendation. Answers unblock the item named in brackets.
     - **published to the internal track:** Play counts 27 more devices than 788 (tablets, TV, car) and none fewer;
     - **rows 1 and 2 passed** on the Galaxy, read in the server's log; Sentry lists no issue for 794;
     - **an event on 788 from Google's test emulator** (a push token it could not get): not a user, no action;
-    - **the closed test still serves 788**; production is 794 promoted, later, on your yes;
+    - **the closed test still serves 788**; production is 794 promoted, later, on your yes; *(794 replaced it the same evening, below.)*
     - **its records merged** in #817 (`718bcd96`), after #818 (`fe09ad1f`) fixed a site test that its CI failed on: a file name held « fcfa ».
   - **2026-11-20 — decision 152, merged in #819 (`9d6b1b97`):** the Pro description names its trades. Typed in neither console yet, each on your yes: Play before production (step 10), App Store Connect with the 0.0.2 submission.
+  - **2026-11-20, evening — build 794 on the closed test** (android-play-release §11, O10), each step on your yes:
+    - **promoted** from internal testing into the same track, with the same testers, and **sent** to Google's review: one change;
+    - **approved and published** the same evening, at 20:44 UTC (read back 2026-11-22);
+    - **the 14 days go on:** Google counts each tester's opt-in, not builds (INFERRED from its pages: O10);
+    - production is 794 promoted from there, at step 10.
   - **MyWeli (client):** later (decision 51); play-store-forms §8 lists what to re-audit then.
   - **Order:** Android is last (LAUNCH §3).
 - **B0.15 Search text kept 30 days in Google Cloud's request logs (P2 · S · decision 55, open).**
