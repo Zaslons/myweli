@@ -152,6 +152,9 @@ d'être enregistré, puis relu.
     le tableau de bord n'est pas fini.
   - « Publication gérée » est désactivée : une fois une modification
     approuvée par Google, elle est publiée sans autre clic.
+    *2026-11-22 (décision 159, O8 d'android-play-release) : elle sera
+    activée juste avant l'étape 10, la demande de production, sur le feu
+    vert du propriétaire à ce moment-là, puis relue.*
 - **Ce que le tableau de bord demande encore** (lu le 2026-10-28) : la
   section de configuration a disparu, il ne reste que le test fermé (§6).
   1. Choisir les pays et les régions du test fermé.
