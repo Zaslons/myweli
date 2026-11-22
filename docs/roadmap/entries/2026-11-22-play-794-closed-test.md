@@ -1,4 +1,4 @@
-- 🟡 **La 794 remplace la 788 dans le test fermé : promue, envoyée à l’examen et approuvée le soir du 20 novembre ; les 14 jours continuent, d’après les pages de Google (documentation · 2026-11-22 — BACKLOG B0.10 ; android-play-release O10).** Non fusionné : branche `docs/records-794-closed-test`, créée depuis `main` (`a1fe8b7f`). Documentation seule : aucun code ne change, rien n’est construit ni déployé. Les actions dans la console datent du 2026-11-20, chacune sur le oui du propriétaire ; celles du 2026-11-22 sont des lectures.
+- 🟢 **La 794 remplace la 788 dans le test fermé : promue, envoyée à l’examen et approuvée le soir du 20 novembre ; les 14 jours continuent, d’après les pages de Google (documentation · 2026-11-22 — BACKLOG B0.10 ; android-play-release O10).** Fusionné le 2026-11-22 (`eff1cc0b`, #829) ; le contenu de `main` est identique à celui de la PR qu’a testé la CI (12 contrôles sur 12). Branche `docs/records-794-closed-test`, créée depuis `main` (`a1fe8b7f`). Documentation seule : aucun code ne change, rien n’est construit ni déployé. Les actions dans la console datent du 2026-11-20, chacune sur le oui du propriétaire ; celles du 2026-11-22 sont des lectures.
   - **Ce qui s’est passé le 2026-11-20 (heures UTC) :**
     - **O10 lu chez Google** (aides 14151465 et 9845334, dans le navigateur intégré, sans connexion). Les 14 jours comptent l’inscription de chaque testeur, sans interruption, pas les builds. Les testeurs inscrits reçoivent la nouvelle version d’eux-mêmes, et seule la fin du test arrête ces mises à jour. Donc une nouvelle version dans la même piste, avec le même groupe, ne remet pas le compte à zéro. Google ne l’écrit pas en toutes lettres : c’est une déduction ;
     - **la 794 promue** dans « Tests fermés - Alpha » : le bundle déjà en test interne, la 788 « Non inclus », aucune note de version, 100 %. Play répond « La release est prête », sans avertissement, avec les mêmes appareils qu’en test interne (27 de plus que la 788, aucun de moins) ;
@@ -20,6 +20,6 @@
     - le BACKLOG (B0.10) et l’index des specs.
   - **Reste**, chaque fois sur le oui du propriétaire :
     - l’étape 9 : 12 testeurs inscrits 14 jours de suite, maintenant sur la 794 ;
-    - O8, « Publication gérée », avant l’étape 10 ;
+    - O8, « Publication gérée », avant l’étape 10 ; *répondu le 2026-11-22 : elle sera activée juste avant l’étape 10 (décision 159)* ;
     - à l’étape 10 : la description de la décision 152 tapée dans la console et relue, la demande d’accès à la production, puis la 794 promue du test fermé à la production, par paliers ;
     - la déclaration de localisation précise, dès que la console la propose (avant le 2027-01-27).

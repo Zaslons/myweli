@@ -319,6 +319,10 @@ Each question has a recommendation. Answers unblock the item named in brackets.
 157. The Clients search text in live salons? [B0.24] — ✅ **Answered (2026-11-20): « Approve as recommended »**, erased after 90 days in every salon (Q5 (a)): the `query` key removed from a `clients.list` row's `meta`, the row kept. Data safety then names one duration, in its text PR (spec §4.3).
 158. MyWeli's decision log about the account and its salons? [B0.24] — ✅ **Answered (2026-11-20): « Approve as recommended »**, the written reasons erased, the rows kept (Q6 (a)). The action, the target, the time, the actor and the codes stay. A salon's reasons go in its purge's transaction; a deleted account's (a `kyc.reject`) go by a daily rule once the account is gone and the row is older than the retention; `provider_account.erase` keeps its closed code. These are `audit_log`'s first UPDATE, `reason` set to NULL and nothing else (spec §4.2).
 
+**Play's managed publishing (batch 0, B0.10)** — asked on 2026-11-22: [android-play-release.md](design/android-play-release.md) O8, the audit's Q-I of 2026-11-13.
+
+159. Turn « Publication gérée » on before production, so that a change Google approves waits for your click instead of going live at once? [B0.10] — ✅ **Answered (2026-11-22): « Yes, turn it on before step 10 »**, the audit's recommendation. It is off: read 2026-10-28 (play-store-forms §0.1), and 794's approval on 2026-11-20 published at once. It is turned on just before step 10, on your go at that moment: the setting shown first, read back after saving. From then on, every approved change, the listing's included, waits in « Vue d'ensemble de la publication » until you publish it. It can be turned off again.
+
 ---
 
 ## 3. The batches
@@ -482,6 +486,7 @@ Each question has a recommendation. Answers unblock the item named in brackets.
     - **approved and published** the same evening, at 20:44 UTC (read back 2026-11-22);
     - **the 14 days go on:** Google counts each tester's opt-in, not builds (INFERRED from its pages: O10);
     - production is 794 promoted from there, at step 10.
+  - **2026-11-22 — decision 159 (O8):** « Publication gérée » is turned on just before step 10, on your go at that moment. Records: #829 merged (`eff1cc0b`).
   - **MyWeli (client):** later (decision 51); play-store-forms §8 lists what to re-audit then.
   - **Order:** Android is last (LAUNCH §3).
 - **B0.15 Search text kept 30 days in Google Cloud's request logs (P2 · S · decision 55, open).**
