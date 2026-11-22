@@ -1,0 +1,25 @@
+- 🟡 **La 794 remplace la 788 dans le test fermé : promue, envoyée à l’examen et approuvée le soir du 20 novembre ; les 14 jours continuent, d’après les pages de Google (documentation · 2026-11-22 — BACKLOG B0.10 ; android-play-release O10).** Non fusionné : branche `docs/records-794-closed-test`, créée depuis `main` (`a1fe8b7f`). Documentation seule : aucun code ne change, rien n’est construit ni déployé. Les actions dans la console datent du 2026-11-20, chacune sur le oui du propriétaire ; celles du 2026-11-22 sont des lectures.
+  - **Ce qui s’est passé le 2026-11-20 (heures UTC) :**
+    - **O10 lu chez Google** (aides 14151465 et 9845334, dans le navigateur intégré, sans connexion). Les 14 jours comptent l’inscription de chaque testeur, sans interruption, pas les builds. Les testeurs inscrits reçoivent la nouvelle version d’eux-mêmes, et seule la fin du test arrête ces mises à jour. Donc une nouvelle version dans la même piste, avec le même groupe, ne remet pas le compte à zéro. Google ne l’écrit pas en toutes lettres : c’est une déduction ;
+    - **la 794 promue** dans « Tests fermés - Alpha » : le bundle déjà en test interne, la 788 « Non inclus », aucune note de version, 100 %. Play répond « La release est prête », sans avertissement, avec les mêmes appareils qu’en test interne (27 de plus que la 788, aucun de moins) ;
+    - **enregistrée**, puis relue après rechargement : « Pas encore envoyé pour examen », la 788 toujours servie aux testeurs ;
+    - **envoyée** entre 20:28 et 20:31, une seule modification, une fois les contrôles rapides de Play terminés. Relue « en cours d’examen » ;
+    - **approuvée et publiée** le même soir : « Date de sortie : 20 nov. 20:44 ». La console affiche l’heure du Mac, qui est en UTC : environ 15 minutes après l’envoi. « Publication gérée » étant désactivée, l’approbation a publié aussitôt.
+  - **Relu le 2026-11-22, en lecture seule :**
+    - le test fermé est « Actif », « Dernière release : 794 (0.0.2) », 178 pays et régions, toujours le groupe de Testers Community ; la 794 est « Disponible pour certains testeurs » ;
+    - la vue d’ensemble : « Dernière publication le 20 novembre 2026 », rien en attente ; la cloche de la console : « Mise à jour de l’appli publiée » ;
+    - le gel de la décision 140 a tenu : aucun déploiement du site en production entre l’envoi et l’approbation (les plus proches : `be2c44b3` à 20:14, `9e167b9f` à 22:57).
+  - **Les e-mails reçus par le propriétaire au sujet de la 794 (Sentry, Vercel, GitHub) :** aucun n’est la décision de Google.
+    - **Sentry :** la 794 a un seul problème, MYWELI-APP-F (« FCM Registration failed! »), le même que la 788 : un événement vers 11:28, environ 40 minutes après la publication en test interne, sur un émulateur Android 16 réglé sur Los Angeles et situé aux États-Unis. L’app l’a géré ; sur un vrai téléphone, le jeton s’enregistre. Le « Rapport pré-lancement » de Play, lu le 2026-11-22, ne contient aucun rapport : l’émulateur n’est donc pas celui-là, et le service de Google qui le fait tourner reste inconnu ;
+    - **Vercel :** tous les déploiements depuis le 2026-11-21 ont réussi ;
+    - **GitHub :** Dependabot a ouvert #827 et #828. #827 (Firebase 5) échoue à la CI : la nouvelle version déprécie les deux appels qui obtiennent le jeton de notification. Elle attend la production.
+  - **Ce qui change :**
+    - [android-play-release.md](../../design/android-play-release.md) : les étapes 8 et 10, le §8, O10 (la question des 14 jours répondue, par déduction) et le journal du §11 ;
+    - [play-store-forms.md](../../design/play-store-forms.md) : le statut et le §0.5 ;
+    - le « Reste » des entrées de #817 et #820 : l’étape 9 continue sur la 794 ;
+    - le BACKLOG (B0.10) et l’index des specs.
+  - **Reste**, chaque fois sur le oui du propriétaire :
+    - l’étape 9 : 12 testeurs inscrits 14 jours de suite, maintenant sur la 794 ;
+    - O8, « Publication gérée », avant l’étape 10 ;
+    - à l’étape 10 : la description de la décision 152 tapée dans la console et relue, la demande d’accès à la production, puis la 794 promue du test fermé à la production, par paliers ;
+    - la déclaration de localisation précise, dès que la console la propose (avant le 2027-01-27).
