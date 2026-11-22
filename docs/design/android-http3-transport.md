@@ -4,7 +4,7 @@
 |---|---|
 | **Status** | **Approved 2026-11-18** — the owner answered §10 « Yes, as recommended »: every question as §10 recommends (the answers are under §10). The upload read V-U ran the same day and passed (R10), so the relay the draft proposed is not built. Built in §8's order. Drafted the same day on the owner's « Yes, write it ». **Amended the same day while building PR 2:** the trust list of §5.2 gains Sectigo (Q8) and loses two roots no longer trusted for websites; §4.1 records what the build added. *(2026-11-19: the spec merged in #808 (`b859067a`), PR 1 in #809 (`8486451a`) and PR 2 in #810 (`e8ec333c`), all on 2026-11-18. Build 788 carries them, on the internal track; on the owner's Galaxy over Orange fibre, §7's device reads passed except the Sentry event, which waits for a first one (§8, step 5).)* |
 | **Owner** | Sadreddine Daher |
-| **Last updated** | 2026-11-19 (§5.2: the chain check's first scheduled run). Also 2026-11-19 (§8: steps 3 to 5 done; §11: the uploads read on the device). Before that, 2026-11-18 |
+| **Last updated** | 2026-11-22 (§9 and Q3: both reports sent; Cloudflare's as a forum post, since the Free plan opens no technical case). Also 2026-11-19 (§5.2: the chain check's first scheduled run). Also 2026-11-19 (§8: steps 3 to 5 done; §11: the uploads read on the device). Before that, 2026-11-18 |
 | **PRD ref / phase** | Reliability and security, cross-cutting · V1 (it blocks the Play release) |
 | **Module** | `mobile/` networking on Android, both apps (Pro and consumer); the Android network security config |
 | **Found by** | Step 6 of [android-play-release.md](android-play-release.md) §4: build 785 from the internal track, on the owner's Galaxy, over the owner's Wi-Fi (Orange CI fibre), 2026-11-18 |
@@ -565,6 +565,31 @@ Each report is posted only on the owner's yes, with no personal data:
 - **Orange CI:** only if the owner wants to. The box answers « frag needed »
   correctly (R7), so the fault is not established as theirs.
 
+*2026-11-22: both sent, on the owner's « post them but as me as the author »,
+each text shown first.*
+- **Dart:** [the comment](https://github.com/dart-lang/sdk/issues/63670#issuecomment-7086784267),
+  from the owner's GitHub account, word for word as shown on 2026-11-18.
+  The issue was open, with no comment before it; it asks for the
+  post-quantum group to be turned on, and the comment says it already is.
+- **Cloudflare: no ticket.** The zone is on the Free plan (« Free Website »,
+  read through the API), and
+  [Cloudflare's support page](https://developers.cloudflare.com/support/contacting-cloudflare-support/)
+  opens a support case for a Free plan only on billing, account and
+  registrar issues. The report went to the community forum instead, in
+  « Application Security › SSL / TLS », from the owner's forum account:
+  - trimmed for a public page: a question to the community rather than to
+    Cloudflare's staff, the internet provider's name left out, the date of
+    the measurements added;
+  - the forum's topic form asks set questions, so the text was split across
+    them, with two new answers: the SSL/TLS mode, « Full » (read through the
+    API: `ssl=full`, `tls_1_3=on`, `min_tls_version=1.0`), and the steps to
+    reproduce. The title was shortened to 81 characters; the form takes 83.
+    Each change was shown to the owner and approved;
+  - no packet capture is attached;
+  - **held for a moderator**, the account being new. Read back on
+    2026-11-22 from the owner's pending posts: the text exactly as approved.
+    Not public yet.
+
 ## 10. Questions for the owner
 
 - **Q1.** Approve the design: Cronet with HTTP/3 for both Android apps, the
@@ -588,7 +613,8 @@ Each report is posted only on the owner's yes, with no personal data:
 - **Q2:** yes. V-U ran the same day (R10): uploads work on this network.
 - **Q3:** yes, both reports. Each text is still shown to the owner before it
   is posted: one is a public comment, the other a ticket from the owner's
-  Cloudflare account.
+  Cloudflare account. *2026-11-22: both sent (§9); Cloudflare's as a forum
+  post, since the Free plan opens no technical case.*
 - **Q4:** yes. Devices without Play Services keep `dart:io`, and the telemetry
   counts them.
 - **Q5:** later. The iPhone spec waits until after the Play release.
