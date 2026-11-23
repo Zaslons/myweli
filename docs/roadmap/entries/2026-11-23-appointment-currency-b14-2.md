@@ -1,4 +1,4 @@
-- 🟡 **Backend : la base refuse un rendez-vous sans devise — B14.2, migration `0049` (backend · documentation · 2026-11-23 — BACKLOG B14.2, décision 187).** Branche `feat/b14-2-currency-not-null`, créée depuis `main` (`c3716e6b`). Spec : [appointment-currency-stamp.md](../../design/appointment-currency-stamp.md) §3.7, §8.9. **Ni fusionnée, ni déployée.**
+- 🟢 **Backend : la base refuse un rendez-vous sans devise — B14.2, migration `0049` (backend · documentation · 2026-11-23 — BACKLOG B14.2, décision 187).** Branche `feat/b14-2-currency-not-null`, créée depuis `main` (`c3716e6b`). Spec : [appointment-currency-stamp.md](../../design/appointment-currency-stamp.md) §3.7, §8.9, §9.2. **Fusionnée (#844, `d0ec754b`) et déployée le 2026-11-23** (révision `myweli-api-00057-pg2`).
   - **Ce qui change :**
     - la migration `0049` refait le rattrapage, puis rend `appointments.currency` obligatoire (`NOT NULL`). Le défaut corrigé par B14.1, un rendez-vous écrit sans sa devise, devient une erreur visible ;
     - **retour arrière :** elle est déclarée `rollback-unsafe`. Une fois en ligne, ne jamais revenir plus loin que `myweli-api-00055-jv2` (B14.1), sinon chaque réservation échouerait. DEPLOYMENT.md le dit à l’endroit où on le lit pendant un incident ;
@@ -10,7 +10,8 @@
     - **un faux vert attrapé :** une première exécution affichait « exit 0 », mais c’était le code de sortie de `tail`. Relancée avec son propre code, la suite passe : 2974 tests, 2 ignorés ;
     - **deux mutations rouges** (la déclaration retirée ; la contrainte retirée, sur une base neuve) et un contrôle vert ;
     - **non testé, et dit :** retirer le rattrapage de `0049`. En production, cette erreur serait bruyante et sans danger : la révision ne démarrerait pas, et l’ancienne continuerait de servir.
-  - **Reste, chacun sur le mot du propriétaire :**
-    - la fusion de cette PR, qui touche `web/` par le seul fichier généré ;
-    - le déploiement, qui peut être le prochain ;
-    - la lecture après le déploiement.
+  - **Fait, chacun sur le mot du propriétaire (spec §9.2) :**
+    - la fusion (#844, `d0ec754b`) ;
+    - le déploiement (23:51 UTC, `image_tag: d0ec754`). Avant de le lancer, un constat : la production servait déjà `00056-z88`, l’API d’A2 déployée par une autre session. Elle contient B14.1, donc le retour arrière restait sûr ;
+    - la lecture après : `0049` passée à 23:52:27, la colonne obligatoire (`NO`), les 4 rendez-vous en `XOF`.
+  - **Reste :** B14.4 (le site), sur le mot du propriétaire.
