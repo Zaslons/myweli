@@ -154,7 +154,7 @@ Future<void> _growTo(Pool<void> pool, int target) async {
 INSERT INTO appointments
   (id, user_id, provider_id, service_ids, artist_id, appointment_date,
    ends_at, status, total_price, deposit_amount, balance_due,
-   cancellation_window_hours, created_at)
+   cancellation_window_hours, created_at, currency)
 SELECT
   'probe_' || i,
   'u' || (i % 50000),
@@ -164,7 +164,7 @@ SELECT
   timestamptz '2030-01-01 00:00:00+00' + (i * interval '1 minute'),
   timestamptz '2030-01-01 00:00:00+00' + (i * interval '1 minute') + interval '30 minutes',
   CASE WHEN i % 4 = 0 THEN 'confirmed' ELSE 'pending' END,
-  15000, 0, 15000, 24, now()
+  15000, 0, 15000, 24, now(), 'XOF'
 FROM generate_series($current, ${target - 1}) AS g(i)
 ''');
   sw.stop();

@@ -1301,6 +1301,21 @@ CREATE TABLE IF NOT EXISTS salon_purge_queue (
       kAppointmentCurrencyBackfill,
     ],
   ),
+  (
+    id: '0049_appointment_currency_not_null',
+    // rollback-unsafe: an image older than 0047 omits `currency` from its
+    // INSERT, and with this constraint every booking it writes fails (23502).
+    // Roll back no further than the first image that writes the column:
+    // myweli-api-00055-jv2, image d80b430 (B14.1). docs/design/
+    // appointment-currency-stamp.md §3.7.
+    statements: [
+      // B14.2, decision 187: the backfill again first, for any row an older
+      // image wrote during a deploy or a rollback window, then the database
+      // refuses a booking with no stamp — the defect B14.1 fixed, made loud.
+      kAppointmentCurrencyBackfill,
+      'ALTER TABLE appointments ALTER COLUMN currency SET NOT NULL',
+    ],
+  ),
 ];
 
 /// Gives every booking with no stored currency its salon's currency, else
@@ -1321,8 +1336,9 @@ CREATE TABLE IF NOT EXISTS salon_purge_queue (
 /// migration — and with it every deploy.
 ///
 /// Only `NULL` rows: it never overwrites a stamp, and running it twice
-/// changes nothing. Run by migration 0048; B14.2 is to run it again, for
-/// rows an older image wrote during a deploy or a rollback window.
+/// changes nothing. Run by migration 0048, and again by 0049 (B14.2) right
+/// before the column becomes NOT NULL, for rows an older image wrote during a
+/// deploy or a rollback window.
 const String kAppointmentCurrencyBackfill = '''
 UPDATE appointments a
    SET currency = COALESCE(
