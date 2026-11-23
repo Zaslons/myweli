@@ -3,10 +3,10 @@ import 'package:flutter/material.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/colors.dart';
 import '../../core/theme/text_styles.dart';
+import '../../core/utils/app_clock.dart';
+import '../../core/utils/client_booking_rule.dart';
 import '../../core/utils/formatters.dart';
 import '../../core/utils/salon_time.dart';
-import '../../core/utils/status_colors.dart';
-import '../../core/utils/status_labels.dart';
 import '../../models/appointment.dart';
 import '../common/app_card.dart';
 import '../common/app_chip.dart';
@@ -100,8 +100,8 @@ class CompactAppointmentTile extends StatelessWidget {
                         overflow: TextOverflow.ellipsis,
                       ),
                       AppChip.status(
-                        label: StatusLabels.of(appointment.status),
-                        tone: appointmentStatusTone(appointment.status),
+                        label: clientStatusLabel(appointment, AppClock.now()),
+                        tone: clientStatusTone(appointment, AppClock.now()),
                       ),
                     ],
                   ),

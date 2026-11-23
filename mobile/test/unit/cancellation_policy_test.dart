@@ -59,8 +59,8 @@ void main() {
     expect(
       n.text,
       'D’après la règle du salon, votre acompte de $fcfa vous revient, '
-      'car vous annulez plus de 24 h avant. Voyez avec le salon pour le '
-      'récupérer : MyWeli ne détient aucun acompte.',
+      'car vous annulez plus de 24\u00a0h avant. Voyez avec le salon pour le '
+      'récupérer\u00a0: MyWeli ne détient aucun acompte.',
     );
     expect(n.tone, CancellationNoticeTone.returned);
   });
@@ -70,7 +70,7 @@ void main() {
     expect(
       n.text,
       'D’après la règle du salon, votre acompte de $fcfa ne sera pas '
-      'remboursé, car vous annulez moins de 24 h avant.',
+      'remboursé, car vous annulez moins de 24\u00a0h avant.',
     );
     expect(n.tone, CancellationNoticeTone.kept);
   });
@@ -78,7 +78,7 @@ void main() {
   test('exactly at the cut-off counts as late', () {
     final n = at_(appt(), const Duration(hours: 24))!;
     expect(n.tone, CancellationNoticeTone.kept);
-    expect(n.text, contains('moins de 24 h avant'));
+    expect(n.text, contains('moins de 24\u00a0h avant'));
     // One minute earlier is on time.
     expect(
       at_(appt(), const Duration(hours: 24, minutes: 1))!.tone,
@@ -101,7 +101,7 @@ void main() {
   test('a salon with no delay: « avant l’heure », never « plus de 0 h »', () {
     final n = at_(appt(windowHours: 0), const Duration(minutes: 10))!;
     expect(n.text, contains('car vous annulez avant l’heure du rendez-vous.'));
-    expect(n.text, isNot(contains('0 h')));
+    expect(n.text, isNot(contains('0\u00a0h')));
     expect(n.tone, CancellationNoticeTone.returned);
   });
 

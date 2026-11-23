@@ -117,10 +117,12 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
               ),
               _tab(
                 provider,
-                provider.visitHistory,
+                provider.pastAppointments,
+                // Absences are here too, so not « Aucune visite »
+                // (consumer-app-truth.md §2.7).
                 const EmptyState(
                   icon: Icons.history,
-                  title: 'Aucune visite',
+                  title: 'Aucun rendez-vous passé',
                   description: 'Vos rendez-vous passés apparaîtront ici.',
                 ),
                 _buildHistory,
@@ -192,17 +194,27 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
 
   Widget _buildHistory(List<Appointment> visits) {
     final groups = groupVisitsByMonth(visits);
-    final spent = totalSpent(visits);
+    // Only what the salon marked « Terminé » is a visit we can count
+    // (decision 167). A past booking nobody closed, or an absence, is listed
+    // below with its own chip and counted nowhere; with no visit at all the
+    // summary is hidden rather than read « 0 visite ».
+    final completed = [
+      for (final a in visits)
+        if (a.status == AppointmentStatus.completed) a,
+    ];
 
     final children = <Widget>[
-      VisitSummary(
-        visits: visits.length,
-        spent: spent,
-        // MVP: a mixed-currency history sums nominally and reads the first
-        // visit's currency (per-currency grouping is post-MP2).
-        currency: visits.first.currency ?? visits.first.providerCurrency,
-      ),
-      const SizedBox(height: AppTheme.spacingM),
+      if (completed.isNotEmpty) ...[
+        VisitSummary(
+          visits: completed.length,
+          spent: totalSpent(completed),
+          // MVP: a mixed-currency history sums nominally and reads the first
+          // visit's currency (per-currency grouping is post-MP2).
+          currency:
+              completed.first.currency ?? completed.first.providerCurrency,
+        ),
+        const SizedBox(height: AppTheme.spacingM),
+      ],
     ];
 
     for (final group in groups) {
@@ -224,10 +236,10 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
             padding: const EdgeInsets.only(bottom: AppTheme.spacingM),
             child: Column(
               children: [
+                // The booking as it is: the chip says « Terminé » only when
+                // the salon said so (consumer-app-truth.md §2.7).
                 AppointmentCard(
-                  appointment: visit.copyWith(
-                    status: AppointmentStatus.completed,
-                  ),
+                  appointment: visit,
                   onTap: () => context.push('/appointment/${visit.id}'),
                 ),
                 const SizedBox(height: AppTheme.spacingS),

@@ -337,8 +337,11 @@ class _HomeScreenState extends State<HomeScreen> {
                                               ),
                                               child: CompactAppointmentTile(
                                                 appointment: a,
+                                                // The booking's own name
+                                                // first (§2.6 of
+                                                // consumer-app-truth.md).
                                                 providerName: salonNameOr(
-                                                  p?.name,
+                                                  a.providerName ?? p?.name,
                                                   kUnnamedSalon,
                                                 ),
                                                 providerImageUrl:

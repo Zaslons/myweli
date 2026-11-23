@@ -4,9 +4,9 @@ import '../core/access/account_scope.dart';
 import '../core/constants/failure_messages.dart';
 import '../core/di/dependency_injection.dart';
 import '../core/utils/app_clock.dart';
+import '../core/utils/client_booking_rule.dart';
 import '../core/utils/salon_id.dart';
 import '../core/utils/submission_key.dart';
-import '../core/utils/visit_history.dart' as vh;
 import '../models/api_response.dart';
 import '../models/appointment.dart';
 import '../services/interfaces/appointment_service_interface.dart';
@@ -77,34 +77,29 @@ class AppointmentProvider extends ChangeNotifier implements AccountScoped {
   String? get errorCode => _errorCode;
   String? get listError => _listError;
 
-  List<Appointment> get upcomingAppointments {
+  // The three tabs of « Mes rendez-vous », by the one client rule
+  // (`client_booking_rule.dart`; consumer-app-truth.md §2.7).
+
+  /// « À venir »: open bookings still ahead, soonest first.
+  List<Appointment> get upcomingAppointments =>
+      _inTab(ClientBookingTab.upcoming)
+        ..sort((a, b) => a.appointmentDate.compareTo(b.appointmentDate));
+
+  /// « Passés »: completed visits, no-shows, and open bookings whose time has
+  /// passed — never relabelled « Terminé » — newest first.
+  List<Appointment> get pastAppointments =>
+      _inTab(ClientBookingTab.past)
+        ..sort((a, b) => b.appointmentDate.compareTo(a.appointmentDate));
+
+  /// « Annulés », newest first.
+  List<Appointment> get cancelledAppointments =>
+      _inTab(ClientBookingTab.cancelled)
+        ..sort((a, b) => b.appointmentDate.compareTo(a.appointmentDate));
+
+  List<Appointment> _inTab(ClientBookingTab tab) {
     final now = AppClock.now();
-    return _appointments
-        .where(
-          (a) =>
-              a.appointmentDate.isAfter(now) &&
-              a.status != AppointmentStatus.cancelled,
-        )
-        .toList()
-      ..sort((a, b) => a.appointmentDate.compareTo(b.appointmentDate));
+    return _appointments.where((a) => clientTab(a, now) == tab).toList();
   }
-
-  List<Appointment> get pastAppointments {
-    final now = AppClock.now();
-    return _appointments.where((a) => a.appointmentDate.isBefore(now)).toList()
-      ..sort((a, b) => b.appointmentDate.compareTo(a.appointmentDate));
-  }
-
-  List<Appointment> get cancelledAppointments {
-    return _appointments
-        .where((a) => a.status == AppointmentStatus.cancelled)
-        .toList()
-      ..sort((a, b) => b.appointmentDate.compareTo(a.appointmentDate));
-  }
-
-  /// Completed past visits (effective status), newest first.
-  List<Appointment> get visitHistory =>
-      vh.visitHistory(_appointments, AppClock.now());
 
   bool hasCompletedBookingAt(SalonId providerId, String userId) =>
       latestCompletedAppointmentId(providerId, userId) != null;

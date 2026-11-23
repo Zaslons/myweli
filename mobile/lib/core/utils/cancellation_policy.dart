@@ -65,16 +65,16 @@ CancellationNotice? cancellationNotice(Appointment a, DateTime now) {
   final cutoff = a.appointmentDate.subtract(Duration(hours: hours));
   if (!now.isBefore(cutoff)) {
     return CancellationNotice(
-      '$kept vous annulez moins de $hours h avant.',
+      '$kept vous annulez moins de $hours\u00a0h avant.',
       CancellationNoticeTone.kept,
     );
   }
   final when = hours == 0
       ? 'avant l’heure du rendez-vous'
-      : 'plus de $hours h avant';
+      : 'plus de $hours\u00a0h avant';
   return CancellationNotice(
     'D’après la règle du salon, votre acompte de $amount vous revient, car '
-    'vous annulez $when. Voyez avec le salon pour le récupérer : MyWeli '
+    'vous annulez $when. Voyez avec le salon pour le récupérer\u00a0: MyWeli '
     'ne détient aucun acompte.',
     CancellationNoticeTone.returned,
   );
