@@ -97,12 +97,13 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
 
   Future<void> _handleCancel(Appointment appointment) async {
     final provider = Provider.of<AppointmentProvider>(context, listen: false);
-    final outcome = cancellationOutcome(
-      appointmentDate: appointment.appointmentDate,
-      now: AppClock.now(),
-      windowHours: appointment.cancellationWindowHours,
-      depositAmount: appointment.depositAmount,
-    );
+    // The salon's rule, the web's words (consumer-app-truth.md §2.2).
+    final notice = cancellationNotice(appointment, AppClock.now());
+    final Color noticeAccent = switch (notice?.tone) {
+      CancellationNoticeTone.kept => AppColors.error,
+      CancellationNoticeTone.returned => AppColors.success,
+      _ => AppColors.textSecondary,
+    };
 
     final confirmed = await showConfirmDialog(
       context,
@@ -112,7 +113,7 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text('Êtes-vous sûr de vouloir annuler ce rendez-vous ?'),
-          if (appointment.depositAmount > 0) ...[
+          if (notice != null) ...[
             const SizedBox(height: AppTheme.spacingSM),
             Container(
               padding: const EdgeInsets.all(AppTheme.spacingM),
@@ -124,9 +125,9 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
                 // to the border, beside the glyph that already distinguishes it.
                 color: AppColors.surfaceVariant,
                 border: Border.all(
-                  color: outcome.depositForfeited
-                      ? AppColors.error
-                      : AppColors.success,
+                  color: notice.tone == CancellationNoticeTone.neutral
+                      ? AppColors.border
+                      : noticeAccent,
                 ),
                 borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
               ),
@@ -134,28 +135,18 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Icon(
-                    outcome.depositForfeited
+                    notice.tone == CancellationNoticeTone.kept
                         ? Icons.warning_amber_rounded
                         : Icons.info_outline,
                     size: AppTheme.iconS,
-                    color: outcome.depositForfeited
-                        ? AppColors.error
-                        : AppColors.success,
+                    color: noticeAccent,
                   ),
                   const SizedBox(width: AppTheme.spacingS),
                   Expanded(
                     child: Text(
-                      outcome.depositForfeited
-                          ? 'Annulation à moins de '
-                                '${appointment.cancellationWindowHours} h : '
-                                'votre acompte de '
-                                '${Formatters.formatCurrency(appointment.depositAmount, currency: appointment.currency ?? appointment.providerCurrency ?? 'XOF')} '
-                                'ne sera pas remboursé.'
-                          : 'Votre acompte de '
-                                '${Formatters.formatCurrency(appointment.depositAmount, currency: appointment.currency ?? appointment.providerCurrency ?? 'XOF')} '
-                                'sera remboursé.',
+                      notice.text,
                       style: AppTextStyles.bodySmall.copyWith(
-                        color: outcome.depositForfeited
+                        color: notice.tone == CancellationNoticeTone.kept
                             ? AppColors.error
                             : AppColors.textPrimary,
                       ),
@@ -539,8 +530,12 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
             const SizedBox(height: AppTheme.spacingM),
           ],
           // Action Buttons
-          if (appointment.status != AppointmentStatus.cancelled &&
-              appointment.status != AppointmentStatus.completed) ...[
+          // Only an open booking can be changed. A no-show is closed like a
+          // cancellation or a completed visit: the server refuses to cancel
+          // it (`invalid_state`), so the button would only fail
+          // (consumer-app-truth.md §2.7).
+          if (appointment.status == AppointmentStatus.pending ||
+              appointment.status == AppointmentStatus.confirmed) ...[
             if (appointment.appointmentDate.isAfter(AppClock.now())) ...[
               // « Reporter » is withheld for a salon that is not live:
               // the server refuses the move (`provider_suspended` /

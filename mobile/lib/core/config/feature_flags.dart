@@ -11,6 +11,23 @@ class FeatureFlags {
 
   static const bool futureProviderFeatures = false;
 
+  /// The home's « stories » row — **OFF**.
+  ///
+  /// Its three stories are hard-coded demo content
+  /// (`widgets/home/announcement_stories.dart` and
+  /// `assets/images/stories/`): a « -15 % » weekend offer nobody makes, and a
+  /// « Nouveau salon », « Beauté Divine », that does not exist. Shown to a
+  /// client, they are a false offer (App Store 2.3.1, Play's
+  /// deceptive-behaviour policy). The owner chose to keep the feature rather
+  /// than remove it (decision 170, 2026-11-23): it stays in the tree, hidden,
+  /// until someone manages real stories. Then the hard-coded list gives way to
+  /// that source and this flips on.
+  ///
+  /// `feature_flags_test.dart` turns red if this is on while the demo
+  /// stories are still in the tree. Design:
+  /// docs/design/consumer-app-truth.md §2.1.
+  static const bool homeStories = false;
+
   /// The manual-booking « Envoyer la confirmation par SMS » switch — **OFF**.
   /// The server never reads `sendSmsInvite` and messaging is switched off until
   /// the company is registered (SMS/WhatsApp are post-launch), so the switch

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/date_symbol_data_local.dart';
+import 'package:myweli/core/config/feature_flags.dart';
 import 'package:myweli/core/di/dependency_injection.dart';
 import 'package:myweli/core/theme/app_theme.dart';
 import 'package:myweli/core/utils/app_clock.dart';
@@ -40,6 +41,7 @@ import 'package:myweli/services/mock/mock_data.dart';
 import 'package:myweli/widgets/common/commune_pill.dart';
 import 'package:myweli/widgets/common/legal_consent_text.dart';
 import 'package:myweli/widgets/common/timed_cached_image.dart';
+import 'package:myweli/widgets/home/announcement_stories.dart';
 import 'package:myweli/widgets/notifications/notification_tile.dart';
 import 'package:myweli/widgets/provider/provider_card.dart';
 import 'package:provider/provider.dart';
@@ -587,6 +589,36 @@ void main() {
         _expectHeadingIsWhole(tester, 'Mes favoris', at);
         _expectActionIsTappable(tester, 'Voir tout', at);
         _expectActionIsTappable(tester, 'Voir la carte', at);
+        // The row follows its flag (a wiring check: it stays true the day
+        // real stories turn the flag on).
+        expect(
+          find.byType(AnnouncementStories),
+          FeatureFlags.homeStories ? findsOneWidget : findsNothing,
+          reason: 'the home stories ignore FeatureFlags.homeStories',
+        );
+        // The story cards are not on this home while they are hidden
+        // (FeatureFlags.homeStories, decision 170): the next test pumps them
+        // alone, so their gate still holds for the day the row comes back.
+        expectNoUndeclaredTruncation(tester, context: 'consumer home at $at');
+        expectNoLegibilityCrush(tester, context: 'consumer home at $at');
+        expectNoVerticalClip(tester, context: 'consumer home at $at');
+        expectNoGluedTokenBreaks(tester, context: 'consumer home at $at');
+        expect(tester.takeException(), isNull, reason: 'A: $at');
+      });
+
+      // ---- the home stories, pumped alone ---------------------------------
+      //
+      // Hidden on the home (FeatureFlags.homeStories, off while the stories
+      // are hard-coded demo content, decision 170), so the home pump above
+      // cannot see them. Pumped alone, so the row's gate does not go quiet.
+
+      testWidgets('the home stories fit $at', (tester) async {
+        await pumpAtWidth(
+          tester,
+          width: width,
+          scale: scale,
+          home: const Scaffold(body: AnnouncementStories()),
+        );
         // A13, §21 row 62 — **the story-card titles are CONTROL labels.** Each
         // card is `Semantics(button: true)` + `InkWell(onTap:)` and the title is
         // the control's accessible name (`announcement_stories.dart:133-137`),
@@ -610,10 +642,6 @@ void main() {
         ]) {
           expectNoMidWordBreak(tester, title, at);
         }
-        expectNoUndeclaredTruncation(tester, context: 'consumer home at $at');
-        expectNoLegibilityCrush(tester, context: 'consumer home at $at');
-        expectNoVerticalClip(tester, context: 'consumer home at $at');
-        expectNoGluedTokenBreaks(tester, context: 'consumer home at $at');
         expect(tester.takeException(), isNull, reason: 'A: $at');
       });
 
