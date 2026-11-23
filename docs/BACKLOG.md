@@ -489,6 +489,7 @@ Each question has a recommendation. Answers unblock the item named in brackets.
   - **2026-11-22 — decision 159 (O8):** « Publication gérée » is turned on just before step 10, on your go at that moment. Records: #829 merged (`eff1cc0b`).
   - **2026-11-22 — the two reports of the « Pas de connexion » fix sent** ([android-http3-transport.md](design/android-http3-transport.md) §9), on your « post them », each text shown first: a comment on dart-lang/sdk#63670 from your GitHub account; for Cloudflare, no ticket (the Free plan opens none), a post on their forum from your account, waiting for a moderator. Records: #830 merged (`8f1362a5`).
   - **MyWeli (client):** later (decision 51); play-store-forms §8 lists what to re-audit then.
+    - **2026-11-23 — audited, read-only:** [consumer-app-release-audit.md](design/consumer-app-release-audit.md). Verdict: not ready. Its §6 ranks 24 gaps, its §7 proposes the order of work (code, documents, then builds on your word), and its §8 asks you six questions. Nothing is built before you approve §7.
   - **Order:** Android is last (LAUNCH §3).
 - **B0.15 Search text kept 30 days in Google Cloud's request logs (P2 · S · decision 55, open).**
   - **What:** found by B0.10 on 2026-10-28. Cloud Run's own request logs keep the full URL, query string included (read in Cloud Logging: `…/providers?page=1&pageSize=20`), for 30 days. Two requests put personal text there: the Pro client search (`?query=`, a client's name or part of a number) and the public salon search (`?q=`).
