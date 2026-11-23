@@ -505,7 +505,7 @@ state and the French copy, and the owner approves it.
 | PR | What | Size | Spec |
 |---|---|---|---|
 | A1 | **What the app says is true:** the stories go (gap 2); the cancel sentence takes the salon's rule, as the web does (3); « Langue » goes (12); purpose strings (6); a local placeholder (16); cards and home tiles read the booking's own salon name (part of 9); past unconfirmed bookings and no-shows get honest labels and a tab, one rule shared with the web (15, web C4) | S each, one M PR | [consumer-app-truth.md](consumer-app-truth.md): one spec, every changed sentence in French (draft, 2026-11-23) |
-| A2 | **The appointment detail, complete:** status, salon (name, photo, address), services, « Itinéraire », « Appeler »; rebook from the detail (FR-REBOOK-001) | M | yes (UX) |
+| A2 | **The appointment detail, complete:** status, salon (name, photo, address), services, « Itinéraire », « Appeler »; rebook from the detail (FR-REBOOK-001) | M | yes (UX): [appointment-detail-complete.md](appointment-detail-complete.md) (draft, 2026-11-23; three PRs, A2-api, A2 and A2w) |
 | A3 | **Sign-in you can leave, and push you can turn on later:** sign-in pushed rather than replaced, with a close button; `returnTo` kept; a way to ask for push again from Préférences (17) | S | a short spec (flows and states) |
 | A4 | **Search that searches, and the Ivorian categories:** a search field on `GET /providers?q=`, debounced, with every state; the PRD Appendix A chips; « Charger plus »; the map says its commune (11, 20, 22) | M | yes (UX), parity with web `/recherche` |
 | A5 | **The salon page's team and every review:** staff section, « Voir tous les avis » (18) | S-M | yes (UX) |

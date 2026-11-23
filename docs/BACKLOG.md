@@ -377,6 +377,19 @@ Each question has a recommendation. Answers unblock the item named in brackets.
 192. Read production before and after the deploy? [B14.1] — ✅ **Answered (2026-11-23): « Approve as recommended »**, yes: three read-only `SELECT`s before (countries, salons by currency, the booking count) and one count after (spec §9, step 0 and step 7). Approved in principle; each is still asked for at the moment it runs.
 193. When to build it? [B14.1] — ✅ **Answered (2026-11-23): « Approve as recommended »**, B14.1 next, independent of the release track: backend only, no app release. B14.2, B14.3 and B14.4 follow, each on your word.
 
+**The appointment detail, complete (A2, batch 0, B0.10)** — asked on 2026-11-23 in [appointment-detail-complete.md](design/appointment-detail-complete.md) §11 (Q1–Q10, PR #839), Track A of the audit (decision 160). All ten answered at once, « Approve as recommended ». Three PRs follow, each merged on your word: A2-api (backend + contract; its deploy is a production deploy), A2 (the app), A2w (the web; its merge is a production deploy).
+
+194. The salon's position, commune and city, and its cover photo while it is live, on the client's own booking? [B0.10] — ✅ **Answered (2026-11-23): « Approve as recommended »**, yes: five optional keys (`providerLatitude`, `providerLongitude` — a pair or both null —, `providerCommune`, `providerCity`, `providerPhotoUrl` = `imageUrls[0]`, null unless the salon is live). A stopped salon keeps its position, not its photo.
+195. « Itinéraire » only with a position? [B0.10] — ✅ **Answered (2026-11-23): « Approve as recommended »**, yes: never a search on the address text. App: `Helpers.launchNavigation`; web: Google Maps directions to the two numbers.
+196. The status sentences? [B0.10] — ✅ **Answered (2026-11-23): « Approve as recommended »**, as written: « Le salon doit encore confirmer ce rendez-vous. » (pending, ahead), « Le salon n’a pas confirmé ce rendez-vous avant son heure. » (« Non confirmé »), « Le salon a indiqué une absence à ce rendez-vous. » (« Absent »); none for the others. Pinned in the shared table.
+197. The deposit table? [B0.10] — ✅ **Answered (2026-11-23): « Approve as recommended »**, as written (spec §2.7): « Acompte confirmé » and its sentence go (a salon confirms a booking, not a payment); « Envoyer l’acompte » stops at the appointment’s time; the balance shows only while the booking is open; new words « Aucun justificatif envoyé », « Acompte — non confirmé », « Acompte — justificatif envoyé », « Voyez directement avec le salon : MyWeli ne détient aucun acompte. » Pinned in `deposit-state.json`.
+198. A map on the detail? [B0.10] — ✅ **Answered (2026-11-23): « Approve as recommended »**, no: « Itinéraire » answers the day’s question; the salon page has the map.
+199. The app’s booking card reads the booking’s photo, place and position? [B0.10] — ✅ **Answered (2026-11-23): « Approve as recommended »**, yes, in A2’s app PR, the discovery list kept as the fallback; « Voir sur la carte » only for a live salon.
+200. The app’s title « Rendez-vous », and the web’s date with its weekday on the detail? [B0.10] — ✅ **Answered (2026-11-23): « Approve as recommended »**, yes.
+201. « Réserver à nouveau » on the app’s detail? [B0.10] — ✅ **Answered (2026-11-23): « Approve as recommended »**, yes, by the web’s rule (decision 183): any booking that is not upcoming, at a live salon.
+202. Receipts (FR-APPT-009, [V1] in the PRD, built nowhere)? [B0.10] — ✅ **Answered (2026-11-23): « Approve as recommended »**, their own spec after Track A, not in A2.
+203. The PRs and their order? [B0.10] — ✅ **Answered (2026-11-23): « Approve as recommended »**, three PRs, A2-api first, each merged on your word; the backend deploy and A2w’s merge are production deploys, each on your word.
+
 ---
 
 ## 3. The batches
