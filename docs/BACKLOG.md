@@ -357,6 +357,14 @@ Each question has a recommendation. Answers unblock the item named in brackets.
 180. May the row show nothing while it loads (unless stories are usual on that phone), when there are none, and when the read fails? [B0.10] — ✅ **Answered (2026-11-23): « Approve as recommended »**, yes, written into SYSTEM.md §12 as a declared exception for optional promotional rows, in PR D.
 181. How long do an ended story's images stay online? [B0.10] — ✅ **Answered (2026-11-23): « Approve as recommended »**, 90 days after the end, then deleted by a task on the maintenance cron (rehearsed first, like the salon purge), or at once on request. The text stays as the record.
 
+**The website's « Mes rendez-vous » (A1w, batch 0, B0.10)** — asked on 2026-11-23 in [web-account-bookings-truth.md](design/web-account-bookings-truth.md) §11 (Q1–Q5, PR #836), after decision 168 gave the web half its own PR. All five answered at once, « Approve as recommended ». A1w is built from it; its merge is a production web deploy, on your word.
+
+182. « Passés » on the website as in the app, now: the summary, the months and « Réserver à nouveau » under each booking (C7)? [B0.10, B12.7] — ✅ **Answered (2026-11-23): « Approve as recommended »**, yes, in A1w (spec §2.4). C7 was deferred on 2026-11-05 « when touched »; A1w touches this exact tab. The rest of B12.7 (C5, C6, C8–C10) stays deferred.
+183. On the detail, « Réserver à nouveau » for a past « Non confirmé » or « Confirmé » booking? [B0.10] — ✅ **Answered (2026-11-23): « Approve as recommended »**, yes: any booking that is not upcoming, at a salon still open (spec §2.7). A web choice: the app's detail has no « Réserver à nouveau ».
+184. The empty states' words? [B0.10] — ✅ **Answered (2026-11-23): « Approve as recommended »**, as written in spec §2.5: « À venir » keeps today's words and link; « Passés » takes decision 169's; « Annulés » gets « Aucun rendez-vous annulé » / « Vos rendez-vous annulés apparaîtront ici. », with no link. The app's two generic sentences stay until a later app build.
+185. A visible heading « Mes rendez-vous » above the tabs? [B0.10] — ✅ **Answered (2026-11-23): « Approve as recommended »**, yes, an `h2` (spec §2.6): the months are `h3` under it, as the app's screen carries the same title.
+186. Fix the app's months in A1w, so both surfaces group « Passés » in the salon's time zone? [B0.10] — ✅ **Answered (2026-11-23): « Approve as recommended »**, yes, in A1w: `groupVisitsByMonth` keyed on `toSalonTime`, with its test. It reaches clients with the next consumer build; nothing is deployed for it. Found while writing the spec: the app keyed months on the UTC date while its card dates the same booking in the salon's zone.
+
 ---
 
 ## 3. The batches

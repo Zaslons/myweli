@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | **Draft, waiting for the owner** (§11: five questions, each with a recommendation). No code before approval. An independent reader checked it once against the code on 2026-11-23. Each of its 15 findings was checked again in the code before it went in. |
+| **Status** | **Approved by the owner on 2026-11-23** (« Approve as recommended »: the five recommendations of §11, BACKLOG decisions 182–186). An independent reader checked it once against the code on 2026-11-23. Each of its 15 findings was checked again in the code before it went in. Built in its own PR (A1w, branch `feat/web-account-passes`); its merge is a production web deploy, on the owner's word. |
 | **Owner** | Sadreddine |
 | **Last updated** | 2026-11-23 |
 | **PRD ref / phase** | FR-APPT-001, FR-APPT-003/005 · V1 · BACKLOG B0.10 (decision 160), B12.6 (C4), B12.7 (C7, part) |
@@ -384,6 +384,8 @@ None.
 - [ ] Merged and deployed only on the owner's word; read back on `myweli.com` as §9 says.
 
 ## 11. Open questions (each with a recommendation)
+
+**All five answered on 2026-11-23: « Approve as recommended »** (BACKLOG decisions 182–186, in the order Q1–Q5). Each answer is the recommendation written under its question.
 
 **Q1. « Passés » as in the app, now: summary, months and « Réserver à nouveau » under each booking (C7)?**
 - C7 was left for later on 2026-11-05 (S3), « when touched ».

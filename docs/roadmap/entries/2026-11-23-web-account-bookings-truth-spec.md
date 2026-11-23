@@ -27,7 +27,7 @@
     - le serveur ne garde jamais la devise d’un rendez-vous : l’insertion Postgres n’a pas de colonne pour elle. C’est une tâche backend à part ;
     - « Envoyer l’acompte » reste offert sur un rendez-vous passé « Non confirmé », sur les deux surfaces : c’est pour A2.
   - **Ce qui ne change pas :** l’Espace pro ; le backend et le contrat d’API ; le code de l’app, sauf le regroupement des mois si la question 5 le dit.
-  - **Cinq questions au propriétaire (§11), chacune avec une recommandation :**
+  - **Cinq questions au propriétaire (§11), chacune avec une recommandation. Toutes approuvées le 2026-11-23, « Approve as recommended » (décisions 182 à 186) :**
     - « Passés » comme dans l’app dès maintenant (C7) ;
     - « Réserver à nouveau » dans le détail d’un rendez-vous passé « Non confirmé » ou « Confirmé » ;
     - les mots des états vides ;
@@ -37,4 +37,5 @@
     - [web-account-bookings-truth.md](../../design/web-account-bookings-truth.md), nouveau ;
     - l’index des specs : une ligne pour A1w, et la ligne d’A1 dit qu’elle est fusionnée ;
     - [consumer-app-truth.md](../../design/consumer-app-truth.md) : son §2.7 renvoie à la nouvelle spec, et son §3 corrige ce qu’il disait de la devise.
-  - **Reste :** les réponses du propriétaire, puis la PR A1w ; sa fusion est un déploiement en production de `myweli.com`, sur le mot du propriétaire.
+  - **Ce qui change aussi :** le BACKLOG reçoit les décisions 182 à 186.
+  - **Reste :** la PR A1w (branche `feat/web-account-passes`) ; sa fusion est un déploiement en production de `myweli.com`, sur le mot du propriétaire.
