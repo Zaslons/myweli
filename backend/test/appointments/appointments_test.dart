@@ -27,8 +27,8 @@ import 'package:myweli_backend/src/push/push_service.dart';
 import 'package:test/test.dart';
 
 import '../../routes/appointments/[id]/index.dart' as detail;
-import '../contract/openapi_shape.dart';
 import '../../routes/appointments/index.dart' as list;
+import '../contract/openapi_shape.dart';
 
 class _MockRequestContext extends Mock implements RequestContext {}
 
