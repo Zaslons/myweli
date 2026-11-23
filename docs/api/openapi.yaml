@@ -5387,10 +5387,12 @@ components:
           nullable: true
           description: >-
             Stamped from the salon at creation and stored with the booking
-            (multi-pays §4 — immutable; appointment-currency-stamp.md,
-            migration 0047). Null only on a booking written by an image older
-            than 0047 during a deploy or a rollback window; read it as the
-            salon's (`providerCurrency`).
+            (multi-pays §4 — immutable; appointment-currency-stamp.md). NOT
+            NULL in the database since migration 0049, so every booking read
+            from it carries one. Kept nullable here because a replayed
+            creation response (Idempotency-Key, 24 h) is returned as it was
+            first sent; read a missing value as the salon's
+            (`providerCurrency`).
         providerName:
           type: string
           nullable: true

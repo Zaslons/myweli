@@ -1,0 +1,16 @@
+- 🟡 **Backend : la base refuse un rendez-vous sans devise — B14.2, migration `0049` (backend · documentation · 2026-11-23 — BACKLOG B14.2, décision 187).** Branche `feat/b14-2-currency-not-null`, créée depuis `main` (`c3716e6b`). Spec : [appointment-currency-stamp.md](../../design/appointment-currency-stamp.md) §3.7, §8.9. **Ni fusionnée, ni déployée.**
+  - **Ce qui change :**
+    - la migration `0049` refait le rattrapage, puis rend `appointments.currency` obligatoire (`NOT NULL`). Le défaut corrigé par B14.1, un rendez-vous écrit sans sa devise, devient une erreur visible ;
+    - **retour arrière :** elle est déclarée `rollback-unsafe`. Une fois en ligne, ne jamais revenir plus loin que `myweli-api-00055-jv2` (B14.1), sinon chaque réservation échouerait. DEPLOYMENT.md le dit à l’endroit où on le lit pendant un incident ;
+    - **le contrat :** le champ reste facultatif, exprès. Une réponse rejouée avec la même clé d’idempotence, gardée 24 h, est renvoyée telle qu’elle était, donc sans devise si elle date d’avant `0047`. Le contrat le dit ;
+    - l’outil de mesure de volume et deux fixtures de test donnent maintenant une devise.
+  - **Vérifié :**
+    - **le test rouge d’abord :** sur le schéma d’aujourd’hui, la colonne acceptait encore NULL ;
+    - **la suite complète a trouvé une fixture** qui écrivait un rendez-vous sans devise : la contrainte l’a refusée dès la première exécution ;
+    - **un faux vert attrapé :** une première exécution affichait « exit 0 », mais c’était le code de sortie de `tail`. Relancée avec son propre code, la suite passe : 2974 tests, 2 ignorés ;
+    - **deux mutations rouges** (la déclaration retirée ; la contrainte retirée, sur une base neuve) et un contrôle vert ;
+    - **non testé, et dit :** retirer le rattrapage de `0049`. En production, cette erreur serait bruyante et sans danger : la révision ne démarrerait pas, et l’ancienne continuerait de servir.
+  - **Reste, chacun sur le mot du propriétaire :**
+    - la fusion de cette PR, qui touche `web/` par le seul fichier généré ;
+    - le déploiement, qui peut être le prochain ;
+    - la lecture après le déploiement.

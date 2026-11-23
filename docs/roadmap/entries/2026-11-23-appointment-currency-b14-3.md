@@ -1,4 +1,4 @@
-- 🟡 **MyWeli Pro (app) : chaque rendez-vous affiché dans la devise où il a été pris — B14.3 (mobile · documentation · 2026-11-23 — BACKLOG B14.3, décision 189).** Branche `feat/b14-3-app-booking-currency`, créée depuis `main` (`4fc75282`). Spec : [appointment-currency-stamp.md](../../design/appointment-currency-stamp.md) §5.3, §5.7, §8.8. **Pas fusionnée ; elle atteint les utilisateurs avec les prochains builds des deux apps.**
+- 🟢 **MyWeli Pro (app) : chaque rendez-vous affiché dans la devise où il a été pris — B14.3 (mobile · documentation · 2026-11-23 — BACKLOG B14.3, décision 189).** Branche `feat/b14-3-app-booking-currency`, créée depuis `main` (`4fc75282`). Spec : [appointment-currency-stamp.md](../../design/appointment-currency-stamp.md) §5.3, §5.7, §8.8. **Fusionnée le 2026-11-23** (#843, `c3716e6b`, l’arbre de `main` égal à la tête testée) ; elle atteint les utilisateurs avec les prochains builds des deux apps.
   - **Le défaut :** depuis B14.1, le serveur garde la devise de chaque rendez-vous. Les écrans Pro de l’app chiffraient pourtant chaque rendez-vous dans la devise **actuelle** du salon.
   - **Ce qui change :**
     - la liste, le jour du calendrier, le détail (total et acompte annoncé) et l’historique des visites de la fiche client lisent d’abord la devise du rendez-vous, celle du salon seulement à défaut ;
@@ -11,4 +11,4 @@
     - **après le correctif :** `flutter analyze` sans erreur ; la suite mobile complète passe (4035 tests ; 68 ignorés, les goldens, qui tournent sur la CI) ;
     - **10 mutations rouges pour la bonne raison,** une par site, et un contrôle vert.
   - **Une phrase corrigée :** B14.2 n’attend pas un déploiement de plus. Il peut être le prochain déploiement du backend : c’est un retour arrière de deux crans, au-delà de `00055-jv2`, qui lui serait interdit.
-  - **Reste, chacun sur le mot du propriétaire :** la fusion de cette PR (aucun déploiement : l’app part avec le prochain build), B14.2 et B14.4.
+  - **Reste, chacun sur le mot du propriétaire :** le prochain build des apps, qui l’emporte ; B14.2 (construit dans sa propre PR) et B14.4.
