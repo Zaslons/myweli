@@ -55,6 +55,25 @@ void main() {
     expect(export['generatedAt'], DateTime(2026, 6, 22, 9).toIso8601String());
   });
 
+  // docs/design/appointment-currency-stamp.md §5.7 (B14.3, decision 189):
+  // each booking row of an export carries the currency it was made in — the
+  // booking's stamp, else its salon's. EUR, so no XOF default can pass.
+  test('each booking row carries its own currency (the stamp, else the '
+      'salon’s)', () {
+    final export = buildUserDataExport(
+      user: user,
+      appointments: [
+        appointment('stamped')
+            .copyWith(currency: 'EUR', providerCurrency: 'XOF'),
+        appointment('older').copyWith(providerCurrency: 'XAF'),
+      ],
+      favoriteProviderNames: const [],
+    );
+    final rows = (export['appointments'] as List).cast<Map<String, dynamic>>();
+    expect(rows[0]['currency'], 'EUR', reason: 'the stamp wins');
+    expect(rows[1]['currency'], 'XAF', reason: 'no stamp: the salon’s');
+  });
+
   test('handles a user with no appointments or favorites', () {
     final export = buildUserDataExport(
       user: user,
@@ -133,6 +152,49 @@ void main() {
     expect((clients.first as Map)['name'], 'Koffi');
     expect((clients.first as Map)['visits'], 4);
     expect(export['generatedAt'], '2026-07-11T00:00:00.000Z');
+  });
+
+  test('the salon export: each booking row carries its own currency (the '
+      'stamp, else the salon’s) — appointment-currency-stamp.md §5.7', () {
+    final export = buildProviderDataExport(
+      account: ProviderUser(
+        id: 'pu1',
+        phoneNumber: '+2250700000000',
+        businessName: 'Salon X',
+        businessType: BusinessType.salon,
+        createdAt: DateTime(2026),
+        providerId: SalonId('p1'),
+      ),
+      salon: const models.Provider(
+        id: SalonId('p1'),
+        name: 'Salon X',
+        description: 'desc',
+        address: 'Cocody',
+        imageUrls: [],
+        rating: 4.5,
+        reviewCount: 3,
+        services: [],
+        availability: Availability(
+          providerId: SalonId('p1'),
+          weeklySchedule: {},
+          blockedDates: [],
+        ),
+        phoneNumber: '+22500',
+        category: 'salon',
+        currency: 'XOF',
+      ),
+      services: const [],
+      artists: const [],
+      appointments: [
+        appointment('stamped').copyWith(currency: 'EUR'),
+        appointment('older'),
+      ],
+      clients: const [],
+      earnings: const EarningsData(totalEarnings: 0, transactions: []),
+    );
+    final rows = (export['appointments'] as List).cast<Map<String, dynamic>>();
+    expect(rows[0]['currency'], 'EUR', reason: 'the stamp wins');
+    expect(rows[1]['currency'], 'XOF', reason: 'no stamp: the salon’s');
   });
 
   test('a refusal names the earnings last, in the file’s order (B7.8)', () {
