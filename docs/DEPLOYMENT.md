@@ -788,13 +788,18 @@ Six things about that command are worth knowing *before* you need it:
   pin, both `spec.template…image` and `status.latestReadyRevisionName` name the
   revision you rolled *away from*, and they agree with each other.
 - **It does not touch the database.** Migrations are forward-only. Rollback is
-  safe today, but not because everything is additive — five migrations add a
-  constraint that NARROWS what the schema accepts (`0009`, `0022`, `0023`
-  and both halves of `0026`), and an older image writes rows the database
-  will now reject. Each says so on itself: `grep 'rollback-unsafe:'
-  backend/lib/src/db/migrations.dart` is the 2am answer. `0026` is the one
-  to watch — it is the most recent of the five and the failure lands on the
-  booking path.
+  safe today, but not because everything is additive — six constraints NARROW
+  what the schema accepts (`0009`, `0022`, `0023`, both halves of `0026`, and
+  `0049`), and an older image writes rows the database will now reject. Each
+  says so on itself: `grep 'rollback-unsafe:'
+  backend/lib/src/db/migrations.dart` is the 2am answer. **`0049` is the one
+  to watch** — the most recent, and the failure lands on the booking path:
+  once it is live, `appointments.currency` is NOT NULL, and an image older
+  than `0047` omits it, so **pin no further back than
+  `myweli-api-00055-jv2`** (image `d80b430`, the first that writes it) or
+  every booking fails with 23502
+  ([appointment-currency-stamp.md](design/appointment-currency-stamp.md)
+  §3.7).
 - **It brings back the publish that skips MyWeli's validation (B0.18).** An
   image older than the validation flips a salon live on the owner's tap, and
   ignores the validation tables. After rolling FORWARD again, run by hand (Cloud

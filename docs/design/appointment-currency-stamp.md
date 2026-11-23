@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Module** | backend: `appointments` (repository, migration, booking notifier), module `multi-pays` §4. Then two small client PRs: the Pro surfaces of the app and of the website |
-| **Status** | **Approved 2026-11-23.** The owner answered the seven questions of §11 at once, « Approve as recommended »: decisions 187–193 in BACKLOG, batch 14 (B14.1–B14.4 are B1–B4 here). **B1 (B14.1) built, merged and DEPLOYED 2026-11-23** (§8.7, §9.1): #840, `d80b4303`; production serves `myweli-api-00055-jv2` (image `d80b430`) since 18:01 UTC; migrations `0047` and `0048` ran at boot; every one of the 4 bookings now stores `XOF`. Each step was on the owner's word. **B3 (B14.3) built 2026-11-23** (§8.8), on the owner's « Build B14.3 », in its own PR; not merged. B2 and B4 not started; B2 can be the next backend deploy (§9.1, corrected). |
+| **Status** | **Approved 2026-11-23.** The owner answered the seven questions of §11 at once, « Approve as recommended »: decisions 187–193 in BACKLOG, batch 14 (B14.1–B14.4 are B1–B4 here). **B1 (B14.1) built, merged and DEPLOYED 2026-11-23** (§8.7, §9.1): #840, `d80b4303`; production serves `myweli-api-00055-jv2` (image `d80b430`) since 18:01 UTC; migrations `0047` and `0048` ran at boot; every one of the 4 bookings now stores `XOF`. Each step was on the owner's word. **B3 (B14.3) built and merged 2026-11-23** (§8.8, #843, `c3716e6b`); it ships with the next app builds. **B2 (B14.2) built 2026-11-23** (§8.9), on the owner's « Yes, build B14.2 », in its own PR: migration `0049`; **not merged, not deployed**. B4 not started. |
 | **Owner** | the project owner: the answers, each merge, every production read, and each `deploy-backend.yml` dispatch, each on the owner's word |
 | **Last updated** | 2026-11-23 |
 | **PRD ref / phase** | module `multi-pays` MP1 ([multi-pays-end-version.md](multi-pays-end-version.md) §4, [../modules/multi-pays.md](../modules/multi-pays.md) §4) · V1 |
@@ -301,7 +301,7 @@ id: '00MM_appointment_currency_not_null'
 - `SET NOT NULL` scans the table under `ACCESS EXCLUSIVE`, which is milliseconds at today's size (§7).
 
 **What B2 changes elsewhere:**
-- the contract makes `currency` non-nullable and required on `Appointment`, and `web/lib/api/schema.ts` is regenerated (CI fails on drift, §4);
+- ~~the contract makes `currency` non-nullable and required on `Appointment`~~ — **not done, on purpose (as built, §8.9):** a replayed creation response (`Idempotency-Key`, `kIdempotencyWindow` = 24 h) is returned as it was first sent, so one stored before 0047 has no `currency`. The contract says the column is NOT NULL and keeps the field nullable. `web/lib/api/schema.ts` is regenerated for the new description (CI fails on drift, §4);
 - `migration_reversibility_test.dart` flags `SET NOT NULL` and demands the declaration, so it is red until written;
 - DEPLOYMENT.md's rollback list (`:789-797`) gains it;
 - **every raw INSERT without the column now fails with 23502**, so B2 also changes:
@@ -594,6 +594,37 @@ The totals are unchanged (decision 190).
 - **m1–m10, each reverting one site, all red for the stated reason:** the list, the calendar, the detail's total, the detail's deposit, the visit row, the « Revenus » row, `EarningsTransaction.fromJson`, both export rows, and the mock's stamp;
 - **C1, green:** with the list reverted, the calendar's test stays green, so each test is aimed at its own row.
 
+### 8.9 As built (B2, 2026-11-23)
+
+**What changed:**
+- **migration `0049_appointment_currency_not_null`:** `kAppointmentCurrencyBackfill` again, then `ALTER COLUMN currency SET NOT NULL`;
+  - declared `// rollback-unsafe:`, naming `myweli-api-00055-jv2` as the furthest a rollback may go;
+- **DEPLOYMENT.md's rollback paragraph** names `0049` as the constraint to watch;
+- **the contract:** the description changes, and the field stays nullable (§3.7, the replay window);
+- **fixtures:** the volume probe tool's INSERT and the salon purge test's fixture name a currency;
+- **the backfill test (§8.3)** writes its older-image rows on one connection inside `BEGIN … ROLLBACK`, after lifting the NOT NULL there.
+
+**Red first** (commit `e9edb244`, tests only): the new test « the column refuses a booking without a currency (23502) » was red on today's schema (`is_nullable` `'YES'`). The restructured backfill test and the purge test stayed green.
+
+**The full suite found one more:**
+- a test fixture that built a booking map by hand without a currency, in the B6.10 account-deletion test;
+- 0049 refused it with 23502: the constraint caught, on the first run, a writer the booking service would never have been;
+- the fixture now names `XOF`.
+
+**Verification:**
+- **a misleading green, caught:** the first full run printed « exit 0 », but that was `tail`'s status, and the run had one failure. The suite was rerun with its own exit code.
+- **now:** the full backend suite, on a fresh database with `DATABASE_URL`, **2974 passed, 2 skipped** (the R2 live tests); format 0 changed; analyze no issues.
+
+**Mutations, on committed code:**
+- **m1, red:** 0049 loses its `// rollback-unsafe:` declaration, and `migration_reversibility_test.dart` names it;
+- **m2, red:** 0049 does not set NOT NULL, and the 23502 test goes red. It ran **on a fresh database**: one that has recorded 0049 never runs it again, so the mutation would have changed nothing there.
+- **C1, green:** the same test, on a fresh database, with the committed code.
+- **Not tested, said plainly:** removing the backfill from 0049. A test database has no NULL row at migration time, so nothing could tell. In production that failure is loud and safe: `SET NOT NULL` would fail on a NULL row, the revision would never become ready, and the old one would keep serving. Production has no NULL row (read 2026-11-23 18:03 UTC).
+
+**The contract text:** `web/lib/api/schema.ts` regenerated (one line).
+- Control: `HEAD`'s contract regenerates `HEAD`'s `schema.ts` byte for byte.
+- Merging this PR touches `web/` (the generated doc string), so it is a production web deploy under the usual rule, with nothing visible.
+
 ---
 
 ## 9. Rollout — production data is real
@@ -676,7 +707,9 @@ Each step on the owner's word, in this order: « Yes, merge it », « Yes, run t
 
 **What this means for B2 — corrected 2026-11-23.** This first said that B2 « waits for one more backend deploy after this one ». That was wrong. When B2 deploys, the revision a one-step rollback reaches is the one serving now, `00055-jv2`, which writes `currency`: **B2 can be the very next backend deploy.** The constraint is a two-step rollback: once B2 is live, no rollback may go back past `00055-jv2` (to `00054-7lb` or older, which omit the column and would fail every booking with 23502). B2's `// rollback-unsafe:` line says exactly that, and DEPLOYMENT.md's rollback list gains it (§3.7).
 
-**B2: the contract step** (§3.7). Its own PR, deployed on the owner's word once the image the rollback would reach writes `currency`. Read-back: `NULL` count 0, `/health`, a booking made after it.
+**B2: the contract step** (§3.7, §8.9). Its own PR, deployed on the owner's word. It can be the next backend deploy, because a one-step rollback from it reaches `00055-jv2`, which writes `currency`.
+- **Before:** no production read is needed. 0049 runs the backfill itself, and the last read found no NULL (18:03 UTC).
+- **Read-back:** the serving revision, `/health`, and `is_nullable = 'NO'` plus the count by currency (read-only, on the owner's yes).
 
 **B3: the app** (§5.3, and the two app exports of §5.7). Its own PR. It reaches users with the next builds of both apps; no store action of its own.
 - It needs neither B1 nor B2: before B1 deploys, `currency` is absent and the fallback is today's.

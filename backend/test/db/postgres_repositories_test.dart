@@ -310,52 +310,98 @@ void main() {
           'not json',
         );
 
-        Future<void> oldImageBooking(String id, String providerId) =>
-            pool.execute(
+        // Since migration 0049 the column refuses NULL, so the rows an older
+        // image writes can only be made where the NOT NULL is lifted: ONE
+        // connection, one transaction, rolled back at the end — DDL is
+        // transactional in Postgres, so neither the lifted constraint nor the
+        // rows outlive this test. (B14.2, appointment-currency-stamp.md §3.7.)
+        await pool.withConnection((c) async {
+          await c.execute('BEGIN');
+          try {
+            await c.execute(
+              'ALTER TABLE appointments ALTER COLUMN currency DROP NOT NULL',
+            );
+            Future<void> oldImageBooking(String id, String providerId) =>
+                c.execute(
+                  Sql.named(
+                    'INSERT INTO appointments (id, user_id, provider_id, '
+                    'service_ids, appointment_date, status, total_price) '
+                    "VALUES (@id, 'u1', @p, '[]', @at, 'confirmed', 1000)",
+                  ),
+                  parameters: {'id': id, 'p': providerId, 'at': when},
+                );
+            await oldImageBooking('b_r1', r1);
+            await oldImageBooking('b_r2', 'p_r2_object');
+            await oldImageBooking('b_r3', 'p_r3_nokey');
+            await oldImageBooking('b_r4', 'p_gone'); // R4: no salon row
+            await oldImageBooking('b_r6', 'p_r6_notjson');
+            // R5: already stamped XAF, at the seeded salon, which is XOF.
+            await c.execute(
               Sql.named(
                 'INSERT INTO appointments (id, user_id, provider_id, '
-                'service_ids, appointment_date, status, total_price) '
-                "VALUES (@id, 'u1', @p, '[]', @at, 'confirmed', 1000)",
+                'service_ids, appointment_date, status, total_price, '
+                "currency) VALUES (@id, 'u1', 'provider1', '[]', @at, "
+                "'confirmed', 1000, 'XAF')",
               ),
-              parameters: {'id': id, 'p': providerId, 'at': when},
+              parameters: {'id': 'b_r5', 'at': when},
             );
-        await oldImageBooking('b_r1', r1);
-        await oldImageBooking('b_r2', 'p_r2_object');
-        await oldImageBooking('b_r3', 'p_r3_nokey');
-        await oldImageBooking('b_r4', 'p_gone'); // R4: no salon row
-        await oldImageBooking('b_r6', 'p_r6_notjson');
-        // R5: already stamped XAF, at the seeded salon, which is XOF.
-        await PostgresAppointmentRepository(
-          pool,
-        ).create(apptMap(id: 'b_r5', when: when, currency: 'XAF'));
 
-        Future<Map<String, String?>> currencies() async => {
-          for (final r in await pool.execute(
-            'SELECT id, currency FROM appointments',
-          ))
-            r.toColumnMap()['id'] as String:
-                r.toColumnMap()['currency'] as String?,
-        };
-        expect(
-          (await currencies())['b_r1'],
-          isNull,
-          reason: 'the control: an older image writes no currency',
-        );
+            Future<Map<String, String?>> currencies() async => {
+              for (final r in await c.execute(
+                'SELECT id, currency FROM appointments',
+              ))
+                r.toColumnMap()['id'] as String:
+                    r.toColumnMap()['currency'] as String?,
+            };
+            expect(
+              (await currencies())['b_r1'],
+              isNull,
+              reason: 'the control: an older image writes no currency',
+            );
 
-        const expected = {
-          'b_r1': 'XAF',
-          'b_r2': 'XAF',
-          'b_r3': 'XOF',
-          'b_r4': 'XOF',
-          'b_r5': 'XAF',
-          'b_r6': 'XOF',
-        };
-        await pool.execute(kAppointmentCurrencyBackfill);
-        expect(await currencies(), expected);
-        await pool.execute(kAppointmentCurrencyBackfill);
-        expect(await currencies(), expected, reason: 'idempotent');
+            const expected = {
+              'b_r1': 'XAF',
+              'b_r2': 'XAF',
+              'b_r3': 'XOF',
+              'b_r4': 'XOF',
+              'b_r5': 'XAF',
+              'b_r6': 'XOF',
+            };
+            await c.execute(kAppointmentCurrencyBackfill);
+            expect(await currencies(), expected);
+            await c.execute(kAppointmentCurrencyBackfill);
+            expect(await currencies(), expected, reason: 'idempotent');
+          } finally {
+            await c.execute('ROLLBACK');
+          }
+        });
       },
     );
+
+    // docs/design/appointment-currency-stamp.md §3.7 (B14.2, decision 187):
+    // from migration 0049 the database itself refuses a booking without a
+    // currency — the defect B14.1 fixed (a writer that drops the stamp) is
+    // made loud. Red on every image before 0049: the column was nullable and
+    // the same INSERT succeeded.
+    test('the column refuses a booking without a currency (23502)', () async {
+      final column = await pool.execute(
+        "SELECT is_nullable FROM information_schema.columns "
+        "WHERE table_name = 'appointments' AND column_name = 'currency'",
+      );
+      expect(column.single.toColumnMap()['is_nullable'], 'NO');
+      await expectLater(
+        pool.execute(
+          Sql.named(
+            'INSERT INTO appointments (id, user_id, provider_id, '
+            'service_ids, appointment_date, status, total_price) '
+            "VALUES ('no_currency', 'u1', 'provider1', '[]', @at, "
+            "'confirmed', 1000)",
+          ),
+          parameters: {'at': when},
+        ),
+        throwsA(isA<ServerException>().having((e) => e.code, 'code', '23502')),
+      );
+    });
 
     test('the partial unique index blocks a second booking on the same slot '
         'FOR THE SAME ARTIST (capacity model, migration 0026)', () async {
@@ -3324,6 +3370,9 @@ void main() {
           await favorites.add(uid, 'provider1');
           await appointments.create({
             'id': 'b610-appt-$uid',
+            // Since migration 0049 the column refuses a booking without one,
+            // as the booking service always stamps it (B14.2).
+            'currency': 'XOF',
             'userId': uid,
             'providerId': 'provider1',
             'serviceIds': ['service1'],

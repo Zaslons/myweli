@@ -70,7 +70,7 @@ class PostgresAppointmentRepository implements AppointmentRepository {
           'deposit_screenshot_url': a['depositScreenshotUrl'],
           'created_at': DateTime.parse(a['createdAt'] as String),
           // No default here: the booking service is the authority. A missing
-          // stamp stores NULL until B14.2 makes the column refuse it.
+          // stamp is refused by the column itself (23502) since 0049 (B14.2).
           'currency': a['currency'],
         },
       );
@@ -226,8 +226,7 @@ class PostgresAppointmentRepository implements AppointmentRepository {
       'depositScreenshotUrl': r['deposit_screenshot_url'],
       'createdAt': (r['created_at'] as DateTime).toUtc().toIso8601String(),
       'arrivedAt': (r['arrived_at'] as DateTime?)?.toUtc().toIso8601String(),
-      // NULL only on a row an image older than migration 0047 wrote during a
-      // deploy or a rollback window; readers fall back to the salon's.
+      // NOT NULL since migration 0049 (B14.2): every stored booking has one.
       'currency': r['currency'],
     };
   }
