@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Module** | backend: `appointments` (repository, migration, booking notifier), module `multi-pays` §4. Then two small client PRs: the Pro surfaces of the app and of the website |
-| **Status** | **Draft (2026-11-23).** Waits for the owner's answers to the seven questions in §11, each with a recommendation. Nothing is built, nothing is deployed, production has not been read. |
+| **Status** | **Approved 2026-11-23.** The owner answered the seven questions of §11 at once, « Approve as recommended »: decisions 187–193 in BACKLOG, batch 14 (B14.1–B14.4 are B1–B4 here). Nothing is built, nothing is deployed, production has not been read. B1 (B14.1) is next; each PR, each production read and each deploy waits for the owner's word. |
 | **Owner** | the project owner: the answers, each merge, every production read, and each `deploy-backend.yml` dispatch, each on the owner's word |
 | **Last updated** | 2026-11-23 |
 | **PRD ref / phase** | module `multi-pays` MP1 ([multi-pays-end-version.md](multi-pays-end-version.md) §4, [../modules/multi-pays.md](../modules/multi-pays.md) §4) · V1 |
@@ -625,36 +625,36 @@ SELECT count(*) FROM appointments;
 
 ---
 
-## 11. Open questions for the owner — recommendation first
+## 11. Questions for the owner — answered 2026-11-23, « Approve as recommended » (decisions 187–193)
 
 **Q1. The column.** Nullable now with a backfill, and `NOT NULL` in a second deploy (B2)?
-- **Recommended: yes (option A, §3.1).**
+- **Recommended: yes (option A, §3.1).** → ✅ **Decision 187.**
 - Alternatives: `NOT NULL DEFAULT 'XOF'` at once (hides the next forgotten stamp); everything in one migration (a rollback would break every booking); nullable forever.
 
 **Q2. What existing bookings get.** The salon's currency at migration time, else `XOF` (the booking service's own rule)?
-- **Recommended: yes.** It is exact for every existing booking, because only `XOF` has ever existed (§3.3), and step 0 confirms it.
+- **Recommended: yes.** It is exact for every existing booking, because only `XOF` has ever existed (§3.3), and step 0 confirms it. → ✅ **Decision 188.**
 - Alternatives: a literal `XOF` for all (the same result today, the wrong rule tomorrow); leave old rows empty (the contract keeps lying for them).
 
 **Q3. The Pro screens and the exports.** In the app and on the website, does each booking's amount use the booking's own currency (B3, B4)? With the app's earnings rows reading their own currency, and all four data exports (client and salon, app and website) carrying each booking's currency?
-- **Recommended: yes**, in two small PRs riding the next app builds and the next web deploy.
+- **Recommended: yes**, in two small PRs riding the next app builds and the next web deploy. → ✅ **Decision 189.**
 - Alternative: leave them until a second currency exists. Cheap now, easy to forget then.
 
 **Q4. Totals.** Revenue, « Dépensé » and the earnings total stay in the salon's current currency, and the client's « Passés » summary keeps its rule (the newest visit's currency, now its stamp), until a second currency exists?
-- **Recommended: yes.** A mixed sum cannot occur today; multi-pays §4.6 (« no synthetic totals ») decides it then.
+- **Recommended: yes.** A mixed sum cannot occur today; multi-pays §4.6 (« no synthetic totals ») decides it then. → ✅ **Decision 190.**
 
 **Q5. The market-change gap.** Today four writes can change a salon's currency and timezone, bookings or not: the area pick, a commune-only edit, the publish self-heal and the demo restore (§2.5). Add a tripwire test now that fails the day a second currency or timezone is added to the seed, and build the guard, covering all four, with that market?
-- **Recommended: yes.**
+- **Recommended: yes.** → ✅ **Decision 191.**
 - Alternatives: build the guard now (no second market exists to exercise it against); or nothing, and T57 stays half-false.
 
 **Q6. Reading production.** Step 0 before the deploy (three read-only `SELECT`s: countries, salons by currency, booking count) and one count after, each on your yes in Cloud SQL Studio?
-- **Recommended: yes.** It turns "exact" from inferred into observed.
+- **Recommended: yes.** It turns "exact" from inferred into observed. → ✅ **Decision 192.** Approved in principle; each read is still asked for at the moment it runs.
 - Alternative: the API read-back only (a booking now shows `currency`), which cannot see the other rows.
 
 **Q7. When.** Build B1 next, independent of Track A: backend only, no app release?
-- **Recommended: yes**, because the backfill is exact only while one currency exists.
+- **Recommended: yes**, because the backfill is exact only while one currency exists. → ✅ **Decision 193.**
 - B2, B3 and B4 follow, each on your word.
 
-*Decision numbers are given with the answers, starting at **187**: 171–181 are the home stories' (#835) and 182–186 are A1w's (#836).*
+*Decisions 187–193 (171–181 are the home stories', 182–186 A1w's). The next free number is 194.*
 
 ---
 
