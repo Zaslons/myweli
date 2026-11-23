@@ -1,0 +1,49 @@
+- 🟡 **MyWeli (client) face à l’App Store et à Google Play : l’audit avant tout travail — pas prête, et pourquoi (documentation · mobile · 2026-11-23 — BACKLOG B0.10, décision 51).** Branche `docs/consumer-app-release-audit`, créée depuis `main` (`d0a31d63`). Audit : [consumer-app-release-audit.md](../../design/consumer-app-release-audit.md). Documentation seule : aucun code ne change, rien n’est construit, déployé ni saisi dans une console, aucune lecture de la production. **L’ordre proposé (§7) est approuvé tel quel par le propriétaire le 2026-11-23 (décision 160)** ; rien n’est construit avant la spec d’A1.
+  - **Pourquoi :**
+    - le propriétaire veut profiter de l’attente du test fermé de MyWeli Pro pour préparer l’app cliente sur les deux stores ;
+    - il veut d’abord une réponse honnête : où en est-elle face à la feuille de route, et qu’est-ce qui manque ?
+  - **Comment c’est lu :**
+    - le code de `main` (`d0a31d63`), la PRD, la ROADMAP, MODULES, le BACKLOG, LAUNCH et les specs des stores ;
+    - deux passes de lecture larges, l’une sur les fonctions de l’app, l’autre sur ses dépendances au backend et au site ;
+    - **chaque écart classé au §6 a été relu dans le code** ; ce qu’aucun fichier ne peut montrer (une console, un appareil, la production) est marqué non vérifié, avec la façon de le vérifier (§9).
+  - **Le verdict : pas prête.**
+    - **L’app dit des choses fausses :**
+      - trois « stories » codées en dur sur chaque accueil, dont « -15% sur une sélection de salons · Offre limitée » et un « Nouveau salon » qui n’existe pas ;
+      - « Votre acompte … sera remboursé » à l’annulation, alors que MyWeli ne rembourse rien (B12.11) ;
+      - « Langue » qui répond « Fonctionnalité à venir » ;
+      - des rendez-vous passés jamais confirmés affichés « Terminé ».
+    - **Des exigences V1 marquées ✅ dans la ROADMAP ne sont pas tenues dans l’app :**
+      - la barre de recherche ne cherche pas, et les catégories ne sont pas celles de la Côte d’Ivoire (FR-DISC-003/004) ;
+      - la page du salon n’a pas d’équipe (FR-DISC-006) ;
+      - le détail d’un rendez-vous n’affiche ni statut, ni salon, ni prestations, ni itinéraire (FR-APPT-002/006) ;
+      - la synchronisation des rendez-vous saisis par le salon ne peut se déclencher pour aucun compte créé aujourd’hui (FR-APPT-008) : seul l’OTP par téléphone vérifie un numéro, et il est désactivé.
+    - **Rien n’existe côté stores pour cette app :**
+      - ni dossier App Store, ni dossier Play à jour, ni captures ;
+      - les textes de permission iOS décrivent la galerie d’un salon ;
+      - l’étiquette de confidentialité et la politique omettent la photo de profil du client ;
+      - aucun build du code d’aujourd’hui, aucun passage sur appareil : la connexion Apple de `com.myweli.app`, le push iOS de cette app et Cronet sur Android ne sont prouvés nulle part ;
+      - Google exigera probablement un second test fermé de 12 testeurs pendant 14 jours (déduction).
+    - **Hors code, la porte : aucun salon public en production** (0 au dernier relevé, le 2026-11-12 ; décision 51).
+  - **Ce qui tient déjà :**
+    - la plupart des parcours V1 sont construits sur la vraie API et testés : connexion Google, e-mail et Apple ; réservation ; acompte sans détention de fonds, avec la preuve ; annulation, report ; avis et favoris ; notifications ; suppression du compte ;
+    - toute la plomberie partagée avec Pro : signature, R8, la porte TLS et le budget de 30 Mo, que la CI applique **à l’APK client** à chaque PR, Cronet branché dans `main.dart`, Sentry, entitlements, manifeste de confidentialité.
+  - **L’ordre proposé (§7)**, chaque PR depuis `main`, fusionnée sur le mot du propriétaire :
+    - **piste A, le code** : ce que l’app dit devient vrai ; le détail du rendez-vous complet ; une connexion qu’on peut quitter et un push qu’on peut réactiver ; une recherche qui cherche et les catégories ivoiriennes ; l’équipe du salon ; la position précise réservée à Pro sur Android ;
+    - **piste B, les documents et le site** : les documents remis au vrai, la politique et la page de suppression, le dossier des deux stores avec ses gardes, les captures ;
+    - **piste C, les builds et les consoles**, chaque étape sur le oui du propriétaire ; les soumissions attendent des salons publics.
+  - **Six questions au propriétaire (§8) :**
+    - l’ordre des stores, et quand lancer les 14 jours de Play ;
+    - l’iPad ou l’iPhone seul ;
+    - le numéro de version ;
+    - le sort des « stories » ;
+    - combien de salons publics avant la soumission ;
+    - l’accord sur l’ordre.
+  - **Les réponses (2026-11-23) :**
+    - la sixième : « Approve the plan », l’ordre tel quel (décision 160) ;
+    - la quatrième en découle : A1 retire les « stories », et la spec d’A1 montre ce changement avant tout code ;
+    - la première, la deuxième, la troisième et la cinquième restent ouvertes (décisions 161 à 164), chacune avant l’étape qu’elle nomme.
+  - **Ce qui change :**
+    - [consumer-app-release-audit.md](../../design/consumer-app-release-audit.md), nouveau ;
+    - l’index des specs ;
+    - le BACKLOG : B0.10, la ligne « MyWeli (client) », et le §2, les décisions 160 à 164.
+  - **Reste :** la première PR de la piste A, la spec d’A1 (`consumer-app-truth.md`) puis son code ; les réponses aux questions 1, 2, 3 et 5.
