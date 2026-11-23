@@ -40,6 +40,15 @@ void main() {
       {'id': 'a2', 'name': 'Fatou'},
     ],
     'availability': {'bookingHorizonDays': 30, 'minimumNoticeMinutes': 120},
+    // The place and the gallery (A2).
+    'latitude': 5.3599,
+    'longitude': -3.9877,
+    'commune': 'Cocody',
+    'city': 'Abidjan',
+    'imageUrls': [
+      'https://cdn.myweli.com/p1/cover.jpg',
+      'https://cdn.myweli.com/p1/two.jpg',
+    ],
   };
 
   Map<String, dynamic> appointment({List<String>? serviceIds}) => {
@@ -179,6 +188,94 @@ void main() {
       // salon in the country.
       final e = await enrichOne(appointment(), salon());
       expect(e['providerStatus'], 'active');
+    });
+  });
+
+  // A2 (appointment-detail-complete.md §2.1, decision 194): the place and the
+  // cover, so the detail can say where and draw the salon without the public
+  // read Decision C closed.
+  group('the place and the cover (A2)', () {
+    test('a live salon sends its position, commune, city and cover', () async {
+      final e = await enrichOne(appointment(), salon(status: 'active'));
+      expect(e['providerLatitude'], 5.3599);
+      expect(e['providerLongitude'], -3.9877);
+      expect(e['providerCommune'], 'Cocody');
+      expect(e['providerCity'], 'Abidjan');
+      // The cover alone — the gallery is resolved to ONE photo.
+      expect(e['providerPhotoUrl'], 'https://cdn.myweli.com/p1/cover.jpg');
+    });
+
+    test('a salon with no status key is live: it keeps its cover', () async {
+      final e = await enrichOne(appointment(), salon());
+      expect(e['providerPhotoUrl'], 'https://cdn.myweli.com/p1/cover.jpg');
+    });
+
+    test('a position is a pair: half a coordinate is none', () async {
+      for (final missing in ['latitude', 'longitude']) {
+        final p = salon(status: 'active')..remove(missing);
+        final e = await enrichOne(appointment(), p);
+        expect(e['providerLatitude'], isNull, reason: 'no $missing');
+        expect(e['providerLongitude'], isNull, reason: 'no $missing');
+      }
+    });
+
+    test('a whole-number coordinate reads as a double', () async {
+      final p = salon(status: 'active')
+        ..['latitude'] = 5
+        ..['longitude'] = -4;
+      final e = await enrichOne(appointment(), p);
+      expect(e['providerLatitude'], isA<double>());
+      expect(e['providerLongitude'], -4.0);
+    });
+
+    test('no commune, no city, no photo: nulls, never a hole', () async {
+      final p = salon(status: 'active')
+        ..remove('commune')
+        ..remove('city')
+        ..['imageUrls'] = <String>[];
+      final e = await enrichOne(appointment(), p);
+      expect(e.containsKey('providerCommune'), isTrue);
+      expect(e['providerCommune'], isNull);
+      expect(e['providerCity'], isNull);
+      expect(e['providerPhotoUrl'], isNull);
+    });
+
+    test('an empty first photo is no photo', () async {
+      final p = salon(status: 'active')
+        ..['imageUrls'] = ['', 'https://x/2.jpg'];
+      final e = await enrichOne(appointment(), p);
+      expect(e['providerPhotoUrl'], isNull);
+    });
+
+    test('a stopped salon keeps its place and loses its photo', () async {
+      // The place is how a client with a booking still gets there; the photo
+      // is decoration, and a salon can be suspended for what it published.
+      for (final status in ['draft', 'suspended']) {
+        final e = await enrichOne(appointment(), salon(status: status));
+        expect(e['providerLatitude'], 5.3599, reason: status);
+        expect(e['providerCommune'], 'Cocody', reason: status);
+        expect(e['providerCity'], 'Abidjan', reason: status);
+        expect(e['providerPhotoUrl'], isNull, reason: status);
+      }
+    });
+
+    test('a salon that has vanished sends five nulls', () async {
+      final out = await withProviderFacts(
+        InMemoryProvidersRepository([salon(status: 'active')]),
+        [
+          {...appointment(), 'providerId': 'gone'},
+        ],
+      );
+      for (final k in [
+        'providerLatitude',
+        'providerLongitude',
+        'providerCommune',
+        'providerCity',
+        'providerPhotoUrl',
+      ]) {
+        expect(out.single.containsKey(k), isTrue, reason: k);
+        expect(out.single[k], isNull, reason: k);
+      }
     });
   });
 
