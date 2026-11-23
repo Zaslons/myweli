@@ -1,4 +1,4 @@
-- 🟡 **Backend : la devise d’un rendez-vous est enfin enregistrée, et rendue par chaque lecture — B14.1 (backend · documentation · 2026-11-23 — BACKLOG B14.1, décisions 187–193).** Branche `fix/appointment-currency-stamp`, créée depuis `main` (`be39d114`). Spec : [appointment-currency-stamp.md](../../design/appointment-currency-stamp.md) §8.7. **Ni fusionnée, ni déployée, la production n’a pas été lue.**
+- 🟢 **Backend : la devise d’un rendez-vous est enfin enregistrée, et rendue par chaque lecture — B14.1 (backend · documentation · 2026-11-23 — BACKLOG B14.1, décisions 187–193).** Branche `fix/appointment-currency-stamp`, créée depuis `main` (`be39d114`). Spec : [appointment-currency-stamp.md](../../design/appointment-currency-stamp.md) §8.7. **Fusionnée (#840, `d80b4303`) et déployée le 2026-11-23** (révision `myweli-api-00055-jv2`, §9.1).
   - **Le défaut :**
     - depuis multi-pays MP1, le service de réservation inscrit sur chaque rendez-vous la devise de son salon ;
     - le dépôt Postgres ne l’écrivait ni ne la relisait, et la table n’avait pas de colonne ;
@@ -20,7 +20,9 @@
       - le message disait « 5000 FCFA » pour un rendez-vous en EUR ;
     - **après le correctif** (`4234477c`) : le groupe Postgres (9 tests) et 172 tests ciblés au vert. La parité des clés sur les deux chemins confirme que `currency` était la seule clé perdue ;
     - **13 mutations rouges pour la raison annoncée,** deux contrôles verts. Une première mutation était rouge pour une mauvaise raison (une erreur du pilote, pas une valeur perdue) ; le texte d’échec exigé l’a détectée, et la mutation corrigée est rouge pour la bonne raison.
-  - **Reste, chacun sur le mot du propriétaire :**
-    - la fusion de cette PR (elle touche `web/`, par le fichier généré et un commentaire) ;
-    - les trois lectures de la production avant le déploiement, le `deploy-backend.yml`, puis la lecture après ;
-    - B14.2, B14.3 et B14.4.
+  - **Fait, chacun sur le mot du propriétaire (spec §9.1) :**
+    - la fusion (#840, `d80b4303`, l’arbre de `main` égal à la tête testée) ;
+    - les trois lectures de la production, en lecture seule (17:50 UTC) : un pays (`CI | XOF`), les 8 salons en `XOF`, 4 rendez-vous ;
+    - le déploiement (18:00 UTC, `image_tag: d80b430`) : la révision `myweli-api-00055-jv2` sert 100 %, `/health` répond 200 ;
+    - la lecture après : `0047` et `0048` passées à 18:01:33, et les 4 rendez-vous enregistrent `XOF`, aucun vide.
+  - **Reste, chacun sur le mot du propriétaire :** B14.2 (après un déploiement de plus, pour que la cible d’un retour arrière écrive la colonne), B14.3 (app) et B14.4 (site).
