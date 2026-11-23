@@ -1,0 +1,23 @@
+- 🟡 **Site, A1w : « Mes rendez-vous » suit la règle de l’app — la spec, avant tout code (documentation · web · 2026-11-23 — BACKLOG B0.10, décision 160 ; B12.6 (C4), B12.7 (C7)).** Branche `docs/web-account-bookings-truth-spec`, depuis `main` `ad065999`. Spec : [web-account-bookings-truth.md](../../design/web-account-bookings-truth.md). Documentation seule : aucun code, aucun build, aucun déploiement.
+  - **Pourquoi :**
+    - depuis A1 (#834, fusionnée le 2026-11-23), l’app classe les rendez-vous du client selon une table approuvée (décisions 165 à 169) ;
+    - le site classe encore par statut seul : un rendez-vous passé que le salon n’a jamais confirmé reste dans « À venir » avec « En attente » (C4, B12.6), et une absence est rangée dans « Annulés » ;
+    - la décision 168 a voulu la moitié web dans sa propre PR, juste après A1.
+  - **Ce que la spec prévoit, chaque « aujourd’hui » relu dans le code avec son fichier et sa ligne :**
+    - la même table que l’app, `clientTab(a, now)` ; un rendez-vous à l’heure exacte est passé ; un statut inconnu est placé selon sa date, jamais caché ;
+    - chaque onglet dans l’ordre de l’app : « À venir » commençait par le rendez-vous le plus lointain (l’ordre du serveur), il commence par le plus proche ;
+    - la puce « Non confirmé », neutre, sur la carte et dans le détail ; l’Espace pro garde « En attente », et un test empêche ses fichiers d’importer la règle du client ;
+    - « Passés » comme dans l’app (C7) : le résumé des visites « Terminé » seulement, caché à zéro ; les mois dans le fuseau du salon ; « Réserver à nouveau » sous chaque rendez-vous d’un salon ouvert ;
+    - un état vide par onglet, et un titre « Mes rendez-vous » au-dessus des onglets ;
+    - une seule table, dans un fichier lu par les tests du site et de l’app : une règle changée d’un seul côté fait rougir ce côté.
+  - **Ce qui ne change pas :** l’Espace pro ; le backend et le contrat d’API ; le code de l’app (un test seulement).
+  - **Quatre questions au propriétaire (§11), chacune avec une recommandation :**
+    - « Passés » comme dans l’app dès maintenant (C7) ;
+    - « Réserver à nouveau » dans le détail d’un rendez-vous passé « Non confirmé » ou « Confirmé » ;
+    - les mots des états vides ;
+    - le titre « Mes rendez-vous ».
+  - **Ce qui change :**
+    - [web-account-bookings-truth.md](../../design/web-account-bookings-truth.md), nouveau ;
+    - l’index des specs : une ligne pour A1w, et la ligne d’A1 dit qu’elle est fusionnée ;
+    - [consumer-app-truth.md](../../design/consumer-app-truth.md) §2.7 renvoie à la nouvelle spec.
+  - **Reste :** les réponses du propriétaire, puis la PR A1w ; sa fusion est un déploiement en production de `myweli.com`, sur le mot du propriétaire.
