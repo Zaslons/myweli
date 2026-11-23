@@ -1,0 +1,41 @@
+- 🟡 **MyWeli (client) et site, A2 : le détail d’un rendez-vous, complet — la spec, avant tout code (documentation · backend · app · web · 2026-11-23 — BACKLOG B0.10, décision 160, piste A ; écart 9 de l’audit, FR-APPT-002, FR-APPT-006, FR-REBOOK-001).** Branche `docs/appointment-detail-spec`, depuis `main` `95072597`. Spec : [appointment-detail-complete.md](../../design/appointment-detail-complete.md). Documentation seule : aucun code, aucun build, aucun déploiement.
+  - **Pourquoi :**
+    - dans l’app, le détail d’un rendez-vous ne montre ni le statut, ni le salon (nom, photo, adresse), ni les prestations, ni d’itinéraire ;
+    - c’est l’écran qu’un client ouvre le jour même ;
+    - sur le site, il manque l’adresse, l’itinéraire et la photo, et l’état de l’acompte une fois confirmé ;
+    - A1w a laissé à A2 la mise en page du détail et le ton de sa pastille.
+  - **Ce que la spec prévoit :**
+    - le rendez-vous porte cinq faits publics du salon : sa position, sa commune, sa ville et, s’il est en ligne, sa photo de couverture. Le contrat d’API change, avec des champs facultatifs. Un salon arrêté garde sa position mais plus sa photo ;
+    - une seule mise en page sur les deux surfaces :
+      - l’en-tête : photo au format 3:2 de la couverture du salon, nom, pastille et une phrase de statut ;
+      - « Le rendez-vous » : la date avec le jour, l’heure de début et de fin, le spécialiste, le calendrier ;
+      - « Prestations » : une par ligne ;
+      - « Le salon » : l’adresse ; « Itinéraire » seulement avec une position ; « Appeler », « WhatsApp » et « Voir le salon » seulement quand ils servent ;
+      - « Paiement » : une seule table d’états de l’acompte, et le solde seulement tant que le rendez-vous est ouvert ;
+      - les actions, avec un seul bouton principal par état ;
+    - « Envoyer l’acompte » s’arrête à l’heure du rendez-vous, sur les deux surfaces ;
+    - « Réserver à nouveau » arrive dans le détail de l’app ;
+    - la carte « Mes rendez-vous » de l’app lit la photo, le lieu et la position sur le rendez-vous lui-même ;
+    - deux tables partagées, lues par les tests du site et de l’app : les phrases de statut et les états de l’acompte.
+  - **Relue par un lecteur indépendant, chargé de la réfuter :** 15 constats, chacun vérifié dans le code puis intégré. Parmi eux :
+    - « Acompte confirmé » peut être faux : un salon peut confirmer un rendez-vous sans justificatif ;
+    - le solde s’affichait sur un rendez-vous annulé ;
+    - la phrase prévue pour un acompte annulé n’existait nulle part ;
+    - la photo au 16:9 contredisait la couverture 3:2 que le propriétaire a choisie.
+  - **Trouvé en l’écrivant ou en la relisant, hors d’A2 :**
+    - le détail d’un rendez-vous saisi par le salon ne peut pas s’ouvrir (le serveur répond 403). Personne ne le rencontre en production aujourd’hui, car la synchronisation automatique est éteinte ; c’est pour la correction de cette synchronisation ;
+    - l’app devine « Réservé par votre salon » d’après `clientName` ; le site lit `userId == 'manual'`. A2 donne à l’app la règle du site ;
+    - l’app affiche toujours « Appeler » et « WhatsApp », qui échouent après le tap sans numéro ;
+    - le lien « Payer avec Wave » du site mesure environ 28 px.
+  - **Dix questions au propriétaire (§11)**, chacune avec une recommandation :
+    - les champs du backend ;
+    - l’itinéraire sans recherche d’adresse ;
+    - les trois phrases de statut ;
+    - la table de l’acompte ;
+    - pas de carte ;
+    - la carte « Mes rendez-vous » ;
+    - le titre et la date ;
+    - « Réserver à nouveau » dans le détail de l’app ;
+    - les reçus dans une spec à part ;
+    - trois PR dans l’ordre A2-api, A2, A2w.
+  - **Reste :** les réponses du propriétaire, puis les trois PR. Le déploiement du backend et la fusion d’A2w sont des déploiements en production, sur le mot du propriétaire.
