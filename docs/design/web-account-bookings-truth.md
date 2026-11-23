@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | **Approved by the owner on 2026-11-23** (« Approve as recommended »: the five recommendations of §11, BACKLOG decisions 182–186). An independent reader checked it once against the code on 2026-11-23. Each of its 15 findings was checked again in the code before it went in. **Built on 2026-11-23** in its own PR (A1w, branch `feat/web-account-passes`); its merge is a production web deploy, on the owner's word. |
+| **Status** | **Approved by the owner on 2026-11-23** (« Approve as recommended »: the five recommendations of §11, BACKLOG decisions 182–186). An independent reader checked it once against the code on 2026-11-23. Each of its 15 findings was checked again in the code before it went in. **Built on 2026-11-23** in its own PR (A1w, #838, branch `feat/web-account-passes`); its merge is a production web deploy, on the owner's word. |
 | **Owner** | Sadreddine |
 | **Last updated** | 2026-11-23 |
 | **PRD ref / phase** | FR-APPT-001, FR-APPT-003/005 · V1 · BACKLOG B0.10 (decision 160), B12.6 (C4), B12.7 (C7, part) |
