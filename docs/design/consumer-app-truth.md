@@ -257,7 +257,7 @@ The strings live in `ios/tool/setup_flavours.rb:75-78`. The script writes them i
 - `providerName` and `serviceNames`;
 - `status`;
 - `depositAmount`, `depositScreenshotUrl` and `cancellationWindowHours`;
-- `clientName`, `currency` and `providerCurrency`.
+- `clientName`, `currency` and `providerCurrency`. **Corrected 2026-11-23:** `currency` is declared but never stored (the Postgres insert has no column for it), so the app reads `providerCurrency`. Found while writing [web-account-bookings-truth.md](web-account-bookings-truth.md) §1; a backend task of its own.
 
 `docs/api/openapi.yaml` does not change.
 
