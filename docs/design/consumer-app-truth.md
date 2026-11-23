@@ -241,7 +241,7 @@ The strings live in `ios/tool/setup_flavours.rb:75-78`. The script writes them i
   - `groupVisitsByMonth` and `totalSpent` stay;
   - the unused `pastAppointments` getter goes; it also listed past cancelled bookings.
 
-**The web half (PR A1w; closes B12.6 and C4):**
+**The web half (PR A1w; closes B12.6 and C4):** its own spec, [web-account-bookings-truth.md](web-account-bookings-truth.md), written 2026-11-23 after A1 merged (#834). It names the function `clientTab(a, now)`, as in the app, and adds the order of each tab, C7's history, an empty state per tab and a heading, each asked in its §11.
 - `categorize(a, now)` replaces `categorize(status)`, with the same table.
 - `clientStatusLabel(a, now)` gives « Non confirmé » for a past pending booking.
 - « Passés » gains no-shows and past pending and confirmed bookings, and « Annulés » loses no-shows.
@@ -257,7 +257,7 @@ The strings live in `ios/tool/setup_flavours.rb:75-78`. The script writes them i
 - `providerName` and `serviceNames`;
 - `status`;
 - `depositAmount`, `depositScreenshotUrl` and `cancellationWindowHours`;
-- `clientName`, `currency` and `providerCurrency`.
+- `clientName`, `currency` and `providerCurrency`. **Corrected 2026-11-23:** `currency` is declared but never stored (the Postgres insert has no column for it), so the app reads `providerCurrency`. Found while writing [web-account-bookings-truth.md](web-account-bookings-truth.md) §1; a backend task of its own.
 
 `docs/api/openapi.yaml` does not change.
 
