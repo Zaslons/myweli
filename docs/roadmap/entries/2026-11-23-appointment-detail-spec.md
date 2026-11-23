@@ -27,7 +27,7 @@
     - l’app devine « Réservé par votre salon » d’après `clientName` ; le site lit `userId == 'manual'`. A2 donne à l’app la règle du site ;
     - l’app affiche toujours « Appeler » et « WhatsApp », qui échouent après le tap sans numéro ;
     - le lien « Payer avec Wave » du site mesure environ 28 px.
-  - **Dix questions au propriétaire (§11)**, chacune avec une recommandation :
+  - **Dix questions au propriétaire (§11)**, chacune avec une recommandation, toutes approuvées le 2026-11-23, « Approve as recommended » (décisions 194 à 203) :
     - les champs du backend ;
     - l’itinéraire sans recherche d’adresse ;
     - les trois phrases de statut ;
@@ -38,4 +38,4 @@
     - « Réserver à nouveau » dans le détail de l’app ;
     - les reçus dans une spec à part ;
     - trois PR dans l’ordre A2-api, A2, A2w.
-  - **Reste :** les réponses du propriétaire, puis les trois PR. Le déploiement du backend et la fusion d’A2w sont des déploiements en production, sur le mot du propriétaire.
+  - **Reste :** les trois PR (A2-api, A2, A2w). Le déploiement du backend et la fusion d’A2w sont des déploiements en production, sur le mot du propriétaire.

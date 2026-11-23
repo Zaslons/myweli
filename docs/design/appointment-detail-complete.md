@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | **Draft, waiting for the owner** (§11: ten questions, each with a recommendation). No code before approval. An independent reader checked it once against the code on 2026-11-23. Each of its 15 findings was checked again in the code before it went in. |
+| **Status** | **Approved by the owner on 2026-11-23** (« Approve as recommended »: the ten recommendations of §11, BACKLOG decisions 194–203). Built in three PRs (A2-api, A2, A2w), each merged on the owner's word. An independent reader checked it once against the code on 2026-11-23. Each of its 15 findings was checked again in the code before it went in. |
 | **Owner** | Sadreddine |
 | **Last updated** | 2026-11-23 |
 | **PRD ref / phase** | FR-APPT-002 (detail), FR-APPT-006 (directions), FR-REBOOK-001 / FR-BOOK-009 (rebook) · V1 · BACKLOG B0.10 (decision 160, Track A) |
@@ -537,6 +537,8 @@ providerPhotoUrl:  { type: string, nullable: true }   # the cover, imageUrls[0];
 - [ ] Each merge and deploy on the owner's word, read back as §9 says.
 
 ## 11. Open questions (each with a recommendation)
+
+**All ten answered on 2026-11-23: « Approve as recommended »** (BACKLOG decisions 194–203, in the order Q1–Q10). Each answer is the recommendation written under its question.
 
 **Q1. Add the salon's position, commune and city, and its cover photo while it is live, to the client's own booking (backend + contract)?**
 - Without them the detail cannot show directions or a photo for a salon the app has not loaded. A2 would fall back to the discovery list, the defect §2.9 fixes on the card.
