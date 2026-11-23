@@ -19,6 +19,7 @@ import '../../core/utils/salon_time.dart';
 import '../../models/appointment.dart';
 import '../../providers/appointment_provider.dart';
 import '../../providers/locality_provider.dart';
+import '../../widgets/booking/cancellation_notice_box.dart';
 import '../../widgets/booking/deposit_payment_sheet.dart';
 import '../../widgets/common/app_async_view.dart';
 import '../../widgets/common/app_button.dart';
@@ -99,12 +100,6 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
     final provider = Provider.of<AppointmentProvider>(context, listen: false);
     // The salon's rule, the web's words (consumer-app-truth.md §2.2).
     final notice = cancellationNotice(appointment, AppClock.now());
-    final Color noticeAccent = switch (notice?.tone) {
-      CancellationNoticeTone.kept => AppColors.error,
-      CancellationNoticeTone.returned => AppColors.success,
-      _ => AppColors.textSecondary,
-    };
-
     final confirmed = await showConfirmDialog(
       context,
       title: 'Annuler le rendez-vous ?',
@@ -115,46 +110,7 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
           const Text('Êtes-vous sûr de vouloir annuler ce rendez-vous ?'),
           if (notice != null) ...[
             const SizedBox(height: AppTheme.spacingSM),
-            Container(
-              padding: const EdgeInsets.all(AppTheme.spacingM),
-              decoration: BoxDecoration(
-                // §13.1: `errorLight`/`successLight` are foregrounds (4.66:1 ON
-                // white). Used as a fill they put `error` ink at 2.00:1 and
-                // `success` ink at 1.85:1 — both illegible. A neutral tint
-                // carries the ink (9.19:1 / 15.98:1) and the semantic hue moves
-                // to the border, beside the glyph that already distinguishes it.
-                color: AppColors.surfaceVariant,
-                border: Border.all(
-                  color: notice.tone == CancellationNoticeTone.neutral
-                      ? AppColors.border
-                      : noticeAccent,
-                ),
-                borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-              ),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Icon(
-                    notice.tone == CancellationNoticeTone.kept
-                        ? Icons.warning_amber_rounded
-                        : Icons.info_outline,
-                    size: AppTheme.iconS,
-                    color: noticeAccent,
-                  ),
-                  const SizedBox(width: AppTheme.spacingS),
-                  Expanded(
-                    child: Text(
-                      notice.text,
-                      style: AppTextStyles.bodySmall.copyWith(
-                        color: notice.tone == CancellationNoticeTone.kept
-                            ? AppColors.error
-                            : AppColors.textPrimary,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
+            CancellationNoticeBox(notice: notice),
           ],
         ],
       ),
