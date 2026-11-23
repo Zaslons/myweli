@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | **Approved by the owner on 2026-11-23** (« Approve as recommended »: the five recommendations of §11, BACKLOG decisions 182–186). An independent reader checked it once against the code on 2026-11-23. Each of its 15 findings was checked again in the code before it went in. Built in its own PR (A1w, branch `feat/web-account-passes`); its merge is a production web deploy, on the owner's word. |
+| **Status** | **Approved by the owner on 2026-11-23** (« Approve as recommended »: the five recommendations of §11, BACKLOG decisions 182–186). An independent reader checked it once against the code on 2026-11-23. Each of its 15 findings was checked again in the code before it went in. **Built on 2026-11-23** in its own PR (A1w, #838, branch `feat/web-account-passes`); its merge is a production web deploy, on the owner's word. |
 | **Owner** | Sadreddine |
 | **Last updated** | 2026-11-23 |
 | **PRD ref / phase** | FR-APPT-001, FR-APPT-003/005 · V1 · BACKLOG B0.10 (decision 160), B12.6 (C4), B12.7 (C7, part) |
@@ -104,12 +104,13 @@ same table, the same words and the same flow: what a client reads on
   - **Exactly at now counts as past**, as `isUpcoming` already says (`> Date.now()`) and as the app says.
 - **A status this build does not know is placed by its date.** It goes to « À venir » if it is in the future and « Passés » otherwise, with its raw label as today.
   - This fails open: a booking is never hidden.
-  - The app cannot meet the case, because its status is a closed enum.
+  - *Corrected 2026-11-23 (independent review):* the app does not « fail open » here. It reads an unknown status as `pending` (`appointment.dart:329-331`, `orElse`), so it would say « En attente » or « Non confirmé » where the web shows the raw word. Neither surface meets the case today: the API's enum and the server produce only the five statuses.
 - **`isUpcoming(a, now)` keeps its status check and asks the rule only about the time.** It is true when the status is `pending` or `confirmed` and `clientTab(a, now) === 'upcoming'`.
   - It answers exactly as today, including for an unknown status, which is never upcoming. So « Reporter », the calendar block and the salon page's `SalonVisitsCard` do not change.
   - `SalonVisitsCard`'s `.filter(isUpcoming)` (`SalonVisitsCard.tsx:35`) becomes a lambda that passes `now`. A bare `filter` would hand the list index in as `now`.
 - **One `now` per render.** The three tabs, the chips and the summary read the same instant, so they cannot disagree.
   - A booking whose time passes while the page is open moves on the next load, as in the app.
+  - *As built (2026-11-23, after the independent review):* the list takes its instant **when the bookings load**, so a tab click never moves a booking. The detail takes one **per render**, as `isUpcoming` did before A1w. The cancel sentence reads that instant too, so a client who taps « Annuler » after the time is told it has passed, and the chip and « Reporter » beside it agree. Both are tested by moving the clock while the page stays open.
 
 ### 2.2 Each tab: its order, as a real list
 
@@ -231,6 +232,7 @@ From top to bottom, on a phone and on a desktop alike. The page is one 672 px co
 | A salon status this build does not know | No button and no sentence (`salonIsLive` false, `salonStoppedMessageFor` null), as on the detail today |
 | A long salon name, or 200 % text | The card wraps as today; the chip and the button stay inside 320 px |
 | An unknown booking status | Placed by its date, raw label; never hidden; never upcoming for « Reporter » |
+| A date or a salon zone that does not parse | The page fails, as before A1w: the card's own date line already threw on it (`Intl`), and the month heading now throws the same way. The app falls back to Abidjan. The zone is derived by the server from the salon's city (T57), and the date is the server's ISO string, so neither has been seen. |
 | The time passes while the page is open | Moves on the next load, as in the app |
 
 ---
@@ -295,6 +297,7 @@ None.
   - `isUpcoming` answers as before for every status, before and after now, including an unknown status in the future;
   - `ClientStatusChip`: `ink` for neutral, `tinted` otherwise;
   - **a pin:** no file under `components/pro`, `lib/pro` or `app/pro` imports `clientTab`, `clientStatusLabel`, `clientStatusTone`, `bookingsForTab` or `ClientStatusChip`, with comments stripped.
+    - *As built, wider (independent review):* the pin scans every file the Espace pro renders through, following its imports. That includes `components/StatusChip.tsx`, which the folders' scan could not see. Only the two files that define the helpers are exempt. It also forbids `canRebook`, `UNCONFIRMED_PAST_LABEL`, `AppointmentCard`, `PastBookings` and the words « Non confirmé ».
 
 **Component (RTL), `web/tests/account-bookings.test.tsx`** (new), with a frozen clock and `listAppointments` mocked:
 - « À venir »: soonest first; only future `pending` and `confirmed` bookings;

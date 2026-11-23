@@ -42,6 +42,20 @@ export const TODAY = '@TODAY@';
 /// actions (« Reporter ») remain reachable.
 export const TOMORROW = '@TOMORROW@';
 
+/// Substituted for the day before. A consumer booking the salon never
+/// confirmed sits here, so « Passés » holds a « Non confirmé »
+/// (docs/design/web-account-bookings-truth.md §8).
+export const YESTERDAY = '@YESTERDAY@';
+
+/// Substituted for 35 days before. **Always a different salon month from
+/// YESTERDAY**: the two are 34 days apart and no month has 34 days, so
+/// « Passés » always shows at least two months. Still, a spec never asserts a
+/// month heading by its words — only their count and order.
+export const LAST_MONTH = '@LAST_MONTH@';
+
+/// How far back LAST_MONTH reaches, in days.
+export const LAST_MONTH_DAYS = 35;
+
 /// The salon day key, at the moment it is asked for.
 ///
 /// `Africa/Abidjan` is UTC+0 with no DST, so the salon day and the UTC day
@@ -68,5 +82,7 @@ export function stubDayKey(now = new Date(), offsetDays = 0) {
 export function materialiseDates(serialised, now = new Date()) {
   return serialised
     .replaceAll(TODAY, stubDayKey(now))
-    .replaceAll(TOMORROW, stubDayKey(now, 1));
+    .replaceAll(TOMORROW, stubDayKey(now, 1))
+    .replaceAll(YESTERDAY, stubDayKey(now, -1))
+    .replaceAll(LAST_MONTH, stubDayKey(now, -LAST_MONTH_DAYS));
 }

@@ -1,6 +1,7 @@
 /// Pure helpers for the consumer account bookings view. Unit-tested.
 
 import { formatFcfa } from '../format';
+import { SALON_TZ, salonDayKey, salonFormatter } from '../time';
 
 export type Appointment = {
   id: string;
@@ -117,21 +118,168 @@ export const TABS: { key: Tab; label: string }[] = [
   { key: 'cancelled', label: 'Annulés' },
 ];
 
-export function categorize(status: string): Tab {
-  if (status === 'completed') return 'past';
-  // Canonical statuses: pending/confirmed/completed/cancelled/noShow (reject → cancelled).
-  if (status === 'cancelled' || status === 'noShow' || status === 'no_show') {
-    return 'cancelled';
+/// A status as `StatusChip` reads it: lower case, without `_`, `-` or spaces,
+/// so `noShow`, `no_show`, `NO_SHOW` and `no-show` are one status.
+export function normalizedStatus(status: string | null | undefined): string {
+  return (status ?? '').toLowerCase().replace(/[_\s-]/g, '');
+}
+
+/// Is the booking's time strictly after `now`? Exactly at now is past, as in
+/// the app (`isAfter`). A date that does not parse is never ahead.
+function isAhead(a: Appointment, now: Date): boolean {
+  return Date.parse(a.appointmentDate) > now.getTime();
+}
+
+/// Where a client's own booking is listed in « Mes rendez-vous » — the app's
+/// table, the same on both surfaces (docs/design/web-account-bookings-truth.md
+/// §2.1; mobile `client_booking_rule.dart`). Both suites read the table from
+/// docs/design/fixtures/client-booking-rule.json.
+///
+/// | Booking                        | Tab      | Chip         |
+/// |--------------------------------|----------|--------------|
+/// | pending, time after now        | À venir  | En attente   |
+/// | confirmed, time after now      | À venir  | Confirmé     |
+/// | pending, time now or past      | Passés   | Non confirmé |
+/// | confirmed, time now or past    | Passés   | Confirmé     |
+/// | completed, any time            | Passés   | Terminé      |
+/// | noShow, any time               | Passés   | Absent       |
+/// | cancelled                      | Annulés  | Annulé       |
+///
+/// Nothing on the server closes a booking by itself: only the salon marks it
+/// « Terminé » or « Absent ». A status this build does not know is placed by
+/// its date, never hidden (the app cannot meet one: its status is an enum).
+///
+/// Client-only. The Espace pro reads the stored status — a past pending
+/// booking is work still to do there — and a test keeps these helpers out of
+/// `components/pro`, `lib/pro` and `app/pro`.
+export function clientTab(a: Appointment, now: Date = new Date()): Tab {
+  const s = normalizedStatus(a.status);
+  if (s === 'cancelled') return 'cancelled';
+  if (s === 'completed' || s === 'noshow') return 'past';
+  return isAhead(a, now) ? 'upcoming' : 'past';
+}
+
+/// One tab's bookings, in the app's order: « À venir » soonest first,
+/// « Passés » and « Annulés » newest first. Two bookings at the same time
+/// keep the server's order (the sort is stable).
+export function bookingsForTab(
+  items: Appointment[],
+  tab: Tab,
+  now: Date = new Date(),
+): Appointment[] {
+  const sign = tab === 'upcoming' ? 1 : -1;
+  return items
+    .filter((a) => clientTab(a, now) === tab)
+    .sort(
+      (a, b) =>
+        sign * (Date.parse(a.appointmentDate) - Date.parse(b.appointmentDate)) ||
+        0,
+    );
+}
+
+/// The salon never answered and the time has passed: MyWeli does not know
+/// whether the visit happened, so it says only what it knows (decision 166).
+/// Not in `STATUS_FR`: that map is shared with the Espace pro, where the same
+/// booking is still « En attente ».
+export const UNCONFIRMED_PAST_LABEL = 'Non confirmé';
+
+function isUnconfirmedPast(a: Appointment, now: Date): boolean {
+  return normalizedStatus(a.status) === 'pending' && !isAhead(a, now);
+}
+
+/// What a client's status chip says by its colour — always with its words.
+/// The app's `AppChipTone` names, for the four tones a client sees.
+export type ClientTone = 'warning' | 'success' | 'neutral' | 'error';
+
+const CLIENT_TONE: Record<string, ClientTone> = {
+  pending: 'warning',
+  confirmed: 'success',
+  completed: 'neutral',
+  cancelled: 'error',
+  noshow: 'error',
+};
+
+/// The chip's words for a client's own booking: « Non confirmé » for a past
+/// booking nobody confirmed, else the status's own label. A status this build
+/// does not know shows as it came.
+export function clientStatusLabel(a: Appointment, now: Date = new Date()): string {
+  if (isUnconfirmedPast(a, now)) return UNCONFIRMED_PAST_LABEL;
+  return STATUS_FR_NORMALIZED[normalizedStatus(a.status)] ?? a.status;
+}
+
+/// The chip's tone: « Non confirmé » is neutral, since nothing is awaited any
+/// more; every other chip keeps its status tone. Unknown is neutral.
+export function clientStatusTone(
+  a: Appointment,
+  now: Date = new Date(),
+): ClientTone {
+  if (isUnconfirmedPast(a, now)) return 'neutral';
+  return CLIENT_TONE[normalizedStatus(a.status)] ?? 'neutral';
+}
+
+/// One month of « Passés », in the SALON's calendar.
+export type MonthGroup = {
+  /// `YYYY-MM`, the salon's month.
+  key: string;
+  /// « novembre 2026 » — shown upper-case by CSS, read as words.
+  label: string;
+  items: Appointment[];
+};
+
+/// Group bookings by month, newest month first and newest booking first
+/// within each month. The month is the one of the card's own date line: the
+/// salon's zone (`providerTimezone`, else `SALON_TZ`). A booking at 23:30 UTC
+/// on 31 October at a salon in Libreville (UTC+1) is on 1 November there.
+export function groupByMonth(items: Appointment[]): MonthGroup[] {
+  const groups = new Map<string, MonthGroup>();
+  for (const a of items) {
+    const tz = a.providerTimezone ?? SALON_TZ;
+    const at = new Date(a.appointmentDate);
+    const key = salonDayKey(at, tz).slice(0, 7);
+    let g = groups.get(key);
+    if (!g) {
+      g = {
+        key,
+        label: salonFormatter({ month: 'long', year: 'numeric' }, tz).format(at),
+        items: [],
+      };
+      groups.set(key, g);
+    }
+    g.items.push(a);
   }
-  return 'upcoming'; // pending | confirmed
+  const newestFirst = (a: Appointment, b: Appointment) =>
+    Date.parse(b.appointmentDate) - Date.parse(a.appointmentDate) || 0;
+  return [...groups.values()]
+    .map((g) => ({ ...g, items: [...g.items].sort(newestFirst) }))
+    .sort((a, b) => (a.key < b.key ? 1 : a.key > b.key ? -1 : 0));
 }
 
-export function filterByTab(items: Appointment[], tab: Tab): Appointment[] {
-  return items.filter((a) => categorize(a.status) === tab);
+/// The « Passés » summary (decision 167): only bookings the salon marked
+/// « Terminé » count. Null when there are none, so the page never reads
+/// « 0 visite » above a list of past bookings.
+///
+/// The amount is in the NEWEST visit's currency, the app's MVP rule: a
+/// mixed-currency history adds nominally (per-currency totals come after MP2).
+/// The server never stores `currency` today, so in production this is always
+/// `providerCurrency`.
+export function visitSummary(
+  items: Appointment[],
+): { count: number; total: number; currency: string | undefined } | null {
+  const done = items
+    .filter((a) => normalizedStatus(a.status) === 'completed')
+    .sort(
+      (a, b) =>
+        Date.parse(b.appointmentDate) - Date.parse(a.appointmentDate) || 0,
+    );
+  if (done.length === 0) return null;
+  const newest = done[0];
+  return {
+    count: done.length,
+    total: done.reduce((sum, a) => sum + (a.totalPrice ?? 0), 0),
+    currency: newest.currency ?? newest.providerCurrency ?? undefined,
+  };
 }
 
-/// « Reporter » (parity 1.1 — the app's rule): pending/confirmed AND in the
-/// future.
 /// Is this booking still ahead of the client — live, not past, not closed?
 ///
 /// **Split out of `canReschedule`, which was answering two questions.** Three
@@ -141,18 +289,25 @@ export function filterByTab(items: Appointment[], tab: Tab): Appointment[] {
 /// not matter until a salon could be stopped: a client whose salon shut down
 /// must keep the calendar entry and keep seeing the visit listed, while the
 /// move is refused.
-export function isUpcoming(a: Appointment): boolean {
+///
+/// A1w: the status check stays (`pending` or `confirmed`, as spelled), THEN
+/// the client rule decides the time. So it answers exactly as before for every
+/// status — an unknown status, which `clientTab` may file under « À venir »,
+/// is never upcoming here and never gets « Reporter ».
+export function isUpcoming(a: Appointment, now: Date = new Date()): boolean {
   return (
     (a.status === 'pending' || a.status === 'confirmed') &&
-    Date.parse(a.appointmentDate) > Date.now()
+    clientTab(a, now) === 'upcoming'
   );
 }
 
-export function canReschedule(a: Appointment): boolean {
+/// « Reporter » (parity 1.1 — the app's rule): pending/confirmed AND in the
+/// future, at a salon still taking appointments.
+export function canReschedule(a: Appointment, now: Date = new Date()): boolean {
   // The server refuses a move at a stopped salon (`provider_suspended` /
   // `provider_not_published`); withholding the control is a courtesy OVER that
   // gate, never instead of it.
-  return isUpcoming(a) && salonIsLive(a);
+  return isUpcoming(a, now) && salonIsLive(a);
 }
 
 export function canCancel(a: Appointment): boolean {
@@ -203,3 +358,8 @@ const STATUS_FR: Record<string, string> = {
 export function statusLabelFr(status: string): string {
   return STATUS_FR[status] ?? status;
 }
+
+/// The same five labels keyed by `normalizedStatus`, for the client chip.
+const STATUS_FR_NORMALIZED: Record<string, string> = Object.fromEntries(
+  Object.entries(STATUS_FR).map(([k, v]) => [normalizedStatus(k), v]),
+);

@@ -227,6 +227,21 @@ test('consumer account routes are axe-clean', async ({ page }) => {
   }
 });
 
+// A1w (docs/design/web-account-bookings-truth.md §8): « Passés » is a tab, not a
+// URL, so the route above never drew it — the summary's <dl>, the month h3s, the
+// ink chips and the « Réserver à nouveau » links with their hidden salon name.
+test('« Passés », signed in, is axe-clean (A1w)', async ({ page }) => {
+  await page.goto('/connexion');
+  await submitOtpLogin(page, 'client@example.com');
+  await page.waitForURL(/mon-compte|\/$/);
+  await page.goto('/mon-compte');
+  await page.getByRole('button', { name: 'Passés', exact: true }).click();
+  // Drawn, or the scan is about the wrong tab.
+  await expect(page.getByRole('heading', { level: 3 }).first()).toBeVisible();
+  await expect(page.getByText('Non confirmé').first()).toBeVisible();
+  await scan(page, '/mon-compte « Passés »', 'Mon compte');
+});
+
 // The account's route above waits for the bookings, not the favourites, which load
 // with them and now carry a photo, a heading and, for a stopped salon, no link.
 test('the favourites, signed in, are axe-clean, a stopped salon among them', async ({ page }) => {

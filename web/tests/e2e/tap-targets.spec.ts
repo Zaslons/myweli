@@ -335,6 +335,22 @@ test('account: the switch and the review stars', async ({ page }) => {
   }
 });
 
+/// A1w (docs/design/web-account-bookings-truth.md §2.4, §2.7): both
+/// « Réserver à nouveau ». The detail's was a hand-rolled 36px link; the list's
+/// is new. Both are `ButtonLink`s now.
+test('account: « Réserver à nouveau », under « Passés » and on the detail', async ({ page }) => {
+  await signInConsumer(page);
+  await page.getByRole('button', { name: 'Passés', exact: true }).click();
+  const inList = page.getByRole('link', { name: /^Réserver à nouveau chez / }).first();
+  await expect(inList, '« Passés » drew no « Réserver à nouveau »').toBeVisible();
+  await assertBox(inList, '« Passés » « Réserver à nouveau »', { minW: 0 });
+
+  await page.goto('/mon-compte/appt2');
+  const onDetail = page.getByRole('link', { name: 'Réserver à nouveau' });
+  await expect(onDetail).toBeVisible();
+  await assertBox(onDetail, 'detail « Réserver à nouveau »', { minW: 0 });
+});
+
 /// B9 — the five tab strips, which row 7h's "0 remaining" never counted.
 ///
 /// Each button is `px-m py-s` around a 20px line: **36px** inactive, **38px**

@@ -1,15 +1,17 @@
 import Link from 'next/link';
-import { StatusChip } from '../StatusChip';
+import { ClientStatusChip } from './ClientStatusChip';
 import {
   type Appointment,
   salonStoppedMessage,
-  statusLabelFr,
 } from '../../lib/account/appointments';
 import { formatDateTimeFr, formatFcfa } from '../../lib/format';
 import { UNNAMED_SALON, salonNameOr } from '../../lib/salon-name';
 
 /// One booking in the account list. Links to the detail page.
-export function AppointmentCard({ appt }: { appt: Appointment }) {
+///
+/// `now` is the page's one instant (web-account-bookings-truth.md §2.1): the
+/// chip reads the client rule with the same clock as the tabs.
+export function AppointmentCard({ appt, now }: { appt: Appointment; now: Date }) {
   return (
     <Link
       href={`/mon-compte/${appt.id}`}
@@ -46,7 +48,7 @@ export function AppointmentCard({ appt }: { appt: Appointment }) {
           ) : null}
         </div>
         <div className="text-right">
-          <StatusChip status={appt.status} />
+          <ClientStatusChip appt={appt} now={now} />
           {typeof appt.totalPrice === 'number' ? (
             <p className="mt-s text-bodyMedium text-textPrimary">
               {formatFcfa(

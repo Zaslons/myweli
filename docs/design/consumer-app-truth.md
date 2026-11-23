@@ -188,7 +188,7 @@ The strings live in `ios/tool/setup_flavours.rb:75-78`. The script writes them i
   - so **a booking the salon never confirmed reads « Terminé »**, and `VisitSummary` counts it as a visit and adds its price to « dépensés ».
 - **A no-show is in no tab.**
 - **The detail offers « Annuler le rendez-vous » on a no-show** (`appointment_detail_screen.dart:542-571`: only `cancelled` and `completed` hide it). The server refuses it: a closed booking is `invalid_state` (`appointment_lifecycle_service.dart:51, 223-224`).
-- **The web differs** (`categorize(status)`, `web/lib/account/appointments.ts:120-127`):
+- **The web differed until A1w** (2026-11-23, [web-account-bookings-truth.md](web-account-bookings-truth.md)), when it took the same table (`categorize(status)`, `web/lib/account/appointments.ts:120-127`, as read at `d0a31d63`):
   - a past pending or confirmed booking stays in « À venir » (C4, B12.6);
   - a no-show goes to « Annulés ».
 - **Nothing on the server closes a booking by itself.** No cron job completes or expires one (`backend/routes/internal/cron/`, read 2026-11-23); only the salon does, with « Terminé » or « Non présenté » in Pro.
@@ -242,7 +242,7 @@ The strings live in `ios/tool/setup_flavours.rb:75-78`. The script writes them i
   - the unused `pastAppointments` getter goes; it also listed past cancelled bookings.
 
 **The web half (PR A1w; closes B12.6 and C4):** its own spec, [web-account-bookings-truth.md](web-account-bookings-truth.md), written 2026-11-23 after A1 merged (#834). It names the function `clientTab(a, now)`, as in the app, and adds the order of each tab, C7's history, an empty state per tab and a heading, each asked in its §11.
-- `categorize(a, now)` replaces `categorize(status)`, with the same table.
+- `clientTab(a, now)` replaces `categorize(status)`, with the same table (built in A1w, 2026-11-23).
 - `clientStatusLabel(a, now)` gives « Non confirmé » for a past pending booking.
 - « Passés » gains no-shows and past pending and confirmed bookings, and « Annulés » loses no-shows.
 - Unit tests go in `web/tests`.

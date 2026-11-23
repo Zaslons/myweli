@@ -6,10 +6,12 @@ import { createServer } from 'node:http';
 
 import { inspectJpeg } from './_jpeg.mjs';
 import {
+  LAST_MONTH,
   materialiseDates,
   stubDayKey,
   TODAY,
   TOMORROW,
+  YESTERDAY,
 } from './stub-clock.mjs';
 
 const port = Number(process.env.STUB_PORT ?? 8787);
@@ -230,6 +232,17 @@ const todayAt9 = `${TODAY}T09:00:00.000Z`;
 // Consumer bookings sit TOMORROW so future-only actions (« Reporter ») show.
 const tomorrowAt9 = `${TOMORROW}T09:00:00.000Z`;
 
+// A1w (docs/design/web-account-bookings-truth.md §8): three PAST consumer
+// bookings at p1, so « Passés » holds what the client rule moves there — a
+// booking the salon never confirmed (appt6, yesterday), an absence (appt7) and
+// a completed visit (appt8), the last two 35 days back. Every other consumer
+// booking stays TOMORROW. Their status is fixed, like appt2's and appt3's.
+const CONSUMER_PAST = {
+  appt6: { appointmentDate: `${YESTERDAY}T09:00:00.000Z`, status: 'pending' },
+  appt7: { appointmentDate: `${LAST_MONTH}T10:00:00.000Z`, status: 'noShow' },
+  appt8: { appointmentDate: `${LAST_MONTH}T09:00:00.000Z`, status: 'completed' },
+};
+
 // Consumer side (M5/M6) — appt1; cancel is stateful.
 const cancelled = new Set();
 
@@ -364,15 +377,16 @@ const consumerAppt = (id) => ({
   // P3: the chosen spécialiste (1.8) + the booking note (1.4).
   artistId: id === 'appt4' ? null : 'a1',
   notes: 'Cheveux fragiles',
-  appointmentDate: tomorrowAt9,
+  appointmentDate: CONSUMER_PAST[id]?.appointmentDate ?? tomorrowAt9,
   status:
-    id === 'appt2'
+    CONSUMER_PAST[id]?.status ??
+    (id === 'appt2'
       ? 'completed'
       : id === 'appt3'
         ? 'pending'
         : cancelled.has(id)
           ? 'cancelled'
-          : 'confirmed',
+          : 'confirmed'),
   totalPrice: 15000,
   // appt3: pending WITH an attached proof (1.3 « Voir ma capture »).
   depositAmount: id === 'appt3' ? 5000 : 0,
@@ -2327,6 +2341,10 @@ createServer(async (req, res) => {
             // The booking at a salon that stopped — the case the whole slice
             // exists for.
             consumerAppt('appt5'),
+            // A1w: « Passés » — not confirmed, absent, completed.
+            consumerAppt('appt6'),
+            consumerAppt('appt7'),
+            consumerAppt('appt8'),
           ];
       return json(res, 200, {
         items,
