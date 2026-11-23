@@ -158,12 +158,17 @@ class BookingNotifier {
     final wall = dt == null ? null : salonWallClock(dt, salon.tzName);
     final deposit = a['depositAmount'] as num?;
     final total = a['totalPrice'] as num?;
+    // The booking's own stamp first: a reminder or a refund can go out long
+    // after the booking, and its amount is in the currency it was made in
+    // (docs/design/appointment-currency-stamp.md §3.6). The salon's is the
+    // fallback for a row an older image wrote without one.
+    final currency = (a['currency'] as String?) ?? salon.currency;
     return {
       'provider': salon.name,
       if (wall != null) 'date': _date(wall),
       if (wall != null) 'time': _time(wall),
-      if (deposit != null) 'deposit': _money(deposit, salon.currency),
-      if (total != null) 'amount': _money(total, salon.currency),
+      if (deposit != null) 'deposit': _money(deposit, currency),
+      if (total != null) 'amount': _money(total, currency),
     };
   }
 

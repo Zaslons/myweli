@@ -248,6 +248,115 @@ void main() {
       );
     });
 
+    // docs/design/appointment-currency-stamp.md §8.3: the backfill migration
+    // 0048 runs, against rows written the way an image older than 0047
+    // writes them (no `currency` column named). Not red-first: it tests a
+    // constant the fix creates; its evidence is mutations m3, m4 and m10.
+    //
+    // It does NOT assert which form `providers.data` has. That would turn red
+    // on a repair if the storage were ever fixed; R1 and R2 cover both forms
+    // instead.
+    test(
+      'the currency backfill: both forms of the salon document, a '
+      'document that is not JSON, orphans, never overwrites, idempotent',
+      () async {
+        final providers = PostgresProvidersRepository(pool);
+        final salons = <String>[];
+        addTearDown(() async {
+          for (final id in salons) {
+            await pool.execute(
+              Sql.named('DELETE FROM providers WHERE id = @id'),
+              parameters: {'id': id},
+            );
+          }
+        });
+        Future<void> rawSalon(String id, String dataSql, [String? text]) async {
+          salons.add(id);
+          await pool.execute(
+            Sql.named(
+              'INSERT INTO providers (id, data) VALUES (@id, $dataSql)',
+            ),
+            parameters: {'id': id, 'text': ?text},
+          );
+        }
+
+        // R1: written by the production writer, with a non-XOF currency.
+        final r1 =
+            (await providers.createSalon(
+                  name: 'Salon R1',
+                  category: 'salon',
+                  phoneNumber: '+2250700000881',
+                  address: 'Rue R1',
+                ))['id']
+                as String;
+        salons.add(r1);
+        await providers.updateProfile(r1, {'currency': 'XAF'});
+        // R2: the document as a jsonb OBJECT (the ELSE branch).
+        await rawSalon(
+          'p_r2_object',
+          'CAST(@text AS jsonb)',
+          jsonEncode({'name': 'Salon R2', 'currency': 'XAF'}),
+        );
+        // R3: a document with no currency key.
+        await rawSalon(
+          'p_r3_nokey',
+          'CAST(@text AS jsonb)',
+          jsonEncode({'name': 'Salon R3'}),
+        );
+        // R6: a JSON string that is not valid JSON — must not fail the run.
+        await rawSalon(
+          'p_r6_notjson',
+          'to_jsonb(CAST(@text AS text))',
+          'not json',
+        );
+
+        Future<void> oldImageBooking(String id, String providerId) =>
+            pool.execute(
+              Sql.named(
+                'INSERT INTO appointments (id, user_id, provider_id, '
+                'service_ids, appointment_date, status, total_price) '
+                "VALUES (@id, 'u1', @p, '[]', @at, 'confirmed', 1000)",
+              ),
+              parameters: {'id': id, 'p': providerId, 'at': when},
+            );
+        await oldImageBooking('b_r1', r1);
+        await oldImageBooking('b_r2', 'p_r2_object');
+        await oldImageBooking('b_r3', 'p_r3_nokey');
+        await oldImageBooking('b_r4', 'p_gone'); // R4: no salon row
+        await oldImageBooking('b_r6', 'p_r6_notjson');
+        // R5: already stamped XAF, at the seeded salon, which is XOF.
+        await PostgresAppointmentRepository(
+          pool,
+        ).create(apptMap(id: 'b_r5', when: when, currency: 'XAF'));
+
+        Future<Map<String, String?>> currencies() async => {
+          for (final r in await pool.execute(
+            'SELECT id, currency FROM appointments',
+          ))
+            r.toColumnMap()['id'] as String:
+                r.toColumnMap()['currency'] as String?,
+        };
+        expect(
+          (await currencies())['b_r1'],
+          isNull,
+          reason: 'the control: an older image writes no currency',
+        );
+
+        const expected = {
+          'b_r1': 'XAF',
+          'b_r2': 'XAF',
+          'b_r3': 'XOF',
+          'b_r4': 'XOF',
+          'b_r5': 'XAF',
+          'b_r6': 'XOF',
+        };
+        await pool.execute(kAppointmentCurrencyBackfill);
+        expect(await currencies(), expected);
+        await pool.execute(kAppointmentCurrencyBackfill);
+        expect(await currencies(), expected, reason: 'idempotent');
+      },
+    );
+
     test('the partial unique index blocks a second booking on the same slot '
         'FOR THE SAME ARTIST (capacity model, migration 0026)', () async {
       final repo = PostgresAppointmentRepository(pool);

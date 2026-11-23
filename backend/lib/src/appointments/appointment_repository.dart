@@ -188,7 +188,12 @@ class InMemoryAppointmentRepository implements AppointmentRepository {
   ) async {
     for (final a in _all) {
       if (a['id'] == id) {
-        a.addAll(changes);
+        // The stamped currency is immutable, as on Postgres, whose `update`
+        // has no branch for it (docs/design/appointment-currency-stamp.md
+        // §3.5). Only `currency` is aligned: the full six-key whitelist would
+        // break `InMemoryClientsRepository`'s guest-phone change, which
+        // writes `clientPhone` through here.
+        a.addAll(Map<String, dynamic>.of(changes)..remove('currency'));
         return a;
       }
     }
