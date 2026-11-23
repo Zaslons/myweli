@@ -69,20 +69,22 @@ class AppointmentCard extends StatelessWidget {
         // in A1. The discovery list is only the fallback for an older server:
         // it holds the same salon's same facts, so it can lag the booking but
         // never contradict it.
-        final photo = (appointment.providerPhotoUrl ?? '').isNotEmpty
-            ? appointment.providerPhotoUrl
-            : (provider != null && provider.imageUrls.isNotEmpty
-                  ? provider.imageUrls.first
-                  : null);
-        final place =
-            cardPlaceLine(appointment) ?? provider?.city ?? provider?.address;
-        final lat = appointment.hasPosition
-            ? appointment.providerLatitude
-            : provider?.latitude;
-        final lng = appointment.hasPosition
-            ? appointment.providerLongitude
-            : provider?.longitude;
-        final hasPosition = lat != null && lng != null;
+        final photo = cardPhoto(
+          appointment,
+          listedPhoto: provider != null && provider.imageUrls.isNotEmpty
+              ? provider.imageUrls.first
+              : null,
+        );
+        final place = cardPlaceLine(
+          appointment,
+          listedCity: provider?.city,
+          listedAddress: provider?.address,
+        );
+        final position = cardPosition(
+          appointment,
+          listedLat: provider?.latitude,
+          listedLng: provider?.longitude,
+        );
 
         return AppCard(
           onTap: onTap,
@@ -162,7 +164,7 @@ class AppointmentCard extends StatelessWidget {
                           // public read, which 404s a stopped one, and would
                           // answer « Ce salon n’a pas pu être affiché sur la
                           // carte. » (§2.9). Otherwise the place is plain text.
-                          if (hasPosition && appointment.salonIsLive)
+                          if (position != null && appointment.salonIsLive)
                             ConstrainedBox(
                               constraints: const BoxConstraints(
                                 minHeight: 48,
@@ -186,7 +188,7 @@ class AppointmentCard extends StatelessWidget {
                           else
                             _PlaceRow(place: place, onMap: false),
                         ],
-                        if (hasPosition) ...[
+                        if (position case final pos?) ...[
                           const SizedBox(height: AppTheme.spacingS),
                           ConstrainedBox(
                             constraints: const BoxConstraints(
@@ -199,8 +201,8 @@ class AppointmentCard extends StatelessWidget {
                                 behavior: HitTestBehavior.opaque,
                                 onTap: () {
                                   Helpers.launchNavigation(
-                                    latitude: lat,
-                                    longitude: lng,
+                                    latitude: pos.lat,
+                                    longitude: pos.lng,
                                     label: salonName,
                                     context: context,
                                   );

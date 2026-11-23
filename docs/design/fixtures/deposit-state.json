@@ -23,6 +23,9 @@
     {"status": "completed", "minutesFromNow": -60, "proof": true, "label": "Acompte", "sentence": null, "action": "viewProof", "balance": false},
     {"status": "completed", "minutesFromNow": -60, "proof": false, "label": "Acompte", "sentence": null, "action": null, "balance": false},
     {"status": "noShow", "minutesFromNow": -60, "proof": true, "label": "Acompte", "sentence": null, "action": "viewProof", "balance": false},
-    {"status": "noShow", "minutesFromNow": -60, "proof": false, "label": "Acompte", "sentence": null, "action": null, "balance": false}
+    {"status": "noShow", "minutesFromNow": -60, "proof": false, "label": "Acompte", "sentence": null, "action": null, "balance": false},
+    {"status": "confirmed", "minutesFromNow": -60, "proof": false, "label": "Acompte", "sentence": null, "action": null, "balance": true},
+    {"status": "cancelled", "minutesFromNow": 60, "proof": true, "label": "Acompte", "sentence": "Voyez directement avec le salon : MyWeli ne détient aucun acompte.", "action": "viewProof", "balance": false},
+    {"status": "pending", "minutesFromNow": 0, "proof": true, "label": "Acompte — non confirmé", "sentence": "Voyez directement avec le salon : MyWeli ne détient aucun acompte.", "action": "viewProof", "balance": true}
   ]
 }

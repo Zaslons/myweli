@@ -189,7 +189,7 @@ The same order on both surfaces. The web keeps its one 672 px column (`max-w-2xl
     - with no photo, no image block: the name opens the card;
     - a photo that fails to load shows `surfaceVariant`, as the card's `FAILED_COVER`.
   - **On both:** the photo is decoration (empty `alt`, excluded from semantics), because the name beside it says the same.
-- **The salon's name:** the app in `titleLarge`, with `headingLevel: 1`; the web keeps its h1 (`:242`). An unnamed salon reads « Salon » (`UNNAMED_SALON`), as today.
+- **The salon's name:** the app in `titleLarge`, as a heading of its own; the web keeps its h1 (`:242`). *As built (independent review):* in the app it is **level 2**, because the bar's « Rendez-vous » is the screen's level 1 (SYSTEM §13.4). Each heading is its own semantics node (`container: true`), or a screen reader reads the whole card as the heading. An unnamed salon reads « Salon » (`UNNAMED_SALON`), as today.
 - **The status chip:** the client rule (decisions 165–166), in its tone.
   - **The app:** `AppChip.status` with `clientStatusLabel` and `clientStatusTone`, as the « Mes rendez-vous » card.
   - **The web:** `ClientStatusChip` (A1w), which replaces the plain neutral `Chip` (`:248`). This settles what A1w left open.
@@ -317,6 +317,7 @@ The same rules on both surfaces, in this order, each ≥ 48 px, full width on th
   - the photo: `providerPhotoUrl`;
   - the place line: `placeLine` (§2.6) from the booking;
   - « Itinéraire »: the booking's position.
+- **The photo's fallback stops at a stopped salon** (as built, independent review): the server sends no photo for one, and a discovery list loaded before it stopped must not bring the cover back.
 - **When the booking's field is null, the discovery list is still read.**
   - That covers an older server.
   - On a new server it reads the same salon's same facts, so it cannot contradict the booking, only lag it.
@@ -380,7 +381,7 @@ providerPhotoUrl:  { type: string, nullable: true }   # the cover, imageUrls[0];
   - a shared rebook route helper, used by the detail and by « Passés »;
   - `core/utils/client_booking_rule.dart`: `clientStatusSentence`;
   - `core/utils/deposit_state.dart`: `depositState(appointment, now)`;
-  - `core/utils/place_line.dart`: `placeLine`;
+  - `core/utils/salon_place.dart` (as built): `salonAddressLines` for « Le salon », and the card's `cardPlaceLine`, `cardPosition` and `cardPhoto`, each a pure function tested with a discovery list that holds other values;
   - `widgets/booking/appointment_card.dart` and `core/utils/cancellation_policy.dart`: §2.9.
 - **Web:**
   - `components/account/AppointmentDetailClient.tsx`: the sections, `ClientStatusChip`, the photo, « Le salon », the deposit table;

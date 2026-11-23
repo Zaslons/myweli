@@ -24,15 +24,47 @@ List<String> salonAddressLines(Appointment a) {
   return [if (hasAddress) address, if (commune != null && !named) commune];
 }
 
-/// The card's one place line (§2.9): « commune, ville », else the city, else
-/// the address. Null when the booking knows none of them.
-String? cardPlaceLine(Appointment a) {
+/// The card's place line (§2.9): the booking's « commune, ville » when it
+/// knows the commune; else what the discovery list holds for the salon (its
+/// city, else its address) — the card's line before A2, for an older server.
+String? cardPlaceLine(
+  Appointment a, {
+  String? listedCity,
+  String? listedAddress,
+}) {
   final commune = communeLine(a.providerCommune, a.providerCity);
   if (commune != null) return commune;
-  final city = a.providerCity?.trim();
-  if (city != null && city.isNotEmpty) return city;
-  final address = a.providerAddress?.trim();
-  return address == null || address.isEmpty ? null : address;
+  for (final v in [listedCity, listedAddress]) {
+    final t = v?.trim();
+    if (t != null && t.isNotEmpty) return t;
+  }
+  return null;
+}
+
+/// The card's position: the booking's pair first, else the discovery list's.
+({double lat, double lng})? cardPosition(
+  Appointment a, {
+  double? listedLat,
+  double? listedLng,
+}) {
+  if (a.hasPosition) {
+    return (lat: a.providerLatitude!, lng: a.providerLongitude!);
+  }
+  if (listedLat != null && listedLng != null) {
+    return (lat: listedLat, lng: listedLng);
+  }
+  return null;
+}
+
+/// The card's photo: the booking's cover first. The discovery list is the
+/// fallback only while the salon is live: the server sends no photo for a
+/// stopped salon (decision 194), and a list loaded before it stopped must not
+/// bring that cover back.
+String? cardPhoto(Appointment a, {String? listedPhoto}) {
+  final own = a.providerPhotoUrl;
+  if (own != null && own.isNotEmpty) return own;
+  if (!a.salonIsLive) return null;
+  return listedPhoto == null || listedPhoto.isEmpty ? null : listedPhoto;
 }
 
 const _accents = {

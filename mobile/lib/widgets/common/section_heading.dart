@@ -75,6 +75,13 @@ class SectionHeading extends StatelessWidget {
   /// (appointment-detail-complete.md §2.2).
   final int? headingLevel;
 
+  Text get _title => Text(
+    title,
+    style: (style ?? AppTextStyles.titleLarge).copyWith(
+      color: AppColors.textPrimary,
+    ),
+  );
+
   @override
   Widget build(BuildContext context) {
     // **`double.infinity` is load-bearing, and the golden is what found it.**
@@ -93,15 +100,13 @@ class SectionHeading extends StatelessWidget {
         // point of the shape.
         runSpacing: AppTheme.spacingS,
         children: [
-          Semantics(
-            headingLevel: headingLevel,
-            child: Text(
-              title,
-              style: (style ?? AppTextStyles.titleLarge).copyWith(
-                color: AppColors.textPrimary,
-              ),
-            ),
-          ),
+          if (headingLevel case final level?)
+            // `container: true`: its own node. Inside a card (one semantics
+            // container) a bare annotation merges into the card's node, and a
+            // screen reader would read the whole card as the heading.
+            Semantics(container: true, headingLevel: level, child: _title)
+          else
+            _title,
           ?action,
         ],
       ),

@@ -450,19 +450,20 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
             ),
             child: AspectRatio(
               aspectRatio: kSalonCoverAspect,
-              child: ExcludeSemantics(
-                child: photo != null && photo.isNotEmpty
-                    ? TimedCachedImage(
-                        imageUrl: photo,
-                        width: double.infinity,
-                        height: double.infinity,
-                        alignment: kSalonCoverCut,
-                      )
-                    : const SalonPhotoPlaceholder(
-                        width: double.infinity,
-                        height: double.infinity,
-                      ),
-              ),
+              // Decorative either way: `TimedCachedImage` excludes an image
+              // with no label itself (and keeps its own « Réessayer »
+              // reachable), the placeholder excludes itself.
+              child: photo != null && photo.isNotEmpty
+                  ? TimedCachedImage(
+                      imageUrl: photo,
+                      width: double.infinity,
+                      height: double.infinity,
+                      alignment: kSalonCoverCut,
+                    )
+                  : const SalonPhotoPlaceholder(
+                      width: double.infinity,
+                      height: double.infinity,
+                    ),
             ),
           ),
           Padding(
@@ -470,9 +471,12 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // The salon's name is this screen's subject: level 1.
+                // Level 2 under the bar's « Rendez-vous » (level 1, SYSTEM
+                // §13.4), its own node so the chip and the sentence do not
+                // merge into the heading.
                 Semantics(
-                  headingLevel: 1,
+                  container: true,
+                  headingLevel: 2,
                   child: Text(
                     salonNameOr(a.providerName, kUnnamedSalon),
                     style: AppTextStyles.titleLarge.copyWith(

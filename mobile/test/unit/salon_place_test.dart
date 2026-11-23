@@ -69,13 +69,60 @@ void main() {
     expect(salonAddressLines(appt()), isEmpty);
   });
 
-  test('the card: commune, else city, else address', () {
+  test('the card: the booking’s « commune, ville », else the list’s city, '
+      'else the list’s address', () {
     expect(
-      cardPlaceLine(appt(address: 'Rue 12', commune: 'Cocody', city: 'Abj')),
+      cardPlaceLine(
+        appt(address: 'Rue 12', commune: 'Cocody', city: 'Abj'),
+        listedCity: 'Marcory',
+      ),
       'Cocody, Abj',
     );
-    expect(cardPlaceLine(appt(address: 'Rue 12', city: 'Abidjan')), 'Abidjan');
-    expect(cardPlaceLine(appt(address: 'Rue 12')), 'Rue 12');
-    expect(cardPlaceLine(appt()), isNull);
+    // No commune on the booking: the list's city — not the booking's street
+    // address, which an older server already sends (§2.9).
+    expect(
+      cardPlaceLine(
+        appt(address: 'Rue 12', city: 'Abj'),
+        listedCity: 'Abidjan',
+      ),
+      'Abidjan',
+    );
+    expect(
+      cardPlaceLine(appt(address: 'Rue 12'), listedAddress: 'Rue 9'),
+      'Rue 9',
+    );
+    expect(cardPlaceLine(appt(address: 'Rue 12')), isNull);
+  });
+
+  Appointment placed({double? lat, double? lng, String? photo, String? st}) =>
+      appt().copyWith(
+        providerLatitude: lat,
+        providerLongitude: lng,
+        providerPhotoUrl: photo,
+        providerStatus: st,
+      );
+
+  test('the card’s position: the booking’s pair before the list’s', () {
+    expect(
+      cardPosition(placed(lat: 5.3, lng: -3.9), listedLat: 1, listedLng: 1),
+      (lat: 5.3, lng: -3.9),
+    );
+    // Half a pair on the booking is none: the list's then.
+    expect(cardPosition(placed(lat: 5.3), listedLat: 1, listedLng: 2), (
+      lat: 1.0,
+      lng: 2.0,
+    ));
+    expect(cardPosition(placed(), listedLat: 1), isNull);
+  });
+
+  test('the card’s photo: the booking’s, then the list’s only while live', () {
+    expect(cardPhoto(placed(photo: 'own'), listedPhoto: 'listed'), 'own');
+    expect(cardPhoto(placed(), listedPhoto: 'listed'), 'listed');
+    expect(cardPhoto(placed(photo: ''), listedPhoto: 'listed'), 'listed');
+    // A stopped salon: the server sends no photo, and a list loaded before it
+    // stopped must not bring the cover back (decision 194).
+    for (final st in ['draft', 'suspended', 'archived']) {
+      expect(cardPhoto(placed(st: st), listedPhoto: 'listed'), isNull);
+    }
   });
 }

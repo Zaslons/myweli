@@ -122,18 +122,17 @@ void main() {
   });
 
   group('the header (§2.3)', () {
-    testWidgets('the name is a level-1 heading; the chip and its sentence', (
-      tester,
-    ) async {
+    testWidgets('the name is a level-2 heading of its own; the chip and its '
+        'sentence', (tester) async {
       final handle = tester.ensureSemantics();
       await pump(tester, appt(status: AppointmentStatus.pending));
-      expect(
-        tester
-            .getSemantics(find.text('Beauté Divine'))
-            .getSemanticsData()
-            .headingLevel,
-        1,
-      );
+      final name = tester
+          .getSemantics(find.text('Beauté Divine'))
+          .getSemanticsData();
+      // Level 2 under the bar's « Rendez-vous » (level 1, SYSTEM §13.4), and
+      // the name alone: the chip and the sentence are not part of it.
+      expect(name.headingLevel, 2);
+      expect(name.label, 'Beauté Divine');
       expect(find.text('En attente'), findsOneWidget);
       expect(
         find.text('Le salon doit encore confirmer ce rendez-vous.'),
@@ -174,11 +173,12 @@ void main() {
         'Paiement',
         'Notes',
       ]) {
-        expect(
-          tester.getSemantics(find.text(title)).getSemanticsData().headingLevel,
-          2,
-          reason: title,
-        );
+        final data = tester.getSemantics(find.text(title)).getSemanticsData();
+        expect(data.headingLevel, 2, reason: title);
+        // The heading is the TITLE, not the whole card merged into it: a
+        // screen reader must not read « Paiement, Total, 25 000 FCFA… » as
+        // one heading.
+        expect(data.label, title, reason: title);
       }
       handle.dispose();
     });
@@ -187,6 +187,18 @@ void main() {
       await pump(tester, appt());
       expect(find.text('09:00 – 10:30'), findsOneWidget);
       expect(find.text('mercredi 25 novembre 2026'), findsOneWidget);
+    });
+
+    testWidgets('a salon one hour ahead: the start and end in ITS time', (
+      tester,
+    ) async {
+      // 09:00 UTC is 10:00 in Libreville (UTC+1).
+      await pump(
+        tester,
+        appt().copyWith(providerTimezone: 'Africa/Libreville'),
+      );
+      expect(find.text('10:00 – 11:30'), findsOneWidget);
+      expect(find.text('09:00 – 10:30'), findsNothing);
     });
 
     testWidgets('no duration: the start alone', (tester) async {
@@ -260,6 +272,8 @@ void main() {
       await pump(tester, appt(providerStatus: 'suspended', photo: null));
       expect(button('Itinéraire'), findsOneWidget);
       expect(button('Appeler'), findsOneWidget);
+      expect(button('WhatsApp'), findsOneWidget);
+      expect(button('Ajouter au calendrier'), findsOneWidget);
       expect(button('Voir le salon'), findsNothing);
       expect(button('Reporter'), findsNothing);
       expect(button('Annuler le rendez-vous'), findsOneWidget);
@@ -374,11 +388,15 @@ void main() {
       ];
       for (final a in states) {
         await pump(tester, a);
-        // Proof the state drawn is this one, not the previous.
-        expect(
-          find.text(a.status == AppointmentStatus.noShow ? 'Absent' : 'Total'),
-          findsWidgets,
-        );
+        // Proof the state drawn is this one, not the previous: its own chip.
+        const chip = {
+          AppointmentStatus.confirmed: 'Confirmé',
+          AppointmentStatus.pending: 'En attente',
+          AppointmentStatus.completed: 'Terminé',
+          AppointmentStatus.cancelled: 'Annulé',
+          AppointmentStatus.noShow: 'Absent',
+        };
+        expect(find.text(chip[a.status]!), findsOneWidget, reason: '$a');
         expect(primaries(tester), lessThanOrEqualTo(1), reason: '$a');
       }
       // The deposit to send is the one primary: « Reporter » steps back.
