@@ -124,6 +124,29 @@ void main() {
     expect(body, contains('5000 FCFA')); // XAF reads FCFA, never « XOF »
   });
 
+  // docs/design/appointment-currency-stamp.md §8.4. A reminder or a refund
+  // can go out long after the booking: its amount is in the currency the
+  // booking was made in, not the salon's currency today. EUR, not XAF: the
+  // message prints « FCFA » for both XOF and XAF, so an XAF stamp at an XOF
+  // salon would read the same either way and prove nothing.
+  test('amounts are in the BOOKING\'s stamped currency, not the salon\'s '
+      'live one', () async {
+    when(
+      () => providers.byId(any()),
+    ).thenAnswer((_) async => {'name': 'Beauté Divine', 'currency': 'XOF'});
+    await notifier().notify({
+      'id': 'stamped1',
+      'providerId': 'p1',
+      'clientPhone': '+2250700000009',
+      'appointmentDate': '2026-06-28T09:00:00.000Z',
+      'currency': 'EUR',
+      'depositAmount': 5000,
+    }, MessageTemplate.bookingConfirmed);
+    final body = (await outbox.list()).items.single['body'] as String;
+    expect(body, contains('5000 EUR'));
+    expect(body, isNot(contains('FCFA')));
+  });
+
   test('uses clientPhone (manual booking) without a user lookup', () async {
     await notifier().notify({
       'id': 'a1',

@@ -628,6 +628,31 @@ void main() {
       expect((body['items'] as List).single['userId'], 'user_A');
     });
 
+    // docs/design/appointment-currency-stamp.md §8.2.3. The naming rule of
+    // `appointment_enrichment.dart`: an unprefixed key is the booking's own
+    // stamp, a `provider*` key the salon's LIVE fact. A booking made in XAF at
+    // a salon that is XOF now must come back saying both. Green before the
+    // fix too (this runs on the in-memory twin, which kept the stamp): it is a
+    // pin on the enrichment, and turning it into `'currency': p?['currency']`
+    // is what makes it red.
+    test('GET returns the booking\'s stamped currency beside the salon\'s '
+        'live one', () async {
+      await appts.create({
+        'id': 'stamped_xaf',
+        'currency': 'XAF',
+        'userId': 'user_A',
+        'providerId': 'provider1', // the seed salon is XOF
+        'serviceIds': ['service1'],
+        'status': 'confirmed',
+        'appointmentDate': _slotAt(10).toIso8601String(),
+        'totalPrice': 15000,
+      });
+      final body = await jsonOf(await list.onRequest(ctx(getReq(accessA))));
+      final item = (body['items'] as List).single as Map<String, dynamic>;
+      expect(item['currency'], 'XAF', reason: 'the stamp, never overwritten');
+      expect(item['providerCurrency'], 'XOF', reason: 'the salon today');
+    });
+
     test(
       'GET auto-syncs a provider-entered booking matched by verified phone',
       () async {

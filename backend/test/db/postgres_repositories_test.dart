@@ -49,6 +49,7 @@ import 'package:test/test.dart';
 
 import '../access/ensure_owner_contract.dart';
 import '../access/invite_contract.dart';
+import '../appointments/appointment_repository_contract.dart';
 import '../auth/apple_token_repository_contract.dart';
 import '../auth/kyc_write_contract.dart';
 import '../idempotency/idempotency_contract.dart';
@@ -153,8 +154,10 @@ void main() {
     int durationMinutes = 30,
     required DateTime when,
     String? artistId,
+    String? currency = 'XOF',
   }) => {
     'id': id,
+    'currency': currency,
     'userId': userId,
     'providerId': providerId,
     'serviceIds': ['service1'],
@@ -202,6 +205,46 @@ void main() {
       expect(
         await repo.listForProvider('provider1', status: 'pending'),
         isEmpty,
+      );
+    });
+
+    // docs/design/appointment-currency-stamp.md §8.1. Red on every image
+    // before migration 0047: the INSERT had no `currency` column and the read
+    // no key, so production never stored a booking's currency. XAF, not XOF:
+    // a literal XOF default or any XOF fallback would pass on XOF.
+    test('a booking created and read back through Postgres keeps its '
+        'currency', () async {
+      final repo = PostgresAppointmentRepository(pool);
+      final created = await repo.create(
+        apptMap(id: 'cur1', when: when, currency: 'XAF'),
+      );
+      expect(created?['currency'], 'XAF', reason: 'create (RETURNING *)');
+      expect((await repo.byId('cur1'))?['currency'], 'XAF', reason: 'byId');
+      expect(
+        (await repo.listForUser('u1')).single['currency'],
+        'XAF',
+        reason: 'listForUser',
+      );
+      expect(
+        (await repo.listForProvider('provider1')).single['currency'],
+        'XAF',
+        reason: 'listForProvider',
+      );
+      final updated = await repo.update('cur1', {'status': 'confirmed'});
+      expect(updated?['currency'], 'XAF', reason: 'update');
+      expect(
+        (await repo.confirmedInWindow(
+          when.subtract(const Duration(minutes: 1)),
+          when,
+        )).single['currency'],
+        'XAF',
+        reason: 'confirmedInWindow',
+      );
+    });
+
+    group('the twin contract', () {
+      appointmentRepositoryContract(
+        repo: () => PostgresAppointmentRepository(pool),
       );
     });
 
