@@ -620,21 +620,27 @@ const _reviewedProviderIdReads = <String, ({int reads, String why})>{
     reads: 1,
     why: 'the slots of the salon the booking is at',
   ),
-  'lib/screens/appointments/my_bookings_screen.dart · appointment': (
+  // A2: « Passés » and the detail share one rebook route (`rebook.dart`).
+  'lib/core/utils/rebook.dart · a': (
     reads: 1,
-    why: '« Réserver à nouveau » at the booking’s salon',
+    why:
+        '« Réserver à nouveau » at the booking’s salon (Passés and the detail)',
   ),
   'lib/screens/appointments/appointment_detail_screen.dart · appointment': (
     reads: 1,
     why: 'the review sheet for the booking’s salon',
+  ),
+  'lib/screens/appointments/appointment_detail_screen.dart · a': (
+    reads: 1,
+    why: '« Voir le salon » — the page of the booking’s salon (A2)',
   ),
   'lib/screens/providers/provider_detail_screen.dart · a': (
     reads: 1,
     why: 'the consumer’s bookings at this salon',
   ),
   'lib/widgets/booking/appointment_card.dart · appointment': (
-    reads: 1,
-    why: 'the salon card of a booking',
+    reads: 2,
+    why: 'the salon card of a booking, and « Voir sur la carte » on it (A2)',
   ),
   'lib/providers/appointment_provider.dart · a': (
     reads: 1,

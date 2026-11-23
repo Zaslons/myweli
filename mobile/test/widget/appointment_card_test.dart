@@ -5,9 +5,9 @@ import 'package:myweli/core/di/dependency_injection.dart';
 import 'package:myweli/core/utils/salon_id.dart';
 import 'package:myweli/models/appointment.dart';
 import 'package:myweli/models/provider.dart' as models;
-import 'package:myweli/widgets/common/timed_cached_image.dart';
 import 'package:myweli/providers/provider_provider.dart';
 import 'package:myweli/widgets/booking/appointment_card.dart';
+import 'package:myweli/widgets/common/timed_cached_image.dart';
 import 'package:provider/provider.dart';
 
 import '../support/frozen_clock.dart';

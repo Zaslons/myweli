@@ -65,19 +65,18 @@ AppChipTone clientStatusTone(Appointment a, DateTime now) =>
 /// the chip does not (appointment-detail-complete.md §2.3, decision 196).
 /// Pinned with the table in `docs/design/fixtures/client-booking-rule.json`.
 ///
-/// « Annulé » has none on purpose: a salon's refusal is stored as
-/// `cancelled` too, and nothing records who cancelled, so MyWeli cannot say.
-String? clientStatusSentence(Appointment a, DateTime now) {
-  switch (a.status) {
-    case AppointmentStatus.pending:
-      return a.appointmentDate.isAfter(now)
-          ? 'Le salon doit encore confirmer ce rendez-vous.'
-          : 'Le salon n’a pas confirmé ce rendez-vous avant son heure.';
-    case AppointmentStatus.noShow:
-      return 'Le salon a indiqué une absence à ce rendez-vous.';
-    case AppointmentStatus.confirmed:
-    case AppointmentStatus.completed:
-    case AppointmentStatus.cancelled:
-      return null;
-  }
-}
+/// **Keyed on the chip's own words**, not on the status: the label is the one
+/// vocabulary (`status_labels.dart`, `kUnconfirmedPastLabel`), and a sentence
+/// follows whatever the chip says. « Annulé » has none on purpose: a salon's
+/// refusal is stored as `cancelled` too, and nothing records who cancelled.
+String? clientStatusSentence(Appointment a, DateTime now) =>
+    _statusSentences[clientStatusLabel(a, now)];
+
+final Map<String, String> _statusSentences = {
+  StatusLabels.of(AppointmentStatus.pending):
+      'Le salon doit encore confirmer ce rendez-vous.',
+  kUnconfirmedPastLabel:
+      'Le salon n’a pas confirmé ce rendez-vous avant son heure.',
+  StatusLabels.of(AppointmentStatus.noShow):
+      'Le salon a indiqué une absence à ce rendez-vous.',
+};
