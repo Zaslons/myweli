@@ -500,7 +500,7 @@ state and the French copy, and the owner approves it.
 
 | PR | What | Size | Spec |
 |---|---|---|---|
-| A1 | **What the app says is true:** the stories go (gap 2); the cancel sentence takes the salon's rule, as the web does (3); « Langue » goes (12); purpose strings (6); a local placeholder (16); cards and home tiles read the booking's own salon name (part of 9); past unconfirmed bookings and no-shows get honest labels and a tab, one rule shared with the web (15, web C4) | S each, one M PR | `consumer-app-truth.md`: one spec, every changed sentence in French |
+| A1 | **What the app says is true:** the stories go (gap 2); the cancel sentence takes the salon's rule, as the web does (3); « Langue » goes (12); purpose strings (6); a local placeholder (16); cards and home tiles read the booking's own salon name (part of 9); past unconfirmed bookings and no-shows get honest labels and a tab, one rule shared with the web (15, web C4) | S each, one M PR | [consumer-app-truth.md](consumer-app-truth.md): one spec, every changed sentence in French (draft, 2026-11-23) |
 | A2 | **The appointment detail, complete:** status, salon (name, photo, address), services, « Itinéraire », « Appeler »; rebook from the detail (FR-REBOOK-001) | M | yes (UX) |
 | A3 | **Sign-in you can leave, and push you can turn on later:** sign-in pushed rather than replaced, with a close button; `returnTo` kept; a way to ask for push again from Préférences (17) | S | a short spec (flows and states) |
 | A4 | **Search that searches, and the Ivorian categories:** a search field on `GET /providers?q=`, debounced, with every state; the PRD Appendix A chips; « Charger plus »; the map says its commune (11, 20, 22) | M | yes (UX), parity with web `/recherche` |
@@ -568,7 +568,7 @@ when A1, A2, A3 and A6 are merged.
    salons, in which communes, before the client app is submitted?
 6. **This order (§7).** Approve it as written, or change it?
 
-**Answers (2026-11-23).** Q6: « Approve the plan », as written (BACKLOG decision 160). Q4 follows from it: A1 removes the stories, and the A1 spec shows that change before any code. Q1, Q2, Q3 and Q5 are open, as decisions 161–164, each needed before the step it names.
+**Answers (2026-11-23).** Q6: « Approve the plan », as written (BACKLOG decision 160). Q4 followed from it (A1 removed the stories); **decision 170 changed that the same day: the stories stay, behind a flag, until someone manages real ones.** Q1, Q2, Q3 and Q5 are open, as decisions 161–164, each needed before the step it names.
 
 ---
 
