@@ -5386,8 +5386,11 @@ components:
           type: string
           nullable: true
           description: >-
-            Stamped from the salon at creation (multi-pays §4 — immutable);
-            absent on pre-MP1 rows (read as the salon's).
+            Stamped from the salon at creation and stored with the booking
+            (multi-pays §4 — immutable; appointment-currency-stamp.md,
+            migration 0047). Null only on a booking written by an image older
+            than 0047 during a deploy or a rollback window; read it as the
+            salon's (`providerCurrency`).
         providerName:
           type: string
           nullable: true

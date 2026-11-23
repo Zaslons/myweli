@@ -47,6 +47,37 @@ void main() {
           .map((p) => p..['timezone'] = 'Africa/Libreville')
           .toList();
 
+  // docs/design/appointment-currency-stamp.md §8.5, decision 191. A
+  // TRIPWIRE, green by design: it turns red the day the seed gains a second
+  // currency or time zone. That is not a defect being repaired. It is the
+  // moment a guard must exist, because four writes re-derive a salon's
+  // currency and time zone from its area with no check for its bookings: the
+  // area pick and a commune-only edit (`provider_catalog_service.dart`), the
+  // publish self-heal (`salon_provisioning_service.dart`) and the demo
+  // restore (`demo_reset_service.dart`). The guard's PR deletes this test.
+  //
+  // What it cannot see: a market added by a migration that inserts into
+  // `countries` or `cities` directly instead of through these seed lists.
+  test('TRIPWIRE: one currency and one time zone in the locality seed', () {
+    const guard =
+        'A second market is being added. Before it ships, build the guard of '
+        'docs/design/appointment-currency-stamp.md §8.5 (decision 191): '
+        'refuse, or route to support, any write that changes a salon\'s '
+        'currency or time zone once it has bookings (the area pick, a '
+        'commune-only edit, the publish self-heal, the demo restore). Then '
+        'delete this tripwire in that PR.';
+    expect(
+      {for (final c in seedCountries) c.currency},
+      hasLength(1),
+      reason: guard,
+    );
+    expect(
+      {for (final c in seedCities) c.timezone},
+      hasLength(1),
+      reason: guard,
+    );
+  });
+
   group('localities service + route (T56)', () {
     test('the tree: CI → 4 operators → abidjan → 11 communes', () async {
       final tree = await localities.tree();

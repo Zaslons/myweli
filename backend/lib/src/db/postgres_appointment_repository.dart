@@ -9,6 +9,12 @@ import '../appointments/appointment_repository.dart';
 /// unique index `appointments_slot_unique` (`ON CONFLICT DO NOTHING`) for
 /// atomic double-booking prevention — a concurrent insert for the same
 /// (provider, start) returns no row → null. Parameterized throughout.
+///
+/// `currency` is the booking's own stamp, written once and returned by every
+/// read; `update` has no branch for it, which is the immutability rule
+/// (docs/design/appointment-currency-stamp.md §3.4). Every key the booking
+/// service writes must come back — `appointment_repository_contract.dart`
+/// holds both twins to it.
 class PostgresAppointmentRepository implements AppointmentRepository {
   PostgresAppointmentRepository(this._pool);
 
@@ -35,13 +41,13 @@ class PostgresAppointmentRepository implements AppointmentRepository {
           'appointment_date, duration_minutes, ends_at, status, total_price, '
           'deposit_amount, balance_due, cancellation_window_hours, '
           'client_name, client_phone, notes, deposit_screenshot_url, '
-          'created_at) '
+          'created_at, currency) '
           'VALUES (@id, @user_id, @provider_id, @service_ids:jsonb, '
           '@artist_id:text, @appointment_date:timestamptz, @duration_minutes, '
           '@ends_at:timestamptz, @status, @total_price, @deposit_amount, '
           '@balance_due, @cancellation_window_hours, @client_name:text, '
           '@client_phone:text, @notes:text, @deposit_screenshot_url:text, '
-          '@created_at:timestamptz) '
+          '@created_at:timestamptz, @currency:text) '
           'RETURNING *',
         ),
         parameters: {
@@ -63,6 +69,9 @@ class PostgresAppointmentRepository implements AppointmentRepository {
           'notes': a['notes'],
           'deposit_screenshot_url': a['depositScreenshotUrl'],
           'created_at': DateTime.parse(a['createdAt'] as String),
+          // No default here: the booking service is the authority. A missing
+          // stamp stores NULL until B14.2 makes the column refuse it.
+          'currency': a['currency'],
         },
       );
       if (result.isEmpty) return null;
@@ -217,6 +226,9 @@ class PostgresAppointmentRepository implements AppointmentRepository {
       'depositScreenshotUrl': r['deposit_screenshot_url'],
       'createdAt': (r['created_at'] as DateTime).toUtc().toIso8601String(),
       'arrivedAt': (r['arrived_at'] as DateTime?)?.toUtc().toIso8601String(),
+      // NULL only on a row an image older than migration 0047 wrote during a
+      // deploy or a rollback window; readers fall back to the salon's.
+      'currency': r['currency'],
     };
   }
 

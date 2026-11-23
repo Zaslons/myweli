@@ -1281,7 +1281,61 @@ CREATE TABLE IF NOT EXISTS salon_purge_queue (
           "AND meta ? 'query'",
     ],
   ),
+  (
+    id: '0047_appointment_currency',
+    statements: [
+      // B14.1, decisions 187–193 (docs/design/appointment-currency-stamp.md
+      // §3.2): the booking's currency, stamped by the booking service since
+      // multi-pays MP1 and never stored until now. Nullable on purpose: an
+      // older image's INSERT does not name it and writes NULL, which every
+      // reader already handles (`currency ?? providerCurrency`). The NOT NULL
+      // is B14.2, once no rollback target is older than this. Its own
+      // migration, so the table lock is released before the backfill below.
+      'ALTER TABLE appointments ADD COLUMN IF NOT EXISTS currency text',
+    ],
+  ),
+  (
+    id: '0048_appointment_currency_backfill',
+    statements: [
+      // Fills only the empty rows, from each booking's salon (§3.3).
+      kAppointmentCurrencyBackfill,
+    ],
+  ),
 ];
+
+/// Gives every booking with no stored currency its salon's currency, else
+/// XOF — the booking service's own rule (`provider['currency'] ?? 'XOF'`).
+/// Docs: docs/design/appointment-currency-stamp.md §3.2–§3.3.
+///
+/// **The salon's currency at the time this runs, not at the time it was
+/// booked:** nothing recorded the latter. It is exact for every booking while
+/// only XOF has existed (one country in the locality tree).
+///
+/// **`providers.data` is a JSON string in production**, not an object (8 of
+/// 8 rows on 2026-11-20), so `data->>'currency'` is NULL there and a backfill
+/// written that way would stamp XOF everywhere and look right. Both forms are
+/// decoded. Nested `CASE`s because `CASE` is the construct whose evaluation
+/// order Postgres guarantees: the cast only ever sees text
+/// `pg_input_is_valid` accepted (Postgres 16, as CI and Cloud SQL), so one
+/// salon document that is not valid JSON falls to XOF instead of failing the
+/// migration — and with it every deploy.
+///
+/// Only `NULL` rows: it never overwrites a stamp, and running it twice
+/// changes nothing. Run by migration 0048; B14.2 is to run it again, for
+/// rows an older image wrote during a deploy or a rollback window.
+const String kAppointmentCurrencyBackfill = '''
+UPDATE appointments a
+   SET currency = COALESCE(
+         (SELECT CASE jsonb_typeof(p.data)
+                   WHEN 'string' THEN
+                     CASE WHEN pg_input_is_valid(p.data #>> '{}', 'jsonb')
+                          THEN (p.data #>> '{}')::jsonb ->> 'currency' END
+                   ELSE p.data ->> 'currency'
+                 END
+            FROM providers p
+           WHERE p.id = a.provider_id),
+         'XOF')
+ WHERE a.currency IS NULL''';
 
 /// The salons that count as validated and live without asking (§3.7):
 /// every `active` salon, and every `draft` whose offer row says it was

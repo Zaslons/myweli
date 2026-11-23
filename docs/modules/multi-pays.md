@@ -122,8 +122,15 @@ constant. The helpers don't change.
 
 1. `providers.currency` (ISO 4217), **derived from the country at creation,
    immutable self-serve** (the Fresha rule — changing it = a new salon).
+   **Not enforced yet:** four writes re-derive it from the salon's area with
+   no check for bookings; harmless while one country exists, and a tripwire
+   test names the guard to build with the second market (decision 191,
+   [appointment-currency-stamp.md](../design/appointment-currency-stamp.md)
+   §2.5).
 2. Amounts stay **integers in whole francs**; financial records (ledger rows,
-   deposits) are **stamped with the currency at write time**.
+   deposits) are **stamped with the currency at write time**. A booking's
+   stamp is **stored since migration `0047`** (B14.1); before it, the
+   Postgres repository computed and dropped it.
 3. **Prices are never converted** — a booking is priced and paid in the
    salon's currency, whoever books it.
 4. One money formatter per surface (`web/lib/format.ts` `formatFcfa`,
@@ -246,7 +253,10 @@ spec: [design/multi-pays-end-version.md](../design/multi-pays-end-version.md)
 - ✅ Per-salon `timezone` (city-derived) through ALL backend day-math
   (`package:timezone`) and client display — MP1 + MP2/MP3.
 - ✅ Per-salon `currency` (country-derived), stamped on financial records,
-  threaded through display — MP1 + MP2/MP3.
+  threaded through display — MP1 + MP2/MP3. The booking stamp is stored only
+  since migration `0047` (B14.1,
+  [appointment-currency-stamp.md](../design/appointment-currency-stamp.md)):
+  until then it was computed and never kept.
 - ✅ Operator catalog validation + catalog-driven rendering (client enums
   retire; wire strings unchanged) — MP1 + MP2/MP3.
 - ✅ Nested SEO URLs + permanent redirects — MP3.

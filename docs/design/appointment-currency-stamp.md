@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Module** | backend: `appointments` (repository, migration, booking notifier), module `multi-pays` §4. Then two small client PRs: the Pro surfaces of the app and of the website |
-| **Status** | **Approved 2026-11-23.** The owner answered the seven questions of §11 at once, « Approve as recommended »: decisions 187–193 in BACKLOG, batch 14 (B14.1–B14.4 are B1–B4 here). Nothing is built, nothing is deployed, production has not been read. B1 (B14.1) is next; each PR, each production read and each deploy waits for the owner's word. |
+| **Status** | **Approved 2026-11-23.** The owner answered the seven questions of §11 at once, « Approve as recommended »: decisions 187–193 in BACKLOG, batch 14 (B14.1–B14.4 are B1–B4 here). **B1 (B14.1) built 2026-11-23** (§8.7), on the owner's « Yes, build B14.1 »: migrations `0047` and `0048`, the repository, the twin, the notifier, the tripwire and the documents, in its own PR. **Not deployed, production not read**: each production read and the deploy wait for the owner's word (§9). B2, B3 and B4 not started. |
 | **Owner** | the project owner: the answers, each merge, every production read, and each `deploy-backend.yml` dispatch, each on the owner's word |
 | **Last updated** | 2026-11-23 |
 | **PRD ref / phase** | module `multi-pays` MP1 ([multi-pays-end-version.md](multi-pays-end-version.md) §4, [../modules/multi-pays.md](../modules/multi-pays.md) §4) · V1 |
@@ -227,9 +227,8 @@ UPDATE appointments a
   - That test also scans the comments inside each migration, so B1's comments must not contain a flagged phrase (`SET NOT NULL`, `RENAME`, `DROP COLUMN`…). The draft comment above says « The NOT NULL is B2 », which matches none.
 - **`pg_input_is_valid` needs Postgres 16.** The code says CI and Cloud SQL run 16 (`postgres_provider_auth_repository.dart:557-558`), and that guard already runs in production. Step 0's query uses the same expression, so it is also a dry run of the decode (§9).
 
-**The id number** is the next free one when B1 is opened.
-- [managed-home-stories.md](managed-home-stories.md) names `0047` on paper and is not built (decision 179).
-- Whichever lands first takes `0047`; the other **must** renumber in its own PR: `migration_reversibility_test.dart:174-180` requires the ids in sorted order.
+**The id numbers: `0047_appointment_currency` and `0048_appointment_currency_backfill`** (B1 landed first).
+- [managed-home-stories.md](managed-home-stories.md) names `0047` on paper and is not built (decision 179): its PR B **must** renumber (`0049` or later). `migration_reversibility_test.dart:174-180` refuses a duplicate id and an unsorted list, so the collision cannot ship.
 - Ids are strings, and they apply in list order.
 
 ### 3.3 What the backfill uses, said plainly
@@ -463,7 +462,7 @@ Each export writes one row per booking with its amounts and no currency. Decided
 
 ## 8. Tests — red first, each watched red on committed code
 
-**Order.** Each new test is committed **before** the fix and run red against today's repository. Two exceptions say why: 8.2.3 (a pin, green today) and 8.5 (a tripwire, green by design). The commit message records it (verification §2, §11). Postgres tests run in CI with `DATABASE_URL` (`.github/workflows/ci.yml:130-161`) and skip without it. Locally they need a database (memory: never another session's).
+**Order.** Each new test is committed **before** the fix and run red against today's repository. Three exceptions say why: 8.2.3 (a pin, green today), 8.5 (a tripwire, green by design) and 8.3 (it tests a constant the fix creates; its evidence is m3, m4 and m10). The commit message records it (verification §2, §11). Postgres tests run in CI with `DATABASE_URL` (`.github/workflows/ci.yml:130-161`) and skip without it. Locally they need a database (memory: never another session's).
 
 **Isolation.** The suite's `setUp` truncates `appointments` but not `providers` (`postgres_repositories_test.dart:96-103`). A test that changes a salon's currency uses a salon of its own, never the seeded `provider1`.
 
@@ -530,14 +529,16 @@ A booking stamped `EUR` at a salon now `XOF`: the rendered amount says `EUR`, no
 
 | # | Mutation (on committed code) | Must turn red |
 |---|---|---|
-| m1 | drop `currency` from the INSERT, both the column and `@currency` (dropping one alone fails on SQL arity, which proves nothing) | 8.1, 8.2.1 |
+| m1 | drop `currency` from the INSERT: the column, the `@currency` placeholder **and** the parameter-map entry (dropping fewer fails on a SQL or driver error, which proves nothing) | 8.1, 8.2.1 |
 | m2 | drop it from `_toDto` | 8.1, 8.2.1 |
 | m3 | backfill with `p.data->>'currency'` instead of the decoded form | 8.3 R1 (the one that discriminates) |
 | m4 | backfill without `WHERE a.currency IS NULL` | 8.3 R5 |
 | m5 | the twin's `update` merges `currency` again | 8.2.2 |
 | m6 | add a key (`'probe': 1`) to the map `bookManual` builds | 8.2.1 on Postgres |
+| m6b | the same in the map `book` builds | 8.2.1 on Postgres |
 | m7 | notifier back to `salon.currency` | 8.4 |
 | m8 | a second `Country` with another currency in the seed | 8.5 |
+| m8b | a second `City` with another time zone in the seed | 8.5 |
 | m9 | the enrichment writes `'currency': p?['currency']` over the stamp | 8.2.3 |
 | m10 | drop the `pg_input_is_valid` guard (a bare cast) | 8.3 R6 (the statement fails) |
 | m11 | the twin's `create` stores a copy without `currency` | 8.2.1 on the twin: proves the twin half can fail at all |
@@ -547,6 +548,26 @@ A booking stamped `EUR` at a salon now `XOF`: the rendered amount says `EUR`, no
 - `migration_reversibility_test.dart` passes on B1's migrations with no marker.
 
 **Each mutation asserts that the file changed before trusting a green** (verification §11).
+
+### 8.7 As built (B1, 2026-11-23)
+
+**Red first, on committed code** (commit `81184258`, tests only):
+- §8.1: `Expected: 'XAF'`, `Actual: <null>`;
+- §8.2.1 on Postgres, `book` and `bookManual`: « create lost "currency": the service wrote it, the read dropped it »; green on the twin;
+- §8.2.2: `<null>` on Postgres, `'EUR'` on the twin;
+- §8.4: « Acompte reçu : 5000 FCFA » for a booking stamped `EUR`;
+- §8.2.3: green, as stated.
+
+**After the fix** (commit `4234477c`):
+- the Postgres appointment group, 9 tests, green; key parity passing on both paths confirms `currency` was the only key Postgres lost;
+- 172 tests green across the in-memory contract, the notifier, multi-pays (with the tripwire), migration reversibility and timeouts, and appointments.
+
+**Mutations, on committed code, by a harness that refuses a dirty tree, asserts each edit changed the file, and requires the named failure text, not just a non-zero exit:**
+- m1–m11 with m6b and m8b, 13 in all: **all red for the stated reason**;
+- C1 (the twin under m1) and C2 (reversibility with no marker): green;
+- **one false red, caught by the needle:** the first m1 dropped the column and the placeholder but not the parameter, and went red on the driver's « Contains superfluous variables: currency », not on a lost value. Rerun with all three halves, it went red on `Actual: <null>`. A check on the exit code alone would have counted the first run.
+
+**The contract text:** `web/lib/api/schema.ts` regenerated with the lockfile's `openapi-typescript` 7.13.0. Control first: a run on the unchanged contract left no diff; after the rewording, exactly one generated line changed.
 
 ---
 

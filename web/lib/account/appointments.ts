@@ -260,8 +260,9 @@ export function groupByMonth(items: Appointment[]): MonthGroup[] {
 ///
 /// The amount is in the NEWEST visit's currency, the app's MVP rule: a
 /// mixed-currency history adds nominally (per-currency totals come after MP2).
-/// The server never stores `currency` today, so in production this is always
-/// `providerCurrency`.
+/// Before migration 0047 (B14.1) the server stored no `currency`, so older
+/// payloads carry only `providerCurrency`; from it on, each booking's own
+/// stamp (docs/design/appointment-currency-stamp.md).
 export function visitSummary(
   items: Appointment[],
 ): { count: number; total: number; currency: string | undefined } | null {
