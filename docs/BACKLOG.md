@@ -323,6 +323,14 @@ Each question has a recommendation. Answers unblock the item named in brackets.
 
 159. Turn « Publication gérée » on before production, so that a change Google approves waits for your click instead of going live at once? [B0.10] — ✅ **Answered (2026-11-22): « Yes, turn it on before step 10 »**, the audit's recommendation. It is off: read 2026-10-28 (play-store-forms §0.1), and 794's approval on 2026-11-20 published at once. It is turned on just before step 10, on your go at that moment: the setting shown first, read back after saving. From then on, every approved change, the listing's included, waits in « Vue d'ensemble de la publication » until you publish it. It can be turned off again.
 
+**MyWeli (client)'s order of work (batch 0, B0.10)** — asked on 2026-11-23 in [consumer-app-release-audit.md](design/consumer-app-release-audit.md) §8 (PR #832). Q6 is answered. Q1, Q2, Q3 and Q5 are open, each needed before the step named in brackets.
+
+160. The audit's order of work (§7): Track A, the code; Track B, the documents and the website; Track C, builds and consoles, each step on your yes. Approve it as written, or change it? [B0.10] — ✅ **Answered (2026-11-23): « Approve the plan »**, as written. A1 comes first, its spec (`consumer-app-truth.md`) before any code. Each PR comes from `main` and is merged on your word; Track C starts when A1, A2, A3 and A6 are merged. A1 as written removes the home stories, the audit's Q4 recommendation; the A1 spec shows that change before any code.
+161. Store order, and when MyWeli's 14 days on Play start (§8 Q1): iOS first, as for Pro, with Android after? And start MyWeli's closed test as soon as an AAB passes its device pass, even with few public salons, or only after the first salons? *Recommended: iOS first; start the closed test as soon as an AAB passes, so that its 14 days run while salons sign up.* [B0.10, Track C step 3] — **Open.** Needed before Track C's step 3.
+162. iPad (§8 Q2): iPhone only for the first release, like Pro, or keep iPad, with 13-inch screenshots and an iPad layout pass? A device family cannot be withdrawn once shipped; iPhone-only can be widened later. *Recommended: iPhone only.* [B0.10, B3, Track C] — **Open.** Needed before B3 and the first IPA.
+163. Version (§8 Q3): the client's first release is 0.0.x, like Pro, from the shared pubspec, with its App Store record renamed from « 1.0 »? *Recommended: yes.* [B0.10, B3] — **Open.** Needed before B3.
+164. What counts as « salons are public » for decision 51 (§8 Q5): how many salons, in which communes, before MyWeli is submitted? No recommendation: it is a business call. [B0.10, Track C step 4] — **Open.** Needed before the submissions.
+
 ---
 
 ## 3. The batches
@@ -489,7 +497,7 @@ Each question has a recommendation. Answers unblock the item named in brackets.
   - **2026-11-22 — decision 159 (O8):** « Publication gérée » is turned on just before step 10, on your go at that moment. Records: #829 merged (`eff1cc0b`).
   - **2026-11-22 — the two reports of the « Pas de connexion » fix sent** ([android-http3-transport.md](design/android-http3-transport.md) §9), on your « post them », each text shown first: a comment on dart-lang/sdk#63670 from your GitHub account; for Cloudflare, no ticket (the Free plan opens none), a post on their forum from your account, waiting for a moderator. Records: #830 merged (`8f1362a5`).
   - **MyWeli (client):** later (decision 51); play-store-forms §8 lists what to re-audit then.
-    - **2026-11-23 — audited, read-only:** [consumer-app-release-audit.md](design/consumer-app-release-audit.md). Verdict: not ready. Its §6 ranks 24 gaps, its §7 proposes the order of work (code, documents, then builds on your word), and its §8 asks you six questions. Nothing is built before you approve §7.
+    - **2026-11-23 — audited, read-only:** [consumer-app-release-audit.md](design/consumer-app-release-audit.md). Verdict: not ready. Its §6 ranks 24 gaps, its §7 proposes the order of work (code, documents, then builds on your word), and its §8 asks you six questions. **§7 approved 2026-11-23 (decision 160)**: A1's spec comes first, before any code. Q1, Q2, Q3 and Q5 are open as decisions 161–164.
   - **Order:** Android is last (LAUNCH §3).
 - **B0.15 Search text kept 30 days in Google Cloud's request logs (P2 · S · decision 55, open).**
   - **What:** found by B0.10 on 2026-10-28. Cloud Run's own request logs keep the full URL, query string included (read in Cloud Logging: `…/providers?page=1&pageSize=20`), for 30 days. Two requests put personal text there: the Pro client search (`?query=`, a client's name or part of a number) and the public salon search (`?q=`).

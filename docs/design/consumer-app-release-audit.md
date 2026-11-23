@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | **Draft — an audit, for the owner's review.** Nothing is built from it until §7's order is approved. |
+| **Status** | **Audit, read-only. §7's order approved by the owner on 2026-11-23, as written** (BACKLOG decision 160). §8 Q1, Q2, Q3 and Q5 are open (decisions 161–164). |
 | **Owner** | Sadreddine |
 | **Last updated** | 2026-11-23 |
 | **Read at** | `main` `d0a31d63` (2026-11-22). Read-only: no code changed, no test or build run, no device, no console, no production call. |
@@ -567,6 +567,8 @@ when A1, A2, A3 and A6 are merged.
 5. **What counts as « salons are public »** for decision 51's gate: how many
    salons, in which communes, before the client app is submitted?
 6. **This order (§7).** Approve it as written, or change it?
+
+**Answers (2026-11-23).** Q6: « Approve the plan », as written (BACKLOG decision 160). Q4 follows from it: A1 removes the stories, and the A1 spec shows that change before any code. Q1, Q2, Q3 and Q5 are open, as decisions 161–164, each needed before the step it names.
 
 ---
 

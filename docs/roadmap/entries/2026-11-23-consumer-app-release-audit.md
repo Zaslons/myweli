@@ -1,4 +1,4 @@
-- 🟡 **MyWeli (client) face à l’App Store et à Google Play : l’audit avant tout travail — pas prête, et pourquoi (documentation · mobile · 2026-11-23 — BACKLOG B0.10, décision 51).** Branche `docs/consumer-app-release-audit`, créée depuis `main` (`d0a31d63`). Audit : [consumer-app-release-audit.md](../../design/consumer-app-release-audit.md). Documentation seule : aucun code ne change, rien n’est construit, déployé ni saisi dans une console, aucune lecture de la production. Rien n’est construit avant l’accord du propriétaire sur l’ordre proposé (§7).
+- 🟡 **MyWeli (client) face à l’App Store et à Google Play : l’audit avant tout travail — pas prête, et pourquoi (documentation · mobile · 2026-11-23 — BACKLOG B0.10, décision 51).** Branche `docs/consumer-app-release-audit`, créée depuis `main` (`d0a31d63`). Audit : [consumer-app-release-audit.md](../../design/consumer-app-release-audit.md). Documentation seule : aucun code ne change, rien n’est construit, déployé ni saisi dans une console, aucune lecture de la production. **L’ordre proposé (§7) est approuvé tel quel par le propriétaire le 2026-11-23 (décision 160)** ; rien n’est construit avant la spec d’A1.
   - **Pourquoi :**
     - le propriétaire veut profiter de l’attente du test fermé de MyWeli Pro pour préparer l’app cliente sur les deux stores ;
     - il veut d’abord une réponse honnête : où en est-elle face à la feuille de route, et qu’est-ce qui manque ?
@@ -38,8 +38,12 @@
     - le sort des « stories » ;
     - combien de salons publics avant la soumission ;
     - l’accord sur l’ordre.
+  - **Les réponses (2026-11-23) :**
+    - la sixième : « Approve the plan », l’ordre tel quel (décision 160) ;
+    - la quatrième en découle : A1 retire les « stories », et la spec d’A1 montre ce changement avant tout code ;
+    - la première, la deuxième, la troisième et la cinquième restent ouvertes (décisions 161 à 164), chacune avant l’étape qu’elle nomme.
   - **Ce qui change :**
     - [consumer-app-release-audit.md](../../design/consumer-app-release-audit.md), nouveau ;
     - l’index des specs ;
-    - le BACKLOG (B0.10, la ligne « MyWeli (client) »).
-  - **Reste :** les réponses du propriétaire au §8, puis la première PR de la piste A.
+    - le BACKLOG : B0.10, la ligne « MyWeli (client) », et le §2, les décisions 160 à 164.
+  - **Reste :** la première PR de la piste A, la spec d’A1 (`consumer-app-truth.md`) puis son code ; les réponses aux questions 1, 2, 3 et 5.
