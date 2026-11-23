@@ -63,8 +63,9 @@ void main() {
     final export = buildUserDataExport(
       user: user,
       appointments: [
-        appointment('stamped')
-            .copyWith(currency: 'EUR', providerCurrency: 'XOF'),
+        appointment(
+          'stamped',
+        ).copyWith(currency: 'EUR', providerCurrency: 'XOF'),
         appointment('older').copyWith(providerCurrency: 'XAF'),
       ],
       favoriteProviderNames: const [],
