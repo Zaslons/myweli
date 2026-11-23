@@ -1,0 +1,26 @@
+- 🟡 **Backend : la devise d’un rendez-vous est enfin enregistrée, et rendue par chaque lecture — B14.1 (backend · documentation · 2026-11-23 — BACKLOG B14.1, décisions 187–193).** Branche `fix/appointment-currency-stamp`, créée depuis `main` (`be39d114`). Spec : [appointment-currency-stamp.md](../../design/appointment-currency-stamp.md) §8.7. **Ni fusionnée, ni déployée, la production n’a pas été lue.**
+  - **Le défaut :**
+    - depuis multi-pays MP1, le service de réservation inscrit sur chaque rendez-vous la devise de son salon ;
+    - le dépôt Postgres ne l’écrivait ni ne la relisait, et la table n’avait pas de colonne ;
+    - la production n’a donc jamais gardé la devise d’un rendez-vous, et chaque écran affichait la devise **actuelle** du salon ;
+    - aucun montant faux aujourd’hui (un seul pays, le XOF).
+  - **Ce qui change :**
+    - **migration `0047` :** la colonne `appointments.currency`, nullable (une image plus ancienne écrit NULL, que chaque lecteur sait déjà lire) ; le `NOT NULL` viendra avec B14.2 ;
+    - **migration `0048` :** un rattrapage qui ne remplit que les lignes vides, avec la devise du salon de chaque rendez-vous, sinon XOF. `providers.data` est une chaîne JSON en production : `data->>'currency'` y vaut NULL. Les deux formes sont donc décodées, derrière la garde `pg_input_is_valid`, pour qu’un document qui n’est pas du JSON tombe sur XOF au lieu de faire échouer chaque déploiement ;
+    - **le dépôt :** il écrit `currency` et le rend à chaque lecture ; `update` n’a toujours pas de branche pour lui (immuable) ;
+    - **le dépôt en mémoire :** il ignore `currency` à la mise à jour, comme Postgres ;
+    - **les messages :** ils chiffrent un rendez-vous dans sa devise inscrite ;
+    - **un test-alarme (décision 191) :** une seule devise et un seul fuseau dans l’arbre des localités. Il nomme la garde à construire avant un deuxième pays.
+    - **Documents :** le contrat, avec `web/lib/api/schema.ts` régénéré ; T57 dans BACKEND.md ; multi-pays §4 et §10 ; les deux phrases d’A1w qui seraient devenues fausses au déploiement, réécrites pour rester vraies avant comme après.
+  - **Vérifié :**
+    - **tests rouges d’abord,** commités seuls (`81184258`) :
+      - Postgres renvoyait `null` au lieu de `XAF` ;
+      - le contrat des deux dépôts disait « create lost "currency" » ;
+      - le dépôt en mémoire laissait `EUR` écraser `XAF` ;
+      - le message disait « 5000 FCFA » pour un rendez-vous en EUR ;
+    - **après le correctif** (`4234477c`) : le groupe Postgres (9 tests) et 172 tests ciblés au vert. La parité des clés sur les deux chemins confirme que `currency` était la seule clé perdue ;
+    - **13 mutations rouges pour la raison annoncée,** deux contrôles verts. Une première mutation était rouge pour une mauvaise raison (une erreur du pilote, pas une valeur perdue) ; le texte d’échec exigé l’a détectée, et la mutation corrigée est rouge pour la bonne raison.
+  - **Reste, chacun sur le mot du propriétaire :**
+    - la fusion de cette PR (elle touche `web/`, par le fichier généré et un commentaire) ;
+    - les trois lectures de la production avant le déploiement, le `deploy-backend.yml`, puis la lecture après ;
+    - B14.2, B14.3 et B14.4.

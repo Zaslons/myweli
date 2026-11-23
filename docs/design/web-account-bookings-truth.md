@@ -53,7 +53,7 @@ same table, the same words and the same flow: what a client reads on
     - Booking creation stamps it (`booking_service.dart:247`, « immutable — the Fresha rule »).
     - The Postgres insert has no column for it (`postgres_appointment_repository.dart:33-38`), and the `appointments` table has none in `migrations.dart`.
     - So production never sends it back, and every client reads `providerCurrency`, the salon's currency today.
-    - It is a backend task of its own, proposed separately.
+    - It is a backend task of its own: [appointment-currency-stamp.md](appointment-currency-stamp.md), BACKLOG batch 14 (B14.1 stores it from migration `0047`).
   - **The detail offers « Envoyer l’acompte » beside a past « Non confirmé ».**
     - `canAttachDeposit` has no time check (`appointments.ts:103-110`).
     - The app does the same (`appointment_detail_screen.dart:250-261`).
@@ -145,7 +145,7 @@ From top to bottom, on a phone and on a desktop alike. The page is one 672 px co
 - **hidden when there are none**, rather than reading « 0 visite » above a list of past bookings;
 - **the amount** is the sum of their `totalPrice`, in the newest visit's currency (`currency`, else `providerCurrency`), which is the app's MVP rule:
   - a mixed-currency history adds nominally; a per-currency total comes after MP2;
-  - in production that is always `providerCurrency`, because the server never stores `currency` (§1);
+  - until B14.1 is deployed (migration `0047`), the server stores no `currency`, so in production this is `providerCurrency`; from then on, the newest visit's own stamp (§1);
 - **the look:**
   - two `Card`s side by side (WEB-SYSTEM §10), wrapping to one per row when they do not fit (`flex flex-wrap gap-m`), so a long total never breaks inside its number (`amounts-that-fit.md` §2's rule, read by the browser instead of measured);
   - the value in `text-titleLarge`, the label in `text-bodySmall text-textSecondary`;

@@ -7429,7 +7429,7 @@ export interface components {
             artistId?: string | null;
             /** Format: date-time */
             appointmentDate: string;
-            /** @description Stamped from the salon at creation (multi-pays §4 — immutable); absent on pre-MP1 rows (read as the salon's). */
+            /** @description Stamped from the salon at creation and stored with the booking (multi-pays §4 — immutable; appointment-currency-stamp.md, migration 0047). Null only on a booking written by an image older than 0047 during a deploy or a rollback window; read it as the salon's (`providerCurrency`). */
             currency?: string | null;
             /** @description Consumer-read enrichment. **The naming rule for this whole block:** a `provider*`-prefixed key is a LIVE salon fact, re-read on every request and never stored on the booking; an unprefixed key is stamped at write time and immutable (`currency` is the deliberate one — multi-pays §4). These exist so a client's own booking keeps resolving its salon after `GET /providers/{id}` stops serving it (Decision C) — the relationship is authenticated here, so this is the one place the facts may be served for a hidden salon. **Only fields that are public while the salon is `active` may be added here** (T51): everything on it is disclosed to anyone holding a booking at that salon. */
             providerName?: string | null;
