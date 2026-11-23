@@ -1,0 +1,25 @@
+- 🟡 **MyWeli (client), A1 : ce que l’app dit devient vrai — la spec, avant tout code (documentation · mobile · web · 2026-11-23 — BACKLOG B0.10, décision 160 ; B12.6, B12.10, B12.11).** Branche `docs/consumer-app-truth-spec`, empilée sur `docs/consumer-app-release-audit` (#832). Spec : [consumer-app-truth.md](../../design/consumer-app-truth.md). Documentation seule : aucun code, aucun build, aucune console.
+  - **Pourquoi :**
+    - le propriétaire a approuvé l’ordre de travail de l’audit tel quel (décision 160) ; A1 vient en premier, et sa spec avant son code ;
+    - trois des sept changements sont, chacun, un motif de refus à l’App Store : une offre fausse (2.3.1), un contenu provisoire (2.1), un texte de permission qui ne décrit pas l’usage (5.1.1(ii)).
+  - **Les sept changements, chacun relu dans le code avec son fichier et sa ligne :**
+    - les trois « stories » de l’accueil sont retirées, avec leur lecteur et leurs images : une promotion de -15 % que personne ne fait et un salon qui n’existe pas ; les stories publiées par les salons sont prévues en V2 (PRD §7.2) ;
+    - à l’annulation, l’app énonce la règle du salon, mot pour mot comme le site depuis le 2026-11-02, au lieu de promettre un remboursement que MyWeli ne fait jamais ;
+    - « Langue », qui répondait « Fonctionnalité à venir », est retirée : l’app n’existe qu’en français ;
+    - les textes de permission iOS décrivent cette app : la galerie d’un salon disparaît, le justificatif d’acompte rejoint l’appareil photo, et la commune (« Près de moi ») rejoint la position ;
+    - un salon sans photo affiche une image locale au lieu d’appeler `via.placeholder.com` ;
+    - les cartes de rendez-vous et l’accueil lisent le nom du salon et les prestations sur le rendez-vous lui-même, et non dans la page de salons chargée ;
+    - « Passés » dit vrai : un rendez-vous passé que le salon n’a jamais confirmé n’est plus « Terminé » mais « Non confirmé », une absence a enfin un onglet, et l’app ne propose plus d’annuler une absence, ce que le serveur refuse.
+  - **Une règle, deux surfaces :** le classement des rendez-vous du client est le même dans l’app et sur le site ; la moitié web est sa propre PR (A1w), qui ferme B12.6, et sa fusion est un déploiement en production, sur le mot du propriétaire.
+  - **Ce qui ne change pas :** MyWeli Pro (ses listes ont leurs propres cartes, ses textes de permission restent) ; le backend et le contrat d’API.
+  - **Cinq questions au propriétaire (§11), chacune avec une recommandation :**
+    - une absence dans « Passés » ou dans « Annulés » ;
+    - le mot « Non confirmé » ;
+    - le résumé des visites ;
+    - la moitié web dans sa propre PR ;
+    - les phrases en français.
+  - **Ce qui change :**
+    - [consumer-app-truth.md](../../design/consumer-app-truth.md), nouveau ;
+    - l’index des specs ;
+    - la ligne A1 du §7 de l’audit, qui pointe vers la spec.
+  - **Reste :** les réponses du propriétaire, puis la PR A1 (l’app), puis la PR A1w (le site).
