@@ -11,6 +11,7 @@ vi.mock('@sentry/nextjs', () => ({ captureMessage: vi.fn() }));
 vi.mock('next/dynamic', () => ({ default: () => () => null }));
 
 import { AccountClient } from '../components/account/AccountClient';
+import { AppointmentDetailClient } from '../components/account/AppointmentDetailClient';
 import { ClientStatusChip } from '../components/account/ClientStatusChip';
 import type { Appointment } from '../lib/account/appointments';
 
@@ -71,6 +72,16 @@ function serve(items: Appointment[]) {
     'fetch',
     vi.fn(async (url: string) => {
       const path = String(url).split('?')[0];
+      const one = /^\/api\/appointments\/([^/]+)$/.exec(path);
+      if (one) {
+        const a = items.find((x) => x.id === one[1]);
+        return a
+          ? new Response(JSON.stringify(a), { status: 200 })
+          : new Response('{}', { status: 404 });
+      }
+      if (path === '/api/localities') {
+        return new Response(JSON.stringify({ countries: [] }), { status: 200 });
+      }
       if (path === '/api/me') {
         return new Response(JSON.stringify({ id: 'u1', name: 'Awa' }), { status: 200 });
       }
@@ -273,5 +284,40 @@ describe('ClientStatusChip (§2.3)', () => {
     expect(chip(ABSENT).className).toContain('bg-error/10');
     cleanup();
     expect(chip(CANCELLED_OLD).className).toContain('bg-error/10');
+  });
+});
+
+describe('the detail (§2.7, decision 183)', () => {
+  async function detail(a: Appointment) {
+    serve([a]);
+    render(<AppointmentDetailClient id={a.id} />);
+    await screen.findByRole('heading', { level: 1, name: a.providerName });
+  }
+
+  it('reads « Non confirmé » and offers a 48 px « Réserver à nouveau » on a past pending booking', async () => {
+    await detail(UNCONFIRMED);
+    expect(screen.getByText('Non confirmé')).toBeInTheDocument();
+    expect(screen.queryByText('En attente')).toBeNull();
+    const rebook = screen.getByRole('link', { name: 'Réserver à nouveau' });
+    expect(rebook).toHaveAttribute('href', '/beaute-divine/reserver?services=s1&artist=a1');
+    // A ButtonLink: the 48 px floor (it was a hand-rolled 36 px link).
+    expect(rebook.className).toContain('min-h-12');
+    expect(screen.queryByRole('button', { name: 'Reporter' })).toBeNull();
+  });
+
+  it('offers it on a past « Confirmé » too, and never on an upcoming booking', async () => {
+    await detail(PAST_CONFIRMED);
+    expect(screen.getByRole('link', { name: 'Réserver à nouveau' })).toBeInTheDocument();
+    cleanup();
+    await detail(SOON);
+    expect(screen.getByText('En attente')).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Réserver à nouveau' })).toBeNull();
+    // Upcoming keeps « Reporter » (isUpcoming answers as before).
+    expect(screen.getByRole('button', { name: 'Reporter' })).toBeInTheDocument();
+  });
+
+  it('never at a salon that stopped', async () => {
+    await detail(DONE_STOPPED);
+    expect(screen.queryByRole('link', { name: 'Réserver à nouveau' })).toBeNull();
   });
 });
