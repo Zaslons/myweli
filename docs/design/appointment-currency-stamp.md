@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Module** | backend: `appointments` (repository, migration, booking notifier), module `multi-pays` §4. Then two small client PRs: the Pro surfaces of the app and of the website |
-| **Status** | **Approved 2026-11-23.** The owner answered the seven questions of §11 at once, « Approve as recommended »: decisions 187–193 in BACKLOG, batch 14 (B14.1–B14.4 are B1–B4 here). **B1 (B14.1) built 2026-11-23** (§8.7), on the owner's « Yes, build B14.1 »: migrations `0047` and `0048`, the repository, the twin, the notifier, the tripwire and the documents, in its own PR. **Not deployed, production not read**: each production read and the deploy wait for the owner's word (§9). B2, B3 and B4 not started. |
+| **Status** | **Approved 2026-11-23.** The owner answered the seven questions of §11 at once, « Approve as recommended »: decisions 187–193 in BACKLOG, batch 14 (B14.1–B14.4 are B1–B4 here). **B1 (B14.1) built, merged and DEPLOYED 2026-11-23** (§8.7, §9.1): #840, `d80b4303`; production serves `myweli-api-00055-jv2` (image `d80b430`) since 18:01 UTC; migrations `0047` and `0048` ran at boot; every one of the 4 bookings now stores `XOF`. Each step was on the owner's word. B2, B3 and B4 not started; B2 waits for one more deploy (§9.1). |
 | **Owner** | the project owner: the answers, each merge, every production read, and each `deploy-backend.yml` dispatch, each on the owner's word |
 | **Last updated** | 2026-11-23 |
 | **PRD ref / phase** | module `multi-pays` MP1 ([multi-pays-end-version.md](multi-pays-end-version.md) §4, [../modules/multi-pays.md](../modules/multi-pays.md) §4) · V1 |
@@ -620,6 +620,37 @@ SELECT count(*) FROM appointments;
    - `gh run list --workflow=production-checks.yml --limit 3` (verification §16).
 8. **A records PR:** the roadmap entry turns 🟢 and the spec is « Built ».
 
+### 9.1 As run (B1, 2026-11-23)
+
+Each step on the owner's word, in this order: « Yes, merge it », « Yes, run them », « Yes, deploy it ».
+
+**Merged:** #840, squash `d80b4303` on `be39d114`, pinned to the tested head `8929a70f`; `main`'s tree equals it (CI 12/12 on the PR, 10/10 on `main`). The push built and pushed image `d80b430`; staging is absent, so nothing was deployed by it.
+
+**Step 0, 17:50 UTC, read-only.**
+- **Method:** the Cloud SQL Auth Proxy with `--gcloud-auth` on `127.0.0.1:15433`, stopped after. The database URL (secret `DATABASE_URL` v1) was held in environment variables only and never printed. The session was set `default_transaction_read_only=on`, and every query ran inside `BEGIN READ ONLY … ROLLBACK`.
+- **Control:** a probe write (`UPDATE providers SET id = id WHERE false`) was **refused**. The same probe was first shown to pass without the setting and to be refused with it, on a throwaway local database that was then dropped.
+- **Results** (aggregates only):
+  - countries: `CI | XOF`, one row;
+  - salons by currency, through the backfill's own decode: `XOF | 8`, no unreadable group. All 8 documents are JSON strings (2026-11-20), so the naive `data->>'currency'` would have read `NULL` for all 8;
+  - bookings: **4**.
+- **Verdict:** as expected. The backfill is exact, and `pg_input_is_valid` exists in production, so 0048 can run.
+
+**Deploy, 18:00:30 UTC:** `deploy-backend.yml`, `environment: production`, `confirm: deploy`, `image_tag: d80b430`, run `45233724565`. Every step succeeded, including « Verify the revision actually serves ». The rollback target is `myweli-api-00054-7lb`, which was serving 100 % with no pin; B1 is additive, so pinning back to it is safe.
+
+**Read-back, 18:02–18:03 UTC, against what runs:**
+- `status.traffic`: `myweli-api-00055-jv2`, 100 %, `latestRevision`; the revision is labelled `commit: d80b430`, Ready, image `…/api@sha256:23d738b8…`;
+- `https://api.myweli.com/health`: HTTP 200, `env: prod`;
+- the new revision's logs: 21 entries, none at `ERROR` or above;
+- read-only, the same method and control as step 0:
+  - `0047_appointment_currency` applied at 18:01:33.38 and `0048_appointment_currency_backfill` at 18:01:33.48;
+  - the column is `currency | text | nullable`;
+  - bookings by stored currency: **`XOF | 4`**, with **no `NULL`**, so no booking was written by the old revision during the switch;
+- `production-checks.yml`: the last three runs were green; they ran before the deploy, and the next scheduled run covers the new revision.
+
+**Not read:** a booking through the API, because it needs a signed-in account. The stored value is observed above, and the read path is covered by §8.1 and §8.2.
+
+**What this means for B2:** the image a rollback would reach today (`00054-7lb`) is older than 0047 and does not write `currency`. B2 waits for one more backend deploy after this one, so that the rollback target writes the column.
+
 **B2: the contract step** (§3.7). Its own PR, deployed on the owner's word once the image the rollback would reach writes `currency`. Read-back: `NULL` count 0, `/health`, a booking made after it.
 
 **B3: the app** (§5.3, and the two app exports of §5.7). Its own PR. It reaches users with the next builds of both apps; no store action of its own.
@@ -675,7 +706,7 @@ SELECT count(*) FROM appointments;
 - **Recommended: yes**, because the backfill is exact only while one currency exists. → ✅ **Decision 193.**
 - B2, B3 and B4 follow, each on your word.
 
-*Decisions 187–193 (171–181 are the home stories', 182–186 A1w's). The next free number is 194.*
+*Decisions 187–193 (171–181 are the home stories', 182–186 A1w's; 194–203 were then taken by A2, #839).*
 
 ---
 
