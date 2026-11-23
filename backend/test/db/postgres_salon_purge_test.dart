@@ -146,8 +146,8 @@ void main() {
   }) => sql(
     'INSERT INTO appointments (id, user_id, provider_id, service_ids, '
     'appointment_date, status, total_price, deposit_amount, balance_due, '
-    "deposit_screenshot_url) VALUES (@id, 'u1', @p, '[]', @at, 'confirmed', "
-    '1000, 0, 0, @dep:text)',
+    "deposit_screenshot_url, currency) VALUES (@id, 'u1', @p, '[]', @at, "
+    "'confirmed', 1000, 0, 0, @dep:text, 'XOF')",
     {
       'id': id,
       'p': salonId,
