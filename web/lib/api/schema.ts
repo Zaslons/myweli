@@ -7446,6 +7446,16 @@ export interface components {
             providerWhatsapp?: string | null;
             /** @description Consumer-read enrichment — for the calendar export. */
             providerAddress?: string | null;
+            /** @description Consumer-read enrichment (A2, appointment-detail-complete.md §2.1) — the salon's position, for « Itinéraire ». A pair with providerLongitude: both set or both null, never one. Kept for a stopped salon. */
+            providerLatitude?: number | null;
+            /** @description Consumer-read enrichment (A2) — see providerLatitude. */
+            providerLongitude?: number | null;
+            /** @description Consumer-read enrichment (A2) — the salon's commune. */
+            providerCommune?: string | null;
+            /** @description Consumer-read enrichment (A2) — the salon's city. */
+            providerCity?: string | null;
+            /** @description Consumer-read enrichment (A2) — the salon's cover, imageUrls[0], the one photo of the gallery that rides here. Null with no photo, and null for a salon that is not live (draft or suspended): a stopped salon's cover reaches nobody. */
+            providerPhotoUrl?: string | null;
             /** @description Consumer-read enrichment — ISO-3166-1 alpha-2 (multi-pays). */
             providerCountryCode?: string | null;
             /** @description Consumer-read enrichment (multi-pays MP1) — the salon's IANA timezone, for salon-time rendering. */

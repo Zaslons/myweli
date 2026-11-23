@@ -5433,6 +5433,34 @@ components:
           type: string
           nullable: true
           description: Consumer-read enrichment — for the calendar export.
+        providerLatitude:
+          type: number
+          nullable: true
+          description: >-
+            Consumer-read enrichment (A2, appointment-detail-complete.md §2.1) —
+            the salon's position, for « Itinéraire ». A pair with
+            providerLongitude: both set or both null, never one. Kept for a
+            stopped salon.
+        providerLongitude:
+          type: number
+          nullable: true
+          description: Consumer-read enrichment (A2) — see providerLatitude.
+        providerCommune:
+          type: string
+          nullable: true
+          description: Consumer-read enrichment (A2) — the salon's commune.
+        providerCity:
+          type: string
+          nullable: true
+          description: Consumer-read enrichment (A2) — the salon's city.
+        providerPhotoUrl:
+          type: string
+          nullable: true
+          description: >-
+            Consumer-read enrichment (A2) — the salon's cover, imageUrls[0],
+            the one photo of the gallery that rides here. Null with no photo,
+            and null for a salon that is not live (draft or suspended): a
+            stopped salon's cover reaches nobody.
         providerCountryCode:
           type: string
           nullable: true

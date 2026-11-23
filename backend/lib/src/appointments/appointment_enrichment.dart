@@ -29,9 +29,17 @@ import 'booking_window.dart';
 /// **The allowlist rule, once.** This runs on every consumer appointment read,
 /// so everything on it is disclosed to anyone holding a booking at that salon.
 /// Only fields that are public while the salon is `active` may ride here. The
-/// catalogue, the artist roster and the gallery are resolved down to the two
-/// arrays the surfaces render — never shipped whole, or the closure becomes a
-/// back door to the document it closed.
+/// catalogue, the artist roster and the gallery are resolved down to what the
+/// surfaces render — two arrays of names and ONE photo — never shipped whole,
+/// or the closure becomes a back door to the document it closed.
+///
+/// **A2 (appointment-detail-complete.md §2.1, decision 194)** adds the place —
+/// `providerLatitude`/`providerLongitude` (a pair, or both null),
+/// `providerCommune`, `providerCity` — and `providerPhotoUrl`, the cover
+/// (`imageUrls[0]`). The place rides for a stopped salon, as its address and
+/// phone do: a client with a booking there may still need to get there. **The
+/// photo does not**: it is decoration, and a salon can be suspended for what it
+/// published, so a stopped salon's cover reaches nobody.
 Future<List<Map<String, dynamic>>> withProviderFacts(
   ProvidersRepository providers,
   List<Map<String, dynamic>> items,
@@ -75,6 +83,14 @@ Map<String, dynamic> _factsFor(
     'providerPhone': p?['phoneNumber'],
     'providerWhatsapp': p?['whatsapp'],
     'providerAddress': p?['address'],
+    // The place (A2): directions need the pair, so half a coordinate is none.
+    ..._position(p),
+    'providerCommune': p?['commune'],
+    'providerCity': p?['city'],
+    // The cover, only while the salon is live (see the allowlist rule above).
+    'providerPhotoUrl': p != null && publicSalonStatus(p) == 'active'
+        ? _cover(p['imageUrls'])
+        : null,
     // Market facts (MP1) — the consumer renders the SALON's clock and currency.
     'providerCountryCode': p?['countryCode'],
     'providerTimezone': p?['timezone'],
@@ -112,6 +128,25 @@ Map<String, dynamic> _factsFor(
         (a['durationMinutes'] as num?)?.toInt() ??
         _durationOf(services, serviceIds),
   };
+}
+
+/// The salon's position as a pair, or two nulls — never half of one.
+Map<String, double?> _position(Map<String, dynamic>? p) {
+  final lat = (p?['latitude'] as num?)?.toDouble();
+  final lng = (p?['longitude'] as num?)?.toDouble();
+  final both = lat != null && lng != null;
+  return {
+    'providerLatitude': both ? lat : null,
+    'providerLongitude': both ? lng : null,
+  };
+}
+
+/// The cover: the gallery's first photo (`photos[0]` is the listing cover,
+/// `provider_catalog_service.dart`), resolved to one URL.
+String? _cover(Object? imageUrls) {
+  final list = (imageUrls as List?) ?? const [];
+  final first = list.isEmpty ? null : list.first;
+  return first is String && first.isNotEmpty ? first : null;
 }
 
 String? _nameOf(Object? list, String? id) {
