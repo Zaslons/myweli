@@ -1,0 +1,26 @@
+- 🟡 **Backend : la devise d’un rendez-vous n’est jamais enregistrée — la spec, avant tout code (documentation · backend · mobile · web · 2026-11-23 — module multi-pays MP1).** Branche `docs/appointment-currency-stamp-spec`, créée depuis `main` (`ad065999`) puis rebasée sur `95072597` (#836, puis #838). Spec : [appointment-currency-stamp.md](../../design/appointment-currency-stamp.md). Documentation seule : aucun code, aucun build, aucune console, la production n’a pas été lue.
+  - **Le défaut :**
+    - la création d’un rendez-vous l’inscrit avec la devise du salon, « immuable » (`booking_service.dart:247`, `:343`) ;
+    - le dépôt Postgres ne l’écrit pas (l’INSERT n’a pas la colonne) et ne la relit pas, et la table `appointments` n’a pas de colonne `currency` ;
+    - donc la production n’a jamais renvoyé la devise d’un rendez-vous : l’app et le site affichent la devise **actuelle** du salon.
+  - **Ce que ça change pour un utilisateur aujourd’hui : rien.** L’arbre des localités n’a qu’un pays (la Côte d’Ivoire, XOF), donc tout salon a toujours été en XOF. Le défaut se déclencherait le jour où un salon changerait de devise : ses anciens rendez-vous changeraient de devise avec lui.
+  - **Pourquoi aucun test ne l’a vu :**
+    - le dépôt en mémoire garde tout ce qu’on lui donne ;
+    - la fixture du test Postgres n’a pas de devise ;
+    - le seul test qui lit la devise ne peut pas distinguer « inscrite » de « héritée du salon », parce que les deux valent XOF.
+  - **Le contrat et trois documents disent que ça marche :** `openapi.yaml`, T57 dans BACKEND.md (« Implemented ») et `modules/multi-pays.md` §10 (✅).
+  - **Un piège relevé :**
+    - `providers.data` est stocké en chaîne JSON, donc `data->>'currency'` renvoie NULL ;
+    - un rattrapage écrit ainsi mettrait XOF partout et paraîtrait juste aujourd’hui ;
+    - la spec décode les deux formes, avec la garde déjà employée ailleurs dans le code.
+    - Observé avec une sonde sur une base Postgres 16 locale, créée pour l’occasion puis supprimée : rien n’est commité.
+  - **Ce que la spec propose :**
+    - **la colonne :** nullable, avec un rattrapage qui ne remplit que les vides. La devise du salon au moment de la migration, sinon XOF (la règle du service) : exacte pour chaque rendez-vous existant tant que seul le XOF a existé. Puis `NOT NULL` dans un second déploiement (B2) ;
+    - **les lectures :** chaque lecture du dépôt renvoie `currency`. Le dépôt en mémoire et Postgres passent le même contrat : chaque clé écrite par le service revient, et la devise ne change pas à la mise à jour. Les messages chiffrent un rendez-vous dans sa devise ;
+    - **les lecteurs :** l’app client et le site client lisent déjà `currency ?? providerCurrency` (rien à changer). Les écrans Pro de l’app et du site lisent la devise du salon pour chaque rendez-vous, et les quatre exports de données (client et salon, app et site) n’en donnent aucune : deux petites PR (B3, B4). Les totaux restent dans la devise du salon ;
+    - **le rattrapage ne peut pas faire échouer le démarrage :** un document de salon qui n’est pas du JSON valide tombe sur XOF au lieu de lever une erreur (la garde `pg_input_is_valid` déjà employée ailleurs) ;
+    - **le déploiement :** trois lectures de la production avant (pays, salons par devise, nombre de rendez-vous) et une après, chacune sur le oui du propriétaire ; puis le `deploy-backend.yml` sur son mot ; B1 est additif, donc un retour arrière reste sûr. B1 régénère aussi `web/lib/api/schema.ts` (la CI l’exige).
+  - **Relue une fois par un lecteur indépendant, chargé de la réfuter :** aucun bloquant ; huit constats à corriger, chacun vérifié dans le code et intégré. Entre autres : le test de parité ne pouvait pas passer au vert sur `update` et comparait le dépôt en mémoire à lui-même ; quatre écritures, et non une, peuvent changer la devise d’un salon ; les exports manquaient ; un cast nu pouvait faire échouer chaque déploiement.
+  - **Sept questions au propriétaire (§11), chacune avec une recommandation :** la colonne, ce que reçoivent les rendez-vous existants, les écrans Pro et les exports, les totaux, les quatre écritures qui changent la devise d’un salon (un test-alarme maintenant, la garde avec le deuxième pays), la lecture de la production, et quand construire. Les numéros de décision commenceront à 187 (182–186 sont ceux d’A1w, #836).
+  - **Ce qui change :** [appointment-currency-stamp.md](../../design/appointment-currency-stamp.md), nouveau, et l’index des specs.
+  - **Reste :** les réponses, puis la fusion de cette PR sur le mot du propriétaire ; ensuite, chacun sur son mot, B1 (backend), son déploiement, B2, B3 (app) et B4 (site).
