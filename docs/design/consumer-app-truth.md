@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | **Approved by the owner on 2026-11-23** (« Approve as recommended »: §11's five recommendations, BACKLOG decisions 165–169). A1 is built from it. |
+| **Status** | **Approved by the owner on 2026-11-23** (« Approve as recommended »: §11's five recommendations, BACKLOG decisions 165–169). **Amended the same day by decision 170:** the home stories are hidden behind a flag, not removed (§2.1). A1 is built from it. |
 | **Owner** | Sadreddine |
 | **Last updated** | 2026-11-23 |
 | **PRD ref / phase** | FR-DISC-001, FR-APPT-001, FR-APPT-003/005, FR-APPT-009, FR-PAY-005 · V1 · BACKLOG B0.10 (decision 160), B12.6, B12.10 (part), B12.11 |
@@ -26,7 +26,7 @@ rule the two surfaces share (§2.7, §9):
 
 | # | Change | Audit gap |
 |---|---|---|
-| 2.1 | The home stories go | 2 |
+| 2.1 | The home stories are hidden behind a flag, kept for real ones (decision 170) | 2 |
 | 2.2 | The cancel confirmation states the salon's rule, word for word as the web | 3 |
 | 2.3 | « Langue » goes from the profile | 12 |
 | 2.4 | The iOS permission texts describe what this app does | 6 |
@@ -46,7 +46,13 @@ rule the two surfaces share (§2.7, §9):
 
 ## 2. Each change: today, after, every state, the French words
 
-### 2.1 The home stories go
+### 2.1 The home stories: hidden behind a flag, kept for real ones
+
+*Amended 2026-11-23 by decision 170.* The spec first removed the stories. The
+owner chose instead: **« don't remove stories, put it under a flag, or make it
+that someone manage them »**. The flag is needed either way: until someone
+manages real stories, the three in the tree are demo content and must not
+reach a client.
 
 **Today.**
 - `AnnouncementStories` sits on every home (`screens/home/home_screen.dart:173`).
@@ -55,26 +61,20 @@ rule the two surfaces share (§2.7, §9):
   - « Nouveau salon », « Beauté Divine », « Marcory · Zone 4 »: a salon that does not exist.
 - A tap opens `StoryViewer` (`screens/stories/story_viewer.dart`). Seen stories are kept in `shared_preferences` under `myweli_seen_story_ids_v1` (`services/story_seen_service.dart:4`).
 
-**Why remove rather than fix.**
-- Stories posted by salons are V2 (PRD §7.2, « Pro: provider-posted stories »), and no backend source for them exists.
-- Any hard-coded promotion is an offer nobody makes: App Store 2.3.1, Play's deceptive-behaviour policy, consumer law.
-- Decision 160 approved A1 as written, which is the audit's Q4 recommendation.
+**Why the row cannot show as it is.** Any hard-coded promotion is an offer
+nobody makes: App Store 2.3.1, Play's deceptive-behaviour policy, consumer law.
 
 **After.**
-- The home reads: the commune pill, a `spacingM` gap, then the category chips. Nothing takes the row's place.
-- **Removed:**
-  - `widgets/home/announcement_stories.dart`;
-  - `screens/stories/story_viewer.dart`;
-  - `services/story_seen_service.dart`;
-  - `assets/images/stories/` (three SVGs) and its line in `pubspec.yaml`.
-- **What already exists on phones:** a phone that opened a story keeps the key `myweli_seen_story_ids_v1`. It holds at most three fixed ids and no personal data. It is not migrated: nothing reads it after this change, and it goes with the app's data on uninstall.
-- **Tests and docs that name the stories:**
-  - the story-reel cases in `test/a11y/motion_test.dart` go with the viewer they test. SYSTEM §9's content-timer rule stays, with a new example;
-  - the entry in `test/unit/cards_pin_test.dart:111-112` goes;
-  - the comments in `test/a11y/layout_test.dart:592` and `widgets/common/content_width_cap.dart:82-84` are reworded;
-  - SYSTEM.md: §3.5 (`gold` is then the owner chip only), §9 (the content-timer example), §19 (the story-scrim exception goes). The §21 rows 3b, 25 and 62 keep their history, with « widget removed in A1 ».
-- **Goldens re-made:** `consumer_home.png` and `consumer_home_w360_x2.png`.
-
+- **`FeatureFlags.homeStories`, off.** While it is off, the home reads: the commune pill, a `spacingM` gap, then the category chips.
+- **Everything stays in the tree:** the widget, the viewer, the seen-service, the three pictures and their `pubspec.yaml` line, and their tests.
+- **Three guards:**
+  - `test/unit/feature_flags_test.dart` fails when the flag is on while the demo ids (`promo_weekend`, `new_salon`, `last_minute`) or their pictures are in the tree. It is red on the defect and green on the repair: once real stories replace the demo, the flag may flip. Its blind spot is written in it: demo content under new ids passes;
+  - the home's layout test checks that the row follows the flag, whichever way the flag is set;
+  - the stories' 200 % text gate (§21 row 62) moves from the home pump to the widget pumped alone, so it does not go quiet while the row is hidden.
+- **Turning it on** is a later change. It replaces the hard-coded list with a managed source, then flips the flag. **Who manages them is its own spec:**
+  - MyWeli, from the admin console;
+  - or the salons, which is V2 (PRD §7.2, « Pro: provider-posted stories »).
+- **Goldens re-made:** `consumer_home.png` and `consumer_home_w360_x2.png`, now without the row.
 ### 2.2 The cancel confirmation states the salon's rule
 
 **Today** (`screens/appointments/appointment_detail_screen.dart:98-172`). When the
@@ -270,7 +270,7 @@ the phone, and the stories key is left as described in §2.1.
 
 - **Two pure functions in `core/utils/`**, each unit-tested, which the widgets read. No new service, provider or route.
 - **One shared widget**, `widgets/common/salon_photo_placeholder.dart`, used at three sites: the two in `provider_card.dart` and the booking card.
-- **Removed:** three Dart files, their tests' story cases and three assets.
+- **One new flag**, `FeatureFlags.homeStories`, beside the others in `core/config/feature_flags.dart`.
 
 ## 6. Security & privacy
 
@@ -280,8 +280,8 @@ the phone, and the stories key is left as described in §2.1.
 
 ## 7. Performance
 
-- **The home loses a row of three SVG decodes** and the `shared_preferences` read that coloured their rings.
-- **The APK loses three SVG assets.** The size will be read in CI's `apk-size` step; no number is claimed here.
+- **The home skips a row of three SVG decodes** and the `shared_preferences` read that coloured their rings, while the flag is off.
+- **The APK keeps the three SVG assets** (decision 170).
 - **No request is added.** One is removed: the placeholder.
 
 ---
@@ -299,6 +299,8 @@ mutation run.**
 | `test/widget/my_bookings_screen_test.dart` (new) | A past pending booking is in « Passés » as « Non confirmé », and « Terminé » is absent; a no-show is listed; the summary is hidden with no `completed` booking and counts only `completed` ones | Restore `copyWith(status: completed)` |
 | `test/widget/appointment_detail_states_test.dart` | A no-show has no « Annuler le rendez-vous »; each tone of §2.2 renders its sentence | Drop `noShow` from the closed set |
 | `test/widget/appointment_card_test.dart` | A booking whose salon is not in the discovery list shows its own `providerName` and `serviceNames` | Read `provider?.name` first |
+| `test/unit/feature_flags_test.dart` | The home stories stay off while the demo ids or pictures are in the tree (§2.1) | `homeStories = true` |
+| `test/a11y/layout_test.dart` | The home row follows the flag; the stories' 200 % gate, pumped alone | Show the row whatever the flag says |
 | `test/unit/truth_pins_test.dart` (new) | No file under `lib/` contains `via.placeholder.com` or « Fonctionnalité à venir », comments stripped | Put either string back in a widget |
 | `test/infra/setup_flavours_test.dart` | The consumer camera and photos strings contain neither « côté salon » nor « galerie »; the location strings name « commune »; the committed `pbxproj` matches the script | Restore today's camera string in the script only |
 | Goldens | Re-made: `consumer_home.png`, `consumer_home_w360_x2.png`, `consumer_my_bookings_w360_x2.png`. New: « Passés » with the four past chips at 360 × 2×, and the cancel dialog's three tones | Made by the goldens workflow (Linux); every changed PNG opened before commit; the before and after go in the PR |
@@ -326,7 +328,7 @@ mutation run.**
 - **With A1:**
   - BACKLOG B12.11;
   - B12.10's no-shows and `via.placeholder.com`;
-  - audit gaps 2, 3, 6, 12, 15 (app side) and 16, and the name half of 9.
+  - audit gaps 2 (hidden; real stories are their own spec), 3, 6, 12, 15 (app side) and 16, and the name half of 9.
 - **With A1w:** B12.6 and the web half of gap 15.
 - **Left:** the rest of gap 9 is A2's.
 

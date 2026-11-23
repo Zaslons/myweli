@@ -325,7 +325,7 @@ Each question has a recommendation. Answers unblock the item named in brackets.
 
 **MyWeli (client)'s order of work (batch 0, B0.10)** — asked on 2026-11-23 in [consumer-app-release-audit.md](design/consumer-app-release-audit.md) §8 (PR #832). Q6 is answered. Q1, Q2, Q3 and Q5 are open, each needed before the step named in brackets.
 
-160. The audit's order of work (§7): Track A, the code; Track B, the documents and the website; Track C, builds and consoles, each step on your yes. Approve it as written, or change it? [B0.10] — ✅ **Answered (2026-11-23): « Approve the plan »**, as written. A1 comes first, its spec (`consumer-app-truth.md`) before any code. Each PR comes from `main` and is merged on your word; Track C starts when A1, A2, A3 and A6 are merged. A1 as written removes the home stories, the audit's Q4 recommendation; the A1 spec shows that change before any code.
+160. The audit's order of work (§7): Track A, the code; Track B, the documents and the website; Track C, builds and consoles, each step on your yes. Approve it as written, or change it? [B0.10] — ✅ **Answered (2026-11-23): « Approve the plan »**, as written. A1 comes first, its spec (`consumer-app-truth.md`) before any code. Each PR comes from `main` and is merged on your word; Track C starts when A1, A2, A3 and A6 are merged. A1 as written removed the home stories, the audit's Q4 recommendation. *Changed by decision 170: kept, behind a flag.*
 161. Store order, and when MyWeli's 14 days on Play start (§8 Q1): iOS first, as for Pro, with Android after? And start MyWeli's closed test as soon as an AAB passes its device pass, even with few public salons, or only after the first salons? *Recommended: iOS first; start the closed test as soon as an AAB passes, so that its 14 days run while salons sign up.* [B0.10, Track C step 3] — **Open.** Needed before Track C's step 3.
 162. iPad (§8 Q2): iPhone only for the first release, like Pro, or keep iPad, with 13-inch screenshots and an iPad layout pass? A device family cannot be withdrawn once shipped; iPhone-only can be widened later. *Recommended: iPhone only.* [B0.10, B3, Track C] — **Open.** Needed before B3 and the first IPA.
 163. Version (§8 Q3): the client's first release is 0.0.x, like Pro, from the shared pubspec, with its App Store record renamed from « 1.0 »? *Recommended: yes.* [B0.10, B3] — **Open.** Needed before B3.
@@ -338,6 +338,10 @@ Each question has a recommendation. Answers unblock the item named in brackets.
 167. The visit summary on « Passés »? [B0.10] — ✅ **Answered (2026-11-23): « Approve as recommended »**: it counts only bookings the salon marked « Terminé », and is hidden when there are none.
 168. The web half of the shared rule: its own PR, or in A1? [B0.10, B12.6] — ✅ **Answered (2026-11-23): « Approve as recommended »**, its own PR (A1w) right after A1. Its merge is a production web deploy, on your word.
 169. The French sentences of the spec's §2? [B0.10] — ✅ **Answered (2026-11-23): « Approve as recommended »**, as written: the cancel sentences (the web's), the four purpose strings, « Non confirmé » and the empty state « Aucun rendez-vous passé ».
+
+**The home stories (batch 0, B0.10)** — said on 2026-11-23 while A1 was being built, after decisions 160 and 165–169.
+
+170. The home's three hard-coded stories: remove them, as the A1 spec first said? [B0.10] — ✅ **Answered (2026-11-23), in your words: « don't remove stories, put it under a flag, or make it that someone manage them »**. They stay in the tree behind `FeatureFlags.homeStories`, off: the flag is needed either way, since until someone manages real stories the three are demo content (a « -15 % » offer nobody makes, a salon that does not exist). A test keeps the flag off while the demo is in the tree. Who manages real stories, MyWeli from the console or the salons (V2), is its own spec. [consumer-app-truth.md](design/consumer-app-truth.md) §2.1.
 
 ---
 

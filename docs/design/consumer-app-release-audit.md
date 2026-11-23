@@ -568,7 +568,7 @@ when A1, A2, A3 and A6 are merged.
    salons, in which communes, before the client app is submitted?
 6. **This order (§7).** Approve it as written, or change it?
 
-**Answers (2026-11-23).** Q6: « Approve the plan », as written (BACKLOG decision 160). Q4 follows from it: A1 removes the stories, and the A1 spec shows that change before any code. Q1, Q2, Q3 and Q5 are open, as decisions 161–164, each needed before the step it names.
+**Answers (2026-11-23).** Q6: « Approve the plan », as written (BACKLOG decision 160). Q4 followed from it (A1 removed the stories); **decision 170 changed that the same day: the stories stay, behind a flag, until someone manages real ones.** Q1, Q2, Q3 and Q5 are open, as decisions 161–164, each needed before the step it names.
 
 ---
 

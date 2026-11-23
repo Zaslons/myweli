@@ -3,7 +3,7 @@
     - le propriétaire a approuvé l’ordre de travail de l’audit tel quel (décision 160) ; A1 vient en premier, et sa spec avant son code ;
     - trois des sept changements sont, chacun, un motif de refus à l’App Store : une offre fausse (2.3.1), un contenu provisoire (2.1), un texte de permission qui ne décrit pas l’usage (5.1.1(ii)).
   - **Les sept changements, chacun relu dans le code avec son fichier et sa ligne :**
-    - les trois « stories » de l’accueil sont retirées, avec leur lecteur et leurs images : une promotion de -15 % que personne ne fait et un salon qui n’existe pas ; les stories publiées par les salons sont prévues en V2 (PRD §7.2) ;
+    - les trois « stories » de l’accueil, une promotion de -15 % que personne ne fait et un salon qui n’existe pas, sont **cachées derrière un drapeau, éteint** (décision 170, qui remplace leur retrait) : elles restent dans le code jusqu’à ce que quelqu’un gère de vraies stories, MyWeli depuis la console ou les salons (V2), dans sa propre spec ; un test empêche d’allumer le drapeau tant que les stories de démonstration sont là ;
     - à l’annulation, l’app énonce la règle du salon, mot pour mot comme le site depuis le 2026-11-02, au lieu de promettre un remboursement que MyWeli ne fait jamais ;
     - « Langue », qui répondait « Fonctionnalité à venir », est retirée : l’app n’existe qu’en français ;
     - les textes de permission iOS décrivent cette app : la galerie d’un salon disparaît, le justificatif d’acompte rejoint l’appareil photo, et la commune (« Près de moi ») rejoint la position ;
@@ -23,5 +23,5 @@
     - [consumer-app-truth.md](../../design/consumer-app-truth.md), nouveau ;
     - l’index des specs ;
     - la ligne A1 du §7 de l’audit, qui pointe vers la spec ;
-    - le BACKLOG, §2 : les décisions 165 à 169.
+    - le BACKLOG, §2 : les décisions 165 à 170.
   - **Reste :** la PR A1 (l’app), puis la PR A1w (le site).

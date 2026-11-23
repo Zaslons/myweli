@@ -40,7 +40,7 @@
     - l’accord sur l’ordre.
   - **Les réponses (2026-11-23) :**
     - la sixième : « Approve the plan », l’ordre tel quel (décision 160) ;
-    - la quatrième en découle : A1 retire les « stories », et la spec d’A1 montre ce changement avant tout code ;
+    - la quatrième en découlait : A1 retirait les « stories » ; **la décision 170 l’a changé le même jour : elles restent, cachées derrière un drapeau, jusqu’à ce que quelqu’un en gère de vraies** ;
     - la première, la deuxième, la troisième et la cinquième restent ouvertes (décisions 161 à 164), chacune avant l’étape qu’elle nomme.
   - **Ce qui change :**
     - [consumer-app-release-audit.md](../../design/consumer-app-release-audit.md), nouveau ;
