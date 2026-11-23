@@ -1,4 +1,5 @@
 import '../../models/appointment.dart';
+import 'salon_time.dart';
 
 /// Total amount across the given visits (full service price, not just deposit).
 ///
@@ -19,21 +20,28 @@ class VisitMonthGroup {
 
 /// Group visits into months, newest month first and newest visit first within
 /// each month.
+///
+/// **The month is the salon's** (decision 186,
+/// docs/design/web-account-bookings-truth.md §11 Q5): the one the card's own
+/// date line shows (`appointment_card.dart`, `toSalonTime` with the booking's
+/// `providerTimezone`). The key used to be the instant's own fields — UTC, as
+/// the API sends it — so at a salon in Libreville (UTC+1) a booking at 00:30
+/// on 1 November sat under « octobre » beside a card dated 1 November. The
+/// web's `groupByMonth` reads the same zone.
 List<VisitMonthGroup> groupVisitsByMonth(List<Appointment> visits) {
   final byMonth = <String, List<Appointment>>{};
+  final monthOf = <String, DateTime>{};
   for (final a in visits) {
-    final key = '${a.appointmentDate.year}-${a.appointmentDate.month}';
+    final s = toSalonTime(a.appointmentDate, tz: a.providerTimezone);
+    final key = '${s.year}-${s.month}';
     byMonth.putIfAbsent(key, () => []).add(a);
+    monthOf.putIfAbsent(key, () => DateTime(s.year, s.month));
   }
 
-  final groups = byMonth.values.map((items) {
-    final sorted = [...items]
+  final groups = byMonth.entries.map((e) {
+    final sorted = [...e.value]
       ..sort((a, b) => b.appointmentDate.compareTo(a.appointmentDate));
-    final first = sorted.first.appointmentDate;
-    return VisitMonthGroup(
-      month: DateTime(first.year, first.month),
-      visits: sorted,
-    );
+    return VisitMonthGroup(month: monthOf[e.key]!, visits: sorted);
   }).toList()..sort((a, b) => b.month.compareTo(a.month));
 
   return groups;

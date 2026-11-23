@@ -1,3 +1,6 @@
+import 'dart:convert';
+import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:myweli/core/utils/chip_tone.dart';
 import 'package:myweli/core/utils/client_booking_rule.dart';
@@ -5,7 +8,7 @@ import 'package:myweli/core/utils/salon_id.dart';
 import 'package:myweli/models/appointment.dart';
 
 /// The one rule for a client's own bookings (docs/design/consumer-app-truth.md
-/// §2.7), the same table as the web's `categorize(a, now)`.
+/// §2.7), the same table as the web's `clientTab(a, now)`.
 void main() {
   final now = DateTime(2026, 6, 22, 12);
   final past = DateTime(2026, 6, 1, 10);
@@ -109,6 +112,53 @@ void main() {
   test('a past booking is never relabelled « Terminé »', () {
     for (final s in [AppointmentStatus.pending, AppointmentStatus.confirmed]) {
       expect(clientStatusLabel(appt(s, past), now), isNot('Terminé'));
+    }
+  });
+
+  // docs/design/web-account-bookings-truth.md §2.8: the web's
+  // `client-booking-rule-table.test.ts` reads the same file. A rule changed on
+  // one surface turns that surface red; a row changed in the file turns both
+  // red until both follow.
+  group('the shared table (docs/design/fixtures/client-booking-rule.json)', () {
+    final table =
+        jsonDecode(
+              File(
+                '../docs/design/fixtures/client-booking-rule.json',
+              ).readAsStringSync(),
+            )
+            as Map<String, dynamic>;
+    final rows = (table['rows'] as List).cast<Map<String, dynamic>>();
+
+    test('has the seven rows plus the edges — an emptied file cannot pass', () {
+      expect(rows.length, greaterThanOrEqualTo(13));
+      expect(rows.map((r) => r['status']).toSet(), {
+        'pending',
+        'confirmed',
+        'completed',
+        'noShow',
+        'cancelled',
+      });
+      expect(rows.any((r) => r['minutesFromNow'] == 0), isTrue);
+    });
+
+    for (final r in rows) {
+      final status = r['status'] as String;
+      final minutes = r['minutesFromNow'] as int;
+      test('$status at $minutes min → ${r['tab']}, « ${r['label']} »', () {
+        final a = appt(
+          AppointmentStatus.values.byName(status),
+          now.add(Duration(minutes: minutes)),
+        );
+        expect(
+          clientTab(a, now),
+          ClientBookingTab.values.byName(r['tab'] as String),
+        );
+        expect(clientStatusLabel(a, now), r['label']);
+        expect(
+          clientStatusTone(a, now),
+          AppChipTone.values.byName(r['tone'] as String),
+        );
+      });
     }
   });
 

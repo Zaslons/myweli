@@ -335,6 +335,125 @@ test('a signed-in visitor clicking a heart before favourites load is NOT sent to
   );
 });
 
+/// A1w (docs/design/web-account-bookings-truth.md §2.1–§2.6): « Mes rendez-vous »
+/// follows the app's rule. The stub's consumer list holds, besides the
+/// TOMORROW bookings, appt6 (pending, yesterday), appt7 (noShow) and appt8
+/// (completed), both 35 days back; appt2 is completed and dated tomorrow.
+///
+/// **Month headings are never asserted by their words**: they depend on the
+/// day the suite runs. Only their count, level and order are read.
+test('A1w: the three tabs follow the client rule; « Passés » as in the app', async ({
+  page,
+}) => {
+  await page.goto('/connexion');
+  await page.locator('input[type=email]').fill('awa@example.com');
+  await page.getByRole('button', { name: 'Continuer avec e-mail' }).click();
+  await page.locator('input[type=text]').fill('123456');
+  await page.getByRole('button', { name: 'Se connecter' }).click();
+  await expect(page).toHaveURL(/\/mon-compte/);
+
+  // §2.6: the page's headings, in order — h1 in the shell, then the bookings'
+  // h2 before « Favoris » and « Confidentialité ». Page-level, since the h1
+  // lives outside the client component.
+  const bookingsHeading = page.getByRole('heading', { level: 2, name: 'Mes rendez-vous' });
+  await expect(bookingsHeading).toBeVisible();
+  const tabs = page.getByRole('group', { name: 'Filtrer mes rendez-vous' });
+  const section = page.locator('section').filter({ has: bookingsHeading });
+
+  // « À venir »: no past booking waits here any more.
+  await expect(section.getByRole('listitem').first()).toBeVisible();
+  for (const id of ['appt6', 'appt7', 'appt8', 'appt2']) {
+    await expect(section.locator(`a[href="/mon-compte/${id}"]`)).toHaveCount(0);
+  }
+  await expect(section.getByText('Non confirmé')).toHaveCount(0);
+
+  // « Passés »: the summary, the months, the chips, the rebook.
+  await tabs.getByRole('button', { name: 'Passés', exact: true }).click();
+  const terms = section.getByRole('term');
+  await expect(terms).toHaveText(['visites', 'dépensés']);
+  // appt2 + appt8: two « Terminé », 30 000 — not the four past bookings.
+  await expect(section.getByRole('definition')).toHaveText(['2', /^30\s000 FCFA$/]);
+  const months = section.getByRole('heading', { level: 3 });
+  expect(await months.count()).toBeGreaterThanOrEqual(2);
+  // Newest first: appt2 (tomorrow), appt6 (yesterday), appt7 (35 days back,
+  // 10:00), appt8 (35 days back, 09:00).
+  const hrefs = await section
+    .getByRole('listitem')
+    .locator('a[href^="/mon-compte/"]')
+    .evaluateAll((as) => as.map((a) => a.getAttribute('href')));
+  expect(hrefs).toEqual([
+    '/mon-compte/appt2',
+    '/mon-compte/appt6',
+    '/mon-compte/appt7',
+    '/mon-compte/appt8',
+  ]);
+  const item = (id: string) =>
+    section.getByRole('listitem').filter({ has: page.locator(`a[href="/mon-compte/${id}"]`) });
+  await expect(item('appt6').getByText('Non confirmé')).toBeVisible();
+  await expect(item('appt7').getByText('Absent')).toBeVisible();
+  await expect(item('appt8').getByText('Terminé')).toBeVisible();
+  const rebook = section.getByRole('link', { name: 'Réserver à nouveau chez Beauté Divine' });
+  await expect(rebook).toHaveCount(4);
+  await expect(item('appt6').getByRole('link', { name: /^Réserver à nouveau/ })).toHaveAttribute(
+    'href',
+    '/beaute-divine/reserver?services=s1&artist=a1',
+  );
+
+  // « Annulés »: the absence is not here (decision 165).
+  await tabs.getByRole('button', { name: 'Annulés', exact: true }).click();
+  await expect(section.locator('a[href="/mon-compte/appt7"]')).toHaveCount(0);
+  await expect(section.getByText('Absent')).toHaveCount(0);
+
+  // The whole page's heading order (§2.6), read on « Passés ».
+  await tabs.getByRole('button', { name: 'Passés', exact: true }).click();
+  await expect(months.first()).toBeVisible();
+  const order = await page
+    .locator('h1, h2, h3')
+    .evaluateAll((hs) => hs.map((h) => `${h.tagName}:${h.textContent?.trim()}`));
+  const levels = order.map((o) => o.slice(0, 2));
+  expect(order[0]).toBe('H1:Mon compte');
+  expect(order[1]).toBe('H2:Mes rendez-vous');
+  // Every month is an h3 under « Mes rendez-vous », before « Favoris ».
+  const favoris = order.indexOf('H2:Favoris');
+  expect(favoris).toBeGreaterThan(2);
+  expect(levels.slice(2, 2 + (await months.count()))).toEqual(
+    Array(await months.count()).fill('H3'),
+  );
+  expect(order).toContain('H2:Confidentialité');
+  // No level is ever skipped going down.
+  for (let i = 1; i < levels.length; i++) {
+    expect(Number(levels[i][1]) - Number(levels[i - 1][1]), order.join(' | ')).toBeLessThanOrEqual(1);
+  }
+
+  // The rebook leads to the salon's booking page with the prefill (K2).
+  await item('appt6').getByRole('link', { name: /^Réserver à nouveau/ }).click();
+  await expect(page).toHaveURL(/\/beaute-divine\/reserver\?services=s1&artist=a1$/);
+});
+
+/// A1w §2.7: the detail reads the client rule too.
+test('A1w: a past booking nobody confirmed reads « Non confirmé » on its detail', async ({
+  page,
+}) => {
+  await page.goto('/connexion');
+  await page.locator('input[type=email]').fill('awa@example.com');
+  await page.getByRole('button', { name: 'Continuer avec e-mail' }).click();
+  await page.locator('input[type=text]').fill('123456');
+  await page.getByRole('button', { name: 'Se connecter' }).click();
+  await expect(page).toHaveURL(/\/mon-compte/);
+
+  await page.goto('/mon-compte/appt6');
+  await expect(page.getByRole('heading', { level: 1, name: 'Beauté Divine' })).toBeVisible();
+  await expect(page.getByText('Non confirmé')).toBeVisible();
+  await expect(page.getByText('En attente')).toHaveCount(0);
+  // Decision 183: past, at a live salon → « Réserver à nouveau ».
+  await expect(page.getByRole('link', { name: 'Réserver à nouveau' })).toHaveAttribute(
+    'href',
+    '/beaute-divine/reserver?services=s1&artist=a1',
+  );
+  // Past: no « Reporter ».
+  await expect(page.getByRole('button', { name: 'Reporter', exact: true })).toHaveCount(0);
+});
+
 test('a booking at a salon that stopped keeps working, and says why', async ({
   page,
 }) => {

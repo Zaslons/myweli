@@ -717,6 +717,30 @@ const AUTHED_ROUTES: Route[] = [
     ready: (page) =>
       page.getByRole('group', { name: 'Filtrer mes rendez-vous' }),
   },
+  {
+    // A1w (docs/design/web-account-bookings-truth.md §2.3, §2.4): « Passés » is
+    // a tab, so the row above never drew it. Its longest chip (« Non
+    // confirmé »), the summary's two cards (which must WRAP, not spill, when
+    // the total no longer fits beside the count) and the full-width
+    // « Réserver à nouveau » live only here.
+    name: 'the consumer account — « Passés » (A1w)',
+    url: '/mon-compte',
+    anchor: 'Mon compte',
+    auth: 'consumer',
+    ready: (page) =>
+      page.getByRole('group', { name: 'Filtrer mes rendez-vous' }),
+    setup: async (page) => {
+      await page.getByRole('button', { name: 'Passés', exact: true }).click();
+    },
+    // The vacuity guard: the tab actually drew what this row is here for.
+    measure: async (page) => {
+      await expect(page.getByText('Non confirmé').first()).toBeVisible();
+      await expect(page.getByRole('term').first()).toBeVisible();
+      await expect(
+        page.getByRole('link', { name: /^Réserver à nouveau chez / }).first(),
+      ).toBeVisible();
+    },
+  },
   // ---- B11 -----------------------------------------------------------------
   //
   // Six routes this file had never visited, added because the reflow gate's

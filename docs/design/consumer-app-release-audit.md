@@ -488,6 +488,8 @@ L = a week or more. **Risk** is to the submission or to a user's trust.
 
 **2026-11-23 — A1 built** ([consumer-app-truth.md](consumer-app-truth.md)): in the app, gaps 2 (the stories hidden behind a flag, decision 170; real stories are their own spec), 3, 6, 12, 15 and 16, and the name half of 9. The web half of 15 is A1w.
 
+**2026-11-23 — A1w built** ([web-account-bookings-truth.md](web-account-bookings-truth.md), decisions 182–186): the web half of gap 15. The website files a client's bookings by the app's table, and « Passés » is the app's history. The app's months now follow the salon's zone, like its cards (decision 186). That reaches clients with the next consumer build; the website changes when the PR is merged, which is a production deploy.
+
 ---
 
 ## 7. Proposed order of work

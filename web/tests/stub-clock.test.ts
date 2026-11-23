@@ -2,7 +2,14 @@ import { spawn } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
-import { materialiseDates, stubDayKey, TODAY, TOMORROW } from './e2e/stub-clock.mjs';
+import {
+  LAST_MONTH,
+  materialiseDates,
+  stubDayKey,
+  TODAY,
+  TOMORROW,
+  YESTERDAY,
+} from './e2e/stub-clock.mjs';
 import { salonDayKey, salonDayRange } from '../lib/time';
 
 /// The midnight-rollover regression.
@@ -100,8 +107,42 @@ describe('the stub and the app agree on "today" across midnight', () => {
       a: `${TODAY}T09:00:00.000Z`,
       b: `${TODAY}T23:30:00.000Z`,
       c: `${TOMORROW}T09:00:00.000Z`,
+      d: `${YESTERDAY}T09:00:00.000Z`,
+      e: `${LAST_MONTH}T09:00:00.000Z`,
     });
     expect(materialiseDates(payload, RENDER)).not.toContain('@');
+  });
+
+  it('YESTERDAY and LAST_MONTH stay in the past on both sides of midnight', () => {
+    // « Passés » needs bookings that are past whenever the suite runs (A1w).
+    for (const now of [BOOT, RENDER]) {
+      for (const token of [YESTERDAY, LAST_MONTH]) {
+        const served = JSON.parse(
+          materialiseDates(JSON.stringify({ d: `${token}T09:00:00.000Z` }), now),
+        );
+        expect(new Date(served.d).getTime(), token).toBeLessThan(now.getTime());
+        expect(salonDayKey(new Date(served.d)), token).not.toBe(salonDayKey(now));
+      }
+    }
+  });
+
+  it('YESTERDAY and LAST_MONTH never fall in the same salon month', () => {
+    // So « Passés » always shows two months or more, on any day of any year.
+    // Every day of a leap year and of an ordinary one, at both ends of the day.
+    const month = (token: string, now: Date) =>
+      salonDayKey(
+        new Date(
+          JSON.parse(materialiseDates(JSON.stringify({ d: `${token}T09:00:00.000Z` }), now)).d,
+        ),
+      ).slice(0, 7);
+    let days = 0;
+    for (let t = Date.UTC(2027, 11, 31); t >= Date.UTC(2026, 0, 1); t -= 86_400_000) {
+      for (const at of [new Date(t + 60_000), new Date(t + 86_340_000)]) {
+        expect(month(YESTERDAY, at), at.toISOString()).not.toBe(month(LAST_MONTH, at));
+      }
+      days += 1;
+    }
+    expect(days).toBeGreaterThan(700);
   });
 
   it('stubDayKey matches the app for an ordinary instant', () => {
@@ -164,6 +205,22 @@ describe('the running stub resolves tokens before comparing', () => {
       't3',
     ]);
     // …including the 23:30 row, the salon-day boundary probe.
+  });
+
+  it('the consumer list carries three PAST bookings for « Passés » (A1w)', async () => {
+    const res = await fetch(`http://127.0.0.1:${PORT}/appointments`, {
+      headers: { authorization: 'Bearer consumer-token' },
+    });
+    const text = await res.text();
+    expect(text).not.toContain('@');
+    const items: { id: string; status: string; appointmentDate: string }[] =
+      JSON.parse(text).items;
+    const past = Object.fromEntries(
+      items
+        .filter((a) => Date.parse(a.appointmentDate) < Date.now())
+        .map((a) => [a.id, a.status]),
+    );
+    expect(past).toEqual({ appt6: 'pending', appt7: 'noShow', appt8: 'completed' });
   });
 
   it('and no token ever reaches the wire', async () => {

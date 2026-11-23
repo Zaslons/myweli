@@ -31,8 +31,11 @@ export function SalonVisitsCard({ providerId }: { providerId: string }) {
 
   if (!items || items.length === 0) return null;
 
+  // A lambda, not `.filter(isUpcoming)`: a bare filter would hand the list
+  // index in as `now` (web-account-bookings-truth.md §2.1).
+  const now = new Date();
   const upcoming = items
-    .filter(isUpcoming)
+    .filter((a) => isUpcoming(a, now))
     .sort((a, b) => a.appointmentDate.localeCompare(b.appointmentDate));
   // The latest reviewable completed visit → its detail hosts the ReviewForm.
   const reviewable = items

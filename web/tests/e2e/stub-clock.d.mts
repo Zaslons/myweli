@@ -7,5 +7,8 @@
 
 export declare const TODAY: string;
 export declare const TOMORROW: string;
+export declare const YESTERDAY: string;
+export declare const LAST_MONTH: string;
+export declare const LAST_MONTH_DAYS: number;
 export declare function stubDayKey(now?: Date, offsetDays?: number): string;
 export declare function materialiseDates(serialised: string, now?: Date): string;

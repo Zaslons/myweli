@@ -9,7 +9,7 @@ import {
   type Appointment,
   type Tab,
   TABS,
-  filterByTab,
+  bookingsForTab,
   salonStoppedMessageFor,
 } from '../../lib/account/appointments';
 import {
@@ -37,6 +37,8 @@ import { OpenInAppButton } from '../OpenInAppButton';
 import { PhoneField } from '../PhoneField';
 import { CARD_SIZES, ProviderCard } from '../provider/ProviderCard';
 import { AppointmentCard } from './AppointmentCard';
+import { PastBookings } from './PastBookings';
+import type { IconName } from '../Icon';
 import { Tabs } from '../Tabs';
 import { Toast } from '../Toast';
 import { useToast } from '../../lib/useToast';
@@ -47,6 +49,35 @@ const PROVIDER_LABELS: Record<string, string> = {
   apple: 'Connecté via Apple',
   email: 'Connecté via e-mail',
   phone: 'Connecté via téléphone',
+};
+
+/// Each tab's own empty state (docs/design/web-account-bookings-truth.md §2.5,
+/// decision 184). One sentence for all three read, under an empty « Annulés »,
+/// as if a cancelled booking were something to look forward to.
+const EMPTY_TAB: Record<
+  Tab,
+  { icon: IconName; title: string; description: string; discover: boolean }
+> = {
+  upcoming: {
+    icon: 'event',
+    title: 'Aucun rendez-vous',
+    description: 'Vos réservations apparaîtront ici.',
+    discover: true,
+  },
+  // Decision 169's words, already the app's.
+  past: {
+    icon: 'event',
+    title: 'Aucun rendez-vous passé',
+    description: 'Vos rendez-vous passés apparaîtront ici.',
+    discover: true,
+  },
+  // An empty cancelled list leaves nothing to do: no link.
+  cancelled: {
+    icon: 'cancellation',
+    title: 'Aucun rendez-vous annulé',
+    description: 'Vos rendez-vous annulés apparaîtront ici.',
+    discover: false,
+  },
 };
 
 /// The contact phone's check — the shared rule, required (an empty number is
@@ -74,6 +105,10 @@ export function AccountClient() {
   const { toast, show, dismiss } = useToast();
   const removeButtons = useRef(new Map<string, HTMLButtonElement>());
   const [tab, setTab] = useState<Tab>('upcoming');
+  // The page's one instant (§2.1), taken when the bookings arrive: the tabs,
+  // the chips and the summary read the same clock, and a booking whose time
+  // passes while the page is open moves on the next load, as in the app.
+  const [now, setNow] = useState<Date>(() => new Date());
   const [loading, setLoading] = useState(true);
   const [reloadKey, setReloadKey] = useState(0);
   const [error, setError] = useState(false);
@@ -119,6 +154,7 @@ export function AccountClient() {
       }
       setMe(m.user ?? null);
       setItems(a.items);
+      setNow(new Date());
       setFavorites(f.favorites);
       // Why, when it failed: no answer is « Pas de connexion »
       // (docs/design/app-failure-messages.md §2.2).
@@ -290,7 +326,8 @@ export function AccountClient() {
     router.replace('/');
   }
 
-  const shown = filterByTab(items, tab);
+  const shown = bookingsForTab(items, tab, now);
+  const empty = EMPTY_TAB[tab];
   const shownFavorites = favorites.filter((f) => !removing.has(f.id));
 
   return (
@@ -436,30 +473,48 @@ export function AccountClient() {
         </div>
       </section>
 
-      <Tabs
-        label="Filtrer mes rendez-vous"
-        className="mt-l"
-        value={tab}
-        onChange={setTab}
-        items={TABS}
-      />
+      {/* §2.6 (decision 185): the bookings were the one block of this page
+          with no title, and « Passés »'s month headings (h3) need an h2 above
+          them — without it they would follow the shell's h1 directly. */}
+      <section className="mt-l">
+        <h2 className="text-titleLarge font-semibold text-textPrimary">
+          Mes rendez-vous
+        </h2>
+        <Tabs
+          label="Filtrer mes rendez-vous"
+          className="mt-s"
+          value={tab}
+          onChange={setTab}
+          items={TABS}
+        />
 
-      <div className="mt-m space-y-s">
-        {shown.length === 0 ? (
-          <EmptyState
-            icon="event"
-            title="Aucun rendez-vous"
-            description="Vos réservations apparaîtront ici."
-            action={
-              <Link href="/" className="text-bodyMedium text-textPrimary underline">
-                Découvrir des salons
-              </Link>
-            }
-          />
-        ) : (
-          shown.map((a) => <AppointmentCard key={a.id} appt={a} />)
-        )}
-      </div>
+        <div className="mt-m">
+          {shown.length === 0 ? (
+            <EmptyState
+              icon={empty.icon}
+              title={empty.title}
+              description={empty.description}
+              action={
+                empty.discover ? (
+                  <Link href="/" className="text-bodyMedium text-textPrimary underline">
+                    Découvrir des salons
+                  </Link>
+                ) : undefined
+              }
+            />
+          ) : tab === 'past' ? (
+            <PastBookings items={shown} now={now} />
+          ) : (
+            <ul className="space-y-s">
+              {shown.map((a) => (
+                <li key={a.id}>
+                  <AppointmentCard appt={a} now={now} />
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </section>
 
       <section className="mt-l">
         <h2 className="text-titleLarge font-semibold text-textPrimary">Favoris</h2>

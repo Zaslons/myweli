@@ -7,7 +7,10 @@ import 'status_labels.dart';
 enum ClientBookingTab { upcoming, past, cancelled }
 
 /// The one rule for a client's own bookings, the same on the web
-/// (docs/design/consumer-app-truth.md §2.7; web `categorize(a, now)`).
+/// (docs/design/consumer-app-truth.md §2.7; web `clientTab(a, now)` in
+/// `web/lib/account/appointments.ts`, docs/design/web-account-bookings-truth.md).
+/// Both suites read the table from
+/// `docs/design/fixtures/client-booking-rule.json`.
 ///
 /// | Booking                        | Tab      | Chip         |
 /// |--------------------------------|----------|--------------|

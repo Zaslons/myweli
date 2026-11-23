@@ -46,10 +46,10 @@ All four fixed in #723 ([web-true-sentences.md](web-true-sentences.md)). **A cor
 | # | Gap | Evidence | |
 |---|---|---|---|
 | **C3** | **The salon's description is never shown.** The app shows it; the web only sends it to search engines | `provider_detail_screen.dart:1144-1156`, absent from `ProviderView.tsx` | Checked |
-| **C4** | « À venir » sorts by status only, so a past pending or confirmed booking stays there | `web/lib/account/appointments.ts`, `visit_history.dart:15` | Status rule checked |
+| **C4** | « À venir » sorts by status only, so a past pending or confirmed booking stays there | `web/lib/account/appointments.ts`, `visit_history.dart:15` | Status rule checked · ✅ **closed by A1w** (2026-11-23, [web-account-bookings-truth.md](web-account-bookings-truth.md)) |
 | C5 | Returning client's home: no recent bookings, favourites or remembered commune. The June audit marked the favourites strip as deliberate for search; worth asking again for signed-in visitors | `home_screen.dart:48,251,351`, `app/page.tsx` | |
 | C6 | A recognised service and commune land on a page with no sort, availability filter, map or hearts. The routing was recorded; losing those was not | `discovery.ts:47-53`, `TaxonomyLandingView.tsx`, `RechercheClient.tsx:243-265` | |
-| C7 | Past visits: no summary, month groups or inline rebook | `my_bookings_screen.dart:193-248`, `AccountClient.tsx:454` | |
+| C7 | Past visits: no summary, month groups or inline rebook | `my_bookings_screen.dart:193-248`, `AccountClient.tsx:454` | ✅ **closed by A1w** (2026-11-23, decision 182) |
 | C8 | A signed-in web booker never sees the consent line | `booking_confirmation_screen.dart:476`, `LoginOptions.tsx:281` | |
 | C9 | Deposit details: no percentage, balance, « Copier » or « Acompte confirmé » state | `booking_confirmation_screen.dart:428-453`, `DepositProof.tsx:94-98` | |
 | C10 | Profile: no avatar or e-mail editing | `edit_profile_screen.dart:81-123`, `AccountClient.tsx:256,349` | |

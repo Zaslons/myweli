@@ -14,7 +14,7 @@ import {
   salonIsLive,
   salonStoppedMessage,
   rebookHref,
-  statusLabelFr,
+  clientStatusLabel,
 } from "../../lib/account/appointments";
 import { buildIcs, googleCalendarUrl } from "../../lib/account/calendar";
 import { canRebook, canReview } from "../../lib/account/extras";
@@ -36,6 +36,7 @@ import { formatDateTimeFr, formatFcfa } from "../../lib/format";
 import { salonDayKey, salonFormatter, salonToday } from "../../lib/time";
 import { useLocalities } from "../../lib/use-localities";
 import { Button } from "../Button";
+import { ButtonLink } from "../ButtonLink";
 import { ErrorState } from "../ErrorState";
 import { Loading } from "../Loading";
 import { TextField } from "../TextField";
@@ -51,6 +52,10 @@ export function AppointmentDetailClient({ id }: { id: string }) {
   // carriers; the tree only resolves the hint's country label (best-effort).
   const { tree } = useLocalities();
   const [appt, setAppt] = useState<Appointment | null>(null);
+  // The instant the booking was read (web-account-bookings-truth.md §2.1):
+  // the chip, « Reporter », the calendar block and « Réserver à nouveau » all
+  // ask the client rule with this one clock.
+  const [now, setNow] = useState<Date>(() => new Date());
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
   // Any other failed read (no network, a 5xx): « Réessayer », never
@@ -103,6 +108,7 @@ export function AppointmentDetailClient({ id }: { id: string }) {
       setLoading(false);
       return;
     }
+    setNow(new Date());
     setAppt(r.appt);
     setLoading(false);
   }, [id, router]);
@@ -233,7 +239,10 @@ export function AppointmentDetailClient({ id }: { id: string }) {
           <h1 className="text-titleLarge font-semibold text-textPrimary">
             {salonNameOr(appt.providerName, UNNAMED_SALON)}
           </h1>
-          <Chip>{statusLabelFr(appt.status)}</Chip>
+          {/* The client rule's words (§2.7): a past booking nobody confirmed
+              reads « Non confirmé » here too. The chip's tone and the
+              detail's layout are A2's, on both surfaces. */}
+          <Chip>{clientStatusLabel(appt, now)}</Chip>
         </div>
         {/* The salon stopped taking appointments (§12, §6 cell 6).
             Stated once, above the controls it explains — a client is not left
@@ -262,7 +271,7 @@ export function AppointmentDetailClient({ id }: { id: string }) {
         {/* Parity 1.2 — add the booking to a calendar (upcoming only).
             `isUpcoming`, not `canReschedule`: a stopped salon keeps its
             calendar entry, it just cannot be moved. */}
-        {isUpcoming(appt) ? (
+        {isUpcoming(appt, now) ? (
           <div className="mt-s flex flex-wrap gap-s">
             <a
               href={googleCalendarUrl(appt)}
@@ -395,7 +404,7 @@ export function AppointmentDetailClient({ id }: { id: string }) {
         ) : null}
 
         {/* « Reporter » (parity 1.1) — the app's slot-picker flow. */}
-        {canReschedule(appt) ? (
+        {canReschedule(appt, now) ? (
           <div className="mt-l">
             {!rescheduling ? (
               <Button onClick={() => openReschedule(appt)}>Reporter</Button>
@@ -521,14 +530,12 @@ export function AppointmentDetailClient({ id }: { id: string }) {
           </div>
         ) : null}
 
-        {canRebook(appt.status) && rebookHref(appt) ? (
+        {/* Decision 183: any booking that is not upcoming, at a salon still
+            open — the same question the « Passés » list asks. A ButtonLink,
+            so it reaches 48 px (it was a 36 px hand-rolled link). */}
+        {canRebook(appt, now) ? (
           <div className="mt-l">
-            <Link
-              href={rebookHref(appt)!}
-              className="inline-flex items-center justify-center rounded-control bg-primary px-l py-s text-labelLarge font-medium text-secondary hover:bg-primaryHover"
-            >
-              Réserver à nouveau
-            </Link>
+            <ButtonLink href={rebookHref(appt)!}>Réserver à nouveau</ButtonLink>
           </div>
         ) : null}
 

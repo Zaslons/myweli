@@ -727,6 +727,10 @@ Existing: `Button` (48-floor, `text` variant, `isLoading` — B4) · **`TextFiel
 **`ErrorState`** · **`Rating`** · **`Chip`**/`ChipButton` (all B6) ·
 **`Card`** · **`StatusChip`**/`statusChipKind` · **`DataTable`** (all B7) ·
 **`Tabs`** (B9 — wraps, named `role="group"`, `min-h-12`) ·
+`ClientStatusChip` (A1w — a client's OWN booking only: the client rule's words,
+« Non confirmé » included, and neutral drawn `ink`, the app's neutral;
+`StatusChip` stays the Espace pro's, and a test keeps the client helpers out of
+it — [web-account-bookings-truth.md](web-account-bookings-truth.md) §2.3) ·
 `AppInstallBanner` · `OpenInAppButton` · `SalonTimeHint` · `LocalityPicker` ·
 `ProviderCard` · `TeamRoleChip` (a `Chip` caller since B6) · `JsonLd` ·
 `Lightbox` · `SiteChrome` / `Header`.
