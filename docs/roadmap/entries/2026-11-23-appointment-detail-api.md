@@ -1,0 +1,10 @@
+- 🟡 **Backend, A2-api : le rendez-vous du client porte le lieu et la photo du salon (backend · contrat · 2026-11-23 — décisions 194 et 203 ; spec [appointment-detail-complete.md](../../design/appointment-detail-complete.md) §2.1).** Branche `feat/appointment-detail-api`, empilée sur la spec (#839). **Son déploiement est un déploiement en production du backend, sur le mot du propriétaire.**
+  - **Pourquoi :** le détail d’un rendez-vous ne pouvait montrer ni itinéraire ni photo pour un salon que l’app n’avait pas chargé. Depuis la décision C, le rendez-vous du client est la seule source de ce qu’il sait de son salon.
+  - **Ce qui change :** `GET /appointments` et `GET /appointments/{id}` (les rendez-vous du client lui-même) portent cinq champs facultatifs :
+    - `providerLatitude` et `providerLongitude` : une paire, les deux ou aucun, jamais une seule ;
+    - `providerCommune` et `providerCity` ;
+    - `providerPhotoUrl`, la couverture (`imageUrls[0]`), **seulement tant que le salon est en ligne**.
+  - **Un salon arrêté** (brouillon ou suspendu) garde son lieu, comme son adresse et son téléphone : un client qui y a rendez-vous doit encore pouvoir s’y rendre. Il ne garde pas sa photo : c’est une décoration, et un salon peut être suspendu pour ce qu’il a publié.
+  - **La galerie ne voyage jamais entière :** une seule photo.
+  - **Le contrat** (`openapi.yaml`) décrit les cinq champs, et les types du site sont régénérés. Le test de la route vérifie que la réponse réelle ne porte aucune clé que le contrat ne nomme pas.
+  - **Ce qui ne change pas :** aucune route nouvelle, aucune donnée stockée, aucune lecture de l’Espace pro. Les clients actuels ignorent ces champs ; l’app et le site les liront dans A2 et A2w.

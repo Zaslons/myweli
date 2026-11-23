@@ -27,6 +27,7 @@ import 'package:myweli_backend/src/push/push_service.dart';
 import 'package:test/test.dart';
 
 import '../../routes/appointments/[id]/index.dart' as detail;
+import '../contract/openapi_shape.dart';
 import '../../routes/appointments/index.dart' as list;
 
 class _MockRequestContext extends Mock implements RequestContext {}
@@ -866,6 +867,43 @@ void main() {
       expect(
         (body['items'] as List).every((a) => a['providerId'] == 'provider1'),
         isTrue,
+      );
+    });
+
+    // A2 (appointment-detail-complete.md §2.1, decision 194): the detail the
+    // client opens on the day carries the salon's place and cover, through
+    // the real handler — not only the enrichment function.
+    test('GET /{id} carries the place and the cover of a live salon', () async {
+      final created = await jsonOf(
+        await list.onRequest(ctx(bookReq(accessA, bookBody(_slotAt(9))))),
+      );
+      final id = created['id'] as String;
+      final res = await detail.onRequest(
+        ctx(
+          Request.get(
+            Uri.parse('http://localhost/appointments/$id'),
+            headers: {'Authorization': 'Bearer $accessA'},
+          ),
+        ),
+        id,
+      );
+      expect(res.statusCode, HttpStatus.ok);
+      final body = await jsonOf(res);
+      final salon = (await providers.byId(body['providerId'] as String))!;
+      expect(salon['latitude'], isNotNull, reason: 'the seed has a position');
+      expect(body['providerLatitude'], (salon['latitude'] as num).toDouble());
+      expect(body['providerLongitude'], (salon['longitude'] as num).toDouble());
+      expect(body['providerCommune'], salon['commune']);
+      expect(body['providerCity'], salon['city']);
+      expect(body['providerPhotoUrl'], (salon['imageUrls'] as List).first);
+      // The gallery itself never rides along.
+      expect(body.containsKey('imageUrls'), isFalse);
+      // And the contract names every key the handler sent: it is closed by
+      // default, so a key added to the enrichment and not to openapi.yaml
+      // (or the reverse) turns this red.
+      expect(
+        OpenApiShape().checkResponse('/appointments/{id}', 'get', 200, body),
+        isEmpty,
       );
     });
 
