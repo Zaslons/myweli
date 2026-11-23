@@ -202,7 +202,7 @@ void main() {
   );
 
   test(
-    'visitHistory exposes past, non-cancelled appointments as visits',
+    'the three tabs follow the client rule (consumer-app-truth.md §2.7)',
     () async {
       final past = confirmed(); // 2024 → elapsed
       final cancelled = confirmed().copyWith(
@@ -220,7 +220,9 @@ void main() {
       final provider = AppointmentProvider();
       await provider.loadAppointments();
 
-      expect(provider.visitHistory.map((a) => a.id), ['a1']);
+      expect(provider.pastAppointments.map((a) => a.id), ['a1']);
+      expect(provider.upcomingAppointments.map((a) => a.id), ['a3']);
+      expect(provider.cancelledAppointments.map((a) => a.id), ['a2']);
     },
   );
 

@@ -1,0 +1,11 @@
+- 🟡 **MyWeli (client), A1 : ce que l’app dit devient vrai — construit (mobile · 2026-11-23 — BACKLOG B0.10, décisions 160, 165 à 170 ; B12.10, B12.11).** Branche `feat/consumer-app-truth`, empilée sur `docs/consumer-app-truth-spec` (#833), elle-même sur #832. Spec : [consumer-app-truth.md](../../design/consumer-app-truth.md). La fusion ne déploie rien : le changement atteint les clients avec le prochain build de l’app cliente, sur le oui du propriétaire.
+  - **Les « stories » de l’accueil :** cachées derrière `FeatureFlags.homeStories`, éteint (décision 170, à la place de leur retrait). Elles restent dans le code ; un test empêche d’allumer le drapeau tant que les stories de démonstration (une promotion de -15 % que personne ne fait, un salon qui n’existe pas) sont là. Qui gérera de vraies stories est sa propre spec.
+  - **L’annulation énonce la règle du salon**, mot pour mot comme le site, au lieu de promettre un remboursement : un test compare les phrases de l’app à celles du site.
+  - **« Langue », qui répondait « Fonctionnalité à venir », est retirée.**
+  - **Les textes de permission iOS de l’app cliente** ne parlent plus de la galerie d’un salon ; l’appareil photo nomme le justificatif d’acompte, la position nomme la commune (« Près de moi »). `project.pbxproj` régénéré par le script ; Pro inchangé.
+  - **Un salon sans photo affiche une image locale**, plus d’appel à `via.placeholder.com`.
+  - **Les cartes et l’accueil lisent le nom du salon et les prestations sur le rendez-vous lui-même.**
+  - **« Passés » dit vrai :** un rendez-vous passé jamais confirmé affiche « Non confirmé », un rendez-vous confirmé reste « Confirmé », seul un rendez-vous clos par le salon est « Terminé » ; une absence apparaît enfin, « Absent » ; le résumé ne compte que les visites terminées et disparaît à zéro ; l’app ne propose plus d’annuler une absence.
+  - **Vérifié :** analyse à 0, la suite mobile complète, chaque nouveau garde vu rouge une fois (la liste est dans le message de commit), les images de référence refaites sous Linux et regardées.
+  - **Ce qui ne change pas :** MyWeli Pro, le backend, le contrat d’API.
+  - **Reste :** A1w, la moitié web de « Passés » (ferme B12.6), dont la fusion est un déploiement en production sur le mot du propriétaire ; puis A2.

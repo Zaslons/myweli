@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:myweli/widgets/common/brand_refresh.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/config/feature_flags.dart';
 import '../../core/constants/unnamed_salon.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/colors.dart';
@@ -169,8 +170,11 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ),
               ),
-              // Stories (announcements / promos)
-              const SliverToBoxAdapter(child: AnnouncementStories()),
+              // Stories (announcements / promos): hidden while they are
+              // hard-coded demo content (FeatureFlags.homeStories, decision
+              // 170; consumer-app-truth.md §2.1).
+              if (FeatureFlags.homeStories)
+                const SliverToBoxAdapter(child: AnnouncementStories()),
               const SliverToBoxAdapter(
                 child: SizedBox(height: AppTheme.spacingM),
               ),
@@ -333,8 +337,11 @@ class _HomeScreenState extends State<HomeScreen> {
                                               ),
                                               child: CompactAppointmentTile(
                                                 appointment: a,
+                                                // The booking's own name
+                                                // first (§2.6 of
+                                                // consumer-app-truth.md).
                                                 providerName: salonNameOr(
-                                                  p?.name,
+                                                  a.providerName ?? p?.name,
                                                   kUnnamedSalon,
                                                 ),
                                                 providerImageUrl:

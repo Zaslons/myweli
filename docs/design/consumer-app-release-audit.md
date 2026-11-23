@@ -486,6 +486,8 @@ L = a week or more. **Risk** is to the submission or to a user's trust.
 | 23 | Missing goldens and widget tests (the list, the map, the detail, the confirmation, the deposit sheet, profile) | M | Low (regressions) | §2.9 |
 | 24 | E-mail code budget 60 per hour, shared | S (config) | Medium on launch day | §4 |
 
+**2026-11-23 — A1 built** ([consumer-app-truth.md](consumer-app-truth.md)): in the app, gaps 2 (the stories hidden behind a flag, decision 170; real stories are their own spec), 3, 6, 12, 15 and 16, and the name half of 9. The web half of 15 is A1w.
+
 ---
 
 ## 7. Proposed order of work

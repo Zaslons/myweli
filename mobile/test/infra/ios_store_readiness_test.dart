@@ -123,6 +123,37 @@ void main() {
       }
     });
 
+    test('every consumer configuration describes the CLIENT app\'s uses', () {
+      // A1 (docs/design/consumer-app-truth.md §2.4): the camera and photos
+      // strings named « côté salon, la galerie de votre établissement », a
+      // feature the client app does not have, and missed two real uses: the
+      // camera for the deposit proof, and the position for « Près de moi »,
+      // which finds the commune. The same 5.1.1(ii) shape Pro was fixed for.
+      final consumer = runnerConfigs('com.myweli.app');
+      expect(consumer.length, 6, reason: '6 consumer configurations');
+      for (final MapEntry(key: name, value: body) in consumer.entries) {
+        for (final key in const [
+          'CAMERA_USAGE_DESCRIPTION',
+          'PHOTO_LIBRARY_USAGE_DESCRIPTION',
+        ]) {
+          final v = setting(body, key);
+          expect(v, contains('justificatif d’acompte'), reason: '$name $key');
+          expect(v, isNot(contains('galerie')), reason: '$name $key');
+          expect(v, isNot(contains('côté salon')), reason: '$name $key');
+        }
+        for (final key in const [
+          'LOCATION_USAGE_DESCRIPTION',
+          'LOCATION_ALWAYS_USAGE_DESCRIPTION',
+        ]) {
+          expect(
+            setting(body, key),
+            contains('trouver votre commune'),
+            reason: '$name $key must name « Près de moi »',
+          );
+        }
+      }
+    });
+
     test('every configuration defines all three, non-empty', () {
       // An empty purpose string is not a rejection, it is a crash the moment
       // the permission is requested — which is why the flavourless Debug /

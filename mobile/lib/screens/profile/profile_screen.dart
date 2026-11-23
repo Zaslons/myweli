@@ -98,14 +98,10 @@ class ProfileScreen extends StatelessWidget {
                     title: 'Préférences de notification',
                     onTap: () => context.push('/profile/notifications'),
                   ),
-                SettingsTile(
-                  icon: Icons.language,
-                  title: 'Langue',
-                  trailing: const Text('Français'),
-                  onTap: () {
-                    AppSnackBar.show(context, 'Fonctionnalité à venir');
-                  },
-                ),
+                // No « Langue » row: the app is French only
+                // (CFBundleLocalizations = [fr]), and the row answered
+                // « Fonctionnalité à venir », placeholder content for App
+                // Review 2.1 (docs/design/consumer-app-truth.md §2.3).
                 SettingsTile(
                   icon: Icons.help_outline,
                   title: 'Aide & Support',

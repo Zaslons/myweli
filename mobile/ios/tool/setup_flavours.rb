@@ -57,8 +57,13 @@ require 'fileutils'
 # afficher les salons autour de vous sur la carte » — a consumer feature Pro
 # does not have. Pro asks for location to place the salon's own pin and to find
 # its commune. A purpose string that does not describe the use is a textbook
-# App Review 5.1.1 rejection, and the Pro submission is the first one. The
-# consumer strings are unchanged, verbatim.
+# App Review 5.1.1 rejection, and the Pro submission is the first one.
+#
+# **The consumer strings, 2026-11-23 (A1):** they named « côté salon, la galerie
+# de votre établissement », which the client app does not have, and missed two
+# real uses: the camera for the deposit proof (the deposit sheet offers it) and
+# the position for « Près de moi », which finds the commune. Design:
+# docs/design/consumer-app-truth.md §2.4.
 #
 # **`device_family`**: Pro is iPhone-only ('1') for its first release — an iPad
 # declaration makes 13-inch iPad screenshots mandatory and puts an untested
@@ -72,10 +77,10 @@ FLAVOURS = {
     google_client_id: '731308991240-ah75c2bvv4ojfipa7crlj38n7rdg60fv.apps.googleusercontent.com',
     app_icon: 'AppIcon',
     device_family: '1,2',
-    location_usage: 'Nous utilisons votre position pour afficher les salons autour de vous sur la carte.',
-    camera_usage: 'MyWeli utilise l’appareil photo pour vos photos d’avis, votre photo de profil et, côté salon, la galerie de votre établissement.',
-    photos_usage: 'MyWeli accède à vos photos pour vos photos d’avis, votre photo de profil, votre justificatif d’acompte et, côté salon, la galerie de votre établissement.',
-    location_always_usage: 'MyWeli n’utilise votre position que pendant que vous utilisez l’app, pour afficher les salons autour de vous sur la carte.',
+    location_usage: 'MyWeli utilise votre position pour afficher les salons autour de vous sur la carte et trouver votre commune.',
+    camera_usage: 'MyWeli utilise l’appareil photo pour vos photos d’avis, votre photo de profil et la photo de votre justificatif d’acompte.',
+    photos_usage: 'MyWeli accède à vos photos pour vos photos d’avis, votre photo de profil et votre justificatif d’acompte.',
+    location_always_usage: 'MyWeli n’utilise votre position que pendant que vous utilisez l’app, pour afficher les salons autour de vous sur la carte et trouver votre commune.',
   },
   'pro'      => {
     bundle_id: 'com.myweli.pro',

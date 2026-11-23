@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | **Approved by the owner on 2026-11-23** (« Approve as recommended »: §11's five recommendations, BACKLOG decisions 165–169). **Amended the same day by decision 170:** the home stories are hidden behind a flag, not removed (§2.1). A1 is built from it. |
+| **Status** | **Approved by the owner on 2026-11-23** (« Approve as recommended »: §11's five recommendations, BACKLOG decisions 165–169). **Amended the same day by decision 170:** the home stories are hidden behind a flag, not removed (§2.1). **Built 2026-11-23** on `feat/consumer-app-truth` (A1); A1w, the web half of §2.7, is next. |
 | **Owner** | Sadreddine |
 | **Last updated** | 2026-11-23 |
 | **PRD ref / phase** | FR-DISC-001, FR-APPT-001, FR-APPT-003/005, FR-APPT-009, FR-PAY-005 · V1 · BACKLOG B0.10 (decision 160), B12.6, B12.10 (part), B12.11 |
@@ -271,6 +271,7 @@ the phone, and the stories key is left as described in §2.1.
 - **Two pure functions in `core/utils/`**, each unit-tested, which the widgets read. No new service, provider or route.
 - **One shared widget**, `widgets/common/salon_photo_placeholder.dart`, used at three sites: the two in `provider_card.dart` and the booking card.
 - **One new flag**, `FeatureFlags.homeStories`, beside the others in `core/config/feature_flags.dart`.
+- **One booking widget**, `widgets/booking/cancellation_notice_box.dart`: the dialog's deposit box in its three tones, so one golden can show all three.
 
 ## 6. Security & privacy
 
@@ -303,7 +304,7 @@ mutation run.**
 | `test/a11y/layout_test.dart` | The home row follows the flag; the stories' 200 % gate, pumped alone | Show the row whatever the flag says |
 | `test/unit/truth_pins_test.dart` (new) | No file under `lib/` contains `via.placeholder.com` or « Fonctionnalité à venir », comments stripped | Put either string back in a widget |
 | `test/infra/setup_flavours_test.dart` | The consumer camera and photos strings contain neither « côté salon » nor « galerie »; the location strings name « commune »; the committed `pbxproj` matches the script | Restore today's camera string in the script only |
-| Goldens | Re-made: `consumer_home.png`, `consumer_home_w360_x2.png`, `consumer_my_bookings_w360_x2.png`. New: « Passés » with the four past chips at 360 × 2×, and the cancel dialog's three tones | Made by the goldens workflow (Linux); every changed PNG opened before commit; the before and after go in the PR |
+| Goldens | Re-made where the Linux run moved them (`consumer_home.png`, `consumer_home_w360_x2.png`, and any other it shows). New, in `consumer_truth_golden_test.dart`: `consumer_cancel_notice_tones` (1×), `consumer_cancel_notice_tones_w360_x2`, `consumer_past_chips_w360_x2` | Made by the goldens workflow (Linux); every changed PNG opened before commit; the before and after go in the PR |
 
 **Also:**
 - `flutter analyze` at 0;

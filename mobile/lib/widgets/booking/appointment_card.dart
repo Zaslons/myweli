@@ -6,20 +6,20 @@ import '../../core/constants/unnamed_salon.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/colors.dart';
 import '../../core/theme/text_styles.dart';
+import '../../core/utils/app_clock.dart';
+import '../../core/utils/client_booking_rule.dart';
 import '../../core/utils/formatters.dart';
 import '../../core/utils/helpers.dart';
 import '../../core/utils/salon_time.dart';
-import '../../core/utils/status_colors.dart';
-import '../../core/utils/status_labels.dart';
 import '../../models/appointment.dart';
 import '../../models/artist.dart';
 import '../../models/provider.dart' as models;
-import '../../models/service.dart';
 import '../../providers/provider_provider.dart';
 import '../../widgets/common/app_snack_bar.dart';
 import '../common/app_card.dart';
 import '../common/app_chip.dart';
 import '../common/label_value_row.dart';
+import '../common/salon_photo_placeholder.dart';
 import '../common/timed_cached_image.dart';
 
 class AppointmentCard extends StatelessWidget {
@@ -47,12 +47,22 @@ class AppointmentCard extends StatelessWidget {
           provider = null;
         }
 
-        // Get services for this appointment
-        final services = provider != null
-            ? provider.services
-                  .where((s) => appointment.serviceIds.contains(s.id))
-                  .toList()
-            : <Service>[];
+        // The booking's own facts first (consumer-app-truth.md §2.6): the
+        // server sends the salon's name and the services' names on the
+        // client's own bookings, and the discovery list only holds the page
+        // that happens to be loaded — another commune, page two or a salon
+        // that left the listing read « Salon » with no services.
+        final salonName = salonNameOr(
+          appointment.providerName ?? provider?.name,
+          kUnnamedSalon,
+        );
+        final serviceNames = appointment.serviceNames.isNotEmpty
+            ? appointment.serviceNames
+            : [
+                if (provider != null)
+                  for (final s in provider.services)
+                    if (appointment.serviceIds.contains(s.id)) s.name,
+              ];
 
         return AppCard(
           onTap: onTap,
@@ -72,16 +82,7 @@ class AppointmentCard extends StatelessWidget {
                             height: 80,
                             fit: BoxFit.cover,
                           )
-                        : Container(
-                            width: 80,
-                            height: 80,
-                            color: AppColors.surface,
-                            child: const Icon(
-                              Icons.store,
-                              size: AppTheme.iconL,
-                              color: AppColors.textTertiary,
-                            ),
-                          ),
+                        : const SalonPhotoPlaceholder(width: 80, height: 80),
                   ),
                   const SizedBox(width: AppTheme.spacingM),
                   Expanded(
@@ -116,14 +117,20 @@ class AppointmentCard extends StatelessWidget {
                             runSpacing: AppTheme.spacingXS,
                             children: [
                               Text(
-                                salonNameOr(provider?.name, kUnnamedSalon),
+                                salonName,
                                 style: AppTextStyles.titleMedium.copyWith(
                                   color: AppColors.textPrimary,
                                 ),
                               ),
                               AppChip.status(
-                                label: StatusLabels.of(appointment.status),
-                                tone: appointmentStatusTone(appointment.status),
+                                label: clientStatusLabel(
+                                  appointment,
+                                  AppClock.now(),
+                                ),
+                                tone: clientStatusTone(
+                                  appointment,
+                                  AppClock.now(),
+                                ),
                               ),
                             ],
                           ),
@@ -251,7 +258,7 @@ class AppointmentCard extends StatelessWidget {
                 const SizedBox(height: AppTheme.spacingSM),
               ],
               // Services
-              if (services.isNotEmpty) ...[
+              if (serviceNames.isNotEmpty) ...[
                 Text(
                   'Services:',
                   style: AppTextStyles.labelMedium.copyWith(
@@ -262,7 +269,7 @@ class AppointmentCard extends StatelessWidget {
                 Wrap(
                   spacing: AppTheme.spacingS,
                   runSpacing: AppTheme.spacingS,
-                  children: services.take(3).map((service) {
+                  children: serviceNames.take(3).map((name) {
                     return Container(
                       padding: const EdgeInsets.symmetric(
                         horizontal: AppTheme.spacingS,
@@ -275,7 +282,7 @@ class AppointmentCard extends StatelessWidget {
                         ),
                       ),
                       child: Text(
-                        service.name,
+                        name,
                         style: AppTextStyles.bodySmall.copyWith(
                           color: AppColors.textPrimary,
                         ),
@@ -283,11 +290,11 @@ class AppointmentCard extends StatelessWidget {
                     );
                   }).toList(),
                 ),
-                if (services.length > 3)
+                if (serviceNames.length > 3)
                   Padding(
                     padding: const EdgeInsets.only(top: AppTheme.spacingXS),
                     child: Text(
-                      '+ ${Formatters.count(services.length - 3, 'autre', 'autres')}',
+                      '+ ${Formatters.count(serviceNames.length - 3, 'autre', 'autres')}',
                       style: AppTextStyles.bodySmall.copyWith(
                         color: AppColors.textTertiary,
                       ),

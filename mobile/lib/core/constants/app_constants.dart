@@ -40,10 +40,4 @@ class AppConstants {
   /// room to spare — and its own constant, because [apiTimeout] is read by
   /// nothing.
   static const Duration reviewRereadTimeout = Duration(seconds: 10);
-
-  // Image Placeholders
-  static const String placeholderProviderImage =
-      'https://via.placeholder.com/400x300?text=Provider';
-  static const String placeholderAvatar =
-      'https://via.placeholder.com/100?text=User';
 }

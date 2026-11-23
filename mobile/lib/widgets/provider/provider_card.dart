@@ -11,6 +11,7 @@ import '../../providers/favorites_provider.dart';
 import '../../widgets/common/app_rating.dart';
 import '../../widgets/common/app_snack_bar.dart';
 import '../common/app_card.dart';
+import '../common/salon_photo_placeholder.dart';
 import '../common/timed_cached_image.dart';
 
 class ProviderCard extends StatelessWidget {
@@ -189,14 +190,19 @@ class ProviderCard extends StatelessWidget {
                           borderRadius: const BorderRadius.vertical(
                             top: Radius.circular(AppTheme.radiusXL),
                           ),
-                          child: TimedCachedImage(
-                            imageUrl: provider.imageUrls.isNotEmpty
-                                ? provider.imageUrls.first
-                                : 'https://via.placeholder.com/400x300',
-                            height: imageHeight,
-                            width: double.infinity,
-                            fit: BoxFit.cover,
-                          ),
+                          // No photo: drawn here, never fetched from a third
+                          // party (consumer-app-truth.md §2.5).
+                          child: provider.imageUrls.isNotEmpty
+                              ? TimedCachedImage(
+                                  imageUrl: provider.imageUrls.first,
+                                  height: imageHeight,
+                                  width: double.infinity,
+                                  fit: BoxFit.cover,
+                                )
+                              : SalonPhotoPlaceholder(
+                                  height: imageHeight,
+                                  width: double.infinity,
+                                ),
                         ),
                         Positioned(
                           top: 8,
@@ -374,14 +380,14 @@ class ProviderCard extends StatelessWidget {
                     borderRadius: const BorderRadius.horizontal(
                       left: Radius.circular(AppTheme.radiusXL),
                     ),
-                    child: TimedCachedImage(
-                      imageUrl: provider.imageUrls.isNotEmpty
-                          ? provider.imageUrls.first
-                          : 'https://via.placeholder.com/400x300',
-                      width: 80,
-                      height: 80,
-                      fit: BoxFit.cover,
-                    ),
+                    child: provider.imageUrls.isNotEmpty
+                        ? TimedCachedImage(
+                            imageUrl: provider.imageUrls.first,
+                            width: 80,
+                            height: 80,
+                            fit: BoxFit.cover,
+                          )
+                        : const SalonPhotoPlaceholder(width: 80, height: 80),
                   ),
                   Positioned(
                     top: 4,

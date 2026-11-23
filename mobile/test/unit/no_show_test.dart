@@ -1,8 +1,8 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:myweli/core/di/dependency_injection.dart';
+import 'package:myweli/core/utils/client_booking_rule.dart';
 import 'package:myweli/core/utils/salon_id.dart';
-import 'package:myweli/core/utils/visit_history.dart';
 import 'package:myweli/models/api_response.dart';
 import 'package:myweli/models/appointment.dart';
 import 'package:myweli/providers/pro_appointment_provider.dart';
@@ -28,18 +28,19 @@ void main() {
     createdAt: DateTime(2026),
   );
 
-  test('a no-show stays no-show and is excluded from visit history', () {
-    final list = [
-      appt(id: 'done', date: DateTime(2026, 6, 1)),
-      appt(
+  test(
+    'a no-show is listed in « Passés » as « Absent », never « Terminé »',
+    () {
+      // It used to be in no tab at all (consumer-app-truth.md §2.7).
+      final absent = appt(
         id: 'absent',
         date: DateTime(2026, 6, 2),
         status: AppointmentStatus.noShow,
-      ),
-    ];
-    expect(effectiveAppointmentStatus(list[1], now), AppointmentStatus.noShow);
-    expect(visitHistory(list, now).map((a) => a.id), ['done']);
-  });
+      );
+      expect(clientTab(absent, now), ClientBookingTab.past);
+      expect(clientStatusLabel(absent, now), 'Absent');
+    },
+  );
 
   group('ProAppointmentProvider.markNoShow', () {
     late _MockProService service;
