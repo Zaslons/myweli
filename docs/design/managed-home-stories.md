@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | **Draft, for the owner's approval.** Nothing is built from it before the owner answers §14. |
+| **Status** | **Approved (2026-11-23).** The owner answered all eleven questions of §14 « Approve as recommended »: decisions 171–181. Nothing is built yet: the build comes after Track A (Q9, decision 179), each PR and each deploy on the owner's word (§12). |
 | **Owner** | Sadreddine |
 | **Last updated** | 2026-11-23 |
 | **PRD ref / phase** | FR-DISC-010 (« *partial: `stories/` consumer-side exists for system stories* »; salon stories V2) · FR-WEB-AD-004 (content moderation, « reviews, photos, stories », V1) · FR-WEB-AD-005 (featured placement, V1, its closest kin) · FR-PRO-STORY-001 (salon-posted stories, **V2**, option B only) · BACKLOG B0.10, decision 170 |
@@ -67,7 +67,7 @@ salon it names stops being public, or within 60 seconds of being withdrawn.
 | Backend | the `home_stories` table, a public read, admin routes, a `story` upload purpose, the contract, threat T85 | §4 |
 | App (client) | `AnnouncementStories` and `StoryViewer` read the API through an interface with a mock; the demo list and its three SVGs deleted; then the flag flips | §5 |
 | Console | « Stories » for staff: list, editor with preview, publish, withdraw, reorder | §6 |
-| Web | the same stories on `myweli.com`'s home (recommended, Q3) | §7 |
+| Web | the same stories on `myweli.com`'s home (Q3, decision 173) | §7 |
 
 ### 1.2 Out of scope, and where each goes
 
@@ -96,11 +96,11 @@ salon it names stops being public, or within 60 seconds of being withdrawn.
 | Who could post today | the owner | nobody: no salon is public in production (decision 51's gate, [consumer-app-release-audit.md](consumer-app-release-audit.md)) |
 | Risk to the truth rule | one publisher, one rule | every salon a publisher; a false « -30 % » is a few taps away |
 
-**Recommendation: A now; B stays V2.** A is the smaller build, carries no UGC
+**Decided: A now; B stays V2** (Q1, decision 171). A is the smaller build, carries no UGC
 obligations, and has a publisher today. Two choices in A keep B open without
 building it: a `publisher` column (`myweli` only, for now) and the storage
 prefix `story/myweli/` (§4.4), so salon stories can later live under
-`story/{salonId}/` beside them. **Q1.**
+`story/{salonId}/` beside them. **Q1: A, decision 171.**
 
 ### 1.4 How it fits the architecture
 
@@ -188,7 +188,7 @@ client builds its own link:
   those targeting every commune.
 - **A client who has chosen none** (the pill reads « Toutes les communes »,
   `commune_pill.dart:18`) sees only the stories targeting every commune.
-  **Q4.** The other reading, « show them all », would put a Cocody salon in
+  **Q4, decision 174.** The other reading, « show them all », would put a Cocody salon in
   front of someone in Abobo.
 - **An area that leaves the tree** never widens a story: a story with an
   `areaId` the tree no longer holds is not served (« Masquée — commune
@@ -659,7 +659,7 @@ home, not something the client asked for, so two of its states are
 deliberately silent. **That is an exception to §12** (« every async section
 renders four states »; loading « never a blank screen »; an error needs « a
 way out »), and PR D writes it into §12 as a declared exception for optional
-promotional rows, with this row as its one user. **Q10.**
+promotional rows, with this row as its one user. **Q10: approved, decision 180.**
 
 | State | What the home shows | Why |
 |---|---|---|
@@ -759,7 +759,7 @@ In PR D, in this order:
 **Only then, in PR E, does the flag flip** (`FeatureFlags.homeStories = true`,
 the home goldens re-made with the row). A1's guard (`feature_flags_test.dart`)
 stays green through both: after step 2 it finds no demo and stops asserting
-the flag. Q8 asks whether PR E is its own PR.
+the flag. PR E is its own PR (Q8, decision 178).
 
 ### 5.7 Accessibility and 200 % text
 
@@ -930,8 +930,8 @@ service lives there (§1.4).
 
 **The rule** (WEB.md §0): the consumer web reaches parity with the consumer
 app, or the gap is called out. The stories are on the app's home, so the
-web's home owes them too, adapted to a desktop. **Recommendation: yes, in its
-own PR after the app's (PR F).** **Q3.**
+web's home owes them too, adapted to a desktop. **Yes, in its own PR after
+the app's (PR F): Q3, decision 173.**
 
 ### 7.1 Where and how it looks
 
@@ -1016,9 +1016,9 @@ phone.
 
 | Question | Answer |
 |---|---|
-| Does the App Store privacy label change? | **No**, if Q5 is answered « no counting »: nothing new leaves the device. The request's IP address reaches our servers as every request's does |
+| Does the App Store privacy label change? | **No**: Q5 is answered « no counting » (decision 175), so nothing new leaves the device. The request's IP address reaches our servers as every request's does |
 | Does Play's Data safety change? | **No**, for the same reason |
-| Does the privacy policy change? | **No new processing of a client's data.** One case to write down in B2 only if Q5 is « yes »: counted views or taps are « usage data » and must be declared (Apple: Product Interaction) |
+| Does the privacy policy change? | **No new processing of a client's data.** Q5 is « no » (decision 175). If a later spec counts views or taps, they are « usage data » and must be declared first (Apple: Product Interaction) |
 | Staff data | the admin ids in `audit_log` and on the row, as for every console action |
 | People in the images | a recognisable person needs their written consent, held by MyWeli; the attestation covers it (§3.3), and `sourceNote` says where the consent is. If consent is withdrawn, « Supprimer les images » removes the picture at once (§3.5) |
 | Image metadata | the console's re-encode drops it, GPS included (§6.4) |
@@ -1132,11 +1132,11 @@ the web without its check.
 | 5 | the owner publishes (or not) a first real story in production. **Every consumer build still has the flag off** | owner | no |
 | 6 | **PR D, app:** the managed source; the demo list and SVGs deleted; the timer's `preserve`; the §12 exception in SYSTEM.md; flag still off | owner's yes | no |
 | 7 | **PR E, app:** the flag on, goldens with the row | owner's yes | **with the next consumer build** (Track C, each build on the owner's yes) |
-| 8 | **PR F, web:** the row on `myweli.com` (if Q3 is yes). Merging deploys to production | owner's yes | **yes, at merge** |
+| 8 | **PR F, web:** the row on `myweli.com` (Q3, decision 173). Merging deploys to production | owner's yes | **yes, at merge** |
 
-- **Not on the release's path** (Q9): the consumer app can ship with the row
+- **Not on the release's path** (Q9, decision 179): the consumer app can ship with the row
   hidden; nothing here blocks A2–A6 or Track C.
-- **The 90-day image task** (Q11) is part of PR B: a new task on the existing
+- **The 90-day image task** (Q11, decision 181) is part of PR B: a new task on the existing
   maintenance cron, in rehearsal first like the salon purge, its run logged as
   one line.
 - **Rollback:** « Retirer » (served no more within 60 s); the web's PR
@@ -1161,20 +1161,24 @@ the web without its check.
 
 ---
 
-## 14. Open questions for the owner
+## 14. Questions for the owner — answered
 
-Each with a recommendation. Nothing is built before these are answered.
+**All eleven answered on 2026-11-23, in the owner's words « Approve as
+recommended »**: each recommendation below is the decision, numbered 171–181
+in [BACKLOG.md](../BACKLOG.md) (B0.10). Q7's answer approves the CORS rule;
+the change itself is still shown, asked for and probed at step 3 of §12, like
+every cloud change.
 
-| # | Question | Recommendation | Why |
+| # | Question | Answer (decision) | Why |
 |---|---|---|---|
-| Q1 | Who publishes: MyWeli staff from the console, or salons from MyWeli Pro? | **Staff, now; salons stay V2** | V1-sized, no UGC obligations (App Store 1.2, Play UGC), a publisher exists today; the model leaves room for salons (§1.3) |
-| Q2 | May a story state a price, a discount or a free offer? | **No, not until promo codes exist** (FR-BOOK-013, V2) | the booking would charge the full price the story undercut: Apple 2.3.1's « false price », Play's misleading claims (§3.2) |
-| Q3 | Does `myweli.com` show the stories? | **Yes, in its own PR after the app's** | the parity rule; server-rendered then checked, so no layout shift and no stale claim for long (§7) |
-| Q4 | With no commune chosen, which stories show? | **Only those for every commune** | a story targeted at one commune is about that commune (§2.3) |
-| Q5 | Count views or taps? | **No, not now** | nothing new leaves the phone, so no label or policy change (§9); a later spec can add aggregate counts and declare them |
-| Q6 | Must every story end within 30 days of its start, and start within 30 days? | **Yes** | a sentence true today is not true forever; the cap makes someone look again (§3.5) |
-| Q7 | Let the console upload to R2 by allowing `admin.myweli.com` to `PUT` on the public bucket (a cloud change), rather than sending images through the API? | **Yes, the CORS rule** | the API never carries upload bytes today, and the rule only widens who may PUT with a server-issued signature (§0, §4.4) |
-| Q8 | Turn the flag on in its own PR, after the one that deletes the demo? | **Yes** | you choose the moment; the build that carries it is yours anyway (§5.6, §12) |
-| Q9 | When to build it? | **After Track A, not blocking the release** | the release ships with the row hidden and loses nothing (§12) |
-| Q10 | May the row show nothing while it loads (unless stories are usual on that phone), when there are none, and when the read fails — an exception written into SYSTEM.md §12? | **Yes** | the row is optional content; an empty-state or an error banner about it would be noise on the home, and the home's pull-to-refresh is the way out (§5.2) |
-| Q11 | How long do an ended story's images stay online? | **90 days after the end, then deleted automatically; at once on request** | the text stays as the record; a picture of a person, or a mistake, should not stay public for ever (§3.5, §9) |
+| Q1 | Who publishes: MyWeli staff from the console, or salons from MyWeli Pro? | ✅ **Staff, now; salons stay V2** (171) | V1-sized, no UGC obligations (App Store 1.2, Play UGC), a publisher exists today; the model leaves room for salons (§1.3) |
+| Q2 | May a story state a price, a discount or a free offer? | ✅ **No, not until promo codes exist** (172) (FR-BOOK-013, V2) | the booking would charge the full price the story undercut: Apple 2.3.1's « false price », Play's misleading claims (§3.2) |
+| Q3 | Does `myweli.com` show the stories? | ✅ **Yes, in its own PR after the app's** (173) | the parity rule; server-rendered then checked, so no layout shift and no stale claim for long (§7) |
+| Q4 | With no commune chosen, which stories show? | ✅ **Only those for every commune** (174) | a story targeted at one commune is about that commune (§2.3) |
+| Q5 | Count views or taps? | ✅ **No, not now** (175) | nothing new leaves the phone, so no label or policy change (§9); a later spec can add aggregate counts and declare them |
+| Q6 | Must every story end within 30 days of its start, and start within 30 days? | ✅ **Yes** (176) | a sentence true today is not true forever; the cap makes someone look again (§3.5) |
+| Q7 | Let the console upload to R2 by allowing `admin.myweli.com` to `PUT` on the public bucket (a cloud change), rather than sending images through the API? | ✅ **Yes, the CORS rule** (177) | the API never carries upload bytes today, and the rule only widens who may PUT with a server-issued signature (§0, §4.4) |
+| Q8 | Turn the flag on in its own PR, after the one that deletes the demo? | ✅ **Yes** (178) | you choose the moment; the build that carries it is yours anyway (§5.6, §12) |
+| Q9 | When to build it? | ✅ **After Track A, not blocking the release** (179) | the release ships with the row hidden and loses nothing (§12) |
+| Q10 | May the row show nothing while it loads (unless stories are usual on that phone), when there are none, and when the read fails — an exception written into SYSTEM.md §12? | ✅ **Yes** (180) | the row is optional content; an empty-state or an error banner about it would be noise on the home, and the home's pull-to-refresh is the way out (§5.2) |
+| Q11 | How long do an ended story's images stay online? | ✅ **90 days after the end, then deleted automatically; at once on request** (181) | the text stays as the record; a picture of a person, or a mistake, should not stay public for ever (§3.5, §9) |

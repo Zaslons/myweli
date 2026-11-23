@@ -343,6 +343,20 @@ Each question has a recommendation. Answers unblock the item named in brackets.
 
 170. The home's three hard-coded stories: remove them, as the A1 spec first said? [B0.10] — ✅ **Answered (2026-11-23), in your words: « don't remove stories, put it under a flag, or make it that someone manage them »**. They stay in the tree behind `FeatureFlags.homeStories`, off: the flag is needed either way, since until someone manages real stories the three are demo content (a « -15 % » offer nobody makes, a salon that does not exist). A test keeps the flag off while the demo is in the tree. Who manages real stories, MyWeli from the console or the salons (V2), is its own spec. [consumer-app-truth.md](design/consumer-app-truth.md) §2.1.
 
+**MyWeli (client)'s managed home stories (batch 0, B0.10)** — asked on 2026-11-23 in [managed-home-stories.md](design/managed-home-stories.md) §14 (Q1–Q11, PR #835), after decision 170 kept the demo stories behind `FeatureFlags.homeStories`. All eleven answered at once, « Approve as recommended ». Nothing is built yet (decision 179); each PR and each deploy is on your word (spec §12).
+
+171. Who publishes the home stories: MyWeli staff from the console, or salons from MyWeli Pro? [B0.10] — ✅ **Answered (2026-11-23): « Approve as recommended »**, staff from the console now; salons stay V2 (FR-PRO-STORY-001), since their posts would bring App Store 1.2's and Play's user-content duties. A `publisher` column and the `story/myweli/` prefix keep salons possible later.
+172. May a story state a price, a discount or a free offer? [B0.10] — ✅ **Answered (2026-11-23): « Approve as recommended »**, no, not until promo codes exist (FR-BOOK-013, V2): the booking would charge the full price the story undercut (Apple 2.3.1, Play's misleading claims). No words drawn in the image either.
+173. Does `myweli.com` show the stories? [B0.10] — ✅ **Answered (2026-11-23): « Approve as recommended »**, yes, in its own PR (PR F) after the app's, server-rendered then checked through a Next route handler. Its merge is a production web deploy, on your word.
+174. With no commune chosen, which stories show? [B0.10] — ✅ **Answered (2026-11-23): « Approve as recommended »**, only those for every commune.
+175. Count views or taps? [B0.10] — ✅ **Answered (2026-11-23): « Approve as recommended »**, no, not now: nothing new leaves the phone, so the App Store label, Data safety and the privacy policy do not change.
+176. Must every story start within 30 days and end within 30 days of its start? [B0.10] — ✅ **Answered (2026-11-23): « Approve as recommended »**, yes: the cap makes someone look again.
+177. Let the console upload images to R2 by allowing `admin.myweli.com` to `PUT` on the public bucket, rather than through the API? [B0.10] — ✅ **Answered (2026-11-23): « Approve as recommended »**, yes, one CORS rule (PUT with `content-type`). The change itself is a cloud change: shown, asked for at that moment, applied, then probed with a control (spec §12 step 3).
+178. Turn the flag on in its own PR, after the one that deletes the demo? [B0.10] — ✅ **Answered (2026-11-23): « Approve as recommended »**, yes: PR D deletes the demo list and its SVGs with the flag still off; PR E turns it on.
+179. When to build it? [B0.10] — ✅ **Answered (2026-11-23): « Approve as recommended »**, after Track A, not blocking the release: the client app can ship with the row hidden.
+180. May the row show nothing while it loads (unless stories are usual on that phone), when there are none, and when the read fails? [B0.10] — ✅ **Answered (2026-11-23): « Approve as recommended »**, yes, written into SYSTEM.md §12 as a declared exception for optional promotional rows, in PR D.
+181. How long do an ended story's images stay online? [B0.10] — ✅ **Answered (2026-11-23): « Approve as recommended »**, 90 days after the end, then deleted by a task on the maintenance cron (rehearsed first, like the salon purge), or at once on request. The text stays as the record.
+
 ---
 
 ## 3. The batches

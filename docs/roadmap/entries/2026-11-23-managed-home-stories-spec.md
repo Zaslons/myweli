@@ -1,4 +1,4 @@
-- 🟡 **MyWeli (client) : des « stories » de l’accueil gérées par MyWeli — la spec, avant tout code (documentation · backend · console · mobile · web · 2026-11-23 — BACKLOG B0.10, décision 170).** Branche `docs/managed-home-stories-spec`, créée depuis `main` (`d0a31d63`). Spec : [managed-home-stories.md](../../design/managed-home-stories.md). Documentation seule : aucun code, aucun build, aucune console.
+- 🟡 **MyWeli (client) : des « stories » de l’accueil gérées par MyWeli — la spec, approuvée, avant tout code (documentation · backend · console · mobile · web · 2026-11-23 — BACKLOG B0.10, décisions 170 et 171–181).** Branche `docs/managed-home-stories-spec`, créée depuis `main` (`d0a31d63`). Spec : [managed-home-stories.md](../../design/managed-home-stories.md). Documentation seule : aucun code, aucun build, aucune console.
   - **Pourquoi :**
     - A1 (#834, pas encore fusionnée) cache les trois stories de démonstration derrière `FeatureFlags.homeStories`, éteint ; le propriétaire a demandé qu’on les garde et que quelqu’un les gère (décision 170) ;
     - cette spec dit qui publie, ce qu’est une story, comment elle reste vraie, et dans quel ordre la rangée revient.
@@ -16,5 +16,6 @@
     - **la vie privée :** la requête n’envoie ni commune ni identifiant ; rien à déclarer de plus si l’on ne compte pas les vues.
   - **Relue une fois par un lecteur indépendant, chargé de la réfuter :** 22 constats, chacun vérifié dans le code et intégré (entre autres : une image partagée par un doublon, un retrait qui n’atteint pas une app déjà ouverte, la clé d’image non revérifiée, la console qui ne peut pas dessiner l’aperçu avec `TimedCachedImage`, le site qui ne peut pas appeler l’API depuis le navigateur).
   - **Onze questions au propriétaire (§14), chacune avec une recommandation :** qui publie, les prix, le site, le cas sans commune, compter les vues, les 30 jours, la règle CORS, le drapeau dans sa propre PR, quand construire, l’exception aux quatre états, et combien de temps garder les images.
-  - **Ce qui change :** [managed-home-stories.md](../../design/managed-home-stories.md), nouveau, et l’index des specs.
-  - **Reste :** les réponses du propriétaire ; puis, chacune sur son mot, les PR B (backend), C (console), D et E (app), F (site), la règle CORS et chaque déploiement.
+  - **Approuvée le 2026-11-23 :** les onze réponses d’un coup, « Approve as recommended », décisions 171–181 dans le BACKLOG. La spec passe en « Approved » ; la règle CORS est approuvée, mais le changement lui-même reste montré, demandé sur le moment, puis sondé (§12, étape 3).
+  - **Ce qui change :** [managed-home-stories.md](../../design/managed-home-stories.md), nouveau, l’index des specs et les décisions 171–181 du BACKLOG.
+  - **Reste :** la fusion de cette PR, sur le mot du propriétaire ; puis, après la piste A (décision 179) et chacune sur son mot, les PR B (backend), C (console), D et E (app), F (site), la règle CORS et chaque déploiement.
