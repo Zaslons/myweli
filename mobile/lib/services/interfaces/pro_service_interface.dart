@@ -179,12 +179,18 @@ class EarningsTransaction {
   final DateTime date;
   final String status; // 'pending', 'completed', 'cancelled'
 
+  /// The booking's stamped currency, as the server sends it on each row
+  /// (`provider_earnings_service.dart`; appointment-currency-stamp.md §5.3).
+  /// Null on an older payload: the caller falls back to [EarningsData]'s.
+  final String? currency;
+
   const EarningsTransaction({
     required this.id,
     required this.appointmentId,
     required this.amount,
     required this.date,
     required this.status,
+    this.currency,
   });
 
   factory EarningsTransaction.fromJson(Map<String, dynamic> json) =>
@@ -194,6 +200,7 @@ class EarningsTransaction {
         amount: (json['amount'] as num).toDouble(),
         date: DateTime.parse(json['date'] as String),
         status: json['status'] as String,
+        currency: json['currency'] as String?,
       );
 }
 

@@ -36,6 +36,9 @@ Map<String, dynamic> buildUserDataExport({
             'status': a.status.name,
             'totalPrice': a.totalPrice,
             'depositAmount': a.depositAmount,
+            // The currency the booking was made in, else its salon's
+            // (appointment-currency-stamp.md §5.7).
+            'currency': a.currency ?? a.providerCurrency,
             'serviceIds': a.serviceIds,
           },
         )
@@ -145,6 +148,9 @@ Map<String, dynamic> buildProviderDataExport({
             'date': a.appointmentDate.toIso8601String(),
             'status': a.status.name,
             'totalPrice': a.totalPrice,
+            // The currency the booking was made in, else the salon's
+            // (appointment-currency-stamp.md §5.7).
+            'currency': a.currency ?? salon.currency,
           },
         )
         .toList(),

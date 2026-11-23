@@ -254,7 +254,11 @@ class _EarningsScreenState extends State<EarningsScreen>
                           trailing: Text(
                             Formatters.formatCurrency(
                               transaction.amount,
+                              // The row's own currency first, as the server
+                              // sends it (appointment-currency-stamp.md
+                              // §5.3); the total stays in the salon's.
                               currency:
+                                  transaction.currency ??
                                   earnings.currency ??
                                   authProvider.salonCurrency,
                             ),

@@ -1192,6 +1192,12 @@ class MockProService implements ProServiceInterface {
         .where((a) => a.status == AppointmentStatus.completed)
         .fold<double>(0, (sum, a) => sum + a.totalPrice);
 
+    // Multi-pays MP1 mirror: the ledger carries the salon's currency, and
+    // each row the booking's own (appointment-currency-stamp.md §5.3).
+    final salon = MockData.providers.firstWhere(
+      (p) => p.id == providerId,
+      orElse: () => MockData.providers.first,
+    );
     final transactions = appointments
         .where((a) => a.status == AppointmentStatus.completed)
         .map(
@@ -1201,15 +1207,11 @@ class MockProService implements ProServiceInterface {
             amount: a.totalPrice,
             date: a.appointmentDate,
             status: 'completed',
+            currency: a.currency ?? salon.currency,
           ),
         )
         .toList();
 
-    // Multi-pays MP1 mirror: the ledger carries the salon's currency.
-    final salon = MockData.providers.firstWhere(
-      (p) => p.id == providerId,
-      orElse: () => MockData.providers.first,
-    );
     return ApiResponse.success(
       EarningsData(
         totalEarnings: totalEarnings,

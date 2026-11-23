@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Module** | backend: `appointments` (repository, migration, booking notifier), module `multi-pays` §4. Then two small client PRs: the Pro surfaces of the app and of the website |
-| **Status** | **Approved 2026-11-23.** The owner answered the seven questions of §11 at once, « Approve as recommended »: decisions 187–193 in BACKLOG, batch 14 (B14.1–B14.4 are B1–B4 here). **B1 (B14.1) built, merged and DEPLOYED 2026-11-23** (§8.7, §9.1): #840, `d80b4303`; production serves `myweli-api-00055-jv2` (image `d80b430`) since 18:01 UTC; migrations `0047` and `0048` ran at boot; every one of the 4 bookings now stores `XOF`. Each step was on the owner's word. B2, B3 and B4 not started; B2 waits for one more deploy (§9.1). |
+| **Status** | **Approved 2026-11-23.** The owner answered the seven questions of §11 at once, « Approve as recommended »: decisions 187–193 in BACKLOG, batch 14 (B14.1–B14.4 are B1–B4 here). **B1 (B14.1) built, merged and DEPLOYED 2026-11-23** (§8.7, §9.1): #840, `d80b4303`; production serves `myweli-api-00055-jv2` (image `d80b430`) since 18:01 UTC; migrations `0047` and `0048` ran at boot; every one of the 4 bookings now stores `XOF`. Each step was on the owner's word. **B3 (B14.3) built 2026-11-23** (§8.8), on the owner's « Build B14.3 », in its own PR; not merged. B2 and B4 not started; B2 can be the next backend deploy (§9.1, corrected). |
 | **Owner** | the project owner: the answers, each merge, every production read, and each `deploy-backend.yml` dispatch, each on the owner's word |
 | **Last updated** | 2026-11-23 |
 | **PRD ref / phase** | module `multi-pays` MP1 ([multi-pays-end-version.md](multi-pays-end-version.md) §4, [../modules/multi-pays.md](../modules/multi-pays.md) §4) · V1 |
@@ -569,6 +569,31 @@ A booking stamped `EUR` at a salon now `XOF`: the rendered amount says `EUR`, no
 
 **The contract text:** `web/lib/api/schema.ts` regenerated with the lockfile's `openapi-typescript` 7.13.0. Control first: a run on the unchanged contract left no diff; after the rewording, exactly one generated line changed.
 
+### 8.8 As built (B3, 2026-11-23)
+
+**What changed in the app**, as §5.3 and §5.7 list it:
+- **Pro screens:** the list, the calendar's day list, the booking detail (total and announced deposit) and the client card's visit rows read `appointment.currency` first, and the salon's only as the fallback;
+- **earnings:** `EarningsTransaction` gains `currency`, and each « Revenus » row reads it first;
+- **exports:** both data exports' booking rows carry `currency`;
+- **mocks:** a new booking is stamped with its salon's currency, and each earnings row with the booking's.
+
+The totals are unchanged (decision 190).
+
+**Red first, on committed code** (commit `233fcb2a`, tests only):
+- every widget test checks a **currency-blind control** first: the booking's amount, or the visit history and its unique price, is on screen. A missing « EUR » can therefore only mean the wrong currency.
+  - **The control caught one false red:** the first client-card run failed because the history is below the fold of the default test surface. The test now uses a tall surface, as the existing history test does.
+- the five Pro rows found no « EUR »; both export rows and the mock's booking had `currency: null`.
+
+**After the fix** (commit `c1271516`):
+- `flutter analyze`: no issues;
+- 225 tests green across the new and neighbouring suites;
+- **the full mobile suite: 4035 passed, 68 skipped** (the goldens, which skip on the Mac and run in CI).
+- No rendering changes while every salon is XOF, so no golden moves.
+
+**Mutations, on committed code** (a harness that refuses a dirty tree, asserts each edit applied, and rejects a red that names a control):
+- **m1–m10, each reverting one site, all red for the stated reason:** the list, the calendar, the detail's total, the detail's deposit, the visit row, the « Revenus » row, `EarningsTransaction.fromJson`, both export rows, and the mock's stamp;
+- **C1, green:** with the list reverted, the calendar's test stays green, so each test is aimed at its own row.
+
 ---
 
 ## 9. Rollout — production data is real
@@ -649,7 +674,7 @@ Each step on the owner's word, in this order: « Yes, merge it », « Yes, run t
 
 **Not read:** a booking through the API, because it needs a signed-in account. The stored value is observed above, and the read path is covered by §8.1 and §8.2.
 
-**What this means for B2:** the image a rollback would reach today (`00054-7lb`) is older than 0047 and does not write `currency`. B2 waits for one more backend deploy after this one, so that the rollback target writes the column.
+**What this means for B2 — corrected 2026-11-23.** This first said that B2 « waits for one more backend deploy after this one ». That was wrong. When B2 deploys, the revision a one-step rollback reaches is the one serving now, `00055-jv2`, which writes `currency`: **B2 can be the very next backend deploy.** The constraint is a two-step rollback: once B2 is live, no rollback may go back past `00055-jv2` (to `00054-7lb` or older, which omit the column and would fail every booking with 23502). B2's `// rollback-unsafe:` line says exactly that, and DEPLOYMENT.md's rollback list gains it (§3.7).
 
 **B2: the contract step** (§3.7). Its own PR, deployed on the owner's word once the image the rollback would reach writes `currency`. Read-back: `NULL` count 0, `/health`, a booking made after it.
 

@@ -51,6 +51,7 @@ class _SwitchableClients implements ProClientsServiceInterface {
     visitReads = 0;
     serverFields = null;
     visitPrice = null;
+    visitCurrency = null;
     failTags = false;
     failNotes = false;
     tagsSent.clear();
@@ -69,6 +70,11 @@ class _SwitchableClients implements ProClientsServiceInterface {
   /// When set, every visit's price — the mock draws 15 000 (B7.10's
   /// seven-digit row needs more).
   num? visitPrice;
+
+  /// When set, every visit's stamped currency (appointment-currency-stamp.md
+  /// §5.3): the card's salon is XOF, so a visit in another currency can only
+  /// be priced in it by reading the booking's own stamp.
+  String? visitCurrency;
 
   bool empty = false;
 
@@ -176,10 +182,12 @@ class _SwitchableClients implements ProClientsServiceInterface {
   }) async {
     visitReads++;
     final price = visitPrice;
+    final currency = visitCurrency;
     final res = await _base.getVisits(providerId, clientId, page: page);
-    if (price == null || res.data == null) return res;
+    if ((price == null && currency == null) || res.data == null) return res;
     return ApiResponse.success([
-      for (final a in res.data!) a.copyWith(totalPrice: price.toDouble()),
+      for (final a in res.data!)
+        a.copyWith(totalPrice: price?.toDouble(), currency: currency),
     ]);
   }
 
@@ -981,6 +989,36 @@ void main() {
           expectNoMidWordBreak(tester, t, 'the visit history at 360dp × 2×');
         }
       }
+    });
+
+    // docs/design/appointment-currency-stamp.md §5.3 (B14.3): one visit's
+    // amount is in the currency that visit was made in, not the salon's today.
+    // EUR, never XAF: both francs print « FCFA » and could not be told apart.
+    testWidgets('the visit history prices each visit in its own currency', (
+      tester,
+    ) async {
+      clients.visitCurrency = 'EUR';
+      // A price no other figure on the card can hold, for the control below.
+      clients.visitPrice = 123456;
+      // Tall, as the history test above: the history is below the fold of
+      // the default surface, and a list that was never built would make the
+      // assertion below red for the wrong reason.
+      tester.view.physicalSize = const Size(400, 3200);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      await tester.pumpWidget(app(initial: '/pro/clients/sc1'));
+      await settle(tester);
+      expect(find.text('Historique des visites'), findsOneWidget);
+      expect(
+        find.textContaining('123\u202f456'),
+        findsWidgets,
+        reason: 'the control: the visit rows are on screen',
+      );
+      expect(
+        find.textContaining(' EUR'),
+        findsWidgets,
+        reason: 'the visit rows are priced in the booking’s currency',
+      );
     });
 
     testWidgets('adding a note prepends it', (tester) async {

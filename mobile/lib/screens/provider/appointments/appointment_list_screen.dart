@@ -354,7 +354,11 @@ class _AppointmentCard extends StatelessWidget {
               Text(
                 Formatters.formatCurrency(
                   appointment.totalPrice,
-                  currency: context.read<ProAuthProvider>().salonCurrency,
+                  // The booking's own currency first (appointment-currency-
+                  // stamp.md §5.3): the salon's today is only the fallback.
+                  currency:
+                      appointment.currency ??
+                      context.read<ProAuthProvider>().salonCurrency,
                 ),
               ),
             ],
