@@ -8,6 +8,7 @@ import '../../core/theme/colors.dart';
 import '../../core/theme/text_styles.dart';
 import '../../core/utils/booking_error_cta.dart';
 import '../../core/utils/formatters.dart';
+import '../../core/utils/rebook.dart';
 import '../../core/utils/visit_history.dart';
 import '../../models/appointment.dart';
 import '../../providers/appointment_provider.dart';
@@ -289,16 +290,7 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
     );
   }
 
-  void _rebook(Appointment appointment) {
-    final uri = Uri(
-      path: '/booking',
-      queryParameters: {
-        'providerId': appointment.providerId,
-        if (appointment.serviceIds.isNotEmpty)
-          'serviceIds': appointment.serviceIds.join(','),
-        if (appointment.artistId != null) 'artistId': appointment.artistId!,
-      },
-    );
-    context.push(uri.toString());
-  }
+  /// One route for « Passés » and the detail (A2, `rebook.dart`).
+  void _rebook(Appointment appointment) =>
+      context.push(rebookLocation(appointment));
 }

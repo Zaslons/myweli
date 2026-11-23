@@ -50,6 +50,7 @@ class SectionHeading extends StatelessWidget {
     this.style,
     this.action,
     this.onTap,
+    this.headingLevel,
   });
 
   final String title;
@@ -66,6 +67,13 @@ class SectionHeading extends StatelessWidget {
   /// Brings §13.2's floor with it: a 48dp minimum only when there is something
   /// to hit, because an untappable heading is not a touch target.
   final VoidCallback? onTap;
+
+  /// When set, a screen reader announces the title as a heading of this level
+  /// (SYSTEM.md §13.4: a section title inside a screen carries
+  /// `headingLevel: 2`). Optional so the call sites that predate it do not
+  /// change in the same PR; the appointment detail passes 2
+  /// (appointment-detail-complete.md §2.2).
+  final int? headingLevel;
 
   @override
   Widget build(BuildContext context) {
@@ -85,10 +93,13 @@ class SectionHeading extends StatelessWidget {
         // point of the shape.
         runSpacing: AppTheme.spacingS,
         children: [
-          Text(
-            title,
-            style: (style ?? AppTextStyles.titleLarge).copyWith(
-              color: AppColors.textPrimary,
+          Semantics(
+            headingLevel: headingLevel,
+            child: Text(
+              title,
+              style: (style ?? AppTextStyles.titleLarge).copyWith(
+                color: AppColors.textPrimary,
+              ),
             ),
           ),
           ?action,

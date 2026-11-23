@@ -10,12 +10,12 @@ import '../../core/utils/app_clock.dart';
 import '../../core/utils/client_booking_rule.dart';
 import '../../core/utils/formatters.dart';
 import '../../core/utils/helpers.dart';
+import '../../core/utils/salon_place.dart';
 import '../../core/utils/salon_time.dart';
 import '../../models/appointment.dart';
 import '../../models/artist.dart';
 import '../../models/provider.dart' as models;
 import '../../providers/provider_provider.dart';
-import '../../widgets/common/app_snack_bar.dart';
 import '../common/app_card.dart';
 import '../common/app_chip.dart';
 import '../common/label_value_row.dart';
@@ -64,6 +64,26 @@ class AppointmentCard extends StatelessWidget {
                     if (appointment.serviceIds.contains(s.id)) s.name,
               ];
 
+        // The place and the cover come off the booking first (A2,
+        // appointment-detail-complete.md §2.9, decision 199), as the name did
+        // in A1. The discovery list is only the fallback for an older server:
+        // it holds the same salon's same facts, so it can lag the booking but
+        // never contradict it.
+        final photo = (appointment.providerPhotoUrl ?? '').isNotEmpty
+            ? appointment.providerPhotoUrl
+            : (provider != null && provider.imageUrls.isNotEmpty
+                  ? provider.imageUrls.first
+                  : null);
+        final place =
+            cardPlaceLine(appointment) ?? provider?.city ?? provider?.address;
+        final lat = appointment.hasPosition
+            ? appointment.providerLatitude
+            : provider?.latitude;
+        final lng = appointment.hasPosition
+            ? appointment.providerLongitude
+            : provider?.longitude;
+        final hasPosition = lat != null && lng != null;
+
         return AppCard(
           onTap: onTap,
           child: Column(
@@ -75,9 +95,9 @@ class AppointmentCard extends StatelessWidget {
                   // Provider Image
                   ClipRRect(
                     borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-                    child: provider != null && provider.imageUrls.isNotEmpty
+                    child: photo != null
                         ? TimedCachedImage(
-                            imageUrl: provider.imageUrls.first,
+                            imageUrl: photo,
                             width: 80,
                             height: 80,
                             fit: BoxFit.cover,
@@ -135,59 +155,70 @@ class AppointmentCard extends StatelessWidget {
                             ],
                           ),
                         ),
-                        if (provider != null && provider.city != null) ...[
+                        if (place != null) ...[
                           const SizedBox(height: AppTheme.spacingXS),
+                          // « Voir sur la carte » only with a position at a
+                          // live salon: the map finds a salon through the
+                          // public read, which 404s a stopped one, and would
+                          // answer « Ce salon n’a pas pu être affiché sur la
+                          // carte. » (§2.9). Otherwise the place is plain text.
+                          if (hasPosition && appointment.salonIsLive)
+                            ConstrainedBox(
+                              constraints: const BoxConstraints(
+                                minHeight: 48,
+                              ), // §13.2 touch target
+                              child: Semantics(
+                                button: true,
+                                label: 'Voir sur la carte',
+                                child: GestureDetector(
+                                  behavior: HitTestBehavior.opaque,
+                                  // The map, on this salon. Was `/favorites`
+                                  // — renamed `/carte` on 2026-08-22 (#491).
+                                  onTap: () => context.push(
+                                    '/carte?providerId=${appointment.providerId}',
+                                  ),
+                                  child: Center(
+                                    child: _PlaceRow(place: place, onMap: true),
+                                  ),
+                                ),
+                              ),
+                            )
+                          else
+                            _PlaceRow(place: place, onMap: false),
+                        ],
+                        if (hasPosition) ...[
+                          const SizedBox(height: AppTheme.spacingS),
                           ConstrainedBox(
                             constraints: const BoxConstraints(
                               minHeight: 48,
                             ), // §13.2 touch target
                             child: Semantics(
                               button: true,
-                              label: 'Voir sur la carte',
+                              label: 'Itinéraire',
                               child: GestureDetector(
                                 behavior: HitTestBehavior.opaque,
                                 onTap: () {
-                                  if (provider == null ||
-                                      provider.latitude == null ||
-                                      provider.longitude == null) {
-                                    AppSnackBar.show(
-                                      context,
-                                      'Localisation non disponible pour ce salon',
-                                      kind: SnackKind.error,
-                                    );
-                                    return;
-                                  }
-                                  // The map, on this salon. Was `/favorites`
-                                  // — renamed `/carte` on 2026-08-22 (#491)
-                                  // and dead here since (salon-location-map.md).
-                                  context.push(
-                                    '/carte?providerId=${provider.id}',
+                                  Helpers.launchNavigation(
+                                    latitude: lat,
+                                    longitude: lng,
+                                    label: salonName,
+                                    context: context,
                                   );
                                 },
                                 child: Center(
                                   child: Row(
                                     children: [
                                       const Icon(
-                                        Icons.location_on,
+                                        Icons.directions,
                                         size: AppTheme.iconXS,
-                                        color: AppColors.textTertiary,
+                                        color: AppColors.primary,
                                       ),
                                       const SizedBox(width: AppTheme.spacingXS),
-                                      Expanded(
-                                        child: Text(
-                                          provider.city ?? provider.address,
-                                          style: AppTextStyles.bodySmall
-                                              .copyWith(
-                                                color: AppColors.textSecondary,
-                                              ),
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
+                                      Text(
+                                        'Itinéraire',
+                                        style: AppTextStyles.bodySmall.copyWith(
+                                          color: AppColors.primary,
                                         ),
-                                      ),
-                                      const Icon(
-                                        Icons.map,
-                                        size: AppTheme.iconXS,
-                                        color: AppColors.textTertiary,
                                       ),
                                     ],
                                   ),
@@ -195,51 +226,6 @@ class AppointmentCard extends StatelessWidget {
                               ),
                             ),
                           ),
-                          if (provider.latitude != null &&
-                              provider.longitude != null) ...[
-                            const SizedBox(height: AppTheme.spacingS),
-                            ConstrainedBox(
-                              constraints: const BoxConstraints(
-                                minHeight: 48,
-                              ), // §13.2 touch target
-                              child: Semantics(
-                                button: true,
-                                label: 'Itinéraire',
-                                child: GestureDetector(
-                                  behavior: HitTestBehavior.opaque,
-                                  onTap: () {
-                                    Helpers.launchNavigation(
-                                      latitude: provider!.latitude!,
-                                      longitude: provider.longitude!,
-                                      label: provider.name,
-                                      context: context,
-                                    );
-                                  },
-                                  child: Center(
-                                    child: Row(
-                                      children: [
-                                        const Icon(
-                                          Icons.directions,
-                                          size: AppTheme.iconXS,
-                                          color: AppColors.primary,
-                                        ),
-                                        const SizedBox(
-                                          width: AppTheme.spacingXS,
-                                        ),
-                                        Text(
-                                          'Itinéraire',
-                                          style: AppTextStyles.bodySmall
-                                              .copyWith(
-                                                color: AppColors.primary,
-                                              ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
                         ],
                       ],
                     ),
@@ -249,7 +235,9 @@ class AppointmentCard extends StatelessWidget {
               const SizedBox(height: AppTheme.spacingSM),
               // Auto-synced from the salon's manual booking (FR-APPT-008):
               // surfaced because it was made to this account's verified phone.
-              if (appointment.clientName != null) ...[
+              // `userId == 'manual'`, the web's rule (A2 §1): the name is
+              // what the salon typed, and it can be empty.
+              if (appointment.isSalonEntered) ...[
                 const AppChip.status(
                   label: 'Réservé par votre salon',
                   icon: Icons.store_mall_directory_outlined,
@@ -422,6 +410,45 @@ class AppointmentCard extends StatelessWidget {
           ),
         );
       },
+    );
+  }
+}
+
+/// The card's place line: a pin, the place, and the map glyph when it opens
+/// the map.
+class _PlaceRow extends StatelessWidget {
+  const _PlaceRow({required this.place, required this.onMap});
+
+  final String place;
+  final bool onMap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        const Icon(
+          Icons.location_on,
+          size: AppTheme.iconXS,
+          color: AppColors.textTertiary,
+        ),
+        const SizedBox(width: AppTheme.spacingXS),
+        Expanded(
+          child: Text(
+            place,
+            style: AppTextStyles.bodySmall.copyWith(
+              color: AppColors.textSecondary,
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+        if (onMap)
+          const Icon(
+            Icons.map,
+            size: AppTheme.iconXS,
+            color: AppColors.textTertiary,
+          ),
+      ],
     );
   }
 }

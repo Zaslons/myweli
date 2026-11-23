@@ -39,9 +39,10 @@ class CancellationNotice {
 /// `cancellation_window_hours` is `NOT NULL DEFAULT 24` on the server, so a
 /// consumer read always carries it.
 CancellationNotice? cancellationNotice(Appointment a, DateTime now) {
-  // A booking the salon typed has no client proof to ask for. The app's form
-  // of the web's `salonEntered` (`web/lib/bff.ts`).
-  if (a.depositAmount <= 0 || a.clientName != null) return null;
+  // A booking the salon typed has no client proof to ask for. The web's own
+  // rule, `salonEntered` = `userId == 'manual'` (`web/lib/bff.ts`): the name
+  // is what the salon typed, and it can be empty (A2 §1).
+  if (a.depositAmount <= 0 || a.isSalonEntered) return null;
   if ((a.depositScreenshotUrl ?? '').isEmpty) {
     return const CancellationNotice(
       'Vous n’avez envoyé aucun justificatif d’acompte pour ce rendez-vous.',
