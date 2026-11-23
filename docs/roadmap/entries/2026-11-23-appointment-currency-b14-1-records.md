@@ -1,4 +1,4 @@
-- 🟡 **Registre : B14.1 déployé, avec ses lectures de la production avant et après (documentation · 2026-11-23 — BACKLOG B14.1).** Branche `docs/b14-1-deploy-records`, créée depuis `main` (`d80b4303`). Documentation seule : aucun code.
+- 🟢 **Registre : B14.1 déployé, avec ses lectures de la production avant et après (documentation · 2026-11-23 — BACKLOG B14.1).** Branche `docs/b14-1-deploy-records`, créée depuis `main` (`d80b4303`). Documentation seule : aucun code.
   - **Ce qui est consigné :** [appointment-currency-stamp.md](../../design/appointment-currency-stamp.md) §9.1, le BACKLOG (B14.1 fait), l’index des specs, et l’entrée de B14.1 qui passe au vert.
     - **La fusion :** #840, `d80b4303`.
     - **Les lectures avant (17:50 UTC) :**
@@ -7,4 +7,5 @@
     - **Le déploiement (18:00 UTC) :** la révision `myweli-api-00055-jv2` sert 100 %, étiquetée `d80b430`, `/health` répond 200, aucune erreur dans ses journaux.
     - **La lecture après :** `0047` et `0048` passées à 18:01:33, et les 4 rendez-vous enregistrent `XOF`, aucun vide.
   - **Ce qui n’a pas été lu :** un rendez-vous à travers l’API, qui demande un compte connecté. La valeur enregistrée est observée en base, et le chemin de lecture est couvert par les tests.
-  - **Reste :** la fusion de cette PR, sur le mot du propriétaire ; son entrée passe au vert dans le registre suivant.
+  - **Fusionnée le 2026-11-23** (#842, `4fc75282`, sur le mot du propriétaire ; l’arbre de `main` est celui de la tête testée).
+  - **Une phrase corrigée ensuite** (dans la PR de B14.3) : B14.2 n’attend pas un déploiement de plus, il peut être le prochain ; c’est un retour arrière de deux crans, au-delà de `00055-jv2`, qui lui serait interdit.
