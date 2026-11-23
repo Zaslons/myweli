@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | **Draft — for the owner's approval.** No code is written before it is approved (§11). |
+| **Status** | **Approved by the owner on 2026-11-23** (« Approve as recommended »: §11's five recommendations, BACKLOG decisions 165–169). A1 is built from it. |
 | **Owner** | Sadreddine |
 | **Last updated** | 2026-11-23 |
 | **PRD ref / phase** | FR-DISC-001, FR-APPT-001, FR-APPT-003/005, FR-APPT-009, FR-PAY-005 · V1 · BACKLOG B0.10 (decision 160), B12.6, B12.10 (part), B12.11 |
@@ -352,3 +352,5 @@ mutation run.**
 3. **The summary on « Passés »:** count only bookings the salon marked « Terminé » and hide it when there are none, or remove it? *Recommended: count only « Terminé », hidden when there are none.*
 4. **The web half:** its own PR right after the app's, merged and deployed on your word, or in the same PR? *Recommended: its own PR*, so the app PR's merge touches no production.
 5. **The words:** approve the French sentences of §2 as written? They are: the cancel sentences (the web's, approved on 2026-11-02), the four purpose strings, « Non confirmé » and the empty state.
+
+**Answers (2026-11-23): « Approve as recommended »**, all five (BACKLOG decisions 165–169): no-shows in « Passés »; « Non confirmé »; the summary counts only « Terminé » and hides at zero; the web half in its own PR; the sentences as written.

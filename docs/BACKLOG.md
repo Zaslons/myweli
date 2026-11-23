@@ -331,6 +331,14 @@ Each question has a recommendation. Answers unblock the item named in brackets.
 163. Version (§8 Q3): the client's first release is 0.0.x, like Pro, from the shared pubspec, with its App Store record renamed from « 1.0 »? *Recommended: yes.* [B0.10, B3] — **Open.** Needed before B3.
 164. What counts as « salons are public » for decision 51 (§8 Q5): how many salons, in which communes, before MyWeli is submitted? No recommendation: it is a business call. [B0.10, Track C step 4] — **Open.** Needed before the submissions.
 
+**MyWeli (client)'s A1 spec (batch 0, B0.10)** — asked on 2026-11-23 in [consumer-app-truth.md](design/consumer-app-truth.md) §11 (Q1–Q5, PR #833). All five answered at once, « Approve as recommended ». A1 is built from it; A1w, the web half, follows.
+
+165. No-shows in the client's lists: « Passés » or « Annulés »? [B0.10, B12.6] — ✅ **Answered (2026-11-23): « Approve as recommended »**, « Passés » with the « Absent » chip, on both surfaces. Nobody cancelled them. The web moves them out of « Annulés » in A1w.
+166. A past booking the salon never confirmed: which word? [B0.10, B12.6] — ✅ **Answered (2026-11-23): « Approve as recommended »**, « Non confirmé », in the neutral tone. A past « Confirmé » stays « Confirmé ».
+167. The visit summary on « Passés »? [B0.10] — ✅ **Answered (2026-11-23): « Approve as recommended »**: it counts only bookings the salon marked « Terminé », and is hidden when there are none.
+168. The web half of the shared rule: its own PR, or in A1? [B0.10, B12.6] — ✅ **Answered (2026-11-23): « Approve as recommended »**, its own PR (A1w) right after A1. Its merge is a production web deploy, on your word.
+169. The French sentences of the spec's §2? [B0.10] — ✅ **Answered (2026-11-23): « Approve as recommended »**, as written: the cancel sentences (the web's), the four purpose strings, « Non confirmé » and the empty state « Aucun rendez-vous passé ».
+
 ---
 
 ## 3. The batches

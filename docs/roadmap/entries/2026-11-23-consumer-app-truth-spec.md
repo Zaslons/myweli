@@ -18,8 +18,10 @@
     - le résumé des visites ;
     - la moitié web dans sa propre PR ;
     - les phrases en français.
+  - **Les réponses (2026-11-23) : « Approve as recommended »**, les cinq (décisions 165 à 169) : une absence va dans « Passés » ; « Non confirmé » ; le résumé ne compte que les « Terminé » et disparaît à zéro ; le site dans sa propre PR ; les phrases telles qu’écrites.
   - **Ce qui change :**
     - [consumer-app-truth.md](../../design/consumer-app-truth.md), nouveau ;
     - l’index des specs ;
-    - la ligne A1 du §7 de l’audit, qui pointe vers la spec.
-  - **Reste :** les réponses du propriétaire, puis la PR A1 (l’app), puis la PR A1w (le site).
+    - la ligne A1 du §7 de l’audit, qui pointe vers la spec ;
+    - le BACKLOG, §2 : les décisions 165 à 169.
+  - **Reste :** la PR A1 (l’app), puis la PR A1w (le site).
