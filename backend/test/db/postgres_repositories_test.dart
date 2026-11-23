@@ -3370,6 +3370,9 @@ void main() {
           await favorites.add(uid, 'provider1');
           await appointments.create({
             'id': 'b610-appt-$uid',
+            // Since migration 0049 the column refuses a booking without one,
+            // as the booking service always stamps it (B14.2).
+            'currency': 'XOF',
             'userId': uid,
             'providerId': 'provider1',
             'serviceIds': ['service1'],
