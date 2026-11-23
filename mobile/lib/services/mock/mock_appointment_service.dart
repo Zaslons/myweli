@@ -120,6 +120,9 @@ class MockAppointmentService implements AppointmentServiceInterface {
       cancellationWindowHours: provider.cancellationWindowHours,
       notes: notes,
       depositScreenshotUrl: depositScreenshotUrl,
+      // Stamped with the salon's currency, as the server stamps and stores
+      // it (appointment-currency-stamp.md §5.3) — never only providerCurrency.
+      currency: provider.currency,
       createdAt: AppClock.now(),
     );
 

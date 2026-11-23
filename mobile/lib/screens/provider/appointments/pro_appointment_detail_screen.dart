@@ -202,7 +202,11 @@ class _ProAppointmentDetailScreenState
                       Text(
                         Formatters.formatCurrency(
                           appointment.totalPrice,
-                          currency: authProvider.salonCurrency,
+                          // The booking's own currency first (appointment-
+                          // currency-stamp.md §5.3).
+                          currency:
+                              appointment.currency ??
+                              authProvider.salonCurrency,
                         ),
                         style: AppTextStyles.headlineSmall.copyWith(
                           color: AppColors.primary,
@@ -221,7 +225,7 @@ class _ProAppointmentDetailScreenState
                             Expanded(
                               child: Text(
                                 'Acompte annoncé : '
-                                '${Formatters.formatCurrency(appointment.depositAmount, currency: authProvider.salonCurrency)}',
+                                '${Formatters.formatCurrency(appointment.depositAmount, currency: appointment.currency ?? authProvider.salonCurrency)}',
                                 style: AppTextStyles.bodyMedium,
                               ),
                             ),

@@ -1046,9 +1046,11 @@ class _VisitsSection extends StatelessWidget {
         tz: context.read<ProAuthProvider>().salonTimezone,
       ),
     );
+    // The visit's own currency first (appointment-currency-stamp.md §5.3);
+    // the « Dépensé » total above stays in the salon's (decision 190).
     final amount = Formatters.formatCurrency(
       v.totalPrice,
-      currency: context.read<ProAuthProvider>().salonCurrency,
+      currency: v.currency ?? context.read<ProAuthProvider>().salonCurrency,
     );
     final status = StatusLabels.of(v.status);
     final dateStyle = AppTextStyles.bodyMedium.copyWith(
