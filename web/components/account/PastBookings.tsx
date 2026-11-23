@@ -9,7 +9,7 @@ import {
 } from '../../lib/account/appointments';
 import { canRebook } from '../../lib/account/extras';
 import { formatFcfa, pluralFr } from '../../lib/format';
-import { UNNAMED_SALON, salonNameOr } from '../../lib/salon-name';
+import { UNNAMED_SALON_IN_SENTENCE, salonNameOr } from '../../lib/salon-name';
 
 /// « Passés », as in the app's history (docs/design/web-account-bookings-truth.md
 /// §2.4, decisions 167 and 182; mobile `my_bookings_screen.dart` `_buildHistory`):
@@ -81,7 +81,7 @@ export function PastBookings({
                         one in a screen reader's list of links. */}
                     <span className="sr-only">
                       {' '}
-                      chez {salonNameOr(a.providerName, UNNAMED_SALON)}
+                      chez {salonNameOr(a.providerName, UNNAMED_SALON_IN_SENTENCE)}
                     </span>
                   </ButtonLink>
                 ) : null}

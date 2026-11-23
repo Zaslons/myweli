@@ -1,5 +1,5 @@
-import { readFileSync, readdirSync, statSync } from 'node:fs';
-import { dirname, join, relative } from 'node:path';
+import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
+import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import {
@@ -74,23 +74,62 @@ function sources(dir: string): string[] {
   return out;
 }
 
+/// A relative import resolved to its file, as the bundler would.
+function resolveImport(from: string, spec: string): string | null {
+  const base = resolve(dirname(from), spec);
+  for (const c of [base, `${base}.ts`, `${base}.tsx`, join(base, 'index.ts'), join(base, 'index.tsx')]) {
+    if (existsSync(c) && statSync(c).isFile()) return c;
+  }
+  return null;
+}
+
+/// Every file the Espace pro renders through: its own folders AND what they
+/// import, transitively. The folders alone are not enough — `StatusChip.tsx`
+/// lives in `components/` and every pro list draws with it, so a client rule
+/// slipped into it would reach the salon with the folders' scan still green.
+function proClosure(): string[] {
+  const seen = new Set<string>();
+  const queue = PRO_DIRS.flatMap((d) => sources(join(WEB, d)));
+  while (queue.length) {
+    const f = queue.pop()!;
+    if (seen.has(f)) continue;
+    seen.add(f);
+    const src = stripComments(readFileSync(f, 'utf8'));
+    for (const m of src.matchAll(/from\s+['"](\.{1,2}\/[^'"]+)['"]/g)) {
+      const r = resolveImport(f, m[1]);
+      if (r) queue.push(r);
+    }
+  }
+  return [...seen];
+}
+
+const PRO_DIRS = ['components/pro', 'lib/pro', 'app/pro'];
+
+/// The two files that DEFINE the client helpers. The pro imports
+/// `statusLabelFr` from the first, so both sit in its closure by right.
+const DEFINITION_HOMES = ['lib/account/appointments.ts', 'lib/account/extras.ts'];
+
 describe('the Espace pro keeps the stored status (§1)', () => {
   // For a salon, a past booking nobody confirmed is work still to do: it
   // stays « En attente » there. The client rule must never reach a pro list.
   const CLIENT_ONLY =
-    /\b(clientTab|clientStatusLabel|clientStatusTone|bookingsForTab|ClientStatusChip)\b/;
-  const PRO_DIRS = ['components/pro', 'lib/pro', 'app/pro'];
+    /\b(clientTab|clientStatusLabel|clientStatusTone|bookingsForTab|canRebook|UNCONFIRMED_PAST_LABEL|ClientStatusChip|AppointmentCard|PastBookings)\b|Non confirmé/;
 
-  it('reads real directories with real files', () => {
+  it('reads real directories, and a closure that reaches the shared chip', () => {
     for (const d of PRO_DIRS) {
       expect(sources(join(WEB, d)).length, d).toBeGreaterThan(0);
     }
+    const closure = proClosure().map((f) => relative(WEB, f));
+    // The file the folders' scan could not see, and the reason for the closure.
+    expect(closure).toContain('components/StatusChip.tsx');
+    for (const home of DEFINITION_HOMES) expect(closure).toContain(home);
   });
 
-  it('no file under components/pro, lib/pro or app/pro names a client-only helper', () => {
-    const hits = PRO_DIRS.flatMap((d) => sources(join(WEB, d))).filter((f) =>
-      CLIENT_ONLY.test(stripComments(readFileSync(f, 'utf8'))),
-    );
-    expect(hits.map((f) => relative(WEB, f))).toEqual([]);
+  it('no file the Espace pro renders through names a client-only helper', () => {
+    const hits = proClosure()
+      .map((f) => relative(WEB, f))
+      .filter((f) => !DEFINITION_HOMES.includes(f))
+      .filter((f) => CLIENT_ONLY.test(stripComments(readFileSync(join(WEB, f), 'utf8'))));
+    expect(hits).toEqual([]);
   });
 });

@@ -333,7 +333,7 @@ Each question has a recommendation. Answers unblock the item named in brackets.
 
 **MyWeli (client)'s A1 spec (batch 0, B0.10)** — asked on 2026-11-23 in [consumer-app-truth.md](design/consumer-app-truth.md) §11 (Q1–Q5, PR #833). All five answered at once, « Approve as recommended ». A1 is built from it; A1w, the web half, follows.
 
-165. No-shows in the client's lists: « Passés » or « Annulés »? [B0.10, B12.6] — ✅ **Answered (2026-11-23): « Approve as recommended »**, « Passés » with the « Absent » chip, on both surfaces. Nobody cancelled them. The web moves them out of « Annulés » in A1w.
+165. No-shows in the client's lists: « Passés » or « Annulés »? [B0.10, B12.6] — ✅ **Answered (2026-11-23): « Approve as recommended »**, « Passés » with the « Absent » chip, on both surfaces. Nobody cancelled them. The web moves them out of « Annulés » in A1w. ✅ **Done in A1w** (2026-11-23).
 166. A past booking the salon never confirmed: which word? [B0.10, B12.6] — ✅ **Answered (2026-11-23): « Approve as recommended »**, « Non confirmé », in the neutral tone. A past « Confirmé » stays « Confirmé ».
 167. The visit summary on « Passés »? [B0.10] — ✅ **Answered (2026-11-23): « Approve as recommended »**: it counts only bookings the salon marked « Terminé », and is hidden when there are none.
 168. The web half of the shared rule: its own PR, or in A1? [B0.10, B12.6] — ✅ **Answered (2026-11-23): « Approve as recommended »**, its own PR (A1w) right after A1. Its merge is a production web deploy, on your word.

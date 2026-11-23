@@ -209,6 +209,16 @@ describe('« Passés »', () => {
   });
 });
 
+describe('« Passés » — an unnamed salon', () => {
+  it('names it as a sentence does: « chez le salon », never « chez Salon »', async () => {
+    await open([appt('anon', 'completed', -DAY, { providerName: undefined })]);
+    tab('Passés');
+    expect(
+      within(bookings()).getByRole('link', { name: /^Réserver à nouveau/ }),
+    ).toHaveAccessibleName('Réserver à nouveau chez le salon');
+  });
+});
+
 describe('« Annulés »', () => {
   it('lists cancelled bookings only, newest first — no absence', async () => {
     await open(ALL);
@@ -319,5 +329,41 @@ describe('the detail (§2.7, decision 183)', () => {
   it('never at a salon that stopped', async () => {
     await detail(DONE_STOPPED);
     expect(screen.queryByRole('link', { name: 'Réserver à nouveau' })).toBeNull();
+  });
+});
+
+describe('one instant (§2.1)', () => {
+  it('the list keeps the instant it loaded at: a booking moves on the next load, not on a click', async () => {
+    await open([SOON]);
+    // Two days later, the page still open; a tab change re-renders it.
+    vi.setSystemTime(new Date(NOW.getTime() + 2 * DAY));
+    tab('Passés');
+    tab('À venir');
+    const items = within(bookings()).getAllByRole('listitem');
+    expect(items).toHaveLength(1);
+    // The tab and the chip read the SAME instant: a chip that read its own
+    // clock would say « Non confirmé » in « À venir ».
+    expect(within(items[0]).getByText('En attente')).toBeInTheDocument();
+    expect(within(bookings()).queryByText('Non confirmé')).toBeNull();
+  });
+
+  it('the detail reads one instant per render: chip, « Reporter » and the cancel sentence agree', async () => {
+    const booking = appt('edge', 'pending', 60_000, {
+      depositAmount: 5_000,
+      depositScreenshotUrl: 'https://cdn.stub/proof.jpg',
+      cancellationWindowHours: 24,
+    });
+    serve([booking]);
+    render(<AppointmentDetailClient id="edge" />);
+    await screen.findByRole('heading', { level: 1, name: 'Beauté Divine' });
+    expect(screen.getByText('En attente')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Reporter' })).toBeInTheDocument();
+    // Two minutes later the client taps « Annuler »: the time has passed.
+    vi.setSystemTime(new Date(NOW.getTime() + 120_000));
+    fireEvent.click(screen.getByRole('button', { name: 'Annuler le rendez-vous' }));
+    expect(await screen.findByText(/l’heure du rendez-vous est passée/)).toBeInTheDocument();
+    expect(screen.getByText('Non confirmé')).toBeInTheDocument();
+    expect(screen.queryByText('En attente')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Reporter' })).toBeNull();
   });
 });

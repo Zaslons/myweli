@@ -52,10 +52,6 @@ export function AppointmentDetailClient({ id }: { id: string }) {
   // carriers; the tree only resolves the hint's country label (best-effort).
   const { tree } = useLocalities();
   const [appt, setAppt] = useState<Appointment | null>(null);
-  // The instant the booking was read (web-account-bookings-truth.md §2.1):
-  // the chip, « Reporter », the calendar block and « Réserver à nouveau » all
-  // ask the client rule with this one clock.
-  const [now, setNow] = useState<Date>(() => new Date());
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
   // Any other failed read (no network, a 5xx): « Réessayer », never
@@ -108,7 +104,6 @@ export function AppointmentDetailClient({ id }: { id: string }) {
       setLoading(false);
       return;
     }
-    setNow(new Date());
     setAppt(r.appt);
     setLoading(false);
   }, [id, router]);
@@ -222,6 +217,14 @@ export function AppointmentDetailClient({ id }: { id: string }) {
   // Fresha rule), then the provider carrier; timezone from the carrier.
   const tz = appt.providerTimezone ?? undefined;
   const currency = appt.currency ?? appt.providerCurrency ?? undefined;
+  // One instant per render (web-account-bookings-truth.md §2.1, §2.7): the
+  // chip, « Reporter », the calendar block, the cancel sentence and
+  // « Réserver à nouveau » all ask it, so they cannot disagree. Per RENDER,
+  // not per load: before A1w `isUpcoming` read the clock on every render, and
+  // the cancel sentence still must — a client who opens the page at 09:59 and
+  // taps « Annuler » at 10:01 is told the time has passed, and the chip and
+  // « Reporter » beside it now say the same.
+  const now = new Date();
 
   return (
     <div>
@@ -512,7 +515,7 @@ export function AppointmentDetailClient({ id }: { id: string }) {
               <div className="rounded-lg bg-surface p-m">
                 <p className="text-bodyLarge text-textSecondary">
                   Confirmer l’annulation&nbsp;?{" "}
-                  {cancellationNotice(appt, new Date(), currency)}
+                  {cancellationNotice(appt, now, currency)}
                 </p>
                 <div className="mt-s flex gap-s">
                   <Button
