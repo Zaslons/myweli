@@ -101,7 +101,7 @@ export function DepositProof({
           href={waveHref}
           target="_blank"
           rel="noopener noreferrer"
-          className="mt-s inline-block rounded-control border border-primary bg-secondary px-m py-xs text-labelLarge font-medium text-textPrimary hover:bg-surfaceVariant"
+          className="mt-s inline-flex min-h-12 items-center rounded-control border border-primary bg-secondary px-m text-labelLarge font-medium text-textPrimary hover:bg-surfaceVariant"
         >
           Payer avec Wave
         </a>

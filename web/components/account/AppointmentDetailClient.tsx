@@ -1,7 +1,9 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
-import { Chip, chipLinkClasses } from "../Chip";
+import type { ReactNode } from "react";
+import { chipLinkClasses } from "../Chip";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import {
@@ -14,7 +16,10 @@ import {
   salonIsLive,
   salonStoppedMessage,
   rebookHref,
-  clientStatusLabel,
+  clientStatusSentence,
+  depositState,
+  hasPosition,
+  salonAddressLines,
 } from "../../lib/account/appointments";
 import { buildIcs, googleCalendarUrl } from "../../lib/account/calendar";
 import { canRebook, canReview } from "../../lib/account/extras";
@@ -32,10 +37,13 @@ import {
   lastBookableDay,
 } from "../../lib/booking/window";
 import { SlotsEmpty } from "../booking/SlotsEmpty";
-import { formatDateTimeFr, formatFcfa } from "../../lib/format";
+import { formatDateLongFr, formatFcfa } from "../../lib/format";
+import { directionsTo } from "../../lib/provider-summary";
 import { salonDayKey, salonFormatter, salonToday } from "../../lib/time";
 import { useLocalities } from "../../lib/use-localities";
-import { Button } from "../Button";
+import { Button, buttonClasses } from "../Button";
+import { Card } from "../Card";
+import { ClientStatusChip } from "./ClientStatusChip";
 import { ButtonLink } from "../ButtonLink";
 import { ErrorState } from "../ErrorState";
 import { Loading } from "../Loading";
@@ -226,61 +234,149 @@ export function AppointmentDetailClient({ id }: { id: string }) {
   // « Reporter » beside it now say the same.
   const now = new Date();
 
+  // The detail's sections (appointment-detail-complete.md §2.2): the same
+  // order as the app. Each is left out when it has nothing to show.
+  const deposit = depositState(appt, now);
+  const sentence = clientStatusSentence(appt, now);
+  const stopped = salonStoppedMessage(appt);
+  const photo = httpsOrNull(appt.providerPhotoUrl);
+  const addressLines = salonAddressLines(appt);
+  const services = appt.serviceNames ?? [];
+  const time = (iso: string) =>
+    salonFormatter({ hour: "2-digit", minute: "2-digit" }, tz).format(new Date(iso));
+  const end =
+    appt.durationMinutes && appt.durationMinutes > 0
+      ? new Date(
+          Date.parse(appt.appointmentDate) + appt.durationMinutes * 60_000,
+        ).toISOString()
+      : null;
+  // No duration in words: the two surfaces' formatters disagree, and the end
+  // time already says it (§2.4).
+  const hours = end
+    ? `${time(appt.appointmentDate)} – ${time(end)}`
+    : time(appt.appointmentDate);
+  const salonButtons = [
+    hasPosition(appt) ? (
+      <a
+        key="itineraire"
+        href={directionsTo(appt.providerLatitude!, appt.providerLongitude!)}
+        target="_blank"
+        rel="noopener noreferrer"
+        className={buttonClasses("secondary")}
+      >
+        Itinéraire
+      </a>
+    ) : null,
+    appt.providerPhone ? (
+      <a
+        key="appeler"
+        href={`tel:${appt.providerPhone.replace(/\s/g, "")}`}
+        className={buttonClasses("secondary")}
+      >
+        Appeler
+      </a>
+    ) : null,
+    appt.providerWhatsapp ? (
+      <a
+        key="whatsapp"
+        href={`https://wa.me/${appt.providerWhatsapp.replace(/[^0-9]/g, "")}`}
+        target="_blank"
+        rel="noopener noreferrer"
+        className={buttonClasses("secondary")}
+      >
+        WhatsApp
+      </a>
+    ) : null,
+    // Withheld for a stopped salon: after Decision C that page 404s.
+    appt.providerSlug && salonIsLive(appt) ? (
+      <ButtonLink key="salon" href={`/${appt.providerSlug}`} variant="secondary">
+        Voir le salon
+      </ButtonLink>
+    ) : null,
+  ].filter(Boolean);
+
   return (
     <div>
       <Link href="/mon-compte" className="text-bodyMedium text-textTertiary">
         ← Mes rendez-vous
       </Link>
-      <section className="mt-m rounded-xl border border-border bg-secondary p-l">
-        {/* B11: the fifth and sixth copies of this shape, and the two that
-            matter most — the heading here is a SALON NAME, unbounded user
-            data, sitting beside a status chip with nothing allowed to
-            wrap. The four fixed earlier all hold fixed page titles. The
-            review caught these; the census had listed them under "button
-            clusters" rather than title toolbars. */}
-        <div className="flex flex-wrap items-center justify-between gap-m">
-          <h1 className="text-titleLarge font-semibold text-textPrimary">
-            {salonNameOr(appt.providerName, UNNAMED_SALON)}
-          </h1>
-          {/* The client rule's words (§2.7): a past booking nobody confirmed
-              reads « Non confirmé » here too. The chip's tone and the
-              detail's layout are A2's, on both surfaces. */}
-          <Chip>{clientStatusLabel(appt, now)}</Chip>
-        </div>
-        {/* The salon stopped taking appointments (§12, §6 cell 6).
-            Stated once, above the controls it explains — a client is not left
-            to infer it from buttons that quietly went missing. */}
-        {salonStoppedMessage(appt) ? (
-          <p
-            role="status"
-            className="rounded-lg bg-surfaceVariant px-m py-s text-bodyMedium text-textPrimary"
-          >
-            {salonStoppedMessage(appt)}{' '}
-            <Link href="/" className="underline">
-              Découvrir des salons
-            </Link>
-          </p>
-        ) : null}
-        {/* Withheld for a stopped salon: after Decision C that page 404s. */}
-        {appt.providerSlug && salonIsLive(appt) ? (
-          <Link
-            href={`/${appt.providerSlug}`}
-            className="text-bodyMedium text-textPrimary underline"
-          >
-            Voir le salon
-          </Link>
-        ) : null}
 
+      {/* The header (§2.3): the cover, the name, the client's chip and its
+          sentence, and the stopped-salon sentence. */}
+      <section className="mt-m overflow-hidden rounded-xl border border-border bg-secondary">
+        {photo ? (
+          // 3:2, the salon cover's own shape (web-swiss-salon.md §1), cut at
+          // `object-subject` as the card is. Decoration: the name below says
+          // the same. `priority`: the page's largest element.
+          <div className="relative aspect-cover w-full bg-surfaceVariant">
+            <Image
+              src={photo}
+              alt=""
+              fill
+              priority
+              sizes="(min-width: 672px) 640px, calc(100vw - 32px)"
+              className="object-cover object-subject after:absolute after:inset-0 after:bg-surfaceVariant"
+            />
+          </div>
+        ) : null}
+        <div className="p-m">
+          {/* B11: the heading here is a SALON NAME, unbounded user data,
+              beside a status chip — both are allowed to wrap. */}
+          <div className="flex flex-wrap items-center justify-between gap-m">
+            <h1 className="text-titleLarge font-semibold text-textPrimary">
+              {salonNameOr(appt.providerName, UNNAMED_SALON)}
+            </h1>
+            {/* The client rule's words and tone (decisions 165–166, 196),
+                drawn as the list draws them — settling what A1w left to A2. */}
+            <ClientStatusChip appt={appt} now={now} />
+          </div>
+          {sentence ? (
+            <p className="mt-s text-bodyMedium text-textSecondary">{sentence}</p>
+          ) : null}
+          {/* The salon stopped taking appointments (§12, §6 cell 6): stated
+              once, above the controls it explains. */}
+          {stopped ? (
+            <p
+              role="status"
+              className="mt-m rounded-lg bg-surfaceVariant px-m py-s text-bodyMedium text-textPrimary"
+            >
+              {stopped}{" "}
+              <Link href="/" className="underline">
+                Découvrir des salons
+              </Link>
+            </p>
+          ) : null}
+          {appt.salonEntered ? (
+            <p className="mt-s text-bodySmall text-textTertiary">
+              Réservé par votre salon.
+            </p>
+          ) : null}
+        </div>
+      </section>
+
+      <DetailSection title="Le rendez-vous">
+        <dl className="space-y-xs text-bodyMedium">
+          <Row label="Date" value={formatDateLongFr(appt.appointmentDate, tz)} />
+          <Row label="Heure" value={hours} />
+          {appt.artistName ? (
+            <Row label="Spécialiste" value={appt.artistName} />
+          ) : null}
+        </dl>
+        <SalonTimeHint
+          date={appt.appointmentDate}
+          tz={appt.providerTimezone}
+          countryLabel={countryName(tree, appt.providerCountryCode)}
+        />
         {/* Parity 1.2 — add the booking to a calendar (upcoming only).
             `isUpcoming`, not `canReschedule`: a stopped salon keeps its
             calendar entry, it just cannot be moved. */}
         {isUpcoming(appt, now) ? (
-          <div className="mt-s flex flex-wrap gap-s">
+          <div className="mt-m flex flex-wrap gap-s">
             <a
               href={googleCalendarUrl(appt)}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex min-h-12 items-center rounded-control border border-primary bg-surface px-m text-bodyMedium text-textPrimary hover:bg-surfaceVariant"
+              className={buttonClasses("secondary")}
             >
               Ajouter au calendrier (Google)
             </a>
@@ -297,79 +393,59 @@ export function AppointmentDetailClient({ id }: { id: string }) {
                 el.click();
                 URL.revokeObjectURL(url);
               }}
-              className="inline-flex min-h-12 items-center rounded-control border border-primary bg-surface px-m text-bodyMedium text-textPrimary hover:bg-surfaceVariant"
+              className={buttonClasses("secondary")}
             >
               Fichier .ics
             </button>
           </div>
         ) : null}
+      </DetailSection>
 
-        {/* Parity 1.6 — contact the salon from the booking. */}
-        {appt.providerPhone || appt.providerWhatsapp ? (
-          <div className="mt-s flex flex-wrap gap-s">
-            {appt.providerPhone ? (
-              <a
-                href={`tel:${appt.providerPhone.replace(/\s/g, "")}`}
-                className="inline-flex min-h-12 items-center rounded-control border border-primary bg-surface px-m text-bodyMedium text-textPrimary hover:bg-surfaceVariant"
-              >
-                Appeler
-              </a>
-            ) : null}
-            {appt.providerWhatsapp ? (
-              <a
-                href={`https://wa.me/${appt.providerWhatsapp.replace(/[^0-9]/g, "")}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex min-h-12 items-center rounded-control border border-primary bg-surface px-m text-bodyMedium text-textPrimary hover:bg-surfaceVariant"
-              >
-                WhatsApp
-              </a>
-            ) : null}
-          </div>
-        ) : null}
+      {services.length > 0 ? (
+        <DetailSection title="Prestations">
+          <ul className="space-y-xs text-bodyMedium text-textPrimary">
+            {services.map((name, i) => (
+              <li key={`${i}-${name}`}>{name}</li>
+            ))}
+          </ul>
+        </DetailSection>
+      ) : null}
 
-        <dl className="mt-m space-y-xs text-bodyMedium">
-          <Row
-            label="Date"
-            value={formatDateTimeFr(appt.appointmentDate, tz)}
-          />
-          {appt.serviceNames && appt.serviceNames.length > 0 ? (
-            <Row label="Prestations" value={appt.serviceNames.join(", ")} />
+      {addressLines.length > 0 || salonButtons.length > 0 ? (
+        <DetailSection title="Le salon">
+          {addressLines.map((line) => (
+            <p key={line} className="text-bodyMedium text-textSecondary">
+              {line}
+            </p>
+          ))}
+          {salonButtons.length > 0 ? (
+            <div className={`flex flex-wrap gap-s ${addressLines.length > 0 ? "mt-m" : ""}`}>
+              {salonButtons}
+            </div>
           ) : null}
-          {appt.artistName ? (
-            <Row label="Spécialiste" value={appt.artistName} />
-          ) : null}
-          {appt.notes ? <Row label="Notes" value={appt.notes} /> : null}
+        </DetailSection>
+      ) : null}
+
+      <DetailSection title="Paiement">
+        <dl className="space-y-xs text-bodyMedium">
           {typeof appt.totalPrice === "number" ? (
             <Row label="Total" value={formatFcfa(appt.totalPrice, currency)} />
           ) : null}
-          {appt.depositAmount ? (
+          {deposit ? (
             <Row
-              label="Acompte"
-              value={formatFcfa(appt.depositAmount, currency)}
-            />
-          ) : null}
-          {typeof appt.balanceDue === "number" ? (
-            <Row
-              label="Reste à payer"
-              value={formatFcfa(appt.balanceDue, currency)}
+              label={deposit.label}
+              value={formatFcfa(appt.depositAmount ?? 0, currency)}
             />
           ) : null}
         </dl>
-        <SalonTimeHint
-          date={appt.appointmentDate}
-          tz={appt.providerTimezone}
-          countryLabel={countryName(tree, appt.providerCountryCode)}
-        />
-
-        {appt.salonEntered ? (
-          <p className="mt-m text-bodySmall text-textTertiary">
-            Réservé par votre salon.
+        {/* The proof form carries its own heading, sentence and button, so
+            the row above shows the amount alone (§2.7). */}
+        {deposit?.action !== "send" && deposit?.sentence ? (
+          <p className="mt-xs text-bodySmall text-textTertiary">
+            {deposit.sentence}
           </p>
         ) : null}
-
-        {/* Pay-later (K2): attach the deposit proof from the detail too. */}
-        {canAttachDeposit(appt) ? (
+        {deposit?.action === "send" && canAttachDeposit(appt, now) ? (
           <div className="mt-m">
             <DepositProof
               appointmentId={appt.id}
@@ -380,20 +456,37 @@ export function AppointmentDetailClient({ id }: { id: string }) {
               onAttached={load}
             />
           </div>
-        ) : appt.status === "pending" && appt.depositScreenshotUrl ? (
-          <p className="mt-m text-bodyLarge text-textSecondary">
-            Justificatif d’acompte envoyé · en attente de confirmation du salon.{" "}
+        ) : null}
+        {deposit?.action === "viewProof" ? (
+          <div className="mt-s">
             <a
               href={`/api/appointments/${appt.id}/deposit-screenshot?redirect=1`}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-textPrimary underline"
+              className={buttonClasses("secondary")}
             >
               Voir ma capture
             </a>
-          </p>
+          </div>
         ) : null}
+        {deposit?.showBalance && typeof appt.balanceDue === "number" ? (
+          <dl className="mt-s text-bodyMedium">
+            <Row
+              label="Solde à régler au salon"
+              value={formatFcfa(appt.balanceDue, currency)}
+            />
+          </dl>
+        ) : null}
+      </DetailSection>
 
+      {appt.notes ? (
+        <DetailSection title="Notes">
+          <p className="text-bodyMedium text-textPrimary">{appt.notes}</p>
+        </DetailSection>
+      ) : null}
+
+      {/* The actions (§2.8): one primary per state. */}
+      <div className="mt-l">
         {cancelError ? (
           <p role="alert" className="mt-s text-bodyMedium text-error">
             L’annulation a échoué. Réessayez.
@@ -410,7 +503,12 @@ export function AppointmentDetailClient({ id }: { id: string }) {
         {canReschedule(appt, now) ? (
           <div className="mt-l">
             {!rescheduling ? (
-              <Button onClick={() => openReschedule(appt)}>Reporter</Button>
+              <Button
+                variant={deposit?.action === "send" ? "secondary" : "primary"}
+                onClick={() => openReschedule(appt)}
+              >
+                Reporter
+              </Button>
             ) : (
               <div className="rounded-lg bg-surface p-m">
                 <p className="text-bodyLarge text-textPrimary">
@@ -547,14 +645,38 @@ export function AppointmentDetailClient({ id }: { id: string }) {
             <ReviewForm appointmentId={appt.id} />
           </div>
         ) : null}
-      </section>
+      </div>
     </div>
+  );
+}
+
+/// What counts as a salon's photo here, as on the card (`ProviderCard`'s
+/// `photoOf`): `https://` only.
+const httpsOrNull = (url: string | null | undefined): string | null =>
+  url && url.startsWith("https://") ? url : null;
+
+/// A titled card of the detail: an h2 under the salon's h1 (WEB-SYSTEM §4).
+function DetailSection({
+  title,
+  children,
+}: {
+  title: string;
+  children: ReactNode;
+}) {
+  return (
+    <Card as="section" className="mt-m">
+      <h2 className="text-titleMedium font-semibold text-textPrimary">{title}</h2>
+      <div className="mt-s">{children}</div>
+    </Card>
   );
 }
 
 function Row({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex justify-between gap-m">
+    // `flex-wrap` (A2 §2.2): a value that no longer fits beside its label
+    // drops under it, as the app's `LabelValueRow`; before, a long value
+    // wrapped inside its own narrow box.
+    <div className="flex flex-wrap justify-between gap-x-m">
       <dt className="text-textTertiary">{label}</dt>
       <dd className="text-right text-textPrimary">{value}</dd>
     </div>
