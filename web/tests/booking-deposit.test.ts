@@ -21,17 +21,28 @@ const appt = {
 } as const;
 
 describe('canAttachDeposit', () => {
-  it('pending + deposit due + no proof yet → attachable', () => {
-    expect(canAttachDeposit({ ...appt })).toBe(true);
+  // `now` passed explicitly: `appt` is dated 2026-12-01, and on that day a
+  // default clock would turn this suite red on a date, not a defect.
+  const NOW = new Date('2026-11-23T12:00:00.000Z');
+
+  it('pending + deposit due + no proof yet + still ahead → attachable', () => {
+    expect(canAttachDeposit({ ...appt }, NOW)).toBe(true);
   });
 
   it('no deposit / already attached / wrong state / salon-entered → not', () => {
-    expect(canAttachDeposit({ ...appt, depositAmount: 0 })).toBe(false);
+    expect(canAttachDeposit({ ...appt, depositAmount: 0 }, NOW)).toBe(false);
     expect(
-      canAttachDeposit({ ...appt, depositScreenshotUrl: 'https://x/p.jpg' }),
+      canAttachDeposit({ ...appt, depositScreenshotUrl: 'https://x/p.jpg' }, NOW),
     ).toBe(false);
-    expect(canAttachDeposit({ ...appt, status: 'confirmed' })).toBe(false);
-    expect(canAttachDeposit({ ...appt, salonEntered: true })).toBe(false);
+    expect(canAttachDeposit({ ...appt, status: 'confirmed' }, NOW)).toBe(false);
+    expect(canAttachDeposit({ ...appt, salonEntered: true }, NOW)).toBe(false);
+  });
+
+  // A2 (decision 197): the proof stops at the appointment's time — exactly
+  // at it counts as past.
+  it('not once the time has come', () => {
+    expect(canAttachDeposit({ ...appt }, new Date(appt.appointmentDate))).toBe(false);
+    expect(canAttachDeposit({ ...appt }, new Date('2026-12-02T00:00:00.000Z'))).toBe(false);
   });
 });
 

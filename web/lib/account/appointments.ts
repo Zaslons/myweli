@@ -35,6 +35,15 @@ export type Appointment = {
   providerCurrency?: string | null;
   providerCountryCode?: string | null;
   providerAddress?: string | null;
+  /// The salon's place and cover (A2, appointment-detail-complete.md §2.1),
+  /// read live by the server. The position is a pair — both or neither. The
+  /// photo is null for a salon that is not live: a stopped salon's cover
+  /// reaches nobody.
+  providerLatitude?: number | null;
+  providerLongitude?: number | null;
+  providerCommune?: string | null;
+  providerCity?: string | null;
+  providerPhotoUrl?: string | null;
   /// The salon's lifecycle state, enriched onto the caller's OWN booking
   /// (`salon-state-and-refusals.md` §5, Decision C).
   ///
@@ -100,13 +109,17 @@ export function rebookHref(a: Appointment): string | null {
 }
 
 /// The pay-later window: a pending booking with a deposit still awaiting its
-/// payment proof (mirrors the app's deposit sheet availability).
-export function canAttachDeposit(a: Appointment): boolean {
+/// payment proof (mirrors the app's deposit sheet availability) — and **still
+/// ahead** (A2, decision 197): after the appointment's time, a deposit for a
+/// visit the salon never confirmed would be money sent for nothing. Exactly
+/// at the time counts as past, as the client rule says.
+export function canAttachDeposit(a: Appointment, now: Date = new Date()): boolean {
   return (
     a.status === 'pending' &&
     (a.depositAmount ?? 0) > 0 &&
     !a.depositScreenshotUrl &&
-    !a.salonEntered
+    !a.salonEntered &&
+    Date.parse(a.appointmentDate) > now.getTime()
   );
 }
 
@@ -364,3 +377,134 @@ export function statusLabelFr(status: string): string {
 const STATUS_FR_NORMALIZED: Record<string, string> = Object.fromEntries(
   Object.entries(STATUS_FR).map(([k, v]) => [normalizedStatus(k), v]),
 );
+
+/// The sentence under the chip on the detail, only where it says something
+/// the chip does not (appointment-detail-complete.md §2.3, decision 196).
+/// Keyed on the chip's own words, as the app does, and pinned with the table
+/// in `docs/design/fixtures/client-booking-rule.json`. « Annulé » has none: a
+/// salon's refusal is stored as `cancelled` too, and nothing records who
+/// cancelled.
+export function clientStatusSentence(
+  a: Appointment,
+  now: Date = new Date(),
+): string | null {
+  return STATUS_SENTENCES[clientStatusLabel(a, now)] ?? null;
+}
+
+const STATUS_SENTENCES: Record<string, string> = {
+  [statusLabelFr('pending')]: 'Le salon doit encore confirmer ce rendez-vous.',
+  [UNCONFIRMED_PAST_LABEL]:
+    'Le salon n’a pas confirmé ce rendez-vous avant son heure.',
+  [statusLabelFr('noShow')]: 'Le salon a indiqué une absence à ce rendez-vous.',
+};
+
+/// What the deposit row of a client's own booking says and offers
+/// (appointment-detail-complete.md §2.7, decision 197): one table for the app
+/// and the web, `docs/design/fixtures/deposit-state.json`.
+export type DepositState = {
+  label: string;
+  sentence: string | null;
+  /// `send`: the proof form (web) / « Envoyer l’acompte » (app).
+  /// `viewProof`: « Voir ma capture ».
+  action: 'send' | 'viewProof' | null;
+  /// « Solde à régler au salon » — only while the booking is open.
+  showBalance: boolean;
+};
+
+/// The no-custody sentence, from the approved cancel sentences' last clause:
+/// it promises no refund and does not say who cancelled.
+export const DEPOSIT_SEE_THE_SALON =
+  'Voyez directement avec le salon\u00a0: MyWeli ne détient aucun acompte.';
+
+/// Null when the booking has no deposit: then the block is not drawn.
+///
+/// **Only what MyWeli knows.** A salon confirms a booking, not a payment, and
+/// can confirm one nobody paid a deposit for, so there is no « Acompte
+/// confirmé ». « Aucun justificatif envoyé » says no proof was attached, not
+/// that no money moved.
+export function depositState(
+  a: Appointment,
+  now: Date = new Date(),
+): DepositState | null {
+  if ((a.depositAmount ?? 0) <= 0) return null;
+  const proof = !!a.depositScreenshotUrl;
+  const ahead = Date.parse(a.appointmentDate) > now.getTime();
+  const view = proof ? ('viewProof' as const) : null;
+  const s = normalizedStatus(a.status);
+  if (s === 'pending') {
+    if (ahead) {
+      return proof
+        ? {
+            label: 'Acompte — en attente de confirmation',
+            sentence: 'Le salon confirmera après vérification.',
+            action: 'viewProof',
+            showBalance: true,
+          }
+        : {
+            label: 'Acompte à envoyer',
+            sentence: 'Payez le salon directement, puis joignez une capture.',
+            action: 'send',
+            showBalance: true,
+          };
+    }
+    return proof
+      ? {
+          label: 'Acompte — non confirmé',
+          sentence: DEPOSIT_SEE_THE_SALON,
+          action: 'viewProof',
+          showBalance: true,
+        }
+      : { label: 'Aucun justificatif envoyé', sentence: null, action: null, showBalance: true };
+  }
+  if (s === 'confirmed') {
+    return {
+      label: proof ? 'Acompte — justificatif envoyé' : 'Acompte',
+      sentence: null,
+      action: view,
+      showBalance: true,
+    };
+  }
+  if (s === 'cancelled') {
+    return {
+      label: 'Acompte',
+      sentence: proof ? DEPOSIT_SEE_THE_SALON : null,
+      action: view,
+      showBalance: false,
+    };
+  }
+  // completed, noShow, and a status this build does not know: a closed
+  // booking, MyWeli says only the amount.
+  return { label: 'Acompte', sentence: null, action: view, showBalance: false };
+}
+
+/// Does the booking carry the salon's position (both numbers)?
+export function hasPosition(a: Appointment): boolean {
+  return typeof a.providerLatitude === 'number' && typeof a.providerLongitude === 'number';
+}
+
+/// « commune, ville » — the commune first, the city after it when known.
+export function communeLine(
+  commune: string | null | undefined,
+  city: string | null | undefined,
+): string | null {
+  const c = commune?.trim();
+  if (!c) return null;
+  const v = city?.trim();
+  return v ? `${c}, ${v}` : c;
+}
+
+/// Lower case, without accents.
+function fold(s: string): string {
+  return s.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase();
+}
+
+/// « Le salon »'s address lines (§2.6): the address, then « commune, ville »
+/// when the address does not already name the commune — any case, any accent.
+export function salonAddressLines(a: Appointment): string[] {
+  const address = a.providerAddress?.trim();
+  const commune = communeLine(a.providerCommune, a.providerCity);
+  const named =
+    !!address && !!a.providerCommune?.trim() &&
+    fold(address).includes(fold(a.providerCommune.trim()));
+  return [...(address ? [address] : []), ...(commune && !named ? [commune] : [])];
+}
