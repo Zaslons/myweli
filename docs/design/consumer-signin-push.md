@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | **Approved by the owner on 2026-11-24** (« Approve as recommended »: the ten recommendations of §11, BACKLOG decisions 204–213). An independent reader checked it once against the code (14 findings; each re-read in the code, then folded in, §12). **Built on 2026-11-24** in A3 (branch `feat/consumer-signin-push`; the app, with MyWeli Pro's card). It reaches clients with the next consumer build, and salons with the next Pro build. One change from the approved text, recorded in §2.2: a sign-out never waits for a registration. A3w (the website's two hearts) follows. |
+| **Status** | **Approved by the owner on 2026-11-24** (« Approve as recommended »: the ten recommendations of §11, BACKLOG decisions 204–213). An independent reader checked it once against the code (14 findings; each re-read in the code, then folded in, §12). **Built on 2026-11-24** in A3 (branch `feat/consumer-signin-push`; the app, with MyWeli Pro's card). It reaches clients with the next consumer build, and salons with the next Pro build. One change from the approved text, recorded in §2.2: a sign-out never waits for a registration. A3 merged as `aa3fe341` (#854). **A3w, the website's two hearts, built on 2026-11-24** (branch `feat/web-heart-after-signin`, §14); its merge is a production deploy of `myweli.com`, on the owner's word. |
 | **Owner** | Sadreddine |
 | **Last updated** | 2026-11-24 |
 | **PRD ref / phase** | FR-BOOK-008 (the sign-in gate and `returnTo`), FR-NOTIF-001 (push), FR-NOTIF-004 (preferences), FR-FAV-001 (favourites) · V1 · BACKLOG B0.10 (decision 160, Track A) |
@@ -484,10 +484,12 @@ The built change was read once by a reviewer told to refute it: 11 findings. Eac
 
 Q2's answer included the website: a heart a guest taps is applied once they have signed in, on the salon page (`web/components/provider/FavoriteButton.tsx`) and on the search's cards (`web/components/discovery/RechercheClient.tsx`). Read at `main` `aa3fe341`. No endpoint changes; the change ships with the next deploy of `myweli.com`.
 
+**The reason line on `/connexion` (14.2 step 2) is the one addition to Q2's wording.** The owner's rule is that the website follows the app's flow screen by screen, and the app's sign-in opened from a heart says why (§2.2). Built in `web/lib/auth/sign-in-reason.ts`; one key today.
+
 ### 14.1 Today
 
 - **Salon page.** A guest's tap sends `POST /api/me/favorites/{id}`; its 401 pushes `/connexion?returnTo=/{slug}` (`FavoriteButton.tsx:75-76`).
-- **Search.** The favourites read answered 401, so a heart goes straight to `/connexion?returnTo=<the search, with its filters>` through `window.location.assign`. An add that answers 401 does the same (`RechercheClient.tsx:133-136`, `:163-165`).
+- **Search.** The favourites read answered 401, so a heart goes straight to `/connexion?returnTo=<the search, with its filters>` through `window.location.assign`. An add that answers 401 does the same (`RechercheClient.tsx:133-136`, called at `:144` and `:165`).
 - **`/connexion`** returns with `router.replace(returnTo)` once signed in (`web/components/auth/ConnexionClient.tsx:9-12`). Google and Apple open popups, so the tab never leaves the site (`LoginOptions.tsx`).
 - **The person is back where they were, and taps again.** Nothing remembers the heart, and `/connexion` does not say why it opened.
 
@@ -512,7 +514,9 @@ The address alone could be forged: a link to `/{slug}?suite=favori` would add th
 
 ### 14.4 Rules the build holds
 
-- **Read once, then take once.** The heart is taken only inside the favourites read's answer, and only while the page is still mounted. React's development double-mount runs the read twice: the first answer is ignored, so the heart is applied once.
+- **Read once, then take once.** The heart is taken only inside the favourites read's answer. The take forgets the stored heart, so a second answer finds nothing: React's development double-mount runs the read twice and the heart is applied once. An answer that arrives after the page was left is ignored, so nothing is applied on a page the person has left.
+- **The salon page's heart waits for its read**, as the search's already did. Before it, a tap on the empty heart while the read was out raced the heart applied on the way back, and sent the add twice (§14.7). A read that throws counts as a failed read, so the heart never waits for ever.
+- **A 401 that answers after the page was left navigates nowhere.**
 - **No focus is moved.** The page has just loaded, and moving the focus to the heart scrolled the salon page off its cover at 320 × 568 (`FavoriteButton.tsx`, web-swiss-salon.md §1.4). The toast's polite live region says what happened, and the heart itself stays a way back.
 - **The search.** The card is normally on the page, since `returnTo` is the same search. If that salon has left the results, the add still happens, since the person asked; a failure then shows in the toast (error), as there is no card to hold it.
 - **Storage refused** (a private window, storage blocked): nothing is stored, the marker is stripped, and the page behaves as today. Every `sessionStorage` call is wrapped.
@@ -534,3 +538,17 @@ The address alone could be forged: a link to `/{slug}?suite=favori` would add th
 - **Components:** each surface, for each row of 14.2 step 5; a guest's tap leaves with both keys; no marker or another salon's heart applies nothing; a development double-mount applies once.
 - **End to end:** a guest taps the salon page's heart, sees the reason, signs in, and is back on the salon with « Ajouté aux favoris » and one `POST`. The same through the search's card. A salon already among the favourites says « Déjà dans vos favoris » with no write. The address no longer carries `suite`.
 - **Mutations:** each condition in 14.2 step 4, the « already » branch, the strip, and the reason's mapping, each watched red.
+
+### 14.7 The independent reading of A3w (2026-11-24)
+
+The built change was read once by a reviewer told to refute it: 7 findings, each re-read in the code. The fixes, each with its test watched red:
+
+1. **A tap during the read added the salon twice.** On the salon page, the heart was enabled while the favourites read was out. Back from the sign-in, a person tapping the empty heart sent one add, and the read's answer sent a second. An « Annuler » tapped in between was then undone. The heart now waits for its read, as the search's do.
+2. **The e2e spec was not yet committed.** It is now part of the PR.
+3. **Two e2e waits could not fail.** The return from `/connexion` is a soft navigation, so `waitForLoadState('networkidle')` answered at once. The spec now waits for the favourites read after the sign-in, and counts writes from before it. The control could not fail either: it now stores a heart, then signs in another way, so a heart applied without the marker turns it red.
+4. **The comments credited the wrong guard.** The take, not the mounted check, is what applies the heart once in React's double-mount. The mounted check matters when the page is left before the read answers. That case now has its own test on each surface.
+5. **An open redirect in `/connexion`, from before A3w.** `returnTo=/\evil.example` passed `startsWith('/') && !startsWith('//')`, and the browser reads it as `//evil.example`, another site, reached right after signing in on ours. A3w's reason line would have made such a link more convincing. `returnTo` is now resolved as the browser resolves it, and kept only if it stays on this origin (`web/lib/auth/return-to.ts`).
+6. **A 401 answering after the page was left** would still have navigated to `/connexion`. Both surfaces now check that the page is still mounted.
+7. *Checked, kept:* `history.replaceState(null, …)`, as Next's documentation writes it. Next 14.2 copies its own history state into the call and fetches nothing; nothing else on these pages keeps history state.
+
+*Recorded, not fixed here:* `web/lib/pro/notifications.ts:16` reads a feed route with the same `startsWith('/') && !startsWith('//')` test. Those routes are written by the server, not by a link, so whether `/\` can reach it is unverified; it is a follow-up for the Pro side.
