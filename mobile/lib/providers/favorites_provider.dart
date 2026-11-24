@@ -9,6 +9,18 @@ import '../models/api_response.dart';
 import '../models/provider.dart';
 import '../services/interfaces/favorites_service_interface.dart';
 
+/// What [FavoritesProvider.addIfMissing] did.
+enum FavoriteAddOutcome {
+  /// The salon is a favourite now.
+  added,
+
+  /// It already was: nothing was sent — a toggle would have removed it.
+  alreadyThere,
+
+  /// The read or the add failed; [FavoritesProvider.error] says why.
+  failed,
+}
+
 class FavoritesProvider extends ChangeNotifier implements AccountScoped {
   final FavoritesServiceInterface _favoritesService =
       serviceLocator.favoritesService;
@@ -38,12 +50,45 @@ class FavoritesProvider extends ChangeNotifier implements AccountScoped {
   /// export needs the account as it is now, not as it was when the session
   /// first read it (docs/design/consumer-export-completeness.md §1 point 7).
   /// It also resets [error], which the early return below leaves as it was.
-  Future<void> loadFavorites(String userId, {bool force = false}) async {
+  ///
+  /// **A read of the same account already under way is shared,** not raced:
+  /// the root's reload after a sign-in and a heart applied after that sign-in
+  /// both read (consumer-signin-push.md §2.3, §2.8), and whichever answered
+  /// last won — an older read landing after the add erased the salon just
+  /// added.
+  Future<void> loadFavorites(String userId, {bool force = false}) {
     if (!force && _currentUserId == userId && _favoriteProviderIds.isNotEmpty) {
       // Already loaded for this user
-      return;
+      return Future<void>.value();
     }
+    // Shared only if no heart was written since it was sent: a read that
+    // predates an add would answer without it.
+    final running = _inFlight;
+    if (running != null &&
+        _inFlightUser == userId &&
+        _inFlightWrites == _writes) {
+      return running;
+    }
+    final load = _loadFavorites(userId);
+    _inFlight = load;
+    _inFlightUser = userId;
+    _inFlightWrites = _writes;
+    return load.whenComplete(() {
+      if (identical(_inFlight, load)) {
+        _inFlight = null;
+        _inFlightUser = null;
+      }
+    });
+  }
 
+  Future<void>? _inFlight;
+  String? _inFlightUser;
+
+  /// Hearts written (sent) so far, and how many when [_inFlight] was sent.
+  int _writes = 0;
+  int _inFlightWrites = 0;
+
+  Future<void> _loadFavorites(String userId) async {
     final account = _account;
     _isLoading = true;
     _error = null;
@@ -95,6 +140,7 @@ class FavoritesProvider extends ChangeNotifier implements AccountScoped {
 
     ApiResponse<bool>? response;
     try {
+      _writes++;
       if (isCurrentlyFavorite) {
         response = await _favoritesService.removeFavorite(userId, providerId);
       } else {
@@ -121,6 +167,50 @@ class FavoritesProvider extends ChangeNotifier implements AccountScoped {
     _isLoading = false;
     notifyListeners();
     return done;
+  }
+
+  /// Adds [providerId] unless it already is a favourite — for a heart tapped
+  /// before signing in, applied after (consumer-signin-push.md §2.8,
+  /// decision 205). The favourites are read fresh first: signing in may bring
+  /// ones saved on another phone or on the website, and a toggle there would
+  /// have REMOVED the salon the person asked to add.
+  Future<FavoriteAddOutcome> addIfMissing(
+    String userId,
+    SalonId providerId,
+  ) async {
+    if (userId.isEmpty) return FavoriteAddOutcome.failed;
+    final account = _account;
+    await loadFavorites(userId, force: true);
+    if (account != _account) return FavoriteAddOutcome.failed;
+    if (_error != null) return FavoriteAddOutcome.failed;
+    if (_favoriteProviderIds.contains(providerId)) {
+      return FavoriteAddOutcome.alreadyThere;
+    }
+
+    _isLoading = true;
+    notifyListeners();
+    ApiResponse<bool>? response;
+    try {
+      _writes++;
+      response = await _favoritesService.addFavorite(userId, providerId);
+    } catch (e) {
+      response = null;
+    }
+    final done = response != null && response.success;
+    if (account != _account) return FavoriteAddOutcome.failed;
+    if (done) {
+      if (!_favoriteProviderIds.contains(providerId)) {
+        _favoriteProviderIds.add(providerId);
+      }
+      _error = null;
+    } else {
+      _error = response == null
+          ? kGenericErrorMessage
+          : response.error ?? 'Erreur lors de la modification des favoris';
+    }
+    _isLoading = false;
+    notifyListeners();
+    return done ? FavoriteAddOutcome.added : FavoriteAddOutcome.failed;
   }
 
   /// Check if a provider is favorited
@@ -176,6 +266,8 @@ class FavoritesProvider extends ChangeNotifier implements AccountScoped {
   @override
   void resetForAccountChange() {
     _account++;
+    _inFlight = null;
+    _inFlightUser = null;
     _favoriteProviderIds = [];
     _favoriteProviders = [];
     _currentUserId = null;

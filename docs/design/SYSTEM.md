@@ -587,7 +587,13 @@ the most commonly half-kept.
 | **Success** | The content. |
 
 Plus the states that aren't about data: **offline**, **permission-denied**
-(e.g. `PushBlockedBanner`), and **auth-gated** (preserve `returnTo`).
+(e.g. `PushBlockedBanner`; never asked yet: `PushOffCard`), and
+**auth-gated**: a screen that only makes sense signed in draws its own
+signed-out page (`EmptyState`, why, and « Se connecter ») instead of sending
+the person away, and every way into the sign-in goes through `openSignIn`,
+which opens it OVER the current screen, with « Fermer » back to it
+([consumer-signin-push.md](consumer-signin-push.md) §2.1, §2.5). `returnTo`
+serves only a sign-in with nothing beneath it.
 
 ### 12.1 The shared pieces (B9.8, 2026-10-25)
 

@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../core/auth/reload_on_sign_in.dart';
 import '../../core/constants/failure_messages.dart';
 import '../../core/constants/unnamed_salon.dart';
 import '../../core/di/dependency_injection.dart';
@@ -53,7 +54,16 @@ class AppointmentDetailScreen extends StatefulWidget {
       _AppointmentDetailScreenState();
 }
 
-class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
+class _AppointmentDetailScreenState extends State<AppointmentDetailScreen>
+    with ReloadOnSignIn<AppointmentDetailScreen> {
+  /// A session that ended here opens the sign-in over this screen and comes
+  /// back to it (consumer-signin-push.md §2.7): the booking loads again, for
+  /// whoever signed in.
+  @override
+  void reloadForSignIn() => context
+      .read<AppointmentProvider>()
+      .loadAppointmentById(widget.appointmentId);
+
   @override
   void initState() {
     super.initState();

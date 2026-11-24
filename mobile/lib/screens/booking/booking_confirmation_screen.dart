@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/auth/open_sign_in.dart';
 import '../../core/constants/unnamed_salon.dart';
 import '../../core/di/dependency_injection.dart';
 import '../../core/theme/app_theme.dart';
@@ -65,41 +66,25 @@ class _BookingConfirmationScreenState extends State<BookingConfirmationScreen> {
     // authenticated branch below: it must run before the first BUILD, and that
     // branch runs post-frame.
     context.read<ProviderProvider>().beginProviderLoad();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      final authProvider = Provider.of<AuthProvider>(context, listen: false);
-
-      // Check if user is authenticated, if not redirect to login
-      if (!authProvider.isAuthenticated) {
-        // Build return URL with booking details
-        final returnUrl = Uri(
-          path: '/booking/confirm',
-          queryParameters: {
-            'providerId': widget.providerId,
-            'serviceIds': widget.serviceIds.join(','),
-            'dateTime': widget.appointmentDateTime.toIso8601String(),
-            if (widget.artistId != null) 'artistId': widget.artistId!,
-            if (widget.lengthVariant != null)
-              'lengthVariant': widget.lengthVariant!,
-          },
-        );
-
-        // Show a message that they need to sign in
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          AppSnackBar.show(
-            context,
-            'Veuillez vous connecter pour confirmer votre réservation',
-          );
-        });
-
-        context.go(
-          '/login?returnTo=${Uri.encodeComponent(returnUrl.toString())}',
-        );
-        return;
-      }
-
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      // The salon is public: it loads either way, which also ends the
+      // loader started above — a guest who closes the sign-in must not leave
+      // it running with no load behind it.
       final provider = Provider.of<ProviderProvider>(context, listen: false);
-      provider.loadProviderById(widget.providerId);
-      context.read<LocalityProvider>().ensureLoaded();
+      unawaited(provider.loadProviderById(widget.providerId));
+      unawaited(context.read<LocalityProvider>().ensureLoaded());
+
+      // The hub signs in at « Confirmer » (consumer-signin-push.md §2.4), so
+      // a guest reaches this screen only if something else brought them
+      // here. Then the sign-in opens over it; « Fermer » closes both and
+      // returns to the hub, whose choice is still there.
+      if (!context.read<AuthProvider>().isAuthenticated) {
+        final signedIn = await openSignIn(
+          GoRouter.of(context),
+          reason: SignInReason.booking,
+        );
+        if (!signedIn && mounted && context.canPop()) context.pop();
+      }
     });
   }
 
@@ -126,11 +111,13 @@ class _BookingConfirmationScreenState extends State<BookingConfirmationScreen> {
     );
   }
 
-  /// After a successful booking, offer to enable push notifications (once).
-  /// Best-effort — never blocks navigation.
+  /// After a successful booking, offer to enable push notifications: up to
+  /// three offers, at least 7 days apart — « Plus tard » now means later
+  /// (consumer-signin-push.md §2.10, decision 210). Best-effort — never
+  /// blocks navigation.
   Future<void> _maybeAskPush() async {
     if (!mounted) return;
-    await serviceLocator.pushRegistration.maybePromptOnce(
+    await serviceLocator.pushRegistration.maybeOfferAfterBooking(
       () => showPushPermissionSheet(context),
     );
   }

@@ -24,6 +24,7 @@ import '../../widgets/common/consumer_bottom_nav.dart';
 import '../../widgets/common/salon_map_marker.dart';
 import '../../widgets/common/screen_title.dart';
 import '../../widgets/common/timed_cached_image.dart';
+import '../../widgets/provider/heart_after_sign_in.dart';
 
 class MapScreen extends StatefulWidget {
   /// `/carte?providerId=` — open centred on this salon with its sheet up
@@ -276,9 +277,21 @@ class _MapScreenState extends State<MapScreen> {
                                 : 'Ajouter aux favoris',
                             onPressed: () async {
                               if (!auth.isAuthenticated || auth.user == null) {
+                                // The sheet closes, the sign-in opens over
+                                // the map, and the salon is added there; the
+                                // sheet is gone, so the map screen says it
+                                // (§2.8, decision 205).
+                                final router = GoRouter.of(parentContext);
+                                final messenger = ScaffoldMessenger.of(
+                                  parentContext,
+                                );
                                 Navigator.of(sheetCtx).pop();
-                                parentContext.go(
-                                  '/login?returnTo=${Uri.encodeComponent('/carte')}',
+                                await heartAfterSignIn(
+                                  router: router,
+                                  messenger: messenger,
+                                  auth: auth,
+                                  favorites: favorites,
+                                  salonId: p.id,
                                 );
                                 return;
                               }

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/auth/reload_on_sign_in.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/colors.dart';
 import '../../core/theme/text_styles.dart';
@@ -32,8 +33,14 @@ class DataExportScreen extends StatefulWidget {
   State<DataExportScreen> createState() => _DataExportScreenState();
 }
 
-class _DataExportScreenState extends State<DataExportScreen> {
+class _DataExportScreenState extends State<DataExportScreen>
+    with ReloadOnSignIn<DataExportScreen> {
   bool _loading = true;
+
+  /// A session that ended here opens the sign-in over this screen and comes
+  /// back to it (consumer-signin-push.md §2.7): the export is read again.
+  @override
+  void reloadForSignIn() => _load();
 
   /// The reads that failed on the last attempt. Not empty → the refusal, and
   /// nothing to copy: a section emptied by its failure reads as « you have

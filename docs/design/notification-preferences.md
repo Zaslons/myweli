@@ -86,8 +86,9 @@ CREATE TABLE notification_preferences (
 - Title: « Préférences de notification ».
 - « Rappels de rendez-vous » — sub: « Rappels 24 h et 2 h avant vos rendez-vous. »
 - « Offres & promotions » — sub: « Offres, nouveautés et relances. »
-- « Notifications push » — sub: « Notifications sur cet appareil. »
-- Info: « Les confirmations et changements de rendez-vous sont toujours envoyés. »
+- « Notifications push » — sub: « Sur tous les téléphones connectés à votre compte. » *(was « Notifications sur cet appareil. », false: the switch is the account's — A3, decision 211.)*
+- Info: « Les confirmations et changements de rendez-vous restent toujours dans « Actu ». » *(was « … sont toujours envoyés. », false while push is off with SMS and WhatsApp off — decision 211.)*
+- Above the switches, this phone's state: nothing when granted; `PushOffCard` (« Activer les notifications ») when never asked; `PushBlockedBanner` when refused (decision 209, [consumer-signin-push.md](consumer-signin-push.md) §2.9).
 - Save error: « Impossible d'enregistrer. Réessayez. »
 
 ## 7. Tests

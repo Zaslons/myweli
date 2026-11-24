@@ -5,11 +5,19 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../services/interfaces/device_registration_service_interface.dart';
 import '../../services/interfaces/push_notification_service_interface.dart';
+import '../utils/app_clock.dart';
+import 'push_offer.dart';
 
 /// Orchestrates the app push lifecycle on top of the two seam services:
 /// register-on-login-if-granted, ask-after-first-booking, re-register on token
 /// refresh, and unregister-on-logout. All work is **best-effort** — it never
 /// throws into the booking/auth flows. Design: docs/design/push-notifications-app.md.
+///
+/// **The client app no longer asks once** (consumer-signin-push.md §2.10,
+/// decision 210): [maybeOfferAfterBooking] offers the sheet up to
+/// [kPushOfferMax] times, at least [kPushOfferGap] apart, and Préférences can
+/// ask at any time ([enableFromSettings]). [maybePromptOnce] is MyWeli Pro's
+/// dashboard ask, unchanged.
 class PushRegistration {
   PushRegistration({required this._push, required this._devices}) {
     _listenForRefresh();
@@ -21,17 +29,107 @@ class PushRegistration {
 
   static const String _askedKey = 'myweli_push_asked';
 
+  /// The client app's offers of the sheet, and when the last was made
+  /// (§2.10). On the phone only.
+  static const String _offerCountKey = 'myweli_push_offer_count';
+  static const String _offerAtKey = 'myweli_push_offer_at';
+
+  /// Moves at every [unregister]. Signing in starts a registration nobody
+  /// awaits (`AuthProvider._syncPush`); a sign-out right after (the phone
+  /// step's « Fermer », consumer-signin-push.md §2.2) could see its
+  /// unregistration land FIRST, and the signed-out phone would keep receiving
+  /// the account's pushes. So a registration that has not been SENT when an
+  /// unregistration is asked is dropped.
+  ///
+  /// **A sign-out never waits for a registration.** The first version ran
+  /// them in order; the suites showed a sign-out then waits for whatever is
+  /// in flight — a stalled best-effort request would have left
+  /// « Déconnexion » spinning.
+  int _unregisterSerial = 0;
+
   /// On login / app-start (when authed): if permission is already granted, push
   /// the current token to the backend. Never prompts.
   Future<void> registerIfGranted() async {
     try {
+      final since = _unregisterSerial;
       final granted =
           await _push.permissionStatus() == PushPermissionStatus.granted;
       if (!granted) return;
-      await _registerCurrentToken();
+      await _registerCurrentToken(since: since);
     } catch (_) {
       /* best-effort */
     }
+  }
+
+  /// The client app, after a booking (§2.10, decision 210): register when
+  /// granted; offer the sheet while [pushOfferDecision] says so; otherwise
+  /// nothing — Préférences keeps the way ([enableFromSettings]).
+  ///
+  /// The offer is counted BEFORE its answer: every offer counts.
+  Future<void> maybeOfferAfterBooking(
+    Future<bool> Function() showRationale,
+  ) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final status = await _push.permissionStatus();
+      await _migrateAskedFlag(prefs, status);
+      final count = prefs.getInt(_offerCountKey) ?? 0;
+      final at = DateTime.tryParse(prefs.getString(_offerAtKey) ?? '');
+      final now = AppClock.now();
+      switch (pushOfferDecision(
+        status: status,
+        offerCount: count,
+        lastOfferAt: at,
+        now: now,
+      )) {
+        case PushOfferAction.register:
+          await _registerCurrentToken();
+        case PushOfferAction.none:
+          return;
+        case PushOfferAction.offer:
+          await prefs.setInt(_offerCountKey, count + 1);
+          await prefs.setString(_offerAtKey, now.toUtc().toIso8601String());
+          if (!await showRationale()) return;
+          if (await _push.requestPermission() == PushPermissionStatus.granted) {
+            await _registerCurrentToken();
+          }
+      }
+    } catch (_) {
+      /* best-effort */
+    }
+  }
+
+  /// Préférences' « Activer les notifications » (§2.9): the system prompt
+  /// directly — the card is the explanation — and the token on « granted ».
+  /// Answers what the system said; « not determined » after asking means it
+  /// failed (the adapter's answer on error).
+  Future<PushPermissionStatus> enableFromSettings() async {
+    final status = await _push.requestPermission();
+    if (status == PushPermissionStatus.granted) {
+      try {
+        await _registerCurrentToken();
+      } catch (_) {
+        /* best-effort */
+      }
+    }
+    return status;
+  }
+
+  /// The ask-once flag of the old rule: a phone that set it while the
+  /// system still says « not determined » chose « Plus tard » then — one
+  /// offer, with no date, so it is offered again after its next booking.
+  /// Every other case is decided by the system's answer. The key goes.
+  Future<void> _migrateAskedFlag(
+    SharedPreferences prefs,
+    PushPermissionStatus status,
+  ) async {
+    if (!prefs.containsKey(_askedKey)) return;
+    if ((prefs.getBool(_askedKey) ?? false) &&
+        status == PushPermissionStatus.notDetermined &&
+        !prefs.containsKey(_offerCountKey)) {
+      await prefs.setInt(_offerCountKey, 1);
+    }
+    await prefs.remove(_askedKey);
   }
 
   /// Asks for push permission **once** at the first appropriate moment (consumer:
@@ -65,6 +163,7 @@ class PushRegistration {
 
   /// On logout — remove this device's token before the session is cleared.
   Future<void> unregister() async {
+    _unregisterSerial++;
     try {
       final token = await _push.getToken();
       if (token == null) return;
@@ -91,9 +190,12 @@ class PushRegistration {
     });
   }
 
-  Future<void> _registerCurrentToken() async {
+  /// [since]: the [_unregisterSerial] when the work that leads here began —
+  /// a sign-out asked since then drops this registration (see the field).
+  Future<void> _registerCurrentToken({int? since}) async {
+    final asked = since ?? _unregisterSerial;
     final token = await _push.getToken();
-    if (token == null) return;
+    if (token == null || asked != _unregisterSerial) return;
     await _devices.register(token, _platform());
   }
 

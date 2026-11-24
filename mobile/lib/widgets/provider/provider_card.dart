@@ -13,6 +13,7 @@ import '../../widgets/common/app_snack_bar.dart';
 import '../common/app_card.dart';
 import '../common/salon_photo_placeholder.dart';
 import '../common/timed_cached_image.dart';
+import 'heart_after_sign_in.dart';
 
 class ProviderCard extends StatelessWidget {
   final models.Provider provider;
@@ -217,15 +218,14 @@ class ProviderCard extends StatelessWidget {
                               behavior: HitTestBehavior.opaque,
                               onTap: () async {
                                 if (!authProvider.isAuthenticated) {
-                                  AppSnackBar.show(
-                                    context,
-                                    'Connectez-vous pour ajouter aux favoris',
-                                  );
-                                  final currentPath = GoRouterState.of(
-                                    context,
-                                  ).uri.toString();
-                                  context.go(
-                                    '/login?returnTo=${Uri.encodeComponent(currentPath)}',
+                                  // Sign in over this list, then add it
+                                  // (§2.8, decision 205).
+                                  await heartAfterSignIn(
+                                    router: GoRouter.of(context),
+                                    messenger: ScaffoldMessenger.of(context),
+                                    auth: authProvider,
+                                    favorites: favoritesProvider,
+                                    salonId: provider.id,
                                   );
                                   return;
                                 }
@@ -402,15 +402,14 @@ class ProviderCard extends StatelessWidget {
                         behavior: HitTestBehavior.opaque,
                         onTap: () async {
                           if (!authProvider.isAuthenticated) {
-                            AppSnackBar.show(
-                              context,
-                              'Connectez-vous pour ajouter aux favoris',
-                            );
-                            final currentPath = GoRouterState.of(
-                              context,
-                            ).uri.toString();
-                            context.go(
-                              '/login?returnTo=${Uri.encodeComponent(currentPath)}',
+                            // Sign in over this list, then add it (§2.8,
+                            // decision 205).
+                            await heartAfterSignIn(
+                              router: GoRouter.of(context),
+                              messenger: ScaffoldMessenger.of(context),
+                              auth: authProvider,
+                              favorites: favoritesProvider,
+                              salonId: provider.id,
                             );
                             return;
                           }

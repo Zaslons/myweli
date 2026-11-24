@@ -3,20 +3,25 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/date_symbol_data_local.dart';
+import 'package:myweli/core/auth/open_sign_in.dart';
 import 'package:myweli/core/di/dependency_injection.dart';
 import 'package:myweli/core/utils/app_clock.dart';
 import 'package:myweli/core/utils/salon_id.dart';
 import 'package:myweli/providers/appointment_provider.dart';
 import 'package:myweli/providers/auth_provider.dart';
 import 'package:myweli/providers/favorites_provider.dart';
+import 'package:myweli/providers/notification_preferences_provider.dart';
 import 'package:myweli/providers/provider_provider.dart';
 import 'package:myweli/screens/appointments/my_bookings_screen.dart';
 import 'package:myweli/screens/auth/login_screen.dart';
 import 'package:myweli/screens/booking/booking_hub_screen.dart';
 import 'package:myweli/screens/home/home_screen.dart';
+import 'package:myweli/screens/notifications/notifications_screen.dart';
+import 'package:myweli/screens/profile/notification_preferences_screen.dart';
 import 'package:myweli/screens/providers/provider_detail_screen.dart';
 import 'package:myweli/services/mock/mock_data.dart';
 import 'package:provider/provider.dart';
+import 'package:provider/single_child_widget.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../support/frozen_clock.dart';
@@ -158,8 +163,8 @@ void main() {
       await _pumpScreen(
         tester,
         const MyBookingsScreen(),
-        // Signed out this screen is not this screen: its post-frame callback
-        // raises a snackbar and `context.go('/login')`.
+        // Signed out this screen draws its signed-out page instead
+        // (consumer-signin-push.md §2.5) — its own golden below.
         signedIn: true,
         size: const Size(360, 2000),
         scale: 2,
@@ -178,6 +183,78 @@ void main() {
       await _pumpScreen(tester, const LoginScreen());
       await expectGolden(tester, 'consumer_login');
     });
+
+    // consumer-signin-push.md §8: « Fermer », and the line that says why the
+    // sign-in opened — the longest of them, at the floor and 200 %.
+    testWidgets('the sign-in for a heart, at the floor, at 200% text', (
+      tester,
+    ) async {
+      await _pumpScreen(
+        tester,
+        const LoginScreen(reason: SignInReason.heart),
+        size: const Size(360, 1600),
+        scale: 2,
+      );
+      expect(
+        find.text('Connectez-vous pour ajouter ce salon à vos favoris.'),
+        findsOneWidget,
+      );
+      await expectGolden(tester, 'consumer_login_heart_w360_x2');
+    });
+
+    // §2.5 (decision 207): the two tabs a guest used to be sent away from, or
+    // shown an error on.
+    for (final (name, screen, size, scale) in [
+      ('consumer_bookings_guest', const MyBookingsScreen(), kGoldenPhone, 1.0),
+      (
+        'consumer_bookings_guest_w360_x2',
+        const MyBookingsScreen(),
+        const Size(360, 1200),
+        2.0,
+      ),
+      ('consumer_actu_guest', const NotificationsScreen(), kGoldenPhone, 1.0),
+      (
+        'consumer_actu_guest_w360_x2',
+        const NotificationsScreen(),
+        const Size(360, 1200),
+        2.0,
+      ),
+    ]) {
+      testWidgets('$name — the signed-out page', (tester) async {
+        await _pumpScreen(
+          tester,
+          screen,
+          size: size,
+          scale: scale,
+          signedOut: true,
+        );
+        expect(find.text('Se connecter'), findsOneWidget);
+        await expectGolden(tester, name);
+      });
+    }
+
+    // §2.9 (decision 209): this phone was never asked — the mock's answer.
+    for (final (name, size, scale) in [
+      ('consumer_preferences_push_off', kGoldenPhone, 1.0),
+      ('consumer_preferences_push_off_w360_x2', const Size(360, 1600), 2.0),
+    ]) {
+      testWidgets('$name — « Activer les notifications »', (tester) async {
+        await _pumpScreen(
+          tester,
+          const NotificationPreferencesScreen(),
+          signedIn: true,
+          size: size,
+          scale: scale,
+          extraProviders: [
+            ChangeNotifierProvider(
+              create: (_) => NotificationPreferencesProvider(),
+            ),
+          ],
+        );
+        expect(find.text('Activer les notifications'), findsOneWidget);
+        await expectGolden(tester, name);
+      });
+    }
 
     // docs/design/salon-cover-photo.md — branch B, a salon with NO photo keeps
     // the pre-cover header (logo beside the name). Same frame as
@@ -227,6 +304,13 @@ Future<void> _pumpScreen(
   // on those two screens produced **zero pixels** in the baseline.
   bool signedIn = false,
   int rounds = 3,
+  // A screen's own stores, beyond the four every screen here reads.
+  List<SingleChildWidget> extraProviders = const [],
+  // A GUEST screen. `signedIn: false` alone is not signed out: the file
+  // runs in order and an earlier test's session is still on the mock, which
+  // `AuthProvider` restores as it is built — so a « signed-out » golden
+  // photographed the signed-in screen (the Linux run of A3 said so).
+  bool signedOut = false,
 }) async {
   goldenSurface(tester, size: size, scale: scale);
 
@@ -244,6 +328,7 @@ Future<void> _pumpScreen(
     auth = await signInConsumer(tester);
   } else {
     await tester.runAsync(() async {
+      if (signedOut) await serviceLocator.authService.logout();
       auth = AuthProvider();
       for (var i = 0; i < 60 && auth.isLoading; i++) {
         await Future<void>.delayed(const Duration(milliseconds: 25));
@@ -264,6 +349,7 @@ Future<void> _pumpScreen(
         ChangeNotifierProvider(create: (_) => ProviderProvider()),
         ChangeNotifierProvider(create: (_) => AppointmentProvider()),
         ChangeNotifierProvider(create: (_) => FavoritesProvider()),
+        ...extraProviders,
       ],
       child: MaterialApp.router(
         debugShowCheckedModeBanner: false,

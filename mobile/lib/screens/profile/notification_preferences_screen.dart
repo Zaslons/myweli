@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/auth/reload_on_sign_in.dart';
 import '../../core/constants/failure_messages.dart';
 import '../../core/di/dependency_injection.dart';
 import '../../core/push/system_settings.dart';
@@ -16,6 +17,7 @@ import '../../widgets/common/app_skeleton.dart';
 import '../../widgets/common/app_snack_bar.dart';
 import '../../widgets/common/screen_title.dart';
 import '../../widgets/push/push_blocked_banner.dart';
+import '../../widgets/push/push_off_card.dart';
 
 /// Consumer notification preferences (FR-NOTIF-004): three opt-out toggles,
 /// each persisted (optimistic, revert on failure). The backend respects these
@@ -24,17 +26,24 @@ import '../../widgets/push/push_blocked_banner.dart';
 /// It also surfaces the OS-level state: once notifications are DENIED in the
 /// system settings, none of these toggles can bring them back, so the screen
 /// says so and offers the way out (docs/design/push-notifications-app.md).
+/// Never asked yet (« Plus tard », or no booking so far), it offers « Activer
+/// les notifications » (consumer-signin-push.md §2.9, decision 209).
 /// Design: docs/design/notification-preferences.md.
 class NotificationPreferencesScreen extends StatefulWidget {
   const NotificationPreferencesScreen({
     super.key,
     this.openSettings = openSystemNotificationSettings,
     this.permissionStatus,
+    this.enablePush,
   });
 
   /// Test seams.
   final SettingsOpener openSettings;
   final Future<PushPermissionStatus> Function()? permissionStatus;
+
+  /// « Activer les notifications »; defaults to
+  /// `PushRegistration.enableFromSettings`.
+  final Future<PushPermissionStatus> Function()? enablePush;
 
   @override
   State<NotificationPreferencesScreen> createState() =>
@@ -43,8 +52,20 @@ class NotificationPreferencesScreen extends StatefulWidget {
 
 class _NotificationPreferencesScreenState
     extends State<NotificationPreferencesScreen>
-    with WidgetsBindingObserver {
-  bool _osDenied = false;
+    with WidgetsBindingObserver, ReloadOnSignIn<NotificationPreferencesScreen> {
+  /// A session that ended here opens the sign-in over this screen and comes
+  /// back to it (consumer-signin-push.md §2.7): the preferences load again.
+  @override
+  void reloadForSignIn() {
+    context.read<NotificationPreferencesProvider>().load();
+    _refreshOsPermission();
+  }
+
+  /// What the system says about this phone; null until read.
+  PushPermissionStatus? _osStatus;
+
+  /// The system prompt is open.
+  bool _enabling = false;
 
   @override
   void initState() {
@@ -75,7 +96,40 @@ class _NotificationPreferencesScreenState
         serviceLocator.pushNotificationService.permissionStatus;
     final status = await read();
     if (!mounted) return;
-    setState(() => _osDenied = status == PushPermissionStatus.denied);
+    setState(() => _osStatus = status);
+  }
+
+  /// « Activer les notifications » (§2.9): granted → the token is registered
+  /// and it is said; refused → the card becomes the blocked banner; no
+  /// answer (the adapter's « not determined » on failure) → the card stays,
+  /// and the generic sentence says it did not work.
+  Future<void> _enablePush() async {
+    final messenger = ScaffoldMessenger.of(context);
+    setState(() => _enabling = true);
+    final enable =
+        widget.enablePush ?? serviceLocator.pushRegistration.enableFromSettings;
+    final status = await enable();
+    if (!mounted) return;
+    setState(() {
+      _enabling = false;
+      _osStatus = status;
+    });
+    switch (status) {
+      case PushPermissionStatus.granted:
+        AppSnackBar.showOn(
+          messenger,
+          'Notifications activées',
+          kind: SnackKind.success,
+        );
+      case PushPermissionStatus.denied:
+        break;
+      case PushPermissionStatus.notDetermined:
+        AppSnackBar.showOn(
+          messenger,
+          kGenericErrorMessage,
+          kind: SnackKind.error,
+        );
+    }
   }
 
   Future<void> _toggle(Future<bool> Function() action) async {
@@ -124,7 +178,10 @@ class _NotificationPreferencesScreenState
     return ListView(
       padding: const EdgeInsets.all(AppTheme.spacingM),
       children: [
-        if (_osDenied) PushBlockedBanner(onOpenSettings: widget.openSettings),
+        if (_osStatus == PushPermissionStatus.denied)
+          PushBlockedBanner(onOpenSettings: widget.openSettings),
+        if (_osStatus == PushPermissionStatus.notDetermined)
+          PushOffCard(onEnable: _enablePush, busy: _enabling),
         AppCard(
           // The card IS the `Material` the tile paints its ink on — what the
           // transparent layer under a decorated box was there for (Flutter 3.44's
@@ -148,7 +205,10 @@ class _NotificationPreferencesScreenState
               const Divider(height: 1),
               _PrefSwitch(
                 title: 'Notifications push',
-                subtitle: 'Notifications sur cet appareil.',
+                // The account's switch, not this phone's: the server reads it
+                // before any push and sends to every device of the account
+                // (decision 211).
+                subtitle: 'Sur tous les téléphones connectés à votre compte.',
                 value: prefs.push,
                 onChanged: (v) => _toggle(() => provider.setPush(v)),
               ),
@@ -167,8 +227,11 @@ class _NotificationPreferencesScreenState
             const SizedBox(width: AppTheme.spacingS),
             Expanded(
               child: Text(
-                'Les confirmations et changements de rendez-vous sont '
-                'toujours envoyés.',
+                // « envoyés » was true only while push was on: with push off,
+                // and SMS and WhatsApp off, nothing is sent — what always
+                // happens is the entry in « Actu » (decision 211).
+                'Les confirmations et changements de rendez-vous restent '
+                'toujours dans « Actu ».',
                 style: AppTextStyles.bodySmall.copyWith(
                   color: AppColors.textTertiary,
                 ),
