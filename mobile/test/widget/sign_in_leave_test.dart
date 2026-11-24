@@ -16,6 +16,7 @@ import 'package:myweli/screens/auth/login_screen.dart';
 import 'package:myweli/services/interfaces/favorites_service_interface.dart';
 import 'package:myweli/services/mock/mock_auth_service.dart';
 import 'package:myweli/services/mock/mock_data.dart';
+import 'package:myweli/widgets/common/app_button.dart';
 import 'package:myweli/widgets/provider/heart_after_sign_in.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -281,6 +282,24 @@ void main() {
       expect(answers, [false]);
     });
 
+    testWidgets('while « Fermer » signs out, « Continuer » does not spin: '
+        'that request is not its', (tester) async {
+      auth.slowLogout = true;
+      await tester.pumpWidget(app());
+      await settle(tester);
+      await open(tester);
+      await tester.tap(find.text('Continuer avec Google'));
+      await settle(tester);
+      await tester.tap(find.byTooltip('Fermer'));
+      await tester.pump(const Duration(milliseconds: 50));
+      final continuer = tester.widget<AppButton>(
+        find.widgetWithText(AppButton, 'Continuer'),
+      );
+      expect(continuer.isLoading, isFalse);
+      await settle(tester);
+      expect(authProvider.isAuthenticated, isFalse);
+    });
+
     testWidgets('a failed sign-out keeps the step, signed in, and says nothing '
         'of a cancellation', (tester) async {
       auth.failLogout = true;
@@ -476,10 +495,12 @@ class _HomeState extends State<_Home> {
 class _Auth extends MockAuthService {
   User? googleUser;
   bool failLogout = false;
+  bool slowLogout = false;
 
   void reset() {
     googleUser = null;
     failLogout = false;
+    slowLogout = false;
     _Home.inits = 0;
   }
 
@@ -494,6 +515,9 @@ class _Auth extends MockAuthService {
   @override
   Future<void> logout() async {
     if (failLogout) throw StateError('offline');
+    if (slowLogout) {
+      await Future<void>.delayed(const Duration(milliseconds: 600));
+    }
     await super.logout();
   }
 }

@@ -75,6 +75,26 @@ void main() {
     expect(service.reads, 0);
   });
 
+  test(
+    'a read sent BEFORE a heart was written is not shared after it: its '
+    'answer would not hold the heart (the independent review of A3)',
+    () async {
+      service.stored = [a];
+      final fav = FavoritesProvider();
+      await fav.loadFavorites('u1');
+      final gate = Completer<void>();
+      service.readGate = gate.future;
+      final before = fav.loadFavorites('u1', force: true); // sent: [a]
+      expect(await fav.toggleFavorite('u1', b.id), isTrue); // b written
+      final after = fav.loadFavorites('u1', force: true); // must be a new read
+      gate.complete();
+      await before;
+      await after;
+      expect(service.reads, 3, reason: 'the second forced read was not shared');
+      expect(fav.isFavorite(b.id), isTrue, reason: 'the heart survives');
+    },
+  );
+
   test('two reads of the same account are one: the root\'s reload after a '
       'sign-in cannot land after the add and erase it (§2.3)', () async {
     service.stored = [a];
