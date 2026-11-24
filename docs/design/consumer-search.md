@@ -33,7 +33,7 @@ Today none of that is true (audit §2.1):
   - every state;
   - the home, the list and the map each reading their own salons (§2.7);
   - the map showing its commune, with its own states.
-- **A4w (website), if Q6 says so:** « Afficher plus », the count from `total`, and the « Onglerie » chip's `nail` → `nails`.
+- **A4w (website), if Q6 says so:** « Afficher plus », and the count from `total`. The « Onglerie » chip's `nail` → `nails` has its own session since 2026-11-24, started by the currency session; A4w does not repeat it (Q6).
 
 **Out of scope:**
 - **Typo tolerance** (Q1 keeps it for later).
@@ -362,14 +362,14 @@ The drift the read found is fixed at the same time:
 
 **A4-api, added by the independent reading:** a text spanning two fields does not match on either twin; `’`, `œ`, `æ` fold alike on both.
 
-**A4w (if Q6):** `/recherche`'s « Afficher plus », the count from `total`, the « Onglerie » chip sending `nails` (red today: it sends `nail`), the `/onglerie` landing pages listing `nails` salons, e2e for each.
+**A4w (if Q6):** `/recherche`'s « Afficher plus » and the count from `total`, e2e for each. (The « Onglerie » chip and its `/onglerie` landing pages are the other session's, §11 Q6.)
 
 ## 9. Rollout & scope discipline
 
 **Three PRs, in this order (Q7):**
 1. **A4-api:** the backend. There is no staging (`infra/gcp/staging.state` reads `absent`), so its migration first runs in production, on a `deploy-backend.yml` dispatch with the owner's word. Deployed, it also changes what `/recherche` finds on the website: accents and services, for the better.
 2. **A4:** the app. Merging deploys nothing. **Its consumer build waits for A4-api in production** (Q7): the field's hint promises « prestation ou commune », and the empty state suggests searching a service. On today's server both would be false (A1's rule).
-3. **A4w,** if Q6 says so. Its merge is a production deploy of `myweli.com`. Fixing `nail` in `web/lib/landing.ts:17` also fixes the `/onglerie` landing pages, which read the same key.
+3. **A4w,** if Q6 says so. Its merge is a production deploy of `myweli.com`. The `nail` key (`web/lib/landing.ts:17`) is the other session's; fixing it also fixes the `/onglerie` landing pages, which read the same key.
 
 **B16.1** (the category column, PR #857) is not a prerequisite for building A4, but it is for the category chips to be right in production. Its session owns it.
 
@@ -419,8 +419,8 @@ The drift the read found is fixed at the same time:
 **Q6. The website's half (A4w)?** [decision 233]
 - *Recommended:* yes, its own PR after A4:
   - « Afficher plus » on `/recherche`;
-  - the count from `total` (it stops at 24 today);
-  - the « Onglerie » chip sending `nails`. Today it sends `nail`, so it can never find a salon; B16.1 §12 found it and left it out.
+  - the count from `total` (it stops at 24 today).
+- **The « Onglerie » chip is not A4w's.** It sends `nail`, so it can never find a salon; B16.1 §12 found it. A session of its own, started on 2026-11-24 by the currency session, fixes it. If it has not landed when A4w is built, A4w says so rather than fixing it twice.
 - Its merge is a production deploy.
 
 **Q7. The order: A4-api, then A4, then A4w — and A4's consumer build waits for A4-api in production?** [decision 234]
