@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Module** | backend: every repository with an in-memory twin (`lib/src/**`) and a Postgres twin (`lib/src/db/postgres_*.dart`) |
-| **Status** | **Answered 2026-11-24, « Approve as recommended »** (§6: decisions 219–223, batch 16). Docs only: a survey, then each fix through its own short spec. |
+| **Status** | **Answered 2026-11-24, « Approve as recommended »** (§6: decisions 219–223, batch 16); **merged** (#855, `adaae165`). Docs only: a survey, then each fix through its own short spec. B16.1's: [provider-category-column.md](provider-category-column.md). |
 | **Owner** | the project owner: the answers, then each spec, build, merge and deploy, each on the owner's word |
 | **Last updated** | 2026-11-24 |
 | **PRD ref / phase** | none: test fidelity, and three production defects it turned up · V1 |
@@ -214,3 +214,4 @@ Numbered from **219**, after batch 15's 214–218. This is batch 16 in the BACKL
 - **2026-11-24, surveyed:** four independent readers, each citing both sides, covered 28 pairs. Then one throwaway probe on both twins (a disposable database, dropped afterwards) proved eight differences, each with a control. The three production defects were also read end to end.
 - **Not yet reviewed by a second reader as a document.** The readers' findings that were not probed are marked as such.
 - **2026-11-24, answered:** « Approve as recommended », all five (decisions 219–223, batch 16 in the BACKLOG). **Found while recording them:** §5.2's auth group left out B-P2-c, which sits in §3.2's first table and so in Q3's scope; it is added there. The BACKEND.md §5 rule (decision 223) is written in this PR.
+- **2026-11-24, decision 220's read** (20:39 UTC, read-only, the probe write refused): 9 salons, all drafts; 8 agree, 1 differs (column `salon`, document `barber`). So §2.1's « unknown » is answered: it has happened once; none of the nine is public today. Recorded in [provider-category-column.md](provider-category-column.md) §2.4.

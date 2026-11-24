@@ -1,4 +1,4 @@
-- 🟡 **Étude : les doubles de test des 28 autres dépôts face à Postgres — et trois défauts de production trouvés en chemin (backend · documentation · 2026-11-24).** Branche `docs/twin-fidelity-survey`, créée depuis `main` (`b042d2bb`). Étude : [twin-fidelity-survey.md](../../design/twin-fidelity-survey.md). Documentation seule : chaque correction passera par sa propre spec.
+- 🟢 **Étude : les doubles de test des 28 autres dépôts face à Postgres — et trois défauts de production trouvés en chemin (backend · documentation · 2026-11-24).** Branche `docs/twin-fidelity-survey`, créée depuis `main` (`b042d2bb`). Étude : [twin-fidelity-survey.md](../../design/twin-fidelity-survey.md). Documentation seule : chaque correction passera par sa propre spec.
   - **La question :** le dépôt des rendez-vous avait un double de test qui gardait ce que Postgres refusait (corrigé par B15.1). Les 28 autres dépôts ont-ils le même défaut ?
   - **La méthode :** quatre lecteurs indépendants, chacun citant les deux côtés ligne à ligne. Huit écarts ont ensuite été prouvés par une sonde jetable sur les deux doubles, sur une base locale supprimée après, chacun avec une valeur témoin.
   - **Trois défauts de production, prouvés :**
@@ -14,4 +14,5 @@
     - ensuite les écarts atteignables, dépôt par dépôt, à la manière de B15.1 ; les écarts propres aux tests, quand leur dépôt est touché ;
     - une règle dans BACKEND.md §5, écrite dans cette PR : un dépôt qui écrit a un contrat qui tourne sur les deux doubles.
   - **En le consignant :** le groupe « auth » de §5.2 avait oublié B-P2-c, qui est pourtant dans le périmètre de Q3 ; il y est ajouté.
-  - **Reste, chacun sur le mot du propriétaire :** la lecture de production (décision 220), puis la spec de B16.1 ; chaque fusion et chaque déploiement.
+  - **Fusionnée le 2026-11-24** (#855, `adaae165`, sur le mot du propriétaire ; l’arbre de `main` est celui de la tête testée).
+  - **Ensuite :** la lecture de production (décision 220), faite le 2026-11-24, puis la spec de B16.1.
