@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | **Draft (2026-11-24), awaiting the owner's answers to §11.** An independent reader checked it once against the code (14 findings; each re-read in the code, then folded in, §12). Nothing is built. |
+| **Status** | **Approved by the owner on 2026-11-24** (« Approve as recommended »: the ten recommendations of §11, BACKLOG decisions 204–213). An independent reader checked it once against the code (14 findings; each re-read in the code, then folded in, §12). Nothing is built: A3 (the app) next, then A3w (the website's two hearts), each merged on the owner's word. |
 | **Owner** | Sadreddine |
 | **Last updated** | 2026-11-24 |
 | **PRD ref / phase** | FR-BOOK-008 (the sign-in gate and `returnTo`), FR-NOTIF-001 (push), FR-NOTIF-004 (preferences), FR-FAV-001 (favourites) · V1 · BACKLOG B0.10 (decision 160, Track A) |
@@ -404,6 +404,8 @@ One more route on the stack while signing in. One load of the favourites and the
 - [ ] A feature branch and a PR; CI green; no Claude attribution; merged on the owner's word.
 
 ## 11. Open questions (each with a recommendation)
+
+**All ten answered on 2026-11-24: « Approve as recommended »** (BACKLOG decisions 204–213, in the order Q1–Q10). Each answer is the recommendation written under its question; Q2's includes A3w.
 
 **Q1. The sign-in opens over the screen the person is on, with « Fermer », and closing returns exactly there — for every way in (§2.1–§2.4)? The reason is written on the screen instead of a snackbar (§2.2), and the booking's gate moves to the hub's « Continuer » (§2.4).**
 - *Recommended: yes.* It is the audit's gap 10, and the store reviewer's first dead end.
