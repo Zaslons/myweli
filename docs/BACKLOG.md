@@ -41,6 +41,7 @@
 | 12 | **The website's flows against the apps** | Four sentences that aren't true, then the gaps in both directions | P1 for B12.1–B12.4, then P2–P3 | web, apps | B12.1's decision; your go on each merge |
 | 13 | **Mobile toolchain** | Flutter 3.47.9, then the dependabot bumps; headings for screen readers; what 3.50 will need; the backend image's TLS check | P1 for B13.1–B13.2, then P2–P3 | app, CI, backend | **Spec signed off 2026-11-11** (decision 109); B13.1 building |
 | 14 | **The booking's currency** | The server stamps each booking's currency at creation and never stores it, so every surface shows the salon's current one | P3 (no wrong amount today: one country, XOF) | backend, app, web | **Spec approved 2026-11-23** (decisions 187–193, #837); **B14.1 deployed 2026-11-23** (#840, revision `00055-jv2`); **B14.3 merged** (#843); **B14.2 deployed 2026-11-23** (#844, revision `00057-pg2`); **B14.4 live on myweli.com 2026-11-24** (#848). **Batch complete** |
+| 15 | **The bookings store's test twin** | In tests, the in-memory bookings store writes any key and any value, where Postgres writes six and ignores the rest, and hands out its own maps | P3 (no user-visible effect; it is how batch 14's defect hid) | backend | **Spec approved 2026-11-24** (decisions 214–218, #852); B15.1 next, on your word |
 
 **Proposed order.**
 - **Done (2026-10-25):** batches 1–9, every item.
@@ -48,6 +49,7 @@
 - **Next (2026-11-02):** batch 12's four untrue sentences are in #723, then batch 11. Your order, decision 67.
 - **Also (2026-11-11):** batch 13, the mobile toolchain: B13.1 is merged (#758, 2026-11-11), and so is the TLS gate on the artifact (B13.10, #759, 2026-11-12). It gates 0.0.2 and every Android build that reaches anyone.
 - **Also (2026-11-23):** batch 14, the booking's currency: B14.1 next, independent of the release track (decision 193).
+- **Also (2026-11-24):** batch 15, the bookings store's test twin: B15.1 on your word, with no deploy of its own (decision 218).
 - **Yours:** batch 10, and your half of batch 0 (answer any Resolution Center message and release by hand after approval, B0.1; B0.10, in the order of [android-play-release.md](design/android-play-release.md) §4: the old Samsung's model, Android version and RAM (its O2; the upload key's backup, O1, is done), the signed AAB from `main` now that B13.1 has merged (GHSA-frr6-h895-5pxp, LAUNCH §6.3), then the closed test's 12 testers; Play's location declaration by 2027-01-27 and trader declaration by 2027-02-01); and B11.2's question, with its two options there: does the pattern's 4 KB budget count the RSC payload? And decision 144 (B0.15), now: declare « Search History » on MyWeli Pro's App Store label, in App Store Connect; whether it needs a new build is UNVERIFIED (decision 55's exclusion is now optional). And before the first public salon, the move to Vercel's Pro plan, in Vercel's console (decision 93). And decision 107's one new sentence to confirm or reword, and its optional rewording, in #751 (`web-pro-upload-resize.md` §11, items 10 and 11). And decision 108's EU step: upload the proof of name and address Apple asked for, through its new link once it arrives (app-store-forms §9.1).
 
 ---
@@ -402,6 +404,14 @@ Each question has a recommendation. Answers unblock the item named in brackets.
 211. Préférences' two sentences? [B0.10] — ✅ **Answered (2026-11-24): « Approve as recommended »**, « Sur tous les téléphones connectés à votre compte. » for the push switch, and « Les confirmations et changements de rendez-vous restent toujours dans « Actu ». » under the card (spec §2.11).
 212. MyWeli Pro: the same card on its notifications page? [B0.10] — ✅ **Answered (2026-11-24): « Approve as recommended »**, yes, the card only, in A3 (spec §2.9); it reaches salons with the next Pro build.
 213. A session that ended on an account screen? [B0.10] — ✅ **Answered (2026-11-24): « Approve as recommended »**, the sign-in opens over that screen; success returns to it, which loads again; « Fermer » returns to the nearest screen that can show itself signed out (spec §2.7). **Refines decision Q1 = a** of [consumer-account-scope.md](design/consumer-account-scope.md) §2.5. The notice reads the stack's last route, pushed or not (a defect today: `go_router`'s configuration address ignores pushed screens).
+
+**The bookings store's test twin (batch 15)** — asked on 2026-11-24 in [appointment-twin-update.md](design/appointment-twin-update.md) §11 (Q1–Q5, PR #852): found while building batch 14 (currency spec §3.5, §12). In tests, the in-memory `AppointmentRepository.update` writes any key and any value, where Postgres writes six keys and ignores the rest; it also hands out its own maps, and returns `endsAt`, which Postgres never reads back. All five answered at once.
+
+214. What `update` cannot store? [B15.1] — ✅ **Answered (2026-11-24): « Approve as recommended »**, refused in both twins with `ArgumentError`, before any write: a key outside the six, and a value Postgres rejects (spec §5.2). No production caller sends either.
+215. The guest-phone move, the one caller that relied on the loophole? [B15.1] — ✅ **Answered (2026-11-24): « Approve as recommended »**, a dedicated in-memory `moveGuestPhone`, mirroring the Postgres SQL exactly, off the interface (spec §5.3).
+216. Copies on every in-memory return? [B15.1] — ✅ **Answered (2026-11-24): « Approve as recommended »**, yes: deep copies, in Postgres's shape, without `endsAt` (spec §5.4).
+217. The overlapping reschedule, `null` from Postgres only? [B15.1] — ✅ **Answered (2026-11-24): « Approve as recommended »**, documented on the interface, as `create` already does; not simulated in memory (spec §5.5).
+218. When? [B15.1] — ✅ **Answered (2026-11-24): « Approve as recommended »**, built now as its own backend PR, on your word; no deploy of its own, it rides the next backend deploy (spec §9).
 
 ---
 
@@ -910,6 +920,13 @@ Spec: [appointment-currency-stamp.md](design/appointment-currency-stamp.md). The
 - **B14.2 `NOT NULL` (P3 · S · decision 187).** The backfill again, then `SET NOT NULL`, declared `rollback-unsafe`; the raw inserts and fixtures that omit the column (spec §3.7). **Can be the next backend deploy** (corrected 2026-11-23; the first record said it waited for one more): B14.1 is live, so B14.2's one-step rollback target would be `00055-jv2`, which writes the column. Once it is live, no rollback may go back past `00055-jv2` — its `rollback-unsafe` line says so. **Built, merged (#844, `d0ec754b`) and DEPLOYED 2026-11-23** (spec §8.9, §9.2): revision `myweli-api-00057-pg2` since 23:52 UTC; read-only read-back: `currency` is NOT NULL, 4 bookings all `XOF`. **Done.** Rollback no further than `00055-jv2`.
 - **B14.3 The app: Pro screens, earnings rows, two exports, the mock (P3 · S · decision 189).** Reaches users with the next builds of both apps. Does not wait for B14.1's deploy. **Built and merged 2026-11-23** (#843, `c3716e6b`, spec §8.8); it ships with the next app builds.
 - **B14.4 The website: the espace pro and two exports (P3 · S · decision 189).** Its merge is a production web deploy, on your word. Does not wait for B14.1's deploy. **Built 2026-11-24** (spec §8.10): 7 tests red first behind currency-blind controls, the full web unit suite 3184 passed, 9 mutations red for the stated reason. **Merged and LIVE on myweli.com 2026-11-24** (#848, `9d0b6b29`, spec §9.3): the served JavaScript carries the release and both exports' new lines; the old client-export line is gone. **Done.**
+
+### Batch 15 — The bookings store's test twin (decisions 214–218)
+
+Spec: [appointment-twin-update.md](design/appointment-twin-update.md). Most backend tests run the service against the in-memory twin of the bookings store. Its `update` writes any key and any value, where Postgres writes six keys (`status`, `appointmentDate`, `endsAt`, `depositScreenshotUrl`, `arrivedAt`, `artistId`) and ignores the rest without a word. So a test can pass for code production would break, which is how batch 14's defect hid. No user sees anything: no production caller sends another key.
+
+- **B15.1 One key set, refusals, copies, the guest-phone move (P3 · S · decisions 214–218).** Backend only, one PR: the tests red first (spec §8, ten mutations), the code, and the comments of spec §10, including the false CI sentence in `postgres_repositories_test.dart:981-983`. Merge on your word. No deploy of its own: it rides the next backend deploy.
+
 ---
 
 ## 4. Checked and not on this list

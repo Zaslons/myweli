@@ -378,9 +378,14 @@ Every PR is tested; treat an unchecked box as "not done":
   - A PR that reddens it fixes the cause or deletes the assertion. **Never a
     retry** (the B10 rule).
 - **Postgres suites must be re-runnable against the SAME database.** They are
-  `DATABASE_URL`-gated and self-skip, so CI — which runs a bare `dart test` with
-  no database — never executes them; the only thing that ever runs them twice is
-  a developer's local Postgres. Two rules, both learned from a real defect
+  `DATABASE_URL`-gated and self-skip without it. CI sets it (`ci.yml`, since
+  B3c): each run starts the runner's own Postgres on a fresh database, and the
+  test files run concurrently against that one database. So CI runs every suite
+  once per database, and the only thing that ever runs them twice is a
+  developer's local Postgres. *(Corrected 2026-11-24: this said CI « never
+  executes them »; it always has —
+  [appointment-twin-update.md](design/appointment-twin-update.md) §2.5.)* Two
+  rules, both learned from a real defect
   (`postgres_repositories_test.dart` asserted `bySlug('salon-test-lifecycle')`
   returned the salon it had just created — true only against an *empty*
   `providers` table, because `slug` is unique and `createSalon` suffixes on
