@@ -1,0 +1,20 @@
+- 🟡 **MyWeli (client), A4 : une recherche qui cherche, et les catégories ivoiriennes — la spec, avant tout code (documentation · app · backend · site · 2026-11-24 — BACKLOG B0.10, décision 160, piste A ; écarts 11, 20 et la moitié « commune » du 22 de l’audit ; FR-DISC-003, FR-DISC-004, FR-DISC-005, FR-DISC-007).** Branche `docs/consumer-search-spec`, depuis `main` `7d5d9645`. Spec : [consumer-search.md](../../design/consumer-search.md). Documentation seule : aucun code, aucun build, aucune console.
+  - **Pourquoi :**
+    - la barre « Rechercher un salon… » ne cherche pas : elle ouvre la liste, qui n’a aucun champ ;
+    - l’app ne connaît que quatre catégories génériques ; un salon `nails` ou `massage` est introuvable par catégorie ;
+    - elle ne montre jamais plus de 20 salons ;
+    - la carte ne dit pas quelle commune elle montre.
+  - **Ce que la spec prévoit, chaque « aujourd’hui » relu dans le code avec son fichier et sa ligne :**
+    - **côté serveur (A4-api) :** `q` trouve aussi les prestations et la commune, sans tenir compte des accents (« beaute » trouve « Beauté ») ; `%` et `_` ne sont plus des jokers ; chaque tri finit sur l’identifiant, pour que les pages ne se chevauchent plus ;
+    - **dans l’app (A4) :** un champ sur la liste des salons, qui cherche pendant la saisie (350 ms, 2 lettres) ; les cinq catégories que partagent déjà le serveur, MyWeli Pro et le site ; « Afficher plus de salons » ; le nombre venu du serveur ; chaque état, avec une phrase et une sortie pour chaque liste vide ;
+    - **la carte** dit sa commune, avec la même pastille que la liste, et a ses propres états ;
+    - **sur le site (A4w), si le propriétaire le veut :** « Afficher plus », le nombre venu du serveur, et la puce « Onglerie », qui envoie aujourd’hui `nail` et ne trouve donc jamais rien.
+  - **Un défaut trouvé en lisant :** l’accueil, la liste des salons et la carte partagent une seule liste.
+    - une catégorie, un tri ou « Disponible aujourd’hui » choisis sur la liste se retrouvent dans « Près de vous » sur l’accueil ;
+    - la spec donne à chaque écran ses propres salons, et garde la liste de l’accueil comme repli pour les rendez-vous (décision 199).
+  - **Relue par un lecteur indépendant, chargé de la réfuter :** 13 constats, chacun vérifié dans le code, puis intégré (§12). Les plus importants :
+    - la liste se serait rechargée à chaque ouverture d’un salon ;
+    - la phrase « Salon, prestation ou commune » aurait été fausse sur le serveur d’aujourd’hui : le build de l’app attendra donc A4-api en production ;
+    - les états vides auraient menti tant qu’aucun salon n’est public.
+  - **Neuf questions pour le propriétaire** (décisions 228 à 236), chacune avec une recommandation. La deuxième s’écarte de la ligne A4 approuvée de l’audit (les catégories de l’annexe A du PRD) et le dit.
+  - **Reste :** les réponses du propriétaire ; la fusion de cette PR, sur son mot ; puis A4-api, A4, et A4w si elle est retenue.
