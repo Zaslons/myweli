@@ -221,7 +221,13 @@ void main() {
       ),
     ]) {
       testWidgets('$name — the signed-out page', (tester) async {
-        await _pumpScreen(tester, screen, size: size, scale: scale);
+        await _pumpScreen(
+          tester,
+          screen,
+          size: size,
+          scale: scale,
+          signedOut: true,
+        );
         expect(find.text('Se connecter'), findsOneWidget);
         await expectGolden(tester, name);
       });
@@ -300,6 +306,11 @@ Future<void> _pumpScreen(
   int rounds = 3,
   // A screen's own stores, beyond the four every screen here reads.
   List<SingleChildWidget> extraProviders = const [],
+  // A GUEST screen. `signedIn: false` alone is not signed out: the file
+  // runs in order and an earlier test's session is still on the mock, which
+  // `AuthProvider` restores as it is built — so a « signed-out » golden
+  // photographed the signed-in screen (the Linux run of A3 said so).
+  bool signedOut = false,
 }) async {
   goldenSurface(tester, size: size, scale: scale);
 
@@ -317,6 +328,7 @@ Future<void> _pumpScreen(
     auth = await signInConsumer(tester);
   } else {
     await tester.runAsync(() async {
+      if (signedOut) await serviceLocator.authService.logout();
       auth = AuthProvider();
       for (var i = 0; i < 60 && auth.isLoading; i++) {
         await Future<void>.delayed(const Duration(milliseconds: 25));
