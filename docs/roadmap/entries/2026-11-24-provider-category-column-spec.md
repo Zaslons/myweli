@@ -1,0 +1,13 @@
+- 🟡 **Spec : la catégorie d’un salon atteint la colonne sur laquelle la découverte filtre (B16.1) (backend · documentation · 2026-11-24).** Branche `docs/b16-1-category-column`, créée depuis `main` (`51d439f2`), PR #857. Spec : [provider-category-column.md](../../design/provider-category-column.md). Documentation seule : aucun code avant les réponses.
+  - **Le défaut :** la catégorie d’un salon vit à deux endroits, son document et une colonne. Le filtre de la découverte lit la colonne, que seule la création écrit. Un salon qui change de catégorie dans son profil reste donc listé sous l’ancienne, dans les apps et sur le site, une fois public.
+  - **Déjà arrivé une fois en production :** la lecture en lecture seule du 2026-11-24 (décision 220) compte 9 salons, tous en brouillon ; 8 concordent, 1 diffère (colonne `salon`, document `barber`). Aucun salon n’est public aujourd’hui, donc le filtre n’en liste aucun ; si celui-ci l’a été avant, ce n’a pas été lu.
+  - **Ce que propose la spec :**
+    - `updateProfile` écrit la colonne `category` avec le document, comme il le fait déjà pour le nom, la description, l’adresse et la commune ;
+    - une migration copie, une fois, la catégorie du document dans la colonne là où elles diffèrent ; testée avant la spec sur une base locale jetable, supprimée après ;
+    - un contrat sur les deux doubles : un changement de profil atteint chaque filtre qui lit une colonne tenue par `updateProfile` ;
+    - la même lecture après le déploiement, sur le mot du propriétaire.
+  - **Relue une fois par un lecteur indépendant, chargé de la réfuter :** aucun bloquant ; quatre constats à corriger, tous intégrés (§13). Le plus important : des cas de test générés depuis la liste des colonnes auraient disparu avec la colonne qu’ils testent ; ils sont écrits à la main, avec un test qui vérifie qu’ils couvrent toute la liste.
+  - **Trouvé à côté :** le site demande la catégorie `nail` pour « Onglerie », alors que le contrat, le backend et l’app disent `nails`. Ces pages ne peuvent lister aucun salon, et un salon d’onglerie n’aurait ni page ni entrée dans le sitemap. Hors de cette spec : une correction web à part.
+  - **Aussi :** l’étude (#855) est fusionnée ; son entrée passe au vert, et B16.12 (la règle de BACKEND.md) est marqué fait.
+  - **Approuvée le 2026-11-24 :** les quatre réponses d’un coup, « Approve as recommended », décisions 224–227 dans le BACKLOG (lot 16).
+  - **Ensuite, chacun sur le mot du propriétaire :** la construction de B16.1 dans sa propre PR, puis le déploiement (de préférence avant la validation de ce salon), puis la même lecture après.
