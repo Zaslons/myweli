@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Module** | backend: `providers` (the Postgres repository's `updateProfile`, one migration) |
-| **Status** | **Approved 2026-11-24.** The owner answered the four questions of §11 at once, « Approve as recommended »: decisions 224–227 in BACKLOG, batch 16 (#857). **B16.1 built 2026-11-24** (§8.8), on the owner's « Yes, build B16.1 », in its own backend PR; not merged. The merge, the deploy and the read after, each on the owner's word. |
+| **Status** | **Approved 2026-11-24.** The owner answered the four questions of §11 at once, « Approve as recommended »: decisions 224–227 in BACKLOG, batch 16 (#857). **B16.1 built 2026-11-24** (§8.8), on the owner's « Yes, build B16.1 », in its own backend PR, #860; not merged. The merge, the deploy and the read after, each on the owner's word. |
 | **Owner** | the project owner: the answers, the build's go, the merge, the deploy and the read after it, each on the owner's word |
 | **Last updated** | 2026-11-24 |
 | **PRD ref / phase** | FR-DISC (discovery by category) · V1 |

@@ -1,4 +1,4 @@
-- 🟡 **B16.1 : la catégorie d’un salon atteint la colonne sur laquelle la découverte filtre (backend · 2026-11-24).** Branche `fix/b16-1-category-column`, créée depuis `main` (`257f62d9`). Spec : [provider-category-column.md](../../design/provider-category-column.md) §8.8. Décisions 224–227.
+- 🟡 **B16.1 : la catégorie d’un salon atteint la colonne sur laquelle la découverte filtre (backend · 2026-11-24).** Branche `fix/b16-1-category-column`, créée depuis `main` (`257f62d9`), PR #860. Spec : [provider-category-column.md](../../design/provider-category-column.md) §8.8. Décisions 224–227.
   - **Le défaut :** un salon qui changeait de catégorie dans son profil restait listé sous l’ancienne, parce que la colonne lue par le filtre n’était écrite qu’à la création. En production, un salon sur neuf (lecture du 2026-11-24), tous en brouillon.
   - **La correction :**
     - `updateProfile` écrit maintenant la colonne `category` avec le document, dans la même requête ; la liste des colonnes tenues devient une constante nommée, `kProviderDocumentColumns` ;
