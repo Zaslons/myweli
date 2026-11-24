@@ -214,6 +214,11 @@ class InMemoryProvidersRepository implements ProvidersRepository {
 
   /// Filtered by category / commune / free-text query, sorted by rating desc
   /// (so an unsorted `getProviders` and `getFeaturedProviders` agree).
+  ///
+  /// This twin filters on the document; Postgres filters on columns that
+  /// `updateProfile` keeps in step with it (`kProviderDocumentColumns`), so
+  /// both filter on the same value. `test/providers/profile_filters_contract.dart`
+  /// holds them to it (docs/design/provider-category-column.md §5.3).
   @override
   Future<List<Map<String, dynamic>>> query({
     String? q,

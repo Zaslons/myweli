@@ -811,6 +811,16 @@ Six things about that command are worth knowing *before* you need it:
   it back to `draft`, then takes it live); an `approved` one never live is
   finished by « Validation à terminer ». Never a boot step: the decisions
   are the admin's ([salon-go-live-approval.md](design/salon-go-live-approval.md) §9.3).
+- **It brings back a profile save that leaves a salon's category column
+  behind (B16.1).** An image older than `0050` writes a changed category to
+  the document only, so discovery's filter keeps listing that salon under the
+  old one; `0050` will not run again after the roll-forward, its id being
+  recorded. After rolling FORWARD again, run the read of
+  [provider-category-column.md](design/provider-category-column.md) §2.4
+  (read-only, salons whose column differs from their document); if one does,
+  run `kProviderCategoryFromDocument` from
+  `backend/lib/src/db/migrations.dart` by hand (Cloud SQL Studio), on the
+  owner's word.
 - **It rolls secrets back too, which is usually right and occasionally
   blocking.** The old revision starts a new container and re-resolves *its own*
   pinned versions — the ones it was deployed with, not today's. So a rollback

@@ -8,6 +8,26 @@ import '../salon_time.dart';
 import '../slug.dart' show isReservedSlug;
 import 'migrations.dart' show insertProviderAvailability;
 
+/// The `providers` columns `updateProfile` syncs from the changes it is
+/// given, in the same UPDATE as `data`, so a filter never disagrees with what
+/// `updateProfile` wrote to the salon's page. Not every column that copies a
+/// document field: `slug` never changes after creation, and `rating` has its
+/// own writer, [PostgresProvidersRepository.updateRatings].
+///
+/// A column added here needs its case in
+/// `test/providers/profile_filters_contract.dart`, which fails until it has
+/// one. docs/design/provider-category-column.md §5.1 (decision 224).
+///
+/// `category` joined in B16.1: before it, a salon that changed its category
+/// stayed listed under the old one (`query(category:)` reads the column).
+const kProviderDocumentColumns = [
+  'name',
+  'description',
+  'address',
+  'commune',
+  'category',
+];
+
 /// Postgres-backed [ProvidersRepository].
 ///
 /// The provider core lives as a `jsonb` document (+ indexed columns for
@@ -351,8 +371,9 @@ class PostgresProvidersRepository implements ProvidersRepository {
     String providerId,
     Map<String, dynamic> changes,
   ) {
-    // Editable profile fields live in `data`; name/description/address/commune
-    // are also denormalized columns (search/index) → keep both in sync.
+    // Editable profile fields live in `data`; the columns of
+    // [kProviderDocumentColumns] copy some of them for the filters and the
+    // indexes → keep both in sync, in one UPDATE.
     return _pool.runTx<Map<String, dynamic>?>((tx) async {
       final rows = await tx.execute(
         Sql.named('SELECT data FROM providers WHERE id = @id FOR UPDATE'),
@@ -366,7 +387,7 @@ class PostgresProvidersRepository implements ProvidersRepository {
         'id': providerId,
         'data': jsonEncode(data),
       };
-      for (final col in ['name', 'description', 'address', 'commune']) {
+      for (final col in kProviderDocumentColumns) {
         if (changes.containsKey(col)) {
           sets.add('$col = @$col');
           params[col] = changes[col];

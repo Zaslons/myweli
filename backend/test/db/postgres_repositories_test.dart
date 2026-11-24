@@ -53,6 +53,7 @@ import '../appointments/appointment_repository_contract.dart';
 import '../auth/apple_token_repository_contract.dart';
 import '../auth/kyc_write_contract.dart';
 import '../idempotency/idempotency_contract.dart';
+import '../providers/profile_filters_contract.dart';
 import '../validation/salon_place_notice_contract.dart';
 import '../validation/salon_validation_contract.dart';
 import '../validation/validation_reads_contract.dart';
@@ -1527,6 +1528,123 @@ void main() {
       expect(reread['longitude'], isNull);
       expect(reread['address'], 'Rue des Jardins');
     });
+
+    // docs/design/provider-category-column.md §5.3 (B16.1, decisions
+    // 224–226): a profile change reaches every filter that reads a column
+    // `updateProfile` keeps. The same contract runs on the in-memory twin
+    // (`providers/profile_filters_test.dart`), which filters on the document;
+    // only this run can see a column left behind.
+    group('updateProfile reaches every filter — the twin contract', () {
+      profileFiltersContract(
+        repo: () => PostgresProvidersRepository(pool),
+        created: deleteOnTearDown,
+      );
+    });
+
+    // docs/design/provider-category-column.md §8.2 (B16.1, decision 225):
+    // migration 0050's statement, on the forms a salon document takes.
+    //
+    // ONE connection, one transaction, rolled back at the end: the rows never
+    // outlive the test, and no other test file running against this database
+    // ever sees them (an unreadable document listed by `query()` would make
+    // `_data` throw there). Every row is a `draft` anyway: the column's
+    // default is `active`.
+    test(
+      'kProviderCategoryFromDocument: copies the document\'s text category '
+      'in both forms, never a doubtful row, and twice changes nothing',
+      () async {
+        await pool.withConnection((c) async {
+          await c.execute('BEGIN');
+          try {
+            const asString = 'to_jsonb(CAST(@text AS text))';
+            const asObject = 'CAST(@text AS jsonb)';
+            Future<void> salon(
+              String id,
+              String? column,
+              String dataSql,
+              String text,
+            ) => c.execute(
+              Sql.named(
+                'INSERT INTO providers (id, status, category, data) '
+                "VALUES (@id, 'draft', @column, $dataSql)",
+              ),
+              parameters: {'id': id, 'column': column, 'text': text},
+            );
+            await salon(
+              'b16_str_differs',
+              'salon',
+              asString,
+              '{"category":"barber"}',
+            );
+            await salon(
+              'b16_obj_differs',
+              'salon',
+              asObject,
+              '{"category":"spa"}',
+            );
+            await salon('b16_match', 'nails', asString, '{"category":"nails"}');
+            await salon(
+              'b16_null_column',
+              null,
+              asObject,
+              '{"category":"massage"}',
+            );
+            await salon('b16_no_key', 'barber', asObject, '{"name":"Sans"}');
+            await salon('b16_number', 'barber', asObject, '{"category":5}');
+            await salon('b16_not_json', 'barber', asString, 'not json');
+            await salon('b16_array', 'barber', asString, '[1,2]');
+
+            Future<Map<String, (String?, String)>> rows() async => {
+              for (final r in await c.execute(
+                'SELECT id, category, data::text AS d FROM providers '
+                "WHERE starts_with(id, 'b16_')",
+              ))
+                r.toColumnMap()['id'] as String: (
+                  r.toColumnMap()['category'] as String?,
+                  r.toColumnMap()['d'] as String,
+                ),
+            };
+            final before = await rows();
+            expect(
+              before['b16_str_differs']!.$1,
+              'salon',
+              reason: '[migration] control: the column starts out different',
+            );
+
+            // In this order: a mutation is named by its first red.
+            const want = <String, String?>{
+              'b16_str_differs': 'barber',
+              'b16_obj_differs': 'spa',
+              'b16_match': 'nails',
+              'b16_null_column': 'massage',
+              'b16_no_key': 'barber',
+              'b16_number': 'barber',
+              'b16_not_json': 'barber',
+              'b16_array': 'barber',
+            };
+            await c.execute(kProviderCategoryFromDocument);
+            final after = await rows();
+            for (final MapEntry(:key, :value) in want.entries) {
+              expect(after[key]!.$1, value, reason: '[migration] $key');
+              expect(
+                after[key]!.$2,
+                before[key]!.$2,
+                reason: '[migration] $key: the document was changed',
+              );
+            }
+
+            await c.execute(kProviderCategoryFromDocument);
+            expect(
+              await rows(),
+              after,
+              reason: '[migration] a second run changed something',
+            );
+          } finally {
+            await c.execute('ROLLBACK');
+          }
+        });
+      },
+    );
   });
 
   group('PostgresAuthRepository', () {
