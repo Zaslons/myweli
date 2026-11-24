@@ -1353,6 +1353,9 @@ UPDATE appointments a
          'XOF')
  WHERE a.currency IS NULL''';
 
+/// B16.1 red-first stub: changes nothing. docs/design/provider-category-column.md §8.2.
+const String kProviderCategoryFromDocument = 'SELECT 1';
+
 /// The salons that count as validated and live without asking (§3.7):
 /// every `active` salon, and every `draft` whose offer row says it was
 /// unpublished for non-payment (it was live). Suspended salons get no row —
