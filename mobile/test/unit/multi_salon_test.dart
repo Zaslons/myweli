@@ -727,4 +727,14 @@ const _reviewedSalonIdFromId = <String, ({int reads, String why})>{
     reads: 1,
     why: 'the acting salon as GET /me/provider returned it',
   ),
+  // consumer-signin-push.md §2.8: a guest's heart, applied after the
+  // sign-in, names the salon its card or sheet shows.
+  'lib/widgets/provider/provider_card.dart · provider': (
+    reads: 2,
+    why: 'a salon card\'s own salon (models.Provider) — its id IS the salon id',
+  ),
+  'lib/screens/map/map_screen.dart · p': (
+    reads: 1,
+    why: 'the map sheet\'s salon (models.Provider) — its id IS the salon id',
+  ),
 };

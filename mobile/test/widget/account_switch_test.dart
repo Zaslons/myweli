@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:myweli/core/access/account_scope.dart';
+import 'package:myweli/core/auth/open_sign_in.dart';
 import 'package:myweli/core/di/dependency_injection.dart';
 import 'package:myweli/core/push/push_registration.dart';
 import 'package:myweli/core/router/app_router.dart';
@@ -105,8 +106,10 @@ GoRouter _router(String initial) => GoRouter(
   routes: [
     GoRoute(
       path: '/login',
-      builder: (_, state) =>
-          LoginScreen(returnTo: state.uri.queryParameters['returnTo']),
+      builder: (_, state) => LoginScreen(
+        returnTo: state.uri.queryParameters['returnTo'],
+        reason: SignInReason.fromKey(state.uri.queryParameters['reason']),
+      ),
     ),
     GoRoute(path: '/home', builder: (_, _) => const HomeScreen()),
     GoRoute(path: '/bookings', builder: (_, _) => const MyBookingsScreen()),
@@ -317,13 +320,37 @@ void main() {
     return (auth, router);
   }
 
-  String location(GoRouter router) =>
-      router.routerDelegate.currentConfiguration.uri.toString();
+  /// Where the person is: the stack's LAST route, pushed or not. The
+  /// configuration's own address ignores pushed routes (go_router 17.5,
+  /// `match.dart:530-533`) — the notice read it, and believed the person was
+  /// on Accueil (consumer-signin-push.md §2.7).
+  String location(GoRouter router) => router.state.uri.toString();
+
+  /// Signs in again through the sign-in screen itself, as a person would.
+  Future<void> signInOnScreen(WidgetTester tester, String email) async {
+    await tester.enterText(find.byType(TextField).first, email);
+    await tester.tap(find.text('Continuer avec e-mail'));
+    await settleMocks(tester);
+    await tester.enterText(
+      find.byType(TextField).first,
+      MockAuthService.demoOtp,
+    );
+    await tester.tap(find.text('Se connecter'));
+    await settleMocks(tester);
+    if (find.text('Votre numéro de téléphone').evaluate().isNotEmpty) {
+      await tester.enterText(find.byType(TextField).first, '0700000001');
+      await tester.tap(find.text('Continuer'));
+      await settleMocks(tester);
+    }
+  }
 
   group('the session refused by the server (consumer-account-scope.md §2.5, '
-      'Q1 = a)', () {
-    testWidgets('on a public screen: the person stays, the bar says it and '
-        'offers « Se connecter »', (tester) async {
+      'Q1 = a; consumer-signin-push.md §2.7, decision 213)', () {
+    tearDown(SignInGate.reset);
+
+    testWidgets('on a screen that can show itself signed out: the person '
+        'stays, the bar says it, and « Se connecter » opens the sign-in OVER '
+        'it', (tester) async {
       final (auth, router) = await signedInAt(tester, '/home');
 
       await mockAuth.expireSession();
@@ -341,29 +368,102 @@ void main() {
 
       await tester.tap(find.widgetWithText(SnackBarAction, 'Se connecter'));
       await settleMocks(tester);
-      expect(location(router), '/login?returnTo=%2Fhome');
+      expect(location(router), '/login?reason=sessionEnded');
+      expect(router.canPop(), isTrue, reason: 'Accueil is still beneath');
     });
 
-    testWidgets('on an account screen: it leaves for the sign-in, which '
-        'brings the person back to it', (tester) async {
-      final (auth, router) = await signedInAt(tester, '/bookings');
+    testWidgets('« Rendez-vous », opened with `push` as the bar opens it, '
+        'draws its signed-out page — the notice only says so', (tester) async {
+      final (auth, router) = await signedInAt(tester, '/home');
+      unawaited(router.push('/bookings'));
+      appointments.answerLists(
+        ApiResponse.success([_booking('rdv-a', auth.user!.id, 'Salon de A')]),
+      );
+      await settleMocks(tester);
+      expect(location(router), '/bookings');
 
       await mockAuth.expireSession();
       await tester.pump();
       await settleMocks(tester);
 
-      expect(auth.isAuthenticated, isFalse);
-      expect(location(router), '/login?returnTo=%2Fbookings');
-      expect(find.text(kSessionEndedMessage), findsOneWidget);
+      expect(location(router), '/bookings');
+      expect(find.text('Vos rendez-vous'), findsOneWidget);
+      expect(
+        find.widgetWithText(SnackBarAction, 'Se connecter'),
+        findsOneWidget,
+      );
+      await expectNothingOfA(tester, where: 'after the end', frames: 2);
+    });
+
+    testWidgets('a booking\'s detail, opened with `push`: the notice SEES it '
+        '— the sign-in opens over it at once; « Fermer » returns to the '
+        'nearest screen that can show itself signed out', (tester) async {
+      final (auth, router) = await signedInAt(tester, '/home');
+      unawaited(router.push('/bookings'));
+      await settleMocks(tester);
+      unawaited(router.push('/appointment/rdv-a'));
+      appointments.answerDetails(
+        ApiResponse.success(_booking('rdv-a', auth.user!.id, 'Salon de A')),
+      );
+      await settleMocks(tester);
+      expect(location(router), '/appointment/rdv-a');
+
+      await mockAuth.expireSession();
+      await tester.pump();
+      await settleMocks(tester);
+
+      expect(location(router), '/login?reason=sessionEnded');
+      expect(
+        find.text(kSessionEndedMessage),
+        findsOneWidget,
+        reason: 'its line',
+      );
       expect(
         find.widgetWithText(SnackBarAction, 'Se connecter'),
         findsNothing,
         reason: 'the person is on the sign-in already',
       );
       await expectNothingOfA(tester, where: 'after the end', frames: 2);
+
+      await tester.tap(find.byTooltip('Fermer'));
+      await settleMocks(tester);
+      expect(location(router), '/bookings');
+      expect(find.text('Vos rendez-vous'), findsOneWidget);
+      expect(router.canPop(), isTrue, reason: 'Accueil is still beneath');
     });
 
-    testWidgets('« Déconnexion » says nothing of a session', (tester) async {
+    testWidgets('…and signed in again there, the person is back on the '
+        'booking, which loads again', (tester) async {
+      final (auth, router) = await signedInAt(tester, '/home');
+      unawaited(router.push('/appointment/rdv-a'));
+      appointments.answerDetails(
+        ApiResponse.success(_booking('rdv-a', auth.user!.id, 'Salon de A')),
+      );
+      await settleMocks(tester);
+      final readsBefore = appointments.details.length;
+
+      await mockAuth.expireSession();
+      await tester.pump();
+      await settleMocks(tester);
+      expect(location(router), '/login?reason=sessionEnded');
+
+      await signInOnScreen(tester, 'compte.a@myweli.test');
+      expect(auth.isAuthenticated, isTrue);
+      expect(location(router), '/appointment/rdv-a');
+      expect(
+        appointments.details.length,
+        greaterThan(readsBefore),
+        reason: 'the booking is read again, for whoever signed in',
+      );
+      appointments.answerDetails(
+        ApiResponse.success(_booking('rdv-a', auth.user!.id, 'Salon de A')),
+      );
+      await settleMocks(tester);
+      expect(shownBookings(tester), contains('rdv-a'));
+    });
+
+    testWidgets('« Déconnexion » lands on Accueil and says it — nothing of a '
+        'session (decision 208)', (tester) async {
       final (_, router) = await signedInAt(tester, '/bookings');
       router.go('/profile');
       await settleMocks(tester);
@@ -374,8 +474,12 @@ void main() {
       await tester.tap(find.text('Se déconnecter'));
       await settleMocks(tester);
 
-      expect(location(router), '/login');
+      expect(location(router), '/home');
+      expect(find.text('Vous êtes déconnecté·e.'), findsOneWidget);
       expect(find.text(kSessionEndedMessage), findsNothing);
+      // The snackbar's own 3 s.
+      await tester.pump(const Duration(seconds: 4));
+      await settleMocks(tester);
     });
   });
 
@@ -442,17 +546,18 @@ void main() {
       );
     }
     for (final account in [
-      '/bookings',
       '/appointment/rdv-a',
-      '/notifications',
-      '/profile/edit',
       '/profile/data',
       '/profile/notifications',
       '/booking/confirm?providerId=p1',
     ]) {
       expect(isAccountOnlyRoute(account), isTrue, reason: account);
     }
+    // Since A3 these draw their own signed-out state (§2.5, §2.7).
     for (final public in [
+      '/bookings',
+      '/notifications',
+      '/profile/edit',
       '/home',
       '/profile',
       '/booking?providerId=p1',

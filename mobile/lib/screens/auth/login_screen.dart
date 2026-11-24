@@ -117,12 +117,17 @@ class _LoginScreenState extends State<LoginScreen> {
   /// lands on that screen, not on this one. Nothing beneath: Accueil, or
   /// [LoginScreen.returnTo] once signed in.
   void _leave({required bool signedIn}) {
-    if (context.canPop()) {
-      context.pop(signedIn);
+    // Flutter's own navigator: the screen also works without a router
+    // above it (the layout tests build it alone).
+    final navigator = Navigator.of(context);
+    if (navigator.canPop()) {
+      navigator.pop(signedIn);
       SignInGate.answer(signedIn);
       return;
     }
-    context.go(signedIn ? safeReturnTo(widget.returnTo) : '/home');
+    GoRouter.maybeOf(
+      context,
+    )?.go(signedIn ? safeReturnTo(widget.returnTo) : '/home');
   }
 
   /// « Fermer », and the system back where it means the same (§2.2).
@@ -302,7 +307,9 @@ class _LoginScreenState extends State<LoginScreen> {
       // in [_onPop] — on the code and phone steps that turns the swipe off,
       // which is Flutter's rule for `canPop: false` (§2.2).
       canPop:
-          !auth.isLoading && _step == _LoginStep.options && context.canPop(),
+          !auth.isLoading &&
+          _step == _LoginStep.options &&
+          Navigator.of(context).canPop(),
       onPopInvokedWithResult: (didPop, _) => _onPop(didPop),
       child: Scaffold(
         backgroundColor: AppColors.background,

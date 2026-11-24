@@ -201,7 +201,10 @@ final u = _uri('/providers').replace(queryParameters: {'page': '1'});
           reach[app]!.fold(0, (n, f) => n + navs[f]!.length);
       // Measured 2026-10-12: 50 · 68 · 7 navigations, over 205 · 236 · 68
       // reachable files. A scanner that lost a call shape drops below these.
-      expect(count('consumer'), greaterThan(40));
+      // 2026-11-24: the client's 13 ways into the sign-in became ONE helper
+      // (`openSignIn`, consumer-signin-push.md §2.1) — 39 now, so its floor
+      // moved from 40 to 35.
+      expect(count('consumer'), greaterThan(35));
       expect(count('pro'), greaterThan(55));
       expect(count('pro_android'), greaterThanOrEqualTo(count('pro')));
       expect(count('admin'), greaterThan(5));
@@ -321,8 +324,6 @@ const _exempt = <String, Map<String, Map<String, String>>>{
   'pro': {
     // The owner « Aperçu » (/pro/apercu → ProviderDetailScreen(preview: true)).
     'lib/screens/providers/provider_detail_screen.dart': {
-      '/login':
-          'the favourite heart — `if (!widget.preview) _favoriteAction()`',
       '/bookings':
           '« Voir tout » of « Vos rendez-vous ici » — the whole card is '
           '`if (!widget.preview)` (salon-rating-new-and-visits-card.md §2.3)',
@@ -333,6 +334,19 @@ const _exempt = <String, Map<String, Map<String, String>>>{
       '/carte':
           '« Voir sur la carte » — `_openOnMap` opens the map-app picker when '
           '`widget.preview`; held by salon_location_map_test.dart',
+    },
+    // The client's sign-in helper, reached through the salon page's heart
+    // (`heart_after_sign_in.dart`), which the « Aperçu » never shows:
+    // `if (!widget.preview) _favoriteAction()`. Pro's router has no
+    // `/login` (consumer-signin-push.md §8).
+    'lib/core/auth/open_sign_in.dart': {
+      '/login':
+          'the favourite heart — `if (!widget.preview) _favoriteAction()`',
+    },
+    // pro_login_screen.dart reads one constant, `kSessionEndedMessage`; the
+    // notice itself is the client's root widget, never built in the pro app.
+    'lib/widgets/common/session_ended_notice.dart': {
+      '/home': 'constant-only import (kSessionEndedMessage)',
     },
     // ProSplashScreen reads one constant, `SplashScreen.animationWidth`; the
     // consumer splash itself is never built in the pro app.

@@ -26,7 +26,10 @@ class NotificationsScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     // Watched: a sign-in, or a session that ends here, redraws the page; the
     // feed, mounted afresh, loads itself.
-    final guest = !context.watch<AuthProvider>().isAuthenticated;
+    // No AuthProvider above (a test that builds the feed alone): the feed,
+    // as before A3.
+    final auth = context.watch<AuthProvider?>();
+    final guest = auth != null && !auth.isAuthenticated;
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(

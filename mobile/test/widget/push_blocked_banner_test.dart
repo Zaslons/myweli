@@ -85,7 +85,9 @@ void main() {
     expect(find.text('Notifications push'), findsOneWidget);
   });
 
-  testWidgets('notDetermined → no banner (nothing to re-enable yet)', (
+  // Never asked is not a refusal: no banner — the card offers « Activer les
+  // notifications » instead (consumer-signin-push.md §2.9; push_off_card_test).
+  testWidgets('notDetermined → no banner (the card asks instead)', (
     tester,
   ) async {
     await tester.pumpWidget(host(status: PushPermissionStatus.notDetermined));

@@ -21,11 +21,13 @@ mixin ReloadOnSignIn<T extends StatefulWidget> on State<T> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    final auth = context.read<AuthProvider>();
+    // Outside an account tree (a test that builds the screen alone) there
+    // is no sign-in to hear, and nothing to reload.
+    final auth = Provider.of<AuthProvider?>(context, listen: false);
     if (identical(auth, _signInSource)) return;
     _signInSource?.removeListener(_onAuthChanged);
-    _signInSource = auth..addListener(_onAuthChanged);
-    _seenSignIn = auth.signInSerial;
+    _signInSource = auth?..addListener(_onAuthChanged);
+    _seenSignIn = auth?.signInSerial ?? 0;
   }
 
   void _onAuthChanged() {

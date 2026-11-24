@@ -34,29 +34,28 @@ class PushRegistration {
   static const String _offerCountKey = 'myweli_push_offer_count';
   static const String _offerAtKey = 'myweli_push_offer_at';
 
-  /// Registrations and unregistrations run one after the other, in the order
-  /// asked. Signing in starts a registration nobody awaits
-  /// (`AuthProvider._syncPush`); a sign-out right after (the phone step's
-  /// « Fermer », §2.2) could otherwise see its unregistration land FIRST, and
-  /// the signed-out phone would keep receiving the account's pushes.
-  Future<void> _serial = Future<void>.value();
-
-  Future<void> _inOrder(Future<void> Function() op) {
-    final next = _serial.then((_) => op());
-    _serial = next.catchError((Object _) {});
-    return next;
-  }
+  /// Moves at every [unregister]. Signing in starts a registration nobody
+  /// awaits (`AuthProvider._syncPush`); a sign-out right after (the phone
+  /// step's « Fermer », consumer-signin-push.md §2.2) could see its
+  /// unregistration land FIRST, and the signed-out phone would keep receiving
+  /// the account's pushes. So a registration that has not been SENT when an
+  /// unregistration is asked is dropped.
+  ///
+  /// **A sign-out never waits for a registration.** The first version ran
+  /// them in order; the suites showed a sign-out then waits for whatever is
+  /// in flight — a stalled best-effort request would have left
+  /// « Déconnexion » spinning.
+  int _unregisterSerial = 0;
 
   /// On login / app-start (when authed): if permission is already granted, push
   /// the current token to the backend. Never prompts.
   Future<void> registerIfGranted() async {
     try {
-      await _inOrder(() async {
-        final granted =
-            await _push.permissionStatus() == PushPermissionStatus.granted;
-        if (!granted) return;
-        await _registerCurrentToken();
-      });
+      final since = _unregisterSerial;
+      final granted =
+          await _push.permissionStatus() == PushPermissionStatus.granted;
+      if (!granted) return;
+      await _registerCurrentToken(since: since);
     } catch (_) {
       /* best-effort */
     }
@@ -84,7 +83,7 @@ class PushRegistration {
         now: now,
       )) {
         case PushOfferAction.register:
-          await _inOrder(_registerCurrentToken);
+          await _registerCurrentToken();
         case PushOfferAction.none:
           return;
         case PushOfferAction.offer:
@@ -92,7 +91,7 @@ class PushRegistration {
           await prefs.setString(_offerAtKey, now.toUtc().toIso8601String());
           if (!await showRationale()) return;
           if (await _push.requestPermission() == PushPermissionStatus.granted) {
-            await _inOrder(_registerCurrentToken);
+            await _registerCurrentToken();
           }
       }
     } catch (_) {
@@ -108,7 +107,7 @@ class PushRegistration {
     final status = await _push.requestPermission();
     if (status == PushPermissionStatus.granted) {
       try {
-        await _inOrder(_registerCurrentToken);
+        await _registerCurrentToken();
       } catch (_) {
         /* best-effort */
       }
@@ -164,12 +163,11 @@ class PushRegistration {
 
   /// On logout — remove this device's token before the session is cleared.
   Future<void> unregister() async {
+    _unregisterSerial++;
     try {
-      await _inOrder(() async {
-        final token = await _push.getToken();
-        if (token == null) return;
-        await _devices.unregister(token);
-      });
+      final token = await _push.getToken();
+      if (token == null) return;
+      await _devices.unregister(token);
     } catch (_) {
       /* best-effort */
     }
@@ -192,9 +190,12 @@ class PushRegistration {
     });
   }
 
-  Future<void> _registerCurrentToken() async {
+  /// [since]: the [_unregisterSerial] when the work that leads here began —
+  /// a sign-out asked since then drops this registration (see the field).
+  Future<void> _registerCurrentToken({int? since}) async {
+    final asked = since ?? _unregisterSerial;
     final token = await _push.getToken();
-    if (token == null) return;
+    if (token == null || asked != _unregisterSerial) return;
     await _devices.register(token, _platform());
   }
 
