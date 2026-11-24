@@ -520,7 +520,7 @@ export function ClientCardClient({ clientId }: { clientId: string }) {
                     <span className="flex items-center gap-s">
                       {typeof v.totalPrice === 'number' ? (
                         <span className="text-textSecondary">
-                          {formatFcfa(v.totalPrice, currency)}
+                          {formatFcfa(v.totalPrice, v.currency ?? currency)}
                         </span>
                       ) : null}
                       <StatusChip status={v.status} />

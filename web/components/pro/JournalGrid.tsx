@@ -381,7 +381,7 @@ function JournalColumn({
             {box.height > 34 ? (
               <span className="block text-textSecondary">
                 {typeof a.totalPrice === "number"
-                  ? formatFcfa(a.totalPrice, currency)
+                  ? formatFcfa(a.totalPrice, a.currency ?? currency)
                   : ""}
                 {a.depositAmount && a.depositAmount > 0 ? " · ₣" : ""}
               </span>

@@ -30,6 +30,9 @@ export function buildUserDataExport({
       status: a.status,
       totalPrice: a.totalPrice ?? null,
       depositAmount: a.depositAmount ?? null,
+      // The currency the booking was made in, else its salon's — as the
+      // app's export (docs/design/appointment-currency-stamp.md §5.7).
+      currency: a.currency ?? a.providerCurrency ?? null,
       serviceIds: a.serviceIds ?? [],
     })),
     favorites: favoriteProviderNames,
