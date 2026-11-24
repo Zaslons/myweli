@@ -1,4 +1,4 @@
-- 🟡 **Backend : le double de test du dépôt des rendez-vous n’écrit plus que ce que Postgres écrit — B15.1 (backend · 2026-11-24 — BACKLOG B15.1, décisions 214–217).** Branche `feat/b15-1-appointment-twin-update`, créée depuis `main` (`c0790026`). Spec : [appointment-twin-update.md](../../design/appointment-twin-update.md) §5, §8.8. Rien ne change pour les utilisateurs ; pas de déploiement à lui, il part avec le prochain déploiement du backend.
+- 🟢 **Backend : le double de test du dépôt des rendez-vous n’écrit plus que ce que Postgres écrit — B15.1 (backend · 2026-11-24 — BACKLOG B15.1, décisions 214–217).** Branche `feat/b15-1-appointment-twin-update`, créée depuis `main` (`c0790026`). Spec : [appointment-twin-update.md](../../design/appointment-twin-update.md) §5, §8.8. Rien ne change pour les utilisateurs ; pas de déploiement à lui, il part avec le prochain déploiement du backend.
   - **Ce qui change :**
     - une seule liste des six clés qu’une mise à jour écrit, lue par les deux doubles ;
     - une clé hors liste, ou une valeur que Postgres ne peut pas enregistrer, est refusée avant toute écriture, des deux côtés. La devise en fait partie : elle reste immuable ;
@@ -10,4 +10,4 @@
     - **chaque rendez-vous de test dans son propre créneau :** sinon Postgres refusait le second, et le test aurait été rouge pour le créneau, pas pour ce qu’il vérifie ;
     - **après le correctif :** format et analyse propres, la suite backend complète sur une base neuve passe (2986 tests, 2 ignorés, code de sortie lu tel quel) ;
     - **10 mutations rouges pour la raison annoncée,** deux témoins verts, l’arbre propre après.
-  - **Reste, sur le mot du propriétaire :** la fusion de cette PR.
+  - **Fusionnée le 2026-11-24** (#853, `b042d2bb`, sur le mot du propriétaire ; l’arbre de `main` est celui de la tête testée, CI 12/12 sur la PR et sur `main`). Elle atteint la production avec le prochain déploiement du backend.
