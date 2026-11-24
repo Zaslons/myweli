@@ -53,7 +53,7 @@ same table, the same words and the same flow: what a client reads on
     - Booking creation stamps it (`booking_service.dart:247`, « immutable — the Fresha rule »).
     - The Postgres insert has no column for it (`postgres_appointment_repository.dart:33-38`), and the `appointments` table has none in `migrations.dart`.
     - So production never sends it back, and every client reads `providerCurrency`, the salon's currency today.
-    - It is a backend task of its own: [appointment-currency-stamp.md](appointment-currency-stamp.md), BACKLOG batch 14 (B14.1 stores it from migration `0047`).
+    - It is a backend task of its own: [appointment-currency-stamp.md](appointment-currency-stamp.md), BACKLOG batch 14 (B14.1 stores it from migration `0047`). *(2026-11-24: B14.1 has been deployed since 2026-11-23, and B14.2 made the column NOT NULL. Production now stores and sends each booking's `currency`.)*
   - **The detail offers « Envoyer l’acompte » beside a past « Non confirmé ».**
     - `canAttachDeposit` has no time check (`appointments.ts:103-110`).
     - The app does the same (`appointment_detail_screen.dart:250-261`).
@@ -241,7 +241,7 @@ From top to bottom, on a phone and on a desktop alike. The page is one 672 px co
 
 **None.** `GET /api/appointments` (the BFF over `GET /appointments`) returns every field used, with one gap:
 - **sent:** `status`, `appointmentDate`, `totalPrice`, `providerCurrency`, `providerTimezone`, `providerSlug`, `providerStatus`, `serviceIds`, `artistId`;
-- **the gap:** `currency` is declared but never stored (§1), so the summary falls back to `providerCurrency`, as every amount on the page already does.
+- **the gap:** `currency` is declared but never stored (§1), so the summary falls back to `providerCurrency`, as every amount on the page already does. *(2026-11-24: that gap is closed. The server has stored and sent `currency` since B14.1, deployed 2026-11-23, and the fallback now covers only a response replayed from before it.)*
 
 `totalPrice` is required (`openapi.yaml:5375`; `total_price … NOT NULL`, `migrations.dart:77`). The server sends every booking of the client, newest first, with no paging (`postgres_appointment_repository.dart:92`).
 

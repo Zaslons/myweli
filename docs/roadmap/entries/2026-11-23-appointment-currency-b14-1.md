@@ -26,3 +26,4 @@
     - le déploiement (18:00 UTC, `image_tag: d80b430`) : la révision `myweli-api-00055-jv2` sert 100 %, `/health` répond 200 ;
     - la lecture après : `0047` et `0048` passées à 18:01:33, et les 4 rendez-vous enregistrent `XOF`, aucun vide.
   - **Reste, chacun sur le mot du propriétaire :** B14.2 (après un déploiement de plus, pour que la cible d’un retour arrière écrive la colonne), B14.3 (app) et B14.4 (site).
+    - *(2026-11-24 : « après un déploiement de plus » était faux, corrigé dans la spec §9.1 le 2026-11-23. B14.2 pouvait être le déploiement suivant, et il l’a été : déployé le 2026-11-23. B14.3 est fusionné et B14.4 est en ligne depuis le 2026-11-24. **Le lot 14 est complet.**)*

@@ -3,9 +3,9 @@
 | | |
 |---|---|
 | **Module** | backend: `appointments` (repository, migration, booking notifier), module `multi-pays` §4. Then two small client PRs: the Pro surfaces of the app and of the website |
-| **Status** | **Approved 2026-11-23.** The owner answered the seven questions of §11 at once, « Approve as recommended »: decisions 187–193 in BACKLOG, batch 14 (B14.1–B14.4 are B1–B4 here). **B1 (B14.1) built, merged and DEPLOYED 2026-11-23** (§8.7, §9.1): #840, `d80b4303`; production serves `myweli-api-00055-jv2` (image `d80b430`) since 18:01 UTC; migrations `0047` and `0048` ran at boot; every one of the 4 bookings now stores `XOF`. Each step was on the owner's word. **B3 (B14.3) built and merged 2026-11-23** (§8.8, #843, `c3716e6b`); it ships with the next app builds. **B2 (B14.2) built, merged and DEPLOYED 2026-11-23** (§8.9, §9.2): #844, `d0ec754b`; production serves `myweli-api-00057-pg2` since 23:52 UTC; `appointments.currency` is NOT NULL there. **B4 (B14.4) built 2026-11-23** (§8.10), on the owner's « Yes, build B14.4 », in its own PR; not merged (its merge is a production web deploy). |
+| **Status** | **Approved 2026-11-23.** The owner answered the seven questions of §11 at once, « Approve as recommended »: decisions 187–193 in BACKLOG, batch 14 (B14.1–B14.4 are B1–B4 here). **B1 (B14.1) built, merged and DEPLOYED 2026-11-23** (§8.7, §9.1): #840, `d80b4303`; production serves `myweli-api-00055-jv2` (image `d80b430`) since 18:01 UTC; migrations `0047` and `0048` ran at boot; every one of the 4 bookings now stores `XOF`. Each step was on the owner's word. **B3 (B14.3) built and merged 2026-11-23** (§8.8, #843, `c3716e6b`); it ships with the next app builds. **B2 (B14.2) built, merged and DEPLOYED 2026-11-23** (§8.9, §9.2): #844, `d0ec754b`; production serves `myweli-api-00057-pg2` since 23:52 UTC; `appointments.currency` is NOT NULL there. **B4 (B14.4) built 2026-11-24** (§8.10), on the owner's « Yes, build B14.4 », in its own PR; **merged and LIVE on myweli.com 2026-11-24** (§9.3): #848, `9d0b6b29`, on the owner's « Yes, merge it ». **Batch 14 is complete.** |
 | **Owner** | the project owner: the answers, each merge, every production read, and each `deploy-backend.yml` dispatch, each on the owner's word |
-| **Last updated** | 2026-11-23 |
+| **Last updated** | 2026-11-24 |
 | **PRD ref / phase** | module `multi-pays` MP1 ([multi-pays-end-version.md](multi-pays-end-version.md) §4, [../modules/multi-pays.md](../modules/multi-pays.md) §4) · V1 |
 | **ROADMAP entry** | [2026-11-23-appointment-currency-stamp-spec.md](../roadmap/entries/2026-11-23-appointment-currency-stamp-spec.md) |
 | **Skills checked** | myweli-dev-guardrails · myweli-backend-guardrails · myweli-verification-guardrails (all three invoked for this spec) · [BACKEND.md](../BACKEND.md) §1–§4, §7 |
@@ -626,7 +626,7 @@ The totals are unchanged (decision 190).
 - Control: `HEAD`'s contract regenerates `HEAD`'s `schema.ts` byte for byte.
 - Merging this PR touches `web/` (the generated doc string), so it is a production web deploy under the usual rule, with nothing visible.
 
-### 8.10 As built (B4, 2026-11-23)
+### 8.10 As built (B4, 2026-11-24)
 
 **What changed on the website**, as §5.6 and §5.7 list it:
 - `ProAppointment` gains `currency`;
@@ -771,6 +771,41 @@ Each step on the owner's word: « Yes, merge it », then « Yes, deploy it ».
 - **B1 is additive.** Pinning traffic to the previous revision is safe: it ignores the column, and its bookings are written `NULL` and read as the salon's.
 - **B2 is the one to declare** (§3.7).
 - **What B1 changes about an earlier rollback:** nothing. It adds no constraint.
+
+### 9.3 As run (B4, 2026-11-24)
+
+On the owner's « Yes, merge it ». A website merge deploys `myweli.com` (Vercel). There was no backend deploy and no database read.
+
+**Before the merge:**
+- `main` had moved to `cf117bfb` (A2w, #847), which shares no file with B4.
+- `main` was merged into the branch as `4dc6d6d4`, with no rebase and no force-push.
+- On that merge:
+  - `tsc`: exit 0;
+  - `npm run lint`: clean;
+  - **the full web unit suite: 3238 passed (224 files)**, that is B4's 3184 plus A2w's two new test files;
+  - CI: 12/12.
+
+**Merged:** #848, squash `9d0b6b29` on `cf117bfb`, at 08:38 UTC, pinned to the tested head `4dc6d6d4`. `main`'s tree equals it.
+
+**Deploy:** Vercel's status on `9d0b6b29`, the `main` push it deploys to production, is `success`.
+
+**Read-back, against what `myweli.com` serves.** These are anonymous fetches of each page's JavaScript; nothing was signed in.
+- **The release:** every build inlines its commit SHA (`NEXT_PUBLIC_RELEASE`, `web/next.config.mjs`). `9d0b6b29` is in 2 of the home page's 12 chunks, and `cf117bfb`, the previous release, is in none.
+- **The client export, new line:** its compiled form ends `currency` with the stamp, then `providerCurrency`, then `null`, followed by `serviceIds`. It is in two page chunks:
+  - `/mon-compte/donnees`;
+  - `/pro/profil`, which bundles the same module because `CompteDangerSection` imports one of its constants.
+- **The client export, old line:** `providerCurrency` alone, then `null,serviceIds`. It is in no chunk.
+  - **Control:** that pattern matches the old line's compiled shape and not the new one, so its absence counts as a reading.
+- **The salon export:** its new `currency` field (the stamp, else the salon's, else null) is in a shared chunk loaded by `/pro`, `/pro/rendez-vous`, `/pro/clients` and `/pro/profil`. Before B4 that row had no `currency`.
+- **Not read in production:** the espace pro screens themselves, which need a signed-in salon. §8.10's unit tests and CI's e2e cover them.
+- **`production-checks.yml`:** the last three runs were green. The latest, at 08:17 UTC, ran on `cf117bfb`, before this merge. No run covers `9d0b6b29` yet; the next scheduled one will.
+
+**Rollback:** B4 adds no constraint. The server sends `currency` either way, and an older site ignores it on these views.
+
+**Batch 14 is complete:**
+- B14.1 and B14.2 serve in production (`myweli-api-00057-pg2`);
+- B14.3 ships with the next app builds;
+- B14.4 is live on `myweli.com`.
 
 ---
 
