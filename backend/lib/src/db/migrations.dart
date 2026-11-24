@@ -1316,6 +1316,16 @@ CREATE TABLE IF NOT EXISTS salon_purge_queue (
       'ALTER TABLE appointments ALTER COLUMN currency SET NOT NULL',
     ],
   ),
+  (
+    id: '0050_provider_category_from_document',
+    statements: [
+      // B16.1, decision 225 (docs/design/provider-category-column.md §5.2):
+      // the salons whose category column an older image left behind, set from
+      // their document. Data only, no DDL: an older image reads and writes the
+      // same columns as before.
+      kProviderCategoryFromDocument,
+    ],
+  ),
 ];
 
 /// Gives every booking with no stored currency its salon's currency, else
@@ -1353,8 +1363,41 @@ UPDATE appointments a
          'XOF')
  WHERE a.currency IS NULL''';
 
-/// B16.1 red-first stub: changes nothing. docs/design/provider-category-column.md §8.2.
-const String kProviderCategoryFromDocument = 'SELECT 1';
+/// Sets each salon's `category` column from its document where they differ:
+/// the document is what the salon chose and what its page shows, and the
+/// column is what discovery's category filter reads. Until B16.1,
+/// `updateProfile` never wrote the column, so a salon that changed its
+/// category kept the old one there (one salon of nine in production, read
+/// 2026-11-24). Docs: docs/design/provider-category-column.md §5.2.
+///
+/// **Both forms of `providers.data` are decoded**, as
+/// [kAppointmentCurrencyBackfill] does: a runtime-written document is a JSON
+/// string inside `jsonb`, so `data->>'category'` alone reads NULL. Nested
+/// `CASE`s, so the cast only sees text `pg_input_is_valid` accepted: one
+/// unreadable document is skipped instead of failing the migration, and with
+/// it every deploy.
+///
+/// **Only a category that is JSON text is copied.** A document with no
+/// category, a JSON null, a number or a boolean leaves the column as it is:
+/// a doubtful row never loses its listing. It never writes NULL.
+///
+/// Only rows that differ change, and running it twice changes nothing. Run
+/// by migration 0050; after a rollback and roll-forward, run it by hand
+/// (DEPLOYMENT.md, Phase C's rollback notes).
+const String kProviderCategoryFromDocument = '''
+UPDATE providers p
+   SET category = d.doc ->> 'category'
+  FROM (SELECT id,
+               CASE jsonb_typeof(data)
+                 WHEN 'string' THEN
+                   CASE WHEN pg_input_is_valid(data #>> '{}', 'jsonb')
+                        THEN (data #>> '{}')::jsonb END
+                 ELSE data
+               END AS doc
+          FROM providers) d
+ WHERE p.id = d.id
+   AND jsonb_typeof(d.doc -> 'category') = 'string'
+   AND p.category IS DISTINCT FROM (d.doc ->> 'category')''';
 
 /// The salons that count as validated and live without asking (§3.7):
 /// every `active` salon, and every `draft` whose offer row says it was

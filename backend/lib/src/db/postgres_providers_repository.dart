@@ -17,7 +17,16 @@ import 'migrations.dart' show insertProviderAvailability;
 /// A column added here needs its case in
 /// `test/providers/profile_filters_contract.dart`, which fails until it has
 /// one. docs/design/provider-category-column.md §5.1 (decision 224).
-const kProviderDocumentColumns = ['name', 'description', 'address', 'commune'];
+///
+/// `category` joined in B16.1: before it, a salon that changed its category
+/// stayed listed under the old one (`query(category:)` reads the column).
+const kProviderDocumentColumns = [
+  'name',
+  'description',
+  'address',
+  'commune',
+  'category',
+];
 
 /// Postgres-backed [ProvidersRepository].
 ///
