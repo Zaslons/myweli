@@ -10,7 +10,7 @@
 | **ROADMAP entry** | [2026-11-24-consumer-search-spec.md](../roadmap/entries/2026-11-24-consumer-search-spec.md) |
 | **Skills checked** | myweli-dev-guardrails ✓ · myweli-backend-guardrails ✓ (A4-api) · myweli-web-guardrails ✓ (parity read; A4w only if Q6 says so) · myweli-verification-guardrails ✓ |
 | **Read at** | `main` `7d5d9645`. Every « today » below was read in the code on 2026-11-24, with its file and line. |
-| **Related** | [consumer-app-release-audit.md](consumer-app-release-audit.md) §2.1, gaps 11, 20 and 22, §7 A4 · [discovery-sort-filter.md](discovery-sort-filter.md) (sort, « Disponible aujourd’hui », filter before paging) · [web-m8-1-discovery.md](web-m8-1-discovery.md) and [web-search-funnel-parity.md](web-search-funnel-parity.md) (the website's search) · [twin-fidelity-survey.md](twin-fidelity-survey.md) (A-P3: `q` unescaped; the both-twins rule) · [provider-category-column.md](provider-category-column.md) (B16.1: a salon's category may not reach the column the filter reads; spec approved and merged as #857, the fix in #860) · [SYSTEM.md](SYSTEM.md) §12 (states), §13 (a11y), §15 (feedback) |
+| **Related** | [consumer-app-release-audit.md](consumer-app-release-audit.md) §2.1, gaps 11, 20 and 22, §7 A4 · [discovery-sort-filter.md](discovery-sort-filter.md) (sort, « Disponible aujourd’hui », filter before paging) · [web-m8-1-discovery.md](web-m8-1-discovery.md) and [web-search-funnel-parity.md](web-search-funnel-parity.md) (the website's search) · [twin-fidelity-survey.md](twin-fidelity-survey.md) (A-P3: `q` unescaped; the both-twins rule) · [provider-category-column.md](provider-category-column.md) (B16.1: a salon's category may not reach the column the filter reads; spec #857 and fix #860 merged; the fix reaches production with a backend deploy, on the owner's word) · [SYSTEM.md](SYSTEM.md) §12 (states), §13 (a11y), §15 (feedback) |
 
 ---
 
@@ -40,7 +40,7 @@ Today none of that is true (audit §2.1):
 - **Maquillage and Sourcils & cils as salon categories** (Q2).
 - **Recent searches and suggestions.**
 - **The map's location request and its Settings path** (gap 22's first half, A6).
-- **The category column on Postgres** (B16.1, the currency session's: spec #857 merged, fix #860 open): until the fix is deployed, a salon that changed its category is filtered under its old one, on every surface.
+- **The category column on Postgres** (B16.1, the currency session's: spec #857 and fix #860 merged): until the fix is deployed, a salon that changed its category is filtered under its old one, on every surface.
 - **The website's own search flow** (B12.7: a typed commune that is not picked, « Coiffure » as text).
 
 ---
@@ -371,7 +371,7 @@ The drift the read found is fixed at the same time:
 2. **A4:** the app. Merging deploys nothing. **Its consumer build waits for A4-api in production** (Q7): the field's hint promises « prestation ou commune », and the empty state suggests searching a service. On today's server both would be false (A1's rule).
 3. **A4w,** if Q6 says so. Its merge is a production deploy of `myweli.com`. The `nail` key (`web/lib/landing.ts:17`) is the other session's; fixing it also fixes the `/onglerie` landing pages, which read the same key.
 
-**B16.1** (the category column: spec #857 merged, fix #860 open) is not a prerequisite for building A4, but its deploy is for the category chips to be right in production. Its session owns it.
+**B16.1** (the category column: spec #857 and fix #860 merged) is not a prerequisite for building A4, but its deploy is for the category chips to be right in production. Its session owns it.
 
 **Not in V1 scope, recorded:** typo tolerance, recent searches, suggestions, Maquillage and Sourcils & cils as categories, a SQL `LIMIT`.
 
