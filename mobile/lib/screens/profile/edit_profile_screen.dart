@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:myweli/widgets/common/brand_loader.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/auth/open_sign_in.dart';
 import '../../core/config/app_config.dart';
 import '../../core/forms/field_errors.dart';
 import '../../core/theme/app_theme.dart';
@@ -170,8 +171,11 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                   const SizedBox(height: AppTheme.spacingL),
                   AppButton(
                     text: 'Se connecter',
-                    onPressed: () => context.go(
-                      '/login?returnTo=${Uri.encodeComponent('/profile/edit')}',
+                    // Over this screen, which then shows the form
+                    // (consumer-signin-push.md §2.4).
+                    onPressed: () => openSignIn(
+                      GoRouter.of(context),
+                      reason: SignInReason.profile,
                     ),
                     isFullWidth: false,
                   ),

@@ -30,6 +30,7 @@ import '../../widgets/common/confirm_dialog.dart';
 import '../../widgets/common/salon_unavailable_view.dart';
 import '../../widgets/common/section_heading.dart';
 import '../../widgets/common/timed_cached_image.dart';
+import '../../widgets/provider/heart_after_sign_in.dart';
 import '../../widgets/providers/before_after_section.dart';
 import '../../widgets/providers/salon_location_preview.dart';
 import '../../widgets/review/review_tile.dart';
@@ -292,12 +293,14 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
         ),
         onPressed: () async {
           if (!authProvider.isAuthenticated) {
-            AppSnackBar.show(
-              context,
-              'Connectez-vous pour ajouter aux favoris',
+            // Sign in over this page, then add it (§2.8, decision 205).
+            await heartAfterSignIn(
+              router: GoRouter.of(context),
+              messenger: ScaffoldMessenger.of(context),
+              auth: authProvider,
+              favorites: favoritesProvider,
+              salonId: widget.providerId,
             );
-            final currentPath = GoRouterState.of(context).uri.toString();
-            context.go('/login?returnTo=${Uri.encodeComponent(currentPath)}');
             return;
           }
           final messenger = ScaffoldMessenger.of(context);

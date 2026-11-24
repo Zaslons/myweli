@@ -8,6 +8,7 @@ import 'package:provider/single_child_widget.dart';
 
 import 'core/a11y/reduce_motion.dart';
 import 'core/access/account_scope.dart';
+import 'core/auth/open_sign_in.dart';
 import 'core/config/build_config_guard.dart';
 import 'core/di/dependency_injection.dart';
 import 'core/net/app_http_transport.dart';
@@ -30,6 +31,7 @@ import 'providers/notifications_provider.dart';
 import 'providers/provider_provider.dart';
 import 'screens/update/update_required_app.dart';
 import 'services/push/fcm_message_bridge.dart';
+import 'widgets/common/account_loader.dart';
 import 'widgets/common/content_width_cap.dart';
 import 'widgets/common/default_status_bar_style.dart';
 import 'widgets/common/session_ended_notice.dart';
@@ -120,13 +122,26 @@ void main() {
 /// auth listener flushes it the moment we're signed in.
 Future<void> _startPush(AuthProvider auth) async {
   final handler = PushMessageHandler(
-    navigate: (route) async => AppRouter.router.push(route),
+    // Never on top of an open sign-in: its success closes the route on top
+    // (consumer-signin-push.md §2.2). A tap waits until the sign-in has
+    // closed, then lands on top of where the person is.
+    navigate: (route) async {
+      await SignInGate.whenClosed();
+      await AppRouter.router.push<Object?>(route);
+    },
     allowedRoutePrefixes: kConsumerRoutePrefixes,
     isAuthenticated: () => auth.isAuthenticated,
   );
-  auth.addListener(() {
-    if (auth.isAuthenticated) unawaited(handler.flushPending());
-  });
+  // A buffered cold-start tap replays once signed in AND no sign-in is open —
+  // during the phone step the account is already signed in (§2.2).
+  void flush() {
+    if (auth.isAuthenticated && !SignInGate.isOpen.value) {
+      unawaited(handler.flushPending());
+    }
+  }
+
+  auth.addListener(flush);
+  SignInGate.isOpen.addListener(flush);
   await FcmMessageBridge(handler).init();
 }
 
@@ -203,10 +218,16 @@ class MyweliApp extends StatelessWidget {
           // The session the server refused is said, and an account screen
           // left, from one place above every route (SessionEndedNotice;
           // consumer-account-scope.md §2.5).
+          //
+          // The account's lists load once when someone signs in
+          // (AccountLoader; consumer-signin-push.md §2.3): the sign-in now
+          // opens over the screen the person is on, which is not rebuilt.
           builder: (context, child) => SessionEndedNotice(
             router: AppRouter.router,
-            child: DefaultStatusBarStyle(
-              child: ContentWidthCap(child: child ?? const SizedBox.shrink()),
+            child: AccountLoader(
+              child: DefaultStatusBarStyle(
+                child: ContentWidthCap(child: child ?? const SizedBox.shrink()),
+              ),
             ),
           ),
           routerConfig: AppRouter.router,

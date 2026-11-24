@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:myweli/widgets/common/brand_refresh.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/auth/open_sign_in.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/colors.dart';
 import '../../core/theme/text_styles.dart';
@@ -43,17 +44,11 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
 
-      // Check if user is authenticated, if not redirect to login
-      if (!authProvider.isAuthenticated) {
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          AppSnackBar.show(
-            context,
-            'Veuillez vous connecter pour voir vos rendez-vous',
-          );
-          context.go('/login?returnTo=${Uri.encodeComponent('/bookings')}');
-        });
-        return;
-      }
+      // A guest stays here and reads the signed-out page [build] draws
+      // (consumer-signin-push.md §2.5, decision 207): this tab used to send
+      // them to a sign-in they could not leave. Once someone signs in, the
+      // bookings load from the root (`AccountLoader`, §2.3).
+      if (!authProvider.isAuthenticated) return;
 
       final appointmentProvider = Provider.of<AppointmentProvider>(
         context,
@@ -80,69 +75,89 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
 
   @override
   Widget build(BuildContext context) {
+    // Watched: signing in anywhere, or a session ending while this tab is
+    // open, redraws it (§2.5).
+    final guest = !context.watch<AuthProvider>().isAuthenticated;
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
         title: const ScreenTitle('Mes rendez-vous'),
-        bottom: TabBar(
-          controller: _tabController,
-          // §13.3's width twin — see otp_code_row.dart and
-          // earnings_screen.dart for the full argument. Three tabs fit at
-          // 1× and « Passés » (91.9dp) and « Annulés » (102.0dp) do not fit
-          // their 88.0/93.0dp shares at 200% text, where they fade away in
-          // silence. `center` keeps today's look while they fit.
-          isScrollable: true,
-          tabAlignment: TabAlignment.center,
-          tabs: const [
-            Tab(text: 'À venir'),
-            Tab(text: 'Passés'),
-            Tab(text: 'Annulés'),
-          ],
-        ),
+        // No « À venir / Passés / Annulés » for a guest: it would sort
+        // nothing.
+        bottom: guest
+            ? null
+            : TabBar(
+                controller: _tabController,
+                // §13.3's width twin — see otp_code_row.dart and
+                // earnings_screen.dart for the full argument. Three tabs fit at
+                // 1× and « Passés » (91.9dp) and « Annulés » (102.0dp) do not fit
+                // their 88.0/93.0dp shares at 200% text, where they fade away in
+                // silence. `center` keeps today's look while they fit.
+                isScrollable: true,
+                tabAlignment: TabAlignment.center,
+                tabs: const [
+                  Tab(text: 'À venir'),
+                  Tab(text: 'Passés'),
+                  Tab(text: 'Annulés'),
+                ],
+              ),
       ),
-      body: Consumer<AppointmentProvider>(
-        builder: (context, provider, _) {
-          return TabBarView(
-            controller: _tabController,
-            children: [
-              _tab(
-                provider,
-                provider.upcomingAppointments,
-                const EmptyState(
-                  icon: Icons.calendar_today,
-                  title: 'Aucun rendez-vous',
-                  description:
-                      'Vous n’avez pas de rendez-vous dans cette catégorie',
-                ),
-                _buildAppointmentsList,
+      body: guest
+          ? EmptyState(
+              icon: Icons.calendar_today,
+              title: 'Vos rendez-vous',
+              description:
+                  'Connectez-vous pour retrouver vos rendez-vous et en suivre '
+                  'l’état.',
+              actionText: 'Se connecter',
+              onAction: () => openSignIn(
+                GoRouter.of(context),
+                reason: SignInReason.bookings,
               ),
-              _tab(
-                provider,
-                provider.pastAppointments,
-                // Absences are here too, so not « Aucune visite »
-                // (consumer-app-truth.md §2.7).
-                const EmptyState(
-                  icon: Icons.history,
-                  title: 'Aucun rendez-vous passé',
-                  description: 'Vos rendez-vous passés apparaîtront ici.',
-                ),
-                _buildHistory,
-              ),
-              _tab(
-                provider,
-                provider.cancelledAppointments,
-                const EmptyState(
-                  icon: Icons.calendar_today,
-                  title: 'Aucun rendez-vous',
-                  description:
-                      'Vous n’avez pas de rendez-vous dans cette catégorie',
-                ),
-                _buildAppointmentsList,
-              ),
-            ],
-          );
-        },
-      ),
+            )
+          : Consumer<AppointmentProvider>(
+              builder: (context, provider, _) {
+                return TabBarView(
+                  controller: _tabController,
+                  children: [
+                    _tab(
+                      provider,
+                      provider.upcomingAppointments,
+                      const EmptyState(
+                        icon: Icons.calendar_today,
+                        title: 'Aucun rendez-vous',
+                        description:
+                            'Vous n’avez pas de rendez-vous dans cette catégorie',
+                      ),
+                      _buildAppointmentsList,
+                    ),
+                    _tab(
+                      provider,
+                      provider.pastAppointments,
+                      // Absences are here too, so not « Aucune visite »
+                      // (consumer-app-truth.md §2.7).
+                      const EmptyState(
+                        icon: Icons.history,
+                        title: 'Aucun rendez-vous passé',
+                        description: 'Vos rendez-vous passés apparaîtront ici.',
+                      ),
+                      _buildHistory,
+                    ),
+                    _tab(
+                      provider,
+                      provider.cancelledAppointments,
+                      const EmptyState(
+                        icon: Icons.calendar_today,
+                        title: 'Aucun rendez-vous',
+                        description:
+                            'Vous n’avez pas de rendez-vous dans cette catégorie',
+                      ),
+                      _buildAppointmentsList,
+                    ),
+                  ],
+                );
+              },
+            ),
       bottomNavigationBar: const ConsumerBottomNav(
         current: ConsumerTab.rendezVous,
       ),
