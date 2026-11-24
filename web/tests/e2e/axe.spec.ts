@@ -221,6 +221,10 @@ test('consumer account routes are axe-clean', async ({ page }) => {
     // « Beauté Divine », level 1. Guessed wrong first; the failure's own
     // accessibility-tree dump is what corrected it.
     ['/mon-compte/appt2', /Beauté Divine/],
+    // A2w: the detail's sections — the deposit form (appt9) and a stopped
+    // salon with its place but no cover (appt5).
+    ['/mon-compte/appt9', /Beauté Divine/],
+    ['/mon-compte/appt5', /Salon Arrêté/],
   ] as [string, string | RegExp, ((p: import('@playwright/test').Page) => import('@playwright/test').Locator)?][]) {
     await page.goto(url);
     await scan(page, url, anchor, ready);

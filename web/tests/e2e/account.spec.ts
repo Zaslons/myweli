@@ -454,6 +454,72 @@ test('A1w: a past booking nobody confirmed reads « Non confirmé » on its deta
   await expect(page.getByRole('button', { name: 'Reporter', exact: true })).toHaveCount(0);
 });
 
+/// A2w (docs/design/appointment-detail-complete.md §2.2–§2.8): the website's
+/// detail, section by section, as the app's. appt1 is confirmed at p1
+/// (TOMORROW), appt9 is pending with a deposit still to send, appt3 pending
+/// with a proof, appt5 at a salon that stopped.
+test('A2w: the detail, section by section', async ({ page }) => {
+  await page.goto('/connexion');
+  await page.locator('input[type=email]').fill('awa@example.com');
+  await page.getByRole('button', { name: 'Continuer avec e-mail' }).click();
+  await page.locator('input[type=text]').fill('123456');
+  await page.getByRole('button', { name: 'Se connecter' }).click();
+  await expect(page).toHaveURL(/\/mon-compte/);
+
+  await page.goto('/mon-compte/appt1');
+  await expect(page.getByRole('heading', { level: 1, name: 'Beauté Divine' })).toBeVisible();
+  // h1 then one h2 per section, in the app's order (Notes: the stub's note).
+  const headings = await page
+    .locator('main h1, main h2')
+    .evaluateAll((hs) => hs.map((h) => `${h.tagName}:${h.textContent?.trim()}`));
+  expect(headings).toEqual([
+    'H1:Beauté Divine',
+    'H2:Le rendez-vous',
+    'H2:Prestations',
+    'H2:Le salon',
+    'H2:Paiement',
+    'H2:Notes',
+  ]);
+  const salon = page.locator('section').filter({
+    has: page.getByRole('heading', { level: 2, name: 'Le salon' }),
+  });
+  await expect(salon.getByRole('link', { name: 'Itinéraire' })).toHaveAttribute(
+    'href',
+    'https://www.google.com/maps/dir/?api=1&destination=5.35,-3.99',
+  );
+  await expect(salon.getByRole('link', { name: 'Voir le salon' })).toHaveAttribute(
+    'href',
+    '/beaute-divine',
+  );
+  // The cover, decorative, in the salon cover's 3:2 frame.
+  await expect(page.locator('main img').first()).toHaveAttribute('alt', '');
+
+  // A deposit still to send: the proof form, and « Reporter » steps back.
+  await page.goto('/mon-compte/appt9');
+  const pay = page.locator('section').filter({
+    has: page.getByRole('heading', { level: 2, name: 'Paiement' }),
+  });
+  await expect(pay.getByText('Acompte à envoyer')).toBeVisible();
+  await expect(pay.getByRole('button', { name: 'Envoyer la preuve' })).toBeVisible();
+  await expect(pay.getByText('Solde à régler au salon')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Reporter', exact: true })).not.toHaveClass(
+    /bg-primary/,
+  );
+
+  // A proof sent, not yet confirmed: no form, « Voir ma capture ».
+  await page.goto('/mon-compte/appt3');
+  await expect(page.getByText('Acompte — en attente de confirmation')).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Voir ma capture' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Envoyer la preuve' })).toHaveCount(0);
+
+  // A stopped salon: no cover (the server sends none, and the page withholds
+  // one too), no page to open; the way there stays.
+  await page.goto('/mon-compte/appt5');
+  await expect(page.getByRole('heading', { level: 1, name: 'Salon Arrêté' })).toBeVisible();
+  await expect(page.locator('main img')).toHaveCount(0);
+  await expect(page.getByRole('link', { name: 'Voir le salon' })).toHaveCount(0);
+});
+
 test('a booking at a salon that stopped keeps working, and says why', async ({
   page,
 }) => {

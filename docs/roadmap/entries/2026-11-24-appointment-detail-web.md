@@ -1,0 +1,19 @@
+- 🟡 **Site, A2w : le détail d’un rendez-vous, complet, sur `myweli.com` (web · 2026-11-24 — décisions 194 à 203 ; spec [appointment-detail-complete.md](../../design/appointment-detail-complete.md) §2.2–§2.8).** Branche `feat/appointment-detail-web`. **Sa fusion est un déploiement en production de `myweli.com` (Vercel), sur le mot du propriétaire.**
+  - **Pourquoi :** le site ne montrait ni l’adresse, ni d’itinéraire, ni la photo du salon. Il ne disait rien d’un acompte une fois le rendez-vous confirmé. A1w lui avait laissé la mise en page du détail et le ton de sa pastille.
+  - **Le détail, section par section, comme dans l’app :**
+    - **l’en-tête :** la couverture du salon au format 3:2, coupée comme sur la page du salon (une décoration pour les lecteurs d’écran, rien pour un salon arrêté) ; le nom en h1 ; la pastille du client, avec son contour visible ; une phrase de statut ;
+    - **« Le rendez-vous » :** la date avec le jour, l’heure de début et de fin dans le fuseau du salon, le spécialiste, le calendrier ;
+    - **« Prestations » :** une liste ;
+    - **« Le salon » :** l’adresse puis « commune, ville » ; « Itinéraire » (un itinéraire Google Maps vers les deux nombres) seulement avec une position ; « Appeler », « WhatsApp » et « Voir le salon » seulement quand ils servent ; tous à 48 px ;
+    - **« Paiement » :** la même table d’acompte que l’app (le formulaire de justificatif s’arrête à l’heure du rendez-vous ; « Voir ma capture » ; le solde tant que le rendez-vous est ouvert) ;
+    - **les actions,** avec un seul bouton principal par état, en plus du bouton d’envoi propre au formulaire d’avis (le tableau du §2.8).
+  - **Chaque section a son h2** et disparaît quand elle n’a rien à montrer. Les lignes libellé–valeur passent à la ligne au lieu de se serrer.
+  - **Le lien « Payer avec Wave »** du formulaire d’acompte passe de 28 à 48 px, ici comme dans le parcours de réservation.
+  - **Les deux tables partagées** (phrases de statut et états de l’acompte) sont lues par les tests du site comme par ceux de l’app.
+  - **La garde du cache d’images** reçoit le détail : il montre la seule couverture publique du salon, que l’effacement d’un compte client ne supprime pas. Un test épingle sa seule image à cette couverture. La purge d’un salon sans propriétaire (B0.24) supprime, elle, cette photo, et le cache d’images peut encore la servir redimensionnée jusqu’à 31 jours : ce reste existait déjà par la page du salon et les cartes, et il est désormais écrit dans les deux specs.
+  - **Relue par un lecteur indépendant :** 8 constats, tous corrigés. Parmi eux :
+    - la raison donnée à la garde du cache était fausse ;
+    - un nom de salon long pouvait être coupé sans retour à la ligne ;
+    - l’indication « heure du salon » n’était pas sous l’heure ;
+    - des notes faites d’espaces ouvraient une section vide ;
+    - le lien Wave n’était jamais mesuré.

@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | **Approved by the owner on 2026-11-23** (« Approve as recommended »: the ten recommendations of §11, BACKLOG decisions 194–203). Built in three PRs (A2-api, A2, A2w), each merged on the owner's word: **A2-api merged (#841, `7157a9b3`) and deployed to production on 2026-11-23** (revision `myweli-api-00056-z88`); **A2, the app, built on 2026-11-23** (branch `feat/appointment-detail-app`). An independent reader checked it once against the code on 2026-11-23. Each of its 15 findings was checked again in the code before it went in. |
+| **Status** | **Approved by the owner on 2026-11-23** (« Approve as recommended »: the ten recommendations of §11, BACKLOG decisions 194–203). Built in three PRs (A2-api, A2, A2w), each merged on the owner's word: **A2-api merged (#841, `7157a9b3`) and deployed to production on 2026-11-23** (revision `myweli-api-00056-z88`); **A2, the app, merged (#845, `0a94332b`)**; **A2w, the web, built on 2026-11-24** (branch `feat/appointment-detail-web`; its merge is a production deploy of `myweli.com`). An independent reader checked it once against the code on 2026-11-23. Each of its 15 findings was checked again in the code before it went in. |
 | **Owner** | Sadreddine |
 | **Last updated** | 2026-11-23 |
 | **PRD ref / phase** | FR-APPT-002 (detail), FR-APPT-006 (directions), FR-REBOOK-001 / FR-BOOK-009 (rebook) · V1 · BACKLOG B0.10 (decision 160, Track A) |

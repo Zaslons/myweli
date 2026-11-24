@@ -718,6 +718,42 @@ const AUTHED_ROUTES: Route[] = [
       page.getByRole('group', { name: 'Filtrer mes rendez-vous' }),
   },
   {
+    // A2w (appointment-detail-complete.md §2.2): the detail's sections — the
+    // salon's four buttons, the deposit form, the « Heure » row.
+    name: 'the consumer booking detail — every section (A2w)',
+    url: '/mon-compte/appt9',
+    anchor: /Beauté Divine/,
+    auth: 'consumer',
+    measure: async (page) => {
+      await expect(page.getByRole('heading', { level: 2, name: 'Le salon' })).toBeVisible();
+      await expect(page.getByRole('button', { name: 'Envoyer la preuve' })).toBeVisible();
+    },
+  },
+  {
+    // A2w: a long salon name and a long address, at a live salon with no
+    // photo and no position — the header is `overflow-hidden` (the cover's
+    // corners), so a word that does not wrap would be clipped, not scrolled.
+    name: 'the consumer booking detail — a long salon name (A2w)',
+    url: '/mon-compte/appt10',
+    anchor: /Institut Beauté/,
+    auth: 'consumer',
+    // The header is `overflow-hidden` (the cover's corners), so a word that
+    // does not wrap is CLIPPED, not scrolled: neither page scroll nor a
+    // spilling text box sees it. Measured directly: the name stays inside
+    // the card that holds it.
+    measure: async (page) => {
+      const h1 = page.getByRole('heading', { level: 1 });
+      const card = h1.locator('xpath=ancestor::section[1]');
+      const [a, b] = [await h1.boundingBox(), await card.boundingBox()];
+      expect(a && b, 'no box').toBeTruthy();
+      expect(a!.x + a!.width, 'the salon name runs past its card').toBeLessThanOrEqual(
+        b!.x + b!.width + 0.5,
+      );
+      const spill = await h1.evaluate((el) => el.scrollWidth - el.clientWidth);
+      expect(spill, 'the salon name spills its own box').toBeLessThanOrEqual(1);
+    },
+  },
+  {
     // A1w (docs/design/web-account-bookings-truth.md §2.3, §2.4): « Passés » is
     // a tab, so the row above never drew it. Its longest chip (« Non
     // confirmé »), the summary's two cards (which must WRAP, not spill, when
