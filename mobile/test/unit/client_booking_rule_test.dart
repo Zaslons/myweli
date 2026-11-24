@@ -158,6 +158,9 @@ void main() {
           clientStatusTone(a, now),
           AppChipTone.values.byName(r['tone'] as String),
         );
+        // The detail's status sentence (A2, decision 196).
+        expect(r.containsKey('sentence'), isTrue, reason: 'every row says');
+        expect(clientStatusSentence(a, now), r['sentence']);
       });
     }
   });

@@ -16,9 +16,10 @@ void main() {
     String? proof = 'https://cdn.myweli.com/deposit/p.jpg',
     int windowHours = 24,
     String? clientName,
+    String userId = 'u1',
   }) => Appointment(
     id: 'a1',
-    userId: 'u1',
+    userId: userId,
     providerId: const SalonId('p1'),
     serviceIds: const ['s1'],
     appointmentDate: at,
@@ -40,8 +41,24 @@ void main() {
   });
 
   test('a booking the salon typed: nothing to say', () {
-    expect(at_(appt(clientName: 'Awa'), const Duration(hours: 1)), isNull);
+    // `userId == 'manual'`, the web's rule (A2 §1) — with or without a name.
+    expect(
+      at_(appt(userId: 'manual', clientName: 'Awa'), const Duration(hours: 1)),
+      isNull,
+    );
+    expect(at_(appt(userId: 'manual'), const Duration(hours: 1)), isNull);
   });
+
+  test(
+    'a client’s own booking that carries a name still gets its sentence',
+    () {
+      // The old guess (`clientName != null`) read this as the salon's.
+      expect(
+        at_(appt(clientName: 'Awa'), const Duration(hours: 48)),
+        isNotNull,
+      );
+    },
+  );
 
   test('no proof sent: says so, and promises nothing', () {
     for (final proof in [null, '']) {

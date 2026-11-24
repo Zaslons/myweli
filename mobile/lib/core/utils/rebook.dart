@@ -1,3 +1,6 @@
+import '../../models/appointment.dart';
+import 'client_booking_rule.dart';
+
 /// The services + stylist to pre-fill when rebooking, after dropping anything
 /// that no longer exists on the provider.
 class RebookSelection {
@@ -22,3 +25,21 @@ RebookSelection sanitizeRebookSelection({
       : null;
   return RebookSelection(serviceIds: validServices, artistId: validArtist);
 }
+
+/// « Réserver à nouveau »: any booking that is not upcoming, at a salon still
+/// taking appointments (decision 183 on the web, decision 201 in the app).
+/// `salonIsLive` is false for a salon status this build does not know.
+bool canRebook(Appointment a, DateTime now) =>
+    clientTab(a, now) != ClientBookingTab.upcoming && a.salonIsLive;
+
+/// The booking hub, prefilled with the booking's services and specialist. The
+/// hub checks them against the live catalogue (`sanitizeRebookSelection`).
+/// One route for « Passés » and the detail.
+String rebookLocation(Appointment a) => Uri(
+  path: '/booking',
+  queryParameters: {
+    'providerId': a.providerId.value,
+    if (a.serviceIds.isNotEmpty) 'serviceIds': a.serviceIds.join(','),
+    if (a.artistId != null) 'artistId': a.artistId!,
+  },
+).toString();

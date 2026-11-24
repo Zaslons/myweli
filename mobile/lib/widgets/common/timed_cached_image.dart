@@ -19,6 +19,12 @@ const double _kRetryLabelMinHeight = 72;
 class TimedCachedImage extends StatefulWidget {
   final String imageUrl;
   final BoxFit fit;
+
+  /// Where a covering image is cut. Centre by default; a salon's cover on the
+  /// appointment detail is cut a little above the centre, the web cards'
+  /// `object-subject` (50 % 20 % = `Alignment(0, -0.6)`), so a head in an
+  /// upright photo is not cut off (appointment-detail-complete.md §2.3).
+  final Alignment alignment;
   final double? width;
   final double? height;
   final BorderRadius? borderRadius;
@@ -35,6 +41,7 @@ class TimedCachedImage extends StatefulWidget {
     super.key,
     required this.imageUrl,
     this.fit = BoxFit.cover,
+    this.alignment = Alignment.center,
     this.width,
     this.height,
     this.borderRadius,
@@ -127,6 +134,7 @@ class _TimedCachedImageState extends State<TimedCachedImage> {
               width: widget.width,
               height: widget.height,
               fit: widget.fit,
+              alignment: widget.alignment,
               semanticsLabel: widget.semanticLabel,
               excludeFromSemantics: decorative,
             )
@@ -135,6 +143,7 @@ class _TimedCachedImageState extends State<TimedCachedImage> {
               width: widget.width,
               height: widget.height,
               fit: widget.fit,
+              alignment: widget.alignment,
               semanticLabel: widget.semanticLabel,
               excludeFromSemantics: decorative,
               errorBuilder: (context, error, stack) => _unavailable(),
@@ -164,6 +173,7 @@ class _TimedCachedImageState extends State<TimedCachedImage> {
       key: ValueKey('${widget.imageUrl}#$_reloadToken'),
       imageUrl: widget.imageUrl,
       fit: widget.fit,
+      alignment: widget.alignment,
       width: widget.width,
       height: widget.height,
       cacheManager: TimeoutCacheManager.images,
@@ -173,6 +183,7 @@ class _TimedCachedImageState extends State<TimedCachedImage> {
         return Image(
           image: imageProvider,
           fit: widget.fit,
+          alignment: widget.alignment,
           width: widget.width,
           height: widget.height,
           semanticLabel: widget.semanticLabel,
