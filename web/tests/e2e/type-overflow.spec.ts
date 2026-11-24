@@ -718,6 +718,18 @@ const AUTHED_ROUTES: Route[] = [
       page.getByRole('group', { name: 'Filtrer mes rendez-vous' }),
   },
   {
+    // A2w (appointment-detail-complete.md §2.2): the detail's sections — the
+    // salon's four buttons, the deposit form, the « Heure » row.
+    name: 'the consumer booking detail — every section (A2w)',
+    url: '/mon-compte/appt9',
+    anchor: /Beauté Divine/,
+    auth: 'consumer',
+    measure: async (page) => {
+      await expect(page.getByRole('heading', { level: 2, name: 'Le salon' })).toBeVisible();
+      await expect(page.getByRole('button', { name: 'Envoyer la preuve' })).toBeVisible();
+    },
+  },
+  {
     // A1w (docs/design/web-account-bookings-truth.md §2.3, §2.4): « Passés » is
     // a tab, so the row above never drew it. Its longest chip (« Non
     // confirmé »), the summary's two cards (which must WRAP, not spill, when

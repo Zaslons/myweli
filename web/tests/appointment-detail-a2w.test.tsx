@@ -56,7 +56,21 @@ function serve(a: Appointment) {
         return new Response(JSON.stringify(a), { status: 200 });
       }
       if (path === '/api/localities') {
-        return new Response(JSON.stringify({ countries: [] }), { status: 200 });
+        // One country, one operator marked Wave: enough for the proof form's
+        // « Payer avec Wave » link to draw.
+        const tree = {
+          countries: [
+            {
+              code: 'CI',
+              name: "Côte d'Ivoire",
+              currency: 'XOF',
+              phonePrefix: '+225',
+              operators: [{ id: 'wave', label: 'Wave', deepLinkKind: 'wave' }],
+              cities: [],
+            },
+          ],
+        };
+        return new Response(JSON.stringify(tree), { status: 200 });
       }
       return new Response('{}', { status: 404 });
     }),
@@ -222,6 +236,19 @@ describe('« Paiement » (§2.7)', () => {
     expect(s.getByText('Solde à régler au salon')).toBeInTheDocument();
     // One primary per state: money first.
     expect(screen.getByRole('button', { name: 'Reporter' }).className).not.toContain('bg-primary');
+  });
+
+  it('« Payer avec Wave » reaches the 48 px floor', async () => {
+    await open({
+      status: 'pending',
+      depositAmount: 5000,
+      balanceDue: 20_000,
+      depositMobileMoneyOperator: 'wave',
+      depositMobileMoneyNumber: '+2250700000000',
+    });
+    const wave = screen.getByRole('link', { name: /Payer avec Wave/ });
+    expect(wave.className).toContain('min-h-12');
+    expect(wave.className).not.toContain('py-xs');
   });
 
   it('no proof form once the time has passed', async () => {

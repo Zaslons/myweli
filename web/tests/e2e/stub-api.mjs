@@ -241,6 +241,10 @@ const CONSUMER_PAST = {
   appt6: { appointmentDate: `${YESTERDAY}T09:00:00.000Z`, status: 'pending' },
   appt7: { appointmentDate: `${LAST_MONTH}T10:00:00.000Z`, status: 'noShow' },
   appt8: { appointmentDate: `${LAST_MONTH}T09:00:00.000Z`, status: 'completed' },
+  // A2w: a pending booking whose deposit is still to send, TOMORROW — served
+  // by the detail route only (it is in no list), for the proof form, the
+  // « Payer avec Wave » target and « Reporter » stepping back.
+  appt9: { appointmentDate: tomorrowAt9, status: 'pending' },
 };
 
 // Consumer side (M5/M6) — appt1; cancel is stateful.
@@ -346,6 +350,20 @@ const salonFactsFor = (pid, artistId) => {
     providerPhone: p.phoneNumber ?? null,
     providerWhatsapp: p.whatsapp ?? null,
     providerAddress: p.address ?? null,
+    // A2 (appointment-detail-complete.md §2.1), as the server sends them: the
+    // place for every salon, a pair or two nulls; the cover only while live.
+    providerLatitude:
+      typeof p.latitude === 'number' && typeof p.longitude === 'number'
+        ? p.latitude
+        : null,
+    providerLongitude:
+      typeof p.latitude === 'number' && typeof p.longitude === 'number'
+        ? p.longitude
+        : null,
+    providerCommune: p.commune ?? null,
+    providerCity: p.city ?? null,
+    providerPhotoUrl:
+      (p.status ?? 'active') === 'active' ? (p.imageUrls?.[0] ?? null) : null,
     providerCountryCode: p.countryCode ?? null,
     providerTimezone: p.timezone ?? null,
     providerCurrency: p.currency ?? null,
@@ -389,10 +407,10 @@ const consumerAppt = (id) => ({
           : 'confirmed'),
   totalPrice: 15000,
   // appt3: pending WITH an attached proof (1.3 « Voir ma capture »).
-  depositAmount: id === 'appt3' ? 5000 : 0,
+  depositAmount: id === 'appt3' || id === 'appt9' ? 5000 : 0,
   depositScreenshotUrl:
     id === 'appt3' ? 'https://cdn.stub/deposit/u1/proof.jpg' : null,
-  balanceDue: id === 'appt3' ? 10000 : 15000,
+  balanceDue: id === 'appt3' || id === 'appt9' ? 10000 : 15000,
   cancellationWindowHours: 24,
   ...salonFactsFor(
     id === 'appt4' ? 'p3' : id === 'appt5' ? 'p4' : 'p1',
