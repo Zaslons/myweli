@@ -115,7 +115,9 @@ export function rebookHref(a: Appointment): string | null {
 /// at the time counts as past, as the client rule says.
 export function canAttachDeposit(a: Appointment, now: Date = new Date()): boolean {
   return (
-    a.status === 'pending' &&
+    // Normalised, as `depositState` reads it, so the row and the form can
+    // never disagree about « pending ».
+    normalizedStatus(a.status) === 'pending' &&
     (a.depositAmount ?? 0) > 0 &&
     !a.depositScreenshotUrl &&
     !a.salonEntered &&
@@ -426,7 +428,10 @@ export function depositState(
   a: Appointment,
   now: Date = new Date(),
 ): DepositState | null {
-  if ((a.depositAmount ?? 0) <= 0) return null;
+  // A booking the salon entered has no online deposit (the server stores 0);
+  // should one ever carry an amount, MyWeli collects nothing for it, so the
+  // block stays out rather than offering a form `canAttachDeposit` refuses.
+  if ((a.depositAmount ?? 0) <= 0 || a.salonEntered) return null;
   const proof = !!a.depositScreenshotUrl;
   const ahead = Date.parse(a.appointmentDate) > now.getTime();
   const view = proof ? ('viewProof' as const) : null;
@@ -473,7 +478,9 @@ export function depositState(
     };
   }
   // completed, noShow, and a status this build does not know: a closed
-  // booking, MyWeli says only the amount.
+  // booking, MyWeli says only the amount — never a form that sends money.
+  // (The app cannot meet an unknown status: it parses one as `pending`.
+  // Neither surface sees one today: the API's enum has the five.)
   return { label: 'Acompte', sentence: null, action: view, showBalance: false };
 }
 

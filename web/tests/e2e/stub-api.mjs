@@ -242,8 +242,8 @@ const CONSUMER_PAST = {
   appt7: { appointmentDate: `${LAST_MONTH}T10:00:00.000Z`, status: 'noShow' },
   appt8: { appointmentDate: `${LAST_MONTH}T09:00:00.000Z`, status: 'completed' },
   // A2w: a pending booking whose deposit is still to send, TOMORROW — served
-  // by the detail route only (it is in no list), for the proof form, the
-  // « Payer avec Wave » target and « Reporter » stepping back.
+  // by the detail route only (it is in no list), for the proof form, its
+  // « Payer avec Wave » link (Wave handle below) and « Reporter » stepping back.
   appt9: { appointmentDate: tomorrowAt9, status: 'pending' },
 };
 
@@ -416,6 +416,26 @@ const consumerAppt = (id) => ({
     id === 'appt4' ? 'p3' : id === 'appt5' ? 'p4' : 'p1',
     id === 'appt4' ? null : 'a1',
   ),
+  // A2w: appt9's deposit is paid by Wave, so the proof form draws its
+  // « Payer avec Wave » link for tap-targets to measure.
+  ...(id === 'appt9'
+    ? { depositMobileMoneyOperator: 'wave', depositMobileMoneyNumber: '+2250700000000' }
+    : {}),
+  // A2w: a LIVE salon with a long name and address, and no photo and no
+  // position — the « long salon name, long address » and « live salon with
+  // neither » cells the spec names. Detail route only.
+  ...(id === 'appt10'
+    ? {
+        providerName: 'Institut de Beauté Internationale Excellence Prestige',
+        providerAddress:
+          'Boulevard Latrille, Résidence des Cocotiers, Immeuble Kalimantan, appartement douze',
+        providerPhotoUrl: null,
+        providerLatitude: null,
+        providerLongitude: null,
+        providerCommune: null,
+        providerCity: null,
+      }
+    : {}),
 });
 
 // Pro side (M7) — pappt1, mutable status via the lifecycle endpoints. Kept

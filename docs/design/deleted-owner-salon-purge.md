@@ -283,7 +283,9 @@ purged one. A key kept for that reason is reported (`keptShared`), and never del
 - any prefix but these four, and any bucket but these two.
 
 **The CDN** may serve a deleted public photo from its cache for a while: the cache lifetime is
-UNVERIFIED. B0.27 (the photos at the deletion itself) stays filed.
+UNVERIFIED.
+
+**The web's image optimizer** keeps a resized copy of a salon photo for up to 31 days (`next.config.mjs` `images.minimumCacheTTL`, `web-swiss-cards.md` §6), so a purged salon's cover can be served resized from `myweli.com/_next/image` for that long, through the salon page, the cards and the appointment detail. Stated 2026-11-24 (A2w's independent review); not changed. B0.27 (the photos at the deletion itself) stays filed.
 
 ### 4.5 What the purge leaves, and why
 

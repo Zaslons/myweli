@@ -730,6 +730,15 @@ const AUTHED_ROUTES: Route[] = [
     },
   },
   {
+    // A2w: a long salon name and a long address, at a live salon with no
+    // photo and no position — the header is `overflow-hidden` (the cover's
+    // corners), so a word that does not wrap would be clipped, not scrolled.
+    name: 'the consumer booking detail — a long salon name (A2w)',
+    url: '/mon-compte/appt10',
+    anchor: /Institut de Beauté/,
+    auth: 'consumer',
+  },
+  {
     // A1w (docs/design/web-account-bookings-truth.md §2.3, §2.4): « Passés » is
     // a tab, so the row above never drew it. Its longest chip (« Non
     // confirmé »), the summary's two cards (which must WRAP, not spill, when

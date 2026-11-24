@@ -239,7 +239,10 @@ export function AppointmentDetailClient({ id }: { id: string }) {
   const deposit = depositState(appt, now);
   const sentence = clientStatusSentence(appt, now);
   const stopped = salonStoppedMessage(appt);
-  const photo = httpsOrNull(appt.providerPhotoUrl);
+  // The cover only for a live salon — the server sends none for a stopped
+  // one (decision 194), and the page holds that rule too, as the app's card
+  // does (`cardPhoto`).
+  const photo = salonIsLive(appt) ? httpsOrNull(appt.providerPhotoUrl) : null;
   const addressLines = salonAddressLines(appt);
   const services = appt.serviceNames ?? [];
   const time = (iso: string) =>
@@ -323,7 +326,10 @@ export function AppointmentDetailClient({ id }: { id: string }) {
           {/* B11: the heading here is a SALON NAME, unbounded user data,
               beside a status chip — both are allowed to wrap. */}
           <div className="flex flex-wrap items-center justify-between gap-m">
-            <h1 className="text-titleLarge font-semibold text-textPrimary">
+            {/* `min-w-0 break-words`: inside the header's `overflow-hidden`
+                (the cover's corners) a long single word would be clipped
+                silently, not wrapped. */}
+            <h1 className="min-w-0 break-words text-titleLarge font-semibold text-textPrimary">
               {salonNameOr(appt.providerName, UNNAMED_SALON)}
             </h1>
             {/* The client rule's words and tone (decisions 165–166, 196),
@@ -358,15 +364,18 @@ export function AppointmentDetailClient({ id }: { id: string }) {
         <dl className="space-y-xs text-bodyMedium">
           <Row label="Date" value={formatDateLongFr(appt.appointmentDate, tz)} />
           <Row label="Heure" value={hours} />
-          {appt.artistName ? (
-            <Row label="Spécialiste" value={appt.artistName} />
-          ) : null}
         </dl>
+        {/* Under the time it qualifies (§2.4), as in the app. */}
         <SalonTimeHint
           date={appt.appointmentDate}
           tz={appt.providerTimezone}
           countryLabel={countryName(tree, appt.providerCountryCode)}
         />
+        {appt.artistName ? (
+          <dl className="mt-xs text-bodyMedium">
+            <Row label="Spécialiste" value={appt.artistName} />
+          </dl>
+        ) : null}
         {/* Parity 1.2 — add the booking to a calendar (upcoming only).
             `isUpcoming`, not `canReschedule`: a stopped salon keeps its
             calendar entry, it just cannot be moved. */}
@@ -414,7 +423,7 @@ export function AppointmentDetailClient({ id }: { id: string }) {
       {addressLines.length > 0 || salonButtons.length > 0 ? (
         <DetailSection title="Le salon">
           {addressLines.map((line) => (
-            <p key={line} className="text-bodyMedium text-textSecondary">
+            <p key={line} className="break-words text-bodyMedium text-textSecondary">
               {line}
             </p>
           ))}
@@ -479,9 +488,9 @@ export function AppointmentDetailClient({ id }: { id: string }) {
         ) : null}
       </DetailSection>
 
-      {appt.notes ? (
+      {appt.notes?.trim() ? (
         <DetailSection title="Notes">
-          <p className="text-bodyMedium text-textPrimary">{appt.notes}</p>
+          <p className="break-words text-bodyMedium text-textPrimary">{appt.notes.trim()}</p>
         </DetailSection>
       ) : null}
 

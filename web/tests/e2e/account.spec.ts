@@ -512,7 +512,8 @@ test('A2w: the detail, section by section', async ({ page }) => {
   await expect(page.getByRole('link', { name: 'Voir ma capture' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Envoyer la preuve' })).toHaveCount(0);
 
-  // A stopped salon: no cover, no page to open; the way there stays.
+  // A stopped salon: no cover (the server sends none, and the page withholds
+  // one too), no page to open; the way there stays.
   await page.goto('/mon-compte/appt5');
   await expect(page.getByRole('heading', { level: 1, name: 'Salon Arrêté' })).toBeVisible();
   await expect(page.locator('main img')).toHaveCount(0);

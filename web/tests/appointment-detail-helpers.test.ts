@@ -73,6 +73,11 @@ describe('the deposit table (deposit-state.json, decision 197)', () => {
     });
   }
 
+  it('a status this build does not know is closed: no form, no balance', () => {
+    const s = depositState(appt({ status: 'onHold', depositAmount: 5000 }), NOW)!;
+    expect(s).toEqual({ label: 'Acompte', sentence: null, action: null, showBalance: false });
+  });
+
   it('no deposit, no block — whatever the status', () => {
     for (const status of ['pending', 'confirmed', 'completed', 'cancelled', 'noShow']) {
       expect(depositState(appt({ status, depositAmount: 0 }), NOW), status).toBeNull();

@@ -366,6 +366,19 @@ test('account: the detail’s « Le salon », the proof form and « Voir ma capt
   const send = page.getByRole('button', { name: 'Envoyer la preuve' });
   await expect(send).toBeVisible();
   await assertBox(send, 'detail « Envoyer la preuve »', { minW: 0 });
+  // The proof form's Wave link (was ~28 px), the calendar buttons, and the
+  // two actions of an upcoming booking.
+  for (const [role, name] of [
+    ['link', /Payer avec Wave/],
+    ['link', 'Ajouter au calendrier (Google)'],
+    ['button', 'Fichier .ics'],
+    ['button', 'Reporter'],
+    ['button', 'Annuler le rendez-vous'],
+  ] as const) {
+    const el = page.getByRole(role, { name, exact: typeof name === 'string' });
+    await expect(el, `« ${String(name)} » never rendered`).toBeVisible();
+    await assertBox(el, `detail « ${String(name)} »`, { minW: 0 });
+  }
   await page.goto('/mon-compte/appt3');
   const proof = page.getByRole('link', { name: 'Voir ma capture' });
   await expect(proof).toBeVisible();

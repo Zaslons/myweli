@@ -112,6 +112,11 @@ describe('the header (§2.3)', () => {
     expect(screen.getByText('Le salon doit encore confirmer ce rendez-vous.')).toBeInTheDocument();
   });
 
+  it('a stopped salon: no cover, even if one were sent (the page holds the rule)', async () => {
+    await open({ providerStatus: 'suspended' });
+    expect(document.querySelector('img')).toBeNull();
+  });
+
   it('no photo, or not https: no image block', async () => {
     await open({ providerPhotoUrl: null });
     expect(document.querySelector('img')).toBeNull();
@@ -158,6 +163,21 @@ describe('the sections (§2.2)', () => {
     await open();
     const dt = within(section('Le rendez-vous')).getByText('Date');
     expect(dt.parentElement!.className).toContain('flex-wrap');
+  });
+
+  it('the « heure du salon » hint sits under the time, before the specialist', async () => {
+    await open({ providerTimezone: 'Africa/Libreville' });
+    const s = section('Le rendez-vous');
+    const heure = within(s).getByText('Heure');
+    const hint = within(s).getByText(/heure du salon/i);
+    const specialist = within(s).getByText('Spécialiste');
+    expect(heure.compareDocumentPosition(hint) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(hint.compareDocumentPosition(specialist) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it('notes made of spaces are no notes', async () => {
+    await open({ notes: '   ' });
+    expect(screen.queryByRole('heading', { name: 'Notes' })).toBeNull();
   });
 
   it('a salon one hour ahead: the times are its own', async () => {
@@ -269,6 +289,21 @@ describe('« Paiement » (§2.7)', () => {
     expect(s.queryByRole('button', { name: 'Envoyer la preuve' })).toBeNull();
   });
 
+  it('a status this build does not know: closed — the amount, no form, no balance', async () => {
+    await open({ status: 'onHold', depositAmount: 5000, balanceDue: 20_000 });
+    const s = within(section('Paiement'));
+    expect(s.getByText('Acompte')).toBeInTheDocument();
+    expect(s.queryByRole('button', { name: 'Envoyer la preuve' })).toBeNull();
+    expect(s.queryByText('Solde à régler au salon')).toBeNull();
+  });
+
+  it('a booking the salon entered: no deposit block, whatever it carries', async () => {
+    await open({ status: 'pending', salonEntered: true, depositAmount: 5000 });
+    const s = within(section('Paiement'));
+    expect(s.queryByText('Acompte à envoyer')).toBeNull();
+    expect(s.queryByRole('button', { name: 'Envoyer la preuve' })).toBeNull();
+  });
+
   it('never « Acompte confirmé »', async () => {
     await open({ depositAmount: 5000, balanceDue: 20_000 });
     expect(screen.queryByText('Acompte confirmé')).toBeNull();
@@ -283,7 +318,6 @@ describe('« Paiement » (§2.7)', () => {
       depositScreenshotUrl: 'deposit/u1/p.jpg',
     });
     const s = within(section('Paiement'));
-    console.log('PAIEMENT>>', JSON.stringify(section('Paiement').textContent));
     expect(s.queryByText('Solde à régler au salon')).toBeNull();
     // The exact text, no-break space included (the matcher normalises
     // whitespace, which would hide a regular space there).
@@ -298,6 +332,16 @@ describe('« Paiement » (§2.7)', () => {
 });
 
 describe('the actions (§2.8)', () => {
+  it('a completed visit: « Réserver à nouveau » is the one primary outside the review form', async () => {
+    await open({ status: 'completed', appointmentDate: at(-2 * DAY) });
+    const form = screen.getByRole('button', { name: /Envoyer l.avis/ }).closest('form, div');
+    const primaries = [...document.querySelectorAll('a, button')].filter(
+      (el) => el.className.includes('bg-primary text-secondary') && !form?.contains(el),
+    );
+    // The spec's table (§2.8): the review form keeps its own submit button.
+    expect(primaries.map((el) => el.textContent)).toEqual(['Réserver à nouveau']);
+  });
+
   it('a past booking: « Réserver à nouveau » is the one primary', async () => {
     await open({ appointmentDate: at(-2 * DAY) });
     const primaries = [...document.querySelectorAll('a, button')].filter((el) =>

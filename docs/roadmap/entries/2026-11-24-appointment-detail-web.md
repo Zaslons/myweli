@@ -6,8 +6,14 @@
     - **« Prestations » :** une liste ;
     - **« Le salon » :** l’adresse puis « commune, ville » ; « Itinéraire » (un itinéraire Google Maps vers les deux nombres) seulement avec une position ; « Appeler », « WhatsApp » et « Voir le salon » seulement quand ils servent ; tous à 48 px ;
     - **« Paiement » :** la même table d’acompte que l’app (le formulaire de justificatif s’arrête à l’heure du rendez-vous ; « Voir ma capture » ; le solde tant que le rendez-vous est ouvert) ;
-    - **les actions,** avec un seul bouton principal par état.
+    - **les actions,** avec un seul bouton principal par état, en plus du bouton d’envoi propre au formulaire d’avis (le tableau du §2.8).
   - **Chaque section a son h2** et disparaît quand elle n’a rien à montrer. Les lignes libellé–valeur passent à la ligne au lieu de se serrer.
   - **Le lien « Payer avec Wave »** du formulaire d’acompte passe de 28 à 48 px, ici comme dans le parcours de réservation.
   - **Les deux tables partagées** (phrases de statut et états de l’acompte) sont lues par les tests du site comme par ceux de l’app.
-  - **La garde du cache d’images** reçoit le détail, qui montre la seule couverture publique du salon, jamais ce que l’effacement d’un compte supprime.
+  - **La garde du cache d’images** reçoit le détail : il montre la seule couverture publique du salon, que l’effacement d’un compte client ne supprime pas. Un test épingle sa seule image à cette couverture. La purge d’un salon sans propriétaire (B0.24) supprime, elle, cette photo, et le cache d’images peut encore la servir redimensionnée jusqu’à 31 jours : ce reste existait déjà par la page du salon et les cartes, et il est désormais écrit dans les deux specs.
+  - **Relue par un lecteur indépendant :** 8 constats, tous corrigés. Parmi eux :
+    - la raison donnée à la garde du cache était fausse ;
+    - un nom de salon long pouvait être coupé sans retour à la ligne ;
+    - l’indication « heure du salon » n’était pas sous l’heure ;
+    - des notes faites d’espaces ouvraient une section vide ;
+    - le lien Wave n’était jamais mesuré.

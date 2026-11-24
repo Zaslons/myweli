@@ -201,9 +201,12 @@ const IMPORTERS = [
   'components/Header.tsx',
   // A2w (appointment-detail-complete.md §2.3): the booking's salon cover,
   // `providerPhotoUrl` — the same public file `Hero` and `ProviderCard`
-  // already put through the optimizer. Erasure deletes a client's deposit
-  // screenshot, review photos and avatar, never a salon's cover, and the
-  // server sends no cover for a stopped salon (decision 194).
+  // already put through the optimizer, and nothing a CLIENT's erasure
+  // deletes. The deleted-owner salon purge (B0.24) does delete it; the 31-day
+  // cache of that file is the residual those two already carried, now stated
+  // in web-swiss-cards.md §6 and deleted-owner-salon-purge.md §4.4. This file
+  // holds the whole booking, so the test below pins its one image to the
+  // cover: the guard's import walk cannot see a door that imports a reader.
   'components/account/AppointmentDetailClient.tsx',
   'components/pro/AvisClient.tsx',
   'components/pro/ProAuthHeader.tsx',
@@ -310,6 +313,27 @@ describe('who can put a file in the image cache', () => {
     expect(wayToADoor(tree({ ...gallery, 'r.tsx': "import type { G } from './components/provider/Gallery';" }), 'r.tsx', doors), 'a type loads nothing').toBeNull();
     expect(wayToADoor(tree({ ...gallery, 'a.tsx': "import './b';", 'b.tsx': "import './a';" }), 'a.tsx', doors), 'a cycle').toBeNull();
     expect(wayToADoor(tree({ ...gallery, 'r.tsx': "import { Gallery } from 'gallery';" }), 'r.tsx', doors), 'a package of that name').toBeNull();
+  });
+
+  // A2w: the detail is a door that imports a reader (`lib/account/appointments.ts`
+  // reads the deposit proof), which the walk above cannot see. Its one image
+  // is pinned to the salon's cover instead.
+  it('the booking detail draws one image, the salon cover, and nothing else', () => {
+    const detail = source('components/account/AppointmentDetailClient.tsx');
+    const images = elementsOf(detail, 'Image');
+    expect(images.length).toBe(1);
+    const src = attribute(images[0], 'src')?.initializer;
+    expect(src && ts.isJsxExpression(src) ? src.expression?.getText() : null).toBe('photo');
+    expect(hasSpread(images[0])).toBe(false);
+    const declared: string[] = [];
+    everyNode(detail, (node) => {
+      if (ts.isVariableDeclaration(node) && node.name.getText() === 'photo') {
+        declared.push(node.initializer?.getText() ?? '');
+      }
+    });
+    expect(declared).toEqual([
+      'salonIsLive(appt) ? httpsOrNull(appt.providerPhotoUrl) : null',
+    ]);
   });
 
   it('the files importing next/image are exactly these, and each new one is asked whether what it shows can be erased', () => {
