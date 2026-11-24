@@ -41,6 +41,24 @@ function nextFavouritesRead(page: Page) {
   );
 }
 
+/// The e-mail step, typed again until the code step opens. The search's heart
+/// leaves by a full page load (`window.location.assign`), and `toHaveURL`
+/// passes before that page is hydrated: an e-mail typed then was lost, and
+/// « Continuer avec e-mail » did nothing — 6 runs in 8 locally. The salon's
+/// heart leaves by a client navigation, on a page already hydrated. The
+/// sign-in itself is not what this spec tests (`_auth.ts`'s helper expects a
+/// page reached by `page.goto`, which waits for its load).
+async function submitEmailLogin(page: Page) {
+  const code = page.getByLabel('Code à 6 chiffres');
+  await expect(async () => {
+    await page.getByLabel('Votre e-mail').fill(CONSUMER_EMAIL);
+    await page.getByRole('button', { name: 'Continuer avec e-mail' }).click();
+    await expect(code).toBeVisible({ timeout: 2_000 });
+  }).toPass({ timeout: 15_000 });
+  await code.fill('123456');
+  await page.getByRole('button', { name: 'Se connecter' }).click();
+}
+
 /// The guest is on /connexion with the reason, and signs in there. Resolves
 /// once the page they return to has read its favourites, with the writes sent
 /// since the sign-in began — counted from BEFORE it, so a write decided the
@@ -51,7 +69,7 @@ async function signInFromTheHeart(page: Page) {
   await expect(page.getByText(REASON)).toBeVisible();
   const writes = countWrites(page);
   const read = nextFavouritesRead(page);
-  await submitOtpLogin(page, CONSUMER_EMAIL);
+  await submitEmailLogin(page);
   await read;
   return writes;
 }
