@@ -1,4 +1,4 @@
-- 🟡 **MyWeli (client) face à l’App Store et à Google Play : l’audit avant tout travail — pas prête, et pourquoi (documentation · mobile · 2026-11-23 — BACKLOG B0.10, décision 51).** Branche `docs/consumer-app-release-audit`, créée depuis `main` (`d0a31d63`). Audit : [consumer-app-release-audit.md](../../design/consumer-app-release-audit.md). Documentation seule : aucun code ne change, rien n’est construit, déployé ni saisi dans une console, aucune lecture de la production. **L’ordre proposé (§7) est approuvé tel quel par le propriétaire le 2026-11-23 (décision 160)** ; rien n’est construit avant la spec d’A1.
+- 🟢 **MyWeli (client) face à l’App Store et à Google Play : l’audit avant tout travail — pas prête, et pourquoi (documentation · mobile · 2026-11-23 — BACKLOG B0.10, décision 51).** Branche `docs/consumer-app-release-audit`, créée depuis `main` (`d0a31d63`). Audit : [consumer-app-release-audit.md](../../design/consumer-app-release-audit.md). Documentation seule : aucun code ne change, rien n’est construit, déployé ni saisi dans une console, aucune lecture de la production. **L’ordre proposé (§7) est approuvé tel quel par le propriétaire le 2026-11-23 (décision 160)** ; rien n’est construit avant la spec d’A1.
   - **Pourquoi :**
     - le propriétaire veut profiter de l’attente du test fermé de MyWeli Pro pour préparer l’app cliente sur les deux stores ;
     - il veut d’abord une réponse honnête : où en est-elle face à la feuille de route, et qu’est-ce qui manque ?
@@ -46,4 +46,5 @@
     - [consumer-app-release-audit.md](../../design/consumer-app-release-audit.md), nouveau ;
     - l’index des specs ;
     - le BACKLOG : B0.10, la ligne « MyWeli (client) », et le §2, les décisions 160 à 164.
-  - **Reste :** la première PR de la piste A, la spec d’A1 (`consumer-app-truth.md`) puis son code ; les réponses aux questions 1, 2, 3 et 5.
+  - **Fusionnée le 2026-11-23 à 11:34 UTC** (#832, `077ed3c8`, sur le mot du propriétaire ; l’arbre de `main` est celui de la tête testée, CI 12/12).
+  - **Reste :** A1 et A2, les deux premières PR de la piste A, sont fusionnées (le site et le backend déployés, l’app attend son prochain build) ; restent A3 à A6, les pistes B et C, et les réponses aux questions 1, 2, 3 et 5 (décisions 161 à 164).

@@ -1,4 +1,4 @@
-- 🟡 **MyWeli (client) et site, A2 : le détail d’un rendez-vous, complet — la spec, avant tout code (documentation · backend · app · web · 2026-11-23 — BACKLOG B0.10, décision 160, piste A ; écart 9 de l’audit, FR-APPT-002, FR-APPT-006, FR-REBOOK-001).** Branche `docs/appointment-detail-spec`, depuis `main` `95072597`. Spec : [appointment-detail-complete.md](../../design/appointment-detail-complete.md). Documentation seule : aucun code, aucun build, aucun déploiement.
+- 🟢 **MyWeli (client) et site, A2 : le détail d’un rendez-vous, complet — la spec, avant tout code (documentation · backend · app · web · 2026-11-23 — BACKLOG B0.10, décision 160, piste A ; écart 9 de l’audit, FR-APPT-002, FR-APPT-006, FR-REBOOK-001).** Branche `docs/appointment-detail-spec`, depuis `main` `95072597`. Spec : [appointment-detail-complete.md](../../design/appointment-detail-complete.md). Documentation seule : aucun code, aucun build, aucun déploiement.
   - **Pourquoi :**
     - dans l’app, le détail d’un rendez-vous ne montre ni le statut, ni le salon (nom, photo, adresse), ni les prestations, ni d’itinéraire ;
     - c’est l’écran qu’un client ouvre le jour même ;
@@ -38,4 +38,5 @@
     - « Réserver à nouveau » dans le détail de l’app ;
     - les reçus dans une spec à part ;
     - trois PR dans l’ordre A2-api, A2, A2w.
-  - **Reste :** les trois PR (A2-api, A2, A2w). Le déploiement du backend et la fusion d’A2w sont des déploiements en production, sur le mot du propriétaire.
+  - **Fusionnée le 2026-11-23 à 18:08 UTC** (#839, `7a1db07f`, sur le mot du propriétaire ; l’arbre de `main` est celui de la tête testée, CI 12/12).
+  - **Reste :** rien pour cette spec : A2-api (#841) est fusionnée et déployée le 2026-11-23, A2 (#845) fusionnée et A2w (#847) fusionnée et déployée le 2026-11-24. L’app atteint les clients avec son prochain build.

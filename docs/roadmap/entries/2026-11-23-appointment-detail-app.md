@@ -1,4 +1,4 @@
-- 🟡 **MyWeli (client), A2 : le détail d’un rendez-vous, complet, dans l’app (app · 2026-11-23 — décisions 194 à 203 ; spec [appointment-detail-complete.md](../../design/appointment-detail-complete.md) §2.2–§2.9).** Branche `feat/appointment-detail-app`. Le code de l’app n’atteint les clients qu’avec la prochaine version de l’app ; rien n’est déployé à sa fusion.
+- 🟢 **MyWeli (client), A2 : le détail d’un rendez-vous, complet, dans l’app (app · 2026-11-23 — décisions 194 à 203 ; spec [appointment-detail-complete.md](../../design/appointment-detail-complete.md) §2.2–§2.9).** Branche `feat/appointment-detail-app`. Le code de l’app n’atteint les clients qu’avec la prochaine version de l’app ; rien n’est déployé à sa fusion.
   - **Pourquoi :** le détail d’un rendez-vous ne montrait ni le statut, ni le salon, ni les prestations, ni d’itinéraire. C’est l’écran qu’un client ouvre le jour même.
   - **L’écran « Rendez-vous »** (il s’appelait « Détails ») :
     - **l’en-tête :** la couverture du salon au format 3:2, coupée comme sur le site (50 % 20 %) ; le nom (titre de niveau 1 pour les lecteurs d’écran), la pastille et une phrase de statut. Un salon arrêté n’envoie plus sa photo : l’app dessine alors son image par défaut ;
@@ -15,3 +15,4 @@
   - **« Réservé par votre salon »** suit enfin la règle du site (`userId == 'manual'`), sur la carte comme pour la phrase d’annulation.
   - **Deux tables partagées** sont lues par les tests de l’app : les phrases de statut (`client-booking-rule.json`) et les états de l’acompte (`deposit-state.json`, nouvelle). Le site les lira dans A2w.
   - **Six images de référence** du détail (trois états, à 360 et à 200 %) : l’audit n’en avait aucune.
+  - **Fusionnée le 2026-11-24 à 00:04 UTC** (#845, `0a94332b`, sur le mot du propriétaire ; l’arbre de `main` est celui de la tête testée, CI 13/13). Rien n’est déployé : l’app atteint les clients avec son prochain build, sur le oui du propriétaire.
