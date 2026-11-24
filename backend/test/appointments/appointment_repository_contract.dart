@@ -11,13 +11,14 @@ import 'package:test/test.dart';
 /// (`db/postgres_repositories_test.dart`). Not a test file itself: each caller
 /// runs it inside its own group, on an empty `appointments` table.
 ///
-/// docs/design/appointment-currency-stamp.md §8.2.
+/// docs/design/appointment-currency-stamp.md §8.2;
+/// docs/design/appointment-twin-update.md §8.1–§8.3.
 ///
 /// **Why it exists.** The booking service stamped every booking with its
 /// salon's currency, and the Postgres repository dropped it on the floor: no
 /// column in the INSERT, no key in the read. Every service and handler test
-/// runs on the in-memory twin, which stores the caller's own map, so none of
-/// them could see it. The defect was not « `currency` is missing », it was
+/// runs on the in-memory twin, which then stored the caller's own map, so
+/// none of them could see it. The defect was not « `currency` is missing », it was
 /// « the twins disagree about which keys survive », and this contract is
 /// aimed at that class: the next key the service writes without a column turns
 /// it red, whatever the key is called.
@@ -468,9 +469,11 @@ Map<String, dynamic> _booking({
 }
 
 /// Delegates to [_inner] and keeps a DEEP COPY of every map handed to
-/// `create`. A copy, not the reference: the in-memory twin stores the caller's
-/// own map and mutates it in place on `update`, so a kept reference would
-/// follow every later change and the twin would be compared with itself.
+/// `create`. A copy, not the reference: the in-memory twin used to store the
+/// caller's own map and mutate it in place on `update`, so a kept reference
+/// followed every later change and the twin was compared with itself. Both
+/// twins now copy (docs/design/appointment-twin-update.md §5.4); this copy
+/// stays, so the record does not depend on that.
 class _Recording implements AppointmentRepository {
   _Recording(this._inner);
 

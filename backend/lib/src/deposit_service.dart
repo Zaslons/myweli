@@ -94,10 +94,12 @@ class DepositService {
     }
 
     // **Captured BEFORE the update.** `InMemoryAppointmentRepository.update`
-    // mutates and returns the very map `byId` handed out, so reading the
-    // column afterwards yields the NEW key under the fake and the OLD one
+    // used to mutate and return the very map `byId` handed out, so reading the
+    // column afterwards yielded the NEW key under the fake and the OLD one
     // under Postgres — a delete wired that way would target the object it just
-    // promoted, and only in tests.
+    // promoted, and only in tests. Both twins now hand out copies
+    // (docs/design/appointment-twin-update.md §5.4); reading first stays the
+    // plainly right order.
     final prior = appt['depositScreenshotUrl'];
 
     // Ownership is proven above; size is not. Oversized is deleted and refused

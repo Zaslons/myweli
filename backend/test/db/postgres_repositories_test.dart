@@ -1065,9 +1065,11 @@ void main() {
       // failed on every run after, which reads like flakiness and is not: the
       // repository was behaving correctly and the assertion was wrong.
       //
-      // CI never saw it, because CI runs `dart test` with no `DATABASE_URL` and
-      // every postgres-tagged suite self-skips. Only a developer with a local
-      // database ever ran it twice.
+      // CI never saw it because every CI run starts from a fresh database, so
+      // the assertion always met an empty `providers` table. (This said CI
+      // runs with no `DATABASE_URL`; it has always set one —
+      // docs/design/appointment-twin-update.md §2.5.) Only a developer with a
+      // local database ever ran it twice.
       expect((await repo.bySlug(salon['slug'] as String))?['id'], id);
 
       // Publish → discoverable.
