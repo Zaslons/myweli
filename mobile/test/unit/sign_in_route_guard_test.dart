@@ -69,6 +69,29 @@ void main() {
     }
   });
 
+  test('a notification tap never lands on top of an open sign-in: main.dart '
+      'waits for it to close, and replays only once it has (§2.2)', () {
+    final main = stripDartComments(File('lib/main.dart').readAsStringSync());
+    final start = main.indexOf('PushMessageHandler(');
+    expect(start, isNot(-1));
+    final wiring = main.substring(
+      start,
+      main.indexOf('FcmMessageBridge', start),
+    );
+    final navigate = wiring.substring(
+      wiring.indexOf('navigate:'),
+      wiring.indexOf('allowedRoutePrefixes'),
+    );
+    expect(navigate, contains('await SignInGate.whenClosed()'));
+    expect(
+      navigate.indexOf('whenClosed'),
+      lessThan(navigate.indexOf('.push')),
+      reason: 'it waits BEFORE it pushes',
+    );
+    expect(wiring, contains('!SignInGate.isOpen.value'));
+    expect(wiring, contains('SignInGate.isOpen.addListener('));
+  });
+
   test('each push ask stays with its app: the client offers after a booking, '
       'MyWeli Pro asks once on its dashboard', () {
     final all = {
@@ -89,8 +112,6 @@ void main() {
         if (e.key != home && e.value.contains('maybeOfferAfterBooking(')) e.key,
     ];
     expect(askOnce, ['lib/screens/provider/dashboard/dashboard_screen.dart']);
-    expect(offer, [
-      'lib/screens/booking/booking_confirmation_screen.dart',
-    ]);
+    expect(offer, ['lib/screens/booking/booking_confirmation_screen.dart']);
   });
 }
