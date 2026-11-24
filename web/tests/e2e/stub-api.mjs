@@ -426,7 +426,9 @@ const consumerAppt = (id) => ({
   // neither » cells the spec names. Detail route only.
   ...(id === 'appt10'
     ? {
-        providerName: 'Institut de Beauté Internationale Excellence Prestige',
+        // One word longer than a 320 px line at 200 % text: the case
+        // `break-words` exists for. Every word of a merely long name fits.
+        providerName: 'Institut Beautéinternationaleprestigeexcellence',
         providerAddress:
           'Boulevard Latrille, Résidence des Cocotiers, Immeuble Kalimantan, appartement douze',
         providerPhotoUrl: null,
