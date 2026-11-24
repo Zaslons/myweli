@@ -341,12 +341,13 @@ See §3.6.
 
 | File:line | Reads |
 |---|---|
-| `mobile/lib/core/utils/cancellation_policy.dart:54` | `a.currency ?? a.providerCurrency ?? 'XOF'` |
-| `mobile/lib/screens/appointments/appointment_detail_screen.dart:188`, `:230`, `:314`, `:441-442`, `:456-457` | `currency ?? providerCurrency` (`?? 'XOF'` at `:230`, `:441-443`, `:456-458`) |
-| `mobile/lib/widgets/booking/appointment_card.dart:408-411` | `currency ?? providerCurrency ?? 'XOF'` |
+| `mobile/lib/core/utils/cancellation_policy.dart:55` | `a.currency ?? a.providerCurrency ?? 'XOF'` |
+| `mobile/lib/screens/appointments/appointment_detail_screen.dart:197`, `:252`, `:326` | `currency ?? providerCurrency` (`?? 'XOF'` at `:326`) |
+| `mobile/lib/widgets/booking/appointment_card.dart:397-402` | `currency ?? providerCurrency ?? 'XOF'` |
 
-- The model already parses `currency` (`mobile/lib/models/appointment.dart:61`, `:349`). After B1 these read the stamp, with no app release.
-- **One total, with its own rule:** the « Passés » summary (`my_bookings_screen.dart:209-215`) sums every completed visit, across salons, and labels the sum with the newest visit's `currency ?? providerCurrency` (its comment: « MVP: a mixed-currency history sums nominally »).
+- The model already parses `currency` (`mobile/lib/models/appointment.dart:61`, `:396`). After B1 these read the stamp, with no app release.
+- *Line numbers re-read on `main` `0a94332b` (2026-11-24), after A2 (#845) rewrote the detail screen: every read above still takes the booking's `currency` first.*
+- **One total, with its own rule:** the « Passés » summary (`my_bookings_screen.dart:209-216`) sums every completed visit, across salons, and labels the sum with the newest visit's `currency ?? providerCurrency` (its comment: « MVP: a mixed-currency history sums nominally »).
   - After B1 that label becomes the newest visit's stamp instead of its salon's live currency, with no app change. That is the summary's own documented rule, and the same as A1w's; Q4 keeps it.
 - Booking screens (`booking_hub_screen.dart`, `booking_confirmation_screen.dart`, `provider_detail_screen.dart`) price **a salon's catalogue** before a booking exists, so the salon's `currency` is right there.
 
