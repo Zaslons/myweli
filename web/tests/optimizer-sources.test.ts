@@ -199,6 +199,12 @@ function wayToADoor(sources: ReadonlyMap<string, ts.SourceFile>, start: string, 
 const IMPORTERS = [
   'components/FooterMark.tsx',
   'components/Header.tsx',
+  // A2w (appointment-detail-complete.md §2.3): the booking's salon cover,
+  // `providerPhotoUrl` — the same public file `Hero` and `ProviderCard`
+  // already put through the optimizer. Erasure deletes a client's deposit
+  // screenshot, review photos and avatar, never a salon's cover, and the
+  // server sends no cover for a stopped salon (decision 194).
+  'components/account/AppointmentDetailClient.tsx',
   'components/pro/AvisClient.tsx',
   'components/pro/ProAuthHeader.tsx',
   'components/provider/BeforeAfterViewer.tsx',
@@ -363,9 +369,11 @@ describe('who can put a file in the image cache', () => {
   it('no file that reads what erasure deletes reaches the optimizer, AvisClient alone excepted', () => {
     const readers = files.filter((f) => readsWhatErasureDeletes(source(f)));
     expect(readers, 'the readers everyone knows are gone, so this proves nothing').toEqual(
-      expect.arrayContaining([THE_EXCEPTION, 'components/provider/ReviewList.tsx', 'components/account/AppointmentDetailClient.tsx']),
+      // A2w moved the detail's deposit reads into `depositState`, so the
+      // reader everyone knows there is the helper file now, not the page.
+      expect.arrayContaining([THE_EXCEPTION, 'components/provider/ReviewList.tsx', 'lib/account/appointments.ts']),
     );
-    expect(DOORS.length, 'no door to read').toBe(4);
+    expect(DOORS.length, 'no door to read').toBe(5);
     const through = readers
       .map((f) => {
         if (f !== THE_EXCEPTION && loadsNextImage(source(f))) return `${f}: next/image itself`;
