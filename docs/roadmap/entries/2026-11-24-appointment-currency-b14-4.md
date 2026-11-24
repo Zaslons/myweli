@@ -1,0 +1,12 @@
+- 🟡 **Site (espace pro) : chaque rendez-vous affiché dans la devise où il a été pris — B14.4 (web · documentation · 2026-11-24 — BACKLOG B14.4, décision 189).** Branche `feat/b14-4-web-booking-currency`, créée depuis `main` (`f953360e`). Spec : [appointment-currency-stamp.md](../../design/appointment-currency-stamp.md) §5.6, §5.7, §8.10. **Pas fusionnée : sa fusion est un déploiement de production du site.**
+  - **Le défaut :** le serveur garde la devise de chaque rendez-vous (B14.1) et refuse un rendez-vous sans devise (B14.2). L’espace pro du site chiffrait pourtant chaque rendez-vous dans la devise **actuelle** du salon.
+  - **Ce qui change :**
+    - la ligne d’un rendez-vous (Aujourd’hui, Rendez-vous), le bloc et le panneau de « Journée » (total et acompte), la page d’un rendez-vous (total et acompte) et les visites de la fiche client lisent d’abord la devise du rendez-vous, celle du salon seulement à défaut ;
+    - les deux exports de données (client et salon) donnent la devise de chaque rendez-vous, comme ceux de l’app depuis B14.3.
+    - **Les totaux ne changent pas** (décision 190), et le contrat non plus.
+  - **Vérifié :**
+    - **7 tests rouges d’abord,** chacun après un contrôle aveugle à la devise (le rendez-vous est bien à l’écran) ;
+    - **un piège évité :** Testing Library écrase l’espace fine insécable d’Intl avant de comparer un texte ; les tests comparent donc des deux côtés de la même façon ;
+    - **après le correctif :** typecheck et lint propres, la suite unitaire complète du site passe (3184 tests) ;
+    - **9 mutations rouges pour la bonne raison,** une par site, et un contrôle vert. La première version du banc prenait le code affiché autour d’un échec pour un contrôle raté ; corrigée, elle ne pouvait que cacher une détection, jamais en inventer une.
+  - **Reste, sur le mot du propriétaire :** la fusion de cette PR. Le lot 14 est alors complet.

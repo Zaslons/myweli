@@ -1,8 +1,8 @@
-- 🟡 **Registre : B14.2 déployé — la devise est obligatoire en production (documentation · 2026-11-23 — BACKLOG B14.2).** Branche `docs/b14-2-deploy-records`, créée depuis `main` (`d0ec754b`). Documentation seule : aucun code.
+- 🟢 **Registre : B14.2 déployé — la devise est obligatoire en production (documentation · 2026-11-23 — BACKLOG B14.2).** Branche `docs/b14-2-deploy-records`, créée depuis `main` (`d0ec754b`). Documentation seule : aucun code.
   - **Ce qui est consigné :** [appointment-currency-stamp.md](../../design/appointment-currency-stamp.md) §9.2, le BACKLOG (B14.2 fait), l’index des specs, et l’entrée de B14.2 qui passe au vert.
     - **La fusion :** #844, `d0ec754b`.
     - **Avant le déploiement, un constat :** la production servait `00056-z88`, l’API d’A2 déployée à 22:24 UTC par une autre session. Elle contient B14.1, donc le retour arrière restait sûr, et B14.2 contient l’API d’A2, qu’il n’a donc pas défaite.
     - **Le déploiement (23:51 UTC) :** la révision `myweli-api-00057-pg2` sert 100 %, étiquetée `d0ec754`, `/health` répond 200, aucune erreur dans ses journaux.
     - **La lecture après, en lecture seule :** `0049` passée à 23:52:27, la colonne `currency` obligatoire, les 4 rendez-vous en `XOF`.
   - **Retour arrière :** un ou deux crans restent sûrs (`00056-z88`, `00055-jv2`) ; jamais plus loin que `00055-jv2`.
-  - **Reste :** la fusion de cette PR, sur le mot du propriétaire ; puis B14.4 (le site).
+  - **Fusionnée le 2026-11-24** (#846, `f953360e`, sur le mot du propriétaire ; l’arbre de `main` est celui de la tête testée).
