@@ -393,7 +393,7 @@ class _BookingHubScreenState extends State<BookingHubScreen> {
     }
     setState(() => _selectionError = null);
 
-    // The booking's sign-in, here at « Continuer », before the confirmation
+    // The booking's sign-in, here at « Confirmer », before the confirmation
     // opens — as the website does (consumer-signin-push.md §2.4, decision
     // 204). « Fermer » leaves the person on this screen, their choice intact;
     // signed in, the confirmation opens with it.

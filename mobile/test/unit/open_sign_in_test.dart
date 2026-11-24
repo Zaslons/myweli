@@ -45,14 +45,17 @@ void main() {
       expect(lines.length, SignInReason.values.length);
     });
 
-    test('a key reads back as its reason; an unknown or missing one is none', () {
-      for (final r in SignInReason.values) {
-        expect(SignInReason.fromKey(r.name), r);
-      }
-      expect(SignInReason.fromKey('nope'), SignInReason.none);
-      expect(SignInReason.fromKey(null), SignInReason.none);
-      expect(SignInReason.fromKey(''), SignInReason.none);
-    });
+    test(
+      'a key reads back as its reason; an unknown or missing one is none',
+      () {
+        for (final r in SignInReason.values) {
+          expect(SignInReason.fromKey(r.name), r);
+        }
+        expect(SignInReason.fromKey('nope'), SignInReason.none);
+        expect(SignInReason.fromKey(null), SignInReason.none);
+        expect(SignInReason.fromKey(''), SignInReason.none);
+      },
+    );
   });
 
   group('safeReturnTo (§6)', () {
@@ -87,39 +90,48 @@ void main() {
       expect(SignInGate.isOpen.value, isFalse);
     });
 
-    test('a second call while one is open is ignored and answers false', () async {
-      final router = _router();
-      final first = openSignIn(router);
-      expect(await openSignIn(router), isFalse);
-      SignInGate.answer(true);
-      expect(await first, isTrue);
-    });
+    test(
+      'a second call while one is open is ignored and answers false',
+      () async {
+        final router = _router();
+        final first = openSignIn(router);
+        expect(await openSignIn(router), isFalse);
+        SignInGate.answer(true);
+        expect(await first, isTrue);
+      },
+    );
 
-    test('the flag never sticks: closed after an answer, open again later', () async {
-      final router = _router();
-      final first = openSignIn(router);
-      SignInGate.answer(false);
-      await first;
-      expect(SignInGate.isOpen.value, isFalse);
-      final second = openSignIn(router);
-      expect(SignInGate.isOpen.value, isTrue);
-      SignInGate.answer(true);
-      expect(await second, isTrue);
-    });
+    test(
+      'the flag never sticks: closed after an answer, open again later',
+      () async {
+        final router = _router();
+        final first = openSignIn(router);
+        SignInGate.answer(false);
+        await first;
+        expect(SignInGate.isOpen.value, isFalse);
+        final second = openSignIn(router);
+        expect(SignInGate.isOpen.value, isTrue);
+        SignInGate.answer(true);
+        expect(await second, isTrue);
+      },
+    );
 
-    test('whenClosed waits for an open sign-in, and not for a closed one', () async {
-      await SignInGate.whenClosed(); // none open: at once
-      final router = _router();
-      final opened = openSignIn(router);
-      var closed = false;
-      final waiting = SignInGate.whenClosed().then((_) => closed = true);
-      await Future<void>.delayed(Duration.zero);
-      expect(closed, isFalse);
-      SignInGate.answer(false);
-      await opened;
-      await waiting;
-      expect(closed, isTrue);
-    });
+    test(
+      'whenClosed waits for an open sign-in, and not for a closed one',
+      () async {
+        await SignInGate.whenClosed(); // none open: at once
+        final router = _router();
+        final opened = openSignIn(router);
+        var closed = false;
+        final waiting = SignInGate.whenClosed().then((_) => closed = true);
+        await Future<void>.delayed(Duration.zero);
+        expect(closed, isFalse);
+        SignInGate.answer(false);
+        await opened;
+        await waiting;
+        expect(closed, isTrue);
+      },
+    );
   });
 }
 

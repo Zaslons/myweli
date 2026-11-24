@@ -74,7 +74,7 @@ class _BookingConfirmationScreenState extends State<BookingConfirmationScreen> {
       unawaited(provider.loadProviderById(widget.providerId));
       unawaited(context.read<LocalityProvider>().ensureLoaded());
 
-      // The hub signs in at « Continuer » (consumer-signin-push.md §2.4), so
+      // The hub signs in at « Confirmer » (consumer-signin-push.md §2.4), so
       // a guest reaches this screen only if something else brought them
       // here. Then the sign-in opens over it; « Fermer » closes both and
       // returns to the hub, whose choice is still there.

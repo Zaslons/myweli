@@ -160,6 +160,19 @@ peut encore arriver sur ce téléphone — celui dont A se servait.
 
 ### 2.5 Ce que la personne voit (Q1 = a)
 
+> **Précisé par la décision 213 (A3, 2026-11-24 —
+> [consumer-signin-push.md](consumer-signin-push.md) §2.7).** La connexion
+> s'ouvre désormais PAR-DESSUS l'écran du compte, et y revient ; « Fermer »
+> ramène à l'écran le plus proche qui sait se montrer déconnecté (l'Accueil
+> s'il n'y en a pas). Les écrans du compte sont devenus quatre :
+> `/appointment/…`, `/booking/confirm`, `/profile/notifications`,
+> `/profile/data` — « Rendez-vous », « Actu » et « Modifier le profil »
+> dessinent leur propre page déconnectée. L'avis lit enfin le DERNIER écran de
+> la pile (`router.state`) : l'adresse de la configuration ignorait les écrans
+> ouverts par `push`, c'est-à-dire tous les écrans du compte. Après
+> « Déconnexion » et une suppression, l'Accueil (décision 208). Le texte
+> ci-dessous est celui de la décision Q1 = a, avant A3.
+
 - **« Déconnexion » et « Supprimer mon compte »** : rien ne change à l'écran
   (la confirmation, puis la connexion ; « Compte supprimé » pour la
   suppression).

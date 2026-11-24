@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | **Approved by the owner on 2026-11-24** (« Approve as recommended »: the ten recommendations of §11, BACKLOG decisions 204–213). An independent reader checked it once against the code (14 findings; each re-read in the code, then folded in, §12). Nothing is built: A3 (the app) next, then A3w (the website's two hearts), each merged on the owner's word. |
+| **Status** | **Approved by the owner on 2026-11-24** (« Approve as recommended »: the ten recommendations of §11, BACKLOG decisions 204–213). An independent reader checked it once against the code (14 findings; each re-read in the code, then folded in, §12). **Built on 2026-11-24** in A3 (branch `feat/consumer-signin-push`; the app, with MyWeli Pro's card). It reaches clients with the next consumer build, and salons with the next Pro build. One change from the approved text, recorded in §2.2: a sign-out never waits for a registration. A3w (the website's two hearts) follows. |
 | **Owner** | Sadreddine |
 | **Last updated** | 2026-11-24 |
 | **PRD ref / phase** | FR-BOOK-008 (the sign-in gate and `returnTo`), FR-NOTIF-001 (push), FR-NOTIF-004 (preferences), FR-FAV-001 (favourites) · V1 · BACKLOG B0.10 (decision 160, Track A) |
@@ -149,7 +149,7 @@ The five snackbars that used to say this go: `provider_detail_screen.dart:295-29
 - a line under the existing sentence says so before anyone taps: « Sans numéro, la connexion est annulée. »;
 - « Fermer » signs out through `AuthProvider.logout`, which also removes the phone's push token;
 - the screen beneath shows « Connexion annulée. » (info) **only if the sign-out succeeded**. If it failed, the person is still signed in, the sign-in screen stays on the phone step, and it shows the sign-out's own failure sentence.
-- **A race this closes:** signing in starts a token registration that is not awaited (`auth_provider.dart:136-142`). Leaving at once could let it land after the sign-out's unregistration, so the signed-out phone would still receive the account's pushes. `PushRegistration` therefore runs its registrations and unregistrations one after the other, in the order asked.
+- **A race this closes:** signing in starts a token registration that is not awaited (`auth_provider.dart:136-142`). Leaving at once could let it land after the sign-out's unregistration, so the signed-out phone would still receive the account's pushes. **As built:** a registration that has not been sent when an unregistration is asked is dropped, and a sign-out never waits for a registration. *(The approved text said « runs its registrations and unregistrations one after the other, in the order asked ». Built that way, the suites showed every sign-out waiting for whatever registration was in flight — MyWeli Pro's among them — and a stalled best-effort request would have left « Déconnexion » spinning. The race left open is a registration already sent when the sign-out starts: both are in flight, and the server sees them in the order they were sent.)*
 
 **Success.** The sign-in removes **its own** route and completes the helper with `true`. It never pops « whatever is on top »: a notification tap waiting for the sign-in is replayed with a `push` the moment the account is signed in (`main.dart:123-129`), which can be before the sign-in has closed (during the phone step, the account is already signed in). With nothing beneath, it `go`es to `returnTo`, or to Accueil.
 
@@ -172,7 +172,7 @@ Returning to a screen that stayed open (§2.1) needs what `go` used to hide: the
 |---|---|---|---|---|
 | 1–3 | A salon's heart (page, card, the card's other layout) | `openSignIn(reason: heart)` | back on the same screen; the salon is added (§2.8, Q2) | back on the same screen, nothing changed |
 | 4 | The map's salon sheet, heart | the sheet closes, then `openSignIn(reason: heart)` | back on the map; the salon is added, and the map screen says so (the sheet is gone) | back on the map |
-| 5 | **The booking hub's « Continuer », as a guest** (the gate moves here) | `openSignIn(reason: booking)` before the confirmation opens | the confirmation opens, with the salon, services, time and specialist the person chose | back on the hub, with its choice |
+| 5 | **The booking hub's « Confirmer », as a guest** (the gate moves here) | `openSignIn(reason: booking)` before the confirmation opens | the confirmation opens, with the salon, services, time and specialist the person chose | back on the hub, with its choice |
 | 5′ | The confirmation, reached signed out anyway (§2.7) | `openSignIn(reason: booking)` over it | it loads | back on the hub (the confirmation closes too) |
 | 6 | « Rendez-vous », as a guest | its signed-out page (§2.5); « Se connecter » → `openSignIn(reason: bookings)` | the list loads (§2.3) | the signed-out page |
 | — | « Actu », as a guest | its signed-out page (§2.5); `openSignIn(reason: actu)` | the feed loads | the signed-out page |
@@ -183,7 +183,7 @@ Returning to a screen that stayed open (§2.1) needs what `go` used to hide: the
 | 11 | Modifier le profil, signed-out state | `openSignIn(reason: profile)` | the form | the signed-out state |
 | 12–13 | A session that ended | §2.7 | | |
 
-**Why the booking's gate moves to the hub.** Opening the confirmation and then the sign-in over its skeleton makes two transitions, and « Fermer » would have to close both. It would also leave the salon's loading flag up with no load running (`beginProviderLoad`, `booking_confirmation_screen.dart:67`; `provider_provider.dart:234`). Signing in at « Continuer » (`booking_hub_screen.dart:394-405`) opens the confirmation only for someone signed in, as the website does.
+*(The hub's button reads « Confirmer » (`booking_hub_screen.dart:900`); the approved text said « Continuer », a slip corrected while building.)* **Why the booking's gate moves to the hub.** Opening the confirmation and then the sign-in over its skeleton makes two transitions, and « Fermer » would have to close both. It would also leave the salon's loading flag up with no load running (`beginProviderLoad`, `booking_confirmation_screen.dart:67`; `provider_provider.dart:234`). Signing in at « Confirmer » (`booking_hub_screen.dart:394-405`) opens the confirmation only for someone signed in, as the website does.
 
 ### 2.5 « Rendez-vous » and « Actu » as a guest (Q4)
 
@@ -332,17 +332,17 @@ No server data. Two local keys replace one (§2.10): `myweli_push_offer_count` (
 - **`AccountScope`** gains the « signed in » half (§2.3): one load of the favourites and the bookings for a new signed-in account. Screens that read one record watch the account and load again.
 - **`FavoritesProvider.addIfMissing`** (§2.8).
 - **`PushMessageHandler`'s replay** waits until no sign-in is open (§2.2).
-- **`pushOfferDecision(status, offerCount, lastOfferAt, now)`**, a pure function beside `PushRegistration`, answering register, offer or nothing. `PushRegistration` gains `maybeOfferAfterBooking(showRationale)` for the client, built on it, and `enableFromSettings()` for the card. It runs registrations and unregistrations one after the other (§2.2). **`maybePromptOnce` stays, unchanged, for MyWeli Pro's dashboard.**
+- **`pushOfferDecision(status, offerCount, lastOfferAt, now)`**, a pure function beside `PushRegistration`, answering register, offer or nothing. `PushRegistration` gains `maybeOfferAfterBooking(showRationale)` for the client, built on it, and `enableFromSettings()` for the card. A registration not yet sent when an unregistration is asked is dropped; a sign-out never waits (§2.2). **`maybePromptOnce` stays, unchanged, for MyWeli Pro's dashboard.**
 - **`PushOffCard`** (`lib/widgets/push/`), shared by the client's Préférences and, if Q9, Pro's notifications page.
 - **The guest pages** live in `my_bookings_screen.dart` and `notifications_screen.dart`, each watching `AuthProvider`. `NotificationsList` stays shared with Pro, unchanged.
 - **`SessionEndedNotice`** reads the last route of the stack (§2.7), and its account-only list becomes the four prefixes of §2.7.
-- **The booking hub** gates « Continuer » (§2.4); the confirmation keeps a guard for the case it is reached signed out.
+- **The booking hub** gates « Confirmer » (§2.4); the confirmation keeps a guard for the case it is reached signed out.
 
 ## 6. Security & privacy
 
 - **`returnTo` is used only when nothing is beneath** (§2.1). It must be an in-app path: it starts with « / » and not « // », otherwise Accueil. The router knows no external scheme, but the check costs nothing and holds if one is ever added.
 - **No new data leaves the phone.** The two push keys are local.
-- **Closing the phone step signs out** (Q3), through the existing `logout`, which also unregisters the push token; registrations and unregistrations run in order, so a late registration cannot outlive the sign-out (§2.2). No half-made session stays on the phone.
+- **Closing the phone step signs out** (Q3), through the existing `logout`, which also unregisters the push token; a registration not yet sent is dropped, so a late one cannot outlive the sign-out, and the sign-out never waits for it (§2.2). No half-made session stays on the phone.
 - **The push token is registered only on « granted »,** as today.
 - **A heart applied after sign-in** acts for the account that just signed in, through the existing authenticated favourites call; the server checks ownership as it does today.
 - **A notification tap waiting for sign-in** still goes only to the allowlisted routes (`push_message_handler.dart:27-31`), and only once signed in, as today.
@@ -359,12 +359,12 @@ One more route on the stack while signing in. One load of the favourites and the
 - `SignInReason`: every key has its line; an unknown key reads « none ».
 - `returnTo`: « /bookings » kept; « //evil », « https://… » and « » fall back to Accueil.
 - `FavoritesProvider.addIfMissing`: added, already there (nothing sent: the mock counts calls), and failed (read fails, add fails).
-- `PushRegistration`: an unregistration asked after a registration runs after it.
+- `PushRegistration`: a registration not yet sent when a sign-out is asked is dropped; one already sent stays and is unregistered after it (the control); a sign-out answers while a registration hangs.
 
 **Widget:**
 - **Sign-in:** « Fermer » on each step; back on the code step returns to the e-mail step; « Fermer » disabled while a request runs; success completes `true`; the helper completes when the sign-in is removed by a `go`; with nothing beneath, « Fermer » goes to Accueil and success goes to `returnTo`; the phone step's « Fermer » signs out and says « Connexion annulée. », and a failed sign-out keeps the step.
 - **A notification tap waiting for sign-in** lands after the sign-in closes, on top of where the person is, and the sign-in's success did not close it.
-- **Each way in (§2.4):** the sign-in is pushed (the screen beneath is still mounted), and « Fermer » returns to it. The heart's three outcomes, read with the account that signed in. The hub's « Continuer » as a guest: closed, the hub keeps its choice; signed in, the confirmation opens with it.
+- **Each way in (§2.4):** the sign-in is pushed (the screen beneath is still mounted), and « Fermer » returns to it. The heart's three outcomes, read with the account that signed in. The hub's « Confirmer » as a guest: closed, the hub keeps its choice; signed in, the confirmation opens with it.
 - **The reload (§2.3):** sign in from Profil, back on Accueil, the favourites' hearts are filled and « Derniers rendez-vous » shows.
 - **The guest pages:** « Rendez-vous » and « Actu » as a guest (no tab bar, no « Tout marquer comme lu »), then signed in (the list or the feed loads), then a session that ends while open.
 - **Sign-out and deletion** land on Accueil with their sentence; a failed sign-out says nothing of the kind.
@@ -407,7 +407,7 @@ One more route on the stack while signing in. One load of the favourites and the
 
 **All ten answered on 2026-11-24: « Approve as recommended »** (BACKLOG decisions 204–213, in the order Q1–Q10). Each answer is the recommendation written under its question; Q2's includes A3w.
 
-**Q1. The sign-in opens over the screen the person is on, with « Fermer », and closing returns exactly there — for every way in (§2.1–§2.4)? The reason is written on the screen instead of a snackbar (§2.2), and the booking's gate moves to the hub's « Continuer » (§2.4).**
+**Q1. The sign-in opens over the screen the person is on, with « Fermer », and closing returns exactly there — for every way in (§2.1–§2.4)? The reason is written on the screen instead of a snackbar (§2.2), and the booking's gate moves to the hub's « Confirmer » (§2.4).**
 - *Recommended: yes.* It is the audit's gap 10, and the store reviewer's first dead end.
 
 **Q2. After signing in from a heart, add the salon to the favourites (§2.8)?**

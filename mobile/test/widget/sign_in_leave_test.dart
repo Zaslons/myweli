@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
@@ -332,7 +334,7 @@ void main() {
     await settle(tester);
     await open(tester);
     // A notification tap while the sign-in is open (main.dart's `navigate`).
-    SignInGate.whenClosed().then((_) => router.push('/detail'));
+    unawaited(SignInGate.whenClosed().then((_) => router.push('/detail')));
     await tester.tap(find.text('Continuer avec Google'));
     await settle(tester);
     expect(find.text('DETAIL'), findsOneWidget);

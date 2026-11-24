@@ -24,10 +24,7 @@ void main() {
   test('not a favourite yet → added, once', () async {
     service.stored = [a];
     final fav = FavoritesProvider();
-    expect(
-      await fav.addIfMissing('u1', b.id),
-      FavoriteAddOutcome.added,
-    );
+    expect(await fav.addIfMissing('u1', b.id), FavoriteAddOutcome.added);
     expect(service.adds, [b.id]);
     expect(fav.isFavorite(b.id), isTrue);
     expect(fav.isFavorite(a.id), isTrue);
@@ -37,10 +34,7 @@ void main() {
       'have REMOVED it', () async {
     service.stored = [a, b];
     final fav = FavoritesProvider();
-    expect(
-      await fav.addIfMissing('u1', b.id),
-      FavoriteAddOutcome.alreadyThere,
-    );
+    expect(await fav.addIfMissing('u1', b.id), FavoriteAddOutcome.alreadyThere);
     expect(service.adds, isEmpty);
     expect(service.removes, isEmpty);
     expect(fav.isFavorite(b.id), isTrue);
@@ -51,20 +45,20 @@ void main() {
     final fav = FavoritesProvider();
     await fav.loadFavorites('u1');
     service.stored = [a, b]; // added on the website meanwhile
-    expect(
-      await fav.addIfMissing('u1', b.id),
-      FavoriteAddOutcome.alreadyThere,
-    );
+    expect(await fav.addIfMissing('u1', b.id), FavoriteAddOutcome.alreadyThere);
     expect(service.adds, isEmpty);
   });
 
-  test('the read fails → failed, nothing sent, the failure sentence kept', () async {
-    service.failRead = true;
-    final fav = FavoritesProvider();
-    expect(await fav.addIfMissing('u1', b.id), FavoriteAddOutcome.failed);
-    expect(service.adds, isEmpty);
-    expect(fav.error, isNotNull);
-  });
+  test(
+    'the read fails → failed, nothing sent, the failure sentence kept',
+    () async {
+      service.failRead = true;
+      final fav = FavoritesProvider();
+      expect(await fav.addIfMissing('u1', b.id), FavoriteAddOutcome.failed);
+      expect(service.adds, isEmpty);
+      expect(fav.error, isNotNull);
+    },
+  );
 
   test('the add fails → failed, the heart stays empty', () async {
     service.stored = [a];
@@ -145,8 +139,9 @@ class _Favorites implements FavoritesServiceInterface {
   }
 
   @override
-  Future<ApiResponse<List<SalonId>>> getFavoriteProviderIds(String userId) async =>
-      ApiResponse.success([for (final p in stored) p.id]);
+  Future<ApiResponse<List<SalonId>>> getFavoriteProviderIds(
+    String userId,
+  ) async => ApiResponse.success([for (final p in stored) p.id]);
 
   @override
   Future<ApiResponse<bool>> isFavorite(String userId, SalonId id) async =>

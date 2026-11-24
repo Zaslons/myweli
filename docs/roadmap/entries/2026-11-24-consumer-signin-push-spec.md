@@ -4,7 +4,7 @@
     - « Plus tard » sur la feuille des notifications met fin aux notifications pour de bon : l’app ne redemande jamais, et sur un iPhone qui n’a jamais vu la demande du système, les Réglages n’ont aucun interrupteur à activer. Les rappels n’arrivent que par notification push.
   - **Ce que la spec prévoit, chaque « aujourd’hui » relu dans le code avec son fichier et sa ligne :**
     - la connexion s’ouvre par-dessus l’écran où l’on est, avec « Fermer », et y revient ; la raison est écrite sur l’écran au lieu d’un message qui passe ;
-    - chacune des 13 entrées, avec ce qui se passe après la connexion et après « Fermer » ; pour réserver, la connexion se fait au « Continuer » de l’écran de réservation, comme sur le site : fermer y ramène, avec le choix intact ;
+    - chacune des 13 entrées, avec ce qui se passe après la connexion et après « Fermer » ; pour réserver, la connexion se fait au « Confirmer » de l’écran de réservation, comme sur le site : fermer y ramène, avec le choix intact ;
     - les écrans restés ouverts chargent le compte qui vient de se connecter (aujourd’hui, `go` le cachait en reconstruisant tout) ;
     - « Rendez-vous » et « Actu » dessinent une page déconnectée avec « Se connecter » ; « Actu » montrait une erreur avec un « Réessayer » qui ne pouvait pas réussir ;
     - la déconnexion et la suppression du compte mènent à l’Accueil ;
