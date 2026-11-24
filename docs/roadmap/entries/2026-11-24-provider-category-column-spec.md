@@ -9,4 +9,5 @@
   - **Relue une fois par un lecteur indépendant, chargé de la réfuter :** aucun bloquant ; quatre constats à corriger, tous intégrés (§13). Le plus important : des cas de test générés depuis la liste des colonnes auraient disparu avec la colonne qu’ils testent ; ils sont écrits à la main, avec un test qui vérifie qu’ils couvrent toute la liste.
   - **Trouvé à côté :** le site demande la catégorie `nail` pour « Onglerie », alors que le contrat, le backend et l’app disent `nails`. Ces pages ne peuvent lister aucun salon, et un salon d’onglerie n’aurait ni page ni entrée dans le sitemap. Hors de cette spec : une correction web à part.
   - **Aussi :** l’étude (#855) est fusionnée ; son entrée passe au vert, et B16.12 (la règle de BACKEND.md) est marqué fait.
-  - **Reste, sur le mot du propriétaire :** les quatre réponses (§11, décisions à partir de 224), puis la construction de B16.1.
+  - **Approuvée le 2026-11-24 :** les quatre réponses d’un coup, « Approve as recommended », décisions 224–227 dans le BACKLOG (lot 16).
+  - **Ensuite, chacun sur le mot du propriétaire :** la construction de B16.1 dans sa propre PR, puis le déploiement (de préférence avant la validation de ce salon), puis la même lecture après.

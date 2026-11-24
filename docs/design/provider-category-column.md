@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Module** | backend: `providers` (the Postgres repository's `updateProfile`, one migration) |
-| **Status** | **Draft 2026-11-24, for the owner's answers** (§11). Then B16.1's build, in its own backend PR, on the owner's word. |
+| **Status** | **Approved 2026-11-24.** The owner answered the four questions of §11 at once, « Approve as recommended »: decisions 224–227 in BACKLOG, batch 16. Next: B16.1's build, in its own backend PR, on the owner's word. |
 | **Owner** | the project owner: the answers, the build's go, the merge, the deploy and the read after it, each on the owner's word |
 | **Last updated** | 2026-11-24 |
 | **PRD ref / phase** | FR-DISC (discovery by category) · V1 |
@@ -218,25 +218,25 @@ The full backend suite on a fresh local database; `dart analyze --fatal-infos --
 
 ---
 
-## 11. Questions for the owner — recommendation first
+## 11. Questions for the owner — answered 2026-11-24, « Approve as recommended » (decisions 224–227)
 
-Decisions numbered from **224**, after the survey's 219–223 (renumbered if another spec takes them first).
+Numbered from **224**, after the survey's 219–223.
 
 **Q1. The fix: `updateProfile` writes the `category` column with the document?**
-- **Recommended: yes,** in the same `UPDATE`, as name, description, address and commune already are (§5.1).
+- **Recommended: yes,** in the same `UPDATE`, as name, description, address and commune already are (§5.1). → ✅ **Decision 224.**
 - Or a generated column: it cannot drift, but it is `rollback-unsafe` and breaks registration under an older image.
 - Or the filter reads the document: no index, and every query decodes every row.
 
 **Q2. The salon already wrong: fix it with a migration?**
-- **Recommended: yes,** `0050`, at the deploy: each salon's column set from its document where they differ (§5.2). Today that is the one draft salon of §2.4.
+- **Recommended: yes,** `0050`, at the deploy: each salon's column set from its document where they differ (§5.2). Today that is the one draft salon of §2.4. → ✅ **Decision 225.**
 - Or by hand in Cloud SQL Studio, once.
 
 **Q3. The contract's reach: every column `updateProfile` keeps, on both twins?**
-- **Recommended: all five** (§5.3). The sync list is where this defect lived, and a column added to it later gets its case.
+- **Recommended: all five** (§5.3). The sync list is where this defect lived, and a column added to it later gets its case. → ✅ **Decision 226.**
 - Or the category only.
 
 **Q4. When?**
-- **Recommended: build now as one backend PR, on your word,** then deploy on your word, ideally before that salon is validated (§9), then the read after.
+- **Recommended: build now as one backend PR, on your word,** then deploy on your word, ideally before that salon is validated (§9), then the read after. → ✅ **Decision 227.**
 - Or wait and deploy it with B16.2.
 
 ---
@@ -264,3 +264,4 @@ Decisions numbered from **224**, after the survey's 219–223 (renumbered if ano
   - `rating` is a sixth field the demo reset leaves out of step (§12, for B16.2);
   - §8.2's directly inserted rows would default to `active`, and an unreadable one would break every later test: inserted as `draft`, deleted by id (§8.2).
   - And seven details: the assertion order that fixes §8.1's red text; C1 replaced by a control that can fail; the migration now copies only a JSON-text category, re-tested on eleven rows (§5.2); `backfillSalonMarketIfNeeded` as a writer of `commune` (§12); the `nail` citations made exact and two more readers named (§12); the app's three chips (§2.3, §12); three inferences reworded as such (§1, §2.2, §9).
+- **2026-11-24, answered:** « Approve as recommended », all four (decisions 224–227, batch 16 in the BACKLOG).
