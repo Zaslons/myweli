@@ -1,3 +1,4 @@
+import type { paths } from './api/schema';
 import type { LocalityCity, LocalityTree } from './localities';
 import { allAreas } from './localities';
 
@@ -9,12 +10,25 @@ import { allAreas } from './localities';
 /// /coiffure/abidjan/cocody; legacy flat slugs (coiffure-cocody) 308 to it.
 /// Supersedes docs/design/web-m4-landing.md's flat scheme.
 
-export type Category = { slug: string; apiKey: string; label: string };
+/// The category values the API stores, from the contract's profile-PATCH enum
+/// (`openapi.yaml`, via the generated `schema.ts`). `GET /providers` takes its
+/// `category` filter as a plain string, so without this type a key the API
+/// never stores type-checks and silently lists nothing: « Onglerie » sent
+/// `nail` from M4 to 2026-11-24 (provider-category-column.md §12).
+export type ProviderCategory = NonNullable<
+  paths['/providers/{id}']['patch']['requestBody']['content']['application/json']['category']
+>;
+
+export type Category = {
+  slug: string;
+  apiKey: ProviderCategory;
+  label: string;
+};
 
 const categories: Category[] = [
   { slug: 'coiffure', apiKey: 'salon', label: 'Coiffure' },
   { slug: 'barbier', apiKey: 'barber', label: 'Barbier' },
-  { slug: 'onglerie', apiKey: 'nail', label: 'Onglerie' },
+  { slug: 'onglerie', apiKey: 'nails', label: 'Onglerie' },
   { slug: 'spa', apiKey: 'spa', label: 'Spa' },
   { slug: 'massage', apiKey: 'massage', label: 'Massage' },
 ];

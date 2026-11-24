@@ -1,0 +1,25 @@
+- 🟡 **Site : « Onglerie » demande à l’API la catégorie qu’elle enregistre, `nails` (web · 2026-11-24 — spec [provider-category-column.md](../../design/provider-category-column.md) §12).** Branche `fix/web-onglerie-category-key`, créée depuis `main` (`257f62d9`). Sa fusion est un déploiement en production de `myweli.com`, sur le mot du propriétaire. Aucun point d’API ne change.
+  - **Avant, depuis M4 (#127) :** `web/lib/landing.ts` envoyait `category=nail` pour « Onglerie ».
+    - Tout ce qui écrit une catégorie enregistre `nails` : l’enum du PATCH du profil, la validation du catalogue, le seed, `categoryFor`, l’app, et le profil Pro du site lui-même.
+    - Les deux magasins filtrent par égalité exacte, sans alias.
+    - Les listes des pages « Onglerie », la puce « Onglerie » de `/recherche` et le lien « Onglerie » de l’accueil ne pouvaient donc lister aucun salon.
+    - `nail` passait le contrôle de types, parce que le paramètre `category` de `GET /providers` est une simple chaîne dans le contrat.
+  - **Lu sur `myweli.com` le 2026-11-24 :** l’accueil et les puces de `/recherche` pointent vers `/recherche?category=nail`.
+  - **Ce que ça coûtait :** rien de visible aujourd’hui, aucun salon n’étant public. Dès la première onglerie publique, ces pages seraient restées vides.
+  - **Une erreur de la spec, corrigée :** la §12 disait qu’une onglerie n’aurait ni page de quartier ni entrée dans le sitemap. Elle a les deux : depuis le 2026-08-20/21, la route et le sitemap prennent chaque quartier dans l’arbre des localités. Seule manquait l’entrée en double que le catalogue ajoute au sitemap (priorité 0,6 au lieu de 0,4).
+  - **Maintenant :**
+    - `apiKey` vaut `nails` ; l’adresse `/onglerie` et ses libellés ne changent pas ;
+    - `Category.apiKey` et `PROFILE_CATEGORIES` sont typés par l’enum du contrat (`ProviderCategory`, tiré de `schema.ts`) : `tsc` refuse `nail` ;
+    - `web/tests/category-keys.test.ts` lit l’enum dans `openapi.yaml`, pas dans une liste recopiée, et y tient les clés du site, celles du profil Pro, et les libellés et types schema.org du JSON-LD.
+  - **Mutations vues rouges, chacune vérifiée appliquée :**
+    - `nail` remis dans `landing.ts` : 3 tests et `tsc` ;
+    - `nail` dans le profil Pro : 1 test et `tsc` ;
+    - `nails` retiré du JSON-LD : 1 test ;
+    - l’enum retiré du contrat, ou mis en commentaire : 4 tests, dont « trouvé » ;
+    - une sixième valeur dans l’enum : 3 tests ;
+    - un second enum, différent, dans le contrat : 1 test.
+    - Témoins : le même enum écrit en liste à tirets reste vert, et passe au rouge s’il contient `nail`.
+  - **Laissé en l’état, noté :**
+    - l’alias `nail` du JSON-LD, inoffensif, faute de pouvoir exclure d’ici une ancienne ligne enregistrée ainsi ;
+    - les anciens liens `?category=nail` : `/recherche` est `noindex`, et ils n’ont jamais rien listé ;
+    - deux imports inutilisés dans `app/[slug]/[city]/[area]/page.tsx`.

@@ -1,14 +1,17 @@
 /// Pure helpers for the pro Profil edit form. Unit-tested.
 
+import type { ProviderCategory } from '../landing';
 import { normalizePhone, phoneFieldError } from '../phone';
 
+/// Typed by the contract's enum, so a key the API refuses does not compile
+/// (tests/category-keys.test.ts holds the set to the contract at run time).
 export const PROFILE_CATEGORIES = [
   { key: 'salon', label: 'Salon de coiffure' },
   { key: 'barber', label: 'Barbier' },
   { key: 'spa', label: 'Spa' },
   { key: 'nails', label: 'Onglerie' },
   { key: 'massage', label: 'Massage & bien-être' },
-] as const;
+] as const satisfies ReadonlyArray<{ key: ProviderCategory; label: string }>;
 
 export type ProviderProfile = {
   name?: string;

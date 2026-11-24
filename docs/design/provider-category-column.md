@@ -273,9 +273,11 @@ Numbered from **224**, after the survey's 219–223.
 - **The app's home chips offer three categories:** `barber`, `salon`, `spa` (`category_chips.dart:12-17`). A `nails` or `massage` salon cannot be reached through the app's category filter at all. A product gap, not this defect.
 - **The website asks for a category that does not exist: `nail`.** Out of scope here, a website defect of its own, found while listing §2.3's readers:
   - `web/lib/landing.ts:17` maps « Onglerie » to `apiKey: 'nail'`; the profile PATCH's enum (`openapi.yaml:1819`), the catalog's validation (`provider_catalog_service.dart:422`), the seed (`providers_repository.dart:825`), `categoryFor`, the app (`mobile/lib/core/constants/salon_categories.dart:9`) and the website's own Pro profile (`web/lib/pro/profile.ts:9`) all say `nails`. The backend has no alias. The filter's parameter is a plain string with no enum (`openapi.yaml:1737`), which is why `'nail'` type-checks.
-  - So on the website, the « Onglerie » landing pages (`TaxonomyLandingView.tsx:134` too), `/recherche?category=nail` and the home page's « Onglerie » link can never list a salon; and `getLandingParams` (`web/lib/api/providers.ts:128`) finds no slug for `nails`, so a nail salon never gets an area landing page (`dynamicParams = false`, `app/[slug]/[city]/[area]/page.tsx:30`) or a sitemap entry.
-  - Since M4 (#127). No salon is public today, so those pages would be empty anyway; from the first public nail salon, they would stay empty when they should not.
-  - Read from the code, not run against a live page. Its fix is one value and a test, in its own web PR.
+  - So on the website, the « Onglerie » landing pages' lists (`TaxonomyLandingView.tsx:131` and `:134`), `/recherche?category=nail` and the home page's « Onglerie » link can never list a salon.
+  - **Corrected 2026-11-24, while fixing it:** this section first said a nail salon would also get no area landing page and no sitemap entry. It would get both. Since 2026-08-20/21 the area route's `generateStaticParams` and the sitemap take every area from the locality tree (`taxonomyAreaParams`), not from `getLandingParams`. What `getLandingParams` (`web/lib/api/providers.ts:128`) misses for a `nails` salon is only the catalogue's duplicate sitemap entry, at priority 0.6 instead of the tree's 0.4.
+  - Since M4 (#127, `07ad1567`). No salon is public today, so those pages would be empty anyway; from the first public nail salon, they would stay empty when they should not.
+  - **Read on myweli.com, 2026-11-24:** the home page and the `/recherche` chips link `/recherche?category=nail`.
+  - **Fixed on branch `fix/web-onglerie-category-key`:** `apiKey` is `nails`, typed by the contract's enum (`ProviderCategory`, so `tsc` refuses `nail`), and `web/tests/category-keys.test.ts` holds the site's keys, the Pro profile's and the JSON-LD labels to the enum read from `openapi.yaml`.
 
 ---
 
