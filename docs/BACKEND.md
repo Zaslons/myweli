@@ -398,6 +398,18 @@ Every PR is tested; treat an unchecked box as "not done":
     deliberately *not* `providers` (the seeded demo salons must survive), so a
     test writing there owns the delete — `addTearDown` scoped to the ids it
     created, never a blanket truncate that would take the seed with it.
+- **A store with writes has a contract run on both twins** (decision 223,
+  [twin-fidelity-survey.md](design/twin-fidelity-survey.md)). Most service and
+  handler tests run against the in-memory twin, so a twin that keeps, hands
+  out, reads or sorts differently from Postgres lets a test pass for code
+  production would break: batch 14's never-stored currency hid that way. The
+  guard is one contract file whose cases run on both twins, as
+  `appointmentRepositoryContract` (`test/appointments/appointment_repository_contract.dart`)
+  does from `appointment_repository_test.dart` and, `DATABASE_URL`-gated, from
+  `postgres_repositories_test.dart`. Where one runs, the survey found nothing
+  reachable; every reachable difference sat in a store or method without one
+  (its §4). A new store with writes ships with its contract; an existing one
+  gains it, for the methods a PR changes, when that PR touches the store.
 - **Load tests** — slot engine and (later) payment callbacks, before they ship.
 - Coverage must not decrease.
 
@@ -406,6 +418,7 @@ Every PR is tested; treat an unchecked box as "not done":
 - [ ] **Design spec written first** in [`docs/design/`](design/README.md) (per [`docs/design/TEMPLATE.md`](design/TEMPLATE.md)), aligned, and cross-linked from the routes/services/contract it governs.
 - [ ] `dart format` clean · `dart analyze --fatal-infos --fatal-warnings` = **0**.
 - [ ] Tests green, including the **security/negative** tests for any auth-touching change.
+- [ ] A store method with writes added or changed: its **contract runs on both twins** (§5).
 - [ ] **Contract updated** in the same PR (`docs/api/openapi.yaml`); responses match it.
 - [ ] **No secrets** added; gitleaks clean; new config via env + `.env.example`.
 - [ ] **Dependency scan** clean (OSV); no known-vulnerable packages added.

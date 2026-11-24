@@ -42,6 +42,7 @@
 | 13 | **Mobile toolchain** | Flutter 3.47.9, then the dependabot bumps; headings for screen readers; what 3.50 will need; the backend image's TLS check | P1 for B13.1–B13.2, then P2–P3 | app, CI, backend | **Spec signed off 2026-11-11** (decision 109); B13.1 building |
 | 14 | **The booking's currency** | The server stamps each booking's currency at creation and never stores it, so every surface shows the salon's current one | P3 (no wrong amount today: one country, XOF) | backend, app, web | **Spec approved 2026-11-23** (decisions 187–193, #837); **B14.1 deployed 2026-11-23** (#840, revision `00055-jv2`); **B14.3 merged** (#843); **B14.2 deployed 2026-11-23** (#844, revision `00057-pg2`); **B14.4 live on myweli.com 2026-11-24** (#848). **Batch complete** |
 | 15 | **The bookings store's test twin** | In tests, the in-memory bookings store writes any key and any value, where Postgres writes six and ignores the rest, and hands out its own maps | P3 (no user-visible effect; it is how batch 14's defect hid) | backend | ✅ **Done — #852, #853** (2026-11-24): B15.1 merged; it reaches production with the next backend deploy |
+| 16 | **The test twins of the other stores** | Three production defects the survey proved (a salon's category in discovery, the demo salon's reset, a taken email), then the in-memory twins that keep, hand out, read or sort differently from Postgres | P2 for B16.1–B16.2, P3 for the rest | backend (+ the clients' copy for B16.3) | **Survey approved 2026-11-24** (decisions 219–223, #855); next: B16.1's read-only production read, then its spec, each on your word |
 
 **Proposed order.**
 - **Done (2026-10-25):** batches 1–9, every item.
@@ -49,7 +50,7 @@
 - **Next (2026-11-02):** batch 12's four untrue sentences are in #723, then batch 11. Your order, decision 67.
 - **Also (2026-11-11):** batch 13, the mobile toolchain: B13.1 is merged (#758, 2026-11-11), and so is the TLS gate on the artifact (B13.10, #759, 2026-11-12). It gates 0.0.2 and every Android build that reaches anyone.
 - **Also (2026-11-23):** batch 14, the booking's currency: B14.1 next, independent of the release track (decision 193).
-- **Also (2026-11-24):** batch 15, the bookings store's test twin, is done: B15.1 merged (#853), and it reaches production with the next backend deploy (decision 218). Its follow-up, [twin-fidelity-survey.md](design/twin-fidelity-survey.md), awaits your answers (batch 16, decisions from 219).
+- **Also (2026-11-24):** batch 15, the bookings store's test twin, is done: B15.1 merged (#853), and it reaches production with the next backend deploy (decision 218). Its follow-up, [twin-fidelity-survey.md](design/twin-fidelity-survey.md), was answered the same day (decisions 219–223): batch 16, B16.1 first, each step on your word.
 - **Yours:** batch 10, and your half of batch 0 (answer any Resolution Center message and release by hand after approval, B0.1; B0.10, in the order of [android-play-release.md](design/android-play-release.md) §4: the old Samsung's model, Android version and RAM (its O2; the upload key's backup, O1, is done), the signed AAB from `main` now that B13.1 has merged (GHSA-frr6-h895-5pxp, LAUNCH §6.3), then the closed test's 12 testers; Play's location declaration by 2027-01-27 and trader declaration by 2027-02-01); and B11.2's question, with its two options there: does the pattern's 4 KB budget count the RSC payload? And decision 144 (B0.15), now: declare « Search History » on MyWeli Pro's App Store label, in App Store Connect; whether it needs a new build is UNVERIFIED (decision 55's exclusion is now optional). And before the first public salon, the move to Vercel's Pro plan, in Vercel's console (decision 93). And decision 107's one new sentence to confirm or reword, and its optional rewording, in #751 (`web-pro-upload-resize.md` §11, items 10 and 11). And decision 108's EU step: upload the proof of name and address Apple asked for, through its new link once it arrives (app-store-forms §9.1).
 
 ---
@@ -412,6 +413,14 @@ Each question has a recommendation. Answers unblock the item named in brackets.
 216. Copies on every in-memory return? [B15.1] — ✅ **Answered (2026-11-24): « Approve as recommended »**, yes: deep copies, in Postgres's shape, without `endsAt` (spec §5.4).
 217. The overlapping reschedule, `null` from Postgres only? [B15.1] — ✅ **Answered (2026-11-24): « Approve as recommended »**, documented on the interface, as `create` already does; not simulated in memory (spec §5.5).
 218. When? [B15.1] — ✅ **Answered (2026-11-24): « Approve as recommended »**, built now as its own backend PR, on your word; no deploy of its own, it rides the next backend deploy (spec §9).
+
+**The test twins of the other stores (batch 16)** — asked on 2026-11-24 in [twin-fidelity-survey.md](design/twin-fidelity-survey.md) §6 (Q1–Q5, PR #855): batch 15's follow-up. Four readers compared the in-memory twin and the Postgres twin of the 28 other stores, and a throwaway probe on both proved eight differences. Three are production defects, where Postgres is the side that is wrong (survey §2). All five answered at once.
+
+219. The three production defects: fix them, and in what order? [B16.1–B16.3] — ✅ **Answered (2026-11-24): « Approve as recommended »**, yes, in this order: a salon's category (survey §2.1), the demo salon's reset (§2.2), a taken email (§2.3). Each through its own short spec and PR; each deploy on your word.
+220. Read production before the category fix? [B16.1] — ✅ **Answered (2026-11-24): « Approve as recommended »**, yes, read-only, batch 14's method: the Auth Proxy, a read-only session, a probe write refused, aggregates only — how many salons' `category` column differs from their document. The read runs on your word when B16.1 starts. A salon that differs gets its column set from its document by the fix's migration, which is your yes again.
+221. The reachable twin differences? [B16.4–B16.10] — ✅ **Answered (2026-11-24): « Approve as recommended »**, fixed by store, B15.1's way, after decision 219's three: one spec per store group (survey §5.2), each red first, with a contract on both twins.
+222. The test-only differences? [B16.11] — ✅ **Answered (2026-11-24): « Approve as recommended »**, each fixed when its store is next touched, not in a sweep; they stay listed in survey §3.2.
+223. A rule in BACKEND.md §5: a store with writes has a contract run on both twins? [B16.12] — ✅ **Answered (2026-11-24): « Approve as recommended »**, yes: written now (BACKEND.md §5, in #855), enforced as each store is touched.
 
 ---
 
@@ -927,6 +936,24 @@ Spec: [appointment-currency-stamp.md](design/appointment-currency-stamp.md). The
 Spec: [appointment-twin-update.md](design/appointment-twin-update.md). Most backend tests run the service against the in-memory twin of the bookings store. Its `update` writes any key and any value, where Postgres writes six keys (`status`, `appointmentDate`, `endsAt`, `depositScreenshotUrl`, `arrivedAt`, `artistId`) and ignores the rest without a word. So a test can pass for code production would break, which is how batch 14's defect hid. No user sees anything: no production caller sends another key.
 
 - **B15.1 One key set, refusals, copies, the guest-phone move (P3 · S · decisions 214–218).** Backend only, one PR: the tests red first (spec §8, ten mutations), the code, and the comments of spec §10, including the false CI sentence in `postgres_repositories_test.dart:981-983`. Merge on your word. No deploy of its own: it rides the next backend deploy. **Built 2026-11-24** (spec §8.8): 9 tests red first (6 in memory, 3 on Postgres), the full backend suite on a fresh database 2986 passed, m1–m10 red for the stated reason, C1 and C2 green. **Merged 2026-11-24** (#853, `b042d2bb`). **Done.**
+
+### Batch 16 — The test twins of the other stores (decisions 219–223)
+
+Survey: [twin-fidelity-survey.md](design/twin-fidelity-survey.md). Batch 15's follow-up. Of the 28 other stores, nine show no difference between their twins. The others hold 39: eight proven by probe, and 31 read but not probed, of which ten can be reached from production code and the rest only from tests. Three of the proven ones are production defects, where Postgres is the side that is wrong. Where a contract already runs on both twins, the readers found nothing reachable (survey §4). Each item gets its own short spec before any code; each merge and each deploy is on your word.
+
+- **B16.1 A salon's category, kept in its column (P2 · S · decisions 219, 220).** The discovery filter `GET /providers?category=` reads the `category` column, which only `createSalon` writes; `updateProfile` syncs name, description, address and commune into their columns, never the category (survey §2.1). So a salon that changes category stays listed under the old one, in the apps and on the website. First the read-only production read (decision 220), on your word; then the spec: `updateProfile` writes the column, a migration sets each salon's column from its document, a contract on both twins. **Next.**
+- **B16.2 The demo salon's reset restores its services and hours (P2 · S · decision 219).** The reset sends the captured document back through `updateProfile`, which in Postgres never reaches services, availability, `featured`, `status` or the category (survey §2.2), so a store reviewer's edits stay for the next reviewer. The fix restores them through their own writers; `demo_reset_test.dart` gains a run on Postgres.
+- **B16.3 A taken email answers 409 (P3 · S · decision 219).** `PATCH /me` with another account's email answers 500 on Postgres (the unique index on `lower(email)`), and the twin repoints the email, so a test « proves » that B's sign-in reaches A (survey §2.3). The fix: `409 email_taken` in the route and the contract, a French sentence in each client that sends an email change (the spec reads which), and the twin refusing as Postgres does.
+- **B16.4–B16.10 The reachable twin differences, by store (P3 · decision 221).** After B16.1–B16.3, one spec per group, each red first, with a contract on both twins (survey §5.2; the IDs are §3's):
+  - **B16.4 auth:** B-P1-a, B-P1-b, B-P2-b, B-P2-c (an old Google or Apple sub that keeps signing in, in the twin only);
+  - **B16.5 membership:** D-1, D-2;
+  - **B16.6 subscriptions:** C-S1 (the twin resets the trial);
+  - **B16.7 clients:** A-C1, A-C2, A-C3;
+  - **B16.8 providers:** A-P3, A-P4 (with Postgres's unescaped `ILIKE`, a search for `_` matches every salon);
+  - **B16.9 reviews:** A-R1 (the `201` body's review id that does not exist), A-R2, A-R3;
+  - **B16.10 disputes and the reminder log:** C-D1, D-3 (a reminder tick aborted by a booking deleted under it).
+- **B16.11 The test-only differences (P3 · decision 222).** Each fixed when its store is next touched, not in a sweep; listed in survey §3.2. One exception, its own small piece: the providers and provider-auth twins hand out their own maps, and tests rely on it (A-P6: 7 test sites; B-P1-c: 4 test files), so those tests are rewritten before the twins copy.
+- **B16.12 The rule (decision 223).** BACKEND.md §5: a store with writes has a contract run on both twins. Written in #855; enforced as each store is touched. **Done when #855 merges.**
 
 ---
 

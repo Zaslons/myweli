@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Module** | backend: every repository with an in-memory twin (`lib/src/**`) and a Postgres twin (`lib/src/db/postgres_*.dart`) |
-| **Status** | **Draft 2026-11-24, for the owner's answers** (§6). Docs only: a survey, then each fix through its own short spec. |
+| **Status** | **Answered 2026-11-24, « Approve as recommended »** (§6: decisions 219–223, batch 16). Docs only: a survey, then each fix through its own short spec. |
 | **Owner** | the project owner: the answers, then each spec, build, merge and deploy, each on the owner's word |
 | **Last updated** | 2026-11-24 |
 | **PRD ref / phase** | none: test fidelity, and three production defects it turned up · V1 |
@@ -172,39 +172,39 @@ Admin auth, idempotency, rate limiter, client version, device tokens, notificati
    - **§2.1, the category:** keep the column in step with the document, then one read of production to see whether any salon already differs (Q2);
    - **§2.2, the demo reset:** restore services and hours through the real writers (`replaceAvailability`, the service writes), not through `updateProfile`;
    - **§2.3, `PATCH /me`:** refuse a taken email with `409 email_taken`, in the API, the contract and both apps' copy.
-2. **Then the reachable twin differences, as B15.1 did for bookings:** a contract run on both twins, red first, with the twin brought into line. Grouped by store (Q3): auth (B-P1-a, B-P1-b, B-P2-b), membership (D-1, D-2), subscriptions (C-S1), clients (A-C1, A-C2, A-C3), providers (A-P3, A-P4), reviews (A-R1, A-R2, A-R3), disputes and the reminder log (C-D1, D-3).
+2. **Then the reachable twin differences, as B15.1 did for bookings:** a contract run on both twins, red first, with the twin brought into line. Grouped by store (Q3): auth (B-P1-a, B-P1-b, B-P2-b, B-P2-c), membership (D-1, D-2), subscriptions (C-S1), clients (A-C1, A-C2, A-C3), providers (A-P3, A-P4), reviews (A-R1, A-R2, A-R3), disputes and the reminder log (C-D1, D-3).
 3. **The test-only differences:** fix each when its store is next touched, not in a sweep (Q4). Exception: the aliasing that tests rely on (providers, provider auth) needs those tests rewritten first, as its own small piece.
 4. **One rule for BACKEND.md** (Q5): a store with writes has a contract run on both twins. That is the guard §4 shows working.
 
 ---
 
-## 6. Questions for the owner — recommendation first
+## 6. Questions for the owner — answered 2026-11-24, « Approve as recommended » (decisions 219–223)
 
-Decisions will be numbered from **219** when answered. This becomes batch 16.
+Numbered from **219**, after batch 15's 214–218. This is batch 16 in the BACKLOG.
 
 **Q1. The three production defects (§2): fix them, and in what order?**
 - **Recommended: yes, in this order:**
   1. the category (§2.1): discovery, every user;
   2. the demo reset (§2.2): what store reviewers see;
   3. the taken email (§2.3): rare, but a server error.
-- Each gets its own short spec and PR, and each deploy is on your word.
+- Each gets its own short spec and PR, and each deploy is on your word. → ✅ **Decision 219.**
 - Or another order.
 
 **Q2. Before fixing the category: read production to see whether any salon's `category` column already differs from its document?**
-- **Recommended: yes, read-only**, the same method as batch 14's reads: the Auth Proxy, a read-only session, a probe write refused, aggregates only. A salon that differs gets its column set from its document in the fix's migration, which is your yes again.
+- **Recommended: yes, read-only**, the same method as batch 14's reads: the Auth Proxy, a read-only session, a probe write refused, aggregates only. A salon that differs gets its column set from its document in the fix's migration, which is your yes again. → ✅ **Decision 220.** The read itself runs on the owner's word when B16.1 starts.
 - Or skip the read and let the migration align every salon.
 
 **Q3. The reachable twin differences (§3.2's first table, and the proven ones of §3.1 beyond §2.1–§2.3): fix them by store, B15.1's way?**
-- **Recommended: yes, after Q1's three.** One spec per store group (§5.2), each red first with a contract on both twins.
+- **Recommended: yes, after Q1's three.** One spec per store group (§5.2), each red first with a contract on both twins. → ✅ **Decision 221.**
 - Or only those with a security angle: the old sub that keeps signing in (B-P1-b, B-P2-b).
 - Or none for now.
 
 **Q4. The test-only differences (§3.2, second list)?**
-- **Recommended: fix each when its store is next touched;** they stay listed here.
+- **Recommended: fix each when its store is next touched;** they stay listed here. → ✅ **Decision 222.**
 - Or a sweep now.
 
 **Q5. A rule in BACKEND.md §5: a store with writes has a contract run on both twins?**
-- **Recommended: yes,** written now, enforced as each store is touched. §4 shows it is the guard that works.
+- **Recommended: yes,** written now, enforced as each store is touched. §4 shows it is the guard that works. → ✅ **Decision 223**, written in [BACKEND.md](../BACKEND.md) §5 in the same PR.
 - Or leave it unwritten.
 
 ---
@@ -213,3 +213,4 @@ Decisions will be numbered from **219** when answered. This becomes batch 16.
 
 - **2026-11-24, surveyed:** four independent readers, each citing both sides, covered 28 pairs. Then one throwaway probe on both twins (a disposable database, dropped afterwards) proved eight differences, each with a control. The three production defects were also read end to end.
 - **Not yet reviewed by a second reader as a document.** The readers' findings that were not probed are marked as such.
+- **2026-11-24, answered:** « Approve as recommended », all five (decisions 219–223, batch 16 in the BACKLOG). **Found while recording them:** §5.2's auth group left out B-P2-c, which sits in §3.2's first table and so in Q3's scope; it is added there. The BACKEND.md §5 rule (decision 223) is written in this PR.
