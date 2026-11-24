@@ -154,6 +154,12 @@ describe('the sections (§2.2)', () => {
     expect(s.getByText('Awa')).toBeInTheDocument();
   });
 
+  it('a label–value row wraps instead of squeezing its value', async () => {
+    await open();
+    const dt = within(section('Le rendez-vous')).getByText('Date');
+    expect(dt.parentElement!.className).toContain('flex-wrap');
+  });
+
   it('a salon one hour ahead: the times are its own', async () => {
     await open({ providerTimezone: 'Africa/Libreville' });
     expect(within(section('Le rendez-vous')).getByText('10:00 – 11:30')).toBeInTheDocument();
