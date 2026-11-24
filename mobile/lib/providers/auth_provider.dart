@@ -41,6 +41,13 @@ class AuthProvider extends ChangeNotifier {
   String? get updateErrorCode => _updateErrorCode;
   bool get isAuthenticated => _user != null;
 
+  /// Moves once per sign-in the person made here (Google, Apple, a code) —
+  /// never for the session restored at launch. What listens to it reloads the
+  /// account's data on screens that stayed open under the sign-in, which `go`
+  /// used to hide by rebuilding everything (consumer-signin-push.md §2.3).
+  int get signInSerial => _signInSerial;
+  int _signInSerial = 0;
+
   AuthProvider() {
     _sessionEnds = _authService.sessionEnded.listen((_) => _onSessionEnded());
     _loadCurrentUser();
@@ -177,6 +184,7 @@ class AuthProvider extends ChangeNotifier {
         _setUser(response.data);
         _error = null;
         _otpErrorCode = null;
+        _signInSerial++;
         _syncPush();
         return true;
       } else {
@@ -213,6 +221,7 @@ class AuthProvider extends ChangeNotifier {
         _setUser(response.data);
         _error = null;
         _otpErrorCode = null;
+        _signInSerial++;
         _syncPush();
         return true;
       }

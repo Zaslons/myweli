@@ -16,6 +16,7 @@ import '../../screens/profile/profile_screen.dart';
 import '../../screens/providers/provider_detail_screen.dart';
 import '../../screens/providers/provider_list_screen.dart';
 import '../../screens/splash/splash_screen.dart';
+import '../auth/open_sign_in.dart';
 import '../utils/salon_id.dart';
 
 class AppRouter {
@@ -34,8 +35,14 @@ class AppRouter {
         path: '/login',
         name: 'login',
         builder: (context, state) {
-          final returnTo = state.uri.queryParameters['returnTo'];
-          return LoginScreen(returnTo: returnTo);
+          // consumer-signin-push.md §2.1: opened by `openSignIn` (pushed,
+          // over the screen the person is on). `returnTo` serves only a
+          // sign-in with nothing beneath it.
+          final q = state.uri.queryParameters;
+          return LoginScreen(
+            returnTo: q['returnTo'],
+            reason: SignInReason.fromKey(q['reason']),
+          );
         },
       ),
       GoRoute(

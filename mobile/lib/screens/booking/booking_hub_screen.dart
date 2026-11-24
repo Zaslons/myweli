@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/a11y/reduce_motion.dart';
+import '../../core/auth/open_sign_in.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/colors.dart';
 import '../../core/theme/motion.dart';
@@ -15,6 +16,7 @@ import '../../core/utils/salon_time.dart';
 import '../../models/provider.dart' as models;
 import '../../models/service.dart';
 import '../../providers/appointment_provider.dart';
+import '../../providers/auth_provider.dart';
 import '../../providers/provider_provider.dart';
 import '../../widgets/booking/length_variant_selector.dart';
 import '../../widgets/booking/slot_picker.dart';
@@ -390,6 +392,18 @@ class _BookingHubScreenState extends State<BookingHubScreen> {
       return;
     }
     setState(() => _selectionError = null);
+
+    // The booking's sign-in, here at « Confirmer », before the confirmation
+    // opens — as the website does (consumer-signin-push.md §2.4, decision
+    // 204). « Fermer » leaves the person on this screen, their choice intact;
+    // signed in, the confirmation opens with it.
+    if (!context.read<AuthProvider>().isAuthenticated) {
+      final signedIn = await openSignIn(
+        GoRouter.of(context),
+        reason: SignInReason.booking,
+      );
+      if (!signedIn || !mounted) return;
+    }
 
     final qs = <String, String>{
       'providerId': widget.providerId,

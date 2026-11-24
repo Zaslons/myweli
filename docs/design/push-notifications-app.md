@@ -52,6 +52,12 @@ notification_preferences ─────┘                                  └
 ```
 - `PushRegistration` is the only orchestrator; services stay dumb. Idempotent:
   guards a one-time "asked" flag (shared_preferences) so we never nag.
+  **Since A3 (2026-11-24, decisions 209–210), the client app no longer asks
+  once:** `maybeOfferAfterBooking` offers the sheet up to 3 times, at least 7
+  days apart, every offer counted; Préférences' `PushOffCard` asks at any time
+  (`enableFromSettings`). The one-time flag stays for MyWeli Pro's dashboard
+  (`maybePromptOnce`). [consumer-signin-push.md](consumer-signin-push.md)
+  §2.9–§2.10.
 - `PushNotificationService` default = `MockPushNotificationService` (TODO accounts:
   `FcmPushNotificationService`). `DeviceRegistrationService` = api when
   `AppConfig.useApiBackend`, else mock.
@@ -62,7 +68,9 @@ notification_preferences ─────┘                                  └
 - **Rationale sheet** (reuses the bottom-sheet + `AppButton` + tokens):
   «Activez les notifications pour vos rappels et confirmations de rendez-vous.»
   → **« Activer »** triggers the OS prompt; **« Plus tard »** defers (asked-flag
-  set so we don't nag).
+  set so we don't nag). *(Client app since A3: « Plus tard » means later — the
+  sheet comes back after a later booking, within the limits above. On an
+  iPhone, « never again » meant Settings had no switch to turn on.)*
 - **States:** notDetermined · rationale shown · granted (→ get token → register) ·
   denied (no nag) · alreadyGranted (skip the sheet, register silently). The
   denied→OS-settings re-enable entry lands with the real plugin (accounts phase;

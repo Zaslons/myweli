@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/auth/open_sign_in.dart';
 import '../../core/config/app_config.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/colors.dart';
@@ -70,14 +71,17 @@ class ProfileScreen extends StatelessWidget {
                 SettingsTile(
                   icon: Icons.edit,
                   title: 'Modifier le profil',
-                  onTap: () {
+                  onTap: () async {
                     if (user == null) {
-                      context.go(
-                        '/login?returnTo=${Uri.encodeComponent('/profile')}',
+                      // Sign in over Profil, then on to the edit screen
+                      // (consumer-signin-push.md §2.4).
+                      final signedIn = await openSignIn(
+                        GoRouter.of(context),
+                        reason: SignInReason.profile,
                       );
-                      return;
+                      if (!signedIn || !context.mounted) return;
                     }
-                    context.push('/profile/edit');
+                    await context.push('/profile/edit');
                   },
                 ),
                 if (user != null)
@@ -160,8 +164,12 @@ class ProfileScreen extends StatelessWidget {
                         // Every store of the account is reset by the sign-out
                         // itself (AccountScope — consumer-account-scope.md).
                         await authProvider.logout();
-                        if (context.mounted) {
-                          context.go('/login');
+                        // A guest can browse: signing out lands on Accueil,
+                        // not on a sign-in (decision 208). Said only once it
+                        // happened — a failed sign-out keeps the account.
+                        if (context.mounted && !authProvider.isAuthenticated) {
+                          context.go('/home');
+                          AppSnackBar.show(context, 'Vous êtes déconnecté·e.');
                         }
                       }
                     },
@@ -169,11 +177,7 @@ class ProfileScreen extends StatelessWidget {
                 else
                   AppButton(
                     text: 'Se connecter',
-                    onPressed: () {
-                      context.go(
-                        '/login?returnTo=${Uri.encodeComponent('/profile')}',
-                      );
-                    },
+                    onPressed: () => openSignIn(GoRouter.of(context)),
                   ),
               ],
             ),
@@ -195,7 +199,8 @@ class ProfileScreen extends StatelessWidget {
     if (!context.mounted) return;
 
     if (success) {
-      context.go('/login');
+      // Accueil, as after a sign-out (decision 208).
+      context.go('/home');
       AppSnackBar.show(context, 'Compte supprimé', kind: SnackKind.success);
     } else {
       AppSnackBar.show(

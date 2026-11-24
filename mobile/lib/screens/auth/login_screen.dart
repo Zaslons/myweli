@@ -6,6 +6,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/auth/open_sign_in.dart';
 import '../../core/config/feature_flags.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/forms/field_errors.dart';
@@ -16,6 +17,7 @@ import '../../core/theme/text_styles.dart';
 import '../../core/utils/validators.dart';
 import '../../providers/auth_provider.dart';
 import '../../widgets/common/app_button.dart';
+import '../../widgets/common/app_snack_bar.dart';
 import '../../widgets/common/app_text_field.dart';
 import '../../widgets/common/apple_logo.dart';
 import '../../widgets/common/google_g_logo.dart';
@@ -29,10 +31,25 @@ import '../../widgets/common/screen_title.dart';
 /// successful login where the account has no phone, a **mandatory contact
 /// phone step** blocks until saved — the salon needs a number to reach the
 /// client. Design: docs/design/app-auth-social.md.
+///
+/// **A detour the person can leave** (consumer-signin-push.md §2.1–§2.2): it
+/// is pushed OVER the screen they were on (`openSignIn`), « Fermer » takes
+/// them back there, and its opener hears whether they came back signed in
+/// (`SignInGate`). With nothing beneath it, « Fermer » goes to Accueil and
+/// success to [returnTo].
 class LoginScreen extends StatefulWidget {
+  /// Where success goes when nothing is beneath — an in-app path only
+  /// (`safeReturnTo`).
   final String? returnTo;
 
-  const LoginScreen({super.key, this.returnTo});
+  /// Why it opened: the line under « Bienvenue ».
+  final SignInReason reason;
+
+  const LoginScreen({
+    super.key,
+    this.returnTo,
+    this.reason = SignInReason.none,
+  });
 
   @override
   State<LoginScreen> createState() => _LoginScreenState();
@@ -61,8 +78,27 @@ class _LoginScreenState extends State<LoginScreen> {
   bool get _showApple =>
       FeatureFlags.appleSignIn && defaultTargetPlatform == TargetPlatform.iOS;
 
+  /// Kept for [dispose], where `context.read` no longer works: whatever
+  /// removed this screen, its opener hears whether the person is signed in.
+  AuthProvider? _auth;
+
+  /// This screen's answer to ITS opener — never the next one's (see
+  /// `SignInGate.ticket`).
+  final SignInTicket? _ticket = SignInGate.ticket();
+
+  /// « Fermer » on the phone step is signing out: « Continuer » must not
+  /// spin for a request it did not start (§2.2).
+  bool _cancelling = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _auth = context.read<AuthProvider>();
+  }
+
   @override
   void dispose() {
+    _ticket?.answer(_auth?.isAuthenticated ?? false);
     _cooldownTimer?.cancel();
     _emailController.dispose();
     _codeController.dispose();
@@ -82,7 +118,76 @@ class _LoginScreenState extends State<LoginScreen> {
     _finish();
   }
 
-  void _finish() => context.go(widget.returnTo ?? '/home');
+  void _finish() => _leave(signedIn: true);
+
+  /// Leaves the sign-in. Pushed over a screen (the rule, §2.1): back to it,
+  /// and the opener hears the answer AFTER the pop, so what it does next
+  /// lands on that screen, not on this one. Nothing beneath: Accueil, or
+  /// [LoginScreen.returnTo] once signed in.
+  void _leave({required bool signedIn}) {
+    // Flutter's own navigator: the screen also works without a router
+    // above it (the layout tests build it alone).
+    final navigator = Navigator.of(context);
+    if (navigator.canPop()) {
+      // Its OWN route: whatever opened above it (a picker of the phone
+      // field) goes first. Nothing else is ever pushed above the sign-in —
+      // a notification tap waits for it to close (main.dart).
+      final route = ModalRoute.of(context);
+      if (route != null && !route.isCurrent) {
+        navigator.popUntil((r) => r == route);
+      }
+      navigator.pop(signedIn);
+      _ticket?.answer(signedIn);
+      return;
+    }
+    GoRouter.maybeOf(
+      context,
+    )?.go(signedIn ? safeReturnTo(widget.returnTo) : '/home');
+  }
+
+  /// « Fermer », and the system back where it means the same (§2.2).
+  Future<void> _close() async {
+    if (context.read<AuthProvider>().isLoading) return;
+    if (_step == _LoginStep.phone) {
+      await _cancelPhoneStep();
+      return;
+    }
+    _leave(signedIn: false);
+  }
+
+  /// The number is required for an account in the app (decision of
+  /// 2026-07-02; decision 206): leaving this step cancels the sign-in. Said
+  /// on the step before anyone taps; « Connexion annulée. » only once the
+  /// sign-out really happened — a failed one leaves the person here, signed
+  /// in, with its own sentence under the form.
+  Future<void> _cancelPhoneStep() async {
+    final auth = context.read<AuthProvider>();
+    final messenger = ScaffoldMessenger.of(context);
+    setState(() => _cancelling = true);
+    await auth.logout();
+    if (!mounted) return;
+    setState(() => _cancelling = false);
+    if (auth.isAuthenticated) return;
+    _leave(signedIn: false);
+    AppSnackBar.showOn(messenger, 'Connexion annulée.');
+  }
+
+  /// System back and the iOS swipe (§2.2). On the options step, with a
+  /// screen beneath, they simply close it — the route pops itself, and
+  /// [dispose] answers. On the code step, back returns to the e-mail; on the
+  /// phone step it is « Fermer »; while a request runs it is ignored.
+  void _onPop(bool didPop) {
+    if (didPop) return;
+    if (context.read<AuthProvider>().isLoading) return;
+    switch (_step) {
+      case _LoginStep.options:
+        _leave(signedIn: false);
+      case _LoginStep.code:
+        setState(() => _step = _LoginStep.options);
+      case _LoginStep.phone:
+        _cancelPhoneStep();
+    }
+  }
 
   Future<void> _handleGoogle() async {
     final auth = context.read<AuthProvider>();
@@ -214,27 +319,50 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthProvider>();
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      appBar: AppBar(title: const ScreenTitle('Connexion')),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(AppTheme.spacingL),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const SizedBox(height: AppTheme.spacingL),
-              // Brand lockup (mark + MyWeli wordmark) — black on the light bg.
-              SvgPicture.asset(
-                'assets/brand/myweli_lockup_vertical_black.svg',
-                height: 110,
-                semanticsLabel: 'MyWeli',
-              ),
-              const SizedBox(height: AppTheme.spacingL),
-              ..._buildStep(auth),
-              const SizedBox(height: AppTheme.spacingL),
-              if (_step != _LoginStep.phone) const LegalConsentText(),
-            ],
+    return PopScope(
+      // Only the options step, idle, with a screen beneath, lets the route
+      // pop itself (and the iOS swipe with it). Every other case is decided
+      // in [_onPop] — on the code and phone steps that turns the swipe off,
+      // which is Flutter's rule for `canPop: false` (§2.2).
+      canPop:
+          !auth.isLoading &&
+          _step == _LoginStep.options &&
+          Navigator.of(context).canPop(),
+      onPopInvokedWithResult: (didPop, _) => _onPop(didPop),
+      child: Scaffold(
+        backgroundColor: AppColors.background,
+        appBar: AppBar(
+          automaticallyImplyLeading: false,
+          // A close, not a back arrow: the sign-in is a detour the person did
+          // not ask for, and closing it cancels the detour (§2.2). Disabled
+          // while a request runs: a sign-in that lands after the screen has
+          // gone would leave them signed in while they believe they cancelled.
+          leading: IconButton(
+            icon: const Icon(Icons.close),
+            tooltip: 'Fermer',
+            onPressed: auth.isLoading ? null : _close,
+          ),
+          title: const ScreenTitle('Connexion'),
+        ),
+        body: SafeArea(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(AppTheme.spacingL),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const SizedBox(height: AppTheme.spacingL),
+                // Brand lockup (mark + MyWeli wordmark) — black on the light bg.
+                SvgPicture.asset(
+                  'assets/brand/myweli_lockup_vertical_black.svg',
+                  height: 110,
+                  semanticsLabel: 'MyWeli',
+                ),
+                const SizedBox(height: AppTheme.spacingL),
+                ..._buildStep(auth),
+                const SizedBox(height: AppTheme.spacingL),
+                if (_step != _LoginStep.phone) const LegalConsentText(),
+              ],
+            ),
           ),
         ),
       ),
@@ -260,7 +388,9 @@ class _LoginScreenState extends State<LoginScreen> {
     ),
     const SizedBox(height: AppTheme.spacingS),
     Text(
-      'Connectez-vous pour réserver en quelques secondes.',
+      // Why it opened (§2.2) — « Connectez-vous pour réserver en quelques
+      // secondes. » when nothing in particular.
+      widget.reason.line,
       style: AppTextStyles.bodyLarge.copyWith(color: AppColors.textSecondary),
       textAlign: TextAlign.center,
     ),
@@ -389,6 +519,13 @@ class _LoginScreenState extends State<LoginScreen> {
       style: AppTextStyles.bodyLarge.copyWith(color: AppColors.textSecondary),
       textAlign: TextAlign.center,
     ),
+    const SizedBox(height: AppTheme.spacingS),
+    // Said before anyone taps « Fermer » (decision 206).
+    Text(
+      'Sans numéro, la connexion est annulée.',
+      style: AppTextStyles.bodyMedium.copyWith(color: AppColors.textSecondary),
+      textAlign: TextAlign.center,
+    ),
     const SizedBox(height: AppTheme.spacingL),
     PhoneNumberField(
       // A7 said this field sat outside any Form so the package's check
@@ -408,7 +545,8 @@ class _LoginScreenState extends State<LoginScreen> {
     AppButton(
       text: 'Continuer',
       onPressed: auth.isLoading ? null : _savePhone,
-      isLoading: auth.isLoading,
+      // Not while « Fermer » signs out: that request is not this button's.
+      isLoading: auth.isLoading && !_cancelling,
     ),
     // §14 rule 3 + §15: a server OUTCOME is form-level, not a field fault
     // — and `InlineFeedback` is a live region, which a hand-rolled red Text

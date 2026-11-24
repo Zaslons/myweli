@@ -490,6 +490,8 @@ L = a week or more. **Risk** is to the submission or to a user's trust.
 
 **2026-11-23 — A1w built** (#838; [web-account-bookings-truth.md](web-account-bookings-truth.md), decisions 182–186): the web half of gap 15. The website files a client's bookings by the app's table, and « Passés » is the app's history. The app's months now follow the salon's zone, like its cards (decision 186). That reaches clients with the next consumer build; the website changes when the PR is merged, which is a production deploy.
 
+**2026-11-24 — A3 built** ([consumer-signin-push.md](consumer-signin-push.md), decisions 204–213): gap 10 and gap 17 in the app. The sign-in opens over the screen the person is on, with « Fermer », and returns there; « Rendez-vous » and « Actu » draw a signed-out page; Préférences offers « Activer les notifications » to a phone never asked, and « Plus tard » brings the sheet back after a later booking (3 offers, 7 days apart). MyWeli Pro gets the same card. It reaches clients with the next consumer build; the website's two hearts follow in A3w.
+
 ---
 
 ## 7. Proposed order of work

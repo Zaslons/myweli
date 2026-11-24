@@ -1,0 +1,48 @@
+- 🟡 **MyWeli (client), A3 : une connexion qu’on peut quitter, et des notifications qu’on peut activer plus tard — construit (app · 2026-11-24 — décisions 204 à 213 ; spec [consumer-signin-push.md](../../design/consumer-signin-push.md) ; écarts 10 et 17 de l’audit).** Branche `feat/consumer-signin-push`, créée depuis `main` (`e680d52f`). La fusion ne déploie rien : le changement atteint les clients avec le prochain build de l’app cliente, et les salons avec le prochain build de MyWeli Pro (sa carte).
+  - **La connexion s’ouvre par-dessus l’écran où l’on est :**
+    - une seule fonction, `openSignIn`, remplace les 13 entrées qui remplaçaient l’écran ;
+    - « Fermer » (48 px) ramène exactement où l’on était ;
+    - la raison est écrite sur l’écran (« Connectez-vous pour ajouter ce salon à vos favoris. »…) au lieu d’un message qui passe.
+  - **Le retour, étape par étape :**
+    - sur l’étape du code, le retour système ramène à l’e-mail ;
+    - sur l’étape du numéro, « Fermer » déconnecte (« Sans numéro, la connexion est annulée. ») et dit « Connexion annulée. » seulement si la déconnexion a eu lieu ;
+    - pendant une requête, « Fermer » attend.
+  - **Pour réserver, la connexion se fait au « Confirmer » de l’écran de réservation**, comme sur le site. Fermer y laisse la personne, son choix intact.
+  - **Les écrans restés ouverts chargent le compte qui vient de se connecter :**
+    - les favoris et les rendez-vous se rechargent à la racine (`AccountLoader`), et le détail d’un rendez-vous, Préférences et « Mes données » se rechargent eux-mêmes ;
+    - deux lectures des favoris du même compte n’en font plus qu’une : la plus ancienne aurait effacé le salon qu’on venait d’ajouter.
+  - **Un cœur touché avant la connexion est appliqué après**, sans jamais retirer un favori déjà là : « Ajouté aux favoris », « Déjà dans vos favoris » ou la phrase d’échec.
+  - **« Rendez-vous » et « Actu » dessinent une page déconnectée** avec « Se connecter ». La déconnexion et la suppression du compte mènent à l’Accueil (« Vous êtes déconnecté·e. »).
+  - **Une session expirée sur un écran du compte** ouvre la connexion par-dessus cet écran et y revient ; « Fermer » ramène à l’écran le plus proche qui sait se montrer déconnecté.
+  - **Corrigé au passage, un défaut d’aujourd’hui :** l’avis « session expirée » lisait une adresse qui ignore les écrans ouverts par `push`. Or tous les écrans du compte le sont : il croyait la personne sur l’Accueil.
+  - **Les notifications :**
+    - Préférences montre l’état de ce téléphone, avec « Activer les notifications » quand il n’a jamais été demandé ;
+    - la feuille revient après une réservation suivante : 3 offres en tout, à 7 jours d’écart au moins, chaque offre comptée ;
+    - les deux phrases de Préférences disent vrai ;
+    - MyWeli Pro reçoit la même carte. Sa demande sur le tableau de bord ne change pas.
+  - **Un seul écart avec la spec approuvée, écrit dans son §2.2 :**
+    - la spec disait que les inscriptions et désinscriptions du téléphone passent « l’une après l’autre » ;
+    - ainsi construite, chaque déconnexion attendait l’inscription en cours, celle de MyWeli Pro comprise : une requête bloquée aurait laissé « Déconnexion » tourner sans fin ;
+    - désormais, une inscription pas encore envoyée quand on se déconnecte est abandonnée, et la déconnexion n’attend jamais.
+  - **Relu par un lecteur indépendant, chargé de le réfuter :** 11 constats, chacun vérifié dans le code. Corrigés et testés :
+    - une connexion fermée pouvait répondre à la suivante : chaque écran répond désormais à SON appelant ;
+    - « Modifier le profil » gardait les données du compte précédent après une connexion par-dessus ;
+    - une notification touchée pendant l’étape du numéro pouvait s’ouvrir pour un invité après « Fermer » ;
+    - l’avis de session expirée ne survit pas à la page d’erreur ;
+    - une lecture des favoris envoyée avant un cœur ne se partage plus ;
+    - « Continuer » ne tourne plus pendant « Fermer » ;
+    - trois tests promis par la spec manquaient : la suppression, une déconnexion échouée, une session expirée sur Préférences.
+  - **Noté, non corrigé (spec §13) :** les lectures de la liste et du détail d’un rendez-vous partagent le même indicateur de chargement et la même erreur. Après une connexion par-dessus un détail, l’erreur de la liste peut s’y afficher un instant. Ce partage est antérieur à A3 ; c’est une suite.
+  - **Vérifié :**
+    - l’analyse est à 0 et le format est propre ;
+    - la suite mobile complète passe : 4 209 tests, aucun échec, les images de référence ne tournant que sous Linux ;
+    - 33 mutations, chacune vue rouge, avec un témoin vert ; leur liste est dans les messages de commit ;
+    - les vérifications de mise en page à 200 % passent.
+  - **Les images de référence, faites sous Linux (run 45429575845) et ouvertes une à une :**
+    - la connexion change (« Fermer ») ;
+    - sept sont nouvelles : la connexion pour un cœur, les deux pages déconnectées et Préférences avec sa carte, à 1× et à 200 % ;
+    - les 73 autres sont identiques à l’octet près ;
+    - une première exécution avait photographié les pages déconnectées connectées : une session laissée par un test précédent. C’est corrigé, avec un témoin.
+  - **Reste :**
+    - la PR et sa fusion, sur le mot du propriétaire ;
+    - puis A3w, les deux cœurs du site, dont la fusion est un déploiement en production.
