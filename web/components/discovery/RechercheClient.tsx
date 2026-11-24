@@ -22,6 +22,11 @@ import { firstPhotoIndex, ProviderCard } from '../provider/ProviderCard';
 import { Toast } from '../Toast';
 import { useToast } from '../../lib/useToast';
 import { announceFavorite } from '../../lib/account/favorite-toast';
+import {
+  FAVORITE_ALREADY,
+  signInForFavorite,
+  takeFavoriteAfterSignIn,
+} from '../../lib/account/favorite-after-sign-in';
 
 // Leaflet is browser-only → client-side dynamic import; the chunk loads only
 // on /recherche (public-page CWV budgets untouched).
@@ -98,6 +103,14 @@ export function RechercheClient({
   const [mobileView, setMobileView] = useState<'list' | 'map'>('list');
   const listScrollY = useRef(0);
   const toggleRef = useRef<HTMLButtonElement>(null);
+  // A 401 that answers after the person has left this page sends them nowhere.
+  const mounted = useRef(false);
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
   const cardRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
   const mappable = withCoords(results);
@@ -115,12 +128,19 @@ export function RechercheClient({
     getFavorites()
       .then((r) => {
         if (!active) return;
+        const ids = new Set(r.favorites.map((f) => f.id));
         if (r.status === 200) {
-          setFavIds(new Set(r.favorites.map((f) => f.id)));
+          setFavIds(ids);
           setFavRead('known');
         } else {
           setFavRead(r.status === 401 ? 'anonymous' : 'failed');
         }
+        // Taken once, inside the answer: the take forgets the stored heart, so
+        // a second answer (React's development double-mount) finds nothing;
+        // an answer after the page was left is ignored above
+        // (docs/design/consumer-signin-push.md §14.4).
+        const pending = takeFavoriteAfterSignIn();
+        if (pending) void favoriteAfterSignIn(pending, r.status, ids);
       })
       .catch(() => {
         if (active) setFavRead('failed');
@@ -128,11 +148,48 @@ export function RechercheClient({
     return () => {
       active = false;
     };
+    // `favoriteAfterSignIn` is this render's; the read runs once, as before.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  function toLogin() {
+  /// The sign-in, back to this search. `adding` carries that card's heart
+  /// across it, to be applied on the way back (§14, decision 205); a removal
+  /// (a session that ended) is not carried.
+  function toLogin(adding?: string) {
     const back = `${window.location.pathname}${window.location.search}`;
-    window.location.assign(`/connexion?returnTo=${encodeURIComponent(back)}`);
+    window.location.assign(
+      adding
+        ? signInForFavorite(adding, back)
+        : `/connexion?returnTo=${encodeURIComponent(back)}`,
+    );
+  }
+
+  /// A heart a guest tapped, applied once they are back from its sign-in —
+  /// the app's three outcomes (§14.2 step 5). The card is normally on the page,
+  /// since `returnTo` is this same search.
+  async function favoriteAfterSignIn(id: string, readStatus: number, ids: Set<string>) {
+    if (readStatus === 401) return; // no session after all: nothing to apply
+    if (readStatus !== 200) {
+      sayFailure(id, writeFailureMessage(readStatus));
+      return;
+    }
+    if (ids.has(id)) {
+      show(FAVORITE_ALREADY, 'info');
+      return;
+    }
+    if (await writeFavorite(id, true)) {
+      announceFavorite(show, dismiss, true, () => void writeFavorite(id, false));
+    }
+  }
+
+  /// A refused heart says why under its card; a salon that has left the
+  /// results has no card, so the toast says it (§14.4).
+  function sayFailure(id: string, message: string) {
+    if (results.some((p) => p.id === id)) {
+      setFavErrors((e) => ({ ...e, [id]: message }));
+    } else {
+      show(message, 'error');
+    }
   }
 
   /// Like the app's heart, it waits for the server, then says what it did —
@@ -141,7 +198,8 @@ export function RechercheClient({
     // Unknown is not the same as anonymous.
     if (favRead === 'loading' || pendingRef.current.has(id)) return;
     if (favRead === 'anonymous') {
-      toLogin();
+      // Only an empty heart can be tapped by a guest: it is an add.
+      toLogin(id);
       return;
     }
     const adding = !favIds.has(id);
@@ -162,11 +220,11 @@ export function RechercheClient({
     pendingRef.current.delete(id);
     setPending(new Set(pendingRef.current));
     if (r.status === 401) {
-      toLogin();
+      if (mounted.current) toLogin(add ? id : undefined);
       return false;
     }
     if (!r.ok) {
-      setFavErrors((e) => ({ ...e, [id]: writeFailureMessage(r.status) }));
+      sayFailure(id, writeFailureMessage(r.status));
       return false;
     }
     setFavIds((cur) => {

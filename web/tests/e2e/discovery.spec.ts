@@ -77,7 +77,11 @@ test('/recherche: anonymous heart → /connexion with returnTo (parity 2.15)', a
   await page
     .getByRole('button', { name: 'Ajouter Beauté Divine aux favoris' })
     .click();
-  await expect(page).toHaveURL(/\/connexion\?returnTo=/);
+  // Since A3w the sign-in says why it opened, and the return carries the heart's
+  // marker (docs/design/consumer-signin-push.md §14.2).
+  await expect(page).toHaveURL(
+    /\/connexion\?raison=favori&returnTo=%2Frecherche%3Fq%3Dtresses%26suite%3Dfavori$/,
+  );
 });
 
 test('/recherche on a phone: the ♥ says what it did, above the « Carte » toggle, and « Annuler » takes it back (web-client-polish.md §2.4)', async ({

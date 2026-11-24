@@ -171,7 +171,9 @@ describe('B5.2 — the search ♥ when the favourites read failed', () => {
 
     await waitFor(() =>
       expect(assign).toHaveBeenCalledWith(
-        `/connexion?returnTo=${encodeURIComponent('/recherche?q=tresses')}`,
+        // An add's 401 carries the heart across the sign-in
+        // (docs/design/consumer-signin-push.md §14.2).
+        `/connexion?raison=favori&returnTo=${encodeURIComponent('/recherche?q=tresses&suite=favori')}`,
       ),
     );
     expectNothingAnnounced();

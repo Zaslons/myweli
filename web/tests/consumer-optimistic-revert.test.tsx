@@ -453,7 +453,7 @@ describe('Le ♥ du salon (§3.2 ④)', () => {
     expect(screen.queryByRole('alert')).toBeNull();
   });
 
-  it('a 401 still leads to the login page, without a sentence (unchanged)', async () => {
+  it('a 401 still leads to the login page, without a sentence — carrying the heart (A3w)', async () => {
     mockFetch({
       'GET /api/me/favorites': { status: 200, body: { favorites: [] } },
       'POST /api/me/favorites/p1': { status: 401 },
@@ -463,7 +463,11 @@ describe('Le ♥ du salon (§3.2 ④)', () => {
     fireEvent.click(screen.getByRole('button', { name: /Ajouter aux favoris/ }));
 
     await waitFor(() =>
-      expect(push).toHaveBeenCalledWith('/connexion?returnTo=%2Fbeaute-divine'),
+      // An add's 401 carries the heart across the sign-in
+      // (docs/design/consumer-signin-push.md §14.2).
+      expect(push).toHaveBeenCalledWith(
+        `/connexion?raison=favori&returnTo=${encodeURIComponent('/beaute-divine?suite=favori')}`,
+      ),
     );
     expect(screen.queryByRole('alert')).toBeNull();
   });
@@ -561,7 +565,7 @@ describe('Le ♥ de la recherche (§3.2 ⑤)', () => {
 
     await waitFor(() =>
       expect(assign).toHaveBeenCalledWith(
-        `/connexion?returnTo=${encodeURIComponent('/recherche?q=tresses')}`,
+        `/connexion?raison=favori&returnTo=${encodeURIComponent('/recherche?q=tresses&suite=favori')}`,
       ),
     );
     expect(screen.queryByRole('alert')).toBeNull();

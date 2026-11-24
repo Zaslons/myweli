@@ -15,6 +15,7 @@ vi.mock('../lib/api/account', async (importOriginal) => ({
 }));
 
 import { RechercheClient } from '../components/discovery/RechercheClient';
+import { FavoriteButton } from '../components/provider/FavoriteButton';
 import { emptyTree } from '../lib/localities';
 import { providerFixture } from './fixtures';
 
@@ -54,5 +55,22 @@ describe('the search ♥ when the favourites read throws', () => {
       'true',
     );
     expect(assign).not.toHaveBeenCalled();
+  });
+});
+
+describe('the salon page’s ♥ when the favourites read throws', () => {
+  // It waits for its read since A3w (docs/design/consumer-signin-push.md
+  // §14.4): a read that throws must not leave it waiting for ever.
+  it('the heart is usable and writes', async () => {
+    const fetchMock = vi.fn(async () => new Response(null, { status: 204 }));
+    vi.stubGlobal('fetch', fetchMock);
+    render(<FavoriteButton providerId="p1" slug="beaute-divine" />);
+    const heart = screen.getByRole('button', { name: /Ajouter aux favoris/ });
+    await waitFor(() => expect(heart).toBeEnabled());
+    fireEvent.click(heart);
+    expect(await screen.findByRole('button', { name: /Favori/ })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
   });
 });

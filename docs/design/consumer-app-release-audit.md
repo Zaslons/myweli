@@ -492,6 +492,8 @@ L = a week or more. **Risk** is to the submission or to a user's trust.
 
 **2026-11-24 — A3 built** ([consumer-signin-push.md](consumer-signin-push.md), decisions 204–213): gap 10 and gap 17 in the app. The sign-in opens over the screen the person is on, with « Fermer », and returns there; « Rendez-vous » and « Actu » draw a signed-out page; Préférences offers « Activer les notifications » to a phone never asked, and « Plus tard » brings the sheet back after a later booking (3 offers, 7 days apart). MyWeli Pro gets the same card. It reaches clients with the next consumer build; the website's two hearts follow in A3w.
 
+**2026-11-24 — A3 merged (#854); A3w built** ([consumer-signin-push.md](consumer-signin-push.md) §14, decision 205): on the website, a guest's heart on the salon page or a search card is applied once they are back from the sign-in it opened, and `/connexion` says why it opened. The website changes when the PR is merged, which is a production deploy.
+
 ---
 
 ## 7. Proposed order of work

@@ -1,0 +1,32 @@
+- 🟡 **Site, A3w : le cœur d’un invité est appliqué à son retour de la connexion (web · 2026-11-24 — décision 205 ; spec [consumer-signin-push.md](../../design/consumer-signin-push.md) §14).** Branche `feat/web-heart-after-signin`, créée depuis `main` (`aa3fe341`). Sa fusion est un déploiement en production de `myweli.com`, sur le mot du propriétaire. Aucun point d’API ne change.
+  - **Avant :** sur la page d’un salon comme sur les cartes de la recherche, un invité qui touchait le cœur partait vers `/connexion`, revenait connecté sur la même page, et devait toucher le cœur une seconde fois.
+  - **Maintenant, comme dans l’app (A3) :**
+    - le cœur est retenu dans cet onglet, et `/connexion` dit pourquoi elle s’ouvre : « Connectez-vous pour ajouter ce salon à vos favoris. » ;
+    - au retour, la page lit les favoris du compte, puis ajoute le salon : « Ajouté aux favoris », avec « Annuler » ;
+    - si le salon y était déjà (ajouté depuis le téléphone), rien n’est envoyé et la page dit « Déjà dans vos favoris » : un basculement l’aurait retiré ;
+    - si la lecture ou l’ajout échoue, la phrase d’échec habituelle s’affiche, sous le bouton ou sous la carte, et le cœur reste vide.
+  - **Deux clés, toutes deux nécessaires :** le cœur retenu dans l’onglet, et le marqueur `suite=favori` dans l’adresse de retour.
+    - un lien qui porte le marqueur seul n’ajoute rien ;
+    - un cœur retenu seul n’est pas appliqué lors d’une visite ultérieure ;
+    - un cœur vieux de plus de 30 minutes non plus ;
+    - le marqueur disparaît de l’adresse au retour, les autres paramètres de la recherche restent.
+  - **Ce qui ne change pas :**
+    - un retrait qui répond 401 (session terminée) ouvre la connexion sans rien retenir ;
+    - le focus ne bouge pas au chargement : le toast l’annonce, et le cœur reste un retour en arrière.
+  - **Relu par un lecteur indépendant, chargé de le réfuter :** 7 constats, chacun vérifié dans le code (spec §14.7). Corrigés et testés :
+    - sur la page du salon, un cœur touché pendant la lecture des favoris envoyait l’ajout deux fois, et un « Annuler » glissé entre les deux était défait : le cœur attend désormais sa lecture, comme ceux de la recherche ;
+    - **une redirection ouverte, antérieure à A3w :** `returnTo=/\evil.example` passait le contrôle de `/connexion`, et le navigateur le lit comme un autre site, atteint juste après la connexion. La ligne de raison l’aurait rendu plus crédible. L’adresse de retour est désormais résolue comme le navigateur la résout, et gardée seulement si elle reste sur le site ;
+    - un 401 qui répond après qu’on a quitté la page n’envoie plus nulle part ;
+    - deux attentes du test de bout en bout ne pouvaient pas échouer : il attend maintenant la lecture des favoris, et son témoin retient un cœur puis se connecte autrement ;
+    - les commentaires attribuaient au mauvais garde l’application unique du cœur ; une page quittée avant sa lecture a maintenant son test.
+  - **Noté, non corrigé :** `web/lib/pro/notifications.ts:16` lit une route du fil avec le même contrôle. Ces routes sont écrites par le serveur, pas par un lien ; c’est une suite pour le côté Pro.
+  - **Vérifié :**
+    - typecheck et lint propres ;
+    - la suite unitaire du site passe : 225 fichiers, 3 282 tests ;
+    - 44 nouveaux tests, dont le double montage de React en développement, qui n’applique le cœur qu’une fois, et une page quittée avant sa lecture ;
+    - 33 mutations unitaires, chacune vue rouge ;
+    - les 4 parcours de bout en bout passent en local : la page du salon (ajouté, puis déjà favori), la recherche, et un témoin (un cœur retenu, puis une connexion ouverte autrement : aucune raison, rien d’appliqué) ;
+    - deux mutations de bout en bout, chacune vue rouge : le marqueur ignoré fait échouer le témoin ; un cœur jamais repris fait échouer les trois autres.
+  - **Reste :**
+    - la PR et sa fusion, sur le mot du propriétaire ;
+    - puis la lecture de `myweli.com` déployé.
