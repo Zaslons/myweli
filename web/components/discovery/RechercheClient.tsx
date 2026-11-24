@@ -103,6 +103,14 @@ export function RechercheClient({
   const [mobileView, setMobileView] = useState<'list' | 'map'>('list');
   const listScrollY = useRef(0);
   const toggleRef = useRef<HTMLButtonElement>(null);
+  // A 401 that answers after the person has left this page sends them nowhere.
+  const mounted = useRef(false);
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
   const cardRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
   const mappable = withCoords(results);
@@ -127,8 +135,10 @@ export function RechercheClient({
         } else {
           setFavRead(r.status === 401 ? 'anonymous' : 'failed');
         }
-        // Taken inside the answer, once: React's development double-mount
-        // ignores the first answer (docs/design/consumer-signin-push.md §14.4).
+        // Taken once, inside the answer: the take forgets the stored heart, so
+        // a second answer (React's development double-mount) finds nothing;
+        // an answer after the page was left is ignored above
+        // (docs/design/consumer-signin-push.md §14.4).
         const pending = takeFavoriteAfterSignIn();
         if (pending) void favoriteAfterSignIn(pending, r.status, ids);
       })
@@ -210,7 +220,7 @@ export function RechercheClient({
     pendingRef.current.delete(id);
     setPending(new Set(pendingRef.current));
     if (r.status === 401) {
-      toLogin(add ? id : undefined);
+      if (mounted.current) toLogin(add ? id : undefined);
       return false;
     }
     if (!r.ok) {

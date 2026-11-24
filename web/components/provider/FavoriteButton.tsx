@@ -30,6 +30,10 @@ export function FavoriteButton({
   const router = useRouter();
   const [fav, setFav] = useState(false);
   const [busy, setBusy] = useState(false);
+  // Whether the favourites read has answered. Until it has, the heart waits,
+  // as the search's do: a tap then raced the heart applied after a sign-in,
+  // and sent the add twice (the independent review of A3w, §14.4).
+  const [known, setKnown] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const { toast, show, dismiss } = useToast();
@@ -37,16 +41,33 @@ export function FavoriteButton({
   // end may take the focus back: not for the heart applied on load (§14.4).
   const called = useRef(false);
   const focusAfterCall = useRef(true);
+  // A 401 that answers after the person has left this page sends them nowhere.
+  const mounted = useRef(false);
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
 
   useEffect(() => {
     let active = true;
     (async () => {
-      const r = await getFavorites();
+      let r: Awaited<ReturnType<typeof getFavorites>>;
+      try {
+        r = await getFavorites();
+      } catch {
+        // A read that threw is a read that failed: the heart must not wait for ever.
+        r = { status: 0, favorites: [] };
+      }
+      // An answer that arrives after the page was left is ignored: nothing is
+      // applied on a page the person has left (§14.4).
       if (!active) return;
+      setKnown(true);
       const already = r.status === 200 && r.favorites.some((f) => f.id === providerId);
       if (r.status === 200) setFav(already);
-      // Taken inside the answer, once: React's development double-mount
-      // ignores the first answer, so the heart is applied once (§14.4).
+      // Taken once: the take forgets the stored heart, so a second answer
+      // (React's development double-mount) finds nothing (§14.4).
       if (takeFavoriteAfterSignIn() !== providerId) return;
       if (r.status === 401) return; // no session after all: nothing to apply
       if (r.status !== 200) {
@@ -104,6 +125,7 @@ export function FavoriteButton({
       : await removeFavorite(providerId);
     setBusy(false);
     if (r.status === 401) {
+      if (!mounted.current) return false;
       // An add is carried across the sign-in; a removal (a session that
       // ended) is not (§14.4).
       router.push(
@@ -124,7 +146,7 @@ export function FavoriteButton({
         ref={buttonRef}
         type="button"
         onClick={toggle}
-        disabled={busy}
+        disabled={busy || !known}
         aria-pressed={fav}
         className="inline-flex min-h-12 items-center gap-xs rounded-control border border-primary bg-secondary px-m text-labelLarge font-medium text-textPrimary hover:bg-surfaceVariant"
       >

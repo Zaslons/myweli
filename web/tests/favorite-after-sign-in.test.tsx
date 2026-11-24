@@ -3,20 +3,30 @@ import { StrictMode } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const push = vi.fn();
+const replace = vi.fn();
 // Stable object: the load effects depend on [router].
-const routerMock = { replace: vi.fn(), push, refresh: vi.fn(), back: vi.fn() };
+const routerMock = { replace, push, refresh: vi.fn(), back: vi.fn() };
+let searchParams = new URLSearchParams();
 vi.mock('next/navigation', () => ({
   useRouter: () => routerMock,
   usePathname: () => '/beaute-divine',
-  useSearchParams: () => new URLSearchParams(),
+  useSearchParams: () => searchParams,
 }));
 vi.mock('@sentry/nextjs', () => ({ captureMessage: vi.fn() }));
 // The results map is Leaflet behind next/dynamic — out of this test's reach.
 vi.mock('next/dynamic', () => ({ default: () => () => null }));
-// The sign-in's own form is not what the reason line is about.
-vi.mock('../components/auth/ConnexionClient', () => ({ ConnexionClient: () => null }));
+// The sign-in's own form is not what these tests are about: it signs in at
+// once, so `ConnexionClient`'s return can be read.
+vi.mock('../components/auth/LoginOptions', () => ({
+  LoginOptions: ({ onSuccess }: { onSuccess: () => void }) => (
+    <button type="button" onClick={onSuccess}>
+      signed in
+    </button>
+  ),
+}));
 
 import ConnexionPage from '../app/connexion/page';
+import { ConnexionClient } from '../components/auth/ConnexionClient';
 import { RechercheClient } from '../components/discovery/RechercheClient';
 import { FavoriteButton } from '../components/provider/FavoriteButton';
 import {
@@ -25,6 +35,7 @@ import {
   takeFavoriteAfterSignIn,
 } from '../lib/account/favorite-after-sign-in';
 import type { Provider } from '../lib/api/providers';
+import { DEFAULT_RETURN_TO, safeReturnTo } from '../lib/auth/return-to';
 import { signInReasonLine } from '../lib/auth/sign-in-reason';
 import { emptyTree } from '../lib/localities';
 import { providerFixture } from './fixtures';
@@ -43,13 +54,27 @@ const NO_CONNECTION = 'Pas de connexion. Réessayez.';
 const P1: Provider = providerFixture;
 const P2: Provider = { ...providerFixture, id: 'p2', slug: 'salon-elegance', name: 'Salon Élégance' };
 
-type Answer = 'throw' | { status: number; body?: unknown };
+type Answer = 'throw' | { status: number; body?: unknown } | (() => Promise<Response>);
+
+/// An answer held until the test lets it go.
+function held() {
+  let answer!: (r: Response) => void;
+  const promise = new Promise<Response>((r) => {
+    answer = r;
+  });
+  return {
+    call: () => promise,
+    answer: (status: number, body?: unknown) =>
+      answer(new Response(status === 204 ? null : JSON.stringify(body ?? {}), { status })),
+  };
+}
 
 function mockFetch(answers: Record<string, Answer>) {
   const fn = vi.fn(async (url: string, init?: RequestInit) => {
     const path = String(url).split('?')[0];
     const a = answers[`${init?.method ?? 'GET'} ${path}`];
     if (a === 'throw') throw new TypeError('Failed to fetch');
+    if (typeof a === 'function') return a();
     if (!a) return new Response('{}', { status: 404 });
     return new Response(a.status === 204 ? null : JSON.stringify(a.body ?? {}), {
       status: a.status,
@@ -102,6 +127,8 @@ afterEach(() => {
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
   push.mockReset();
+  replace.mockReset();
+  searchParams = new URLSearchParams();
 });
 
 // --- the stored heart ---------------------------------------------------------
@@ -582,5 +609,145 @@ describe('the search’s hearts', () => {
     await expectSaid(ADDED);
     await settle();
     expect(calls('POST /api/me/favorites/p2')).toBe(1);
+  });
+});
+
+// --- what the independent review found -----------------------------------------
+
+describe('the review of A3w', () => {
+  it('the salon page’s heart waits for its read: a tap then cannot add the salon twice', async () => {
+    stored('p1');
+    at('/beaute-divine?suite=favori');
+    const read = held();
+    const { calls } = mockFetch({
+      'GET /api/me/favorites': read.call,
+      'POST /api/me/favorites/p1': { status: 204 },
+    });
+    renderSalon();
+    const button = screen.getByRole('button', { name: /Ajouter aux favoris/ });
+    expect(button).toBeDisabled();
+    fireEvent.click(button);
+    await settle();
+    expect(calls('POST /api/me/favorites/p1')).toBe(0);
+
+    read.answer(200, { favorites: [] });
+    await expectSaid(ADDED);
+    await settle();
+    expect(calls('POST /api/me/favorites/p1')).toBe(1);
+    expect(screen.getByRole('button', { name: /Favori/ })).toBeEnabled();
+  });
+
+  for (const [surface, mount, path] of [
+    ['the salon page', () => renderSalon(), '/beaute-divine?suite=favori'],
+    ['the search', () => renderRecherche(), '/recherche?q=tresses&suite=favori'],
+  ] as const) {
+    it(`${surface}: a page left before its read answers applies nothing there`, async () => {
+      stored(surface === 'the search' ? 'p2' : 'p1');
+      at(path);
+      const read = held();
+      const { calls } = mockFetch({
+        'GET /api/me/favorites': read.call,
+        'POST /api/me/favorites/p1': { status: 204 },
+        'POST /api/me/favorites/p2': { status: 204 },
+      });
+      const { unmount } = mount();
+      unmount();
+      read.answer(200, { favorites: [] });
+      await settle();
+      expect(calls('POST /api/me/favorites/p1') + calls('POST /api/me/favorites/p2')).toBe(0);
+    });
+  }
+
+  it('the salon page: the heart’s add answering 401 after the page was left sends nobody anywhere', async () => {
+    stored('p1');
+    at('/beaute-divine?suite=favori');
+    const add = held();
+    const { calls } = mockFetch({
+      'GET /api/me/favorites': { status: 200, body: { favorites: [] } },
+      'POST /api/me/favorites/p1': add.call,
+    });
+    const { unmount } = renderSalon();
+    await waitFor(() => expect(calls('POST /api/me/favorites/p1')).toBe(1));
+    unmount();
+    add.answer(401);
+    await settle();
+    expect(push).not.toHaveBeenCalled();
+  });
+
+  it('the search: the same', async () => {
+    const assign = vi.fn();
+    vi.stubGlobal('location', {
+      ...window.location,
+      assign,
+      pathname: '/recherche',
+      search: '?q=tresses&suite=favori',
+    });
+    stored('p2');
+    const add = held();
+    const { calls } = mockFetch({
+      'GET /api/me/favorites': { status: 200, body: { favorites: [] } },
+      'POST /api/me/favorites/p2': add.call,
+    });
+    const { unmount } = renderRecherche();
+    await waitFor(() => expect(calls('POST /api/me/favorites/p2')).toBe(1));
+    unmount();
+    add.answer(401);
+    await settle();
+    expect(assign).not.toHaveBeenCalled();
+  });
+
+  it('CONTROL — the same 401 on a page still open opens the sign-in', async () => {
+    stored('p1');
+    at('/beaute-divine?suite=favori');
+    mockFetch({
+      'GET /api/me/favorites': { status: 200, body: { favorites: [] } },
+      'POST /api/me/favorites/p1': { status: 401 },
+    });
+    renderSalon();
+    await waitFor(() => expect(push).toHaveBeenCalled());
+  });
+});
+
+describe('/connexion returns to a page of this site only', () => {
+  const ORIGIN = 'https://myweli.com';
+
+  it('keeps a page of this site, its query and its fragment', () => {
+    expect(safeReturnTo('/beaute-divine?suite=favori', ORIGIN)).toBe('/beaute-divine?suite=favori');
+    expect(safeReturnTo('/recherche?q=tresses%20box&commune=cocody', ORIGIN)).toBe(
+      '/recherche?q=tresses%20box&commune=cocody',
+    );
+    expect(safeReturnTo('/mon-compte#favoris', ORIGIN)).toBe('/mon-compte#favoris');
+  });
+
+  it('sends anything that leaves this site to « Mon compte »', () => {
+    for (const raw of [
+      '/\\evil.example',
+      '/\\evil.example/beaute-divine',
+      '/\t/evil.example',
+      '/\n/evil.example',
+      '//evil.example',
+      'https://evil.example',
+      'javascript:alert(1)',
+      'beaute-divine',
+      '',
+      null,
+      undefined,
+    ]) {
+      expect(safeReturnTo(raw, ORIGIN), String(raw)).toBe(DEFAULT_RETURN_TO);
+    }
+  });
+
+  it('the sign-in, once done, goes there', () => {
+    searchParams = new URLSearchParams({ returnTo: '/\\evil.example' });
+    render(<ConnexionClient />);
+    fireEvent.click(screen.getByRole('button', { name: 'signed in' }));
+    expect(replace).toHaveBeenCalledWith('/mon-compte');
+    cleanup();
+    replace.mockReset();
+
+    searchParams = new URLSearchParams({ returnTo: '/beaute-divine?suite=favori' });
+    render(<ConnexionClient />);
+    fireEvent.click(screen.getByRole('button', { name: 'signed in' }));
+    expect(replace).toHaveBeenCalledWith('/beaute-divine?suite=favori');
   });
 });
