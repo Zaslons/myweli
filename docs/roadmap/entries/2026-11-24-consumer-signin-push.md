@@ -1,4 +1,4 @@
-- 🟡 **MyWeli (client), A3 : une connexion qu’on peut quitter, et des notifications qu’on peut activer plus tard — construit (app · 2026-11-24 — décisions 204 à 213 ; spec [consumer-signin-push.md](../../design/consumer-signin-push.md) ; écarts 10 et 17 de l’audit).** Branche `feat/consumer-signin-push`, créée depuis `main` (`e680d52f`). La fusion ne déploie rien : le changement atteint les clients avec le prochain build de l’app cliente, et les salons avec le prochain build de MyWeli Pro (sa carte).
+- 🟢 **MyWeli (client), A3 : une connexion qu’on peut quitter, et des notifications qu’on peut activer plus tard — construit (app · 2026-11-24 — décisions 204 à 213 ; spec [consumer-signin-push.md](../../design/consumer-signin-push.md) ; écarts 10 et 17 de l’audit).** Branche `feat/consumer-signin-push`, créée depuis `main` (`e680d52f`). La fusion ne déploie rien : le changement atteint les clients avec le prochain build de l’app cliente, et les salons avec le prochain build de MyWeli Pro (sa carte).
   - **La connexion s’ouvre par-dessus l’écran où l’on est :**
     - une seule fonction, `openSignIn`, remplace les 13 entrées qui remplaçaient l’écran ;
     - « Fermer » (48 px) ramène exactement où l’on était ;
@@ -43,6 +43,7 @@
     - sept sont nouvelles : la connexion pour un cœur, les deux pages déconnectées et Préférences avec sa carte, à 1× et à 200 % ;
     - les 73 autres sont identiques à l’octet près ;
     - une première exécution avait photographié les pages déconnectées connectées : une session laissée par un test précédent. C’est corrigé, avec un témoin.
-  - **Reste :**
-    - la PR et sa fusion, sur le mot du propriétaire ;
-    - puis A3w, les deux cœurs du site, dont la fusion est un déploiement en production.
+  - **Fusionnée le 2026-11-24 à 16:36 UTC** (#854, `aa3fe341`, sur le mot du propriétaire ; l’arbre de `main` est celui de la tête testée, CI 13/13, la construction iOS relancée une fois faute de machine macOS chez GitHub). Sur `main` ensuite : CI, la construction iOS et les contrôles de production ont réussi ; Vercel a redéployé sans changement de code du site.
+  - **Rien n’est déployé :** l’app atteint les clients avec son prochain build, et MyWeli Pro reçoit sa carte avec le sien, chacun sur le oui du propriétaire.
+  - **Non vérifié :** sur un téléphone, la demande d’autorisation des notifications et le réglage iOS.
+  - **Reste :** A3w, les deux cœurs du site, est fusionnée et déployée (#856).

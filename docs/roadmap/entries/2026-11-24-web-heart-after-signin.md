@@ -1,4 +1,4 @@
-- 🟡 **Site, A3w : le cœur d’un invité est appliqué à son retour de la connexion (web · 2026-11-24 — décision 205 ; spec [consumer-signin-push.md](../../design/consumer-signin-push.md) §14).** Branche `feat/web-heart-after-signin`, créée depuis `main` (`aa3fe341`). Sa fusion est un déploiement en production de `myweli.com`, sur le mot du propriétaire. Aucun point d’API ne change.
+- 🟢 **Site, A3w : le cœur d’un invité est appliqué à son retour de la connexion (web · 2026-11-24 — décision 205 ; spec [consumer-signin-push.md](../../design/consumer-signin-push.md) §14).** Branche `feat/web-heart-after-signin`, créée depuis `main` (`aa3fe341`). Sa fusion est un déploiement en production de `myweli.com`, sur le mot du propriétaire. Aucun point d’API ne change.
   - **Avant :** sur la page d’un salon comme sur les cartes de la recherche, un invité qui touchait le cœur partait vers `/connexion`, revenait connecté sur la même page, et devait toucher le cœur une seconde fois.
   - **Maintenant, comme dans l’app (A3) :**
     - le cœur est retenu dans cet onglet, et `/connexion` dit pourquoi elle s’ouvre : « Connectez-vous pour ajouter ce salon à vos favoris. » ;
@@ -27,6 +27,14 @@
     - 33 mutations unitaires, chacune vue rouge ;
     - les 4 parcours de bout en bout passent en local : la page du salon (ajouté, puis déjà favori), la recherche, et un témoin (un cœur retenu, puis une connexion ouverte autrement : aucune raison, rien d’appliqué) ;
     - deux mutations de bout en bout, chacune vue rouge : le marqueur ignoré fait échouer le témoin ; un cœur jamais repris fait échouer les trois autres.
-  - **Reste :**
-    - la PR et sa fusion, sur le mot du propriétaire ;
-    - puis la lecture de `myweli.com` déployé.
+  - **Ce que la CI complète a trouvé, corrigé avant la fusion :**
+    - `discovery.spec.ts:72` attendait encore l’ancienne adresse de connexion (715 tests sur 716 passaient) ;
+    - le test de bout en bout de la recherche échouait 6 fois sur 8 : il tapait l’e-mail avant que `/connexion`, chargée en entier, soit prête. L’étape de l’e-mail recommence jusqu’à l’étape du code : 24 sur 24 ;
+    - « Mobile — APK size » a échoué deux fois sur l’infrastructure (Gradle, puis Maven Central). Cette PR ne touche pas `mobile/` ; la relance a réussi.
+  - **Fusionnée le 2026-11-24 à 20:37 UTC** (#856, `51d439f2`, sur le mot du propriétaire ; l’arbre de `main` est celui de la tête testée, CI 12/12) **et déployée par Vercel à 20:40 UTC.**
+    - **Relu sur `myweli.com` :**
+      - `/connexion?raison=favori` affiche la ligne de raison, absente juste avant le déploiement ; sans `raison`, elle n’y est pas ;
+      - la fonction de retour servie pour `/connexion`, exécutée telle quelle, envoie `/\evil.example`, sa variante avec tabulation, `//evil.example` et `https://evil.example` vers « Mon compte », et garde `/tresses?suite=favori` ;
+      - le JavaScript servi pour la recherche contient le module d’A3w.
+    - **`production-checks.yml`,** lancé sur le mot du propriétaire le 2026-11-24 à 21:03 UTC (run 45487085839) : 11 contrôles sur 11.
+    - **Non vérifié en production :** le parcours du cœur lui-même. La production ne publie aucune page de salon, et la recherche « tresses » n’y montre aucune carte. Les tests de bout en bout le couvrent.
