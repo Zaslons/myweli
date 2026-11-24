@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Module** | backend: `providers` (the Postgres repository's `updateProfile`, one migration) |
-| **Status** | **Approved 2026-11-24.** The owner answered the four questions of §11 at once, « Approve as recommended »: decisions 224–227 in BACKLOG, batch 16. Next: B16.1's build, in its own backend PR, on the owner's word. |
+| **Status** | **Approved 2026-11-24.** The owner answered the four questions of §11 at once, « Approve as recommended »: decisions 224–227 in BACKLOG, batch 16 (#857). **B16.1 built 2026-11-24** (§8.8), on the owner's « Yes, build B16.1 », in its own backend PR; not merged. The merge, the deploy and the read after, each on the owner's word. |
 | **Owner** | the project owner: the answers, the build's go, the merge, the deploy and the read after it, each on the owner's word |
 | **Last updated** | 2026-11-24 |
 | **PRD ref / phase** | FR-DISC (discovery by category) · V1 |
@@ -191,6 +191,30 @@ Rows inserted directly, the forms of §5.2's test: a string document that differ
 
 ### 8.4 The rest
 The full backend suite on a fresh local database; `dart analyze --fatal-infos --fatal-warnings` 0; `dart format` clean; the migration reversibility test green with no `rollback-unsafe` line.
+
+### 8.8 As built (B16.1, 2026-11-24)
+
+Branch `fix/b16-1-category-column` from `main` (`257f62d9`). Two commits: the tests red first (`2eb5bfb8`), then the fix (`81438f3e`).
+
+- **Red first,** on a fresh local database, for the stated reasons:
+  - in memory: the five cases green (the twin reads the document), the coverage test red;
+  - on Postgres: « [category] listed under the old category », after the control line (`byId` reads `nails`) passed; commune, name, description and address green; the coverage test red; « [migration] b16_str_differs ».
+- **The code:**
+  - `kProviderDocumentColumns` (`postgres_providers_repository.dart`), with `category`;
+  - `kProviderCategoryFromDocument` and migration `0050_provider_category_from_document` (`migrations.dart`);
+  - the in-memory twin's `query` comment;
+  - DEPLOYMENT.md's rollback line (§9).
+- **Green:**
+  - the contract 6/6 in memory, and the Postgres providers group 23/23 (the contract and the migration test included); `0050` recorded in `schema_migrations`;
+  - the full backend suite on a fresh local database: **3001 passed, 2 skipped**, exit 0 (the migration reversibility test included: no `rollback-unsafe` line);
+  - analyze 0, format clean.
+- **Mutations,** on committed code, with a clean tree and each edit checked to change its file. Both targets were green unmutated first (C0). m1–m8 were each red with the texts of §8.3: m1–m5 red on their case and on the coverage test, m6 on « [migration] b16_str_differs », m7 on « [migration] b16_no_key », m8 on « invalid input syntax for type json ». C1 held: under m1, the category case's control line was never red.
+- **Where the build differs from §8, and why:**
+  - **The coverage test is red before the fix,** where §8.1 said green before and after: the red commit names the constant with its four columns, so the test sees `category` missing. Stricter, and it is the mutation m1 at rest.
+  - **The migration test runs in one transaction, rolled back at the end,** instead of `draft` rows deleted in `addTearDown` (the review offered both, §13): its rows, an unreadable document among them, are never visible to another test file running against the same database.
+  - **The SQL ends with a parenthesis** (`(d.doc ->> 'category')`), because Dart's `'''` cannot close right after a quote.
+- **Found by the Onglerie session (2026-11-24), not here:** §12's « a nail salon never gets an area landing page or a sitemap entry » is wrong. Area pages and sitemap entries come from the locality tree since 2026-08-20/21; they exist and list no salon. That session corrects §12 in its own PR.
+- The throwaway local databases were dropped.
 
 ---
 

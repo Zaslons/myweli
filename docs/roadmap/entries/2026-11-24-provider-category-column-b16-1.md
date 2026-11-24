@@ -1,0 +1,14 @@
+- 🟡 **B16.1 : la catégorie d’un salon atteint la colonne sur laquelle la découverte filtre (backend · 2026-11-24).** Branche `fix/b16-1-category-column`, créée depuis `main` (`257f62d9`). Spec : [provider-category-column.md](../../design/provider-category-column.md) §8.8. Décisions 224–227.
+  - **Le défaut :** un salon qui changeait de catégorie dans son profil restait listé sous l’ancienne, parce que la colonne lue par le filtre n’était écrite qu’à la création. En production, un salon sur neuf (lecture du 2026-11-24), tous en brouillon.
+  - **La correction :**
+    - `updateProfile` écrit maintenant la colonne `category` avec le document, dans la même requête ; la liste des colonnes tenues devient une constante nommée, `kProviderDocumentColumns` ;
+    - la migration `0050` copie, là où ils diffèrent, la catégorie du document dans la colonne, sous ses deux formes ; seule une catégorie texte est copiée, jamais `NULL`, et une seconde exécution ne change rien ;
+    - DEPLOYMENT.md : après un retour en arrière puis une remise en avant, la lecture, puis la constante à la main si un salon diffère.
+  - **Les tests, rouges d’abord, commités avant la correction :** un contrat sur les deux doubles, un cas écrit à la main par colonne tenue (catégorie, commune, nom, description, adresse), chacun lisant d’abord le document, plus un test qui lie les cas à la liste ; et le test de la migration, dans une transaction annulée à la fin.
+  - **Vérifié :**
+    - rouges d’abord, pour la raison annoncée : « [category] listed under the old category » sur Postgres, après la ligne témoin ; le test de couverture ; « [migration] b16_str_differs » ;
+    - verts ensuite ; la suite backend complète sur une base neuve : 3001 réussis, 2 ignorés ;
+    - huit mutations sur le code commité, chacune rouge avec son texte ; la ligne témoin jamais rouge sous m1 ;
+    - les bases locales jetables supprimées.
+  - **Aussi :** la spec (#857) est fusionnée ; son entrée passe au vert.
+  - **Reste, chacun sur le mot du propriétaire :** la fusion, puis le déploiement (de préférence avant la validation de ce salon), puis la même lecture après.
