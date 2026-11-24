@@ -1,4 +1,4 @@
-- 🟡 **Site, A2w : le détail d’un rendez-vous, complet, sur `myweli.com` (web · 2026-11-24 — décisions 194 à 203 ; spec [appointment-detail-complete.md](../../design/appointment-detail-complete.md) §2.2–§2.8).** Branche `feat/appointment-detail-web`. **Sa fusion est un déploiement en production de `myweli.com` (Vercel), sur le mot du propriétaire.**
+- 🟢 **Site, A2w : le détail d’un rendez-vous, complet, sur `myweli.com` (web · 2026-11-24 — décisions 194 à 203 ; spec [appointment-detail-complete.md](../../design/appointment-detail-complete.md) §2.2–§2.8).** Branche `feat/appointment-detail-web`. **Sa fusion est un déploiement en production de `myweli.com` (Vercel), sur le mot du propriétaire.**
   - **Pourquoi :** le site ne montrait ni l’adresse, ni d’itinéraire, ni la photo du salon. Il ne disait rien d’un acompte une fois le rendez-vous confirmé. A1w lui avait laissé la mise en page du détail et le ton de sa pastille.
   - **Le détail, section par section, comme dans l’app :**
     - **l’en-tête :** la couverture du salon au format 3:2, coupée comme sur la page du salon (une décoration pour les lecteurs d’écran, rien pour un salon arrêté) ; le nom en h1 ; la pastille du client, avec son contour visible ; une phrase de statut ;
@@ -17,3 +17,7 @@
     - l’indication « heure du salon » n’était pas sous l’heure ;
     - des notes faites d’espaces ouvraient une section vide ;
     - le lien Wave n’était jamais mesuré.
+  - **Fusionnée le 2026-11-24 à 01:26 UTC** (#847, `cf117bfb`, sur le mot du propriétaire ; l’arbre de `main` est celui de la tête testée, CI 12/12) **et déployée par Vercel vers 01:29 UTC.**
+    - **Relu sur `myweli.com` :** dans le JavaScript servi pour le détail d’un rendez-vous, les 6 nouvelles chaînes étaient absentes avant le déploiement (2 témoins présents) et sont toutes là après. « Acompte — non confirmé » a d’abord semblé absente : le code garde « — » tel quel et n’échappe que « é » ; une recherche directe l’a trouvée.
+    - **`production-checks.yml`,** lancé sur le mot du propriétaire le 2026-11-24 à 08:17 UTC (run 45354814028) : 11 contrôles sur 11. Il n’ouvre aucun détail de rendez-vous : il montre que le déploiement n’a rien cassé ailleurs, pas que cette page marche.
+    - **Non vérifié :** la page elle-même, connectée, en production.

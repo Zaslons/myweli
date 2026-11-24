@@ -1,4 +1,4 @@
-- 🟡 **MyWeli (client), A1 : ce que l’app dit devient vrai — la spec, avant tout code (documentation · mobile · web · 2026-11-23 — BACKLOG B0.10, décision 160 ; B12.6, B12.10, B12.11).** Branche `docs/consumer-app-truth-spec`, empilée sur `docs/consumer-app-release-audit` (#832). Spec : [consumer-app-truth.md](../../design/consumer-app-truth.md). Documentation seule : aucun code, aucun build, aucune console.
+- 🟢 **MyWeli (client), A1 : ce que l’app dit devient vrai — la spec, avant tout code (documentation · mobile · web · 2026-11-23 — BACKLOG B0.10, décision 160 ; B12.6, B12.10, B12.11).** Branche `docs/consumer-app-truth-spec`, empilée sur `docs/consumer-app-release-audit` (#832). Spec : [consumer-app-truth.md](../../design/consumer-app-truth.md). Documentation seule : aucun code, aucun build, aucune console.
   - **Pourquoi :**
     - le propriétaire a approuvé l’ordre de travail de l’audit tel quel (décision 160) ; A1 vient en premier, et sa spec avant son code ;
     - trois des sept changements sont, chacun, un motif de refus à l’App Store : une offre fausse (2.3.1), un contenu provisoire (2.1), un texte de permission qui ne décrit pas l’usage (5.1.1(ii)).
@@ -24,4 +24,5 @@
     - l’index des specs ;
     - la ligne A1 du §7 de l’audit, qui pointe vers la spec ;
     - le BACKLOG, §2 : les décisions 165 à 170.
-  - **Reste :** la PR A1 (l’app), puis la PR A1w (le site).
+  - **Fusionnée le 2026-11-23 à 11:57 UTC** (#833, `b40951b7`, sur le mot du propriétaire ; l’arbre de `main` est celui de la tête testée, CI 12/12).
+  - **Reste :** rien pour cette spec : A1 (#834) et A1w (#838) sont fusionnées le même jour.

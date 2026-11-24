@@ -43,7 +43,8 @@ check it. Nothing in a cloud console was read or changed for this spec.
    `test/unit/feature_flags_test.dart`, and « the home stories fit » pumped
    alone in `test/a11y/layout_test.dart` exist on `feat/consumer-app-truth`
    (#834), stacked on #833 and #832, none merged. This spec cites them there.
-   Its app PR (§12, PR D) starts from a `main` that holds A1.
+   Its app PR (§12, PR D) starts from a `main` that holds A1. *(Since
+   2026-11-23 12:18 UTC it does: #834 merged as `f891a301`.)*
 
 ---
 

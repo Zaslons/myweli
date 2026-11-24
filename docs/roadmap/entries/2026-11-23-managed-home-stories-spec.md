@@ -1,6 +1,6 @@
-- 🟡 **MyWeli (client) : des « stories » de l’accueil gérées par MyWeli — la spec, approuvée, avant tout code (documentation · backend · console · mobile · web · 2026-11-23 — BACKLOG B0.10, décisions 170 et 171–181).** Branche `docs/managed-home-stories-spec`, créée depuis `main` (`d0a31d63`). Spec : [managed-home-stories.md](../../design/managed-home-stories.md). Documentation seule : aucun code, aucun build, aucune console.
+- 🟢 **MyWeli (client) : des « stories » de l’accueil gérées par MyWeli — la spec, approuvée, avant tout code (documentation · backend · console · mobile · web · 2026-11-23 — BACKLOG B0.10, décisions 170 et 171–181).** Branche `docs/managed-home-stories-spec`, créée depuis `main` (`d0a31d63`). Spec : [managed-home-stories.md](../../design/managed-home-stories.md). Documentation seule : aucun code, aucun build, aucune console.
   - **Pourquoi :**
-    - A1 (#834, pas encore fusionnée) cache les trois stories de démonstration derrière `FeatureFlags.homeStories`, éteint ; le propriétaire a demandé qu’on les garde et que quelqu’un les gère (décision 170) ;
+    - A1 (#834, pas encore fusionnée quand la spec a été écrite ; fusionnée depuis, `f891a301`) cache les trois stories de démonstration derrière `FeatureFlags.homeStories`, éteint ; le propriétaire a demandé qu’on les garde et que quelqu’un les gère (décision 170) ;
     - cette spec dit qui publie, ce qu’est une story, comment elle reste vraie, et dans quel ordre la rangée revient.
   - **Trois constats qui corrigent la demande :**
     - la console d’administration est en Flutter Web (`mobile/lib/main_admin.dart`, `deploy-admin.yml`), pas en Next.js : les écrans du personnel sont en Dart ;
@@ -18,4 +18,5 @@
   - **Onze questions au propriétaire (§14), chacune avec une recommandation :** qui publie, les prix, le site, le cas sans commune, compter les vues, les 30 jours, la règle CORS, le drapeau dans sa propre PR, quand construire, l’exception aux quatre états, et combien de temps garder les images.
   - **Approuvée le 2026-11-23 :** les onze réponses d’un coup, « Approve as recommended », décisions 171–181 dans le BACKLOG. La spec passe en « Approved » ; la règle CORS est approuvée, mais le changement lui-même reste montré, demandé sur le moment, puis sondé (§12, étape 3).
   - **Ce qui change :** [managed-home-stories.md](../../design/managed-home-stories.md), nouveau, l’index des specs et les décisions 171–181 du BACKLOG.
-  - **Reste :** la fusion de cette PR, sur le mot du propriétaire ; puis, après la piste A (décision 179) et chacune sur son mot, les PR B (backend), C (console), D et E (app), F (site), la règle CORS et chaque déploiement.
+  - **Fusionnée le 2026-11-23 à 12:39 UTC** (#835, `ad065999` ; l’arbre de `main` est celui de la tête testée, CI 12/12).
+  - **Reste :** rien n’est construit. Après la piste A (décision 179), et chacune sur le mot du propriétaire : les PR B (backend), C (console), D et E (app), F (site), la règle CORS et chaque déploiement.

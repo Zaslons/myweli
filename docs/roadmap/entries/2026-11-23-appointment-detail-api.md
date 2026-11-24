@@ -1,4 +1,4 @@
-- 🟡 **Backend, A2-api : le rendez-vous du client porte le lieu et la photo du salon (backend · contrat · 2026-11-23 — décisions 194 et 203 ; spec [appointment-detail-complete.md](../../design/appointment-detail-complete.md) §2.1).** Branche `feat/appointment-detail-api`, empilée sur la spec (#839). **Son déploiement est un déploiement en production du backend, sur le mot du propriétaire.**
+- 🟢 **Backend, A2-api : le rendez-vous du client porte le lieu et la photo du salon (backend · contrat · 2026-11-23 — décisions 194 et 203 ; spec [appointment-detail-complete.md](../../design/appointment-detail-complete.md) §2.1).** Branche `feat/appointment-detail-api`, empilée sur la spec (#839). **Son déploiement est un déploiement en production du backend, sur le mot du propriétaire.**
   - **Pourquoi :** le détail d’un rendez-vous ne pouvait montrer ni itinéraire ni photo pour un salon que l’app n’avait pas chargé. Depuis la décision C, le rendez-vous du client est la seule source de ce qu’il sait de son salon.
   - **Ce qui change :** `GET /appointments` et `GET /appointments/{id}` (les rendez-vous du client lui-même) portent cinq champs facultatifs :
     - `providerLatitude` et `providerLongitude` : une paire, les deux ou aucun, jamais une seule ;
@@ -8,3 +8,10 @@
   - **La galerie ne voyage jamais entière :** une seule photo.
   - **Le contrat** (`openapi.yaml`) décrit les cinq champs, et les types du site sont régénérés. Le test de la route vérifie que la réponse réelle ne porte aucune clé que le contrat ne nomme pas.
   - **Ce qui ne change pas :** aucune route nouvelle, aucune donnée stockée, aucune lecture de l’Espace pro. Les clients actuels ignorent ces champs ; l’app et le site les liront dans A2 et A2w.
+  - **Fusionnée le 2026-11-23 à 22:17 UTC** (#841, `7157a9b3`, sur le mot du propriétaire ; l’arbre de `main` est celui de la tête testée, CI 12/12). Le déploiement que lance la fusion n’a rien déployé : sans staging, il construit seulement l’image `7157a9b`.
+  - **Déployée en production le 2026-11-23 à 22:25 UTC,** sur le mot du propriétaire : `deploy-backend.yml` (run 45279344397, `image_tag=7157a9b`), révision `myweli-api-00056-z88` (retour possible : `00055-jv2`).
+    - Le workflow a vérifié l’étiquette contre l’image servie, `/health`, `ENV=prod` et la lecture de `/providers`.
+    - Par `api.myweli.com` : `/health` répond 200, `/appointments` sans session 401.
+    - `production-checks.yml` (run 45279724327) : 11 contrôles sur 11.
+    - Le déploiement suivant (B14.2, `00057-pg2`, construit depuis `d0ec754b`, qui contient `7157a9b3`) la garde.
+    - **Non vérifié :** les cinq champs sur un vrai rendez-vous ; il faut un client connecté qui en a un.

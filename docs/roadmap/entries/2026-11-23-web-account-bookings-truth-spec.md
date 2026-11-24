@@ -1,4 +1,4 @@
-- 🟡 **Site, A1w : « Mes rendez-vous » suit la règle de l’app — la spec, avant tout code (documentation · web · 2026-11-23 — BACKLOG B0.10, décision 160 ; B12.6 (C4), B12.7 (C7)).** Branche `docs/web-account-bookings-truth-spec`, depuis `main` `ad065999`. Spec : [web-account-bookings-truth.md](../../design/web-account-bookings-truth.md). Documentation seule : aucun code, aucun build, aucun déploiement.
+- 🟢 **Site, A1w : « Mes rendez-vous » suit la règle de l’app — la spec, avant tout code (documentation · web · 2026-11-23 — BACKLOG B0.10, décision 160 ; B12.6 (C4), B12.7 (C7)).** Branche `docs/web-account-bookings-truth-spec`, depuis `main` `ad065999`. Spec : [web-account-bookings-truth.md](../../design/web-account-bookings-truth.md). Documentation seule : aucun code, aucun build, aucun déploiement.
   - **Pourquoi :**
     - depuis A1 (#834, fusionnée le 2026-11-23), l’app classe les rendez-vous du client selon une table approuvée (décisions 165 à 169) ;
     - le site classe encore par statut seul : un rendez-vous passé que le salon n’a jamais confirmé reste dans « À venir » avec « En attente » (C4, B12.6), et une absence est rangée dans « Annulés » ;
@@ -38,4 +38,5 @@
     - l’index des specs : une ligne pour A1w, et la ligne d’A1 dit qu’elle est fusionnée ;
     - [consumer-app-truth.md](../../design/consumer-app-truth.md) : son §2.7 renvoie à la nouvelle spec, et son §3 corrige ce qu’il disait de la devise.
   - **Ce qui change aussi :** le BACKLOG reçoit les décisions 182 à 186.
-  - **Reste :** la PR A1w (branche `feat/web-account-passes`) ; sa fusion est un déploiement en production de `myweli.com`, sur le mot du propriétaire.
+  - **Fusionnée le 2026-11-23 à 15:05 UTC** (#836, `319da3e7`, sur le mot du propriétaire ; l’arbre de `main` est celui de la tête testée, CI 12/12).
+  - **Reste :** rien pour cette spec : A1w (#838) est fusionnée et déployée le même jour.

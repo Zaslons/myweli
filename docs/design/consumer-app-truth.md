@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | **Approved by the owner on 2026-11-23** (« Approve as recommended »: §11's five recommendations, BACKLOG decisions 165–169). **Amended the same day by decision 170:** the home stories are hidden behind a flag, not removed (§2.1). **Built 2026-11-23** on `feat/consumer-app-truth` (A1); A1w, the web half of §2.7, is next. |
+| **Status** | **Approved by the owner on 2026-11-23** (« Approve as recommended »: §11's five recommendations, BACKLOG decisions 165–169). **Amended the same day by decision 170:** the home stories are hidden behind a flag, not removed (§2.1). **Built and merged 2026-11-23** (A1, #834, `f891a301`); it reaches clients with the next consumer build. A1w, the web half of §2.7, was merged and deployed to `myweli.com` the same day (#838, `95072597`; its own spec is [web-account-bookings-truth.md](web-account-bookings-truth.md)). |
 | **Owner** | Sadreddine |
 | **Last updated** | 2026-11-23 |
 | **PRD ref / phase** | FR-DISC-001, FR-APPT-001, FR-APPT-003/005, FR-APPT-009, FR-PAY-005 · V1 · BACKLOG B0.10 (decision 160), B12.6, B12.10 (part), B12.11 |
