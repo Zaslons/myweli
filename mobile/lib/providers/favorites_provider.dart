@@ -61,11 +61,18 @@ class FavoritesProvider extends ChangeNotifier implements AccountScoped {
       // Already loaded for this user
       return Future<void>.value();
     }
+    // Shared only if no heart was written since it was sent: a read that
+    // predates an add would answer without it.
     final running = _inFlight;
-    if (running != null && _inFlightUser == userId) return running;
+    if (running != null &&
+        _inFlightUser == userId &&
+        _inFlightWrites == _writes) {
+      return running;
+    }
     final load = _loadFavorites(userId);
     _inFlight = load;
     _inFlightUser = userId;
+    _inFlightWrites = _writes;
     return load.whenComplete(() {
       if (identical(_inFlight, load)) {
         _inFlight = null;
@@ -76,6 +83,10 @@ class FavoritesProvider extends ChangeNotifier implements AccountScoped {
 
   Future<void>? _inFlight;
   String? _inFlightUser;
+
+  /// Hearts written (sent) so far, and how many when [_inFlight] was sent.
+  int _writes = 0;
+  int _inFlightWrites = 0;
 
   Future<void> _loadFavorites(String userId) async {
     final account = _account;
@@ -129,6 +140,7 @@ class FavoritesProvider extends ChangeNotifier implements AccountScoped {
 
     ApiResponse<bool>? response;
     try {
+      _writes++;
       if (isCurrentlyFavorite) {
         response = await _favoritesService.removeFavorite(userId, providerId);
       } else {
@@ -179,6 +191,7 @@ class FavoritesProvider extends ChangeNotifier implements AccountScoped {
     notifyListeners();
     ApiResponse<bool>? response;
     try {
+      _writes++;
       response = await _favoritesService.addFavorite(userId, providerId);
     } catch (e) {
       response = null;

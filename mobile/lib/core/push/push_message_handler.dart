@@ -91,7 +91,16 @@ class PushMessageHandler {
     this.isAuthenticated,
     this.salonSwitchFallbackRoute,
     this.routeSwitchesSalon,
+    this.ready,
   });
+
+  /// Awaited BEFORE anything else, the sign-in check included: the consumer
+  /// app waits here for an open sign-in to close
+  /// (consumer-signin-push.md §2.2). Waiting after the check let a tap made
+  /// during the phone step — signed in by then — land after « Fermer » had
+  /// signed the person out: a booking shown to a guest. Checked after the
+  /// wait, that tap is buffered for the next sign-in instead.
+  final Future<void> Function()? ready;
 
   /// Pushes the route (the app's router — injected so this class stays pure).
   final Future<void> Function(String route) navigate;
@@ -126,6 +135,8 @@ class PushMessageHandler {
   /// notification tap). Best-effort: never throws into the caller.
   Future<void> handleData(Map<String, Object?> data) async {
     try {
+      final waitFor = ready;
+      if (waitFor != null) await waitFor();
       final route = routeFromPushData(
         data,
         allowedPrefixes: allowedRoutePrefixes,

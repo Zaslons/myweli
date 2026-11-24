@@ -130,6 +130,32 @@ void main() {
     expect(SignInGate.isOpen.value, isFalse);
   });
 
+  testWidgets('a sign-in closed with « Fermer » never answers the NEXT one: '
+      'its dispose comes after its exit animation, while taps already reach '
+      'the screen beneath (the independent review of A3)', (tester) async {
+    await tester.pumpWidget(app());
+    await settle(tester);
+    await open(tester);
+    await tester.tap(find.byTooltip('Fermer'));
+    // Mid-animation: the first sign-in is still mounted, the screen beneath
+    // takes the tap.
+    await tester.pump(const Duration(milliseconds: 50));
+    expect(answers, [false]);
+    // What a tap on « open » does (the hit test during a pop animation is
+    // Flutter's; the race is in when the first screen's dispose runs).
+    tester
+        .widget<TextButton>(find.widgetWithText(TextButton, 'open'))
+        .onPressed!();
+    await settle(tester);
+    expect(find.byType(LoginScreen), findsOneWidget, reason: 'the second');
+    expect(answers, [false], reason: 'the first dispose answered no one');
+    expect(SignInGate.isOpen.value, isTrue);
+
+    await tester.tap(find.byTooltip('Fermer'));
+    await settle(tester);
+    expect(answers, [false, false]);
+  });
+
   testWidgets('« Fermer » is a 48 px target', (tester) async {
     await tester.pumpWidget(app());
     await settle(tester);

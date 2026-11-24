@@ -4,6 +4,7 @@ import 'package:myweli/widgets/common/brand_loader.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/auth/open_sign_in.dart';
+import '../../core/auth/reload_on_sign_in.dart';
 import '../../core/config/app_config.dart';
 import '../../core/forms/field_errors.dart';
 import '../../core/theme/app_theme.dart';
@@ -28,7 +29,8 @@ class EditProfileScreen extends StatefulWidget {
   State<EditProfileScreen> createState() => _EditProfileScreenState();
 }
 
-class _EditProfileScreenState extends State<EditProfileScreen> {
+class _EditProfileScreenState extends State<EditProfileScreen>
+    with ReloadOnSignIn<EditProfileScreen> {
   // A7/§14: the form's faults live here, not in a FormState. Declaration order
   // is the form's reading order — `firstErroredKey` walks it for the focus move.
   late final _errors = FieldErrors({
@@ -58,17 +60,35 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   String _phone = '';
   bool _prefilled = false;
 
+  /// Bumped at each fill, so the phone field — which reads its
+  /// `initialValue` once — is built again with the new number.
+  int _filledFor = 0;
+
+  void _fillFrom(AuthProvider auth) {
+    final user = auth.user;
+    if (user == null) return;
+    _prefilled = true;
+    _filledFor++;
+    _nameController.text = user.name ?? '';
+    _emailController.text = user.email ?? '';
+    _phone = PhoneNumbering.normalize(user.phoneNumber ?? '');
+  }
+
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    final user = Provider.of<AuthProvider>(context, listen: false).user;
-    if (user != null && !_prefilled) {
-      _prefilled = true;
-      _nameController.text = user.name ?? '';
-      _emailController.text = user.email ?? '';
-      _phone = PhoneNumbering.normalize(user.phoneNumber ?? '');
-    }
+    final auth = Provider.of<AuthProvider>(context, listen: false);
+    if (!_prefilled) _fillFrom(auth);
   }
+
+  /// Someone signed in over this screen — from its signed-out state, or
+  /// after a session ended here (consumer-signin-push.md §2.7). Since A3
+  /// the screen is not built again, so without this it kept the previous
+  /// account's name, e-mail and number, and « Enregistrer » would have sent
+  /// them to the new account (the independent review of A3).
+  @override
+  void reloadForSignIn() =>
+      setState(() => _fillFrom(context.read<AuthProvider>()));
 
   @override
   void dispose() {
@@ -277,6 +297,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 // Contact phone — editable since the auth overhaul (the
                 // salon uses it to reach the client; verified later via SMS).
                 PhoneNumberField(
+                  key: ValueKey(_filledFor),
                   initialValue: _phone,
                   focusNode: _phoneFocus,
                   errorText: _errors['phone'],

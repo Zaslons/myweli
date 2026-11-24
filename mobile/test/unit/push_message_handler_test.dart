@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -320,6 +321,49 @@ void main() {
       await handler.handleData({'template': 'reminder24h'}); // no route
       expect(routes, isEmpty);
       expect(handler.hasPending, isFalse);
+    });
+  });
+
+  group('an open sign-in (consumer-signin-push.md §2.2)', () {
+    test('a tap waits for it to close, and is checked AFTER: tapped during '
+        'the phone step (signed in), then « Fermer » (signed out) — kept for '
+        'the next sign-in, never shown to a guest', () async {
+      final routes = <String>[];
+      var signedIn = true; // the phone step: the account exists already
+      final closed = Completer<void>();
+      final handler = PushMessageHandler(
+        navigate: (r) async => routes.add(r),
+        allowedRoutePrefixes: const ['/appointment/', '/bookings'],
+        isAuthenticated: () => signedIn,
+        ready: () => closed.future,
+      );
+      final tap = handler.handleData({'route': '/appointment/a1'});
+      await Future<void>.delayed(Duration.zero);
+      expect(routes, isEmpty, reason: 'it waits while the sign-in is open');
+      signedIn = false; // « Fermer » signed out
+      closed.complete();
+      await tap;
+      expect(routes, isEmpty);
+      expect(handler.hasPending, isTrue);
+
+      signedIn = true; // the next sign-in
+      await handler.flushPending();
+      expect(routes, ['/appointment/a1']);
+    });
+
+    test('CONTROL — signed in when it closes: it lands', () async {
+      final routes = <String>[];
+      final closed = Completer<void>();
+      final handler = PushMessageHandler(
+        navigate: (r) async => routes.add(r),
+        allowedRoutePrefixes: const ['/appointment/'],
+        isAuthenticated: () => true,
+        ready: () => closed.future,
+      );
+      final tap = handler.handleData({'route': '/appointment/a1'});
+      closed.complete();
+      await tap;
+      expect(routes, ['/appointment/a1']);
     });
   });
 }

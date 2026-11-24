@@ -59,9 +59,19 @@ class SignInGate {
   static final ValueNotifier<bool> isOpen = ValueNotifier<bool>(false);
   static Completer<bool>? _answer;
 
-  /// The sign-in screen's answer: `true` when the person leaves it signed in.
-  /// Only the first call counts; later ones (the screen's `dispose`) do
-  /// nothing.
+  /// The sign-in screen's own ticket, taken as it is built: it answers ITS
+  /// opener and no other. A screen closed with « Fermer » runs its `dispose`
+  /// only after its exit animation (≈ 300–500 ms), and taps reach the screen
+  /// beneath meanwhile — a second sign-in opened then would otherwise have
+  /// been answered `false` by the first one's `dispose` (the independent
+  /// review of A3). Null with no opener (a sign-in with nothing beneath).
+  static SignInTicket? ticket() {
+    final c = _answer;
+    return c == null ? null : SignInTicket._(c);
+  }
+
+  /// Answers the CURRENT opener — for tests standing in for the screen.
+  @visibleForTesting
   static void answer(bool signedIn) {
     final c = _answer;
     if (c == null || c.isCompleted) return;
@@ -87,6 +97,18 @@ class SignInGate {
     answer(false);
     _answer = null;
     isOpen.value = false;
+  }
+}
+
+/// One sign-in screen's answer to the opener it was opened for.
+class SignInTicket {
+  SignInTicket._(this._answer);
+
+  final Completer<bool> _answer;
+
+  /// Only the first answer counts; later ones (its `dispose`) do nothing.
+  void answer(bool signedIn) {
+    if (!_answer.isCompleted) _answer.complete(signedIn);
   }
 }
 
@@ -120,7 +142,7 @@ Future<bool> openSignIn(
             ).toString(),
           )
           .catchError((Object _) {
-            SignInGate.answer(false);
+            if (!answer.isCompleted) answer.complete(false);
             return null;
           }),
     );

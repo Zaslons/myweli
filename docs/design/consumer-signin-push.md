@@ -370,7 +370,7 @@ One more route on the stack while signing in. One load of the favourites and the
 - **Sign-out and deletion** land on Accueil with their sentence; a failed sign-out says nothing of the kind.
 - **A session that ended,** with the account screens opened by `push`, as the app opens them: on a public screen the action opens the sign-in over it; on a booking's detail the sign-in opens over it at once, success returns to the detail, which loads, and « Fermer » returns to « Rendez-vous »; on the confirmation, « Fermer » returns to the hub.
 - **Préférences:** the three system answers, with the card's three results (granted registers the token, refused shows the banner, an error keeps the card); the two new sentences.
-- **The booking confirmation:** the sheet shown or not per `pushOfferDecision` (the existing `push_permission_sheet_test` and `push_registration_test` extended).
+- **The booking confirmation:** the sheet shown or not per `pushOfferDecision`. *(As built: in `test/unit/push_offer_test.dart` — the rule's table, `maybeOfferAfterBooking`, the old flag, `enableFromSettings`, the dropped registration — rather than in the two files this line first named; `push_registration_test` still passes unchanged.)*
 
 **Tests that change, named so none is skipped:**
 - `test/widget/account_switch_test.dart:347` (« on an account screen: it leaves for the sign-in ») and `:424` (« every account-only prefix is a route of the app »): rewritten for §2.7, with pushed screens.
@@ -462,3 +462,20 @@ The others:
 14. The booking's gate belongs at the hub.
 
 Each is folded into the section named.
+
+## 13. The independent reading of the code (2026-11-24)
+
+The built change was read once by a reviewer told to refute it: 11 findings. Each was re-read in the code. The fixes, each with its test watched red:
+
+1. **A closed sign-in could answer the NEXT one's opener.** Its `dispose` runs after its exit animation, while taps already reach the screen beneath. Each screen now takes its own ticket (`SignInGate.ticket`) and answers only that.
+2. **Modifier le profil kept the previous account's details** after a sign-in over it, and « Enregistrer » would have sent them to the new account. It now refills from whoever signed in (`ReloadOnSignIn`), its phone field rebuilt.
+3. **A notification tapped during the phone step** (signed in by then) was replayed after « Fermer » had signed the person out. The wait for the sign-in now runs BEFORE the handler's session check (`PushMessageHandler.ready`), so that tap is kept for the next sign-in.
+4. The goldens had no images yet: authored on Linux and opened before the commit.
+5. — *not fixed, recorded:* a sign-in over a booking's detail starts the root's list read and the detail's own read side by side. Both write `AppointmentProvider`'s shared `isLoading` and `error`, so a failed list read shows its sentence on the detail until the detail's read answers. That sharing predates A3, and the case needs a session ending on a detail plus a list failure. A follow-up: per-read flags in that store.
+6. A guest-page assertion that could not fail (the button also hides at 0 unread) now finds the widget by type.
+7. Tests the plan named and the first build lacked: the deletion's landing, a failed sign-out on Profil, a session ending on Préférences.
+8. The session-ended notice read `router.state`, which throws on go_router's error page (no match). Guarded.
+9. On the phone step, « Continuer » spun while « Fermer » signed out. It no longer does. *Recorded, not new:* a sign-out that fails has already removed the phone's push token (`AuthProvider.logout` unregisters first), so that person gets no push until the next sign-in.
+10. A forced favourites read could share a read sent before a heart was written. Reads are shared only when no heart was written since.
+11. The sign-in popped whatever route was on top. It now closes anything above its own route first, then itself.
+

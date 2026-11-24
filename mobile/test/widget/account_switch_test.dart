@@ -25,6 +25,7 @@ import 'package:myweli/screens/appointments/appointment_detail_screen.dart';
 import 'package:myweli/screens/appointments/my_bookings_screen.dart';
 import 'package:myweli/screens/auth/login_screen.dart';
 import 'package:myweli/screens/home/home_screen.dart';
+import 'package:myweli/screens/profile/notification_preferences_screen.dart';
 import 'package:myweli/screens/profile/profile_screen.dart';
 import 'package:myweli/services/mock/mock_appointment_service.dart';
 import 'package:myweli/services/mock/mock_auth_service.dart';
@@ -119,6 +120,10 @@ GoRouter _router(String initial) => GoRouter(
           AppointmentDetailScreen(appointmentId: state.pathParameters['id']!),
     ),
     GoRoute(path: '/profile', builder: (_, _) => const ProfileScreen()),
+    GoRoute(
+      path: '/profile/notifications',
+      builder: (_, _) => const NotificationPreferencesScreen(),
+    ),
   ],
 );
 
@@ -140,6 +145,8 @@ void main() {
       ..notificationService = MockNotificationService()
       ..messagingService = MockMessagingService()
       ..reviewService = MockReviewService()
+      // Préférences reads this phone's notification state.
+      ..pushNotificationService = MockPushNotificationService()
       ..pushRegistration = PushRegistration(
         push: MockPushNotificationService(),
         devices: MockDeviceRegistrationService(),
@@ -430,6 +437,30 @@ void main() {
       expect(location(router), '/bookings');
       expect(find.text('Vos rendez-vous'), findsOneWidget);
       expect(router.canPop(), isTrue, reason: 'Accueil is still beneath');
+    });
+
+    testWidgets('Préférences, opened from Profil: the sign-in over it, and '
+        '« Fermer » returns to Profil, signed out', (tester) async {
+      final (_, router) = await signedInAt(tester, '/home');
+      unawaited(router.push('/profile'));
+      await settleMocks(tester);
+      unawaited(router.push('/profile/notifications'));
+      await settleMocks(tester);
+      expect(location(router), '/profile/notifications');
+
+      await mockAuth.expireSession();
+      await tester.pump();
+      await settleMocks(tester);
+      expect(location(router), '/login?reason=sessionEnded');
+
+      await tester.tap(find.byTooltip('Fermer'));
+      await settleMocks(tester);
+      expect(location(router), '/profile');
+      expect(
+        find.text('Se connecter'),
+        findsOneWidget,
+        reason: 'its guest state',
+      );
     });
 
     testWidgets('…and signed in again there, the person is back on the '

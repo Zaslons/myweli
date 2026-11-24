@@ -24,6 +24,7 @@ import 'package:myweli/services/mock/mock_favorites_service.dart';
 import 'package:myweli/services/mock/mock_locality_service.dart';
 import 'package:myweli/services/mock/mock_provider_service.dart';
 import 'package:myweli/widgets/common/account_loader.dart';
+import 'package:myweli/widgets/notifications/mark_all_read_button.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -184,7 +185,9 @@ void main() {
       );
       expect(find.text('Réessayer'), findsNothing);
       expect(find.text('Chargement impossible'), findsNothing);
-      expect(find.byTooltip('Tout marquer comme lu'), findsNothing);
+      // By type: the button also hides itself at 0 unread, which a guest
+      // always has — its tooltip's absence proved nothing.
+      expect(find.byType(MarkAllReadButton), findsNothing);
       verifyNever(() => notifications.getNotifications());
     });
 

@@ -122,13 +122,12 @@ void main() {
 /// auth listener flushes it the moment we're signed in.
 Future<void> _startPush(AuthProvider auth) async {
   final handler = PushMessageHandler(
+    navigate: (route) async => AppRouter.router.push<Object?>(route),
     // Never on top of an open sign-in: its success closes the route on top
-    // (consumer-signin-push.md §2.2). A tap waits until the sign-in has
-    // closed, then lands on top of where the person is.
-    navigate: (route) async {
-      await SignInGate.whenClosed();
-      await AppRouter.router.push<Object?>(route);
-    },
+    // (consumer-signin-push.md §2.2). Waited for BEFORE the handler checks the session, so a tap
+    // made during the phone step and followed by « Fermer » is kept for the
+    // next sign-in, never shown to a guest.
+    ready: SignInGate.whenClosed,
     allowedRoutePrefixes: kConsumerRoutePrefixes,
     isAuthenticated: () => auth.isAuthenticated,
   );

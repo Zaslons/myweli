@@ -70,7 +70,8 @@ void main() {
   });
 
   test('a notification tap never lands on top of an open sign-in: main.dart '
-      'waits for it to close, and replays only once it has (§2.2)', () {
+      'waits for it to close BEFORE the handler checks the session, and '
+      'replays only once it has (§2.2)', () {
     final main = stripDartComments(File('lib/main.dart').readAsStringSync());
     final start = main.indexOf('PushMessageHandler(');
     expect(start, isNot(-1));
@@ -78,16 +79,7 @@ void main() {
       start,
       main.indexOf('FcmMessageBridge', start),
     );
-    final navigate = wiring.substring(
-      wiring.indexOf('navigate:'),
-      wiring.indexOf('allowedRoutePrefixes'),
-    );
-    expect(navigate, contains('await SignInGate.whenClosed()'));
-    expect(
-      navigate.indexOf('whenClosed'),
-      lessThan(navigate.indexOf('.push')),
-      reason: 'it waits BEFORE it pushes',
-    );
+    expect(wiring, contains('ready: SignInGate.whenClosed'));
     expect(wiring, contains('!SignInGate.isOpen.value'));
     expect(wiring, contains('SignInGate.isOpen.addListener('));
   });

@@ -56,6 +56,10 @@ class PushOffCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
+            // The icon stays with the title's FIRST line when the title wraps
+            // (200 % text: three lines) — as Préférences' info line does;
+            // centred, it floated beside the middle line.
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const Icon(
                 Icons.notifications_none,

@@ -78,7 +78,13 @@ class _SessionEndedNoticeState extends State<SessionEndedNotice> {
   /// ignores every pushed route (go_router 17.5, `match.dart:530-533`) — and
   /// every account screen is pushed, so the notice used to believe the person
   /// was on Accueil (consumer-signin-push.md §2.7).
-  String _here() => widget.router.state.uri.toString();
+  String _here() {
+    // go_router's error page is a match list with NO matches, where
+    // `state` (`currentConfiguration.last`) throws.
+    final config = widget.router.routerDelegate.currentConfiguration;
+    if (config.matches.isEmpty) return config.uri.toString();
+    return widget.router.state.uri.toString();
+  }
 
   void _onAuth() {
     if (!(_auth?.consumeSessionEndedNotice() ?? false)) return;

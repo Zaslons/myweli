@@ -82,6 +82,14 @@ class _LoginScreenState extends State<LoginScreen> {
   /// removed this screen, its opener hears whether the person is signed in.
   AuthProvider? _auth;
 
+  /// This screen's answer to ITS opener — never the next one's (see
+  /// `SignInGate.ticket`).
+  final SignInTicket? _ticket = SignInGate.ticket();
+
+  /// « Fermer » on the phone step is signing out: « Continuer » must not
+  /// spin for a request it did not start (§2.2).
+  bool _cancelling = false;
+
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
@@ -90,7 +98,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   void dispose() {
-    SignInGate.answer(_auth?.isAuthenticated ?? false);
+    _ticket?.answer(_auth?.isAuthenticated ?? false);
     _cooldownTimer?.cancel();
     _emailController.dispose();
     _codeController.dispose();
@@ -121,8 +129,15 @@ class _LoginScreenState extends State<LoginScreen> {
     // above it (the layout tests build it alone).
     final navigator = Navigator.of(context);
     if (navigator.canPop()) {
+      // Its OWN route: whatever opened above it (a picker of the phone
+      // field) goes first. Nothing else is ever pushed above the sign-in —
+      // a notification tap waits for it to close (main.dart).
+      final route = ModalRoute.of(context);
+      if (route != null && !route.isCurrent) {
+        navigator.popUntil((r) => r == route);
+      }
       navigator.pop(signedIn);
-      SignInGate.answer(signedIn);
+      _ticket?.answer(signedIn);
       return;
     }
     GoRouter.maybeOf(
@@ -148,8 +163,11 @@ class _LoginScreenState extends State<LoginScreen> {
   Future<void> _cancelPhoneStep() async {
     final auth = context.read<AuthProvider>();
     final messenger = ScaffoldMessenger.of(context);
+    setState(() => _cancelling = true);
     await auth.logout();
-    if (!mounted || auth.isAuthenticated) return;
+    if (!mounted) return;
+    setState(() => _cancelling = false);
+    if (auth.isAuthenticated) return;
     _leave(signedIn: false);
     AppSnackBar.showOn(messenger, 'Connexion annulée.');
   }
@@ -527,7 +545,8 @@ class _LoginScreenState extends State<LoginScreen> {
     AppButton(
       text: 'Continuer',
       onPressed: auth.isLoading ? null : _savePhone,
-      isLoading: auth.isLoading,
+      // Not while « Fermer » signs out: that request is not this button's.
+      isLoading: auth.isLoading && !_cancelling,
     ),
     // §14 rule 3 + §15: a server OUTCOME is form-level, not a field fault
     // — and `InlineFeedback` is a live region, which a hand-rolled red Text
