@@ -3,13 +3,13 @@
 | | |
 |---|---|
 | **Module** | backend: `appointments` (the repository and its in-memory twin), `clients` (the guest-phone move) |
-| **Status** | **Approved 2026-11-24.** The owner answered the five questions of §11 at once, « Approve as recommended »: decisions 214–218 in BACKLOG, batch 15 (B15.1 is the build). Built on the owner's word, in its own backend PR. **B15.1 built 2026-11-24** (§8.8), on the owner's « Yes, build B15.1 », in its own PR; not merged. |
+| **Status** | **Approved 2026-11-24.** The owner answered the five questions of §11 at once, « Approve as recommended »: decisions 214–218 in BACKLOG, batch 15 (B15.1 is the build). Built on the owner's word, in its own backend PR. **B15.1 built 2026-11-24** (§8.8), on the owner's « Yes, build B15.1 », in its own PR; **merged 2026-11-24** (#853, `b042d2bb`). It reaches production with the next backend deploy. |
 | **Owner** | the project owner: the answers, the build's go, each merge, and the backend deploy it rides with, each on the owner's word |
 | **Last updated** | 2026-11-24 |
 | **PRD ref / phase** | none: test fidelity, behind the V1 booking flow · V1 |
 | **ROADMAP entry** | [2026-11-24-appointment-twin-update-spec.md](../roadmap/entries/2026-11-24-appointment-twin-update-spec.md) |
 | **Skills checked** | myweli-dev-guardrails · myweli-backend-guardrails · myweli-verification-guardrails · [BACKEND.md](../BACKEND.md) §1, §5 |
-| **Related** | [appointment-currency-stamp.md](appointment-currency-stamp.md) §3.5 and §12 (where this was found) · `backend/test/appointments/appointment_repository_contract.dart` (the twin contract) · `backend/test/clients_phone_change_test.dart` (the guest-phone change) |
+| **Related** | [appointment-currency-stamp.md](appointment-currency-stamp.md) §3.5 and §12 (where this was found) · [twin-fidelity-survey.md](twin-fidelity-survey.md) (the same check on the 28 other stores) · `backend/test/appointments/appointment_repository_contract.dart` (the twin contract) · `backend/test/clients_phone_change_test.dart` (the guest-phone change) |
 
 ---
 

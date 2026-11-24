@@ -1,0 +1,17 @@
+- 🟡 **Étude : les doubles de test des 28 autres dépôts face à Postgres — et trois défauts de production trouvés en chemin (backend · documentation · 2026-11-24).** Branche `docs/twin-fidelity-survey`, créée depuis `main` (`b042d2bb`). Étude : [twin-fidelity-survey.md](../../design/twin-fidelity-survey.md). Documentation seule : chaque correction passera par sa propre spec.
+  - **La question :** le dépôt des rendez-vous avait un double de test qui gardait ce que Postgres refusait (corrigé par B15.1). Les 28 autres dépôts ont-ils le même défaut ?
+  - **La méthode :** quatre lecteurs indépendants, chacun citant les deux côtés ligne à ligne. Huit écarts ont ensuite été prouvés par une sonde jetable sur les deux doubles, sur une base locale supprimée après, chacun avec une valeur témoin.
+  - **Trois défauts de production, prouvés :**
+    - **la catégorie d’un salon :** un salon qui change de catégorie reste listé sous l’ancienne dans le filtre de découverte, parce que Postgres n’écrit la colonne qu’à la création ;
+    - **le salon de démonstration :** sa réinitialisation hebdomadaire ne rétablit ni les prestations ni les horaires en production, contrairement à ce que dit son commentaire. Un réviseur des stores les laisse modifiés pour le suivant ;
+    - **un email déjà pris :** `PATCH /me` avec l’email d’un autre compte répond par une erreur serveur au lieu d’un refus clair.
+  - **Les écarts des doubles :** 39 en tout, dont 8 prouvés. Dix sont atteignables depuis le code de production ; les autres ne concernent que les tests. Neuf dépôts n’en ont aucun.
+  - **Le constat :** là où un contrat tourne sur les deux doubles, les lecteurs n’ont rien trouvé d’atteignable. Chaque écart atteignable se trouve dans un dépôt, ou une méthode, qui n’en a pas.
+  - **Aussi :** B15.1 est fusionné (#853). Son entrée passe au vert, et le lot 15 est marqué fait dans le BACKLOG.
+  - **Répondu le 2026-11-24 :** « Approve as recommended », les cinq (décisions 219–223, lot 16 du BACKLOG) :
+    - les trois défauts, dans cet ordre : la catégorie, la réinitialisation du salon de démonstration, l’email déjà pris ; chacun par sa propre spec et sa propre PR ;
+    - avant la catégorie, une lecture de production en lecture seule : combien de salons ont une colonne qui diffère de leur document ;
+    - ensuite les écarts atteignables, dépôt par dépôt, à la manière de B15.1 ; les écarts propres aux tests, quand leur dépôt est touché ;
+    - une règle dans BACKEND.md §5, écrite dans cette PR : un dépôt qui écrit a un contrat qui tourne sur les deux doubles.
+  - **En le consignant :** le groupe « auth » de §5.2 avait oublié B-P2-c, qui est pourtant dans le périmètre de Q3 ; il y est ajouté.
+  - **Reste, chacun sur le mot du propriétaire :** la lecture de production (décision 220), puis la spec de B16.1 ; chaque fusion et chaque déploiement.
