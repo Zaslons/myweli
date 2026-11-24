@@ -1,0 +1,31 @@
+{
+  "about": "The deposit block of a client’s own booking with a deposit (depositAmount > 0), read by BOTH test suites: web tests and mobile test/unit/deposit_state_test.dart. docs/design/appointment-detail-complete.md §2.7, decision 197. A booking with no deposit shows no block at all.",
+  "fields": {
+    "status": "the stored status, as the API spells it",
+    "minutesFromNow": "the booking’s time minus now, in minutes (0 = exactly now, which is past)",
+    "proof": "a deposit proof was attached (depositScreenshotUrl set)",
+    "label": "the row’s label",
+    "sentence": "the line under it, or null",
+    "action": "send (app: « Envoyer l’acompte »; web: the proof form) · viewProof (« Voir ma capture ») · null",
+    "balance": "whether « Solde à régler au salon » shows: only while the booking is pending or confirmed"
+  },
+  "rows": [
+    {"status": "pending", "minutesFromNow": 60, "proof": false, "label": "Acompte à envoyer", "sentence": "Payez le salon directement, puis joignez une capture.", "action": "send", "balance": true},
+    {"status": "pending", "minutesFromNow": 60, "proof": true, "label": "Acompte — en attente de confirmation", "sentence": "Le salon confirmera après vérification.", "action": "viewProof", "balance": true},
+    {"status": "pending", "minutesFromNow": -60, "proof": false, "label": "Aucun justificatif envoyé", "sentence": null, "action": null, "balance": true},
+    {"status": "pending", "minutesFromNow": 0, "proof": false, "label": "Aucun justificatif envoyé", "sentence": null, "action": null, "balance": true},
+    {"status": "pending", "minutesFromNow": -60, "proof": true, "label": "Acompte — non confirmé", "sentence": "Voyez directement avec le salon : MyWeli ne détient aucun acompte.", "action": "viewProof", "balance": true},
+    {"status": "confirmed", "minutesFromNow": 60, "proof": true, "label": "Acompte — justificatif envoyé", "sentence": null, "action": "viewProof", "balance": true},
+    {"status": "confirmed", "minutesFromNow": 60, "proof": false, "label": "Acompte", "sentence": null, "action": null, "balance": true},
+    {"status": "confirmed", "minutesFromNow": -60, "proof": true, "label": "Acompte — justificatif envoyé", "sentence": null, "action": "viewProof", "balance": true},
+    {"status": "cancelled", "minutesFromNow": -60, "proof": true, "label": "Acompte", "sentence": "Voyez directement avec le salon : MyWeli ne détient aucun acompte.", "action": "viewProof", "balance": false},
+    {"status": "cancelled", "minutesFromNow": 60, "proof": false, "label": "Acompte", "sentence": null, "action": null, "balance": false},
+    {"status": "completed", "minutesFromNow": -60, "proof": true, "label": "Acompte", "sentence": null, "action": "viewProof", "balance": false},
+    {"status": "completed", "minutesFromNow": -60, "proof": false, "label": "Acompte", "sentence": null, "action": null, "balance": false},
+    {"status": "noShow", "minutesFromNow": -60, "proof": true, "label": "Acompte", "sentence": null, "action": "viewProof", "balance": false},
+    {"status": "noShow", "minutesFromNow": -60, "proof": false, "label": "Acompte", "sentence": null, "action": null, "balance": false},
+    {"status": "confirmed", "minutesFromNow": -60, "proof": false, "label": "Acompte", "sentence": null, "action": null, "balance": true},
+    {"status": "cancelled", "minutesFromNow": 60, "proof": true, "label": "Acompte", "sentence": "Voyez directement avec le salon : MyWeli ne détient aucun acompte.", "action": "viewProof", "balance": false},
+    {"status": "pending", "minutesFromNow": 0, "proof": true, "label": "Acompte — non confirmé", "sentence": "Voyez directement avec le salon : MyWeli ne détient aucun acompte.", "action": "viewProof", "balance": true}
+  ]
+}

@@ -1,25 +1,26 @@
 {
-  "about": "The one rule for a client's own bookings, read by BOTH test suites: web tests/client-booking-rule-table.test.ts and mobile test/unit/client_booking_rule_test.dart. A rule changed on one surface turns that surface red; a row changed here turns both red until both follow. docs/design/web-account-bookings-truth.md §2.1 and §2.8; consumer-app-truth.md §2.7; decisions 165, 166, 186.",
+  "about": "The one rule for a client's own bookings, read by BOTH test suites: web tests/client-booking-rule-table.test.ts and mobile test/unit/client_booking_rule_test.dart. A rule changed on one surface turns that surface red; a row changed here turns both red until both follow. docs/design/web-account-bookings-truth.md §2.1 and §2.8; consumer-app-truth.md §2.7; decisions 165, 166, 186; the sentences, decision 196.",
   "fields": {
     "status": "the stored status, as the API spells it",
     "minutesFromNow": "the booking's time minus now, in minutes (0 = exactly now, which is past)",
     "tab": "upcoming (« À venir ») · past (« Passés ») · cancelled (« Annulés »)",
     "label": "the chip's words",
-    "tone": "warning · success · neutral · error (the app's AppChipTone names)"
+    "tone": "warning · success · neutral · error (the app's AppChipTone names)",
+    "sentence": "the status sentence under the chip on the detail, or null (appointment-detail-complete.md §2.3, decision 196)"
   },
   "rows": [
-    { "status": "pending", "minutesFromNow": 60, "tab": "upcoming", "label": "En attente", "tone": "warning" },
-    { "status": "confirmed", "minutesFromNow": 60, "tab": "upcoming", "label": "Confirmé", "tone": "success" },
-    { "status": "pending", "minutesFromNow": -60, "tab": "past", "label": "Non confirmé", "tone": "neutral" },
-    { "status": "confirmed", "minutesFromNow": -60, "tab": "past", "label": "Confirmé", "tone": "success" },
-    { "status": "completed", "minutesFromNow": -60, "tab": "past", "label": "Terminé", "tone": "neutral" },
-    { "status": "completed", "minutesFromNow": 60, "tab": "past", "label": "Terminé", "tone": "neutral" },
-    { "status": "noShow", "minutesFromNow": -60, "tab": "past", "label": "Absent", "tone": "error" },
-    { "status": "noShow", "minutesFromNow": 60, "tab": "past", "label": "Absent", "tone": "error" },
-    { "status": "cancelled", "minutesFromNow": -60, "tab": "cancelled", "label": "Annulé", "tone": "error" },
-    { "status": "cancelled", "minutesFromNow": 60, "tab": "cancelled", "label": "Annulé", "tone": "error" },
-    { "status": "pending", "minutesFromNow": 0, "tab": "past", "label": "Non confirmé", "tone": "neutral" },
-    { "status": "confirmed", "minutesFromNow": 0, "tab": "past", "label": "Confirmé", "tone": "success" },
-    { "status": "pending", "minutesFromNow": 1, "tab": "upcoming", "label": "En attente", "tone": "warning" }
+    {"status": "pending", "minutesFromNow": 60, "tab": "upcoming", "label": "En attente", "tone": "warning", "sentence": "Le salon doit encore confirmer ce rendez-vous."},
+    {"status": "confirmed", "minutesFromNow": 60, "tab": "upcoming", "label": "Confirmé", "tone": "success", "sentence": null},
+    {"status": "pending", "minutesFromNow": -60, "tab": "past", "label": "Non confirmé", "tone": "neutral", "sentence": "Le salon n’a pas confirmé ce rendez-vous avant son heure."},
+    {"status": "confirmed", "minutesFromNow": -60, "tab": "past", "label": "Confirmé", "tone": "success", "sentence": null},
+    {"status": "completed", "minutesFromNow": -60, "tab": "past", "label": "Terminé", "tone": "neutral", "sentence": null},
+    {"status": "completed", "minutesFromNow": 60, "tab": "past", "label": "Terminé", "tone": "neutral", "sentence": null},
+    {"status": "noShow", "minutesFromNow": -60, "tab": "past", "label": "Absent", "tone": "error", "sentence": "Le salon a indiqué une absence à ce rendez-vous."},
+    {"status": "noShow", "minutesFromNow": 60, "tab": "past", "label": "Absent", "tone": "error", "sentence": "Le salon a indiqué une absence à ce rendez-vous."},
+    {"status": "cancelled", "minutesFromNow": -60, "tab": "cancelled", "label": "Annulé", "tone": "error", "sentence": null},
+    {"status": "cancelled", "minutesFromNow": 60, "tab": "cancelled", "label": "Annulé", "tone": "error", "sentence": null},
+    {"status": "pending", "minutesFromNow": 0, "tab": "past", "label": "Non confirmé", "tone": "neutral", "sentence": "Le salon n’a pas confirmé ce rendez-vous avant son heure."},
+    {"status": "confirmed", "minutesFromNow": 0, "tab": "past", "label": "Confirmé", "tone": "success", "sentence": null},
+    {"status": "pending", "minutesFromNow": 1, "tab": "upcoming", "label": "En attente", "tone": "warning", "sentence": "Le salon doit encore confirmer ce rendez-vous."}
   ]
 }

@@ -83,6 +83,16 @@ class Appointment extends Equatable {
   final String? providerWhatsapp;
   final String? providerAddress;
   final String? providerCountryCode;
+
+  /// The salon's place and cover (A2, appointment-detail-complete.md §2.1),
+  /// read live by the server. The position is a pair — both set or both null —
+  /// so « Itinéraire » never gets half a coordinate. The photo is null for a
+  /// salon that is not live: a stopped salon's cover reaches nobody.
+  final double? providerLatitude;
+  final double? providerLongitude;
+  final String? providerCommune;
+  final String? providerCity;
+  final String? providerPhotoUrl;
   final String? artistName;
   final List<String> serviceNames;
   final String? depositMobileMoneyOperator;
@@ -104,6 +114,18 @@ class Appointment extends Equatable {
   /// nouveau » on every one of them. There is exactly one place to get it
   /// wrong, and it is here.
   bool get salonIsLive => providerStatus == null || providerStatus == 'active';
+
+  /// Does the booking carry the salon's position?
+  bool get hasPosition => providerLatitude != null && providerLongitude != null;
+
+  /// Did the salon enter this booking itself (a walk-in or a phone booking)?
+  ///
+  /// The server stores those under `userId: 'manual'`
+  /// (`booking_service.dart`), and the web reads exactly that
+  /// (`web/lib/bff.ts`). The app used to guess from `clientName != null`,
+  /// which misses a booking the salon typed without a name
+  /// (appointment-detail-complete.md §1).
+  bool get isSalonEntered => userId == 'manual';
 
   const Appointment({
     required this.id,
@@ -137,6 +159,11 @@ class Appointment extends Equatable {
     this.providerWhatsapp,
     this.providerAddress,
     this.providerCountryCode,
+    this.providerLatitude,
+    this.providerLongitude,
+    this.providerCommune,
+    this.providerCity,
+    this.providerPhotoUrl,
     this.artistName,
     this.serviceNames = const [],
     this.depositMobileMoneyOperator,
@@ -178,6 +205,11 @@ class Appointment extends Equatable {
     providerWhatsapp,
     providerAddress,
     providerCountryCode,
+    providerLatitude,
+    providerLongitude,
+    providerCommune,
+    providerCity,
+    providerPhotoUrl,
     artistName,
     serviceNames,
     depositMobileMoneyOperator,
@@ -218,6 +250,11 @@ class Appointment extends Equatable {
     String? providerWhatsapp,
     String? providerAddress,
     String? providerCountryCode,
+    double? providerLatitude,
+    double? providerLongitude,
+    String? providerCommune,
+    String? providerCity,
+    String? providerPhotoUrl,
     String? artistName,
     List<String>? serviceNames,
     String? depositMobileMoneyOperator,
@@ -258,6 +295,11 @@ class Appointment extends Equatable {
       providerWhatsapp: providerWhatsapp ?? this.providerWhatsapp,
       providerAddress: providerAddress ?? this.providerAddress,
       providerCountryCode: providerCountryCode ?? this.providerCountryCode,
+      providerLatitude: providerLatitude ?? this.providerLatitude,
+      providerLongitude: providerLongitude ?? this.providerLongitude,
+      providerCommune: providerCommune ?? this.providerCommune,
+      providerCity: providerCity ?? this.providerCity,
+      providerPhotoUrl: providerPhotoUrl ?? this.providerPhotoUrl,
       artistName: artistName ?? this.artistName,
       serviceNames: serviceNames ?? this.serviceNames,
       depositMobileMoneyOperator:
@@ -305,6 +347,11 @@ class Appointment extends Equatable {
       if (providerAddress != null) 'providerAddress': providerAddress,
       if (providerCountryCode != null)
         'providerCountryCode': providerCountryCode,
+      if (providerLatitude != null) 'providerLatitude': providerLatitude,
+      if (providerLongitude != null) 'providerLongitude': providerLongitude,
+      if (providerCommune != null) 'providerCommune': providerCommune,
+      if (providerCity != null) 'providerCity': providerCity,
+      if (providerPhotoUrl != null) 'providerPhotoUrl': providerPhotoUrl,
       if (artistName != null) 'artistName': artistName,
       if (serviceNames.isNotEmpty) 'serviceNames': serviceNames,
       if (depositMobileMoneyOperator != null)
@@ -356,6 +403,11 @@ class Appointment extends Equatable {
       providerWhatsapp: json['providerWhatsapp'] as String?,
       providerAddress: json['providerAddress'] as String?,
       providerCountryCode: json['providerCountryCode'] as String?,
+      providerLatitude: (json['providerLatitude'] as num?)?.toDouble(),
+      providerLongitude: (json['providerLongitude'] as num?)?.toDouble(),
+      providerCommune: json['providerCommune'] as String?,
+      providerCity: json['providerCity'] as String?,
+      providerPhotoUrl: json['providerPhotoUrl'] as String?,
       artistName: json['artistName'] as String?,
       serviceNames: List<String>.from(
         (json['serviceNames'] as List?) ?? const [],

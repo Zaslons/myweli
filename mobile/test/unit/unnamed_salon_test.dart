@@ -87,6 +87,19 @@ void main() {
   // salon », « ce salon », « votre salon » as a whole literal are never a
   // label. « Salon » is one too — a column, a section, an admin title — so
   // it counts only as a fallback: after `??`, `==` or a ternary's `? … :`.
+  // A2 (appointment-detail-complete.md §2.2): « Le salon » is also a section
+  // TITLE on the appointment detail — a heading, not a salon's name. Only the
+  // exact `title: 'Le salon'` form is exempt; a fallback spelled for a title
+  // (`title: name ?? 'Le salon'`) is still a fallback, and still caught.
+  test('the rule reads a heading as a heading, and a fallback as one', () {
+    expect(spellsUnnamedSalon("title: 'Le salon',"), isFalse);
+    expect(spellsUnnamedSalon("  title: 'Le salon'"), isFalse);
+    expect(spellsUnnamedSalon("title: name ?? 'Le salon',"), isTrue);
+    expect(spellsUnnamedSalon("final s = 'Le salon';"), isTrue);
+    expect(spellsUnnamedSalon("label: n ?? 'Salon',"), isTrue);
+    expect(spellsUnnamedSalon("// title: name ?? 'Le salon'"), isFalse);
+  });
+
   test('no screen spells an unnamed salon itself', () {
     final files = Directory('lib')
         .listSync(recursive: true)
@@ -98,16 +111,26 @@ void main() {
         )
         .toList();
     expect(files.length, greaterThan(100), reason: 'run from mobile/');
-    final fallback = RegExp(
-      r"'(le salon|Le salon|ce salon|votre salon)'"
-      r"|(\?\?|==|\?[^:?]*:)\s*'Salon'",
-    );
     final hits = [
       for (final f in files)
         for (final (i, line) in f.readAsLinesSync().indexed)
-          if (!line.trimLeft().startsWith('//') && fallback.hasMatch(line))
-            '${f.path}:${i + 1}: ${line.trim()}',
+          if (spellsUnnamedSalon(line)) '${f.path}:${i + 1}: ${line.trim()}',
     ];
     expect(hits, isEmpty, reason: 'use salonNameOr and kUnnamedSalon*');
   });
+}
+
+/// Does [line] spell an unnamed salon's fallback by hand?
+///
+/// « Salon » is a real label too — a column, a section, an admin title — so it
+/// counts only after `??`, `==` or a ternary's `? … :`. « Le salon » is also
+/// the appointment detail's section title: exactly `title: 'Le salon'` is a
+/// heading and is set aside before the match.
+bool spellsUnnamedSalon(String line) {
+  if (line.trimLeft().startsWith('//')) return false;
+  final probe = line.replaceAll(RegExp(r"\btitle:\s*'Le salon'"), 'title: _');
+  return RegExp(
+    r"'(le salon|Le salon|ce salon|votre salon)'"
+    r"|(\?\?|==|\?[^:?]*:)\s*'Salon'",
+  ).hasMatch(probe);
 }

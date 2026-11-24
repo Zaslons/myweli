@@ -1,0 +1,17 @@
+- 🟡 **MyWeli (client), A2 : le détail d’un rendez-vous, complet, dans l’app (app · 2026-11-23 — décisions 194 à 203 ; spec [appointment-detail-complete.md](../../design/appointment-detail-complete.md) §2.2–§2.9).** Branche `feat/appointment-detail-app`. Le code de l’app n’atteint les clients qu’avec la prochaine version de l’app ; rien n’est déployé à sa fusion.
+  - **Pourquoi :** le détail d’un rendez-vous ne montrait ni le statut, ni le salon, ni les prestations, ni d’itinéraire. C’est l’écran qu’un client ouvre le jour même.
+  - **L’écran « Rendez-vous »** (il s’appelait « Détails ») :
+    - **l’en-tête :** la couverture du salon au format 3:2, coupée comme sur le site (50 % 20 %) ; le nom (titre de niveau 1 pour les lecteurs d’écran), la pastille et une phrase de statut. Un salon arrêté n’envoie plus sa photo : l’app dessine alors son image par défaut ;
+    - **« Le rendez-vous » :** la date avec le jour, l’heure de début et de fin dans le fuseau du salon, le spécialiste, « Ajouter au calendrier » tant qu’il est à venir ;
+    - **« Prestations » :** une par ligne ;
+    - **« Le salon » :** l’adresse puis « commune, ville » (sans répéter une commune que l’adresse nomme déjà) ; « Itinéraire » seulement avec une position ; « Appeler » et « WhatsApp » seulement avec un numéro (ils échouaient après le tap) ; « Voir le salon » seulement pour un salon en ligne ;
+    - **« Paiement » :** la table de l’acompte (décision 197) :
+      - « Acompte confirmé » disparaît, car un salon confirme un rendez-vous, pas un paiement ;
+      - « Envoyer l’acompte » s’arrête à l’heure du rendez-vous ;
+      - le solde ne s’affiche que tant que le rendez-vous est ouvert ;
+    - **les actions,** avec un seul bouton principal par état. « Réserver à nouveau » arrive dans le détail, selon la règle du site.
+  - **Les titres de section** sont annoncés comme titres de niveau 2. `SectionHeading` gagne un `headingLevel` facultatif, et `TimedCachedImage` un `alignment`.
+  - **La carte « Mes rendez-vous »** lit la photo, le lieu et la position sur le rendez-vous lui-même ; la liste de découverte ne sert plus que de repli. « Voir sur la carte » est réservé à un salon en ligne.
+  - **« Réservé par votre salon »** suit enfin la règle du site (`userId == 'manual'`), sur la carte comme pour la phrase d’annulation.
+  - **Deux tables partagées** sont lues par les tests de l’app : les phrases de statut (`client-booking-rule.json`) et les états de l’acompte (`deposit-state.json`, nouvelle). Le site les lira dans A2w.
+  - **Six images de référence** du détail (trois états, à 360 et à 200 %) : l’audit n’en avait aucune.
