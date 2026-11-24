@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Module** | backend: `appointments` (the repository and its in-memory twin), `clients` (the guest-phone move) |
-| **Status** | **Draft 2026-11-24, for the owner's answers** (§11). Docs only; no code until the answers. |
+| **Status** | **Approved 2026-11-24.** The owner answered the five questions of §11 at once, « Approve as recommended »: decisions 214–218 in BACKLOG, batch 15 (B15.1 is the build). Built on the owner's word, in its own backend PR. |
 | **Owner** | the project owner: the answers, the build's go, each merge, and the backend deploy it rides with, each on the owner's word |
 | **Last updated** | 2026-11-24 |
 | **PRD ref / phase** | none: test fidelity, behind the V1 booking flow · V1 |
@@ -369,29 +369,29 @@ The contract file (`appointment_repository_contract.dart`) runs on both twins: i
 
 ---
 
-## 11. Questions for the owner — recommendation first
+## 11. Questions for the owner — answered 2026-11-24, « Approve as recommended » (decisions 214–218)
 
-Decisions will be numbered from **214** when answered (A3's spec, #851, holds 204–213).
+Numbered from 214, because A3's spec (#851) holds 204–213.
 
 **Q1. What `update` cannot store: refuse it, in both twins?**
-- **Recommended: refuse** (`ArgumentError`, before any write) both a key outside the six and a value Postgres rejects. The twins agree, and a mistake turns the first test red instead of passing in one twin. No production caller sends either today.
+- **Recommended: refuse** (`ArgumentError`, before any write) both a key outside the six and a value Postgres rejects. The twins agree, and a mistake turns the first test red instead of passing in one twin. No production caller sends either today. → ✅ **Decision 214.**
 - Or **ignore** unknown keys in both, and check only values: the twins agree, but silence stays, the trait that hid the currency.
 - Or **`assert`**: red in tests, silent in production.
 
 **Q2. The guest-phone move: a dedicated in-memory method?**
-- **Recommended: yes**, `moveGuestPhone`, mirroring the Postgres SQL exactly. It stays off the interface, because the Postgres move must share the client card's transaction (§5.3).
+- **Recommended: yes**, `moveGuestPhone`, mirroring the Postgres SQL exactly. It stays off the interface, because the Postgres move must share the client card's transaction (§5.3). → ✅ **Decision 215.**
 - Or keep it on `update` with a test-only escape: the loophole survives under another name.
 
 **Q3. Copies on every in-memory return, in Postgres's shape?**
-- **Recommended: yes, deep copies without `endsAt`,** so a caller can never change what is stored by editing what it was handed, and never reads a key production doesn't send. That's how Postgres behaves, and it retires the two workarounds' reason to exist (§2.4).
+- **Recommended: yes, deep copies without `endsAt`,** so a caller can never change what is stored by editing what it was handed, and never reads a key production doesn't send. That's how Postgres behaves, and it retires the two workarounds' reason to exist (§2.4). → ✅ **Decision 216.**
 - Or keep aliasing and document it: the next near-miss stays possible.
 
 **Q4. The overlapping reschedule (`null` from Postgres only)?**
-- **Recommended: document it on the interface,** as `create` already does. The service's own slot check runs first; only a race reaches the constraint.
+- **Recommended: document it on the interface,** as `create` already does. The service's own slot check runs first; only a race reaches the constraint. → ✅ **Decision 217.**
 - Or simulate the exclusion constraint in memory: more fake logic to keep in sync with the real one.
 
 **Q5. When?**
-- **Recommended: build it now, after your go, as its own PR.** It needs no deploy of its own: production gains only the check, for keys and values no caller sends, at the next backend deploy.
+- **Recommended: build it now, after your go, as its own PR.** It needs no deploy of its own: production gains only the check, for keys and values no caller sends, at the next backend deploy. → ✅ **Decision 218.**
 - Or wait for the next backend batch.
 
 ---
@@ -417,3 +417,4 @@ Decisions will be numbered from **214** when answered (A3's spec, #851, holds 20
   - the value checks Postgres makes and the twin doesn't (§2.1, §5.2, §8.2);
   - the reschedule row, three line numbers, and §1's framing.
   - **The review confirmed:** the six keys, the complete caller list (it searched closures, tear-offs, `tool/` and `main.dart` too), the 13 test calls, that nothing would start throwing, and that no code relies on aliasing.
+- **2026-11-24, approved:** the owner answered §11 at once, « Approve as recommended » (decisions 214–218).

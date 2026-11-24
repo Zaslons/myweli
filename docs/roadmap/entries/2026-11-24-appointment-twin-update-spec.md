@@ -12,4 +12,5 @@
   - **Aucun changement pour les utilisateurs :** aucun appelant de production ne passe une clé hors des six ni une valeur refusée.
   - **Relue une fois par un lecteur indépendant, chargé de la réfuter :** un bloquant (`endsAt`, qui rendait faux un test annoncé vert), cinq constats à corriger et trois détails, tous intégrés (§13).
   - **Trouvé à côté :** BACKEND.md disait que la CI n’exécute jamais les suites Postgres. Elle les exécute depuis B3c (juin) ; la phrase était fausse dès son écriture. Elle est corrigée dans cette PR ; la même phrase dans un fichier de test le sera par la PR de construction.
-  - **Reste, sur le mot du propriétaire :** les cinq réponses (§11, décisions à partir de 214), puis la construction dans sa propre PR.
+  - **Approuvée le 2026-11-24 :** les cinq réponses d’un coup, « Approve as recommended », décisions 214–218 dans le BACKLOG, regroupées dans un nouveau lot 15 (B15.1).
+  - **Reste, sur le mot du propriétaire :** la fusion de cette PR, puis la construction de B15.1 dans sa propre PR. Elle n’a pas de déploiement à elle : elle part avec le prochain déploiement du backend.
