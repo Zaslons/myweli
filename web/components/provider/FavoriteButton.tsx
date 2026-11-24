@@ -5,6 +5,11 @@ import { useEffect, useRef, useState } from 'react';
 import { addFavorite, getFavorites, removeFavorite } from '../../lib/api/account';
 import { writeFailureMessage } from '../../lib/api/network';
 import { announceFavorite } from '../../lib/account/favorite-toast';
+import {
+  FAVORITE_ALREADY,
+  signInForFavorite,
+  takeFavoriteAfterSignIn,
+} from '../../lib/account/favorite-after-sign-in';
 import { useToast } from '../../lib/useToast';
 import { Toast } from '../Toast';
 
@@ -12,6 +17,9 @@ import { Toast } from '../Toast';
 /// favorites for initial state; not signed in → /connexion. Like the app's
 /// heart it waits for the server; a refusal keeps the state and says why under
 /// the button (docs/design/web-consumer-optimistic-revert.md §3.2 ④).
+///
+/// A guest's heart is applied once they are back from the sign-in it opened
+/// (docs/design/consumer-signin-push.md §14, decision 205).
 export function FavoriteButton({
   providerId,
   slug,
@@ -25,18 +33,42 @@ export function FavoriteButton({
   const [error, setError] = useState<string | null>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const { toast, show, dismiss } = useToast();
+  // Whether the last call ran (see the focus effect below), and whether its
+  // end may take the focus back: not for the heart applied on load (§14.4).
+  const called = useRef(false);
+  const focusAfterCall = useRef(true);
 
   useEffect(() => {
     let active = true;
     (async () => {
       const r = await getFavorites();
-      if (active && r.status === 200) {
-        setFav(r.favorites.some((f) => f.id === providerId));
+      if (!active) return;
+      const already = r.status === 200 && r.favorites.some((f) => f.id === providerId);
+      if (r.status === 200) setFav(already);
+      // Taken inside the answer, once: React's development double-mount
+      // ignores the first answer, so the heart is applied once (§14.4).
+      if (takeFavoriteAfterSignIn() !== providerId) return;
+      if (r.status === 401) return; // no session after all: nothing to apply
+      if (r.status !== 200) {
+        setError(writeFailureMessage(r.status));
+        return;
       }
+      if (already) {
+        show(FAVORITE_ALREADY, 'info');
+        return;
+      }
+      // The page has just loaded: no focus is moved (§14.4).
+      focusAfterCall.current = false;
+      const ok = await write(true);
+      focusAfterCall.current = true;
+      if (ok) announceFavorite(show, dismiss, true, () => void write(false));
     })();
     return () => {
       active = false;
     };
+    // `write` and the toast's callbacks are this render's; the read runs once
+    // per salon, as before.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [providerId]);
 
   // The button was disabled while the call was out, which can drop focus to
@@ -44,10 +76,9 @@ export function FavoriteButton({
   // success — never stolen from elsewhere. Only after a call: on load nothing
   // has run, and taking the focus then scrolled the salon page 317px at 320×568,
   // off its cover (docs/design/web-swiss-salon.md §1.4).
-  const called = useRef(false);
   useEffect(() => {
     if (busy) {
-      called.current = true;
+      called.current = focusAfterCall.current;
       return;
     }
     if (!called.current) return;
@@ -73,7 +104,13 @@ export function FavoriteButton({
       : await removeFavorite(providerId);
     setBusy(false);
     if (r.status === 401) {
-      router.push(`/connexion?returnTo=${encodeURIComponent(`/${slug}`)}`);
+      // An add is carried across the sign-in; a removal (a session that
+      // ended) is not (§14.4).
+      router.push(
+        next
+          ? signInForFavorite(providerId, `/${slug}`)
+          : `/connexion?returnTo=${encodeURIComponent(`/${slug}`)}`,
+      );
       return false;
     }
     if (r.ok) setFav(next);

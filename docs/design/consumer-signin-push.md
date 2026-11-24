@@ -479,3 +479,58 @@ The built change was read once by a reviewer told to refute it: 11 findings. Eac
 10. A forced favourites read could share a read sent before a heart was written. Reads are shared only when no heart was written since.
 11. The sign-in popped whatever route was on top. It now closes anything above its own route first, then itself.
 
+
+## 14. A3w — the website's two hearts (decision 205)
+
+Q2's answer included the website: a heart a guest taps is applied once they have signed in, on the salon page (`web/components/provider/FavoriteButton.tsx`) and on the search's cards (`web/components/discovery/RechercheClient.tsx`). Read at `main` `aa3fe341`. No endpoint changes; the change ships with the next deploy of `myweli.com`.
+
+### 14.1 Today
+
+- **Salon page.** A guest's tap sends `POST /api/me/favorites/{id}`; its 401 pushes `/connexion?returnTo=/{slug}` (`FavoriteButton.tsx:75-76`).
+- **Search.** The favourites read answered 401, so a heart goes straight to `/connexion?returnTo=<the search, with its filters>` through `window.location.assign`. An add that answers 401 does the same (`RechercheClient.tsx:133-136`, `:163-165`).
+- **`/connexion`** returns with `router.replace(returnTo)` once signed in (`web/components/auth/ConnexionClient.tsx:9-12`). Google and Apple open popups, so the tab never leaves the site (`LoginOptions.tsx`).
+- **The person is back where they were, and taps again.** Nothing remembers the heart, and `/connexion` does not say why it opened.
+
+### 14.2 The flow
+
+1. **A guest taps a heart** (or an add answers 401). Before leaving, the page remembers the heart in this tab: `sessionStorage`, the salon's id and the time. It then opens `/connexion?raison=favori&returnTo=…`, where `returnTo` is the same page as today with one more parameter, `suite=favori`.
+2. **`/connexion` says why**, under its title: « Connectez-vous pour ajouter ce salon à vos favoris. », the app's reason line (§2.2). Without `raison`, or with any other value, the page is as today.
+3. **Signed in, the person is back on the page** (`router.replace(returnTo)`, unchanged). The page reads the favourites, as it already does on load, and that read is fresh: it brings favourites saved on the phone.
+4. **When the read answers, the page takes the heart.** The marker is removed from the address (`history.replaceState`; other parameters stay), and the stored heart is removed from the tab. The heart applies only if all of these hold:
+   - the address carried `suite=favori`;
+   - a heart was stored in this tab less than 30 minutes ago;
+   - on the salon page, the stored salon is this page's salon.
+5. **Then, as in the app (§2.8):**
+   - **already a favourite:** nothing is sent; the heart shows full and « Déjà dans vos favoris » shows (info). A toggle would have removed it;
+   - **not yet:** it is added, with the words of an ordinary tap: « Ajouté aux favoris » with « Annuler »;
+   - **the read or the add failed:** the surface's own failure sentence shows where a failed tap shows it, under the button or under that card, and the heart stays empty. The person is signed in and can tap again;
+   - **the add answers 401 again:** the sign-in opens again, as in step 1.
+
+### 14.3 Why the two keys
+
+The address alone could be forged: a link to `/{slug}?suite=favori` would add that salon for any signed-in visitor who opens it. The stored heart alone would fire too late: a guest who taps a heart, goes back from `/connexion` without signing in, and signs in later from the header would find the salon added on their next visit. Both together mean: **this tab tapped this heart, and is coming back from the sign-in it opened.**
+
+### 14.4 Rules the build holds
+
+- **Read once, then take once.** The heart is taken only inside the favourites read's answer, and only while the page is still mounted. React's development double-mount runs the read twice: the first answer is ignored, so the heart is applied once.
+- **No focus is moved.** The page has just loaded, and moving the focus to the heart scrolled the salon page off its cover at 320 × 568 (`FavoriteButton.tsx`, web-swiss-salon.md §1.4). The toast's polite live region says what happened, and the heart itself stays a way back.
+- **The search.** The card is normally on the page, since `returnTo` is the same search. If that salon has left the results, the add still happens, since the person asked; a failure then shows in the toast (error), as there is no card to hold it.
+- **Storage refused** (a private window, storage blocked): nothing is stored, the marker is stripped, and the page behaves as today. Every `sessionStorage` call is wrapped.
+- **A removal that answers 401** (a session that ended): the sign-in opens without `raison` and without a heart to apply. Only an add is carried.
+- **`raison`** maps a known key to a fixed sentence; nothing in the address is ever written to the page.
+
+### 14.5 Copy
+
+| Where | Text |
+|---|---|
+| `/connexion?raison=favori`, under the title | Connectez-vous pour ajouter ce salon à vos favoris. |
+| Already a favourite (toast, info) | Déjà dans vos favoris |
+| Added (toast, success, with « Annuler ») | Ajouté aux favoris (unchanged) |
+| A failure | the surface's existing sentence (`writeFailureMessage`) |
+
+### 14.6 Tests
+
+- **Unit:** the stored heart (stored, taken once, expired at 30 minutes, needs the marker, keeps the other parameters, storage that throws); the `raison` line (known, unknown, absent).
+- **Components:** each surface, for each row of 14.2 step 5; a guest's tap leaves with both keys; no marker or another salon's heart applies nothing; a development double-mount applies once.
+- **End to end:** a guest taps the salon page's heart, sees the reason, signs in, and is back on the salon with « Ajouté aux favoris » and one `POST`. The same through the search's card. A salon already among the favourites says « Déjà dans vos favoris » with no write. The address no longer carries `suite`.
+- **Mutations:** each condition in 14.2 step 4, the « already » branch, the strip, and the reason's mapping, each watched red.
