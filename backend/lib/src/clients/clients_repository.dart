@@ -123,8 +123,10 @@ abstract interface class ClientsRepository {
 class InMemoryClientsRepository implements ClientsRepository {
   /// [appointments] is the twin [changeGuestPhone] moves a guest's history
   /// in — the Postgres twin reaches the `appointments` table in its own
-  /// transaction. Typed as the in-memory twin on purpose: its `update`
-  /// merges any field, where the Postgres one ignores `clientPhone`.
+  /// transaction. Typed as the in-memory twin on purpose: the move is its
+  /// `moveGuestPhone`, which is not on the interface, because `update` writes
+  /// only what Postgres's `update` writes
+  /// (docs/design/appointment-twin-update.md §5.3).
   InMemoryClientsRepository({InMemoryAppointmentRepository? appointments})
     : _appointments = appointments;
 
@@ -268,9 +270,8 @@ class InMemoryClientsRepository implements ClientsRepository {
         "guest's phone",
       );
     }
-    // Read first: from the checks to the last write nothing yields, so no
-    // other request lands in between — the twin of the row lock.
-    final bookings = await appointments.listForProvider(providerId);
+    // From the checks to the last write nothing yields, so no other request
+    // lands in between — the twin of the row lock.
     Map<String, dynamic>? card;
     for (final c in _clients) {
       if (c['id'] == clientId && c['providerId'] == providerId) card = c;
@@ -301,16 +302,16 @@ class InMemoryClientsRepository implements ClientsRepository {
       }
     }
     card['phone'] = phone;
-    // `update` has no await inside: each call writes before it returns its
-    // future, so the bookings move in the same synchronous stretch as the
-    // card. A phone-less card adopts no one (`null == null` would sweep up
-    // every phone-less walk-in).
-    await Future.wait([
-      if (oldPhone != null)
-        for (final a in bookings)
-          if (a['userId'] == 'manual' && a['clientPhone'] == oldPhone)
-            appointments.update(a['id'] as String, {'clientPhone': phone}),
-    ]);
+    // The bookings move in the same synchronous stretch as the card. A
+    // phone-less card adopts no one (`null == null` would sweep up every
+    // phone-less walk-in), as the Postgres twin guards before its UPDATE.
+    if (oldPhone != null) {
+      appointments.moveGuestPhone(
+        providerId: providerId,
+        from: oldPhone,
+        to: phone,
+      );
+    }
     return (
       outcome: GuestPhoneOutcome.changed,
       client: Map.of(card),

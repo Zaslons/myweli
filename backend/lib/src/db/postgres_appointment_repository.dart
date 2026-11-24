@@ -11,10 +11,14 @@ import '../appointments/appointment_repository.dart';
 /// (provider, start) returns no row → null. Parameterized throughout.
 ///
 /// `currency` is the booking's own stamp, written once and returned by every
-/// read; `update` has no branch for it, which is the immutability rule
+/// read; `update` refuses it, which is the immutability rule
 /// (docs/design/appointment-currency-stamp.md §3.4). Every key the booking
 /// service writes must come back — `appointment_repository_contract.dart`
 /// holds both twins to it.
+///
+/// `update` writes only [kAppointmentUpdatableKeys] and refuses anything else
+/// before any SQL, as the in-memory twin does
+/// (docs/design/appointment-twin-update.md §5.2).
 class PostgresAppointmentRepository implements AppointmentRepository {
   PostgresAppointmentRepository(this._pool);
 
@@ -156,6 +160,9 @@ class PostgresAppointmentRepository implements AppointmentRepository {
     String id,
     Map<String, dynamic> changes,
   ) async {
+    // Before any SQL: a key the builder below does not know used to be
+    // ignored without a word, and the in-memory twin kept it.
+    checkAppointmentChanges(changes);
     final sets = <String>[];
     final params = <String, Object?>{'id': id};
     if (changes.containsKey('status')) {

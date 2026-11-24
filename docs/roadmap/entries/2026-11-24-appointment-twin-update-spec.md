@@ -1,4 +1,4 @@
-- 🟡 **Spec : le double de test du dépôt des rendez-vous n’écrit plus que ce que Postgres écrit (backend · documentation · 2026-11-24).** Branche `docs/appointment-twin-update-spec`, créée depuis `main`. Spec : [appointment-twin-update.md](../../design/appointment-twin-update.md). Documentation seule : aucun code avant les réponses.
+- 🟢 **Spec : le double de test du dépôt des rendez-vous n’écrit plus que ce que Postgres écrit (backend · documentation · 2026-11-24).** Branche `docs/appointment-twin-update-spec`, créée depuis `main`. Spec : [appointment-twin-update.md](../../design/appointment-twin-update.md). Documentation seule : aucun code avant les réponses.
   - **Le défaut :** en test, le double en mémoire du dépôt des rendez-vous accepte n’importe quelle clé et n’importe quelle valeur dans une mise à jour. Postgres n’écrit que six clés, ignore le reste sans rien dire et refuse certaines valeurs. Un test de service peut donc passer pour un code que la production casserait : c’est ainsi que la devise d’un rendez-vous n’a jamais été enregistrée (lot 14).
   - **Prouvé, pas supposé :** une sonde jetable, sur une base locale supprimée après, a passé la même mise à jour aux deux doubles.
     - Le double en mémoire garde six clés que Postgres ignore ; la clé témoin, `status`, change des deux côtés.
@@ -13,4 +13,5 @@
   - **Relue une fois par un lecteur indépendant, chargé de la réfuter :** un bloquant (`endsAt`, qui rendait faux un test annoncé vert), cinq constats à corriger et trois détails, tous intégrés (§13).
   - **Trouvé à côté :** BACKEND.md disait que la CI n’exécute jamais les suites Postgres. Elle les exécute depuis B3c (juin) ; la phrase était fausse dès son écriture. Elle est corrigée dans cette PR ; la même phrase dans un fichier de test le sera par la PR de construction.
   - **Approuvée le 2026-11-24 :** les cinq réponses d’un coup, « Approve as recommended », décisions 214–218 dans le BACKLOG, regroupées dans un nouveau lot 15 (B15.1).
-  - **Reste, sur le mot du propriétaire :** la fusion de cette PR, puis la construction de B15.1 dans sa propre PR. Elle n’a pas de déploiement à elle : elle part avec le prochain déploiement du backend.
+  - **Fusionnée le 2026-11-24** (#852, `c0790026`, sur le mot du propriétaire ; l’arbre de `main` est celui de la tête testée). A3 (#851) avait été fusionnée juste avant au même endroit du BACKLOG : `main` a été intégré, et les deux blocs gardés (204–213, puis 214–218).
+  - **Ensuite :** B15.1, construit dans sa propre PR.

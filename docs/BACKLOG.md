@@ -41,7 +41,7 @@
 | 12 | **The website's flows against the apps** | Four sentences that aren't true, then the gaps in both directions | P1 for B12.1–B12.4, then P2–P3 | web, apps | B12.1's decision; your go on each merge |
 | 13 | **Mobile toolchain** | Flutter 3.47.9, then the dependabot bumps; headings for screen readers; what 3.50 will need; the backend image's TLS check | P1 for B13.1–B13.2, then P2–P3 | app, CI, backend | **Spec signed off 2026-11-11** (decision 109); B13.1 building |
 | 14 | **The booking's currency** | The server stamps each booking's currency at creation and never stores it, so every surface shows the salon's current one | P3 (no wrong amount today: one country, XOF) | backend, app, web | **Spec approved 2026-11-23** (decisions 187–193, #837); **B14.1 deployed 2026-11-23** (#840, revision `00055-jv2`); **B14.3 merged** (#843); **B14.2 deployed 2026-11-23** (#844, revision `00057-pg2`); **B14.4 live on myweli.com 2026-11-24** (#848). **Batch complete** |
-| 15 | **The bookings store's test twin** | In tests, the in-memory bookings store writes any key and any value, where Postgres writes six and ignores the rest, and hands out its own maps | P3 (no user-visible effect; it is how batch 14's defect hid) | backend | **Spec approved 2026-11-24** (decisions 214–218, #852); B15.1 next, on your word |
+| 15 | **The bookings store's test twin** | In tests, the in-memory bookings store writes any key and any value, where Postgres writes six and ignores the rest, and hands out its own maps | P3 (no user-visible effect; it is how batch 14's defect hid) | backend | **Spec approved 2026-11-24** (decisions 214–218, #852); **B15.1 built**, not merged |
 
 **Proposed order.**
 - **Done (2026-10-25):** batches 1–9, every item.
@@ -925,7 +925,7 @@ Spec: [appointment-currency-stamp.md](design/appointment-currency-stamp.md). The
 
 Spec: [appointment-twin-update.md](design/appointment-twin-update.md). Most backend tests run the service against the in-memory twin of the bookings store. Its `update` writes any key and any value, where Postgres writes six keys (`status`, `appointmentDate`, `endsAt`, `depositScreenshotUrl`, `arrivedAt`, `artistId`) and ignores the rest without a word. So a test can pass for code production would break, which is how batch 14's defect hid. No user sees anything: no production caller sends another key.
 
-- **B15.1 One key set, refusals, copies, the guest-phone move (P3 · S · decisions 214–218).** Backend only, one PR: the tests red first (spec §8, ten mutations), the code, and the comments of spec §10, including the false CI sentence in `postgres_repositories_test.dart:981-983`. Merge on your word. No deploy of its own: it rides the next backend deploy.
+- **B15.1 One key set, refusals, copies, the guest-phone move (P3 · S · decisions 214–218).** Backend only, one PR: the tests red first (spec §8, ten mutations), the code, and the comments of spec §10, including the false CI sentence in `postgres_repositories_test.dart:981-983`. Merge on your word. No deploy of its own: it rides the next backend deploy. **Built 2026-11-24** (spec §8.8): 9 tests red first (6 in memory, 3 on Postgres), the full backend suite on a fresh database 2986 passed, m1–m10 red for the stated reason, C1 and C2 green; **not merged.**
 
 ---
 

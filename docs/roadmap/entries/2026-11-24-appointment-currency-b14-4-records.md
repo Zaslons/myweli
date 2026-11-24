@@ -1,4 +1,4 @@
-- 🟡 **Registre : B14.4 en ligne sur myweli.com — le lot 14 est complet (documentation · 2026-11-24 — BACKLOG B14.4).** Branche `docs/b14-4-deploy-records`, créée depuis `main` (`9d0b6b29`). Documentation seule : aucun code.
+- 🟢 **Registre : B14.4 en ligne sur myweli.com — le lot 14 est complet (documentation · 2026-11-24 — BACKLOG B14.4).** Branche `docs/b14-4-deploy-records`, créée depuis `main` (`9d0b6b29`). Documentation seule : aucun code.
   - **Ce qui est consigné :** [appointment-currency-stamp.md](../../design/appointment-currency-stamp.md) §9.3 et son statut, le BACKLOG (B14.4 fait, lot complet), l’index des specs, et l’entrée de B14.4 qui passe au vert.
     - **La fusion :** #848, `9d0b6b29`, à 08:38 UTC, sur le mot du propriétaire. `main` avait avancé (A2w, #847, aucun fichier en commun) ; il a été intégré à la branche sans réécrire l’historique, puis la suite unitaire complète du site a passé 3238 tests et la CI 12/12.
     - **La relecture de ce que sert myweli.com :** la version `9d0b6b29` dans le JavaScript, la précédente absente ; la nouvelle ligne de l’export client et celle de l’export salon présentes, l’ancienne ligne de l’export client absente. Contrôle : le motif de l’ancienne ligne reconnaît bien sa forme compilée.
@@ -7,3 +7,4 @@
   - **Deux phrases périmées annotées :**
     - la spec d’A1w disait encore que le serveur ne garde pas la devise, ce qui est faux depuis le déploiement de B14.1 ;
     - l’entrée de B14.1 disait encore que B14.2 attendrait « un déploiement de plus » : c’était l’erreur corrigée dans la spec le 2026-11-23, et elle restait dans cette entrée.
+  - **Fusionnée le 2026-11-24** (#850, `f875a798`, sur le mot du propriétaire ; l’arbre de `main` est celui de la tête testée).

@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Module** | backend: `appointments` (the repository and its in-memory twin), `clients` (the guest-phone move) |
-| **Status** | **Approved 2026-11-24.** The owner answered the five questions of §11 at once, « Approve as recommended »: decisions 214–218 in BACKLOG, batch 15 (B15.1 is the build). Built on the owner's word, in its own backend PR. |
+| **Status** | **Approved 2026-11-24.** The owner answered the five questions of §11 at once, « Approve as recommended »: decisions 214–218 in BACKLOG, batch 15 (B15.1 is the build). Built on the owner's word, in its own backend PR. **B15.1 built 2026-11-24** (§8.8), on the owner's « Yes, build B15.1 », in its own PR; not merged. |
 | **Owner** | the project owner: the answers, the build's go, each merge, and the backend deploy it rides with, each on the owner's word |
 | **Last updated** | 2026-11-24 |
 | **PRD ref / phase** | none: test fidelity, behind the V1 booking flow · V1 |
@@ -329,6 +329,36 @@ The contract file (`appointment_repository_contract.dart`) runs on both twins: i
 - `dart format` clean;
 - `dart analyze --fatal-infos --fatal-warnings` = 0;
 - the full backend suite with `DATABASE_URL`, then CI green.
+
+### 8.8 As built (B15.1, 2026-11-24)
+
+**Red first** (commit `2ac07384`, tests only). It also adds a stub `moveGuestPhone` that throws `UnimplementedError`, so the tests compile and fail for a named reason. On today's code, run against a fresh local Postgres 16 database:
+- **in memory, 6 red:**
+  - the immutability refusal;
+  - the key refusal (`refused: "clientPhone" is not a key update writes`);
+  - the value refusal (`refused: status: null …`);
+  - the copies (`aliased: editing the map passed to create changed the store`);
+  - `endsAt` (`shape: update returned endsAt …`);
+  - `moveGuestPhone` (`UnimplementedError`);
+- **Postgres, 3 red:** the immutability refusal and the two refusals;
+- **green, as planned:** the five-key control on both twins; on Postgres, the copies, `endsAt` and the six-column test (§8.4).
+
+**Each booking in its own slot.** Postgres refuses a second booking in a taken slot. Without that, the Postgres runs would have been red for the slot instead of the claim.
+
+**§8.5's phone-less case was already there:** « a phone-less card takes a number without adopting the salon's phone-less walk-ins » (`clients_phone_change_test.dart`). It stays green and is the guard.
+
+**After the fix** (commit `3e7b4c23`):
+- `dart format`: clean;
+- `dart analyze --fatal-infos --fatal-warnings`: 0;
+- the targeted runs: 36 passed (in memory, with the guest-phone tests) and 16 (Postgres, the appointments group);
+- **the full backend suite on a fresh database: 2986 passed, 2 skipped, exit 0.** That is `main`'s 2974 plus the 12 new tests.
+
+**Mutations, on committed code** (harness: one edit, asserted to change its file; one test; the named failure text required):
+- **m1–m10: all red for the stated reason;**
+- **C1 and C2: green;**
+- **the tree was clean afterwards.**
+
+**`InMemoryClientsRepository.changeGuestPhone`** no longer awaits anything between its checks and its writes. Its `listForProvider` read is gone, because nothing else used it.
 
 ---
 

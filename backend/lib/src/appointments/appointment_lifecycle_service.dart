@@ -85,9 +85,11 @@ class AppointmentLifecycleService {
       await _providers.byId(appointment['providerId'] as String),
     );
     if (refusal != null) return refused(refusal);
-    // Read BEFORE the move: a repository may hand back the very map it then
-    // updates in place (the in-memory one does), and reading after would
-    // report the new date as the old one.
+    // Read BEFORE the move. The in-memory repository used to hand back the
+    // very map it then updated in place, so reading after reported the new
+    // date as the old one. Both twins now hand out copies
+    // (docs/design/appointment-twin-update.md §5.4); reading first stays the
+    // plainly right order.
     final previous = appointment['appointmentDate'] as String?;
     final moved = await _moveTo(id, appointment, newDateTime);
     return (

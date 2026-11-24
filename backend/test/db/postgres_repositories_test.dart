@@ -248,6 +248,93 @@ void main() {
       );
     });
 
+    // docs/design/appointment-twin-update.md §8.4: every key `update` may
+    // write reaches its column, read back with SQL rather than through the
+    // DTO, which is the only way to see `ends_at` (written, never read back).
+    // The six keys are spelled out here, not taken from the set the fix
+    // adds, so this test pins the set independently.
+    test('update: each of the six keys reaches its column', () async {
+      final repo = PostgresAppointmentRepository(pool);
+      // (key, column, the changes for a booking at [slot], the column's
+      // expected value). Each change is built from the booking's own slot,
+      // so every range stays valid.
+      final cases =
+          <
+            (
+              String,
+              String,
+              Map<String, dynamic> Function(DateTime slot),
+              Object? Function(DateTime slot),
+            )
+          >[
+            (
+              'status',
+              'status',
+              (_) => {'status': 'confirmed'},
+              (_) => 'confirmed',
+            ),
+            (
+              'endsAt',
+              'ends_at',
+              (t) => {
+                'endsAt': t.add(const Duration(hours: 1)).toIso8601String(),
+              },
+              (t) => t.add(const Duration(hours: 1)),
+            ),
+            (
+              'appointmentDate',
+              'appointment_date',
+              (t) => {
+                'appointmentDate': t
+                    .add(const Duration(days: 1))
+                    .toIso8601String(),
+                'endsAt': t
+                    .add(const Duration(days: 1, minutes: 30))
+                    .toIso8601String(),
+              },
+              (t) => t.add(const Duration(days: 1)),
+            ),
+            (
+              'depositScreenshotUrl',
+              'deposit_screenshot_url',
+              (_) => {'depositScreenshotUrl': 'deposit/p/a.jpg'},
+              (_) => 'deposit/p/a.jpg',
+            ),
+            (
+              'arrivedAt',
+              'arrived_at',
+              (t) => {
+                'arrivedAt': t
+                    .add(const Duration(minutes: 5))
+                    .toIso8601String(),
+              },
+              (t) => t.add(const Duration(minutes: 5)),
+            ),
+            (
+              'artistId',
+              'artist_id',
+              (_) => {'artistId': 'artist-a'},
+              (_) => 'artist-a',
+            ),
+          ];
+      var n = 0;
+      for (final (key, column, changes, want) in cases) {
+        final id = 'cols_$key';
+        // Each in its own slot: Postgres refuses two bookings in one.
+        final slot = when.add(Duration(hours: 3 * ++n));
+        final created = await repo.create(apptMap(id: id, when: slot));
+        expect(created, isNotNull, reason: '$key: the slot was taken');
+        await repo.update(id, changes(slot));
+        final row = await pool.execute(
+          Sql.named('SELECT $column FROM appointments WHERE id = @id'),
+          parameters: {'id': id},
+        );
+        var got = row.single.first;
+        if (got is DateTime) got = got.toUtc();
+        expect(got, want(slot), reason: '"$key" did not reach $column');
+      }
+    });
+
     // docs/design/appointment-currency-stamp.md §8.3: the backfill migration
     // 0048 runs, against rows written the way an image older than 0047
     // writes them (no `currency` column named). Not red-first: it tests a
@@ -978,9 +1065,11 @@ void main() {
       // failed on every run after, which reads like flakiness and is not: the
       // repository was behaving correctly and the assertion was wrong.
       //
-      // CI never saw it, because CI runs `dart test` with no `DATABASE_URL` and
-      // every postgres-tagged suite self-skips. Only a developer with a local
-      // database ever ran it twice.
+      // CI never saw it because every CI run starts from a fresh database, so
+      // the assertion always met an empty `providers` table. (This said CI
+      // runs with no `DATABASE_URL`; it has always set one —
+      // docs/design/appointment-twin-update.md §2.5.) Only a developer with a
+      // local database ever ran it twice.
       expect((await repo.bySlug(salon['slug'] as String))?['id'], id);
 
       // Publish → discoverable.
