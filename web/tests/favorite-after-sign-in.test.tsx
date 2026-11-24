@@ -544,6 +544,19 @@ describe('the search’s hearts', () => {
     expect(screen.queryByRole('alert')).toBeNull();
   });
 
+  it('back, but no session after all (read 401): nothing sent, nothing said', async () => {
+    stored('p2');
+    at('/recherche?q=tresses&suite=favori');
+    const { calls } = mockFetch({ 'GET /api/me/favorites': { status: 401 } });
+    renderRecherche();
+    await heart('Ajouter Salon Élégance aux favoris');
+    await settle();
+    expect(calls('POST /api/me/favorites/p2')).toBe(0);
+    expect(screen.queryByRole('alert')).toBeNull();
+    expect(screen.queryByText(GENERIC)).toBeNull();
+    expect(here()).toBe('/recherche?q=tresses');
+  });
+
   it('CONTROL — no marker: nothing applied, the heart still stored', async () => {
     stored('p2');
     at('/recherche?q=tresses');
