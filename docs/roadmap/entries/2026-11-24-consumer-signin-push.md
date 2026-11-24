@@ -24,14 +24,25 @@
     - la spec disait que les inscriptions et désinscriptions du téléphone passent « l’une après l’autre » ;
     - ainsi construite, chaque déconnexion attendait l’inscription en cours, celle de MyWeli Pro comprise : une requête bloquée aurait laissé « Déconnexion » tourner sans fin ;
     - désormais, une inscription pas encore envoyée quand on se déconnecte est abandonnée, et la déconnexion n’attend jamais.
+  - **Relu par un lecteur indépendant, chargé de le réfuter :** 11 constats, chacun vérifié dans le code. Corrigés et testés :
+    - une connexion fermée pouvait répondre à la suivante : chaque écran répond désormais à SON appelant ;
+    - « Modifier le profil » gardait les données du compte précédent après une connexion par-dessus ;
+    - une notification touchée pendant l’étape du numéro pouvait s’ouvrir pour un invité après « Fermer » ;
+    - l’avis de session expirée ne survit pas à la page d’erreur ;
+    - une lecture des favoris envoyée avant un cœur ne se partage plus ;
+    - « Continuer » ne tourne plus pendant « Fermer » ;
+    - trois tests promis par la spec manquaient : la suppression, une déconnexion échouée, une session expirée sur Préférences.
+  - **Noté, non corrigé (spec §13) :** les lectures de la liste et du détail d’un rendez-vous partagent le même indicateur de chargement et la même erreur. Après une connexion par-dessus un détail, l’erreur de la liste peut s’y afficher un instant. Ce partage est antérieur à A3 ; c’est une suite.
   - **Vérifié :**
-    - l’analyse est à 0 ;
-    - la suite mobile complète passe : 4 168 tests, aucun échec, les images de référence ne tournant que sous Linux ;
-    - 25 mutations, chacune vue rouge, avec un témoin vert ; leur liste est dans le message de commit ;
-    - les nouveaux tests, dont une mise en page à 200 % pour la connexion, les deux pages déconnectées et la carte de Préférences.
-  - **Les images de référence**, à faire sous Linux, sur la CI : la connexion change (« Fermer ») et sept images sont nouvelles. Chacune sera ouverte avant le commit.
+    - l’analyse est à 0 et le format est propre ;
+    - la suite mobile complète passe : 4 209 tests, aucun échec, les images de référence ne tournant que sous Linux ;
+    - 33 mutations, chacune vue rouge, avec un témoin vert ; leur liste est dans les messages de commit ;
+    - les vérifications de mise en page à 200 % passent.
+  - **Les images de référence, faites sous Linux (run 45429575845) et ouvertes une à une :**
+    - la connexion change (« Fermer ») ;
+    - sept sont nouvelles : la connexion pour un cœur, les deux pages déconnectées et Préférences avec sa carte, à 1× et à 200 % ;
+    - les 73 autres sont identiques à l’octet près ;
+    - une première exécution avait photographié les pages déconnectées connectées : une session laissée par un test précédent. C’est corrigé, avec un témoin.
   - **Reste :**
-    - les images de référence ;
-    - une relecture indépendante ;
     - la PR et sa fusion, sur le mot du propriétaire ;
     - puis A3w, les deux cœurs du site, dont la fusion est un déploiement en production.
