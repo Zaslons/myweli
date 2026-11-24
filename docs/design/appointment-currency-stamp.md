@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Module** | backend: `appointments` (repository, migration, booking notifier), module `multi-pays` §4. Then two small client PRs: the Pro surfaces of the app and of the website |
-| **Status** | **Approved 2026-11-23.** The owner answered the seven questions of §11 at once, « Approve as recommended »: decisions 187–193 in BACKLOG, batch 14 (B14.1–B14.4 are B1–B4 here). **B1 (B14.1) built, merged and DEPLOYED 2026-11-23** (§8.7, §9.1): #840, `d80b4303`; production serves `myweli-api-00055-jv2` (image `d80b430`) since 18:01 UTC; migrations `0047` and `0048` ran at boot; every one of the 4 bookings now stores `XOF`. Each step was on the owner's word. **B3 (B14.3) built and merged 2026-11-23** (§8.8, #843, `c3716e6b`); it ships with the next app builds. **B2 (B14.2) built 2026-11-23** (§8.9), on the owner's « Yes, build B14.2 », in its own PR: migration `0049`; **not merged, not deployed**. B4 not started. |
+| **Status** | **Approved 2026-11-23.** The owner answered the seven questions of §11 at once, « Approve as recommended »: decisions 187–193 in BACKLOG, batch 14 (B14.1–B14.4 are B1–B4 here). **B1 (B14.1) built, merged and DEPLOYED 2026-11-23** (§8.7, §9.1): #840, `d80b4303`; production serves `myweli-api-00055-jv2` (image `d80b430`) since 18:01 UTC; migrations `0047` and `0048` ran at boot; every one of the 4 bookings now stores `XOF`. Each step was on the owner's word. **B3 (B14.3) built and merged 2026-11-23** (§8.8, #843, `c3716e6b`); it ships with the next app builds. **B2 (B14.2) built, merged and DEPLOYED 2026-11-23** (§8.9, §9.2): #844, `d0ec754b`; production serves `myweli-api-00057-pg2` since 23:52 UTC; `appointments.currency` is NOT NULL there. B4 not started. |
 | **Owner** | the project owner: the answers, each merge, every production read, and each `deploy-backend.yml` dispatch, each on the owner's word |
 | **Last updated** | 2026-11-23 |
 | **PRD ref / phase** | module `multi-pays` MP1 ([multi-pays-end-version.md](multi-pays-end-version.md) §4, [../modules/multi-pays.md](../modules/multi-pays.md) §4) · V1 |
@@ -341,12 +341,13 @@ See §3.6.
 
 | File:line | Reads |
 |---|---|
-| `mobile/lib/core/utils/cancellation_policy.dart:54` | `a.currency ?? a.providerCurrency ?? 'XOF'` |
-| `mobile/lib/screens/appointments/appointment_detail_screen.dart:188`, `:230`, `:314`, `:441-442`, `:456-457` | `currency ?? providerCurrency` (`?? 'XOF'` at `:230`, `:441-443`, `:456-458`) |
-| `mobile/lib/widgets/booking/appointment_card.dart:408-411` | `currency ?? providerCurrency ?? 'XOF'` |
+| `mobile/lib/core/utils/cancellation_policy.dart:55` | `a.currency ?? a.providerCurrency ?? 'XOF'` |
+| `mobile/lib/screens/appointments/appointment_detail_screen.dart:197`, `:252`, `:326` | `currency ?? providerCurrency` (`?? 'XOF'` at `:326`) |
+| `mobile/lib/widgets/booking/appointment_card.dart:397-402` | `currency ?? providerCurrency ?? 'XOF'` |
 
-- The model already parses `currency` (`mobile/lib/models/appointment.dart:61`, `:349`). After B1 these read the stamp, with no app release.
-- **One total, with its own rule:** the « Passés » summary (`my_bookings_screen.dart:209-215`) sums every completed visit, across salons, and labels the sum with the newest visit's `currency ?? providerCurrency` (its comment: « MVP: a mixed-currency history sums nominally »).
+- The model already parses `currency` (`mobile/lib/models/appointment.dart:61`, `:396`). After B1 these read the stamp, with no app release.
+- *Line numbers re-read on `main` `0a94332b` (2026-11-24), after A2 (#845) rewrote the detail screen: every read above still takes the booking's `currency` first.*
+- **One total, with its own rule:** the « Passés » summary (`my_bookings_screen.dart:209-216`) sums every completed visit, across salons, and labels the sum with the newest visit's `currency ?? providerCurrency` (its comment: « MVP: a mixed-currency history sums nominally »).
   - After B1 that label becomes the newest visit's stamp instead of its salon's live currency, with no app change. That is the summary's own documented rule, and the same as A1w's; Q4 keeps it.
 - Booking screens (`booking_hub_screen.dart`, `booking_confirmation_screen.dart`, `provider_detail_screen.dart`) price **a salon's catalogue** before a booking exists, so the salon's `currency` is right there.
 
@@ -710,6 +711,31 @@ Each step on the owner's word, in this order: « Yes, merge it », « Yes, run t
 **B2: the contract step** (§3.7, §8.9). Its own PR, deployed on the owner's word. It can be the next backend deploy, because a one-step rollback from it reaches `00055-jv2`, which writes `currency`.
 - **Before:** no production read is needed. 0049 runs the backfill itself, and the last read found no NULL (18:03 UTC).
 - **Read-back:** the serving revision, `/health`, and `is_nullable = 'NO'` plus the count by currency (read-only, on the owner's yes).
+
+### 9.2 As run (B2, 2026-11-23)
+
+Each step on the owner's word: « Yes, merge it », then « Yes, deploy it ».
+
+**Merged:** #844, squash `d0ec754b` on `c3716e6b`, pinned to the tested head `96bc6be3`; `main`'s tree equals it (CI 12/12 on the PR, 10/10 on `main`). The push built image `d0ec754`.
+
+**Found before the dispatch:** production no longer served `00055-jv2`.
+- Another session had deployed A2's API (#841) at 22:24 UTC, so production served `myweli-api-00056-z88`, built from `7157a9b3`.
+- That commit contains B14.1, so the revision writes `currency`, and a one-step rollback from B2 stays safe.
+- `d0ec754b` contains `7157a9b3`, so deploying B2 did not revert A2's API.
+
+**Deploy, 23:51:27 UTC:** `deploy-backend.yml`, `environment: production`, `confirm: deploy`, `image_tag: d0ec754`, run `45292358482`. Every step succeeded, including « Verify the revision actually serves ».
+
+**Read-back, 23:52–23:53 UTC, against what runs:**
+- `status.traffic`: `myweli-api-00057-pg2`, 100 %, `latestRevision`; labelled `commit: d0ec754`, Ready, image `…/api@sha256:b9f31061…`;
+- `https://api.myweli.com/health`: HTTP 200, `env: prod`;
+- the new revision's logs: 20 entries, none at `ERROR` or above;
+- read-only (the same proxy method as §9.1, the probe write refused):
+  - `0049_appointment_currency_not_null` applied at 23:52:27;
+  - the column is `currency | text | NO`;
+  - bookings: `XOF | 4`.
+- `production-checks.yml`: the last three runs were green; the latest, at 22:26, came after A2's deploy and before this one.
+
+**Rollback from here:** one step (`00056-z88`) and two steps (`00055-jv2`) are both safe. **Never further than `00055-jv2`**, which DEPLOYMENT.md and 0049's own `// rollback-unsafe:` line say.
 
 **B3: the app** (§5.3, and the two app exports of §5.7). Its own PR. It reaches users with the next builds of both apps; no store action of its own.
 - It needs neither B1 nor B2: before B1 deploys, `currency` is absent and the fallback is today's.
