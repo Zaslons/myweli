@@ -200,6 +200,13 @@ class InMemoryAppointmentRepository implements AppointmentRepository {
     return null;
   }
 
+  /// B15.1 red-first stub (docs/design/appointment-twin-update.md §5.3).
+  int moveGuestPhone({
+    required String providerId,
+    required String from,
+    required String to,
+  }) => throw UnimplementedError('moveGuestPhone: B15.1');
+
   @override
   Future<List<String>> anonymizeUser(String userId) async {
     final keys = <String>[];

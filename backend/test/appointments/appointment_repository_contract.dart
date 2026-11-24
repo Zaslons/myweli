@@ -204,29 +204,247 @@ void appointmentRepositoryContract({
     });
   });
 
-  test('the currency is immutable: an update never changes it', () async {
+  test('the currency is immutable: an update naming it is refused, and the '
+      'stamp stays', () async {
     final r = repo();
     await r.create(_booking(id: 'a_immutable', currency: 'XAF'));
-    final updated = await r.update('a_immutable', {
-      'currency': 'EUR',
-      'status': 'confirmed',
-    });
-    expect(updated!['status'], 'confirmed', reason: 'the update did apply');
-    expect(
-      updated['currency'],
-      'XAF',
+    await expectLater(
+      r.update('a_immutable', {'currency': 'EUR', 'status': 'confirmed'}),
+      throwsA(isA<ArgumentError>()),
       reason:
-          'a booking is priced in the currency it was made in (the Fresha '
-          'rule): no update path may rewrite it',
+          'refused: a booking is priced in the currency it was made in (the '
+          'Fresha rule), so no update may name it',
     );
-    expect((await r.byId('a_immutable'))!['currency'], 'XAF');
+    final after = (await r.byId('a_immutable'))!;
+    expect(after['currency'], 'XAF');
+    expect(
+      after['status'],
+      'pending',
+      reason: 'half-written: the refused update changed the status',
+    );
+  });
+
+  // docs/design/appointment-twin-update.md §8.1–§8.3 (decisions 214, 216).
+  // In memory, `update` wrote any key and any value and handed out its own
+  // maps; Postgres writes six keys, ignores the rest without a word, rejects
+  // some values, and builds a fresh map on every read. Each test below holds
+  // BOTH twins to the same answer.
+  group('update writes only what Postgres writes', () {
+    const id = 'a_twin';
+    final at = DateTime.utc(2030, 6, 25, 9);
+
+    test('the five readable keys round-trip (the control)', () async {
+      final moved = at.add(const Duration(days: 1));
+      final cases = <String, Map<String, dynamic>>{
+        'status': {'status': 'confirmed'},
+        // With `endsAt`, as the reschedule sends it: Postgres's exclusion
+        // range is (appointment_date, ends_at), and a start past the end is
+        // not a range.
+        'appointmentDate': {
+          'appointmentDate': moved.toIso8601String(),
+          'endsAt': moved.add(const Duration(minutes: 30)).toIso8601String(),
+        },
+        'depositScreenshotUrl': {'depositScreenshotUrl': 'deposit/p/a.jpg'},
+        'arrivedAt': {
+          'arrivedAt': at.add(const Duration(minutes: 5)).toIso8601String(),
+        },
+        'artistId': {'artistId': 'artist-a'},
+      };
+      var n = 0;
+      for (final MapEntry(key: key, value: changes) in cases.entries) {
+        final r = repo();
+        // Each booking in its own slot: Postgres refuses a second one in a
+        // taken slot, and the test would then be red for that.
+        await r.create(
+          _booking(
+            id: '${id}_$key',
+            currency: 'XAF',
+            at: at.add(Duration(hours: 2 * n++)),
+          ),
+        );
+        final updated = await r.update('${id}_$key', changes);
+        expect(
+          norm(updated?[key]),
+          norm(changes[key]),
+          reason: 'the update did not apply "$key"',
+        );
+        expect(
+          norm((await r.byId('${id}_$key'))![key]),
+          norm(changes[key]),
+          reason: 'the read lost "$key"',
+        );
+      }
+    });
+
+    test('a key Postgres does not write is refused, and nothing is '
+        'half-written', () async {
+      final foreign = <String, Object?>{
+        'clientPhone': '+2250700000002',
+        'clientName': 'Koffi',
+        'notes': 'après',
+        'totalPrice': 1,
+        'providerId': 'provider2',
+        'madeUpKey': 'x',
+      };
+      var n = 0;
+      for (final MapEntry(:key, :value) in foreign.entries) {
+        final r = repo();
+        await r.create(
+          _booking(
+            id: '${id}_$key',
+            currency: 'XAF',
+            at: at.add(Duration(hours: 2 * n++)),
+          ),
+        );
+        await expectLater(
+          r.update('${id}_$key', {key: value, 'status': 'confirmed'}),
+          throwsA(isA<ArgumentError>()),
+          reason: 'refused: "$key" is not a key update writes',
+        );
+        final after = (await r.byId('${id}_$key'))!;
+        expect(
+          after['status'],
+          'pending',
+          reason: 'half-written: the refused update changed the status',
+        );
+        expect(
+          after[key],
+          isNot(value),
+          reason: 'stored: "$key" came back with the refused value',
+        );
+      }
+    });
+
+    test('a value Postgres cannot store is refused, and nothing is '
+        'half-written', () async {
+      final bad = <String, Map<String, dynamic>>{
+        'status: null': {'status': null},
+        'appointmentDate: null': {
+          'appointmentDate': null,
+          'status': 'confirmed',
+        },
+        'appointmentDate: not a date': {
+          'appointmentDate': 'not a date',
+          'status': 'confirmed',
+        },
+        'endsAt: 42': {'endsAt': 42, 'status': 'confirmed'},
+        'arrivedAt: yesterday': {
+          'arrivedAt': 'yesterday',
+          'status': 'confirmed',
+        },
+        'artistId: 7': {'artistId': 7, 'status': 'confirmed'},
+      };
+      var n = 0;
+      for (final MapEntry(key: label, value: changes) in bad.entries) {
+        final r = repo();
+        final own = at.add(Duration(hours: 2 * n));
+        final bid = '${id}_bad${n++}';
+        await r.create(_booking(id: bid, currency: 'XAF', at: own));
+        await expectLater(
+          r.update(bid, changes),
+          throwsA(isA<ArgumentError>()),
+          reason: 'refused: $label is not a value Postgres can store',
+        );
+        final after = (await r.byId(bid))!;
+        expect(
+          after['status'],
+          'pending',
+          reason:
+              'half-written: the refused update ($label) changed the '
+              'status',
+        );
+        expect(
+          norm(after['appointmentDate']),
+          norm(own.toIso8601String()),
+          reason: 'half-written: the refused update ($label) moved the date',
+        );
+      }
+    });
+
+    test('what a twin hands out is a copy, never what it stores', () async {
+      final r = repo();
+      final arg = _booking(id: id, currency: 'XAF');
+
+      Future<void> untouched(String where) async {
+        final now = (await r.byId(id))!;
+        expect(
+          now['notes'],
+          isNull,
+          reason: 'aliased: editing the map $where changed the store',
+        );
+        expect(
+          now['serviceIds'],
+          ['service1'],
+          reason:
+              'aliased (nested): editing a list inside the map $where '
+              'changed the store',
+        );
+      }
+
+      void edit(Map<String, dynamic> m) {
+        m['notes'] = 'EDITED';
+        (m['serviceIds'] as List).add('EDITED');
+      }
+
+      final created = (await r.create(arg))!;
+      edit(arg);
+      await untouched('passed to create');
+      edit(created);
+      await untouched('create returned');
+      edit((await r.byId(id))!);
+      await untouched('byId returned');
+      edit((await r.listForUser('u_contract')).single);
+      await untouched('listForUser returned');
+      edit((await r.listForProvider('p_currency_contract')).single);
+      await untouched('listForProvider returned');
+      edit((await r.update(id, {'status': 'confirmed'}))!);
+      await untouched('update returned');
+      edit(
+        (await r.confirmedInWindow(
+          at.subtract(const Duration(minutes: 1)),
+          at,
+        )).single,
+      );
+      await untouched('confirmedInWindow returned');
+    });
+
+    test('endsAt is written, never read back — on either twin', () async {
+      final r = repo();
+      await r.create(_booking(id: id, currency: 'XAF'));
+      final moved = at.add(const Duration(days: 2));
+      final updated = await r.update(id, {
+        'appointmentDate': moved.toIso8601String(),
+        'endsAt': moved.add(const Duration(minutes: 30)).toIso8601String(),
+      });
+      final reads = <String, Map<String, dynamic>?>{
+        'update': updated,
+        'byId': await r.byId(id),
+        'listForUser': (await r.listForUser('u_contract')).single,
+        'listForProvider': (await r.listForProvider(
+          'p_currency_contract',
+        )).single,
+      };
+      for (final MapEntry(key: where, value: read) in reads.entries) {
+        expect(
+          read!.containsKey('endsAt'),
+          isFalse,
+          reason:
+              'shape: $where returned endsAt, which Postgres never reads '
+              'back',
+        );
+      }
+    });
   });
 }
 
 /// A booking map shaped like the one the service builds, for the paths that
 /// do not need the service.
-Map<String, dynamic> _booking({required String id, required String currency}) {
-  final at = DateTime.utc(2030, 6, 25, 9);
+Map<String, dynamic> _booking({
+  required String id,
+  required String currency,
+  DateTime? at,
+}) {
+  at ??= DateTime.utc(2030, 6, 25, 9);
   return {
     'id': id,
     'currency': currency,
