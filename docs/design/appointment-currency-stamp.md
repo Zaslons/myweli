@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Module** | backend: `appointments` (repository, migration, booking notifier), module `multi-pays` §4. Then two small client PRs: the Pro surfaces of the app and of the website |
-| **Status** | **Approved 2026-11-23.** The owner answered the seven questions of §11 at once, « Approve as recommended »: decisions 187–193 in BACKLOG, batch 14 (B14.1–B14.4 are B1–B4 here). **B1 (B14.1) built, merged and DEPLOYED 2026-11-23** (§8.7, §9.1): #840, `d80b4303`; production serves `myweli-api-00055-jv2` (image `d80b430`) since 18:01 UTC; migrations `0047` and `0048` ran at boot; every one of the 4 bookings now stores `XOF`. Each step was on the owner's word. **B3 (B14.3) built and merged 2026-11-23** (§8.8, #843, `c3716e6b`); it ships with the next app builds. **B2 (B14.2) built, merged and DEPLOYED 2026-11-23** (§8.9, §9.2): #844, `d0ec754b`; production serves `myweli-api-00057-pg2` since 23:52 UTC; `appointments.currency` is NOT NULL there. B4 not started. |
+| **Status** | **Approved 2026-11-23.** The owner answered the seven questions of §11 at once, « Approve as recommended »: decisions 187–193 in BACKLOG, batch 14 (B14.1–B14.4 are B1–B4 here). **B1 (B14.1) built, merged and DEPLOYED 2026-11-23** (§8.7, §9.1): #840, `d80b4303`; production serves `myweli-api-00055-jv2` (image `d80b430`) since 18:01 UTC; migrations `0047` and `0048` ran at boot; every one of the 4 bookings now stores `XOF`. Each step was on the owner's word. **B3 (B14.3) built and merged 2026-11-23** (§8.8, #843, `c3716e6b`); it ships with the next app builds. **B2 (B14.2) built, merged and DEPLOYED 2026-11-23** (§8.9, §9.2): #844, `d0ec754b`; production serves `myweli-api-00057-pg2` since 23:52 UTC; `appointments.currency` is NOT NULL there. **B4 (B14.4) built 2026-11-23** (§8.10), on the owner's « Yes, build B14.4 », in its own PR; not merged (its merge is a production web deploy). |
 | **Owner** | the project owner: the answers, each merge, every production read, and each `deploy-backend.yml` dispatch, each on the owner's word |
 | **Last updated** | 2026-11-23 |
 | **PRD ref / phase** | module `multi-pays` MP1 ([multi-pays-end-version.md](multi-pays-end-version.md) §4, [../modules/multi-pays.md](../modules/multi-pays.md) §4) · V1 |
@@ -625,6 +625,30 @@ The totals are unchanged (decision 190).
 **The contract text:** `web/lib/api/schema.ts` regenerated (one line).
 - Control: `HEAD`'s contract regenerates `HEAD`'s `schema.ts` byte for byte.
 - Merging this PR touches `web/` (the generated doc string), so it is a production web deploy under the usual rule, with nothing visible.
+
+### 8.10 As built (B4, 2026-11-23)
+
+**What changed on the website**, as §5.6 and §5.7 list it:
+- `ProAppointment` gains `currency`;
+- **espace pro:** the booking row (Aujourd'hui, Rendez-vous), the « Journée » grid block and panel (total and deposit), the booking page (total and deposit) and the client card's visit rows read `appt.currency` first, and the salon's only as the fallback;
+- **exports:** both data exports' booking rows carry `currency`, the same shape B14.3 gave the app's.
+
+The totals are unchanged (decision 190), and the contract does not change.
+
+**Red first** (commit `9755c8d4`, tests only): all 7 tests were red on today's code, each **after a currency-blind control passed** (the amount's digits are on screen). The five views printed FCFA for a booking stamped EUR at an XOF salon, and both export rows had no `currency`.
+
+**A matching trap, avoided:** Testing Library collapses all whitespace before a text matcher, Intl's narrow no-break space included, so a plain `getByText(formatFcfa(…))` never matches. The text matchers therefore collapse the expected side too, and the exact checks compare raw `textContent`, as the existing tests do.
+
+**After the fix** (commit `5a93af08`):
+- `npm run typecheck`: exit 0;
+- `npm run lint`: clean;
+- **the full unit suite: 3184 passed (222 files)**;
+- e2e, Lighthouse and the build run in CI.
+
+**Mutations, on committed code:**
+- **m1–m9, each reverting one site, all red for the stated reason:** the row, the grid, the panel's total, the panel's deposit, the page's total, the page's deposit, the visit row, and both export rows;
+- **C1, green:** with the row reverted, the grid's test stays green.
+- **The harness's own first check was too broad:** it treated any output containing « the control » as a failed control, but vitest prints the code around a failing line, and one of those lines held a control's message. So m3 and m5, which were red for the right reason, were reported « NOT RED ». The check now requires an `AssertionError` on a control. That flaw could only hide a catch, never invent one.
 
 ---
 

@@ -223,12 +223,15 @@ export function JournalPanel({
           />
           <Row label="Prestations" value={services} />
           {typeof appt.totalPrice === "number" ? (
-            <Row label="Total" value={formatFcfa(appt.totalPrice, currency)} />
+            <Row
+              label="Total"
+              value={formatFcfa(appt.totalPrice, appt.currency ?? currency)}
+            />
           ) : null}
           {hasDeposit ? (
             <Row
               label="Acompte annoncé"
-              value={formatFcfa(appt.depositAmount ?? 0, currency)}
+              value={formatFcfa(appt.depositAmount ?? 0, appt.currency ?? currency)}
             />
           ) : null}
         </dl>

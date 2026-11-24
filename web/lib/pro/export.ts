@@ -62,6 +62,9 @@ export function buildProviderDataExport({
       date: a.appointmentDate,
       status: a.status,
       totalPrice: a.totalPrice ?? null,
+      // The currency the booking was made in, else the salon's — as the
+      // app's salon export (docs/design/appointment-currency-stamp.md §5.7).
+      currency: a.currency ?? provider.currency ?? null,
     })),
     clients: clients.map((c) => ({
       name: c.displayName,

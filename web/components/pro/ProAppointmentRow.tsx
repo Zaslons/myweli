@@ -45,7 +45,7 @@ export function ProAppointmentRow({
         <StatusChip status={appt.status} />
         {typeof appt.totalPrice === 'number' ? (
           <p className="mt-s text-bodyMedium text-textPrimary">
-            {formatFcfa(appt.totalPrice, currency ?? undefined)}
+            {formatFcfa(appt.totalPrice, appt.currency ?? currency ?? undefined)}
           </p>
         ) : null}
       </div>

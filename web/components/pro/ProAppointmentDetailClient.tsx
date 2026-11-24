@@ -318,12 +318,15 @@ export function ProAppointmentDetailClient({
           ) : null}
           <Row label="Prestations" value={services} />
           {typeof appt.totalPrice === "number" ? (
-            <Row label="Total" value={formatFcfa(appt.totalPrice, currency)} />
+            <Row
+              label="Total"
+              value={formatFcfa(appt.totalPrice, appt.currency ?? currency)}
+            />
           ) : null}
           {appt.depositAmount ? (
             <Row
               label="Acompte annoncé"
-              value={formatFcfa(appt.depositAmount, currency)}
+              value={formatFcfa(appt.depositAmount, appt.currency ?? currency)}
             />
           ) : null}
         </dl>

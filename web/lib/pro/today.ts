@@ -20,6 +20,11 @@ export type ProAppointment = {
   clientPhone?: string | null;
   totalPrice?: number;
   depositAmount?: number;
+  /// The currency the booking was made in, stamped and stored by the server
+  /// (NOT NULL since migration 0049 — docs/design/appointment-currency-stamp.md).
+  /// Every amount of THIS booking is shown in it; the salon's currency is only
+  /// the fallback, and totals over bookings stay in the salon's (decision 190).
+  currency?: string | null;
   depositScreenshotUrl?: string | null;
   /// PROVIDER VIEW (module clients C1): links the booking to the client card.
   salonClientId?: string | null;
