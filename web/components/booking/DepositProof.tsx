@@ -101,7 +101,7 @@ export function DepositProof({
           href={waveHref}
           target="_blank"
           rel="noopener noreferrer"
-          className="mt-s inline-block rounded-control border border-primary bg-secondary px-m py-xs text-labelLarge font-medium text-textPrimary hover:bg-surfaceVariant"
+          className="mt-s inline-flex min-h-12 items-center rounded-control border border-primary bg-secondary px-m text-labelLarge font-medium text-textPrimary hover:bg-surfaceVariant"
         >
           Payer avec Wave
         </a>
@@ -112,7 +112,10 @@ export function DepositProof({
           type="file"
           accept="image/*"
           aria-label="Capture du paiement"
-          className="text-bodyLarge text-textSecondary"
+          // A file input is ~322px wide on its own (button + « Aucun fichier
+          // choisi »): at 320 it pushed the page sideways inside the detail's
+          // card (A2w, type-overflow). It may shrink; its button never does.
+          className="min-w-0 max-w-full text-bodyLarge text-textSecondary"
         />
         <Button isLoading={busy} onClick={send}>
           Envoyer la preuve

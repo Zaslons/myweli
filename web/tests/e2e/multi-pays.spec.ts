@@ -32,7 +32,8 @@ test('consumer: the Gabon booking renders ITS wall-clock, FCFA from XAF and the 
 
   // The detail: salon wall-clock + « FCFA » from XAF + the dynamic hint.
   await page.goto('/mon-compte/appt4');
-  await expect(page.getByText('à 10:00')).toBeVisible();
+  // The detail's « Heure » row (A2): the start, and the end with a duration.
+  await expect(page.locator('dd').getByText(/^10:00( – \d\d:\d\d)?$/)).toBeVisible();
   // fr-FR thousands separator = the narrow no-break space (U+202F).
   await expect(
     page.getByText(/15[\s\u202f\u00a0]000[\s\u202f\u00a0]FCFA/).first(),
@@ -47,7 +48,7 @@ test('consumer: the Abidjan booking never shows the hint under a UTC device', as
 }) => {
   await consumerLogin(page);
   await page.goto('/mon-compte/appt1');
-  await expect(page.getByText('à 09:00')).toBeVisible();
+  await expect(page.locator('dd').getByText(/^09:00( – \d\d:\d\d)?$/)).toBeVisible();
   await expect(page.getByText(/heure du salon/)).toHaveCount(0);
 });
 
