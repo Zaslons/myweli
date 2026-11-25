@@ -7,6 +7,7 @@ import 'package:myweli/core/utils/salon_figures.dart';
 import 'package:myweli/core/utils/salon_id.dart';
 import 'package:myweli/models/api_response.dart';
 import 'package:myweli/models/provider.dart';
+import 'package:myweli/models/provider_page.dart';
 import 'package:myweli/models/review.dart';
 import 'package:myweli/providers/favorites_provider.dart';
 import 'package:myweli/providers/provider_provider.dart';
@@ -949,6 +950,18 @@ class _Salons implements ProviderServiceInterface {
     int page = 1,
     int limit = 20,
   }) async => ApiResponse.success(List.of(list));
+
+  @override
+  Future<ApiResponse<ProviderPage>> searchProviders(
+    ProviderQuery query,
+  ) async => ApiResponse.success(
+    ProviderPage(
+      items: List.of(list),
+      page: query.page,
+      pageSize: query.pageSize,
+      total: list.length,
+    ),
+  );
 
   @override
   Future<ApiResponse<List<Provider>>> getFeaturedProviders() async =>

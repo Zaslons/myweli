@@ -67,7 +67,12 @@ void main() {
       await provider.loadProviders();
 
       expect(provider.providers, isEmpty);
-      expect(provider.error, 'boom');
+      expect(provider.listError, 'boom');
+      expect(provider.listLoading, isFalse);
+      // The salon page's flags are its own (consumer-search.md §2.7): a
+      // list read used to write them, and a salon page could show the
+      // list's error.
+      expect(provider.error, isNull);
       expect(provider.isLoading, isFalse);
     },
   );

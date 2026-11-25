@@ -20,6 +20,8 @@ import '../../providers/provider_provider.dart';
 import '../../widgets/common/app_rating.dart';
 import '../../widgets/common/app_snack_bar.dart';
 import '../../widgets/common/carto_basemap_layer.dart';
+import '../../widgets/common/commune_picker_sheet.dart';
+import '../../widgets/common/commune_pill.dart';
 import '../../widgets/common/consumer_bottom_nav.dart';
 import '../../widgets/common/salon_map_marker.dart';
 import '../../widgets/common/screen_title.dart';
@@ -54,21 +56,33 @@ class _MapScreenState extends State<MapScreen> {
   /// arrival (salon-location-map.md §2.3).
   models.Provider? _focused;
 
+  late final ProviderProvider _providers;
+
+  /// The commune the map's salons were last asked for. The map reads them
+  /// again only when the shared commune actually changed
+  /// (consumer-search.md §2.7): [ProviderProvider] notifies on every salon
+  /// read, the map's own included.
+  String? _askedCommune;
+
   @override
   void initState() {
     super.initState();
+    _providers = Provider.of<ProviderProvider>(context, listen: false);
+    _askedCommune = _providers.selectedCommune;
+    _providers.addListener(_onProviders);
     WidgetsBinding.instance.addPostFrameCallback((_) async {
-      final providerProvider = Provider.of<ProviderProvider>(
-        context,
-        listen: false,
-      );
+      final providerProvider = _providers;
       // The markers, and their hearts when signed in — STARTED, not awaited
       // before the salon below (salon-location-map.md §2.3). Nothing bounds a
       // request in time (`AppConstants.apiTimeout` is declared, never read),
       // so awaiting them kept the camera on Abidjan and the sheet shut for as
       // long as the list took — even for a salon the page beneath already
       // held. Both catch their own failures; the layer redraws as they land.
-      unawaited(providerProvider.loadProviders());
+      //
+      // The map's OWN salons (consumer-search.md §2.8): the chosen commune,
+      // up to 50. It used to reload the list the home and the salon list
+      // shared — and reset the list's category doing it.
+      unawaited(providerProvider.loadMapSalons());
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
       if (authProvider.isAuthenticated && authProvider.user != null) {
         final favoritesProvider = Provider.of<FavoritesProvider>(
@@ -87,6 +101,28 @@ class _MapScreenState extends State<MapScreen> {
 
       await _initLocation(recenter: _focused == null);
     });
+  }
+
+  @override
+  void dispose() {
+    _providers.removeListener(_onProviders);
+    super.dispose();
+  }
+
+  void _onProviders() {
+    final commune = _providers.selectedCommune;
+    if (commune == _askedCommune) return;
+    _askedCommune = commune;
+    unawaited(_providers.loadMapSalons());
+  }
+
+  Future<void> _openCommunePicker() async {
+    final choice = await showCommunePicker(
+      context,
+      selected: _providers.selectedCommune,
+    );
+    if (choice == null) return;
+    await _providers.setCommune(choice.commune);
   }
 
   /// Centre [id] and open its sheet — wherever it is: the list already in
@@ -374,13 +410,12 @@ class _MapScreenState extends State<MapScreen> {
     final providerProvider = context.watch<ProviderProvider>();
     final favoritesProvider = context.watch<FavoritesProvider>();
     final focused = _focused;
+    final salons = providerProvider.mapSalons ?? const <models.Provider>[];
     final providers = [
-      ...providerProvider.providers,
-      // The centred salon, when the list does not hold it — or its sheet
-      // closes on an empty spot of the map.
-      if (focused != null &&
-          !providerProvider.providers.any((p) => p.id == focused.id))
-        focused,
+      ...salons,
+      // The centred salon, when the map's list does not hold it — another
+      // commune's, or past the 50 — or its sheet closes on an empty spot.
+      if (focused != null && !salons.any((p) => p.id == focused.id)) focused,
     ];
 
     return providers.where((p) => p.latitude != null && p.longitude != null).map((
@@ -428,6 +463,57 @@ class _MapScreenState extends State<MapScreen> {
     );
   }
 
+  /// Under the pill (§2.8): the salons loading, their failure, the map
+  /// empty, or more salons than shown. A live region, so a screen reader
+  /// hears what the map now holds. Null: nothing to say.
+  Widget? _salonsStatus(ProviderProvider provider) {
+    final salons = provider.mapSalons;
+    final commune = provider.mapCommune;
+    final Widget child;
+    if (provider.mapLoading) {
+      child = const _MapLoadingPill();
+    } else if (provider.mapError != null) {
+      child = _MapBanner(
+        icon: Icons.error_outline,
+        text: 'Impossible d’afficher les salons.',
+        action: 'Réessayer',
+        onAction: provider.loadMapSalons,
+      );
+    } else if (salons == null) {
+      return null;
+    } else if (salons.isEmpty) {
+      // Not over a focused salon: opened from a salon page, its pin may be
+      // in another commune, and the map is then not empty.
+      if (_focused != null) return null;
+      child = commune != null
+          ? _MapBanner(
+              icon: Icons.location_off_outlined,
+              text: 'Aucun salon à $commune',
+              action: 'Toutes les communes',
+              onAction: () => provider.setCommune(null),
+            )
+          : const _MapBanner(
+              icon: Icons.location_off_outlined,
+              text: 'Aucun salon sur la carte pour l’instant',
+            );
+    } else if (provider.mapTotal > salons.length) {
+      final shown = salons.length;
+      final total = provider.mapTotal;
+      child = _MapBanner(
+        icon: Icons.info_outline,
+        text: commune != null
+            ? '$shown salons sur $total à $commune affichés'
+            : '$shown salons sur $total affichés — choisissez une commune',
+      );
+    } else {
+      return null;
+    }
+    return Padding(
+      padding: const EdgeInsets.only(top: AppTheme.spacingS),
+      child: Semantics(liveRegion: true, container: true, child: child),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final providerMarkers = _buildProviderMarkers(context);
@@ -462,41 +548,41 @@ class _MapScreenState extends State<MapScreen> {
               ),
             ],
           ),
-          if (_locationError != null)
-            Positioned(
-              left: AppTheme.spacingM,
-              right: AppTheme.spacingM,
-              top: AppTheme.spacingM,
-              child: Material(
-                elevation: 2,
-                borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
-                color: AppColors.secondary,
-                child: Padding(
-                  padding: const EdgeInsets.all(AppTheme.spacingM),
-                  child: Row(
+          // Top: the commune the map shows, its salons' state, then the
+          // location banner (consumer-search.md §2.8; A6 rewrites the last).
+          Positioned(
+            left: AppTheme.spacingM,
+            right: AppTheme.spacingM,
+            top: AppTheme.spacingM,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Consumer<ProviderProvider>(
+                  builder: (context, provider, _) => Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Icon(
-                        Icons.info_outline,
-                        color: AppColors.textSecondary,
+                      CommunePill(
+                        commune: provider.selectedCommune,
+                        onTap: _openCommunePicker,
                       ),
-                      const SizedBox(width: AppTheme.spacingS),
-                      Expanded(
-                        child: Text(
-                          _locationError!,
-                          style: AppTextStyles.bodySmall.copyWith(
-                            color: AppColors.textSecondary,
-                          ),
-                        ),
-                      ),
-                      TextButton(
-                        onPressed: _initLocation,
-                        child: const Text('Activer'),
-                      ),
+                      ?_salonsStatus(provider),
                     ],
                   ),
                 ),
-              ),
+                if (_locationError != null)
+                  Padding(
+                    padding: const EdgeInsets.only(top: AppTheme.spacingS),
+                    child: _MapBanner(
+                      icon: Icons.info_outline,
+                      text: _locationError!,
+                      action: 'Activer',
+                      onAction: _initLocation,
+                      actionInline: true,
+                    ),
+                  ),
+              ],
             ),
+          ),
           Positioned(
             right: AppTheme.spacingM,
             bottom: AppTheme.spacingM,
@@ -529,6 +615,108 @@ class _MapScreenState extends State<MapScreen> {
         ],
       ),
       bottomNavigationBar: const ConsumerBottomNav(current: ConsumerTab.carte),
+    );
+  }
+}
+
+/// A line over the map: the location banner's look (`secondary` surface,
+/// `radiusLarge`, elevation 2), an icon, a sentence that wraps, and its one
+/// action when it has one.
+///
+/// [actionInline]: the action at the end of the line — the location banner's
+/// « Activer », kept as it was (A6 rewrites it). Otherwise the action sits
+/// under the sentence, at the end: « Toutes les communes » beside « Aucun
+/// salon à Cocody » overflowed the line at 390dp.
+class _MapBanner extends StatelessWidget {
+  const _MapBanner({
+    required this.icon,
+    required this.text,
+    this.action,
+    this.onAction,
+    this.actionInline = false,
+  });
+
+  final IconData icon;
+  final String text;
+  final String? action;
+  final VoidCallback? onAction;
+  final bool actionInline;
+
+  @override
+  Widget build(BuildContext context) {
+    final label = action;
+    final button = label != null && onAction != null
+        ? TextButton(onPressed: onAction, child: Text(label))
+        : null;
+    final sentence = Text(
+      text,
+      style: AppTextStyles.bodySmall.copyWith(color: AppColors.textSecondary),
+    );
+    return Material(
+      elevation: 2,
+      borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
+      color: AppColors.secondary,
+      child: Padding(
+        padding: const EdgeInsets.all(AppTheme.spacingM),
+        child: Row(
+          children: [
+            Icon(icon, color: AppColors.textSecondary),
+            const SizedBox(width: AppTheme.spacingS),
+            Expanded(
+              child: button == null || actionInline
+                  ? sentence
+                  : Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        sentence,
+                        Align(alignment: Alignment.centerRight, child: button),
+                      ],
+                    ),
+            ),
+            if (button != null && actionInline) button,
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// « Chargement des salons… »: small, under the pill — the map itself shows
+/// at once (§2.8).
+class _MapLoadingPill extends StatelessWidget {
+  const _MapLoadingPill();
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      elevation: 2,
+      borderRadius: BorderRadius.circular(AppTheme.radiusPill),
+      color: AppColors.secondary,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppTheme.spacingM,
+          vertical: AppTheme.spacingS,
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // The sentence says it; the loader's own « Chargement… » would
+            // be read twice.
+            const ExcludeSemantics(
+              child: BrandLoader(size: AppTheme.iconS, fast: true),
+            ),
+            const SizedBox(width: AppTheme.spacingS),
+            Flexible(
+              child: Text(
+                'Chargement des salons…',
+                style: AppTextStyles.bodySmall.copyWith(
+                  color: AppColors.textSecondary,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

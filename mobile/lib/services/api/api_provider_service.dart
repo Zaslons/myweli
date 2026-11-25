@@ -5,6 +5,7 @@ import '../../core/constants/failure_messages.dart';
 import '../../core/utils/salon_id.dart';
 import '../../models/api_response.dart';
 import '../../models/provider.dart';
+import '../../models/provider_page.dart';
 import '../interfaces/provider_service_interface.dart';
 import 'api_errors.dart';
 
@@ -31,15 +32,44 @@ class ApiProviderService implements ProviderServiceInterface {
     int page = 1,
     int limit = 20,
   }) async {
+    final res = await searchProviders(
+      ProviderQuery(
+        text: searchQuery ?? '',
+        category: category,
+        commune: commune,
+        sort: sort,
+        availableToday: availableToday,
+        page: page,
+        pageSize: limit,
+      ),
+    );
+    final data = res.data;
+    if (res.success && data != null) return ApiResponse.success(data.items);
+    return ApiResponse(
+      success: false,
+      error: res.error,
+      message: res.message,
+      code: res.code,
+    );
+  }
+
+  /// One page of `GET /providers`, with its `total`
+  /// (docs/design/consumer-search.md §3). Each parameter goes only when it
+  /// narrows: an empty text, no category, no commune, the default sort and
+  /// « Disponible aujourd’hui » off are no parameter at all.
+  @override
+  Future<ApiResponse<ProviderPage>> searchProviders(ProviderQuery query) async {
+    final category = query.category;
+    final commune = query.commune;
     final uri = Uri.parse('$_baseUrl/providers').replace(
       queryParameters: <String, String>{
         if (category != null && category.isNotEmpty) 'category': category,
-        if (searchQuery != null && searchQuery.isNotEmpty) 'q': searchQuery,
+        if (query.text.isNotEmpty) 'q': query.text,
         if (commune != null && commune.isNotEmpty) 'commune': commune,
-        if (sort != ProviderSort.relevance) 'sort': sort.query,
-        if (availableToday) 'availableToday': 'true',
-        'page': '$page',
-        'pageSize': '$limit',
+        if (query.sort != ProviderSort.relevance) 'sort': query.sort.query,
+        if (query.availableToday) 'availableToday': 'true',
+        'page': '${query.page}',
+        'pageSize': '${query.pageSize}',
       },
     );
 
@@ -54,12 +84,17 @@ class ApiProviderService implements ProviderServiceInterface {
       return networkError();
     }
     if (res.statusCode != 200) return errorFromResponse(res);
-    return readOrUnreadable(
-      res,
-      (json) => ((json! as Map<String, dynamic>)['items']! as List)
-          .map((e) => Provider.fromJson(e as Map<String, dynamic>))
-          .toList(),
-    );
+    return readOrUnreadable(res, (json) {
+      final body = json! as Map<String, dynamic>;
+      return ProviderPage(
+        items: (body['items']! as List)
+            .map((e) => Provider.fromJson(e as Map<String, dynamic>))
+            .toList(),
+        page: (body['page']! as num).toInt(),
+        pageSize: (body['pageSize']! as num).toInt(),
+        total: (body['total']! as num).toInt(),
+      );
+    });
   }
 
   /// The public salon read.

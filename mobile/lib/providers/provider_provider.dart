@@ -10,6 +10,7 @@ import '../core/di/dependency_injection.dart';
 import '../core/utils/salon_figures.dart';
 import '../core/utils/salon_id.dart';
 import '../models/provider.dart';
+import '../models/provider_page.dart';
 import '../models/review.dart';
 import '../services/interfaces/image_upload_service_interface.dart';
 import '../services/interfaces/provider_service_interface.dart';
@@ -29,6 +30,22 @@ typedef SalonFiguresSink =
       required double rating,
       required int reviewCount,
     });
+
+/// A screen's own copies of salons, which [ProviderProvider] cannot hold
+/// itself: an open salon search (docs/design/consumer-search.md §2.7). It is
+/// attached while it lives, so [ProviderProvider.providerForMap] finds a
+/// salon in it and a review's new figures reach its card.
+abstract interface class SalonCopyHolder {
+  /// The copy of salon [id] this holder shows, if any.
+  Provider? heldSalon(SalonId id);
+
+  /// Show [rating] and [reviewCount] on this holder's copy of salon [id].
+  void patchSalonFigures(
+    SalonId id, {
+    required double rating,
+    required int reviewCount,
+  });
+}
 
 class ProviderProvider extends ChangeNotifier implements AccountScoped {
   final ProviderServiceInterface _providerService =
@@ -63,20 +80,44 @@ class ProviderProvider extends ChangeNotifier implements AccountScoped {
   /// code that never rendered.
   String? _errorCode;
 
-  /// The salon LIST's own read (B9.8). [isLoading] and [error] belong to
-  /// every read here: the featured carousel finishing first turned
-  /// [isLoading] off while the list was still out — « Aucun salon trouvé »
-  /// under a list on its way — and a salon page's failed read gave a list
-  /// screen its error.
+  /// The home's « Près de vous » read (B9.8) — [providers]. [isLoading] and
+  /// [error] are the salon page's alone (docs/design/consumer-search.md
+  /// §2.7): a list read used to write them, so a list ending during a salon
+  /// read could show that salon page the list's error.
   bool _listLoading = false;
   String? _listError;
 
+  /// The request number of « Près de vous »: a commune changed twice while a
+  /// read was out must end on the last commune's salons (the slot picker's
+  /// `_reqId` pattern).
+  int _listReq = 0;
+
   /// The featured carousel's own read, for the same reason.
   bool _featuredLoading = false;
-  String? _selectedCategory;
+
+  /// The featured read has ANSWERED (not failed). It is the one unfiltered
+  /// read: answered with nothing, no salon is public at all (§2.10).
+  bool _featuredAnswered = false;
   String? _selectedCommune;
-  ProviderSort _sort = ProviderSort.relevance;
-  bool _availableToday = false;
+
+  /// The salon list's sort and « Disponible aujourd’hui », kept for the
+  /// session (decision 236) — on the list only: the home and the map never
+  /// read them. The list's controller writes them back as they change.
+  ProviderSort _listSort = ProviderSort.relevance;
+  bool _listAvailableToday = false;
+
+  /// The map's salons (§2.8): the chosen commune only, up to
+  /// [kMapSalonPageSize], in a list of their own.
+  List<Provider>? _mapSalons;
+  int _mapTotal = 0;
+  String? _mapCommune;
+  bool _mapLoading = false;
+  String? _mapError;
+  int _mapReq = 0;
+
+  /// The open searches (§2.7): [providerForMap] and a review's figures reach
+  /// their copies too.
+  final Set<SalonCopyHolder> _holders = {};
 
   /// The stars each visit was last given from this device, by appointment id
   /// — what [addReviewLocally] falls back on to tell a visit reviewed AGAIN
@@ -116,45 +157,110 @@ class ProviderProvider extends ChangeNotifier implements AccountScoped {
   bool get listLoading => _listLoading;
   String? get listError => _listError;
   bool get featuredLoading => _featuredLoading;
-  String? get selectedCategory => _selectedCategory;
   String? get selectedCommune => _selectedCommune;
-  ProviderSort get sort => _sort;
-  bool get availableToday => _availableToday;
+  ProviderSort get listSort => _listSort;
+  bool get listAvailableToday => _listAvailableToday;
 
-  Future<void> loadProviders({String? category, String? searchQuery}) async {
-    _isLoading = true;
+  /// No salon is public at all: the unfiltered featured read answered with
+  /// nothing (§2.10). False while it has not answered, or failed — the empty
+  /// states then say what they say.
+  bool get noPublicSalon => _featuredAnswered && _featuredProviders.isEmpty;
+
+  /// The map's salons; null until its first answer.
+  List<Provider>? get mapSalons => _mapSalons;
+
+  /// How many salons the map's commune holds, of which [mapSalons] shows up
+  /// to [kMapSalonPageSize].
+  int get mapTotal => _mapTotal;
+
+  /// The commune [mapSalons] are of (null: every commune).
+  String? get mapCommune => _mapCommune;
+  bool get mapLoading => _mapLoading;
+  String? get mapError => _mapError;
+
+  /// The home's « Près de vous » (§2.7): the chosen commune only, by
+  /// relevance, page 1. **It never takes a category, a text, a sort or
+  /// « Disponible aujourd’hui »**: those were shared with the salon list, so
+  /// a category tapped there came back as the home's « Près de vous » under
+  /// its unchanged title. It stays [providers], the list the fallbacks read
+  /// (`AppointmentCard`, « Derniers rendez-vous », « Mes rendez-vous »,
+  /// decision 199).
+  Future<void> loadProviders() async {
+    final req = ++_listReq;
     _listLoading = true;
-    _error = null;
     _listError = null;
-    _selectedCategory = category;
     notifyListeners();
 
+    List<Provider>? salons;
+    String? error;
     try {
       final response = await _providerService.getProviders(
-        category: category,
-        searchQuery: searchQuery,
         commune: _selectedCommune,
-        sort: _sort,
-        availableToday: _availableToday,
       );
       if (response.success && response.data != null) {
-        _providers = response.data!;
-        _error = null;
+        salons = response.data!;
       } else {
-        _error = response.error ?? kGenericErrorMessage;
-        _listError = _error;
-        _providers = [];
+        error = response.error ?? kGenericErrorMessage;
       }
     } catch (e) {
-      _error = kGenericErrorMessage;
-      _listError = _error;
-      _providers = [];
-    } finally {
-      _isLoading = false;
-      _listLoading = false;
-      notifyListeners();
+      error = kGenericErrorMessage;
     }
+    if (req != _listReq) return;
+    _providers = salons ?? [];
+    _listError = error;
+    _listLoading = false;
+    notifyListeners();
   }
+
+  /// The map's salons (§2.8): the chosen commune, up to [kMapSalonPageSize],
+  /// with the server's `total`. The salons shown stay through the read; a
+  /// failed read empties them — the pill names a commune whose salons the
+  /// map could not get.
+  Future<void> loadMapSalons() async {
+    final req = ++_mapReq;
+    final commune = _selectedCommune;
+    _mapLoading = true;
+    _mapError = null;
+    notifyListeners();
+
+    ProviderPage? page;
+    String? error;
+    try {
+      final response = await _providerService.searchProviders(
+        ProviderQuery(commune: commune, pageSize: kMapSalonPageSize),
+      );
+      if (response.success && response.data != null) {
+        page = response.data;
+      } else {
+        error = response.error ?? kGenericErrorMessage;
+      }
+    } catch (e) {
+      error = kGenericErrorMessage;
+    }
+    if (req != _mapReq) return;
+    _mapSalons = page?.items ?? const [];
+    _mapTotal = page?.total ?? 0;
+    _mapCommune = commune;
+    _mapError = error;
+    _mapLoading = false;
+    notifyListeners();
+  }
+
+  /// The salon list remembers its sort and filter for the session (decision
+  /// 236). No notification: nothing but the list reads them, and it changed
+  /// them itself.
+  void rememberListFilters({
+    required ProviderSort sort,
+    required bool availableToday,
+  }) {
+    _listSort = sort;
+    _listAvailableToday = availableToday;
+  }
+
+  /// An open search's copies, reached by [providerForMap] and a review's
+  /// figures while it lives (§2.7).
+  void attachSalonHolder(SalonCopyHolder holder) => _holders.add(holder);
+  void detachSalonHolder(SalonCopyHolder holder) => _holders.remove(holder);
 
   /// Restore the last selected commune from local storage (call at startup).
   Future<void> restoreSelectedCommune() async {
@@ -166,8 +272,10 @@ class ProviderProvider extends ChangeNotifier implements AccountScoped {
     }
   }
 
-  /// Set the active commune (null = all communes), persist it, and reload the
-  /// provider list for the current category.
+  /// Set the active commune (null = all communes), persist it, and reload
+  /// the home's « Près de vous ». The commune is one shared, saved choice
+  /// (§2.7): an open salon list and the map see it change and reload
+  /// themselves — each only when it actually changed.
   Future<void> setCommune(String? commune) async {
     _selectedCommune = (commune != null && commune.isNotEmpty) ? commune : null;
     notifyListeners();
@@ -179,27 +287,10 @@ class ProviderProvider extends ChangeNotifier implements AccountScoped {
       await prefs.setString(_communeKey, _selectedCommune!);
     }
 
-    await loadProviders(category: _selectedCategory);
-  }
-
-  /// Change the sort (FR-DISC-007) and reload.
-  Future<void> setSort(ProviderSort sort) async {
-    if (_sort == sort) return;
-    _sort = sort;
-    notifyListeners();
-    await loadProviders(category: _selectedCategory);
-  }
-
-  /// Toggle the "available today" filter (FR-DISC-007) and reload.
-  Future<void> setAvailableToday(bool value) async {
-    if (_availableToday == value) return;
-    _availableToday = value;
-    notifyListeners();
-    await loadProviders(category: _selectedCategory);
+    await loadProviders();
   }
 
   Future<void> loadFeaturedProviders() async {
-    _isLoading = true;
     _featuredLoading = true;
     notifyListeners();
 
@@ -207,11 +298,11 @@ class ProviderProvider extends ChangeNotifier implements AccountScoped {
       final response = await _providerService.getFeaturedProviders();
       if (response.success && response.data != null) {
         _featuredProviders = response.data!;
+        _featuredAnswered = true;
       }
     } catch (e) {
       // Silent fail for featured providers
     } finally {
-      _isLoading = false;
       _featuredLoading = false;
       notifyListeners();
     }
@@ -301,18 +392,18 @@ class ProviderProvider extends ChangeNotifier implements AccountScoped {
   }
 
   /// The salon `/carte?providerId=` should centre
-  /// (docs/design/salon-location-map.md §2.3): the loaded list first, then
-  /// the salon page's own [selectedProvider] — the « Voir sur la carte » case,
-  /// which therefore needs no network — else one public read.
+  /// (docs/design/salon-location-map.md §2.3): a copy already held — the
+  /// home's list, the map's, an open search (consumer-search.md §2.7) —
+  /// then the salon page's own [selectedProvider] — the « Voir sur la
+  /// carte » case, which therefore needs no network — else one public read.
   ///
   /// **It writes nothing.** The salon page is still mounted under the map and
   /// reads [selectedProvider], [isLoading] and [error]; a lookup that set any
   /// of them would repaint that page behind the user's back. `null` = not
   /// found, gone, or unreachable — the caller says so.
   Future<Provider?> providerForMap(SalonId id) async {
-    for (final p in _providers) {
-      if (p.id == id) return p;
-    }
+    final held = _heldCopy(id);
+    if (held != null) return held;
     final selected = _selectedProvider;
     if (selected != null && selected.id == id) return selected;
     try {
@@ -359,10 +450,10 @@ class ProviderProvider extends ChangeNotifier implements AccountScoped {
     final open = _selectedProvider;
     final page = open != null && open.id == id ? open : null;
     // What to count from: the page's copy — the only one that lists reviews
-    // — else the list's, else the featured list's.
+    // — else a list's, else the featured list's.
     final base =
         page ??
-        _providers.where((p) => p.id == id).firstOrNull ??
+        _heldCopy(id) ??
         _featuredProviders.where((p) => p.id == id).firstOrNull;
 
     final int? replacedStars = visit.isEmpty
@@ -397,9 +488,25 @@ class ProviderProvider extends ChangeNotifier implements AccountScoped {
     notifyListeners();
   }
 
+  /// The copy of salon [id] in a list held here or in an open search — the
+  /// home's, the map's, then the searches' — or null.
+  Provider? _heldCopy(SalonId id) {
+    for (final p in _providers) {
+      if (p.id == id) return p;
+    }
+    for (final p in _mapSalons ?? const <Provider>[]) {
+      if (p.id == id) return p;
+    }
+    for (final holder in _holders) {
+      final p = holder.heldSalon(id);
+      if (p != null) return p;
+    }
+    return null;
+  }
+
   /// [rating] and [reviewCount] onto the copies of salon [id] outside the
-  /// slot: the list (the map's markers and [providerForMap] read it first),
-  /// the featured list, and whatever [alsoPatch] holds.
+  /// slot: the home's list, the map's, every open search, the featured
+  /// list, and whatever [alsoPatch] holds.
   void _patchFigures(
     SalonId id,
     double rating,
@@ -412,6 +519,18 @@ class ProviderProvider extends ChangeNotifier implements AccountScoped {
       rating: rating,
       reviewCount: reviewCount,
     );
+    final map = _mapSalons;
+    if (map != null) {
+      _mapSalons = withSalonFigures(
+        map,
+        id,
+        rating: rating,
+        reviewCount: reviewCount,
+      );
+    }
+    for (final holder in _holders) {
+      holder.patchSalonFigures(id, rating: rating, reviewCount: reviewCount);
+    }
     _featuredProviders = withSalonFigures(
       _featuredProviders,
       id,
