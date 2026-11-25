@@ -1,4 +1,4 @@
-- 🟡 **MyWeli (client), A4 : une recherche qui cherche, et les catégories ivoiriennes — la spec, avant tout code (documentation · app · backend · site · 2026-11-24 — BACKLOG B0.10, décision 160, piste A ; écarts 11, 20 et la moitié « commune » du 22 de l’audit ; FR-DISC-003, FR-DISC-004, FR-DISC-005, FR-DISC-007).** Branche `docs/consumer-search-spec`, depuis `main` `7d5d9645`. Spec : [consumer-search.md](../../design/consumer-search.md). Documentation seule : aucun code, aucun build, aucune console.
+- 🟢 **MyWeli (client), A4 : une recherche qui cherche, et les catégories ivoiriennes — la spec, avant tout code (documentation · app · backend · site · 2026-11-24 — BACKLOG B0.10, décision 160, piste A ; écarts 11, 20 et la moitié « commune » du 22 de l’audit ; FR-DISC-003, FR-DISC-004, FR-DISC-005, FR-DISC-007).** Branche `docs/consumer-search-spec`, depuis `main` `7d5d9645`. Spec : [consumer-search.md](../../design/consumer-search.md). Documentation seule : aucun code, aucun build, aucune console.
   - **Pourquoi :**
     - la barre « Rechercher un salon… » ne cherche pas : elle ouvre la liste, qui n’a aucun champ ;
     - l’app ne connaît que quatre catégories génériques ; un salon `nails` ou `massage` est introuvable par catégorie ;
@@ -18,4 +18,5 @@
     - les états vides auraient menti tant qu’aucun salon n’est public.
   - **Neuf questions pour le propriétaire** (décisions 228 à 236), chacune avec une recommandation. La deuxième s’écarte de la ligne A4 approuvée de l’audit (les catégories de l’annexe A du PRD) et le dit.
   - **Réponses (2026-11-25) :** les neuf d’un coup, « Approve as recommended ». La spec est approuvée ; la ligne A4 de l’audit prend les cinq catégories communes (décision 229).
-  - **Reste :** la fusion de cette PR, sur le mot du propriétaire ; puis A4-api, A4 et A4w, chacune sur son mot.
+  - **Fusionnée** le 2026-11-25 à 08:42 UTC sur le mot du propriétaire (#859, `ed60594c`) : l’arbre de `main` égal à la tête testée `ae3c6765`, aucune ligne d’attribution, 12 contrôles sur 12.
+  - **Ensuite :** A4-api, construite, fusionnée et déployée le même jour (#864) ; A4 et A4w restent, chacune sur le mot du propriétaire.

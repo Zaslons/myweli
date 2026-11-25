@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | **Approved by the owner on 2026-11-25** (« Approve as recommended »: the nine recommendations of §11, BACKLOG decisions 228–236). An independent reader checked it once against the code: 13 findings, each re-read in the code, then folded in (§12). The spec merged as `ed60594c` (#859). **A4-api built on 2026-11-25** on the owner's « Yes, build A4-api » (§3.1, branch `feat/a4-api-search`), not merged. Next, each on the owner's word: A4-api's merge, its deploy (migration `0051` first runs in production) and the read after; then A4, then A4w (§9). |
+| **Status** | **Approved by the owner on 2026-11-25** (« Approve as recommended »: the nine recommendations of §11, BACKLOG decisions 228–236). An independent reader checked it once against the code: 13 findings, each re-read in the code, then folded in (§12). The spec merged as `ed60594c` (#859). **A4-api built on 2026-11-25** on the owner's « Yes, build A4-api » (§3.1), **merged** as `351568e3` (#864), **deployed** the same day (`myweli-api-00059-w28`, image `351568e`) and **read back** in production (§10: every search answers 200, the monitor 11 of 11; the matching itself waits for a public salon). Next, each on the owner's word: A4, then A4w (§9). |
 | **Owner** | Sadreddine |
 | **Last updated** | 2026-11-25 |
 | **PRD ref / phase** | FR-DISC-003 (category browse), FR-DISC-004 (search by name, service and locality, French-aware), FR-DISC-005 (the map's commune awareness), FR-DISC-007 (sort and filter) · V1 · BACKLOG B0.10 (decision 160, Track A), B12.8 |
