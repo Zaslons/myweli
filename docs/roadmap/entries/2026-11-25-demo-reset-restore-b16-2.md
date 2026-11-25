@@ -1,4 +1,4 @@
-- 🟡 **B16.2 : la réinitialisation du salon de démonstration remet ce qu’un relecteur a changé (backend · 2026-11-25 — BACKLOG B16.2, décisions 250–252).** Branche `fix/b16-2-demo-reset`, créée depuis `main` (`afd2de97`). Spec : [demo-reset-restore.md](../../design/demo-reset-restore.md) §8.8.
+- 🟡 **B16.2 : la réinitialisation du salon de démonstration remet ce qu’un relecteur a changé (backend · 2026-11-25 — BACKLOG B16.2, décisions 250–252).** Branche `fix/b16-2-demo-reset`, créée depuis `main` (`afd2de97`), PR #869. Spec : [demo-reset-restore.md](../../design/demo-reset-restore.md) §8.8.
   - **Le défaut :** chaque semaine, la réinitialisation renvoyait le cliché par `updateProfile`, qui n’écrit que le document du salon. Les prestations, les horaires (en production) et les avant/après changés par un relecteur restaient pour le suivant ; en mémoire, le cliché partageait même les listes du salon.
   - **Ce qui change :**
     - `replaceServices`, sur les deux doubles : une transaction, l’ordre du cliché, un « INSERT » simple qui refuse une prestation d’un autre salon ;

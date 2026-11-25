@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Module** | backend: the store-review demo (`DemoResetService`, the demo snapshot store) and `providers` (one new writer, `replaceServices`) |
-| **Status** | **Approved 2026-11-25.** The owner answered the five questions of §11 at once, « Approve as recommended »: decisions 250–254 in BACKLOG, batch 16 (#865). **B16.2 built 2026-11-25** (§8.8), on the owner's « Yes, build B16.2 », in its own backend PR; not merged. The merge, the read before the deploy (decision 253), the deploy and the read after, each on the owner's word. |
+| **Status** | **Approved 2026-11-25.** The owner answered the five questions of §11 at once, « Approve as recommended »: decisions 250–254 in BACKLOG, batch 16 (#865). **B16.2 built 2026-11-25** (§8.8), on the owner's « Yes, build B16.2 », in its own backend PR, #869; not merged. The merge, the read before the deploy (decision 253), the deploy and the read after, each on the owner's word. |
 | **Owner** | the project owner: the answers, the build's go, the merge, the read before the deploy, the deploy and the read after it, each on the owner's word |
 | **Last updated** | 2026-11-25 |
 | **PRD ref / phase** | the store-review account (threat T69) · V1 |
