@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | Draft — waits for the owner's answers to §17 (Q1–Q13). No code before. |
+| **Status** | **Approved 2026-11-25** — the owner answered all thirteen questions of §17 at once, « Approve as recommended » (decisions 237–249). Nothing built yet; R0w is next, each PR, production read and deploy on the owner's word. |
 | **Owner** | Sadreddine |
 | **Last updated** | 2026-11-25 |
 | **PRD ref / phase** | FR-PRO-EARN-001 [V1] (« completed revenue by day/week/month ») + FR-PRO-DASH-001 [V1] (« no-show rate ») + the revenue half of **FR-PRO-OPS-004 [V3]** (« revenue, top services/staff, no-show analytics »), pulled forward on the owner's request of 2026-11-25 — Q1 |
@@ -1278,7 +1278,9 @@ part of this work.
 
 ## 17. Open questions for the owner
 
-**Q1–Q13 are decisions 237–249** in `docs/BACKLOG.md` §2, open (batch 17).
+**Q1–Q13 are decisions 237–249** in `docs/BACKLOG.md` §2 (batch 17).
+**✅ Answered 2026-11-25: « Approve as recommended »** — all thirteen, each
+as its recommendation below says.
 The highest number on `main` and in the open PRs on 2026-11-25 was 236
 (A4's); no other worktree held a higher one.
 

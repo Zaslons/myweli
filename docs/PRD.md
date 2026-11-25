@@ -489,7 +489,7 @@ These exist today as **unrouted UI mocks** in `screens/provider/features/`. They
 - **FR-PRO-OPS-001 [V3]** Inventory management (products, stock, low-stock alerts; tie consumption to services).
 - **FR-PRO-OPS-002 → moved to V2** Loyalty programs (points, cashback) & gift certificates — see FR-PRO-LOY-001 (§10.6).
 - **FR-PRO-OPS-003 → moved to V2** Memberships / abonnements (incl. spa packages, Mindbody-style) — see FR-PRO-LOY-001 (§10.6).
-- **FR-PRO-OPS-004 [V3]** Reports & analytics deep-dive (revenue, top services/staff, no-show analytics, retention).
+- **FR-PRO-OPS-004 [V3]** Reports & analytics deep-dive (revenue, top services/staff, no-show analytics, retention). *(**The revenue part is pulled forward** on the owner's request of 2026-11-25 (decision 237): revenue by collaborateur, prestation and channel, average ticket, absence rate, periods and comparison — [design/pro-revenue-analytics.md](design/pro-revenue-analytics.md), BACKLOG batch 17. Fill rate and retention stay here.)*
 - **FR-PRO-OPS-005 [V3]** Online booking widget / embeddable form (largely superseded by web booking pages, §11.1).
 - **FR-PRO-OPS-006 [V3]** Multi-location & freelancer-network management (the empty `freelancers/`, `more/` folders).
 
