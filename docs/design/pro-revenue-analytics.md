@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | **Approved 2026-11-25** — the owner answered all thirteen questions of §17 at once, « Approve as recommended » (decisions 237–249). **R0w live 2026-11-25** (#866, `afd2de97`). **R1's production read done 2026-11-25** (§19). Next: R1, built on the owner's word, deployed on the owner's word. |
+| **Status** | **Approved 2026-11-25** — the owner answered all thirteen questions of §17 at once, « Approve as recommended » (decisions 237–249). **R0w live 2026-11-25** (#866, `afd2de97`). **R1's production read done 2026-11-25** (§19). **R1 built 2026-11-25** (#872, migration **0052**); its merge and its deploy wait for the owner's word. |
 | **Owner** | Sadreddine |
 | **Last updated** | 2026-11-25 |
 | **PRD ref / phase** | FR-PRO-EARN-001 [V1] (« completed revenue by day/week/month ») + FR-PRO-DASH-001 [V1] (« no-show rate ») + the revenue half of **FR-PRO-OPS-004 [V3]** (« revenue, top services/staff, no-show analytics »), pulled forward on the owner's request of 2026-11-25 — Q1 |
@@ -899,11 +899,14 @@ their shape and meaning: builds 0.0.2 in both stores call them.
 
 ## 8. Data model (R1)
 
-### 8.1 Three nullable columns on `appointments` (migration 0051, additive)
+### 8.1 Three nullable columns on `appointments` (migration 0052, additive)
+
+*Numbered 0051 when this spec was written; A4-api's `unaccent` (#864)
+merged first and took 0051, so R1 is 0052.*
 
 | Column | Type | Written by | Content |
 |---|---|---|---|
-| `service_lines` | `jsonb` | `book`, `bookManual` | `[{ "serviceId", "name", "price", "durationMinutes" }]`, one per `service_ids` entry, in its order; Σ `price` = `total_price`. **Stored as a real JSON array** — the Dart list passed to the `:jsonb` parameter, never `jsonEncode`d first, which is what makes `service_ids` a JSON string (§8.3, §19); a DB-gated test asserts `jsonb_typeof(service_lines) = 'array'`, and `_toDto` still accepts a string |
+| `service_lines` | `jsonb` | `book`, `bookManual` | `[{ "serviceId", "name", "price", "durationMinutes" }]`, one per `service_ids` entry, in its order; Σ `price` = `total_price`. **Stored as a real JSON array** — the Dart list passed to the `:jsonb` parameter, never `jsonEncode`d first, which is what makes `service_ids` a JSON string (§8.3, §19); a DB-gated test asserts `jsonb_typeof(service_lines) = 'array'`, **and the column's CHECK refuses anything else** (`jsonb_typeof(service_lines) = 'array'`, 23514), so `_toDto` returns the column as read — an array or NULL, never a string (as built in R1: stronger than the test alone) |
 | `artist_name_kept` | `text` | `book`, `bookManual`; and every write of `artistId` (reassignment: `rescheduleByProvider`, the journal's drag) | the collaborateur's name at that moment; `NULL` when there is no collaborateur |
 | `channel` | `text` | `book` (`app` or `web`, §8.2), `bookManual` (`salon`) | `app` · `web` · `salon`; a CHECK keeps it to these three or NULL |
 
@@ -1057,6 +1060,10 @@ deleted with the old screen) · `screens/provider/earnings/` rebuilt:
   budget (§11), `no-store`; **T** — a forged `X-Myweli-Channel` → it can only
   relabel the salon's own statistics, enum-checked, never used for authz.
   T5 gains « analytics » in its provider-reads list.
+  **As built:** T85 landed with R1, scoped to what R1 ships — the header
+  and the three columns (their CHECKs, the kept name only with its id,
+  immutability, disclosure). R2 extends the same row with the endpoints'
+  **I** and **D** and adds T5's « analytics ».
 
 ---
 
@@ -1222,8 +1229,8 @@ Each merge, each production read and each deploy waits for the owner's word.
 | # | PR | Surface | Depends on | Ships to users when |
 |---|---|---|---|---|
 | **R0w** | The booking BFF sends `X-Myweli-Channel: web` | website | — | its merge (Vercel) |
-| **R1** | Migration 0051 (three nullable columns, no backfill), the writes, the twins' key list, the header read, an empty `artistId` stored as `null`, OpenAPI's `Appointment` gains the three stored keys | backend | R0w live | its deploy (`deploy-backend.yml`) |
-| **R2** | The two endpoints, the period resolver, the aggregator, the repo reads + contract, the batched client-name lookup, OpenAPI, T85, `schema.ts` regenerated; the demo reset's richer agenda if Q13 says yes | backend (+ `web/lib/api/schema.ts`) | R1 | its deploy |
+| **R1** | Migration 0052 (three nullable columns with their CHECKs, no backfill), the writes, the twins' key list, the header read, an empty `artistId` stored as `null`, OpenAPI's `Appointment` gains the three stored keys and `POST /appointments` the header, `schema.ts` regenerated, T85 (the header and the columns) | backend (+ `web/lib/api/schema.ts`) | R0w live | its deploy (`deploy-backend.yml`) |
+| **R2** | The two endpoints, the period resolver, the aggregator, the repo reads + contract, the batched client-name lookup, OpenAPI, T85 extended + T5, `schema.ts` regenerated; the demo reset's richer agenda if Q13 says yes | backend (+ `web/lib/api/schema.ts`) | R1 | its deploy |
 | **R3** | « Revenus » rebuilt, details, ledger, Accueil taps, shared widgets, goldens; placeholder deleted | app | R2 deployed | the next Pro build in the stores |
 | **R4** | `/pro/revenus` rebuilt, details, ledger, CSV | website | R2 deployed | its merge |
 
@@ -1250,7 +1257,7 @@ part of this work.
 - [ ] Tests of §13 for its surface, red first where a defect is claimed;
       the mutations of §13.1 watched red and named in the PR.
 - [ ] OpenAPI updated with the code; `schema.ts` regenerated, no drift.
-- [ ] T85 + T5 updated (R2); SYSTEM.md §11.3 entries marked built (R3/R4).
+- [ ] T85 written (R1) and extended + T5 updated (R2); SYSTEM.md §11.3 entries marked built (R3/R4).
 - [ ] Goldens from Linux, each changed PNG opened.
 - [ ] This spec cross-linked from the routes, the service, the screens and
       the contract; its status moved.
@@ -1283,6 +1290,15 @@ part of this work.
    expected » on the earnings screen; neither exists, and with screenshot
    deposits MyWeli can only know a proof was sent, not that money arrived.
    Recommended: reword the requirement when Q1's PRD edit is made.
+4. **`bookManual` stores any `artistId` it is given** (found building R1).
+   The client's `book` refuses an id not on the roster (the slot engine's
+   `invalid_artist`) and the journal's drag does too (T42), but the salon's
+   own « Ajouter un rendez-vous » never checks: an id from another salon,
+   or a stale one, is stored as sent. Bounded to the salon's own bookings
+   (the route requires `journal.manage.all` on that salon), and R1 keeps no
+   name for it (`artistNameKept` null), so its revenue reads under
+   « Ancien collaborateur ». Recommended: refuse it with `invalid_artist`,
+   as the other two paths do, in its own small PR with a test.
 
 ---
 
@@ -1382,7 +1398,7 @@ Checked and correct by the same reader: the `X-Myweli-Channel` header
 reaches the backend (the BFF passes route headers, the Cloudflare Worker
 forwards all headers); only two paths create bookings and one changes the
 collaborateur; erasure keeps `user_id`; the purge deletes rows whole;
-migration 0051, threat T85 and decision 237 were the next free numbers; only
+migration 0051 (taken by A4-api the same day — R1 is 0052), threat T85 and decision 237 were the next free numbers; only
 the owner preset has `finances.view`; the Pro offer lists « Statistiques ».
 
 ---

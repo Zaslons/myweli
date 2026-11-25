@@ -241,6 +241,30 @@ void main() {
       expect((await jsonOf(res))['status'], 'confirmed');
     });
 
+    // docs/design/pro-revenue-analytics.md §8.2 (R1): the salon's own entry is
+    // « salon », whatever the request claims — only the client's booking
+    // route reads the header.
+    test('a salon-entered booking is « salon », even when the request says '
+        '« web »', () async {
+      final res = await manual.onRequest(
+        ctx(
+          Request.post(
+            Uri.parse('http://localhost/providers/provider1/appointments'),
+            headers: {
+              'Authorization': 'Bearer $token',
+              'X-Myweli-Channel': 'web',
+            },
+            body: jsonEncode(validBody()),
+          ),
+        ),
+        'provider1',
+      );
+      expect(res.statusCode, HttpStatus.created);
+      final body = await jsonOf(res);
+      expect(body['channel'], 'salon');
+      expect((await appts.byId(body['id'] as String))!['channel'], 'salon');
+    });
+
     test('no token → 401; cross-salon → 403; GET → 405', () async {
       expect(
         (await manual.onRequest(

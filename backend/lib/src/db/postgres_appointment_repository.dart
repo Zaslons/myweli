@@ -19,6 +19,14 @@ import '../appointments/appointment_repository.dart';
 /// `update` writes only [kAppointmentUpdatableKeys] and refuses anything else
 /// before any SQL, as the in-memory twin does
 /// (docs/design/appointment-twin-update.md §5.2).
+///
+/// Since migration 0052 (R1, docs/design/pro-revenue-analytics.md §8.1) a
+/// booking also keeps `service_lines` (what each prestation was sold as),
+/// `artist_name_kept` and `channel`. NULL in all three is « made before R1 »,
+/// never a value. **`service_lines` is the list itself, not `jsonEncode`d:**
+/// `service_ids` is encoded first and then again by the `:jsonb` parameter,
+/// which stores a JSON string — and SQL cannot read a string as an array.
+/// The column refuses one (its CHECK).
 class PostgresAppointmentRepository implements AppointmentRepository {
   PostgresAppointmentRepository(this._pool);
 
@@ -45,13 +53,14 @@ class PostgresAppointmentRepository implements AppointmentRepository {
           'appointment_date, duration_minutes, ends_at, status, total_price, '
           'deposit_amount, balance_due, cancellation_window_hours, '
           'client_name, client_phone, notes, deposit_screenshot_url, '
-          'created_at, currency) '
+          'created_at, currency, service_lines, artist_name_kept, channel) '
           'VALUES (@id, @user_id, @provider_id, @service_ids:jsonb, '
           '@artist_id:text, @appointment_date:timestamptz, @duration_minutes, '
           '@ends_at:timestamptz, @status, @total_price, @deposit_amount, '
           '@balance_due, @cancellation_window_hours, @client_name:text, '
           '@client_phone:text, @notes:text, @deposit_screenshot_url:text, '
-          '@created_at:timestamptz, @currency:text) '
+          '@created_at:timestamptz, @currency:text, '
+          '@service_lines:jsonb, @artist_name_kept:text, @channel:text) '
           'RETURNING *',
         ),
         parameters: {
@@ -76,6 +85,10 @@ class PostgresAppointmentRepository implements AppointmentRepository {
           // No default here: the booking service is the authority. A missing
           // stamp is refused by the column itself (23502) since 0049 (B14.2).
           'currency': a['currency'],
+          // The list as it is: the parameter encodes it once, into an array.
+          'service_lines': a['serviceLines'],
+          'artist_name_kept': a['artistNameKept'],
+          'channel': a['channel'],
         },
       );
       if (result.isEmpty) return null;
@@ -191,6 +204,10 @@ class PostgresAppointmentRepository implements AppointmentRepository {
       sets.add('artist_id = @artist:text');
       params['artist'] = changes['artistId'];
     }
+    if (changes.containsKey('artistNameKept')) {
+      sets.add('artist_name_kept = @artist_name:text');
+      params['artist_name'] = changes['artistNameKept'];
+    }
     if (sets.isEmpty) return byId(id);
     try {
       final result = await _pool.execute(
@@ -235,6 +252,11 @@ class PostgresAppointmentRepository implements AppointmentRepository {
       'arrivedAt': (r['arrived_at'] as DateTime?)?.toUtc().toIso8601String(),
       // NOT NULL since migration 0049 (B14.2): every stored booking has one.
       'currency': r['currency'],
+      // R1 (migration 0052). NULL in each is « made before R1 »; the lines
+      // are an array or NULL (the column's CHECK).
+      'serviceLines': r['service_lines'],
+      'artistNameKept': r['artist_name_kept'],
+      'channel': r['channel'],
     };
   }
 
