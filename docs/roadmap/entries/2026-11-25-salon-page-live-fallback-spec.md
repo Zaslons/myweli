@@ -1,4 +1,4 @@
-- 🟡 **Spec : la page d’un salon fonctionne dès qu’il est public (B18) (web · documentation · 2026-11-25).** Branche `docs/salon-page-live-fallback-spec`, créée depuis `main` (`afd2de97`). Spec : [web-salon-page-live-fallback.md](../../design/web-salon-page-live-fallback.md). Documentation seule : aucun code.
+- 🟡 **Spec : la page d’un salon fonctionne dès qu’il est public (B18) (web · documentation · 2026-11-25).** Branche `docs/salon-page-live-fallback-spec`, créée depuis `main` (`afd2de97`), PR #870. Spec : [web-salon-page-live-fallback.md](../../design/web-salon-page-live-fallback.md). Documentation seule : aucun code.
   - **Le défaut, signalé par le propriétaire :** le salon « test » (Adjamé, `test-3`) apparaissait dans la recherche de myweli.com, et un clic affichait « Page introuvable ».
   - **La cause, prouvée par les journaux de production (Cloud Run) et des lectures de myweli.com :**
     - la page d’un salon ne connaît que les salons présents au build (`app/[slug]/page.tsx:46`, `dynamicParams = false`, gardé pour sa vraie page 404) ;
