@@ -1,0 +1,30 @@
+- 🟡 **B18.1 : la page d’un salon fonctionne dès qu’il est public, le « live fallback » (site · 2026-11-25).** Branche `feat/web-salon-page-live-fallback`, PR #871, rebasée sur `main` après la fusion de la spec (#870, `73f12886`). Spec : [web-salon-page-live-fallback.md](../../design/web-salon-page-live-fallback.md), décisions 255–258.
+  - **Le défaut, mesuré en production :** un salon validé après le dernier build était listé par la recherche, mais sa page répondait « Page introuvable » jusqu’à ce que la reconstruction soit en ligne. Encore 404 2 min 42 s après la demande, 200 à 4 min 46 s.
+  - **Construit :**
+    - **une seule liste de salons par build.** Le prebuild (`tool/build-salon-slugs.mjs`) lit `GET /sitemap/providers` une fois ; `next.config.mjs` l’intègre au code, avec les routes du site, pour `generateStaticParams` et le middleware ;
+    - **`middleware.ts`.**
+      - Un slug inconnu en forme de salon coûte une lecture de l’API.
+      - Un salon public est réécrit vers `app/recherche/salon/[slug]`, rendu en direct, à sa propre adresse, canonique `/<slug>`.
+      - Tout le reste garde la vraie page 404 d’aujourd’hui.
+      - La route en direct n’a pas d’adresse à elle.
+      - Le matcher écrit son motif : Next 14.2 ajoute `(.json)?` à chaque source, et `'/:slug'` seul ne prenait aucune page de salon ;
+    - **un build de production sans son prebuild est refusé ;**
+    - **une vérification quotidienne en production (`salonpages`)** : chaque salon public doit être servi par le build, revérifié 10 minutes plus tard ; ajoutée aux deux listes de l’alarme.
+  - **Rouge d’abord**, sur le code d’avant (une copie jetable de la branche de la spec) : les cas e2e 1, 2a, 2b, 3, 6 et 8 échouent pour la raison dite (404, « Page introuvable », pas de middleware).
+  - **Vert avec la correction :**
+    - le nouveau spec et `served-html` : 32 passés ;
+    - les tests unitaires : 229 fichiers, 3 322 tests ;
+    - le test de l’alarme côté backend : 15 passés.
+  - **Dix-sept mutations vues rouges :**
+    - quatorze sur les tests unitaires du site ;
+    - une sur le test de l’alarme côté backend ;
+    - deux sur un vrai build, les cas e2e 4 et 7 : `/recherche/salon/beaute-divine` répondait 200 ; « /cgu made the middleware ask the API ».
+  - **Trouvé en construisant :**
+    - `@next/env` est en CommonJS : un import nommé échoue au chargement ;
+    - la vérification de production ne vérifiait rien dans un chemin avec une espace : `file://` construit à la main contre `import.meta.url`. Vu en la lançant contre la production, corrigé par `pathToFileURL`. Puis lue : 1 salon public, `/test-3`, servi par le build ;
+    - une carte de la recherche est un simple `<a>` : un clic recharge la page pour tout salon.
+  - **Aucune donnée de production n’a été modifiée.**
+  - **Reste :**
+    - la fusion de cette PR, sur le mot du propriétaire (#870 fusionnée) : un déploiement du site en production ;
+    - la lecture après (spec §9) ;
+    - la décision 259.

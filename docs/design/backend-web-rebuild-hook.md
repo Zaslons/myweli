@@ -149,7 +149,8 @@ correct operation. It is caught, logged at WARNING with the reason, and dropped.
 
 The residual is honest and written down: if the hook fails, the new salon's page
 404s until the next deploy. That is strictly better than today, where it always
-would.
+would. *(Since B18, 2026-11-25, it is served live by the web's middleware
+instead, and the daily `salonpages` check alerts on it: §7.1.)*
 
 ## 7. Testing plan — revised 2026-08-25
 
@@ -204,6 +205,9 @@ VALIDATION by MyWeli — `salon.approved`; the owner's request fires nothing.)* 
 The alert covers the failure; the checklist covers the confirmation. Neither
 alone is enough — an alert that never fires is indistinguishable from a healthy
 system, and a checklist nobody re-reads is a wish.
+
+
+**2026-11-25 (B18, [web-salon-page-live-fallback.md](web-salon-page-live-fallback.md)).** The last row was exercised by the first real salon, « test » (`test-3`): five hook calls, five 201s, each build converging on the right final state. But a build takes minutes (measured: still 404 2 min 42 s after the hook, 200 at 4 min 46 s), and search listed the salon the whole time, so its page answered « Page introuvable » to whoever looked first. **The residual of §5 changed with B18:** a salon public in the API and not yet built is now served live by the web's middleware at its own address, so a failed or missing rebuild no longer 404s the page. It would therefore go unseen by visitors, and the daily production check `salonpages` (`production-checks.yml`) now alerts on any public salon not served by the build. The alert above still watches the refused hook.
 
 ## 8. Open questions
 

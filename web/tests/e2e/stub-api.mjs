@@ -129,6 +129,21 @@ const LOGO_SALON = {
   logoUrl: 'https://cdn.stub/p1-logo.png',
 };
 
+// B18 (docs/design/web-salon-page-live-fallback.md §8.1): a salon validated AFTER
+// the last build. Public by slug, NOT in `/sitemap/providers`, so the build does
+// not prerender it: before the live fallback its page was the 404 while search
+// listed it. In search only for `q=juste`, so the home page and every other
+// spec's `/recherche` stay as they are.
+/// `GET /providers/by-slug/{slug}` reads, per slug (`/__stub/by-slug-calls`).
+const bySlugCalls = new Map();
+
+const JUSTE_VALIDE = {
+  ...JSON.parse(JSON.stringify(provider)),
+  id: 'p-juste',
+  slug: 'salon-juste-valide',
+  name: 'Salon Juste Validé',
+};
+
 // K2: a deposit-required salon for the pay-later proof-upload journey.
 const depositProvider = {
   ...JSON.parse(JSON.stringify(provider)),
@@ -1030,6 +1045,10 @@ createServer(async (req, res) => {
     }
     return json(res, 200, { validation: validationViewOf(id, 'owner'), status: doc.status });
   }
+  if (url.pathname === '/__stub/by-slug-calls') {
+    const slug = url.searchParams.get('slug') ?? '';
+    return json(res, 200, { calls: bySlugCalls.get(slug) ?? 0 });
+  }
   if (url.pathname === '/__stub/bookings') {
     const key = url.searchParams.get('key') ?? '';
     return json(res, 200, { created: bookingsByKey.get(key) ?? 0 });
@@ -1046,9 +1065,13 @@ createServer(async (req, res) => {
   }
   const m = url.pathname.match(/^\/providers\/by-slug\/(.+)$/);
   if (m) {
+    // B18: counted, so the e2e can prove the middleware asks the API about an
+    // unknown slug only, never about a built salon or a route of the site.
+    bySlugCalls.set(m[1], (bySlugCalls.get(m[1]) ?? 0) + 1);
     if (m[1] === 'beaute-divine') return json(res, 200, provider);
     if (m[1] === LOGO_SALON.slug) return json(res, 200, LOGO_SALON);
     if (m[1] === 'institut-acompte') return json(res, 200, depositProvider);
+    if (m[1] === JUSTE_VALIDE.slug) return json(res, 200, JUSTE_VALIDE);
     return json(res, 404, { error: 'not_found' });
   }
   if (url.pathname === '/providers') {
@@ -1059,6 +1082,8 @@ createServer(async (req, res) => {
       json(res, 200, { items, page: 1, pageSize: 20, total: items.length });
     if (query === 'vide') return listOf([]);
     if (query === 'vitrine') return listOf(CARD_FIXTURES);
+    // B18: one salon the build prerendered, one it did not (see JUSTE_VALIDE).
+    if (query === 'juste') return listOf([provider, JUSTE_VALIDE]);
     // A list that really starts without a photo, and one with none at all: the first photo
     // is not the first card (web-swiss-cards.md §7). Their own reads, so the eight every
     // other spec counts stay eight.

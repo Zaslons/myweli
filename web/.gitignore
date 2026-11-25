@@ -17,6 +17,11 @@ next-env.d.ts
 # dependency is what keeps them from drifting out of step with it.
 /public/flags
 
+# The build's salon list, written by tool/build-salon-slugs.mjs (the prebuild) and
+# inlined by next.config.mjs. Regenerated on every build: committed, it would be
+# a stale list (docs/design/web-salon-page-live-fallback.md §3.1).
+/.generated
+
 # The salon page's generated test photo (tool/test-photo.mjs). Regenerated, never
 # committed: the PR and the manual LCP runs use it, and no binary goes into git.
 /tool/out

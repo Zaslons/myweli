@@ -44,6 +44,19 @@ web/
   on profile edit) — instant, crawlable, cheap. Legacy flat slugs
   (`/coiffure-cocody`) **permanently redirect (308 ≡ 301)** to their nested
   home — never re-emit them in links or the sitemap.
+- **A salon's page works the moment it is public** (B18,
+  [design/web-salon-page-live-fallback.md](design/web-salon-page-live-fallback.md)).
+  `app/[slug]` builds its salons ahead of time with **closed params**
+  (`dynamicParams = false`: the only way an unknown slug gets the real 404 page
+  rather than a blank one), and the backend asks Vercel for a rebuild when the
+  public set changes, which takes minutes. Until it lands, `middleware.ts`
+  serves a salon the API says is public **live, at its own address**: one API
+  read, then a rewrite to `app/recherche/salon/[slug]`, which has no address of
+  its own. A built salon, a route of the site and a taxonomy root never cost a
+  read. The page and the middleware share **one salon list per build**: the
+  prebuild reads it once and `next.config.mjs` inlines it. The middleware's
+  matcher spells its pattern out (`'/:slug([a-z0-9-]+)'`): Next 14.2 appends
+  `(.json)?` to each source, so a bare `'/:slug'` matches no salon path.
 - **Authed, app-like surfaces** (consumer account, booking funnel, pro dashboard)
   → **SSR shell + client components**; code-split per route.
 - Never client-render content that must be crawlable.
@@ -229,6 +242,17 @@ web/
 - Standard security headers / CSP where feasible; **rate-limit** public + OTP
   endpoints (backend) + basic bot hardening. Threat-model rows (`T27+`) added as
   routes land.
+- **The salon-page middleware costs one public API read per unknown slug**
+  (B18). A request for an unknown salon-shaped single segment (a typo, a
+  removed salon, a scanner's `/wp-admin`) now makes the middleware read
+  `GET /providers/by-slug/{slug}` before the same real 404. It is the same
+  public read anyone can make directly, so it gives nobody a new capability,
+  but scanner traffic on myweli.com now reaches Cloud Run, and **no rate limit
+  covers it**: the only Cloudflare rule limits `/auth/*` and `/admin/auth/*`.
+  Bounded by the matcher (one lowercase segment, no dot) and a 2-second abort;
+  the middleware sends no cookie or token, never throws and reports nothing.
+  Watch the count of by-slug 404s per day; a front-door rate limit is the next
+  step if it grows.
 
 ## 6. SEO / AEO / GEO (every public page — see public-web.md §4)
 - **SEO:** SSR/SSG HTML, one `<h1>`, `<title>`/meta/canonical/OG, **JSON-LD**
