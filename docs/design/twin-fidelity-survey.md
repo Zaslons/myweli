@@ -131,7 +131,7 @@ These are not test gaps. In each, the twin does what the code means, and Postgre
 | D-2 | membership · `resendInvite` after a revoke | the twin re-sends to a revoked member; Postgres refuses (race only) | twin `:438-446`, PG `:243-255` |
 
 **Test-only** (no production caller reaches the difference; a test could still pin the wrong behaviour):
-- **Aliasing (F2):** providers (A-P6: **7 test sites rely on it**), provider auth (B-P1-c: 4 test files rely on it), disputes (C-D2), demo snapshot (C-M1, a shallow copy shares the live salon's lists), notifications (D-4), both audit logs (D-5), messaging outbox (D-6).
+- **Aliasing (F2):** providers (A-P6: **7 test sites rely on it**), provider auth (B-P1-c: 4 test files rely on it), disputes (C-D2), demo snapshot (C-M1, a shallow copy shares the live salon's lists; fixed in B16.2, [demo-reset-restore.md](demo-reset-restore.md) §5.3), notifications (D-4), both audit logs (D-5), messaging outbox (D-6).
 - **Writes (F1):**
   - reviews keep `moderationStatus` and a null `userName` (A-R2);
   - the Apple-token `kind` check (B-P4-a);

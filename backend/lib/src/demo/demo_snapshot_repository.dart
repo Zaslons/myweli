@@ -5,6 +5,8 @@
 /// docs/design/backend-demo-review-account.md §4, §6.2.
 library;
 
+import 'dart:convert';
+
 /// The single snapshot row.
 typedef DemoSnapshot = ({
   String providerId,
@@ -28,8 +30,17 @@ abstract interface class DemoSnapshotRepository {
   Future<void> markReset(DateTime at);
 }
 
+/// The in-memory twin keeps its OWN copy, through JSON, on the way in and on
+/// every read — as Postgres's `jsonb` does. It used to keep `Map.from(doc)`,
+/// a shallow copy that shared the live salon's lists, and to hand out that
+/// same map: a reviewer's in-place edits then rewrote the snapshot itself
+/// (C-M1, docs/design/demo-reset-restore.md §5.3, B16.2). A document that is
+/// not JSON now fails at the capture on both twins alike.
 class InMemoryDemoSnapshotRepository implements DemoSnapshotRepository {
   DemoSnapshot? _row;
+
+  static Map<String, dynamic> _copy(Map<String, dynamic> doc) =>
+      jsonDecode(jsonEncode(doc)) as Map<String, dynamic>;
 
   @override
   Future<void> capture({
@@ -41,14 +52,23 @@ class InMemoryDemoSnapshotRepository implements DemoSnapshotRepository {
     // definition clean, so the next reset is due a full window later.
     _row = (
       providerId: providerId,
-      doc: Map<String, dynamic>.from(doc),
+      doc: _copy(doc),
       capturedAt: capturedAt,
       lastResetAt: capturedAt,
     );
   }
 
   @override
-  Future<DemoSnapshot?> read() async => _row;
+  Future<DemoSnapshot?> read() async {
+    final r = _row;
+    if (r == null) return null;
+    return (
+      providerId: r.providerId,
+      doc: _copy(r.doc),
+      capturedAt: r.capturedAt,
+      lastResetAt: r.lastResetAt,
+    );
+  }
 
   @override
   Future<void> markReset(DateTime at) async {

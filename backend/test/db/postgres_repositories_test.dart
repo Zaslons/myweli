@@ -24,6 +24,7 @@ import 'package:myweli_backend/src/db/postgres_appointment_repository.dart';
 import 'package:myweli_backend/src/db/postgres_auth_repository.dart';
 import 'package:myweli_backend/src/db/postgres_client_version_repository.dart';
 import 'package:myweli_backend/src/db/postgres_clients_repository.dart';
+import 'package:myweli_backend/src/db/postgres_demo_snapshot_repository.dart';
 import 'package:myweli_backend/src/db/postgres_device_token_repository.dart';
 import 'package:myweli_backend/src/db/postgres_favorites_repository.dart';
 import 'package:myweli_backend/src/db/postgres_idempotency_store.dart';
@@ -56,8 +57,11 @@ import '../access/invite_contract.dart';
 import '../appointments/appointment_repository_contract.dart';
 import '../auth/apple_token_repository_contract.dart';
 import '../auth/kyc_write_contract.dart';
+import '../demo/demo_reset_restore_contract.dart';
+import '../demo/demo_snapshot_contract.dart';
 import '../idempotency/idempotency_contract.dart';
 import '../providers/profile_filters_contract.dart';
+import '../providers/replace_services_contract.dart';
 import '../providers/search_contract.dart';
 import '../validation/salon_place_notice_contract.dart';
 import '../validation/salon_validation_contract.dart';
@@ -1553,6 +1557,57 @@ void main() {
       searchContract(
         repo: () => PostgresProvidersRepository(pool),
         created: deleteOnTearDown,
+      );
+    });
+
+    // docs/design/demo-reset-restore.md §5.4 (B16.2, decisions 250–252): the
+    // demo salon's reset puts the curated catalogue back through
+    // `replaceServices`. The same three contracts run on the in-memory twins
+    // (`providers/replace_services_test.dart`, `demo/demo_reset_restore_test
+    // .dart`); only this run sees the tables `updateProfile` never reaches.
+    group('replaceServices — the twin contract', () {
+      replaceServicesContract(
+        repo: () => PostgresProvidersRepository(pool),
+        created: deleteOnTearDown,
+        createdAt: (pid) async => {
+          for (final r in await pool.execute(
+            Sql.named(
+              'SELECT id, created_at FROM provider_services '
+              'WHERE provider_id = @pid',
+            ),
+            parameters: {'pid': pid},
+          ))
+            r.toColumnMap()['id'] as String:
+                r.toColumnMap()['created_at'] as DateTime,
+        },
+      );
+    });
+
+    // One row, ever (`CHECK (id = 1)`): emptied around each run. No other
+    // test file shares this database's `demo_snapshot` — the purge, admin
+    // account and migration tests make databases of their own.
+    group('the demo snapshot store — the twin contract', () {
+      Future<void> empty() => pool.execute('DELETE FROM demo_snapshot');
+      setUp(empty);
+      tearDown(empty);
+      demoSnapshotContract(repo: () => PostgresDemoSnapshotRepository(pool));
+    });
+
+    group('the demo reset restores the curated salon — the twin contract', () {
+      Future<void> empty() => pool.execute('DELETE FROM demo_snapshot');
+      setUpAll(empty);
+      tearDownAll(empty);
+      demoResetRestoreContract(
+        providers: () => PostgresProvidersRepository(pool),
+        snapshots: () => PostgresDemoSnapshotRepository(pool),
+        created: deleteOnTearDown,
+        ratingColumn: (id) async =>
+            ((await pool.execute(
+                      Sql.named('SELECT rating FROM providers WHERE id = @id'),
+                      parameters: {'id': id},
+                    )).first.toColumnMap()['rating']
+                    as num)
+                .toDouble(),
       );
     });
 
