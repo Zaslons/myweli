@@ -70,6 +70,16 @@ export function idempotencyKeyHeader(req: NextRequest): Record<string, string> {
   return key ? { 'Idempotency-Key': key } : {};
 }
 
+/// The channel a booking made on the website declares, sent by
+/// `/api/bookings` only — set here, never taken from the browser. The API
+/// stamps the booking `web` with it (and `app` without it), for the salon's
+/// revenue by channel (docs/design/pro-revenue-analytics.md §8.2, decision
+/// 243). It labels the salon's own statistics and nothing else: it is never
+/// used for authorisation (threat T85).
+export const BOOKING_CHANNEL_HEADER: Readonly<Record<string, string>> = {
+  'X-Myweli-Channel': 'web',
+};
+
 export async function callApi(
   req: NextRequest,
   path: string,

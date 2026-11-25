@@ -1,5 +1,10 @@
 import type { NextRequest } from 'next/server';
-import { callApi, idempotencyKeyHeader, respond } from '../../../lib/bff';
+import {
+  BOOKING_CHANNEL_HEADER,
+  callApi,
+  idempotencyKeyHeader,
+  respond,
+} from '../../../lib/bff';
 
 /// BFF: create a booking under the session. The server prices it + derives the
 /// deposit; we forward only the selection. Silent refresh via callApi (M6).
@@ -7,9 +12,14 @@ export async function POST(req: NextRequest) {
   const payload = await req.json().catch(() => ({}));
   const result = await callApi(req, '/appointments', {
     method: 'POST',
-    // A lost answer is asked again under the same key: the server replays
-    // the booking (docs/design/write-idempotency.md §4).
-    headers: idempotencyKeyHeader(req),
+    headers: {
+      // A lost answer is asked again under the same key: the server replays
+      // the booking (docs/design/write-idempotency.md §4).
+      ...idempotencyKeyHeader(req),
+      // Made on the website: the salon's « Canaux » count it as « Site
+      // MyWeli » (docs/design/pro-revenue-analytics.md §8.2).
+      ...BOOKING_CHANNEL_HEADER,
+    },
     body: JSON.stringify({
       providerId: payload.providerId,
       serviceIds: payload.serviceIds,
