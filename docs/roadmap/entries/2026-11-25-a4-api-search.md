@@ -1,0 +1,23 @@
+- 🟡 **Backend, A4-api : une recherche qui trouve les prestations et les communes, sans tenir compte des accents (backend · 2026-11-25 — BACKLOG B0.10, décision 228 ; FR-DISC-004 ; survey A-P3, moitié `query`).** Branche `feat/a4-api-search`, depuis `main` `ed60594c`. Spec : [consumer-search.md](../../design/consumer-search.md) §3 et §3.1.
+  - **Pourquoi :**
+    - « beaute » ne trouvait pas « Beauté » ;
+    - « manucure » ne trouvait pas un salon qui l’offre sans l’écrire dans sa description ;
+    - une recherche de « _ » listait tous les salons, parce que Postgres le lisait comme un joker ;
+    - deux salons égaux pouvaient changer de place d’une page à l’autre.
+  - **Ce que `GET /providers?q=` trouve maintenant, sur les deux jumeaux :**
+    - le nom, la description, l’adresse et la commune du salon, ou le nom d’une de ses prestations actives, chaque champ pour lui-même ;
+    - sans tenir compte de la casse ni des accents (« L’Atelier » avec l’apostrophe d’un iPhone, « Sœurs », un « é » tapé en deux caractères) ;
+    - espaces coupés et resserrés ; seuls les 100 premiers caractères comptent, un emoji à la coupure reste entier ;
+    - `%`, `_` et `\` se cherchent eux-mêmes ;
+    - chaque ordre finit sur l’identifiant du salon, pour qu’aucune page ne chevauche la suivante.
+  - **Trouvé en construisant :** il faut replier le texte d’abord et l’échapper ensuite. Dans l’autre ordre, `unaccent` change un « ＿ » pleine largeur en joker après l’échappement, et la recherche liste encore tous les salons. Un cas du contrat tient les deux ordres séparés ; BACKEND.md §3.4 écrit la règle.
+  - **Le repli du jumeau en mémoire vient de Postgres lui-même :** un outil lit les 1 650 caractères que `unaccent()` change dans un vrai PostgreSQL 16 et écrit la table. Deux tests sur Postgres la tiennent : la table égale `unaccent()` caractère par caractère, et le repli égale `lower(unaccent())` sur l’alphabet latin, ses accents, la ponctuation et les formes pleine largeur. **La limite, mesurée :** 186 caractères d’autres écritures (cherokee, géorgien…) passent en minuscule différemment ; seul le jumeau en mémoire, qui ne sert jamais la production, l’a.
+  - **Migration `0051_unaccent` :** `CREATE EXTENSION IF NOT EXISTS unaccent`, additive, sans risque au retour arrière. Il n’y a pas de staging : elle tournera d’abord en production, au déploiement. Que l’utilisateur de production puisse la créer est **déduit, pas observé** ; s’il ne le peut pas, la nouvelle révision échoue au démarrage et l’ancienne continue de servir.
+  - **Le contrat** décrit `q`, les bornes de `page` et `pageSize`, `availableToday`, le tri inconnu, et les réponses 400 et 405 ; les types du site sont régénérés.
+  - **Tests :**
+    - le contrat de recherche sur les deux jumeaux, d’abord rouge sur le code d’hier (10 cas en mémoire, 7 sur Postgres, chacun sur sa règle) ;
+    - le tri départagé par l’identifiant ;
+    - le nettoyage et le repli ;
+    - la suite backend complète sur PostgreSQL 16 : 3 039 tests passés, 2 ignorés.
+  - **Non touchés :** la recherche de la console d’administration et la liste des clientes gardent leur `ILIKE` non échappé (B16.8, B16.7).
+  - **Reste :** la fusion de cette PR, sur le mot du propriétaire ; puis le déploiement et la relecture en production, sur son mot. Tant qu’aucun salon n’est public, la recherche elle-même ne peut pas être observée en production (§10) : la preuve est le contrat sur le Postgres de CI. Ensuite A4, l’app, dont le build attend ce déploiement (décision 234).

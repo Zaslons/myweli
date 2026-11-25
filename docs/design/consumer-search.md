@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | **Approved by the owner on 2026-11-25** (« Approve as recommended »: the nine recommendations of §11, BACKLOG decisions 228–236). An independent reader checked it once against the code: 13 findings, each re-read in the code, then folded in (§12). Nothing is built yet. Next, each on the owner's word: this spec's merge (#859); A4-api, the backend's `q`, and its deploy; then A4, then A4w (§9). |
+| **Status** | **Approved by the owner on 2026-11-25** (« Approve as recommended »: the nine recommendations of §11, BACKLOG decisions 228–236). An independent reader checked it once against the code: 13 findings, each re-read in the code, then folded in (§12). The spec merged as `ed60594c` (#859). **A4-api built on 2026-11-25** on the owner's « Yes, build A4-api » (§3.1, branch `feat/a4-api-search`), not merged. Next, each on the owner's word: A4-api's merge, its deploy (migration `0051` first runs in production) and the read after; then A4, then A4w (§9). |
 | **Owner** | Sadreddine |
 | **Last updated** | 2026-11-25 |
 | **PRD ref / phase** | FR-DISC-003 (category browse), FR-DISC-004 (search by name, service and locality, French-aware), FR-DISC-005 (the map's commune awareness), FR-DISC-007 (sort and filter) · V1 · BACKLOG B0.10 (decision 160, Track A), B12.8 |
@@ -271,6 +271,17 @@ The drift the read found is fixed at the same time:
 - **A new `searchProviders(ProviderQuery)`** answers `ApiResponse<ProviderPage>`: the items, the page, the page size and `total`. The list and the map use it.
 - **`getProviders` stays** for the featured carousel and « Près de vous », until a later cleanup.
 - **The mock** pages, counts and folds exactly like A4-api, with latency, an error switch and an empty case.
+
+### 3.1 As built (A4-api, 2026-11-25)
+
+- **Where each step runs.** `backend/lib/src/search_text.dart` cleans the text once, in Dart, for both twins: white space (the no-break space included) collapsed and trimmed, then the first 100 characters **counted as runes**, so an emoji at the cut stays whole. Postgres folds with `lower(unaccent(…))` (`kProviderSearchCondition`, `postgres_providers_repository.dart`); the in-memory twin folds with `foldSearchText` and matches with `salonMatchesSearch`.
+- **Folded first, escaped after — found while building.** `unaccent` turns a full-width `＿`, `％` or `＼` into `_`, `%` or `\`. An escape run before the fold never sees them, so `q=＿` would have listed every salon, the very defect §3 closes. The SQL folds the parameter, then escapes `\`, `%` and `_` (`ESCAPE '\'`). A contract case holds both orders apart. BACKEND.md §3.4 states the rule.
+- **The in-memory fold's table is PostgreSQL's own.** `backend/tool/search_fold_table.dart` reads every code point `unaccent()` changes from a real PostgreSQL and writes `lib/src/search_fold_table.dart`: 1,650 entries from PostgreSQL 16.14, combining accents included (a decomposed « é » folds to « e »). Not the slug table: it holds 29 lower-case letters.
+- **Held to the database by two Postgres tests:** the table equals `unaccent()` entry for entry over every code point, and `foldSearchText` equals `lower(unaccent())` over Basic Latin to the combining marks, Latin Extended Additional, General Punctuation and the full-width forms. **The limit, measured:** over the whole Basic Multilingual Plane, Dart's `toLowerCase` leaves 186 characters upper case that PostgreSQL lower-cases (Cherokee, Georgian Mtavruli, Latin Extended-D, a few Cyrillic and Coptic letters). None is a letter of French or of the Latin alphabets of Côte d'Ivoire's languages (ɛ, ɔ and ŋ agree). Only the in-memory twin has that limit, and it never serves production.
+- **The order:** Postgres `ORDER BY featured DESC, rating DESC, id COLLATE "C"` (`kProviderDiscoveryOrder`), byte order, which the in-memory `String.compareTo` gives for these ASCII ids; `sortProviders` breaks rating and price ties on the id. The contract's order case depends on where Postgres stores the rows, and passed once without the tiebreak, so the constant is also tested on rows of the test's own, out of id order.
+- **Mutations, each watched red** (23): the escape before the fold, no escape, either side not unaccented, the commune or the active flag left out (both twins), the fields glued, a missing field read as « null », each tiebreak removed, the id without `COLLATE "C"`, spaces not collapsed, a cut by UTF-16 units, no cut, lower case before the table, one table entry removed, no lower case, the route dropping `q`, and migration `0051` removed (on a fresh database: `function unaccent(text) does not exist`).
+- **Migration `0051_unaccent`:** `CREATE EXTENSION IF NOT EXISTS unaccent`. Additive and rollback-safe: an older image never calls it. `unaccent` is a trusted extension since PostgreSQL 13, and the app's user already created `btree_gist` the same way (`0009`). That the production user may create it is **inferred, not observed** (nothing here reads Cloud SQL). If it may not, the new revision fails at boot and never takes traffic; the old one keeps serving.
+- **Not changed:** `listForAdmin(q:)` and the clients list keep their unescaped `ILIKE` (B16.8, B16.7). Several words remain one text.
 
 ---
 
