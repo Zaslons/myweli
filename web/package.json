@@ -18,7 +18,8 @@
     "check:legal": "playwright test tool/check-registration-claim.spec.ts --config=tool/privacy.config.ts",
     "check:card-photo": "playwright test tool/check-card-photo.spec.ts --config=tool/privacy.config.ts",
     "check:cwv": "lhci autorun --config=tool/lighthouse-production.json",
-    "prebuild": "node tool/copy-flags.mjs"
+    "check:salon-pages": "node tool/check-salon-pages.mjs",
+    "prebuild": "node tool/copy-flags.mjs && node tool/build-salon-slugs.mjs"
   },
   "dependencies": {
     "@firebase/app": "^0.16.2",

@@ -347,6 +347,41 @@ jobs:
       - name: No broad grant in the live policy
         run: bash infra/gcp/43-verify-project-iam.sh
 
+  salonpages:
+    name: Real domain — is every public salon served by the build?
+    runs-on: ubuntu-latest
+    # Reads two public URLs: nothing of the workflow's issues or id-token.
+    permissions:
+      contents: read
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      # **A rebuild Vercel accepted and then failed is invisible.**
+      #
+      # `app/[slug]` builds its salons ahead of time, and the backend asks Vercel
+      # for a rebuild whenever the public set changes. The alert above the
+      # backend watches only a hook Vercel REFUSED (`site_rebuild FAILED`). A
+      # hook answered 201 whose build then failed, or one that never fired,
+      # leaves the static set behind. Since the live fallback
+      # (docs/design/web-salon-page-live-fallback.md) the visitor still gets the
+      # salon's page, served live, so nobody would ever see it either.
+      #
+      # This asks, daily, for every salon the API lists as public: is it served
+      # by the build (200, no `x-myweli-salon-page: live`)? One served live or
+      # answering 404 is asked again 10 minutes later: a salon validated just
+      # before the run is inside its build window, not a fault.
+      # web/tests/check-salon-pages.test.ts holds the decision and the retry.
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      # Plain `fetch`, no dependency: no `npm ci`.
+      - name: Every public salon is served by the build
+        env:
+          TARGET: ${{ inputs.target || 'https://myweli.com' }}
+        run: npm run check:salon-pages
+
   basemap:
     name: CARTO — do the web maps still load without a key?
     runs-on: ubuntu-latest
@@ -503,7 +538,7 @@ jobs:
   # docs/design/production-alarm-close.md
   report:
     name: Say so, if any check failed
-    needs: [cwv, privacy, legal, cardphoto, retention, attestation, secretpins, iam, basemap, access, appchain]
+    needs: [cwv, privacy, legal, cardphoto, retention, attestation, secretpins, iam, salonpages, basemap, access, appchain]
     if: failure()
     runs-on: ubuntu-latest
     steps:
@@ -524,6 +559,7 @@ jobs:
           ATTESTATION: ${{ needs.attestation.result }}
           SECRETPINS: ${{ needs.secretpins.result }}
           IAM: ${{ needs.iam.result }}
+          SALONPAGES: ${{ needs.salonpages.result }}
           BASEMAP: ${{ needs.basemap.result }}
           ACCESS: ${{ needs.access.result }}
           APPCHAIN: ${{ needs.appchain.result }}
@@ -543,7 +579,7 @@ jobs:
           BODY=$(printf '%s\n' \
             '@Zaslons The scheduled real-domain checks failed.' \
             '' \
-            "CWV: ${CWV} · privacy: ${PRIVACY} · legal: ${LEGAL} · card photo: ${CARDPHOTO} · retention: ${RETENTION} · attestation: ${ATTESTATION} · secret pins: ${SECRETPINS} · IAM: ${IAM} · basemap: ${BASEMAP} · console access: ${ACCESS} · Android trust list: ${APPCHAIN}" \
+            "CWV: ${CWV} · privacy: ${PRIVACY} · legal: ${LEGAL} · card photo: ${CARDPHOTO} · retention: ${RETENTION} · attestation: ${ATTESTATION} · secret pins: ${SECRETPINS} · IAM: ${IAM} · salon pages: ${SALONPAGES} · basemap: ${BASEMAP} · console access: ${ACCESS} · Android trust list: ${APPCHAIN}" \
             '' \
             "${RUN}" \
             '' \
@@ -655,7 +691,7 @@ jobs:
   # delivery without a real failure. docs/design/production-alarm-close.md
   clear:
     name: Close the alarm, if every check passed
-    needs: [cwv, privacy, legal, cardphoto, retention, attestation, secretpins, iam, basemap, access, appchain]
+    needs: [cwv, privacy, legal, cardphoto, retention, attestation, secretpins, iam, salonpages, basemap, access, appchain]
     if: github.event_name == 'schedule' && success()
     runs-on: ubuntu-latest
     steps:
