@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | Draft — waits for the owner's answers to §17 (Q1–Q12). No code before. |
+| **Status** | Draft — waits for the owner's answers to §17 (Q1–Q13). No code before. |
 | **Owner** | Sadreddine |
 | **Last updated** | 2026-11-25 |
 | **PRD ref / phase** | FR-PRO-EARN-001 [V1] (« completed revenue by day/week/month ») + FR-PRO-DASH-001 [V1] (« no-show rate ») + the revenue half of **FR-PRO-OPS-004 [V3]** (« revenue, top services/staff, no-show analytics »), pulled forward on the owner's request of 2026-11-25 — Q1 |
@@ -37,7 +37,7 @@ worker, and per service and all of that ».
 8. Five PRs: a one-line website header, the backend columns, the backend
    endpoints, the app, the website.
 9. No chart library: plain widgets and SVG, no APK growth.
-10. Twelve questions for the owner in §17, each with a recommendation.
+10. Thirteen questions for the owner in §17, each with a recommendation.
 
 ---
 
@@ -111,7 +111,7 @@ compare us against.
   `journal.view.all`; the three money fields are removed without
   `finances.view` (`:45-50`). Reads **the salon's whole history**
   (`listForProvider(providerId)`, `:40`) and folds it in Dart. Revenue =
-  `confirmed` + `completed` (`:34`), bucketed on salon days (`:58-82`).
+  `confirmed` + `completed` (`:34`), bucketed on salon days (`:58-86`).
   **Sums `totalPrice` across currencies** (`:107-109`) — §16.
 - **`GET /providers/{id}/earnings`** — `ProviderEarningsService.earningsFor`
   (`backend/lib/src/provider_earnings_service.dart`). Gate `finances.view`
@@ -120,15 +120,17 @@ compare us against.
   the salon's currency (`:54`, `:72`) — §16. Each row carries its own
   currency (`:61`).
 - **The booking record** (`backend/lib/src/db/migrations.dart:69-86` and
-  later columns; `postgres_appointment_repository.dart:211-236`):
+  later columns; `_toDto`, `postgres_appointment_repository.dart:213-239`):
 
   | Need | Stored? | Where |
   |---|---|---|
-  | Collaborateur | ✅ `artist_id`, nullable (« Sans préférence ») | `booking_service.dart:251`; changed on reassignment (`kAppointmentUpdatableKeys`, `appointment_repository.dart:91-98`) |
-  | Collaborateur's **name** | ❌ live roster only; `deleteArtist` removes it (`provider_catalog_service.dart:807-818`) | — |
+  | Collaborateur | ✅ `artist_id`, nullable (« Sans préférence »); **an empty string also exists** — both booking routes pass `artistId` through after `trim()` with no empty-to-null step (`routes/providers/[id]/appointments.dart:70`) | `booking_service.dart:251`; changed on reassignment (`kAppointmentUpdatableKeys`, `appointment_repository.dart:91-98`) — the only path that changes it is `rescheduleByProvider` |
+  | Collaborateur's **name** | ❌ live roster only; `deleteArtist` removes it (`provider_catalog_service.dart:807-818`). `artistName` already exists as a **read-time** key: the consumer enrichment resolves it from the roster (`appointment_enrichment.dart:107`; OpenAPI « Consumer-read enrichment ») and the app reads it — so a stored name needs another key (§8.1) | — |
+  | Client's name | ⚠️ `client_name` is only what the **salon typed** on a booking it entered; `book` writes `null` for every online booking by design (`booking_service.dart:260`; OpenAPI: must not be reused). The salon's name for a client is `salon_clients.display_name`, resolved per booking as `clientDisplayName` by `ClientsService._identityOf` (`clients_service.dart:583-611`), anonymised by erasure | — |
+  | End time | ✅ `ends_at` stored (`migrations.dart:274`) but not returned by reads; `durationMinutes` is | — |
   | Services | ✅ `service_ids` jsonb (duplicates allowed) | `booking_service.dart:250` |
   | **Price per service** | ❌ only `total_price` = Σ the services' `price` at booking (`booking_service.dart:140-153`, `:322-335`) | — |
-  | Service **name** | ❌ live catalogue only; `deleteService` removes it (`:163-173`) | — |
+  | Service **name** | ❌ live catalogue only; `deleteService` removes it (`provider_catalog_service.dart:163-173`) | — |
   | Price at booking | ✅ `total_price` (the « à partir de » price of a ranged service) | — |
   | Currency | ✅ `currency`, NOT NULL since 0049 (B14.2) | `booking_service.dart:247`, `:343` |
   | Status | ✅ `pending` · `confirmed` · `completed` · `cancelled` (client cancel **and** salon refusal) · `noShow` | `pro_appointment_service.dart:40-61`, `:112-117`; `appointment_lifecycle_service.dart:51` |
@@ -152,9 +154,17 @@ compare us against.
 - **`ProEarningsProvider`** — `SalonScoped`, drops another salon's answer
   (`pro_earnings_provider.dart`).
 - **Placeholder** — `screens/provider/features/reports_analytics_screen.dart`,
-  flag-hidden V2 (`FeatureFlags.futureProviderFeatures`), a hand-drawn fake
-  chart and fake rankings. Decision 30 says its chart would count « Total
-  réalisé ».
+  flag-hidden V2 (`FeatureFlags.futureProviderFeatures`) **and reached by no
+  route at all**, a hand-drawn fake chart and fake rankings. Decision 30 says
+  its chart would count « Total réalisé ».
+- **Date pickers** — there is **no** Material picker in the app, on purpose
+  (`app_theme.dart:590-596`; SYSTEM §21 row 73: Flutter's picker cannot show
+  a date at 200 % text). Dates are chosen with `myweli_date_picker.dart` /
+  `MyweliMonthGrid`, which pick one date within bounds — no range mode.
+- **Stat cards** — `_StatBlock` decides two-across or one-per-row by
+  **measuring** every card's texts (`TextFit.columns`,
+  `dashboard_screen.dart:507-533`), not by a text-scale threshold; values in
+  `headlineSmall` (`:576`).
 
 ### 2.3 Website
 
@@ -163,11 +173,17 @@ compare us against.
   each row links to the booking). Sidebar entry gated on `finances.view`
   (`web/lib/pro/nav.ts:34`). BFF: `web/app/api/pro/earnings/route.ts`,
   `web/app/api/pro/dashboard/route.ts`; periods in `web/lib/pro/earnings.ts`.
+- Shared pieces: `Tabs` is deliberately **not** an ARIA tablist (a
+  `role="group"` of buttons, `web/components/Tabs.tsx:28-36`); `DataTable`
+  has **no** in-widget sorting or pagination — callers own them
+  (`web/components/DataTable.tsx:14-18`).
+- Both surfaces offer « Tout » (all time) today (`earnings_screen.dart:148`,
+  `web/lib/pro/earnings.ts:13`).
 
 ### 2.4 Who sees money (access.md §2.2)
 
 Only **Propriétaire** has `finances.view`. Manager: « sees no money
-figures » (sign-off 2026-07-11); access.md §8 item 4: Manager + finances
+figures » (sign-off 2026-07-11); access.md §11 question 4: Manager + finances
 « decide only from real salon feedback, as a V3 override, not a preset
 change ». Réception: no. Collaborateur: « ma journée » only.
 
@@ -201,9 +217,9 @@ multi-pays MP1). Not the day it was created, not the day it was marked
 | `completedAmount` | Σ `total_price` of `completed` bookings | « Réalisé » |
 | `completedCount` | number of `completed` bookings | « Rendez-vous terminés » |
 | `averageTicket` | `completedAmount / completedCount`; `null` when the count is 0 | « Panier moyen » |
-| `upcomingAmount` / `upcomingCount` | `confirmed` bookings whose start is **now or later** | « Prévu » |
+| `upcomingAmount` / `upcomingCount` | `confirmed` bookings whose **end** (start + `durationMinutes`) is **now or later** — still to come, or under way | « Prévu » |
 | `pendingCount` / `pendingAmount` | `pending` bookings whose start is now or later | « … demandes en attente » |
-| `toCloseAmount` / `toCloseCount` | `confirmed` bookings whose start is **before now** — done or not, nobody said | « À clôturer » |
+| `toCloseAmount` / `toCloseCount` | `confirmed` bookings whose **end** is **before now** — done or not, nobody said. By the end, not the start: a three-hour braid that began ten minutes ago is not « à clôturer » | « À clôturer » |
 | `noShowAmount` / `noShowCount` | `noShow` bookings | « Absences » |
 | `noShowRate` | `noShowCount / (completedCount + noShowCount)`; `null` when both are 0 | « Taux d'absence » |
 | `cancelledAmount` / `cancelledCount` | `cancelled` bookings (client cancellations **and** salon refusals — §2.1) | « Annulés ou refusés » |
@@ -217,6 +233,14 @@ multi-pays MP1). Not the day it was created, not the day it was marked
   that add up to it.
 - A past `pending` booking (a request nobody answered) counts nowhere: it
   never happened as far as the salon said.
+- **The current period is always counted whole**, today included and the
+  days after it: « Réalisé » counts every completed booking dated in the
+  range — the server lets the salon mark a booking « Terminé » before its
+  date (`pro_appointment_service.dart:56-63` has no time check), and the
+  Accueil counts those too — and « Prévu » is the rest of the range. Only the
+  **comparison** is cut (§3.5).
+- **« now »** is one instant per answer (`asOf`), so the figures, the banner
+  and the « À clôturer » list agree (§7.2).
 
 ### 3.3 The breakdowns
 
@@ -225,8 +249,12 @@ Each row carries `completedAmount`, `completedCount`, `averageTicket`, its
 add up to 1), and the same three for the comparison period.
 
 - **Par collaborateur** — grouped by `artist_id`. One booking, one
-  collaborateur. `null` → one row « Sans collaborateur attribué ».
-  A reassigned booking counts for the collaborateur it has now.
+  collaborateur. `null` **or an empty string** (§2.1) → one row « Sans
+  collaborateur attribué ». A reassigned booking counts for the collaborateur
+  it has now. An id that is not on the roster and has no kept name reads
+  « Ancien collaborateur » — the server cannot tell a removed collaborateur
+  from an id that never existed (`bookManual` does not check the id against
+  the roster); R1 makes new bookings store `null` for an empty id.
 - **Par prestation** — grouped by `serviceId` over the booking's **service
   lines** (§8.1). A line's amount is its price at booking; the lines of a
   booking add up to its `total_price` exactly (an invariant, tested). A
@@ -272,10 +300,13 @@ No production row is written.
 
 ### 3.5 Periods and comparison — the server owns the calendar
 
-The client sends `period` + `date` (any day inside it), or `period=custom` +
-`from` + `to`. The server answers with the resolved dates, so the app and
-the website share one definition of a week, a month and « the period
-before ».
+The client sends `period` and, optionally, `date` (any day inside it) — **no
+`date` means the salon's today, as the server reads it**, so a phone whose
+clock is wrong still opens on the right month — or `period=custom` + `from`
++ `to`. The server answers with the resolved dates, so the app and the
+website share one definition of a week, a month and « the period before ».
+Stepping ‹ › sends the `date` the client computes from the answer's `from`
+(one unit earlier or later): date arithmetic on a date, no clock involved.
 
 | `period` | Range | `compare=previous` | `compare=year` |
 |---|---|---|---|
@@ -285,12 +316,20 @@ before ».
 | `year` | 1 Jan → 31 Dec | the previous year | the previous year |
 | `custom` | `from` → `to` (≤ 366 days) | the same number of days, just before | the same dates a year earlier |
 
-**Like for like (Q8).** When today (salon time) falls inside the range, the
-current figures only run to now. The comparison is then cut to the same
-number of elapsed days — on 25 November, « Mois » compares 1–25 November with
-1–25 October, not with all of October — and the response says so
-(`likeForLike: true`, the dates compared). A comparison range longer than its
-source month is clipped to its own end (31 March → 28 February).
+**Like for like (Q8).** When `asOf` falls inside the current range, the
+current figures stay whole (§3.2) but the **comparison is cut at the same
+point of its own period**: the same number of days from its start and the
+same salon wall-clock time. On 25 November at 14:30, « Mois » compares
+November with **1 October 00:00 → 25 October 14:30** — not with all of
+October, and not with all of 25 October. The response says so
+(`likeForLike: true`, the comparison's `from`, its `cutoff` instant). A cut
+that falls past the comparison's own end is clipped to it (31 March →
+28 February 24:00). The label reads « 1er – 25 oct., même avancement ».
+
+**No « Tout » (Q8).** Both surfaces offer an all-time period today (§2.3).
+Every range here is capped at 366 days (§11's budget), so « Tout » goes;
+« Année » and « Dates » cover a salon's history year by year. The question
+says it.
 
 **Buckets of the chart** — `day` when the range is ≤ 31 days, `week`
 (Monday-start, the first and last clipped to the range) when ≤ 92, else
@@ -350,8 +389,8 @@ Back returns to the same period.
 │ └───────────────────────────────────┘ │
 │ ┌ Réalisé ─────────┐┌ Terminés ───────┐│
 │ │ 1 250 000 FCFA   ││ 48              ││  ← KPI grid: two across,
-│ │ ▲ +12 %          ││ ▲ +4 %          ││     one per row past 1.3×
-│ └──────────────────┘└─────────────────┘│     or when a value would not fit
+│ │ ▲ +12 %          ││ ▲ +4 %          ││     all one per row when a
+│ └──────────────────┘└─────────────────┘│     tile's texts would not fit (measured)
 │ ┌ Panier moyen ────┐┌ Taux d'absence ─┐│
 │ │ 26 042 FCFA      ││ 5,9 %           ││
 │ │ ▲ +8 %           ││ ▼ −1,2 pt       ││
@@ -397,10 +436,13 @@ Back returns to the same period.
   « Novembre 2026 » · « 2026 » · « 3 oct. – 25 nov. 2026 », formatted from the
   server's `from`/`to`. A period containing today adds « (en cours) »
   under it in `bodySmall`.
-- **« Dates… »** opens the platform date-range picker (French, Monday
-  first, `french_test.dart`), limited to 366 days and to the bounds of §3.5;
-  a longer choice shows the field's error « 366 jours au plus » — never a
-  toast.
+- **« Dates… »** opens a bottom sheet with two fields, « Du » and « Au »,
+  each opening MyWeli's own date picker (`myweli_date_picker.dart`, bounded
+  by §3.5 — there is no Material picker in the app, §2.2, and no range mode
+  is built: two single dates are enough). A range over 366 days, or « Au »
+  before « Du », shows the field's error (« 366 jours au plus », « La date
+  de fin précède la date de début ») under « Au » — never a toast. « Afficher »
+  applies it.
 - **« Comparé à : … ▾ »** — a text button that opens a bottom sheet:
   « Période précédente » · « Même période l'an dernier » · « Aucune
   comparaison », radio-style option cards (§3.3 `borderStrong`). The line
@@ -409,22 +451,26 @@ Back returns to the same period.
 
 ### 4.4 « À clôturer »
 
-Shown when `toCloseCount > 0` in any group: a `StatusBanner` (info) « {n}
-rendez-vous passé(s) à clôturer » + « Confirmés mais pas encore marqués
-« Terminé » : ils ne comptent pas dans le réalisé. » and a text button
-« Voir » → the ledger on « À clôturer », where each row opens the booking
-and its « Terminé » / « Absent » actions (journal J1, existing). Coming back
-reloads the figures.
+Shown when `toCloseCount > 0` in any group: a `StatusBanner` (`color:
+AppColors.info`, an `iconM` glyph) « {n} rendez-vous passé(s) à clôturer »
+with the line « Confirmés mais pas encore marqués « Terminé » : ils ne
+comptent pas dans le réalisé. », and **directly under it**, outside the
+banner (it has no action slot — `status_banner.dart:24-36`, SYSTEM §11.1), a
+text button « Voir » → the ledger on « À clôturer », where each row opens the
+booking and its « Terminé » / « Absent » actions (journal J1, existing).
+Coming back reloads the figures.
 
 ### 4.5 The figures (KPI grid)
 
-`_StatBlock`'s rules, moved to a shared widget (`KpiGrid`, §12.1): two
-across; one per row past 1.3× text scale **or** when any value would not fit
-half the width (measured, as `_StatBlock` measures today). Each tile: title
-(`bodyMedium`, `textSecondary`) · value (`titleLarge`, `textPrimary`, the
-amount never breaks inside — `EarningsTotal`'s step-down rule, owner's
-decision 2026-10-22) · delta (§3.6) · optional caption (`bodySmall`,
-`textTertiary`). Tiles: « Réalisé » · « Rendez-vous terminés » · « Panier
+`_StatBlock`'s rule, moved unchanged to a shared widget (`KpiGrid`, §12.1):
+two across, or **all** tiles one per row when any tile's texts would not fit
+half the width — **measured** (`TextFit.columns`, width × text size ×
+the figures), never a text-scale threshold (§2.2). The Accueil keeps exactly
+its shape; `dashboard_role_test` and `layout_test` stay green through the
+move. Each tile: title (`bodyMedium`, `textSecondary`) · value
+(`headlineSmall`, as the Accueil's, `textPrimary`; an amount never breaks
+inside — the grid measures it) · delta (§3.6) · optional caption
+(`bodySmall`, `textTertiary`). Tiles: « Réalisé » · « Rendez-vous terminés » · « Panier
 moyen » · « Taux d'absence » (+ « {n} absence(s) · {montant} ») · « Prévu »
 (full width; only when the period ends today or later).
 
@@ -434,14 +480,21 @@ moyen » · « Taux d'absence » (+ « {n} absence(s) · {montant} ») · « Pr�
   constant (160 dp, §5 « What §5 does not govern »), `radiusSmall` tops.
   No axis numbers; the first, middle and last bucket dates under the bars
   (`bodySmall`, `textTertiary`).
-- **Tap a bar** → it is selected (a 2 dp `borderFocus` outline) and a line
-  above the chart reads « mar. 4 nov. · 45 000 FCFA · 2 rendez-vous ». Tap
-  it again or elsewhere → the line returns to the period total.
-- Each bar is a `Semantics` button with that same sentence; a bar too thin
-  to hit (31 per 328 dp ≈ 10 dp) is reached by a horizontal drag across the
-  chart (the selected bar follows the finger) **and** by « Voir en liste »,
-  which swaps the chart for a list of buckets (date · amount · count) — the
-  same list a screen reader and 200 % text use.
+- **Tap or drag across the chart** → the nearest bar is selected (the
+  selected bar follows the finger, so a 10 dp bar — 31 in 328 dp — is still
+  easy to reach) and a line above the chart reads « mar. 4 nov. · 45 000
+  FCFA · 2 rendez-vous ». **Selection is shown by fill, not by an outline**:
+  the selected bar stays `primary`, the others turn `borderStrong` (3.22:1,
+  still visible). A 2 dp `borderFocus` outline would be black on a black bar
+  (`primary` and `borderFocus` are both `#000000`, SYSTEM §3.1, §3.3). Tap
+  outside the bars → no selection, the line returns to the period total.
+- **One semantics node for the whole chart** (328 × 160 dp — it passes
+  `androidTapTargetGuideline`, where 31 ten-dp buttons would fail it):
+  label « Évolution du réalisé », value = the selected bucket's sentence (or
+  the period total), and `onIncrease` / `onDecrease` move the selection — a
+  screen reader swipes through the buckets. « Voir en liste » swaps the chart
+  for a list of buckets (date · amount · count), the form 200 % text and
+  anyone who prefers it use.
 - The comparison is not drawn (two series on 160 dp do not read on a phone);
   it is in the figures above.
 - No chart under two buckets (« Jour »).
@@ -491,10 +544,13 @@ line amount and « sur {total} » under it.
   at the end (no infinite scroll — it is announced and it is a control).
   « À venir » soonest first; the others newest first.
 - **A row**: date and time in salon time · amount (its own currency) ·
-  « {client} · {prestations} · {collaborateur} ». A client whose account was
-  deleted reads « Client supprimé »; a booking without a collaborateur reads
-  « Sans collaborateur ». Tap → the booking's detail
-  (`/pro/appointments/:id`).
+  « {client} · {prestations} · {collaborateur} ». The client is the salon's
+  name for them — `clientDisplayName`, the journal's (§2.1, §7.2): a booking
+  with none (an erased client, or a reader without `clients.view`) reads
+  « Client », the journal's own fallback. A booking without a collaborateur
+  reads « Sans collaborateur ». Tap → the booking's detail
+  (`/pro/appointment/:id?salon={salonId}`, the existing route, which switches
+  salon first when it must — `pro_router.dart:171-181`).
 
 ### 4.10 Footnotes (always under the content, `bodySmall`, `textTertiary`)
 
@@ -513,13 +569,13 @@ does not see a payment (PRD OQ-1; provider-dashboard-stats.md §12).
 | State | What the screen shows |
 |---|---|
 | **First load** | The period bar (real) + a skeleton: the KPI grid's tiles, a chart block, three rows (`app_skeleton.dart` shapes; one label « Chargement des revenus… »). |
-| **Period change** | The bar updates at once; the content goes back to the skeleton. **The previous period's numbers are never shown under the new label** (earnings_screen's rule, `:178-180`). An older answer arriving late is dropped (a request id, the booking hub's `slotsRequestId` pattern). |
+| **Period change** | The bar updates at once; the content goes back to the skeleton. **The previous period's numbers are never shown under the new label** (earnings_screen's rule, `:162-164`). An older answer arriving late is dropped (a request id, the booking hub's `slotsRequestId` pattern). |
 | **Error** | `AppErrorView` « Chargement impossible » + the failure's sentence + « Réessayer » (same period); `wifi_off` for no connection. |
 | **Salon with no completed booking ever** (`everCompleted: false`) | `EmptyState` icon `insights_outlined`, « Pas encore de revenus », « Vos revenus s'afficheront ici dès votre premier rendez-vous marqué « Terminé ». », action « Voir les rendez-vous » (→ `/pro/journal`). The period bar stays (a salon with upcoming bookings sees « Prévu »). |
 | **A period with nothing completed** | Figures at 0 with their deltas; no chart; « Répartition » shows `EmptyState` « Aucun rendez-vous terminé sur cette période » + « Période précédente ». |
 | **A future period** | « Réalisé » 0 FCFA, « Prévu » leads; « Répartition » empty state « Rien de terminé pour l'instant : cette période n'a pas commencé. » |
 | **Several currencies in the period** | A segmented control above the figures, one segment per currency (« XOF · franc CFA (UEMOA) », « XAF · franc CFA (CEMAC) »), the largest « Réalisé » first. Nothing adds two currencies. |
-| **Access refused** (403 — a role changed mid-session, a stale deep link) | `EmptyState` icon `lock_outline`, « Réservé au propriétaire », « Seul le propriétaire du salon voit les revenus. » — no retry (retrying cannot succeed, SYSTEM §12). `not_a_member` follows the existing sign-out path. |
+| **Access refused** (403 — a role changed mid-session, a stale deep link) | `EmptyState` icon `lock_outline`, « Réservé au propriétaire », « Seul le propriétaire du salon voit les revenus. » — no retry (retrying cannot succeed, SYSTEM §12). The new endpoints answer only `forbidden`; a revoked member is caught as today, through `ProAccessGuard.report` (`pro_access_guard.dart:18-22`) and the `/me/provider` probe that answers `not_a_member`. |
 | **Salon switch** | `resetForSalonSwitch`: the state empties, the in-flight answer is dropped. |
 | **Comparison has no data** | Deltas read « nouveau » or nothing (§3.6), never an error. |
 
@@ -527,7 +583,7 @@ does not see a payment (PRD OQ-1; provider-dashboard-stats.md §12).
 
 - **Long French names** (« Prestation supprimée · Tresses africaines avec
   rajouts ») wrap; amounts never break inside (`expectNoMidWordBreak`).
-- **200 % text at 360 dp**: one tile per row, chips scroll, the share bar
+- **200 % text at 360 dp**: one tile per row (the grid measures it), chips scroll, the share bar
   stays full width, the chart keeps its height and « Voir en liste » is the
   readable form. Pinned in `layout_test` (360/375/390 × 1×/2×) and
   `vertical_fit_test`.
@@ -559,7 +615,7 @@ does not see a payment (PRD OQ-1; provider-dashboard-stats.md §12).
 | Sort | « Trier : {critère} » · « Montant » · « Rendez-vous » · « Nom » |
 | Row meta | « {n} rdv · panier {montant} · {part} % » · « estimé » |
 | Labels | « Sans collaborateur attribué » · « Ancien collaborateur » · « · a quitté l'équipe » · « Prestation supprimée » · « · prestation supprimée » · « Application MyWeli » · « Site MyWeli » · « Ajouté par le salon » · « En ligne (avant le suivi) » |
-| Ledger | « Rendez-vous terminés » · « Voir tout ({n}) » · « Terminés » · « À venir » · « À clôturer » · « Absents » · « Annulés » · « Afficher plus » · « Client supprimé » · « Sans collaborateur » · « sur {total} » |
+| Ledger | « Rendez-vous terminés » · « Voir tout ({n}) » · « Terminés » · « À venir » · « À clôturer » · « Absents » · « Annulés » · « Afficher plus » · « Client » · « Sans collaborateur » · « sur {total} » |
 | Empty | « Pas encore de revenus » · « Vos revenus s'afficheront ici dès votre premier rendez-vous marqué « Terminé ». » · « Voir les rendez-vous » · « Aucun rendez-vous terminé sur cette période » · « Période précédente » · « Rien de terminé pour l'instant : cette période n'a pas commencé. » · ledger: « Aucun rendez-vous » + « Aucun rendez-vous {filtre} sur cette période. » |
 | Refused | « Réservé au propriétaire » · « Seul le propriétaire du salon voit les revenus. » |
 | Footnotes | §4.10 |
@@ -589,17 +645,24 @@ layout (web-design-latitude).
   `<input type="date">` labelled « Du » / « Au », errors tied to each field
   (`aria-invalid`, `aria-describedby`).
 - **Figures**: `Card` tiles, two across under `md`, five across at `lg`.
-- **Évolution**: an SVG bar chart, `role="img"` with an `aria-label`
-  summarising the period, each bar a focusable `<button>` with its sentence;
-  hover and focus show the same line as the app. « Voir les données » toggles
-  a real `<table>` (date · montant · rendez-vous).
-- **Répartition**: a `tablist` (arrow keys move between tabs) and a
+- **Évolution**: an SVG bar chart drawn by hand, **one** focusable element
+  (`tabIndex=0`, `role="img"`, an `aria-label` summarising the period): the
+  pointer selects the nearest bar on hover or tap, ← / → move the selection
+  while it has focus, and the line above it (`aria-live="polite"`) says the
+  bucket's sentence — as the app. No bar is its own button (31 bars at a
+  phone width would be 10 px targets). Selection by fill, as the app (§4.6).
+  « Voir les données » toggles a real `<table>` (date · montant ·
+  rendez-vous), the accessible form.
+- **Répartition**: the shared **`Tabs`** (a `role="group"` of buttons with
+  `aria-pressed` — deliberately not an ARIA tablist, `Tabs.tsx:28-36`) and a
   `DataTable` per tab: columns « Nom » · « Rendez-vous » · « Montant » ·
-  « Part » · « Panier moyen » · « Évolution ». Column headers sort
-  (`aria-sort`). Each row is a link (the DataTable's navigation row).
-- **Ledger**: `DataTable` « Rendez-vous terminés », its filter chips,
-  numbered pages of 20 (« Précédent » / « Suivant », the current page
-  announced).
+  « Part » · « Panier moyen » · « Évolution ». **Sort by a labelled `<select>`**
+  « Trier par » above the table (« Montant », « Rendez-vous », « Nom »), the
+  app's three choices — `DataTable` has no sorting and the page owns it, as
+  it owns paging (§2.3). Each row is a link (the DataTable's navigation row).
+- **Ledger**: `DataTable` « Rendez-vous terminés », its filter chips, pages
+  of 20 loaded by « Afficher plus » (the page's own control, as
+  `ClientsClient`'s « Charger plus »), the new count announced.
 
 ### 5.2 URLs (everything addressable, Back works, a link can be shared)
 
@@ -623,7 +686,7 @@ redirect to `/pro/connexion` for a 401.
 |---|---|---|
 | Periods, comparison, figures, chart, three axes, details, ledger, states, copy | ✅ | ✅ same |
 | Detail inside a detail (collaborateur → prestation) | — (one level) | ✅ the URL can carry both filters |
-| Sortable columns | menu | column headers |
+| Sorting | a menu | a labelled `<select>` |
 | CSV export | — (Q10) | ✅ « Exporter (CSV) » per table |
 | Push the app | — | the pro shell's existing nudge to MyWeli Pro |
 
@@ -643,7 +706,7 @@ redirect to `/pro/connexion` for a 401.
 - One capability, `finances.view`, checked by the server on every read
   (deny by default); the app and the website only hide.
 - **Q3 — should a Collaborateur see their own figures?** Recommended: not
-  now. access.md keeps money owner-only by sign-off, and item 4 says a change
+  now. access.md keeps money owner-only by sign-off, and its §11 question 4 says a change
   comes « from real salon feedback, as a V3 override ». If the owner says
   yes, it is a new capability `finances.view.own` on the Collaborateur preset,
   scoped to the server-resolved `artist_id` like T40, and a « Mes revenus »
@@ -666,7 +729,7 @@ Provider token; membership of `{id}` with `finances.view` (→ 403
 | Param | Values | Rule |
 |---|---|---|
 | `period` | `day` · `week` · `month` · `year` · `custom` | required |
-| `date` | `YYYY-MM-DD` | required unless `custom`; any day inside the period |
+| `date` | `YYYY-MM-DD` | optional (not with `custom`); any day inside the period; absent → the salon's today |
 | `from`, `to` | `YYYY-MM-DD` | required with `custom`; `from ≤ to`; ≤ 366 days |
 | `compare` | `previous` (default) · `year` · `none` | |
 | `artistId` | an id, or `none` (unassigned) | optional filter |
@@ -699,6 +762,7 @@ RevenueAnalytics:
         from:        { type: string, format: date, nullable: true }
         to:          { type: string, format: date, nullable: true }
         likeForLike: { type: boolean }
+        cutoff:      { type: string, format: date-time, nullable: true }  # where the comparison stops when likeForLike
     filters:
       type: object
       properties:
@@ -766,7 +830,10 @@ RevenueRowFigures:
 
 Same gate, same period and filter params, plus `status` = `completed`
 (default) · `upcoming` · `toClose` · `noShow` · `cancelled`, `page` ≥ 1,
-`pageSize` 1–50 (default 20).
+`pageSize` 1–50 (default 20), and `asOf` — the figures' `asOf`, so the
+« À clôturer » list holds exactly the bookings the banner counted
+(accepted only within the last 24 hours and not in the future; absent →
+the server's now).
 
 ```yaml
 RevenueLedgerPage:
@@ -782,7 +849,7 @@ RevenueLedgerPage:
         amount:      { type: number }  # the line's amount under a serviceId filter, else totalPrice
         totalPrice:  { type: number }
         currency:    { type: string }
-        clientName:  { type: string, nullable: true }   # null = deleted account
+        clientDisplayName: { type: string }  # ABSENT without clients.view, or when no client resolves (erased)
         serviceNames:
           type: array
           items: { type: string, nullable: true }       # null = deleted, no kept name
@@ -793,8 +860,16 @@ RevenueLedgerPage:
 ```
 
 `upcoming` soonest first; the others newest first; ties broken by id.
-`clientName` only — never the phone (the owner has `clients.view`, but the
-ledger does not need a phone; the booking detail has it).
+
+**The client's name.** `clientName` is not the field: it is `null` on every
+online booking by design (§2.1). The row carries `clientDisplayName`, the
+salon's name for the client, resolved **as the journal resolves it**
+(`ClientsService._identityOf`, `salon_clients`), but through a **batched**
+lookup for the page's ≤ 50 rows — not `enrichForProvider`, which reads the
+salon's whole history on every call (`clients_service.dart:555`). It is
+**field-gated on `clients.view`**, as `/dashboard` gates money on
+`finances.view`: absent without it (today every owner has both; access.md
+plans per-person grants in V3). Never the phone — the booking detail has it.
 
 ### 7.3 Unchanged
 
@@ -825,27 +900,55 @@ their shape and meaning: builds 0.0.2 in both stores call them.
 | Column | Type | Written by | Content |
 |---|---|---|---|
 | `service_lines` | `jsonb` | `book`, `bookManual` | `[{ "serviceId", "name", "price", "durationMinutes" }]`, one per `service_ids` entry, in its order; Σ `price` = `total_price` |
-| `artist_name` | `text` | `book`, `bookManual`; and every write of `artistId` (reassignment: `rescheduleByProvider`, the journal's drag) | the collaborateur's name at that moment; `NULL` when `artist_id` is `NULL` |
+| `artist_name_kept` | `text` | `book`, `bookManual`; and every write of `artistId` (reassignment: `rescheduleByProvider`, the journal's drag) | the collaborateur's name at that moment; `NULL` when there is no collaborateur |
 | `channel` | `text` | `book` (`app` or `web`, §8.2), `bookManual` (`salon`) | `app` · `web` · `salon`; a CHECK keeps it to these three or NULL |
 
+- **Its own key, `artistNameKept`** — not `artistName`, which is already the
+  **live** roster name every consumer read adds (§2.1). Reusing it would make
+  one key mean two things: a consumer read would overwrite the kept name with
+  the live one (or with null), a pro read would show the kept one.
+- **The three keys travel with the booking.** The twins' contract requires
+  every key the booking service writes to come back from every read
+  (`appointment_repository_contract.dart:99`), as `currency` does; so
+  `_toDto` returns `serviceLines`, `channel` and `artistNameKept`, and the
+  OpenAPI `Appointment` schema documents them as stored, read-only fields.
+  Nothing on any client reads them outside this feature; a consumer sees
+  only its own booking's lines, which are its own prices.
+- **An empty `artistId` is stored as `null`** from R1 on (§3.3).
 - **No backfill** (Q5). A NULL is a meaningful state — « made before R1 » —
-  read by the aggregator: lines estimated (§3.4); `artist_name` NULL → the
-  live roster, else « Ancien collaborateur »; `channel` NULL → `salon` when
-  `user_id = 'manual'`, else `online`.
-- `kAppointmentUpdatableKeys` gains `artistName` (written with `artistId`
-  only). `service_lines` and `channel` are never updated: immutable, like
-  `currency` (« the Fresha rule »). Both twins read the list (B15.1).
-- **Rollback-safe**: an older image reads with `SELECT *` / `RETURNING *`
-  and `_toDto` picks named keys, so it ignores the columns; its INSERT names
-  its columns, so it leaves them NULL, which reads as « before R1 » —
-  correct for the labels, an estimate for the lines. No constraint an older
-  image could trip (the CHECK allows NULL). The migration says so in its
-  header.
-- The demo salon's snapshot/reset (`postgres_demo_snapshot_repository.dart`)
-  and the salon purge (B0.24) are read in R1 for the new columns: the purge
-  deletes rows whole; the demo reset must restore lines and channels for its
-  seeded bookings, or they read as estimated (acceptable, but the reviewer
-  sees « estimé » — R1 decides with a test).
+  read by the aggregator: lines estimated (§3.4); `artist_name_kept` NULL →
+  the live roster, else « Ancien collaborateur »; `channel` NULL → `salon`
+  when `user_id = 'manual'` (erasure keeps `user_id`,
+  `postgres_appointment_repository.dart:282-293`), else `online`.
+- **The updatable keys** gain `artistNameKept`, which is more than one line
+  of `kAppointmentUpdatableKeys`: the Postgres `SET` builder gains its
+  branch (`postgres_appointment_repository.dart:190-193`),
+  `checkAppointmentChanges` its type check (`appointment_repository.dart:132-137`)
+  **and a rule that it is only accepted together with `artistId`** (else
+  `ArgumentError`, on both twins), and the « six keys » of the doc comment
+  and the contract become seven (`:87-88`, contract `:230`). `service_lines`
+  and `channel` are never updated: immutable, like `currency` (« the Fresha
+  rule »). Both twins read the list (B15.1).
+- **Rollback-safe, with one known drift.** An older image reads with
+  `SELECT *` / `RETURNING *` and `_toDto` picks named keys, so it ignores the
+  columns; its INSERT names its columns, so it leaves them NULL, which reads
+  as « before R1 ». No constraint it could trip (the CHECK allows NULL).
+  **The drift:** an older image that moves a booking to another
+  collaborateur writes `artist_id` and leaves `artist_name_kept` naming the
+  previous one; while the new collaborateur is on the roster the live name
+  wins, but if they are later removed, that booking's revenue shows under the
+  old name. Accepted (a rollback is rare and short); the migration header
+  says so.
+- **The salon purge** (B0.24) deletes rows whole
+  (`postgres_salon_purge_repository.dart:402`): nothing to do.
+- **The demo salon.** Its reset wipes the bookings and recreates them
+  through `bookManual` (`demo_reset_service.dart:151-157`, `:281-289`), so
+  R1's writes cover them with no extra work. **The real gap is its data:**
+  every seeded booking is `confirmed`, with one service and no collaborateur.
+  A store reviewer opening « Revenus » would see « Pas encore de revenus », an
+  « À clôturer » banner and « Sans collaborateur attribué ». Q13 asks whether
+  the reset should also seed past completed bookings across two or three
+  collaborateurs and several prestations, and an absence.
 
 ### 8.2 How a booking knows « app » from « web »
 
@@ -861,7 +964,7 @@ no website booking is ever stamped `app`.
 
 - `AppointmentRepository.revenueRows(providerId, fromUtc, toUtcExclusive)`
   → the narrow fields the aggregator needs (`id`, `status`,
-  `appointmentDate`, `artistId`, `artistName`, `totalPrice`, `currency`,
+  `appointmentDate`, `durationMinutes`, `artistId`, `artistNameKept`, `totalPrice`, `currency`,
   `userId`, `channel`, `serviceIds`, `serviceLines`), ordered by
   `appointment_date, id`. Postgres: one `SELECT` on
   `appointments_provider_date_idx`.
@@ -895,8 +998,8 @@ no website booking is ever stamped `app`.
   service API — the threshold is written in §11, not left to taste.
 - **Writes (R1)**: `BookingService.book` / `bookManual` build the lines in
   the loop that already prices them (`booking_service.dart:140-153`,
-  `:322-335`) and stamp `channel` and `artistName`;
-  `AppointmentLifecycleService.rescheduleByProvider` writes `artistName`
+  `:322-335`) and stamp `channel` and `artistNameKept`;
+  `AppointmentLifecycleService.rescheduleByProvider` writes `artistNameKept`
   with `artistId`.
 
 ### 9.2 App
@@ -930,12 +1033,16 @@ deleted with the old screen) · `screens/provider/earnings/` rebuilt:
 - **Inputs**: every query param validated at the boundary (§7.1); the range
   capped; `pageSize` clamped server-side.
 - **Server authority**: every figure, label and date is the server's.
-- **PII**: the ledger carries client names to the owner only, never phones;
-  nothing logged but the route, the status and the duration.
+- **PII**: the ledger's client names are **field-gated on `clients.view`**
+  (absent without it), on top of `finances.view` for the endpoint; never a
+  phone; nothing logged but the route, the status and the duration. The CSV
+  export (Q10) covers the breakdown tables only — no client name leaves in a
+  file.
 - **Threat model** (BACKEND.md §7) — new row **T85**, « Revenue analytics
   (`GET /providers/{id}/analytics/revenue*`) »: **I** — a member without
-  `finances.view`, or another salon, reads money or client names → the
-  capability check and its REQUIRED negative tests; **D** — a 366-day range
+  `finances.view`, or another salon, reads money; a member with money but
+  not `clients.view` reads client names → the two capability checks and
+  their REQUIRED negative tests; **D** — a 366-day range
   with a year comparison on a busy salon → the range cap, the measured
   budget (§11), `no-store`; **T** — a forged `X-Myweli-Channel` → it can only
   relabel the salon's own statistics, enum-checked, never used for authz.
@@ -959,18 +1066,23 @@ deleted with the old screen) · `screens/provider/earnings/` rebuilt:
 
 ### 12.1 New shared pieces (added to SYSTEM.md §11.3 in this PR, built in R3/R4)
 
-- **`KpiGrid` / `KpiTile`** — `_StatBlock`'s measured two-across-or-one
-  rule, moved out of `dashboard_screen.dart` so the Accueil and « Revenus »
-  share it; a tile = title · value · `DeltaBadge` · caption.
+- **`KpiGrid` / `KpiTile`** — `_StatBlock` moved out of
+  `dashboard_screen.dart` **unchanged** (measured by `TextFit.columns`,
+  values in `headlineSmall`), so the Accueil and « Revenus » share it; a tile
+  = title · value · `DeltaBadge` · caption. The Accueil's tests stay green
+  through the move.
 - **`DeltaBadge`** — arrow glyph (`arrow_upward` / `arrow_downward`,
   `iconS`) + signed text; `success` / `error` by the figure's good direction,
   `textSecondary` for « stable »; never colour alone; its semantics sentence
   (§12.3).
 - **`ShareBar`** — 4 dp, `primary` on `surfaceVariant`, `radiusPill`,
   `ExcludeSemantics` (the row says the share in words).
-- **`BarSeries`** — the « Évolution » chart: bars `primary`, a selected bar
-  outlined `borderFocus` 2 dp, height the named constant
-  `BarSeries.height = 160`, each bar a semantics button; the list form.
+- **`BarSeries`** — the « Évolution » chart: bars `primary`; with a
+  selection, the selected bar `primary` and the others `borderStrong` (a
+  fill change — an outline in `borderFocus` would be black on black); height
+  the named constant `BarSeries.height = 160`; **one** semantics node with
+  `onIncrease` / `onDecrease` (no per-bar buttons: they would be 10 dp
+  targets); and its list form.
 - Website twins in `web/components/pro/revenue/` with the same names and
   tokens (closed Tailwind theme; no arbitrary value; `h-chart` added to the
   theme if no existing height token fits).
@@ -987,8 +1099,8 @@ duration; the enforcement pins (SYSTEM §20) must not grow.
 ### 12.3 Accessibility
 
 - **Targets ≥ 48×48**: chips, arrows, the comparison button, the sort
-  button, rows, « Voir », « Voir en liste ». A chart bar narrower than 48 dp
-  is not the only way in (§4.6).
+  button, rows, « Voir », « Voir en liste », and the chart as one target
+  (§4.6) — no target narrower than 48 dp exists on the screen.
 - **Screen readers**: a tile reads « Réalisé : 1 250 000 FCFA, en hausse de
   12 % par rapport à octobre 2026 »; a rate « Taux d'absence : 5,9 %, en
   baisse de 1,2 point »; a row as in §4.7; the period label is a heading
@@ -996,7 +1108,8 @@ duration; the enforcement pins (SYSTEM §20) must not grow.
 - **200 % text** at 360 dp: §4.12, pinned.
 - **Colour independence**: deltas carry glyph + sign + words; « estimé » is
   a word.
-- **Website**: semantic `<table>`/ARIA table, `tablist`, `aria-sort`, a
+- **Website**: the `DataTable`'s ARIA table, the shared `Tabs`, a labelled
+  sort `<select>`, the chart's one focusable element with its live line, a
   visible `:focus-visible` ring, labelled fields, the dialog's focus trap,
   `aria-live` for errors, axe clean.
 
@@ -1008,10 +1121,17 @@ duration; the enforcement pins (SYSTEM §20) must not grow.
 
 - **Period resolution** (pure): every row of §3.5's table; Monday weeks
   across a year end; 29 Feb in both directions; like-for-like on the 1st,
-  the 15th and the last day; clipping (31 March → 28 Feb); bounds and the
-  366-day cap.
-- **Aggregator** (pure): each figure of §3.2 by status and by « now »
-  (a confirmed booking one minute before and one after); salon-time
+  the 15th and the last day — the comparison's cutoff at the same day offset
+  **and** salon wall-clock time (a completed booking at 15:00 on 25 October
+  is outside a 14:30 cutoff, one at 14:00 inside); the current range never
+  cut; clipping (31 March → 28 Feb); bounds and the 366-day cap; no `date`
+  → the salon's today (a test clock just before and after salon midnight).
+- **Aggregator** (pure): each figure of §3.2 by status and by « now » —
+  « À clôturer » by the **end** (a confirmed three-hour booking that began
+  ten minutes ago is « Prévu »; one that ended a minute ago is « À
+  clôturer »); a completed booking dated later in the current month counts in
+  « Réalisé »; an empty-string `artistId` lands in « Sans collaborateur
+  attribué »; salon-time
   boundaries (a booking at 23:30 and at 00:30 salon time in a non-UTC test
   zone); currency groups never summed; shares add up to 1; the lines
   invariant (Σ = `total_price`); duplicates in `service_ids`; §3.4's estimate
@@ -1023,10 +1143,15 @@ duration; the enforcement pins (SYSTEM §20) must not grow.
   (single currency).
 - **Repository**: `revenueRows`, `revenueLedger`, `hasCompleted` — one
   contract on both twins + DB-gated on Postgres (range ends exclusive,
-  ordering, filters, page totals).
-- **Writes (R1)**: `book` / `bookManual` store lines, `artistName`,
+  ordering, filters, page totals, the ledger's `asOf` window).
+- **The ledger's client name**: an online booking (`clientName` null) shows
+  its `salon_clients` name; an erased client has none; a caller without
+  `clients.view` gets none (the field absent — tested with a capability
+  override in the test's membership double); the lookup is one batched read
+  per page, never `enrichForProvider`.
+- **Writes (R1)**: `book` / `bookManual` store lines, `artistNameKept`,
   `channel` — a Postgres round-trip that fails before R1 (the B14.1 lesson:
-  a twin keeps what Postgres drops); reassignment writes `artistName`; the
+  a twin keeps what Postgres drops); reassignment writes `artistNameKept`; `artistNameKept` without `artistId` refused on both twins; an empty `artistId` stored as `null`; the
   channel header (`web` exact → `web`; `WEB`, `x`, absent → `app`).
 - **Handlers**: 200 per period; 400 for each malformed param and
   `range_too_long`; 401; **403 for Manager, Réception, Collaborateur, another
@@ -1039,7 +1164,9 @@ duration; the enforcement pins (SYSTEM §20) must not grow.
   currencies; date a booking in UTC instead of salon time; compare the full
   previous month while in progress; give the rounding remainder to the first
   line; label a removed artist « active »; skip `finances.view` on the
-  ledger; accept `channel=Web`; reorder rows on equal amounts by map order.
+  ledger; accept `channel=Web`; reorder rows on equal amounts by map order;
+  date « À clôturer » by the start instead of the end; return
+  `clientDisplayName` without `clients.view`; cut the current range at now.
 
 ### 13.2 App
 
@@ -1052,7 +1179,13 @@ duration; the enforcement pins (SYSTEM §20) must not grow.
   roles — `dashboard_role_test`).
 - a11y: `layout_test` subjects (« Revenus » success, detail, ledger) at
   360/375/390 × 1×/2×; `expectNoMidWordBreak`; the semantics sentences;
-  48 dp targets.
+  `androidTapTargetGuideline` on the whole screen, chart included (one node,
+  its increase/decrease actions moving the selection); the selected bar told
+  apart by fill.
+- `KpiGrid`'s move: the Accueil's `dashboard_role_test`, `layout_test` and
+  its goldens unchanged.
+- « Dates… »: two `myweli_date_picker` fields, the field errors under « Au »,
+  no Material picker (the existing pin that forbids them stays green).
 - **Goldens** (authored on Linux, `gh workflow run goldens.yml`): success,
   empty salon, empty period, refused, detail, ledger, 200 %.
 - The old screen's wording tests (`pro_earnings_wording_test.dart`) move
@@ -1064,7 +1197,7 @@ duration; the enforcement pins (SYSTEM §20) must not grow.
   CSV (separator `;`, UTF-8 BOM for Excel, amounts as integers, one file per
   table, the filename « revenus-collaborateurs-2026-11.csv »).
 - RTL: states, roles (owner sees; the three others get the refused state
-  from a 403), the `tablist` keys, `aria-sort`.
+  from a 403), the sort `<select>`, the chart's keys and live line.
 - e2e (Playwright, the stub): owner → `/pro/revenus` → a collaborateur →
   the ledger → a booking; ← / → stepping; Back keeps the period; axe on each
   page. The stub gains the two endpoints (ports per the e2e memory).
@@ -1079,8 +1212,8 @@ Each merge, each production read and each deploy waits for the owner's word.
 | # | PR | Surface | Depends on | Ships to users when |
 |---|---|---|---|---|
 | **R0w** | The booking BFF sends `X-Myweli-Channel: web` | website | — | its merge (Vercel) |
-| **R1** | Migration 0051 (three nullable columns, no backfill), the writes, the twins' key list, the header read, the demo reset | backend | R0w live | its deploy (`deploy-backend.yml`) |
-| **R2** | The two endpoints, the period resolver, the aggregator, the repo reads + contract, OpenAPI, T85, `schema.ts` regenerated | backend (+ `web/lib/api/schema.ts`) | R1 | its deploy |
+| **R1** | Migration 0051 (three nullable columns, no backfill), the writes, the twins' key list, the header read, an empty `artistId` stored as `null`, OpenAPI's `Appointment` gains the three stored keys | backend | R0w live | its deploy (`deploy-backend.yml`) |
+| **R2** | The two endpoints, the period resolver, the aggregator, the repo reads + contract, the batched client-name lookup, OpenAPI, T85, `schema.ts` regenerated; the demo reset's richer agenda if Q13 says yes | backend (+ `web/lib/api/schema.ts`) | R1 | its deploy |
 | **R3** | « Revenus » rebuilt, details, ledger, Accueil taps, shared widgets, goldens; placeholder deleted | app | R2 deployed | the next Pro build in the stores |
 | **R4** | `/pro/revenus` rebuilt, details, ledger, CSV | website | R2 deployed | its merge |
 
@@ -1145,7 +1278,7 @@ part of this work.
 
 ## 17. Open questions for the owner
 
-**Q1–Q12 are decisions 237–248** in `docs/BACKLOG.md` §2, open (batch 17).
+**Q1–Q13 are decisions 237–249** in `docs/BACKLOG.md` §2, open (batch 17).
 The highest number on `main` and in the open PRs on 2026-11-25 was 236
 (A4's); no other worktree held a higher one.
 
@@ -1162,7 +1295,7 @@ The highest number on `main` and in the open PRs on 2026-11-25 was 236
 3. **Who sees it.** Owner only (`finances.view`), as today? Or should a
    Collaborateur see their own figures in « Ma journée »? *Recommended: owner
    only now; a Collaborateur's own figures later, from salon feedback, as
-   access.md item 4 says.*
+   access.md §11 question 4 says.*
 4. **The rule.** « Réalisé » = completed bookings only (the « Total
    réalisé » of today), confirmed ones shown apart as « Prévu », past
    confirmed ones nobody closed shown as « À clôturer » with a link to close
@@ -1181,17 +1314,61 @@ The highest number on `main` and in the open PRs on 2026-11-25 was 236
    first (R0w).*
 8. **Periods and comparison.** Jour · Semaine · Mois · Année · Dates (≤ 366
    jours), ‹ › to step; compared by default with the previous period, or the
-   same period last year, or nothing; and while a period is in progress,
-   compared like for like (1–25 November with 1–25 October)? *Recommended:
-   yes to all.*
+   same period last year, or nothing; while a period is in progress, the
+   comparison cut at the same point of its own period (November so far
+   against 1 October → 25 October 14:30); and **« Tout » (all time), which
+   both surfaces offer today, removed** — « Année » and « Dates » replace
+   it? *Recommended: yes to all.*
 9. **Par catégorie and à domicile.** Not possible now: prestations have no
    category and no booking records à domicile. Defer « par catégorie » to a
    catalogue spec that gives each prestation one of the Ivorian categories,
    and « à domicile » to the V2 home-service module? *Recommended: yes.*
-10. **Export.** « Exporter (CSV) » of each table on the website (opens in
-    Excel), nothing on the app for now? *Recommended: yes.*
+10. **Export.** « Exporter (CSV) » of each breakdown table on the website
+    (opens in Excel; no client names in the file), nothing on the app for
+    now? *Recommended: yes.*
 11. **Offer.** Available on every offer, trial included — no gate by tier?
     *Recommended: yes; « Statistiques » is already in the Pro offer's list.*
 12. **Order of work.** R0w → R1 (production read before, deploy on your
     word) → R2 (deploy on your word) → R3 and R4; each merge, read and
     deploy on your word? *Recommended: yes.*
+13. **The demo salon.** Its weekly reset seeds only confirmed bookings, with
+    no collaborateur, so the store reviewer's account would open « Revenus »
+    on « Pas encore de revenus ». Should the reset also seed past completed
+    bookings across two or three collaborateurs and several prestations, and
+    one absence, in R2? *Recommended: yes — the reviewer then sees the
+    screen the store listing describes.*
+
+---
+
+## 18. Review — an independent reader, told to refute it against the code
+
+One reader, given the spec and the repository and asked to refute it, read
+106 places in the code and returned 20 findings: 3 blockers, 12 should-fix,
+5 nits. Each was re-read in the code before it was folded in; all 20 held.
+What changed:
+
+| # | Finding | Now |
+|---|---|---|
+| 1 | **Blocker.** The ledger read `clientName`, which `book` writes `null` for every online booking (`booking_service.dart:260`): every online row would have read « Client supprimé » | `clientDisplayName` from `salon_clients`, the journal's resolution, batched per page (§7.2, §4.9) |
+| 2 | **Blocker.** `artistName` already exists as the live roster name on consumer reads (`appointment_enrichment.dart:107`, OpenAPI); a stored `artistName` would mean two things | its own key, `artistNameKept` (column `artist_name_kept`); the three keys returned by `_toDto` and documented (§8.1) |
+| 3 | **Blocker.** « the current figures only run to now » contradicted « Prévu », the Accueil equality, and a completed booking dated later in the month (« Terminé » has no time check, `pro_appointment_service.dart:56-63`); 1–25 vs 1–25 compared part of a day with a whole one | the current range is always whole; only the comparison is cut, at the same day offset and wall-clock time (§3.2, §3.5) |
+| 4 | The demo reset was misdescribed: it recreates bookings through `bookManual`, so R1 covers them; the gap is its data (all confirmed, no collaborateur) | §8.1 corrected; Q13 |
+| 5 | « the platform date-range picker » — the app has no Material picker, on purpose | two `myweli_date_picker` fields (§4.3) |
+| 6 | A `borderFocus` outline on a `primary` bar is black on black; 10 dp bars as buttons fail the tap-target guideline | selection by fill; one semantics node with increase/decrease; the website's chart one focusable element (§4.6, §5.1, §12) |
+| 7 | `_StatBlock` has no 1.3× rule — it measures; its values are `headlineSmall` | `KpiGrid` = `_StatBlock` moved unchanged (§4.5, §12.1, SYSTEM §11.3) |
+| 8 | Removing « Tout » was not said | §3.5 and Q8 say it |
+| 9 | The shared `Tabs` is deliberately not a tablist; `DataTable` has no sorting or paging | the shared `Tabs`, a « Trier par » `<select>`, « Afficher plus » (§5.1) |
+| 10 | « the server's today » cannot hold with `date` required | `date` optional, defaulting to the salon's today; the ledger takes the figures' `asOf` (§3.5, §7.2) |
+| 11 | Client names on `finances.view` alone | field-gated on `clients.view`; no names in the CSV (§7.2, §10, Q10) |
+| 12 | The updatable key needs more than one line | the `SET` branch, the type check, « only with `artistId` », the seven keys (§8.1) |
+| 13 | An older image's reassignment leaves the kept name stale | written down as the one known drift (§8.1) |
+| 14 | Empty-string `artistId`s exist | read as unassigned; stored as `null` from R1 (§2.1, §3.3, §8.1) |
+| 15 | « À clôturer » by the start counts a booking under way | by the end, start + `durationMinutes` (§3.2) |
+| 16–20 | access.md section number; the detail route is `/pro/appointment/:id?salon=`; `StatusBanner` has no action slot; the endpoints answer only `forbidden` (a revoked member is caught by `ProAccessGuard`); five line numbers; the placeholder is reached by no route | each corrected in place |
+
+Checked and correct by the same reader: the `X-Myweli-Channel` header
+reaches the backend (the BFF passes route headers, the Cloudflare Worker
+forwards all headers); only two paths create bookings and one changes the
+collaborateur; erasure keeps `user_id`; the purge deletes rows whole;
+migration 0051, threat T85 and decision 237 were the next free numbers; only
+the owner preset has `finances.view`; the Pro offer lists « Statistiques ».
