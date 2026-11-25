@@ -1,0 +1,16 @@
+- 🟡 **B16.2 : la réinitialisation du salon de démonstration remet ce qu’un relecteur a changé (backend · 2026-11-25 — BACKLOG B16.2, décisions 250–252).** Branche `fix/b16-2-demo-reset`, créée depuis `main` (`afd2de97`). Spec : [demo-reset-restore.md](../../design/demo-reset-restore.md) §8.8.
+  - **Le défaut :** chaque semaine, la réinitialisation renvoyait le cliché par `updateProfile`, qui n’écrit que le document du salon. Les prestations, les horaires (en production) et les avant/après changés par un relecteur restaient pour le suivant ; en mémoire, le cliché partageait même les listes du salon.
+  - **Ce qui change :**
+    - `replaceServices`, sur les deux doubles : une transaction, l’ordre du cliché, un « INSERT » simple qui refuse une prestation d’un autre salon ;
+    - les horaires par `replaceAvailability` et les avant/après par leur écrivain, après le profil, qui remet d’abord le fuseau ;
+    - `featured` et la note laissés à l’admin et aux avis ;
+    - un cliché inapplicable refusé avant toute écriture (`refused:bad_snapshot`), pour ne pas bloquer la purge des salons chaque nuit ;
+    - le cliché en mémoire qui garde sa propre copie (C-M1).
+  - **Vérifié, sur une base locale neuve :**
+    - rouge d’abord pour les raisons annoncées, sur les deux doubles ;
+    - vert : les trois contrats et les deux gardes (176 tests en mémoire, 21 sur Postgres) ;
+    - la suite backend complète passe (3089 tests, 2 ignorés, code de sortie lu tel quel) ;
+    - **14 mutations rouges pour la raison annoncée,** deux témoins tenus ; celle de l’ordre relancée seule, sur le texte de son échec.
+  - **Trouvé à côté :** un dépôt en mémoire construit sans argument est la liste globale du seed elle-même, partagée par tous les tests d’un fichier (spec §12).
+  - **Aussi :** la spec (#865) est fusionnée ; son entrée passe au vert.
+  - **Reste, chacun sur le mot du propriétaire :** la fusion, puis la lecture de production avant le déploiement (décision 253), puis le déploiement, puis la lecture après la première réinitialisation.

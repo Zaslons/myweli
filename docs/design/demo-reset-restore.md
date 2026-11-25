@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Module** | backend: the store-review demo (`DemoResetService`, the demo snapshot store) and `providers` (one new writer, `replaceServices`) |
-| **Status** | **Approved 2026-11-25.** The owner answered the five questions of §11 at once, « Approve as recommended »: decisions 250–254 in BACKLOG, batch 16 (#865). Nothing is built. The build, the read before the deploy and the deploy, each on the owner's word. |
+| **Status** | **Approved 2026-11-25.** The owner answered the five questions of §11 at once, « Approve as recommended »: decisions 250–254 in BACKLOG, batch 16 (#865). **B16.2 built 2026-11-25** (§8.8), on the owner's « Yes, build B16.2 », in its own backend PR; not merged. The merge, the read before the deploy (decision 253), the deploy and the read after, each on the owner's word. |
 | **Owner** | the project owner: the answers, the build's go, the merge, the read before the deploy, the deploy and the read after it, each on the owner's word |
 | **Last updated** | 2026-11-25 |
 | **PRD ref / phase** | the store-review account (threat T69) · V1 |
@@ -276,6 +276,34 @@ All of §8.1 green on both twins. The existing `demo_reset_test.dart` stays gree
   - **What it cannot see:** a writable key added to a writer without being added to its list. Its comment says so, and names the writers it was read from: the profile PATCH (with the logo and the market keys), the deposit policy, the gallery, the before/after pairs, the artists, the services and the hours.
 - The caller guard of §6.
 
+### 8.8 As built (B16.2, 2026-11-25)
+
+Branch `fix/b16-2-demo-reset` from `main` (`afd2de97`). Two commits: the tests red first (`d11c98f3`), then the fix (`8413a3f1`).
+
+- **Red first,** on a fresh local database, for the reasons of §8.1:
+  - **in memory:** every `replaceServices` case (`UnimplementedError: B16.2`; « [foreign id] » on its own reason); « [capture copy] », « [read copy] »; « [services] », « [before-after] », « [artists] », « [featured] », « [rating] » (0 for 4.5), « [snapshot kept] », « [bad snapshot] » (`ran`, not refused); the key guard (`beforeAfters`) and the caller guard. Green: « [clock] », « [profile] », « [hours] ».
+  - **on Postgres:** every `replaceServices` case; « [services] », « [hours] » (buffer 0 for 10), « [before-after] », « [rating] », « [rating column] » (4.5 against 0), « [bad snapshot] ». Green: « [profile] », « [artists] », « [featured] », « [snapshot kept] », the snapshot store.
+- **The code:**
+  - `replaceServices` on both twins (`providers_repository.dart`, `postgres_providers_repository.dart`), `addService` and it sharing one column mapping (`_serviceParams`);
+  - the in-memory snapshot store's JSON copies (`demo_snapshot_repository.dart`);
+  - `kDemoNeverRestored`, `kDemoRestoredByOwnWriter`, the shape check and the restore order (`demo_reset_service.dart`);
+  - the maintenance tick's comment names `refused:bad_snapshot`.
+- **Green:**
+  - in memory: the three contracts, both guards, and every demo, maintenance, admin and multi-pays test (176);
+  - on Postgres: the three contracts (21);
+  - the full backend suite on a fresh local database: **3089 passed, 2 skipped**, exit 0, every Postgres file run;
+  - analyze 0, format clean.
+- **Mutations,** on committed code, with a clean tree, each edit checked to apply once and to change its file. All six targets were green unmutated first (C0). m1–m14 each went red with the texts of §8.3:
+  - **C1 held:** no « [profile] » failure under any mutation but m9 on Postgres.
+  - **C2 held:** m1 leaves the in-memory run green.
+  - **m8 was rerun alone.** Its required text was at first « [order] », which the test's name also carries, so the match proved nothing. Rerun alone, it failed with its reason, « is not after », and turned « [replace] » red too: on equal `created_at` values, Postgres returns the list in any order.
+- **Where the build differs from §8, and why:**
+  - **`demo_reset_test.dart` changed, where §8.2 said it stays as it is:**
+    - its two services gain the duration every stored service has, or the shape check refuses them, rightly;
+    - each test gets its own empty store. With no argument, `InMemoryProvidersRepository()` **is** the global `seedProviders` list, so each earlier test's demo salon stayed in it with the same service ids, `s1` and `s2`. `replaceServices` now refuses those ids, as Postgres would (§12).
+  - **Both guards are in one file,** `test/demo/demo_reset_guards_test.dart`: the key guard (§8.4) and the caller guard (§6).
+- The throwaway local databases were dropped.
+
 ---
 
 ## 9. Rollout & scope discipline
@@ -356,6 +384,7 @@ Numbered from **250**, after the revenue analytics spec's 237–249.
 - **The images a reviewer uploads** (a logo, gallery photos, before/after photos, artist photos) are left in storage once the restore stops pointing at them. [backend-upload-orphans.md](backend-upload-orphans.md) is about uploads nobody claims. Whether anything removes a claimed image that a later write dropped was not read. Not decided here.
 - **Artists' ratings** ride the `artists` list in the document, so a restore puts back the snapshot's artist ratings while the reviews stay. It is the same class as `rating`, and unreachable while the demo salon has no reviews; Q4's read counts them.
 - **C-D1:** when the reset wipes the agenda, disputes on those bookings cascade away in Postgres and stay in memory. That belongs to the disputes group of batch 16 (decision 221), not here.
+- **The in-memory store built without an argument is the global seed list itself** (`_all = seed ?? seedProviders`, `providers_repository.dart:225`). `createSalon` appends to it, so the salons one test creates are in every later test of the same file. Found when `demo_reset_test.dart` met the foreign-id refusal (§8.8); its own tests are fixed here. 23 test files build `InMemoryProvidersRepository()` and share it the same way. With A-P6 (B16.11); not decided here.
 - **Two sentences go false today, and true again with this build:**
   - the reset's comment, `demo_reset_service.dart:143-145`;
   - T69's « cures defacement » in BACKEND.md §7.
@@ -388,3 +417,4 @@ Numbered from **250**, after the revenue analytics spec's 237–249.
     - the timezone order made observable (m11);
     - two more mutations (m12, m14) and the shape check's (m13).
 - **2026-11-25, answered:** « Approve as recommended », all five (decisions 250–254, batch 16 in the BACKLOG). Recorded at the same time: decision 249 (revenue analytics) changes the regenerated agenda in the same file (§1).
+- **2026-11-25, built** (§8.8), on the owner's « Yes, build B16.2 »: red first on both twins for §8.1's reasons, then green; the full suite 3089 passed; m1–m14 red with their texts, C1 and C2 held.
