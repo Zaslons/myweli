@@ -107,6 +107,18 @@ void searchContract({
       isFalse,
       reason: '[fields] an inactive service must not match',
     );
+    // A salon with no service: a service's name finds only its own salon.
+    final other = await salon(r, name: 'Salon Quarzo Témoin');
+    expect(
+      await listed(r, other, 'quarzo'),
+      isTrue,
+      reason: '[fields] control: the other salon is public',
+    );
+    expect(
+      await listed(r, other, 'manucure express'),
+      isFalse,
+      reason: '[fields] another salon\'s service does not list this one',
+    );
   });
 
   test('accents and case: ignored on both sides of the comparison', () async {
@@ -147,6 +159,47 @@ void searchContract({
       await listed(r, id, '   '),
       isTrue,
       reason: '[spaces] a text of spaces is no filter',
+    );
+  });
+
+  test("spaces: the salon's own runs of white space count as one", () async {
+    final r = repo();
+    final doubled = await salon(r, name: 'Beauté  Divine Nour');
+    final narrow = await salon(r, name: 'Awa\u202f: coiffure Liza');
+    final lines = await salon(
+      r,
+      name: 'Salon Lignes',
+      description: 'Tresses\nafricaines Mia',
+    );
+    expect(
+      await listed(r, doubled, 'beaute divine nour'),
+      isTrue,
+      reason: '[spaces] two spaces in the name',
+    );
+    expect(
+      await listed(r, doubled, 'beaute  divine  nour'),
+      isTrue,
+      reason: '[spaces] typed exactly, two spaces',
+    );
+    expect(
+      await listed(r, narrow, 'awa : coiffure liza'),
+      isTrue,
+      reason: '[spaces] a narrow no-break space before « : »',
+    );
+    expect(
+      await listed(r, lines, 'tresses africaines mia'),
+      isTrue,
+      reason: '[spaces] a line break in the description',
+    );
+  });
+
+  test('a text with nothing left once folded is no filter', () async {
+    final r = repo();
+    final id = await salon(r, name: 'Salon Accent Seul');
+    expect(
+      await listed(r, id, '\u0301'),
+      isTrue,
+      reason: '[fold] a lone combining accent folds to nothing: every salon',
     );
   });
 

@@ -281,6 +281,47 @@ void main() {
       },
     );
 
+    // docs/design/consumer-search.md §8: equal salons keep one order across
+    // pages, so « Afficher plus » never shows a salon twice or skips one.
+    test('GET /providers: equal salons keep one order across pages', () async {
+      Map<String, dynamic> tied(String id) => {
+        'id': id,
+        'name': 'Salon $id',
+        'status': 'active',
+        'featured': false,
+        'rating': 4.0,
+        'services': <Map<String, dynamic>>[],
+      };
+      final c = _MockRequestContext();
+      when(() => c.read<ProvidersRepository>()).thenReturn(
+        InMemoryProvidersRepository([tied('c'), tied('a'), tied('b')]),
+      );
+      Future<List<Object?>> page(int n, String sort) async {
+        when(() => c.request).thenReturn(
+          Request.get(
+            Uri.parse(
+              'http://localhost/providers?pageSize=1&page=$n&sort=$sort',
+            ),
+          ),
+        );
+        final body =
+            await (await list.onRequest(c)).json() as Map<String, dynamic>;
+        return [for (final p in body['items'] as List) (p as Map)['id']];
+      }
+
+      for (final sort in ['relevance', 'rating', 'price']) {
+        expect(
+          [
+            ...await page(1, sort),
+            ...await page(2, sort),
+            ...await page(3, sort),
+          ],
+          ['a', 'b', 'c'],
+          reason: 'sort=$sort',
+        );
+      }
+    });
+
     test('GET /providers?sort=rating orders by rating desc', () async {
       when(() => context.request).thenReturn(
         Request.get(

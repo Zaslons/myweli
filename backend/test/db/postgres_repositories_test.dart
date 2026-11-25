@@ -39,6 +39,8 @@ import 'package:myweli_backend/src/db/postgres_salon_subscription_repository.dar
 import 'package:myweli_backend/src/db/postgres_salon_validation_repository.dart';
 import 'package:myweli_backend/src/privacy/user_erasure_service.dart';
 import 'package:myweli_backend/src/provider_account_service.dart';
+import 'package:myweli_backend/src/providers_repository.dart'
+    show draftSalonDocument;
 import 'package:myweli_backend/src/salon_provisioning_service.dart';
 import 'package:myweli_backend/src/salon_time.dart';
 import 'package:myweli_backend/src/salon_visibility.dart';
@@ -1600,20 +1602,30 @@ void main() {
     // and their capitals are in the ranges below, and agree). So the sweep
     // covers the scripts a salon's name is written in, and that limit is
     // the in-memory twin's only: it never serves production.
-    test('foldSearchText is lower(unaccent()) on every character of Latin, '
-        'its accents, punctuation and full-width forms', () async {
+    test('searchableText is the SQL on every character of Latin, its '
+        'accents, white space, punctuation and full-width forms', () async {
       final rows = await pool.execute(
-        'SELECT n, lower(unaccent(chr(n))) FROM ('
-        'SELECT generate_series(32, 879) n ' // Basic Latin … combining marks
-        'UNION ALL SELECT generate_series(7680, 7935) ' // Latin Ext. Additional
-        'UNION ALL SELECT generate_series(8192, 8303) ' // General Punctuation
-        'UNION ALL SELECT generate_series(65280, 65519)) c', // full-width
+        Sql.named(
+          'SELECT n, lower(unaccent(regexp_replace(chr(n), '
+          "CAST(@spaces AS text), ' ', 'g'))) FROM ("
+          'SELECT generate_series(9, 13) n ' // tab … carriage return
+          'UNION ALL SELECT generate_series(32, 879) ' // Basic Latin … marks
+          'UNION ALL SELECT generate_series(7680, 7935) ' // Latin Ext. Add.
+          'UNION ALL SELECT generate_series(8192, 8303) ' // Gen. Punctuation
+          'UNION ALL SELECT unnest(ARRAY[5760, 12288, 65279]) ' // other spaces
+          'UNION ALL SELECT generate_series(65280, 65519)) c', // full-width
+        ),
+        parameters: {'spaces': kSearchSpaces},
       );
-      expect(rows.length, 848 + 256 + 112 + 240, reason: 'control: the ranges');
+      expect(
+        rows.length,
+        5 + 848 + 256 + 112 + 3 + 240,
+        reason: 'control: the ranges',
+      );
       final differ = <String>[];
       for (final row in rows) {
         final n = row[0]! as int;
-        final folded = foldSearchText(String.fromCharCode(n));
+        final folded = searchableText(String.fromCharCode(n));
         if (folded != row[1]) {
           differ.add(
             'U+${n.toRadixString(16).toUpperCase()}: Dart '
@@ -1623,6 +1635,46 @@ void main() {
       }
       expect(differ, isEmpty, reason: differ.take(20).join('\n'));
     });
+
+    // The order case of the contract cannot place ties out of id order (ids
+    // follow creation). Two rows written here, the higher id first: a scan
+    // meets it first, and a sort of ties keeps it there unless the ORDER BY
+    // that query() really runs ends on the id.
+    test(
+      'query() ends its order on the id: ties inserted out of id order',
+      () async {
+        final repo = PostgresProvidersRepository(pool);
+        Future<void> insert(String id) async {
+          final doc = draftSalonDocument(
+            id: id,
+            slug: id,
+            name: 'Salon Égalité Ordre',
+            category: 'salon',
+            phoneNumber: '+2250700001799',
+          )..['status'] = 'active';
+          await pool.execute(
+            Sql.named(
+              'INSERT INTO providers (id, slug, category, commune, rating, '
+              'name, description, address, status, data) VALUES (@id, @id, '
+              "'salon', NULL, 0, @name, '', '', 'active', @data:jsonb)",
+            ),
+            parameters: {
+              'id': id,
+              'name': doc['name'],
+              'data': jsonEncode(doc),
+            },
+          );
+          deleteOnTearDown(id);
+        }
+
+        await insert('zz-a4-order-b');
+        await insert('zz-a4-order-a');
+        expect(
+          [for (final p in await repo.query(q: 'egalite ordre')) p['id']],
+          ['zz-a4-order-a', 'zz-a4-order-b'],
+        );
+      },
+    );
 
     // docs/design/provider-category-column.md §8.2 (B16.1, decision 225):
     // migration 0050's statement, on the forms a salon document takes.

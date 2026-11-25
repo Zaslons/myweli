@@ -32,15 +32,19 @@ const kProviderDocumentColumns = [
 /// A search's text as a `LIKE` pattern: folded with `lower(unaccent(…))`
 /// FIRST, its `\`, `%` and `_` escaped AFTER. The other order is a defect:
 /// unaccent turns a full-width ＿ or ％ into `_` or `%`, which an escape run
-/// before it never saw, and `q=＿` would list every salon.
+/// before it never saw, and `q=＿` would list every salon. An uncorrelated
+/// subquery, so Postgres builds it once per query, not once per row.
 /// docs/design/consumer-search.md §3 (A4-api, decision 228).
 const _searchPattern =
-    r"('%' || replace(replace(replace(lower(unaccent(CAST(@q AS text))), "
-    r"'\', '\\'), '%', '\%'), '_', '\_') || '%')";
+    r"(SELECT '%' || replace(replace(replace(lower(unaccent("
+    r"CAST(@q AS text))), '\', '\\'), '%', '\%'), '_', '\_') || '%')";
 
-/// One searched field against [_searchPattern].
+/// One searched field against [_searchPattern]: its white space collapsed
+/// with the class the search text was cleaned with (`@spaces`,
+/// [kSearchSpaces]), then folded — the in-memory twin's [searchableText].
 String _searchField(String column) =>
-    "lower(unaccent($column)) LIKE $_searchPattern ESCAPE '\\'";
+    "lower(unaccent(regexp_replace($column, CAST(@spaces AS text), ' ', 'g'))) "
+    "LIKE $_searchPattern ESCAPE '\\'";
 
 /// What `q` matches on Postgres: the salon's name, description, address and
 /// commune columns, or the name of one of its active services, each on its
@@ -103,6 +107,7 @@ class PostgresProvidersRepository implements ProvidersRepository {
     if (text != null) {
       conditions.add(kProviderSearchCondition);
       parameters['q'] = text;
+      parameters['spaces'] = kSearchSpaces;
     }
     final where = 'WHERE ${conditions.join(' AND ')}';
     final rows = await _pool.execute(

@@ -1746,12 +1746,15 @@ paths:
             services, each field on its own (a text spanning two fields
             matches neither). Case and accents are ignored on both sides
             (PostgreSQL `lower(unaccent(…))`: « beaute » finds « Beauté »,
-            « l’atelier » finds « L'Atelier »). Spaces are trimmed and every
-            run of them counts as one; `%`, `_` and `\` match themselves.
-            Only the first 100 characters are used: a longer text is cut, not
-            refused. An empty or blank `q` is no filter. Several words are
-            one text: « tresses cocody » matches only where they appear
-            together. A control character (U+0000–U+001F) anywhere in the query string is a
+            « l’atelier » finds « L'Atelier »). White space is trimmed from
+            `q`, and every run of it counts as one space on both sides — in
+            `q` and in the salon's text (no-break spaces and line breaks
+            included); `%`, `_` and `\` match themselves. Only the first 100
+            characters (code points) are used: a longer text is cut, not
+            refused. An empty or blank `q` is no filter, and so, in effect,
+            is a `q` with nothing left once folded (a lone combining accent).
+            Several words are one text: « tresses cocody » matches only where
+            they appear together. A control character (U+0000–U+001F) anywhere in the query string is a
             400 `invalid_input`.
         - { in: query, name: commune, schema: { type: string }, description: "Exact commune name, as the salon stores it." }
         - { in: query, name: category, schema: { type: string }, description: "Exact category key (salon, barber, spa, nails, massage)." }
