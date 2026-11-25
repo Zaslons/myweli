@@ -2418,19 +2418,26 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** List/search providers (B1) */
+        /**
+         * List/search providers (B1)
+         * @description Public, active salons only (drafts and suspended salons never appear). Every order ends on the salon id, so two salons that are otherwise equal never swap places between two pages (docs/design/consumer-search.md §3, A4-api).
+         */
         get: {
             parameters: {
                 query?: {
-                    /** @description Free-text search */
+                    /** @description Free-text search (A4-api, decision 228). Matches the salon's name, description, address or commune, or the name of one of its active services, each field on its own (a text spanning two fields matches neither). Case and accents are ignored on both sides (PostgreSQL `lower(unaccent(…))`: « beaute » finds « Beauté », « l’atelier » finds « L'Atelier »). White space is trimmed from `q`, and every run of it counts as one space on both sides — in `q` and in the salon's text (no-break spaces and line breaks included); `%`, `_` and `\` match themselves. Only the first 100 characters (code points) are used: a longer text is cut, not refused. An empty or blank `q` is no filter, and so, in effect, is a `q` with nothing left once folded (a lone combining accent). Several words are one text: « tresses cocody » matches only where they appear together. A control character (U+0000–U+001F) anywhere in the query string is a 400 `invalid_input`. */
                     q?: string;
+                    /** @description Exact commune name, as the salon stores it. */
                     commune?: string;
+                    /** @description Exact category key (salon, barber, spa, nails, massage). */
                     category?: string;
-                    /** @description FR-DISC-007 sort: relevance (featured+rating), rating desc, or min-service-price asc. */
+                    /** @description FR-DISC-007 sort: relevance (featured, then rating desc), rating desc, or min-active-service-price asc (salons with no price last); each then by id. Any other value is relevance, not an error. */
                     sort?: "relevance" | "rating" | "price";
-                    /** @description FR-DISC-007: keep only salons with ≥1 free slot today. */
+                    /** @description FR-DISC-007: `true` keeps only salons with ≥1 free slot today. Any other value, `false` included, is no filter. */
                     availableToday?: boolean;
+                    /** @description Clamped to 1…100000, not refused; a value that is not a number is 1. A page past the end is an empty `items` with the real `total`. */
                     page?: number;
+                    /** @description Clamped to 1…50, not refused; a value that is not a number is 20. */
                     pageSize?: number;
                 };
                 header?: never;
@@ -2450,9 +2457,18 @@ export interface paths {
                             items: components["schemas"]["Provider"][];
                             page: number;
                             pageSize: number;
+                            /** @description Every salon that matches, across all pages. */
                             total: number;
                         };
                     };
+                };
+                400: components["responses"]["BadRequest"];
+                /** @description Method not allowed */
+                405: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
                 };
             };
         };

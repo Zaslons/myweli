@@ -634,6 +634,7 @@ Each question has a recommendation. Answers unblock the item named in brackets.
     - **2026-11-24 — A3w merged and deployed** (#856, `51d439f2`): live on `myweli.com` since 20:40 UTC and read back there; the production monitor passed 11 of 11 after it (run 45487085839). The review also closed an open redirect in `/connexion`'s `returnTo`, which predated A3w. Next in the audit's order: A4 (search); Track C, the builds, waits for A6 as well.
     - **2026-11-24 — A4's spec written** ([consumer-search.md](design/consumer-search.md), decisions 228–236 open): search that searches (the server's `q` gains services, communes and accents), the five shared categories, « Afficher plus de salons », and the map saying its commune. It also found that the home, the salon list and the map share one list, so a category chosen on the list leaks into the home's « Près de vous ». No code until the questions are answered.
     - **2026-11-25 — A4's nine questions answered** (decisions 228–236, « Approve as recommended »). Next: the merge of the spec (#859), on your word; then A4-api, the backend's `q`, built on your word, its deploy on your word.
+    - **2026-11-25 — A4's spec merged** (#859, `ed60594c`). **A4-api built** on your « Yes, build A4-api » (branch `feat/a4-api-search`): a search finds services and communes and ignores accents, `%`, `_` and `\` match themselves, every order ends on the id; migration `0051_unaccent`. Not merged. Its merge, then its deploy and the read after, each on your word. A4's consumer build waits for that deploy (decision 234).
   - **Order:** Android is last (LAUNCH §3).
 - **B0.15 Search text kept 30 days in Google Cloud's request logs (P2 · S · decision 55, open).**
   - **What:** found by B0.10 on 2026-10-28. Cloud Run's own request logs keep the full URL, query string included (read in Cloud Logging: `…/providers?page=1&pageSize=20`), for 30 days. Two requests put personal text there: the Pro client search (`?query=`, a client's name or part of a number) and the public salon search (`?q=`).
@@ -990,7 +991,7 @@ Survey: [twin-fidelity-survey.md](design/twin-fidelity-survey.md). Batch 15's fo
   - **B16.5 membership:** D-1, D-2;
   - **B16.6 subscriptions:** C-S1 (the twin resets the trial);
   - **B16.7 clients:** A-C1, A-C2, A-C3;
-  - **B16.8 providers:** A-P3, A-P4 (with Postgres's unescaped `ILIKE`, a search for `_` matches every salon);
+  - **B16.8 providers:** A-P3, A-P4 (with Postgres's unescaped `ILIKE`, a search for `_` matches every salon). *A-P3's `query(q:)` half is A4-api's (2026-11-25, consumer-search.md §3.1); `listForAdmin(q:)` and A-P4 remain;*
   - **B16.9 reviews:** A-R1 (the `201` body's review id that does not exist), A-R2, A-R3;
   - **B16.10 disputes and the reminder log:** C-D1, D-3 (a reminder tick aborted by a booking deleted under it).
 - **B16.11 The test-only differences (P3 · decision 222).** Each fixed when its store is next touched, not in a sweep; listed in survey §3.2. One exception, its own small piece: the providers and provider-auth twins hand out their own maps, and tests rely on it (A-P6: 7 test sites; B-P1-c: 4 test files), so those tests are rewritten before the twins copy.

@@ -39,9 +39,13 @@ import 'package:myweli_backend/src/db/postgres_salon_subscription_repository.dar
 import 'package:myweli_backend/src/db/postgres_salon_validation_repository.dart';
 import 'package:myweli_backend/src/privacy/user_erasure_service.dart';
 import 'package:myweli_backend/src/provider_account_service.dart';
+import 'package:myweli_backend/src/providers_repository.dart'
+    show draftSalonDocument;
 import 'package:myweli_backend/src/salon_provisioning_service.dart';
 import 'package:myweli_backend/src/salon_time.dart';
 import 'package:myweli_backend/src/salon_visibility.dart';
+import 'package:myweli_backend/src/search_fold_table.dart';
+import 'package:myweli_backend/src/search_text.dart';
 import 'package:myweli_backend/src/storage/storage_service.dart';
 import 'package:myweli_backend/src/validation/salon_validation_repository.dart';
 import 'package:postgres/postgres.dart';
@@ -54,6 +58,7 @@ import '../auth/apple_token_repository_contract.dart';
 import '../auth/kyc_write_contract.dart';
 import '../idempotency/idempotency_contract.dart';
 import '../providers/profile_filters_contract.dart';
+import '../providers/search_contract.dart';
 import '../validation/salon_place_notice_contract.dart';
 import '../validation/salon_validation_contract.dart';
 import '../validation/validation_reads_contract.dart';
@@ -1540,6 +1545,136 @@ void main() {
         created: deleteOnTearDown,
       );
     });
+
+    // docs/design/consumer-search.md §8 (A4-api, decision 228): what a search
+    // finds. The same contract runs on the in-memory twin
+    // (`providers/search_test.dart`).
+    group('what a search finds — the twin contract', () {
+      searchContract(
+        repo: () => PostgresProvidersRepository(pool),
+        created: deleteOnTearDown,
+      );
+    });
+
+    // docs/design/consumer-search.md §3 (A4-api): the in-memory twin folds
+    // with a table copied from this database's `unaccent()`
+    // (tool/search_fold_table.dart). These two hold it to the database CI
+    // runs, so a table that drifts — or a PostgreSQL that changes its rules —
+    // fails here rather than making the twins disagree quietly.
+    // The contract's order case depends on where Postgres stores the rows,
+    // so it may pass without the tiebreak (it did, under mutation). Rows of
+    // the test's own, out of id order, sorted by the repository's own
+    // ORDER BY: without the id, a sort of ties keeps them as they came;
+    // without `COLLATE "C"`, en_US puts « a » before « B ».
+    test('kProviderDiscoveryOrder ends on the id, in byte order', () async {
+      final rows = await pool.execute(
+        "SELECT id FROM (VALUES ('b', false, 4.5::float8), "
+        "('a', false, 4.5::float8), ('x', true, 1.0::float8), "
+        "('B', false, 4.5::float8)) AS providers(id, featured, rating) "
+        'ORDER BY $kProviderDiscoveryOrder',
+      );
+      expect([for (final r in rows) r[0]], ['x', 'B', 'a', 'b']);
+      expect(['b', 'a', 'B']..sort(), [
+        'B',
+        'a',
+        'b',
+      ], reason: 'control: the in-memory twin sorts ids the same way');
+    });
+
+    test('kUnaccentFold is unaccent(), entry for entry, over every '
+        'code point', () async {
+      final rows = await pool.execute(
+        'SELECT n, unaccent(chr(n)) FROM generate_series(1, 1114111) n '
+        'WHERE n NOT BETWEEN 55296 AND 57343 AND unaccent(chr(n)) <> chr(n)',
+      );
+      final database = {
+        for (final row in rows) row[0]! as int: row[1]! as String,
+      };
+      expect(database.length, greaterThan(1000), reason: 'control: a table');
+      expect(kUnaccentFold, equals(database));
+    });
+
+    // The lower-case half. Over the whole BMP, Dart's `toLowerCase` leaves
+    // 186 characters upper case that this database lower-cases (PostgreSQL
+    // 16.14, read 2026-11-25): Cherokee, Georgian Mtavruli, Latin
+    // Extended-D, a few Cyrillic and Coptic letters. None is a letter of
+    // French or of the Latin alphabets of Côte d'Ivoire's languages (ɛ, ɔ, ŋ
+    // and their capitals are in the ranges below, and agree). So the sweep
+    // covers the scripts a salon's name is written in, and that limit is
+    // the in-memory twin's only: it never serves production.
+    test('searchableText is the SQL on every character of Latin, its '
+        'accents, white space, punctuation and full-width forms', () async {
+      final rows = await pool.execute(
+        Sql.named(
+          'SELECT n, lower(unaccent(regexp_replace(chr(n), '
+          "CAST(@spaces AS text), ' ', 'g'))) FROM ("
+          'SELECT generate_series(9, 13) n ' // tab … carriage return
+          'UNION ALL SELECT generate_series(32, 879) ' // Basic Latin … marks
+          'UNION ALL SELECT generate_series(7680, 7935) ' // Latin Ext. Add.
+          'UNION ALL SELECT generate_series(8192, 8303) ' // Gen. Punctuation
+          'UNION ALL SELECT unnest(ARRAY[5760, 12288, 65279]) ' // other spaces
+          'UNION ALL SELECT generate_series(65280, 65519)) c', // full-width
+        ),
+        parameters: {'spaces': kSearchSpaces},
+      );
+      expect(
+        rows.length,
+        5 + 848 + 256 + 112 + 3 + 240,
+        reason: 'control: the ranges',
+      );
+      final differ = <String>[];
+      for (final row in rows) {
+        final n = row[0]! as int;
+        final folded = searchableText(String.fromCharCode(n));
+        if (folded != row[1]) {
+          differ.add(
+            'U+${n.toRadixString(16).toUpperCase()}: Dart '
+            '«$folded», Postgres «${row[1]}»',
+          );
+        }
+      }
+      expect(differ, isEmpty, reason: differ.take(20).join('\n'));
+    });
+
+    // The order case of the contract cannot place ties out of id order (ids
+    // follow creation). Two rows written here, the higher id first: a scan
+    // meets it first, and a sort of ties keeps it there unless the ORDER BY
+    // that query() really runs ends on the id.
+    test(
+      'query() ends its order on the id: ties inserted out of id order',
+      () async {
+        final repo = PostgresProvidersRepository(pool);
+        Future<void> insert(String id) async {
+          final doc = draftSalonDocument(
+            id: id,
+            slug: id,
+            name: 'Salon Égalité Ordre',
+            category: 'salon',
+            phoneNumber: '+2250700001799',
+          )..['status'] = 'active';
+          await pool.execute(
+            Sql.named(
+              'INSERT INTO providers (id, slug, category, commune, rating, '
+              'name, description, address, status, data) VALUES (@id, @id, '
+              "'salon', NULL, 0, @name, '', '', 'active', @data:jsonb)",
+            ),
+            parameters: {
+              'id': id,
+              'name': doc['name'],
+              'data': jsonEncode(doc),
+            },
+          );
+          deleteOnTearDown(id);
+        }
+
+        await insert('zz-a4-order-b');
+        await insert('zz-a4-order-a');
+        expect(
+          [for (final p in await repo.query(q: 'egalite ordre')) p['id']],
+          ['zz-a4-order-a', 'zz-a4-order-b'],
+        );
+      },
+    );
 
     // docs/design/provider-category-column.md §8.2 (B16.1, decision 225):
     // migration 0050's statement, on the forms a salon document takes.
