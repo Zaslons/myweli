@@ -40,7 +40,7 @@ Today none of that is true (audit §2.1):
 - **Maquillage and Sourcils & cils as salon categories** (Q2).
 - **Recent searches and suggestions.**
 - **The map's location request and its Settings path** (gap 22's first half, A6).
-- **The category column on Postgres** (B16.1, the currency session's: spec #857 and fix #860 merged): until the fix is deployed, a salon that changed its category is filtered under its old one, on every surface.
+- **The category column on Postgres** (B16.1, the currency session's: spec #857, fix #860): **deployed 2026-11-25** (`myweli-api-00058-tnp`), and its read after found no salon whose column differs from its document (records #862).
 - **The website's own search flow** (B12.7: a typed commune that is not picked, « Coiffure » as text).
 
 ---
@@ -386,7 +386,7 @@ The drift the read found is fixed at the same time:
 2. **A4:** the app. Merging deploys nothing. **Its consumer build waits for A4-api in production** (Q7): the field's hint promises « prestation ou commune », and the empty state suggests searching a service. On today's server both would be false (A1's rule).
 3. **A4w** (decision 233). Its merge is a production deploy of `myweli.com`. The `nail` key (`web/lib/landing.ts:17`) was fixed in #861, with the `/onglerie` landing pages that read it.
 
-**B16.1** (the category column: spec #857 and fix #860 merged) is not a prerequisite for building A4, but its deploy is for the category chips to be right in production. Its session owns it.
+**B16.1** (the category column: spec #857, fix #860) is not a prerequisite for building A4; its deploy was for the category chips to be right in production, and it is done (2026-11-25, `myweli-api-00058-tnp`, records #862).
 
 **Not in V1 scope, recorded:** typo tolerance, recent searches, suggestions, Maquillage and Sourcils & cils as categories, a SQL `LIMIT`.
 
