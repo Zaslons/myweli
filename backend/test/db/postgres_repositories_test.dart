@@ -54,6 +54,7 @@ import '../auth/apple_token_repository_contract.dart';
 import '../auth/kyc_write_contract.dart';
 import '../idempotency/idempotency_contract.dart';
 import '../providers/profile_filters_contract.dart';
+import '../providers/search_contract.dart';
 import '../validation/salon_place_notice_contract.dart';
 import '../validation/salon_validation_contract.dart';
 import '../validation/validation_reads_contract.dart';
@@ -1536,6 +1537,16 @@ void main() {
     // only this run can see a column left behind.
     group('updateProfile reaches every filter — the twin contract', () {
       profileFiltersContract(
+        repo: () => PostgresProvidersRepository(pool),
+        created: deleteOnTearDown,
+      );
+    });
+
+    // docs/design/consumer-search.md §8 (A4-api, decision 228): what a search
+    // finds. The same contract runs on the in-memory twin
+    // (`providers/search_test.dart`).
+    group('what a search finds — the twin contract', () {
+      searchContract(
         repo: () => PostgresProvidersRepository(pool),
         created: deleteOnTearDown,
       );

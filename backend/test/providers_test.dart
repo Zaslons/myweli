@@ -51,6 +51,46 @@ void main() {
       expect(sortProviders(list, 'price').map((p) => p['id']), ['a', 'b', 'c']);
     });
 
+    // docs/design/consumer-search.md §3 (A4-api): every order ends on the
+    // id, so equal salons cannot change places between two pages.
+    test('rating: equal ratings come in id order', () {
+      final tied = [
+        {'id': 'z', 'rating': 4.0},
+        {'id': 'm', 'rating': 4.0},
+        {'id': 'x', 'rating': 4.8},
+        {'id': 'a', 'rating': 4.0},
+      ];
+      expect(sortProviders(tied, 'rating').map((p) => p['id']), [
+        'x',
+        'a',
+        'm',
+        'z',
+      ]);
+    });
+
+    test('price: equal prices, and salons with no price, come in id order', () {
+      Map<String, dynamic> priced(String id, num? price) => {
+        'id': id,
+        'services': [
+          if (price != null) {'price': price, 'active': true},
+        ],
+      };
+      final tied = [
+        priced('z', 5000),
+        priced('q', null),
+        priced('m', 5000),
+        priced('b', null),
+        priced('k', 3000),
+      ];
+      expect(sortProviders(tied, 'price').map((p) => p['id']), [
+        'k',
+        'm',
+        'z',
+        'b',
+        'q',
+      ]);
+    });
+
     test('relevance / unknown keeps the input order', () {
       expect(sortProviders(list, null).map((p) => p['id']), ['a', 'b', 'c']);
       expect(sortProviders(list, 'relevance').map((p) => p['id']), [
