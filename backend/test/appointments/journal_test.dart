@@ -493,6 +493,50 @@ void main() {
       },
     );
 
+    // docs/design/pro-revenue-analytics.md §8.1 (R1): a booking keeps the name
+    // of the collaborateur it is with, so its revenue stays theirs after they
+    // leave the roster. A drag to another column moves it to another
+    // collaborateur: the name moves with the id, in the same write.
+    test('a drag to another collaborateur keeps the new one’s name; a move '
+        'in time leaves it as it was', () async {
+      await providers.addArtist('provider1', {
+        'id': 'artist1',
+        'name': 'Awa',
+        'imageUrl': null,
+      });
+      await providers.addArtist('provider1', {
+        'id': 'artist2',
+        'name': 'Binta',
+        'imageUrl': null,
+      });
+      await seed(id: 'drag_name', artistId: 'artist1');
+      await appts.update('drag_name', {
+        'artistId': 'artist1',
+        'artistNameKept': 'Awa',
+      });
+
+      final dragged = await lifecycle.rescheduleByProvider(
+        'drag_name',
+        'provider1',
+        monday.add(const Duration(hours: 14)),
+        artistId: 'artist2',
+      );
+      expect(dragged.ok, isTrue, reason: 'error was ${dragged.error}');
+      expect(dragged.appointment!['artistId'], 'artist2');
+      expect(dragged.appointment!['artistNameKept'], 'Binta');
+      expect((await appts.byId('drag_name'))!['artistNameKept'], 'Binta');
+
+      // The control: a move in time names no collaborateur and writes no name.
+      final later = await lifecycle.rescheduleByProvider(
+        'drag_name',
+        'provider1',
+        monday.add(const Duration(hours: 9)),
+      );
+      expect(later.ok, isTrue, reason: 'error was ${later.error}');
+      expect(later.appointment!['artistId'], 'artist2');
+      expect(later.appointment!['artistNameKept'], 'Binta');
+    });
+
     test(
       'a taken target slot still 409s (the grid is never trusted)',
       () async {

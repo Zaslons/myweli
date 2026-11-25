@@ -30,13 +30,31 @@ void appointmentRepositoryContract({
   /// A salon of its own — never the shared, MUTABLE `seedProviders` entry —
   /// in a currency that is not XOF, so no XOF default or fallback can pass.
   /// A deposit is required so the deposit and balance are not both zero.
-  InMemoryProvidersRepository salon() {
+  ///
+  /// With [team], a roster of two (R1): the kept name has to come from
+  /// somewhere, and two names make a lookup of the wrong one visible. Empty
+  /// working hours inherit the salon's.
+  InMemoryProvidersRepository salon({bool team = false}) {
     final doc =
         jsonDecode(jsonEncode(seedProviders.first)) as Map<String, dynamic>
           ..['id'] = 'p_currency_contract'
           ..['slug'] = 'p-currency-contract'
           ..['currency'] = 'XAF'
           ..['depositRequired'] = true;
+    if (team) {
+      doc['artists'] = [
+        {
+          'id': 'artist-awa',
+          'name': 'Awa',
+          'workingHours': <String, dynamic>{},
+        },
+        {
+          'id': 'artist-binta',
+          'name': 'Binta',
+          'workingHours': <String, dynamic>{},
+        },
+      ];
+    }
     final services = (doc['services'] as List).cast<Map<String, dynamic>>();
     for (final s in services) {
       s['providerId'] = 'p_currency_contract';
@@ -205,6 +223,163 @@ void appointmentRepositoryContract({
     });
   });
 
+  // docs/design/pro-revenue-analytics.md §8.1–§8.2 (R1, decisions 241–243):
+  // what a booking keeps so a salon's revenue can be split by prestation,
+  // collaborateur and channel after the catalogue, the roster or a price has
+  // changed. On BOTH twins: the in-memory one keeps whatever it is handed, so
+  // only the Postgres run of this group can see a column go missing.
+  group('R1: a booking keeps its lines, its collaborateur’s name and its '
+      'channel', () {
+    BookingService service(
+      AppointmentRepository r,
+      InMemoryProvidersRepository p,
+    ) => BookingService(p, r, SlotService(p, r));
+
+    // The salon's prices and names when the booking was made: one line per
+    // entry of `serviceIds`, in the order booked — a duplicate is two lines.
+    const lines = [
+      {
+        'serviceId': 'service2',
+        'name': 'Soin du visage',
+        'price': 12000,
+        'durationMinutes': 60,
+      },
+      {
+        'serviceId': 'service1',
+        'name': 'Tresses',
+        'price': 15000,
+        'durationMinutes': 180,
+      },
+      {
+        'serviceId': 'service2',
+        'name': 'Soin du visage',
+        'price': 12000,
+        'durationMinutes': 60,
+      },
+    ];
+
+    /// Every read a booking comes back through, for [id] at [at].
+    Future<List<(String, Map<String, dynamic>?)>> reads(
+      AppointmentRepository r,
+      Map<String, dynamic>? created,
+      String id,
+    ) async => [
+      ('create', created),
+      ('byId', await r.byId(id)),
+      (
+        'listForProvider',
+        (await r.listForProvider('p_currency_contract')).single,
+      ),
+    ];
+
+    test('book: the lines in the order booked, the collaborateur’s name, and '
+        '« app »', () async {
+      final r = repo();
+      final res = await service(r, salon(team: true)).book(
+        userId: 'u_contract',
+        providerId: 'p_currency_contract',
+        serviceIds: const ['service2', 'service1', 'service2'],
+        appointmentDateTime: slot(),
+        artistId: 'artist-binta',
+      );
+      expect(res.ok, isTrue, reason: 'error was ${res.error}');
+      for (final (where, read) in await reads(
+        r,
+        res.appointment,
+        res.appointment!['id'] as String,
+      )) {
+        expect(read!['serviceLines'], lines, reason: '$where: the lines');
+        expect(read['artistNameKept'], 'Binta', reason: '$where: the name');
+        expect(read['channel'], 'app', reason: '$where: the channel');
+      }
+      // The invariant the revenue reads stand on: the lines add up to the
+      // price the client was quoted.
+      expect(
+        res.appointment!['totalPrice'],
+        lines.fold<num>(0, (s, l) => s + (l['price']! as num)),
+      );
+    });
+
+    test('book from the website: « web »', () async {
+      final r = repo();
+      final res = await service(r, salon()).book(
+        userId: 'u_contract',
+        providerId: 'p_currency_contract',
+        serviceIds: const ['service1'],
+        appointmentDateTime: slot(),
+        onWebsite: true,
+      );
+      expect(res.ok, isTrue, reason: 'error was ${res.error}');
+      for (final (where, read) in await reads(
+        r,
+        res.appointment,
+        res.appointment!['id'] as String,
+      )) {
+        expect(read!['channel'], 'web', reason: '$where: the channel');
+        expect(
+          read['artistNameKept'],
+          isNull,
+          reason: '$where: no collaborateur, no name',
+        );
+      }
+    });
+
+    test('bookManual: « salon », and the name of the collaborateur the salon '
+        'chose', () async {
+      final r = repo();
+      final res = await service(r, salon(team: true)).bookManual(
+        providerId: 'p_currency_contract',
+        serviceIds: const ['service2', 'service1', 'service2'],
+        appointmentDateTime: slot(),
+        artistId: 'artist-awa',
+        clientName: 'Awa',
+      );
+      expect(res.ok, isTrue, reason: 'error was ${res.error}');
+      for (final (where, read) in await reads(
+        r,
+        res.appointment,
+        res.appointment!['id'] as String,
+      )) {
+        expect(read!['serviceLines'], lines, reason: '$where: the lines');
+        expect(read['artistNameKept'], 'Awa', reason: '$where: the name');
+        expect(read['channel'], 'salon', reason: '$where: the channel');
+      }
+    });
+
+    // §3.3: « Sans collaborateur attribué » is `artistId` null. An empty
+    // string used to be stored as sent, and would have been a collaborateur
+    // with no name.
+    for (final kind in ['book', 'bookManual']) {
+      test('$kind: an empty collaborateur is stored as none', () async {
+        final r = repo();
+        final s = service(r, salon(team: true));
+        final res = kind == 'book'
+            ? await s.book(
+                userId: 'u_contract',
+                providerId: 'p_currency_contract',
+                serviceIds: const ['service1'],
+                appointmentDateTime: slot(),
+                artistId: '',
+              )
+            : await s.bookManual(
+                providerId: 'p_currency_contract',
+                serviceIds: const ['service1'],
+                appointmentDateTime: slot(),
+                artistId: '',
+              );
+        expect(res.ok, isTrue, reason: 'error was ${res.error}');
+        for (final (where, read) in await reads(
+          r,
+          res.appointment,
+          res.appointment!['id'] as String,
+        )) {
+          expect(read!['artistId'], isNull, reason: '$where: artistId');
+          expect(read['artistNameKept'], isNull, reason: '$where: the name');
+        }
+      });
+    }
+  });
+
   test('the currency is immutable: an update naming it is refused, and the '
       'stamp stays', () async {
     final r = repo();
@@ -227,14 +402,14 @@ void appointmentRepositoryContract({
 
   // docs/design/appointment-twin-update.md §8.1–§8.3 (decisions 214, 216).
   // In memory, `update` wrote any key and any value and handed out its own
-  // maps; Postgres writes six keys, ignores the rest without a word, rejects
+  // maps; Postgres writes six keys (seven since R1), ignores the rest without a word, rejects
   // some values, and builds a fresh map on every read. Each test below holds
   // BOTH twins to the same answer.
   group('update writes only what Postgres writes', () {
     const id = 'a_twin';
     final at = DateTime.utc(2030, 6, 25, 9);
 
-    test('the five readable keys round-trip (the control)', () async {
+    test('the readable keys round-trip (the control)', () async {
       final moved = at.add(const Duration(days: 1));
       final cases = <String, Map<String, dynamic>>{
         'status': {'status': 'confirmed'},
@@ -250,6 +425,9 @@ void appointmentRepositoryContract({
           'arrivedAt': at.add(const Duration(minutes: 5)).toIso8601String(),
         },
         'artistId': {'artistId': 'artist-a'},
+        // R1 (pro-revenue-analytics.md §8.1): a reassignment keeps the new
+        // collaborateur's name with the id, in the same write.
+        'artistNameKept': {'artistId': 'artist-a', 'artistNameKept': 'Awa'},
       };
       var n = 0;
       for (final MapEntry(key: key, value: changes) in cases.entries) {
@@ -286,6 +464,17 @@ void appointmentRepositoryContract({
         'totalPrice': 1,
         'providerId': 'provider2',
         'madeUpKey': 'x',
+        // R1: what the booking was sold as, and where, never change — like
+        // `currency` (pro-revenue-analytics.md §8.1).
+        'serviceLines': [
+          {
+            'serviceId': 'service1',
+            'name': 'Tresses',
+            'price': 1,
+            'durationMinutes': 30,
+          },
+        ],
+        'channel': 'web',
       };
       var n = 0;
       for (final MapEntry(:key, :value) in foreign.entries) {
@@ -334,6 +523,17 @@ void appointmentRepositoryContract({
           'status': 'confirmed',
         },
         'artistId: 7': {'artistId': 7, 'status': 'confirmed'},
+        'artistNameKept: 7': {
+          'artistId': 'artist-a',
+          'artistNameKept': 7,
+          'status': 'confirmed',
+        },
+        // R1: a name without the id it names would leave a booking under one
+        // collaborateur and its revenue under another.
+        'artistNameKept without artistId': {
+          'artistNameKept': 'Awa',
+          'status': 'confirmed',
+        },
       };
       var n = 0;
       for (final MapEntry(key: label, value: changes) in bad.entries) {

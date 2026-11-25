@@ -35,8 +35,9 @@ abstract interface class AppointmentRepository {
   ///
   /// **Only the keys of [kAppointmentUpdatableKeys], with values Postgres can
   /// store** — anything else throws [ArgumentError] before any write, in both
-  /// twins ([checkAppointmentChanges]). `currency` is not among them: the
-  /// stamp is immutable. `endsAt` is written and never read back.
+  /// twins ([checkAppointmentChanges]). `currency`, `serviceLines` and
+  /// `channel` are not among them: what a booking was sold as, for how much
+  /// and where, is immutable. `endsAt` is written and never read back.
   ///
   /// Postgres also returns null when a reschedule lands on a slot a
   /// concurrent request just took (the exclusion constraint, 23P01). The
@@ -84,10 +85,16 @@ abstract interface class AppointmentRepository {
   );
 }
 
-/// The keys [AppointmentRepository.update] writes: exactly the six the
+/// The keys [AppointmentRepository.update] writes: exactly the seven the
 /// Postgres `SET` builder knows. Both twins read this set.
 ///
-/// Design: docs/design/appointment-twin-update.md §5.1 (decision 214).
+/// `artistNameKept` is the collaborateur's name kept with the booking (R1),
+/// accepted only together with `artistId` ([checkAppointmentChanges]): a
+/// reassignment writes both, so a booking's revenue is never filed under a
+/// collaborateur it is no longer with.
+///
+/// Design: docs/design/appointment-twin-update.md §5.1 (decision 214);
+/// docs/design/pro-revenue-analytics.md §8.1.
 const Set<String> kAppointmentUpdatableKeys = {
   'status',
   'appointmentDate',
@@ -95,6 +102,7 @@ const Set<String> kAppointmentUpdatableKeys = {
   'depositScreenshotUrl',
   'arrivedAt',
   'artistId',
+  'artistNameKept',
 };
 
 /// Throws [ArgumentError] for a key outside [kAppointmentUpdatableKeys], or a
@@ -129,11 +137,25 @@ void checkAppointmentChanges(Map<String, dynamic> changes) {
     final v = changes['arrivedAt'];
     if (v != null && !isInstant(v)) refuse('arrivedAt');
   }
-  for (final key in const ['depositScreenshotUrl', 'artistId']) {
+  for (final key in const [
+    'depositScreenshotUrl',
+    'artistId',
+    'artistNameKept',
+  ]) {
     if (changes.containsKey(key)) {
       final v = changes[key];
       if (v != null && v is! String) refuse(key);
     }
+  }
+  // A name without the id it names would leave the booking with one
+  // collaborateur and its revenue with another (pro-revenue-analytics.md §8.1).
+  if (changes.containsKey('artistNameKept') &&
+      !changes.containsKey('artistId')) {
+    throw ArgumentError.value(
+      changes['artistNameKept'],
+      'artistNameKept',
+      'written only together with artistId',
+    );
   }
 }
 

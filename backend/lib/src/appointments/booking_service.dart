@@ -12,6 +12,44 @@ import 'appointment_repository.dart';
 import 'booking_window.dart';
 import 'slot_service.dart';
 
+/// The header the website's booking BFF sends with a client's booking
+/// (`web/lib/bff.ts`, R0w). Header names are case-insensitive.
+const String kBookingChannelHeader = 'x-myweli-channel';
+
+/// Whether a client's booking was made on the website: its request said
+/// exactly `web` in [kBookingChannelHeader]. Anything else — absent, `WEB`,
+/// `salon` — is the app. The header is the client's word, so it only ever
+/// labels the salon's own statistics, and never `salon`; it is never used to
+/// authorise anything (threat T85; docs/design/pro-revenue-analytics.md §8.2).
+bool bookedOnWebsite(String? header) => header == 'web';
+
+/// One line of a booking (R1): what [service] was sold as when it was booked
+/// — its name, price and duration then, kept with the booking so the salon's
+/// revenue by prestation survives a later rename, price change or deletion
+/// (docs/design/pro-revenue-analytics.md §8.1).
+Map<String, dynamic> _line(String serviceId, Map<String, dynamic> service) => {
+  'serviceId': serviceId,
+  'name': service['name'],
+  'price': (service['price'] as num).toDouble(),
+  'durationMinutes': (service['durationMinutes'] as num?)?.toInt() ?? 0,
+};
+
+/// The roster name of [artistId] in [provider], kept with the booking (R1),
+/// or null with no collaborateur or one not on the roster.
+String? _artistName(Map<String, dynamic> provider, String? artistId) {
+  if (artistId == null) return null;
+  for (final a in (provider['artists'] as List?) ?? const []) {
+    final m = a as Map<String, dynamic>;
+    if (m['id'] == artistId) return m['name'] as String?;
+  }
+  return null;
+}
+
+/// « Sans collaborateur attribué » is null: an empty id used to be stored as
+/// sent, a collaborateur with no name (pro-revenue-analytics.md §3.3).
+String? _artistOrNone(String? artistId) =>
+    (artistId == null || artistId.isEmpty) ? null : artistId;
+
 /// Outcome of a booking attempt.
 typedef BookingResult = ({
   bool ok,
@@ -72,10 +110,14 @@ class BookingService {
     String? artistId,
     String? notes,
     String? depositScreenshotUrl,
+    // From the website's booking BFF ([bookedOnWebsite]): stamped `web`,
+    // else `app`. Only the client's own route reads it.
+    bool onWebsite = false,
   }) async {
     if (serviceIds.isEmpty) {
       return (ok: false, error: 'no_services', appointment: null);
     }
+    final artist = _artistOrNone(artistId);
     // **The deposit proof is a CLAIM, and it was never treated as one.** This
     // field arrived as an opaque string and went straight into the column, from
     // where `DepositService.screenshotUrl` presigns it for the consumer, the
@@ -137,6 +179,7 @@ class BookingService {
         .cast<Map<String, dynamic>>();
     var total = 0.0;
     var durationMinutes = 0;
+    final lines = <Map<String, dynamic>>[];
     for (final id in serviceIds) {
       Map<String, dynamic>? service;
       for (final s in services) {
@@ -151,6 +194,7 @@ class BookingService {
       }
       total += (service['price'] as num).toDouble();
       durationMinutes += (service['durationMinutes'] as num?)?.toInt() ?? 0;
+      lines.add(_line(id, service));
     }
     if (durationMinutes <= 0) durationMinutes = 30; // safety floor
 
@@ -200,7 +244,7 @@ class BookingService {
       providerId: providerId,
       date: appointmentDateTime,
       serviceIds: serviceIds,
-      artistId: artistId,
+      artistId: artist,
     );
     if (!slotResult.ok) {
       return (ok: false, error: slotResult.error, appointment: null);
@@ -248,7 +292,7 @@ class BookingService {
       'userId': userId,
       'providerId': providerId,
       'serviceIds': serviceIds,
-      'artistId': artistId,
+      'artistId': artist,
       'appointmentDate': appointmentDateTime.toUtc().toIso8601String(),
       'durationMinutes': durationMinutes,
       'status': 'pending',
@@ -262,6 +306,10 @@ class BookingService {
       'notes': notes,
       'depositScreenshotUrl': screenshotKey,
       'createdAt': DateTime.now().toUtc().toIso8601String(),
+      // R1 (pro-revenue-analytics.md §8.1): immutable, like `currency`.
+      'serviceLines': lines,
+      'artistNameKept': _artistName(provider, artist),
+      'channel': onWebsite ? 'web' : 'app',
     };
     final created = await _appointments.create(appointment);
     if (created == null) {
@@ -294,6 +342,7 @@ class BookingService {
     if (serviceIds.isEmpty) {
       return (ok: false, error: 'no_services', appointment: null);
     }
+    final artist = _artistOrNone(artistId);
     final provider = await _providers.byId(providerId);
     if (provider == null) {
       return (ok: false, error: 'provider_not_found', appointment: null);
@@ -320,6 +369,7 @@ class BookingService {
         .cast<Map<String, dynamic>>();
     var total = 0.0;
     var durationMinutes = 0;
+    final lines = <Map<String, dynamic>>[];
     for (final id in serviceIds) {
       Map<String, dynamic>? service;
       for (final s in services) {
@@ -333,6 +383,7 @@ class BookingService {
       }
       total += (service['price'] as num).toDouble();
       durationMinutes += (service['durationMinutes'] as num?)?.toInt() ?? 0;
+      lines.add(_line(id, service));
     }
     if (durationMinutes <= 0) durationMinutes = 30; // safety floor
 
@@ -344,7 +395,7 @@ class BookingService {
       'userId': 'manual', // walk-in / phone client — no app account
       'providerId': providerId,
       'serviceIds': serviceIds,
-      'artistId': artistId,
+      'artistId': artist,
       'appointmentDate': appointmentDateTime.toUtc().toIso8601String(),
       'durationMinutes': durationMinutes,
       'status': 'confirmed', // salon-entered → confirmed, no client step
@@ -358,6 +409,11 @@ class BookingService {
       'notes': notes,
       'depositScreenshotUrl': null,
       'createdAt': DateTime.now().toUtc().toIso8601String(),
+      // R1 (pro-revenue-analytics.md §8.1): the salon's own entry is
+      // `salon`, whatever its request says.
+      'serviceLines': lines,
+      'artistNameKept': _artistName(provider, artist),
+      'channel': 'salon',
     };
     final created = await _appointments.create(appointment);
     if (created == null) {

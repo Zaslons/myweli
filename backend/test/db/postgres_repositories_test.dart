@@ -261,9 +261,9 @@ void main() {
     // docs/design/appointment-twin-update.md §8.4: every key `update` may
     // write reaches its column, read back with SQL rather than through the
     // DTO, which is the only way to see `ends_at` (written, never read back).
-    // The six keys are spelled out here, not taken from the set the fix
+    // The seven keys (six, and R1's kept name) are spelled out here, not taken from the set the fix
     // adds, so this test pins the set independently.
-    test('update: each of the six keys reaches its column', () async {
+    test('update: each of the seven keys reaches its column', () async {
       final repo = PostgresAppointmentRepository(pool);
       // (key, column, the changes for a booking at [slot], the column's
       // expected value). Each change is built from the booking's own slot,
@@ -325,6 +325,13 @@ void main() {
               'artist_id',
               (_) => {'artistId': 'artist-a'},
               (_) => 'artist-a',
+            ),
+            // R1 (pro-revenue-analytics.md §8.1): only ever with `artistId`.
+            (
+              'artistNameKept',
+              'artist_name_kept',
+              (_) => {'artistId': 'artist-a', 'artistNameKept': 'Awa'},
+              (_) => 'Awa',
             ),
           ];
       var n = 0;
@@ -497,6 +504,115 @@ void main() {
           parameters: {'at': when},
         ),
         throwsA(isA<ServerException>().having((e) => e.code, 'code', '23502')),
+      );
+    });
+
+    // docs/design/pro-revenue-analytics.md §8.1, §19 (R1). Production stores
+    // `service_ids` as a JSON *string* inside jsonb: it is `jsonEncode`d and
+    // then handed to a `:jsonb` parameter, which encodes it again. The lines
+    // are the list itself, so SQL can read them as an array — R2's
+    // aggregates do. Read with SQL, because `_toDto` hides the difference.
+    group('R1: the booking’s lines, kept name and channel', () {
+      Map<String, dynamic> r1Map(String id, DateTime at) => {
+        ...apptMap(id: id, when: at, artistId: 'artist-a'),
+        'serviceLines': [
+          {
+            'serviceId': 'service1',
+            'name': 'Tresses',
+            'price': 15000.0,
+            'durationMinutes': 180,
+          },
+        ],
+        'artistNameKept': 'Awa',
+        'channel': 'web',
+      };
+
+      test('the lines are stored as a JSON array, the name and the channel '
+          'as written', () async {
+        final repo = PostgresAppointmentRepository(pool);
+        expect(await repo.create(r1Map('r1_cols', when)), isNotNull);
+        final row = (await pool.execute(
+          "SELECT jsonb_typeof(service_lines) AS lines_type, "
+          'jsonb_array_length(service_lines) AS lines, '
+          "service_lines -> 0 ->> 'name' AS first_name, "
+          'artist_name_kept, channel, '
+          'jsonb_typeof(service_ids) AS ids_type '
+          "FROM appointments WHERE id = 'r1_cols'",
+        )).single.toColumnMap();
+        // The control: the same INSERT's `service_ids` is a string — the
+        // probe tells the two forms apart.
+        expect(row['ids_type'], 'string', reason: 'the control');
+        expect(row['lines_type'], 'array', reason: 'lines stored as a string');
+        expect(row['lines'], 1);
+        expect(row['first_name'], 'Tresses');
+        expect(row['artist_name_kept'], 'Awa');
+        expect(row['channel'], 'web');
+      });
+
+      test(
+        'each column is refused a value R2 could not read (23514)',
+        () async {
+          Future<void> insert(String id, String column, String value) =>
+              pool.execute(
+                Sql.named(
+                  'INSERT INTO appointments (id, user_id, provider_id, '
+                  'service_ids, appointment_date, status, total_price, '
+                  'currency, $column) VALUES (@id, \'u1\', \'provider1\', '
+                  "'[]', @at, 'confirmed', 1000, 'XOF', $value)",
+                ),
+                parameters: {
+                  'id': id,
+                  'at': when.add(Duration(hours: id.length)),
+                },
+              );
+          // The controls: a value of each kind the writer sends is accepted.
+          await insert('ok_ch', 'channel', "'salon'");
+          await insert('ok_lines', 'service_lines', "'[]'::jsonb");
+          for (final (id, column, value) in [
+            ('bad_ch', 'channel', "'Web'"),
+            ('bad_ch2', 'channel', "'online'"),
+            ('bad_lines', 'service_lines', "'\"[]\"'::jsonb"),
+            ('bad_lines2', 'service_lines', "'{}'::jsonb"),
+          ]) {
+            await expectLater(
+              insert(id, column, value),
+              throwsA(
+                isA<ServerException>().having((e) => e.code, 'code', '23514'),
+              ),
+              reason: '$column = $value was stored',
+            );
+          }
+        },
+      );
+
+      // Rollback safety (§8.1): an image from before R1 names none of the
+      // three columns in its INSERT. They stay NULL — « made before R1 » —
+      // and this image reads them as null, never as a value.
+      test(
+        'a booking written by an older image reads as made before R1',
+        () async {
+          // The columns the INSERT before R1 names, the three left out.
+          await pool.execute(
+            Sql.named(
+              'INSERT INTO appointments (id, user_id, provider_id, '
+              'service_ids, artist_id, appointment_date, duration_minutes, '
+              "ends_at, status, total_price, currency) VALUES ('r1_old', "
+              "'u1', 'provider1', '[\"service1\"]', 'artist-a', @at, 30, "
+              "@ends, 'confirmed', 15000, 'XOF')",
+            ),
+            parameters: {
+              'at': when,
+              'ends': when.add(const Duration(minutes: 30)),
+            },
+          );
+          final read = (await PostgresAppointmentRepository(
+            pool,
+          ).byId('r1_old'))!;
+          expect(read['serviceLines'], isNull);
+          expect(read['artistNameKept'], isNull);
+          expect(read['channel'], isNull);
+          expect(read['serviceIds'], ['service1'], reason: 'the control');
+        },
       );
     });
 

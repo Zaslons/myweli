@@ -167,6 +167,9 @@ Future<Response> _book(RequestContext context, String userId) async {
     artistId: artistId,
     notes: notes,
     depositScreenshotUrl: depositScreenshotUrl,
+    // The website's booking BFF says so (R0w); stamped `web`, else `app`.
+    // Labels the salon's own statistics only — never authz (T85).
+    onWebsite: bookedOnWebsite(context.request.headers[kBookingChannelHeader]),
   );
   if (!result.ok) {
     // **Written FIRST this time.** Not reachable on this branch — it becomes so
