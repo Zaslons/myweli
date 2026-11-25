@@ -15,4 +15,5 @@
     - trois contrats sur les deux doubles, rouges d’abord, quatorze mutations.
   - **Relue une fois par un lecteur indépendant, chargé de la réfuter contre le code :** chaque référence de ligne juste, sauf « cinq tables » (quatre). Un bloquant intégré : la mutation qui saute la suppression ne pouvait pas échouer sur une assertion, l’identifiant d’une prestation étant une clé primaire globale. Huit corrections, dont le refus d’un cliché inapplicable, l’« INSERT » simple, jamais un upsert (une prestation d’un autre salon ne peut pas être reprise), et la lecture de production qui décode `data` sous ses deux formes.
   - **Cinq questions** (décisions 250–254), dont une lecture de production en lecture seule avant le déploiement : une réinitialisation corrigée défait aussi ce qui a été préparé après la capture du 2026-10-14.
-  - **Reste :** les réponses, puis la fusion, chacune sur le mot du propriétaire.
+  - **Approuvée le 2026-11-25 :** les cinq réponses d’un coup, « Approve as recommended », décisions 250–254 dans le BACKLOG (lot 16). Noté en même temps : la décision 249 (les revenus, B17 R2) enrichit l’agenda régénéré, dans le même fichier ; celle des deux constructions qui vient en second intègre l’autre.
+  - **Reste :** la fusion, sur le mot du propriétaire ; puis B16.2, construit dans sa propre PR, sur le mot du propriétaire.

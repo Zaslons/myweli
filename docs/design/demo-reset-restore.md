@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Module** | backend: the store-review demo (`DemoResetService`, the demo snapshot store) and `providers` (one new writer, `replaceServices`) |
-| **Status** | **Draft 2026-11-25.** The five questions of §11 are open (decisions 250–254). Nothing is built. |
+| **Status** | **Approved 2026-11-25.** The owner answered the five questions of §11 at once, « Approve as recommended »: decisions 250–254 in BACKLOG, batch 16 (#865). Nothing is built. The build, the read before the deploy and the deploy, each on the owner's word. |
 | **Owner** | the project owner: the answers, the build's go, the merge, the read before the deploy, the deploy and the read after it, each on the owner's word |
 | **Last updated** | 2026-11-25 |
 | **PRD ref / phase** | the store-review account (threat T69) · V1 |
@@ -26,7 +26,7 @@
 - the reset's test, run on both twins (decision 223).
 
 **Out of scope:**
-- the rest of the reset, unchanged: the agenda and client-book wipe, the regenerated agenda, the offer pin, the KYC erasure;
+- the rest of the reset, unchanged: the agenda and client-book wipe, the regenerated agenda, the offer pin, the KYC erasure. The regenerated agenda's data changes separately: decision 249 (revenue analytics, B17 R2) seeds past completed bookings across collaborateurs and prestations, in the same file. Whichever is built second merges the other. That agenda reads the services and artists this spec restores;
 - the demo account's own settings a reviewer can change and no reset restores: its notification preferences (`PUT /me/notification-preferences`) and its device registrations (`POST /me/devices`);
 - C-D1, the disputes a wipe cascades away in Postgres and keeps in memory: the disputes group of batch 16;
 - the images a reviewer uploads, which a restore stops pointing at (§12).
@@ -320,28 +320,28 @@ All of §8.1 green on both twins. The existing `demo_reset_test.dart` stays gree
 
 ---
 
-## 11. Questions for the owner
+## 11. Questions for the owner — answered 2026-11-25, « Approve as recommended » (decisions 250–254)
 
 Numbered from **250**, after the revenue analytics spec's 237–249.
 
 **Q1. How does the reset put the services back?**
-- **Recommended: a new writer, `replaceServices`,** used only by the reset: one transaction, the snapshot's list in its order, never taking another salon's service, with a contract on both twins (§5.2).
+- **Recommended: a new writer, `replaceServices`,** used only by the reset: one transaction, the snapshot's list in its order, never taking another salon's service, with a contract on both twins (§5.2). → ✅ **Decision 250.**
 - Or the existing service writers, diffed: no new writer, but not atomic, and a curated service a reviewer deleted comes back last.
 
 **Q2. What should the reset leave alone?**
-- **Recommended: `featured` and the two ratings, with `id`, `slug` and `status` as today** (§5.1). `featured` is the admin's flag; the ratings are computed from the reviews, which the reset keeps.
+- **Recommended: `featured` and the two ratings, with `id`, `slug` and `status` as today** (§5.1). `featured` is the admin's flag; the ratings are computed from the reviews, which the reset keeps. → ✅ **Decision 251.**
 - Or restore the ratings too, through `updateRatings`, so column and document agree, though not with the reviews.
 
 **Q3. Before/after pairs a reviewer adds?**
-- **Recommended: restored through their own writer,** to the snapshot's pairs or none, with the key guard of §8.4.
+- **Recommended: restored through their own writer,** to the snapshot's pairs or none, with the key guard of §8.4. → ✅ **Decision 252.**
 - Or left as today: a reviewer's pairs stay until the owner recaptures.
 
 **Q4. Read production before the deploy?**
-- **Recommended: yes,** read-only, after the build and before the deploy (§9 step 2). A fixed reset undoes any change made since the 2026-10-14 capture, a reviewer's or yours alike; the read shows whether there is one, and you choose whether to recapture first.
+- **Recommended: yes,** read-only, after the build and before the deploy (§9 step 2). A fixed reset undoes any change made since the 2026-10-14 capture, a reviewer's or yours alike; the read shows whether there is one, and you choose whether to recapture first. → ✅ **Decision 253.**
 - Or deploy without reading, and let the first fixed reset restore the 2026-10-14 snapshot whatever has changed since.
 
 **Q5. When?**
-- **Recommended: build now as one backend PR, on your word;** then Q4's read, then the deploy, each on your word.
+- **Recommended: build now as one backend PR, on your word;** then Q4's read, then the deploy, each on your word. → ✅ **Decision 254.**
 - Or after B16.3 (a taken email), the third of decision 219's defects.
 
 ---
@@ -387,3 +387,4 @@ Numbered from **250**, after the revenue analytics spec's 237–249.
     - m2 red on both twins;
     - the timezone order made observable (m11);
     - two more mutations (m12, m14) and the shape check's (m13).
+- **2026-11-25, answered:** « Approve as recommended », all five (decisions 250–254, batch 16 in the BACKLOG). Recorded at the same time: decision 249 (revenue analytics) changes the regenerated agenda in the same file (§1).
