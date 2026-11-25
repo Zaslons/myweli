@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Module** | web: the public salon page (`app/[slug]`), a new `middleware.ts`, one live-rendered route, the build's salon list; a scheduled production check. No backend change, no contract change. |
-| **Status** | **Approved 2026-11-25.** The owner answered « Approve as recommended »: decisions 255–258 in BACKLOG, batch 18 (#870). Decision 259 has no recommendation and is asked again. B18.1 is built in its own PR, stacked on #870; its merge (a production web deploy) and the read after it, each on the owner's word. |
+| **Status** | **Built 2026-11-25, not merged** (`feat/web-salon-page-live-fallback`; §13). Approved the same day, « Approve as recommended »: decisions 255–258 in BACKLOG, batch 18 (#870). Decision 259 has no recommendation and is asked again. The merge (a production web deploy) and the read after it (§9), each on the owner's word. |
 | **Owner** | the project owner: the answers, the build's go, the merge, the read after it |
 | **Last updated** | 2026-11-25 |
 | **PRD ref / phase** | the public salon page (web M1, [web-m1-backend-glue.md](web-m1-backend-glue.md)) and discovery ([web-discovery-map.md](web-discovery-map.md)) · V1 |
@@ -309,3 +309,51 @@ Also taken from the review:
 - the route-list test against Next's own manifest, not the same scan.
 
 Each claim used here was re-read in the code by the author before it was taken. Confirmed by the review: redirects before middleware; `_rsc` and prefetch requests run the middleware; the rewrite works for both the HTML and the RSC request, with the navigation staying client-side; `usePathname` returns the browser path under `next start`; no routing conflict for `app/recherche/salon/[slug]`; every `NOT_FOUND_PATHS` row and the reserver's 307 keep working.
+
+---
+
+## 13. Build record (2026-11-25, `feat/web-salon-page-live-fallback`)
+
+**What was built** is §3 as written, with the details §3.1 and §8 now carry:
+- the route list comes from `next.config.mjs`, not the prebuild;
+- `staticSalonSlugs` refuses a production build without its prebuild;
+- the stub counts by-slug reads for cases 5b and 7;
+- case 2 is split, because a search card is a plain `<a>`.
+
+**Red first, on the code before the fix** (a throwaway worktree of the spec branch, with only the new spec and the stub copied in): e2e cases 1, 2a, 2b, 3, 6 and 8 failed for the stated reason. Case 1 answered 404. Cases 2a, 2b and 6 found « Page introuvable » as the heading. Case 3 got a 404 for `/salon-juste-valide`. Case 8 found no middleware in the manifest. Cases 4, 5b and 7 passed there: they guard the new code, and their red is the mutations below.
+
+**Green with the fix:**
+- the new spec and `served-html.spec.ts`: 32 passed;
+- web unit: 229 files, 3,322 tests;
+- lint and typecheck clean;
+- `backend/test/infra/production_alarm_test.dart`: 15 passed.
+
+**Mutations watched red** (each applied with an asserted change, on committed work, restored with a clean-tree check):
+- **unit:**
+  - the rewrite deleted;
+  - rewrite on any status;
+  - the API asked about built salons;
+  - the matcher back to `'/:slug'`;
+  - the matcher's second entry dropped;
+  - `cgu` dropped from the route list;
+  - `generateStaticParams` reading the API again;
+  - both catches removed;
+  - the prebuild swallowing an unreadable list;
+  - a production build without its prebuild accepted;
+  - the live route not hidden;
+  - the check following redirects;
+  - the check counting a live page as static;
+  - the check skipping the build window;
+- **backend test:** `salonpages` left out of the alarm's `needs`;
+- **e2e, on a real build each:**
+  - the matcher's second entry dropped → case 4: `/recherche/salon/beaute-divine` answered 200;
+  - `cgu` dropped from the route list → case 7: « /cgu made the middleware ask the API », 0 → 1. The unit test for that mutation reads the same `app/` scan; this one reads Next's own manifest.
+
+**Found while building:**
+- `@next/env` is CommonJS: a named ESM import fails at load.
+- The production check's first dry run against production printed nothing and exited 0. A hand-built `file://${argv[1]}` never equals `import.meta.url` in a path with a space. Fixed with `pathToFileURL`. Then: 1 public salon, `/test-3`, static.
+- Two test faults, corrected before counting anything:
+  - a verified salon's heading also holds « ✔ Vérifié »;
+  - the header carries the salon's own `/<slug>/reserver`.
+
+**Not verified here:** anything on Vercel itself (§9 reads it after the deploy) and the middleware quota (the Vercel console).
