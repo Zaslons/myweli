@@ -3,9 +3,9 @@
 | | |
 |---|---|
 | **Module** | backend: `providers` (the Postgres repository's `updateProfile`, one migration) |
-| **Status** | **Approved 2026-11-24.** The owner answered the four questions of §11 at once, « Approve as recommended »: decisions 224–227 in BACKLOG, batch 16 (#857). **B16.1 built 2026-11-24** (§8.8), on the owner's « Yes, build B16.1 », in its own backend PR, #860; not merged. The merge, the deploy and the read after, each on the owner's word. |
+| **Status** | **Approved 2026-11-24.** The owner answered the four questions of §11 at once, « Approve as recommended »: decisions 224–227 in BACKLOG, batch 16 (#857). **B16.1 built 2026-11-24** (§8.8), on the owner's « Yes, build B16.1 », in its own backend PR, #860; **merged 2026-11-24** (`27de3e80`), **deployed 2026-11-25** (`myweli-api-00058-tnp`), and **read after**: no salon's column differs, `0050` applied (§9.1), each on the owner's word. **Done.** |
 | **Owner** | the project owner: the answers, the build's go, the merge, the deploy and the read after it, each on the owner's word |
-| **Last updated** | 2026-11-24 |
+| **Last updated** | 2026-11-25 |
 | **PRD ref / phase** | FR-DISC (discovery by category) · V1 |
 | **ROADMAP entry** | [2026-11-24-provider-category-column-spec.md](../roadmap/entries/2026-11-24-provider-category-column-spec.md) |
 | **Skills checked** | myweli-dev-guardrails · myweli-backend-guardrails · myweli-verification-guardrails · [BACKEND.md](../BACKEND.md) §1, §5 (decision 223) |
@@ -213,7 +213,7 @@ Branch `fix/b16-1-category-column` from `main` (`257f62d9`). Two commits: the te
   - **The coverage test is red before the fix,** where §8.1 said green before and after: the red commit names the constant with its four columns, so the test sees `category` missing. Stricter, and it is the mutation m1 at rest.
   - **The migration test runs in one transaction, rolled back at the end,** instead of `draft` rows deleted in `addTearDown` (the review offered both, §13): its rows, an unreadable document among them, are never visible to another test file running against the same database.
   - **The SQL ends with a parenthesis** (`(d.doc ->> 'category')`), because Dart's `'''` cannot close right after a quote.
-- **Found by the Onglerie session (2026-11-24), not here:** §12's « a nail salon never gets an area landing page or a sitemap entry » is wrong. Area pages and sitemap entries come from the locality tree since 2026-08-20/21; they exist and list no salon. That session corrects §12 in its own PR.
+- **Found by the Onglerie session (2026-11-24), not here:** §12's « a nail salon never gets an area landing page or a sitemap entry » is wrong. Area pages and sitemap entries come from the locality tree since 2026-08-20/21; they exist and list no salon. That session corrected §12 in its own PR (#861).
 - The throwaway local databases were dropped.
 
 ---
@@ -229,6 +229,28 @@ Branch `fix/b16-1-category-column` from `main` (`257f62d9`). Two commits: the te
 **Rollback.** Safe: no schema change. An older image stops syncing the column again, so a category changed while it serves drifts again, and the migration will not rerun after the roll-forward (its id is recorded). DEPLOYMENT.md's rollback section gains one line: after rolling forward, run §2.4's read, and if a salon differs, run `kProviderCategoryFromDocument` by hand in Cloud SQL Studio.
 
 **Residual.** During a deploy, the old revision can still answer a profile change after the new one's migration ran. That category drifts until the constant is run by hand; it never runs again by itself. Step 3's read is taken once the old revision no longer serves, so it shows any such row.
+
+### 9.1 As run (2026-11-24 and 2026-11-25)
+
+- **Merged 2026-11-24** (#860, `27de3e80`, 23:17 UTC, on the owner's « Yes, merge it »); `main`'s tree is the tested head's. The push run built image `27de3e8` and deployed nothing (staging is absent). CI on `main` is green on `cb347ae3`, which contains it; the run on `27de3e80` itself was cancelled by that next push.
+- **Deployed 2026-11-25** (01:18–01:21 UTC), on the owner's « Yes, deploy it »: `deploy-backend.yml` run 45524717431, `image_tag=27de3e8`, the existing image promoted (`sha256:6160d249…`), nothing rebuilt. Between `00057-pg2`'s image (`d0ec754`) and this one, the backend gained B15.1 (#853) and B16.1 (#860), nothing else; `0050` is the only new migration.
+  - `status.traffic`: `myweli-api-00058-tnp`, 100 %, `latestRevision`; labelled `commit: 27de3e8`, Ready, image `…/api@sha256:5e59efd6…` (the amd64 image of `6160d249…`);
+  - `https://api.myweli.com/health`: 200, `env: prod`;
+  - its boot logs: no WARNING or ERROR, only the two notices every boot prints (the bootstrap-only admin password, the store-review demo sign-in);
+  - the production monitor (run 45524710053, started for #861 at 01:18) passed 11/11, most of it before the switch at 01:19:13.
+- **The read after (step 3), 2026-11-25 08:42 UTC,** on the owner's « Yes, run the read »: §2.4's read plus `schema_migrations`, by the same method (a read-only session, `BEGIN READ ONLY … ROLLBACK`, the probe write refused, aggregates only), with `00058-tnp` alone serving. The SQL first ran on a throwaway local database holding one drifted salon, and reported it (`differs`, `salon -> barber`); that database was dropped.
+
+  | | 2026-11-24 (§2.4) | 2026-11-25 |
+  |---|---|---|
+  | salons; documents decoding to their own id | 9; 9 | 9; 9 |
+  | column = document | 8, all `draft` | **9**: 8 `draft`, 1 `suspended` |
+  | column ≠ document | **1** (`salon` → `barber`) | **none** |
+  | `0050` in `schema_migrations` | absent | **2026-11-25 01:19:13 UTC**, the revision's boot |
+
+  - The control: `0049` reads 2026-11-23 23:52:27 UTC, B14.2's deploy; 50 migrations, the last `0050`.
+  - No profile save during the switch left a category behind (the residual above): the read shows none.
+  - **The `suspended` salon is not this deploy's:** neither B15.1 nor `0050` writes a salon's status. The logs show two `POST /admin/providers/<id>/suspend` (200), at 00:28 and 01:16 UTC, on `00057-pg2`, before it.
+- **Rollback from here:** one step, to `00057-pg2`, is safe and brings back the drift DEPLOYMENT.md names for B16.1 (then this read, and the constant by hand if a salon differs); never further than `00055-jv2` (B14.2).
 
 ---
 
@@ -278,6 +300,7 @@ Numbered from **224**, after the survey's 219–223.
   - Since M4 (#127, `07ad1567`). No salon is public today, so those pages would be empty anyway; from the first public nail salon, they would stay empty when they should not.
   - **Read on myweli.com, 2026-11-24:** the home page and the `/recherche` chips link `/recherche?category=nail`.
   - **Fixed on branch `fix/web-onglerie-category-key`:** `apiKey` is `nails`, typed by the contract's enum (`ProviderCategory`, so `tsc` refuses `nail`), and `web/tests/category-keys.test.ts` holds the site's keys, the Pro profile's and the JSON-LD labels to the enum read from `openapi.yaml`.
+  - **Merged 2026-11-24** (#861, `cb347ae3`, 23:38 UTC). **Read on myweli.com, 2026-11-25:** the home page (2 links) and `/recherche` (1) link `category=nails`, none `category=nail`.
 
 ---
 
@@ -291,3 +314,4 @@ Numbered from **224**, after the survey's 219–223.
   - §8.2's directly inserted rows would default to `active`, and an unreadable one would break every later test: inserted as `draft`, deleted by id (§8.2).
   - And seven details: the assertion order that fixes §8.1's red text; C1 replaced by a control that can fail; the migration now copies only a JSON-text category, re-tested on eleven rows (§5.2); `backfillSalonMarketIfNeeded` as a writer of `commune` (§12); the `nail` citations made exact and two more readers named (§12); the app's three chips (§2.3, §12); three inferences reworded as such (§1, §2.2, §9).
 - **2026-11-24, answered:** « Approve as recommended », all four (decisions 224–227, batch 16 in the BACKLOG).
+- **2026-11-24, built and merged** (§8.8, #860); **2026-11-25, deployed and read after** (§9.1), each on the owner's word: no salon's column differs, `0050` applied. B16.1 is done.

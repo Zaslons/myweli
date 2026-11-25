@@ -3,9 +3,9 @@
 | | |
 |---|---|
 | **Module** | backend: `appointments` (the repository and its in-memory twin), `clients` (the guest-phone move) |
-| **Status** | **Approved 2026-11-24.** The owner answered the five questions of §11 at once, « Approve as recommended »: decisions 214–218 in BACKLOG, batch 15 (B15.1 is the build). Built on the owner's word, in its own backend PR. **B15.1 built 2026-11-24** (§8.8), on the owner's « Yes, build B15.1 », in its own PR; **merged 2026-11-24** (#853, `b042d2bb`). It reaches production with the next backend deploy. |
+| **Status** | **Approved 2026-11-24.** The owner answered the five questions of §11 at once, « Approve as recommended »: decisions 214–218 in BACKLOG, batch 15 (B15.1 is the build). Built on the owner's word, in its own backend PR. **B15.1 built 2026-11-24** (§8.8), on the owner's « Yes, build B15.1 », in its own PR; **merged 2026-11-24** (#853, `b042d2bb`). **Deployed 2026-11-25** with B16.1, the next backend deploy (`myweli-api-00058-tnp`, image `27de3e8`): the revision and `/health` read back, as §9 asks ([provider-category-column.md](provider-category-column.md) §9.1). |
 | **Owner** | the project owner: the answers, the build's go, each merge, and the backend deploy it rides with, each on the owner's word |
-| **Last updated** | 2026-11-24 |
+| **Last updated** | 2026-11-25 |
 | **PRD ref / phase** | none: test fidelity, behind the V1 booking flow · V1 |
 | **ROADMAP entry** | [2026-11-24-appointment-twin-update-spec.md](../roadmap/entries/2026-11-24-appointment-twin-update-spec.md) |
 | **Skills checked** | myweli-dev-guardrails · myweli-backend-guardrails · myweli-verification-guardrails · [BACKEND.md](../BACKEND.md) §1, §5 |
