@@ -71,6 +71,17 @@ abstract interface class ProvidersRepository {
     Map<String, dynamic> availability,
   );
 
+  /// Replace [providerId]'s services wholesale, in the given order; returns
+  /// the stored list (`[]` for none), or null if the provider doesn't exist.
+  /// A service id another salon owns is refused (it throws) and nothing
+  /// changes: it never moves a service between salons. Only the demo salon's
+  /// reset calls it, and `test/demo/demo_reset_guards_test.dart` pins that.
+  /// docs/design/demo-reset-restore.md §5.2, §6 (B16.2, decision 250).
+  Future<List<Map<String, dynamic>>?> replaceServices(
+    String providerId,
+    List<Map<String, dynamic>> services,
+  );
+
   /// Replace [providerId]'s gallery (`imageUrls`) wholesale; returns the stored
   /// list, or null if the provider doesn't exist.
   Future<List<String>?> updateGallery(
@@ -351,6 +362,12 @@ class InMemoryProvidersRepository implements ProvidersRepository {
     services.removeWhere((s) => s['id'] == serviceId);
     return services.length < before;
   }
+
+  @override
+  Future<List<Map<String, dynamic>>?> replaceServices(
+    String providerId,
+    List<Map<String, dynamic>> services,
+  ) async => throw UnimplementedError('B16.2');
 
   @override
   Future<Map<String, dynamic>?> replaceAvailability(

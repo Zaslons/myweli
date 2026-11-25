@@ -15,6 +15,16 @@ import 'demo_snapshot_repository.dart';
 /// How often the demo salon is restored to its curated state.
 const Duration kDemoResetInterval = Duration(days: 7);
 
+/// The snapshot's keys the reset never writes back: identity, the
+/// public-set membership (the demo salon is draft forever), and the slug
+/// (immutable everywhere else, kept immutable here).
+/// docs/design/demo-reset-restore.md §5.1.
+const Set<String> kDemoNeverRestored = {'id', 'slug', 'status'};
+
+/// The snapshot's keys the reset puts back through their own writer, never
+/// through the merge. docs/design/demo-reset-restore.md §5.1.
+const Set<String> kDemoRestoredByOwnWriter = <String>{};
+
 /// The demo salon's reset (T69): capture the curated state once, restore it
 /// on a 7-day clock. One mechanism, three jobs — undo defacement (restore
 /// the document), keep the agenda looking alive (regenerate bookings
@@ -52,11 +62,6 @@ class DemoResetService {
   /// reset (B6.4). Null only in legacy unit tests; production passes it.
   final StorageService? _storage;
   final http.Client _client;
-
-  /// Keys that must never be written back on a restore: identity, the
-  /// public-set membership (the demo salon is draft forever), and the slug
-  /// (immutable everywhere else, kept immutable here).
-  static const Set<String> _neverRestored = {'id', 'slug', 'status'};
 
   /// Captures the demo salon's current state as the canonical snapshot.
   ///
@@ -144,7 +149,7 @@ class DemoResetService {
     //    merges, and every key that existed at capture is in the snapshot,
     //    so everything the catalog surfaces can write gets reverted.
     final restore = Map<String, dynamic>.from(snap.doc)
-      ..removeWhere((k, _) => _neverRestored.contains(k));
+      ..removeWhere((k, _) => kDemoNeverRestored.contains(k));
     await _providers.updateProfile(snap.providerId, restore);
 
     // 2. Wipe the agenda and the client book (reviewer junk gone) …

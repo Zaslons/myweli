@@ -303,6 +303,12 @@ class PostgresProvidersRepository implements ProvidersRepository {
   }
 
   @override
+  Future<List<Map<String, dynamic>>?> replaceServices(
+    String providerId,
+    List<Map<String, dynamic>> services,
+  ) async => throw UnimplementedError('B16.2');
+
+  @override
   Future<Map<String, dynamic>?> replaceAvailability(
     String providerId,
     Map<String, dynamic> availability,
