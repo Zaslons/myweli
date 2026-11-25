@@ -22,4 +22,5 @@
     - la page en direct gardait une adresse publique.
   - **Aussi relevé :** la production tourne sur `myweli-api-00059-w28` (A4-api, déployé à 11 h 24 UTC), pas sur `00058-tnp`. Aucun contrôle Lighthouse ne mesure une page de salon.
   - **Cinq questions** (décisions 255–259).
-  - **Reste :** les réponses, puis la construction dans sa propre PR, sa fusion (un déploiement du site en production) et la lecture après, chacune sur le mot du propriétaire.
+  - **Approuvée le 2026-11-25 :** « Approve as recommended », décisions 255–258 dans le BACKLOG (lot 18). La décision 259 (les suspensions étaient-elles les siennes ?) n’a pas de recommandation : elle est reposée.
+  - **Reste :** la fusion, sur le mot du propriétaire ; B18.1, construit dans sa propre PR empilée sur celle-ci ; sa fusion (un déploiement du site en production) et la lecture après, chacune sur le mot du propriétaire.

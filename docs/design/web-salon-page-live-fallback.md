@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Module** | web: the public salon page (`app/[slug]`), a new `middleware.ts`, one live-rendered route, the build's salon list; a scheduled production check. No backend change, no contract change. |
-| **Status** | **Draft, 2026-11-25.** Five questions for the owner in §11 (decisions 255–259). Nothing is built. The build, its merge (a production web deploy) and the read after it, each on the owner's word. |
+| **Status** | **Approved 2026-11-25.** The owner answered « Approve as recommended »: decisions 255–258 in BACKLOG, batch 18 (#870). Decision 259 has no recommendation and is asked again. B18.1 is built in its own PR, stacked on #870; its merge (a production web deploy) and the read after it, each on the owner's word. |
 | **Owner** | the project owner: the answers, the build's go, the merge, the read after it |
 | **Last updated** | 2026-11-25 |
 | **PRD ref / phase** | the public salon page (web M1, [web-m1-backend-glue.md](web-m1-backend-glue.md)) and discovery ([web-discovery-map.md](web-discovery-map.md)) · V1 |
@@ -275,7 +275,7 @@ That catches what nothing catches today: a hook answered 201 and the Vercel buil
 
 ---
 
-## 11. Open questions (decisions 255–259)
+## 11. Open questions (decisions 255–259; 255–258 answered 2026-11-25, « Approve as recommended »)
 
 1. **The fix** (decision 255). *Recommended:* « live fallback » (§3). Alternatives: the 307 hand-off, hiding unbuilt cards, accepting the window (§3.5).
 2. **Where the live route lives** (decision 256). *Recommended:* `app/recherche/salon/[slug]`, under `recherche`, which the backend already reserves: no backend change, no deploy. Alternatives: a new top-level word (`reservedPublicSlugs` and its route-sync pin in `multi_pays_test.dart` change first, then a backend deploy); a child of `[slug]` (it would shadow `/<taxonomy root>/<that word>`).
