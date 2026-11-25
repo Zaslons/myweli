@@ -169,7 +169,11 @@ describe('the sections (§2.2)', () => {
     await open({ providerTimezone: 'Africa/Libreville' });
     const s = section('Le rendez-vous');
     const heure = within(s).getByText('Heure');
-    const hint = within(s).getByText(/heure du salon/i);
+    // WAIT for it: the hint is drawn one effect after the page (mount-gated,
+    // SalonTimeHint), so a read the moment the h1 appears can come before that
+    // effect ran. A synchronous getByText lost it once on CI (run 45636330662);
+    // `npm run test:stress` loses it every time.
+    const hint = await within(s).findByText(/heure du salon/i);
     const specialist = within(s).getByText('Spécialiste');
     expect(heure.compareDocumentPosition(hint) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(hint.compareDocumentPosition(specialist) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();

@@ -1,9 +1,9 @@
 import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vitest/config';
 
-// `npm run test:stress`: React's Scheduler yields after every task and the CPU
-// stalls after every zero-delay timer — the timing that, on a loaded runner,
-// lets a test read the page before an effect ran (tests/support/scheduler-stress.ts).
+// `npm run test:stress`: React's Scheduler yields after every task — the timing
+// that, on a loaded runner, lets a test read the page before an effect ran
+// (tests/support/scheduler-stress.ts).
 const schedulerStress = process.env.MYWELI_SCHEDULER_STRESS === '1';
 
 export default defineConfig({

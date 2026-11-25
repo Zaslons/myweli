@@ -19,28 +19,23 @@ import { createRequire } from 'node:module';
 /// → 0/15 found; either alone → 14–15/15; the same with the Scheduler unable to
 /// yield → 15/15.
 ///
-/// So under this flag: (1) the Scheduler's clock gains SCHEDULER_SKEW_MS on every
-/// read, so it yields after EVERY task; (2) every zero-delay `setTimeout` is
-/// followed by PREEMPT_MS of busy CPU. A test that reads effect output without
-/// waiting for it now fails every time instead of once in a few hundred runs.
+/// So under this flag the Scheduler's clock gains SCHEDULER_SKEW_MS on every
+/// read: it yields after EVERY task, and what an effect draws then needs two more
+/// event-loop turns (flush the effect, render its update) — the drain's 1 ms timer
+/// wins. Measured: the canary's race 150/150 with the skew alone, 0/50 without.
+/// (A 2 ms CPU stall after each zero-delay timer was tried on top and dropped: it
+/// changed nothing measurable, so no guard could have said whether it still
+/// worked.) A test that reads effect output without waiting for it now fails
+/// every run instead of once in a few hundred.
 ///
-/// tests/scheduler-stress.test.tsx holds the canary that proves both halves still
-/// bite (a React or Scheduler upgrade could make this file inert), and the pins on
-/// the npm script and the CI job.
+/// tests/scheduler-stress.test.tsx holds the canary that proves the skew still
+/// bites (a React or Scheduler upgrade could make this file inert), and the pins
+/// on the npm script and the CI job.
 
 /// More than the Scheduler's 5 ms slice: one read is enough to make it yield.
 export const SCHEDULER_SKEW_MS = 6;
-/// Comfortably over the ~1 ms at which the drain's timer starts winning.
-export const PREEMPT_MS = 2;
 
 const MARK = '__myweliSchedulerStress';
-
-function busyWait(ms: number): void {
-  const t0 = process.hrtime.bigint();
-  while (Number(process.hrtime.bigint() - t0) / 1e6 < ms) {
-    // The CPU is taken: nothing else on this thread runs.
-  }
-}
 
 // The SAME module instance react-dom required: both resolve to
 // web/node_modules/scheduler and share Node's require cache. Its development
@@ -61,14 +56,5 @@ if (!scheduler[MARK]) {
   scheduler[MARK] = true;
 }
 
-type AnyTimer = (...args: unknown[]) => unknown;
-const g = globalThis as unknown as Record<string, unknown> & { setTimeout: AnyTimer };
-if (!g[MARK]) {
-  const realSetTimeout = g.setTimeout;
-  g.setTimeout = (...args: unknown[]) => {
-    const id = realSetTimeout(...args);
-    if (!args[1]) busyWait(PREEMPT_MS);
-    return id;
-  };
-  g[MARK] = true;
-}
+// Read by tests/scheduler-stress.test.tsx: the flag and this setup travel together.
+(globalThis as Record<string, unknown>)[MARK] = true;

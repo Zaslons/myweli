@@ -69,12 +69,18 @@ describe('scheduler stress', () => {
     expect(pkg.scripts['test:stress']).toBe('MYWELI_SCHEDULER_STRESS=1 vitest run');
   });
 
-  it('CI runs it, in its own job, from web/', () => {
-    const job = yamlJob(readFileSync(join(REPO, '.github/workflows/ci.yml'), 'utf8'), 'web-unit-stress');
-    expect(job, 'no web-unit-stress job in ci.yml').not.toBe('');
+  // In the `web` job — already a required check — after the plain run. A job of
+  // its own would block nothing until branch protection listed it
+  // (backend/test/infra/launch_doc_test.dart says why that matters).
+  it('CI runs it in the required web job, from web/, after the plain run', () => {
+    const job = yamlJob(readFileSync(join(REPO, '.github/workflows/ci.yml'), 'utf8'), 'web');
+    expect(job, 'no web job in ci.yml').not.toBe('');
     expect(job).toMatch(/^\s+working-directory: web$/m);
-    expect(job).toMatch(/^\s+run: npm ci$/m);
-    expect(job).toMatch(/^\s+run: npm run test:stress$/m);
+    const plain = job.search(/^\s+run: npm test$/m);
+    const stress = job.search(/^\s+run: npm run test:stress$/m);
+    expect(plain, 'the plain unit-test step is gone').toBeGreaterThan(-1);
+    expect(stress, 'the scheduler-stress step is gone').toBeGreaterThan(-1);
+    expect(stress).toBeGreaterThan(plain);
   });
 });
 

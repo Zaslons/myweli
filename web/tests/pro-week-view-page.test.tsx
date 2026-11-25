@@ -211,6 +211,13 @@ describe('the « Semaine » tab', () => {
     expect(await screen.findByRole('button', { name: 'Journée' })).toBeInTheDocument();
     await waitFor(() => expect(screen.queryByRole('button', { name: 'Semaine' })).toBeNull());
     await waitFor(() => expect(asked).toContain('2026-10-20'));
+    // WAIT for the Journée itself before saying the week is gone: the switch is
+    // an effect (RendezVousClient's phone gate), so a read the moment the tab
+    // disappears can land on the commit before it — the week's grid, still
+    // drawn. `npm run test:stress` lands there every time. The « Date » field
+    // is the Journée's alone.
+    expect(await screen.findByLabelText('Date')).toHaveValue('2026-10-20');
+    expect(screen.getByRole('button', { name: 'Journée' })).toHaveAttribute('aria-pressed', 'true');
     expect(screen.queryByRole('table', { name: /^Semaine du / })).toBeNull();
   });
 });
