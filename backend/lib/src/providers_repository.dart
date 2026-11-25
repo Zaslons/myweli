@@ -7,6 +7,8 @@
 /// surface (`query` + `byId`), so that swap stays localized.
 library;
 
+import 'dart:convert';
+
 import 'appointments/booking_window.dart';
 import 'search_text.dart';
 import 'slug.dart' show isReservedSlug;
@@ -367,7 +369,34 @@ class InMemoryProvidersRepository implements ProvidersRepository {
   Future<List<Map<String, dynamic>>?> replaceServices(
     String providerId,
     List<Map<String, dynamic>> services,
-  ) async => throw UnimplementedError('B16.2');
+  ) async {
+    final p = await byId(providerId);
+    if (p == null) return null;
+    // Never a service another salon owns: in Postgres the id is a global
+    // primary key and the insert fails; here, the same refusal by hand.
+    final ids = {for (final s in services) s['id']};
+    for (final other in _all) {
+      if (other['id'] == providerId) continue;
+      for (final s in (other['services'] as List?) ?? const <Object>[]) {
+        final taken = (s as Map)['id'];
+        if (ids.contains(taken)) {
+          throw StateError(
+            'replaceServices: service $taken belongs to another salon',
+          );
+        }
+      }
+    }
+    // Copies, both ways: the caller's list (the demo snapshot's) must not
+    // become the live salon's, nor the live salon's be handed out.
+    p['services'] = [for (final s in services) _jsonCopy(s)];
+    return [
+      for (final s in p['services'] as List)
+        _jsonCopy(s as Map<String, dynamic>),
+    ];
+  }
+
+  static Map<String, dynamic> _jsonCopy(Map<String, dynamic> m) =>
+      jsonDecode(jsonEncode(m)) as Map<String, dynamic>;
 
   @override
   Future<Map<String, dynamic>?> replaceAvailability(

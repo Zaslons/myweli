@@ -34,7 +34,9 @@ class MaintenanceTick {
 
   /// The demo-salon reset (T69), due-gated to every 7 days inside its service:
   /// a no-op six days out of seven. Answers WHY it did not run — `not_due`,
-  /// `no_snapshot`, `refused:not_demo_owned` — or `ran` (B6.9). A throw is
+  /// `no_snapshot`, `refused:not_demo_owned`, `refused:bad_snapshot` (a
+  /// snapshot its writers cannot take, refused before anything is written,
+  /// docs/design/demo-reset-restore.md §5.1) — or `ran` (B6.9). A throw is
   /// left to escape — a 500 the cron alert sees, exactly as when it rode the
   /// subscriptions cron.
   final Future<String> Function(DateTime now) demoReset;

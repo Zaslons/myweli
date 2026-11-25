@@ -216,21 +216,28 @@ class PostgresProvidersRepository implements ProvidersRepository {
         'VALUES (@id, @pid, @name, @desc, @price, @price_max, @dur, '
         '@variants:jsonb, @artists:jsonb, @active) RETURNING *',
       ),
-      parameters: {
-        'id': service['id'],
-        'pid': providerId,
-        'name': service['name'],
-        'desc': service['description'] ?? '',
-        'price': (service['price'] as num).toDouble(),
-        'price_max': (service['priceMax'] as num?)?.toDouble(),
-        'dur': (service['durationMinutes'] as num).toInt(),
-        'variants': jsonEncode(service['durationVariants'] ?? const {}),
-        'artists': jsonEncode(service['artistIds'] ?? const []),
-        'active': service['active'] as bool? ?? true,
-      },
+      parameters: _serviceParams(providerId, service),
     );
     return _serviceDto(rows.first.toColumnMap());
   }
+
+  /// The columns a service is written with, by [addService] and
+  /// [replaceServices] alike.
+  Map<String, Object?> _serviceParams(
+    String providerId,
+    Map<String, dynamic> service,
+  ) => {
+    'id': service['id'],
+    'pid': providerId,
+    'name': service['name'],
+    'desc': service['description'] ?? '',
+    'price': (service['price'] as num).toDouble(),
+    'price_max': (service['priceMax'] as num?)?.toDouble(),
+    'dur': (service['durationMinutes'] as num).toInt(),
+    'variants': jsonEncode(service['durationVariants'] ?? const {}),
+    'artists': jsonEncode(service['artistIds'] ?? const []),
+    'active': service['active'] as bool? ?? true,
+  };
 
   @override
   Future<Map<String, dynamic>?> updateService(
@@ -302,11 +309,55 @@ class PostgresProvidersRepository implements ProvidersRepository {
     return res.affectedRows > 0;
   }
 
+  /// One transaction: the salon's row locked, its services deleted, the
+  /// given list inserted in order. docs/design/demo-reset-restore.md §5.2.
+  ///
+  /// **A plain `INSERT`, never an upsert.** `provider_services.id` is a
+  /// global primary key, so an id another salon owns fails with 23505 and the
+  /// whole transaction rolls back. An upsert would let a snapshot carrying
+  /// another salon's service id take that service over (§6).
+  ///
+  /// **`created_at` keeps the given order:** strictly increasing, one
+  /// microsecond apart, all before this transaction's `now()`, so a service
+  /// added afterwards sorts after them (reads order by `created_at`).
   @override
   Future<List<Map<String, dynamic>>?> replaceServices(
     String providerId,
     List<Map<String, dynamic>> services,
-  ) async => throw UnimplementedError('B16.2');
+  ) async {
+    final found = await _pool.runTx<bool>((tx) async {
+      final rows = await tx.execute(
+        Sql.named('SELECT 1 FROM providers WHERE id = @pid FOR UPDATE'),
+        parameters: {'pid': providerId},
+      );
+      if (rows.isEmpty) return false;
+      await tx.execute(
+        Sql.named('DELETE FROM provider_services WHERE provider_id = @pid'),
+        parameters: {'pid': providerId},
+      );
+      for (final (i, service) in services.indexed) {
+        await tx.execute(
+          Sql.named(
+            'INSERT INTO provider_services '
+            '(id, provider_id, name, description, price, price_max, '
+            'duration_minutes, duration_variants, artist_ids, active, '
+            'created_at) '
+            'VALUES (@id, @pid, @name, @desc, @price, @price_max, @dur, '
+            '@variants:jsonb, @artists:jsonb, @active, now() - @back:interval)',
+          ),
+          parameters: {
+            ..._serviceParams(providerId, service),
+            'back': Duration(microseconds: services.length - i),
+          },
+        );
+      }
+      return true;
+    });
+    if (!found) return null;
+    // After the commit, through the pool, as [replaceAvailability] reads.
+    return (await _servicesByProvider([providerId]))[providerId] ??
+        <Map<String, dynamic>>[];
+  }
 
   @override
   Future<Map<String, dynamic>?> replaceAvailability(

@@ -15,22 +15,46 @@ import 'demo_snapshot_repository.dart';
 /// How often the demo salon is restored to its curated state.
 const Duration kDemoResetInterval = Duration(days: 7);
 
-/// The snapshot's keys the reset never writes back: identity, the
-/// public-set membership (the demo salon is draft forever), and the slug
-/// (immutable everywhere else, kept immutable here).
-/// docs/design/demo-reset-restore.md §5.1.
-const Set<String> kDemoNeverRestored = {'id', 'slug', 'status'};
+/// The snapshot's keys the reset never writes back
+/// (docs/design/demo-reset-restore.md §5.1, decision 251):
+///   · identity, the public-set membership (the demo salon is draft
+///     forever) and the slug (immutable everywhere else, kept immutable
+///     here);
+///   · `featured`, the admin's flag (its one writer is the admin console);
+///   · `rating` and `reviewCount`, which the reviews compute
+///     (`updateRatings`). The reset keeps the reviews, so a restored rating
+///     would contradict them — and in Postgres the `rating` column, which
+///     orders discovery, would disagree with the document.
+const Set<String> kDemoNeverRestored = {
+  'id',
+  'slug',
+  'status',
+  'featured',
+  'rating',
+  'reviewCount',
+};
 
 /// The snapshot's keys the reset puts back through their own writer, never
-/// through the merge. docs/design/demo-reset-restore.md §5.1.
-const Set<String> kDemoRestoredByOwnWriter = <String>{};
+/// through the merge (docs/design/demo-reset-restore.md §5.1, decisions
+/// 250, 252). In Postgres the services and the hours live in tables the
+/// document merge never reaches, and `beforeAfters` is absent from a new
+/// salon's document, so a snapshot may lack it and a merge would never
+/// remove a reviewer's pairs. `test/demo/demo_reset_guards_test.dart` holds
+/// every key an owner can write to one of the two: in a new salon's
+/// document, or here.
+const Set<String> kDemoRestoredByOwnWriter = {
+  'services',
+  'availability',
+  'beforeAfters',
+};
 
 /// The demo salon's reset (T69): capture the curated state once, restore it
 /// on a 7-day clock. One mechanism, three jobs — undo defacement (restore
 /// the document), keep the agenda looking alive (regenerate bookings
 /// relative to now), and keep the subscription from ever showing expired
 /// (extend coverage as it runs). Design:
-/// docs/design/backend-demo-review-account.md §6.2.
+/// docs/design/backend-demo-review-account.md §6.2; what the restore puts
+/// back and through which writer: docs/design/demo-reset-restore.md (B16.2).
 class DemoResetService {
   DemoResetService(
     this._auth,
@@ -110,9 +134,10 @@ class DemoResetService {
   /// can stop silently.
   ///
   /// [outcome] is what the maintenance cron answers — `ran`, `not_due`,
-  /// `no_snapshot` or `refused:not_demo_owned`: a bare `false` said both « not
-  /// the day » and « the demo identity is lost »
-  /// (docs/design/backend-integrity-batch6.md §2.9, B6.9).
+  /// `no_snapshot`, `refused:not_demo_owned` or `refused:bad_snapshot` (a
+  /// snapshot its writers cannot take, docs/design/demo-reset-restore.md
+  /// §5.1): a bare `false` said both « not the day » and « the demo identity
+  /// is lost » (docs/design/backend-integrity-batch6.md §2.9, B6.9).
   Future<({bool ran, String? error, String outcome})> tickIfDue(
     DateTime now,
   ) async {
@@ -145,12 +170,56 @@ class DemoResetService {
       );
     }
 
-    // 1. Restore the curated document (defacement undone). `updateProfile`
-    //    merges, and every key that existed at capture is in the snapshot,
-    //    so everything the catalog surfaces can write gets reverted.
-    final restore = Map<String, dynamic>.from(snap.doc)
-      ..removeWhere((k, _) => kDemoNeverRestored.contains(k));
+    // The snapshot must be one the writers below can take, or nothing is
+    // written: a throw here would escape the maintenance tick before the
+    // salon purge, every night, since `markReset` comes last.
+    final badKey = _badSnapshotKey(snap.doc);
+    if (badKey != null) {
+      _log(
+        'demo_reset REFUSED provider=${snap.providerId} '
+        'cause=bad_snapshot key=$badKey',
+      );
+      return (
+        ran: false,
+        error: 'bad_snapshot',
+        outcome: 'refused:bad_snapshot',
+      );
+    }
+
+    // 1. Restore the curated salon (defacement undone) —
+    //    docs/design/demo-reset-restore.md §5.1. Until B16.2 this step only
+    //    merged the snapshot through `updateProfile`, which never reaches
+    //    the services or (in Postgres) the hours, and never removes a key.
+    //    The profile first: it puts back the timezone, which
+    //    `replaceAvailability` reads to store a blocked day.
+    final doc = snap.doc;
+    final restore = Map<String, dynamic>.from(doc)
+      ..removeWhere(
+        (k, _) =>
+            kDemoNeverRestored.contains(k) ||
+            kDemoRestoredByOwnWriter.contains(k),
+      );
     await _providers.updateProfile(snap.providerId, restore);
+    //    Then each of [kDemoRestoredByOwnWriter] through its own writer. An
+    //    absent `services` or `availability` skips its writer — it never
+    //    wipes the catalogue or the hours — while absent pairs mean none.
+    final services = doc['services'];
+    if (services is List) {
+      await _providers.replaceServices(snap.providerId, [
+        for (final s in services) Map<String, dynamic>.from(s as Map),
+      ]);
+    }
+    final availability = doc['availability'];
+    if (availability is Map) {
+      await _providers.replaceAvailability(
+        snap.providerId,
+        Map<String, dynamic>.from(availability),
+      );
+    }
+    await _providers.updateBeforeAfters(snap.providerId, [
+      for (final pair in (doc['beforeAfters'] as List?) ?? const <Object>[])
+        Map<String, dynamic>.from(pair as Map),
+    ]);
 
     // 2. Wipe the agenda and the client book (reviewer junk gone) …
     final wipedA = await _appointments.wipeForProvider(snap.providerId);
@@ -178,6 +247,33 @@ class DemoResetService {
       'regenerated=$regenerated',
     );
     return (ran: true, error: null, outcome: 'ran');
+  }
+
+  /// The first key of [doc] the reset's own writers could not take, or null
+  /// (docs/design/demo-reset-restore.md §5.1): a service needs the columns
+  /// Postgres casts (`id`, `name`, `price`, `durationMinutes`), the hours a
+  /// map, the pairs a list of maps.
+  static String? _badSnapshotKey(Map<String, dynamic> doc) {
+    final services = doc['services'];
+    if (services != null) {
+      if (services is! List) return 'services';
+      for (final s in services) {
+        if (s is! Map ||
+            s['id'] is! String ||
+            s['name'] is! String ||
+            s['price'] is! num ||
+            s['durationMinutes'] is! num) {
+          return 'services';
+        }
+      }
+    }
+    final availability = doc['availability'];
+    if (availability != null && availability is! Map) return 'availability';
+    final pairs = doc['beforeAfters'];
+    if (pairs != null && (pairs is! List || pairs.any((p) => p is! Map))) {
+      return 'beforeAfters';
+    }
+    return null;
   }
 
   /// The demo OWNER account's KYC, erased: each piece under its own prefix

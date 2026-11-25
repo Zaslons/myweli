@@ -48,7 +48,12 @@ void main() {
   final t0 = DateTime.utc(2026, 8, 26, 3);
 
   setUp(() {
-    providers = InMemoryProvidersRepository();
+    // A store of its own per test. With no argument the store IS the global
+    // `seedProviders` list, so each earlier test's demo salon, with the same
+    // service ids, stayed in it — and `replaceServices` refuses an id
+    // another salon owns, as Postgres does (docs/design/demo-reset-restore
+    // .md §5.2).
+    providers = InMemoryProvidersRepository([]);
     appointments = InMemoryAppointmentRepository();
     clients = InMemoryClientsRepository();
     subs = InMemorySalonSubscriptionRepository();
@@ -116,11 +121,29 @@ void main() {
       accountId: accountId,
       email: kDemoProviderEmail,
     );
+    // Each service carries its duration, as every stored one does: the
+    // reset refuses a snapshot whose services Postgres could not write
+    // (`refused:bad_snapshot`, docs/design/demo-reset-restore.md §5.1).
+    // The services ride `updateProfile` here, which replaces the list; a
+    // reviewer's writers change it in place — `demo_reset_restore_contract
+    // .dart` runs that, on both twins.
     await providers.updateProfile(id, {
       'description': 'La vitrine de démonstration.',
       'services': [
-        {'id': 's1', 'name': 'Coupe', 'active': true, 'price': 5000},
-        {'id': 's2', 'name': 'Brushing', 'active': true, 'price': 7000},
+        {
+          'id': 's1',
+          'name': 'Coupe',
+          'active': true,
+          'price': 5000,
+          'durationMinutes': 30,
+        },
+        {
+          'id': 's2',
+          'name': 'Brushing',
+          'active': true,
+          'price': 7000,
+          'durationMinutes': 45,
+        },
       ],
     });
     if (withOffer) {
