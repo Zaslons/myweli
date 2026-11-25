@@ -1,4 +1,4 @@
-- 🟡 **Backend, A4-api : une recherche qui trouve les prestations et les communes, sans tenir compte des accents (backend · 2026-11-25 — BACKLOG B0.10, décision 228 ; FR-DISC-004 ; survey A-P3, moitié `query`).** Branche `feat/a4-api-search`, depuis `main` `ed60594c`. Spec : [consumer-search.md](../../design/consumer-search.md) §3 et §3.1.
+- 🟢 **Backend, A4-api : une recherche qui trouve les prestations et les communes, sans tenir compte des accents (backend · 2026-11-25 — BACKLOG B0.10, décision 228 ; FR-DISC-004 ; survey A-P3, moitié `query`).** Branche `feat/a4-api-search`, depuis `main` `ed60594c`. Spec : [consumer-search.md](../../design/consumer-search.md) §3 et §3.1.
   - **Pourquoi :**
     - « beaute » ne trouvait pas « Beauté » ;
     - « manucure » ne trouvait pas un salon qui l’offre sans l’écrire dans sa description ;
@@ -22,4 +22,13 @@
     - la suite backend complète sur PostgreSQL 16 (chiffres dans la PR).
   - **Relue par un lecteur indépendant, chargé de la réfuter :** rien ne bloque la fusion. Deux constats corrigés : le nom d’une prestation aurait pu lister tous les salons sans qu’aucun test le voie, et les espaces du salon lui-même n’étaient pas resserrés. Un soupçon reste à vérifier au déploiement : `lower()` suit le réglage de caractères de la base ; la relecture lira `datctype`, sur le mot du propriétaire.
   - **Non touchés :** la recherche de la console d’administration et la liste des clientes gardent leur `ILIKE` non échappé (B16.8, B16.7).
-  - **Reste :** la fusion de cette PR, sur le mot du propriétaire ; puis le déploiement et la relecture en production, sur son mot. Tant qu’aucun salon n’est public, la recherche elle-même ne peut pas être observée en production (§10) : la preuve est le contrat sur le Postgres de CI. Ensuite A4, l’app, dont le build attend ce déploiement (décision 234).
+  - **Fusionnée** le 2026-11-25 à 11:00 UTC sur le mot du propriétaire (#864, `351568e3`) : l’arbre de `main` égal à la tête testée `cf4f5a3e`, aucune ligne d’attribution, 12 contrôles sur 12 (le contrôle de la taille de l’APK a dû être relancé deux fois : Maven Central refusait les requêtes, 429). La branche a été rebasée deux fois sur `main` (#862, #863) sans que le code change.
+  - **Déployée** le 2026-11-25 à 11:25 UTC sur le mot du propriétaire : `deploy-backend.yml`, production, `image_tag=351568e` (run 45604198668), toutes ses étapes vertes, dont « Verify the revision actually serves ».
+  - **Relue en production :**
+    - `myweli-api-00059-w28` reçoit 100 % du trafic, étiquetée `commit: 351568e` ; elle exécute l’image amd64 `sha256:6c8af69d728b…`, l’enfant de l’index `9cf137ff…` que la fusion a poussé ;
+    - démarrage propre, aucune ligne d’erreur. Les migrations tournent avant que le serveur écoute : une `0051` en échec l’aurait arrêté là ;
+    - sur `api.myweli.com` : `/health` 200 ; `/providers` avec `q=beaute`, `q=_`, le « ＿ » pleine largeur, des espaces dont un insécable, et un « é » décomposé avec un tri et la page 2 : tous 200, total 0 ; un caractère de contrôle, 400. Chaque recherche appelle `unaccent` : un 200 prouve l’extension en place. Les requêtes figurent dans le journal de la nouvelle révision ;
+    - Cloud SQL décrit la base `myweli` en UTF8, collation `en_US.UTF8`. L’API n’en montre qu’une valeur : que `LC_CTYPE` soit la même est déduit ;
+    - `production-checks.yml`, lancé sur le mot du propriétaire à 11:53 UTC (run 45608627900) : 11 contrôles sur 11.
+  - **Non observable en production :** la recherche elle-même. Les neuf salons sont des brouillons, donc chaque total vaut 0, avant comme après ; la preuve reste le contrat sur le Postgres de CI. Révision de retour arrière : `myweli-api-00058-tnp`.
+  - **Ensuite :** A4, l’app, dont le build attendait ce déploiement (décision 234), puis A4w.
