@@ -498,6 +498,8 @@ L = a week or more. **Risk** is to the submission or to a user's trust.
 
 **2026-11-24 — A4's spec written** ([consumer-search.md](consumer-search.md), decisions 228–236 open): gaps 11, 20 and the map's commune half of 22. It also found that the home, the salon list and the map share one salon list (§2.7 there).
 
+**2026-11-25 — A4's nine questions answered** (decisions 228–236, « Approve as recommended »). Decision 229 replaces row A4's « PRD Appendix A chips » with the five categories the server, MyWeli Pro and the website share. Next: A4-api, then A4, then A4w.
+
 ---
 
 ## 7. Proposed order of work
@@ -515,7 +517,7 @@ state and the French copy, and the owner approves it.
 | A1 | **What the app says is true:** the stories go (gap 2); the cancel sentence takes the salon's rule, as the web does (3); « Langue » goes (12); purpose strings (6); a local placeholder (16); cards and home tiles read the booking's own salon name (part of 9); past unconfirmed bookings and no-shows get honest labels and a tab, one rule shared with the web (15, web C4) | S each, one M PR | [consumer-app-truth.md](consumer-app-truth.md): one spec, every changed sentence in French (approved 2026-11-23; A1 merged as #834 and its web half A1w as #838, the same day) |
 | A2 | **The appointment detail, complete:** status, salon (name, photo, address), services, « Itinéraire », « Appeler »; rebook from the detail (FR-REBOOK-001) | M | yes (UX): [appointment-detail-complete.md](appointment-detail-complete.md) (approved 2026-11-23; A2-api #841, A2 #845 and A2w #847, merged 2026-11-23 and 24) |
 | A3 | **Sign-in you can leave, and push you can turn on later:** sign-in pushed rather than replaced, with a close button; `returnTo` kept; a way to ask for push again from Préférences (17) | S | [consumer-signin-push.md](consumer-signin-push.md) (approved 2026-11-24, decisions 204–213; A3 #854 and A3w #856, merged 2026-11-24) |
-| A4 | **Search that searches, and the Ivorian categories:** a search field on `GET /providers?q=`, debounced, with every state; the PRD Appendix A chips; « Charger plus »; the map says its commune (11, 20, 22) | M | yes (UX), parity with web `/recherche`: [consumer-search.md](consumer-search.md) (written 2026-11-24, decisions 228–236 open) |
+| A4 | **Search that searches, and the Ivorian categories:** a search field on `GET /providers?q=`, debounced, with every state; the PRD Appendix A chips; « Charger plus »; the map says its commune (11, 20, 22) | M | yes (UX), parity with web `/recherche`: [consumer-search.md](consumer-search.md) (written 2026-11-24; decisions 228–236 answered 2026-11-25, as recommended: the five shared categories, not Appendix A's, decision 229) |
 | A5 | **The salon page's team and every review:** staff section, « Voir tous les avis » (18) | S-M | yes (UX) |
 | A6 | **Android: precise location for Pro only** (13); the map asks after an explanation, and « Activer » opens the Settings after a refusal (22) | S | android-play-release §7.1 is the spec; a section added |
 | A7 | **Tests the release leans on:** goldens and widget tests of §2.9 for the screens A1–A5 change, and a test that pins the cancel sentence | M | none (part of each PR's Definition of Done) |

@@ -2,13 +2,13 @@
 
 | | |
 |---|---|
-| **Status** | **Draft — waiting for the owner's answers** (§11, BACKLOG decisions 228–236). An independent reader checked it once against the code: 13 findings, each re-read in the code, then folded in (§12). No code is written until the questions are answered. |
+| **Status** | **Approved by the owner on 2026-11-25** (« Approve as recommended »: the nine recommendations of §11, BACKLOG decisions 228–236). An independent reader checked it once against the code: 13 findings, each re-read in the code, then folded in (§12). Nothing is built yet. Next, each on the owner's word: this spec's merge (#859); A4-api, the backend's `q`, and its deploy; then A4, then A4w (§9). |
 | **Owner** | Sadreddine |
-| **Last updated** | 2026-11-24 |
+| **Last updated** | 2026-11-25 |
 | **PRD ref / phase** | FR-DISC-003 (category browse), FR-DISC-004 (search by name, service and locality, French-aware), FR-DISC-005 (the map's commune awareness), FR-DISC-007 (sort and filter) · V1 · BACKLOG B0.10 (decision 160, Track A), B12.8 |
-| **Module** | `client-app` (discovery), with `public-api` (`GET /providers`) and, if §11 Q6 says so, `public-web` (`/recherche`) |
+| **Module** | `client-app` (discovery), with `public-api` (`GET /providers`) and `public-web` (`/recherche`, A4w, decision 233) |
 | **ROADMAP entry** | [2026-11-24-consumer-search-spec.md](../roadmap/entries/2026-11-24-consumer-search-spec.md) |
-| **Skills checked** | myweli-dev-guardrails ✓ · myweli-backend-guardrails ✓ (A4-api) · myweli-web-guardrails ✓ (parity read; A4w only if Q6 says so) · myweli-verification-guardrails ✓ |
+| **Skills checked** | myweli-dev-guardrails ✓ · myweli-backend-guardrails ✓ (A4-api) · myweli-web-guardrails ✓ (parity read; A4w, decision 233) · myweli-verification-guardrails ✓ |
 | **Read at** | `main` `7d5d9645`. Every « today » below was read in the code on 2026-11-24, with its file and line. |
 | **Related** | [consumer-app-release-audit.md](consumer-app-release-audit.md) §2.1, gaps 11, 20 and 22, §7 A4 · [discovery-sort-filter.md](discovery-sort-filter.md) (sort, « Disponible aujourd’hui », filter before paging) · [web-m8-1-discovery.md](web-m8-1-discovery.md) and [web-search-funnel-parity.md](web-search-funnel-parity.md) (the website's search) · [twin-fidelity-survey.md](twin-fidelity-survey.md) (A-P3: `q` unescaped; the both-twins rule) · [provider-category-column.md](provider-category-column.md) (B16.1: a salon's category may not reach the column the filter reads; spec #857 and fix #860 merged; the fix reaches production with a backend deploy, on the owner's word) · [SYSTEM.md](SYSTEM.md) §12 (states), §13 (a11y), §15 (feedback) |
 
@@ -33,7 +33,7 @@ Today none of that is true (audit §2.1):
   - every state;
   - the home, the list and the map each reading their own salons (§2.7);
   - the map showing its commune, with its own states.
-- **A4w (website), if Q6 says so:** « Afficher plus », and the count from `total`. The « Onglerie » chip's `nail` → `nails` is already fixed and merged (#861, its own session); A4w does not repeat it (Q6).
+- **A4w (website), decision 233:** « Afficher plus », and the count from `total`. The « Onglerie » chip's `nail` → `nails` is already fixed and merged (#861, its own session); A4w does not repeat it (Q6).
 
 **Out of scope:**
 - **Typo tolerance** (Q1 keeps it for later).
@@ -362,14 +362,14 @@ The drift the read found is fixed at the same time:
 
 **A4-api, added by the independent reading:** a text spanning two fields does not match on either twin; `’`, `œ`, `æ` fold alike on both.
 
-**A4w (if Q6):** `/recherche`'s « Afficher plus » and the count from `total`, e2e for each. (The « Onglerie » chip and its `/onglerie` landing pages were fixed in #861, §11 Q6.)
+**A4w (decision 233):** `/recherche`'s « Afficher plus » and the count from `total`, e2e for each. (The « Onglerie » chip and its `/onglerie` landing pages were fixed in #861, §11 Q6.)
 
 ## 9. Rollout & scope discipline
 
 **Three PRs, in this order (Q7):**
 1. **A4-api:** the backend. There is no staging (`infra/gcp/staging.state` reads `absent`), so its migration first runs in production, on a `deploy-backend.yml` dispatch with the owner's word. Deployed, it also changes what `/recherche` finds on the website: accents and services, for the better.
 2. **A4:** the app. Merging deploys nothing. **Its consumer build waits for A4-api in production** (Q7): the field's hint promises « prestation ou commune », and the empty state suggests searching a service. On today's server both would be false (A1's rule).
-3. **A4w,** if Q6 says so. Its merge is a production deploy of `myweli.com`. The `nail` key (`web/lib/landing.ts:17`) was fixed in #861, with the `/onglerie` landing pages that read it.
+3. **A4w** (decision 233). Its merge is a production deploy of `myweli.com`. The `nail` key (`web/lib/landing.ts:17`) was fixed in #861, with the `/onglerie` landing pages that read it.
 
 **B16.1** (the category column: spec #857 and fix #860 merged) is not a prerequisite for building A4, but its deploy is for the category chips to be right in production. Its session owns it.
 
@@ -386,7 +386,7 @@ The drift the read found is fixed at the same time:
 - The audit's gaps 11 and 20, and gap 22's commune half, marked closed in its progress line.
 - One roadmap entry per PR.
 
-## 11. Open questions (each with a recommendation)
+## 11. Open questions (each with a recommendation) — answered 2026-11-25, all nine as recommended
 
 **Q1. What should the search match (A4-api)?** [decision 228]
 - *Recommended:*
@@ -396,6 +396,7 @@ The drift the read found is fixed at the same time:
   - `%`/`_` escaped;
   - every order ending on the id.
 - **Typo tolerance** (FR-DISC-004's « typo-tolerant ») later, in its own PR. It needs a similarity measure (`pg_trgm`) matched on both twins, and the launch has nine salons.
+- → ✅ **Decision 228, as recommended** (2026-11-25).
 - *The alternative:* send today's `q` from the app unchanged. Then « beaute » misses « Beauté », and « manucure » misses every salon that offers one but does not write it in its description.
 
 **Q2. Which categories?** [decision 229]
@@ -403,18 +404,22 @@ The drift the read found is fixed at the same time:
 - *Recommended:* the five the server, the Pro editor and the website already share — Coiffure, Barbier, Onglerie, Spa, Massage — with « Tous ».
 - Maquillage and Sourcils & cils are reached by search (their services' names) until a salon can choose them. Adding them is one change across the server's PATCH list, the Pro editor, the app and the website: its own decision.
 - *The alternative:* the PRD's eight top-level groups. That needs those new salon categories first.
+- → ✅ **Decision 229, as recommended** (2026-11-25).
 
 **Q3. Search as the person types, or only on « Rechercher »?** [decision 230]
 - *Recommended:* as they type — 350 ms after the last key, from 2 letters — with the keyboard's « Rechercher » searching at once. The audit's A4 says « debounced ». On a phone the keyboard hides half the screen, so seeing results while typing is the point.
 - *The alternative:* the website's way, on submit only.
+- → ✅ **Decision 230, as recommended** (2026-11-25).
 
 **Q4. More than 20 salons: a button, or loading on scroll?** [decision 231]
 - *Recommended:* « Afficher plus de salons », a button. The person decides what the next page costs on a mobile data plan. It is reachable by a screen reader and a keyboard, and testable.
 - *The alternative:* loading the next page near the end of the list.
+- → ✅ **Decision 231, as recommended** (2026-11-25).
 
 **Q5. The map: its commune pill, its own states, up to 50 salons with a line when there are more?** [decision 232]
 - *Recommended:* yes, as §2.8.
 - *The alternative:* all of a commune's salons, several requests. Not needed at launch scale.
+- → ✅ **Decision 232, as recommended** (2026-11-25).
 
 **Q6. The website's half (A4w)?** [decision 233]
 - *Recommended:* yes, its own PR after A4:
@@ -422,19 +427,23 @@ The drift the read found is fixed at the same time:
   - the count from `total` (it stops at 24 today).
 - **The « Onglerie » chip is not A4w's.** It sent `nail`, so it could never find a salon; B16.1 §12 found it. Its own session fixed it, merged as #861 on 2026-11-24.
 - Its merge is a production deploy.
+- → ✅ **Decision 233, as recommended** (2026-11-25).
 
 **Q7. The order: A4-api, then A4, then A4w — and A4's consumer build waits for A4-api in production?** [decision 234]
 - *Recommended:* yes to both. The field's hint and the empty state promise services and communes, which only A4-api's server finds (§9).
 - B16.1 stays with its own session, before release.
+- → ✅ **Decision 234, as recommended** (2026-11-25).
 
 **Q8. Does A4 wait for decision 55** (search text in Google Cloud's request logs, B0.15)? [decision 235]
 - *Recommended:* no. The website already sends `q` the same way, and A4 changes nothing about where it is kept.
 - Decision 55's answer then covers both, and the consumer store packet (B3) declares what it decides.
+- → ✅ **Decision 235, as recommended** (2026-11-25).
 
 **Q9. The sort and « Disponible aujourd’hui »: for the session, or for one visit to the list?** [decision 236]
 - Today they last the whole session, and leak into the home and the map (§Today). Once the list has its own state, they could reset each time it opens.
 - *Recommended:* keep them for the session, as today, but on the list only. The person who chose « Mieux notés » finds it again; the home and the map ignore it.
 - *The alternative:* each visit starts on « Pertinence », without the filter.
+- → ✅ **Decision 236, as recommended** (2026-11-25).
 
 ## 12. The independent reading (2026-11-24)
 
