@@ -5,6 +5,7 @@ import 'package:postgres/postgres.dart';
 import '../appointments/booking_window.dart';
 import '../providers_repository.dart';
 import '../salon_time.dart';
+import '../search_text.dart';
 import '../slug.dart' show isReservedSlug;
 import 'migrations.dart' show insertProviderAvailability;
 
@@ -27,6 +28,31 @@ const kProviderDocumentColumns = [
   'commune',
   'category',
 ];
+
+/// A search's text as a `LIKE` pattern: folded with `lower(unaccent(…))`
+/// FIRST, its `\`, `%` and `_` escaped AFTER. The other order is a defect:
+/// unaccent turns a full-width ＿ or ％ into `_` or `%`, which an escape run
+/// before it never saw, and `q=＿` would list every salon.
+/// docs/design/consumer-search.md §3 (A4-api, decision 228).
+const _searchPattern =
+    r"('%' || replace(replace(replace(lower(unaccent(CAST(@q AS text))), "
+    r"'\', '\\'), '%', '\%'), '_', '\_') || '%')";
+
+/// One searched field against [_searchPattern].
+String _searchField(String column) =>
+    "lower(unaccent($column)) LIKE $_searchPattern ESCAPE '\\'";
+
+/// What `q` matches on Postgres: the salon's name, description, address and
+/// commune columns, or the name of one of its active services, each on its
+/// own, ignoring case and accents. The in-memory twin's
+/// [salonMatchesSearch] is the same rule; `test/providers/search_contract.dart`
+/// holds the two to it. Needs the `unaccent` extension (migration `0051`).
+final kProviderSearchCondition =
+    '(${_searchField('name')} OR ${_searchField('description')} '
+    'OR ${_searchField('address')} OR ${_searchField('commune')} '
+    'OR EXISTS (SELECT 1 FROM provider_services s '
+    'WHERE s.provider_id = providers.id AND s.active '
+    'AND ${_searchField('s.name')}))';
 
 /// Postgres-backed [ProvidersRepository].
 ///
@@ -64,17 +90,18 @@ class PostgresProvidersRepository implements ProvidersRepository {
       conditions.add('commune = @commune');
       parameters['commune'] = commune;
     }
-    if (q != null && q.isNotEmpty) {
-      conditions.add(
-        '(name ILIKE @q OR description ILIKE @q OR address ILIKE @q)',
-      );
-      parameters['q'] = '%$q%';
+    final text = cleanSearchText(q);
+    if (text != null) {
+      conditions.add(kProviderSearchCondition);
+      parameters['q'] = text;
     }
     final where = 'WHERE ${conditions.join(' AND ')}';
     final rows = await _pool.execute(
       Sql.named(
         'SELECT data, featured, status FROM providers $where '
-        'ORDER BY featured DESC, rating DESC',
+        // The id last, byte order: equal salons never swap places between
+        // two pages, and the in-memory twin's `String.compareTo` agrees.
+        'ORDER BY featured DESC, rating DESC, id COLLATE "C"',
       ),
       parameters: parameters,
     );

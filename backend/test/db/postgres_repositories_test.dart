@@ -42,6 +42,8 @@ import 'package:myweli_backend/src/provider_account_service.dart';
 import 'package:myweli_backend/src/salon_provisioning_service.dart';
 import 'package:myweli_backend/src/salon_time.dart';
 import 'package:myweli_backend/src/salon_visibility.dart';
+import 'package:myweli_backend/src/search_fold_table.dart';
+import 'package:myweli_backend/src/search_text.dart';
 import 'package:myweli_backend/src/storage/storage_service.dart';
 import 'package:myweli_backend/src/validation/salon_validation_repository.dart';
 import 'package:postgres/postgres.dart';
@@ -1550,6 +1552,56 @@ void main() {
         repo: () => PostgresProvidersRepository(pool),
         created: deleteOnTearDown,
       );
+    });
+
+    // docs/design/consumer-search.md §3 (A4-api): the in-memory twin folds
+    // with a table copied from this database's `unaccent()`
+    // (tool/search_fold_table.dart). These two hold it to the database CI
+    // runs, so a table that drifts — or a PostgreSQL that changes its rules —
+    // fails here rather than making the twins disagree quietly.
+    test('kUnaccentFold is unaccent(), entry for entry, over every '
+        'code point', () async {
+      final rows = await pool.execute(
+        'SELECT n, unaccent(chr(n)) FROM generate_series(1, 1114111) n '
+        'WHERE n NOT BETWEEN 55296 AND 57343 AND unaccent(chr(n)) <> chr(n)',
+      );
+      final database = {
+        for (final row in rows) row[0]! as int: row[1]! as String,
+      };
+      expect(database.length, greaterThan(1000), reason: 'control: a table');
+      expect(kUnaccentFold, equals(database));
+    });
+
+    // The lower-case half. Over the whole BMP, Dart's `toLowerCase` leaves
+    // 186 characters upper case that this database lower-cases (PostgreSQL
+    // 16.14, read 2026-11-25): Cherokee, Georgian Mtavruli, Latin
+    // Extended-D, a few Cyrillic and Coptic letters. None is a letter of
+    // French or of the Latin alphabets of Côte d'Ivoire's languages (ɛ, ɔ, ŋ
+    // and their capitals are in the ranges below, and agree). So the sweep
+    // covers the scripts a salon's name is written in, and that limit is
+    // the in-memory twin's only: it never serves production.
+    test('foldSearchText is lower(unaccent()) on every character of Latin, '
+        'its accents, punctuation and full-width forms', () async {
+      final rows = await pool.execute(
+        'SELECT n, lower(unaccent(chr(n))) FROM ('
+        'SELECT generate_series(32, 879) n ' // Basic Latin … combining marks
+        'UNION ALL SELECT generate_series(7680, 7935) ' // Latin Ext. Additional
+        'UNION ALL SELECT generate_series(8192, 8303) ' // General Punctuation
+        'UNION ALL SELECT generate_series(65280, 65519)) c', // full-width
+      );
+      expect(rows.length, 848 + 256 + 112 + 240, reason: 'control: the ranges');
+      final differ = <String>[];
+      for (final row in rows) {
+        final n = row[0]! as int;
+        final folded = foldSearchText(String.fromCharCode(n));
+        if (folded != row[1]) {
+          differ.add(
+            'U+${n.toRadixString(16).toUpperCase()}: Dart '
+            '«$folded», Postgres «${row[1]}»',
+          );
+        }
+      }
+      expect(differ, isEmpty, reason: differ.take(20).join('\n'));
     });
 
     // docs/design/provider-category-column.md §8.2 (B16.1, decision 225):

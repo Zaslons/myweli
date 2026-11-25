@@ -1326,6 +1326,17 @@ CREATE TABLE IF NOT EXISTS salon_purge_queue (
       kProviderCategoryFromDocument,
     ],
   ),
+  (
+    id: '0051_unaccent',
+    statements: [
+      // A4-api, decision 228 (docs/design/consumer-search.md §3): a search
+      // ignores accents through `lower(unaccent(…))`. Additive: an image from
+      // before this never calls it, so rolling back past it is safe, and the
+      // extension left behind is unused. `unaccent` is a trusted extension
+      // (PostgreSQL 13+), created the way 0009 creates btree_gist.
+      'CREATE EXTENSION IF NOT EXISTS unaccent',
+    ],
+  ),
 ];
 
 /// Gives every booking with no stored currency its salon's currency, else

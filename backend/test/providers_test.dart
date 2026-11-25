@@ -258,6 +258,29 @@ void main() {
       expect(items.every((p) => (p as Map)['category'] == 'barber'), isTrue);
     });
 
+    // docs/design/consumer-search.md §3 (A4-api): the route hands `q` to
+    // the repository as sent; the repository cleans and folds it. Typed the
+    // way a phone sends it: no accents, extra spaces, upper case.
+    test(
+      'GET /providers?q= finds « Beauté Divine » from « BEAUTE  divine »',
+      () async {
+        when(() => context.request).thenReturn(
+          Request.get(
+            Uri.parse('http://localhost/providers?q=%20BEAUTE%20%20divine%20'),
+          ),
+        );
+        final body =
+            await (await list.onRequest(context)).json()
+                as Map<String, dynamic>;
+        final names = [
+          for (final p in (body['items'] as List).cast<Map<String, dynamic>>())
+            p['name'],
+        ];
+        expect(names, ['Beauté Divine']);
+        expect(body['total'], 1);
+      },
+    );
+
     test('GET /providers?sort=rating orders by rating desc', () async {
       when(() => context.request).thenReturn(
         Request.get(

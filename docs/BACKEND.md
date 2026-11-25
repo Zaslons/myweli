@@ -280,6 +280,14 @@ storage off cannot silently switch the origin check off with it.
   **Known narrower gap:** request *bodies* are not covered — JSON may legally
   encode `\u0000`, and reaching it means consuming and re-providing the body,
   which dart_frog does not make safe. Recorded rather than implied.
+- **A `LIKE` pattern built from a person's text is folded first, escaped
+  after** (A4-api, [consumer-search.md](design/consumer-search.md) §3): the
+  text is bound as a parameter, folded with `lower(unaccent(…))`, then its
+  `\`, `%` and `_` escaped (`ESCAPE '\'`). The other order is a defect:
+  `unaccent` turns a full-width `＿` or `％` into `_` or `%` after an escape
+  that never saw them. Before A4-api, `GET /providers?q=_` listed every
+  salon (twin survey A-P3, B16.8). `listForAdmin(q:)` and the clients list
+  still build an unescaped `ILIKE` (B16.7, B16.8).
 - **The server is the authority** on prices, totals, ids, status, and
   permissions. The client proposes; the server computes and verifies. (E.g.,
   deposit amount is derived server-side from the service price × policy, not

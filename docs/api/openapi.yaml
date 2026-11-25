@@ -1731,14 +1731,34 @@ paths:
     get:
       tags: [providers]
       summary: List/search providers (B1)
+      description: >-
+        Public, active salons only (drafts and suspended salons never appear).
+        Every order ends on the salon id, so two salons that are otherwise
+        equal never swap places between two pages
+        (docs/design/consumer-search.md §3, A4-api).
       parameters:
-        - { in: query, name: q, schema: { type: string }, description: Free-text search }
-        - { in: query, name: commune, schema: { type: string } }
-        - { in: query, name: category, schema: { type: string } }
-        - { in: query, name: sort, schema: { type: string, enum: [relevance, rating, price], default: relevance }, description: "FR-DISC-007 sort: relevance (featured+rating), rating desc, or min-service-price asc." }
-        - { in: query, name: availableToday, schema: { type: boolean }, description: "FR-DISC-007: keep only salons with ≥1 free slot today." }
-        - { in: query, name: page, schema: { type: integer, default: 1, minimum: 1 } }
-        - { in: query, name: pageSize, schema: { type: integer, default: 20, minimum: 1, maximum: 50 } }
+        - in: query
+          name: q
+          schema: { type: string }
+          description: >-
+            Free-text search (A4-api, decision 228). Matches the salon's name,
+            description, address or commune, or the name of one of its active
+            services, each field on its own (a text spanning two fields
+            matches neither). Case and accents are ignored on both sides
+            (PostgreSQL `lower(unaccent(…))`: « beaute » finds « Beauté »,
+            « l’atelier » finds « L'Atelier »). Spaces are trimmed and every
+            run of them counts as one; `%`, `_` and `\` match themselves.
+            Only the first 100 characters are used: a longer text is cut, not
+            refused. An empty or blank `q` is no filter. Several words are
+            one text: « tresses cocody » matches only where they appear
+            together. A control character (U+0000–U+001F) anywhere in the query string is a
+            400 `invalid_input`.
+        - { in: query, name: commune, schema: { type: string }, description: "Exact commune name, as the salon stores it." }
+        - { in: query, name: category, schema: { type: string }, description: "Exact category key (salon, barber, spa, nails, massage)." }
+        - { in: query, name: sort, schema: { type: string, enum: [relevance, rating, price], default: relevance }, description: "FR-DISC-007 sort: relevance (featured, then rating desc), rating desc, or min-active-service-price asc (salons with no price last); each then by id. Any other value is relevance, not an error." }
+        - { in: query, name: availableToday, schema: { type: boolean }, description: "FR-DISC-007: `true` keeps only salons with ≥1 free slot today. Any other value, `false` included, is no filter." }
+        - { in: query, name: page, schema: { type: integer, default: 1, minimum: 1 }, description: "Clamped to 1…100000, not refused; a value that is not a number is 1. A page past the end is an empty `items` with the real `total`." }
+        - { in: query, name: pageSize, schema: { type: integer, default: 20, minimum: 1, maximum: 50 }, description: "Clamped to 1…50, not refused; a value that is not a number is 20." }
       responses:
         '200':
           description: A page of providers
@@ -1757,7 +1777,9 @@ paths:
                     items: { $ref: '#/components/schemas/Provider' }
                   page: { type: integer }
                   pageSize: { type: integer }
-                  total: { type: integer }
+                  total: { type: integer, description: "Every salon that matches, across all pages." }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '405': { description: Method not allowed }
 
   /providers/{id}:
     get:
