@@ -54,6 +54,15 @@ final kProviderSearchCondition =
     'WHERE s.provider_id = providers.id AND s.active '
     'AND ${_searchField('s.name')}))';
 
+/// Discovery's order on Postgres: featured first, then rating, then the id
+/// in byte order (`COLLATE "C"`), so equal salons never swap places between
+/// two pages and the in-memory twin's `String.compareTo` agrees. A constant
+/// so the Postgres suite can sort rows of its own choosing with it: the
+/// tiebreak only shows when ties arrive out of id order, which salons
+/// created through the repository never reliably do.
+/// docs/design/consumer-search.md §3.1 (A4-api).
+const kProviderDiscoveryOrder = 'featured DESC, rating DESC, id COLLATE "C"';
+
 /// Postgres-backed [ProvidersRepository].
 ///
 /// The provider core lives as a `jsonb` document (+ indexed columns for
@@ -99,9 +108,7 @@ class PostgresProvidersRepository implements ProvidersRepository {
     final rows = await _pool.execute(
       Sql.named(
         'SELECT data, featured, status FROM providers $where '
-        // The id last, byte order: equal salons never swap places between
-        // two pages, and the in-memory twin's `String.compareTo` agrees.
-        'ORDER BY featured DESC, rating DESC, id COLLATE "C"',
+        'ORDER BY $kProviderDiscoveryOrder',
       ),
       parameters: parameters,
     );

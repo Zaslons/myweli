@@ -52,8 +52,10 @@ void main() {
     });
 
     test('folds before lower-casing, as lower(unaccent()) does', () {
-      // « İ » lower-cased first would be « i » plus a combining dot.
-      expect(foldSearchText('İ'), 'i');
+      // unaccent turns « Ɩ » (U+0196) into « I »; lower-cased first, it
+      // would be « ɩ », which unaccent leaves alone. One of four such
+      // letters in the swept ranges, all found by trying both orders.
+      expect(foldSearchText('Ɩ'), 'i');
     });
 
     test('the table is not empty', () {

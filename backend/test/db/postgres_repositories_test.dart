@@ -1559,6 +1559,26 @@ void main() {
     // (tool/search_fold_table.dart). These two hold it to the database CI
     // runs, so a table that drifts — or a PostgreSQL that changes its rules —
     // fails here rather than making the twins disagree quietly.
+    // The contract's order case depends on where Postgres stores the rows,
+    // so it may pass without the tiebreak (it did, under mutation). Rows of
+    // the test's own, out of id order, sorted by the repository's own
+    // ORDER BY: without the id, a sort of ties keeps them as they came;
+    // without `COLLATE "C"`, en_US puts « a » before « B ».
+    test('kProviderDiscoveryOrder ends on the id, in byte order', () async {
+      final rows = await pool.execute(
+        "SELECT id FROM (VALUES ('b', false, 4.5::float8), "
+        "('a', false, 4.5::float8), ('x', true, 1.0::float8), "
+        "('B', false, 4.5::float8)) AS providers(id, featured, rating) "
+        'ORDER BY $kProviderDiscoveryOrder',
+      );
+      expect([for (final r in rows) r[0]], ['x', 'B', 'a', 'b']);
+      expect(['b', 'a', 'B']..sort(), [
+        'B',
+        'a',
+        'b',
+      ], reason: 'control: the in-memory twin sorts ids the same way');
+    });
+
     test('kUnaccentFold is unaccent(), entry for entry, over every '
         'code point', () async {
       final rows = await pool.execute(

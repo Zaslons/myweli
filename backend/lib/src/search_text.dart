@@ -36,8 +36,8 @@ String? cleanSearchText(String? raw) {
 
 /// [text] folded as Postgres's `lower(unaccent(text))` folds it: each
 /// character through [kUnaccentFold] first, then lower case. That order is
-/// the database's, and it matters: unaccent turns « İ » into « I », where
-/// lower-casing first would leave a combining dot behind.
+/// the database's, and it matters: unaccent turns « Ɩ » into « I », where
+/// lower-casing first gives « ɩ », which the table leaves alone.
 String foldSearchText(String text) {
   final out = StringBuffer();
   for (final rune in text.runes) {
