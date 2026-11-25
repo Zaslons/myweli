@@ -1,4 +1,4 @@
-- 🟡 **B16.1 : la catégorie d’un salon atteint la colonne sur laquelle la découverte filtre (backend · 2026-11-24).** Branche `fix/b16-1-category-column`, créée depuis `main` (`257f62d9`), PR #860. Spec : [provider-category-column.md](../../design/provider-category-column.md) §8.8. Décisions 224–227.
+- 🟢 **B16.1 : la catégorie d’un salon atteint la colonne sur laquelle la découverte filtre (backend · 2026-11-24).** Branche `fix/b16-1-category-column`, créée depuis `main` (`257f62d9`), PR #860. Spec : [provider-category-column.md](../../design/provider-category-column.md) §8.8. Décisions 224–227.
   - **Le défaut :** un salon qui changeait de catégorie dans son profil restait listé sous l’ancienne, parce que la colonne lue par le filtre n’était écrite qu’à la création. En production, un salon sur neuf (lecture du 2026-11-24), tous en brouillon.
   - **La correction :**
     - `updateProfile` écrit maintenant la colonne `category` avec le document, dans la même requête ; la liste des colonnes tenues devient une constante nommée, `kProviderDocumentColumns` ;
@@ -11,4 +11,6 @@
     - huit mutations sur le code commité, chacune rouge avec son texte ; la ligne témoin jamais rouge sous m1 ;
     - les bases locales jetables supprimées.
   - **Aussi :** la spec (#857) est fusionnée ; son entrée passe au vert.
-  - **Reste, chacun sur le mot du propriétaire :** la fusion, puis le déploiement (de préférence avant la validation de ce salon), puis la même lecture après.
+  - **Fusionnée le 2026-11-24** (#860, `27de3e80`, sur le mot du propriétaire ; l’arbre de `main` est celui de la tête testée).
+  - **Déployée le 2026-11-25** (01:19 UTC, sur le mot du propriétaire) : `image_tag=27de3e8`, avec B15.1. La révision `myweli-api-00058-tnp` sert 100 %, `/health` répond 200, aucune erreur dans ses journaux.
+  - **La lecture après, en lecture seule** (08:42 UTC, sur le mot du propriétaire) : 9 salons, aucun dont la colonne diffère du document (la veille : 1) ; `0050` passée à 01:19:13, au démarrage de la révision. Spec §9.1.

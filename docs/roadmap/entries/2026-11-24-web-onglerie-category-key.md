@@ -1,4 +1,4 @@
-- 🟡 **Site : « Onglerie » demande à l’API la catégorie qu’elle enregistre, `nails` (web · 2026-11-24 — spec [provider-category-column.md](../../design/provider-category-column.md) §12).** Branche `fix/web-onglerie-category-key`, créée depuis `main` (`257f62d9`). Sa fusion est un déploiement en production de `myweli.com`, sur le mot du propriétaire. Aucun point d’API ne change.
+- 🟢 **Site : « Onglerie » demande à l’API la catégorie qu’elle enregistre, `nails` (web · 2026-11-24 — spec [provider-category-column.md](../../design/provider-category-column.md) §12).** Branche `fix/web-onglerie-category-key`, créée depuis `main` (`257f62d9`). Sa fusion est un déploiement en production de `myweli.com`, sur le mot du propriétaire. Aucun point d’API ne change.
   - **Avant, depuis M4 (#127) :** `web/lib/landing.ts` envoyait `category=nail` pour « Onglerie ».
     - Tout ce qui écrit une catégorie enregistre `nails` : l’enum du PATCH du profil, la validation du catalogue, le seed, `categoryFor`, l’app, et le profil Pro du site lui-même.
     - Les deux magasins filtrent par égalité exacte, sans alias.
@@ -23,3 +23,5 @@
     - l’alias `nail` du JSON-LD, inoffensif, faute de pouvoir exclure d’ici une ancienne ligne enregistrée ainsi ;
     - les anciens liens `?category=nail` : `/recherche` est `noindex`, et ils n’ont jamais rien listé ;
     - deux imports inutilisés dans `app/[slug]/[city]/[area]/page.tsx`.
+  - **Fusionnée le 2026-11-24** (#861, `cb347ae3`, 23:38 UTC, sur le mot du propriétaire ; l’arbre de `main` est celui de la tête testée, aucune ligne d’attribution, CI au vert). Sa fusion est son déploiement.
+  - **Relue sur `myweli.com` le 2026-11-25 :** l’accueil (2 liens) et `/recherche` (1 lien) pointent vers `category=nails`, aucun vers `category=nail`. Le moniteur de production lancé après la fusion (run 45524710053) passe 11/11.

@@ -10,4 +10,4 @@
     - **chaque rendez-vous de test dans son propre créneau :** sinon Postgres refusait le second, et le test aurait été rouge pour le créneau, pas pour ce qu’il vérifie ;
     - **après le correctif :** format et analyse propres, la suite backend complète sur une base neuve passe (2986 tests, 2 ignorés, code de sortie lu tel quel) ;
     - **10 mutations rouges pour la raison annoncée,** deux témoins verts, l’arbre propre après.
-  - **Fusionnée le 2026-11-24** (#853, `b042d2bb`, sur le mot du propriétaire ; l’arbre de `main` est celui de la tête testée, CI 12/12 sur la PR et sur `main`). Elle atteint la production avec le prochain déploiement du backend.
+  - **Fusionnée le 2026-11-24** (#853, `b042d2bb`, sur le mot du propriétaire ; l’arbre de `main` est celui de la tête testée, CI 12/12 sur la PR et sur `main`). Elle atteint la production avec le prochain déploiement du backend : **déployée le 2026-11-25** avec B16.1 (révision `myweli-api-00058-tnp`, `/health` 200).
