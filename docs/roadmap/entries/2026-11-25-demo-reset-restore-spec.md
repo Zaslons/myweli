@@ -1,0 +1,19 @@
+- 🟡 **Spec : la réinitialisation du salon de démonstration remet enfin ce qu’un relecteur a changé (B16.2) (backend · documentation · 2026-11-25).** Branche `docs/b16-2-demo-reset`, créée depuis `main` (`7402e77b`), PR #865. Spec : [demo-reset-restore.md](../../design/demo-reset-restore.md). Documentation seule : aucun code.
+  - **Le défaut :** chaque semaine, la réinitialisation doit remettre le salon de démonstration tel que le propriétaire l’a préparé, pour les relecteurs des stores. Elle renvoie le cliché par `updateProfile`, qui ne touche pas aux tables des prestations et des horaires. Les prestations, les horaires et les avant/après qu’un relecteur change restent donc pour le suivant.
+  - **Prouvé sur les deux doubles** (une sonde jetable et une base locale jetable, supprimées après), plus large que l’étude ne le disait :
+    - en mémoire aussi, les prestations ne reviennent pas : le cliché partage les listes du salon (C-M1), et les modifications du relecteur réécrivent le cliché lui-même ;
+    - les horaires ne reviennent pas en production ;
+    - les avant/après ajoutés restent sur les deux doubles, la clé manquant au cliché ;
+    - la note revient à celle du cliché alors que les avis la calculent ; en production, la colonne `rating` ne suit pas et contredit le document.
+  - **La conception proposée :**
+    - un écrivain `replaceServices` sur les deux doubles, en une transaction, dans l’ordre du cliché ;
+    - les horaires par `replaceAvailability` (aller-retour vérifié) ;
+    - les avant/après par leur écrivain ;
+    - `featured` et la note laissés à leurs propriétaires ;
+    - le cliché qui garde sa propre copie ;
+    - un cliché que les nouveaux écrivains ne peuvent pas appliquer, refusé avant toute écriture (`refused:bad_snapshot`), pour ne jamais bloquer la purge des salons chaque nuit ;
+    - trois contrats sur les deux doubles, rouges d’abord, quatorze mutations.
+  - **Relue une fois par un lecteur indépendant, chargé de la réfuter contre le code :** chaque référence de ligne juste, sauf « cinq tables » (quatre). Un bloquant intégré : la mutation qui saute la suppression ne pouvait pas échouer sur une assertion, l’identifiant d’une prestation étant une clé primaire globale. Huit corrections, dont le refus d’un cliché inapplicable, l’« INSERT » simple, jamais un upsert (une prestation d’un autre salon ne peut pas être reprise), et la lecture de production qui décode `data` sous ses deux formes.
+  - **Cinq questions** (décisions 250–254), dont une lecture de production en lecture seule avant le déploiement : une réinitialisation corrigée défait aussi ce qui a été préparé après la capture du 2026-10-14.
+  - **Approuvée le 2026-11-25 :** les cinq réponses d’un coup, « Approve as recommended », décisions 250–254 dans le BACKLOG (lot 16). Noté en même temps : la décision 249 (les revenus, B17 R2) enrichit l’agenda régénéré, dans le même fichier ; celle des deux constructions qui vient en second intègre l’autre.
+  - **Reste :** la fusion, sur le mot du propriétaire ; puis B16.2, construit dans sa propre PR, sur le mot du propriétaire.
