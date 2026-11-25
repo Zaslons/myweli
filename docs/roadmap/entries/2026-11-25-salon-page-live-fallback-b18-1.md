@@ -1,4 +1,4 @@
-- 🟡 **B18.1 : la page d’un salon fonctionne dès qu’il est public, le « live fallback » (site · 2026-11-25).** Branche `feat/web-salon-page-live-fallback`, PR #871 ; elle contient les trois commits de la spec (#870) tant que celle-ci n’est pas fusionnée. Spec : [web-salon-page-live-fallback.md](../../design/web-salon-page-live-fallback.md), décisions 255–258.
+- 🟡 **B18.1 : la page d’un salon fonctionne dès qu’il est public, le « live fallback » (site · 2026-11-25).** Branche `feat/web-salon-page-live-fallback`, PR #871, rebasée sur `main` après la fusion de la spec (#870, `73f12886`). Spec : [web-salon-page-live-fallback.md](../../design/web-salon-page-live-fallback.md), décisions 255–258.
   - **Le défaut, mesuré en production :** un salon validé après le dernier build était listé par la recherche, mais sa page répondait « Page introuvable » jusqu’à ce que la reconstruction soit en ligne. Encore 404 2 min 42 s après la demande, 200 à 4 min 46 s.
   - **Construit :**
     - **une seule liste de salons par build.** Le prebuild (`tool/build-salon-slugs.mjs`) lit `GET /sitemap/providers` une fois ; `next.config.mjs` l’intègre au code, avec les routes du site, pour `generateStaticParams` et le middleware ;
@@ -25,6 +25,6 @@
     - une carte de la recherche est un simple `<a>` : un clic recharge la page pour tout salon.
   - **Aucune donnée de production n’a été modifiée.**
   - **Reste :**
-    - la fusion de #870, puis de cette PR : sa fusion est un déploiement du site en production, sur le mot du propriétaire ;
+    - la fusion de cette PR, sur le mot du propriétaire (#870 fusionnée) : un déploiement du site en production ;
     - la lecture après (spec §9) ;
     - la décision 259.
