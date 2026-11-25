@@ -7,7 +7,7 @@
   - **Ce que `GET /providers?q=` trouve maintenant, sur les deux jumeaux :**
     - le nom, la description, l’adresse et la commune du salon, ou le nom d’une de ses prestations actives, chaque champ pour lui-même ;
     - sans tenir compte de la casse ni des accents (« L’Atelier » avec l’apostrophe d’un iPhone, « Sœurs », un « é » tapé en deux caractères) ;
-    - espaces coupés et resserrés ; seuls les 100 premiers caractères comptent, un emoji à la coupure reste entier ;
+    - espaces coupés et resserrés, dans la recherche comme dans le texte du salon (espaces insécables et retours à la ligne compris) ; seuls les 100 premiers caractères comptent ;
     - `%`, `_` et `\` se cherchent eux-mêmes ;
     - chaque ordre finit sur l’identifiant du salon, pour qu’aucune page ne chevauche la suivante.
   - **Trouvé en construisant :** il faut replier le texte d’abord et l’échapper ensuite. Dans l’autre ordre, `unaccent` change un « ＿ » pleine largeur en joker après l’échappement, et la recherche liste encore tous les salons. Un cas du contrat tient les deux ordres séparés ; BACKEND.md §3.4 écrit la règle.
@@ -18,6 +18,8 @@
     - le contrat de recherche sur les deux jumeaux, d’abord rouge sur le code d’hier (10 cas en mémoire, 7 sur Postgres, chacun sur sa règle) ;
     - le tri départagé par l’identifiant ;
     - le nettoyage et le repli ;
-    - la suite backend complète sur PostgreSQL 16 : 3 039 tests passés, 2 ignorés.
+    - 26 mutations, chacune vue rouge sur le code commité, et la migration retirée sur une base neuve (`function unaccent(text) does not exist`) ;
+    - la suite backend complète sur PostgreSQL 16 (chiffres dans la PR).
+  - **Relue par un lecteur indépendant, chargé de la réfuter :** rien ne bloque la fusion. Deux constats corrigés : le nom d’une prestation aurait pu lister tous les salons sans qu’aucun test le voie, et les espaces du salon lui-même n’étaient pas resserrés. Un soupçon reste à vérifier au déploiement : `lower()` suit le réglage de caractères de la base ; la relecture lira `datctype`, sur le mot du propriétaire.
   - **Non touchés :** la recherche de la console d’administration et la liste des clientes gardent leur `ILIKE` non échappé (B16.8, B16.7).
   - **Reste :** la fusion de cette PR, sur le mot du propriétaire ; puis le déploiement et la relecture en production, sur son mot. Tant qu’aucun salon n’est public, la recherche elle-même ne peut pas être observée en production (§10) : la preuve est le contrat sur le Postgres de CI. Ensuite A4, l’app, dont le build attend ce déploiement (décision 234).
