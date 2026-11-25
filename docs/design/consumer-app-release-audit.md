@@ -500,6 +500,8 @@ L = a week or more. **Risk** is to the submission or to a user's trust.
 
 **2026-11-25 — A4's nine questions answered** (decisions 228–236, « Approve as recommended »). Decision 229 replaces row A4's « PRD Appendix A chips » with the five categories the server, MyWeli Pro and the website share. Next: A4-api, then A4, then A4w.
 
+**2026-11-25 — A4-api merged and deployed** (#864, `351568e3`; `myweli-api-00059-w28`): the server's `q` finds services and communes and ignores accents. Gaps 11, 20 and 22's commune half stay open until A4, the app, ships.
+
 ---
 
 ## 7. Proposed order of work
