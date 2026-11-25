@@ -9,6 +9,7 @@
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
+    "test:stress": "MYWELI_SCHEDULER_STRESS=1 vitest run",
     "e2e": "playwright test",
     "e2e:install": "playwright install --with-deps chromium",
     "lhci": "lhci autorun",
