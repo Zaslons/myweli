@@ -1,4 +1,4 @@
-- 🟡 **B18.1 : la page d’un salon fonctionne dès qu’il est public, le « live fallback » (site · 2026-11-25).** Branche `feat/web-salon-page-live-fallback`, empilée sur la spec (#870). Spec : [web-salon-page-live-fallback.md](../../design/web-salon-page-live-fallback.md), décisions 255–258.
+- 🟡 **B18.1 : la page d’un salon fonctionne dès qu’il est public, le « live fallback » (site · 2026-11-25).** Branche `feat/web-salon-page-live-fallback`, PR #871 ; elle contient les trois commits de la spec (#870) tant que celle-ci n’est pas fusionnée. Spec : [web-salon-page-live-fallback.md](../../design/web-salon-page-live-fallback.md), décisions 255–258.
   - **Le défaut, mesuré en production :** un salon validé après le dernier build était listé par la recherche, mais sa page répondait « Page introuvable » jusqu’à ce que la reconstruction soit en ligne. Encore 404 2 min 42 s après la demande, 200 à 4 min 46 s.
   - **Construit :**
     - **une seule liste de salons par build.** Le prebuild (`tool/build-salon-slugs.mjs`) lit `GET /sitemap/providers` une fois ; `next.config.mjs` l’intègre au code, avec les routes du site, pour `generateStaticParams` et le middleware ;

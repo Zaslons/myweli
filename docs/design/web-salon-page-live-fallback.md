@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Module** | web: the public salon page (`app/[slug]`), a new `middleware.ts`, one live-rendered route, the build's salon list; a scheduled production check. No backend change, no contract change. |
-| **Status** | **Built 2026-11-25, not merged** (`feat/web-salon-page-live-fallback`; §13). Approved the same day, « Approve as recommended »: decisions 255–258 in BACKLOG, batch 18 (#870). Decision 259 has no recommendation and is asked again. The merge (a production web deploy) and the read after it (§9), each on the owner's word. |
+| **Status** | **Built 2026-11-25, not merged** (`feat/web-salon-page-live-fallback`, #871; §13). Approved the same day, « Approve as recommended »: decisions 255–258 in BACKLOG, batch 18 (#870). Decision 259 has no recommendation and is asked again. The merge (a production web deploy) and the read after it (§9), each on the owner's word. |
 | **Owner** | the project owner: the answers, the build's go, the merge, the read after it |
 | **Last updated** | 2026-11-25 |
 | **PRD ref / phase** | the public salon page (web M1, [web-m1-backend-glue.md](web-m1-backend-glue.md)) and discovery ([web-discovery-map.md](web-discovery-map.md)) · V1 |
