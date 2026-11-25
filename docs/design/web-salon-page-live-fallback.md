@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Module** | web: the public salon page (`app/[slug]`), a new `middleware.ts`, one live-rendered route, the build's salon list; a scheduled production check. No backend change, no contract change. |
-| **Status** | **Approved 2026-11-25.** The owner answered « Approve as recommended »: decisions 255–258 in BACKLOG, batch 18 (#870). Decision 259 has no recommendation and is asked again. B18.1 is built in its own PR, stacked on #870; its merge (a production web deploy) and the read after it, each on the owner's word. |
+| **Status** | **Built 2026-11-25, not merged** (`feat/web-salon-page-live-fallback`, #871; §13). Approved the same day, « Approve as recommended »: decisions 255–258 in BACKLOG, batch 18 (#870). Decision 259 has no recommendation and is asked again. The merge (a production web deploy) and the read after it (§9), each on the owner's word. |
 | **Owner** | the project owner: the answers, the build's go, the merge, the read after it |
 | **Last updated** | 2026-11-25 |
 | **PRD ref / phase** | the public salon page (web M1, [web-m1-backend-glue.md](web-m1-backend-glue.md)) and discovery ([web-discovery-map.md](web-discovery-map.md)) · V1 |
@@ -74,7 +74,7 @@
 ### 2.3 Symptom 2: « search again, not found unless I reload »
 
 - In the logs, the only searches that came back without the salon are 00:28:44 and 00:28:51, 15–22 s after the 00:28:29 suspend. The salon came back only after each restore. **INFERRED:** that is what the owner saw. Decision 259 asks.
-- **No client-side cause was found.** `RechercheClient` does not filter its results. Measured on production: a client navigation from `/recherche` to an unknown slug (`window.next.router.push`) turns into a full page load. Next's `fetch-server-response.js:91` (`doMpaNavigation` on a non-OK answer) throws away the client router cache. From that 404, « Découvrir des salons » (client navigation) then an empty home search reach `/recherche` on the server, which listed `test-3`.
+- **No client-side cause was found.** `RechercheClient` does not filter its results. A search card is a plain `<a>` (`components/provider/ProviderCard.tsx:208`), so a click on it is a full page load for every salon; the map popup's « Voir le salon » is a `next/link` (`ResultsMap.tsx:144`). Measured on production: a client navigation to an unknown slug (`window.next.router.push`, the call that link makes) also turns into a full page load: Next's `fetch-server-response.js:91` (`doMpaNavigation` on a non-OK answer). Either way the client router cache is thrown away. From that 404, « Découvrir des salons » (client navigation) then an empty home search reach `/recherche` on the server, which listed `test-3`.
 
 ### 2.4 Why `dynamicParams = false`, and why it stays
 
@@ -104,7 +104,9 @@ Ruled out by measurement then: a framework upgrade (14.2.35, 15.5.23, 16.3.1), a
   - production, local and CI: an unreadable list fails the build, and the last deployment stays up;
   - preview (staging): an empty list, so every preview salon is served live (§3.2). That is harmless, and better than today's empty preview.
 - **The size is bounded:** about 20 bytes per salon in the middleware bundle, so 200 KB at 10,000 salons, under Vercel's edge-function size limit. INFERRED: the limit is the plan's, and it is visible only in the Vercel console.
-- **The site's own top-level routes** come from the same prebuild step, which lists `app/`: every folder that is not dynamic (`[…]`), private (`_…`) or a group (`(…)`). They are handed over the same way (`env.MYWELI_TOP_LEVEL_ROUTES`). The taxonomy roots come from `lib/taxonomy` (`taxonomyRootSlugs`). The middleware never calls the API for any of them, so adding a page can never silently cost one API call per view. Pinned against Next's own build output, an independent source, in §8.1.
+- **The site's own top-level routes** are listed by `next.config.mjs` itself, at config load, from `app/` (`topLevelRoutes` in `tool/salon-build-list.mjs`): every folder that is not dynamic (`[…]`), private (`_…`) or a parallel slot (`@…`), a route group (`(…)`) read through. Not in the prebuild, so `next dev` has them too. They reach the code the same way (`env.MYWELI_TOP_LEVEL_ROUTES`). The taxonomy roots come from `lib/taxonomy` (`taxonomyRootSlugs`). The middleware never calls the API for any of them, so adding a page can never silently cost one API call per view. Pinned against Next's own build output, an independent source, in §8.1 case 7.
+- **A production build without its prebuild is refused** (`staticSalonSlugs`, `lib/salon-fallback.ts`): no inlined list, `NODE_ENV=production` and a posture that fails closed throw in `generateStaticParams`. A `next build` run on its own would otherwise ship with no salon built and every salon page served live, with nothing in any log. `next dev` (no prebuild) gets an empty list, and the middleware serves every salon live there.
+- **The prebuild loads env as Next does**, through `@next/env`'s `loadEnvConfig`. That package is CommonJS: it is imported by default, a named ESM import fails at load (found by the first e2e build).
 
 ### 3.2 The middleware
 
@@ -209,12 +211,13 @@ Every new check is watched failing before it counts, and the list goes in the co
 
 A new stub salon, `salon-juste-valide`: public by slug, **absent** from `/sitemap/providers`. That is « validated after the last build ». It appears in search **only for `q=juste`**, the way the stub already keys `vide` and `vitrine` (`stub-api.mjs:1060-1061`). Adding it to the unfiltered `/providers` answer would change the home page and `/recherche` for every other spec, and the page Lighthouse measures.
 1. `GET /salon-juste-valide` (`maxRedirects: 0`) → 200; its visible text (scripts stripped, the `visibleText` of `served-html.spec.ts`) has the salon's name; `<link rel="canonical">` is `/salon-juste-valide`. **Red today (404).**
-2. On `/recherche?q=juste`, a click on its card → the salon page by client navigation: its `h1` is the name, the URL is `/salon-juste-valide`, and the page did not reload (a marker set on `window` survives). **Red today:** the 404 forces a full load (§2.3).
+2. **a.** On `/recherche?q=juste`, a click on its card (a plain `<a>`, a full page load as for every salon) lands on the salon page: URL `/salon-juste-valide`, its `h1` contains the name (contains: a verified salon's heading also holds « ✔ Vérifié »). **Red before the fix (« Page introuvable »).** **b.** A client navigation to it, the call the map popup's `next/link` makes (driven through Next's router), renders it with **no reload**: a marker set on `window` survives. That is the RSC request going through the middleware's rewrite. **Red before the fix:** the 404 forces a full load (§2.3).
 3. **Every salon card on `/recherche?q=juste` answers 200 with `maxRedirects: 0`.** This is the structural invariant: search never lists a page the site cannot serve, whatever the mechanism. Without `maxRedirects: 0` a 307 to a 200 would pass. **Red today.**
 4. `GET /recherche/salon/beaute-divine` and `GET /recherche/salon/inconnu` → 404 with the real page (« Page introuvable » in the visible text). **Red against the broken matcher of §3.2:** the probe answered 200.
 5. `served-html.spec.ts`: every `NOT_FOUND_PATHS` row still 404 with « Page introuvable » in the visible text, untouched. Each costs one stub read now, and the stub answers 404 for all three slugs.
-6. On the live page: no `pageerror` (a production build reports hydration errors through `reportError`, not the console). The favourite heart's « Connexion » link returns to `/salon-juste-valide`. `next start` gives the same pathname on server and client (probe), so this cannot see a difference that exists only on Vercel. The read after (§9) looks there.
-7. **The route list against Next's own output.** After the build, every top-level static route in `.next/routes-manifest.json` / `app-paths-manifest.json` is in `MYWELI_TOP_LEVEL_ROUTES`. That is an independent oracle: the same `app/` scan on both sides would be circular. Red when a page is added that the generator misses.
+5b. **A built salon costs no read:** `GET /beaute-divine` → 200 without the live header, and the stub's by-slug count for it does not move. The page is warmed first: ISR revalidation (300 s) in a long run would read it by slug in the background.
+6. On the live page: no `pageerror` (a production build reports hydration errors through `reportError`, not the console), and the header's links equal a built salon page's, the salon's own `/<slug>/reserver` normalised. The chrome branches on `usePathname`; this proves the live page takes a salon page's branch under `next start`. On Vercel the read after looks (§9).
+7. **The route list against Next's own output.** After the build, for every first segment of `.next/app-path-routes-manifest.json` (Next's own list, an oracle independent of the `app/` scan the middleware's list comes from), `GET /<segment>` makes **no** by-slug read, counted by the stub (`/__stub/by-slug-calls`, added for this). Red when the list misses a route.
 8. **The compiled matcher.** `.next/server/middleware-manifest.json` matches `/test-3` and `/recherche/salon/x`, and matches neither `/test-3/reserver` nor `/favicon.ico`. **Red with `['/:slug']`:** measured in the probe.
 
 ### 8.2 Unit (Vitest)
@@ -246,7 +249,8 @@ A new job, `salonpages` (`npm run check:salon-pages`, `web/tool/check-salon-page
 - it reads `GET https://api.myweli.com/sitemap/providers`;
 - for each slug, `GET https://myweli.com/<slug>` (no redirect) must be **200 without `x-myweli-salon-page: live`**, i.e. served by the build;
 - a slug served live or answering 404 is checked again 10 minutes later: a validation just before the run is a build window, not a fault. Still not static → red, naming the slug.
-- **The job is added to the `needs` of both `report` and `clear`** (`production-checks.yml:506`, `:658`). Both lists are written by hand. A job missing from them would fail without opening the issue, and `clear` would then close the alarm.
+- **The job is added to the `needs` of both `report` and `clear`**, and to the report's status line (`SALONPAGES`). Both lists are written by hand; `backend/test/infra/production_alarm_test.dart` and `web/tests/production-alarm-status.test.ts` derive the job list and hold both to it. The job holds `contents: read` only: it reads two public URLs.
+- **Found by its first dry run against production:** a hand-built `file://${argv[1]}` never equals `import.meta.url` in a path with a space (« beauty app »), so the script exited 0 without checking anything. It now compares through `pathToFileURL`. After the fix, the dry run read 1 public salon, `/test-3`: static (2026-11-25).
 
 That catches what nothing catches today: a hook answered 201 and the Vercel build then failed (the alert watches only `site_rebuild FAILED`), or a hook that never fired. Watched red through its decision function on recorded answers (404, live, static); then one dry run against production, read in the run log. The monitor's last run is part of a read-back (verification guardrails §16).
 
@@ -305,3 +309,51 @@ Also taken from the review:
 - the route-list test against Next's own manifest, not the same scan.
 
 Each claim used here was re-read in the code by the author before it was taken. Confirmed by the review: redirects before middleware; `_rsc` and prefetch requests run the middleware; the rewrite works for both the HTML and the RSC request, with the navigation staying client-side; `usePathname` returns the browser path under `next start`; no routing conflict for `app/recherche/salon/[slug]`; every `NOT_FOUND_PATHS` row and the reserver's 307 keep working.
+
+---
+
+## 13. Build record (2026-11-25, `feat/web-salon-page-live-fallback`)
+
+**What was built** is §3 as written, with the details §3.1 and §8 now carry:
+- the route list comes from `next.config.mjs`, not the prebuild;
+- `staticSalonSlugs` refuses a production build without its prebuild;
+- the stub counts by-slug reads for cases 5b and 7;
+- case 2 is split, because a search card is a plain `<a>`.
+
+**Red first, on the code before the fix** (a throwaway worktree of the spec branch, with only the new spec and the stub copied in): e2e cases 1, 2a, 2b, 3, 6 and 8 failed for the stated reason. Case 1 answered 404. Cases 2a, 2b and 6 found « Page introuvable » as the heading. Case 3 got a 404 for `/salon-juste-valide`. Case 8 found no middleware in the manifest. Cases 4, 5b and 7 passed there: they guard the new code, and their red is the mutations below.
+
+**Green with the fix:**
+- the new spec and `served-html.spec.ts`: 32 passed;
+- web unit: 229 files, 3,322 tests;
+- lint and typecheck clean;
+- `backend/test/infra/production_alarm_test.dart`: 15 passed.
+
+**Mutations watched red** (each applied with an asserted change, on committed work, restored with a clean-tree check):
+- **unit:**
+  - the rewrite deleted;
+  - rewrite on any status;
+  - the API asked about built salons;
+  - the matcher back to `'/:slug'`;
+  - the matcher's second entry dropped;
+  - `cgu` dropped from the route list;
+  - `generateStaticParams` reading the API again;
+  - both catches removed;
+  - the prebuild swallowing an unreadable list;
+  - a production build without its prebuild accepted;
+  - the live route not hidden;
+  - the check following redirects;
+  - the check counting a live page as static;
+  - the check skipping the build window;
+- **backend test:** `salonpages` left out of the alarm's `needs`;
+- **e2e, on a real build each:**
+  - the matcher's second entry dropped → case 4: `/recherche/salon/beaute-divine` answered 200;
+  - `cgu` dropped from the route list → case 7: « /cgu made the middleware ask the API », 0 → 1. The unit test for that mutation reads the same `app/` scan; this one reads Next's own manifest.
+
+**Found while building:**
+- `@next/env` is CommonJS: a named ESM import fails at load.
+- The production check's first dry run against production printed nothing and exited 0. A hand-built `file://${argv[1]}` never equals `import.meta.url` in a path with a space. Fixed with `pathToFileURL`. Then: 1 public salon, `/test-3`, static.
+- Two test faults, corrected before counting anything:
+  - a verified salon's heading also holds « ✔ Vérifié »;
+  - the header carries the salon's own `/<slug>/reserver`.
+
+**Not verified here:** anything on Vercel itself (§9 reads it after the deploy) and the middleware quota (the Vercel console).
