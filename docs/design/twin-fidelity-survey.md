@@ -123,7 +123,7 @@ These are not test gaps. In each, the twin does what the code means, and Postgre
 | B-P2-b | consumer auth · the same | the same; Postgres creates a new user when no email comes | twin `:397-407`, PG `:195-231` |
 | B-P1-a | provider auth · `register` | the email code is spent at the check in memory, at the insert in Postgres | twin `:550,601,661`, PG `:242-263`, `:287-290` |
 | D-1 | membership · `firstActiveForAccount` | list order in memory, `invited_at` in Postgres: a member of two salons can land in a different one | twin `:240-245`, PG `:26-36` |
-| A-P3 | providers · `query(q:)`, `listForAdmin(q:)` | Postgres `ILIKE` with `%` and `_` unescaped (`q='_'` matches every salon); the twin matches across field boundaries | PG `:47-52`, twin `:239-243` |
+| A-P3 | providers · `query(q:)`, `listForAdmin(q:)` | Postgres `ILIKE` with `%` and `_` unescaped (`q='_'` matches every salon); the twin matches across field boundaries. **`query(q:)`'s half closed by A4-api (2026-11-25, [consumer-search.md](consumer-search.md) §3.1), with a contract on both twins; `listForAdmin(q:)` remains (B16.8).** | PG `:47-52`, twin `:239-243` |
 | A-C2 | clients · `list(query:)` | the same unescaped `ILIKE` | PG `:55`, twin `:167-168` |
 | A-P4 | providers · `listForAdmin` | rating order in Postgres, insertion order in memory | PG `:842` |
 | B-P2-c | consumer auth · `listUsers` | newest first and per-column `ILIKE` in Postgres; oldest first in memory | PG `:482-497`, twin `:476-491` |

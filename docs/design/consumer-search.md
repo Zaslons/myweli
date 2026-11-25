@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | **Approved by the owner on 2026-11-25** (« Approve as recommended »: the nine recommendations of §11, BACKLOG decisions 228–236). An independent reader checked it once against the code: 13 findings, each re-read in the code, then folded in (§12). Nothing is built yet. Next, each on the owner's word: this spec's merge (#859); A4-api, the backend's `q`, and its deploy; then A4, then A4w (§9). |
+| **Status** | **Approved by the owner on 2026-11-25** (« Approve as recommended »: the nine recommendations of §11, BACKLOG decisions 228–236). An independent reader checked it once against the code: 13 findings, each re-read in the code, then folded in (§12). The spec merged as `ed60594c` (#859). **A4-api built on 2026-11-25** on the owner's « Yes, build A4-api » (§3.1, branch `feat/a4-api-search`), not merged. Next, each on the owner's word: A4-api's merge, its deploy (migration `0051` first runs in production) and the read after; then A4, then A4w (§9). |
 | **Owner** | Sadreddine |
 | **Last updated** | 2026-11-25 |
 | **PRD ref / phase** | FR-DISC-003 (category browse), FR-DISC-004 (search by name, service and locality, French-aware), FR-DISC-005 (the map's commune awareness), FR-DISC-007 (sort and filter) · V1 · BACKLOG B0.10 (decision 160, Track A), B12.8 |
@@ -40,7 +40,7 @@ Today none of that is true (audit §2.1):
 - **Maquillage and Sourcils & cils as salon categories** (Q2).
 - **Recent searches and suggestions.**
 - **The map's location request and its Settings path** (gap 22's first half, A6).
-- **The category column on Postgres** (B16.1, the currency session's: spec #857 and fix #860 merged): until the fix is deployed, a salon that changed its category is filtered under its old one, on every surface.
+- **The category column on Postgres** (B16.1, the currency session's: spec #857, fix #860): **deployed 2026-11-25** (`myweli-api-00058-tnp`), and its read after found no salon whose column differs from its document (records #862).
 - **The website's own search flow** (B12.7: a typed commune that is not picked, « Coiffure » as text).
 
 ---
@@ -272,6 +272,21 @@ The drift the read found is fixed at the same time:
 - **`getProviders` stays** for the featured carousel and « Près de vous », until a later cleanup.
 - **The mock** pages, counts and folds exactly like A4-api, with latency, an error switch and an empty case.
 
+### 3.1 As built (A4-api, 2026-11-25)
+
+- **Where each step runs.** `backend/lib/src/search_text.dart` cleans the text once, in Dart, for both twins: white space (the no-break space included) collapsed and trimmed, then the first 100 characters **counted as runes**, so an emoji at the cut stays whole. Postgres folds with `lower(unaccent(…))` (`kProviderSearchCondition`, `postgres_providers_repository.dart`); the in-memory twin folds with `foldSearchText` and matches with `salonMatchesSearch`.
+- **Folded first, escaped after — found while building.** `unaccent` turns a full-width `＿`, `％` or `＼` into `_`, `%` or `\`. An escape run before the fold never sees them, so `q=＿` would have listed every salon, the very defect §3 closes. The SQL folds the parameter, then escapes `\`, `%` and `_` (`ESCAPE '\'`). A contract case holds both orders apart. BACKEND.md §3.4 states the rule.
+- **The in-memory fold's table is PostgreSQL's own.** `backend/tool/search_fold_table.dart` reads every code point `unaccent()` changes from a real PostgreSQL and writes `lib/src/search_fold_table.dart`: 1,650 entries from PostgreSQL 16.14, combining accents included (a decomposed « é » folds to « e »). Not the slug table: it holds 29 lower-case letters.
+- **Held to the database by two Postgres tests:** the table equals `unaccent()` entry for entry over every code point, and `foldSearchText` equals `lower(unaccent())` over Basic Latin to the combining marks, Latin Extended Additional, General Punctuation and the full-width forms. **The limit, measured:** over the whole Basic Multilingual Plane, Dart's `toLowerCase` leaves 186 characters upper case that PostgreSQL lower-cases (Cherokee, Georgian Mtavruli, Latin Extended-D, a few Cyrillic and Coptic letters). None is a letter of French or of the Latin alphabets of Côte d'Ivoire's languages (ɛ, ɔ and ŋ agree). Only the in-memory twin has that limit, and it never serves production.
+- **The order:** Postgres `ORDER BY featured DESC, rating DESC, id COLLATE "C"` (`kProviderDiscoveryOrder`), byte order, which the in-memory `String.compareTo` gives for these ASCII ids; `sortProviders` breaks rating and price ties on the id. The contract's order case depends on where Postgres stores the rows, and passed once without the tiebreak, so the constant is also tested on rows of the test's own, out of id order.
+- **White space, on both sides** (found by the review below): the salon's own text has its runs of white space collapsed with the class the search was cleaned with (`kSearchSpaces`: Dart's `\s` written out, because Postgres's own `\s` follows the locale and leaves out the no-break spaces). « Beauté␣␣Divine », a narrow no-break space before « : », a line break in a description: all found.
+- **The pattern is built once per query** (an uncorrelated subquery), not once per row.
+- **A text with nothing left once folded** (a lone combining accent) is no filter on both twins, as an empty one.
+- **Mutations, each watched red** (26, on committed code): the escape before the fold, no escape, either side not unaccented, the commune or the active flag left out (both twins), a service matched to any salon, the salon's spaces not collapsed (both twins), the class without the narrow no-break space, the fields glued, a missing field read as « null », each tiebreak removed, the id without `COLLATE "C"`, `query()` with an ORDER BY of its own, spaces not collapsed in the search, a cut by UTF-16 units, no cut, lower case before the table, one table entry removed, no lower case, the route dropping `q`; and migration `0051` removed (on a fresh database: `function unaccent(text) does not exist`).
+- **The independent review (2026-11-25)**, told to refute it: nothing blocks the merge. Two findings to fix, both folded in: a service's name could have listed every salon with nothing to catch it (the `EXISTS`'s correlation; a control salon now), and the salon's own spaces were never collapsed. Nits folded in: the pattern per row, the empty fold, two comments that overclaimed, `query()`'s own order and the order across pages untested. **One suspicion, unverified:** Postgres's `lower()` follows the database's `LC_CTYPE`; under `C`, « Ɔ » stays « Ɔ ». Cloud SQL's default is `en_US.UTF8` and nothing here reads production, so the read after the deploy includes `SELECT datctype FROM pg_database WHERE datname = current_database()`, on the owner's word (§10).
+- **Migration `0051_unaccent`:** `CREATE EXTENSION IF NOT EXISTS unaccent`. Additive and rollback-safe: an older image never calls it. `unaccent` is a trusted extension since PostgreSQL 13, and the app's user already created `btree_gist` the same way (`0009`). That the production user may create it is **inferred, not observed** (nothing here reads Cloud SQL). If it may not, the new revision fails at boot and never takes traffic; the old one keeps serving.
+- **Not changed:** `listForAdmin(q:)` and the clients list keep their unescaped `ILIKE` (B16.8, B16.7). Several words remain one text.
+
 ---
 
 ## 4. Data model
@@ -371,7 +386,7 @@ The drift the read found is fixed at the same time:
 2. **A4:** the app. Merging deploys nothing. **Its consumer build waits for A4-api in production** (Q7): the field's hint promises « prestation ou commune », and the empty state suggests searching a service. On today's server both would be false (A1's rule).
 3. **A4w** (decision 233). Its merge is a production deploy of `myweli.com`. The `nail` key (`web/lib/landing.ts:17`) was fixed in #861, with the `/onglerie` landing pages that read it.
 
-**B16.1** (the category column: spec #857 and fix #860 merged) is not a prerequisite for building A4, but its deploy is for the category chips to be right in production. Its session owns it.
+**B16.1** (the category column: spec #857, fix #860) is not a prerequisite for building A4; its deploy was for the category chips to be right in production, and it is done (2026-11-25, `myweli-api-00058-tnp`, records #862).
 
 **Not in V1 scope, recorded:** typo tolerance, recent searches, suggestions, Maquillage and Sourcils & cils as categories, a SQL `LIMIT`.
 
@@ -383,6 +398,7 @@ The drift the read found is fixed at the same time:
 - A4-api deployed and read back on the production API: the migration's log line on the new revision, and `/providers?q=beaute` answering 200.
   - **The matching itself cannot be observed in production** while no salon is public: every answer is empty, before and after. Until then, the evidence is the contract suite on CI's Postgres. That limit is written in the PR, not glossed.
   - Once a salon is public, the read-back is its name typed without accents, with a control (a text that must not match).
+  - **A4-api's read adds the database's `datctype`** (read-only, on the owner's word): `en_US.UTF8` confirms that `lower()` lower-cases « Ɔ », « Ɛ » and « Ŋ » as the tests assume (§3.1, the review's suspicion).
 - The audit's gaps 11 and 20, and gap 22's commune half, marked closed in its progress line.
 - One roadmap entry per PR.
 

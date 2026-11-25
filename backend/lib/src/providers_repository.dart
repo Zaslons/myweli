@@ -8,6 +8,7 @@
 library;
 
 import 'appointments/booking_window.dart';
+import 'search_text.dart';
 import 'slug.dart' show isReservedSlug;
 
 /// Read access to providers. In-memory now; a Postgres impl (B3b) satisfies the
@@ -212,8 +213,15 @@ class InMemoryProvidersRepository implements ProvidersRepository {
 
   final List<Map<String, dynamic>> _all;
 
-  /// Filtered by category / commune / free-text query, sorted by rating desc
-  /// (so an unsorted `getProviders` and `getFeaturedProviders` agree).
+  /// Filtered by category / commune / free-text query, featured first, then
+  /// by rating desc, then by id (so an unsorted `getProviders` and
+  /// `getFeaturedProviders` agree, and equal salons never swap places
+  /// between pages).
+  ///
+  /// [q] is cleaned and folded like Postgres's (`search_text.dart`): it
+  /// matches the name, description, address, commune or an active service's
+  /// name, each on its own, ignoring case and accents
+  /// (docs/design/consumer-search.md §3).
   ///
   /// This twin filters on the document; Postgres filters on columns that
   /// `updateProfile` keeps in step with it (`kProviderDocumentColumns`), so
@@ -225,6 +233,8 @@ class InMemoryProvidersRepository implements ProvidersRepository {
     String? commune,
     String? category,
   }) async {
+    final text = cleanSearchText(q);
+    final needle = text == null ? null : foldSearchText(text);
     final list =
         _all.where((p) {
             // Hide suspended AND unpublished drafts (T51).
@@ -241,20 +251,21 @@ class InMemoryProvidersRepository implements ProvidersRepository {
                 p['commune'] != commune) {
               return false;
             }
-            if (q != null && q.isNotEmpty) {
-              final hay = '${p['name']} ${p['description']} ${p['address']}'
-                  .toLowerCase();
-              if (!hay.contains(q.toLowerCase())) return false;
+            if (needle != null && !salonMatchesSearch(p, needle)) {
+              return false;
             }
             return true;
           }).toList()
-          // Featured first, then by rating.
+          // Featured first, then by rating, then by id: the order Postgres
+          // gives (`ORDER BY featured DESC, rating DESC, id COLLATE "C"`).
           ..sort((a, b) {
             final f = ((b['featured'] == true) ? 1 : 0).compareTo(
               (a['featured'] == true) ? 1 : 0,
             );
             if (f != 0) return f;
-            return (b['rating'] as num).compareTo(a['rating'] as num);
+            final r = (b['rating'] as num).compareTo(a['rating'] as num);
+            if (r != 0) return r;
+            return (a['id'] as String).compareTo(b['id'] as String);
           });
     return list;
   }
