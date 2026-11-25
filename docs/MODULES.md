@@ -190,6 +190,10 @@ Deliberately different from YCLIENTS's online acquiring: **no-custody**
   average ticket) ⏳/🔮 · report constructor (YCLIENTS's Конструктор отчетов)
   🔮 — the last mile of the replica.
 - **Placeholder:** `screens/provider/features/reports_analytics_screen.dart`.
+- **Next (spec, draft 2026-11-25):** revenue by collaborateur, prestation and
+  channel, average ticket, absence rate, periods and comparison, on the app
+  and the website — [design/pro-revenue-analytics.md](design/pro-revenue-analytics.md)
+  (BACKLOG batch 17, decisions 237–248 open).
 - **Module doc:** `docs/modules/analytics.md` *(to write)*.
 
 ## 11. Team access (RBAC) — `access` 🟢

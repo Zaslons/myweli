@@ -1,0 +1,15 @@
+- 🟡 **MyWeli Pro et site : les revenus analysés par collaborateur, par prestation et par canal — la spec, avant tout code (documentation · backend · app · site · 2026-11-25 — module `analytics`, BACKLOG lot 17, décisions 237–248 ouvertes ; FR-PRO-EARN-001, FR-PRO-DASH-001 et la partie « revenus » de FR-PRO-OPS-004).** Branche `docs/pro-revenue-analytics-spec`, depuis `main` `ed60594c`. Spec : [pro-revenue-analytics.md](../../design/pro-revenue-analytics.md). Documentation seule : aucun code, aucun build, aucune console, aucune lecture de production.
+  - **La demande du propriétaire :** voir, dans les analyses, les revenus par collaborateur, par prestation « et tout le reste ».
+  - **Aujourd’hui, relu dans le code :** un seul chiffre par période (« Total réalisé » sur « Revenus », « Revenus prévus » sur l’Accueil). Chaque rendez-vous garde son collaborateur, ses prestations, son prix total, sa devise et son statut ; il ne garde **ni le prix de chaque prestation, ni le nom du collaborateur, ni le canal** (application ou site), et rien ne dit « à domicile ». Les prestations n’ont pas de catégorie.
+  - **Ce que la spec prévoit :**
+    - l’écran « Revenus » (app) et la page « Revenus » (site) deviennent les analyses : une période (jour, semaine, mois, année ou dates) et sa comparaison, cinq chiffres (réalisé, rendez-vous terminés, panier moyen, taux d’absence, prévu), un graphique, puis la répartition par collaborateur, par prestation et par canal, chaque ligne ouvrant son détail et ses rendez-vous ;
+    - « Réalisé » reste les rendez-vous terminés, comme « Total réalisé » aujourd’hui ; les confirmés à venir sont « Prévu », à part ; les confirmés passés que personne n’a clôturés sont « À clôturer », avec un lien pour le faire ;
+    - l’argent est groupé par devise, jamais additionné entre devises ;
+    - le serveur décide de tout (les périodes, la comparaison, les chiffres) ; l’app et le site ne font qu’afficher ;
+    - chaque nouveau rendez-vous garde ses lignes (prestation et prix), le nom de son collaborateur et son canal ; les anciens sont **estimés à la lecture** et l’écran le dit — aucune ligne de production n’est réécrite ;
+    - propriétaire seulement, comme aujourd’hui ;
+    - jamais « encaissé » : MyWeli ne voit aucun paiement.
+  - **Pas calculable aujourd’hui :** « par catégorie » (les prestations n’en ont pas) et « à domicile » (aucun rendez-vous ne l’enregistre). Question 9.
+  - **Cinq PR proposées :** l’en-tête « web » du site, les trois colonnes côté serveur, les deux lectures côté serveur, l’app, le site.
+  - **Trouvé en lisant, non corrigé :** `/dashboard` et `/earnings` additionnent les montants de devises différentes (inatteignable tant qu’une seule devise existe ; la décision 191 s’en charge avec le deuxième marché) ; l’Accueil relit tout l’historique du salon à chaque ouverture.
+  - **Douze questions au propriétaire** (§17, décisions 237–248), chacune avec une recommandation. Rien n’est construit avant ses réponses.
