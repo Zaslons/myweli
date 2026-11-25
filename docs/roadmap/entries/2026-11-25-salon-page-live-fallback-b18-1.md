@@ -15,7 +15,10 @@
     - le nouveau spec et `served-html` : 32 passés ;
     - les tests unitaires : 229 fichiers, 3 322 tests ;
     - le test de l’alarme côté backend : 15 passés.
-  - **Quinze mutations vues rouges** (tests unitaires), plus deux sur un vrai build (les cas e2e 4 et 7).
+  - **Dix-sept mutations vues rouges :**
+    - quatorze sur les tests unitaires du site ;
+    - une sur le test de l’alarme côté backend ;
+    - deux sur un vrai build, les cas e2e 4 et 7 : `/recherche/salon/beaute-divine` répondait 200 ; « /cgu made the middleware ask the API ».
   - **Trouvé en construisant :**
     - `@next/env` est en CommonJS : un import nommé échoue au chargement ;
     - la vérification de production ne vérifiait rien dans un chemin avec une espace : `file://` construit à la main contre `import.meta.url`. Vu en la lançant contre la production, corrigé par `pathToFileURL`. Puis lue : 1 salon public, `/test-3`, servi par le build ;
