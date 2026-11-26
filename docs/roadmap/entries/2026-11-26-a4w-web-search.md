@@ -1,4 +1,4 @@
-- 🟡 **Site, A4w : « Afficher plus de salons » et le nombre vrai sur `/recherche` (web · 2026-11-26 — BACKLOG B0.10, décision 233 ; FR-DISC-004, 007 ; parité avec A4).** Branche `feat/a4w-web-search`, depuis `main` `89ff92ca`. Spec : [consumer-search.md](../../design/consumer-search.md) §3.3.
+- 🟢 **Site, A4w : « Afficher plus de salons » et le nombre vrai sur `/recherche` (web · 2026-11-26 — BACKLOG B0.10, décision 233 ; FR-DISC-004, 007 ; parité avec A4).** Branche `feat/a4w-web-search`, depuis `main` `89ff92ca`. Spec : [consumer-search.md](../../design/consumer-search.md) §3.3.
   - **Pourquoi :** `/recherche` lisait 24 salons et s’arrêtait là ; le nombre affiché comptait les lignes à l’écran, donc jamais plus de 24.
   - **Ce qui change :**
     - le nombre vient du `total` du serveur (« 63 salons ») ;
@@ -16,5 +16,11 @@
     - les tests du client, de la route et de la lecture du serveur ; la suite complète du site : 3 371 réussis ;
     - e2e (le bouchon pagine 30 salons) : le nombre et l’ajout, le rechargement, « Retour » sans rechargement et après une recherche depuis l’en-tête, l’échec, une épingle par ligne ; axe avec le bouton puis avec son échec ;
     - 37 mutations, chacune vue rouge sur le code commité (dont la carte, par l’e2e).
-  - **Non observable en production** tant que 24 salons au plus sont publics ; aucun ne l’est aujourd’hui.
-  - **Reste :** la fusion, sur le mot du propriétaire : elle déploie `myweli.com` (Vercel) ; puis la relecture sur `myweli.com`.
+  - **Non observable en production** tant que 24 salons au plus sont publics. Le 2026-11-26, un seul l’est, « test » (`test-3`, Adjamé) ; cette entrée disait d’abord « aucun », sans l’avoir lu.
+  - **Fusionnée** le 2026-11-26 sur le mot du propriétaire (#883, `dedda5d4`) : l’arbre de `main` égal à la tête testée `ccd6142f`, aucune ligne d’attribution, 12 contrôles sur 12 ; la CI de `main` au vert ensuite. `main` avait bougé deux fois avant : #882 (sans conflit), puis #884, en conflit dans l’index des specs sur deux lignes voisines (les revenus, A4) ; une fusion, et non un rebase, chaque ligne gardée de son côté.
+  - **Déployée** sur `myweli.com` (Vercel, production, réussi) et **relue** :
+    - `/recherche` répond 200 et affiche « 1 salon » ;
+    - `/api/recherche?page=1` rend 1 salon, `total` 1, des pages de 24 ; une route qui n’existe pas répond 404 ;
+    - le script servi pour `/recherche`, seul des 17 de la page, porte `/api/recherche?` et « Impossible d’afficher la suite » : le code d’A4w est celui qui est servi ;
+    - avec un seul salon, le nombre lu dans `total` et celui des lignes valent tous deux 1 : la lecture ne les distingue pas ; le bouton est absent, comme il doit l’être.
+  - **Le contrôle de production** a tourné pour la dernière fois à 16:01 UTC, avant ce déploiement, au vert ; son prochain passage est le premier sur A4w.
