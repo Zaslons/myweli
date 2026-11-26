@@ -302,6 +302,16 @@ class PostgresAppointmentRepository implements AppointmentRepository {
     }
   }
 
+  /// **One JSON document for the whole range, not one row per booking.**
+  /// The revenue fold reads up to ~29 000 rows (« Année » and the year
+  /// before, a salon of 40 bookings a day — pro-revenue-analytics.md §11),
+  /// and measured on that salon the driver's per-row, per-cell decoding was
+  /// most of the time: ~110–130 ms a range for twelve columns, against
+  /// ~75 ms for the same rows aggregated by `json_agg` and decoded at once
+  /// (2026-11-26, Postgres 16; `test/db/revenue_analytics_budget_test.dart`
+  /// holds the budget). Same rows, same keys, same order as the in-memory
+  /// twin; `service_ids` decoded in SQL, both storage forms, an unreadable
+  /// value read as null.
   @override
   Future<List<Map<String, dynamic>>> revenueRows(
     String providerId,
@@ -311,10 +321,15 @@ class PostgresAppointmentRepository implements AppointmentRepository {
     // On `appointments_provider_date_idx (provider_id, appointment_date)`.
     final result = await _pool.execute(
       Sql.named(
-        'SELECT $_revenueColumns FROM appointments '
+        'SELECT COALESCE(json_agg(json_build_array('
+        'id, status, '
+        '(extract(epoch FROM appointment_date) * 1000000)::bigint, '
+        'duration_minutes, artist_id, artist_name_kept, total_price, '
+        'currency, user_id, channel, $_serviceIdsDecoded, service_lines) '
+        "ORDER BY appointment_date, id), '[]')::text "
+        'FROM appointments '
         'WHERE provider_id = @p AND appointment_date >= @from:timestamptz '
-        'AND appointment_date < @to:timestamptz '
-        'ORDER BY appointment_date, id',
+        'AND appointment_date < @to:timestamptz',
       ),
       parameters: {
         'p': providerId,
@@ -322,7 +337,27 @@ class PostgresAppointmentRepository implements AppointmentRepository {
         'to': toUtcExclusive.toUtc(),
       },
     );
-    return [for (final r in result) _revenueRow(r.toColumnMap())];
+    final rows = jsonDecode(result.first.first! as String) as List<dynamic>;
+    return [
+      for (final r in rows.cast<List<dynamic>>())
+        {
+          'id': r[0],
+          'status': r[1],
+          'appointmentDate': DateTime.fromMicrosecondsSinceEpoch(
+            (r[2] as num).toInt(),
+            isUtc: true,
+          ).toIso8601String(),
+          'durationMinutes': r[3],
+          'artistId': r[4],
+          'artistNameKept': r[5],
+          'totalPrice': (r[6] as num).toDouble(),
+          'currency': r[7],
+          'userId': r[8],
+          'channel': r[9],
+          'serviceIds': r[10],
+          'serviceLines': r[11],
+        },
+    ];
   }
 
   /// `service_ids` as a jsonb array whatever its storage form: production
