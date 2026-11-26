@@ -1,16 +1,14 @@
 import 'package:flutter/material.dart';
 
+import '../../core/constants/salon_categories.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/colors.dart';
 import '../../core/utils/category_colors.dart';
 
-/// The glyph a salon's category wears on a map.
-IconData salonCategoryIcon(String category) => switch (category) {
-  'spa' => Icons.spa,
-  'barber' => Icons.content_cut,
-  'salon' => Icons.face_retouching_natural,
-  _ => Icons.store_mall_directory,
-};
+/// The glyph a salon's category wears on a map — [discoveryCategories]'
+/// `markerIcon`, the one category list.
+IconData salonCategoryIcon(String category) =>
+    discoveryCategory(category)?.markerIcon ?? kUnknownCategoryMarkerIcon;
 
 /// A salon on a map — the « Carte » markers and the salon page's location
 /// preview (docs/design/salon-location-map.md §2.1). The web's `SalonPin`

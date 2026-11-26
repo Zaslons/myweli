@@ -7,6 +7,7 @@ import 'package:myweli/core/theme/colors.dart';
 import 'package:myweli/widgets/common/app_async_view.dart';
 import 'package:myweli/widgets/common/app_card.dart';
 import 'package:myweli/widgets/common/app_skeleton.dart';
+import 'package:myweli/widgets/common/empty_state.dart';
 
 import '../support/pump_app.dart';
 
@@ -113,6 +114,52 @@ void main() {
         );
         await tester.pumpAndSettle();
         expect(pulls, 1);
+      });
+    }
+  });
+
+  // A sliver caller (the salon list, consumer-search.md §3.2) whose empty
+  // state is the shared `EmptyState`: `SliverFillRemaining` asked a
+  // `LayoutBuilder` for its intrinsic height — an assertion.
+  group('AppAsyncView, as a sliver', () {
+    for (final (state, error, text) in [
+      ('the error', 'Pas de réseau', 'Chargement impossible'),
+      ('the empty state', null, 'Aucun salon'),
+    ]) {
+      testWidgets('$state is the shared EmptyState, filling what is left', (
+        tester,
+      ) async {
+        await pumpApp(
+          tester,
+          home: Scaffold(
+            body: CustomScrollView(
+              slivers: [
+                const SliverToBoxAdapter(child: SizedBox(height: 200)),
+                AppAsyncView<List<String>>(
+                  sliver: true,
+                  isLoading: false,
+                  error: error,
+                  data: const [],
+                  isEmpty: (d) => d.isEmpty,
+                  loading: const Text('LOADING'),
+                  empty: const EmptyState(
+                    icon: Icons.search_off,
+                    title: 'Aucun salon',
+                    description: 'Essayez une autre commune.',
+                  ),
+                  builder: (context, d) =>
+                      const SliverToBoxAdapter(child: Text('DATA')),
+                ),
+              ],
+            ),
+          ),
+        );
+        expect(tester.takeException(), isNull);
+        expect(find.text(text), findsOneWidget);
+        final screen = tester.getSize(find.byType(Scaffold));
+        final state = tester.getRect(find.byType(EmptyState));
+        expect(state.top, 200, reason: 'under the slivers before it');
+        expect(state.bottom, screen.height, reason: 'to the bottom');
       });
     }
   });

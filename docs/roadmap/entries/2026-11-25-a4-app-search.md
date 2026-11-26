@@ -1,0 +1,33 @@
+- 🟡 **MyWeli (client), A4 : une recherche qui cherche, les cinq catégories, « Afficher plus de salons » et la carte qui dit sa commune (app · 2026-11-25 — BACKLOG B0.10, décisions 228 à 236 ; FR-DISC-003, 004, 005, 007 ; écarts 11 et 20 de l’audit, moitié « commune » du 22).** Branche `feat/a4-app-search`, depuis `main` `da5faa09`. Spec : [consumer-search.md](../../design/consumer-search.md) §2 et §3.2.
+  - **Pourquoi :**
+    - la barre « Rechercher un salon… » ouvrait la liste, sans aucun champ ;
+    - quatre catégories génériques : un salon `nails` ou `massage` était introuvable par catégorie ;
+    - jamais plus de 20 salons, et un compteur qui s’arrêtait à 20 ;
+    - l’accueil, la liste et la carte partageaient une seule liste : « Barbier » choisi sur la liste revenait comme « Près de vous » de l’accueil, et la carte remettait la catégorie à zéro.
+  - **La liste « Salons & Barbiers » :**
+    - un champ « Salon, prestation ou commune » qui cherche 350 ms après la dernière touche, à partir de 2 lettres ; la touche « Rechercher » du clavier cherche tout de suite ; ✕ efface ;
+    - « Tous » et les cinq catégories du serveur, de MyWeli Pro et du site (Coiffure, Barbier, Onglerie, Spa, Massage), sur l’accueil et sur la liste ;
+    - le nombre vient du `total` du serveur (« 42 salons à Cocody »), annoncé une fois par réponse à un lecteur d’écran ; à 200 %, il passe sous la pastille de la commune ;
+    - « Afficher plus de salons », en liste et en grille, avec son échec et « Réessayer » à sa place ;
+    - chaque état vide dit une seule chose vraie, avec une seule sortie ; « Aucun salon pour l’instant » d’abord, quand aucun salon n’est public.
+  - **La carte :** une pastille de commune, « Chargement des salons… », « Impossible d’afficher les salons. » avec « Réessayer », les états vides (pas par-dessus un salon centré), et « 50 salons sur 63 … » au-delà de 50.
+  - **Chaque écran lit ses salons :** « Près de vous » ne lit que la commune ; la carte lit ses 50 ; la liste a son propre état ; aucune lecture de liste n’écrit plus le chargement ni l’erreur de la page du salon. Le tri et « Disponible aujourd’hui » durent la session, sur la liste seulement (décision 236).
+  - **Trouvés en construisant, chacun par un test :** le nom du champ pour un lecteur d’écran créait un second nœud, lu deux fois ; la bannière vide de la carte débordait à 390 dp.
+  - **La relecture indépendante :** un bloquant et huit constats, chacun corrigé avec un test.
+    - **Le bloquant :** sur un téléphone de 360 × 640 à 200 %, clavier ouvert, l’en-tête prenait toute la hauteur pendant la saisie (« débordement de 36 pixels », 0 dp de résultats). L’écran n’a plus qu’une zone de défilement ; faire glisser la liste ferme le clavier.
+    - **Les autres constats :**
+      - la vue partagée des quatre états plantait sur l’état vide commun dans une liste à défilement ;
+      - plus de squelette qui clignote sous « Aucun résultat » ;
+      - un rafraîchissement raté est annoncé ;
+      - une réponse n’est plus lue par-dessus un autre écran ;
+      - « Disponible aujourd’hui » ne déborde plus sur l’accueil (rouge sur `main` un lundi) ;
+      - « Chargement des salons… » de la carte n’est plus annoncé.
+    - **Trouvé par une mutation :** une lecture de la carte déjà en cours pour la même commune n’est plus relancée. Sans la vérification de la commune, la carte se relisait sans fin : le test était resté bloqué 20 heures, et l’écran aurait gelé.
+  - **Le défaut, rouge d’abord :** un test écrit contre `main` (`da5faa09`) y échoue trois fois (« Barbier », « Mieux notés », puis « Disponible aujourd’hui » un lundi, reviennent sur l’accueil) et passe sur la branche.
+  - **Tests :**
+    - la suite complète de l’app : 4 333 réussis et 89 sautés (les goldens, sur Linux) ; `flutter analyze` à 0 ;
+    - 48 mutations, chacune vue rouge sur le code commité ;
+    - les fuites vers l’accueil et le nom du salon sur un rendez-vous, rouges d’abord sur `main` ;
+    - le débordement au clavier, rouge d’abord sur `11b6f8e9` ;
+    - 8 goldens nouveaux et 2 changés (les catégories de l’accueil), faits sur Linux et regardés un par un.
+  - **Non fait ici :** le build client, son envoi et sa publication, chacun sur le mot du propriétaire ; A4w (le site), ensuite.

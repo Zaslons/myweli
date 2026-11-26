@@ -210,7 +210,13 @@ never *the* signal:
 | *(unknown)* | → `primary` | |
 
 Always via **`categoryColor()`** (`core/utils/category_colors.dart`) — never
-inline. Adding a category means adding a token *and* a switch arm there.
+inline. It reads `markerColor` from **`discoveryCategories`**
+(`core/constants/salon_categories.dart`), the one category list the chips,
+the Pro editor and the map share (consumer-search.md §2.4): adding a category
+means adding it there, with its token. `nails` and `massage` have no accent
+yet — the map's drawing is shared with the website's `SalonPin`, which knows
+the three above — so they wear the brand ink and the generic shop glyph,
+on both.
 
 ---
 
@@ -531,7 +537,7 @@ widget; a third inline copy is a review failure.
 | Component | API | Notes |
 |---|---|---|
 | `AppButton` | `text, onPressed, type: {primary,secondary,text}, isLoading, isFullWidth, icon, leading` | `onPressed: null` = disabled. `isLoading` swaps the label for a `BrandLoader` **without changing the button's size** (no layout jump). |
-| `AppTextField` | `label, hint, errorText, controller, focusNode, onChanged, keyboardType, obscureText, maxLines, maxLength, inputFormatters, enabled, prefixIcon, suffixIcon` | **`errorText` is the contract for validation** — see §14. A7 **removed `validator`**: it cannot express rule 2, and its result silently overwrites `errorText`. |
+| `AppTextField` | `label, hint, errorText, controller, focusNode, onChanged, keyboardType, obscureText, maxLines, maxLength, inputFormatters, enabled, prefixIcon, suffixIcon, textInputAction, onSubmitted, autofocus, helperText, semanticsLabel, showCounter` | **`errorText` is the contract for validation** — see §14. A7 **removed `validator`**: it cannot express rule 2, and its result silently overwrites `errorText`. **A4 (consumer-search.md §2.2):** `semanticsLabel` names a field that has no visible `label` — merged into the text field's own node, named first and the hint after, the name kept once text is typed (§13.4: a hint is an example, not a name); `helperText` guides without blaming (not red, wraps up to 3 lines); `showCounter: false` keeps `maxLength`'s cap without drawing « 12/100 ». The other callers keep their defaults. |
 | `InlineFeedback` | `message, kind` | The form / in-modal outcome slot (§14, §15). `null` renders nothing. |
 | `PhoneNumberField` | `onChanged, label, initialValue, initialCountryCode, errorText, enabled, focusNode` | Country picker (default CI, any country) + national digits. **The only way to take a phone number** — true on every screen since phone-national-length.md converted the last three free-text ones (Acompte, Profil du salon ×2, Ajouter un salon). Emits the **normalized** value: `''` while no national digit is typed, else `+<indicatif><chiffres>` without a separator, and re-emits on a country switch — what a screen checks is what it sends. A prefilled `+…` shows under **its** country (longest calling code). `autovalidateMode` stays `disabled`: the rule is `Validators.phoneNumber` / `optionalPhoneNumber` through `FieldErrors` (§14 rule 2). |
 | `LoadingIndicator` | `size, color` | The brand loader. The **only** spinner. |
@@ -606,6 +612,12 @@ serves only a sign-in with nothing beneath it.
   `builder` are required. `onRefresh` puts the error and the empty state in the
   pull too (the pull is then the scroll view: an `empty` that is a list nests a
   second one); `sliver` places it as one section of a `CustomScrollView`.
+  Placed that way, its error and empty state fill at least what is left of the
+  viewport under the slivers before them. A `SliverLayoutBuilder` and a
+  minimum height give that extent, **not** `SliverFillRemaining`: that one
+  asks for an intrinsic height, which `EmptyState` cannot give (the row
+  above). The first sliver caller with the shared empty state, the salon list
+  of [consumer-search.md](consumer-search.md) §3.2, met that assertion.
 - **`AppErrorView`** is the one load error: **« Chargement impossible »**, the
   failure's own sentence under it (`failure_messages.dart`, or a code's own),
   the **`wifi_off` icon only for `kNoConnectionMessage`** — `error_outline`

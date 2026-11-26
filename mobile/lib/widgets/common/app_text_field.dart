@@ -34,6 +34,25 @@ class AppTextField extends StatelessWidget {
   /// from outside before this.
   final FocusNode? focusNode;
 
+  /// The keyboard's action key (« Rechercher », « Suivant »…) and what it
+  /// does. Null: the platform's default for the field.
+  final TextInputAction? textInputAction;
+  final ValueChanged<String>? onSubmitted;
+
+  /// Take the focus — and raise the keyboard — when the screen opens.
+  final bool autofocus;
+
+  /// A line under the field that guides without blaming (« Tapez au moins 2
+  /// lettres »): not an error, so not red.
+  final String? helperText;
+
+  /// What a screen reader calls the field when it has no visible [label]:
+  /// the [hint] is an example, not a name (SYSTEM.md §13.4).
+  final String? semanticsLabel;
+
+  /// [maxLength] still caps the text, but no « 12/100 » is drawn under it.
+  final bool showCounter;
+
   const AppTextField({
     super.key,
     this.label,
@@ -50,14 +69,24 @@ class AppTextField extends StatelessWidget {
     this.prefixIcon,
     this.suffixIcon,
     this.focusNode,
+    this.textInputAction,
+    this.onSubmitted,
+    this.autofocus = false,
+    this.helperText,
+    this.semanticsLabel,
+    this.showCounter = true,
   });
 
   @override
   Widget build(BuildContext context) {
-    return TextFormField(
+    final field = TextFormField(
       controller: controller,
       focusNode: focusNode,
       onChanged: onChanged,
+      onFieldSubmitted: onSubmitted,
+      textInputAction: textInputAction,
+      autofocus: autofocus,
+      buildCounter: showCounter ? null : _noCounter,
       keyboardType: keyboardType,
       obscureText: obscureText,
       maxLines: maxLines,
@@ -68,6 +97,11 @@ class AppTextField extends StatelessWidget {
         labelText: label,
         hintText: hint,
         errorText: errorText,
+        helperText: helperText,
+        // A helper is a sentence, and wraps: the default single line would
+        // clip it at 200 % (§13.3). Only the fields that pass a helper see
+        // it; the errors keep their default.
+        helperMaxLines: 3,
         prefixIcon: prefixIcon,
         suffixIcon: suffixIcon,
         contentPadding: const EdgeInsets.symmetric(
@@ -76,5 +110,18 @@ class AppTextField extends StatelessWidget {
         ),
       ),
     );
+    final name = semanticsLabel;
+    if (name == null) return field;
+    // A plain label, merged into the text field's own node — named first,
+    // the hint after it, the name kept once text is typed. `textField: true`
+    // here made a SECOND node above the field's, read twice.
+    return Semantics(label: name, child: field);
   }
+
+  static Widget? _noCounter(
+    BuildContext context, {
+    required int currentLength,
+    required bool isFocused,
+    required int? maxLength,
+  }) => null;
 }

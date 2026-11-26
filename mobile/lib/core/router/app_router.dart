@@ -53,9 +53,15 @@ class AppRouter {
       GoRoute(
         path: '/providers',
         name: 'providers',
+        // `?category=nails` from a home chip, `?focus=search` from the
+        // home's « Rechercher un salon… » (consumer-search.md §5). The screen
+        // ignores a category outside the taxonomy.
         builder: (context, state) {
-          final category = state.uri.queryParameters['category'];
-          return ProviderListScreen(category: category);
+          final q = state.uri.queryParameters;
+          return ProviderListScreen(
+            category: q['category'],
+            focusSearch: q['focus'] == 'search',
+          );
         },
       ),
       GoRoute(

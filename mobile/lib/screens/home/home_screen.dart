@@ -119,8 +119,10 @@ class _HomeScreenState extends State<HomeScreen> {
                   child: Row(
                     children: [
                       Expanded(
+                        // The list, keyboard up and the cursor in its
+                        // field (consumer-search.md §2.1 step 1).
                         child: AppSearchBar(
-                          onTap: () => context.push('/providers'),
+                          onTap: () => context.push('/providers?focus=search'),
                         ),
                       ),
                       const SizedBox(width: AppTheme.spacingS),
@@ -178,8 +180,15 @@ class _HomeScreenState extends State<HomeScreen> {
               const SliverToBoxAdapter(
                 child: SizedBox(height: AppTheme.spacingM),
               ),
-              // Categories
-              const SliverToBoxAdapter(child: CategoryChips()),
+              // Categories: a chip opens the list with it on, the keyboard
+              // down (consumer-search.md §2.1). « Tous » opens it bare.
+              SliverToBoxAdapter(
+                child: CategoryChips(
+                  onSelected: (key) => context.push(
+                    key == null ? '/providers' : '/providers?category=$key',
+                  ),
+                ),
+              ),
               // Featured Section
               Consumer<ProviderProvider>(
                 builder: (context, provider, _) {
