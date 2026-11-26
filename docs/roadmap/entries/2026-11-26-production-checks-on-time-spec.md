@@ -1,0 +1,17 @@
+- 🟡 **Spec : le contrôle quotidien de production à l’heure (B19) (CI · Cloudflare · documentation · 2026-11-26).** Branche `docs/production-checks-on-time`, créée depuis `main` (`455f24ea`). Spec : [infra-production-checks-on-time.md](../../design/infra-production-checks-on-time.md). Documentation seule : aucun code.
+  - **Le défaut, mesuré :** `production-checks.yml` promet 06 h 00 UTC, « avant la journée de travail à Abidjan ». Sur ses 96 exécutions planifiées (du 2026-08-22 au 11-25), GitHub les a créées à l’heure jusqu’au 2026-08-26 (06 h 22 – 06 h 37), puis chaque jour de 3,7 à 11,9 heures en retard (médiane : 4,5 h en septembre, 7,9 h en novembre). Aucune n’a été perdue. Rien n’a changé dans le dépôt ce jour-là.
+  - **Ailleurs :** d’autres signalent le même retard en 2026, sans réponse de GitHub. Un autre dépôt public, planifié toutes les 10 minutes, a démarré entre 06 h 13 et 06 h 19 les jours où le nôtre démarrait entre 13 h 47 et 16 h 52.
+  - **La conception proposée, en deux étapes :**
+    - **étape 1, sans nouvel accès :**
+      - une sonde de trois jours, un workflow vide lancé toutes les heures ;
+      - puis, si ses lancements arrivent avant 07 h 00, `production-checks.yml` est lancé toutes les heures et seul le premier lancement après 06 h 00 exécute les contrôles ;
+      - le retard et les jours manqués ont leur propre ticket ;
+      - la vérification « le moniteur tourne encore » et la règle de relecture ne comptent que les lancements qui ont contrôlé ;
+    - **étape 2, seulement si l’étape 1 ne suffit pas :** un Worker Cloudflare lance le contrôle à 06 h 00 en tant qu’App GitHub, après que les environnements de GitHub ont tenu cette App loin de tout déploiement. Chaque déploiement en production attendrait alors une approbation.
+  - **Relue par deux lecteurs indépendants, chargés de la réfuter.** Trois constats bloquants ont changé la conception :
+    - une garde écrite dans les fichiers de déploiement pouvait être contournée par une ancienne branche ou une relance ;
+    - le lancement de 06 h 00 n’aurait jamais pu fermer l’alarme ;
+    - la règle de relecture aurait montré du vert quoi que fasse le matin.
+  - **Six questions** (décisions 266–271).
+  - **Approuvée le 2026-11-26 :** « Approve as recommended », décisions 266–271 dans le BACKLOG (lot 19).
+  - **Reste :** la fusion, sur le mot du propriétaire ; puis B19.1, la sonde, construite dans sa propre PR empilée sur celle-ci, dont la fusion la démarre, sur son mot.
