@@ -40,6 +40,7 @@ import 'package:myweli_backend/src/db/postgres_reviews_repository.dart';
 import 'package:myweli_backend/src/db/postgres_salon_place_notice_repository.dart';
 import 'package:myweli_backend/src/db/postgres_salon_subscription_repository.dart';
 import 'package:myweli_backend/src/db/postgres_salon_validation_repository.dart';
+import 'package:myweli_backend/src/observability/error_reporter.dart';
 import 'package:myweli_backend/src/privacy/user_erasure_service.dart';
 import 'package:myweli_backend/src/provider_account_service.dart';
 import 'package:myweli_backend/src/providers_repository.dart'
@@ -52,11 +53,13 @@ import 'package:myweli_backend/src/search_text.dart';
 import 'package:myweli_backend/src/storage/storage_service.dart';
 import 'package:myweli_backend/src/validation/salon_validation_repository.dart';
 import 'package:postgres/postgres.dart';
+import 'package:sentry/sentry.dart' show SentryEvent, SentryException;
 import 'package:test/test.dart';
 
 import '../access/ensure_owner_contract.dart';
 import '../access/invite_contract.dart';
 import '../appointments/appointment_repository_contract.dart';
+import '../auth/account_email_contract.dart';
 import '../auth/apple_token_repository_contract.dart';
 import '../auth/kyc_write_contract.dart';
 import '../clients/display_names_contract.dart';
@@ -2142,6 +2145,66 @@ void main() {
       expect((await r.updateUser(user.id, email: ''))!.email, isNull);
       expect(await r.deleteUser(user.id), isTrue);
       expect(await r.userById(user.id), isNull);
+    });
+  });
+
+  // B16.3 (docs/design/account-email-change.md §5.5): the account e-mail
+  // contract, on Postgres. Here because this file TRUNCATEs `users` in setUp.
+  group('an account\'s e-mail — the twin contract (B16.3)', () {
+    accountEmailContract(
+      repo: () =>
+          PostgresAuthRepository(pool, tokens: tokens, echoDevCode: true),
+      // The state a profile edit left before B16.3, and that such accounts
+      // keep in production: the address, unproven.
+      plant: (_, id, email) async {
+        await pool.execute(
+          Sql.named(
+            'UPDATE users SET email = @e, email_verified = false '
+            'WHERE id = @id',
+          ),
+          parameters: {'e': email, 'id': id},
+        );
+      },
+    );
+
+    test('scrubEvent strips a real 23505 detail: the address is gone, the '
+        'code and the constraint stay (§5.7)', () async {
+      const x = 'scrub.b163@b163.test';
+      await pool.execute(
+        Sql.named("INSERT INTO users (id, email) VALUES ('scrub-1', @e)"),
+        parameters: {'e': x},
+      );
+      Object? thrown;
+      try {
+        await pool.execute(
+          Sql.named("INSERT INTO users (id, email) VALUES ('scrub-2', @e)"),
+          parameters: {'e': x.toUpperCase()},
+        );
+      } on Object catch (e) {
+        thrown = e;
+      }
+      expect(thrown, isA<ServerException>(), reason: 'the index refused it');
+      expect(
+        thrown.toString(),
+        contains(x),
+        reason: 'the premise: Postgres names the address in its detail',
+      );
+      final scrubbed = scrubEvent(
+        SentryEvent(
+          throwable: thrown,
+          exceptions: [
+            SentryException(type: 'ServerException', value: thrown.toString()),
+          ],
+        ),
+      )!;
+      final value = scrubbed.exceptions!.single.value!;
+      expect(
+        value.toLowerCase(),
+        isNot(contains(x)),
+        reason: '[scrub] the address must not reach Sentry',
+      );
+      expect(value, contains('23505'));
+      expect(value, contains('users_email_lower_key'));
     });
   });
 
