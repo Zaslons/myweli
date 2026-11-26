@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -143,6 +144,17 @@ void main() {
     }
   }
 
+  /// Whether a screen reader is told of [f] when it appears.
+  bool announced(Finder f) => find
+      .ancestor(
+        of: f,
+        matching: find.byWidgetPredicate(
+          (w) => w is Semantics && (w.properties.liveRegion ?? false),
+        ),
+      )
+      .evaluate()
+      .isNotEmpty;
+
   int markers(WidgetTester tester) =>
       tester.widget<MarkerLayer>(find.byType(MarkerLayer)).markers.length;
 
@@ -176,6 +188,8 @@ void main() {
     await pumpMap(tester);
     expect(find.text('Chargement des salons…'), findsOneWidget);
     expect(find.byType(FlutterMap), findsOneWidget);
+    // The outcome is announced, not the wait before it (the review).
+    expect(announced(find.text('Chargement des salons…')), isFalse);
     service.answer([_at('a', 5.3)]);
     await tester.pump();
     expect(find.text('Chargement des salons…'), findsNothing);
@@ -190,6 +204,7 @@ void main() {
     service.answers.last.complete(ApiResponse.error(kNoConnectionMessage));
     await tester.pump();
     expect(find.text('Impossible d’afficher les salons.'), findsOneWidget);
+    expect(announced(find.text('Impossible d’afficher les salons.')), isTrue);
     expect(find.byType(FlutterMap), findsOneWidget, reason: 'still usable');
 
     await tester.tap(find.text('Réessayer'));

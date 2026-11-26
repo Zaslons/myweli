@@ -84,8 +84,11 @@ class MockProviderService implements ProviderServiceInterface {
       providers = providers.where(_openToday).toList();
     }
 
-    // Sort (FR-DISC-007). relevance → the seed order, which is stable; the
-    // others end on the id, as the server's `sortProviders` does.
+    // Sort (FR-DISC-007). « Mieux notés » and « Prix » end on the id, as the
+    // server's `sortProviders` does. Relevance is the SEED order: the server's
+    // is `featured DESC, rating DESC, id`, and a `Provider` carries no
+    // `featured` flag to reproduce it with — the seed order is at least
+    // stable between two pages.
     int byId(Provider a, Provider b) => a.id.compareTo(b.id);
     switch (query.sort) {
       case ProviderSort.rating:

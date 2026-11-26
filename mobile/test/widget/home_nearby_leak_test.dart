@@ -13,6 +13,7 @@ import 'package:myweli/widgets/provider/provider_card.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../support/frozen_clock.dart';
 import '../support/pump_app.dart';
 import '../support/secure_storage.dart';
 import '../support/settle.dart';
@@ -84,6 +85,31 @@ void main() {
 
     await tester.tap(find.text('Barbier'));
     await settleMocks(tester, rounds: 2);
+    router.pop();
+    await settleMocks(tester, rounds: 2);
+
+    expect(nearby(tester), before);
+  });
+
+  testWidgets('« Disponible aujourd’hui » on the list does not narrow the '
+      'home', (tester) async {
+    // A Monday at 10:00 in Abidjan: two seeded salons are closed on Mondays,
+    // so the filter narrows. On a day it narrows nothing, this would pass
+    // against the defect.
+    freezeClock(DateTime.utc(2026, 11, 23, 10));
+    final router = await pumpHome(tester);
+    final before = nearby(tester);
+    expect(before, hasLength(MockData.providers.length));
+
+    await tester.tap(find.text('Rechercher un salon…'));
+    await settleMocks(tester, rounds: 2);
+    await tester.tap(find.text('Disponible aujourd’hui'));
+    await settleMocks(tester, rounds: 2);
+    expect(
+      nearby(tester).length,
+      lessThan(before.length),
+      reason: 'C: the filter narrowed the list',
+    );
     router.pop();
     await settleMocks(tester, rounds: 2);
 

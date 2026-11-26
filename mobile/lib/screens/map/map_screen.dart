@@ -510,7 +510,14 @@ class _MapScreenState extends State<MapScreen> {
     }
     return Padding(
       padding: const EdgeInsets.only(top: AppTheme.spacingS),
-      child: Semantics(liveRegion: true, container: true, child: child),
+      // The outcome is announced — the failure, the empty commune, the 50
+      // line — and not « Chargement des salons… », said on every commune
+      // and every « Réessayer » before the sentence that matters.
+      child: Semantics(
+        liveRegion: !provider.mapLoading,
+        container: true,
+        child: child,
+      ),
     );
   }
 

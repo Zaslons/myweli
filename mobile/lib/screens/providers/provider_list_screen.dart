@@ -81,6 +81,11 @@ class _ProviderListScreenState extends State<ProviderListScreen> {
   void _announceAnswer() {
     if (_search.answers == _announced || !mounted) return;
     _announced = _search.answers;
+    // Not from under another screen: a commune chosen on the map, or on a
+    // salon page, searches this list again beneath it, and its count would
+    // be read over the screen the person is on. The answer still counts as
+    // announced — coming back is not a new answer.
+    if (!(ModalRoute.isCurrentOf(context) ?? true)) return;
     final sentence = _statusSentence();
     if (sentence != null) Helpers.announce(context, sentence);
   }
@@ -88,9 +93,10 @@ class _ProviderListScreenState extends State<ProviderListScreen> {
   String? _statusSentence() {
     final error = _search.error;
     final items = _search.items;
-    if (error != null && (items == null || items.isEmpty)) {
-      return 'Chargement impossible. $error';
-    }
+    // Every failure, the pull that kept its salons included: that one shows
+    // no error (SYSTEM §12.1, what was read stays), so the announcement is
+    // the only way a screen reader learns the list was not updated.
+    if (error != null) return 'Chargement impossible. $error';
     if (items == null) return null;
     if (items.isEmpty) {
       return _emptyCopy(
@@ -147,12 +153,30 @@ class _ProviderListScreenState extends State<ProviderListScreen> {
       body: Consumer<ProviderProvider>(
         builder: (context, provider, _) => ListenableBuilder(
           listenable: _search,
-          builder: (context, _) => Column(
-            children: [
-              _buildSearchField(),
-              _buildFilterBar(provider),
-              Expanded(child: _buildResults(provider)),
-            ],
+          // **One scroll view: the field, the filters and the results.** They
+          // were a fixed header over an `Expanded` list, and on a 360 × 640
+          // phone at 2× with the keyboard up the header took the whole height
+          // — « A RenderFlex overflowed by 36 pixels », the results 0dp —
+          // while typing, the moment the results are the point (§9 Q3). Now
+          // the header scrolls away with the results, and a drag lowers the
+          // keyboard.
+          builder: (context, _) => BrandRefresh(
+            onRefresh: _search.refresh,
+            // The screen announces each answer itself — the count, the empty
+            // sentence or the failure (§2.5). « Liste mise à jour » on top of
+            // it would be said twice, and said for a pull that failed.
+            announce: null,
+            child: CustomScrollView(
+              // Pulled from every state: the first load, an error, an empty
+              // answer — a short page included.
+              physics: const AlwaysScrollableScrollPhysics(),
+              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+              slivers: [
+                SliverToBoxAdapter(child: _buildSearchField()),
+                SliverToBoxAdapter(child: _buildFilterBar(provider)),
+                _buildResults(provider),
+              ],
+            ),
           ),
         ),
       ),
@@ -353,7 +377,14 @@ class _ProviderListScreenState extends State<ProviderListScreen> {
   Widget _buildResults(ProviderProvider provider) {
     final empty = _emptyCopy(provider);
     return AppAsyncView<List<models.Provider>>(
-      isLoading: _search.isLoading,
+      sliver: true,
+      // The skeleton for the first page, and for « Réessayer » after a
+      // failure. **Not over an empty answer:** a key typed under « Aucun
+      // résultat pour … » would blink the skeleton in and out each time —
+      // the empty sentence stays, and the count line says « Recherche… »
+      // (§2.3) until the new answer replaces it.
+      isLoading:
+          _search.isLoading && (_search.items == null || _search.error != null),
       // The list's own: [ProviderProvider.error] is a salon page's.
       error: _search.error,
       data: _search.items,
@@ -369,7 +400,6 @@ class _ProviderListScreenState extends State<ProviderListScreen> {
         onAction: empty.onAction,
       ),
       onRetry: _search.refresh,
-      onRefresh: _search.refresh,
       builder: (context, providers) => _results(providers),
     );
   }
@@ -433,92 +463,89 @@ class _ProviderListScreenState extends State<ProviderListScreen> {
     return nothing;
   }
 
+  /// The results, as slivers of the screen's one scroll view.
   Widget _results(List<models.Provider> providers) {
     final footer = _footer();
-    if (_isGrid) {
-      return BrandRefresh(
-        onRefresh: _search.refresh,
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            // A12 — **two columns is a claim about the text, not the screen.**
-            // A 360dp phone's two-column cell is 156dp and gives the salon's
-            // NAME 140 of it, which stops holding 8 characters at 1.90× — just
-            // under the ≈1.95× contract point, so the device showed
-            // « Salon … » and « Barber… » where a name should be. One column
-            // is the same answer the dashboard's action grid takes above 1.3×.
-            final inner = constraints.maxWidth - AppTheme.spacingM * 2;
-            final twoColumnCell = (inner - AppTheme.spacingM) / 2;
-            final columns =
-                twoColumnCell >= ProviderCard.minGridCellWidth(context) ? 2 : 1;
-
-            // A `CustomScrollView`, not a `GridView`: « Afficher plus » goes
-            // after the grid, full width (§2.6), and a grid has no footer.
-            return CustomScrollView(
-              slivers: [
-                SliverPadding(
-                  padding: const EdgeInsets.all(AppTheme.spacingM),
-                  // `childAspectRatio: 0.75` derived tile HEIGHT from tile
-                  // WIDTH, and width does not move with the OS text scale —
-                  // so the card was 208dp at 100% and 208dp at 200%, with the
-                  // text block clipped. The bound now comes from the card,
-                  // which is the only thing that knows its own chrome (the
-                  // same reason `carouselHeight` lives there). A full-width
-                  // card has the room for the roomy design, so it gets the
-                  // carousel's bound.
-                  sliver: SliverGrid(
-                    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: columns,
-                      crossAxisSpacing: AppTheme.spacingM,
-                      mainAxisSpacing: AppTheme.spacingM,
-                      mainAxisExtent: columns == 1
-                          ? ProviderCard.carouselHeight(context)
-                          : ProviderCard.gridHeight(context),
-                    ),
-                    delegate: SliverChildBuilderDelegate((context, index) {
-                      final p = providers[index];
-                      return ProviderCard(
-                        provider: p,
-                        isGrid: true,
-                        onTap: () => context.push('/provider/${p.id}'),
-                      );
-                    }, childCount: providers.length),
-                  ),
-                ),
-                if (footer != null)
-                  SliverPadding(
-                    padding: const EdgeInsets.fromLTRB(
-                      AppTheme.spacingM,
-                      0,
-                      AppTheme.spacingM,
-                      AppTheme.spacingM,
-                    ),
-                    sliver: SliverToBoxAdapter(child: footer),
-                  ),
-              ],
+    if (!_isGrid) {
+      return SliverPadding(
+        padding: const EdgeInsets.all(AppTheme.spacingM),
+        sliver: SliverList.builder(
+          itemCount: providers.length + (footer == null ? 0 : 1),
+          itemBuilder: (context, index) {
+            if (index == providers.length) return footer;
+            final p = providers[index];
+            return Padding(
+              padding: const EdgeInsets.only(bottom: AppTheme.spacingM),
+              child: ProviderCard(
+                provider: p,
+                isGrid: false,
+                onTap: () => context.push('/provider/${p.id}'),
+              ),
             );
           },
         ),
       );
     }
 
-    return BrandRefresh(
-      onRefresh: _search.refresh,
-      child: ListView.builder(
-        padding: const EdgeInsets.all(AppTheme.spacingM),
-        itemCount: providers.length + (footer == null ? 0 : 1),
-        itemBuilder: (context, index) {
-          if (index == providers.length) return footer;
-          final p = providers[index];
-          return Padding(
-            padding: const EdgeInsets.only(bottom: AppTheme.spacingM),
-            child: ProviderCard(
-              provider: p,
-              isGrid: false,
-              onTap: () => context.push('/provider/${p.id}'),
+    return SliverLayoutBuilder(
+      builder: (context, constraints) {
+        // A12 — **two columns is a claim about the text, not the screen.**
+        // A 360dp phone's two-column cell is 156dp and gives the salon's
+        // NAME 140 of it, which stops holding 8 characters at 1.90× — just
+        // under the ≈1.95× contract point, so the device showed
+        // « Salon … » and « Barber… » where a name should be. One column
+        // is the same answer the dashboard's action grid takes above 1.3×.
+        final inner = constraints.crossAxisExtent - AppTheme.spacingM * 2;
+        final twoColumnCell = (inner - AppTheme.spacingM) / 2;
+        final columns = twoColumnCell >= ProviderCard.minGridCellWidth(context)
+            ? 2
+            : 1;
+
+        // A `SliverGrid`, not a `GridView`: « Afficher plus » goes after the
+        // grid, full width (§2.6), and a grid has no footer.
+        return SliverMainAxisGroup(
+          slivers: [
+            SliverPadding(
+              padding: const EdgeInsets.all(AppTheme.spacingM),
+              // `childAspectRatio: 0.75` derived tile HEIGHT from tile WIDTH,
+              // and width does not move with the OS text scale — so the card
+              // was 208dp at 100% and 208dp at 200%, with the text block
+              // clipped. The bound now comes from the card, which is the only
+              // thing that knows its own chrome (the same reason
+              // `carouselHeight` lives there). A full-width card has the room
+              // for the roomy design, so it gets the carousel's bound.
+              sliver: SliverGrid(
+                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: columns,
+                  crossAxisSpacing: AppTheme.spacingM,
+                  mainAxisSpacing: AppTheme.spacingM,
+                  mainAxisExtent: columns == 1
+                      ? ProviderCard.carouselHeight(context)
+                      : ProviderCard.gridHeight(context),
+                ),
+                delegate: SliverChildBuilderDelegate((context, index) {
+                  final p = providers[index];
+                  return ProviderCard(
+                    provider: p,
+                    isGrid: true,
+                    onTap: () => context.push('/provider/${p.id}'),
+                  );
+                }, childCount: providers.length),
+              ),
             ),
-          );
-        },
-      ),
+            if (footer != null)
+              SliverPadding(
+                padding: const EdgeInsets.fromLTRB(
+                  AppTheme.spacingM,
+                  0,
+                  AppTheme.spacingM,
+                  AppTheme.spacingM,
+                ),
+                sliver: SliverToBoxAdapter(child: footer),
+              ),
+          ],
+        );
+      },
     );
   }
 

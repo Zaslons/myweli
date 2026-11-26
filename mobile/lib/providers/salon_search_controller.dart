@@ -97,12 +97,19 @@ class SalonSearchController extends ChangeNotifier implements SalonCopyHolder {
   /// A first page is out — the first search, or a new one.
   bool get isLoading => _isLoading;
 
-  /// A new search is out while results are shown: they stay, and the count
-  /// line says « Recherche… » (§2.3).
-  bool get isSearchingAgain => _isLoading && (_items?.isNotEmpty ?? false);
+  /// A new search is out over an answer still shown — salons, or an empty
+  /// answer's sentence: it stays, and the count line says « Recherche… »
+  /// (§2.3). Not over the error view: « Réessayer » brings the skeleton back.
+  bool get isSearchingAgain {
+    final items = _items;
+    return _isLoading && items != null && (items.isNotEmpty || _error == null);
+  }
+
   bool get isLoadingMore => _isLoadingMore;
 
-  /// The first page failed.
+  /// The first page failed. **It stays until the next answer** — cleared at
+  /// the start of a search, the error view gave way to an empty list for a
+  /// frame, then to the skeleton.
   String? get error => _error;
 
   /// The next page failed; the salons shown stay (§2.6).
@@ -235,7 +242,6 @@ class SalonSearchController extends ChangeNotifier implements SalonCopyHolder {
     );
     _pending = query;
     _isLoading = true;
-    _error = null;
     _isLoadingMore = false;
     _moreError = null;
     notifyListeners();

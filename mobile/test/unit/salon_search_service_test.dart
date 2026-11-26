@@ -26,6 +26,8 @@ Provider _salon(
   String category = 'salon',
   double rating = 4,
   List<(String, bool)> services = const [],
+  // (price, active): a service for each, named after its price.
+  List<(double, bool)> prices = const [],
 }) {
   final base = MockData.providers.first;
   final service = base.services.first;
@@ -40,6 +42,13 @@ Provider _salon(
     services: [
       for (final (i, (n, active)) in services.indexed)
         service.copyWith(id: '$id-s$i', name: n, active: active),
+      for (final (i, (price, active)) in prices.indexed)
+        service.copyWith(
+          id: '$id-p$i',
+          name: 'Prestation $price',
+          price: price,
+          active: active,
+        ),
     ],
   );
 }
@@ -68,6 +77,24 @@ void main() {
         expect(rune, greaterThan(0x1F));
       }
     });
+
+    // The field sends what the server would make of it: its white space is
+    // the server's `kSearchSpaces`, character for character — written with
+    // escapes since the review, where it held ten invisible characters.
+    test(
+      'a no-break space is a space — the server\'s class, to the letter',
+      () {
+        expect(cleanSearchText('beauté\u00A0divine'), 'beauté divine');
+        expect(cleanSearchText('tresses\u202F; cocody'), 'tresses ; cocody');
+        expect(cleanSearchText('\uFEFFmanucure\u3000'), 'manucure');
+        final cls = RegExp(r"r'(\[\\t[^']*)'");
+        String? classIn(String path) =>
+            cls.firstMatch(File(path).readAsStringSync())?.group(1);
+        final app = classIn('lib/core/utils/search_text.dart');
+        expect(app, isNotNull, reason: 'C: the app class was not found');
+        expect(app, classIn('../backend/lib/src/search_text.dart'));
+      },
+    );
 
     test('only spaces is nothing', () {
       expect(cleanSearchText('     '), '');
@@ -198,19 +225,34 @@ void main() {
       expect((page.pageSize, page.items.length, page.total), (50, 50, 60));
     });
 
-    test('every sort ends on the id', () async {
+    // The server's `sortProviders`: « Mieux notés » and « Prix » end on the
+    // id, so a tie never reorders between two pages. Relevance is the seed
+    // order — the server's ranks `featured` first, a flag `Provider` does
+    // not carry.
+    test('« Mieux notés » and « Prix » end on the id; relevance keeps the '
+        'seed order', () async {
       final tied = MockProviderService(
         salons: [
-          _salon('z', rating: 4),
-          _salon('b', rating: 4),
-          _salon('m', rating: 5),
+          _salon('z', rating: 4, prices: [(5000, true)]),
+          _salon('b', rating: 4, prices: [(7000, true), (5000, true)]),
+          // Its 1 000 FCFA service is off: 9 000 is its lowest price.
+          _salon('m', rating: 5, prices: [(9000, true), (1000, false)]),
+          _salon('c', rating: 3, prices: [(3000, true)]),
         ],
       );
       expect(await _ids(tied, const ProviderQuery(sort: ProviderSort.rating)), [
         'm',
         'b',
         'z',
+        'c',
       ]);
+      expect(await _ids(tied, const ProviderQuery(sort: ProviderSort.price)), [
+        'c',
+        'b',
+        'z',
+        'm',
+      ]);
+      expect(await _ids(tied, const ProviderQuery()), ['z', 'b', 'm', 'c']);
     });
 
     test('category and commune narrow the same search', () async {

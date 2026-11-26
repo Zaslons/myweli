@@ -176,6 +176,64 @@ void main() {
     expectNoUndeclaredTruncation(tester, context: 'count row at 2×');
   });
 
+  // The review's blocker: the field, the pill, the chips and the filters were
+  // a fixed header and the results took what was left. On a 360 × 640 phone
+  // with the keyboard up (280dp) at 2×, nothing was left: « A RenderFlex
+  // overflowed by 36 pixels on the bottom », the results 0dp — while typing,
+  // the one moment the results are the point (§9 Q3). One scroll view now.
+  for (final scale in [1.0, 2.0]) {
+    testWidgets('keyboard up on a 360 × 640 phone at $scale×: nothing '
+        'overflows, the field shows, the first salon is one scroll away', (
+      tester,
+    ) async {
+      await pumpList(
+        tester,
+        width: 360,
+        scale: scale,
+        height: 640,
+        commune: 'Cocody',
+      );
+      const keyboard = 280.0;
+      tester.view.viewInsets = FakeViewPadding(
+        bottom: keyboard * tester.view.devicePixelRatio,
+      );
+      addTearDown(tester.view.resetViewInsets);
+      await tester.pump();
+      // One letter: the helper line « Tapez au moins 2 lettres » grows the
+      // field — the state the review saw overflow by 36 pixels.
+      await tester.enterText(find.byType(TextField), 's');
+      await tester.pump();
+      expect(find.text('Tapez au moins 2 lettres'), findsOneWidget);
+      expect(tester.takeException(), isNull, reason: 'no overflow at 1 letter');
+      await type(tester, 'salon');
+      expect(tester.takeException(), isNull, reason: 'no overflow');
+
+      const keyboardTop = 640 - keyboard;
+      expect(
+        tester.getRect(find.byType(TextField)).bottom,
+        lessThanOrEqualTo(keyboardTop),
+        reason: 'the field the person types in is above the keyboard',
+      );
+
+      final first = find.text('Salon Cocody 0');
+      await tester.scrollUntilVisible(
+        first,
+        100,
+        scrollable: find
+            .byWidgetPredicate(
+              (w) => w is Scrollable && w.axisDirection == AxisDirection.down,
+            )
+            .first,
+      );
+      expect(
+        tester.getRect(first).bottom,
+        lessThanOrEqualTo(keyboardTop),
+        reason: 'the first result can be read above the keyboard',
+      );
+      expect(tester.takeException(), isNull);
+    });
+  }
+
   testWidgets('at 360dp × 1×, it sits beside the pill', (tester) async {
     await pumpList(tester, width: 360, commune: 'Cocody');
     final pill = tester.getRect(find.byType(CommunePill));

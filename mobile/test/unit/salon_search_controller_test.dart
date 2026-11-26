@@ -290,6 +290,16 @@ void main() {
       expect(c.total, 25);
     });
 
+    // M06: `page × 20 <= total` offered a page that does not exist.
+    testWidgets('exactly one full page: nothing more to show', (tester) async {
+      open();
+      service.answer(0, _page([for (var i = 0; i < 20; i++) 's$i'], total: 20));
+      await tester.pump();
+      expect(c.items, hasLength(20));
+      expect(c.hasMore, isFalse);
+      expect(c.canLoadMore, isFalse);
+    });
+
     testWidgets('the next page carries the same search', (tester) async {
       await providers.setCommune('Marcory');
       open(category: 'spa');
@@ -413,6 +423,50 @@ void main() {
       expect(c.error, kNoConnectionMessage);
       expect(c.items, isEmpty);
       expect(c.total, 0);
+    });
+
+    // The review: the error was cleared when a search started, so the error
+    // view gave way for a frame before the skeleton — and « Réessayer »
+    // flashed the empty list's state.
+    testWidgets('the error stays until the next answer; « Recherche… » is '
+        'not said over it', (tester) async {
+      open();
+      service.answer(0, ApiResponse.error(kNoConnectionMessage));
+      await tester.pump();
+      unawaited(c.refresh());
+      expect(c.isLoading, isTrue);
+      expect(c.error, kNoConnectionMessage, reason: 'until the answer');
+      expect(c.isSearchingAgain, isFalse, reason: 'over the error view');
+      service.answer(1, _page(['a']));
+      await tester.pump();
+      expect(c.error, isNull);
+      expect(_ids(c), ['a']);
+    });
+
+    testWidgets('a search over an empty answer is « searching again »: the '
+        'empty sentence stays, no skeleton', (tester) async {
+      await opened(tester, ids: const []);
+      c.onTextChanged('tresses');
+      await tester.pump(kSearchDebounce);
+      expect(c.isLoading, isTrue);
+      expect(c.items, isEmpty);
+      expect(c.isSearchingAgain, isTrue);
+      service.answer(1, _page(['t']));
+      await tester.pump();
+    });
+
+    testWidgets('a search over salons kept after a failed pull is « searching '
+        'again »', (tester) async {
+      await opened(tester);
+      unawaited(c.refresh());
+      service.answer(1, ApiResponse.error(kNoConnectionMessage));
+      await tester.pump();
+      c.onTextChanged('tresses');
+      await tester.pump(kSearchDebounce);
+      expect(_ids(c), ['a', 'b']);
+      expect(c.isSearchingAgain, isTrue);
+      service.answer(2, _page(['t']));
+      await tester.pump();
     });
 
     testWidgets('the same search pulled again and failed keeps them', (

@@ -125,58 +125,66 @@ void main() {
   const floor = (size: Size(360, 1600), scale: 2.0, tag: '_w360_x2');
   const phone = (size: kGoldenPhone, scale: 1.0, tag: '');
 
-  for (final at in [phone, floor]) {
-    testWidgets('the list, a text and its results${at.tag}', (tester) async {
-      await pump(
-        tester,
-        const ProviderListScreen(),
-        size: at.size,
-        scale: at.scale,
-      );
-      await type(tester, 'beaute');
-      expect(find.text('1 salon'), findsOneWidget);
-      await expectGolden(tester, 'consumer_search_results${at.tag}');
-    });
+  group('consumer search', () {
+    for (final at in [phone, floor]) {
+      testWidgets('the list, a text and its results${at.tag}', (tester) async {
+        await pump(
+          tester,
+          const ProviderListScreen(),
+          size: at.size,
+          scale: at.scale,
+        );
+        await type(tester, 'beaute');
+        expect(find.text('1 salon'), findsOneWidget);
+        await expectGolden(tester, 'consumer_search_results${at.tag}');
+      });
 
-    testWidgets('the list, empty for a text${at.tag}', (tester) async {
-      await pump(
-        tester,
-        const ProviderListScreen(),
-        size: at.size,
-        scale: at.scale,
-      );
-      await type(tester, 'tresses');
-      expect(find.text('Aucun résultat pour « tresses »'), findsOneWidget);
-      await expectGolden(tester, 'consumer_search_empty${at.tag}');
-    });
+      testWidgets('the list, empty for a text${at.tag}', (tester) async {
+        await pump(
+          tester,
+          const ProviderListScreen(),
+          size: at.size,
+          scale: at.scale,
+        );
+        await type(tester, 'tresses');
+        expect(find.text('Aucun résultat pour « tresses »'), findsOneWidget);
+        await expectGolden(tester, 'consumer_search_empty${at.tag}');
+      });
 
-    testWidgets('« Afficher plus de salons »${at.tag}', (tester) async {
-      addSalons(22);
-      await pump(
-        tester,
-        const ProviderListScreen(category: 'salon'),
-        size: Size(at.size.width, at.scale == 1 ? 1200 : 2400),
-        scale: at.scale,
-      );
-      await tester.scrollUntilVisible(
-        find.text('Afficher plus de salons'),
-        400,
-        scrollable: find.byType(Scrollable).last,
-      );
-      await tester.pump();
-      await expectGolden(tester, 'consumer_search_more${at.tag}');
-    });
+      testWidgets('« Afficher plus de salons »${at.tag}', (tester) async {
+        addSalons(22);
+        await pump(
+          tester,
+          const ProviderListScreen(category: 'salon'),
+          size: Size(at.size.width, at.scale == 1 ? 1200 : 2400),
+          scale: at.scale,
+        );
+        await tester.scrollUntilVisible(
+          find.text('Afficher plus de salons'),
+          400,
+          // The page's one vertical scroll view — the chip and filter strips
+          // scroll sideways inside it.
+          scrollable: find
+              .byWidgetPredicate(
+                (w) => w is Scrollable && w.axisDirection == AxisDirection.down,
+              )
+              .first,
+        );
+        await tester.pump();
+        await expectGolden(tester, 'consumer_search_more${at.tag}');
+      });
 
-    testWidgets('the map, its commune pill and the 50 line${at.tag}', (
-      tester,
-    ) async {
-      addSalons(60);
-      await pump(tester, const MapScreen(), size: at.size, scale: at.scale);
-      expect(
-        find.text('50 salons sur 64 affichés — choisissez une commune'),
-        findsOneWidget,
-      );
-      await expectGolden(tester, 'consumer_map_commune${at.tag}');
-    });
-  }
+      testWidgets('the map, its commune pill and the 50 line${at.tag}', (
+        tester,
+      ) async {
+        addSalons(60);
+        await pump(tester, const MapScreen(), size: at.size, scale: at.scale);
+        expect(
+          find.text('50 salons sur 64 affichés — choisissez une commune'),
+          findsOneWidget,
+        );
+        await expectGolden(tester, 'consumer_map_commune${at.tag}');
+      });
+    }
+  }, skip: kGoldensSkip);
 }

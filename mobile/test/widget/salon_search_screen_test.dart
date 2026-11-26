@@ -10,6 +10,7 @@ import 'package:myweli/core/utils/salon_id.dart';
 import 'package:myweli/models/api_response.dart';
 import 'package:myweli/models/provider.dart';
 import 'package:myweli/models/provider_page.dart';
+import 'package:myweli/models/review.dart';
 import 'package:myweli/providers/appointment_provider.dart';
 import 'package:myweli/providers/auth_provider.dart';
 import 'package:myweli/providers/favorites_provider.dart';
@@ -21,11 +22,15 @@ import 'package:myweli/services/mock/mock_auth_service.dart';
 import 'package:myweli/services/mock/mock_data.dart';
 import 'package:myweli/services/mock/mock_favorites_service.dart';
 import 'package:myweli/services/mock/mock_provider_service.dart';
+import 'package:myweli/widgets/booking/appointment_card.dart';
+import 'package:myweli/widgets/common/app_button.dart';
 import 'package:myweli/widgets/common/app_chip.dart';
+import 'package:myweli/widgets/common/app_skeleton.dart';
 import 'package:myweli/widgets/provider/provider_card.dart';
 import 'package:provider/provider.dart' hide Provider;
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../support/frozen_clock.dart';
 import '../support/pump_app.dart';
 import '../support/secure_storage.dart';
 import '../support/settle.dart';
@@ -332,6 +337,91 @@ void main() {
       await tester.pump();
     });
 
+    testWidgets('a search over an empty answer: its sentence stays, '
+        '« Recherche… » above it, no skeleton', (tester) async {
+      await pumpList(tester);
+      await type(tester, 'zzz');
+      expect(find.text('Aucun résultat pour « zzz »'), findsOneWidget);
+      service.hold = true;
+      await tester.enterText(find.byType(TextField), 'zzzy');
+      await tester.pump(const Duration(milliseconds: 350));
+      expect(service.held, hasLength(1), reason: 'C: the search is out');
+      expect(find.text('Aucun résultat pour « zzz »'), findsOneWidget);
+      expect(find.text('Recherche…'), findsOneWidget);
+      expect(find.byType(SkeletonCardList), findsNothing);
+      service.held.single.complete(
+        ApiResponse.success(
+          const ProviderPage(items: [], page: 1, pageSize: 20, total: 0),
+        ),
+      );
+      await tester.pump();
+      await tester.pump();
+      expect(find.text('Aucun résultat pour « zzzy »'), findsOneWidget);
+    });
+
+    testWidgets('« Réessayer » after a failure: the skeleton, not the error '
+        'left standing', (tester) async {
+      service.failPage = 1;
+      await pumpList(tester);
+      expect(find.text('Chargement impossible'), findsOneWidget);
+      service
+        ..failPage = null
+        ..hold = true;
+      await tester.tap(find.text('Réessayer'));
+      await tester.pump();
+      expect(find.byType(SkeletonCardList), findsOneWidget);
+      expect(find.text('Chargement impossible'), findsNothing);
+      service.held.single.complete(
+        ApiResponse.success(
+          ProviderPage(
+            items: MockData.providers,
+            page: 1,
+            pageSize: 20,
+            total: MockData.providers.length,
+          ),
+        ),
+      );
+      await tester.pump();
+      await tester.pump();
+      expect(cards(tester), hasLength(MockData.providers.length));
+    });
+
+    testWidgets('a pull that failed keeps the salons — and says it failed', (
+      tester,
+    ) async {
+      await pumpList(tester);
+      tester.takeAnnouncements();
+      service.failPage = 1;
+      await tester.fling(
+        find.byType(CustomScrollView),
+        const Offset(0, 400),
+        1000,
+      );
+      await settleMocks(tester, rounds: 2);
+      expect(service.asked, hasLength(2), reason: 'C: the pull searched');
+      expect(cards(tester), hasLength(MockData.providers.length));
+      final said = [for (final a in tester.takeAnnouncements()) a.message];
+      expect(said, ['Chargement impossible. $kNoConnectionMessage']);
+      expect(said, isNot(contains('Liste mise à jour')));
+    });
+
+    testWidgets('an answer under another screen is not read over it', (
+      tester,
+    ) async {
+      final router = await pumpList(tester);
+      unawaited(router.push('/provider/provider2'));
+      await settleMocks(tester);
+      tester.takeAnnouncements();
+      // The commune changes while the list is under the salon page.
+      await let(tester, () => providers.setCommune('Cocody'));
+      expect(service.asked.last.commune, 'Cocody', reason: 'C: it searched');
+      expect(tester.takeAnnouncements(), isEmpty);
+      router.pop();
+      await settleMocks(tester);
+      expect(find.text('1 salon à Cocody'), findsOneWidget);
+      expect(tester.takeAnnouncements(), isEmpty, reason: 'not a new answer');
+    });
+
     testWidgets('each answer is announced once — the count, then the empty '
         'sentence', (tester) async {
       await pumpList(tester);
@@ -396,7 +486,18 @@ void main() {
 
         await tester.tap(more);
         await tester.pump();
-        expect(more, findsNothing, reason: 'a loader in its place');
+        // A loader in its place: the same button, loading — not a button
+        // gone, which a footer that vanished would also pass.
+        expect(
+          tester
+              .widget<AppButton>(
+                find.byWidgetPredicate(
+                  (w) => w is AppButton && w.text == 'Afficher plus de salons',
+                ),
+              )
+              .isLoading,
+          isTrue,
+        );
         await settleMocks(tester);
         expect(cards(tester), hasLength(25));
         expect(more, findsNothing, reason: 'nothing more');
@@ -481,6 +582,29 @@ void main() {
       expect(find.text('tresses'), findsNothing, reason: 'the field emptied');
     });
 
+    // §2.10's order: the text is the most specific narrowing, so it wins
+    // over « Disponible aujourd’hui » and over a category.
+    testWidgets('a text with « Disponible aujourd’hui »: the text\'s row', (
+      tester,
+    ) async {
+      await emptyWith(tester, text: 'tresses', today: true);
+      expect(find.text('Aucun résultat pour « tresses »'), findsOneWidget);
+      expect(find.text('Aucun salon disponible aujourd’hui'), findsNothing);
+    });
+
+    testWidgets('a text with a category and a commune: the text\'s row', (
+      tester,
+    ) async {
+      await emptyWith(
+        tester,
+        text: 'tresses',
+        category: 'spa',
+        commune: 'Cocody',
+      );
+      expect(find.text('Aucun résultat pour « tresses »'), findsOneWidget);
+      expect(find.textContaining('cette catégorie'), findsNothing);
+    });
+
     testWidgets('a category: « Aucun salon dans cette catégorie à Cocody »', (
       tester,
     ) async {
@@ -544,6 +668,30 @@ void main() {
     });
   });
 
+  group('copies the app keeps current (§3.2)', () {
+    testWidgets('a review posted while the search is open moves its card: '
+        '« (89) » → « (90) »', (tester) async {
+      await pumpList(tester);
+      await type(tester, 'divine');
+      expect(cards(tester), ['provider2']);
+      expect(find.text('(89)'), findsOneWidget, reason: 'C: Beauté Divine');
+      providers.addReviewLocally(
+        Review(
+          id: 'r-new',
+          providerId: SalonId('provider2'),
+          userId: 'u1',
+          userName: 'Awa',
+          rating: 5,
+          text: 'Très bien',
+          createdAt: DateTime(2026, 11, 25),
+        ),
+      );
+      await tester.pump();
+      expect(find.text('(90)'), findsOneWidget);
+      expect(find.text('(89)'), findsNothing);
+    });
+  });
+
   group('a salon, then back (§2.1 step 6)', () {
     testWidgets('the text, the chip and the pages are where they were', (
       tester,
@@ -599,21 +747,58 @@ void main() {
     // « Barbier » and « Mieux notés » on the list leaking into the home:
     // home_nearby_leak_test.dart, written red against `main` first.
 
-    testWidgets('a search on the list leaves the list the bookings read '
-        '(decision 199)', (tester) async {
-      final router = await pumpHome(tester);
-      await tester.tap(find.text('Barbier'));
+    // A booking with no salon name of its own (an older server) takes it
+    // from the home's list (decision 199). « Disponible aujourd’hui » on the
+    // list narrowed that list, and the card fell back to « Salon ». Watched
+    // red against `main` `da5faa09` with the same steps.
+    testWidgets('after « Disponible aujourd’hui » on the list, a booking '
+        'still names « Salon Excellence »', (tester) async {
+      // A Monday: Salon Excellence is closed, so the filter drops it.
+      freezeClock(DateTime.utc(2026, 11, 23, 10));
+      pinSurface(tester, size: const Size(420, 2400));
+      providers = ProviderProvider();
+      final auth = await signedOut(tester);
+      final booking = MockData.appointments.firstWhere(
+        (a) => a.providerId == SalonId('provider1'),
+      );
+      expect(booking.providerName, isNull, reason: 'C: it reads the list');
+      final router = GoRouter(
+        routes: [
+          GoRoute(
+            path: '/',
+            builder: (_, _) => Scaffold(
+              body: AppointmentCard(appointment: booking, onTap: () {}),
+            ),
+          ),
+          GoRoute(path: '/providers', builder: _appRoute('/providers').builder),
+        ],
+      );
+      await tester.pumpWidget(
+        wrapApp(
+          routerConfig: router,
+          providers: [
+            ChangeNotifierProvider.value(value: providers),
+            ChangeNotifierProvider(create: (_) => FavoritesProvider()),
+            ChangeNotifierProvider.value(value: auth),
+          ],
+        ),
+      );
+      await let(tester, providers.loadProviders);
+      expect(find.text('Salon Excellence'), findsOneWidget, reason: 'C');
+
+      unawaited(router.push('/providers'));
       await settleMocks(tester, rounds: 2);
-      await tester.enterText(find.byType(TextField), 'excellence');
-      await tester.pump(const Duration(milliseconds: 350));
-      await settleMocks(tester);
+      await tester.tap(find.text('Disponible aujourd’hui'));
+      await settleMocks(tester, rounds: 2);
       expect(
-        providers.providers.map((p) => p.id),
-        MockData.providers.map((p) => p.id),
-        reason: 'AppointmentCard finds « Beauté Divine » here',
+        cards(tester),
+        isNot(contains('provider1')),
+        reason: 'C: the filter dropped it on the list',
       );
       router.pop();
-      await settleMocks(tester);
+      await settleMocks(tester, rounds: 2);
+
+      expect(find.text('Salon Excellence'), findsOneWidget);
     });
 
     testWidgets('the home bar opens the field with the keyboard up', (

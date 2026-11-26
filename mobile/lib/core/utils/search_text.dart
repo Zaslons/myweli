@@ -18,7 +18,9 @@ const kSearchMinCharacters = 2;
 
 /// A run of white space — the server's `kSearchSpaces`, character for
 /// character: Dart's `\s`, the no-break spaces included.
-final _whiteSpace = RegExp(r'[\t\n\v\f\r    -     　﻿]+');
+final _whiteSpace = RegExp(
+  r'[\t\n\v\f\r \u00A0\u1680\u2000-\u200A\u2028\u2029\u202F\u205F\u3000\uFEFF]+',
+);
 
 /// What is left of the C0 controls once the white space is a space, and DEL.
 final _control = RegExp(r'[\u0000-\u001F\u007F]');
