@@ -1,6 +1,7 @@
 @Tags(['postgres'])
 library;
 
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -2142,7 +2143,6 @@ void main() {
         (await r.requestOtp(phone)).devCode!,
       )).user!;
       expect((await r.updateUser(user.id, name: 'Awa'))!.name, 'Awa');
-      expect((await r.updateUser(user.id, email: ''))!.email, isNull);
       expect(await r.deleteUser(user.id), isTrue);
       expect(await r.userById(user.id), isNull);
     });
@@ -2166,6 +2166,64 @@ void main() {
         );
       },
     );
+
+    test('[race] a holder that proves X after the holder read: email_taken, '
+        'rolled back, the code left (§5.3)', () async {
+      // The partial unique index is the last guard (§5.3): another account
+      // commits X — a Google sign-in creating it, say — after changeEmail read
+      // no holder. The UPDATE waits on that row, then fails 23505; the whole
+      // transaction rolls back, the code's consumption included.
+      final pool2 = createPool(url);
+      addTearDown(pool2.close);
+      final r = PostgresAuthRepository(pool, tokens: tokens, echoDevCode: true);
+      final t = DateTime.now().microsecondsSinceEpoch;
+      final a = (await r.loginWithSocial(
+        provider: 'google',
+        sub: 'race-gA-$t',
+        email: 'race-a-$t@b163.test',
+        emailVerified: true,
+      )).user!;
+      final x = 'race-x-$t@b163.test';
+      final code = (await r.requestEmailOtp(x)).devCode!;
+
+      final release = Completer<void>();
+      final inserted = Completer<void>();
+      final other = pool2.runTx((tx) async {
+        await tx.execute(
+          Sql.named(
+            "INSERT INTO users (id, email, email_verified, auth_provider) "
+            "VALUES ('race-holder-$t', @e, true, 'google')",
+          ),
+          parameters: {'e': x},
+        );
+        inserted.complete();
+        await release.future;
+      });
+      await inserted.future;
+      final change = r.changeEmail(a.id, x, code);
+      // Wait until the UPDATE is blocked on the other transaction's row.
+      var waiting = false;
+      for (var i = 0; i < 100 && !waiting; i++) {
+        final w = await pool2.execute(
+          'SELECT count(*)::int AS n FROM pg_stat_activity '
+          "WHERE wait_event_type = 'Lock' "
+          "AND query LIKE 'UPDATE users SET email = %'",
+        );
+        waiting = w.first.toColumnMap()['n'] == 1;
+        if (!waiting) {
+          await Future<void>.delayed(const Duration(milliseconds: 20));
+        }
+      }
+      expect(waiting, isTrue, reason: 'the premise: the UPDATE is waiting');
+      release.complete();
+      await other;
+      final res = await change;
+      expect(res.error, 'email_taken', reason: '[race] 23505 → email_taken');
+      expect((await r.userById(a.id))!.email, 'race-a-$t@b163.test');
+      final v = await r.verifyEmailOtp(x, code);
+      expect(v.ok, isTrue, reason: '[race] the code was rolled back, not used');
+      expect(v.user!.id, 'race-holder-$t');
+    });
 
     test('scrubEvent strips a real 23505 detail: the address is gone, the '
         'code and the constraint stay (§5.7)', () async {

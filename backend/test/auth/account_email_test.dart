@@ -9,8 +9,7 @@ void main() {
   final tokens = TokenService(secret: 'test-secret');
   accountEmailContract(
     repo: () => InMemoryAuthRepository(tokens: tokens, echoDevCode: true),
-    plant: (r, id, email) async {
-      await r.updateUser(id, email: email);
-    },
+    plant: (r, id, email) async =>
+        (r as InMemoryAuthRepository).plantUnprovenEmailForTest(id, email),
   );
 }

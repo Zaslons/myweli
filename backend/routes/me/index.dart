@@ -54,6 +54,25 @@ Future<Response> onRequest(RequestContext context) async {
       if (phone != null && phone.isNotEmpty && !isValidPhoneNumber(phone)) {
         return jsonError(HttpStatus.badRequest, 'invalid_phone');
       }
+      // **The address changes only proven** (B16.3,
+      // docs/design/account-email-change.md §3.2, decision 261). This route
+      // used to store it as typed, unproven, and every sign-in found an
+      // account by it: the address's real owner, signing in later, landed in
+      // the typer's account. The app sends `email` on every save — its own,
+      // or '' without one — so the address as stored is accepted and changes
+      // nothing; a different one, '' included, is refused BEFORE anything is
+      // written, the avatar's promotion included. A change goes through
+      // `/me/email/otp/request` and `/me/email/otp/verify`.
+      if (email != null) {
+        final current = await repo.userById(principal.userId);
+        if (current == null) {
+          return jsonError(HttpStatus.notFound, 'not_found');
+        }
+        final stored = (current.email ?? '').trim().toLowerCase();
+        if (email.trim().toLowerCase() != stored) {
+          return jsonError(HttpStatus.conflict, 'email_change_requires_code');
+        }
+      }
       // **The avatar was stored exactly as sent — no origin check, no
       // promotion.** Two consequences: any string at all became someone's
       // avatar and was served back from our own domain, and a genuine upload
@@ -84,7 +103,6 @@ Future<Response> onRequest(RequestContext context) async {
       final updated = await repo.updateUser(
         principal.userId,
         name: name,
-        email: email,
         avatarUrl: avatarUrl,
         phone: phone,
       );

@@ -159,6 +159,18 @@ String canonicalInviteAddress(String emailKey) {
 /// `user_…` and provider account ids `provider_…`, so the prefixes are already
 /// disjoint and the role adds no information. It also stays correct whichever
 /// way the missing role gate on `POST /appointments` is eventually resolved.
+/// The e-mail change's per-account ceiling, per hour (B16.3,
+/// docs/design/account-email-change.md §3.1): both `/me/email/otp/*` routes
+/// spend from one bucket. One change is a request and a verify; ten leaves
+/// room for a resend and a mistyped code or two, and holds an account that
+/// would mail codes to inboxes it does not own — the per-IP limit holds the
+/// rest. A constant, not a `LIMIT_*` variable: nothing has measured it yet,
+/// and a variable no manifest sets is a number nobody reads.
+const int kEmailChangeLimit = 10;
+
+/// The e-mail change's bucket: per account, the token's `sub`.
+String emailChangeBucket(String sub) => 'email:$sub';
+
 String bookingBucket(String sub) => 'book:$sub';
 
 /// The bucket for a review submission. Unambiguous — the route hard-gates

@@ -112,12 +112,34 @@ SentryEvent? scrubEvent(SentryEvent event) {
   // ignore: deprecated_member_use
   event.extra = null;
 
+  // **A database error's detail names the row it refused** (B16.3,
+  // docs/design/account-email-change.md §2.6, §5.7). Postgres's
+  // `ServerException.toString()` appends ` detail: …`, and for a unique index
+  // that is « Key (lower(email))=(…) already exists »: another person's
+  // address, which the SDK stores as the exception's value. The code, the
+  // message and the constraint name stay — they name the index, not a person,
+  // and they are the diagnosis.
+  for (final exception in event.exceptions ?? const <SentryException>[]) {
+    final value = exception.value;
+    if (value != null) exception.value = stripDatabaseDetail(value);
+  }
+
   // `contexts` is deliberately KEPT. It carries OS, runtime and app metadata —
   // no user data, and the most useful thing in the event once the request is
   // stripped. Clearing it would trade real debugging value for no privacy gain.
   // If a custom context is ever added, revisit this line rather than that one.
   return event;
 }
+
+/// [value] without the ` detail: …` part a Postgres `ServerException`
+/// appends: up to the next part `toString()` writes (` hint: `, ` table: `,
+/// ` column: `, ` constraint `), or the end.
+String stripDatabaseDetail(String value) => value.replaceAll(_detail, '');
+
+final RegExp _detail = RegExp(
+  r' detail: .*?(?= hint: | table: | column: | constraint |$)',
+  dotAll: true,
+);
 
 /// Builds the reporter from env. `SENTRY_DSN` unset → [NoopErrorReporter].
 ///

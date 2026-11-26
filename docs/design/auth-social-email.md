@@ -87,6 +87,11 @@ The token a client sends us (`idToken`/`identityToken`) is a **JWT signed by Goo
   2. Else look up by **verified** `email`. Match → **link** this provider's `sub` to that user (so Google + email-OTP on the same address are one account).
   3. Else create a new user (email + sub, `phone = null`, `phone_verified = false`).
 - **Account-takeover guard:** only link on a **verified** email (`email_verified == true` from Google; Apple emails are verified). Never link on an unverified/self-asserted email.
+- **Since B16.3 (2026-11-26, [account-email-change.md](account-email-change.md) §5.1, decision 260): « verified » is the ACCOUNT's too.** The rules above checked only that the provider verified the address, never that the account holding it had: `PATCH /me` stored a typed address unproven, and steps 2 and the email-OTP sign-in found it, so the address's real owner landed in the typer's account. Now:
+  1. by `sub`; an account found so, holding the asserted address unproven, has it proven;
+  2. else by an address the account **proved**: link only if that account's `sub` column for this provider is **empty** — a sub is never replaced, and a sign-in that would replace one gets an account of its own, without the address;
+  3. else create, **taking** the address from any account holding it unproven (that holder keeps its account and its other sign-ins).
+  The email-OTP sign-in follows 2–3. An unverified address is stored only where nobody holds it. No route writes an unproven address (`PATCH /me` answers 409 to a changed one; a change goes through `/me/email/otp/*`).
 - **Apple private relay:** Apple may return a relay address (`…@privaterelay.appleid.com`) and only sends the real name/email on **first** authorization. Persist whatever Apple gives on first sign-in; key by `apple_sub` thereafter (the relay email is stable per user+app).
 
 ---
@@ -102,7 +107,8 @@ All success responses reuse the existing **`AuthSession`** shape (do **not** dri
 | `POST /auth/email/otp/request` | `{ email }` | `200 { sent: true, expiresInSeconds, devCode? }` | 400 `invalid_email` · 429 `otp_resend_limit` |
 | `POST /auth/email/otp/verify` | `{ email, code }` | `200 AuthSession` | 400 `otp_invalid`/`otp_expired`/`otp_none`/`otp_locked` · 403 `account_suspended` |
 | `POST /auth/refresh` | `{ refreshToken }` | `200 { tokens }` | **unchanged** |
-| `PATCH /me` | `{ name?, email?, phone? }` | `200 User` | sets the **contact** phone (`phone_verified` stays false) |
+| `PATCH /me` | `{ name?, email?, phone? }` | `200 User` | sets the **contact** phone (`phone_verified` stays false). **Since B16.3:** `email` is only compared — the stored one re-sent is accepted, anything else 409 `email_change_requires_code` |
+| `POST /me/email/otp/request` · `/verify` | `{ email }` · `{ email, code, currentCode? }` | `202 { expiresInSeconds, currentCodeSent, devCode? }` · `200 User` | B16.3, [account-email-change.md](account-email-change.md) §3.1 |
 
 `devCode` returned **only** when `ENV != prod` (mirrors SMS-OTP). `User` schema gains `email` (already present), keeps `phoneNumber` but it becomes nullable; add `authProvider` (`google`/`apple`/`email`).
 

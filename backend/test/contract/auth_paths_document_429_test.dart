@@ -3,7 +3,8 @@ import 'dart:io';
 import 'package:test/test.dart';
 import 'package:yaml/yaml.dart';
 
-/// Every operation under `/auth/` and `/admin/auth/` documents a 429.
+/// Every operation under `/auth/`, `/admin/auth/` and `/me/email/` documents
+/// a 429.
 ///
 /// The per-IP limit of the origin front door (10 per minute per address,
 /// `docs/design/infra-cloudflare-front-door.md` §3) applies to the whole
@@ -18,16 +19,19 @@ void main() {
 
   final limited = [
     for (final k in paths.keys)
-      if ((k as String).startsWith('/auth/') || k.startsWith('/admin/auth/')) k,
+      if ((k as String).startsWith('/auth/') ||
+          k.startsWith('/admin/auth/') ||
+          k.startsWith('/me/email/'))
+        k,
   ];
 
-  test('the scope is the eighteen paths the spec counts', () {
+  test('the scope is the twenty paths the specs count', () {
     // 15 under /auth/, 3 under /admin/auth/ — spec §3, less the two Pro phone
     // sign-in paths removed by B8.5 (docs/design/product-questions-batch8.md
-    // §2.5). The limiter is a prefix test, so its scope did not move. A change
-    // here is not a failure, it is a prompt to re-read the scope of the
-    // limiter.
-    expect(limited, hasLength(18), reason: limited.join(', '));
+    // §2.5) — and 2 under /me/email/ (B16.3, account-email-change.md §3.1).
+    // The limiter is a prefix test. A change here is not a failure, it is a
+    // prompt to re-read the scope of the limiter.
+    expect(limited, hasLength(20), reason: limited.join(', '));
   });
 
   for (final path in limited) {
@@ -42,7 +46,7 @@ void main() {
           contains('429'),
           reason:
               'the origin front door can answer 429 rate_limited on any '
-              '/auth/* or /admin/auth/* path; add '
+              '/auth/*, /admin/auth/* or /me/email/* path; add '
               "'429': { \$ref: '#/components/responses/RateLimited' }",
         );
       });

@@ -108,7 +108,8 @@ void accountEmailContract({
   group('PATCH /me no longer changes the address (§3.2)', () {
     test('[P1] another account\'s address → 409; B still reaches B', () async {
       final r = repo();
-      final a = await byCode(r, address('a'));
+      final aEmail = address('a');
+      final a = await byCode(r, aEmail);
       final bEmail = address('b');
       final b = await byCode(r, bEmail);
 
@@ -119,7 +120,8 @@ void accountEmailContract({
         reason: '[P1] a different address must be refused',
       );
       expect(res.body['error'], 'email_change_requires_code');
-      expect((await r.userById(a.id))!.email, a.email, reason: '[P1] A kept');
+      // A copy, not `a.email`: the in-memory twin hands out its live object.
+      expect((await r.userById(a.id))!.email, aEmail, reason: '[P1] A kept');
       expect(
         (await byCode(r, bEmail)).id,
         b.id,
@@ -417,6 +419,202 @@ void accountEmailContract({
       );
       expect(v.user!.email, x);
       expect(v.user!.emailVerified, isFalse);
+    });
+  });
+
+  group('changeEmail — proven by a code (§3.1, §5.2, §5.3)', () {
+    Future<String> codeFor(AuthRepository r, String email) async =>
+        (await r.requestEmailOtp(email)).devCode!;
+    String wrong(String code) => code == '111111' ? '222222' : '111111';
+
+    test('a Google account changes to a free address: proven, and its '
+        'next code sign-in reaches it', () async {
+      final r = repo();
+      final gA = sub('gA');
+      final aEmail = address('a');
+      final a = await bySocial(r, 'google', gA, email: aEmail);
+      expect(
+        await r.emailIsOnlySignIn(a.id),
+        isFalse,
+        reason: 'a Google link is another way in: no second code (265)',
+      );
+      final x = address('x');
+      final res = await r.changeEmail(a.id, x, await codeFor(r, x));
+      expect(res.ok, isTrue, reason: '${res.error}');
+      expect(res.user!.email, x);
+      expect(res.user!.emailVerified, isTrue);
+      expect(res.previousEmail, aEmail, reason: 'its proven address');
+      expect((await byCode(r, x)).id, a.id, reason: 'X now reaches A');
+      expect((await bySocial(r, 'google', gA)).id, a.id);
+    });
+
+    test('[P1] another account proved X: email_taken, and the code is left '
+        "for X's owner's sign-in", () async {
+      final r = repo();
+      final aEmail = address('a');
+      final a = await bySocial(r, 'google', sub('gA'), email: aEmail);
+      final x = address('x');
+      final b = await byCode(r, x);
+
+      final code = await codeFor(r, x);
+      final res = await r.changeEmail(a.id, x, code);
+      expect(res.error, 'email_taken');
+      expect((await r.userById(a.id))!.email, aEmail, reason: 'A unchanged');
+      final v = await r.verifyEmailOtp(x, code);
+      expect(
+        v.ok,
+        isTrue,
+        reason: '[P1] email_taken must not consume the code (§3.1)',
+      );
+      expect(v.user!.id, b.id, reason: '[P1] B still reaches B');
+    });
+
+    test('email_taken only once the code is right: a wrong code says '
+        'nothing about the holder (decision 262)', () async {
+      final r = repo();
+      final a = await bySocial(r, 'google', sub('gA'), email: address('a'));
+      final x = address('x');
+      await byCode(r, x);
+      final code = await codeFor(r, x);
+      expect((await r.changeEmail(a.id, x, wrong(code))).error, 'otp_invalid');
+      expect(
+        (await r.changeEmail(a.id, address('nobody'), '123456')).error,
+        'otp_none',
+      );
+    });
+
+    test('an unproven holder loses X to the account that proves it', () async {
+      final r = repo();
+      final h = await bySocial(r, 'apple', sub('apH'), email: address('h'));
+      final x = address('x');
+      await plant(r, h.id, x);
+      final a = await bySocial(r, 'google', sub('gA'), email: address('a'));
+
+      final res = await r.changeEmail(a.id, x, await codeFor(r, x));
+      expect(res.ok, isTrue, reason: '${res.error}');
+      expect((await r.userById(h.id))!.email, isNull, reason: 'taken from H');
+      expect((await byCode(r, x)).id, a.id);
+    });
+
+    test('its own unproven address, proven (« Vérifier »): no notice, '
+        'nothing taken', () async {
+      final r = repo();
+      final a = await bySocial(r, 'google', sub('gA'), email: address('a'));
+      final x = address('x');
+      await plant(r, a.id, x);
+
+      final res = await r.changeEmail(a.id, x, await codeFor(r, x));
+      expect(res.ok, isTrue, reason: '${res.error}');
+      expect(res.user!.email, x);
+      expect(res.user!.emailVerified, isTrue);
+      expect(res.previousEmail, isNull, reason: 'it replaced nothing proven');
+    });
+
+    test('its own proven address: email_unchanged, nothing consumed', () async {
+      final r = repo();
+      final x = address('x');
+      final a = await byCode(r, x);
+      final code = await codeFor(r, x);
+      expect((await r.changeEmail(a.id, x, code)).error, 'email_unchanged');
+      expect((await r.verifyEmailOtp(x, code)).user!.id, a.id);
+    });
+
+    test('the code refused: otp_invalid, then otp_locked; otp_none', () async {
+      final r = repo();
+      final a = await bySocial(r, 'google', sub('gA'), email: address('a'));
+      final x = address('x');
+      final code = await codeFor(r, x);
+      var last = '';
+      for (var i = 0; i < 5; i++) {
+        last = (await r.changeEmail(a.id, x, wrong(code))).error!;
+      }
+      expect(last, 'otp_locked', reason: 'the sign-in\'s attempt budget');
+      expect((await r.changeEmail(a.id, x, code)).error, 'otp_locked');
+      expect(
+        (await r.changeEmail(a.id, address('none'), code)).error,
+        'otp_none',
+      );
+    });
+
+    test('a suspended account: account_suspended; a missing one: '
+        'not_found', () async {
+      final r = repo();
+      final a = await bySocial(r, 'google', sub('gA'), email: address('a'));
+      await r.setStatus(a.id, 'banned');
+      final x = address('x');
+      expect(
+        (await r.changeEmail(a.id, x, await codeFor(r, x))).error,
+        'account_suspended',
+      );
+      expect(
+        (await r.changeEmail('user_none', x, '123456')).error,
+        'not_found',
+      );
+    });
+
+    group('decision 265: its address is its only sign-in', () {
+      test('the current address\'s code is required, checked, and only '
+          'then are both consumed', () async {
+        final r = repo();
+        final current = address('cur');
+        final a = await byCode(r, current);
+        expect(await r.emailIsOnlySignIn(a.id), isTrue);
+        final x = address('x');
+        final code = await codeFor(r, x);
+
+        expect(
+          (await r.changeEmail(a.id, x, code)).error,
+          'current_otp_none',
+          reason: '[265] no current code',
+        );
+        final currentCode = await codeFor(r, current);
+        expect(
+          (await r.changeEmail(
+            a.id,
+            x,
+            code,
+            currentCode: wrong(currentCode),
+          )).error,
+          'current_otp_invalid',
+        );
+        // The new address's code survived both refusals.
+        final res = await r.changeEmail(
+          a.id,
+          x,
+          code,
+          currentCode: currentCode,
+        );
+        expect(res.ok, isTrue, reason: '${res.error}');
+        expect(res.previousEmail, current, reason: 'the notice goes there');
+        expect(
+          (await r.verifyEmailOtp(current, currentCode)).error,
+          'otp_none',
+          reason: 'the current code was consumed',
+        );
+        final again = await byCode(r, current);
+        expect(
+          again.id,
+          isNot(a.id),
+          reason: 'the old address no longer reaches A',
+        );
+        expect((await byCode(r, x)).id, a.id);
+      });
+
+      test('a phone account adding its first address needs no second '
+          'code', () async {
+        final r = repo();
+        final phone =
+            '+22501${(DateTime.now().microsecond * 997 % 100000000).toString().padLeft(8, '0')}';
+        final p = (await r.verifyOtp(
+          phone,
+          (await r.requestOtp(phone)).devCode!,
+        )).user!;
+        expect(await r.emailIsOnlySignIn(p.id), isFalse);
+        final x = address('x');
+        final res = await r.changeEmail(p.id, x, await codeFor(r, x));
+        expect(res.ok, isTrue, reason: '${res.error}');
+        expect(res.previousEmail, isNull);
+      });
     });
   });
 }
