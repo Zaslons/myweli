@@ -127,6 +127,8 @@ describe('/recherche', () => {
       <RechercheClient
         title="Salons"
         results={list}
+        total={list.length}
+        pages={1}
         q=""
         commune=""
         category=""

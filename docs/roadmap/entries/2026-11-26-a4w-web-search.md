@@ -1,0 +1,20 @@
+- 🟡 **Site, A4w : « Afficher plus de salons » et le nombre vrai sur `/recherche` (web · 2026-11-26 — BACKLOG B0.10, décision 233 ; FR-DISC-004, 007 ; parité avec A4).** Branche `feat/a4w-web-search`, depuis `main` `89ff92ca`. Spec : [consumer-search.md](../../design/consumer-search.md) §3.3.
+  - **Pourquoi :** `/recherche` lisait 24 salons et s’arrêtait là ; le nombre affiché comptait les lignes à l’écran, donc jamais plus de 24.
+  - **Ce qui change :**
+    - le nombre vient du `total` du serveur (« 63 salons ») ;
+    - « Afficher plus de salons » sous la liste tant qu’il en reste : les 24 suivants, lus par une route du site (`/api/recherche`), ajoutés sans doublon ; pendant la lecture, le bouton tourne et la liste reste ; en cas d’échec, « Impossible d’afficher la suite. » et « Réessayer » à sa place ;
+    - les pages lues sont écrites dans l’adresse (`pages=2`, jusqu’à 10) : « Retour » depuis un salon et un rechargement remontrent les mêmes salons, comme dans l’app ;
+    - la carte montre chaque salon ajouté ; le clavier reprend au premier nouveau salon, et un lecteur d’écran entend « 24 salons de plus, 48 sur 63 ».
+  - **Trouvé en construisant, par son propre test :** une page arrivée après une nouvelle recherche écrivait quand même `pages=2` dans l’adresse de la nouvelle ; elle n’écrit plus rien.
+  - **La relecture indépendante :** aucun bloquant, six constats, chacun corrigé avec un test :
+    - le routeur de Next n’apprenait pas l’adresse : un « Retour » après une recherche depuis l’en-tête montrait 24 salons sous `pages=2` ; l’adresse et la liste disent maintenant la même chose ;
+    - `pages=10` tapé à la main faisait dix lectures complètes, et une page en échec faisait échouer toute la recherche : les lectures s’arrêtent à la dernière page qui existe, et une page en échec laisse les précédentes ;
+    - le clavier n’est plus déplacé si la personne a mis le focus ailleurs pendant la lecture ;
+    - deux cas où une lecture ancienne bloquait le bouton ou arrivait sans qu’on la demande ;
+    - la cause des doublons était écrite à l’envers dans un commentaire et un test.
+  - **Tests :**
+    - les tests du client, de la route et de la lecture du serveur ; la suite complète du site : 3 371 réussis ;
+    - e2e (le bouchon pagine 30 salons) : le nombre et l’ajout, le rechargement, « Retour » sans rechargement et après une recherche depuis l’en-tête, l’échec, une épingle par ligne ; axe avec le bouton puis avec son échec ;
+    - 37 mutations, chacune vue rouge sur le code commité (dont la carte, par l’e2e).
+  - **Non observable en production** tant que 24 salons au plus sont publics ; aucun ne l’est aujourd’hui.
+  - **Reste :** la fusion, sur le mot du propriétaire : elle déploie `myweli.com` (Vercel) ; puis la relecture sur `myweli.com`.

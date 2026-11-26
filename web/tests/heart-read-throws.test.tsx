@@ -38,6 +38,8 @@ describe('the search ♥ when the favourites read throws', () => {
       <RechercheClient
         title="Salons"
         results={[providerFixture]}
+        total={1}
+        pages={1}
         q=""
         commune=""
         category=""

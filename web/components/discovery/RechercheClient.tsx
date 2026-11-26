@@ -1,7 +1,9 @@
 'use client';
 
 import dynamic from 'next/dynamic';
+import { useSearchParams } from 'next/navigation';
 import { flushSync } from 'react-dom';
+import { Button } from '../Button';
 import { chipLinkClasses } from '../Chip';
 import { EmptyState } from '../EmptyState';
 import { Loading } from '../Loading';
@@ -11,6 +13,14 @@ import type { Provider } from '../../lib/api/providers';
 import { resolveArea } from '../../lib/discovery';
 import { categoryList } from '../../lib/landing';
 import { centerOf, withCoords } from '../../lib/discovery/map';
+import {
+  addressWithPages,
+  appendNew,
+  fetchSearchPage,
+  hasMorePages,
+  pagesFromParam,
+  RECHERCHE_MAX_PAGES,
+} from '../../lib/discovery/search-pages';
 import {
   addFavorite,
   getFavorites,
@@ -57,6 +67,8 @@ const SORT_OPTIONS: { value: string; label: string }[] = [
 export function RechercheClient({
   title,
   results,
+  total,
+  pages,
   q,
   commune,
   category,
@@ -65,7 +77,12 @@ export function RechercheClient({
   tree,
 }: {
   title: string;
+  /// The rows the server read: pages 1 to [pages] (docs/design/consumer-search.md §3.3).
   results: Provider[];
+  /// Every salon the search matches — the server's `total`, the count shown.
+  total: number;
+  /// The pages [results] holds; « Afficher plus » reads the next one.
+  pages: number;
   q: string;
   commune: string;
   category: string;
@@ -76,6 +93,27 @@ export function RechercheClient({
   tree: LocalityTree;
 }) {
   const [hoveredId, setHoveredId] = useState<string | null>(null);
+  // « Afficher plus de salons » (consumer-search.md §3.3): the rows shown, the newest
+  // `total`, the pages read. A new answer from the server — the header's search navigates in
+  // place — starts it again from that answer's rows, not the last search's.
+  const [list, setList] = useState<RechercheList>(() => freshList(results, total, pages));
+  const shown = list.from === results ? list : freshList(results, total, pages);
+  if (shown !== list) setList(shown);
+  const rows = shown.rows;
+  // The list whose next page is out, by its token: one read at a time per list. A soft
+  // « Retour » brings the same `results` array back, so the array cannot tell an old list from
+  // a new one; the token can, and an older list's read still out holds no button.
+  const moreBusy = useRef<object | null>(null);
+  const moreRef = useRef<HTMLButtonElement>(null);
+  const retryRef = useRef<HTMLButtonElement>(null);
+  // The list on screen, read when a page lands: a page asked for an older list writes neither
+  // its rows nor its `pages` into the address. Set while rendering, not in an effect: Next
+  // writes a new search's address in the same commit, before effects run.
+  const shownToken = useRef(shown.token);
+  shownToken.current = shown.token;
+  // Next's router knows the address (`replaceState(null, …)` below), so a navigation that
+  // changes it — a soft « Retour », the same search asked again — renders here.
+  const address = useSearchParams()?.toString() ?? '';
   // Parity 2.15: hearts on the result cards — ONE session probe. What it
   // ended in decides what a heart does:
   // - `loading`: nothing yet — the hearts wait (a signed-in visitor who
@@ -113,8 +151,9 @@ export function RechercheClient({
   }, []);
   const cardRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
-  const mappable = withCoords(results);
-  const firstPhoto = firstPhotoIndex(results);
+  // The map shows every row, the appended ones too: a card's marker is how they sync.
+  const mappable = withCoords(rows);
+  const firstPhoto = firstPhotoIndex(rows);
   // Map center for empty results: the searched commune's city, else the
   // home market's first city (results themselves auto-fit via bounds).
   const mapCenter = useMemo(() => {
@@ -185,7 +224,7 @@ export function RechercheClient({
   /// A refused heart says why under its card; a salon that has left the
   /// results has no card, so the toast says it (§14.4).
   function sayFailure(id: string, message: string) {
-    if (results.some((p) => p.id === id)) {
+    if (rows.some((p) => p.id === id)) {
       setFavErrors((e) => ({ ...e, [id]: message }));
     } else {
       show(message, 'error');
@@ -235,6 +274,99 @@ export function RechercheClient({
     });
     return true;
   }
+
+  /// « Afficher plus de salons »: the next page of the same search, through the same-origin
+  /// route. The rows stay while it loads, and when it fails (« Impossible d’afficher la
+  /// suite. » with « Réessayer », the focus on it). A page answered after a new search is not
+  /// that search's page.
+  async function loadMore() {
+    const token = shown.token;
+    if (moreBusy.current === token) return;
+    moreBusy.current = token;
+    const next = shown.pages + 1;
+    setList((l) => (l.token === token ? { ...l, more: 'loading', status: '' } : l));
+    const r = await fetchSearchPage({ q, commune, category, sort, dispo }, next);
+    if (moreBusy.current === token) moreBusy.current = null;
+    if (!mounted.current || shownToken.current !== token) return;
+    if (!r.ok) {
+      setList((l) => (l.token === token ? { ...l, more: 'failed' } : l));
+      return;
+    }
+    setList((l) => {
+      if (l.token !== token) return l;
+      const merged = appendNew(l.rows, r.items);
+      const added = merged.length - l.rows.length;
+      return {
+        ...l,
+        rows: merged,
+        total: r.total,
+        pages: next,
+        more: 'idle',
+        // A page of salons already shown (the ranking moved between two reads) adds none,
+        // and says so.
+        status:
+          added > 0
+            ? `${added} salon${added > 1 ? 's' : ''} de plus, ${merged.length} sur ${r.total}`
+            : `Aucun salon de plus, ${merged.length} sur ${r.total}`,
+        focusId: added > 0 ? merged[l.rows.length].id : null,
+      };
+    });
+    // The address holds the pages read: « Retour » from a salon and a reload show these rows.
+    // No history entry. `null`, not `history.state`: Next's patched `replaceState` takes a
+    // state carrying its own mark (`__NA`) for one of its own calls and skips its router, which
+    // then kept the old address — and a later soft navigation restored it.
+    window.history.replaceState(
+      null,
+      '',
+      addressWithPages(`${window.location.pathname}${window.location.search}`, next),
+    );
+  }
+
+  // The address and the rows say the same thing, whatever moved one of them:
+  // - the address asks for more pages than are shown — a soft « Retour » restores a search's
+  //   first answer under the `pages` « Afficher plus » had written, or the server could read
+  //   fewer — so the address comes down to what is shown, and a reload shows the same;
+  // - it asks for fewer, after « Afficher plus » — the same search asked again from the
+  //   header — so the list starts again from the server's answer, as the address says.
+  // The address is read from `location`, which `replaceState` changes at once; the router's
+  // copy follows in a transition. A precaution: the e2e passes with either (Next 14.2.35).
+  useEffect(() => {
+    const asked = pagesFromParam(
+      new URLSearchParams(window.location.search).get('pages') ?? undefined,
+    );
+    const showing = Math.min(shown.pages, RECHERCHE_MAX_PAGES);
+    if (asked > showing) {
+      window.history.replaceState(
+        null,
+        '',
+        addressWithPages(`${window.location.pathname}${window.location.search}`, showing),
+      );
+    } else if (asked < showing && shown.pages > pages) {
+      setList(freshList(results, total, pages));
+    }
+  }, [address, shown.pages, shown.token, pages, results, total]);
+
+  // After a page lands, the keyboard continues where the new rows start; after a failure, on
+  // « Réessayer ». Only if the person has not moved the focus meanwhile (WEB-SYSTEM §5): it is
+  // still on the button, or on the page because the busy button let it go.
+  useEffect(() => {
+    const target =
+      shown.more === 'failed'
+        ? retryRef.current
+        : shown.focusId
+          ? (cardRefs.current[shown.focusId]?.querySelector('a') ?? null)
+          : null;
+    if (!target) return;
+    const active = document.activeElement;
+    if (
+      !active ||
+      active === document.body ||
+      active === moreRef.current ||
+      active === retryRef.current
+    ) {
+      target.focus();
+    }
+  }, [shown.more, shown.focusId]);
 
   // A marker click brings the matching card into view (desktop sync).
   useEffect(() => {
@@ -373,15 +505,16 @@ export function RechercheClient({
           </a>
         </div>
 
-        {results.length > 0 ? (
+        {/* The server's `total`, not the rows on the page (§3.3): it stopped at 24. */}
+        {rows.length > 0 ? (
           <h2 className="mt-m text-titleLarge font-semibold text-textPrimary">
-            {results.length} salon{results.length > 1 ? 's' : ''}
+            {shown.total} salon{shown.total > 1 ? 's' : ''}
           </h2>
         ) : null}
         {/* The list draws the lines between rows, so a card never doubles one. The empty
             state is not inside the divide. With no result « Carte » stands under the empty
             state, in its own box, so it has nothing to ride over (B11.5). */}
-        {results.length === 0 ? (
+        {rows.length === 0 ? (
           <>
             <div className="mt-m">
               <EmptyState
@@ -399,7 +532,7 @@ export function RechercheClient({
           // The rows and « Carte » share this box, which is what `sticky` may ride in.
           <div className="mt-xs">
             <div className="divide-y divide-divider">
-              {results.map((p, i) => (
+              {rows.map((p, i) => (
                 <div
                   key={p.id}
                   ref={(el) => {
@@ -438,9 +571,36 @@ export function RechercheClient({
                 </div>
               ))}
             </div>
+            {/* « Afficher plus de salons » while more exist (§2.6: pages × 24 < total); its
+                failure and « Réessayer » in its place. Before « Carte », which rides over the
+                rows and stops under it at the end. */}
+            {shown.more === 'failed' ? (
+              <div className="mt-m flex flex-col gap-s">
+                <p role="alert" className="text-bodyMedium text-error">
+                  Impossible d’afficher la suite.
+                </p>
+                <Button ref={retryRef} variant="secondary" className="w-full" onClick={loadMore}>
+                  Réessayer
+                </Button>
+              </div>
+            ) : hasMorePages(shown.pages, shown.total) ? (
+              <Button
+                ref={moreRef}
+                variant="secondary"
+                className="mt-m w-full"
+                isLoading={shown.more === 'loading'}
+                onClick={loadMore}
+              >
+                Afficher plus de salons
+              </Button>
+            ) : null}
             {mobileView === 'list' ? toggle(false) : null}
           </div>
         )}
+        {/* What a page added, said once (WEB-SYSTEM §7): always rendered, its text swapped. */}
+        <p role="status" aria-live="polite" className="sr-only">
+          {shown.status}
+        </p>
       </div>
 
       {/* RIGHT — the map, part of the screen: no frame, flush to the right
@@ -474,4 +634,33 @@ export function RechercheClient({
       <Toast toast={toast} aboveFloatingControl />
     </div>
   );
+}
+
+/// `/recherche`'s rows past the server's first answer (consumer-search.md §3.3).
+type RechercheList = {
+  /// The server's answer these rows started from: a new one starts them again.
+  from: Provider[];
+  /// This list, and no other: a page asked for it lands only in it.
+  token: object;
+  rows: Provider[];
+  total: number;
+  pages: number;
+  more: 'idle' | 'loading' | 'failed';
+  /// What the last page added, for the status line.
+  status: string;
+  /// The first new salon, which takes the focus.
+  focusId: string | null;
+};
+
+function freshList(results: Provider[], total: number, pages: number): RechercheList {
+  return {
+    from: results,
+    token: {},
+    rows: results,
+    total,
+    pages,
+    more: 'idle',
+    status: '',
+    focusId: null,
+  };
 }

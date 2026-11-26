@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | **Approved by the owner on 2026-11-25** (« Approve as recommended »: the nine recommendations of §11, BACKLOG decisions 228–236). An independent reader checked it once against the code: 13 findings, each re-read in the code, then folded in (§12). The spec merged as `ed60594c` (#859). **A4-api built on 2026-11-25** on the owner's « Yes, build A4-api » (§3.1), **merged** as `351568e3` (#864), **deployed** the same day (`myweli-api-00059-w28`, image `351568e`) and **read back** in production (§10: every search answers 200, the monitor 11 of 11; the matching itself waits for a public salon). **A4 built on 2026-11-25** on the owner's « Yes, start A4 » (§3.2), **merged on 2026-11-26** as `f49de03d` (#878; tree equal to the tested head `45237409`). It reaches people with the next consumer build, on the owner's word. Next, on the owner's word: A4w (§9). |
+| **Status** | **Approved by the owner on 2026-11-25** (« Approve as recommended »: the nine recommendations of §11, BACKLOG decisions 228–236). An independent reader checked it once against the code: 13 findings, each re-read in the code, then folded in (§12). The spec merged as `ed60594c` (#859). **A4-api built on 2026-11-25** on the owner's « Yes, build A4-api » (§3.1), **merged** as `351568e3` (#864), **deployed** the same day (`myweli-api-00059-w28`, image `351568e`) and **read back** in production (§10: every search answers 200, the monitor 11 of 11; the matching itself waits for a public salon). **A4 built on 2026-11-25** on the owner's « Yes, start A4 » (§3.2), **merged on 2026-11-26** as `f49de03d` (#878; tree equal to the tested head `45237409`). It reaches people with the next consumer build, on the owner's word. **A4w built on 2026-11-26** on the owner's « Yes, build it » (§3.3); not merged. Its merge deploys `myweli.com`, on the owner's word. |
 | **Owner** | Sadreddine |
 | **Last updated** | 2026-11-26 |
 | **PRD ref / phase** | FR-DISC-003 (category browse), FR-DISC-004 (search by name, service and locality, French-aware), FR-DISC-005 (the map's commune awareness), FR-DISC-007 (sort and filter) · V1 · BACKLOG B0.10 (decision 160, Track A), B12.8 |
@@ -389,6 +389,97 @@ Built on the owner's « Yes, start A4 », branch `feat/a4-app-search` from `main
     - **The second** (45813754123) failed on the map. Real async time let `flutter_map` open its tile cache, which needs `path_provider`. The map picture shows no photo and no longer waits for one.
     - **The third** (45814252477) is the committed set. The old home picture's blank photos predate A4.
 - **Not done here:** the consumer build, its upload and its release, each on the owner's word; A4w (the website), next.
+
+### 3.3 A4w, the website (designed and built 2026-11-26)
+
+Decision 233's half: « Afficher plus » and the count from `total` on `/recherche`. This section is the web detail §2 leaves open; it follows the app's flow (§2.5, §2.6, §2.1 step 6), in the website's own layout.
+
+**Today** (read on `main` `89ff92ca`):
+- **One page of 24, read on the server.** `/recherche` renders on demand (`force-dynamic`) and reads one page of 24 (`app/recherche/page.tsx:40-47`). `searchProviders` keeps only `items` (`lib/api/providers.ts:74-98`), so `total` is dropped.
+- **The count stops at 24.** It is `results.length`, drawn as « N salons ».
+- **No way past the 24th salon.**
+- **The browser never calls the API host.** Every browser read goes through a same-origin `/api/*` route handler. `lib/api/client.ts` is `server-only`, and the API's CORS allowlist rests on that.
+
+**What changes:**
+1. **The count is the server's `total`:** « 42 salons ». Hidden when there is nothing, since the empty state says it, as today.
+2. **« Afficher plus de salons »:** a secondary `Button`, full width, after the rows, shown while `pages × 24 < total`.
+   - **A tap reads the next page** through a new same-origin route, `GET /api/recherche`. It is named after the page it serves: `app/api/providers` must not exist, a pin of the by-id proxy it once held (`no-public-provider-read.test.ts`). It forwards only `q`, `category`, `commune`, `sort`, `availableToday` and `page`, and fixes `pageSize` at 24 itself. A lost body is 502, as `/api/availability` does.
+   - **While it loads,** the button shows its spinner (`isLoading`, `aria-busy`) and the rows stay.
+   - **If it fails,** its place says « Impossible d’afficher la suite. » with « Réessayer », the app's words. The rows stay.
+   - **Appended rows are de-duplicated by id.**
+   - **What starts again at page 1:** a new search, a chip, « Trier » and « Disponible aujourd’hui » each navigate, as today.
+3. **« Retour » from a salon, and a reload, show the same rows** (§2.1 step 6, the app's rule):
+   - each page read writes `pages=N` into the address (`history.replaceState(null, …)`, no navigation, so Next's router learns it);
+   - the server then reads page 1, then pages 2 to N in parallel, up to 10 pages (240 salons), and never past the last page page 1's `total` says exists. A later page that fails shows the pages read before it, with the button for the rest;
+   - the address and the rows are kept in step. If the address asks for more pages than are shown, it comes down to them; this is a soft « Retour » after a header search, whose first answer Next keeps. If it asks for fewer after « Afficher plus », the same search was asked again, and the list starts again;
+   - `pages` outside 1–10, or not a number, is read as 1;
+   - a shared link opens the same list.
+4. **The map shows every row,** the appended ones included, and refits to them, as it does today for its first page. The card and marker sync needs a marker for every card.
+5. **After a page lands:**
+   - the focus moves to the first new salon's link, so a keyboard user continues where the new rows start;
+   - a polite status says « 24 salons de plus, 48 sur 63 » (WEB-SYSTEM §7).
+
+**Edge cases:**
+- **A salon published, or moved up the ranking, between two pages** pushes the rest down by one: the de-duplication keeps it from showing twice. **One unpublished** pulls the rest up, and one salon is skipped, as in the app. Paging by offset cannot see that. The newest page's `total` decides whether the button stays.
+- **Ten pages read,** with more left: the button reads the eleventh page as usual. Only the address stops at `pages=10`, so a reload shows 240.
+- **On a phone,** the floating « Carte » rides over the rows while scrolling and stops under the button at the end (B11.5).
+
+**Security:**
+- The route forwards an allowlist of parameters, and sends no cookie.
+- The server validates the text (100 characters, no control character, A4-api).
+- `q` already sits in the address and in Cloud Run's logs (B0.15, decision 55).
+
+**Performance:**
+- No new read before a tap.
+- The client component is already on the page.
+- A reload with `pages=N` makes 1 read, then at most N − 1 in parallel, and none past the last page. Each read loads every matching salon, and with « Disponible aujourd’hui » checks each one's slots (`backend/routes/providers/index.dart`), so a typed `pages=10` over 20 salons is one read.
+
+**Tests:**
+- **Unit (RTL):**
+  - the count from `total`;
+  - the button at `pages × 24 < total` and gone at `=`;
+  - the append and its de-duplication;
+  - the loading state;
+  - the failure and « Réessayer »;
+  - the focus and the status;
+  - `pages` in the address.
+- **The route:**
+  - its allowlist;
+  - `page` forwarded and `pageSize` fixed;
+  - a lost body is 502.
+- **The page:** `pages` clamped to 1–10, with N reads.
+- **e2e,** with the stub paging 30 salons:
+  - « 30 salons »;
+  - « Afficher plus » shows 30 rows and the button goes;
+  - a failing second page shows the message and « Réessayer »;
+  - a reload with `pages=2` shows 30;
+  - « Retour » from a salon, with no reload, shows 30;
+  - « Retour » after a header search: the address and the rows agree;
+  - axe on `/recherche` with the button.
+- **Mutations:** each rule above, watched red.
+
+**As built** (branch `feat/a4w-web-search`, `ce976e8e`, then the review's fixes in `9c6c9656`):
+- **Found by its own test, red first:** a page answered after a new search was rightly not appended, but it still wrote `pages=2` into the new search's address.
+- **The route is `/api/recherche`,** not `/api/providers/search`: `no-public-provider-read.test.ts` pins that `app/api/providers` does not exist.
+- **The independent review** (one reader, told to refute): no blocker, six findings. Each was re-read in the code, the first in Next 14.2.35's own source, and fixed with a test.
+  1. **Next never learned the address.** It was written with `history.state`, whose `__NA` mark makes Next's patched `replaceState` skip its router. It is written with `null` now, and the address is kept in step with the rows (item 3).
+  2. **A typed `pages=10` made ten full reads,** and one failed page failed the whole search. The reads are now bounded by `total`, and a later page that fails leaves the pages before it (item 3).
+  3. **The focus moved even when the person had moved it.** Now it moves only from the button, or from the page the busy button let go. A page that adds nothing says « Aucun salon de plus, … ».
+  4. **The stale-page guard read a ref set in an effect,** after Next had already written the new search's address. It is set while rendering now.
+  5. **Lists are told apart by a token,** not by the `results` array a soft « Retour » brings back. An older read no longer holds the button or lands unasked.
+  6. **The duplicate's cause was backwards** in a comment and a test (the edge cases above).
+
+  The review also found missing tests, all written: the `null` state, the status region present before its text, the route's `no-store`, and « Retour » without a reload and after a header search.
+- **Mutations: 37, each watched red on committed code.** 36 are unit-level. The 37th, the map showing only the first page, is caught by the e2e.
+  - **Two did not go red the first time:**
+    - **W24** (the address written with `history.state` again): jsdom's state is `null`, so the mutant passed `null` too. The test now starts from an entry carrying `__NA`.
+    - **Reading the router's address instead of `location`:** the e2e passed too. Reading `location` stays, called a precaution, not a rule.
+- **Checks:** the full web unit suite (3371 pass), typecheck and lint clean, and 14 e2e tests including axe.
+
+**Rollout:**
+- **Its merge is a production deploy of `myweli.com`** (Vercel), on the owner's word.
+- **Read back on `myweli.com` after:** `/recherche` renders and the count shows.
+- **« Afficher plus » cannot be seen in production** until more than 24 salons are public. Today none is.
 
 ## 4. Data model
 

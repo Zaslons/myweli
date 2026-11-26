@@ -480,6 +480,8 @@ function renderRecherche() {
     <RechercheClient
       title="Salons à Cocody"
       results={[P1, P2]}
+      total={2}
+      pages={1}
       q=""
       commune=""
       category=""
