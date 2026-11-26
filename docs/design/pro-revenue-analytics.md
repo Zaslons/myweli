@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | **Approved 2026-11-25** — the owner answered all thirteen questions of §17 at once, « Approve as recommended » (decisions 237–249). **R0w live 2026-11-25** (#866, `afd2de97`). **R1's production read done 2026-11-25** (§19). **R1 live 2026-11-26** (#872, migration **0052**, merged 2026-11-25 `3f3305a5`, deployed 2026-11-26 11:09 UTC, revision `myweli-api-00061-kwl`); the count after waits for real bookings, on the owner's word. **R2 built 2026-11-26** (branch `feat/backend-revenue-r2-endpoints`; as built: §20); its merge and deploy wait for the owner's word. |
+| **Status** | **Approved 2026-11-25** — the owner answered all thirteen questions of §17 at once, « Approve as recommended » (decisions 237–249). **R0w live 2026-11-25** (#866, `afd2de97`). **R1's production read done 2026-11-25** (§19). **R1 live 2026-11-26** (#872, migration **0052**, merged 2026-11-25 `3f3305a5`, deployed 2026-11-26 11:09 UTC, revision `myweli-api-00061-kwl`); the count after waits for real bookings, on the owner's word. **R2 built 2026-11-26** (#884, branch `feat/backend-revenue-r2-endpoints`; as built: §20); its merge and deploy wait for the owner's word. |
 | **Owner** | Sadreddine |
 | **Last updated** | 2026-11-26 |
 | **PRD ref / phase** | FR-PRO-EARN-001 [V1] (« completed revenue by day/week/month ») + FR-PRO-DASH-001 [V1] (« no-show rate ») + the revenue half of **FR-PRO-OPS-004 [V3]** (« revenue, top services/staff, no-show analytics »), pulled forward on the owner's request of 2026-11-25 — Q1 |
@@ -1475,7 +1475,7 @@ are that run's.
 ## 20. R2 as built (2026-11-26)
 
 On the owner's « Oui, démarrer R2 » and « Yes, and read the demo »
-(2026-11-26). Branch `feat/backend-revenue-r2-endpoints`.
+(2026-11-26). PR #884, branch `feat/backend-revenue-r2-endpoints`.
 
 **Where it lives.**
 - `backend/lib/src/analytics/revenue_period.dart` — the calendar (§3.5),
