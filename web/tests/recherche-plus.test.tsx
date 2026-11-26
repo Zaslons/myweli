@@ -396,6 +396,10 @@ it('an older search’s page still out does not hold the new search’s button',
 describe('the review’s findings, each held', () => {
   it('the address is written with no state of its own, so Next’s router learns it', async () => {
     server(json(200, { items: salons(24, 48), page: 2, pageSize: 24, total: 63 }));
+    // The entry as Next leaves it: its own mark in the state. (jsdom's is null, which would
+    // let `history.state` pass for null.)
+    window.history.replaceState({ __NA: true }, '', '/recherche');
+    replaceSpy.mockClear();
     page({ results: salons(0, 24), total: 63 });
     await act(async () => {
       fireEvent.click(more()!);
