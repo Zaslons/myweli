@@ -14,4 +14,5 @@
     - un contrat sur les deux doubles, rouge d’abord ; T33 corrigé, une nouvelle ligne T86.
   - **Relue une fois par un lecteur indépendant, chargé de la réfuter contre le code :** 20 constats, chacun relu dans le code puis intégré. Deux bloquants : le « 500 Google » ne peut pas arriver par une route (Google refuse le jeton d’une adresse non garantie), et une session seule pouvait déplacer la connexion d’un compte vers la boîte d’un voleur (question 6).
   - **Six questions** (décisions 260–265), dont une lecture de production en lecture seule avant le déploiement, la priorité (P1, en deux PR : le backend, puis l’application), et si une session seule peut changer l’adresse avec laquelle un compte se connecte.
-  - **Reste :** les réponses du propriétaire, puis la fusion de cette PR, sur son mot.
+  - **Approuvée le 2026-11-26 :** les six réponses d’un coup, « Approve as recommended », décisions 260–265 dans le BACKLOG (lot 16) : une P1, en deux PR, le backend (B16.3a) puis l’application (B16.3b) ; une lecture de production en lecture seule et un compte Sentry avant le déploiement de B16.3a.
+  - **Reste :** la fusion de cette PR, sur le mot du propriétaire ; puis B16.3a, construit dans sa propre PR, sur le mot du propriétaire.

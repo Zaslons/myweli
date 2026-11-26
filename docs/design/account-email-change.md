@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Module** | identity & auth (a cross-cutting foundation, [MODULES.md](../MODULES.md)): the consumer `users` store (`AuthRepository`, both twins), `PATCH /me`, two new routes under `/me/email`, the `User` DTO, the error reporter, and the consumer app's profile edit |
-| **Status** | **Draft 2026-11-26, written on the owner's « Yes, spec B16.3 ».** Six questions in §11 (decisions 260–265). Read once by an independent reviewer told to refute it against the code: 20 findings, each re-read in the code, then folded in (§13). Nothing is built. Documentation only. |
+| **Status** | **Approved 2026-11-26.** Written on the owner's « Yes, spec B16.3 »; the owner answered the six questions of §11 at once, « Approve as recommended »: decisions 260–265 in BACKLOG, batch 16 (#879). Read once by an independent reviewer told to refute it against the code: 20 findings, each re-read in the code, then folded in (§13). Nothing is built. Documentation only. Next, each on the owner's word: B16.3a (the backend) in its own PR, then decision 263's read, then its deploy; then B16.3b (the app). |
 | **Owner** | the project owner: the answers, then each build, merge, read and deploy, each on the owner's word |
 | **Last updated** | 2026-11-26 |
 | **PRD ref / phase** | FR-AUTH-004 (profile: name, optional e-mail, photo) · threat model T32, T33, T34 · V1 |
@@ -351,35 +351,35 @@ One indexed read and at most two indexed writes per sign-in or change, in one tr
 
 ---
 
-## 11. Questions for the owner
+## 11. Questions for the owner — answered 2026-11-26, « Approve as recommended » (decisions 260–265)
 
 Numbered from **260**, after batch 18's 255–259.
 
-**Q1. Who reaches an account by its e-mail?** → decision 260
-- **Recommended: only an account that proved the address** (a code, or Google or Apple asserting it). A proof takes an unproven address from whoever holds it. A Google or Apple link never replaces an account's existing link for that provider: such a sign-in gets a new account without the address (§5.1). Closes every unsprung trap, with no migration.
+**Q1. Who reaches an account by its e-mail?**
+- **Recommended: only an account that proved the address** (a code, or Google or Apple asserting it). A proof takes an unproven address from whoever holds it. A Google or Apple link never replaces an account's existing link for that provider: such a sign-in gets a new account without the address (§5.1). Closes every unsprung trap, with no migration. → ✅ **Decision 260.**
 - Or the same, but a sign-in that would replace a link is refused, with a sentence to sign in by code instead (a new refusal on both sign-in screens, app and website).
 - Or the prover takes the whole account, revoking its holder's other sign-ins and sessions.
 - Or clear the unproven addresses once, by migration, and keep the sign-in as is.
 
-**Q2. How does an address change?** → decision 261
-- **Recommended: by proving the new one,** a code sent to it (§3.1, §5.2, §5.4); `PATCH /me` no longer changes or clears it; `User` gains `emailVerified`, so the app can show and prove an unproven address.
+**Q2. How does an address change?**
+- **Recommended: by proving the new one,** a code sent to it (§3.1, §5.2, §5.4); `PATCH /me` no longer changes or clears it; `User` gains `emailVerified`, so the app can show and prove an unproven address. → ✅ **Decision 261.**
 - Or not at all: the address shows read-only, and `PATCH /me` refuses a change. Smallest; a person who wants another address starts a new account.
 - Or the survey's fix alone: `PATCH /me` answers `409 email_taken`, and the address stays unproven (Q1 then carries it all, and T32's enumeration opens).
 
-**Q3. When is a taken address said?** → decision 262
-- **Recommended: at the code's verification only,** so only the inbox's owner learns it, and the code stays valid for their sign-in (§3.1).
+**Q3. When is a taken address said?**
+- **Recommended: at the code's verification only,** so only the inbox's owner learns it, and the code stays valid for their sign-in (§3.1). → ✅ **Decision 262.**
 - Or at the request: anyone signed in learns whether an address has an account (T32).
 
-**Q4. Read production before the deploy?** → decision 263
-- **Recommended: yes,** read-only, counts only (§9 step 2), and Sentry for the reports that carry an address: it shows whether a trap is set today, whether an account's only sign-in is an unproven address (you then choose among §9's three options), and how many reports to delete.
+**Q4. Read production before the deploy?**
+- **Recommended: yes,** read-only, counts only (§9 step 2), and Sentry for the reports that carry an address: it shows whether a trap is set today, whether an account's only sign-in is an unproven address (you then choose among §9's three options), and how many reports to delete. → ✅ **Decision 263.**
 - Or deploy without reading.
 
-**Q5. When, and in how many PRs?** → decision 264
-- **Recommended: now, as a P1** (a security fix reachable through the website today), **in two PRs:** the backend first (B16.3a), then the app (B16.3b); each build, merge and deploy on your word. The website's e-mail editing (C10) uses the routes when it is built.
+**Q5. When, and in how many PRs?**
+- **Recommended: now, as a P1** (a security fix reachable through the website today), **in two PRs:** the backend first (B16.3a), then the app (B16.3b); each build, merge and deploy on your word. The website's e-mail editing (C10) uses the routes when it is built. → ✅ **Decision 264.**
 - Or one PR with both.
 
-**Q6. May a session alone change the address an account signs in with?** → decision 265
-- **Recommended: not when the address is the account's only sign-in.** For an account with a proven address and no Google or Apple link, the change also takes a code sent to the current address (§3.1's `currentCode`). After every change, a notice goes to the old address: « L'adresse de votre compte MyWeli a été changée. Si ce n'est pas vous, écrivez à support@myweli.com. » (its own address, so the `warm` class).
+**Q6. May a session alone change the address an account signs in with?**
+- **Recommended: not when the address is the account's only sign-in.** For an account with a proven address and no Google or Apple link, the change also takes a code sent to the current address (§3.1's `currentCode`). After every change, a notice goes to the old address: « L'adresse de votre compte MyWeli a été changée. Si ce n'est pas vous, écrivez à support@myweli.com. » (its own address, so the `warm` class). → ✅ **Decision 265.**
 - Or the notice only: a session alone changes the address, and the old address learns of it.
 - Or a session alone, as account deletion today (`DELETE /me` asks for no code either).
 
@@ -416,3 +416,4 @@ Numbered from **260**, after batch 18's 255–259.
     - the 23505 detail reaching Sentry (§2.6, §5.7);
     - §9's options and the merge path.
   - **Nits:** the code checked and consumed in one statement (§5.3); the sign-in step's own words and widgets; the phone's twin (§12); line references, `devCode` in dev only, and `schema.ts`.
+- 2026-11-26, answered: « Approve as recommended », all six (decisions 260–265, batch 16 in the BACKLOG). B16.3 is a P1, built in two PRs, the backend first; each build, merge, read and deploy on the owner's word.
