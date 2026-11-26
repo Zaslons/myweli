@@ -15,6 +15,7 @@ import 'package:myweli/core/utils/salon_id.dart';
 import 'package:myweli/models/api_response.dart';
 import 'package:myweli/models/appointment.dart';
 import 'package:myweli/models/provider.dart' as models;
+import 'package:myweli/models/provider_page.dart';
 import 'package:myweli/providers/appointment_provider.dart';
 import 'package:myweli/providers/auth_provider.dart';
 import 'package:myweli/providers/favorites_provider.dart';
@@ -719,7 +720,10 @@ void main() {
 
       await pumpMap(tester, SalonId('provider1'), providers: providers);
 
-      expect(providers.isLoading, isTrue, reason: 'the list is still out');
+      expect(providers.mapLoading, isTrue, reason: 'the list is still out');
+      // The map's read is its own (consumer-search.md §2.7): the salon
+      // page's loader is not the map's.
+      expect(providers.isLoading, isFalse);
       expect(find.text('Voir le salon'), findsOneWidget);
       expect(
         cameraOf(tester).center,
@@ -999,6 +1003,23 @@ class _Salons extends MockProviderService {
   }) => hangList
       ? Completer<ApiResponse<List<models.Provider>>>().future
       : Future.value(ApiResponse.success(list));
+
+  /// The map's own read (consumer-search.md §2.8): the same [list], or the
+  /// same hang.
+  @override
+  Future<ApiResponse<ProviderPage>> searchProviders(ProviderQuery query) =>
+      hangList
+      ? Completer<ApiResponse<ProviderPage>>().future
+      : Future.value(
+          ApiResponse.success(
+            ProviderPage(
+              items: list,
+              page: query.page,
+              pageSize: query.pageSize,
+              total: list.length,
+            ),
+          ),
+        );
 
   @override
   Future<ApiResponse<models.Provider>> getProviderById(String id) async {

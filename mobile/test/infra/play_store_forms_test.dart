@@ -172,7 +172,7 @@ void main() {
           .map((l) => l.replaceFirst(RegExp(r'(^|\s)//.*$'), ''))
           .join('\n');
       final keys = {
-        for (final m in RegExp(r"\(\s*'([a-z]+)'\s*,\s*'").allMatches(code))
+        for (final m in RegExp(r"key:\s*'([a-z]+)'").allMatches(code))
           m.group(1)!,
       };
       expect(keys, isNotEmpty, reason: 'anti-vacuity: no category read');

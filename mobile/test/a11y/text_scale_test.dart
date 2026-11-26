@@ -36,7 +36,7 @@ void main() {
   });
 
   testWidgets('CategoryChips — the home category strip', (tester) async {
-    await pumpAtTextScale(tester, const CategoryChips(selectedCategory: 'all'));
+    await pumpAtTextScale(tester, CategoryChips(onSelected: (_) {}));
     expect(tester.takeException(), isNull);
   });
 
@@ -47,7 +47,7 @@ void main() {
   ) async {
     await expectGrowsWithTextScale(
       tester,
-      const CategoryChips(selectedCategory: 'all'),
+      CategoryChips(onSelected: (_) {}),
       find.byType(CategoryChips),
     );
   });

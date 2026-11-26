@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | **Approved 2026-11-25** — the owner answered all thirteen questions of §17 at once, « Approve as recommended » (decisions 237–249). **R0w live 2026-11-25** (#866, `afd2de97`). **R1's production read done 2026-11-25** (§19). **R1 built 2026-11-25** (#872, migration **0052**); its merge and its deploy wait for the owner's word. |
+| **Status** | **Approved 2026-11-25** — the owner answered all thirteen questions of §17 at once, « Approve as recommended » (decisions 237–249). **R0w live 2026-11-25** (#866, `afd2de97`). **R1's production read done 2026-11-25** (§19). **R1 live 2026-11-26** (#872, migration **0052**, merged 2026-11-25 `3f3305a5`, deployed 2026-11-26 11:09 UTC, revision `myweli-api-00061-kwl`); the count after waits for real bookings, on the owner's word. |
 | **Owner** | Sadreddine |
 | **Last updated** | 2026-11-25 |
 | **PRD ref / phase** | FR-PRO-EARN-001 [V1] (« completed revenue by day/week/month ») + FR-PRO-DASH-001 [V1] (« no-show rate ») + the revenue half of **FR-PRO-OPS-004 [V3]** (« revenue, top services/staff, no-show analytics »), pulled forward on the owner's request of 2026-11-25 — Q1 |
@@ -1241,7 +1241,9 @@ each other once R2 is deployed.
 count of bookings by number of services and the count referencing a service
 or a collaborateur that no longer exists — how many rows will read
 « estimé » or « Ancien collaborateur » (**done 2026-11-25, §19**). After R1,
-a count of new bookings with lines, channel and name.
+a count of new bookings with lines, channel and name (**R1 deployed
+2026-11-26; the count waits until real bookings exist from the website, the
+app and a salon**).
 
 **Store assets**: App Store screenshot 8 (« Revenus ») and the preview film's
 scene S4 already show an older card (provider-earnings.md §12); this screen

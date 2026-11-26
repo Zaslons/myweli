@@ -927,8 +927,10 @@ void main() {
 
         // C — without this the test is green about the list it was already
         // measuring, which is exactly the failure being fixed.
+        // A `SliverGrid` since A4: « Afficher plus » goes after the grid
+        // (consumer-search.md §2.6), and a `GridView` has no footer.
         expect(
-          find.byType(GridView),
+          find.byType(SliverGrid),
           findsOneWidget,
           reason: 'C: the toggle did not switch to the grid',
         );

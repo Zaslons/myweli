@@ -2,9 +2,9 @@
 
 | | |
 |---|---|
-| **Status** | **Approved by the owner on 2026-11-25** (« Approve as recommended »: the nine recommendations of §11, BACKLOG decisions 228–236). An independent reader checked it once against the code: 13 findings, each re-read in the code, then folded in (§12). The spec merged as `ed60594c` (#859). **A4-api built on 2026-11-25** on the owner's « Yes, build A4-api » (§3.1), **merged** as `351568e3` (#864), **deployed** the same day (`myweli-api-00059-w28`, image `351568e`) and **read back** in production (§10: every search answers 200, the monitor 11 of 11; the matching itself waits for a public salon). Next, each on the owner's word: A4, then A4w (§9). |
+| **Status** | **Approved by the owner on 2026-11-25** (« Approve as recommended »: the nine recommendations of §11, BACKLOG decisions 228–236). An independent reader checked it once against the code: 13 findings, each re-read in the code, then folded in (§12). The spec merged as `ed60594c` (#859). **A4-api built on 2026-11-25** on the owner's « Yes, build A4-api » (§3.1), **merged** as `351568e3` (#864), **deployed** the same day (`myweli-api-00059-w28`, image `351568e`) and **read back** in production (§10: every search answers 200, the monitor 11 of 11; the matching itself waits for a public salon). **A4 built on 2026-11-25** on the owner's « Yes, start A4 » (§3.2), **merged on 2026-11-26** as `f49de03d` (#878; tree equal to the tested head `45237409`). It reaches people with the next consumer build, on the owner's word. Next, on the owner's word: A4w (§9). |
 | **Owner** | Sadreddine |
-| **Last updated** | 2026-11-25 |
+| **Last updated** | 2026-11-26 |
 | **PRD ref / phase** | FR-DISC-003 (category browse), FR-DISC-004 (search by name, service and locality, French-aware), FR-DISC-005 (the map's commune awareness), FR-DISC-007 (sort and filter) · V1 · BACKLOG B0.10 (decision 160, Track A), B12.8 |
 | **Module** | `client-app` (discovery), with `public-api` (`GET /providers`) and `public-web` (`/recherche`, A4w, decision 233) |
 | **ROADMAP entry** | [2026-11-24-consumer-search-spec.md](../roadmap/entries/2026-11-24-consumer-search-spec.md) |
@@ -288,6 +288,107 @@ The drift the read found is fixed at the same time:
 - **Not changed:** `listForAdmin(q:)` and the clients list keep their unescaped `ILIKE` (B16.8, B16.7). Several words remain one text.
 
 ---
+
+### 3.2 As built (A4, the app, 2026-11-25)
+
+Built on the owner's « Yes, start A4 », branch `feat/a4-app-search` from `main` `da5faa09`.
+
+- **Where each part lives.**
+  - The list's own state: `SalonSearchController` (`lib/providers/salon_search_controller.dart`), created and disposed with `ProviderListScreen`.
+  - The one category list: `discoveryCategories` (`core/constants/salon_categories.dart`), which `salonCategories`, `categoryColor` and `salonCategoryIcon` now read. Held by a test to the server's PATCH list and to the website's `landing.ts` labels.
+  - The read: `searchProviders(ProviderQuery)` → `ProviderPage` with `total` (interface, API, mock). `getProviders` stays for the carousel and « Près de vous ».
+  - The text cleaned in the app as the server cleans it (`core/utils/search_text.dart`): a tab or a line break becomes a space, the other control characters go.
+  - The mock matches each field on its own, folds with the server's own `unaccent` table restricted to Latin (744 entries, generated from `backend/lib/src/search_fold_table.dart` and held to it by a test), pages, clamps and counts like A4-api. It has an error switch (`failSearches`) and an empty case (`salons: []`).
+- **Decisions taken while building, inside the spec:**
+  - **An open search is reached through `ProviderProvider`, not the review sheet's sink.** The sheet opens from the salon page or « Mes rendez-vous », which do not hold the list's controller. So the controller attaches itself as a `SalonCopyHolder` while it lives: `providerForMap` finds a salon in it, and a review's figures reach its card.
+  - **A new search that fails empties the list**, so the error shows: the previous search's salons would answer a text the person no longer reads. The same search pulled again and failed keeps them (SYSTEM §12.1).
+  - **The map's failed read empties the map's list too:** the pill names a commune whose salons the map could not get.
+  - **The featured read no longer writes the salon page's `isLoading` either** — the same leak as the list's, in the carousel.
+  - **The map's markers for `nails` and `massage` are unchanged:** the shop glyph in ink, as on the website's `SalonPin`. The one list carries them as they were; giving them an accent is a SYSTEM §3.6 change, with the website.
+  - **The Pro editor's category order follows the one list**, which is the website's: Coiffure, Barbier, Onglerie, Spa, Massage (it was salon, barber, spa, nails, massage).
+- **Found while building, each by a test:**
+  - **The field's name.** A `Semantics(textField: true)` around the field made a second node above the text field's, read twice. A plain `Semantics(label:)` merges into the field's own node: « Rechercher un salon » first, the hint after it, and the name kept once text is typed.
+  - **The map's empty banner overflowed** at 390dp: « Toutes les communes » beside « Aucun salon à Cocody ». The status banners now put their action under the sentence. The location banner is unchanged (A6 rewrites it).
+- **The defect, red first.** `home_nearby_leak_test.dart` was written against `main` (`da5faa09`) with only the screens and the real `/providers` route, and failed there three times. After « Barbier » on the list, « Près de vous » showed the two barbers. After « Mieux notés », the home was reordered by rating. After « Disponible aujourd’hui » (added after the review, the clock on a Monday), it showed the two salons open that day. It passes on the branch.
+- **The independent review** (one reader, told to refute, given the code and not this section): one blocker and eight smaller findings, each re-read in the code, then fixed with a test (`936b19e3`).
+  - **Blocker: no room for the results while typing on a small phone.** The field, the pill, the chips and the filters were a fixed header over an `Expanded` list. On a 360 × 640 phone at 2× with the keyboard up (280dp), the header took the whole height: « A RenderFlex overflowed by 36 pixels » at one letter, and the results got 0dp after. This is the moment the results are the point (§11 Q3). **The screen is now one scroll view**: the header scrolls away with the results, and a drag lowers the keyboard. The keyboard test was watched red on `11b6f8e9` (the 36px overflow), passes at 1× and 2× now, and its 1× run is the control.
+  - **`AppAsyncView`'s sliver mode asserted on any `EmptyState`.** `SliverFillRemaining(hasScrollBody: false)` asks its child for an intrinsic height, and `EmptyState` is a `LayoutBuilder`. The home's sliver never met it, because its empty state is a bare `Text`. The same extent (the viewport minus the slivers before it) is now given without asking, so the home renders identically.
+  - **No skeleton over an empty answer.** A key typed under « Aucun résultat pour … » blinked the skeleton in and out. The empty sentence now stays, with « Recherche… » above it. The error stays until the next answer, so « Réessayer » shows the skeleton and not the error.
+  - **Every answer is announced, and only on its own screen.** A pull that failed and kept its salons showed nothing; it is now announced. « Liste mise à jour » is no longer said on top of each answer. An answer that arrives under another screen (a commune chosen on the map) is not read over it.
+  - **« Disponible aujourd’hui » leaked into the home too.** Both tests were watched red against `main` `da5faa09` with the clock on a Monday, when two seeded salons are closed:
+    - « Près de vous » became [provider2, provider3];
+    - a booking without its own salon name lost « Salon Excellence ».
+  - **Smaller gaps, each closed by a test:**
+    - a text with « Disponible aujourd’hui » or a category: the text's row comes first (§2.10);
+    - « Afficher plus de salons » checked loading, not merely gone;
+    - exactly one full page offers nothing more;
+    - a review posted while a search is open moves its card from « (89) » to « (90) ».
+  - **The map's « Chargement des salons… » is not a live region.** The map announces the outcome: the failure, the empty commune, the 50 line.
+  - **Hygiene:**
+    - `search_text.dart`'s white-space class held ten invisible characters. It is now written with escapes and pinned to the server's `kSearchSpaces`.
+    - The mock's relevance comment now says it is the seed order: a `Provider` carries no `featured` flag to rank by. Both sorts are tested.
+    - The search goldens now skip off Linux, as every other golden file does.
+- **Tests that moved** (§5): the sort test left `ProviderProvider` for the controller; `provider_provider_test` now asserts that a list failure is the list's error, not the salon page's; the map test's fake answers `searchProviders`; the grid is a `SliverGrid` (a `GridView` has no footer); the Play listing test reads the new category format; the chips take `onSelected`. After the review, the goldens scroll the page's one vertical scroll view.
+- **Mutations: 48, each watched red on committed code** (a script applies one, runs the tests that guard it, restores the file from git, and reports a mutation whose text it cannot find as no result, never as a pass):
+  - **the search:**
+    - the 350 ms wait;
+    - the 2-letter floor;
+    - a stale first page, or a stale « Afficher plus » page, written;
+    - the append's de-duplication;
+    - `page × 20 <= total`;
+    - « Afficher plus » during a new search;
+    - a reload on every notification;
+    - control characters kept;
+    - a failed new search keeping the old salons;
+    - emptying the field not searching;
+    - dispose still listening;
+  - **the leak:**
+    - the home taking the list's sort;
+    - a list read writing the salon page's error;
+    - `providerForMap` and a review's figures skipping an open search, in the unit and on a drawn card;
+  - **the screen:**
+    - « nothing public » never shown;
+    - the empty rows out of order, and the text's row losing to « Disponible aujourd’hui » or to a category;
+    - the count taken from the cards;
+    - the count row back to a `Row`;
+    - the field unnamed;
+    - an unknown `?category=` kept;
+    - `?focus=search` ignored;
+    - the counter drawn;
+    - an announcement on every notification;
+  - **the review's fixes:**
+    - the skeleton over an empty answer;
+    - the error cleared at the start of a search;
+    - « Réessayer » leaving the error standing;
+    - a failed pull not announced;
+    - « Liste mise à jour » said again;
+    - an answer read over another screen;
+    - « Afficher plus » never loading;
+    - `AppAsyncView`'s sliver fill back to `SliverFillRemaining`, or filling nothing;
+    - the white space drifting from the server's;
+    - « Recherche… » over the error view, or only over salons;
+  - **the map:**
+    - the empty banner over a focused salon;
+    - 20 salons instead of 50;
+    - the loading pill announced;
+    - a read for the same commune asked again while one is out;
+  - **the data:**
+    - an inactive service matching;
+    - `total` read as 0 when missing;
+    - `massage` dropped from the taxonomy.
+
+  **Two did not go red the first time, and each was a finding:**
+  - **M20** (the map's « commune changed? » check deleted) did not fail; it **hung the test isolate for 20 hours**. `loadMapSalons` notifies, and a listener that reloads on every notification called it from inside itself without end: in the app, a frozen screen. A read already out for the same commune is now not asked again (`486e9e8f`, guarded by M46). With M20 applied, the map asks twice and the test fails in 4 s.
+  - **M25** (`total` read as 0 when missing) stayed green. Its test sent a body without `page` either, so it failed on `page` whatever `total` did. The body now holds everything but `total`.
+- **Goldens, authored on Linux by `goldens.yml` and each opened:**
+  - **8 new**, each at 390 × 1× and at the floor, 360 × 200 %: `consumer_search_results`, `consumer_search_empty`, `consumer_search_more` and `consumer_map_commune`.
+  - **2 changed:** `consumer_home` and its 360 × 200 % twin, for the chips (« Tous, Coiffure, Barbier, Onglerie… » where « Tous, Barbier, Salon, Spa » was).
+  - **79 byte-identical.**
+  - **Three runs:**
+    - **The first** (45813232558) drew Beauté Divine's card without its photo at 1×. The photos decode off the fake clock, and only the second picture found the photo in the cache. The pictures now precache their asset photos.
+    - **The second** (45813754123) failed on the map. Real async time let `flutter_map` open its tile cache, which needs `path_provider`. The map picture shows no photo and no longer waits for one.
+    - **The third** (45814252477) is the committed set. The old home picture's blank photos predate A4.
+- **Not done here:** the consumer build, its upload and its release, each on the owner's word; A4w (the website), next.
 
 ## 4. Data model
 

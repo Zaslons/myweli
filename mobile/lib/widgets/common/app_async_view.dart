@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
 import '../../core/constants/failure_messages.dart';
@@ -85,8 +87,31 @@ class AppAsyncView<T> extends StatelessWidget {
   Widget _placed(Widget child) =>
       sliver ? SliverToBoxAdapter(child: child) : child;
 
-  Widget _filling(Widget child) =>
-      sliver ? SliverFillRemaining(hasScrollBody: false, child: child) : child;
+  /// The error and the empty state: at least what is left of the viewport
+  /// under the slivers before them — the extent `SliverFillRemaining` gives —
+  /// and taller when they need it, with the keyboard up (consumer-search.md
+  /// §3.2).
+  ///
+  /// **Not `SliverFillRemaining(hasScrollBody: false)`**, which this was: it
+  /// asks its child for an intrinsic height, and `EmptyState` is a
+  /// `LayoutBuilder`, which has none — an assertion the first time a sliver
+  /// caller showed the shared empty state (the home's is a bare `Text`).
+  Widget _filling(Widget child) => sliver
+      ? SliverLayoutBuilder(
+          builder: (context, constraints) => SliverToBoxAdapter(
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                minHeight: math.max(
+                  0,
+                  constraints.viewportMainAxisExtent -
+                      constraints.precedingScrollExtent,
+                ),
+              ),
+              child: child,
+            ),
+          ),
+        )
+      : child;
 
   Widget _pullable(Widget child) {
     final refresh = onRefresh;
