@@ -23,6 +23,7 @@ import 'package:myweli_backend/src/auth/apple_tokens.dart';
 import 'package:myweli_backend/src/auth/auth_methods.dart';
 import 'package:myweli_backend/src/auth/auth_repository.dart';
 import 'package:myweli_backend/src/auth/demo_seam.dart';
+import 'package:myweli_backend/src/auth/email_change_service.dart';
 import 'package:myweli_backend/src/auth/id_token_verifier.dart';
 import 'package:myweli_backend/src/auth/provider_auth_repository.dart';
 import 'package:myweli_backend/src/auth/smoke_seam.dart';
@@ -72,6 +73,7 @@ Handler middleware(Handler handler) {
   return handler
       .use(provider<AuthRepository>((_) => authRepository))
       .use(provider<AuthMethods>((_) => authMethods))
+      .use(provider<EmailChangeService>((_) => emailChangeService))
       .use(provider<SmokeSeam>((_) => smokeSeam))
       .use(provider<DemoSeam>((_) => demoSeam))
       .use(provider<DemoResetService>((_) => demoResetService))

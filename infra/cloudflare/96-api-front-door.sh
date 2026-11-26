@@ -326,10 +326,16 @@ echo "==> 5/5  Edge rate-limit rule (http_ratelimit phase)"
 # in the expression. This PUT is the proof; if the API refuses it, cf() prints
 # the refusal and the script stops here — the fallbacks are in spec §11 item 1
 # (a `matches "^/(admin/)?auth/"` regex, then `/auth/` alone at the edge).
+#
+# `/me/email/` joined on 2026-11-26 (B16.3, docs/design/account-email-change.md
+# §2.7, §3.1): its request route mails a code to an address the caller types,
+# as `/auth/email/otp/request` does, so it shares that route's limits. The
+# server's `isIpLimitedPath` carries the same three prefixes; until this script
+# is re-run, the edge does not, and the origin's limiter holds alone.
 RULE_BODY=$(jq -n --arg d "$RULE_DESCRIPTION" '{
   rules: [{
     description: $d,
-    expression: "starts_with(http.request.uri.path, \"/auth/\") or starts_with(http.request.uri.path, \"/admin/auth/\")",
+    expression: "starts_with(http.request.uri.path, \"/auth/\") or starts_with(http.request.uri.path, \"/admin/auth/\") or starts_with(http.request.uri.path, \"/me/email/\")",
     action: "block",
     ratelimit: {
       characteristics: ["cf.colo.id", "ip.src"],
@@ -385,7 +391,7 @@ LIVE_RULE=$(jq -c --arg d "$RULE_DESCRIPTION" \
 for check in \
   '.action == "block"' \
   '.enabled == true' \
-  '(.expression | contains("/auth/")) and (.expression | contains("/admin/auth/"))' \
+  '(.expression | contains("/auth/")) and (.expression | contains("/admin/auth/")) and (.expression | contains("/me/email/"))' \
   '(.ratelimit.characteristics | sort) == ["cf.colo.id", "ip.src"]' \
   '.ratelimit.period == 10' \
   '.ratelimit.requests_per_period == 10' \
@@ -397,7 +403,7 @@ for check in \
   fi
 done
 RULE_ID=$(jq -r '.id' <<<"$LIVE_RULE")
-echo "    ✓ rule $RULE_ID: block · 10 per 10 s per IP · /auth/* and /admin/auth/* — verified by reading it back"
+echo "    ✓ rule $RULE_ID: block · 10 per 10 s per IP · /auth/*, /admin/auth/* and /me/email/* — verified by reading it back"
 
 cat <<EOF
 

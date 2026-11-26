@@ -374,6 +374,24 @@ void main() {
       expect(r.res.statusCode, HttpStatus.tooManyRequests);
     });
 
+    test('/me/email/* shares the scope and the bucket (B16.3)', () async {
+      // Its request route mails a code to an address the caller types, as
+      // /auth/email/otp/request does (account-email-change.md §2.7).
+      final spy = _SpyLimiter(InMemoryRateLimiter());
+      for (var i = 0; i < 10; i++) {
+        await run(enforce, authReq('/auth/email/otp/request'), limiter: spy);
+      }
+      final r = await run(
+        enforce,
+        authReq('/me/email/otp/request'),
+        limiter: spy,
+      );
+      expect(r.res.statusCode, HttpStatus.tooManyRequests);
+      expect(isIpLimitedPath('/me/email/otp/verify'), isTrue);
+      expect(isIpLimitedPath('/me'), isFalse, reason: 'the profile is not');
+      expect(isIpLimitedPath('/me/emailx'), isFalse);
+    });
+
     test('and /admin/auth/* counts in the same bucket as /auth/*', () async {
       // One address, one budget across both prefixes — Cloud Armor keyed on
       // the IP alone, and so does this.

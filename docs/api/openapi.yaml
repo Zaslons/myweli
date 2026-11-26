@@ -487,7 +487,16 @@ paths:
               type: object
               properties:
                 name: { type: string }
-                email: { type: string, description: "Empty string clears it. Changing it resets emailVerified." }
+                email:
+                  type: string
+                  description: >
+                    **Not changed here** (B16.3, docs/design/account-email-change.md
+                    §3.2). Compared, trimmed and in lower case, with the address
+                    as stored (`''` reads as none): the same → accepted, nothing
+                    changes (clients send it on every save); different, `''`
+                    included → 409 `email_change_requires_code`, before anything
+                    is written. An address changes only proven, through
+                    `/me/email/otp/request` then `/me/email/otp/verify`.
                 avatarUrl:
                   type: string
                   description: >
@@ -516,6 +525,13 @@ paths:
         '400': { $ref: '#/components/responses/BadRequest' }
         '401': { $ref: '#/components/responses/Unauthorized' }
         '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: >-
+            `email_change_requires_code` — `email` differs from the stored
+            address; nothing was written. Change it through `/me/email/otp/*`.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
     delete:
       tags: [auth]
       summary: Erase the signed-in user's own account (B2 · L1 · threat T59)
@@ -573,6 +589,126 @@ paths:
         '409':
           description: >-
             `future_bookings` — cancel the upcoming appointment(s) first.
+
+  /me/email/otp/request:
+    post:
+      tags: [auth]
+      summary: Send a code to change the signed-in consumer's address (B16.3)
+      description: >
+        The first step of an address change (docs/design/account-email-change.md
+        §3.1, decisions 261, 262, 265). Sends a code to the new address, and —
+        when the account's proven address is its only way in (no Google or
+        Apple link) — a second code to that current address
+        (`currentCodeSent`). The same answer whether or not the new address
+        has an account (no enumeration, T32): « taken » is said only at
+        `/me/email/otp/verify`, to whoever proves the inbox. The code is the
+        sign-in's (one per address, 5 minutes, the same attempts and resends).
+        Consumers only (another role → 403 `forbidden`); the account is the
+        token's. 404 `auth_method_disabled` while `AUTH_METHODS` excludes
+        `email`. 429 `rate_limited` per IP (as `/auth/*`) or per account (both
+        routes share one bucket); 429 `otp_resend_limit` for the address's
+        resend budget.
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email]
+              properties:
+                email: { type: string, format: email }
+      responses:
+        '202':
+          description: Sent (or declined by the send budget — the same answer)
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [expiresInSeconds, currentCodeSent]
+                properties:
+                  expiresInSeconds: { type: integer, example: 300 }
+                  currentCodeSent:
+                    type: boolean
+                    description: A code also went to the current address (decision 265).
+                  devCode:
+                    type: string
+                    description: The new address's code. Present only in dev; never in production.
+                  currentDevCode:
+                    type: string
+                    description: The current address's code, when sent. Present only in dev.
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403':
+          description: '`forbidden` (not a consumer token) · `account_suspended`'
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: >-
+            `email_unchanged` — already this account's proven address. Its own
+            unproven address is accepted: that is how it gets proven.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+
+  /me/email/otp/verify:
+    post:
+      tags: [auth]
+      summary: Prove the new address and make it the signed-in consumer's (B16.3)
+      description: >
+        Proves the new address by its code — and the current one by
+        `currentCode` when `/me/email/otp/request` answered `currentCodeSent:
+        true` — then makes it the account's address, proven, in one
+        transaction: the codes consumed, the address taken from any account
+        that holds it unproven. 409 `email_taken` only once the code is right
+        (only the inbox's owner learns it), and that code is then NOT consumed:
+        it still signs its owner in. After a change, a notice goes to the
+        proven address it replaced. Code refusals are 400s, as at sign-in:
+        `otp_invalid` · `otp_expired` · `otp_none` · `otp_locked` for the new
+        address, the same four prefixed `current_` for the current one
+        (`current_otp_none` also when it is required and missing); malformed
+        input is one `invalid_input`. Design:
+        docs/design/account-email-change.md §3.1, §5.2–§5.3.
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, code]
+              properties:
+                email: { type: string, format: email }
+                code: { type: string, example: '123456' }
+                currentCode:
+                  type: string
+                  example: '654321'
+                  description: The current address's code, when it was sent.
+      responses:
+        '200':
+          description: The account, its address now the new one, proven
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/User' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403':
+          description: '`forbidden` (not a consumer token) · `account_suspended`'
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: >-
+            `email_taken` — another account has proven this address (the code
+            is left for its owner's sign-in) · `email_unchanged`.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '429': { $ref: '#/components/responses/RateLimited' }
 
   /me/provider:
     get:
@@ -5300,6 +5436,12 @@ components:
         phoneVerified: { type: boolean }
         name: { type: string, nullable: true }
         email: { type: string, nullable: true }
+        emailVerified:
+          type: boolean
+          description: >
+            Whether this account proved its address (a code, or Google or Apple
+            asserting it). An unproven one reaches no sign-in (B16.3,
+            docs/design/account-email-change.md §3.3).
         authProvider:
           type: string
           nullable: true

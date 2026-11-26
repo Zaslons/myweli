@@ -128,6 +128,63 @@ void main() {
       }
     });
 
+    // B16.3 (docs/design/account-email-change.md §2.6, §5.7): Postgres's
+    // `ServerException.toString()` appends ` detail: …`, and for a unique
+    // index the detail names the row's key — another person's address. Sentry
+    // stores that string as the exception's value.
+    test("a Postgres exception's detail never survives; its code and "
+        'constraint do', () {
+      const value =
+          'ERROR 23505: duplicate key value violates unique constraint '
+          '"users_email_lower_key" detail: Key (lower(email))=(b@x.test) '
+          'already exists. table: users constraint users_email_lower_key';
+      final e = scrubEvent(
+        SentryEvent(
+          exceptions: [SentryException(type: 'ServerException', value: value)],
+        ),
+      )!;
+      final scrubbed = e.exceptions!.single.value!;
+      expect(
+        scrubbed,
+        isNot(contains('b@x.test')),
+        reason: '[scrub] the address must not reach Sentry',
+      );
+      expect(scrubbed, isNot(contains('detail:')));
+      expect(scrubbed, contains('23505'));
+      expect(scrubbed, contains('users_email_lower_key'));
+    });
+
+    test('a detail holding the very words that end it is gone whole — the '
+        'row of a « Failing row contains » (review)', () {
+      // No exception at hand, so everything from ` detail: ` on goes. A
+      // pattern that stopped at the next ` constraint ` was cut short here,
+      // and the phone and the address after it reached Sentry.
+      const value =
+          'ERROR 23502: null value in column "name" violates not-null '
+          'constraint detail: Failing row contains (c1, Awa no constraint '
+          'here, +2250700000000, awa@x.ci, null). table: clients';
+      final e = scrubEvent(
+        SentryEvent(
+          exceptions: [SentryException(type: 'ServerException', value: value)],
+        ),
+      )!;
+      final scrubbed = e.exceptions!.single.value!;
+      for (final leaked in ['+2250700000000', 'awa@x.ci', 'Awa']) {
+        expect(scrubbed, isNot(contains(leaked)), reason: '[scrub] $leaked');
+      }
+      expect(scrubbed, contains('23502'));
+    });
+
+    test('a value without a detail is left as it is', () {
+      const value = 'StateError: Bad state: nothing to see';
+      final e = scrubEvent(
+        SentryEvent(
+          exceptions: [SentryException(type: 'StateError', value: value)],
+        ),
+      )!;
+      expect(e.exceptions!.single.value, value);
+    });
+
     test('an event with no request is passed through untouched', () {
       expect(scrubEvent(SentryEvent()), isNotNull);
     });

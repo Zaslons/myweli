@@ -29,6 +29,7 @@ import 'auth/apple_tokens.dart';
 import 'auth/auth_methods.dart';
 import 'auth/auth_repository.dart';
 import 'auth/demo_seam.dart';
+import 'auth/email_change_service.dart';
 import 'auth/id_token_verifier.dart';
 import 'auth/login_throttle.dart';
 import 'auth/provider_auth_repository.dart';
@@ -474,6 +475,15 @@ final AuthRepository authRepository = _pool == null
         tokens: tokenService,
         echoDevCode: _echoesOtpDevCode,
       );
+
+/// An account's e-mail change, proven by a code (B16.3,
+/// docs/design/account-email-change.md §3.1): the per-account limit, the
+/// sends, and the notice to the address it replaced.
+final EmailChangeService emailChangeService = EmailChangeService(
+  authRepository,
+  emailProvider,
+  limiter: rateLimiter,
+);
 
 final ProvidersRepository providersRepository = _pool == null
     ? InMemoryProvidersRepository()

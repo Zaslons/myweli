@@ -56,9 +56,15 @@ const int kIpAuthLimit = 10;
 const Duration kIpAuthWindow = Duration(minutes: 1);
 
 /// Cloud Armor's two expressions, verbatim (`87-rate-limit-policy.sh` rule
-/// 1000 and `89-admin-auth-rate-limit.sh` rule 1100).
+/// 1000 and `89-admin-auth-rate-limit.sh` rule 1100), and `/me/email/` since
+/// B16.3 (docs/design/account-email-change.md §2.7): its request route mails a
+/// code to an address the caller types, as `/auth/email/otp/request` does.
+/// The Cloudflare edge rule carries the same three prefixes
+/// (`96-api-front-door.sh`).
 bool isIpLimitedPath(String path) =>
-    path.startsWith('/auth/') || path.startsWith('/admin/auth/');
+    path.startsWith('/auth/') ||
+    path.startsWith('/admin/auth/') ||
+    path.startsWith('/me/email/');
 
 /// What of an address is actually keyed on, before hashing.
 ///
@@ -101,7 +107,8 @@ String ipAuthBucket(String ip) =>
 ///    `origin_auth_missing method=<m> path=<p>` (the path only — never the
 ///    query string, never any header value: the request-id middleware's own
 ///    rule) and: `log` mode → pass, unverified; `enforce` → 403.
-/// 4. **Only if verified** and the path is under `/auth/` or `/admin/auth/`:
+/// 4. **Only if verified** and [isIpLimitedPath] (`/auth/`, `/admin/auth/`,
+///    `/me/email/`):
 ///    read the client IP. Absent → log `origin_client_ip_missing path=<p>` and
 ///    pass — « unknown must never silently collapse into one shared bucket ».
 ///    Present → one hit against `ip:auth:<digest>`; refused → log
