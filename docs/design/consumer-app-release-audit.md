@@ -502,6 +502,8 @@ L = a week or more. **Risk** is to the submission or to a user's trust.
 
 **2026-11-25 — A4-api merged and deployed** (#864, `351568e3`; `myweli-api-00059-w28`): the server's `q` finds services and communes and ignores accents. Gaps 11, 20 and 22's commune half stay open until A4, the app, ships.
 
+**2026-11-25 — A4 built** (the app, [consumer-search.md](consumer-search.md) §3.2): the search field, the five categories, « Afficher plus de salons », every empty state, and the map's commune pill and states. The home, the list and the map now read their own salons. Gaps 11, 20 and 22's commune half are closed in the code; they reach people with the next consumer build, on the owner's word.
+
 ---
 
 ## 7. Proposed order of work

@@ -612,6 +612,12 @@ serves only a sign-in with nothing beneath it.
   `builder` are required. `onRefresh` puts the error and the empty state in the
   pull too (the pull is then the scroll view: an `empty` that is a list nests a
   second one); `sliver` places it as one section of a `CustomScrollView`.
+  Placed that way, its error and empty state fill at least what is left of the
+  viewport under the slivers before them. A `SliverLayoutBuilder` and a
+  minimum height give that extent, **not** `SliverFillRemaining`: that one
+  asks for an intrinsic height, which `EmptyState` cannot give (the row
+  above). The first sliver caller with the shared empty state, the salon list
+  of [consumer-search.md](consumer-search.md) §3.2, met that assertion.
 - **`AppErrorView`** is the one load error: **« Chargement impossible »**, the
   failure's own sentence under it (`failure_messages.dart`, or a code's own),
   the **`wifi_off` icon only for `kNoConnectionMessage`** — `error_outline`
