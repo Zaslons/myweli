@@ -640,6 +640,19 @@ jobs:
       - name: Unit tests
         run: npm test
 
+      # The same tests again, under SCHEDULER STRESS (web/tests/support/
+      # scheduler-stress.ts): React's Scheduler yields after every task. On a
+      # loaded runner that timing happens now and then (a slow render, then a
+      # lost millisecond), and a test that reads what an effect draws without
+      # waiting for it fails once in a few hundred runs — run 45636330662 lost
+      # « heure du salon » that way. Here it fails every run, on the pull request
+      # that wrote it. A step here, not a job of its own: this job is already a
+      # required check (a new job is not until protection is changed — see
+      # backend/test/infra/launch_doc_test.dart), and ~90 s on it stays far
+      # under the longest job, so the run takes no longer.
+      - name: Unit tests under scheduler stress
+        run: npm run test:stress
+
       - name: Start the stub API
         run: |
           node tests/e2e/stub-api.mjs &

@@ -373,6 +373,11 @@ All within budget, and the check failed as it should with the LCP budget set to 
 
 ## 8. Testing
 - **Unit** (Vitest + React Testing Library): components, hooks, SEO/JSON-LD helpers.
+  **Wait for what an effect draws** (`findBy…`, not `getBy…`, after an async
+  render): a synchronous read right after `await findBy…` can land before the
+  effect ran. `npm run test:stress` (React's Scheduler yields after every task,
+  [tests/support/scheduler-stress.ts](../web/tests/support/scheduler-stress.ts))
+  makes that race fail every run instead of once in a few hundred; CI runs it.
 - **e2e** (Playwright): provider page renders + valid JSON-LD; booking funnel;
   login; pro dashboard core flows.
 - **Lighthouse CI** budget gate on public pages (CWV + SEO score).
@@ -380,7 +385,8 @@ All within budget, and the check failed as it should with the LCP budget set to 
 - Auth-touching → negative tests (no session / expired / cross-user → denied).
 
 ## 9. CI
-A dedicated **web** job: `typecheck` + `lint` + `next build` + unit + (e2e +
+A dedicated **web** job: `typecheck` + `lint` + `next build` + unit (plain, then
+under scheduler stress) + (e2e +
 Lighthouse on the relevant PRs). Joins the existing mobile · backend · security
 jobs; **all green before merge**.
 
