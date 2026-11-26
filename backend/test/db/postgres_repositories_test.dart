@@ -334,6 +334,47 @@ void main() {
       );
     });
 
+    // R2 §20.3: `revenueRows` has Postgres write the ISO string itself
+    // (`to_char … AT TIME ZONE 'UTC'`). A session in another zone must not
+    // move it: without the `AT TIME ZONE`, `to_char` formats in the
+    // session's zone and the « Z » would lie.
+    test(
+      'revenueRows: the start is UTC whatever the session\'s zone',
+      () async {
+        final at = DateTime.utc(2031, 3, 10, 9, 15);
+        await PostgresAppointmentRepository(
+          pool,
+        ).create(apptMap(id: 'tz-1', when: at));
+        final u = Uri.parse(url);
+        final userInfo = u.userInfo.split(':');
+        final tokyo = Pool<void>.withEndpoints(
+          [
+            Endpoint(
+              host: u.host,
+              port: u.hasPort ? u.port : 5432,
+              database: u.pathSegments.first,
+              username: userInfo.first,
+              password: userInfo.length > 1 ? userInfo[1] : null,
+            ),
+          ],
+          settings: PoolSettings(
+            maxConnectionCount: 1,
+            sslMode: SslMode.disable,
+            onOpen: (c) async => c.execute("SET TIME ZONE 'Asia/Tokyo'"),
+          ),
+        );
+        addTearDown(tokyo.close);
+        final zone = await tokyo.execute('SHOW TIME ZONE');
+        expect(zone.first.first, 'Asia/Tokyo', reason: 'the control');
+        final rows = await PostgresAppointmentRepository(tokyo).revenueRows(
+          'provider1',
+          at.subtract(const Duration(hours: 1)),
+          at.add(const Duration(hours: 1)),
+        );
+        expect(rows.single['appointmentDate'], '2031-03-10T09:15:00.000Z');
+      },
+    );
+
     // docs/design/appointment-twin-update.md §8.4: every key `update` may
     // write reaches its column, read back with SQL rather than through the
     // DTO, which is the only way to see `ends_at` (written, never read back).

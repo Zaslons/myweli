@@ -323,7 +323,10 @@ class PostgresAppointmentRepository implements AppointmentRepository {
       Sql.named(
         'SELECT COALESCE(json_agg(json_build_array('
         'id, status, '
-        '(extract(epoch FROM appointment_date) * 1000000)::bigint, '
+        // The ISO string `_toDto` would give, made by Postgres: no DateTime
+        // built and formatted again in Dart for each row.
+        "to_char(appointment_date AT TIME ZONE 'UTC', "
+        '\'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"\'), '
         'duration_minutes, artist_id, artist_name_kept, total_price, '
         'currency, user_id, channel, $_serviceIdsDecoded, service_lines) '
         "ORDER BY appointment_date, id), '[]')::text "
@@ -343,10 +346,7 @@ class PostgresAppointmentRepository implements AppointmentRepository {
         {
           'id': r[0],
           'status': r[1],
-          'appointmentDate': DateTime.fromMicrosecondsSinceEpoch(
-            (r[2] as num).toInt(),
-            isUtc: true,
-          ).toIso8601String(),
+          'appointmentDate': r[2],
           'durationMinutes': r[3],
           'artistId': r[4],
           'artistNameKept': r[5],

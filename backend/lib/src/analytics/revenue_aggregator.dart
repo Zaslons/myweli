@@ -60,6 +60,48 @@ String? revenueArtistKeyOf(Map<String, dynamic> row) {
   return (id is String && id.isNotEmpty) ? id : null;
 }
 
+/// An appointment's start, from the ISO string a revenue row carries.
+///
+/// Both twins write `YYYY-MM-DDTHH:MM:SS.mmmZ` (Dart's `toIso8601String` of
+/// a UTC instant; Postgres's `to_char` in `revenueRows`), and on the §11 salon
+/// `DateTime.parse` was half of the fold's time (~24 ms of ~49 for 29 000
+/// rows, pro-revenue-analytics.md §20.3). That exact shape is read digit by
+/// digit; anything else goes to `DateTime.parse`.
+DateTime parseRevenueInstant(String iso) {
+  if (iso.length == 24 &&
+      iso.codeUnitAt(4) == 0x2D && // -
+      iso.codeUnitAt(7) == 0x2D &&
+      iso.codeUnitAt(10) == 0x54 && // T
+      iso.codeUnitAt(13) == 0x3A && // :
+      iso.codeUnitAt(16) == 0x3A &&
+      iso.codeUnitAt(19) == 0x2E && // .
+      iso.codeUnitAt(23) == 0x5A) {
+    // Z
+    var ok = true;
+    int digits(int from, int to) {
+      var n = 0;
+      for (var i = from; i < to; i++) {
+        final d = iso.codeUnitAt(i) - 0x30;
+        if (d < 0 || d > 9) ok = false;
+        n = n * 10 + d;
+      }
+      return n;
+    }
+
+    final instant = DateTime.utc(
+      digits(0, 4),
+      digits(5, 7),
+      digits(8, 10),
+      digits(11, 13),
+      digits(14, 16),
+      digits(17, 19),
+      digits(20, 23),
+    );
+    if (ok) return instant;
+  }
+  return DateTime.parse(iso).toUtc();
+}
+
 /// What the aggregator reads of the salon itself: its live roster and
 /// catalogue, for the labels and for the estimate of older bookings.
 class RevenueCatalogue {
@@ -457,7 +499,7 @@ List<_Entry> _entries(
       }
       if (!matched) continue;
     }
-    final start = DateTime.parse(row['appointmentDate'] as String).toUtc();
+    final start = parseRevenueInstant(row['appointmentDate'] as String);
     final minutes = (row['durationMinutes'] as num?)?.toInt() ?? 0;
     out.add(
       _Entry(

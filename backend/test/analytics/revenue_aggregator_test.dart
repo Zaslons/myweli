@@ -637,6 +637,38 @@ void main() {
     });
   });
 
+  group('parseRevenueInstant — the fast path agrees with DateTime.parse', () {
+    test('the shape both twins write', () {
+      for (final iso in [
+        '2026-11-25T14:30:00.000Z',
+        '2024-02-29T23:59:59.999Z',
+        '2020-01-01T00:00:00.000Z',
+      ]) {
+        expect(parseRevenueInstant(iso), DateTime.parse(iso), reason: iso);
+        expect(parseRevenueInstant(iso).isUtc, isTrue);
+      }
+    });
+
+    test('any other shape goes to DateTime.parse, read as UTC', () {
+      for (final iso in [
+        '2026-11-25T14:30:00.000123Z', // microseconds
+        '2026-11-25T15:30:00+01:00', // an offset
+        '2026-11-25T14:30:00Z', // no fraction
+      ]) {
+        final t = parseRevenueInstant(iso);
+        expect(t, DateTime.parse(iso), reason: iso);
+        expect(t.isUtc, isTrue, reason: iso);
+      }
+    });
+
+    test('a non-digit in the right shape is not read as a number', () {
+      expect(
+        () => parseRevenueInstant('2026-1x-25T14:30:00.000Z'),
+        throwsFormatException,
+      );
+    });
+  });
+
   test('the envelope: period, comparison, filters, asOf', () {
     final r = fold([row()]);
     expect(r['period'], 'month');
