@@ -116,10 +116,16 @@ void main() {
   /// The salons' photos are decoded off the fake clock. The file's first
   /// picture was taken before Beauté Divine's photo landed — a white
   /// thumbnail at 1× and the photo at 2×, where the cache already held it.
+  ///
+  /// Asset images only: the photos the mock seeds.
   Future<void> loadPhotos(WidgetTester tester) async {
+    bool isAsset(ImageProvider p) =>
+        p is AssetBundleImageProvider ||
+        (p is ResizeImage && p.imageProvider is AssetBundleImageProvider);
     await tester.runAsync(() async {
       for (final element in find.byType(Image).evaluate()) {
-        await precacheImage((element.widget as Image).image, element);
+        final image = (element.widget as Image).image;
+        if (isAsset(image)) await precacheImage(image, element);
       }
     });
     await tester.pump();
@@ -198,7 +204,9 @@ void main() {
           find.text('50 salons sur 64 affichés — choisissez une commune'),
           findsOneWidget,
         );
-        await loadPhotos(tester);
+        // No `loadPhotos`: the map shows no salon photo, and real async
+        // time lets `flutter_map` open its tile cache — `path_provider`,
+        // which a test does not have.
         await expectGolden(tester, 'consumer_map_commune${at.tag}');
       });
     }
