@@ -832,6 +832,9 @@ final DemoResetService demoResetService = DemoResetService(
   membershipRepository,
   bookingService,
   demoSnapshotRepository,
+  // Decision 249: the agenda's past bookings are closed as the Pro app
+  // closes them.
+  lifecycle: proAppointmentService,
   // B6.4: a reviewer's KYC pieces go at each reset.
   storage: storageService,
 );

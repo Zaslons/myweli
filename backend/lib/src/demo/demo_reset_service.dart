@@ -3,6 +3,7 @@ import 'package:http/http.dart' as http;
 import '../access/membership_repository.dart';
 import '../appointments/appointment_repository.dart';
 import '../appointments/booking_service.dart';
+import '../appointments/pro_appointment_service.dart';
 import '../auth/demo_seam.dart';
 import '../auth/provider_auth_repository.dart';
 import '../clients/clients_repository.dart';
@@ -65,10 +66,12 @@ class DemoResetService {
     this._members,
     this._booking,
     this._snapshots, {
+    required ProAppointmentService lifecycle,
     void Function(String)? log,
     StorageService? storage,
     http.Client? client,
-  }) : _log = log ?? print,
+  }) : _lifecycle = lifecycle,
+       _log = log ?? print,
        _storage = storage,
        _client = client ?? http.Client();
 
@@ -80,6 +83,10 @@ class DemoResetService {
   final MembershipRepository _members;
   final BookingService _booking;
   final DemoSnapshotRepository _snapshots;
+
+  /// « Terminé » and « Non présenté », exactly as the Pro app sends them —
+  /// the status and the client card's last visit (decision 249).
+  final ProAppointmentService _lifecycle;
   final void Function(String) _log;
 
   /// Where a reviewer's KYC pieces live (`kyc/<account>/`) — erased at each
@@ -335,9 +342,24 @@ class DemoResetService {
     await _subscriptions.clearNotices(providerId);
   }
 
-  /// A handful of manual bookings around [now]: a few past (history for the
-  /// journal and revenue), one upcoming today-ish, a couple ahead (a live
-  /// agenda). French names, CI-shaped numbers, the salon's own services.
+  /// The demo salon's agenda, RELATIVE TO [now] and through the real paths
+  /// (docs/design/pro-revenue-analytics.md §8.1, decision 249): every
+  /// booking is entered with `bookManual`, as the salon would, then the past
+  /// ones are closed with the Pro app's own « Terminé » or « Non présenté »
+  /// — so the store reviewer opens « Revenus » on figures, not on « Pas
+  /// encore de revenus ».
+  ///
+  /// - Twelve completed bookings over the last eight weeks, so « Mois » and
+  ///   its comparison both hold some, on every prestation in turn, one of
+  ///   them with two prestations;
+  /// - one absence;
+  /// - yesterday's booking left confirmed: the « À clôturer » banner;
+  /// - two ahead: « Prévu » and a live agenda.
+  ///
+  /// Collaborateurs: the salon's own, in turn, every fourth booking without
+  /// one — and none at all while the salon has none (read 2026-11-26: the
+  /// demo salon has none; adding them is the owner's, in the app, followed
+  /// by a new capture, or the next reset removes them).
   Future<int> _regenerateAgenda(String providerId, DateTime now) async {
     final doc = await _providers.byId(providerId);
     final services = ((doc?['services'] as List?) ?? const [])
@@ -349,45 +371,212 @@ class DemoResetService {
       _log('demo_reset agenda_skipped cause=no_services');
       return 0;
     }
-    String svc(int i) => services[i % services.length];
-    final plan = <({Duration offset, int hour, String name, String phone})>[
-      (
-        offset: const Duration(days: -3),
-        hour: 10,
-        name: 'Awa K.',
-        phone: '+2250700000101',
-      ),
-      (
-        offset: const Duration(days: -1),
-        hour: 15,
-        name: 'Mariam T.',
-        phone: '+2250700000102',
-      ),
-      (
-        offset: const Duration(days: 1),
-        hour: 11,
-        name: 'Fatou B.',
-        phone: '+2250700000103',
-      ),
-      (
-        offset: const Duration(days: 2),
-        hour: 16,
-        name: 'Aïcha D.',
-        phone: '+2250700000104',
-      ),
+    final artists = [
+      for (final a in (doc?['artists'] as List?) ?? const [])
+        if (a is Map && a['id'] is String) a['id'] as String,
     ];
+    String svc(int i) => services[i % services.length];
+    String? artist(int i) =>
+        (artists.isEmpty || i % 4 == 3) ? null : artists[i % artists.length];
+    final owner = await _ownerAccountId(providerId);
+
     var created = 0;
-    for (final (i, p) in plan.indexed) {
-      final day = now.add(p.offset);
+    for (final (i, p) in kDemoAgenda.indexed) {
+      final day = now.add(Duration(days: p.day));
       final r = await _booking.bookManual(
         providerId: providerId,
-        serviceIds: [svc(i)],
+        serviceIds: [
+          svc(p.service),
+          if (p.secondService != null) svc(p.secondService!),
+        ],
         appointmentDateTime: DateTime.utc(day.year, day.month, day.day, p.hour),
+        artistId: artist(i),
         clientName: p.name,
         clientPhone: p.phone,
       );
-      if (r.ok) created++;
+      if (!r.ok) continue;
+      created++;
+      final id = r.appointment!['id'] as String;
+      if (owner == null || p.close == null) continue;
+      final closed = p.close == 'noShow'
+          ? await _lifecycle.noShow(id, owner)
+          : await _lifecycle.complete(id, owner);
+      if (!closed.ok) {
+        _log('demo_reset agenda_close_failed cause=${closed.error}');
+      }
     }
     return created;
   }
+
+  /// The demo salon's owner account — the one that closes its bookings.
+  Future<String?> _ownerAccountId(String providerId) async {
+    final owner = (await _members.listForProvider(
+      providerId,
+    )).where((m) => m.role == 'owner' && isDemoIdentity(m.email));
+    return owner.isEmpty ? null : owner.first.accountId;
+  }
 }
+
+/// One booking of the demo salon's agenda: [day] from the reset, at [hour]
+/// UTC (the demo salon is in Abidjan), on the salon's [service]-th active
+/// prestation (and a [secondService]), closed as [close] (`completed`,
+/// `noShow`) or left confirmed (null). French names, CI-shaped numbers; the
+/// same clients come back, as a salon's regulars do.
+typedef DemoBooking = ({
+  int day,
+  int hour,
+  int service,
+  int? secondService,
+  String name,
+  String phone,
+  String? close,
+});
+
+/// The agenda each reset rebuilds (decision 249). Twelve completed over
+/// eight weeks, one absence, yesterday's « à clôturer », two ahead.
+const List<DemoBooking> kDemoAgenda = [
+  (
+    day: -52,
+    hour: 10,
+    service: 0,
+    secondService: null,
+    name: 'Awa K.',
+    phone: '+2250700000101',
+    close: 'completed',
+  ),
+  (
+    day: -47,
+    hour: 15,
+    service: 1,
+    secondService: null,
+    name: 'Mariam T.',
+    phone: '+2250700000102',
+    close: 'completed',
+  ),
+  (
+    day: -41,
+    hour: 11,
+    service: 2,
+    secondService: null,
+    name: 'Fatou B.',
+    phone: '+2250700000103',
+    close: 'completed',
+  ),
+  (
+    day: -36,
+    hour: 16,
+    service: 0,
+    secondService: 3,
+    name: 'Aïcha D.',
+    phone: '+2250700000104',
+    close: 'completed',
+  ),
+  (
+    day: -30,
+    hour: 10,
+    service: 4,
+    secondService: null,
+    name: 'Awa K.',
+    phone: '+2250700000101',
+    close: 'completed',
+  ),
+  (
+    day: -26,
+    hour: 14,
+    service: 1,
+    secondService: null,
+    name: 'Kadi S.',
+    phone: '+2250700000105',
+    close: 'completed',
+  ),
+  (
+    day: -21,
+    hour: 9,
+    service: 0,
+    secondService: null,
+    name: 'Mariam T.',
+    phone: '+2250700000102',
+    close: 'completed',
+  ),
+  (
+    day: -17,
+    hour: 17,
+    service: 2,
+    secondService: null,
+    name: 'Nadia C.',
+    phone: '+2250700000106',
+    close: 'completed',
+  ),
+  (
+    day: -12,
+    hour: 11,
+    service: 3,
+    secondService: null,
+    name: 'Awa K.',
+    phone: '+2250700000101',
+    close: 'completed',
+  ),
+  (
+    day: -10,
+    hour: 16,
+    service: 2,
+    secondService: null,
+    name: 'Rokia Y.',
+    phone: '+2250700000107',
+    close: 'noShow',
+  ),
+  (
+    day: -8,
+    hour: 15,
+    service: 4,
+    secondService: null,
+    name: 'Fatou B.',
+    phone: '+2250700000103',
+    close: 'completed',
+  ),
+  (
+    day: -5,
+    hour: 10,
+    service: 0,
+    secondService: null,
+    name: 'Aïcha D.',
+    phone: '+2250700000104',
+    close: 'completed',
+  ),
+  (
+    day: -3,
+    hour: 10,
+    service: 1,
+    secondService: null,
+    name: 'Awa K.',
+    phone: '+2250700000101',
+    close: 'completed',
+  ),
+  (
+    day: -1,
+    hour: 15,
+    service: 0,
+    secondService: null,
+    name: 'Mariam T.',
+    phone: '+2250700000102',
+    close: null,
+  ),
+  (
+    day: 1,
+    hour: 11,
+    service: 1,
+    secondService: null,
+    name: 'Fatou B.',
+    phone: '+2250700000103',
+    close: null,
+  ),
+  (
+    day: 2,
+    hour: 16,
+    service: 2,
+    secondService: null,
+    name: 'Aïcha D.',
+    phone: '+2250700000104',
+    close: null,
+  ),
+];
