@@ -1540,15 +1540,23 @@ p95 of 20 timed calls after 2 untimed:
 
 | Read | First draft (one driver row per booking) | As built | Budget |
 |---|---|---|---|
-| « Année » + the year before (~29 000 rows) | ≈ 420 ms, once over 500 | **≈ 240 ms** (≈ 280 with the two ranges read one after the other; ≈ 400 once, during the full Postgres suite) | 500 ms |
-| « Mois » | ≈ 45 ms | **≈ 18 ms** | 200 ms |
-| A ledger page, filtered by prestation | ≈ 20 ms | **≈ 20 ms** | 200 ms |
+| « Année » + the year before (~29 000 rows) | ≈ 420 ms, once over 500 | **≈ 165 ms** (≈ 280 with the two ranges read one after the other, ≈ 240 at once; **430 in CI** before the dates below) | 500 ms |
+| « Mois » | ≈ 45 ms | **≈ 14 ms** | 200 ms |
+| A ledger page, filtered by prestation | ≈ 20 ms | **≈ 16 ms** | 200 ms |
 
 Measured on a Mac against Postgres in Docker; CI measures it again on every
 run, and the test fails over budget. **The two ranges are read at once** — two
 connections, not more: an instance has four (`kMaxConnectionsPerInstance`),
-so the cheap « ever completed » `EXISTS` runs after them. The fold itself is
-about 75 ms of the 240; if a busier salon ever crosses the line, the next step is still §9.1's
+so the cheap « ever completed » `EXISTS` runs after them.
+
+**Dates.** CI measured the first pushed head at **430 ms** — under the budget,
+with little room. Half of the fold was `DateTime.parse` (~24 ms of ~49 for
+29 000 rows) and the read rebuilt and reformatted every date in Dart. Now
+Postgres writes the ISO string itself (`to_char(… AT TIME ZONE 'UTC', …)`;
+a test runs it in a Tokyo session) and the fold reads that one shape digit
+by digit (`parseRevenueInstant`; any other shape goes to `DateTime.parse`).
+The fold went from ~49 to ~27 ms, the whole answer from ~240 to ~165 ms.
+The fold itself is now about 27 ms of the 165; if a busier salon ever crosses the line, the next step is still §9.1's
 (the fold into SQL behind the same service API).
 
 ### 20.4 Beyond §13.1's list
@@ -1622,6 +1630,8 @@ named test red. A no-op edit (the control) stayed green.
 | 21 | the demo agenda leaves its past bookings open | « past bookings closed as the app closes them », « the owner's « Revenus » then has figures » |
 | 22 | an estimated line not marked | the three `estimated` tests |
 | 23 | the like-for-like cut at midnight, not the wall-clock time | the period's and the service's like-for-like tests |
+| 24 | the fast date reader swaps month and day | « the fast path agrees with DateTime.parse », the series tests |
+| 25 | `to_char` without `AT TIME ZONE 'UTC'` | « the start is UTC whatever the session's zone » |
 
 Three first attempts proved nothing and were redone: two did not apply
 (the formatter had reflowed the line), one broke the build instead of a test.

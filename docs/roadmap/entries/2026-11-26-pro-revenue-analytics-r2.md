@@ -9,9 +9,11 @@
     - **Aucune migration.** Le tableau de bord et les gains actuels ne changent pas. Aucun écran n'utilise encore ces chiffres : ce sera R3 (l'application) et R4 (le site).
   - **Qui les voit :** le propriétaire seul (droit `finances.view`), vérifié avant toute lecture sur les deux points d'accès. Manager, Réception, Collaborateur, le propriétaire d'un autre salon et un membre révoqué reçoivent tous le même refus. La menace T85 est complétée, T5 nomme les analyses.
   - **Rapidité :** testée sur un salon de 40 rendez-vous par jour.
-    - « Année » avec l'année d'avant : environ 240 ms (budget 500).
-    - « Mois » : environ 18 ms. Une page de la liste : environ 20 ms.
-    - La première version, qui lisait les rendez-vous un par un, dépassait une fois le budget. Chaque période est maintenant lue en un seul bloc JSON, et les deux périodes en même temps, sur deux connexions au plus.
+    - « Année » avec l'année d'avant : environ 165 ms sur ma machine (budget 500).
+    - « Mois » : environ 14 ms. Une page de la liste : environ 16 ms.
+    - La première version, qui lisait les rendez-vous un par un, a dépassé le budget une fois.
+    - Le premier envoi mesurait 430 ms dans la CI : sous le budget, mais de peu.
+    - Désormais, chaque période est lue en un seul bloc JSON, les deux périodes en même temps (deux connexions au plus), et les dates sont écrites par Postgres puis relues sans détour.
   - **Le salon de démo (décision 249) :** chaque réinitialisation y crée 16 rendez-vous.
     - 12 terminés sur huit semaines, dont un avec deux prestations ; une absence ; celui d'hier laissé « à clôturer » ; deux à venir.
     - « Terminé » passe par le même chemin que dans l'application, fiche client comprise. Le vérificateur des stores verra donc des chiffres.
@@ -24,6 +26,6 @@
     - l'égalité avec « Revenus prévus » de l'Accueil ;
     - la liste qui compte exactement ce que comptent les chiffres, pour chaque chiffre et six filtres ;
     - le contrat OpenAPI des réponses ;
-    - la suite backend complète : 2 897 tests en mémoire et 475 sur Postgres, verts.
-    - **23 mutations, chacune rouge sur le test attendu** (spec §20.6), dont : la comparaison non coupée, le « à clôturer » daté au début, deux devises additionnées, le droit `finances.view` oublié sur l'un ou l'autre point d'accès, le nom du client sans l'accès aux clients, le reste d'arrondi donné à la première ligne, l'agenda de démo qui ne clôt pas ses rendez-vous. Une modification témoin sans effet est restée verte. Trois premiers essais ne prouvaient rien et ont été refaits : deux ne s'étaient pas appliqués, un cassait la compilation.
+    - la suite backend complète, sur le code final : 2 900 tests en mémoire et 476 sur Postgres, verts.
+    - **25 mutations, chacune rouge sur le test attendu** (spec §20.6), dont : la comparaison non coupée, le « à clôturer » daté au début, deux devises additionnées, le droit `finances.view` oublié sur l'un ou l'autre point d'accès, le nom du client sans l'accès aux clients, le reste d'arrondi donné à la première ligne, l'agenda de démo qui ne clôt pas ses rendez-vous, une date lue dans le fuseau de la session. Une modification témoin sans effet est restée verte. Trois premiers essais ne prouvaient rien et ont été refaits : deux ne s'étaient pas appliqués, un cassait la compilation.
   - **Reste, chacun sur le mot du propriétaire :** la fusion, le déploiement et sa relecture ; les collaborateurs du salon de démo et une nouvelle capture, avant R3 ; puis R3 et R4.
