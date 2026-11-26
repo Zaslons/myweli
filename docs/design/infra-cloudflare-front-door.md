@@ -359,7 +359,12 @@ against). Idempotent — safe to re-run at launch. Steps:
    loudly if the API rejects it. *Proven 2026-10-07: accepted as written —
    rule `f2c675369a854c65bbdaac5b30d5a23c` (block · 10 per 10 s per IP ·
    `/auth/*` and `/admin/auth/*`), read back by the script; no fallback
-   needed.*
+   needed.* *2026-11-26: a third prefix, `/me/email/` (B16.3, its request
+   route mails a code to a typed address — [account-email-change.md](account-email-change.md)
+   §2.7, §9.1): `… or starts_with(http.request.uri.path, "/me/email/")`, the
+   numbers unchanged; rule `e3a6edbb08bd439a9f7489e5f1366fc1`, read back, and a
+   burst of 12 GETs blocked by Cloudflare (`error code: 1015`) at the 11th. The
+   origin's `isIpLimitedPath` carries the same three prefixes.*
 
 Numbers, and why: Cloud Armor was 10/minute with a 300 s ban. The Free plan
 gives a 10 s window and a 10 s block, and its counters are per data centre

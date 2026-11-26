@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Module** | identity & auth (a cross-cutting foundation, [MODULES.md](../MODULES.md)): the consumer `users` store (`AuthRepository`, both twins), `PATCH /me`, two new routes under `/me/email`, the `User` DTO, the error reporter, and the consumer app's profile edit |
-| **Status** | **Approved 2026-11-26.** Written on the owner's « Yes, spec B16.3 »; the owner answered the six questions of §11 at once, « Approve as recommended »: decisions 260–265 in BACKLOG, batch 16 (#879). Read once by an independent reviewer told to refute it against the code: 20 findings, each re-read in the code, then folded in (§13). **B16.3a (the backend) built 2026-11-26** on the owner's « Yes, build B16.3a », in its own PR, not merged (§8.4). Next, each on the owner's word: its merge, decision 263's read, its deploy; then B16.3b (the app). |
+| **Status** | **Approved 2026-11-26.** Written on the owner's « Yes, spec B16.3 »; the owner answered the six questions of §11 at once, « Approve as recommended »: decisions 260–265 in BACKLOG, batch 16 (#879). Read once by an independent reviewer told to refute it against the code: 20 findings, each re-read in the code, then folded in (§13). **B16.3a (the backend) built 2026-11-26** on the owner's « Yes, build B16.3a » (§8.4), **merged** as `dabcbda4` (#886); **read before the deploy** (decision 263, §9.1): no account holds an unproven address, no Sentry report carries one; **deployed** 2026-11-26 (`myweli-api-00063-clx`, image `dabcbda`) and read back; the Cloudflare edge rule carries `/me/email/` since the same night. Next, each on the owner's word: the read after (§9 step 4), then B16.3b (the app). |
 | **Owner** | the project owner: the answers, then each build, merge, read and deploy, each on the owner's word |
 | **Last updated** | 2026-11-26 |
 | **PRD ref / phase** | FR-AUTH-004 (profile: name, optional e-mail, photo) · threat model T32, T33, T34 · V1 |
@@ -378,7 +378,7 @@ Branch `feat/b16-3a-email-proven` from `main` (`2b8dd96b`). The tests red first 
   - **The current address's resend budget spent is not a refusal** (the review): a live code then sits in that inbox, and a 429 there followed a code already sent to the new address. `202`, `currentCodeSent: true`.
   - **The per-account ceiling is a constant,** `kEmailChangeLimit` (10 an hour, one bucket for both routes), not a `LIMIT_*` variable: nothing has measured it, and a variable no manifest sets is a number nobody reads.
 - **Not done here, for the record:**
-  - **The edge rule is not applied.** `96-api-front-door.sh` carries `/me/email/`; it takes effect when the script is re-run, a Cloudflare change on the owner's word. Until then the origin's per-IP limiter holds alone.
+  - **The edge rule was not applied by the build.** `96-api-front-door.sh` carries `/me/email/`; it took effect when its rule step was re-run, on the owner's word, after the deploy (§9.1).
   - **The identity-limit alert's text** (`92-identity-limit-alert.sh`) does not list the `email:` bucket; a refusal still writes its `rate_limited bucket=email:…` line.
   - **Decision 265 counts a Google or Apple link as another way in even while `AUTH_METHODS` disables that provider** (the review). Production enables both (`google,apple,email`, `infra/gcp/service.yaml`); the day one is switched off, its linked accounts change their address without the second code.
   - The phone path keeps `_checkOtpIn` (dormant, one route).
@@ -405,6 +405,33 @@ Branch `feat/b16-3a-email-proven` from `main` (`2b8dd96b`). The tests red first 
 
 **Rollback.** No migration. An older image finds unproven addresses again and lets `PATCH /me` write them: today's state, the trap included. Addresses proven through `/me/email` stay proven.
 
+
+### 9.1 As run (2026-11-26)
+
+- **Merge.** #886 squashed as `dabcbda4`, 20:58 UTC, on the owner's « Yes, merge it »: parent `2b8dd96b` (#879, this spec), tree `f82fa5a2` equal to the tested head `6fd6ad41`, 12 checks of 12, no attribution. The merge's run built and pushed the image: « staging absent — promote with image_tag=dabcbda ».
+- **Read before the deploy** (step 2, decision 263), on the owner's « Yes, run the read »: the Auth Proxy, a read-only session and `BEGIN READ ONLY … ROLLBACK`, a probe write refused, counts only; the queries rehearsed first on a local fixture of 8 known rows, every count matched by hand.
+
+| What | Production |
+|---|---|
+| Consumer accounts | 9 — Google 7, Apple 1, e-mail code 1; all `active` |
+| Holding an address | 9, **all proven** |
+| Holding an **unproven** address | **0** — no trap is set |
+| Whose only sign-in is an unproven address | **0** — §9's three options do not arise |
+| No address and no Google or Apple sub (P5's cut-off) | 0 |
+| Google subs · Apple subs · both | 7 · 1 · 0 |
+| An address not in lower case | 0 |
+
+- **Sentry** (the same step), read-only, the owner's signed-in session in the built-in browser: the `SENTRY_AUTH_TOKEN` (the `symbol-upload` organisation token) cannot read issues (403). Sentry keeps 30 days (a 90-day window is clamped to 30). The control, `"underlying socket"`, finds MYWELI-BACKEND-7; `users_email_lower_key`, `UniqueViolationException` and `"duplicate key"` find **nothing**, across all projects: nothing to delete within what Sentry keeps. Older than 30 days: not visible there (UNVERIFIED that none remains; the retention says deleted).
+- **Deploy** (step 3), on the owner's « Yes, deploy it »: run 45903188551, `--ref main` (`5b0bbeee`, only docs since `dabcbda4`), `environment=production confirm=deploy image_tag=dabcbda`; success.
+  - Serving `myweli-api-00063-clx`, 100 %, latest ready, commit label `dabcbda`, created 22:12:29 UTC.
+  - The run verified the serving image as index `sha256:82597effb00f…`; the revision runs its linux/amd64 child `sha256:16efb1386ff5…`, read from the registry's index.
+  - Rollback target: `myweli-api-00062-f5c` (R2, `306a5d5`, an ancestor of `dabcbda4`).
+- **Read back:** `/health` 200, env `prod`, on `api.myweli.com` and on the Cloud Run address; `GET /me/email/otp/request` and `/verify` 405 against a 404 for `/me/email/otp/nonexistent`, and `POST /me/email/otp/request` without a token 401; the revision's only WARNING+ lines are those four probes' request logs; production-checks run 45903535104, 12 checks of 12.
+- **The edge rule,** on the owner's « Yes, re-run it »: only steps 1 (token and zone) and 5 (the rule) of `96-api-front-door.sh`, its own lines (steps 2–4, the Worker redeploy, its secret and DNS, not run: not asked).
+  - Before (a GET): `/auth/` or `/admin/auth/`, block, 10 per 10 s per IP, timeout 10.
+  - The ownership check passed, the PUT applied, the script read it back (rule `e3a6edbb…`); a second GET shows `… or starts_with(http.request.uri.path, "/me/email/")`, the numbers unchanged.
+  - At the edge: 12 GETs to `/me/email/otp/request` in a burst — 1 to 10 answered 405 by the origin, 11 and 12 answered 429 `error code: 1015` by Cloudflare, not the app's JSON 429.
+- **Step 4, the read after** — the same counts; no new unproven address; no new Sentry event with an address — on the owner's word.
 ---
 
 ## 10. Definition of done (for the build)

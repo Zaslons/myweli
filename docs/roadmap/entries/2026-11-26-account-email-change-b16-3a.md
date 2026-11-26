@@ -1,4 +1,4 @@
-- 🟡 **B16.3a : l’adresse e-mail d’un compte ne l’atteint qu’une fois prouvée — le backend (backend · 2026-11-26 — BACKLOG B16.3, décisions 260–265).** Branche `feat/b16-3a-email-proven`, créée depuis `main` (`2b8dd96b`). Spec : [account-email-change.md](../../design/account-email-change.md) §8.4. Construit sur le « Yes, build B16.3a » du propriétaire.
+- 🟢 **B16.3a : l’adresse e-mail d’un compte ne l’atteint qu’une fois prouvée — le backend (backend · 2026-11-26 — BACKLOG B16.3, décisions 260–265).** Branche `feat/b16-3a-email-proven`, créée depuis `main` (`2b8dd96b`). Spec : [account-email-change.md](../../design/account-email-change.md) §8.4. Construit sur le « Yes, build B16.3a » du propriétaire.
   - **Rouge d’abord,** sur le code d’avant, sur les deux doubles (11 rouges en mémoire, 11 sur un Postgres neuf), chacun pour sa raison : `PATCH /me` acceptait l’adresse d’un autre compte (500 en production), le vrai titulaire d’une adresse tapée atterrissait dans le compte de qui l’avait tapée, un lien Google était remplacé, une adresse non vérifiée était gardée alors qu’un autre compte la tenait, et le détail de Postgres envoyait l’adresse à Sentry.
   - **Ce qui change :**
     - une connexion (par code, Google ou Apple) ne trouve un compte par son adresse que si ce compte l’a prouvée ; une preuve reprend l’adresse à qui la tient sans preuve ; un lien Google ou Apple n’est jamais remplacé ;
@@ -7,4 +7,12 @@
     - `User` gagne `emailVerified` ; le rapport d’erreur retire le détail de Postgres.
   - **Relu une fois par un lecteur indépendant, chargé de le réfuter contre le code :** aucune règle cassée, aucun écart entre les doubles. Trouvés puis corrigés : le filtre de la reprise est une vraie garde (une preuve concurrente), un interblocage entre un changement et une connexion par code, une création concurrente qui répondait 500, le nettoyage des rapports d’erreur coupé court par le détail lui-même, un 429 après un code déjà envoyé, et sept tests manquants.
   - **Vert :** le contrat sur les deux doubles, les routes (chaque réponse, les corps vérifiés contre `openapi.yaml`), la suite backend complète sur une base neuve ; 36 mutations, toutes rouges avec leur texte.
-  - **Reste, chacun sur le mot du propriétaire :** la fusion ; la lecture de production (décision 263) ; le déploiement ; la règle Cloudflare relancée pour `/me/email/` ; puis B16.3b, l’application.
+  - **Fusionné le 2026-11-26** (#886) en `dabcbda4`, 20:58 UTC : l’arbre de `main` égal à la tête testée `6fd6ad41`, 12 contrôles sur 12, aucune ligne d’attribution.
+  - **Lu avant le déploiement** (décision 263, spec §9.1), en lecture seule, une écriture d’essai refusée : 9 comptes clients, tous avec une adresse prouvée — **aucune adresse non prouvée**, donc aucun piège posé et aucune des trois options de la spec à choisir. Sentry (30 jours conservés) : aucun rapport ne nomme l’index, une recherche témoin trouvant bien un problème connu.
+  - **Déployé le 2026-11-26** (run 45903188551, `image_tag=dabcbda`) et relu :
+    - `myweli-api-00063-clx` reçoit 100 % du trafic, étiquetée `commit: dabcbda` ; elle exécute l’image amd64 `sha256:16efb1386ff5…`, l’enfant de l’index `82597effb00f…` ;
+    - `/health` 200 sur `api.myweli.com` et sur l’adresse Cloud Run ; les deux routes nouvelles existent (405 sur un mauvais verbe, contre un 404 témoin ; 401 sans jeton) ; aucune ligne d’avertissement de la révision hors ces quatre sondes ;
+    - `production-checks.yml` (run 45903535104) : 12 contrôles sur 12.
+  - **Retour arrière :** `myweli-api-00062-f5c` (R2), sûr (aucune migration).
+  - **La règle Cloudflare** couvre `/me/email/` depuis la même nuit : seule l’étape de la règle relancée, relue deux fois ; une rafale bloquée par Cloudflare (`error code: 1015`) dès la 11ᵉ requête.
+  - **Reste, chacun sur le mot du propriétaire :** la lecture après le déploiement ; puis B16.3b, l’application.
