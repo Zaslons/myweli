@@ -1,4 +1,4 @@
-- 🟡 **Spec : la page d’un salon fonctionne dès qu’il est public (B18) (web · documentation · 2026-11-25).** Branche `docs/salon-page-live-fallback-spec`, créée depuis `main` (`afd2de97`), PR #870. Spec : [web-salon-page-live-fallback.md](../../design/web-salon-page-live-fallback.md). Documentation seule : aucun code.
+- 🟢 **Spec : la page d’un salon fonctionne dès qu’il est public (B18) (web · documentation · 2026-11-25).** Branche `docs/salon-page-live-fallback-spec`, créée depuis `main` (`afd2de97`), PR #870. Spec : [web-salon-page-live-fallback.md](../../design/web-salon-page-live-fallback.md). Documentation seule : aucun code.
   - **Le défaut, signalé par le propriétaire :** le salon « test » (Adjamé, `test-3`) apparaissait dans la recherche de myweli.com, et un clic affichait « Page introuvable ».
   - **La cause, prouvée par les journaux de production (Cloud Run) et des lectures de myweli.com :**
     - la page d’un salon ne connaît que les salons présents au build (`app/[slug]/page.tsx:46`, `dynamicParams = false`, gardé pour sa vraie page 404) ;
@@ -23,4 +23,6 @@
   - **Aussi relevé :** la production tourne sur `myweli-api-00059-w28` (A4-api, déployé à 11 h 24 UTC), pas sur `00058-tnp`. Aucun contrôle Lighthouse ne mesure une page de salon.
   - **Cinq questions** (décisions 255–259).
   - **Approuvée le 2026-11-25 :** « Approve as recommended », décisions 255–258 dans le BACKLOG (lot 18). La décision 259 (les suspensions étaient-elles les siennes ?) n’a pas de recommandation : elle est reposée.
-  - **Reste :** la fusion, sur le mot du propriétaire ; B18.1, construit dans sa propre PR empilée sur celle-ci ; sa fusion (un déploiement du site en production) et la lecture après, chacune sur le mot du propriétaire.
+  - **Fusionnée** le 2026-11-25 à 15 h 29 UTC sur le mot du propriétaire (#870, `73f12886`) : l’arbre de `main` égal à la tête testée `5e585f6f`, aucune ligne d’attribution.
+  - **La décision 259, répondue le 2026-11-25 : « Yes, mine ».** Les suspensions et levées de suspension étaient celles du propriétaire ; le second symptôme est expliqué, rien ne change pour lui.
+  - **Ensuite :** B18.1, fusionnée, déployée et relue le même jour (voir son entrée).
