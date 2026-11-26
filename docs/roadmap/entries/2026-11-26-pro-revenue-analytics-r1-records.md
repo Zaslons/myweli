@@ -1,0 +1,15 @@
+- 🟡 **Registres : R1 des analyses de revenus fusionné et en production (docs · 2026-11-26 — BACKLOG B17.1, décisions 241–243).** Spec : [pro-revenue-analytics.md](../../design/pro-revenue-analytics.md) §14.
+  - **R1 :**
+    - son entrée et celle de sa lecture avant passent au vert ;
+    - le statut de la spec, son index et le BACKLOG (ligne 17 et B17.1) disent maintenant : fusionné le 2026-11-25, en production le 2026-11-26 (révision `myweli-api-00061-kwl`).
+  - **Une seconde lecture du salon de démo, redondante :** le 2026-11-26 à 11:02 UTC, sur le « Oui, lire d’abord » du propriétaire, en lecture seule. L’image de R1 contenait B16.2, et je n’avais trouvé sur `main` aucune trace de la lecture de la décision 253.
+    - **Elle avait pourtant eu lieu :** le 2026-11-25 à 18:12 UTC, par la session de B16.2, qui a ensuite déployé B16.2 le 2026-11-26 à 11:00 UTC sur le mot du propriétaire. Tout cela est consigné par #875 dans [demo-reset-restore.md](../../design/demo-reset-restore.md) §9.1.
+    - **Même résultat :** prestations, avant/après et profil identiques au cliché du 14 octobre ; le temps entre deux rendez-vous et les pauses diffèrent. Elle précise seulement que les deux pauses sont celles du **lundi** et du **mardi**.
+    - **Même choix du propriétaire :** « Oui, restaurer ».
+    - **Comment :**
+      - un script Dart qui lit avec le code du serveur lui-même, sur une connexion en lecture seule ;
+      - une écriture-témoin refusée (25006) ;
+      - essayé d’abord sur une base jetable.
+  - **Reste, chacun sur le mot du propriétaire :**
+    - le comptage après R1, quand de vrais rendez-vous existeront depuis le site, l’application et un salon ;
+    - R2.
