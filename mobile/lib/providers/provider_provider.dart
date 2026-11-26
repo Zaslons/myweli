@@ -112,6 +112,9 @@ class ProviderProvider extends ChangeNotifier implements AccountScoped {
   int _mapTotal = 0;
   String? _mapCommune;
   bool _mapLoading = false;
+
+  /// The commune of the map read that is out, while [_mapLoading].
+  String? _mapAsking;
   String? _mapError;
   int _mapReq = 0;
 
@@ -216,9 +219,17 @@ class ProviderProvider extends ChangeNotifier implements AccountScoped {
   /// with the server's `total`. The salons shown stay through the read; a
   /// failed read empties them — the pill names a commune whose salons the
   /// map could not get.
+  ///
+  /// **A read already out for the same commune is not asked again**: its
+  /// answer is this one's. This read notifies, so a listener that reloads
+  /// on every notification would otherwise call it from inside itself
+  /// without end — the map's own commune check deleted (mutation M20) froze
+  /// the test isolate for 20 hours, and would freeze the app.
   Future<void> loadMapSalons() async {
-    final req = ++_mapReq;
     final commune = _selectedCommune;
+    if (_mapLoading && _mapAsking == commune) return;
+    final req = ++_mapReq;
+    _mapAsking = commune;
     _mapLoading = true;
     _mapError = null;
     notifyListeners();

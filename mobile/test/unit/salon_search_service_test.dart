@@ -365,8 +365,13 @@ void main() {
     });
 
     test('a body without its total is unreadable, not a count of 0', () async {
+      // Everything else present: a body missing `page` too failed on `page`,
+      // and this passed with `total` read as 0 (mutation M25, green).
       final client = MockClient(
-        (req) async => http.Response(jsonEncode({'items': []}), 200),
+        (req) async => http.Response(
+          jsonEncode({'items': [], 'page': 1, 'pageSize': 20}),
+          200,
+        ),
       );
       final service = ApiProviderService(client: client, baseUrl: 'http://x');
 

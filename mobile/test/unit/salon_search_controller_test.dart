@@ -641,9 +641,27 @@ void main() {
       expect(providers.mapError, kNoConnectionMessage);
     });
 
+    testWidgets('a read already out for the same commune is not asked again', (
+      tester,
+    ) async {
+      unawaited(providers.loadMapSalons());
+      unawaited(providers.loadMapSalons());
+      expect(service.asked, hasLength(1));
+      service.answer(0, _page(['m1'], pageSize: 50));
+      await tester.pump();
+      expect(providers.mapLoading, isFalse);
+      // Answered, it is a new read.
+      unawaited(providers.loadMapSalons());
+      expect(service.asked, hasLength(2));
+      service.answer(1, _page(['m1'], pageSize: 50));
+      await tester.pump();
+    });
+
     testWidgets('only the last map read is shown', (tester) async {
       unawaited(providers.loadMapSalons());
+      await providers.setCommune('Marcory');
       unawaited(providers.loadMapSalons());
+      expect(service.asked, hasLength(2), reason: 'C: two communes, two reads');
       service.answer(1, _page(['new'], pageSize: 50));
       await tester.pump();
       service.answer(0, _page(['old'], pageSize: 50));
