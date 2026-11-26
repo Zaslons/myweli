@@ -484,6 +484,34 @@ Each step on the owner's word.
 
 ---
 
+## 13. Build record
+
+### 13.1 B19.1, the probe (2026-11-26, `feat/b19-1-schedule-probe`)
+
+**What it is:** `.github/workflows/schedule-probe.yml`, as §3.2 says:
+- `cron: '17 * * * *'`;
+- `permissions: {}`;
+- `concurrency: schedule-probe` (no cancel);
+- one job, one step, `run: 'true'`;
+- no `workflow_dispatch`, so a manual run cannot pass for a tick.
+
+**Checked before the merge:**
+- the file parses, read back as YAML: the schedule, `{}`, the group and the one step;
+- the tests that read every workflow file still pass:
+  - `project_iam_test`, `console_access_check_test`, `production_alarm_test`, `merge_queue_test`: 112;
+  - `app_trust_chain_check_test`: 14.
+
+**Not checkable before the merge:** GitHub runs a schedule only from the default branch. So the first evidence is the first tick after the merge, which should appear within about an hour.
+
+**The read, after three days, read-only:** `gh run list --workflow=schedule-probe.yml --event schedule`, per day:
+- the first tick after 06:00 UTC;
+- the largest gap;
+- the runs cancelled while pending.
+
+**Then removed:** in B19.2's PR, or alone if the ticks are late.
+
+---
+
 ## 12. Independent reviews (2026-11-26)
 
 Two readers, each told to refute: the first read the whole first draft, the second only step 1 after the redesign. Both checked against the code, GitHub's and Cloudflare's docs, and read-only `gh api` and `gcloud`.
