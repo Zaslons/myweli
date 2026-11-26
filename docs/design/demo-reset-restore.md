@@ -26,7 +26,7 @@
 - the reset's test, run on both twins (decision 223).
 
 **Out of scope:**
-- the rest of the reset, unchanged: the agenda and client-book wipe, the regenerated agenda, the offer pin, the KYC erasure. The regenerated agenda's data changes separately: decision 249 (revenue analytics, B17 R2) seeds past completed bookings across collaborateurs and prestations, in the same file. Whichever is built second merges the other. That agenda reads the services and artists this spec restores;
+- the rest of the reset, unchanged: the agenda and client-book wipe, the regenerated agenda, the offer pin, the KYC erasure. The regenerated agenda's data changes separately: decision 249 (revenue analytics, B17 R2) seeds past completed bookings across collaborateurs and prestations, in the same file. Whichever is built second merges the other — R2 was, on 2026-11-26, on top of this spec's restore ([pro-revenue-analytics.md](pro-revenue-analytics.md) §20.5). That agenda reads the services and artists this spec restores;
 - the demo account's own settings a reviewer can change and no reset restores: its notification preferences (`PUT /me/notification-preferences`) and its device registrations (`POST /me/devices`);
 - C-D1, the disputes a wipe cascades away in Postgres and keeps in memory: the disputes group of batch 16;
 - the images a reviewer uploads, which a restore stops pointing at (§12).

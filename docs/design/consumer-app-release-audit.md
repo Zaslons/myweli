@@ -506,6 +506,8 @@ L = a week or more. **Risk** is to the submission or to a user's trust.
 
 **2026-11-26 — A4 merged** (#878, `f49de03d`): gaps 11, 20 and 22's commune half are closed on `main`. They reach people with the next consumer build, on the owner's word. Next: A4w, the website's half.
 
+**2026-11-26 — A4w built** (the website, [consumer-search.md](consumer-search.md) §3.3): `/recherche` counts from the server's `total`, has « Afficher plus de salons », and keeps the pages read in its address. Not merged; its merge is a production deploy of `myweli.com`, on the owner's word.
+
 ---
 
 ## 7. Proposed order of work

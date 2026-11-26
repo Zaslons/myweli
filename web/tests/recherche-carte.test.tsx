@@ -25,6 +25,8 @@ const page = (results: Provider[]) =>
     <RechercheClient
       title="Salons"
       results={results}
+      total={results.length}
+      pages={1}
       q=""
       commune=""
       category=""

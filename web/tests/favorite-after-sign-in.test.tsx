@@ -446,6 +446,8 @@ function renderRecherche(results: Provider[] = [P1, P2], strict = false) {
     <RechercheClient
       title="Salons à Cocody"
       results={results}
+      total={results.length}
+      pages={1}
       q="tresses"
       commune=""
       category=""

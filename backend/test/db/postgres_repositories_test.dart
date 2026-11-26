@@ -7,6 +7,8 @@ import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:myweli_backend/src/access/membership_service.dart';
+import 'package:myweli_backend/src/appointments/appointment_repository.dart'
+    show RevenueLedgerStatus;
 import 'package:myweli_backend/src/auth/apple_tokens.dart';
 import 'package:myweli_backend/src/auth/auth_repository.dart'
     show RefreshOutcome, RefreshResult, TokenPair, kRefreshReuseGrace;
@@ -57,6 +59,7 @@ import '../access/invite_contract.dart';
 import '../appointments/appointment_repository_contract.dart';
 import '../auth/apple_token_repository_contract.dart';
 import '../auth/kyc_write_contract.dart';
+import '../clients/display_names_contract.dart';
 import '../demo/demo_reset_restore_contract.dart';
 import '../demo/demo_snapshot_contract.dart';
 import '../idempotency/idempotency_contract.dart';
@@ -257,6 +260,120 @@ void main() {
         repo: () => PostgresAppointmentRepository(pool),
       );
     });
+
+    // R2 (docs/design/pro-revenue-analytics.md §8.3, §19): production stores
+    // `service_ids` as a JSON STRING inside jsonb — `create` writes that form,
+    // so the contract covers it — but a row may hold a real array, and one
+    // may hold text that is not JSON at all. The ledger's prestation filter
+    // reads both forms and skips the third instead of failing the page.
+    test('revenueLedger: the prestation filter reads a jsonb array and a '
+        'JSON string, and skips an unreadable value', () async {
+      final repo = PostgresAppointmentRepository(pool);
+      final at = DateTime.utc(2031, 3, 10, 9);
+      Future<void> make(String id, int hour) async {
+        await repo.create(
+          apptMap(
+            id: id,
+            when: at.add(Duration(hours: hour)),
+          )..['status'] = 'completed',
+        );
+      }
+
+      await make('form-string', 0);
+      await make('form-array', 1);
+      await make('form-garbage', 2);
+      await pool.execute(
+        "UPDATE appointments SET service_ids = '[\"service1\"]'::jsonb "
+        "WHERE id = 'form-array'",
+      );
+      await pool.execute(
+        "UPDATE appointments SET service_ids = to_jsonb('not json'::text) "
+        "WHERE id = 'form-garbage'",
+      );
+      final forms = await pool.execute(
+        'SELECT id, jsonb_typeof(service_ids) FROM appointments ORDER BY id',
+      );
+      expect(
+        {for (final r in forms) r[0]: r[1]},
+        {
+          'form-array': 'array',
+          'form-garbage': 'string',
+          'form-string': 'string',
+        },
+      );
+
+      final page = await repo.revenueLedger(
+        'provider1',
+        fromUtc: at,
+        toUtcExclusive: at.add(const Duration(days: 1)),
+        status: RevenueLedgerStatus.completed,
+        asOf: at,
+        limit: 50,
+        offset: 0,
+        serviceId: 'service1',
+      );
+      expect([for (final x in page.items) x['id']]..sort(), [
+        'form-array',
+        'form-string',
+      ]);
+      expect(page.total, 2);
+
+      // And the fold's read hands out a list or null — never the string.
+      final rows = await repo.revenueRows(
+        'provider1',
+        at,
+        at.add(const Duration(days: 1)),
+      );
+      expect(
+        {for (final r in rows) r['id']: r['serviceIds']},
+        {
+          'form-string': ['service1'],
+          'form-array': ['service1'],
+          'form-garbage': null,
+        },
+      );
+    });
+
+    // R2 §20.3: `revenueRows` has Postgres write the ISO string itself
+    // (`to_char … AT TIME ZONE 'UTC'`). A session in another zone must not
+    // move it: without the `AT TIME ZONE`, `to_char` formats in the
+    // session's zone and the « Z » would lie.
+    test(
+      'revenueRows: the start is UTC whatever the session\'s zone',
+      () async {
+        final at = DateTime.utc(2031, 3, 10, 9, 15);
+        await PostgresAppointmentRepository(
+          pool,
+        ).create(apptMap(id: 'tz-1', when: at));
+        final u = Uri.parse(url);
+        final userInfo = u.userInfo.split(':');
+        final tokyo = Pool<void>.withEndpoints(
+          [
+            Endpoint(
+              host: u.host,
+              port: u.hasPort ? u.port : 5432,
+              database: u.pathSegments.first,
+              username: userInfo.first,
+              password: userInfo.length > 1 ? userInfo[1] : null,
+            ),
+          ],
+          settings: PoolSettings(
+            maxConnectionCount: 1,
+            sslMode: SslMode.disable,
+            onOpen: (c) async => c.execute("SET TIME ZONE 'Asia/Tokyo'"),
+          ),
+        );
+        addTearDown(tokyo.close);
+        final zone = await tokyo.execute('SHOW TIME ZONE');
+        expect(zone.first.first, 'Asia/Tokyo', reason: 'the control');
+        final rows = await PostgresAppointmentRepository(tokyo).revenueRows(
+          'provider1',
+          at.subtract(const Duration(hours: 1)),
+          at.add(const Duration(hours: 1)),
+        );
+        expect(rows.single['appointmentDate'], '2031-03-10T09:15:00.000Z');
+      },
+    );
 
     // docs/design/appointment-twin-update.md §8.4: every key `update` may
     // write reaches its column, read back with SQL rather than through the
@@ -2508,6 +2625,12 @@ void main() {
     setUp(() {
       clients = PostgresClientsRepository(pool);
       audit = PostgresProviderAuditLogRepository(pool);
+    });
+
+    // R2: the revenue ledger's batched names, the contract the in-memory
+    // twin runs too (decision 223).
+    group('the display-names contract', () {
+      displayNamesContract(repo: () => PostgresClientsRepository(pool));
     });
 
     Map<String, dynamic> clientMap({
