@@ -320,7 +320,7 @@ One indexed read and at most two indexed writes per sign-in or change, in one tr
 
 ### 8.4 As built (B16.3a, 2026-11-26)
 
-Branch `feat/b16-3a-email-proven` from `main` (`2b8dd96b`). The tests red first (`259901c9`), then the fix (`0e7d201f`), the 429 inventory (`efa9c05d`), one assertion a mutation asked for (`e5b7cf0e`).
+Branch `feat/b16-3a-email-proven` from `main` (`2b8dd96b`). The tests red first (`259901c9`), then the fix (`0e7d201f`), the 429 inventory (`efa9c05d`), one assertion a mutation asked for (`e5b7cf0e`), the independent review's fixes (`e750987c`), the held transactions released at teardown (`7850eea5`).
 
 - **Red first,** on today's code, for the reasons of §8.1 (`account_email_contract.dart`, run on both twins; the scrubber):
   - **in memory, 11 red:** [P1], [P1b], [P5] (`PATCH /me` 200, wanted 409); [P2], [P3], [same provider], [never relinked] (the owner lands in the account that typed or proved the address); [by sub first] (the own address stays unproven); [P6], [P6b] (an unverified address stored though held); and the scrubber (the address survives);
@@ -333,9 +333,9 @@ Branch `feat/b16-3a-email-proven` from `main` (`2b8dd96b`). The tests red first 
   - `isIpLimitedPath` and the edge rule's script (`96-api-front-door.sh`) gain `/me/email/`;
   - `scrubEvent` strips ` detail: …` from every exception value (`stripDatabaseDetail`);
   - the contract, `schema.ts` regenerated; BACKEND.md T33 and T86; auth-social-email.md §4–§5.
-- **Green:** the contract on both twins (26 cases; on Postgres 28, with the race and the real-`23505` scrub); the two routes' handler tests (20, every answer of §3.1, the bodies checked against `openapi.yaml`); the full backend suite on a fresh database, 3324 passed, 2 skipped; analyze 0, format clean; the website's `tsc` clean.
+- **Green:** the contract on both twins (27 cases; on Postgres 33, with the change race, the real-`23505` scrubs and the three concurrent cases of the review); the two routes' handler tests (25, every answer of §3.1, the bodies checked against `openapi.yaml`); the full backend suite on a fresh database (3338 passed, 2 skipped, after the review); analyze 0, format clean; the website's `tsc` clean.
   - The full suite's first run had two reds, both the 429 inventory (`rate_limited_status_test.dart`) doing its job: the request route named no `rate_limited`, and the verify route was an undeclared error map with a 400 fallback. Fixed in `efa9c05d`.
-- **Mutations, on committed code, each with its failure text** (`b163_mut.py`, every one applied exactly once and the tree clean after):
+- **Mutations, on committed code, each with its failure text** (`b163_mut.py`, every one applied exactly once and the tree clean after). **36, every one red; none survives.**
 
 | Mutation | Twin | Red | Text |
 |---|---|---|---|
@@ -355,9 +355,16 @@ Branch `feat/b16-3a-email-proven` from `main` (`2b8dd96b`). The tests red first 
 | the notice to an unproven address | memory + route | « Vérifier », « no notice » | `expected null \| actual 'x.…'` |
 | the scrubber leaves the detail | — | the scrub test | the address in the value |
 | `/me/email/` out of `isIpLimitedPath` | — | the front door's scope | `expected <429> \| actual <200>` |
+| drop `AND NOT email_verified` from the take | Postgres | [race take] | `email_taken` expected, the change succeeds: the holder that proved X loses it |
+| no re-run on `40P01` | Postgres | [deadlock] | the change throws: a 500 |
+| no re-run on a raced `23505` in the code sign-in | Postgres | [race insert] | the sign-in throws: a 500 |
+| the scrubber's old pattern (stop at the next ` constraint `) | — | the « Failing row » case | the phone and the address after the word survive |
+| the scrubber without the exact removal | Postgres | the real `23505` | ` table: users` stripped too |
+| a 429 when the current address's resend budget is spent | — | « still 202 » | `expected <202> \| actual <429>` |
 | no `email_unchanged` · the new code sent `warm` · no per-account limit · no role check · `email_taken` as 400 | — | each its route test | `<409>`/`<202>` · `cold`/`warm` · `<429>`/`<202>` · `<403>`/`<404>` · `<409>`/`<400>` |
 
-  - **One survivor, as predicted:** dropping `AND NOT email_verified` from the take. The find before it filters on `email_verified`, so the take only ever runs where no proven holder exists; the filter is defence in depth against a future caller, not a guard any path exercises.
+  - **The take's filter is a guard, not defence in depth** (the first draft of this section called it redundant and its mutation a survivor; the independent review refuted that): a holder that proves X while a change or a sign-in takes it is re-read by the waiting `UPDATE`, now proven, and skipped. Without the filter its proven address is cleared. `[race take]` holds that transaction open and pins it.
+  - **The harness found a hang, not a red:** under M8-pg the `[deadlock]` test's premise failed and left its side transaction open, and closing that pool waited for ever. Every test that holds a transaction on a second pool now releases it at teardown (`7850eea5`).
   - **One mutation aimed wrong, then fixed:** dropping only the copy of `emailVerified` onto the answered `AuthUser` stayed green on Postgres, because the test read the stored row. The sign-in's answer did carry `false`, so the test now asserts the answer too (`e5b7cf0e`), and both that mutation and the one dropping the `UPDATE` go red.
 - **Where the build departs from §3–§5, and why:**
   - **A thin service, `EmailChangeService`** (§5.6 said none): the per-account limit needs the `RateLimiter`, which only services receive, as the booking and review services do.
@@ -366,11 +373,14 @@ Branch `feat/b16-3a-email-proven` from `main` (`2b8dd96b`). The tests red first 
   - **The race the index catches** is not two changes (they queue on the code row; the second answers `otp_none`) but a change against another account committing the address, a sign-in creating it. Tested with a held transaction.
   - **`email_unchanged` at the verify too,** and **`currentDevCode`** in dev (a dev build needs the second code as much as the first).
   - **The notice goes only to a proven old address:** an unproven one may be a stranger's inbox.
+  - **The account is locked `FOR NO KEY UPDATE`, and a transaction Postgres aborts is re-run** (the review): a change locks the account, then the code rows; a code sign-in locks the code row, then the account (its take, or the key-share lock its refresh token's foreign key takes, which `FOR UPDATE` blocks and `FOR NO KEY UPDATE` does not). `_retried` re-runs the sign-ins and the change on `40P01`, and the sign-ins on a raced `23505` too (another account committed the address after the find), three runs at most; each run rolled back whole, a code's consumption included. Pinned by `[deadlock]` and `[race insert]`.
+  - **The scrubber is exact** (the review): the pattern stopped at the next ` constraint ` or ` table: `, which a « Failing row contains » detail can hold, and the rest of the row went out. With the `ServerException` at hand, its `detail` is removed verbatim; otherwise everything from ` detail: ` on goes.
+  - **The current address's resend budget spent is not a refusal** (the review): a live code then sits in that inbox, and a 429 there followed a code already sent to the new address. `202`, `currentCodeSent: true`.
   - **The per-account ceiling is a constant,** `kEmailChangeLimit` (10 an hour, one bucket for both routes), not a `LIMIT_*` variable: nothing has measured it, and a variable no manifest sets is a number nobody reads.
 - **Not done here, for the record:**
   - **The edge rule is not applied.** `96-api-front-door.sh` carries `/me/email/`; it takes effect when the script is re-run, a Cloudflare change on the owner's word. Until then the origin's per-IP limiter holds alone.
   - **The identity-limit alert's text** (`92-identity-limit-alert.sh`) does not list the `email:` bucket; a refusal still writes its `rate_limited bucket=email:…` line.
-  - **Two first sign-ins at one free address at once** can still meet at the unique index and answer 500 (unchanged from before; rare).
+  - **Decision 265 counts a Google or Apple link as another way in even while `AUTH_METHODS` disables that provider** (the review). Production enables both (`google,apple,email`, `infra/gcp/service.yaml`); the day one is switched off, its linked accounts change their address without the second code.
   - The phone path keeps `_checkOtpIn` (dormant, one route).
 
 ---
@@ -472,4 +482,5 @@ Numbered from **260**, after batch 18's 255–259.
     - §9's options and the merge path.
   - **Nits:** the code checked and consumed in one statement (§5.3); the sign-in step's own words and widgets; the phone's twin (§12); line references, `devCode` in dev only, and `schema.ts`.
 - 2026-11-26, answered: « Approve as recommended », all six (decisions 260–265, batch 16 in the BACKLOG). B16.3 is a P1, built in two PRs, the backend first; each build, merge, read and deploy on the owner's word.
-- 2026-11-26 — **B16.3a built** (§8.4), on the owner's « Yes, build B16.3a »: red first on both twins, green, 31 mutations (one survivor, as predicted; one mis-aimed, fixed).
+- 2026-11-26 — **B16.3a built** (§8.4), on the owner's « Yes, build B16.3a »: red first on both twins, green.
+- 2026-11-26 — **B16.3a read once by an independent reviewer, told to refute it against the code.** No rule broken, no twin difference, no enumeration. Found, each re-read in the code and fixed: the take's filter is a real guard (a concurrent proof), and §8.4's first draft said otherwise; a deadlock between a change and a code sign-in; a raced insert answering 500; the scrubber's pattern cut short by the detail; a 429 after a code had gone out; seven missing route and contract tests; two comments. Then 36 mutations, every one red.
