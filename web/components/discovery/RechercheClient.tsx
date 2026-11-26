@@ -328,8 +328,8 @@ export function RechercheClient({
   //   fewer — so the address comes down to what is shown, and a reload shows the same;
   // - it asks for fewer, after « Afficher plus » — the same search asked again from the
   //   header — so the list starts again from the server's answer, as the address says.
-  // The address is read from `location`: Next updates its router in a transition, so the
-  // render after a page lands can still carry the old `useSearchParams`.
+  // The address is read from `location`, which `replaceState` changes at once; the router's
+  // copy follows in a transition. A precaution: the e2e passes with either (Next 14.2.35).
   useEffect(() => {
     const asked = pagesFromParam(
       new URLSearchParams(window.location.search).get('pages') ?? undefined,
