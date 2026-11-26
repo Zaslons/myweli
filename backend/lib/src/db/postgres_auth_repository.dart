@@ -143,34 +143,62 @@ class PostgresAuthRepository implements AuthRepository {
   @override
   Future<OtpVerifyResult> verifyEmailOtp(String email, String code) async {
     final key = email.trim().toLowerCase();
-    return _pool.runTx((tx) async {
-      // Checked and consumed in this transaction, its row locked: one code is
-      // redeemable here and at `/me/email/otp/verify`, so a check outside the
-      // consumption would let both redeem it (B16.3 §5.3). A refusal returns
-      // normally, so its attempt accounting commits.
-      final error = await _inspectEmailCode(tx, key, code);
-      if (error != null) {
-        return (ok: false, error: error, user: null, tokens: null);
-      }
-      await _consumeEmailCode(tx, key);
-      // B16.3 §5.1: the address reaches only an account that PROVED it; one
-      // holding it unproven loses it to the prover.
-      var user = await _userWhere(tx, 'lower(email) = @e AND email_verified', {
-        'e': key,
-      });
-      if (user == null) {
-        await _takeUnproven(tx, key);
-        final created = await tx.execute(
-          Sql.named(
-            'INSERT INTO users (id, email, email_verified, auth_provider) '
-            "VALUES (@id, @e, true, 'email') RETURNING *",
-          ),
-          parameters: {'id': _newId('user'), 'e': key},
+    return _retried(
+      raced: true,
+      () => _pool.runTx((tx) async {
+        // Checked and consumed in this transaction, its row locked: one code is
+        // redeemable here and at `/me/email/otp/verify`, so a check outside the
+        // consumption would let both redeem it (B16.3 §5.3). A refusal returns
+        // normally, so its attempt accounting commits.
+        final error = await _inspectEmailCode(tx, key, code);
+        if (error != null) {
+          return (ok: false, error: error, user: null, tokens: null);
+        }
+        await _consumeEmailCode(tx, key);
+        // B16.3 §5.1: the address reaches only an account that PROVED it; one
+        // holding it unproven loses it to the prover.
+        var user = await _userWhere(
+          tx,
+          'lower(email) = @e AND email_verified',
+          {'e': key},
         );
-        user = _userFrom(created.first.toColumnMap());
+        if (user == null) {
+          await _takeUnproven(tx, key);
+          final created = await tx.execute(
+            Sql.named(
+              'INSERT INTO users (id, email, email_verified, auth_provider) '
+              "VALUES (@id, @e, true, 'email') RETURNING *",
+            ),
+            parameters: {'id': _newId('user'), 'e': key},
+          );
+          user = _userFrom(created.first.toColumnMap());
+        }
+        return _loginAs(tx, user);
+      }),
+    );
+  }
+
+  /// Runs [run] — one whole transaction, every effect inside it — again when
+  /// Postgres aborted it for a reason a re-run resolves (B16.3, review):
+  /// - `40P01`, a deadlock: a code sign-in locks the code row, then the
+  ///   account (its take, or its refresh token's foreign key); an e-mail change
+  ///   locks the account, then the code rows. Postgres aborts one of the two;
+  ///   re-run, it queues behind the other.
+  /// - with [raced], a `23505`: a sign-in found no proven holder and inserted
+  ///   one, while another committed the address first (a concurrent sign-in,
+  ///   or a holder proving it). Re-run, it finds that holder.
+  /// Each run rolled back whole, a code's consumption included, so a re-run
+  /// is the first run against newer data. Three runs at most, then the error.
+  Future<T> _retried<T>(Future<T> Function() run, {bool raced = false}) async {
+    for (var attempt = 1; ; attempt++) {
+      try {
+        return await run();
+      } on ServerException catch (e) {
+        final again =
+            e.code == '40P01' || (raced && e is UniqueViolationException);
+        if (!again || attempt >= 3) rethrow;
       }
-      return _loginAs(tx, user);
-    });
+    }
   }
 
   /// The holder of an address it never proved loses it (B16.3 §5.1): its
@@ -240,84 +268,90 @@ class PostgresAuthRepository implements AuthRepository {
     };
     final emailKey = email?.trim().toLowerCase();
     final proves = emailKey != null && emailVerified;
-    return _pool.runTx((tx) async {
-      Future<AuthUser> create({
-        required String? address,
-        required bool proven,
-      }) async {
-        final created = await tx.execute(
-          Sql.named(
-            'INSERT INTO users '
-            '(id, email, email_verified, $subColumn, auth_provider, name, avatar_url) '
-            'VALUES (@id, @e:text, @v, @s, @p, @n:text, @a:text) RETURNING *',
-          ),
-          parameters: {
-            'id': _newId('user'),
-            'e': address,
-            'v': proven,
-            's': sub,
-            'p': provider,
-            'n': name,
-            'a': avatarUrl,
-          },
-        );
-        return _userFrom(created.first.toColumnMap());
-      }
-
-      // 1. By sub. Its own unproven address, asserted by the provider, is
-      //    proven now; it takes nothing from anyone else (B16.3 §5.1).
-      final bySub = await _userWhere(tx, '$subColumn = @s', {'s': sub});
-      if (bySub != null) {
-        if (proves &&
-            !bySub.emailVerified &&
-            bySub.email?.toLowerCase() == emailKey) {
-          await tx.execute(
-            Sql.named('UPDATE users SET email_verified = true WHERE id = @id'),
-            parameters: {'id': bySub.id},
+    return _retried(
+      raced: true,
+      () => _pool.runTx((tx) async {
+        Future<AuthUser> create({
+          required String? address,
+          required bool proven,
+        }) async {
+          final created = await tx.execute(
+            Sql.named(
+              'INSERT INTO users '
+              '(id, email, email_verified, $subColumn, auth_provider, name, avatar_url) '
+              'VALUES (@id, @e:text, @v, @s, @p, @n:text, @a:text) RETURNING *',
+            ),
+            parameters: {
+              'id': _newId('user'),
+              'e': address,
+              'v': proven,
+              's': sub,
+              'p': provider,
+              'n': name,
+              'a': avatarUrl,
+            },
           );
-          bySub.emailVerified = true;
+          return _userFrom(created.first.toColumnMap());
         }
-        return _loginAs(tx, bySub);
-      }
-      if (!proves) {
-        // Kept out: an unverified address is stored only when nobody holds
-        // it, and takes nothing (T33).
-        final held =
-            emailKey != null &&
-            await _userWhere(tx, 'lower(email) = @e', {'e': emailKey}) != null;
-        return _loginAs(
+
+        // 1. By sub. Its own unproven address, asserted by the provider, is
+        //    proven now; it takes nothing from anyone else (B16.3 §5.1).
+        final bySub = await _userWhere(tx, '$subColumn = @s', {'s': sub});
+        if (bySub != null) {
+          if (proves &&
+              !bySub.emailVerified &&
+              bySub.email?.toLowerCase() == emailKey) {
+            await tx.execute(
+              Sql.named(
+                'UPDATE users SET email_verified = true WHERE id = @id',
+              ),
+              parameters: {'id': bySub.id},
+            );
+            bySub.emailVerified = true;
+          }
+          return _loginAs(tx, bySub);
+        }
+        if (!proves) {
+          // Kept out: an unverified address is stored only when nobody holds
+          // it, and takes nothing (T33).
+          final held =
+              emailKey != null &&
+              await _userWhere(tx, 'lower(email) = @e', {'e': emailKey}) !=
+                  null;
+          return _loginAs(
+            tx,
+            await create(address: held ? null : emailKey, proven: false),
+          );
+        }
+        // 2. A proven holder: link when its sub for this provider is EMPTY. A
+        //    sub already there is never replaced — it used to be, which handed
+        //    the account to whoever the provider now says owns the address
+        //    (B16.3 §5.1) — so this sign-in gets an account of its own.
+        final holder = await _userWhere(
           tx,
-          await create(address: held ? null : emailKey, proven: false),
+          'lower(email) = @e AND email_verified',
+          {'e': emailKey},
         );
-      }
-      // 2. A proven holder: link when its sub for this provider is EMPTY. A
-      //    sub already there is never replaced — it used to be, which handed
-      //    the account to whoever the provider now says owns the address
-      //    (B16.3 §5.1) — so this sign-in gets an account of its own.
-      final holder = await _userWhere(
-        tx,
-        'lower(email) = @e AND email_verified',
-        {'e': emailKey},
-      );
-      if (holder != null) {
-        final linked = await tx.execute(
-          Sql.named(
-            'UPDATE users SET $subColumn = @s, '
-            'name = COALESCE(name, @n:text), '
-            'avatar_url = COALESCE(avatar_url, @a:text) '
-            'WHERE id = @id AND $subColumn IS NULL RETURNING *',
-          ),
-          parameters: {'s': sub, 'n': name, 'a': avatarUrl, 'id': holder.id},
-        );
-        if (linked.isNotEmpty) {
-          return _loginAs(tx, _userFrom(linked.first.toColumnMap()));
+        if (holder != null) {
+          final linked = await tx.execute(
+            Sql.named(
+              'UPDATE users SET $subColumn = @s, '
+              'name = COALESCE(name, @n:text), '
+              'avatar_url = COALESCE(avatar_url, @a:text) '
+              'WHERE id = @id AND $subColumn IS NULL RETURNING *',
+            ),
+            parameters: {'s': sub, 'n': name, 'a': avatarUrl, 'id': holder.id},
+          );
+          if (linked.isNotEmpty) {
+            return _loginAs(tx, _userFrom(linked.first.toColumnMap()));
+          }
+          return _loginAs(tx, await create(address: null, proven: false));
         }
-        return _loginAs(tx, await create(address: null, proven: false));
-      }
-      // 3. Take it from an unproven holder, then create.
-      await _takeUnproven(tx, emailKey);
-      return _loginAs(tx, await create(address: emailKey, proven: true));
-    });
+        // 3. Take it from an unproven holder, then create.
+        await _takeUnproven(tx, emailKey);
+        return _loginAs(tx, await create(address: emailKey, proven: true));
+      }),
+    );
   }
 
   @override
@@ -347,66 +381,69 @@ class PostgresAuthRepository implements AuthRepository {
   }) async {
     final key = email.trim().toLowerCase();
     try {
-      return await _pool.runTx((tx) async {
-        final rows = await tx.execute(
-          Sql.named(
-            'SELECT *, (google_sub IS NOT NULL OR apple_sub IS NOT NULL) '
-            'AS linked FROM users WHERE id = @id FOR UPDATE',
-          ),
-          parameters: {'id': userId},
-        );
-        if (rows.isEmpty) return emailChangeRefused('not_found');
-        final row = rows.first.toColumnMap();
-        final user = _userFrom(row);
-        if (user.status == 'banned') {
-          return emailChangeRefused('account_suspended');
-        }
-        final current = user.email?.toLowerCase();
-        if (current == key && user.emailVerified) {
-          return emailChangeRefused('email_unchanged');
-        }
-        final refused = await _inspectEmailCode(tx, key, code);
-        if (refused != null) return emailChangeRefused(refused);
-        final holder = await _userWhere(tx, 'lower(email) = @e AND id <> @id', {
-          'e': key,
-          'id': userId,
-        });
-        if (holder != null && holder.emailVerified) {
-          // Nothing consumed: the code still signs its owner in (§3.1).
-          return emailChangeRefused('email_taken');
-        }
-        final needsCurrent =
-            current != null && user.emailVerified && !(row['linked'] as bool);
-        if (needsCurrent) {
-          if (currentCode == null) {
-            return emailChangeRefused('current_otp_none');
-          }
-          final refusedCurrent = await _inspectEmailCode(
-            tx,
-            current,
-            currentCode,
+      return await _retried(
+        () => _pool.runTx((tx) async {
+          final rows = await tx.execute(
+            Sql.named(
+              'SELECT *, (google_sub IS NOT NULL OR apple_sub IS NOT NULL) '
+              'AS linked FROM users WHERE id = @id FOR NO KEY UPDATE',
+            ),
+            parameters: {'id': userId},
           );
-          if (refusedCurrent != null) {
-            return emailChangeRefused('current_$refusedCurrent');
+          if (rows.isEmpty) return emailChangeRefused('not_found');
+          final row = rows.first.toColumnMap();
+          final user = _userFrom(row);
+          if (user.status == 'banned') {
+            return emailChangeRefused('account_suspended');
           }
-          await _consumeEmailCode(tx, current);
-        }
-        await _consumeEmailCode(tx, key);
-        await _takeUnproven(tx, key, except: userId);
-        final updated = await tx.execute(
-          Sql.named(
-            'UPDATE users SET email = @e, email_verified = true '
-            'WHERE id = @id RETURNING *',
-          ),
-          parameters: {'e': key, 'id': userId},
-        );
-        return (
-          ok: true,
-          error: null,
-          user: _userFrom(updated.first.toColumnMap()),
-          previousEmail: user.emailVerified ? current : null,
-        );
-      });
+          final current = user.email?.toLowerCase();
+          if (current == key && user.emailVerified) {
+            return emailChangeRefused('email_unchanged');
+          }
+          final refused = await _inspectEmailCode(tx, key, code);
+          if (refused != null) return emailChangeRefused(refused);
+          final holder = await _userWhere(
+            tx,
+            'lower(email) = @e AND id <> @id',
+            {'e': key, 'id': userId},
+          );
+          if (holder != null && holder.emailVerified) {
+            // Nothing consumed: the code still signs its owner in (§3.1).
+            return emailChangeRefused('email_taken');
+          }
+          final needsCurrent =
+              current != null && user.emailVerified && !(row['linked'] as bool);
+          if (needsCurrent) {
+            if (currentCode == null) {
+              return emailChangeRefused('current_otp_none');
+            }
+            final refusedCurrent = await _inspectEmailCode(
+              tx,
+              current,
+              currentCode,
+            );
+            if (refusedCurrent != null) {
+              return emailChangeRefused('current_$refusedCurrent');
+            }
+            await _consumeEmailCode(tx, current);
+          }
+          await _consumeEmailCode(tx, key);
+          await _takeUnproven(tx, key, except: userId);
+          final updated = await tx.execute(
+            Sql.named(
+              'UPDATE users SET email = @e, email_verified = true '
+              'WHERE id = @id RETURNING *',
+            ),
+            parameters: {'e': key, 'id': userId},
+          );
+          return (
+            ok: true,
+            error: null,
+            user: _userFrom(updated.first.toColumnMap()),
+            previousEmail: user.emailVerified ? current : null,
+          );
+        }),
+      );
     } on UniqueViolationException {
       return emailChangeRefused('email_taken');
     }

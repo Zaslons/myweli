@@ -12,7 +12,13 @@ import 'package:myweli_backend/src/appointments/appointment_repository.dart'
     show RevenueLedgerStatus;
 import 'package:myweli_backend/src/auth/apple_tokens.dart';
 import 'package:myweli_backend/src/auth/auth_repository.dart'
-    show RefreshOutcome, RefreshResult, TokenPair, kRefreshReuseGrace;
+    show
+        EmailChangeResult,
+        OtpVerifyResult,
+        RefreshOutcome,
+        RefreshResult,
+        TokenPair,
+        kRefreshReuseGrace;
 import 'package:myweli_backend/src/auth/provider_auth_repository.dart'
     show KycWrite, kycKeysOf;
 import 'package:myweli_backend/src/auth/tokens.dart';
@@ -2263,6 +2269,220 @@ void main() {
       );
       expect(value, contains('23505'));
       expect(value, contains('users_email_lower_key'));
+      expect(
+        value,
+        contains('table: users'),
+        reason: 'exact: what follows stays',
+      );
+    });
+
+    test(
+      'scrubEvent: a real detail holding « constraint » is gone whole',
+      () async {
+        // The words the old pattern stopped at, inside the key itself.
+        const x = 'a constraint table: b@b163.test';
+        await pool.execute(
+          Sql.named("INSERT INTO users (id, email) VALUES ('scrub-3', @e)"),
+          parameters: {'e': x},
+        );
+        Object? thrown;
+        try {
+          await pool.execute(
+            Sql.named("INSERT INTO users (id, email) VALUES ('scrub-4', @e)"),
+            parameters: {'e': x},
+          );
+        } on Object catch (e) {
+          thrown = e;
+        }
+        expect(thrown.toString(), contains('b@b163.test'), reason: 'premise');
+        final value = scrubEvent(
+          SentryEvent(
+            throwable: thrown,
+            exceptions: [
+              SentryException(
+                type: 'ServerException',
+                value: thrown.toString(),
+              ),
+            ],
+          ),
+        )!.exceptions!.single.value!;
+        expect(value, isNot(contains('b@b163.test')), reason: '[scrub]');
+        expect(value, contains('users_email_lower_key'));
+      },
+    );
+
+    // The three concurrent cases of the review (spec §8.4): each holds a
+    // transaction on a second pool, and waits until the one under test is
+    // blocked on it, read from pg_stat_activity.
+    group('concurrent', () {
+      late Pool<void> side;
+      setUpAll(() => side = createPool(url));
+      tearDownAll(() => side.close());
+      // Lazily: the group is declared before setUpAll opens `pool`.
+      late final r = PostgresAuthRepository(
+        pool,
+        tokens: tokens,
+        echoDevCode: true,
+      );
+
+      Future<void> blockedOn(String queryPrefix) async {
+        for (var i = 0; i < 250; i++) {
+          final w = await side.execute(
+            Sql.named(
+              'SELECT count(*)::int AS n FROM pg_stat_activity '
+              "WHERE wait_event_type = 'Lock' AND query LIKE @q",
+            ),
+            parameters: {'q': '$queryPrefix%'},
+          );
+          if (w.first.toColumnMap()['n'] == 1) return;
+          await Future<void>.delayed(const Duration(milliseconds: 20));
+        }
+        fail('the premise: nothing blocked on « $queryPrefix »');
+      }
+
+      test('[race take] the unproven holder proves X while a change takes '
+          'it: its address is kept, the change answers email_taken', () async {
+        // The take's `AND NOT email_verified` is what keeps it: the UPDATE
+        // waits on the holder's row, then re-reads it proven.
+        final t = DateTime.now().microsecondsSinceEpoch;
+        final h = (await r.loginWithSocial(
+          provider: 'google',
+          sub: 'rt-gH-$t',
+          email: 'rt-h-$t@b163.test',
+          emailVerified: true,
+        )).user!;
+        final x = 'rt-x-$t@b163.test';
+        await pool.execute(
+          Sql.named(
+            'UPDATE users SET email = @e, email_verified = false WHERE id = @id',
+          ),
+          parameters: {'e': x, 'id': h.id},
+        );
+        final u = (await r.loginWithSocial(
+          provider: 'apple',
+          sub: 'rt-apU-$t',
+          email: 'rt-u-$t@b163.test',
+          emailVerified: true,
+        )).user!;
+        final code = (await r.requestEmailOtp(x)).devCode!;
+
+        final proved = Completer<void>();
+        final release = Completer<void>();
+        final proof = side.runTx((tx) async {
+          await tx.execute(
+            Sql.named('UPDATE users SET email_verified = true WHERE id = @id'),
+            parameters: {'id': h.id},
+          );
+          proved.complete();
+          await release.future;
+        });
+        await proved.future;
+        final change = r.changeEmail(u.id, x, code);
+        await blockedOn('UPDATE users SET email = NULL');
+        release.complete();
+        await proof;
+        final res = await change;
+        expect(
+          res.error,
+          'email_taken',
+          reason: '[race take] the holder proved it first',
+        );
+        final hAfter = (await r.userById(h.id))!;
+        expect(hAfter.email, x, reason: '[race take] H keeps its address');
+        expect(hAfter.emailVerified, isTrue);
+      });
+
+      test('[race insert] another account commits X while a code sign-in '
+          'creates it: the sign-in re-runs and finds it', () async {
+        final t = DateTime.now().microsecondsSinceEpoch;
+        final x = 'ri-x-$t@b163.test';
+        final code = (await r.requestEmailOtp(x)).devCode!;
+        final inserted = Completer<void>();
+        final release = Completer<void>();
+        final other = side.runTx((tx) async {
+          await tx.execute(
+            Sql.named(
+              'INSERT INTO users (id, email, email_verified, auth_provider) '
+              "VALUES ('ri-holder-$t', @e, true, 'google')",
+            ),
+            parameters: {'e': x},
+          );
+          inserted.complete();
+          await release.future;
+        });
+        await inserted.future;
+        final signIn = r.verifyEmailOtp(x, code);
+        await blockedOn('INSERT INTO users (id, email, email_verified');
+        release.complete();
+        await other;
+        final OtpVerifyResult v;
+        try {
+          v = await signIn;
+        } on Object catch (e) {
+          fail('[race insert] the sign-in threw (${e.runtimeType}): a 500');
+        }
+        expect(v.ok, isTrue);
+        expect(v.user!.id, 'ri-holder-$t', reason: 'it reaches the holder');
+      });
+
+      test('[deadlock] a change and a sign-in lock in opposite orders: the '
+          'change is re-run, and succeeds', () async {
+        // The change locks the account, then the code rows; a code sign-in
+        // locks the code row, then the account (its take). `side` plays the
+        // sign-in. Postgres aborts the first waiter — the change.
+        final t = DateTime.now().microsecondsSinceEpoch;
+        final current = 'dl-cur-$t@b163.test';
+        final u = (await r.verifyEmailOtp(
+          current,
+          (await r.requestEmailOtp(current)).devCode!,
+        )).user!;
+        final x = 'dl-x-$t@b163.test';
+        final code = (await r.requestEmailOtp(x)).devCode!;
+        final currentCode = (await r.requestEmailOtp(current)).devCode!;
+
+        final lockedCode = Completer<void>();
+        final goForAccount = Completer<void>();
+        final settled = Completer<void>();
+        final release = Completer<void>();
+        final signIn = side
+            .runTx((tx) async {
+              await tx.execute(
+                Sql.named(
+                  'SELECT 1 FROM email_otp_codes WHERE email = @e FOR UPDATE',
+                ),
+                parameters: {'e': current},
+              );
+              lockedCode.complete();
+              await goForAccount.future;
+              try {
+                await tx.execute(
+                  Sql.named(
+                    'SELECT 1 FROM users WHERE id = @id FOR NO KEY UPDATE',
+                  ),
+                  parameters: {'id': u.id},
+                );
+              } finally {
+                settled.complete();
+              }
+              await release.future;
+            })
+            .catchError((Object _) {});
+        await lockedCode.future;
+        final change = r.changeEmail(u.id, x, code, currentCode: currentCode);
+        await blockedOn('SELECT code_hash, attempts_left');
+        goForAccount.complete();
+        await settled.future; // the deadlock was found and one side aborted
+        release.complete();
+        await signIn;
+        final EmailChangeResult res;
+        try {
+          res = await change;
+        } on Object catch (e) {
+          fail('[deadlock] the change threw (${e.runtimeType}): a 500');
+        }
+        expect(res.ok, isTrue, reason: '${res.error}');
+        expect(res.user!.email, x);
+      });
     });
   });
 

@@ -152,7 +152,27 @@ void main() {
       expect(scrubbed, isNot(contains('detail:')));
       expect(scrubbed, contains('23505'));
       expect(scrubbed, contains('users_email_lower_key'));
-      expect(scrubbed, contains('table: users'), reason: 'what follows stays');
+    });
+
+    test('a detail holding the very words that end it is gone whole — the '
+        'row of a « Failing row contains » (review)', () {
+      // No exception at hand, so everything from ` detail: ` on goes. A
+      // pattern that stopped at the next ` constraint ` was cut short here,
+      // and the phone and the address after it reached Sentry.
+      const value =
+          'ERROR 23502: null value in column "name" violates not-null '
+          'constraint detail: Failing row contains (c1, Awa no constraint '
+          'here, +2250700000000, awa@x.ci, null). table: clients';
+      final e = scrubEvent(
+        SentryEvent(
+          exceptions: [SentryException(type: 'ServerException', value: value)],
+        ),
+      )!;
+      final scrubbed = e.exceptions!.single.value!;
+      for (final leaked in ['+2250700000000', 'awa@x.ci', 'Awa']) {
+        expect(scrubbed, isNot(contains(leaked)), reason: '[scrub] $leaked');
+      }
+      expect(scrubbed, contains('23502'));
     });
 
     test('a value without a detail is left as it is', () {

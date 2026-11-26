@@ -152,13 +152,6 @@ String canonicalInviteAddress(String emailKey) {
   return '$local@$domain';
 }
 
-/// The bucket for a booking attempt.
-///
-/// **Deliberately omits the role.** Including it could only ever SPLIT a budget,
-/// never merge one, and splitting is a weakening. Consumer ids are minted
-/// `user_…` and provider account ids `provider_…`, so the prefixes are already
-/// disjoint and the role adds no information. It also stays correct whichever
-/// way the missing role gate on `POST /appointments` is eventually resolved.
 /// The e-mail change's per-account ceiling, per hour (B16.3,
 /// docs/design/account-email-change.md §3.1): both `/me/email/otp/*` routes
 /// spend from one bucket. One change is a request and a verify; ten leaves
@@ -171,6 +164,13 @@ const int kEmailChangeLimit = 10;
 /// The e-mail change's bucket: per account, the token's `sub`.
 String emailChangeBucket(String sub) => 'email:$sub';
 
+/// The bucket for a booking attempt.
+///
+/// **Deliberately omits the role.** Including it could only ever SPLIT a budget,
+/// never merge one, and splitting is a weakening. Consumer ids are minted
+/// `user_…` and provider account ids `provider_…`, so the prefixes are already
+/// disjoint and the role adds no information. It also stays correct whichever
+/// way the missing role gate on `POST /appointments` is eventually resolved.
 String bookingBucket(String sub) => 'book:$sub';
 
 /// The bucket for a review submission. Unambiguous — the route hard-gates

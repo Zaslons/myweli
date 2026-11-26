@@ -86,11 +86,11 @@ class EmailChangeService {
     OtpRequestResult? second;
     if (current != null && await _auth.emailIsOnlySignIn(userId)) {
       second = await _auth.requestEmailOtp(current);
-      if (!second.ok) {
-        return _requestRefused(second.error ?? 'otp_resend_limit');
-      }
-      // WARM: the account's own proven address.
-      await _sendCode(current, second.code, EmailClass.warm);
+      // WARM: the account's own proven address. Its resend budget spent means
+      // a live code already sits in that inbox (the budget counts only an
+      // unexpired one): that code still works, so this is no refusal. A 429
+      // here would follow a code already sent to the NEW address (review).
+      if (second.ok) await _sendCode(current, second.code, EmailClass.warm);
     }
     return (
       ok: true,

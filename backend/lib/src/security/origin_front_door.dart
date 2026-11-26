@@ -107,7 +107,8 @@ String ipAuthBucket(String ip) =>
 ///    `origin_auth_missing method=<m> path=<p>` (the path only — never the
 ///    query string, never any header value: the request-id middleware's own
 ///    rule) and: `log` mode → pass, unverified; `enforce` → 403.
-/// 4. **Only if verified** and the path is under `/auth/` or `/admin/auth/`:
+/// 4. **Only if verified** and [isIpLimitedPath] (`/auth/`, `/admin/auth/`,
+///    `/me/email/`):
 ///    read the client IP. Absent → log `origin_client_ip_missing path=<p>` and
 ///    pass — « unknown must never silently collapse into one shared bucket ».
 ///    Present → one hit against `ip:auth:<digest>`; refused → log

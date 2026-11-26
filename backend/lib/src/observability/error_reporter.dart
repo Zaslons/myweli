@@ -1,3 +1,4 @@
+import 'package:postgres/postgres.dart' show ServerException;
 import 'package:sentry/sentry.dart';
 
 import '../boot_config.dart';
@@ -119,9 +120,13 @@ SentryEvent? scrubEvent(SentryEvent event) {
   // address, which the SDK stores as the exception's value. The code, the
   // message and the constraint name stay — they name the index, not a person,
   // and they are the diagnosis.
+  final thrown = event.throwable;
+  final detail = thrown is ServerException ? thrown.detail : null;
   for (final exception in event.exceptions ?? const <SentryException>[]) {
     final value = exception.value;
-    if (value != null) exception.value = stripDatabaseDetail(value);
+    if (value != null) {
+      exception.value = stripDatabaseDetail(value, detail: detail);
+    }
   }
 
   // `contexts` is deliberately KEPT. It carries OS, runtime and app metadata —
@@ -132,14 +137,22 @@ SentryEvent? scrubEvent(SentryEvent event) {
 }
 
 /// [value] without the ` detail: …` part a Postgres `ServerException`
-/// appends: up to the next part `toString()` writes (` hint: `, ` table: `,
-/// ` column: `, ` constraint `), or the end.
-String stripDatabaseDetail(String value) => value.replaceAll(_detail, '');
-
-final RegExp _detail = RegExp(
-  r' detail: .*?(?= hint: | table: | column: | constraint |$)',
-  dotAll: true,
-);
+/// appends.
+///
+/// **Exactly, when the exception is at hand** ([detail]): its text is removed
+/// verbatim, and the parts after it (` table: `, ` constraint `) stay. A
+/// pattern that stopped at the next such word was cut short by the detail
+/// itself: « Failing row contains (…) » holds whole rows, any text included
+/// (found in review). **Otherwise everything from ` detail: ` on goes:** an
+/// unknown shape loses its diagnosis rather than leaking a row.
+String stripDatabaseDetail(String value, {String? detail}) {
+  var v = value;
+  if (detail != null && detail.isNotEmpty) {
+    v = v.replaceAll(' detail: $detail', '');
+  }
+  final at = v.indexOf(' detail: ');
+  return at < 0 ? v : v.substring(0, at);
+}
 
 /// Builds the reporter from env. `SENTRY_DSN` unset → [NoopErrorReporter].
 ///

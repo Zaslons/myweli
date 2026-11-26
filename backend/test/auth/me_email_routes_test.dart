@@ -172,6 +172,38 @@ void main() {
       expect(r1.body['currentCodeSent'], r2.body['currentCodeSent']);
     });
 
+    test('the same answer for an e-mail-code account too, the second code '
+        'included (T32)', () async {
+      final a = await byCode(address('cur'));
+      final taken = address('taken');
+      await byCode(taken);
+      final r1 = await request(a.id, {'email': taken});
+      final r2 = await request(a.id, {'email': address('free')});
+      expect(r1.status, r2.status);
+      expect(r1.body.keys.toSet(), r2.body.keys.toSet());
+      expect(r1.body['currentCodeSent'], isTrue);
+      expect(r2.body['currentCodeSent'], isTrue);
+    });
+
+    test('the current address\'s resend budget spent: still 202 — its live '
+        'code still works (review)', () async {
+      final current = address('cur');
+      final a = await byCode(current);
+      for (var i = 0; i < 4; i++) {
+        expect((await request(a.id, {'email': address('x$i')})).status, 202);
+      }
+      mail.sent.clear();
+      final res = await request(a.id, {'email': address('x4')});
+      expect(res.status, HttpStatus.accepted, reason: 'not a 429 after a send');
+      expect(res.body['currentCodeSent'], isTrue);
+      expect(res.body.containsKey('currentDevCode'), isFalse);
+      expect(
+        mail.sent.map((m) => m.to),
+        isNot(contains(current)),
+        reason: 'no new code to the current address: its budget is spent',
+      );
+    });
+
     test('409 email_unchanged: its own proven address; its own unproven '
         'one is accepted (« Vérifier »)', () async {
       final own = address('own');
@@ -356,6 +388,55 @@ void main() {
         expect(res.status, HttpStatus.badRequest, reason: '$body');
         expect(res.body['error'], 'invalid_input');
       }
+    });
+
+    test('409 email_unchanged at the verify too', () async {
+      final own = address('own');
+      final a = await google(own);
+      final res = await verify(a.id, {'email': own, 'code': '123456'});
+      expect(res.status, HttpStatus.conflict);
+      expect(res.body['error'], 'email_unchanged');
+    });
+
+    test('400 invalid_body · 400 current_otp_invalid', () async {
+      final current = address('cur');
+      final a = await byCode(current);
+      final bad = await call(
+        verify_route.onRequest,
+        '/me/email/otp/verify',
+        token: tok(a.id),
+        rawBody: '[1,2]',
+      );
+      expect(bad.status, HttpStatus.badRequest);
+      expect(bad.body['error'], 'invalid_body');
+      final x = address('x');
+      final sent = (await request(a.id, {'email': x})).body;
+      final wrong = sent['currentDevCode'] == '111111' ? '222222' : '111111';
+      final res = await verify(a.id, {
+        'email': x,
+        'code': sent['devCode'],
+        'currentCode': wrong,
+      });
+      expect(res.status, HttpStatus.badRequest);
+      expect(res.body['error'], 'current_otp_invalid');
+    });
+
+    test('429 rate_limited at the verify', () async {
+      final a = await google(address('a'));
+      service = EmailChangeService(
+        auth,
+        mail,
+        limiter: InMemoryRateLimiter(),
+        limit: 1,
+        log: (_) {},
+      );
+      expect(
+        (await verify(a.id, {'email': address('x'), 'code': '123456'})).status,
+        HttpStatus.badRequest,
+      );
+      final res = await verify(a.id, {'email': address('x'), 'code': '123456'});
+      expect(res.status, HttpStatus.tooManyRequests);
+      expect(res.body['error'], 'rate_limited');
     });
 
     test('400 otp_*: the code refused', () async {

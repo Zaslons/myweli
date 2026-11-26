@@ -605,6 +605,31 @@ void accountEmailContract({
         expect((await byCode(r, x)).id, a.id);
       });
 
+      test('a wrong NEW code leaves the current code unconsumed', () async {
+        final r = repo();
+        final current = address('cur');
+        final a = await byCode(r, current);
+        final x = address('x');
+        final code = await codeFor(r, x);
+        final currentCode = await codeFor(r, current);
+        expect(
+          (await r.changeEmail(
+            a.id,
+            x,
+            wrong(code),
+            currentCode: currentCode,
+          )).error,
+          'otp_invalid',
+        );
+        final res = await r.changeEmail(
+          a.id,
+          x,
+          code,
+          currentCode: currentCode,
+        );
+        expect(res.ok, isTrue, reason: 'both codes still good: ${res.error}');
+      });
+
       test('a phone account adding its first address needs no second '
           'code', () async {
         final r = repo();
