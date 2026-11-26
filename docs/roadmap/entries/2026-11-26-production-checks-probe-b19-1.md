@@ -1,0 +1,14 @@
+- 🟡 **B19.1 : la sonde, un lancement par heure arrive-t-il à l’heure ? (CI · 2026-11-26 — BACKLOG lot 19, décisions 266 et 271).** Branche `feat/b19-1-schedule-probe`, empilée sur la spec (#881). Spec : [infra-production-checks-on-time.md](../../design/infra-production-checks-on-time.md) §3.2 et §13.1.
+  - **Pourquoi :** GitHub crée le contrôle quotidien de 06 h 00 avec 4 à 12 heures de retard depuis le 2026-08-27. Un autre dépôt public, planifié toutes les 10 minutes, démarre à l’heure. La sonde mesure si un lancement par heure arrive à l’heure ici aussi.
+  - **Construit :** `.github/workflows/schedule-probe.yml`.
+    - Un lancement par heure, à la 17ᵉ minute.
+    - Aucune permission, aucun secret, aucune alarme : sa seule sortie est la liste de ses propres lancements.
+    - Pas de lancement manuel : il passerait pour un lancement planifié.
+  - **Vérifié avant la fusion :**
+    - le fichier se lit en YAML ;
+    - les tests qui lisent tous les workflows passent : 112 côté backend, 14 côté mobile.
+  - **Pas vérifiable avant la fusion :** GitHub ne lance un horaire que depuis la branche principale. La première preuve sera le premier lancement après la fusion.
+  - **Reste :**
+    - la fusion de la spec (#881), puis celle de cette PR, sur le mot du propriétaire ; elle démarre les trois jours ;
+    - la lecture après trois jours (§3.2) ;
+    - le retrait de la sonde, dans la PR de B19.2 ou seule.
