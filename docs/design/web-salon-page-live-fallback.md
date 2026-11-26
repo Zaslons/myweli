@@ -3,9 +3,9 @@
 | | |
 |---|---|
 | **Module** | web: the public salon page (`app/[slug]`), a new `middleware.ts`, one live-rendered route, the build's salon list; a scheduled production check. No backend change, no contract change. |
-| **Status** | **Built 2026-11-25, not merged** (`feat/web-salon-page-live-fallback`, #871; §13). Approved the same day, « Approve as recommended »: decisions 255–258 in BACKLOG, batch 18 (#870). Decision 259 has no recommendation and is asked again. The merge (a production web deploy) and the read after it (§9), each on the owner's word. |
+| **Status** | **Merged and deployed 2026-11-25** (#871, `a4c37cbc`; live on myweli.com at 16:01 UTC; read back, §14). Approved the same day, « Approve as recommended »: decisions 255–258 in BACKLOG, batch 18 (#870, `73f12886`). Decision 259 answered the same day: the suspends were the owner's (§2.3). Not yet seen: a public salon served live before its rebuild, at the next salon validation (§9.4). |
 | **Owner** | the project owner: the answers, the build's go, the merge, the read after it |
-| **Last updated** | 2026-11-25 |
+| **Last updated** | 2026-11-26 |
 | **PRD ref / phase** | the public salon page (web M1, [web-m1-backend-glue.md](web-m1-backend-glue.md)) and discovery ([web-discovery-map.md](web-discovery-map.md)) · V1 |
 | **ROADMAP entry** | [2026-11-25-salon-page-live-fallback-spec.md](../roadmap/entries/2026-11-25-salon-page-live-fallback-spec.md) |
 | **Skills checked** | myweli-web-guardrails · myweli-backend-guardrails (read only: nothing in `backend/` changes) · myweli-verification-guardrails · [WEB.md](../WEB.md) |
@@ -73,7 +73,7 @@
 
 ### 2.3 Symptom 2: « search again, not found unless I reload »
 
-- In the logs, the only searches that came back without the salon are 00:28:44 and 00:28:51, 15–22 s after the 00:28:29 suspend. The salon came back only after each restore. **INFERRED:** that is what the owner saw. Decision 259 asks.
+- In the logs, the only searches that came back without the salon are 00:28:44 and 00:28:51, 15–22 s after the 00:28:29 suspend. The salon came back only after each restore. **INFERRED** when written; **confirmed 2026-11-25 (decision 259, « Yes, mine »):** the suspends and restores were the owner's, so symptom 2 was the salon suspended. Nothing changes for it.
 - **No client-side cause was found.** `RechercheClient` does not filter its results. A search card is a plain `<a>` (`components/provider/ProviderCard.tsx:208`), so a click on it is a full page load for every salon; the map popup's « Voir le salon » is a `next/link` (`ResultsMap.tsx:144`). Measured on production: a client navigation to an unknown slug (`window.next.router.push`, the call that link makes) also turns into a full page load: Next's `fetch-server-response.js:91` (`doMpaNavigation` on a non-OK answer). Either way the client router cache is thrown away. From that 404, « Découvrir des salons » (client navigation) then an empty home search reach `/recherche` on the server, which listed `test-3`.
 
 ### 2.4 Why `dynamicParams = false`, and why it stays
@@ -271,21 +271,21 @@ That catches what nothing catches today: a hook answered 201 and the Vercel buil
 
 ## 10. Definition of done
 
-- [ ] typecheck, lint, `next build` clean; unit and e2e green; every §8 check watched red, listed in the commit.
-- [ ] `served-html.spec.ts` unchanged and green.
-- [ ] WEB.md (rendering + security row), `backend-web-rebuild-hook.md` §7, the code comments, this spec's status: updated in the build PR.
-- [ ] Feature branch + PR, CI green, merge and deploy on the owner's word, no Claude attribution.
-- [ ] Read after the deploy (§9.3), with the production check's first run.
+- [x] typecheck, lint, `next build` clean; unit and e2e green; every §8 check watched red, listed in the commit.
+- [x] `served-html.spec.ts` unchanged and green.
+- [x] WEB.md (rendering + security row), `backend-web-rebuild-hook.md` §7, the code comments, this spec's status: updated in the build PR.
+- [x] Feature branch + PR, CI green, merge and deploy on the owner's word, no Claude attribution.
+- [x] Read after the deploy (§9.3), with the production check's first run (§14).
 
 ---
 
-## 11. Open questions (decisions 255–259; 255–258 answered 2026-11-25, « Approve as recommended »)
+## 11. Open questions (decisions 255–259, all answered 2026-11-25: 255–258 « Approve as recommended », 259 « Yes, mine »)
 
 1. **The fix** (decision 255). *Recommended:* « live fallback » (§3). Alternatives: the 307 hand-off, hiding unbuilt cards, accepting the window (§3.5).
 2. **Where the live route lives** (decision 256). *Recommended:* `app/recherche/salon/[slug]`, under `recherche`, which the backend already reserves: no backend change, no deploy. Alternatives: a new top-level word (`reservedPublicSlugs` and its route-sync pin in `multi_pays_test.dart` change first, then a backend deploy); a child of `[slug]` (it would shadow `/<taxonomy root>/<that word>`).
 3. **The daily production check** (decision 257). *Recommended:* add it (§8.3). Without it, a failed Vercel build after a 201 stays invisible: users would not notice it any more, but the static set would lag forever.
 4. **When** (decision 258). *Recommended:* built now as one web PR on your word; its merge is the production web deploy, on your word.
-5. **Symptom 2** (decision 259). The salon was suspended from the admin console at 00:28:29 and 01:16:02 and restored at 01:15:18 and 12:41:28, each with a reason typed. Were those yours, for example to retry? If yes, symptom 2 is explained (§2.3) and nothing changes for it. If not, it is a separate problem to chase first.
+5. **Symptom 2** (decision 259). The salon was suspended from the admin console at 00:28:29 and 01:16:02 and restored at 01:15:18 and 12:41:28, each with a reason typed. Were those yours, for example to retry? If yes, symptom 2 is explained (§2.3) and nothing changes for it. If not, it is a separate problem to chase first. **Answered 2026-11-25: « Yes, mine ».**
 
 ---
 
@@ -357,3 +357,30 @@ Each claim used here was re-read in the code by the author before it was taken. 
   - the header carries the salon's own `/<slug>/reserver`.
 
 **Not verified here:** anything on Vercel itself (§9 reads it after the deploy) and the middleware quota (the Vercel console).
+
+---
+
+## 14. Merge, deploy and read after (2026-11-25)
+
+**Merged on the owner's word** (« Yes, merge both »):
+- #870 at 15:29 UTC (`73f12886`) and #871 at 15:54 UTC (`a4c37cbc`);
+- each merge's tree equals its tested head (`5e585f6f`, `e39093fc`), authored by the owner, no attribution line;
+- CI 12 of 12 on `e39093fc`.
+
+**Deployed:** Vercel's production deployment of `a4c37cbc` succeeded at 16:01 UTC (GitHub deployment 8062623881). The later production deploys of `main` (`59409ef0`, `3f3305a5`) carry it.
+
+**Read after (§9.3), read-only, 16:01–16:02 UTC:**
+- an unknown slug (`/zz-sonde-b18-160144`): 404 with the real page (416 visible characters), `x-matched-path: /404`. Cloud Run logged `GET /providers/by-slug/zz-sonde-b18-160144` 404 with the user agent « Vercel Edge Functions »: the middleware runs in production and asks the API once;
+- `/test-3`: 200 from the build, no `x-myweli-salon-page` header;
+- `/recherche/salon/test-3`: 404;
+- `/coiffure-cocody`: 308, as before; `/cgu` and `/recherche`: 200;
+- `tool/check-salon-pages.mjs` against production: `/test-3: static`;
+- read again on 2026-11-26 at 10:57 UTC, on `3f3305a5`: an unknown slug 404 (`/404`), `/test-3` 200 (`/test-3`), `/recherche/salon/test-3` 404 (`/404`).
+
+**The production check's first run:** `production-checks.yml` run 45654291749 (event `schedule`, started by GitHub at 16:28 UTC on `59409ef0`; the cron says 06:00). 12 checks of 12, the alarm closed. `salonpages` printed « 1 public salon(s) listed by the API », « /test-3: static », « every public salon is served by the build ».
+
+**Decision 259:** « Yes, mine » (§2.3, §11).
+
+**Not observed:**
+- the live path on Vercel: it needs a salon that is public and not yet built, and the only public salon is built. The next salon validation exercises it (§9.4);
+- Vercel's middleware quota (the Vercel console).

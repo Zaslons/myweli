@@ -1,4 +1,4 @@
-- 🟡 **B18.1 : la page d’un salon fonctionne dès qu’il est public, le « live fallback » (site · 2026-11-25).** Branche `feat/web-salon-page-live-fallback`, PR #871, rebasée sur `main` après la fusion de la spec (#870, `73f12886`). Spec : [web-salon-page-live-fallback.md](../../design/web-salon-page-live-fallback.md), décisions 255–258.
+- 🟢 **B18.1 : la page d’un salon fonctionne dès qu’il est public, le « live fallback » (site · 2026-11-25).** Branche `feat/web-salon-page-live-fallback`, PR #871, rebasée sur `main` après la fusion de la spec (#870, `73f12886`). Spec : [web-salon-page-live-fallback.md](../../design/web-salon-page-live-fallback.md), décisions 255–258.
   - **Le défaut, mesuré en production :** un salon validé après le dernier build était listé par la recherche, mais sa page répondait « Page introuvable » jusqu’à ce que la reconstruction soit en ligne. Encore 404 2 min 42 s après la demande, 200 à 4 min 46 s.
   - **Construit :**
     - **une seule liste de salons par build.** Le prebuild (`tool/build-salon-slugs.mjs`) lit `GET /sitemap/providers` une fois ; `next.config.mjs` l’intègre au code, avec les routes du site, pour `generateStaticParams` et le middleware ;
@@ -24,7 +24,14 @@
     - la vérification de production ne vérifiait rien dans un chemin avec une espace : `file://` construit à la main contre `import.meta.url`. Vu en la lançant contre la production, corrigé par `pathToFileURL`. Puis lue : 1 salon public, `/test-3`, servi par le build ;
     - une carte de la recherche est un simple `<a>` : un clic recharge la page pour tout salon.
   - **Aucune donnée de production n’a été modifiée.**
-  - **Reste :**
-    - la fusion de cette PR, sur le mot du propriétaire (#870 fusionnée) : un déploiement du site en production ;
-    - la lecture après (spec §9) ;
-    - la décision 259.
+  - **Fusionnée** le 2026-11-25 à 15 h 54 UTC sur le mot du propriétaire (#871, `a4c37cbc`) : l’arbre de `main` égal à la tête testée `e39093fc`, aucune ligne d’attribution, 12 contrôles sur 12.
+  - **Déployée :** le déploiement de production de Vercel a réussi à 16 h 01 UTC.
+  - **Relue en production** (spec §14), en lecture seule :
+    - une adresse inconnue : 404 avec la vraie page. Le journal de Cloud Run montre la lecture par slug venue de « Vercel Edge Functions » : le middleware tourne en production ;
+    - `/test-3` : 200, servie par le build ;
+    - `/recherche/salon/test-3` : 404 ;
+    - `/coiffure-cocody` : 308 ; `/cgu` et `/recherche` : 200 ;
+    - relue le 2026-11-26 à 10 h 57 UTC : les mêmes réponses.
+  - **Première exécution de `salonpages`** (run 45654291749, lancée par GitHub à 16 h 28 UTC) : 12 contrôles sur 12, l’alarme fermée, « /test-3: static ».
+  - **Pas encore vu :** un salon public servi en direct avant sa reconstruction. Le seul salon public est déjà construit ; la prochaine validation le montrera.
+  - **La décision 259 :** « Yes, mine ».
