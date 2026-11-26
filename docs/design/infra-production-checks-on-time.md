@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | **Draft 2026-11-26**, written on the owner's « Spec the on-time trigger ». Read by two independent reviewers, each told to refute it (§12): three blocking findings changed the design. Six questions in §11 (decisions 266–271). Nothing built. |
+| **Status** | **Approved by the owner on 2026-11-26** (« Approve as recommended »: the six recommendations of §11, BACKLOG decisions 266–271). Written on the owner's « Spec the on-time trigger », then read by two independent reviewers, each told to refute it (§12): three blocking findings changed the design. Next: B19.1, the probe (§3.2), its merge on the owner's word. |
 | **Owner** | the project owner: the answers, each step's go; in step 2, the GitHub App, its key and the environment settings |
 | **Last updated** | 2026-11-26 |
 | **PRD ref / phase** | none: operations. The monitor of everything this repo cannot check at merge time (`.github/workflows/production-checks.yml`) · V1 |
@@ -459,7 +459,7 @@ Each step on the owner's word.
 
 ---
 
-## 11. Open questions (decisions 266–271)
+## 11. Open questions (decisions 266–271, all answered 2026-11-26: « Approve as recommended »)
 
 1. **Which first?** (decision 266)
    - *Recommended:* step 1: the three-day hourly probe, then the morning gate if its ticks arrive by 07:00. No new credential.

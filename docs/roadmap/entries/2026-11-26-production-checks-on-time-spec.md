@@ -13,4 +13,5 @@
     - le lancement de 06 h 00 n’aurait jamais pu fermer l’alarme ;
     - la règle de relecture aurait montré du vert quoi que fasse le matin.
   - **Six questions** (décisions 266–271).
-  - **Reste :** les réponses, puis la fusion, sur le mot du propriétaire ; ensuite la sonde, chaque étape sur son mot.
+  - **Approuvée le 2026-11-26 :** « Approve as recommended », décisions 266–271 dans le BACKLOG (lot 19).
+  - **Reste :** la fusion, sur le mot du propriétaire ; puis B19.1, la sonde, construite dans sa propre PR empilée sur celle-ci, dont la fusion la démarre, sur son mot.
