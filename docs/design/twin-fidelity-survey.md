@@ -83,6 +83,7 @@ These are not test gaps. In each, the twin does what the code means, and Postgre
 
 - **For users:** rare, because it takes typing someone else's address. When it happens, the answer is a generic failure. A clear refusal (`409 email_taken`, with French copy in the apps) is the fix.
 - **The twin's half is worse in a test than in production:** a test would « prove » that B's sign-in reaches A.
+- *2026-11-26 — wider than this section says* ([account-email-change.md](account-email-change.md) §2.4, B16.3): the address a person types is stored unproven, and every sign-in finds an account by it, so its real owner lands in the typer's account, on both twins. The fix is that spec's, not a `409` alone.
 
 ### 2.4 Two smaller production inconsistencies
 

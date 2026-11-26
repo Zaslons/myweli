@@ -1,0 +1,18 @@
+- 🟡 **Spec : l’adresse e-mail d’un compte ne change qu’une fois prouvée (B16.3) (backend · app · documentation · 2026-11-26 — BACKLOG B16.3, décision 219).** Branche `docs/b16-3-email-taken`, créée depuis `main` (`4d34348d`). Spec : [account-email-change.md](../../design/account-email-change.md). Documentation seule : aucun code.
+  - **Ce que l’étude avait trouvé :** `PATCH /me` avec l’adresse d’un autre compte répond 500 en production ; le double en mémoire la donne au compte qui la tape.
+  - **Ce que la spec a trouvé à côté, prouvé sur les deux doubles** (une sonde jetable et une base locale jetable, supprimées après), avec un témoin :
+    - **le piège :** l’adresse tapée dans son profil est enregistrée sans preuve, et les deux connexions (par code, et Google ou Apple) trouvent un compte par elle. Le vrai titulaire de l’adresse, en se connectant plus tard, atterrit dans le compte de qui l’a tapée, et les deux y gardent l’accès ;
+    - **la coupure :** un compte par code qui efface son adresse n’a plus de chemin : sa connexion suivante crée un compte vide ;
+    - **le 500 parle à un tiers :** chaque 500 de production est envoyé à Sentry avec le détail de Postgres, qui nomme l’adresse de l’autre personne.
+  - **Atteignable aujourd’hui** en production par `/api/me` du site, qui transmet le corps tel quel, ou par l’API ; l’application client, pas encore publiée, envoie l’adresse à chaque enregistrement du profil.
+  - **La conception proposée :**
+    - une adresse n’atteint un compte qu’une fois prouvée ; une preuve la reprend à qui la tient sans preuve ; une adresse Google non garantie n’est gardée que libre ;
+    - un changement d’adresse se prouve par un code envoyé à la nouvelle (deux routes sous `/me/email`) ; `PATCH /me` ne la change ni ne l’efface plus ;
+    - « adresse déjà prise » dite seulement à qui prouve la boîte, sans énumération (T32) ;
+    - un lien Google ou Apple jamais remplacé ; les routes nouvelles sous les limites par IP et par compte ; un compte suspendu refusé ; le détail de Postgres retiré des rapports d’erreur ;
+    - dans l’application, « Modifier le profil » montre l’adresse avec « Modifier », puis un écran en deux étapes, l’adresse puis le code ;
+    - un contrat sur les deux doubles, rouge d’abord ; T33 corrigé, une nouvelle ligne T86.
+  - **Relue une fois par un lecteur indépendant, chargé de la réfuter contre le code :** 20 constats, chacun relu dans le code puis intégré. Deux bloquants : le « 500 Google » ne peut pas arriver par une route (Google refuse le jeton d’une adresse non garantie), et une session seule pouvait déplacer la connexion d’un compte vers la boîte d’un voleur (question 6).
+  - **Six questions** (décisions 260–265), dont une lecture de production en lecture seule avant le déploiement, la priorité (P1, en deux PR : le backend, puis l’application), et si une session seule peut changer l’adresse avec laquelle un compte se connecte.
+  - **Approuvée le 2026-11-26 :** les six réponses d’un coup, « Approve as recommended », décisions 260–265 dans le BACKLOG (lot 16) : une P1, en deux PR, le backend (B16.3a) puis l’application (B16.3b) ; une lecture de production en lecture seule et un compte Sentry avant le déploiement de B16.3a.
+  - **Reste :** la fusion de cette PR, sur le mot du propriétaire ; puis B16.3a, construit dans sa propre PR, sur le mot du propriétaire.
