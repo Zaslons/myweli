@@ -243,8 +243,9 @@ void main() {
         row(channel: null, userId: 'u2', price: 1000),
       ]);
       final g = group0(r);
-      Map byKey(String axis, String? key) =>
-          (g[axis] as List).firstWhere((x) => (x as Map)['key'] == key) as Map;
+      Map<dynamic, dynamic> byKey(String axis, String? key) =>
+          (g[axis] as List).firstWhere((x) => (x as Map)['key'] == key)
+              as Map<dynamic, dynamic>;
 
       // Live name wins over the kept one.
       expect(byKey('byArtist', 'ar1')['label'], 'Aminata');
