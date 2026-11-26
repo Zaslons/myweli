@@ -1591,3 +1591,37 @@ so collaborateurs added without a capture are removed at the next reset.
 Early in a month, « Mois » can show no completed booking yet: the agenda's
 latest is three days back. « Semaine », « Année » and « Dates » still show
 figures.
+
+### 20.6 Mutations watched red (on committed code)
+
+Each applied alone, its target tests run, the file restored; each turned the
+named test red. A no-op edit (the control) stayed green.
+
+| # | Mutation | Red on |
+|---|---|---|
+| 1 | drop `confirmed` from « Prévu » | « a booking that ends exactly now is still « Prévu » », the three-hour braid |
+| 2 | count `pending` as « Prévu » | « pending: from now on counts » |
+| 3 | sum two currencies | « two currencies → two groups », « a currency met only in the comparison » |
+| 4 | date the series in UTC, not salon time | « 23:30 and 00:30 salon time land on their SALON days » |
+| 5 | compare the full previous month while in progress | the period's like-for-like tests; the service's « 25 October 14:00 / 15:00 » |
+| 6 | give the rounding remainder to the first line | « the remainder to the LARGEST line » |
+| 7 | label a removed artist « active » | « the labels table », « an unknown id » |
+| 8 | skip `finances.view` on the ledger | « deny by default, on BOTH endpoints » (each role, revoked), « another salon → 403 on both » |
+| 9 | accept `channel=Web` | « each malformed parameter → 400 » |
+| 10 | order equal amounts by arrival | « the sort is a total order » |
+| 11 | date « À clôturer » by the start | the braid test, and « the ledger lists exactly what the figures count » |
+| 12 | return `clientDisplayName` without `clients.view` | « without clients.view: the field is ABSENT » |
+| 13 | cut the current range at now | the period's « never cut at now », the Accueil equality, the like-for-like service test |
+| 14 | skip `finances.view` on the figures | the same role tests as 8 |
+| 15 | the in-memory ledger's « toClose » by the start | the twin contract's « by the END against asOf » |
+| 16 | the same in Postgres's SQL | the same contract, on Postgres |
+| 17 | Postgres's prestation filter on raw `service_ids` | « reads a jsonb array and a JSON string », the contract's filters |
+| 18 | `revenueRows` returns `service_ids` undecoded | the contract's narrow-keys test |
+| 19 | the ledger's total = the page's length | « the total counts every match » |
+| 20 | `displayNamesFor` across salons (Postgres) | « by user id and by phone, this salon only » |
+| 21 | the demo agenda leaves its past bookings open | « past bookings closed as the app closes them », « the owner's « Revenus » then has figures » |
+| 22 | an estimated line not marked | the three `estimated` tests |
+| 23 | the like-for-like cut at midnight, not the wall-clock time | the period's and the service's like-for-like tests |
+
+Three first attempts proved nothing and were redone: two did not apply
+(the formatter had reflowed the line), one broke the build instead of a test.
