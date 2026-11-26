@@ -1,4 +1,4 @@
-- 🟡 **MyWeli (client), A4 : une recherche qui cherche, les cinq catégories, « Afficher plus de salons » et la carte qui dit sa commune (app · 2026-11-25 — BACKLOG B0.10, décisions 228 à 236 ; FR-DISC-003, 004, 005, 007 ; écarts 11 et 20 de l’audit, moitié « commune » du 22).** Branche `feat/a4-app-search`, depuis `main` `da5faa09`. Spec : [consumer-search.md](../../design/consumer-search.md) §2 et §3.2.
+- 🟢 **MyWeli (client), A4 : une recherche qui cherche, les cinq catégories, « Afficher plus de salons » et la carte qui dit sa commune (app · 2026-11-25 — BACKLOG B0.10, décisions 228 à 236 ; FR-DISC-003, 004, 005, 007 ; écarts 11 et 20 de l’audit, moitié « commune » du 22).** Branche `feat/a4-app-search`, depuis `main` `da5faa09`. Spec : [consumer-search.md](../../design/consumer-search.md) §2 et §3.2.
   - **Pourquoi :**
     - la barre « Rechercher un salon… » ouvrait la liste, sans aucun champ ;
     - quatre catégories génériques : un salon `nails` ou `massage` était introuvable par catégorie ;
@@ -30,4 +30,6 @@
     - les fuites vers l’accueil et le nom du salon sur un rendez-vous, rouges d’abord sur `main` ;
     - le débordement au clavier, rouge d’abord sur `11b6f8e9` ;
     - 8 goldens nouveaux et 2 changés (les catégories de l’accueil), faits sur Linux et regardés un par un.
-  - **Non fait ici :** le build client, son envoi et sa publication, chacun sur le mot du propriétaire ; A4w (le site), ensuite.
+  - **Fusionnée** le 2026-11-26 sur le mot du propriétaire (#878, `f49de03d`) : l’arbre de `main` égal à la tête testée `45237409`, aucune ligne d’attribution, 13 contrôles sur 13 ; sur `main` ensuite, la CI et le build iOS au vert. La branche a été mise à jour depuis `main` par une fusion et non un rebase, pour que les empreintes citées dans la spec restent valides.
+  - **Rien n’est déployé :** la recherche atteint les gens avec le prochain build client ; ce build, son envoi et sa publication restent chacun sur le mot du propriétaire.
+  - **Ensuite :** A4w (le site), sur le mot du propriétaire.
