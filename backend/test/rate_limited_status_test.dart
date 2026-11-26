@@ -177,6 +177,8 @@ void main() {
       // POST /uploads/sign, delegates and so is deliberately absent here.
       'routes/appointments/index.dart': 'LIMITED — maps rate_limited',
       'routes/appointments/[id]/review.dart': 'LIMITED — maps rate_limited',
+      // B16.3: its fallback is the code's refusals, each a 400 as at sign-in.
+      'routes/me/email/otp/verify.dart': 'LIMITED — maps rate_limited',
 
       // Not rate-limited, and each says why.
       'routes/appointments/[id]/deposit.dart':

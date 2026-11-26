@@ -141,14 +141,15 @@ void main() {
       (await repo.requestOtp(phone)).devCode!,
     )).user!;
 
-    final updated = await repo.updateUser(
-      user.id,
-      name: 'Awa',
-      email: 'a@b.ci',
-    );
+    final updated = await repo.updateUser(user.id, name: 'Awa');
     expect(updated!.name, 'Awa');
-    expect(updated.email, 'a@b.ci');
-    expect((await repo.updateUser(user.id, email: ''))!.email, isNull);
+    // The address is not a profile field any more (B16.3): it changes only
+    // through `changeEmail`, proven — account_email_contract.dart.
+    final code = (await repo.requestEmailOtp('a@b.ci')).devCode!;
+    final changed = await repo.changeEmail(user.id, 'a@b.ci', code);
+    expect(changed.ok, isTrue);
+    expect(changed.user!.email, 'a@b.ci');
+    expect(changed.user!.emailVerified, isTrue);
 
     expect(await repo.deleteUser(user.id), isTrue);
     expect(await repo.userById(user.id), isNull);

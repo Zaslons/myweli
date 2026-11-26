@@ -29,6 +29,27 @@ typedef OtpVerifyResult = ({
   TokenPair? tokens,
 });
 
+/// Outcome of [AuthRepository.changeEmail] (B16.3,
+/// docs/design/account-email-change.md §3.1, §5.2). On success [user] holds
+/// the address, proven, and [previousEmail] is the address it replaced **if
+/// that one was proven** (the notice goes there, Q6); null otherwise.
+///
+/// [error] is one of: the new address's code refused (`otp_invalid`,
+/// `otp_expired`, `otp_none`, `otp_locked`); the current address's code
+/// refused or missing when required (the same four, prefixed `current_`);
+/// `email_unchanged` (it is already this account's proven address);
+/// `email_taken` (another account proved it); `account_suspended`;
+/// `not_found`.
+typedef EmailChangeResult = ({
+  bool ok,
+  String? error,
+  AuthUser? user,
+  String? previousEmail,
+});
+
+EmailChangeResult emailChangeRefused(String error) =>
+    (ok: false, error: error, user: null, previousEmail: null);
+
 /// What one refresh-token exchange did — the same four answers on every
 /// principal (consumer, provider, admin) and in every store. Design:
 /// docs/design/backend-refresh-rotation-atomic.md §5.
@@ -141,6 +162,7 @@ class AuthUser {
     'phoneVerified': phoneVerified,
     'name': name,
     'email': email,
+    'emailVerified': emailVerified,
     'authProvider': authProvider,
     'avatarUrl': avatarUrl,
     'status': status,
@@ -198,10 +220,16 @@ abstract interface class AuthRepository {
   Future<void> refundEmailOtpResend(String email);
   Future<OtpVerifyResult> verifyEmailOtp(String email, String code);
 
-  /// Login with **verified** identity-provider claims (Google/Apple). Link
-  /// rules (§4): match by provider [sub] → else by **verified** [email]
-  /// (linking the sub) → else create. Never links on an unverified email
-  /// (threat model T33).
+  /// Login with identity-provider claims (Google/Apple). The rules
+  /// (docs/design/account-email-change.md §5.1, B16.3):
+  /// 1. by provider [sub]; an account found so, holding [email] unproven,
+  ///    has it marked proven when the provider verified it;
+  /// 2. else by a **verified** [email] that an account has **proven**: the sub
+  ///    links to it when its own sub for this provider is empty, and is
+  ///    **never replaced** otherwise (a new account without the address);
+  /// 3. else create, taking a verified [email] from any account holding it
+  ///    unproven. An unverified [email] is stored only when no account holds
+  ///    it, and never takes anything (threat model T33).
   Future<OtpVerifyResult> loginWithSocial({
     required String provider,
     required String sub,
@@ -214,16 +242,37 @@ abstract interface class AuthRepository {
   Future<RefreshResult> refresh(String refreshToken);
   Future<AuthUser?> userById(String id);
 
-  /// Update mutable profile fields. Empty string clears [email]/[phone];
-  /// setting a new [phone] resets `phoneVerified` (contact until verified).
+  /// Update mutable profile fields. Empty string clears [phone]; setting a
+  /// new [phone] resets `phoneVerified` (contact until verified).
+  ///
+  /// **The address is not here** (B16.3): it changes only through
+  /// [changeEmail], proven. A profile edit that could write it stored an
+  /// address nobody had proven, and every sign-in found an account by it.
   Future<AuthUser?> updateUser(
     String id, {
     String? name,
-    String? email,
     String? avatarUrl,
     String? phone,
   });
   Future<bool> deleteUser(String id);
+
+  // --- An account's e-mail — docs/design/account-email-change.md (B16.3) --
+  /// Whether changing [userId]'s address also takes a code sent to its
+  /// current one (decision 265): the account has a proven address and no
+  /// Google or Apple link, so that address is its only way in.
+  Future<bool> emailIsOnlySignIn(String userId);
+
+  /// Proves [email] by [code] (and the current address by [currentCode] when
+  /// [emailIsOnlySignIn]), then makes it [userId]'s address, proven, taking
+  /// it from any account holding it unproven. Atomic: nothing is consumed
+  /// unless the change is made, and on `email_taken` the code stays valid
+  /// for its owner's sign-in (§3.1, §5.3).
+  Future<EmailChangeResult> changeEmail(
+    String userId,
+    String email,
+    String code, {
+    String? currentCode,
+  });
 
   // --- Admin user management — design: docs/design/admin-console.md §12 ------
   /// Set a user's `status` (`active`/`banned`). Banned → login blocked. Returns
@@ -330,8 +379,15 @@ class InMemoryAuthRepository implements AuthRepository {
     );
   }
 
-  /// Check a code against [store]; null means valid (and consumed).
-  String? _checkOtp(Map<String, _Otp> store, String key, String code) {
+  /// Check a code against [store]; null means valid — and consumed, unless
+  /// [consume] is false (the e-mail change checks both codes before it
+  /// consumes either, §5.3). A refusal is accounted either way.
+  String? _checkOtp(
+    Map<String, _Otp> store,
+    String key,
+    String code, {
+    bool consume = true,
+  }) {
     final otp = store[key];
     if (otp == null) return 'otp_none';
     if (DateTime.now().isAfter(otp.expiresAt)) {
@@ -343,7 +399,7 @@ class InMemoryAuthRepository implements AuthRepository {
       otp.attemptsLeft -= 1;
       return otp.attemptsLeft <= 0 ? 'otp_locked' : 'otp_invalid';
     }
-    store.remove(key);
+    if (consume) store.remove(key);
     return null;
   }
 
@@ -365,21 +421,22 @@ class InMemoryAuthRepository implements AuthRepository {
     if (error != null) {
       return (ok: false, error: error, user: null, tokens: null);
     }
-    // Inbox ownership proven → the email is verified.
-    final existing = _usersByEmail[key];
-    final user =
-        existing ??
-        _addUser(
-          AuthUser(
-            id: _newId('user'),
-            createdAt: DateTime.now().toUtc(),
-            email: key,
-            emailVerified: true,
-            authProvider: 'email',
-          ),
-        );
-    user.emailVerified = true;
-    return _loginAs(user);
+    // B16.3 §5.1: the code proves the inbox, so the address reaches only an
+    // account that PROVED it; one holding it unproven loses it to the prover.
+    final holder = _usersByEmail[key];
+    if (holder != null && holder.emailVerified) return _loginAs(holder);
+    if (holder != null) _take(holder);
+    return _loginAs(
+      _addUser(
+        AuthUser(
+          id: _newId('user'),
+          createdAt: DateTime.now().toUtc(),
+          email: key,
+          emailVerified: true,
+          authProvider: 'email',
+        ),
+      ),
+    );
   }
 
   @override
@@ -393,32 +450,144 @@ class InMemoryAuthRepository implements AuthRepository {
   }) async {
     final key = '$provider:$sub';
     final emailKey = email?.trim().toLowerCase();
-    var user = _usersBySocial[key];
-    if (user == null && emailKey != null && emailVerified) {
-      // Link rule §4: a verified email joins this provider to the existing
-      // account (never on an unverified email — T33).
-      user = _usersByEmail[emailKey];
-      if (user != null) {
-        _usersBySocial[key] = user;
-        user
-          ..emailVerified = true
-          ..name ??= name
-          ..avatarUrl ??= avatarUrl;
-      }
+    final proves = emailKey != null && emailVerified;
+    // 1. By sub. Its own unproven address, asserted by the provider, is
+    //    proven now; it takes nothing from anyone else (B16.3 §5.1).
+    final bySub = _usersBySocial[key];
+    if (bySub != null) {
+      if (proves && bySub.email == emailKey) bySub.emailVerified = true;
+      return _loginAs(bySub);
     }
-    user ??= _addUser(
-      AuthUser(
-        id: _newId('user'),
-        createdAt: DateTime.now().toUtc(),
-        email: emailKey,
-        emailVerified: emailVerified && emailKey != null,
-        authProvider: provider,
-        name: name,
-        avatarUrl: avatarUrl,
-      ),
-      socialKey: key,
-    );
-    return _loginAs(user);
+    final holder = emailKey == null ? null : _usersByEmail[emailKey];
+    AuthUser create({required String? address, required bool proven}) =>
+        _addUser(
+          AuthUser(
+            id: _newId('user'),
+            createdAt: DateTime.now().toUtc(),
+            email: address,
+            emailVerified: proven,
+            authProvider: provider,
+            name: name,
+            avatarUrl: avatarUrl,
+          ),
+          socialKey: key,
+        );
+    if (!proves) {
+      // Kept out: an unverified address is stored only when nobody holds it,
+      // and takes nothing (T33).
+      return _loginAs(
+        create(address: holder == null ? emailKey : null, proven: false),
+      );
+    }
+    // 2. A proven holder: link when its sub for this provider is empty; a
+    //    sub already there is NEVER replaced (the account it reaches stays
+    //    its holder's) — this sign-in gets an account of its own.
+    if (holder != null && holder.emailVerified) {
+      if (_linkedTo(holder.id, provider)) {
+        return _loginAs(create(address: null, proven: false));
+      }
+      _usersBySocial[key] = holder;
+      holder
+        ..name ??= name
+        ..avatarUrl ??= avatarUrl;
+      return _loginAs(holder);
+    }
+    // 3. Take it from an unproven holder, then create.
+    if (holder != null) _take(holder);
+    return _loginAs(create(address: emailKey, proven: true));
+  }
+
+  /// Whether account [id] already has a sub for [provider].
+  bool _linkedTo(String id, String provider) => _usersBySocial.entries.any(
+    (e) => e.value.id == id && e.key.startsWith('$provider:'),
+  );
+
+  /// The holder of an address it never proved loses it (B16.3 §5.1). Its
+  /// account, sessions and other sign-ins stay.
+  void _take(AuthUser holder) {
+    _usersByEmail.remove(holder.email);
+    holder
+      ..email = null
+      ..emailVerified = false;
+  }
+
+  /// **A test seam, not a writer:** puts [email] on account [id] unproven,
+  /// the state a profile edit left before B16.3 — and the state such accounts
+  /// keep in production — so the contract can set a trap on this twin as it
+  /// does on Postgres by SQL. No route reaches it.
+  void plantUnprovenEmailForTest(String id, String email) {
+    final user = _usersById[id]!;
+    if (user.email != null) _usersByEmail.remove(user.email);
+    final key = email.trim().toLowerCase();
+    user
+      ..email = key
+      ..emailVerified = false;
+    _usersByEmail[key] = user;
+  }
+
+  @override
+  Future<bool> emailIsOnlySignIn(String userId) async {
+    final user = _usersById[userId];
+    return user != null &&
+        user.email != null &&
+        user.emailVerified &&
+        !_linkedTo(userId, 'google') &&
+        !_linkedTo(userId, 'apple');
+  }
+
+  /// No `await` between the reads and the writes: atomic by construction on
+  /// the one isolate, as Postgres's transaction is (§5.3).
+  @override
+  Future<EmailChangeResult> changeEmail(
+    String userId,
+    String email,
+    String code, {
+    String? currentCode,
+  }) async {
+    final user = _usersById[userId];
+    if (user == null) return emailChangeRefused('not_found');
+    if (user.status == 'banned') return emailChangeRefused('account_suspended');
+    final key = email.trim().toLowerCase();
+    if (user.email == key && user.emailVerified) {
+      return emailChangeRefused('email_unchanged');
+    }
+    // The new address's code FIRST, so « taken » is said only to whoever
+    // proves the inbox (decision 262); checked, not yet consumed.
+    final refused = _checkOtp(_emailOtps, key, code, consume: false);
+    if (refused != null) return emailChangeRefused(refused);
+    final holder = _usersByEmail[key];
+    if (holder != null && holder.id != userId && holder.emailVerified) {
+      // Nothing consumed: the code still signs its owner in (§3.1).
+      return emailChangeRefused('email_taken');
+    }
+    final current = user.email;
+    final needsCurrent =
+        current != null &&
+        user.emailVerified &&
+        !_linkedTo(userId, 'google') &&
+        !_linkedTo(userId, 'apple');
+    if (needsCurrent) {
+      if (currentCode == null) return emailChangeRefused('current_otp_none');
+      final refusedCurrent = _checkOtp(
+        _emailOtps,
+        current,
+        currentCode,
+        consume: false,
+      );
+      if (refusedCurrent != null) {
+        return emailChangeRefused('current_$refusedCurrent');
+      }
+      _emailOtps.remove(current);
+    }
+    _emailOtps.remove(key);
+    if (holder != null && holder.id != userId) _take(holder);
+    final previous = user.emailVerified ? current : null;
+    if (current != null) _usersByEmail.remove(current);
+    user
+      ..email = key
+      ..emailVerified = true;
+    _usersByEmail[key] = user;
+    return (ok: true, error: null, user: user, previousEmail: previous);
   }
 
   OtpVerifyResult _loginAs(AuthUser user) {
@@ -491,28 +660,17 @@ class InMemoryAuthRepository implements AuthRepository {
     return (items: items, total: all.length);
   }
 
-  /// Update mutable profile fields. `email: ''`/`phone: ''` clear; null leaves.
+  /// Update mutable profile fields. `phone: ''` clears; null leaves.
   @override
   Future<AuthUser?> updateUser(
     String id, {
     String? name,
-    String? email,
     String? avatarUrl,
     String? phone,
   }) async {
     final user = _usersById[id];
     if (user == null) return null;
     if (name != null && name.isNotEmpty) user.name = name;
-    if (email != null) {
-      final newEmail = email.isEmpty ? null : email.trim().toLowerCase();
-      if (newEmail != user.email) {
-        if (user.email != null) _usersByEmail.remove(user.email);
-        user
-          ..email = newEmail
-          ..emailVerified = false;
-        if (newEmail != null) _usersByEmail[newEmail] = user;
-      }
-    }
     if (avatarUrl != null) user.avatarUrl = avatarUrl;
     if (phone != null) {
       final newPhone = phone.isEmpty ? null : phone.trim();

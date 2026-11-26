@@ -199,13 +199,27 @@ void main() {
       expect(res.user!.authProvider, 'phone');
     });
 
-    test('changing email resets emailVerified', () async {
-      final r = repo();
-      final code = (await r.requestEmailOtp('a@x.com')).devCode!;
-      final user = (await r.verifyEmailOtp('a@x.com', code)).user!;
-      final changed = await r.updateUser(user.id, email: 'b@x.com');
-      expect(changed!.email, 'b@x.com');
-      expect(changed.emailVerified, isFalse);
-    });
+    test(
+      'a changed address is a PROVEN one (B16.3: no unproven writer)',
+      () async {
+        // Before B16.3, `updateUser` stored the new address unproven, and every
+        // sign-in found an account by it (account-email-change.md §1).
+        final r = repo();
+        final code = (await r.requestEmailOtp('a@x.com')).devCode!;
+        final user = (await r.verifyEmailOtp('a@x.com', code)).user!;
+        final fresh = (await r.requestEmailOtp('b@x.com')).devCode!;
+        final current = (await r.requestEmailOtp('a@x.com')).devCode!;
+        final changed = await r.changeEmail(
+          user.id,
+          'b@x.com',
+          fresh,
+          currentCode: current,
+        );
+        expect(changed.ok, isTrue, reason: '${changed.error}');
+        expect(changed.user!.email, 'b@x.com');
+        expect(changed.user!.emailVerified, isTrue);
+        expect(changed.previousEmail, 'a@x.com');
+      },
+    );
   });
 }
