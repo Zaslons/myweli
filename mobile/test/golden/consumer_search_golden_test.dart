@@ -113,6 +113,18 @@ void main() {
     await settleMocks(tester, rounds: 3);
   }
 
+  /// The salons' photos are decoded off the fake clock. The file's first
+  /// picture was taken before Beauté Divine's photo landed — a white
+  /// thumbnail at 1× and the photo at 2×, where the cache already held it.
+  Future<void> loadPhotos(WidgetTester tester) async {
+    await tester.runAsync(() async {
+      for (final element in find.byType(Image).evaluate()) {
+        await precacheImage((element.widget as Image).image, element);
+      }
+    });
+    await tester.pump();
+  }
+
   Future<void> type(WidgetTester tester, String text) async {
     await tester.enterText(find.byType(TextField), text);
     await tester.pump(const Duration(milliseconds: 350));
@@ -136,6 +148,7 @@ void main() {
         );
         await type(tester, 'beaute');
         expect(find.text('1 salon'), findsOneWidget);
+        await loadPhotos(tester);
         await expectGolden(tester, 'consumer_search_results${at.tag}');
       });
 
@@ -148,6 +161,7 @@ void main() {
         );
         await type(tester, 'tresses');
         expect(find.text('Aucun résultat pour « tresses »'), findsOneWidget);
+        await loadPhotos(tester);
         await expectGolden(tester, 'consumer_search_empty${at.tag}');
       });
 
@@ -171,6 +185,7 @@ void main() {
               .first,
         );
         await tester.pump();
+        await loadPhotos(tester);
         await expectGolden(tester, 'consumer_search_more${at.tag}');
       });
 
@@ -183,6 +198,7 @@ void main() {
           find.text('50 salons sur 64 affichés — choisissez une commune'),
           findsOneWidget,
         );
+        await loadPhotos(tester);
         await expectGolden(tester, 'consumer_map_commune${at.tag}');
       });
     }
