@@ -1,0 +1,9 @@
+- 🟡 **Registre : B16.2 fusionnée, lue avant, déployée et relue ; #862 consignée comme fusionnée (documentation · 2026-11-26 — BACKLOG B16.2, décision 253).** Branche `docs/records-b16-2-deploy`, créée depuis `main` (`8159fb84`). Documentation seule : aucun code ne change, rien n’est construit ni déployé.
+  - **Ce qui est consigné :**
+    - [demo-reset-restore.md](../../design/demo-reset-restore.md) : son statut et une §9.1 « As run » (la fusion, la lecture avant, le choix du propriétaire, le déploiement et sa relecture) ;
+    - le BACKLOG : la ligne 16, B16.2, la décision 253 et une ligne au journal de l’ordre proposé ;
+    - l’index des specs ;
+    - [backend-demo-review-account.md](../../design/backend-demo-review-account.md) §6.2 : la date de mise en production.
+  - **Deux entrées passent au vert,** chacune avec sa fusion relue (l’arbre de `main` égal à la tête testée, aucune ligne d’attribution, 12 contrôles sur 12) : le registre de B16.1 (#862, `d6e319e0`) et B16.2 (#869, `59409ef0`), avec sa lecture, son déploiement et sa relecture.
+  - **Non touchées :** #867, #872, #870, #871 et #873 relèvent d’autres sessions ; chacune consigne les siennes.
+  - **Reste :** la fusion de cette PR, sur le mot du propriétaire ; son entrée passe au vert dans le registre suivant. Puis, sur son mot, la lecture après la première réinitialisation corrigée (2026-11-30).

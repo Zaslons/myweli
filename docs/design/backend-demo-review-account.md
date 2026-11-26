@@ -288,7 +288,9 @@ at once:
   document, so a reviewer's services, hours and before/after pairs stayed
   for the next reviewer. The restore now puts them back through their own
   writers, leaves `featured` and the rating to their owners, and refuses a
-  snapshot it cannot apply (`refused:bad_snapshot`).
+  snapshot it cannot apply (`refused:bad_snapshot`). In production since
+  2026-11-26 (`myweli-api-00060-bwq`); the first fixed reset is due
+  2026-11-30 03:30 UTC.
 
 ### 6.3 Threat-model delta — new row T69
 
