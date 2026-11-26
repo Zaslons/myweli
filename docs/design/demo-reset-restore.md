@@ -3,9 +3,9 @@
 | | |
 |---|---|
 | **Module** | backend: the store-review demo (`DemoResetService`, the demo snapshot store) and `providers` (one new writer, `replaceServices`) |
-| **Status** | **Approved 2026-11-25.** The owner answered the five questions of §11 at once, « Approve as recommended »: decisions 250–254 in BACKLOG, batch 16 (#865). **B16.2 built 2026-11-25** (§8.8), on the owner's « Yes, build B16.2 », in its own backend PR, #869; not merged. The merge, the read before the deploy (decision 253), the deploy and the read after, each on the owner's word. |
+| **Status** | **Approved 2026-11-25.** The owner answered the five questions of §11 at once, « Approve as recommended »: decisions 250–254 in BACKLOG, batch 16 (#865). **B16.2 built 2026-11-25** (§8.8), on the owner's « Yes, build B16.2 », in its own backend PR, **merged** as `59409ef0` (#869). **Read before the deploy** on 2026-11-25 (§9.1): the live demo equals the snapshot except its hours; the owner chose « Let the reset restore ». **Deployed** on 2026-11-26 (`myweli-api-00060-bwq`, image `59409ef`) and read back. The first fixed reset is due 2026-11-30 03:30 UTC; the read after it, on the owner's word. |
 | **Owner** | the project owner: the answers, the build's go, the merge, the read before the deploy, the deploy and the read after it, each on the owner's word |
-| **Last updated** | 2026-11-25 |
+| **Last updated** | 2026-11-26 |
 | **PRD ref / phase** | the store-review account (threat T69) · V1 |
 | **ROADMAP entry** | [2026-11-25-demo-reset-restore-spec.md](../roadmap/entries/2026-11-25-demo-reset-restore-spec.md) |
 | **Skills checked** | myweli-dev-guardrails · myweli-backend-guardrails · myweli-verification-guardrails · [BACKEND.md](../BACKEND.md) §5 (decision 223), §7 (T69) |
@@ -335,6 +335,47 @@ Branch `fix/b16-2-demo-reset` from `main` (`afd2de97`). Two commits: the tests r
 - **The reset is a sequence of writes, as today, not one transaction.** A failure partway leaves a partly restored demo.
 - **A throw still escapes the tick before the salon purge.** That is today's behaviour, from the database for instance. And since `markReset` comes last, a throw repeats each night until its cause is gone.
 - The shape check removes the new writers' predictable causes, and `replaceServices` itself is atomic, so a salon is never left with half a catalogue.
+
+### 9.1 As run
+
+**Step 1, the merge.** #869 merged on 2026-11-25 at 16:21 UTC as `59409ef0`, on the owner's « Yes, merge it ». `main`'s tree equals the tested head `6b10a56f`; no attribution line; 12 checks of 12. `main` had moved three times while it waited (#867, #868 with #870, #871), and was merged in each time, with no rebase.
+
+**Step 2, the read before the deploy,** on the owner's « Yes, run the read », 2026-11-25 at 18:12 UTC.
+- **Method:** the Auth Proxy; a session read-only by default and again inside `BEGIN READ ONLY … ROLLBACK`; the probe write refused (« cannot execute UPDATE in a read-only transaction »). It prints counts, booleans, timestamps and key names only. Both documents decoded in both forms: the salon's `data` is stored as a string, the snapshot's `doc` as an object.
+- **Dry run first,** on a throwaway local database holding a demo salon with planted differences: a price, a service another salon owns, a new service, the buffer, the windows, the breaks, the blocked days, the pairs, the ratings and the profile keys. Each answer was the planted one. That database was dropped.
+- **What it read:**
+
+| What | Result |
+|---|---|
+| The snapshot | captured 2026-10-14 18:57 UTC; last reset 2026-11-23 03:30 UTC; next due 2026-11-30 03:30 UTC |
+| The shape check (`_badSnapshotKey`) | passes: services, availability and pairs are all `ok`, so the reset will not answer `refused:bad_snapshot` |
+| Services | 5 and 5: the same ids, in the same order, every field equal; none created since the capture or the last reset |
+| Would `replaceServices` refuse? | no: no snapshot service id belongs to another salon, and no foreign key points at `provider_services` |
+| Working hours | 6 windows on each side, equal as multisets |
+| `bookingHorizonDays`, `minimumNoticeMinutes` | equal |
+| **`bufferMinutes`** | **differs** (the values were not printed) |
+| **Breaks** | **snapshot 0, live 2** |
+| Blocked days | none on either side |
+| Before/after pairs | 1 on each side, equal |
+| Ratings | 0 in the column, the document and the snapshot; no reviews |
+| `verified`, `featured` | `false`, `false` |
+| Profile keys the merge restores | none differs |
+| Artists | none on either side |
+
+- **The owner's choice** (2026-11-26): « Let the reset restore ». No recapture. The first fixed reset sets the buffer back to the snapshot's value and removes the two breaks. The database cannot tell who made those two changes since the capture; they lasted because, until this build, the reset never put the hours back in production.
+
+**Step 3, the deploy,** on the owner's « Yes, deploy it », 2026-11-26.
+- `deploy-backend.yml`, production, `image_tag=59409ef`, from `main` at `8159fb84` (run 45806355169, success). Since `59409ef0`, `main` changed only `ci.yml` outside the server's code, so the service file is the one #869 was built with. The image was promoted, not rebuilt.
+- **Not in this image:** R1 (#872) and its migration `0052`, merged after #869. Its deploy is its own.
+- **Read back:**
+  - `myweli-api-00060-bwq` takes 100 % of the traffic, follows the latest revision (no pin) and carries the label `commit: 59409ef`;
+  - it runs `sha256:ae809211e2ef…`, read in the registry as the `linux/amd64` child of the index `sha256:11199f83c05a…` that #869's merge run pushed (run 45652903430);
+  - `/health` answers 200 with `env: prod`, on `api.myweli.com` and on the service's `status.url`;
+  - no log line at WARNING or above from the new revision in its first minutes;
+  - `production-checks.yml`, dispatched after the deploy (run 45806803926): 12 checks of 12.
+- **Rollback:** `myweli-api-00059-w28` (image `351568e`, A4-api). Safe: no migration.
+
+**Step 4, the read after the first fixed reset:** not yet. The reset is due 2026-11-30 03:30 UTC; the read runs after it, on the owner's word.
 
 ---
 

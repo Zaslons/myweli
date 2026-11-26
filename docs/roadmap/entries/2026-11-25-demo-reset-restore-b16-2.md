@@ -1,4 +1,4 @@
-- 🟡 **B16.2 : la réinitialisation du salon de démonstration remet ce qu’un relecteur a changé (backend · 2026-11-25 — BACKLOG B16.2, décisions 250–252).** Branche `fix/b16-2-demo-reset`, créée depuis `main` (`afd2de97`), PR #869. Spec : [demo-reset-restore.md](../../design/demo-reset-restore.md) §8.8.
+- 🟢 **B16.2 : la réinitialisation du salon de démonstration remet ce qu’un relecteur a changé (backend · 2026-11-25 — BACKLOG B16.2, décisions 250–252).** Branche `fix/b16-2-demo-reset`, créée depuis `main` (`afd2de97`), PR #869. Spec : [demo-reset-restore.md](../../design/demo-reset-restore.md) §8.8.
   - **Le défaut :** chaque semaine, la réinitialisation renvoyait le cliché par `updateProfile`, qui n’écrit que le document du salon. Les prestations, les horaires (en production) et les avant/après changés par un relecteur restaient pour le suivant ; en mémoire, le cliché partageait même les listes du salon.
   - **Ce qui change :**
     - `replaceServices`, sur les deux doubles : une transaction, l’ordre du cliché, un « INSERT » simple qui refuse une prestation d’un autre salon ;
@@ -13,4 +13,17 @@
     - **14 mutations rouges pour la raison annoncée,** deux témoins tenus ; celle de l’ordre relancée seule, sur le texte de son échec.
   - **Trouvé à côté :** un dépôt en mémoire construit sans argument est la liste globale du seed elle-même, partagée par tous les tests d’un fichier (spec §12).
   - **Aussi :** la spec (#865) est fusionnée ; son entrée passe au vert.
-  - **Reste, chacun sur le mot du propriétaire :** la fusion, puis la lecture de production avant le déploiement (décision 253), puis le déploiement, puis la lecture après la première réinitialisation.
+  - **Fusionnée** le 2026-11-25 à 16:21 UTC sur le mot du propriétaire (#869, `59409ef0`) : l’arbre de `main` égal à la tête testée `6b10a56f`, aucune ligne d’attribution, 12 contrôles sur 12. `main` avait avancé trois fois pendant l’attente ; il a été fusionné dans la branche à chaque fois, sans rebase.
+  - **Lecture de production avant le déploiement** (décision 253), le 2026-11-25 à 18:12 UTC, en lecture seule, une écriture témoin refusée ; d’abord essayée sur une base locale jetable, où elle a retrouvé chaque différence plantée (spec §9.1) :
+    - le cliché passe le contrôle de forme : la réinitialisation ne le refusera pas ;
+    - prestations, horaires d’ouverture, jours fermés, avant/après, notes et profil : égaux au cliché ;
+    - aucune prestation du cliché n’appartient à un autre salon, aucune clé étrangère ne bloque leur suppression ;
+    - **seuls les horaires diffèrent :** le temps entre deux rendez-vous, et deux pauses que le cliché n’a pas.
+  - **Le choix du propriétaire** (2026-11-26) : « Let the reset restore », sans nouvelle capture. La première réinitialisation corrigée remettra ce temps et retirera les deux pauses.
+  - **Déployée** le 2026-11-26 à 11:00 UTC sur le mot du propriétaire : `deploy-backend.yml`, production, `image_tag=59409ef` (run 45806355169), l’image promue sans reconstruction. R1 (#872), fusionnée après, n’y est pas.
+  - **Relue en production :**
+    - `myweli-api-00060-bwq` reçoit 100 % du trafic, étiquetée `commit: 59409ef` ; elle exécute l’image amd64 `sha256:ae809211e2ef…`, l’enfant de l’index `11199f83c05a…` que la fusion a poussé ;
+    - `/health` 200 sur `api.myweli.com` ; aucune ligne d’avertissement ou d’erreur de la nouvelle révision dans ses premières minutes ;
+    - `production-checks.yml`, lancé après le déploiement (run 45806803926) : 12 contrôles sur 12.
+  - **Retour arrière :** `myweli-api-00059-w28`, sûr (aucune migration).
+  - **Reste, sur le mot du propriétaire :** la lecture après la première réinitialisation corrigée, due le 2026-11-30 à 03:30 UTC (la tâche répond `ran` ; le salon égale le cliché ; la colonne de note égale le document).
