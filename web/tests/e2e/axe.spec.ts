@@ -199,6 +199,24 @@ test('/recherche with every kind of card is axe-clean', async ({ page }) => {
   await scan(page, '/recherche?q=vitrine', /Recherche : vitrine/);
 });
 
+// docs/design/consumer-search.md §3.3 (A4w): « Afficher plus de salons » under the rows,
+// then its failure and « Réessayer » in its place.
+test('/recherche with « Afficher plus », and with its failure, is axe-clean', async ({ page }) => {
+  await page.goto('/recherche?q=nombreux');
+  await expect(page.getByRole('button', { name: 'Afficher plus de salons' })).toBeVisible();
+  await scan(page, '/recherche?q=nombreux', /Recherche : nombreux/);
+  // The failure IS the state under test, so not `scan`, which refuses a page with an alert:
+  // the rows are still there (the anchor), and the alert is the next page's only.
+  await page.goto('/recherche?q=suite-echoue');
+  await page.getByRole('button', { name: 'Afficher plus de salons' }).click();
+  await expect(page.getByRole('button', { name: 'Réessayer' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: /Recherche : suite-echoue/ }).first()).toBeVisible();
+  expect(
+    (await page.getByRole('alert').allTextContents()).map((t) => t.trim()).filter(Boolean),
+  ).toEqual(['Impossible d’afficher la suite.']);
+  await expectNoViolations(page, '/recherche?q=suite-echoue (failed page)');
+});
+
 test('public routes are axe-clean', async ({ page }) => {
   for (const [url, anchor] of PUBLIC_ROUTES) {
     await page.goto(url);

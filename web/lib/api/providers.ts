@@ -1,3 +1,4 @@
+import { appendNew, RECHERCHE_PAGE_SIZE } from '../discovery/search-pages';
 import { categorySlugForApiKey } from '../landing';
 import { serviceSlugsForName } from '../service-landing';
 import { slugify } from '../slug';
@@ -95,6 +96,60 @@ export async function searchProviders(opts: {
       },
     }),
   );
+}
+
+/// `/recherche`'s rows (docs/design/consumer-search.md §3.3, A4w): pages 1 to [pages] of
+/// [RECHERCHE_PAGE_SIZE], read in parallel, the rows de-duplicated by id and the count the
+/// newest page's `total`. [pages] comes from the address, already 1 to 10
+/// (`pagesFromParam`).
+///
+/// A page that cannot be read — a refusal, no answer, a 200 without its items **or its
+/// `total`** — is [unreadable] like every public read: fewer salons under a count that
+/// promises more would be a page that lies.
+export async function searchProviderPages(
+  opts: {
+    q?: string;
+    category?: string;
+    commune?: string;
+    sort?: 'relevance' | 'rating' | 'price';
+    availableToday?: boolean;
+  },
+  pages: number,
+): Promise<{ items: Provider[]; total: number }> {
+  const what = 'GET /providers (recherche)';
+  let cause: unknown;
+  try {
+    const answers = await Promise.all(
+      Array.from({ length: pages }, (_, i) =>
+        api.GET('/providers', {
+          params: {
+            query: {
+              ...(opts.q ? { q: opts.q } : {}),
+              ...(opts.category ? { category: opts.category } : {}),
+              ...(opts.commune ? { commune: opts.commune } : {}),
+              ...(opts.availableToday ? { availableToday: true } : {}),
+              sort: opts.sort ?? 'relevance',
+              page: i + 1,
+              pageSize: RECHERCHE_PAGE_SIZE,
+            },
+          },
+        }),
+      ),
+    );
+    const bad = answers.find(
+      ({ data, error }) =>
+        error || !Array.isArray(data?.items) || typeof data?.total !== 'number',
+    );
+    if (!bad) {
+      let items: Provider[] = [];
+      for (const { data } of answers) items = appendNew(items, data!.items as Provider[]);
+      return { items, total: answers[answers.length - 1].data!.total as number };
+    }
+    cause = bad.error ?? 'no items or no total';
+  } catch (e) {
+    cause = e;
+  }
+  return unreadable(what, { items: [] as Provider[], total: 0 }, cause);
 }
 
 /// A landing route param triple ({slug}/{city}/{area}) — nested URLs

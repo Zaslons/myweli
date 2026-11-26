@@ -1,7 +1,8 @@
 import type { Metadata } from 'next';
 import { RechercheClient } from '../../components/discovery/RechercheClient';
 import { getLocalityTree } from '../../lib/api/localities';
-import { searchProviders } from '../../lib/api/providers';
+import { searchProviderPages } from '../../lib/api/providers';
+import { pagesFromParam } from '../../lib/discovery/search-pages';
 
 // Results are query-dependent + thin → render on demand, noindex (the indexed
 // SEO targets are the commune×category landings).
@@ -23,6 +24,8 @@ export default async function RecherchePage({
     category?: string;
     sort?: string;
     dispo?: string;
+    /// The pages « Afficher plus » had read (consumer-search.md §3.3): 1 to 10.
+    pages?: string;
   };
 }) {
   const q = searchParams.q ?? '';
@@ -35,16 +38,20 @@ export default async function RecherchePage({
     ? (searchParams.sort as Sort)
     : 'relevance';
   const dispo = searchParams.dispo === '1';
+  // « Retour » from a salon and a reload show the rows « Afficher plus » had shown.
+  const pages = pagesFromParam(searchParams.pages);
 
-  const [results, tree] = await Promise.all([
-    searchProviders({
-      q: q || undefined,
-      commune: commune || undefined,
-      category: category || undefined,
-      sort,
-      availableToday: dispo || undefined,
-      pageSize: 24,
-    }),
+  const [found, tree] = await Promise.all([
+    searchProviderPages(
+      {
+        q: q || undefined,
+        commune: commune || undefined,
+        category: category || undefined,
+        sort,
+        availableToday: dispo || undefined,
+      },
+      pages,
+    ),
     getLocalityTree(),
   ]);
 
@@ -61,7 +68,9 @@ export default async function RecherchePage({
     <main>
       <RechercheClient
         title={title}
-        results={results}
+        results={found.items}
+        total={found.total}
+        pages={pages}
         q={q}
         commune={commune}
         category={category}

@@ -403,7 +403,7 @@ Decision 233's half: « Afficher plus » and the count from `total` on `/recherc
 **What changes:**
 1. **The count is the server's `total`:** « 42 salons ». Hidden when there is nothing, since the empty state says it, as today.
 2. **« Afficher plus de salons »:** a secondary `Button`, full width, after the rows, shown while `pages × 24 < total`.
-   - **A tap reads the next page** through a new same-origin route, `GET /api/providers/search`. It forwards only `q`, `category`, `commune`, `sort`, `availableToday` and `page`, and fixes `pageSize` at 24 itself. A lost body is 502, as `/api/availability` does.
+   - **A tap reads the next page** through a new same-origin route, `GET /api/recherche`. It is named after the page it serves: `app/api/providers` must not exist, a pin of the by-id proxy it once held (`no-public-provider-read.test.ts`). It forwards only `q`, `category`, `commune`, `sort`, `availableToday` and `page`, and fixes `pageSize` at 24 itself. A lost body is 502, as `/api/availability` does.
    - **While it loads,** the button shows its spinner (`isLoading`, `aria-busy`) and the rows stay.
    - **If it fails,** its place says « Impossible d’afficher la suite. » with « Réessayer », the app's words. The rows stay.
    - **Appended rows are de-duplicated by id.**

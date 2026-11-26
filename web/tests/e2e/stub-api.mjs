@@ -24,6 +24,23 @@ const CARD_FIXTURES = JSON.parse(
   readFileSync(new URL('./card-fixtures.json', import.meta.url), 'utf8'),
 );
 
+/// A4w (docs/design/consumer-search.md §3.3): thirty salons for `/recherche?q=nombreux`, read
+/// 24 a page — « Afficher plus de salons » and the count from `total`. No photo: thirty cards'
+/// worth of `cdn.stub` would only slow the page.
+const nombreux = () =>
+  Array.from({ length: 30 }, (_, i) => {
+    const n = String(i + 1).padStart(2, '0');
+    return {
+      ...provider,
+      id: `n${n}`,
+      slug: `salon-nombreux-${n}`,
+      name: `Salon Nombreux ${n}`,
+      imageUrls: [],
+      latitude: 5.3 + i * 0.002,
+      longitude: -4.0 + i * 0.002,
+    };
+  });
+
 const provider = {
   id: 'p1',
   slug: 'beaute-divine',
@@ -1081,6 +1098,20 @@ createServer(async (req, res) => {
     const listOf = (items) =>
       json(res, 200, { items, page: 1, pageSize: 20, total: items.length });
     if (query === 'vide') return listOf([]);
+    // A4w: the server's own paging — `page`, `pageSize` (clamped to 50) and the real `total`.
+    // `suite-echoue` refuses the second page: « Impossible d’afficher la suite. ».
+    if (query === 'nombreux' || query === 'suite-echoue') {
+      const page = Math.max(1, Number(url.searchParams.get('page')) || 1);
+      const pageSize = Math.min(50, Math.max(1, Number(url.searchParams.get('pageSize')) || 20));
+      if (query === 'suite-echoue' && page === 2) return json(res, 500, { error: 'internal' });
+      const all = nombreux();
+      return json(res, 200, {
+        items: all.slice((page - 1) * pageSize, page * pageSize),
+        page,
+        pageSize,
+        total: all.length,
+      });
+    }
     if (query === 'vitrine') return listOf(CARD_FIXTURES);
     // B18: one salon the build prerendered, one it did not (see JUSTE_VALIDE).
     if (query === 'juste') return listOf([provider, JUSTE_VALIDE]);
