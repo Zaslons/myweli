@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | **Approved by the owner on 2026-11-25** (« Approve as recommended »: the nine recommendations of §11, BACKLOG decisions 228–236). An independent reader checked it once against the code: 13 findings, each re-read in the code, then folded in (§12). The spec merged as `ed60594c` (#859). **A4-api built on 2026-11-25** on the owner's « Yes, build A4-api » (§3.1), **merged** as `351568e3` (#864), **deployed** the same day (`myweli-api-00059-w28`, image `351568e`) and **read back** in production (§10: every search answers 200, the monitor 11 of 11; the matching itself waits for a public salon). **A4 built on 2026-11-25** on the owner's « Yes, start A4 » (§3.2), **merged on 2026-11-26** as `f49de03d` (#878; tree equal to the tested head `45237409`). It reaches people with the next consumer build, on the owner's word. **A4w built on 2026-11-26** on the owner's « Yes, build it » (§3.3); not merged. Its merge deploys `myweli.com`, on the owner's word. |
+| **Status** | **Approved by the owner on 2026-11-25** (« Approve as recommended »: the nine recommendations of §11, BACKLOG decisions 228–236). An independent reader checked it once against the code: 13 findings, each re-read in the code, then folded in (§12). The spec merged as `ed60594c` (#859). **A4-api built on 2026-11-25** on the owner's « Yes, build A4-api » (§3.1), **merged** as `351568e3` (#864), **deployed** the same day (`myweli-api-00059-w28`, image `351568e`) and **read back** in production (§10: every search answers 200, the monitor 11 of 11; the matching itself waits for a public salon). **A4 built on 2026-11-25** on the owner's « Yes, start A4 » (§3.2), **merged on 2026-11-26** as `f49de03d` (#878; tree equal to the tested head `45237409`). It reaches people with the next consumer build, on the owner's word. **A4w built on 2026-11-26** on the owner's « Yes, build it » (§3.3), **merged** as `dedda5d4` (#883) on the owner's « Yes, merge #883 », **deployed** to `myweli.com` the same day and **read back** (§3.3, Rollout). |
 | **Owner** | Sadreddine |
 | **Last updated** | 2026-11-26 |
 | **PRD ref / phase** | FR-DISC-003 (category browse), FR-DISC-004 (search by name, service and locality, French-aware), FR-DISC-005 (the map's commune awareness), FR-DISC-007 (sort and filter) · V1 · BACKLOG B0.10 (decision 160, Track A), B12.8 |
@@ -479,7 +479,8 @@ Decision 233's half: « Afficher plus » and the count from `total` on `/recherc
 **Rollout:**
 - **Its merge is a production deploy of `myweli.com`** (Vercel), on the owner's word.
 - **Read back on `myweli.com` after:** `/recherche` renders and the count shows.
-- **« Afficher plus » cannot be seen in production** until more than 24 salons are public. Today none is.
+- **« Afficher plus » cannot be seen in production** until more than 24 salons are public. On 2026-11-26 one is, « test » (`test-3`); this line first said none, unread.
+- **Merged and read back, 2026-11-26** (#883, `dedda5d4`; Vercel production deploy successful): `/recherche` answers 200 with « 1 salon »; `/api/recherche?page=1` gives 1 item, `total` 1, `pageSize` 24, and a route that does not exist 404s; the served `/recherche` script, alone of the page's 17, holds `/api/recherche?` and « Impossible d’afficher la suite ». With one salon the count from `total` and the count of the rows are both 1, so this read cannot tell them apart; the button is rightly absent.
 
 ## 4. Data model
 
