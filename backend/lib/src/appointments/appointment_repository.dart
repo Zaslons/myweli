@@ -1,3 +1,5 @@
+import '../analytics/revenue_aggregator.dart';
+
 /// Stored appointments. Each appointment is a `Map` in the `Appointment`
 /// DTO shape (see docs/api/openapi.yaml). In-memory now; a Postgres impl
 /// satisfies the same interface in a follow-up.
@@ -83,7 +85,69 @@ abstract interface class AppointmentRepository {
     DateTime from,
     DateTime to,
   );
+
+  // ---- Revenue analytics (R2) ----------------------------------------------
+  // docs/design/pro-revenue-analytics.md §8.3. One contract runs on both twins
+  // (`appointment_repository_contract.dart`, decision 223).
+
+  /// The bookings of [providerId] starting in `[fromUtc, toUtcExclusive)`,
+  /// every status, as the narrow rows of [kRevenueRowKeys] — what the revenue
+  /// fold reads, and nothing about the client. Ordered by start, then id.
+  Future<List<Map<String, dynamic>>> revenueRows(
+    String providerId,
+    DateTime fromUtc,
+    DateTime toUtcExclusive,
+  );
+
+  /// One page of the bookings behind a revenue figure: [status] in the range,
+  /// under the filters, as the narrow rows of [kRevenueRowKeys] plus
+  /// `clientPhone` (the batched client-name lookup needs it; never sent).
+  ///
+  /// - `upcoming` / `toClose` split the `confirmed` bookings by their END
+  ///   (start + `durationMinutes`) against [asOf]: at or after, before.
+  /// - [artistId] `'none'` is « no collaborateur » (null or an empty string).
+  /// - [channel] is the filed channel: the recorded one, else `salon` for a
+  ///   booking the salon entered, else `online`.
+  /// - [serviceId] matches `serviceIds`, read whatever its storage form —
+  ///   production stores it as a JSON string inside `jsonb`.
+  /// - `upcoming` soonest first; the others newest first; ties by id.
+  ///
+  /// [total] counts every match, not the page.
+  Future<({List<Map<String, dynamic>> items, int total})> revenueLedger(
+    String providerId, {
+    required DateTime fromUtc,
+    required DateTime toUtcExclusive,
+    required RevenueLedgerStatus status,
+    required DateTime asOf,
+    required int limit,
+    required int offset,
+    String? artistId,
+    String? serviceId,
+    String? channel,
+  });
+
+  /// Whether [providerId] has ever had a `completed` booking.
+  Future<bool> hasCompleted(String providerId);
 }
+
+/// The figures a ledger page can list (§7.2).
+enum RevenueLedgerStatus { completed, upcoming, toClose, noShow, cancelled }
+
+/// The keys of a revenue row (`revenueRows`, `revenueLedger`), on both twins.
+const Set<String> kRevenueRowKeys = {
+  'id',
+  'status',
+  'appointmentDate',
+  'durationMinutes',
+  'artistId',
+  'artistNameKept',
+  'totalPrice',
+  'currency',
+  'userId',
+  'channel',
+  'serviceIds',
+  'serviceLines',
+};
 
 /// The keys [AppointmentRepository.update] writes: exactly the seven the
 /// Postgres `SET` builder knows. Both twins read this set.
@@ -233,6 +297,121 @@ class InMemoryAppointmentRepository implements AppointmentRepository {
     final at = iso == null ? null : DateTime.tryParse(iso)?.toUtc();
     return at != null && at.isAfter(from) && !at.isAfter(to);
   }
+
+  /// A narrow revenue row of a stored booking: [kRevenueRowKeys], deep
+  /// copies, as Postgres hands them out.
+  static Map<String, dynamic> _revenueRow(
+    Map<String, dynamic> stored, {
+    bool withPhone = false,
+  }) {
+    final out = <String, dynamic>{
+      for (final k in kRevenueRowKeys) k: _deep(stored[k]),
+    };
+    out['totalPrice'] = (stored['totalPrice'] as num).toDouble();
+    if (withPhone) out['clientPhone'] = stored['clientPhone'];
+    return out;
+  }
+
+  static DateTime _startOf(Map<String, dynamic> a) =>
+      DateTime.parse(a['appointmentDate'] as String).toUtc();
+
+  Iterable<Map<String, dynamic>> _inRange(
+    String providerId,
+    DateTime fromUtc,
+    DateTime toUtcExclusive,
+  ) => _all.where((a) {
+    if (a['providerId'] != providerId) return false;
+    final start = _startOf(a);
+    return !start.isBefore(fromUtc) && start.isBefore(toUtcExclusive);
+  });
+
+  @override
+  Future<List<Map<String, dynamic>>> revenueRows(
+    String providerId,
+    DateTime fromUtc,
+    DateTime toUtcExclusive,
+  ) async {
+    final rows = _inRange(providerId, fromUtc, toUtcExclusive).toList()
+      ..sort(_byStartThenId);
+    return [for (final a in rows) _revenueRow(a)];
+  }
+
+  static int _byStartThenId(Map<String, dynamic> a, Map<String, dynamic> b) {
+    final byStart = _startOf(a).compareTo(_startOf(b));
+    return byStart != 0
+        ? byStart
+        : (a['id'] as String).compareTo(b['id'] as String);
+  }
+
+  @override
+  Future<({List<Map<String, dynamic>> items, int total})> revenueLedger(
+    String providerId, {
+    required DateTime fromUtc,
+    required DateTime toUtcExclusive,
+    required RevenueLedgerStatus status,
+    required DateTime asOf,
+    required int limit,
+    required int offset,
+    String? artistId,
+    String? serviceId,
+    String? channel,
+  }) async {
+    bool statusMatches(Map<String, dynamic> a) {
+      final s = a['status'];
+      switch (status) {
+        case RevenueLedgerStatus.completed:
+          return s == 'completed';
+        case RevenueLedgerStatus.noShow:
+          return s == 'noShow';
+        case RevenueLedgerStatus.cancelled:
+          return s == 'cancelled';
+        case RevenueLedgerStatus.upcoming:
+        case RevenueLedgerStatus.toClose:
+          if (s != 'confirmed') return false;
+          final minutes = (a['durationMinutes'] as num?)?.toInt() ?? 0;
+          final ended = _startOf(
+            a,
+          ).add(Duration(minutes: minutes)).isBefore(asOf);
+          return status == RevenueLedgerStatus.toClose ? ended : !ended;
+      }
+    }
+
+    final matches = _inRange(providerId, fromUtc, toUtcExclusive).where((a) {
+      if (!statusMatches(a)) return false;
+      if (artistId != null) {
+        final key = revenueArtistKeyOf(a);
+        if (artistId == 'none' ? key != null : key != artistId) return false;
+      }
+      if (channel != null && revenueChannelOf(a) != channel) return false;
+      if (serviceId != null) {
+        final ids = a['serviceIds'];
+        if (ids is! List || !ids.contains(serviceId)) return false;
+      }
+      return true;
+    }).toList();
+    if (status == RevenueLedgerStatus.upcoming) {
+      matches.sort(_byStartThenId);
+    } else {
+      matches.sort((a, b) {
+        final byStart = _startOf(b).compareTo(_startOf(a));
+        return byStart != 0
+            ? byStart
+            : (a['id'] as String).compareTo(b['id'] as String);
+      });
+    }
+    return (
+      items: [
+        for (final a in matches.skip(offset).take(limit))
+          _revenueRow(a, withPhone: true),
+      ],
+      total: matches.length,
+    );
+  }
+
+  @override
+  Future<bool> hasCompleted(String providerId) async => _all.any(
+    (a) => a['providerId'] == providerId && a['status'] == 'completed',
+  );
 
   @override
   Future<Map<String, dynamic>?> create(Map<String, dynamic> appointment) async {

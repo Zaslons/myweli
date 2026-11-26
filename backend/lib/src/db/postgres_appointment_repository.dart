@@ -260,6 +260,212 @@ class PostgresAppointmentRepository implements AppointmentRepository {
     };
   }
 
+  // ---- Revenue analytics (R2, docs/design/pro-revenue-analytics.md §8.3) ---
+
+  /// The narrow columns of a revenue row ([kRevenueRowKeys]).
+  static const String _revenueColumns =
+      'id, status, appointment_date, duration_minutes, artist_id, '
+      'artist_name_kept, total_price, currency, user_id, channel, '
+      'service_ids, service_lines';
+
+  static Map<String, dynamic> _revenueRow(Map<String, dynamic> r) {
+    final serviceIds = r['service_ids'];
+    return {
+      'id': r['id'],
+      'status': r['status'],
+      'appointmentDate': (r['appointment_date'] as DateTime)
+          .toUtc()
+          .toIso8601String(),
+      'durationMinutes': r['duration_minutes'],
+      'artistId': r['artist_id'],
+      'artistNameKept': r['artist_name_kept'],
+      'totalPrice': (r['total_price'] as num).toDouble(),
+      'currency': r['currency'],
+      'userId': r['user_id'],
+      'channel': r['channel'],
+      // The JSON string `create` stores, decoded as `_toDto` does; an
+      // unreadable one reads as no prestation rather than failing the page.
+      'serviceIds': switch (serviceIds) {
+        final String text => _decodeOrNull(text),
+        _ => serviceIds,
+      },
+      'serviceLines': r['service_lines'],
+      if (r.containsKey('client_phone')) 'clientPhone': r['client_phone'],
+    };
+  }
+
+  static Object? _decodeOrNull(String text) {
+    try {
+      return jsonDecode(text);
+    } on FormatException {
+      return null;
+    }
+  }
+
+  /// **One JSON document for the whole range, not one row per booking.**
+  /// The revenue fold reads up to ~29 000 rows (« Année » and the year
+  /// before, a salon of 40 bookings a day — pro-revenue-analytics.md §11),
+  /// and measured on that salon the driver's per-row, per-cell decoding was
+  /// most of the time: ~110–130 ms a range for twelve columns, against
+  /// ~75 ms for the same rows aggregated by `json_agg` and decoded at once
+  /// (2026-11-26, Postgres 16; `test/db/revenue_analytics_budget_test.dart`
+  /// holds the budget). Same rows, same keys, same order as the in-memory
+  /// twin; `service_ids` decoded in SQL, both storage forms, an unreadable
+  /// value read as null.
+  @override
+  Future<List<Map<String, dynamic>>> revenueRows(
+    String providerId,
+    DateTime fromUtc,
+    DateTime toUtcExclusive,
+  ) async {
+    // On `appointments_provider_date_idx (provider_id, appointment_date)`.
+    final result = await _pool.execute(
+      Sql.named(
+        'SELECT COALESCE(json_agg(json_build_array('
+        'id, status, '
+        // The ISO string `_toDto` would give, made by Postgres: no DateTime
+        // built and formatted again in Dart for each row.
+        "to_char(appointment_date AT TIME ZONE 'UTC', "
+        '\'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"\'), '
+        'duration_minutes, artist_id, artist_name_kept, total_price, '
+        'currency, user_id, channel, $_serviceIdsDecoded, service_lines) '
+        "ORDER BY appointment_date, id), '[]')::text "
+        'FROM appointments '
+        'WHERE provider_id = @p AND appointment_date >= @from:timestamptz '
+        'AND appointment_date < @to:timestamptz',
+      ),
+      parameters: {
+        'p': providerId,
+        'from': fromUtc.toUtc(),
+        'to': toUtcExclusive.toUtc(),
+      },
+    );
+    final rows = jsonDecode(result.first.first! as String) as List<dynamic>;
+    return [
+      for (final r in rows.cast<List<dynamic>>())
+        {
+          'id': r[0],
+          'status': r[1],
+          'appointmentDate': r[2],
+          'durationMinutes': r[3],
+          'artistId': r[4],
+          'artistNameKept': r[5],
+          'totalPrice': (r[6] as num).toDouble(),
+          'currency': r[7],
+          'userId': r[8],
+          'channel': r[9],
+          'serviceIds': r[10],
+          'serviceLines': r[11],
+        },
+    ];
+  }
+
+  /// `service_ids` as a jsonb array whatever its storage form: production
+  /// writes a JSON STRING inside `jsonb` (`create` encodes, then the
+  /// `:jsonb` parameter encodes again), so `service_ids` alone would match
+  /// nothing — 4 of 4 rows read on 2026-11-25 (pro-revenue-analytics.md §19).
+  /// The decode is `kAppointmentCurrencyBackfill`'s: nested `CASE`s, so the
+  /// cast only sees text `pg_input_is_valid` accepted, and an unreadable
+  /// value matches nothing instead of failing the page.
+  static const String _serviceIdsDecoded =
+      "CASE jsonb_typeof(service_ids) "
+      "WHEN 'string' THEN CASE WHEN pg_input_is_valid(service_ids #>> '{}', "
+      "'jsonb') THEN (service_ids #>> '{}')::jsonb END "
+      'ELSE service_ids END';
+
+  @override
+  Future<({List<Map<String, dynamic>> items, int total})> revenueLedger(
+    String providerId, {
+    required DateTime fromUtc,
+    required DateTime toUtcExclusive,
+    required RevenueLedgerStatus status,
+    required DateTime asOf,
+    required int limit,
+    required int offset,
+    String? artistId,
+    String? serviceId,
+    String? channel,
+  }) async {
+    const end =
+        "appointment_date + COALESCE(duration_minutes, 0) * interval '1 minute'";
+    final where = <String>[
+      'provider_id = @p',
+      'appointment_date >= @from:timestamptz',
+      'appointment_date < @to:timestamptz',
+      switch (status) {
+        RevenueLedgerStatus.completed => "status = 'completed'",
+        RevenueLedgerStatus.noShow => "status = 'noShow'",
+        RevenueLedgerStatus.cancelled => "status = 'cancelled'",
+        RevenueLedgerStatus.upcoming =>
+          "status = 'confirmed' AND $end >= @as_of:timestamptz",
+        RevenueLedgerStatus.toClose =>
+          "status = 'confirmed' AND $end < @as_of:timestamptz",
+      },
+    ];
+    final params = <String, Object?>{
+      'p': providerId,
+      'from': fromUtc.toUtc(),
+      'to': toUtcExclusive.toUtc(),
+    };
+    if (status == RevenueLedgerStatus.upcoming ||
+        status == RevenueLedgerStatus.toClose) {
+      params['as_of'] = asOf.toUtc();
+    }
+    if (artistId != null) {
+      if (artistId == 'none') {
+        where.add("(artist_id IS NULL OR artist_id = '')");
+      } else {
+        where.add('artist_id = @artist:text');
+        params['artist'] = artistId;
+      }
+    }
+    if (channel != null) {
+      where.add(
+        "COALESCE(channel, CASE WHEN user_id = 'manual' THEN 'salon' "
+        "ELSE 'online' END) = @channel:text",
+      );
+      params['channel'] = channel;
+    }
+    if (serviceId != null) {
+      where.add(
+        'jsonb_contains($_serviceIdsDecoded, '
+        'jsonb_build_array(@service:text))',
+      );
+      params['service'] = serviceId;
+    }
+    final filter = where.join(' AND ');
+    final order = status == RevenueLedgerStatus.upcoming
+        ? 'appointment_date ASC, id ASC'
+        : 'appointment_date DESC, id ASC';
+    final count = await _pool.execute(
+      Sql.named('SELECT COUNT(*)::int FROM appointments WHERE $filter'),
+      parameters: params,
+    );
+    final page = await _pool.execute(
+      Sql.named(
+        'SELECT $_revenueColumns, client_phone FROM appointments '
+        'WHERE $filter ORDER BY $order LIMIT @limit OFFSET @offset',
+      ),
+      parameters: {...params, 'limit': limit, 'offset': offset},
+    );
+    return (
+      items: [for (final r in page) _revenueRow(r.toColumnMap())],
+      total: count.first.first! as int,
+    );
+  }
+
+  @override
+  Future<bool> hasCompleted(String providerId) async {
+    final result = await _pool.execute(
+      Sql.named(
+        'SELECT EXISTS (SELECT 1 FROM appointments '
+        "WHERE provider_id = @p AND status = 'completed')",
+      ),
+      parameters: {'p': providerId},
+    );
+    return result.first.first! as bool;
+  }
+
   @override
   Future<Map<String, int>> countsByStatus() async {
     final rows = await _pool.execute(

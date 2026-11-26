@@ -12,6 +12,7 @@ import 'package:myweli_backend/src/admin/analytics_service.dart';
 import 'package:myweli_backend/src/admin/audit_log_repository.dart';
 import 'package:myweli_backend/src/admin/dispute_service.dart';
 import 'package:myweli_backend/src/admin/moderation_service.dart';
+import 'package:myweli_backend/src/analytics/revenue_analytics_service.dart';
 import 'package:myweli_backend/src/appointments/appointment_lifecycle_service.dart';
 import 'package:myweli_backend/src/appointments/appointment_repository.dart';
 import 'package:myweli_backend/src/appointments/booking_service.dart';
@@ -102,6 +103,7 @@ Handler middleware(Handler handler) {
       .use(provider<ProviderCatalogService>((_) => providerCatalogService))
       .use(provider<ProviderDashboardService>((_) => providerDashboardService))
       .use(provider<ProviderEarningsService>((_) => providerEarningsService))
+      .use(provider<RevenueAnalyticsService>((_) => revenueAnalyticsService))
       .use(provider<UploadSigningService>((_) => uploadSigningService))
       .use(
         provider<UploadVerificationService>((_) => uploadVerificationService),

@@ -7,8 +7,11 @@ import 'package:mocktail/mocktail.dart';
 import 'package:myweli_backend/src/access/membership_repository.dart';
 import 'package:myweli_backend/src/access/membership_service.dart';
 import 'package:myweli_backend/src/admin/audit_log_repository.dart';
+import 'package:myweli_backend/src/analytics/revenue_analytics_service.dart';
+import 'package:myweli_backend/src/analytics/revenue_period.dart';
 import 'package:myweli_backend/src/appointments/appointment_repository.dart';
 import 'package:myweli_backend/src/appointments/booking_service.dart';
+import 'package:myweli_backend/src/appointments/pro_appointment_service.dart';
 import 'package:myweli_backend/src/appointments/slot_service.dart';
 import 'package:myweli_backend/src/auth/auth_repository.dart';
 import 'package:myweli_backend/src/auth/demo_seam.dart';
@@ -62,6 +65,18 @@ void main() {
     snapshots = InMemoryDemoSnapshotRepository();
     logs = [];
     deleted = [];
+    // Production's BookingService carries a ClientsService, which is what
+    // auto-creates a client row from a manual booking's phone — the half of
+    // the regenerated agenda this suite asserts on; « Terminé » then touches
+    // the same rows (decision 249).
+    final clientsService = ClientsService(
+      auth,
+      MembershipService(members, auth),
+      InMemoryAuthRepository(tokens: tokens, echoDevCode: true),
+      clients,
+      appointments,
+      InMemoryProviderAuditLogRepository(),
+    );
     service = DemoResetService(
       auth,
       providers,
@@ -73,19 +88,15 @@ void main() {
         providers,
         appointments,
         SlotService(providers, appointments),
-        // Production's BookingService carries a ClientsService, which is what
-        // auto-creates a client row from a manual booking's phone — the half
-        // of the regenerated agenda this suite asserts on.
-        clients: ClientsService(
-          auth,
-          MembershipService(members, auth),
-          InMemoryAuthRepository(tokens: tokens, echoDevCode: true),
-          clients,
-          appointments,
-          InMemoryProviderAuditLogRepository(),
-        ),
+        clients: clientsService,
       ),
       snapshots,
+      lifecycle: ProAppointmentService(
+        MembershipService(members, auth),
+        appointments,
+        clients: clientsService,
+        providers: providers,
+      ),
       log: logs.add,
       storage: FakeStorageService(),
       client: MockClient((req) async {
@@ -250,19 +261,159 @@ void main() {
         left.where((a) => (a['id'] as String).startsWith('junk')),
         isEmpty,
       );
-      expect(left, hasLength(4), reason: 'the regenerated plan is four rows');
-      // Relative to NOW, not to the capture: the demo never shows a stale week.
-      final dates = left
-          .map((a) => DateTime.parse(a['appointmentDate'] as String))
-          .toList();
-      for (final d in dates) {
-        expect(now.difference(d).inDays.abs() <= 4, isTrue, reason: '$d');
+      expect(
+        left,
+        hasLength(kDemoAgenda.length),
+        reason: 'the regenerated plan, every row of it',
+      );
+      // Relative to NOW, not to the capture: the demo never shows a stale
+      // week — eight weeks back at most, two days ahead.
+      for (final a in left) {
+        final d = DateTime.parse(a['appointmentDate'] as String);
+        final days = d.difference(now).inHours / 24;
+        expect(days, inInclusiveRange(-53, 3), reason: '$d');
       }
       // And the client book was rebuilt through the real path.
       final book = await clients.list(id, page: 1, pageSize: 20);
-      expect(book.total, greaterThanOrEqualTo(1));
+      expect(book.total, 7, reason: 'seven clients, some of them regulars');
     },
   );
+
+  group('decision 249: an agenda « Revenus » can show', () {
+    Future<List<Map<String, dynamic>>> regenerate({
+      List<Map<String, dynamic>> artists = const [],
+    }) async {
+      final id = await provisionDemo();
+      if (artists.isNotEmpty) {
+        await providers.updateProfile(id, {'artists': artists});
+      }
+      await service.capture(t0);
+      await service.tickIfDue(t0.add(const Duration(days: 7)));
+      return appointments.listForProvider(id);
+    }
+
+    test('past bookings closed as the app closes them: twelve completed, '
+        'one absence, yesterday\'s left « à clôturer », two ahead', () async {
+      final now = t0.add(const Duration(days: 7));
+      final left = await regenerate();
+      final byStatus = <String, int>{};
+      for (final a in left) {
+        byStatus[a['status'] as String] =
+            (byStatus[a['status'] as String] ?? 0) + 1;
+      }
+      expect(byStatus, {'completed': 12, 'noShow': 1, 'confirmed': 3});
+      for (final a in left.where((a) => a['status'] == 'completed')) {
+        expect(
+          DateTime.parse(a['appointmentDate'] as String).isBefore(now),
+          isTrue,
+          reason: 'only the past is « Terminé »',
+        );
+      }
+      final confirmedPast = left.where(
+        (a) =>
+            a['status'] == 'confirmed' &&
+            DateTime.parse(a['appointmentDate'] as String).isBefore(now),
+      );
+      expect(confirmedPast, hasLength(1), reason: 'the « À clôturer » banner');
+      // « Terminé » touched the client card, as the app\'s does.
+      final book = await clients.list(
+        (left.first['providerId'] as String),
+        page: 1,
+        pageSize: 20,
+      );
+      expect(
+        book.items.where((c) => c['lastVisitAt'] != null),
+        isNotEmpty,
+        reason: 'recordCompletion ran',
+      );
+    });
+
+    test('every prestation sells, one booking holds two, every booking is '
+        'the salon\'s own entry with its lines kept', () async {
+      final left = await regenerate();
+      final sold = {
+        for (final a in left) ...(a['serviceIds'] as List).cast<String>(),
+      };
+      expect(sold, {'s1', 's2'}, reason: 'both of this salon\'s prestations');
+      expect(
+        left.where((a) => (a['serviceIds'] as List).length == 2),
+        hasLength(1),
+      );
+      for (final a in left) {
+        expect(a['channel'], 'salon');
+        expect(a['serviceLines'], isA<List<dynamic>>());
+      }
+    });
+
+    test('the owner\'s « Revenus » then has figures to show', () async {
+      final now = t0.add(const Duration(days: 7));
+      final left = await regenerate();
+      final providerId = left.first['providerId'] as String;
+      final owner = (await members.listForProvider(
+        providerId,
+      )).firstWhere((m) => m.role == 'owner');
+      final r =
+          await RevenueAnalyticsService(
+            MembershipService(members, auth),
+            appointments,
+            providers,
+            clients,
+            clock: () => now,
+          ).revenue(
+            owner.accountId!,
+            providerId,
+            RevenueQuery(
+              kind: RevenuePeriodKind.custom,
+              from: DateTime.utc(now.year, now.month, now.day - 60),
+              to: DateTime.utc(now.year, now.month, now.day + 5),
+            ),
+          );
+      expect(r.error, isNull);
+      final group = (r.data!['groups'] as List).single as Map;
+      final f = group['current'] as Map;
+      expect(f['completedCount'], 12);
+      expect(f['completedAmount'], greaterThan(0));
+      expect(f['noShowCount'], 1);
+      expect(f['toCloseCount'], 1);
+      expect(f['upcomingCount'], 2);
+      expect((group['byService'] as List), hasLength(2));
+      expect(
+        [for (final c in group['byChannel'] as List) (c as Map)['key']],
+        ['salon'],
+      );
+    });
+
+    test('no collaborateur on the roster → every booking unassigned', () async {
+      final left = await regenerate();
+      expect(left.every((a) => a['artistId'] == null), isTrue);
+    });
+
+    test('with collaborateurs → spread across them, every fourth one '
+        'unassigned, each with its name kept', () async {
+      final left = await regenerate(
+        artists: [
+          {
+            'id': 'ar-1',
+            'name': 'Aminata',
+            'workingHours': <String, dynamic>{},
+          },
+          {'id': 'ar-2', 'name': 'Bintou', 'workingHours': <String, dynamic>{}},
+        ],
+      );
+      final by = <String?, int>{};
+      for (final a in left) {
+        by[a['artistId'] as String?] = (by[a['artistId'] as String?] ?? 0) + 1;
+      }
+      expect(by.keys.toSet(), {'ar-1', 'ar-2', null});
+      expect(by[null], kDemoAgenda.length ~/ 4);
+      for (final a in left.where((a) => a['artistId'] != null)) {
+        expect(
+          a['artistNameKept'],
+          a['artistId'] == 'ar-1' ? 'Aminata' : 'Bintou',
+        );
+      }
+    });
+  });
 
   test('the subscription never shows expired: coverage extended + notices '
       'cleared', () async {
