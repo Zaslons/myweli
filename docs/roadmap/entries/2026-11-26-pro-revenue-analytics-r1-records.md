@@ -1,4 +1,4 @@
-- 🟡 **Registres : R1 des analyses de revenus fusionné et en production (docs · 2026-11-26 — BACKLOG B17.1, décisions 241–243).** Spec : [pro-revenue-analytics.md](../../design/pro-revenue-analytics.md) §14.
+- 🟢 **Registres : R1 des analyses de revenus fusionné et en production (docs · 2026-11-26 — BACKLOG B17.1, décisions 241–243).** Spec : [pro-revenue-analytics.md](../../design/pro-revenue-analytics.md) §14.
   - **R1 :**
     - son entrée et celle de sa lecture avant passent au vert ;
     - le statut de la spec, son index et le BACKLOG (ligne 17 et B17.1) disent maintenant : fusionné le 2026-11-25, en production le 2026-11-26 (révision `myweli-api-00061-kwl`).
@@ -12,4 +12,4 @@
       - essayé d’abord sur une base jetable.
   - **Reste, chacun sur le mot du propriétaire :**
     - le comptage après R1, quand de vrais rendez-vous existeront depuis le site, l’application et un salon ;
-    - R2.
+    - R2. **Fait :** fusionné et en production le 2026-11-26 (#884).
