@@ -18,6 +18,7 @@ import 'admin/audit_log_repository.dart';
 import 'admin/dispute_service.dart';
 import 'admin/disputes_repository.dart';
 import 'admin/moderation_service.dart';
+import 'analytics/revenue_analytics_service.dart';
 import 'appointments/appointment_lifecycle_service.dart';
 import 'appointments/appointment_repository.dart';
 import 'appointments/booking_service.dart';
@@ -1115,6 +1116,14 @@ final ProviderEarningsService providerEarningsService = ProviderEarningsService(
   membershipService,
   appointmentRepository,
   providers: providersRepository,
+);
+
+/// R2 — the salon's revenue analytics (docs/design/pro-revenue-analytics.md).
+final RevenueAnalyticsService revenueAnalyticsService = RevenueAnalyticsService(
+  membershipService,
+  appointmentRepository,
+  providersRepository,
+  clientsRepository,
 );
 
 final ReviewsService reviewsService = ReviewsService(
