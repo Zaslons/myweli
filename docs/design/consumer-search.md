@@ -390,6 +390,76 @@ Built on the owner's « Yes, start A4 », branch `feat/a4-app-search` from `main
     - **The third** (45814252477) is the committed set. The old home picture's blank photos predate A4.
 - **Not done here:** the consumer build, its upload and its release, each on the owner's word; A4w (the website), next.
 
+### 3.3 A4w, the website (designed 2026-11-26)
+
+Decision 233's half: « Afficher plus » and the count from `total` on `/recherche`. This section is the web detail §2 leaves open; it follows the app's flow (§2.5, §2.6, §2.1 step 6), in the website's own layout.
+
+**Today** (read on `main` `89ff92ca`):
+- **One page of 24, read on the server.** `/recherche` renders on demand (`force-dynamic`) and reads one page of 24 (`app/recherche/page.tsx:40-47`). `searchProviders` keeps only `items` (`lib/api/providers.ts:74-98`), so `total` is dropped.
+- **The count stops at 24.** It is `results.length`, drawn as « N salons ».
+- **No way past the 24th salon.**
+- **The browser never calls the API host.** Every browser read goes through a same-origin `/api/*` route handler. `lib/api/client.ts` is `server-only`, and the API's CORS allowlist rests on that.
+
+**What changes:**
+1. **The count is the server's `total`:** « 42 salons ». Hidden when there is nothing, since the empty state says it, as today.
+2. **« Afficher plus de salons »:** a secondary `Button`, full width, after the rows, shown while `pages × 24 < total`.
+   - **A tap reads the next page** through a new same-origin route, `GET /api/providers/search`. It forwards only `q`, `category`, `commune`, `sort`, `availableToday` and `page`, and fixes `pageSize` at 24 itself. A lost body is 502, as `/api/availability` does.
+   - **While it loads,** the button shows its spinner (`isLoading`, `aria-busy`) and the rows stay.
+   - **If it fails,** its place says « Impossible d’afficher la suite. » with « Réessayer », the app's words. The rows stay.
+   - **Appended rows are de-duplicated by id.**
+   - **What starts again at page 1:** a new search, a chip, « Trier » and « Disponible aujourd’hui » each navigate, as today.
+3. **« Retour » from a salon, and a reload, show the same rows** (§2.1 step 6, the app's rule):
+   - each page read writes `pages=N` into the address (`history.replaceState`, no navigation);
+   - the server then reads pages 1 to N again, in parallel, up to 10 pages (240 salons);
+   - `pages` outside 1–10, or not a number, is read as 1;
+   - a shared link opens the same list.
+4. **The map shows every row,** the appended ones included, and refits to them, as it does today for its first page. The card and marker sync needs a marker for every card.
+5. **After a page lands:**
+   - the focus moves to the first new salon's link, so a keyboard user continues where the new rows start;
+   - a polite status says « 24 salons de plus, 48 sur 63 » (WEB-SYSTEM §7).
+
+**Edge cases:**
+- **A salon unpublished between two pages** shifts the rest by one. The de-duplication keeps a salon from showing twice. The newest page's `total` decides whether the button stays.
+- **Ten pages read,** with more left: the button reads the eleventh page as usual. Only the address stops at `pages=10`, so a reload shows 240.
+- **On a phone,** the floating « Carte » rides over the rows while scrolling and stops under the button at the end (B11.5).
+
+**Security:**
+- The route forwards an allowlist of parameters, and sends no cookie.
+- The server validates the text (100 characters, no control character, A4-api).
+- `q` already sits in the address and in Cloud Run's logs (B0.15, decision 55).
+
+**Performance:**
+- No new read before a tap.
+- The client component is already on the page.
+- A reload with `pages=N` makes N reads in parallel, at most 10.
+
+**Tests:**
+- **Unit (RTL):**
+  - the count from `total`;
+  - the button at `pages × 24 < total` and gone at `=`;
+  - the append and its de-duplication;
+  - the loading state;
+  - the failure and « Réessayer »;
+  - the focus and the status;
+  - `pages` in the address.
+- **The route:**
+  - its allowlist;
+  - `page` forwarded and `pageSize` fixed;
+  - a lost body is 502.
+- **The page:** `pages` clamped to 1–10, with N reads.
+- **e2e,** with the stub paging 30 salons:
+  - « 30 salons »;
+  - « Afficher plus » shows 30 rows and the button goes;
+  - a failing second page shows the message and « Réessayer »;
+  - a reload with `pages=2` shows 30;
+  - axe on `/recherche` with the button.
+- **Mutations:** each rule above, watched red.
+
+**Rollout:**
+- **Its merge is a production deploy of `myweli.com`** (Vercel), on the owner's word.
+- **Read back on `myweli.com` after:** `/recherche` renders and the count shows.
+- **« Afficher plus » cannot be seen in production** until more than 24 salons are public. Today none is.
+
 ## 4. Data model
 
 - **No new table and no new column.**
