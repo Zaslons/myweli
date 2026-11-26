@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Module** | identity & auth (a cross-cutting foundation, [MODULES.md](../MODULES.md)): the consumer `users` store (`AuthRepository`, both twins), `PATCH /me`, two new routes under `/me/email`, the `User` DTO, the error reporter, and the consumer app's profile edit |
-| **Status** | **Approved 2026-11-26.** Written on the owner's « Yes, spec B16.3 »; the owner answered the six questions of §11 at once, « Approve as recommended »: decisions 260–265 in BACKLOG, batch 16 (#879). Read once by an independent reviewer told to refute it against the code: 20 findings, each re-read in the code, then folded in (§13). Nothing is built. Documentation only. Next, each on the owner's word: B16.3a (the backend) in its own PR, then decision 263's read, then its deploy; then B16.3b (the app). |
+| **Status** | **Approved 2026-11-26.** Written on the owner's « Yes, spec B16.3 »; the owner answered the six questions of §11 at once, « Approve as recommended »: decisions 260–265 in BACKLOG, batch 16 (#879). Read once by an independent reviewer told to refute it against the code: 20 findings, each re-read in the code, then folded in (§13). **B16.3a (the backend) built 2026-11-26** on the owner's « Yes, build B16.3a », in its own PR, not merged (§8.4). Next, each on the owner's word: its merge, decision 263's read, its deploy; then B16.3b (the app). |
 | **Owner** | the project owner: the answers, then each build, merge, read and deploy, each on the owner's word |
 | **Last updated** | 2026-11-26 |
 | **PRD ref / phase** | FR-AUTH-004 (profile: name, optional e-mail, photo) · threat model T32, T33, T34 · V1 |
@@ -318,6 +318,61 @@ One indexed read and at most two indexed writes per sign-in or change, in one tr
 - Skip Q6's second code: its case red.
 - The in-memory twin hands over a taken address again: P1 red in memory only.
 
+### 8.4 As built (B16.3a, 2026-11-26)
+
+Branch `feat/b16-3a-email-proven` from `main` (`2b8dd96b`). The tests red first (`259901c9`), then the fix (`0e7d201f`), the 429 inventory (`efa9c05d`), one assertion a mutation asked for (`e5b7cf0e`).
+
+- **Red first,** on today's code, for the reasons of §8.1 (`account_email_contract.dart`, run on both twins; the scrubber):
+  - **in memory, 11 red:** [P1], [P1b], [P5] (`PATCH /me` 200, wanted 409); [P2], [P3], [same provider], [never relinked] (the owner lands in the account that typed or proved the address); [by sub first] (the own address stays unproven); [P6], [P6b] (an unverified address stored though held); and the scrubber (the address survives);
+  - **on Postgres, a fresh database, 11 red:** [P1], [P1b] (the route throws `UniqueViolationException`: the 500); [P5]; [P2], [P3], [same provider] (Postgres replaced A's sub), [never relinked], [by sub first]; [P6], [P6b] (the sign-in throws `23505`); a real `23505`'s `toString()` names the address and survives the scrubber.
+  - Green before and after: the own address re-sent, `''` without an address, the empty-sub link, [P4] the control, a proven holder's next sign-in.
+- **The code:**
+  - `AuthRepository` (both twins): the sign-in rules of §5.1; `changeEmail` and `emailIsOnlySignIn`; `updateUser` without `email`; `User.toJson` with `emailVerified`; the in-memory twin's test seam `plantUnprovenEmailForTest` (the contract's way to set a trap, as Postgres does by SQL);
+  - `EmailChangeService` (`lib/src/auth/email_change_service.dart`): the per-account bucket, the sends and their refund, the notice (`account_email_emails.dart`);
+  - `routes/me/email/otp/request.dart`, `verify.dart`; `PATCH /me`'s comparison, before the avatar's promotion;
+  - `isIpLimitedPath` and the edge rule's script (`96-api-front-door.sh`) gain `/me/email/`;
+  - `scrubEvent` strips ` detail: …` from every exception value (`stripDatabaseDetail`);
+  - the contract, `schema.ts` regenerated; BACKEND.md T33 and T86; auth-social-email.md §4–§5.
+- **Green:** the contract on both twins (26 cases; on Postgres 28, with the race and the real-`23505` scrub); the two routes' handler tests (20, every answer of §3.1, the bodies checked against `openapi.yaml`); the full backend suite on a fresh database, 3324 passed, 2 skipped; analyze 0, format clean; the website's `tsc` clean.
+  - The full suite's first run had two reds, both the 429 inventory (`rate_limited_status_test.dart`) doing its job: the request route named no `rate_limited`, and the verify route was an undeclared error map with a 400 fallback. Fixed in `efa9c05d`.
+- **Mutations, on committed code, each with its failure text** (`b163_mut.py`, every one applied exactly once and the tree clean after):
+
+| Mutation | Twin | Red | Text |
+|---|---|---|---|
+| drop `AND email_verified` from the code sign-in's find | both | [P2] | `expected not 'user_…' \| actual 'user_…'` (the owner reaches A) |
+| drop it from the social find | both | [P3] | the same |
+| drop the take | both | [P2] | memory: `expected null \| actual 'x.…'` (A still holds X); Postgres: the sign-in throws `23505` |
+| relink over an existing sub | both | [never relinked] | `expected not 'user_…'` |
+| consume the code on `email_taken` | both | [P1] taken | `expected true \| actual <false>` (the owner's sign-in fails) |
+| accept a different address in `PATCH /me` | — | [P1], [P1b], [P5] | `expected <409> \| actual <200>` |
+| skip the check before the avatar (`email != null && false`) | — | the same three | the same |
+| skip decision 265's second code | both | 265 | `expected 'current_otp_none' \| actual <null>` |
+| the in-memory twin hands a proven address over | memory | [P1] taken | `expected 'email_taken' \| actual <null>` |
+| drop the by-sub proof (the `UPDATE`; the copy on the answer) | both | [by sub first] | `expected true \| actual <false>` |
+| store an unverified address though held | both | [P6], [P6b] | memory: `expected null`; Postgres: throws `23505` |
+| `emailIsOnlySignIn` ignoring links | memory | the Google change | `expected false \| actual <true>` |
+| rethrow the race's `23505` | Postgres | [race] | throws `UniqueViolationException` |
+| the notice to an unproven address | memory + route | « Vérifier », « no notice » | `expected null \| actual 'x.…'` |
+| the scrubber leaves the detail | — | the scrub test | the address in the value |
+| `/me/email/` out of `isIpLimitedPath` | — | the front door's scope | `expected <429> \| actual <200>` |
+| no `email_unchanged` · the new code sent `warm` · no per-account limit · no role check · `email_taken` as 400 | — | each its route test | `<409>`/`<202>` · `cold`/`warm` · `<429>`/`<202>` · `<403>`/`<404>` · `<409>`/`<400>` |
+
+  - **One survivor, as predicted:** dropping `AND NOT email_verified` from the take. The find before it filters on `email_verified`, so the take only ever runs where no proven holder exists; the filter is defence in depth against a future caller, not a guard any path exercises.
+  - **One mutation aimed wrong, then fixed:** dropping only the copy of `emailVerified` onto the answered `AuthUser` stayed green on Postgres, because the test read the stored row. The sign-in's answer did carry `false`, so the test now asserts the answer too (`e5b7cf0e`), and both that mutation and the one dropping the `UPDATE` go red.
+- **Where the build departs from §3–§5, and why:**
+  - **A thin service, `EmailChangeService`** (§5.6 said none): the per-account limit needs the `RateLimiter`, which only services receive, as the booking and review services do.
+  - **The new code is checked before the holder is read** (§5.3 listed the holder at step 2): reading it first would have answered `email_taken` to anyone, code or no code, against decision 262. Taken is said only once the code is right.
+  - **A row lock, not one `DELETE … RETURNING`** (§5.3): each code row is read `FOR UPDATE` in the transaction, checked, and deleted only once every check passed. Just as atomic, and it is what lets the two codes of decision 265 be checked before either is consumed. The sign-in's verify runs the same check inside its consuming transaction, so one code cannot be redeemed at both routes.
+  - **The race the index catches** is not two changes (they queue on the code row; the second answers `otp_none`) but a change against another account committing the address, a sign-in creating it. Tested with a held transaction.
+  - **`email_unchanged` at the verify too,** and **`currentDevCode`** in dev (a dev build needs the second code as much as the first).
+  - **The notice goes only to a proven old address:** an unproven one may be a stranger's inbox.
+  - **The per-account ceiling is a constant,** `kEmailChangeLimit` (10 an hour, one bucket for both routes), not a `LIMIT_*` variable: nothing has measured it, and a variable no manifest sets is a number nobody reads.
+- **Not done here, for the record:**
+  - **The edge rule is not applied.** `96-api-front-door.sh` carries `/me/email/`; it takes effect when the script is re-run, a Cloudflare change on the owner's word. Until then the origin's per-IP limiter holds alone.
+  - **The identity-limit alert's text** (`92-identity-limit-alert.sh`) does not list the `email:` bucket; a refusal still writes its `rate_limited bucket=email:…` line.
+  - **Two first sign-ins at one free address at once** can still meet at the unique index and answer 500 (unchanged from before; rare).
+  - The phone path keeps `_checkOtpIn` (dormant, one route).
+
 ---
 
 ## 9. Rollout & scope discipline
@@ -417,3 +472,4 @@ Numbered from **260**, after batch 18's 255–259.
     - §9's options and the merge path.
   - **Nits:** the code checked and consumed in one statement (§5.3); the sign-in step's own words and widgets; the phone's twin (§12); line references, `devCode` in dev only, and `schema.ts`.
 - 2026-11-26, answered: « Approve as recommended », all six (decisions 260–265, batch 16 in the BACKLOG). B16.3 is a P1, built in two PRs, the backend first; each build, merge, read and deploy on the owner's word.
+- 2026-11-26 — **B16.3a built** (§8.4), on the owner's « Yes, build B16.3a »: red first on both twins, green, 31 mutations (one survivor, as predicted; one mis-aimed, fixed).
