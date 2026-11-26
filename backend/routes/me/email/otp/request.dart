@@ -53,7 +53,11 @@ Future<Response> onRequest(RequestContext context) async {
         'account_suspended',
       ),
       'email_unchanged' => jsonError(HttpStatus.conflict, 'email_unchanged'),
-      final error => jsonError(HttpStatus.tooManyRequests, error!),
+      'otp_resend_limit' ||
+      'rate_limited' => jsonError(HttpStatus.tooManyRequests, r.error!),
+      // Every code the service answers is above: another one is our bug, so
+      // a 500 and a report, never a guess at its status.
+      final other => throw StateError('EmailChangeService.request: $other'),
     };
   }
   return Response.json(
