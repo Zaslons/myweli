@@ -2,9 +2,9 @@
 
 | | |
 |---|---|
-| **Status** | **Approved 2026-11-25** — the owner answered all thirteen questions of §17 at once, « Approve as recommended » (decisions 237–249). **R0w live 2026-11-25** (#866, `afd2de97`). **R1's production read done 2026-11-25** (§19). **R1 live 2026-11-26** (#872, migration **0052**, merged 2026-11-25 `3f3305a5`, deployed 2026-11-26 11:09 UTC, revision `myweli-api-00061-kwl`); the count after waits for real bookings, on the owner's word. |
+| **Status** | **Approved 2026-11-25** — the owner answered all thirteen questions of §17 at once, « Approve as recommended » (decisions 237–249). **R0w live 2026-11-25** (#866, `afd2de97`). **R1's production read done 2026-11-25** (§19). **R1 live 2026-11-26** (#872, migration **0052**, merged 2026-11-25 `3f3305a5`, deployed 2026-11-26 11:09 UTC, revision `myweli-api-00061-kwl`); the count after waits for real bookings, on the owner's word. **R2 built 2026-11-26** (branch `feat/backend-revenue-r2-endpoints`; as built: §20); its merge and deploy wait for the owner's word. |
 | **Owner** | Sadreddine |
-| **Last updated** | 2026-11-25 |
+| **Last updated** | 2026-11-26 |
 | **PRD ref / phase** | FR-PRO-EARN-001 [V1] (« completed revenue by day/week/month ») + FR-PRO-DASH-001 [V1] (« no-show rate ») + the revenue half of **FR-PRO-OPS-004 [V3]** (« revenue, top services/staff, no-show analytics »), pulled forward on the owner's request of 2026-11-25 — Q1 |
 | **Module** | `analytics` (MODULES §10) on top of `finance` (§9); authz from `access` (§11) |
 | **ROADMAP entry** | [2026-11-25-pro-revenue-analytics-spec.md](../roadmap/entries/2026-11-25-pro-revenue-analytics-spec.md) |
@@ -969,6 +969,9 @@ no website booking is ever stamped `app`.
 
 ### 8.3 Reads (R2)
 
+*As built, `revenueRows` returns one `json_agg` document per range (§20.2).*
+
+
 - `AppointmentRepository.revenueRows(providerId, fromUtc, toUtcExclusive)`
   → the narrow fields the aggregator needs (`id`, `status`,
   `appointmentDate`, `durationMinutes`, `artistId`, `artistNameKept`, `totalPrice`, `currency`,
@@ -1068,6 +1071,9 @@ deleted with the old screen) · `screens/provider/earnings/` rebuilt:
 ---
 
 ## 11. Performance
+
+*Measured on R2 as built: §20.3.*
+
 
 | Budget | Value | How it is held |
 |---|---|---|
@@ -1464,3 +1470,124 @@ are that run's.
 - **One precision**, §3.4: a single-service line is exact and is not marked
   `estimated`.
 
+---
+
+## 20. R2 as built (2026-11-26)
+
+On the owner's « Oui, démarrer R2 » and « Yes, and read the demo »
+(2026-11-26). Branch `feat/backend-revenue-r2-endpoints`.
+
+**Where it lives.**
+- `backend/lib/src/analytics/revenue_period.dart` — the calendar (§3.5),
+  pure;
+- `…/revenue_aggregator.dart` — the fold (§3.2–§3.4), pure;
+- `…/revenue_analytics_service.dart` — the gate, the reads, the ledger rows;
+- `…/revenue_query_parser.dart` — the boundary (every query parameter);
+- `backend/routes/providers/[id]/analytics/revenue/{index,appointments}.dart`;
+- `AppointmentRepository.revenueRows` / `revenueLedger` / `hasCompleted` and
+  `ClientsRepository.displayNamesFor` on both twins, each under a contract
+  run on both (decision 223);
+- OpenAPI: the two paths, eight `Revenue*` parameters, ten schemas;
+  `web/lib/api/schema.ts` regenerated.
+
+### 20.1 Precisions to §3 and §7 (nothing reversed)
+
+1. **Bounds apply to the dates sent** (`date`, `from`, `to`): each on or
+   after 2020-01-01 and at most the salon's today + 366 days. A period around
+   a valid date may reach past them (the week of 1 January 2020 starts on
+   30 December 2019): harmless, and the only reading that lets « Semaine »
+   step onto that day.
+2. **The contract sends everything, nullable rather than absent:**
+   `filters` and all five `comparison` fields are required (null when they
+   do not apply); `filters.state` uses the rows' enum; the ledger page also
+   echoes the `asOf` it measured against; a ledger row's `status` is the
+   stored one (`completed`, `confirmed`, `noShow`, `cancelled`).
+3. **`estimated` is only where an estimate can be.** « Réalisé », the rows by
+   collaborateur and by canal are built on each booking's `totalPrice`, which
+   is exact; only a prestation's amount (the rows by prestation, the figures
+   and ledger under a `serviceId` filter) can rest on an estimated line. A
+   row's flag covers its current or its previous amount.
+4. **Shares** are basis points by largest remainder: the shares of one axis
+   add up to exactly 10 000 / 10 000.
+5. **The average ticket** is rounded to the currency's unit.
+6. **Groups**: the salon's own currency first, then by code.
+7. **The estimate's remainder** goes to the largest line, the first of equals
+   (§3.4 step 3).
+8. **A removed collaborateur or prestation** is labelled with the name kept
+   on its **latest** booking, in either range.
+9. **Canal rows** carry no label (the clients name them); `online` is
+   `state: legacy`.
+10. **A salon that vanished** after the gate answers 404; unreachable for a
+    member, and the gate's 403 comes first for anyone else.
+
+### 20.2 The read (§8.3), as built
+
+`revenueRows` returns **one `json_agg` document per range**, decoded at once,
+instead of one driver row per booking. Measured on the benchmark salon
+(14 600 rows a year, Postgres 16): the driver's per-cell decoding was most of
+the time — 110–130 ms per range for the twelve columns, about 75 ms as one
+document. Same keys, same order, same rows as the in-memory twin;
+`service_ids` decoded in SQL (both storage forms; an unreadable value reads
+as null, as in the ledger's filter). The ledger page (≤ 50 rows) keeps
+ordinary rows.
+
+### 20.3 The budget (§11), measured
+
+`backend/test/db/revenue_analytics_budget_test.dart` — its own database, the
+§11 salon (40 bookings a day over two years, `service_ids` in production's
+string form, half the rows with kept lines and half estimated, every channel),
+p95 of 20 timed calls after 2 untimed:
+
+| Read | First draft (one driver row per booking) | As built | Budget |
+|---|---|---|---|
+| « Année » + the year before (~29 000 rows) | ≈ 420 ms, once over 500 | **≈ 240 ms** (≈ 280 with the two ranges read one after the other; ≈ 400 once, during the full Postgres suite) | 500 ms |
+| « Mois » | ≈ 45 ms | **≈ 18 ms** | 200 ms |
+| A ledger page, filtered by prestation | ≈ 20 ms | **≈ 20 ms** | 200 ms |
+
+Measured on a Mac against Postgres in Docker; CI measures it again on every
+run, and the test fails over budget. **The two ranges are read at once** — two
+connections, not more: an instance has four (`kMaxConnectionsPerInstance`),
+so the cheap « ever completed » `EXISTS` runs after them. The fold itself is
+about 75 ms of the 240; if a busier salon ever crosses the line, the next step is still §9.1's
+(the fold into SQL behind the same service API).
+
+### 20.4 Beyond §13.1's list
+
+- **The ledger lists exactly what the figures count**: for every figure and
+  six filters, the ledger's pages add up to the figure's count and amount.
+  The figures fold in Dart and the ledger filters in SQL — two codes, one
+  definition, held together by this test (both twins).
+- `service_ids` in its three forms on Postgres (an array, a JSON string,
+  unreadable text): the filter reads the first two and skips the third.
+
+### 20.5 The demo salon's agenda (decision 249, Q13)
+
+**The read, 2026-11-26 14:59 UTC** (on the owner's « Yes, and read the
+demo »; read-only session, the write probe refused with 25006; the script run
+first on a throwaway Postgres; counts only):
+- the demo salon has **no collaborateur**, live or in its snapshot;
+- 5 active prestations, none bound to a collaborateur;
+- 4 confirmed bookings.
+
+**As built** (`DemoResetService._regenerateAgenda`, `kDemoAgenda`): each reset
+enters 16 bookings through `bookManual`, relative to the reset:
+- 12 completed over the last eight weeks, on every prestation in turn, one
+  with two prestations;
+- 1 absence;
+- yesterday's booking left confirmed: the « À clôturer » banner;
+- 2 ahead.
+
+The past ones are closed through the Pro app's own path,
+`ProAppointmentService.complete` / `noShow`, which also touches the client
+card's last visit. Collaborateurs: the salon's own in turn, every fourth
+booking unassigned; with none on the roster, every booking is unassigned.
+
+**So, until the owner acts, « Par collaborateur » on the demo shows one row,
+« Sans collaborateur attribué ».** Adding two or three collaborateurs is the
+owner's step: on the demo account in the app, **then a new capture**
+(`POST /admin/demo/snapshot`) — the reset restores the snapshot's `artists`,
+so collaborateurs added without a capture are removed at the next reset.
+
+Early in a month, « Mois » can show no completed booking yet: the agenda's
+latest is three days back. « Semaine », « Année » and « Dates » still show
+figures.

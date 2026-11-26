@@ -81,16 +81,19 @@ class RevenueAnalyticsService {
     final period = resolved.period;
     if (period == null) return (ok: false, error: resolved.error, data: null);
 
-    final current = await _appointments.revenueRows(
-      providerId,
-      period.startUtc,
-      period.endUtc,
-    );
+    // The two ranges at once: on the §11 salon they are most of the
+    // answer's time and do not depend on each other (pro-revenue-analytics.md
+    // §20.3). Two, not more: an instance has four connections
+    // (`kMaxConnectionsPerInstance`), so the cheap `EXISTS` waits its turn.
     final compareStart = period.compareStartUtc;
     final compareEnd = period.compareEndUtc;
-    final previous = (compareStart == null || compareEnd == null)
-        ? null
-        : await _appointments.revenueRows(providerId, compareStart, compareEnd);
+    final (current, previous) = await (
+      _appointments.revenueRows(providerId, period.startUtc, period.endUtc),
+      (compareStart == null || compareEnd == null)
+          ? Future<List<Map<String, dynamic>>?>.value()
+          : _appointments.revenueRows(providerId, compareStart, compareEnd),
+    ).wait;
+    final everCompleted = await _appointments.hasCompleted(providerId);
 
     return (
       ok: true,
@@ -102,7 +105,7 @@ class RevenueAnalyticsService {
         catalogue: RevenueCatalogue.fromSalon(salon),
         filters: query.filters,
         salonCurrency: (salon['currency'] as String?) ?? 'XOF',
-        everCompleted: await _appointments.hasCompleted(providerId),
+        everCompleted: everCompleted,
       ),
     );
   }
