@@ -9,12 +9,10 @@ import {
   providerMetadata,
 } from '../../components/provider/ProviderView';
 import { countryName, getLocalityTree } from '../../lib/api/localities';
-import {
-  getAllProviderSlugs,
-  getProviderBySlug,
-} from '../../lib/api/providers';
+import { getProviderBySlug } from '../../lib/api/providers';
 import { parseFlatLanding } from '../../lib/landing';
 import { parseFlatServiceLanding } from '../../lib/service-landing';
+import { staticSalonSlugs } from '../../lib/salon-fallback';
 import { resolveTaxonomyRoot, taxonomyRootSlugs } from '../../lib/taxonomy';
 
 
@@ -37,12 +35,15 @@ export const revalidate = 300;
 // `notFound()` produces. Measured; see served-html.spec.ts for what was ruled
 // out.
 //
-// It also means a salon PUBLISHED after the last build is not reachable until
-// the next one, which is why the backend fires a Vercel deploy hook on every
-// transition that changes the public set — publish, republish, billing
-// unpublish, erasure, admin suspend/restore (backend-web-rebuild-hook.md §2).
-// Until 2026-08-25 this comment credited "admin KYC approval", which fires
-// nothing and never did: KYC does not change the listable set.
+// It also means a salon that becomes public after the last build is not in
+// this route until the next one. The backend fires a Vercel deploy hook on
+// every transition that changes the public set (backend-web-rebuild-hook.md
+// §2), and the build takes minutes: measured 2026-11-25, still 404 2 min 42 s
+// after the hook, 200 at 4 min 46 s, while search already listed the salon.
+// `middleware.ts` serves such a salon live in the meantime, at this same
+// address (web-salon-page-live-fallback.md). Until 2026-08-25 this comment
+// credited "admin KYC approval", which fires nothing and never did: KYC does
+// not change the listable set.
 export const dynamicParams = false;
 
 /// Single-segment space (multi-pays MP3): taxonomy ROOT (/coiffure, /tresses
@@ -50,11 +51,17 @@ export const dynamicParams = false;
 /// provider → LEGACY flat landing (coiffure-cocody) permanently redirected
 /// (308 ≡ 301 for SEO) to its nested home → 404. Prebuilds provider slugs +
 /// the 18 roots; others render on demand.
+///
+/// **The salons come from the prebuild's one read, not from the API here**
+/// (`staticSalonSlugs`, web-salon-page-live-fallback.md §3.1): `middleware.ts`
+/// passes a slug in that same list without asking the API, so the page and the
+/// middleware must hold one list. Two reads seconds apart could disagree, and
+/// a salon the middleware believes built but the page did not build would get
+/// the old 404 with no fallback.
 export async function generateStaticParams() {
-  const slugs = await getAllProviderSlugs();
-  return [...new Set([...slugs, ...taxonomyRootSlugs()])].map((slug) => ({
-    slug,
-  }));
+  return [...new Set([...staticSalonSlugs(), ...taxonomyRootSlugs()])].map(
+    (slug) => ({ slug }),
+  );
 }
 
 

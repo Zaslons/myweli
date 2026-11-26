@@ -1,0 +1,20 @@
+- 🟡 **Production : la lecture avant R1 des analyses de revenus — rien ne s’affichera « estimé » aujourd’hui (production · lecture seule · 2026-11-25 — BACKLOG B17.1, décision 248).** Sur le « Yes, read it » du propriétaire. Spec : [pro-revenue-analytics.md](../../design/pro-revenue-analytics.md) §19.
+  - **La méthode, celle du lot 14 et de B16.1 :**
+    - le proxy Cloud SQL sur la boucle locale, arrêté après ;
+    - l’adresse de la base dans une variable du shell seulement ;
+    - une session `default_transaction_read_only=on` et `BEGIN READ ONLY … ROLLBACK` ;
+    - une écriture-témoin refusée ;
+    - des totaux seulement.
+    - La requête a d’abord tourné sur une base Postgres 16 jetable, avec un cas par ligne ; elle a été supprimée après.
+  - **Le résultat (12:44 UTC) :**
+    - 4 rendez-vous, dans 1 salon, tous « confirmés », tous ajoutés par le salon ;
+    - une prestation chacun, aucun collaborateur, tous en XOF ;
+    - **aucun rendez-vous terminé.** Aucune ligne ne s’affichera donc « estimé » ou « Ancien collaborateur ».
+    - Ce sont probablement les rendez-vous régénérés du salon de démonstration (déduit, la lecture ne prend aucun identifiant).
+  - **Un défaut de la lecture elle-même, trouvé par ses propres chiffres :** le premier passage (12:43) classait les 4 rendez-vous « sans prestation lisible ». En production, `service_ids` est une chaîne JSON dans un `jsonb`, et la requête ne lisait qu’un tableau. Vérifié dans le code, requête corrigée, retestée sur la base jetable, puis la même lecture relancée.
+  - **Ce que ça change pour la suite (spec §8.1, §8.3, §3.4) :**
+    - R1 écrit `service_lines` comme un vrai tableau, avec un test sur son type stocké ;
+    - le registre de R2 décode les deux formes de `service_ids` ;
+    - une ligne de rendez-vous à une seule prestation est exacte, donc pas marquée « estimé ».
+  - **Aussi :** #863 et #866 fusionnés, leurs entrées passent au vert.
+  - **Ensuite :** R1, construit sur le mot du propriétaire, déployé sur son mot.

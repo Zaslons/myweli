@@ -1,4 +1,5 @@
 import { withSentryConfig } from '@sentry/nextjs';
+import { readSalonListFile, topLevelRoutes } from './tool/salon-build-list.mjs';
 
 /// The 17 SEO taxonomy roots (5 categories + 13 services, `massage` overlapping), duplicated from `lib/taxonomy.ts` because a
 /// `.mjs` config cannot import TypeScript. `tests/legacy-redirects.test.ts`
@@ -258,6 +259,12 @@ async function securityHeaders() {
   ];
 }
 
+/// The prebuild's salon list as a string for `env`, or '' when there is none.
+function salonListEnv() {
+  const slugs = readSalonListFile();
+  return slugs === null ? '' : JSON.stringify(slugs);
+}
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
@@ -270,6 +277,15 @@ const nextConfig = {
     // under "no release". Empty string locally, which the SDK treats as unset.
     NEXT_PUBLIC_RELEASE:
       process.env.NEXT_PUBLIC_RELEASE ?? process.env.VERCEL_GIT_COMMIT_SHA ?? '',
+    // **The two lists `app/[slug]` and `middleware.ts` share**
+    // (docs/design/web-salon-page-live-fallback.md §3.1). Inlined here rather
+    // than imported as JSON: the salon file is gitignored and written by the
+    // prebuild, and CI typechecks and unit-tests before any build, so a static
+    // import of it would break both. No file (`next dev`, a test) inlines ''.
+    // `lib/salon-fallback.ts` reads them; `staticSalonSlugs` refuses '' in a
+    // production build that fails closed.
+    MYWELI_BUILT_SALON_SLUGS: salonListEnv(),
+    MYWELI_TOP_LEVEL_ROUTES: JSON.stringify(topLevelRoutes()),
   },
   async redirects() {
     return legacyFlatRedirects();

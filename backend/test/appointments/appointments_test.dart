@@ -599,6 +599,45 @@ void main() {
       expect(await salonFeed.listForUser('acc-owner'), hasLength(1));
     });
 
+    // docs/design/pro-revenue-analytics.md §8.2 (R1, decision 243): the
+    // website's booking BFF says `X-Myweli-Channel: web` (R0w), the app says
+    // nothing. Exactly `web` is the website and anything else is the app: the
+    // header is the client's word, so it may only ever label the salon's own
+    // statistics — never `salon`, never anything new (T85).
+    for (final (sent, stored) in <(String?, String)>[
+      ('web', 'web'),
+      (null, 'app'),
+      ('WEB', 'app'),
+      ('Web', 'app'),
+      ('salon', 'app'),
+      ('web, web', 'app'),
+      ('', 'app'),
+    ]) {
+      test('POST with X-Myweli-Channel ${sent == null ? 'absent' : '« $sent »'}'
+          ' → stored « $stored »', () async {
+        final res = await list.onRequest(
+          ctx(
+            Request.post(
+              Uri.parse('http://localhost/appointments'),
+              headers: {
+                'Authorization': 'Bearer $accessA',
+                'X-Myweli-Channel': ?sent,
+              },
+              body: jsonEncode(bookBody(_slotAt(9))),
+            ),
+          ),
+        );
+        expect(res.statusCode, HttpStatus.created);
+        final body = await jsonOf(res);
+        expect(body['channel'], stored, reason: 'the answer');
+        expect(
+          (await appts.byId(body['id'] as String))!['channel'],
+          stored,
+          reason: 'what is stored',
+        );
+      });
+    }
+
     test('POST an unavailable slot → 409', () async {
       final res = await list.onRequest(
         ctx(

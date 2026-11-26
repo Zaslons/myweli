@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | **Approved 2026-11-25** — the owner answered all thirteen questions of §17 at once, « Approve as recommended » (decisions 237–249). **R0w built 2026-11-25** (the website's booking BFF sends `X-Myweli-Channel: web`; not merged). Next: R1's read-only production count, then R1; each PR, production read and deploy on the owner's word. |
+| **Status** | **Approved 2026-11-25** — the owner answered all thirteen questions of §17 at once, « Approve as recommended » (decisions 237–249). **R0w live 2026-11-25** (#866, `afd2de97`). **R1's production read done 2026-11-25** (§19). **R1 built 2026-11-25** (#872, migration **0052**); its merge and its deploy wait for the owner's word. |
 | **Owner** | Sadreddine |
 | **Last updated** | 2026-11-25 |
 | **PRD ref / phase** | FR-PRO-EARN-001 [V1] (« completed revenue by day/week/month ») + FR-PRO-DASH-001 [V1] (« no-show rate ») + the revenue half of **FR-PRO-OPS-004 [V3]** (« revenue, top services/staff, no-show analytics »), pulled forward on the owner's request of 2026-11-25 — Q1 |
@@ -292,7 +292,11 @@ A booking made before R1 deploys has no service lines. The aggregator
 3. Round each share to the currency's unit (XOF and XAF have no minor unit)
    and give the remainder to the largest line, so the lines add up to
    `total_price` exactly.
-4. Mark each such line `estimated`.
+4. Mark each such line `estimated` — **except the line of a booking with a
+   single service**: its line is its `total_price`, exact by construction,
+   so it is not marked (a precision of decision 241's own words, « exact for
+   every single-prestation booking »; recorded 2026-11-25 after the
+   production read, §19).
 
 A row whose amount includes an estimated line carries `estimated: true`; the
 app and the website print « estimé » beside it, with the footnote (§4.10).
@@ -895,11 +899,14 @@ their shape and meaning: builds 0.0.2 in both stores call them.
 
 ## 8. Data model (R1)
 
-### 8.1 Three nullable columns on `appointments` (migration 0051, additive)
+### 8.1 Three nullable columns on `appointments` (migration 0052, additive)
+
+*Numbered 0051 when this spec was written; A4-api's `unaccent` (#864)
+merged first and took 0051, so R1 is 0052.*
 
 | Column | Type | Written by | Content |
 |---|---|---|---|
-| `service_lines` | `jsonb` | `book`, `bookManual` | `[{ "serviceId", "name", "price", "durationMinutes" }]`, one per `service_ids` entry, in its order; Σ `price` = `total_price` |
+| `service_lines` | `jsonb` | `book`, `bookManual` | `[{ "serviceId", "name", "price", "durationMinutes" }]`, one per `service_ids` entry, in its order; Σ `price` = `total_price`. **Stored as a real JSON array** — the Dart list passed to the `:jsonb` parameter, never `jsonEncode`d first, which is what makes `service_ids` a JSON string (§8.3, §19); a DB-gated test asserts `jsonb_typeof(service_lines) = 'array'`, **and the column's CHECK refuses anything else** (`jsonb_typeof(service_lines) = 'array'`, 23514), so `_toDto` returns the column as read — an array or NULL, never a string (as built in R1: stronger than the test alone) |
 | `artist_name_kept` | `text` | `book`, `bookManual`; and every write of `artistId` (reassignment: `rescheduleByProvider`, the journal's drag) | the collaborateur's name at that moment; `NULL` when there is no collaborateur |
 | `channel` | `text` | `book` (`app` or `web`, §8.2), `bookManual` (`salon`) | `app` · `web` · `salon`; a CHECK keeps it to these three or NULL |
 
@@ -969,8 +976,14 @@ no website booking is ever stamped `app`.
   `appointment_date, id`. Postgres: one `SELECT` on
   `appointments_provider_date_idx`.
 - `AppointmentRepository.revenueLedger(providerId, range, status, filters,
-  limit, offset)` → a page + its total; `serviceId` filter =
-  `service_ids ? @sid`.
+  limit, offset)` → a page + its total. **The `serviceId` filter decodes
+  both storage forms of `service_ids`**: production stores it as a JSON
+  *string* inside `jsonb` (written with `jsonEncode` on a `:jsonb`
+  parameter, `postgres_appointment_repository.dart:49`, `:61`; read back by
+  `_toDto`, `:214`), so `service_ids ? @sid` alone would match nothing —
+  read in production, 4 of 4 rows (§19). The decode is
+  `providers.data`'s (`kAppointmentCurrencyBackfill`): nested `CASE`s and
+  `pg_input_is_valid`, so an unreadable value is skipped, never cast.
 - `AppointmentRepository.hasCompleted(providerId)` → `EXISTS`.
 - All three: implemented on both twins with **one contract test run against
   both** (decision 223).
@@ -1047,6 +1060,10 @@ deleted with the old screen) · `screens/provider/earnings/` rebuilt:
   budget (§11), `no-store`; **T** — a forged `X-Myweli-Channel` → it can only
   relabel the salon's own statistics, enum-checked, never used for authz.
   T5 gains « analytics » in its provider-reads list.
+  **As built:** T85 landed with R1, scoped to what R1 ships — the header
+  and the three columns (their CHECKs, the kept name only with its id,
+  immutability, disclosure). R2 extends the same row with the endpoints'
+  **I** and **D** and adds T5's « analytics ».
 
 ---
 
@@ -1212,8 +1229,8 @@ Each merge, each production read and each deploy waits for the owner's word.
 | # | PR | Surface | Depends on | Ships to users when |
 |---|---|---|---|---|
 | **R0w** | The booking BFF sends `X-Myweli-Channel: web` | website | — | its merge (Vercel) |
-| **R1** | Migration 0051 (three nullable columns, no backfill), the writes, the twins' key list, the header read, an empty `artistId` stored as `null`, OpenAPI's `Appointment` gains the three stored keys | backend | R0w live | its deploy (`deploy-backend.yml`) |
-| **R2** | The two endpoints, the period resolver, the aggregator, the repo reads + contract, the batched client-name lookup, OpenAPI, T85, `schema.ts` regenerated; the demo reset's richer agenda if Q13 says yes | backend (+ `web/lib/api/schema.ts`) | R1 | its deploy |
+| **R1** | Migration 0052 (three nullable columns with their CHECKs, no backfill), the writes, the twins' key list, the header read, an empty `artistId` stored as `null`, OpenAPI's `Appointment` gains the three stored keys and `POST /appointments` the header, `schema.ts` regenerated, T85 (the header and the columns) | backend (+ `web/lib/api/schema.ts`) | R0w live | its deploy (`deploy-backend.yml`) |
+| **R2** | The two endpoints, the period resolver, the aggregator, the repo reads + contract, the batched client-name lookup, OpenAPI, T85 extended + T5, `schema.ts` regenerated; the demo reset's richer agenda if Q13 says yes | backend (+ `web/lib/api/schema.ts`) | R1 | its deploy |
 | **R3** | « Revenus » rebuilt, details, ledger, Accueil taps, shared widgets, goldens; placeholder deleted | app | R2 deployed | the next Pro build in the stores |
 | **R4** | `/pro/revenus` rebuilt, details, ledger, CSV | website | R2 deployed | its merge |
 
@@ -1223,8 +1240,8 @@ each other once R2 is deployed.
 **Production reads** (read-only, each on the owner's yes): before R1, the
 count of bookings by number of services and the count referencing a service
 or a collaborateur that no longer exists — how many rows will read
-« estimé » or « Ancien collaborateur ». After R1, a count of new bookings
-with lines, channel and name.
+« estimé » or « Ancien collaborateur » (**done 2026-11-25, §19**). After R1,
+a count of new bookings with lines, channel and name.
 
 **Store assets**: App Store screenshot 8 (« Revenus ») and the preview film's
 scene S4 already show an older card (provider-earnings.md §12); this screen
@@ -1240,7 +1257,7 @@ part of this work.
 - [ ] Tests of §13 for its surface, red first where a defect is claimed;
       the mutations of §13.1 watched red and named in the PR.
 - [ ] OpenAPI updated with the code; `schema.ts` regenerated, no drift.
-- [ ] T85 + T5 updated (R2); SYSTEM.md §11.3 entries marked built (R3/R4).
+- [ ] T85 written (R1) and extended + T5 updated (R2); SYSTEM.md §11.3 entries marked built (R3/R4).
 - [ ] Goldens from Linux, each changed PNG opened.
 - [ ] This spec cross-linked from the routes, the service, the screens and
       the contract; its status moved.
@@ -1273,6 +1290,15 @@ part of this work.
    expected » on the earnings screen; neither exists, and with screenshot
    deposits MyWeli can only know a proof was sent, not that money arrived.
    Recommended: reword the requirement when Q1's PRD edit is made.
+4. **`bookManual` stores any `artistId` it is given** (found building R1).
+   The client's `book` refuses an id not on the roster (the slot engine's
+   `invalid_artist`) and the journal's drag does too (T42), but the salon's
+   own « Ajouter un rendez-vous » never checks: an id from another salon,
+   or a stale one, is stored as sent. Bounded to the salon's own bookings
+   (the route requires `journal.manage.all` on that salon), and R1 keeps no
+   name for it (`artistNameKept` null), so its revenue reads under
+   « Ancien collaborateur ». Recommended: refuse it with `invalid_artist`,
+   as the other two paths do, in its own small PR with a test.
 
 ---
 
@@ -1372,5 +1398,67 @@ Checked and correct by the same reader: the `X-Myweli-Channel` header
 reaches the backend (the BFF passes route headers, the Cloudflare Worker
 forwards all headers); only two paths create bookings and one changes the
 collaborateur; erasure keeps `user_id`; the purge deletes rows whole;
-migration 0051, threat T85 and decision 237 were the next free numbers; only
+migration 0051 (taken by A4-api the same day — R1 is 0052), threat T85 and decision 237 were the next free numbers; only
 the owner preset has `finances.view`; the Pro offer lists « Statistiques ».
+
+---
+
+## 19. The production read before R1 (2026-11-25)
+
+On the owner's « Yes, read it » (decision 248's read).
+
+**Method** — the one batch 14 and B16.1 used:
+- the Cloud SQL Auth Proxy on loopback, stopped after (no listener left on
+  its port);
+- the database URL held in a shell variable only, never printed or written;
+- the session opened with `default_transaction_read_only=on` (read back as
+  `on`) and the query inside `BEGIN READ ONLY … ROLLBACK`;
+- the probe write `UPDATE appointments SET status = status WHERE false`
+  refused (« cannot execute UPDATE in a read-only transaction »);
+- aggregates only: no id, no name, no single booking's amount.
+
+The query first ran on a throwaway local Postgres 16 holding one row per
+case. The cases: both storage forms of the salon document and of
+`service_ids`, an unreadable document and an unreadable `service_ids`, a
+deleted service, prices changed since booking, duplicates, an artist null,
+empty, on the roster and not on it, a manual and an online booking, two
+currencies. It reported each case as expected. There the probe write passed
+without the setting and was refused with it. The container was then removed.
+
+**A defect in the read itself, found by its own numbers.** The first run in
+production (12:43 UTC) classed all four bookings as having no readable
+`service_ids`. The query only read a JSON array, and production stores
+`service_ids` as a JSON **string** inside `jsonb` (§8.3). It was confirmed
+in the code, then the query was fixed to decode both forms. The fixed query
+was re-tested on the throwaway database with both forms. Then the same read
+ran again, by the same method, at 12:44:07–12:44:08 UTC. The figures below
+are that run's.
+
+| | Production, 2026-11-25 12:44 UTC |
+|---|---|
+| Bookings | **4**, in **1** salon |
+| Status | 4 `confirmed`; **0 `completed`** anywhere |
+| Channel | 4 entered by the salon (`user_id = 'manual'`); 0 online |
+| Services per booking | 4 with one service; 0 with two or more |
+| A service no longer in the catalogue | 0 |
+| Collaborateur | 4 without one (`artist_id` null); 0 empty, 0 off the roster |
+| Currency | 4 XOF |
+| `service_ids` storage | 4 of 4 a JSON string |
+| Salon documents unreadable | 0 |
+
+**What it means.**
+- **No booking in production will read « estimé » or « Ancien
+  collaborateur » today.** There is no completed booking, every booking has
+  one service (exact, §3.4), and none has a collaborateur to lose.
+- Every booking made after R1's deploy carries its lines. So the estimate
+  only ever covers the bookings made until then.
+- The four look like the demo salon's regenerated agenda: four, confirmed,
+  entered through `bookManual`, no collaborateur (B16.2 §1; decision 249).
+  This is **INFERRED**: the read takes no salon id.
+- **Two consequences, folded in above:**
+  - §8.3: the ledger's `serviceId` filter decodes both forms;
+  - §8.1: `service_lines` is written as a real array, with a test on its
+    stored type, so the new column does not repeat `service_ids`' encoding.
+- **One precision**, §3.4: a single-service line is exact and is not marked
+  `estimated`.
+

@@ -3,9 +3,9 @@
 | | |
 |---|---|
 | **Module** | backend: the store-review demo (`DemoResetService`, the demo snapshot store) and `providers` (one new writer, `replaceServices`) |
-| **Status** | **Approved 2026-11-25.** The owner answered the five questions of §11 at once, « Approve as recommended »: decisions 250–254 in BACKLOG, batch 16 (#865). Nothing is built. The build, the read before the deploy and the deploy, each on the owner's word. |
+| **Status** | **Approved 2026-11-25.** The owner answered the five questions of §11 at once, « Approve as recommended »: decisions 250–254 in BACKLOG, batch 16 (#865). **B16.2 built 2026-11-25** (§8.8), on the owner's « Yes, build B16.2 », in its own backend PR, **merged** as `59409ef0` (#869). **Read before the deploy** on 2026-11-25 (§9.1): the live demo equals the snapshot except its hours; the owner chose « Let the reset restore ». **Deployed** on 2026-11-26 (`myweli-api-00060-bwq`, image `59409ef`) and read back. The first fixed reset is due 2026-11-30 03:30 UTC; the read after it, on the owner's word. |
 | **Owner** | the project owner: the answers, the build's go, the merge, the read before the deploy, the deploy and the read after it, each on the owner's word |
-| **Last updated** | 2026-11-25 |
+| **Last updated** | 2026-11-26 |
 | **PRD ref / phase** | the store-review account (threat T69) · V1 |
 | **ROADMAP entry** | [2026-11-25-demo-reset-restore-spec.md](../roadmap/entries/2026-11-25-demo-reset-restore-spec.md) |
 | **Skills checked** | myweli-dev-guardrails · myweli-backend-guardrails · myweli-verification-guardrails · [BACKEND.md](../BACKEND.md) §5 (decision 223), §7 (T69) |
@@ -276,6 +276,34 @@ All of §8.1 green on both twins. The existing `demo_reset_test.dart` stays gree
   - **What it cannot see:** a writable key added to a writer without being added to its list. Its comment says so, and names the writers it was read from: the profile PATCH (with the logo and the market keys), the deposit policy, the gallery, the before/after pairs, the artists, the services and the hours.
 - The caller guard of §6.
 
+### 8.8 As built (B16.2, 2026-11-25)
+
+Branch `fix/b16-2-demo-reset` from `main` (`afd2de97`). Two commits: the tests red first (`d11c98f3`), then the fix (`8413a3f1`).
+
+- **Red first,** on a fresh local database, for the reasons of §8.1:
+  - **in memory:** every `replaceServices` case (`UnimplementedError: B16.2`; « [foreign id] » on its own reason); « [capture copy] », « [read copy] »; « [services] », « [before-after] », « [artists] », « [featured] », « [rating] » (0 for 4.5), « [snapshot kept] », « [bad snapshot] » (`ran`, not refused); the key guard (`beforeAfters`) and the caller guard. Green: « [clock] », « [profile] », « [hours] ».
+  - **on Postgres:** every `replaceServices` case; « [services] », « [hours] » (buffer 0 for 10), « [before-after] », « [rating] », « [rating column] » (4.5 against 0), « [bad snapshot] ». Green: « [profile] », « [artists] », « [featured] », « [snapshot kept] », the snapshot store.
+- **The code:**
+  - `replaceServices` on both twins (`providers_repository.dart`, `postgres_providers_repository.dart`), `addService` and it sharing one column mapping (`_serviceParams`);
+  - the in-memory snapshot store's JSON copies (`demo_snapshot_repository.dart`);
+  - `kDemoNeverRestored`, `kDemoRestoredByOwnWriter`, the shape check and the restore order (`demo_reset_service.dart`);
+  - the maintenance tick's comment names `refused:bad_snapshot`.
+- **Green:**
+  - in memory: the three contracts, both guards, and every demo, maintenance, admin and multi-pays test (176);
+  - on Postgres: the three contracts (21);
+  - the full backend suite on a fresh local database: **3089 passed, 2 skipped**, exit 0, every Postgres file run;
+  - analyze 0, format clean.
+- **Mutations,** on committed code, with a clean tree, each edit checked to apply once and to change its file. All six targets were green unmutated first (C0). m1–m14 each went red with the texts of §8.3:
+  - **C1 held:** no « [profile] » failure under any mutation but m9 on Postgres.
+  - **C2 held:** m1 leaves the in-memory run green.
+  - **m8 was rerun alone.** Its required text was at first « [order] », which the test's name also carries, so the match proved nothing. Rerun alone, it failed with its reason, « is not after », and turned « [replace] » red too: on equal `created_at` values, Postgres returns the list in any order.
+- **Where the build differs from §8, and why:**
+  - **`demo_reset_test.dart` changed, where §8.2 said it stays as it is:**
+    - its two services gain the duration every stored service has, or the shape check refuses them, rightly;
+    - each test gets its own empty store. With no argument, `InMemoryProvidersRepository()` **is** the global `seedProviders` list, so each earlier test's demo salon stayed in it with the same service ids, `s1` and `s2`. `replaceServices` now refuses those ids, as Postgres would (§12).
+  - **Both guards are in one file,** `test/demo/demo_reset_guards_test.dart`: the key guard (§8.4) and the caller guard (§6).
+- The throwaway local databases were dropped.
+
 ---
 
 ## 9. Rollout & scope discipline
@@ -307,6 +335,47 @@ All of §8.1 green on both twins. The existing `demo_reset_test.dart` stays gree
 - **The reset is a sequence of writes, as today, not one transaction.** A failure partway leaves a partly restored demo.
 - **A throw still escapes the tick before the salon purge.** That is today's behaviour, from the database for instance. And since `markReset` comes last, a throw repeats each night until its cause is gone.
 - The shape check removes the new writers' predictable causes, and `replaceServices` itself is atomic, so a salon is never left with half a catalogue.
+
+### 9.1 As run
+
+**Step 1, the merge.** #869 merged on 2026-11-25 at 16:21 UTC as `59409ef0`, on the owner's « Yes, merge it ». `main`'s tree equals the tested head `6b10a56f`; no attribution line; 12 checks of 12. `main` had moved three times while it waited (#867, #868 with #870, #871), and was merged in each time, with no rebase.
+
+**Step 2, the read before the deploy,** on the owner's « Yes, run the read », 2026-11-25 at 18:12 UTC.
+- **Method:** the Auth Proxy; a session read-only by default and again inside `BEGIN READ ONLY … ROLLBACK`; the probe write refused (« cannot execute UPDATE in a read-only transaction »). It prints counts, booleans, timestamps and key names only. Both documents decoded in both forms: the salon's `data` is stored as a string, the snapshot's `doc` as an object.
+- **Dry run first,** on a throwaway local database holding a demo salon with planted differences: a price, a service another salon owns, a new service, the buffer, the windows, the breaks, the blocked days, the pairs, the ratings and the profile keys. Each answer was the planted one. That database was dropped.
+- **What it read:**
+
+| What | Result |
+|---|---|
+| The snapshot | captured 2026-10-14 18:57 UTC; last reset 2026-11-23 03:30 UTC; next due 2026-11-30 03:30 UTC |
+| The shape check (`_badSnapshotKey`) | passes: services, availability and pairs are all `ok`, so the reset will not answer `refused:bad_snapshot` |
+| Services | 5 and 5: the same ids, in the same order, every field equal; none created since the capture or the last reset |
+| Would `replaceServices` refuse? | no: no snapshot service id belongs to another salon, and no foreign key points at `provider_services` |
+| Working hours | 6 windows on each side, equal as multisets |
+| `bookingHorizonDays`, `minimumNoticeMinutes` | equal |
+| **`bufferMinutes`** | **differs** (the values were not printed) |
+| **Breaks** | **snapshot 0, live 2** |
+| Blocked days | none on either side |
+| Before/after pairs | 1 on each side, equal |
+| Ratings | 0 in the column, the document and the snapshot; no reviews |
+| `verified`, `featured` | `false`, `false` |
+| Profile keys the merge restores | none differs |
+| Artists | none on either side |
+
+- **The owner's choice** (2026-11-26): « Let the reset restore ». No recapture. The first fixed reset sets the buffer back to the snapshot's value and removes the two breaks. The database cannot tell who made those two changes since the capture; they lasted because, until this build, the reset never put the hours back in production.
+
+**Step 3, the deploy,** on the owner's « Yes, deploy it », 2026-11-26.
+- `deploy-backend.yml`, production, `image_tag=59409ef`, from `main` at `8159fb84` (run 45806355169, success). Since `59409ef0`, `main` changed only `ci.yml` outside the server's code, so the service file is the one #869 was built with. The image was promoted, not rebuilt.
+- **Not in this image:** R1 (#872) and its migration `0052`, merged after #869. Its deploy is its own.
+- **Read back:**
+  - `myweli-api-00060-bwq` takes 100 % of the traffic, follows the latest revision (no pin) and carries the label `commit: 59409ef`;
+  - it runs `sha256:ae809211e2ef…`, read in the registry as the `linux/amd64` child of the index `sha256:11199f83c05a…` that #869's merge run pushed (run 45652903430);
+  - `/health` answers 200 with `env: prod`, on `api.myweli.com` and on the service's `status.url`;
+  - no log line at WARNING or above from the new revision in its first minutes;
+  - `production-checks.yml`, dispatched after the deploy (run 45806803926): 12 checks of 12.
+- **Rollback:** `myweli-api-00059-w28` (image `351568e`, A4-api). Safe: no migration.
+
+**Step 4, the read after the first fixed reset:** not yet. The reset is due 2026-11-30 03:30 UTC; the read runs after it, on the owner's word.
 
 ---
 
@@ -356,6 +425,7 @@ Numbered from **250**, after the revenue analytics spec's 237–249.
 - **The images a reviewer uploads** (a logo, gallery photos, before/after photos, artist photos) are left in storage once the restore stops pointing at them. [backend-upload-orphans.md](backend-upload-orphans.md) is about uploads nobody claims. Whether anything removes a claimed image that a later write dropped was not read. Not decided here.
 - **Artists' ratings** ride the `artists` list in the document, so a restore puts back the snapshot's artist ratings while the reviews stay. It is the same class as `rating`, and unreachable while the demo salon has no reviews; Q4's read counts them.
 - **C-D1:** when the reset wipes the agenda, disputes on those bookings cascade away in Postgres and stay in memory. That belongs to the disputes group of batch 16 (decision 221), not here.
+- **The in-memory store built without an argument is the global seed list itself** (`_all = seed ?? seedProviders`, `providers_repository.dart:225`). `createSalon` appends to it, so the salons one test creates are in every later test of the same file. Found when `demo_reset_test.dart` met the foreign-id refusal (§8.8); its own tests are fixed here. 23 test files build `InMemoryProvidersRepository()` and share it the same way. With A-P6 (B16.11); not decided here.
 - **Two sentences go false today, and true again with this build:**
   - the reset's comment, `demo_reset_service.dart:143-145`;
   - T69's « cures defacement » in BACKEND.md §7.
@@ -388,3 +458,4 @@ Numbered from **250**, after the revenue analytics spec's 237–249.
     - the timezone order made observable (m11);
     - two more mutations (m12, m14) and the shape check's (m13).
 - **2026-11-25, answered:** « Approve as recommended », all five (decisions 250–254, batch 16 in the BACKLOG). Recorded at the same time: decision 249 (revenue analytics) changes the regenerated agenda in the same file (§1).
+- **2026-11-25, built** (§8.8), on the owner's « Yes, build B16.2 »: red first on both twins for §8.1's reasons, then green; the full suite 3089 passed; m1–m14 red with their texts, C1 and C2 held.

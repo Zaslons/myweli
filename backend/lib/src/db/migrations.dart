@@ -1337,6 +1337,34 @@ CREATE TABLE IF NOT EXISTS salon_purge_queue (
       'CREATE EXTENSION IF NOT EXISTS unaccent',
     ],
   ),
+  (
+    id: '0052_appointment_revenue_facts',
+    statements: [
+      // R1, decisions 241–243 (docs/design/pro-revenue-analytics.md §8.1):
+      // what a booking keeps so the salon's revenue can be split by
+      // prestation, collaborateur and channel after the catalogue, the roster
+      // or a price changes. Nullable, no backfill: NULL is « made before R1 »,
+      // and the revenue read estimates those rows (§3.4) rather than
+      // rewriting them.
+      //
+      // Rollback: an older image selects `*` and picks named keys, so it
+      // ignores the columns; its INSERT names none of them and leaves NULL,
+      // which both CHECKs accept. One known drift, accepted: an older image
+      // that moves a booking to another collaborateur writes `artist_id` and
+      // leaves `artist_name_kept` naming the previous one.
+      //
+      // The lines: one per `service_ids` entry, in its order. The CHECK keeps
+      // them an array — `service_ids` is stored as a JSON string (§19), and
+      // the revenue read cannot sum a string.
+      'ALTER TABLE appointments ADD COLUMN IF NOT EXISTS service_lines jsonb '
+          "CHECK (jsonb_typeof(service_lines) = 'array')",
+      // The collaborateur's name when the booking was made or moved to them.
+      'ALTER TABLE appointments ADD COLUMN IF NOT EXISTS artist_name_kept text',
+      // Where it was made: the app, the website (the BFF's header), the salon.
+      'ALTER TABLE appointments ADD COLUMN IF NOT EXISTS channel text '
+          "CHECK (channel IN ('app', 'web', 'salon'))",
+    ],
+  ),
 ];
 
 /// Gives every booking with no stored currency its salon's currency, else

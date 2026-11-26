@@ -282,6 +282,15 @@ at once:
   seam is absent or no snapshot exists (logged, not silent).
 - **No rebuild fires** — the salon is draft before and after; the reset never
   touches `status`.
+- *2026-11-25 — until B16.2, the restore reached neither the services nor,
+  in Postgres, the hours* ([demo-reset-restore.md](demo-reset-restore.md)).
+  It sent the snapshot through `updateProfile`, which writes only the salon's
+  document, so a reviewer's services, hours and before/after pairs stayed
+  for the next reviewer. The restore now puts them back through their own
+  writers, leaves `featured` and the rating to their owners, and refuses a
+  snapshot it cannot apply (`refused:bad_snapshot`). In production since
+  2026-11-26 (`myweli-api-00060-bwq`); the first fixed reset is due
+  2026-11-30 03:30 UTC.
 
 ### 6.3 Threat-model delta — new row T69
 

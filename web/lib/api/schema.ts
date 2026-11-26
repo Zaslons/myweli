@@ -4253,6 +4253,8 @@ export interface paths {
                 header?: {
                     /** @description One key per form submission (a UUID), reused on every retry of that same submission: a write whose answer was lost is asked again with it, and the server REPLAYS its first success (same status, same body, `Idempotent-Replayed: true`) instead of writing again — no second booking, note or invitation, no 409 on the caller's own booking. Scoped to the caller's account and this exact route (path ids and query); kept 24 h. Absent → the write behaves as without keys. A malformed key → 400 `invalid_idempotency_key`; the same request still running → 409 `request_in_progress` (wait, ask again with the same key); the key used for ANOTHER body → 422 `idempotency_key_reused`. A refused write (any non-2xx) frees the key. Only the four creating POSTs take it. Design: docs/design/write-idempotency.md. */
                     "Idempotency-Key"?: components["parameters"]["IdempotencyKey"];
+                    /** @description Sent by the website's booking BFF only (R0w), never by the app: the booking is stamped `channel: web`. Exactly `web`; anything else, or no header, stamps `app`. The client's word, so it only labels the salon's own statistics and is never used to authorise anything (T85; docs/design/pro-revenue-analytics.md §8.2). */
+                    "X-Myweli-Channel"?: "web";
                 };
                 path?: never;
                 cookie?: never;
@@ -7447,6 +7449,20 @@ export interface components {
             appointmentDate: string;
             /** @description Stamped from the salon at creation and stored with the booking (multi-pays §4 — immutable; appointment-currency-stamp.md). NOT NULL in the database since migration 0049, so every booking read from it carries one. Kept nullable here because a replayed creation response (Idempotency-Key, 24 h) is returned as it was first sent; read a missing value as the salon's (`providerCurrency`). */
             currency?: string | null;
+            /** @description Stored with the booking (R1, migration 0052; docs/design/pro-revenue-analytics.md §8.1): one line per `serviceIds` entry, in its order — each prestation's name, price and duration when it was booked, so a later rename, price change or deletion never changes what this booking was sold as. The prices add up to `totalPrice`. Immutable, like `currency`. Null on a booking made before R1. */
+            serviceLines?: {
+                serviceId: string;
+                name: string;
+                price: number;
+                durationMinutes: number;
+            }[] | null;
+            /** @description Stored with the booking (R1): the collaborateur's roster name when the booking was made or moved to them, so its revenue stays theirs after they leave the roster. Not `artistName`, which is the LIVE roster name a consumer read adds. Null with no collaborateur, and on a booking made before R1. */
+            artistNameKept?: string | null;
+            /**
+             * @description Stored with the booking (R1): where it was made — `app`, `web` (the website's booking BFF says so with `X-Myweli-Channel: web`; the server keeps exactly `web` and reads anything else as `app`), or `salon` (entered by the salon). It labels the salon's own statistics and is never used to authorise anything (T85). Immutable. Null on a booking made before R1.
+             * @enum {string|null}
+             */
+            channel?: "app" | "web" | "salon" | null;
             /** @description Consumer-read enrichment. **The naming rule for this whole block:** a `provider*`-prefixed key is a LIVE salon fact, re-read on every request and never stored on the booking; an unprefixed key is stamped at write time and immutable (`currency` is the deliberate one — multi-pays §4). These exist so a client's own booking keeps resolving its salon after `GET /providers/{id}` stops serving it (Decision C) — the relationship is authenticated here, so this is the one place the facts may be served for a hidden salon. **Only fields that are public while the salon is `active` may be added here** (T51): everything on it is disclosed to anyone holding a booking at that salon. */
             providerName?: string | null;
             /** @description Consumer-read enrichment — the salon's public web slug. */

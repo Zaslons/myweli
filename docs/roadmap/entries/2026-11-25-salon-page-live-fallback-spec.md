@@ -1,0 +1,28 @@
+- 🟢 **Spec : la page d’un salon fonctionne dès qu’il est public (B18) (web · documentation · 2026-11-25).** Branche `docs/salon-page-live-fallback-spec`, créée depuis `main` (`afd2de97`), PR #870. Spec : [web-salon-page-live-fallback.md](../../design/web-salon-page-live-fallback.md). Documentation seule : aucun code.
+  - **Le défaut, signalé par le propriétaire :** le salon « test » (Adjamé, `test-3`) apparaissait dans la recherche de myweli.com, et un clic affichait « Page introuvable ».
+  - **La cause, prouvée par les journaux de production (Cloud Run) et des lectures de myweli.com :**
+    - la page d’un salon ne connaît que les salons présents au build (`app/[slug]/page.tsx:46`, `dynamicParams = false`, gardé pour sa vraie page 404) ;
+    - la recherche et `sitemap.xml` lisent l’API en direct ;
+    - la reconstruction que le backend demande à Vercel a répondu 201 les cinq fois, mais elle prend quelques minutes : encore 404 2 min 42 s après la demande, 200 à 4 min 46 s ;
+    - chaque recherche du propriétaire est venue 8 à 31 s après une validation ou une levée de suspension ;
+    - deux suspensions, passées avant que le build ne lise la liste, en ont exclu le salon deux fois.
+  - **La page fonctionne depuis 12 h 46 UTC.** Aucune donnée de production n’a été modifiée.
+  - **Le second symptôme** (« introuvable jusqu’au rechargement ») : les seules recherches sans le salon ont suivi de 15 à 22 s sa suspension depuis la console d’administration. Aucune cause côté navigateur : mesuré en production, une navigation vers une page 404 recharge toute la page. La décision 259 demande si ces suspensions étaient celles du propriétaire.
+  - **La conception proposée, le « live fallback » :**
+    - une seule liste de salons par build, partagée par la page et un nouveau `middleware.ts` ;
+    - un salon public pas encore construit servi en direct, à sa propre adresse ;
+    - la vraie page 404 inchangée pour tout le reste ;
+    - aucune lecture de l’API en plus pour un salon déjà construit.
+  - **Les garde-fous prévus :**
+    - des e2e rouges d’abord : un salon public absent du build ; chaque carte de la recherche répond 200 ;
+    - des tests unitaires de la décision du middleware ;
+    - une vérification quotidienne en production, qui voit une reconstruction acceptée puis échouée. Rien ne la surveille aujourd’hui.
+  - **Relue une fois par un lecteur indépendant**, chargé de la réfuter contre le code et la source de Next 14.2.35, avec une application-sonde jetable. Six fautes du premier jet corrigées (§12 de la spec), dont deux bloquantes :
+    - le matcher `['/:slug']` ne prenait aucune page de salon, Next lui ajoutant `(.json)?` ;
+    - la page en direct gardait une adresse publique.
+  - **Aussi relevé :** la production tourne sur `myweli-api-00059-w28` (A4-api, déployé à 11 h 24 UTC), pas sur `00058-tnp`. Aucun contrôle Lighthouse ne mesure une page de salon.
+  - **Cinq questions** (décisions 255–259).
+  - **Approuvée le 2026-11-25 :** « Approve as recommended », décisions 255–258 dans le BACKLOG (lot 18). La décision 259 (les suspensions étaient-elles les siennes ?) n’a pas de recommandation : elle est reposée.
+  - **Fusionnée** le 2026-11-25 à 15 h 29 UTC sur le mot du propriétaire (#870, `73f12886`) : l’arbre de `main` égal à la tête testée `5e585f6f`, aucune ligne d’attribution.
+  - **La décision 259, répondue le 2026-11-25 : « Yes, mine ».** Les suspensions et levées de suspension étaient celles du propriétaire ; le second symptôme est expliqué, rien ne change pour lui.
+  - **Ensuite :** B18.1, fusionnée, déployée et relue le même jour (voir son entrée).

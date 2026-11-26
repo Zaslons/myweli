@@ -22,6 +22,12 @@
 # what makes the failure INVISIBLE - the operator sees a salon published, the
 # public page 404s, and nothing connects the two.
 #
+# (2026-11-25, B18: the web's middleware now serves such a salon live at its own
+# address, so the page no longer 404s and a failure is even less visible. This
+# alert still covers a REFUSED hook; `salonpages` in production-checks.yml covers
+# a hook Vercel accepted whose build then failed.
+# docs/design/web-salon-page-live-fallback.md)
+#
 # So the thing that must not be missed becomes an alert rather than a sentence.
 # A deadline in a document is a wish; this fires.
 #

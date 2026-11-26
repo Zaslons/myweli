@@ -3011,6 +3011,16 @@ paths:
       security: [{ bearerAuth: [] }]
       parameters:
         - { $ref: '#/components/parameters/IdempotencyKey' }
+        - in: header
+          name: X-Myweli-Channel
+          required: false
+          schema: { type: string, enum: [web] }
+          description: >-
+            Sent by the website's booking BFF only (R0w), never by the app:
+            the booking is stamped `channel: web`. Exactly `web`; anything
+            else, or no header, stamps `app`. The client's word, so it only
+            labels the salon's own statistics and is never used to authorise
+            anything (T85; docs/design/pro-revenue-analytics.md §8.2).
       requestBody:
         required: true
         content:
@@ -5418,6 +5428,45 @@ components:
             creation response (Idempotency-Key, 24 h) is returned as it was
             first sent; read a missing value as the salon's
             (`providerCurrency`).
+        serviceLines:
+          type: array
+          nullable: true
+          description: >-
+            Stored with the booking (R1, migration 0052;
+            docs/design/pro-revenue-analytics.md §8.1): one line per
+            `serviceIds` entry, in its order — each prestation's name, price
+            and duration when it was booked, so a later rename, price change
+            or deletion never changes what this booking was sold as. The
+            prices add up to `totalPrice`. Immutable, like `currency`. Null on
+            a booking made before R1.
+          items:
+            type: object
+            required: [serviceId, name, price, durationMinutes]
+            properties:
+              serviceId: { type: string }
+              name: { type: string }
+              price: { type: number }
+              durationMinutes: { type: integer }
+        artistNameKept:
+          type: string
+          nullable: true
+          description: >-
+            Stored with the booking (R1): the collaborateur's roster name when
+            the booking was made or moved to them, so its revenue stays theirs
+            after they leave the roster. Not `artistName`, which is the LIVE
+            roster name a consumer read adds. Null with no collaborateur, and
+            on a booking made before R1.
+        channel:
+          type: string
+          nullable: true
+          enum: [app, web, salon]
+          description: >-
+            Stored with the booking (R1): where it was made — `app`, `web`
+            (the website's booking BFF says so with `X-Myweli-Channel: web`;
+            the server keeps exactly `web` and reads anything else as `app`),
+            or `salon` (entered by the salon). It labels the salon's own
+            statistics and is never used to authorise anything (T85).
+            Immutable. Null on a booking made before R1.
         providerName:
           type: string
           nullable: true

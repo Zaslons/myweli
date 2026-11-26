@@ -131,19 +131,23 @@ class AppointmentLifecycleService {
     }
     // Drag across columns (journal J1): the target artist must belong to
     // THIS salon — the grid is never trusted (threat T42).
+    String? artistName;
     if (artistId != null && artistId.isNotEmpty) {
-      final owns = ((salon?['artists'] as List?) ?? const [])
+      final target = ((salon?['artists'] as List?) ?? const [])
           .cast<Map<String, dynamic>>()
-          .any((a) => a['id'] == artistId);
-      if (!owns) {
+          .where((a) => a['id'] == artistId)
+          .firstOrNull;
+      if (target == null) {
         return (ok: false, error: 'invalid_artist', appointment: null);
       }
+      artistName = target['name'] as String?;
     }
     return _moveTo(
       id,
       appointment,
       newDateTime,
       artistId: artistId,
+      artistName: artistName,
       enforceBookingWindow: false,
       requireVisibleSalon: false,
     );
@@ -157,6 +161,9 @@ class AppointmentLifecycleService {
     Map<String, dynamic> appointment,
     DateTime newDateTime, {
     String? artistId,
+    // The new collaborateur's roster name, kept with the booking in the same
+    // write as [artistId] (R1, docs/design/pro-revenue-analytics.md §8.1).
+    String? artistName,
     // A14d. The bookable window is a CLIENT-facing rule, so the salon moving
     // its own booking is exempt — the same principle that exempts `bookManual`
     // from the slot engine entirely. Both consumer and pro reschedule share
@@ -200,7 +207,10 @@ class AppointmentLifecycleService {
     final updated = await _appointments.update(id, {
       'appointmentDate': start.toIso8601String(),
       'endsAt': start.add(Duration(minutes: dur)).toIso8601String(),
-      if (artistId != null && artistId.isNotEmpty) 'artistId': artistId,
+      if (artistId != null && artistId.isNotEmpty) ...{
+        'artistId': artistId,
+        'artistNameKept': artistName,
+      },
     });
     // Null here means the DB rejected a concurrent overlap (exclusion guard).
     if (updated == null) {
