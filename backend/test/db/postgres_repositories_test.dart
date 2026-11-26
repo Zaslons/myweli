@@ -2194,6 +2194,11 @@ void main() {
 
       final release = Completer<void>();
       final inserted = Completer<void>();
+      // A failed premise must not leave this transaction open (see the
+      // concurrent group's releaseAtEnd).
+      addTearDown(() {
+        if (!release.isCompleted) release.complete();
+      });
       final other = pool2.runTx((tx) async {
         await tx.execute(
           Sql.named(
@@ -2325,6 +2330,15 @@ void main() {
         echoDevCode: true,
       );
 
+      /// Completes [gates] when the test ends, whatever happened: a failed
+      /// premise must not leave the side transaction open, or closing its
+      /// pool waits on it for ever (found under mutation M8-pg).
+      void releaseAtEnd(List<Completer<void>> gates) => addTearDown(() {
+        for (final g in gates) {
+          if (!g.isCompleted) g.complete();
+        }
+      });
+
       Future<void> blockedOn(String queryPrefix) async {
         for (var i = 0; i < 250; i++) {
           final w = await side.execute(
@@ -2368,6 +2382,7 @@ void main() {
 
         final proved = Completer<void>();
         final release = Completer<void>();
+        releaseAtEnd([release]);
         final proof = side.runTx((tx) async {
           await tx.execute(
             Sql.named('UPDATE users SET email_verified = true WHERE id = @id'),
@@ -2399,6 +2414,7 @@ void main() {
         final code = (await r.requestEmailOtp(x)).devCode!;
         final inserted = Completer<void>();
         final release = Completer<void>();
+        releaseAtEnd([release]);
         final other = side.runTx((tx) async {
           await tx.execute(
             Sql.named(
@@ -2444,6 +2460,7 @@ void main() {
         final goForAccount = Completer<void>();
         final settled = Completer<void>();
         final release = Completer<void>();
+        releaseAtEnd([goForAccount, release]);
         final signIn = side
             .runTx((tx) async {
               await tx.execute(
