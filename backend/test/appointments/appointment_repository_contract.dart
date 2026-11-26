@@ -636,6 +636,312 @@ void appointmentRepositoryContract({
       }
     });
   });
+
+  // ---- R2: the revenue reads (docs/design/pro-revenue-analytics.md §8.3) ----
+  group('R2: the revenue reads', () {
+    const pid = 'p_revenue_contract';
+    final base = DateTime.utc(2031, 3, 10, 9);
+
+    Map<String, dynamic> booking(
+      String id, {
+      required DateTime at,
+      String status = 'completed',
+      String? artistId,
+      String userId = 'u_rev',
+      String? channel = 'app',
+      List<String> serviceIds = const ['svc-a'],
+      String providerId = pid,
+      int minutes = 60,
+      String? phone,
+    }) => {
+      'id': id,
+      'currency': 'XOF',
+      'userId': userId,
+      'providerId': providerId,
+      'serviceIds': serviceIds,
+      'artistId': artistId,
+      'appointmentDate': at.toIso8601String(),
+      'durationMinutes': minutes,
+      'status': status,
+      'totalPrice': 10000,
+      'depositAmount': 0,
+      'balanceDue': 10000,
+      'cancellationWindowHours': 24,
+      'clientName': null,
+      'clientPhone': phone,
+      'notes': null,
+      'depositScreenshotUrl': null,
+      'createdAt': DateTime.now().toUtc().toIso8601String(),
+      'serviceLines': [
+        for (final s in serviceIds)
+          {
+            'serviceId': s,
+            'name': 'Nom $s',
+            'price': 10000 / serviceIds.length,
+            'durationMinutes': 60,
+          },
+      ],
+      'artistNameKept': null,
+      'channel': channel,
+    };
+
+    test('revenueRows: the range is [from, to), ordered by start then id, '
+        'this salon only, the narrow keys only', () async {
+      final r = repo();
+      await r.create(
+        booking('r-before', at: base.subtract(const Duration(seconds: 1))),
+      );
+      await r.create(booking('r-from-b', at: base, phone: '+2250700000001'));
+      await r.create(booking('r-from-a', at: base));
+      await r.create(booking('r-mid', at: base.add(const Duration(hours: 5))));
+      await r.create(booking('r-to', at: base.add(const Duration(days: 1))));
+      await r.create(
+        booking(
+          'r-other',
+          at: base.add(const Duration(hours: 1)),
+          providerId: 'p_other_salon',
+        ),
+      );
+
+      final rows = await r.revenueRows(
+        pid,
+        base,
+        base.add(const Duration(days: 1)),
+      );
+      expect(
+        [for (final x in rows) x['id']],
+        ['r-from-a', 'r-from-b', 'r-mid'],
+        reason: 'from is included, to excluded; ties by id',
+      );
+      for (final x in rows) {
+        expect(
+          x.keys.toSet(),
+          kRevenueRowKeys,
+          reason: 'no client field, no deposit, nothing but the fold\'s',
+        );
+      }
+      final first = rows.first;
+      expect(first['serviceIds'], [
+        'svc-a',
+      ], reason: 'a list, whatever the storage form');
+      expect(first['serviceLines'], isA<List<dynamic>>());
+      expect((first['serviceLines'] as List).single['serviceId'], 'svc-a');
+      expect(first['totalPrice'], isA<double>());
+      expect(first['durationMinutes'], 60);
+      expect(first['channel'], 'app');
+      expect(DateTime.parse(first['appointmentDate'] as String), base);
+    });
+
+    test('revenueLedger: statuses; « upcoming » / « toClose » by the END '
+        'against asOf', () async {
+      final r = repo();
+      final asOf = base.add(const Duration(hours: 3));
+      await r.create(booking('l-done', at: base));
+      await r.create(
+        booking('l-noshow', at: base, status: 'noShow', artistId: 'art-1'),
+      );
+      await r.create(
+        booking('l-cancel', at: base, status: 'cancelled', artistId: 'art-2'),
+      );
+      // Ends exactly at asOf (2 h + 60 min): still « upcoming ».
+      await r.create(
+        booking(
+          'l-ends-now',
+          status: 'confirmed',
+          at: base.add(const Duration(hours: 2)),
+          artistId: 'art-3',
+        ),
+      );
+      // Ended a minute before asOf: « toClose ».
+      await r.create(
+        booking(
+          'l-ended',
+          status: 'confirmed',
+          at: base.add(const Duration(hours: 1, minutes: 59)),
+          artistId: 'art-4',
+        ),
+      );
+      // Began before asOf, ends after (a 3-hour booking): « upcoming ».
+      await r.create(
+        booking(
+          'l-running',
+          status: 'confirmed',
+          at: base.add(const Duration(hours: 1)),
+          minutes: 180,
+          artistId: 'art-5',
+        ),
+      );
+      await r.create(
+        booking(
+          'l-pending',
+          status: 'pending',
+          at: base.add(const Duration(hours: 6)),
+          artistId: 'art-6',
+        ),
+      );
+
+      Future<List<Object?>> ids(RevenueLedgerStatus status) async {
+        final page = await r.revenueLedger(
+          pid,
+          fromUtc: base,
+          toUtcExclusive: base.add(const Duration(days: 1)),
+          status: status,
+          asOf: asOf,
+          limit: 50,
+          offset: 0,
+        );
+        expect(page.total, page.items.length);
+        return [for (final x in page.items) x['id']];
+      }
+
+      expect(await ids(RevenueLedgerStatus.completed), ['l-done']);
+      expect(await ids(RevenueLedgerStatus.noShow), ['l-noshow']);
+      expect(await ids(RevenueLedgerStatus.cancelled), ['l-cancel']);
+      expect(await ids(RevenueLedgerStatus.upcoming), [
+        'l-running',
+        'l-ends-now',
+      ], reason: 'soonest first');
+      expect(await ids(RevenueLedgerStatus.toClose), ['l-ended']);
+    });
+
+    test('revenueLedger: the filters — none and empty artist alike, the '
+        'filed channel, a prestation in either storage form', () async {
+      final r = repo();
+      await r.create(booking('f-null', at: base));
+      await r.create(
+        booking(
+          'f-empty',
+          at: base.add(const Duration(hours: 1)),
+          artistId: '',
+        ),
+      );
+      await r.create(
+        booking(
+          'f-art',
+          at: base.add(const Duration(hours: 2)),
+          artistId: 'art-1',
+          channel: 'web',
+        ),
+      );
+      await r.create(
+        booking(
+          'f-manual',
+          at: base.add(const Duration(hours: 3)),
+          userId: 'manual',
+          channel: null,
+          serviceIds: ['svc-b', 'svc-a'],
+        ),
+      );
+      await r.create(
+        booking(
+          'f-old-online',
+          at: base.add(const Duration(hours: 4)),
+          channel: null,
+          serviceIds: ['svc-c'],
+        ),
+      );
+
+      Future<List<Object?>> ids({
+        String? artistId,
+        String? serviceId,
+        String? channel,
+      }) async {
+        final page = await r.revenueLedger(
+          pid,
+          fromUtc: base,
+          toUtcExclusive: base.add(const Duration(days: 1)),
+          status: RevenueLedgerStatus.completed,
+          asOf: base,
+          limit: 50,
+          offset: 0,
+          artistId: artistId,
+          serviceId: serviceId,
+          channel: channel,
+        );
+        return [for (final x in page.items) x['id']]..sort();
+      }
+
+      expect(await ids(artistId: 'none'), [
+        'f-empty',
+        'f-manual',
+        'f-null',
+        'f-old-online',
+      ]);
+      expect(await ids(artistId: 'art-1'), ['f-art']);
+      expect(await ids(channel: 'web'), ['f-art']);
+      expect(await ids(channel: 'salon'), [
+        'f-manual',
+      ], reason: 'a manual booking with no channel is the salon\'s');
+      expect(await ids(channel: 'online'), [
+        'f-old-online',
+      ], reason: 'an online booking with no channel is « online »');
+      expect(await ids(channel: 'app'), ['f-empty', 'f-null']);
+      expect(await ids(serviceId: 'svc-a'), [
+        'f-art',
+        'f-empty',
+        'f-manual',
+        'f-null',
+      ]);
+      expect(await ids(serviceId: 'svc-b'), ['f-manual']);
+      expect(await ids(serviceId: 'svc-z'), isEmpty);
+    });
+
+    test('revenueLedger: newest first, ties by id; pages; the total counts '
+        'every match; the phone travels, for the name lookup', () async {
+      final r = repo();
+      for (var i = 0; i < 5; i++) {
+        await r.create(
+          booking(
+            'p-$i',
+            at: base.add(Duration(hours: i)),
+            phone: '+22507000000$i',
+          ),
+        );
+      }
+      // A tie on the start with p-4 (no collaborateur, so no slot guard).
+      await r.create(booking('p-0b', at: base.add(const Duration(hours: 4))));
+
+      Future<({List<Map<String, dynamic>> items, int total})> page(
+        int offset,
+      ) => r.revenueLedger(
+        pid,
+        fromUtc: base,
+        toUtcExclusive: base.add(const Duration(days: 1)),
+        status: RevenueLedgerStatus.completed,
+        asOf: base,
+        limit: 2,
+        offset: offset,
+      );
+
+      final p1 = await page(0);
+      final p2 = await page(2);
+      final p3 = await page(4);
+      final p4 = await page(6);
+      expect(p1.total, 6);
+      expect(p4.total, 6, reason: 'an empty page still says the total');
+      expect(p4.items, isEmpty);
+      expect(
+        [
+          for (final p in [p1, p2, p3])
+            for (final x in p.items) x['id'],
+        ],
+        ['p-0b', 'p-4', 'p-3', 'p-2', 'p-1', 'p-0'],
+      );
+      expect(p1.items.last['clientPhone'], '+225070000004');
+      expect(p1.items.last.keys.toSet(), {...kRevenueRowKeys, 'clientPhone'});
+    });
+
+    test('hasCompleted: this salon\'s, ever', () async {
+      final r = repo();
+      await r.create(booking('h-other', at: base, providerId: 'p_other_salon'));
+      await r.create(booking('h-confirmed', at: base, status: 'confirmed'));
+      expect(await r.hasCompleted(pid), isFalse);
+      await r.create(
+        booking('h-done', at: base.subtract(const Duration(days: 900))),
+      );
+      expect(await r.hasCompleted(pid), isTrue);
+    });
+  });
 }
 
 /// A booking map shaped like the one the service builds, for the paths that
@@ -728,4 +1034,40 @@ class _Recording implements AppointmentRepository {
     DateTime from,
     DateTime to,
   ) => _inner.confirmedInWindow(from, to);
+
+  @override
+  Future<List<Map<String, dynamic>>> revenueRows(
+    String providerId,
+    DateTime fromUtc,
+    DateTime toUtcExclusive,
+  ) => _inner.revenueRows(providerId, fromUtc, toUtcExclusive);
+
+  @override
+  Future<({List<Map<String, dynamic>> items, int total})> revenueLedger(
+    String providerId, {
+    required DateTime fromUtc,
+    required DateTime toUtcExclusive,
+    required RevenueLedgerStatus status,
+    required DateTime asOf,
+    required int limit,
+    required int offset,
+    String? artistId,
+    String? serviceId,
+    String? channel,
+  }) => _inner.revenueLedger(
+    providerId,
+    fromUtc: fromUtc,
+    toUtcExclusive: toUtcExclusive,
+    status: status,
+    asOf: asOf,
+    limit: limit,
+    offset: offset,
+    artistId: artistId,
+    serviceId: serviceId,
+    channel: channel,
+  );
+
+  @override
+  Future<bool> hasCompleted(String providerId) =>
+      _inner.hasCompleted(providerId);
 }

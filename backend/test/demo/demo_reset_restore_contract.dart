@@ -1,8 +1,10 @@
 import 'dart:convert';
 
 import 'package:myweli_backend/src/access/membership_repository.dart';
+import 'package:myweli_backend/src/access/membership_service.dart';
 import 'package:myweli_backend/src/appointments/appointment_repository.dart';
 import 'package:myweli_backend/src/appointments/booking_service.dart';
+import 'package:myweli_backend/src/appointments/pro_appointment_service.dart';
 import 'package:myweli_backend/src/appointments/slot_service.dart';
 import 'package:myweli_backend/src/auth/demo_seam.dart';
 import 'package:myweli_backend/src/auth/provider_auth_repository.dart';
@@ -129,6 +131,11 @@ void demoResetRestoreContract({
       members,
       BookingService(p, appointments, SlotService(p, appointments)),
       snaps,
+      lifecycle: ProAppointmentService(
+        MembershipService(members, auth),
+        appointments,
+        providers: p,
+      ),
       log: (_) {},
     );
     final reg = await auth.register(

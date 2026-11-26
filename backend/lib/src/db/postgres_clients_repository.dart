@@ -112,6 +112,42 @@ LIMIT @limit OFFSET @offset
       );
 
   @override
+  Future<({Map<String, String> byUserId, Map<String, String> byPhone})>
+  displayNamesFor(
+    String providerId, {
+    required Set<String> userIds,
+    required Set<String> phones,
+  }) async {
+    final byUser = <String, String>{};
+    final byPhone = <String, String>{};
+    if (userIds.isEmpty && phones.isEmpty) {
+      return (byUserId: byUser, byPhone: byPhone);
+    }
+    final rows = await _pool.execute(
+      Sql.named(
+        'SELECT user_id, phone, display_name FROM salon_clients '
+        'WHERE provider_id = @pid '
+        'AND (user_id = ANY(@uids) OR phone = ANY(@phones))',
+      ),
+      parameters: {
+        'pid': providerId,
+        'uids': TypedValue(Type.textArray, userIds.toList()),
+        'phones': TypedValue(Type.textArray, phones.toList()),
+      },
+    );
+    for (final r in rows) {
+      final m = r.toColumnMap();
+      final name = m['display_name'];
+      if (name is! String) continue;
+      final uid = m['user_id'];
+      if (uid is String && userIds.contains(uid)) byUser[uid] = name;
+      final phone = m['phone'];
+      if (phone is String && phones.contains(phone)) byPhone[phone] = name;
+    }
+    return (byUserId: byUser, byPhone: byPhone);
+  }
+
+  @override
   Future<Map<String, dynamic>> create(Map<String, dynamic> client) async {
     final rows = await _pool.execute(
       Sql.named(

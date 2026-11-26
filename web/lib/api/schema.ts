@@ -3507,6 +3507,166 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/providers/{id}/analytics/revenue": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        /**
+         * The salon's revenue analytics (R2)
+         * @description Owner-only: `finances.view` on `{id}`, checked before any read. Any other member, another salon's owner and a revoked member all get the same 403 `forbidden` (no existence oracle; threat T85). One period and its comparison; the figures of docs/design/pro-revenue-analytics.md §3.2 grouped by the bookings' own currency, never summed across currencies; the chart's series; and the completed revenue by collaborateur, prestation and channel. The server owns every definition: the period and its days in the salon's timezone, the comparison (cut at the same point of its own period while the current one is in progress — `likeForLike`), the buckets and the figures. A booking made before R1 has its prestation lines estimated at read time from today's prices, and every amount built on such a line says `estimated`; nothing is rewritten. Design: docs/design/pro-revenue-analytics.md §3, §7.1.
+         */
+        get: {
+            parameters: {
+                query: {
+                    /** @description `week` runs Monday → Sunday; `custom` takes `from` and `to` (docs/design/pro-revenue-analytics.md §3.5). */
+                    period: components["parameters"]["RevenuePeriod"];
+                    /** @description Any day inside the period (not with `custom`). Absent → the salon's today, as the server reads it. */
+                    date?: components["parameters"]["RevenueDate"];
+                    /** @description The first day of a `custom` range (required with it). */
+                    from?: components["parameters"]["RevenueFrom"];
+                    /** @description The last day of a `custom` range (required with it); at most 366 days after `from`, counting both. */
+                    to?: components["parameters"]["RevenueTo"];
+                    compare?: components["parameters"]["RevenueCompare"];
+                    /** @description One collaborateur's figures, or `none` for the bookings with no collaborateur. An id with no booking is not an error: its figures are 0. */
+                    artistId?: components["parameters"]["RevenueArtistFilter"];
+                    /** @description One prestation's figures (its lines' amounts). */
+                    serviceId?: components["parameters"]["RevenueServiceFilter"];
+                    /** @description `online` = an online booking made before the channel was recorded (app or website, unknown). */
+                    channel?: components["parameters"]["RevenueChannelFilter"];
+                };
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description The period's figures, `Cache-Control private, no-store` */
+                200: {
+                    headers: {
+                        "Cache-Control"?: "private, no-store";
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["RevenueAnalytics"];
+                    };
+                };
+                /** @description `invalid_input` — a missing, malformed or out-of-bounds parameter (a date before 2020-01-01 or after the salon's today + 366 days, `date` with `custom`, `from`/`to` without it, `from` after `to`, an id outside `^[A-Za-z0-9_-]{1,64}$`, a value outside its enum); `range_too_long` — a `custom` range over 366 days. */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                401: components["responses"]["Unauthorized"];
+                403: components["responses"]["Forbidden"];
+                /** @description Method not allowed */
+                405: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/providers/{id}/analytics/revenue/appointments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        /**
+         * The bookings behind a revenue figure (R2)
+         * @description The same gate, period and filters as `GET /providers/{id}/analytics/revenue`, one figure's bookings a page at a time. `upcoming` and `toClose` split the confirmed bookings by their end (start + duration) against `asOf`, so passing the figures' own `asOf` lists exactly the bookings the figures counted. Under a `serviceId` filter, `amount` is that prestation's share of the booking; otherwise it is the booking's total. `clientDisplayName` is the salon's name for the client (`salon_clients`, as the journal resolves it), sent only to a caller who also holds `clients.view`, and absent when no client resolves (an erased one). Never a phone. `upcoming` soonest first; the others newest first; ties by id. Design: docs/design/pro-revenue-analytics.md §7.2.
+         */
+        get: {
+            parameters: {
+                query: {
+                    /** @description `week` runs Monday → Sunday; `custom` takes `from` and `to` (docs/design/pro-revenue-analytics.md §3.5). */
+                    period: components["parameters"]["RevenuePeriod"];
+                    /** @description Any day inside the period (not with `custom`). Absent → the salon's today, as the server reads it. */
+                    date?: components["parameters"]["RevenueDate"];
+                    /** @description The first day of a `custom` range (required with it). */
+                    from?: components["parameters"]["RevenueFrom"];
+                    /** @description The last day of a `custom` range (required with it); at most 366 days after `from`, counting both. */
+                    to?: components["parameters"]["RevenueTo"];
+                    /** @description One collaborateur's figures, or `none` for the bookings with no collaborateur. An id with no booking is not an error: its figures are 0. */
+                    artistId?: components["parameters"]["RevenueArtistFilter"];
+                    /** @description One prestation's figures (its lines' amounts). */
+                    serviceId?: components["parameters"]["RevenueServiceFilter"];
+                    /** @description `online` = an online booking made before the channel was recorded (app or website, unknown). */
+                    channel?: components["parameters"]["RevenueChannelFilter"];
+                    status?: "completed" | "upcoming" | "toClose" | "noShow" | "cancelled";
+                    page?: number;
+                    pageSize?: number;
+                    /** @description The figures' `asOf`. Accepted only within the last 24 hours and not in the future (→ 400 `invalid_input`); absent → the server's now. */
+                    asOf?: string;
+                };
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description One page of bookings, `Cache-Control private, no-store` */
+                200: {
+                    headers: {
+                        "Cache-Control"?: "private, no-store";
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["RevenueLedgerPage"];
+                    };
+                };
+                /** @description `invalid_input` — as the figures' endpoint, plus a `status`, `page`, `pageSize` or `asOf` it does not accept; `range_too_long` — a `custom` range over 366 days. */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                401: components["responses"]["Unauthorized"];
+                403: components["responses"]["Forbidden"];
+                /** @description Method not allowed */
+                405: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/providers/{id}/subscription": {
         parameters: {
             query?: never;
@@ -7887,6 +8047,170 @@ export interface components {
             /** @description "completed". */
             status: string;
         };
+        /** @description docs/design/pro-revenue-analytics.md §3, §7.1. Every amount is in its group's currency. */
+        RevenueAnalytics: {
+            /** @enum {string} */
+            period: "day" | "week" | "month" | "year" | "custom";
+            /**
+             * Format: date
+             * @description The resolved first day (salon calendar).
+             */
+            from: string;
+            /**
+             * Format: date
+             * @description The resolved last day.
+             */
+            to: string;
+            /** @description The salon's today is inside `from`–`to`. */
+            inProgress: boolean;
+            /** @description The salon's IANA zone. */
+            timezone: string;
+            /**
+             * Format: date-time
+             * @description The server's « now » for this answer: what « Prévu » and « À clôturer » are measured against. Pass it to the ledger.
+             */
+            asOf: string;
+            /**
+             * @description The series' unit: `day` up to 31 days, `week` (Monday-start, clipped to the range) up to 92, else `month`.
+             * @enum {string}
+             */
+            bucket: "day" | "week" | "month";
+            comparison: components["schemas"]["RevenueComparison"];
+            filters: components["schemas"]["RevenueFilters"];
+            /** @description The salon has at least one completed booking, ever. */
+            everCompleted: boolean;
+            /** @description One per currency met in either range, the salon's own first; `[]` when neither range has a booking. */
+            groups: components["schemas"]["RevenueGroup"][];
+        };
+        RevenueComparison: {
+            /** @enum {string} */
+            mode: "previous" | "year" | "none";
+            /** Format: date */
+            from: string | null;
+            /** Format: date */
+            to: string | null;
+            /** @description The current period is in progress, so the comparison stops at the same point of its own period: the same day offset and salon wall-clock time (`cutoff`). */
+            likeForLike: boolean;
+            /**
+             * Format: date-time
+             * @description The instant the comparison stops at, when `likeForLike`.
+             */
+            cutoff: string | null;
+        };
+        RevenueFilters: {
+            artistId: string | null;
+            serviceId: string | null;
+            channel: string | null;
+            /** @description The filtered row's label (§3.3); null → the generic one. */
+            label: string | null;
+            /** @enum {string|null} */
+            state: "active" | "removed" | "unassigned" | "legacy" | null;
+        };
+        RevenueGroup: {
+            /** @description ISO-4217. */
+            currency: string;
+            current: components["schemas"]["RevenueFigures"];
+            /** @description The comparison's figures; null with `compare=none`. */
+            previous: components["schemas"]["RevenueFigures"] | null;
+            /** @description One point per bucket of the current range, zero-filled. */
+            series: components["schemas"]["RevenueSeriesPoint"][];
+            /** @description `[]` under an `artistId` filter. */
+            byArtist: components["schemas"]["RevenueRow"][];
+            /** @description `[]` under a `serviceId` filter. */
+            byService: components["schemas"]["RevenueRow"][];
+            /** @description `[]` under a `channel` filter. */
+            byChannel: components["schemas"]["RevenueRow"][];
+        };
+        RevenueSeriesPoint: {
+            /** Format: date */
+            start: string;
+            /** Format: date */
+            end: string;
+            completedAmount: number;
+            completedCount: number;
+        };
+        /** @description docs/design/pro-revenue-analytics.md §3.2. */
+        RevenueFigures: {
+            /** @description « Réalisé » — completed bookings. */
+            completedAmount: number;
+            completedCount: number;
+            /** @description completedAmount / completedCount; null with no completed booking. */
+            averageTicket: number | null;
+            /** @description « Prévu » — confirmed bookings whose end is `asOf` or later. */
+            upcomingAmount: number;
+            upcomingCount: number;
+            /** @description Requests (`pending`) whose start is `asOf` or later. */
+            pendingAmount: number;
+            pendingCount: number;
+            /** @description « À clôturer » — confirmed bookings whose end is before `asOf`. */
+            toCloseAmount: number;
+            toCloseCount: number;
+            noShowAmount: number;
+            noShowCount: number;
+            /** @description noShowCount / (completedCount + noShowCount); null when both are 0. */
+            noShowRate: number | null;
+            /** @description Client cancellations and salon refusals alike. */
+            cancelledAmount: number;
+            cancelledCount: number;
+            /** @description Some completed amount here rests on an estimated line (§3.4). */
+            estimated: boolean;
+        };
+        /** @description One collaborateur, prestation or channel. Rows are sorted by current `completedAmount` (descending), then label, then key, and a row is listed when it has a completed booking in either range. */
+        RevenueRow: {
+            /** @description The artistId, serviceId or channel; null = no collaborateur. */
+            key: string | null;
+            /** @description The live name, else the name kept on the bookings; null → the client's generic label (« Ancien collaborateur », « Prestation supprimée », a channel's own name). */
+            label: string | null;
+            /**
+             * @description `removed` — no longer on the roster or in the catalogue; `unassigned` — no collaborateur; `legacy` — the `online` channel (before it was recorded).
+             * @enum {string}
+             */
+            state: "active" | "removed" | "unassigned" | "legacy";
+            /** @description Of the group's current completedAmount, 0–1, rounded to four places so that the shares of one axis add up to exactly 1. */
+            share: number;
+            current: components["schemas"]["RevenueRowFigures"];
+            previous: components["schemas"]["RevenueRowFigures"] | null;
+            /** @description Its current or previous amount rests on an estimated line. */
+            estimated: boolean;
+        };
+        RevenueRowFigures: {
+            completedAmount: number;
+            completedCount: number;
+            averageTicket: number | null;
+        };
+        RevenueLedgerPage: {
+            items: components["schemas"]["RevenueLedgerRow"][];
+            page: number;
+            pageSize: number;
+            total: number;
+            /**
+             * Format: date-time
+             * @description The instant `upcoming` and `toClose` were measured against.
+             */
+            asOf: string;
+        };
+        RevenueLedgerRow: {
+            appointmentId: string;
+            /** Format: date-time */
+            appointmentDate: string;
+            /** @enum {string} */
+            status: "completed" | "confirmed" | "noShow" | "cancelled";
+            /** @description The prestation's lines under a `serviceId` filter; otherwise the booking's total. */
+            amount: number;
+            totalPrice: number;
+            currency: string;
+            /** @description The salon's name for the client. ABSENT without `clients.view`, or when no client resolves (an erased one). */
+            clientDisplayName?: string;
+            /** @description One per prestation line, in order; null = deleted, no kept name. */
+            serviceNames: (string | null)[];
+            artistLabel: string | null;
+            /** @enum {string} */
+            artistState: "active" | "removed" | "unassigned";
+            /** @enum {string} */
+            channel: "app" | "web" | "salon" | "online";
+            /** @description `amount` rests on an estimated line. */
+            estimated: boolean;
+        };
         /** @description Lightweight list item for /providers. */
         ProviderSummary: {
             id: string;
@@ -8071,6 +8395,21 @@ export interface components {
         IdempotencyKey: string;
         /** @description R6 multi-salons: select the acting salon among the caller's ACTIVE memberships. Absent → the caller's default salon (legacy behavior). Any invalid selection (never-member, revoked-there, unknown id) is a uniform 403 `forbidden` — no membership-existence oracle (threat T55) — and never auto-provisions. */
         SalonSelector: string;
+        /** @description `week` runs Monday → Sunday; `custom` takes `from` and `to` (docs/design/pro-revenue-analytics.md §3.5). */
+        RevenuePeriod: "day" | "week" | "month" | "year" | "custom";
+        /** @description Any day inside the period (not with `custom`). Absent → the salon's today, as the server reads it. */
+        RevenueDate: string;
+        /** @description The first day of a `custom` range (required with it). */
+        RevenueFrom: string;
+        /** @description The last day of a `custom` range (required with it); at most 366 days after `from`, counting both. */
+        RevenueTo: string;
+        RevenueCompare: "previous" | "year" | "none";
+        /** @description One collaborateur's figures, or `none` for the bookings with no collaborateur. An id with no booking is not an error: its figures are 0. */
+        RevenueArtistFilter: string;
+        /** @description One prestation's figures (its lines' amounts). */
+        RevenueServiceFilter: string;
+        /** @description `online` = an online booking made before the channel was recorded (app or website, unknown). */
+        RevenueChannelFilter: "app" | "web" | "salon" | "online";
     };
     requestBodies: never;
     headers: {
